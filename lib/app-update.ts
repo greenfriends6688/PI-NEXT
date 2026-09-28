@@ -3,7 +3,7 @@
  * `@agegr/pi-web` package on npm, so asking the registry for "latest" would
  * advertise a different product (and a version number from another line).
  */
-export const RELEASE_REPO = "greenfriends6688/pinkslab";
+export const RELEASE_REPO = "greenfriends6688/Pi-Agent";
 export const LATEST_RELEASE_API = `https://api.github.com/repos/${RELEASE_REPO}/releases/latest`;
 
 const STABLE_VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;

@@ -2,13 +2,13 @@
   "name": "@agegr/pi-web",
   "version": "0.1.6",
   "description": "Pi Agent — local coding agent workbench",
-  "homepage": "https://github.com/greenfriends6688/pinkslab#readme",
+  "homepage": "https://github.com/greenfriends6688/Pi-Agent#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/greenfriends6688/pinkslab.git"
+    "url": "git+https://github.com/greenfriends6688/Pi-Agent.git"
   },
   "bugs": {
-    "url": "https://github.com/greenfriends6688/pinkslab/issues"
+    "url": "https://github.com/greenfriends6688/Pi-Agent/issues"
   },
   "license": "MIT",
   "engines": {

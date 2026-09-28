@@ -50,7 +50,7 @@ function stateFilePath(): string {
 export function vapidSubject(): string {
   const configured = process.env.PI_WEB_PUSH_SUBJECT?.trim();
   if (configured) return configured;
-  return "https://github.com/greenfriends6688/pinkslab";
+  return "https://github.com/greenfriends6688/Pi-Agent";
 }
 
 // Ask the push service to deliver immediately. Lower urgencies let idle
