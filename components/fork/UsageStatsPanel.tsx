@@ -94,6 +94,10 @@ export function UsageStatsPanel(): ReactNode {
   const [summary, setSummary] = useState<UsageStatsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // fork:usage-year-heatmap — 热力图固定看最近 12 个月，不跟着上面的区间按钮缩。
+  // 7 天/30 天的窗口画出来只有四五列，一整年的节奏（哪几周在忙、哪段断了）全看不见。
+  // 第二次请求走的是同一份文件缓存，实测 5ms 上下。
+  const [yearSummary, setYearSummary] = useState<UsageStatsSummary | null>(null);
 
   const load = useCallback(async (nextRange: UsageRange) => {
     setLoading(true);
@@ -116,9 +120,25 @@ export function UsageStatsPanel(): ReactNode {
     }
   }, []);
 
+  const loadYear = useCallback(async () => {
+    try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const query = new URLSearchParams({ range: "1y" });
+      if (timeZone) query.set("tz", timeZone);
+      const response = await fetch(`/api/usage-stats?${query.toString()}`, { cache: "no-store" });
+      const data = await response.json() as UsageStatsSummary;
+      if (!response.ok || !Array.isArray(data.days)) return;
+      setYearSummary(data);
+    } catch {
+      // 热力图退回到当前区间的数据，不因此报错。
+    }
+  }, []);
+
   useEffect(() => {
     void load(range);
-  }, [load, range]);
+    // 「1 年」与「全部」自己就够画热力图了（后者至少不短于它），不再多打一次接口。
+    if (range !== "1y" && range !== "all") void loadYear();
+  }, [load, loadYear, range]);
 
   const totals = summary?.totals;
   const hasActivity = (totals?.tokens ?? 0) > 0 || (totals?.sessions ?? 0) > 0;
@@ -167,6 +187,10 @@ export function UsageStatsPanel(): ReactNode {
   }, [t, totals]);
 
   const projects = summary?.projects ?? [];
+  // 热力图的数据源：默认最近 12 个月（选了「1 年 / 全部」就是它自己）。
+  const heatmapDays = summary && (range === "1y" || range === "all")
+    ? summary.days
+    : (yearSummary?.days ?? summary?.days ?? []);
 
   return (
     <div className="settings-general">
@@ -259,7 +283,7 @@ export function UsageStatsPanel(): ReactNode {
                   </ConfigButton>
                 </div>
                 <UsageHeatmap
-                  days={summary.days}
+                  days={heatmapDays}
                   metric={metric}
                   label={t("usage.heatmap")}
                   lessLabel={t("usage.less")}
