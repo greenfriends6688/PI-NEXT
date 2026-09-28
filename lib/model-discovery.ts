@@ -73,3 +73,31 @@ export function buildModelsListUrl(baseUrl: string, api: string): URL {
   }
   return url;
 }
+
+function hasHeader(headers: Headers, name: string): boolean {
+  return headers.has(name);
+}
+
+/**
+ * Headers for a provider's own `/models` list probe — same rules the
+ * `/api/models-config/discover` route uses, shared with catalog refresh.
+ */
+export function buildDiscoveryHeaders(
+  api: string,
+  apiKey: string | undefined,
+  configured: Record<string, string>,
+): Headers {
+  const headers = new Headers(configured);
+  if (!hasHeader(headers, "accept")) headers.set("Accept", "application/json");
+  if (!apiKey) return headers;
+
+  if (api === "anthropic-messages") {
+    if (!hasHeader(headers, "x-api-key")) headers.set("x-api-key", apiKey);
+    if (!hasHeader(headers, "anthropic-version")) headers.set("anthropic-version", "2023-06-01");
+  } else if (api === "google-generative-ai") {
+    if (!hasHeader(headers, "x-goog-api-key")) headers.set("x-goog-api-key", apiKey);
+  } else if (!hasHeader(headers, "authorization")) {
+    headers.set("Authorization", `Bearer ${apiKey}`);
+  }
+  return headers;
+}

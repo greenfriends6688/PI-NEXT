@@ -312,8 +312,11 @@ function useCatalogRefresh(providerId: string, onChanged: () => void) {
         const data = await res.json() as CatalogRefreshResponse;
         if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
         if (data.reason === "offline") setNote("models.catalogOffline");
+        // Prefer "updated" over "unreachable" when the live merge landed even
+        // though one catalog half failed — the list the user asked for moved.
+        else if (data.changed) setNote("models.catalogUpdated");
         else if (!data.completed) setNote("models.catalogUnreachable");
-        else setNote(data.changed ? "models.catalogUpdated" : "models.catalogUnchanged");
+        else setNote("models.catalogUnchanged");
         // Reload even when nothing moved for this provider: the pass may have
         // updated another one, and a stale panel is worse than a second read.
         if (data.changed) onChanged();

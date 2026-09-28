@@ -117,9 +117,9 @@ export function ArchivedSessionsPanel({
 
   return (
     <div className="settings-general-section">
-      <section className="fork-settings-block">
+<section className="settings-archive-section">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <h3 className="fork-settings-block-label">{t("settings.archivedTitle")}</h3>
+          <div className="settings-archive-section-label">{t("settings.archivedSessionsLabel")}</div>
           {rows.length > 0 && (
             <ConfigSwitch
               checked={showDeleted}

@@ -8,6 +8,7 @@ import { skillExpansionToCommand } from "@/lib/slash-display";
 import { chatProjectOf, getProjectActivity, getRecentProjects, sessionsForProject, withoutChatProject } from "@/lib/project-groups";
 import type { RecentProject } from "@/lib/project-groups";
 import { SESSION_TAG_TONES, applySessionFlags, useSessionFlags, type SessionTag } from "@/lib/session-flags";
+import { filterArchivedProjects, useProjectFlags } from "@/lib/project-flags";
 // fork:zc-11 — 用户自定义项目分组 + 拖拽排序（localStorage 展示层偏好）。
 import { useSessionGroups } from "@/lib/session-groups";
 import { filterHiddenProjects, projectDisplayName, useProjectPrefs } from "@/lib/project-prefs";
@@ -415,6 +416,8 @@ function ProjectRow({
   onOpenFolder,
   onRename,
   onRemove,
+  onArchive,
+  archived = false,
   renaming = false,
   onRenameCommit,
   onRenameCancel,
@@ -434,6 +437,9 @@ function ProjectRow({
   onOpenFolder?: () => void;
   onRename?: () => void;
   onRemove?: () => void;
+  /** fork:project-archive — 归档 / 恢复（纯展示，不动磁盘）。 */
+  onArchive?: () => void;
+  archived?: boolean;
   renaming?: boolean;
   onRenameCommit?: (name: string) => void;
   onRenameCancel?: () => void;
@@ -562,54 +568,45 @@ function ProjectRow({
       >
         <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
       </svg>
-      <span className="fork-fade-title" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      {/* fork:ui-project-row — 标题贴着箭头后不再撑满整行，所以这里的 `.fork-fade-title`
+          （给长标题做右侧渐隐）会连同短标题的末几个字一起吃掉；截断交给 ellipsis。 */}
+      <span style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {label}
       </span>
+      {/* fork:ui-project-row — 折叠箭头紧跟标题（照 Zeno：名字 → ›，右端才是动作）。
+          原先它钉在行尾，与数字之间夹着两个未 hover 时不可见的动作位，空出一条很宽的缝。 */}
+      {onToggle && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggle();
+            }
+          }}
+          aria-label={expanded ? t("sidebar.collapseSubagents") : t("sidebar.expandSubagents")}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, flexShrink: 0, color: "var(--text-dim)", cursor: "pointer" }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      )}
+      <span aria-hidden="true" style={{ flex: 1, minWidth: 0 }} />
       {typeof count === "number" && (
         <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)", flexShrink: 0, minWidth: 14, textAlign: "right" }}>{count}</span>
       )}
       {showProjectActivity(activity, t)}
-      {/* fork:ui-project-actions — hover 才出现的「+」：直接在这个项目里开新会话（workbuddy 的 ⊕）。 */}
-      {onNewSession && (
-        <span
-          role="button"
-          tabIndex={0}
-          aria-label={t("sidebar.newSessionInProject")}
-          title={t("sidebar.newSessionInProject")}
-          onClick={(event) => {
-            event.stopPropagation();
-            onNewSession();
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            event.stopPropagation();
-            onNewSession();
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 20,
-            height: 20,
-            borderRadius: "var(--radius-md)",
-            color: "var(--text-muted)",
-            opacity: hovered ? 1 : 0,
-            cursor: "pointer",
-            flexShrink: 0,
-            transition: "opacity 0.12s, color 0.12s",
-          }}
-          onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
-          onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text-muted)"; }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 8v8M8 12h8" />
-          </svg>
-        </span>
-      )}
-      {/* fork:ui-project-actions — hover 才出现的「⋯」：打开文件夹 / 重命名 / 从列表中移除。 */}
-      {(onOpenFolder || onRename || onRemove) && (
+      {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾），
+          并成 2px 间距的一组，不再各占一个 8px 行间距。 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+      {(onOpenFolder || onRename || onRemove || onArchive) && (
         <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
           <span
             role="button"
@@ -676,6 +673,12 @@ function ProjectRow({
                   {t("sidebar.renameProject")}
                 </button>
               )}
+              {onArchive && (
+                <button type="button" role="menuitem" className="fork-project-menu-item" onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onArchive(); }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7h18v3H3zM5 10v10h14V10M9 14h6" /></svg>
+                  {archived ? t("sidebar.restoreProject") : t("sidebar.archiveProject")}
+                </button>
+              )}
               {onRemove && (
                 <button type="button" role="menuitem" className="fork-project-menu-item is-danger" onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRemove(); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
@@ -686,29 +689,46 @@ function ProjectRow({
           )}
         </div>
       )}
-      {onToggle && (
+      {/* ⊕：直接在这个项目里开新会话（workbuddy 的 ⊕），排在 ⋯ 右侧、贴行尾。 */}
+      {onNewSession && (
         <span
           role="button"
           tabIndex={0}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle();
+          aria-label={t("sidebar.newSessionInProject")}
+          title={t("sidebar.newSessionInProject")}
+          onClick={(event) => {
+            event.stopPropagation();
+            onNewSession();
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggle();
-            }
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            event.stopPropagation();
+            onNewSession();
           }}
-          aria-label={expanded ? t("sidebar.collapseSubagents") : t("sidebar.expandSubagents")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, flexShrink: 0, color: "var(--text-dim)", cursor: "pointer" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 20,
+            height: 20,
+            borderRadius: "var(--radius-md)",
+            color: "var(--text-muted)",
+            opacity: hovered ? 1 : 0,
+            cursor: "pointer",
+            flexShrink: 0,
+            transition: "opacity 0.12s, color 0.12s",
+          }}
+          onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
+          onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text-muted)"; }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}>
-            <polyline points="6 9 12 15 18 9" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v8M8 12h8" />
           </svg>
         </span>
       )}
+      </div>
       </button>
   );
 }
@@ -1486,11 +1506,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // fork:ui-project-actions — 本地偏好：显示名 + 「从列表中移除」。当前选中的项目永远保留，
   // 否则移除后连自己在哪都看不出来。
   const { prefs: projectPrefs, setAlias: setProjectAlias, hideProject } = useProjectPrefs();
+  // fork:project-archive — 归档只影响这一份列表：标志在 localStorage，选中项永远保留
+  // （否则归档掉当前项目就看不出自己在哪了）。
+  const { flags: projectFlags, archive: archiveProject, restore: restoreProject } = useProjectFlags();
   const [renamingProjectKey, setRenamingProjectKey] = useState<string | null>(null);
-  const visibleProjects = filterHiddenProjects(
-    withoutChatProject(projectChoices, chatProjectKey),
-    projectPrefs,
-    selectedProject?.root ?? null,
+  const visibleProjects = filterArchivedProjects(
+    filterHiddenProjects(
+      withoutChatProject(projectChoices, chatProjectKey),
+      projectPrefs,
+      selectedProject?.root ?? null,
+    ),
+    projectFlags,
+    selectedProject?.key ?? null,
   );
   const chatProject: RecentProject | null = chatWorkspace
     ? chatProjectOf(projectChoices, chatProjectKey) ?? { key: chatWorkspace.key, root: chatWorkspace.cwd }
@@ -1670,9 +1697,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-            {/* fork:brand-logo — 品牌图标（public/pi-agent-logo.svg）。 */}
+            {/* fork:brand-logo — 品牌图标（public/pi-agent-logo.svg）。
+                fork:brand-logo-vector — 新 logo 是 169×208 的竖向图形，塞进 22×22 会被压扁；
+                固定高度、宽度按比例，`height: "auto"` 让它自己算。 */}
             {/* eslint-disable-next-line @next/next/no-img-element -- static asset, not optimizer-routable */}
-            <img src="/pi-agent-logo.svg" alt="" width={22} height={22} draggable={false} style={{ flexShrink: 0 }} />
+            <img src="/pi-agent-logo.svg" alt="" width={18} height={22} draggable={false} style={{ flexShrink: 0, width: "auto", height: 22 }} />
             <PiWebTitle />
           </div>
           {/* fork:zn-22 — 搜索与折叠打包成一组靠右。
@@ -2244,6 +2273,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   onRenameCancel={() => setRenamingProjectKey(null)}
                   onNewSession={() => startSessionIn(project.root)}
                   onRename={() => setRenamingProjectKey(project.key)}
+                  archived={projectFlags.archived.includes(project.key)}
+                  onArchive={() => {
+                    if (projectFlags.archived.includes(project.key)) restoreProject(project.key);
+                    else archiveProject(project.key);
+                  }}
                   onRemove={() => {
                     hideProject(project.root);
                     // 移除的是列表条目，不是磁盘目录：只把它从侧栏藏起来（可再次添加回来）。

@@ -2172,13 +2172,19 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               const rendered: ReactNode[] = [];
               for (let idx = 0; idx < messages.length;) {
                 const msg = messages[idx];
-                if (!isMessageGroupAnchor(msg)) {
+                // fork:process-window-group — 渲染窗口是按条数切的（会话接口给的是最后 N 条），
+                // 一个长回合可能比窗口还长，于是窗口的第一条就不是用户消息。这段以前走下面这条
+                // 平铺分支：工具行 + 每条助手消息各一行 token 用量，整屏看下来就是一本流水账。
+                // 现在把它当成一个虚拟回合起点，和正常回合走同一条分组路径（只是不渲染「用户消息」）。
+                const virtualAnchor = idx === 0 && !isMessageGroupAnchor(msg);
+                if (!isMessageGroupAnchor(msg) && !virtualAnchor) {
                   rendered.push(renderMessage(idx));
                   idx += 1;
                   continue;
                 }
 
                 const userIdx = idx;
+                const firstProcessIdx = virtualAnchor ? userIdx : userIdx + 1;
                 let endIdx = userIdx + 1;
                 while (endIdx < messages.length && !isMessageGroupAnchor(messages[endIdx])) endIdx += 1;
 
@@ -2258,7 +2264,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                   continue;
                 }
 
-                rendered.push(renderMessage(userIdx));
+                if (!virtualAnchor) rendered.push(renderMessage(userIdx));
 
                 const finalAssistant = messages[finalAssistantIdx] as AssistantMessage;
                 const finalSplit = splitFinalAssistantBlocks(finalAssistant);
@@ -2285,7 +2291,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 const revealForFind = findOpen && findQuery.trim().length > 0;
                 let revealProcess = revealForFind;
 
-                for (let processIdx = userIdx + 1; processIdx <= finalAssistantIdx; processIdx++) {
+                for (let processIdx = firstProcessIdx; processIdx <= finalAssistantIdx; processIdx++) {
                   const processMessage = messages[processIdx];
                   if (processMessage.role === "custom") {
                     const customReveal = Boolean(pendingSearchScroll && pendingSearchScroll.entryId === entryIds[processIdx]);
@@ -2355,7 +2361,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                   // Gather the turn's assistant blocks and derive the file list
                   // from the write/edit calls among them.
                   const turnContent: AssistantContentBlock[] = [];
-                  for (let i = userIdx + 1; i <= finalAssistantIdx; i++) {
+                  for (let i = firstProcessIdx; i <= finalAssistantIdx; i++) {
                     const m = messages[i];
                     if (m?.role === "assistant") {
                       for (const b of (m as AssistantMessage).content ?? []) turnContent.push(b);

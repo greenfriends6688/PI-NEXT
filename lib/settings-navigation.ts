@@ -15,6 +15,8 @@ export const SETTINGS_SECTION_VALUES = [
   "prompts",
   // fork:ui-archive-history — 归档历史（Zeno 设置 → 数据 → 归档）。
   "archived",
+  // fork:import-ui — 从其它 agent 导入（会话 / 模型 / 技能 / MCP）。
+  "import",
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTION_VALUES)[number];

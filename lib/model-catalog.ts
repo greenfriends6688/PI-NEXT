@@ -19,6 +19,8 @@ export interface ModelCatalogEntry {
   contextWindow?: number;
   maxTokens?: number;
   cost: ModelCatalogCost;
+  /** pi `thinkingLevelMap` derived from models.dev `reasoning_options` effort values. */
+  thinkingLevelMap?: Record<string, string | null>;
 }
 
 export interface ModelCatalogPreset {
@@ -105,6 +107,32 @@ function readInputModalities(value: unknown): string[] | undefined {
 
 function normalizeProvider(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** pi's extended thinking levels, ascending — same set as pi-ai `EXTENDED_THINKING_LEVELS`. */
+const THINKING_LEVEL_KEYS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+/**
+ * Map models.dev `reasoning_options` effort values onto a pi `thinkingLevelMap`.
+ *
+ * Levels the provider does not advertise become `null` so
+ * `getSupportedThinkingLevels()` hides them; advertised levels keep their wire
+ * value. `none` is the effort spelling of pi's `off`.
+ */
+function thinkingLevelMapFromReasoningOptions(value: unknown): Record<string, string | null> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const effort = value.find((entry): entry is Record<string, unknown> => isRecord(entry) && entry.type === "effort");
+  if (!effort || !Array.isArray(effort.values)) return undefined;
+  const supported = new Map<string, string>();
+  for (const raw of effort.values) {
+    if (typeof raw !== "string") continue;
+    if (raw === "none") supported.set("off", "none");
+    else if ((THINKING_LEVEL_KEYS as readonly string[]).includes(raw)) supported.set(raw, raw);
+  }
+  if (supported.size === 0) return undefined;
+  return Object.fromEntries(
+    THINKING_LEVEL_KEYS.map((level) => [level, supported.get(level) ?? null]),
+  );
 }
 
 function normalizeModelId(value: string): string {
@@ -312,6 +340,8 @@ export function flattenModelsDevCatalog(value: unknown): ModelCatalogEntry[] {
       };
       if (providerBaseUrl) entry.providerBaseUrl = providerBaseUrl;
       if (typeof rawModel.reasoning === "boolean") entry.reasoning = rawModel.reasoning;
+      const thinkingLevelMap = thinkingLevelMapFromReasoningOptions(rawModel.reasoning_options);
+      if (thinkingLevelMap) entry.thinkingLevelMap = thinkingLevelMap;
       const input = readInputModalities(rawModel.modalities);
       if (input) entry.input = input;
       if (isRecord(rawModel.limit)) {

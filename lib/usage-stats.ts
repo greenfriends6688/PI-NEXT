@@ -23,11 +23,14 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-export const USAGE_CACHE_VERSION = 1;
+export const USAGE_CACHE_VERSION = 3;
 export const USAGE_CACHE_FILE_NAME = "pi-web-usage-cache.json";
 
-export const USAGE_RANGES = ["7d", "30d", "all"] as const;
+export const USAGE_RANGES = ["7d", "30d", "1y", "all"] as const;
 export type UsageRange = (typeof USAGE_RANGES)[number];
+
+/** Calendar days covered by each bounded range (`1y` includes today). */
+const RANGE_DAYS: Record<Exclude<UsageRange, "all">, number> = { "7d": 6, "30d": 29, "1y": 364 };
 
 export function isUsageRange(value: unknown): value is UsageRange {
   return typeof value === "string" && (USAGE_RANGES as readonly string[]).includes(value);
@@ -50,6 +53,10 @@ export interface UsageBucket {
 export interface UsageDayBucket extends UsageBucket {
   /** 1 when the session had at least one entry that day; summed across files. */
   sessions: number;
+  /** fork:usage-dashboard — failed tool results (the only failure signal in the file). */
+  errors: number;
+  /** fork:usage-dashboard — total tool results, i.e. the denominator of the success rate. */
+  toolResults: number;
   models: Record<string, UsageBucket>;
 }
 
@@ -93,6 +100,19 @@ export interface UsageDayPoint {
   messages: number;
   tokens: number;
   cost: number;
+  /** fork:usage-dashboard — 失败的工具调用数（按天）。 */
+  errors: number;
+  /** fork:usage-dashboard — 工具结果总数（成功率的分子/分母都是它）。 */
+  toolResults: number;
+}
+
+export interface UsageProjectPoint {
+  /** Session cwd; "" for sessions whose header carried none. */
+  project: string;
+  sessions: number;
+  messages: number;
+  tokens: number;
+  cost: number;
 }
 
 export interface UsageModelPoint {
@@ -119,6 +139,8 @@ export interface UsageStatsSummary {
   totals: UsageTotals;
   days: UsageDayPoint[];
   models: UsageModelPoint[];
+  /** fork:usage-dashboard — 「按项目」列表（会话 header 里的 cwd）。 */
+  projects: UsageProjectPoint[];
   scanned: {
     files: number;
     parsed: number;
@@ -247,7 +269,7 @@ function addUsageToBucket(bucket: UsageBucket, usage: unknown): void {
 function ensureDay(record: SessionUsageRecord, day: string): UsageDayBucket {
   let bucket = record.days[day];
   if (!bucket) {
-    bucket = { ...emptyBucket(), sessions: 1, models: {} };
+    bucket = { ...emptyBucket(), sessions: 1, errors: 0, toolResults: 0, models: {} };
     record.days[day] = bucket;
   }
   return bucket;
@@ -343,6 +365,9 @@ export function parseSessionUsage(text: string, options: ParseSessionUsageOption
         addUsageToBucket(day, message.usage);
         addModelUsage(day, lastModel, message.usage, 1);
       } else if (message.role === "toolResult") {
+        // fork:usage-dashboard — 工具失败是会话文件里唯一可靠的「错误」信号。
+        day.toolResults += 1;
+        if (message.isError === true) day.errors += 1;
         addUsageToBucket(day, message.usage);
         addModelUsage(day, lastModel, message.usage, 1);
       }
@@ -399,6 +424,8 @@ function coerceDayBucket(value: unknown): UsageDayBucket | null {
   const bucket: UsageDayBucket = {
     ...coerceBucket(record),
     sessions: Math.max(1, integer(record.sessions)),
+    errors: integer(record.errors),
+    toolResults: integer(record.toolResults),
     models: {},
   };
   const models = asRecord(record.models);
@@ -486,6 +513,8 @@ function addDayPoint(target: UsageDayPoint, bucket: UsageDayBucket): void {
   target.messages += bucket.messages;
   target.tokens += bucket.tokens.total;
   target.cost += bucket.cost;
+  target.errors += bucket.errors;
+  target.toolResults += bucket.toolResults;
 }
 
 export function summarizeUsage(
@@ -504,7 +533,7 @@ export function summarizeUsage(
 
   let firstDay = today;
   if (range !== "all") {
-    firstDay = addDays(today, range === "7d" ? -6 : -29);
+    firstDay = addDays(today, -RANGE_DAYS[range]);
   } else if (allDays.size > 0) {
     firstDay = [...allDays].sort()[0];
   }
@@ -512,12 +541,13 @@ export function summarizeUsage(
   const dayPoints: UsageDayPoint[] = [];
   const dayIndex = new Map<string, UsageDayPoint>();
   for (let day = firstDay; day <= today; day = addDays(day, 1)) {
-    const point: UsageDayPoint = { day, sessions: 0, messages: 0, tokens: 0, cost: 0 };
+    const point: UsageDayPoint = { day, sessions: 0, messages: 0, tokens: 0, cost: 0, errors: 0, toolResults: 0 };
     dayPoints.push(point);
     dayIndex.set(day, point);
   }
 
   const modelTotals = new Map<string, UsageModelPoint>();
+  const projectTotals = new Map<string, UsageProjectPoint>();
   const tokensByKind: UsageTokens = emptyTokens();
   let sessionCount = 0;
   let messages = 0;
@@ -526,6 +556,9 @@ export function summarizeUsage(
 
   for (const record of records) {
     let touched = false;
+    let recordTokens = 0;
+    let recordMessages = 0;
+    let recordCost = 0;
     for (const [day, bucket] of Object.entries(record.days)) {
       const point = dayIndex.get(day);
       if (!point) continue;
@@ -534,6 +567,9 @@ export function summarizeUsage(
       messages += bucket.messages;
       tokens += bucket.tokens.total;
       cost += bucket.cost;
+      recordMessages += bucket.messages;
+      recordTokens += bucket.tokens.total;
+      recordCost += bucket.cost;
       tokensByKind.input += bucket.tokens.input;
       tokensByKind.output += bucket.tokens.output;
       tokensByKind.cacheRead += bucket.tokens.cacheRead;
@@ -549,7 +585,19 @@ export function summarizeUsage(
         total.cost += modelBucket.cost;
       }
     }
-    if (touched) sessionCount += 1;
+    if (touched) {
+      sessionCount += 1;
+      const key = record.cwd || "";
+      let project = projectTotals.get(key);
+      if (!project) {
+        project = { project: key, sessions: 0, messages: 0, tokens: 0, cost: 0 };
+        projectTotals.set(key, project);
+      }
+      project.sessions += 1;
+      project.messages += recordMessages;
+      project.tokens += recordTokens;
+      project.cost += recordCost;
+    }
   }
 
   updateTokenTotal(tokensByKind);
@@ -558,6 +606,9 @@ export function summarizeUsage(
     .sort((a, b) => b.tokens - a.tokens || b.cost - a.cost || a.model.localeCompare(b.model));
   for (const model of models) model.share = tokens > 0 ? model.tokens / tokens : 0;
 
+  const projects = [...projectTotals.values()]
+    .sort((a, b) => b.tokens - a.tokens || b.cost - a.cost || a.project.localeCompare(b.project));
+
   return {
     range,
     timeZone,
@@ -565,6 +616,7 @@ export function summarizeUsage(
     totals: { sessions: sessionCount, messages, tokens, cost, tokensByKind },
     days: dayPoints,
     models,
+    projects,
     scanned: { files: records.length, parsed: 0, cached: 0, failed: 0, durationMs: 0 },
   };
 }

@@ -243,14 +243,26 @@ export function ModelSelector({
         const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
         const spaceAbove = anchorRect.top - 8;
         const spaceBelow = viewportHeight - anchorRect.bottom - 8;
-        const openAbove = placement === "up" || spaceAbove > spaceBelow;
-        const maxHeight = Math.max(120, Math.min(openAbove ? spaceAbove : spaceBelow, viewportHeight * 0.6));
+        // fork:popover-anchor — 原来是 `spaceAbove > spaceBelow`，而 composer 就在视口底部，
+        // 于是「上方空间大」永远成立，下拉每次都朝上展开，而且 `maxHeight` 取的是整个上方空间，
+        // 弹层会一直顶到屏幕顶部（用户：「浮窗距离那么远干啥」）。
+        // 现在只在**下面确实放不下**时才朝上；否则贴着触发点向下开。
+        const MIN_BELOW = 260;
+        const openAbove = placement === "up" || spaceBelow < MIN_BELOW;
+        const maxHeight = Math.max(180, Math.min(openAbove ? spaceAbove : spaceBelow, viewportHeight * 0.6));
         const verticalPosition = openAbove
           ? { bottom: viewportHeight - anchorRect.top + 6 }
           : { top: anchorRect.bottom + 6 };
         const horizontalPosition: CSSProperties = isMobile
           ? { left: 8, right: 8, maxWidth: "calc(100vw - 16px)" }
-          : { left: anchorRect.left, width: "max-content", minWidth: anchorRect.width, maxWidth: Math.max(anchorRect.width, viewportWidth - anchorRect.left - 8) };
+          : {
+            // fork:popover-anchor — clamp the left edge so a trigger near the right edge
+            // does not push a `max-content` popover off screen.
+            left: Math.max(8, Math.min(anchorRect.left, viewportWidth - anchorRect.width - 8)),
+            width: "max-content",
+            minWidth: anchorRect.width,
+            maxWidth: Math.max(anchorRect.width, viewportWidth - Math.max(8, Math.min(anchorRect.left, viewportWidth - anchorRect.width - 8)) - 8),
+          };
 
         return (
           <div

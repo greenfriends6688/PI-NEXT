@@ -30,10 +30,24 @@ export interface RightTabsMemory {
 }
 
 const STORAGE_KEY = "pi-web:right-tabs-by-workspace";
-const DISPLAY_MODES: readonly FileViewerDisplayMode[] = ["source", "preview", "diff"];
+const DISPLAY_MODES: readonly FileViewerDisplayMode[] = ["source", "preview"];
 
 function isDisplayMode(value: unknown): value is FileViewerDisplayMode {
   return typeof value === "string" && DISPLAY_MODES.includes(value as FileViewerDisplayMode);
+}
+
+/**
+ * fork:perf-viewer-two-modes — `"diff"` was a third stored display mode. It is an
+ * overlay now, so a stored value has to be translated rather than rejected: the tab
+ * keeps its place with the comparison open on top of the source view.
+ */
+function sanitizeDisplayMode(value: unknown): FileViewerDisplayMode | undefined {
+  if (isDisplayMode(value)) return value;
+  return value === "diff" ? "source" : undefined;
+}
+
+function wasLegacyDiffMode(value: unknown): boolean {
+  return value === "diff";
 }
 
 function finiteNumber(value: unknown): number | undefined {
@@ -43,12 +57,19 @@ function finiteNumber(value: unknown): number | undefined {
 function sanitizeViewerState(value: unknown): FileViewerState | undefined {
   if (value === null || typeof value !== "object") return undefined;
   const raw = value as Record<string, unknown>;
-  if (!isDisplayMode(raw.displayMode)) return undefined;
+  const displayMode = sanitizeDisplayMode(raw.displayMode);
+  if (displayMode === undefined) return undefined;
   if (typeof raw.wrapLines !== "boolean") return undefined;
   const scrollTop = finiteNumber(raw.scrollTop);
   const scrollLeft = finiteNumber(raw.scrollLeft);
   if (scrollTop === undefined || scrollLeft === undefined) return undefined;
-  return { displayMode: raw.displayMode, wrapLines: raw.wrapLines, scrollTop, scrollLeft };
+  return {
+    displayMode,
+    wrapLines: raw.wrapLines,
+    scrollTop,
+    scrollLeft,
+    ...(wasLegacyDiffMode(raw.displayMode) || raw.diffOpen === true ? { diffOpen: true } : {}),
+  };
 }
 
 function sanitizeFileTab(value: unknown): StoredFileTab | null {
@@ -62,7 +83,7 @@ function sanitizeFileTab(value: unknown): StoredFileTab | null {
     label: typeof raw.label === "string" && raw.label ? raw.label : raw.filePath,
     filePath: raw.filePath,
     sourceSessionId: typeof raw.sourceSessionId === "string" ? raw.sourceSessionId : null,
-    ...(isDisplayMode(raw.initialDisplayMode) ? { initialDisplayMode: raw.initialDisplayMode } : {}),
+    ...(sanitizeDisplayMode(raw.initialDisplayMode) ? { initialDisplayMode: sanitizeDisplayMode(raw.initialDisplayMode) } : {}),
     ...(viewerState ? { viewerState } : {}),
     ...(finiteNumber(raw.viewerRevision) !== undefined ? { viewerRevision: finiteNumber(raw.viewerRevision) } : {}),
   };

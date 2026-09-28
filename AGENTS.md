@@ -245,24 +245,19 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 
 ### 桌面端打包（macOS 通用包 / Windows 安装包）
 
-- **通用包**：`electron-builder --mac dir --universal` 先各打一份 x64/arm64 再 lipo 合并。
-  合并必须声明 `build.mac.x64ArchFiles = "**/Resources/app/node_modules/**"`：node_modules 里
-  平台预编译产物（node-pty/esbuild/pi-tui 的 `.node` 与 `spawn-helper`）在两架构包里字节相同，
-  不声明会直接报 `same in both x64 and arm64 builds` 并中止。
-- **`mac.files` / `win.files` 是替换而不是叠加主文件匹配器**：写了等于通用 `files` 全部失效
-  （表现：docs、参考项目被一起打进包，甚至因断链符号链接报 ENOENT）。平台级差异只能写进通用 `files`。
-- **`.gitignore` 不参与打包**：`设计风格/`(66M)、`pi-codex-release/`(43M)、`pi-web-pr-inbox/`
-  必须在 `build.files` 里显式排除，否则每个包装进 113M 垃圾。
-- **`next.config.mjs` 不能改回 `.ts`**：TS 配置会让 `next start` 运行时需要 `@next/swc-*`，而 npm 只装
-  构建机架构那份 → Intel/Windows 包启动时联网下载（离线直接挂）。保持 mjs 后可整包剪掉（-40M）。
-  剪掉 `@img/sharp-*` 同理安全（应用代码不 import，实测 `/_next/image` 仍 200）。
-- **Electron Framework 的 85 种 `locale.pak`**（每个 524K）在框架 Resources 里，`electronLanguages`
-  管不到它，要自己删；只留 en/en_GB/zh_CN/zh_TW 等十种。
-- 体积基线：app 756M → 通用 DMG **191M**（ULMO）；Windows nsis **144M**。大头是 Electron 框架
-  （双架构 418M，单架构约 208M），再小只能改成 Next standalone 输出。
-- 打包后必做三件事：`env -u ELECTRON_RUN_AS_NODE` 启动冒烟（`/api/home` 200）、`hdiutil verify`、
-  以及**真 Electron 窗口里的点击验证**（顶栏按钮是否被 `.desktop-drag-handle` 盖住——
-  手柄是绝对定位元素，会绘制在 static 按钮之上，详见 `app/fork-ui.css`）。
+* **通用包**：`electron-builder --mac dir --universal` 先各打一份 x64/arm64 再 lipo 合并。 合并必须声明 `build.mac.x64ArchFiles = "**/Resources/app/node_modules/**"`：node\_modules 里 平台预编译产物（node-pty/esbuild/pi-tui 的 `.node` 与 `spawn-helper`）在两架构包里字节相同， 不声明会直接报 `same in both x64 and arm64 builds` 并中止。
+
+* `mac.files`**&#x20;/&#x20;**`win.files`**&#x20;是替换而不是叠加主文件匹配器**：写了等于通用 `files` 全部失效 （表现：docs、参考项目被一起打进包，甚至因断链符号链接报 ENOENT）。平台级差异只能写进通用 `files`。
+
+* `.gitignore`**&#x20;不参与打包**：`设计风格/`(66M)、`pi-codex-release/`(43M)、`pi-web-pr-inbox/` 必须在 `build.files` 里显式排除，否则每个包装进 113M 垃圾。
+
+* `next.config.mjs`**&#x20;不能改回&#x20;**`.ts`：TS 配置会让 `next start` 运行时需要 `@next/swc-*`，而 npm 只装 构建机架构那份 → Intel/Windows 包启动时联网下载（离线直接挂）。保持 mjs 后可整包剪掉（-40M）。 剪掉 `@img/sharp-*` 同理安全（应用代码不 import，实测 `/_next/image` 仍 200）。
+
+* **Electron Framework 的 85 种&#x20;**`locale.pak`（每个 524K）在框架 Resources 里，`electronLanguages` 管不到它，要自己删；只留 en/en\_GB/zh\_CN/zh\_TW 等十种。
+
+* 体积基线：app 756M → 通用 DMG **191M**（ULMO）；Windows nsis **144M**。大头是 Electron 框架 （双架构 418M，单架构约 208M），再小只能改成 Next standalone 输出。
+
+* 打包后必做三件事：`env -u ELECTRON_RUN_AS_NODE` 启动冒烟（`/api/home` 200）、`hdiutil verify`、 以及**真 Electron 窗口里的点击验证**（顶栏按钮是否被 `.desktop-drag-handle` 盖住—— 手柄是绝对定位元素，会绘制在 static 按钮之上，详见 `app/fork-ui.css`）。
 
 ## Pi Session File Format
 
@@ -278,9 +273,9 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 {"type":"session_info","id":"...","parentId":"...","name":"user-defined name"}
 ```
 
-`entryIds[]` in `SessionContext` is a parallel array to `messages[]` — maps each displayed message back to its `.jsonl` entry id, used for fork and navigate_tree calls.
+`entryIds[]` in `SessionContext` is a parallel array to `messages[]` — maps each displayed message back to its `.jsonl` entry id, used for fork and navigate\_tree calls.
 
----
+***
 
 ## CSS Variables (`app/globals.css`)
 
@@ -295,28 +290,21 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 
 颜色与排版已换成 **BoardUI**（`app/boardui/theme.css` + `typography.css`）：
 
-- **颜色槽位的唯一来源是 BoardUI 的语义 token**。`app/globals.css` 末尾的
-  `fork:boardui-bridge`（`:root:root` + `:root:root.dark`）把上面的 Zeno 变量
-  指向 `--color-*`。**新代码写 `var(--bg)` 这类 Zeno 名**（它们已跟随明暗）；
-  要直接用 BoardUI 类名也可以（`bg-background-primary-default`、
-  `text-text-primary`），不要再写 hex。
-- **主题只剩 light / dark / auto**（PR-06）。`lib/theme.ts` 的 `THEME_OPTIONS`
-  是唯一清单；不再有 palette 分支。
-- **对比度门禁**：改任何前景/背景色后跑 `node docs/codex-skin/check-contrast.mjs`
-  （8 组组合 × light/dark，需服务在 30141 运行）。BoardUI 原生的
-  `text-secondary`(neutral-500) 与 `text-tertiary` 不达 AA，桥接层已各调一档。
-- **排版**：BoardUI 的 52 个复合样式（`text-body-medium` 等，一次绑齐
-  size/line-height/letter-spacing/weight）已在 `@theme` 注册；用 `cx()`
-  （`utils/cx.ts`，已注册排版类名）合并类名。
-- **圆角**：`--radius-2xl` = 24px（BoardUI 的 rounded-3xl，面板/弹窗）；
-  `--radius-composer` 指向它。控件/行保持 10/6px（与 BoardUI 的
-  rounded-2lg/rounded-md 一致）。
-- **字体**：Inter（`next/font/google`，中文回退 PingFang SC）。
-- **动效**：主题切换走 `view-transition` 圆扩散（`hooks/useTheme.ts`）；
-  列表行入场用 `.fork-row-enter`（fork-ui.css，`prefers-reduced-motion` 下关闭）。
-- **已知缺口**：组件的内联样式按钮没有 `:focus-visible`，fork-ui.css 末尾用
-  CSS 兜底（`.fork-msg-actions button` / `.chat-input-shell button`）；
-  逐组件重写时改成语义类。
+* **颜色槽位的唯一来源是 BoardUI 的语义 token**。`app/globals.css` 末尾的 `fork:boardui-bridge`（`:root:root` + `:root:root.dark`）把上面的 Zeno 变量 指向 `--color-*`。**新代码写&#x20;**`var(--bg)`**&#x20;这类 Zeno 名**（它们已跟随明暗）； 要直接用 BoardUI 类名也可以（`bg-background-primary-default`、 `text-text-primary`），不要再写 hex。
+
+* **主题只剩 light / dark / auto**（PR-06）。`lib/theme.ts` 的 `THEME_OPTIONS` 是唯一清单；不再有 palette 分支。
+
+* **对比度门禁**：改任何前景/背景色后跑 `node docs/codex-skin/check-contrast.mjs` （8 组组合 × light/dark，需服务在 30141 运行）。BoardUI 原生的 `text-secondary`(neutral-500) 与 `text-tertiary` 不达 AA，桥接层已各调一档。
+
+* **排版**：BoardUI 的 52 个复合样式（`text-body-medium` 等，一次绑齐 size/line-height/letter-spacing/weight）已在 `@theme` 注册；用 `cx()` （`utils/cx.ts`，已注册排版类名）合并类名。
+
+* **圆角**：`--radius-2xl` = 24px（BoardUI 的 rounded-3xl，面板/弹窗）； `--radius-composer` 指向它。控件/行保持 10/6px（与 BoardUI 的 rounded-2lg/rounded-md 一致）。
+
+* **字体**：Inter（`next/font/google`，中文回退 PingFang SC）。
+
+* **动效**：主题切换走 `view-transition` 圆扩散（`hooks/useTheme.ts`）； 列表行入场用 `.fork-row-enter`（fork-ui.css，`prefers-reduced-motion` 下关闭）。
+
+* **已知缺口**：组件的内联样式按钮没有 `:focus-visible`，fork-ui.css 末尾用 CSS 兜底（`.fork-msg-actions button` / `.chat-input-shell button`）； 逐组件重写时改成语义类。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

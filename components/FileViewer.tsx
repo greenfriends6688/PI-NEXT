@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { FILE_CODE_STYLE, FILE_LINE_NUMBER_STYLE } from "@/lib/file-source-styles";
@@ -10,7 +10,6 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   DOCX_PREVIEW_MAX_BYTES,
   getFileExt,
-  isEditableTextPath,
   isAudioPath,
   isDocumentPreviewPath,
   isImagePath,
@@ -26,15 +25,14 @@ import { CsvPreview } from "./fork/CsvPreview";
 import { PathActions } from "./fork/PathActions";
 // fork:perf-highlighter — the markdown stack (react-markdown + rehype/remark plugins +
 // frontmatter) rides along with the preview only; a plain text/image/office file must not
-// download it. Same pattern (and reason) as MarkdownFileEditor below.
+// download it. Same pattern (and reason) as CodeFileEditor below.
 const MarkdownFilePreview = dynamic(() => import("./MarkdownFilePreview").then((mod) => mod.MarkdownFilePreview), {
   ssr: false,
   loading: () => (
     <div className="markdown-body markdown-file-preview markdown-readable-column" style={{ padding: "24px 32px" }} aria-busy="true" />
   ),
 });
-import { MarkdownEditorBoundary } from "./MarkdownEditorBoundary";
-import type { MarkdownEditorLocationApi, MarkdownEditorSelection } from "./MarkdownFileEditor";
+import type { MarkdownEditorLocationApi, MarkdownEditorSelection } from "@/lib/file-editor-types";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { parseUnifiedPatch } from "@/lib/patch";
 // fork:zc-07 — 统一 diff 也复用词级行内差异（与 MessageView 的并排视图同一套纯函数）。
@@ -61,18 +59,6 @@ export interface FileLocationTarget {
   page?: number;
 }
 
-const MarkdownFileEditor = dynamic(() => import("./MarkdownFileEditor"), {
-  ssr: false,
-  // Without a fallback the lazy chunk leaves the pane empty while it loads (and
-  // forever if the import rejects) — see MarkdownEditorBoundary.
-  loading: () => (
-    <div className="markdown-body markdown-file-preview markdown-readable-column" style={{ padding: "24px 32px" }} aria-busy="true">
-      <div className="skeleton-line" style={{ height: 14, width: "42%" }} />
-      <div className="skeleton-line" style={{ height: 14, width: "86%", marginTop: 10 }} />
-      <div className="skeleton-line" style={{ height: 14, width: "74%", marginTop: 10 }} />
-    </div>
-  ),
-});
 const CodeFileEditor = dynamic(() => import("./CodeFileEditor"), { ssr: false });
 
 interface Props {
@@ -109,11 +95,9 @@ interface FileData {
 
 const SOURCE_HIGHLIGHT_MAX_LINES = 1_000;
 // Matches the write endpoint's content cap in lib/file-mutations.ts.
-const EDIT_MAX_BYTES = 2 * 1024 * 1024;
 const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
   source: "Source",
   preview: "Preview",
-  diff: "Diff",
 };
 
 
@@ -412,47 +396,47 @@ function diffLines(patch: string): DiffLine[] {
   }));
 }
 
+/** Collapse the diff to 3 lines of context around every change. */
+function diffSegments(diff: readonly DiffLine[]): Array<{ hidden: true; count: number } | { hidden: false; lines: DiffLine[] }> {
+  const CONTEXT = 3;
+  const visible = new Set<number>();
+  diff.forEach((line, index) => {
+    if (line.type === "unchanged") return;
+    for (let j = Math.max(0, index - CONTEXT); j <= Math.min(diff.length - 1, index + CONTEXT); j++) {
+      visible.add(j);
+    }
+  });
+
+  const segments: Array<{ hidden: true; count: number } | { hidden: false; lines: DiffLine[] }> = [];
+  let i = 0;
+  while (i < diff.length) {
+    const blockIsVisible = visible.has(i);
+    let end = i;
+    while (end < diff.length && visible.has(end) === blockIsVisible) end++;
+    segments.push(blockIsVisible
+      ? { hidden: false, lines: diff.slice(i, end) }
+      : { hidden: true, count: end - i });
+    i = end;
+  }
+  return segments;
+}
+
 function DiffView({ patch }: { patch: string }) {
   const { t } = useI18n();
-  const diff = diffLines(patch);
-
+  // fork:perf-viewer-keepalive — `diffLines` parses the patch and runs a word-level
+  // LCS for every changed pair. It used to run again on each render of the viewer
+  // (selection changes, save state, theme), so the parsed rows and the context
+  // blocks are memoized on the patch itself now.
+  const diff = useMemo(() => diffLines(patch), [patch]);
+  const segments = useMemo(() => diffSegments(diff), [diff]);
   const hasChanges = diff.some((l) => l.type !== "unchanged");
+
   if (!hasChanges) {
     return (
       <div style={{ padding: "12px 16px", fontSize: TEXT.sm, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
         {t("i18n.noChanges")}
       </div>
     );
-  }
-
-  // Render with context: show 3 lines around each change, collapse the rest
-  const CONTEXT = 3;
-  const changed = new Set(diff.flatMap((l, i) => (l.type !== "unchanged" ? [i] : [])));
-  const visible = new Set<number>();
-  for (const ci of changed) {
-    for (let j = Math.max(0, ci - CONTEXT); j <= Math.min(diff.length - 1, ci + CONTEXT); j++) {
-      visible.add(j);
-    }
-  }
-
-  const segments: Array<{ hidden: true; count: number } | { hidden: false; lines: DiffLine[] }> = [];
-  let i = 0;
-  while (i < diff.length) {
-    if (visible.has(i)) {
-      const block: DiffLine[] = [];
-      while (i < diff.length && visible.has(i)) {
-        block.push(diff[i]);
-        i++;
-      }
-      segments.push({ hidden: false, lines: block });
-    } else {
-      let count = 0;
-      while (i < diff.length && !visible.has(i)) {
-        count++;
-        i++;
-      }
-      segments.push({ hidden: true, count });
-    }
   }
 
   return (
@@ -1704,10 +1688,6 @@ function TextFileViewer({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftContent, setDraftContent] = useState("");
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
-  const [saveError, setSaveError] = useState<string | null>(null);
   const requestedInitialDisplayMode = resolveInitialFileDisplayMode(initialState, initialDisplayMode);
   const initialWrapLines = initialState?.wrapLines ?? false;
   const initialScrollTop = initialState?.scrollTop ?? 0;
@@ -1715,10 +1695,21 @@ function TextFileViewer({
   const [displayMode, setDisplayMode] = useState<DisplayMode>(requestedInitialDisplayMode);
   // Fullscreen support for the whole viewer shell (toolbar + content), so a
   // document can be read or edited without the surrounding panels.
-  // "Expand" widens the document inside the layout by giving up the tree column —
-  // PiDeck's ⤢ behaviour. The Fullscreen API button that used to sit next to it is
-  // gone: covering the whole screen was not what this control is for.
+  // "Expand" fills the whole app window now (fork:ui-expand-fullscreen): the shell
+  // becomes a fixed overlay via CSS, so nothing else in the layout has to move. Esc
+  // exits. The tree column still yields its room underneath, which is what you see
+  // again once the overlay closes.
   const [isExpanded, setIsExpanded] = useState(false);
+  useEffect(() => {
+    if (!isExpanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      // 弹层（设置等）自己会 preventDefault 拿走 Esc，这里不抢。
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      setIsExpanded(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isExpanded]);
   const [wrapLines, setWrapLines] = useState(initialWrapLines);
   const [watching, setWatching] = useState(false);
   const esRef = useRef<EventSource | null>(null);
@@ -1726,20 +1717,20 @@ function TextFileViewer({
   const gitDiffRequestRef = useRef(0);
   const loadedFilePathRef = useRef<string | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const editingRef = useRef(false);
   const liveEditingRef = useRef(false);
   const previousModeRef = useRef(displayMode);
-  const editReturnModeRef = useRef<DisplayMode>("source");
-  const autoDiffAppliedRef = useRef(false);
   const defaultPreviewEligibleRef = useRef(
     initialState === undefined && initialDisplayMode === undefined,
   );
   const scrollRestorePendingRef = useRef(true);
+  const initialDiffOpen = initialState?.diffOpen === true;
+  const [diffOpen, setDiffOpen] = useState(initialDiffOpen);
   const viewerStateRef = useRef<FileViewerState>({
     displayMode: requestedInitialDisplayMode,
     wrapLines: initialWrapLines,
     scrollTop: initialScrollTop,
     scrollLeft: initialScrollLeft,
+    diffOpen: initialDiffOpen,
   });
   const onStateChangeRef = useRef(onStateChange);
   const [selectedLineRange, setSelectedLineRange] = useState<SelectedLineRange | null>(null);
@@ -1765,6 +1756,16 @@ function TextFileViewer({
     onStateChangeRef.current?.({ ...viewerStateRef.current });
   }, []);
 
+  // fork:perf-viewer-two-modes — the HEAD comparison is a view *on top of* the two
+  // display modes, not a third one: it is opened from the Git changes panel, the Git
+  // graph or the toolbar, and dismissed from its own banner. Keeping it in the tab's
+  // persisted state means a restored tab comes back with it still open.
+  const updateDiffOpen = useCallback((nextDiffOpen: boolean) => {
+    viewerStateRef.current.diffOpen = nextDiffOpen;
+    setDiffOpen(nextDiffOpen);
+    onStateChangeRef.current?.({ ...viewerStateRef.current });
+  }, []);
+
   const toggleWrapLines = useCallback(() => {
     setWrapLines((current) => {
       const next = !current;
@@ -1779,11 +1780,12 @@ function TextFileViewer({
       wrapLines: initialWrapLines,
       scrollTop: initialScrollTop,
       scrollLeft: initialScrollLeft,
+      diffOpen: initialDiffOpen,
     };
 
     viewerStateRef.current = nextState;
     scrollRestorePendingRef.current = true;
-    autoDiffAppliedRef.current = false;
+    setDiffOpen(initialDiffOpen);
     setDisplayMode(requestedInitialDisplayMode);
     setWrapLines(initialWrapLines);
 
@@ -1794,6 +1796,7 @@ function TextFileViewer({
     filePath,
     sourceSessionId,
     requestedInitialDisplayMode,
+    initialDiffOpen,
     initialWrapLines,
     initialScrollTop,
     initialScrollLeft,
@@ -1849,11 +1852,11 @@ function TextFileViewer({
   }, [cwd]);
 
   useEffect(() => {
-    if (previousModeRef.current === "preview" && displayMode !== "preview" && !isEditing && getFileExt(filePath) === "md") {
+    if (previousModeRef.current === "preview" && displayMode !== "preview" && getFileExt(filePath) === "md") {
       void fetchContent(filePath);
     }
     previousModeRef.current = displayMode;
-  }, [displayMode, fetchContent, filePath, isEditing]);
+  }, [displayMode, fetchContent, filePath]);
 
   // Reset and load the file itself when its identity changes. Live watching is
   // managed separately so pausing it never clears the displayed content.
@@ -1870,11 +1873,6 @@ function TextFileViewer({
     setGitDiff(null);
     setGitDiffResolved(false);
     setWatching(false);
-    editingRef.current = false;
-    setIsEditing(false);
-    setDraftContent("");
-    setSaveState("idle");
-    setSaveError(null);
 
     fetchContent(filePath).finally(() => {
       if (active) setLoading(false);
@@ -1896,7 +1894,6 @@ function TextFileViewer({
     if (!watchEnabled) return;
 
     const synchronize = () => {
-      if (editingRef.current) return;
       if (!liveEditingRef.current) void fetchContent(filePath);
       void fetchGitDiff(filePath);
     };
@@ -1950,19 +1947,6 @@ function TextFileViewer({
   const hasGitDiff = gitDiff?.supported === true && typeof gitDiff.patch === "string";
   const isDeletedDiff = hasGitDiff && gitDiff.status === "deleted";
 
-  useEffect(() => {
-    if (gitDiffResolved && !hasGitDiff && displayMode === "diff") updateDisplayMode("source");
-  }, [displayMode, gitDiffResolved, hasGitDiff, updateDisplayMode]);
-
-  // Wait for the git request before restoring diff mode so the unresolved
-  // placeholder cannot immediately demote it back to source.
-  useEffect(() => {
-    if (requestedInitialDisplayMode === "diff" && hasGitDiff && !autoDiffAppliedRef.current) {
-      autoDiffAppliedRef.current = true;
-      updateDisplayMode("diff");
-    }
-  }, [requestedInitialDisplayMode, hasGitDiff, updateDisplayMode]);
-
   const viewerContent = data?.content ?? "";
   const sourceLines = useMemo(() => viewerContent.split("\n"), [viewerContent]);
   const language = data?.language ?? "text";
@@ -1970,14 +1954,30 @@ function TextFileViewer({
   const isMarkdown = language === "markdown";
   // fork:zc-12 — .csv/.tsv 的表格预览（与 language 无关，语言映射里它们是 text）。
   const isDelimitedText = isDelimitedTextPath(filePath);
-  const isCodeText = isEditableTextPath(filePath) && !isMarkdown;
   const hasPreview = !data?.truncated && (isHtml || isMarkdown);
-  const effectiveDisplayMode = isDeletedDiff ? "diff" : displayMode;
-  const draftDirty = isEditing && data !== null && draftContent !== data.content;
-  const liveEditing = !isMobile && data?.editable === true && !data.truncated
-    && !isEditing && !isDeletedDiff
-    && ((isMarkdown && getFileExt(filePath) === "md" && effectiveDisplayMode === "preview")
-      || (isCodeText && effectiveDisplayMode === "source"));
+  const effectiveDisplayMode = displayMode;
+  // fork:perf-viewer-keepalive — source / preview / diff are mounted on first visit
+  // and then kept, with `hidden` doing the switching. Unmounting them on every toggle
+  // threw away Prism's token tree, the markdown parse and the diff DOM, so each return
+  // paid to rebuild it (Prism alone is ~130ms for a 2800-line file). This mirrors the
+  // reference file view, which never destroys its editor and toggles `display: none`.
+  // Adjust-during-render keeps the first paint of a newly selected stage in the same
+  // commit — an effect would render an empty frame first.
+  const [mountedStages, setMountedStages] = useState<readonly DisplayMode[]>(
+    () => [requestedInitialDisplayMode],
+  );
+  if (!mountedStages.includes(effectiveDisplayMode)) {
+    setMountedStages([...mountedStages, effectiveDisplayMode]);
+  }
+  // fork:perf-viewer-two-modes — Source is the only writing surface, so the live
+  // editor is the *surface of one stage* rather than a mode of its own. It used to sit
+  // above the stages in the exclusive chain, which unmounted and rebuilt a ProseMirror
+  // document on every Source↔Preview toggle (~1.6s for a 27KB markdown file). Preview is
+  // a read-only render now; markdown included, which is also why `.md` gained an
+  // editable source view instead of only a WYSIWYG one.
+  const useCodeEditor = !isMobile && data?.editable === true && !data.truncated
+    && !isDeletedDiff;
+  const liveEditing = useCodeEditor && effectiveDisplayMode === "source";
   liveEditingRef.current = liveEditing;
 
   useEffect(() => () => {
@@ -2142,7 +2142,7 @@ function TextFileViewer({
           completeLocation(elements);
           return;
         }
-      } else if (effectiveDisplayMode === "source" && startLine > 0) {
+      } else if (!diffOpen && effectiveDisplayMode === "source" && startLine > 0) {
         elements = Array.from({ length: Math.max(1, endLine - startLine + 1) }, (_, index) =>
           root.querySelector<HTMLElement>(`.file-source-line[data-line-number=\"${startLine + index}\"]`),
         ).filter((element): element is HTMLElement => Boolean(element));
@@ -2186,6 +2186,7 @@ function TextFileViewer({
     };
   }, [
     data,
+    diffOpen,
     displayMode,
     effectiveDisplayMode,
     error,
@@ -2198,62 +2199,42 @@ function TextFileViewer({
     onLocationHandled,
   ]);
 
-  const cancelEdit = useCallback(() => {
-    setDraftContent(data?.content ?? "");
-    setSaveState("idle");
-    setSaveError(null);
-    editingRef.current = false;
-    setIsEditing(false);
-    updateDisplayMode(editReturnModeRef.current);
-  }, [data, updateDisplayMode]);
+  // fork:perf-viewer-two-modes — Source is the only writer, so its completed saves have
+  // to update the viewer's own copy: otherwise the read-only Preview beside it keeps
+  // rendering the pre-edit text. A refetch would work too, but the watch stream is
+  // deliberately skipped while an editor is live, and the buffer is already in hand here.
+  const handleEditorContentSaved = useCallback((nextContent: string) => {
+    setData((current) => {
+      if (!current || current.content === nextContent) return current;
+      return {
+        ...current,
+        content: nextContent,
+        size: new TextEncoder().encode(nextContent).byteLength,
+        nextOffset: 0,
+        truncated: false,
+      };
+    });
+  }, []);
 
-  const saveMarkdown = useCallback(async () => {
-    if (!data || !isMarkdown || data.truncated || isDeletedDiff || !isEditing || saveState === "saving") return;
-
-    setSaveState("saving");
-    setSaveError(null);
-    try {
-      const response = await fetch(getFileApiBaseUrl(filePath), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: draftContent, baseContent: data.content }),
-      });
-      const result = await response.json().catch(() => null) as { error?: unknown; size?: unknown } | null;
-      if (!response.ok) {
-        const message = typeof result?.error === "string" ? result.error : `Save failed (${response.status})`;
-        throw new Error(message);
-      }
-
-      const size = typeof result?.size === "number"
-        ? result.size
-        : new TextEncoder().encode(draftContent).byteLength;
-      setData((current) => current
-        ? { ...current, content: draftContent, size, nextOffset: 0, truncated: false }
-        : current);
-      editingRef.current = false;
-      setIsEditing(false);
-      updateDisplayMode(editReturnModeRef.current);
-      setSaveState("saved");
-      void fetchGitDiff(filePath);
-    } catch (saveFailure) {
-      setSaveState("idle");
-      setSaveError(saveFailure instanceof Error ? saveFailure.message : String(saveFailure));
+  const handleEditorSelectionChange = useCallback((selection: MarkdownEditorSelection | null) => {
+    if (!selection) {
+      setSelectedLineRange(null);
+      setSelectionAction(null);
+      return;
     }
-  }, [data, draftContent, fetchGitDiff, filePath, isDeletedDiff, isEditing, isMarkdown, saveState, updateDisplayMode]);
-
-  const handleEditorKeyDown = useCallback((event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "s") return;
-    event.preventDefault();
-    void saveMarkdown();
-  }, [saveMarkdown]);
+    setSelectedLineRange({ startLine: selection.startLine, endLine: selection.endLine });
+    setSelectionAction(selection);
+  }, []);
 
   const highlighterReady = useHighlighterReady();
   // fork:perf-highlighter — `!highlighterReady` reuses the huge-file fallback: same line
   // numbers and layout, no tokens, and it is replaced by the highlighted view as soon as
   // the lazily imported Prism chunk arrives.
-  const useLightweightSource = !highlighterReady || sourceLines.length > SOURCE_HIGHLIGHT_MAX_LINES
-    && !(effectiveDisplayMode === "diff" && hasGitDiff)
-    && !(effectiveDisplayMode === "preview" && hasPreview);
+  // fork:perf-viewer-keepalive — this used to also go `false` while diff/preview was on
+  // screen, to skip building the source rows the user could not see. The source view now
+  // stays mounted across mode switches (see the content area below), so that clause is
+  // gone: the rows are built once and survive instead of being rebuilt on every return.
+  const useLightweightSource = !highlighterReady || sourceLines.length > SOURCE_HIGHLIGHT_MAX_LINES;
   // react-syntax-highlighter rebuilds every token element on each render, which
   // costs hundreds of milliseconds on large files. Cache the rendered trees so
   // unrelated re-renders (panel open/close, selection changes) reuse them as-is.
@@ -2308,7 +2289,8 @@ function TextFileViewer({
       const root = contentRef.current;
       const selection = window.getSelection();
       const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-      const supportsDomSelection = displayMode === "source" || (isMarkdown && effectiveDisplayMode === "preview" && !liveEditing);
+      const supportsDomSelection = !diffOpen
+        && (displayMode === "source" || (isMarkdown && effectiveDisplayMode === "preview" && !liveEditing));
       if (fileQuoteInputOpen) return;
       if (liveEditing) return;
       const lineRange = onMentionLines && supportsDomSelection && root
@@ -2353,12 +2335,13 @@ function TextFileViewer({
     };
 
     updateSelectedLineRange();
-    const supportsDomSelection = displayMode === "source" || (isMarkdown && effectiveDisplayMode === "preview" && !liveEditing);
+    const supportsDomSelection = !diffOpen
+      && (displayMode === "source" || (isMarkdown && effectiveDisplayMode === "preview" && !liveEditing));
     if (!onMentionLines || !supportsDomSelection) return;
 
     document.addEventListener("selectionchange", updateSelectedLineRange);
     return () => document.removeEventListener("selectionchange", updateSelectedLineRange);
-  }, [data?.content, displayMode, effectiveDisplayMode, filePath, fileQuoteInputOpen, isMarkdown, liveEditing, locationTarget, onMentionLines]);
+  }, [data?.content, diffOpen, displayMode, effectiveDisplayMode, filePath, fileQuoteInputOpen, isMarkdown, liveEditing, locationTarget, onMentionLines]);
 
   const addFileSelection = useCallback((lineRange: SelectedLineRange | null, text: string) => {
     if (!onMentionLines || !lineRange) return;
@@ -2422,8 +2405,9 @@ function TextFileViewer({
   useEffect(() => {
     if (!scrollRestorePendingRef.current || loading) return;
     if (error && !isDeletedDiff) return;
-    if (requestedInitialDisplayMode === "diff" && !gitDiffResolved) return;
-    if (requestedInitialDisplayMode === "diff" && hasGitDiff && displayMode !== "diff") return;
+    // The comparison overlay renders in place of the stages, so restore the
+    // scroll only once it is either closed or has its patch.
+    if (diffOpen && !gitDiffResolved) return;
 
     const content = contentRef.current;
     if (!content) return;
@@ -2433,16 +2417,15 @@ function TextFileViewer({
     scrollRestorePendingRef.current = false;
   }, [
     data?.content,
+    diffOpen,
     displayMode,
     error,
     gitDiffResolved,
-    hasGitDiff,
     isDeletedDiff,
     loading,
-    requestedInitialDisplayMode,
   ]);
 
-  if ((loading && !data) || (requestedInitialDisplayMode === "diff" && gitDiffLoading && !data)) {
+  if ((loading && !data) || (diffOpen && gitDiffLoading && !data)) {
     return (
       <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: TEXT.md }}>
         {t("i18n.loading")}
@@ -2462,19 +2445,18 @@ function TextFileViewer({
 
   const content = viewerContent;
   const lines = sourceLines;
-  const displayModes: DisplayMode[] = isDeletedDiff
-    ? ["diff"]
-    : [
-        "source",
-        ...(hasPreview || isDelimitedText ? ["preview" as const] : []),
-        ...(hasGitDiff ? ["diff" as const] : []),
-      ];
-  const metadata = isDeletedDiff
+  const displayModes: DisplayMode[] = [
+    "source",
+    ...(hasPreview || isDelimitedText ? ["preview" as const] : []),
+  ];
+  // The comparison overlay replaces the file content, so it only needs the metadata
+  // line to say so; it is no longer one of the switchable display modes.
+  const metadata = data === null
     ? t("files.deleted")
-    : `${language} · ${lines.length} lines · ${formatSize(data!.size)}`;
+    : `${language} · ${lines.length} lines · ${formatSize(data.size)}`;
 
   return (
-    <div data-expanded={isExpanded || undefined} className="file-viewer-shell" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", position: "relative" }}>
+    <div data-expanded={isExpanded || undefined} className="file-viewer-shell" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div
         className="file-viewer-toolbar"
         style={{
@@ -2494,9 +2476,6 @@ function TextFileViewer({
         </span>
 
         <span className="file-viewer-meta" title={metadata}>{metadata}</span>
-        {saveState === "saved" && !isEditing && (
-          <span className="file-viewer-save-status" role="status">{t("i18n.saved")}</span>
-        )}
         {!isDeletedDiff && (
           <span
             title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
@@ -2512,16 +2491,18 @@ function TextFileViewer({
         <div className="file-viewer-controls">
           {/* fork:ui-20 — copy path / reveal in the file manager / open with the default app. */}
           <PathActions path={filePath} compact />
-          {!isEditing && displayModes.length > 1 && (
+          {displayModes.length > 1 && (
             <div className="file-viewer-mode-switch" aria-label={t("i18n.fileViewMode")}>
               {displayModes.map((mode) => {
-                const active = effectiveDisplayMode === mode;
+                const active = !diffOpen && effectiveDisplayMode === mode;
                 return (
                   <button
                     key={mode}
                     type="button"
-                    onClick={() => updateDisplayMode(mode)}
-                    title={mode === "diff" ? t("i18n.compareHead") : undefined}
+                    onClick={() => {
+                      updateDisplayMode(mode);
+                      if (diffOpen) updateDiffOpen(false);
+                    }}
                     aria-pressed={active}
                     className="file-viewer-mode-button"
                     style={{
@@ -2535,9 +2516,24 @@ function TextFileViewer({
               })}
             </div>
           )}
+          {/* fork:perf-viewer-two-modes — the HEAD comparison is an action that opens an
+              overlay, not a third mode, so it sits next to the switch instead of inside
+              it. Only offered when the file actually has a comparison to show. */}
+          {(hasGitDiff || isDeletedDiff) && (
+            <button
+              type="button"
+              onClick={() => updateDiffOpen(!diffOpen)}
+              title={t("files.compareHead")}
+              aria-label={t("files.compareHead")}
+              aria-pressed={diffOpen}
+              className="file-viewer-mode-button file-viewer-diff-toggle"
+            >
+              {t("files.compareHead")}
+            </button>
+          )}
 
           <div className="file-viewer-actions">
-            {!isEditing && (onAtMention || onMentionLines) && (
+            {(onAtMention || onMentionLines) && (
               <button
                 type="button"
                 onPointerDown={(event) => event.preventDefault()}
@@ -2571,11 +2567,7 @@ function TextFileViewer({
               aria-pressed={isExpanded}
               onClick={() => setIsExpanded((value) => !value)}
             >
-              {/* fork:ui-expand — the ⤢ glyph now belongs to this button. It used
-                  to be a second button that fired the Fullscreen API, which covered
-                  the whole screen even though the user expects the document to fill
-                  the workspace column (the tree gives up its space, nothing else
-                  moves). */}
+              {/* fork:ui-expand — ⤢ 把文档铺满整个应用窗口（原来的 Fullscreen API 按钮已并入这里）。 */}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {isExpanded ? (
                   <>
@@ -2590,7 +2582,7 @@ function TextFileViewer({
                 )}
               </svg>
             </button>
-            {!isEditing && !liveEditing && effectiveDisplayMode === "source" && (
+            {!liveEditing && !diffOpen && effectiveDisplayMode === "source" && (
               <>
                 <button
                   type="button"
@@ -2610,32 +2602,6 @@ function TextFileViewer({
                     <path d="m16 16-2 2 2 2" />
                     <path d="M3 18h7" />
                   </svg>
-                </button>
-              </>
-            )}
-            {isEditing && (
-              <>
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  disabled={saveState === "saving"}
-                  title={t("i18n.cancel")}
-                  aria-label={t("i18n.cancel")}
-                  className="file-viewer-mode-button"
-                  style={{ border: "1px solid var(--border)", borderRadius: 5, color: "var(--text-muted)", background: "transparent" }}
-                >
-                  {t("i18n.cancel")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void saveMarkdown()}
-                  disabled={!draftDirty || saveState === "saving"}
-                  title={t("i18n.save")}
-                  aria-label={t("i18n.save")}
-                  className="file-viewer-mode-button"
-                  style={{ border: "1px solid var(--accent)", borderRadius: 5, color: "var(--text)", background: "var(--bg-selected)" }}
-                >
-                  {saveState === "saving" ? t("i18n.saving") : t("i18n.save")}
                 </button>
               </>
             )}
@@ -2685,126 +2651,7 @@ function TextFileViewer({
         }}
         style={{ flex: 1, overflow: "auto", background: "var(--bg)", paddingBottom: data?.truncated ? 48 : undefined }}
       >
-        {isEditing ? (
-          <div className="file-markdown-editor-shell">
-            <textarea
-              className="file-markdown-editor"
-              value={draftContent}
-              onChange={(event) => {
-                setDraftContent(event.currentTarget.value);
-                setSaveError(null);
-              }}
-              onKeyDown={handleEditorKeyDown}
-              autoFocus
-              spellCheck={false}
-              aria-label={getFileName(filePath)}
-            />
-            {saveError && (
-              <div className="file-viewer-save-error" role="alert">{saveError}</div>
-            )}
-          </div>
-        ) : liveEditing && isCodeText ? (
-          <CodeFileEditor
-            filePath={filePath}
-            content={content}
-            sourceSessionId={sourceSessionId}
-            watchEnabled={watchEnabled}
-            initialScrollTop={initialScrollTop}
-            initialScrollLeft={initialScrollLeft}
-            hasPendingLocation={Boolean(locationTarget)}
-            onScrollPositionChange={({ scrollTop, scrollLeft }) => {
-              viewerStateRef.current.scrollTop = scrollTop;
-              viewerStateRef.current.scrollLeft = scrollLeft;
-              onStateChangeRef.current?.({ ...viewerStateRef.current });
-            }}
-            onLocationReady={handleMarkdownLocationReady}
-            onSelectionChange={(selection: MarkdownEditorSelection | null) => {
-              if (!selection) {
-                setSelectedLineRange(null);
-                setSelectionAction(null);
-                return;
-              }
-              setSelectedLineRange({ startLine: selection.startLine, endLine: selection.endLine });
-              setSelectionAction(selection);
-            }}
-          />
-        ) : effectiveDisplayMode === "diff" && hasGitDiff ? (
-          <DiffView patch={gitDiff.patch!} />
-        ) : isHtml && effectiveDisplayMode === "preview" ? (
-          <iframe
-            srcDoc={content}
-            sandbox="allow-scripts"
-            style={{ width: "100%", height: "100%", border: "none", background: "var(--bg)" }}
-             title={t("i18n.htmlPreview")}
-          />
-        ) : liveEditing ? (
-          <MarkdownEditorBoundary fallback={(
-            <div>
-              {/* The WYSIWYG editor is a lazy chunk; when it cannot mount (typically a
-                  stale page after a rebuild) editing stops working here. Say so and
-                  offer the one-click recovery instead of silently going read-only. */}
-              <div
-                role="status"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  margin: "8px 12px 0",
-                  padding: "6px 10px",
-                  border: "1px solid color-mix(in srgb, var(--warning) 35%, var(--border))",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--warning-soft)",
-                  color: "var(--warning)",
-                  fontSize: TEXT.sm,
-                }}
-              >
-                <span>{t("files.editorUnavailable")}</span>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  style={{
-                    padding: "2px 8px",
-                    border: "1px solid color-mix(in srgb, var(--warning) 45%, var(--border))",
-                    borderRadius: "var(--radius-sm)",
-                    background: "transparent",
-                    color: "inherit",
-                    cursor: "pointer",
-                    font: "inherit",
-                  }}
-                >
-                  {t("files.editorReload")}
-                </button>
-              </div>
-              <div className="markdown-body markdown-file-preview markdown-readable-column" style={{ padding: "16px 32px 24px" }}>
-                <MarkdownFilePreview content={content} filePath={filePath} cwd={cwd}
-                  sourceSessionId={sourceSessionId} onOpenFile={onOpenFile}
-                  sourceLines={Boolean(locationTarget)} />
-              </div>
-            </div>
-          )}>
-            <MarkdownFileEditor key={filePath} filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId}
-              onOpenFile={onOpenFile} content={content} watchEnabled={watchEnabled}
-              onLocationReady={handleMarkdownLocationReady}
-              onSelectionChange={(selection: MarkdownEditorSelection | null) => {
-                if (!selection) {
-                  setSelectedLineRange(null);
-                  setSelectionAction(null);
-                  return;
-                }
-                setSelectedLineRange({ startLine: selection.startLine, endLine: selection.endLine });
-                setSelectionAction(selection);
-              }} />
-          </MarkdownEditorBoundary>
-        ) : isMarkdown && effectiveDisplayMode === "preview" ? (
-          <div className="markdown-body markdown-file-preview markdown-readable-column" style={{ padding: "24px 32px" }}>
-            <MarkdownFilePreview content={content} filePath={filePath} cwd={cwd}
-              sourceSessionId={sourceSessionId} onOpenFile={onOpenFile}
-              sourceLines={Boolean(locationTarget)} />
-          </div>
-        ) : isDelimitedText && effectiveDisplayMode === "preview" ? (
-          // fork:zc-12 — CSV/TSV 表格预览（行窗口化、ragged/截断提示都在组件内）。
-          <CsvPreview content={content} filePath={filePath} sourceTruncated={data?.truncated === true} />
-        ) : shouldShowUnsupportedCard(filePath) ? (
+        {shouldShowUnsupportedCard(filePath) ? (
           // fork:gap-unsupported-preview — 二进制/未知类型不再以文本呈现（那是乱码），
           // 改为带元数据与"用默认应用打开"的卡片。
           <UnsupportedFilePreview
@@ -2813,21 +2660,98 @@ function TextFileViewer({
             size={typeof data?.size === "number" ? data.size : null}
             sourceSessionId={sourceSessionId}
           />
-        ) : useLightweightSource ? (
-          <div
-            className="file-source-view is-lightweight"
-            style={{
-              width: wrapLines ? "100%" : "max-content",
-              minWidth: "100%",
-              minHeight: "100%",
-              background: "var(--bg)",
-              ...FILE_CODE_STYLE,
-            }}
-          >
-            {lightweightSourceLines}
-          </div>
         ) : (
-          highlightedSource
+          // fork:perf-viewer-keepalive — 展示态并存，`hidden` 做切换。
+          //
+          // 每个 stage 首次被选中时才挂载，之后就常驻：回到源码不再重跑 Prism，
+          // 回到预览不再重新解析 markdown。不支持预览的卡片仍是互斥覆盖层，上面的
+          // 分支已处理。
+          // fork:perf-viewer-two-modes — HEAD 对比是盖在两者之上的覆盖层（`diffOpen`），
+          // 所以打开它时把 stage 遮蔽而不是卸载：关掉对比后编辑器还要原样回来。
+          <>
+            {data !== null && mountedStages.includes("source") && (
+              <div data-file-stage="source" hidden={diffOpen || effectiveDisplayMode !== "source"}>
+                {useCodeEditor ? (
+                  <CodeFileEditor
+                    filePath={filePath}
+                    content={content}
+                    sourceSessionId={sourceSessionId}
+                    watchEnabled={watchEnabled}
+                    initialScrollTop={initialScrollTop}
+                    initialScrollLeft={initialScrollLeft}
+                    hasPendingLocation={Boolean(locationTarget)}
+                    active={effectiveDisplayMode === "source"}
+                    onScrollPositionChange={({ scrollTop, scrollLeft }) => {
+                      viewerStateRef.current.scrollTop = scrollTop;
+                      viewerStateRef.current.scrollLeft = scrollLeft;
+                      onStateChangeRef.current?.({ ...viewerStateRef.current });
+                    }}
+                    onLocationReady={handleMarkdownLocationReady}
+                    onSelectionChange={handleEditorSelectionChange}
+                    onContentSaved={handleEditorContentSaved}
+                  />
+                ) : useLightweightSource ? (
+                  <div
+                    className="file-source-view is-lightweight"
+                    style={{
+                      width: wrapLines ? "100%" : "max-content",
+                      minWidth: "100%",
+                      minHeight: "100%",
+                      background: "var(--bg)",
+                      ...FILE_CODE_STYLE,
+                    }}
+                  >
+                    {lightweightSourceLines}
+                  </div>
+                ) : (
+                  highlightedSource
+                )}
+              </div>
+            )}
+            {(hasPreview || isDelimitedText) && mountedStages.includes("preview") && (
+              <div data-file-stage="preview" hidden={diffOpen || effectiveDisplayMode !== "preview"}>
+                {isHtml ? (
+                  <iframe
+                    srcDoc={content}
+                    sandbox="allow-scripts"
+                    style={{ width: "100%", height: "100%", border: "none", background: "var(--bg)" }}
+                    title={t("i18n.htmlPreview")}
+                  />
+                ) : isMarkdown ? (
+                  <div className="markdown-body markdown-file-preview markdown-readable-column" style={{ padding: "24px 32px" }}>
+                    <MarkdownFilePreview content={content} filePath={filePath} cwd={cwd}
+                      sourceSessionId={sourceSessionId} onOpenFile={onOpenFile}
+                      sourceLines={Boolean(locationTarget)} />
+                  </div>
+                ) : (
+                  // fork:zc-12 — CSV/TSV 表格预览（行窗口化、ragged/截断提示都在组件内）。
+                  <CsvPreview content={content} filePath={filePath} sourceTruncated={data?.truncated === true} />
+                )}
+              </div>
+            )}
+            {/* A deleted file has no content to render behind the overlay, so say what
+                happened instead of leaving an empty pane when the comparison is closed. */}
+            {data === null && isDeletedDiff && !diffOpen && (
+              <div className="file-viewer-deleted-notice" role="status">{t("files.deletedNotice")}</div>
+            )}
+            {diffOpen && (
+              <div className="file-viewer-diff-overlay">
+                <div className="file-viewer-diff-banner" role="status">
+                  <span>{isDeletedDiff ? t("files.deletedNotice") : t("files.compareHead")}</span>
+                  <button
+                    type="button"
+                    onClick={() => updateDiffOpen(false)}
+                    className="file-viewer-mode-button file-viewer-diff-toggle"
+                  >
+                    {t("files.backToSource")}
+                  </button>
+                </div>
+                {hasGitDiff
+                  ? <DiffView patch={gitDiff.patch!} />
+                  : <div style={{ padding: "12px 16px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>{t("i18n.loading")}</div>}
+              </div>
+            )}
+          </>
         )}
       </div>
       {selectionAction && !locationTarget && onMentionLines && (

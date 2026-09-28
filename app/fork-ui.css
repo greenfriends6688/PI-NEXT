@@ -739,6 +739,17 @@ html.keyboard-open .extension-status-shelf {
  * ------------------------------------------------------------------------- */
 .chat-input-shell {
   position: relative;
+  /* fork:pwa-tablet-tier — the composer is a fixed-width column with a non-wrapping
+     control row inside it. Clipping the overflow here is the safety net for the tier
+     fix in ChatInput: `clip` and not `auto`, because a horizontal scrollbar inside the
+     composer reads as a bug, while a clipped chip reads as "the row is full". */
+  overflow-x: clip;
+}
+
+/* The control row's children are all fixed-size chips; without this the row's
+   min-content width is larger than the column and it pushes everything right. */
+.chat-input-toolbar > * {
+  min-width: 0;
 }
 .chat-input-shell > .chat-input-resize-handle {
   position: absolute;
@@ -1648,8 +1659,12 @@ html[data-rail-translucent="true"] .sidebar-container {
   align-items: center;
   gap: 10px;
   min-height: 34px;
+  min-width: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  padding: 2px 2px;
+  padding: 2px 6px 2px 2px;
+  /* A long path on the right must ellipsize inside the row, not get clipped
+     by the dialog's overflow-x with no "…" (import rows). */
+  overflow: hidden;
 }
 
 .settings-archived-row[data-missing="true"] .settings-archived-name {
@@ -1682,7 +1697,10 @@ html[data-rail-translucent="true"] .sidebar-container {
 }
 
 .settings-archived-meta {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-dim);
   font-size: var(--text-xs);
   white-space: nowrap;

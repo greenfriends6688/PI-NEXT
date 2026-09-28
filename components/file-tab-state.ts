@@ -5,6 +5,10 @@ import type { Tab } from "./TabBar";
 interface OpenFileTabInput {
   fileName: string;
   filePath: string;
+  /**
+   * `"preview"` is a display-mode request; `"diff"` is not a mode any more — it asks
+   * for the HEAD comparison overlay to be open (fork:perf-viewer-two-modes).
+   */
   modeHint?: "preview" | "diff";
   page?: number;
   sourceSessionId?: string | null;
@@ -19,13 +23,14 @@ export function openFileTab(tabs: Tab[], input: OpenFileTabInput): Tab[] {
       label: input.fileName,
       filePath: input.filePath,
       sourceSessionId: input.sourceSessionId,
-      initialDisplayMode: input.modeHint,
+      initialDisplayMode: input.modeHint === "preview" ? "preview" : undefined,
       page: input.page,
       viewerState: input.modeHint ? {
-        displayMode: input.modeHint,
+        displayMode: input.modeHint === "preview" ? "preview" : "source",
         wrapLines: false,
         scrollTop: 0,
         scrollLeft: 0,
+        diffOpen: input.modeHint === "diff",
       } : undefined,
       viewerRevision: 0,
     }];
@@ -37,8 +42,12 @@ export function openFileTab(tabs: Tab[], input: OpenFileTabInput): Tab[] {
   const sourceUnchanged = !sourceChanged;
   const previewAlreadyActive = input.modeHint === "preview"
     && (existing.viewerState?.displayMode === "preview" || existing.initialDisplayMode === "preview");
+  const diffAlreadyActive = input.modeHint === "diff" && existing.viewerState?.diffOpen === true;
+  const hintAlreadySatisfied = input.modeHint === "preview"
+    ? previewAlreadyActive
+    : input.modeHint === "diff" ? diffAlreadyActive : true;
   const pageChanged = existing.page !== input.page;
-  if (sourceUnchanged && (!input.modeHint || previewAlreadyActive) && !pageChanged) return tabs;
+  if (sourceUnchanged && hintAlreadySatisfied && !pageChanged) return tabs;
 
   return tabs.map((tab) => {
     if (tab.id !== input.tabId) return tab;
@@ -52,14 +61,28 @@ export function openFileTab(tabs: Tab[], input: OpenFileTabInput): Tab[] {
       next.page = input.page;
       bumpRevision = true;
     }
-    const modeAlreadyActive = input.modeHint === "preview" && previewAlreadyActive;
-    if (input.modeHint && !modeAlreadyActive) {
-      next.initialDisplayMode = input.modeHint;
+    if (input.modeHint === "preview" && !previewAlreadyActive) {
+      next.initialDisplayMode = "preview";
       next.viewerState = {
-        displayMode: input.modeHint,
+        displayMode: "preview",
         wrapLines: tab.viewerState?.wrapLines ?? false,
         scrollTop: 0,
         scrollLeft: 0,
+        diffOpen: tab.viewerState?.diffOpen,
+      };
+      bumpRevision = true;
+    }
+    if (input.modeHint === "diff" && !diffAlreadyActive) {
+      // The overlay is viewer state, so the request has to arrive before the viewer
+      // mounts — the revision bump is what remounts it (same mechanism the preview
+      // hint already uses). The user closes it from the banner, which writes
+      // `diffOpen: false` back through `onStateChange`.
+      next.viewerState = {
+        displayMode: tab.viewerState?.displayMode ?? "source",
+        wrapLines: tab.viewerState?.wrapLines ?? false,
+        scrollTop: tab.viewerState?.scrollTop ?? 0,
+        scrollLeft: tab.viewerState?.scrollLeft ?? 0,
+        diffOpen: true,
       };
       bumpRevision = true;
     }

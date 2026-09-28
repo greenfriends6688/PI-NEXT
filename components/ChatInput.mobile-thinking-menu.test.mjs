@@ -4,9 +4,11 @@ import test from "node:test";
 
 const source = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
 
-test("anchors the mobile reasoning menu to its left edge", () => {
+test("anchors the collapsed reasoning menu to its left edge", () => {
+  // fork:pwa-tablet-tier — the flag is `narrowControls` (the tablet breakpoint), not
+  // `isMobile`: the strip is collapsed on any viewport that cannot fit it inline.
   assert.match(
     source,
-    /thinkingDropdownOpen[\s\S]*?bottom: "calc\(100% \+ 6px\)"[\s\S]*?isMobile \? \{ left: 0 \} : \{ right: 0 \}/,
+    /thinkingDropdownOpen[\s\S]*?bottom: "calc\(100% \+ 6px\)"[\s\S]*?narrowControls \? \{ left: 0 \} : \{ right: 0 \}/,
   );
 });

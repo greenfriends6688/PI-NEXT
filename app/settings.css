@@ -1073,6 +1073,13 @@
   color: var(--text);
 }
 
+/* fork:settings-focus — 导航行的键盘焦点环内缩（同 `.config-sidebar-item`）。
+   全局焦点规则（globals.css）是 offset:2px，在 184px 宽的导航列里会越过
+   分隔线画到右侧内容页上，看着像两层边框。 */
+.settings-section-tab:focus-visible {
+  outline-offset: -2px !important;
+}
+
 .settings-section-icon {
   flex-shrink: 0;
 }
@@ -1105,6 +1112,12 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
+  /* fork:settings-room — `.settings-dialog-main` 是 `overflow: hidden`，所以一个不带
+     内部滚动的面板（导入、归档历史/项目归档）超出的部分会被**直接裁掉且没有滚动条**。
+     自己在内容区滚动，等于给所有简单面板补上默认行为；自带分栏滚动的面板
+     （模型、插件）内容恰好 100% 高，不会因此长出第二条滚动条。 */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .settings-general {
@@ -1801,4 +1814,63 @@
 
 .settings-chat-switch-state.is-on {
   color: var(--accent);
+}
+
+/* fork:settings-archive-layout — 归档页：一条页面级说明 + 两个等权小节。
+   原来两页各带 h3 + 说明叠在一起，看起来像两张不相干的卡片。 */
+.settings-archive-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  /* fork:settings-page-frame — 页面左右内缩交给外层 `.settings-general`，这里只管小节间距。 */
+  margin-top: 14px;
+}
+
+.settings-archive-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-archive-section-label {
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* fork:import-toolbar — 导入工具栏分三组：动作 ｜ 视图 ｜ 结果，结果靠右。 */
+.import-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.import-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.import-toolbar-end {
+  margin-left: auto;
+  gap: 10px;
+}
+
+.import-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .import-toolbar-end {
+    margin-left: 0;
+  }
 }

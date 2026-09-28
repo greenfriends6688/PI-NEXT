@@ -1,39 +1,21 @@
 import { NextResponse } from "next/server";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync } from "fs";
+import { join } from "path";
 import { spawn } from "child_process";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getProjectTrustStatus } from "@/lib/project-trust";
 import type { McpResponse, McpScope, McpServerInfo } from "@/lib/api-types";
+import { readMcpConfigFile, writeMcpConfigFile } from "@/lib/mcp-config-file";
 import { validateMcpServer, type McpServerConfig } from "@/lib/mcp-validator";
 
 export const dynamic = "force-dynamic";
 
 type McpAction = "add" | "remove" | "enable" | "disable" | "update" | "move" | "test" | "get";
 
-interface McpFileData {
-  settings?: Record<string, unknown>;
-  mcpServers?: Record<string, Record<string, unknown>>;
-}
-
 function mcpFilePath(cwd: string, scope: McpScope): string {
   return scope === "global" ? join(getAgentDir(), "mcp.json") : join(cwd, ".pi", "mcp.json");
-}
-
-function readMcpFile(file: string): McpFileData {
-  if (!existsSync(file)) return {};
-  try {
-    return JSON.parse(readFileSync(file, "utf8")) as McpFileData;
-  } catch {
-    return {};
-  }
-}
-
-function writeMcpFile(file: string, data: McpFileData): void {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
 function serverInfoFromDef(
@@ -77,8 +59,8 @@ async function readMcp(cwd: string): Promise<McpResponse> {
   const diagnostics: string[] = [];
   const globalFile = mcpFilePath(cwd, "global");
   const projectFile = mcpFilePath(cwd, "project");
-  const global = readMcpFile(globalFile);
-  const project = readMcpFile(projectFile);
+  const global = readMcpConfigFile(globalFile);
+  const project = readMcpConfigFile(projectFile);
 
   const merged: Record<string, Record<string, unknown>> = { ...(global.mcpServers ?? {}) };
   const scopeOf = new Map<string, McpScope>();
@@ -336,7 +318,7 @@ export async function POST(req: Request) {
       const scope = readScope(body.scope);
       const def =
         body.def ??
-        readMcpFile(mcpFilePath(cwd, scope)).mcpServers?.[body.name ?? ""];
+        readMcpConfigFile(mcpFilePath(cwd, scope)).mcpServers?.[body.name ?? ""];
       if (!def) return NextResponse.json({ error: "server not found" }, { status: 404 });
       const result = await testMcpServer(def);
       return NextResponse.json({ ok: result.ok, message: result.detail });
@@ -344,7 +326,7 @@ export async function POST(req: Request) {
 
     if (body.action === "get") {
       const scope = readScope(body.scope);
-      const def = readMcpFile(mcpFilePath(cwd, scope)).mcpServers?.[body.name ?? ""];
+      const def = readMcpConfigFile(mcpFilePath(cwd, scope)).mcpServers?.[body.name ?? ""];
       if (!def) return NextResponse.json({ error: "server not found" }, { status: 404 });
       // Return the full raw definition (including env values) for advanced JSON editing
       return NextResponse.json({ def });
@@ -367,7 +349,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Requires one of command, url or socket" }, { status: 400 });
       }
       const file = mcpFilePath(cwd, scope);
-      const data = readMcpFile(file);
+      const data = readMcpConfigFile(file);
       data.mcpServers ??= {};
       // `update` must not silently create a copy in another scope: if the client reports a
       // scope that does not hold this server, fail loudly instead of writing a shadow entry
@@ -392,7 +374,7 @@ export async function POST(req: Request) {
         }
       }
       data.mcpServers[name] = def;
-      writeMcpFile(file, data);
+      writeMcpConfigFile(file, data);
       if (handshakeWarning) {
         const payload = await readMcp(cwd);
         return NextResponse.json({ ...payload, warning: handshakeWarning });
@@ -408,10 +390,10 @@ export async function POST(req: Request) {
       const name = body.name?.trim();
       if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
       const file = mcpFilePath(cwd, scope);
-      const data = readMcpFile(file);
+      const data = readMcpConfigFile(file);
       if (data.mcpServers?.[name]) {
         delete data.mcpServers[name];
-        writeMcpFile(file, data);
+        writeMcpConfigFile(file, data);
       }
     } else if (body.action === "enable" || body.action === "disable") {
       const scope = readScope(body.scope);
@@ -424,7 +406,7 @@ export async function POST(req: Request) {
       const name = body.name?.trim();
       if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
       const file = mcpFilePath(cwd, scope);
-      const data = readMcpFile(file);
+      const data = readMcpConfigFile(file);
       if (data.mcpServers?.[name]) {
         if (body.action === "enable") {
           // fork:gap-mcp-handshake — 启用前必须真实握手（initialize + tools/list）。
@@ -432,7 +414,7 @@ export async function POST(req: Request) {
           if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
         }
         data.mcpServers[name].disabled = body.action === "disable";
-        writeMcpFile(file, data);
+        writeMcpConfigFile(file, data);
       }
     } else if (body.action === "move") {
       const from = readScope(body.fromScope);
@@ -448,15 +430,15 @@ export async function POST(req: Request) {
       if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
       const fromFile = mcpFilePath(cwd, from);
       const toFile = mcpFilePath(cwd, to);
-      const fromData = readMcpFile(fromFile);
+      const fromData = readMcpConfigFile(fromFile);
       const def = fromData.mcpServers?.[name];
       if (!def) return NextResponse.json({ error: "server not found in source scope" }, { status: 404 });
       if (fromData.mcpServers) delete fromData.mcpServers[name];
-      writeMcpFile(fromFile, fromData);
-      const toData = readMcpFile(toFile);
+      writeMcpConfigFile(fromFile, fromData);
+      const toData = readMcpConfigFile(toFile);
       toData.mcpServers ??= {};
       toData.mcpServers[name] = def;
-      writeMcpFile(toFile, toData);
+      writeMcpConfigFile(toFile, toData);
     } else {
       return NextResponse.json({ error: `Unsupported action: ${body.action}` }, { status: 400 });
     }

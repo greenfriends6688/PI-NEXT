@@ -64,6 +64,8 @@ test("opening from the same source session preserves the viewer revision", () =>
   );
 });
 
+// fork:perf-viewer-two-modes — `"diff"` is no longer a display mode. It asks for the
+// HEAD comparison overlay to be open; the display mode underneath is left alone.
 test("changing source while forcing diff increments the revision once", () => {
   const [next] = openFileTab([tabA], {
     ...openA,
@@ -72,23 +74,39 @@ test("changing source while forcing diff increments the revision once", () => {
   });
   assert.equal(next.sourceSessionId, "session-2");
   assert.equal(next.viewerRevision, 1);
-  assert.equal(next.viewerState.displayMode, "diff");
+  assert.equal(next.viewerState.displayMode, "source");
+  assert.equal(next.viewerState.diffOpen, true);
 });
 
-test("every explicit diff activation resets the mode and increments the revision", () => {
+test("activating the comparison increments the revision without touching the mode", () => {
   const first = openFileTab([tabA, tabB], { ...openA, modeHint: "diff" });
   assert.equal(first[0].viewerRevision, 1);
   assert.deepEqual(first[0].viewerState, {
-    displayMode: "diff",
+    displayMode: "source",
     wrapLines: true,
-    scrollTop: 0,
-    scrollLeft: 0,
+    scrollTop: 240,
+    scrollLeft: 16,
+    diffOpen: true,
   });
 
-  const returnedToSource = saveFileViewerState(first, tabA.id, 1, tabA.viewerState);
-  const second = openFileTab(returnedToSource, { ...openA, modeHint: "diff" });
+  // Already open: the request is satisfied, so the mounted viewer is left alone.
+  assert.strictEqual(openFileTab(first, { ...openA, modeHint: "diff" }), first);
+
+  // Dismissing the overlay (the viewer writes this back) makes the next request real.
+  const dismissed = saveFileViewerState(first, tabA.id, 1, { ...tabA.viewerState, diffOpen: false });
+  const second = openFileTab(dismissed, { ...openA, modeHint: "diff" });
   assert.equal(second[0].viewerRevision, 2);
-  assert.equal(second[0].viewerState.displayMode, "diff");
+  assert.equal(second[0].viewerState.diffOpen, true);
+});
+
+test("a diff hint on a preview tab keeps the mode the user picked", () => {
+  const previewTab = {
+    ...tabA,
+    viewerState: { ...tabA.viewerState, displayMode: "preview" },
+  };
+  const [next] = openFileTab([previewTab], { ...openA, modeHint: "diff" });
+  assert.equal(next.viewerState.displayMode, "preview");
+  assert.equal(next.viewerState.diffOpen, true);
 });
 
 test("locating in an already-open preview tab preserves the editor instance", () => {
@@ -122,7 +140,7 @@ test("a remounted viewer ignores the previous revision's late cleanup", () => {
   const reopened = openFileTab([tabA], { ...openA, modeHint: "diff" });
   const stale = saveFileViewerState(reopened, tabA.id, 0, tabA.viewerState);
   assert.strictEqual(stale, reopened);
-  assert.equal(stale[0].viewerState.displayMode, "diff");
+  assert.equal(stale[0].viewerState.diffOpen, true);
 });
 
 test("a PDF page link remounts the viewer so the document jumps", () => {

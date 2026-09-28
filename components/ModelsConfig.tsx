@@ -117,6 +117,9 @@ interface ModelEntry {
   maxTokens?: number;
   cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: unknown };
   headers?: Record<string, string>;
+  /** Arbitrary provider request parameters (temperature, top_p, …). pi merges this
+   *  into the request options, so it is the real "advanced parameters" escape hatch. */
+  samplingParams?: Record<string, unknown>;
   compat?: Record<string, unknown>;
 }
 
@@ -864,6 +867,128 @@ function effectiveCompat(provider: ProviderEntry, model: ModelEntry): Record<str
 
 // Editable key/value request-header list for a provider or model. Rows stay
 // local so a blank draft is never persisted as an invalid HTTP header name.
+/**
+ * fork:models-presets — 数值快填 + 与后端目录的一致/覆盖标记。
+ *
+ * 目录值只在本次编辑真正查过目录时才知道，所以没有推荐值时就只显示阶梯、不假装知道
+ * 「跟随目录」是什么。`contextWindowSource` 那种「来源」字段不写进 models.json —— pi 的
+ * ModelDefinitionSchema 没有这个键，写进去会被忽略，属于假功能。
+ */
+const CONTEXT_WINDOW_LADDER = [128_000, 256_000, 512_000, 1_000_000] as const;
+const MAX_OUTPUT_LADDER = [4_096, 8_192, 16_384, 32_768, 65_536] as const;
+
+function formatTokenLimit(value: number): string {
+  if (value >= 1_000_000) return `${value / 1_000_000}M`;
+  return `${Math.round(value / 1_000)}k`;
+}
+
+function limitChipStyle(active: boolean, fromCatalog: boolean): React.CSSProperties {
+  return {
+    padding: "2px 7px",
+    borderRadius: "var(--radius-xs)",
+    border: `1px solid ${fromCatalog ? "var(--accent)" : "var(--border)"}`,
+    background: active ? "var(--bg-selected)" : "transparent",
+    color: active ? "var(--text)" : "var(--text-muted)",
+    fontSize: TEXT["2xs"],
+    fontVariantNumeric: "tabular-nums",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+}
+
+function LimitChips({ value, ladder, catalogValue, onChange }: {
+  value: number | undefined;
+  ladder: readonly number[];
+  catalogValue: number | undefined;
+  onChange: (next: number | undefined) => void;
+}) {
+  const { t } = useI18n();
+  const followsCatalog = catalogValue !== undefined && value === catalogValue;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, alignItems: "center" }}>
+      {ladder.map((preset) => (
+        <button
+          key={preset}
+          type="button"
+          onClick={() => onChange(preset)}
+          title={String(preset)}
+          aria-pressed={value === preset}
+          style={limitChipStyle(value === preset, preset === catalogValue)}
+        >
+          {formatTokenLimit(preset)}
+        </button>
+      ))}
+      {catalogValue !== undefined && (
+        <button
+          type="button"
+          onClick={() => onChange(catalogValue)}
+          title={`${t("models.followCatalog")} ${catalogValue}`}
+          aria-pressed={followsCatalog}
+          style={{ ...limitChipStyle(followsCatalog, true), color: followsCatalog ? "var(--text)" : "var(--accent)" }}
+        >
+          {followsCatalog ? t("models.followingCatalog") : t("models.followCatalog")}
+        </button>
+      )}
+      {catalogValue !== undefined && value !== undefined && !followsCatalog && (
+        <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("models.overridden")}</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * fork:models-presets — `samplingParams` 是 pi models.json 里真正的「高级参数」入口
+ * （temperature / top_p / …，pi 会把它并进请求参数）。值类型不受限，所以用 JSON 而不是
+ * 键值行：字符串化的数字会改掉类型。
+ */
+function SamplingParamsEditor({ value, onChange }: {
+  value: Record<string, unknown> | undefined;
+  onChange: (next: Record<string, unknown> | undefined) => void;
+}) {
+  const { t } = useI18n();
+  const serialized = value ? JSON.stringify(value, null, 2) : "";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(serialized);
+  const [error, setError] = useState<string | null>(null);
+
+  const commit = () => {
+    setEditing(false);
+    if (!draft.trim()) {
+      setError(null);
+      if (value !== undefined) onChange(undefined);
+      return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(draft);
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        setError(t("models.samplingParamsInvalid"));
+        return;
+      }
+      setError(null);
+      onChange(parsed as Record<string, unknown>);
+    } catch {
+      setError(t("models.samplingParamsInvalid"));
+    }
+  };
+
+  return (
+    <div>
+      <textarea
+        value={editing ? draft : serialized}
+        onFocus={() => { setDraft(serialized); setEditing(true); }}
+        onChange={(event) => { setDraft(event.target.value); setError(null); }}
+        onBlur={commit}
+        rows={2}
+        spellCheck={false}
+        placeholder={'{ "temperature": 0.7 }'}
+        aria-invalid={error !== null}
+        style={{ ...inputStyle, fontFamily: "var(--font-mono)", resize: "vertical", whiteSpace: "pre" }}
+      />
+      {error && <div role="alert" style={{ marginTop: 4, fontSize: TEXT["2xs"], color: "var(--danger)" }}>{error}</div>}
+    </div>
+  );
+}
+
 function HeaderListEditor({ headers, onChange }: {
   headers: Record<string, string> | undefined;
   onChange: (h: Record<string, string> | undefined) => void;
@@ -1034,6 +1159,11 @@ function ModelDetail({
     }
   }, [thinkingMemoryKey]);
   const [catalogState, setCatalogState] = useState<ModelCatalogState>({ phase: "idle" });
+  // fork:models-presets — the published values for *this* row, available only after its
+  // own catalog lookup ran (`handleCatalogFill` queries by `model.id`, and `catalogState`
+  // is per-ModelDetail). Until then the provenance marker stays silent instead of
+  // guessing at a value we do not have.
+  const catalogValue = catalogState.phase === "success" ? catalogState.recommendation.preset : undefined;
   const [costEditing, setCostEditing] = useState(false);
   const [costDraft, setCostDraft] = useState<ModelCostDraft>(() => modelCostToDraft(model.cost));
   const costDraftRef = useRef(costDraft);
@@ -1387,11 +1517,42 @@ function ModelDetail({
           <Field label={t("models.contextWindow")}>
             <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
               onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
+            <LimitChips
+              value={model.contextWindow}
+              ladder={CONTEXT_WINDOW_LADDER}
+              catalogValue={catalogValue?.contextWindow}
+              onChange={(next) => set("contextWindow", next)}
+            />
           </Field>
           <Field label={t("models.maxOutputTokens")}>
             <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
               onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
+            <LimitChips
+              value={model.maxTokens}
+              ladder={MAX_OUTPUT_LADDER}
+              catalogValue={catalogValue?.maxTokens}
+              onChange={(next) => set("maxTokens", next)}
+            />
           </Field>
+        </div>
+
+        {model.contextWindow !== undefined && model.maxTokens !== undefined && model.maxTokens > model.contextWindow && (
+          <div role="alert" style={{ marginTop: 8, fontSize: TEXT.xs, color: "var(--warning)" }}>
+            {t("models.maxTokensExceedsContext")}
+          </div>
+        )}
+
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
+              {t("models.samplingParams")}
+            </span>
+            <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("models.samplingParamsHint")}</span>
+          </div>
+          <SamplingParamsEditor
+            value={model.samplingParams}
+            onChange={(next) => set("samplingParams", next)}
+          />
         </div>
 
         <div style={{ marginTop: 16 }}>
@@ -2303,7 +2464,6 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     }
   }, [config, enabledModels]);
 
-  const providers = Object.entries(config.providers ?? {});
   // `12/40` next to a provider makes a narrowed selector visible at a glance.
   const scopeBadge = (providerId: string) => {
     const label = providerBadgeLabel(enabledModels.view, providerId);
@@ -2311,6 +2471,16 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   };
   const activeOAuth = oauthProviders.filter((p) => p.loggedIn);
   const activeApiKey = apiKeyProviders.filter((p) => p.configured);
+  // models.json entries for a managed (OAuth / API-key) provider are an overlay
+  // the runtime already composes — showing them again under "custom providers"
+  // would list opencode-go twice. Hide them here; the API-key detail already
+  // has EnabledModelsSection for the full merged list.
+  const managedProviderIds = new Set([
+    ...activeOAuth.map((p) => p.id),
+    ...activeApiKey.map((p) => p.id),
+  ]);
+  const providers = Object.entries(config.providers ?? {})
+    .filter(([providerId]) => !managedProviderIds.has(providerId));
 
   // Resolve current detail
   const detailContent = (() => {

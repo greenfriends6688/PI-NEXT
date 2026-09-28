@@ -49,6 +49,8 @@ import { ConfigButton, ConfigSwitch, SettingsBlock, SettingsRow, SettingsSelect,
 import { WallpaperSettings } from "./WallpaperSettings";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
 import { ArchivedSessionsPanel } from "./ArchivedSessionsPanel";
+import { ProjectArchivePanel } from "./ProjectArchivePanel";
+import { ImportPanel } from "./ImportPanel";
 import { useBorderDepth } from "@/hooks/useBorderDepth";
 import { useUiDensity } from "@/hooks/useUiDensity";
 // fork:zn-15 — 外观页的四项（Zeno appearance）。
@@ -121,6 +123,8 @@ export function SettingsSectionIcon({ section, size = 16, strokeWidth = 1.8 }: {
   if (section === "usage") return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M2 20h20" /></svg>;
   // fork:ui-archive-history — 归档箱
   if (section === "archived") return <svg {...common}><path d="M3 7h18v3H3zM5 10v10h14V10M9 14h6" /></svg>;
+  // fork:import-ui — 向内的箭头：把别处的数据收进来。
+  // 项目归档没有自己的图标了：它已经并进「归档历史」同一页（fork:project-archive）。
   if (section === "prompts") return <svg {...common}><path d="M4 17l6-6-6-6" /><path d="M12 19h8" /></svg>;
   return <svg {...common}><path d="M9 7V2M15 7V2M6 13V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5a6 6 0 0 1-12 0ZM12 19v3" /></svg>;
 }
@@ -961,6 +965,8 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
     { id: "prompts", label: t("prompts.title"), requiresProject: false },
     // fork:ui-archive-history
     { id: "archived", label: t("settings.archivedTitle"), requiresProject: false },
+    // fork:import-ui
+    { id: "import", label: t("import.title"), requiresProject: false },
   ];
 
   useEffect(() => setLastSettingsSection(initialSection), [initialSection]);
@@ -1072,10 +1078,28 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
             {sectionHost("prompts", <PromptsConfig onOpenFile={onOpenFile} />)}
             {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
             {sectionHost("archived", (
-              <ArchivedSessionsPanel
-                onOpenSession={onOpenSession}
-                onSessionsChanged={onSessionReloaded}
-              />
+              // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
+              // 所以合成一页：上面是项目索引，下面是会话归档。原先是两个导航项，
+              // 用户看着像两套互不相干的归档。
+              // fork:settings-page-frame — 外层 `.settings-general` 是各页共用的页面框。
+              <div className="settings-general">
+                <h2 className="settings-general-title">{t("settings.archivedTitle")}</h2>
+                <div className="settings-archive-page">
+                  <p className="settings-pi-theme-description">
+                    {t("settings.archivePageDescription")}
+                  </p>
+                  <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
+                  <ArchivedSessionsPanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
+                </div>
+              </div>
+            ))}
+
+            {/* fork:import-ui — 显式扫描 + 显式导入，绝不自动跑。
+                fork:settings-page-frame — 同归档页，补上共用的页面框。 */}
+            {sectionHost("import", (
+              <div className="settings-general">
+                <ImportPanel />
+              </div>
             ))}
           </main>
         </div>

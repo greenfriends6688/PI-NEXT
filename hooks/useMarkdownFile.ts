@@ -82,6 +82,3 @@ export function useTextFile(filePath: string, initial: string, sourceSessionId?:
   }, [filePath, sourceSessionId, watchEnabled]);
   return { sync, state };
 }
-
-// Keep the old name for the existing Markdown editor.
-export const useMarkdownFile = useTextFile;

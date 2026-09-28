@@ -35,7 +35,7 @@ import type {
   MarkdownEditorLocationApi,
   MarkdownEditorLocationTarget,
   MarkdownEditorSelection,
-} from "./MarkdownFileEditor";
+} from "@/lib/file-editor-types";
 
 interface Props {
   filePath: string;
@@ -45,6 +45,15 @@ interface Props {
   initialScrollTop?: number;
   initialScrollLeft?: number;
   hasPendingLocation?: boolean;
+  /** True while the Source stage is the visible one (fork:perf-viewer-keepalive). */
+  active?: boolean;
+  /**
+   * fork:perf-viewer-two-modes — fired once per completed save, with the buffer that
+   * reached disk. The Source stage is the only writer now, so the viewer has to be told
+   * about an edit or its own copy (and therefore the read-only Preview beside it) stays
+   * on the pre-edit snapshot.
+   */
+  onContentSaved?: (content: string) => void;
   onScrollPositionChange?: (position: { scrollTop: number; scrollLeft: number }) => void;
   onSelectionChange?: (selection: MarkdownEditorSelection | null) => void;
   onLocationReady?: (api: MarkdownEditorLocationApi | null) => void;
@@ -154,6 +163,8 @@ export default function CodeFileEditor({
   onScrollPositionChange,
   onSelectionChange,
   onLocationReady,
+  active,
+  onContentSaved,
 }: Props) {
   const { t } = useI18n();
   const { sync, state } = useTextFile(filePath, content, sourceSessionId, watchEnabled);
@@ -166,9 +177,11 @@ export default function CodeFileEditor({
   const onScrollPositionChangeRef = useRef(onScrollPositionChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onLocationReadyRef = useRef(onLocationReady);
+  const onContentSavedRef = useRef(onContentSaved);
   onScrollPositionChangeRef.current = onScrollPositionChange;
   onSelectionChangeRef.current = onSelectionChange;
   onLocationReadyRef.current = onLocationReady;
+  onContentSavedRef.current = onContentSaved;
   if (editorPathRef.current !== filePath) {
     editorPathRef.current = filePath;
     initialScrollTopRef.current = initialScrollTop;
@@ -309,6 +322,28 @@ export default function CodeFileEditor({
       view.destroy();
     };
   }, [filePath, sync]);
+
+  // fork:perf-viewer-keepalive — the editor stays mounted while the Diff stage is
+  // showing, so it has to re-measure when it becomes visible again: a `display: none`
+  // container reports zero geometry, which makes CodeMirror's viewport and caret
+  // coordinates stale until the next measure.
+  useEffect(() => {
+    if (active) viewRef.current?.requestMeasure();
+  }, [active]);
+
+  // fork:perf-viewer-two-modes — hand the committed buffer to the viewer on the
+  // save-completion edge, so the read-only Preview shows what Source just wrote without
+  // a round trip (and without fighting the edge-triggered external-sync below).
+  const wasSavingRef = useRef(false);
+  useEffect(() => {
+    if (state.saving) {
+      wasSavingRef.current = true;
+      return;
+    }
+    if (!wasSavingRef.current) return;
+    wasSavingRef.current = false;
+    if (!state.error && state.conflicts.length === 0) onContentSavedRef.current?.(state.content);
+  }, [state.saving, state.error, state.conflicts.length, state.content]);
 
   useEffect(() => {
     const view = viewRef.current;

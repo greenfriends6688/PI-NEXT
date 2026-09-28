@@ -1568,6 +1568,47 @@ pre, code {
   filter: brightness(1.08);
 }
 
+/* fork:perf-viewer-two-modes — 「与 HEAD 对比」是动作按钮，不属于两态 seg control，
+   所以自带完整边框（`.file-viewer-mode-button` 只画左侧分隔线）。 */
+.file-viewer-diff-toggle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.file-viewer-diff-toggle[aria-pressed="true"] {
+  background: var(--bg-selected);
+  color: var(--text);
+}
+
+.file-viewer-diff-overlay {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.file-viewer-diff-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.file-viewer-deleted-notice {
+  padding: 12px 16px;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
 .file-viewer-load-more {
   position: absolute;
   z-index: 2;
@@ -1669,47 +1710,6 @@ pre, code {
   color: var(--text-dim);
 }
 
-.file-viewer-save-status {
-  flex: 0 0 auto;
-  color: var(--success);
-  white-space: nowrap;
-}
-
-.file-markdown-editor-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
-  min-height: 0;
-  padding: 12px;
-  box-sizing: border-box;
-}
-
-.file-markdown-editor {
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 0;
-  box-sizing: border-box;
-  resize: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  background: var(--bg-panel);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--text-md);
-  line-height: 1.6;
-  white-space: pre;
-  overflow: auto;
-  tab-size: 2;
-  outline: none;
-}
-
-.file-markdown-editor:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
 .code-file-editor-shell {
   height: 100%;
   min-height: 100%;
@@ -1726,11 +1726,39 @@ pre, code {
   height: 100%;
 }
 
-.file-viewer-save-error {
-  flex: 0 0 auto;
-  color: var(--danger);
+/* fork:perf-viewer-two-modes — moved here from components/markdown-editor.css with the
+   WYSIWYG editor's deletion. These belong to CodeFileEditor, but the stylesheet they
+   lived in was only loaded by the markdown editor's chunk, so a plain code file's sync
+   notice went unstyled. */
+.markdown-sync-notice {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
   font-size: var(--text-sm);
-  overflow-wrap: anywhere;
+}
+
+.markdown-sync-notice button {
+  margin: 0 8px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.markdown-sync-notice summary {
+  cursor: pointer;
+}
+
+.markdown-conflict {
+  padding: 8px 0;
+}
+
+.markdown-conflict pre {
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow: auto;
 }
 
 .file-viewer-mode-button:focus-visible,
@@ -2581,6 +2609,22 @@ textarea,
   .explorer-column {
     display: block;
   }
+}
+
+/* fork:ui-expand-fullscreen — ⤢ 现在是把文档铺满**整个应用窗口**（不是系统全屏，
+   不需要权限、桌面端与网页端行为一致）。Esc 或再点一次退出。
+   树让位的那条规则仍然生效，所以退出全屏后回到「树 + 文档」并排。
+   基础态：shell 是绝对定位子元素（浮层按钮/滚动阴影）的参照，以前写在行内 style 里，
+   行内会盖过下面的 `[data-expanded]` 规则，所以挪到类里。 */
+.file-viewer-shell {
+  position: relative;
+}
+
+.file-viewer-shell[data-expanded] {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: var(--bg);
 }
 
 /* Expanded document: the tree column yields its room to the viewer (PiDeck's 猡?   behaviour). True fullscreen stays on its own button. */

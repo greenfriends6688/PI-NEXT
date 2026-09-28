@@ -27,14 +27,14 @@ test("large source previews bypass the per-line syntax highlighter", () => {
   assert.match(lightweightSource, /className="file-source-line-content"/);
   assert.match(lightweightSource, /style=\{FILE_LINE_NUMBER_STYLE\}/);
 
-  // The lightweight branch still wins over the syntax highlighter in the JSX.
-  const branchStart = source.indexOf(") : useLightweightSource ? (");
+  // The lightweight branch still wins over the syntax highlighter inside the source stage.
+  const branchStart = source.indexOf("useLightweightSource ? (");
   assert.notEqual(branchStart, -1);
   assert.match(source.slice(branchStart), /className="file-source-view is-lightweight"/);
   assert.notEqual(source.indexOf("highlightedSource", branchStart), -1);
 });
 
-test("lightweight source rows are skipped for highlighted, diff, and preview views", () => {
+test("large source fallbacks are built for every stage, not only the visible one", () => {
   // Execute the source-view calculations without mounting the file-fetching component.
   const file = ts.createSourceFile("FileViewer.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const viewer = file.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "TextFileViewer");
@@ -44,12 +44,13 @@ test("lightweight source rows are skipped for highlighted, diff, and preview vie
     ),
   ).map((node) => node.getText(file)).join("\n");
   const { outputText } = ts.transpileModule(`
-    return (data, displayMode, hasGitDiff = false, isDeletedDiff = false, wrapLines = false) => {
+    return (data, displayMode, wrapLines = false) => {
       const SOURCE_HIGHLIGHT_MAX_LINES = 1_000;
       const FILE_LINE_NUMBER_STYLE = {};
       // The lazy Prism chunk is assumed loaded here: this harness only exercises the
       // source-line calculations, not the loading state.
       const highlighterReady = true;
+      const isDeletedDiff = false;
       ${calculations}
       return lightweightSourceLines;
     };
@@ -57,17 +58,91 @@ test("lightweight source rows are skipped for highlighted, diff, and preview vie
   const render = new Function("React", "useMemo", outputText)(React, (calculate) => calculate());
   const large = { content: "line\n".repeat(1_000), language: "text" };
 
+  // Small files still go through the syntax highlighter.
   assert.equal(render({ ...large, content: "line\n".repeat(999) }, "source"), null);
-  assert.equal(render(large, "diff", true), null);
-  assert.equal(render(large, "source", true, true), null);
-  for (const language of ["html", "markdown"]) {
-    assert.equal(render({ ...large, language }, "preview"), null);
-  }
-  for (const mode of ["source", "diff", "preview"]) {
+
+  // fork:perf-viewer-keepalive — the source rows no longer depend on which stage is
+  // on screen. The source view stays mounted while preview or diff is showing, so the
+  // rows are produced for every mode instead of being rebuilt on each return.
+  for (const mode of ["source", "preview", "diff"]) {
     const rows = render(large, mode);
     assert.equal(rows.length, 1_001, `${mode} must retain its source fallback`);
     assert.equal(rows[0].props["data-line-number"], 1);
     assert.equal(rows[0].props.children[1].props.children, "line");
   }
-  assert.equal(render(large, "source", false, false, true)[0].props.children[1].props.style.whiteSpace, "pre-wrap");
+  for (const language of ["html", "markdown"]) {
+    assert.equal(render({ ...large, language }, "preview").length, 1_001);
+  }
+  assert.equal(render(large, "source", true)[0].props.children[1].props.style.whiteSpace, "pre-wrap");
+});
+
+test("the display stages mount once and switch with hidden", () => {
+  // fork:perf-viewer-keepalive — unmounting a stage threw away Prism's token tree,
+  // the markdown parse and the diff DOM, so every return paid to rebuild it.
+  assert.match(source, /const \[mountedStages, setMountedStages\] = useState<readonly DisplayMode\[\]>\(/);
+  assert.match(source, /if \(!mountedStages\.includes\(effectiveDisplayMode\)\) \{/);
+  assert.match(source, /mountedStages\.includes\("source"\)/);
+  assert.match(source, /mountedStages\.includes\("preview"\)/);
+  assert.match(source, /hidden=\{diffOpen \|\| effectiveDisplayMode !== "source"\}/);
+  assert.match(source, /hidden=\{diffOpen \|\| effectiveDisplayMode !== "preview"\}/);
+
+  // The old exclusive branches would short-circuit the persistent stages.
+  assert.doesNotMatch(source, /\) : effectiveDisplayMode === "diff" && hasGitDiff \? \(/);
+  assert.doesNotMatch(source, /\) : isHtml && effectiveDisplayMode === "preview" \? \(/);
+
+  // The unsupported-file card stays an exclusive overlay. The live editor does not:
+  // it is the surface of the Source stage, so it survives a toggle.
+  assert.match(source, /\{shouldShowUnsupportedCard\(filePath\) \? \(/);
+  assert.match(source, /const useCodeEditor = !isMobile && data\?\.editable === true/);
+  assert.match(source, /const liveEditing = useCodeEditor && effectiveDisplayMode === "source";/);
+  assert.match(source, /useCodeEditor \? \([\s\S]*?<CodeFileEditor[\s\S]*?active=\{effectiveDisplayMode === "source"\}/);
+  assert.doesNotMatch(source, /\) : liveEditing && isCodeText \? \(/);
+  assert.doesNotMatch(source, /\) : liveEditing \? \(/);
+});
+
+test("the preview stage is a read-only render, not an editor", () => {
+  // fork:perf-viewer-two-modes — Preview used to mount the ProseMirror WYSIWYG editor for
+  // an editable `.md`, and every Source↔Preview toggle rebuilt the whole document (~1.7s
+  // for 27KB). The two-mode contract is that Source writes and Preview only renders.
+  assert.doesNotMatch(source, /MarkdownFileEditor/);
+  assert.doesNotMatch(source, /MarkdownEditorBoundary/);
+  assert.doesNotMatch(source, /useMarkdownEditor/);
+
+  const previewStage = source.slice(
+    source.indexOf('data-file-stage="preview"'),
+    source.indexOf('{/* A deleted file has no content'),
+  );
+  assert.match(previewStage, /<MarkdownFilePreview /);
+  assert.match(previewStage, /<CsvPreview /);
+  assert.match(previewStage, /title=\{t\("i18n\.htmlPreview"\)\}/);
+  assert.doesNotMatch(previewStage, /CodeFileEditor/);
+
+  // `.md` is editable in Source now: the old exclusion kept it out of the code editor.
+  assert.doesNotMatch(source, /isCodeText = isEditableTextPath/);
+});
+
+test("the switch offers two modes and the HEAD comparison is an overlay", () => {
+  // fork:perf-viewer-two-modes — `diff` is not a display mode any more. Keeping it out
+  // of `displayModes` is what removes the "fetch a git diff to know whether to render
+  // the button" dependency from opening a file.
+  const switchBody = source.slice(
+    source.indexOf("const displayModes: DisplayMode[] = ["),
+    source.indexOf("const metadata = data === null"),
+  );
+  assert.match(switchBody, /"source"/);
+  assert.match(switchBody, /hasPreview \|\| isDelimitedText \? \["preview" as const\]/);
+  assert.doesNotMatch(switchBody, /"diff"/);
+
+  // The overlay is its own layer, dismissed from its own banner.
+  assert.match(source, /const updateDiffOpen = useCallback\(\(nextDiffOpen: boolean\) => \{/);
+  assert.match(source, /\{diffOpen && \(/);
+  assert.match(source, /className="file-viewer-diff-banner"/);
+  assert.match(source, /t\("files\.backToSource"\)/);
+  // A deleted file has no content behind the overlay, so it needs a notice.
+  assert.match(source, /data === null && isDeletedDiff && !diffOpen/);
+});
+
+test("the diff is parsed once per patch, not on every render", () => {
+  assert.match(source, /const diff = useMemo\(\(\) => diffLines\(patch\), \[patch\]\);/);
+  assert.match(source, /const segments = useMemo\(\(\) => diffSegments\(diff\), \[diff\]\);/);
 });

@@ -9,7 +9,16 @@ export const SIDEBAR_DEFAULT_WIDTH = 300;
 export const SIDEBAR_MIN_WIDTH = 232;
 export const SIDEBAR_MAX_WIDTH = 360;
 
-export const RIGHT_PANEL_FALLBACK_WIDTH = 384;
+/**
+ * fork:panel-default-width — the secondary workspace opens with the file tree **and** a
+ * document side by side, which needs `EXPLORER_COLUMN_MIN_PANEL_WIDTH` (760px, see
+ * AppShell). 384px opened it in a state where the tree took the whole panel and the
+ * document was pushed out, so every first visit started with a manual drag.
+ *
+ * `getResponsiveRightPanelWidth` still clamps this to whatever the viewport allows, so a
+ * narrow window does not get an over-wide panel — it gets the largest width that fits.
+ */
+export const RIGHT_PANEL_FALLBACK_WIDTH = 760;
 export const RIGHT_PANEL_MIN_WIDTH = 300;
 export const RIGHT_PANEL_MAX_WIDTH = 1200;
 
@@ -32,12 +41,33 @@ export function getSplitPanelWidth(viewportWidth: number): number {
   return clampPanelWidth(Math.round(viewportWidth * 0.5), PANEL_SPLIT_MIN_WIDTH, 760);
 }
 
+/**
+ * Comfortable width for the file tree **beside** a document.
+ *
+ * `AppShell`'s container query (app/fork-ui.css) only gives the tree column from 560px,
+ * and between 560 and 759 it falls back to a 200px tree. 760 is where the pair actually
+ * looks like a workspace — and it is the same number `EXPLORER_COLUMN_MIN_PANEL_WIDTH`
+ * widens to when a document opens.
+ */
+const TREE_COLUMN_COMFORT_WIDTH = 760;
+
+/**
+ * fork:panel-tree-only — 面板打开时默认**只有文件树**（文档要用户点开才会把面板加宽），
+ * 所以默认宽度是「一棵树 + 一点留白」，而不是「树 + 文档并排」所需的 760。
+ * 打开文档时 `AppShell.handleOpenFile` 会一次性把面板加宽到 760 + 60。
+ */
+const TREE_ONLY_PANEL_WIDTH = 420;
+
 export function getDefaultRightPanelWidth(viewportWidth: number): number {
-  // The side panel has to hold a document, a diff or a terminal without
-  // squeezing the transcript, so it scales with the viewport instead of
-  // sitting at a fixed 384. The 560 ceiling is deliberately below upstream's
-  // 640: at 1440 a 640 panel would leave the chat under 600px.
-  return clampPanelWidth(Math.min(viewportWidth * 0.36, 560), 380, 640);
+  // fork:panel-default-width — 原默认 760 是「树 + 文档并排」的舒适宽度，
+  // 但首次打开面板时里面只有树，于是半个窗口被一棵树占着，右边一大片空白。
+  // 现在默认给树的宽度，文档打开时再按需加宽；用户自己拖过的宽度照旧优先（见 useResizablePanel）。
+  const affordable = viewportWidth - DESKTOP_CHAT_MIN_WIDTH - SIDEBAR_DEFAULT_WIDTH;
+  return clampPanelWidth(
+    Math.min(TREE_ONLY_PANEL_WIDTH, affordable),
+    380,
+    TREE_COLUMN_COMFORT_WIDTH,
+  );
 }
 
 export function getSidebarMaxWidth(options: {

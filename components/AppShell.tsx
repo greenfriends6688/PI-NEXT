@@ -57,7 +57,7 @@ import { browserTabLabel, BROWSER_TABS_KEY, newBrowserTab, restoreBrowserTabs, t
 import { useTheme } from "@/hooks/useTheme";
 import { pickDirectory } from "@/lib/pick-directory";
 import { useI18n } from "@/hooks/useI18n";
-import { useIsMobile, useIsNarrowMobile } from "@/hooks/useIsMobile";
+import { useIsMobile, useIsNarrowMobile, useIsCompact } from "@/hooks/useIsMobile";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 // fork:zn-16 — 通知开关矩阵（Zeno 通知页）：取值走 getNotificationPrefs()，
@@ -158,6 +158,7 @@ export function AppShell() {
   useTheme();
   const { locale, t: translate } = useI18n();
   const isMobile = useIsMobile();
+  const isCompact = useIsCompact();
   const isNarrowMobile = useIsNarrowMobile();
   useViewportHeight();
   const appShellRef = useRef<HTMLDivElement>(null);
@@ -338,8 +339,14 @@ export function AppShell() {
       // Phones use a single full-screen secondary workspace, so there is no
       // desktop-style role swap to preserve at this breakpoint.
       setWorkspaceSwapped(false);
+      return;
     }
-  }, [isMobile]);
+    // fork:pwa-tablet-tier — between 641 and 1024px a docked 288px sidebar is ~38% of the
+    // viewport, which left the chat column too narrow for the composer's control row
+    // (measured at 768px: that row ran 110px past the column). It starts as a drawer here
+    // too; the user can still pin it open, and the desktop role swap still applies.
+    if (isCompact) setSidebarOpen(false);
+  }, [isMobile, isCompact]);
   useEffect(() => {
     setMobileSidebarReady(true);
   }, []);
@@ -2260,6 +2267,39 @@ export function AppShell() {
      —— 但导轨归零后用户仍然需要三条最常用的动作，于是折叠态留一条 3 图标的条：
      展开 / 搜索 / 新建会话。位置仍是主区顶栏左端，`--main-workspace-header-leading-inset`
      会让出它的宽度，顶栏第一个动作不会被压住。 */
+  const renderSessionTitle = () => (
+<button
+  type="button"
+  ref={topBarTitleRef}
+  title={topBarSessionTitle}
+  aria-label={translate("sidebar.recentSessions")}
+  aria-expanded={activeTopPanel === "sessions"}
+  onClick={() => toggleTopPanel("sessions", false)}
+  style={{
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    maxWidth: "100%",
+    padding: "3px 6px",
+    margin: "-3px -6px",
+    background: activeTopPanel === "sessions" ? "var(--bg-selected)" : "none",
+    border: "none",
+    borderRadius: "var(--radius-sm)",
+    fontSize: TEXT.md,
+    fontWeight: 500,
+    letterSpacing: 0,
+    color: "var(--text)",
+    cursor: "pointer",
+    textAlign: "left",
+  }}
+  onMouseEnter={(event) => { event.currentTarget.style.background = activeTopPanel === "sessions" ? "var(--bg-selected)" : "var(--bg-hover)"; }}
+  onMouseLeave={(event) => { event.currentTarget.style.background = activeTopPanel === "sessions" ? "var(--bg-selected)" : "none"; }}
+>
+  {topBarSessionTitle}
+</button>
+  );
+
   const renderCollapsedRail = () => (
     <div
       className="desktop-sidebar-toggle fork-collapsed-rail"
@@ -2393,8 +2433,14 @@ export function AppShell() {
         onMouseEnter={(event) => { if (!covered) event.currentTarget.style.color = "var(--text)"; }}
         onMouseLeave={(event) => { event.currentTarget.style.color = rightPanelOpen ? "var(--accent)" : "var(--text-muted)"; }}
       >
+        {/* fork:pwa-tablet-tier — a bare rect + divider read as an empty box (a loading
+            placeholder) at 16px in a 44px bar. The content lines on the left make it
+            "a page with a side panel", i.e. what the button actually toggles. */}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <line x1="14" y1="3" x2="14" y2="21" />
+          <line x1="6.5" y1="8" x2="10.5" y2="8" />
+          <line x1="6.5" y1="12" x2="10.5" y2="12" />
         </svg>
       </button>
     );
@@ -2668,37 +2714,9 @@ export function AppShell() {
                   GuiHeader.tsx:748): recent sessions open from here, so switching
                   does not require going back to the sidebar. It uses the top-bar
                   popover machinery (this component sits outside the ContextMenu
-                  provider, which its children use). */}
-              <button
-                type="button"
-                ref={topBarTitleRef}
-                title={topBarSessionTitle}
-                aria-label={translate("sidebar.recentSessions")}
-                aria-expanded={activeTopPanel === "sessions"}
-                onClick={() => toggleTopPanel("sessions", false)}
-                style={{
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: "100%",
-                  padding: "3px 6px",
-                  margin: "-3px -6px",
-                  background: activeTopPanel === "sessions" ? "var(--bg-selected)" : "none",
-                  border: "none",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: TEXT.md,
-                  fontWeight: 500,
-                  letterSpacing: 0,
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-                onMouseEnter={(event) => { event.currentTarget.style.background = activeTopPanel === "sessions" ? "var(--bg-selected)" : "var(--bg-hover)"; }}
-                onMouseLeave={(event) => { event.currentTarget.style.background = activeTopPanel === "sessions" ? "var(--bg-selected)" : "none"; }}
-              >
-                {topBarSessionTitle}
-              </button>
+                  provider, which its children use). Rendered through
+                  `renderSessionTitle` so the phone toolbar can reuse it. */}
+              {renderSessionTitle()}
             </div>
           )}
           {isMobile && (
@@ -2746,6 +2764,13 @@ export function AppShell() {
                 </button>
               )}
               {!isNarrowMobile && renderChatToolbarActions(true)}
+              {/* fork:pwa-tablet-tier — the phone bar used to show three icons and no
+                  session identity at all; which conversation you are in is the one thing
+                  it has to answer. Same session-switcher popover as the desktop header,
+                  ellipsised into whatever space the icons leave. */}
+              <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, padding: "0 2px" }}>
+                {renderSessionTitle()}
+              </div>
               {renderMainFileToggle(true)}
               {isNarrowMobile && mobileToolbarMoreOpen && (
                 <div

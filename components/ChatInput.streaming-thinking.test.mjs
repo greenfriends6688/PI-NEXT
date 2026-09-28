@@ -22,8 +22,9 @@ test("keeps the read-only level aligned with the neighbouring controls", () => {
     assert.match(markup, padding, `${label} horizontal padding`);
     assert.match(markup, height, `${label} height`);
   }
-  // The label collapses to the icon on mobile exactly like the editable control.
-  assert.match(readOnly, /\(!isMobile \|\| controlsMenuOpen\) &&/);
+  // The label collapses to the icon exactly like the editable control, at the
+  // breakpoint that collapses the strip (fork:pwa-tablet-tier).
+  assert.match(readOnly, /\(!narrowControls \|\| controlsMenuOpen\) &&/);
 });
 
 test("shows the level the runtime actually applies, not the selector placeholder", async () => {
