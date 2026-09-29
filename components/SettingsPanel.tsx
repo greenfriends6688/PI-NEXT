@@ -5,7 +5,6 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useI18n } from "@/hooks/useI18n";
 import { useTheme } from "@/hooks/useTheme";
 import { THEME_OPTIONS } from "@/lib/theme";
-import { ThemeIcon } from "./ThemeIcon";
 import {
   CHAT_CONTENT_WIDTH_DEFAULT,
   CHAT_CONTENT_WIDTH_MAX,
@@ -45,7 +44,17 @@ import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
 import { AgentsConfig } from "./AgentsConfig";
 import { PluginsConfig } from "./PluginsConfig";
-import { ConfigButton, ConfigSwitch, SettingsBlock, SettingsRow, SettingsSelect, SettingsSlider } from "./SettingsUi";
+import {
+  PwBlock,
+  PwCtl,
+  PwField,
+  PwPageHead,
+  PwRadio,
+  PwRange,
+  PwSelectBox,
+  PwSwitch,
+  PwValue,
+} from "./SettingsUi";
 import { WallpaperSettings } from "./WallpaperSettings";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
 import { ArchivedSessionsPanel } from "./ArchivedSessionsPanel";
@@ -96,37 +105,39 @@ interface Props {
   onSoundToggle?: (enabled: boolean) => void;
 }
 
-export function SettingsSectionIcon({ section, size = 16, strokeWidth = 1.8 }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
-  const common = {
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-    className: "settings-section-icon",
-  };
+/** fork:design-system SW-07 —— 设置左导航的分节图标（画板 40）。
+ *
+ *  一律走画板的图标集：`icons.js` 的 243 枚 lucide，经 `<i data-ico>` 水合。
+ *  这里原先有 13 段手绘 SVG，其中 agents 那枚还靠 `transform: scale(1.25)` 补尺寸
+ *  （自绘路径按 24×24 画，缩到 16px 时笔画偏细）——换成画板图标后补丁不再需要。
+ *  名称与画板 40 的左导航逐项一致，顺序也一致。 */
+const SECTION_ICON_BY_ID: Record<string, string> = {
+  general: "sliders-horizontal",
+  models: "cpu",
+  skills: "box",
+  agents: "bot",
+  plugins: "blocks",
+  mcp: "server",
+  cron: "clock",
+  memory: "brain",
+  shortcuts: "keyboard",
+  usage: "chart-column",
+  prompts: "square-function",
+  archived: "archive",
+  import: "import",
+};
 
-  if (section === "general") return <svg {...common}><path d="M20 7h-9M14 17H5" /><circle cx="7" cy="7" r="3" /><circle cx="17" cy="17" r="3" /></svg>;
-  if (section === "models") return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" /></svg>;
-  if (section === "skills") return <svg {...common}><path d="m12 2-10 5 10 5 10-5-10-5Z" /><path d="m2 12 10 5 10-5M2 17l10 5 10-5" /></svg>;
-  // MCP gets its own glyph: a plug, distinct from the plugins puzzle piece.
-  if (section === "mcp") return <svg {...common} className="settings-section-icon"><path d="M9 4v5M15 4v5" /><path d="M6 9h12v3a6 6 0 0 1-6 6 6 6 0 0 1-6-6Z" /><path d="M12 18v3" /></svg>;
-  if (section === "cron") return <svg {...common} className="settings-section-icon"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2" /><path d="M9 2h6" /></svg>;
-  if (section === "memory") return <svg {...common} className="settings-section-icon"><path d="M12 3a5 5 0 0 1 5 5c0 1.5-.6 2.5-1.5 3.4-.8.8-1.5 1.7-1.5 3.1V16h-4v-1.5c0-1.4-.7-2.3-1.5-3.1C7.6 10.5 7 9.5 7 8a5 5 0 0 1 5-5Z" /><path d="M10 20h4" /></svg>;
-  if (section === "agents") return <svg {...common} className="settings-section-icon is-agent"><rect x="5" y="7" width="14" height="11" rx="2" /><path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" /></svg>;
-  // fork:zc-04 / fork:zc-03 / fork:zc-16 — glyphs for the three new sections.
-  if (section === "shortcuts") return <svg {...common}><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" /></svg>;
-  if (section === "usage") return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M2 20h20" /></svg>;
-  // fork:ui-archive-history — 归档箱
-  if (section === "archived") return <svg {...common}><path d="M3 7h18v3H3zM5 10v10h14V10M9 14h6" /></svg>;
-  // fork:import-ui — 向内的箭头：把别处的数据收进来。
-  // 项目归档没有自己的图标了：它已经并进「归档历史」同一页（fork:project-archive）。
-  if (section === "prompts") return <svg {...common}><path d="M4 17l6-6-6-6" /><path d="M12 19h8" /></svg>;
-  return <svg {...common}><path d="M9 7V2M15 7V2M6 13V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5a6 6 0 0 1-12 0ZM12 19v3" /></svg>;
+/** fork:design-system SW-07 — 画板 40「主题」三档的芯片图标（sun / moon / monitor）。
+ *  原先这里是 `ThemeIcon` 手绘的三个 SVG（`components/ThemeIcon.tsx`），
+ *  画板图标集里本来就有同名三枚，已退役。 */
+const THEME_ICON_BY_ID: Record<string, string> = {
+  light: "sun",
+  dark: "moon",
+  auto: "monitor",
+};
+
+export function SettingsSectionIcon({ section, size = 16 }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
+  return <i data-ico={SECTION_ICON_BY_ID[section] ?? "settings"} data-size={size} aria-hidden="true" />;
 }
 
 /**
@@ -199,32 +210,36 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
 
   return (
     <>
-      <div className="settings-chat-option settings-chat-switch-option">
-        <span>{t("settings.titleAutoGenerate")}</span>
-        <ConfigSwitch
-          checked={titleAuto}
-          label={t("settings.titleAutoGenerate")}
-          onChange={setTitleAutoAndPersist}
-        />
-      </div>
-      <p className="settings-chat-range-hint">{t("settings.titleAutoGenerateDescription")}</p>
-      <div className="settings-chat-option settings-chat-range-option">
-        <span className="settings-chat-option-label">{t("settings.titleModel")}</span>
-        <select
-          className="settings-select"
-          value={titleModelValue}
-          aria-label={t("settings.titleModel")}
-          onChange={(event) => setTitleModelAndPersist(event.target.value)}
-        >
-          <option value="">{t("settings.titleModelNone")}</option>
-          {titleModelOptions.map((option) => (
-            <option key={`${option.provider}:${option.modelId}`} value={`${option.provider}:${option.modelId}`}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <p className="settings-chat-range-hint">{t("settings.titleModelDescription")}</p>
-      </div>
+      {/* fork:design-system SW-07 — 画板 40 的「会话自动命名」+「命名用的模型」两行。 */}
+      <PwField
+        label={t("settings.titleAutoGenerate")}
+        hint={t("settings.titleAutoGenerateDescription")}
+        control={
+          <PwSwitch
+            checked={titleAuto}
+            label={t("settings.titleAutoGenerate")}
+            onChange={setTitleAutoAndPersist}
+          />
+        }
+      />
+      <PwField
+        label={t("settings.titleModel")}
+        hint={t("settings.titleModelDescription")}
+        control={
+          <PwSelectBox
+            value={titleModelValue}
+            ariaLabel={t("settings.titleModel")}
+            options={[
+              { value: "", label: t("settings.titleModelNone") },
+              ...titleModelOptions.map((option) => ({
+                value: `${option.provider}:${option.modelId}`,
+                label: option.label,
+              })),
+            ]}
+            onChange={setTitleModelAndPersist}
+          />
+        }
+      />
     </>
   );
 }
@@ -381,304 +396,312 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   };
 
   return (
-    <div className="settings-general">
-      <h2 className="settings-general-title">{t("settings.general")}</h2>
+    <>
+      <PwPageHead title={t("settings.general")} sub={t("settings.generalSub")} />
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("settings.appearance")}</h3>
-        <div role="radiogroup" aria-label={t("settings.appearance")} className="settings-theme-options">
-          {THEME_OPTIONS.map((option) => {
-            // A palette is the only theme source now: the pi CLI overlay was
-            // removed, so selection is a plain comparison.
-            const selected = preference === option.id;
-            return (
-              <label
-                key={option.id}
-                className="settings-theme-option"
-              >
-                <input
-                  type="radio"
-                  name="theme"
-                  value={option.id}
-                  checked={selected}
-                  onChange={() => {
-                    setThemePreference(option.id);
-                  }}
-                  className="sr-only"
-                />
-                <ThemeIcon preference={option.id} />
-                <span className="settings-theme-option-label">{t(option.label)}</span>
-              </label>
-            );
-          })}
-        </div>
-
-        <div className="settings-chat-option settings-chat-range-option">
-          <div className="settings-chat-range-header">
-            <label htmlFor="settings-border-depth">{t("settings.borderDepth")}</label>
-            <output htmlFor="settings-border-depth">{borderDepth}</output>
-            <ConfigButton
-              variant="ghost"
-              size="small"
-              className="settings-chat-reset"
-              title={t("settings.borderDepthTheme")}
-              aria-label={t("settings.borderDepthTheme")}
-              onClick={() => setBorderDepth(50)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
-              </svg>
-            </ConfigButton>
-          </div>
-          <input
-            id="settings-border-depth"
-            type="range"
-            min={BORDER_DEPTH_MIN}
-            max={BORDER_DEPTH_MAX}
-            step={1}
-            value={borderDepth}
-            aria-label={t("settings.borderDepth")}
-            aria-valuetext={`${borderDepth}`}
-            onChange={(event) => setBorderDepth(Number(event.target.value))}
-          />
-          <div className="settings-chat-range-scale" aria-hidden="true">
-            <span>{t("settings.borderDepthInvisible")}</span>
-            <span>{t("settings.borderDepthTheme")}</span>
-            <span>{t("settings.borderDepthContrast")}</span>
-          </div>
-          <p className="settings-chat-range-hint">{t("settings.borderDepthDescription")}</p>
-        </div>
-      </section>
-
-      {/* fork:zn-19 — 主题皮肤：先选一套，再编辑/新建/导入/导出。
-          label 用 `.fork-settings-block` 的样式，卡片本体由 ThemeSkinStrip 自己画
-          （它有左右滚动按钮，塞进通用的 `.fork-settings-card` 会被裁掉）。 */}
-      <section className="settings-general-section">
-        <section className="fork-settings-block">
-          <h3 className="fork-settings-block-label">{t("settings.skinLibrary")}</h3>
-          <ThemeSkinStrip
-            skins={skins}
-            activeId={activeId}
-            onSelect={setActive}
-            onCreate={() => {
-              // 新皮肤的起点 = **当前实际渲染的基色**（读 computed 再转 hex），
-              // 而不是一套写死的色，也不是空值：空值会让四个色板全白，用户第一步
-              // 得先把当前配色手工填回去。已经有生效的皮肤时用它的值，避免从皮肤
-              // 派生出来的 oklch 又被 canvas 往返一次。
-              const active = skins.find((item) => item.id === activeId);
-              // fork:zn-19-variant — 起点写进**当前模式的变体**（而不是共享色）：
-              // 这样切到另一套模式时它是空的，会回落到该模式的调色板，开关立刻看得见效果。
-              const mode = currentSkinMode();
-              const base = active?.background && active?.panel && active?.accent && active?.text
-                ? { background: active.background, panel: active.panel, accent: active.accent, text: active.text }
-                : readCurrentSkinBase();
-              setEditing({
-                skin: createSkinDraft(`skin-${Date.now().toString(36)}`, t("settings.skinNewTitle"), mode, {
-                  [mode]: { ...base },
-                }),
-                isNew: true,
-              });
-            }}
-            onEdit={(id) => {
-              const skin = skins.find((item) => item.id === id);
-              if (skin) setEditing({ skin, isNew: false });
-            }}
-            onImport={(skin) => {
-              // 导入的皮肤换一个 id：否则同 id 会把别人的皮肤覆盖掉。
-              upsertSkin({ ...skin, id: `skin-${Date.now().toString(36)}` });
-            }}
-            onExport={(skin) => {
-              const blob = new Blob([serializeSkinForExport(skin)], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = `${skin.name || skin.id}.json`;
-              link.click();
-              URL.revokeObjectURL(url);
-            }}
-          />
-
-          {/* fork:zn-19-merge — 壁纸原本是**另一个**独立区块（上面「主题皮肤」、下面「壁纸」），
-              两处都能配图、都能调遮罩/透明度，用户得先猜哪个在生效。Zeno 的做法是只有一处：
-              皮肤工作室里连壁纸一起编辑。这里按同样的思路把壁纸并进同一张卡：
-              没有自定义皮肤时它就是「默认外观」的壁纸；有皮肤时交给皮肤（见 WallpaperSettings）。 */}
-          <section className="fork-settings-block is-spaced">
-            <h3 className="fork-settings-block-label">{t("settings.wallpaperDefaultTitle")}</h3>
-            <WallpaperSettings
-              skinActive={activeSkin ? activeSkin.id !== THEME_SKIN_DEFAULT_ID : false}
-              {...(activeSkin && activeSkin.id !== THEME_SKIN_DEFAULT_ID
-                ? { onEditSkin: () => setEditing({ skin: activeSkin, isNew: false }) }
-                : {})}
+      {/* fork:design-system SW-07 —— 画板 40 第一块「外观」：主题是 `.pw-radio` 三档
+          （图标 sun / moon / monitor 与画板同源），边框深度是 `.pw-ctl`（滑块 +
+          等宽读数 + 重置钮，与画板「聊天内容宽度」那一行同一形态）。 */}
+      <PwBlock icon="palette" title={t("settings.appearance")}>
+        <PwField
+          label={t("settings.appearance")}
+          hint={t("settings.appearanceDescription")}
+          control={
+            <PwRadio
+              value={preference}
+              ariaLabel={t("settings.appearance")}
+              options={THEME_OPTIONS.map((option) => ({
+                value: option.id,
+                label: t(option.label),
+                icon: THEME_ICON_BY_ID[option.id],
+              }))}
+              onChange={setThemePreference}
             />
-          </section>
-        </section>
-      </section>
-
-      {/* fork:zn-15 — 外观 → 侧边栏 / 界面字体（Zeno appearance 页的四行，
-          用 Zeno 的卡片 + 设置行形状：标签与说明在左、控件在右上、行间内缩分隔线）。 */}
-      <section className="settings-general-section">
-        <SettingsBlock label={t("settings.railBlock")}>
-          <SettingsRow
-            title={t("settings.sidebarTranslucent")}
-            description={t("settings.sidebarTranslucentHint")}
-            control={
-              <ConfigSwitch
-                checked={railTranslucent}
-                label={t("settings.sidebarTranslucent")}
-                onChange={setRailTranslucent}
+          }
+        />
+        <PwField
+          label={t("settings.borderDepth")}
+          hint={t("settings.borderDepthDescription")}
+          htmlFor="settings-border-depth"
+          control={
+            <PwCtl>
+              <PwRange
+                id="settings-border-depth"
+                value={borderDepth}
+                displayValue={String(borderDepth)}
+                min={BORDER_DEPTH_MIN}
+                max={BORDER_DEPTH_MAX}
+                ariaLabel={t("settings.borderDepth")}
+                onChange={setBorderDepth}
               />
-            }
-          />
-          <SettingsRow
-            title={t("settings.sidebarWidth")}
-            description={
-              sidebarWidth == null || onSidebarWidthChange == null ? (
-                t("settings.sidebarWidthHint")
-              ) : (
-                <SettingsSlider
-                  ariaLabel={t("settings.sidebarWidth")}
+              <button
+                type="button"
+                className="pw-btn sm"
+                title={t("settings.borderDepthTheme")}
+                onClick={() => setBorderDepth(50)}
+              >
+                {t("settings.reset")}
+              </button>
+            </PwCtl>
+          }
+        />
+      </PwBlock>
+
+      {/* fork:zn-19 / fork:design-system SW-07 —— 主题皮肤：卡片条 + 导入 / 导出 /
+          打开皮肤工作室（都在 ThemeSkinStrip 里，DOM 是画板 47 的 `.pw-skin-strip`）。 */}
+      <PwBlock icon="wand-sparkles" title={t("settings.skinLibrary")}>
+        <ThemeSkinStrip
+          skins={skins}
+          activeId={activeId}
+          onSelect={setActive}
+          onCreate={() => {
+            // 新皮肤的起点 = **当前实际渲染的基色**（读 computed 再转 hex），
+            // 而不是一套写死的色，也不是空值：空值会让四个色板全白，用户第一步
+            // 得先把当前配色手工填回去。已经有生效的皮肤时用它的值，避免从皮肤
+            // 派生出来的 oklch 又被 canvas 往返一次。
+            const active = skins.find((item) => item.id === activeId);
+            // fork:zn-19-variant — 起点写进**当前模式的变体**（而不是共享色）：
+            // 这样切到另一套模式时它是空的，会回落到该模式的调色板，开关立刻看得见效果。
+            const mode = currentSkinMode();
+            const base = active?.background && active?.panel && active?.accent && active?.text
+              ? { background: active.background, panel: active.panel, accent: active.accent, text: active.text }
+              : readCurrentSkinBase();
+            setEditing({
+              skin: createSkinDraft(`skin-${Date.now().toString(36)}`, t("settings.skinNewTitle"), mode, {
+                [mode]: { ...base },
+              }),
+              isNew: true,
+            });
+          }}
+          onEdit={(id) => {
+            const skin = skins.find((item) => item.id === id);
+            if (skin) setEditing({ skin, isNew: false });
+          }}
+          onImport={(skin) => {
+            // 导入的皮肤换一个 id：否则同 id 会把别人的皮肤覆盖掉。
+            upsertSkin({ ...skin, id: `skin-${Date.now().toString(36)}` });
+          }}
+          onExport={(skin) => {
+            const blob = new Blob([serializeSkinForExport(skin)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${skin.name || skin.id}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+        />
+      </PwBlock>
+
+      {/* fork:zn-19-merge —— 壁纸与皮肤是同一件事的两个粒度：没有自定义皮肤时这里就是
+          「默认外观」的壁纸；有皮肤时由皮肤接管（WallpaperSettings 自己判断并只留
+          一条去编辑皮肤的提示）。画板 40 把壁纸单列一块，这里照画板。 */}
+      <PwBlock icon="wallpaper" title={t("settings.wallpaperDefaultTitle")}>
+        <WallpaperSettings
+          skinActive={activeSkin ? activeSkin.id !== THEME_SKIN_DEFAULT_ID : false}
+          {...(activeSkin && activeSkin.id !== THEME_SKIN_DEFAULT_ID
+            ? { onEditSkin: () => setEditing({ skin: activeSkin, isNew: false }) }
+            : {})}
+        />
+      </PwBlock>
+
+      {/* fork:zn-15 —— 外观 → 侧边栏：半透明开关 + 宽度滑块（画板 40 的「侧栏」块）。 */}
+      <PwBlock icon="panel-left" title={t("settings.railBlock")}>
+        <PwField
+          label={t("settings.sidebarTranslucent")}
+          hint={t("settings.sidebarTranslucentHint")}
+          control={
+            <PwSwitch
+              checked={railTranslucent}
+              label={t("settings.sidebarTranslucent")}
+              onChange={setRailTranslucent}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.sidebarWidth")}
+          htmlFor="settings-sidebar-width"
+          control={
+            sidebarWidth == null || onSidebarWidthChange == null ? (
+              <PwValue>{t("settings.sidebarWidthHint")}</PwValue>
+            ) : (
+              <PwCtl>
+                <PwRange
+                  id="settings-sidebar-width"
                   value={sidebarWidth}
-                  displayValue={`${sidebarWidth}px`}
+                  displayValue={`${sidebarWidth} px`}
                   min={SIDEBAR_MIN_WIDTH}
                   max={SIDEBAR_MAX_WIDTH}
                   step={4}
+                  ariaLabel={t("settings.sidebarWidth")}
                   onChange={onSidebarWidthChange}
                 />
-              )
-            }
-            control={<span className="sr-only">{sidebarWidth ?? ""}</span>}
-            last
-          />
-        </SettingsBlock>
-      </section>
+              </PwCtl>
+            )
+          }
+        />
+      </PwBlock>
 
-      {/* fork:zn-16 — 通知（Zeno 通知页）：一张开关矩阵卡 + 卡外两个动作按钮。 */}
-      <section className="settings-general-section">
-        <SettingsBlock label={t("settings.notificationBlock")}>
-          <SettingsRow
-            title={t("settings.notifyMaster")}
-            description={t("settings.notifyMasterHint")}
-            control={
-              <ConfigSwitch
-                checked={notificationPrefs.enabled}
-                label={t("settings.notifyMaster")}
-                onChange={(next) => setNotificationPref("enabled", next)}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.notifyOnComplete")}
-            description={t("settings.notifyOnCompleteHint")}
-            control={
-              <ConfigSwitch
-                checked={notificationPrefs.onComplete}
+      {/* fork:zn-16 —— 通知：五条开关行 + 行末两个动作钮（画板 40 的「通知」块）。 */}
+      <PwBlock icon="bell" title={t("settings.notificationBlock")}>
+        <PwField
+          label={t("settings.notifyMaster")}
+          hint={t("settings.notifyMasterHint")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.enabled}
+              label={t("settings.notifyMaster")}
+              onChange={(next) => setNotificationPref("enabled", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifyOnComplete")}
+          hint={t("settings.notifyOnCompleteHint")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.onComplete}
+              disabled={!notificationPrefs.enabled}
+              label={t("settings.notifyOnComplete")}
+              onChange={(next) => setNotificationPref("onComplete", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifyOnError")}
+          hint={t("settings.notifyOnErrorHint")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.onError}
+              disabled={!notificationPrefs.enabled}
+              label={t("settings.notifyOnError")}
+              onChange={(next) => setNotificationPref("onError", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifyOnlyUnfocused")}
+          hint={t("settings.notifyOnlyUnfocusedHint")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.onlyWhenUnfocused}
+              disabled={!notificationPrefs.enabled}
+              label={t("settings.notifyOnlyUnfocused")}
+              onChange={(next) => setNotificationPref("onlyWhenUnfocused", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifySound")}
+          hint={t("settings.notifySoundHint")}
+          control={
+            <PwSwitch
+              checked={soundEnabled}
+              label={t("settings.notifySound")}
+              onChange={(next) => onSoundToggle?.(next)}
+            />
+          }
+        />
+        {/* 画板这一行是空 `.pw-label` + 两个动作钮，照抄。 */}
+        <PwField
+          label=""
+          control={
+            <PwCtl>
+              <button
+                type="button"
+                className="pw-btn outline sm"
                 disabled={!notificationPrefs.enabled}
-                label={t("settings.notifyOnComplete")}
-                onChange={(next) => setNotificationPref("onComplete", next)}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.notifyOnError")}
-            description={t("settings.notifyOnErrorHint")}
-            control={
-              <ConfigSwitch
-                checked={notificationPrefs.onError}
-                disabled={!notificationPrefs.enabled}
-                label={t("settings.notifyOnError")}
-                onChange={(next) => setNotificationPref("onError", next)}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.notifyOnlyUnfocused")}
-            description={t("settings.notifyOnlyUnfocusedHint")}
-            control={
-              <ConfigSwitch
-                checked={notificationPrefs.onlyWhenUnfocused}
-                disabled={!notificationPrefs.enabled}
-                label={t("settings.notifyOnlyUnfocused")}
-                onChange={(next) => setNotificationPref("onlyWhenUnfocused", next)}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.notifySound")}
-            description={t("settings.notifySoundHint")}
-            control={
-              <ConfigSwitch
-                checked={soundEnabled}
-                label={t("settings.notifySound")}
-                onChange={(next) => onSoundToggle?.(next)}
-              />
-            }
-            last
-          />
-        </SettingsBlock>
-        <div className="settings-notify-actions">
-          <ConfigButton
-            variant="secondary"
-            disabled={!notificationPrefs.enabled}
-            onClick={() => void sendTestNotification()}
-          >
-            {t("settings.notifyTest")}
-          </ConfigButton>
-          <ConfigButton variant="secondary" onClick={() => void openSystemNotificationSettings()}>
-            {t("settings.notifyOpenSystem")}
-          </ConfigButton>
-          {notificationNote ? (
-            <span role="status" className="settings-notify-note">{notificationNote}</span>
-          ) : null}
-        </div>
-      </section>
+                onClick={() => void sendTestNotification()}
+              >
+                {t("settings.notifyTest")}
+              </button>
+              <button
+                type="button"
+                className="pw-btn sm"
+                onClick={() => void openSystemNotificationSettings()}
+              >
+                {t("settings.notifyOpenSystem")}
+              </button>
+            </PwCtl>
+          }
+        />
+        {notificationNote ? (
+          <div role="status" className="pw-alert info">
+            <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+            <span className="pw-grow">{notificationNote}</span>
+          </div>
+        ) : null}
+      </PwBlock>
 
-      <section className="settings-general-section">
-        <SettingsBlock label={t("settings.typographyBlock")}>
-          <SettingsRow
-            title={t("settings.uiFont")}
-            description={fontsLoading ? t("settings.uiFontLoading") : t("settings.uiFontHint")}
-            control={
-              <SettingsSelect
-                // value 是**字体栈**：空栈即系统默认。栈里含逗号与引号，直接当 option
-                // 的 value 没问题（它是普通字符串），比较也走全等。
-                value={fontStack}
-                ariaLabel={t("settings.uiFont")}
-                disabled={fontsLoading && fontChoices.length <= 1}
-                options={fontChoices.map((choice) => ({
-                  value: choice.stack,
-                  label: choice.label,
-                }))}
-                onChange={(next) => setFontStack(next)}
-              />
-            }
-          />
-          <SettingsRow
-            title={t("settings.uiFontSize")}
-            description={t("settings.uiFontSizeHint")}
-            control={
-              <SettingsSelect
-                value={String(uiFontSize)}
-                ariaLabel={t("settings.uiFontSize")}
-                options={UI_FONT_SIZE_OPTIONS.map((size) => ({
-                  value: String(size),
-                  label: `${size}px`,
-                }))}
-                onChange={(next) => setUiFontSize(Number(next))}
-              />
-            }
-            last
-          />
-        </SettingsBlock>
-      </section>
+      {/* fork:zn-18 —— 界面字体（画板 40「界面字体」块：UI 字体 + UI 字号两行）。
+          画板还画了「代码字体 / 代码等宽中文字体」两行，本产品没有这两个设置，
+          不凭空造控件。 */}
+      <PwBlock icon="type" title={t("settings.typographyBlock")}>
+        <PwField
+          label={t("settings.uiFont")}
+          hint={fontsLoading ? t("settings.uiFontLoading") : t("settings.uiFontHint")}
+          control={
+            <PwSelectBox
+              // value 是**字体栈**：空栈即系统默认。栈里含逗号与引号，直接当 option
+              // 的 value 没问题（它是普通字符串），比较也走全等。
+              value={fontStack}
+              ariaLabel={t("settings.uiFont")}
+              disabled={fontsLoading && fontChoices.length <= 1}
+              options={fontChoices.map((choice) => ({
+                value: choice.stack,
+                label: choice.label,
+              }))}
+              onChange={(next) => setFontStack(next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.uiFontSize")}
+          hint={t("settings.uiFontSizeHint")}
+          control={
+            <PwSelectBox
+              value={String(uiFontSize)}
+              ariaLabel={t("settings.uiFontSize")}
+              options={UI_FONT_SIZE_OPTIONS.map((size) => ({
+                value: String(size),
+                label: `${size} px`,
+              }))}
+              onChange={(next) => setUiFontSize(Number(next))}
+            />
+          }
+        />
+      </PwBlock>
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("settings.chat")}</h3>
-        <div className="settings-chat-options">
-          {/* D2-PR-22：自动命名开关 + 命名模型（独立控件组，样式类与所在分区一致）。 */}
-          <TitleSettingsControls cwd={cwd} />
-          <div className="settings-chat-option settings-chat-switch-option">
-            <span>{t("settings.thinkingExpandedDefault")}</span>
-            <ConfigSwitch
+      {/* 语言：画板 40 用 `.pw-radio` 排三档，照抄。 */}
+      <PwBlock icon="languages" title={t("common.language")}>
+        <PwField
+          label={t("common.language")}
+          hint={t("settings.languageDescription")}
+          control={
+            <PwRadio
+              value={locale}
+              ariaLabel={t("common.language")}
+              options={supportedLocales.map((plugin) => ({
+                value: plugin.id as typeof locale,
+                label: plugin.label,
+              }))}
+              onChange={(next) => setLocale(next)}
+            />
+          }
+        />
+      </PwBlock>
+
+      {/* fork:design-system SW-07 —— 聊天块：画板 40 画的九行逐行对上。
+          过程步骤的三个芯片在画板里是单选（`.pw-radio`），产品的语义是三个**独立**
+          开关，所以保留画板的 DOM 与状态类，只把 ARIA 换成 `aria-pressed`
+          （芯片组，不是单选组）——形态照画板，语义照产品。 */}
+      <PwBlock icon="message-square" title={t("settings.chat")}>
+        <TitleSettingsControls cwd={cwd} />
+        <PwField
+          label={t("settings.thinkingExpandedDefault")}
+          hint={t("settings.thinkingDisplayDescription")}
+          control={
+            <PwSwitch
               checked={thinkingExpanded}
               label={t("settings.thinkingExpandedDefault")}
               onChange={(enabled) => {
@@ -686,210 +709,189 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
                 setThinkingExpanded(enabled);
               }}
             />
-          </div>
-          <div className="settings-chat-option settings-chat-range-option">
-            <span className="settings-chat-option-label">{t("settings.density")}</span>
-            <select
-              className="settings-select"
+          }
+        />
+        <PwField
+          label={t("settings.density")}
+          hint={t("settings.densityHint")}
+          control={
+            <PwRadio
               value={uiDensity}
-              aria-label={t("settings.density")}
-              onChange={(event) => setUiDensity(event.target.value as UiDensity)}
-            >
-              <option value="compact">{t("settings.densityCompact")}</option>
-              <option value="standard">{t("settings.densityStandard")}</option>
-              <option value="comfortable">{t("settings.densityComfortable")}</option>
-            </select>
-            <p className="settings-chat-range-hint">{t("settings.densityHint")}</p>
-          </div>
-          {/* fork:step-expansion — 时间线里哪几类步骤默认摊开。原来这里是
-              「过程显示：传统 / 时间线 / 标签」三选一，现在只剩时间线一种视图，
-              这个下拉框换成了三个按类别控制的开关。 */}
-          <p className="settings-chat-range-hint">{t("settings.stepExpandHint")}</p>
-          {([
-            ["reasoning", "settings.stepExpandReasoning"],
-            ["command", "settings.stepExpandCommand"],
-            ["tool", "settings.stepExpandTool"],
-          ] as const).map(([category, labelKey]) => {
-            const label = t(labelKey);
-            const on = stepExpansion[category];
-            return (
-              <div key={category} className="settings-chat-option settings-chat-switch-option">
-                <span>{label}</span>
-                {/* 开关旁边写明当前状态：光看拨杆分不清「展开」是哪一边。 */}
-                <span className="settings-chat-switch-status">
-                  <span className={on ? "settings-chat-switch-state is-on" : "settings-chat-switch-state"}>
-                    {t(on ? "settings.stepExpandOn" : "settings.stepExpandOff", { name: label })}
-                  </span>
-                  <ConfigSwitch
-                    checked={on}
-                    label={label}
-                    onChange={(enabled) => setStepExpansion(setStepCategoryExpanded(category, enabled))}
-                  />
-                </span>
-              </div>
-            );
-          })}
-          <div className="settings-chat-option settings-chat-range-option">
-            <div className="settings-chat-range-header">
-              <label htmlFor="settings-chat-content-width">{t("settings.chatContentWidth")}</label>
-              <output htmlFor="settings-chat-content-width">{chatContentWidth}px</output>
-              <ConfigButton
-                variant="ghost"
-                size="small"
-                className="settings-chat-reset"
+              ariaLabel={t("settings.density")}
+              options={[
+                { value: "compact" as UiDensity, label: t("settings.densityCompact") },
+                { value: "standard" as UiDensity, label: t("settings.densityStandard") },
+                { value: "comfortable" as UiDensity, label: t("settings.densityComfortable") },
+              ]}
+              onChange={setUiDensity}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.stepExpand")}
+          hint={t("settings.stepExpandHint")}
+          control={
+            <PwCtl>
+              <span className="pw-radio">
+                {([
+                  ["reasoning", "settings.stepExpandReasoning", "brain"],
+                  ["command", "settings.stepExpandCommand", "terminal"],
+                  ["tool", "settings.stepExpandTool", "wrench"],
+                ] as const).map(([category, labelKey, icon]) => {
+                  const on = stepExpansion[category];
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      aria-pressed={on}
+                      className={on ? "is-on" : undefined}
+                      onClick={() => setStepExpansion(setStepCategoryExpanded(category, !on))}
+                    >
+                      <span className="pw-ico"><i data-ico={icon} data-size="12" aria-hidden="true" /></span>
+                      {t(labelKey)}
+                    </button>
+                  );
+                })}
+              </span>
+            </PwCtl>
+          }
+        />
+        <PwField
+          label={t("settings.chatContentWidth")}
+          htmlFor="settings-chat-content-width"
+          control={
+            <PwCtl>
+              <PwRange
+                id="settings-chat-content-width"
+                value={chatContentWidth}
+                displayValue={`${chatContentWidth} px`}
+                min={CHAT_CONTENT_WIDTH_MIN}
+                max={CHAT_CONTENT_WIDTH_MAX}
+                step={10}
+                ariaLabel={t("settings.chatContentWidth")}
+                onChange={setChatContentWidth}
+              />
+              <button
+                type="button"
+                className="pw-btn sm"
                 title={t("settings.resetChatContentWidth")}
-                aria-label={t("settings.resetChatContentWidth")}
                 disabled={chatContentWidth === CHAT_CONTENT_WIDTH_DEFAULT}
                 onClick={() => setChatContentWidth(CHAT_CONTENT_WIDTH_DEFAULT)}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
-                </svg>
-              </ConfigButton>
-            </div>
-            <input
-              id="settings-chat-content-width"
-              type="range"
-              min={CHAT_CONTENT_WIDTH_MIN}
-              max={CHAT_CONTENT_WIDTH_MAX}
-              step={10}
-              value={chatContentWidth}
-              onChange={(event) => setChatContentWidth(Number(event.target.value))}
-            />
-          </div>
-          <div className="settings-chat-option settings-chat-range-option">
-            <div className="settings-chat-range-header">
-              <label htmlFor="settings-chat-content-font-size">{t("settings.chatContentFontSize")}</label>
-              <output htmlFor="settings-chat-content-font-size">{fontSize}px</output>
-              <ConfigButton
-                variant="ghost"
-                size="small"
-                className="settings-chat-reset"
+                {t("settings.reset")}
+              </button>
+            </PwCtl>
+          }
+        />
+        <PwField
+          label={t("settings.chatContentFontSize")}
+          htmlFor="settings-chat-content-font-size"
+          control={
+            <PwCtl>
+              <PwRange
+                id="settings-chat-content-font-size"
+                value={fontSize}
+                displayValue={`${fontSize} px`}
+                min={CHAT_CONTENT_FONT_SIZE_MIN}
+                max={CHAT_CONTENT_FONT_SIZE_MAX}
+                ariaLabel={t("settings.chatContentFontSize")}
+                onChange={setFontSize}
+              />
+              <button
+                type="button"
+                className="pw-btn sm"
                 title={t("settings.resetChatContentFontSize")}
-                aria-label={t("settings.resetChatContentFontSize")}
                 disabled={fontSize === CHAT_CONTENT_FONT_SIZE_DEFAULT}
                 onClick={() => setFontSize(CHAT_CONTENT_FONT_SIZE_DEFAULT)}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
-                </svg>
-              </ConfigButton>
-            </div>
-            <input
-              id="settings-chat-content-font-size"
-              type="range"
-              min={CHAT_CONTENT_FONT_SIZE_MIN}
-              max={CHAT_CONTENT_FONT_SIZE_MAX}
-              step={1}
-              value={fontSize}
-              onChange={(event) => setFontSize(Number(event.target.value))}
-            />
-          </div>
-          <div className="settings-chat-option settings-chat-range-option">
-            <div className="settings-chat-range-header">
-              <label htmlFor="settings-extension-widget-font-size">{t("settings.extensionWidgetFontSize")}</label>
-              <output htmlFor="settings-extension-widget-font-size">{extensionWidgetFontSize}px</output>
-              <ConfigButton
-                variant="ghost"
-                size="small"
-                className="settings-chat-reset"
+                {t("settings.reset")}
+              </button>
+            </PwCtl>
+          }
+        />
+        <PwField
+          label={t("settings.extensionWidgetFontSize")}
+          htmlFor="settings-extension-widget-font-size"
+          control={
+            <PwCtl>
+              <PwRange
+                id="settings-extension-widget-font-size"
+                value={extensionWidgetFontSize}
+                displayValue={`${extensionWidgetFontSize} px`}
+                min={EXTENSION_WIDGET_FONT_SIZE_MIN}
+                max={EXTENSION_WIDGET_FONT_SIZE_MAX}
+                ariaLabel={t("settings.extensionWidgetFontSize")}
+                onChange={setExtensionWidgetFontSize}
+              />
+              <button
+                type="button"
+                className="pw-btn sm"
                 title={t("settings.resetExtensionWidgetFontSize")}
-                aria-label={t("settings.resetExtensionWidgetFontSize")}
                 disabled={extensionWidgetFontSize === EXTENSION_WIDGET_FONT_SIZE_DEFAULT}
                 onClick={() => setExtensionWidgetFontSize(EXTENSION_WIDGET_FONT_SIZE_DEFAULT)}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
-                </svg>
-              </ConfigButton>
-            </div>
-            <input
-              id="settings-extension-widget-font-size"
-              type="range"
-              min={EXTENSION_WIDGET_FONT_SIZE_MIN}
-              max={EXTENSION_WIDGET_FONT_SIZE_MAX}
-              step={1}
-              value={extensionWidgetFontSize}
-              onChange={(event) => setExtensionWidgetFontSize(Number(event.target.value))}
-            />
-          </div>
-          <div className="settings-chat-option settings-chat-switch-option">
-            <span>{t("settings.quoteSelection")}</span>
-            <ConfigSwitch
+                {t("settings.reset")}
+              </button>
+            </PwCtl>
+          }
+        />
+        <PwField
+          label={t("settings.quoteSelection")}
+          control={
+            <PwSwitch
               checked={quoteSelectionEnabled}
               label={t("settings.quoteSelection")}
               onChange={onQuoteSelectionChange}
             />
-          </div>
-        </div>
-      </section>
+          }
+        />
+      </PwBlock>
 
       {shellSettings?.isWindows && (
-        <section className="settings-general-section">
-          <h3 className="settings-general-heading">{t("settings.shellTool")}</h3>
-          <p className="settings-general-description">{t("settings.shellToolDescription")}</p>
-          <div className="settings-shell-option">
-            <span>{t("settings.usePowerShell")}</span>
-            <ConfigSwitch
-              checked={shellSettings.powerShellEnabled}
-              loading={shellSaving}
-              label={t("settings.usePowerShell")}
-              onChange={(enabled) => void togglePowerShell(enabled)}
-            />
-          </div>
-          {shellError && <p role="alert" className="settings-general-error">{shellError}</p>}
-        </section>
+        <PwBlock icon="terminal" title={t("settings.shellTool")}>
+          <PwField
+            label={t("settings.usePowerShell")}
+            hint={t("settings.shellToolDescription")}
+            control={
+              <PwSwitch
+                checked={shellSettings.powerShellEnabled}
+                loading={shellSaving}
+                label={t("settings.usePowerShell")}
+                onChange={(enabled) => void togglePowerShell(enabled)}
+              />
+            }
+          />
+          {shellError ? (
+            <div role="alert" className="pw-alert">
+              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+              <span className="pw-grow">{shellError}</span>
+            </div>
+          ) : null}
+        </PwBlock>
       )}
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("settings.pushPermission")}</h3>
-        <p className="settings-general-description">{t("settings.pushPermissionDescription")}</p>
-        <div className="settings-shell-option">
-          <span>{t("settings.pushPermission")}</span>
-          <button
-            type="button"
-            className="config-button config-button-small config-button-secondary"
-            disabled={pushRegistering}
-            onClick={() => void registerPush()}
-          >
-            {pushRegistering ? t("settings.pushRegisterLoading") : t("settings.pushRegister")}
-          </button>
-        </div>
-        {pushStatus && (
-          <p
-            role="status"
-            className="settings-general-error"
-            style={pushStatus.kind === "ok" ? { color: "var(--accent)" } : undefined}
-          >
-            {pushStatus.message}
-          </p>
-        )}
-      </section>
-
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("common.language")}</h3>
-        <div role="radiogroup" aria-label={t("common.language")} className="settings-language-options">
-          {supportedLocales.map((plugin) => {
-            const selected = locale === plugin.id;
-            return (
-              <button
-                key={plugin.id}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => setLocale(plugin.id as typeof locale)}
-                className="settings-language-option"
-              >
-                <span className="settings-language-radio">
-                  {selected && <span className="settings-language-radio-dot" />}
-                </span>
-                <span className="settings-language-label">{plugin.label}</span>
-                <span className="settings-language-code">{plugin.id}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <PwBlock icon="bell" title={t("settings.pushPermission")}>
+        <PwField
+          label={t("settings.pushRegister")}
+          hint={t("settings.pushPermissionDescription")}
+          control={
+            <button
+              type="button"
+              className="pw-btn outline sm"
+              disabled={pushRegistering}
+              onClick={() => void registerPush()}
+            >
+              {pushRegistering ? t("settings.pushRegisterLoading") : t("settings.pushRegister")}
+            </button>
+          }
+        />
+        {pushStatus ? (
+          <div role="status" className={pushStatus.kind === "ok" ? "pw-alert info" : "pw-alert"}>
+            <span className="pw-ico"><i data-ico={pushStatus.kind === "ok" ? "info" : "triangle-alert"} data-size="14" aria-hidden="true" /></span>
+            <span className="pw-grow">{pushStatus.message}</span>
+          </div>
+        ) : null}
+      </PwBlock>
 
       {/* fork:design-system —— 本产品没有登录：整个「退出登录」分节删除
           （设计裁定 2026-09-28，见 design/pi-web-design/50-dialogs.html 与 DIVERGENCE 第 18 条）。 */}
@@ -909,10 +911,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }
-
 // fork:zc-15 — the section keyword table moved into `lib/settings-navigation.ts`
 export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, onOpenSession, onOpenFile, sidebarWidth, onSidebarWidthChange, soundEnabled, onSoundToggle }: Props) {
   const { t } = useI18n();
@@ -968,7 +969,9 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
     <div
       key={id}
       hidden={section !== id}
-      className="settings-section-host"
+      /* fork:design-system SW-07 — 每个分节的内容栏就是画板 40 的 `.pw-sbody`
+         （页边距 24/40/32、`> h2` / `> p.sub` 的页头规格全在 board.css）。 */
+      className="settings-section-host pw-sbody"
     >
       {content}
     </div>
@@ -1015,7 +1018,10 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
             `grid-template-columns: 184px minmax(0,1fr)`); the phone keeps the
             select picker above and hides this column in CSS. */}
         <div className="settings-dialog-body pw-settings">
-          <nav aria-label={t("settings.title")} className="settings-section-tabs">
+          {/* fork:design-system SW-07 — 画板 40 的左导航：`.pw-snav` + `.pw-row` 行
+              （图标 + `.pw-name`），选中态是 `.is-on`。行在画板里是 div，产品是
+              button，UA 归零在 fork-ui.css 的接线块（`button.pw-row`）。 */}
+          <nav aria-label={t("settings.title")} className="settings-section-tabs pw-snav">
             {sections.map((item) => {
               const selected = section === item.id;
               const disabled = item.requiresProject && !cwd;
@@ -1023,17 +1029,29 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
                 <button
                   key={item.id}
                   type="button"
-                  className="settings-section-tab"
+                  className={`pw-row${selected ? " is-on" : ""}`}
                   disabled={disabled}
                   title={disabled ? t("settings.projectRequired") : item.label}
                   aria-current={selected ? "page" : undefined}
                   onClick={() => activateSection(item.id)}
                 >
-                  <SettingsSectionIcon section={item.id} />
-                  <span>{item.label}</span>
+                  <span className="pw-ico"><SettingsSectionIcon section={item.id} /></span>
+                  <span className="pw-name">{item.label}</span>
                 </button>
               );
             })}
+            {/* 画板 40 的左导航只有 13 个分节；关闭入口用户定在导航底部（不是页头）——
+                桌面把导航空隙推到底，手机导航整列隐藏，关闭仍在页头（那里有分节下拉）。 */}
+            <span className="pw-grow" aria-hidden="true" />
+            <button
+              type="button"
+              className="pw-row pw-snav-close"
+              title={t("i18n.close")}
+              onClick={onClose}
+            >
+              <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
+              <span className="pw-name">{t("i18n.close")}</span>
+            </button>
           </nav>
 
           <main className="settings-dialog-main">
@@ -1055,13 +1073,11 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
               // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
               // 所以合成一页：上面是项目索引，下面是会话归档。原先是两个导航项，
               // 用户看着像两套互不相干的归档。
-              // fork:settings-page-frame — 外层 `.settings-general` 是各页共用的页面框。
+              // fork:settings-page-frame — 外层 `.settings-general` 是各页共用的页面框
+              // （页边距与页头排版都在画板 40 的 `.pw-sbody` 上，见 settings.css）。
               <div className="settings-general">
-                <h2 className="settings-general-title">{t("settings.archivedTitle")}</h2>
+                <PwPageHead title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")} />
                 <div className="settings-archive-page">
-                  <p className="settings-pi-theme-description">
-                    {t("settings.archivePageDescription")}
-                  </p>
                   <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
                   <ArchivedSessionsPanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
                 </div>

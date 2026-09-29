@@ -6,6 +6,7 @@ import { createJiti } from "jiti";
 const chatWindow = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
 const chatInput = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
 const settingsPanel = await readFile(new URL("./SettingsPanel.tsx", import.meta.url), "utf8");
+const settingsUi = await readFile(new URL("./SettingsUi.tsx", import.meta.url), "utf8");
 const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const chatAppearanceHook = await readFile(new URL("../hooks/useChatAppearance.ts", import.meta.url), "utf8");
 const jiti = createJiti(import.meta.url);
@@ -32,7 +33,10 @@ test("Markdown reading and editing keep an independent fixed 900px measure", () 
 test("General chat settings own the chat width preference", () => {
   assert.match(chatInput, /useChatAppearance\(\)/);
   assert.match(settingsPanel, /useChatAppearance\(\)/);
-  assert.match(settingsPanel, /type="range"/);
+  // fork:design-system SW-07 —— 滑块本身收敛进 SettingsUi 的 `PwRange`（画板 40 的
+  // 数值型设置行），设置页只负责把区间常量接上去；真 `<input type=range>` 在那个基件里。
+  assert.match(settingsPanel, /<PwRange/);
+  assert.match(settingsUi, /type="range"/);
   assert.match(settingsPanel, /min=\{CHAT_CONTENT_WIDTH_MIN\}/);
   assert.match(settingsPanel, /max=\{CHAT_CONTENT_WIDTH_MAX\}/);
   assert.match(settingsPanel, /step=\{10\}/);

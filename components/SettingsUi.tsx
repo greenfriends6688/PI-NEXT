@@ -414,3 +414,238 @@ export function SettingsSelect({
     </select>
   );
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:design-system SW-07 — 画板 40 的设置控件基件（pw-* 版）。
+ *
+ * 画板 40 把设置页定成「pw-snav 左导航 + pw-sbody 右内容」两栏，内容由
+ * `pw-block`（发丝边框卡片，标题带 14px 图标）与 `pw-field`（标签可带一句小字 +
+ * 右侧控件，行高 34、行间发丝线）拼成。这一组基件只做结构，规格全部来自
+ * `design/pi-web-design/assets/board.css` —— 这里不写任何颜色 / 尺寸 / 间距。
+ *
+ * 与 `SettingsBlock` / `SettingsRow`（fork:zn-15，Zeno 形态）并存而不是替换：
+ * 那套是「标题+说明在上、控件在右上」，画板 40 是「标签在左、控件在右」的表格行。
+ * 批次 C 的分节逐个迁到这一套，迁完一个才退役一个的旧 CSS。
+ * ------------------------------------------------------------------------- */
+
+/** 设置页的内容栏：`.pw-sbody`。
+ *
+ * fork:design-system SW-07 —— 它挂在 `SettingsPanel` 的分节宿主上
+ * （`components/SettingsPanel.tsx` 的 `settings-section-host pw-sbody`），
+ * 所以这里不导出单独的包装组件：一个分节只有一个内容栏，多一层就是多一层。
+ * 页头用 `PwPageHead`（直接子元素 `h2` + `p.sub`，board.css 的选择器这么认）。 */
+export function PwPageHead({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <>
+      <h2>{title}</h2>
+      {sub ? <p className="sub">{sub}</p> : null}
+    </>
+  );
+}
+
+/** 分组卡：`pw-block` + 带图标的 `h3`。 */
+export function PwBlock({ icon, title, children }: { icon: string; title: string; children: ReactNode }) {
+  return (
+    <div className="pw-block">
+      <h3>
+        <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * 设置行：`pw-field` = 左「标签（+ 小字说明）」、右「控件」。
+ *
+ * `htmlFor` 给了就把标签包成真 `<label>`（点标签能聚焦到控件）；没给就只是文本。
+ */
+export function PwField({
+  label,
+  hint,
+  htmlFor,
+  control,
+}: {
+  label: ReactNode;
+  hint?: ReactNode;
+  htmlFor?: string;
+  control: ReactNode;
+}) {
+  return (
+    <div className="pw-field">
+      <span className="pw-label">
+        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+        {hint ? <small>{hint}</small> : null}
+      </span>
+      {control}
+    </div>
+  );
+}
+
+/** 行内控件组：`pw-ctl`（右对齐、flex、gap s2）。 */
+export function PwCtl({ children }: { children: ReactNode }) {
+  return <span className="pw-ctl">{children}</span>;
+}
+
+/** 等宽数字读数（画板 40 里宽度 / 字号 / 浓度都是这个形态）。
+ *  画板这两处是一次性 inline `font-size:var(--text-meta)`；`.pw-mono`（board.css:65）
+ *  本身就是 `var(--text-meta)`，`.pw-dim` 把它压到 placeholder 色 —— 不需要 inline。 */
+export function PwValue({ children }: { children: ReactNode }) {
+  return <span className="pw-mono pw-dim">{children}</span>;
+}
+
+/**
+ * 开关：画板是 `<span class="pw-switch on"><i></i></span>`，产品必须是可聚焦按钮，
+ * 所以换成 `<button role="switch">` 并保留同一组类；UA 归零在 fork-ui.css 的接线块。
+ */
+export function PwSwitch({
+  checked,
+  disabled = false,
+  loading = false,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-busy={loading || undefined}
+      aria-label={label}
+      title={label}
+      disabled={disabled || loading}
+      className={`pw-switch${checked ? " on" : ""}`}
+      onClick={() => onChange(!checked)}
+    >
+      <i aria-hidden="true" />
+    </button>
+  );
+}
+
+export interface PwRadioOption<T extends string> {
+  value: T;
+  label: string;
+  icon?: string;
+}
+
+/**
+ * 单选芯片组：画板是 `.pw-radio > span`，产品换成 `<button role="radio">`
+ * （键盘可切换），键名与状态类（`.is-on`）照抄。
+ */
+export function PwRadio<T extends string>({
+  value,
+  options,
+  ariaLabel,
+  disabled = false,
+  onChange,
+}: {
+  value: T;
+  options: readonly PwRadioOption<T>[];
+  ariaLabel: string;
+  disabled?: boolean;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <span className="pw-radio" role="radiogroup" aria-label={ariaLabel}>
+      {options.map((option) => {
+        const on = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            disabled={disabled}
+            className={on ? "is-on" : undefined}
+            onClick={() => onChange(option.value)}
+          >
+            {option.icon ? <span className="pw-ico"><i data-ico={option.icon} data-size="12"></i></span> : null}
+            {option.label}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * 下拉：画板是「静态盒 + chevron」，产品是原生 `<select>` 塞进同一个盒，
+ * 原生外观由接线块 `appearance: none` 归零，chevron 仍用画板那枚图标。
+ */
+export function PwSelectBox({
+  value,
+  options,
+  ariaLabel,
+  disabled = false,
+  onChange,
+}: {
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  ariaLabel: string;
+  disabled?: boolean;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <span className="pw-selectbox">
+      <select value={value} aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+    </span>
+  );
+}
+
+/**
+ * 数值滑块：画板 40 画的是**静态**轨道（180×4、圆角 2、12px 圆钮 + 等宽读数），
+ * board.css 里没有对应的类，所以这里用真 `<input type="range">` 并自带 `.pw-range`
+ * 骨架（几何照抄画板那一帧，色值走 token）。
+ */
+export function PwRange({
+  id,
+  value,
+  displayValue,
+  min,
+  max,
+  step = 1,
+  ariaLabel,
+  disabled = false,
+  onChange,
+}: {
+  id: string;
+  value: number;
+  displayValue: string;
+  min: number;
+  max: number;
+  step?: number;
+  ariaLabel: string;
+  disabled?: boolean;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <>
+      <input
+        id={id}
+        className="pw-range"
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        aria-valuetext={displayValue}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <PwValue>{displayValue}</PwValue>
+    </>
+  );
+}

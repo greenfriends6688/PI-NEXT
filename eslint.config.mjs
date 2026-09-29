@@ -3,7 +3,7 @@ import typescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
   // 产物 / 一次性脚本目录（gitignored）；里面的补丁基线是源文件副本，只会产生重复告警
-  { ignores: ["test-results/**"] },
+  { ignores: ["test-results/**", ".scratch/**"] },
   {
     // Reference checkouts and build output are not part of this project's source.
     // 设计风格/ 与 .playwright-mcp/ 是本地素材与浏览器抓取产物（.gitignore 已忽略），

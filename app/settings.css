@@ -945,7 +945,6 @@
   justify-content: center;
   background: var(--scrim);
 }
-
 .settings-dialog-surface {
   display: flex;
   flex-direction: column;
@@ -961,9 +960,28 @@
   box-shadow: var(--shadow-lg);
 }
 
-.settings-dialog-header {
+/* fork:design-system SW-07 —— 设置是**整屏**，不是居中小弹窗。
+   画板 40/41~47 里 `pw-settings` 那个 1440×900 的帧就是整个窗口：左导航 200 +
+   内容列（页边距 40）铺满，没有外侧边距、没有圆角。原先 1080×84vh 的圆角弹窗
+   把内容列压到 878px，画板上按 1240px 排的东西（快捷键双栏、模型分栏）全部变形。
+   0-2-0 双类覆盖：画板 50 的 `.pw-modal` 是 560px 的通用确认框，不适用。 */
+.settings-dialog-surface.pw-modal {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* fork:design-system SW-07 —— 画板 40/45 的设置页是**整屏页面**（左导航 200 +
+   内容列），没有页头；关闭入口按用户裁定放到左导航底部（`.pw-snav-close`）。
+   手机（<640px）导航整列隐藏，页头还要承担分节下拉，所以只在窄屏保留页头。 */
+.settings-dialog-header.pw-modal-head {
+  /* 0-2-0：`.pw-modal-head`（board.css，本文件之后引入）也声明 `display: flex`。 */
   position: relative;
-  display: flex;
+  display: none;
   flex-shrink: 0;
   align-items: center;
   min-height: 50px;
@@ -990,102 +1008,20 @@
   min-height: 0;
 }
 
+/* fork:design-system SW-07 — 左导航的视觉已经全部由画板 40 的 `.pw-snav` 提供
+   （board.css 在本文件之后引入，同特异性下画板规则覆盖本文件）。这里只留两条
+   画板没画的产品语义：导航列不参与 flex 收缩 + 窗口太矮时自己滚动，
+   否则 13 行会被 `.pw-snav` 的 `overflow: hidden` 直接裁掉。 */
 .settings-section-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   flex-shrink: 0;
-  width: 184px;
-  padding: 10px 8px;
-  border-right: 1px solid var(--border);
   overflow-y: auto;
-  background: var(--bg-panel);
-}
-
-.settings-section-tab {
-  position: relative;
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  height: 36px;
-  padding: 0 10px;
-  border: 0;
-  outline: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  /* fork:boardui — rail 行用 BoardUI 的 body-medium（14px），行高 36 */
-  font-size: var(--text-md);
-  font-weight: 400;
-  white-space: nowrap;
-  text-align: left;
-  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
-}
-
-/* The accent underline becomes a left marker on the vertical axis. */
-.settings-section-tab::after {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 2px;
-  height: 16px;
-  border-radius: 0 2px 2px 0;
-  background: var(--accent);
-  content: "";
-  opacity: 0;
-  transform: translateY(-50%) scaleY(0.5);
-  transition: opacity var(--motion-base) ease, transform var(--motion-base) ease;
-}
-
-.settings-section-tab[aria-current="page"] {
-  background: var(--bg-selected);
-  color: var(--text);
-  font-weight: 600;
-}
-
-.settings-section-tab[aria-current="page"]::after {
-  opacity: 1;
-  transform: translateY(-50%) scaleY(1);
-}
-
-.settings-section-tab:not(:disabled):hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.settings-section-tab:disabled {
-  cursor: default;
-  opacity: 0.38;
-}
-
-.settings-section-tab:focus-visible:not([aria-current="page"]) {
-  border-radius: var(--radius-xs);
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.settings-section-tab:focus-visible[aria-current="page"] {
-  /* The skin override layer draws the focus ring; see visual-spec.md §6. */
-  color: var(--text);
 }
 
 /* fork:settings-focus — 导航行的键盘焦点环内缩（同 `.config-sidebar-item`）。
-   全局焦点规则（globals.css）是 offset:2px，在 184px 宽的导航列里会越过
-   分隔线画到右侧内容页上，看着像两层边框。 */
-.settings-section-tab:focus-visible {
+   全局焦点规则（globals.css）是 offset:2px，在 200px 宽的导航列里会越过分隔线
+   画到右侧内容页上，看着像两层边框。 */
+.settings-section-tabs .pw-row:focus-visible {
   outline-offset: -2px !important;
-}
-
-.settings-section-icon {
-  flex-shrink: 0;
-}
-
-.settings-section-icon.is-agent {
-  transform: scale(1.25);
 }
 
 .settings-mobile-section-picker {
@@ -1120,14 +1056,21 @@
   overflow-x: hidden;
 }
 
+/* fork:design-system SW-07 — 每个分节的内容栏就是画板 40 的 `.pw-sbody`
+   （页边距 24/40/32 + `> h2` / `> p.sub` 的页头规格全部来自 board.css）。
+   这一条只补画板没画的产品语义：`.pw-sbody` 是 `overflow:hidden`（画板里是固定
+   高度的帧），产品里它必须继续是**滚动容器**，否则长页面被直接裁掉。0-2-0 特异性
+   胜过后引入的 board.css。 */
+.settings-section-host.pw-sbody {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* fork:design-system SW-07 — 页面框本身不再画任何东西：页边距与页头排版都在画板 40
+   的 `.pw-sbody` 上（外壳已挂那个类）。这里只剩「占满内容列」这条产品布局语义；
+   原先的 840px 上限与自带滚动已删（第一轮 fork:ui-08 的宽度上限 + 双层滚动条）。 */
 .settings-general {
   width: 100%;
-  max-height: 100%;
-  /* fork:ui-08 — was 680 inside a ~900px column, which left a wide blank band
-     on the right of every settings page. Upstream spans the content column. */
-  max-width: 840px;
-  padding: 26px clamp(18px, 4vw, 40px) 40px;
-  overflow-y: auto;
 }
 
 .settings-general-title {
@@ -1397,8 +1340,24 @@
     height: calc(100dvh - 12px);
   }
 
-  .settings-section-tabs {
+  /* fork:design-system SW-07 — 0-2-0 双类：`.pw-snav`（board.css，在本文件之后引入）
+     也是 0-1-0 的 `display: flex`，单写 `.settings-section-tabs { display:none }` 会被它赢掉；
+     同理 200px 的列宽也不是「隐藏第一列」能收掉的，要重建网格轨道（只留 1fr）。 */
+  .settings-section-tabs.pw-snav {
     display: none;
+  }
+
+  .settings-dialog-header.pw-modal-head {
+    display: flex;
+  }
+
+  .settings-dialog-body.pw-settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* fork:design-system SW-07 — 画板 40 的页边距是桌面值（左右各 40）；手机上内容列
+     只有 ~380px，左右各留 40 太贵，收到 s4（横向）并保持同一套行规格。 */
+  .settings-section-host.pw-sbody {
+    padding: var(--s4) var(--s4) var(--s5);
   }
 
   .settings-mobile-section-picker {

@@ -27,7 +27,11 @@
   --text-ui: var(--text-md);
   --text-chat: var(--chat-content-font-size, 13px);
   --text-title: var(--text-lg);
-  --text-meta: var(--text-sm);
+  /* fork:design-system SW-07 —— 删掉「--text-meta: var(--text-sm)」那条旧别名。
+     它把元信息字号抬到 12px（= 次要说明），而设计系统的五档是 11 / 12 / 13 /
+     15 / 20；boot 的 `--ds-text-meta` 本来就是 11px，两边只差这一句。产品自己的
+     CSS 不用 `--text-meta`（只用 `--ds-*`/`--text-*` 规范名），所以改它等于把画板
+     组件（.pw-badge / .pw-mono / .pw-btn.sm / .pw-kbd …）拉回画板规格。 */
   --leading-prose: 1.62;
   --leading-ui: 1.35;
   --leading-title: 1.32;
@@ -2196,48 +2200,56 @@ html[data-theme-skin="true"] .extension-status-shelf {
  * 那些值只有一个来源：board.css。改视觉请改 board.css，不要改这里。
  * ======================================================================== */
 
-/* 行 / 钮：清掉 button 的 UA 边框、底色、字体与居中，其余交给 board.css */
-button.pw-row,
-button.pw-session,
-button.pw-trow,
-button.pw-starter,
-button.pw-prow,
-button.pw-litem,
-button.pw-chipbtn,
-button.pw-tab,
-button.pw-select,
-button.pw-iconbtn,
-button.pw-todo,
-button.pw-btn,
-button.pw-side-foot,
-button.pw-group-title,
-button.pw-starter,
-button.pw-snav-row {
-  border: 0;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
+/* 行 / 钮：清掉 button 的 UA 边框、底色、字体与居中，其余交给 board.css。
+ *
+ * 这一段放在 `@layer fork-reset` 里是有原因的：`button.pw-row` 这类选择器是 0-1-1，
+ * 而画板的 `.pw-row` / `.pw-btn` 是 0-1-0 —— 单靠特异性，`font: inherit` 会把画板写的
+ * `font-size: var(--text-body)`（13px）压成「继承正文」（产品的 UI 字号，默认 14px），
+ * 于是整排设置导航比画板大一号。分层后**未分层**的规则（board.css 与产品所有样式）
+ * 一律胜过分层内的重置，而重置仍然胜过 UA 默认样式 —— 这正是「只归零 UA」的语义。
+ * （改视觉仍然只改 board.css；本层只做 UA 归零 + 静态元素→可交互元素。） */
+@layer fork-reset {
+  button.pw-row,
+  button.pw-session,
+  button.pw-trow,
+  button.pw-starter,
+  button.pw-prow,
+  button.pw-litem,
+  button.pw-chipbtn,
+  button.pw-tab,
+  button.pw-select,
+  button.pw-iconbtn,
+  button.pw-todo,
+  button.pw-btn,
+  button.pw-side-foot,
+  button.pw-group-title,
+  button.pw-snav-row {
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  button.pw-row,
+  button.pw-session,
+  button.pw-trow,
+  button.pw-starter,
+  button.pw-prow,
+  button.pw-litem,
+  button.pw-chipbtn,
+  button.pw-tab,
+  button.pw-select,
+  button.pw-todo,
+  button.pw-side-foot,
+  button.pw-group-title {
+    width: 100%;
+  }
+  button.pw-iconbtn { width: var(--control-xs); height: var(--control-xs); cursor: pointer; }
+  button.pw-iconbtn.sm { width: 22px; height: 22px; }
+  button.pw-btn { width: auto; }
+  button.pw-side-foot { display: flex; align-items: center; gap: var(--s2); }
 }
-button.pw-row,
-button.pw-session,
-button.pw-trow,
-button.pw-starter,
-button.pw-prow,
-button.pw-litem,
-button.pw-chipbtn,
-button.pw-tab,
-button.pw-select,
-button.pw-todo,
-button.pw-side-foot,
-button.pw-group-title {
-  width: 100%;
-}
-button.pw-iconbtn { width: var(--control-xs); height: var(--control-xs); cursor: pointer; }
-button.pw-iconbtn.sm { width: 22px; height: 22px; }
-button.pw-btn { width: auto; }
-button.pw-side-foot { display: flex; align-items: center; gap: var(--s2); }
 
 /* 画板 .pw-seg 的子项是 span；产品要键盘可切换，所以是 button —— 值照抄那一行。 */
 .pw-seg > button {
@@ -2376,3 +2388,178 @@ button.pw-ring { border: 0; padding: 0; cursor: pointer; }
 /* 移动端键盘弹出时与旧状态条同待遇：让位给输入框。 */
 html.keyboard-open .ext-float-pill,
 html.keyboard-open .ext-float-panel { display: none; }
+
+/* ---- SW-07 设置控件：画板 40 的静态元素 → 真控件 ----------------------------------
+   画板里这些是 span（.pw-switch / .pw-radio > span / .pw-selectbox），产品必须是
+   可聚焦、可键盘操作的真控件。本段只做两件事：UA 默认值归零 + 「静态元素 → 可交互
+   元素」的适配。颜色 / 尺寸 / 间距仍然只有一个来源：board.css。
+   （`.pw-seg > button` 已是同一先例：画板是 span，产品是 button，值照抄那一行。） */
+
+button.pw-switch {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+/* 画板没有禁用态（它是静态稿）；产品需要，用弱化表达，不改尺寸与配色。 */
+button.pw-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 画板 .pw-radio 的子项是 span，产品是 button —— 值照抄 board.css 的那一行。 */
+.pw-radio > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--control-xs);
+  padding: 0 8px;
+  border: 1px solid var(--n-border-subtle);
+  border-radius: var(--radius-4);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-meta);
+  color: var(--n-muted);
+  cursor: pointer;
+}
+.pw-radio > button.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.pw-radio > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 画板 .pw-selectbox 里是静态文字 + chevron；产品塞进真 <select>，归零原生外观。 */
+.pw-selectbox > select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.pw-selectbox:focus-within { border-color: var(--accent); }
+
+/* 画板 40 的滑块是静态轨道（180×4 / 圆角 2 / 12px 圆钮），board.css 没有对应类，
+   所以这里按那一帧的几何写一份骨架，色值全部走 token。 */
+.pw-range {
+  width: 180px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.pw-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--n-surface);
+}
+.pw-range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border: 1px solid var(--n-border);
+  border-radius: 50%;
+  background: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.pw-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--n-surface);
+}
+.pw-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--n-border);
+  border-radius: 50%;
+  background: #fff;
+}
+.pw-range:focus-visible { outline: none; }
+.pw-range:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* 设置左导航：画板 .pw-snav 的 .pw-row 是 div，产品是 button（已在上面统一归零）。 */
+.pw-snav > button.pw-row { flex: none; }
+
+/* ---- SW-07/13 皮肤条：画板 40/47 的静态行 → 真控件 -------------------------------
+   画板里 `.pw-skin` 是 div（静态稿），产品里它必须可点、可聚焦、可单选，所以换成
+   button；本段仍然只做 UA 归零 + 画板那两处一次性 inline 的收敛，颜色 / 尺寸 / 间距
+   全部来自 board.css 的 `.pw-skin-strip` / `.pw-skin`。 */
+button.pw-skin {
+  display: block;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
+/* 画板 `.pw-skin` 的预览是 div（块级），产品在 button 里只能用 span（button 的内容
+   模型是 phrasing content），补回块级。 */
+.pw-skin .prev,
+.pw-skin .cap { display: grid; }
+.pw-skin .prev { grid-template-columns: 22px 1fr; }
+.pw-skin .cap { grid-auto-flow: column; justify-content: start; }
+/* 「新建皮肤」卡：画板是一次性 inline `display:grid;place-items:center;min-height:96px`。 */
+.pw-skin.is-new {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+}
+/* 画板皮肤条是固定 5 张的静态行；产品皮肤数量不定，横向可滚动（画板没有的产品语义）。 */
+.pw-skin-strip { overflow-x: auto; padding-bottom: 2px; }
+/* 画板动作行的一次性 inline `margin-top:var(--s2)`。 */
+.pw-skin-actions { margin-top: var(--s2); }
+
+/* 画板 40 是 1440px 的「标签左 / 控件右」两栏行；390px 里同一行塞不下（标签会被
+   挤成一字一行）。手机上让标签独占一行、控件换到下一行右对齐 —— 行的规格
+   （行高 / 发丝线 / 控件尺寸）一个不改，只改排列方向。 */
+@media (max-width: 640px) {
+  .pw-field { flex-wrap: wrap; row-gap: var(--s2); padding: var(--s2) 0; }
+  .pw-field .pw-label { flex: 1 1 100%; }
+  .pw-field .pw-ctl,
+  .pw-field > .pw-radio,
+  .pw-field > .pw-selectbox,
+  .pw-field > .pw-btn { margin-left: auto; }
+  .pw-ctl,
+  .pw-radio { flex-wrap: wrap; justify-content: flex-end; }
+  /* 皮肤条的动作行：画板是 1440px 的一行；手机上换行，钮本身不压缩（否则中文
+     会一个字一行）。 */
+  .pw-skin-actions { flex-wrap: wrap; }
+  .pw-skin-actions > .pw-btn { flex: none; }
+}
+
+/* 关闭行（用户裁定：关闭入口放左导航底部，而非页头）。行规格与其它 `.pw-row`
+   完全相同，只多一条发丝上边线把它和 13 个分节分开。 */
+.pw-snav-close {
+  margin-top: var(--s2);
+  border-top: 1px solid var(--n-border-subtle);
+}
+
+/* 画板 40 的标签都是一行短词；产品的说明句可以很长（「后台推送」那一行），
+   长标签会把同一行里的按钮压成两行。规矩：标签可收缩，行内按钮不收缩。 */
+.pw-field .pw-label { min-width: 0; }
+.pw-field > .pw-btn { flex: none; }
+
+/* 壁纸缩略图：几何照画板 40 的「当前壁纸」一格（64×36 / radius-4 / 发丝边框）。
+   图片本身是用户数据，只有 background-image 由组件内联。 */
+.pw-wallpaper-thumb {
+  width: 64px;
+  height: 36px;
+  border: 1px solid var(--n-border);
+  border-radius: var(--radius-4);
+  background-position: center;
+  background-size: cover;
+}

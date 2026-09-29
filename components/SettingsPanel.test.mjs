@@ -56,61 +56,74 @@ test("keeps visited settings sections mounted and contains nested Escape handlin
   assert.match(modelsSource, /e\.preventDefault\(\);\s*e\.stopPropagation\(\);\s*onClose\(\);/);
 });
 
-test("offers five palettes and system theme selection with native radios", () => {
+test("offers light / dark / system theme selection as board radio chips", () => {
+  // fork:design-system SW-07 —— 主题改用画板 40 的 `.pw-radio` 芯片组（`PwRadio`
+  // 内部是 `role="radio"` 的真按钮）。三档仍是 light / dark / auto。
   for (const preference of ["light", "dark", "auto"]) {
     assert.match(themeOptionsSource, new RegExp(`id: "${preference}"`));
   }
   assert.match(panelSource, /THEME_OPTIONS\.map/);
-  assert.match(panelSource, /type="radio"/);
-  assert.match(panelSource, /setThemePreference\(option\.id\)/);
+  assert.match(panelSource, /<PwRadio/);
+  assert.match(panelSource, /onChange=\{setThemePreference\}/);
   assert.match(themeSource, /const setThemePreference = useCallback/);
+  // 芯片图标走画板图标集（sun / moon / monitor），不再有手绘 SVG。
+  for (const icon of ["sun", "moon", "monitor"]) {
+    assert.match(panelSource, new RegExp(`"${icon}"`));
+  }
 });
 
 test("keeps language selection in General settings", () => {
+  // fork:design-system SW-07 —— 语言也换成画板的 `.pw-radio` 芯片组，
+  // 选项仍来自 `supportedLocales` 插件表。
   assert.match(panelSource, /t\("common\.language"\)/);
-  assert.match(panelSource, /className="settings-language-options"/);
-  assert.match(panelSource, /setLocale\(plugin\.id/);
+  assert.match(panelSource, /supportedLocales\.map/);
+  assert.match(panelSource, /onChange=\{\(next\) => setLocale\(next\)\}/);
 });
 
-test("groups chat display controls together without row backgrounds", () => {
-  const appearanceSection = panelSource.slice(
-    panelSource.indexOf('{t("settings.appearance")}'),
-    panelSource.indexOf('{t("settings.chat")}'),
-  );
+test("groups chat display controls in one board block", () => {
+  // fork:design-system SW-07 —— 画板 40 把「聊天」画成一个 `.pw-block`，行是
+  // `.pw-field`（标签在左、控件在右，见 SettingsUi 的 PwField）。这里钉住 chat
+  // 块里仍是**同一张卡**里的若干行，而不是各画各的背景。
   const chatSection = panelSource.slice(
-    panelSource.indexOf('{t("settings.chat")}'),
+    panelSource.indexOf('<PwBlock icon="message-square"'),
     panelSource.indexOf("{shellSettings?.isWindows"),
   );
 
-  assert.doesNotMatch(appearanceSection, /settings-chat-content/);
-  assert.match(chatSection, /className="settings-chat-options"/);
-  // 7 = 原 7 条（含 fork:ui-22 的界面密度下拉）去掉「过程显示」下拉；三个类别开关
-  // 由一次 `.map()` 渲染，源码里只有一处 `settings-chat-option`。
-  assert.equal((chatSection.match(/className="settings-chat-option(?: |")/g) ?? []).length, 7);
-  // 2 → 4：三个类别开关由 map 出，源码里是 1 个 <ConfigSwitch>，加上原本 2 个、减去
-  // 被删掉的过程显示下拉（本来也不是 switch）→ 实际为 3。
-  assert.equal((chatSection.match(/<ConfigSwitch/g) ?? []).length, 3);
-  // 每个开关右边要写明当前状态（「推理展开」/「推理关闭」）。
-  assert.match(chatSection, /className=\{on \? "settings-chat-switch-state is-on" : "settings-chat-switch-state"\}/);
-  assert.match(chatSection, /settings\.stepExpandOn/);
+  assert.match(chatSection, /<PwBlock icon="message-square"/);
+  // 行数：思考块 1 + 界面密度 1 + 步骤展开 1 + 宽度 / 字号 / 扩展字号 3 + 选中文字 1
+  // = 7 行；自动命名那两行在 TitleSettingsControls 里（同一个块，同一套行规格）。
+  assert.equal((chatSection.match(/<PwField/g) ?? []).length, 7);
+  assert.match(panelSource, /<TitleSettingsControls cwd=\{cwd\} \/>/);
+  // 开关 3 个：思考块默认展开、选中文字操作条，以及自动命名（在 TitleSettingsControls 里）。
+  assert.equal((chatSection.match(/<PwSwitch/g) ?? []).length, 2);
   for (const key of ["thinkingExpandedDefault", "chatContentWidth", "chatContentFontSize", "extensionWidgetFontSize", "quoteSelection"]) {
     assert.match(chatSection, new RegExp(`t\\("settings\\.${key}"\\)`));
   }
-  // 三个类别开关的文案走 map 的 key 数组，不是直接写 t("...").
+  // 三个类别芯片的文案走 map 的 key 数组，不是直接写 t("...")；画板里这组是
+  // `.pw-radio`，产品是三个**独立**开关，所以用 `aria-pressed` 而不是 role=radio。
   for (const key of ["stepExpandReasoning", "stepExpandCommand", "stepExpandTool"]) {
-    assert.match(chatSection, new RegExp(`"settings\.${key}"`));
+    assert.match(chatSection, new RegExp(`"settings\\.${key}"`));
   }
+  assert.match(chatSection, /aria-pressed=\{on\}/);
+  assert.match(chatSection, /setStepCategoryExpanded\(category, !on\)/);
 
   assert.doesNotMatch(panelSource, /ThinkingIcon|settings-thinking-/);
-  const chatOptionStyles = cssSource.match(/\.settings-chat-option \{[\s\S]*?\}/)?.[0] ?? "";
-  assert.match(chatOptionStyles, /font-size: var\(--text-sm\)/);
-  assert.doesNotMatch(chatOptionStyles, /background/);
+  // chat 块的所有行共用画板的 `.pw-field` 规格（board.css），产品不再自带行样式。
+  const fieldStyles = cssSource.match(/\.pw-field \{[\s\S]*?\}/)?.[0] ?? "";
+  assert.equal(fieldStyles, "");
 });
 
 test("keeps General free of divider rows", () => {
-  // fork:design-components —— 设置壳挂画板 .pw-modal / .pw-modal-head（类串追加，不替换）。
+  // fork:design-system SW-07 —— 设置是**整屏**（画板 40/45 的 `.pw-settings` 就是整个
+  // 窗口）：桌面没有页头（画板没画），关闭入口在左导航底部最后一行；窄屏才恢复页头
+  // （那一列被隐藏，分节下拉与关闭都在页头上）。
   assert.match(panelSource, /className="settings-dialog-header pw-modal-head"/);
-  assert.match(cssSource, /\.settings-dialog-header \{[\s\S]*?display: flex[\s\S]*?align-items: center[\s\S]*?min-height: 50px/);
+  assert.match(panelSource, /className="pw-row pw-snav-close"/);
+  assert.match(panelSource, /<span className="pw-grow" aria-hidden="true" \/>/);
+  assert.match(cssSource, /\.settings-dialog-header\.pw-modal-head \{[\s\S]*?display: none/);
+  const narrowHead = cssSource.match(/@media \(max-width: 640px\)[\s\S]*?\.settings-dialog-header\.pw-modal-head \{[\s\S]*?\}/)?.[0] ?? "";
+  assert.match(narrowHead, /display: flex/);
+  assert.match(cssSource, /\.settings-dialog-surface\.pw-modal \{[\s\S]*?width: 100%[\s\S]*?height: 100%/);
   assert.doesNotMatch(panelSource, /sections\.find\(\(item\) => item\.id === section\)/);
   assert.doesNotMatch(panelSource, /<section style=\{\{[^}]*borderBottom/);
   assert.doesNotMatch(panelSource, /borderLeft: index > 0/);
@@ -118,23 +131,23 @@ test("keeps General free of divider rows", () => {
 
 test("uses a left section column on desktop and one compact picker on mobile", () => {
   assert.match(panelSource, /className="settings-mobile-section-picker"/);
-  assert.match(panelSource, /className="settings-section-tabs"/);
-  // 搜索已移除：命中修饰符（settings-section-tab--hit）随之一并去掉。
-  assert.match(panelSource, /className="settings-section-tab"/);
+  // fork:design-system SW-07 —— 左导航 = 画板 40 的 `.pw-snav` + `.pw-row`/`.pw-name`，
+  // 选中态是 `.is-on`。旧的 `settings-section-tab` 与它那套自绘下划线已退役。
+  assert.match(panelSource, /className="settings-section-tabs pw-snav"/);
+  assert.match(panelSource, /className=\{`pw-row\$\{selected \? " is-on" : ""\}`\}/);
+  assert.match(panelSource, /className="pw-name"/);
+  assert.doesNotMatch(panelSource, /settings-section-tab(?!s)/);
   // fork:ui-08 — a vertical column (upstream 0.14.6 layout) instead of a row of
-  // fixed 96px cells.
+  // fixed 96px cells. 宽度 / 内边距 / 底色现在只有一个来源：board.css 的 `.pw-snav`。
   assert.match(panelSource, /className="settings-dialog-body pw-settings"/);
-  assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?flex-direction: column/);
-  assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?width: 184px/);
-  assert.match(cssSource, /\.settings-section-tab \{[\s\S]*?flex: 0 0 auto/);
-  assert.match(cssSource, /\.settings-section-icon \{[\s\S]*?flex-shrink: 0/);
-  assert.match(cssSource, /\.settings-section-tab::after \{[\s\S]*?width: 2px/);
-  assert.match(cssSource, /\.settings-section-tab\[aria-current="page"\]::after/);
-  assert.match(cssSource, /\.settings-section-tab:focus-visible:not\(\[aria-current="page"\]\)/);
-  // 焦点环改由 globals.css 的皮肤覆盖层统一提供，这一支不再清掉 outline。
-  const currentTabFocusRule = cssSource.match(/\.settings-section-tab:focus-visible\[aria-current="page"\] \{[\s\S]*?\}/)?.[0] ?? "";
-  assert.ok(currentTabFocusRule, "the current section tab focus rule should exist");
-  assert.doesNotMatch(currentTabFocusRule, /outline: none/);
+  assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?flex-shrink: 0/);
+  assert.doesNotMatch(cssSource, /\.settings-section-tabs \{[\s\S]{0,400}?width: 184px/);
+  // 焦点环仍由 globals.css 的皮肤覆盖层统一提供；导航行只内缩 offset，
+  // 不清 outline（200px 的列里 offset:2px 会越过分隔线画到内容页上）。
+  const navFocusRule = cssSource.match(/\.settings-section-tabs \.pw-row:focus-visible \{[\s\S]*?\}/)?.[0] ?? "";
+  assert.ok(navFocusRule, "the nav row focus rule should exist");
+  assert.doesNotMatch(navFocusRule, /outline: none/);
+  assert.match(navFocusRule, /outline-offset: -2px/);
   assert.match(globalCssSource, /:where\(button[\s\S]*?:focus-visible \{[\s\S]*?outline: 2px solid var\(--accent\) !important/);
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-section-tabs \{[\s\S]*?display: none/);
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
@@ -153,19 +166,38 @@ test("labels agent profiles as sub-agents", () => {
   assert.match(zhSource, /"agents\.new": "新建子代理"/);
 });
 
-test("uses the child-session robot glyph for the sub-agents tab", () => {
-  // fork:design-components —— 会话行里的子代理标记改用画板 02 的 corner-down-right
-  // （<i data-ico>，与画板 HTML 同一写法）；设置分节图标仍是手绘机器人。
-  const robotGlyph = /<rect x="5" y="7" width="14" height="11" rx="2" \/>\s*<path d="M9 11h\.01M15 11h\.01M9 15h6M12 7V4M10 4h4" \/>/;
-  assert.match(panelSource, robotGlyph);
+test("uses the board 40 icon set for every settings section", () => {
+  // fork:design-system SW-07 —— 分节图标一律走画板图标集（icons.js 的 lucide，
+  // 经 <i data-ico> 水合）。13 段手绘 SVG 与 agents 的 scale(1.25) 补丁都已退役，
+  // 名称与画板 40 的左导航逐项一致。
+  const expected = {
+    general: "sliders-horizontal",
+    models: "cpu",
+    skills: "box",
+    agents: "bot",
+    plugins: "blocks",
+    mcp: "server",
+    cron: "clock",
+    memory: "brain",
+    shortcuts: "keyboard",
+    usage: "chart-column",
+    prompts: "square-function",
+    archived: "archive",
+    import: "import",
+  };
+  for (const [section, icon] of Object.entries(expected)) {
+    assert.match(
+      panelSource,
+      new RegExp(`${section}: "${icon}"`),
+      `section "${section}" should use the board icon "${icon}"`,
+    );
+  }
+  assert.match(panelSource, /return <i data-ico=\{SECTION_ICON_BY_ID\[section\] \?\? "settings"\}/);
+  assert.doesNotMatch(panelSource, /<svg \{\.\.\.common\}/);
+  assert.doesNotMatch(cssSource, /settings-section-icon/);
+  // 会话行里的子代理标记仍是画板 02 的 corner-down-right。
   assert.match(sidebarSource, /data-ico=\{collapsed \? "chevron-right" : "chevron-down"\}/);
   assert.match(sidebarSource, /data-ico="corner-down-right"/);
-  assert.match(panelSource, /section === "agents"[\s\S]*?className="settings-section-icon is-agent"/);
-  assert.match(cssSource, /\.settings-section-icon\.is-agent \{[\s\S]*?transform: scale\(1\.25\)/);
-});
-
-test("uses the compact controls glyph for General", () => {
-  assert.match(panelSource, /section === "general"[\s\S]*?<path d="M20 7h-9M14 17H5" \/>[\s\S]*?<circle cx="7" cy="7" r="3" \/>[\s\S]*?<circle cx="17" cy="17" r="3" \/>/);
 });
 
 test("the product has no login surface at all", async () => {

@@ -1,15 +1,32 @@
 "use client";
 
+/**
+ * fork:design-system SW-07 — 壁纸设置改用画板 40 的 `.pw-block` 行规格。
+ *
+ * 画板 40「默认外观壁纸」块画了四行：启用壁纸（`.pw-switch`）、当前壁纸
+ * （`.pw-ctl` + 缩略图 + 更换 / 移除）、适配方式（`.pw-selectbox`）、遮罩浓度
+ * （等宽读数）。产品把「适配方式」换成三行真实存在的作用域选择（消息区 / 侧栏面板 /
+ * 输入框），遮罩浓度给的是真滑块 —— 行形态与控件种类都照画板，只换数据。
+ *
+ * 原实现（fork:ui-wallpaper / fork:zn-19）是自绘的 `settings-wallpaper-*`
+ * 一排按钮 + 复选开关，已退役。
+ *
+ * 图片是用户数据（data URL），缩略图的 `background-image` 只能内联；
+ * 几何与边框来自 `app/fork-ui.css` 的 `.pw-wallpaper-thumb`（值照抄画板那一帧）。
+ */
+
 import { useRef, useState, type ChangeEvent } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useWallpaper } from "@/hooks/useWallpaper";
-import { ConfigButton } from "./SettingsUi";
+import { PwCtl, PwField, PwRange, PwSelectBox, PwSwitch } from "./SettingsUi";
 import {
   WALLPAPER_SCRIM_MAX,
   WALLPAPER_SCRIM_MIN,
   WALLPAPER_MIME_TYPES,
   type WallpaperAreaMode,
 } from "@/lib/wallpaper";
+
+const AREA_MODES: WallpaperAreaMode[] = ["none", "trans", "blur"];
 
 /**
  * Wallpaper settings.
@@ -88,40 +105,42 @@ export function WallpaperSettings({
     value: WallpaperAreaMode,
     onChange: (mode: WallpaperAreaMode) => void,
   ) => (
-    <div className="settings-wallpaper-area">
-      <span className="settings-wallpaper-area-label">{t(labelKey)}</span>
-      <select
-        className="settings-select"
-        value={value}
-        aria-label={t(labelKey)}
-        onChange={(event) => onChange(event.target.value as WallpaperAreaMode)}
-      >
-        <option value="none">{t("settings.wallpaperModeNone")}</option>
-        <option value="trans">{t("settings.wallpaperModeTrans")}</option>
-        <option value="blur">{t("settings.wallpaperModeBlur")}</option>
-      </select>
-    </div>
+    <PwField
+      label={t(labelKey)}
+      control={
+        <PwSelectBox
+          value={value}
+          ariaLabel={t(labelKey)}
+          options={AREA_MODES.map((mode) => ({
+            value: mode,
+            label: t(
+              mode === "none" ? "settings.wallpaperModeNone"
+                : mode === "trans" ? "settings.wallpaperModeTrans"
+                  : "settings.wallpaperModeBlur",
+            ),
+          }))}
+          onChange={(next) => onChange(next as WallpaperAreaMode)}
+        />
+      }
+    />
   );
 
   if (skinActive) {
     return (
-      <div className="settings-wallpaper">
-        <p className="settings-pi-theme-description">{t("settings.wallpaperSkinOwned")}</p>
-        {onEditSkin && (
-          <div className="settings-wallpaper-actions">
-            <ConfigButton variant="secondary" onClick={onEditSkin}>
-              {t("settings.wallpaperSkinOwnedEdit")}
-            </ConfigButton>
-          </div>
-        )}
+      <div className="pw-alert info">
+        <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+        <span className="pw-grow">{t("settings.wallpaperSkinOwned")}</span>
+        {onEditSkin ? (
+          <button type="button" className="pw-btn outline sm" onClick={onEditSkin}>
+            {t("settings.wallpaperSkinOwnedEdit")}
+          </button>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className="settings-wallpaper">
-      <p className="settings-pi-theme-description">{t("settings.wallpaperDescription")}</p>
-
+    <>
       <input
         ref={fileRef}
         type="file"
@@ -131,70 +150,87 @@ export function WallpaperSettings({
         onChange={(event) => void onFile(event)}
       />
 
-      <div className="settings-wallpaper-actions">
-        <ConfigButton variant="secondary" disabled={busy} onClick={onPick}>
-          {busy ? t("settings.wallpaperBusy") : (url ? t("settings.wallpaperReplace") : t("settings.wallpaperChoose"))}
-        </ConfigButton>
-        {url && (
-          <ConfigButton variant="ghost" onClick={remove}>
-            {t("settings.wallpaperRemove")}
-          </ConfigButton>
-        )}
-        <div className="settings-wallpaper-toggle">
-          <span>{t("settings.wallpaperEnabled")}</span>
-          <input
-            type="checkbox"
+      <PwField
+        label={t("settings.wallpaperEnabled")}
+        hint={t("settings.wallpaperDescription")}
+        control={
+          <PwSwitch
             checked={enabled}
-            aria-label={t("settings.wallpaperEnabled")}
-            onChange={(event) => setEnabled(event.target.checked)}
+            label={t("settings.wallpaperEnabled")}
+            onChange={setEnabled}
           />
+        }
+      />
+
+      {/* 画板 40 的「当前壁纸」行：缩略图 + 更换 / 移除。没选图时只剩「选择图片」。 */}
+      <PwField
+        label={t("settings.wallpaper")}
+        control={
+          <PwCtl>
+            {url ? <span className="pw-wallpaper-thumb" style={{ backgroundImage: `url(${url})` }} /> : null}
+            <button type="button" className="pw-btn outline sm" disabled={busy} onClick={onPick}>
+              {busy
+                ? t("settings.wallpaperBusy")
+                : url
+                  ? t("settings.wallpaperReplace")
+                  : t("settings.wallpaperChoose")}
+            </button>
+            {url ? (
+              <button type="button" className="pw-btn sm" onClick={remove}>
+                {t("settings.wallpaperRemove")}
+              </button>
+            ) : null}
+          </PwCtl>
+        }
+      />
+
+      {/* 画板没有「说明句」这一行；画板 47 的提示一律是 `.pw-alert`（提示蓝 / 报错红）。 */}
+      {enabled && !url ? (
+        <div className="pw-alert info">
+          <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+          <span className="pw-grow">{t("settings.wallpaperBuiltinNote")}</span>
         </div>
-      </div>
-
-      {/* fork:zn-19-builtin-skins — 内置画作不再是这里的一份预设，而是卡片条里的内置皮肤
-          （点一下就带壁纸生效、还能直接编辑）。这里只留「自己的图片」这条路径，避免
-          「皮肤 / 壁纸」又变成两处可配同一件事。 */}
-
-      {enabled && !url && <p className="settings-pi-theme-note">{t("settings.wallpaperBuiltinNote")}</p>}
-
-      {enabled && usingBuiltin && <p className="settings-pi-theme-note">{t("settings.wallpaperBuiltinActive")}</p>}
-
-      {error && <p className="settings-wallpaper-error" role="alert">{error}</p>}
+      ) : null}
+      {enabled && usingBuiltin ? (
+        <div className="pw-alert info">
+          <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+          <span className="pw-grow">{t("settings.wallpaperBuiltinActive")}</span>
+        </div>
+      ) : null}
+      {error ? (
+        <div role="alert" className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="pw-grow">{error}</span>
+        </div>
+      ) : null}
 
       {/* fork:ui-wallpaper — the scrim slider and the per-area modes drive the
           built-in painting too, so they must not be gated on a user image. */}
-      {enabled && (
+      {enabled ? (
         <>
-          <div className="settings-chat-option settings-chat-range-option">
-            <div className="settings-chat-range-header">
-              <label htmlFor="settings-wallpaper-scrim">{t("settings.wallpaperScrim")}</label>
-              <output htmlFor="settings-wallpaper-scrim">{scrim}%</output>
-            </div>
-            <input
-              id="settings-wallpaper-scrim"
-              type="range"
-              min={WALLPAPER_SCRIM_MIN}
-              max={WALLPAPER_SCRIM_MAX}
-              step={1}
-              value={scrim}
-              aria-label={t("settings.wallpaperScrim")}
-              aria-valuetext={`${scrim}%`}
-              onChange={(event) => setScrim(Number(event.target.value))}
-            />
-            <div className="settings-chat-range-scale" aria-hidden="true">
-              <span>{t("settings.wallpaperScrimMoreImage")}</span>
-              <span>{t("settings.wallpaperScrimMoreSurface")}</span>
-            </div>
-            <p className="settings-chat-range-hint">{t("settings.wallpaperScrimDescription")}</p>
-          </div>
-
-          <div className="settings-wallpaper-areas">
-            {areaRow("settings.wallpaperAreaMessage", messageMode, setMessageMode)}
-            {areaRow("settings.wallpaperAreaPanel", panelMode, setPanelMode)}
-            {areaRow("settings.wallpaperAreaInput", inputMode, setInputMode)}
-          </div>
+          <PwField
+            label={t("settings.wallpaperScrim")}
+            hint={t("settings.wallpaperScrimDescription")}
+            htmlFor="settings-wallpaper-scrim"
+            control={
+              <PwCtl>
+                <PwRange
+                  id="settings-wallpaper-scrim"
+                  value={scrim}
+                  displayValue={`${scrim}%`}
+                  min={WALLPAPER_SCRIM_MIN}
+                  max={WALLPAPER_SCRIM_MAX}
+                  ariaLabel={t("settings.wallpaperScrim")}
+                  onChange={setScrim}
+                />
+              </PwCtl>
+            }
+          />
+          {areaRow("settings.wallpaperAreaMessage", messageMode, setMessageMode)}
+          {areaRow("settings.wallpaperAreaPanel", panelMode, setPanelMode)}
+          {areaRow("settings.wallpaperAreaInput", inputMode, setInputMode)}
         </>
-      )}
-    </div>
+      ) : null}
+    </>
   );
 }

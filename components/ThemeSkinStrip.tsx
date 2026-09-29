@@ -1,19 +1,25 @@
 "use client";
 
 /**
- * fork:zn-19 — 主题皮肤卡片条（Zeno 设置 → 外观 →「主题皮肤」）。
+ * fork:design-system SW-07 — 主题皮肤条，改用画板 47 的 `.pw-skin-strip` / `.pw-skin`。
  *
- * 一条横向滚动的皮肤列表，每张卡是**一个迷你外壳缩略图**而不是色块：
- * 上半是壁纸/渐变（`art`），右下角压一块半透明面板（`glass`），面板里一条强调色
- * （`accent`）。Zeno 的注释专门写了这件事 ——「Theme Studio intentionally previews
- * a complete mini-shell, not a color swatch」。纯色卡看不出玻璃、圆角、边框强度
- * 这些旋钮的区别，而它们正是皮肤的一半。
+ * 画板里这一组是：一排 `.pw-skin` 卡（选中卡 `.is-on`，卡面 `.prev` 是
+ * `.a`（侧栏色）+ `.b`（内容底色）两块，卡底 `.cap` 放勾选图标与名字），末位一张
+ * 「新建皮肤」卡；卡下面是 `.pw-inline` 动作行（导入 / 导出 / 打开皮肤工作室）。
  *
- * 左右各一个滚动按钮（`theme-skin-rail` 的三列 grid：按钮 / 轨道 / 按钮），
- * 底部一条 `border-top` 动作栏：新建主题 / 导入 / 编辑 / 导出。
+ * 三处产品侧适配（都在 `app/fork-ui.css` 的接线块里，规格仍只有 board.css 一个来源）：
+ * - 卡与动作钮在画板里是 div/span，产品是 button（UA 归零 + 可聚焦）；
+ * - 画板是固定 5 张的静态行，产品皮肤数量不定 → `.pw-skin-strip` 横向可滚动；
+ * - 卡里放的是 span 而不是 div（button 的内容模型是 phrasing content）。
+ *
+ * 预览里的颜色是**这套皮肤的值**，不是主题的值，所以只能内联；默认皮肤不带值，
+ * 不写内联，直接落回 board.css 的 `.a/.b` token。
+ *
+ * 原实现（fork:zn-19）是一条带左右滚动按钮的 Zeno 卡带，还画了壁纸与玻璃面板缩略图；
+ * 画板 47 只画两块色，按「画板即规格」收敛掉。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import {
   DEFAULT_THEME_SKIN,
@@ -22,44 +28,17 @@ import {
   serializeSkinForExport,
   type ThemeSkin,
 } from "@/lib/theme-skins";
-import { ConfigButton } from "./SettingsUi";
 import { BUILTIN_SKIN_LABEL_KEYS } from "@/lib/builtin-skins";
 
-function ChevronIcon({ direction }: { direction: "left" | "right" }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {direction === "left" ? <path d="m15 18-6-6 6-6" /> : <path d="m9 18 6-6-6-6" />}
-    </svg>
-  );
-}
-
-/** 卡片的迷你预览。颜色全部内联，因为这是「皮肤的值」而不是「主题的值」。 */
 function SkinCardArt({ skin }: { skin: ThemeSkin | null }) {
-  // 默认皮肤没有基色：画一块中性的占位，而不是留空。
-  const background = skin?.background || "var(--bg)";
-  const panel = skin?.panel || "var(--bg-elev)";
-  const accent = skin?.accent || "var(--accent)";
+  if (!skin) {
+    // 默认皮肤：不写内联，`.a` / `.b` 用 board.css 的面板色与画布色。
+    return <span className="prev"><span className="a" /><span className="b" /></span>;
+  }
   return (
-    <span
-      className="fork-skin-card-art"
-      style={{
-        backgroundImage: skin?.wallpaper
-          ? `url(${skin.wallpaper})`
-          : `linear-gradient(140deg, ${background}, color-mix(in srgb, ${background} 72%, ${panel}))`,
-        backgroundPosition: skin ? `${skin.focusX}% ${skin.focusY}%` : "center",
-        backgroundSize: skin ? `${skin.wallpaperScale}%` : "cover",
-      }}
-    >
-      <span
-        className="fork-skin-card-glass"
-        style={{
-          background: `color-mix(in srgb, ${panel} ${skin?.cardOpacity ?? 80}%, transparent)`,
-          borderRadius: `${Math.min(12, skin?.radius ?? 10)}px`,
-          backdropFilter: skin?.blur ? `blur(${Math.min(12, skin.blur)}px)` : undefined,
-        }}
-      >
-        <span className="fork-skin-card-accent" style={{ background: accent }} />
-      </span>
+    <span className="prev">
+      <span className="a" style={{ background: skin.panel }} />
+      <span className="b" style={{ background: skin.background }} />
     </span>
   );
 }
@@ -84,32 +63,7 @@ export function ThemeSkinStrip({
   busy?: boolean;
 }) {
   const { t } = useI18n();
-  const gridRef = useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  /* 滚动按钮的可用态是**量出来的**，不是猜的：卡片宽度随断点变（148/160），
-     `scrollWidth > clientWidth` 在只有一张皮肤时为 false，按钮就该灰掉。 */
-  const syncScrollState = useCallback(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    setCanScrollLeft(grid.scrollLeft > 1);
-    setCanScrollRight(grid.scrollLeft + grid.clientWidth < grid.scrollWidth - 1);
-  }, []);
-
-  useEffect(() => {
-    syncScrollState();
-    const grid = gridRef.current;
-    if (!grid) return;
-    const observer = new ResizeObserver(syncScrollState);
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [syncScrollState, skins.length]);
-
-  const scrollBy = (delta: number) => {
-    gridRef.current?.scrollBy({ left: delta, behavior: "smooth" });
-  };
 
   const activeSkin = activeId === THEME_SKIN_DEFAULT_ID
     ? null
@@ -123,102 +77,70 @@ export function ThemeSkinStrip({
   };
 
   return (
-    <div className="fork-skin-library">
-      <div className="fork-skin-rail">
-        <button
-          type="button"
-          className="fork-skin-scroll-button"
-          aria-label={t("settings.skinScrollLeft")}
-          disabled={!canScrollLeft}
-          onClick={() => scrollBy(-320)}
-        >
-          <ChevronIcon direction="left" />
-        </button>
+    <>
+      <div className="pw-skin-strip" role="radiogroup" aria-label={t("settings.skinLibrary")}>
+        {[null, ...skins].map((skin) => {
+          const id = skin?.id ?? THEME_SKIN_DEFAULT_ID;
+          // fork:zn-19-builtin-skins — 内置皮肤没写死名字（跨语言会错），标题按 id 取目录。
+          const label = skin
+            ? (BUILTIN_SKIN_LABEL_KEYS[skin.id] ? t(BUILTIN_SKIN_LABEL_KEYS[skin.id]) : skin.name)
+            : t("settings.skinDefault");
+          const selected = activeId === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={label}
+              disabled={busy}
+              className={`pw-skin${selected ? " is-on" : ""}`}
+              onClick={() => onSelect(id)}
+            >
+              <SkinCardArt skin={skin} />
+              <span className="cap">
+                {selected ? (
+                  <span className="pw-ico"><i data-ico="check" data-size="12" aria-hidden="true" /></span>
+                ) : null}
+                {label}
+              </span>
+            </button>
+          );
+        })}
 
-        <div
-          ref={gridRef}
-          className="fork-skin-grid"
-          onScroll={syncScrollState}
-          role="radiogroup"
-          aria-label={t("settings.skinLibrary")}
-        >
-          {[null, ...skins].map((skin) => {
-            const id = skin?.id ?? THEME_SKIN_DEFAULT_ID;
-            // fork:zn-19-builtin-skins — 内置皮肤没写死名字（跨语言会错），标题按 id 取目录。
-            const label = skin
-              ? (BUILTIN_SKIN_LABEL_KEYS[skin.id] ? t(BUILTIN_SKIN_LABEL_KEYS[skin.id]) : skin.name)
-              : t("settings.skinDefault");
-            const selected = activeId === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={label}
-                disabled={busy}
-                data-active={selected ? "true" : undefined}
-                className="fork-skin-card"
-                onClick={() => onSelect(id)}
-              >
-                <SkinCardArt skin={skin ?? (null as ThemeSkin | null)} />
-                <span className="fork-skin-card-name">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          className="fork-skin-scroll-button"
-          aria-label={t("settings.skinScrollRight")}
-          disabled={!canScrollRight}
-          onClick={() => scrollBy(320)}
-        >
-          <ChevronIcon direction="right" />
+        <button type="button" className="pw-skin is-new" disabled={busy} onClick={onCreate}>
+          <span className="pw-btn sm">
+            <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+            {t("settings.skinNew")}
+          </span>
         </button>
       </div>
 
-      <div className="fork-skin-library-actions">
-        <ConfigButton variant="secondary" size="small" onClick={onCreate}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          {t("settings.skinNew")}
-        </ConfigButton>
-        <ConfigButton variant="ghost" size="small" onClick={() => fileInputRef.current?.click()}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 3v12" />
-            <path d="m7 8 5-5 5 5" />
-            <path d="M5 21h14" />
-          </svg>
+      <div className="pw-inline pw-skin-actions">
+        <button type="button" className="pw-btn outline sm" onClick={() => fileInputRef.current?.click()}>
+          <span className="pw-ico"><i data-ico="upload" data-size="13" aria-hidden="true" /></span>
           {t("settings.skinImport")}
-        </ConfigButton>
-        <ConfigButton
-          variant="ghost"
-          size="small"
-          disabled={activeSkin === null}
-          onClick={() => activeSkin && onEdit(activeSkin.id)}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </svg>
-          {t("settings.skinEdit")}
-        </ConfigButton>
-        <ConfigButton
-          variant="ghost"
-          size="small"
+        </button>
+        <button
+          type="button"
+          className="pw-btn outline sm"
           disabled={activeSkin === null}
           onClick={() => activeSkin && onExport(activeSkin)}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 15V3" />
-            <path d="m7 10 5 5 5-5" />
-            <path d="M5 21h14" />
-          </svg>
+          <span className="pw-ico"><i data-ico="download" data-size="13" aria-hidden="true" /></span>
           {t("settings.skinExport")}
-        </ConfigButton>
+        </button>
+        <button
+          type="button"
+          className="pw-btn outline sm"
+          disabled={activeSkin === null}
+          onClick={() => activeSkin && onEdit(activeSkin.id)}
+        >
+          <span className="pw-ico"><i data-ico="paintbrush" data-size="13" aria-hidden="true" /></span>
+          {t("settings.skinStudio")}
+        </button>
+        <span className="pw-grow" />
+        <span className="pw-mono pw-dim">{t("settings.skinNote")}</span>
         <input
           ref={fileInputRef}
           type="file"
@@ -231,7 +153,7 @@ export function ThemeSkinStrip({
           }}
         />
       </div>
-    </div>
+    </>
   );
 }
 
