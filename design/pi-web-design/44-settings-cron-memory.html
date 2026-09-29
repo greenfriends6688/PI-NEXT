@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>44 · 设置 · 定时任务 / 记忆 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>44 · 设置 · 定时任务 / 记忆</h1>
+  <p>两个「让 agent 自己动起来」的分节：定时任务（表单 + 任务列表 + 运行历史）与记忆（开关 + 工具说明 + 记忆文件编辑）。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：CronConfig / PiMemoryConfig</span>
+    <span class="pw-tag accent">1440 × 900 × 2</span>
+  </div>
+</header>
+
+<!-- 定时任务 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>定时任务</b> · 左：任务列表 + 运行历史 · 右：新建表单（频率六种 + 会话模式 + 通知策略）<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4);padding-right:var(--s5)">
+          <div class="pw-inline">
+            <h2 style="margin:0">定时任务</h2>
+            <span class="pw-badge count">3 个 · 2 个已启用</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建任务</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">按计划自动给 agent 发一条提示词。每次运行会产生一条会话，可以点进去看全过程。</p>
+
+          <div class="pw-cols" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+            <div style="display:grid;gap:var(--s3);align-content:start">
+              <div class="pw-list">
+                <div class="pw-litem is-on">
+                  <span class="pw-switch on" style="transform:scale(.8)"><i></i></span>
+                  <span class="grow"><span class="pw-lname">每日检查上游更新</span><span class="pw-lsub">下次：明天 09:00 · 每周一至五</span></span>
+                  <span class="pw-badge ok">上次成功</span>
+                </div>
+                <div class="pw-litem">
+                  <span class="pw-switch on" style="transform:scale(.8)"><i></i></span>
+                  <span class="grow"><span class="pw-lname">跑一遍全量类型检查</span><span class="pw-lsub">下次：今天 22:00 · 每 6 小时</span></span>
+                  <span class="pw-badge accent"><span class="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>运行中</span>
+                </div>
+                <div class="pw-litem" style="opacity:.6">
+                  <span class="pw-switch" style="transform:scale(.8)"><i></i></span>
+                  <span class="grow"><span class="pw-lname">周报汇总</span><span class="pw-lsub">已停用 · 每 7 天</span></span>
+                  <span class="pw-badge warn">错过一次</span>
+                </div>
+              </div>
+
+              <div class="pw-detail">
+                <div class="pw-inline" style="margin-bottom:var(--s2)">
+                  <h3 style="margin:0;font-size:var(--text-body)">运行历史</h3>
+                  <span class="pw-badge count">12 条</span>
+                  <span class="pw-grow"></span>
+                  <span class="pw-btn sm">清理记录</span>
+                </div>
+                <div class="pw-list">
+                  <div class="pw-litem"><span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span><span class="grow"><span class="pw-lname">今天 09:00 · 定时触发</span><span class="pw-lsub">4m12s · $0.08 · 18 条消息</span></span><span class="pw-btn sm">打开会话</span></div>
+                  <div class="pw-litem"><span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="14"></i></span><span class="grow"><span class="pw-lname">昨天 09:00 · 手动触发</span><span class="pw-lsub">0m38s · 上游 503</span></span><span class="pw-btn sm">打开会话</span></div>
+                  <div class="pw-litem"><span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span><span class="grow"><span class="pw-lname">前天 09:00 · 重试</span><span class="pw-lsub">5m02s · $0.11</span></span><span class="pw-btn sm">打开会话</span></div>
+                  <div class="pw-litem" style="opacity:.6"><span class="pw-ico pw-dim"><i data-ico="circle-slash" data-size="14"></i></span><span class="grow"><span class="pw-lname">9 月 25 日 09:00 · 跳过</span><span class="pw-lsub">空闲窗口外</span></span></div>
+                </div>
+                <div class="pw-inline" style="margin-top:var(--s2)"><span class="pw-grow"></span><span class="pw-btn sm">加载更早</span></div>
+              </div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0">新建任务</h3>
+                <span class="pw-grow"></span>
+                <span class="pw-badge accent">未保存</span>
+              </div>
+
+              <div class="pw-field" style="margin-top:var(--s2)"><span class="pw-label">名称</span><input class="pw-input" style="min-width:0;width:200px" value="每日检查上游更新"></div>
+              <div class="pw-sec-title" style="margin-top:var(--s3)">提示词<span class="grow"></span></div>
+              <textarea class="pw-textarea" style="min-height:80px">拉取上游最新 release，和本地 fork 的基线比一比，把差了什么写进 docs/codex-skin/delta.md，然后提交。</textarea>
+
+              <div class="pw-field" style="margin-top:var(--s2)"><span class="pw-label">工作目录</span><span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">~/Desktop/pi-codex</span><span class="pw-btn sm">选择</span></span></div>
+              <div class="pw-field"><span class="pw-label">模型</span><span class="pw-selectbox">跟随默认<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              <div class="pw-field"><span class="pw-label">思考强度</span><span class="pw-selectbox">high<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              <div class="pw-field"><span class="pw-label">最大运行次数</span><span class="pw-ctl"><input class="pw-input" style="min-width:0;width:90px" value="不限"></span></div>
+              <div class="pw-field">
+                <span class="pw-label">会话模式</span>
+                <span class="pw-radio"><span class="is-on">每次新建</span><span>同日复用</span><span>始终复用</span></span>
+              </div>
+              <div class="pw-field">
+                <span class="pw-label">通知策略</span>
+                <span class="pw-selectbox">仅失败时<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+              </div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">频率<span class="grow"></span></div>
+              <div class="pw-radio">
+                <span>每 N 分</span><span>每 N 时</span><span class="is-on">每日</span><span>每周</span><span>每月</span><span>每年</span><span>单次</span><span>Cron 表达式</span>
+              </div>
+              <div class="pw-grid3" style="margin-top:var(--s2)">
+                <div class="pw-field" style="border:0;display:grid;gap:4px;min-height:0"><span class="pw-label">时间</span><span class="pw-selectbox" style="width:100%">09:00<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+                <div class="pw-field" style="border:0;display:grid;gap:4px;min-height:0"><span class="pw-label">星期</span><span class="pw-selectbox" style="width:100%">周一至周五<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+                <div class="pw-field" style="border:0;display:grid;gap:4px;min-height:0"><span class="pw-label">结束日期</span><span class="pw-selectbox" style="width:100%">不限<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              </div>
+              <div class="pw-field"><span class="pw-label">空闲窗口<small>只在这个时间段内真正开跑</small></span><span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">22:00 – 07:00</span><span class="pw-btn sm">编辑</span></span></div>
+              <div class="pw-field"><span class="pw-label">时区</span><span class="pw-selectbox">Asia/Shanghai (GMT+8)<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              <div class="pw-field"><span class="pw-label">启用</span><span class="pw-switch on"><i></i></span></div>
+
+              <div class="pw-inline" style="margin-top:var(--s3)">
+                <span class="pw-badge accent"><span class="pw-ico"><i data-ico="clock" data-size="11"></i></span>下次运行：明天 09:00</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn">取消</span>
+                <span class="pw-btn primary">保存任务</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 记忆 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>记忆</b> · 开关与状态 / 工具说明 / 记忆文件（列表 + 编辑，含冲突重载）<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <h2>记忆</h2>
+          <p class="sub">记忆让 agent 跨会话记住你的偏好与项目约定。它由 <span class="pw-mono">pi-memory</span> 包提供。</p>
+
+          <div class="pw-block" style="margin-top:0">
+            <div class="pw-field">
+              <span class="pw-label">启用记忆</span>
+              <span class="pw-switch on"><i></i></span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">pi-memory 状态</span>
+              <span class="pw-ctl">
+                <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>已安装 · 已启用 v0.4.2</span>
+                <span class="pw-btn outline sm">重新安装</span>
+              </span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">记忆文件目录</span>
+              <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">~/.pi/agent/memory</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>打开</span></span>
+            </div>
+          </div>
+
+          <div class="pw-block">
+            <h3><span class="pw-ico"><i data-ico="wrench" data-size="14"></i></span>记忆工具（agent 可调用）</h3>
+            <div class="pw-list">
+              <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="pencil-line" data-size="14"></i></span><span class="grow"><span class="pw-lname">memory_write</span><span class="pw-lsub">写一条记忆（追加到文件）</span></span><span class="pw-badge">允许自动调用</span></div>
+              <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="file-search" data-size="14"></i></span><span class="grow"><span class="pw-lname">memory_search</span><span class="pw-lsub">按关键词搜记忆</span></span><span class="pw-badge">允许自动调用</span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">memory_read</span><span class="pw-lsub">读某个记忆文件</span></span><span class="pw-badge">允许自动调用</span></div>
+            </div>
+          </div>
+
+          <div class="pw-cols">
+            <div>
+              <div class="pw-inline" style="margin-bottom:var(--s2)">
+                <input class="pw-input" style="flex:1;min-width:0;height:28px" placeholder="按文件名过滤">
+                <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="file-plus" data-size="14"></i></span></span>
+              </div>
+              <div class="pw-list">
+                <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">MEMORY.md</span><span class="pw-lsub">项目长期备忘 · 1.2 KB</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-28.md</span><span class="pw-lsub">今日工作日志 · 480 B</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-27.md</span><span class="pw-lsub">昨日 · 1.1 KB</span></span></div>
+                <div class="pw-litem" style="opacity:.6"><span class="pw-ico pw-dim"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">preferences.md</span><span class="pw-lsub">只读 · 由外部工具写</span></span><span class="pw-badge">只读</span></div>
+              </div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0" class="pw-mono">MEMORY.md</h3>
+                <span class="pw-grow"></span>
+                <span class="pw-badge">自动保存</span>
+                <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>在编辑器打开</span>
+              </div>
+              <textarea class="pw-textarea" style="min-height:340px;margin-top:var(--s2)"># pi-web Codex 皮肤 fork — 项目长期备忘
+
+## 这是什么
+用户对上游 pi-web 的二开魔改版，主要改造是 Codex 皮肤。
+
+## 最重要的文件
+`docs/codex-skin/delta.md` 是合并上游的操作手册。
+
+## 分支约定
+- `upstream`：纯净上游快照链，永不混入本地改动
+- `main`：本地皮肤，上游版本以 merge commit 并入</textarea>
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>磁盘上的文件在你编辑期间被改过</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn outline sm">重新载入</span>
+                <span class="pw-btn primary sm">保留我的修改</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>定时任务的「频率」是八选一的芯片组</b>，选中后再按类型显示对应的补充字段（时间 / 星期 / 日期 / Cron 表达式），不是一上来就摆一堆输入框。</li>
+    <li><b>任务行的开关在最左</b>（对齐、可扫视），中间是名称 + 下次运行时间，右侧是上次结果徽章。</li>
+    <li><b>运行历史是列表不是表格</b>：每行给「时间 · 触发来源 / 耗时 · 成本 · 消息数」两行，右侧一个「打开会话」。触发来源（定时 / 手动 / 重试）写在时间后面。</li>
+    <li><b>「错过一次」是独立状态</b>（warning 徽章），与「失败」区分——错过是因为机器没开或不在空闲窗口，不是任务本身出错。</li>
+    <li><b>记忆分节顶部先给状态</b>（已装启用 / 已装停用 / 未安装），未安装时整块换成安装引导。</li>
+    <li><b>记忆工具逐条列出并标注是否允许自动调用</b>，让用户知道 agent 能拿记忆做什么。</li>
+    <li><b>只读的记忆文件</b>用弱化行 + 「只读」徽章，仍可点开查看但不可编辑。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

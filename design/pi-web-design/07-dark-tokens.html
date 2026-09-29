@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>07 · 深色 Token 对位表 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+<style>
+  .dk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+  .dk-pair { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--n-border-subtle); border-radius: var(--radius-4); overflow: hidden; }
+  .dk-pair .half { padding: 6px 10px; display: flex; align-items: center; gap: var(--s2); font-family: var(--font-mono); font-size: var(--text-meta); }
+  .dk-pair .l { background: var(--surface-canvas); color: var(--n-text); border-right: 1px solid var(--n-border-subtle); }
+  .dk-pair .d { background: #17171c; color: #d5d5dc; }
+  .dk-pair .sw { width: 14px; height: 14px; border-radius: 3px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.12); }
+  .dk-head { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-bottom: var(--s2); }
+  .dk-head span { font-family: var(--font-mono); font-size: var(--text-meta); color: var(--n-placeholder); }
+</style>
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>07 · 深色 Token 对位表</h1>
+  <p>画板 00 深色区的完整版本：<b>一个浅色 token 名对应且只对应一个深色值</b>，26 项全部填满，<b>没有深色专有 token</b>。另有三小节说明「不新增 token」的那些（跟随派生 / 代码高亮 / 终端 ANSI）。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：全局</span>
+    <span class="pw-tag">来源：assets/tokens.css 的 <span class="pw-mono">:root.dark</span> 块</span>
+    <span class="pw-tag accent">26 项对位</span>
+    <span class="pw-tag">零深色专有 token</span>
+  </div>
+</header>
+
+<!-- 中性 + 强调 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>中性色阶 10 · 强调色 6</b> · 左 = 浅色值，右 = 深色值</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div>
+      <div class="pw-sec-title">中性 · 10 项<span class="grow"></span></div>
+      <div class="dk-head"><span>浅色 :root</span><span>深色 :root.dark</span></div>
+      <div class="dk-grid" style="grid-template-columns:1fr">
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#fbfbfc"></span>--n-canvas #fbfbfc</div><div class="half d"><span class="sw" style="background:#17171c"></span>#17171c</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#f4f4f6"></span>--n-panel #f4f4f6</div><div class="half d"><span class="sw" style="background:#1d1d23"></span>#1d1d23</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#eeeef1"></span>--n-surface #eeeef1</div><div class="half d"><span class="sw" style="background:#24242b"></span>#24242b</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#e7e7eb"></span>--n-hover #e7e7eb</div><div class="half d"><span class="sw" style="background:#2c2c34"></span>#2c2c34</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#e2e2e7"></span>--n-border-subtle #e2e2e7</div><div class="half d"><span class="sw" style="background:#303039"></span>#303039</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#d3d3da"></span>--n-border #d3d3da</div><div class="half d"><span class="sw" style="background:#43434e"></span>#43434e</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#8b8b96"></span>--n-placeholder #8b8b96</div><div class="half d"><span class="sw" style="background:#7e7e8a"></span>#7e7e8a</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#62626e"></span>--n-muted #62626e</div><div class="half d"><span class="sw" style="background:#9b9ba6"></span>#9b9ba6</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#33333d"></span>--n-text #33333d</div><div class="half d"><span class="sw" style="background:#d5d5dc"></span>#d5d5dc</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#1e1e26"></span>--n-strong #1e1e26</div><div class="half d"><span class="sw" style="background:#f0f0f4"></span>#f0f0f4</div></div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">深色不是把浅色取反：色阶整体抬到 <code>#17171c → #f0f0f4</code>，最亮与最暗都不纯黑纯白，避免在 OLED 上刺眼。</p>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">强调色 · 6 项<span class="grow"></span></div>
+      <div class="dk-head"><span>浅色 :root</span><span>深色 :root.dark</span></div>
+      <div class="dk-grid" style="grid-template-columns:1fr">
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#5566d8"></span>--accent #5566d8</div><div class="half d"><span class="sw" style="background:#7b89e6"></span>#7b89e6</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#3d4cb5"></span>--accent-active #3d4cb5</div><div class="half d"><span class="sw" style="background:#8b96ec"></span>#8b96ec</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#ecedfa"></span>--accent-soft #ecedfa</div><div class="half d"><span class="sw" style="background:#26263a"></span>#26263a</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#4a59c9"></span>--accent-text #4a59c9</div><div class="half d"><span class="sw" style="background:#8b96ec"></span>#8b96ec</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#ffffff"></span>--accent-on #ffffff</div><div class="half d"><span class="sw" style="background:#17171c"></span>#17171c</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:rgba(255,255,255,.45)"></span>--accent-border-on rgba(255,255,255,.45)</div><div class="half d"><span class="sw" style="background:rgba(23,23,28,.45)"></span>rgba(23,23,28,.45)</div></div>
+      </div>
+      <div class="pw-alert info" style="margin-top:var(--s2)">
+        <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+        <span class="pw-grow">深色下强调色要**提亮**（#5566d8 → #7b89e6），否则在深底上会糊成一片；<code>--accent-on</code>（强调底上的前景）也跟着从白翻成深色。</span>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">注：<code>--accent-active</code> 在深色里比 base 更亮（浅色里是更深）——深色下「按下」表现为提亮而不是压暗。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- 语义 + 表面 + 阴影 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>语义色 8 · 弹层表面 1 · 阴影 1</b> · 合计 26 项</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div>
+      <div class="pw-sec-title">语义色 · 8 项（4 实色 + 4 淡底）<span class="grow"></span></div>
+      <div class="dk-head"><span>浅色 :root</span><span>深色 :root.dark</span></div>
+      <div class="dk-grid" style="grid-template-columns:1fr">
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#bc4e39"></span>--error #bc4e39</div><div class="half d"><span class="sw" style="background:#d97b66"></span>#d97b66</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#fbeeea"></span>--error-soft #fbeeea</div><div class="half d"><span class="sw" style="background:#33231f"></span>#33231f</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#8a6f12"></span>--warning #8a6f12</div><div class="half d"><span class="sw" style="background:#c9a63c"></span>#c9a63c</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#f7f2e2"></span>--warning-soft #f7f2e2</div><div class="half d"><span class="sw" style="background:#2f2a1c"></span>#2f2a1c</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#477f40"></span>--success #477f40</div><div class="half d"><span class="sw" style="background:#74ab68"></span>#74ab68</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#ecf3ea"></span>--success-soft #ecf3ea</div><div class="half d"><span class="sw" style="background:#1f2a1d"></span>#1f2a1d</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#5566d8"></span>--info #5566d8</div><div class="half d"><span class="sw" style="background:#7b89e6"></span>#7b89e6</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#ecedfa"></span>--info-soft #ecedfa</div><div class="half d"><span class="sw" style="background:#26263a"></span>#26263a</div></div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">淡底在深色里是**深色系**的（不是把浅色淡底压暗，而是换成同色相的暗调），保证状态文字在它上面仍然够对比。</p>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">弹层表面 · 阴影 · 遮罩<span class="grow"></span></div>
+      <div class="dk-head"><span>浅色 :root</span><span>深色 :root.dark</span></div>
+      <div class="dk-grid" style="grid-template-columns:1fr">
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#ffffff"></span>--surface-popover #ffffff</div><div class="half d"><span class="sw" style="background:#24242b"></span>#24242b</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#e7e7eb"></span>--overlay-hover 6% 深色</div><div class="half d"><span class="sw" style="background:rgba(240,240,244,.06)"></span>6% 浅色（反向叠色）</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#dcdce2"></span>--overlay-active 10% 深色</div><div class="half d"><span class="sw" style="background:rgba(240,240,244,.10)"></span>10% 浅色</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:#dcdce2"></span>--overlay-selected 10% 深色</div><div class="half d"><span class="sw" style="background:rgba(240,240,244,.10)"></span>10% 浅色</div></div>
+        <div class="dk-pair"><div class="half l"><span class="sw" style="background:rgba(20,20,26,.32)"></span>--scrim rgba(20,20,26,.32)</div><div class="half d"><span class="sw" style="background:rgba(0,0,0,.52)"></span>rgba(0,0,0,.52)</div></div>
+        <div class="dk-pair"><div class="half l"><span class="pw-mono">shadow-popover 0 4 12 rgba(28,28,35,.10)</span></div><div class="half d"><span class="pw-mono">0 4 12 rgba(0,0,0,.42)</span></div></div>
+        <div class="dk-pair"><div class="half l"><span class="pw-mono">shadow-modal 0 12 32 / 0 2 8</span></div><div class="half d"><span class="pw-mono">0 12 32 / 0 2 8 加重</span></div></div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">叠色在深色下**反向**：浅色是叠深色（6%/10% 黑），深色是叠浅色（6%/10% 白）。阴影在深色下要加重，否则弹层与底分不开。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- 三小节：不新增 token 的 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>不新增 token 的三类</b> · 跟随派生 / 代码高亮 / 终端 ANSI</div>
+  <div class="pw-frame-body pw-pad pw-grid3">
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>跟随派生</h4>
+      <p>这些**没有自己的深色值**，值由别的 token 现算，深浅自动跟着变：</p>
+      <div class="pw-mono pw-dim" style="font-size:var(--text-meta);line-height:1.8;margin-top:var(--s2)">
+        --surface-canvas → --n-canvas<br>
+        --surface-panel → --n-panel<br>
+        --diff-added → --success<br>
+        --diff-added-bg → --success-soft<br>
+        --diff-removed → --error<br>
+        --diff-removed-bg → --error-soft<br>
+        --focus-ring → --accent<br>
+        --info → --accent<br>
+        --info-soft → --accent-soft
+      </div>
+      <p style="margin-top:var(--s2)">规则：**能派生的绝不复制一份值**——复制出来就会在下次改色时漏掉一处。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="code" data-size="14"></i></span>代码高亮</h4>
+      <p>复用既有 token，不引入新色相：</p>
+      <table class="pw-table" style="margin-top:var(--s2);font-size:var(--text-meta)">
+        <tbody>
+          <tr><td class="pw-mono">关键字</td><td><span class="pw-inline" style="gap:6px"><span class="pw-ico" style="color:#8a4f8f"><i data-ico="square" data-size="11" data-stroke="3"></i></span><span class="pw-mono">#8a4f8f</span></span></td></tr>
+          <tr><td class="pw-mono">字符串</td><td><span class="pw-inline" style="gap:6px"><span class="pw-ico" style="color:var(--success)"><i data-ico="square" data-size="11" data-stroke="3"></i></span><span class="pw-mono">--success</span></span></td></tr>
+          <tr><td class="pw-mono">数字</td><td><span class="pw-inline" style="gap:6px"><span class="pw-ico" style="color:var(--warning)"><i data-ico="square" data-size="11" data-stroke="3"></i></span><span class="pw-mono">--warning</span></span></td></tr>
+          <tr><td class="pw-mono">注释</td><td><span class="pw-inline" style="gap:6px"><span class="pw-ico" style="color:var(--n-placeholder)"><i data-ico="square" data-size="11" data-stroke="3"></i></span><span class="pw-mono">--n-placeholder</span></span></td></tr>
+          <tr><td class="pw-mono">函数名</td><td><span class="pw-inline" style="gap:6px"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="square" data-size="11" data-stroke="3"></i></span><span class="pw-mono">--accent-text</span></span></td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:var(--s2)">深浅各只多一个值：<code>#8a4f8f</code>（紫）在深色下换 <code>#b98ac0</code>。这是唯一一个不在 5 个色相里的例外，因为它必须与 <code>--accent</code> 区分开。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span>终端 ANSI</h4>
+      <p>八色全部映射到既有 token：</p>
+      <div class="pw-grid2" style="margin-top:var(--s2);gap:var(--s1)">
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--n-strong)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">black</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--error)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">red</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--success)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">green</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--warning)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">yellow</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">blue</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#8a4f8f"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">magenta</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#2f7d86"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">cyan</span></div>
+        <div class="pw-inline" style="gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--n-text)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">white</span></div>
+      </div>
+      <p style="margin-top:var(--s2)">只有 magenta 与 cyan 在深色下单独提亮（<code>#b98ac0</code> / <code>#6cb2bb</code>），其余 6 色直接复用语义 token，深浅自动跟随。</p>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>一个浅色 token 名对应且只对应一个深色值</b>，26 项全部填满，<b>没有深色专有 token</b>。这样切主题只需换一套变量，组件一行都不用改。</li>
+    <li><b>深色不是取反</b>：色阶整体抬到 <code>#17171c → #f0f0f4</code>，两端都不纯黑纯白。</li>
+    <li><b>强调色在深色下要提亮</b>（#5566d8 → #7b89e6）；<code>--accent-on</code> 从白翻成深色。</li>
+    <li><b>「按下」在深色下是提亮</b>：<code>--accent-active</code> 比 base 更亮（浅色里是更深）。</li>
+    <li><b>叠色反向</b>：浅色叠 6%/10% 黑，深色叠 6%/10% 白。</li>
+    <li><b>语义淡底换成同色相暗调</b>，不是把浅色淡底压暗——否则状态文字在上面会不够对比。</li>
+    <li><b>能派生的绝不复制值</b>：<code>--surface-*</code>、<code>--diff-*</code>、<code>--focus-ring</code>、<code>--info*</code> 都由别的 token 现算。</li>
+    <li><b>阴影在深色下加重</b>，否则弹层与底分不开。</li>
+    <li><b>不新增 token 的三类</b>：跟随派生（9 项）、代码高亮（5 项，只多 1 个紫）、终端 ANSI（8 色，只多 2 个提亮）。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

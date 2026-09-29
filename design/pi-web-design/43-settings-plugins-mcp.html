@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>43 · 设置 · 插件 / MCP — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>43 · 设置 · 插件 / MCP</h1>
+  <p>两个「装东西」的分节：插件（npm 包扩展，含资源清单与更新）与 MCP 服务器（Basic / JSON 双模式、从其它 agent 导入、OAuth 授权）。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：PluginsConfig / McpConfig</span>
+    <span class="pw-tag accent">1440 × 900 × 2</span>
+  </div>
+</header>
+
+<!-- 插件 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>插件</b> · 包列表 + 详情（描述 / 状态 / 版本 / 资源数 / 安装路径 / 已解析资源）+ 更新与移除<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">插件</h2>
+            <span class="pw-badge count">3 个包</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>更新全部</span>
+            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加插件</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">插件是 npm 包形式的扩展：可以贡献命令、工具、面板与 MCP 服务器。装完需要重载会话。</p>
+
+          <div class="pw-cols">
+            <div class="pw-list">
+              <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-git</span><span class="pw-lsub">v1.4.0 · 6 个资源</span></span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-figma</span><span class="pw-lsub">v0.9.2 · 3 个资源</span></span><span class="pw-badge warn">可更新</span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">pi-plugin-notify</span><span class="pw-lsub">v2.0.0 · 1 个资源</span></span><span class="pw-badge">已禁用</span></div>
+              <div style="height:1px;background:var(--n-border-subtle);margin:var(--s2) 0"></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">MCP 服务器</span><span class="pw-lsub">由插件贡献 · 2 个</span></span><span class="pw-ico"><i data-ico="chevron-right" data-size="13"></i></span></div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0">@pi/plugin-git</h3>
+                <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>已启用</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="check" data-size="13"></i></span>检查更新</span>
+                <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重载会话</span>
+                <span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>移除</span>
+              </div>
+              <p style="margin:var(--s2) 0 0;color:var(--n-muted);font-size:var(--text-secondary)">把 Git 图谱、分支切换与 worktree 管理打包成一组面板与命令。</p>
+
+              <dl class="pw-kv" style="margin-top:var(--s3)">
+                <dt>版本</dt><dd class="pw-mono">1.4.0（最新）</dd>
+                <dt>包名</dt><dd class="pw-mono">@pi/plugin-git</dd>
+                <dt>安装路径</dt><dd class="pw-mono">node_modules/@pi/plugin-git</dd>
+                <dt>工作目录</dt><dd class="pw-mono">/Users/yingjing/Desktop/pi-codex</dd>
+                <dt>状态</dt><dd>已启用 · 贡献 6 个资源</dd>
+              </dl>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">已解析资源<span class="grow"></span></div>
+              <div class="pw-list">
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow"><span class="pw-lname">Git 图谱面板</span><span class="pw-lsub">panel · 右栏标签</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/git-status</span><span class="pw-lsub">command · 自定义命令</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/git-worktree</span><span class="pw-lsub">command · 自定义命令</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="wrench" data-size="14"></i></span><span class="grow"><span class="pw-lname">git_log</span><span class="pw-lsub">tool · agent 可调用</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="wrench" data-size="14"></i></span><span class="grow"><span class="pw-lname">git_diff</span><span class="pw-lsub">tool · agent 可调用</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">git-mcp</span><span class="pw-lsub">mcp · 本机 stdio</span></span></div>
+              </div>
+
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-switch on"><i></i></span>
+                <span style="font-size:var(--text-secondary)">启用这个插件</span>
+                <span class="pw-grow"></span>
+                <span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>改动需要重载会话</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MCP -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>MCP 服务器</b> · 列表 + 详情（Basic / JSON 双模式）+ 从其它 agent 导入 + OAuth<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">MCP 服务器</h2>
+            <span class="pw-badge count">5 个 · 3 个已连接</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="import" data-size="13"></i></span>从其它 agent 导入</span>
+            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加服务器</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">MCP（Model Context Protocol）服务器给 agent 提供额外的工具与资源。stdio 走本地进程，http 走远程端点。</p>
+
+          <div class="pw-cols">
+            <div class="pw-list">
+              <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">filesystem</span><span class="pw-lsub">stdio · 全局</span></span><span class="pw-badge ok">已连接</span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">postgres</span><span class="pw-lsub">stdio · 项目</span></span><span class="pw-badge ok">已连接</span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">playwright</span><span class="pw-lsub">stdio · 全局</span></span><span class="pw-badge warn">未连接</span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">linear</span><span class="pw-lsub">http · 全局</span></span><span class="pw-badge bad">需要授权</span></div>
+              <div class="pw-litem" style="opacity:.55"><span class="pw-ico pw-dim"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">notion</span><span class="pw-lsub">http · 全局</span></span><span class="pw-badge">已禁用</span></div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0">filesystem</h3>
+                <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>已连接</span>
+                <span class="pw-badge">全局</span>
+                <span class="pw-grow"></span>
+                <span class="pw-switch on"><i></i></span>
+              </div>
+
+              <div class="pw-inline" style="margin-top:var(--s3)">
+                <span class="pw-radio"><span class="is-on">Basic</span><span>JSON</span></span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="circle-play" data-size="13"></i></span>测试连接</span>
+                <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>编辑</span>
+                <span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>删除</span>
+              </div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">Basic<span class="grow"></span></div>
+              <div class="pw-field"><span class="pw-label">传输方式</span><span class="pw-selectbox">stdio<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              <div class="pw-field"><span class="pw-label">命令</span><span class="pw-ctl"><input class="pw-input" style="min-width:240px" value="npx"></span></div>
+              <div class="pw-field"><span class="pw-label">参数</span><span class="pw-ctl"><input class="pw-input" style="min-width:240px" value="-y @modelcontextprotocol/server-filesystem /Users/yingjing"></span></div>
+              <div class="pw-field"><span class="pw-label">来源</span><span class="pw-selectbox">全局<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              <div class="pw-field"><span class="pw-label">工作目录</span><span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">~</span></span></div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">环境变量<span class="grow"></span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加</span></div>
+              <div class="pw-field"><span class="pw-ctl"><span class="pw-mono" style="min-width:140px">LOG_LEVEL</span></span><span class="pw-ctl"><span class="pw-mono">info</span></span></div>
+              <div class="pw-field"><span class="pw-ctl"><span class="pw-mono" style="min-width:140px">API_KEY</span></span><span class="pw-ctl"><span class="pw-mono">••••••••</span><span class="pw-ico pw-dim"><i data-ico="eye" data-size="13"></i></span></span></div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">JSON 模式（同一份配置的另一种写法）<span class="grow"></span></div>
+              <div class="pw-code-body" style="border:1px solid var(--n-border);border-radius:var(--radius-4);padding:var(--s2) var(--s3);background:var(--surface-panel);font-size:var(--text-meta)">
+{
+  <span class="pw-tok-key">"filesystem"</span>: {
+    <span class="pw-tok-key">"command"</span>: <span class="pw-tok-str">"npx"</span>,
+    <span class="pw-tok-key">"args"</span>: [<span class="pw-tok-str">"-y"</span>, <span class="pw-tok-str">"@modelcontextprotocol/server-filesystem"</span>, <span class="pw-tok-str">"/Users/yingjing"</span>],
+    <span class="pw-tok-key">"env"</span>: { <span class="pw-tok-key">"LOG_LEVEL"</span>: <span class="pw-tok-str">"info"</span> }
+  }
+}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 导入 + OAuth -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>从其它 agent 导入 MCP · OAuth 授权</b> · 八个来源 + 同名冲突提示；http 型服务器的授权流程</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-modal" style="width:100%">
+      <div class="pw-modal-head">
+        <span class="pw-ico"><i data-ico="import" data-size="16"></i></span>
+        从其它 agent 导入 MCP 配置
+        <span class="pw-grow"></span>
+        <span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span>
+      </div>
+      <div class="pw-modal-body">
+        <p style="margin:0;color:var(--n-muted)">扫描本机上其它 agent 的 MCP 配置，挑要导入的服务器。</p>
+        <div class="pw-wrap">
+          <span class="pw-chip accent"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>Claude Code · 4</span>
+          <span class="pw-chip accent"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>Codex · 2</span>
+          <span class="pw-chip"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>Cursor · 3</span>
+          <span class="pw-chip"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>Gemini · 1</span>
+          <span class="pw-chip" style="opacity:.5">Windsurf · 未找到</span>
+          <span class="pw-chip" style="opacity:.5">VS Code · 未找到</span>
+          <span class="pw-chip" style="opacity:.5">OpenCode · 未找到</span>
+          <span class="pw-chip"><span class="pw-ico"><i data-ico="file-text" data-size="12"></i></span>mcp.json</span>
+        </div>
+        <div class="pw-sep" style="margin:var(--s2) 0"></div>
+        <div class="pw-prow"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><b style="font-weight:500">filesystem</b><span class="pw-desc" style="display:block">来自 Claude Code</span></span><span class="pw-badge warn">同名已存在</span></div>
+        <div class="pw-prow"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><b style="font-weight:500">sequential-thinking</b><span class="pw-desc" style="display:block">来自 Claude Code</span></span></div>
+        <div class="pw-prow"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><b style="font-weight:500">context7</b><span class="pw-desc" style="display:block">来自 Cursor</span></span></div>
+        <div class="pw-prow"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><b style="font-weight:500">browser-tools</b><span class="pw-desc" style="display:block">来自 Codex</span></span></div>
+      </div>
+      <div class="pw-modal-foot">
+        <span class="pw-dim" style="font-size:var(--text-meta)">已选 3 个</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn">取消</span>
+        <span class="pw-btn primary">导入所选</span>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--warning)"><i data-ico="key-round" data-size="16"></i></span>
+          需要授权 · linear
+        </div>
+        <div class="pw-modal-body">
+          <p style="margin:0">这个服务器用 OAuth 认证。复制下面的地址，在浏览器里完成授权后回来测试连接。</p>
+          <div class="pw-inline" style="border:1px solid var(--n-border);border-radius:var(--radius-4);padding:var(--s1) var(--s2);background:var(--surface-panel)">
+            <span class="pw-mono" style="flex:1">http://localhost:30141/mcp-auth</span>
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+          </div>
+          <div class="pw-alert info"><span class="pw-ico"><i data-ico="info" data-size="14"></i></span><span class="pw-grow">凭据存在系统钥匙串，不写入配置文件。</span></div>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn danger">清除凭据</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn outline">稍后</span>
+          <span class="pw-btn primary">测试连接</span>
+        </div>
+      </div>
+
+      <div class="pw-cell">
+        <h4><span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span>连接成功的回显</h4>
+        <div class="pw-code-body" style="margin-top:var(--s2);font-size:var(--text-meta)">
+<span class="pw-tok-com">// initialize</span>
+{ <span class="pw-tok-key">"protocolVersion"</span>: <span class="pw-tok-str">"2025-06-18"</span>,
+  <span class="pw-tok-key">"serverInfo"</span>: { <span class="pw-tok-key">"name"</span>: <span class="pw-tok-str">"filesystem"</span>, <span class="pw-tok-key">"version"</span>: <span class="pw-tok-str">"0.6.2"</span> } }
+<span class="pw-tok-com">// tools/list → 11 个工具</span>
+<span class="pw-tok-com">// resources/list → 0 个资源</span>
+<span class="add">✓ 1.4s · 11 tools</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>插件与 MCP 共用「列表 + 详情」骨架</b>，但列表行的副标题给的是不同信息：插件给「版本 · 资源数」，MCP 给「传输方式 · 作用域」。</li>
+    <li><b>连接状态用徽章三色</b>：已连接（success）/ 未连接（warning）/ 需要授权（error）/ 已禁用（中性 + 整行弱化）。</li>
+    <li><b>MCP 的 Basic 与 JSON 是同一份配置的两种写法</b>，用芯片单选组切换；JSON 模式只读展示当前配置，避免两处都能改导致的漂移。</li>
+    <li><b>环境变量的值默认打码</b>，右侧一个眼睛图标切换显示。凭据本身不落配置文件。</li>
+    <li><b>导入时同名冲突给 warning 徽章</b>而不是阻止，让用户自己决定覆盖还是跳过。</li>
+    <li><b>OAuth 走「复制本地地址 → 浏览器授权 → 回来测试」</b>三步，凭据存系统钥匙串，并给「清除凭据」出口。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

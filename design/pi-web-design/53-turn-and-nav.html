@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>53 · 转录辅助件与导航 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>53 · 转录辅助件与导航</h1>
+  <p>转录区周围一圈「小件」：右侧迷你地图、等待首 token 的阶段行、回合写过的文件、输入框旁的项目芯片与待办芯片、路径动作菜单、Git ref 芯片。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：会话工作台 / 转录</span>
+    <span class="pw-tag">组件：ChatMinimap / PhaseRoll / TurnWrittenFiles / ProjectChip / TodoChip / PathActions / GitRefChips</span>
+    <span class="pw-tag accent">宽 800 / 面板</span>
+  </div>
+</header>
+
+<!-- 迷你地图 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>转录迷你地图（ChatMinimap）</b> · 右缘 36px 导轨 + 悬浮展开的 320px 时间线浮层 · 锚在导轨左侧<span class="grow"></span>整屏局部</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-inline" style="align-items:stretch;gap:var(--s4)">
+
+      <div style="flex:1;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden;background:var(--surface-canvas);display:flex;height:520px">
+        <div class="pw-chat" style="padding:var(--s3) 0;flex:1">
+          <div class="pw-col" style="padding:0 var(--s4);gap:var(--s3)">
+            <div class="pw-msg-user" style="max-width:88%">把 release 里那份和本地待上传的改动对一下</div>
+            <div class="pw-assistant">
+              <div class="pw-proc"><div class="pw-proc-head" style="border-bottom:0"><span class="pw-ico pw-dim"><i data-ico="chevron-right" data-size="14"></i></span><span><b>2 个文件</b> · 4 条命令</span><span class="grow"></span><span class="pw-badge ok">完成</span></div></div>
+              <div class="pw-md"><p>两边差 <b>7 个文件</b>，其中 3 个是本次设计系统的文档。</p></div>
+            </div>
+            <div class="pw-msg-user" style="max-width:88%">那 3 个文档先别提交</div>
+            <div class="pw-assistant"><div class="pw-md"><p>好，我先只提交皮肤那 4 个文件。</p></div></div>
+            <div class="pw-msg-user" style="max-width:88%">顺便把 delta.md 的台账更新一下</div>
+            <div class="pw-assistant">
+              <div class="pw-proc"><div class="pw-proc-head" style="border-bottom:0"><span class="pw-ico pw-dim"><i data-ico="chevron-down" data-size="14"></i></span><span><b>1 个文件</b> · 2 次调用</span><span class="grow"></span><span class="pw-badge accent"><span class="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>进行中</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 320px 时间线浮层（悬浮在导轨上时展开） -->
+        <div class="pw-minimap-pop">
+          <div class="pin on">
+            <span class="pw-ico"><i data-ico="pin" data-size="14"></i></span>
+            <span class="grow" style="flex:1">已固定 · 面板跟着指针自动滚到最近一轮</span>
+            <span class="pw-ico"><i data-ico="x" data-size="13"></i></span>
+          </div>
+          <div class="list">
+            <div class="load-earlier">
+              <span style="text-align:center;font-family:var(--font-mono)">↑</span>
+              <span>加载更早记录</span>
+            </div>
+            <div class="turn">
+              <span class="gutter">
+                <span class="no">01</span>
+                <span class="no anchor" title="跳到这条回答">A</span>
+              </span>
+              <span class="body">
+                <span class="u">@pi参考项目/AcpAgentClient-main/ 你好好看看这个项目吧，然后帮我看看这个项目</span>
+                <span class="a">它的 design/ 到底强在哪 · 我们「乱糟糟」的症结 · 计划：19 项借鉴 → 15 个 PR</span>
+              </span>
+            </div>
+            <div class="turn"><span class="no">02</span><span class="body"><span class="u">我觉得它的规范啥的，特别好，我这都不统一，你现在模仿它的</span></span></div>
+            <div class="turn"><span class="no">03</span><span class="body"><span class="u">你继续啊，咋暂停了</span></span></div>
+            <div class="turn"><span class="no">04</span><span class="body"><span class="u">继续啊</span></span></div>
+            <div class="turn on pw-anim-flash">
+              <span class="no">05<span class="tool">3</span></span>
+              <span class="body"><span class="u">继续</span></span>
+            </div>
+            <div class="turn"><span class="no">06</span><span class="body"><span class="u">继续啊，这是咋了</span></span></div>
+            <div class="turn"><span class="no">07</span><span class="body"><span class="u">你继续啊，所有的 icon 都不要用 emoji 表示，都要用正规的 icon</span></span></div>
+          </div>
+        </div>
+
+        <!-- 36px 导轨 -->
+        <div class="pw-minimap-rail">
+          <span class="node heading" style="top:18px"></span>
+          <span class="node" style="top:70px"></span>
+          <span class="node" style="top:120px"></span>
+          <span class="node" style="top:170px"></span>
+          <span class="node" style="top:220px"></span>
+          <span class="node on" style="top:270px"></span>
+          <span class="node" style="top:320px"></span>
+          <span class="node" style="top:370px"></span>
+          <span class="node" style="top:420px"></span>
+        </div>
+      </div>
+
+      <div style="width:300px;flex:none;display:grid;gap:var(--s3);align-content:start">
+        <div class="pw-cell">
+          <h4>几何</h4>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);line-height:1.8;margin-top:var(--s2)">
+            导轨 · 36px 宽 · 贴转录右缘<br>
+            节点 · 6px 圆点 · 间隔上限 50px<br>
+            当前节点 · 8px · <code>--accent</code><br>
+            标题节点 · <code>--n-muted</code> 区分<br>
+            浮层 · 320px 宽 · 锚导轨左侧<br>
+            <b>浮层高度 = 内容高度，上限 = 转录区高度</b>
+          </div>
+        </div>
+        <div class="pw-cell">
+          <h4>行与状态</h4>
+          <div style="display:grid;gap:var(--s2);margin-top:var(--s2)">
+            <div class="pw-inline"><span style="width:26px;height:20px;border-left:2px solid var(--accent);background:var(--n-surface)"></span><span style="font-size:var(--text-meta);color:var(--n-muted)">当前轮 · 6% 底 + 左侧 2px 强调条，编号转 accent</span></div>
+            <div class="pw-inline"><span style="width:26px;height:20px;background:var(--surface-canvas);border:1px solid var(--n-border-subtle)"></span><span style="font-size:var(--text-meta);color:var(--n-muted)">普通轮 · 无底、无条</span></div>
+            <div class="pw-inline"><span class="pw-badge count" style="min-width:15px">3</span><span style="font-size:var(--text-meta);color:var(--n-muted)">编号下的工具数徽章（有工具调用才出现）</span></div>
+            <div class="pw-inline"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">A</span><span style="font-size:var(--text-meta);color:var(--n-muted)">回答首行 · 在编号列，是「跳到这条回答」的锚点（只出现一次）</span></div>
+          </div>
+        </div>
+        <div class="pw-cell">
+          <h4>三个动作</h4>
+          <p>① 悬浮导轨展开浮层，移开 250ms 后收起；② 点「图钉」固定，面板跟指针自动滚到最近一轮；③ 点任一轮跳到该处并高亮 1.6s（左图第 05 轮正在演示这个高亮）。浮层里滚动条隐藏。</p>
+        </div>
+        <div class="pw-cell">
+          <h4>版式返工（2026-09-28）</h4>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);line-height:1.8;margin-top:var(--s2)">
+            ① 编号改「对齐内容首行」，不再整块居中<br>
+            ② 回答行加左侧 2px 从属竖线；A 只出现一次<br>
+            ③ 浮层按内容收缩，不再通高<br>
+            ④ 图钉固定态只染图标 + 下边线，不铺底色<br>
+            ⑤ hover 从 3% 提到全系统的 6%
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 阶段行 + 回合写过的文件 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>等待首 token 的阶段行 · 回合写过的文件</b></div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 阶段行（PhaseRoll）· 四种相位，一行固定高度、串行滚进来</div>
+    <div class="pw-card">
+      <div class="pw-card-body" style="border-top:0;background:var(--surface-canvas)">
+        <div style="display:grid;gap:1px;padding:var(--s2) var(--s3)">
+          <div class="pw-step" style="padding-left:22px">
+            <span class="pw-step-ico" style="left:3px"><span class="pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="12"></i></span></span>
+            <span class="pw-verb">正在思考…</span>
+            <span class="grow"></span>
+            <span class="pw-dur">1.2s</span>
+          </div>
+          <div class="pw-step" style="padding-left:22px;opacity:.55">
+            <span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="clock" data-size="12"></i></span></span>
+            <span class="pw-verb">等待模型响应</span>
+            <span class="grow"></span>
+            <span class="pw-dur">—</span>
+          </div>
+          <div class="pw-step" style="padding-left:22px;opacity:.35">
+            <span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="wrench" data-size="12"></i></span></span>
+            <span class="pw-verb">准备运行工具</span>
+          </div>
+          <div class="pw-step" style="padding-left:22px;opacity:.2">
+            <span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span></span>
+            <span class="pw-verb">执行命令</span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-card-foot">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span>只占一行的高度，相位切换时旧句上移淡出、新句下移淡入；不逐帧重绘（走共用低频时钟）</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 回合写过的文件（TurnWrittenFiles）</div>
+    <div class="pw-cell">
+      <div class="pw-inline" style="margin-bottom:var(--s2)">
+        <span class="pw-ico pw-dim"><i data-ico="pencil-line" data-size="14"></i></span>
+        <span style="font-size:var(--text-secondary);color:var(--n-muted)">这一轮写了 4 个文件</span>
+      </div>
+      <div class="pw-wrap">
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-code" data-size="12"></i></span>app/globals.css<span class="pw-mono pw-dim" style="font-size:var(--text-meta)">+2 −0</span></span>
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-code" data-size="12"></i></span>components/ChatInput.tsx<span class="pw-mono pw-dim" style="font-size:var(--text-meta)">+42 −8</span></span>
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-plus" data-size="12"></i></span>design/README.md<span class="pw-badge ok">新增</span></span>
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-plus" data-size="12"></i></span>design/DESIGN-SPEC.md<span class="pw-badge ok">新增</span></span>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">注：只取这一轮成功的 write / edit 工具调用，不去正文里扫路径。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- 两个芯片 + 路径动作 + git ref -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>输入框旁的芯片 · 路径动作 · Git ref 芯片</b> · 项目芯片 / 待办芯片 / 路径菜单 / 分支标签</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">A · 输入框上方一行：项目芯片 + 待办芯片</div>
+      <div class="pw-composer" style="width:100%;margin:0">
+        <div class="pw-chips" style="padding-top:var(--s3)">
+          <span class="pw-chip"><span class="pw-ico"><i data-ico="folder" data-size="12"></i></span>pi-codex<span class="pw-ico pw-dim"><i data-ico="chevron-down" data-size="11"></i></span></span>
+          <span class="pw-chip accent"><span class="pw-ico"><i data-ico="list-checks" data-size="12"></i></span>2 / 4 本轮计划<span class="pw-ico pw-dim"><i data-ico="chevron-down" data-size="11"></i></span></span>
+        </div>
+        <div class="pw-composer-top" style="padding-top:0">给 Pi Agent 发消息…</div>
+        <div class="pw-composer-bar">
+          <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+          <span class="grow"></span>
+          <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+        </div>
+      </div>
+
+      <div class="pw-inline" style="margin-top:var(--s3);gap:var(--s3);align-items:flex-start">
+        <div class="pw-pop" style="width:230px">
+          <div class="pw-pop-title">待办（只读）</div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="check" data-size="14"></i></span><span class="grow" style="text-decoration:line-through;color:var(--n-placeholder)">读完参考项目五件套</span></div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="check" data-size="14"></i></span><span class="grow" style="text-decoration:line-through;color:var(--n-placeholder)">产出借鉴清单</span></div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="play" data-size="14"></i></span><span class="grow">写设计规范 + 静态画板</span></div>
+          <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="circle" data-size="14"></i></span><span class="grow">跑渲染核对</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span><span class="pw-desc">由 todo 工具写入，这里只读</span></div>
+        </div>
+        <div class="pw-pop" style="width:230px">
+          <div class="pw-pop-title">项目芯片展开</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow">pi-codex</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow">探项前端页面</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow">招标改</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="messages-square" data-size="14"></i></span><span class="grow">不在项目中</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="folder-plus" data-size="14"></i></span><span class="grow">添加项目…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">B · 路径动作（复制路径 / 在文件管理器显示 / 用默认应用打开）</div>
+        <div class="pw-pop" style="width:260px">
+          <div class="pw-pop-title">design/pi-web-design/README.md</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="copy" data-size="14"></i></span><span class="grow">复制路径</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="copy" data-size="14"></i></span><span class="grow">复制相对路径</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="folder-open" data-size="14"></i></span><span class="grow">在文件管理器中显示</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="external-link" data-size="14"></i></span><span class="grow">用默认应用打开</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="at-sign" data-size="14"></i></span><span class="grow">插入为引用</span><span class="pw-kbd">@</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">C · Git ref 芯片（Git 图谱与 @ 菜单的提交行共用）</div>
+        <div class="pw-cell">
+          <div style="display:grid;gap:var(--s2)">
+            <div class="pw-inline" style="gap:var(--s1)">
+              <span class="pw-ico pw-dim"><i data-ico="git-commit-horizontal" data-size="14"></i></span>
+              <span class="pw-mono" style="font-size:var(--text-meta)">a1f9c2e</span>
+              <span class="pw-mono" style="font-size:var(--text-meta);color:var(--n-muted)">design: 新增画板集</span>
+              <span class="grow" style="flex:1"></span>
+            </div>
+            <div class="pw-inline" style="gap:5px">
+              <span class="pw-badge solid" style="font-family:var(--font-mono)">HEAD → main</span>
+              <span class="pw-badge" style="font-family:var(--font-mono);border:1px solid var(--accent);color:var(--accent-text);background:transparent">skin-v0.9.4</span>
+              <span class="pw-badge" style="font-family:var(--font-mono);border:1px solid var(--warning);color:var(--warning);background:transparent">upstream/v0.9.4</span>
+              <span class="pw-badge" style="font-family:var(--font-mono);border:1px solid var(--n-border);color:var(--n-muted);background:transparent">origin/main</span>
+            </div>
+          </div>
+          <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">HEAD 用实心；本地标签与远端分支用同色描边（跟所在泳道同色）。</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>迷你地图是「36px 导轨 + 320px 时间线浮层」两件东西</b>，不是一列小色块：导轨只在右缘占 36px，节点是 6px 圆点（间隔上限 50px，当前节点 8px 转 accent，标题节点用 muted 区分）；悬浮导轨才在它<b>左侧</b>展开 320px 的时间线浮层。</li>
+    <li><b>浮层高度按内容、上限是转录区高度</b>（不是通高）。通高在 8 轮以内的短会话里会在下方留下六成空白，读起来像面板坏了。</li>
+    <li><b>编号一律对齐内容首行</b>，不整块居中——否则单行行与两行行的编号会上下跳动，扫读时眼睛没有锚点。</li>
+    <li><b>回答行是轮的一部分，不是独立一轮</b>：它挂在编号列下方、带左侧 2px 从属竖线；字母 <code class="pw-mono">A</code> 只在编号列出现<b>一次</b>（它是「跳到这条回答」的锚点）。</li>
+    <li><b>图钉固定态不铺底色</b>：只把图钉图标转 accent、把下边线染一档。整条上色会盖过内容。</li>
+    <li><b>时间线浮层每一轮是「编号列 34px + 内容列」</b>：编号是等宽 10px，下面挂一枚工具数徽章（有工具调用才出现）；内容列第一行是用户消息首行，有回复时多一行 <code>A</code> + 助手首行。当前轮用 6% 底 + 左侧 2px 强调条，编号转 accent。</li>
+    <li><b>浮层顶部是「图钉」按钮</b>（36px 高、底边发丝线 + 向下投影）：点了固定，面板跟着指针自动滚到最近一轮；不点则移开 250ms 收起。</li>
+    <li><b>浮层里滚动条隐藏</b>：320px 的窄栏里再切掉一条 10px 灰边会显得脏；面板本来就跟着指针滚。</li>
+    <li><b>加载更早记录钉在列表顶部</b>，用 <code>↑</code> + 文字两列（34px + 1fr）与轮次行对齐。</li>
+    <li><b>转录没超出视口时整条导轨隐藏</b>，不给一个空轨道。</li>
+    <li><b>阶段行只占一行高度</b>，四个相位（思考 / 等模型 / 准备工具 / 执行命令）串行滚进来，旧句上移淡出。这是为了不让人盯着一个不动的 spinner。</li>
+    <li><b>回合写过的文件是一排芯片</b>，带 <code>+n −m</code> 或「新增」徽章；数据只来自这一轮成功的 write / edit 调用，不去正文扫路径（扫会误报）。</li>
+    <li><b>项目芯片与待办芯片都在输入框上方</b>：项目芯片让「这条消息发给哪个工作区」在写的时候可见可改；待办芯片给进度并展开只读清单。</li>
+    <li><b>路径动作统一一个菜单</b>：复制路径 / 复制相对路径 / 在文件管理器显示 / 用默认应用打开 / 插入为引用。文件树、查看器、转录里的路径都调它。</li>
+    <li><b>Git ref 芯片与所在泳道同色</b>：HEAD 实心，本地标签与远端分支用描边；这是「标签视觉上坐在它那条分支线上」的做法。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>46 · 设置 · 命令 / 归档 / 导入 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>46 · 设置 · 命令 / 归档 / 导入</h1>
+  <p>三个「管理存量」的分节：自定义命令（<code>/</code> 菜单的来源）、归档历史（项目与会话）、从其它 agent 导入（四类资产）。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：PromptsConfig / ProjectArchivePanel / ArchivedSessionsPanel / ImportPanel</span>
+    <span class="pw-tag accent">1440 × 900 × 3</span>
+  </div>
+</header>
+
+<!-- 自定义命令 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>自定义命令</b> · 列表 + 编辑（命令名 / 描述 / 正文）<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">自定义命令</h2>
+            <span class="pw-badge count">5 条</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建命令</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">这些命令会出现在输入框的 <span class="pw-mono">/</span> 菜单里，正文会作为提示词发给 agent。</p>
+
+          <div class="pw-cols">
+            <div>
+              <input class="pw-input" style="width:100%;min-width:0;height:28px;margin-bottom:var(--s2)" placeholder="搜索命令">
+              <div class="pw-list">
+                <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/review</span><span class="pw-lsub">评审当前改动</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/release</span><span class="pw-lsub">打 tag 并更新台账</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/explain</span><span class="pw-lsub">讲解一个文件</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/triage</span><span class="pw-lsub">排查一条报障</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow"><span class="pw-lname">/changelog</span><span class="pw-lsub">生成变更日志</span></span></div>
+              </div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0" class="pw-mono">/review</h3>
+                <span class="pw-grow"></span>
+                <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>在查看器打开</span>
+                <span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>删除</span>
+              </div>
+
+              <div class="pw-field" style="margin-top:var(--s3)">
+                <span class="pw-label">命令名<small>输入 <span class="pw-mono">/</span> 后显示的名字</small></span>
+                <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">/</span><input class="pw-input" style="min-width:0;width:180px" value="review"></span>
+              </div>
+              <div class="pw-field">
+                <span class="pw-label">描述</span>
+                <input class="pw-input" style="min-width:0;width:280px" value="评审当前改动">
+              </div>
+              <div class="pw-field">
+                <span class="pw-label">参数提示<small>显示在命令名右侧</small></span>
+                <input class="pw-input" style="min-width:0;width:280px" value="&lt;范围&gt;">
+              </div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">正文（作为提示词发出）<span class="grow"></span></div>
+              <textarea class="pw-textarea" style="min-height:200px">评审 {{范围}} 里的改动。
+
+要求：
+1. 先看 diff，再按「正确性 → 可维护性 → 一致性」排序给结论
+2. 每条结论必须带文件路径与行号
+3. 只读不写，不要改动任何文件
+
+如果发现与 AGENTS.md 里的约定冲突，单独列一节说明。</textarea>
+
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-badge accent"><span class="pw-ico"><i data-ico="info" data-size="11"></i></span>{{范围}} 是占位符，发送时替换成你输入的参数</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn">取消</span>
+                <span class="pw-btn primary">保存</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 归档 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>归档历史</b> · 项目归档（展开会话 + 恢复）与归档会话（分组 + 恢复 + 彻底删除）<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <h2>归档历史</h2>
+          <p class="sub">归档只是从列表里收起来，文件都还在。彻底删除才会动磁盘。</p>
+
+          <div class="pw-sec-title">已归档的项目<span class="grow"></span><span class="pw-badge count">2</span></div>
+          <div class="pw-detail">
+            <div class="pw-inline">
+              <span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+              <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+              <b style="font-weight:500">旧版官网</b>
+              <span class="pw-badge count">12 个会话</span>
+              <span class="pw-grow"></span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">归档于 2026-08-14</span>
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="archive-restore" data-size="13"></i></span>恢复项目</span>
+            </div>
+            <div class="pw-list" style="margin-top:var(--s2);padding-left:var(--s4)">
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="13"></i></span><span class="grow"><span class="pw-lname">首页改版方案</span></span><span class="pw-lsub">18 条消息</span><span class="pw-btn sm">恢复</span></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="13"></i></span><span class="grow"><span class="pw-lname">修 header 的层级问题</span></span><span class="pw-lsub">7 条消息</span><span class="pw-btn sm">恢复</span></div>
+            </div>
+          </div>
+          <div class="pw-detail" style="margin-top:var(--s2)">
+            <div class="pw-inline">
+              <span class="pw-ico"><i data-ico="chevron-right" data-size="14"></i></span>
+              <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+              <b style="font-weight:500">临时脚本</b>
+              <span class="pw-badge count">3 个会话</span>
+              <span class="pw-grow"></span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">归档于 2026-07-02</span>
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="archive-restore" data-size="13"></i></span>恢复项目</span>
+            </div>
+          </div>
+
+          <div class="pw-sec-title" style="margin-top:var(--s4)">已归档的会话<span class="grow"></span><span class="pw-badge count">7</span>
+            <span class="pw-inline" style="margin-left:var(--s3)">
+              <span class="pw-switch"><i></i></span>
+              <span style="font-size:var(--text-meta);color:var(--n-muted)">显示文件已消失的会话</span>
+            </span>
+          </div>
+          <div class="pw-grid2" style="gap:var(--s3)">
+            <div class="pw-detail" style="padding:var(--s2) var(--s3)">
+              <div class="pw-inline" style="margin-bottom:var(--s2)"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><b style="font-weight:500;font-size:var(--text-secondary)">pi-codex</b><span class="pw-badge count">4</span></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="13"></i></span><span class="grow"><span class="pw-lname">早期的皮肤试验</span><span class="pw-lsub">昨天 · 22 条消息</span></span><span class="pw-btn sm">恢复</span><span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span></span></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="13"></i></span><span class="grow"><span class="pw-lname">试了一下 webpack 构建</span><span class="pw-lsub">上周 · 9 条消息</span></span><span class="pw-btn sm">恢复</span><span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span></span></div>
+              <div class="pw-litem" style="opacity:.6"><span class="pw-ico pw-dim"><i data-ico="triangle-alert" data-size="13"></i></span><span class="grow"><span class="pw-lname">被删掉的那个实验目录</span><span class="pw-lsub">上周 · 文件已消失</span></span><span class="pw-btn sm">恢复</span><span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span></span></div>
+            </div>
+            <div class="pw-detail" style="padding:var(--s2) var(--s3)">
+              <div class="pw-inline" style="margin-bottom:var(--s2)"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><b style="font-weight:500;font-size:var(--text-secondary)">探项前端页面</b><span class="pw-badge count">3</span></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="13"></i></span><span class="grow"><span class="pw-lname">标讯详情页的正文档位</span><span class="pw-lsub">3 天前 · 14 条消息</span></span><span class="pw-btn sm">恢复</span><span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span></span></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="13"></i></span><span class="grow"><span class="pw-lname">cookie 刷新脚本</span><span class="pw-lsub">上周 · 6 条消息</span></span><span class="pw-btn sm">恢复</span><span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span></span></div>
+            </div>
+          </div>
+
+          <div class="pw-alert" style="margin-top:var(--s3);background:var(--error-soft);color:var(--error)">
+            <span class="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+            <span class="pw-grow">「彻底删除」会移除会话文件，无法恢复。</span>
+            <span class="pw-btn sm" style="color:var(--error)">清理 30 天前的归档</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 导入 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>从其它 agent 导入</b> · 四类资产 + 扫描 + 按来源分组 + 结果统计<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">从其它 agent 导入</h2>
+            <span class="pw-grow"></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="scan-search" data-size="13"></i></span>重新扫描</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">扫描本机上其它 agent 的配置与会话，把想要的搬过来。扫描是只读的，只有点「导入所选」才会写入。</p>
+
+          <div class="pw-radio" style="margin-bottom:var(--s3)">
+            <span class="is-on"><span class="pw-ico"><i data-ico="message-square" data-size="12"></i></span>会话 <span class="pw-mono">128</span></span>
+            <span><span class="pw-ico"><i data-ico="cpu" data-size="12"></i></span>模型 <span class="pw-mono">14</span></span>
+            <span><span class="pw-ico"><i data-ico="box" data-size="12"></i></span>技能 <span class="pw-mono">9</span></span>
+            <span><span class="pw-ico"><i data-ico="server" data-size="12"></i></span>MCP <span class="pw-mono">11</span></span>
+          </div>
+
+          <div class="pw-cols" style="grid-template-columns:minmax(0,1fr) 300px">
+            <div>
+              <div class="pw-inline" style="margin-bottom:var(--s2)">
+                <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+                <input class="pw-input" style="flex:1;min-width:0;height:28px" placeholder="搜索会话标题或项目">
+                <span class="pw-radio"><span class="is-on">按来源</span><span>按项目</span></span>
+              </div>
+
+              <div class="pw-sec-title">Claude Code · 84 个<span class="grow"></span><span class="pw-btn sm">全选</span></div>
+              <div class="pw-list">
+                <div class="pw-litem"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">pi-web 皮肤改造</span><span class="pw-lsub">pi-codex · 62 条消息 · 9 月 12 日</span></span></div>
+                <div class="pw-litem"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">重构右栏宽度逻辑</span><span class="pw-lsub">pi-codex · 18 条消息 · 9 月 10 日</span></span></div>
+                <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">旧官网首页改版</span><span class="pw-lsub">旧版官网 · 44 条消息 · 8 月 3 日</span></span></div>
+              </div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">Cursor · 31 个<span class="grow"></span><span class="pw-btn sm">全选</span></div>
+              <div class="pw-list">
+                <div class="pw-litem"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">探项前端页面样式统一</span><span class="pw-lsub">探项前端页面 · 28 条消息 · 8 月 22 日</span></span></div>
+                <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">招标改字段抽取</span><span class="pw-lsub">招标改 · 35 条消息 · 8 月 19 日</span></span></div>
+              </div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">Codex · 13 个<span class="grow"></span><span class="pw-btn sm">全选</span></div>
+              <div class="pw-list">
+                <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">发布 v0.9.4</span><span class="pw-lsub">pi-codex · 12 条消息 · 9 月 20 日</span></span></div>
+              </div>
+            </div>
+
+            <div style="display:grid;gap:var(--s3);align-content:start">
+              <div class="pw-detail">
+                <h3 style="font-size:var(--text-body)">本次选择</h3>
+                <dl class="pw-kv" style="margin-top:var(--s2)">
+                  <dt>会话</dt><dd class="pw-mono">4 个</dd>
+                  <dt>来源</dt><dd>Claude Code 2 · Cursor 2</dd>
+                  <dt>总消息数</dt><dd class="pw-mono">136 条</dd>
+                  <dt>预计写入</dt><dd class="pw-mono">~/.pi/agent/sessions/imported</dd>
+                </dl>
+                <div class="pw-inline" style="margin-top:var(--s3)">
+                  <span class="pw-btn outline sm">清空选择</span>
+                  <span class="pw-grow"></span>
+                  <span class="pw-btn primary sm">导入所选</span>
+                </div>
+              </div>
+
+              <div class="pw-detail">
+                <h3 style="font-size:var(--text-body)">上次导入结果</h3>
+                <div class="pw-list" style="margin-top:var(--s2)">
+                  <div class="pw-litem"><span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span><span class="grow"><span class="pw-lname">成功 4 个</span><span class="pw-lsub">136 条消息已写入</span></span></div>
+                  <div class="pw-litem"><span class="pw-ico" style="color:var(--warning)"><i data-ico="triangle-alert" data-size="14"></i></span><span class="grow"><span class="pw-lname">跳过 1 个</span><span class="pw-lsub">同名会话已存在</span></span></div>
+                  <div class="pw-litem"><span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="14"></i></span><span class="grow"><span class="pw-lname">失败 1 个</span><span class="pw-lsub">.jsonl 解析失败（第 218 行）</span></span></div>
+                </div>
+                <div class="pw-inline" style="margin-top:var(--s2)"><span class="pw-grow"></span><span class="pw-btn sm">看详细日志</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>自定义命令的三段式编辑</b>：命令名（前缀 <code>/</code> 单独一格）+ 描述 + 参数提示，下面是正文长文本区；占位符用 <code>{{范围}}</code>，并在下方给一条提示。</li>
+    <li><b>归档分两块</b>：项目归档在上（可展开看会话、可整项目恢复），归档会话在下（按项目分组、逐条恢复或彻底删除）。</li>
+    <li><b>「文件已消失」的归档会话默认隐藏</b>，用一个开关显式打开，并用 warning 图标标出——避免用户以为数据丢了。</li>
+    <li><b>彻底删除是危险动作</b>，收在底部一条 error 提示里（含「清理 30 天前的归档」），行内只给一个垃圾桶图标。</li>
+    <li><b>导入按四类资产分页签</b>（会话 / 模型 / 技能 / MCP），每类里按来源分组、可全选；右侧常驻「本次选择」与「上次结果」两栏。</li>
+    <li><b>导入结果三色</b>：成功（success）/ 跳过（warning，附原因）/ 失败（error，附失败位置），并给「看详细日志」。</li>
+    <li><b>扫描是只读的</b>：这一句写在副标题里，减少「点了会不会改我东西」的顾虑。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

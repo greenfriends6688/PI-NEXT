@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>41 · 设置 · 模型 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>41 · 设置 · 模型</h1>
+  <p>模型分节是三层钻取：供应商列表 → 供应商详情（登录 / 用量 / 模型启用 / 上游导入）→ 模型详情（能力 / 规格 / 成本 / 高级）。左侧列表 260，右侧是详情。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：ModelsConfig / EnabledModelsSection / ProviderUsageSummary</span>
+    <span class="pw-tag accent">1440 × 900</span>
+  </div>
+</header>
+
+<!-- 供应商列表 + 详情 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>模型 · 供应商详情</b> · 左列表 260 + 右详情 · 订阅登录 / 用量摘要 / 模型启用 / 上游导入<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4);padding-right:var(--s5)">
+          <h2>模型</h2>
+          <p class="sub">供应商、订阅登录、可用模型与定价。改动写入 <span class="pw-mono">~/.pi/agent/models.json</span>。</p>
+
+          <div class="pw-cols">
+            <!-- 左：供应商列表 -->
+            <div>
+              <div class="pw-inline" style="margin-bottom:var(--s2)">
+                <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+                <input class="pw-input" style="flex:1;min-width:0;height:28px" placeholder="搜索供应商">
+                <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></span>
+              </div>
+              <div class="pw-list">
+                <div class="pw-group-title" style="padding-top:0">订阅</div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span><span class="grow"><span class="pw-lname">Anthropic</span></span><span class="pw-ico" style="color:var(--warning)"><i data-ico="star" data-size="13"></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span><span class="grow"><span class="pw-lname">OpenAI</span></span></div>
+                <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="zap" data-size="14"></i></span><span class="grow"><span class="pw-lname">DeepSeek</span><span class="pw-lsub">2 个模型已启用</span></span><span class="pw-badge ok">已登录</span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="globe" data-size="14"></i></span><span class="grow"><span class="pw-lname">Google</span></span></div>
+                <div class="pw-group-title">自定义</div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">CLIproxy</span><span class="pw-lsub">http://localhost:8317</span></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">本地 Ollama</span></span><span class="pw-badge warn">未测通</span></div>
+              </div>
+            </div>
+
+            <!-- 右：详情 -->
+            <div style="display:grid;gap:var(--s3)">
+              <div class="pw-detail">
+                <div class="pw-inline">
+                  <span style="width:28px;height:28px;border-radius:var(--radius-4);background:var(--accent-soft);display:grid;place-items:center;color:var(--accent-text)"><span class="pw-ico"><i data-ico="zap" data-size="16"></i></span></span>
+                  <h3 style="margin:0">DeepSeek</h3>
+                  <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>已登录</span>
+                  <span class="pw-grow"></span>
+                  <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重新登录</span>
+                  <span class="pw-btn sm">断开</span>
+                </div>
+                <dl class="pw-kv" style="margin-top:var(--s3)">
+                  <dt>接口地址</dt><dd class="pw-mono">https://api.deepseek.com/v1</dd>
+                  <dt>认证方式</dt><dd>API Key（已存入系统钥匙串）</dd>
+                  <dt>上次同步</dt><dd class="pw-mono">2 分钟前 · 拉到 6 个模型</dd>
+                </dl>
+              </div>
+
+              <div class="pw-detail">
+                <h3 style="font-size:var(--text-body)">用量摘要（近 30 天）</h3>
+                <div class="pw-stats-grid" style="grid-template-columns:repeat(4,1fr);margin-top:var(--s2)">
+                  <div class="pw-stat"><span class="k">请求</span><span class="v">1,284</span><span class="s">↑ 12%</span></div>
+                  <div class="pw-stat"><span class="k">输入 tok</span><span class="v">2.4M</span><span class="s">缓存命中 62%</span></div>
+                  <div class="pw-stat"><span class="k">输出 tok</span><span class="v">418k</span><span class="s">—</span></div>
+                  <div class="pw-stat"><span class="k">花费</span><span class="v">$27.42</span><span class="s">≈ ¥198</span></div>
+                </div>
+              </div>
+
+              <div class="pw-detail">
+                <div class="pw-inline" style="margin-bottom:var(--s2)">
+                  <h3 style="margin:0;font-size:var(--text-body)">可用模型</h3>
+                  <span class="pw-badge count">6 个 · 已启用 2</span>
+                  <span class="pw-grow"></span>
+                  <input class="pw-input" style="height:24px;min-width:120px" placeholder="过滤模型">
+                  <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>从上游导入</span>
+                </div>
+                <div class="pw-list">
+                  <div class="pw-litem is-on"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V4.1 Flash</span><span class="pw-lsub">128K 上下文 · $0.14 / $0.28</span></span><span class="pw-badge accent">默认</span></div>
+                  <div class="pw-litem"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V4.1 Reasoner</span><span class="pw-lsub">128K 上下文 · $0.55 / $2.19</span></span><span class="pw-badge">思考档可钉</span></div>
+                  <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V3.2 Chat</span><span class="pw-lsub">64K 上下文 · $0.07 / $0.28</span></span></div>
+                  <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V3.2 Reasoner</span><span class="pw-lsub">64K 上下文 · $0.07 / $0.28</span></span></div>
+                </div>
+                <div class="pw-inline" style="margin-top:var(--s2)">
+                  <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">项目级只读：本项目的模型开关由项目配置锁定</span>
+                  <span class="pw-grow"></span>
+                  <span class="pw-btn sm">清理未匹配项</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 模型详情 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>模型详情</b> · 能力 / 规格 / 成本 / 高级 / 测试连接</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-detail" style="margin:0">
+      <div class="pw-inline">
+        <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="zap" data-size="16"></i></span>
+        <h3 style="margin:0">V4.1 Flash</h3>
+        <span class="pw-badge">deepseek</span>
+        <span class="pw-grow"></span>
+        <span class="pw-ico" style="color:var(--warning)"><i data-ico="star" data-size="15"></i></span>
+      </div>
+
+      <div class="pw-sec-title" style="margin-top:var(--s3)">能力<span class="grow"></span></div>
+      <div class="pw-field"><span class="pw-label">推理</span><span class="pw-switch on"><i></i></span></div>
+      <div class="pw-field"><span class="pw-label">图片输入</span><span class="pw-switch"><i></i></span></div>
+
+      <div class="pw-sec-title" style="margin-top:var(--s3)">规格<span class="grow"></span></div>
+      <div class="pw-field"><span class="pw-label">上下文窗口</span><span class="pw-ctl"><span class="pw-mono">128,000</span></span></div>
+      <div class="pw-field"><span class="pw-label">最大输出</span><span class="pw-ctl"><span class="pw-mono">8,192</span></span></div>
+      <div class="pw-field"><span class="pw-label">采样参数</span><span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">{ "temperature": 0.3 }</span></span></div>
+
+      <div class="pw-sec-title" style="margin-top:var(--s3)">成本（每 100 万 token）<span class="grow"></span></div>
+      <div class="pw-field"><span class="pw-label">输入</span><span class="pw-ctl"><span class="pw-mono">$0.14</span></span></div>
+      <div class="pw-field"><span class="pw-label">输出</span><span class="pw-ctl"><span class="pw-mono">$0.28</span></span></div>
+      <div class="pw-field"><span class="pw-label">缓存读</span><span class="pw-ctl"><span class="pw-mono">$0.014</span></span></div>
+      <div class="pw-field"><span class="pw-label">缓存写</span><span class="pw-ctl"><span class="pw-mono">$0.14</span></span></div>
+    </div>
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-detail" style="margin:0">
+        <h3 style="font-size:var(--text-body)">高级</h3>
+        <div class="pw-field"><span class="pw-label">API 覆盖<small>覆盖上游路径</small></span><span class="pw-ctl"><span class="pw-btn sm">编辑</span></span></div>
+        <div class="pw-field"><span class="pw-label">自定义 Headers</span><span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">2 条</span></span></div>
+        <div class="pw-field"><span class="pw-label">兼容性</span><span class="pw-selectbox">OpenAI<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+        <div class="pw-field"><span class="pw-label">DeepSeek 思考兼容</span><span class="pw-switch on"><i></i></span></div>
+        <div class="pw-field"><span class="pw-label">developer role</span><span class="pw-switch"><i></i></span></div>
+        <div class="pw-field"><span class="pw-label">思考档位映射</span><span class="pw-ctl"><span class="pw-btn sm">编辑映射</span></span></div>
+      </div>
+
+      <div class="pw-detail" style="margin:0">
+        <h3 style="font-size:var(--text-body)">测试连接</h3>
+        <div class="pw-inline" style="margin-top:var(--s2)">
+          <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="circle-play" data-size="13"></i></span>发一条测试请求</span>
+          <span class="pw-grow"></span>
+          <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>1.2s · 200 OK</span>
+        </div>
+        <div class="pw-code-body" style="margin-top:var(--s2);font-size:var(--text-meta);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:var(--s2) var(--s3);background:var(--surface-panel)">
+POST <span class="pw-tok-str">/v1/chat/completions</span>
+<span class="pw-tok-com">// 200 OK · 32 tokens · 1.2s</span>
+{ <span class="pw-tok-key">"model"</span>: <span class="pw-tok-str">"deepseek-v4.1-flash"</span>, <span class="pw-tok-key">"choices"</span>: [ … ] }
+        </div>
+        <div class="pw-inline" style="margin-top:var(--s2)">
+          <span class="pw-btn sm">清除测试结果</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn danger sm">删除这个模型</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>列表 + 详情两栏</b>：列表 260px，选中项用强调淡底 + 强调色文字。列表里每一行可以带一句副标题（模型数、接口地址）。</li>
+    <li><b>订阅登录四态</b>：未登录 / 登录中 / 已登录（success 徽章）/ 登录失败（error 徽章 + 重试）。</li>
+    <li><b>用量摘要是四张小卡</b>，不画图表（图表在「用量」分节）；每张卡是「标签 / 数值 / 一行补充」。</li>
+    <li><b>模型启用用开关行</b>：一行一个模型，左侧开关、中间名字 + 规格副标题、右侧徽章（默认 / 可钉思考档）。</li>
+    <li><b>成本四项分列</b>：输入 / 输出 / 缓存读 / 缓存写，全部等宽数字。这是全应用唯一出现「缓存写」定价的地方。</li>
+    <li><b>测试连接给原始请求回显</b>：一行 method + path、一行状态、一段 JSON 摘要，方便排查兼容性问题。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

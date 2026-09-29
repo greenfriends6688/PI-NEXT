@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>31 · 终端 / 浏览器 / Git — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>31 · 终端 / 浏览器 / Git</h1>
+  <p>右栏除文件树之外的三种内容：内嵌终端、应用内浏览器、Git 图谱，以及顶部的标签条与标签概览弹层。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：文件面板</span>
+    <span class="pw-tag">组件：TerminalPanel / BrowserPanel / GitGraphTab / TabBar</span>
+    <span class="pw-tag accent">宽 420 / 弹层 1200</span>
+  </div>
+</header>
+
+<!-- 终端 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>终端面板</b> · 多标签（可关）/ 运行中 / 已退出 / 空态 · cwd 常驻标签栏右侧</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · 运行中（两个标签）</div>
+      <div class="pw-tabs" style="padding-top:var(--s1)">
+        <span class="pw-tab is-on"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>zsh<span class="x"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="pw-tab"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>npm run prod<span class="x"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="grow"></span>
+        <button class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span></button>
+        <button class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="eraser" data-size="13"></i></span></button>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:4px var(--s3);border-bottom:1px solid var(--n-border-subtle);background:var(--surface-panel)">
+        <span class="pw-ico pw-dim"><i data-ico="folder" data-size="13"></i></span>
+        <span class="pw-mono pw-muted" style="font-size:var(--text-meta)">~/Desktop/pi-codex</span>
+        <span class="grow"></span>
+        <span class="pw-badge ok">已连接</span>
+      </div>
+      <div class="pw-term" style="min-height:210px">
+<span class="dim">Last login: Sun Sep 28 13:54:02 on ttys004</span>
+<span class="acc">yingjing@mac</span> <span class="dim">pi-codex %</span> npm run dev:clean
+<span class="dim">&gt; pi-web@0.9.4 dev:clean</span>
+<span class="dim">&gt; node scripts/next-mode.mjs dev &amp;&amp; next dev</span>
+  <span class="acc">▲ Next.js 15.5.4</span>
+  - Local:  <span class="add">http://localhost:30141</span>
+  - Turbopack
+<span class="dim">✓ Ready in 1.2s</span>
+<span class="acc">yingjing@mac</span> <span class="dim">pi-codex %</span> <span class="warn">▊</span></div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 已退出 / 空态</div>
+      <div class="pw-tabs" style="padding-top:var(--s1)">
+        <span class="pw-tab is-on"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>node --test<span class="x"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="grow"></span>
+        <button class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span></button>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:4px var(--s3);border-bottom:1px solid var(--n-border-subtle);background:var(--surface-panel)">
+        <span class="pw-badge">退出码 0</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="rotate-cw" data-size="13"></i></span>重启</span>
+      </div>
+      <div class="pw-term" style="min-height:150px">
+<span class="acc">yingjing@mac</span> <span class="dim">pi-codex %</span> node --test lib/*.test.mjs
+<span class="add">✓</span> normalizes tool call field names <span class="dim">(2.1ms)</span>
+<span class="add">✓</span> keeps the path cache warm <span class="dim">(0.8ms)</span>
+<span class="dim"># pass 42  # fail 0</span>
+<span class="dim">进程已退出 · 输出仍保留</span></div>
+      <div style="height:1px;background:var(--n-border-subtle)"></div>
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3)">C · 空态（还没开过终端）</div>
+      <div style="height:120px;display:grid;place-items:center">
+        <div class="pw-empty-inner" style="gap:var(--s2)">
+          <span class="mark" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="square-terminal" data-size="16"></i></span></span>
+          <p style="font-size:var(--text-secondary)">还没有终端</p>
+          <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建终端</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 浏览器 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>应用内浏览器</b> · 地址栏 + 前进后退刷新 + 视口预设；空态 / 已加载</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · 已加载（视口预设选 390）</div>
+      <div class="pw-browser">
+        <div class="pw-browser-bar">
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="arrow-left" data-size="13"></i></span></span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="arrow-right" data-size="13"></i></span></span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="rotate-cw" data-size="13"></i></span></span>
+          <span class="pw-url"><span class="pw-ico"><i data-ico="globe" data-size="12"></i></span>http://localhost:30141</span>
+          <span class="pw-chipbtn"><span class="pw-ico"><i data-ico="smartphone" data-size="13"></i></span>390<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span></span>
+        </div>
+        <div style="padding:var(--s3);display:grid;place-items:center;background:var(--surface-panel);min-height:210px">
+          <div style="width:220px;height:190px;background:var(--surface-canvas);border:1px solid var(--n-border);border-radius:var(--radius-4);padding:var(--s2);display:grid;gap:var(--s2);align-content:start">
+            <div class="pw-inline"><span class="pw-ico"><i data-ico="panel-left" data-size="13"></i></span><b style="font-size:var(--text-meta);font-weight:500">Pi Web</b></div>
+            <div style="height:8px;width:70%;background:var(--n-surface);border-radius:3px"></div>
+            <div style="height:8px;width:90%;background:var(--n-surface);border-radius:3px"></div>
+            <div style="height:8px;width:50%;background:var(--n-surface);border-radius:3px"></div>
+            <div style="height:34px;background:var(--surface-panel);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 空态 + 视口预设展开</div>
+      <div class="pw-browser">
+        <div class="pw-browser-bar">
+          <span class="pw-iconbtn sm" style="color:var(--n-placeholder)"><span class="pw-ico"><i data-ico="arrow-left" data-size="13"></i></span></span>
+          <span class="pw-iconbtn sm" style="color:var(--n-placeholder)"><span class="pw-ico"><i data-ico="arrow-right" data-size="13"></i></span></span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="rotate-cw" data-size="13"></i></span></span>
+          <span class="pw-url">输入本地地址，例如 http://localhost:30141</span>
+          <span class="pw-chipbtn is-on" style="background:var(--overlay-selected);color:var(--accent-text)"><span class="pw-ico"><i data-ico="maximize-2" data-size="13"></i></span>填满<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;padding:0 var(--s3) var(--s2);background:var(--surface-panel)">
+          <div class="pw-pop" style="width:200px">
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="maximize-2" data-size="14"></i></span>填满面板<span class="grow"></span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="smartphone" data-size="14"></i></span>手机 390</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="tablet" data-size="14"></i></span>平板 768</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="monitor" data-size="14"></i></span>桌面 1024</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="monitor" data-size="14"></i></span>宽屏 1280</div>
+          </div>
+        </div>
+        <div style="padding:var(--s3);display:grid;place-items:center;background:var(--surface-panel);min-height:150px">
+          <div class="pw-empty-inner" style="gap:var(--s2)">
+            <span class="mark" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="globe" data-size="16"></i></span></span>
+            <p style="font-size:var(--text-secondary)">在上面输入一个地址，预览本地服务</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Git 图 + 标签条 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>Git 图谱 · 标签条与标签概览</b> · 泳道 + 变更文件；标签溢出折叠</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · Git 图谱（单例标签）</div>
+      <div class="pw-panel-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <b>Git 图谱</b>
+        <span class="pw-badge count"><span class="pw-ico"><i data-ico="git-branch" data-size="11"></i></span>main</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>刷新</span>
+      </div>
+      <div class="pw-git">
+        <div class="pw-commit">
+          <span class="lane"><span class="node"></span></span>
+          <span class="hash">a1f9c2e</span>
+          <span class="msg">design: 新增 pi-web-design 画板集</span>
+          <span class="when">2 分钟前</span>
+        </div>
+        <div class="pw-commit">
+          <span class="lane"><span class="node merge"></span></span>
+          <span class="hash">7c40b18</span>
+          <span class="msg">Merge branch 'skin/codex' into main</span>
+          <span class="when">1 小时前</span>
+        </div>
+        <div class="pw-commit">
+          <span class="lane"><span class="node"></span></span>
+          <span class="hash">33be904</span>
+          <span class="msg">fix: 右栏宽度在窄屏不再 clamp</span>
+          <span class="when">3 小时前</span>
+        </div>
+        <div class="pw-commit">
+          <span class="lane"><span class="node"></span></span>
+          <span class="hash">d81a7f0</span>
+          <span class="msg">chore: 合并上游 v0.9.4</span>
+          <span class="when">昨天</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--n-border-subtle);padding:var(--s2) var(--s3)">
+        <div class="pw-sec-title">这个提交改了 4 个文件<span class="grow"></span></div>
+        <div class="pw-trow"><span class="pw-ico" style="color:var(--success)"><i data-ico="file-plus" data-size="13"></i></span><span class="grow pw-mono" style="font-size:var(--text-meta)">design/pi-web-design/00-tokens.html</span></div>
+        <div class="pw-trow"><span class="pw-ico" style="color:var(--warning)"><i data-ico="file-diff" data-size="13"></i></span><span class="grow pw-mono" style="font-size:var(--text-meta)">app/globals.css</span></div>
+        <div class="pw-trow"><span class="pw-ico" style="color:var(--warning)"><i data-ico="file-diff" data-size="13"></i></span><span class="grow pw-mono" style="font-size:var(--text-meta)">components/ChatInput.tsx</span></div>
+        <div class="pw-trow"><span class="pw-ico" style="color:var(--error)"><i data-ico="trash-2" data-size="13"></i></span><span class="grow pw-mono" style="font-size:var(--text-meta)">docs/old-spec.md</span></div>
+      </div>
+      <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)"><span class="grow"></span><span class="pw-btn sm">加载更多</span></div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 标签条（含溢出）与标签概览</div>
+      <div class="pw-tabs" style="padding-top:var(--s1)">
+        <span class="pw-tab is-on"><span class="pw-ico"><i data-ico="file-code" data-size="12"></i></span>globals.css<span class="x"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="pw-tab"><span class="pw-ico"><i data-ico="file-code" data-size="12"></i></span>ChatInput.tsx<span class="x"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="pw-tab"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>zsh<span class="x"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="pw-tab"><span class="pw-ico"><i data-ico="ellipsis" data-size="12"></i></span>+3</span>
+        <span class="grow"></span>
+        <button class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="ellipsis" data-size="13"></i></span></button>
+      </div>
+      <div style="padding:var(--s3);background:var(--surface-panel);display:flex;justify-content:center">
+        <div class="pw-pop" style="width:340px">
+          <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+            <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+            <span>过滤标签</span>
+          </div>
+          <div class="pw-pop-title">全部标签 · 6</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span><span class="grow">globals.css</span><span class="pw-desc">当前</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span><span class="grow">ChatInput.tsx</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="13"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span><span class="grow">zsh</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="13"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow">Git 图谱</span><span class="pw-desc">单例</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">最近关闭</div>
+          <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span><span class="grow">DESIGN-SPEC.md</span><span class="pw-btn sm">恢复</span></div>
+          <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span><span class="grow">README.md</span><span class="pw-btn sm">恢复</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span><span class="grow">关闭其他</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span><span class="grow">关闭全部</span></div>
+          <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="eraser" data-size="14"></i></span><span class="grow">清空最近关闭</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>终端与浏览器都住在标签里</b>，与文件标签同一套标签条；终端标签给 <code>terminal</code> 图标、浏览器给 <code>globe</code>、Git 图给 <code>git-branch</code>（单例，不可关）。</li>
+    <li><b>cwd 与连接状态常驻在标签条下方一条</b>，不塞进标签文字里；退出后用「退出码 N」徽章 + 重启按钮。</li>
+    <li><b>终端输出保留在卡里</b>：进程退出后输出不消失，只加一行「进程已退出 · 输出仍保留」。</li>
+    <li><b>浏览器视口预设五项</b>：填满 / 390 / 768 / 1024 / 1280，选中项用强调淡底。空态给一句「输入一个地址，预览本地服务」。</li>
+    <li><b>Git 图谱的泳道只有 44px 宽</b>，节点 8px；普通提交用 accent 点，merge 提交用 warning 点。提交下方列出该提交的变更文件，按新增 / 修改 / 删除分色。</li>
+    <li><b>标签溢出折叠成 <code>+N</code> 标签</b>，点开是标签概览弹层：过滤、全部标签、最近关闭（可恢复）、关闭其他 / 全部 / 清空。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

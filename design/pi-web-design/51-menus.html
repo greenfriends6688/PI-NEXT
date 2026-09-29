@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>51 · 菜单合集 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>51 · 菜单合集</h1>
+  <p>全应用的菜单只由一套原子拼成。这一张先给原子表，再给四个真实菜单：新建任务选择器、工作区切换器、会话行右键菜单、顶栏溢出菜单。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：全局</span>
+    <span class="pw-tag">组件：ContextMenu / NewTaskPicker / SessionRowContextMenuBridge / TabBar</span>
+    <span class="pw-tag accent">弹层合集</span>
+  </div>
+</header>
+
+<!-- 菜单原子 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>菜单原子</b> · 一套原子拼出全部菜单；圆角 6、宽 320（可收窄）、唯一一种阴影<span class="grow"></span></div>
+  <div class="pw-frame-body pw-pad pw-grid3">
+
+    <div>
+      <div class="pw-sec-title">行类型<span class="grow"></span></div>
+      <div class="pw-pop" style="width:100%">
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span>普通行 · 图标 + 文字</div>
+        <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="check" data-size="14"></i></span>选中行 · 强调淡底</div>
+        <div class="pw-prow"><span class="grow">勾选行 · 右侧对勾</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+        <div class="pw-prow"><span class="grow">带快捷键</span><span class="pw-kbd">⌘K</span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="tag" data-size="14"></i></span><span class="grow">带子菜单</span><span class="pw-ico pw-dim"><i data-ico="chevron-right" data-size="14"></i></span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="repeat" data-size="14"></i></span><span class="grow">带反馈标签</span><span class="pw-badge">即将支持</span></div>
+        <div class="pw-prow" style="opacity:.45"><span class="pw-ico"><i data-ico="circle-off" data-size="14"></i></span><span class="grow">禁用行</span></div>
+        <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="trash-2" data-size="14"></i></span>危险行</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">结构件<span class="grow"></span></div>
+      <div class="pw-pop" style="width:100%">
+        <div class="pw-pop-title">分组标题</div>
+        <div class="pw-prow">分组第一项</div>
+        <div class="pw-prow">分组第二项</div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow">分隔线之上</div>
+        <div class="pw-prow">分隔线之下</div>
+      </div>
+      <div class="pw-sec-title" style="margin-top:var(--s3)">搜索头（条目多的菜单）<span class="grow"></span></div>
+      <div class="pw-pop" style="width:100%">
+        <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle)">
+          <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+          <span style="flex:1">搜索…</span>
+          <span class="pw-kbd">Esc</span>
+        </div>
+        <div style="height:44px;display:grid;place-items:center;color:var(--n-placeholder);font-size:var(--text-meta)">内容区（封顶 320 高后内部滚动）</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">子菜单（一级）<span class="grow"></span></div>
+      <div class="pw-inline" style="align-items:flex-start;gap:var(--s2)">
+        <div class="pw-pop" style="width:170px">
+          <div class="pw-prow is-on"><span class="grow">状态标签</span><span class="pw-ico"><i data-ico="chevron-right" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="grow">移动到工作区</span><span class="pw-ico"><i data-ico="chevron-right" data-size="14"></i></span></div>
+        </div>
+        <div class="pw-pop" style="width:150px">
+          <div class="pw-prow"><span class="pw-dot done"></span>完成</div>
+          <div class="pw-prow"><span class="pw-dot err"></span>错误</div>
+          <div class="pw-prow"><span class="pw-dot await"></span>中断</div>
+          <div class="pw-prow"><span class="pw-dot pending"></span>待定</div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span>清除标签</div>
+        </div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin-top:var(--s2)">注：子菜单只做一级，不做嵌套第二级。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- 新建任务选择器 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>新建任务选择器 · 工作区切换器</b> · 侧栏与顶栏挂出的两个长菜单</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-pop" style="width:100%">
+      <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+        <span style="flex:1">搜索项目</span>
+      </div>
+      <div class="pw-pop-title">项目</div>
+      <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow">pi-codex</span><span class="pw-desc">/Desktop/pi-codex</span></div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow">探项前端页面</span><span class="pw-desc">/Desktop/txw</span></div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow">招标改</span><span class="pw-desc">/Desktop/zb</span></div>
+      <div class="pw-sep"></div>
+      <div class="pw-pop-title">其它编辑器最近打开</div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="clock" data-size="14"></i></span><span class="grow">zeno</span><span class="pw-desc">Cursor · 2 小时前</span></div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="clock" data-size="14"></i></span><span class="grow">AcpAgentClient</span><span class="pw-desc">VS Code · 昨天</span></div>
+      <div class="pw-sep"></div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="messages-square" data-size="14"></i></span><span class="grow">不在项目中（聊天工作区）</span></div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="folder-plus" data-size="14"></i></span><span class="grow">添加项目…</span></div>
+    </div>
+
+    <div class="pw-pop" style="width:100%">
+      <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+        <span style="flex:1">搜索工作区</span>
+      </div>
+      <div class="pw-pop-title">本次运行里打开过</div>
+      <div class="pw-prow is-on">
+        <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+        <span class="grow">pi-codex<span class="pw-desc" style="display:block">/Desktop/pi-codex · 3 个会话</span></span>
+        <span class="pw-badge count"><span class="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>2</span>
+        <span class="pw-badge warn count">1</span>
+        <span class="pw-ico"><i data-ico="check" data-size="14"></i></span>
+      </div>
+      <div class="pw-prow">
+        <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+        <span class="grow">探项前端页面<span class="pw-desc" style="display:block">/Desktop/txw · 1 个会话</span></span>
+        <span class="pw-badge count">1</span>
+      </div>
+      <div class="pw-prow">
+        <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+        <span class="grow">招标改<span class="pw-desc" style="display:block">/Desktop/zb · 0 个会话</span></span>
+      </div>
+      <div class="pw-sep"></div>
+      <div class="pw-pop-title">最近打开</div>
+      <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span><span class="grow">chat-workspace</span><span class="pw-desc">上周</span></div>
+      <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span><span class="grow">旧版官网</span><span class="pw-desc">已归档</span></div>
+      <div class="pw-sep"></div>
+      <div class="pw-prow"><span class="pw-ico"><i data-ico="folder-open" data-size="14"></i></span><span class="grow">打开本地目录…</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 会话行菜单 + 溢出 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>会话行右键菜单 · 顶栏溢出菜单 · 标签概览</b> · 三个真实菜单</div>
+  <div class="pw-frame-body pw-pad pw-inline" style="align-items:flex-start;gap:var(--s5)">
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">会话行右键</div>
+      <div class="pw-pop" style="width:230px">
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="pin" data-size="14"></i></span><span class="grow">置顶</span><span class="pw-kbd">P</span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="archive" data-size="14"></i></span>归档</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="tag" data-size="14"></i></span><span class="grow">状态标签</span><span class="pw-ico"><i data-ico="chevron-right" data-size="14"></i></span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="folder-tree" data-size="14"></i></span><span class="grow">移动到工作区</span><span class="pw-ico"><i data-ico="chevron-right" data-size="14"></i></span></div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="square-pen" data-size="14"></i></span><span class="grow">重命名</span><span class="pw-kbd">F2</span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="copy" data-size="14"></i></span>复制会话引用</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="external-link" data-size="14"></i></span>导出为 HTML</div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="trash-2" data-size="14"></i></span>删除会话</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">顶栏 ≡ 溢出菜单</div>
+      <div class="pw-pop" style="width:230px">
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="book-marked" data-size="14"></i></span>查看系统提示词</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="wrench" data-size="14"></i></span>查看工具定义</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="bot" data-size="14"></i></span>切换子代理<span class="grow"></span><span class="pw-badge count">3</span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>分支导航</div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="gauge" data-size="14"></i></span>会话统计</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="download" data-size="14"></i></span>导出会话</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="wand-sparkles" data-size="14"></i></span>压缩上下文</div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span>查看运行日志</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">标签概览（标签溢出时）</div>
+      <div class="pw-pop" style="width:300px">
+        <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle)">
+          <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+          <span style="flex:1">过滤标签</span>
+        </div>
+        <div class="pw-pop-title">全部标签 · 6</div>
+        <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span><span class="grow">globals.css</span><span class="pw-desc">当前</span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span><span class="grow">ChatInput.tsx</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="13"></i></span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span><span class="grow">zsh</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="13"></i></span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="globe" data-size="14"></i></span><span class="grow">localhost:30141</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="13"></i></span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow">Git 图谱</span><span class="pw-desc">单例</span></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="bot" data-size="14"></i></span><span class="grow">探索分支 · 读 docs</span><span class="pw-desc">只读</span></div>
+        <div class="pw-sep"></div>
+        <div class="pw-pop-title">最近关闭</div>
+        <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span><span class="grow">DESIGN-SPEC.md</span><span class="pw-btn sm">恢复</span></div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span>关闭其他</div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span>关闭全部</div>
+        <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="eraser" data-size="14"></i></span>清空最近关闭</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>全应用只有一套菜单原子</b>：行（6px/8px 内边距、圆角 4、悬浮 6% 深色容器）+ 分组标题（11px 弱化色）+ 发丝分隔线 + 搜索头（钉顶不滚）。</li>
+    <li><b>八种行类型</b>：普通 / 选中 / 勾选 / 带快捷键 / 带子菜单 / 带反馈标签 / 禁用 / 危险。禁用用透明度不用灰色文字，危险用 error 色文字不用红底。</li>
+    <li><b>子菜单只做一级</b>，右侧一个 chevron，不做嵌套第二级。</li>
+    <li><b>长菜单必须带搜索头</b>（新建任务、工作区切换、标签概览、模型选择），内容区封顶 320 高后内部滚动，搜索框不随滚动。</li>
+    <li><b>工作区切换器的两枚徽章并排</b>：在跑数（accent）+ 等你数（warning），当前工作区也挂；对勾在最右，徽章排它左边。</li>
+    <li><b>菜单宽度按内容收</b>：行内菜单 230、带副标题的 300–320，不强行统一——统一的是行的密度与配色。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

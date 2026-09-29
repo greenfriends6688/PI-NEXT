@@ -1,0 +1,186 @@
+/* ===========================================================================
+ * Pi Web 设计系统 · Token 层
+ *
+ * 本文件是 `design/pi-web-design/assets/tokens.css` 的**产品副本**，值逐条一致。
+ * 画板是规范，这里是它落到运行时的那一份；两边不一致时**以画板为准**。
+ *
+ * 为什么加 `--ds-` 前缀：
+ *   设计系统的名字与产品既有变量大量同名但语义不同 ——
+ *   `--accent`（产品是 Zeno 槽位）、`--control-md`（产品 28px / 设计 32px）、
+ *   `--motion-base`（产品 150ms / 设计 160ms）、`--radius-pill`、`--success`…
+ *   直接同名会在 `[data-theme]` 块与 `:root` 之间按源码顺序互相压掉，
+ *   排查成本极高。前缀化之后「谁是设计值」一眼可辨，映射集中在
+ *   `app/globals.css` 末尾的 `fork:boardui-bridge` 一处。
+ *
+ * 纪律：
+ *   · **组件不直接引用 `--ds-*`**。组件只写 `var(--bg)` 这类 Zeno 名，
+ *     由桥接层负责映射；新增颜色只能加在本文件的语义槽位里。
+ *   · 本文件只有颜色 / 圆角 / 字阶 / 控件高度 / 动效，**不含布局刻度**
+ *     （布局仍由 globals.css 的 `--sidebar-width` 等管）。
+ * ======================================================================== */
+
+:root {
+  /* ---- 1. 中性色阶（浅色，10 级，同一个轻微色相偏移）--------------------- */
+  --ds-n-canvas:        #fbfbfc;   /* 页面底色 */
+  --ds-n-panel:         #f4f4f6;   /* 面板：侧栏 / 右栏 / 输入框 / 用户气泡 */
+  --ds-n-surface:       #eeeef1;   /* 芯片 / 次级块 / kbd 底 */
+  --ds-n-hover:         #e7e7eb;   /* 悬浮实色 */
+  --ds-n-border-subtle: #e2e2e7;   /* 发丝分隔线 */
+  --ds-n-border:        #d3d3da;   /* 控件轮廓 */
+  --ds-n-placeholder:   #8b8b96;   /* 占位符 / 弱化图标 */
+  --ds-n-muted:         #62626e;   /* 次要文字 */
+  --ds-n-text:          #33333d;   /* 正文 */
+  --ds-n-strong:        #1e1e26;   /* 标题 / 强调前景 */
+
+  /* 叠色：按钮 hover / active 用的中性容器（比所在表面更深） */
+  --ds-overlay-hover:    rgba(30, 30, 38, 0.06);
+  --ds-overlay-active:   rgba(30, 30, 38, 0.10);
+  --ds-overlay-selected: rgba(30, 30, 38, 0.10);
+
+  /* ---- 2. 三级表面 ------------------------------------------------------- */
+  --ds-surface-canvas:  var(--ds-n-canvas);
+  --ds-surface-panel:   var(--ds-n-panel);
+  --ds-surface-popover: #ffffff;
+
+  /* ---- 3. 强调色（全系统唯一）------------------------------------------- */
+  --ds-accent:           #5566d8;
+  --ds-accent-active:    #3d4cb5;
+  --ds-accent-soft:      #ecedfa;
+  --ds-accent-text:      #4a59c9;
+  --ds-accent-on:        #ffffff;
+  --ds-accent-border-on: rgba(255, 255, 255, 0.45);
+
+  /* ---- 4. 语义色（4）----------------------------------------------------- */
+  --ds-error:        #bc4e39;
+  --ds-error-soft:   #fbeeea;
+  --ds-warning:      #8a6f12;
+  --ds-warning-soft: #f7f2e2;
+  --ds-success:      #477f40;
+  --ds-success-soft: #ecf3ea;
+  --ds-info:         #5566d8;
+  --ds-info-soft:    #ecedfa;
+
+  /* ---- 5. 派生（不新增色相，只做语义映射）-------------------------------- */
+  --ds-diff-added:      var(--ds-success);
+  --ds-diff-added-bg:   var(--ds-success-soft);
+  --ds-diff-removed:    var(--ds-error);
+  --ds-diff-removed-bg: var(--ds-error-soft);
+  --ds-focus-ring:      var(--ds-accent);
+  --ds-scrim:           rgba(20, 20, 26, 0.32);
+
+  /* 终端 / 代码 ANSI（取自中性阶 + 4 语义，不引入新色相） */
+  --ds-ansi-black:   var(--ds-n-strong);
+  --ds-ansi-red:     var(--ds-error);
+  --ds-ansi-green:   var(--ds-success);
+  --ds-ansi-yellow:  var(--ds-warning);
+  --ds-ansi-blue:    var(--ds-accent);
+  --ds-ansi-magenta: #8a4f8f;
+  --ds-ansi-cyan:    #2f7d86;
+  --ds-ansi-white:   var(--ds-n-text);
+  --ds-ansi-bright:  var(--ds-n-strong);
+
+  /* ---- 6. 阴影（唯一一种，只给弹层）-------------------------------------- */
+  --ds-shadow-popover: 0 4px 12px rgba(28, 28, 35, 0.10);
+  --ds-shadow-modal:   0 12px 32px rgba(28, 28, 35, 0.16), 0 2px 8px rgba(28, 28, 35, 0.06);
+
+  /* ---- 7. 圆角（三档 + pill 例外，上限 6）-------------------------------- */
+  --ds-radius-3: 3px;   /* 芯片 / kbd / 小徽章 */
+  --ds-radius-4: 4px;   /* 按钮 / 输入框 / 菜单项 / 行容器 */
+  --ds-radius-6: 6px;   /* 卡片 / 弹层 / 面板 / 输入框外壳 */
+  --ds-radius-pill: 999px;
+
+  /* ---- 8. 间距（4px 网格）----------------------------------------------- */
+  --ds-s1: 4px;
+  --ds-s2: 8px;
+  --ds-s3: 12px;
+  --ds-s4: 16px;
+  --ds-s5: 24px;
+  --ds-s6: 32px;
+  --ds-space-chip: 1px 5px;
+  --ds-space-kbd: 0 4px;
+
+  /* ---- 9. 字阶（5 档）· 字重只用 400 / 500 ------------------------------- */
+  --ds-text-display:   20px;   /* 空态大字 */
+  --ds-text-title:     15px;   /* 标题 */
+  --ds-text-body:      13px;   /* 正文与控件基准 */
+  --ds-text-secondary: 12px;   /* 次要说明 */
+  --ds-text-meta:      11px;   /* 元信息 */
+  --ds-text-mono:      12.5px; /* 等宽（代码 / 数字） */
+  --ds-lh-body:    1.5;
+  --ds-lh-control: 1.35;
+
+  /* ---- 10. 控件高度（三档 + 一档触控）----------------------------------- */
+  --ds-control-xs:    24px;   /* 紧凑：芯片 / 行内按钮 */
+  --ds-control-sm:    28px;   /* 标准：工具栏 / 输入框内控件 */
+  --ds-control-md:    32px;   /* 主输入区 */
+  --ds-control-lg:    36px;
+  --ds-control-touch: 36px;   /* 粗指针下的最小触控目标 */
+
+  /* ---- 11. 动效（三档内容 + 一档布局 + 一条曲线）------------------------- */
+  --ds-ease:              cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ds-motion-fast:       120ms;   /* hover / 颜色 / 等待期减弱 */
+  --ds-motion-base:       160ms;   /* 展开折叠 / 弹层出现 / 列表行入场 */
+  --ds-motion-transition: 200ms;   /* 整块替换（切会话 / 切标签） */
+  --ds-motion-layout:     240ms;   /* 只用于布局尺寸：侧栏折叠 / 面板宽度 */
+  --ds-motion-sweep:      1400ms;  /* 侧栏扫掠亮点线周期（linear · 无限） */
+  --ds-motion-spin:       900ms;   /* spinner 匀速圆周周期（linear · 无限） */
+  --ds-motion-rise:       8px;
+  --ds-motion-stream:     4px;
+  --ds-motion-pop:        4px;
+  --ds-motion-sheet:      14px;
+  --ds-motion-stagger:    40ms;    /* 成组错开，最多 3 项 */
+  --ds-opacity-pending:   0.5;
+
+  /* ---- 12. 图标 --------------------------------------------------------- */
+  --ds-icon-sm:     14px;
+  --ds-icon-md:     16px;
+  --ds-icon-stroke: 1.5;
+}
+
+/* ===========================================================================
+ * 深色对位表 —— 一个浅色 token 名对应且只对应一个深色值，无深色专有 token。
+ * 产品在 <html> 上同时写 `data-theme="dark"` 与 `.dark`（见 hooks/useTheme.ts），
+ * 两种都要覆盖。
+ * ======================================================================== */
+:root.dark,
+[data-theme="dark"] {
+  --ds-n-canvas:        #17171c;
+  --ds-n-panel:         #1d1d23;
+  --ds-n-surface:       #24242b;
+  --ds-n-hover:         #2c2c34;
+  --ds-n-border-subtle: #303039;
+  --ds-n-border:        #43434e;
+  --ds-n-placeholder:   #7e7e8a;
+  --ds-n-muted:         #9b9ba6;
+  --ds-n-text:          #d5d5dc;
+  --ds-n-strong:        #f0f0f4;
+
+  --ds-overlay-hover:    rgba(240, 240, 244, 0.06);
+  --ds-overlay-active:   rgba(240, 240, 244, 0.10);
+  --ds-overlay-selected: rgba(240, 240, 244, 0.10);
+
+  --ds-surface-popover: #24242b;
+
+  --ds-accent:           #7b89e6;
+  --ds-accent-active:    #8b96ec;
+  --ds-accent-soft:      #26263a;
+  --ds-accent-text:      #8b96ec;
+  --ds-accent-on:        #17171c;
+  --ds-accent-border-on: rgba(23, 23, 28, 0.45);
+
+  --ds-error:        #d97b66;
+  --ds-error-soft:   #33231f;
+  --ds-warning:      #c9a63c;
+  --ds-warning-soft: #2f2a1c;
+  --ds-success:      #74ab68;
+  --ds-success-soft: #1f2a1d;
+  --ds-info:         #7b89e6;
+  --ds-info-soft:    #26263a;
+
+  --ds-ansi-magenta: #b98ac0;
+  --ds-ansi-cyan:    #6cb2bb;
+
+  --ds-shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.42);
+  --ds-shadow-modal:   0 12px 32px rgba(0, 0, 0, 0.52), 0 2px 8px rgba(0, 0, 0, 0.36);
+  --ds-scrim:          rgba(0, 0, 0, 0.52);
+}

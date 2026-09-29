@@ -92,3 +92,5 @@ e2e_*.mjs
 /task_plan.md
 # gen-icons 的 ≤32px 光学补偿母版（中间产物，icon.icns 由它生成，可重建）
 /build/icon-small.png
+# fork:design-system SW-00 —— 一次性 playwright 量测脚本（换肤验收用，用法见换肤计划 8.1）
+/.scratch/

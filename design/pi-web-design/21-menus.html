@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>21 · 输入框弹层 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>21 · 输入框弹层</h1>
+  <p>输入框上能展开的全部弹层：模型选择器、思考档、工具档、权限档、<code>@</code> 引用菜单、<code>/</code> 命令菜单。弹层宽度统一 320，最大高度 320 后内部滚动。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：会话工作台</span>
+    <span class="pw-tag">组件：ModelSelector / ComposerReferenceMenu / ChatInput 下拉</span>
+    <span class="pw-tag accent">弹层合集</span>
+  </div>
+</header>
+
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>弹层合集</b> · 全部 320 宽 · 圆角 6 · 唯一一种阴影 · 悬浮行用 6% 深色容器<span class="grow"></span>1200 × 800</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-stage">
+
+      <!-- 模型选择器 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">模型选择器 · 搜索 + 分组 + 当前项对勾 + Latest 徽章 + 不可用项</div>
+        <div class="pw-pop" style="width:100%">
+          <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+            <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+            <span style="color:var(--n-text)">flash</span>
+            <span class="grow"></span>
+            <span class="pw-kbd">Esc</span>
+          </div>
+          <div class="pw-pop-title">收藏</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="zap" data-size="14"></i></span>DeepSeek V4.1 Flash<span class="pw-badge accent">Latest</span><span class="grow"></span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span>Claude Sonnet 4.5<span class="grow"></span><span class="pw-badge">订阅</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">deepseek</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="zap" data-size="14"></i></span>V4.1 Flash<span class="grow"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">128K</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="brain" data-size="14"></i></span>V4.1 Reasoner<span class="grow"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">128K</span></div>
+          <div class="pw-pop-title">anthropic</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span>Claude Opus 4.5<span class="grow"></span><span class="pw-badge">订阅</span></div>
+          <div class="pw-prow" style="opacity:.45"><span class="pw-ico"><i data-ico="circle-off" data-size="14"></i></span>Claude Haiku 4<span class="pw-desc">未启用</span><span class="grow"></span></div>
+        </div>
+      </div>
+
+      <!-- 思考档 -->
+      <div class="pw-stage-cell">
+        <div class="cap">思考档 · auto / off / minimal / low / medium / high / xhigh / max</div>
+        <div class="pw-pop">
+          <div class="pw-pop-title">思考强度</div>
+          <div class="pw-prow"><span class="grow">auto</span><span class="pw-desc">由模型决定</span></div>
+          <div class="pw-prow"><span class="grow">off</span><span class="pw-desc">不思考</span></div>
+          <div class="pw-prow"><span class="grow">minimal</span><span class="pw-desc">1,024</span></div>
+          <div class="pw-prow"><span class="grow">low</span><span class="pw-desc">4,096</span></div>
+          <div class="pw-prow is-on"><span class="grow">high</span><span class="pw-desc">16,384</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="grow">max</span><span class="pw-desc">不限制</span></div>
+        </div>
+      </div>
+
+      <!-- 工具档 -->
+      <div class="pw-stage-cell">
+        <div class="cap">工具档 · 预设四档</div>
+        <div class="pw-pop">
+          <div class="pw-pop-title">工具</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span><span class="grow">chat-only</span><span class="pw-desc">只用对话</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="wrench" data-size="14"></i></span><span class="grow">内置</span><span class="pw-desc">默认集</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="boxes" data-size="14"></i></span><span class="grow">全部内置</span><span class="pw-desc">含危险工具</span></div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="sliders-horizontal" data-size="14"></i></span><span class="grow">已配置</span><span class="pw-desc">12 / 18</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+        </div>
+      </div>
+
+      <!-- 权限档 -->
+      <div class="pw-stage-cell">
+        <div class="cap">权限档 · 循环切换三档</div>
+        <div class="pw-pop">
+          <div class="pw-pop-title">权限</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="zap" data-size="14"></i></span><span class="grow">全自动</span><span class="pw-desc">不问直接做</span></div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="shield-check" data-size="14"></i></span><span class="grow">需审批</span><span class="pw-desc">写文件与命令要问</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="list-checks" data-size="14"></i></span><span class="grow">计划模式</span><span class="pw-desc">先给方案再动手</span></div>
+        </div>
+      </div>
+
+      <!-- @ 引用 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">@ 引用菜单 · 四类：文件 / 会话 / MCP 资源 / 待办</div>
+        <div class="pw-grid2">
+          <div class="pw-pop" style="width:100%">
+            <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+              <span class="pw-ico"><i data-ico="at-sign" data-size="14"></i></span>
+              <span style="color:var(--n-text)">App</span>
+            </div>
+            <div class="pw-pop-title">文件</div>
+            <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span>AppShell.tsx<span class="grow"></span><span class="pw-desc">components/</span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span>AppShell.test.mjs<span class="grow"></span><span class="pw-desc">components/</span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>app<span class="grow"></span><span class="pw-desc">目录</span></div>
+            <div class="pw-sep"></div>
+            <div class="pw-pop-title">会话</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span>窗口切在回合中间时的渲染修复<span class="grow"></span><span class="pw-desc">12 分钟前</span></div>
+            <div class="pw-sep"></div>
+            <div class="pw-pop-title">待办</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="list-todo" data-size="14"></i></span>补窄屏与宽屏两条单测</div>
+          </div>
+
+          <div class="pw-pop" style="width:100%">
+            <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+              <span class="pw-ico"><i data-ico="at-sign" data-size="14"></i></span>
+              <span style="color:var(--n-text)">mcp</span>
+            </div>
+            <div class="pw-pop-title">MCP 资源</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span>filesystem / project-root<span class="grow"></span><span class="pw-desc">已连接</span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="database" data-size="14"></i></span>postgres / schema.sql<span class="grow"></span><span class="pw-desc">已连接</span></div>
+            <div class="pw-prow" style="opacity:.5"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span>playwright<span class="pw-desc">未连接</span></div>
+            <div class="pw-sep"></div>
+            <div class="pw-pop-title">最近引用</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="history" data-size="14"></i></span>design/README.md</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="history" data-size="14"></i></span>AGENTS.md</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- / 命令 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">/ 命令菜单 · 按来源分组：内置 / 扩展 / 自定义命令 / 技能</div>
+        <div class="pw-pop" style="width:100%">
+          <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+            <span class="pw-ico"><i data-ico="slash" data-size="14"></i></span>
+            <span style="color:var(--n-text)">re</span>
+          </div>
+          <div class="pw-pop-title">内置命令</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span><span class="grow">/reload</span><span class="pw-desc">重载 agent 连接</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="package" data-size="14"></i></span><span class="grow">/compact</span><span class="pw-desc">压缩上下文</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">自定义命令（fork:prompts）</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow">/review</span><span class="pw-desc">评审当前改动 <span class="pw-mono">&lt;范围&gt;</span></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow">/release</span><span class="pw-desc">打 tag 并更新台账</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">技能</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow">/zhaobiao-extract</span><span class="pw-desc">招标结构化抽取</span></div>
+          <div class="pw-prow" style="opacity:.5"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow">/pdf</span><span class="pw-desc">已禁用自动调用</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>弹层只有一个尺寸族</b>：宽 320，圆角 6，边框 1px 发丝线，唯一一种阴影（<code>--shadow-popover</code>）。没有二级边框、没有箭头。</li>
+    <li><b>行高与悬浮</b>：行内边距 6/8，悬浮出现 6% 深色容器（<code>--overlay-hover</code>），当前项用强调淡底 + 强调色文字 + 右端对勾。</li>
+    <li><b>搜索框钉在顶部</b>，不随内容滚动；内容区封顶 320 高后内部滚动，键盘上下键把高亮移出视口时自动露出。</li>
+    <li><b>分组用小标题</b>（11px、弱化色、全大写或来源名），分组之间用一条发丝分隔线。</li>
+    <li><b>「不可用」用透明度 + 弱化图标</b>，不划删除线、不用红色；右侧给一句原因（未启用 / 未连接 / 已禁用自动调用）。</li>
+    <li><b><code>@</code> 与 <code>/</code> 是同一个弹层的两种入口</b>，都带搜索框；<code>@</code> 分四组（文件 / 会话 / MCP / 待办），<code>/</code> 分四组（内置 / 自定义 / 技能 / 扩展）。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

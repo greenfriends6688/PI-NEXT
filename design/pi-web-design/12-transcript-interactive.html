@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>12 · 交互类卡片 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>12 · 交互类卡片</h1>
+  <p>需要用户参与或收尾的卡片：权限授权、计划（Todo）、上下文压缩、非文本内容块、回合结束行、agent 状态与错误、以及输入框上方的「等你处理」停靠条。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：转录</span>
+    <span class="pw-tag">组件：MessageView / ProcessGroup / CompactionMessageView / SessionStatsBar</span>
+    <span class="pw-tag accent">宽 800</span>
+  </div>
+</header>
+
+<!-- 权限卡 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>权限授权卡</b> · 三档动作 + 范围下拉；原始入参可折叠</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 默认（等你处理）</div>
+    <div class="pw-perm">
+      <div class="pw-perm-title">
+        <span class="pw-ico"><i data-ico="shield-check" data-size="14"></i></span>
+        要写入 3 个文件，需要你确认
+        <span class="grow"></span>
+        <span class="pw-badge warn">等你处理</span>
+      </div>
+      <div class="pw-perm-body">{ "tool": "write", "paths": ["docs/codex-skin/delta.md", "design/README.md", "design/DESIGN-SPEC.md"] }</div>
+      <div class="pw-perm-acts">
+        <span class="pw-btn primary">允许一次</span>
+        <span class="pw-btn outline">本次会话总是允许</span>
+        <span class="pw-btn danger">拒绝</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="braces" data-size="13"></i></span>原始入参</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 范围下拉展开</div>
+    <div class="pw-perm">
+      <div class="pw-perm-title">
+        <span class="pw-ico"><i data-ico="shield-check" data-size="14"></i></span>
+        要执行 <span class="pw-mono" style="color:var(--n-text)">bash</span>，需要你确认
+        <span class="grow"></span>
+      </div>
+      <div class="pw-perm-body">{ "tool": "bash", "command": "rm -rf node_modules/.cache && npm run dev:clean" }</div>
+      <div class="pw-perm-acts">
+        <span class="pw-btn primary">允许一次</span>
+        <span class="pw-btn danger">拒绝</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm is-on" style="background:var(--overlay-selected);color:var(--accent-text)"><span class="pw-ico"><i data-ico="chevron-up" data-size="13"></i></span>范围</span>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <div class="pw-pop" style="width:280px;box-shadow:var(--shadow-modal)">
+          <div class="pw-pop-title">这次允许的范围</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="circle-dot" data-size="14"></i></span>只允许这一条命令</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span>本会话内允许 <b style="margin-left:4px">bash</b></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>本会话内允许 <b style="margin-left:4px">pi-codex</b> 下全部工具</div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="ban" data-size="14"></i></span>本会话内始终拒绝 bash</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 已回应（收成一条记录，不折叠、不抢注意力）</div>
+    <div class="pw-card">
+      <div class="pw-card-head">
+        <span class="pw-ico" style="color:var(--success)"><i data-ico="shield-check" data-size="14"></i></span>
+        <span class="pw-tool">已允许 · 写入 3 个文件</span>
+        <span class="pw-path">write</span>
+        <span class="grow"></span>
+        <span class="pw-dim pw-mono" style="font-size:var(--text-meta)">2 分钟前</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="braces" data-size="13"></i></span>原始入参</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 计划卡 + 压缩卡 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>计划（Todo）卡 · 上下文压缩卡</b> · 计划展开/折叠；压缩进行中/完成/失败</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 计划卡 · 展开</div>
+    <div class="pw-plan">
+      <div class="pw-plan-head">
+        <span class="pw-ico"><i data-ico="list-checks" data-size="14"></i></span>
+        本轮计划
+        <span class="grow"></span>
+        <span class="pw-badge count">2 / 4</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span>隐藏</span>
+      </div>
+      <div class="pw-todo done"><span class="box"><i data-ico="check" data-size="10"></i></span><span>读完参考项目的 design/ 五件套</span></div>
+      <div class="pw-todo done"><span class="box"><i data-ico="check" data-size="10"></i></span><span>产出借鉴清单与画板拆分表</span></div>
+      <div class="pw-todo now"><span class="box"><i data-ico="play" data-size="10"></i></span><span>写设计规范 + 静态画板</span></div>
+      <div class="pw-todo"><span class="box"></span><span>跑一遍渲染核对与对比度门禁</span></div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 计划卡 · 折叠成一行</div>
+    <div class="pw-card">
+      <div class="pw-card-head">
+        <span class="pw-ico"><i data-ico="list-checks" data-size="14"></i></span>
+        <span class="pw-tool">当前：写设计规范 + 静态画板</span>
+        <span class="pw-path">还剩 2 项</span>
+        <span class="grow"></span>
+        <span class="pw-badge count">2 / 4</span>
+        <span class="pw-ico pw-dim"><i data-ico="chevron-down" data-size="14"></i></span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 压缩卡 · 进行中 → 完成 → 失败</div>
+    <div class="pw-compact">
+      <span class="pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="14"></i></span>
+      <span>正在压缩上下文…</span>
+      <span class="grow"></span>
+      <span class="pw-badge accent">进行中</span>
+    </div>
+    <div class="pw-compact">
+      <span class="pw-ico" style="color:var(--success)"><i data-ico="package" data-size="14"></i></span>
+      <span><b class="pw-strong">上下文已压缩</b> · 18 轮 → 1 段摘要，省下 42,180 tok</span>
+      <span class="grow"></span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span>看摘要</span>
+    </div>
+    <div class="pw-compact" style="border-color:var(--error)">
+      <span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="14"></i></span>
+      <span>压缩失败：<span class="pw-mono" style="font-size:var(--text-meta)">upstream returned 529 (overloaded)</span></span>
+      <span class="grow"></span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重试</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- 内容块 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>非文本内容块</b> · 图片 / 资源文件 / 音频 / 不可渲染的兜底</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 图片（内嵌预览，占位斜纹）</div>
+    <div class="pw-img">
+      <div class="ph"><span class="pw-ico"><i data-ico="image" data-size="24"></i></span></div>
+      <div class="cap">
+        <span class="pw-ico"><i data-ico="image" data-size="13"></i></span>
+        <span>screenshot-2026-09-28.png</span>
+        <span class="pw-mono">1440 × 900 · 218 KB</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>保存</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 资源文件（resource_link）</div>
+    <div class="pw-filecard">
+      <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="file-text" data-size="16"></i></span>
+      <span class="pw-fname">design/DESIGN-SPEC.md</span>
+      <span class="pw-meta">text/markdown · 18.4 KB</span>
+      <span class="grow"></span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>在文件面板打开</span>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 音频</div>
+    <div class="pw-audio">
+      <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="circle-play" data-size="18"></i></span>
+      <span class="pw-mono" style="font-size:var(--text-meta)">0:00</span>
+      <span class="wave">
+        <i style="height:6px"></i><i class="on" style="height:12px"></i><i style="height:18px"></i><i class="on" style="height:9px"></i><i style="height:15px"></i><i style="height:5px"></i><i class="on" style="height:13px"></i><i style="height:20px"></i><i style="height:8px"></i><i style="height:16px"></i><i class="on" style="height:11px"></i><i style="height:6px"></i><i style="height:14px"></i><i style="height:9px"></i><i class="on" style="height:17px"></i><i style="height:7px"></i><i style="height:12px"></i><i style="height:5px"></i><i style="height:15px"></i><i style="height:10px"></i><i style="height:6px"></i><i class="on" style="height:13px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:4px"></i><i style="height:9px"></i><i style="height:14px"></i><i style="height:6px"></i>
+      </span>
+      <span class="pw-mono" style="font-size:var(--text-meta)">0:42</span>
+      <span class="pw-meta" style="color:var(--n-placeholder);font-size:var(--text-meta)">audio/mpeg · 664 KB</span>
+    </div>
+
+    <div class="pw-mono pw-dim">D · 不可渲染（兜底文件卡）</div>
+    <div class="pw-filecard">
+      <span class="pw-ico pw-dim"><i data-ico="file" data-size="16"></i></span>
+      <span class="pw-fname">artifacts/bundle.tar.zst</span>
+      <span class="pw-meta">application/zstd</span>
+      <span class="grow"></span>
+      <span class="pw-badge">无法预览</span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>下载</span>
+    </div>
+
+    <div class="pw-mono pw-dim">E · embedded resource · text（内嵌文本，直接铺开，不做成文件卡）</div>
+    <div class="pw-card">
+      <div class="pw-card-head">
+        <span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span>
+        <span class="pw-tool">resource · text</span>
+        <span class="pw-path">pins/upstream.json</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+      </div>
+      <div class="pw-card-body">
+        <div class="pw-term" style="font-size:var(--text-meta)">{
+  <span class="acc">"zed"</span>: <span class="add">"d9e1c024f393832765a03f4de204d6c8cd9abcb2"</span>,
+  <span class="acc">"rust-sdk"</span>: <span class="add">"3a6d0ae88dbaa09fcb74e26761e3643a75b2015e"</span>
+}</div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">F · embedded resource · binary（二进制退回文件卡）</div>
+    <div class="pw-filecard">
+      <span class="pw-ico pw-dim"><i data-ico="file" data-size="16"></i></span>
+      <span class="pw-fname">resource · binary</span>
+      <span class="pw-meta">application/octet-stream · 2.1 MB</span>
+      <span class="grow"></span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>保存到项目</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- 回合结束行 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>回合结束行</b> · 七个 stopReason 全列（pi 的真实取值）+ 一个失败态；非正常结束要一眼区分</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · stop（正常结束，带用量与成本）</div>
+    <div class="pw-turn-end">
+      <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>stop</span>
+      <span class="pw-mono">4.2s</span><span>·</span>
+      <span class="pw-mono">↑ 8,912 · ↓ 1,328 tok</span><span>·</span>
+      <span class="pw-mono">$0.021</span>
+      <span class="rule"></span>
+      <span class="pw-ico pw-dim"><i data-ico="copy" data-size="12"></i></span>
+    </div>
+
+    <div class="pw-mono pw-dim">B · toolUse（这一轮还要接着跑工具，不是结束）· length（输出被上限截断）· deferred（交给后台继续）</div>
+    <div class="pw-turn-end">
+      <span class="pw-badge accent"><span class="pw-ico"><i data-ico="wrench" data-size="12"></i></span>toolUse</span>
+      <span class="pw-mono">2.4s</span><span>·</span>
+      <span class="pw-muted">模型要求调工具，下一段接着跑</span>
+      <span class="rule"></span>
+    </div>
+    <div class="pw-turn-end">
+      <span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="12"></i></span>length</span>
+      <span class="pw-mono">12.6s</span><span>·</span>
+      <span class="pw-mono">↑ 14,002 · ↓ 8,192 tok</span><span>·</span>
+      <span class="pw-muted">输出被上限截断，发「继续」接着写</span>
+      <span class="rule"></span>
+    </div>
+    <div class="pw-turn-end">
+      <span class="pw-badge"><span class="pw-ico"><i data-ico="clock" data-size="12"></i></span>deferred</span>
+      <span class="pw-mono">3m40s</span><span>·</span>
+      <span class="pw-muted">已交给后台继续跑，完成后回来</span>
+      <span class="rule"></span>
+    </div>
+
+    <div class="pw-mono pw-dim">C · aborted（用户停的）· pending（还没定）· error（失败，带原文）</div>
+    <div class="pw-turn-end">
+      <span class="pw-badge"><span class="pw-ico"><i data-ico="circle-stop" data-size="12"></i></span>aborted</span>
+      <span class="pw-mono">0.8s</span><span>·</span>
+      <span class="pw-muted">你点了停止</span>
+      <span class="rule"></span>
+    </div>
+    <div class="pw-turn-end">
+      <span class="pw-badge"><span class="pw-ico"><i data-ico="ellipsis" data-size="12"></i></span>pending</span>
+      <span class="pw-mono">—</span><span>·</span>
+      <span class="pw-muted">还在跑，还没落定（流式中不画这一行）</span>
+      <span class="rule"></span>
+    </div>
+    <div class="pw-turn-end">
+      <span class="pw-badge bad"><span class="pw-ico"><i data-ico="circle-x" data-size="12"></i></span>error</span>
+      <span class="pw-mono">2.1s</span><span>·</span>
+      <span class="pw-muted pw-mono" style="font-size:var(--text-meta)">upstream connection reset</span>
+      <span class="rule"></span>
+    </div>
+
+  </div>
+</section>
+
+<!-- 状态条 + 停靠条 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>agent 状态条 · 「等你处理」停靠条 · 通知条</b> · 出现在转录里或输入框上方</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · agent 生命周期状态条（转录顶部）</div>
+    <div class="pw-card">
+      <div class="pw-card-head">
+        <span class="pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="14"></i></span>
+        <span class="pw-tool">agent 已启动</span>
+        <span class="pw-path">spawned → initialized</span>
+        <span class="grow"></span>
+        <span class="pw-dim pw-mono" style="font-size:var(--text-meta)">1.2s</span>
+      </div>
+    </div>
+    <div class="pw-card" style="border-color:var(--warning)">
+      <div class="pw-card-head">
+        <span class="pw-ico" style="color:var(--warning)"><i data-ico="key-round" data-size="14"></i></span>
+        <span class="pw-tool">需要先完成认证</span>
+        <span class="pw-path">-32000 · auth_required</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="log-in" data-size="13"></i></span>Sign in with ChatGPT</span>
+      </div>
+    </div>
+    <div class="pw-card" style="border-color:var(--error)">
+      <div class="pw-card-head">
+        <span class="pw-ico" style="color:var(--error)"><i data-ico="power" data-size="14"></i></span>
+        <span class="pw-tool">agent 已退出</span>
+        <span class="pw-path">退出码 1</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span>看 stderr</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="rotate-cw" data-size="13"></i></span>重启</span>
+      </div>
+    </div>
+    <div class="pw-card" style="border-color:var(--warning)">
+      <div class="pw-card-head">
+        <span class="pw-ico" style="color:var(--warning)"><i data-ico="triangle-alert" data-size="14"></i></span>
+        <span class="pw-tool">3 条未知会话更新已丢弃</span>
+        <span class="pw-path">协议版本不匹配，客户端不认识的 session/update 变体</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span>看清单</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 卡片下方的等待行（Awaiting Confirmation，挂在卡下而不是停靠条）</div>
+    <div class="pw-perm">
+      <div class="pw-perm-title">
+        <span class="pw-ico"><i data-ico="shield-check" data-size="14"></i></span>
+        要执行 <span class="pw-mono" style="color:var(--n-text)">bash</span>，需要你确认
+        <span class="grow"></span>
+        <span class="pw-badge warn">等你处理</span>
+      </div>
+      <div class="pw-perm-body">{ "tool": "bash", "command": "npm run prod" }</div>
+      <div class="pw-perm-acts">
+        <span class="pw-btn primary">允许一次</span>
+        <span class="pw-btn danger">拒绝</span>
+      </div>
+    </div>
+    <div class="pw-inline" style="gap:6px;padding:0 var(--s3);color:var(--warning);font-size:var(--text-secondary)">
+      <span class="pw-ico"><i data-ico="loader-circle" data-size="13"></i></span>
+      <span>Awaiting Confirmation</span>
+      <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">· 这条在等你的决定，卡片本身不可折叠</span>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 输入框上方的停靠条（两种：待授权 / 待输入，都带 Scroll 定位）</div>
+    <div style="border:1px solid var(--n-border);border-radius:var(--radius-6);background:var(--surface-canvas);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:7px var(--s3);background:var(--warning-soft);border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico" style="color:var(--warning)"><i data-ico="shield-check" data-size="14"></i></span>
+        <span style="font-size:var(--text-secondary);color:var(--n-text)">Awaiting Permission · 要写入 3 个文件</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="arrow-down" data-size="13"></i></span>Scroll</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:7px var(--s3);background:var(--warning-soft);border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico" style="color:var(--warning)"><i data-ico="circle-help" data-size="14"></i></span>
+        <span style="font-size:var(--text-secondary);color:var(--n-text)">Awaiting Input · dsh-acp-interactive 请求表单填写</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="arrow-down" data-size="13"></i></span>Scroll</span>
+      </div>
+      <div class="pw-composer" style="border:0;border-radius:0;box-shadow:none;margin:0;width:100%">
+        <div class="pw-composer-top">回复 agent…</div>
+        <div class="pw-composer-bar">
+          <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+          <span class="grow"></span>
+          <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">D · 通知条（浮在正文区顶部居中，可点 × 关）</div>
+    <div class="pw-toast bad"><span class="pw-ico"><i data-ico="circle-alert" data-size="16"></i></span><span class="grow">载入会话失败：ENOENT .jsonl（文件已被移走）</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span></div>
+    <div class="pw-toast warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="16"></i></span><span class="grow">附件超过 20 MB，已跳过 screenshot-4k.png</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span></div>
+    <div class="pw-toast ok"><span class="pw-ico"><i data-ico="circle-check" data-size="16"></i></span><span class="grow">会话已归档</span><span class="pw-btn sm">撤销</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span></div>
+
+  </div>
+</section>
+
+<!-- 转录的三种壳级状态 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>转录的三种壳级状态</b> · 会话正在加载 / 滚动到最新 / 查找结果被截断</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 会话正在加载（连 agent 与 session/load 期间，浮在正文区顶部居中）</div>
+    <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);position:relative;height:170px;overflow:hidden">
+      <div style="position:absolute;left:50%;top:12px;transform:translateX(-50%)">
+        <div class="pw-toast" style="width:auto">
+          <span class="pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="15"></i></span>
+          <span class="grow">会话正在加载中，请稍后</span>
+        </div>
+      </div>
+      <div class="pw-col" style="padding:var(--s5) var(--s4) 0;opacity:.45">
+        <div class="pw-msg-user" style="max-width:80%">把 release 里那份和本地待上传的改动对一下</div>
+        <div class="pw-md"><p>正在读取会话历史…</p></div>
+      </div>
+    </div>
+    <p class="pw-mono pw-dim" style="margin:0">注：它不计时、不能关，只叠提示——底下仍是被点开那条会话的空态，不套变暗也不挡点击。</p>
+
+    <div class="pw-mono pw-dim">B · 滚动到最新（离开底部时出现在右下角）</div>
+    <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);position:relative;height:170px;overflow:hidden">
+      <div class="pw-col" style="padding:var(--s3) var(--s4) 0">
+        <div class="pw-msg-user" style="max-width:80%">往上翻的时候这个按钮就出来了</div>
+        <div class="pw-md"><p>读到一半想回到最新，不用一路滚到底。</p></div>
+      </div>
+      <div style="position:absolute;right:var(--s4);bottom:var(--s3);display:flex;align-items:center;gap:6px">
+        <span class="pw-badge count">2 条新消息</span>
+        <span style="width:30px;height:30px;border-radius:var(--radius-4);border:1px solid var(--n-border);background:var(--surface-popover);box-shadow:var(--shadow-popover);display:grid;place-items:center;color:var(--n-text)">
+          <span class="pw-ico"><i data-ico="arrow-down" data-size="15"></i></span>
+        </span>
+      </div>
+    </div>
+    <p class="pw-mono pw-dim" style="margin:0">注：有未读时旁边挂一个计数徽章；已经在底部就整个隐藏（不置灰）。</p>
+
+    <div class="pw-mono pw-dim">C · 查找结果被截断（会话内查找命中太多时）</div>
+    <div class="pw-inline" style="gap:var(--s3);align-items:flex-start">
+      <div class="pw-pop" style="width:380px;padding:0">
+        <div class="pw-inline" style="padding:var(--s1) var(--s2)">
+          <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+          <input class="pw-input" style="min-width:0;flex:1;height:24px;border:0;background:transparent" value="resize">
+          <span class="pw-mono" style="font-size:var(--text-meta);color:var(--warning)">200+</span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="chevron-up" data-size="13"></i></span></span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span></span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span>
+        </div>
+        <div style="padding:0 var(--s2) var(--s2);color:var(--warning);font-size:var(--text-meta)">命中超过上限，只标出前 200 处；缩小关键词能看全。</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 本页动效（真在播） -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>本页动效</b> · 循环播放 · 规格与全量清单见画板 <span class="pw-mono">05-motion</span><span class="grow"></span><span style="color:var(--n-placeholder)">通知条最多 3 条、6 秒自收</span></div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-anim-stage">
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>壳级通知条进出</span><span class="grow"></span><span class="tag">高度 + 位移</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-notice" style="width:100%">
+            <div class="pw-toast" style="margin:0"><span class="pw-ico"><i data-ico="circle-check" data-size="14"></i></span><span class="pw-grow">已复制到剪贴板</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>回合结束 · 跳转高亮</span><span class="grow"></span><span class="tag">1.6s</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:1px;width:100%">
+            <div style="padding:7px 10px;font-size:var(--text-meta);color:var(--n-placeholder)">01 · 把 release 里那份对一下</div>
+            <div class="pw-anim-flash" style="padding:7px 10px;font-size:var(--text-meta);color:var(--n-text)">02 · 那 3 个文档先别提交</div>
+            <div style="padding:7px 10px;font-size:var(--text-meta);color:var(--n-placeholder)">03 · 顺便更新台账</div>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>压缩进行中 / 失败</span><span class="grow"></span><span class="tag">spinner · 呼吸</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:var(--s2);justify-items:center">
+            <span class="pw-anim-spin pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="18"></i></span>
+            <span class="pw-muted" style="font-size:var(--text-meta)">正在压缩上下文…</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>权限卡是唯一用强调色边框 + 淡底的卡</b>：它需要用户决策，必须抢注意力。动作收成三档（允许一次 / 本会话始终 / 拒绝），范围下拉另开一个弹层。</li>
+    <li><b>已回应的权限收成一条记录</b>：不折叠、不抢注意力、不给按钮，只留「允许了什么 + 时间 + 原始入参」。</li>
+    <li><b>计划卡的勾选三态</b>：已完成（弱化灰 + 删除线）、进行中（强调色实心）、未开始（空框）。折叠态显示「当前：X · 还剩 N 项」。</li>
+    <li><b>压缩卡是单行块</b>，不做成大卡；三态用图标与边框色区分（accent spinner / success / error）。</li>
+    <li><b>内容块按类型给形状</b>：图片给缩略框、资源文件给文件卡、音频给波形条、不可渲染给兜底文件卡 + 下载。</li>
+    <li><b>回合结束行按 stopReason 分色</b>：<code class="pw-mono">stop</code> 是 success；<code class="pw-mono">length</code> 是 warning；<code class="pw-mono">error</code> 是 error；<code class="pw-mono">aborted</code> / <code class="pw-mono">deferred</code> / <code class="pw-mono">pending</code> 是中性；<code class="pw-mono">toolUse</code> 用强调色（它表示「没结束」）。非正常结束一定要带一句人话解释。</li>
+    <li><b>词表以 pi 为准，不是 ACP 的</b>：真实取值就这七个——<code class="pw-mono">pending | stop | length | toolUse | error | aborted | deferred</code>（<code class="pw-mono">@earendil-works/pi-ai</code> 的 <code class="pw-mono">StopReason</code>）。
+      参考项目那套 <code class="pw-mono">end_turn / max_tokens / max_turn_requests / refusal / cancelled</code> 是 Zed 的 ACP 词表，本项目里一次都不会出现，<b>不要照搬</b>。</li>
+    <li><b>「等你处理」有两个位置</b>：转录里权限卡下方一条 <code>Awaiting Confirmation</code> 等待行（告诉你在等什么），以及输入框上方一条停靠条（<code>Awaiting Permission</code> / <code>Awaiting Input</code>，各带一个 <code>Scroll</code> 定位）。两处都只在当前会话挂起时出现，都不弹模态框。</li>
+    <li><b>协议兜底要显式说出来</b>：客户端不认识的 <code>session/update</code> 变体会被丢弃，丢弃了就给一条 warning 状态条写明「N 条未知会话更新已丢弃」并给「看清单」——静默丢弃会让人以为 agent 卡住了。</li>
+    <li><b>通知条三色</b>：error / warning / success，最多 3 条、6 秒自收、鼠标停着不收、可点 × 关、同一句不叠。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

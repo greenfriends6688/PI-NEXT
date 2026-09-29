@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>00 · Token 表 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>00 · Token 表</h1>
+  <p>本表是这套设计的**唯一样式来源**。页面画板都从这里取值；画板里出现的任何颜色、字号、间距、圆角、时长都必须能在 <code>assets/tokens.css</code> 找到对应项，否则算错。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：全局</span>
+    <span class="pw-tag">来源：assets/tokens.css</span>
+    <span class="pw-tag accent">色相 5（强调 + 4 语义）</span>
+    <span class="pw-tag">圆角 3 / 4 / 6</span>
+    <span class="pw-tag">字阶 11 / 12 / 13 / 15 / 20</span>
+    <span class="pw-tag">图标 lucide 16 · stroke 1.5</span>
+  </div>
+</header>
+
+<!-- ============ 中性色阶 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>中性色阶 · 浅色</b> · 同一色相偏移（向强调色偏，饱和度 ≤ 0.02）· 层次全部靠明度差表达，不靠换色相</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-swatches-row">
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-canvas)"></div><div class="nm">--n-canvas</div><div class="vl">#fbfbfc</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-panel)"></div><div class="nm">--n-panel</div><div class="vl">#f4f4f6</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-surface)"></div><div class="nm">--n-surface</div><div class="vl">#eeeef1</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-hover)"></div><div class="nm">--n-hover</div><div class="vl">#e7e7eb</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-border-subtle)"></div><div class="nm">--n-border-subtle</div><div class="vl">#e2e2e7</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-border)"></div><div class="nm">--n-border</div><div class="vl">#d3d3da</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-placeholder)"></div><div class="nm">--n-placeholder</div><div class="vl">#8b8b96</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-muted)"></div><div class="nm">--n-muted</div><div class="vl">#62626e</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-text)"></div><div class="nm">--n-text</div><div class="vl">#33333d</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:var(--n-strong)"></div><div class="nm">--n-strong</div><div class="vl">#1e1e26</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>中性色阶 · 深色</b> · 一个浅色 token 名对应且只对应一个深色值，无深色专有 token</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-swatches-row">
+      <div class="pw-swatch-cell"><div class="box" style="background:#17171c"></div><div class="nm">--n-canvas</div><div class="vl">#17171c</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#1d1d23"></div><div class="nm">--n-panel</div><div class="vl">#1d1d23</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#24242b"></div><div class="nm">--n-surface</div><div class="vl">#24242b</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#2c2c34"></div><div class="nm">--n-hover</div><div class="vl">#2c2c34</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#303039"></div><div class="nm">--n-border-subtle</div><div class="vl">#303039</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#43434e"></div><div class="nm">--n-border</div><div class="vl">#43434e</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#7e7e8a"></div><div class="nm">--n-placeholder</div><div class="vl">#7e7e8a</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#9b9ba6"></div><div class="nm">--n-muted</div><div class="vl">#9b9ba6</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#d5d5dc"></div><div class="nm">--n-text</div><div class="vl">#d5d5dc</div></div>
+      <div class="pw-swatch-cell"><div class="box" style="background:#f0f0f4"></div><div class="nm">--n-strong</div><div class="vl">#f0f0f4</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 强调 + 语义 + 表面 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>强调色（唯一）· 语义色（4）· 三级表面</b></div>
+  <div class="pw-frame-body pw-pad pw-grid3">
+
+    <div>
+      <div class="pw-sec-title">强调色 · 只用于主按钮 / 焦点环 / 链接 / 选中 / spinner<span class="grow"></span></div>
+      <div class="pw-swatches-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--accent)"></div><div class="nm">--accent</div><div class="vl">#5566d8</div></div>
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--accent-active)"></div><div class="nm">--accent-active</div><div class="vl">#3d4cb5</div></div>
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--accent-soft)"></div><div class="nm">--accent-soft</div><div class="vl">#ecedfa</div></div>
+        <div class="pw-swatch-cell"><div class="box" style="display:grid;place-items:center;background:var(--n-canvas);color:var(--accent-text);font-size:13px">Aa</div><div class="nm">--accent-text</div><div class="vl">#4a59c9</div></div>
+      </div>
+      <div class="pw-inline" style="margin-top:var(--s3)">
+        <span class="pw-btn primary">主按钮</span>
+        <span class="pw-btn primary" style="background:var(--accent-active)">按下态</span>
+        <span class="pw-btn outline" style="outline:1.5px solid var(--accent);outline-offset:1px">焦点环 1.5 / +1</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">语义色 · 只用于状态图标 / 状态文字 / 细状态条<span class="grow"></span></div>
+      <div class="pw-grid4">
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--error)"></div><div class="nm">error</div><div class="vl">#bc4e39</div><div class="box" style="height:14px;margin-top:4px;background:var(--error-soft)"></div><div class="vl">.soft #fbeeea</div></div>
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--warning)"></div><div class="nm">warning</div><div class="vl">#8a6f12</div><div class="box" style="height:14px;margin-top:4px;background:var(--warning-soft)"></div><div class="vl">.soft #f7f2e2</div></div>
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--success)"></div><div class="nm">success</div><div class="vl">#477f40</div><div class="box" style="height:14px;margin-top:4px;background:var(--success-soft)"></div><div class="vl">.soft #ecf3ea</div></div>
+        <div class="pw-swatch-cell"><div class="box" style="background:var(--info)"></div><div class="nm">info</div><div class="vl">#5566d8</div><div class="box" style="height:14px;margin-top:4px;background:var(--info-soft)"></div><div class="vl">.soft #ecedfa</div></div>
+      </div>
+      <div class="pw-wrap" style="margin-top:var(--s3)">
+        <span class="pw-badge ok"><span class="pw-ico"><i data-ico="circle-check" data-size="12"></i></span>完成</span>
+        <span class="pw-badge bad"><span class="pw-ico"><i data-ico="circle-x" data-size="12"></i></span>失败</span>
+        <span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="12"></i></span>等你处理</span>
+        <span class="pw-badge accent"><span class="pw-ico"><i data-ico="loader-circle" data-size="12"></i></span>进行中</span>
+        <span class="pw-badge">默认</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">三级表面 · 边框两级 · 阴影（仅弹层）<span class="grow"></span></div>
+      <div style="display:grid;gap:var(--s2)">
+        <div style="height:124px;border-radius:var(--radius-6);background:var(--surface-canvas);border:1px solid var(--n-border-subtle);padding:var(--s2)">
+          <div class="pw-mono" style="color:var(--n-placeholder)">surface.canvas #fbfbfc</div>
+          <div style="margin-top:6px;height:38px;border-radius:var(--radius-6);background:var(--surface-panel);border:1px solid var(--n-border-subtle);padding:6px">
+            <div class="pw-mono" style="color:var(--n-placeholder)">surface.panel #f4f4f6</div>
+          </div>
+          <div style="margin-top:6px;height:26px;border-radius:var(--radius-6);background:var(--surface-popover);box-shadow:var(--shadow-popover);border:1px solid var(--n-border-subtle);display:flex;align-items:center;padding:0 6px">
+            <div class="pw-mono" style="color:var(--n-placeholder)">surface.popover #ffffff</div>
+          </div>
+        </div>
+        <div class="pw-mono" style="color:var(--n-muted);line-height:1.8">
+          <div>border.subtle 1px #e2e2e7 · 发丝分隔线</div>
+          <div>border 1px #d3d3da · 控件轮廓</div>
+          <div>shadow.popover 0 4 12 rgba(28,28,35,.10)</div>
+          <div>shadow.modal 0 12 32 / 0 2 8</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ 字阶 / 间距 / 圆角 / 控件 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>字阶（5 档）· 间距（4px 网格）· 圆角（3 档）· 控件高度</b></div>
+  <div class="pw-frame-body pw-pad pw-grid4">
+
+    <div>
+      <div class="pw-sec-title">字阶 · 字重只用 400 / 500<span class="grow"></span></div>
+      <div class="pw-rowgap">
+        <div class="pw-inline"><span style="font-size:var(--text-display);font-weight:500;color:var(--n-strong)">新会话</span><span class="pw-mono pw-dim">display 20/500</span></div>
+        <div class="pw-inline"><span style="font-size:var(--text-title);font-weight:500;color:var(--n-strong)">模型设置</span><span class="pw-mono pw-dim">title 15/500</span></div>
+        <div class="pw-inline"><span style="font-size:var(--text-body)">正文与控件基准 Body</span><span class="pw-mono pw-dim">body 13/400 lh1.5</span></div>
+        <div class="pw-inline"><span style="font-size:var(--text-secondary);color:var(--n-muted)">次要说明 Secondary</span><span class="pw-mono pw-dim">secondary 12</span></div>
+        <div class="pw-inline"><span style="font-size:var(--text-meta);color:var(--n-placeholder)">15 分钟前 · 12 条消息</span><span class="pw-mono pw-dim">meta 11</span></div>
+        <div class="pw-inline"><span class="pw-mono" style="font-variant-numeric:tabular-nums">10,240 tok · $0.021 · 4.2s</span><span class="pw-mono pw-dim">mono 12.5 tabular</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">间距 · 4px 网格<span class="grow"></span></div>
+      <div class="pw-inline" style="align-items:flex-end;margin-bottom:var(--s3)">
+        <div><div style="width:4px;height:16px;background:var(--accent);border-radius:2px"></div><div class="pw-mono pw-muted">4</div></div>
+        <div><div style="width:8px;height:16px;background:var(--accent);border-radius:2px"></div><div class="pw-mono pw-muted">8</div></div>
+        <div><div style="width:12px;height:16px;background:var(--accent);border-radius:2px"></div><div class="pw-mono pw-muted">12</div></div>
+        <div><div style="width:16px;height:16px;background:var(--accent);border-radius:2px"></div><div class="pw-mono pw-muted">16</div></div>
+        <div><div style="width:24px;height:16px;background:var(--accent);border-radius:2px"></div><div class="pw-mono pw-muted">24</div></div>
+        <div><div style="width:32px;height:16px;background:var(--accent);border-radius:2px"></div><div class="pw-mono pw-muted">32</div></div>
+      </div>
+      <div class="pw-sec-title">圆角 · 上限 6<span class="grow"></span></div>
+      <div class="pw-inline">
+        <div><div style="width:44px;height:32px;border-radius:var(--radius-3);background:var(--n-surface);border:1px solid var(--n-border)"></div><div class="pw-mono pw-muted">3 芯片/kbd</div></div>
+        <div><div style="width:44px;height:32px;border-radius:var(--radius-4);background:var(--n-surface);border:1px solid var(--n-border)"></div><div class="pw-mono pw-muted">4 按钮/输入</div></div>
+        <div><div style="width:44px;height:32px;border-radius:var(--radius-6);background:var(--n-surface);border:1px solid var(--n-border)"></div><div class="pw-mono pw-muted">6 卡片/弹层</div></div>
+        <div><div style="width:44px;height:32px;display:grid;place-items:center"><span class="pw-switch on" style="position:relative"><i></i></span></div><div class="pw-mono pw-muted">pill 开关</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">控件高度 · 24 / 28 / 32<span class="grow"></span></div>
+      <div class="pw-inline" style="margin-bottom:var(--s3)">
+        <span style="height:24px;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-3);background:var(--n-surface);font-size:var(--text-meta);color:var(--n-muted)">24 紧凑</span>
+        <span style="height:28px;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-4);background:var(--n-surface);font-size:var(--text-secondary);color:var(--n-muted)">28 标准</span>
+        <span style="height:32px;display:inline-flex;align-items:center;padding:0 10px;border-radius:var(--radius-4);background:var(--n-surface);font-size:var(--text-body);color:var(--n-muted)">32 主输入</span>
+      </div>
+      <div class="pw-sec-title">按钮四态 · 无边框，悬浮出深色容器<span class="grow"></span></div>
+      <div class="pw-wrap">
+        <span class="pw-btn">默认 ghost</span>
+        <span class="pw-btn" style="background:var(--overlay-hover)">hover 6%</span>
+        <span class="pw-btn" style="background:var(--overlay-active)">active 10%</span>
+        <span class="pw-btn" style="background:var(--overlay-selected);color:var(--accent-text)">selected</span>
+        <span class="pw-btn primary">primary</span>
+        <span class="pw-btn danger">danger ghost</span>
+        <span class="pw-btn" style="outline:1.5px solid var(--accent);outline-offset:1px">focus ring</span>
+      </div>
+      <div class="pw-sec-title" style="margin-top:var(--s4)">四态实感 · <b>鼠标移上去 / 按住 / Tab 进来</b> 试<span class="grow"></span></div>
+      <div class="pw-wrap pw-live-states">
+        <button type="button" class="pw-btn">移上来</button>
+        <button type="button" class="pw-btn">按住我</button>
+        <button type="button" class="pw-btn primary">主按钮</button>
+        <button type="button" class="pw-btn danger">危险 ghost</button>
+        <span class="pw-muted" style="font-size:var(--text-meta)">悬浮与按下 120ms；<b>按下 0ms 立即换色、焦点环 0ms</b></span>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">图标 · kbd · 动效<span class="grow"></span></div>
+      <div class="pw-inline" style="gap:var(--s3);margin-bottom:var(--s3)">
+        <span class="pw-ico" style="color:var(--n-text)"><i data-ico="search"></i></span>
+        <span class="pw-ico" style="color:var(--n-text)"><i data-ico="file-text"></i></span>
+        <span class="pw-ico" style="color:var(--n-text)"><i data-ico="terminal" data-size="14"></i></span>
+        <span class="pw-ico" style="color:var(--n-text)"><i data-ico="git-branch"></i></span>
+        <span class="pw-mono pw-dim">icon 16 / 工具栏 14 · stroke 1.5 · lucide</span>
+      </div>
+      <div class="pw-inline" style="margin-bottom:var(--s3)">
+        <span class="pw-kbd">Alt-Shift-A</span>
+        <span class="pw-kbd">Ctrl-K</span>
+        <span class="pw-mono pw-dim">kbd · mono 11 · radius 3</span>
+      </div>
+      <div class="pw-mono" style="color:var(--n-muted);line-height:1.8">
+        <div>--ease cubic-bezier(.215,.61,.355,1) · 全系统唯一曲线</div>
+        <div>--motion-fast 120ms · hover / 颜色 / 等待期减弱</div>
+        <div>--motion-base 160ms · 展开折叠 / 弹层出现 / 行入场</div>
+        <div>--motion-transition 200ms · 整块替换</div>
+        <div>--motion-layout 240ms · <b>只用于布局尺寸</b>（侧栏折叠 / 面板宽度）</div>
+        <div>--motion-sweep 1400ms · 侧栏扫掠线（linear · 无限）</div>
+        <div>--motion-rise 8px · 整块替换上移</div>
+        <div>--motion-stream 4px · 流式内容入场上移</div>
+        <div>--motion-pop 4px · 弹层位移</div>
+        <div>--motion-sheet 14px · 移动端抽屉上滑</div>
+        <div>--motion-stagger 40ms · 成组错开 ≤ 3</div>
+        <div>--opacity-pending 0.5 · 等待期减弱</div>
+      </div>
+      <div class="pw-alert info" style="margin-top:var(--s3)">
+        <span class="pw-ico"><i data-ico="play" data-size="14"></i></span>
+        <span class="pw-grow">本页只登记值。<b>全部十七项动效的可播放演示在画板 <span class="pw-mono">05-motion.html</span></b>——想确认某个动效长什么样，去那里看，不要凭这段文字想象。</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ 图标总览 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>图标总览</b> · 全部取自 lucide（<span class="pw-mono">lucide-static v1.48.0</span>）· 225 个已注册在 <span class="pw-mono">assets/icons.js</span> · 用法 <span class="pw-mono">&lt;i data-ico="search"&gt;&lt;/i&gt;</span> · 禁用 emoji</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-icons" id="icon-gallery"></div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>色相只有 5 个</b>：强调 <code>#5566d8</code> + error / warning / success / info。其余全是 10 级中性色阶，层次靠明度不靠色相。</li>
+    <li><b>圆角封顶 6</b>：3 给芯片与 kbd，4 给按钮与输入，6 给卡片与弹层。不存在 8 以上的圆角与胶囊按钮（开关轨道除外）。</li>
+    <li><b>字阶只留 5 档</b>：11 / 12 / 13 / 15 / 20，字重只用 400 与 500。数字一律等宽对齐。</li>
+    <li><b>按钮默认无边框无填充</b>，悬浮才出现 6% 深色容器，按下 10%；主按钮是唯一的强调色填充例外。</li>
+    <li><b>图标统一 lucide</b>：16px 网格、1.5 描边、内联 SVG。全项目不出现一个 emoji。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+<script>
+  // 图标总览：把 icons.js 里注册的全部图标铺出来
+  (function () {
+    var host = document.getElementById("icon-gallery");
+    if (!host || !window.Icons) return;
+    var names = Object.keys(window.Icons.paths);
+    var frag = document.createDocumentFragment();
+    names.forEach(function (n) {
+      var cell = document.createElement("div");
+      cell.className = "pw-icon-cell";
+      var ico = document.createElement("span");
+      ico.className = "pw-ico";
+      ico.innerHTML = window.Icons.svg(n, 16, 1.5);
+      var label = document.createElement("span");
+      label.textContent = n;
+      cell.appendChild(ico);
+      cell.appendChild(label);
+      frag.appendChild(cell);
+    });
+    host.appendChild(frag);
+  })();
+</script>
+</body>
+</html>

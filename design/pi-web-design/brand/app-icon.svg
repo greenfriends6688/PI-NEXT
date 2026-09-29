@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Pi Web 应用标记（单色版，按 token 取色）
+  几何：π 的两条竖腿 + 一条横杠，24 视口，描边 2，圆头。
+  底板用 Neutral.canvas，笔画用 Neutral.strong，强调点用 Accent。
+  这不是产品资源，是设计稿里的标记来源；产品侧见 public/pi-agent-logo.svg。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Pi Web">
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="#FBFBFC" stroke="#E2E2E7" stroke-width="2"/>
+  <g fill="none" stroke="#1E1E26" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M38 48 H90"/>
+    <path d="M52 48 V92"/>
+    <path d="M76 48 V92"/>
+  </g>
+  <circle cx="90" cy="48" r="7" fill="#5566D8"/>
+</svg>

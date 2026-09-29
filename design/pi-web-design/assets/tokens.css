@@ -1,0 +1,200 @@
+/* ===========================================================================
+ * Pi Web 设计画板 · Token 表（唯一样式来源）
+ *
+ * 只服务 design/pi-web-design/*.html 的静态画板；不进打包、不被组件 import。
+ * 规则：画板里出现的任何颜色、字号、间距、圆角、时长都必须能在本文件找到。
+ *       本文件之外的数值一律视为错。
+ *
+ * 风格系统（借鉴 AcpAgentClient 的克制路线）：
+ *   Notion 的克制与纸感 + Zed 的单一色系与密度 + 小圆角 + 无边框按钮。
+ *   · 中性色阶只有一条，10 级，同一个轻微色相偏移（向强调色偏，饱和度 ≤ .02）
+ *   · 强调色只有一个：低饱和蓝紫 #5566d8
+ *   · 语义色四个：error / warning / success / info
+ *   · 全套出现的色相不超过 5 个（强调 + 4 语义），其余全是中性
+ *   · 圆角三档 3 / 4 / 6（上限 6，pill 只给开关轨道与全圆徽章）
+ *   · 字阶五档 11 / 12 / 13 / 15 / 20；字重只用 400 / 500
+ *   · 动效：三档时长 + 一档布局时长 + 一条曲线；循环只给 spinner / 呼吸 / 扫掠
+ *     120ms / 160ms / 200ms / 240ms（布局）· ease · 不弹跳
+ *   · 图标一律 lucide，16px（工具栏 14），stroke 1.5；禁止 emoji
+ * ======================================================================== */
+
+:root {
+  /* ---- 1. 中性色阶（浅色）------------------------------------------------- */
+  --n-canvas:         #fbfbfc;   /* 页面底色（三级表面第一级） */
+  --n-panel:          #f4f4f6;   /* 面板：侧栏 / 右栏 / 输入框 */
+  --n-surface:        #eeeef1;   /* 芯片 / 次级块 / kbd 底 */
+  --n-hover:          #e7e7eb;   /* 悬浮实色（弹层行 hover） */
+  --n-border-subtle:  #e2e2e7;   /* 发丝分隔线（一级） */
+  --n-border:         #d3d3da;   /* 边框（二级，控件轮廓） */
+  --n-placeholder:    #8b8b96;   /* 占位符 / 图标弱化 */
+  --n-muted:          #62626e;   /* 次要文字 */
+  --n-text:           #33333d;   /* 正文 */
+  --n-strong:         #1e1e26;   /* 标题 / 强调前景 */
+
+  /* 叠色（按钮 hover / active：比所在表面更深的中性容器） */
+  --overlay-hover:    rgba(30, 30, 38, 0.06);
+  --overlay-active:   rgba(30, 30, 38, 0.10);
+  --overlay-selected: rgba(30, 30, 38, 0.10);
+
+  /* ---- 2. 三级表面 ------------------------------------------------------- */
+  --surface-canvas:   var(--n-canvas);
+  --surface-panel:    var(--n-panel);
+  --surface-popover:  #ffffff;
+
+  /* ---- 3. 强调色（唯一）-------------------------------------------------- */
+  --accent:           #5566d8;   /* 主按钮填充 / 焦点环 / spinner */
+  --accent-active:    #3d4cb5;   /* hover / active（统一用这一档） */
+  --accent-soft:      #ecedfa;   /* 淡底（选中块 / 徽章底） */
+  --accent-text:      #4a59c9;   /* 链接 / 选中态文字与图标 */
+  --accent-on:        #ffffff;   /* 强调底上的前景 */
+  --accent-border-on: rgba(255, 255, 255, 0.45);
+
+  /* ---- 4. 语义色（4）----------------------------------------------------- */
+  --error:            #bc4e39;
+  --error-soft:       #fbeeea;
+  --warning:          #8a6f12;
+  --warning-soft:     #f7f2e2;
+  --success:          #477f40;
+  --success-soft:     #ecf3ea;
+  --info:             #5566d8;
+  --info-soft:        #ecedfa;
+
+  /* ---- 5. 派生（不新增色相，只做语义映射）-------------------------------- */
+  --diff-added:       var(--success);
+  --diff-added-bg:    var(--success-soft);
+  --diff-removed:     var(--error);
+  --diff-removed-bg:  var(--error-soft);
+  --focus-ring:       var(--accent);
+  --scrim:            rgba(20, 20, 26, 0.32);
+
+  /* 终端 / 代码 ANSI（取自中性阶 + 4 语义，不引入新色相） */
+  --ansi-black:   var(--n-strong);
+  --ansi-red:     var(--error);
+  --ansi-green:   var(--success);
+  --ansi-yellow:  var(--warning);
+  --ansi-blue:    var(--accent);
+  --ansi-magenta: #8a4f8f;
+  --ansi-cyan:    #2f7d86;
+  --ansi-white:   var(--n-text);
+  --ansi-bright:  var(--n-strong);
+
+  /* ---- 6. 阴影（唯一一种，只给弹层）-------------------------------------- */
+  --shadow-popover: 0 4px 12px rgba(28, 28, 35, 0.10);
+  --shadow-modal:   0 12px 32px rgba(28, 28, 35, 0.16), 0 2px 8px rgba(28, 28, 35, 0.06);
+
+  /* ---- 7. 圆角（三档 + pill 例外）---------------------------------------- */
+  --radius-3: 3px;   /* 芯片 / kbd */
+  --radius-4: 4px;   /* 按钮 / 输入框 / 菜单项 */
+  --radius-6: 6px;   /* 卡片 / 弹层 / 面板 */
+  --radius-pill: 999px;
+
+  /* ---- 8. 间距（4px 网格）----------------------------------------------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --space-chip: 1px 5px;     /* 徽章内边距（唯一非 4px 网格例外） */
+  --space-kbd: 0 4px;
+
+  /* ---- 9. 字阶（5 档）· 字重 400 / 500 ---------------------------------- */
+  --font-ui: "Geist", "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-display: 20px;   /* 空态大字 */
+  --text-title:   15px;   /* 标题 */
+  --text-body:    13px;   /* 正文与控件基准 */
+  --text-secondary: 12px; /* 次要说明 */
+  --text-meta:    11px;   /* 元信息 */
+  --text-mono:    12.5px; /* 等宽（代码 / 数字） */
+
+  --lh-body: 1.5;
+  --lh-control: 1.35;
+
+  /* ---- 10. 控件高度 ----------------------------------------------------- */
+  --control-xs: 24px;   /* 紧凑：芯片 / 行内按钮 */
+  --control-sm: 28px;   /* 标准：工具栏 / 输入框内控件 */
+  --control-md: 32px;   /* 主输入区 */
+  --control-lg: 36px;
+
+  /* ---- 11. 布局刻度 ----------------------------------------------------- */
+  --sidebar-width: 280px;
+  --sidebar-min: 220px;
+  --sidebar-max: 480px;
+  --rail-width: 52px;
+  --panel-width: 420px;
+  --topbar-height: 36px;
+  --chat-max: 800px;
+  --composer-max: 800px;
+  --row-height: 48px;
+  --tree-row: 24px;
+
+  /* ---- 12. 动效 --------------------------------------------------------- */
+  /* 三档内容时长 + 一档布局时长 + 一条曲线。全系统只有这两个例外用 linear：
+     侧栏扫掠线（表达「匀速、还在跑」）与 spinner（匀速圆周）。 */
+  --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --motion-fast: 120ms;       /* hover / 颜色 / 等待期减弱 */
+  --motion-base: 160ms;       /* 展开折叠 / 弹层出现 / 列表行入场 */
+  --motion-transition: 200ms; /* 整块替换（切会话 / 切标签） */
+  --motion-layout: 240ms;     /* 布局尺寸：侧栏折叠 / 面板宽度 —— 唯一允许 >200ms 的一类 */
+  --motion-sweep: 1400ms;     /* 侧栏运行中的扫掠亮点线周期（linear，无限） */
+  --motion-spin: 900ms;       /* spinner 匀速圆周周期（linear，无限） */
+  --motion-rise: 8px;         /* 整块替换上移 */
+  --motion-stream: 4px;       /* 流式内容入场上移 */
+  --motion-pop: 4px;          /* 弹层位移 */
+  --motion-sheet: 14px;       /* 移动端抽屉上滑位移 */
+  --motion-stagger: 40ms;     /* 成组错开（≤ 3） */
+  --opacity-pending: 0.5;     /* 等待期减弱 */
+
+  /* ---- 13. 图标 --------------------------------------------------------- */
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-stroke: 1.5;
+}
+
+/* ===========================================================================
+ * 深色对位表 —— 一个浅色 token 名对应且只对应一个深色值，无深色专有 token。
+ * 只备深色整屏用；本套画板默认只出浅色。
+ * ======================================================================== */
+:root.dark {
+  --n-canvas:         #17171c;
+  --n-panel:          #1d1d23;
+  --n-surface:        #24242b;
+  --n-hover:          #2c2c34;
+  --n-border-subtle:  #303039;
+  --n-border:         #43434e;
+  --n-placeholder:    #7e7e8a;
+  --n-muted:          #9b9ba6;
+  --n-text:           #d5d5dc;
+  --n-strong:         #f0f0f4;
+
+  --overlay-hover:    rgba(240, 240, 244, 0.06);
+  --overlay-active:   rgba(240, 240, 244, 0.10);
+  --overlay-selected: rgba(240, 240, 244, 0.10);
+
+  --surface-popover:  #24242b;
+
+  --accent:           #7b89e6;
+  --accent-active:    #8b96ec;
+  --accent-soft:      #26263a;
+  --accent-text:      #8b96ec;
+  --accent-on:        #17171c;
+  --accent-border-on: rgba(23, 23, 28, 0.45);
+
+  --error:            #d97b66;
+  --error-soft:       #33231f;
+  --warning:          #c9a63c;
+  --warning-soft:     #2f2a1c;
+  --success:          #74ab68;
+  --success-soft:     #1f2a1d;
+  --info:             #7b89e6;
+  --info-soft:        #26263a;
+
+  --ansi-magenta: #b98ac0;
+  --ansi-cyan:    #6cb2bb;
+
+  --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.42);
+  --shadow-modal:   0 12px 32px rgba(0, 0, 0, 0.52), 0 2px 8px rgba(0, 0, 0, 0.36);
+  --scrim:          rgba(0, 0, 0, 0.52);
+}

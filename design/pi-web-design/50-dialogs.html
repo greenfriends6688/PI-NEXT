@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>50 · 对话框 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>50 · 对话框</h1>
+  <p>壳之外的模态框：项目信任、目录选择、扩展请求（四种）、二次确认、壳级通知条。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：全局</span>
+    <span class="pw-tag">组件：ProjectTrustDialog / DirectoryPicker / 扩展请求对话框 / ContextMenu</span>
+    <span class="pw-tag accent">状态合集</span>
+  </div>
+  <div class="pw-alert info" style="margin-top:var(--s3);max-width:900px">
+    <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+    <span class="pw-grow"><b>本产品没有登录。</b>旧版本画板里画过一屏登录页（三态）——那是照 <code class="pw-mono">PI_WEB_PASSWORD</code> 这个可选部署开关画的，不是主流程。
+    用户裁定去掉：本产品一律无需登录，本画板不再出现登录页，设置里也不再有「退出登录」。</span>
+  </div>
+</header>
+
+
+<!-- 项目信任 + 目录选择 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>项目信任 · 目录选择器</b> · 信任三态（确认 / 信任中 / 失败）；目录选择两态：<b>系统原生对话框（主路径）</b> / 自绘浏览器（回退）</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-mono pw-dim">A · 项目信任（首次打开一个目录）</div>
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--warning)"><i data-ico="shield-question" data-size="16"></i></span>
+          信任这个项目？
+        </div>
+        <div class="pw-modal-body">
+          <p style="margin:0">Pi Agent 会在这个目录里读写文件、执行命令。只有你信任的目录才应该放行。</p>
+          <div class="pw-inline" style="padding:var(--s2);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-panel)">
+            <span class="pw-ico pw-dim"><i data-ico="folder" data-size="14"></i></span>
+            <span class="pw-mono" style="font-size:var(--text-meta)">/Users/yingjing/Desktop/pi-codex</span>
+          </div>
+          <div class="pw-field"><span class="pw-label">记住这个选择</span><span class="pw-switch on"><i></i></span></div>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn danger">不信任</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn primary">信任并继续</span>
+        </div>
+      </div>
+
+      <div class="pw-mono pw-dim">B · 信任中 / 失败</div>
+      <div class="pw-inline" style="gap:var(--s3)">
+        <div class="pw-modal" style="width:280px">
+          <div class="pw-modal-head"><span class="pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="16"></i></span>信任中…</div>
+          <div class="pw-modal-body"><p style="margin:0;color:var(--n-muted)">正在写入项目信任记录。</p></div>
+        </div>
+        <div class="pw-modal" style="width:280px">
+          <div class="pw-modal-head"><span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="16"></i></span>写入失败</div>
+          <div class="pw-modal-body">
+            <p style="margin:0;color:var(--n-muted)"><span class="pw-mono" style="font-size:var(--text-meta)">EACCES: permission denied</span></p>
+            <div class="pw-inline" style="justify-content:flex-end"><span class="pw-btn outline sm">重试</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-mono pw-dim">C · 目录选择 · 主路径：<b>交给系统</b></div>
+      <div class="pw-alert info">
+        <span class="pw-ico"><i data-ico="monitor" data-size="14"></i></span>
+        <span class="pw-grow"><b>本机跑的时候根本不弹窗。</b>点「选择目录」直接拉起操作系统的文件夹选框（macOS 的 <code class="pw-mono">choose folder</code>、Windows 的 <code class="pw-mono">FolderBrowserDialog</code>、Linux 的 <code class="pw-mono">zenity</code> / <code class="pw-mono">kdialog</code>）。
+        <b>不画系统对话框本身</b>——那是操作系统的东西，不归我们设计。</span>
+      </div>
+      <div class="pw-cell">
+        <h4>决策链（固定这个顺序）</h4>
+        <table class="pw-table" style="margin-top:var(--s2)">
+          <thead><tr><th class="num">步</th><th>做什么</th><th>结果</th></tr></thead>
+          <tbody>
+            <tr><td class="num pw-mono">1</td><td class="pw-mono">POST /api/cwd/pick</td><td>系统原生选框</td></tr>
+            <tr><td class="num pw-mono">2</td><td>返回 <code class="pw-mono">cwd</code></td><td>直接采用，<b>不弹任何自家 UI</b></td></tr>
+            <tr><td class="num pw-mono">3</td><td>返回 <code class="pw-mono">cancelled</code></td><td>什么也不做（用户自己取消的）</td></tr>
+            <tr><td class="num pw-mono">4</td><td>返回 <code class="pw-mono">501 fallback</code> 或请求失败（远程访问 / 无显示器 / 无 zenity）</td><td>退到自绘浏览器（D 组）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pw-mono pw-dim">C2 · 系统选框回来之后</div>
+      <div class="pw-inline" style="padding:var(--s2);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas)">
+        <span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span>
+        <span class="pw-mono" style="font-size:var(--text-meta)">/Users/yingjing/Desktop/pi-codex</span>
+        <span class="pw-grow"></span>
+        <span class="pw-badge ok">已选定</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">D · 目录选择 · 回退：自绘浏览器（浏览器里、或系统选框不可用时）</div>
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico"><i data-ico="folder-open" data-size="16"></i></span>
+          选择目录
+          <span class="pw-grow"></span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="arrow-up" data-size="13"></i></span>上一级</span>
+          <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+        </div>
+        <div class="pw-modal-body" style="gap:var(--s2)">
+          <div class="pw-inline" style="border:1px solid var(--n-border);border-radius:var(--radius-4);padding:0 var(--s2);height:28px;background:var(--surface-panel)">
+            <span class="pw-ico pw-dim"><i data-ico="folder" data-size="13"></i></span>
+            <span class="pw-mono" style="font-size:var(--text-meta);flex:1">/Users/yingjing/Desktop/pi-codex</span>
+          </div>
+          <div class="pw-list">
+            <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">app</span></span></div>
+            <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">components</span></span></div>
+            <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">design</span></span></div>
+            <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">lib</span></span></div>
+            <div class="pw-litem" style="opacity:.55"><span class="pw-ico pw-dim"><i data-ico="lock" data-size="14"></i></span><span class="grow"><span class="pw-lname">node_modules</span></span><span class="pw-badge">无权限</span></div>
+            <div class="pw-litem"><span class="pw-ico"><i data-ico="hard-drive" data-size="14"></i></span><span class="grow"><span class="pw-lname">Macintosh HD</span></span><span class="pw-desc">卷</span></div>
+          </div>
+          <div class="pw-inline">
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="folder-plus" data-size="13"></i></span>新建文件夹</span>
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>重命名</span>
+            <span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>删除</span>
+            <span class="pw-grow"></span>
+            <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">双击进入</span>
+          </div>
+          <div class="pw-alert info"><span class="pw-ico"><i data-ico="info" data-size="14"></i></span><span class="grow">删除文件夹会先弹一次确认，且只删除空目录。<b>这一屏只在系统选框不可用时出现</b>（浏览器直连、无显示器的服务器、缺 zenity 的 Linux）。</span></div>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn">取消</span>
+          <span class="pw-btn primary">用这个目录</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 扩展请求对话框 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>扩展请求对话框</b> · 四种：选择 / 确认 / 输入 / 编辑器 · 带倒计时条 · 对应参考项目的 elicitation 卡</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-modal" style="width:100%">
+      <div class="pw-modal-head">
+        <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="16"></i></span>
+        来自扩展的请求 · 选择
+        <span class="pw-grow"></span>
+        <span class="pw-badge count">12s</span>
+      </div>
+      <div style="height:3px;background:var(--n-surface)"><div style="height:3px;width:62%;background:var(--accent)"></div></div>
+      <div class="pw-modal-body">
+        <p style="margin:0">要发布到哪个环境？</p>
+        <div class="pw-list">
+          <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="circle-dot" data-size="14"></i></span><span class="grow"><span class="pw-lname">staging</span><span class="pw-lsub">预发环境，可回滚</span></span><span class="pw-badge accent">推荐</span></div>
+          <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="circle" data-size="14"></i></span><span class="grow"><span class="pw-lname">production</span><span class="pw-lsub">正式环境，需二次确认</span></span></div>
+        </div>
+      </div>
+      <div class="pw-modal-foot">
+        <span class="pw-btn">取消</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn primary">提交</span>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="16"></i></span>
+          确认
+          <span class="pw-grow"></span>
+          <span class="pw-badge count">8s</span>
+        </div>
+        <div class="pw-modal-body">
+          <p style="margin:0">这次会重写 <span class="pw-mono">docs/codex-skin/delta.md</span> 的「版本与分支表」一节，覆盖你手写的两行。继续吗？</p>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn">否</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn primary">是</span>
+        </div>
+      </div>
+
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="16"></i></span>
+          输入
+        </div>
+        <div class="pw-modal-body">
+          <p style="margin:0">给这个新皮肤起个名字：</p>
+          <input class="pw-input" style="width:100%;min-width:0" placeholder="例如：纸感">
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn">取消</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn primary">确定</span>
+        </div>
+      </div>
+
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="16"></i></span>
+          编辑器 · 已响应（只读回显）
+        </div>
+        <div class="pw-modal-body">
+          <div class="pw-code-body" style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:var(--s2);background:var(--surface-panel);font-size:var(--text-meta)">## 必须记住的两个硬约束
+
+1. `--primary-bg` / `--primary-fg` 是本 fork 自造的 token，上游没有。
+2. `app/globals.css` 里每个主题选择器必须恰好出现 1 次。</div>
+          <div class="pw-inline" style="justify-content:flex-end"><span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>已提交 · 2 分钟前</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 二次确认 + 通知条 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>二次确认 · 通知条</b> · 通用确认框（含危险动作）；壳级通知条三色</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-inline" style="gap:var(--s4);align-items:flex-start">
+      <div class="pw-modal" style="width:340px">
+        <div class="pw-modal-head">
+          <span class="pw-ico"><i data-ico="circle-help" data-size="16"></i></span>
+          放弃未保存的编辑？
+        </div>
+        <div class="pw-modal-body">
+          <p style="margin:0">「design/README.md」有 3 处未保存的改动，关闭后不会保留。</p>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn">取消</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn outline">保存并关闭</span>
+          <span class="pw-btn danger">放弃</span>
+        </div>
+      </div>
+
+      <div class="pw-modal" style="width:340px">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--error)"><i data-ico="triangle-alert" data-size="16"></i></span>
+          彻底删除这条会话？
+        </div>
+        <div class="pw-modal-body">
+          <p style="margin:0">「早期的皮肤试验」的会话文件会被移除，无法恢复。</p>
+          <div class="pw-alert" style="background:var(--error-soft);color:var(--error)">
+            <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+            <span class="grow">按住 Shift 可直接跳过这一步。</span>
+          </div>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn">取消</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn primary" style="background:var(--error)">彻底删除</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-rowgap">
+      <div class="pw-toast bad"><span class="pw-ico"><i data-ico="circle-alert" data-size="16"></i></span><span class="grow">新建会话失败：agent 未在 30 秒内初始化</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span></div>
+      <div class="pw-toast warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="16"></i></span><span class="grow">附件超过 20 MB，已跳过 screenshot-4k.png</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span></div>
+      <div class="pw-toast ok"><span class="pw-ico"><i data-ico="circle-check" data-size="16"></i></span><span class="grow">插件 @pi/plugin-figma 已更新到 v0.9.3</span><span class="pw-btn sm">重载会话</span><span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span></div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>本产品没有登录</b>：登录页已从本画板删除（用户裁定，2026-09-28）。不弹登录框、不做会话令牌、不做「退出登录」设置项。</li>
+    <li><b>目录选择的主路径是系统原生选框，不是自绘浏览器</b>：点「选择目录」直接交给操作系统（<code>/api/cwd/pick</code>）。
+      系统选框不可用（浏览器直连 / 无显示器 / 缺 zenity）才退到自绘浏览器；用户自己取消就什么也不做，不弹二次确认。
+      <b>系统对话框本身不画</b>——那是操作系统的东西。</li>
+    <li><b>项目信任必须解释清楚</b>：正文写明「会读写文件、执行命令」，并给「记住这个选择」开关；不信任是 danger ghost 而不是红色填充。</li>
+    <li><b>目录选择器的危险动作只删空目录</b>，并把这一条写在提示里；无权限的目录整行弱化 + 「无权限」徽章。</li>
+    <li><b>扩展请求对话框带倒计时条</b>（3px，强调色填充），倒计时数字在标题右端。四种类型共用同一个壳，只换正文区。</li>
+    <li><b>已响应的扩展请求收成只读回显</b>，不再给按钮，只留「已提交 · 时间」。</li>
+    <li><b>危险确认用 error 填充的主按钮</b>（这是唯一允许红色填充的地方，因为动作本身不可逆），普通确认用 ghost 的 danger 文字。</li>
+    <li><b>通知条三色 + 一个可选动作</b>（如「重载会话」），最多 3 条、6 秒自收、鼠标停着不收。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

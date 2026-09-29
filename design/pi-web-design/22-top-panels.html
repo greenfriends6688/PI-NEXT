@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>22 · 顶栏下拉 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>22 · 顶栏下拉</h1>
+  <p>顶栏六个图标按钮各自的下拉：系统提示词、工具定义、子代理切换、最近会话、分支导航，以及会话内查找条。这些是「看一眼就跑」的信息型弹层，不是操作型菜单。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：会话工作台</span>
+    <span class="pw-tag">组件：SystemPromptPanel / ToolDefinitionsPanel / AgentSessionPanel / BranchNavigator / ConversationFindBar</span>
+    <span class="pw-tag accent">弹层合集</span>
+  </div>
+</header>
+
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>顶栏下拉合集</b> · 全部从顶栏图标按钮挂出 · 圆角 6 · 唯一一种阴影<span class="grow"></span>1200 × 800</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-stage">
+
+      <!-- 子代理切换 -->
+      <div class="pw-stage-cell">
+        <div class="cap">子代理切换 · 主代理 + 子代理 · 六种状态</div>
+        <div class="pw-pop">
+          <div class="pw-pop-title">这条会话的代理</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="bot" data-size="14"></i></span><span class="grow">主代理</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">子代理 · 3 个在跑</div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="loader-circle" data-size="14"></i></span><span class="grow">Explore · 梳理参考项目</span><span class="pw-desc">运行中</span></div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--warning)"><i data-ico="clock" data-size="14"></i></span><span class="grow">Explore · 核对画板覆盖</span><span class="pw-desc">排队中</span></div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="check" data-size="14"></i></span><span class="grow">Explore · 读 docs</span><span class="pw-desc">已完成 12s</span></div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="14"></i></span><span class="grow">Explore · 跑 e2e</span><span class="pw-desc">失败</span></div>
+          <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="circle-stop" data-size="14"></i></span><span class="grow">Explore · 全量 tsc</span><span class="pw-desc">已中止</span></div>
+          <div class="pw-prow"><span class="pw-ico pw-dim"><i data-ico="ban" data-size="14"></i></span><span class="grow">Explore · 生成 changelog</span><span class="pw-desc">已中断</span></div>
+        </div>
+      </div>
+
+      <!-- 系统提示词 -->
+      <div class="pw-stage-cell">
+        <div class="cap">系统提示词 · 只读查看，等宽、可滚动</div>
+        <div class="pw-pop" style="width:100%">
+          <div class="pw-inline" style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)">
+            <span class="pw-ico"><i data-ico="book-marked" data-size="14"></i></span>
+            <b style="font-weight:500;font-size:var(--text-secondary)">系统提示词</b>
+            <span class="pw-badge count">4,182 tok</span>
+            <span class="grow"></span>
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+          </div>
+          <div class="pw-code-body" style="max-height:230px;overflow:hidden;font-size:var(--text-meta);line-height:1.75">You are Pi Agent, a coding agent that runs
+inside the user's project.
+
+<span class="pw-tok-com">## Environment</span>
+- cwd: /Users/yingjing/Desktop/pi-codex
+- shell: /bin/zsh
+- platform: darwin
+
+<span class="pw-tok-com">## Conventions</span>
+- Prefer absolute paths.
+- Run tsc in the background; it takes ~10 min.
+- Never skip git hooks.</div>
+          <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)"><span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span><span>来自 agent 的 initialize 响应 · 只读</span></div>
+        </div>
+      </div>
+
+      <!-- 最近会话 -->
+      <div class="pw-stage-cell">
+        <div class="cap">最近会话 · 10 条 + 当前标记 + 新建</div>
+        <div class="pw-pop">
+          <div class="pw-pop-title">最近会话</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span><span class="grow">排查最新 Release 与本地待上传改动</span><span class="pw-desc">当前</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span><span class="grow">窗口切在回合中间时的渲染修复</span><span class="pw-desc">12m</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span><span class="grow">AcpAgentClient 对比与借鉴清单</span><span class="pw-desc">1h</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span><span class="grow">Codex 皮肤 token 台账</span><span class="pw-desc">昨天</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span><span class="grow">标讯详情页正文加载失败</span><span class="pw-desc">3d</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="square-pen" data-size="14"></i></span><span class="grow">新建任务</span><span class="pw-kbd">⌘N</span></div>
+        </div>
+      </div>
+
+      <!-- 分支导航 -->
+      <div class="pw-stage-cell">
+        <div class="cap">分支切换 · 搜索即创建（命中为空时只剩 Create 行）</div>
+        <div class="pw-pop">
+          <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+            <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+            <span style="flex:1;color:var(--n-text)">feat/tokens</span>
+          </div>
+          <div class="pw-prow is-on">
+            <span class="pw-ico"><i data-ico="plus" data-size="14"></i></span>
+            <span class="grow">新建分支 <b style="font-weight:500">feat/tokens</b></span>
+            <span class="pw-desc">从第 11 轮</span>
+          </div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">已有分支 · 3</div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow">main</span><span class="pw-desc">19 条消息</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow">从第 4 轮分叉</span><span class="pw-desc">7 条消息</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow">从第 11 轮分叉</span><span class="pw-desc">3 条消息</span></div>
+        </div>
+        <p class="pw-mono pw-dim">注：搜索命中为空时列表清空，只留「新建分支」一行；有命中时它置顶，其余按名字过滤。</p>
+      </div>
+
+      <!-- 工具定义 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">工具定义 · 左列表 + 右详情（参数表四列）</div>
+        <div class="pw-inline" style="align-items:flex-start;gap:var(--s3)">
+          <div class="pw-pop" style="width:300px">
+            <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle);margin:0 0 var(--s1)">
+              <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+              <span>搜索工具</span>
+            </div>
+            <div class="pw-pop-title">已启用 · 12</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow">read</span><span class="pw-desc">读文件</span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="pencil-line" data-size="14"></i></span><span class="grow">write</span><span class="pw-desc">写文件</span></div>
+            <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span><span class="grow">bash</span><span class="pw-desc">执行命令</span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="file-search" data-size="14"></i></span><span class="grow">grep</span><span class="pw-desc">内容搜索</span></div>
+            <div class="pw-pop-title">未启用 · 6</div>
+            <div class="pw-prow" style="opacity:.5"><span class="pw-ico"><i data-ico="globe" data-size="14"></i></span><span class="grow">fetch</span><span class="pw-desc">抓网页</span></div>
+            <div class="pw-prow" style="opacity:.5"><span class="pw-ico"><i data-ico="bot" data-size="14"></i></span><span class="grow">task</span><span class="pw-desc">子代理</span></div>
+          </div>
+
+          <div class="pw-pop" style="flex:1;padding:var(--s3) var(--s4)">
+            <div class="pw-inline" style="margin-bottom:var(--s2)">
+              <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="terminal" data-size="16"></i></span>
+              <b style="font-weight:500;font-size:var(--text-title);color:var(--n-strong)">bash</b>
+              <span class="pw-badge">执行 shell 命令</span>
+              <span class="grow"></span>
+              <span class="pw-badge ok">已启用</span>
+            </div>
+            <p style="margin:0 0 var(--s3);color:var(--n-muted);font-size:var(--text-secondary)">在项目工作目录下执行一条 shell 命令并返回标准输出与退出码。长输出会被截断。</p>
+            <div class="pw-sec-title">参数<span class="grow"></span></div>
+            <table class="pw-table">
+              <thead><tr><th>参数</th><th>类型</th><th>必需</th><th>允许值 / 默认</th></tr></thead>
+              <tbody>
+                <tr><td class="pw-mono">command</td><td>string</td><td><span class="pw-badge bad">必需</span></td><td class="pw-dim">—</td></tr>
+                <tr><td class="pw-mono">cwd</td><td>string</td><td>可选</td><td class="pw-mono">默认项目根</td></tr>
+                <tr><td class="pw-mono">timeout</td><td>number</td><td>可选</td><td class="pw-mono">60000 ms</td></tr>
+                <tr><td class="pw-mono">background</td><td>boolean</td><td>可选</td><td class="pw-mono">false</td></tr>
+              </tbody>
+            </table>
+            <div class="pw-sec-title" style="margin-top:var(--s3)">使用指南<span class="grow"></span></div>
+            <p style="margin:0;color:var(--n-muted);font-size:var(--text-secondary)">优先用 <code class="pw-mono">rg</code> 而不是 <code class="pw-mono">grep -r</code>；需要长时间运行的命令加 <code class="pw-mono">background</code>。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 查找条 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">会话内查找条 · 悬浮在转录右上；有结果 / 无结果</div>
+        <div class="pw-inline" style="gap:var(--s3);align-items:flex-start">
+          <div class="pw-pop" style="width:360px;padding:0">
+            <div class="pw-inline" style="padding:var(--s1) var(--s2)">
+              <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+              <input class="pw-input" style="min-width:0;flex:1;height:24px;border:0;background:transparent" value="resize">
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">3 / 7</span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="chevron-up" data-size="13"></i></span></span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span></span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span>
+            </div>
+          </div>
+          <div class="pw-pop" style="width:360px;padding:0;border-color:var(--warning)">
+            <div class="pw-inline" style="padding:var(--s1) var(--s2)">
+              <span class="pw-ico" style="color:var(--warning)"><i data-ico="search" data-size="14"></i></span>
+              <input class="pw-input" style="min-width:0;flex:1;height:24px;border:0;background:transparent" value="quantum">
+              <span class="pw-mono" style="font-size:var(--text-meta);color:var(--warning)">无结果</span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>顶栏下拉是信息型弹层</b>：内容只读或只做一次跳转，不做复杂表单。唯一的例外是工具定义（带参数表）。</li>
+    <li><b>子代理状态用图标 + 文字双通道</b>：图标给颜色（accent 运行 / warning 排队 / success 完成 / error 失败 / 弱化 中止中断），文字给状态名。六态互斥。</li>
+    <li><b>系统提示词只读</b>：等宽、带行内注释色，页脚写明来源（agent 的 initialize 响应）。不给编辑入口——改提示词属于 agent 配置，在设置里。</li>
+    <li><b>工具定义的参数表四列</b>：参数 / 类型 / 必需 / 允许值或默认值。「必需」用 error 徽章，其余用中性文字。</li>
+    <li><b>查找条悬浮在转录右上</b>，不占布局；有结果给 <code>3 / 7</code>，无结果整条转 warning 色。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

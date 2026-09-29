@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>42 · 设置 · 子代理 / 技能 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>42 · 设置 · 子代理 / 技能</h1>
+  <p>两个「按作用域分组」的分节：子代理（内置开关 + 并发 + 完整编辑器）与技能（作用域列表 + SKILL.md 编辑 + 市场安装）。两者共用同一套「列表 + 详情」骨架。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：AgentsConfig / SkillsConfig / SettingsUi</span>
+    <span class="pw-tag accent">1440 × 900 × 2</span>
+  </div>
+</header>
+
+<!-- 子代理 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>子代理</b> · 内置开关 + 并发上限 + 作用域分组 + 编辑器<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <h2>子代理</h2>
+          <p class="sub">内置子代理的开关与并发，以及项目 / 全局 / 工作区三档作用域下的自定义子代理。</p>
+
+          <div class="pw-block" style="margin-top:0">
+            <h3><span class="pw-ico"><i data-ico="toggle-right" data-size="14"></i></span>内置子代理</h3>
+            <div class="pw-field">
+              <span class="pw-label">启用内置子代理<small>Explore / Plan 等随包提供的子代理</small></span>
+              <span class="pw-switch on"><i></i></span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">并发上限</span>
+              <span class="pw-ctl"><span class="pw-selectbox" style="min-width:90px">4<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label"></span>
+              <span class="pw-ctl"><span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>改动需要重载会话才生效</span></span>
+            </div>
+          </div>
+
+          <div class="pw-cols">
+            <div>
+              <div class="pw-inline" style="margin-bottom:var(--s2)">
+                <input class="pw-input" style="flex:1;min-width:0;height:28px" placeholder="搜索子代理">
+                <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></span>
+              </div>
+              <div class="pw-list">
+                <div class="pw-group-title" style="padding-top:0">项目 · pi-codex</div>
+                <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="bot" data-size="14"></i></span><span class="grow"><span class="pw-lname">reviewer</span><span class="pw-lsub">代码评审</span></span><span class="pw-switch on" style="transform:scale(.8)"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="bot" data-size="14"></i></span><span class="grow"><span class="pw-lname">migrator</span><span class="pw-lsub">批量重构</span></span><span class="pw-switch on" style="transform:scale(.8)"><i></i></span></div>
+                <div class="pw-group-title">全局</div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="bot" data-size="14"></i></span><span class="grow"><span class="pw-lname">changelog</span><span class="pw-lsub">生成变更日志</span></span><span class="pw-switch" style="transform:scale(.8)"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="bot" data-size="14"></i></span><span class="grow"><span class="pw-lname">explore</span><span class="pw-lsub">被项目同名项覆盖</span></span><span class="pw-badge">被覆盖</span></div>
+                <div class="pw-group-title">内置</div>
+                <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="bot" data-size="14"></i></span><span class="grow"><span class="pw-lname">Explore</span><span class="pw-lsub">只读探索</span></span><span class="pw-badge ok">启用</span></div>
+                <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="bot" data-size="14"></i></span><span class="grow"><span class="pw-lname">Plan</span><span class="pw-lsub">方案设计</span></span><span class="pw-badge ok">启用</span></div>
+              </div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0">reviewer</h3>
+                <span class="pw-badge accent">项目</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+                <span class="pw-btn danger sm"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>删除</span>
+              </div>
+
+              <div class="pw-grid2" style="margin-top:var(--s3);gap:var(--s3)">
+                <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+                  <span class="pw-label">保存作用域</span>
+                  <span class="pw-selectbox" style="width:100%">项目<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+                </div>
+                <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+                  <span class="pw-label">ID</span>
+                  <input class="pw-input" style="width:100%;min-width:0" value="reviewer">
+                </div>
+                <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+                  <span class="pw-label">显示名</span>
+                  <input class="pw-input" style="width:100%;min-width:0" value="代码评审">
+                </div>
+                <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+                  <span class="pw-label">模型覆盖</span>
+                  <span class="pw-selectbox" style="width:100%">跟随主会话<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+                </div>
+              </div>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">描述<span class="grow"></span></div>
+              <input class="pw-input" style="width:100%;min-width:0" value="审查改动并给出可执行的修改建议">
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">系统指令<span class="grow"></span></div>
+              <textarea class="pw-textarea" style="min-height:110px">你是一个严格的代码评审者。只读不写。
+先看 diff，再按「正确性 → 可维护性 → 一致性」排序给结论。
+每条结论必须带文件路径与行号。</textarea>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">工具与资源<span class="grow"></span></div>
+              <div class="pw-wrap">
+                <span class="pw-chip accent"><span class="pw-ico"><i data-ico="file-text" data-size="12"></i></span>read</span>
+                <span class="pw-chip accent"><span class="pw-ico"><i data-ico="file-search" data-size="12"></i></span>grep</span>
+                <span class="pw-chip accent"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>bash</span>
+                <span class="pw-chip"><span class="pw-ico"><i data-ico="box" data-size="12"></i></span>+ 加载技能</span>
+                <span class="pw-chip"><span class="pw-ico"><i data-ico="blocks" data-size="12"></i></span>+ 加载扩展</span>
+              </div>
+
+              <div class="pw-field" style="margin-top:var(--s3)"><span class="pw-label">继承父会话上下文</span><span class="pw-switch on"><i></i></span></div>
+              <div class="pw-field"><span class="pw-label">后台运行</span><span class="pw-switch on"><i></i></span></div>
+              <div class="pw-field"><span class="pw-label">思考强度</span><span class="pw-selectbox" style="min-width:120px">high<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+              <div class="pw-field"><span class="pw-label">最大轮次</span><span class="pw-ctl"><span class="pw-mono">24</span></span></div>
+              <div class="pw-field"><span class="pw-label">启用</span><span class="pw-switch on"><i></i></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 技能 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>技能</b> · 作用域列表 + SKILL.md 编辑 + 市场安装对话框<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">技能</h2>
+            <span class="pw-badge count">全局 6 · 项目 4 · 路径 1</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
+            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>安装技能</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">技能来自 skills.sh 与 SkillHub 两个市场，也可从本机目录加载。</p>
+
+          <div class="pw-cols">
+            <div class="pw-list">
+              <div class="pw-group-title" style="padding-top:0">项目 · pi-codex</div>
+              <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">zhaobiao-extract</span><span class="pw-lsub">招标结构化抽取</span></span><span class="pw-badge accent">SkillHub</span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">merge-upstream-into-fork</span><span class="pw-lsub">合并上游到 fork</span></span></div>
+              <div class="pw-group-title">全局</div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">pdf</span><span class="pw-lsub">PDF 读写</span></span><span class="pw-switch on" style="transform:scale(.8)"><i></i></span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">raster-poster-editable</span><span class="pw-lsub">海报改可编辑</span></span><span class="pw-badge warn">可更新</span></div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">txw-local-dev</span><span class="pw-lsub">探项本地开发</span></span></div>
+              <div class="pw-group-title">路径</div>
+              <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="folder-cog" data-size="14"></i></span><span class="grow"><span class="pw-lname">~/skills</span><span class="pw-lsub">3 个技能 · 只读</span></span></div>
+            </div>
+
+            <div class="pw-detail">
+              <div class="pw-inline">
+                <h3 style="margin:0">zhaobiao-extract</h3>
+                <span class="pw-badge accent">项目</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>在文件面板打开</span>
+                <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="check" data-size="13"></i></span>检查更新</span>
+              </div>
+              <dl class="pw-kv" style="margin-top:var(--s2)">
+                <dt>来源</dt><dd>SkillHub · 已安装 v1.2.0</dd>
+                <dt>路径</dt><dd class="pw-mono">.workbuddy-ai/skills/zhaobiao-extract</dd>
+                <dt>允许自动调用</dt><dd><span class="pw-switch on" style="transform:scale(.85)"><i></i></span></dd>
+              </dl>
+
+              <div class="pw-sec-title" style="margin-top:var(--s3)">SKILL.md<span class="grow"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">只读来源</span></div>
+              <textarea class="pw-textarea" style="min-height:200px">---
+name: zhaobiao-extract
+description: 把招投标 Excel 逐条抽取 15 个字段…
+agent_created: false
+---
+
+# 招标改 · 批量结构化抽取
+
+## 用法
+1. 读取源表（.xls / .xlsx / .csv）
+2. 逐条抽取字段
+3. 本地确定性后处理
+4. 输出新工作簿</textarea>
+
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>磁盘上的文件在你编辑期间被改过</span>
+                <span class="pw-grow"></span>
+                <span class="pw-btn outline sm">放弃我的修改</span>
+                <span class="pw-btn primary sm">覆盖磁盘</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 市场安装 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>安装技能对话框</b> · 市场切换（skills.sh ↔ SkillHub）+ 搜索 + 结果</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-modal" style="width:640px">
+      <div class="pw-modal-head">
+        <span class="pw-ico"><i data-ico="box" data-size="16"></i></span>
+        安装技能
+        <span class="pw-grow"></span>
+        <span class="pw-ico pw-dim"><i data-ico="x" data-size="14"></i></span>
+      </div>
+      <div class="pw-modal-body">
+        <div class="pw-inline">
+          <span class="pw-radio">
+            <span class="is-on">skills.sh</span>
+            <span>SkillHub</span>
+          </span>
+          <span class="pw-grow"></span>
+          <span class="pw-selectbox" style="min-width:120px">安装到项目<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        </div>
+        <div class="pw-inline" style="border:1px solid var(--n-border);border-radius:var(--radius-4);padding:0 var(--s2);height:28px">
+          <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+          <input class="pw-input" style="flex:1;min-width:0;height:26px;border:0;background:transparent" value="poster">
+          <span class="pw-kbd">Enter</span>
+        </div>
+        <div class="pw-pop" style="width:100%;box-shadow:none;border:0;padding:0">
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><b style="font-weight:500">raster-poster-editable</b><span class="pw-desc" style="display:block">把位图海报改造成可编辑 HTML 生成器</span></span><span class="pw-badge count">1.2k</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><b style="font-weight:500">html-poster-layout</b><span class="pw-desc" style="display:block">海报版面测量与对齐</span></span><span class="pw-badge count">486</span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><b style="font-weight:500">canvas-cover-generator</b><span class="pw-desc" style="display:block">Canvas 覆盖可变字段</span></span><span class="pw-badge count">203</span></div>
+        </div>
+        <div class="pw-alert info"><span class="pw-ico"><i data-ico="info" data-size="14"></i></span><span class="grow">安装会走 <span class="pw-mono">npx skills add</span>，需要网络。</span></div>
+      </div>
+      <div class="pw-modal-foot">
+        <span class="pw-btn">取消</span>
+        <span class="pw-btn primary">安装到项目</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>两个分节共用一套骨架</b>：顶部一行开关组（内置 / 并发）→ 左列表 + 右详情 → 详情底部一组开关。</li>
+    <li><b>作用域用分组标题表达</b>，不用彩色标签：项目 / 全局 / 工作区 / 内置 / 路径。被覆盖的项给一枚中性「被覆盖」徽章，不标红。</li>
+    <li><b>子代理编辑器是两栏字段网格</b>（作用域 / ID / 显示名 / 模型覆盖），下面是长文本区（描述 / 系统指令），再下面是工具与资源芯片。</li>
+    <li><b>工具与资源用芯片表达</b>：已选工具用强调淡底芯片，未选的用「+ 加载技能 / + 加载扩展」入口芯片。</li>
+    <li><b>技能详情里的 SKILL.md 可编辑</b>，磁盘冲突时给「放弃我的修改 / 覆盖磁盘」两个明确动作，不用自动合并。</li>
+    <li><b>市场切换是两个芯片组成的单选组</b>，与「安装到哪」的下拉分列两端。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

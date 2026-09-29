@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>10 · 文本类卡片 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>10 · 文本类卡片</h1>
+  <p>转录区里最常见的六种文本形态：用户消息气泡、助手富文本正文、代码块、GFM 表格、数学公式、Mermaid 图。卡片宽度 800，与转录居中宽度一致。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：转录</span>
+    <span class="pw-tag">组件：MessageView / MarkdownBody / AsyncCodeHighlighter / MermaidBlock</span>
+    <span class="pw-tag accent">宽 800</span>
+  </div>
+</header>
+
+<!-- 用户消息 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>用户消息气泡</b> · 三种状态：默认（含 @ 芯片）/ 悬浮出操作 / 编辑中</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 默认（含 @ 文件芯片与引用上下文）</div>
+    <div style="background:var(--surface-canvas);padding:var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+      <div style="display:flex;justify-content:flex-end">
+        <div class="pw-msg-user">
+          <div>把 <span class="pw-mono" style="background:var(--n-border);border-radius:var(--radius-3);padding:1px 4px;color:var(--accent-text)">@AppShell.tsx</span> 里那段右栏宽度的逻辑抽出来，顺便看看 <span class="pw-mono" style="background:var(--n-border);border-radius:var(--radius-3);padding:1px 4px;color:var(--accent-text)">@useResizablePanel.ts</span></div>
+          <div class="pw-quote">引用了会话「窗口切在回合中间时的渲染修复」的第 4 轮</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 悬浮出操作</div>
+    <div style="background:var(--surface-canvas);padding:var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+      <div style="display:flex;justify-content:flex-end">
+        <div class="pw-msg-user">
+          <div>这段抽出来之后记得把单测补上</div>
+          <div class="pw-msg-acts" style="opacity:1">
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="pencil-line" data-size="13"></i></span>编辑</span>
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>从此处回退</span>
+            <span class="pw-btn sm"><span class="pw-ico"><i data-ico="git-fork" data-size="13"></i></span>新会话分叉</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 编辑中（改文本 → 保存并重新生成：截断后续所有轮，从这条重起）</div>
+    <div style="background:var(--surface-canvas);padding:var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+      <div style="display:flex;justify-content:flex-end">
+        <div class="pw-msg-user" style="border-color:var(--accent);width:520px;max-width:520px">
+          <textarea class="pw-input" style="width:100%;min-width:0;height:58px;border:0;background:transparent;padding:0;resize:none">这段抽出来之后记得把单测补上，覆盖窄屏和宽屏两种情形</textarea>
+          <div class="pw-inline" style="justify-content:flex-end;margin-top:var(--s2)">
+            <span class="pw-btn sm">取消</span>
+            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="check" data-size="13"></i></span>保存并重新生成</span>
+          </div>
+          <div class="pw-alert" style="margin-top:var(--s2);background:var(--warning-soft);color:var(--warning)">
+            <span class="pw-ico"><i data-ico="triangle-alert" data-size="13"></i></span>
+            <span class="grow">保存后会截掉这条之后的 6 轮，从这条重新跑。</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">D · 点击聚焦（点在气泡上，整条描边转强调色）</div>
+    <div style="background:var(--surface-canvas);padding:var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+      <div style="display:flex;justify-content:flex-end">
+        <div class="pw-msg-user" style="border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)">
+          <div>把 <span class="pw-mono" style="background:var(--n-border);border-radius:var(--radius-3);padding:1px 4px;color:var(--accent-text)">@AppShell.tsx</span> 里那段右栏宽度的逻辑抽出来</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 助手正文 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>助手富文本正文</b> · 标题 / 段落 / 有序无序列表 / 任务清单 / 行内代码 / 引用 / 文件链接 / 分割线</div>
+  <div class="pw-frame-body pw-pad">
+    <div style="background:var(--surface-canvas);padding:var(--s3) var(--s4);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+      <div class="pw-md">
+        <h1>右栏宽度逻辑的抽取方案</h1>
+        <p>现在右栏宽度被三处硬编码：<code>AppShell</code> 的初始值、resize 的 clamp、以及窄屏的兜底。<b>建议合成一个 <code>useResizablePanel</code> 的返回值</b>，让三处都读同一个 <code>width</code>。</p>
+
+        <h2>要做的三件事</h2>
+        <ol>
+          <li>把 clamp 的上下界抽成常量，交给 hook 持有</li>
+          <li>窄屏（≤1024）时不再 clamp，直接走抽屉</li>
+          <li>双击分栏把手复位到默认宽度</li>
+        </ol>
+
+        <h2>检查清单</h2>
+        <ul class="pw-tasklist">
+          <li class="done"><span class="box done"><i data-ico="check" data-size="10"></i></span><span>抽出 <code>useResizablePanel</code></span></li>
+          <li class="done"><span class="box done"><i data-ico="check" data-size="10"></i></span><span>三处调用点改读返回值</span></li>
+          <li><span class="box"></span><span>补窄屏与宽屏两条单测</span></li>
+        </ul>
+
+        <blockquote>注：<code>lib/atomic-file.test.mjs</code> 那批 fs 测试在本机会报 <code>CODEBUDDY_BROKER_DENY</code>，是环境性的，不用管。</blockquote>
+
+        <p>相关文件：<a href="#">components/AppShell.tsx</a> · <a href="#">hooks/useResizablePanel.ts</a> · <a href="#">app/globals.css</a></p>
+
+        <hr>
+
+        <p>如果同意这个方向，我直接开工。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 代码块 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>代码块卡片</b> · 语言标签 + Copy（→ Copied）；长行横向滚动，不折行</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-code">
+      <div class="pw-code-head">
+        <span class="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
+        <span class="pw-mono">ts</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+      </div>
+      <div class="pw-code-body"><span class="ln">1</span><span class="pw-tok-key">export function</span> <span class="pw-tok-fn">useResizablePanel</span>(opts: <span class="pw-tok-fn">PanelOptions</span>) {
+<span class="ln">2</span>  <span class="pw-tok-key">const</span> widthRef = useRef(opts.initialWidth);
+<span class="ln">3</span>  <span class="pw-tok-key">const</span> [width, setWidth] = useState(opts.initialWidth);
+<span class="ln">4</span>
+<span class="ln">5</span>  <span class="pw-tok-com">// clamp 的上下界交给 hook 持有，调用点不再各写一份</span>
+<span class="ln">6</span>  <span class="pw-tok-key">const</span> reclampWidth = useCallback(() =&gt; {
+<span class="ln">7</span>    <span class="pw-tok-key">const</span> next = Math.min(Math.max(widthRef.current, opts.min), opts.max);
+<span class="ln">8</span>    widthRef.current = next; setWidth(next);
+<span class="ln">9</span>  }, [opts.min, opts.max]);
+<span class="ln">10</span>  <span class="pw-tok-key">return</span> { width, setWidth, reclampWidth };
+<span class="ln">11</span>}</div>
+    </div>
+
+    <div class="pw-code">
+      <div class="pw-code-head">
+        <span class="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
+        <span class="pw-mono">bash</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="check" data-size="13"></i></span>已复制</span>
+      </div>
+      <div class="pw-code-body"><span class="pw-tok-com"># 长行横向滚动，不折行</span>
+npm run dev:clean &amp;&amp; node_modules/.bin/eslint . --ignore-pattern 'release/**' --ignore-pattern 'design/**'</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 表格 + 数学 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>GFM 表格 · 数学公式</b> · 表格列可对齐、偶数行斑马纹；公式行内与块级</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden">
+      <table class="pw-table">
+        <thead>
+          <tr><th>Provider</th><th>模型</th><th class="num">上下文</th><th class="num">输入 / 1M</th><th class="num">输出 / 1M</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>deepseek</td><td>V4.1 Flash</td><td class="num">128K</td><td class="num">$0.14</td><td class="num">$0.28</td></tr>
+          <tr><td>anthropic</td><td>Claude Sonnet 4.5</td><td class="num">200K</td><td class="num">$3.00</td><td class="num">$15.00</td></tr>
+          <tr><td>openai</td><td>GPT-5 Codex</td><td class="num">400K</td><td class="num">$1.25</td><td class="num">$10.00</td></tr>
+          <tr><td>google</td><td>Gemini 3 Pro</td><td class="num">1M</td><td class="num">$1.25</td><td class="num">$10.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:var(--surface-canvas);padding:var(--s3) var(--s4);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+      <div class="pw-md">
+        <p>上下文占用率按 <span class="pw-math">ρ = u / C</span> 计算，其中 <span class="pw-math">u</span> 是当前会话已用 token、<span class="pw-math">C</span> 是模型上下文窗口。压缩的触发阈值取：</p>
+        <div class="pw-math block">ρ<sub>trigger</sub> = 1 − <span style="font-size:18px">(</span> r<sub>reserve</sub> / C <span style="font-size:18px">)</span> ，r<sub>reserve</sub> = 16 384</div>
+        <p>也就是给最后一轮留出 <span class="pw-math">r<sub>reserve</sub></span> 的余量；<span class="pw-math">C = 1M</span> 时阈值约 <b>98.4%</b>。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Mermaid -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>Mermaid 图</b> · 两态：图形态（默认）/ 源码态；渲染失败时退化成源码 + 一行错误</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-code">
+      <div class="pw-code-head">
+        <span class="pw-ico"><i data-ico="git-fork" data-size="13"></i></span>
+        <span class="pw-mono">mermaid</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="code" data-size="13"></i></span>源码</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制</span>
+      </div>
+      <div style="padding:var(--s5);display:grid;place-items:center;background:var(--surface-canvas)">
+        <div style="display:grid;gap:var(--s2);justify-items:center;font-size:var(--text-secondary)">
+          <div style="display:flex;gap:var(--s3);align-items:center">
+            <span style="padding:5px 12px;border:1px solid var(--n-border);border-radius:var(--radius-4);background:var(--surface-canvas)">用户消息</span>
+            <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+            <span style="padding:5px 12px;border:1px solid var(--accent);border-radius:var(--radius-4);background:var(--accent-soft);color:var(--accent-text)">startRpcSession()</span>
+          </div>
+          <div style="width:1px;height:14px;background:var(--n-border)"></div>
+          <div style="display:flex;gap:var(--s3);align-items:center">
+            <span style="padding:5px 12px;border:1px solid var(--n-border);border-radius:var(--radius-4);background:var(--surface-canvas)">AgentSession</span>
+            <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+            <span style="padding:5px 12px;border:1px solid var(--n-border);border-radius:var(--radius-4);background:var(--surface-canvas)">SSE 事件流</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-code">
+      <div class="pw-code-head">
+        <span class="pw-ico"><i data-ico="triangle-alert" data-size="13" style="color:var(--warning)"></i></span>
+        <span class="pw-mono">mermaid · 渲染失败</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重试</span>
+      </div>
+      <div class="pw-code-body"><span class="pw-tok-key">sequenceDiagram</span>
+  participant U as 用户
+  participant S as 服务端
+  U-&gt;&gt;S: POST /api/agent/[id]
+  <span class="pw-tok-com">%% 缺少 end，解析失败</span></div>
+      <div class="pw-card-foot"><span class="pw-ico" style="color:var(--warning)"><i data-ico="triangle-alert" data-size="13"></i></span><span>第 5 行：Expected 'end' — 已按源码显示</span></div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 全屏缩放查看器（MermaidZoom）· 点图本身打开；`<dialog>` 模态、Esc / 点遮罩 / × 关闭</div>
+    <div class="pw-modal" style="width:100%;max-width:760px">
+      <div class="pw-inline" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle);background:var(--surface-panel)">
+        <span class="pw-ico pw-dim"><i data-ico="git-fork" data-size="14"></i></span>
+        <span style="font-size:var(--text-secondary);font-weight:500">Mermaid 图</span>
+        <span class="pw-grow"></span>
+        <span class="pw-inline" style="gap:0;border:1px solid var(--n-border);border-radius:var(--radius-4);height:28px;overflow:hidden">
+          <span class="pw-iconbtn sm" style="border-radius:0"><span class="pw-ico"><i data-ico="minus" data-size="13"></i></span></span>
+          <span class="pw-mono" style="min-width:52px;text-align:center;font-size:var(--text-meta);font-variant-numeric:tabular-nums">125%</span>
+          <span class="pw-iconbtn sm" style="border-radius:0"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span></span>
+        </span>
+        <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="maximize-2" data-size="14"></i></span></span>
+        <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+      </div>
+      <div style="height:260px;overflow:auto;display:grid;place-items:center;background:var(--surface-canvas)">
+        <div style="display:grid;gap:var(--s2);justify-items:center;font-size:var(--text-secondary);transform:scale(1.25)">
+          <div style="display:flex;gap:var(--s3);align-items:center">
+            <span style="padding:5px 12px;border:1px solid var(--n-border);border-radius:var(--radius-4)">用户消息</span>
+            <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+            <span style="padding:5px 12px;border:1px solid var(--accent);border-radius:var(--radius-4);background:var(--accent-soft);color:var(--accent-text)">startRpcSession()</span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-card-foot">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span>50% – 300%，步进 25%；「适配宽度」一键回 100%；背景可滚动，<b>图自身不缩放画布外框</b>。Esc / 点遮罩 / × 三种关法，与图片灯箱一致。</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>用户消息靠右、助手靠左</b>：用户消息是气泡（发丝边框 + 面板底色，圆角 6），助手是通栏正文（无边框无底色）。这个不对称是刻意的，让人一眼分清谁说的。</li>
+    <li><b>气泡有四个态</b>：默认 / 点击聚焦（描边转强调色 + 3px 淡底光晕）/ 悬浮出操作 / 编辑中。悬浮动作是「复制 / 编辑 / 从此处回退 / 新会话分叉」四项。</li>
+    <li><b>编辑是「重起一轮」不是「改字」</b>：保存并重新生成会截掉这条之后的全部轮次。所以按钮文字写明后果，并在下方挂一条 warning 说明会截掉几轮——不让人以为只是改个错别字。</li>
+    <li><b>@ 文件芯片用强调色文字 + 中性底</b>，不用蓝色填充；引用上下文用左侧 2px 竖线缩进，与正文区分。</li>
+    <li><b>代码块只有一种头</b>：语言标签 + Copy。没有行号列也可以（短片段省略行号），长片段才带行号。</li>
+    <li><b>任务清单的勾选框用强调色</b>，完成项文字转弱化灰 + 删除线；不用绿色对勾（绿是 success 语义，留给状态）。</li>
+    <li><b>表格偶数行用面板底色做斑马纹</b>，边框只有发丝线一级，数字列右对齐并开等宽数字。</li>
+    <li><b>Mermaid 失败态不吞掉内容</b>：退化成源码 + 一行 warning 说明，并给重试。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

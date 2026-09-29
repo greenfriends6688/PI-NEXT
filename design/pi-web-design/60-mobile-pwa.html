@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>60 · 移动端与 PWA — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>60 · 移动端与 PWA</h1>
+  <p><b>移动端与桌面端同构</b>：同一套控件、同一个位置，只改尺寸与折叠方式。窄屏不新增底部条、不新增底部弹层——放不下的动作收进顶栏那条覆盖式工具条（就是桌面端顶栏右侧那一排，一个都不少）。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：会话工作台（窄屏）</span>
+    <span class="pw-tag">组件：AppShell(mobile) / useIsMobile / useIsNarrowMobile / PwaRegistration / manifest.ts</span>
+    <span class="pw-tag accent">390 × 800</span>
+    <span class="pw-tag">断点 1024 / 640 / 380</span>
+  </div>
+</header>
+
+<!-- 三帧 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>手机 · 三种主状态</b> · A 主界面（与桌面同构）· B 抽屉侧栏 · C 窄屏「更多控件」（展开在顶栏，不是底部）<span class="grow"></span>390 × 800</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s5)">
+
+      <!-- A 主界面 -->
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">A · 主界面</div>
+        <div class="pw-phone">
+          <div class="pw-phone-inner">
+            <div class="pw-statusbar">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
+            <div class="pw-mobile-top">
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
+              <span style="min-width:0;flex:1;display:flex;align-items:center;gap:6px;font-size:var(--text-body);color:var(--n-strong);padding:0 2px">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">排查最新 Release 与本地待上传改动</span>
+              </span>
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="history" data-size="17"></i></span></span>
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="square-pen" data-size="17"></i></span></span>
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="bot" data-size="17"></i></span></span>
+              <span class="pw-touch is-on"><span class="pw-ico"><i data-ico="panel-right" data-size="17"></i></span></span>
+            </div>
+            <div class="pw-chat" style="padding-top:var(--s3)">
+              <div class="pw-col" style="padding:0 var(--s3);gap:var(--s3)">
+                <div class="pw-msg-user" style="max-width:88%">把 release 里那份和本地待上传的改动对一下</div>
+                <div class="pw-assistant">
+                  <div class="pw-proc">
+                    <div class="pw-proc-head">
+                      <span class="pw-ico pw-dim"><i data-ico="chevron-right" data-size="14"></i></span>
+                      <span><b>2 个文件</b> · 4 条命令 · 5 次调用</span>
+                      <span class="grow"></span>
+                      <span class="pw-badge ok"><span class="pw-ico"><i data-ico="check" data-size="11"></i></span>完成</span>
+                    </div>
+                  </div>
+                  <div class="pw-md" style="font-size:var(--text-body)">
+                    <p>两边差 <b>7 个文件</b>，其中 3 个是本次设计系统的文档。</p>
+                  </div>
+                  <div class="pw-turn-end">
+                    <span class="pw-badge ok">stop</span>
+                    <span class="pw-mono">4.2s</span><span>·</span><span class="pw-mono">$0.021</span>
+                    <span class="rule"></span>
+                  </div>
+                </div>
+                <div class="pw-msg-user" style="max-width:88%">那 3 个文档先别提交</div>
+                <div class="pw-assistant"><div class="pw-md" style="font-size:var(--text-body)"><p>好，我先只提交皮肤那 4 个文件。</p></div></div>
+              </div>
+            </div>
+            <!-- 输入框：与桌面完全同一行，不新增底部条 -->
+            <div class="pw-composer-wrap" style="padding:var(--s2) var(--s3)">
+              <div class="pw-composer" style="width:100%;margin:0">
+                <div class="pw-composer-top" style="min-height:34px;padding:var(--s2) var(--s3) 4px">继续…</div>
+                <div class="pw-composer-bar" style="padding:2px var(--s1) 4px var(--s2);overflow-x:clip">
+                  <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+                  <span class="pw-select" style="font-size:var(--text-meta);min-width:0">V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+                  <span class="pw-select" style="font-size:var(--text-meta)">high<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+                  <span class="pw-select" style="font-size:var(--text-meta)">需审批<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+                  <span class="grow"></span>
+                  <span class="pw-ring" style="--p:18%;width:16px;height:16px"></span>
+                  <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+                </div>
+              </div>
+            </div>
+            <div class="pw-homebar"><i></i></div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim" style="margin-top:var(--s2);max-width:390px">注：控件行不换行，放不下时右侧裁切（<span class="pw-mono">overflow-x: clip</span>）——横向滚动条在输入框里读起来像 bug。</p>
+      </div>
+
+      <!-- B 抽屉 -->
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">B · 抽屉侧栏（遮罩 + 浮层）</div>
+        <div class="pw-phone">
+          <div class="pw-phone-inner">
+            <div class="pw-statusbar">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
+            <div class="pw-mobile-top">
+              <span class="pw-touch is-on"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
+              <span class="grow"></span>
+            </div>
+            <div class="pw-chat" style="padding-top:var(--s3);opacity:.4">
+              <div class="pw-col" style="padding:0 var(--s3)">
+                <div class="pw-msg-user" style="max-width:88%">把 release 里那份和本地待上传的改动对一下</div>
+                <div class="pw-md"><p>两边差 7 个文件…</p></div>
+              </div>
+            </div>
+            <div class="pw-composer-wrap" style="padding:var(--s2) var(--s3);opacity:.4">
+              <div class="pw-composer" style="width:100%;margin:0"><div class="pw-composer-top" style="min-height:34px">继续…</div></div>
+            </div>
+            <div class="pw-scrim-layer"></div>
+            <div class="pw-drawer">
+              <div class="pw-side-head">
+                <span class="pw-brand"><span class="pw-logo"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16"/><path d="M8 7v11"/><path d="M16 7v11"/></svg></span>Pi Web</span>
+                <span class="grow"></span>
+                <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="search"></i></span></button>
+              </div>
+              <div class="pw-side-nav">
+                <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
+              </div>
+              <div class="pw-seg"><span class="is-on">项目</span><span>聊天</span></div>
+              <div class="pw-side-scroll">
+                <div class="pw-row is-on"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">pi-codex</span><span class="grow"></span><span class="pw-badge count">90</span></div>
+                <div class="pw-session child is-on running">
+                  <span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条消息</span></span>
+                </div>
+                <div class="pw-session child awaiting">
+                  <span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span></span>
+                </div>
+                <div class="pw-session child">
+                  <span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span></span>
+                </div>
+                <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">探项前端页面</span><span class="grow"></span><span class="pw-badge count">20</span></div>
+                <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">招标改</span><span class="grow"></span><span class="pw-badge count">6</span></div>
+              </div>
+              <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
+            </div>
+            <div class="pw-homebar"><i></i></div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim" style="margin-top:var(--s2);max-width:390px">注：抽屉里的一切与桌面侧栏一模一样，只有宽度收到 272、圆角归 0。</p>
+      </div>
+
+      <!-- C 更多控件 -->
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">C · 窄屏「更多控件」= 顶栏展开（不是底部条）</div>
+        <div class="pw-phone narrow">
+          <div class="pw-phone-inner">
+            <div class="pw-statusbar" style="padding:0 var(--s3)">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
+            <div class="pw-mobile-top" style="height:44px">
+              <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="menu" data-size="17"></i></span></span>
+              <span class="pw-grow" style="flex:1"></span>
+              <span class="pw-touch is-on" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="ellipsis" data-size="17"></i></span></span>
+              <!-- 覆盖式工具条：与桌面顶栏右侧同一排动作 -->
+              <div class="pw-mobile-actions">
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="history" data-size="16"></i></span></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="square-pen" data-size="16"></i></span></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="bot" data-size="16"></i></span></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="git-branch" data-size="16"></i></span></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="book-marked" data-size="16"></i></span></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="wrench" data-size="16"></i></span></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="download" data-size="16"></i></span></span>
+                <span class="pw-grow" style="flex:1"></span>
+                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="x" data-size="16"></i></span></span>
+              </div>
+            </div>
+            <div class="pw-chat" style="padding-top:var(--s2)">
+              <div class="pw-col" style="padding:0 var(--s3)">
+                <div class="pw-msg-user" style="max-width:90%;font-size:var(--text-secondary)">把 release 里那份对一下</div>
+                <div class="pw-md" style="font-size:var(--text-secondary)"><p>两边差 7 个文件…</p></div>
+              </div>
+            </div>
+            <div class="pw-composer-wrap" style="padding:var(--s2) var(--s2)">
+              <div class="pw-composer" style="width:100%;margin:0">
+                <div class="pw-composer-top" style="min-height:30px;padding:var(--s2) var(--s3) 4px">继续…</div>
+                <div class="pw-composer-bar" style="padding:2px var(--s1) 4px var(--s1)">
+                  <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+                  <span class="pw-select" style="font-size:var(--text-meta);min-width:0;max-width:78px;overflow:hidden">V4.1 Flash</span>
+                  <span class="grow"></span>
+                  <span class="pw-ring" style="--p:18%;width:16px;height:16px"></span>
+                  <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+                </div>
+              </div>
+            </div>
+            <div class="pw-homebar"><i></i></div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim" style="margin-top:var(--s2);max-width:320px">注：7 个动作与桌面顶栏右侧完全一致（历史 / 生成标题 / 子代理 / 分支 / 系统提示词 / 工具定义 / 导出 Markdown），一个不少。</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PWA + 适配 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>PWA · 独立窗口与安装 · 触控适配 · 信任横幅</b></div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s5)">
+
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">A · 独立窗口（display: standalone）</div>
+        <div class="pw-phone">
+          <div class="pw-phone-inner">
+            <div class="pw-notch">— 无浏览器地址栏 —</div>
+            <div class="pw-statusbar" style="height:30px;padding:0 var(--s4)">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
+            <div class="pw-mobile-top" style="height:44px">
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
+              <span class="grow"></span>
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="history" data-size="17"></i></span></span>
+              <span class="pw-touch"><span class="pw-ico"><i data-ico="panel-right" data-size="17"></i></span></span>
+            </div>
+            <div class="pw-chat" style="padding-top:var(--s3)">
+              <div class="pw-col" style="padding:0 var(--s3);gap:var(--s3)">
+                <div class="pw-msg-user" style="max-width:88%">把 release 里那份和本地待上传的改动对一下</div>
+                <div class="pw-assistant">
+                  <div class="pw-md"><p>两边差 <b>7 个文件</b>，其中 3 个是本次设计系统的文档，4 个是皮肤重打的组件改动。</p></div>
+                  <div class="pw-perm">
+                    <div class="pw-perm-title">
+                      <span class="pw-ico"><i data-ico="shield-check" data-size="14"></i></span>
+                      要写入 3 个文件
+                      <span class="grow"></span>
+                      <span class="pw-badge warn">等你</span>
+                    </div>
+                    <div class="pw-perm-acts" style="flex-wrap:wrap">
+                      <span class="pw-btn primary">允许一次</span>
+                      <span class="pw-btn outline">本会话允许</span>
+                      <span class="pw-btn danger">拒绝</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pw-composer-wrap" style="padding:var(--s2) var(--s3)">
+              <div class="pw-composer" style="width:100%;margin:0">
+                <div class="pw-composer-top" style="min-height:34px;padding:var(--s2) var(--s3) 4px">继续…</div>
+                <div class="pw-composer-bar" style="padding:2px var(--s1) 4px var(--s2)">
+                  <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+                  <span class="pw-select" style="font-size:var(--text-meta)">V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+                  <span class="grow"></span>
+                  <span class="pw-send stop"><span class="pw-ico"><i data-ico="square" data-size="13"></i></span></span>
+                </div>
+              </div>
+            </div>
+            <div class="pw-homebar" style="height:30px"><i></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:var(--s4);max-width:540px">
+
+        <div>
+          <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">B · 安装提示（Android 自动弹 / iOS 只能教）</div>
+          <div class="pw-banner">
+            <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="download" data-size="16"></i></span>
+            <span class="grow">把 Pi Agent 加到主屏，像 App 一样打开。</span>
+            <span class="pw-btn primary sm">安装</span>
+            <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+          </div>
+          <div class="pw-banner" style="margin-top:var(--s2)">
+            <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="share-2" data-size="16"></i></span>
+            <span class="grow">iOS：点底部的「分享」，再选「添加到主屏幕」。</span>
+            <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">C · 触控适配（pointer: coarse）—— 只改尺寸，不改位置</div>
+          <div class="pw-cell" style="display:grid;gap:var(--s3)">
+            <div class="pw-inline">
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta);width:96px">顶栏图标按钮</span>
+              <span style="width:28px;height:28px;border-radius:var(--radius-4);background:var(--n-surface);display:grid;place-items:center;font-size:var(--text-meta);color:var(--n-muted)">28</span>
+              <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+              <span style="width:36px;height:36px;border-radius:var(--radius-4);background:var(--accent-soft);color:var(--accent-text);display:grid;place-items:center;font-size:var(--text-meta)">36</span>
+            </div>
+            <div class="pw-inline">
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta);width:96px">顶栏高度</span>
+              <span class="pw-mono">36 → 48</span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">整条加高，图标仍居中</span>
+            </div>
+            <div class="pw-inline">
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta);width:96px">滚动条</span>
+              <span style="width:8px;height:30px;border-radius:4px;background:var(--n-surface)"></span>
+              <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+              <span style="width:6px;height:30px;border-radius:3px;background:var(--n-surface)"></span>
+            </div>
+            <div class="pw-inline">
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta);width:96px">悬浮才出的动作</span>
+              <span class="pw-mono">改成常显</span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">消息操作条、会话行动作；触屏没有 hover 可以「揭示」它们</span>
+            </div>
+            <div class="pw-inline">
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta);width:96px">视图高度</span>
+              <span class="pw-mono">100dvh</span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">standalone 下走 --app-viewport-height</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">D · 移动端项目信任横幅（不弹模态框）</div>
+          <div style="border:1px solid var(--n-border);border-radius:var(--radius-6);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);background:var(--warning-soft);border-bottom:1px solid var(--n-border-subtle)">
+              <span class="pw-ico" style="color:var(--warning)"><i data-ico="shield-question" data-size="16"></i></span>
+              <span class="grow" style="font-size:var(--text-secondary)">这个项目还没信任，agent 只能只读</span>
+              <span class="pw-btn primary sm">信任</span>
+            </div>
+            <div style="padding:var(--s3);background:var(--surface-canvas)">
+              <div class="pw-mono pw-dim" style="font-size:var(--text-meta)">桌面端弹模态框；移动端不弹，改成顶栏下方这条常驻横幅（模态框在窄屏会挡住输入）。</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">E · 移动端设置的分节选择器</div>
+          <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);padding:var(--s3)">
+            <div class="pw-inline">
+              <span class="pw-selectbox" style="flex:1">
+                <span class="pw-inline" style="gap:6px"><span class="pw-ico"><i data-ico="cpu" data-size="14"></i></span>模型</span>
+                <span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+              </span>
+            </div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:var(--s2)">左列 200px 的分节导航在窄屏换成这一个下拉；选中后整屏只剩内容区。</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 断点表 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>断点与布局切换表</b> · 四档宽度下三栏壳怎么变（交互不新增，只改尺寸与折叠）</div>
+  <div class="pw-frame-body pw-pad pw-grid4">
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="monitor" data-size="14"></i></span>≥ 1025 · 桌面</h4>
+      <p>三栏并列：侧栏 280 + 主区 + 右栏 420。侧栏可拖 220–480，可折叠成 52 导轨。右栏可关。顶栏 36，右侧动作全展开。</p>
+      <div class="pw-inline" style="margin-top:var(--s2);gap:3px">
+        <span style="flex:2;height:34px;border-radius:3px;background:var(--n-surface)"></span>
+        <span style="flex:5;height:34px;border-radius:3px;background:var(--n-hover)"></span>
+        <span style="flex:3;height:34px;border-radius:3px;background:var(--n-surface)"></span>
+      </div>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="laptop" data-size="14"></i></span>641–1024 · 平板</h4>
+      <p>侧栏默认收成抽屉，右栏仍在。顶栏 48，左侧出现菜单按钮；右侧动作仍在顶栏（不折叠）。转录与输入框宽度自适应，输入框控件行仍不换行。</p>
+      <div class="pw-inline" style="margin-top:var(--s2);gap:3px">
+        <span style="flex:7;height:34px;border-radius:3px;background:var(--n-hover)"></span>
+        <span style="flex:3;height:34px;border-radius:3px;background:var(--n-surface)"></span>
+      </div>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="tablet" data-size="14"></i></span>381–640 · 手机</h4>
+      <p>单栏。侧栏与右栏都变全屏覆盖层。顶栏 48，右侧动作仍排得下，不折叠。<b>不新增底部条</b>。</p>
+      <div class="pw-inline" style="margin-top:var(--s2);gap:3px">
+        <span style="flex:1;height:34px;border-radius:3px;background:var(--n-hover)"></span>
+      </div>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="smartphone" data-size="14"></i></span>≤ 380 · 窄屏</h4>
+      <p>同上，且顶栏右侧放不下 → 多一个「更多控件」按钮，点开把那一排动作展开成<b>覆盖顶栏</b>的工具条（不是底部条、不是新交互）。</p>
+      <div class="pw-inline" style="margin-top:var(--s2);gap:3px">
+        <span style="flex:1;height:34px;border-radius:3px;background:var(--n-hover)"></span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 本页动效（真在播） -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>本页动效</b> · 循环播放 · 规格与全量清单见画板 <span class="pw-mono">05-motion</span><span class="grow"></span><span style="color:var(--n-placeholder)">移动端与桌面同构</span></div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-anim-stage">
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>抽屉侧栏上滑</span><span class="grow"></span><span class="tag">14px · 移动端</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-sheet" style="width:100%;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden;background:var(--surface-canvas)">
+            <div style="padding:6px 10px;border-bottom:1px solid var(--n-border-subtle);font-size:var(--text-meta);color:var(--n-muted)">项目</div>
+            <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">pi-codex</span></span></div>
+            <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">AcpAgentClient</span></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>窄屏工具条展开</span><span class="grow"></span><span class="tag">覆盖顶栏 · 160ms</span></div>
+        <div class="pw-anim-box flow">
+          <div style="width:100%;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden">
+            <div class="pw-anim-pop" style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--surface-panel);font-size:var(--text-meta);color:var(--n-muted)">
+              <span class="pw-ico"><i data-ico="history" data-size="13"></i></span>
+              <span class="pw-ico"><i data-ico="sparkles" data-size="13"></i></span>
+              <span class="pw-ico"><i data-ico="bot" data-size="13"></i></span>
+              <span class="pw-ico"><i data-ico="git-branch" data-size="13"></i></span>
+              <span class="pw-grow" style="flex:1"></span>
+              <span class="pw-ico"><i data-ico="x" data-size="13"></i></span>
+            </div>
+          </div>
+          <div class="pw-muted" style="font-size:var(--text-meta);margin-top:var(--s2)">桌面顶栏右侧那一排，一个不少</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>移动端与桌面同构</b>：控件一个不少、位置一个不改。窄屏只做两件事——把三栏折成单栏、把放不下的顶栏动作收进一个覆盖式工具条。</li>
+    <li><b>没有「底部控件条」</b>：附件的上传、<code>@</code> 引用、<code>/</code> 命令本来就在输入框里的 <code>+</code> 与文本输入中，不需要在输入框下面再挂一条。任何「另辟蹊径」的新交互都不做。</li>
+    <li><b>「更多控件」展开在顶栏</b>：它是桌面顶栏右侧那一排的同一批动作（历史 / 生成标题 / 子代理 / 分支 / 系统提示词 / 工具定义 / 导出 Markdown），展开成一条覆盖顶栏的条，点 × 收起。</li>
+    <li><b>顶栏 48 是移动端唯一的高度差</b>（桌面 36）：触控目标要够大，图标按钮统一 36×36。</li>
+    <li><b>抽屉侧栏与桌面侧栏内容完全一致</b>，只是宽 272、圆角归 0、右侧一道阴影，底下垫 32% 遮罩且正文不可交互。</li>
+    <li><b>standalone 的三处取舍</b>：① 无浏览器地址栏，顶部留状态栏安全区；② 视图高度走 <code>--app-viewport-height</code>（standalone 下 = 100vh），避免地址栏收起时跳动；③ 底部留 30px home indicator 安全区。</li>
+    <li><b>安装提示分平台</b>：Android / 桌面 Chrome 走 <code>beforeinstallprompt</code> 给「安装」按钮；iOS 没有这个 API，只给「点分享 → 添加到主屏幕」。</li>
+    <li><b>粗指针只改尺寸不改位置</b>：顶栏图标 28→36、顶栏 36→48、滚动条 8→6、悬浮才出的动作改常显。</li>
+    <li><b>项目信任在移动端不弹模态框</b>，改成顶栏下方一条常驻横幅——模态框在窄屏会把输入框整个挡掉。</li>
+    <li><b>输入框控件行不换行</b>，放不下时右侧裁切（<code>overflow-x: clip</code>）：横向滚动条在输入框里读起来像 bug，裁切读起来像「这行满了」。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>20 · 输入框与控件 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>20 · 输入框与控件</h1>
+  <p>输入框是每轮交互的起点。这一张定死：一行控件放什么、顺序是什么、三种状态下发送键长什么样，以及下方的会话统计条与上下文环。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：会话工作台</span>
+    <span class="pw-tag">组件：ChatInput / ComposerContextStrip / SessionStatsBar / ModelSelector</span>
+    <span class="pw-tag accent">宽 800</span>
+  </div>
+</header>
+
+<!-- 输入框三态 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>输入框 · 三种状态</b> · 空闲 / 流式中（停止 + 队列）/ 无项目（禁用）</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 空闲 · 可发送</div>
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div class="pw-composer-top">给 Pi Agent 发消息，@ 引用上下文，/ 调命令</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="pw-select">DeepSeek V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="pw-select">high<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="pw-select">需审批<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="pw-select">已配置<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="pw-select">压缩<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-ring" style="--p:26%"></span>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="volume-2" data-size="14"></i></span></button>
+        <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 流式中 · 发送变停止，队列计数在左</div>
+    <div class="pw-composer" style="width:100%;margin:0;border-color:var(--n-border)">
+      <div class="pw-composer-top" style="color:var(--n-muted)">跑完顺手把 <span class="pw-mono" style="background:var(--n-border);border-radius:var(--radius-3);padding:1px 4px">@delta.md</span> 也更新一下</div>
+      <div class="pw-chips">
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-text" data-size="12"></i></span>docs/codex-skin/delta.md</span>
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="x" data-size="11"></i></span></span>
+      </div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="pw-select">DeepSeek V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="pw-select">high<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-badge count"><span class="pw-ico"><i data-ico="inbox" data-size="11"></i></span>2 条排队</span>
+        <span class="pw-ring" style="--p:26%"></span>
+        <span class="pw-send stop"><span class="pw-ico"><i data-ico="square" data-size="13"></i></span></span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 无项目 · 输入框禁用（占位文案说明原因）</div>
+    <div class="pw-composer" style="width:100%;margin:0;opacity:.7">
+      <div class="pw-composer-top">先选一个项目目录，新会话的工作目录从它来</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn" style="color:var(--n-placeholder)"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="pw-select" style="color:var(--n-placeholder)">未选项目<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-send disabled"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 附件与引用 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>附件与引用</b> · 附件芯片条 / 引用上下文条 / 图片附件预览 / 上传失败</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 附件芯片条（图片 + 文件）</div>
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div class="pw-chips" style="padding-top:var(--s3)">
+        <span class="pw-chip accent"><span class="pw-ico"><i data-ico="image" data-size="12"></i></span>screenshot.png<span class="pw-ico"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-code" data-size="12"></i></span>AppShell.tsx<span class="pw-ico"><i data-ico="x" data-size="11"></i></span></span>
+        <span class="pw-chip"><span class="pw-ico"><i data-ico="file-text" data-size="12"></i></span>delta.md<span class="pw-ico"><i data-ico="x" data-size="11"></i></span></span>
+      </div>
+      <div class="pw-composer-top" style="padding-top:0">看看这三处，给个改法</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="grow"></span>
+        <span class="pw-ring" style="--p:31%"></span>
+        <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 引用上下文条（选中文本追问 / 引用会话）</div>
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div style="margin:var(--s3) var(--s3) 0;padding:var(--s2) var(--s3);border-left:2px solid var(--accent);background:var(--surface-canvas);border-radius:0 var(--radius-4) var(--radius-4) 0">
+        <div class="pw-inline" style="justify-content:space-between">
+          <span class="pw-mono" style="font-size:var(--text-meta);color:var(--accent-text)">components/AppShell.tsx · 第 272 行</span>
+          <span class="pw-ico pw-dim"><i data-ico="x" data-size="13"></i></span>
+        </div>
+        <div class="pw-muted" style="font-size:var(--text-secondary);margin-top:3px">const [rightPanelOpen, setRightPanelOpen] = useState(false);</div>
+      </div>
+      <div class="pw-composer-top">这里为什么默认收起？</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="grow"></span>
+        <span class="pw-ring" style="--p:26%"></span>
+        <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 上传失败 / 被跳过</div>
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div class="pw-chips" style="padding-top:var(--s3)">
+        <span class="pw-chip" style="border-color:var(--error);color:var(--error)"><span class="pw-ico"><i data-ico="circle-x" data-size="12"></i></span>screenshot-4k.png · 超过 20 MB<span class="pw-ico"><i data-ico="x" data-size="11"></i></span></span>
+      </div>
+      <div class="pw-composer-top" style="padding-top:0">这张图太大被跳过了</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="grow"></span>
+        <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 输入框内高亮 + 可拖高 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>输入框内的 token 高亮 · 输入框可拖高</b> · 透明 textarea + 高亮层叠加；顶部一条拖拽把手</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · token 高亮（@ 文件 / @ 会话 / @ MCP / @ 待办 / / 命令）</div>
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div class="pw-composer-top" style="color:var(--n-text)">
+        看一下 <span class="pw-tok-ref">@AppShell.tsx</span> 里那段，再对比 <span class="pw-tok-ref">@窗口切在回合中间时的渲染修复</span> 的结论，然后跑 <span class="pw-tok-cmd">/review</span> <span class="pw-mono" style="color:var(--n-placeholder)">&lt;范围&gt;</span>
+      </div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="pw-select">DeepSeek V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-ring" style="--p:22%"></span>
+        <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+    <div class="pw-inline" style="gap:var(--s3);flex-wrap:wrap">
+      <span class="pw-inline" style="gap:5px"><span class="pw-tok-ref">@文件 / @会话 / @MCP / @待办</span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">强调色 + 点状下划线</span></span>
+      <span class="pw-inline" style="gap:5px"><span class="pw-tok-cmd">/命令</span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">同一套（区分靠前缀字符）</span></span>
+      <span class="pw-inline" style="gap:5px"><span style="color:var(--n-placeholder)">@半个词</span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">光标所在、还没输完的 token 不着色</span></span>
+    </div>
+    <p class="pw-mono pw-dim" style="margin:0">实现：textarea 文字透明（只留 caret），可见字形全来自高亮层；两层必须共用同一个字号，否则换行 / 滚动时逐行错位。</p>
+
+    <div class="pw-mono pw-dim">B · 输入框可拖高（顶部一条把手，高 12）</div>
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4)">
+      <div style="flex:1">
+        <div class="pw-composer" style="width:100%;margin:0;position:relative">
+          <div style="height:12px;display:grid;place-items:center;cursor:row-resize">
+            <span style="width:36px;height:3px;border-radius:2px;background:var(--n-border)"></span>
+          </div>
+          <div class="pw-composer-top" style="min-height:76px;padding-top:0">拖这条把手把输入框拉高，写长提示词时不用滚动…</div>
+          <div class="pw-composer-bar">
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+            <span class="grow"></span>
+            <span class="pw-badge count">3 行 / 上限 40vh</span>
+            <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-cell" style="width:260px;flex:none">
+        <h4>把手三态</h4>
+        <div style="display:grid;gap:var(--s2);margin-top:var(--s2)">
+          <div class="pw-inline"><span style="width:36px;height:3px;border-radius:2px;background:var(--n-border)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">默认 · 弱化</span></div>
+          <div class="pw-inline"><span style="width:36px;height:3px;border-radius:2px;background:var(--n-muted)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">悬浮 / 键盘焦点 · 加深</span></div>
+          <div class="pw-inline"><span style="width:36px;height:3px;border-radius:2px;background:var(--accent)"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">拖拽中 · 强调色</span></div>
+        </div>
+        <p style="margin:var(--s2) 0 0">双击把手复位到默认高度；上限 40vh。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 阅读态塌陷 + 上下文浮窗 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>阅读态输入框塌陷 · 上下文浮窗</b> · 向上翻阅时收成一行；悬浮圆环看 Context / Rules / cost</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 阅读态塌陷（离底 &gt; 120px 时收起工具栏）</div>
+    <div class="pw-grid2">
+      <div>
+        <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-bottom:var(--s2)">展开（默认）· 工具栏全在</div>
+        <div class="pw-composer" style="width:100%;margin:0">
+          <div class="pw-composer-top" style="min-height:34px">继续…</div>
+          <div class="pw-composer-bar">
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+            <span class="pw-select">V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+            <span class="grow"></span>
+            <span class="pw-ring" style="--p:26%"></span>
+            <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-bottom:var(--s2)">塌陷 · 只剩一行文本，工具栏隐藏</div>
+        <div class="pw-composer collapsed" style="width:100%;margin:0">
+          <div class="pw-composer-top">继续…</div>
+          <div class="pw-composer-bar">
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+            <span class="grow"></span>
+            <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pw-cell">
+      <h4>触发规则（状态机在 <span class="pw-mono">lib/input-compact.ts</span>）</h4>
+      <div class="pw-list" style="margin-top:var(--s2)">
+        <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="arrow-up" data-size="14"></i></span><span class="grow"><span class="pw-lname">收起</span><span class="pw-lsub">真实用户滚动（wheel / 触摸 / 键盘 / 拖滚动条）+ 方向向上 + 离底 &gt; 120px</span></span></div>
+        <div class="pw-litem"><span class="pw-ico" style="color:var(--success)"><i data-ico="arrow-down" data-size="14"></i></span><span class="grow"><span class="pw-lname">展开</span><span class="pw-lsub">方向向下且离底 ≤ 8px，或者输入框拿到焦点（一定展开）</span></span></div>
+        <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="ban" data-size="14"></i></span><span class="grow"><span class="pw-lname">不参与判定</span><span class="pw-lsub">程序化滚动（打开会话锚点、懒加载前插、完成自动滚）与 ResizeObserver 复算一律 direction = none</span></span></div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">为什么要方向跟踪：塌陷会让容器变矮，浏览器为保住 scrollTop 会把你夹回底部，看起来像「用户向上滚了一下」——只看「是否到底」会每个 scroll tick 翻转一次。</p>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 上下文浮窗（悬浮左下圆环）</div>
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4)">
+      <div class="pw-inline" style="gap:var(--s3);padding:var(--s2) var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-panel)">
+        <span class="pw-ring" style="--p:1%"></span>
+        <span class="pw-mono" style="font-size:var(--text-meta);color:var(--n-muted)">1%</span>
+      </div>
+      <div class="pw-pop" style="width:300px">
+        <div class="pw-pop-title">上下文</div>
+        <div class="pw-prow"><span class="grow">Context</span><span class="pw-mono">10k / 1M</span></div>
+        <div class="pw-prow"><span class="grow">Rules</span><span class="pw-mono">4.2k</span></div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow"><span class="grow">本会话花费</span><span class="pw-mono">$0.021</span></div>
+        <div class="pw-prow"><span class="grow">本轮 in / out</span><span class="pw-mono">8,912 / 1,328</span></div>
+      </div>
+      <div class="pw-pop" style="width:280px">
+        <div class="pw-pop-title">无费用信息时（协议没给 cost）</div>
+        <div class="pw-prow"><span class="grow">Context</span><span class="pw-mono">10k / 1M</span></div>
+        <div class="pw-prow"><span class="grow">Rules</span><span class="pw-mono">4.2k</span></div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow pw-dim"><span class="grow">花费与用量行整段省略，不留空行</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 统计条 + 上下文环 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>会话统计条与上下文环</b> · 三档配色：正常 / &gt;70% 警告 / &gt;90% 危险</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 正常（&lt; 70%）</div>
+    <div class="pw-stats" style="width:100%;margin:0">
+      <span class="pw-ring" style="--p:26%;width:16px;height:16px"></span>
+      <span>上下文 26% · 260k / 1M</span>
+      <span>·</span><span>本轮 ↑ 8,912 ↓ 1,328</span>
+      <span>·</span><span>$0.021</span>
+      <span class="grow"></span>
+      <span>4.2s</span>
+      <span class="pw-ico pw-dim"><i data-ico="chevron-up" data-size="13"></i></span>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 警告（&gt; 70%，环转 warning）</div>
+    <div class="pw-stats" style="width:100%;margin:0;border-color:var(--warning)">
+      <span class="pw-ring warn" style="--p:74%;width:16px;height:16px"></span>
+      <span style="color:var(--warning)">上下文 74% · 740k / 1M</span>
+      <span>·</span><span>本轮 ↑ 12,204 ↓ 1,860</span>
+      <span class="grow"></span>
+      <span style="color:var(--warning)">接近上限，建议压缩</span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="package" data-size="13"></i></span>压缩</span>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 危险（&gt; 90%，环转 error）</div>
+    <div class="pw-stats" style="width:100%;margin:0;border-color:var(--error)">
+      <span class="pw-ring bad" style="--p:94%;width:16px;height:16px"></span>
+      <span style="color:var(--error)">上下文 94% · 940k / 1M</span>
+      <span>·</span><span>只剩约 60k</span>
+      <span class="grow"></span>
+      <span style="color:var(--error)">下一轮可能被截断</span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="package" data-size="13"></i></span>立即压缩</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- 队列 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>流式排队</b> · 运行中继续输入 → 排队；可召回编辑、逐条移除、立即发送</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div style="padding:var(--s3) var(--s3) 0;display:grid;gap:var(--s1)">
+        <div class="pw-inline" style="padding:6px var(--s2);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas)">
+          <span class="pw-badge count">1</span>
+          <span class="grow" style="font-size:var(--text-secondary)">顺便把 i18n 三语都补上</span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="pencil-line" data-size="13"></i></span></span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="send" data-size="13"></i></span>立即发</span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span>
+        </div>
+        <div class="pw-inline" style="padding:6px var(--s2);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas)">
+          <span class="pw-badge count">2</span>
+          <span class="grow" style="font-size:var(--text-secondary)">跑完再顺手更新一下 delta.md 的台账</span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="pencil-line" data-size="13"></i></span></span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="send" data-size="13"></i></span>立即发</span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span>
+        </div>
+      </div>
+      <div class="pw-composer-top" style="min-height:36px">继续输入…</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="pw-select">Steer 立即打断<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-badge count">2 条排队</span>
+        <span class="pw-ring" style="--p:26%"></span>
+        <span class="pw-send stop"><span class="pw-ico"><i data-ico="square" data-size="13"></i></span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 输入历史 + 模型错误 + 流式模式 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>输入历史 · 模型错误 · 流式两种模式 · 收起控件</b></div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 输入历史（↑ / ↓ 翻自己发过的消息）</div>
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4)">
+      <div style="flex:1">
+        <div class="pw-composer" style="width:100%;margin:0">
+          <div class="pw-composer-top" style="color:var(--n-text)">把 i18n 三语都补上</div>
+          <div class="pw-composer-bar">
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+            <span class="pw-grow" style="flex:1"></span>
+            <span class="pw-badge count">历史 3 / 12</span>
+            <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+            <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="arrow-down" data-size="14"></i></span></span>
+            <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-cell" style="width:250px;flex:none">
+        <h4>规则</h4>
+        <p>空输入框里按 ↑ 取上一条，↓ 往回走；一旦手动改过文字就退出历史浏览。发送后当前草稿进历史，连续重复的不再入栈。</p>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 模型错误（输入框上方一条 error 提示，不挡输入）</div>
+    <div class="pw-composer" style="width:100%;margin:0">
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:7px var(--s3);background:var(--error-soft);border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico" style="color:var(--error)"><i data-ico="circle-alert" data-size="14"></i></span>
+        <span class="grow" style="font-size:var(--text-secondary);color:var(--n-text)">模型 <b class="pw-mono">deepseek/v4.1-flash</b> 不可用：API Key 已失效</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="cpu" data-size="13"></i></span>换一个模型</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span>
+      </div>
+      <div class="pw-composer-top" style="padding-top:var(--s2)">继续输入仍然可以，发送前必须先选一个可用模型</div>
+      <div class="pw-composer-bar">
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+        <span class="pw-select" style="color:var(--error)">模型不可用<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-send disabled"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 流式两种模式（发送键旁的下拉）</div>
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4)">
+      <div class="pw-pop" style="width:300px">
+        <div class="pw-pop-title">运行中发送，走哪条路</div>
+        <div class="pw-prow is-on">
+          <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="zap" data-size="14"></i></span>
+          <span class="grow">Steer · 立即打断<span class="pw-desc" style="display:block">停掉当前这轮，把新消息插进去</span></span>
+          <span class="pw-ico"><i data-ico="check" data-size="14"></i></span>
+        </div>
+        <div class="pw-prow">
+          <span class="pw-ico"><i data-ico="inbox" data-size="14"></i></span>
+          <span class="grow">Follow-up · 排队<span class="pw-desc" style="display:block">等这轮跑完再发，不打断</span></span>
+        </div>
+      </div>
+      <div class="pw-cell" style="flex:1">
+        <h4>Follow-up 提示</h4>
+        <p>选排队时，输入框下方常驻一句「这轮结束后自动发出」，并在队列里给出序号；选 Steer 时提示「发送会立刻打断当前这轮」。</p>
+        <div class="pw-inline" style="margin-top:var(--s2);gap:var(--s2)">
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">排队：</span>
+          <span class="pw-badge count"><span class="pw-ico"><i data-ico="inbox" data-size="11"></i></span>这轮结束后自动发出</span>
+        </div>
+        <div class="pw-inline" style="margin-top:var(--s2);gap:var(--s2)">
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">打断：</span>
+          <span class="pw-badge warn"><span class="pw-ico"><i data-ico="zap" data-size="11"></i></span>发送会立刻打断当前这轮</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">D · 收起控件（手动折叠工具栏，与自动塌陷同一个状态）</div>
+    <div class="pw-inline" style="gap:var(--s4);align-items:flex-start">
+      <div style="flex:1">
+        <div class="pw-composer collapsed" style="width:100%;margin:0">
+          <div class="pw-composer-top">继续…</div>
+          <div class="pw-composer-bar">
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+            <span class="grow"></span>
+            <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-cell" style="width:250px;flex:none">
+        <h4>两个入口，一个状态</h4>
+        <p>自动：向上翻阅（离底 &gt; 120px）。手动：工具栏右端那个「收起控件」按钮。两者折叠出来的是同一个形态，展开条件也一致（回到底部 / 聚焦输入框）。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 本页动效（真在播） -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>本页动效</b> · 循环播放 · 规格与全量清单见画板 <span class="pw-mono">05-motion</span><span class="grow"></span><span style="color:var(--n-placeholder)">输入框下面没有第二条横条</span></div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-anim-stage">
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>弹层出现 · 模型选择器</span><span class="grow"></span><span class="tag">160ms · 4px</span></div>
+        <div class="pw-anim-box flow">
+          <span class="pw-anim-trigger" style="display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:var(--radius-4);font-size:var(--text-secondary)">
+            <span class="pw-ico"><i data-ico="cpu" data-size="14"></i></span>GPT-5.6 Luna
+          </span>
+          <div class="pw-anim-pop" style="margin-top:6px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);box-shadow:var(--shadow-popover);padding:4px 0">
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>GPT-5.6 Luna</div>
+            <div class="pw-prow">Claude Sonnet 4.5</div>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>@ 引用菜单 · 成组错开</span><span class="grow"></span><span class="tag">40ms ×3 封顶</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:2px;width:100%">
+            <div class="pw-anim-step pw-prow" style="padding:5px 8px">design/pi-web-design/DESIGN-SPEC.md</div>
+            <div class="pw-anim-step pw-prow" style="padding:5px 8px">docs/design-system-comparison-2026-09-28.md</div>
+            <div class="pw-anim-step pw-prow" style="padding:5px 8px">AGENTS.md</div>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>阅读态塌陷</span><span class="grow"></span><span class="tag">120ms · 单行</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:var(--s2);width:100%">
+            <div style="border:1px solid var(--n-border);border-radius:var(--radius-6);padding:6px 10px;background:var(--surface-panel)">
+              <div class="pw-anim-pending pw-inline"><span class="pw-ico pw-dim"><i data-ico="plus" data-size="13"></i></span><span class="pw-muted" style="font-size:var(--text-meta)">向上翻阅时收成一行、隐藏工具栏</span></div>
+            </div>
+            <div class="pw-muted" style="font-size:var(--text-meta)">离底 &gt; 120px 塌陷 · 回底 ≤ 8px 或聚焦即展开</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>一行控件的固定顺序</b>：左端 <code>+</code>（附件 / 上下文），然后是四个下拉（模型 → 思考档 → 权限档 → 工具档），再可选压缩；右端是上下文环 → 声音 → 发送。左端与右端之间用 <code>grow</code> 撑开。</li>
+    <li><b>控件高度只用 24</b>：输入框里的下拉与图标按钮都是 24（紧凑档），因为它们是「行内控件」不是「工具栏控件」。</li>
+    <li><b>发送键是唯一的强调色实心块</b>，圆角 4、28 见方。三种状态：空闲（accent 箭头）/ 流式中（error 方块）/ 禁用（中性底 + 弱化箭头）。</li>
+    <li><b>附件芯片在正文上方</b>，不挤占输入行；引用上下文条用左侧 2px 强调线 + 等宽来源标注。</li>
+    <li><b>统计条在输入框下方</b>，是一条独立的发丝边框块，全部等宽数字；上下文环三档配色（accent / warning / error）是唯一会变色的控件。</li>
+    <li><b>排队条在输入框内部上方</b>：每条给序号徽章 + 文本 + 三个动作（编辑 / 立即发 / 移除）。</li>
+    <li><b>输入框里的 token 有着色</b>：<code>@</code> 引用与 <code>/</code> 命令用强调色 + 点状下划线；正在输入、还没成形的半个 token 不着色。实现上是「透明 textarea + 高亮层」，两层必须共用字号。</li>
+    <li><b>输入框可拖高</b>：顶部一条 12px 的把手（默认弱化 / 悬浮加深 / 拖拽中转强调色），双击复位，上限 40vh。长提示词不必在小框里滚。</li>
+    <li><b>阅读态会自动塌陷</b>：向上翻阅（离底 &gt; 120px）时收成一行文本、隐藏工具栏，把视口让给消息；回到底部或聚焦输入框立刻展开。只认真实用户滚动意图，且必须做方向跟踪（否则会被浏览器的「夹回底部」骗到来回翻转）。</li>
+    <li><b>上下文浮窗挂在左下圆环上</b>：<code>Context 10k / 1M</code> + <code>Rules</code>，有费用信息时多两行（本会话花费、本轮 in/out）；协议没给 cost 时整段省略，不留空行。</li>
+    <li><b>输入历史</b>：空输入框里按 ↑ / ↓ 翻自己发过的消息，右端显示「历史 3 / 12」；手动改字即退出浏览，连续重复的不入栈。</li>
+    <li><b>模型错误挂在输入框上方一条</b>，不挡输入：写明哪个模型、为什么不可用，给「换一个模型」与关闭；发送键转禁用。</li>
+    <li><b>流式有两种模式</b>：Steer（立即打断，accent）与 Follow-up（排队，中性）。选中后在输入框下方常驻一句后果说明——「会打断」和「会排队」是完全不同的预期，不能只靠图标区分。</li>
+    <li><b>「收起控件」与自动塌陷是同一个状态</b>：手动按钮在工具栏右端，自动触发是向上翻阅；两者折叠形态与展开条件一致，不各做一套。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

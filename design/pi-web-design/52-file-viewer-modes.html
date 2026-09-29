@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>52 · 文件查看器其余形态 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>52 · 文件查看器其余形态</h1>
+  <p>30 画板只画了「只读查看」这一条路。这一张补齐查看器的其余形态：可编辑源码、CSV 表格、图片缩放预览、Markdown frontmatter 卡，以及长列表的滚动淡出。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：文件面板</span>
+    <span class="pw-tag">组件：CodeFileEditor / CsvPreview / ImagePreview / FrontmatterCard / ScrollFadeViewport</span>
+    <span class="pw-tag accent">宽 420 / 800</span>
+  </div>
+</header>
+
+<!-- 编辑模式 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>可编辑源码</b> · 只读 / 编辑中（有未保存改动）/ 保存冲突</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 编辑中（有未保存改动）</div>
+    <div class="pw-card">
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
+        <span class="pw-mono">components/ChatInput.tsx</span>
+        <span class="pw-badge">TSX</span>
+        <span class="pw-badge warn">未保存</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>撤销</span>
+        <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="save" data-size="13"></i></span>保存<span class="pw-kbd" style="margin-left:4px">⌘S</span></span>
+      </div>
+      <div class="pw-code-body" style="font-size:var(--text-mono);padding:var(--s2) var(--s3)">
+<span class="ln">288</span>  <span class="pw-tok-key">const</span> queue = useMemo(() =&gt; <span class="pw-tok-fn">buildQueue</span>(pending), [pending]);
+<span class="ln">289</span>
+<span class="ln">290</span>  <span class="pw-tok-com">// 队列召回：把排队的消息放回输入框继续改</span>
+<span class="ln">291</span>  <span class="pw-tok-key">const</span> recall = useCallback((id: <span class="pw-tok-fn">string</span>) =&gt; {
+<span class="ln">292</span>    setDraft(<span class="pw-tok-fn">take</span>(pending, id));<span style="background:var(--success-soft)">  ▍</span>
+<span class="ln">293</span>  }, [pending]);
+      </div>
+      <div class="pw-card-foot">
+        <span class="pw-ico pw-dim"><i data-ico="circle" data-size="12"></i></span>
+        <span>行 292 · 列 38</span>
+        <span class="grow"></span>
+        <span>TSX · LF · UTF-8</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 保存冲突（磁盘被 agent 改过）</div>
+    <div class="pw-card" style="border-color:var(--warning)">
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico" style="color:var(--warning)"><i data-ico="triangle-alert" data-size="13"></i></span>
+        <span class="pw-mono">README.md</span>
+        <span class="pw-badge warn">有冲突</span>
+        <span class="grow"></span>
+      </div>
+      <div style="padding:var(--s3);display:grid;gap:var(--s2)">
+        <p style="margin:0;color:var(--n-muted);font-size:var(--text-secondary)">保存时发现磁盘上的版本已经变了。三选一：</p>
+        <div class="pw-list">
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="download" data-size="14"></i></span><span class="grow"><span class="pw-lname">用磁盘版本</span><span class="pw-lsub">丢掉我的编辑，重新载入</span></span></div>
+          <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="save" data-size="14"></i></span><span class="grow"><span class="pw-lname">覆盖磁盘</span><span class="pw-lsub">用我的版本写回去</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="git-compare" data-size="14"></i></span><span class="grow"><span class="pw-lname">先看差异</span><span class="pw-lsub">分栏对比两边</span></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- CSV + frontmatter -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>CSV 表格预览 · Markdown frontmatter 卡</b></div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · CSV / TSV 预览（宽表横向滚动、表头吸顶、行号）</div>
+    <div class="pw-card">
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="table" data-size="13"></i></span>
+        <span class="pw-mono">data/招标清单.csv</span>
+        <span class="pw-badge">CSV</span>
+        <span class="pw-badge count">1,284 行 × 9 列</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="code" data-size="13"></i></span>源码</span>
+      </div>
+      <div style="overflow:hidden">
+        <table class="pw-table" style="font-size:var(--text-meta)">
+          <thead>
+            <tr>
+              <th style="width:36px" class="num">#</th>
+              <th>标题</th><th>地区</th><th class="num">项目总投资</th><th>进展阶段</th><th>建设单位</th><th>一级行业</th><th>二级行业</th><th>联系人</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="num pw-dim">1</td><td>某某市污水处理厂扩建工程</td><td>江苏省南京市</td><td class="num">12,400 万</td><td>设计</td><td>某某水务集团</td><td>市政</td><td>污水处理</td><td>张工</td></tr>
+            <tr><td class="num pw-dim">2</td><td>开发区智慧园区一期</td><td>浙江省杭州市</td><td class="num">8,600 万</td><td>招标</td><td>某某建设投资</td><td>建筑</td><td>园区</td><td>李工</td></tr>
+            <tr><td class="num pw-dim">3</td><td>高速公路改扩建</td><td>广东省广州市</td><td class="num">36,000 万</td><td>施工</td><td>某某交通集团</td><td>交通</td><td>公路</td><td>王工</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pw-card-foot">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span>只读预览 · 宽表横向滚动，表头吸顶，首列是行号</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm">跳到行…</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · Markdown frontmatter 卡（YAML 头单独成卡，正文照常渲染）</div>
+    <div class="pw-card">
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="file-text" data-size="13"></i></span>
+        <span class="pw-mono">.workbuddy-ai/skills/zhaobiao-extract/SKILL.md</span>
+        <span class="pw-badge">MD</span>
+      </div>
+      <div style="padding:var(--s3);display:grid;gap:var(--s3)">
+        <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-panel);overflow:hidden">
+          <div class="pw-card-head" style="padding:5px var(--s3);border-bottom:1px solid var(--n-border-subtle)">
+            <span class="pw-ico pw-dim"><i data-ico="braces" data-size="13"></i></span>
+            <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">frontmatter</span>
+            <span class="grow"></span>
+            <span class="pw-btn sm">复制</span>
+          </div>
+          <dl class="pw-kv" style="padding:var(--s2) var(--s3);grid-template-columns:110px minmax(0,1fr)">
+            <dt>name</dt><dd class="pw-mono">zhaobiao-extract</dd>
+            <dt>description</dt><dd>把招投标 Excel 逐条抽取 15 个字段…</dd>
+            <dt>agent_created</dt><dd><span class="pw-badge">false</span></dd>
+          </dl>
+        </div>
+        <div class="pw-md" style="font-size:var(--text-secondary)">
+          <h2 style="font-size:var(--text-body)">招标改 · 批量结构化抽取</h2>
+          <p>把招投标 Excel（列：序号/标题/地区/正文）逐条抽取 15 个字段，经本地确定性后处理输出新工作簿。</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 图片预览 + 滚动淡出 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>图片缩放预览 · 长列表滚动淡出</b></div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · 图片预览（缩放 / 平移 / 适应窗口）</div>
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-mono">build/icon.png</span>
+        <span class="pw-badge count">512 × 512</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="zoom-in" data-size="13"></i></span>180%</span>
+      </div>
+      <div style="height:180px;overflow:hidden;display:grid;place-items:center;background:repeating-linear-gradient(45deg,var(--n-surface) 0 8px,var(--n-panel) 8px 16px)">
+        <div style="width:150px;height:150px;border-radius:var(--radius-6);background:var(--surface-canvas);border:1px solid var(--n-border);display:grid;place-items:center;color:var(--n-placeholder)">
+          <span class="pw-ico"><i data-ico="image" data-size="28"></i></span>
+        </div>
+      </div>
+      <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)">
+        <span class="pw-ico pw-dim"><i data-ico="move" data-size="13"></i></span><span>拖拽平移</span>
+        <span class="grow"></span>
+        <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="zoom-in" data-size="13"></i></span></span>
+        <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="zoom-in" data-size="13" data-stroke="1.5"></i></span></span>
+        <span class="pw-btn sm">适应窗口</span>
+        <span class="pw-btn sm">1:1</span>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 滚动淡出（长列表上下边缘渐隐）</div>
+      <div style="position:relative;padding:0">
+        <div style="height:26px;background:linear-gradient(to bottom,var(--surface-canvas),transparent);position:absolute;left:0;right:0;top:0;z-index:1;pointer-events:none"></div>
+        <div class="pw-list" style="padding:var(--s3) var(--s3) 0">
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-28.md</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-27.md</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-26.md</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-25.md</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span><span class="grow"><span class="pw-lname">2026-09-24.md</span></span></div>
+        </div>
+        <div style="height:34px;background:linear-gradient(to top,var(--surface-canvas),transparent);position:absolute;left:0;right:0;bottom:0;z-index:1;pointer-events:none"></div>
+      </div>
+      <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span>只在可滚动时出现，滚到顶 / 底自动消失，不占布局</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- HTML 预览 + 查看器全部分支 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>HTML 预览 · 查看器的全部分支</b> · 沙箱 iframe；同一份文件可以换视图，不重开标签</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · HTML 预览（沙箱 iframe）</div>
+    <div class="pw-card">
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="code" data-size="13"></i></span>
+        <span class="pw-mono">design/pi-web-design/01-workbench.html</span>
+        <span class="pw-badge">HTML</span>
+        <span class="pw-badge warn">已改动</span>
+        <span class="grow"></span>
+        <span class="pw-badge accent">预览</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="code" data-size="13"></i></span>源码</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>新标签打开</span>
+      </div>
+      <div style="height:130px;display:grid;place-items:center;background:var(--surface-panel)">
+        <div style="width:170px;height:96px;background:var(--surface-canvas);border:1px solid var(--n-border);border-radius:var(--radius-4);display:grid;place-items:center;color:var(--n-placeholder);font-size:var(--text-meta)">
+          沙箱 iframe
+        </div>
+      </div>
+      <div class="pw-card-foot">
+        <span class="pw-ico pw-dim"><i data-ico="shield-alert" data-size="13"></i></span>
+        <span>脚本按 sandbox 限制执行，不带站点权限；外链点击走画板 54 的「在哪儿打开」</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 查看器的全部分支（同一份文件换视图，不重开标签）</div>
+    <div class="pw-grid2">
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span>源码</h4>
+        <p>行号 / 换行开关 / 全屏 / 选区可「提及」到输入框 / 可编辑（画板 A 段）。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="file-text" data-size="14"></i></span>Markdown 预览</h4>
+        <p>源码 ↔ 预览切换；预览态仍可编辑并保存，有未保存标记。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="table" data-size="14"></i></span>CSV / TSV 表格</h4>
+        <p>表头吸顶、首列行号、数字列右对齐、宽表横向滚动。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="image" data-size="14"></i></span>图片</h4>
+        <p>缩放百分比 / 放大 / 缩小 / 适应窗口 / 1:1；拖拽平移。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="code" data-size="14"></i></span>HTML</h4>
+        <p>沙箱 iframe 预览；源码 ↔ 预览切换；可新标签打开。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="file-diff" data-size="14"></i></span>与 HEAD 对比</h4>
+        <p>只读 diff；文件已从磁盘删除时仍可用（只剩与 HEAD 的对比）。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span>实时同步</h4>
+        <p>监听中 / 未监听两态；外部改动与本地未保存编辑冲突时给「用磁盘 / 覆盖磁盘 / 先看差异」。</p>
+      </div>
+      <div class="pw-cell" style="padding:var(--s2) var(--s3)">
+        <h4><span class="pw-ico pw-dim"><i data-ico="file" data-size="14"></i></span>不可渲染</h4>
+        <p>兜底文件卡：名字 + MIME + 大小 + 下载；不给空白页。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 与 HEAD 对比（覆盖层）+ 文件被删除 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>与 HEAD 对比（覆盖层）· 文件被删除</b> · 对比不是新标签、不是新页面，是同一个查看器上盖一层</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-mono pw-dim">A · 头部的对比开关（未开 / 已开）</div>
+    <div class="pw-viewer-head" style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);flex-wrap:wrap">
+      <span class="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
+      <span class="pw-mono">components/SessionSidebar.tsx</span>
+      <span class="pw-badge">TSX</span>
+      <span class="pw-ico" style="color:var(--success)"><i data-ico="circle" data-size="8"></i></span>
+      <span class="pw-grow"></span>
+      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="code" data-size="13"></i></span>源码</span>
+      <span class="pw-btn sm is-on" style="background:var(--overlay-selected);color:var(--accent-text)"><span class="pw-ico"><i data-ico="file-diff" data-size="13"></i></span>与 HEAD 对比</span>
+    </div>
+
+    <div class="pw-mono pw-dim">B · 对比已开：整个内容区换成 diff，顶部一条横幅说明现在在看什么</div>
+    <div class="pw-card">
+      <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+        <span class="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
+        <span class="pw-mono">components/SessionSidebar.tsx</span>
+        <span class="grow"></span>
+        <span class="pw-btn sm is-on" style="background:var(--overlay-selected);color:var(--accent-text)"><span class="pw-ico"><i data-ico="file-diff" data-size="13"></i></span>与 HEAD 对比</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle);background:var(--surface-panel)">
+        <span style="font-size:var(--text-meta);color:var(--n-muted)">与 HEAD 的差异（只读）</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn sm">返回源码</span>
+      </div>
+      <div class="pw-diff" style="border:0;border-radius:0">
+        <div class="pw-diff-line"><span class="no">41</span><span class="del">-  const rows = useMemo(() =&gt; sessions.filter(isVisible), [sessions]);</span></div>
+        <div class="pw-diff-line"><span class="no">41</span><span class="add">+  const rows = useMemo(() =&gt; sessions.filter(isVisible), [sessions, query]);</span></div>
+        <div class="pw-diff-line"><span class="no">42</span><span>   const grouped = groupByProject(rows);</span></div>
+      </div>
+      <div class="pw-card-foot">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span><b>对比是一个覆盖层，不是一个视图模式</b>：关掉就回到原视图，不丢滚动位置、不重开标签。头部的按钮保持选中态。</span>
+      </div>
+    </div>
+
+    <div class="pw-mono pw-dim">C · 文件已从磁盘删除（对比仍可用；关掉对比后不能给空白面板）</div>
+    <div class="pw-grid2">
+      <div class="pw-card">
+        <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+          <span class="pw-ico pw-dim"><i data-ico="file-code" data-size="13"></i></span>
+          <span class="pw-mono">lib/legacy-shim.ts</span>
+          <span class="pw-badge bad">已删除</span>
+        </div>
+        <div style="height:96px;display:grid;place-items:center;gap:6px;background:var(--surface-canvas);color:var(--n-muted);font-size:var(--text-secondary);text-align:center;padding:var(--s3)">
+          <span class="pw-ico pw-dim"><i data-ico="file-clock" data-size="18"></i></span>
+          <span>这个文件已不在磁盘上</span>
+        </div>
+        <div class="pw-card-foot"><span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span><span>对比没开、又没有内容可渲染时，<b>说清发生了什么</b>，不留给空白面板。</span></div>
+      </div>
+      <div class="pw-card">
+        <div class="pw-viewer-head" style="border-bottom:1px solid var(--n-border-subtle)">
+          <span class="pw-ico pw-dim"><i data-ico="file-code" data-size="13"></i></span>
+          <span class="pw-mono">lib/legacy-shim.ts</span>
+          <span class="pw-badge bad">已删除</span>
+          <span class="grow"></span>
+          <span class="pw-btn sm is-on" style="background:var(--overlay-selected);color:var(--accent-text)"><span class="pw-ico"><i data-ico="file-diff" data-size="13"></i></span>与 HEAD 对比</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--s2);padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle);background:var(--surface-panel)">
+          <span style="font-size:var(--text-meta);color:var(--n-muted)">这个文件已不在磁盘上 · 下面是它与 HEAD 的差异</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn sm">返回源码</span>
+        </div>
+        <div class="pw-diff" style="border:0;border-radius:0">
+          <div class="pw-diff-line"><span class="no">1</span><span class="del">- export * from "./legacy-shim";</span></div>
+          <div class="pw-diff-line"><span class="no">1</span><span class="del">- // TODO: 待清理</span></div>
+        </div>
+        <div class="pw-card-foot"><span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span><span>删除的文件仍能看到它最后的样子（就是与 HEAD 的对比）——这是删除后唯一可用的视图。</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>编辑态与只读态只差头部三个东西</b>：一枚「未保存」徽章、一个撤销、一个主按钮的保存（带 <code>⌘S</code> kbd）。正文区完全一样。</li>
+    <li><b>编辑区页脚给三样定位信息</b>：行 · 列、语言 · 行尾 · 编码。不用状态栏占布局。</li>
+    <li><b>保存冲突给三个明确动作</b>（用磁盘 / 覆盖磁盘 / 先看差异），不做自动合并——合并结果无法预期。</li>
+    <li><b>CSV 用真表格不用等宽文本</b>：表头吸顶、首列行号、数字列右对齐 + 等宽数字、宽表横向滚动。</li>
+    <li><b>frontmatter 单独成卡</b>：YAML 头解析成 <code>键 / 值</code> 两列，布尔值给徽章；正文照常 Markdown 渲染。不改写文件，只换呈现。</li>
+    <li><b>图片预览的工具栏只有四样</b>：缩放百分比（可点开）、放大、缩小、适应窗口 / 1:1。拖拽平移不给按钮。</li>
+    <li><b>滚动淡出用上下两条渐变遮罩</b>（<code>pointer-events: none</code>），只在真能滚的时候出现；它是提示不是装饰。</li>
+    <li><b>「与 HEAD 对比」是一个覆盖层，不是一个视图模式</b>：整个内容区换成只读 diff，顶部一条横幅写明在看什么 + 「返回源码」；关掉回到原视图，不丢滚动位置、不重开标签。</li>
+    <li><b>文件已从磁盘删除时不能给空白面板</b>：对比开着就给删除说明 + 与 HEAD 的差异；对比关掉就一条 <code>role="status"</code> 说明「已不在磁盘上」。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>47 · 皮肤工作室与壁纸 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>47 · 皮肤工作室与壁纸</h1>
+  <p>本项目独有的能力：皮肤条（选 / 新建 / 编辑 / 导入 / 导出）、皮肤工作室对话框（两页签：皮肤设置 / 自定义 CSS）、壁纸选择与各面适配。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：ThemeSkinStrip / ThemeSkinStudio / WallpaperSettings / BuiltinWallpaperPicker</span>
+    <span class="pw-tag accent">弹层 900 × 720</span>
+  </div>
+</header>
+
+<!-- 皮肤条 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>皮肤条</b> · 设置 → 常规 → 主题皮肤 · 选中 / 新建 / 导入 / 导出</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-skin-strip">
+      <div class="pw-skin is-on">
+        <div class="prev"><span class="a"></span><span class="b"></span></div>
+        <div class="cap"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>默认</div>
+      </div>
+      <div class="pw-skin">
+        <div class="prev"><span class="a" style="background:#eae6dd"></span><span class="b" style="background:#fdfcf8"></span></div>
+        <div class="cap">纸感</div>
+      </div>
+      <div class="pw-skin">
+        <div class="prev"><span class="a" style="background:#e8eaf4"></span><span class="b" style="background:#fbfbfd"></span></div>
+        <div class="cap">冷调</div>
+      </div>
+      <div class="pw-skin">
+        <div class="prev"><span class="a" style="background:#e6eee8"></span><span class="b" style="background:#fafdfa"></span></div>
+        <div class="cap">松</div>
+      </div>
+      <div class="pw-skin" style="display:grid;place-items:center;min-height:96px">
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建皮肤</span>
+      </div>
+    </div>
+
+    <div class="pw-inline">
+      <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="upload" data-size="13"></i></span>导入皮肤</span>
+      <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>导出当前皮肤</span>
+      <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="paintbrush" data-size="13"></i></span>打开皮肤工作室</span>
+      <span class="pw-grow"></span>
+      <span class="pw-btn danger sm">删除当前皮肤</span>
+    </div>
+
+    <div class="pw-alert info">
+      <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+      <span class="pw-grow">皮肤可以自定义强调色，这会**覆盖本规范的单一强调色**约定。皮肤生效时，画板里的 <code class="pw-mono">--accent</code> 一律被皮肤值替换。</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- 工作室对话框 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>皮肤工作室</b> · 两页签：皮肤设置 / 自定义 CSS · 左侧实时预览<span class="grow"></span>900 × 720</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-modal" style="width:900px;height:720px;display:flex;flex-direction:column">
+
+      <div class="pw-modal-head">
+        <span class="pw-ico"><i data-ico="paintbrush" data-size="16"></i></span>
+        皮肤工作室 · 纸感
+        <span class="pw-grow"></span>
+        <span class="pw-radio"><span class="is-on">皮肤设置</span><span>自定义 CSS</span></span>
+        <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+      </div>
+
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 340px">
+
+        <!-- 左：设置 -->
+        <div style="padding:var(--s3) var(--s4);overflow:hidden">
+          <div class="pw-sec-title">基本信息<span class="grow"></span></div>
+          <div class="pw-field"><span class="pw-label">皮肤名称</span><input class="pw-input" style="min-width:0;width:220px" value="纸感"></div>
+          <div class="pw-field">
+            <span class="pw-label">明暗预览</span>
+            <span class="pw-radio"><span class="is-on"><span class="pw-ico"><i data-ico="sun" data-size="12"></i></span>浅色</span><span><span class="pw-ico"><i data-ico="moon" data-size="12"></i></span>深色</span></span>
+          </div>
+
+          <div class="pw-sec-title" style="margin-top:var(--s3)">四色（留空表示继承默认皮肤）<span class="grow"></span></div>
+          <div class="pw-field">
+            <span class="pw-label">强调色</span>
+            <span class="pw-ctl">
+              <span style="width:24px;height:24px;border-radius:var(--radius-4);background:#5566d8;border:1px solid var(--n-border)"></span>
+              <input class="pw-input" style="min-width:0;width:110px" value="#5566d8">
+              <span class="pw-btn sm">重置</span>
+            </span>
+          </div>
+          <div class="pw-field">
+            <span class="pw-label">页面底色</span>
+            <span class="pw-ctl">
+              <span style="width:24px;height:24px;border-radius:var(--radius-4);background:#fdfcf8;border:1px solid var(--n-border)"></span>
+              <input class="pw-input" style="min-width:0;width:110px" value="#fdfcf8">
+            </span>
+          </div>
+          <div class="pw-field">
+            <span class="pw-label">面板色</span>
+            <span class="pw-ctl">
+              <span style="width:24px;height:24px;border-radius:var(--radius-4);background:#f5f3ec;border:1px solid var(--n-border)"></span>
+              <input class="pw-input" style="min-width:0;width:110px" value="#f5f3ec">
+            </span>
+          </div>
+          <div class="pw-field">
+            <span class="pw-label">正文色</span>
+            <span class="pw-ctl">
+              <span style="width:24px;height:24px;border-radius:var(--radius-4);background:#33333d;border:1px solid var(--n-border)"></span>
+              <input class="pw-input" style="min-width:0;width:110px" value="#33333d">
+            </span>
+          </div>
+
+          <div class="pw-sec-title" style="margin-top:var(--s3)">几何<span class="grow"></span></div>
+          <div class="pw-field"><span class="pw-label">圆角缩放</span><span class="pw-ctl"><span class="pw-mono">1.0×</span></span></div>
+          <div class="pw-field"><span class="pw-label">边框强度</span><span class="pw-ctl"><span class="pw-mono">中</span></span></div>
+          <div class="pw-field"><span class="pw-label">焦点环</span><span class="pw-switch on"><i></i></span></div>
+
+          <div class="pw-sec-title" style="margin-top:var(--s3)">不透明度与遮罩<span class="grow"></span></div>
+          <div class="pw-field"><span class="pw-label">侧栏不透明度</span><span class="pw-ctl"><span class="pw-mono">92%</span></span></div>
+          <div class="pw-field"><span class="pw-label">弹层不透明度</span><span class="pw-ctl"><span class="pw-mono">100%</span></span></div>
+          <div class="pw-field"><span class="pw-label">玻璃模糊</span><span class="pw-switch"><i></i></span></div>
+          <div class="pw-field"><span class="pw-label">阅读遮罩</span><span class="pw-switch on"><i></i></span></div>
+          <div class="pw-field"><span class="pw-label">遮罩浓度</span><span class="pw-ctl"><span class="pw-mono">36%</span></span></div>
+        </div>
+
+        <!-- 右：预览 -->
+        <div style="border-left:1px solid var(--n-border-subtle);padding:var(--s3);display:grid;gap:var(--s2);align-content:start;background:var(--surface-panel)">
+          <div class="pw-sec-title">实时预览<span class="grow"></span></div>
+          <div style="border:1px solid var(--n-border);border-radius:var(--radius-6);overflow:hidden;background:#fdfcf8">
+            <div style="display:grid;grid-template-columns:56px 1fr;height:200px">
+              <div style="background:#f5f3ec;border-right:1px solid #e6e2d6;padding:6px;display:grid;gap:4px;align-content:start">
+                <div style="height:16px;border-radius:4px;background:#e6e2d6"></div>
+                <div style="height:16px;border-radius:4px;background:#5566d8;opacity:.25"></div>
+                <div style="height:16px;border-radius:4px;background:#e6e2d6"></div>
+              </div>
+              <div style="padding:8px;display:grid;gap:5px;align-content:start">
+                <div style="height:10px;width:70%;border-radius:3px;background:#e6e2d6"></div>
+                <div style="height:10px;width:90%;border-radius:3px;background:#ece8dc"></div>
+                <div style="height:10px;width:50%;border-radius:3px;background:#ece8dc"></div>
+                <div style="height:26px;margin-top:4px;border-radius:4px;background:#5566d8;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">主按钮</div>
+                <div style="height:22px;border-radius:4px;border:1px solid #e6e2d6"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pw-sec-title" style="margin-top:var(--s2)">壁纸<span class="grow"></span></div>
+          <div style="height:70px;border-radius:var(--radius-6);border:1px solid var(--n-border);background:linear-gradient(135deg,#e8e4d8,#f6f3ea 60%,#dfe4ea);position:relative;overflow:hidden">
+            <span style="position:absolute;inset:0;background:rgba(255,255,255,.36)"></span>
+          </div>
+          <div class="pw-inline">
+            <span class="pw-btn outline sm">选择图片</span>
+            <span class="pw-btn sm">移除</span>
+            <span class="pw-grow"></span>
+            <span class="pw-badge count">2.4 MB</span>
+          </div>
+          <div class="pw-field"><span class="pw-label">适配方式</span><span class="pw-selectbox" style="min-width:110px">填满<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+          <div class="pw-field"><span class="pw-label">各面模式</span><span class="pw-selectbox" style="min-width:110px">半透明<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+        </div>
+
+      </div>
+
+      <div class="pw-modal-foot">
+        <span class="pw-btn danger">重置为默认</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn">取消</span>
+        <span class="pw-btn primary">保存皮肤</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 自定义 CSS + 壁纸选择器 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>自定义 CSS 页签 · 内置壁纸选择器</b> · CSS 覆盖层 + 壁纸画廊</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-modal" style="width:100%">
+      <div class="pw-modal-head">
+        <span class="pw-ico"><i data-ico="code" data-size="16"></i></span>
+        自定义 CSS
+        <span class="pw-grow"></span>
+        <span class="pw-badge warn">高级</span>
+      </div>
+      <div class="pw-modal-body">
+        <div class="pw-alert"><span class="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span><span class="pw-grow">这里的规则会覆盖皮肤设置。写错可能导致界面不可用，但可以随时「重置为默认」。</span></div>
+        <textarea class="pw-textarea" style="min-height:280px">/* 只覆盖 token，不要动布局 */
+:root:root {
+  --accent: #6b7ae8;
+  --accent-active: #5566d8;
+  --n-panel: #f5f3ec;
+  --n-border-subtle: #e6e2d6;
+  --radius-6: 8px;   /* 注意：这超出规范上限 6 */
+}
+
+/* 转录区更宽一点 */
+.pw-col { max-width: 920px; }</textarea>
+        <div class="pw-inline">
+          <span class="pw-badge bad"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>第 6 行：--radius-6 超出规范上限（6px）</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn sm">格式化</span>
+        </div>
+      </div>
+      <div class="pw-modal-foot">
+        <span class="pw-btn danger">清空</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn">取消</span>
+        <span class="pw-btn primary">应用</span>
+      </div>
+    </div>
+
+    <div class="pw-modal" style="width:100%">
+      <div class="pw-modal-head">
+        <span class="pw-ico"><i data-ico="wallpaper" data-size="16"></i></span>
+        内置壁纸
+        <span class="pw-grow"></span>
+        <span class="pw-radio"><span class="is-on">内置</span><span>本机图片</span></span>
+      </div>
+      <div class="pw-modal-body">
+        <div class="pw-grid3" style="gap:var(--s2)">
+          <div>
+            <div style="height:64px;border-radius:var(--radius-4);border:2px solid var(--accent);background:linear-gradient(135deg,#e8e4d8,#f6f3ea)"></div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:4px">纸纹 · 当前</div>
+          </div>
+          <div>
+            <div style="height:64px;border-radius:var(--radius-4);border:1px solid var(--n-border);background:linear-gradient(160deg,#dfe6f0,#f3f6fa)"></div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:4px">晨雾</div>
+          </div>
+          <div>
+            <div style="height:64px;border-radius:var(--radius-4);border:1px solid var(--n-border);background:linear-gradient(160deg,#e3ece4,#f7fbf7)"></div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:4px">松林</div>
+          </div>
+          <div>
+            <div style="height:64px;border-radius:var(--radius-4);border:1px solid var(--n-border);background:linear-gradient(160deg,#ece2e8,#fbf5f8)"></div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:4px">薄暮</div>
+          </div>
+          <div>
+            <div style="height:64px;border-radius:var(--radius-4);border:1px solid var(--n-border);background:linear-gradient(160deg,#e8e8e8,#fafafa)"></div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:4px">素白</div>
+          </div>
+          <div>
+            <div style="height:64px;border-radius:var(--radius-4);border:1px solid var(--n-border);background:linear-gradient(160deg,#1d1d23,#2c2c34)"></div>
+            <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:4px">夜</div>
+          </div>
+        </div>
+
+        <div class="pw-sec-title" style="margin-top:var(--s3)">各面适配<span class="grow"></span></div>
+        <div class="pw-field"><span class="pw-label">侧栏</span><span class="pw-radio"><span>实心</span><span class="is-on">半透明</span><span>磨砂</span></span></div>
+        <div class="pw-field"><span class="pw-label">主区</span><span class="pw-radio"><span class="is-on">实心</span><span>半透明</span><span>磨砂</span></span></div>
+        <div class="pw-field"><span class="pw-label">右栏</span><span class="pw-radio"><span class="is-on">实心</span><span>半透明</span><span>磨砂</span></span></div>
+        <div class="pw-field"><span class="pw-label">输入框</span><span class="pw-radio"><span>实心</span><span class="is-on">半透明</span><span>磨砂</span></span></div>
+        <div class="pw-field"><span class="pw-label">遮罩浓度</span><span class="pw-ctl"><span style="width:140px;height:4px;border-radius:2px;background:var(--n-surface);position:relative;display:inline-block"><span style="position:absolute;left:0;top:0;height:4px;width:36%;border-radius:2px;background:var(--accent)"></span></span><span class="pw-mono">36%</span></span></div>
+      </div>
+      <div class="pw-modal-foot">
+        <span class="pw-dim" style="font-size:var(--text-meta)">皮肤接管时本区块不可用，会显示一句说明</span>
+        <span class="pw-grow"></span>
+        <span class="pw-btn">取消</span>
+        <span class="pw-btn primary">应用</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>皮肤条是横向卡片</b>：每张 108 宽，上半是「侧栏 / 主区」两栏缩略，下半是名字 + 选中对勾。最后一张是「新建皮肤」的空槽。</li>
+    <li><b>皮肤工作室固定 900×720</b>：左设置 + 右预览（340），预览用色块拼一个微型壳，实时反映四色改动。</li>
+    <li><b>四色留空表示继承</b>：每行是「色块 + 十六进制输入 + 重置」，不用取色器弹层（避免引入第三方控件）。</li>
+    <li><b>自定义 CSS 页签要警告</b>：顶部一条 error 提示「写错会导致界面不可用」，底部常驻「重置为默认」出口。</li>
+    <li><b>CSS 校验会比对 token 规范</b>：超出规范的值（如圆角 &gt; 6）给一条 error 徽章提示，但不阻止保存——皮肤是用户自由。</li>
+    <li><b>壁纸选择器分「内置 / 本机图片」</b>；内置用渐变色块占位（规范禁用图片素材），本机图片走文件选择。</li>
+    <li><b>各面适配分四个面</b>（侧栏 / 主区 / 右栏 / 输入框），每面三选一（实心 / 半透明 / 磨砂）+ 一个全局遮罩浓度。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

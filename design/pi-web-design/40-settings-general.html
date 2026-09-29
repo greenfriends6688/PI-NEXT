@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>40 · 设置 · 常规 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>40 · 设置 · 常规</h1>
+  <p>设置是一个全屏弹层：左列 13 个分节的导航（200px），右列内容。这一张画的是「常规」分节，同时定死设置面板的骨架——后面 7 张设置画板都套这个壳。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：SettingsPanel / SettingsUi / ThemeSkinStrip / WallpaperSettings</span>
+    <span class="pw-tag accent">1440 × 900</span>
+  </div>
+</header>
+
+<!-- 整屏 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>设置 · 常规（整屏）</b> · 左导航 200 + 右内容 · 分节 13 个 · 内容区左右各留 40<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+
+        <!-- 左导航 -->
+        <nav class="pw-snav">
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <!-- 右内容 -->
+        <div class="pw-sbody">
+          <h2>常规</h2>
+          <p class="sub">外观、侧栏、通知、字体与聊天呈现。改动即时生效，不需要保存。</p>
+
+          <div class="pw-block">
+            <h3><span class="pw-ico"><i data-ico="palette" data-size="14"></i></span>外观</h3>
+            <div class="pw-field">
+              <span class="pw-label">主题<small>六档：浅色 / 深色 / 跟随系统 / 雾 / 玫瑰 / 松</small></span>
+              <span class="pw-radio">
+                <span class="is-on"><span class="pw-ico"><i data-ico="sun" data-size="12"></i></span>浅色</span>
+                <span><span class="pw-ico"><i data-ico="moon" data-size="12"></i></span>深色</span>
+                <span><span class="pw-ico"><i data-ico="monitor" data-size="12"></i></span>跟随系统</span>
+                <span>雾</span><span>玫瑰</span><span>松</span>
+              </span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">边框深度<small>控制分隔线与控件轮廓的深浅</small></span>
+              <span class="pw-ctl">
+                <span style="width:180px;height:4px;border-radius:2px;background:var(--n-surface);position:relative;display:inline-block">
+                  <span style="position:absolute;left:0;top:0;height:4px;width:52%;border-radius:2px;background:var(--accent)"></span>
+                  <span style="position:absolute;left:52%;top:-4px;width:12px;height:12px;border-radius:50%;background:#fff;border:1px solid var(--n-border)"></span>
+                </span>
+                <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">52</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="pw-block">
+            <h3><span class="pw-ico"><i data-ico="wand-sparkles" data-size="14"></i></span>主题皮肤</h3>
+            <div class="pw-skin-strip">
+              <div class="pw-skin is-on">
+                <div class="prev"><span class="a"></span><span class="b"></span></div>
+                <div class="cap"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>默认</div>
+              </div>
+              <div class="pw-skin">
+                <div class="prev" style="grid-template-columns:22px 1fr"><span class="a" style="background:#eae6dd"></span><span class="b" style="background:#fdfcf8"></span></div>
+                <div class="cap">纸感</div>
+              </div>
+              <div class="pw-skin">
+                <div class="prev" style="grid-template-columns:22px 1fr"><span class="a" style="background:#e8eaf4"></span><span class="b" style="background:#fbfbfd"></span></div>
+                <div class="cap">冷调</div>
+              </div>
+              <div class="pw-skin" style="display:grid;place-items:center;min-height:96px">
+                <span class="pw-btn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建</span>
+              </div>
+            </div>
+            <div class="pw-inline" style="margin-top:var(--s2)">
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="upload" data-size="13"></i></span>导入</span>
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>导出</span>
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="paintbrush" data-size="13"></i></span>打开皮肤工作室</span>
+              <span class="pw-grow"></span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">皮肤会接管壁纸与强调色，与「单一强调色」规范冲突时以皮肤为准</span>
+            </div>
+          </div>
+
+          <div class="pw-block">
+            <h3><span class="pw-ico"><i data-ico="wallpaper" data-size="14"></i></span>默认外观壁纸</h3>
+            <div class="pw-field">
+              <span class="pw-label">启用壁纸</span>
+              <span class="pw-switch on"><i></i></span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">当前壁纸</span>
+              <span class="pw-ctl">
+                <span style="width:64px;height:36px;border-radius:var(--radius-4);background:linear-gradient(135deg,var(--n-surface),var(--n-hover));border:1px solid var(--n-border)"></span>
+                <span class="pw-btn outline sm">更换</span>
+                <span class="pw-btn sm">移除</span>
+              </span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">适配方式</span>
+              <span class="pw-selectbox">填满<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">遮罩浓度</span>
+              <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">36%</span></span>
+            </div>
+          </div>
+
+          <div class="pw-block">
+            <h3><span class="pw-ico"><i data-ico="panel-left" data-size="14"></i></span>侧栏</h3>
+            <div class="pw-field">
+              <span class="pw-label">半透明<small>侧栏底透出壁纸</small></span>
+              <span class="pw-switch"><i></i></span>
+            </div>
+            <div class="pw-field">
+              <span class="pw-label">宽度</span>
+              <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">280 px</span></span>
+            </div>
+          </div>
+
+          <div class="pw-block">
+            <h3><span class="pw-ico"><i data-ico="bell" data-size="14"></i></span>通知</h3>
+            <div class="pw-field">
+              <span class="pw-label">总开关</span>
+              <span class="pw-switch on"><i></i></span>
+            </div>
+            <div class="pw-field"><span class="pw-label">任务完成时通知</span><span class="pw-switch on"><i></i></span></div>
+            <div class="pw-field"><span class="pw-label">出错时通知</span><span class="pw-switch on"><i></i></span></div>
+            <div class="pw-field"><span class="pw-label">仅在窗口不在前台时通知</span><span class="pw-switch"><i></i></span></div>
+            <div class="pw-field"><span class="pw-label">提示音</span><span class="pw-switch on"><i></i></span></div>
+            <div class="pw-field">
+              <span class="pw-label"></span>
+              <span class="pw-ctl">
+                <span class="pw-btn outline sm">发送测试通知</span>
+                <span class="pw-btn sm">打开系统通知设置</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 常规（续） -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>设置 · 常规（续）</b> · 字体 / 聊天 / 语言</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div>
+      <div class="pw-block" style="margin-top:0">
+        <h3><span class="pw-ico"><i data-ico="type" data-size="14"></i></span>界面字体</h3>
+        <div class="pw-field">
+          <span class="pw-label">UI 字体</span>
+          <span class="pw-selectbox">系统默认<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">UI 字号</span>
+          <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">13 px</span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">代码字体<small>本机未安装时该行弱化</small></span>
+          <span class="pw-ctl">
+            <span class="pw-selectbox">Geist Mono<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>去下载</span>
+          </span>
+        </div>
+        <div class="pw-field" style="opacity:.55">
+          <span class="pw-label">代码等宽中文字体<small>本机未安装</small></span>
+          <span class="pw-ctl"><span class="pw-selectbox">未安装<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></span>
+        </div>
+      </div>
+
+      <div class="pw-block">
+        <h3><span class="pw-ico"><i data-ico="languages" data-size="14"></i></span>语言</h3>
+        <div class="pw-field">
+          <span class="pw-label">界面语言</span>
+          <span class="pw-radio"><span class="is-on">简体中文</span><span>繁體中文</span><span>English</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-block" style="margin-top:0">
+        <h3><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span>聊天</h3>
+        <div class="pw-field">
+          <span class="pw-label">会话自动命名</span>
+          <span class="pw-switch on"><i></i></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">命名用的模型</span>
+          <span class="pw-selectbox">DeepSeek V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">思考块默认展开</span>
+          <span class="pw-switch"><i></i></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">界面密度</span>
+          <span class="pw-radio"><span>紧凑</span><span class="is-on">标准</span><span>宽松</span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">过程步骤默认展开<small>推理 / 命令 / 工具三类分别控制</small></span>
+          <span class="pw-ctl">
+            <span class="pw-radio">
+              <span><span class="pw-ico"><i data-ico="brain" data-size="12"></i></span>推理</span>
+              <span class="is-on"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>命令</span>
+              <span><span class="pw-ico"><i data-ico="wrench" data-size="12"></i></span>工具</span>
+            </span>
+          </span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">聊天内容宽度</span>
+          <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">800 px</span><span class="pw-btn sm">重置</span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">聊天字号</span>
+          <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">13 px</span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">扩展组件字号</span>
+          <span class="pw-ctl"><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">13 px</span></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">选中文字时显示操作条</span>
+          <span class="pw-switch on"><i></i></span>
+        </div>
+      </div>
+
+      <div class="pw-block">
+        <h3><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span>Shell 工具</h3>
+        <div class="pw-field">
+          <span class="pw-label">用 PowerShell 代替 Bash<small>仅 Windows 显示本行</small></span>
+          <span class="pw-switch"><i></i></span>
+        </div>
+      </div>
+
+      <div class="pw-block">
+        <h3><span class="pw-ico"><i data-ico="bell" data-size="14"></i></span>后台推送</h3>
+        <div class="pw-field">
+          <span class="pw-label">注册推送<small>iOS 主屏 App 用</small></span>
+          <span class="pw-btn outline sm">注册</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 本页动效（真在播） -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>本页动效</b> · 循环播放 · 规格与全量清单见画板 <span class="pw-mono">05-motion</span><span class="grow"></span><span style="color:var(--n-placeholder)">布局尺寸是唯一允许 >200ms 的一类</span></div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-anim-stage">
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>保存成功</span><span class="grow"></span><span class="tag">一次弹 + 描线</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:var(--s3);justify-items:center">
+            <span class="pw-anim-saved" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--radius-pill);background:var(--success);color:var(--surface-canvas)">
+              <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 7 13.5 15 4.5"/></svg>
+            </span>
+            <span class="pw-muted" style="font-size:var(--text-meta)">改动即时生效，不需要保存按钮</span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>主题切换 · 圆扩散</span><span class="grow"></span><span class="tag">从触发点扩散</span></div>
+        <div class="pw-anim-box flow">
+          <div style="width:100%;display:grid;gap:var(--s2)">
+            <div class="pw-anim-reveal" style="height:56px;border-radius:var(--radius-4);background:var(--n-strong)"></div>
+            <div class="pw-muted" style="font-size:var(--text-meta)">view-transition · 从右上角的主题按钮扩散</div>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>侧栏折叠 · 静默布局</span><span class="grow"></span><span class="tag">240ms · 只动尺寸</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-collapse" style="width:100%;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden;height:56px">
+            <div style="background:var(--n-panel);border-right:1px solid var(--n-border-subtle);display:flex;align-items:center;padding-left:6px;overflow:hidden">
+              <span class="pw-ico" style="color:var(--n-muted)"><i data-ico="panel-left" data-size="14"></i></span>
+            </div>
+            <div style="background:var(--surface-canvas)"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>设置是全屏弹层，不是独立路由</b>：左导航 200px、右内容区左右各留 40。分节 13 个。<b>本产品没有登录，所以左导航末位没有「退出登录」</b>（用户裁定，2026-09-28）。</li>
+    <li><b>行控件统一右对齐</b>：每一行是「标签（可带一句小字说明）+ 控件」，行高 34，行间一条发丝线。开关 30×17，下拉 28 高，单选组用芯片排。</li>
+    <li><b>分组用发丝边框卡片包起来</b>（圆角 6，无阴影），卡片标题带一个 14px 图标。</li>
+    <li><b>数值型设置给等宽数字 + 重置</b>：宽度、字号、遮罩浓度都是「等宽数字 + 可选重置按钮」，不写单位以外的装饰。</li>
+    <li><b>本机缺失的字体行整体弱化</b>并多给一个「去下载」——不隐藏，让用户知道有这个选项。</li>
+    <li><b>主题是六档单选，但规范只认一档强调色</b>：这是设计系统与现有皮肤能力的冲突点，已记在 <code>DIVERGENCE.md</code> A-1。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

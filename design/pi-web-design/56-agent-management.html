@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>56 · 更新与认证 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>56 · 更新与认证</h1>
+  <p>「东西有新版本了」与「agent 要你先登录」这两类状态。前者是插件 / 技能 / 应用自身的更新检查，后者是 agent 的认证流程。这两类都不弹模态框，全部就地表达。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置 / 会话工作台</span>
+    <span class="pw-tag">组件：PluginsConfig / SkillsConfig / NewSessionUpdateLink / agent 认证</span>
+    <span class="pw-tag accent">状态合集</span>
+  </div>
+</header>
+
+<!-- 插件更新五态 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>插件更新 · 五态</b> · 状态机是 <span class="pw-mono">PluginUpdateState</span>：update-available / up-to-date / unsupported / error，外加一个 checking 布尔</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · 检查中（按钮文案换成「检查中…」，禁用）</div>
+      <div style="padding:var(--s3);display:grid;gap:var(--s2)">
+        <div class="pw-inline">
+          <span class="pw-ico" style="color:var(--accent)"><i data-ico="blocks" data-size="16"></i></span>
+          <b style="font-weight:500">@pi/plugin-git</b>
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">v1.4.0</span>
+          <span class="grow" style="flex:1"></span>
+          <span class="pw-btn outline sm" style="opacity:.55"><span class="pw-ico"><i data-ico="loader-circle" data-size="13"></i></span>检查中…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 有可用更新（主按钮转 primary，版本号转 accent）</div>
+      <div style="padding:var(--s3);display:grid;gap:var(--s2)">
+        <div class="pw-inline">
+          <span class="pw-ico" style="color:var(--accent)"><i data-ico="blocks" data-size="16"></i></span>
+          <b style="font-weight:500">@pi/plugin-figma</b>
+          <span class="pw-mono" style="font-size:var(--text-meta);color:var(--accent-text)">v0.9.2 → v0.9.3</span>
+          <span class="pw-badge accent">可更新</span>
+          <span class="grow" style="flex:1"></span>
+          <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>更新</span>
+          <span class="pw-btn sm">移除</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">C · 已是最新（一行弱化小字，右侧不再给按钮）</div>
+      <div style="padding:var(--s3);display:grid;gap:var(--s2)">
+        <div class="pw-inline">
+          <span class="pw-ico" style="color:var(--accent)"><i data-ico="blocks" data-size="16"></i></span>
+          <b style="font-weight:500">@pi/plugin-git</b>
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">v1.4.0</span>
+          <span class="grow" style="flex:1"></span>
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">已是最新</span>
+          <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="check" data-size="13"></i></span>检查更新</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">D · 不支持检查（git 型 / 本地路径）· E · 检查失败</div>
+      <div style="padding:var(--s3);display:grid;gap:var(--s3)">
+        <div class="pw-inline">
+          <span class="pw-ico"><i data-ico="git-branch" data-size="16"></i></span>
+          <b style="font-weight:500">pi-plugin-notify</b>
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">git · 本地检出</span>
+          <span class="grow" style="flex:1"></span>
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">不支持检查更新</span>
+        </div>
+        <div class="pw-inline">
+          <span class="pw-ico"><i data-ico="blocks" data-size="16"></i></span>
+          <b style="font-weight:500">@pi/plugin-old</b>
+          <span class="grow" style="flex:1"></span>
+          <span class="pw-badge bad">检查失败</span>
+          <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重试</span>
+        </div>
+        <div class="pw-mono pw-dim" style="font-size:var(--text-meta);padding-left:22px">npm ERR! 404 Not Found - GET https://registry.npmjs.org/@pi%2fplugin-old</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 插件列表项 + 技能指示 + 应用更新 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>列表项状态 · 技能更新指示 · 应用更新提示</b></div>
+  <div class="pw-frame-body pw-pad pw-grid3">
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span>插件列表项 · 四种标记</h4>
+      <div class="pw-list" style="margin-top:var(--s2)">
+        <div class="pw-litem"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-git</span><span class="pw-lsub">v1.4.0 · 6 个资源</span></span><span class="pw-badge ok">已启用</span></div>
+        <div class="pw-litem"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-figma</span><span class="pw-lsub">v0.9.2 · 3 个资源</span></span><span class="pw-badge warn">可更新</span></div>
+        <div class="pw-litem" style="opacity:.6"><span class="pw-ico pw-dim"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">pi-plugin-notify</span><span class="pw-lsub">v2.0.0 · 已禁用</span></span><span class="pw-badge">已禁用</span></div>
+        <div class="pw-litem" style="opacity:.6"><span class="pw-ico pw-dim"><i data-ico="filter" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-hidden</span><span class="pw-lsub">被配置过滤掉，不加载</span></span><span class="pw-badge">已过滤</span></div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">四种标记互斥：已启用 / 可更新 / 已禁用 / 已过滤。「已禁用」与「已过滤」整行弱化到 60%，因为它们不参与运行。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="box" data-size="14"></i></span>技能更新指示</h4>
+      <p>技能列表项**只给一个指示器**，不放大徽章——技能可能几十条，每行一个徽章会吵。</p>
+      <div class="pw-list" style="margin-top:var(--s2)">
+        <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">pdf</span><span class="pw-lsub">全局 · 已是最新</span></span></div>
+        <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">raster-poster-editable</span><span class="pw-lsub">全局 · 有新版本</span></span><span class="pw-up-arrow" title="有可用更新">↑</span></div>
+        <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">zhaobiao-extract</span><span class="pw-lsub">项目 · 已是最新</span></span></div>
+      </div>
+      <div class="pw-inline" style="margin-top:var(--s2)">
+        <span class="pw-up-arrow">↑</span>
+        <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">指示器 = 一个向上的箭头，accent 色，title = 「有可用更新」；点进详情才给「检查更新」按钮</span>
+      </div>
+    </div>
+
+    <div class="pw-cell">
+      <h4><span class="pw-ico"><i data-ico="download" data-size="14"></i></span>应用自身的更新提示</h4>
+      <p>只出现在**新会话空态**的输入框上方，一条 accent 色的 inline 链接。</p>
+      <div style="margin-top:var(--s2);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);padding:var(--s3);display:grid;gap:var(--s2)">
+        <div class="pw-inline" style="justify-content:center">
+          <span class="pw-inline" style="gap:3px;color:var(--accent-text);font-size:var(--text-secondary);font-weight:500">
+            <span>v0.9.5</span>
+            <span class="pw-ico"><i data-ico="arrow-up-right" data-size="12"></i></span>
+          </span>
+        </div>
+        <div class="pw-mono pw-dim" style="font-size:var(--text-meta);text-align:center">点开跳到 GitHub release 页；没有更新时整条不渲染</div>
+      </div>
+      <div class="pw-mono pw-dim" style="font-size:var(--text-meta);line-height:1.8;margin-top:var(--s2)">
+        判据 · <code>最新 stable 版本 &gt; 当前版本</code>（只判不等）<br>
+        来源 · GitHub releases（本 fork 发 release，不发 npm）<br>
+        失败 · 静默（best-effort，绝不打断新会话）<br>
+        文案 · 「Pi Agent v{version} 可用，查看更新说明」
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- agent 认证 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>agent 认证（设计提案）</b> · agent 报 <span class="pw-mono">-32000 auth_required</span> 时：先在转录里出一条状态卡，再给一个认证方式选择</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-mono pw-dim">A · 转录里的状态卡（agent 报需要认证）</div>
+      <div class="pw-card" style="border-color:var(--warning)">
+        <div class="pw-card-head">
+          <span class="pw-ico" style="color:var(--warning)"><i data-ico="key-round" data-size="14"></i></span>
+          <span class="pw-tool">需要认证才能新建会话</span>
+          <span class="pw-path">JSON-RPC -32000 · session/new</span>
+          <span class="grow"></span>
+          <span class="pw-btn primary sm">开始认证</span>
+        </div>
+      </div>
+
+      <div class="pw-mono pw-dim">B · 认证方式选择（agent 给了几种就列几种）</div>
+      <div class="pw-modal" style="width:100%">
+        <div class="pw-modal-head">
+          <span class="pw-ico" style="color:var(--warning)"><i data-ico="key-round" data-size="16"></i></span>
+          Codex 需要认证
+          <span class="pw-grow"></span>
+        </div>
+        <div class="pw-modal-body">
+          <div class="pw-list">
+            <div class="pw-litem is-on">
+              <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="globe" data-size="14"></i></span>
+              <span class="grow"><span class="pw-lname">Sign in with ChatGPT</span><span class="pw-lsub">在浏览器里完成，凭据存系统钥匙串</span></span>
+              <span class="pw-badge">agent 型</span>
+            </div>
+            <div class="pw-litem">
+              <span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span>
+              <span class="grow"><span class="pw-lname">Sign in with Codex CLI</span><span class="pw-lsub">在下方可见终端里跑 <span class="pw-mono">codex-acp --login</span></span></span>
+              <span class="pw-badge">terminal 型</span>
+            </div>
+          </div>
+          <div class="pw-alert info"><span class="pw-ico"><i data-ico="info" data-size="14"></i></span><span class="pw-grow">认证成功后**自动重试**刚才那次 <span class="pw-mono">session/new</span>，不用你手动再点一次。</span></div>
+        </div>
+        <div class="pw-modal-foot">
+          <span class="pw-btn">取消</span>
+          <span class="pw-grow"></span>
+          <span class="pw-btn primary">开始认证</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:var(--s3);align-content:start">
+      <div class="pw-mono pw-dim">C · terminal 型认证 · 运行中的可见终端</div>
+      <div class="pw-card">
+        <div class="pw-card-head">
+          <span class="pw-ico" style="color:var(--accent)"><i data-ico="square-terminal" data-size="14"></i></span>
+          <span class="pw-tool">terminal auth</span>
+          <span class="pw-path">codex-acp --login</span>
+          <span class="grow"></span>
+          <span class="pw-badge accent"><span class="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>等待你在浏览器完成</span>
+        </div>
+        <div class="pw-card-body">
+          <div class="pw-term" style="font-size:var(--text-meta)"><span class="dim">$</span> codex-acp --login
+<span class="dim">Opening browser to authenticate…</span>
+<span class="dim">If the browser did not open, visit:</span>
+  <span class="acc">https://auth.openai.com/device</span>
+<span class="dim">Enter code:</span>
+
+   <span class="warn" style="font-size:16px;letter-spacing:.18em">JHQD-7F2K</span>
+
+<span class="dim">Waiting for authorization…</span></div>
+        </div>
+        <div class="pw-card-foot">
+          <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+          <span>成功后自动重试新会话</span>
+          <span class="grow"></span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="13"></i></span>复制验证码</span>
+          <span class="pw-btn danger sm">取消认证</span>
+        </div>
+      </div>
+
+      <div class="pw-mono pw-dim">D · 认证完成 / 失败</div>
+      <div class="pw-card">
+        <div class="pw-card-head">
+          <span class="pw-ico" style="color:var(--success)"><i data-ico="badge-check" data-size="14"></i></span>
+          <span class="pw-tool">认证完成</span>
+          <span class="pw-path">codex-acp v0.76.0</span>
+          <span class="grow"></span>
+          <span class="pw-badge ok">已重试新会话</span>
+        </div>
+      </div>
+      <div class="pw-card">
+        <div class="pw-card-head">
+          <span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="14"></i></span>
+          <span class="pw-tool">认证失败</span>
+          <span class="pw-path">授权超时（5 分钟）</span>
+          <span class="grow"></span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重试</span>
+          <span class="pw-btn sm"><span class="pw-ico"><i data-ico="terminal" data-size="13"></i></span>看终端</span>
+        </div>
+      </div>
+      <div class="pw-alert" style="background:var(--warning-soft);color:var(--warning)">
+        <span class="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+        <span class="pw-grow"><b>本段是设计提案</b>：本项目目前没有 ACP agent 认证流程（只支持模型供应商的登录，见画板 41）。画在这里是为了「万一接的 agent 需要认证」时有据可依。</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>更新检查是四态 + 一个布尔</b>：<code>update-available</code> / <code>up-to-date</code> / <code>unsupported</code> / <code>error</code>，外加 checking。「不支持检查」（git 型、本地检出）与「检查失败」是两回事，不能合并成一句「无法检查」。</li>
+    <li><b>有更新时主按钮转 primary</b>（「更新」），版本号从弱化转 accent 并写成 <code>v0.9.2 → v0.9.3</code>；没有更新时右侧只剩一个 ghost 的「检查更新」。</li>
+    <li><b>检查中按钮文案换成「检查中…」并禁用</b>，不换图标位置、不改布局。</li>
+    <li><b>插件列表项四种标记互斥</b>：已启用 / 可更新 / 已禁用 / 已过滤。「已禁用」与「已过滤」整行弱化到 60%。</li>
+    <li><b>技能只给一个 ↑ 指示器</b>，不放大徽章——技能可能几十条，每行一个徽章会吵；点进详情才给按钮。</li>
+    <li><b>应用自身的更新提示只出现在新会话空态</b>，是一条 accent 的 inline 链接 <code>v0.9.5 ↗</code>；没有更新时整条不渲染，检查失败静默（绝不打断新会话）。</li>
+    <li><b>判据只判不等</b>：最新 stable 版本 &gt; 当前版本。本 fork 发 GitHub release 不发 npm，所以不去问 registry。</li>
+    <li><b>agent 认证不弹模态框</b>：先在转录里出一条状态卡，点「开始认证」才开方式选择；terminal 型在一个可见终端里跑，验证码用等宽大字 + 字距撑开，方便抄。</li>
+    <li><b>认证成功后自动重试</b>刚才那次 <code>session/new</code>，不让用户回来再点一次。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>45 · 设置 · 快捷键 / 用量 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>45 · 设置 · 快捷键 / 用量</h1>
+  <p>快捷键表（搜索 / 分组 / 录制 / 冲突）与用量统计（范围切换 + 九张卡 + 五种图表）。用量是全应用唯一出现图表的地方。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：ShortcutsSettings / UsageStatsPanel</span>
+    <span class="pw-tag accent">1440 × 900 × 2</span>
+  </div>
+</header>
+
+<!-- 快捷键 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>快捷键</b> · 搜索 + 分组 + 录制 + 冲突提示<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">快捷键</h2>
+            <span class="pw-badge count">42 条</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>全部重置</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">点一行右边的键位开始录制，按 Esc 取消，按 Backspace 清除。</p>
+
+          <div class="pw-inline" style="margin:var(--s3) 0">
+            <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+            <input class="pw-input" style="flex:1;min-width:0;max-width:360px;height:28px" placeholder="搜索命令或键位">
+            <span class="pw-grow"></span>
+            <span class="pw-radio"><span class="is-on">全部</span><span>已改</span><span>有冲突</span></span>
+          </div>
+
+          <div class="pw-grid2" style="gap:var(--s4)">
+            <div>
+              <div class="pw-sec-title">基础<span class="grow"></span></div>
+              <div class="pw-field"><span class="pw-label">新建任务</span><span class="pw-ctl"><span class="pw-kbd">⌘ N</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">搜索会话</span><span class="pw-ctl"><span class="pw-kbd">⌘ K</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">会话内查找</span><span class="pw-ctl"><span class="pw-kbd">⌘ F</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">发送消息</span><span class="pw-ctl"><span class="pw-kbd">⌘ ⏎</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field">
+                <span class="pw-label">停止这一轮<small style="color:var(--error)">与「关闭标签」冲突</small></span>
+                <span class="pw-ctl"><span class="pw-kbd" style="border-color:var(--error);color:var(--error)">⌘ W</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span>
+              </div>
+              <div class="pw-field"><span class="pw-label">录制中…</span><span class="pw-ctl"><span class="pw-kbd" style="border-color:var(--accent);color:var(--accent-text)">按下键位</span><span class="pw-btn primary sm">保存</span></span></div>
+            </div>
+
+            <div>
+              <div class="pw-sec-title">布局<span class="grow"></span></div>
+              <div class="pw-field"><span class="pw-label">切换侧栏</span><span class="pw-ctl"><span class="pw-kbd">⌘ B</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">切换右栏</span><span class="pw-ctl"><span class="pw-kbd">⌘ J</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">对调工作区</span><span class="pw-ctl"><span class="pw-kbd">⌘ ⇧ X</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">关闭标签<small style="color:var(--error)">与「停止这一轮」冲突</small></span><span class="pw-ctl"><span class="pw-kbd" style="border-color:var(--error);color:var(--error)">⌘ W</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">下一个标签</span><span class="pw-ctl"><span class="pw-kbd">⌃ ⇥</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-sec-title" style="margin-top:var(--s3)">外观<span class="grow"></span></div>
+              <div class="pw-field"><span class="pw-label">切换主题</span><span class="pw-ctl"><span class="pw-kbd">⌘ ⇧ L</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-field"><span class="pw-label">打开设置</span><span class="pw-ctl"><span class="pw-kbd">⌘ ,</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="x" data-size="13"></i></span></span></span></div>
+              <div class="pw-sec-title" style="margin-top:var(--s3)">保留键位（不可改）<span class="grow"></span></div>
+              <div class="pw-field"><span class="pw-label">浏览器刷新 / 关闭窗口</span><span class="pw-ctl"><span class="pw-kbd">⌘ R</span><span class="pw-badge">保留</span></span></div>
+              <div class="pw-field"><span class="pw-label">系统截图</span><span class="pw-ctl"><span class="pw-kbd">⌘ ⇧ 4</span><span class="pw-badge">系统占用</span></span></div>
+            </div>
+          </div>
+
+          <div class="pw-alert" style="margin-top:var(--s3);background:var(--error-soft);color:var(--error)">
+            <span class="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+            <span class="pw-grow"><b>有 1 处冲突</b>：「停止这一轮」与「关闭标签」都占用了 <span class="pw-mono">⌘ W</span>。改掉其中一个才能生效。</span>
+            <span class="pw-btn sm">自动分配</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 用量 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>用量</b> · 范围切换 + 九张统计卡 + 五种图表<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="keyboard"></i></span><span class="pw-name">快捷键</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="padding-left:var(--s4)">
+          <div class="pw-inline">
+            <h2 style="margin:0">用量</h2>
+            <span class="pw-grow"></span>
+            <span class="pw-radio"><span>7 天</span><span class="is-on">30 天</span><span>1 年</span><span>全部</span></span>
+            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>重新扫描</span>
+          </div>
+          <p class="sub" style="margin-top:var(--s2)">从 <span class="pw-mono">~/.pi/agent/sessions</span> 聚合而来。本次解析 0 个文件（缓存命中）。</p>
+
+          <div class="pw-stats-grid" style="margin-bottom:var(--s3)">
+            <div class="pw-stat"><span class="k">会话</span><span class="v">143</span><span class="s">↑ 18 较上期</span></div>
+            <div class="pw-stat"><span class="k">消息</span><span class="v">12,480</span><span class="s">用户 3,102 · 助手 9,378</span></div>
+            <div class="pw-stat"><span class="k">Token</span><span class="v">3,694.3M</span><span class="s">缓存 2,281M</span></div>
+            <div class="pw-stat"><span class="k">花费</span><span class="v">$27.42</span><span class="s">≈ ¥198</span></div>
+            <div class="pw-stat"><span class="k">活跃天数</span><span class="v">26</span><span class="s">共 30 天</span></div>
+            <div class="pw-stat"><span class="k">连续</span><span class="v">9 天</span><span class="s">最长 14 天</span></div>
+            <div class="pw-stat"><span class="k">热门模型</span><span class="v">V4.1 Flash</span><span class="s">占 62%</span></div>
+            <div class="pw-stat"><span class="k">工具成功率</span><span class="v">97.4%</span><span class="s">失败 218 次</span></div>
+          </div>
+
+          <div class="pw-grid2" style="gap:var(--s3)">
+            <div class="pw-cell">
+              <h4><span class="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>每日活动</h4>
+              <div style="display:grid;grid-template-columns:repeat(30,1fr);gap:2px;margin-top:var(--s2)">
+                <span style="height:14px;border-radius:2px;background:var(--n-surface)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--n-surface)"></span>
+                <span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--n-surface)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span>
+                <span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span>
+                <span style="height:14px;border-radius:2px;background:var(--n-surface)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span>
+                <span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--n-surface)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span>
+                <span style="height:14px;border-radius:2px;background:var(--accent-soft)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span><span style="height:14px;border-radius:2px;background:var(--n-surface)"></span><span style="height:14px;border-radius:2px;background:var(--accent)"></span>
+              </div>
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">少</span>
+                <span style="width:14px;height:14px;border-radius:2px;background:var(--n-surface)"></span>
+                <span style="width:14px;height:14px;border-radius:2px;background:var(--accent-soft)"></span>
+                <span style="width:14px;height:14px;border-radius:2px;background:var(--accent)"></span>
+                <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">多</span>
+              </div>
+            </div>
+
+            <div class="pw-cell">
+              <h4><span class="pw-ico"><i data-ico="chart-pie" data-size="14"></i></span>按模型占比</h4>
+              <div class="pw-inline" style="align-items:center;gap:var(--s4);margin-top:var(--s2)">
+                <span style="width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--accent) 0 62%, var(--n-border) 62% 82%, var(--n-hover) 82% 100%)"></span>
+                <div class="pw-legend" style="flex:1">
+                  <div class="li"><span class="sw" style="background:var(--accent)"></span><span class="grow">V4.1 Flash</span><span class="pw-mono">62%</span></div>
+                  <div class="li"><span class="sw" style="background:var(--n-border)"></span><span class="grow">Claude Sonnet 4.5</span><span class="pw-mono">20%</span></div>
+                  <div class="li"><span class="sw" style="background:var(--n-hover)"></span><span class="grow">其它</span><span class="pw-mono">18%</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pw-cell">
+              <h4><span class="pw-ico"><i data-ico="chart-column" data-size="14"></i></span>每日 Token 趋势</h4>
+              <div class="pw-bars" style="margin-top:var(--s2)">
+                <i style="height:22%"></i><i style="height:38%"></i><i style="height:30%"></i><i style="height:54%"></i><i class="hot" style="height:88%"></i>
+                <i style="height:46%"></i><i style="height:62%"></i><i style="height:35%"></i><i class="hot" style="height:96%"></i><i style="height:58%"></i>
+                <i style="height:41%"></i><i style="height:72%"></i><i style="height:50%"></i><i style="height:66%"></i><i style="height:28%"></i>
+                <i style="height:44%"></i><i style="height:78%"></i><i style="height:52%"></i><i style="height:34%"></i><i style="height:60%"></i>
+              </div>
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">峰值 9 月 22 日 · 412M tok</span>
+                <span class="pw-grow"></span>
+                <span class="pw-badge">近 20 天</span>
+              </div>
+            </div>
+
+            <div class="pw-cell">
+              <h4><span class="pw-ico"><i data-ico="activity" data-size="14"></i></span>请求与错误</h4>
+              <div class="pw-bars" style="margin-top:var(--s2);height:56px">
+                <i style="height:70%"></i><i style="height:82%"></i><i class="hot" style="height:92%"></i><i style="height:64%"></i><i style="height:48%"></i>
+                <i style="height:76%"></i><i style="height:58%"></i><i style="height:86%"></i><i style="height:52%"></i><i style="height:68%"></i>
+                <i style="height:44%"></i><i style="height:74%"></i><i style="height:60%"></i><i style="height:80%"></i><i style="height:56%"></i>
+              </div>
+              <div class="pw-inline" style="margin-top:var(--s2)">
+                <span class="pw-badge ok">成功 1,284</span>
+                <span class="pw-badge bad">失败 34</span>
+                <span class="pw-grow"></span>
+                <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">错误率 2.6%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pw-cell" style="margin-top:var(--s3)">
+            <h4><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>按项目</h4>
+            <div class="pw-list" style="margin-top:var(--s2)">
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">pi-codex</span></span><span class="pw-mono">$14.20 · 58%</span><span style="width:120px;height:5px;border-radius:3px;background:var(--n-surface);overflow:hidden"><span style="display:block;height:5px;width:58%;background:var(--accent)"></span></span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">探项前端页面</span></span><span class="pw-mono">$7.80 · 28%</span><span style="width:120px;height:5px;border-radius:3px;background:var(--n-surface);overflow:hidden"><span style="display:block;height:5px;width:28%;background:var(--accent)"></span></span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">招标改</span></span><span class="pw-mono">$3.10 · 11%</span><span style="width:120px;height:5px;border-radius:3px;background:var(--n-surface);overflow:hidden"><span style="display:block;height:5px;width:11%;background:var(--accent)"></span></span></div>
+              <div class="pw-litem"><span class="pw-ico"><i data-ico="messages-square" data-size="14"></i></span><span class="grow"><span class="pw-lname">聊天工作区</span></span><span class="pw-mono">$2.32 · 8%</span><span style="width:120px;height:5px;border-radius:3px;background:var(--n-surface);overflow:hidden"><span style="display:block;height:5px;width:8%;background:var(--accent)"></span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>快捷键表分两列铺</b>（基础 / 布局 + 外观 + 保留键位），每组一个小标题。行是「命令名 + 键位芯片 + 清除按钮」，键位芯片用等宽字 + 发丝边框 + 圆角 3。</li>
+    <li><b>录制态与冲突态都用颜色表达</b>：录制中键位芯片转强调色、右侧多一个「保存」；冲突键位芯片转 error 色，并在底部汇总一条冲突提示 + 一个「自动分配」。</li>
+    <li><b>保留键位不可改</b>：右侧是「保留」/「系统占用」徽章而不是清除按钮。</li>
+    <li><b>用量顶部先给范围切换</b>（7 天 / 30 天 / 1 年 / 全部）与「重新扫描」，再给一行缓存说明——避免用户以为「没算」。</li>
+    <li><b>九张统计卡是 4 列网格</b>：每张卡是「标签 / 等宽大数 / 一行补充」。全应用唯一用大号等宽数字的地方。</li>
+    <li><b>图表只用三种色</b>：accent（主）、n-border（次要）、n-hover（其它）。热力图四档用中性阶 + 强调色的透明度阶梯，不引入新色相。</li>
+    <li><b>「按项目」用行内进度条</b>（5px 高、accent 填充）而不是饼图，因为项目数少、需要精确比较。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

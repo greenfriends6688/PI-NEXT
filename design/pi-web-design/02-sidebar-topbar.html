@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>02 · 侧栏与顶栏状态 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>02 · 侧栏与顶栏状态</h1>
+  <p>侧栏是导航的主战场：两个 pane（项目 / 聊天）、搜索、会话行五态、折叠导轨，以及顶栏在「会话标题 / 工作区」两种上下文下的样子。所有状态在这里一次画全。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：会话工作台</span>
+    <span class="pw-tag">组件：SessionSidebar / ChatWorkspaceRow / SessionSearch / AppShell 顶栏</span>
+    <span class="pw-tag accent">状态合集</span>
+  </div>
+</header>
+
+<!-- ============ 侧栏三态并排 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>侧栏 · 三种 pane 状态并排</b> · 宽 280 · 高 660<span class="grow"></span>A 项目 pane · B 聊天 pane · C 搜索</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4)">
+
+      <!-- A 项目 pane -->
+      <div>
+        <div class="pw-sec-title" style="width:280px">A · 项目 pane（默认）<span class="grow"></span></div>
+        <aside class="pw-side" style="width:280px;height:640px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden">
+          <div class="pw-side-head">
+            <span class="pw-brand"><span class="pw-logo"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16"/><path d="M8 7v11"/><path d="M16 7v11"/></svg></span>Pi Web</span>
+            <span class="grow"></span>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="search"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-left"></i></span></button>
+          </div>
+          <div class="pw-side-nav">
+            <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
+          </div>
+          <div class="pw-seg"><span class="is-on">项目</span><span>聊天</span></div>
+          <div class="pw-side-scroll">
+            <div class="pw-group-title"><span class="pw-ico"><i data-ico="chevrons-up-down" data-size="12"></i></span>项目<span class="grow"></span><span class="pw-ico"><i data-ico="filter" data-size="12"></i></span><span class="pw-ico"><i data-ico="plus" data-size="12"></i></span></div>
+
+            <div class="pw-row is-on">
+              <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+              <span class="pw-name">pi-codex</span>
+              <span class="grow"></span>
+              <span class="pw-badge count">90</span>
+              <span class="pw-acts"><span class="pw-ico"><i data-ico="ellipsis" data-size="14"></i></span><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></span>
+            </div>
+            <div class="pw-row" style="padding-left:26px;height:26px">
+              <span class="pw-ico"><i data-ico="git-branch" data-size="12"></i></span>
+              <span class="pw-name pw-mono" style="font-size:var(--text-meta)">main</span>
+              <span class="grow"></span>
+              <span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+            </div>
+            <div class="pw-session child running"><span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条消息</span></span></div>
+            <div class="pw-session child awaiting"><span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span></span></div>
+
+            <div class="pw-group-title" style="padding-top:var(--s2)"><span class="pw-ico"><i data-ico="pin" data-size="12"></i></span>置顶<span class="grow"></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">Codex 皮肤 token 台账</span><span class="pw-m">昨天 · 41 条消息</span></span></div>
+
+            <div class="pw-group-title" style="padding-top:var(--s2)"><span class="pw-ico"><i data-ico="calendar" data-size="12"></i></span>本周<span class="grow"></span></div>
+            <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">探项前端页面</span><span class="grow"></span><span class="pw-badge count">20</span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">标讯详情页正文加载失败</span><span class="pw-m">3 天前 · 9 条消息</span></span></div>
+            <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">招标改</span><span class="grow"></span><span class="pw-badge count">6</span></div>
+            <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">chat-workspace</span><span class="grow"></span><span class="pw-badge count">2</span></div>
+
+            <div class="pw-row muted" style="margin-top:var(--s2)"><span class="pw-ico"><i data-ico="archive" data-size="14"></i></span><span class="pw-name">已归档</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-right" data-size="12"></i></span></div>
+          </div>
+          <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
+        </aside>
+      </div>
+
+      <!-- B 聊天 pane -->
+      <div>
+        <div class="pw-sec-title" style="width:280px">B · 聊天 pane（不在项目中的对话）<span class="grow"></span></div>
+        <aside class="pw-side" style="width:280px;height:640px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden">
+          <div class="pw-side-head">
+            <span class="pw-brand"><span class="pw-logo"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16"/><path d="M8 7v11"/><path d="M16 7v11"/></svg></span>Pi Web</span>
+            <span class="grow"></span>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="search"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-left"></i></span></button>
+          </div>
+          <div class="pw-side-nav">
+            <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
+          </div>
+          <div class="pw-seg"><span>项目</span><span class="is-on">聊天</span></div>
+          <div class="pw-side-scroll">
+            <div class="pw-group-title"><span class="pw-ico"><i data-ico="message-square" data-size="12"></i></span>聊天工作区<span class="grow"></span><span class="pw-ico"><i data-ico="plus" data-size="12"></i></span></div>
+
+            <div class="pw-row is-on">
+              <span class="pw-ico"><i data-ico="messages-square" data-size="14"></i></span>
+              <span class="pw-name">随手问</span>
+              <span class="grow"></span>
+              <span class="pw-badge count">4</span>
+            </div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">React 19 的 use() 到底怎么用</span><span class="pw-m">2 小时前 · 8 条消息<span class="pw-dot unread"></span></span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">帮我算一下这个月开销</span><span class="pw-m">昨天 · 5 条消息</span></span></div>
+
+            <div class="pw-row">
+              <span class="pw-ico"><i data-ico="messages-square" data-size="14"></i></span>
+              <span class="pw-name">临时讨论</span>
+              <span class="grow"></span>
+              <span class="pw-badge count">1</span>
+              <span class="pw-acts"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></span>
+            </div>
+            <div class="pw-session child running"><span class="pw-body"><span class="pw-t">两个方案的取舍</span><span class="pw-m">刚刚 · 3 条消息</span></span></div>
+
+            <div class="pw-empty" style="padding:var(--s5) var(--s4)">
+              <div class="pw-empty-inner" style="gap:var(--s2)">
+                <span class="mark" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="message-square" data-size="16"></i></span></span>
+                <p style="font-size:var(--text-secondary)">聊天工作区不属于任何项目，<br>适合随手问一句。</p>
+                <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建聊天工作区</span>
+              </div>
+            </div>
+          </div>
+          <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
+        </aside>
+      </div>
+
+      <!-- C 搜索 -->
+      <div>
+        <div class="pw-sec-title" style="width:280px">C · 搜索（有结果 / 无结果）<span class="grow"></span></div>
+        <aside class="pw-side" style="width:280px;height:640px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden">
+          <div class="pw-side-head">
+            <span class="pw-brand"><span class="pw-logo"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16"/><path d="M8 7v11"/><path d="M16 7v11"/></svg></span>Pi Web</span>
+            <span class="grow"></span>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="x"></i></span></button>
+          </div>
+          <div class="pw-side-search" style="border-color:var(--accent)">
+            <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="search" data-size="14"></i></span>
+            <span style="color:var(--n-text)">皮肤</span>
+            <span class="grow"></span>
+            <span class="pw-ico"><i data-ico="x" data-size="13"></i></span>
+          </div>
+          <div class="pw-side-scroll">
+            <div class="pw-group-title" style="padding-top:var(--s1)">12 条匹配 · 跨 3 个项目</div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">Codex <mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark> token 台账</span><span class="pw-m">pi-codex · 昨天</span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">主题<mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark>工作室的设计</span><span class="pw-m">pi-codex · 3 天前</span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">上游合并后<mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark>重打</span><span class="pw-m">pi-codex · 上周</span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">浅色<mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark>下的对比度</span><span class="pw-m">探项前端 · 上周</span></span></div>
+            <div class="pw-row muted" style="justify-content:center;margin-top:var(--s2)"><span style="font-size:var(--text-meta)">只显示前 50 条，缩小范围试试</span></div>
+
+            <div class="pw-sec-title" style="margin:var(--s4) var(--s2) 0">无结果态<span class="grow"></span></div>
+            <div class="pw-empty" style="padding:var(--s4) var(--s4)">
+              <div class="pw-empty-inner" style="gap:var(--s2)">
+                <span class="mark" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="search" data-size="16"></i></span></span>
+                <p style="font-size:var(--text-secondary)">没有匹配「量子纠缠」的会话</p>
+              </div>
+            </div>
+          </div>
+          <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span></div>
+        </aside>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ 会话行状态 + 导轨 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>会话行五态 · 折叠导轨 · 项目行悬浮动作</b> · 状态点 7px，用颜色表达状态，不写状态文字<span class="grow"></span></div>
+  <div class="pw-frame-body pw-pad pw-grid3">
+
+    <div>
+      <div class="pw-sec-title">会话活动指示 · 三种（状态标记一律在右侧）<span class="grow"></span></div>
+      <div class="pw-rowgap" style="background:var(--surface-panel);padding:var(--s2);border-radius:var(--radius-6)">
+        <div class="pw-session running">
+          <span class="pw-body">
+            <span class="pw-t">运行中 · 底边一条扫掠亮点线</span>
+            <span class="pw-m">刚刚 · 19 条消息</span>
+          </span>
+        </div>
+        <div class="pw-session">
+          <span class="pw-body">
+            <span class="pw-t">未读 · N 条消息 之后一个绿点</span>
+            <span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span>
+          </span>
+        </div>
+        <div class="pw-session awaiting">
+          <span class="pw-body">
+            <span class="pw-t">等你处理 · 之后一个 warning 标记</span>
+            <span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span>
+          </span>
+        </div>
+        <div class="pw-session">
+          <span class="pw-body">
+            <span class="pw-t">已读 · 什么都没有</span>
+            <span class="pw-m">昨天 · 41 条消息</span>
+          </span>
+        </div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin-top:var(--s2)">注：取消与失败在侧栏一律不表达——那是转录里的结束行（画板 12）该说的话。</p>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">扫掠线规格 · 未读点规格<span class="grow"></span></div>
+      <div class="pw-cell" style="display:grid;gap:var(--s3)">
+        <div>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-bottom:6px">A · 运行中 · 会话项底部的扫掠亮点线</div>
+          <div style="position:relative;height:58px;background:var(--surface-panel);border-radius:var(--radius-4);overflow:hidden">
+            <div style="position:absolute;left:12px;top:12px;font-size:var(--text-body);color:var(--n-strong)">排查最新 Release 与本地待上传改动</div>
+            <div style="position:absolute;left:12px;top:30px;font-size:var(--text-meta);color:var(--n-placeholder)">刚刚 · 19 条消息</div>
+            <div style="position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--n-border-subtle)"></div>
+            <div style="position:absolute;left:96px;bottom:0;width:96px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)"></div>
+          </div>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:6px;line-height:1.7">
+            轨道 · 1px · <code>--n-border-subtle</code> · 全宽常亮<br>
+            焦点 · 96px · <code>--accent</code> · 两端线性到 0<br>
+            周期 · 1400ms · <b>linear</b> · infinite（全系统唯一允许用 linear 的动效）<br>
+            方向 · 单向，从左到右掠出右边、再从左边进<br>
+            行高 · 48 → 58（不做过渡）
+          </div>
+        </div>
+        <div>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-bottom:6px">B · 完成 · N 条消息 之后的绿点</div>
+          <div style="display:flex;gap:var(--s4);align-items:center;background:var(--surface-panel);border-radius:var(--radius-4);padding:var(--s3)">
+            <span class="pw-inline" style="gap:5px"><span style="font-size:var(--text-meta);color:var(--n-placeholder)">12 条消息</span><span class="pw-dot unread"></span></span>
+            <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+            <span class="pw-inline" style="gap:5px"><span style="font-size:var(--text-meta);color:var(--n-placeholder)">14 条消息</span><span class="pw-dot unread" style="opacity:.45"></span></span>
+            <span class="pw-ico pw-dim"><i data-ico="arrow-right" data-size="14"></i></span>
+            <span class="pw-inline" style="gap:5px"><span style="font-size:var(--text-meta);color:var(--n-placeholder)">14 条消息</span></span>
+            <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">已读 · 淡出且不留占位</span>
+          </div>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-top:6px;line-height:1.7">
+            几何 · 6px · 实心圆 · <code>--success</code> · 与消息计数基线居中，间隔 6px<br>
+            出现 · 只做 opacity 0 → 1 · <code>--motion-fast</code> · 不位移、不缩放<br>
+            清除 · 会话被查看后淡出并<b>从布局里移除</b>，不留占位<br>
+            「N 条消息」文字本身不变色、不加粗，只有数字随计数更新
+          </div>
+        </div>
+        <div>
+          <div class="pw-mono pw-dim" style="font-size:var(--text-meta);margin-bottom:6px">C · 三者互斥（同一行任何时刻只出现一种）</div>
+          <table class="pw-table">
+            <thead><tr><th>会话态</th><th>扫掠线</th><th>右侧标记</th><th>行高</th></tr></thead>
+            <tbody>
+              <tr><td>空闲 · 已读</td><td class="pw-dim">无</td><td class="pw-dim">无</td><td class="pw-mono">48</td></tr>
+              <tr><td>运行中</td><td><span class="pw-badge accent">扫掠</span></td><td class="pw-dim">无</td><td class="pw-mono">58</td></tr>
+              <tr><td>完成 · 未读</td><td class="pw-dim">无</td><td><span class="pw-badge ok">绿点</span></td><td class="pw-mono">48</td></tr>
+              <tr><td>等你处理</td><td><span class="pw-badge warn">撤掉，只留底线</span></td><td><span class="pw-badge warn">待授权 / 待输入</span></td><td class="pw-mono">58</td></tr>
+              <tr><td>已取消 / 已失败</td><td class="pw-dim">无</td><td class="pw-dim">无</td><td class="pw-mono">48</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">会话行 · 悬浮与选中<span class="grow"></span></div>
+      <div class="pw-rowgap" style="background:var(--surface-panel);padding:var(--s2);border-radius:var(--radius-6)">
+        <div class="pw-session"><span class="pw-body"><span class="pw-t">默认态</span><span class="pw-m">1 小时前 · 6 条消息</span></span></div>
+        <div class="pw-session" style="background:var(--overlay-hover)"><span class="pw-body"><span class="pw-t">悬浮 · 出重命名与删除</span><span class="pw-m">1 小时前 · 6 条消息</span></span>
+          <span class="pw-acts" style="opacity:1"><span class="pw-ico"><i data-ico="square-pen" data-size="14"></i></span><span class="pw-ico"><i data-ico="trash-2" data-size="14"></i></span></span>
+        </div>
+        <div class="pw-session is-on running"><span class="pw-body"><span class="pw-t">选中 + 运行中 · 底加深、标题加重、底边扫掠</span><span class="pw-m">刚刚 · 19 条消息</span></span></div>
+        <div class="pw-session child"><span class="pw-ico" style="padding-left:2px"><i data-ico="corner-down-right" data-size="13"></i></span><span class="pw-body"><span class="pw-t">子代理缩进一级</span><span class="pw-m">Explore · 12s</span></span></div>
+        <div class="pw-session" style="background:var(--overlay-hover)"><span class="pw-body"><span class="pw-t">重命名中 · 内联输入</span></span>
+          <input class="pw-input" style="min-width:0;width:150px;height:24px" value="新的会话名">
+        </div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin-top:var(--s2)">注：只有运行中与等你处理会改行高（48 → 58），且不做过渡；悬浮只换底色。</p>
+    </div>
+
+    <div>
+      <div class="pw-sec-title">折叠导轨 · 项目行动作 · 右键菜单<span class="grow"></span></div>
+      <div class="pw-inline" style="align-items:flex-start;gap:var(--s3)">
+        <div class="pw-rail" style="height:300px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6)">
+          <span class="pw-logo" style="width:24px;height:24px;background:var(--surface-canvas);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);display:grid;place-items:center">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16"/><path d="M8 7v11"/><path d="M16 7v11"/></svg>
+          </span>
+          <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-right"></i></span></button>
+          <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="search"></i></span></button>
+          <button class="pw-iconbtn is-on"><span class="pw-ico"><i data-ico="square-pen"></i></span></button>
+          <span class="grow" style="flex:1"></span>
+          <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="settings"></i></span></button>
+        </div>
+        <div style="display:grid;gap:var(--s2)">
+          <div class="pw-pop" style="width:230px">
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="folder-open" data-size="14"></i></span>在文件管理器中打开</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="square-pen" data-size="14"></i></span>重命名项目</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="archive" data-size="14"></i></span>归档项目</div>
+            <div class="pw-sep"></div>
+            <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="minus" data-size="14"></i></span>从列表移除</div>
+          </div>
+          <div class="pw-pop" style="width:230px">
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="pin" data-size="14"></i></span>置顶<span class="grow"></span><span class="pw-kbd">P</span></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="archive" data-size="14"></i></span>归档</div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="tag" data-size="14"></i></span>状态标签<span class="grow"></span><span class="pw-ico"><i data-ico="chevron-right" data-size="14"></i></span></div>
+            <div class="pw-sep"></div>
+            <div class="pw-prow"><span class="pw-ico"><i data-ico="copy" data-size="14"></i></span>复制会话引用</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ 顶栏 ============ -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>顶栏 · 三种上下文</b> · 高 36 · 左侧标题随上下文变化，右侧动作随能力显示<span class="grow"></span></div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · 会话上下文（有会话在跑）</div>
+      <div class="pw-topbar" style="border-bottom:0">
+        <span class="pw-tb-title"><span class="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span><span>排查最新 Release 与本地待上传改动</span></span>
+        <span class="pw-chipbtn"><span class="pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="14"></i></span>运行中</span>
+        <span class="grow"></span>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="history" data-size="14"></i></span></button>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="square-pen" data-size="14"></i></span></button>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></button>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span></button>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="ellipsis" data-size="14"></i></span></button>
+        <button class="pw-iconbtn is-on"><span class="pw-ico"><i data-ico="panel-right" data-size="14"></i></span></button>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 工作区上下文（项目 + 分支 + 工作区切换器）</div>
+      <div class="pw-topbar" style="border-bottom:0">
+        <span class="pw-tb-title"><span class="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span><span>pi-codex</span></span>
+        <span class="pw-chipbtn"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>main<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+        <span class="pw-chipbtn"><span class="pw-ico"><i data-ico="layers" data-size="14"></i></span>3 个工作区<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+        <span class="grow"></span>
+        <span class="pw-badge count"><span class="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>2</span>
+        <span class="pw-badge warn count"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>1</span>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></button>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-right" data-size="14"></i></span></button>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">C · 工作区对调（聊天与文件面板互换左右）</div>
+      <div class="pw-topbar" style="border-bottom:0">
+        <span class="pw-tb-title"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="columns-2" data-size="14"></i></span><span>文件面板在左 · 聊天在右</span></span>
+        <span class="grow"></span>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="history" data-size="14"></i></span></button>
+        <button class="pw-iconbtn is-on"><span class="pw-ico"><i data-ico="arrow-right-left" data-size="14"></i></span></button>
+        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-right" data-size="14"></i></span></button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>状态标记一律在右侧，左侧不放点</b>：运行中是<b>底边一条 1px 常亮线 + 96px 强调亮点匀速掠过</b>（1400ms linear infinite，全系统唯一允许 linear 的动效）；未读是 <code>N 条消息</code> 之后一个 6px success 圆点；等你处理是同一位置一枚 warning 文字标记（待授权 / 待输入）。</li>
+    <li><b>三者互斥，行高只有两种</b>：空闲 48；运行中与等你处理 58。行高变化不做过渡（过渡会在列表里读成「抖动」）。</li>
+    <li><b>取消与失败在侧栏一律不表达</b>：那是转录里结束行该说的话，侧栏只回答「在跑 / 有结果没看 / 等你」三个问题。</li>
+    <li><b>未读点只做 opacity</b>：会话被查看后淡出并<b>从布局里移除</b>，不留占位；「N 条消息」文字本身不变色不加粗。</li>
+    <li><b>悬浮动作只在 hover 出现</b>：重命名与删除两个图标，默认 opacity 0；触屏下改常显。</li>
+    <li><b>两个 pane 用分段控件切</b>：项目 / 聊天，选中态是「更亮的底 + 加重文字」，不是强调色填充。</li>
+    <li><b>搜索命中用强调淡底高亮</b>，不用黄色马克笔色（那会引入第 6 个色相）。</li>
+    <li><b>顶栏右侧动作随上下文变</b>：会话态给历史 / 生成标题 / 子代理 / 分支 / 系统提示词 / 工具定义 / 导出 Markdown / 面板；工作区态给分支 / 工作区切换 / 在跑数徽章。</li>
+    <li><b>在跑数与等你数并排</b>：在跑用 accent 徽章、等你用 warning 徽章，当前工作区也挂。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

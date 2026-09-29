@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>61 · 系统状态页 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>61 · 系统状态页</h1>
+  <p>三类不常出现但必须画准的界面：应用级错误页（渲染崩了怎么办）、拖放落区（把文件拖进窗口）、worktree 切换器（一个项目下多份检出）。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：全局 / 会话工作台</span>
+    <span class="pw-tag">组件：app/error.tsx / app/global-error.tsx / useDragDrop / SessionSidebar 的 worktree 切换</span>
+    <span class="pw-tag accent">状态合集</span>
+  </div>
+</header>
+
+<!-- 错误页 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>应用级错误页</b> · A 路由错误（带主题 token）· B 根布局错误（无 token，跟随系统）</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">A · 路由级（app/error.tsx）· 可重试，暴露 digest</div>
+      <div style="height:380px;display:grid;place-items:center;background:var(--surface-canvas)">
+        <div style="display:grid;gap:var(--s3);justify-items:center;text-align:center;max-width:420px;padding:var(--s4)">
+          <span style="width:44px;height:44px;border-radius:var(--radius-6);border:1px solid var(--n-border);display:grid;place-items:center;color:var(--error)">
+            <span class="pw-ico"><i data-ico="triangle-alert" data-size="22"></i></span>
+          </span>
+          <h2 style="margin:0;font-size:var(--text-title);font-weight:500;color:var(--n-strong)">界面出错了</h2>
+          <p style="margin:0;color:var(--n-muted);font-size:var(--text-secondary)">渲染这一屏时抛了异常。重试通常能恢复；一直失败就把下面这串编号连同服务端日志一起看。</p>
+          <div class="pw-inline" style="padding:var(--s2) var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-panel)">
+            <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">digest</span>
+            <span class="pw-mono" style="font-size:var(--text-meta)">8f3c1a92e04b7d6c</span>
+            <span class="pw-ico pw-dim"><i data-ico="copy" data-size="13"></i></span>
+          </div>
+          <div class="pw-inline">
+            <span class="pw-btn primary"><span class="pw-ico"><i data-ico="rotate-cw" data-size="13"></i></span>重试</span>
+            <span class="pw-btn outline"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>刷新页面</span>
+            <span class="pw-btn"><span class="pw-ico"><i data-ico="bug" data-size="13"></i></span>看控制台</span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span>生产环境 message 会被脱敏，只有 digest 可对照日志；完整堆栈留在浏览器控制台。</span>
+      </div>
+    </div>
+
+    <div class="pw-cell" style="padding:0;overflow:hidden">
+      <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">B · 根布局级（app/global-error.tsx）· 无 token，跟随系统深浅色</div>
+      <div style="height:380px;display:grid;place-items:center;background:#fbfbfc;color:#33333d">
+        <div style="display:grid;gap:var(--s3);justify-items:center;text-align:center;max-width:420px;padding:var(--s4);font-family:var(--font-ui)">
+          <span style="width:44px;height:44px;border-radius:var(--radius-6);border:1px solid #d3d3da;display:grid;place-items:center;color:#bc4e39">
+            <span class="pw-ico"><i data-ico="circle-alert" data-size="22"></i></span>
+          </span>
+          <h2 style="margin:0;font-size:var(--text-title);font-weight:500">Pi Agent 启动失败</h2>
+          <p style="margin:0;color:#62626e;font-size:var(--text-secondary)">根布局本身没能渲染，主题与样式都还没接上。这一屏刻意只用系统色。</p>
+          <div class="pw-inline">
+            <span style="height:28px;display:inline-flex;align-items:center;gap:5px;padding:0 12px;border-radius:var(--radius-4);border:1px solid #d3d3da;background:#f4f4f6;font-size:var(--text-secondary)">
+              <span class="pw-ico"><i data-ico="rotate-cw" data-size="13"></i></span>重试
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)">
+        <span class="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+        <span>这一层必须自己渲染 html/body，且不带 data-theme，所以直接用系统色（Canvas / CanvasText）。</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 拖放 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>拖放落区</b> · A 可接受（拖文件进窗口）· B 拒绝（拖进的是不支持的东西）· C 拖到输入框</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">A · 可接受</div>
+      <div style="height:280px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);padding:var(--s3);display:flex;flex-direction:column">
+        <div class="pw-inline" style="margin-bottom:var(--s2)"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="14"></i></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">转录区</span></div>
+        <div class="pw-drop" style="flex:1">
+          <span class="mark"><span class="pw-ico"><i data-ico="paperclip" data-size="20"></i></span></span>
+          <div style="font-size:var(--text-body);color:var(--n-strong)">松手加入附件</div>
+          <div style="font-size:var(--text-meta);color:var(--n-muted)">图片会内嵌预览，其它文件按路径引用</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">B · 拒绝</div>
+      <div style="height:280px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);padding:var(--s3);display:flex;flex-direction:column">
+        <div class="pw-inline" style="margin-bottom:var(--s2)"><span class="pw-ico pw-dim"><i data-ico="message-square" data-size="14"></i></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">转录区</span></div>
+        <div class="pw-drop reject" style="flex:1">
+          <span class="mark"><span class="pw-ico"><i data-ico="ban" data-size="20"></i></span></span>
+          <div style="font-size:var(--text-body);color:var(--n-strong)">这里放不了</div>
+          <div style="font-size:var(--text-meta);color:var(--n-muted)">拖动的是页面里的文字或元素，不是文件</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-cell pw-grid2" style="grid-column:1/-1;padding:0;overflow:hidden">
+      <div>
+        <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">C · 拖到输入框（落点更精确）</div>
+        <div style="padding:var(--s3)">
+          <div class="pw-composer" style="width:100%;margin:0;border-color:var(--accent);border-style:dashed;background:var(--accent-soft)">
+            <div class="pw-composer-top" style="min-height:44px;color:var(--accent-text)">松手把文件加进这条消息</div>
+            <div class="pw-composer-bar">
+              <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+              <span class="grow"></span>
+              <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--n-border-subtle)">
+        <div class="pw-mono pw-dim" style="padding:6px var(--s3);border-bottom:1px solid var(--n-border-subtle)">D · 规则</div>
+        <div class="pw-list" style="padding:var(--s2) var(--s3)">
+          <div class="pw-litem"><span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span><span class="grow"><span class="pw-lname">图片文件</span><span class="pw-lsub">走附件芯片，内嵌预览</span></span></div>
+          <div class="pw-litem"><span class="pw-ico" style="color:var(--success)"><i data-ico="circle-check" data-size="14"></i></span><span class="grow"><span class="pw-lname">其它文件与目录</span><span class="pw-lsub">默认按路径加成 @ 引用</span></span></div>
+          <div class="pw-litem"><span class="pw-ico" style="color:var(--warning)"><i data-ico="triangle-alert" data-size="14"></i></span><span class="grow"><span class="pw-lname">超过 20 MB 的图片</span><span class="pw-lsub">退回路径引用，不报错</span></span></div>
+          <div class="pw-litem"><span class="pw-ico" style="color:var(--error)"><i data-ico="circle-x" data-size="14"></i></span><span class="grow"><span class="pw-lname">非文件内容</span><span class="pw-lsub">落区转拒绝态，松手无效</span></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- worktree -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>worktree 切换器</b> · 一个项目下多份检出：切换 / 过滤 / 新建 / 移除（未提交要强制确认）</div>
+  <div class="pw-frame-body pw-pad pw-inline" style="align-items:flex-start;gap:var(--s5)">
+
+    <div style="flex:1;max-width:300px;background:var(--surface-panel);padding:var(--s2);border-radius:var(--radius-6)">
+      <div class="pw-mono pw-dim" style="padding:var(--s2)">侧栏 · 项目行下的 worktree 行</div>
+      <div class="pw-row is-on"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">pi-codex</span><span class="grow"></span><span class="pw-badge count">90</span></div>
+      <div class="pw-row" style="padding-left:26px;height:26px">
+        <span class="pw-ico"><i data-ico="git-branch" data-size="12"></i></span>
+        <span class="pw-name pw-mono" style="font-size:var(--text-meta)">main</span>
+        <span class="pw-badge count">88</span>
+        <span class="grow"></span>
+        <span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+      </div>
+      <div class="pw-session child running"><span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条消息</span></span></div>
+      <div class="pw-session child awaiting"><span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span></span></div>
+      <div class="pw-row" style="padding-left:26px;height:26px">
+        <span class="pw-ico"><i data-ico="git-fork" data-size="12"></i></span>
+        <span class="pw-name pw-mono" style="font-size:var(--text-meta)">skin/codex</span>
+        <span class="pw-badge count">2</span>
+        <span class="grow"></span>
+        <span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">切换器（点 worktree 行展开）</div>
+      <div class="pw-pop" style="width:340px">
+        <div class="pw-pop-search" style="border-bottom:1px solid var(--n-border-subtle)">
+          <span class="pw-ico"><i data-ico="search" data-size="14"></i></span>
+          <span style="flex:1">过滤 worktree</span>
+        </div>
+        <div class="pw-pop-title">这个项目的检出 · 3</div>
+        <div class="pw-prow is-on">
+          <span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>
+          <span class="grow">main<span class="pw-desc" style="display:block">~/Desktop/pi-codex · 88 个会话</span></span>
+          <span class="pw-ico"><i data-ico="check" data-size="14"></i></span>
+        </div>
+        <div class="pw-prow">
+          <span class="pw-ico"><i data-ico="git-fork" data-size="14"></i></span>
+          <span class="grow">skin/codex<span class="pw-desc" style="display:block">~/Desktop/pi-web-skin · 2 个会话</span></span>
+        </div>
+        <div class="pw-prow">
+          <span class="pw-ico"><i data-ico="git-fork" data-size="14"></i></span>
+          <span class="grow">upstream-v094<span class="pw-desc" style="display:block">../pi-web-upstream · 0 个会话</span></span>
+          <span class="pw-badge warn">有未提交改动</span>
+        </div>
+        <div class="pw-sep"></div>
+        <div class="pw-prow"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span>新建 worktree…</div>
+        <div class="pw-prow" style="color:var(--error)"><span class="pw-ico" style="color:var(--error)"><i data-ico="minus" data-size="14"></i></span>移除当前检出…</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">新建 / 移除确认</div>
+      <div style="display:grid;gap:var(--s3)">
+        <div class="pw-modal" style="width:340px">
+          <div class="pw-modal-head">
+            <span class="pw-ico"><i data-ico="git-fork" data-size="16"></i></span>
+            新建 worktree
+          </div>
+          <div class="pw-modal-body">
+            <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+              <span class="pw-label">分支名</span>
+              <input class="pw-input" style="width:100%;min-width:0" value="skin/dark-tokens">
+            </div>
+            <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+              <span class="pw-label">起点</span>
+              <span class="pw-selectbox" style="width:100%">main<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+            </div>
+            <div class="pw-field" style="border:0;min-height:0;display:grid;gap:4px">
+              <span class="pw-label">路径</span>
+              <input class="pw-input" style="width:100%;min-width:0" value="../pi-web-dark-tokens">
+            </div>
+          </div>
+          <div class="pw-modal-foot">
+            <span class="pw-btn">取消</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn primary">创建</span>
+          </div>
+        </div>
+
+        <div class="pw-modal" style="width:340px">
+          <div class="pw-modal-head">
+            <span class="pw-ico" style="color:var(--error)"><i data-ico="triangle-alert" data-size="16"></i></span>
+            强制移除？
+          </div>
+          <div class="pw-modal-body">
+            <p style="margin:0"><span class="pw-mono">upstream-v094</span> 里还有 <b>12 个文件</b>没提交。移除后这些改动会丢。</p>
+            <div class="pw-alert" style="background:var(--error-soft);color:var(--error)">
+              <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+              <span class="grow">先切到别的 worktree 提交一次，或者直接强制移除。</span>
+            </div>
+          </div>
+          <div class="pw-modal-foot">
+            <span class="pw-btn">取消</span>
+            <span class="pw-grow"></span>
+            <span class="pw-btn danger">强制移除</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 本页动效（真在播） -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>本页动效</b> · 循环播放 · 规格与全量清单见画板 <span class="pw-mono">05-motion</span><span class="grow"></span><span style="color:var(--n-placeholder)">拖到输入框 = 加附件</span></div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-anim-stage">
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>拖放落区 · 涟漪</span><span class="grow"></span><span class="tag">淡入 + 一圈</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-drop pw-drop" style="position:relative;padding:var(--s4);min-width:170px">
+            <span class="pw-ico" style="color:var(--accent)"><i data-ico="import" data-size="20"></i></span>
+            <span style="font-size:var(--text-secondary)">松手放入</span>
+            <span class="ripple"></span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>拒绝落区</span><span class="grow"></span><span class="tag">error 色</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-drop pw-drop reject" style="position:relative;padding:var(--s4);min-width:170px">
+            <span class="pw-ico" style="color:var(--error)"><i data-ico="ban" data-size="20"></i></span>
+            <span style="font-size:var(--text-secondary)">这个类型不能放</span>
+            <span class="ripple" style="border-color:var(--error)"></span>
+          </div>
+        </div>
+      </div>
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>列表行入场 · 归档 / 工作区</span><span class="grow"></span><span class="tag">160ms · 一次</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:4px;width:100%">
+            <div class="pw-anim-row pw-litem"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow"><span class="pw-lname">feat/design-system</span></span></div>
+            <div class="pw-anim-row pw-litem"><span class="pw-ico"><i data-ico="git-branch" data-size="14"></i></span><span class="grow"><span class="pw-lname">fix/minimap-layout</span></span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>错误页分两层，样式来源不同</b>：路由级错误带完整主题 token（可复用 <code>--n-*</code>）；根布局级错误不带 <code>data-theme</code>，必须用系统色 <code>Canvas / CanvasText</code>，否则自己也会崩。</li>
+    <li><b>错误页必须给可恢复路径</b>：一个「重试」（Next 16 里是 <code>retry()</code>）、一个「刷新页面」、一个「看控制台」，并显示 <code>digest</code> 供对照服务端日志。</li>
+    <li><b>拖放落区分两态</b>：可接受用强调色虚线框 + 强调淡底；拒绝用 error 虚线框 + error 淡底，并说明为什么拒绝（拖的是页面元素不是文件）。</li>
+    <li><b>拖到输入框的落点更精确</b>：输入框自己变虚线强调框，提示「加进这条消息」，而不是整个转录区亮起。</li>
+    <li><b>拖放规则四条写死在画板上</b>：图片 → 芯片；其它文件与目录 → <code>@</code> 路径引用；超 20 MB 图片 → 退回路径引用（不报错）；非文件 → 拒绝态。</li>
+    <li><b>worktree 行在项目行之下、会话行之上</b>，用 26px 的窄行 + 分支图标，右侧一个计数徽章；有未提交改动的检出给 warning 徽章。</li>
+    <li><b>移除检出必须处理未提交改动</b>：先提示有多少文件、给出「先提交」的建议，再给「强制移除」。不静默丢改动。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

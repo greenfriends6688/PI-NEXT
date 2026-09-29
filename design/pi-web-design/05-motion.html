@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>05 · 动效规格 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>05 · 动效规格</h1>
+  <p>全系统的动效在这里定完。**本画板里的动效都是真的在播**——每一格循环演示，系统开了「减少动态效果」时全部停在终态。
+     分帧时间轴按 2px / ms 画，只作示意；曲线与数值一律以规格表为准。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：全局</span>
+    <span class="pw-tag">来源：assets/tokens.css 第 12 节</span>
+    <span class="pw-tag accent">可播放 · 循环</span>
+    <span class="pw-tag">全系统只有两处 linear</span>
+  </div>
+</header>
+
+<!-- ===================================================================== -->
+<!-- 规格总表                                                              -->
+<!-- ===================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>十一个值 + 四类转场</b> · 值全部登记在 <span class="pw-mono">assets/tokens.css</span> 第 12 节</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell">
+      <h4>十一个值</h4>
+      <table class="pw-table" style="margin-top:var(--s2)">
+        <thead><tr><th>token</th><th class="num">值</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td class="pw-mono">--ease</td><td class="num pw-mono">cubic-bezier(.215,.61,.355,1)</td><td>全系统唯一曲线</td></tr>
+          <tr><td class="pw-mono">--motion-fast</td><td class="num pw-mono">120ms</td><td>hover / 颜色 / 等待期减弱</td></tr>
+          <tr><td class="pw-mono">--motion-base</td><td class="num pw-mono">160ms</td><td>展开折叠 / 弹层出现 / 列表行入场</td></tr>
+          <tr><td class="pw-mono">--motion-transition</td><td class="num pw-mono">200ms</td><td>整块替换</td></tr>
+          <tr><td class="pw-mono">--motion-layout</td><td class="num pw-mono">240ms</td><td><b>只用于布局尺寸</b>：侧栏折叠 / 面板宽度</td></tr>
+          <tr><td class="pw-mono">--motion-sweep</td><td class="num pw-mono">1400ms</td><td>侧栏扫掠亮点线周期（linear · 无限）</td></tr>
+          <tr><td class="pw-mono">--motion-rise</td><td class="num pw-mono">8px</td><td>整块替换的上移量</td></tr>
+          <tr><td class="pw-mono">--motion-stream</td><td class="num pw-mono">4px</td><td>流式内容入场的上移量</td></tr>
+          <tr><td class="pw-mono">--motion-pop</td><td class="num pw-mono">4px</td><td>弹层出现的位移量</td></tr>
+          <tr><td class="pw-mono">--motion-sheet</td><td class="num pw-mono">14px</td><td>移动端抽屉上滑的位移量</td></tr>
+          <tr><td class="pw-mono">--motion-stagger</td><td class="num pw-mono">40ms</td><td>成组错开（最多 3 项）</td></tr>
+          <tr><td class="pw-mono">--opacity-pending</td><td class="num pw-mono">0.5</td><td>等待期的减弱不透明度</td></tr>
+        </tbody>
+      </table>
+      <div class="pw-alert info" style="margin-top:var(--s2)">
+        <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+        <span class="pw-grow"><b>两处 linear，仅此两处</b>：侧栏「运行中」的扫掠亮点线（1400ms，见画板 02）表达「匀速、还在跑」，
+        用 ease 会读成「刚动了一下就停了」；spinner 的匀速圆周。其余一律 <code class="pw-mono">--ease</code>。</span>
+      </div>
+    </div>
+
+    <div class="pw-cell">
+      <h4>四类转场</h4>
+      <table class="pw-table" style="margin-top:var(--s2)">
+        <thead><tr><th>类别</th><th>触发</th><th>动什么</th><th class="num">时长</th></tr></thead>
+        <tbody>
+          <tr><td>A · 整块替换</td><td>切会话 / 切标签</td><td>内容整块：上移 8px + 淡入；<b>其余不动</b></td><td class="num pw-mono">200ms</td></tr>
+          <tr><td>B · 带等待期的替换</td><td>重载 agent</td><td>先把旧内容降到 0.5，等新内容到了再走 A</td><td class="num pw-mono">120ms + ? + 200ms</td></tr>
+          <tr><td>C · 弹层出现</td><td>点触发钮</td><td>触发钮选中容器 <b>0ms 立即出现</b>；弹层上移 4px + 淡入</td><td class="num pw-mono">160ms</td></tr>
+          <tr><td>D · 展开折叠</td><td>点折叠行</td><td>只动高度与透明度；内部内容不单独动</td><td class="num pw-mono">160ms</td></tr>
+          <tr><td>E · 静默布局</td><td>侧栏折叠 / 拖栏宽</td><td>只动尺寸，内容不参与</td><td class="num pw-mono">240ms</td></tr>
+        </tbody>
+      </table>
+      <div class="pw-rowgap" style="margin-top:var(--s2)">
+        <div class="pw-inline"><span class="pw-badge accent">纪律</span><span class="pw-muted">不在这五类里的转场不做。</span></div>
+        <div class="pw-inline"><span class="pw-badge warn">封顶</span><span class="pw-muted">成组出现错开 40ms 一步、<b>最多 3 项</b>，第 4 项起不再延后（否则长列表读成「卡了一下才出来」）。</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 轻量交互规格                                                          -->
+<!-- ===================================================================== -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>轻量交互规格</b> · 这五条覆盖全系统所有「没有转场、只有反馈」的地方</div>
+  <div class="pw-frame-body pw-pad">
+    <table class="pw-table">
+      <thead><tr><th>交互</th><th>进入</th><th>离开 / 松开</th><th>曲线</th></tr></thead>
+      <tbody>
+        <tr><td>悬浮（容器底色 + 其中的文字与图标）</td><td class="pw-mono">--motion-fast 120ms</td><td class="pw-mono">--motion-fast 120ms（同一条，进出等长）</td><td class="pw-mono">--ease</td></tr>
+        <tr><td>按下（active 叠色）</td><td class="pw-mono">0ms · 立即换色，不做过渡</td><td class="pw-mono">--motion-fast 120ms 回到悬浮态</td><td class="pw-mono">--ease</td></tr>
+        <tr><td><b>焦点环</b></td><td class="pw-mono">0ms 立即出现</td><td class="pw-mono">0ms 立即消失</td><td>—</td></tr>
+        <tr><td>展开 / 折叠（工具卡 · 思考块 · 计划卡 · diff 卡）</td><td class="pw-mono">--motion-base 160ms（高度 + 透明度同起同止）</td><td class="pw-mono">--motion-base 160ms</td><td class="pw-mono">--ease</td></tr>
+        <tr><td>开关轨道 / 滑块</td><td class="pw-mono">--motion-fast 120ms</td><td class="pw-mono">--motion-fast 120ms</td><td class="pw-mono">--ease</td></tr>
+      </tbody>
+    </table>
+    <div class="pw-alert info" style="margin-top:var(--s3)">
+      <span class="pw-ico"><i data-ico="info" data-size="14"></i></span>
+      <span class="pw-grow"><b>按下不做过渡、焦点环不做过渡</b>，这两条是全系统纪律：手指和键盘要的是「立刻」，不是「优雅」。
+      悬浮态与按下态用的是同一个中性叠色容器（6% / 10%），只有深浅一档之差。</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 全系统动效清单（十七项，全部在播）                                     -->
+<!-- ===================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>全系统动效清单</b> · 十七项 · 每一格都是真在播的循环演示<span class="grow"></span>每格一个动效</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-anim-stage">
+
+      <!-- 1 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>01 · 整块替换</span><span class="grow"></span><span class="tag">200ms</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-rise" style="display:grid;gap:6px">
+            <div class="pw-badge" style="justify-self:start">切到另一条会话</div>
+            <div style="height:8px;background:var(--n-border);border-radius:var(--radius-3);width:92%"></div>
+            <div style="height:8px;background:var(--n-border);border-radius:var(--radius-3);width:74%"></div>
+            <div style="height:8px;background:var(--n-border);border-radius:var(--radius-3);width:86%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>02 · 成组错开</span><span class="grow"></span><span class="tag">40ms ×3</span></div>
+        <div class="pw-anim-box stack">
+          <div class="pw-anim-step" style="height:10px;width:70%;background:var(--n-border);border-radius:var(--radius-3)"></div>
+          <div class="pw-anim-step" style="height:10px;width:52%;background:var(--n-border);border-radius:var(--radius-3)"></div>
+          <div class="pw-anim-step" style="height:10px;width:60%;background:var(--n-border);border-radius:var(--radius-3)"></div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>03 · 等待期减弱</span><span class="grow"></span><span class="tag">120ms → 0.5</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-pending" style="display:grid;gap:6px">
+            <div class="pw-inline"><span class="pw-ico pw-dim"><i data-ico="loader-circle" data-size="14"></i></span><span class="pw-muted" style="font-size:var(--text-meta)">重载 agent…</span></div>
+            <div style="height:8px;background:var(--n-border);border-radius:var(--radius-3);width:90%"></div>
+            <div style="height:8px;background:var(--n-border);border-radius:var(--radius-3);width:66%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>04 · 弹层出现</span><span class="grow"></span><span class="tag">160ms · 关闭不反向</span></div>
+        <div class="pw-anim-box flow">
+          <span class="pw-anim-trigger" style="display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:var(--radius-4);font-size:var(--text-secondary)">
+            <span class="pw-ico"><i data-ico="cpu" data-size="14"></i></span>模型
+          </span>
+          <div class="pw-anim-pop" style="margin-top:6px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas);box-shadow:var(--shadow-popover);padding:4px 0">
+            <div class="pw-prow">GPT-5.6 Luna</div>
+            <div class="pw-prow">Claude Sonnet 4.5</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>05 · 展开折叠</span><span class="grow"></span><span class="tag">160ms</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-card">
+            <div class="pw-proc-head" style="border-bottom:0;padding:7px 10px">
+              <span class="pw-ico pw-dim"><i data-ico="chevron-right" data-size="14"></i></span>
+              <span style="font-size:var(--text-secondary)"><b>3 个文件</b> · 2 条命令</span>
+            </div>
+            <div class="pw-anim-expand">
+              <div class="pw-card-body" style="border-top:0">
+                <div class="pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="file-text" data-size="12"></i></span></span><span class="pw-verb">read a.ts</span></div>
+                <div class="pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="pencil-line" data-size="12"></i></span></span><span class="pw-verb">edit b.ts</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>06 · 流式内容入场</span><span class="grow"></span><span class="tag">4px</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:4px">
+            <div class="pw-anim-stream pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span></span><span class="pw-verb">npm run prod</span><span class="grow"></span><span class="pw-dur">2.1s</span></div>
+            <div class="pw-anim-stream pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="file-text" data-size="12"></i></span></span><span class="pw-verb">read delta.md</span></div>
+            <div class="pw-anim-stream pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="search" data-size="12"></i></span></span><span class="pw-verb">grep fork:ui</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>07 · 骨架微光</span><span class="grow"></span><span class="tag">正在加载</span></div>
+        <div class="pw-anim-box stack">
+          <div class="pw-anim-shimmer" style="height:12px;width:44%"></div>
+          <div class="pw-anim-shimmer" style="height:40px;width:100%"></div>
+          <div class="pw-anim-shimmer" style="height:40px;width:88%"></div>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>08 · 列表行入场</span><span class="grow"></span><span class="tag">160ms · 一次</span></div>
+        <div class="pw-anim-box stack" style="gap:4px">
+          <div class="pw-anim-row" style="height:14px;width:76%;background:var(--n-border);border-radius:var(--radius-3)"></div>
+          <div class="pw-anim-row" style="height:14px;width:62%;background:var(--n-border);border-radius:var(--radius-3)"></div>
+          <div class="pw-anim-row" style="height:14px;width:70%;background:var(--n-border);border-radius:var(--radius-3)"></div>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>09 · 通知条进出</span><span class="grow"></span><span class="tag">高度 + 位移</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-notice">
+            <div class="pw-toast" style="margin:0"><span class="pw-ico"><i data-ico="circle-check" data-size="14"></i></span><span class="pw-grow">已复制到剪贴板</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>10 · 保存成功</span><span class="grow"></span><span class="tag">一次弹 + 描线</span></div>
+        <div class="pw-anim-box">
+          <span class="pw-anim-saved" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-pill);background:var(--success);color:var(--surface-canvas)">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 7 13.5 15 4.5"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <!-- 11 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>11 · 拖放落区</span><span class="grow"></span><span class="tag">涟漪一次</span></div>
+        <div class="pw-anim-box">
+          <div class="pw-anim-drop pw-drop" style="position:relative;padding:var(--s4);min-width:170px">
+            <span class="pw-ico" style="color:var(--accent)"><i data-ico="import" data-size="20"></i></span>
+            <span style="font-size:var(--text-secondary)">松手放入</span>
+            <span class="ripple"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>12 · 抽屉上滑</span><span class="grow"></span><span class="tag">14px · 移动端</span></div>
+        <div class="pw-anim-box flow">
+          <div class="pw-anim-sheet" style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden;background:var(--surface-canvas)">
+            <div style="padding:6px 10px;border-bottom:1px solid var(--n-border-subtle);font-size:var(--text-meta);color:var(--n-muted)">项目</div>
+            <div style="padding:8px 10px;font-size:var(--text-secondary)">pi-codex</div>
+            <div style="padding:8px 10px;font-size:var(--text-secondary);color:var(--n-muted)">AcpAgentClient</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 13 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>13 · 阶段行四相位</span><span class="grow"></span><span class="tag">串行滚过</span></div>
+        <div class="pw-anim-box stack" style="gap:2px">
+          <div class="pw-anim-phase pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="brain" data-size="12"></i></span></span><span class="pw-verb">正在思考…</span></div>
+          <div class="pw-anim-phase pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="clock" data-size="12"></i></span></span><span class="pw-verb">等待模型响应</span></div>
+          <div class="pw-anim-phase pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="wrench" data-size="12"></i></span></span><span class="pw-verb">准备运行工具</span></div>
+          <div class="pw-anim-phase pw-step" style="padding-left:22px"><span class="pw-step-ico" style="left:3px"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span></span><span class="pw-verb">执行命令</span></div>
+        </div>
+      </div>
+
+      <!-- 14 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>14 · 跳转高亮</span><span class="grow"></span><span class="tag">1.6s</span></div>
+        <div class="pw-anim-box flow">
+          <div style="display:grid;gap:1px">
+            <div style="padding:8px 10px;font-size:var(--text-meta);color:var(--n-placeholder)">03 · 你继续啊，咋暂停了</div>
+            <div class="pw-anim-flash" style="padding:8px 10px;font-size:var(--text-meta);color:var(--n-text)">04 · 继续啊 ← 跳到这一轮</div>
+            <div style="padding:8px 10px;font-size:var(--text-meta);color:var(--n-placeholder)">05 · 继续</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 15 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>15 · spinner</span><span class="grow"></span><span class="tag">linear · 唯一</span></div>
+        <div class="pw-anim-box">
+          <span class="pw-anim-spin pw-ico" style="color:var(--accent)"><i data-ico="loader-circle" data-size="22"></i></span>
+        </div>
+      </div>
+
+      <!-- 16 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>16 · 扫掠线 + 呼吸</span><span class="grow"></span><span class="tag">1400ms linear</span></div>
+        <div class="pw-anim-box flow" style="display:grid;gap:var(--s3);align-content:center">
+          <div class="pw-anim-sweep" style="height:26px;display:flex;align-items:center;padding:0 8px;font-size:var(--text-meta);color:var(--n-text)">运行中的会话行</div>
+          <div class="pw-anim-breathe pw-inline" style="font-size:var(--text-meta);color:var(--n-muted)">
+            <span class="pw-ico"><i data-ico="ellipsis" data-size="14"></i></span>思考中…（呼吸）
+          </div>
+        </div>
+      </div>
+
+      <!-- 17 -->
+      <div class="pw-anim-cell">
+        <div class="pw-anim-cap"><span>17 · 主题切换扩散 + 侧栏折叠</span><span class="grow"></span><span class="tag">240ms 布局</span></div>
+        <div class="pw-anim-box flow" style="display:grid;gap:var(--s3);align-content:center">
+          <div class="pw-anim-collapse" style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden;height:52px">
+            <div style="background:var(--n-panel);border-right:1px solid var(--n-border-subtle);display:flex;align-items:center;padding-left:6px;overflow:hidden">
+              <span class="pw-ico" style="color:var(--n-muted)"><i data-ico="panel-left" data-size="14"></i></span>
+            </div>
+            <div style="background:var(--surface-canvas)"></div>
+          </div>
+          <div class="pw-anim-reveal" style="height:26px;border-radius:var(--radius-4);background:var(--n-strong)"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pw-alert warn" style="margin-top:var(--s4)">
+      <span class="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+      <span class="pw-grow"><b>这十七项就是全部。</b>新画板要用动效时**只能从这里挑**，不能就地发明；
+      确实需要新的一条，先加进本画板与本表，再去画板里用。这也是为什么本画板必须存在（旧版把动效并进 00 的动效小节，结果谁也说不清系统里到底有几处动画）。</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 分帧时间轴                                                            -->
+<!-- ===================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>分帧时间轴</b> · A 整块替换 · B 重载 agent · 2px / ms<span class="grow"></span>只作示意</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell">
+      <h4>A · 整块替换（切会话 / 切标签）</h4>
+      <p style="color:var(--n-muted);font-size:var(--text-meta);margin:var(--s2) 0">200ms · 上移 8px + 淡入</p>
+      <div class="pw-rowgap" style="margin-top:var(--s3)">
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">t = 0ms</span><span class="pw-muted" style="font-size:var(--text-meta)">旧内容消失；新内容 opacity 0 + translateY 8px，不可见</span></div>
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">t = 100ms</span><span class="pw-muted" style="font-size:var(--text-meta)">视觉中点（按 --ease 实际已走完约 87%）</span></div>
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">t = 200ms</span><span class="pw-muted" style="font-size:var(--text-meta)">到位：opacity 1 · translateY 0</span></div>
+      </div>
+      <div style="margin-top:var(--s3);border:1px dashed var(--accent);border-radius:var(--radius-4);padding:var(--s2);color:var(--accent-text);font-size:var(--text-meta)">
+        虚线框 = 受影响区域。切会话只动转录内容，其他一律不动。
+      </div>
+    </div>
+
+    <div class="pw-cell">
+      <h4>B · 重载 agent（带等待期）</h4>
+      <p style="color:var(--n-muted);font-size:var(--text-meta);margin:var(--s2) 0">120ms → 等待（时长不可预知）→ 200ms</p>
+      <div class="pw-rowgap" style="margin-top:var(--s3)">
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">① 0ms</span><span class="pw-muted" style="font-size:var(--text-meta)">顶栏出 spinner；转录区仍 opacity 1</span></div>
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">② 120ms</span><span class="pw-muted" style="font-size:var(--text-meta)">降到 opacity 0.5，旧内容还在、不可交互</span></div>
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">③ 等待</span><span class="pw-muted" style="font-size:var(--text-meta)">保持 0.5，不加任何新元素</span></div>
+        <div class="pw-inline"><span class="pw-mono pw-dim" style="width:70px;font-size:var(--text-meta)">④ 完成</span><span class="pw-muted" style="font-size:var(--text-meta)">撤 spinner，整套复用 A 组（起点是 0，不是 0.5）</span></div>
+      </div>
+      <div class="pw-alert warn" style="margin-top:var(--s3)">
+        <span class="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+        <span class="pw-grow">等待期**不做进度条、不做假进度、不加骨架屏**——时长不可预知，假进度比不动的 0.5 更让人焦虑。</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 反例与禁区                                                            -->
+<!-- ===================================================================== -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>反例与禁区</b> · 每一条都对应一个真实会犯的错</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-grid2">
+      <div class="pw-cell">
+        <h4>四类转场各自的反例</h4>
+        <ul class="pw-list" style="margin:var(--s2) 0 0;padding-left:var(--s4)">
+          <li><b>A 整块替换</b>：不做旧内容淡出（0ms 移除）；不做横滑；不做缩放；新旧内容任何一帧都不得同时可读；长转录不逐卡错开。</li>
+          <li><b>B 等待期</b>：等待期不得新增任何组件，不得做进度表达，不得让输入框或左右栏跟着变暗。</li>
+          <li><b>C 弹层</b>：不做缩放、不做从触发点放大；<b>关闭不做退场动画</b>（0ms 消失）；出现期间底层内容不变暗、不模糊。</li>
+          <li><b>D 展开折叠</b>：内部内容不单独做位移动画（外层已经在变高，里层再位移会叠成「东西在飞」）。</li>
+        </ul>
+      </div>
+      <div class="pw-cell">
+        <h4>全局禁区</h4>
+        <ul class="pw-list" style="margin:var(--s2) 0 0;padding-left:var(--s4)">
+          <li><b>不弹跳</b>：不用 spring / overshoot。</li>
+          <li><b>不缩放文字</b>：scale 会让字发虚。</li>
+          <li><b>不同时动 3 个以上属性。</b></li>
+          <li><b>内容类动效不超过 200ms。</b>只有布局尺寸（侧栏折叠 / 面板宽度）允许 240ms——视觉距离大，快了读成「闪」。</li>
+          <li><b>不做整页转场、不做骨架屏常驻、不做滚动视差。</b></li>
+          <li><b>prefers-reduced-motion: reduce 下一律停在终态</b>（不是加快、不是变短）。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 注记                                                                  -->
+<!-- ===================================================================== -->
+<section class="pw-notes">
+  <h3>这一张在定什么</h3>
+  <ol>
+    <li><b>全系统只有四类转场 + 一类布局</b>：整块替换（200ms）/ 带等待期的替换（120ms + ? + 200ms）/ 弹层出现（160ms）/ 展开折叠（160ms）/ 静默布局（240ms）。不在这五类里的转场不做。</li>
+    <li><b>曲线只有一个</b>：<code class="pw-mono">cubic-bezier(.215,.61,.355,1)</code>。两处例外是侧栏扫掠线（linear 1400ms infinite）与 spinner（linear 900ms infinite）。</li>
+    <li><b>十七项动效全部登记在本画板并且真的在播。</b>画板是「看得见的规范」——旧版只有一张规格表，结果谁也不知道系统里到底有几处动画、长什么样。</li>
+    <li><b>轻量交互五条</b>：悬浮进出等长 120ms；<b>按下不做过渡</b>；<b>焦点环不做过渡</b>；展开折叠 160ms；开关 120ms。</li>
+    <li><b>「未标注的一切不动」</b>是全局纪律：切会话只动转录内容，顶栏 / 侧栏 / 输入框 / 滚动位置 / 折叠状态都不参与动画。</li>
+    <li><b>等待期不做假进度</b>：重载 agent 的时长不可预知，界面停在 0.5 不透明度上等。</li>
+    <li><b>弹层关闭不做反向动画</b>：直接移除。回缩只会拖慢下一次操作。</li>
+    <li><b>成组出现最多错开 3 项</b>（40ms 一档），第 4 项起不延后。</li>
+    <li><b>减少动态效果时停在终态</b>，不是「加快」也不是「变短」——前者对前庭敏感人群没用，后者会让状态读错。</li>
+  </ol>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>
