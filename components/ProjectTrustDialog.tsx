@@ -1,8 +1,13 @@
 "use client";
 
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 
+/**
+ * fork:design-system SW-03 —— 项目信任对话框 = 画板 50 的 pw-modal 三态
+ * （确认 / 信任中 / 失败）：head 图标随状态换（shield-question / loader-circle /
+ * circle-x），正文说明「读写文件、执行命令」，cwd 走 pw-inline 面板 + mono。
+ * 画板 foot 的「不信任」danger ghost 对应本产品的取消钮。
+ */
 export function ProjectTrustDialog({
   cwd,
   busy,
@@ -17,6 +22,12 @@ export function ProjectTrustDialog({
   onConfirm: () => void;
 }) {
   const { t } = useI18n();
+
+  const headIcon = error
+    ? { ico: "circle-x", color: "var(--error)" }
+    : busy
+      ? { ico: "loader-circle", color: "var(--accent)" }
+      : { ico: "shield-question", color: "var(--warning)" };
 
   return (
     <div
@@ -41,104 +52,46 @@ export function ProjectTrustDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="project-trust-title"
-        style={{
-          width: 440,
-          maxWidth: "100%",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-xl)",
-          background: "var(--bg-panel)",
-          boxShadow: "var(--shadow-lg)",
-          overflow: "hidden",
-        }}
+        className="pw-modal"
+        style={{ width: 440, maxWidth: "100%" }}
       >
-        <div style={{ display: "flex", gap: 12, padding: "18px 18px 14px" }}>
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--warning)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ flexShrink: 0, marginTop: 1 }}
-          >
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-            <path d="m9 12 2 2 4-4" />
-          </svg>
-          <div style={{ minWidth: 0 }}>
-            <div id="project-trust-title" style={{ fontSize: TEXT.xl, fontWeight: 700, color: "var(--text)" }}>
-              {t("trust.dialogTitle")}
-            </div>
-            <div style={{ marginTop: 7, fontSize: TEXT.sm, lineHeight: 1.6, color: "var(--text-muted)" }}>
-              {t("trust.dialogBody")}
-            </div>
-            <code
-              style={{
-                display: "block",
-                marginTop: 10,
-                padding: "8px 10px",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-xs)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                fontFamily: "var(--font-mono)",
-                fontSize: TEXT.xs,
-                overflowWrap: "anywhere",
-              }}
-            >
-              {cwd}
-            </code>
-            {error && (
-              <div role="alert" style={{ marginTop: 10, color: "var(--danger)", fontSize: TEXT.sm, lineHeight: 1.5 }}>
-                {error}
-              </div>
-            )}
-          </div>
+        <div className="pw-modal-head">
+          <span className="pw-ico" style={{ color: headIcon.color, display: "inline-flex" }}>
+            <i data-ico={headIcon.ico} data-size="16"></i>
+          </span>
+          <span id="project-trust-title">{t("trust.dialogTitle")}</span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "10px 18px",
-            borderTop: "1px solid var(--border)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
+        <div className="pw-modal-body">
+          <p style={{ margin: 0 }}>{t("trust.dialogBody")}</p>
+          <div
+            className="pw-inline"
             style={{
-              height: 32,
-              padding: "0 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-xs)",
-              background: "transparent",
-              color: "var(--text-muted)",
-              cursor: busy ? "not-allowed" : "pointer",
-              fontSize: TEXT.sm,
+              padding: "var(--s2)",
+              border: "1px solid var(--n-border-subtle)",
+              borderRadius: "var(--radius-4)",
+              background: "var(--surface-panel)",
             }}
           >
+            <span className="pw-ico pw-dim"><i data-ico="folder" data-size="14"></i></span>
+            <span className="pw-mono" style={{ fontSize: "var(--text-meta)", minWidth: 0, overflowWrap: "anywhere" }}>{cwd}</span>
+          </div>
+          {error && (
+            <div role="alert" style={{ margin: 0, color: "var(--error)", fontSize: "var(--text-meta)", lineHeight: 1.5 }}>
+              <span className="pw-mono">{error}</span>
+            </div>
+          )}
+        </div>
+        <div className="pw-modal-foot">
+          <button type="button" className="pw-btn outline sm" onClick={onCancel} disabled={busy}>
             {t("trust.cancel")}
           </button>
+          <span className="grow" />
           <button
             type="button"
+            className="pw-btn primary sm"
             onClick={onConfirm}
             disabled={busy}
-            style={{
-              height: 32,
-              padding: "0 12px",
-              border: "1px solid var(--primary-bg)",
-              borderRadius: "var(--radius-md)",
-              background: "var(--primary-bg)",
-              color: "var(--primary-fg)",
-              cursor: busy ? "wait" : "pointer",
-              opacity: busy ? 0.7 : 1,
-              fontSize: TEXT.sm,
-              fontWeight: 600,
-            }}
+            style={busy ? { opacity: 0.7, cursor: "wait" } : undefined}
           >
             {busy ? t("trust.trusting") : t("trust.trustProject")}
           </button>

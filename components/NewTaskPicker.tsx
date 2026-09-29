@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 
 /**
  * Workspace picker for the 新建任务 row (fork feature:
@@ -74,7 +73,8 @@ export function NewTaskPicker({
     };
   }, [open]);
 
-  const itemClass = "flex w-full items-center gap-2 border-none bg-transparent px-3 py-[7px] text-left text-[12.5px] text-text-muted hover:bg-bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent";
+  // fork:design-system SW-03 —— 行 = 画板 51 的 pw-prow（当前项 is-on + check）。
+  const itemClass = "pw-prow";
 
   const knownRoots = new Set(projects.map((project) => project.root.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase()));
   const recentSuggestions = recent
@@ -117,6 +117,7 @@ export function NewTaskPicker({
       {open && (
         <div
           role="menu"
+          className="pw-pop"
           style={{
             // Anchored to the whole 新建任务 row: this element's positioning ancestor
             // is the wrapper in SessionSidebar, not this narrow chevron.
@@ -125,28 +126,19 @@ export function NewTaskPicker({
             left: 0,
             right: 0,
             zIndex: 100,
-            background: "var(--bg-elev)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-lg)",
-            padding: "6px 0",
             maxHeight: "min(60vh, 420px)",
             overflowY: "auto",
           }}
         >
           {projects.length > 0 && (
-            <div style={{ padding: "4px 12px 2px", fontSize: TEXT.xs, color: "var(--text-dim)", fontWeight: 500 }}>
-              {t("sidebar.newTaskChooseProject")}
-            </div>
+            <div className="pw-pop-title">{t("sidebar.newTaskChooseProject")}</div>
           )}
           {/* 推荐区放在项目列表之后、分隔线之前；点击走与项目相同的 onNewIn，
               也就是同一条 /api/cwd/validate 注册 allow-root 的路径。 */}
           {recentSuggestions.length > 0 && (
             <>
-              <div style={{ height: 1, background: "var(--border)", margin: "6px 0" }} />
-              <div style={{ padding: "4px 12px 2px", fontSize: TEXT.xs, color: "var(--text-dim)", fontWeight: 500 }}>
-                {t("sidebar.newTaskRecommended")}
-              </div>
+              <div className="pw-sep" />
+              <div className="pw-pop-title">{t("sidebar.newTaskRecommended")}</div>
               {recentSuggestions.map((project) => (
                 <button
                   key={project.path}
@@ -156,13 +148,11 @@ export function NewTaskPicker({
                   title={project.path}
                   onClick={() => choose(project.path)}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
-                    <path d="M12 3v18M5 10l7-7 7 7" />
-                  </svg>
-                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="arrow-up" data-size="14"></i></span>
+                  <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {project.path.split("/").filter(Boolean).at(-1) ?? project.path}
                   </span>
-                  <span style={{ flexShrink: 0, color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>{SOURCE_LABELS[project.source] ?? project.source}</span>
+                  <span className="pw-desc" style={{ flexShrink: 0 }}>{SOURCE_LABELS[project.source] ?? project.source}</span>
                 </button>
               ))}
             </>
@@ -176,32 +166,19 @@ export function NewTaskPicker({
               title={project.root}
               onClick={() => choose(project.root)}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
-                <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-              </svg>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: project.key === activeKey ? "var(--text)" : undefined }}>
+              <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="folder" data-size="14"></i></span>
+              <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {project.name}
               </span>
               {project.key === activeKey && (
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  style={{ color: "var(--success)", flexShrink: 0 }}
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <span className="pw-ico" style={{ flexShrink: 0, color: "var(--success)" }}>
+                  <i data-ico="check" data-size="14"></i>
+                </span>
               )}
             </button>
           ))}
 
-          <div style={{ height: 1, background: "var(--border)", margin: "6px 0" }} />
+          <div className="pw-sep" />
 
           <button
             type="button"
@@ -211,15 +188,13 @@ export function NewTaskPicker({
             title={chatPath ?? undefined}
             onClick={() => { if (chatPath) choose(chatPath); }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
-              <path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.4-4.6A8 8 0 1 1 21 12Z" />
-            </svg>
-            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="message-square" data-size="14"></i></span>
+            <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {t("sidebar.newTaskNoProject")}
             </span>
           </button>
 
-          <div style={{ height: 1, background: "var(--border)", margin: "6px 0" }} />
+          <div className="pw-sep" />
 
           <button
             type="button"
@@ -230,10 +205,8 @@ export function NewTaskPicker({
               onAddProject();
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            <span style={{ flex: 1, minWidth: 0 }}>{t("sidebar.addProject")}</span>
+            <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="plus" data-size="14"></i></span>
+            <span className="grow">{t("sidebar.addProject")}</span>
           </button>
         </div>
       )}
