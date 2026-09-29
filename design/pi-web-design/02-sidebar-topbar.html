@@ -139,12 +139,28 @@
             <span class="pw-ico"><i data-ico="x" data-size="13"></i></span>
           </div>
           <div class="pw-side-scroll">
-            <div class="pw-group-title" style="padding-top:var(--s1)">12 条匹配 · 跨 3 个项目</div>
-            <div class="pw-session child"><span class="pw-body"><span class="pw-t">Codex <mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark> token 台账</span><span class="pw-m">pi-codex · 昨天</span></span></div>
-            <div class="pw-session child"><span class="pw-body"><span class="pw-t">主题<mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark>工作室的设计</span><span class="pw-m">pi-codex · 3 天前</span></span></div>
-            <div class="pw-session child"><span class="pw-body"><span class="pw-t">上游合并后<mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark>重打</span><span class="pw-m">pi-codex · 上周</span></span></div>
-            <div class="pw-session child"><span class="pw-body"><span class="pw-t">浅色<mark style="background:var(--accent-soft);color:var(--accent-text)">皮肤</mark>下的对比度</span><span class="pw-m">探项前端 · 上周</span></span></div>
-            <div class="pw-row muted" style="justify-content:center;margin-top:var(--s2)"><span style="font-size:var(--text-meta)">只显示前 50 条，缩小范围试试</span></div>
+            <div class="pw-search-results">
+              <div class="pw-group-title" style="padding-top:var(--s1)">12 条匹配 · 跨 3 个项目</div>
+              <div class="pw-row is-on" style="height:26px">
+                <span class="pw-row-toggle"><i data-ico="chevron-down" data-size="12"></i></span>
+                <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+                <span class="pw-search-project">pi-codex</span>
+                <span class="grow"></span>
+                <span class="pw-badge count">3</span>
+              </div>
+              <div class="pw-search-hit">Codex <mark class="pw-mark">皮肤</mark> token 台账 · 昨天</div>
+              <div class="pw-search-hit">主题<mark class="pw-mark">皮肤</mark>工作室的设计 · 3 天前</div>
+              <div class="pw-search-hit">上游合并后<mark class="pw-mark">皮肤</mark>重打 · 上周</div>
+              <div class="pw-row" style="height:26px">
+                <span class="pw-row-toggle"><i data-ico="chevron-right" data-size="12"></i></span>
+                <span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+                <span class="pw-search-project">探项前端页面</span>
+                <span class="grow"></span>
+                <span class="pw-badge count">1</span>
+              </div>
+              <div class="pw-search-hit">浅色<mark class="pw-mark">皮肤</mark>下的对比度 · 上周</div>
+              <div class="pw-row muted" style="justify-content:center;margin-top:var(--s2)"><span style="font-size:var(--text-meta)">只显示前 50 条，缩小范围试试</span></div>
+            </div>
 
             <div class="pw-sec-title" style="margin:var(--s4) var(--s2) 0">无结果态<span class="grow"></span></div>
             <div class="pw-empty" style="padding:var(--s4) var(--s4)">
@@ -159,6 +175,60 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+<!-- 用户自定义分组 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>用户自定义分组 · 四态 + 移出落点</b> · 分组头 = 折叠开关 + 名字 + 数量；改名就地编辑，不弹对话框<span class="grow"></span></div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-grid4">
+
+      <div class="pw-cell">
+        <h4>展开态</h4>
+        <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:0 var(--s1) var(--s1)">
+          <div class="pw-group-title" style="padding:var(--s1) var(--s2)"><span class="pw-row-toggle"><i data-ico="chevron-down" data-size="12"></i></span>线上问题<span class="grow"></span><span class="pw-mono" style="font-size:var(--text-meta)">3</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">pi-codex</span><span class="grow"></span><span class="pw-badge count">12</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">招标改</span><span class="grow"></span><span class="pw-badge count">6</span></div>
+        </div>
+      </div>
+
+      <div class="pw-cell">
+        <h4>折叠态</h4>
+        <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:0 var(--s1) var(--s1)">
+          <div class="pw-group-title" style="padding:var(--s1) var(--s2)"><span class="pw-row-toggle"><i data-ico="chevron-right" data-size="12"></i></span>调研<span class="grow"></span><span class="pw-mono" style="font-size:var(--text-meta)">7</span></div>
+        </div>
+        <p style="margin-top:var(--s2)">折叠后<b>只留头</b>，数量照给——否则用户不知道里面还有东西。箭头只转 transform，不做持续动画。</p>
+      </div>
+
+      <div class="pw-cell">
+        <h4>拖放落点</h4>
+        <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:0 var(--s1) var(--s1)">
+          <div class="pw-group-title" style="padding:var(--s1) var(--s2);background:var(--overlay-selected);border-radius:var(--radius-4);color:var(--n-strong)"><span class="pw-row-toggle"><i data-ico="chevron-down" data-size="12"></i></span>本周跟进<span class="grow"></span><span class="pw-mono" style="font-size:var(--text-meta)">2</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">探项前端页面</span><span class="grow"></span><span class="pw-badge count">20</span></div>
+        </div>
+        <p style="margin-top:var(--s2)">拖过分组头即高亮，与会话选中态同一个容器色。</p>
+      </div>
+
+      <div class="pw-cell">
+        <h4>改名态</h4>
+        <div style="border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:var(--s2)">
+          <input class="pw-input" style="width:100%;min-width:0;height:24px;border-color:var(--accent);font-size:var(--text-meta)" value="线上问题">
+        </div>
+        <p style="margin-top:var(--s2)">就地 24px 输入框，<b>Enter 提交 / Esc 取消 / 点外面提交</b>；空名不落盘（分组没有名字等于没有分组）。</p>
+      </div>
+
+    </div>
+
+    <div class="pw-cell" style="max-width:420px">
+      <h4>移出分组的落点 · 只在拖一个已分组的项目时出现</h4>
+      <div class="pw-drop" style="padding:var(--s4)">
+        <div style="font-size:var(--text-secondary);color:var(--accent-text)">拖到这里移出分组</div>
+      </div>
+      <p style="margin-top:var(--s2)">默认态是虚线框 + 弱化字，指针进框才换实底。<b>没有它，用户只能先拖出组再拖回来</b>——所以它必须常驻在分组列表的末尾，而不是塞进某个菜单。</p>
+    </div>
+
   </div>
 </section>
 
@@ -361,6 +431,8 @@
     <li><b>搜索命中用强调淡底高亮</b>，不用黄色马克笔色（那会引入第 6 个色相）。</li>
     <li><b>顶栏右侧动作随上下文变</b>：会话态给历史 / 生成标题 / 子代理 / 分支 / 系统提示词 / 工具定义 / 导出 Markdown / 面板；工作区态给分支 / 工作区切换 / 在跑数徽章。</li>
     <li><b>在跑数与等你数并排</b>：在跑用 accent 徽章、等你用 warning 徽章，当前工作区也挂。</li>
+    <li><b>用户自定义分组只有四态，没有第五种</b>：展开 / 折叠 / 拖放高亮 / 就地改名。改名不弹对话框——分组头本身就是一个 24px 输入框，Enter 提交、Esc 取消、失焦提交。分组头同时是拖放落点，与会话选中态共用 <code>--overlay-selected</code>。</li>
+    <li><b>「拖到这里移出分组」是常驻落点不是菜单项</b>：它只在拖一个<b>已在组里</b>的项目时出现，挂在分组列表末尾。没有它，用户想撤销一次误拖就只能再拖回去。</li>
   </ul>
 </section>
 

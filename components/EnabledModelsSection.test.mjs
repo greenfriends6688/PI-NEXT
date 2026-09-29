@@ -179,14 +179,17 @@ test("the provider switch is locked when it would empty the scope or the file is
   );
 });
 
+// fork:models-board —— 明细改成画板 41 的「一列独立卡」之后，托管供应商的
+// 可用模型区块是**总是**挂载的：未登录时给一句说明，而不是整段消失
+// （否则「点了没反应」与「没东西可列」在界面上分不开）。
 test("the section is mounted for built-in and api-key providers", () => {
   assert.match(
     modelsConfigSource,
-    /provider\.loggedIn && <EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
+    /provider\.loggedIn\s*\?\s*<EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
   );
   assert.match(
     modelsConfigSource,
-    /provider\.configured && <EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
+    /<EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
   );
   assert.match(modelsConfigSource, /<EnabledModelsBanner controller=\{enabledModels\} \/>/);
   // A models.json provider gets the header switch instead of a section.
@@ -210,8 +213,10 @@ test("a missing custom provider is not blamed on a sign-in", () => {
 
 test("the section carries the usage heading font and no rule above it", () => {
   assert.match(source, /<span className="enabled-models-title">/);
+  // 画板 00 的复合排版类：字号 / 字重各只有一个来源（board.css 的 token），
+  // 这里的字重与 `.pw-detail > h3` 一致（500），所以一块卡上不会出现两种标题重。
   const title = cssSource.slice(cssSource.indexOf(".enabled-models-title {"));
-  assert.match(title.slice(0, title.indexOf("}")), /font-size: 13px;[\s\S]*font-weight: 600;/);
+  assert.match(title.slice(0, title.indexOf("}")), /font-size: var\(--text-secondary\);[\s\S]*font-weight: 500;/);
   const section = cssSource.slice(cssSource.indexOf(".enabled-models-section {"));
   assert.doesNotMatch(section.slice(0, section.indexOf("}")), /border-top/);
 });
@@ -234,9 +239,14 @@ test("provider rows carry the scope badge", () => {
     modelsConfigSource.indexOf("<ConfigSidebar>"),
     modelsConfigSource.indexOf("</ConfigSidebar>"),
   );
-  assert.equal(sidebar.match(/\{scopeBadge\(/g)?.length, 3);
+  // 自定义供应商行带范围徽章（`narrowed` 那一类）；托管行改带「已登录」徽章
+  // —— 它们的开关在详情头部那一枚，列表里再放一个范围徽章只会重复。
+  assert.match(sidebar, /\{scopeBadge\(pName\)\}/);
+  assert.match(sidebar, /<ConfigBadge tone="ok">\{t\("models\.badgeLoggedIn"\)\}<\/ConfigBadge>/);
   assert.match(cssSource, /\.models-sidebar-badge \{/);
-  assert.match(cssSource, /\.enabled-models-row \+ \.enabled-models-row \{/);
+  // 行与行之间的分隔交给画板的 `.pw-list`（gap 2px），产品不再自绘一条线。
+  assert.doesNotMatch(cssSource, /\.enabled-models-row \+ \.enabled-models-row \{/);
+  assert.match(source, /className="pw-litem enabled-models-row"/);
 });
 
 test("the saved-model slots mirror every move the draft makes", () => {

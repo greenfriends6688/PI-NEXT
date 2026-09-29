@@ -76,20 +76,37 @@ export function ConfigPanelShell({
   );
 }
 
+/* ---------------------------------------------------------------------------
+ * fork:design-system SW-08~13 —— 列表 / 详情的结构基件换成画板类。
+ *
+ * 画板（41/42/43/44/46）的两栏结构是：
+ *   .pw-cols            grid 260px + 1fr，gap s4
+ *     > div             左列：.pw-inline（搜索行）+ .pw-list
+ *         .pw-list      grid gap 2px
+ *           .pw-litem   行（.is-on 选中）> .pw-ico + .grow(.pw-lname/.pw-lsub) + .pw-badge
+ *     > div             右列：display:grid; gap s3
+ *         .pw-detail    发丝边框卡 > h3 + .pw-kv / .pw-field / .pw-stats-grid
+ *
+ * 这里只换类名，不改结构；产品专属的语义（列不参与收缩、窄屏叠成一列）在
+ * fork-ui.css 的接线块里，不重复画板已有的任何颜色/尺寸/间距。
+ * ------------------------------------------------------------------------- */
+
 export function ConfigSplitView({ children }: { children: ReactNode }) {
-  return <div className="config-split-view">{children}</div>;
+  return <div className="pw-cols">{children}</div>;
 }
 
+/** 左列：画板里就是一个裸 `<div>`（列宽由 `.pw-cols` 的 grid 决定，自己不带类）。
+ *  产品要按结构选中它，走 `.pw-cols > :first-child`（见 fork-ui.css 接线块）。 */
 export function ConfigSidebar({ children }: { children: ReactNode }) {
-  return <aside className="config-sidebar">{children}</aside>;
+  return <div>{children}</div>;
 }
 
 export function ConfigSidebarList({ children }: { children: ReactNode }) {
-  return <div className="config-sidebar-list">{children}</div>;
+  return <div className="pw-list">{children}</div>;
 }
 
 export function ConfigSidebarGroupLabel({ children }: { children: ReactNode }) {
-  return <div className="config-sidebar-group-label">{children}</div>;
+  return <div className="pw-group-title">{children}</div>;
 }
 
 export function ConfigSidebarItem({
@@ -103,7 +120,7 @@ export function ConfigSidebarItem({
       type="button"
       {...props}
       aria-current={active ? "page" : undefined}
-      className={["config-sidebar-item", className].filter(Boolean).join(" ")}
+      className={["pw-litem", active ? "is-on" : "", className].filter(Boolean).join(" ")}
     >
       {children}
     </button>
@@ -114,16 +131,54 @@ export function ConfigSidebarText({ className, ...props }: HTMLAttributes<HTMLSp
   return (
     <span
       {...props}
-      className={["config-sidebar-text", className].filter(Boolean).join(" ")}
+      className={["pw-lname", className].filter(Boolean).join(" ")}
     />
   );
 }
+/** 列表行的副标题（画板 `.pw-litem` 里的 `.pw-lsub`：模型数、接口地址…）。 */
+export function ConfigSidebarSub({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
+  return <span {...props} className={["pw-lsub", className].filter(Boolean).join(" ")} />;
+}
 
+/** 画板 `.pw-badge`：`tone` 对应 `.ok` / `.warn` / `.bad` / `.accent` / `.count` / `.solid`。 */
+export function ConfigBadge({ tone, className, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
+  return <span {...props} className={["pw-badge", tone ?? "", className ?? ""].filter(Boolean).join(" ")} />;
+}
+
+/** 画板 `.pw-kv`：140px 定宽的「标签 / 值」表（供应商详情的接口地址、认证方式…）。 */
+export function ConfigKv({ children, className, ...props }: HTMLAttributes<HTMLDListElement>) {
+  return <dl {...props} className={["pw-kv", className ?? ""].filter(Boolean).join(" ")}>{children}</dl>;
+}
+
+/** 画板 `.pw-ctl`：字段右侧的控件槽（自带 `flex: none`，标签左、控件右）。 */
+export function ConfigControl({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
+  return <span {...props} className={["pw-ctl", className ?? ""].filter(Boolean).join(" ")} />;
+}
+
+/** 画板 `.pw-stats-grid`：用量摘要四张小卡的网格。 */
+export function ConfigStatGrid({ children, className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...props} className={["pw-stats-grid", className ?? ""].filter(Boolean).join(" ")}>{children}</div>;
+}
+
+/** 画板 `.pw-stat`：一张用量小卡（`.k` 标签 / `.v` 数值 / `.s` 一行补充）。 */
+export function ConfigStat({ label, value, hint }: { label: string; value: string; hint?: ReactNode }) {
+  return (
+    <div className="pw-stat">
+      <span className="k">{label}</span>
+      <span className="v">{value}</span>
+      {hint ? <span className="s">{hint}</span> : null}
+    </div>
+  );
+}
+
+/** 右列：画板是 `style="display:grid;gap:var(--s3)"` 的容器（不是卡）。
+ *  原样照抄那行 inline —— 它就是画板 DOM 的一部分，不是产品自创的样式。 */
 export function ConfigDetailStack({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       {...props}
-      className={["config-detail-stack", className].filter(Boolean).join(" ")}
+      style={{ display: "grid", gap: "var(--s3)", ...props.style }}
+      className={className}
     />
   );
 }
@@ -132,7 +187,7 @@ export function ConfigDetailHeader({ className, ...props }: HTMLAttributes<HTMLD
   return (
     <div
       {...props}
-      className={["config-detail-header", className].filter(Boolean).join(" ")}
+      className={["pw-inline", className].filter(Boolean).join(" ")}
     />
   );
 }
@@ -141,7 +196,7 @@ export function ConfigDetailHeaderInfo({ className, ...props }: HTMLAttributes<H
   return (
     <div
       {...props}
-      className={["config-detail-header-info", className].filter(Boolean).join(" ")}
+      className={["pw-inline", "pw-grow", className].filter(Boolean).join(" ")}
     />
   );
 }
@@ -150,35 +205,54 @@ export function ConfigDetailActions({ className, ...props }: HTMLAttributes<HTML
   return (
     <div
       {...props}
-      className={["config-detail-actions", className].filter(Boolean).join(" ")}
+      className={["pw-inline", className].filter(Boolean).join(" ")}
     />
   );
 }
 
 export function ConfigDetailTitle({ children }: { children: ReactNode }) {
-  return <div className="config-detail-title">{children}</div>;
+  return <h3 style={{ margin: 0 }}>{children}</h3>;
 }
 
 export function ConfigSectionTitle({ children }: { children: ReactNode }) {
-  return <div className="config-section-title">{children}</div>;
+  return (
+    <div className="pw-sec-title">
+      {children}
+      <span className="pw-grow" aria-hidden="true" />
+    </div>
+  );
 }
 
-export function ConfigField({ label, children, style }: { label: ReactNode; children: ReactNode; style?: CSSProperties }) {
+/** 画板 `.pw-field`：左「标签（+ `<small>` 一句说明）」、右控件。
+ *  `hint` 走画板的 `.pw-label small`（弱化说明），不是右边的 `.pw-hint`。 */
+export function ConfigField({ label, hint, children, style }: {
+  label: ReactNode;
+  hint?: string;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   return (
-    <div className="config-field" style={style}>
-      <span className="config-field-label">{label}</span>
+    <div className="pw-field" style={style}>
+      <span className="pw-label">
+        {label}
+        {hint ? <small>{hint}</small> : null}
+      </span>
       {children}
     </div>
   );
 }
 
 export function ConfigEmptyState({ children }: { children: ReactNode }) {
-  return <div className="config-empty-state">{children}</div>;
+  return (
+    <div className="pw-empty">
+      <div className="pw-empty-inner">{children}</div>
+    </div>
+  );
 }
 
 export function ConfigDetail({ children, style }: { children: ReactNode; style?: CSSProperties }) {
   return (
-    <div className="config-detail" style={style}>
+    <div className="pw-detail" style={style}>
       {children}
     </div>
   );
@@ -186,13 +260,25 @@ export function ConfigDetail({ children, style }: { children: ReactNode; style?:
 
 export function ConfigFooter({ status, children }: { status?: ReactNode; children?: ReactNode }) {
   return (
-    <footer className="config-footer">
-      <div className="config-footer-status">{status}</div>
-      <div className="config-footer-actions">{children}</div>
+    <footer className="pw-modal-foot">
+      <span className="pw-mono pw-dim">{status}</span>
+      <span className="pw-grow" aria-hidden="true" />
+      <span className="pw-inline">{children}</span>
     </footer>
   );
 }
 
+/**
+ * fork:design-system SW-08~13 —— 按钮换成画板 00 的 `.pw-btn` 四态。
+ *
+ * 画板只有三种形态：默认（ghost，悬浮出 6% 底）、`.primary`（强调色填充）、
+ * `.outline`（发丝边框 + 画布底）、`.danger`（error 文字），外加 `.sm` 一档尺寸。
+ * 产品的四个变体照此映射：
+ *   primary   → pw-btn primary
+ *   secondary → pw-btn outline      （有边界的次要动作）
+ *   ghost     → pw-btn              （无边界）
+ *   danger    → pw-btn danger
+ */
 export function ConfigButton({
   variant = "secondary",
   size = "default",
@@ -200,22 +286,22 @@ export function ConfigButton({
   children,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ConfigButtonVariant; size?: ConfigButtonSize }) {
+  const variantClass = variant === "primary" ? "primary"
+    : variant === "secondary" ? "outline"
+    : variant === "danger" ? "danger"
+    : "";
   return (
     <button
       type="button"
       {...props}
-      className={[
-        "config-button",
-        `config-button-${variant}`,
-        `config-button-${size}`,
-        className,
-      ].filter(Boolean).join(" ")}
+      className={["pw-btn", variantClass, size === "small" ? "sm" : "", className].filter(Boolean).join(" ")}
     >
       {children}
     </button>
   );
 }
 
+/** fork:design-system SW-08~13 —— 开关 = 画板 00 的 `.pw-switch`（`<i>` 是圆钮）。 */
 export function ConfigSwitch({ checked, disabled = false, loading = false, label, onChange }: { checked: boolean; disabled?: boolean; loading?: boolean; label: string; onChange: (checked: boolean) => void }) {
   const inactive = disabled || loading;
   return (
@@ -227,29 +313,26 @@ export function ConfigSwitch({ checked, disabled = false, loading = false, label
       aria-label={label}
       title={label}
       disabled={inactive}
-      className={`config-switch${loading ? " is-loading" : ""}`}
+      className={`pw-switch${checked ? " on" : ""}${loading ? " is-loading" : ""}`}
       onClick={() => onChange(!checked)}
     >
-      <span className="config-switch-knob" aria-hidden="true" />
+      <i aria-hidden="true" />
     </button>
   );
 }
 
+/** 列表底部的「新增一行」：画板是 `.pw-list` 里的一条 `.pw-litem` + 前置 plus 图标。 */
 export function ConfigListAction({ active = false, children, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
   return (
-    <div className="config-list-action">
-      <button
-        type="button"
-        {...props}
-        aria-current={active ? "page" : undefined}
-        className={["config-list-action-button", className].filter(Boolean).join(" ")}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        {children}
-      </button>
-    </div>
+    <button
+      type="button"
+      {...props}
+      aria-current={active ? "page" : undefined}
+      className={["pw-litem", "pw-litem-add", className].filter(Boolean).join(" ")}
+    >
+      <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
+      <span className="grow">{children}</span>
+    </button>
   );
 }
 
@@ -257,7 +340,7 @@ export function ConfigStatusDot({ active, color }: { active?: boolean; color?: s
   return (
     <span
       aria-hidden="true"
-      className={`config-status-dot${active ? " is-active" : active === false ? " is-inactive" : ""}`}
+      className={`pw-dot${active ? " run" : active === false ? " pending" : ""}`}
       style={color ? { backgroundColor: color } : undefined}
     />
   );

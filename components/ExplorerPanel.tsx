@@ -5,7 +5,6 @@ import { loadExplorerOpen, saveExplorerOpen } from "@/lib/file-explorer-state";
 import { useI18n } from "@/hooks/useI18n";
 import { DismissButton } from "./DismissButton";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
-import { FileManagerIcon } from "./FileIcons";
 import { TEXT } from "@/lib/typography";
 
 interface FileManagerAvailability {
@@ -20,28 +19,29 @@ const FILE_MANAGER_ERROR_KEYS: Record<string, string> = {
   "unsupported-platform": "sidebar.openInExplorerUnsupported",
 };
 
+/**
+ * fork:design-components —— 面板头的动作钮 = 画板 30 头行右端那一排
+ * `<button class="pw-iconbtn sm">`（行 113-119）：22 见方、无边框、默认弱化色、
+ * hover 出深色容器、选中态 `.is-on`。视觉全部来自 board.css，本组件不写颜色、
+ * 不写背景、不写尺寸 —— 调用方只给「这一瞬间是不是按下的」。
+ */
 function ToolbarIconButton({
   onClick,
   title,
   disabled,
-  color,
-  background,
-  marginRight,
+  active,
   ariaPressed,
   children,
 }: {
   onClick: () => void;
   title: string;
   disabled?: boolean;
-  color: string;
-  /** 仅保留调用方语义：选中态由 .pw-iconbtn.is-on 承担。 */
-  background?: string;
-  marginRight?: number;
+  /** 画板 `.is-on`：按下 / 刚发生过一次（如刷新完成）的 momentary 状态。 */
+  active?: boolean;
+  /** 真正的开关（搜索、改动列表）同时给 aria-pressed。 */
   ariaPressed?: boolean;
   children: ReactNode;
 }) {
-  // fork:design-components —— 文件面板头行的图标钮 = 画板 30 的 .pw-iconbtn.sm
-  // （22×22 / 无边框 / hover 叠色 / is-on 选中）。颜色与按下态仍按调用方给的状态走。
   return (
     <button
       type="button"
@@ -50,8 +50,7 @@ function ToolbarIconButton({
       title={title}
       aria-label={title}
       aria-pressed={ariaPressed}
-      className={`pw-iconbtn sm${ariaPressed ? " is-on" : ""}`}
-      style={{ marginRight, color: disabled ? "var(--n-placeholder)" : color, opacity: disabled ? 0.6 : 1, background: ariaPressed ? undefined : background }}
+      className={`pw-iconbtn sm${active ? " is-on" : ""}`}
     >
       {children}
     </button>
@@ -170,22 +169,26 @@ export function ExplorerPanel({
         background: "var(--bg)",
       }}
     >
-      {/* fork:design-components —— 面板头 = 画板 30 的 .pw-panel-head：
-          「文件」+ 右端一排 .pw-iconbtn.sm；高度取 --topbar-height（36）。 */}
+      {/* fork:design-components —— 面板头 = 画板 30 的 `.pw-panel-head`（行 110-120）：
+          `<b>文件</b>` + `grow` 把右端一排 `.pw-iconbtn.sm` 顶到最右；高度取
+          --topbar-height（36）。`file-explorer-header` 保留：globals.css 的
+          min-width/overflow 与容器查询（窄栏收起标签）都挂在它上面。 */}
       <div className="file-explorer-header pw-panel-head" style={{ borderBottom: explorerOpen ? "1px solid var(--n-border-subtle)" : "none" }}>
         <button
           type="button"
-          className="file-explorer-toggle"
+          className="file-explorer-toggle pw-grow"
           onClick={() => setExplorerOpen((open) => {
             const next = !open;
             saveExplorerOpen(next);
             return next;
           })}
+          /* 折叠 / 展开的触发器：画板 30 的头行没有这一枚（那里是纯 <b>），
+             产品要可点，所以是 button —— UA 归零（描边/底/字体/居中）保留在
+             行内，报告第 2 节给了可归并到 fork-ui.css 的写法。 */
           style={{
             display: "flex",
             alignItems: "center",
             gap: 5,
-            flex: 1,
             minWidth: 0,
             background: "none",
             border: "none",
@@ -199,53 +202,46 @@ export function ExplorerPanel({
             <i data-ico={explorerOpen ? "chevron-down" : "chevron-right"} data-size="12"></i>
           </span>
           {/* Shown instead of the label once the panel is too narrow for it
-              (@container query in globals.css). Ported from upstream PR #838. */}
-          <svg
-            className="file-explorer-compact-icon"
-            width="15" height="15" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M3.5 6.5h6l1.8 2h9.2v9.8a1.2 1.2 0 0 1-1.2 1.2H4.7a1.2 1.2 0 0 1-1.2-1.2z" />
-            <path d="M3.5 6.5V5.7a1.2 1.2 0 0 1 1.2-1.2h4l1.8 2h8.8a1.2 1.2 0 0 1 1.2 1.2v.8" />
-          </svg>
-          <span className="file-explorer-title-label" style={{ fontWeight: 500, color: "var(--n-strong)" }}>{t("files.explorer")}</span>
+              (@container query in globals.css). Ported from upstream PR #838.
+              The class stays on the outer span because the container query
+              toggles its display; the icon slot itself is the board's .pw-ico. */}
+          <span className="file-explorer-compact-icon">
+            <span className="pw-ico">
+              <i data-ico="folder" data-size="15" aria-hidden="true"></i>
+            </span>
+          </span>
+          <b className="file-explorer-title-label">{t("files.explorer")}</b>
           {/* Which directory this tree is listing: without it an empty tree is
-              indistinguishable from a wrong cwd. */}
-          <span
-            className="file-explorer-title-label"
-            style={{ color: "var(--n-placeholder)", fontWeight: 400 }}
-            title={cwd}
-          >
+              indistinguishable from a wrong cwd. `grow` + ellipsis = the board's
+              head-row layout (label left, secondary pushed right). */}
+          <span className="file-explorer-title-label pw-mono pw-dim pw-grow" title={cwd}>
             {cwd.split(/[\/]/).filter(Boolean).at(-1) ?? cwd}
           </span>
         </button>
-        {/* PR #907 — 在系统文件管理器里打开当前工作区（终端按钮左侧）。 */}
+        {/* PR #907 — 在系统文件管理器里打开当前工作区（终端按钮左侧）。字形取画板 30
+            头行那一枚（行 114 `folder-open`）；平台差异由 title 文案承担
+            （Finder / 资源管理器 / 通用），不再另画一套平台图标。 */}
         <ToolbarIconButton
           onClick={() => { void openInFileManager(); }}
           disabled={fileManagerUnavailable}
           title={fileManagerUnavailable
             ? t(fileManager?.reason === "remote" ? "sidebar.openInExplorerRemoteOnly" : "sidebar.openInExplorerUnsupported")
             : fileManagerLabel}
-          color="var(--text-dim)"
         >
-          {/* fork:ui-file-manager-icon — 按平台出图：访达 / 资源管理器 / 通用轮廓。 */}
-          <FileManagerIcon platform={fileManager?.platform} size={14} />
+          <span className="pw-ico"><i data-ico="folder-open" data-size="14" aria-hidden="true"></i></span>
         </ToolbarIconButton>
-        {onOpenTerminal && (          <ToolbarIconButton
+        {onOpenTerminal && (
+          <ToolbarIconButton
             onClick={() => onOpenTerminal(cwd)}
             title={t("terminal.open")}
-            color="var(--text-dim)"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-            </svg>
+            <span className="pw-ico"><i data-ico="square-terminal" data-size="14" aria-hidden="true"></i></span>
           </ToolbarIconButton>
         )}
         {/* fork:ui-review-button — the changed-files switch was hidden entirely
             while the tree was clean (so the "review" affordance disappeared) and
             its glyph read as a minus. It now stays in the row, names itself, and
-            wears a diff glyph. */}
+            wears the board's diff glyph. */}
         {explorerOpen && (
           <ToolbarIconButton
             onClick={() => setChangesCollapsed((v) => !v)}
@@ -253,16 +249,10 @@ export function ExplorerPanel({
             title={changesCount > 0
               ? t("sidebar.reviewChanges", { count: changesCount })
               : t("sidebar.noChanges")}
+            active={changesCount > 0 && !changesCollapsed}
             ariaPressed={changesCount > 0 && !changesCollapsed}
-            color={changesCount > 0 && !changesCollapsed ? "var(--accent)" : "var(--text-dim)"}
-            background={changesCount > 0 && !changesCollapsed ? "var(--bg-selected)" : "none"}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M9 3v12a3 3 0 0 0 3 3h3" />
-              <circle cx="6" cy="6" r="3" />
-              <path d="M18 12v6" />
-              <path d="m15 15 3 3 3-3" />
-            </svg>
+            <span className="pw-ico"><i data-ico="file-diff" data-size="14" aria-hidden="true"></i></span>
           </ToolbarIconButton>
         )}
         {explorerOpen && (
@@ -271,13 +261,10 @@ export function ExplorerPanel({
               setFileSearchOpen((open) => !open);
             }}
             title={t("sidebar.searchFiles")}
+            active={fileSearchOpen}
             ariaPressed={fileSearchOpen}
-            color={fileSearchOpen ? "var(--accent)" : "var(--text-dim)"}
-            background={fileSearchOpen ? "var(--bg-selected)" : "none"}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
-            </svg>
+            <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true"></i></span>
           </ToolbarIconButton>
         )}
         {explorerOpen && (
@@ -285,13 +272,8 @@ export function ExplorerPanel({
             onClick={() => fileExplorerRef.current?.openUploadPicker()}
             disabled={explorerUploadBusy}
             title={t("sidebar.uploadFilesTitle")}
-            color="var(--text-dim)"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <path d="m17 8-5-5-5 5" />
-              <path d="M12 3v12" />
-            </svg>
+            <span className="pw-ico"><i data-ico="upload" data-size="14" aria-hidden="true"></i></span>
           </ToolbarIconButton>
         )}
         <ToolbarIconButton
@@ -303,20 +285,11 @@ export function ExplorerPanel({
             explorerRefreshTimerRef.current = setTimeout(() => setExplorerRefreshDone(false), 2000);
           }}
           title={t("sidebar.refreshExplorer")}
-          color={explorerRefreshDone ? "var(--success)" : "var(--text-dim)"}
-          background={explorerRefreshDone ? "var(--success-soft)" : "none"}
-          marginRight={6}
+          active={explorerRefreshDone}
         >
-          {explorerRefreshDone ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-          )}
+          <span className="pw-ico">
+            <i data-ico={explorerRefreshDone ? "check" : "refresh-cw"} data-size="14" aria-hidden="true"></i>
+          </span>
         </ToolbarIconButton>
         {trailingActions}
       </div>

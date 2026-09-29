@@ -13,6 +13,7 @@ import {
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
 import {
+  ConfigBadge,
   ConfigButton,
   ConfigDetail,
   ConfigDetailActions,
@@ -533,20 +534,24 @@ export function AgentsConfig({
           </ConfigListAction>
         </ConfigSidebar>
 
+        {/* fork:settings-dialog-frame —— 画板 42 的右列只有一张 pw-detail 卡，
+            按内容收口。原先这层是 is-fill（min-height:100%），把卡拉成整页高，
+            底部留一大片空白、外圈看着像又套了一个弹窗。 */}
         <ConfigDetail>
-          <ConfigDetailStack className="is-fill">
+          <ConfigDetailStack>
               {!selected && !creating ? (
                 <ConfigEmptyState>{t("agents.empty")}</ConfigEmptyState>
               ) : (
                 <ConfigDetailStack>
                   <ConfigDetailHeader>
                     <ConfigDetailHeaderInfo>
+                      {/* fork:design-system SW-14 —— 画板 42 的详情头：作用域徽章 + 等宽路径。 */}
                       {displayedScope && (
-                        <span className={`config-scope-tag${displayedScope === "project" ? " is-project" : ""}`}>
+                        <ConfigBadge tone={displayedScope === "project" ? "accent" : undefined}>
                           {t(`agents.scope.${displayedScope}`)}
-                        </span>
+                        </ConfigBadge>
                       )}
-                      <span title={fullPath} className="config-detail-path">
+                      <span title={fullPath} className="pw-mono pw-dim pw-grow">
                         {displayedPath}
                       </span>
                     </ConfigDetailHeaderInfo>
@@ -657,9 +662,7 @@ export function AgentsConfig({
             className={savedOk ? "is-success" : undefined}
           >
             {savedOk && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="config-button-success-icon">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <span className="pw-ico"><i data-ico="check" data-size="13"></i></span>
             )}
             <span>{savedOk ? t("i18n.saved") : saving ? t("agents.saving") : t("agents.save")}</span>
           </ConfigButton>

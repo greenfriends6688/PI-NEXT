@@ -7,7 +7,8 @@ const systemSource = await readFile(new URL("./SystemPromptPanel.tsx", import.me
 const appShellSource = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 
 test("keeps System and Tools in separate adjacent toolbar actions", () => {
-  assert.match(appShellSource, /handleSystemInfoToggle\("system", mobile\)[\s\S]*?handleSystemInfoToggle\("tools", mobile\)/);
+  // fork:top-panel-anchor —— 两个入口各带各的按钮作为定位锚点。
+  assert.match(appShellSource, /handleSystemInfoToggle\("system", mobile, event\.currentTarget\)[\s\S]*?handleSystemInfoToggle\("tools", mobile, event\.currentTarget\)/);
   assert.match(appShellSource, /activeTopPanel === "system"[\s\S]*?<SystemPromptPanel/);
   assert.match(appShellSource, /activeTopPanel === "tools"[\s\S]*?<ToolDefinitionsPanel/);
   assert.doesNotMatch(systemSource, /ToolEntry|tools/);

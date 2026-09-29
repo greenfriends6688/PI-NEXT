@@ -497,6 +497,111 @@
   </div>
 </section>
 
+<!-- =====================================================================
+     帧 D · 零会话起步 + 选中型空态
+     ===================================================================== -->
+<section class="pw-frame" style="max-width:1100px">
+  <div class="pw-frame-label"><b>帧 D · 零会话起步 · 选中型空态</b> · 两个「还没有内容」的首屏 + 起步卡的展开态 · 不画壳，只画首屏本身<span class="grow"></span>840 × 480</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-sec-title">A · 有项目 · 零会话（帧 A 的首屏特写）<span class="grow"></span>NewSessionHome</div>
+    <div class="pw-cell">
+      <div class="pw-empty" style="min-height:300px">
+        <div class="pw-empty-inner">
+          <span class="mark"><i data-ico="pi" data-size="20"></i></span>
+          <h2>pi-codex</h2>
+          <p>在下面输入第一条消息开始会话；<span class="pw-kbd">@</span> 引用上下文，<span class="pw-kbd">/</span> 调命令。</p>
+          <div class="pw-starters">
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="scan-search" data-size="14"></i></span>探索代码库</b><span>这个项目的入口在哪，模块怎么分</span></div>
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="git-compare" data-size="14"></i></span>评审改动</b><span>看看工作区里未提交的改动有没有问题</span></div>
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="square-check" data-size="14"></i></span>补测试</b><span>给刚才改的那几个文件补上回归用例</span></div>
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="book-open" data-size="14"></i></span>讲解一段代码</b><span>把这个文件从头到尾讲一遍</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="pw-mono pw-dim" style="margin:var(--s2) 0 0">@ 与 / 在提示行里是 <code>.pw-kbd</code>（等宽 + 发丝边框），不是正文里的反引号。点起步卡不发送，只把提示词<b>填进输入框</b>。</p>
+    </div>
+
+    <div class="pw-sec-title">B · 无项目 · 零会话起步三卡<span class="grow"></span>EmptyStateGuide</div>
+    <div class="pw-cell">
+      <div class="pw-empty" style="min-height:180px">
+        <div class="pw-empty-inner">
+          <h2>开始使用</h2>
+          <div class="pw-starters">
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span>选择文件夹</b><span>为这个会话选一个工作目录</span></div>
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="clock" data-size="14"></i></span>用最近的项目</b><span>来自 VS Code、Zed、Claude Code、Codex 或 OpenCode</span></div>
+            <div class="pw-starter"><b><span class="pw-ico"><i data-ico="import" data-size="14"></i></span>导入会话</b><span>粘贴会话链接或 ID</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pw-sec-title">C · 三张卡的展开态 · 就地展开，不跳页<span class="grow"></span></div>
+    <div class="pw-grid3">
+
+      <div class="pw-cell">
+        <h4>选择文件夹 · 不展开</h4>
+        <p>点了直接开系统选框，本卡没有第二态。用户选了不存在的目录由系统选框自己兜，不在这一层判。</p>
+      </div>
+
+      <div class="pw-cell" style="display:grid;gap:var(--s2)">
+        <h4>用最近的项目 · 展开</h4>
+        <div class="pw-pop" style="width:100%">
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">pi-codex</span><span class="pw-lsub">Codex</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">AcpAgentClient</span><span class="pw-lsub">VS Code</span></span></div>
+          <div class="pw-litem"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="grow"><span class="pw-lname">chat-workspace</span><span class="pw-lsub">Zed</span></span></div>
+        </div>
+        <p>空列表不是错误，只给一句「没有找到最近的项目」。来源是副行的小字，不进徽章。</p>
+      </div>
+
+      <div class="pw-cell" style="display:grid;gap:var(--s2)">
+        <h4>导入会话 · 展开</h4>
+        <div class="pw-rowgap">
+          <div class="pw-wrap">
+            <input class="pw-input" style="flex:1;min-width:0" placeholder="https://…?session=<id>">
+            <button class="pw-btn primary sm">打开</button>
+          </div>
+        </div>
+        <div class="pw-rowgap">
+          <div class="pw-wrap">
+            <input class="pw-input" style="flex:1;min-width:0" value="pi-web 042">
+            <button class="pw-btn primary sm">打开</button>
+          </div>
+          <span class="pw-alert">这不像会话链接或 ID</span>
+        </div>
+        <p>校验失败是行内 <code>.pw-alert</code>，不是 toast——toast 会自己消失，用户改完再点「打开」就没法回头看了。</p>
+      </div>
+
+    </div>
+
+    <div class="pw-sec-title">D · 选中型空态两态 · 有目录 / 无目录<span class="grow"></span>AppShell <code>showPlaceholder</code></div>
+    <div class="pw-grid2">
+
+      <div class="pw-cell">
+        <h4>有目录 · 整屏居中一句</h4>
+        <div style="height:200px;display:flex;align-items:center;justify-content:center;font-size:var(--text-display);color:var(--n-muted)">从侧边栏选择一个会话</div>
+        <p style="margin-top:var(--s2)">只有一个空态时不要塞卡片、不要塞按钮：这一屏没有可点的动作，写一句话让用户去侧栏就够了。</p>
+      </div>
+
+      <div class="pw-cell">
+        <h4>无目录 · 左上角「开始使用」两步</h4>
+        <div style="position:relative;height:200px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas)">
+          <div style="position:absolute;top:12px;left:12px;display:flex;align-items:flex-start;gap:var(--s2);user-select:none">
+            <span class="pw-ico" style="color:var(--accent-text);opacity:.7"><i data-ico="arrow-left" data-size="44"></i></span>
+            <div>
+              <div style="font-size:var(--text-display);font-weight:500;color:var(--n-strong);margin-bottom:var(--s2)">开始使用</div>
+              <div style="font-size:var(--text-secondary);color:var(--n-muted);line-height:1.8"><span style="color:var(--n-placeholder);margin-right:6px">1.</span>从侧边栏选择项目目录<br><span style="color:var(--n-placeholder);margin-right:6px">2.</span>打开底部的「设置」，然后选择「模型」</div>
+            </div>
+          </div>
+        </div>
+        <p style="margin-top:var(--s2)">两步版靠 44px 的返回箭头指回侧栏。它<b>不居中</b>：居中会让人以为主区该有东西，而此刻该去的是侧栏。</p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
 <!-- 本页动效（真在播） -->
 <section class="pw-frame" style="max-width:848px">
   <div class="pw-frame-label"><b>本页动效</b> · 循环播放 · 规格与全量清单见画板 <span class="pw-mono">05-motion</span><span class="grow"></span><span style="color:var(--n-placeholder)">切会话只动转录内容</span></div>
@@ -560,7 +665,10 @@
     <li><b>回合结束行</b>：<code>stopReason 徽章 · 耗时 · ↑in ↓out · 成本</code>，右端一条发丝线收尾，再给一个复制。</li>
     <li><b>输入框在三种状态下的差异</b>：空态发送键是灰的、进行中是红色方块、空闲是强调色箭头；运行中多一个「N 条排队」徽章。</li>
     <li><b>文件树里改动的文件</b>只用右端一个 warning 小点标记，不写「M」字母、不用颜色铺底。</li>
-    <li><b>用量不进长条，收进输入框左下的那个圆环</b>：圆环本身只给一个百分比；悬浮（或键盘聚焦）才展开一张浮窗，把 <code>Context / Rules / 本轮 ↑↓ / 花费 / 结束原因</code> 与「压缩上下文」一起给出。输入框下面**不再有第二条横条**。</li>
+    <li><b>用量不进长条，收进输入框左下的那个圆环</b>：圆环本身只给一个百分比；悬浮（或键盘聚焦）才展开一张浮窗，把 <code>Context / Rules / 本轮 ↑↓ / 花费 / 结束原因</code> 与「压缩上下文」一起给出。输入框下面<b>不再有第二条横条</b>。</li>
+    <li><b>起步卡是「填一句提示词」，不是「发一条消息」</b>：点一下只把提示词写进输入框，用户还能改完再发。空态里任何按钮都不该替用户按下发送。</li>
+    <li><b>无项目时换一套三卡</b>：选择文件夹（不展开，直接开系统选框）/ 用最近的项目（展开成 <code>.pw-pop</code> + <code>.pw-litem</code>）/ 导入会话（展开成输入行 + 主按钮，校验失败走行内 <code>.pw-alert</code>）。后两张才可展开，所以卡片上不给常驻的下拉箭头。</li>
+    <li><b>选中型空态分两态</b>：有目录 → 整屏居中一句「从侧边栏选择一个会话」，不加卡片不加按钮；无目录 → 左上角 44px 返回箭头 +「开始使用」两步，<b>刻意不居中</b>。居中会让人以为主区该有东西。</li>
     <li><b>图标与文字一律垂直居中</b>：<code>icon + 文字</code> / <code>文字 + icon</code> 的组合不许出现「文字比图标低」。实现靠清掉 <code>&lt;i data-ico&gt;</code> 与内层 svg 的行高 strut，见 <code>assets/board.css</code> 的「图标与文字的垂直对齐」一节；改动后 <code>scripts/check-align.mjs</code> 应报 0 处偏差。</li>
   </ul>
 </section>

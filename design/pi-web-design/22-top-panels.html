@@ -16,7 +16,7 @@
   <p>顶栏六个图标按钮各自的下拉：系统提示词、工具定义、子代理切换、最近会话、分支导航，以及会话内查找条。这些是「看一眼就跑」的信息型弹层，不是操作型菜单。</p>
   <div class="pw-tags">
     <span class="pw-tag">页面：会话工作台</span>
-    <span class="pw-tag">组件：SystemPromptPanel / ToolDefinitionsPanel / AgentSessionPanel / BranchNavigator / ConversationFindBar</span>
+    <span class="pw-tag">组件：SystemPromptPanel / ToolDefinitionsPanel / AgentSessionPanel / BranchNavigator / ConversationFindBar / McpStatusButton / PluginStatusButton</span>
     <span class="pw-tag accent">弹层合集</span>
   </div>
 </header>
@@ -176,6 +176,68 @@ inside the user's project.
         </div>
       </div>
 
+      <!-- MCP 浮窗 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">MCP 浮窗 · 顶栏 server 图标挂出 · 已连接 / 已禁用 / 首条诊断 / 空态</div>
+        <div class="pw-inline" style="gap:var(--s3);align-items:flex-start">
+          <div class="pw-pop" style="width:300px">
+            <div class="pw-prow pw-desc">MCP 服务器</div>
+            <div class="pw-prow"><span class="pw-mono" style="font-size:var(--text-meta)">MCP: 2 servers enabled</span></div>
+            <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="plug" data-size="12"></i></span><span class="grow">filesystem</span><span class="pw-badge">项目</span></div>
+            <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="plug" data-size="12"></i></span><span class="grow">github</span><span class="pw-badge">用户</span></div>
+            <div class="pw-prow"><span class="pw-ico" style="color:var(--n-placeholder)"><i data-ico="unplug" data-size="12"></i></span><span class="grow">playwright</span><span class="pw-badge">项目</span><span class="pw-badge warn">已禁用</span></div>
+            <div class="pw-prow pw-desc">playwright：未配置 API Token，已跳过本次启动</div>
+          </div>
+          <div class="pw-pop" style="width:300px">
+            <div class="pw-prow pw-desc">MCP 服务器</div>
+            <div class="pw-prow"><span class="pw-mono" style="font-size:var(--text-meta)">MCP: 0 servers enabled</span></div>
+            <div class="pw-prow pw-desc">未配置 MCP 服务器</div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim">注：浮窗内一律只读——启停与作用域在「设置 · MCP」里改。诊断只取第一条，多了会把浮窗撑成一屏日志。空态不给按钮。</p>
+      </div>
+
+      <!-- 插件浮窗 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">插件浮窗 · 顶栏 blocks 图标挂出 · 扩展状态 / widget / 包列表 / 合计</div>
+        <div class="pw-pop" style="width:100%">
+          <div class="pw-prow pw-desc">扩展状态</div>
+          <div class="pw-prow"><span class="pw-mono" style="font-size:var(--text-meta)">ponytail: 2 tools ready</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-card" style="margin:var(--s1)">
+            <div class="pw-card-head">
+              <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="13"></i></span>
+              <span class="pw-mono" style="font-size:var(--text-meta)">@pi/plugin-git</span>
+              <span class="grow"></span>
+              <span class="pw-badge count">3</span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="chevron-up" data-size="13"></i></span></span>
+            </div>
+            <div class="pw-code-body" style="font-size:var(--text-meta);padding:0 var(--s3) var(--s2);white-space:pre-wrap"><span class="dim">main</span> · 2 个未提交改动 · 领先 origin/main <span class="acc">3</span>
+<span class="add">+</span> design/pi-web-design/README.md
+<span class="del">−</span> docs/old-spec.md</div>
+          </div>
+          <div class="pw-prow pw-desc">插件包</div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="package" data-size="12"></i></span><span class="grow">pi-plugin-git</span><span class="pw-badge count">0.4.2</span></div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="package" data-size="12"></i></span><span class="grow">pi-plugin-ponytail</span><span class="pw-badge count">0.1.0</span></div>
+          <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="square-function" data-size="12"></i></span><span class="grow">nano-context</span></div>
+          <div class="pw-prow pw-desc">3 扩展 · 2 技能 · 1 提示词 · 0 主题</div>
+        </div>
+        <p class="pw-mono pw-dim">注：widget 在这里只展开一个（点谁开谁），不是全展开——浮窗最多到 300 宽、面板 360 高。</p>
+      </div>
+
+      <!-- 触发钮 -->
+      <div class="pw-stage-cell">
+        <div class="cap">顶栏触发钮 · 默认态 / 悬浮态 / 钉住态（角标只给 MCP）</div>
+        <div class="pw-inline" style="gap:var(--s2);padding:var(--s3)">
+          <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span></span>
+          <span class="pw-iconbtn" style="position:relative"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="pw-badge accent count" style="position:absolute;top:1px;right:1px;min-width:13px;height:13px;padding:0 3px;display:grid;place-items:center;font-size:var(--text-meta);line-height:1">3</span></span>
+          <span class="pw-iconbtn is-on"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span></span>
+          <span class="pw-grow" style="flex:1"></span>
+          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">28 × 28 · hover 出浮窗 · click 钉住</span>
+        </div>
+        <p class="pw-mono pw-dim">注：钉住后鼠标移开也不收（<code>HoverPopover</code> 的 <code>pinned</code>），再点一次或点浮层外才收。角标台数取自扩展状态文本里的数字，取不到就不显示。</p>
+      </div>
+
     </div>
   </div>
 </section>
@@ -188,6 +250,9 @@ inside the user's project.
     <li><b>系统提示词只读</b>：等宽、带行内注释色，页脚写明来源（agent 的 initialize 响应）。不给编辑入口——改提示词属于 agent 配置，在设置里。</li>
     <li><b>工具定义的参数表四列</b>：参数 / 类型 / 必需 / 允许值或默认值。「必需」用 error 徽章，其余用中性文字。</li>
     <li><b>查找条悬浮在转录右上</b>，不占布局；有结果给 <code>3 / 7</code>，无结果整条转 warning 色。</li>
+    <li><b>MCP / 插件是顶栏两枚图标，不是聊天区常驻胶囊</b>（用户裁定 2026-09-29）：图标取 <code>server</code> 与 <code>blocks</code>，28×28，hover 出浮窗、click 钉住。钉住态与悬浮态共用 <code>--overlay-selected</code>，视觉上分不出「开着」和「钉着」是故意的。</li>
+    <li><b>浮窗数据是懒加载的</b>：没打开过就只读扩展状态文本（零请求），打开过一次才以 <code>/api/mcp</code>、<code>/api/plugins</code> 的真实配置为准。列表项一律只读，改配置去设置分节。</li>
+    <li><b>角标只给 MCP</b>，数字取自状态文本里第一个数字；取不到就整个不显示——宁可没有角标，也不要一个过期的台数。</li>
   </ul>
 </section>
 

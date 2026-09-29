@@ -26,16 +26,22 @@ test("uses a compact narrow-mobile toolbar with a floating action layer", () => 
 
 test("only renders the Agents switcher when the active session family has subagents", () => {
   assert.match(source, /const hasSubagentSessions = Boolean\(activeSessionFamily\?\.subagents\.length\)/);
-  assert.match(source, /\{hasSubagentSessions && \(\s*<button[\s\S]*?toggleTopPanel\("agents", mobile\)/);
+  // fork:top-panel-anchor —— 第三个参数是「被点的那颗按钮」，定位时量它而不是整条顶栏。
+  assert.match(source, /\{hasSubagentSessions && \(\s*<button[\s\S]*?toggleTopPanel\("agents", mobile, event\.currentTarget\)/);
   assert.match(source, /activeTopPanel === "agents" && activeSessionFamily && selectedSession/);
 });
 
-test("keeps the Agents panel open while switching sessions and positions it at the left", () => {
+test("keeps the Agents panel open while switching sessions and hangs it under its button", () => {
   assert.match(source, /const AGENT_PANEL_WIDTH = 420/);
+  // fork:top-panel-anchor —— 画板 22：浮层从**各自的按钮下方**挂出，左缘对齐按钮
+  // 左缘（右缘贴边时收回来），而不是贴在顶栏最左、横向拉满整条顶栏。
   assert.match(
     source,
-    /if \(activeTopPanel === "agents"\)[\s\S]*?left: topBarRect\.left[\s\S]*?width: Math\.min\(AGENT_PANEL_WIDTH, topBarRect\.width\)/,
+    /const anchor = topPanelAnchorRef\.current;[\s\S]*?left: Math\.max\(8, Math\.min\(rect\.left, window\.innerWidth - width - 8\)\)/,
   );
+  assert.match(source, /activeTopPanel === "agents" \? AGENT_PANEL_WIDTH/);
+  // 拿不到按钮时（手机工具条、尚未挂载）才回落到顶栏左缘。
+  assert.match(source, /if \(activeTopPanel === "agents"\) \{[\s\S]*?left: topBarRect\.left/);
   assert.match(source, /<AgentSessionPanel[\s\S]*?onSelectSession=\{handleSelectSession\}/);
 });
 
@@ -73,9 +79,9 @@ test("keeps the mobile action layer open after using an expanded action", () => 
     assert.match(handler, /setMobileToolbarMoreOpen\(true\)/);
   }
 
-  assert.match(source, /toggleTopPanel\("branches", true\)/);
-  assert.match(source, /handleSystemInfoToggle\("system", mobile\)/);
-  assert.match(source, /handleSystemInfoToggle\("tools", mobile\)/);
+  assert.match(source, /toggleTopPanel\("branches", true, event\.currentTarget\)/);
+  assert.match(source, /handleSystemInfoToggle\("system", mobile, event\.currentTarget\)/);
+  assert.match(source, /handleSystemInfoToggle\("tools", mobile, event\.currentTarget\)/);
   assert.match(source, /handleViewFullHistory/);
   // fork:ui-stats-inline — 统计不再占顶栏按钮，因此也没有“点开后保持工具条展开”的需求。
   assert.doesNotMatch(source, /toggleTopPanel\("session"\)/);

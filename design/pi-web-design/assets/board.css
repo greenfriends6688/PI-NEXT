@@ -232,6 +232,14 @@ body.pw.dark { background: #0f0f13; }
 .pw-chipbtn {
   display: inline-flex; align-items: center; gap: 5px;
   height: var(--control-xs); padding: 0 7px; border-radius: var(--radius-4);
+  /* 自己归零 UA：这一条也用在 <button> 上（顶栏 / 输入卡上方的上下文条），
+     不归零的话按钮会带一圈默认描边 + 系统字体。与 `.pw-iconbtn` 同一条约定。 */
+  border: 0; background: transparent; font-family: inherit;
+  /* 按内容定宽。产品的 `fork-reset` 有一张 `button.pw-* { width: 100% }` 的清单
+     （行式按钮要占满整行），`button.pw-chipbtn` 也在里面 —— 芯片被拉成整宽、
+     再被 max-width 截住，看起来就是「项目名右边空出一大截」。
+     这里显式写回 auto（未分层的规则压过 @layer 里的那张清单）。 */
+  width: auto;
   color: var(--n-muted); font-size: var(--text-secondary);
 }
 .pw-chipbtn:hover { background: var(--overlay-hover); color: var(--n-text); }
@@ -467,6 +475,27 @@ body.pw.dark { background: #0f0f13; }
  * 输入框
  * ======================================================================== */
 .pw-composer-wrap { flex: none; padding: var(--s2) var(--s4) var(--s4); }
+
+/* ---- 输入卡上方的上下文条（新会话：工作区 / 分支）----------------------
+ * 一条**无铬**的信息行：每一项都是 `.pw-chipbtn`（24px / radius-4 / muted，
+ * hover 才显底），没有描边、没有强调色 —— 它是「一行事实」，不是主按钮。
+ *
+ * 位置在输入卡**上方**、不在卡内：卡内顶行是附件芯片（`.pw-chips`）的地盘，
+ * 两者语义不同（附件是这一轮的内容，上下文条是这个会话的环境）。
+ *
+ * 左内边距 5px 的来历：`.pw-chipbtn` 自带 `padding: 0 7px`，5 + 7 = 12px，
+ * 正好对齐卡片正文（`.pw-composer-top` 的 `padding: var(--s3)`）。
+ * 不这么补的话图标会比正文左凸 5px，在垂直相邻的两行之间看得出来。
+ * ------------------------------------------------------------------------ */
+.pw-ctxbar {
+  display: flex; align-items: center; gap: 2px;
+  margin: 0 0 6px; padding-left: 5px;
+  min-height: var(--control-xs);
+}
+/* 项目名可以长 → 允许收缩 + 省略；分支名短 → 不收缩，永远完整。 */
+.pw-ctxbar .pw-chipbtn { flex: none; min-width: 0; max-width: 280px; }
+.pw-ctxbar .pw-ctx-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .pw-composer {
   width: min(var(--composer-max), 100%); margin: 0 auto;
   border: 1px solid var(--n-border); border-radius: var(--radius-6);
@@ -689,7 +718,9 @@ body.pw.dark { background: #0f0f13; }
 .pw-litem.is-on { background: var(--accent-soft); }
 .pw-litem.is-on .pw-lname { color: var(--accent-text); font-weight: 500; }
 .pw-litem .pw-ico { display: inline-flex; color: var(--n-muted); flex: none; }
-.pw-litem .grow { flex: 1; min-width: 0; }
+/* 两段文本（名字 / 副信息）必须各占一行：`.pw-lname` 带 `overflow:hidden`，
+   说明它本来就按块级写的；不设 grid 时两段会 inline 粘成一行。 */
+.pw-litem .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .pw-litem .pw-lname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pw-litem .pw-lsub { color: var(--n-placeholder); font-size: var(--text-meta); }
 .pw-detail { border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); padding: var(--s3) var(--s4); }
@@ -1001,6 +1032,113 @@ i[data-ico] > svg { display: block; }
  * 周期头部完成，剩下时间保持终态，于是**纯 CSS 无限循环也不会闪**。
  * @media (prefers-reduced-motion: reduce) 全部停住、直接给终态。
  * ======================================================================== */
+
+/* ===========================================================================
+ * 产品接线派生件（第十二轮上提）
+ *
+ * 这十件过去是产品自己在 `app/fork-ui.css` 里定义的「pw- 前缀」类——名字属于
+ * 设计系统、定义却在产品侧，等于同一套视觉有两个来源。上提到这里之后：
+ *   · 视觉值仍然只有 board.css 一个出处；
+ *   · 产品侧只保留「静态元素 → 可交互元素」的 UA 归零与滚动容器语义；
+ *   · 对应画板：02 帧 C（搜索结果 / 折叠箭头）、40（滑块 / 壁纸格 / 左导航关闭行）、
+ *     41·43（列表底部新增行）、47（皮肤动作行）。
+ * ========================================================================= */
+
+/* ---- 行内折叠箭头（.pw-row 里的 chevron）-------------------------------- */
+.pw-row-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  flex: none;
+  color: var(--n-placeholder);
+}
+.pw-row-toggle:hover { color: var(--n-muted); }
+
+/* ---- 侧栏搜索结果（画板 02 帧 C）--------------------------------------- */
+.pw-search-results { flex: 1; min-height: 0; }
+/* 结果行的项目名一格：可收缩、单行省略。 */
+.pw-search-project {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 命中片段一行：弱化正文色 + 单行省略（不是马克笔黄，是 accent 淡底）。 */
+.pw-search-hit {
+  display: block;
+  font-size: var(--text-meta);
+  color: var(--n-muted);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pw-mark {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: var(--radius-3);
+}
+
+/* ---- 滑块（画板 40 的静态轨道 → 真 range 控件）--------------------------
+ * 板里画的是「180×4 轨道 + 12px 圆钮」，没有类名；这里把那一帧的几何固化成类，
+ * 产品只负责把 `<input type="range">` 挂上来（UA 归零在 fork-ui.css）。 */
+.pw-range {
+  width: 180px;
+  height: 12px;
+  flex: none;
+  background: transparent;
+  color: var(--accent);
+}
+.pw-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--n-surface);
+}
+.pw-range::-webkit-slider-thumb {
+  width: 12px; height: 12px;
+  margin-top: -4px;
+  border: 1px solid var(--n-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-popover);
+}
+.pw-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--n-surface);
+}
+.pw-range::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border: 1px solid var(--n-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-popover);
+}
+.pw-range:disabled { opacity: 0.45; }
+
+/* ---- 左导航底部的关闭行（画板 40；用户裁定：关闭入口在导航底部）-------- */
+.pw-snav-close {
+  margin-top: var(--s2);
+  border-top: 1px solid var(--n-border-subtle);
+}
+
+/* ---- 壁纸缩略格（画板 40「当前壁纸」一格：64×36）---------------------- */
+.pw-wallpaper-thumb {
+  width: 64px;
+  height: 36px;
+  flex: none;
+  border: 1px solid var(--n-border);
+  border-radius: var(--radius-4);
+  background-position: center;
+  background-size: cover;
+}
+
+/* ---- 列表底部的新增行（画板 41 / 43；行规格同 .pw-litem，文字与图标弱化） */
+.pw-litem-add { color: var(--n-muted); }
+.pw-litem-add .pw-ico { color: var(--n-placeholder); }
+.pw-litem-add .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- 皮肤条的动作行（画板 47：一次 inline 的 margin-top 固化）--------- */
+.pw-skin-actions { margin-top: var(--s2); }
 
 /* ---- 演示台 ------------------------------------------------------------ */
 .pw-anim-stage {

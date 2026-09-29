@@ -380,3 +380,206 @@ test("links the opt-in URL inside a provider error", () => {
   assert.match(html, /target="_blank"/);
   assert.match(html, /DataPolicyError/);
 });
+
+// fork:design-components —— 下面这些断言钉住「转录卡片由画板件承载」这条结构契约：
+// DOM 抄自画板 10 / 11 / 12，类名与嵌套不得退回自绘形态。
+
+test("renders the user action row as the board's pw-msg-acts with pw-btn members", () => {
+  const html = renderMessage(
+    { role: "user", content: "revert this turn", timestamp: Date.parse("2026-09-29T10:00:00Z") },
+    {
+      entryId: "user-entry",
+      onNavigate: async () => true,
+      onFork() {},
+      onRewind() {},
+    },
+  );
+
+  // 画板 10 B：整行 .pw-msg-acts，成员一律 .pw-btn.sm + .pw-ico + i[data-ico]
+  assert.match(html, /class="pw-msg-acts"/);
+  assert.doesNotMatch(html, /fork-msg-actions/);
+  assert.match(html, /class="pw-btn sm"/);
+  // 复制钮的字形由 fork/CopyStateIcon 提供（形变动画不在本轮范围），
+  // 另三个动作按画板 10 B 抄 data-ico：编辑 / 分支 / 从此处回退。
+  assert.match(html, /<i data-ico="pencil-line"/);
+  assert.match(html, /<i data-ico="git-branch"/);
+  assert.match(html, /<i data-ico="undo-2"/);
+  // 行为零变化：四个动作仍然各是一个真 button，带 title。
+  assert.equal((html.match(/<button[^>]+title="[^"]*"/g) ?? []).length >= 4, true);
+});
+
+test("carries the provider error in the board's pw-alert with its icon slot", () => {
+  const html = renderMessage({
+    role: "assistant",
+    content: [],
+    stopReason: "error",
+    errorMessage: "upstream connection reset",
+  });
+
+  assert.match(html, /role="alert"/);
+  assert.match(html, /class="pw-alert"/);
+  assert.match(html, /<span class="pw-ico"><i data-ico="circle-x"/);
+  // 错误原文仍在等宽块里（.pw-term），链接拆分照旧。
+  assert.match(html, /class="pw-term"/);
+  assert.match(html, /upstream connection reset/);
+  // 旧的自绘错误框（danger-soft + radius-md 内联）不再出现。
+  assert.doesNotMatch(html, /--danger-soft/);
+});
+
+test("offers the oversized-message reveal as a pw-alert button and a pw-term body", () => {
+  const html = renderMessage({
+    role: "user",
+    content: "x".repeat(120_000),
+  });
+
+  // 画板 12 的提示条形态：整条可点，info 态 + info 图标。
+  assert.match(html, /<button[^>]+class="pw-alert info"/);
+  assert.match(html, /<i data-ico="info"/);
+  assert.match(html, /Message content is very large/);
+  // 未展开：原始正文不进 DOM（.pw-term 只在展开后出现）。
+  assert.doesNotMatch(html, /class="pw-term"/);
+});
+
+test("renders a tool-call diff with the board's pw-diff head, body and lines", () => {
+  const patch = [
+    "--- a/hooks/useResizablePanel.ts",
+    "+++ b/hooks/useResizablePanel.ts",
+    "@@ -38,3 +38,3 @@",
+    " const [width, setWidth] = useState(opts.initialWidth);",
+    "-const clamp = (v) => Math.min(Math.max(v, 220), 480);",
+    "+const clamp = (v) => Math.min(Math.max(v, opts.min), opts.max);",
+  ].join("\n");
+  const block = {
+    type: "toolCall",
+    toolCallId: "call-apply-1",
+    toolName: "apply_patch",
+    input: {},
+  };
+  const html = renderMessage({
+    role: "assistant",
+    provider: "anthropic",
+    model: "claude-test",
+    content: [block],
+  }, {
+    toolResults: new Map([[block.toolCallId, {
+      role: "toolResult",
+      toolCallId: block.toolCallId,
+      toolName: block.toolName,
+      content: [{ type: "text", text: "patched" }],
+      details: { patch },
+    }]]),
+    expandedToolIds: new Set([block.toolCallId]),
+    onToggleTool() {},
+  });
+
+  assert.match(html, /class="pw-diff-body"/);
+  assert.match(html, /class="pw-diff-line/);
+  assert.match(html, /class="pw-diff-line add"/);
+  assert.match(html, /class="pw-diff-line del"/);
+  assert.match(html, /<span class="no">/);
+  assert.match(html, /<span class="sign">/);
+  // diff 卡外面挂画板 11 的 .pw-card-body（顶部发丝线 + 面板底）。
+  assert.match(html, /class="pw-card-body"/);
+});
+
+test("carries tool-result images in the board's pw-img frame", () => {
+  const block = {
+    type: "toolCall",
+    toolCallId: "call-shot-2",
+    toolName: "page_screenshot",
+    input: { tabId: 9 },
+  };
+  const html = renderMessage({
+    role: "assistant",
+    provider: "anthropic",
+    model: "claude-test",
+    content: [block],
+  }, { toolResults: new Map([[block.toolCallId, {
+    role: "toolResult",
+    toolCallId: block.toolCallId,
+    toolName: block.toolName,
+    content: [{ type: "image", data: "YWJj", mimeType: "image/png" }],
+  }]]) });
+
+  assert.match(html, /class="pw-img"/);
+  assert.match(html, /class="pw-card-body"/);
+  // 旧的自绘图片容器（720px 上限 + 内联 border）不再出现。
+  assert.doesNotMatch(html, /min\(100%, 720px\)/);
+});
+
+test("carries a custom extension message in the board's pw-card head/body/foot", () => {
+  const html = renderMessage({
+    role: "custom",
+    customType: "extension",
+    content: "hello from the extension",
+    display: true,
+    details: { ok: true },
+    timestamp: Date.parse("2026-09-29T10:00:00Z"),
+  });
+
+  assert.match(html, /class="pw-card"/);
+  assert.match(html, /class="pw-card-head"/);
+  assert.match(html, /class="pw-card-body"/);
+  assert.match(html, /class="pw-card-foot"/);
+  assert.match(html, /class="pw-btn sm"/);
+  // 旧的自绘卡（fontWeight:650 的标题 + 内联 border）不再出现。
+  assert.doesNotMatch(html, /font-weight:650/);
+  assert.doesNotMatch(html, /fontWeight:650/);
+});
+
+test("carries a tool result body in the board's pw-term inside pw-card-body", () => {
+  const block = {
+    type: "toolCall",
+    toolCallId: "call-echo-1",
+    toolName: "bash",
+    input: { command: "echo hi" },
+  };
+  const html = renderMessage({
+    role: "assistant",
+    provider: "anthropic",
+    model: "claude-test",
+    content: [block],
+  }, {
+    toolResults: new Map([[block.toolCallId, {
+      role: "toolResult",
+      toolCallId: block.toolCallId,
+      toolName: block.toolName,
+      content: [{ type: "text", text: "hi" }],
+    }]]),
+    expandedToolIds: new Set([block.toolCallId]),
+    onToggleTool() {},
+  });
+
+  assert.match(html, /class="pw-card-body"/);
+  assert.match(html, /class="pw-term"/);
+  assert.match(html, /hi/);
+});
+
+test("renders no hand-drawn inline svg in the transcript", () => {
+  const html = renderMessage({
+    role: "assistant",
+    provider: "anthropic",
+    model: "claude-test",
+    content: [
+      { type: "text", text: "answer" },
+      { type: "thinking", thinking: "thought" },
+      { type: "toolCall", toolCallId: "call-read-9", toolName: "read", input: { path: "a.ts" } },
+    ],
+    stopReason: "stop",
+  }, {
+    toolResults: new Map([["call-read-9", {
+      role: "toolResult",
+      toolCallId: "call-read-9",
+      toolName: "read",
+      content: [{ type: "text", text: "file body" }],
+    }]]),
+  });
+
+  // MessageView 自己不再有任何手绘图标：工具卡首列与展开箭头都走 <i data-ico>
+  // （客户端由 icons.js hydrate 成 lucide SVG）。
+  assert.match(html, /<i data-ico="book-open"/);
+  assert.match(html, /<i data-ico="chevron-down"/);
+  assert.match(html, /class="pw-turn-end"/);
+  // 工具卡图标槽是 <i data-ico>，不是内联 svg 路径。
+  assert.doesNotMatch(html, /<span class="pw-ico"><svg/);
+});

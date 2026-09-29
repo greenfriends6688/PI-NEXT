@@ -128,58 +128,26 @@ function SafeMarkdownBody({ children, className, ...props }: React.ComponentProp
     return <MarkdownBody className={className} {...props}>{children}</MarkdownBody>;
   }
   if (!showRaw) {
+    /* fork:design-components —— 超长消息折叠用画板 12 的 `.pw-alert`（info 态）：
+       整条是一个按钮，`pw-ico` 起首 + `pw-grow` 承载文案（board 10/12 同款结构）。
+       `button.pw-alert` 的 UA 归零见 app/fork-ui.css（本次报告第 2 节）。
+       展开后是画板 12 E 的「内嵌文本」形态：`pw-term` 一块。 */
     return (
       <button
+        type="button"
+        className="pw-alert info"
         onClick={() => setShowRaw(true)}
-        style={{
-          display: "block",
-          width: "100%",
-          margin: "4px 0",
-          padding: "7px 10px",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)",
-          background: "var(--bg-panel)",
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          fontSize: TEXT.sm,
-          textAlign: "left",
-        }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-          </svg>
-          {t("i18n.largeMessageReveal", { size: formatMessageBytes(children.length) })}
-        </span>
+        <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+        <span className="pw-grow">{t("i18n.largeMessageReveal", { size: formatMessageBytes(children.length) })}</span>
       </button>
     );
   }
   return (
-    <div className={className} style={{ maxHeight: 420, overflow: "auto", fontSize: "calc(12px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
-      <pre
-        style={{
-          margin: 0,
-          padding: "8px 10px",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontFamily: "var(--font-mono)",
-          color: "var(--text-muted)",
-        }}
-      >
+    <div className={className} style={{ maxHeight: 420, overflow: "auto" }}>
+      <div className="pw-term" style={{ fontSize: "calc(12.5px + var(--chat-font-size-offset, 0px))" }}>
         {children}
-      </pre>
+      </div>
     </div>
   );
 }
@@ -432,27 +400,24 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   const editTarget = commandText ? replaceUserMessageText(message, commandText) : message;
 
   const imageBlocksNode = imageBlocks.length > 0 && (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: content ? 8 : 0 }}>
+    <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginBottom: content ? "var(--s2)" : 0 }}>
       {imageBlocks.map((img, i) => {
         // lib/types.ts ImageContent uses {source:{type,data,media_type,url}}
         // pi-ai on-disk format uses flat {data, mimeType} — handle both
-        const flat = img as unknown as { data?: string; mimeType?: string };
-        const src = img.source
-          ? img.source.type === "base64"
-            ? `data:${img.source.media_type};base64,${img.source.data}`
-            : img.source.url ?? ""
-          : flat.data
-            ? `data:${flat.mimeType};base64,${flat.data}`
-            : "";
+        const src = imageSource(img);
         return (
-          <ImagePreview key={i} src={src}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt=""
-              style={{ maxWidth: 240, maxHeight: 240, borderRadius: "var(--radius-lg)", objectFit: "contain", display: "block", border: "1px solid var(--border)" }}
-            />
-          </ImagePreview>
+          /* fork:design-components —— 图片内容块 = 画板 12 A 的 `.pw-img`
+             （发丝框 / radius-6 / overflow hidden），真实图片取代画板的斜纹占位。 */
+          <div className="pw-img" key={i}>
+            <ImagePreview src={src}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                style={{ maxWidth: 240, maxHeight: 240, objectFit: "contain", display: "block" }}
+              />
+            </ImagePreview>
+          </div>
         );
       })}
     </div>
@@ -512,20 +477,9 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {commandName}
                   </span>
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ flexShrink: 0, opacity: 0.75, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
-                    aria-hidden="true"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                  <span className="pw-ico" style={{ flexShrink: 0, opacity: 0.75, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                    <i data-ico="chevron-down" data-size="11"></i>
+                  </span>
                 </button>
                 {commandArgs && (
                   <span style={{
@@ -567,131 +521,59 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
 
       </div>
 
-      {/* Bottom row: action buttons + timestamp.
-          fork:zn-12 — hidden until the message is hovered or focused (Zeno
-          .timeline-meta-actions). The row keeps its layout box while hidden, so
-          nothing reflows on hover; touch devices keep it visible (the
-          `(hover: hover)` gate in app/fork-ui.css). */}
-      <div
-        className="fork-msg-actions"
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "flex-end",
-          gap: 6, marginTop: 4,
-        }}
-      >
-        <div style={{
-          display: "flex", gap: 3,
-        }}>
+      {/* fork:design-components —— 消息动作行换成画板 10 B 的 `.pw-msg-acts`：
+          整行右对齐，成员一律 `.pw-btn sm` + `.pw-ico` + `i[data-ico]`。
+          hover/焦点显隐仍由 app/fork-ui.css 承担（画板的 `.pw-msg-user:hover` 规则
+          在产品里不成立 —— 动作行是消息列的兄弟节点，不在气泡内；需要的片段见报告）。 */}
+      <div className="pw-msg-acts">
+        <button
+          type="button"
+          onClick={copyContent}
+          title={t("i18n.copyMessage")}
+          className="pw-btn sm"
+        >
+          <span className="pw-ico">{CopyStateIcon({ copied })}</span>
+          {copied ? t("i18n.copied") : t("i18n.copy")}
+        </button>
+        {canNavigate && (
           <button
-            onClick={copyContent}
-             title={t("i18n.copyMessage")}
-            style={{
-              display: "flex", alignItems: "center", gap: 4,
-              padding: "3px 8px", height: 22,
-              background: "none", border: "none",
-              borderRadius: "var(--radius-xs)",
-              color: copied ? "var(--accent)" : "var(--text-dim)",
-              cursor: "pointer",
-              fontSize: TEXT.xs, fontWeight: 400,
-              whiteSpace: "nowrap",
-              transition: "color 0.12s",
-            }}
-            onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { if (!copied) e.currentTarget.style.color = "var(--text-dim)"; }}
+            type="button"
+            onClick={() => void onNavigate!(entryId!).then((navigated) => {
+              if (navigated) onEditContent?.(editTarget);
+            })}
+            title={t("i18n.editFromHereTitle")}
+            className="pw-btn sm"
           >
-            {CopyStateIcon({ copied })}
-             {copied ? t("i18n.copied") : t("i18n.copy")}
+            <span className="pw-ico"><i data-ico="pencil-line" data-size="13"></i></span>
+            {t("i18n.editFromHere")}
           </button>
-        </div>
-        {(canFork || canNavigate) && (
-          <div style={{
-            display: "flex", gap: 3,
-          }}>
-            {canNavigate && (
-              <button
-                onClick={() => void onNavigate!(entryId!).then((navigated) => {
-                  if (navigated) onEditContent?.(editTarget);
-                })}
-                 title={t("i18n.editFromHereTitle")}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "3px 8px", height: 22,
-                  background: "none", border: "none",
-                  borderRadius: "var(--radius-xs)",
-                  color: "var(--text-dim)",
-                  cursor: "pointer",
-                  fontSize: TEXT.xs, fontWeight: 400,
-                  whiteSpace: "nowrap",
-                  transition: "color 0.12s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 10 20 15 15 20" />
-                  <path d="M4 4v7a4 4 0 0 0 4 4h12" />
-                </svg>
-                 {t("i18n.editFromHere")}
-              </button>
-            )}
-            {canFork && (
-              <button
-                onClick={() => { onFork!(entryId!); }}
-                disabled={forking}
-                 title={forking ? t("i18n.creatingSession") : t("i18n.newSessionTitle")}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "3px 8px", height: 22,
-                  background: "none", border: "none",
-                  borderRadius: "var(--radius-xs)",
-                  color: forking ? "var(--accent)" : "var(--text-dim)",
-                  cursor: forking ? "not-allowed" : "pointer",
-                  fontSize: TEXT.xs, fontWeight: 400,
-                  whiteSpace: "nowrap",
-                  transition: "color 0.12s",
-                }}
-                onMouseEnter={(e) => { if (!forking) e.currentTarget.style.color = "var(--accent)"; }}
-                onMouseLeave={(e) => { if (!forking) e.currentTarget.style.color = "var(--text-dim)"; }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="6" y1="3" x2="6" y2="15" />
-                  <circle cx="18" cy="6" r="3" />
-                  <circle cx="6" cy="18" r="3" />
-                  <path d="M18 9a9 9 0 0 1-9 9" />
-                </svg>
-                 {forking ? t("i18n.creating") : t("i18n.newSession")}
-              </button>
-            )}
-            {/* fork:proma-04-rewind — 回退到此处（放在 fork 旁：两者都是「从这条消息出发」的会话级操作） */}
-            {canRewind && (
-              <button
-                onClick={() => { onRewind!(entryId!); }}
-                disabled={rewinding}
-                title={t("rewind.actionTitle")}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "3px 8px", height: 22,
-                  background: "none", border: "none",
-                  borderRadius: "var(--radius-xs)",
-                  color: rewinding ? "var(--warning)" : "var(--text-dim)",
-                  cursor: rewinding ? "not-allowed" : "pointer",
-                  fontSize: TEXT.xs, fontWeight: 400,
-                  whiteSpace: "nowrap",
-                  transition: "color 0.12s",
-                }}
-                onMouseEnter={(e) => { if (!rewinding) e.currentTarget.style.color = "var(--warning)"; }}
-                onMouseLeave={(e) => { if (!rewinding) e.currentTarget.style.color = "var(--text-dim)"; }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 3-6.7" />
-                  <polyline points="3 4 3 9 8 9" />
-                </svg>
-                {t("rewind.action")}
-              </button>
-            )}
-          </div>
         )}
-        {time && <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{time}</span>}
+        {canFork && (
+          <button
+            type="button"
+            onClick={() => { onFork!(entryId!); }}
+            disabled={forking}
+            title={forking ? t("i18n.creatingSession") : t("i18n.newSessionTitle")}
+            className={forking ? "pw-btn sm pw-dim" : "pw-btn sm"}
+          >
+            <span className="pw-ico"><i data-ico="git-branch" data-size="13"></i></span>
+            {forking ? t("i18n.creating") : t("i18n.newSession")}
+          </button>
+        )}
+        {/* fork:proma-04-rewind — 回退到此处（放在 fork 旁：两者都是「从这条消息出发」的会话级操作） */}
+        {canRewind && (
+          <button
+            type="button"
+            onClick={() => { onRewind!(entryId!); }}
+            disabled={rewinding}
+            title={t("rewind.actionTitle")}
+            className={rewinding ? "pw-btn sm pw-dim" : "pw-btn sm"}
+          >
+            <span className="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>
+            {t("rewind.action")}
+          </button>
+        )}
+        {time && <span className="pw-dim">{time}</span>}
       </div>
     </div>
   );
@@ -865,13 +747,14 @@ function AssistantMessageView({
       data-entry-id={entryId}
       style={{ marginBottom: 20 }}
     >
-      {/* Codex keeps the response surface quiet; model metadata is only useful
-          while a response is actively generating. */}
+      {/* fork:design-components —— 流式元信息行用画板的排版基元：
+          `.pw-muted`（次要文字）+ `.pw-mono`（数字等宽）+ `.pw-badge.count`（t/s 计数）。
+          图标换成 `i[data-ico="arrow-down"]`（lucide 单线 1.5px），不再手绘。 */}
       {isStreaming && (
         <div
+          className="pw-muted"
           style={{
             fontSize: TEXT.xs,
-            color: "var(--text-dim)",
             marginBottom: 4,
             display: "flex",
             alignItems: "center",
@@ -885,20 +768,17 @@ function AssistantMessageView({
             const est = Math.round(estimatedTokens);
             return (
               <>
-
                 {est > 0 && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text)" }} title={t("i18n.estimatedTokens")}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: TEXT.xs, fontWeight: 400 }}>
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="1.5" x2="5" y2="8.5" /><polyline points="2 6 5 8.5 8 6" />
-                      </svg>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }} title={t("i18n.estimatedTokens")}>
+                    <span className="pw-mono" style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <span className="pw-ico"><i data-ico="arrow-down" data-size="10"></i></span>
                       {est}
                     </span>
                     {tps !== null && (() => {
                       // fork:design-system —— 只用四个语义色，不再自造青/黄绿/琥珀/洋红四个色相。
-                      const bg = tps >= 50 ? "var(--success)" : tps >= 30 ? "var(--info)" : tps >= 15 ? "var(--warning)" : "var(--danger)";
+                      const tone = tps >= 50 ? "ok" : tps >= 30 ? "accent" : tps >= 15 ? "warn" : "bad";
                       return (
-                        <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: "var(--radius-xs)", background: bg, color: "var(--accent-contrast)", fontSize: TEXT.xs, fontWeight: 400 }}>
+                        <span className={`pw-badge count ${tone}`}>
                           {tps.toFixed(1)} t/s
                         </span>
                       );
@@ -917,34 +797,30 @@ function AssistantMessageView({
         ))}
       </div>
 
+      {/* fork:design-components —— provider 错误框换成画板的 `.pw-alert`（error 态：
+          容器自带 error-soft 底 / error 文字 / radius-4；首列 `.pw-ico` + `circle-x`，
+          正文 `.pw-grow` 里放 `.pw-term`（等宽 + pre-wrap，错误原文的换行语义由它承担）。
+          `role="alert"` 与链接拆分照旧。`/ 报告见第 2 节。 */}
       {providerError && (
         <div
           role="alert"
-          style={{
-            marginTop: blocks.length > 0 ? 8 : 0,
-            padding: "8px 11px",
-            border: "1px solid color-mix(in srgb, var(--danger) 35%, var(--border))",
-            borderRadius: "var(--radius-md)",
-            background: "var(--danger-soft)",
-            color: "var(--danger)",
-            fontFamily: "var(--font-mono)",
-            fontSize: TEXT.sm,
-            lineHeight: 1.5,
-            whiteSpace: "pre-wrap",
-            overflowWrap: "anywhere",
-          }}
+          className="pw-alert"
+          style={{ marginTop: blocks.length > 0 ? 8 : 0 }}
         >
-          Error: {splitErrorLinks(providerError).map((part, index) => part.link ? (
-            <a
-              key={index}
-              href={part.text}
-              target="_blank"
-              rel="noreferrer noopener"
-              style={{ color: "inherit", textDecoration: "underline", overflowWrap: "anywhere" }}
-            >
-              {part.text}
-            </a>
-          ) : part.text)}
+          <span className="pw-ico"><i data-ico="circle-x" data-size="14"></i></span>
+          <span className="pw-grow">
+            <span className="pw-term">Error: {splitErrorLinks(providerError).map((part, index) => part.link ? (
+              <a
+                key={index}
+                href={part.text}
+                target="_blank"
+                rel="noreferrer noopener"
+                style={{ color: "inherit", textDecoration: "underline", overflowWrap: "anywhere" }}
+              >
+                {part.text}
+              </a>
+            ) : part.text)}</span>
+          </span>
         </div>
       )}
 
@@ -1011,36 +887,26 @@ function AssistantMessageView({
         );
       })()}
 
-      <div
-        className="fork-msg-actions"
-        style={{
-          display: "flex", alignItems: "center", gap: 8, marginTop: 4,
-        }}
-      >
+      {/* fork:design-components —— 助手消息的动作行同样换成画板 10 的 `.pw-msg-acts`：
+          复制按钮 = `.pw-btn sm` + `.pw-ico`（CopyStateIcon 保留形变）+ 文字；
+          时间戳用 `.pw-grow` 顶到行尾（与原 `margin-left:auto` 等价）。 */}
+      <div className="pw-msg-acts">
         {textContent && !isStreaming && (
           <button
+            type="button"
             onClick={copyContent}
-             title={t("i18n.copyMessage")}
-            style={{
-              display: "flex", alignItems: "center", gap: 4,
-              padding: "3px 8px", height: 22,
-              background: "none", border: "none",
-              borderRadius: "var(--radius-xs)",
-              color: copied ? "var(--accent)" : "var(--text-dim)",
-              cursor: "pointer",
-              fontSize: TEXT.xs, fontWeight: 400,
-              whiteSpace: "nowrap",
-              transition: "color var(--motion-fast) ease",
-            }}
-            onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { if (!copied) e.currentTarget.style.color = "var(--text-dim)"; }}
+            title={t("i18n.copyMessage")}
+            className="pw-btn sm"
           >
-            {CopyStateIcon({ copied })}
-             {copied ? t("i18n.copied") : t("i18n.copy")}
+            <span className="pw-ico">{CopyStateIcon({ copied })}</span>
+            {copied ? t("i18n.copied") : t("i18n.copy")}
           </button>
         )}
         {time && !isStreaming && (
-          <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", marginLeft: "auto" }}>{time}</span>
+          <span className="pw-grow" />
+        )}
+        {time && !isStreaming && (
+          <span className="pw-dim">{time}</span>
         )}
       </div>
     </div>
@@ -1244,12 +1110,8 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
       >
         {bodyMounted && (
           <div
-            className="fork-collapse-body"
-            style={{
-              color: error ? "var(--danger)" : "var(--text-muted)",
-              whiteSpace: "pre-wrap",
-              overflowWrap: "anywhere",
-            }}
+            className="fork-collapse-body pw-muted"
+            style={error ? { color: "var(--error)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" } : { whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
           >
             {loading ? (
               <span style={{ display: "flex", flexDirection: "column", gap: 6, padding: "2px 0" }} aria-hidden="true">
@@ -1261,7 +1123,7 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
         )}
       </div>
       {duration !== undefined && (
-        <span style={{ flexShrink: 0, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
+        <span className="pw-dim" style={{ flexShrink: 0 }}>{duration}s</span>
       )}
     </div>
   );
@@ -1273,50 +1135,22 @@ function isSubagentToolDetails(value: unknown): value is SubagentToolDetails {
   return details.kind === "pi-web-subagent" && typeof details.sessionId === "string";
 }
 
+/** fork:design-components —— 工具卡首列图标走画板的 `<i data-ico>`（lucide 路径表）。
+    四个分支与原手绘 SVG 一一对应：读=book-open / 写=pencil / 搜=search /
+    兜底=square-terminal（画板 11 的终端卡图标）。 */
 function ToolCallIcon({ toolName }: { toolName: string }) {
   const name = toolName.toLowerCase();
-  const common = {
-    width: 12,
-    height: 12,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
 
   if (name.includes("read") || name.includes("view") || name.includes("open")) {
-    return (
-      <svg {...common}>
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" />
-        <path d="M4 5.5v15" />
-      </svg>
-    );
+    return <i data-ico="book-open" data-size="12"></i>;
   }
   if (name.includes("edit") || name.includes("write") || name.includes("patch")) {
-    return (
-      <svg {...common}>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
-      </svg>
-    );
+    return <i data-ico="pencil" data-size="12"></i>;
   }
   if (name.includes("search") || name.includes("grep") || name.includes("find")) {
-    return (
-      <svg {...common}>
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </svg>
-    );
+    return <i data-ico="search" data-size="12"></i>;
   }
-  return (
-    <svg {...common}>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="m7 9 3 3-3 3M13 15h4" />
-    </svg>
-  );
+  return <i data-ico="square-terminal" data-size="12"></i>;
 }
 
 /** Exported for `components/ProcessGroup.tsx`, which reuses the exact same
@@ -1401,19 +1235,23 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
             {isStreamingInput ? t("chat.generatingToolInput") : (patchLabel ?? getToolPreview(block))}
           </span>
           {duration !== undefined && (
-            <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
+            <span className="pw-dim" style={{ flexShrink: 0 }}>{duration}s</span>
           )}
-          <span className="pw-ico" style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--motion-fast)" }}>
+          <span className="pw-ico" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--motion-fast)" }}>
             <i data-ico="chevron-down" data-size="11"></i>
           </span>
         </button>
         {subagent && onOpenSession && (
+          /* fork:design-components —— 子代理「打开会话」钮 = 画板 11 卡头的 `.pw-iconbtn`
+             （24px 方钮 / radius-4 / hover 出容器）。子代理卡本体仍按 DIVERGENCE 登记
+             「呈现形态等价」，本轮不改（只多这一个跳转钮）。 */
           <button
             type="button"
+            className="pw-iconbtn"
             onClick={() => onOpenSession(subagent.sessionId)}
             title={t("subagent.open")}
             aria-label={t("subagent.open")}
-            style={{ width: 32, display: "grid", placeItems: "center", border: "none", borderLeft: "1px solid var(--border)", background: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}
+            style={{ borderLeft: "1px solid var(--n-border-subtle)", borderRadius: 0, alignSelf: "stretch" }}
           >
             <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
           </button>
@@ -1429,28 +1267,20 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
       >
         {argsMounted && !isEditTool && !patchFiles && (
           <div className="fork-collapse-body">
-            <pre
-              style={{
-                margin: 0,
-                padding: "8px 10px",
-                color: "var(--text-muted)",
-                fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
-                lineHeight: 1.5,
-                overflow: "auto",
-                background: "var(--code-bg)",
-                borderTop: "1px solid var(--border)",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-all",
-              }}
-            >
-              {inputStr}
-            </pre>
+            {/* fork:design-components —— 工具入参 = 画板 11 的 `.pw-card-body` + `.pw-term`
+                （顶部发丝线 + 面板底 + 等宽 pre-wrap 全部由 board.css 承担）。
+                产品保留 `word-break: break-all`（入参是 JSON，长串不折行会溢出）。 */}
+            <div className="pw-card-body">
+              <div className="pw-term" style={{ wordBreak: "break-all", overflow: "auto" }}>
+                {inputStr}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       {/* ── Result images — always visible, independent of the collapsed details ── */}
-      {resultImages.length > 0 && <ResultImages images={resultImages} isError={isError} />}
+      {resultImages.length > 0 && <ResultImages images={resultImages} />}
       {/* fork:zm-01 — 结果区（patch diff + paired result）与参数区同时过渡。 */}
       <div
         ref={resultCollapseRef}
@@ -1459,9 +1289,9 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
       >
         {resultMounted && (
           <div className="fork-collapse-body">
-            {/* ── Applied-patch split diff ── */}
+            {/* ── Applied-patch split diff（画板 11：`.pw-card-body` 里直接放 diff 体） ── */}
             {patchFiles && (
-              <div style={{ borderTop: "1px solid color-mix(in srgb, var(--success) 15%, transparent)", background: "var(--bg)" }}>
+              <div className="pw-card-body">
                 <SplitFilesView files={patchFiles} />
               </div>
             )}
@@ -1498,16 +1328,13 @@ interface ResultDiff {
   text: string;
 }
 
+/* fork:design-components —— 工具结果里的 diff 外面挂画板 11 的 `.pw-card-body`
+   （顶部发丝线 + 面板底），里面的 diff 体由 SplitFilesView / PatchTextView 承担。 */
 function PairedDiffResult({ diff }: {
   diff: ResultDiff;
 }) {
   return (
-    <div
-      style={{
-        borderTop: "1px solid var(--border)",
-        background: "var(--code-bg)",
-      }}
-    >
+    <div className="pw-card-body">
       <SplitPatchView text={diff.text} />
     </div>
   );
@@ -1519,6 +1346,11 @@ function SplitPatchView({ text }: { text: string }) {
   return <SplitFilesView files={files} />;
 }
 
+/* fork:design-components —— diff 换成画板 11 B「分栏视图」的三件套：
+   `.pw-diff-head`（文件头）/ `.pw-diff-body`（等宽正文）/ `.pw-diff-line(.add/.del)`
+   + 行内 `.no`（行号）/ `.sign`（±）。
+   **词级高亮不动**：fork:zc-07 的 `buildIntralineSegments` + `--diff-*` 配色保持自有实现
+   （DIVERGENCE 已登记等价）。左右两栏的行对结构（left/right cell）是产品语义，也保持不变。 */
 function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
   const { t } = useI18n();
   const showFileHeaders = files.length > 1;
@@ -1530,32 +1362,19 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
   })), [files]);
 
   return (
-    <div style={{ maxHeight: 560, overflowY: "auto", overflowX: "hidden", background: "var(--code-bg)" }}>
+    <div className="pw-diff-body" style={{ maxHeight: 560, overflowY: "auto", overflowX: "hidden" }}>
       {files.map((file, fileIndex) => (
         <div
           key={fileIndex}
-          style={{
-            minWidth: 0,
-            borderTop: fileIndex === 0 ? "none" : "1px solid var(--border)",
-            fontFamily: "var(--font-mono)",
-            fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
-            lineHeight: 1.7,
-          }}
+          style={fileIndex === 0 ? undefined : { borderTop: "1px solid var(--n-border-subtle)" }}
         >
           {showFileHeaders && (
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-                position: "sticky",
-                top: 0,
-                zIndex: 1,
-                background: "var(--bg-panel)",
-                borderBottom: "1px solid var(--border)",
-              }}
+              className="pw-diff-head"
+              style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--surface-panel)" }}
             >
-               <SplitDiffHeader title={file.oldPath || t("i18n.before")} side="left" />
-               <SplitDiffHeader title={file.newPath || t("i18n.after")} side="right" />
+              <SplitDiffHeader title={file.oldPath || t("i18n.before")} side="left" />
+              <SplitDiffHeader title={file.newPath || t("i18n.after")} side="right" />
             </div>
           )}
 
@@ -1582,19 +1401,15 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
 
 function SplitDiffHeader({ title, side }: { title: string; side: "left" | "right" }) {
   return (
-    <div
+    <span
+      className="pw-path"
       title={title}
-      style={{
-        padding: "5px 10px",
-        color: "var(--text-dim)",
-        borderRight: side === "left" ? "1px solid var(--border)" : "none",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
+      style={side === "left"
+        ? { flex: "1 1 0", borderRight: "1px solid var(--n-border-subtle)", paddingRight: "var(--s2)" }
+        : { flex: "1 1 0", paddingLeft: "var(--s2)" }}
     >
       {title}
-    </div>
+    </span>
   );
 }
 
@@ -1604,18 +1419,6 @@ function SplitDiffCellView({ cell, side, intraline }: {
   /** fork:zc-07 — undefined=不做行内标记；null=整行回退；数组=具体字符区间。 */
   intraline?: IntralineSpan[] | null;
 }) {
-  const bg =
-    cell.type === "added"
-      ? "var(--diff-added)"
-      : cell.type === "removed"
-      ? "var(--diff-removed)"
-      : cell.type === "empty"
-      ? "var(--bg-subtle)"
-      : "transparent";
-  const marker =
-    cell.type === "added" ? "+" : cell.type === "removed" ? "-" : " ";
-  const markerColor =
-    cell.type === "added" ? "var(--success)" : cell.type === "removed" ? "var(--danger)" : "var(--text-dim)";
   // fork:zc-07 — 词级差异段。空文本（例如空行）仍然按原来的 nbsp 占位。
   const segments = intraline === undefined ? null : buildIntralineSegments(cell.text, intraline);
   const hasVisibleSegments = segments?.some((segment) => segment.text.length > 0) ?? false;
@@ -1625,117 +1428,57 @@ function SplitDiffCellView({ cell, side, intraline }: {
 
   return (
     <div
-      style={{
-        display: "flex",
-        minWidth: 0,
-        background: bg,
-        borderRight: side === "left" ? "1px solid var(--border)" : "none",
-      }}
+      className={`pw-diff-line${cell.type === "added" ? " add" : cell.type === "removed" ? " del" : ""}`}
+      style={side === "left" ? { borderRight: "1px solid var(--n-border-subtle)" } : undefined}
     >
+      <span className="no">{cell.lineNo ?? ""}</span>
+      <span className="sign">{cell.type === "added" ? "+" : cell.type === "removed" ? "−" : ""}</span>
       <span
-        style={{
-          width: 42,
-          padding: "0 6px",
-          textAlign: "right",
-          color: "var(--text-dim)",
-          userSelect: "none",
-          background: "var(--bg-panel)",
-          borderRight: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
-        {cell.lineNo ?? ""}
-      </span>
-      <span
-        style={{
-          width: 18,
-          padding: "0 5px",
-          color: markerColor,
-          userSelect: "none",
-          fontWeight: cell.type === "context" || cell.type === "empty" ? 400 : 700,
-          flexShrink: 0,
-        }}
-      >
-        {marker}
-      </span>
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          padding: "0 10px 0 0",
-          color: cell.type === "empty" ? "var(--text-dim)" : "var(--text)",
-          whiteSpace: "pre-wrap",
-          overflowWrap: "anywhere",
-        }}
+        className={cell.type === "empty" ? "pw-dim" : undefined}
+        style={{ flex: 1, minWidth: 0, paddingRight: "var(--s2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
       >
         {segments && hasVisibleSegments
           ? segments.map((segment, index) => (
               <span
                 key={index}
-                style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-xs)" } : undefined}
+                style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-3)" } : undefined}
               >
                 {segment.text}
               </span>
             ))
-          : (cell.text || "\u00a0")}
+          : (cell.text || " ")}
       </span>
     </div>
   );
 }
 
+/* fork:design-components —— 未解析的统一 patch 文本（parseUnifiedPatch 失败时的兜底）
+   同样挂画板 11 的 `.pw-diff-body` + `.pw-diff-line(.add/.del)`，hunk 行走 `.pw-term`
+   的强调色（`--accent-text`）。行号列用 `.no`，± 走 `.sign`。 */
 function PatchTextView({ text }: { text: string }) {
   const lines = text.split(/\r?\n/);
 
   return (
-    <div style={{ maxHeight: 520, overflowY: "auto", overflowX: "hidden", fontFamily: "var(--font-mono)", fontSize: "calc(12px + var(--chat-font-size-offset, 0px))", lineHeight: 1.7, minWidth: 0 }}>
+    <div className="pw-diff-body" style={{ maxHeight: 520, overflowY: "auto", overflowX: "hidden", minWidth: 0 }}>
       {lines.map((line, i) => {
         const kind =
           line.startsWith("@@") ? "hunk" :
           line.startsWith("+") && !line.startsWith("+++") ? "added" :
           line.startsWith("-") && !line.startsWith("---") ? "removed" :
           "context";
-        const bg =
-          kind === "added" ? "var(--diff-added)" :
-          kind === "removed" ? "var(--diff-removed)" :
-          kind === "hunk" ? "var(--accent-soft)" :
-          "transparent";
-        const color =
-          kind === "added" ? "var(--success)" :
-          kind === "removed" ? "var(--danger)" :
-          kind === "hunk" ? "var(--accent)" :
-          "var(--text)";
 
         return (
           <div
             key={i}
-            style={{
-              display: "flex",
-              background: bg,
-              borderLeft: kind === "added"
-                ? "3px solid var(--success)"
-                : kind === "removed"
-                ? "3px solid var(--danger)"
-                : kind === "hunk"
-                ? "3px solid var(--accent)"
-                : "3px solid transparent",
-            }}
+            className={`pw-diff-line${kind === "added" ? " add" : kind === "removed" ? " del" : ""}`}
           >
+            <span className="no">{i + 1}</span>
+            <span className="sign" />
             <span
-              style={{
-                width: 48,
-                padding: "0 8px",
-                color: "var(--text-dim)",
-                background: "var(--bg-panel)",
-                borderRight: "1px solid var(--border)",
-                textAlign: "right",
-                userSelect: "none",
-                flexShrink: 0,
-              }}
+              className={kind === "hunk" ? "pw-muted" : undefined}
+              style={{ flex: 1, minWidth: 0, paddingRight: "var(--s2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
             >
-              {i + 1}
-            </span>
-            <span style={{ padding: "0 10px", whiteSpace: "pre-wrap", overflowWrap: "anywhere", color }}>
-              {line || "\u00a0"}
+              {line || " "}
             </span>
           </div>
         );
@@ -1792,42 +1535,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function ResultImages({ images, isError }: { images: ImageContent[]; isError: boolean }) {
+/* fork:design-components —— 内容块按画板 12「非文本内容块」给形状：
+   - 图片 → `.pw-img`（1px 发丝框 / radius-6 / overflow hidden / max-width 420），
+     真实图片取代画板的斜纹占位（DIVERGENCE §B 8 已登记）；点图仍由 ImagePreview 放大。
+   - 工具输出（paired result）→ 画板 11 的 `.pw-card-body` + `.pw-term`：
+     成功走面板底、失败走 `.pw-term .err`（画板 11 B 的失败态写法）。 */
+function ResultImages({ images }: { images: ImageContent[] }) {
   return (
     <div
-      style={{
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
-        padding: "10px",
-        background: "var(--bg)",
-        borderTop: `1px solid ${isError ? "color-mix(in srgb, var(--danger) 30%, transparent)" : "color-mix(in srgb, var(--success) 15%, transparent)"}`,
-      }}
+      className="pw-card-body"
+      style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", padding: "var(--s3)" }}
     >
       {images.map((image, index) => {
         const src = imageSource(image);
         if (!src) return null;
         return (
-          <ImagePreview
-            key={`${src}-${index}`}
-            src={src}
-            style={{ maxWidth: "100%" }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <div className="pw-img" key={`${src}-${index}`}>
+            <ImagePreview
               src={src}
-              alt=""
-              loading="lazy"
-              style={{
-                display: "block",
-                maxWidth: "min(100%, 720px)",
-                maxHeight: 520,
-                borderRadius: "var(--radius-sm)",
-                objectFit: "contain",
-                border: "1px solid var(--border)",
-              }}
-            />
-          </ImagePreview>
+              style={{ maxWidth: "100%" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                loading="lazy"
+                style={{
+                  display: "block",
+                  maxWidth: "100%",
+                  maxHeight: 520,
+                  objectFit: "contain",
+                }}
+              />
+            </ImagePreview>
+          </div>
         );
       })}
     </div>
@@ -1841,30 +1582,13 @@ function PairedResult({ text, isEmpty, isError }: {
 }) {
   const { t } = useI18n();
   return (
-    <div
-      style={{
-        borderTop: `1px solid ${isError ? "color-mix(in srgb, var(--danger) 30%, transparent)" : "color-mix(in srgb, var(--success) 15%, transparent)"}`,
-        background: isError ? "color-mix(in srgb, var(--danger) 6%, transparent)" : "var(--bg-subtle)",
-      }}
-    >
-      <pre
-        style={{
-          margin: 0,
-          padding: "8px 10px",
-          color: isError ? "var(--danger)" : (isEmpty ? "var(--text-dim)" : "var(--text-muted)"),
-          fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
-          lineHeight: 1.5,
-          overflow: "auto",
-          maxHeight: 400,
-          background: "var(--bg)",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-all",
-          fontStyle: isEmpty ? "italic" : "normal",
-          opacity: isEmpty ? 0.6 : 1,
-        }}
+    <div className="pw-card-body">
+      <div
+        className="pw-term"
+        style={{ maxHeight: 400, overflow: "auto", color: isEmpty ? "var(--n-placeholder)" : undefined }}
       >
-        {isEmpty ? t("i18n.noOutput") : text}
-      </pre>
+        {isError ? <span className="err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
+      </div>
     </div>
   );
 }
@@ -1886,34 +1610,24 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
     <div style={{ marginBottom: 16 }}>
       {/* fork:design-components —— 压缩卡直接用画板 12 的 .pw-compact（发丝边框 / 面板底）。 */}
       <div className="pw-compact" style={{ flexDirection: "column", alignItems: "stretch", padding: 0, overflow: "hidden" }}>
+        {/* fork:design-components —— 卡头用画板 11 的 `.pw-card-head`（flex / gap / 字号 /
+            padding 全部由 board.css 承担），展开区用 `.pw-card-body`（顶部发丝线 + 面板底）。
+            `.pw-compact` 外壳与折叠行为不变。 */}
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
           aria-expanded={expanded}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            width: "100%",
-            padding: "7px 10px",
-            border: "none",
-            borderBottom: expanded ? "1px solid var(--border)" : "none",
-            background: "var(--bg-panel)",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
+          className="pw-card-head"
         >
-          <span className="pw-ico" style={{ flexShrink: 0, transition: "transform var(--motion-fast)", transform: expanded ? "rotate(90deg)" : "none" }}>
-            <i data-ico="chevron-right" data-size="11"></i>
+          <span className="pw-ico" style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--motion-fast)" }}>
+            <i data-ico="chevron-right" data-size="13"></i>
           </span>
-          <span className="pw-mono" style={{ fontSize: TEXT.xs, fontWeight: 500, flexShrink: 0 }}>
-            compaction
-          </span>
-          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.sm }}>
+          <span className="pw-tool">compaction</span>
+          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t("i18n.conversationCompacted")}
           </span>
-          {time && <span style={{ marginLeft: "auto", flexShrink: 0, color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>{time}</span>}
+          <span className="grow" />
+          {time && <span className="pw-dim">{time}</span>}
         </button>
 
         {/* fork:zm-01 — 常驻 grid wrapper（0fr↔1fr）；正文在收起过渡结束后卸载。 */}
@@ -1924,17 +1638,17 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
         >
           {bodyMounted && (
             <div className="fork-collapse-body">
-              <div style={{ maxHeight: 280, overflowY: "auto", padding: "11px 13px 12px" }}>
-                <div style={{ color: "var(--text)", fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", fontWeight: 700, lineHeight: 1.35 }}>
+              <div className="pw-card-body" style={{ maxHeight: 280, overflowY: "auto", padding: "var(--s3) var(--s4)" }}>
+                <div className="pw-strong" style={{ fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", fontWeight: 500, lineHeight: 1.35 }}>
                    {t("i18n.conversationCompacted")}
                 </div>
-                <div style={{ marginTop: 3, marginBottom: 10, color: "var(--text)", fontSize: "calc(14px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
+                <div style={{ marginBottom: "var(--s2)", fontSize: "calc(14px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
                    {t("i18n.compactionDescription")}
                 </div>
                 {parsedSummary.body ? (
                   <MarkdownBody className="markdown-compaction-message">{parsedSummary.body}</MarkdownBody>
                 ) : (
-                   <span style={{ color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("i18n.noSummary")}</span>
+                   <span className="pw-dim">{t("i18n.noSummary")}</span>
                 )}
                 <CompactionFileMetadata readFiles={parsedSummary.readFiles} modifiedFiles={parsedSummary.modifiedFiles} />
               </div>
@@ -2005,33 +1719,18 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
   };
 
   return (
+    /* fork:design-components —— 扩展自定义消息卡换成画板 11 的通用卡三段：
+       `.pw-card`（发丝框 / radius-6 / overflow hidden）+ `.pw-card-head` +
+       `.pw-card-body`（正文与图片）+ `.pw-card-foot`（复制 / 展开）。
+       隐藏消息的「点标题看内容」预览行 = 画板 12 C 压缩卡的「看摘要」按钮形态
+       （`.pw-btn sm` + `chevron-down`）。details JSON 走 `.pw-card-body` + `.pw-term`。 */
     <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          overflow: "hidden",
-          background: isHiddenDisplay ? "var(--bg-subtle)" : "var(--bg)",
-          opacity: isHiddenDisplay && !contentExpanded ? 0.82 : 1,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "7px 10px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--bg-panel)",
-            color: "var(--text-muted)",
-            fontSize: TEXT.sm,
-          }}
-        >
-          <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 650 }}>
-            {title}
-          </span>
-           {isHiddenDisplay && <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("i18n.hiddenExtensionMessage")}</span>}
-          {time && <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>{time}</span>}
+      <div className="pw-card">
+        <div className="pw-card-head">
+          <span className="pw-mono">{title}</span>
+          {isHiddenDisplay && <span className="pw-dim">{t("i18n.hiddenExtensionMessage")}</span>}
+          <span className="grow" />
+          {time && <span className="pw-dim">{time}</span>}
         </div>
 
         {/* fork:zm-01 — 正文区的常驻 grid；折叠态由下面的预览按钮承担，正文在收起
@@ -2043,89 +1742,59 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
         >
           {contentMounted && (
             <div className="fork-collapse-body">
-              <div style={{ padding: "6px 9px" }}>
+              <div className="pw-card-body" style={{ padding: "var(--s2) var(--s3)" }}>
                 {images.length > 0 && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: text ? 8 : 0 }}>
+                  <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginBottom: text ? "var(--s2)" : 0 }}>
                     {images.map((img, i) => {
                       const src = imageSource(img);
                       if (!src) return null;
                       return (
-                        <ImagePreview key={i} src={src}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={src}
-                            alt=""
-                            style={{ maxWidth: 240, maxHeight: 240, borderRadius: "var(--radius-sm)", objectFit: "contain", display: "block", border: "1px solid var(--border)" }}
-                          />
-                        </ImagePreview>
+                        <div className="pw-img" key={i}>
+                          <ImagePreview src={src}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={src}
+                              alt=""
+                              style={{ maxWidth: 240, maxHeight: 240, objectFit: "contain", display: "block" }}
+                            />
+                          </ImagePreview>
+                        </div>
                       );
                     })}
                   </div>
                 )}
-                 {text ? <MarkdownBody className="markdown-custom-message" cwd={cwd} onOpenFile={onOpenFile}>{text}</MarkdownBody> : <span style={{ color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("i18n.noMessage")}</span>}
+                {text
+                  ? <MarkdownBody className="markdown-custom-message" cwd={cwd} onOpenFile={onOpenFile}>{text}</MarkdownBody>
+                  : <span className="pw-dim">{t("i18n.noMessage")}</span>}
               </div>
             </div>
           )}
         </div>
         {!contentExpanded && !contentMounted && (
-          <button
-            onClick={() => setContentExpanded(true)}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "8px 10px",
-              border: "none",
-              background: "transparent",
-              color: "var(--text-dim)",
-              cursor: "pointer",
-              fontSize: TEXT.sm,
-              textAlign: "left",
-            }}
-          >
-             {text ? previewText(text) : t("i18n.showExtensionMessage")}
-          </button>
+          <div className="pw-card-body">
+            <button type="button" onClick={() => setContentExpanded(true)} className="pw-btn sm">
+              <span className="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span>
+              {text ? previewText(text) : t("i18n.showExtensionMessage")}
+            </button>
+          </div>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "4px 9px",
-            borderTop: "1px solid var(--border)",
-            background: "var(--bg-subtle)",
-          }}
-        >
+        <div className="pw-card-foot">
           {text || detailsText ? (
-            <button
-              onClick={copyContent}
-              style={{
-                padding: "3px 7px",
-                border: "none",
-                background: "none",
-                color: copied ? "var(--accent)" : "var(--text-dim)",
-                cursor: "pointer",
-                fontSize: TEXT.xs,
-              }}
-            >
-               {copied ? t("i18n.copied") : t("i18n.copy")}
+            <button type="button" onClick={copyContent} className="pw-btn sm">
+              <span className="pw-ico">{CopyStateIcon({ copied })}</span>
+              {copied ? t("i18n.copied") : t("i18n.copy")}
             </button>
           ) : null}
+          <span className="grow" />
           {(hasDetails || isHiddenDisplay) && (
             <button
+              type="button"
               onClick={() => {
                 if (isHiddenDisplay) setContentExpanded((v) => !v);
                 else setDetailsExpanded((v) => !v);
               }}
-              style={{
-                marginLeft: "auto",
-                padding: "3px 7px",
-                border: "none",
-                background: "none",
-                color: "var(--text-dim)",
-                cursor: "pointer",
-                fontSize: TEXT.xs,
-              }}
+              className="pw-btn sm"
             >
               {isHiddenDisplay
                  ? (contentExpanded ? t("i18n.collapse") : t("i18n.expand"))
@@ -2142,24 +1811,11 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
         >
           {detailsMounted && (
             <div className="fork-collapse-body">
-              <pre
-                style={{
-                  margin: 0,
-                  padding: "9px 10px",
-                  borderTop: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  color: "var(--text-muted)",
-                  fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  maxHeight: 360,
-                  overflow: "auto",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                {detailsText}
-              </pre>
+              <div className="pw-card-body">
+                <div className="pw-term" style={{ maxHeight: 360, overflow: "auto" }}>
+                  {detailsText}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -2313,24 +1969,24 @@ function BashExecutionView({ message, sessionId }: { message: BashExecutionMessa
   return (
     <div style={{ margin: "6px 0" }}>
       <ToolCallBlock block={block} result={result} />
+      {/* fork:design-components —— 截断提示行用画板的 `.pw-btn sm`（复制 / 下载这类
+          小动作的统一形态）+ `.pw-dim` 报错文案。i18n 文案与行为照旧。 */}
       {message.truncated && fullOutputUrl && (
-        <div style={{ padding: "4px 10px", fontSize: TEXT.xs, marginTop: -1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
           {showFullButton && (
             <button
+              type="button"
               onClick={loadFullOutput}
               disabled={loadingFull}
-              style={{ background: "none", border: "none", color: "var(--accent)", cursor: loadingFull ? "default" : "pointer", fontSize: TEXT.xs, padding: 0, textDecoration: "underline" }}
+              className="pw-btn sm"
             >
               {loadingFull ? "loading…" : "view full output"}
             </button>
           )}
-          <a
-            href={`${fullOutputUrl}&download=1`}
-            style={{ marginLeft: showFullButton ? 10 : 0, color: "var(--accent)", fontSize: TEXT.xs, textDecoration: "underline" }}
-          >
+          <a href={`${fullOutputUrl}&download=1`} className="pw-btn sm">
             download full output
           </a>
-          {fullError && <span style={{ marginLeft: 6, color: "var(--text-dim)", fontSize: TEXT.xs }}>({fullError})</span>}
+          {fullError && <span className="pw-dim">({fullError})</span>}
         </div>
       )}
     </div>

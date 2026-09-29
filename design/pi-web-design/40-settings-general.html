@@ -43,6 +43,7 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
           <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
+          <div class="pw-row pw-snav-close"><span class="pw-ico"><i data-ico="panel-left-close"></i></span><span class="pw-name">收起左列</span></div>
         </nav>
 
         <!-- 右内容 -->
@@ -64,10 +65,7 @@
             <div class="pw-field">
               <span class="pw-label">边框深度<small>控制分隔线与控件轮廓的深浅</small></span>
               <span class="pw-ctl">
-                <span style="width:180px;height:4px;border-radius:2px;background:var(--n-surface);position:relative;display:inline-block">
-                  <span style="position:absolute;left:0;top:0;height:4px;width:52%;border-radius:2px;background:var(--accent)"></span>
-                  <span style="position:absolute;left:52%;top:-4px;width:12px;height:12px;border-radius:50%;background:#fff;border:1px solid var(--n-border)"></span>
-                </span>
+                <input type="range" class="pw-range" min="0" max="100" value="52">
                 <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">52</span>
               </span>
             </div>
@@ -92,7 +90,7 @@
                 <span class="pw-btn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建</span>
               </div>
             </div>
-            <div class="pw-inline" style="margin-top:var(--s2)">
+            <div class="pw-inline pw-skin-actions">
               <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="upload" data-size="13"></i></span>导入</span>
               <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>导出</span>
               <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="paintbrush" data-size="13"></i></span>打开皮肤工作室</span>
@@ -110,7 +108,7 @@
             <div class="pw-field">
               <span class="pw-label">当前壁纸</span>
               <span class="pw-ctl">
-                <span style="width:64px;height:36px;border-radius:var(--radius-4);background:linear-gradient(135deg,var(--n-surface),var(--n-hover));border:1px solid var(--n-border)"></span>
+                <span class="pw-wallpaper-thumb" style="background:var(--n-surface)"></span>
                 <span class="pw-btn outline sm">更换</span>
                 <span class="pw-btn sm">移除</span>
               </span>

@@ -1,12 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigButton, ConfigSwitch } from "../SettingsUi";
+import {
+  ConfigButton,
+  ConfigDetail,
+  ConfigDetailActions,
+  ConfigDetailHeader,
+  ConfigDetailStack,
+  ConfigDetailTitle,
+  ConfigEmptyState,
+  ConfigField,
+  ConfigSectionTitle,
+  ConfigSidebarItem,
+  ConfigSidebarList,
+  ConfigSplitView,
+  ConfigSwitch,
+  PwCtl,
+  PwPageHead,
+  PwRadio,
+  PwSelectBox,
+} from "../SettingsUi";
 import { CRON_EXAMPLES } from "@/lib/cron-expression";
 import { compileCronRule, parseClockTime, type CronRule } from "@/lib/cron-rule";
 import type { CronRunRecord, CronSchedule, CronTaskView } from "@/lib/cron-schedule";
-import { TEXT } from "@/lib/typography";
 
 const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 const THINKING_LABELS: Record<(typeof THINKING_LEVELS)[number], string> = {
@@ -76,11 +93,19 @@ function formatDuration(ms: number | undefined): string {
   return `${hours}h ${minutes % 60}m`;
 }
 
-const RUN_STATUS_COLOR: Record<string, string> = {
-  ok: "var(--success)",
-  error: "var(--danger)",
-  skipped: "var(--text-dim)",
-  running: "var(--accent)",
+const RUN_STATUS_ICON: Record<string, string> = {
+  ok: "circle-check",
+  error: "circle-x",
+  skipped: "circle-slash",
+  running: "loader-circle",
+};
+
+/** 画板 44 的运行历史行：状态用 `.pw-badge` 的四档（ok / bad / accent / 静）。 */
+const RUN_STATUS_BADGE: Record<string, string> = {
+  ok: "ok",
+  error: "bad",
+  skipped: "",
+  running: "accent",
 };
 
 const RUN_STATUS_KEY: Record<string, string> = {
@@ -89,6 +114,9 @@ const RUN_STATUS_KEY: Record<string, string> = {
   skipped: "cron.runStatus.skipped",
   running: "cron.runStatus.running",
 };
+
+/** 画板 44 的任务列表行：上次状态对应 `.pw-badge` 的哪一档色。 */
+const LAST_STATUS_BADGE: Record<string, string> = { error: "bad", ok: "ok", running: "accent" };
 
 /**
  * fork:zc-14 — one task's run history: newest first, 8 rows per page, with the
@@ -113,116 +141,99 @@ function TaskHistory({ task, onOpenSession, onDeleteRun }: {
   };
 
   return (
-    <details style={{ marginTop: 2 }}>
-      <summary style={{ cursor: "pointer", fontSize: TEXT.xs, color: "var(--text-dim)" }}>
-        {t("cron.history")} · {runs.length}
-      </summary>
+    /* fork:design-system —— 画板 44 的「运行历史」：`.pw-detail` 卡 + `.pw-prow` 行
+       （图标 + `.grow` 两行文本 + 状态徽章 + 动作钮）。原先是内联的折叠 details
+       元素 + 一堆自绘盒子。 */
+    <ConfigDetail>
+      <ConfigDetailHeader>
+        <ConfigDetailTitle>{t("cron.history")}</ConfigDetailTitle>
+        <span className="pw-badge count">{runs.length}</span>
+        <span className="pw-grow" aria-hidden="true" />
+      </ConfigDetailHeader>
       {runs.length === 0 ? (
-        <p className="settings-chat-range-hint" style={{ margin: "4px 0 0" }}>{t("cron.historyEmpty")}</p>
+        <p className="pw-hint">{t("cron.historyEmpty")}</p>
       ) : (
-        <div style={{ marginTop: 4 }}>
-          <div style={{ display: "grid", gap: 2 }}>
+        <>
+          <ConfigDetailStack>
             {paged.map((run, index) => {
               const started = new Date(run.at);
               const finished = run.finishedAt ? new Date(run.finishedAt) : null;
               const duration = finished ? finished.getTime() - started.getTime() : undefined;
               const text = detail(run);
+              const statusKey = RUN_STATUS_KEY[run.status] ?? "cron.runStatus.error";
+              const tone = RUN_STATUS_BADGE[run.status];
               return (
-                <div
-                  key={run.id ?? `${run.at}-${index}`}
-                  style={{
-                    display: "grid",
-                    gap: 2,
-                    padding: "5px 7px",
-                    border: "1px solid var(--border-faint)",
-                    borderRadius: "var(--radius-sm)",
-                    background: "var(--bg-panel)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: TEXT.xs }}>
-                    <span style={{ color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
+                <div className="pw-prow" key={run.id ?? `${run.at}-${index}`}>
+                  <span className="pw-ico">
+                    <i data-ico={RUN_STATUS_ICON[run.status] ?? "circle-x"} data-size="14" aria-hidden="true" />
+                  </span>
+                  <span className="grow">
+                    <span className="pw-mono">
                       {Number.isNaN(started.getTime()) ? run.at : started.toLocaleString()}
                       {finished && !Number.isNaN(finished.getTime()) ? ` → ${finished.toLocaleTimeString()}` : ""}
                     </span>
-                    <span style={{ color: RUN_STATUS_COLOR[run.status] ?? "var(--text-dim)" }}>
-                      ● {t(RUN_STATUS_KEY[run.status] ?? "cron.runStatus.error")}
+                    {/* 画板 20 的 `.grow` 两行形态：副行 `.pw-desc` 落一块 */}
+                    <span className="pw-desc" style={{ display: "block" }}>
+                      {[
+                        finished ? formatDuration(duration) : null,
+                        run.trigger ? t(`cron.trigger.${run.trigger}`) : null,
+                        run.attempt !== undefined && run.attempt > 1
+                          ? t("cron.history.attempt", { attempt: run.attempt })
+                          : null,
+                        text || null,
+                      ].filter(Boolean).join(" · ")}
                     </span>
-                    {finished && <span style={{ color: "var(--text-dim)" }}>{formatDuration(duration)}</span>}
-                    {run.trigger && <span style={{ color: "var(--text-dim)" }}>{t(`cron.trigger.${run.trigger}`)}</span>}
-                    {run.attempt !== undefined && run.attempt > 1 && (
-                      <span style={{ color: "var(--warning)" }}>{t("cron.history.attempt", { attempt: run.attempt })}</span>
-                    )}
-                    <span style={{ flex: 1 }} />
-                    {run.sessionId && onOpenSession && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenSession(run.sessionId!)}
-                        style={{ border: "none", background: "none", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, padding: 0 }}
-                      >
-                        {t("cron.openRun")}
-                      </button>
-                    )}
-                    {run.id && (
-                      <button
-                        type="button"
-                        title={t("cron.history.deleteRun")}
-                        aria-label={t("cron.history.deleteRun")}
-                        onClick={() => onDeleteRun(run.id!)}
-                        style={{ border: "none", background: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: TEXT.xs, padding: 0 }}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                  {text && (
-                    <span
-                      title={text}
-                      style={{
-                        fontSize: TEXT.xs,
-                        color: run.error ? "var(--danger)" : "var(--text-dim)",
-                        fontFamily: "var(--font-mono)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
+                  </span>
+                  <span className={tone ? `pw-badge ${tone}` : "pw-badge"}>{t(statusKey)}</span>
+                  {run.sessionId && onOpenSession && (
+                    <ConfigButton variant="ghost" size="small" onClick={() => onOpenSession(run.sessionId!)}>
+                      {t("cron.openRun")}
+                    </ConfigButton>
+                  )}
+                  {run.id && (
+                    <ConfigButton
+                      variant="ghost"
+                      size="small"
+                      title={t("cron.history.deleteRun")}
+                      aria-label={t("cron.history.deleteRun")}
+                      onClick={() => onDeleteRun(run.id!)}
                     >
-                      {text}
-                    </span>
+                      <span className="pw-ico"><i data-ico="x" data-size="13" aria-hidden="true" /></span>
+                    </ConfigButton>
                   )}
                 </div>
               );
             })}
-          </div>
+          </ConfigDetailStack>
           {totalPages > 1 && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 4 }}>
-              <button
-                type="button"
+            <ConfigDetailActions>
+              <span className="pw-grow" aria-hidden="true" />
+              <ConfigButton
+                variant="ghost"
+                size="small"
                 title={t("cron.history.prev")}
                 aria-label={t("cron.history.prev")}
                 disabled={currentPage <= 1}
                 onClick={() => setPage(currentPage - 1)}
-                style={{ border: "1px solid var(--border-faint)", background: "transparent", color: "var(--text-dim)", cursor: "pointer", borderRadius: "var(--radius-sm)", fontSize: TEXT.xs, padding: "1px 6px" }}
               >
-                ‹
-              </button>
-              <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
-                {t("cron.history.pageOf", { current: currentPage, total: totalPages })}
-              </span>
-              <button
-                type="button"
+                <span className="pw-ico"><i data-ico="chevron-left" data-size="13" aria-hidden="true" /></span>
+              </ConfigButton>
+              <span className="pw-badge count">{t("cron.history.pageOf", { current: currentPage, total: totalPages })}</span>
+              <ConfigButton
+                variant="ghost"
+                size="small"
                 title={t("cron.history.next")}
                 aria-label={t("cron.history.next")}
                 disabled={currentPage >= totalPages}
                 onClick={() => setPage(currentPage + 1)}
-                style={{ border: "1px solid var(--border-faint)", background: "transparent", color: "var(--text-dim)", cursor: "pointer", borderRadius: "var(--radius-sm)", fontSize: TEXT.xs, padding: "1px 6px" }}
               >
-                ›
-              </button>
-            </div>
+                <span className="pw-ico"><i data-ico="chevron-right" data-size="13" aria-hidden="true" /></span>
+              </ConfigButton>
+            </ConfigDetailActions>
           )}
-        </div>
+        </>
       )}
-    </details>
+    </ConfigDetail>
   );
 }
 
@@ -467,407 +478,537 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
     return `${task.schedule.date ?? ""} ${task.schedule.times.join(", ")}${zone}${window}${end}`;
   };
 
+  /* fork:design-system —— 画板 44 的频率字段组：`input.pw-input` + 单位文字，
+     与画板 `.pw-field > .pw-ctl` 同一形态。 */
   const intervalInput = (unit: string) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <PwCtl>
       <input
-        className="settings-field-input"
+        className="pw-input"
         inputMode="numeric"
         value={intervalValue}
+        aria-label={t("cron.interval")}
         onChange={(event) => setIntervalValue(event.target.value.replace(/[^0-9]/g, ""))}
-        style={{ width: 70, fontVariantNumeric: "tabular-nums" }}
+        style={{ minWidth: 0, width: 70, fontVariantNumeric: "tabular-nums" }}
       />
-      <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)" }}>{unit}</span>
-    </div>
+      <span className="pw-desc">{unit}</span>
+    </PwCtl>
+  );
+
+  const modelOptions = useMemo(
+    () => [
+      {
+        value: "",
+        label: defaultModelLabel ? t("cron.modelDefault", { model: defaultModelLabel }) : t("cron.default"),
+      },
+      ...models.map((model) => ({ value: model.key, label: model.label })),
+    ],
+    [defaultModelLabel, models, t],
   );
 
   return (
-    <div className="settings-general">
-      <h2 className="settings-general-title">{t("cron.title")}</h2>
+    <>
+      {/* fork:design-system —— 画板 44 的页头：`PwPageHead` 直接出 `.pw-sbody > h2`
+          + `> p.sub`（board.css 的选择器就认这两个直接子元素）。 */}
+      <PwPageHead title={t("cron.title")} />
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("cron.newTask")}</h3>
-        <div className="settings-chat-option settings-chat-range-option" style={{ display: "grid", gap: 8 }}>
-          <label style={{ display: "grid", gap: 4 }}>
-            <span className="settings-chat-option-label">{t("cron.name")}</span>
-            <input className="settings-field-input" value={name} maxLength={120} onChange={(event) => setName(event.target.value)} placeholder={t("cron.namePlaceholder")} />
-          </label>
-          <label style={{ display: "grid", gap: 4 }}>
-            <span className="settings-chat-option-label">{t("cron.prompt")}</span>
-            <textarea
-              className="settings-field-input"
-              value={prompt}
-              rows={3}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder={t("cron.promptPlaceholder")}
-              style={{ resize: "vertical", fontFamily: "inherit" }}
-            />
-          </label>
-          <label style={{ display: "grid", gap: 4 }}>
-            <span className="settings-chat-option-label">{t("cron.cwd")}</span>
-            <input className="settings-field-input" value={taskCwd} onChange={(event) => setTaskCwd(event.target.value)} placeholder={t("cron.cwdPlaceholder")} style={{ fontFamily: "var(--font-mono)", fontSize: TEXT.sm }} />
-          </label>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <label style={{ display: "grid", gap: 4, minWidth: 220 }}>
-              <span className="settings-chat-option-label">{t("cron.model")}</span>
-              <select className="settings-select" value={modelKey} onChange={(event) => setModelKey(event.target.value)}>
-                <option value="">
-                  {defaultModelLabel ? t("cron.modelDefault", { model: defaultModelLabel }) : t("cron.default")}
-                </option>
-                {models.map((model) => <option key={model.key} value={model.key}>{model.label}</option>)}
-              </select>
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span className="settings-chat-option-label">{t("cron.thinking")}</span>
-              <select className="settings-select" value={thinking} onChange={(event) => setThinking(event.target.value)}>
-                <option value="">{t("cron.default")}</option>
-                {THINKING_LEVELS.map((level) => <option key={level} value={level}>{THINKING_LABELS[level]}</option>)}
-              </select>
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span className="settings-chat-option-label">{t("cron.maxRuns")}</span>
-              <input
-                className="settings-field-input"
-                inputMode="numeric"
-                value={maxRuns}
-                onChange={(event) => setMaxRuns(event.target.value.replace(/[^0-9]/g, ""))}
-                placeholder={t("cron.maxRunsPlaceholder")}
-                title={t("cron.maxRunsHint")}
-                style={{ width: 110, fontVariantNumeric: "tabular-nums" }}
-              />
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span className="settings-chat-option-label">{t("cron.sessionMode")}</span>
-              <select
-                className="settings-select"
-                value={sessionMode}
-                onChange={(event) => setSessionMode(event.target.value as "new" | "daily" | "reuse")}
-                title={t("cron.sessionModeHint")}
-              >
-                <option value="new">{t("cron.sessionModeNew")}</option>
-                <option value="daily">{t("cron.sessionModeDaily")}</option>
-                <option value="reuse">{t("cron.sessionModeReuse")}</option>
-              </select>
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span className="settings-chat-option-label">{t("cron.notify")}</span>
-              <select
-                className="settings-select"
-                value={notify}
-                onChange={(event) => setNotify(event.target.value as "never" | "always" | "success" | "error")}
-                title={t("cron.notifyHint")}
-              >
-                <option value="error">{t("cron.notifyError")}</option>
-                <option value="success">{t("cron.notifySuccess")}</option>
-                <option value="always">{t("cron.notifyAlways")}</option>
-                <option value="never">{t("cron.notifyNever")}</option>
-              </select>
-            </label>
-          </div>
-
-          {modelsError && (
-            <p className="settings-chat-range-hint" role="status">{t("cron.modelListError", { error: modelsError })}</p>
+      {/* fork:design-system —— 画板 44：左列 = 任务列表 + 每个任务的运行历史
+          （`.pw-litem` 行 + `.pw-detail` 卡），右列 = 新建任务表单。
+          两栏用 SettingsUi 的 `ConfigSplitView`（`.pw-cols`）。 */}
+      <ConfigSplitView>
+        <div style={{ display: "grid", gap: "var(--s3)", alignContent: "start" }}>
+          <ConfigSectionTitle>{t("cron.tasks")}</ConfigSectionTitle>
+          {loading && <p className="pw-hint">{t("cron.loading")}</p>}
+          {!loading && tasks.length === 0 && (
+            <ConfigEmptyState>
+              <p>{t("cron.empty")}</p>
+            </ConfigEmptyState>
           )}
-
-          {/* fork:zc-19 — human-readable frequency editor (compiles to 5-field cron). */}
-          <label style={{ display: "grid", gap: 4 }}>
-            <span className="settings-chat-option-label">{t("cron.frequency")}</span>
-            <select className="settings-select" value={mode} onChange={(event) => setMode(event.target.value as EditorMode)}>
-              <option value="minutes">{t("cron.freq.minutes")}</option>
-              <option value="hours">{t("cron.freq.hours")}</option>
-              <option value="daily">{t("cron.daily")}</option>
-              <option value="weekly">{t("cron.weekly")}</option>
-              <option value="monthly">{t("cron.freq.monthly")}</option>
-              <option value="yearly">{t("cron.freq.yearly")}</option>
-              <option value="once">{t("cron.once")}</option>
-              <option value="cron">{t("cron.kindCron")}</option>
-            </select>
-          </label>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-            {mode === "minutes" && (
-              <label style={{ display: "grid", gap: 4 }}>
-                <span className="settings-chat-option-label">{t("cron.interval")}</span>
-                {intervalInput(t("cron.unit.minutes"))}
-              </label>
-            )}
-            {mode === "hours" && (
-              <>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span className="settings-chat-option-label">{t("cron.interval")}</span>
-                  {intervalInput(t("cron.unit.hours"))}
-                </label>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span className="settings-chat-option-label">{t("cron.atTime")}</span>
-                  <input className="settings-field-input" type="time" value={time} onChange={(event) => setTime(event.target.value)} style={{ width: 130 }} />
-                </label>
-              </>
-            )}
-            {(mode === "daily" || mode === "weekly" || mode === "monthly" || mode === "yearly" || mode === "once") && (
-              <label style={{ display: "grid", gap: 4 }}>
-                <span className="settings-chat-option-label">{t("cron.atTime")}</span>
-                <input className="settings-field-input" type="time" value={time} onChange={(event) => setTime(event.target.value)} style={{ width: 130 }} />
-              </label>
-            )}
-            {mode === "once" && (
-              <label style={{ display: "grid", gap: 4 }}>
-                <span className="settings-chat-option-label">{t("cron.date")}</span>
-                <input className="settings-field-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} style={{ width: 160 }} />
-              </label>
-            )}
-            {mode === "monthly" && (
-              <>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span className="settings-chat-option-label">{t("cron.monthlyMode")}</span>
-                  <select className="settings-select" value={monthlyMode} onChange={(event) => setMonthlyMode(event.target.value as "date" | "weekday")}>
-                    <option value="date">{t("cron.monthlyByDate")}</option>
-                    <option value="weekday">{t("cron.monthlyByWeekday")}</option>
-                  </select>
-                </label>
-                {monthlyMode === "date" ? (
-                  <label style={{ display: "grid", gap: 4 }}>
-                    <span className="settings-chat-option-label">{t("cron.dayOfMonth")}</span>
-                    <input
-                      className="settings-field-input"
-                      inputMode="numeric"
-                      value={monthDay}
-                      onChange={(event) => setMonthDay(event.target.value.replace(/[^0-9]/g, ""))}
-                      style={{ width: 80, fontVariantNumeric: "tabular-nums" }}
-                    />
-                  </label>
-                ) : (
-                  <>
-                    <label style={{ display: "grid", gap: 4 }}>
-                      <span className="settings-chat-option-label">{t("cron.weekday")}</span>
-                      <select className="settings-select" value={monthWeekday} onChange={(event) => setMonthWeekday(Number(event.target.value))}>
-                        {WEEKDAY_KEYS.map((key, index) => <option key={key} value={index}>{t(`cron.weekday.${key}`)}</option>)}
-                      </select>
-                    </label>
-                    <label style={{ display: "grid", gap: 4 }}>
-                      <span className="settings-chat-option-label">{t("cron.ordinal")}</span>
-                      <select className="settings-select" value={monthOrdinal} onChange={(event) => setMonthOrdinal(Number(event.target.value))}>
-                        {ORDINALS.map((ordinal) => <option key={ordinal} value={ordinal}>{t(`cron.ordinal.${ordinal}`)}</option>)}
-                      </select>
-                    </label>
-                  </>
-                )}
-              </>
-            )}
-            {mode === "yearly" && (
-              <>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span className="settings-chat-option-label">{t("cron.month")}</span>
-                  <select className="settings-select" value={yearMonth} onChange={(event) => setYearMonth(event.target.value)}>
-                    {MONTH_KEYS.map((key, index) => <option key={key} value={index + 1}>{t(`cron.month.${key}`)}</option>)}
-                  </select>
-                </label>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span className="settings-chat-option-label">{t("cron.dayOfMonth")}</span>
-                  <input
-                    className="settings-field-input"
-                    inputMode="numeric"
-                    value={yearDay}
-                    onChange={(event) => setYearDay(event.target.value.replace(/[^0-9]/g, ""))}
-                    style={{ width: 80, fontVariantNumeric: "tabular-nums" }}
+          <ConfigSidebarList>
+            {tasks.map((task) => (
+              <Fragment key={task.id}>
+                {/* 画板 44 的任务行：`.pw-litem` + 前置 `.pw-switch` + `.grow`
+                    （`.pw-lname` / `.pw-lsub`）+ 状态徽章。产品这一行要装开关 /
+                    立即运行 / 删除三个真控件，所以是 div 而不是 ConfigSidebarItem
+                    的 button（button 里不能再嵌 button）。 */}
+                <div className="pw-litem">
+                  <ConfigSwitch
+                    label={`${t("cron.enabled")} · ${task.name}`}
+                    checked={task.enabled}
+                    onChange={(next) => void patch(task.id, { enabled: next })}
                   />
-                </label>
-              </>
-            )}
-            {mode !== "once" && (
-              <label style={{ display: "grid", gap: 4 }}>
-                <span className="settings-chat-option-label">{t("cron.endDate")}</span>
-                <input className="settings-field-input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} style={{ width: 160 }} />
-              </label>
-            )}
-          </div>
-
-          {mode !== "once" && (
-            <p className="settings-chat-range-hint">{t("cron.endDateHint")}</p>
-          )}
-
-          {mode === "weekly" && (
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {WEEKDAY_KEYS.map((key, index) => {
-                const active = weekdays.includes(index);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setWeekdays((current) => (active ? current.filter((day) => day !== index) : [...current, index].sort()))}
-                    style={{
-                      minWidth: 34, height: 26, padding: "0 8px",
-                      border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
-                      background: active ? "var(--bg-selected)" : "transparent",
-                      color: active ? "var(--text)" : "var(--text-muted)",
-                      cursor: "pointer", fontSize: TEXT.xs,
-                    }}
+                  <span className="grow">
+                    <span className="pw-lname">{task.name}</span>
+                    <span className="pw-lsub">
+                      {describe(task)}
+                      {task.nextRunAt ? ` · ${t("cron.next")} ${new Date(task.nextRunAt).toLocaleString()}` : ` · ${t("cron.noNext")}`}
+                      {task.missed ? ` · ${t("cron.missed")}` : ""}
+                    </span>
+                    <span className="pw-lsub" title={task.prompt}>{task.prompt}</span>
+                    {(task.model || task.thinking) && (
+                      <span className="pw-lsub">
+                        {task.model ? `${task.model.provider}/${task.model.modelId}` : t("cron.default")}
+                        {task.thinking ? ` · ${task.thinking}` : ""}
+                      </span>
+                    )}
+                    {/* fork:zc-19 — surface a pending backoff retry instead of hiding it. */}
+                    {task.retryAt && (
+                      <span className="pw-badge warn">
+                        {t("cron.retryScheduled", { at: new Date(task.retryAt).toLocaleTimeString() })}
+                      </span>
+                    )}
+                  </span>
+                  {task.lastStatus && (
+                    <span className={LAST_STATUS_BADGE[task.lastStatus] ? `pw-badge ${LAST_STATUS_BADGE[task.lastStatus]}` : "pw-badge"}>
+                      {t(`cron.status.${task.lastStatus}`)}
+                    </span>
+                  )}
+                  <ConfigButton
+                    variant="secondary"
+                    size="small"
+                    disabled={busyId === task.id}
+                    onClick={() => void patch(task.id, { action: "run" })}
                   >
-                    {t(`cron.weekday.${key}`)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {mode === "cron" && (
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span className="settings-chat-option-label">{t("cron.expression")}</span>
-                <input
-                  className="settings-field-input"
-                  value={expression}
-                  onChange={(event) => setExpression(event.target.value)}
-                  placeholder="*/5 * * * *"
-                  aria-describedby="cron-expression-help"
-                  style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}
-                />
-              </label>
-              <p id="cron-expression-help" className="settings-chat-range-hint">{t("cron.expressionHelp")}</p>
-              <div style={{ display: "grid", gap: 4 }}>
-                <span className="settings-chat-option-label">{t("cron.examples")}</span>
-                <div style={{ display: "grid", gap: 4 }}>
-                  {CRON_EXAMPLES.map((example) => (
-                    <button
-                      key={example.expression}
-                      type="button"
-                      onClick={() => setExpression(example.expression)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 10, textAlign: "left",
-                        width: "100%", padding: "5px 8px",
-                        border: "1px solid var(--border-faint)", borderRadius: "var(--radius-sm)",
-                        background: expression === example.expression ? "var(--bg-selected)" : "transparent",
-                        cursor: "pointer", fontSize: TEXT.sm, whiteSpace: "nowrap",
-                      }}
-                    >
-                      <code style={{ color: "var(--accent)", fontFamily: "var(--font-mono)" }}>{example.expression}</code>
-                      <span style={{ color: "var(--text-muted)" }}>{t(example.labelKey)}</span>
-                    </button>
-                  ))}
+                    {t("cron.runNow")}
+                  </ConfigButton>
+                  <ConfigButton
+                    variant="ghost"
+                    size="small"
+                    title={t("cron.delete")}
+                    aria-label={t("cron.delete")}
+                    disabled={busyId === task.id}
+                    onClick={() => void remove(task.id)}
+                  >
+                    <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
+                  </ConfigButton>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {mode !== "cron" && mode !== "once" && (
-            <div style={{ display: "grid", gap: 2 }}>
-              <span className="settings-chat-option-label">{t("cron.compiled")}</span>
-              {compiledResult?.ok ? (
-                <>
-                  <code style={{ fontSize: TEXT.sm, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>{compiledResult.expression}</code>
-                  <span className="settings-chat-range-hint">{t("cron.compiledHint")}</span>
-                </>
-              ) : (
-                <span style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>
-                  {t("cron.ruleInvalid", { error: compiledResult && !compiledResult.ok ? compiledResult.error : "" })}
-                </span>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span className="settings-chat-option-label">{t("cron.windowStart")}</span>
-              <input className="settings-field-input" type="time" value={idleStart} onChange={(event) => setIdleStart(event.target.value)} style={{ width: 140 }} />
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span className="settings-chat-option-label">{t("cron.windowEnd")}</span>
-              <input className="settings-field-input" type="time" value={idleEnd} onChange={(event) => setIdleEnd(event.target.value)} style={{ width: 140 }} />
-            </label>
-            {(idleStart || idleEnd) && (
-              <ConfigButton variant="ghost" size="small" onClick={() => { setIdleStart(""); setIdleEnd(""); }}>{t("cron.windowClear")}</ConfigButton>
-            )}
-            <label style={{ display: "grid", gap: 4, minWidth: 200 }}>
-              <span className="settings-chat-option-label">{t("cron.timezone")}</span>
-              <select className="settings-select" value={timezone} onChange={(event) => setTimezone(event.target.value)}>
-                <option value="host">{t("cron.timezoneHost")}</option>
-                {zones.map((zone) => <option key={zone} value={zone}>{zone}</option>)}
-              </select>
-            </label>
-          </div>
-          <p className="settings-chat-range-hint">{t("cron.windowHint")}</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="settings-chat-option-label">{t("cron.enabled")}</span>
-            <ConfigSwitch label={t("cron.enabled")} checked={taskEnabled} onChange={setTaskEnabled} />
-          </div>
-          <div>
-            <ConfigButton variant="primary" size="small" disabled={!prompt.trim() || !taskCwd.trim() || (mode !== "once" && mode !== "cron" && !compiledResult?.ok)} onClick={() => void create()}>
-              {t("cron.create")}
-            </ConfigButton>
-          </div>
-          <p className="settings-chat-range-hint">{t("cron.hint")}</p>
-        </div>
-      </section>
-
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("cron.tasks")}</h3>
-        {loading && <p className="settings-chat-range-hint">{t("cron.loading")}</p>}
-        {!loading && tasks.length === 0 && <p className="settings-chat-range-hint">{t("cron.empty")}</p>}
-        <div style={{ display: "grid", gap: 6 }}>
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: 8,
-                alignItems: "center",
-                padding: "8px 10px",
-                border: "1px solid var(--border-faint)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--bg-panel)",
-              }}
-            >
-              <div style={{ minWidth: 0, display: "grid", gap: 2 }}>
-                <span style={{ fontSize: TEXT.md, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.name}</span>
-                <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
-                  {describe(task)}
-                  {task.nextRunAt ? ` · ${t("cron.next")} ${new Date(task.nextRunAt).toLocaleString()}` : ` · ${t("cron.noNext")}`}
-                  {task.missed ? ` · ${t("cron.missed")}` : ""}
-                </span>
-                <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={task.cwd}>
-                  {task.prompt}
-                </span>
-                {(task.model || task.thinking) && (
-                  <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                    {task.model ? `${task.model.provider}/${task.model.modelId}` : t("cron.default")}{task.thinking ? ` · ${task.thinking}` : ""}
-                  </span>
-                )}
-                {/* fork:zc-19 — surface a pending backoff retry instead of hiding it. */}
-                {task.retryAt && (
-                  <span style={{ fontSize: TEXT.xs, color: "var(--warning)" }}>
-                    {t("cron.retryScheduled", { at: new Date(task.retryAt).toLocaleTimeString() })}
-                  </span>
+                {task.lastError && task.lastStatus === "error" && (
+                  <p className="pw-hint">{task.lastError}</p>
                 )}
                 <TaskHistory
                   task={task}
                   {...(onOpenSession ? { onOpenSession } : {})}
                   onDeleteRun={(runId) => void removeRun(task.id, runId)}
                 />
-                {task.lastStatus && (
-                  <span style={{ fontSize: TEXT.xs, color: task.lastStatus === "error" ? "var(--danger)" : "var(--text-dim)" }}>
-                    {t(`cron.status.${task.lastStatus}`)}{task.lastError ? ` · ${task.lastError}` : ""}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <ConfigSwitch
-                  label={`${t("cron.enabled")} · ${task.name}`}
-                  checked={task.enabled}
-                  onChange={(next) => void patch(task.id, { enabled: next })}
-                />
-                <ConfigButton variant="secondary" size="small" disabled={busyId === task.id} onClick={() => void patch(task.id, { action: "run" })}>
-                  {t("cron.runNow")}
-                </ConfigButton>
-                <ConfigButton variant="ghost" size="small" title={t("cron.delete")} aria-label={t("cron.delete")} disabled={busyId === task.id} onClick={() => void remove(task.id)}>
-                  ×
-                </ConfigButton>
-              </div>
-            </div>
-          ))}
+              </Fragment>
+            ))}
+          </ConfigSidebarList>
         </div>
-      </section>
 
-      {error && <p role="alert" className="settings-general-error">{error}</p>}
-    </div>
+        {/* 右列：画板 44 的「新建任务」`.pw-detail` —— 标签在左、控件在右的
+            `.pw-field` 行，频率用 `.pw-radio`，下拉用 `.pw-selectbox`。 */}
+        <ConfigDetail>
+          <ConfigDetailHeader>
+            <ConfigDetailTitle>{t("cron.newTask")}</ConfigDetailTitle>
+          </ConfigDetailHeader>
+
+          <ConfigField label={t("cron.name")}>
+            <PwCtl>
+              <input
+                className="pw-input"
+                value={name}
+                maxLength={120}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("cron.namePlaceholder")}
+                style={{ minWidth: 0, flex: 1 }}
+              />
+            </PwCtl>
+          </ConfigField>
+
+          <ConfigSectionTitle>{t("cron.prompt")}</ConfigSectionTitle>
+          <textarea
+            className="pw-textarea"
+            value={prompt}
+            rows={3}
+            aria-label={t("cron.prompt")}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder={t("cron.promptPlaceholder")}
+          />
+
+          <ConfigField label={t("cron.cwd")}>
+            <PwCtl>
+              <input
+                className="pw-input pw-mono"
+                value={taskCwd}
+                aria-label={t("cron.cwd")}
+                onChange={(event) => setTaskCwd(event.target.value)}
+                placeholder={t("cron.cwdPlaceholder")}
+                style={{ minWidth: 0, flex: 1 }}
+              />
+            </PwCtl>
+          </ConfigField>
+
+          <ConfigField label={t("cron.model")}>
+            <PwSelectBox
+              value={modelKey}
+              options={modelOptions}
+              ariaLabel={t("cron.model")}
+              onChange={setModelKey}
+            />
+          </ConfigField>
+
+          <ConfigField label={t("cron.thinking")}>
+            <PwSelectBox
+              value={thinking}
+              ariaLabel={t("cron.thinking")}
+              options={[
+                { value: "", label: t("cron.default") },
+                ...THINKING_LEVELS.map((level) => ({ value: level, label: THINKING_LABELS[level] })),
+              ]}
+              onChange={setThinking}
+            />
+          </ConfigField>
+
+          <ConfigField label={t("cron.maxRuns")}>
+            <PwCtl>
+              <input
+                className="pw-input"
+                inputMode="numeric"
+                value={maxRuns}
+                aria-label={t("cron.maxRuns")}
+                onChange={(event) => setMaxRuns(event.target.value.replace(/[^0-9]/g, ""))}
+                placeholder={t("cron.maxRunsPlaceholder")}
+                title={t("cron.maxRunsHint")}
+                style={{ minWidth: 0, flex: 1, fontVariantNumeric: "tabular-nums" }}
+              />
+            </PwCtl>
+          </ConfigField>
+
+          <ConfigField label={t("cron.sessionMode")}>
+            <PwRadio
+              value={sessionMode}
+              ariaLabel={t("cron.sessionMode")}
+              options={[
+                { value: "new", label: t("cron.sessionModeNew") },
+                { value: "daily", label: t("cron.sessionModeDaily") },
+                { value: "reuse", label: t("cron.sessionModeReuse") },
+              ]}
+              onChange={setSessionMode}
+            />
+          </ConfigField>
+
+          <ConfigField label={t("cron.notify")}>
+            <PwSelectBox
+              value={notify}
+              ariaLabel={t("cron.notify")}
+              options={[
+                { value: "error", label: t("cron.notifyError") },
+                { value: "success", label: t("cron.notifySuccess") },
+                { value: "always", label: t("cron.notifyAlways") },
+                { value: "never", label: t("cron.notifyNever") },
+              ]}
+              onChange={(next) => setNotify(next as "never" | "always" | "success" | "error")}
+            />
+          </ConfigField>
+
+          {modelsError && (
+            <div className="pw-alert" role="status">
+              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+              <span className="grow">{t("cron.modelListError", { error: modelsError })}</span>
+            </div>
+          )}
+
+          {/* fork:zc-19 — human-readable frequency editor (compiles to 5-field cron). */}
+          <ConfigSectionTitle>{t("cron.frequency")}</ConfigSectionTitle>
+          <PwRadio
+            value={mode}
+            ariaLabel={t("cron.frequency")}
+            options={[
+              { value: "minutes", label: t("cron.freq.minutes") },
+              { value: "hours", label: t("cron.freq.hours") },
+              { value: "daily", label: t("cron.daily") },
+              { value: "weekly", label: t("cron.weekly") },
+              { value: "monthly", label: t("cron.freq.monthly") },
+              { value: "yearly", label: t("cron.freq.yearly") },
+              { value: "once", label: t("cron.once") },
+              { value: "cron", label: t("cron.kindCron") },
+            ]}
+            onChange={(next) => setMode(next as EditorMode)}
+          />
+
+          {mode === "minutes" && (
+            <ConfigField label={t("cron.interval")}>{intervalInput(t("cron.unit.minutes"))}</ConfigField>
+          )}
+          {mode === "hours" && (
+            <>
+              <ConfigField label={t("cron.interval")}>{intervalInput(t("cron.unit.hours"))}</ConfigField>
+              <ConfigField label={t("cron.atTime")}>
+                <PwCtl>
+                  <input
+                    className="pw-input"
+                    type="time"
+                    value={time}
+                    aria-label={t("cron.atTime")}
+                    onChange={(event) => setTime(event.target.value)}
+                    style={{ minWidth: 0, width: 130 }}
+                  />
+                </PwCtl>
+              </ConfigField>
+            </>
+          )}
+          {(mode === "daily" || mode === "weekly" || mode === "monthly" || mode === "yearly" || mode === "once") && (
+            <ConfigField label={t("cron.atTime")}>
+              <PwCtl>
+                <input
+                  className="pw-input"
+                  type="time"
+                  value={time}
+                  aria-label={t("cron.atTime")}
+                  onChange={(event) => setTime(event.target.value)}
+                  style={{ minWidth: 0, width: 130 }}
+                />
+              </PwCtl>
+            </ConfigField>
+          )}
+          {mode === "once" && (
+            <ConfigField label={t("cron.date")}>
+              <PwCtl>
+                <input
+                  className="pw-input"
+                  type="date"
+                  value={date}
+                  aria-label={t("cron.date")}
+                  onChange={(event) => setDate(event.target.value)}
+                  style={{ minWidth: 0, width: 160 }}
+                />
+              </PwCtl>
+            </ConfigField>
+          )}
+          {mode === "monthly" && (
+            <>
+              <ConfigField label={t("cron.monthlyMode")}>
+                <PwSelectBox
+                  value={monthlyMode}
+                  ariaLabel={t("cron.monthlyMode")}
+                  options={[
+                    { value: "date", label: t("cron.monthlyByDate") },
+                    { value: "weekday", label: t("cron.monthlyByWeekday") },
+                  ]}
+                  onChange={(next) => setMonthlyMode(next as "date" | "weekday")}
+                />
+              </ConfigField>
+              {monthlyMode === "date" ? (
+                <ConfigField label={t("cron.dayOfMonth")}>
+                  <PwCtl>
+                    <input
+                      className="pw-input"
+                      inputMode="numeric"
+                      value={monthDay}
+                      aria-label={t("cron.dayOfMonth")}
+                      onChange={(event) => setMonthDay(event.target.value.replace(/[^0-9]/g, ""))}
+                      style={{ minWidth: 0, width: 80, fontVariantNumeric: "tabular-nums" }}
+                    />
+                  </PwCtl>
+                </ConfigField>
+              ) : (
+                <>
+                  <ConfigField label={t("cron.weekday")}>
+                    <PwSelectBox
+                      value={String(monthWeekday)}
+                      ariaLabel={t("cron.weekday")}
+                      options={WEEKDAY_KEYS.map((key, index) => ({ value: String(index), label: t(`cron.weekday.${key}`) }))}
+                      onChange={(next) => setMonthWeekday(Number(next))}
+                    />
+                  </ConfigField>
+                  <ConfigField label={t("cron.ordinal")}>
+                    <PwSelectBox
+                      value={String(monthOrdinal)}
+                      ariaLabel={t("cron.ordinal")}
+                      options={ORDINALS.map((ordinal) => ({ value: String(ordinal), label: t(`cron.ordinal.${ordinal}`) }))}
+                      onChange={(next) => setMonthOrdinal(Number(next))}
+                    />
+                  </ConfigField>
+                </>
+              )}
+            </>
+          )}
+          {mode === "yearly" && (
+            <>
+              <ConfigField label={t("cron.month")}>
+                <PwSelectBox
+                  value={String(yearMonth)}
+                  ariaLabel={t("cron.month")}
+                  options={MONTH_KEYS.map((key, index) => ({ value: String(index + 1), label: t(`cron.month.${key}`) }))}
+                  onChange={(next) => setYearMonth(next)}
+                />
+              </ConfigField>
+              <ConfigField label={t("cron.dayOfMonth")}>
+                <PwCtl>
+                  <input
+                    className="pw-input"
+                    inputMode="numeric"
+                    value={yearDay}
+                    aria-label={t("cron.dayOfMonth")}
+                    onChange={(event) => setYearDay(event.target.value.replace(/[^0-9]/g, ""))}
+                    style={{ minWidth: 0, width: 80, fontVariantNumeric: "tabular-nums" }}
+                  />
+                </PwCtl>
+              </ConfigField>
+            </>
+          )}
+          {mode !== "once" && (
+            <ConfigField label={t("cron.endDate")}>
+              <PwCtl>
+                <input
+                  className="pw-input"
+                  type="date"
+                  value={endDate}
+                  aria-label={t("cron.endDate")}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  style={{ minWidth: 0, width: 160 }}
+                />
+              </PwCtl>
+            </ConfigField>
+          )}
+
+          {mode !== "once" && <p className="pw-hint">{t("cron.endDateHint")}</p>}
+
+          {mode === "weekly" && (
+            <ConfigField label={t("cron.weekday")}>
+              {/* 画板 44 的 `.pw-radio` 芯片组（`.is-on` = 选中）；这里多选，
+                  所以用 aria-pressed 而不是 radiogroup。 */}
+              <span className="pw-radio">
+                {WEEKDAY_KEYS.map((key, index) => {
+                  const active = weekdays.includes(index);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={active}
+                      className={active ? "is-on" : undefined}
+                      onClick={() => setWeekdays((current) => (active ? current.filter((day) => day !== index) : [...current, index].sort()))}
+                    >
+                      {t(`cron.weekday.${key}`)}
+                    </button>
+                  );
+                })}
+              </span>
+            </ConfigField>
+          )}
+
+          {mode === "cron" && (
+            <>
+              <ConfigField label={t("cron.expression")}>
+                <PwCtl>
+                  <input
+                    className="pw-input pw-mono"
+                    value={expression}
+                    aria-label={t("cron.expression")}
+                    aria-describedby="cron-expression-help"
+                    onChange={(event) => setExpression(event.target.value)}
+                    placeholder="*/5 * * * *"
+                    style={{ minWidth: 0, flex: 1, fontVariantNumeric: "tabular-nums" }}
+                  />
+                </PwCtl>
+              </ConfigField>
+              <p id="cron-expression-help" className="pw-hint">{t("cron.expressionHelp")}</p>
+              <ConfigSectionTitle>{t("cron.examples")}</ConfigSectionTitle>
+              <ConfigSidebarList>
+                {CRON_EXAMPLES.map((example) => (
+                  <ConfigSidebarItem
+                    key={example.expression}
+                    active={expression === example.expression}
+                    onClick={() => setExpression(example.expression)}
+                  >
+                    <span className="grow">
+                      <span className="pw-lname pw-mono">{example.expression}</span>
+                      <span className="pw-lsub">{t(example.labelKey)}</span>
+                    </span>
+                  </ConfigSidebarItem>
+                ))}
+              </ConfigSidebarList>
+            </>
+          )}
+
+          {mode !== "cron" && mode !== "once" && (
+            compiledResult?.ok ? (
+              <ConfigField label={t("cron.compiled")}>
+                <PwCtl>
+                  <span className="pw-mono">{compiledResult.expression}</span>
+                </PwCtl>
+              </ConfigField>
+            ) : (
+              <div className="pw-alert" role="status">
+                <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+                <span className="grow">
+                  {t("cron.ruleInvalid", { error: compiledResult && !compiledResult.ok ? compiledResult.error : "" })}
+                </span>
+              </div>
+            )
+          )}
+          {mode !== "cron" && mode !== "once" && compiledResult?.ok && (
+            <p className="pw-hint">{t("cron.compiledHint")}</p>
+          )}
+
+          <ConfigField label={t("cron.windowStart")}>
+            <PwCtl>
+              <input
+                className="pw-input"
+                type="time"
+                value={idleStart}
+                aria-label={t("cron.windowStart")}
+                onChange={(event) => setIdleStart(event.target.value)}
+                style={{ minWidth: 0, width: 140 }}
+              />
+              {(idleStart || idleEnd) && (
+                <ConfigButton
+                  variant="ghost"
+                  size="small"
+                  onClick={() => { setIdleStart(""); setIdleEnd(""); }}
+                >
+                  {t("cron.windowClear")}
+                </ConfigButton>
+              )}
+            </PwCtl>
+          </ConfigField>
+          <ConfigField label={t("cron.windowEnd")}>
+            <PwCtl>
+              <input
+                className="pw-input"
+                type="time"
+                value={idleEnd}
+                aria-label={t("cron.windowEnd")}
+                onChange={(event) => setIdleEnd(event.target.value)}
+                style={{ minWidth: 0, width: 140 }}
+              />
+            </PwCtl>
+          </ConfigField>
+          <ConfigField label={t("cron.timezone")}>
+            <PwSelectBox
+              value={timezone}
+              ariaLabel={t("cron.timezone")}
+              options={[
+                { value: "host", label: t("cron.timezoneHost") },
+                ...zones.map((zone) => ({ value: zone, label: zone })),
+              ]}
+              onChange={setTimezone}
+            />
+          </ConfigField>
+          <p className="pw-hint">{t("cron.windowHint")}</p>
+
+          <ConfigField label={t("cron.enabled")}>
+            <ConfigSwitch label={t("cron.enabled")} checked={taskEnabled} onChange={setTaskEnabled} />
+          </ConfigField>
+
+          <ConfigDetailActions>
+            <span className="pw-grow" aria-hidden="true" />
+            <ConfigButton
+              variant="primary"
+              disabled={!prompt.trim() || !taskCwd.trim() || (mode !== "once" && mode !== "cron" && !compiledResult?.ok)}
+              onClick={() => void create()}
+            >
+              {t("cron.create")}
+            </ConfigButton>
+          </ConfigDetailActions>
+          <p className="pw-hint">{t("cron.hint")}</p>
+        </ConfigDetail>
+      </ConfigSplitView>
+
+      {error && (
+        <div className="pw-alert" role="alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{error}</span>
+        </div>
+      )}
+    </>
   );
 }

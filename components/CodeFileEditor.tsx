@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { useEffect, useRef, useState } from "react";
+import { defaultKeymap, history, historyKeymap, indentWithTab, undo } from "@codemirror/commands";
 import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
@@ -116,18 +116,20 @@ function languageExtension(filePath: string): Extension {
   }
 }
 
+// fork:design-components —— 编辑器配色不再读产品自己的色槽，全部取画板 token
+// （画板 52 的 `.pw-code-body` / `.pw-diff-body` 就是这一组）。
 const editorTheme = EditorView.theme({
   "&": {
     height: "100%",
     minHeight: "100%",
-    color: "var(--text)",
-    backgroundColor: "var(--bg)",
-    fontSize: "13px",
+    color: "var(--n-text)",
+    backgroundColor: "var(--surface-canvas)",
+    fontSize: "var(--text-mono)",
   },
   ".cm-scroller": {
     overflow: "auto",
     fontFamily: "var(--font-mono)",
-    lineHeight: "1.6",
+    lineHeight: "1.7",
   },
   ".cm-content": {
     minHeight: "100%",
@@ -137,15 +139,15 @@ const editorTheme = EditorView.theme({
     padding: "0 16px",
   },
   ".cm-gutters": {
-    color: "var(--text-dim)",
-    backgroundColor: "var(--bg-panel)",
-    borderRight: "1px solid var(--border)",
+    color: "var(--n-placeholder)",
+    backgroundColor: "var(--surface-panel)",
+    borderRight: "1px solid var(--n-border-subtle)",
   },
   ".cm-activeLineGutter": {
-    backgroundColor: "var(--bg-selected)",
+    backgroundColor: "var(--overlay-selected)",
   },
   ".cm-activeLine": {
-    backgroundColor: "color-mix(in srgb, var(--bg-selected) 42%, transparent)",
+    backgroundColor: "var(--overlay-selected)",
   },
   ".cm-selectionBackground, ::selection": {
     backgroundColor: "color-mix(in srgb, var(--accent) 30%, transparent) !important",
@@ -168,6 +170,8 @@ export default function CodeFileEditor({
 }: Props) {
   const { t } = useI18n();
   const { sync, state } = useTextFile(filePath, content, sourceSessionId, watchEnabled);
+  // 画板 52 帧 A 的 `.pw-card-foot` 读数：行列来自编辑器自己的 update，不另开数据流。
+  const [cursor, setCursor] = useState<readonly [number, number]>([1, 1]);
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const editorPathRef = useRef(filePath);
@@ -285,6 +289,9 @@ export default function CodeFileEditor({
             if (update.docChanged && !update.transactions.some((transaction) => transaction.annotation(externalChange))) {
               sync.edit(update.state.doc.toString());
             }
+            const head = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(head);
+            setCursor((previous) => (previous[0] === line.number && previous[1] === head - line.from + 1 ? previous : [line.number, head - line.from + 1] as const));
             notifySelection(view);
           }),
         ],
@@ -357,33 +364,90 @@ export default function CodeFileEditor({
     });
   }, [state.content]);
 
+  // fork:design-components —— 画板 52 帧 A（编辑中）/ 帧 B（保存冲突）：
+  // 外壳 `.pw-viewer`，头是 `.pw-viewer-head`（路径 + 类型徽章 + 一个状态徽章 + 撤销/保存），
+  // 冲突片段是 `.pw-detail` + `.pw-litem`，保存失败是 `.pw-alert`，
+  // 底是 `.pw-card-foot`（行列 · 类型 · EOL · 编码）。尺寸/字号/圆角只有一个来源。
+  const typeLabel = getFileExt(filePath).replace(/^\./, "").toUpperCase();
+  const hasConflicts = state.conflicts.length > 0;
+  const unsaved = sync?.dirty ?? false;
+
   return (
-    <div className="code-file-editor-shell">
+    <div className="pw-viewer">
+      <div className="pw-viewer-head">
+        <span className="pw-ico"><i data-ico={hasConflicts ? "triangle-alert" : "file-code"} data-size="13"></i></span>
+        <span className="pw-mono">{getFileName(filePath)}</span>
+        {typeLabel && <span className="pw-badge">{typeLabel}</span>}
+        {hasConflicts && <span className="pw-badge warn">{t("files.conflict")}</span>}
+        {!hasConflicts && unsaved && <span className="pw-badge warn">{t("files.unsavedChanges")}</span>}
+        <span className="grow" />
+        <button
+          type="button"
+          className="pw-btn sm"
+          title={t("models.catalogUndo")}
+          aria-label={t("models.catalogUndo")}
+          onClick={() => { const view = viewRef.current; if (view) undo(view); }}
+        >
+          <span className="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>
+        </button>
+        <button
+          type="button"
+          className="pw-btn primary sm"
+          onClick={() => void sync?.save()}
+          disabled={state.saving || !unsaved}
+        >
+          <span className="pw-ico"><i data-ico="save" data-size="13"></i></span>
+          {t("files.saveFile")}
+        </button>
+      </div>
+
       {state.error && (
-        <div className="markdown-sync-notice" role="alert">
+        <div className="pw-alert" role="alert">
           <span>{t("files.textSaveFailed")} {state.error}</span>
-          <button type="button" onClick={() => sync?.retry()}>{t("files.textRetry")}</button>
+          <span className="grow" />
+          <button type="button" className="pw-btn sm" onClick={() => sync?.retry()}>{t("files.textRetry")}</button>
         </div>
       )}
-      {state.conflicts.length > 0 && (
-        <details className="markdown-sync-notice">
-          <summary>{t("files.textConflict")}</summary>
+
+      {hasConflicts && (
+        <div className="pw-detail">
+          <h3>{t("files.textConflict")}</h3>
           {state.conflicts.map((conflict) => (
-            <div className="markdown-conflict" key={conflict.key}>
-              <pre>{conflict.local}</pre>
-              <button type="button" onClick={() => sync?.resolve(conflict.key, "local")}>{t("files.textKeepLocal")}</button>
-              <pre>{conflict.external}</pre>
-              <button type="button" onClick={() => sync?.resolve(conflict.key, "external")}>{t("files.textUseExternal")}</button>
+            <div key={conflict.key} style={{ display: "grid", gap: "var(--s2)", marginTop: "var(--s2)" }}>
+              <pre className="pw-code-body grow">{conflict.local}</pre>
+              <button
+                type="button"
+                className="pw-btn sm"
+                onClick={() => sync?.resolve(conflict.key, "local")}
+              >
+                {t("files.textKeepLocal")}
+              </button>
+              <pre className="pw-code-body grow">{conflict.external}</pre>
+              <button
+                type="button"
+                className="pw-btn sm"
+                onClick={() => sync?.resolve(conflict.key, "external")}
+              >
+                {t("files.textUseExternal")}
+              </button>
             </div>
           ))}
-        </details>
+        </div>
       )}
+
       <div
         ref={host}
-        className="code-file-editor"
+        className="pw-code-body grow"
         aria-label={getFileName(filePath)}
         data-saving={state.saving ? "true" : "false"}
       />
+
+      <div className="pw-card-foot">
+        <span className="pw-ico pw-dim"><i data-ico="circle" data-size="12"></i></span>
+        <span>Ln {cursor[0]} · Col {cursor[1]}</span>
+        <span className="grow" />
+        <span>{typeLabel} · {state.content.includes("\r\n") ? "CRLF" : "LF"}, "UTF-8"</span>
+      </div>
     </div>
   );
 }

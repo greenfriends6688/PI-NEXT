@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, memo, useContext, useMemo, useRef, type ComponentProps, type MouseEvent } from "react";
+import { Children, createContext, memo, useContext, useMemo, useRef, type ComponentProps, type MouseEvent } from "react";
 import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import { parsePdfPageFragment, resolveLocalFileHref, shouldOpenLinkInApp, shouldOpenLocalFileInApp } from "@/lib/file-links";
 import { encodeFilePathForApi } from "@/lib/file-paths";
@@ -13,6 +13,37 @@ import { useOpenLink } from "./LinkOpenContext";
 import { MermaidBlock, CodeBlock } from "./MermaidBlock";
 
 const MarkdownLinkContext = createContext(false);
+
+function hastClassNames(node: ExtraProps["node"]): string[] {
+  const className = node?.properties?.className;
+  return Array.isArray(className) ? className.map(String) : [];
+}
+
+/**
+ * GFM 的勾选框在紧凑项里是 <li> 的首个元素子节点，在松散项里则包在首个 <p> 内
+ * （且前面还有一个换行文本节点）—— 两种位置都要找到，否则松散项拿不到 `checked`，
+ * 也就挂不上画板的 `.box.done`。
+ */
+function taskItemChecked(node: ExtraProps["node"]): boolean {
+  const first = node?.children?.find((child) => child.type !== "text" || child.value.trim() !== "");
+  if (!first || first.type !== "element") return false;
+  const box = first.tagName === "input"
+    ? first
+    : first.tagName === "p"
+      ? first.children?.find((child) => child.type === "element" && child.tagName === "input")
+      : undefined;
+  return Boolean(box?.type === "element" && box.properties?.checked);
+}
+
+/** 松散任务列表项的正文是块级（<p> / <ul> …），不能塞进画板那个 <span> 里。 */
+function hasBlockLevelChild(node: ExtraProps["node"]): boolean {
+  return (node?.children ?? []).some((child) => {
+    if (child.type !== "element") return false;
+    return child.tagName !== "input" && child.tagName !== "code" && child.tagName !== "del"
+      && child.tagName !== "em" && child.tagName !== "strong" && child.tagName !== "a"
+      && child.tagName !== "br" && child.tagName !== "img";
+  });
+}
 
 /**
  * fork:open-link-in-app — 外链渲染。
@@ -66,8 +97,10 @@ function MarkdownImage({
   // eslint-disable-next-line @next/next/no-img-element
   const image = <img src={imageSrc} alt={alt ?? ""} loading="lazy" {...props} />;
   if (!imageSrc || insideLink) return image;
+  // fork:design-components —— 去掉 `markdown-image`：仓库里没有任何 CSS 命中它
+  // （app/*.css 全无该选择器），按钮外观由 ImagePreview 自己的内联样式承担。
   return (
-    <ImagePreview src={imageSrc} alt={alt ?? ""} className="markdown-image">
+    <ImagePreview src={imageSrc} alt={alt ?? ""}>
       {image}
     </ImagePreview>
   );
@@ -86,7 +119,7 @@ function buildMarkdownComponents(
   onOpenFile: ((filePath: string, page?: number) => void) | undefined,
 ): Components {
   return {
-    code({ className, children, ...props }) {
+    code({ className, children, node, ...props }) {
       const lang = className?.replace("language-", "").toLowerCase() ?? "";
       const raw = String(children);
       const isBlock = className?.includes("language-") || raw.includes("\n");
@@ -103,17 +136,70 @@ function buildMarkdownComponents(
         }
         return <CodeBlock code={raw.replace(/\n$/, "")} lang={lang} isStreaming={streaming} />;
       }
-      return (
-        <code
-          className="markdown-inline-code"
-          {...props}
-        >
-          {children}
-        </code>
-      );
+      // fork:design-components —— 行内代码就是画板 10:110 的裸 `<code>`，
+      // 芯片样式由 board.css:283 的 `.pw-md code` 给。`node` 是 react-markdown 的元数据。
+      void node;
+      return <code {...props}>{children}</code>;
     },
     pre({ children }) {
       return <>{children}</>;
+    },
+    // fork:design-components —— GFM 任务清单换成画板 10:130-134 的
+    // `<ul class="pw-tasklist">` + `<li class="done">` + `<span class="box done">`。
+    // GFM 给的是 `<ul.contains-task-list>` + `<li.task-list-item>` + 原生 checkbox。
+    ul({ node, children, ...props }) {
+      const isTaskList = hastClassNames(node).includes("contains-task-list");
+      return <ul {...props} className={isTaskList ? "pw-tasklist" : undefined}>{children}</ul>;
+    },
+    li({ node, children, ...props }) {
+      if (!hastClassNames(node).includes("task-list-item")) {
+        return <li {...props}>{children}</li>;
+      }
+      // 画板 10:130-133 的行内结构：`<li class="done"><span class="box done">…</span><span>…</span></li>`。
+      // 勾选态取自 GFM 塞在 <li> 首位的那个 `<input checked>`，由下面的 `input` 渲染成 `.box`。
+      // 松散列表项里 children 可能是块级（<p>/<ul>），塞进 <span> 会让 HTML 解析器拆标签，
+      // 那种情况保持原样交给 `.pw-md .pw-tasklist li` 的 flex 布局。
+      const done = taskItemChecked(node);
+      const [box, ...rest] = Children.toArray(children);
+      const body = hasBlockLevelChild(node)
+        ? rest
+        : [<span key="pw-tasklist-text">{rest}</span>];
+      return (
+        <li {...props} className={done ? "done" : undefined}>
+          {box}
+          {body}
+        </li>
+      );
+    },
+    // fork:design-components —— GFM 的原生 checkbox 换成画板 10:130-133 的
+    // `<span class="box done"><i data-ico="check" data-size="10"></i></span>`（纯展示，不可点，
+    // 与画板一致）。board.css:295-301 给 `.box` 定 14px 方框、`.box.done` 上强调色底。
+    input({ node, type, checked, ...props }: ComponentProps<"input"> & ExtraProps) {
+      void node;
+      if (type !== "checkbox") return <input type={type} checked={checked} {...props} />;
+      return (
+        <span className={checked ? "box done" : "box"}>
+          {checked && <i data-ico="check" data-size="10" />}
+        </span>
+      );
+    },
+    // fork:design-components —— 引用块 = 画板 10:135 的 `.pw-quote`（左 2px 竖线 + 弱化色）。
+    blockquote({ node, children, ...props }) {
+      void node;
+      return <blockquote {...props} className="pw-quote">{children}</blockquote>;
+    },
+    // fork:design-components —— rehype-katex 的两个根节点挂画板 10:177-179 的
+    // `.pw-math`（行内）/ `.pw-math.block`（块级）。
+    //
+    // 关键：`katex` / `katex-display` **必须保留**。katex.min.css 里有 370 条
+    // `.katex .xxx` 后代选择器（`.katex .base`、`.katex .mord` …），去掉根类名整套
+    // 数学排版就散架；`.katex-display > .katex` 也依赖这两个类同时存在。
+    // 所以这里只在原类名后面**追加** pw-math，不替换。
+    span({ node, className, ...props }) {
+      void node;
+      if (className === "katex-display") return <span {...props} className="katex-display pw-math block" />;
+      if (className === "katex") return <span {...props} className="katex pw-math" />;
+      return <span {...props} className={className} />;
     },
     a({ href, children, ...props }) {
       // `node` is react-markdown metadata, not a DOM attribute.
@@ -255,8 +341,10 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
   // 流式）回到原来的单棵 ReactMarkdown，保证结束态与一次性渲染结果完全一致。
   const streamingSplit = Boolean(isStreaming) && parts.length > 1;
 
+  // fork:design-components —— 助手正文容器 = 画板 10:105-140 的 `.pw-md`。
+  // 调用方传的 className（markdown-user-message / markdown-compaction-message 等）原样保留。
   return (
-    <div className={["markdown-body", className].filter(Boolean).join(" ")}>
+    <div className={["pw-md", className].filter(Boolean).join(" ")}>
       {streamingSplit ? (
         parts.map((part, index) => (
           <MarkdownPart

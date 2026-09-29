@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, Fragment, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getFileIcon, FolderIcon } from "./FileIcons";
 import {
@@ -99,6 +99,17 @@ interface ContextMenuTarget {
   name: string;
   isDir: boolean;
 }
+
+/** 树右键菜单每一项的图标名 —— 全部取自画板 30 的两份菜单（见 contextMenuItems）。 */
+type ContextMenuIconName =
+  | "download"
+  | "external-link"
+  | "file-archive"
+  | "file-plus"
+  | "folder-plus"
+  | "scissors"
+  | "square-pen"
+  | "trash-2";
 
 interface RenameState {
   fullPath: string;
@@ -241,12 +252,12 @@ function uploadFiles(
   });
 }
 
+/** 「插入为引用」的 @ 字形 = 画板 30 右键菜单里的 `at-sign`（行 306/324）。 */
 function MentionIcon({ size = 11 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
-    </svg>
+    <span className="pw-ico">
+      <i data-ico="at-sign" data-size={size} aria-hidden="true"></i>
+    </span>
   );
 }
 
@@ -575,9 +586,9 @@ function TreeNode({
           </span>
         )}
         {loading && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2" strokeLinecap="round">
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
-          </svg>
+          <span className="pw-ico pw-dim">
+            <i data-ico="loader-circle" data-size="10" className="animate-spin" aria-hidden="true"></i>
+          </span>
         )}
         {onAtMention && hovered && (
           <button
@@ -639,11 +650,9 @@ function TreeNode({
               textDecoration: "none",
             }}
           >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
+            <span className="pw-ico">
+              <i data-ico="download" data-size="11" aria-hidden="true"></i>
+            </span>
           </a>
         )}
       </div>
@@ -741,29 +750,18 @@ function RootSection({
 
   return (
     <div style={{ padding: "2px 4px" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          height: 22,
-          padding: "0 8px 0 10px",
-          fontSize: TEXT["2xs"],
-          color: "var(--text-dim)",
-        }}
-      >
-        <span
-          style={{
-            flexShrink: 0,
-            padding: "1px 6px",
-            borderRadius: "var(--radius-pill)",
-            border: "1px solid var(--border)",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
+      {/* fork:design-components —— 分区头 = 画板 30 树里那条 `.pw-inline`
+          （行 131-136 的骨架：徽章 + 弱化文字 + grow），只把「7 个改动」换成
+          「作用域 + 根目录名」。 */}
+      <div className="pw-inline" style={{ padding: "0 4px var(--s1)", gap: 4 }}>
+        <span className="pw-badge">
           {t(root.scope === "project" ? "files.scopeProject" : "files.scopeSession")}
         </span>
-        <span title={root.path} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span
+          className="pw-mono pw-dim pw-grow"
+          title={root.path}
+          style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
           {fileBrowserRootName(root.path)}
         </span>
       </div>
@@ -1195,12 +1193,25 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
     const parentDir = contextMenu.isDir
       ? contextMenu.fullPath
       : getFileDirectory(contextMenu.fullPath);
-    const items: Array<{ key: string; label: string; danger?: boolean; action: () => void }> = [];
+    /* fork:design-components —— 每项的图标与分组都取画板 30 的树右键菜单
+       （行 305-312 文件菜单 / 319-328 目录菜单）：危险项在末尾并单独成组，
+       图标是 `external-link` / `download` / `file-plus` / `folder-plus` /
+       `square-pen` / `file-archive` / `scissors` / `trash-2`。 */
+    const items: Array<{
+      key: string;
+      label: string;
+      icon: ContextMenuIconName;
+      danger?: boolean;
+      /** 画板 `.pw-sep`：这一项之前插一条分组线。 */
+      sepBefore?: boolean;
+      action: () => void;
+    }> = [];
     if (!contextMenu.isDir) {
       items.push(
         {
           key: "open",
           label: t("files.menuOpen"),
+          icon: "external-link",
           action: () => {
             setContextMenu(null);
             onOpenFile(contextMenu.fullPath, contextMenu.name);
@@ -1209,6 +1220,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         {
           key: "download",
           label: t("files.menuDownload"),
+          icon: "download",
           action: () => {
             setContextMenu(null);
             const anchor = document.createElement("a");
@@ -1225,16 +1237,20 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       {
         key: "new-file",
         label: t("files.menuNewFile"),
+        icon: "file-plus",
         action: () => startCreate(parentDir, "file"),
       },
       {
         key: "new-folder",
         label: t("files.menuNewFolder"),
+        icon: "folder-plus",
         action: () => startCreate(parentDir, "dir"),
       },
       {
         key: "rename",
         label: t("files.menuRename"),
+        icon: "square-pen",
+        sepBefore: true,
         action: () => {
           setContextMenu(null);
           setRenaming({ fullPath: contextMenu.fullPath, isDir: contextMenu.isDir, name: contextMenu.name, value: contextMenu.name });
@@ -1245,6 +1261,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       items.push({
         key: "extract",
         label: t("files.menuExtract"),
+        icon: "file-archive",
         action: () => void extractNode(contextMenu),
       });
     }
@@ -1252,12 +1269,15 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       {
         key: "compress",
         label: t("files.menuCompressZip"),
+        icon: "scissors",
         action: () => void compressNode(contextMenu),
       },
       {
         key: "delete",
         label: t("files.menuDelete"),
+        icon: "trash-2",
         danger: true,
+        sepBefore: true,
         action: () => void deleteNode(contextMenu),
       },
     );
@@ -1572,37 +1592,33 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   return (
     <div style={{ minHeight: "100%" }}>
       <input ref={uploadInputRef} type="file" multiple hidden onChange={handleUploadInput} />
-      <div style={{ display: "flex", alignItems: "center", gap: 2, padding: "3px 6px", borderBottom: "1px solid var(--border)" }}>
+      {/* fork:design-components —— 树内动作条 = 画板 30 的 `.pw-inline` + 一排
+          `.pw-iconbtn.sm`（头行那七个动作的同款按钮；新建文件 / 新建文件夹的
+          字形取右键菜单里的 `file-plus` / `folder-plus`）。hover / disabled
+          归 board.css，UA 归零归 `button.pw-iconbtn`。 */}
+      <div className="pw-inline" style={{ padding: "3px 6px", gap: 2, borderBottom: "1px solid var(--border)" }}>
         <button
           type="button"
+          className="pw-iconbtn sm"
           onClick={() => { setRenaming(null); startCreate(cwd, "file"); }}
           disabled={mutating || creating !== null}
           title={t("files.newFile")}
           aria-label={t("files.newFile")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 20, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M14 3v5h5" /><path d="M5 3h9l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M12 11v6" /><path d="M9 14h6" />
-          </svg>
+          <span className="pw-ico"><i data-ico="file-plus" data-size="13" aria-hidden="true"></i></span>
         </button>
         <button
           type="button"
+          className="pw-iconbtn sm"
           onClick={() => { setRenaming(null); startCreate(cwd, "dir"); }}
           disabled={mutating || creating !== null}
           title={t("files.newFolder")}
           aria-label={t("files.newFolder")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 20, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /><path d="M12 10v6" /><path d="M9 13h6" />
-          </svg>
+          <span className="pw-ico"><i data-ico="folder-plus" data-size="13" aria-hidden="true"></i></span>
         </button>
         {actionError && (
-          <span role="alert" style={{ flex: 1, minWidth: 0, fontSize: TEXT["2xs"], color: "var(--danger)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>
+          <span role="alert" className="pw-grow pw-dim" style={{ minWidth: 0, fontSize: "var(--text-meta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>
             {actionError}
           </span>
         )}
@@ -1625,7 +1641,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         </div>
       )}
       {watchDegraded && (
-        <div role="status" style={{ padding: "4px 8px", fontSize: TEXT.xs, color: "var(--text-dim)" }}>
+        <div role="status" className="pw-dim" style={{ padding: "4px 8px", fontSize: "var(--text-meta)" }}>
           {t("files.watchDegraded")}
         </div>
       )}
@@ -1635,17 +1651,15 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           <div role="status" aria-live="polite" aria-label={uploadPhase === "checking" ? t("files.checking") : t("files.uploading", { progress: uploadProgress })}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 14, color: "var(--text-muted)" }}>
               {uploadPhase === "checking" ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ animation: "spin 0.8s linear infinite" }} aria-hidden="true">
-                  <path d="M21 12a9 9 0 1 1-5.7-8.4" />
-                </svg>
+                <span className="pw-ico">
+                  <i data-ico="loader-circle" data-size="13" className="animate-spin" aria-hidden="true"></i>
+                </span>
               ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 16V4" />
-                  <path d="m7 9 5-5 5 5" />
-                  <path d="M5 20h14" />
-                </svg>
+                <span className="pw-ico">
+                  <i data-ico="upload" data-size="13" aria-hidden="true"></i>
+                </span>
               )}
-              {uploadPhase === "uploading" && <span style={{ fontSize: TEXT["2xs"] }}>{uploadProgress}%</span>}
+              {uploadPhase === "uploading" && <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>{uploadProgress}%</span>}
             </div>
             {uploadPhase === "uploading" && (
               <div style={{ height: 3, marginTop: 4, overflow: "hidden", borderRadius: "var(--radius-xs)", background: "var(--border)" }}>
@@ -1691,29 +1705,20 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 22, fontSize: TEXT.xs }}>
               <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
                 {uploadSummary.uploaded.length > 0 && (
-                  <span title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`} style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--success)" }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="m5 12 4 4L19 6" />
-                    </svg>
+                  <span className="pw-inline" style={{ gap: 3, color: "var(--success)" }} title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`}>
+                    <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true"></i></span>
                     <span>{uploadSummary.uploaded.length}</span>
                   </span>
                 )}
                 {uploadSummary.skipped.length > 0 && (
-                  <span title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`} style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--text-dim)" }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M8 12h8" />
-                    </svg>
+                  <span className="pw-inline pw-dim" style={{ gap: 3 }} title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`}>
+                    <span className="pw-ico"><i data-ico="circle-minus" data-size="13" aria-hidden="true"></i></span>
                     <span>{uploadSummary.skipped.length}</span>
                   </span>
                 )}
                 {uploadSummary.errors.length > 0 && (
-                  <span title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`} style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--danger)" }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M12 3 2.5 20h19L12 3Z" />
-                      <path d="M12 9v4" />
-                      <path d="M12 17h.01" />
-                    </svg>
+                  <span className="pw-inline" style={{ gap: 3, color: "var(--danger)" }} title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`}>
+                    <span className="pw-ico"><i data-ico="triangle-alert" data-size="13" aria-hidden="true"></i></span>
                     <span>{uploadSummary.errors.length}</span>
                   </span>
                 )}
@@ -1733,12 +1738,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               <DismissButton onClick={() => setUploadSummary(null)} title={t("files.dismissUploadResults")} />
             </div>
             {uploadSummary.errors.map((item) => (
-              <div key={item.name} title={item.error} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, minWidth: 0, fontSize: TEXT["2xs"], color: "var(--danger)" }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 8v5" />
-                  <path d="M12 17h.01" />
-                </svg>
+              <div key={item.name} title={item.error} className="pw-inline" style={{ gap: 4, marginTop: 3, minWidth: 0, fontSize: "var(--text-meta)", color: "var(--danger)" }}>
+                <span className="pw-ico"><i data-ico="circle-alert" data-size="11" aria-hidden="true"></i></span>
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
               </div>
             ))}
@@ -1750,9 +1751,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       {fileSearchOpen && (
       <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ position: "relative" }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)", pointerEvents: "none" }}>
-            <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
-          </svg>
+          <span className="pw-ico pw-dim" style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+            <i data-ico="search" data-size="12" aria-hidden="true"></i>
+          </span>
           <input
             ref={searchInputRef}
             value={searchQuery}
@@ -1760,21 +1761,18 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             onKeyDown={(event) => { if (event.key === "Escape") onFileSearchOpenChange?.(false); }}
             placeholder={t("sidebar.searchFilesPlaceholder")}
             aria-label={t("sidebar.searchFiles")}
-            style={{ width: "100%", boxSizing: "border-box", padding: "6px 24px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", outline: "none", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: TEXT.xs }}
+            style={{ width: "100%", boxSizing: "border-box", padding: "6px 24px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", outline: "none", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
           />
           {searchQuery && (
             <button
               type="button"
+              className="pw-iconbtn sm"
               onClick={() => setSearchQuery("")}
               title={t("sidebar.clearSearch")}
               aria-label={t("sidebar.clearSearch")}
-              style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, padding: 0, border: "none", borderRadius: "var(--radius-xs)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--text)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-dim)"; }}
+              style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)" }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-              </svg>
+              <span className="pw-ico"><i data-ico="x" data-size="11" aria-hidden="true"></i></span>
             </button>
           )}
         </div>
@@ -1782,7 +1780,19 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           <div style={{ paddingTop: 3 }}>
             {searchLoading && <div role="status" style={{ padding: "6px 2px", fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("sidebar.searchingFiles")}</div>}
             {!searchLoading && searchError && <div role="alert" style={{ padding: "6px 2px", fontSize: TEXT["2xs"], color: "var(--danger)" }}>{t("i18n.networkError")}</div>}
-            {!searchLoading && !searchError && searchPaths.length === 0 && <div style={{ padding: "6px 2px", fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("sidebar.noMatchingFiles")}</div>}
+            {!searchLoading && !searchError && searchPaths.length === 0 && (
+              /* 同画板 30 行 266-272 的「过滤无结果」那一格。 */
+              <div className="pw-empty">
+                <div className="pw-empty-inner" style={{ gap: "var(--s2)" }}>
+                  <span className="mark" style={{ width: 32, height: 32 }}>
+                    <span className="pw-ico">
+                      <i data-ico="folder-search" data-size="16" aria-hidden="true"></i>
+                    </span>
+                  </span>
+                  <p style={{ fontSize: "var(--text-secondary)" }}>{t("sidebar.noMatchingFiles")}</p>
+                </div>
+              </div>
+            )}
             {!searchLoading && !searchError && searchPaths.length > 0 && (
               <div>
                 {searchRoots.map((node) => (
@@ -1830,19 +1840,31 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
 
       {!changesCollapsed && gitFiles.length > 0 && (
         <div style={{ padding: "0 4px 2px" }}>
+          {/* fork:design-components —— 改动分组头 = 画板 30 行 131-136：
+              `.pw-inline` 一行 = `.pw-badge.count`（git-commit-horizontal + 数量）
+              + `.pw-dim` 说明文字 + 右侧弱化的展开箭头。增删行数沿用
+              GIT_STATUS_COLORS（success / danger 语义色，与画板一致）。 */}
           <div
+            className="pw-inline"
             aria-label={t("files.changeStats", {
               count: gitFiles.length,
               additions: gitLineStats.additions,
               deletions: gitLineStats.deletions,
             })}
-            style={{ display: "flex", alignItems: "center", gap: 6, height: 24, padding: "0 10px", fontSize: TEXT.sm }}
+            style={{ padding: "0 4px var(--s1)", gap: 4 }}
           >
-            <span style={{ color: "var(--text-dim)" }}>
+            <span className="pw-badge count">
+              <span className="pw-ico">
+                <i data-ico="git-commit-horizontal" data-size="11" aria-hidden="true"></i>
+              </span>
+              {gitFiles.length}
+            </span>
+            <span className="pw-dim" style={{ fontSize: "var(--text-meta)" }}>
               {t("files.changedCount", { count: gitFiles.length })}
             </span>
-            <span style={{ color: GIT_STATUS_COLORS.added, fontFamily: "var(--font-mono)" }}>+{gitLineStats.additions}</span>
-            <span style={{ color: GIT_STATUS_COLORS.deleted, fontFamily: "var(--font-mono)" }}>-{gitLineStats.deletions}</span>
+            <span className="pw-grow" />
+            <span className="pw-mono" style={{ color: GIT_STATUS_COLORS.added }}>+{gitLineStats.additions}</span>
+            <span className="pw-mono" style={{ color: GIT_STATUS_COLORS.deleted }}>-{gitLineStats.deletions}</span>
           </div>
           {gitFiles.map((status) => (
             <ChangeRow
@@ -1902,8 +1924,17 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             />
           ))}
           {!loading && !error && roots.length === 0 && (
-            <div style={{ padding: "8px 12px", fontSize: TEXT.xs, color: "var(--text-dim)" }}>
-              {t("files.noFiles")}
+            /* fork:design-components —— 空态 = 画板 30 行 267-272 的「文件树空态 /
+               过滤无结果」：`.pw-empty` > `.pw-empty-inner` > mark + 一句话。 */
+            <div className="pw-empty">
+              <div className="pw-empty-inner" style={{ gap: "var(--s2)" }}>
+                <span className="mark" style={{ width: 32, height: 32 }}>
+                  <span className="pw-ico">
+                    <i data-ico="folder-search" data-size="16" aria-hidden="true"></i>
+                  </span>
+                </span>
+                <p style={{ fontSize: "var(--text-secondary)" }}>{t("files.noFiles")}</p>
+              </div>
             </div>
           )}
         </div>
@@ -1918,43 +1949,36 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           />
           <div
             role="menu"
+            /* fork:design-components —— 菜单壳 = 画板 30 行 304-313 / 318-329 的
+               `.pw-pop`（框、圆角、阴影、底色、padding 全来自 board.css）；
+               行 = `.pw-prow`（图标槽 + 文字），分组之间是 `.pw-sep`。
+               定位值（fixed / left / top / z-index）仍是产品自己的：
+               菜单挂在 document.body 上，祖先没有 overflow 裁切问题。 */
+            className="pw-pop"
             style={{
               position: "fixed",
-              left: Math.min(contextMenu.x, (typeof window !== "undefined" ? window.innerWidth : 0) - 190),
+              left: Math.min(contextMenu.x, (typeof window !== "undefined" ? window.innerWidth : 0) - 230),
               top: Math.min(contextMenu.y, (typeof window !== "undefined" ? window.innerHeight : 0) - 40 - contextMenuItems.length * 30),
               zIndex: 1201,
-              minWidth: 168,
-              padding: "4px 0",
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-lg)",
-              boxShadow: "var(--shadow-popover)",
-              fontSize: TEXT.sm,
+              width: 230,
             }}
           >
             {contextMenuItems.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                role="menuitem"
-                onClick={item.action}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "6px 14px",
-                  border: "none",
-                  background: "none",
-                  textAlign: "left",
-                  color: item.danger ? "var(--danger)" : "var(--text)",
-                  cursor: "pointer",
-                  fontSize: TEXT.sm,
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-              >
-                {item.label}
-              </button>
+              <Fragment key={item.key}>
+                {item.sepBefore && <div className="pw-sep" />}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={item.action}
+                  className="pw-prow"
+                  style={item.danger ? { color: "var(--error)" } : undefined}
+                >
+                  <span className="pw-ico" style={item.danger ? { color: "var(--error)" } : undefined}>
+                    <i data-ico={item.icon} data-size="14" aria-hidden="true"></i>
+                  </span>
+                  {item.label}
+                </button>
+              </Fragment>
             ))}
           </div>
         </>,

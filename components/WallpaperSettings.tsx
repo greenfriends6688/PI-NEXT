@@ -164,7 +164,7 @@ export function WallpaperSettings({
 
       {/* 画板 40 的「当前壁纸」行：缩略图 + 更换 / 移除。没选图时只剩「选择图片」。 */}
       <PwField
-        label={t("settings.wallpaper")}
+        label={t("settings.wallpaperCurrent")}
         control={
           <PwCtl>
             {url ? <span className="pw-wallpaper-thumb" style={{ backgroundImage: `url(${url})` }} /> : null}

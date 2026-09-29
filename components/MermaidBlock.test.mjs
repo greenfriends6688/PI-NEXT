@@ -100,6 +100,65 @@ test("CodeBlock renders plain text without tokenization while streaming", () => 
   assert.match(html, /const x = 1;/);
 });
 
+test("fork:design-components — CodeBlock 是画板 10 的 .pw-code 卡片", () => {
+  const html = renderCode({ code: "const x = 1;", lang: "ts" });
+
+  assert.match(html, /<div class="pw-code">/);
+  assert.match(html, /<div class="pw-code-head">/);
+  assert.match(html, /<i data-ico="file-code" data-size="13">/);
+  assert.match(html, /<span class="pw-mono">ts<\/span>/);
+  assert.match(html, /<span class="grow"><\/span>/);
+  assert.match(html, /<button type="button" class="pw-btn sm">/);
+  assert.match(html, /<pre class="pw-code-body">/);
+  // 卡片上不许再留 markdown-* 自有类，也不许有内联视觉值。
+  assert.doesNotMatch(html, /markdown-/);
+  assert.doesNotMatch(html, /style="/);
+});
+
+test("fork:design-components — 复制钮在成功后换成 check 图标（与画板 10:156 一致）", () => {
+  const source = readFileSync(new URL("./MermaidBlock.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /<i data-ico=\{copied \? "check" : "copy"\} data-size="13">/);
+  assert.match(source, /copied \? t\("i18n\.copied"\) : t\("i18n\.copy"\)/);
+});
+
+test("fork:design-components — Mermaid 图形态的头也是 .pw-code-head", () => {
+  const html = renderMermaid({ code: mermaidSrc, defaultPreview: true });
+
+  assert.match(html, /<div class="pw-code">/);
+  assert.match(html, /<div class="pw-code-head">/);
+  assert.match(html, /<i data-ico="git-fork" data-size="13">/);
+  assert.match(html, /<span class="pw-mono">mermaid<\/span>/);
+  assert.match(html, /<i data-ico="code" data-size="13">/);
+  assert.doesNotMatch(html, /markdown-/);
+});
+
+test("fork:design-components — 缩放器工具条用 lucide data-ico，不再手绘 svg", () => {
+  const source = readFileSync(new URL("./MermaidBlock.tsx", import.meta.url), "utf8");
+
+  assert.doesNotMatch(source, /<svg/);
+  for (const name of ["minus", "plus", "maximize-2", "x"]) {
+    assert.match(source, new RegExp(`<i data-ico="${name}" data-size="13">`));
+  }
+});
+
+test("fork:design-components — 高亮 token 映射到画板 10 的 .pw-tok-* 分层", async () => {
+  const { default: AsyncCodeHighlighter } = await jiti.import("./AsyncCodeHighlighter.tsx");
+  const html = renderToStaticMarkup(
+    React.createElement(AsyncCodeHighlighter, { language: "javascript" }, "const x = 1;\n// note"),
+  );
+
+  assert.match(html, /<pre class="pw-code-body">/);
+  assert.match(html, /<span class="ln">1<\/span>/);
+  assert.match(html, new RegExp('class="pw-tok-key">const<'));
+  assert.match(html, new RegExp('class="pw-tok-num">1<'));
+  assert.match(html, new RegExp('class="pw-tok-com">// note<'));
+  // 不许残留 RSH 的 prismjs 类、内联色或 token 类。
+  assert.doesNotMatch(html, /prismjs/);
+  assert.doesNotMatch(html, /class="token/);
+  assert.doesNotMatch(html, /style="/);
+});
+
 test("MermaidBlock handles Chinese characters in diagram", () => {
   const chineseMermaid = `sequenceDiagram
     participant PC as PC客户端

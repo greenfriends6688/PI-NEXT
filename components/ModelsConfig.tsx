@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { formatUpdatedTime } from "@/lib/i18n/format";
 import type { ModelCatalogPreset, ModelCatalogRecommendation } from "@/lib/model-catalog";
 import type { DiscoveredModel } from "@/lib/model-discovery";
 import {
@@ -24,6 +25,7 @@ import {
   type ModelCostKey,
 } from "./models-config-helpers";
 import {
+  ConfigBadge,
   ConfigButton,
   ConfigDetail,
   ConfigDetailActions,
@@ -33,15 +35,21 @@ import {
   ConfigEmptyState,
   ConfigField,
   ConfigFooter,
-  ConfigListAction,
+  ConfigKv,
   ConfigPanelShell,
   ConfigSectionTitle,
   ConfigSidebar,
+  ConfigSidebarGroupLabel,
   ConfigSidebarItem,
   ConfigSidebarList,
+  ConfigSidebarSub,
   ConfigSidebarText,
   ConfigSplitView,
+  ConfigStat,
+  ConfigStatGrid,
+  ConfigSwitch,
 } from "./SettingsUi";
+import { PwPageHead } from "./SettingsUi";
 import {
   EnabledModelsBanner,
   EnabledModelsProviderSwitch,
@@ -49,7 +57,7 @@ import {
   useEnabledModels,
   type EnabledModelsController,
 } from "./EnabledModelsSection";
-import { providerBadgeLabel } from "./enabled-models-helpers";
+import { findProviderView, providerBadgeLabel } from "./enabled-models-helpers";
 import { ProviderIcon } from "./ProviderIcon";
 import {
   PROVIDER_ICON_MODES,
@@ -62,6 +70,7 @@ import {
   type ProviderIconMode,
 } from "@/lib/provider-icon";
 import { ProviderUsageSummary } from "./ProviderUsageSummary";
+import { ProviderUsageCards } from "./fork/ProviderUsageCards";
 import {
   favoriteModelKey,
   getFavoriteModelsServerSnapshot,
@@ -198,10 +207,6 @@ const API_OPTIONS = ["openai-completions", "openai-responses", "anthropic-messag
 
 // ── Form field helpers ────────────────────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <ConfigField label={label}>{children}</ConfigField>;
-}
-
 const inputStyle = {
   padding: "6px 9px",
   background: "var(--bg-panel)",
@@ -312,16 +317,6 @@ function Select({ value, onChange, options, required }: { value: string; onChang
   );
 }
 
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: TEXT.sm, color: "var(--text-muted)" }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
-        style={{ width: 13, height: 13, accentColor: "var(--accent)", cursor: "pointer" }} />
-      {label}
-    </label>
-  );
-}
-
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <ConfigSectionTitle>{children}</ConfigSectionTitle>;
 }
@@ -419,12 +414,16 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
 
 // ── Provider detail ───────────────────────────────────────────────────────────
 
-function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddModels, enabledModels }: {
+function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune }: {
   name: string; provider: ProviderEntry;
   onChange: (p: ProviderEntry) => void; onRename: (n: string) => void; onDelete: () => void;
   onAddModels: (models: DiscoveredModel[]) => void; enabledModels: EnabledModelsController;
+  /** 画板 41 的「可用模型」是一行一个模型：点它就钻到模型详情。 */
+  onOpenModel: (index: number) => void;
+  onAddModel: () => void;
+  onPrune: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [editingName, setEditingName] = useState(name);
   const [discoveryState, setDiscoveryState] = useState<ModelDiscoveryState>({ phase: "idle" });
   const [discoveryQuery, setDiscoveryQuery] = useState("");
@@ -464,6 +463,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
         return;
       }
       setDiscoveryState({ phase: "success", models: data.models, endpoint: data.endpoint ?? provider.baseUrl });
+      setLastSync({ at: Date.now(), count: data.models.length });
     } catch (error) {
       if (requestId !== discoveryRequestIdRef.current) return;
       setDiscoveryState({ phase: "error", message: error instanceof Error ? error.message : String(error) });
@@ -512,161 +512,279 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
     setSelectedModelIds([]);
   };
 
+  /* fork:models-board —— 画板 41 的「可用模型」是**按名字过滤的开关行**，
+     头卡里那三行 `.pw-kv`（接口地址 / 认证方式 / 上次同步）也在这算。
+     「上次同步」是本次打开面板后真的成功导入过一次才有的事实，没有就明说没有。 */
+  const [lastSync, setLastSync] = useState<{ at: number; count: number } | null>(null);
+  const [modelFilter, setModelFilter] = useState("");
+  const authSummary = (() => {
+    const key = provider.apiKey?.trim();
+    if (!key) return t("models.kvAuthNotSet");
+    if (key.startsWith("!")) return t("models.kvAuthShell");
+    if (/^[A-Z][A-Z0-9_]*$/.test(key)) return t("models.kvAuthEnv", { name: key });
+    return t("models.kvAuthLiteral");
+  })();
+  const normalizedModelFilter = modelFilter.trim().toLocaleLowerCase();
+  const configuredModels = (provider.models ?? []).filter((model) => !normalizedModelFilter
+    || model.id.toLocaleLowerCase().includes(normalizedModelFilter)
+    || model.name?.toLocaleLowerCase().includes(normalizedModelFilter));
+  // A custom provider is switched as a whole (see `EnabledModelsProviderView.kind`),
+  // so its model list has no per-row switch to report — the badge counts what the
+  // runtime exposes for it instead.
+  const providerView = findProviderView(enabledModels.view, name);
+  const enabledCount = providerView?.enabledCount ?? 0;
+  const stalePatternCount = enabledModels.view?.stalePatterns.length ?? 0;
+  const modelSubtitle = (model: ModelEntry): string => {
+    const context = model.contextWindow
+      ? t("models.modelSubBare", { context: formatTokenLimit(model.contextWindow) })
+      : null;
+    if (model.cost?.input !== undefined && model.cost?.output !== undefined) {
+      const price = t("models.pricePerMillion", { input: String(model.cost.input), output: String(model.cost.output) });
+      return context ? t("models.modelSub", { context, price }) : price;
+    }
+    return context ?? "";
+  };
+
+  /* fork:models-board —— 画板 41 的右列是**三张独立的 `.pw-detail` 卡**
+     （供应商头卡 / 用量摘要 / 可用模型），不是一个撑满高度的巨卡。
+     可调参数全部保留，但归到第四张「连接与请求」卡里：头卡只回答
+     「它是谁、连到哪、上次什么时候同步的」。 */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <ConfigDetailHeader>
-        <ConfigDetailHeaderInfo>
-          <SectionTitle>{t("i18n.provider")}</SectionTitle>
-        </ConfigDetailHeaderInfo>
-        <ConfigDetailActions>
-          <EnabledModelsProviderSwitch providerId={name} controller={enabledModels} />
-          <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("i18n.delete")}</ConfigButton>
-        </ConfigDetailActions>
-      </ConfigDetailHeader>
+    <ConfigDetailStack>
+      <ConfigDetail>
+        <ConfigDetailHeader>
+          <ConfigDetailHeaderInfo>
+            <ProviderIcon id={name} size={22} />
+            <h3 style={{ margin: 0 }}>{name}</h3>
+            <ConfigBadge tone="count">{provider.api ?? "openai-completions"}</ConfigBadge>
+            <span className="pw-grow" aria-hidden="true" />
+            <EnabledModelsProviderSwitch providerId={name} controller={enabledModels} />
+            <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("i18n.delete")}</ConfigButton>
+          </ConfigDetailHeaderInfo>
+        </ConfigDetailHeader>
+        <ConfigKv>
+          <dt>{t("models.kvBaseUrl")}</dt>
+          <dd className="pw-mono">{provider.baseUrl || "—"}</dd>
+          <dt>{t("models.kvAuth")}</dt>
+          <dd>{authSummary}</dd>
+          <dt>{t("models.kvLastSync")}</dt>
+          <dd className="pw-mono">
+            {lastSync
+              ? `${formatUpdatedTime(lastSync.at, locale)} · ${t("models.discoveryFetched", { count: lastSync.count })}`
+              : t("models.neverSynced")}
+          </dd>
+        </ConfigKv>
+      </ConfigDetail>
 
-       <Field label={t("i18n.providerName")}>
-        <TextInput value={editingName} onChange={setEditingName} placeholder="provider-name" mono />
-        {editingName !== name && editingName.trim() && (
-          <button onClick={() => onRename(editingName.trim())}
-            style={{ marginTop: 4, padding: "4px 10px", background: "var(--primary-bg)", border: "none", borderRadius: "var(--radius-sm)", color: "var(--primary-fg)", cursor: "pointer", fontSize: TEXT.xs, alignSelf: "flex-start" }}>
-             {t("i18n.rename")}
-          </button>
-        )}
-      </Field>
+      <ConfigDetail>
+        <h3>{t("models.usageTitle")}</h3>
+        <ProviderUsageCards providerId={name} />
+      </ConfigDetail>
 
-      {/* D2-PR-20：provider 图标模式（auto/api/letter/emoji）。 */}
-      <Field label={t("models.providerIcon")}>
-        <ProviderIconModePicker providerId={name} api={provider.api} />
-      </Field>
-
-      <Field label="Base URL">
-        <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
-          placeholder="https://api.example.com/v1" mono />
-      </Field>
-
-      <Field label="API Key">
-        <SecretTextInput value={provider.apiKey ?? ""} onChange={(v) => set("apiKey", v || undefined)}
-          placeholder="ENV_VAR_NAME, !shell-command, or literal key" mono />
-        <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginTop: 2 }}>
-          Prefix with <code style={{ fontFamily: "var(--font-mono)" }}>!</code> to run a shell command, or use an env var name
-        </span>
-      </Field>
-
-      <Field label="API">
-        <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required />
-      </Field>
-
-      <Field label="Headers">
-        <HeaderListEditor
-          headers={provider.headers}
-          onChange={(headers) => set("headers", headers)}
-        />
-        <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginTop: 2 }}>
-          Added to every request from this provider (e.g. User-Agent). Useful for gateways with bot detection.
-        </span>
-      </Field>
-
-      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-        {discoveryState.phase !== "success" && (
-          <button
-            onClick={handleDiscoverModels}
+      <ConfigDetail>
+        <ConfigDetailHeader>
+          <h3 style={{ margin: 0 }}>{t("models.availableModels")}</h3>
+          <ConfigBadge tone="count">
+            {t("models.modelsCount", { count: provider.models?.length ?? 0, enabled: enabledCount })}
+          </ConfigBadge>
+          <span className="pw-grow" aria-hidden="true" />
+          <input
+            className="pw-input"
+            style={{ height: 24, minWidth: 120, flex: "0 1 160px" }}
+            value={modelFilter}
+            onChange={(event) => setModelFilter(event.target.value)}
+            placeholder={t("models.filterModels")}
+            aria-label={t("models.filterModels")}
+          />
+          <ConfigButton
+            variant="secondary"
+            size="small"
             disabled={!provider.baseUrl?.trim() || discoveryState.phase === "loading"}
-            style={{
-              alignSelf: "flex-start", height: 30, padding: "0 12px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)",
-              background: "var(--bg-panel)", color: !provider.baseUrl?.trim() || discoveryState.phase === "loading" ? "var(--text-dim)" : "var(--text-muted)",
-              cursor: !provider.baseUrl?.trim() || discoveryState.phase === "loading" ? "not-allowed" : "pointer", fontSize: TEXT.xs,
-            }}
+            onClick={handleDiscoverModels}
           >
-            {discoveryState.phase === "loading" ? t("models.discoveryFetching") : t("models.discoveryFetch")}
-          </button>
-        )}
+            <span className="pw-ico"><i data-ico="download" data-size="13"></i></span>
+            {discoveryState.phase === "loading" ? t("models.discoveryFetching") : t("models.importFromUpstream")}
+          </ConfigButton>
+        </ConfigDetailHeader>
 
-        {discoveryState.phase === "error" && (
-          <div style={{ padding: "7px 9px", border: "1px solid color-mix(in srgb, var(--danger) 35%, transparent)", borderRadius: "var(--radius-xs)", color: "var(--danger)", fontSize: TEXT.xs, lineHeight: 1.4 }}>
-            {discoveryState.message}
+        {configuredModels.length === 0 ? (
+          <p className="pw-hint">{provider.models?.length ? t("models.enabledNoMatches") : t("models.noModels")}</p>
+        ) : (
+          <div className="pw-list">
+            {configuredModels.map((model, index) => {
+              const subtitle = modelSubtitle(model);
+              return (
+                <div
+                  key={index}
+                  className="pw-litem models-provider-model-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpenModel(index)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    onOpenModel(index);
+                  }}
+                >
+                  <span className="grow">
+                    <ConfigSidebarText>{model.name || model.id || t("i18n.newModel")}</ConfigSidebarText>
+                    {subtitle ? <ConfigSidebarSub>{subtitle}</ConfigSidebarSub> : null}
+                  </span>
+                  {model.reasoning ? <ConfigBadge tone="accent">{t("models.badgePinnable")}</ConfigBadge> : null}
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {discoveryState.phase === "success" && (
-          <>
-            <input
-              value={discoveryQuery}
-              onChange={(event) => setDiscoveryQuery(event.target.value)}
-              placeholder={t("models.discoveryFilterPlaceholder", { count: discoveryState.models.length })}
-              aria-label={t("models.discoveryFilter")}
-              style={{ ...inputStyle, width: "100%", minWidth: 0 }}
-            />
+        <ConfigDetailHeader>
+          <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>
+            {t("models.enabledProjectScope")}
+          </span>
+          <span className="pw-grow" aria-hidden="true" />
+          <ConfigButton
+            size="small"
+            disabled={stalePatternCount === 0}
+            title={stalePatternCount === 0 ? undefined : t("models.pruneHint", { count: stalePatternCount })}
+            onClick={onPrune}
+          >
+            {t("models.pruneUnmatched")}
+          </ConfigButton>
+          <ConfigButton size="small" variant="ghost" onClick={onAddModel}>{t("i18n.addModel")}</ConfigButton>
+        </ConfigDetailHeader>
+      </ConfigDetail>
 
-            <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--bg-panel)" }}>
-              <label
-                style={{
-                  minHeight: 32, padding: "5px 9px", display: "flex", alignItems: "center", gap: 8,
-                  position: "sticky", top: 0, zIndex: 1, borderBottom: "1px solid var(--border)",
-                  background: "var(--bg)", cursor: selectableShownIds.length ? "pointer" : "default",
-                  color: "var(--text-muted)", fontSize: TEXT["2xs"], fontWeight: 600,
-                }}
-              >
+      {discoveryState.phase !== "idle" && (
+        <ConfigDetail>
+          <ConfigDetailHeader>
+            <h3 style={{ margin: 0 }}>{t("models.importFromUpstream")}</h3>
+            <span className="pw-grow" aria-hidden="true" />
+            {discoveryState.phase === "success" && (
+              <ConfigButton size="small" variant="ghost" onClick={() => setDiscoveryState({ phase: "idle" })}>
+                {t("i18n.close")}
+              </ConfigButton>
+            )}
+          </ConfigDetailHeader>
+
+          {discoveryState.phase === "error" && (
+            <div className="pw-alert">{discoveryState.message}</div>
+          )}
+
+          {discoveryState.phase === "success" && (
+            <>
+              <ConfigField label={t("models.discoveryFilter")}>
                 <input
-                  ref={selectShownRef}
-                  type="checkbox"
-                  checked={allShownSelected}
-                  disabled={selectableShownIds.length === 0}
-                  onChange={toggleShownModels}
-                  style={{ width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 }}
+                  className="pw-input"
+                  style={{ minWidth: 0 }}
+                  value={discoveryQuery}
+                  onChange={(event) => setDiscoveryQuery(event.target.value)}
+                  placeholder={t("models.discoveryFilterPlaceholder", { count: discoveryState.models.length })}
+                  aria-label={t("models.discoveryFilter")}
                 />
-                {t("models.discoverySelectShown")}
-              </label>
-              {shownDiscoveredModels.length === 0 ? (
-                <div style={{ padding: 12, color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("models.discoveryNoMatches")}</div>
-              ) : shownDiscoveredModels.map((model, index) => {
-                const alreadyAdded = existingModelIds.has(model.id);
-                const checked = selectedModelIds.includes(model.id);
-                return (
-                  <label
-                    key={model.id}
-                    style={{
-                      minHeight: 36, padding: "6px 9px", display: "flex", alignItems: "center", gap: 8,
-                      borderTop: index === 0 ? "none" : "1px solid var(--border)", cursor: alreadyAdded ? "default" : "pointer",
-                      opacity: alreadyAdded ? 0.65 : 1,
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked || alreadyAdded}
-                      disabled={alreadyAdded}
-                      onChange={() => toggleDiscoveredModel(model.id)}
-                      style={{ width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 }}
-                    />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text)", fontSize: TEXT.xs }}>{model.name ?? model.id}</span>
-                      {model.name && <code style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontFamily: "var(--font-mono)" }}>{model.id}</code>}
-                    </span>
-                    {alreadyAdded && <span style={{ color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>{t("models.discoveryAdded")}</span>}
-                  </label>
-                );
-              })}
-            </div>
+              </ConfigField>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <span title={discoveryState.endpoint} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>
-                {filteredDiscoveredModels.length > shownDiscoveredModels.length
-                  ? t("models.discoveryShowing", { shown: shownDiscoveredModels.length, total: filteredDiscoveredModels.length })
-                  : t("models.discoveryFetched", { count: discoveryState.models.length })}
-              </span>
-              <button
-                onClick={addSelectedModels}
-                disabled={selectedCount === 0}
-                style={{ height: 28, padding: "0 11px", border: "none", borderRadius: "var(--radius-xs)", background: selectedCount ? "var(--accent)" : "var(--bg-panel)", color: selectedCount ? "var(--accent-contrast)" : "var(--text-dim)", cursor: selectedCount ? "pointer" : "not-allowed", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
-              >
-                {selectedCount
-                  ? t("models.discoveryAddSelectedCount", { count: selectedCount })
-                  : t("models.discoveryAddSelected")}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+              <div className="pw-list models-discovery-list">
+                <label className="pw-litem models-discovery-row models-discovery-head">
+                  <input
+                    ref={selectShownRef}
+                    type="checkbox"
+                    checked={allShownSelected}
+                    disabled={selectableShownIds.length === 0}
+                    onChange={toggleShownModels}
+                    style={{ width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 }}
+                  />
+                  <ConfigSidebarText>{t("models.discoverySelectShown")}</ConfigSidebarText>
+                </label>
+                {shownDiscoveredModels.length === 0 ? (
+                  <p className="pw-hint">{t("models.discoveryNoMatches")}</p>
+                ) : shownDiscoveredModels.map((model) => {
+                  const alreadyAdded = existingModelIds.has(model.id);
+                  return (
+                    <label
+                      key={model.id}
+                      className={`pw-litem models-discovery-row${alreadyAdded ? " is-added" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedModelIds.includes(model.id) || alreadyAdded}
+                        disabled={alreadyAdded}
+                        onChange={() => toggleDiscoveredModel(model.id)}
+                        style={{ width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 }}
+                      />
+                      <span className="grow">
+                        <ConfigSidebarText>{model.name ?? model.id}</ConfigSidebarText>
+                        <ConfigSidebarSub>{model.id}</ConfigSidebarSub>
+                      </span>
+                      {alreadyAdded && <ConfigBadge>{t("models.discoveryAdded")}</ConfigBadge>}
+                    </label>
+                  );
+                })}
+              </div>
+
+              <ConfigDetailHeader>
+                <span
+                  title={discoveryState.endpoint}
+                  className="pw-mono pw-dim"
+                  style={{ fontSize: "var(--text-meta)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {filteredDiscoveredModels.length > shownDiscoveredModels.length
+                    ? t("models.discoveryShowing", { shown: shownDiscoveredModels.length, total: filteredDiscoveredModels.length })
+                    : t("models.discoveryFetched", { count: discoveryState.models.length })}
+                </span>
+                <span className="pw-grow" aria-hidden="true" />
+                <ConfigButton
+                  variant="primary"
+                  size="small"
+                  disabled={selectedCount === 0}
+                  onClick={addSelectedModels}
+                >
+                  {selectedCount
+                    ? t("models.discoveryAddSelectedCount", { count: selectedCount })
+                    : t("models.discoveryAddSelected")}
+                </ConfigButton>
+              </ConfigDetailHeader>
+            </>
+          )}
+        </ConfigDetail>
+      )}
+
+      <ConfigDetail>
+        <h3>{t("models.connectionTitle")}</h3>
+        <ConfigField label={t("i18n.providerName")}>
+          <TextInput value={editingName} onChange={setEditingName} placeholder="provider-name" mono />
+          {editingName !== name && editingName.trim() && (
+            <ConfigButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
+              {t("i18n.rename")}
+            </ConfigButton>
+          )}
+        </ConfigField>
+
+        {/* D2-PR-20：provider 图标模式（auto/api/letter/emoji）。 */}
+        <ConfigField label={t("models.providerIcon")}>
+          <ProviderIconModePicker providerId={name} api={provider.api} />
+        </ConfigField>
+
+        <ConfigField label={t("models.kvBaseUrl")}>
+          <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
+            placeholder="https://api.example.com/v1" mono />
+        </ConfigField>
+
+        <ConfigField label={t("models.apiKeyLabel")}>
+          <SecretTextInput value={provider.apiKey ?? ""} onChange={(v) => set("apiKey", v || undefined)}
+            placeholder="ENV_VAR_NAME, !shell-command, or literal key" mono />
+          <span className="pw-hint">{t("models.apiKeyHint")}</span>
+        </ConfigField>
+
+        <ConfigField label={t("models.apiLabel")}>
+          <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required />
+        </ConfigField>
+
+        <ConfigField label={t("models.headers")}>
+          <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
+          <span className="pw-hint">{t("models.providerHeadersHint")}</span>
+        </ConfigField>
+      </ConfigDetail>
+    </ConfigDetailStack>
   );
 }
 
@@ -1388,314 +1506,248 @@ function ModelDetail({
     ? advancedSummaryParts.join(" · ")
     : t("models.providerDefaults");
 
+  /* fork:models-board —— 画板 41 的模型详情是三张 `.pw-detail`：
+     ① 能力 / 规格 / 成本（可调参数）② 高级 ③ 测试连接。
+     画板把规格画成只读等宽数字，这里保留真输入框 + 快捷档位 —— 参数要能改才是设置页。 */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <ConfigDetailHeader>
-        <ConfigDetailHeaderInfo>
-          <SectionTitle>{t("i18n.model")}</SectionTitle>
-        </ConfigDetailHeaderInfo>
-        <ConfigDetailActions>
-          {testSummary && (
-            <span
-              title={testSummary}
-              style={{
-                maxWidth: 260,
-                height: 28,
-                padding: "0 8px",
-                // fork:dsn-08 — 测试状态胶囊原本用写死的浅色主题色，深色主题下刺眼；改走语义 token。
-                border: `1px solid ${testState.phase === "error" ? "var(--danger)" : testState.phase === "success" ? "var(--success)" : "var(--border)"}`,
-                borderRadius: "var(--radius-xs)",
-                background: testState.phase === "error" ? "var(--danger-soft)" : testState.phase === "success" ? "var(--success-soft)" : "var(--bg-panel)",
-                color: testState.phase === "error" ? "var(--danger)" : testState.phase === "success" ? "var(--success)" : "var(--text)",
-                fontSize: TEXT.xs,
-                display: "inline-flex",
-                alignItems: "center",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                boxSizing: "border-box",
-              }}
-            >
-              {testSummary}
-            </span>
-          )}
+    <ConfigDetailStack>
+      <ConfigDetail>
+        <ConfigDetailHeader>
+          <ConfigDetailHeaderInfo>
+            <h3 style={{ margin: 0 }}>{model.name || model.id || t("i18n.newModel")}</h3>
+            <ConfigBadge>{providerName}</ConfigBadge>
+            {model.reasoning ? <ConfigBadge tone="accent">{t("models.badgePinnable")}</ConfigBadge> : null}
+          </ConfigDetailHeaderInfo>
+        </ConfigDetailHeader>
+
+        <ConfigSectionTitle>{t("models.identity")}</ConfigSectionTitle>
+        <div className="pw-grid2">
+          <ConfigField label="ID *">
+            <TextInput value={model.id} onChange={(v) => set("id", v)} placeholder="model-id" mono />
+          </ConfigField>
+          <ConfigField label="Name">
+            <TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" />
+          </ConfigField>
+        </div>
+        <ConfigDetailHeader>
           <ConfigButton
             size="small"
-            variant={testState.phase === "success" ? "primary" : "secondary"}
-            onClick={testState.phase === "success" ? () => setTestState({ phase: "idle" }) : handleTest}
-            disabled={!model.id.trim() || testState.phase === "testing"}
-            title={t("i18n.testConnection")}
-            className={testState.phase === "success" ? "is-success" : undefined}
-          >
-            {testState.phase === "success" && (
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-             {testState.phase === "testing" ? t("i18n.checking") : testState.phase === "success" ? t("common.ok") : t("i18n.test")}
-          </ConfigButton>
-          <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("i18n.remove")}</ConfigButton>
-        </ConfigDetailActions>
-      </ConfigDetailHeader>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <Field label="ID *"><TextInput value={model.id} onChange={(v) => set("id", v)} placeholder="model-id" mono /></Field>
-        <Field label="Name"><TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" /></Field>
-      </div>
-
-      <div style={{ padding: "2px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <button
-            onClick={() => void handleCatalogFill()}
+            variant="secondary"
             disabled={!model.id.trim() || catalogState.phase === "loading"}
-            style={{
-              height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)",
-              background: "var(--bg-panel)",
-              color: !model.id.trim() || catalogState.phase === "loading" ? "var(--text-dim)" : "var(--text-muted)",
-              cursor: !model.id.trim() || catalogState.phase === "loading" ? "not-allowed" : "pointer",
-              fontSize: TEXT.xs,
-            }}
+            onClick={() => void handleCatalogFill()}
           >
             {catalogState.phase === "loading" ? t("models.catalogFilling") : t("models.catalogFill")}
-          </button>
+          </ConfigButton>
+          <span className="pw-grow" aria-hidden="true" />
           <a
             href="https://github.com/anomalyco/models.dev"
             target="_blank"
             rel="noreferrer"
-            style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: TEXT["2xs"], textDecoration: "none" }}
+            className="pw-hint"
           >
             {t("models.catalogSource")}
           </a>
-        </div>
-
+        </ConfigDetailHeader>
         {catalogStatusText && (
-          <div
-            aria-live="polite"
-            style={{
-              marginTop: 8, display: "flex", alignItems: "center",
-              justifyContent: "space-between", gap: 8, color: catalogStatusColor, fontSize: TEXT["2xs"],
-            }}
-          >
-            <span
-              title={catalogStatusText}
-              style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-            >
-              {catalogStatusText}
-            </span>
+          <div className="catalog-status" aria-live="polite" style={{ color: catalogStatusColor }}>
+            <span title={catalogStatusText} className="catalog-status-text">{catalogStatusText}</span>
             {catalogUndoRef.current && (
-              <button
-                onClick={undoCatalogFill}
-                style={{ flexShrink: 0, padding: "0 2px", border: "none", background: "none", color: "var(--accent)", cursor: "pointer", fontSize: TEXT["2xs"] }}
-              >
+              <button type="button" className="catalog-undo" onClick={undoCatalogFill}>
                 {t("models.catalogUndo")}
               </button>
             )}
           </div>
         )}
-      </div>
 
-      <div>
-        <SectionTitle>{t("models.capabilities")}</SectionTitle>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 8 }}>
-          <Check label={t("models.reasoning")} checked={model.reasoning ?? false} onChange={(v) => set("reasoning", v || undefined)} />
-          <Check label={t("models.imageInput")} checked={model.input?.includes("image") ?? false}
-            onChange={(v) => set("input", v ? ["text", "image"] : undefined)} />
-        </div>
-      </div>
+        <ConfigSectionTitle>{t("models.capabilities")}</ConfigSectionTitle>
+        <ConfigField label={t("models.reasoning")}>
+          <ConfigSwitch
+            checked={model.reasoning ?? false}
+            label={t("models.reasoning")}
+            onChange={(v) => set("reasoning", v || undefined)}
+          />
+        </ConfigField>
+        <ConfigField label={t("models.imageInput")}>
+          <ConfigSwitch
+            checked={model.input?.includes("image") ?? false}
+            label={t("models.imageInput")}
+            onChange={(v) => set("input", v ? ["text", "image"] : undefined)}
+          />
+        </ConfigField>
 
-      <section>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <SectionTitle>{t("models.modelSpecs")}</SectionTitle>
-          <button
-            type="button"
-            onClick={toggleCostEditing}
-            aria-expanded={costEditing}
-            style={{ padding: "2px 4px", border: "none", background: "transparent", color: "var(--accent)", cursor: "pointer", fontSize: TEXT["2xs"] }}
-          >
-            {costEditing ? t("models.finishEditingCosts") : t("models.editCosts")}
-          </button>
-        </div>
-
-        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
-          <Field label={t("models.contextWindow")}>
-            <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
-              onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
-            <LimitChips
-              value={model.contextWindow}
-              ladder={CONTEXT_WINDOW_LADDER}
-              catalogValue={catalogValue?.contextWindow}
-              onChange={(next) => set("contextWindow", next)}
-            />
-          </Field>
-          <Field label={t("models.maxOutputTokens")}>
-            <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
-              onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
-            <LimitChips
-              value={model.maxTokens}
-              ladder={MAX_OUTPUT_LADDER}
-              catalogValue={catalogValue?.maxTokens}
-              onChange={(next) => set("maxTokens", next)}
-            />
-          </Field>
-        </div>
-
+        <ConfigSectionTitle>{t("models.specs")}</ConfigSectionTitle>
+        <ConfigField label={t("models.contextWindow")}>
+          <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
+            onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
+          <LimitChips
+            value={model.contextWindow}
+            ladder={CONTEXT_WINDOW_LADDER}
+            catalogValue={catalogValue?.contextWindow}
+            onChange={(next) => set("contextWindow", next)}
+          />
+        </ConfigField>
+        <ConfigField label={t("models.maxOutputTokens")}>
+          <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
+            onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
+          <LimitChips
+            value={model.maxTokens}
+            ladder={MAX_OUTPUT_LADDER}
+            catalogValue={catalogValue?.maxTokens}
+            onChange={(next) => set("maxTokens", next)}
+          />
+        </ConfigField>
         {model.contextWindow !== undefined && model.maxTokens !== undefined && model.maxTokens > model.contextWindow && (
-          <div role="alert" style={{ marginTop: 8, fontSize: TEXT.xs, color: "var(--warning)" }}>
-            {t("models.maxTokensExceedsContext")}
-          </div>
+          <div role="alert" className="pw-alert" style={{ marginTop: 8 }}>{t("models.maxTokensExceedsContext")}</div>
         )}
 
-        <div style={{ marginTop: 14 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-              {t("models.samplingParams")}
-            </span>
-            <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("models.samplingParamsHint")}</span>
-          </div>
-          <SamplingParamsEditor
-            value={model.samplingParams}
-            onChange={(next) => set("samplingParams", next)}
-          />
-        </div>
+        <ConfigField label={t("models.samplingParams")} hint={t("models.samplingParamsHint")}>
+          <SamplingParamsEditor value={model.samplingParams} onChange={(next) => set("samplingParams", next)} />
+        </ConfigField>
 
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-            {t("models.costPerMillion")}
+        <ConfigSectionTitle>{t("models.costPerMillion")}</ConfigSectionTitle>
+        {costEditing ? (
+          <div className="pw-grid4">
+            {costFields.map(({ key, label }) => (
+              <ConfigField key={key} label={label}>
+                <NumInput value={costDraft[key]} onChange={(v) => setCost(key, v)} placeholder="0" />
+              </ConfigField>
+            ))}
           </div>
-          {costEditing ? (
-            <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8 }}>
-              {costFields.map(({ key, label }) => (
-                <Field key={key} label={label}>
-                  <NumInput value={costDraft[key]} onChange={(v) => setCost(key, v)} placeholder="0" />
-                </Field>
-              ))}
-              {hasModelCostDraftValue(costDraft) && !parseCompleteModelCost(costDraft) && (
-                <div aria-live="polite" style={{ gridColumn: "1 / -1", color: "var(--warning)", fontSize: TEXT["2xs"] }}>
-                  {t("models.costAllRequired")}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(105px, 1fr))", gap: "8px 16px" }}>
-              {costFields.map(({ key, label }) => {
-                const missing = model.cost?.[key] === undefined;
-                return (
-                  <div key={key} style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-                    <div style={{ marginTop: 3, color: missing ? "var(--text-dim)" : "var(--text)", fontSize: TEXT.sm, fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
-                      {formatCost(key)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
+        ) : (
+          <ConfigStatGrid>
+            {costFields.map(({ key, label }) => (
+              <ConfigStat
+                key={key}
+                label={label}
+                value={formatCost(key)}
+                /* 没填的这一格：值本身就是「未提供」，再补一句一样的只会重复。 */
+                hint={model.cost?.[key] === undefined ? null : t("models.costEditableHint")}
+              />
+            ))}
+          </ConfigStatGrid>
+        )}
+        {costEditing && hasModelCostDraftValue(costDraft) && !parseCompleteModelCost(costDraft) && (
+          <div aria-live="polite" className="pw-hint" style={{ color: "var(--warning)" }}>{t("models.costAllRequired")}</div>
+        )}
+        <ConfigDetailHeader>
+          <span className="pw-grow" aria-hidden="true" />
+          <ConfigButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>
+            {costEditing ? t("models.finishEditingCosts") : t("models.editCosts")}
+          </ConfigButton>
+        </ConfigDetailHeader>
+      </ConfigDetail>
 
-      <section style={{ borderTop: "1px solid var(--border)", paddingTop: 4 }}>
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen((open) => !open)}
-          aria-expanded={advancedOpen}
-          aria-controls="model-advanced-settings"
-          style={{
-            width: "100%", minHeight: 48, padding: "8px 0", border: "none", background: "transparent",
-            display: "grid", gridTemplateColumns: "minmax(0, 1fr) 18px", alignItems: "center", gap: 10,
-            color: "var(--text)", cursor: "pointer", textAlign: "left",
-          }}
-        >
-          <span style={{ minWidth: 0 }}>
-            <span style={{ display: "block", fontSize: TEXT.xs, fontWeight: 600 }}>{t("models.advancedSettings")}</span>
-            <span style={{ display: "block", marginTop: 3, color: "var(--text-dim)", fontSize: TEXT["2xs"], overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {advancedSummary}
-            </span>
-          </span>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ color: "var(--text-dim)", transform: advancedOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}
+      <ConfigDetail>
+        <ConfigDetailHeader>
+          <h3 style={{ margin: 0 }}>{t("models.advancedTitle")}</h3>
+          <span className="pw-grow" aria-hidden="true" />
+          <ConfigButton
+            size="small"
+            onClick={() => setAdvancedOpen((open) => !open)}
+            aria-expanded={advancedOpen}
+            aria-controls="model-advanced-settings"
           >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
+            {advancedOpen ? t("i18n.collapse") : t("i18n.expand")}
+          </ConfigButton>
+        </ConfigDetailHeader>
+        <p className="pw-hint">{advancedSummary}</p>
 
         {advancedOpen && (
-          <div id="model-advanced-settings" style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 0 16px" }}>
-            <Field label={t("models.apiOverride")}>
+          <div id="model-advanced-settings">
+            <ConfigField label={t("models.apiOverride")}>
               <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} />
-            </Field>
+            </ConfigField>
 
-            <Field label={t("models.headers")}>
-              <HeaderListEditor
-                headers={model.headers}
-                onChange={(headers) => set("headers", headers)}
+            <ConfigField label={t("models.headers")} hint={t("models.headersHelp")}>
+              <HeaderListEditor headers={model.headers} onChange={(headers) => set("headers", headers)} />
+            </ConfigField>
+
+            <ConfigSectionTitle>{t("models.compatibility")}</ConfigSectionTitle>
+            <ConfigField label={t("models.deepSeekThinkingCompat")}>
+              <ConfigSwitch
+                checked={hasDeepseekCompat(model)}
+                label={t("models.deepSeekThinkingCompat")}
+                onChange={(v) => onChange(setDeepseekCompat(model, v))}
               />
-              <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginTop: 2 }}>
-                {t("models.headersHelp")}
-              </span>
-            </Field>
+            </ConfigField>
+            <ConfigField label={t("models.developerRole")}>
+              <ConfigSwitch
+                checked={effectiveCompat(provider, model)["supportsDeveloperRole"] !== false}
+                label={t("models.developerRole")}
+                onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
+              />
+            </ConfigField>
 
             {model.reasoning && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <SectionTitle>{t("models.compatibility")}</SectionTitle>
-                <Check
-                  label={t("models.deepSeekThinkingCompat")}
-                  checked={hasDeepseekCompat(model)}
-                  onChange={(v) => onChange(setDeepseekCompat(model, v))}
+              <>
+                <ConfigSectionTitle>{t("models.thinkingLevelMap")}</ConfigSectionTitle>
+                {model.thinkingLevelMap && (
+                  <ConfigDetailHeader>
+                    <span className="pw-grow" aria-hidden="true" />
+                    <ConfigButton size="small" variant="ghost" onClick={() => set("thinkingLevelMap", undefined)}>
+                      {t("models.clearAll")}
+                    </ConfigButton>
+                  </ConfigDetailHeader>
+                )}
+                <ThinkingLevelMapEditor
+                  value={model.thinkingLevelMap}
+                  onChange={(v) => set("thinkingLevelMap", v)}
+                  describeLevel={describeThinkingLevel}
                 />
-                <Check
-                  label={t("models.developerRole")}
-                  checked={effectiveCompat(provider, model)["supportsDeveloperRole"] !== false}
-                  onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
-                />
-                <div style={{ marginTop: 4 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-                    <SectionTitle>{t("models.thinkingLevelMap")}</SectionTitle>
-                    {model.thinkingLevelMap && (
-                      <button
-                        type="button"
-                        onClick={() => set("thinkingLevelMap", undefined)}
-                        style={{ fontSize: TEXT["2xs"], padding: "2px 5px", background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer" }}
-                      >
-                        {t("models.clearAll")}
-                      </button>
-                    )}
+                <p className="pw-hint">{t("models.thinkingLevelMapHint")}</p>
+                {rememberedThinking && (
+                  <div className="models-thinking-memory">
+                    <span>{t("models.lastUsedThinking")}: <strong>{rememberedThinking}</strong></span>
+                    <ConfigButton size="small" variant="ghost" onClick={() => { void forgetRememberedThinking(); }}>
+                      {t("models.forgetThinking")}
+                    </ConfigButton>
                   </div>
-                  <ThinkingLevelMapEditor
-                    value={model.thinkingLevelMap}
-                    onChange={(v) => set("thinkingLevelMap", v)}
-                    describeLevel={describeThinkingLevel}
-                  />
-                  <div style={{ marginTop: 6, fontSize: TEXT["2xs"], color: "var(--text-dim)", lineHeight: 1.45 }}>
-                    {t("models.thinkingLevelMapHint")}
-                  </div>
-                  {rememberedThinking && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: TEXT.xs, color: "var(--text-muted)" }}>
-                      <span>{t("models.lastUsedThinking")}: <strong style={{ color: "var(--text)", fontWeight: 600 }}>{rememberedThinking}</strong></span>
-                      <button
-                        type="button"
-                        onClick={() => { void forgetRememberedThinking(); }}
-                        style={{ padding: "2px 5px", background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: TEXT["2xs"], textDecoration: "underline" }}
-                      >
-                        {t("models.forgetThinking")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
-      </section>
-    </div>
+      </ConfigDetail>
+
+      <ConfigDetail>
+        <h3>{t("models.testConnection")}</h3>
+        <ConfigDetailHeader>
+          <ConfigButton
+            variant="primary"
+            size="small"
+            onClick={handleTest}
+            disabled={!model.id.trim() || testState.phase === "testing"}
+          >
+            <span className="pw-ico"><i data-ico="circle-play" data-size="13"></i></span>
+            {testState.phase === "testing" ? t("i18n.checking") : t("models.sendTestRequest")}
+          </ConfigButton>
+          <span className="pw-grow" aria-hidden="true" />
+          {testState.phase !== "idle" && (
+            <ConfigBadge tone={testState.phase === "error" ? "bad" : testState.phase === "success" ? "ok" : undefined}>
+              {testSummary}
+            </ConfigBadge>
+          )}
+        </ConfigDetailHeader>
+
+        {testState.phase === "success" && testState.responseText && (
+          <pre className="models-test-echo">
+            <span className="pw-tok-com">{t("i18n.connected")}</span>
+            {`\n${testState.responseText}`}
+          </pre>
+        )}
+        {testState.phase === "error" && (
+          <div className="pw-alert">{testState.message}</div>
+        )}
+
+        <ConfigDetailHeader>
+          <ConfigButton size="small" variant="ghost" disabled={testState.phase === "idle"} onClick={() => setTestState({ phase: "idle" })}>
+            {t("models.clearTestResult")}
+          </ConfigButton>
+          <span className="pw-grow" aria-hidden="true" />
+          <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("models.deleteModel")}</ConfigButton>
+        </ConfigDetailHeader>
+      </ConfigDetail>
+    </ConfigDetailStack>
   );
 }
 
@@ -1827,11 +1879,18 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
     loginState.phase === "auth" || loginState.phase === "device_code" ||
     loginState.phase === "prompt" || loginState.phase === "select";
 
+  /* fork:models-board —— 与画板 41 一致：右列是一列独立的 `.pw-detail` 卡
+     （登录 / 用量 / 可用模型），不是一张撑满高度的巨卡。 */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: provider.loggedIn && loginState.phase === "idle" ? 0 : 16 }}>
+    <ConfigDetailStack>
+      <ConfigDetail>
       <ConfigDetailHeader>
         <ConfigDetailHeaderInfo>
-          <SectionTitle>{t("i18n.subscription")}</SectionTitle>
+          <ProviderIcon id={provider.id} size={22} />
+          <h3 style={{ margin: 0 }}>{provider.name}</h3>
+          <ConfigBadge tone={provider.loggedIn ? "ok" : undefined}>
+            {provider.loggedIn ? t("models.badgeLoggedIn") : t("models.badgeNotLoggedIn")}
+          </ConfigBadge>
         </ConfigDetailHeaderInfo>
         <ConfigDetailActions>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1963,9 +2022,14 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
       </div>
 
       <ProviderUsageSummary providerId={provider.id} enabled={provider.loggedIn} />
+      </ConfigDetail>
 
-      {provider.loggedIn && <EnabledModelsSection providerId={provider.id} controller={enabledModels} />}
-    </div>
+    <ConfigDetail>
+      {provider.loggedIn
+        ? <EnabledModelsSection providerId={provider.id} controller={enabledModels} />
+        : <p className="pw-hint">{t("models.signInToListModels")}</p>}
+    </ConfigDetail>
+    </ConfigDetailStack>
   );
 }
 
@@ -2030,8 +2094,11 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
     }
   }, [provider.id, onRefresh]);
 
+  /* fork:models-board —— 与画板 41 一样，托管供应商的详情也是一列独立的
+     `.pw-detail` 卡（登录 / 用量 / 可用模型），不再是一张撑满高度的巨卡。 */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <ConfigDetailStack>
+      <ConfigDetail>
       <ConfigDetailHeader>
         <ConfigDetailHeaderInfo>
           <SectionTitle>API Key</SectionTitle>
@@ -2057,12 +2124,11 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
       </ConfigDetailHeader>
 
       {!provider.configured && (
-        <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)", lineHeight: 1.5 }}>
-          Enter your {provider.displayName} API key to enable {provider.modelCount} model{provider.modelCount !== 1 ? "s" : ""}.
+        <p className="pw-hint">
+          {t("models.apiKeyPrompt", { name: provider.displayName, count: provider.modelCount })}
         </p>
       )}
-
-      <div style={{ display: "flex", gap: 6 }}>
+      <ConfigDetailHeader>
         <SecretTextInput
           value={apiKey}
           onChange={setApiKey}
@@ -2073,34 +2139,26 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
           spellCheck={false}
           mono
         />
-        <button
+        <ConfigButton
+          variant="primary"
           onClick={handleSave}
           disabled={saving || !apiKey.trim() || savedOk}
-          style={{
-            padding: "6px 12px",
-            background: savedOk ? "var(--success)" : apiKey.trim() ? "var(--accent)" : "var(--bg-panel)",
-            border: "none", borderRadius: "var(--radius-xs)",
-            color: savedOk ? "var(--success-contrast)" : apiKey.trim() ? "var(--accent-contrast)" : "var(--text-dim)",
-            cursor: (saving || !apiKey.trim() || savedOk) ? "not-allowed" : "pointer",
-            fontSize: TEXT.sm, fontWeight: 600, flexShrink: 0,
-            display: "flex", alignItems: "center", gap: 5,
-          }}
         >
-          {savedOk && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          )}
-           {savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}
-        </button>
-      </div>
+          {savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}
+        </ConfigButton>
+      </ConfigDetailHeader>
 
-      {error && <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--danger)" }}>{error}</p>}
+      {error ? <div className="pw-alert">{error}</div> : null}
 
       <ProviderUsageSummary providerId={provider.id} enabled={provider.configured} />
+    </ConfigDetail>
 
-      {provider.configured && <EnabledModelsSection providerId={provider.id} controller={enabledModels} />}
-    </div>
+    <ConfigDetail>
+      {/* 标题行由 EnabledModelsSection 自己给（画板 41 的「可用模型」头），
+          这里不要再补一个同名 h3，否则一块卡上会出现两遍同一个标题。 */}
+      <EnabledModelsSection providerId={provider.id} controller={enabledModels} />
+    </ConfigDetail>
+    </ConfigDetailStack>
   );
 }
 
@@ -2485,6 +2543,17 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   const providers = Object.entries(config.providers ?? {})
     .filter(([providerId]) => !managedProviderIds.has(providerId));
 
+  /* fork:models-board —— 左列表按画板 41 分「订阅 / 自定义」两组，并支持按名字过滤。
+     过滤是纯本地的：切分组不应该重新拉 `/api/models-config`。 */
+  const [providerFilter, setProviderFilter] = useState("");
+  const needle = providerFilter.trim().toLocaleLowerCase();
+  const nameMatches = (...candidates: (string | undefined)[]) =>
+    !needle || candidates.some((value) => value?.toLocaleLowerCase().includes(needle));
+  const managedProviders = [...activeOAuth.map((p) => ({ id: p.id, name: p.name })), ...activeApiKey];
+  const visibleOAuth = activeOAuth.filter((p) => nameMatches(p.name, p.id));
+  const visibleApiKey = activeApiKey.filter((p) => nameMatches(p.displayName, p.id));
+  const visibleProviders = providers.filter(([providerId, entry]) => nameMatches(providerId, entry.baseUrl));
+
   // Resolve current detail
   const detailContent = (() => {
     if (!selection) return null;
@@ -2511,6 +2580,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           onDelete={() => deleteProvider(selection.name)}
           onAddModels={(models) => addDiscoveredModels(selection.name, models)}
           enabledModels={enabledModels}
+          onOpenModel={(index) => setSelection({ type: "model", providerName: selection.name, index })}
+          onAddModel={() => addModel(selection.name)}
+          onPrune={enabledModels.pruneStale}
         />
       );
     }
@@ -2532,17 +2604,41 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   return (
     <>
     <ConfigPanelShell embedded={embedded} title={t("common.models")} subtitle="~/.pi/agent/models.json" closeLabel={t("i18n.close")} onClose={onClose}>
+        <PwPageHead title={t("common.models")} sub={t("models.pageSub")} />
 
         <EnabledModelsBanner controller={enabledModels} />
 
         {/* Body */}
         <ConfigSplitView>
 
-          {/* Left: tree */}
+          {/* Left: provider list (画板 41：搜索行 + 「订阅」/「自定义」两组) */}
           <ConfigSidebar>
+            <ConfigDetailHeader>
+              <input
+                className="pw-input"
+                style={{ flex: 1, minWidth: 0, height: 28 }}
+                value={providerFilter}
+                onChange={(event) => setProviderFilter(event.target.value)}
+                placeholder={t("models.searchProviders")}
+                aria-label={t("models.searchProviders")}
+              />
+              <button
+                type="button"
+                className="pw-iconbtn sm"
+                title={t("models.addProvider")}
+                aria-label={t("models.addProvider")}
+                onClick={() => setPickerOpen(true)}
+              >
+                <span className="pw-ico"><i data-ico="plus" data-size="14"></i></span>
+              </button>
+            </ConfigDetailHeader>
+
             <ConfigSidebarList>
+              {managedProviders.length > 0 && (
+                <ConfigSidebarGroupLabel>{t("models.groupSubscription")}</ConfigSidebarGroupLabel>
+              )}
               {/* Active OAuth subscriptions */}
-              {activeOAuth.map((p) => {
+              {visibleOAuth.map((p) => {
                 const isSelected = selection?.type === "oauth" && selection.providerId === p.id;
                 return (
                   <ConfigSidebarItem
@@ -2551,14 +2647,20 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                     onClick={() => setSelection({ type: "oauth", providerId: p.id })}
                   >
                     <ProviderIcon id={p.id} size={16} />
-                    <ConfigSidebarText className="is-grow">{p.name}</ConfigSidebarText>
-                    {scopeBadge(p.id)}
+                    <span className="grow">
+                      <ConfigSidebarText>{p.name}</ConfigSidebarText>
+                      <ConfigSidebarSub>{t("models.modelsCount", {
+                        count: findProviderView(enabledModels.view, p.id)?.models.length ?? 0,
+                        enabled: findProviderView(enabledModels.view, p.id)?.enabledCount ?? 0,
+                      })}</ConfigSidebarSub>
+                    </span>
+                    <ConfigBadge tone="ok">{t("models.badgeLoggedIn")}</ConfigBadge>
                   </ConfigSidebarItem>
                 );
               })}
 
               {/* Active API key providers */}
-              {activeApiKey.map((p) => {
+              {visibleApiKey.map((p) => {
                 const isSelected = selection?.type === "apikey" && selection.providerId === p.id;
                 return (
                   <ConfigSidebarItem
@@ -2567,21 +2669,25 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                     onClick={() => setSelection({ type: "apikey", providerId: p.id })}
                   >
                     <ProviderIcon id={p.id} size={16} />
-                    <ConfigSidebarText className="is-grow">{p.displayName}</ConfigSidebarText>
-                    {scopeBadge(p.id)}
+                    <span className="grow">
+                      <ConfigSidebarText>{p.displayName}</ConfigSidebarText>
+                      <ConfigSidebarSub>{t("models.modelsCount", {
+                        count: findProviderView(enabledModels.view, p.id)?.models.length ?? 0,
+                        enabled: findProviderView(enabledModels.view, p.id)?.enabledCount ?? 0,
+                      })}</ConfigSidebarSub>
+                    </span>
+                    <ConfigBadge tone="ok">{t("models.badgeLoggedIn")}</ConfigBadge>
                   </ConfigSidebarItem>
                 );
               })}
 
-              {/* Divider before custom providers, only when there are active managed providers */}
-              {(activeOAuth.length > 0 || activeApiKey.length > 0) && providers.length > 0 && (
-                <div style={{ margin: "4px 8px", borderTop: "1px solid var(--border)" }} />
-              )}
-
               {/* Custom providers */}
+              {visibleProviders.length > 0 && (
+                <ConfigSidebarGroupLabel>{t("models.groupCustom")}</ConfigSidebarGroupLabel>
+              )}
               {loading ? (
-                 <div style={{ padding: "10px 8px", fontSize: TEXT.sm, color: "var(--text-muted)" }}>{t("i18n.loading")}</div>
-              ) : providers.map(([pName, pData]) => {
+                <p className="pw-hint">{t("i18n.loading")}</p>
+              ) : visibleProviders.map(([pName, pData]) => {
                 const isProviderSelected = selection?.type === "provider" && selection.name === pName;
                 const models = pData.models ?? [];
                 return (
@@ -2591,16 +2697,13 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                       onClick={() => setSelection({ type: "provider", name: pName })}
                       active={isProviderSelected}
                     >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)", flexShrink: 0 }}>
-                        <rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" />
-                        <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
-                        <line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
-                        <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" />
-                        <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" />
-                      </svg>
-                      <ConfigSidebarText className="is-grow">
-                        {pName}
-                      </ConfigSidebarText>
+                      <ProviderIcon id={pName} size={16} />
+                      <span className="grow">
+                        <ConfigSidebarText>{pName}</ConfigSidebarText>
+                        <ConfigSidebarSub>
+                          {pData.baseUrl || t("models.modelsCount", { count: models.length, enabled: 0 })}
+                        </ConfigSidebarSub>
+                      </span>
                       {scopeBadge(pName)}
                     </ConfigSidebarItem>
 
@@ -2668,18 +2771,15 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               })}
             </ConfigSidebarList>
 
-            {/* Add provider */}
-            <ConfigListAction onClick={() => setPickerOpen(true)}>{t("i18n.addProvider")}</ConfigListAction>
           </ConfigSidebar>
 
-          {/* Right: detail */}
-          <ConfigDetail>
-            <ConfigDetailStack className="is-fill">
-              {loading ? null : detailContent ?? (
-                <ConfigEmptyState>{t("i18n.selectProviderModel")}</ConfigEmptyState>
-              )}
-            </ConfigDetailStack>
-          </ConfigDetail>
+          {/* Right: 画板 41 的右列是**一列独立的 `.pw-detail` 卡**（`ConfigDetailStack`），
+              不再套一张撑满高度的巨卡 —— 那是「弹窗影子」的来源。 */}
+          <ConfigDetailStack>
+            {loading ? null : detailContent ?? (
+              <ConfigEmptyState>{t("i18n.selectProviderModel")}</ConfigEmptyState>
+            )}
+          </ConfigDetailStack>
         </ConfigSplitView>
 
         {/* Footer */}

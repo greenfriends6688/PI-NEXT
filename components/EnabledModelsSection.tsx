@@ -11,7 +11,7 @@ import {
   findProviderView,
   isLastEnabledModel,
 } from "./enabled-models-helpers";
-import { ConfigButton, ConfigSwitch } from "./SettingsUi";
+import { ConfigBadge, ConfigButton, ConfigSidebarSub, ConfigSidebarText, ConfigSwitch } from "./SettingsUi";
 
 /**
  * Model switches backed by pi's `enabledModels` setting.
@@ -367,13 +367,18 @@ export function EnabledModelsSection({
     else controller.setProvider(provider.id, enabled);
   };
 
+  /* fork:models-board —— 画板 41 的「可用模型」：头部是标题 + 计数徽章 + grow + 动作，
+     下面一列 `.pw-litem` 开关行 —— 左边开关、中间「名字 / 等宽 id」两行、右侧思考档徽章。
+     行、徽章、输入框的视觉全部来自 board.css，这里只提供结构与开关语义；
+     原先那套 `.enabled-models-row*` 自绘样式已退役（见 app/settings.css）。 */
   return (
     <div className="enabled-models-section">
-      <div className="enabled-models-header">
+      <div className="enabled-models-header pw-inline">
         <span className="enabled-models-title">{t("models.enabledSection")}</span>
-        <span className="enabled-models-count">
+        <ConfigBadge tone="count">
           {t("models.enabledCount", { enabled: provider.enabledCount, total: provider.models.length })}
-        </span>
+        </ConfigBadge>
+        <span className="pw-grow" aria-hidden="true" />
         <ConfigButton
           size="small"
           disabled={busy || !bulk.canEnable}
@@ -408,31 +413,20 @@ export function EnabledModelsSection({
         </div>
       )}
 
-      {provider.models.length > 8 && (
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t("models.enabledFilterPlaceholder", { count: provider.models.length })}
-          aria-label={t("models.enabledFilter")}
-          className="enabled-models-filter"
-        />
-      )}
-      <div className="enabled-models-list">
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={t("models.enabledFilterPlaceholder", { count: provider.models.length })}
+        aria-label={t("models.enabledFilter")}
+        className="pw-input enabled-models-filter"
+      />
+      <div className="pw-list enabled-models-list">
         {shown.length === 0 ? (
           <div className="enabled-models-empty">{t("models.enabledNoMatches")}</div>
         ) : shown.map((model) => {
           const lastOne = isLastEnabledModel(view, model);
           return (
-            <div key={model.ref} className="enabled-models-row">
-              <span className="enabled-models-row-text">
-                <span className="enabled-models-row-name">{model.name}</span>
-                <code className="enabled-models-row-id">{model.id}</code>
-              </span>
-              {model.thinkingPin && (
-                <span className="enabled-models-pin" title={t("models.enabledPinHint")}>
-                  {model.thinkingPin}
-                </span>
-              )}
+            <div key={model.ref} className="pw-litem enabled-models-row">
               <ConfigSwitch
                 checked={model.enabled}
                 loading={pending === model.ref}
@@ -442,6 +436,15 @@ export function EnabledModelsSection({
                   : t("models.enabledToggle", { model: model.name })}
                 onChange={(checked) => controller.setModels(model.ref, [model.ref], checked)}
               />
+              <span className="grow enabled-models-row-text">
+                <ConfigSidebarText>{model.name}</ConfigSidebarText>
+                <ConfigSidebarSub>{model.id}</ConfigSidebarSub>
+              </span>
+              {model.thinkingPin && (
+                <ConfigBadge tone="accent" className="enabled-models-pin" title={t("models.enabledPinHint")}>
+                  {model.thinkingPin}
+                </ConfigBadge>
+              )}
             </div>
           );
         })}

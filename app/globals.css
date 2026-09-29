@@ -1866,10 +1866,13 @@ span.token.table {
   100% { transform: scale(1); opacity: 0; }
 }
 
-/* Keyboard users get the same affordance hover users get. */
+/* Keyboard users get the same affordance hover users get.
+   fork:focus-ring — 值按设计 §1.4「焦点环 1.5px 强调色描边、偏移 1px」收敛
+   （原来是 2px / 2px，按钮上读起来像套了第二个方框）。
+   表单字段**不在**这一组：见下面 2441 行附近那条的说明。 */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 1.5px solid var(--accent);
+  outline-offset: 1px;
   border-radius: var(--radius-xs);
 }
 
@@ -2438,9 +2441,24 @@ textarea,
    back; a component that needs a different ring opts in with
    `.focus-ring-inset`. `textarea` is deliberately absent: the composer box
    draws that ring via `:focus-within` above. */
-:where(button, a[href], [role="button"], [role="tab"], [role="option"], [role="menuitem"], summary, input:not([type="hidden"]), select):focus-visible {
-  outline: 2px solid var(--accent) !important;
-  outline-offset: 2px !important;
+:where(button, a[href], [role="button"], [role="tab"], [role="option"], [role="menuitem"], summary):focus-visible {
+  outline: 1.5px solid var(--accent) !important;
+  outline-offset: 1px !important;
+}
+
+/* fork:focus-ring — 表单字段的焦点**不画外描边**。
+   文本框与 select 的 `:focus-visible` 在**鼠标点击**时同样成立（规范如此，
+   它们「总是需要可见的焦点指示」），于是点一下就同时出现「字段自身的 1px 边框」
+   和「2px 外描边」—— 两个方框套在一起，就是「输入框里有个蓝框」。
+   字段的焦点改用强调色描边表达，与画板 02 帧 C 的 `.pw-side-search`
+   （`border-color: var(--accent)`）同一个口径。
+   注意：这一条**必须**排在 `!important` 那条的后面且同样带 `!important`，
+   否则压不过它。 */
+:where(input:not([type="hidden"]), select, textarea):focus-visible {
+  outline: none !important;
+}
+:where(input:not([type="hidden"]), select, textarea):focus {
+  border-color: var(--accent) !important;
 }
 
 /* --- Hover convention ----------------------------------------------------

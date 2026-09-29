@@ -2242,6 +2242,12 @@ html[data-theme-skin="true"] .extension-status-shelf {
   button.pw-select,
   button.pw-todo,
   button.pw-side-foot,
+  /* fork:transcript-proc-head —— `button` 的 `width: auto` 是 shrink-to-fit，
+     即使 `display: flex` 也不会撑满（与块级元素不同）。`.pw-proc-head` 靠一个
+     `<span class="grow">` 把「已完成」徽章和「展开/收起」推到行的最右端 ——
+     不给宽度的话那个 grow 没有任何空间可分配，两者会紧跟在摘要文字后面
+     （截图里 878px 处就停住了，而卡片右边缘在 1238px）。 */
+  button.pw-proc-head,
   button.pw-group-title {
     width: 100%;
   }
@@ -2318,34 +2324,21 @@ html[data-theme-skin="true"] .extension-status-shelf {
 .pw-session.awaiting { overflow: hidden; }
 
 /* 上下文环的浮窗（画板 01 帧 C / 20）：悬浮或键盘聚焦才展开，
-   不在输入框下面再放第二条常显横条。 */
+   不在输入框下面再放第二条常显横条。
+   fork:context-pop-portal —— 浮窗现在 portal 到 body（`PortalDropdown`），
+   位置由那段 JS 算；这里只留面板本身的画布/描边。可见性也不再由 `:hover` 驱动
+   （panel 不在 ring 的子树里），改由 ChatInput 的 `ringHovered / ringPinned`。 */
 .composer-ring-pop {
-  position: absolute;
-  right: -6px;
-  bottom: calc(100% + 8px);
-  z-index: 120;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity var(--motion-fast) var(--ease), visibility var(--motion-fast) var(--ease);
-}
-.composer-ring:hover .composer-ring-pop,
-.composer-ring:focus-within .composer-ring-pop {
-  opacity: 1;
-  visibility: visible;
+  z-index: var(--z-popover);
+  box-sizing: border-box;
 }
 .composer-ring:hover .pw-ring,
 .composer-ring:focus-within .pw-ring {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-/* 环本体是 <button>（可聚焦 / 可 Tab 到），只归零 UA 默认值。 */
-button.pw-ring { border: 0; padding: 0; cursor: pointer; }
 
 /* fork:ui-stats-ring —— 点击圆环钉住浮窗（/session 命令与触屏入口）：
-   钉住态与悬浮态同一套可见性。 */
-.composer-ring.is-pinned .composer-ring-pop {
-  opacity: 1;
-  visibility: visible;
-}
+   钉住态与悬浮态同一套可见性（fork:context-pop-portal 后由 React 状态决定）。 */
 .composer-ring.is-pinned .pw-ring {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -2563,3 +2556,42 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   background-position: center;
   background-size: cover;
 }
+
+/* 侧栏聊天工作区行：画板 .pw-row 是静态 div，产品里标题那一格是可点 button
+   （行尾还有 .pw-acts 的真钮，button 不能嵌套 button）。只归零 UA。 */
+@layer fork-reset {
+  .pw-row > button.pw-inline {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+}
+.pw-row > button.pw-inline { flex: 1; min-width: 0; }
+
+/* 用户自定义分组头（产品功能，画板 02 已补画）：折叠头整行可点，行规格沿用
+   .pw-group-title，hover / 落点两档直接取画板 .pw-row 的两档叠色。 */
+@layer fork-reset {
+  .pw-group-title[data-fork-group-header] > button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+}
+.pw-group-title[data-fork-group-header] { user-select: none; }
+.pw-group-title[data-fork-group-header]:hover { background: var(--overlay-hover); }
+.pw-group-title[data-fork-group-header][data-active="true"] { background: var(--overlay-selected); }
+.pw-group-title[data-fork-group-header] > button { display: flex; align-items: center; gap: var(--s1); flex: 1; min-width: 0; }
+.pw-group-title[data-fork-group-header] > .pw-input:focus { border-color: var(--accent); }
+
+/* 转录正文（画板 10 的 .pw-md）：长串不溢出是产品侧的必要补丁，不是新视觉——
+   画板 10 是 800 宽的静态稿，产品正文列更窄且允许任意长路径/哈希。 */
+.pw-md { overflow-wrap: anywhere; }
+.pw-md table { max-width: 100%; }

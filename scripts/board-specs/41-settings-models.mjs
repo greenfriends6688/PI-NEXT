@@ -1,0 +1,26 @@
+// SW-08 模型分节 —— 画板 41 帧 0（供应商列表 + 详情）
+export default {
+  name: "模型分节（画板 41 · 帧 0）",
+  board: "41-settings-models.html",
+  boardFrame: 0,
+  app: { open: "settings:模型" },
+  selectors: [
+    ".pw-settings",
+    ".pw-snav",
+    ".pw-sbody",
+    ".pw-cols",
+    ".pw-list",
+    ".pw-litem",
+    ".pw-lname",
+    ".pw-lsub",
+    ".pw-group-title",
+    ".pw-detail",
+    ".pw-kv",
+    ".pw-stats-grid",
+    ".pw-stat",
+    ".pw-field",
+    ".pw-label",
+    ".pw-btn",
+    ".pw-badge",
+  ],
+};

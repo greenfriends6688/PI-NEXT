@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>54 · 扩展 / 链接 / 探索分支 — Pi Web 设计画板</title>
+<title>54 · 扩展浮窗 / 链接 / 探索分支 — Pi Web 设计画板</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
@@ -12,58 +12,48 @@
 <body class="pw">
 
 <header class="pw-head">
-  <h1>54 · 扩展 / 链接 / 探索分支</h1>
-  <p>三块比较独立的界面面：扩展往输入框上下挂的 widget 与底部状态条、正文里链接的「在哪儿打开」、以及从某条消息分叉出来的探索分支（抬头条 + 右栏只读并排视图）。</p>
+  <h1>54 · 扩展浮窗 / 链接 / 探索分支</h1>
+  <p>三块比较独立的界面面：扩展挂在顶栏插件浮窗里的 widget 与聊天区右上角的状态胶囊、正文里链接的「在哪儿打开」、以及从某条消息分叉出来的探索分支（抬头条 + 右栏只读并排视图）。</p>
   <div class="pw-tags">
     <span class="pw-tag">页面：会话工作台 / 右栏</span>
-    <span class="pw-tag">组件：ExtensionWidgets / ExtensionStatusBar / LinkOpenContext / AttachmentPreview / ExplorationBanner / ExplorationPane</span>
-    <span class="pw-tag accent">宽 800 / 面板</span>
+    <span class="pw-tag">组件：PluginStatusButton / ExtensionWidgets / ExtensionStatusFloat / LinkOpenContext / AttachmentPreview / ExplorationBanner / ExplorationPane</span>
+    <span class="pw-tag accent">弹层 420 / 面板</span>
   </div>
 </header>
 
-<!-- 扩展 widget + 状态条 -->
+<!-- 扩展浮窗 + 状态胶囊 -->
 <section class="pw-frame" style="max-width:848px">
-  <div class="pw-frame-label"><b>扩展 widget 与状态条</b> · widget 挂在输入框上方（可折叠）/ 状态条钉在应用底部</div>
+  <div class="pw-frame-label"><b>扩展浮窗 · 状态胶囊</b> · widget 在顶栏 blocks 浮窗里展开；状态收成聊天区右上角一枚 mono 胶囊（输入框下方无常驻行）</div>
   <div class="pw-frame-body pw-pad pw-rowgap">
 
-    <div class="pw-mono pw-dim">A · 扩展 widget（输入框上方，可折叠）</div>
-    <div class="pw-composer" style="width:100%;margin:0">
-      <div style="border-bottom:1px solid var(--n-border-subtle);background:var(--surface-canvas)">
-        <div class="pw-inline" style="padding:6px var(--s3)">
+    <div class="pw-mono pw-dim">A · 聊天区右上角的扩展状态胶囊（mono · pill · 26 高）</div>
+    <div style="display:flex;align-items:center;gap:var(--s2);height:64px;padding:0 var(--s3);border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);background:var(--surface-canvas)">
+      <span class="pw-grow" style="flex:1"></span>
+      <span style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-pill);background:var(--surface-panel);box-shadow:var(--shadow-popover);font-family:var(--font-mono);font-size:var(--text-meta);color:var(--n-muted)"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ponytail: 2 tools ready · MCP: 2 servers enabled</span><span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+    </div>
+    <p class="pw-mono pw-dim" style="margin:0">注：胶囊最宽 <code>min(46vw, 460px)</code>，超了省略号；没有 widget 时点它没反应（没有可展开的东西），只有状态时它纯展示。</p>
+
+    <div class="pw-mono pw-dim">B · 顶栏插件浮窗里的 widget（点谁开谁，一次只开一个）</div>
+    <div class="pw-pop" style="width:100%">
+      <div class="pw-prow pw-desc">插件包</div>
+      <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="package" data-size="12"></i></span><span class="grow">pi-plugin-git</span><span class="pw-badge count">0.4.2</span></div>
+      <div class="pw-prow"><span class="pw-ico" style="color:var(--success)"><i data-ico="square-function" data-size="12"></i></span><span class="grow">nano-context</span></div>
+      <div class="pw-sep"></div>
+      <div class="pw-card">
+        <div class="pw-card-head">
           <span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="13"></i></span>
-          <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">@pi/plugin-git</span>
-          <span style="font-size:var(--text-secondary);color:var(--n-text)">当前工作区</span>
+          <span class="pw-mono" style="font-size:var(--text-meta)">@pi/plugin-git</span>
           <span class="grow"></span>
-          <span class="pw-badge count">3 个改动</span>
+          <span class="pw-badge count">3</span>
           <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="chevron-up" data-size="13"></i></span></span>
         </div>
-        <div class="pw-code-body" style="font-size:var(--text-meta);padding:0 var(--s3) var(--s2);white-space:pre-wrap">
-<span class="dim">main</span> · 2 个未提交改动 · 领先 origin/main <span class="acc">3</span>
+        <div class="pw-code-body" style="font-size:var(--text-meta);padding:0 var(--s3) var(--s2);white-space:pre-wrap"><span class="dim">main</span> · 2 个未提交改动 · 领先 origin/main <span class="acc">3</span>
 <span class="add">+</span> design/pi-web-design/README.md
-<span class="del">−</span> docs/old-spec.md
-        </div>
+<span class="del">−</span> docs/old-spec.md</div>
       </div>
-      <div class="pw-composer-top" style="padding-top:var(--s2)">给 Pi Agent 发消息…</div>
-      <div class="pw-composer-bar">
-        <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
-        <span class="grow"></span>
-        <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
-      </div>
+      <div class="pw-prow pw-desc">3 扩展 · 2 技能 · 1 提示词 · 0 主题</div>
     </div>
-
-    <div class="pw-mono pw-dim">B · 扩展状态条（钉在应用底部，整条高 22）</div>
-    <div style="border:1px solid var(--n-border);border-radius:var(--radius-6);overflow:hidden">
-      <div style="height:60px;background:var(--surface-canvas)"></div>
-      <div style="display:flex;align-items:center;gap:var(--s3);height:22px;padding:0 var(--s3);border-top:1px solid var(--n-border-subtle);background:var(--surface-panel);font-family:var(--font-mono);font-size:var(--text-meta);color:var(--n-muted)">
-        <span class="pw-inline" style="gap:4px"><span class="pw-ico"><i data-ico="git-branch" data-size="12"></i></span>main</span>
-        <span class="pw-inline" style="gap:4px"><span class="pw-ico"><i data-ico="git-commit-horizontal" data-size="12"></i></span>7 个改动</span>
-        <span class="pw-inline" style="gap:4px;color:var(--accent-text)"><span class="pw-ico"><i data-ico="loader-circle" data-size="12"></i></span>agent 运行中</span>
-        <span class="grow" style="flex:1"></span>
-        <span class="pw-inline" style="gap:4px"><span class="pw-ico"><i data-ico="cpu" data-size="12"></i></span>V4.1 Flash</span>
-        <span class="pw-inline" style="gap:4px"><span class="pw-ico"><i data-ico="gauge" data-size="12"></i></span>26%</span>
-      </div>
-    </div>
-    <p class="pw-mono pw-dim" style="margin:0">注：窄屏（≤640）时状态条末尾几项换行到第二行，不横向滚动。</p>
+    <p class="pw-mono pw-dim" style="margin:0">注：widget 头是 mono 键名 + 行数徽章 + chevron；面板体等宽、可滚动，浮窗整体封顶 300 宽 / 360 高。</p>
 
   </div>
 </section>
@@ -242,8 +232,8 @@
 <section class="pw-notes">
   <h2>这一张在定什么</h2>
   <ul>
-    <li><b>扩展 widget 挂在输入框上方</b>，是一个带来源标签（<code>@pi/plugin-git</code>）的可折叠块；折叠后只留一行摘要。它不抢输入框的焦点。</li>
-    <li><b>扩展状态条钉在应用底部、高 22</b>，等宽小字；左侧是仓库状态、中间是 agent 运行态（accent 色）、右侧是模型与上下文。窄屏换行不横向滚动。</li>
+    <li><b>扩展 widget 在顶栏插件浮窗里，不在输入框上方</b>（用户裁定 2026-09-29）：widget 是一张带来源键名的可折叠卡（mono 键名 + 行数徽章 + chevron），展开体等宽。一次只展开一个——浮窗封顶 300 宽 / 360 高，全展开会把它撑成一屏日志。</li>
+    <li><b>扩展状态不再是应用底部那条 22px 的横条</b>：收成聊天区右上角一枚 mono 胶囊（26 高 / pill 圆角），最宽 <code>min(46vw, 460px)</code>，超了省略号。输入框下方<b>没有任何常驻行</b>。胶囊是否可点取决于有没有 widget：纯状态时它只是展示。</li>
     <li><b>链接给三选一</b>：应用内浏览器 / 系统浏览器 / 复制链接。默认记住上次选择，<code>⌘</code> 点击强制系统浏览器。这是为了解决「应用里有浏览器面板但没有任何链接调它」。</li>
     <li><b>附件预览按类型分六条渲染分支</b>：图片 / PDF / DOCX / 音频 / 视频 / 文本，其余给「只能下载」。分支选择交给一个纯函数，组件只负责画。</li>
     <li><b>探索分支的抬头条在转录顶部</b>（不是浮层）：写明「从主线的第几轮分出来」、给「看来源那条」与「把结论带回主线」。</li>

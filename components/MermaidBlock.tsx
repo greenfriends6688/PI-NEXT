@@ -80,14 +80,17 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
     };
   }, [code, currentKey, isDark, previewVisible]);
 
+  // fork:design-components —— 画板 10:224-232 的 Mermaid 头：语言标签 + `.grow` 撑开 +
+  // `.pw-btn.sm` 的「源码 / 下载 SVG」。画板用 span，产品是可聚焦的 button，类名照抄。
   const previewButton = useMemo(() => (
     <button
       type="button"
       onClick={() => setShowPreview((v) => !v)}
       disabled={isStreaming}
       title={isStreaming ? t("i18n.previewAfterStreaming") : (previewVisible ? t("i18n.showMermaidSource") : t("i18n.previewMermaid"))}
-      className={["markdown-code-action", previewVisible ? "is-active" : ""].filter(Boolean).join(" ")}
+      className="pw-btn sm"
     >
+      <span className="pw-ico"><i data-ico="code" data-size="13"></i></span>
       {previewVisible ? t("i18n.source") : t("i18n.preview")}
     </button>
   ), [isStreaming, previewVisible, t]);
@@ -117,27 +120,30 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
       </>
     );
 
+  // fork:design-components —— 图形态的 Mermaid 卡片外壳与代码块同一套（画板 10:222-238）：
+  // `.pw-code` > `.pw-code-head`（git-fork 图标 + `mermaid` 标签 + grow + `.pw-btn.sm`）。
   return (
-    <div className="markdown-code-block">
-      <div className="markdown-code-header">
-        <span className="markdown-code-lang">mermaid</span>
-        <div className="markdown-code-actions">
-          {renderState?.key === currentKey && renderState.status === "ready" && (
-            <button
-              type="button"
-              className="markdown-code-action"
-              title={`${t("i18n.downloadFile")} (SVG)`}
-              aria-label={`${t("i18n.downloadFile")} (SVG)`}
-              onClick={() => {
-                const svg = previewRef.current?.querySelector("svg");
-                if (svg) downloadMermaidSvg(svg);
-              }}
-            >
-              SVG
-            </button>
-          )}
-          {previewButton}
-        </div>
+    <div className="pw-code">
+      <div className="pw-code-head">
+        <span className="pw-ico"><i data-ico="git-fork" data-size="13"></i></span>
+        <span className="pw-mono">mermaid</span>
+        <span className="grow"></span>
+        {renderState?.key === currentKey && renderState.status === "ready" && (
+          <button
+            type="button"
+            className="pw-btn sm"
+            title={`${t("i18n.downloadFile")} (SVG)`}
+            aria-label={`${t("i18n.downloadFile")} (SVG)`}
+            onClick={() => {
+              const svg = previewRef.current?.querySelector("svg");
+              if (svg) downloadMermaidSvg(svg);
+            }}
+          >
+            <span className="pw-ico"><i data-ico="download" data-size="13"></i></span>
+            SVG
+          </button>
+        )}
+        {previewButton}
       </div>
       {body}
     </div>
@@ -190,9 +196,9 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
                 title={t("i18n.zoomOut")}
                 aria-label={t("i18n.zoomOut")}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <path d="M5 12h14" />
-                </svg>
+                {/* fork:design-components —— 画板 10:246-253 的缩放器工具条用 lucide data-ico，
+                    这里把四只手绘 svg 换成同一套图标名（minus / plus / maximize-2 / x）。 */}
+                <span className="pw-ico"><i data-ico="minus" data-size="13"></i></span>
               </button>
               <span className="mermaid-zoom-value">{Math.round(zoom * 100)}%</span>
               <button
@@ -202,9 +208,7 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
                 title={t("i18n.zoomIn")}
                 aria-label={t("i18n.zoomIn")}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
               </button>
             </div>
             <button
@@ -214,9 +218,7 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
               title={t("i18n.fitToWidth")}
               aria-label={t("i18n.fitToWidth")}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
-              </svg>
+              <span className="pw-ico"><i data-ico="maximize-2" data-size="13"></i></span>
             </button>
             <button
               type="button"
@@ -225,9 +227,7 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
               title={t("i18n.close")}
               aria-label={t("i18n.close")}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
+              <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
             </button>
           </div>
         </div>
@@ -265,24 +265,19 @@ interface CodeBlockProps {
  * monospace text — highlighting a growing block re-tokenizes all of it on
  * every chunk, which is the single most expensive part of streamed rendering.
  */
+// fork:design-components —— 流式期间（以及超大块被跳过时）的纯文本态。
+// 画板 10:152 的 `.pw-code-body` 已经给了等宽字号/行高/内边距/横滚/底色，
+// 所以这里不再写任何内联视觉值；提示行用画板 10:211 的 `.pw-card-foot`（带图标）。
 function PlainCode({ code, note }: { code: string; note?: string }) {
   return (
     <>
       {note && (
-        <div className="markdown-code-note" role="note">{note}</div>
+        <div className="pw-card-foot" role="note">
+          <span className="pw-ico"><i data-ico="info" data-size="13"></i></span>
+          <span>{note}</span>
+        </div>
       )}
-      <pre
-        style={{
-          margin: 0,
-          padding: "11px 13px",
-          fontSize: "calc(12.5px + var(--chat-font-size-offset, 0px))",
-          lineHeight: 1.62,
-          overflowX: "auto",
-          background: "color-mix(in srgb, var(--bg) 92%, var(--bg-panel))",
-        }}
-      >
-        <code style={{ fontFamily: "var(--font-mono)" }}>{code}</code>
-      </pre>
+      <pre className="pw-code-body">{code}</pre>
     </>
   );
 }
@@ -331,7 +326,6 @@ function useDeferredHighlight(code: string, enabled: boolean): boolean {
 }
 
 export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isStreaming }: CodeBlockProps) {
-  const { isDark } = useTheme();
   const { t } = useI18n();
   const highlighterReady = useHighlighterReady();
   const [copied, setCopied] = useState(false);
@@ -348,42 +342,23 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
     });
   };
 
+  // fork:design-components —— 代码块卡片 = 画板 10:145-160 那一段：
+  // `.pw-code` > `.pw-code-head`（file-code 图标 + `pw-mono` 语言 + `.grow` + `.pw-btn.sm` 复制钮）
+  // > `.pw-code-body`（由 PlainCode 或 AsyncCodeHighlighter 提供）。
   return (
-    /* fork:design-components —— 代码块直接使用画板 10 的 .pw-code 组件
-       （board.css：发丝边框 / 面板底 / 36px 头部 / file-code 图标 / .pw-btn.sm 复制钮）。 */
-    <div className="markdown-code-block pw-code">
-      <div className="markdown-code-header pw-code-head">
+    <div className="pw-code">
+      <div className="pw-code-head">
         <span className="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
-        <span className="markdown-code-lang pw-mono">{lang || "text"}</span>
+        <span className="pw-mono">{lang || "text"}</span>
         <span className="grow"></span>
-        <div className="markdown-code-actions">
-          {headerAction}
-          <button
-            onClick={copy}
-            className="markdown-code-action pw-btn sm"
-            style={{ cursor: "pointer" }}
-          >
-            <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13"></i></span>
-            {copied ? t("i18n.copied") : t("i18n.copy")}
-          </button>
-        </div>
+        {headerAction}
+        <button type="button" onClick={copy} className="pw-btn sm">
+          <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13"></i></span>
+          {copied ? t("i18n.copied") : t("i18n.copy")}
+        </button>
       </div>
       {showHighlight ? (
-        <LazyCodeHighlighter
-          language={lang || "text"}
-          isDark={isDark}
-          showLineNumbers
-          lineNumberStyle={{ color: "var(--text-dim)", fontStyle: "normal" }}
-          customStyle={{
-            margin: 0,
-            padding: "11px 13px",
-            fontSize: "calc(12.5px + var(--chat-font-size-offset, 0px))",
-            lineHeight: 1.62,
-            borderRadius: "0",
-            background: "color-mix(in srgb, var(--bg) 92%, var(--bg-panel))",
-          }}
-          codeTagProps={{ style: { fontFamily: "var(--font-mono)" } }}
-        >
+        <LazyCodeHighlighter language={lang || "text"} showLineNumbers>
           {code}
         </LazyCodeHighlighter>
       ) : (

@@ -2,10 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigButton, ConfigSwitch } from "../SettingsUi";
+import {
+  ConfigButton,
+  ConfigDetail,
+  ConfigDetailActions,
+  ConfigDetailHeader,
+  ConfigDetailTitle,
+  ConfigEmptyState,
+  ConfigField,
+  ConfigSidebar,
+  ConfigSidebarItem,
+  ConfigSidebarList,
+  ConfigSplitView,
+  ConfigSwitch,
+  PwBlock,
+  PwCtl,
+  PwPageHead,
+} from "../SettingsUi";
 import { PI_MEMORY_PACKAGE_SOURCE, PI_MEMORY_TEMPLATES, PI_MEMORY_TOOLS } from "@/lib/pi-memory";
 import { filterMemoryEntries, isWritableMemoryPath, type MemoryCatalogEntry } from "@/lib/memory-catalog";
-import { TEXT } from "@/lib/typography";
 
 /*
  * fork:memory-panel — settings page for the pi-memory package.
@@ -212,191 +227,197 @@ export function PiMemoryConfig({
   const visibleCatalog = useMemo(() => filterMemoryEntries(catalog, fileQuery), [catalog, fileQuery]);
   const openFileWritable = openFile ? isWritableMemoryPath(openFile.path) : false;
 
+  /* fork:design-system —— 画板 44 的记忆页：两块 `.pw-block`（开关与状态 / 记忆
+     工具）+ 一组 `.pw-cols`（左：过滤 + `.pw-list` 文件目录；右：`.pw-detail`
+     编辑器）。原先是页面自有的 section / option 类 + 一堆内联盒子。 */
+  const statusText = loading
+    ? t("i18n.loading")
+    : installed
+      ? `${PI_MEMORY_PACKAGE_SOURCE} · ${pkg?.version ?? "?"} · ${enabled ? t("memory.stateOn") : t("memory.stateDisabled")}`
+      : t("memory.stateMissing");
+
   return (
-    <div className="settings-general">
-      <h2 className="settings-general-title">{t("memory.title")}</h2>
-      <p className="settings-chat-range-hint" style={{ marginTop: -6 }}>{t("memory.subtitle")}</p>
-      {/* fork:fix-memory-refresh — 周检邀请的手动入口：用户刚过完一遍记忆就点这里，
-          7 天内不再提醒。 */}
-      <p style={{ margin: "0 0 10px" }}>
-        <ConfigButton variant="ghost" size="small" onClick={() => void markTidied()}>{t("memory.tidyMark")}</ConfigButton>
-      </p>
+    <>
+      <PwPageHead title={t("memory.title")} sub={t("memory.subtitle")} />
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("memory.switches")}</h3>
-        <div className="settings-chat-option settings-chat-range-option">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="settings-chat-option-label" style={{ flex: 1, minWidth: 0 }}>{t("memory.enable")}</span>
-            {installed ? (
-              <ConfigSwitch
-                label={t("memory.enable")}
-                checked={enabled}
-                loading={busy === "enable" || busy === "disable"}
-                onChange={(next) => void act(next ? "enable" : "disable")}
-              />
-            ) : (
-              <ConfigButton variant="primary" size="small" disabled={busy !== null || !cwd} onClick={() => void act("install")}>
-                {busy === "install" ? t("memory.installing") : t("memory.install")}
-              </ConfigButton>
-            )}
-          </div>
-          <p role="status" style={{ margin: "6px 0 0", fontSize: TEXT.sm, color: enabled ? "var(--text)" : "var(--text-dim)" }}>
-            {loading
-              ? t("i18n.loading")
-              : installed
-                ? `${PI_MEMORY_PACKAGE_SOURCE} · ${pkg?.version ?? "?"} · ${enabled ? t("memory.stateOn") : t("memory.stateDisabled")}`
-                : t("memory.stateMissing")}
-          </p>
-          <p className="settings-chat-range-hint">{t("memory.enableHint")}</p>
-          {message && <p role="status" style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text)" }}>{message}</p>}
-        </div>
-      </section>
+      <ConfigDetailActions>
+        <ConfigButton variant="ghost" size="small" onClick={() => void markTidied()}>
+          {t("memory.tidyMark")}
+        </ConfigButton>
+        <span className="pw-grow" aria-hidden="true" />
+        {message && <span className="pw-hint" role="status">{message}</span>}
+      </ConfigDetailActions>
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("memory.tools")}</h3>
-        <div className="settings-chat-option settings-chat-range-option">
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {PI_MEMORY_TOOLS.map((tool) => (
-              <code key={tool} style={{ padding: "2px 7px", border: "1px solid var(--border-faint)", borderRadius: "var(--radius-sm)", fontSize: TEXT.xs, color: "var(--text-muted)" }}>
-                {tool}
-              </code>
-            ))}
-          </div>
-          <p className="settings-chat-range-hint">{t("memory.toolsHint")}</p>
-        </div>
-      </section>
+      <PwBlock icon="brain" title={t("memory.switches")}>
+        <ConfigField label={t("memory.enable")}>
+          {installed ? (
+            <ConfigSwitch
+              label={t("memory.enable")}
+              checked={enabled}
+              loading={busy === "enable" || busy === "disable"}
+              onChange={(next) => void act(next ? "enable" : "disable")}
+            />
+          ) : (
+            <ConfigButton variant="primary" size="small" disabled={busy !== null || !cwd} onClick={() => void act("install")}>
+              {busy === "install" ? t("memory.installing") : t("memory.install")}
+            </ConfigButton>
+          )}
+        </ConfigField>
+        <ConfigField label={PI_MEMORY_PACKAGE_SOURCE}>
+          <PwCtl>
+            <span className={enabled ? "pw-badge ok" : "pw-badge"} role="status">{statusText}</span>
+          </PwCtl>
+        </ConfigField>
+        <p className="pw-hint">{t("memory.enableHint")}</p>
+      </PwBlock>
 
-      <section className="settings-general-section">
-        {/* fork:zc-20 — directory view: count + filename search + the read-only
-            catalog. The create buttons stay for the pi-memory files that do not
-            exist yet, because an empty install must not look like a missing
-            feature. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <h3 className="settings-general-heading" style={{ margin: 0 }}>{t("memory.files")}</h3>
-          <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
-            {t("memory.fileCount", { count: catalog.length })}
-          </span>
-          <span style={{ flex: 1 }} />
-          <input
-            type="search"
-            value={fileQuery}
-            onChange={(event) => setFileQuery(event.target.value)}
-            placeholder={t("memory.fileSearch")}
-            aria-label={t("memory.fileSearch")}
-            maxLength={60}
-            className="settings-search-input"
-            style={{ width: 200, maxWidth: "45%" }}
-          />
-        </div>
-        {dir && <p className="settings-chat-range-hint" style={{ marginTop: -2, fontFamily: "var(--font-mono)", fontSize: TEXT.xs }}>{dir}</p>}
-
-        {missingFiles.length > 0 && (
-          <div style={{ display: "grid", gap: 4, marginBottom: 8 }}>
-            {missingFiles.map((file) => (
-              <div
-                key={file.path}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "6px 9px", border: "1px dashed var(--border-faint)", borderRadius: "var(--radius-md)",
-                  background: "var(--bg-panel)", opacity: 0.85,
-                }}
-              >
-                <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", fontSize: TEXT.sm, color: "var(--text-dim)" }}>
-                  {file.path}
-                </span>
-                <ConfigButton
-                  variant="secondary"
-                  size="small"
-                  disabled={busy === file.path}
-                  onClick={() => void write(file.path, PI_MEMORY_TEMPLATES[file.path] ?? `# ${file.path}\n`, t("memory.fileCreated"))}
-                >
-                  {t("memory.createFile")}
-                </ConfigButton>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ display: "grid", gap: 4 }}>
-          {visibleCatalog.map((file) => (
-            <div
-              key={file.path}
-              style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "6px 9px", border: "1px solid var(--border-faint)", borderRadius: "var(--radius-md)",
-                background: openFile?.path === file.path ? "var(--bg-selected)" : "var(--bg-panel)",
-              }}
-            >
-              <span style={{ flex: 1, minWidth: 0, display: "grid", gap: 1 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: TEXT.sm, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {file.path}
-                </span>
-                <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
-                  {`${file.size} B · ${new Date(file.mtime).toLocaleString()}`}
-                </span>
+      <PwBlock icon="wrench" title={t("memory.tools")}>
+        <ConfigSidebarList>
+          {PI_MEMORY_TOOLS.map((tool) => (
+            <div className="pw-litem" key={tool}>
+              <span className="pw-ico"><i data-ico="wrench" data-size="14" aria-hidden="true" /></span>
+              <span className="grow">
+                <span className="pw-lname pw-mono">{tool}</span>
               </span>
-              <ConfigButton variant="secondary" size="small" disabled={busy === file.path} onClick={() => void read(file.path)}>
-                {isWritableMemoryPath(file.path) ? t("i18n.edit") : t("memory.preview")}
-              </ConfigButton>
-              {onOpenFile && (
-                <ConfigButton variant="ghost" size="small" onClick={() => onOpenFile(`${dir}/${file.path}`)}>
-                  {t("memory.openInEditor")}
-                </ConfigButton>
-              )}
             </div>
           ))}
-          {!loading && visibleCatalog.length === 0 && (
-            <p role="status" className="settings-chat-range-hint" style={{ margin: 0 }}>
-              {fileQuery.trim() ? t("memory.fileNoMatch") : t("memory.filesEmpty")}
-            </p>
-          )}
-        </div>
-        <p className="settings-chat-range-hint">{t("memory.filesHint")}</p>
+        </ConfigSidebarList>
+        <p className="pw-hint">{t("memory.toolsHint")}</p>
+      </PwBlock>
 
-        {openFile && conflict && (
-          // fork:fix-memory-ui — 外部冲突横幅：磁盘上的文件在读取后变了（多半是 agent
-          // 刚写完记忆），编辑器里的草稿不会自动覆盖它；重新加载后重新改。
-          <div
-            role="alert"
-            style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid var(--warning)", borderRadius: "var(--radius-md)", background: "var(--warning-soft)" }}
-          >
-            <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, color: "var(--text)" }}>{t("memory.conflict")}</span>
-            <ConfigButton variant="secondary" size="small" onClick={() => void read(openFile.path)}>{t("memory.reload")}</ConfigButton>
-          </div>
-        )}
-        {openFile && !conflict && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <strong style={{ fontSize: TEXT.sm, fontFamily: "var(--font-mono)" }}>{openFile.path}</strong>
-              {!openFileWritable && (
-                <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)" }}>{t("memory.readOnlyFile")}</span>
-              )}
-              <ConfigButton variant="ghost" size="small" onClick={() => setOpenFile(null)}>{t("i18n.close")}</ConfigButton>
-              {openFileWritable && (
-                <ConfigButton
-                  variant="primary"
-                  size="small"
-                  disabled={busy === openFile.path || draft === openFile.content}
-                  onClick={() => void write(openFile.path, draft, t("memory.fileSaved"), openFile.mtime)}
-                >
-                  {t("i18n.save")}
-                </ConfigButton>
-              )}
-            </div>
-            <textarea
-              className="settings-field-input"
-              value={draft}
-              spellCheck={false}
-              readOnly={!openFileWritable}
-              onChange={(event) => setDraft(event.target.value)}
-              style={{ minHeight: 200, fontFamily: "var(--font-mono)", fontSize: TEXT.sm, lineHeight: 1.55, resize: "vertical", opacity: openFileWritable ? 1 : 0.85 }}
+      <ConfigSplitView>
+        <ConfigSidebar>
+          {/* 画板 44 的文件列表头：`.pw-inline` 里是过滤框 + 计数徽章 */}
+          <ConfigDetailHeader>
+            <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true" /></span>
+            <input
+              className="pw-input"
+              type="search"
+              value={fileQuery}
+              onChange={(event) => setFileQuery(event.target.value)}
+              placeholder={t("memory.fileSearch")}
+              aria-label={t("memory.fileSearch")}
+              maxLength={60}
+              style={{ minWidth: 0, flex: 1 }}
             />
-            {openFileWritable && <p className="settings-chat-range-hint">{t("memory.autoSaveHint")}</p>}
-          </div>
-        )}
-      </section>
+            <span className="pw-badge count">{t("memory.fileCount", { count: catalog.length })}</span>
+          </ConfigDetailHeader>
+          {dir && <p className="pw-mono pw-dim">{dir}</p>}
 
-      {error && <p role="alert" className="settings-general-error">{error}</p>}
-    </div>
+          {/* 还没建出来的 pi-memory 文件：给一个一键创建，别让空目录像功能缺失 */}
+          {missingFiles.length > 0 && (
+            <ConfigSidebarList>
+              {missingFiles.map((file) => (
+                <div className="pw-litem" key={file.path}>
+                  <span className="pw-ico"><i data-ico="file-plus" data-size="14" aria-hidden="true" /></span>
+                  <span className="grow">
+                    <span className="pw-lname pw-mono">{file.path}</span>
+                    <span className="pw-lsub">{t("memory.fileMissing")}</span>
+                  </span>
+                  <ConfigButton
+                    variant="secondary"
+                    size="small"
+                    disabled={busy === file.path}
+                    onClick={() => void write(file.path, PI_MEMORY_TEMPLATES[file.path] ?? `# ${file.path}\n`, t("memory.fileCreated"))}
+                  >
+                    {t("memory.createFile")}
+                  </ConfigButton>
+                </div>
+              ))}
+            </ConfigSidebarList>
+          )}
+
+          <ConfigSidebarList>
+            {visibleCatalog.map((file) => (
+              <ConfigSidebarItem
+                key={file.path}
+                active={openFile?.path === file.path}
+                disabled={busy === file.path}
+                onClick={() => void read(file.path)}
+              >
+                <span className="pw-ico"><i data-ico="file-text" data-size="14" aria-hidden="true" /></span>
+                <span className="grow">
+                  <span className="pw-lname pw-mono">{file.path}</span>
+                  <span className="pw-lsub">{`${file.size} B · ${new Date(file.mtime).toLocaleString()}`}</span>
+                </span>
+                {!isWritableMemoryPath(file.path) && <span className="pw-badge warn">{t("memory.readOnlyFile")}</span>}
+              </ConfigSidebarItem>
+            ))}
+          </ConfigSidebarList>
+
+          {!loading && visibleCatalog.length === 0 && (
+            <ConfigEmptyState>
+              <p>{fileQuery.trim() ? t("memory.fileNoMatch") : t("memory.filesEmpty")}</p>
+            </ConfigEmptyState>
+          )}
+          <p className="pw-hint">{t("memory.filesHint")}</p>
+        </ConfigSidebar>
+
+        <ConfigDetail>
+          {openFile ? (
+            <>
+              <ConfigDetailHeader>
+                <ConfigDetailTitle><span className="pw-mono">{openFile.path}</span></ConfigDetailTitle>
+                <span className="pw-grow" aria-hidden="true" />
+                {!openFileWritable && <span className="pw-badge warn">{t("memory.readOnlyFile")}</span>}
+                {onOpenFile && (
+                  <ConfigButton variant="ghost" size="small" onClick={() => onOpenFile(`${dir}/${openFile.path}`)}>
+                    <span className="pw-ico"><i data-ico="external-link" data-size="13" aria-hidden="true" /></span>
+                    {t("memory.openInEditor")}
+                  </ConfigButton>
+                )}
+                <ConfigButton variant="ghost" size="small" onClick={() => setOpenFile(null)}>
+                  {t("i18n.close")}
+                </ConfigButton>
+                {openFileWritable && (
+                  <ConfigButton
+                    variant="primary"
+                    size="small"
+                    disabled={busy === openFile.path || draft === openFile.content}
+                    onClick={() => void write(openFile.path, draft, t("memory.fileSaved"), openFile.mtime)}
+                  >
+                    {t("i18n.save")}
+                  </ConfigButton>
+                )}
+              </ConfigDetailHeader>
+
+              {/* fork:fix-memory-ui — 外部冲突横幅：磁盘上的文件在读取后变了（多半是
+                  agent 刚写完记忆），编辑器里的草稿不会自动覆盖它；重新加载后重编。 */}
+              {conflict && (
+                <div className="pw-alert" role="alert">
+                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+                  <span className="grow">{t("memory.conflict")}</span>
+                  <ConfigButton variant="secondary" size="small" onClick={() => void read(openFile.path)}>
+                    {t("memory.reload")}
+                  </ConfigButton>
+                </div>
+              )}
+
+              <textarea
+                className="pw-textarea"
+                aria-label={openFile.path}
+                value={draft}
+                spellCheck={false}
+                readOnly={!openFileWritable}
+                onChange={(event) => setDraft(event.target.value)}
+                style={{ minHeight: 340 }}
+              />
+              {openFileWritable && <p className="pw-hint">{t("memory.autoSaveHint")}</p>}
+            </>
+          ) : (
+            <ConfigEmptyState>
+              <p>{t("memory.filesHint")}</p>
+            </ConfigEmptyState>
+          )}
+        </ConfigDetail>
+      </ConfigSplitView>
+
+      {error && (
+        <div className="pw-alert" role="alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{error}</span>
+        </div>
+      )}
+    </>
   );
 }

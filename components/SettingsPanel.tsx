@@ -404,12 +404,12 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           等宽读数 + 重置钮，与画板「聊天内容宽度」那一行同一形态）。 */}
       <PwBlock icon="palette" title={t("settings.appearance")}>
         <PwField
-          label={t("settings.appearance")}
+          label={t("settings.theme")}
           hint={t("settings.appearanceDescription")}
           control={
             <PwRadio
               value={preference}
-              ariaLabel={t("settings.appearance")}
+              ariaLabel={t("settings.theme")}
               options={THEME_OPTIONS.map((option) => ({
                 value: option.id,
                 label: t(option.label),
@@ -508,7 +508,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       {/* fork:zn-15 —— 外观 → 侧边栏：半透明开关 + 宽度滑块（画板 40 的「侧栏」块）。 */}
       <PwBlock icon="panel-left" title={t("settings.railBlock")}>
         <PwField
-          label={t("settings.sidebarTranslucent")}
+          label={t("settings.railTranslucentRow")}
           hint={t("settings.sidebarTranslucentHint")}
           control={
             <PwSwitch
@@ -519,7 +519,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }
         />
         <PwField
-          label={t("settings.sidebarWidth")}
+          label={t("settings.railWidthRow")}
           htmlFor="settings-sidebar-width"
           control={
             sidebarWidth == null || onSidebarWidthChange == null ? (
@@ -1040,17 +1040,17 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
                 </button>
               );
             })}
-            {/* 画板 40 的左导航只有 13 个分节；关闭入口用户定在导航底部（不是页头）——
-                桌面把导航空隙推到底，手机导航整列隐藏，关闭仍在页头（那里有分节下拉）。 */}
+            {/* 画板 40 的左导航只有 13 个分节；返回入口用户定在导航底部（不是页头）——
+                桌面把导航空隙推到底，手机导航整列隐藏，返回仍在页头（那里有分节下拉）。 */}
             <span className="pw-grow" aria-hidden="true" />
             <button
               type="button"
               className="pw-row pw-snav-close"
-              title={t("i18n.close")}
+              title={t("settings.backToWorkspace")}
               onClick={onClose}
             >
-              <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
-              <span className="pw-name">{t("i18n.close")}</span>
+              <span className="pw-ico"><i data-ico="arrow-left" data-size="14" aria-hidden="true" /></span>
+              <span className="pw-name">{t("settings.backToWorkspace")}</span>
             </button>
           </nav>
 

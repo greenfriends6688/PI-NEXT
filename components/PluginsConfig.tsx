@@ -10,9 +10,12 @@ import {
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
 import {
+  ConfigBadge,
   ConfigButton,
+  ConfigControl,
   ConfigDetail,
   ConfigDetailActions,
+  ConfigKv,
   ConfigDetailHeader,
   ConfigDetailHeaderInfo,
   ConfigDetailStack,
@@ -97,6 +100,14 @@ function statusColor(status: PluginPackageInfo["status"]): string {
   return "var(--danger)";
 }
 
+/** fork:design-system SW-14 —— 资源类型 → 画板 43 已解析资源行里的图标名。 */
+const RESOURCE_ICONS: Record<string, string> = {
+  extension: "blocks",
+  skill: "box",
+  prompt: "message-square",
+  theme: "palette",
+};
+
 function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
   const { t } = useI18n();
   const groups = ([
@@ -114,69 +125,30 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
 
   if (groups.length === 0) {
     return (
-      <div style={{ fontSize: TEXT.sm, color: "var(--text-dim)" }}>
-        {pkg.disabled ? t("i18n.packageDisabled") : t("i18n.noResolvedResources")}
+      <div className="pw-alert info">
+        <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+        <span className="pw-grow">
+          {pkg.disabled ? t("i18n.packageDisabled") : t("i18n.noResolvedResources")}
+        </span>
       </div>
     );
   }
 
+  // fork:design-system SW-14 —— 画板 43 的「已解析资源」：每个分组一个 `.pw-sec-title`，
+  // 分组下是 `.pw-list` + `.pw-litem`（名称 + 等宽相对路径副标题）。
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      {groups.map((group, groupIndex) => (
-        <div
-          key={group.kind}
-          style={{
-            borderTop: groupIndex === 0 ? "none" : "1px solid var(--border)",
-            paddingTop: groupIndex === 0 ? 0 : 12,
-          }}
-        >
-          <div
-            style={{
-              fontSize: TEXT["2xs"],
-              fontWeight: 700,
-              color: "var(--text-dim)",
-              textTransform: "uppercase",
-              marginBottom: 6,
-            }}
-          >
-            {group.label}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="pw-rowgap">
+      {groups.map((group) => (
+        <div key={group.kind}>
+          <ConfigSectionTitle>{group.label}</ConfigSectionTitle>
+          <div className="pw-list">
             {group.resources.map((resource) => (
-              <div key={`${resource.kind}:${resource.path}`} style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: TEXT.sm,
-                    color: "var(--text)",
-                    fontFamily: "var(--font-mono)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  title={resource.path}
-                >
-                  {resource.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: TEXT["2xs"],
-                    color: "var(--text-dim)",
-                    fontFamily: "var(--font-mono)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    marginTop: 1,
-                  }}
-                  title={resource.path}
-                >
-                  {resource.relativePath}
-                </div>
+              <div key={`${resource.kind}:${resource.path}`} className="pw-litem" title={resource.path}>
+                <span className="pw-ico"><i data-ico={RESOURCE_ICONS[group.kind] ?? "blocks"} data-size="14"></i></span>
+                <span className="grow">
+                  <span className="pw-lname">{resource.name}</span>
+                  <span className="pw-lsub">{resource.relativePath}</span>
+                </span>
               </div>
             ))}
           </div>
@@ -186,23 +158,16 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
   );
 }
 
+/** fork:design-system SW-14 —— 作用域是状态徽章：项目级 `.pw-badge accent`，其余 `.pw-badge`。 */
 function ScopeTag({ scope }: { scope: PluginScope }) {
   return (
-    <span
-      style={{
-        fontSize: TEXT["2xs"],
-        padding: "1px 5px",
-        borderRadius: "var(--radius-xs)",
-        flexShrink: 0,
-        background: scope === "project" ? "var(--accent-soft)" : "var(--n-surface)",
-        color: scope === "project" ? "var(--accent-text)" : "var(--text-dim)",
-      }}
-    >
+    <ConfigBadge tone={scope === "project" ? "accent" : undefined}>
       {scope}
-    </span>
+    </ConfigBadge>
   );
 }
 
+/** fork:design-system SW-14 —— 作用域切换 = 画板 43 的 `.pw-radio` 芯片组（产品是 role=radio 按钮）。 */
 function SegmentedScope({
   value,
   projectResourcesLoaded,
@@ -214,42 +179,28 @@ function SegmentedScope({
 }) {
   const { t } = useI18n();
   return (
-    <div
-      style={{
-        display: "inline-flex",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-sm)",
-        overflow: "hidden",
-        height: 30,
-      }}
-    >
+    <span className="pw-radio" role="radiogroup" aria-label={t("i18n.scope")}>
       {(["global", "project"] as PluginScope[]).map((scope) => {
         const active = value === scope;
         const disabled = scope === "project" && !projectResourcesLoaded;
         return (
           <button
             key={scope}
-            onClick={() => {
-              if (!disabled) onChange(scope);
-            }}
+            type="button"
+            role="radio"
+            aria-checked={active}
             disabled={disabled}
             title={disabled ? t("trust.projectScopeUnavailable") : undefined}
-            style={{
-              width: 76,
-              border: "none",
-              borderRight: scope === "global" ? "1px solid var(--border)" : "none",
-              background: active ? "var(--bg-selected)" : "none",
-              color: active ? "var(--text)" : "var(--text-muted)",
-              cursor: disabled ? "not-allowed" : "pointer",
-              opacity: disabled ? 0.45 : 1,
-              fontSize: TEXT.sm,
+            className={active ? "is-on" : undefined}
+            onClick={() => {
+              if (!disabled) onChange(scope);
             }}
           >
             {scope}
           </button>
         );
       })}
-    </div>
+    </span>
   );
 }
 
@@ -283,23 +234,16 @@ function AddPluginPanel({
   }, []);
 
   return (
-    <ConfigDetailStack className="is-fill">
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+    <ConfigDetailStack>
+      <div className="pw-rowgap">
+        <div className="pw-inline">
           <ConfigDetailTitle>{t("i18n.addPlugin")}</ConfigDetailTitle>
+          <span className="pw-grow" />
           <a
             href="https://pi.dev/packages"
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              color: "var(--accent)",
-              fontSize: TEXT.sm,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
+            className="pw-mono pw-dim"
           >
             <svg width="28" height="28" viewBox="0 0 800 800" aria-hidden="true" focusable="false" style={{ flexShrink: 0 }}>
               <path
@@ -312,9 +256,9 @@ function AddPluginPanel({
             pi.dev/packages
           </a>
         </div>
-        <div style={{ fontSize: TEXT.sm, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+        <span className="pw-mono pw-dim">
           {installLocation(scope, cwd)}
-        </div>
+        </span>
       </div>
 
       <ConfigField label="Source">
@@ -332,25 +276,14 @@ function AddPluginPanel({
           }}
           onBlur={(e) => onSourceChange(normalizePluginSourceInput(e.currentTarget.value))}
           placeholder="npm:@scope/package"
-          style={{
-            width: "100%",
-            height: 36,
-            padding: "0 11px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--bg-panel)",
-            color: "var(--text)",
-            fontFamily: "var(--font-mono)",
-            fontSize: TEXT.sm,
-            outline: "none",
-          }}
+          className="pw-input pw-mono"
           onKeyDown={(e) => {
             if (e.key === "Enter" && source.trim() && !busy) onInstall();
           }}
         />
       </ConfigField>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div className="pw-inline">
         <SegmentedScope
           value={scope}
           projectResourcesLoaded={projectResourcesLoaded}
@@ -366,47 +299,27 @@ function AddPluginPanel({
         </ConfigButton>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={{ fontSize: TEXT.sm, fontWeight: 600, color: "var(--text-muted)" }}>
-          Examples
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div>
+        <ConfigSectionTitle>Examples</ConfigSectionTitle>
+        <div className="pw-list">
           {examples.map((example) => (
             <button
               key={example}
               type="button"
+              className="pw-litem"
               onClick={() => onSourceChange(example)}
-              style={{
-                width: "100%",
-                minHeight: 30,
-                textAlign: "left",
-                padding: "6px 9px",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--bg-panel)",
-                color: "var(--text-dim)",
-                cursor: "pointer",
-                fontFamily: "var(--font-mono)",
-                fontSize: TEXT.xs,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = "var(--text-muted)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-panel)";
-                e.currentTarget.style.color = "var(--text-dim)";
-              }}
             >
-              {example}
+              <span className="pw-ico"><i data-ico="package" data-size="14"></i></span>
+              <span className="pw-lname pw-mono">{example}</span>
             </button>
           ))}
         </div>
       </div>
 
       {actionError && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--danger)", whiteSpace: "pre-wrap" }}>
-          {actionError}
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{actionError}</span>
         </div>
       )}
     </ConfigDetailStack>
@@ -454,41 +367,13 @@ function PackageDetail({
       <ConfigDetailHeader className="is-top-aligned">
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={pkg.scope} />
+          {/* fork:design-system SW-14 —— 画板 43 的详情头：状态徽章 + 包名等宽串。 */}
           {pkg.disabled ? (
-            <span
-              style={{
-                fontSize: TEXT["2xs"],
-                padding: "1px 5px",
-                borderRadius: "var(--radius-xs)",
-                background: "var(--n-surface)",
-                color: "var(--text-dim)",
-              }}
-            >
-              {t("i18n.disabled")}
-            </span>
+            <ConfigBadge>{t("i18n.disabled")}</ConfigBadge>
           ) : pkg.filtered && (
-            <span
-              style={{
-                fontSize: TEXT["2xs"],
-                padding: "1px 5px",
-                borderRadius: "var(--radius-xs)",
-                background: "var(--warning-soft)",
-                color: "var(--warning)",
-              }}
-            >
-              {t("i18n.filtered")}
-            </span>
+            <ConfigBadge tone="warn">{t("i18n.filtered")}</ConfigBadge>
           )}
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: TEXT.sm,
-              color: "var(--text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span className="pw-mono pw-grow">
             {pkg.source}
           </span>
         </ConfigDetailHeaderInfo>
@@ -536,43 +421,34 @@ function PackageDetail({
         </ConfigDetailActions>
       </ConfigDetailHeader>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(96px, 130px) minmax(0, 1fr)",
-          gap: "9px 14px",
-          fontSize: TEXT.sm,
-          lineHeight: 1.45,
-        }}
-      >
+      {/* fork:design-system SW-14 —— 画板 43 的属性表是 `.pw-kv`（dt 键 / dd 值）。 */}
+      <ConfigKv>
         {description && (
           <>
-            <div style={{ color: "var(--text-dim)" }}>{t("i18n.description")}</div>
-            <div style={{ color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-              {description}
-            </div>
+            <dt>{t("i18n.description")}</dt>
+            <dd>{description}</dd>
           </>
         )}
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.status")}</div>
-        <div style={{ color: statusColor(pkg.status), textTransform: "capitalize" }}>{pkg.status}</div>
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.version")}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-          <div className="skill-version-row">
-            <span className="skill-version-value">{versionSummary(pkg, t)}</span>
+        <dt>{t("i18n.status")}</dt>
+        <dd><ConfigBadge>{pkg.status}</ConfigBadge></dd>
+        <dt>{t("i18n.version")}</dt>
+        <dd>
+          <ConfigControl>
+            <span className="pw-mono">{versionSummary(pkg, t)}</span>
             {updateAvailable && (
-              <span className="skill-version-value is-update" title={updateStatus.displayName}>
+              <ConfigBadge tone="warn" title={updateStatus.displayName}>
                 {t("i18n.updateAvailable")}
-              </span>
+              </ConfigBadge>
             )}
             {canCheckForUpdates && (checkingUpdate || (updateStatus && !updateAvailable)) && (
-              <span
-                className={`skill-update-status ${checkingUpdate
-                  ? "is-checking"
+              <ConfigBadge
+                tone={checkingUpdate
+                  ? undefined
                   : updateStatus?.state === "up-to-date"
-                    ? "is-success"
+                    ? "ok"
                     : updateStatus?.state === "error"
-                      ? "is-error"
-                      : "is-muted"}`}
+                      ? "bad"
+                      : undefined}
               >
                 {checkingUpdate
                   ? t("i18n.checking")
@@ -581,48 +457,36 @@ function PackageDetail({
                     : updateStatus?.state === "unsupported"
                       ? t("i18n.automaticChecksUnavailable")
                       : updateStatus?.message || t("i18n.checkFailed")}
-              </span>
+              </ConfigBadge>
             )}
-          </div>
-          {updateError && (
-            <span style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>{updateError}</span>
-          )}
-        </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.package")}</div>
-        <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
-          {pkg.packageName ?? t("i18n.unknown")}
-        </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.resources")}</div>
-         <div style={{ color: "var(--text-muted)" }}>{resourceSummary(pkg, t)}</div>
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.installedPath")}</div>
-        <div
-          style={{
-            color: pkg.installedPath ? "var(--text-muted)" : "var(--danger)",
-            fontFamily: "var(--font-mono)",
-            overflowWrap: "anywhere",
-          }}
-        >
-          {pkg.installedPath ? shortenPath(pkg.installedPath) : t("i18n.notFound")}
-        </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.cwd")}</div>
-        <div style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
-          {shortenPath(cwd)}
-        </div>
-      </div>
+          </ConfigControl>
+          {updateError && <ConfigBadge tone="bad">{updateError}</ConfigBadge>}
+        </dd>
+        <dt>{t("i18n.package")}</dt>
+        <dd className="pw-mono">{pkg.packageName ?? t("i18n.unknown")}</dd>
+        <dt>{t("i18n.resources")}</dt>
+        <dd>{resourceSummary(pkg, t)}</dd>
+        <dt>{t("i18n.installedPath")}</dt>
+        <dd className="pw-mono">{pkg.installedPath ? shortenPath(pkg.installedPath) : t("i18n.notFound")}</dd>
+        <dt>{t("i18n.cwd")}</dt>
+        <dd className="pw-mono">{shortenPath(cwd)}</dd>
+      </ConfigKv>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div>
         <ConfigSectionTitle>{t("i18n.resolvedResources")}</ConfigSectionTitle>
         <ResourceList pkg={pkg} />
       </div>
 
       {actionMessage && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--success)" }}>
-          {actionMessage}
+        <div className="pw-alert info">
+          <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
+          <span className="pw-grow">{actionMessage}</span>
         </div>
       )}
       {actionError && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--danger)", whiteSpace: "pre-wrap" }}>
-          {actionError}
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{actionError}</span>
         </div>
       )}
     </ConfigDetailStack>
@@ -641,22 +505,12 @@ function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneE
           <ConfigDetailTitle>{extension.name}</ConfigDetailTitle>
         </ConfigDetailHeaderInfo>
       </ConfigDetailHeader>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(96px, 130px) minmax(0, 1fr)",
-          gap: "9px 14px",
-          fontSize: TEXT.sm,
-          lineHeight: 1.45,
-        }}
-      >
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.status")}</div>
-        <div style={{ color: extension.enabled ? "var(--accent)" : "var(--text-dim)" }}>{status}</div>
-        <div style={{ color: "var(--text-dim)" }}>{t("i18n.installedPath")}</div>
-        <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
-          {shortenPath(extension.path)}
-        </div>
-      </div>
+      <ConfigKv>
+        <dt>{t("i18n.status")}</dt>
+        <dd><ConfigBadge>{status}</ConfigBadge></dd>
+        <dt>{t("i18n.installedPath")}</dt>
+        <dd className="pw-mono">{shortenPath(extension.path)}</dd>
+      </ConfigKv>
     </ConfigDetailStack>
   );
 }
@@ -692,41 +546,17 @@ function McpServerDetail({
   const otherScope: McpScope = server.scope === "project" ? "global" : "project";
   const target =
     server.kind === "url" ? server.url : server.kind === "socket" ? server.socket : server.command;
-  const row: React.CSSProperties = { color: "var(--text-dim)" };
-  const val: React.CSSProperties = {
-    color: "var(--text-muted)",
-    fontFamily: "var(--font-mono)",
-    overflowWrap: "anywhere",
-  };
 
   return (
     <ConfigDetailStack>
       <ConfigDetailHeader className="is-top-aligned">
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={server.scope} />
+          {/* fork:design-system SW-14 —— 画板 43 的 MCP 详情头：作用域 / 禁用徽章 / 等宽名。 */}
           {server.disabled && (
-            <span
-              style={{
-                fontSize: TEXT["2xs"],
-                padding: "1px 5px",
-                borderRadius: "var(--radius-xs)",
-                background: "var(--n-surface)",
-                color: "var(--text-dim)",
-              }}
-            >
-              {t("mcp.disabledBadge")}
-            </span>
+            <ConfigBadge>{t("mcp.disabledBadge")}</ConfigBadge>
           )}
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: TEXT.sm,
-              color: "var(--text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span className="pw-mono pw-grow">
             {server.name}
           </span>
         </ConfigDetailHeaderInfo>
@@ -753,52 +583,46 @@ function McpServerDetail({
         </ConfigDetailActions>
       </ConfigDetailHeader>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(96px, 130px) minmax(0, 1fr)",
-          gap: "9px 14px",
-          fontSize: TEXT.sm,
-          lineHeight: 1.45,
-        }}
-      >
-        <div style={row}>{t("mcp.fieldType")}</div>
-        <div style={val}>{server.kind}</div>
-        <div style={row}>
+      <ConfigKv>
+        <dt>{t("mcp.fieldType")}</dt>
+        <dd className="pw-mono">{server.kind}</dd>
+        <dt>
           {server.kind === "url"
             ? t("mcp.kindUrl")
             : server.kind === "socket"
               ? t("mcp.kindSocket")
               : t("mcp.kindCommand")}
-        </div>
-        <div style={val}>{target ?? "—"}</div>
+        </dt>
+        <dd className="pw-mono">{target ?? "—"}</dd>
         {server.kind === "command" && (
           <>
-            <div style={row}>{t("mcp.fieldArgs")}</div>
-            <div style={val}>{server.args.length ? server.args.join(" ") : "—"}</div>
+            <dt>{t("mcp.fieldArgs")}</dt>
+            <dd className="pw-mono">{server.args.length ? server.args.join(" ") : "—"}</dd>
           </>
         )}
-        <div style={row}>{t("mcp.fieldEnv")}</div>
-        <div style={val}>{server.envKeys.length ? server.envKeys.join(", ") : "—"}</div>
-        <div style={row}>{t("mcp.fieldOptions")}</div>
-        <div style={val}>{Object.keys(server.options).length ? JSON.stringify(server.options) : "—"}</div>
-        <div style={row}>{t("mcp.fieldSource")}</div>
-        <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
-          {shortenPath(server.source)}
-        </div>
-        <div style={row}>{t("mcp.fieldCwd")}</div>
-        <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
-          {shortenPath(cwd)}
-        </div>
-      </div>
+        <dt>{t("mcp.fieldEnv")}</dt>
+        <dd className="pw-mono">{server.envKeys.length ? server.envKeys.join(", ") : "—"}</dd>
+        <dt>{t("mcp.fieldOptions")}</dt>
+        <dd className="pw-mono">{Object.keys(server.options).length ? JSON.stringify(server.options) : "—"}</dd>
+        <dt>{t("mcp.fieldSource")}</dt>
+        <dd className="pw-mono">{shortenPath(server.source)}</dd>
+        <dt>{t("mcp.fieldCwd")}</dt>
+        <dd className="pw-mono">{shortenPath(cwd)}</dd>
+      </ConfigKv>
 
       {authActions}
 
       {actionMessage && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--success)" }}>{actionMessage}</div>
+        <div className="pw-alert info">
+          <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
+          <span className="pw-grow">{actionMessage}</span>
+        </div>
       )}
       {actionError && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--danger)", whiteSpace: "pre-wrap" }}>{actionError}</div>
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{actionError}</span>
+        </div>
       )}
     </ConfigDetailStack>
   );
@@ -841,34 +665,6 @@ function AddMcpServer({
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loadingJson, setLoadingJson] = useState(false);
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    height: 36,
-    padding: "0 11px",
-    border: "1px solid var(--border)",
-    borderRadius: "var(--radius-sm)",
-    background: "var(--bg-panel)",
-    color: "var(--text)",
-    fontFamily: "var(--font-mono)",
-    fontSize: TEXT.sm,
-    outline: "none",
-  };
-  const jsonEditorStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 200,
-    padding: "9px 11px",
-    border: "1px solid var(--border)",
-    borderRadius: "var(--radius-sm)",
-    background: "var(--bg-panel)",
-    color: "var(--text)",
-    fontFamily: "var(--font-mono)",
-    fontSize: TEXT.sm,
-    lineHeight: 1.5,
-    outline: "none",
-    resize: "vertical",
-    whiteSpace: "pre",
-    overflow: "auto",
-  };
   const isUrl = /^https?:\/\//.test(spec.trim());
 
   const buildBasicDef = (): Record<string, unknown> => {
@@ -945,27 +741,32 @@ function AddMcpServer({
   );
 
   return (
-    <ConfigDetailStack className="is-fill">
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <ConfigDetailStack>
+      <div>
         <ConfigDetailTitle>
           {isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}
         </ConfigDetailTitle>
-        <div style={{ fontSize: TEXT.sm, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+        <span className="pw-mono pw-dim">
           {scope === "project" ? `${shortenPath(cwd)}/.pi/mcp.json` : "~/.pi/agent/mcp.json"}
-        </div>
+        </span>
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        {(["basic", "json"] as const).map((m) => (
-          <ConfigButton
-            key={m}
-            size="small"
-            variant={mode === m ? "primary" : undefined}
-            onClick={() => (m === "json" ? void switchToJson() : setMode("basic"))}
-          >
-            {m === "basic" ? t("mcp.modeBasic") : t("mcp.modeJson")}
-          </ConfigButton>
-        ))}
+      {/* fork:design-system SW-14 —— 画板 43 的 Basic / JSON 切换是 `.pw-radio` 芯片组。 */}
+      <div className="pw-inline">
+        <span className="pw-radio" role="radiogroup" aria-label={t("mcp.sectionTitle")}>
+          {(["basic", "json"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={mode === m}
+              className={mode === m ? "is-on" : undefined}
+              onClick={() => (m === "json" ? void switchToJson() : setMode("basic"))}
+            >
+              {m === "basic" ? t("mcp.modeBasic") : t("mcp.modeJson")}
+            </button>
+          ))}
+        </span>
       </div>
 
       <ConfigField label={t("mcp.nameLabel")}>
@@ -973,14 +774,17 @@ function AddMcpServer({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("mcp.namePlaceholder")}
-          style={inputStyle}
+          className="pw-input pw-mono"
         />
       </ConfigField>
 
       {mode === "json" ? (
         <ConfigField label={t("mcp.jsonLabel")}>
           {loadingJson ? (
-            <div style={{ fontSize: TEXT.sm, color: "var(--text-muted)" }}>{t("mcp.loadingDef")}</div>
+            <div className="pw-alert info">
+              <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+              <span className="pw-grow">{t("mcp.loadingDef")}</span>
+            </div>
           ) : (
             <textarea
               value={jsonText ?? ""}
@@ -989,7 +793,7 @@ function AddMcpServer({
               placeholder={
                 '{\n  "command": "npx",\n  "args": ["-y", "@modelcontextprotocol/server-github"],\n  "env": {}\n}'
               }
-              style={jsonEditorStyle}
+              className="pw-textarea pw-mono"
             />
           )}
         </ConfigField>
@@ -1000,23 +804,26 @@ function AddMcpServer({
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
               placeholder={t("mcp.specPlaceholder")}
-              style={inputStyle}
+              className="pw-input pw-mono"
             />
           </ConfigField>
 
           {!isUrl && (
             <ConfigField label={t("mcp.argsLabel")}>
-              <input value={argsText} onChange={(e) => setArgsText(e.target.value)} style={inputStyle} />
+              <input value={argsText} onChange={(e) => setArgsText(e.target.value)} className="pw-input pw-mono" />
             </ConfigField>
           )}
         </>
       )}
 
       {jsonError && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--danger)", whiteSpace: "pre-wrap" }}>{jsonError}</div>
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{jsonError}</span>
+        </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div className="pw-inline">
         <SegmentedScope
           value={scope}
           projectResourcesLoaded={projectResourcesLoaded}
@@ -1029,7 +836,10 @@ function AddMcpServer({
       </div>
 
       {actionError && (
-        <div style={{ fontSize: TEXT.sm, color: "var(--danger)", whiteSpace: "pre-wrap" }}>{actionError}</div>
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{actionError}</span>
+        </div>
       )}
     </ConfigDetailStack>
   );
@@ -1549,9 +1359,11 @@ export function PluginsConfig({
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.plugins")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
 
+        {/* fork:design-system SW-14 —— 画板 42 / 43 的信任提示是 `.pw-alert info` 一行。 */}
         {!projectResourcesLoaded && (
-          <div role="status" className="config-trust-notice">
-            {t("trust.pluginsNotLoaded")}
+          <div role="status" className="pw-alert info">
+            <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+            <span className="pw-grow">{t("trust.pluginsNotLoaded")}</span>
           </div>
         )}
 
@@ -1560,16 +1372,19 @@ export function PluginsConfig({
             <ConfigSidebarList>
               {mcpOnly ? null : (<>
               {loading ? (
-                <div className="config-sidebar-message">
-                  Loading...
+                <div className="pw-alert info">
+                  <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                  <span className="pw-grow">Loading...</span>
                 </div>
               ) : error ? (
-                <div className="config-sidebar-message is-error">
-                  {error}
+                <div className="pw-alert">
+                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+                  <span className="pw-grow">{error}</span>
                 </div>
               ) : packages.length === 0 && standaloneExtensions.length === 0 ? (
-                <div className="config-sidebar-message is-empty">
-                  No plugins configured
+                <div className="pw-alert info">
+                  <span className="pw-ico"><i data-ico="blocks" data-size="14"></i></span>
+                  <span className="pw-grow">No plugins configured</span>
                 </div>
               ) : (
                 <>
@@ -1625,21 +1440,8 @@ export function PluginsConfig({
                               {pkg.source}
                             </ConfigSidebarText>
                             {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
-                              <span title={t("i18n.updateAvailable")} className="skill-update-indicator">
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  aria-hidden="true"
-                                >
-                                  <path d="m5 12 7-7 7 7" />
-                                  <path d="M12 19V5" />
-                                </svg>
+                              <span title={t("i18n.updateAvailable")} className="pw-ico">
+                                <i data-ico="arrow-up" data-size="12"></i>
                               </span>
                             )}
                           </ConfigSidebarItem>
@@ -1655,16 +1457,19 @@ export function PluginsConfig({
                       {t("mcp.sectionTitle")}
                     </ConfigSidebarGroupLabel>
                     {mcpLoading ? (
-                      <div style={{ padding: "4px 8px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>
-                        {t("i18n.loading")}
+                      <div className="pw-alert info">
+                        <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                        <span className="pw-grow">{t("i18n.loading")}</span>
                       </div>
                     ) : !mcpData && mcpActionError ? (
-                      <div style={{ padding: "4px 8px", fontSize: TEXT.sm, color: "var(--danger)" }}>
-                        {mcpActionError}
+                      <div className="pw-alert">
+                        <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+                        <span className="pw-grow">{mcpActionError}</span>
                       </div>
                     ) : (mcpData?.servers.length ?? 0) === 0 ? (
-                      <div style={{ padding: "4px 8px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>
-                        {t("mcp.emptyList")}
+                      <div className="pw-alert info">
+                        <span className="pw-ico"><i data-ico="server" data-size="14"></i></span>
+                        <span className="pw-grow">{t("mcp.emptyList")}</span>
                       </div>
                     ) : (
                       <>
@@ -1741,11 +1546,12 @@ export function PluginsConfig({
           </ConfigSidebar>
 
           <ConfigDetail>
-            <ConfigDetailStack className="is-fill">
+            <ConfigDetailStack>
               {view === "mcp" && mcpImportOpen ? (
-                <div style={{ display: "grid", gap: 10, alignContent: "start", padding: "4px 2px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <strong style={{ fontSize: TEXT.md }}>{t("mcp.importTitle")}</strong>
+                <div className="pw-rowgap">
+                  <div className="pw-inline">
+                    <ConfigDetailTitle>{t("mcp.importTitle")}</ConfigDetailTitle>
+                    <span className="pw-grow" />
                     <ConfigButton variant="ghost" size="small" onClick={() => setMcpImportOpen(false)}>{t("mcp.cancel")}</ConfigButton>
                   </div>
                   <p className="settings-chat-range-hint" style={{ margin: 0 }}>{t("mcp.importHint")}</p>
@@ -1753,29 +1559,25 @@ export function PluginsConfig({
                   {!mcpDiscovering && mcpDiscovered.length === 0 && (
                     <p className="settings-chat-range-hint">{t("mcp.importEmpty")}</p>
                   )}
-                  <div style={{ display: "grid", gap: 6 }}>
+                  <div className="pw-pop">
                     {mcpDiscovered.map((server) => (
                       <div
                         key={`${server.path}:${server.name}`}
-                        style={{
-                          display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center",
-                          padding: "7px 9px", border: "1px solid var(--border-faint)", borderRadius: "var(--radius-md)",
-                          background: "var(--bg-panel)", opacity: server.shadowed || server.disabled ? 0.6 : 1,
-                        }}
+                        className="pw-prow"
+                        style={{ opacity: server.shadowed || server.disabled ? 0.6 : 1 }}
                       >
-                        <div style={{ minWidth: 0, display: "grid", gap: 2 }}>
-                          <span style={{ fontSize: TEXT.md, color: "var(--text)" }}>
-                            {server.name}
-                            <span style={{ marginLeft: 6, fontSize: TEXT.xs, color: "var(--text-dim)" }}>
-                              {server.tool} · {server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}
-                              {server.disabled ? ` · ${t("mcp.itemDisabled")}` : ""}
-                              {server.shadowed ? ` · ${t("mcp.importShadowed")}` : ""}
-                            </span>
+                        <span className="pw-ico"><i data-ico="server" data-size="14"></i></span>
+                        <span className="grow">
+                          <b style={{ fontWeight: 500 }}>{server.name}</b>
+                          <span className="pw-desc" style={{ display: "block" }}>
+                            {server.tool} · {server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}
+                            {server.disabled ? ` · ${t("mcp.itemDisabled")}` : ""}
+                            {server.shadowed ? ` · ${t("mcp.importShadowed")}` : ""}
                           </span>
-                          <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={server.path}>
+                          <span className="pw-mono pw-dim" title={server.path} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {server.def.command ? `${server.def.command} ${(server.def.args as string[] | undefined)?.join(" ") ?? ""}`.trim() : String(server.def.url ?? server.def.socket ?? "")}
                           </span>
-                        </div>
+                        </span>
                         <ConfigButton
                           variant="secondary"
                           size="small"

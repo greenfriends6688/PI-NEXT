@@ -109,8 +109,11 @@ test("groups chat display controls in one board block", () => {
 
   assert.doesNotMatch(panelSource, /ThinkingIcon|settings-thinking-/);
   // chat 块的所有行共用画板的 `.pw-field` 规格（board.css），产品不再自带行样式。
-  const fieldStyles = cssSource.match(/\.pw-field \{[\s\S]*?\}/)?.[0] ?? "";
+  // 允许的只有**接线层**规则（`fork:settings-field-density`：标签下限 + 放不下时换行），
+  // 它们都带作用域，不会跟 board.css 抢；不带作用域的裸 `.pw-field {` 一律不许有。
+  const fieldStyles = cssSource.match(/^\.pw-field \{[\s\S]*?\}/m)?.[0] ?? "";
   assert.equal(fieldStyles, "");
+  assert.match(cssSource, /\.settings-dialog-main \.pw-field > \.pw-label \{\s*flex: 0 0 auto;\s*min-width: 132px;/);
 });
 
 test("keeps General free of divider rows", () => {
@@ -148,7 +151,9 @@ test("uses a left section column on desktop and one compact picker on mobile", (
   assert.ok(navFocusRule, "the nav row focus rule should exist");
   assert.doesNotMatch(navFocusRule, /outline: none/);
   assert.match(navFocusRule, /outline-offset: -2px/);
-  assert.match(globalCssSource, /:where\(button[\s\S]*?:focus-visible \{[\s\S]*?outline: 2px solid var\(--accent\) !important/);
+  // fork:design-system —— 焦点环由 globals.css 的 `:where(button…):focus-visible`
+  // 统一提供（1.5px 强调色 + 1px offset），画板 40 的导航行只内缩 offset。
+  assert.match(globalCssSource, /:where\(button[\s\S]*?:focus-visible \{[\s\S]*?outline: 1\.5px solid var\(--accent\) !important/);
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-section-tabs \{[\s\S]*?display: none/);
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
   assert.doesNotMatch(panelSource, /width: isMobile \? "100%" : 188/);

@@ -13,7 +13,7 @@
 
 <header class="pw-head">
   <h1>50 · 对话框</h1>
-  <p>壳之外的模态框：项目信任、目录选择、扩展请求（四种）、二次确认、壳级通知条。</p>
+  <p>壳之外的模态框：项目信任、目录选择、扩展请求（四种）、附件预览灯箱、二次确认、壳级通知条。</p>
   <div class="pw-tags">
     <span class="pw-tag">页面：全局</span>
     <span class="pw-tag">组件：ProjectTrustDialog / DirectoryPicker / 扩展请求对话框 / ContextMenu</span>
@@ -270,6 +270,63 @@
   </div>
 </section>
 
+<!-- 附件预览灯箱 -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>附件预览灯箱</b> · 遮罩 + 全屏 <code>&lt;dialog&gt;</code> · 图片整屏壳 / 多类型卡片壳（最多 1000 宽）/ 壳本身的约定</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-inline" style="gap:var(--s4);align-items:flex-start">
+
+      <div class="pw-stage-cell" style="width:360px">
+        <div class="cap">图片 · 整屏壳（无标题条，内容自己占满）</div>
+        <div class="pw-scrim" style="min-height:260px;padding:var(--s4)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px;width:100%;color:var(--n-muted);font-size:var(--text-meta)">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">token-台账-第12轮.png</span>
+              <span class="pw-grow" style="flex:1"></span>
+              <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="x" data-size="16"></i></span></span>
+            </div>
+            <div style="width:100%;height:180px;display:grid;place-items:center;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);box-shadow:var(--shadow-modal);background:var(--n-surface);color:var(--n-placeholder);font-size:var(--text-meta)">图片本体（contain，不裁切）</div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim">图片走的是自己的灯箱，<b>不套卡片壳</b>——加一圈边框会让图看起来像被框住了。</p>
+      </div>
+
+      <div class="pw-stage-cell" style="width:520px">
+        <div class="cap">多类型 · 卡片壳（PDF / DOCX 1000 宽，其余 760）</div>
+        <div class="pw-scrim" style="min-height:260px;padding:var(--s4)">
+          <div class="pw-modal" style="width:100%">
+            <div class="pw-modal-head">
+              <span class="pw-ico"><i data-ico="file-text" data-size="16"></i></span>
+              2026-09-29-设计侧收尾.md
+            </div>
+            <div class="pw-code-body" style="font-size:var(--text-meta);line-height:1.6;white-space:pre-wrap;padding:var(--s3)"># 画板补画清单
+
+54 扩展浮窗 / 链接 / 探索分支
+60 断点对齐实现（1024 / 640 / 480）
+22 顶栏 MCP / 插件两枚浮窗</div>
+            <div class="pw-card-foot" style="border-top:1px solid var(--n-border-subtle)"><span class="pw-grow" style="flex:1"></span><span class="pw-mono pw-dim" style="font-size:var(--text-meta)">仅显示前 200 行</span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>用默认应用打开</span></div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim">文件名在标题栏（等宽，溢出省略）；底部一行只在<b>文本类</b>出现，音频 / 视频 / 不支持类型没有这行。</p>
+      </div>
+
+    </div>
+
+    <div class="pw-cell" style="max-width:760px">
+      <h4>壳的约定</h4>
+      <div class="pw-rowgap" style="margin-top:var(--s2);font-size:var(--text-secondary);color:var(--n-muted)">
+        <div>遮罩是 <code>.pw-scrim</code>（<code>--scrim</code>），把底下的转录压到不可读即可——不要求完全盖住颜色。</div>
+        <div>壳只有一个：图片是它的<b>满宽变体</b>，不是第二个组件。宽度按类型给（PDF / DOCX 1000，其余 760），高度封 <code>calc(100dvh − 96px)</code>。</div>
+        <div>关闭有三路且等价：右上 <code>.pw-iconbtn</code>、点遮罩空白、<code>Esc</code>。打开时焦点进关闭钮，关闭时焦点<b>回到触发它的那张缩略图</b>。</div>
+        <div>打开期间锁滚动（<code>body { overflow: hidden }</code>）；窄屏四边各留 16px 安全区，不铺满到刘海下面。</div>
+        <div>加载 / 失败 / 不支持三种都在壳内就地显示，<b>不换成通知条</b>——通知条会消失，用户就看不到预览失败了。</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
 <section class="pw-notes">
   <h2>这一张在定什么</h2>
   <ul>
@@ -283,6 +340,8 @@
     <li><b>已响应的扩展请求收成只读回显</b>，不再给按钮，只留「已提交 · 时间」。</li>
     <li><b>危险确认用 error 填充的主按钮</b>（这是唯一允许红色填充的地方，因为动作本身不可逆），普通确认用 ghost 的 danger 文字。</li>
     <li><b>通知条三色 + 一个可选动作</b>（如「重载会话」），最多 3 条、6 秒自收、鼠标停着不收。</li>
+    <li><b>附件预览只有一个壳</b>：图片是它的满宽变体（满宽、不裁切、不套边框），PDF / DOCX 给 1000、其余 760。文件名在标题栏、溢出省略；底部那行「仅显示前 N 行 / 用默认应用打开」只在文本类出现。</li>
+    <li><b>预览失败不换通知条</b>：加载中 / 失败 / 不支持三种都在壳内就地显示。通知条会自己消失——用户改完再点开预览就看不到上次为什么失败了。</li>
   </ul>
 </section>
 

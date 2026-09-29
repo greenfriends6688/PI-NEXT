@@ -783,3 +783,57 @@ test("renders image warnings for known text-only defaults without an explicit mo
     clearDraft(draftKey);
   }
 });
+
+// fork:context-pop-portal —— 上下文明细浮窗必须脱离输入框那棵子树。
+//
+// `.chat-input-shell.pw-composer` 有 `overflow-x: clip`（工具条芯片不许横着溢出卡片，
+// 那条规则要留着）。浮窗宽 680px、又右对齐在这条工具条里，留在子树里就会被祖先
+// 裁掉一长条；portal 到 body 之后它没有任何裁切祖先。
+test("the context detail popover is portaled out of the clipped composer subtree", () => {
+  const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+  const forkCss = readFileSync(new URL("../app/fork-ui.css", import.meta.url), "utf8");
+
+  assert.match(source, /<PortalDropdown[\s\S]*?className="pw-pop composer-ring-pop"/);
+  // 环本身只留圆环按钮，明细不再作为它的子节点。
+  assert.doesNotMatch(source, /className="pw-pop composer-ring-pop"[^>]*style=/);
+  // 可见性由状态驱动（portal 之后 CSS 的 :hover 够不着 panel）。
+  assert.match(source, /onMouseEnter=\{\(\) => setRingHovered\(true\)\}/);
+  assert.match(source, /onMouseLeave=\{\(\) => setRingHovered\(false\)\}/);
+  assert.match(source, /const contextRingOpen = ringHovered \|\| ringPinned;/);
+  // 点「外部」关掉钉住的浮窗时，浮窗已在 body 上，必须连它一起算。
+  assert.match(source, /!ringPopRef\.current\?\.contains\(target\)/);
+
+  // 工具条那条 clip 规则仍在（它管的是芯片，不是浮窗）。
+  assert.match(
+    forkCss,
+    /\.chat-input-shell\.pw-composer \{\s*overflow-x: clip;\s*overflow-y: visible;/,
+  );
+  // :hover / .is-pinned 不能再控制 panel 的显隐——它已经不在那棵子树里。
+  assert.doesNotMatch(forkCss, /\.composer-ring:hover \.composer-ring-pop/);
+  assert.doesNotMatch(forkCss, /\.composer-ring\.is-pinned \.composer-ring-pop/);
+  // panel 只剩自身规格（画布 / 描边 / 层级），位置由 PortalDropdown 那段 JS 算。
+  assert.doesNotMatch(forkCss, /\.composer-ring-pop \{[^}]*position: absolute/);
+});
+
+// fork:transcript-proc-head —— 「展开/收起」必须贴到过程卡片的右缘。
+//
+// button 的 `width: auto` 是 shrink-to-fit，`display: flex` 也不会撑满；那一个
+// `<span class="grow">` 因此没有空间可分配，「已完成」徽章和「展开」会紧跟在
+// 摘要文字后面（实测卡片 718px 宽、按钮只有 355px）。0-2-0 的 reset 层给一条
+// `width: 100%` 就够了。
+test("the process head button fills its card so the expand toggle sits at the right edge", () => {
+  const forkCss = readFileSync(new URL("../app/fork-ui.css", import.meta.url), "utf8");
+
+  const reset = forkCss.slice(
+    forkCss.indexOf("@layer fork-reset {"),
+    forkCss.indexOf("}", forkCss.indexOf("button.pw-side-foot { display: flex")),
+  );
+  assert.match(reset, /button\.pw-proc-head,[\s\S]*?\{[^}]*width: 100%;/);
+
+  // 宽度给足之后，`.grow` 才有空间把徽章和开关推到右端。
+  const board = readFileSync(
+    new URL("../design/pi-web-design/assets/board.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(board, /\.pw-proc-head \.grow \{ flex: 1; \}/);
+});

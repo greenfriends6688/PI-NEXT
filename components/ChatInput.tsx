@@ -80,6 +80,7 @@ import {
   type ReferenceSessionSource,
 } from "@/lib/composer-references";
 import { ComposerReferenceMenu } from "./ComposerReferenceMenu";
+import { PortalDropdown } from "./PortalDropdown";
 // fork:gap07-attachments — 任意文件：分类 / 上限 / 路径引用
 import {
   MAX_ATTACHED_FILE_BYTES,
@@ -607,8 +608,9 @@ function revokeImagePreview(image: AttachedImage): void {
 /**
  * fork:gap04-queue — 队列里的一行：可拖拽排序，带「立即发送」（仅 follow-up）与「移除」。
  *
- * 控件的可见性靠 `:hover`（用 style 手写，仓库不引 CSS-in-JS 库），
- * 但键盘用户也能拿到（button 本身可聚焦，hover 时显现不影响 tab 顺序）。
+ * fork:design-components —— 整行直接是画板 20「流式排队」那一行：`.pw-prow`（行盒）
+ * + `.pw-badge count`（序号）+ `.pw-btn sm`（两个动作）。动作常驻而不是 hover 才现，
+ * 因为画板就是这么画的，键盘用户也不再需要先 hover 才看得见可点的钮。
  */
 function QueuedMessageRow({
   kind,
@@ -633,86 +635,40 @@ function QueuedMessageRow({
   onDropOn?: () => void;
   dragging?: boolean;
 }) {
-  const [hover, setHover] = useState(false);
-  const controlStyle: React.CSSProperties = {
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 20,
-    height: 20,
-    padding: 0,
-    border: "none",
-    borderRadius: "var(--radius-xs)",
-    background: "transparent",
-    color: "var(--text-dim)",
-    cursor: "pointer",
-    opacity: hover ? 1 : 0,
-    transition: "opacity 0.12s",
-  };
   return (
     <div
       title={text}
       draggable={Boolean(onDragStart)}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onFocusCapture={() => setHover(true)}
-      onBlurCapture={() => setHover(false)}
       onDragStart={onDragStart}
       onDragOver={(event) => { if (onDropOn) event.preventDefault(); }}
       onDrop={(event) => { if (onDropOn) { event.preventDefault(); onDropOn(); } }}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "3px 10px",
-        fontSize: TEXT.sm,
-        color: "var(--text-muted)",
-        minWidth: 0,
-        opacity: dragging ? 0.4 : 1,
-        cursor: onDragStart ? "grab" : "default",
-      }}
+      className="pw-prow"
+      // 拖动中的那一行压暗（运行时状态，不进 board.css）。
+      style={{ opacity: dragging ? 0.4 : 1, cursor: onDragStart ? "grab" : "default" }}
     >
-      <span
-        style={{
-          flexShrink: 0,
-          fontSize: TEXT["2xs"],
-          fontFamily: "var(--font-mono)",
-          padding: "1px 7px",
-          borderRadius: "var(--radius-pill)",
-          border: `1px solid ${kind === "steer" ? "color-mix(in srgb, var(--accent) 45%, transparent)" : "var(--border)"}`,
-          color: kind === "steer" ? "var(--accent)" : "var(--text-dim)",
-        }}
-      >
-        {kind}
-      </span>
-      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2 }}>
-        {onPromote && (
-          <button
-            type="button"
-            onClick={onPromote}
-            title={promoteTitle}
-            aria-label={promoteTitle}
-            style={controlStyle}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 19V5" /><polyline points="5 12 12 5 19 12" />
-            </svg>
-          </button>
-        )}
+      <span className="pw-badge count">{index + 1}</span>
+      <span className="pw-badge">{kind}</span>
+      <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
+      {onPromote && (
         <button
           type="button"
-          onClick={onRemove}
-          title={removeTitle}
-          aria-label={`${removeTitle} #${index + 1}`}
-          style={controlStyle}
+          className="pw-btn sm"
+          onClick={onPromote}
+          title={promoteTitle}
+          aria-label={promoteTitle}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
+          <span className="pw-ico"><i data-ico="send" data-size="13"></i></span>
         </button>
-      </div>
+      )}
+      <button
+        type="button"
+        className="pw-btn sm"
+        onClick={onRemove}
+        title={removeTitle}
+        aria-label={`${removeTitle} #${index + 1}`}
+      >
+        <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+      </button>
     </div>
   );
 }
@@ -1209,11 +1165,27 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
   // fork:ui-stats-ring —— 环浮窗支持点击圆环**钉住**（/session 命令与触屏也靠它打开）。
   const [ringPinned, setRingPinned] = useState(false);
+  // fork:context-pop-portal —— 浮窗 portal 到 body 之后，CSS 的
+  // `.composer-ring:hover .composer-ring-pop` 够不着它了，可见性改由状态驱动。
+  const [ringHovered, setRingHovered] = useState(false);
+  // fork:context-pop-portal —— 明细浮窗的宽度要跟着视口（原 inline style 是
+  // `min(680px, 100vw - 48px)`）。PortalDropdown 按这个数算左缘，窄屏时不给它
+  // 一个真实宽度就会把浮窗推到屏幕外。
+  const [ringPopWidth, setRingPopWidth] = useState(680);
+  useEffect(() => {
+    const fit = () => setRingPopWidth(Math.min(680, Math.max(320, window.innerWidth - 48)));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   const ringRef = useRef<HTMLSpanElement>(null);
+  const ringPopRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ringPinned) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!ringRef.current?.contains(event.target as Node)) setRingPinned(false);
+      // 浮窗已经不在 ringRef 里面了，点外部要连它一起算。
+      const target = event.target as Node;
+      if (!ringRef.current?.contains(target) && !ringPopRef.current?.contains(target)) setRingPinned(false);
     };
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
@@ -2951,8 +2923,21 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // 悬浮（鼠标 / 键盘焦点）才展开，不在输入框下面再放第二条横条。
   // fork:ui-stats-ring —— 浮窗内容升级为完整会话明细（原 composer 下方的
   // 统计长条已按用户裁定删除）。
+  /* fork:context-pop-portal —— 环浮窗原来挂在 `.chat-input-shell.pw-composer` 里，
+     而 composer 有 `overflow-x: clip`（为了让工具条芯片不横着溢出卡片）。
+     浮窗宽 680px、又是右对齐，环的右边还跟着声音与发送两枚按钮，于是它的左缘
+     必然越过 composer 左边界，被 `overflow-x: clip` 齐根切掉一长条。
+     改成 portal 到 body（复用 `PortalDropdown`）就脱离全部裁切祖先；
+     展开方向仍朝上 —— 环在窗口底部，下面没有空间。 */
+  const contextRingOpen = ringHovered || ringPinned;
   const contextRing = contextUsage || sessionStats ? (
-    <span ref={ringRef} className={`composer-ring${ringPinned ? " is-pinned" : ""}`} style={{ position: "relative", display: "inline-flex" }}>
+    <span
+      ref={ringRef}
+      className={`composer-ring${ringPinned ? " is-pinned" : ""}`}
+      style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setRingHovered(true)}
+      onMouseLeave={() => setRingHovered(false)}
+    >
       <button
         type="button"
         className={`pw-ring${ringTier ? ` ${ringTier}` : ""}`}
@@ -2964,8 +2949,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       >
         <span className="sr-only" />
       </button>
-      <div className="pw-pop composer-ring-pop" style={{ width: "min(680px, calc(100vw - 48px))" }}>
-        <div style={{ maxHeight: "min(70vh, 560px)", overflowY: "auto" }}>
+      <PortalDropdown open={contextRingOpen} anchorRef={ringRef} align="right" width={ringPopWidth} panelRef={ringPopRef}>
+        <div className="pw-pop composer-ring-pop">
           <div className="pw-inline" style={{ padding: "var(--s2) var(--s2) var(--s1)", gap: "var(--s2)" }}>
             <span className={`pw-ring${ringTier ? ` ${ringTier}` : ""}`} style={{ "--p": `${ringPercent}%`, width: 18, height: 18 } as React.CSSProperties} />
             <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)", color: "var(--n-strong)" }}>
@@ -3013,7 +2998,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             </>
           )}
         </div>
-      </div>
+      </PortalDropdown>
     </span>
   ) : null;
   const queueControls = isStreaming ? (
@@ -3754,6 +3739,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </button>
             </div>
           )}
+          {/* fork:ui-ctxbar —— 新会话的上下文条（项目 / 分支）在输入卡**上方**：
+              Codex 式的一条无铬信息条（.pw-ctxbar，画板 20「新会话 · 上下文条」），
+              不再是卡内顶行的一枚芯片行（.pw-chips 的地盘是附件芯片）。
+              阅读态塌陷（.is-compact 只剩一行）时整条不渲染：那时输入卡自己都收成
+              一行了，上面再挂一条 24px 的信息行只会把「收起」这件事说反。 */}
+          {protrusion && !compact && <div className="pw-ctxbar">{protrusion}</div>}
           <div
             ref={inputShellRef}
             /* fork:design-components —— 输入框外壳直接用画板 20 的 .pw-composer
@@ -3785,10 +3776,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               height: manualMode ? `${manualHeight}px` : undefined,
             } as React.CSSProperties}
           >
-          {/* fork:design-components —— 输入框内的芯片行 = 画板 20 的 .pw-chips：
-              新会话的工作区选择（ProjectChip）就挂在这一行里，而不是输入框上面
-              另起一条横条。 */}
-          {protrusion && <div className="pw-chips">{protrusion}</div>}
           {/* fork:pr23-resize — 手柄骑在卡片上边缘（向上拖变大）。移动端与引用回答
               形态不渲染；阅读态塌陷（.is-compact）时由 CSS 隐藏。 */}
           {!compact && !isMobile && (

@@ -16,9 +16,9 @@
   <p><b>移动端与桌面端同构</b>：同一套控件、同一个位置，只改尺寸与折叠方式。窄屏不新增底部条、不新增底部弹层——放不下的动作收进顶栏那条覆盖式工具条（就是桌面端顶栏右侧那一排，一个都不少）。</p>
   <div class="pw-tags">
     <span class="pw-tag">页面：会话工作台（窄屏）</span>
-    <span class="pw-tag">组件：AppShell(mobile) / useIsMobile / useIsNarrowMobile / PwaRegistration / manifest.ts</span>
+    <span class="pw-tag">组件：AppShell(mobile) / useIsMobile / useIsNarrowMobile / useIsCompact / PwaRegistration / manifest.ts</span>
     <span class="pw-tag accent">390 × 800</span>
-    <span class="pw-tag">断点 1024 / 640 / 380</span>
+    <span class="pw-tag">断点 1024 / 640 / 480</span>
   </div>
 </header>
 
@@ -355,7 +355,7 @@
     </div>
 
     <div class="pw-cell">
-      <h4><span class="pw-ico"><i data-ico="tablet" data-size="14"></i></span>381–640 · 手机</h4>
+      <h4><span class="pw-ico"><i data-ico="tablet" data-size="14"></i></span>481–640 · 手机</h4>
       <p>单栏。侧栏与右栏都变全屏覆盖层。顶栏 48，右侧动作仍排得下，不折叠。<b>不新增底部条</b>。</p>
       <div class="pw-inline" style="margin-top:var(--s2);gap:3px">
         <span style="flex:1;height:34px;border-radius:3px;background:var(--n-hover)"></span>
@@ -363,7 +363,7 @@
     </div>
 
     <div class="pw-cell">
-      <h4><span class="pw-ico"><i data-ico="smartphone" data-size="14"></i></span>≤ 380 · 窄屏</h4>
+      <h4><span class="pw-ico"><i data-ico="smartphone" data-size="14"></i></span>≤ 480 · 窄屏</h4>
       <p>同上，且顶栏右侧放不下 → 多一个「更多控件」按钮，点开把那一排动作展开成<b>覆盖顶栏</b>的工具条（不是底部条、不是新交互）。</p>
       <div class="pw-inline" style="margin-top:var(--s2);gap:3px">
         <span style="flex:1;height:34px;border-radius:3px;background:var(--n-hover)"></span>
@@ -423,6 +423,7 @@
     <li><b>粗指针只改尺寸不改位置</b>：顶栏图标 28→36、顶栏 36→48、滚动条 8→6、悬浮才出的动作改常显。</li>
     <li><b>项目信任在移动端不弹模态框</b>，改成顶栏下方一条常驻横幅——模态框在窄屏会把输入框整个挡掉。</li>
     <li><b>输入框控件行不换行</b>，放不下时右侧裁切（<code>overflow-x: clip</code>）：横向滚动条在输入框里读起来像 bug，裁切读起来像「这行满了」。</li>
+    <li><b>断点按实现对齐</b>：三档宽度直接抄 <code>hooks/useIsMobile.ts</code> 的三条 media query —— <code>useIsCompact</code> ≤ 1024（平板档，含手机）、<code>useIsMobile</code> ≤ 640（手机档）、<code>useIsNarrowMobile</code> ≤ 480（窄屏档）。本表与 <code>DESIGN-SPEC.md</code> § 4 的断点表同源，改一处必须改三处。</li>
   </ul>
 </section>
 

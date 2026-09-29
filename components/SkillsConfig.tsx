@@ -14,6 +14,7 @@ import {
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
 import {
+  ConfigBadge,
   ConfigButton,
   ConfigDetail,
   ConfigDetailActions,
@@ -186,10 +187,12 @@ function SkillDetail({
       <div className="skill-detail-heading">
         <ConfigDetailHeader>
           <ConfigDetailHeaderInfo>
-            <span className={`config-scope-tag${label === "project" ? " is-project" : ""}`}>
+            {/* fork:design-system SW-14 —— 作用域是状态徽章（画板 42 的 `.pw-badge accent`），
+                路径是等宽元信息（画板 42 的 `.pw-mono` dd）。 */}
+            <ConfigBadge tone={label === "project" ? "accent" : undefined}>
               {label}
-            </span>
-            <span className="config-detail-path">
+            </ConfigBadge>
+            <span className="pw-mono pw-dim pw-grow">
               {displayPath(skill.filePath)}
             </span>
           </ConfigDetailHeaderInfo>
@@ -202,17 +205,9 @@ function SkillDetail({
             />
           </ConfigDetailActions>
         </ConfigDetailHeader>
-        <div className="skill-detail-status-row">
-          {!enabled && (
-            <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)" }}>
-              {t("i18n.hiddenButInvocable")}
-            </span>
-          )}
-          {saveError && (
-            <span style={{ fontSize: TEXT.sm, color: "var(--danger)", overflowWrap: "anywhere" }}>
-              {saveError}
-            </span>
-          )}
+        <div className="pw-inline">
+          {!enabled && <span className="pw-dim">{t("i18n.hiddenButInvocable")}</span>}
+          {saveError && <ConfigBadge tone="bad">{saveError}</ConfigBadge>}
         </div>
       </div>
 
@@ -283,9 +278,7 @@ function SkillDetail({
               </ConfigButton>
             )}
           </div>
-          {updateError && (
-            <span style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>{updateError}</span>
-          )}
+          {updateError && <ConfigBadge tone="bad">{updateError}</ConfigBadge>}
         </ConfigField>
       )}
 
@@ -302,11 +295,11 @@ function SkillDetail({
       </ConfigField>
 
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <div className="pw-inline">
           <ConfigSectionTitle>{t("skills.content")}</ConfigSectionTitle>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="pw-inline pw-grow" style={{ justifyContent: "flex-end" }}>
             {savedAt && !editing && (
-              <span style={{ fontSize: TEXT.xs, color: "var(--success)" }}>{t("i18n.saved")}</span>
+              <span className="pw-badge ok">{t("i18n.saved")}</span>
             )}
             {content !== null && !editing && (
               <ConfigButton size="small" onClick={() => { setDraft(content); setEditing(true); setSavedAt(false); }}>
@@ -336,7 +329,10 @@ function SkillDetail({
         </div>
 
         {loadingContent ? (
-          <div className="config-sidebar-message">{t("i18n.loading")}</div>
+          <div className="pw-alert info">
+            <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+            <span className="pw-grow">{t("i18n.loading")}</span>
+          </div>
         ) : editing ? (
           <>
             <textarea
@@ -353,12 +349,18 @@ function SkillDetail({
             <MarkdownBody>{content}</MarkdownBody>
           </div>
         ) : (
-          <div className="config-sidebar-message is-error">
-            {contentError ? `${t("skills.contentLoadFailed")}: ${contentError}` : t("skills.contentLoadFailed")}
+          <div className="pw-alert">
+            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+            <span className="pw-grow">
+              {contentError ? `${t("skills.contentLoadFailed")}: ${contentError}` : t("skills.contentLoadFailed")}
+            </span>
           </div>
         )}
         {editing && contentError && (
-          <div className="config-sidebar-message is-error">{t("skills.saveFailed")}: {contentError}</div>
+          <div className="pw-alert">
+            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+            <span className="pw-grow">{t("skills.saveFailed")}: {contentError}</span>
+          </div>
         )}
       </div>
     </ConfigDetailStack>
@@ -976,9 +978,11 @@ export function SkillsConfig({
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.skills")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
 
+        {/* fork:design-system SW-14 —— 画板 42 / 43 的信任提示是 `.pw-alert info` 一行。 */}
         {!projectResourcesLoaded && (
-          <div role="status" className="config-trust-notice">
-            {t("trust.skillsNotLoaded")}
+          <div role="status" className="pw-alert info">
+            <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+            <span className="pw-grow">{t("trust.skillsNotLoaded")}</span>
           </div>
         )}
 
@@ -988,16 +992,19 @@ export function SkillsConfig({
           <ConfigSidebar>
             <ConfigSidebarList>
               {loading ? (
-                <div className="config-sidebar-message">
-                   {t("i18n.loading")}
+                <div className="pw-alert info">
+                  <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                  <span className="pw-grow">{t("i18n.loading")}</span>
                 </div>
               ) : error ? (
-                <div className="config-sidebar-message is-error">
-                  {error}
+                <div className="pw-alert">
+                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+                  <span className="pw-grow">{error}</span>
                 </div>
               ) : skills.length === 0 ? (
-                <div className="config-sidebar-message is-empty">
-                   {t("i18n.noSkills")}
+                <div className="pw-alert info">
+                  <span className="pw-ico"><i data-ico="box" data-size="14"></i></span>
+                  <span className="pw-grow">{t("i18n.noSkills")}</span>
                 </div>
               ) : (
                 (() => {
@@ -1111,7 +1118,7 @@ export function SkillsConfig({
 
           {/* Right: detail or add panel */}
           <ConfigDetail>
-            <ConfigDetailStack className="is-fill">
+            <ConfigDetailStack>
               {addMode ? (
               <AddSkillPanel
                 cwd={cwd}

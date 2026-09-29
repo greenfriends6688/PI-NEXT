@@ -1,11 +1,11 @@
 // fork:usage-relative-time — upstream-port marker
 "use client";
 
+import { ConfigButton, ConfigSectionTitle, ConfigStat, ConfigStatGrid } from "./SettingsUi";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { formatUpdatedTime } from "@/lib/i18n/format";
 import { isProviderUsageId } from "@/lib/provider-usage-ids";
-import { TEXT } from "@/lib/typography";
 
 type UsageBucket = {
   id: string;
@@ -90,52 +90,61 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
 
   const report = snapshot?.status === "ready" ? snapshot.report : undefined;
   return (
-    <section style={{ paddingTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <span style={{ fontSize: TEXT.md, color: "var(--text)", fontWeight: 600, lineHeight: 1.35 }}>{t("providerUsage.usage")}</span>
-        <button
-          type="button"
+    <section className="pw-rowgap">
+      {/* fork:design-system SW-14 —— 画板 41 的「用量摘要」卡：小节标题 + 四列统计卡。
+          标题行右侧挂唯一的刷新动作（画板 41 的 `.pw-btn outline sm` + `refresh-cw`）。 */}
+      <div className="pw-inline">
+        <ConfigSectionTitle>{t("providerUsage.usage")}</ConfigSectionTitle>
+        <ConfigButton
+          size="small"
           onClick={query}
           disabled={!enabled || querying}
           title={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
           aria-label={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
-          style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 30, padding: 0, background: "none", border: "none", color: refreshDone ? "var(--success)" : "var(--text-dim)", cursor: enabled && !querying ? "pointer" : "default", borderRadius: "var(--radius-sm)", flexShrink: 0, opacity: enabled ? 1 : 0.6, transition: "color 0.3s" }}
         >
-          {refreshDone ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={querying ? { animation: "spin 0.8s linear infinite" } : undefined} aria-hidden="true">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-          )}
-        </button>
+          <span className="pw-ico">
+            {refreshDone
+              ? <i data-ico="check" data-size="13"></i>
+              : <i data-ico="refresh-cw" data-size="13" className={querying ? "pw-anim-spin" : undefined}></i>}
+          </span>
+          {t("i18n.refresh")}
+        </ConfigButton>
         {report && (
-          <span title={new Date(report.capturedAt).toLocaleString(locale)} style={{ fontSize: TEXT.xs, color: "var(--text-dim)", whiteSpace: "nowrap" }}>
+          <span
+            title={new Date(report.capturedAt).toLocaleString(locale)}
+            className="pw-mono pw-dim"
+          >
             {t("providerUsage.updated", { time: formatUpdatedTime(report.capturedAt, locale) })}
           </span>
         )}
       </div>
 
-      {!report && !error && <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)" }}>{t("providerUsage.notQueried")}</span>}
-      {error && <span style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>{error}</span>}
+      {!report && !error && <span className="pw-dim">{t("providerUsage.notQueried")}</span>}
+      {error && (
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{error}</span>
+        </div>
+      )}
       {report && (
-        <div style={{ display: "grid", gridTemplateColumns: "180px minmax(0, 1fr)", columnGap: 14, rowGap: 8, alignItems: "baseline", minWidth: 0, width: "min(100%, 420px)", maxWidth: "100%", fontSize: TEXT.sm }}>
+        <ConfigStatGrid>
           {report.buckets.map((bucket) => (
-            <div key={bucket.id} style={{ display: "contents" }}>
-              <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bucket.groupLabel ? `${bucket.groupLabel} / ${bucket.label}` : bucket.label}</span>
-              <span style={{ color: "var(--text)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatBucket(bucket, t("providerUsage.available"))}</span>
-            </div>
+            <ConfigStat
+              key={bucket.id}
+              label={bucket.groupLabel ? `${bucket.groupLabel} / ${bucket.label}` : bucket.label}
+              value={formatBucket(bucket, t("providerUsage.available"))}
+              hint={bucket.period ?? t("providerUsage.available")}
+            />
           ))}
           {report.metrics.map((metric) => (
-            <div key={metric.id} style={{ display: "contents" }}>
-              <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{metric.label}</span>
-              <span style={{ color: "var(--text)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatMetric(metric)}</span>
-            </div>
+            <ConfigStat
+              key={metric.id}
+              label={metric.label}
+              value={formatMetric(metric)}
+              hint={metric.unit ?? "—"}
+            />
           ))}
-        </div>
+        </ConfigStatGrid>
       )}
     </section>
   );

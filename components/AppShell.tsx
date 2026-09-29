@@ -144,6 +144,9 @@ const EXPLORER_COLUMN_MIN_PANEL_WIDTH = 760;
 const GIT_GRAPH_TAB_ID = "git-graph";
 /** fork:zc-05 — 单例变更面板 tab 的 id。 */
 const AGENT_PANEL_WIDTH = 420;
+/* fork:top-panel-anchor —— 画板 22 的 `.pw-pop` 是 320 宽；系统提示词 / 工具两个
+   浮层的内容按这个宽度排版。Agent 面板有自己的宽度（上方 AGENT_PANEL_WIDTH）。 */
+const TOP_BAR_PANEL_WIDTH = 320;
 /** Below this rendered panel width the tree column is dropped so the document keeps room. */
 
 function parkedNewSessionDraftKey(cwd: string): string {
@@ -439,11 +442,18 @@ export function AppShell() {
     }
   }, [hasSubagentSessions]);
 
+  /* fork:top-panel-anchor —— 画板 22：所有顶栏浮层都从**各自的图标按钮下方**挂出。
+     之前只量 `topBarRef`（整条顶栏），于是除会话切换器外一律贴在顶栏最左、
+     横向拉满整条顶栏 —— 点右边那颗按钮，弹层却从左边冒出来。
+     这里记下「谁被点了」，定位时量那一个元素；量不到时回落到顶栏左缘。 */
+  const topPanelAnchorRef = useRef<HTMLElement | null>(null);
   const toggleTopPanel = useCallback((
     panel: "agents" | "branches" | "system" | "tools" | "sessions",
     keepMobileToolbarOpen = false,
+    trigger?: HTMLElement | null,
   ) => {
     if (isMobile) setSidebarOpen(false);
+    if (trigger !== undefined) topPanelAnchorRef.current = trigger;
     setActiveTopPanel((cur) => cur === panel ? null : panel);
     if (isMobile && isNarrowMobile && keepMobileToolbarOpen) setMobileToolbarMoreOpen(true);
   }, [isMobile, isNarrowMobile]);
@@ -451,9 +461,10 @@ export function AppShell() {
   const handleSystemInfoToggle = useCallback((
     panel: "system" | "tools",
     keepMobileToolbarOpen = false,
+    trigger?: HTMLElement | null,
   ) => {
     const opening = activeTopPanel !== panel;
-    toggleTopPanel(panel, keepMobileToolbarOpen);
+    toggleTopPanel(panel, keepMobileToolbarOpen, trigger);
     if (!opening || systemInfoLoading) return;
 
     const load = systemInfoLoaderRef.current;
@@ -468,6 +479,10 @@ export function AppShell() {
       }
     });
   }, [activeTopPanel, systemInfoLoading, toggleTopPanel]);
+  // 面板关闭后别把锚点留在一个已经卸载的按钮上。
+  useEffect(() => {
+    if (!activeTopPanel) topPanelAnchorRef.current = null;
+  }, [activeTopPanel]);
 
   // fork:ui-stats-inline — 统计面板已搬到 composer 下方的状态条；这里只负责
   // 把 `/session` 之类的入口变成“展开那块面板”，不再切顶栏浮层。
@@ -535,11 +550,30 @@ export function AppShell() {
     if (!activeTopPanel || !topBarRef.current) return;
     const update = () => {
       const topBarRect = topBarRef.current!.getBoundingClientRect();
+      const widthFor = (preferred: number) => Math.min(preferred, topBarRect.width - 16);
+      /* fork:top-panel-anchor —— 优先用「被点的那颗按钮」定位：弹层的左缘对齐按钮
+         左缘、上缘紧贴按钮下沿，宽度按画板 22 的 `.pw-pop`（320）而不是整条顶栏。
+         右缘贴边时把左缘收回来，保证弹层不出屏。 */
+      const anchor = topPanelAnchorRef.current;
+      if (anchor) {
+        const rect = anchor.getBoundingClientRect();
+        const width = widthFor(
+          activeTopPanel === "agents" ? AGENT_PANEL_WIDTH
+            : activeTopPanel === "sessions" ? TOP_BAR_SESSIONS_MENU_WIDTH
+              : TOP_BAR_PANEL_WIDTH,
+        );
+        setTopPanelPos({
+          top: rect.bottom,
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+          width,
+        });
+        return;
+      }
       if (activeTopPanel === "agents") {
         setTopPanelPos({
           top: topBarRect.bottom,
           left: topBarRect.left,
-          width: Math.min(AGENT_PANEL_WIDTH, topBarRect.width),
+          width: widthFor(AGENT_PANEL_WIDTH),
         });
         return;
       }
@@ -547,7 +581,7 @@ export function AppShell() {
       // left edge of the title area instead of the bar's right edge.
       if (activeTopPanel === "sessions") {
         const titleRect = topBarTitleRef.current?.getBoundingClientRect();
-        const width = Math.min(TOP_BAR_SESSIONS_MENU_WIDTH, topBarRect.width - 16);
+        const width = widthFor(TOP_BAR_SESSIONS_MENU_WIDTH);
         setTopPanelPos({
           top: topBarRect.bottom,
           left: Math.max(8, Math.min(titleRect?.left ?? topBarRect.left, topBarRect.right - width - 8)),
@@ -555,12 +589,16 @@ export function AppShell() {
         });
         return;
       }
-      setTopPanelPos({ top: topBarRect.bottom, left: topBarRect.left, width: topBarRect.width });
+      setTopPanelPos({ top: topBarRect.bottom, left: topBarRect.left, width: widthFor(TOP_BAR_PANEL_WIDTH) });
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(topBarRef.current);
-    return () => ro.disconnect();
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, [activeTopPanel, isMobile]);
 
   // Files unmount when inactive; workspace terminals stay mounted until closed.
@@ -2017,7 +2055,7 @@ export function AppShell() {
         {hasSubagentSessions && (
           <button
             type="button"
-            onClick={() => toggleTopPanel("agents", mobile)}
+            onClick={(event) => toggleTopPanel("agents", mobile, event.currentTarget)}
             title={translate("agentSwitcher.title")}
             aria-label={translate("agentSwitcher.title")}
             aria-pressed={activeTopPanel === "agents"}
@@ -2053,7 +2091,7 @@ export function AppShell() {
         {sessionHasBranches && (mobile ? (
           <button
             type="button"
-            onClick={() => toggleTopPanel("branches", true)}
+            onClick={(event) => toggleTopPanel("branches", true, event.currentTarget)}
             title={translate("i18n.branches")}
             aria-label={translate("i18n.branches")}
             aria-pressed={activeTopPanel === "branches"}
@@ -2076,7 +2114,6 @@ export function AppShell() {
             activeLeafId={branchActiveLeafId}
             onLeafChange={handleBranchLeafChange}
             inline
-            containerRef={topBarRef}
             open={activeTopPanel === "branches"}
             onToggle={() => toggleTopPanel("branches")}
             hasSession
@@ -2085,7 +2122,7 @@ export function AppShell() {
         <button
           ref={systemBtnRef}
           type="button"
-          onClick={() => handleSystemInfoToggle("system", mobile)}
+          onClick={(event) => handleSystemInfoToggle("system", mobile, event.currentTarget)}
           disabled={mobile && !showChat}
           title={translate("system.prompt")}
           aria-label={translate("system.prompt")}
@@ -2107,7 +2144,7 @@ export function AppShell() {
         </button>
         <button
           type="button"
-          onClick={() => handleSystemInfoToggle("tools", mobile)}
+          onClick={(event) => handleSystemInfoToggle("tools", mobile, event.currentTarget)}
           disabled={mobile && !showChat}
           title={translate("tools.title")}
           aria-label={translate("tools.title")}
@@ -2689,7 +2726,6 @@ export function AppShell() {
               onLeafChange={handleBranchLeafChange}
               inline
               compact
-              containerRef={topBarRef}
               open={activeTopPanel === "branches"}
               onToggle={() => toggleTopPanel("branches")}
               hasSession={showChat}

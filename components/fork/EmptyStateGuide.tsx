@@ -21,7 +21,6 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 import type { RecentProject } from "@/lib/recent-projects";
 import type { NewSessionTargets } from "./ProjectChip";
 
@@ -49,47 +48,6 @@ function baseName(target: string): string {
 
 function normalizePathKey(target: string): string {
   return target.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
-}
-
-const CARD_STYLE = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: 6,
-  padding: "10px 12px",
-  background: "var(--bg-panel)",
-  border: "1px solid var(--border-faint)",
-  borderRadius: "var(--radius-lg)",
-  color: "var(--text)",
-  cursor: "pointer",
-  textAlign: "left",
-  fontSize: TEXT.sm,
-} as const;
-
-function PathIcon(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-    </svg>
-  );
-}
-
-function RecentIcon(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-function ImportIcon(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3v12M7 10l5 5 5-5" />
-      <path d="M5 21h14" />
-    </svg>
-  );
 }
 
 export function EmptyStateGuide({
@@ -156,147 +114,102 @@ export function EmptyStateGuide({
 
   const recentCandidates = (recent ?? []).slice(0, 5);
 
+  // fork:design-components —— 直接照画板 01 的空态：`.pw-empty` 撑满并居中，
+  // `.pw-empty-inner` 收拢一条 `.pw-empty-inner h2` + 三张 `.pw-starter`。
+  // 展开出来的两块同样只用画板件：最近项目 = `.pw-pop` + `.pw-litem`，
+  // 导入 = `.pw-rowgap` + `.pw-input` + `.pw-btn primary sm`，出错是 `.pw-alert`。
+  // 三枚图标（folder / clock / import）走 `i[data-ico]`，不再手绘内联 svg；
+  // 卡片 hover 由 board.css 的 `.pw-starter:hover` 给，组件里不再改内联底色。
   return (
     <section
+      className="pw-empty"
       aria-label={t("home.guideTitle")}
-      style={{
-        flexShrink: 0,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        width: "100%",
-        maxWidth: 720,
-        margin: "0 auto",
-        padding: "14px 16px 0",
-      }}
+      style={{ padding: "24px 16px 0", overflowY: "auto" }}
     >
-      <div style={{ fontSize: TEXT.xs, fontWeight: 600, color: "var(--text-dim)", letterSpacing: "0.02em" }}>
-        {t("home.guideTitle")}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => targets.onOpenFolder()}
-          style={CARD_STYLE}
-          onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-          onMouseLeave={(event) => { event.currentTarget.style.background = "var(--bg-panel)"; }}
-        >
-          <span style={{ color: "var(--text-muted)", display: "flex" }}><PathIcon /></span>
-          <span style={{ fontWeight: 600 }}>{t("home.guidePickFolder")}</span>
-          <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("home.guidePickFolderHint")}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setRecentOpen((open) => !open)}
-          aria-expanded={recentOpen}
-          style={CARD_STYLE}
-          onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-          onMouseLeave={(event) => { event.currentTarget.style.background = "var(--bg-panel)"; }}
-        >
-          <span style={{ color: "var(--text-muted)", display: "flex" }}><RecentIcon /></span>
-          <span style={{ fontWeight: 600 }}>{t("home.guideRecent")}</span>
-          <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("home.guideRecentHint")}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setImportOpen((open) => !open)}
-          aria-expanded={importOpen}
-          style={CARD_STYLE}
-          onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-          onMouseLeave={(event) => { event.currentTarget.style.background = "var(--bg-panel)"; }}
-        >
-          <span style={{ color: "var(--text-muted)", display: "flex" }}><ImportIcon /></span>
-          <span style={{ fontWeight: 600 }}>{t("home.guideImport")}</span>
-          <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("home.guideImportHint")}</span>
-        </button>
-      </div>
-
-      {recentOpen && (
-        <div style={{ display: "grid", gap: 2, padding: "6px 8px", border: "1px solid var(--border-faint)", borderRadius: "var(--radius-md)", background: "var(--bg)" }}>
-          {recentLoading && <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("home.guideRecentLoading")}</span>}
-          {!recentLoading && recentCandidates.length === 0 && (
-            <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("home.guideRecentEmpty")}</span>
-          )}
-          {recentCandidates.map((project) => (
-            <button
-              key={project.path}
-              type="button"
-              title={project.path}
-              onClick={() => pickFromPath(project.path)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                width: "100%",
-                padding: "4px 6px",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                background: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                textAlign: "left",
-                fontSize: TEXT.sm,
-              }}
-              onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; event.currentTarget.style.color = "var(--text)"; }}
-              onMouseLeave={(event) => { event.currentTarget.style.background = "none"; event.currentTarget.style.color = "var(--text-muted)"; }}
-            >
-              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {baseName(project.path)}
-              </span>
-              <span style={{ flex: 1 }} />
-              <span style={{ color: "var(--text-dim)", fontSize: TEXT["2xs"], flexShrink: 0 }}>{project.source}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {importOpen && (
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-          <input
-            value={importValue}
-            onChange={(event) => { setImportValue(event.target.value); setImportError(null); }}
-            onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) submitImport(); }}
-            placeholder={t("home.guideImportPlaceholder")}
-            aria-label={t("home.guideImport")}
-            spellCheck={false}
-            style={{
-              flex: 1,
-              minWidth: 180,
-              padding: "6px 9px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-md)",
-              background: "var(--bg-panel)",
-              color: "var(--text)",
-              fontSize: TEXT.sm,
-              outline: "none",
-            }}
-          />
+      <div className="pw-empty-inner">
+        <h2>{t("home.guideTitle")}</h2>
+        <div className="pw-starters">
           <button
             type="button"
-            onClick={submitImport}
-            style={{
-              padding: "6px 12px",
-              border: "1px solid var(--primary-bg)",
-              borderRadius: "var(--radius-md)",
-              background: "var(--primary-bg)",
-              color: "var(--primary-fg)",
-              cursor: "pointer",
-              fontSize: TEXT.sm,
-              fontWeight: 600,
-            }}
+            className="pw-starter"
+            onClick={() => targets.onOpenFolder()}
           >
-            {t("home.guideImportAction")}
+            <b><span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>{t("home.guidePickFolder")}</b>
+            <span>{t("home.guidePickFolderHint")}</span>
           </button>
-          {importError && (
-            <span role="alert" style={{ color: "var(--danger)", fontSize: TEXT.xs, width: "100%" }}>{importError}</span>
-          )}
-        </div>
-      )}
 
-      {/* 能力提示轮播：与 composer 上方共用同一实现，避免两边各写一套「不重复上一条」逻辑。 */}
-      <div style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+          <button
+            type="button"
+            className="pw-starter"
+            onClick={() => setRecentOpen((open) => !open)}
+            aria-expanded={recentOpen}
+          >
+            <b><span className="pw-ico"><i data-ico="clock" data-size="14"></i></span>{t("home.guideRecent")}</b>
+            <span>{t("home.guideRecentHint")}</span>
+          </button>
+
+          <button
+            type="button"
+            className="pw-starter"
+            onClick={() => setImportOpen((open) => !open)}
+            aria-expanded={importOpen}
+          >
+            <b><span className="pw-ico"><i data-ico="import" data-size="14"></i></span>{t("home.guideImport")}</b>
+            <span>{t("home.guideImportHint")}</span>
+          </button>
+        </div>
+
+        {recentOpen && (
+          <div className="pw-pop">
+            {recentLoading && <span className="pw-pop-title">{t("home.guideRecentLoading")}</span>}
+            {!recentLoading && recentCandidates.length === 0 && (
+              <span className="pw-pop-title">{t("home.guideRecentEmpty")}</span>
+            )}
+            {recentCandidates.map((project) => (
+              <button
+                key={project.path}
+                type="button"
+                title={project.path}
+                onClick={() => pickFromPath(project.path)}
+                className="pw-litem"
+                style={{ width: "100%" }}
+              >
+                <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+                <span className="grow">
+                  <span className="pw-lname">{baseName(project.path)}</span>
+                  <span className="pw-lsub">{project.source}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {importOpen && (
+          <div className="pw-rowgap" style={{ width: "100%" }}>
+            <div className="pw-wrap">
+              <input
+                className="pw-input"
+                style={{ flex: 1, minWidth: 180 }}
+                value={importValue}
+                onChange={(event) => { setImportValue(event.target.value); setImportError(null); }}
+                onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) submitImport(); }}
+                placeholder={t("home.guideImportPlaceholder")}
+                aria-label={t("home.guideImport")}
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                className="pw-btn primary sm"
+                onClick={submitImport}
+              >
+                {t("home.guideImportAction")}
+              </button>
+            </div>
+            {importError && (
+              <span role="alert" className="pw-alert">{importError}</span>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

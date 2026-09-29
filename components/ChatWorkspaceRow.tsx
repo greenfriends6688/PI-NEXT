@@ -55,7 +55,6 @@ export function ChatWorkspaceRow({
         title={title}
         aria-current={selected ? "page" : undefined}
         className="pw-inline"
-        style={{ flex: 1, minWidth: 0, background: "none", border: 0, padding: 0, cursor: "pointer", color: "inherit", font: "inherit" }}
       >
         <span className="pw-ico"><i data-ico="messages-square" data-size="14"></i></span>
         <span className="pw-name">{label}</span>

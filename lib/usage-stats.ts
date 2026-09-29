@@ -119,6 +119,9 @@ export interface UsageModelPoint {
   model: string;
   messages: number;
   tokens: number;
+  /** fork:models-usage-cards — 每类 token 的拆分（模型设置页的缓存命中率要用它算）。
+   *  `tokens` 只是 `tokensByKind.total`；两者都给是因为既有消费者只读总数。 */
+  tokensByKind: UsageTokens;
   cost: number;
   /** Fraction of the range's total tokens (0 when the range has none). */
   share: number;
@@ -577,12 +580,16 @@ export function summarizeUsage(
       for (const [model, modelBucket] of Object.entries(bucket.models)) {
         let total = modelTotals.get(model);
         if (!total) {
-          total = { model, messages: 0, tokens: 0, cost: 0, share: 0 };
+          total = { model, messages: 0, tokens: 0, cost: 0, share: 0, tokensByKind: emptyTokens() };
           modelTotals.set(model, total);
         }
         total.messages += modelBucket.messages;
         total.tokens += modelBucket.tokens.total;
         total.cost += modelBucket.cost;
+        total.tokensByKind.input += modelBucket.tokens.input;
+        total.tokensByKind.output += modelBucket.tokens.output;
+        total.tokensByKind.cacheRead += modelBucket.tokens.cacheRead;
+        total.tokensByKind.cacheWrite += modelBucket.tokens.cacheWrite;
       }
     }
     if (touched) {
@@ -605,6 +612,7 @@ export function summarizeUsage(
     .filter((model) => model.tokens > 0 || model.cost > 0 || model.messages > 0)
     .sort((a, b) => b.tokens - a.tokens || b.cost - a.cost || a.model.localeCompare(b.model));
   for (const model of models) model.share = tokens > 0 ? model.tokens / tokens : 0;
+  for (const model of models) updateTokenTotal(model.tokensByKind);
 
   const projects = [...projectTotals.values()]
     .sort((a, b) => b.tokens - a.tokens || b.cost - a.cost || a.project.localeCompare(b.project));

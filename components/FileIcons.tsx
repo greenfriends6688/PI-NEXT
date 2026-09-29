@@ -1,162 +1,184 @@
-import type { CSSProperties } from "react";
-
+/**
+ * fork:design-components —— 文件图标**单色化**。
+ *
+ * 原来这里是一整套 catppuccin 彩色素材（`/icons/catppuccin/{latte,mocha}/*.svg`，
+ * 靠 CSS mask 上色），与「视觉唯一来源是 board.css」冲突：图标是唯一还从外部
+ * 图片素材取形的东西。现在改走画板 30 的**单色 lucide** 图标集——
+ * 结构与 `30-files-panel.html` 的树行一字不差：
+ *
+ *     <span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span>
+ *
+ * `components/PwIcons.tsx` 把 `<i data-ico>` 水合成 lucide 内联 SVG
+ * （`design/pi-web-design/assets/icons.js` + `hydrate()`），本文件不写死任何
+ * SVG 路径、不写死任何颜色 —— 颜色由 `.pw-trow .pw-ico`（--n-muted）给。
+ *
+ * 画板 30 树行只用三种字形（行 144-149）：`file-code`（代码）/ `braces`（数据与
+ * 配置）/ `file-text`（文档）。下表把 catppuccin 的 30 个词表按**语义**并进这
+ * 三种，再对确实需要区分的几类（图片 / 归档 / 数据库 / 音视频 / 锁文件）借用
+ * 图标集里已有的对应字形。词表与登记见本轮交付报告。
+ */
 
 interface IconProps {
   size?: number;
 }
 
-type CatppuccinIconName =
-  | "_file"
-  | "_folder"
-  | "_folder_open"
-  | "bash"
-  | "config"
-  | "css"
+/** 图标集（`design/pi-web-design/assets/icons.js`）里注册的字形名。 */
+type LucideIconName =
+  | "braces"
+  | "box"
   | "database"
-  | "docker"
-  | "env"
-  | "git"
-  | "graphql"
-  | "html"
-  | "javascript"
-  | "javascript-react"
-  | "json"
+  | "file"
+  | "file-archive"
+  | "file-code"
+  | "file-text"
+  | "folder"
+  | "folder-open"
+  | "git-branch"
+  | "image"
   | "lock"
-  | "npm-lock"
-  | "bun-lock"
-  | "next"
-  | "eslint"
-  | "markdown"
-  | "ms-word"
-  | "pdf"
-  | "python"
-  | "rust"
-  | "sass"
-  | "terraform"
-  | "toml"
-  | "typescript"
-  | "typescript-react"
-  | "yaml"
-  | "go";
+  | "music"
+  | "play"
+  | "table";
 
-const CATPPUCCIN_ICONS_ROOT = "/icons/catppuccin";
-
-function CatppuccinIcon({ name, size = 14 }: IconProps & { name: CatppuccinIconName }) {
-  const style = {
-    width: size,
-    height: size,
-    "--catppuccin-icon-light": `url(${CATPPUCCIN_ICONS_ROOT}/latte/${name}.svg)`,
-    "--catppuccin-icon-dark": `url(${CATPPUCCIN_ICONS_ROOT}/mocha/${name}.svg)`,
-  } as CSSProperties;
-
+/**
+ * 画板唯一的图标壳：`.pw-ico` 负责 line-height 归零与图标文字的垂直居中，
+ * `<i data-ico>` 由 PwIcons 水合。与画板写法一致，产品侧不写 SVG。
+ */
+function Icon({ name, size = 14 }: IconProps & { name: LucideIconName }) {
   return (
-    <span
-      aria-hidden="true"
-      className="catppuccin-file-icon"
-      style={style}
-    />
+    <span className="pw-ico">
+      <i data-ico={name} data-size={size} aria-hidden="true"></i>
+    </span>
   );
 }
 
 export function FolderIcon({ size = 14, open = false }: IconProps & { open?: boolean }) {
-  return <CatppuccinIcon name={open ? "_folder_open" : "_folder"} size={size} />;
+  return <Icon name={open ? "folder-open" : "folder"} size={size} />;
 }
 
 export function GenericFileIcon({ size = 14 }: IconProps) {
-  return <CatppuccinIcon name="_file" size={size} />;
+  return <Icon name="file" size={size} />;
 }
 
-const EXTENSION_ICONS: Record<string, CatppuccinIconName> = {
-  ts: "typescript",
-  tsx: "typescript-react",
-  js: "javascript",
-  mjs: "javascript",
-  cjs: "javascript",
-  jsx: "javascript-react",
-  py: "python",
-  json: "json",
-  jsonl: "json",
-  css: "css",
-  less: "css",
-  scss: "sass",
-  html: "html",
-  htm: "html",
-  md: "markdown",
-  mdx: "markdown",
-  yaml: "yaml",
-  yml: "yaml",
-  toml: "toml",
-  sh: "bash",
-  bash: "bash",
-  zsh: "bash",
-  fish: "bash",
-  rs: "rust",
-  go: "go",
+const EXTENSION_ICONS: Record<string, LucideIconName> = {
+  // 代码（画板 30 的 file-code：tokens.css / board.css 都是它）
+  ts: "file-code",
+  tsx: "file-code",
+  mts: "file-code",
+  cts: "file-code",
+  js: "file-code",
+  jsx: "file-code",
+  mjs: "file-code",
+  cjs: "file-code",
+  py: "file-code",
+  rs: "file-code",
+  go: "file-code",
+  java: "file-code",
+  kt: "file-code",
+  swift: "file-code",
+  c: "file-code",
+  h: "file-code",
+  hpp: "file-code",
+  cpp: "file-code",
+  php: "file-code",
+  rb: "file-code",
+  vue: "file-code",
+  svelte: "file-code",
+  html: "file-code",
+  htm: "file-code",
+  xml: "file-code",
+  // 样式表按画板口径（tokens.css = file-code）并进代码一类
+  css: "file-code",
+  scss: "file-code",
+  sass: "file-code",
+  less: "file-code",
+  styl: "file-code",
+  // 数据与配置（画板 30 的 braces：icons.js）
+  json: "braces",
+  jsonl: "braces",
+  jsonc: "braces",
+  yaml: "braces",
+  yml: "braces",
+  toml: "braces",
+  ini: "braces",
+  cfg: "braces",
+  conf: "braces",
+  env: "braces",
+  graphql: "braces",
+  gql: "braces",
+  tf: "braces",
+  hcl: "braces",
+  // 文档（画板 30 的 file-text：DESIGN-SPEC.md / README.md）
+  md: "file-text",
+  mdx: "file-text",
+  txt: "file-text",
+  rst: "file-text",
+  log: "file-text",
+  pdf: "file-text",
+  doc: "file-text",
+  docx: "file-text",
+  rtf: "file-text",
+  // 媒体与二进制
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  gif: "image",
+  webp: "image",
+  bmp: "image",
+  ico: "image",
+  avif: "image",
+  heic: "image",
+  svg: "image",
+  zip: "file-archive",
+  tar: "file-archive",
+  gz: "file-archive",
+  tgz: "file-archive",
+  bz2: "file-archive",
+  xz: "file-archive",
+  rar: "file-archive",
+  "7z": "file-archive",
+  mp3: "music",
+  wav: "music",
+  flac: "music",
+  ogg: "music",
+  m4a: "music",
+  mp4: "play",
+  mov: "play",
+  mkv: "play",
+  webm: "play",
+  avi: "play",
+  // 数据表与凭据
+  csv: "table",
+  tsv: "table",
+  xls: "table",
+  xlsx: "table",
   sql: "database",
-  graphql: "graphql",
-  gql: "graphql",
-  tf: "terraform",
-  hcl: "terraform",
-  docx: "ms-word",
-  pdf: "pdf",
+  db: "database",
+  sqlite: "database",
   lock: "lock",
+  pem: "lock",
+  key: "lock",
 };
 
-function getSpecialFileIcon(name: string): CatppuccinIconName | undefined {
-  if (name === "dockerfile" || name.startsWith("dockerfile.")) return "docker";
-  if (name === ".env" || name.startsWith(".env.")) return "env";
-  if ([".gitignore", ".gitattributes", ".gitmodules"].includes(name)) return "git";
-  if (name === "package-lock.json") return "npm-lock";
-  if (name === "bun.lock") return "bun-lock";
-  if (["next.config.js", "next.config.mjs", "next.config.cjs", "next.config.ts"].includes(name)) return "next";
-  if ([".eslintrc", ".eslintrc.js", ".eslintrc.json", ".eslintrc.yml", "eslint.config.mjs", "eslint.config.js"].includes(name)) return "eslint";
-  if (["yarn.lock", "pnpm-lock.yaml", "cargo.lock"].includes(name)) return "lock";
-  if (name.endsWith(".config.ts") || name.endsWith(".config.js") || name.endsWith(".config.mjs") || name.endsWith(".config.cjs")) return "config";
+function getSpecialFileIcon(name: string): LucideIconName | undefined {
+  if (name === "dockerfile" || name.startsWith("dockerfile.") || name === "containerfile") return "box";
+  if ([".gitignore", ".gitattributes", ".gitmodules"].includes(name)) return "git-branch";
+  if (["package-lock.json", "bun.lock", "yarn.lock", "pnpm-lock.yaml", "cargo.lock"].includes(name)) return "lock";
+  if (name === ".env" || name.startsWith(".env.")) return "braces";
+  if (
+    ["next.config.js", "next.config.mjs", "next.config.cjs", "next.config.ts"].includes(name)
+    || [".eslintrc", ".eslintrc.js", ".eslintrc.json", ".eslintrc.yml", "eslint.config.mjs", "eslint.config.js"].includes(name)
+  ) return "braces";
+  if (name.endsWith(".config.ts") || name.endsWith(".config.js") || name.endsWith(".config.mjs") || name.endsWith(".config.cjs")) return "braces";
   return undefined;
 }
 
 export function getFileIcon(name: string, size = 14): React.ReactNode {
   const lower = name.toLowerCase();
   const specialIcon = getSpecialFileIcon(lower);
-  if (specialIcon) return <CatppuccinIcon name={specialIcon} size={size} />;
+  if (specialIcon) return <Icon name={specialIcon} size={size} />;
 
   const ext = lower.split(".").pop() ?? "";
   const icon = EXTENSION_ICONS[ext];
-  return icon ? <CatppuccinIcon name={icon} size={size} /> : <GenericFileIcon size={size} />;
-}
-
-/**
- * fork:ui-file-manager-icon — 系统文件管理器的**平台图标**。
- *
- * 原来无论哪个平台都画一个通用文件夹轮廓，跟系统里别处（Dock、任务栏、其它应用）的
- * 图标对不上。这里按服务端给的 `process.platform` 出图：macOS 用 Finder 的笑脸，
- * Windows 用资源管理器的黄色文件夹 + 蓝色条，其余平台保留通用轮廓。
- */
-export function FileManagerIcon({ platform, size = 14 }: IconProps & { platform?: string | null }) {
-  if (platform === "darwin") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-        {/* Finder：圆角方块分左右两半（右半深一档），白脸 + 眼睛 + 微笑。 */}
-        <rect x="2" y="2" width="20" height="20" rx="5.2" fill="#3fa9f5" />
-        <path d="M12 2h4.8A5.2 5.2 0 0 1 22 7.2V22H12Z" fill="#1b7fd4" />
-        <path d="M7.6 9.4v2.4M16.4 9.4v2.4" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" />
-        <path d="M7.8 15.2c1.2 1.3 2.6 2 4.2 2s3-.7 4.2-2" stroke="#fff" strokeWidth="1.7" fill="none" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (platform === "win32") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-        {/* 资源管理器：后板深黄、前板亮黄，前板上沿一条蓝带。 */}
-        <path d="M2.6 6.6A1.6 1.6 0 0 1 4.2 5h4.3l1.8 1.9h9.5A1.6 1.6 0 0 1 21.4 8.5v9.9a1.6 1.6 0 0 1-1.6 1.6H4.2a1.6 1.6 0 0 1-1.6-1.6Z" fill="#e0a92c" />
-        <path d="M2.6 9.4h18.8v9a1.6 1.6 0 0 1-1.6 1.6H4.2a1.6 1.6 0 0 1-1.6-1.6Z" fill="#ffd35c" />
-        <path d="M2.6 9.4h18.8v2.1H2.6Z" fill="#2b7fff" />
-      </svg>
-    );
-  }
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 8a2 2 0 0 1 2-2h3.4l1.9 1.9H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-    </svg>
-  );
+  return <Icon name={icon ?? "file"} size={size} />;
 }

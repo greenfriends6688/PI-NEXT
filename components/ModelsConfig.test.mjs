@@ -143,14 +143,16 @@ test("manual price editing commits completed costs and removes only an all-blank
   assert.match(modelDetail, /value=\{costDraft\[key\]\}/);
 });
 
+// fork:models-board —— 模型详情按画板 41 拆成三张独立的 `.pw-detail`
+// （能力 / 规格 / 成本 → 高级 → 测试连接），所以标题串换成了画板的措辞。
 test("model specs keep catalog-filled prices visible outside advanced settings", () => {
   const modelDetail = source.slice(
     source.indexOf("function ModelDetail"),
     source.indexOf("// ── OAuth detail"),
   );
-  const specsIndex = modelDetail.indexOf('t("models.modelSpecs")');
+  const specsIndex = modelDetail.indexOf('t("models.specs")');
   const costIndex = modelDetail.indexOf('t("models.costPerMillion")');
-  const advancedIndex = modelDetail.indexOf('t("models.advancedSettings")');
+  const advancedIndex = modelDetail.indexOf('t("models.advancedTitle")');
 
   assert.ok(specsIndex >= 0);
   assert.ok(costIndex > specsIndex);
@@ -159,17 +161,26 @@ test("model specs keep catalog-filled prices visible outside advanced settings",
   assert.match(modelDetail, /formatCost\(key\)/);
 });
 
-test("per-model settings use one primary divider before advanced settings", () => {
+test("the three model-detail cards separate sections instead of drawing dividers", () => {
   const modelDetail = source.slice(
     source.indexOf("function ModelDetail"),
     source.indexOf("// ── OAuth detail"),
   );
 
-  assert.equal(
-    (modelDetail.match(/borderTop: "1px solid var\(--border\)"/g) ?? []).length,
-    1,
-  );
+  // 画板 41：高级与测试连接各自成卡，段与段之间由 `.pw-detail` 的描边分隔，
+  // 组件里不再手写 `borderTop`（原先那一条就是「弹窗影子」的一部分）。
+  assert.equal((modelDetail.match(/<ConfigDetail>/g) ?? []).length, 3);
+  assert.doesNotMatch(modelDetail, /borderTop: "1px solid var\(--border\)"/);
   assert.doesNotMatch(modelDetail, /borderBottom: "1px solid var\(--border\)"/);
+});
+
+test("the models page is a page head plus a two-column split, not one giant card", () => {
+  const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
+  assert.match(modelsConfig, /<PwPageHead title=\{t\("common\.models"\)\} sub=\{t\("models\.pageSub"\)\} \/>/);
+  assert.match(modelsConfig, /<ConfigSplitView>/);
+  // 右列是 `ConfigDetailStack`（一列独立的卡），不再包一层撑满高度的 `ConfigDetail`。
+  assert.doesNotMatch(modelsConfig, /<ConfigDetail>\s*<ConfigDetailStack/);
+  assert.match(cssSource, /\.config-panel-surface > \.pw-cols \{\s*flex: 1;/);
 });
 
 test("thinking level overrides keep explicit default, disabled, and custom controls", () => {

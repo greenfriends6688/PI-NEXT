@@ -30,7 +30,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { TEXT } from "@/lib/typography";
 import { useI18n } from "@/hooks/useI18n";
 import { animateFlip, diffFlip, type ElementRect, type FlipSnapshot } from "@/lib/flip-animate";
 import {
@@ -273,31 +272,25 @@ export function GroupedProjectList<T extends { key: string }>({
         })}
 
         {/* fork:zc-11 — 拖拽中的已分组项目需要一个「回到未分组」的落点；
-            没有它，用户只能先拖出组再拖回来。 */}
+            没有它，用户只能先拖出组再拖回来。
+            fork:design-components —— 落区直接用画板 61 的 `.pw-drop`（虚线 / 强调底 /
+            居中全在 board.css），组件里只留「挤成侧栏一行」这一档排版；`data-active`
+            与分组头用同一个状态属性。 */}
         {draggingGrouped && (
           <div
+            data-fork-ungroup-drop=""
+            data-active={ungroupDropActive ? "true" : undefined}
             onDragOver={(event) => {
               event.preventDefault();
               if (!ungroupDropActive) setUngroupDropActive(true);
             }}
             onDragLeave={() => setUngroupDropActive(false)}
             onDrop={dropOnUngrouped}
-            style={{
-              minHeight: ROW_HEIGHT,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              margin: "2px 0",
-              border: "1px dashed var(--border)",
-              borderRadius: "var(--radius-md)",
-              background: ungroupDropActive ? "var(--bg-selected)" : "transparent",
-              color: ungroupDropActive ? "var(--text)" : "var(--text-dim)",
-              fontSize: TEXT.sm,
-              userSelect: "none",
-            }}
+            className="pw-drop"
+            style={{ minHeight: ROW_HEIGHT, padding: "2px 8px", gridAutoFlow: "column", gap: 6 }}
           >
-            {t("sidebar.ungroupHint")}
+            <span className="pw-ico"><i data-ico="inbox" data-size="12"></i></span>
+            <span>{t("sidebar.ungroupHint")}</span>
           </div>
         )}
 
@@ -306,20 +299,6 @@ export function GroupedProjectList<T extends { key: string }>({
   );
 }
 
-const iconButtonStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 22,
-  height: 22,
-  padding: 0,
-  flexShrink: 0,
-  background: "transparent",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  color: "var(--text-muted)",
-  cursor: "pointer",
-};
 
 /** 分组头：折叠开关 + 名字（可改名）+ 数量 + 悬停操作（改名/删除），并作为拖拽落点。 */
 function GroupHeader({
@@ -356,6 +335,10 @@ function GroupHeader({
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
 
+  // fork:design-components —— 分组头照画板 02：`.pw-group-title` 给行规格，
+  // 折叠箭头用行内箭头的 `.pw-ico .pw-row-toggle`（随折叠态换 chevron，不再自绘旋转），
+  // 改名 / 删除是 `.pw-iconbtn sm` + 画板图标；hover 与拖放落点两档底色由
+  // fork-ui.css 的 `.pw-group-title[data-fork-group-header]` 承担。
   if (renaming) {
     return (
       <div
@@ -363,10 +346,13 @@ function GroupHeader({
         data-fork-group-header={group.id}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        style={{ display: "flex", alignItems: "center", gap: 4, height: ROW_HEIGHT, padding: "0 6px" }}
+        className="pw-group-title"
+        style={{ padding: "0 var(--s2) var(--s1)" }}
       >
         <input
           autoFocus
+          className="pw-input"
+          style={{ flex: 1, minWidth: 0 }}
           value={renameValue}
           onChange={(event) => onRenameValue(event.target.value)}
           onBlur={onCommitRename}
@@ -375,18 +361,6 @@ function GroupHeader({
             if (event.key === "Escape") onCancelRename();
           }}
           aria-label={t("sidebar.renameGroup")}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: 24,
-            padding: "0 8px",
-            background: "var(--bg)",
-            border: "1px solid var(--accent)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--text)",
-            fontSize: TEXT.sm,
-            outline: "none",
-          }}
         />
       </div>
     );
@@ -396,86 +370,34 @@ function GroupHeader({
     <div
       ref={registerFlipNode(`group:${group.id}`)}
       data-fork-group-header={group.id}
+      data-active={dropActive ? "true" : undefined}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        height: ROW_HEIGHT,
-        padding: "0 6px 0 4px",
-        background: dropActive ? "var(--bg-selected)" : hovered ? "var(--bg-hover)" : "transparent",
-        borderRadius: "var(--radius-md)",
-        color: "var(--text-muted)",
-        fontSize: TEXT.sm,
-        fontWeight: 600,
-        userSelect: "none",
-        transition: "background 0.12s",
-      }}
+      className="pw-group-title"
+      style={{ borderRadius: "var(--radius-md)", padding: "2px var(--s2)", gap: 4 }}
     >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!group.collapsed}
         title={t(group.collapsed ? "session.expandGroup" : "session.collapseGroup")}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          flex: 1,
-          minWidth: 0,
-          height: "100%",
-          padding: 0,
-          background: "transparent",
-          border: "none",
-          color: "inherit",
-          cursor: "pointer",
-          textAlign: "left",
-          fontSize: "inherit",
-          fontWeight: "inherit",
-        }}
       >
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          style={{
-            flexShrink: 0,
-            // fork:zm-06 — 只动 transform（折叠即时生效，不做无谓的持续动画）。
-            transform: group.collapsed ? "rotate(-90deg)" : "rotate(0deg)",
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span className="pw-ico pw-row-toggle"><i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i></span>
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {group.name}
         </span>
       </button>
-      <span style={{ flexShrink: 0, minWidth: 14, textAlign: "right", color: "var(--text-dim)", fontWeight: 400 }}>{count}</span>
-      {(hovered || dropActive) && (
-        <span style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-          <button type="button" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")} style={iconButtonStyle}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-            </svg>
-          </button>
-          <button type="button" onClick={onDelete} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")} style={iconButtonStyle}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-            </svg>
-          </button>
-        </span>
-      )}
+      <span style={{ flexShrink: 0, minWidth: 14, textAlign: "right" }}>{count}</span>
+      <span className="pw-acts" style={{ opacity: hovered || dropActive ? 1 : 0 }}>
+        <button type="button" className="pw-iconbtn sm" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
+          <span className="pw-ico"><i data-ico="pencil" data-size="12"></i></span>
+        </button>
+        <button type="button" className="pw-iconbtn sm" onClick={onDelete} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")}>
+          <span className="pw-ico"><i data-ico="trash-2" data-size="12"></i></span>
+        </button>
+      </span>
     </div>
   );
 }

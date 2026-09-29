@@ -76,7 +76,11 @@ test("renders backslash-escaped backticks inside inline code", () => {
 test("renders LaTeX parenthesis delimiters as inline math", () => {
   const html = renderMarkdown(String.raw`射线为 \(r_c = K^{-1}p\)。`);
 
-  assert.match(html, /class="katex"/);
+  // fork:design-components —— 画板 10:177 的 `.pw-math` 行内公式容器。
+  // `katex` 必须同时留着：katex.min.css 的 370 条 `.katex .xxx` 规则靠它。
+  assert.match(html, /<span class="katex pw-math">/);
+  assert.match(html, /class="katex-mathml"/);
+  assert.doesNotMatch(html, /pw-math block/);
   assert.match(html, /r_c/);
 });
 
@@ -86,9 +90,10 @@ P(\lambda)=o_b+\lambda r_b
 \]`);
   const oneLineHtml = renderMarkdown(String.raw`\[P(\lambda)=o_b+\lambda r_b\]`);
 
-  assert.match(html, /class="katex-display"/);
+  // fork:design-components —— 画板 10:179 的 `.pw-math block` 块级公式容器。
+  assert.match(html, /<span class="katex-display pw-math block">/);
   assert.match(html, /lambda/);
-  assert.match(oneLineHtml, /class="katex-display"/);
+  assert.match(oneLineHtml, /<span class="katex-display pw-math block">/);
 });
 
 test("renders model-emitted bracket-only formula lines as display math", () => {
@@ -96,7 +101,7 @@ test("renders model-emitted bracket-only formula lines as display math", () => {
 
 [ C(x) = \frac{2}{T(T-1)} \sum_{i<j} S(\hat{y}^{(i)}, \hat{y}^{(j)}) ]`);
 
-  assert.match(html, /class="katex-display"/);
+  assert.match(html, /<span class="katex-display pw-math block">/);
   assert.match(html, /\\sum/);
 });
 
@@ -173,4 +178,76 @@ test("uses a generic preview label when a markdown image has no alt text", () =>
 
   assert.match(html, /<button[^>]+aria-label="Preview image"[^>]*>/);
   assert.doesNotMatch(html, /Preview image:/);
+});
+
+test("fork:design-components — 助手正文容器是画板 10 的 .pw-md", () => {
+  const html = renderMarkdown("正文");
+
+  assert.match(html, /^<div class="pw-md">/);
+  assert.doesNotMatch(html, /markdown-body/);
+  assert.doesNotMatch(html, /\snode=/);
+});
+
+test("fork:design-components — 行内代码是画板 10:110 的裸 <code>", () => {
+  const html = renderMarkdown("用 `useResizablePanel` 包一层");
+
+  assert.match(html, /<code>useResizablePanel<\/code>/);
+  assert.doesNotMatch(html, /markdown-inline-code/);
+  assert.doesNotMatch(html, /\snode=/);
+});
+
+test("fork:design-components — 引用块用画板 10 的 .pw-quote", () => {
+  const html = renderMarkdown("> 注：这一行是引用");
+
+  assert.match(html, /<blockquote class="pw-quote">/);
+  assert.doesNotMatch(html, /\snode=/);
+});
+
+test("fork:design-components — 任务清单是画板 10 的 .pw-tasklist + .box.done", () => {
+  const html = renderMarkdown("- [x] 已完成\n- [ ] 未完成");
+
+  assert.match(html, /<ul class="pw-tasklist">/);
+  assert.match(html, /<li class="done"><span class="box done">/);
+  assert.match(html, /<span class="box"><\/span>/);
+  assert.doesNotMatch(html, /contains-task-list|task-list-item/);
+  assert.doesNotMatch(html, /<input/);
+  assert.doesNotMatch(html, /\snode=/);
+});
+
+test("fork:design-components — 松散任务列表项也能挂上 .box.done", () => {
+  // GFM 在松散项里把 checkbox 包进首个 <p>，且 <p> 前面还跟着一个换行文本节点。
+  const html = renderMarkdown("- [x] done item\n\n  more text\n");
+
+  assert.match(html, /<ul class="pw-tasklist">/);
+  assert.match(html, /<li class="done">/);
+  assert.match(html, /<span class="box done">/);
+  assert.doesNotMatch(html, /<input/);
+});
+
+test("fork:design-components — 代码围栏是画板 10 的 .pw-code 卡片", () => {
+  const html = renderMarkdown("```ts\nconst x = 1;\n```");
+
+  assert.match(html, /<div class="pw-code">/);
+  assert.match(html, /<div class="pw-code-head">/);
+  assert.match(html, /<i data-ico="file-code" data-size="13">/);
+  assert.match(html, /<span class="pw-mono">ts<\/span>/);
+  assert.match(html, /<button type="button" class="pw-btn sm">/);
+  assert.match(html, /<i data-ico="copy" data-size="13">/);
+  assert.match(html, /<pre class="pw-code-body">/);
+  assert.doesNotMatch(html, /markdown-code-/);
+  assert.doesNotMatch(html, /style="/);
+});
+
+test("fork:design-components — 流式中的代码块同样是 .pw-code 卡片", () => {
+  const html = renderMarkdown("```ts\nconst x = 1;\n```", { isStreaming: true });
+
+  assert.match(html, /<div class="pw-code">/);
+  assert.match(html, /<pre class="pw-code-body">const x = 1;<\/pre>/);
+  assert.doesNotMatch(html, /markdown-code-/);
+});
+
+test("fork:design-components — GFM 表格仍是画板 10 的 .pw-table", () => {
+  const html = renderMarkdown("| a | b |\n| - | - |\n| 1 | 2 |");
+
+  assert.match(html, /<table class="pw-table">/);
 });

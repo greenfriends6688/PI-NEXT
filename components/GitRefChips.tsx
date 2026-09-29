@@ -2,12 +2,22 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import type { GitRefTag, GitRefTagKind } from "@/lib/git-graph-refs";
-import { TEXT } from "@/lib/typography";
 
 // Ref decoration chips share the lane color of the commit they decorate, so a
 // tag visually reads as sitting on its branch line. HEAD is solid; the other
-// kinds are tinted outlines of the same lane color. Shared by the git-graph
+// kinds are tinted fills of the same lane color. Shared by the git-graph
 // tab and the @comment: menu's commit rows.
+//
+// fork:design-components —— 形状 / 字号 / 圆角 / 等宽全部由 board.css 的
+// `.pw-badge count` 给（画板 31：`<span class="pw-badge count"><span class="pw-ico">
+// <i data-ico="git-branch"></i></span>main</span>`）。这里只剩设计系统不管的两件事：
+// 泳道色，和「这条 ref 是哪一类」的那枚画板图标。
+const REF_ICON: Record<GitRefTagKind, "git-branch" | "tag"> = {
+  head: "git-branch",
+  branch: "git-branch",
+  remote: "git-branch",
+  tag: "tag",
+};
 
 function refChipStyle(kind: GitRefTagKind, laneColor: string): CSSProperties {
   if (kind === "head") {
@@ -15,7 +25,6 @@ function refChipStyle(kind: GitRefTagKind, laneColor: string): CSSProperties {
   }
   return {
     color: laneColor,
-    borderColor: `color-mix(in srgb, ${laneColor} 40%, transparent)`,
     background: `color-mix(in srgb, ${laneColor} 10%, transparent)`,
   };
 }
@@ -23,28 +32,35 @@ function refChipStyle(kind: GitRefTagKind, laneColor: string): CSSProperties {
 function RefChip({ tag, laneColor }: { tag: GitRefTag; laneColor: string }) {
   return (
     <span
+      className="pw-badge count"
       title={tag.ref}
-      style={{ display: "inline-flex", alignItems: "center", minWidth: 0, maxWidth: 180, height: 17, padding: "0 6px", borderRadius: "var(--radius-sm)", border: "1px solid transparent", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], fontWeight: 600, lineHeight: 1, whiteSpace: "nowrap", flexShrink: 0, ...refChipStyle(tag.kind, laneColor) }}
+      style={{ maxWidth: 180, overflow: "hidden", ...refChipStyle(tag.kind, laneColor) }}
     >
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{tag.label}</span>
+      <span className="pw-ico"><i data-ico={REF_ICON[tag.kind]} data-size="11"></i></span>
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{tag.label}</span>
     </span>
   );
 }
 
-// "HEAD -> main" parses as two adjacent tags (solid HEAD + outlined branch);
+// "HEAD -> main" parses as two adjacent tags (solid HEAD + tinted branch);
 // they render fused into one pill so the decoration reads as a single tag.
 // Each segment keeps its original treatment and the shared lane color.
 function FusedRefChip({ head, branch, laneColor }: { head: GitRefTag; branch: GitRefTag; laneColor: string }) {
   return (
-    <span
-      title={branch.ref}
-      style={{ display: "inline-flex", alignItems: "center", height: 17, borderRadius: "var(--radius-sm)", border: `1px solid color-mix(in srgb, ${laneColor} 40%, transparent)`, background: `color-mix(in srgb, ${laneColor} 10%, transparent)`, fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], fontWeight: 600, lineHeight: 1, whiteSpace: "nowrap", flexShrink: 0, overflow: "hidden" }}
-    >
-      <span style={{ display: "inline-flex", alignItems: "center", height: "100%", padding: "0 6px", background: laneColor, color: "var(--bg)" }}>
+    <span className="pw-badge count" title={branch.ref} style={{ maxWidth: 180, padding: 0, overflow: "hidden" }}>
+      <span
+        className="pw-badge"
+        style={{ borderRadius: "var(--radius-3) 0 0 var(--radius-3)", background: laneColor, color: "var(--bg)" }}
+      >
+        <span className="pw-ico"><i data-ico={REF_ICON.head} data-size="11"></i></span>
         {head.label}
       </span>
-      <span style={{ minWidth: 0, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", padding: "0 6px", color: laneColor }}>
-        {branch.label}
+      <span
+        className="pw-badge"
+        style={{ borderRadius: `0 var(--radius-3) var(--radius-3) 0`, color: laneColor, background: `color-mix(in srgb, ${laneColor} 10%, transparent)` }}
+      >
+        <span className="pw-ico"><i data-ico={REF_ICON.branch} data-size="11"></i></span>
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{branch.label}</span>
       </span>
     </span>
   );

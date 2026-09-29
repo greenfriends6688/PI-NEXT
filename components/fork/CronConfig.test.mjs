@@ -60,3 +60,44 @@ test("the run history region pages 8 rows and links to the run session", () => {
   assert.match(source, /run\.finishedAt \? new Date\(run\.finishedAt\) : null/);
   assert.match(source, /\/api\/cron\?id=\$\{encodeURIComponent\(taskId\)\}&runId=/);
 });
+
+/*
+ * fork:design-system —— 画板 44 的两栏（`.pw-cols`）：左 = `.pw-list` / `.pw-litem`
+ * 任务列表 + `.pw-detail` 运行历史，右 = `.pw-detail` 新建表单（`.pw-field` 行、
+ * `.pw-selectbox` 下拉、`.pw-radio` 频率）。旧的 `settings-general*` /
+ * `settings-chat-*` 自有类与内联盒子必须清零。
+ */
+test("the page is the board's two-column layout, not bespoke settings boxes", () => {
+  assert.match(source, /<PwPageHead title=\{t\("cron\.title"\)\} \/>/);
+  assert.match(source, /<ConfigSplitView>/);
+  assert.match(source, /<ConfigSidebarList>/);
+  assert.match(source, /<div className="pw-litem">/);
+  assert.match(source, /<ConfigDetail>/);
+  assert.doesNotMatch(source, /settings-general|settings-chat-|settings-field-input|settings-select/);
+});
+
+test("the run history is a pw-detail of pw-prow rows, not an inline <details>", () => {
+  assert.match(source, /<div className="pw-prow" key=\{run\.id/);
+  assert.match(source, /data-ico=\{RUN_STATUS_ICON\[run\.status\]/);
+  assert.match(source, /`pw-badge \$\{tone\}` : "pw-badge"/);
+  assert.match(source, /data-ico="chevron-left"/);
+  assert.match(source, /data-ico="chevron-right"/);
+  assert.doesNotMatch(source, /<details/);
+  assert.doesNotMatch(source, /RUN_STATUS_COLOR/);
+});
+
+test("the create form rows are pw-field / pw-selectbox / pw-radio primitives", () => {
+  assert.match(source, /<ConfigField label=\{t\("cron\.name"\)\}>/);
+  assert.match(source, /className="pw-input pw-mono"/);
+  assert.match(source, /className="pw-textarea"/);
+  assert.match(source, /options=\{modelOptions\}/);
+  assert.match(source, /<PwRadio\s*\n\s*value=\{mode\}/);
+  assert.match(source, /aria-pressed=\{active\}/);
+  assert.match(source, /<ConfigSwitch label=\{t\("cron\.enabled"\)\} checked=\{taskEnabled\}/);
+});
+
+test("empty, loading and error states use the board's empty / alert primitives", () => {
+  assert.match(source, /<ConfigEmptyState>\s*\n\s*<p>\{t\("cron\.empty"\)\}<\/p>/);
+  assert.match(source, /<div className="pw-alert" role="alert">/);
+  assert.match(source, /data-ico="triangle-alert"/);
+});

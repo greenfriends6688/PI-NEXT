@@ -11,7 +11,6 @@ import {
   buildMcpLogoutCommand,
   isRemoteMcpServer,
 } from "@/lib/mcp-auth-command";
-import { TEXT } from "@/lib/typography";
 
 /*
  * fork:mcp-section — MCP server management as its own settings entry.
@@ -58,14 +57,15 @@ function McpAuthActions({ server }: { server: McpServerInfo }): ReactNode {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="pw-rowgap">
       <ConfigSectionTitle>{t("mcp.authTitle")}</ConfigSectionTitle>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <div className="pw-wrap">
         <ConfigButton
           size="small"
           onClick={() => copy("auth", authCommand)}
           title={authCommand}
         >
+          <span className="pw-ico"><i data-ico="key-round" data-size="13"></i></span>
           {copied === "auth" ? t("mcp.authCopied") : t("mcp.authAuthorize")}
         </ConfigButton>
         <ConfigButton
@@ -73,11 +73,14 @@ function McpAuthActions({ server }: { server: McpServerInfo }): ReactNode {
           onClick={() => copy("logout", logoutCommand)}
           title={logoutCommand}
         >
+          <span className="pw-ico"><i data-ico="log-out" data-size="13"></i></span>
           {copied === "logout" ? t("mcp.authCopied") : t("mcp.authLogout")}
         </ConfigButton>
       </div>
-      <div style={{ fontSize: TEXT.xs, color: "var(--text-dim)", lineHeight: 1.5, maxWidth: 560 }}>
-        {t("mcp.authHint", { name: server.name })}
+      {/* fork:design-system SW-14 —— 画板 43 的 OAuth 提示是 `.pw-alert info` 一行。 */}
+      <div className="pw-alert info">
+        <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+        <span className="pw-grow">{t("mcp.authHint", { name: server.name })}</span>
       </div>
     </div>
   );

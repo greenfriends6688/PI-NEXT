@@ -19,8 +19,8 @@ design/pi-web-design/
   assets/
     tokens.css         Token 表（唯一样式来源）
     board.css          画板样式（pw- 前缀）
-    icons.js           lucide 图标集（225 个，data-ico 用法）
-  00-tokens.html … 61-system-states.html   （29 张）
+    icons.js           lucide 图标集（255 个，data-ico 用法）
+  00-tokens.html … 61-system-states.html   （29 张，不含本目录的 index.html）
 ```
 
 ## 约定
@@ -39,8 +39,8 @@ design/pi-web-design/
 | 编号 | 名称 | 页面 | 文件 | 状态 |
 |---|---|---|---|---|
 | 00 | Token 表 | 全局 | `00-tokens.html` | 已出画板 |
-| 01 | 工作台（新会话 / 进行中 / 回合结束 + 右栏） | 会话工作台 | `01-workbench.html` | 已出画板 |
-| 02 | 侧栏与顶栏状态 | 会话工作台 | `02-sidebar-topbar.html` | 已出画板 |
+| 01 | 工作台（新会话 / 进行中 / 回合结束 + 右栏 / **零会话起步三卡 + 选中型空态**） | 会话工作台 | `01-workbench.html` | 已出画板 |
+| 02 | 侧栏与顶栏状态（双 pane / 搜索 / 会话行五态 / **自定义分组** / 折叠导轨 / 顶栏两态） | 会话工作台 | `02-sidebar-topbar.html` | 已出画板 |
 | 05 | 动效规格（四类转场 + 轻量交互 + **17 项可播放动效**） | 全局 | `05-motion.html` | 已出画板 |
 | 07 | 深色 Token 对位表 | 全局 | `07-dark-tokens.html` | 已出画板 |
 
@@ -52,15 +52,15 @@ design/pi-web-design/
 | 11 | 过程类卡片 | 转录 | `11-transcript-process.html` | 已出画板 |
 | 12 | 交互类卡片 | 转录 | `12-transcript-interactive.html` | 已出画板 |
 | 53 | 转录辅助件与导航 | 会话工作台 / 转录 | `53-turn-and-nav.html` | 已出画板 |
-| 54 | 扩展 / 链接 / 探索分支 | 会话工作台 / 右栏 | `54-extension-links-exploration.html` | 已出画板 |
+| 54 | 扩展浮窗 / 链接 / 探索分支 | 会话工作台 / 右栏 | `54-extension-links-exploration.html` | 已出画板 |
 
 ### P3 · 输入框与弹层
 
 | 编号 | 名称 | 页面 | 文件 | 状态 |
 |---|---|---|---|---|
-| 20 | 输入框与控件 | 会话工作台 | `20-composer.html` | 已出画板 |
-| 21 | 输入框弹层 | 会话工作台 | `21-menus.html` | 已出画板 |
-| 22 | 顶栏下拉 | 会话工作台 | `22-top-panels.html` | 已出画板 |
+| 20 | 输入框与控件（**输入框下方无常驻条，用量在上下文环浮窗**） | 会话工作台 | `20-composer.html` | 已出画板 |
+| 21 | 输入框弹层（含**输入历史**与**命令菜单实现形态**） | 会话工作台 | `21-menus.html` | 已出画板 |
+| 22 | 顶栏下拉（系统提示词 / 工具定义 / 子代理 / 最近会话 / 分支 / **MCP** / **插件** / 查找条） | 会话工作台 | `22-top-panels.html` | 已出画板 |
 
 ### P4 · 右栏面板
 
@@ -81,17 +81,17 @@ design/pi-web-design/
 | 44 | 设置 · 定时任务 / 记忆 | 设置 | `44-settings-cron-memory.html` | 已出画板 |
 | 45 | 设置 · 快捷键 / 用量 | 设置 | `45-settings-shortcuts-usage.html` | 已出画板 |
 | 46 | 设置 · 命令 / 归档 / 导入 | 设置 | `46-settings-prompts-archive-import.html` | 已出画板 |
-| 47 | 皮肤工作室与壁纸 | 设置 | `47-skin-studio.html` | 已出画板 |
+| 47 | 皮肤工作室与壁纸（含**对话框外壳**） | 设置 | `47-skin-studio.html` | 已出画板 |
 
 ### P6 · 其它页面
 
 | 编号 | 名称 | 页面 | 文件 | 状态 |
 |---|---|---|---|---|
-| 50 | 对话框（项目信任 / 目录选择 / 扩展请求 / 确认 / 通知条） | 全局 | `50-dialogs.html` | 已出画板 |
-| 51 | 菜单合集 | 全局 | `51-menus.html` | 已出画板 |
-| 56 | 更新与认证 | 设置 / 会话工作台 | `56-agent-management.html` | 已出画板 |
+| 50 | 对话框（项目信任 / 目录选择 / 扩展请求 / 确认 / 通知条 / **附件预览灯箱**） | 全局 | `50-dialogs.html` | 已出画板 |
+| 51 | 菜单合集（原子表 + 四个真实菜单 + **行内动作簇**） | 全局 | `51-menus.html` | 已出画板 |
+| 56 | 更新与认证 | 设置 / 会话工作台 | `56-update-and-auth.html` | 已出画板（2026-09-29 由 `56-agent-management.html` 更名，编号不变） |
 | 60 | 移动端与 PWA | 会话工作台（窄屏） | `60-mobile-pwa.html` | 已出画板 |
-| 61 | 系统状态页 | 全局 / 会话工作台 | `61-system-states.html` | 已出画板 |
+| 61 | 系统状态页（错误页 / 拖放 / worktree / **离线态** / **长文本溢出**） | 全局 / 会话工作台 | `61-system-states.html` | 已出画板 |
 
 状态取值：`已出画板`（画板已产出，代码未跟进）/ `已实现（R<N>）` / `已废弃`。
 

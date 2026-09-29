@@ -245,16 +245,20 @@
       右栏 40px pane header 形态不同不挂）
     - **侧栏会话行追加 `.pw-session`**（48 行高 / radius-4 / hover 叠色 / `.is-on`；
       运行扫掠线与「等你处理」底边线仍由 fork-ui.css 的 `.is-running/.is-awaiting` 承载）
-    - **设置分节内容不换**：settings.css 的 154 个 `config-*` 类已完整承载分节样式，
-      且引入顺序在 board.css 之后（逐类追加 pw 会被压掉），维持现状——登记。
+    - ~~**设置分节内容不换**（settings.css 的 154 个 `config-*` 类已完整承载分节样式，
+      且引入顺序在 board.css 之后，逐类追加 pw 会被压掉，维持现状）~~ ——
+      **〔已过时〕分节结构基件已改挂 `pw-*`**：设置壳与分节骨架（`.pw-modal` / `.pw-modal-head` /
+      `.pw-settings` / `.pw-side-nav` / `.pw-snav` / `.pw-snav-close` / `.pw-sec-title` / `.pw-field` /
+      `.pw-label` / `.pw-input` / `.pw-switch` / `.pw-range` / `.pw-radio` / `.pw-seg` / `.pw-kbd`）都已是
+      画板原件，`config-*` 只剩内容级细节。逐类追加被压掉的问题已通过调整引入顺序解决。
     - **探测验证**：3×`.pw-msg-user`、1×`.pw-composer`、1×`.pw-topbar`、5×`.pw-trow`、
       7×`.pw-iconbtn`、5×`.pw-select`、`i[data-ico]` 全部 hydrate。
     - **累计 32 个组件/壳直接使用画板原件**。
 
 37. **最终剩余（视觉已同源 token，属形态差异或归属迁移收益为零，全部登记不阻塞）**：
     子代理独立卡（`.pw-sub`——产品以工具卡徽标呈现）、diff 分栏词级视图（自有实现，
-    颜色走 `--diff-*`）、Git 图（SVG 泳道）、设置分节内容（`config-*` 154 类承载）、
-    侧栏会话行运行态细节（fork-ui.css 扫掠线，画板 02 同源）。
+    颜色走 `--diff-*`）、Git 图（SVG 泳道）、侧栏会话行运行态细节（fork-ui.css 扫掠线，画板 02 同源）。
+    ~~设置分节内容（`config-*` 154 类承载）~~ 已按上一条作废。
 
 ---
 
@@ -285,9 +289,11 @@
 
 38. **侧栏壳按画板 01/02 重建**（`SessionSidebar.tsx`）：`.pw-side` 由 AppShell 提供，
    内部依次是 `.pw-side-head`（`.pw-brand` + `.pw-logo` + 搜索 / 折叠 `.pw-iconbtn`）、
-   `.pw-side-nav`（`.pw-row` 新建任务）、`.pw-seg`、`.pw-side-search`（常显搜索框）、
+   `.pw-side-nav`（`.pw-row` 新建任务）、`.pw-seg`、`.pw-side-search`（**只在搜索态出现**，见下方第十二轮 52 条表格里的帧 C）、
    `.pw-side-scroll`、`.pw-side-foot`（设置 + 版本徽章）。
-   搜索不再藏在图标后面：画板画的是常显一格，头部搜索钮改为聚焦它。
+   ~~搜索不再藏在图标后面：画板画的是常显一格~~ —— **〔已过时〕**：画板 `02` 的帧 A（项目 pane）本来就没有
+   搜索格，`.pw-side-search` 只出现在帧 C（搜索状态）。产品曾按「常显」实现，导致「默认」与「搜索中」
+   在界面上不可分、搜索框白占一行高度并一直挂着焦点环；现已改回「默认收起、点搜索才展开并聚焦」。
    折叠导轨的「设置」也搬进 `.pw-side-foot`（原来在 AppShell 的 `.fork-rail-footer`）。
 
 39. **会话行 / 项目行 / 分组头**：`.pw-session(.child/.running/.awaiting/.is-on)` +
@@ -395,3 +401,130 @@
     - 验证：tsc / lint 0 错；npm test 2233/2233；playwright 实测——环浮窗钉住态
       680×392 完整浮出卡片（含明细与复制钮）、点外部收回；右上角胶囊 (x=1028,y=48)、
       底部 shelf/stats 均 0 渲染；pi-codex 会话顶栏「会话分支」git-fork + 左侧「main」芯片。
+
+51. **第十一轮（2026-09-29 下午，用户裁定）：工作区选择搬出输入卡，改 Codex 式上下文条**。
+    - 画板 20 原来把「这条会话在哪跑」画成 `.pw-chips` 行里的一枚 `.pw-chip`（**卡内**顶行），
+      实现跟随；用户给了 Codex 实拍，要求按它改位置与图标。
+    - 现在：画板 20 新增「新会话 · 上下文条」三帧（有分支 / 非 git / 不在项目中），
+      `.pw-ctxbar` 在**卡上方**，内容 = 工作区（folder + 目录名）+ 分支（git-branch + 分支名），
+      每一项是 `.pw-chipbtn`（无铬，hover 才显底，没有 chevron）。产品同步落地（`fork:ui-ctxbar`）。
+      画板 53 帧 A 同步：工作区与分支搬到卡上方，`.pw-chips` 只留待办芯片。
+    - **裁定记录**：用户明确**不要** Codex 条里的第三项「本地」（执行环境）—— pi-web 纯本地跑，
+      那项是纯装饰；显示范围仍是**只在空的新会话页**（点工作区 = 开新会话，已有会话里没有这个语义）。
+    - 因此 **41 条里「`.pw-chips`（工作区芯片）」的说法作废**：回补时不要把工作区芯片塞回卡内。
+    - 验证：见 `docs/codex-skin/delta.md` §32。
+
+---
+
+## H · 2026-09-29 第十二轮：设计侧收尾（补 9 处漏画 + 修 3 处过时 + 补 8 条判据）
+
+> 本轮**只改 `design/pi-web-design/**`**，产品代码一个字没动。
+> 起因是 `docs/design-skin-adoption-audit-2026-09-29.md` 的 §3（产品已有、画板没画）与 §4（画板画了、产品不是那样）。
+> 本轮确立的流程规则见 `DESIGN-SPEC.md` §5 的**判据 ⑦**（新增 `pw-*` 必须先进 `board.css` + 进画板 + 进本台账）。
+
+52. **10 个产品自造的 `pw-*` 类已上提到 `board.css`**。它们此前只活在产品 CSS 里，
+    等于「产品自己长出来的私有基件」——违反本系统「视觉唯一来源是 `board.css`」的立身之本。
+    本轮全部收进 `assets/board.css` 并在画板上出现：
+
+    | 类名 | 用途 | 落在哪张画板（本轮已画出） |
+    |---|---|---|
+    | `.pw-search-results` | 会话搜索结果区容器（可伸缩、可滚） | `02-sidebar-topbar.html` 帧 C 搜索 |
+    | `.pw-search-project` | 结果行里的项目名一格（可收缩、单行省略） | `02-sidebar-topbar.html` 帧 C 搜索 |
+    | `.pw-search-hit` | 命中片段一行（弱化正文色、单行省略） | `02-sidebar-topbar.html` 帧 C 搜索 |
+    | `.pw-mark` | 命中词高亮（accent 淡底 + accent 文字，不用马克笔黄） | `02-sidebar-topbar.html` 帧 C 搜索 |
+    | `.pw-row-toggle` | 行内折叠箭头（16×16，`.pw-row` 家族的行首） | `02-sidebar-topbar.html` 帧 C 搜索的项目行 |
+    | `.pw-range` | 区间滑杆（180×4 轨道 + 12px 圆钮，产品是真 `<input type="range">`） | `40-settings-general.html`「边框深度」 |
+    | `.pw-skin-actions` | 皮肤条下方那行动作（导入 / 导出 / 打开工作室 / 删除） | `40`「主题皮肤」与 `47-skin-studio.html` 皮肤条 |
+    | `.pw-snav-close` | 设置左列导航底部的「收起左列」行 | `40-settings-general.html` 左导航 |
+    | `.pw-wallpaper-thumb` | 壁纸缩略方块（64×36） | `40-settings-general.html`「当前壁纸」 |
+    | `.pw-litem-add` | 列表末尾的「新增一行」条目（行规格同 `.pw-litem`，文字与图标弱化） | `41-settings-models.html` 模型列表、`43-settings-plugins-mcp.html` 插件包与 MCP 服务器列表 |
+
+    十条全部满足 `DESIGN-SPEC.md` §5 判据 ⑦ 的三条（先进 `board.css` + 至少出现在一张画板 + 进本台账）。
+    **仍有两条欠账**（本轮未动，登记在此）：`.pw-diff` 与 `.pw-up-arrow` 在画板里被用到但 `board.css` 没有定义
+    （`52-file-viewer-modes.html` / `56-update-and-auth.html`），属于上一轮遗留；按「缺类先列清单、不擅自加」的规矩，
+    留给下一轮决定是补类还是改画板。
+
+53. **画板 20 修订（由主线程执行，本轮同步台账）**：composer 下方的常显 `.pw-stats` 统计条删除，
+    用量全部收进上下文环浮窗；输入框下面不再有任何常驻行。`DESIGN-SPEC.md` §2.7 已按此重写
+    （含三栏明细、可钉住、`/session` 与触屏两条无 hover 触发路径），§4 的画板 20 行同步。
+
+54. **画板 54 修订 —— 扩展归位到顶栏插件浮窗**。扩展 widget 从「输入框上方的可折叠块」移进
+    **顶栏插件浮窗**（`TopBarPopovers.tsx:353` 的 `PluginStatusButton`），扩展状态条从
+    **应用底部 22px 高**改成**聊天区右上角的 mono 胶囊浮标**（`.ext-float-pill`）；
+    本轮更进一步，那枚胶囊也已被顶栏两枚图标取代，状态文本全部进浮窗的「扩展状态」段。
+    画板改动：`<h1>` / `<title>` / 说明 / 三标签改写（`扩展 / 链接 / 探索分支` → `扩展浮窗 / 链接 / 探索分支`）；
+    第一帧整段重画（原来两段：widget 卡 + 22px 底部条 → 现在两段：浮窗体内的 widget 卡 + 只剩状态时的最短形态）；
+    注记里写明这次变更，并注明「画板 22 补上 MCP / 插件两枚图标与浮窗后 54 归位」。
+    **仍未落地的一条**（保留登记）：产品里 `.ext-float-pill` 的历史形态已在
+    `AppShell.mobile-toolbar.test.mjs:105` 的断言里被要求不再出现在 ChatWindow，
+    顶栏浮窗已接管；但 `fork-ui.css` 里那条规则本身是否清干净，需要产品侧确认。
+
+55. **画板 56 更名**：文件名 `56-agent-management.html` 与内容不符——文件里 `<h1>` 是
+    「56 · 更新与认证」，真正的子代理画板是 `42-settings-agents-skills.html`。
+    已改名为 **`56-update-and-auth.html`**，**编号不变、内容不变**。
+    同步更新 `README.md`（画板表 + 变更记录）、`index.html`（导航卡片 href）、
+    `DESIGN-SPEC.md` §4 的 P6 行（并注明更名原因）。
+
+56. **画板 60 断点按实现对齐**：正文与标签原写「断点 1024 / 640 / 380」，
+    实现（`hooks/useIsMobile.ts:6/8/19`）是 **1024 / 640 / 480**
+    （`COMPACT_QUERY` / `MOBILE_QUERY` / `NARROW_MOBILE_QUERY`）。
+    按规范 §2.1「结构照实现」改板：标签改 `断点 1024 / 640 / 480`、断点表改 `481–640 · 手机` 与 `≤ 480 · 窄屏`；
+    `DESIGN-SPEC.md` §4 的断点表同步，并新增判据 ⑧（断点只有 `hooks/useIsMobile.ts` 一处真值，改动四处一次改完）。
+    顺带把组件标签补上 `useIsCompact`（平板档此前在画板上完全没出现过）。
+    注记里写明这次对齐，并说明 `.pw-phone.narrow` 的 320px 是演示形态、不是断点。
+
+57. **补画 1 —— 顶栏 MCP / 插件两枚图标与浮窗**（`TopBarPopovers.tsx`）→ `22-top-panels.html`。
+    新增三格：MCP 浮窗（连接 / 禁用 / 作用域 / 首条诊断 / 未配置态）、
+    插件浮窗（扩展状态 / 插件包 / 独立扩展 / 四个合计）、两枚触发钮（28×28 · accent 台数徽标 · 钉住的 `is-on` 态）。
+    只用 `.pw-pop` + `.pw-pop-title` + `.pw-prow` + `.pw-badge`，没有新造基元。
+
+58. **补画 2 —— 侧栏用户自定义分组头 + 回到未分组的拖放落区**（`fork/GroupedProjectList.tsx`）
+    → `02-sidebar-topbar.html` 新增「用户自定义分组」帧。分组头四态（展开 / 折叠 / 落点 / 改名中）
+    全部复用 `.pw-group-title`；落区用 `.pw-drop`。
+
+59. **补画 3 —— 零会话起步三卡**（`fork/EmptyStateGuide.tsx`）→ `01-workbench.html`。
+    用 `.pw-empty` + `.pw-empty-inner` + `.pw-starters` + `.pw-starter` + `.pw-kbd`，
+    画的是**选目录 / 用最近的项目 / 导入会话**三条（与帧 A 的四张「起步提问」是不同的一件事，已在注记里说清）。
+
+60. **补画 4 —— 附件预览灯箱**（`fork/AttachmentPreview.tsx` / `ImagePreview.tsx`）→ `50-dialogs.html`。
+    图片整屏壳 + 多类型卡片壳，用 `.pw-scrim` + `.pw-modal*` + `.pw-iconbtn`。
+
+61. **补画 5 —— 输入历史弹层与 `/` 命令菜单的实现形态**（`ChatInput.tsx:3414-3617`）→ `21-menus.html`。
+    历史弹层用 `.pw-pop` + `.pw-kbd`；命令菜单按实现画成 680 宽、两列 `minmax(220px,1fr)`、
+    sticky 分组头 + 计数徽标 + 休眠态。顺带改掉旧注记里「`/` 也带搜索框」的错误说法
+    （实现是输入即筛选，没有独立搜索框）。
+
+62. **补画 6 —— 路径操作簇**（`fork/PathActions.tsx`）→ `51-menus.html` 新增「行内动作簇」段。
+    完整形挂在 `.pw-card-head`（`.pw-path` + 三枚 `.pw-btn.sm`），紧凑形挂在 `.pw-trow`（三枚 `.pw-iconbtn.sm`），
+    外加失败态（两枚转 error 底 + 卡脚一句人话）。**注意：产品用的是自有类 `.fork-path-actions`，
+    本轮画板用画板基元表达，落地时按判据 ⑦ 处理（要么把 `.fork-path-actions` 换成画板基元，要么给
+    `board.css` 补一个 `pw-path-actions`）——这一步属产品侧，本轮不做。**
+
+63. **补画 7 —— 皮肤工作室对话框外壳**（`ThemeSkinStudio.tsx:168-384`）→ `47-skin-studio.html`。
+    内容行第 47 帧早已画全，缺的是**壳**：遮罩、portal 到 body 的理由、四段结构（head 带页签 / body 可滚 /
+    foot 三钮）、三条关闭路径。用 `.pw-scrim` + `.pw-modal*` + `.pw-radio` + `.pw-iconbtn`，
+    画的是已有内容行的压缩表示。
+
+64. **补画 8 —— 「已选目录但没有会话」的选中型空态**（`AppShell.tsx:2934-2951`）→ `01-workbench.html`。
+    两态并排：整屏居中一句「从侧边栏选择一个会话」（`activeCwd` 有值）；
+    左上角绝对定位的「开始使用」两步提示 + 44px 返回箭头记号（`activeCwd` 无值）。
+
+65. **补画 9 —— 全局离线态与长文本溢出规则** → `61-system-states.html` 新增一帧。
+    离线用 `.pw-alert`（壳级横幅）+ `.pw-toast.warn`（具体损失）+ `.pw-empty`（发送键禁用 + 重试）；
+    长文本溢出写成四条可验收规则（省略号 / `overflow-wrap: anywhere` / 等宽两行封顶 / 单行 + `title`）。
+
+66. **规范补 8 条可验收判据**（`DESIGN-SPEC.md`）。原文里全是「尽量少」「合理样例」这类只能靠猜的措辞，
+    实现时无从验收。本轮把它们变成可量的：
+    ①§1.1 大面积底色的面积 / 尺寸上限；②§1.1 细状态条写死 ≤2px；③§1.2 唯一阴影按层级分
+    `--shadow-popover` / `--shadow-modal`；④§1.4 悬浮容器外扩量定死水平 6 / 垂直 4；
+    ⑤§2.1 补「画板是功能边界」与「结构照实现」的优先级规则（画板决定要不要做 / 实现决定怎么排 /
+    规范决定长什么样）；⑥§3 把「合理样例」量化为三条可查的判据并删掉编造宣称的表述；
+    ⑦§5 新增 `pw-*` 类的准入（先进 `board.css` + 进画板 + 进台账，不许在产品 CSS 另起同名类）；
+    ⑧断点只有一处真值，改动四处一次改完。
+
+67. **本轮作废的旧条目**（逐条在前文就地标注了「已过时」，此处只列索引）：
+    **§C 12–17 整段**（12→E-23 落地 / 13→E-30 落地 / 14→参数表已恢复四列 / 15→F-33 已实现 /
+    16→E-25 已补 / 17→画板 60 已产出）、**D-18**（登录已在画板与实现两侧删净）、**D-20**（动效 token 已由 E-27 落地）、
+    **D-31**（统计条冲突已在第十一轮裁定）、**G-38**（`.pw-side-search` 实为仅搜索态，不是常显）、
+    **第 29 条的「参数表两列」**（`ToolDefinitionsPanel.tsx:246` 起已恢复四列）、
+    **第十轮第 36 条的「设置分节内容不换」与第 37 条同款**（分节结构基件已改挂 `pw-*`）。

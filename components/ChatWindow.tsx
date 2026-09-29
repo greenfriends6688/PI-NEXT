@@ -475,10 +475,7 @@ function NewSessionUpdateLink({
       }}
     >
       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>v{update.latestVersion}</span>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
-        <path d="M7 17 17 7" />
-        <path d="M7 7h10v10" />
-      </svg>
+      <span className="pw-ico"><i data-ico="arrow-up-right" data-size="12"></i></span>
     </a>
   );
 }
@@ -1928,12 +1925,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   if (loading) {
     return (
+      // fork:design-components —— 骨架 = 画板 01「会话正在加载 · 骨架」那一格：
+      // 微光循环由 board.css 的 .pw-anim-shimmer（@keyframes pw-shimmer）承担，
+      // reduced-motion 时由 board.css 的 motion 折叠块统一关掉。
       <div className="flex h-full flex-col items-center justify-center gap-3 px-8" role="status" aria-live="polite" aria-label={t("chat.loadingSession")}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "min(100%, 480px)" }} aria-hidden="true">
-          <div className="skeleton-line" style={{ height: 14, width: "38%" }} />
-          <div className="skeleton-line" style={{ height: 56, width: "100%" }} />
-          <div className="skeleton-line" style={{ height: 56, width: "92%", alignSelf: "flex-end" }} />
-          <div className="skeleton-line" style={{ height: 14, width: "24%" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, width: "min(100%, 480px)" }} aria-hidden="true">
+          <div className="pw-anim-shimmer" style={{ height: 14, width: "38%" }} />
+          <div className="pw-anim-shimmer" style={{ height: 56, width: "100%" }} />
+          <div className="pw-anim-shimmer" style={{ height: 56, width: "92%", alignSelf: "flex-end" }} />
+          <div className="pw-anim-shimmer" style={{ height: 14, width: "24%" }} />
         </div>
         <div className="text-xs text-text-muted">{t("chat.loadingSession")}</div>
       </div>
@@ -1961,50 +1961,30 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* fork:design-components —— 拖放落区 = 画板 61「拖放落区」A/B 两件：
+          可接受 = .pw-drop（强调虚线 + 纸夹 mark），拒绝 = .pw-drop.reject（红虚线 + ban mark）。
+          涟漪与淡入用画板同一套 .pw-anim-drop + .ripple，替掉原来手绘的三圆环 + 280px 内联 svg。
+          文案沿用既有 i18n key，不新增：可接受 = chat.attachFile，拒绝 = chat.dropFilesOnly。
+          「拖到输入框」那一态（画板 61 C）由输入卡自己接 drop，见本文件外。 */}
       {isRejectedDrag && !isDragOver && (
         <div
           role="status"
-          className="anim-popover-down pointer-events-none absolute inset-x-0 top-3 z-50 mx-auto w-fit max-w-[calc(100%-32px)] px-3 py-1.5 text-xs"
-          style={{
-            background: "var(--bg-elev)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-pill)",
-            color: "var(--text-muted)",
-            boxShadow: "var(--shadow-md)",
-          }}
+          aria-live="polite"
+          className="pw-drop reject anim-popover-down pointer-events-none absolute inset-3 z-50"
         >
-          {t("chat.dropFilesOnly")}
+          <span className="mark"><span className="pw-ico"><i data-ico="ban" data-size="20"></i></span></span>
+          <div className="pw-strong" style={{ fontSize: "var(--text-body)" }}>{t("chat.dropFilesOnly")}</div>
         </div>
       )}
       {isDragOver && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex animate-[drop-zone-in_0.15s_ease_both] items-center justify-center backdrop-blur-[1px]" style={{ background: "var(--accent-soft)" }}>
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            {[0, 0.8, 1.6].map((delay) => (
-              <div
-                key={delay}
-                className="absolute h-[720px] w-[720px] rounded-full border-[1.5px] border-solid animate-[drop-ripple_2.4s_ease-out_infinite_backwards]"
-                style={{ transformOrigin: "center", animationDelay: `${delay}s`, borderColor: "var(--accent-border)" }}
-              />
-            ))}
-          </div>
-          <svg
-            width="280" height="280" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg"
-            className="drop-shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
-          >
-            <rect x="28" y="44" width="84" height="60" rx="8" fill="color-mix(in srgb, var(--accent) 10%, transparent)" stroke="var(--accent-border)" strokeWidth="1.8"/>
-            <path d="M36 100 L54 72 L68 88 L80 74 L104 100Z" fill="color-mix(in srgb, var(--accent) 16%, transparent)" stroke="var(--accent-border)" strokeWidth="1.4" strokeLinejoin="round"/>
-            <circle cx="96" cy="58" r="8" fill="color-mix(in srgb, var(--accent) 22%, transparent)" stroke="var(--accent-border)" strokeWidth="1.6"/>
-            <g stroke="var(--accent-border)" strokeWidth="1.4" strokeLinecap="round">
-              <line x1="96" y1="46" x2="96" y2="43"/>
-              <line x1="96" y1="70" x2="96" y2="73"/>
-              <line x1="84" y1="58" x2="81" y2="58"/>
-              <line x1="108" y1="58" x2="111" y2="58"/>
-              <line x1="87.5" y1="49.5" x2="85.4" y2="47.4"/>
-              <line x1="104.5" y1="66.5" x2="106.6" y2="68.6"/>
-              <line x1="104.5" y1="49.5" x2="106.6" y2="47.4"/>
-              <line x1="87.5" y1="66.5" x2="85.4" y2="68.6"/>
-            </g>
-          </svg>
+        <div
+          role="status"
+          aria-live="polite"
+          className="pw-drop pw-anim-drop pointer-events-none absolute inset-3 z-50"
+        >
+          <span className="mark"><span className="pw-ico"><i data-ico="paperclip" data-size="20"></i></span></span>
+          <div className="pw-strong" style={{ fontSize: "var(--text-body)" }}>{t("chat.attachFile")}</div>
+          <span className="ripple" />
         </div>
       )}
 
@@ -2541,11 +2521,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       </div>
 
       {quoteSelectionEnabled && quotedSelection && createPortal(
+        // fork:design-components —— 选区引用工具条 = 画板 21/02 的浮层壳 .pw-pop
+        // （发丝边框 / radius-6 / surface-popover / shadow-popover / padding-s1），
+        // 两个动作按钮走 .pw-btn（sm 高度），图标一律 data-ico。
+        // 定位（左上角贴选区、fixed、portal 到 body）仍是内联，行为照旧。
         <div
           ref={quotePopoverRef}
           role={quoteInputOpen ? "dialog" : "toolbar"}
           aria-label={t(quoteInputOpen ? "chat.newQuoteChat" : "chat.askSelection")}
-          className="anim-popover-down"
+          className="pw-pop anim-popover-down"
           style={{
             position: "fixed",
             top: quotedSelection.top,
@@ -2559,10 +2543,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
             overflowY: "auto",
             padding: quoteInputOpen ? 12 : 3,
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--bg)",
-            boxShadow: "var(--shadow-popover)",
           }}
         >
           {quoteInputOpen ? (
@@ -2572,9 +2552,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               style={{ width: "100%", minWidth: 0, margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 10 }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, fontWeight: 600 }}>{t("chat.askInNewChat")}</span>
-                <button type="button" className="file-viewer-icon-button" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={quoteSubmitting} onClick={closeQuotedSelection} style={{ border: "none" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                <span className="pw-strong" style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm }}>{t("chat.askInNewChat")}</span>
+                <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={quoteSubmitting} onClick={closeQuotedSelection}>
+                  <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
                 </button>
               </div>
               <ChatInput
@@ -2584,34 +2564,32 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 onAbort={closeQuotedSelection}
                 isStreaming={false}
               />
-              {quoteError && <div role="alert" style={{ color: "var(--danger)", fontSize: TEXT.sm, overflowWrap: "anywhere" }}>{quoteError}</div>}
+              {quoteError && <div role="alert" className="pw-alert" style={{ fontSize: TEXT.sm, overflowWrap: "anywhere" }}><span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span><span className="pw-grow">{quoteError}</span></div>}
             </fieldset>
           ) : <>
           <button
             type="button"
-            className="file-viewer-icon-button"
+            className="pw-btn sm"
             title={t("chat.askInCurrent")}
             aria-label={t("chat.askInCurrent")}
             onPointerDown={(event) => event.preventDefault()}
             onClick={askSelectionHere}
-            style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500 }}
+            style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
           >
-            <span aria-hidden="true" style={{ fontSize: TEXT.xl }}>@</span>
+            <span className="pw-ico"><i data-ico="at-sign" data-size="14"></i></span>
             <span>{t("chat.askInCurrent")}</span>
           </button>
           {onAskInNewChat && quotedSelection.sourceEntryId && !sessionBusy && (
             <button
               type="button"
-              className="file-viewer-icon-button"
+              className="pw-btn sm"
               title={t("chat.askInNewChat")}
               aria-label={t("chat.askInNewChat")}
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => { setQuoteInputOpen(true); window.getSelection()?.removeAllRanges(); }}
-              style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500 }}
+              style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 3v12M18 9a9 9 0 0 1-9 9" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
-              </svg>
+              <span className="pw-ico"><i data-ico="git-fork" data-size="14"></i></span>
               <span>{t("chat.askInNewChat")}</span>
             </button>
           )}
@@ -2659,9 +2637,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               }}
               onClick={() => scrollToBottom("smooth")}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 5v14M5 12l7 7 7-7" />
-              </svg>
+              <span className="pw-ico"><i data-ico="arrow-down" data-size="16"></i></span>
             </button>
           </div>
         )}
@@ -2827,12 +2803,15 @@ function remainingSecondsUntil(expiresAt: number): number {
 }
 
 /**
- * fork:zm-04 — 倒计时秒数（1 Hz 的 **DOM 写入**，不触发 React 渲染）。
+ * fork:zm-04 —— 倒计时秒数（1 Hz 的 **DOM 写入**，不触发 React 渲染）。
  *
  * 原来 `now` state 挂在 ExtensionDialog 上，每秒重渲染整张卡（含 MarkdownBody
  * 与选项列表）。现在只在这里写一个 text node；父组件在倒计时期间渲染次数为 0。
+ *
+ * fork:design-components —— className 由调用点给：对话框头部传 .pw-badge.count
+ * （画板 50「倒计时数字在标题右端」），折叠条那处不传（保持行内小字）。
  */
-function ExtensionCountdownText({ expiresAt }: { expiresAt: number }) {
+function ExtensionCountdownText({ expiresAt, className }: { expiresAt: number; className?: string }) {
   const { t } = useI18n();
   const ref = useRef<HTMLSpanElement | null>(null);
   const initialSeconds = remainingSecondsUntil(expiresAt);
@@ -2849,21 +2828,31 @@ function ExtensionCountdownText({ expiresAt }: { expiresAt: number }) {
   }, [expiresAt, t]);
 
   return (
-    <span ref={ref} style={{ fontSize: TEXT.xs, color: "var(--text-dim)", whiteSpace: "nowrap", flexShrink: 0 }}>
+    <span
+      ref={ref}
+      className={className}
+      style={className ? undefined : { fontSize: TEXT.xs, color: "var(--text-dim)", whiteSpace: "nowrap", flexShrink: 0 }}
+    >
       {t("chat.extensionExpiresIn", { seconds: initialSeconds })}
     </span>
   );
 }
 
-/** fork:zm-04 — 进度条高度（px）。 */
-const COUNTDOWN_BAR_HEIGHT_PX = 2;
+/**
+ * fork:zm-04 —— 进度条高度（px）。画板 50 的倒计时条是 3px 强调色填充。
+ */
+const COUNTDOWN_BAR_HEIGHT_PX = 3;
 
 /**
- * fork:zm-04 — 审批倒计时进度条（WAAPI，零每秒渲染）。
+ * fork:zm-04 —— 审批倒计时进度条（WAAPI，零每秒渲染）。
  *
  * `scaleX(1) → scaleX(0)` 的线性动画，duration = 剩余毫秒，`fill: forwards`。
  * 只在显式 `no-preference` 时播放；reduced-motion / SSR / jsdom 直接隐藏
  * （静态满格条会让人误以为时间还在多，不如只留秒数文本）。
+ *
+ * fork:design-components —— 画板 50 的写法是「头部正下方一条 3px 轨道，轨道底是
+ * --n-surface，填充是 --accent」。这里保留 WAAPI 的 scaleX（等价于 width 从 100% 走到 0），
+ * 用外层轨道 span 承担底色，内层填充 span 承担动画。
  */
 function ExtensionCountdownBar({ expiresAt }: { expiresAt: number }) {
   const motion = useMotionPreference();
@@ -2886,22 +2875,26 @@ function ExtensionCountdownBar({ expiresAt }: { expiresAt: number }) {
 
   return (
     <span
-      ref={ref}
       aria-hidden="true"
-      data-fork-countdown-bar
       style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
         display: "block",
+        flexShrink: 0,
         height: COUNTDOWN_BAR_HEIGHT_PX,
-        background: "var(--accent)",
-        opacity: 0.55,
-        transformOrigin: "left center",
-        pointerEvents: "none",
+        background: "var(--n-surface)",
       }}
-    />
+    >
+      <span
+        ref={ref}
+        data-fork-countdown-bar
+        style={{
+          display: "block",
+          height: "100%",
+          background: "var(--accent)",
+          transformOrigin: "left center",
+          pointerEvents: "none",
+        }}
+      />
+    </span>
   );
 }
 
@@ -2987,8 +2980,13 @@ function ExtensionDialog({
           <span style={{ fontSize: TEXT.sm, color: "var(--text-muted)", flexShrink: 0 }}>
             {t("chat.extensionExpand")}
           </span>
-          {/* fork:zm-04 — WAAPI 进度条；倒计时不产生任何 React 渲染。 */}
-          {request.expiresAt !== undefined && <ExtensionCountdownBar expiresAt={request.expiresAt} />}
+          {/* fork:zm-04 — WAAPI 进度条；倒计时不产生任何 React 渲染。
+              折叠态没有头部，倒计时条仍贴在卡片底边（按钮的 overflow:hidden 会裁住）。 */}
+          {request.expiresAt !== undefined && (
+            <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, display: "block" }}>
+              <ExtensionCountdownBar expiresAt={request.expiresAt} />
+            </span>
+          )}
         </button>
       ) : (
       <div
@@ -3007,43 +3005,40 @@ function ExtensionDialog({
         }}
       >
         {/* fork:design-components —— 扩展请求对话框用画板 50 的 .pw-modal（发丝边框 /
-            弹层底 / modal 阴影 / radius-6 由类承担），头部走 .pw-modal-head。 */}
+            弹层底 / modal 阴影 / radius-6 由类承担）。头部走 .pw-modal-head：
+            blocks 图标 + 标题 + .pw-badge.count 倒计时秒数 + 收起按钮 .pw-iconbtn.sm。
+            倒计时条按画板 50 的写法贴在头部正下方（3px 轨道，轨道底 --n-surface，填充 --accent）。 */}
         <div className="pw-modal-head" style={{ alignItems: "flex-start", padding: "12px 14px" }}>
+          <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0, marginTop: 2 }}>
+            <i data-ico="blocks" data-size="16"></i>
+          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "var(--text)", fontSize: TEXT.lg, fontWeight: 500, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 3, color: "var(--text-dim)", fontSize: TEXT.xs, fontFamily: "var(--font-mono)" }}>
+            <div className="pw-strong" style={{ fontSize: TEXT.lg, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
+            <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 3, fontSize: "var(--text-meta)" }}>
               <span>{t("chat.extensionRequest")}</span>
-              {request.expiresAt !== undefined && <ExtensionCountdownText expiresAt={request.expiresAt} />}
             </div>
           </div>
+          {request.expiresAt !== undefined && <ExtensionCountdownText className="pw-badge count" expiresAt={request.expiresAt} />}
           <button
             type="button"
+            className="pw-iconbtn sm"
             onClick={() => setCollapsed(true)}
             aria-expanded={true}
             title={t("chat.extensionCollapse")}
             aria-label={t("chat.extensionCollapse")}
-            style={{
-              display: "grid",
-              placeItems: "center",
-              width: 28,
-              height: 28,
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--border)",
-              background: "var(--bg-panel)",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
+            style={{ flexShrink: 0, marginTop: 2 }}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="2 3.5 5 6.5 8 3.5" />
-            </svg>
+            <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
           </button>
         </div>
+        {request.expiresAt !== undefined && <ExtensionCountdownBar expiresAt={request.expiresAt} />}
 
+        {/* fork:design-components —— 正文区 = 画板 50 的 .pw-modal-body
+            （padding-s3/s4 · grid gap-s2 · --text-secondary）；滚动容器需要的
+            flex/minHeight/overflowY 仍是内联，滚动行为照旧。 */}
         <div
+          className="pw-modal-body"
           style={{
-            padding: 14,
             flex: "1 1 auto", minHeight: 0, overflowY: "auto",
           }}
         >
@@ -3107,7 +3102,10 @@ function ExtensionDialog({
             </div>
           )}
           {request.method === "input" && (
+            /* fork:design-components —— 输入框 = 画板 50「输入」那一件的 .pw-input，
+               宽度按画板写法给 width:100% + min-width:0（盖掉 .pw-input 的 min-width:200px）。 */
             <input
+              className="pw-input"
               autoFocus
               value={value}
               placeholder={request.placeholder}
@@ -3115,20 +3113,15 @@ function ExtensionDialog({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submitValue();
               }}
-              style={{
-                width: "100%",
-                padding: "9px 10px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-panel)",
-                color: "var(--text)",
-                outline: "none",
-                fontSize: TEXT.md,
-              }}
+              style={{ width: "100%", minWidth: 0, fontSize: TEXT.md }}
             />
           )}
           {request.method === "editor" && (
+            /* fork:design-components —— 编辑器 = 画板 50「编辑器」那一件的 .pw-code-body
+               （等宽 · --text-mono · 1.7 行高）；画板本人也是在 .pw-code-body 上补
+               border/radius/padding/panel 底，这里照抄那一行内联，只留布局。 */
             <textarea
+              className="pw-code-body"
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
@@ -3138,68 +3131,49 @@ function ExtensionDialog({
               style={{
                 width: "100%",
                 minHeight: 220,
-                padding: 10,
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-panel)",
-                color: "var(--text)",
+                maxHeight: "100%",
+                padding: "var(--s2)",
+                border: "1px solid var(--n-border-subtle)",
+                borderRadius: "var(--radius-4)",
+                background: "var(--surface-panel)",
+                color: "var(--n-text)",
                 outline: "none",
                 resize: "vertical",
                 fontSize: TEXT.md,
-                lineHeight: 1.55,
-                fontFamily: "var(--font-mono)",
               }}
             />
           )}
         </div>
 
-        <div style={{ flexShrink: 0, display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 14px", borderTop: "1px solid var(--border)", background: "var(--bg-panel)" }}>
+        {/* fork:design-components —— 动作行 = 画板 50 的 .pw-modal-foot（上边框 + 右对齐 +
+            gap-s2）。取消 = .pw-btn（ghost），确认/提交 = .pw-btn.primary（强调填充）。
+            画板 50 把「danger 文字 / error 填充」留给不可逆动作（彻底删除一类），
+            扩展请求的取消只是收起这次请求，所以仍是普通 ghost —— 与画板一致。
+            倒计时条已移到头部下方（画板 50 的位置），此处不再重复渲染。 */}
+        <div className="pw-modal-foot">
           <button
+            className="pw-btn"
             autoFocus={request.method === "confirm" || (request.method === "select" && request.options.length === 0)}
             onClick={() => onRespond(request, { cancelled: true })}
-            style={{
-              padding: "7px 12px",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-              background: "transparent",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-            }}
           >
              {t("chat.cancel")}
           </button>
           {request.method === "confirm" ? (
             <button
+              className="pw-btn primary"
               onClick={submitValue}
-              style={{
-                padding: "7px 12px",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--primary-bg)",
-                background: "var(--primary-bg)",
-                color: "var(--primary-fg)",
-                cursor: "pointer",
-              }}
             >
                {t("chat.confirm")}
             </button>
           ) : request.method !== "select" ? (
             <button
+              className="pw-btn primary"
               onClick={submitValue}
-              style={{
-                padding: "7px 12px",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--primary-bg)",
-                background: "var(--primary-bg)",
-                color: "var(--primary-fg)",
-                cursor: "pointer",
-              }}
             >
                {t("chat.submit")}
             </button>
           ) : null}
         </div>
-        {/* fork:zm-04 — 卡片底边的倒计时进度条。 */}
-        {request.expiresAt !== undefined && <ExtensionCountdownBar expiresAt={request.expiresAt} />}
       </div>
       )}
     </div>
@@ -3282,6 +3256,7 @@ function ExtensionCustomPanel({
         onClick={(event) => {
           if (!(event.target as HTMLElement).closest("button")) inputRef.current?.focus();
         }}
+        className="anim-dialog pw-modal"
         style={{
           pointerEvents: "auto",
           position: "relative",
@@ -3289,10 +3264,6 @@ function ExtensionCustomPanel({
           maxHeight: "min(760px, 100%)",
           display: "flex",
           flexDirection: "column",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          background: "var(--bg)",
-          boxShadow: "var(--shadow-modal)",
           overflow: "hidden",
           outline: "none",
         }}
@@ -3345,59 +3316,39 @@ function ExtensionCustomPanel({
             pointerEvents: "none",
           }}
         />
-        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid var(--border)" }}>
-           <div style={{ color: "var(--text)", fontSize: TEXT.md, fontWeight: 650 }}>{t("chat.extensionPanel")}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => setCollapsed(true)}
-              aria-expanded={true}
-              title={t("chat.extensionCollapse")}
-              aria-label={t("chat.extensionCollapse")}
-              style={{
-                display: "grid",
-                placeItems: "center",
-                width: 28,
-                height: 28,
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-panel)",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="2 3.5 5 6.5 8 3.5" />
-              </svg>
-            </button>
-            <button
-              onClick={() => onInput(request, "\x03")}
-              style={{
-                padding: "5px 9px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-panel)",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: TEXT.sm,
-              }}
-            >
+        {/* fork:design-components —— 终端面板头与扩展请求对话框同一个壳
+            （画板 50 的 .pw-modal-head）：下边框 + gap，动作走 .pw-iconbtn.sm / .pw-btn.sm。 */}
+        <div className="pw-modal-head">
+          <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0 }}>
+            <i data-ico="terminal" data-size="16"></i>
+          </span>
+          <div className="pw-strong" style={{ flex: 1, minWidth: 0, fontSize: TEXT.md }}>{t("chat.extensionPanel")}</div>
+          <button
+            type="button"
+            className="pw-iconbtn sm"
+            onClick={() => setCollapsed(true)}
+            aria-expanded={true}
+            title={t("chat.extensionCollapse")}
+            aria-label={t("chat.extensionCollapse")}
+          >
+            <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+          </button>
+          <button
+            className="pw-btn sm"
+            onClick={() => onInput(request, "\x03")}
+          >
                {t("chat.close")}
-            </button>
-          </div>
+          </button>
         </div>
+        {/* fork:design-components —— 正文是 ANSI 终端输出，交给画板 11 的 .pw-term
+            （等宽 · --text-mono · panel 底 · 1.7 行高）；只留滚动与不换行两处内联。 */}
         <pre
+          className="pw-term"
           style={{
             margin: 0,
-            padding: 14,
+            flex: "1 1 auto",
             minHeight: 0,
             overflow: "auto",
-            background: "var(--bg-panel)",
-            color: "var(--text)",
-            fontFamily: "var(--font-mono)",
-            fontSize: TEXT.md,
-            lineHeight: 1.45,
             whiteSpace: "pre",
           }}
         >
