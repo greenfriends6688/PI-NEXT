@@ -323,6 +323,8 @@ export const enLocale: LocalePlugin = {
     "system.load": "System prompt has not loaded yet",
     "system.loading": "Loading system prompt…",
     "system.label": "System",
+    // fork:design-system SW-14 — board 22 system prompt footer note
+    "system.sourceNote": "From the agent's initialize response · read-only",
     "tools.label": "Tools",
     "tools.title": "Tool definitions",
     "tools.details": "Tool definition details",
@@ -338,6 +340,12 @@ export const enLocale: LocalePlugin = {
     "tools.allowedValues": "Allowed",
     "tools.defaultValue": "Default",
     "tools.guidelines": "Prompt guidelines",
+    // fork:design-system SW-14 — board 22 tool definitions: two list group titles + search head + detail badge
+    "tools.enabledGroup": "Enabled · {count}",
+    "tools.disabledGroup": "Disabled · {count}",
+    "tools.searchPlaceholder": "Search tools",
+    "tools.enabledBadge": "Enabled",
+    "tools.noMatches": "No tools match",
     "session.info": "Session info",
     "session.name": "Name",
     "session.file": "Session File",

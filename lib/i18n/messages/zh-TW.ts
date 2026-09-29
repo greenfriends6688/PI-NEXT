@@ -323,6 +323,8 @@ export const zhTWLocale: LocalePlugin = {
     "system.load": "系統提示詞尚未載入",
     "system.loading": "正在載入系統提示詞…",
     "system.label": "系統",
+    // fork:design-system SW-14 —— 畫板 22 系統提示詞腳註
+    "system.sourceNote": "來自 agent 的 initialize 回應 · 唯讀",
     "tools.label": "工具",
     "tools.title": "工具定義",
     "tools.details": "工具定義詳細資料",
@@ -338,6 +340,12 @@ export const zhTWLocale: LocalePlugin = {
     "tools.allowedValues": "允許值",
     "tools.defaultValue": "預設值",
     "tools.guidelines": "提示詞規則",
+    // fork:design-system SW-14 —— 畫板 22 工具定義：左列表兩組標題 + 搜尋頭 + 詳情「已啟用」徽章
+    "tools.enabledGroup": "已啟用 · {count}",
+    "tools.disabledGroup": "未啟用 · {count}",
+    "tools.searchPlaceholder": "搜尋工具",
+    "tools.enabledBadge": "已啟用",
+    "tools.noMatches": "沒有符合的工具",
     "session.info": "工作階段資訊",
     "session.name": "名稱",
     "session.file": "工作階段檔案",

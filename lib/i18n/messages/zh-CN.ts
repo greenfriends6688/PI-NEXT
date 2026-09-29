@@ -323,6 +323,8 @@ export const zhCNLocale: LocalePlugin = {
     "system.load": "系统提示词尚未加载",
     "system.loading": "正在加载系统提示词…",
     "system.label": "系统",
+    // fork:design-system SW-14 —— 画板 22 系统提示词脚注
+    "system.sourceNote": "来自 agent 的 initialize 响应 · 只读",
     "tools.label": "工具",
     "tools.title": "工具定义",
     "tools.details": "工具定义详情",
@@ -338,6 +340,12 @@ export const zhCNLocale: LocalePlugin = {
     "tools.allowedValues": "可选值",
     "tools.defaultValue": "默认值",
     "tools.guidelines": "提示词规则",
+    // fork:design-system SW-14 —— 画板 22 工具定义：左列表两组标题 + 搜索头 + 详情「已启用」徽章
+    "tools.enabledGroup": "已启用 · {count}",
+    "tools.disabledGroup": "未启用 · {count}",
+    "tools.searchPlaceholder": "搜索工具",
+    "tools.enabledBadge": "已启用",
+    "tools.noMatches": "没有匹配的工具",
     "session.info": "会话信息",
     "session.name": "名称",
     "session.file": "会话文件",

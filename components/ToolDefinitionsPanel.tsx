@@ -58,13 +58,49 @@ export function getToolParameterFields(parameters?: Record<string, unknown>): Pa
   }));
 }
 
-function EmptyState({ children }: { children: string }) {
-  return <div className="tool-definitions-empty">{children}</div>;
+/** 工具名 → 画板 22 列表行的 lucide 图标（内置工具给语义图，扩展给通用工具图）。 */
+const TOOL_ICON_BY_NAME: Record<string, string> = {
+  read: "file-text",
+  write: "pencil-line",
+  edit: "pencil-line",
+  bash: "terminal",
+  grep: "file-search",
+  glob: "file-search",
+  fetch: "globe",
+  task: "bot",
+  Agent: "bot",
+  get_subagent_result: "bot",
+  steer_subagent: "bot",
+  todo_write: "list-checks",
+  todo_read: "list-checks",
+};
+
+/** 未登记的工具走 `wrench`：`puzzle` 不在画板图标集（icons.js 只收 lucide 实名）里。 */
+function toolIcon(name: string): string {
+  return TOOL_ICON_BY_NAME[name] ?? "wrench";
+}
+
+/**
+ * 画板 22 的列表行末尾有一枚 `.pw-desc` 短标签。真实描述是一整段，取第一句并截断，
+ * 只当「一眼分类」用；完整描述仍在右侧详情里，所以这里丢了信息也不算丢信息。
+ */
+function shortLabel(description: string): string | undefined {
+  const first = description.split(/[。．.\n]/)[0]?.trim();
+  if (!first) return undefined;
+  return first.length > 24 ? `${first.slice(0, 23)}…` : first;
+}
+
+function matchesQuery(tool: ToolEntry, query: string): boolean {
+  if (!query) return true;
+  const needle = query.toLowerCase();
+  return tool.name.toLowerCase().includes(needle) || tool.description.toLowerCase().includes(needle);
 }
 
 export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
   const activeTools = useMemo(() => tools?.filter((tool) => tool.active) ?? null, [tools]);
+  const inactiveTools = useMemo(() => tools?.filter((tool) => !tool.active) ?? null, [tools]);
   const [selectedToolName, setSelectedToolName] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     setSelectedToolName((current) => (
@@ -74,269 +110,195 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
     ));
   }, [activeTools]);
 
+  const needle = query.trim().toLowerCase();
+  const shownActive = useMemo(
+    () => activeTools?.filter((tool) => matchesQuery(tool, needle)) ?? null,
+    [activeTools, needle],
+  );
+  const shownInactive = useMemo(
+    () => inactiveTools?.filter((tool) => matchesQuery(tool, needle)) ?? null,
+    [inactiveTools, needle],
+  );
+
   const selectedTool = activeTools?.find((tool) => tool.name === selectedToolName)
     ?? activeTools?.[0]
     ?? null;
   const fields = selectedTool ? getToolParameterFields(selectedTool.parameters) : [];
+  const selectedLabel = selectedTool ? shortLabel(selectedTool.description) : undefined;
+
+  const row = (tool: ToolEntry, selectable: boolean) => {
+    const selected = selectable && tool.name === selectedTool?.name;
+    const label = shortLabel(tool.description);
+    const body = (
+      <>
+        <span className="pw-ico"><i data-ico={toolIcon(tool.name)} data-size="14"></i></span>
+        <span className="grow pw-mono" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-meta)" }}>{tool.name}</span>
+        {label ? (
+          <span className="pw-desc" style={{ maxWidth: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        ) : null}
+      </>
+    );
+    if (!selectable) {
+      // 画板 22 的未启用行是 `.pw-prow` + `opacity:.5`（不是禁用态 button，避免焦点陷阱）。
+      return (
+        <div key={tool.name} className="pw-prow" style={{ opacity: 0.5, width: "100%" }} title={tool.description || tool.name}>
+          {body}
+        </div>
+      );
+    }
+    return (
+      <button
+        key={tool.name}
+        type="button"
+        className={`pw-prow${selected ? " is-on" : ""}`}
+        style={{ width: "100%" }}
+        aria-pressed={selected}
+        onClick={() => setSelectedToolName(tool.name)}
+        title={tool.description || tool.name}
+      >
+        {body}
+      </button>
+    );
+  };
 
   return (
-    <div className="tool-definitions-panel">
-      <nav className="tool-definitions-sidebar" aria-label={translate("tools.title")}>
-        <div className="tool-definitions-list">
-          {activeTools && activeTools.length > 0 ? activeTools.map((tool) => {
-            const selected = tool.name === selectedTool?.name;
-            return (
-              <button
-                key={tool.name}
-                type="button"
-                className={`tool-definitions-item${selected ? " selected" : ""}`}
-                aria-pressed={selected}
-                onClick={() => setSelectedToolName(tool.name)}
-              >
-                <code>{tool.name}</code>
-              </button>
-            );
-          }) : activeTools ? (
-            <EmptyState>{translate("tools.noTools")}</EmptyState>
+    // fork:design-system SW-14 —— 左列表 + 右详情 = 画板 22：
+    // 左 pw-pop（pw-pop-search 头 + 已启用/未启用 pw-pop-title 分组 + pw-prow 行），
+    // 右 pw-pop 详情（accent 图标 + 工具名 + 短标签徽章 + 已启用徽章 + pw-sec-title + 参数）。
+    // 参数表维持两列（名字 + 类型/描述/允许值/默认）——⊘ DIVERGENCE 29 信息等价，不压四列。
+    // 两列网格 clamp(112px, 26%, 220px)：窄屏自动收到 112px，不需要断点，因此没有媒体查询。
+    <div
+      className="tool-definitions-panel"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "clamp(112px, 26%, 220px) minmax(0, 1fr)",
+        gap: "var(--s3)",
+        height: "min(600px, 75dvh)",
+        minHeight: 240,
+        padding: "var(--s3)",
+        overflow: "hidden",
+        background: "var(--surface-canvas)",
+      }}
+    >
+      <nav
+        className="tool-definitions-sidebar pw-pop"
+        aria-label={translate("tools.title")}
+        style={{ display: "flex", flexDirection: "column", minHeight: 0, width: "auto", padding: 0, overflow: "hidden" }}
+      >
+        <div className="pw-pop-search" style={{ margin: "0 0 var(--s1)" }}>
+          <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
+          <input
+            className="pw-input"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={translate("tools.searchPlaceholder")}
+            aria-label={translate("tools.searchPlaceholder")}
+            style={{ minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent" }}
+          />
+        </div>
+        <div className="tool-definitions-list" style={{ minHeight: 0, flex: 1, overflowY: "auto", padding: "0 var(--s1) var(--s1)" }}>
+          {shownActive && shownActive.length > 0 ? (
+            <>
+              <div className="pw-pop-title">{translate("tools.enabledGroup", { count: shownActive.length })}</div>
+              {shownActive.map((tool) => row(tool, true))}
+              {shownInactive && shownInactive.length > 0 && (
+                <>
+                  <div className="pw-pop-title">{translate("tools.disabledGroup", { count: shownInactive.length })}</div>
+                  {shownInactive.map((tool) => row(tool, false))}
+                </>
+              )}
+            </>
+          ) : activeTools && (shownActive?.length ?? 0) === 0 && needle ? (
+            <div className="pw-prow"><span className="pw-desc">{translate("tools.noMatches")}</span></div>
+          ) : activeTools ? (
+            <div className="pw-prow"><span className="pw-desc">{translate("tools.noTools")}</span></div>
           ) : (
-            <EmptyState>{loading ? translate("tools.loading") : translate("tools.load")}</EmptyState>
+            <div className="pw-prow"><span className="pw-desc">{loading ? translate("tools.loading") : translate("tools.load")}</span></div>
           )}
         </div>
       </nav>
 
-      <section className="tool-definition-detail" aria-label={translate("tools.details")}>
+      <section
+        className="tool-definition-detail pw-pop"
+        aria-label={translate("tools.details")}
+        style={{ minWidth: 0, minHeight: 0, width: "auto", padding: "var(--s3) var(--s4)", overflowY: "auto" }}
+      >
         {selectedTool ? (
-          <div className="tool-definition-scroll">
+          <>
+            <div className="pw-inline" style={{ marginBottom: "var(--s2)" }}>
+              <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico={toolIcon(selectedTool.name)} data-size="16"></i></span>
+              <b className="pw-mono" style={{ fontWeight: 500, fontSize: "var(--text-title)", color: "var(--n-strong)", overflowWrap: "anywhere" }}>{selectedTool.name}</b>
+              {selectedLabel ? <span className="pw-badge">{selectedLabel}</span> : null}
+              <span className="grow" />
+              <span className="pw-badge ok">{translate("tools.enabledBadge")}</span>
+            </div>
             {selectedTool.description && (
-              <section className="tool-definition-section">
-                <div className="tool-definition-section-label">{translate("tools.description")}</div>
-                <div className="tool-definition-description">{selectedTool.description}</div>
-              </section>
+              <p style={{ margin: "0 0 var(--s3)", color: "var(--n-muted)", fontSize: "var(--text-secondary)", lineHeight: 1.55, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>
+                {selectedTool.description}
+              </p>
             )}
 
-            <section className="tool-definition-section">
-              <div className="tool-definition-section-label">
-                <span>{translate("tools.parameters")}</span>
-                <span>{translate("tools.parameterCount", { count: fields.length })}</span>
-              </div>
-              {fields.length > 0 ? (
-                <div className="tool-definition-fields">
+            <div className="pw-sec-title">
+              <span>{translate("tools.parameters")}</span>
+              <span className="grow" />
+              <span className="pw-badge count">{translate("tools.parameterCount", { count: fields.length })}</span>
+            </div>
+            {fields.length > 0 ? (
+              <table className="pw-table" style={{ fontSize: "var(--text-meta)" }}>
+                <tbody>
                   {fields.map((field) => (
-                    <div className="tool-definition-field" key={field.name}>
-                      <div className="tool-definition-field-name">
-                        <code>{field.name}</code>
-                        <span className={field.required ? "required" : undefined}>
-                          {translate(field.required ? "tools.required" : "tools.optional")}
-                        </span>
-                      </div>
-                      <div className="tool-definition-field-value">
-                        <code className="tool-definition-type">{field.type}</code>
-                        {field.description && <div>{field.description}</div>}
+                    <tr key={field.name}>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <span className="pw-mono">{field.name}</span>
+                        {field.required && (
+                          <span className="pw-badge bad" style={{ marginLeft: 6 }}>{translate("tools.required")}</span>
+                        )}
+                      </td>
+                      <td style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                        <span className="pw-mono">{field.type}</span>
+                        {field.description && <div style={{ color: "var(--n-muted)" }}>{field.description}</div>}
                         {field.allowedValues && (
-                          <div className="tool-definition-meta">
-                            {translate("tools.allowedValues")}: <code>{field.allowedValues}</code>
+                          <div style={{ color: "var(--n-placeholder)" }}>
+                            {translate("tools.allowedValues")}: <span className="pw-mono">{field.allowedValues}</span>
                           </div>
                         )}
                         {field.defaultValue !== undefined && (
-                          <div className="tool-definition-meta">
-                            {translate("tools.defaultValue")}: <code>{field.defaultValue}</code>
+                          <div style={{ color: "var(--n-placeholder)" }}>
+                            {translate("tools.defaultValue")}: <span className="pw-mono">{field.defaultValue}</span>
                           </div>
                         )}
-                      </div>
-                    </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              ) : (
-                <div className="tool-definition-no-parameters">{translate("tools.noParameters")}</div>
-              )}
-            </section>
+                </tbody>
+              </table>
+            ) : (
+              <div className="pw-prow"><span className="pw-desc">{translate("tools.noParameters")}</span></div>
+            )}
 
             {selectedTool.promptGuidelines && selectedTool.promptGuidelines.length > 0 && (
-              <section className="tool-definition-section">
-                <div className="tool-definition-section-label">{translate("tools.guidelines")}</div>
-                <ul className="tool-definition-guidelines">
+              <>
+                <div className="pw-sec-title" style={{ marginTop: "var(--s3)" }}>{translate("tools.guidelines")}</div>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--n-muted)", fontSize: "var(--text-secondary)", lineHeight: 1.55 }}>
                   {selectedTool.promptGuidelines.map((guideline, index) => (
                     <li key={`${selectedTool.name}:${index}`}>{guideline}</li>
                   ))}
                 </ul>
-              </section>
+              </>
             )}
-          </div>
+          </>
         ) : (
-          <EmptyState>
-            {activeTools
-              ? translate("tools.noTools")
-              : loading
-                ? translate("tools.loading")
-                : translate("tools.load")}
-          </EmptyState>
+          <div className="pw-prow">
+            <span className="pw-desc">
+              {activeTools
+                ? translate("tools.noTools")
+                : loading
+                  ? translate("tools.loading")
+                  : translate("tools.load")}
+            </span>
+          </div>
         )}
       </section>
-
-      <style>{`
-        .tool-definitions-panel {
-          display: grid;
-          grid-template-columns: clamp(112px, 26%, 220px) minmax(0, 1fr);
-          height: min(600px, 75dvh);
-          min-height: 240px;
-          overflow: hidden;
-          background: var(--bg-panel);
-          border-bottom: 1px solid var(--border);
-        }
-        .tool-definitions-sidebar,
-        .tool-definition-detail {
-          display: flex;
-          min-width: 0;
-          min-height: 0;
-          flex-direction: column;
-        }
-        .tool-definitions-sidebar {
-          border-right: 1px solid var(--border);
-          background: color-mix(in srgb, var(--bg-panel) 94%, var(--bg));
-        }
-        .tool-definitions-list,
-        .tool-definition-scroll {
-          min-height: 0;
-          flex: 1;
-          overflow: auto;
-        }
-        .tool-definitions-item {
-          display: flex;
-          width: 100%;
-          min-height: 38px;
-          align-items: center;
-          padding: 8px 12px;
-          border: none;
-          border-bottom: 1px solid var(--border);
-          background: transparent;
-          color: var(--text-muted);
-          cursor: pointer;
-          text-align: left;
-        }
-        .tool-definitions-item:hover {
-          background: var(--bg-hover);
-          color: var(--text);
-        }
-        .tool-definitions-item.selected {
-          background: var(--bg-selected);
-          box-shadow: inset 2px 0 0 var(--accent);
-          color: var(--text);
-        }
-        .tool-definitions-item code {
-          max-width: 100%;
-          color: inherit;
-          font-size: 11px;
-          font-weight: 600;
-          overflow-wrap: anywhere;
-        }
-        .tool-definition-scroll {
-          padding: 14px 16px 20px;
-        }
-        .tool-definition-section + .tool-definition-section {
-          margin-top: 18px;
-        }
-        .tool-definition-section-label {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          margin-bottom: 7px;
-          color: var(--text-dim);
-          font-size: 11px;
-          font-weight: 600;
-        }
-        .tool-definition-section-label > span:last-child {
-          font-weight: 400;
-          white-space: nowrap;
-        }
-        .tool-definition-description {
-          color: var(--text-muted);
-          font-size: 12px;
-          line-height: 1.55;
-          overflow-wrap: anywhere;
-          white-space: pre-wrap;
-        }
-        .tool-definition-fields {
-          border-top: 1px solid var(--border);
-        }
-        .tool-definition-field {
-          display: grid;
-          grid-template-columns: minmax(88px, 0.75fr) minmax(0, 1.5fr);
-          gap: 12px;
-          padding: 9px 0;
-          border-bottom: 1px solid var(--border);
-          font-size: 11px;
-          line-height: 1.45;
-        }
-        .tool-definition-field-name {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 3px;
-          color: var(--text);
-        }
-        .tool-definition-field-name code {
-          overflow-wrap: anywhere;
-        }
-        .tool-definition-field-name span {
-          color: var(--text-dim);
-          font-size: 10px;
-        }
-        .tool-definition-field-name span.required {
-          color: var(--accent);
-        }
-        .tool-definition-field-value {
-          min-width: 0;
-          color: var(--text-muted);
-          overflow-wrap: anywhere;
-        }
-        .tool-definition-type {
-          display: block;
-          margin-bottom: 3px;
-          color: var(--text);
-        }
-        .tool-definition-meta {
-          margin-top: 4px;
-          color: var(--text-dim);
-        }
-        .tool-definition-meta code {
-          color: var(--text-muted);
-        }
-        .tool-definition-no-parameters {
-          padding: 2px 0 10px;
-          color: var(--text-dim);
-          font-size: 11px;
-        }
-        .tool-definition-guidelines {
-          margin: 0;
-          padding-left: 18px;
-          color: var(--text-muted);
-          font-size: 11px;
-          line-height: 1.5;
-        }
-        .tool-definitions-empty {
-          padding: 14px 12px;
-          color: var(--text-muted);
-          font-size: 12px;
-          font-style: italic;
-          overflow-wrap: anywhere;
-        }
-        @media (max-width: 640px) {
-          .tool-definitions-panel {
-            grid-template-columns: 112px minmax(0, 1fr);
-          }
-          .tool-definitions-item {
-            padding: 8px 10px;
-          }
-          .tool-definition-scroll {
-            padding: 12px;
-          }
-          .tool-definition-field {
-            grid-template-columns: minmax(74px, 0.7fr) minmax(0, 1.3fr);
-            gap: 9px;
-          }
-        }
-      `}</style>
     </div>
   );
 }
