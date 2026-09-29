@@ -906,7 +906,7 @@ function FavoriteModelMenu({
         <div
           role="menu"
           aria-label={t("models.favorites")}
-          className="anim-popover"
+          className="pw-pop anim-popover"
           style={{
             position: "absolute",
             bottom: "calc(100% + 6px)",
@@ -915,14 +915,9 @@ function FavoriteModelMenu({
             width: 240,
             maxHeight: 320,
             overflowY: "auto",
-            padding: "4px 0",
-            background: "var(--bg-elev)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-md)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "4px 10px 6px", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <span>{t("models.favorites")}</span>
             {currentKey && (
               <button
@@ -3419,18 +3414,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           {historyMenuOpen && inputHistory.length > 0 && (
             <div
               ref={historyMenuRef}
-              className="anim-popover"
+              className="pw-pop anim-popover"
               style={{
                 position: "absolute",
                 left: 0,
                 right: 0,
                 bottom: "calc(100% + 8px)",
                 zIndex: 120,
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                boxShadow: "var(--shadow-popover)",
-                overflow: "hidden",
                 maxHeight: "min(44vh, 360px)",
               }}
             >
@@ -3507,18 +3497,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           {slashMenuOpen && slashQuery !== null && (
             <div
               ref={slashMenuRef}
-              className="anim-popover"
+              className="pw-pop anim-popover"
               style={{
                 position: "absolute",
                 left: 0,
                 right: 0,
                 bottom: "calc(100% + 8px)",
                 zIndex: 120,
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                boxShadow: "var(--shadow-popover)",
-                overflow: "hidden",
                 boxSizing: "border-box",
                 display: "flex",
                 flexDirection: "column",
@@ -3527,49 +3512,37 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   : `min(72.8vh, 598px, ${slashMenuMaxHeight}px)`,
               }}
             >
-              <div
-                style={{
-                  padding: "8px 10px",
-                  borderBottom: "1px solid var(--border)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                  fontSize: TEXT.xs,
-                  color: "var(--text-dim)",
-                  flexShrink: 0,
-                }}
-              >
-                 <span>{slashCommandsLoading ? t("chat.loadingCommands") : t("chat.slashCommands", { label: slashCommandCountLabel })}</span>
-                 <span style={{ fontFamily: "var(--font-mono)" }}>{t("chat.tabEnter")}</span>
+              <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{slashCommandsLoading ? t("chat.loadingCommands") : t("chat.slashCommands", { label: slashCommandCountLabel })}</span>
+                 <span className="grow" />
+                 <span className="pw-kbd">{t("chat.tabEnter")}</span>
               </div>
-              <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: 10 }}>
+              <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                 {!slashCommandsLoading && filteredSlashCommands.length === 0 ? (
-                  <div style={{ padding: "2px 2px 4px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>
+                  <div className="pw-prow pw-desc">
                      {t("chat.noCommands")}
                   </div>
                 ) : (
                   groupedSlashCommands.map((group) => (
                     <section key={group.source} style={{ marginBottom: 12 }}>
+                      {/* fork:design-system SW-02 —— 分组标题 = pw-pop-title（sticky 钉顶）。 */}
                       <div
+                        className="pw-pop-title"
                         style={{
                           position: "sticky",
-                          top: -10,
+                          top: -4,
                           zIndex: 1,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
                           gap: 8,
-                          padding: "4px 0 6px",
-                          background: "var(--bg)",
-                          color: "var(--text-dim)",
-                          fontSize: TEXT["2xs"],
-                          fontWeight: 600,
-                          textTransform: "uppercase",
+                          margin: "0 -4px",
+                          padding: "4px 4px 6px",
+                          background: "var(--surface-popover)",
                         }}
                       >
                            <span>{t(SLASH_SOURCE_GROUP_LABEL_KEYS[group.source])}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 500 }}>{group.items.length}</span>
+                        <span className="pw-badge count">{group.items.length}</span>
                       </div>
                       <div
                         style={{
@@ -3593,59 +3566,33 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 applySlashCommand(command);
                               }}
                               onMouseEnter={() => setSlashActiveIndex(index)}
-                              style={{
-                                width: "100%",
-                                minWidth: 0,
-                                minHeight: 58,
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 4,
-                                justifyContent: "center",
-                                padding: "9px 10px",
-                                border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                                borderRadius: "var(--radius-sm)",
-                                background: active ? "var(--bg-selected)" : "var(--bg-panel)",
-                                color: "var(--text)",
-                                cursor: "pointer",
-                                textAlign: "left",
-                                boxShadow: active ? "0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent)" : "none",
-                              }}
+                              className={`pw-prow${active ? " is-on" : ""}`}
+                              style={{ width: "100%", minWidth: 0, height: "auto", minHeight: 0 }}
+                              title={command.description ? getSlashDescription(command, t) : undefined}
                             >
-                              <span style={{
-                                fontSize: TEXT.md,
-                                fontFamily: "var(--font-mono)",
-                                overflowWrap: "anywhere",
-                                wordBreak: "break-word",
-                                color: dormant ? "var(--text-dim)" : undefined,
-                              }}>
-                                /{command.name}
-                                {dormant && (
-                                  <span style={{
-                                    marginLeft: 6,
-                                    padding: "0 4px",
-                                    border: "1px solid var(--border)",
-                                    borderRadius: "var(--radius-xs)",
-                                    fontSize: TEXT["2xs"],
-                                    color: "var(--text-dim)",
-                                    whiteSpace: "nowrap",
-                                  }}>
-                                    {t("chat.dormant")}
-                                  </span>
-                                )}
+                              <span className="pw-ico" style={{ flexShrink: 0, color: dormant ? "var(--n-placeholder)" : undefined }}>
+                                <i data-ico={command.source === "skill" ? "box" : command.source === "prompt" ? "square-function" : "slash"} data-size="14"></i>
                               </span>
-                               {command.description && (
-                                <span style={{
-                                  display: "-webkit-box",
-                                  WebkitBoxOrient: "vertical",
-                                  WebkitLineClamp: 2,
-                                  overflow: "hidden",
-                                  fontSize: TEXT.xs,
-                                  lineHeight: 1.35,
-                                  color: "var(--text-dim)",
-                                }}>
+                              <span
+                                className="grow"
+                                style={{
+                                  minWidth: 0,
+                                  fontFamily: "var(--font-mono)",
+                                  overflowWrap: "anywhere",
+                                  color: dormant ? "var(--n-placeholder)" : undefined,
+                                }}
+                              >
+                                /{command.name}
+                              </span>
+                              {command.description && (
+                                <span
+                                  className="pw-desc"
+                                  style={{ flexShrink: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "50%" }}
+                                >
                                    {getSlashDescription(command, t)}
                                 </span>
                               )}
+                              {dormant && <span className="pw-desc" style={{ flexShrink: 0 }}>{t("chat.dormant")}</span>}
                             </button>
                           );
                         })}
@@ -3680,18 +3627,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             return (
               <div
                 ref={atMenuRef}
-                className="anim-popover"
+                className="pw-pop anim-popover"
                 style={{
                   position: "absolute",
                   left: 0,
                   right: 0,
                   bottom: "calc(100% + 8px)",
                   zIndex: 120,
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-lg)",
-                  boxShadow: "var(--shadow-popover)",
-                  overflow: "hidden",
                   boxSizing: "border-box",
                   display: "flex",
                   flexDirection: "column",
@@ -3700,29 +3642,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     : `min(48vh, 400px, ${atMenuMaxHeight}px)`,
                 }}
               >
-                <div
-                  style={{
-                    padding: "8px 10px",
-                    borderBottom: "1px solid var(--border)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    fontSize: TEXT.xs,
-                    color: "var(--text-dim)",
-                    flexShrink: 0,
-                  }}
-                >
-                  <span>
+                {/* fork:design-system SW-02 —— 头行 = 画板 21 的 pw-pop-title（标题 + grow + kbd）。 */}
+                <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {indexLoading
                        ? t("chat.loadingFiles")
                        : t("chat.files", { label: matchCountLabel, hint: truncatedHint })}
                   </span>
-                   <span style={{ fontFamily: "var(--font-mono)" }}>{t("chat.tabEnter")}</span>
+                  <span className="grow" />
+                  <span className="pw-kbd">{t("chat.tabEnter")}</span>
                 </div>
-                <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: 4 }}>
+                <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                   {!indexLoading && atMatches.length === 0 ? (
-                    <div style={{ padding: "6px 8px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>
+                    <div className="pw-prow pw-desc">
                        {needsServerSearch && !serverResultInUse ? t("chat.searching") : t("chat.noMatchingFiles")}
                     </div>
                   ) : (
@@ -3742,29 +3674,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                             applyAtCompletion(entry);
                           }}
                           onMouseEnter={() => setAtActiveIndex(index)}
-                          style={{
-                            width: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            padding: "6px 8px",
-                            border: "none",
-                            borderRadius: "var(--radius-sm)",
-                            background: active ? "var(--bg-selected)" : "none",
-                            color: "var(--text)",
-                            cursor: "pointer",
-                            textAlign: "left",
-                            fontSize: TEXT.sm,
-                            fontFamily: "var(--font-mono)",
-                          }}
+                          className={`pw-prow${active ? " is-on" : ""}`}
+                          style={{ width: "100%", fontFamily: "var(--font-mono)" }}
                         >
-                          <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+                          <span className="pw-ico" style={{ flexShrink: 0 }}>
                             {entry.isDir ? <FolderIcon size={14} /> : getFileIcon(name, 14)}
                           </span>
-                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {dirPrefix && <span style={{ color: "var(--text-dim)" }}>{dirPrefix}</span>}
+                          <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {dirPrefix && <span className="pw-desc">{dirPrefix}</span>}
                             {name}
-                            {entry.isDir && <span style={{ color: "var(--text-dim)" }}>/</span>}
+                            {entry.isDir && <span className="pw-desc">/</span>}
                           </span>
                         </button>
                       );

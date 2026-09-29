@@ -45,14 +45,16 @@ export function SessionSearch({ open, query, children, selectedSessionId, onSele
   }, [open, search]);
 
   return !open || !search ? children : (
+    // fork:design-system SW-02 —— 结果行 = 画板 02 搜索帧的 pw-session.child 形态
+    // （标题 + cwd · 时间 + 高亮片段），命中片段用 accent-soft mark。
     <div className="min-h-20 flex-1 overflow-y-auto" aria-busy={!response && !failed}>
-      <div role="status" className="px-3 py-2 text-xs text-text-muted">
+      <div role="status" className="pw-prow pw-desc">
         {failed ? t("sidebar.sessionSearchFailed") : !response ? t("sidebar.sessionSearching")
           : response.results.length === 0 ? t("sidebar.sessionSearchEmpty")
           : t("sidebar.sessionSearchCount", { count: response.results.length })}
       </div>
       {response?.truncated && (
-        <div role="status" className="px-3 pb-2 text-xs text-text-muted">{t("sidebar.sessionSearchPartial")}</div>
+        <div role="status" className="pw-prow pw-desc">{t("sidebar.sessionSearchPartial")}</div>
       )}
       {response?.results.map(({ session, entryId, blockIndex, before, match, after }) => (
         <button
@@ -60,15 +62,26 @@ export function SessionSearch({ open, query, children, selectedSessionId, onSele
           type="button"
           onClick={() => onSelectSession(session, entryId, blockIndex)}
           aria-current={session.id === selectedSessionId ? "true" : undefined}
-          className={`block w-full cursor-pointer border-b border-border px-3 py-2 text-left hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent ${session.id === selectedSessionId ? "bg-bg-selected" : ""}`}
+          className={`pw-session child${session.id === selectedSessionId ? " is-on" : ""}`}
+          style={{ width: "100%", textAlign: "left" }}
         >
-          <span className="block truncate text-xs font-medium text-text">{session.name || session.firstMessage}</span>
-          <span className="mt-1 flex min-w-0 gap-2 text-[10px] text-text-dim">
-            <span className="min-w-0 flex-1 truncate" title={session.cwd}>{session.cwd}</span>
-            <span className="shrink-0">{formatRelativeTime(session.modified, locale)}</span>
-          </span>
-          <span className="mt-1 block text-xs leading-relaxed wrap-anywhere text-text-muted">
-            {before}<mark className="rounded-sm bg-accent/20 text-text">{match}</mark>{after}
+          <span className="pw-body">
+            <span className="pw-t">{session.name || session.firstMessage}</span>
+            <span className="pw-m">
+              <span title={session.cwd} style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.cwd}</span>
+              <span style={{ flexShrink: 0 }}>{formatRelativeTime(session.modified, locale)}</span>
+            </span>
+            <span
+              style={{
+                minWidth: 0,
+                color: "var(--n-muted)",
+                fontSize: "var(--text-meta)",
+                lineHeight: 1.5,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {before}<mark style={{ background: "var(--accent-soft)", color: "var(--accent-text)", borderRadius: "var(--radius-3)" }}>{match}</mark>{after}
+            </span>
           </span>
         </button>
       ))}

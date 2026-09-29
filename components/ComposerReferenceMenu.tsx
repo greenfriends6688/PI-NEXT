@@ -2,7 +2,6 @@
 
 import type { CSSProperties, MutableRefObject, RefObject } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 import type { ComposerReferenceItem, ComposerReferenceKind } from "@/lib/composer-references";
 
 /*
@@ -29,57 +28,22 @@ interface Props {
   onPick: (item: ComposerReferenceItem) => void;
 }
 
+/* fork:design-system SW-02 —— 外壳与行换画板 21 的 pw-pop / pw-pop-title /
+   pw-prow(.is-on) / pw-desc：定位仍由 SHELL 给（贴 composer 上沿、同宽），
+   视觉全部来自 board.css。 */
 const SHELL: CSSProperties = {
   position: "absolute",
   left: 0,
   right: 0,
   bottom: "calc(100% + 8px)",
   zIndex: 120,
-  background: "var(--bg)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-popover)",
-  overflow: "hidden",
   boxSizing: "border-box",
   display: "flex",
   flexDirection: "column",
 };
 
-const HEADER: CSSProperties = {
-  padding: "8px 10px",
-  borderBottom: "1px solid var(--border)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 8,
-  fontSize: TEXT.xs,
-  color: "var(--text-dim)",
-  flexShrink: 0,
-};
 
-const ROW: CSSProperties = {
-  width: "100%",
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "6px 8px",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  color: "var(--text)",
-  cursor: "pointer",
-  textAlign: "left",
-  fontSize: TEXT.sm,
-};
 
-const BADGE: CSSProperties = {
-  flexShrink: 0,
-  marginLeft: "auto",
-  padding: "1px 6px",
-  borderRadius: "var(--radius-lg)",
-  fontSize: TEXT["2xs"],
-  lineHeight: 1.5,
-  whiteSpace: "nowrap",
-};
 
 /** 三类行的前置图标，沿用应用内手写 SVG 的既有词汇（不引图标依赖）。 */
 function ReferenceIcon({ item }: { item: ComposerReferenceItem }) {
@@ -146,7 +110,7 @@ export function ComposerReferenceMenu({
   return (
     <div
       ref={menuRef}
-      className="anim-popover"
+      className="pw-pop anim-popover"
       role="listbox"
       aria-label={t(titleKey, { label: countLabel })}
       style={{
@@ -156,17 +120,16 @@ export function ComposerReferenceMenu({
           : `min(48vh, 400px, ${maxHeight}px)`,
       }}
     >
-      <div style={HEADER}>
-        <span>
+      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
           {loading ? t("chat.referenceLoading") : t(titleKey, { label: countLabel })}
         </span>
-        <span style={{ fontFamily: "var(--font-mono)" }}>{t("chat.tabEnter")}</span>
+        <span className="grow" />
+        <span className="pw-kbd">{t("chat.tabEnter")}</span>
       </div>
-      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: 4 }}>
+      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
         {!loading && items.length === 0 ? (
-          <div style={{ padding: "6px 8px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>
-            {t("chat.referenceEmpty")}
-          </div>
+          <div className="pw-prow pw-desc">{t("chat.referenceEmpty")}</div>
         ) : (
           items.map((item, index) => {
             const active = index === activeIndex;
@@ -187,46 +150,35 @@ export function ComposerReferenceMenu({
                   onPick(item);
                 }}
                 onMouseEnter={() => onHover(index)}
+                className={`pw-prow${active ? " is-on" : ""}`}
                 style={{
-                  ...ROW,
-                  background: active ? "var(--bg-selected)" : "none",
-                  opacity: disabled ? 0.55 : 1,
-                  fontFamily: item.kind === "session" ? "inherit" : "var(--font-mono)",
+                  width: "100%",
+                  // 画板 21 的「未连接」行：整行弱化。
+                  opacity: disabled ? 0.5 : 1,
                 }}
               >
-                <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}>
+                <span className="pw-ico" style={{ flexShrink: 0 }}>
                   <ReferenceIcon item={item} />
                 </span>
-                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.kind === "todo" ? item.text : item.kind === "mcp" ? item.name : item.title}
                 </span>
                 {detail && (
                   <span
+                    className="pw-desc"
                     style={{
-                      marginLeft: 8,
-                      minWidth: 0,
+                      flexShrink: 0,
                       maxWidth: "45%",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
-                      color: "var(--text-dim)",
-                      fontSize: TEXT.xs,
-                      fontFamily: "var(--font-mono)",
                     }}
                   >
                     {detail}
                   </span>
                 )}
-                {disabled && (
-                  <span style={{ ...BADGE, background: "var(--bg-subtle)", color: "var(--text-dim)" }}>
-                    {t("chat.referenceDisabled")}
-                  </span>
-                )}
-                {done && (
-                  <span style={{ ...BADGE, background: "var(--bg-subtle)", color: "var(--text-dim)" }}>
-                    {t("chat.referenceTodoDone")}
-                  </span>
-                )}
+                {disabled && <span className="pw-desc" style={{ flexShrink: 0 }}>{t("chat.referenceDisabled")}</span>}
+                {done && <span className="pw-desc" style={{ flexShrink: 0 }}>{t("chat.referenceTodoDone")}</span>}
               </button>
             );
           })
