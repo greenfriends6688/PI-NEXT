@@ -85,7 +85,7 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
           height: CONTROL.sm,
           padding: "0 9px",
           border: "1px solid var(--border-faint)",
-          borderRadius: 14,
+          borderRadius: "var(--radius-lg)",
           background: "var(--bg-panel)",
           color: complete ? "var(--text-muted)" : "var(--text)",
           fontSize: TEXT.sm,
@@ -104,7 +104,7 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
           style={{
             width: 34,
             height: 4,
-            borderRadius: 2,
+            borderRadius: "var(--radius-xs)",
             background: "var(--border)",
             overflow: "hidden",
           }}
@@ -176,7 +176,7 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
             aria-valuemax={summary.total}
             aria-valuenow={summary.done}
             aria-label={t("chat.todos")}
-            style={{ height: 4, marginTop: 8, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}
+            style={{ height: 4, marginTop: 8, borderRadius: "var(--radius-xs)", background: "var(--border)", overflow: "hidden" }}
           >
             <span
               style={{
@@ -195,53 +195,23 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
             {summary.todos.map((todo) => {
               const active = activeTodo?.id === todo.id;
               return (
-                <li key={todo.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: TEXT.sm, lineHeight: 1.45 }}>
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      flexShrink: 0,
-                      width: 14,
-                      height: 14,
-                      marginTop: 2,
-                      borderRadius: 4,
-                      border: `1.5px solid ${todo.done || active ? "transparent" : "var(--border-strong)"}`,
-                      background: todo.done
-                        ? "var(--text-muted)"
-                        : active
-                          ? "var(--accent)"
-                          : "transparent",
-                      color: "var(--bg)",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: TEXT["2xs"],
-                      fontWeight: 700,
-                    }}
-                  >
-                    {todo.done ? "✓" : active ? <span style={{ width: 5, height: 5, borderRadius: 5, background: "var(--bg)" }} /> : ""}
+                /* fork:design-components —— 计划条目直接用画板 12 的 .pw-todo 组件
+                   （board.css：14px 方框 / .done 灰底删除线 / .now 强调底 / 徽章用 .pw-badge）。 */
+                <li key={todo.id} className={`pw-todo${todo.done ? " done" : active ? " now" : ""}`}>
+                  <span className="box" aria-hidden="true">
+                    {todo.done ? (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      ""
+                    )}
                   </span>
-                  <span
-                    style={{
-                      minWidth: 0,
-                      color: todo.done ? "var(--text-dim)" : "var(--text)",
-                      textDecoration: todo.done ? "line-through" : "none",
-                    }}
-                  >
+                  <span style={{ minWidth: 0 }}>
                     {todo.text}
                   </span>
                   {active && (
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        marginLeft: "auto",
-                        padding: "1px 6px",
-                        borderRadius: 9,
-                        background: "var(--accent-soft)",
-                        color: "var(--accent)",
-                        fontSize: TEXT["2xs"],
-                        lineHeight: 1.5,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span className="pw-badge accent" style={{ marginLeft: "auto" }}>
                       {t("chat.todosActive")}
                     </span>
                   )}

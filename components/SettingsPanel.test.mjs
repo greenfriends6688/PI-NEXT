@@ -11,7 +11,6 @@ const themeSource = await readFile(new URL("../hooks/useTheme.ts", import.meta.u
 const themeOptionsSource = await readFile(new URL("../lib/theme.ts", import.meta.url), "utf8");
 const enSource = await readFile(new URL("../lib/i18n/messages/en.ts", import.meta.url), "utf8");
 const zhSource = await readFile(new URL("../lib/i18n/messages/zh-CN.ts", import.meta.url), "utf8");
-const loginSource = await readFile(new URL("../app/login/page.tsx", import.meta.url), "utf8");
 
 test("opens one settings panel from the AppShell sidebar footer", () => {
   assert.match(shellSource, /<SettingsPanel/);
@@ -109,7 +108,8 @@ test("groups chat display controls together without row backgrounds", () => {
 });
 
 test("keeps General free of divider rows", () => {
-  assert.match(panelSource, /className="settings-dialog-header"/);
+  // fork:design-components —— 设置壳挂画板 .pw-modal / .pw-modal-head（类串追加，不替换）。
+  assert.match(panelSource, /className="settings-dialog-header pw-modal-head"/);
   assert.match(cssSource, /\.settings-dialog-header \{[\s\S]*?display: flex[\s\S]*?align-items: center[\s\S]*?min-height: 50px/);
   assert.doesNotMatch(panelSource, /sections\.find\(\(item\) => item\.id === section\)/);
   assert.doesNotMatch(panelSource, /<section style=\{\{[^}]*borderBottom/);
@@ -123,7 +123,7 @@ test("uses a left section column on desktop and one compact picker on mobile", (
   assert.match(panelSource, /className="settings-section-tab"/);
   // fork:ui-08 — a vertical column (upstream 0.14.6 layout) instead of a row of
   // fixed 96px cells.
-  assert.match(panelSource, /className="settings-dialog-body"/);
+  assert.match(panelSource, /className="settings-dialog-body pw-settings"/);
   assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?flex-direction: column/);
   assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?width: 184px/);
   assert.match(cssSource, /\.settings-section-tab \{[\s\S]*?flex: 0 0 auto/);
@@ -154,9 +154,12 @@ test("labels agent profiles as sub-agents", () => {
 });
 
 test("uses the child-session robot glyph for the sub-agents tab", () => {
+  // fork:design-components —— 会话行里的子代理标记改用画板 02 的 corner-down-right
+  // （<i data-ico>，与画板 HTML 同一写法）；设置分节图标仍是手绘机器人。
   const robotGlyph = /<rect x="5" y="7" width="14" height="11" rx="2" \/>\s*<path d="M9 11h\.01M15 11h\.01M9 15h6M12 7V4M10 4h4" \/>/;
   assert.match(panelSource, robotGlyph);
-  assert.match(sidebarSource, robotGlyph);
+  assert.match(sidebarSource, /data-ico=\{collapsed \? "chevron-right" : "chevron-down"\}/);
+  assert.match(sidebarSource, /data-ico="corner-down-right"/);
   assert.match(panelSource, /section === "agents"[\s\S]*?className="settings-section-icon is-agent"/);
   assert.match(cssSource, /\.settings-section-icon\.is-agent \{[\s\S]*?transform: scale\(1\.25\)/);
 });
@@ -165,13 +168,13 @@ test("uses the compact controls glyph for General", () => {
   assert.match(panelSource, /section === "general"[\s\S]*?<path d="M20 7h-9M14 17H5" \/>[\s\S]*?<circle cx="7" cy="7" r="3" \/>[\s\S]*?<circle cx="17" cy="17" r="3" \/>/);
 });
 
-test("keeps password authentication to one login field and one settings action", () => {
-  assert.equal((loginSource.match(/type="password"/g) ?? []).length, 1);
-  assert.doesNotMatch(loginSource, /type="(?:text|email)"/);
-  assert.match(loginSource, /autoComplete="current-password"/);
-  assert.match(loginSource, /!destination\.startsWith\("\/\/"\)/);
-  assert.match(panelSource, /fetch\("\/api\/web-auth", \{ method: "DELETE" \}\)/);
-  assert.match(panelSource, /t\("auth\.logOut"\)/);
-  assert.match(loginSource, /className="web-login-composer"[\s\S]*?type="password"[\s\S]*?<button type="submit"/);
-  assert.match(globalCssSource, /\.web-login-composer \{[\s\S]*?display: flex;[\s\S]*?border-radius: var\(--radius-lg\)/);
+test("the product has no login surface at all", async () => {
+  // fork:design-system（用户裁定 2026-09-28）—— 本产品没有登录：
+  // `/login` 路由、`/api/web-auth`、`lib/web-auth`、`lib/auth-throttle` 全部删除，
+  // 设置里也没有「退出登录」。见 design/pi-web-design/50-dialogs.html。
+  await assert.rejects(readFile(new URL("../app/login/page.tsx", import.meta.url), "utf8"), { code: "ENOENT" });
+  await assert.rejects(readFile(new URL("../app/api/web-auth/route.ts", import.meta.url), "utf8"), { code: "ENOENT" });
+  await assert.rejects(readFile(new URL("../lib/web-auth.ts", import.meta.url), "utf8"), { code: "ENOENT" });
+  assert.doesNotMatch(panelSource, /api\/web-auth|auth\.logOut|webAuthEnabled/);
+  assert.doesNotMatch(globalCssSource, /\.web-login/);
 });

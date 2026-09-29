@@ -392,7 +392,7 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
                             onClick={() => void performDelete(entry)}
                             disabled={deleteBusy}
                             title={t("directoryPicker.deleteFolder")}
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, height: 30, padding: "0 11px", background: "var(--danger)", border: "none", borderRadius: "var(--radius-sm)", color: "#fff", cursor: deleteBusy ? "default" : "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap", opacity: deleteBusy ? 0.6 : 1 }}
+                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, height: 30, padding: "0 11px", background: "var(--danger)", border: "none", borderRadius: "var(--radius-sm)", color: "var(--accent-contrast)", cursor: deleteBusy ? "default" : "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap", opacity: deleteBusy ? 0.6 : 1 }}
                           >
                             <DeleteIcon />
                             {t("sidebar.delete")}

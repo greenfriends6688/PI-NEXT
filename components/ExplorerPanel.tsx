@@ -24,9 +24,8 @@ function ToolbarIconButton({
   onClick,
   title,
   disabled,
-  skipHover,
   color,
-  background = "none",
+  background,
   marginRight,
   ariaPressed,
   children,
@@ -34,45 +33,25 @@ function ToolbarIconButton({
   onClick: () => void;
   title: string;
   disabled?: boolean;
-  skipHover?: boolean;
   color: string;
+  /** 仅保留调用方语义：选中态由 .pw-iconbtn.is-on 承担。 */
   background?: string;
   marginRight?: number;
   ariaPressed?: boolean;
   children: ReactNode;
 }) {
-  const enter = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled || skipHover) return;
-    e.currentTarget.style.color = "var(--text-muted)";
-    e.currentTarget.style.background = "var(--bg-hover)";
-  };
-  const leave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled || skipHover) return;
-    e.currentTarget.style.color = color;
-    e.currentTarget.style.background = background;
-  };
+  // fork:design-components —— 文件面板头行的图标钮 = 画板 30 的 .pw-iconbtn.sm
+  // （22×22 / 无边框 / hover 叠色 / is-on 选中）。颜色与按下态仍按调用方给的状态走。
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
       aria-label={title}
       aria-pressed={ariaPressed}
-      style={{
-        position: "relative",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: 26, height: 26, padding: 0, marginRight,
-        background,
-        border: "none",
-        color,
-        cursor: disabled ? "default" : "pointer",
-        borderRadius: "var(--radius-sm)",
-        flexShrink: 0,
-        opacity: disabled ? 0.6 : 1,
-        transition: "color 0.15s, background 0.15s",
-      }}
-      onMouseEnter={enter}
-      onMouseLeave={leave}
+      className={`pw-iconbtn sm${ariaPressed ? " is-on" : ""}`}
+      style={{ marginRight, color: disabled ? "var(--n-placeholder)" : color, opacity: disabled ? 0.6 : 1, background: ariaPressed ? undefined : background }}
     >
       {children}
     </button>
@@ -191,8 +170,11 @@ export function ExplorerPanel({
         background: "var(--bg)",
       }}
     >
-      <div className="file-explorer-header" style={{ display: "flex", alignItems: "center", flexShrink: 0, borderBottom: explorerOpen ? "1px solid var(--border-faint)" : "none" }}>
+      {/* fork:design-components —— 面板头 = 画板 30 的 .pw-panel-head：
+          「文件」+ 右端一排 .pw-iconbtn.sm；高度取 --topbar-height（36）。 */}
+      <div className="file-explorer-header pw-panel-head" style={{ borderBottom: explorerOpen ? "1px solid var(--n-border-subtle)" : "none" }}>
         <button
+          type="button"
           className="file-explorer-toggle"
           onClick={() => setExplorerOpen((open) => {
             const next = !open;
@@ -202,28 +184,20 @@ export function ExplorerPanel({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 5,
             flex: 1,
-            height: 36,
-            padding: "0 10px",
+            minWidth: 0,
             background: "none",
             border: "none",
-            color: "var(--text-muted)",
+            color: "inherit",
             cursor: "pointer",
-            fontSize: TEXT.xs,
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
+            font: "inherit",
             textAlign: "left",
           }}
         >
-          <svg
-            width="9" height="9" viewBox="0 0 10 10" fill="none"
-            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: explorerOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}
-          >
-            <polyline points="3 2 7 5 3 8" />
-          </svg>
+          <span className="pw-ico">
+            <i data-ico={explorerOpen ? "chevron-down" : "chevron-right"} data-size="12"></i>
+          </span>
           {/* Shown instead of the label once the panel is too narrow for it
               (@container query in globals.css). Ported from upstream PR #838. */}
           <svg
@@ -235,12 +209,12 @@ export function ExplorerPanel({
             <path d="M3.5 6.5h6l1.8 2h9.2v9.8a1.2 1.2 0 0 1-1.2 1.2H4.7a1.2 1.2 0 0 1-1.2-1.2z" />
             <path d="M3.5 6.5V5.7a1.2 1.2 0 0 1 1.2-1.2h4l1.8 2h8.8a1.2 1.2 0 0 1 1.2 1.2v.8" />
           </svg>
-          <span className="file-explorer-title-label">{t("files.explorer")}</span>
+          <span className="file-explorer-title-label" style={{ fontWeight: 500, color: "var(--n-strong)" }}>{t("files.explorer")}</span>
           {/* Which directory this tree is listing: without it an empty tree is
               indistinguishable from a wrong cwd. */}
           <span
             className="file-explorer-title-label"
-            style={{ color: "var(--text-dim)", fontWeight: 400 }}
+            style={{ color: "var(--n-placeholder)", fontWeight: 400 }}
             title={cwd}
           >
             {cwd.split(/[\/]/).filter(Boolean).at(-1) ?? cwd}
@@ -329,7 +303,6 @@ export function ExplorerPanel({
             explorerRefreshTimerRef.current = setTimeout(() => setExplorerRefreshDone(false), 2000);
           }}
           title={t("sidebar.refreshExplorer")}
-          skipHover={explorerRefreshDone}
           color={explorerRefreshDone ? "var(--success)" : "var(--text-dim)"}
           background={explorerRefreshDone ? "var(--success-soft)" : "none"}
           marginRight={6}

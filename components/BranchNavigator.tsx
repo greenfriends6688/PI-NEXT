@@ -207,7 +207,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
             color: role === "user" ? "var(--accent)" : "var(--text-dim)",
             background: role === "user" ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "var(--bg-hover)",
             border: `1px solid ${role === "user" ? "var(--accent-border)" : "var(--border)"}`,
-            borderRadius: 3,
+            borderRadius: "var(--radius-xs)",
             padding: "0 4px",
             marginRight: 5,
             flexShrink: 0,
@@ -294,13 +294,15 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   const topLevel = selectTopLevelBranches(tree);
   const hasContent = !noBranchReason && topLevel.length > 0;
 
+  // fork:design-components —— 会话分支 ≠ Git 分支：图标换皮肤 lucide 的 git-fork
+  //（分叉形态），与顶栏左侧 git-branch 的「main」芯片在视觉上区分开。
   const branchIcon = (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: hasContent ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }}>
-      <line x1="6" y1="3" x2="6" y2="15" />
-      <circle cx="18" cy="6" r="3" />
-      <circle cx="6" cy="18" r="3" />
-      <path d="M18 9a9 9 0 0 1-9 9" />
-    </svg>
+    <span
+      className="pw-ico"
+      style={{ color: hasContent ? "var(--accent)" : "var(--text-dim)", display: "inline-flex", flexShrink: 0 }}
+    >
+      <i data-ico="git-fork" data-size="14"></i>
+    </span>
   );
 
   const chevron = (
@@ -408,7 +410,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           right: 0,
           background: "var(--bg)",
           borderBottom: "1px solid var(--border)",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          boxShadow: "var(--shadow-popover)",
           zIndex: 100,
         }}>
           {hasContent ? (

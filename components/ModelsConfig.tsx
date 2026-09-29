@@ -675,13 +675,16 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
 const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 type ThinkingLevel = typeof THINKING_LEVELS[number];
 
+// fork:design-system —— 七档只用设计允许的五个色相（中性 + 强调 + 4 语义），
+// 不再各来一个自造色：off/minimal 走中性两档，low/medium/high 走强调三档，
+// xhigh 走 warning，max 走 danger。深浅由 token 自己跟主题走。
 const LEVEL_COLORS: Record<ThinkingLevel, string> = {
   off:     "var(--text-dim)",
-  minimal: "#6b7280",
-  low:     "var(--accent)",
-  medium:  "#a78bfa",
-  high:    "#f472b6",
-  xhigh:   "#fb923c",
+  minimal: "var(--n-muted)",
+  low:     "var(--accent-text)",
+  medium:  "var(--accent)",
+  high:    "var(--accent-hover)",
+  xhigh:   "var(--warning)",
   max:     "var(--danger)",
 };
 
@@ -2618,7 +2621,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                              {m.id || t("i18n.newModel")}
                           </ConfigSidebarText>
                           {m.reasoning && (
-                            <span style={{ fontSize: TEXT["2xs"], padding: "1px 4px", background: "var(--accent-soft)", color: "var(--accent-text)", borderRadius: 3, flexShrink: 0 }}>T</span>
+                            <span style={{ fontSize: TEXT["2xs"], padding: "1px 4px", background: "var(--accent-soft)", color: "var(--accent-text)", borderRadius: "var(--radius-xs)", flexShrink: 0 }}>T</span>
                           )}
                           <span
                             role="button"

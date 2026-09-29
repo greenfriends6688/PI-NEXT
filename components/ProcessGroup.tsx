@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MarkdownBody } from "./MarkdownBody";
 import { ToolCallBlock, getMessageImages, getMessageText, imageSource } from "./MessageView";
 import { ImagePreview } from "./ImagePreview";
@@ -502,7 +502,7 @@ function FileChips({
 
 function Duration({ seconds }: { seconds?: number }) {
   if (!seconds || seconds <= 0) return null;
-  return <span className="process-step-duration">{seconds}s</span>;
+  return <span className="pw-dur">{seconds}s</span>;
 }
 
 function ReasoningBody({ blocks }: { blocks: ProcessContentBlock[] }) {
@@ -891,59 +891,61 @@ export function ProcessGroup({
 
   return (
     <section
-      className={`process-group is-timeline${className ? ` ${className}` : ""}`}
+      // fork:design-components —— 步骤流本体 = 画板 11 的 .pw-proc-body：
+      // 一条竖线串起的步骤行（.pw-step / .pw-step-ico / .pw-verb / .pw-arg / .pw-dur），
+      // 外层 .pw-proc 与汇总行由 ProcessDetailsGroup 提供。
+      className={`process-group${className ? ` ${className}` : ""}`}
       aria-label={t("process.groupLabel")}
       data-step-count={steps.length}
     >
-        <ol className="process-steps" data-fork-stream-animate={streamAnimate ? "true" : undefined}>
+        <ol className="process-steps pw-proc-body" data-fork-stream-animate={streamAnimate ? "true" : undefined}>
           {steps.map((step, index) => {
             const id = step.id;
             const isOpen = isStepOpen(id);
             const last = index === steps.length - 1;
             const entering = enteringIds.has(id);
             return (
-              <li
-                key={id}
-                // fork:zn-10 — marks the streaming-open step so fork-ui.css can
-                // shimmer its verb (Zeno .shimmer); static rows never animate.
-                data-live={streamingOpen === id || undefined}
-                // fork:zm-02 — only freshly appended steps carry the entrance
-                // marker; the memory decides, not the render position.
-                data-fork-enter={entering ? "true" : undefined}
-                style={entering
-                  ? ({ "--fork-enter-delay": streamEnterDelay(step.sequence) } as CSSProperties)
-                  : undefined}
-                className={[
-                  "process-step",
-                  isOpen ? " is-open" : "",
-                  last ? " is-last" : "",
-                  step.failed ? " is-failed" : "",
-                  step.thinking ? " is-thinking" : "",
-                  step.reasoning ? " is-reasoning" : "",
-                ].filter(Boolean).join(" ")}
-              >
+              <Fragment key={id}>
+                {/* fork:design-components —— 步骤行**就是**画板 11 的 .pw-step：
+                    icon / verb / arg / grow / dur 是它的直接子元素（board.css 的
+                    竖线与图标位靠这套结构定位），行本身可点即展开。
+                    展开的正文是 .pw-step 的**兄弟**，不塞进行里 —— 塞进去会把
+                    行的 flex 布局挤成两列，画板里正文从来不进行。 */}
                 <button
                   type="button"
-                  className="process-step-row"
+                  data-live={streamingOpen === id || undefined}
+                  data-fork-enter={entering ? "true" : undefined}
+                  style={entering
+                    ? ({ "--fork-enter-delay": streamEnterDelay(step.sequence) } as CSSProperties)
+                    : undefined}
                   aria-expanded={isOpen}
                   onClick={() => toggle(id)}
+                  className={[
+                    "pw-step",
+                    isOpen ? " is-open" : "",
+                    last ? " is-last" : "",
+                    step.failed ? " failed" : "",
+                    step.thinking ? " thinking" : "",
+                    step.reasoning ? " reasoning" : "",
+                  ].filter(Boolean).join(" ")}
                 >
-                  <span className="process-step-icon" aria-hidden="true">
+                  <span className="pw-step-ico" aria-hidden="true">
                     <StepIcon name={step.icon} />
                   </span>
-                  <span className="process-step-label">{step.label}</span>
+                  <span className="pw-verb">{step.label}</span>
                   {step.count !== undefined && step.count > 1 && (
-                    <span className="process-step-count">×{step.count}</span>
+                    <span className="pw-badge count">×{step.count}</span>
                   )}
                   <FileChips targets={step.targets} onOpenFile={onOpenFile} />
                   {/* fork:process-dedupe — 推理行展开后正文就是这段文字，行上再挂一份
                       截断版等于同一句话说两遍（闭合时仍保留，避免只剩一个「推理」）。 */}
-                  {step.detail && !isOpen && <span className="process-step-detail">{step.detail}</span>}
+                  {step.detail && !isOpen && <span className="pw-arg process-step-detail">{step.detail}</span>}
+                  <span className="grow" />
                   <Duration seconds={step.duration} />
-                  {step.failed && <span className="process-step-failed">{t("process.failed")}</span>}
+                  {step.failed && <span className="pw-badge bad">{t("process.failed")}</span>}
                 </button>
                 {isOpen && (
-                  <div style={{ position: "relative" }}>
+                  <div className="process-step-body-wrap" style={{ position: "relative" }}>
                     <div
                       ref={last ? latestStepScrollRef : undefined}
                       style={{ maxHeight: 320, overflowY: "auto", overflowX: "hidden" }}
@@ -987,7 +989,7 @@ export function ProcessGroup({
                     )}
                   </div>
                 )}
-              </li>
+              </Fragment>
             );
           })}
         </ol>

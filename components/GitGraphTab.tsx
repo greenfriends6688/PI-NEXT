@@ -166,7 +166,7 @@ function CommitFileRow({ file, cwd, onOpenFile }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={file.filePath}
-      style={{ width: "100%", display: "flex", alignItems: "center", gap: 4, padding: "0 5px", height: 24, border: "none", borderRadius: 4, background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
+      style={{ width: "100%", display: "flex", alignItems: "center", gap: 4, padding: "0 5px", height: 24, border: "none", borderRadius: "var(--radius-sm)", background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
     >
       <span style={{ width: 14, flexShrink: 0, color, fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 600, textAlign: "center" }}>{file.code}</span>
       <span style={{ minWidth: 0, overflow: "hidden", display: "flex", alignItems: "baseline", flex: 1, whiteSpace: "nowrap" }}>
@@ -385,7 +385,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
           disabled={loading}
           title={t("git.refresh")}
           aria-label={t("git.refresh")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, padding: 0, border: "none", borderRadius: 5, background: "none", color: "var(--text-dim)", cursor: loading ? "wait" : "pointer", opacity: loading ? 0.55 : 1 }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: loading ? "wait" : "pointer", opacity: loading ? 0.55 : 1 }}
         >
           <RefreshIcon spinning={loading} />
         </button>
@@ -548,7 +548,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
               type="button"
               onClick={() => setLimit((current) => Math.min(current + LIMIT_STEP, MAX_LIMIT))}
               disabled={loading}
-              style={{ padding: "4px 14px", fontSize: TEXT.sm, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg)", color: "var(--text)", cursor: loading ? "wait" : "pointer" }}
+              style={{ padding: "4px 14px", fontSize: TEXT.sm, border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "var(--bg)", color: "var(--text)", cursor: loading ? "wait" : "pointer" }}
             >
               {t("git.loadMore")}
             </button>
@@ -574,7 +574,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
               aria-label={t("i18n.close")}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, padding: 0, flexShrink: 0, border: "none", borderRadius: 4, background: "none", color: "var(--text-dim)", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, padding: 0, flexShrink: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
             >
               <CloseIcon />
             </button>

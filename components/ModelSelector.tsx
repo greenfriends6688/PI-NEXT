@@ -147,23 +147,19 @@ export function ModelSelector({
         textAlign: "left",
       }
     : {
+        // fork:design-components —— 工具栏形态的尺寸 / 颜色 / 圆角全部来自画板
+        // 的 .pw-select（board.css），这里只留三态与可点性；
+        // 之前这里写的 height/padding/radius 是 inline 声明，会把 .pw-select 压掉。
         display: "flex",
         alignItems: "center",
         justifyContent: isMobile ? "flex-start" : undefined,
         gap: 6,
         width: isMobile ? "100%" : undefined,
         maxWidth: isMobile ? "100%" : 220,
-        height: 28,
-        padding: isMobile ? "6px 10px" : "6px 10px",
         overflow: "hidden",
-        border: "none",
-        borderRadius: "var(--radius-md)",
-        background: open ? "var(--bg-hover)" : "none",
-        color: "var(--text-muted)",
+        background: open ? "var(--overlay-hover)" : "none",
         cursor: locked ? "not-allowed" : "pointer",
-        fontSize: TEXT.sm,
         opacity: locked ? 0.5 : 1,
-        transition: "background 0.12s, color 0.12s",
       };
 
   const choose = (option: ModelSelectorOption) => {
@@ -189,6 +185,9 @@ export function ModelSelector({
       <button
         type="button"
         aria-label={ariaLabel}
+        /* fork:design-components —— 触发钮挂画板 .pw-select；variant 状态分支仍由
+           buttonStyle/JS hover 管理（locked/busy/open 三态切换无法纯类表达）。 */
+        className="pw-select"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-busy={busy || undefined}
@@ -205,17 +204,17 @@ export function ModelSelector({
         }}
         onMouseEnter={(event) => {
           if (locked) return;
-          event.currentTarget.style.background = "var(--bg-hover)";
-          event.currentTarget.style.color = "var(--text)";
+          event.currentTarget.style.background = "var(--overlay-hover)";
+          event.currentTarget.style.color = "var(--n-text)";
         }}
         onMouseLeave={(event) => {
           if (locked) {
             event.currentTarget.style.background = variant === "field" ? "var(--bg-panel)" : "none";
-            event.currentTarget.style.color = variant === "field" ? "var(--text-dim)" : "var(--text-muted)";
+            event.currentTarget.style.color = variant === "field" ? "var(--text-dim)" : "var(--n-text)";
             return;
           }
-          event.currentTarget.style.background = open ? "var(--bg-hover)" : variant === "field" ? "var(--bg)" : "none";
-          event.currentTarget.style.color = variant === "field" ? "var(--text)" : "var(--text-muted)";
+          event.currentTarget.style.background = open ? "var(--overlay-hover)" : variant === "field" ? "var(--bg)" : "none";
+          event.currentTarget.style.color = variant === "field" ? "var(--text)" : "var(--n-text)";
         }}
       >
         {busy ? (
@@ -230,11 +229,9 @@ export function ModelSelector({
             size={11}
           />
         )}
-        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</span>
-        {variant === "field" && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: "var(--text-dim)" }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+        <span style={{ flex: variant === "field" ? 1 : "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</span>
+        {variant !== "field" && (
+          <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
         )}
       </button>
 

@@ -770,17 +770,17 @@ export function ChatMinimap({
           >
             <div
               style={{
-                width: 22,
-                height: 3,
-                borderRadius: 2,
+                /* 设计 §2.7：导轨节点是 6px 圆点，当前节点 8px 转 accent。 */
+                width: isActive ? 8 : 6,
+                height: isActive ? 8 : 6,
+                borderRadius: "50%",
                 background: isActive
-                  ? "color-mix(in srgb, var(--text) 75%, transparent)"
+                  ? "var(--accent)"
                   : isNearest
                     ? "color-mix(in srgb, var(--text) 55%, transparent)"
                     : "color-mix(in srgb, var(--text) 22%, transparent)",
-                transition: "transform 0.1s, background 0.1s",
-                transform: isNearest || isActive ? "scaleX(1)" : "scaleX(0.65)",
-                transformOrigin: "center",
+                transition:
+                  "width var(--motion-fast), height var(--motion-fast), background var(--motion-fast)",
               }}
             />
           </div>
@@ -809,7 +809,9 @@ export function ChatMinimap({
               showPreview();
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {/* fork:design-system —— 固定态只把**这一枚图标**转 accent（画板 53），
+                整条上色会盖过内容。 */}
+            <svg className={styles.pinIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 4h6l-1 6 3 3v1H7v-1l3-3-1-6Z" />
               <path d="M12 14v6" />
             </svg>
@@ -823,7 +825,21 @@ export function ChatMinimap({
               disabled={loadingEarlier}
               onClick={() => { void onLoadEarlier(); }}
             >
-              <span className={styles.loadEarlierArrow} aria-hidden="true">↑</span>
+              <span className={styles.loadEarlierArrow} aria-hidden="true">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m5 12 7-7 7 7" />
+                  <path d="M12 19V5" />
+                </svg>
+              </span>
               <span className={styles.loadEarlierLabel}>
                 {loadingEarlier ? t("i18n.loading") : t("chatMinimap.loadEarlier")}
               </span>

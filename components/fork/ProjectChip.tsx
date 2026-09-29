@@ -158,6 +158,9 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
   };
 
   return (
+    // fork:design-components —— 新会话的工作区选择 = 画板 20 的 .pw-chip：
+    // 它是输入框**内部**的一枚芯片（画板 20「附件与引用」的 .pw-chips 行），
+    // 不再是输入框上方另起的一条横条。
     <button
       ref={buttonRef}
       type="button"
@@ -165,35 +168,8 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
       title={targets.activeCwd ?? undefined}
       aria-label={t("home.workspaceTarget")}
       aria-haspopup="menu"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        height: 26,
-        maxWidth: "min(100%, 260px)",
-        padding: "0 8px",
-        // fork:zn-04 — Zeno .composer-protrusion-chip: a chromeless chip that
-        // lives ON the protrusion strip. It used to be its own bordered card
-        // (border + 14px radius + --bg-panel), which read as a control floating
-        // above the strip instead of the strip's own content.
-        border: "none",
-        borderRadius: "var(--radius-sm)",
-        background: "transparent",
-        // fork:zn-04 — `--text`, not Zeno's `--foreground`: this fork's foreground
-        // token is `--text` (audit-tokens.mjs keeps the reference spelling out).
-        color: "var(--text)",
-        fontSize: TEXT.md,
-        fontWeight: 400,
-        lineHeight: 1,
-        cursor: "pointer",
-        transition: "background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out)",
-      }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.background = "color-mix(in srgb, var(--text) 10%, transparent)";
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.background = "transparent";
-      }}
+      className="pw-chip accent"
+      style={{ maxWidth: "min(100%, 260px)", cursor: "pointer" }}
     >
       <span style={{ display: "flex", flexShrink: 0 }}>
         {active.activeChat ? <ChatIcon /> : <FolderIcon />}

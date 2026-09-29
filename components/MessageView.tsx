@@ -12,7 +12,7 @@ import { ThinkingIcon } from "./ThinkingIcon";
 import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/hooks/useI18n";
 import { parseCompactionSummary } from "@/lib/compaction-summary";
-import { getAssistantErrorMessage, getThinkingPreview, isEmptyThinkingBlock, isAssistantTruncated } from "@/lib/message-display";
+import { getAssistantErrorMessage, getThinkingPreview, isEmptyThinkingBlock } from "@/lib/message-display";
 import { parseUnifiedPatch, type SplitDiffCell, type SplitDiffFile } from "@/lib/patch";
 // fork:zc-07 — 词级行内 diff：并排 diff 里只标记真正变化的字/词。
 import { buildIntralineSegments, diffIntraline, type IntralineSpan } from "@/lib/diff-intraline";
@@ -145,7 +145,24 @@ function SafeMarkdownBody({ children, className, ...props }: React.ComponentProp
           textAlign: "left",
         }}
       >
-        ⚠ {t("i18n.largeMessageReveal", { size: formatMessageBytes(children.length) })}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </svg>
+          {t("i18n.largeMessageReveal", { size: formatMessageBytes(children.length) })}
+        </span>
       </button>
     );
   }
@@ -456,30 +473,17 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: 6, width: "100%", maxWidth: "100%" }}>
         <div
+          /* fork:design-components —— 用户气泡直接用画板 10 的 .pw-msg-user
+             （右对齐 78% / 发丝边框 / 面板底 / radius-6，board.css 承担全部视觉）。 */
+          className="pw-msg-user"
           style={{
             minWidth: 0,
-            // fork:ui-04 — right-aligned prompt card, capped like upstream
-            // (`max-width: min(70%, 620px)`) so long prompts stay readable.
-            // The phone value lives in app/fork-ui.css.
-            maxWidth: "var(--fork-user-bubble-max, min(70%, 620px))",
-            // fork:zn-11 — Zeno's user bubble: the `--user-bg` soft surface
-            // (solid, one step above canvas) with NO border, radius 12. The old
-            // `--bg-subtle` + `--border-faint` pair drew a boxed card; Zeno's
-            // reads as a filled bubble.
-            // fork:boardui — BoardUI 的入口气泡是 rounded-2xl(16px) +
-            // shadow-card（agent-chat-message.tsx：rounded-2xl
-            // bg-background-primary-default px-3 py-[11px] shadow-card）。
-            background: "var(--user-bg)",
-            border: "1px solid transparent",
-            borderRadius: 16,
-            padding: "12px 16px",
             fontSize: "calc(14px + var(--chat-font-size-offset, 0px))",
             lineHeight: 1.65,
             color: "var(--text)",
             wordBreak: "break-word",
             maxHeight: USER_BUBBLE_MAX_HEIGHT,
             overflowY: "auto",
-            boxShadow: "var(--shadow-card)",
           }}
         >
           {commandText ? (
@@ -733,11 +737,8 @@ function AssistantMessageView({
     .filter(({ block }) => !isEmptyThinkingBlock(block, { isStreaming })), [message.content, isStreaming]);
   const blocks = useMemo(() => blockItems.map(({ block }) => block), [blockItems]);
   const providerError = getAssistantErrorMessage(message, { isStreaming });
-  // #830 surfaces a response cut off by the output limit. The PR also declared a
-  // `hovered` flag next to it for its hover-gated action row; this fork shows
-  // those rows unconditionally, so that half stays dropped (delta.md §皮肤改动点).
-  // fork:upstream-0.9.2-truncation-i18n — 判定留成纯函数，文案走 i18n（原本是硬编码英文）。
-  const truncated = isAssistantTruncated(message, { isStreaming });
+  // fork:design-system PR-11 — 「输出被上限截断」不再单开告警块，改由回合结束行
+  // 的 `length` 徽章 + `chat.truncatedByOutputLimit` 解释表达（设计 12 画板）。
   const [copied, setCopied] = useState(false);
   const streamStartRef = useRef<number | null>(null);
   const [tps, setTps] = useState<number | null>(null);
@@ -854,7 +855,9 @@ function AssistantMessageView({
     return () => clearInterval(id);
   }, [isStreaming]);
 
-  if (blocks.length === 0 && !isStreaming && !providerError && !truncated) return null;
+  // fork:design-system PR-11 — 只有「输出被截断」这一种空内容结束态需要留下
+  // 回合结束行（旧实现是 `!truncated` 的截断告警块，现由结束行的 length 徽章接管）。
+  if (blocks.length === 0 && !isStreaming && !providerError && message.stopReason !== "length") return null;
 
   return (
     <div
@@ -892,9 +895,10 @@ function AssistantMessageView({
                       {est}
                     </span>
                     {tps !== null && (() => {
-                      const bg = tps >= 50 ? "#53b3cb" : tps >= 30 ? "#9bc53d" : tps >= 15 ? "#f9c22e" : "#e01a4f";
+                      // fork:design-system —— 只用四个语义色，不再自造青/黄绿/琥珀/洋红四个色相。
+                      const bg = tps >= 50 ? "var(--success)" : tps >= 30 ? "var(--info)" : tps >= 15 ? "var(--warning)" : "var(--danger)";
                       return (
-                        <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: "var(--radius-xs)", background: bg, color: "#fff", fontSize: TEXT.xs, fontWeight: 400 }}>
+                        <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: "var(--radius-xs)", background: bg, color: "var(--accent-contrast)", fontSize: TEXT.xs, fontWeight: 400 }}>
                           {tps.toFixed(1)} t/s
                         </span>
                       );
@@ -944,43 +948,68 @@ function AssistantMessageView({
         </div>
       )}
 
-      {truncated && (
-        <div
-          role="alert"
-          style={{
-            marginTop: blocks.length > 0 || providerError ? 8 : 0,
-            padding: "7px 10px",
-            border: "1px solid color-mix(in srgb, var(--warning) 35%, var(--border))",
-            borderRadius: "var(--radius-md)",
-            background: "var(--warning-soft)",
-            color: "var(--warning)",
-            fontFamily: "var(--font-mono)",
-            fontSize: TEXT.sm,
-            lineHeight: 1.5,
-            whiteSpace: "pre-wrap",
-            overflowWrap: "anywhere",
-          }}
-        >
-          {t("chat.truncatedByOutputLimit")}
-        </div>
-      )}
-
       {writtenFiles && writtenFiles.length > 0 && (
         <TurnWrittenFiles files={writtenFiles} onOpenFile={onOpenFile} />
       )}
 
-      {/* Usage / copy / timestamp row — fork:zn-12, same hover gate as the user
-          message's action row. Token counts and copy stay in the same place,
-          they just stop competing with the answer for attention. */}
-      {/* fork:ui-stats-inline — usage 行**常显**（用户明确要求：token 统计不该藏在
-          hover 门里）。它曾和 copy/时间戳同处 `.fork-msg-actions`，而那个容器默认
-          `opacity: 0`（fork:zn-12 的 hover 门）——父级 opacity 无法被子元素覆盖，
-          所以必须把它移出容器才能常显。 */}
-      {message.usage && !isStreaming && (
-        <div style={{ fontSize: TEXT.xs, color: "var(--text-dim)", marginTop: 6 }}>
-          {formatUsage(message.usage)}
-        </div>
-      )}
+      {/* fork:design-components PR-11 —— 回合结束行直接使用画板 12 的组件：
+          样式全部来自 design/pi-web-design/assets/board.css 的
+          .pw-turn-end / .pw-badge(.ok/.warn/.bad/.accent) / .pw-mono / .rule，
+          图标走 <i data-ico>（icons.js hydrate），本组件不再写一行视觉样式。 */}
+      {!isStreaming && (() => {
+        const stopReason = message.stopReason ?? "stop";
+        const durationSec = prevTimestamp && message.timestamp
+          ? Math.max(0, (message.timestamp - prevTimestamp) / 1000)
+          : null;
+        const badgeClass = stopReason === "stop" ? "ok"
+          : stopReason === "length" ? "warn"
+            : stopReason === "error" ? "bad"
+              : stopReason === "toolUse" ? "accent"
+                : "";
+        const icon = stopReason === "stop" ? "check"
+          : stopReason === "toolUse" ? "wrench"
+            : stopReason === "length" ? "triangle-alert"
+              : stopReason === "deferred" ? "clock"
+                : stopReason === "aborted" ? "circle-stop"
+                  : stopReason === "error" ? "circle-x"
+                    : "ellipsis";
+        const usageText = message.usage ? formatUsage(message.usage) : "";
+        const costText = message.usage ? formatUsageCost(message.usage) : null;
+        const note = stopReason === "toolUse" ? t("chat.turnEnd.toolUse")
+          : stopReason === "length" ? t("chat.truncatedByOutputLimit")
+            : stopReason === "deferred" ? t("chat.turnEnd.deferred")
+              : stopReason === "aborted" ? t("chat.turnEnd.aborted")
+                : stopReason === "error" ? t("chat.turnEnd.error")
+                  : null;
+        return (
+          <div className="pw-turn-end" style={{ marginTop: 6 }}>
+            <span className={`pw-badge ${badgeClass}`}>
+              <span className="pw-ico"><i data-ico={icon} data-size="12"></i></span>
+              {stopReason}
+            </span>
+            {durationSec !== null && (
+              <>
+                <span className="pw-mono">{formatTurnDuration(durationSec)}</span>
+                <span>·</span>
+              </>
+            )}
+            {usageText && (
+              <>
+                <span className="pw-mono">{usageText}</span>
+                <span>·</span>
+              </>
+            )}
+            {costText && (
+              <>
+                <span className="pw-mono">{costText}</span>
+                <span>·</span>
+              </>
+            )}
+            {note && <span className="pw-muted">{note}</span>}
+            <span className="rule"></span>
+          </div>
+        );
+      })()}
 
       <div
         className="fork-msg-actions"
@@ -1163,7 +1192,7 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
     <div style={{
       display: "flex", alignItems: "flex-start", gap: 6, minWidth: 0,
       border: "none",
-      borderRadius: 0,
+      borderRadius: "0",
       padding: "2px 0",
       background: "transparent",
       fontFamily: "var(--font-mono)",
@@ -1325,22 +1354,21 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
   const showExpandedSurface = expanded || isError;
 
   return (
+    /* fork:design-components —— 工具卡直接用画板 11 的 .pw-card（展开/错误时上卡，
+       收起态保持时间轴行的透明形态，与画板「过程时间轴是收起形态」一致）。 */
     <div
-      style={{
-        borderRadius: "var(--radius-lg)",
-        overflow: "hidden",
-        fontSize: TEXT.sm,
-        border: `1px solid ${isError
-          ? "color-mix(in srgb, var(--danger) 38%, var(--border))"
-          : showExpandedSurface ? "var(--border)" : "transparent"}`,
-        background: isError ? "var(--danger-soft)" : showExpandedSurface ? "var(--tool-bg)" : "transparent",
-        transition: "background 0.12s, border-color 0.12s",
-      }}
+      className={showExpandedSurface ? "pw-card" : undefined}
+      style={showExpandedSurface
+        ? (isError
+          ? { fontSize: TEXT.sm, borderColor: "color-mix(in srgb, var(--error) 38%, var(--border))", background: "var(--error-soft)" }
+          : { fontSize: TEXT.sm })
+        : { fontSize: TEXT.sm, border: "none", background: "transparent", borderRadius: "var(--radius-lg)", overflow: "visible" }}
     >
       {/* ── Tool call header ── */}
       <div style={{ display: "flex", alignItems: "stretch", minWidth: 0 }}>
         <button
           onClick={handleToggle}
+          className="pw-card-head"
           style={{
             display: "flex",
             alignItems: "center",
@@ -1363,21 +1391,21 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
             if (!expanded) e.currentTarget.style.background = "none";
           }}
         >
-          <span style={{ display: "inline-flex", alignItems: "center", color: isError ? "var(--danger)" : "var(--text-muted)", flexShrink: 0 }}>
+          <span className="pw-ico" style={{ color: isError ? "var(--error)" : undefined, flexShrink: 0 }}>
             <ToolCallIcon toolName={block.toolName} />
           </span>
-          <span style={{ color: isError ? "var(--danger)" : "var(--text-muted)", fontWeight: 500, fontSize: TEXT.sm, flexShrink: 0 }}>
+          <span className="pw-tool" style={{ color: isError ? "var(--error)" : undefined, flexShrink: 0 }}>
             {block.toolName}
           </span>
-          <span style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: TEXT.xs, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+          <span className="pw-path" style={{ flex: 1 }}>
             {isStreamingInput ? t("chat.generatingToolInput") : (patchLabel ?? getToolPreview(block))}
           </span>
           {duration !== undefined && (
             <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
           )}
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-            <polyline points="2 3.5 5 6.5 8 3.5" />
-          </svg>
+          <span className="pw-ico" style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--motion-fast)" }}>
+            <i data-ico="chevron-down" data-size="11"></i>
+          </span>
         </button>
         {subagent && onOpenSession && (
           <button
@@ -1387,7 +1415,7 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
             aria-label={t("subagent.open")}
             style={{ width: 32, display: "grid", placeItems: "center", border: "none", borderLeft: "1px solid var(--border)", background: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+            <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
           </button>
         )}
       </div>
@@ -1644,7 +1672,7 @@ function SplitDiffCellView({ cell, side, intraline }: {
           ? segments.map((segment, index) => (
               <span
                 key={index}
-                style={segment.changed ? { background: changedBackground, borderRadius: 2 } : undefined}
+                style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-xs)" } : undefined}
               >
                 {segment.text}
               </span>
@@ -1856,14 +1884,8 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          overflow: "hidden",
-          background: "var(--bg)",
-        }}
-      >
+      {/* fork:design-components —— 压缩卡直接用画板 12 的 .pw-compact（发丝边框 / 面板底）。 */}
+      <div className="pw-compact" style={{ flexDirection: "column", alignItems: "stretch", padding: 0, overflow: "hidden" }}>
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
@@ -1882,21 +1904,10 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
             textAlign: "left",
           }}
         >
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ flexShrink: 0, transition: "transform 0.15s", transform: expanded ? "rotate(90deg)" : "none" }}
-          >
-            <path d="m9 6 6 6-6 6" />
-          </svg>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 650, flexShrink: 0 }}>
+          <span className="pw-ico" style={{ flexShrink: 0, transition: "transform var(--motion-fast)", transform: expanded ? "rotate(90deg)" : "none" }}>
+            <i data-ico="chevron-right" data-size="11"></i>
+          </span>
+          <span className="pw-mono" style={{ fontSize: TEXT.xs, fontWeight: 500, flexShrink: 0 }}>
             compaction
           </span>
           <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.sm }}>
@@ -2227,13 +2238,23 @@ function formatUsage(usage: {
   cacheWrite: number;
   cost: { total: number };
 }): string {
-  const parts = [];
-  if (usage.input) parts.push(`${usage.input.toLocaleString()} in`);
-  if (usage.output) parts.push(`${usage.output.toLocaleString()} out`);
-  if (usage.cacheRead) parts.push(`${usage.cacheRead.toLocaleString()} cache R`);
-  if (usage.cacheWrite) parts.push(`${usage.cacheWrite.toLocaleString()} cache W`);
-  if (usage.cost?.total) parts.push(`$${usage.cost.total.toFixed(4)}`);
-  return parts.join(" · ");
+  // fork:design-components —— 回合用量行 = 画板 12 的「↑ 8,912 · ↓ 1,328 tok」。
+  // 缓存读写不进这一行（画板没画）；它们属于统计条的展开明细。
+  if (!usage.input && !usage.output) return "";
+  return `↑ ${usage.input.toLocaleString()} · ↓ ${usage.output.toLocaleString()} tok`;
+}
+
+/** 费用单独一格（画板 12：用量与费用之间有一个 `·`）。 */
+function formatUsageCost(usage: { cost: { total: number } }): string | null {
+  return usage.cost?.total ? `$${usage.cost.total.toFixed(3)}` : null;
+}
+
+/** 回合耗时：< 60s 给一位小数（4.2s），≥ 60s 给 3m40s。 */
+function formatTurnDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return `${minutes}m${String(rest).padStart(2, "0")}s`;
 }
 
 function BashExecutionView({ message, sessionId }: { message: BashExecutionMessage; sessionId?: string }) {

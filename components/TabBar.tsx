@@ -201,7 +201,9 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
     <div
       ref={containerRef}
       role="tablist"
-      className="fork-tabbar"
+      /* fork:design-components —— 标签条直接用画板 31 的 .pw-tabs（2px 间距 / 发丝底线），
+         每个标签追加 .pw-tab（.is-on 选中态）；拖拽排序与溢出折叠逻辑不变。 */
+      className="fork-tabbar pw-tabs"
       style={{
         display: "flex",
         alignItems: "center",
@@ -235,7 +237,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             key={tab.id}
             ref={measureTab(tab.id)}
             role="tab"
-            className="fork-tab"
+            className={`fork-tab pw-tab${isActive ? " is-on" : ""}`}
             aria-label={tabAccessibleName(tab)}
             aria-selected={isActive}
             tabIndex={isActive || (!activeTabId && tabs[0].id === tab.id) ? 0 : -1}

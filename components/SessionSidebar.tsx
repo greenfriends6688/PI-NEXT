@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { SessionInfo } from "@/lib/types";
 import { listSessionFamilies, type SessionFamily } from "@/lib/session-family";
 import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
@@ -28,18 +29,80 @@ import { SessionSearch } from "./SessionSearch";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { TEXT } from "@/lib/typography";
 
-// fork:zn-02 — 32px flat rows (Zeno .sidebar-list-row h-8): each row fills its
-// virtual slot edge to edge, no inset pill, no inter-row gap. Fixed row height
-// for the session list; SessionItem renders at exactly this height so the
-// list can be windowed (only the visible slice is mounted).
-export const SESSION_LIST_ITEM_HEIGHT = 32;
+// fork:design-system — 会话行按画板 02 重做成**两行**（标题 + 元信息行），
+// 行高 48，运行中 / 等你处理 58（设计 §2.6 的五态表）。
+// 状态标记一律在**右侧**（`N 条消息` 之后），左侧不放任何点。
+// 列表仍走固定高度窗口化，所以两种高度都要参与偏移计算。
+export const SESSION_LIST_ITEM_HEIGHT = 48;
+/** 运行中 / 等你处理的行高（多出的 10px 是给底边扫掠线留的呼吸）。 */
+export const SESSION_LIST_ITEM_HEIGHT_TALL = 58;
 
-export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1): number[] {
+/** 把稀疏的「高行下标」收敛成升序数组，窗口与偏移计算共用。 */
+function normalizeTallIndices(tallIndices: readonly number[] | undefined): number[] {
+  if (!tallIndices || tallIndices.length === 0) return [];
+  return [...new Set(tallIndices)].filter((index) => Number.isInteger(index) && index >= 0).sort((a, b) => a - b);
+}
+
+/** 升序数组里小于 `index` 的元素个数（二分）。 */
+function countBelow(sorted: readonly number[], index: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < index) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** 第 `index` 行的顶部偏移。高行比普通行多 10px，逐行累加。 */
+export function sessionRowOffset(index: number, tallSorted: readonly number[]): number {
+  return index * SESSION_LIST_ITEM_HEIGHT + countBelow(tallSorted, index) * (SESSION_LIST_ITEM_HEIGHT_TALL - SESSION_LIST_ITEM_HEIGHT);
+}
+
+/** 列表总高（含底部最后一行）。 */
+export function sessionListHeight(count: number, tallSorted: readonly number[]): number {
+  return sessionRowOffset(count, tallSorted);
+}
+
+/** 把稀疏下标展开成每行顶部偏移数组（长度 count + 1，末项是总高）。 */
+export function sessionListOffsets(count: number, tallIndices: readonly number[] | undefined): number[] {
+  const tall = new Set(normalizeTallIndices(tallIndices));
+  const offsets = new Array<number>(count + 1);
+  let cursor = 0;
+  for (let index = 0; index < count; index += 1) {
+    offsets[index] = cursor;
+    cursor += tall.has(index) ? SESSION_LIST_ITEM_HEIGHT_TALL : SESSION_LIST_ITEM_HEIGHT;
+  }
+  offsets[count] = cursor;
+  return offsets;
+}
+
+export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1, tallIndices?: readonly number[]): number[] {
   const overscan = 8;
   const visibleCount = Math.ceil((viewportHeight || 600) / SESSION_LIST_ITEM_HEIGHT) + overscan * 2;
-  const start = Math.max(0, Math.min(Math.floor(scrollTop / SESSION_LIST_ITEM_HEIGHT) - overscan, count - visibleCount));
-  const end = Math.min(count, start + visibleCount);
-  const indices = Array.from({ length: end - start }, (_, offset) => start + offset);
+  const tall = normalizeTallIndices(tallIndices);
+
+  let start: number;
+  let end: number;
+  if (tall.length === 0) {
+    // 快路径：全部等高，直接除（现有调用方与测试走的就是这条）。
+    start = Math.max(0, Math.min(Math.floor(scrollTop / SESSION_LIST_ITEM_HEIGHT) - overscan, count - visibleCount));
+    end = Math.min(count, start + visibleCount);
+  } else {
+    // 有高行：先找可见区的首尾行，再各留 overscan。
+    // 行数在真实列表里是百量级，线性扫一遍比维护区间树便宜得多。
+    const offsets = sessionListOffsets(count, tall);
+    let first = 0;
+    while (first < count - 1 && offsets[first + 1] <= scrollTop) first += 1;
+    let last = first;
+    const bottom = scrollTop + (viewportHeight || 600);
+    while (last < count - 1 && offsets[last] < bottom) last += 1;
+    start = Math.max(0, first - overscan);
+    end = Math.min(count, Math.max(last + 1 + overscan, start + visibleCount));
+  }
+
+  const indices = Array.from({ length: Math.max(0, end - start) }, (_, offset) => start + offset);
   // Keep a focused row mounted so scrolling cannot discard an inline rename.
   if (focusedIndex >= 0 && focusedIndex < start) indices.unshift(focusedIndex);
   if (focusedIndex >= end && focusedIndex < count) indices.push(focusedIndex);
@@ -125,10 +188,6 @@ const UNREAD_SESSIONS_STORAGE_KEY = "pi-web:unread-session-ids";
 const LAST_CUSTOM_CWD_STORAGE_KEY = "pi-web:last-custom-cwd";
 const RUNNING_SESSIONS_POLL_MS = 2500;
 const SESSION_DETAILS_HYDRATION_DELAY_MS = 750;
-const SESSION_PANE_DEFAULT_HEIGHT = 320;
-const SESSION_PANE_MIN_HEIGHT = 80;
-const EXPLORER_PANE_MIN_HEIGHT = 120;
-const SESSION_PANE_MAX_HEIGHT = 1600;
 
 function loadLastCustomCwd(): string {
   if (typeof window === "undefined") return "";
@@ -205,7 +264,7 @@ function PathLabel({ text, style }: { text: string; style?: CSSProperties }) {
 
 const DROPDOWN_ANIMATION_MS = 140;
 
-function AnimatedDropdown({ open, children, style }: { open: boolean; children: ReactNode; style: CSSProperties }) {
+function AnimatedDropdown({ open, children, style, className }: { open: boolean; children: ReactNode; style: CSSProperties; className?: string }) {
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(open);
 
@@ -234,6 +293,7 @@ function AnimatedDropdown({ open, children, style }: { open: boolean; children: 
 
   return (
     <div
+      className={className}
       style={{
         ...style,
         opacity: visible ? 1 : 0,
@@ -248,7 +308,90 @@ function AnimatedDropdown({ open, children, style }: { open: boolean; children: 
   );
 }
 
+/**
+ * fork:ui-pop-portal — 渲染在 <body> 上的定值定位下拉。
+ *
+ * 侧栏的下拉（worktree 切换、项目 ⋯ 菜单）以前是 `position:absolute` 挂在滚动区
+ * 里的行上：行靠近滚动区底部时浮窗要么被 `overflow` 裁掉、要么把滚动区撑长。
+ * portal + fixed 让浮窗脱离所有裁切祖先；展开方向沿用 ModelSelector 的规则——
+ * 下面放不下（<260px）才朝上，否则贴着触发点向下开。
+ */
+function PortalDropdown({
+  open,
+  anchorRef,
+  panelRef,
+  className,
+  width,
+  align,
+  children,
+}: {
+  open: boolean;
+  anchorRef: React.RefObject<HTMLElement | null>;
+  panelRef?: React.RefObject<HTMLDivElement | null>;
+  className?: string;
+  /** 期望宽度；缺省跟随触发点宽度。 */
+  width?: number;
+  /** right = 浮窗右缘对齐触发点右缘（⋯ 菜单）；left = 左缘对齐触发点左缘。 */
+  align?: "left" | "right";
+  children: ReactNode;
+}) {
+  const [rect, setRect] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
+  const [above, setAbove] = useState(false);
+  const [maxH, setMaxH] = useState(360);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const viewportH = window.innerHeight;
+      const viewportW = window.innerWidth;
+      const w = width ?? r.width;
+      const spaceBelow = viewportH - r.bottom - 8;
+      const spaceAbove = r.top - 8;
+      // 与 ModelSelector 相同的规则：下方还有一段就不朝上。
+      const openAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
+      setAbove(openAbove);
+      setMaxH(Math.max(180, Math.min(openAbove ? spaceAbove : spaceBelow, viewportH * 0.6)));
+      const left = align === "right"
+        ? Math.max(8, Math.min(r.right - w, viewportW - w - 8))
+        : Math.max(8, Math.min(r.left, viewportW - w - 8));
+      setRect({ left, top: r.top, bottom: r.bottom, width: w });
+    };
+    update();
+    window.addEventListener("resize", update);
+    // 捕获阶段才能收到侧栏滚动容器的滚动。
+    document.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      document.removeEventListener("scroll", update, true);
+    };
+  }, [open, align, width]);
+
+  if (!rect) return null;
+
+  return createPortal(
+    <div ref={panelRef}>
+      <AnimatedDropdown
+        open={open}
+        className={className}
+        style={{
+          position: "fixed",
+          left: rect.left,
+          width: rect.width,
+          ...(above
+            ? { bottom: window.innerHeight - rect.top + 6, maxHeight: maxH }
+            : { top: rect.bottom + 6, maxHeight: maxH }),
+          overflowY: "auto",
+        }}
+      >
+        {children}
+      </AnimatedDropdown>
+    </div>,
+    document.body,
+  );
+}
 
 const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
 
@@ -326,78 +469,17 @@ function PiWebTitle() {
 
   return (
     <button
+      type="button"
       onClick={handleClick}
+      // fork:design-components —— 字号 / 字重 / 颜色交给 .pw-brand（画板 01/02：13px · 500 · n-strong）。
       style={{
-        background: "none", border: "none", padding: 0, cursor: "default",
-        // fork:zn-02 — 18px brand (Zeno sidebar brand), tracking kept.
-        fontWeight: 600, fontSize: TEXT["2xl"], letterSpacing: "-0.01em",
-        color: showVersion ? "var(--accent)" : "var(--text)",
+        background: "none", border: 0, padding: 0, cursor: "default",
+        color: showVersion ? "var(--accent-text)" : undefined,
+        // 版本号与名字长度不同，固定 6ch 避免刷新时品牌行抽动。
         minWidth: "6ch",
       }}
     >
       {display}
-    </button>
-  );
-}
-
-/* fork:zn-13 — 导轨行图标。Zeno 用 lucide（新建会话 SquarePen / 项目 Folder /
-   插件 Box / 资源 Layers），这里手绘同形状，不引图标库。 */
-function SidebarNavGlyph({ name }: { name: "newSession" }) {
-  const common = {
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.75,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-  return (
-    <svg {...common}>
-      <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z" />
-    </svg>
-  );
-}
-
-/* fork:zn-13 — 导轨行（Zeno `.nav-item` + `.nav-badge`）。规格搬到了
-   `app/fork-ui.css` 的 `.fork-nav-item` / `.fork-nav-badge`，因为这里要表达的
-   是三件样式规矩（hover 与选中同填充、选中不加字重、计数右对齐），写进 CSS 才
-   能和会话行 / 项目行共用同一套值。 */
-function SidebarNavRow({
-  icon,
-  label,
-  badge,
-  onClick,
-  active,
-  disabled,
-  title,
-}: {
-  icon: "newSession";
-  label: string;
-  badge?: number | null;
-  onClick?: () => void;
-  active?: boolean;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title ?? label}
-      aria-label={label}
-      data-active={active ? "true" : undefined}
-      className="fork-nav-item"
-    >
-      <span className="fork-nav-icon">
-        <SidebarNavGlyph name={icon} />
-      </span>
-      <span className="fork-nav-label">{label}</span>
-      {badge != null && badge > 0 ? <span className="fork-nav-badge">{badge}</span> : null}
     </button>
   );
 }
@@ -449,12 +531,15 @@ function ProjectRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState(label);
   const menuRef = useRef<HTMLDivElement>(null);
+  // fork:ui-pop-portal — 菜单本体 portal 到 body，关闭判据要连同面板一起算。
+  const menuPanelRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !menuPanelRef.current?.contains(target)) setMenuOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMenuOpen(false);
@@ -481,18 +566,8 @@ function ProjectRow({
   // 重命名时这一行换成输入框：`<input>` 不能嵌在 `<button>` 里，所以整行换元素。
   if (renaming) {
     return (
-      <div
-        style={{
-          width: "100%",
-          height: SESSION_LIST_ITEM_HEIGHT,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "0 10px",
-          background: "var(--bg-selected)",
-          borderRadius: "var(--zn-radius-row)",
-        }}
-      >
+      <div className="pw-row is-on" style={{ width: "100%" }}>
+        <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
         <input
           ref={renameInputRef}
           value={renameDraft}
@@ -504,18 +579,8 @@ function ProjectRow({
           onBlur={() => onRenameCommit?.(renameDraft)}
           aria-label={t("sidebar.renameProject")}
           maxLength={60}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            background: "var(--bg)",
-            border: "1px solid var(--accent)",
-            borderRadius: "var(--radius-md)",
-            color: "var(--text)",
-            fontFamily: "inherit",
-            fontSize: TEXT.md,
-            padding: "3px 6px",
-            outline: "none",
-          }}
+          className="pw-input"
+          style={{ flex: 1, minWidth: 0, height: "var(--control-xs)", minInlineSize: 0 }}
         />
       </div>
     );
@@ -532,49 +597,19 @@ function ProjectRow({
       draggable={drag.draggable}
       onDragStart={drag.onDragStart}
       onDragEnd={drag.onDragEnd}
+      // fork:design-components —— 项目行 = 画板 01/02 的 .pw-row（30 高 / 内缩 8px /
+      // hover 叠色 / .is-on 选中）+ .pw-name + .pw-count + .pw-acts。
+      className={`pw-row${selected ? " is-on" : ""}${archived ? " muted" : ""}`}
       style={{
         width: "100%",
-        // fork:zn-02 — full-bleed 32px row (Zeno project card): no inset, no gap.
-        height: SESSION_LIST_ITEM_HEIGHT,
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "0 10px",
-        background: selected ? "var(--bg-selected)" : hovered ? "var(--bg-hover)" : "transparent",
-        border: "none",
-        borderRadius: "var(--zn-radius-row)",
-        color: "var(--text)",
-        cursor: "pointer",
-        textAlign: "left",
-        fontSize: TEXT.md,
-        fontWeight: selected ? 500 : 400,
-        transition: "background 0.12s, color 0.12s",
         opacity: drag.dragging ? 0.55 : 1,
         // fork:zc-11 — 落点指示用 inset box-shadow（不改高度，避免触发假 FLIP）。
         boxShadow: drag.dropActive ? "inset 0 2px 0 0 var(--accent)" : "none",
       }}
     >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        style={{ flexShrink: 0, color: selected ? "var(--text)" : "var(--text-muted)" }}
-      >
-        <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-      </svg>
-      {/* fork:ui-project-row — 标题贴着箭头后不再撑满整行，所以这里的 `.fork-fade-title`
-          （给长标题做右侧渐隐）会连同短标题的末几个字一起吃掉；截断交给 ellipsis。 */}
-      <span style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {label}
-      </span>
-      {/* fork:ui-project-row — 折叠箭头紧跟标题（照 Zeno：名字 → ›，右端才是动作）。
-          原先它钉在行尾，与数字之间夹着两个未 hover 时不可见的动作位，空出一条很宽的缝。 */}
+      <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+      <span className="pw-name">{label}</span>
+      {/* fork:ui-project-row — 折叠箭头紧跟标题（照 Zeno：名字 → ›，右端才是动作）。 */}
       {onToggle && (
         <span
           role="button"
@@ -591,21 +626,16 @@ function ProjectRow({
             }
           }}
           aria-label={expanded ? t("sidebar.collapseSubagents") : t("sidebar.expandSubagents")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, flexShrink: 0, color: "var(--text-dim)", cursor: "pointer" }}
+          className="pw-ico"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <i data-ico={expanded ? "chevron-down" : "chevron-right"} data-size="12"></i>
         </span>
       )}
-      <span aria-hidden="true" style={{ flex: 1, minWidth: 0 }} />
-      {typeof count === "number" && (
-        <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)", flexShrink: 0, minWidth: 14, textAlign: "right" }}>{count}</span>
-      )}
+      <span className="grow" />
+      {typeof count === "number" && <span className="pw-count">{count}</span>}
       {showProjectActivity(activity, t)}
-      {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾），
-          并成 2px 间距的一组，不再各占一个 8px 行间距。 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+      {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾）。 */}
+      <span className="pw-acts" style={{ opacity: hovered || menuOpen ? 1 : 0, flexShrink: 0 }}>
       {(onOpenFolder || onRename || onRemove || onArchive) && (
         <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
           <span
@@ -624,69 +654,50 @@ function ProjectRow({
               event.stopPropagation();
               setMenuOpen((open) => !open);
             }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 20,
-              height: 20,
-              borderRadius: "var(--radius-md)",
-              background: menuOpen ? "var(--bg-selected)" : "transparent",
-              color: "var(--text-muted)",
-              opacity: hovered || menuOpen ? 1 : 0,
-              cursor: "pointer",
-              transition: "opacity 0.12s, background 0.12s",
-            }}
+            className={`pw-iconbtn sm${menuOpen ? " is-on" : ""}`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="5" cy="12" r="1.6" />
-              <circle cx="12" cy="12" r="1.6" />
-              <circle cx="19" cy="12" r="1.6" />
-            </svg>
+            <span className="pw-ico"><i data-ico="ellipsis" data-size="14"></i></span>
           </span>
-          {menuOpen && (
-            <div
-              role="menu"
-              className="fork-project-menu"
-              style={{
-                position: "absolute",
-                top: "calc(100% + 4px)",
-                right: 0,
-                zIndex: 120,
-                minWidth: 168,
-                padding: "4px 0",
-                background: "var(--bg-elev)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                boxShadow: "var(--shadow-lg)",
-              }}
-            >
+          {/* fork:ui-pop-portal —— 项目菜单 = 画板 02 的 .pw-pop + .pw-prow，
+              portal 到 body 定值定位：项目行在滚动区下部时菜单不再被裁/撑长列表。 */}
+          <PortalDropdown
+            open={menuOpen}
+            anchorRef={menuRef}
+            panelRef={menuPanelRef}
+            className="pw-pop"
+            width={210}
+            align="right"
+          >
+            <div role="menu">
               {onOpenFolder && (
-                <button type="button" role="menuitem" className="fork-project-menu-item" onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onOpenFolder(); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>
+                <button type="button" role="menuitem" className="pw-prow" style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onOpenFolder(); }}>
+                  <span className="pw-ico"><i data-ico="folder-open" data-size="14"></i></span>
                   {t("sidebar.openProjectFolder")}
                 </button>
               )}
               {onRename && (
-                <button type="button" role="menuitem" className="fork-project-menu-item" onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRename(); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 4 5 5L7 22l-5-5Z" /><path d="m14 5 5 5" /></svg>
+                <button type="button" role="menuitem" className="pw-prow" style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRename(); }}>
+                  <span className="pw-ico"><i data-ico="square-pen" data-size="14"></i></span>
                   {t("sidebar.renameProject")}
                 </button>
               )}
               {onArchive && (
-                <button type="button" role="menuitem" className="fork-project-menu-item" onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onArchive(); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7h18v3H3zM5 10v10h14V10M9 14h6" /></svg>
+                <button type="button" role="menuitem" className="pw-prow" style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onArchive(); }}>
+                  <span className="pw-ico"><i data-ico="archive" data-size="14"></i></span>
                   {archived ? t("sidebar.restoreProject") : t("sidebar.archiveProject")}
                 </button>
               )}
               {onRemove && (
-                <button type="button" role="menuitem" className="fork-project-menu-item is-danger" onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRemove(); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
-                  {t("sidebar.removeProject")}
-                </button>
+                <>
+                  <div className="pw-sep" />
+                  <button type="button" role="menuitem" className="pw-prow" style={{ width: "100%", color: "var(--error)" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRemove(); }}>
+                    <span className="pw-ico" style={{ color: "var(--error)" }}><i data-ico="minus" data-size="14"></i></span>
+                    {t("sidebar.removeProject")}
+                  </button>
+                </>
               )}
             </div>
-          )}
+          </PortalDropdown>
         </div>
       )}
       {/* ⊕：直接在这个项目里开新会话（workbuddy 的 ⊕），排在 ⋯ 右侧、贴行尾。 */}
@@ -706,29 +717,13 @@ function ProjectRow({
             event.stopPropagation();
             onNewSession();
           }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 20,
-            height: 20,
-            borderRadius: "var(--radius-md)",
-            color: "var(--text-muted)",
-            opacity: hovered ? 1 : 0,
-            cursor: "pointer",
-            flexShrink: 0,
-            transition: "opacity 0.12s, color 0.12s",
-          }}
-          onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
-          onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text-muted)"; }}
+          className="pw-iconbtn sm"
+          style={{ opacity: hovered ? 1 : 0 }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 8v8M8 12h8" />
-          </svg>
+          <span className="pw-ico"><i data-ico="plus" data-size="14"></i></span>
         </span>
       )}
-      </div>
+      </span>
       </button>
   );
 }
@@ -790,15 +785,16 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [wtConfirmRemove, setWtConfirmRemove] = useState<string | null>(null);
   const [worktreeLoadingCwd, setWorktreeLoadingCwd] = useState<string | null>(null);
   const wtDropdownRef = useRef<HTMLDivElement>(null);
+  // fork:ui-pop-portal — 下拉本体 portal 到 body，关闭判据要连同面板一起算。
+  const wtPanelRef = useRef<HTMLDivElement>(null);
   const wtNewInputRef = useRef<HTMLInputElement>(null);
-  const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
-  /* fork:zn-20 — 导轨当前看哪一列。项目在前、聊天在后（用户要求，也是 Zeno 的顺序）。 */
-  /* fork:zn-21 — 折叠态图标条点「搜索」→ AppShell 把 `searchRequestId` +1 并展开导轨，
-     这里收到就打开搜索框。用计数而不是布尔：连点两次要各生效一次。 */
+  /* fork:design-components —— 画板 02 的搜索是**常显**一格（.pw-side-search），
+     所以不再有「开/关搜索框」的状态：输入框一直在，头部那个搜索钮只负责聚焦它。
+     `searchRequestId` 是折叠导轨点搜索时 AppShell 递过来的计数，收到就聚焦。 */
+  const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (searchRequestId > 0) setSessionSearchOpen(true);
+    if (searchRequestId > 0) searchInputRef.current?.focus();
   }, [searchRequestId]);
-
   const [sidebarPane, setSidebarPane] = useState<SidebarPane>(readStoredSidebarPane);
   const selectPane = (next: SidebarPane) => {
     setSidebarPane(next);
@@ -811,8 +807,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     }
   };
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
-  const sessionSearchActive = sessionSearchOpen && Boolean(sessionSearchQuery.trim());
+  const sessionSearchActive = Boolean(sessionSearchQuery.trim());
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
+  // fork:design-system — 「等你处理」（画板 02 第三态）：挂起扩展请求、不在跑的会话。
+  // 与 running 同一次轮询取回，所以不额外发请求。
+  const [awaitingSessionIds, setAwaitingSessionIds] = useState<Set<string>>(() => new Set());
+  const [awaitingSessionKinds, setAwaitingSessionKinds] = useState<Record<string, "approval" | "input">>({});
   const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => loadUnreadSessionIds());
   const { flags: sessionFlags } = useSessionFlags();
   const previousRunningSessionIdsRef = useRef<Set<string>>(new Set());
@@ -861,6 +861,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         sessions: SessionInfo[];
         sessionListVersion: number;
         runningSessionIds?: string[];
+        awaitingSessionIds?: string[];
+        awaitingSessionKinds?: Record<string, "approval" | "input">;
         completionNotificationSuppressedSessionIds?: string[];
       };
       if (loadId !== sessionLoadIdRef.current) return;
@@ -875,6 +877,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           data.completionNotificationSuppressedSessionIds ?? [],
         );
         setRunningSessionIds(new Set(data.runningSessionIds ?? []));
+        setAwaitingSessionIds(new Set(data.awaitingSessionIds ?? []));
+        setAwaitingSessionKinds(data.awaitingSessionKinds ?? {});
       }
       // Drop markers for deleted sessions and for subagents, whose completion
       // is intentionally silent even if an older client marked them unread.
@@ -962,6 +966,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         const data = await res.json() as {
           sessionListVersion: number;
           runningSessionIds?: string[];
+        awaitingSessionIds?: string[];
+        awaitingSessionKinds?: Record<string, "approval" | "input">;
           completionNotificationSuppressedSessionIds?: string[];
         };
         if (stopped || controller !== current) return;
@@ -970,6 +976,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           data.completionNotificationSuppressedSessionIds ?? [],
         );
         setRunningSessionIds(new Set(data.runningSessionIds ?? []));
+        setAwaitingSessionIds(new Set(data.awaitingSessionIds ?? []));
+        setAwaitingSessionKinds(data.awaitingSessionKinds ?? {});
         if (data.sessionListVersion !== sessionListVersionRef.current) {
           // Reuse the invalidated cache; forcing a scan would change the version again.
           await loadSessions();
@@ -1384,14 +1392,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (wtDropdownRef.current && !wtDropdownRef.current.contains(e.target as Node)) {
-        setWtDropdownOpen(false);
-        setWtNewOpen(false);
-        setWtNewBranch("");
-        setWtError(null);
-        setWtConfirmRemove(null);
-        setWtFilter("");
-      }
+      const target = e.target as Node;
+      if (wtDropdownRef.current?.contains(target) || wtPanelRef.current?.contains(target)) return;
+      setWtDropdownOpen(false);
+      setWtNewOpen(false);
+      setWtNewBranch("");
+      setWtError(null);
+      setWtConfirmRemove(null);
+      setWtFilter("");
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -1615,11 +1623,30 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     return () => observer.disconnect();
   }, [expandedProjects, selectedProject?.key, sessionListEntries.length, visibleProjects.length, sessionGroups.state]);
 
+  // fork:design-system — 运行中 / 等你处理的会话行高 58，其余 48。
+  // 这是「行是不是高行」的唯一判据，虚拟窗口、绝对定位偏移、行渲染三处共用。
+  const isFamilyTall = useCallback(
+    (family: SessionFamily) =>
+      [family.root, ...family.subagents].some(
+        (session) => runningSessionIds.has(session.id) || awaitingSessionIds.has(session.id),
+      ),
+    [runningSessionIds, awaitingSessionIds],
+  );
+
+  const sessionListTallIndices = useMemo(
+    () =>
+      sessionListEntries
+        .map((entry, index) => (entry.type === "item" && isFamilyTall(entry.item) ? index : -1))
+        .filter((index) => index >= 0),
+    [sessionListEntries, isFamilyTall],
+  );
+
   const virtualIndices = getSessionListIndices(
     sessionListEntries.length,
     Math.max(0, listScrollTop - sessionListOffsetTop),
     listViewportH,
     sessionListEntries.findIndex((entry) => entry.type === "item" && entry.item.root.id === focusedSessionId),
+    sessionListTallIndices,
   );
 
   // 所有列表表面共用的行渲染；分组头渲染也走同一份 collapsedGroups。
@@ -1628,7 +1655,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     const displaySession = family.latestModified === family.root.modified ? family.root : { ...family.root, modified: family.latestModified };
     return (
       <div style={{ flex: 1, minWidth: 0 }}>
-        <SessionItem session={displaySession} isSelected={familySessions.some((session) => session.id === selectedSessionId)} isRunning={familySessions.some((session) => runningSessionIds.has(session.id))} isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))} tag={sessionFlags.tags[family.root.id]} onClick={() => handleSelectSessionFromList(family.root)} onRenamed={loadSessions} onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }} />
+        <SessionItem session={displaySession} isSelected={familySessions.some((session) => session.id === selectedSessionId)} isRunning={familySessions.some((session) => runningSessionIds.has(session.id))} isAwaiting={familySessions.some((session) => awaitingSessionIds.has(session.id))} awaitingKind={familySessions.map((session) => awaitingSessionKinds[session.id]).find(Boolean)} isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))} tag={sessionFlags.tags[family.root.id]} onClick={() => handleSelectSessionFromList(family.root)} onRenamed={loadSessions} onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }} />
       </div>
     );
   };
@@ -1648,7 +1675,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const projectRowNodes = new Map<string, ReactNode>();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <>
       {customPathOpen && (
         <DirectoryPicker
           initialPath={customPathValue}
@@ -1675,507 +1702,113 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           onSelect={(path) => void commitChatWorkspace(path)}
         />
       )}
-      {/* Header */}
-      <div
-        style={{
-          padding: "9px 10px 8px",
-          borderBottom: "1px solid var(--border-faint)",
-          flexShrink: 0,
-        }}
-      >
-        {/* fork:desktop-shell — the traffic lights sit over this row's left edge, so the
-            brand starts to their right instead of the whole bar moving down. The row also
-            doubles as the window's drag handle (see fork-ui.css). */}
-        <div
-          className="sidebar-brand-row"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-            paddingLeft: desktopTrafficLightInset(),
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-            {/* fork:brand-logo — 品牌图标（public/pi-agent-logo.svg）。
-                fork:brand-logo-vector — 新 logo 是 169×208 的竖向图形，塞进 22×22 会被压扁；
-                固定高度、宽度按比例，`height: "auto"` 让它自己算。 */}
-            {/* eslint-disable-next-line @next/next/no-img-element -- static asset, not optimizer-routable */}
-            <img src="/pi-agent-logo.svg" alt="" width={18} height={22} draggable={false} style={{ flexShrink: 0, width: "auto", height: 22 }} />
-            <PiWebTitle />
-          </div>
-          {/* fork:zn-22 — 搜索与折叠打包成一组靠右。
-              之前两个按钮是 `space-between` 的独立子元素，搜索被顶到了正中间，
-              跟右边的折叠按钮隔着一大片空 —— 行内只有「品牌 + 两个动作」时，
-              动作应当成组，而不是各占一条边。 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={() => {
-              setSessionSearchOpen((open) => !open);
-              setWtDropdownOpen(false);
-            }}
-            title={t("sidebar.toggleSessionSearch")}
-            aria-label={t("sidebar.toggleSessionSearch")}
-            aria-expanded={sessionSearchOpen}
-            aria-controls="session-search-input"
-            className={`flex h-[30px] w-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-none hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent ${sessionSearchOpen ? "bg-bg-selected text-accent" : "bg-transparent text-text-muted"}`}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
+      {/* fork:design-components —— 侧栏头**直接使用画板 02 的 .pw-side-head**：
+          品牌（.pw-brand + .pw-logo）/ 搜索 / 折叠三件，高度取 --topbar-height。
+          fork:desktop-shell — 红绿灯压在这行左端，品牌右移一个安全距离，整行兼作窗口拖拽区。 */}
+      <div className="pw-side-head" style={{ paddingLeft: Math.max(12, desktopTrafficLightInset()) }}>
+        <span className="pw-brand">
+          <span className="pw-logo" aria-hidden="true">
+            {/* fork:brand-logo — 画板 brand/ 的 π 几何（一条横杠 + 两条竖腿）。 */}
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 7h16" /><path d="M8 7v11" /><path d="M16 7v11" />
             </svg>
-          </button>
+          </span>
+          <PiWebTitle />
+        </span>
+        <span className="grow" />
+        <button
+          type="button"
+          onClick={() => searchInputRef.current?.focus()}
+          title={t("sidebar.toggleSessionSearch")}
+          aria-label={t("sidebar.toggleSessionSearch")}
+          className="pw-iconbtn"
+        >
+          <span className="pw-ico"><i data-ico="search"></i></span>
+        </button>
           {/* fork:zn-21 — 折叠按钮。搬进品牌行（原来浮在导轨右边界，一半压在主区顶栏上，
               和顶栏那排图标抢同一条线）。放在品牌行末尾意味着它在 `-webkit-app-region: drag`
               的区域里，靠 fork-ui.css 的 `.sidebar-brand-row button` 规则挖洞。 */}
-          {onToggleSidebar && (
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              title={t("sidebar.hide")}
-              aria-label={t("sidebar.hide")}
-              aria-controls="session-sidebar"
-              aria-expanded
-              className={`flex h-[30px] w-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-none hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent bg-transparent text-text-muted`}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" />
-              </svg>
-            </button>
-          )}
-          </div>
-        </div>
-
-        {/* fork:zn-13 — 导轨内缩 10px（Zeno `.sidebar-chrome{p-2.5}`）。此前导航块
-            与下方列表的左右内缩不一致（0 / 6 / 10 三种），行填充因此对不齐。 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 1, padding: "0 10px" }}>
-          {/* fork:chat-workspace — the primary action stays upstream's SidebarNavButton;
-              the picker beside it chooses a project or "not in a project". */}
-          <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <SidebarNavRow
-                icon="newSession"
-                label={t("sidebar.newTask")}
-                onClick={handleNewSession}
-                active={!selectedSessionId}
-                title={selectedCwd ? t("sidebar.newSessionTitle", { path: selectedCwd }) : t("sidebar.newTask")}
-              />
-            </div>
-          </div>
-          {/* fork:zn-13 — 这里曾有「插件 / 技能」两行导航，按用户要求删掉了：
-              设置面板里已经有这两个分区，导轨上再来一份是重复入口。
-              导轨保留「新建任务」一行 + 下面的项目/聊天切换。 */}
-        </div>
-
-        {/* fork:zn-20 — 项目 / 聊天 左右切换。项目在前、聊天在后。 */}
-        <div className="fork-segmented" role="tablist" aria-label={t("sidebar.paneSwitch")}>
+        {onToggleSidebar && (
           <button
             type="button"
-            role="tab"
-            aria-selected={sidebarPane === "projects"}
-            data-active={sidebarPane === "projects" ? "true" : undefined}
-            onClick={() => selectPane("projects")}
+            onClick={onToggleSidebar}
+            title={t("sidebar.hide")}
+            aria-label={t("sidebar.hide")}
+            aria-controls="session-sidebar"
+            aria-expanded
+            className="pw-iconbtn"
           >
-            {t("sidebar.projects")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={sidebarPane === "chat"}
-            data-active={sidebarPane === "chat" ? "true" : undefined}
-            onClick={() => selectPane("chat")}
-          >
-            {t("sidebar.chatWorkspace")}
-          </button>
-        </div>
-
-        {sessionSearchOpen && (
-          <input
-            id="session-search-input"
-            type="search"
-            autoFocus
-            value={sessionSearchQuery}
-            maxLength={200}
-            aria-label={t("sidebar.searchSessions")}
-            placeholder={t("sidebar.searchSessions")}
-            onChange={(event) => setSessionSearchQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
-                setSessionSearchQuery("");
-              }
-            }}
-            className="mt-[6px] block h-[29px] w-full min-w-0 rounded-[7px] border border-border bg-bg px-[10px] text-xs text-text focus:outline-2 focus:outline-accent"
-          />
-        )}
-
-        {/* Worktree switcher — shown only for git projects at a checkout top
-            level (repo subdirs keep their own project identity, so switching
-            from them would jump projects). Rendered whenever the selected cwd
-            belongs to the loaded project (not just when forCwd matches), so
-            switching between worktrees of one project keeps the row mounted
-            instead of flickering while data refetches: all worktrees of a
-            project share the same list anyway. */}
-        {!sessionSearchOpen && showWorktreeSwitcher && (() => {
-          if (!worktreeState) return null;
-          const showWtFilter = worktreeState.worktrees.length >= 8;
-          const visibleWorktrees = showWtFilter && wtFilter.trim()
-            ? worktreeState.worktrees.filter((w) =>
-                (w.branch ?? displayCwd(w.path, homeDir)).toLowerCase().includes(wtFilter.trim().toLowerCase()))
-            : worktreeState.worktrees;
-          return (
-            <div ref={wtDropdownRef} style={{ position: "relative", marginTop: 6 }}>
-              <button
-                onClick={() => setWtDropdownOpen((v) => !v)}
-                 title={currentWorktree ? t("sidebar.switchWorktreeTitle", { path: currentWorktree.path }) : t("sidebar.switchWorktree")}
-                style={{
-                  width: "100%",
-                  height: 29,
-                  boxSizing: "border-box",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "0 10px",
-                  background: "var(--bg-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  cursor: "pointer",
-                  fontSize: TEXT.xs,
-                  lineHeight: 1.35,
-                  color: "var(--text-muted)",
-                  textAlign: "left",
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: currentWorktree && !currentWorktree.isMain ? "var(--accent)" : "var(--text-dim)" }}>
-                  <line x1="6" y1="3" x2="6" y2="15" />
-                  <circle cx="18" cy="6" r="3" />
-                  <circle cx="6" cy="18" r="3" />
-                  <path d="M18 9a9 9 0 0 1-9 9" />
-                </svg>
-                <PathLabel
-                  text={currentWorktree ? (currentWorktree.branch ?? displayCwd(currentWorktree.path, homeDir)) : "…"}
-                  style={{ flex: 1, fontFamily: "var(--font-mono)", color: "var(--text)" }}
-                />
-                {currentWorktree?.isMain && (
-                   <span style={{ flexShrink: 0, color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>{t("sidebar.main")}</span>
-                )}
-                {worktreeState.worktrees.length > 1 && (
-                  <span style={{ flexShrink: 0, color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>
-                    {worktreeState.worktrees.length}
-                  </span>
-                )}
-                <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <polyline points="2 3.5 5 6.5 8 3.5" />
-                </svg>
-              </button>
-
-              <AnimatedDropdown
-                open={wtDropdownOpen}
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 4px)",
-                  left: 0,
-                  right: 0,
-                  zIndex: 100,
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  boxShadow: "0 6px 20px rgba(0,0,0,0.10)",
-                  overflow: "hidden",
-                }}
-              >
-                  {showWtFilter && (
-                    <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
-                      <input
-                        value={wtFilter}
-                        onChange={(e) => setWtFilter(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setWtFilter("");
-                            setWtDropdownOpen(false);
-                          }
-                        }}
-                        placeholder={t("sidebar.filterWorktrees")}
-                        autoFocus
-                        style={{
-                          width: "100%",
-                          fontSize: TEXT.xs,
-                          fontFamily: "var(--font-mono)",
-                          padding: "5px 8px",
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-xs)",
-                          outline: "none",
-                          background: "var(--bg)",
-                          color: "var(--text)",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                  )}
-                  <div style={{ maxHeight: "min(40vh, 300px)", overflowY: "auto" }}>
-                    {visibleWorktrees.map((wt) => {
-                      const isCurrent = wt.path === currentWorktreePath;
-                      if (wtConfirmRemove === wt.path) {
-                        return (
-                          <div key={wt.path} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderBottom: "1px solid var(--border)", background: "var(--danger-soft)" }}>
-                            <span style={{ flex: 1, fontSize: TEXT.xs, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {t("sidebar.forceRemoveCheckout")}
-                            </span>
-                            <button
-                              onClick={() => void handleRemoveWorktree(wt.path, true)}
-                              disabled={wtBusy}
-                              style={{ padding: "3px 9px", background: "var(--danger)", border: "none", borderRadius: "var(--radius-xs)", color: "#fff", fontSize: TEXT.xs, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
-                            >
-                              {t("sidebar.force")}
-                            </button>
-                            <button
-                              onClick={() => setWtConfirmRemove(null)}
-                              style={{ padding: "3px 9px", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", color: "var(--text-muted)", fontSize: TEXT.xs, cursor: "pointer", flexShrink: 0 }}
-                            >
-                              {t("sidebar.cancel")}
-                            </button>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div
-                          key={wt.path}
-                          className="wt-row"
-                          style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border)" }}
-                        >
-                          <button
-                            onClick={() => {
-                              setSelectedCwd(wt.path);
-                              setWtDropdownOpen(false);
-                              setWtError(null);
-                              setWtFilter("");
-                            }}
-                            title={wt.path}
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 7,
-                              padding: "8px 10px",
-                              background: "var(--bg)",
-                              border: "none",
-                              color: isCurrent ? "var(--text)" : "var(--text-muted)",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              fontSize: TEXT.xs,
-                              fontFamily: "var(--font-mono)",
-                            }}
-                          >
-                            {isCurrent ? (
-                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                                <polyline points="1.5 5 4 7.5 8.5 2.5" />
-                              </svg>
-                            ) : (
-                              <span style={{ width: 10, flexShrink: 0 }} />
-                            )}
-                            <PathLabel text={wt.branch ?? displayCwd(wt.path, homeDir)} style={{ flex: 1 }} />
-                            {wt.isMain && <span style={{ flexShrink: 0, color: "var(--text-dim)", fontSize: TEXT["2xs"] }}>{t("sidebar.main")}</span>}
-                          </button>
-                          {!wt.isMain && (
-                            <button
-                              onClick={() => void handleRemoveWorktree(wt.path, false)}
-                              disabled={wtBusy}
-                               title={t("sidebar.removeWorktreeTitle", { path: wt.path })}
-                              style={{
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                width: 34, height: 28, padding: 0, marginRight: 4,
-                                background: "none", border: "none",
-                                color: "var(--text-dim)", cursor: "pointer",
-                                borderRadius: "var(--radius-xs)", flexShrink: 0,
-                                transition: "color 0.12s, background 0.12s",
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--danger)"; e.currentTarget.style.background = "var(--danger-soft)"; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                <path d="M10 11v6M14 11v6" />
-                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {showWtFilter && visibleWorktrees.length === 0 && wtFilter.trim() && (
-                      <div style={{ padding: "8px 10px", fontSize: TEXT.xs, color: "var(--text-dim)" }}>{t("sidebar.noMatchingWorktrees")}</div>
-                    )}
-                  </div>
-
-                  {!wtNewOpen ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setWtNewOpen(true);
-                        setWtError(null);
-                        setTimeout(() => wtNewInputRef.current?.focus(), 0);
-                      }}
-                      title={t("sidebar.createWorktreeTitle")}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 7,
-                        width: "100%",
-                        padding: "8px 10px",
-                        background: "none",
-                        border: "none",
-                        color: "var(--text-muted)",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        fontSize: TEXT.xs,
-                      }}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                        <line x1="5" y1="1" x2="5" y2="9" />
-                        <line x1="1" y1="5" x2="9" y2="5" />
-                      </svg>
-                       <span>{t("sidebar.newWorktree")}</span>
-                    </button>
-                  ) : (
-                    <div style={{ padding: "6px 8px" }}>
-                      <input
-                        ref={wtNewInputRef}
-                        value={wtNewBranch}
-                        onChange={(e) => {
-                          setWtNewBranch(e.target.value);
-                          setWtError(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void handleCreateWorktree();
-                          }
-                          if (e.key === "Escape") {
-                            setWtNewOpen(false);
-                            setWtNewBranch("");
-                            setWtError(null);
-                          }
-                        }}
-                         placeholder={t("sidebar.branchName")}
-                        style={{
-                          width: "100%",
-                          fontSize: TEXT.xs,
-                          fontFamily: "var(--font-mono)",
-                          padding: "5px 8px",
-                          border: "1px solid var(--accent)",
-                          borderRadius: "var(--radius-xs)",
-                          outline: "none",
-                          background: "var(--bg)",
-                          color: "var(--text)",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                      <div style={{ display: "flex", gap: 5, marginTop: 5 }}>
-                        <button
-                          onClick={() => void handleCreateWorktree()}
-                          disabled={wtBusy || !wtNewBranch.trim()}
-                          style={{
-                            flex: 1,
-                            padding: "4px 0",
-                            background: "var(--primary-bg)",
-                            border: "none",
-                            borderRadius: "var(--radius-md)",
-                            color: "var(--primary-fg)",
-                            fontSize: TEXT.xs,
-                            fontWeight: 600,
-                            cursor: wtBusy || !wtNewBranch.trim() ? "not-allowed" : "pointer",
-                            opacity: wtBusy || !wtNewBranch.trim() ? 0.65 : 1,
-                          }}
-                        >
-                           {wtBusy ? t("sidebar.creating") : t("sidebar.create")}
-                        </button>
-                        <button
-                          onClick={() => { setWtNewOpen(false); setWtNewBranch(""); setWtError(null); }}
-                          style={{
-                            flex: 1,
-                            padding: "4px 0",
-                            background: "var(--bg-hover)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "var(--radius-xs)",
-                            color: "var(--text-muted)",
-                            fontSize: TEXT.xs,
-                            cursor: "pointer",
-                          }}
-                        >
-                           {t("sidebar.cancel")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {wtError && (
-                    <div style={{
-                      padding: "5px 10px 8px",
-                      color: "var(--danger)",
-                      fontSize: TEXT.xs,
-                      lineHeight: 1.35,
-                      overflowWrap: "anywhere",
-                    }}>
-                      {wtError}
-                    </div>
-                  )}
-              </AnimatedDropdown>
-            </div>
-          );
-        })()}
-        {!sessionSearchOpen && inactiveWorktreeSelector && (
-          <button
-            type="button"
-            aria-disabled="true"
-            tabIndex={-1}
-            title={inactiveWorktreeSelector.title}
-            style={{
-              width: "100%",
-              height: 28,
-              boxSizing: "border-box",
-              marginTop: 4,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "0 10px",
-              border: "none",
-              borderRadius: "var(--radius-md)",
-              background: "transparent",
-              color: "var(--text-dim)",
-              fontSize: TEXT.sm,
-              lineHeight: 1.35,
-              whiteSpace: "nowrap",
-              textAlign: "left",
-              cursor: "default",
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <line x1="6" y1="3" x2="6" y2="15" />
-              <circle cx="18" cy="6" r="3" />
-              <circle cx="6" cy="18" r="3" />
-              <path d="M18 9a9 9 0 0 1-9 9" />
-            </svg>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{inactiveWorktreeSelector.label}</span>
+            <span className="pw-ico"><i data-ico="panel-left"></i></span>
           </button>
         )}
       </div>
+      {/* fork:design-components —— 新建任务 = 画板 02 的 .pw-side-nav > .pw-row。 */}
+      <div className="pw-side-nav">
+        <button
+          type="button"
+          onClick={handleNewSession}
+          aria-label={t("sidebar.newTask")}
+          title={selectedCwd ? t("sidebar.newSessionTitle", { path: selectedCwd }) : t("sidebar.newTask")}
+          className="pw-row"
+        >
+          <span className="pw-ico"><i data-ico="square-pen"></i></span>
+          <span className="pw-name">{t("sidebar.newTask")}</span>
+          <span className="grow" />
+        </button>
+      </div>
 
-      {/* Projects and their tasks */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          flex: "1 1 auto",
-          minHeight: SESSION_PANE_MIN_HEIGHT,
-          overflow: "hidden",
-        }}
-      >
-        <SessionSearch open={sessionSearchOpen} query={sessionSearchQuery} selectedSessionId={selectedSessionId} onSelectSession={handleSelectSessionFromList}>
+      {/* fork:design-components —— 项目 / 聊天 左右切换 = 画板 02 的 .pw-seg。 */}
+      <div className="pw-seg" role="tablist" aria-label={t("sidebar.paneSwitch")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={sidebarPane === "projects"}
+          className={sidebarPane === "projects" ? "is-on" : undefined}
+          onClick={() => selectPane("projects")}
+        >
+          {t("sidebar.projects")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={sidebarPane === "chat"}
+          className={sidebarPane === "chat" ? "is-on" : undefined}
+          onClick={() => selectPane("chat")}
+        >
+          {t("sidebar.chatWorkspace")}
+        </button>
+      </div>
+
+      {/* fork:design-components —— 会话搜索 = 画板 02 的 .pw-side-search（常显）。
+          画板里是一个静态盒，产品里换成真输入框；视觉全取 board.css。 */}
+      <label className="pw-side-search">
+        <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
+        <input
+          id="session-search-input"
+          ref={searchInputRef}
+          type="search"
+          value={sessionSearchQuery}
+          maxLength={200}
+          aria-label={t("sidebar.searchSessions")}
+          placeholder={t("sidebar.searchSessions")}
+          onChange={(event) => setSessionSearchQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              setSessionSearchQuery("");
+            }
+          }}
+        />
+      </label>
+
+      {/* fork:design-components —— 列表区 = 画板 02 的 .pw-side-scroll（flex-1 + 内缩 8px）。 */}
+      <div className="pw-side-scroll">
+
+        <SessionSearch open={sessionSearchActive} query={sessionSearchQuery} selectedSessionId={selectedSessionId} onSelectSession={handleSelectSessionFromList}>
         <div
           ref={listScrollRef}
           onScroll={handleListScroll}
-          style={{ flex: "1 1 auto", overflowY: "auto", padding: "0 10px 8px", minHeight: 80 }}
+          style={{ flex: "1 1 auto", overflowY: "auto", minHeight: 80 }}
         >
           {loading && projectChoices.length === 0 && (
             <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: TEXT.sm }}>
@@ -2205,57 +1838,26 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               留一半在 DOM 里只为了切换快 20ms 不值得。 */}
           {sidebarPane === "projects" && (
           <>
-          {/* fork:zn-02 — 14px medium section head (Zeno .sidebar-section-head
-              h-8); actions hide until hover/focus via .fork-section-actions. */}
-          <div
-            className="fork-section-head"
-            style={{
-              marginTop: 18,
-              marginBottom: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              minHeight: "var(--zn-row)",
-              paddingLeft: 10,
-              position: "relative",
-            }}
-          >
-            <span style={{ fontSize: TEXT.lg, fontWeight: 500, color: "var(--text-dim)" }}>
-              {t("sidebar.projects")}
-            </span>
-            <div className="fork-section-actions" style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {/* fork:ui — 「按更新时间 / 按创建时间」排序开关已按用户要求移除：
-                  会话固定按最后修改时间倒序（见 orderedProjectSessions）。 */}
-              {/* fork:ui-10 — expand / collapse every project at once. */}
-              <button
-                type="button"
-                onClick={() => {
-                  const keys = visibleProjects.map((project) => project.key);
-                  const allOpen = keys.length > 0 && keys.every((key) => expandedProjects.has(key));
-                  setExpandedProjects(allOpen ? new Set() : new Set(keys));
-                }}
-                title={t("sidebar.expandCollapseAll")}
-                aria-label={t("sidebar.expandCollapseAll")}
-                style={{
-                  width: 28,
-                  height: 28,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 0,
-                  background: "transparent",
-                  border: "none",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--text-dim)",
-                  cursor: "pointer",
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m8 9 4-4 4 4M8 15l4 4 4-4" />
-                </svg>
-              </button>
-            </div>
-
+          {/* fork:design-components —— 分区头 = 画板 01/02 的 .pw-group-title：
+              左侧组图标（装饰），右端动作位。本产品只有「展开 / 折叠全部」
+              一个动作 —— 「添加项目」按用户要求已从这里移除。 */}
+          <div className="pw-group-title">
+            <span className="pw-ico"><i data-ico="list-tree" data-size="12"></i></span>
+            {t("sidebar.projects")}
+            <span className="grow" />
+            <button
+              type="button"
+              onClick={() => {
+                const keys = visibleProjects.map((project) => project.key);
+                const allOpen = keys.length > 0 && keys.every((key) => expandedProjects.has(key));
+                setExpandedProjects(allOpen ? new Set() : new Set(keys));
+              }}
+              title={t("sidebar.expandCollapseAll")}
+              aria-label={t("sidebar.expandCollapseAll")}
+              className="pw-iconbtn sm"
+            >
+              <span className="pw-ico"><i data-ico="chevrons-up-down" data-size="12"></i></span>
+            </button>
           </div>
 
           {visibleProjects.map((project) => {
@@ -2317,6 +1919,239 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     setCustomPathError(null);
                   }}
                 />
+                {/* fork:design-G47 —— 工作区（分支）行按画板 02 挪到**选中项目行**下面：
+                    画板把它画成项目行的嵌套子行，不是滚动区顶部的孤立一行。
+                    仅当选中的项目处于展开态时渲染。 */}
+                {isExpanded && project.key === selectedProject?.key && (
+                <>
+                {/* Worktree switcher — shown only for git projects at a checkout top
+                    level (repo subdirs keep their own project identity, so switching
+                    from them would jump projects). Rendered whenever the selected cwd
+                    belongs to the loaded project (not just when forCwd matches), so
+                    switching between worktrees of one project keeps the row mounted
+                    instead of flickering while data refetches: all worktrees of a
+                    project share the same list anyway. */}
+                {showWorktreeSwitcher && (() => {
+                  if (!worktreeState) return null;
+                  const showWtFilter = worktreeState.worktrees.length >= 8;
+                  const visibleWorktrees = showWtFilter && wtFilter.trim()
+                    ? worktreeState.worktrees.filter((w) =>
+                        (w.branch ?? displayCwd(w.path, homeDir)).toLowerCase().includes(wtFilter.trim().toLowerCase()))
+                    : worktreeState.worktrees;
+                  return (
+                    <div ref={wtDropdownRef} style={{ position: "relative" }}>
+                      {/* fork:design-components —— 工作区（分支）行 = 画板 02 的嵌套 .pw-row：
+                          git-branch + 分支名（等宽）+ 右端 chevron-down。 */}
+                      <button
+                        type="button"
+                        onClick={() => setWtDropdownOpen((v) => !v)}
+                        title={currentWorktree ? t("sidebar.switchWorktreeTitle", { path: currentWorktree.path }) : t("sidebar.switchWorktree")}
+                        aria-expanded={wtDropdownOpen}
+                        className="pw-row"
+                        style={{ width: "100%", paddingLeft: 26, height: 26 }}
+                      >
+                        <span className="pw-ico" style={{ color: currentWorktree && !currentWorktree.isMain ? "var(--accent-text)" : undefined }}>
+                          <i data-ico="git-branch" data-size="12"></i>
+                        </span>
+                        <PathLabel
+                          text={currentWorktree ? (currentWorktree.branch ?? displayCwd(currentWorktree.path, homeDir)) : "…"}
+                          style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
+                        />
+                        {currentWorktree?.isMain && (
+                           <span className="pw-badge">{t("sidebar.main")}</span>
+                        )}
+                        {worktreeState.worktrees.length > 1 && (
+                          <span className="pw-badge count">{worktreeState.worktrees.length}</span>
+                        )}
+                        <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+                      </button>
+
+                      {/* fork:ui-pop-portal —— 下拉本体 = 画板 02 的 .pw-pop，portal 到 body：
+                          分支行被滚到列表下部时，下拉不再被滚动区裁掉/把列表撑长。 */}
+                      <PortalDropdown
+                        open={wtDropdownOpen}
+                        anchorRef={wtDropdownRef}
+                        panelRef={wtPanelRef}
+                        className="pw-pop"
+                      >
+                          {showWtFilter && (
+                            <div style={{ padding: "4px 4px 0" }}>
+                              <input
+                                value={wtFilter}
+                                onChange={(e) => setWtFilter(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape") {
+                                    setWtFilter("");
+                                    setWtDropdownOpen(false);
+                                  }
+                                }}
+                                placeholder={t("sidebar.filterWorktrees")}
+                                autoFocus
+                                className="pw-input"
+                                style={{ width: "100%", minWidth: 0, fontFamily: "var(--font-mono)" }}
+                              />
+                            </div>
+                          )}
+                          <div style={{ maxHeight: "min(40vh, 300px)", overflowY: "auto" }}>
+                            {visibleWorktrees.map((wt) => {
+                              const isCurrent = wt.path === currentWorktreePath;
+                              if (wtConfirmRemove === wt.path) {
+                                return (
+                                  <div key={wt.path} className="pw-prow" style={{ background: "var(--error-soft)" }}>
+                                    <span className="grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      {t("sidebar.forceRemoveCheckout")}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleRemoveWorktree(wt.path, true)}
+                                      disabled={wtBusy}
+                                      className="pw-btn sm"
+                                      style={{ background: "var(--error)", color: "var(--accent-on)", flexShrink: 0 }}
+                                    >
+                                      {t("sidebar.force")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setWtConfirmRemove(null)}
+                                      className="pw-btn sm outline"
+                                      style={{ flexShrink: 0 }}
+                                    >
+                                      {t("sidebar.cancel")}
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div
+                                  key={wt.path}
+                                  className="wt-row"
+                                  style={{ display: "flex", alignItems: "center" }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCwd(wt.path);
+                                      setWtDropdownOpen(false);
+                                      setWtError(null);
+                                      setWtFilter("");
+                                    }}
+                                    title={wt.path}
+                                    className={`pw-prow${isCurrent ? " is-on" : ""}`}
+                                    style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)" }}
+                                  >
+                                    {isCurrent
+                                      ? <span className="pw-ico"><i data-ico="check" data-size="12"></i></span>
+                                      : <span className="pw-ico" style={{ width: 12 }} />}
+                                    <PathLabel text={wt.branch ?? displayCwd(wt.path, homeDir)} style={{ flex: 1 }} />
+                                    {wt.isMain && <span className="pw-badge">{t("sidebar.main")}</span>}
+                                  </button>
+                                  {!wt.isMain && (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleRemoveWorktree(wt.path, false)}
+                                      disabled={wtBusy}
+                                      title={t("sidebar.removeWorktreeTitle", { path: wt.path })}
+                                      aria-label={t("sidebar.removeWorktreeTitle", { path: wt.path })}
+                                      className="pw-iconbtn sm"
+                                      style={{ color: "var(--error)", marginRight: 4, flexShrink: 0 }}
+                                    >
+                                      <span className="pw-ico"><i data-ico="trash-2" data-size="12"></i></span>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {showWtFilter && visibleWorktrees.length === 0 && wtFilter.trim() && (
+                              <div className="pw-prow pw-desc">{t("sidebar.noMatchingWorktrees")}</div>
+                            )}
+                          </div>
+
+                          {!wtNewOpen ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWtNewOpen(true);
+                                setWtError(null);
+                                setTimeout(() => wtNewInputRef.current?.focus(), 0);
+                              }}
+                              title={t("sidebar.createWorktreeTitle")}
+                              className="pw-prow"
+                              style={{ width: "100%" }}
+                            >
+                              <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
+                              {t("sidebar.newWorktree")}
+                            </button>
+                          ) : (
+                            <div style={{ padding: "4px" }}>
+                              <input
+                                ref={wtNewInputRef}
+                                value={wtNewBranch}
+                                onChange={(e) => {
+                                  setWtNewBranch(e.target.value);
+                                  setWtError(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void handleCreateWorktree();
+                                  }
+                                  if (e.key === "Escape") {
+                                    setWtNewOpen(false);
+                                    setWtNewBranch("");
+                                    setWtError(null);
+                                  }
+                                }}
+                                placeholder={t("sidebar.branchName")}
+                                className="pw-input"
+                                style={{ width: "100%", minWidth: 0, fontFamily: "var(--font-mono)", borderColor: "var(--accent)" }}
+                              />
+                              <div className="pw-inline" style={{ gap: 4, marginTop: 4 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCreateWorktree()}
+                                  disabled={wtBusy || !wtNewBranch.trim()}
+                                  className="pw-btn sm primary"
+                                  style={{ flex: 1, justifyContent: "center" }}
+                                >
+                                   {wtBusy ? t("sidebar.creating") : t("sidebar.create")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setWtNewOpen(false); setWtNewBranch(""); setWtError(null); }}
+                                  className="pw-btn sm outline"
+                                  style={{ flex: 1, justifyContent: "center" }}
+                                >
+                                   {t("sidebar.cancel")}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {wtError && (
+                            <div className="pw-prow pw-desc" style={{ color: "var(--error)", overflowWrap: "anywhere" }}>
+                              {wtError}
+                            </div>
+                          )}
+                      </PortalDropdown>
+                    </div>
+                  );
+                })()}
+                {inactiveWorktreeSelector && (
+                  <button
+                    type="button"
+                    aria-disabled="true"
+                    tabIndex={-1}
+                    title={inactiveWorktreeSelector.title}
+                    className="pw-row"
+                    style={{ width: "100%", height: 26, paddingLeft: 26, color: "var(--n-placeholder)", cursor: "default" }}
+                  >
+                    <span className="pw-ico"><i data-ico="git-branch" data-size="12"></i></span>
+                    <span className="pw-name" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}>{inactiveWorktreeSelector.label}</span>
+                  </button>
+                )}
+
+                </>
+                )}
                 {isExpanded &&
                   (() => {
                     const projectSessions = orderedProjectSessions(project.key);
@@ -2330,16 +2165,19 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       );
                     }
                     if (project.key === selectedProject?.key) {
+                      const rowOffsets = sessionListOffsets(sessionListEntries.length, sessionListTallIndices);
                       return (
-                        <div ref={sessionListRef} style={{ minHeight: sessionListEntries.length > 0 ? sessionListEntries.length * SESSION_LIST_ITEM_HEIGHT : 34 }}>
+                        <div ref={sessionListRef} style={{ minHeight: sessionListEntries.length > 0 ? rowOffsets[sessionListEntries.length] : 34 }}>
                           {sessionListEntries.length > 0 && (
-                            <div style={{ position: "relative", height: sessionListEntries.length * SESSION_LIST_ITEM_HEIGHT }}>
+                            <div style={{ position: "relative", height: rowOffsets[sessionListEntries.length] }}>
                               {virtualIndices.map((index) => {
                                 const entry = sessionListEntries[index];
                                 if (!entry) return null;
                                 const isItem = entry.type === "item";
+                                const top = rowOffsets[index] ?? index * SESSION_LIST_ITEM_HEIGHT;
+                                const height = (rowOffsets[index + 1] ?? top + SESSION_LIST_ITEM_HEIGHT) - top;
                                 return (
-                                  <div key={sessionEntryKey(entry)} data-session-id={isItem ? entry.item.root.id : undefined} onFocus={isItem ? () => setFocusedSessionId(entry.item.root.id) : undefined} onBlur={isItem ? () => setFocusedSessionId(null) : undefined} style={{ position: "absolute", top: index * SESSION_LIST_ITEM_HEIGHT, left: 0, right: 0, height: SESSION_LIST_ITEM_HEIGHT }}>
+                                  <div key={sessionEntryKey(entry)} data-session-id={isItem ? entry.item.root.id : undefined} onFocus={isItem ? () => setFocusedSessionId(entry.item.root.id) : undefined} onBlur={isItem ? () => setFocusedSessionId(null) : undefined} style={{ position: "absolute", top, left: 0, right: 0, height }}>
                                     {isItem ? renderFamilyRow(entry.item) : renderGroupHeader(entry.bucket, entry.count)}
                                   </div>
                                 );
@@ -2383,11 +2221,16 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             // 聊天列表复用同一套时间分组与折叠状态；窗口单独计算，避免与项目
             // 列表的 entries 长度耦合，index 永远落在 chatEntries 范围内。
             const chatEntries = groupByTimeBucket(chatFamilies, bucketOfFamily, collapsedGroups);
+            const chatTallIndices = chatEntries
+              .map((entry, index) => (entry.type === "item" && isFamilyTall(entry.item) ? index : -1))
+              .filter((index) => index >= 0);
+            const chatOffsets = sessionListOffsets(chatEntries.length, chatTallIndices);
             const chatVirtualIndices = getSessionListIndices(
               chatEntries.length,
               Math.max(0, listScrollTop - sessionListOffsetTop),
               listViewportH,
               chatEntries.findIndex((entry) => entry.type === "item" && entry.item.root.id === focusedSessionId),
+              chatTallIndices,
             );
             const toggleChatExpanded = () => {
               setExpandedProjects((prev) => {
@@ -2426,15 +2269,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 {isChatExpanded && (chatFamilies.length === 0 ? (
                   <div style={{ padding: "6px 0 6px 24px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
                 ) : isSelectedChat ? (
-                  <div ref={sessionListRef} style={{ minHeight: chatEntries.length > 0 ? chatEntries.length * SESSION_LIST_ITEM_HEIGHT : 34 }}>
+                  <div ref={sessionListRef} style={{ minHeight: chatEntries.length > 0 ? chatOffsets[chatEntries.length] : 34 }}>
                     {chatEntries.length > 0 && (
-                      <div style={{ position: "relative", height: chatEntries.length * SESSION_LIST_ITEM_HEIGHT }}>
+                      <div style={{ position: "relative", height: chatOffsets[chatEntries.length] }}>
                         {chatVirtualIndices.map((index) => {
                           const entry = chatEntries[index];
                           if (!entry) return null;
                           const isItem = entry.type === "item";
                           return (
-                            <div key={sessionEntryKey(entry)} data-session-id={isItem ? entry.item.root.id : undefined} onFocus={isItem ? () => setFocusedSessionId(entry.item.root.id) : undefined} onBlur={isItem ? () => setFocusedSessionId(null) : undefined} style={{ position: "absolute", top: index * SESSION_LIST_ITEM_HEIGHT, left: 0, right: 0, height: SESSION_LIST_ITEM_HEIGHT }}>
+                            <div key={sessionEntryKey(entry)} data-session-id={isItem ? entry.item.root.id : undefined} onFocus={isItem ? () => setFocusedSessionId(entry.item.root.id) : undefined} onBlur={isItem ? () => setFocusedSessionId(null) : undefined} style={{ position: "absolute", top: chatOffsets[index], left: 0, right: 0, height: (chatOffsets[index + 1] ?? chatOffsets[index]) - chatOffsets[index] }}>
                               {isItem ? renderFamilyRow(entry.item) : renderGroupHeader(entry.bucket, entry.count)}
                             </div>
                           );
@@ -2457,90 +2300,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </div>
       </SessionSearch>
       </div>
-
-    </div>
+    </>
   );
 }
 
 /** fork:ui-10 — the manual-status dot (tooltip carries the wording). */
-function SessionTagDot({ tag }: { tag: SessionTag }) {
-  const { t } = useI18n();
-  const label = t(`session.tag.${tag}`);
-  return (
-    <span
-      title={label}
-      aria-label={label}
-      style={{ width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-    >
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: SESSION_TAG_TONES[tag] }} />
-    </span>
-  );
-}
-
-function RunningSessionIndicator() {
-  const { t } = useI18n();
-  return (
-    <span
-      title={t("sidebar.agentRunning")}
-      aria-label={t("sidebar.agentRunning")}
-      style={{
-        width: 14,
-        height: 14,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        color: "var(--accent)",
-      }}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
-        <g>
-          <path
-            d="M21 12a9 9 0 1 1-3.8-7.4"
-            stroke="currentColor"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-          />
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 12 12"
-            to="360 12 12"
-            dur="0.9s"
-            repeatCount="indefinite"
-          />
-        </g>
-      </svg>
-    </span>
-  );
-}
-
-function UnreadSessionIndicator() {
-  const { t } = useI18n();
-  return (
-    <span
-      title={t("sidebar.newActivity")}
-      aria-label={t("sidebar.newSessionActivity")}
-      style={{
-        width: 14,
-        height: 14,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        color: "var(--accent)",
-      }}
-    >
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ display: "block" }}>
-        <circle cx="7" cy="7" r="2.5" fill="currentColor" />
-        <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.4" opacity="0.32">
-          <animate attributeName="r" values="3;6;3" dur="1.6s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="0.32;0;0.32" dur="1.6s" repeatCount="indefinite" />
-        </circle>
-      </svg>
-    </span>
-  );
-}
 
 /**
  * Compact per-project activity badges for the workspace selector dropdown items:
@@ -2554,29 +2318,24 @@ function showProjectActivity(
 ): ReactNode {
   if (!activity || (activity.running === 0 && activity.unread === 0)) return null;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 6 }}>
+    <span className="pw-inline" style={{ gap: 4, flexShrink: 0 }}>
       {activity.running > 0 && (
         <span
+          className="pw-badge accent count"
           title={t("sidebar.agentRunning")}
           aria-label={`${t("sidebar.agentRunning")} (${activity.running})`}
-          style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--accent)", fontSize: TEXT["2xs"], fontFamily: "var(--font-mono)" }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
-            <g>
-              <path d="M21 12a9 9 0 1 1-3.8-7.4" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-              <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.9s" repeatCount="indefinite" />
-            </g>
-          </svg>
+          <span className="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>
           {activity.running}
         </span>
       )}
       {activity.unread > 0 && (
         <span
+          className="pw-badge ok count"
           title={t("sidebar.newSessionActivity")}
           aria-label={`${t("sidebar.newSessionActivity")} (${activity.unread})`}
-          style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--accent)", fontSize: TEXT["2xs"], fontFamily: "var(--font-mono)" }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
+          <span className="pw-ico"><i data-ico="circle" data-size="8"></i></span>
           {activity.unread}
         </span>
       )}
@@ -2597,53 +2356,22 @@ function TimeGroupHeader({ bucket, count, collapsed, onToggle }: {
   onToggle: () => void;
 }) {
   const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-expanded={!collapsed}
       title={t(collapsed ? "session.expandGroup" : "session.collapseGroup")}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        height: SESSION_LIST_ITEM_HEIGHT,
-        boxSizing: "border-box",
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "0 8px",
-        background: hovered ? "var(--bg-hover)" : "transparent",
-        border: "none",
-        borderRadius: "var(--radius-md)",
-        color: "var(--text-dim)",
-        cursor: "pointer",
-        textAlign: "left",
-        fontSize: TEXT.xs,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        userSelect: "none",
-      }}
+      // fork:design-components —— 时间分组头 = 画板 02 的 .pw-group-title；
+      // 高度必须保持 SESSION_LIST_ITEM_HEIGHT（虚拟列表把分组头与会话行当同一种槽位）。
+      className="pw-group-title"
+      style={{ width: "100%", height: SESSION_LIST_ITEM_HEIGHT, cursor: "pointer" }}
     >
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        style={{ flexShrink: 0, transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {t(timeBucketKey(bucket), { count })}
+      <span className="pw-ico">
+        <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
       </span>
+      {t(timeBucketKey(bucket), { count })}
+      <span className="grow" />
     </button>
   );
 }
@@ -2652,6 +2380,8 @@ function SessionItem({
   session,
   isSelected,
   isRunning,
+  isAwaiting,
+  awaitingKind,
   isUnread,
   tag,
   onClick,
@@ -2665,6 +2395,9 @@ function SessionItem({
   session: SessionInfo;
   isSelected: boolean;
   isRunning?: boolean;
+  /** fork:design-system — 挂起扩展请求、等人回应（画板 02 的第三态）。 */
+  isAwaiting?: boolean;
+  awaitingKind?: "approval" | "input";
   isUnread?: boolean;
   /** fork:ui-10 — manual status tag; drives the coloured dot. */
   tag?: SessionTag;
@@ -2763,7 +2496,7 @@ function SessionItem({
     setConfirmDelete(false);
   }, []);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     const handled = dispatchSessionRowContextMenu({
       id: session.id,
       path: session.path,
@@ -2780,78 +2513,53 @@ function SessionItem({
 
   // Fixed-height outer wrapper — content swaps in place so the list never reflows
   return (
-    <div
-      // fork:boardui — 行入场（BoardUI 的 row-fade-in）+ hover 背景过渡。
-      // 挂在行容器上是安全的：列表 key 稳定时不重挂载，动画只播一次。
-      className="fork-row-enter"
+    <button
+      type="button"
+      // fork:design-components —— 会话行**直接使用画板 02 的 .pw-session**：
+      // 48 / 58 两档行高、.child 缩进 26px、hover 叠色、.is-on 选中、
+      // .running 底边扫掠线、.awaiting 底边常亮线，全部来自 board.css。
+      // 行入场挂在行容器上是安全的：列表 key 稳定时不重挂载，动画只播一次。
+      className={[
+        "fork-row-enter",
+        "pw-session child",
+        isRunning ? "running" : "",
+        isAwaiting ? "awaiting" : "",
+        isSelected ? "is-on" : "",
+      ].filter(Boolean).join(" ")}
       onClick={confirmDelete || renaming ? undefined : onClick}
       onContextMenu={confirmDelete || renaming ? undefined : handleContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); }}
       style={{
-        // fork:zn-02 — full-bleed 32px row (Zeno .sidebar-list-row): the slot IS
-        // the row. (The 2026-09-16 inset it replaces was for 38px slots; at 32px
-        // the gap read as visual noise, not separation.)
-        height: SESSION_LIST_ITEM_HEIGHT,
-        display: "flex",
-        alignItems: "center",
-        marginLeft: 12,
-        marginRight: 0,
-        paddingLeft: depth > 0 ? depth * 8 + 8 : 10,
-        paddingRight: 4,
-        borderRadius: "var(--zn-radius-row)",
+        width: "100%",
+        // 子代理再缩进一级（画板 02：子代理缩进一级 + corner-down-right 图标）。
+        paddingLeft: depth > 0 ? 26 + depth * 10 : undefined,
         cursor: confirmDelete || renaming ? "default" : "pointer",
-        background: confirmDelete
-          ? "var(--danger-soft)"
-          : isSelected ? "var(--bg-selected)" : showHover ? "var(--bg-hover)" : "transparent",
-        boxShadow: confirmDelete
-          ? "inset 0 0 0 1px color-mix(in srgb, var(--danger) 40%, transparent)"
-          : "none",
-        transition: "background 0.12s",
         opacity: deleting ? 0.5 : 1,
-        gap: 6,
-        overflow: "hidden",
       }}
     >
       {confirmDelete ? (
         /* ── Delete confirmation: same height, two flat buttons ── */
         <>
-          <div style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {t("sidebar.deleteSession", { title: title.slice(0, 22) + (title.length > 22 ? "…" : "") })}
-          </div>
-          <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+          <span className="pw-body">
+            <span className="pw-t">
+              {t("sidebar.deleteSession", { title: title.slice(0, 22) + (title.length > 22 ? "…" : "") })}
+            </span>
+          </span>
+          <span className="pw-inline" style={{ flexShrink: 0 }}>
             <button
+              type="button"
               onClick={handleDeleteConfirm}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                height: 30, padding: "0 11px",
-                background: "var(--danger)", border: "none",
-                borderRadius: "var(--radius-md)", color: "#ffffff",
-                whiteSpace: "nowrap",
-              }}
+              className="pw-btn sm"
+              style={{ background: "var(--error)", color: "var(--accent-on)" }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6M14 11v6" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
+              <span className="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>
               {t("sidebar.delete")}
             </button>
-            <button
-              onClick={handleDeleteCancel}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                height: 30, padding: "0 11px",
-                background: "transparent", border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)", color: "var(--text-muted)",
-                cursor: "pointer", fontSize: TEXT.sm, fontWeight: 500,
-                whiteSpace: "nowrap",
-              }}
-            >
+            <button type="button" onClick={handleDeleteCancel} className="pw-btn sm outline">
               {t("sidebar.cancel")}
             </button>
-          </div>
+          </span>
         </>
       ) : renaming ? (
         /* ── Rename: input fills the same row ── */
@@ -2865,71 +2573,66 @@ function SessionItem({
             if (e.key === "Escape") setRenaming(false);
           }}
           autoFocus
-          style={{
-            flex: 1,
-            fontSize: TEXT.sm,
-            padding: "5px 8px",
-            border: "1px solid var(--accent)",
-            borderRadius: "var(--radius-xs)",
-            outline: "none",
-            background: "var(--bg)",
-            color: "var(--text)",
-            height: 30,
-          }}
+          className="pw-input"
+          style={{ flex: 1, minWidth: 0, height: "var(--control-xs)" }}
         />
       ) : (
-        /* ── Normal view: single-line Codex pill row ── */
+        /* ── Normal view：两行（标题 + 元信息），状态标记一律在右侧 ── */
         <>
-          {/* Subagent indicator for child sessions */}
+          {/* Subagent indicator for child sessions（画板 02：corner-down-right） */}
           {depth > 0 && (
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <rect x="5" y="7" width="14" height="11" rx="2" />
-              <path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" />
-            </svg>
+            <span className="pw-ico" style={{ color: "var(--accent-text)" }}>
+              <i data-ico="corner-down-right" data-size="13"></i>
+            </span>
           )}
-          {isRunning
-            ? <RunningSessionIndicator />
-            : tag
-              ? <SessionTagDot tag={tag} />
-              : isUnread ? <UnreadSessionIndicator /> : null}
-          <span
-            title={`${title} · ${formatRelativeTime(session.modified, locale)}`}
-            className="fork-fade-title"
-            style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.md, fontWeight: isSelected ? 500 : 400, lineHeight: 1.3, color: "var(--text)" }}
-         >
-            {title}
+          <span className="pw-body">
+            <span
+              title={`${title} · ${formatRelativeTime(session.modified, locale)}`}
+              className="pw-t"
+            >
+              {title}
+            </span>
+            <span className="pw-m">
+              <span>{formatRelativeTime(session.modified, locale)}</span>
+              <span aria-hidden="true"> · </span>
+              <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>
+              {/* 三者互斥：等你处理 > 未读 > 手动标签。运行中不出右侧标记（它靠底边扫掠表达）。 */}
+              {isAwaiting ? (
+                <span className="pw-await" title={t(awaitingKind === "input" ? "sidebar.awaitingInput" : "sidebar.awaitingApproval")}>
+                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
+                  {t(awaitingKind === "input" ? "sidebar.awaitingInputShort" : "sidebar.awaitingApprovalShort")}
+                </span>
+              ) : tag ? (
+                <span title={t(`session.tag.${tag}`)} aria-label={t(`session.tag.${tag}`)} style={{ display: "inline-flex", flex: "none", marginLeft: 5 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: SESSION_TAG_TONES[tag] }} />
+                </span>
+              ) : isUnread ? (
+                <span className="pw-dot unread" title={t("sidebar.newActivity")} aria-label={t("sidebar.newSessionActivity")} />
+              ) : null}
+            </span>
           </span>
           {session.isWorktree && session.branch && (
             <span
               title={`Worktree: ${session.cwd}`}
-              style={{ display: "flex", alignItems: "center", color: "var(--accent)", flexShrink: 0 }}
+              className="pw-ico"
+              style={{ color: "var(--accent-text)" }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <line x1="6" y1="3" x2="6" y2="15" />
-                <circle cx="18" cy="6" r="3" />
-                <circle cx="6" cy="18" r="3" />
-                <path d="M18 9a9 9 0 0 1-9 9" />
-              </svg>
+              <i data-ico="git-branch" data-size="12"></i>
             </span>
           )}
 
           {/* Collapse toggle — always visible when has children */}
           {hasChildren && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
               title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                width: 18, height: 18, padding: 0, flexShrink: 0,
-                background: "none", border: "none", borderRadius: "var(--radius-sm)",
-                color: "var(--text-dim)", cursor: "pointer",
-                transform: collapsed ? "rotate(-90deg)" : "none",
-                transition: "transform 0.15s",
-              }}
+              aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+              className="pw-iconbtn sm"
             >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="2 3.5 5 6.5 8 3.5" />
-              </svg>
+              <span className="pw-ico">
+                <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
+              </span>
             </button>
           )}
 
@@ -2939,117 +2642,50 @@ function SessionItem({
               Also shown when a row slides under a stationary pointer after a
               delete reflows the list (see syncPointerSession). */}
           {showHover && !session.transient ? (
-            <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+            <span className="pw-acts" style={{ opacity: 1, flexShrink: 0 }}>
               {/* fork:ui — 置顶（选中态实心 + accent 色）。 */}
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); pin(session.id); }}
                 title={t(isPinned ? "session.unpin" : "session.pin")}
                 aria-label={t(isPinned ? "session.unpin" : "session.pin")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 24, height: 24, padding: 0,
-                  background: "transparent", border: "none",
-                  borderRadius: "var(--radius-md)",
-                  color: isPinned ? "var(--accent)" : "var(--text-muted)",
-                  cursor: "pointer", flexShrink: 0,
-                  transition: "background var(--motion-fast), color var(--motion-fast)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--accent)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = isPinned ? "var(--accent)" : "var(--text-muted)";
-                }}
+                className={`pw-iconbtn sm${isPinned ? " is-on" : ""}`}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill={isPinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 17v5M9 4h6l-1 6 3 3v2H7v-2l3-3z" />
-                </svg>
+                <span className="pw-ico"><i data-ico="pin" data-size="13"></i></span>
               </button>
               {/* fork:ui — 归档（归档后行会落到项目的「已归档」折叠区）。 */}
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); archive(session.id); }}
                 title={t(isArchived ? "session.unarchive" : "session.archive")}
                 aria-label={t(isArchived ? "session.unarchive" : "session.archive")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 24, height: 24, padding: 0,
-                  background: "transparent", border: "none",
-                  borderRadius: "var(--radius-md)",
-                  color: isArchived ? "var(--accent)" : "var(--text-muted)",
-                  cursor: "pointer", flexShrink: 0,
-                  transition: "background var(--motion-fast), color var(--motion-fast)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--accent)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = isArchived ? "var(--accent)" : "var(--text-muted)";
-                }}
+                className={`pw-iconbtn sm${isArchived ? " is-on" : ""}`}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="4" rx="1" />
-                  <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
-                </svg>
+                <span className="pw-ico"><i data-ico="archive" data-size="13"></i></span>
               </button>
               <button
+                type="button"
                 onClick={startRename}
                 title={t("sidebar.rename")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 24, height: 24, padding: 0,
-                  background: "transparent", border: "none",
-                  borderRadius: "var(--radius-md)", color: "var(--text-muted)",
-                  cursor: "pointer", flexShrink: 0,
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--accent)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-muted)";
-                }}
+                aria-label={t("sidebar.rename")}
+                className="pw-iconbtn sm"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                </svg>
+                <span className="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>
               </button>
               <button
+                type="button"
                 onClick={handleDeleteClick}
                 title={t("sidebar.deleteWithShiftClick")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 24, height: 24, padding: 0,
-                  background: "transparent", border: "none",
-                  borderRadius: "var(--radius-md)", color: "var(--text-muted)",
-                  cursor: "pointer", flexShrink: 0,
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--danger-soft)";
-                  e.currentTarget.style.color = "var(--danger)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-muted)";
-                }}
+                aria-label={t("sidebar.delete")}
+                className="pw-iconbtn sm"
+                style={{ color: "var(--error)" }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
+                <span className="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>
               </button>
-            </div>
+            </span>
           ) : null}
         </>
       )}
-    </div>
+    </button>
   );
 }

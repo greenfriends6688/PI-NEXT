@@ -18,8 +18,7 @@ import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { FileLocationTarget } from "./FileViewer";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
-import { ExtensionStatusBar } from "./ExtensionStatusBar";
-import { SessionStatsBar } from "./SessionStatsBar";
+import { ExtensionStatusFloat } from "./ExtensionStatusBar";
 import { NewSessionHome } from "./fork/NewSessionHome";
 import { ProjectChip, type NewSessionTargets } from "./fork/ProjectChip";
 // fork:zc-02 — in-conversation find bar (⌘F): bar component + pure search index.
@@ -525,7 +524,7 @@ function withAssistantBlocks(
   return next;
 }
 
-function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
+function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done" | "failed"; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   useLayoutEffect(() => {
     if (reveal) setExpanded(true);
@@ -537,43 +536,39 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   const parts = [t("chat.processDetails"), `${messageCount} ${t(messageCount === 1 ? "chat.message" : "chat.messages")}`];
   if (toolCallCount > 0) parts.push(`${toolCallCount} ${t(toolCallCount === 1 ? "chat.toolCall" : "chat.toolCalls")}`);
   const label = summaryText ?? parts.join(" · ");
+  const open = expanded || reveal;
+  // fork:design-components —— 状态徽标（画板 11：进行中 accent / 已完成 ok / 失败 bad）。
+  const badge = status === "running"
+    ? { cls: "accent", icon: "loader-circle", text: t("process.running") }
+    : status === "failed"
+      ? { cls: "bad", icon: "triangle-alert", text: t("process.failed") }
+      : { cls: "ok", icon: "check", text: t("process.done") };
 
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <button
-        type="button"
-        aria-expanded={expanded || reveal}
-        onClick={() => setExpanded((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          width: "auto",
-          minHeight: 24,
-          padding: "2px 0",
-          border: "none",
-          background: "transparent",
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          fontSize: TEXT.sm,
-          textAlign: "left",
-        }}
-        title={expanded ? t("chat.collapseProcess") : t("chat.expandProcess")}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
-          <polyline points="4 2.5 7.5 6 4 9.5" />
-        </svg>
+    // fork:design-components —— 过程时间轴外壳 = 画板 01/11 的 .pw-proc：
+    // 头行（chevron + 计数汇总 + 状态徽标）与 .pw-proc-body 都来自 board.css。
+    <div className="pw-proc" style={{ marginBottom: 14 }}>
+      <div className="pw-proc-head" style={open ? undefined : { borderBottom: 0 }}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setExpanded((v) => !v)}
+          className="pw-ico pw-dim"
+          style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}
+          title={open ? t("chat.collapseProcess") : t("chat.expandProcess")}
+        >
+          <i data-ico={open ? "chevron-down" : "chevron-right"} data-size="14"></i>
+        </button>
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label}
         </span>
-      </button>
+        <span className="grow" />
+        <span className={`pw-badge ${badge.cls}`}>
+          <span className="pw-ico"><i data-ico={badge.icon} data-size="12"></i></span>
+          {badge.text}
+        </span>
       </div>
-      {(expanded || reveal) && (
-        <div style={{ marginTop: 8 }}>
-          {children}
-        </div>
-      )}
+      {open && children}
     </div>
   );
 }
@@ -626,16 +621,28 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     setExpandedToolIds(new Set());
   }, [session?.id]);
 
-  // fork:ui-stats-inline — 会话统计面板现在长在 composer 下方（状态条右端），
-  // 原来顶栏那个按钮/浮层已移除；`/session` 等外部入口改为就地展开。
-  const [statsExpanded, setStatsExpanded] = useState(false);
+  // fork:design-system PR-05 — 切会话属于设计里的「整块替换」：
+  // 新内容 200ms（--motion-transition）+ 8px 上移（--motion-rise）。
+  // 用 class 重播而不是换 key，避免把整棵转录 DOM 重建（展开态、滚动位置都在里面）。
+  const [turnSwapping, setTurnSwapping] = useState(false);
+  const turnSwapSkippedRef = useRef(true);
   useEffect(() => {
-    setStatsExpanded(false);
+    if (turnSwapSkippedRef.current) {
+      turnSwapSkippedRef.current = false;
+      return;
+    }
+    setTurnSwapping(true);
+    // 200 与 --motion-transition 同值；这里只需要在动画播完时摘掉 class。
+    const id = window.setTimeout(() => setTurnSwapping(false), 200);
+    return () => window.clearTimeout(id);
   }, [session?.id]);
+
+  // fork:ui-stats-ring — composer 下方的统计长条已删除（用户裁定：输入框下面
+  // 不再放任何常驻行），完整统计收进上下文环浮窗；/session 与外部入口改为钉住浮窗。
   const handleSessionStatsPanelOpen = useCallback(() => {
-    setStatsExpanded(true);
+    chatInputRef?.current?.openStatsPopover();
     onSessionStatsPanelOpen?.();
-  }, [onSessionStatsPanelOpen]);
+  }, [chatInputRef, onSessionStatsPanelOpen]);
 
   const {
     loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
@@ -1406,6 +1413,16 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [ctxKey, onContextUsageChange]);
   useEffect(() => () => { onContextUsageChange?.(null); }, [onContextUsageChange]);
 
+  // fork:design-components — 画板 01 帧 C 的上下文浮窗末行「结束原因」：
+  // 取最后一条助手消息的 stopReason（pi 的真值词表）。
+  const lastStopReason = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message.role === "assistant" && message.stopReason) return message.stopReason;
+    }
+    return null;
+  }, [messages]);
+
   const onDrop = useCallback((files: File[]) => {
     // fork:gap07-attachments — 拖拽入口与其他入口统一：图片内联，其余落盘后插路径引用
     chatInputRef?.current?.addFiles(files);
@@ -1825,16 +1842,14 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // It only exists on the new-session page, so a normal session never renders one
   // (and therefore never loses the card's top corners).
   const composerProtrusion = isEmptyNew && newSessionTargets ? (
-    <div className="fork-protrusion-bar" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, minWidth: 0 }}>
+    <>
       <ProjectChip targets={newSessionTargets} />
-      {/* fork:zc-17 — 空状态引导出现时，它自带轮播提示行；这里收掉一份避免同一句说两遍。 */}
-
       {newSessionTargets.error && (
-        <span role="alert" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.xs, color: "var(--danger)" }}>
+        <span role="alert" className="pw-chip" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
           {newSessionTargets.error}
         </span>
       )}
-    </div>
+    </>
   ) : null;
 
   const chatInputElement = (
@@ -1891,6 +1906,18 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       currentSessionId={session?.id ?? null}
       soundEnabled={soundEnabled}
       onSoundToggle={onSoundToggle}
+      // fork:design-components — 画板 20 的上下文环（.pw-ring）与它的浮窗数据。
+      contextUsage={contextUsage ?? sessionStats?.contextUsage ?? null}
+      sessionStats={sessionStats}
+      // fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条）。
+      statsDetails={sessionStats}
+      statsSession={session ? {
+        projectRoot: session.projectRoot ?? null,
+        cwd: session.cwd,
+        branch: session.branch ?? null,
+        isWorktree: session.isWorktree,
+      } : null}
+      lastStopReason={lastStopReason}
       onAudioUnlock={unlockAudio}
       draftKey={session?.id ?? newSessionDraftKey ?? undefined}
       onLocateSelectionContext={locateSelectionContext}
@@ -1998,6 +2025,27 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         <NoticeShelf notices={notices} floating onPauseChange={setNoticePaused} />
       </div>
 
+      {/* fork:ui-ext-float —— 扩展状态（MCP / ponytail）收成聊天区右上角的一枚
+          胶囊浮标；输入框下方不再有任何常驻行（统计进上下文环浮窗）。
+          z 在通知条之下：通知出现时短暂盖住它，6 秒自收不抢布局。 */}
+      {!isEmptyNew && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 0,
+            right: isMobile ? 0 : CHAT_MINIMAP_WIDTH,
+            zIndex: 38,
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: `0 ${CHAT_COLUMN_PADDING_CSS}`,
+            pointerEvents: "none",
+          }}
+        >
+          <ExtensionStatusFloat statuses={extensionStatuses} widgets={extensionWidgets} />
+        </div>
+      )}
+
       <div
         className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"
         style={hasChatMinimap ? { gridColumn: "1", gridRow: "1" } : undefined}
@@ -2052,7 +2100,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           style={{ visibility: pendingScrollRestore ? "hidden" : undefined }}
         >
           <div style={{ minWidth: 0, padding: `0 ${CHAT_COLUMN_PADDING_CSS}` }}>
-            <div ref={messageContentRef} onPointerUp={captureQuotedSelection} style={{ width: "100%", minWidth: 0, maxWidth: "var(--chat-content-max-width, 800px)", margin: "0 auto" }}>
+            <div ref={messageContentRef} onPointerUp={captureQuotedSelection} className={turnSwapping ? "fork-turn-enter" : undefined} style={{ width: "100%", minWidth: 0, maxWidth: "var(--chat-content-max-width, 800px)", margin: "0 auto" }}>
             {/* fork:proma-05-explore — 从主线某条消息 fork 出来的分支：显示来源 + 把结论带回父会话草稿 */}
             {session && session.parentSessionId && (
               <ExplorationBanner
@@ -2339,6 +2387,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         defaultExpanded={!finalAnswerMessage}
                         reveal={revealProcess}
                         summaryText={groupedSummary}
+                        status={groupedProcessBlocks.some((block) => block.type === "toolCall" && block.status === "error") ? "failed" : "done"}
                         t={t}
                       >
                         <ProcessGroup
@@ -2434,6 +2483,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         // starts — the same rule the finalized group uses.
                         defaultExpanded={streamingProcess.answerBlocks.length === 0}
                         summaryText={summarizeProcessBlocks(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
+                        status={streamState.isStreaming ? "running" : "done"}
                         t={t}
                       >
                         <ProcessGroup
@@ -2512,7 +2562,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-sm)",
             background: "var(--bg)",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
+            boxShadow: "var(--shadow-popover)",
           }}
         >
           {quoteInputOpen ? (
@@ -2572,14 +2622,16 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
       <div
         className="relative shrink-0"
-        style={hasChatMinimap ? {
+        style={{
           gridColumn: "1",
           gridRow: "2",
           // The minimap preview may expand leftward, but it must never cover
           // or intercept the composer at the bottom of the chat.
           zIndex: 2,
           background: "var(--bg)",
-        } : undefined}
+          // fork:ui-ext-float — 统计长条移走后，composer 底部留画板 --s4 的呼吸空隙。
+          paddingBottom: "var(--s4, 16px)",
+        }}
       >
         {!isEmptyNew && (
           <div
@@ -2619,24 +2671,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           </div>
         )}
         {chatInputElement}
-        <ExtensionStatusBar
-          statuses={extensionStatuses}
-          widgets={extensionWidgets}
-          trailing={(
-            <SessionStatsBar
-              sessionStats={sessionStats}
-              contextUsage={contextUsage}
-              session={session ? {
-                projectRoot: session.projectRoot ?? null,
-                cwd: session.cwd,
-                branch: session.branch ?? null,
-                isWorktree: session.isWorktree,
-              } : null}
-              expanded={statsExpanded}
-              onToggle={setStatsExpanded}
-            />
-          )}
-        />
+        {/* fork:ui-stats-ring —— 输入框下方不再有任何常驻行：统计长条与扩展状态条
+            都已移走（统计进上下文环浮窗，扩展状态进聊天区右上角浮标）。 */}
       </div>
       {hasChatMinimap && (
         <ChatMinimap
@@ -2676,17 +2712,21 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
       }}
     >
       {notices.map((notice, index) => {
-        const color = notice.type === "error"
-          ? "var(--danger)"
-          : notice.type === "warning"
-            ? "var(--warning)"
-            : notice.type === "success"
-              ? "var(--success)"
-              : "var(--accent)";
+        // fork:design-components —— 通知条直接使用画板 50 的 .pw-toast 组件：
+        // 边框 / 弹层底 / 阴影 / 图标首行对齐 / .bad·.warn·.ok 三色全部来自 board.css，
+        // 这里只保留产品的动画类（notice-shelf-*）与 hover 暂停关闭逻辑。
+        const toastClass = notice.type === "error" ? "bad"
+          : notice.type === "warning" ? "warn"
+            : notice.type === "success" ? "ok"
+              : "";
+        const typeIcon = notice.type === "error" ? "circle-x"
+          : notice.type === "warning" ? "triangle-alert"
+            : notice.type === "success" ? "circle-check"
+              : "info";
         return (
           <div
             key={notice.id}
-            className="notice-shelf-item"
+            className={`notice-shelf-item pw-toast ${toastClass}`}
             onMouseEnter={() => onPauseChange?.(notice.id)}
             onMouseLeave={(event) => {
               if (!event.currentTarget.contains(document.activeElement)) onPauseChange?.(null);
@@ -2696,59 +2736,29 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
               if (!event.currentTarget.matches(":hover")) onPauseChange?.(null);
             }}
             style={{
-              display: "flex",
-              // Top-align children so the type dot sits by the first line on multi-line toasts
-              alignItems: "flex-start",
-              gap: 10,
-              minHeight: 60,
-              height: "auto",
-              // 整体高度上限：超出后由文本区内部滚动承担（见下方 span 的 overflowY），
-              // 容器自身保持 hidden，小圆点固定在顶部不随文本滚动
-              maxHeight: NOTICE_MAX_HEIGHT_PX,
               // The floating wrapper is pointerEvents:"none" (click-through by design),
               // so the toast itself must opt back into interactivity or hover events never reach it
               pointerEvents: "auto",
+              // 画板 50：通知条 380px 宽，右缘对齐（外层容器已右锚定）
+              width: 380,
+              maxWidth: "100%",
               marginBottom: index === notices.length - 1 ? 0 : 6,
               overflow: "hidden",
-              borderRadius: "var(--radius-xl)",
-              border: "1px solid var(--border)",
-              background: "var(--bg-elev)",
-              color: "var(--text-muted)",
-              width: "fit-content",
-              maxWidth: "min(100%, 620px)",
-              boxShadow: floating
-                ? "0 1px 2px rgba(15,23,42,0.05), 0 10px 28px -14px rgba(15,23,42,0.24)"
-                : "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)",
-              fontSize: TEXT.lg,
-              lineHeight: 1.5,
+              maxHeight: NOTICE_MAX_HEIGHT_PX,
               transformOrigin: "top right",
               // Use backwards fill for the entrance animation so height styles return to
-              // inline styles once it finishes; otherwise the keyframe's fixed 60px would
-              // stick around in fill mode and permanently clamp the expanded toast
+              // inline styles once it finishes
               animation: notice.exiting
                 ? "notice-shelf-out 0.18s ease-in forwards"
                 : "notice-shelf-in 0.18s ease-out backwards",
-              padding: "0 12px",
             }}
           >
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: color,
-                flexShrink: 0,
-                // Align with the optical center of the first text line: 14px vertical
-                // padding + (21px line box - 7px dot) / 2
-                marginTop: 21,
-              }}
-            />
-            {/* Full text by default: pre-line preserves \n (nowrap/normal collapse
-                newlines into spaces) and long lines wrap instead of truncating;
-                content taller than the cap scrolls inside the text area */}
+            <span className="pw-ico"><i data-ico={typeIcon} data-size="14"></i></span>
+            {/* Full text by default: pre-line preserves \n and long lines wrap instead of
+                truncating; content taller than the cap scrolls inside the text area */}
             <span
               tabIndex={0}
-              style={{ padding: "14px 0", minWidth: 0, maxWidth: "100%", maxHeight: NOTICE_TEXT_MAX_HEIGHT_PX, overflowY: "auto", scrollbarWidth: "thin", whiteSpace: "pre-line", wordBreak: "break-word" }}
+              style={{ minWidth: 0, maxWidth: "100%", maxHeight: NOTICE_TEXT_MAX_HEIGHT_PX, overflowY: "auto", scrollbarWidth: "thin", whiteSpace: "pre-line", wordBreak: "break-word" }}
             >
               {notice.message}
             </span>
@@ -2956,7 +2966,7 @@ function ExtensionDialog({
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-md)",
             background: "var(--bg)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
+            boxShadow: "var(--shadow-modal)",
             color: "var(--text)",
             cursor: "pointer",
             textAlign: "left",
@@ -2985,7 +2995,7 @@ function ExtensionDialog({
         role="dialog"
         aria-label={request.title}
         aria-modal="true"
-        className="anim-dialog"
+        className="anim-dialog pw-modal"
         style={{
           pointerEvents: "auto",
           position: "relative",
@@ -2993,16 +3003,14 @@ function ExtensionDialog({
           maxHeight: "min(760px, 100%)",
           display: "flex",
           flexDirection: "column",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          background: "var(--bg)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
           overflow: "hidden",
         }}
       >
-        <div style={{ flexShrink: 0, display: "flex", alignItems: "flex-start", gap: 8, padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+        {/* fork:design-components —— 扩展请求对话框用画板 50 的 .pw-modal（发丝边框 /
+            弹层底 / modal 阴影 / radius-6 由类承担），头部走 .pw-modal-head。 */}
+        <div className="pw-modal-head" style={{ alignItems: "flex-start", padding: "12px 14px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "var(--text)", fontSize: TEXT.lg, fontWeight: 650, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
+            <div style={{ color: "var(--text)", fontSize: TEXT.lg, fontWeight: 500, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 3, color: "var(--text-dim)", fontSize: TEXT.xs, fontFamily: "var(--font-mono)" }}>
               <span>{t("chat.extensionRequest")}</span>
               {request.expiresAt !== undefined && <ExtensionCountdownText expiresAt={request.expiresAt} />}
@@ -3070,6 +3078,9 @@ function ExtensionDialog({
                   tabIndex={0}
                   data-extension-option
                   aria-label={option}
+                  /* fork:design-components —— 选项按钮挂画板 .pw-btn.outline（confirm 选项），
+                     尺寸细节由 inline 保留（内含 MarkdownBody 需要更大的触达面）。 */
+                  className="pw-btn outline"
                   ref={index === 0 ? focusFirstOption : undefined}
                   onClick={() => onRespond(request, { value: option })}
                   onKeyDown={(event) => {
@@ -3079,12 +3090,7 @@ function ExtensionDialog({
                   }}
                   style={{
                     width: "100%",
-                    padding: "9px 10px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-panel)",
-                    color: "var(--text)",
-                    cursor: "pointer",
+                    justifyContent: "flex-start",
                     textAlign: "left",
                     fontSize: TEXT.md,
                     overflowWrap: "anywhere",
@@ -3249,7 +3255,7 @@ function ExtensionCustomPanel({
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-md)",
             background: "var(--bg)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
+            boxShadow: "var(--shadow-modal)",
             color: "var(--text)",
             cursor: "pointer",
             textAlign: "left",
@@ -3286,7 +3292,7 @@ function ExtensionCustomPanel({
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-md)",
           background: "var(--bg)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
+          boxShadow: "var(--shadow-modal)",
           overflow: "hidden",
           outline: "none",
         }}

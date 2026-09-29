@@ -153,8 +153,9 @@ function buildMarkdownComponents(
     },
     table({ children }) {
       return (
+        // fork:design-components —— GFM 表格直接用画板 10 的 .pw-table 组件。
         <div className="markdown-table-wrap">
-          <table>{children}</table>
+          <table className="pw-table">{children}</table>
         </div>
       );
     },

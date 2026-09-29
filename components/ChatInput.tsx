@@ -4,6 +4,9 @@ import React, { useRef, useState, useCallback, useEffect, useLayoutEffect, useIm
 import type { BuiltinSlashCommandResult, CompactResultInfo, QueuedMessages, SlashCommandInfo } from "@/hooks/useAgentSession";
 import type { SkillsResponse } from "@/lib/api-types";
 import type { TextContent, UserMessage } from "@/lib/types";
+import type { SessionStatsInfo } from "@/lib/pi-types";
+// fork:ui-stats-ring — 环浮窗的完整会话明细（原 composer 下方的统计长条内容）。
+import { SessionStatsDetails, type SessionStatsSessionInfo } from "./SessionStatsBar";
 import {
   clearDraft,
   getDraft,
@@ -159,6 +162,14 @@ interface Props {
   onBuiltinCommand?: (message: string) => Promise<BuiltinSlashCommandResult>;
   soundEnabled?: boolean;
   onSoundToggle?: () => void;
+  /** fork:design-components — 画板 20 的上下文环（.pw-ring）及其浮窗的数据源。 */
+  contextUsage?: { percent: number | null; contextWindow: number; tokens: number | null } | null;
+  sessionStats?: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }; cost: number; totalMessages: number } | null;
+  /** fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条内容）。 */
+  statsDetails?: SessionStatsInfo | null;
+  statsSession?: SessionStatsSessionInfo | null;
+  /** 上一轮的结束原因（画板 01 帧 C 的浮窗末行）。 */
+  lastStopReason?: string | null;
   onAudioUnlock?: () => void;
   draftKey?: string;
   /** Initial context items for a focused composer, such as the new-chat quote popover. */
@@ -199,6 +210,8 @@ export interface ChatInputHandle {
     question?: string,
     sessionReferences?: SessionReference[],
   ) => void;
+  /** fork:ui-stats-ring — 钉住上下文环浮窗（/session 命令与触屏入口）。 */
+  openStatsPopover: () => void;
 }
 
 // "configured" sends no override, so the session follows settings.json defaultTools.
@@ -222,6 +235,9 @@ const MIN_MANUAL_HEIGHT_DESKTOP = 104;
 const MIN_MANUAL_HEIGHT_MOBILE = 80;
 const MANUAL_MAX_HEIGHT_CAP = 480;
 const MANUAL_MAX_HEIGHT_FRACTION = 0.55;
+// fork:ui-composer-pop — 卡片窄于此宽度就把左侧控件收进「更多控件」：
+// 全量工具条（最长的模型名 + 五个控件 + 右侧组）的自然宽度约 690px。
+const NARROW_CONTROLS_SHELL_WIDTH = 700;
 const INPUT_HEIGHT_STORAGE_KEY = "pi-chat-input-height";
 
 // fork:pr14-compact — 真实用户滚动的「意图窗口」：wheel / touch / pointer / 滚动
@@ -515,6 +531,9 @@ export async function compressImageFile(file: File): Promise<{ data: string; mim
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     const ctx = canvas.getContext("2d");
     if (!ctx) return original();
+    // 非主题值：JPEG 没有透明通道，重编码前必须铺一层不透明底色。
+    // 这里刻意不用 token —— 它是图像处理的常量，跟着主题变会让同一张图
+    // 在深浅主题下编出不同字节。
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
@@ -660,7 +679,7 @@ function QueuedMessageRow({
           fontSize: TEXT["2xs"],
           fontFamily: "var(--font-mono)",
           padding: "1px 7px",
-          borderRadius: 999,
+          borderRadius: "var(--radius-pill)",
           border: `1px solid ${kind === "steer" ? "color-mix(in srgb, var(--accent) 45%, transparent)" : "var(--border)"}`,
           color: kind === "steer" ? "var(--accent)" : "var(--text-dim)",
         }}
@@ -699,7 +718,10 @@ function QueuedMessageRow({
 }
 
 function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "warning"; title: string; body: string; onClose?: () => void }) {
-  const color = tone === "error" ? "239,68,68" : "234,179,8";
+  // fork:design-system —— 走语义 token，不再手搓 rgb 三元组（设计只留 4 个语义色）。
+  const toneVars = tone === "error"
+    ? { border: "var(--error)", bg: "var(--error-soft)", fg: "var(--error)" }
+    : { border: "var(--warning)", bg: "var(--warning-soft)", fg: "var(--warning)" };
   return (
     <div
       role="alert"
@@ -711,10 +733,10 @@ function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "wa
         marginBottom: 8,
         padding: "7px 10px",
         overflowY: "auto",
-        border: `1px solid rgba(${color},0.3)`,
+        border: `1px solid ${toneVars.border}`,
         borderRadius: "var(--radius-sm)",
-        background: `rgba(${color},0.07)`,
-        color: `rgb(${color})`,
+        background: toneVars.bg,
+        color: toneVars.fg,
         fontSize: TEXT.xs,
         lineHeight: 1.45,
       }}
@@ -973,8 +995,7 @@ function FavoriteModelMenu({
   );
 }
 
-export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
-  onSend, onAbort, onSteer, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching,
+export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onSteer, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching,
   onCompact, onAbortCompaction, isCompacting, compactError, compactResult, toolPreset, onToolPresetChange,
   permissionMode, onPermissionModeChange,
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
@@ -983,6 +1004,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   slashCommands, slashCommandsLoading, onLoadSlashCommands,
   onBuiltinCommand,
   soundEnabled, onSoundToggle, onAudioUnlock,
+  contextUsage, sessionStats, lastStopReason, statsDetails = null, statsSession = null,
   onPromptWithStreamingBehavior,
   draftKey,
   initialSelectionContexts,
@@ -999,7 +1021,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // breakpoint that decides "inline or behind a button" has to be the tablet one, not the
   // phone one. Padding/width cosmetics below still key off `isMobile`: they are about
   // touch target size, not about whether the row fits.
-  const narrowControls = useIsCompact();
+  // fork:ui-composer-pop — 视口断点不够用：右栏一开，聊天列在 1440 视口下也只剩
+  // ~390px，工具条的右侧组（圆环/声音/发送）被顶出卡片裁掉。折叠判据加上
+  // 卡片自身的实测宽度：700px 是全量工具条的自然宽度上限（模型名最长时）。
+  const viewportCompact = useIsCompact();
+  const [shellNarrow, setShellNarrow] = useState(false);
+  const narrowControls = viewportCompact || shellNarrow;
   // fork:pr23-resize — 顶部手柄竖向缩放。`height === null` 保持内容驱动的自动
   // 高度；数字表示用户已接管。manualMode 时卡片挂内联固定高度，textarea 交给
   // `.is-manual-height` 的 CSS（`height: 100% !important`）填充并内部滚动，
@@ -1025,6 +1052,20 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const manualHeight = inputHeightResizer.height;
   const manualMode = !compact && !isMobile && manualHeight !== null;
   manualModeRef.current = manualMode;
+
+  // fork:ui-composer-pop — 实测卡片宽度驱动控件折叠。compact（引用回答）形态
+  // 没有工具条，不参与；ref 未挂载时保持 false，避免首帧闪折叠态。
+  useEffect(() => {
+    if (compact || typeof ResizeObserver === "undefined") return;
+    const el = inputShellRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? el.clientWidth;
+      setShellNarrow(width > 0 && width < NARROW_CONTROLS_SHELL_WIDTH);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [compact]);
 
   // fork:pr14-compact — 阅读态塌陷。状态机在 lib/input-compact.ts：只有
   // 「真实用户意图 + 向上滚 + 离底 > 120px」才收起；到底只认同向下的滚动；
@@ -1171,7 +1212,22 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   sessionReferencesRef.current = sessionReferences;
   initialSelectionContextsRef.current = initialSelectionContexts;
 
+  // fork:ui-stats-ring —— 环浮窗支持点击圆环**钉住**（/session 命令与触屏也靠它打开）。
+  const [ringPinned, setRingPinned] = useState(false);
+  const ringRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!ringPinned) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!ringRef.current?.contains(event.target as Node)) setRingPinned(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [ringPinned]);
+
   useImperativeHandle(ref, () => ({
+    openStatsPopover() {
+      setRingPinned(true);
+    },
     insertIfEmpty(text: string) {
       const ta = textareaRef.current;
       const current = ta ? ta.value : value;
@@ -2858,62 +2914,113 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     return thinkingLevelMap[lvl] ?? lvl;
   })();
   const rawToolPresetLabel = Object.entries(TOOL_PRESET_MAP).find(([, v]) => v === (toolPreset ?? "configured"))?.[0] ?? "configured";
-  const toolPresetLabel = rawToolPresetLabel === "chat-only" ? t("chat.chatOnly") : rawToolPresetLabel;
+  // fork:design-components —— 工具档在画板里是中文短标签（已配置 / 需审批 …），
+  // 不再把内部枚举名直接印在控件上。
+  const toolPresetLabel = t(`chat.toolPreset.${rawToolPresetLabel}`);
+  // 上下文环的三档配色与文字（画板 20：>70% warning / >90% error）。
+  const ringPercent = Math.max(0, Math.min(100, Math.round(contextUsage?.percent ?? 0)));
+  const ringTier = ringPercent > 90 ? "bad" : ringPercent > 70 ? "warn" : "";
+  const contextText = contextUsage?.contextWindow
+    ? `${contextUsage.tokens != null ? formatTokenCount(contextUsage.tokens) : "?"} / ${formatTokenCount(contextUsage.contextWindow)}`
+    : null;
+  // fork:design-components —— 发送 / 停止直接使用画板 20 的 .pw-send 组件
+  //（board.css：28px / radius-4 / accent 底 / .stop 变 error 底 / .disabled 变中性底），
+  // 结构与 20-composer.html 一字不差：<i data-ico="arrow-up|square">。
   const sendButton = (
     <button
+      type="button"
       onClick={handleSend}
       disabled={!value.trim() && !attachedImages.length}
       aria-label={t("chat.send")}
       title={t("chat.send")}
-      style={{
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        // fork:zn-05 — 28px send circle (Zeno send-prompt h-7).
-        width: "var(--zn-send)",
-        height: "var(--zn-send)",
-        padding: 0,
-        background: (value.trim() || attachedImages.length) ? "var(--primary-bg)" : "var(--bg-subtle)",
-        border: "none",
-        borderRadius: "var(--radius-pill)",
-        color: (value.trim() || attachedImages.length) ? "var(--primary-fg)" : "var(--text-dim)",
-        cursor: (value.trim() || attachedImages.length) ? "pointer" : "not-allowed",
-        transition: "background 0.15s, opacity 0.15s",
-      }}
+      className={`pw-send${(value.trim() || attachedImages.length) ? "" : " disabled"}`}
+      style={{ cursor: (value.trim() || attachedImages.length) ? "pointer" : "not-allowed" }}
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 19V5" />
-        <polyline points="5 12 12 5 19 12" />
-      </svg>
+      <span className="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span>
     </button>
   );
   const stopButton = (
     <button
+      type="button"
       onClick={onAbort}
       title={t("chat.stopAgent")}
       aria-label={t("chat.stopAgent")}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        // fork:zn-05 — 28px stop circle, matches send.
-        width: "var(--zn-send)",
-        height: "var(--zn-send)",
-        padding: 0,
-        background: "var(--primary-bg)",
-        border: "none",
-        borderRadius: "var(--radius-pill)",
-        color: "var(--primary-fg)",
-        cursor: "pointer",
-        flexShrink: 0,
-      }}
+      className="pw-send stop"
+      style={{ cursor: "pointer" }}
     >
-      <svg width="11" height="11" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-        <rect x="1.5" y="1.5" width="7" height="7" rx="1.5" fill="currentColor" />
-      </svg>
+      <span className="pw-ico"><i data-ico="square" data-size="13"></i></span>
     </button>
   );
+  // fork:design-components —— 上下文环 + 浮窗 = 画板 01 帧 C / 画板 20 的
+  // .pw-ring（三档配色）与 .pw-pop + .pw-prow 明细行。
+  // 悬浮（鼠标 / 键盘焦点）才展开，不在输入框下面再放第二条横条。
+  // fork:ui-stats-ring —— 浮窗内容升级为完整会话明细（原 composer 下方的
+  // 统计长条已按用户裁定删除）。
+  const contextRing = contextUsage || sessionStats ? (
+    <span ref={ringRef} className={`composer-ring${ringPinned ? " is-pinned" : ""}`} style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        type="button"
+        className={`pw-ring${ringTier ? ` ${ringTier}` : ""}`}
+        style={{ "--p": `${ringPercent}%`, border: 0, padding: 0, cursor: "pointer" } as React.CSSProperties}
+        aria-label={t("session.context")}
+        title={t("session.context")}
+        aria-expanded={ringPinned}
+        onClick={() => setRingPinned((v) => !v)}
+      >
+        <span className="sr-only" />
+      </button>
+      <div className="pw-pop composer-ring-pop" style={{ width: "min(680px, calc(100vw - 48px))" }}>
+        <div style={{ maxHeight: "min(70vh, 560px)", overflowY: "auto" }}>
+          <div className="pw-inline" style={{ padding: "var(--s2) var(--s2) var(--s1)", gap: "var(--s2)" }}>
+            <span className={`pw-ring${ringTier ? ` ${ringTier}` : ""}`} style={{ "--p": `${ringPercent}%`, width: 18, height: 18 } as React.CSSProperties} />
+            <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)", color: "var(--n-strong)" }}>
+              {t("session.context")} {ringPercent}%
+            </b>
+            <span className="grow" />
+            {contextText && <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>{contextText}</span>}
+          </div>
+          {statsDetails ? (
+            // 完整明细（会话信息 / 消息 / Token），与原统计长条展开面板同源。
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "14px 28px", padding: "0 var(--s2) var(--s1)", fontSize: TEXT.sm, lineHeight: 1.5 }}>
+              <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} session={statsSession} />
+            </div>
+          ) : (
+            <>
+              {contextUsage?.tokens != null && (
+                <div className="pw-prow"><span className="grow">Context</span><span className="pw-mono">{contextUsage.tokens.toLocaleString()}</span></div>
+              )}
+              {sessionStats && (
+                <div className="pw-prow">
+                  <span className="grow">{t("chat.turnTokens")}</span>
+                  <span className="pw-mono">{sessionStats.tokens.input.toLocaleString()} / {sessionStats.tokens.output.toLocaleString()}</span>
+                </div>
+              )}
+              {sessionStats && sessionStats.cost > 0 && (
+                <div className="pw-prow"><span className="grow">{t("chat.sessionCost")}</span><span className="pw-mono">${sessionStats.cost.toFixed(4)}</span></div>
+              )}
+            </>
+          )}
+          {lastStopReason && (
+            <div className="pw-prow"><span className="grow">{t("chat.stopReason")}</span><span className="pw-mono">{lastStopReason}</span></div>
+          )}
+          {onCompact && (
+            <>
+              <div className="pw-sep" />
+              <button
+                type="button"
+                onClick={isCompacting ? onAbortCompaction : onCompact}
+                className="pw-prow"
+                style={{ width: "100%", color: isCompacting ? "var(--error)" : "var(--accent-text)" }}
+              >
+                <span className="pw-ico"><i data-ico={isCompacting ? "loader-circle" : "package"} data-size="14"></i></span>
+                {isCompacting ? t("chat.compacting") : t("chat.compactContext")}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </span>
+  ) : null;
   const queueControls = isStreaming ? (
     <>
       {onSteer && (
@@ -3322,7 +3429,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 background: "var(--bg)",
                 border: "1px solid var(--border)",
                 borderRadius: "var(--radius-lg)",
-                boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+                boxShadow: "var(--shadow-popover)",
                 overflow: "hidden",
                 maxHeight: "min(44vh, 360px)",
               }}
@@ -3410,7 +3517,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 background: "var(--bg)",
                 border: "1px solid var(--border)",
                 borderRadius: "var(--radius-lg)",
-                boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+                boxShadow: "var(--shadow-popover)",
                 overflow: "hidden",
                 boxSizing: "border-box",
                 display: "flex",
@@ -3517,7 +3624,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                     marginLeft: 6,
                                     padding: "0 4px",
                                     border: "1px solid var(--border)",
-                                    borderRadius: 3,
+                                    borderRadius: "var(--radius-xs)",
                                     fontSize: TEXT["2xs"],
                                     color: "var(--text-dim)",
                                     whiteSpace: "nowrap",
@@ -3583,7 +3690,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   background: "var(--bg)",
                   border: "1px solid var(--border)",
                   borderRadius: "var(--radius-lg)",
-                  boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+                  boxShadow: "var(--shadow-popover)",
                   overflow: "hidden",
                   boxSizing: "border-box",
                   display: "flex",
@@ -3702,7 +3809,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   </span>
                 )}
                 {attachmentNotice.failed.length > 0 && (
-                  <span style={{ color: "var(--danger, #ef4444)" }}>
+                  <span style={{ color: "var(--danger)" }}>
                     {t("chat.attachmentFailed", { names: attachmentNotice.failed.join("、") })}
                   </span>
                 )}
@@ -3728,12 +3835,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </button>
             </div>
           )}
-          {/* fork:zn-04 — the protrusion strip's slot: immediately before the
-              card, after every banner. */}
-          {protrusion}
           <div
             ref={inputShellRef}
-            className={`chat-input-shell${manualMode ? " is-manual-height" : ""}${readingCompact ? " is-compact" : ""}`}
+            /* fork:design-components —— 输入框外壳直接用画板 20 的 .pw-composer
+               （面板底 / 发丝边框 / radius-6 / 弹层阴影来自 board.css）；
+               compact 阅读态与 bash/流式边框色作为状态覆盖保留。 */
+            className={`chat-input-shell pw-composer${manualMode ? " is-manual-height" : ""}${readingCompact ? " is-compact" : ""}`}
             // fork:pr14-compact — focus 一定展开（状态机 kind: "focus"），
             // 焦点在 composer 内时也不允许塌陷。
             onFocus={() => {
@@ -3747,19 +3854,22 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              background: compact ? "none" : "var(--bg-elev)",
-              border: compact ? "none" : `1px solid ${bashMode ? "var(--border-strong)" : isStreaming && (onSteer || onFollowUp)
-                ? "var(--warning)"
-                : "var(--border)"}`,
-              borderRadius: compact ? 0 : "var(--radius-composer, 18px)",
-              padding: compact ? 0 : "10px 8px 6px 12px",
-              boxShadow: compact ? "none" : "var(--shadow-sm)",
+              background: compact ? "none" : undefined,
+              border: compact ? "none" : bashMode ? "1px solid var(--border-strong)" : isStreaming && (onSteer || onFollowUp)
+                ? "1px solid var(--warning)"
+                : undefined,
+              borderRadius: compact ? 0 : undefined,
+              padding: compact ? 0 : undefined,
+              boxShadow: compact ? "none" : undefined,
               // fork:pr23-resize — 手动高度直接挂在这里；自动模式不写 height，
               // 保持卡片随内容收缩。
               height: manualMode ? `${manualHeight}px` : undefined,
-              transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
             } as React.CSSProperties}
           >
+          {/* fork:design-components —— 输入框内的芯片行 = 画板 20 的 .pw-chips：
+              新会话的工作区选择（ProjectChip）就挂在这一行里，而不是输入框上面
+              另起一条横条。 */}
+          {protrusion && <div className="pw-chips">{protrusion}</div>}
           {/* fork:pr23-resize — 手柄骑在卡片上边缘（向上拖变大）。移动端与引用回答
               形态不渲染；阅读态塌陷（.is-compact）时由 CSS 隐藏。 */}
           {!compact && !isMobile && (
@@ -3769,13 +3879,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             />
           )}
           <div
-            className="chat-input-editor-row"
+            // fork:design-components —— 输入区 = 画板 01/20 的 .pw-composer-top：
+            // 同一套内边距（12px 12px 6px）与最小高度（46px），文字起点与画板一致。
+            className="chat-input-editor-row pw-composer-top"
             style={{
               minWidth: 0,
               display: "flex",
               flexDirection: compact ? "column" : "row",
               gap: 8,
-              alignItems: compact ? "stretch" : "center",
+              alignItems: compact ? "stretch" : "flex-start",
             }}
           >
           <div
@@ -3883,42 +3995,26 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           </div>
         )}
 
-        {/* Bottom bar: left | center (context) | right */}
-        {!compact && <div className="chat-input-toolbar" style={{
-          marginTop: 6,
+        {/* fork:design-components —— 工具栏 = 画板 20 的 .pw-composer-bar：
+            一行内是 附件 · 模型 · 思考 · 权限 · 工具档 · 压缩 ｜ 上下文环 · 声音 · 发送，
+            与画板 20 A 的控件顺序一致。 */}
+        {!compact && <div className="chat-input-toolbar pw-composer-bar" style={{
           display: narrowControls ? "grid" : "flex",
           gridTemplateColumns: narrowControls ? "minmax(0, 1fr) auto" : undefined,
-          alignItems: "center",
-          gap: 6,
         }}>
 
           {/* LEFT: attach + model selector (idle) or steer/followup toggle (streaming) */}
-          <div style={{ flex: narrowControls ? "1 1 auto" : "0 0 auto", minWidth: 0, display: "flex", alignItems: "center", gap: 2 }}>
+          <div style={{ flex: narrowControls ? "1 1 auto" : "0 1 auto", minWidth: 0, display: "flex", alignItems: "center", gap: 2 }}>
+            {/* 附件 +：直接使用画板 20 的 .pw-iconbtn 组件（board.css：无边框 / hover 叠色 / is-on 选中），
+                有附件时挂 is-on（画板的选中态），图标与 20-composer.html 同款 plus。 */}
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-             title={t("chat.attachFile")}
-              style={{
-                flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                width: "var(--spacing-token-button-composer, 28px)", height: "var(--spacing-token-button-composer, 28px)", padding: 0,
-                background: "none", border: "none",
-                borderRadius: "var(--radius-md)",
-                color: attachedImages.length ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer",
-                opacity: 1,
-                transition: "background 0.12s, color 0.12s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = attachedImages.length ? "var(--accent)" : "var(--text)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "none";
-                e.currentTarget.style.color = attachedImages.length ? "var(--accent)" : "var(--text-muted)";
-              }}
+              title={t("chat.attachFile")}
+              className={`pw-iconbtn${attachedImages.length ? " is-on" : ""}`}
+              style={{ width: "var(--control-sm)", height: "var(--control-sm)", cursor: "pointer" }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <span className="pw-ico"><i data-ico="plus" data-size="16"></i></span>
             </button>
             {/* Model selector - visible always, disabled while the session or switch is busy */}
             {(modelOptions.length > 0 || model || modelError) && onModelChange && (
@@ -3933,12 +4029,214 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {/* fork:ui — 输入框侧的独立收藏菜单已移除（用户要求）：收藏现在就在
                 模型下拉里每行右侧的星标上（ModelSelector），不需要第二个入口。 */}
+            {isStreaming && onThinkingLevelChange && (
+              // The level cannot change mid-turn, so this is read-only: a button here
+              // would invite clicks that do nothing. It still answers the question
+              // that matters while a turn runs, which budget is this one spending.
+              // fork:design-components —— 只读态也用画板 .pw-select：尺寸/内边距
+              // 与旁边可点的思考档完全一致，不会因为「这个不能点」就换一套尺寸。
+              <span
+                className="pw-select"
+                title={t("chat.currentReasoning", { level: thinkingDisplayLabel })}
+                style={{ color: "var(--n-placeholder)" }}
+              >
+                <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
+                {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
+              </span>
+            )}
+            {!isStreaming && onThinkingLevelChange && (
+              <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
+                {/* fork:design-components —— 思考档直接用画板 20/21 的 .pw-select + .pw-pop/.pw-prow。 */}
+                <button
+                  type="button"
+                  onClick={() => !isStreaming && setThinkingDropdownOpen((v) => !v)}
+                  disabled={isStreaming}
+                   title={t("chat.changeReasoning", { level: thinkingDisplayLabel })}
+                   aria-label={t("chat.changeReasoningLabel")}
+                  className="pw-select"
+                  style={{
+                    cursor: isStreaming ? "not-allowed" : "pointer",
+                    opacity: isStreaming ? 0.5 : 1,
+                    background: thinkingDropdownOpen ? "var(--overlay-hover)" : undefined,
+                    width: isMobile ? "auto" : undefined,
+                  }}
+                >
+                  <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
+                  {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
+                </button>
+                {thinkingDropdownOpen && (
+                  <div
+                    className="anim-popover pw-pop"
+                    style={{
+                      position: "absolute", bottom: "calc(100% + 6px)",
+                      // fork:ui-composer-pop —— 左侧组的下拉一律左缘锚定：右缘锚定会把
+                      // 320 宽的浮窗探出卡片左缘，被 overflow-x:clip 裁掉。
+                      left: 0,
+                      zIndex: 100, minWidth: 180,
+                    }}
+                  >
+                    {THINKING_LEVELS.filter((lvl) => {
+                      if (!availableThinkingLevels) return true;
+                      if (lvl === "auto") return true;
+                      return availableThinkingLevels.includes(lvl);
+                    }).map((lvl) => {
+                      const isActive = (thinkingLevel ?? "auto") === lvl;
+                       const desc = t(THINKING_LEVEL_DESC_KEYS[lvl]);
+                      const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
+                      const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
+                      const showOriginal = mappedVal != null && mappedVal !== lvl;
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
+                          className={`pw-prow${isActive ? " is-on" : ""}`}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {isActive
+                            ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
+                            : <span style={{ width: 14, flexShrink: 0 }} />}
+                          <span className="grow">
+                            {displayLabel}
+                            {showOriginal && <span className="pw-mono" style={{ fontSize: TEXT["2xs"], marginLeft: 5 }}>({lvl})</span>}
+                          </span>
+                          <span className="pw-desc">{desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
+                点一下循环切换：全自动 → 需审批 → 计划。 */}
+            {onPermissionModeChange && permissionMode && toolPreset !== "none" && (
+              /* fork:design-components —— 权限档直接用画板 20/21 的 .pw-select 组件
+                 （board.css：28px / 无边框 / hover 叠色；非默认档走强调色文字）。 */
+              <button
+                type="button"
+                onClick={() => onPermissionModeChange(nextPermissionMode(permissionMode))}
+                title={`${t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}：${t(PERMISSION_MODE_HINT_KEYS[permissionMode])}`}
+                aria-label={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
+                className="pw-select"
+                style={{
+                  cursor: "pointer",
+                  // 非默认档位用强调色，因为「当前不全自动」是需要一眼看出来的状态
+                  color: permissionMode === "bypass" ? undefined : "var(--accent-text)",
+                  width: isMobile ? "auto" : undefined,
+                }}
+              >
+                <span className="pw-ico">
+                  <i
+                    data-ico={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
+                    data-size="13"
+                  ></i>
+                </span>
+                {(!narrowControls || controlsMenuOpen) && (
+                  <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
+                )}
+              </button>
+            )}
+            {!isStreaming && onToolPresetChange && (
+              <div ref={toolDropdownRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => !isStreaming && setToolDropdownOpen((v) => !v)}
+                  disabled={isStreaming}
+                  title={t("chat.changeToolPreset") + `: ${toolPresetLabel}`}
+                  aria-label={t("chat.changeToolPreset")}
+                  className="pw-select"
+                  style={{
+                    cursor: isStreaming ? "not-allowed" : "pointer",
+                    opacity: isStreaming ? 0.5 : 1,
+                    background: toolDropdownOpen ? "var(--overlay-hover)" : undefined,
+                    width: isMobile ? "auto" : undefined,
+                  }}
+                >
+                  <span className="pw-ico"><i data-ico="wrench" data-size="13"></i></span>
+                  {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
+                </button>
+                {toolDropdownOpen && (
+                  <div
+                    className="anim-popover pw-pop"
+                    style={{
+                      position: "absolute",
+                      bottom: "calc(100% + 6px)",
+                      // fork:ui-composer-pop —— 同思考档：左缘锚定，不探出卡片左缘。
+                      left: 0,
+                      zIndex: 100,
+                      minWidth: 120,
+                    }}
+                  >
+                    {TOOL_PRESETS.map((lvl) => {
+                      const preset = TOOL_PRESET_MAP[lvl];
+                      const isActive = (toolPreset ?? "configured") === preset;
+                      let desc: string;
+                      if (lvl === "configured") desc = t("chat.configuredTools");
+                      else if (lvl === "chat-only") desc = t("chat.chatOnly");
+                      else if (lvl === "read-only") desc = t("chat.readOnlyTools", { count: 4 });
+                      else if (lvl === "default") desc = t("chat.builtInTools", { count: 4 });
+                      else desc = t("chat.allBuiltInTools");
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => { setToolDropdownOpen(false); if (!isActive) onToolPresetChange(preset); }}
+                          className={`pw-prow${isActive ? " is-on" : ""}`}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {isActive
+                            ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
+                            : <span style={{ width: 14, flexShrink: 0 }} />}
+                          <span className="grow">{t(`chat.toolPreset.${lvl}`)}</span>
+                          <span className="pw-desc">{desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isStreaming && onCompact && (
+              <div>
+                {/* fork:design-components —— 压缩按钮 = 画板 .pw-select；进行中转 error 色 + loader。 */}
+                <button
+                  type="button"
+                  onClick={isCompacting ? onAbortCompaction : onCompact}
+                  disabled={isStreaming && !isCompacting}
+                  className="pw-select"
+                  style={{
+                    cursor: (isStreaming && !isCompacting) ? "not-allowed" : "pointer",
+                    opacity: (isStreaming && !isCompacting) ? 0.5 : 1,
+                    color: isCompacting ? "var(--error)" : undefined,
+                    background: isCompacting ? "var(--error-soft)" : undefined,
+                    width: isMobile ? "auto" : undefined,
+                  }}
+                  title={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
+                  aria-label={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
+                >
+                  {isCompacting ? (
+                    <>
+                      <span className="pw-ico"><i data-ico="loader-circle" data-size="13"></i></span>
+                      {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("chat.compacting")}</span>}
+                    </>
+                  ) : (
+                    <>
+                      <span className="pw-ico"><i data-ico="minimize-2" data-size="13"></i></span>
+                      {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("chat.compact")}</span>}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
           </div>
 
-          {/* spacer */}
-          {!narrowControls && <div style={{ flex: 1 }} />}
+          {/* 画板 20 的 .pw-composer-bar 用 .grow 顶开左右两组。 */}
+          <span className="grow" />
 
-          {/* RIGHT: thinking + tools preset + compact + sound (idle) | Stop + sound (streaming) */}
+          {/* RIGHT: 上下文环 + 声音 + 发送（停止） */}
           <div ref={controlsMenuRef} style={{
             flex: "0 0 auto",
             display: "flex",
@@ -4007,328 +4305,25 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 border: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
                 borderRadius: "var(--radius-md)",
                 background: "color-mix(in srgb, var(--bg-panel) 92%, var(--bg))",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+                boxShadow: "var(--shadow-popover)",
                 backdropFilter: "blur(10px)",
               } : null),
             }}>
-            {isStreaming && onThinkingLevelChange && (
-              // The level cannot change mid-turn, so this is read-only: a button here
-              // would invite clicks that do nothing. It still answers the question
-              // that matters while a turn runs, which budget is this one spending.
-              <span
-                title={t("chat.currentReasoning", { level: thinkingDisplayLabel })}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  // The control row has no gap; each control pads itself, so match
-                  // the neighbouring buttons or this sits flush against Stop.
-                  // Values follow the fork's tighter composer controls
-                  // (6px 10px / 28px), not upstream's 8px 12px / 32px.
-                  padding: isMobile ? "0 6px" : "6px 10px",
-                  height: 28,
-                  color: "var(--text-dim)", fontSize: TEXT.sm,
-                }}
-              >
-                <ThinkingIcon active={false} size={11} />
-                {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
-              </span>
-            )}
-            {!isStreaming && onThinkingLevelChange && (
-              <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
-                <button
-                  onClick={() => !isStreaming && setThinkingDropdownOpen((v) => !v)}
-                  disabled={isStreaming}
-                   title={t("chat.changeReasoning", { level: thinkingDisplayLabel })}
-                   aria-label={t("chat.changeReasoningLabel")}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                    padding: isMobile ? "0 6px" : "6px 10px",
-                    width: isMobile ? "auto" : undefined,
-                    height: 28,
-                    background: thinkingDropdownOpen ? "var(--bg-hover)" : "none",
-                    border: "none",
-                    borderRadius: "var(--radius-md)",
-                    color: "var(--text-muted)",
-                    cursor: isStreaming ? "not-allowed" : "pointer",
-                    fontSize: TEXT.sm,
-                    opacity: isStreaming ? 0.5 : 1,
-                    transition: "background 0.12s, color 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isStreaming) return;
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                    e.currentTarget.style.color = "var(--text)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = thinkingDropdownOpen ? "var(--bg-hover)" : "none";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9.5 2A5.5 5.5 0 0 0 4 7.5c0 1.7.78 3.21 2 4.21V14a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-2.29c1.22-1 2-2.51 2-4.21A5.5 5.5 0 0 0 9.5 2z" />
-                    <line x1="7" y1="18" x2="12" y2="18" />
-                    <line x1="8" y1="21" x2="11" y2="21" />
-                  </svg>
-                  {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
-                </button>
-                {thinkingDropdownOpen && (
-                  <div className="anim-popover" style={{
-                    position: "absolute", bottom: "calc(100% + 6px)",
-                    ...(narrowControls ? { left: 0 } : { right: 0 }),
-                    zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-lg)", boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
-                    overflow: "hidden", minWidth: 180,
-                  }}>
-                    {THINKING_LEVELS.filter((lvl) => {
-                      if (!availableThinkingLevels) return true;
-                      if (lvl === "auto") return true;
-                      return availableThinkingLevels.includes(lvl);
-                    }).map((lvl) => {
-                      const isActive = (thinkingLevel ?? "auto") === lvl;
-                       const desc = t(THINKING_LEVEL_DESC_KEYS[lvl]);
-                      const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
-                      const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
-                      const showOriginal = mappedVal != null && mappedVal !== lvl;
-                      return (
-                        <button
-                          key={lvl}
-                          onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            width: "100%", padding: "7px 12px",
-                            background: isActive ? "var(--bg-selected)" : "none",
-                            border: "none",
-                            color: isActive ? "var(--text)" : "var(--text-muted)",
-                            cursor: "pointer", fontSize: TEXT.sm, textAlign: "left",
-                            fontWeight: isActive ? 600 : 400,
-                            whiteSpace: "nowrap",
-                          }}
-                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
-                        >
-                          {isActive
-                            ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
-                            : <span style={{ width: 10, flexShrink: 0 }} />}
-                          <span style={{ flex: 1 }}>
-                            {displayLabel}
-                            {showOriginal && <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginLeft: 5 }}>({lvl})</span>}
-                          </span>
-                          <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-            {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
-                点一下循环切换：全自动 → 需审批 → 计划。 */}
-            {onPermissionModeChange && permissionMode && toolPreset !== "none" && (
-              <button
-                type="button"
-                onClick={() => onPermissionModeChange(nextPermissionMode(permissionMode))}
-                title={`${t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}：${t(PERMISSION_MODE_HINT_KEYS[permissionMode])}`}
-                aria-label={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                  padding: isMobile ? "0 6px" : "6px 10px",
-                  width: isMobile ? "auto" : undefined,
-                  height: 28,
-                  background: "none",
-                  border: "none",
-                  borderRadius: "var(--radius-md)",
-                  // 非默认档位用强调色，因为「当前不全自动」是需要一眼看出来的状态
-                  color: permissionMode === "bypass" ? "var(--text-muted)" : "var(--accent)",
-                  cursor: "pointer",
-                  fontSize: TEXT.sm,
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  {permissionMode === "bypass" && <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" />}
-                  {permissionMode === "ask" && (<><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" /><path d="m9 12 2 2 4-4" /></>)}
-                  {permissionMode === "plan" && (<><path d="M8 4h9a2 2 0 0 1 2 2v14l-4-2-3 2-3-2-4 2V6a2 2 0 0 1 2-2z" /><path d="M9 9h6M9 13h4" /></>)}
-                </svg>
-                {(!narrowControls || controlsMenuOpen) && (
-                  <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
-                )}
-              </button>
-            )}
-            {!isStreaming && onToolPresetChange && (
-              <div ref={toolDropdownRef} style={{ position: "relative" }}>
-                <button
-                  onClick={() => !isStreaming && setToolDropdownOpen((v) => !v)}
-                  disabled={isStreaming}
-                  title={t("chat.changeToolPreset") + `: ${toolPresetLabel}`}
-                  aria-label={t("chat.changeToolPreset")}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                    padding: isMobile ? "0 6px" : "6px 10px",
-                    width: isMobile ? "auto" : undefined,
-                    height: 28,
-                    background: toolDropdownOpen ? "var(--bg-hover)" : "none",
-                    border: "none",
-                    borderRadius: "var(--radius-md)",
-                    color: "var(--text-muted)",
-                    cursor: isStreaming ? "not-allowed" : "pointer",
-                    fontSize: TEXT.sm,
-                    opacity: isStreaming ? 0.5 : 1,
-                    transition: "background 0.12s, color 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isStreaming) return;
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                    e.currentTarget.style.color = "var(--text)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = toolDropdownOpen ? "var(--bg-hover)" : "none";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                  </svg>
-                  {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
-                </button>
-                {toolDropdownOpen && (
-                  <div className="anim-popover" style={{
-                    position: "absolute",
-                    bottom: "calc(100% + 6px)",
-                    right: narrowControls ? undefined : 0,
-                    left: narrowControls ? 0 : undefined,
-                    zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-lg)", boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
-                    overflow: "hidden", minWidth: 120,
-                  }}>
-                    {TOOL_PRESETS.map((lvl) => {
-                      const preset = TOOL_PRESET_MAP[lvl];
-                      const isActive = (toolPreset ?? "configured") === preset;
-                      let desc: string;
-                      if (lvl === "configured") desc = t("chat.configuredTools");
-                      else if (lvl === "chat-only") desc = t("chat.chatOnly");
-                      else if (lvl === "read-only") desc = t("chat.readOnlyTools", { count: 4 });
-                      else if (lvl === "default") desc = t("chat.builtInTools", { count: 4 });
-                      else desc = t("chat.allBuiltInTools");
-                      return (
-                        <button
-                          key={lvl}
-                          onClick={() => { setToolDropdownOpen(false); if (!isActive) onToolPresetChange(preset); }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            width: "100%", padding: "7px 12px",
-                            background: isActive ? "var(--bg-selected)" : "none",
-                            border: "none",
-                            color: isActive ? "var(--text)" : "var(--text-muted)",
-                            cursor: "pointer", fontSize: TEXT.sm, textAlign: "left",
-                            fontWeight: isActive ? 600 : 400,
-                            whiteSpace: "nowrap",
-                          }}
-                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
-                        >
-                          {isActive
-                            ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
-                            : <span style={{ width: 10, flexShrink: 0 }} />}
-                          <span style={{ flex: 1 }}>{lvl}</span>
-                          <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!isStreaming && onCompact && (
-              <div>
-                <button
-                  onClick={isCompacting ? onAbortCompaction : onCompact}
-                  disabled={isStreaming && !isCompacting}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                    padding: isMobile ? "0 6px" : "6px 10px",
-                    width: isMobile ? "auto" : undefined,
-                    height: 28,
-                    background: isCompacting ? "var(--danger-soft)" : "none",
-                    border: "none",
-                    borderRadius: "var(--radius-md)",
-                    color: isCompacting ? "var(--danger)" : "var(--text-muted)",
-                    cursor: (isStreaming && !isCompacting) ? "not-allowed" : "pointer",
-                    fontSize: TEXT.sm, opacity: (isStreaming && !isCompacting) ? 0.5 : 1,
-                    transition: "background 0.12s, color 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isStreaming && !isCompacting) return;
-                    e.currentTarget.style.background = isCompacting ? "color-mix(in srgb, var(--danger) 18%, transparent)" : "var(--bg-hover)";
-                    e.currentTarget.style.color = isCompacting ? "var(--danger)" : "var(--text)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = isCompacting ? "var(--danger-soft)" : "none";
-                    e.currentTarget.style.color = isCompacting ? "var(--danger)" : "var(--text-muted)";
-                  }}
-                   title={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
-                   aria-label={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
-                >
-                  {isCompacting ? (
-                    <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" /></svg>{(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("chat.compacting")}</span>}</>
-                  ) : (
-                    <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
-                      <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
-                    </svg>{(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("chat.compact")}</span>}</>
-                  )}
-                </button>
-              </div>
-            )}
-
             {isStreaming && queueControls}
 
+            {contextRing}
+
             {onSoundToggle !== undefined && (
+              /* fork:design-components —— 声音开关 = 画板 20 的 .pw-iconbtn（volume-2 / volume-x）。 */
               <button
+                type="button"
                 onClick={onSoundToggle}
                  title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
                  aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                  width: 32,
-                  height: 28,
-                  padding: 0,
-                  background: "none",
-                  border: "none",
-                  borderRadius: "var(--radius-md)",
-                  color: soundEnabled ? "var(--text-muted)" : "var(--text-dim)",
-                  cursor: "pointer",
-                  opacity: soundEnabled ? 1 : 0.55,
-                  transition: "background 0.12s, color 0.12s, opacity 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--text)";
-                  e.currentTarget.style.opacity = "1";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "none";
-                  e.currentTarget.style.color = soundEnabled ? "var(--text-muted)" : "var(--text-dim)";
-                  e.currentTarget.style.opacity = soundEnabled ? "1" : "0.55";
-                }}
+                className={`pw-iconbtn${soundEnabled ? "" : " is-on"}`}
+                style={{ width: 32, height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
               >
-                {soundEnabled ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                  </svg>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <line x1="23" y1="9" x2="17" y2="15" />
-                    <line x1="17" y1="9" x2="23" y2="15" />
-                  </svg>
-                )}
+                <span className="pw-ico"><i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i></span>
               </button>
             )}
             {narrowControls && controlsMenuOpen && (

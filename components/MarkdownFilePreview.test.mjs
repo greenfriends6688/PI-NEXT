@@ -53,7 +53,7 @@ test("does not wrap fenced code text with source-line spans", () => {
   // fork:perf-highlighter — the source-line wrapper belongs on the block, not on the
   // code text. The token spans only appear once the lazily imported highlighter has
   // loaded (see MermaidBlock.test.mjs), so the static render checks the wrapper only.
-  assert.match(html, /class="markdown-code-block"/);
+  assert.match(html, /class="markdown-code-block( pw-code)?"/);
   assert.doesNotMatch(html, /class="token"/);
 });
 

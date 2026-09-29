@@ -205,8 +205,9 @@ const EVENT_STREAM_RECONNECT_DELAY_MS = 1_000;
 const SESSION_LEASE_RENEW_INTERVAL_MS = 30_000;
 // Retry temporary model-list failures without requiring a page refresh.
 const MODELS_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
-const MAX_NOTICES = 5;
-const NOTICE_VISIBLE_MS = 5000;
+// 设计 50 号画板：通知条最多 3 条、6 秒自收。
+const MAX_NOTICES = 3;
+const NOTICE_VISIBLE_MS = 6000;
 const NOTICE_EXIT_ANIMATION_MS = 180;
 function createNoticeId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

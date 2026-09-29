@@ -731,7 +731,7 @@ function AddSkillPanel({
                   disabled={isInstalled || isInstalling || installing !== null}
                   style={{
                     flexShrink: 0,
-                    background: isInstalled ? "rgba(34,197,94,0.1)" : "none",
+                    background: isInstalled ? "var(--success-soft)" : "none",
                     color: isInstalled
                       ? "var(--success)"
                       : isInstalling
@@ -739,11 +739,28 @@ function AddSkillPanel({
                         : "var(--text-muted)",
                   }}
                 >
-                  {isInstalled
-                     ? `✓ ${t("i18n.installed")}`
-                    : isInstalling
-                       ? t("i18n.installing")
-                       : t("i18n.install")}
+                  {isInstalled ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      {t("i18n.installed")}
+                    </span>
+                  ) : isInstalling ? (
+                    t("i18n.installing")
+                  ) : (
+                    t("i18n.install")
+                  )}
                 </ConfigButton>
               </div>
             );
@@ -1048,7 +1065,20 @@ export function SkillsConfig({
                           if (status?.state !== "update-available") return null;
                           return (
                             <span title={t("i18n.updateAvailable")} className="skill-update-indicator">
-                              ↑
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="m5 12 7-7 7 7" />
+                                <path d="M12 19V5" />
+                              </svg>
                             </span>
                           );
                         })()}

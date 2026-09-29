@@ -1,7 +1,9 @@
 .preview {
   position: absolute;
   top: 0;
-  bottom: 0;
+  /* fork:design-system（画板 53）—— **高度按内容、上限是转录区高度**，不是通高。
+     通高在 8 轮以内的短会话里会在下方留下六成空白，读起来像面板坏了。 */
+  max-height: 100%;
   right: 100%;
   z-index: 100;
   width: 320px;
@@ -40,12 +42,19 @@
 }
 
 .pin:hover,
-.pin:focus-visible,
-.preview[data-pinned] .pin {
+.pin:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
   background: var(--bg-selected);
   color: var(--accent);
 }
+/* fork:design-system —— 固定态**不铺强调底色**：整条上色会盖过内容本身。
+   只把图钉图标转 accent、把下边线染一档。 */
+.preview[data-pinned] .pin {
+  color: var(--text);
+  border-bottom-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.pinIcon { color: currentColor; }
+.preview[data-pinned] .pinIcon { color: var(--accent); }
 
 .list {
   position: relative;
@@ -132,10 +141,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 1px;
   width: 34px;
-  height: 32px;
+  /* fork:design-system —— 编号**对齐内容首行**，不再整块居中。
+     `.user` 是 padding-top 6 + line-height 18，首行中心在 15px，所以编号盒 30px。
+     旧版用 justify-content:center 撑整块，单行行与两行行的编号会上下跳动。 */
+  height: 30px;
+  justify-content: center;
   padding: 0;
   color: var(--text-dim);
   font-family: var(--font-mono);
@@ -156,11 +168,11 @@
   display: block;
   min-width: 15px;
   padding: 0 3px;
-  border-radius: 999px;
-  background: var(--tool-bg);
+  border-radius: var(--radius-xs);
+  background: var(--n-surface);
   color: var(--text-muted);
-  font-size: 9px;
-  line-height: 12px;
+  font-size: 10px;
+  line-height: 14px;
   text-align: center;
 }
 
@@ -212,8 +224,12 @@
 .assistant {
   position: relative;
   display: block;
-  padding: 0;
-  border-top: 1px solid color-mix(in srgb, var(--border) 52%, transparent);
+  /* fork:design-system（画板 53）—— 回答行是**轮的一部分**，不是独立一轮：
+     左侧 2px 从属竖线 + 4px 缩进，让「这是对上一句的回答」一眼可见。
+     margin -6 把竖线落在编号列与正文之间（x≈28），正文仍在 x=40。 */
+  margin-left: -6px;
+  padding: 0 0 0 4px;
+  border-left: 2px solid var(--border-faint);
 }
 
 .assistant + .assistant {
@@ -223,7 +239,8 @@
 .assistantJump {
   position: absolute;
   top: 0;
-  left: -29px;
+  /* 编号列 34px 居中：assistant 左缘现在在 x=28，所以 -23 → 5..29。 */
+  left: -23px;
   z-index: 2;
   width: 24px;
   height: 26px;
@@ -380,7 +397,8 @@
 }
 
 .turn:hover {
-  background: color-mix(in srgb, var(--text) 3%, transparent);
+  /* 设计 §2.7：行 hover 用全系统的 6% 叠色（与 .user / .heading 一致）。 */
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
 .turn[data-located="true"] .number {

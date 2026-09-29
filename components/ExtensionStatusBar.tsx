@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { stripAnsi } from "@/lib/ansi";
 import type { ExtensionStatusItem, ExtensionWidgetItem } from "@/lib/types";
@@ -56,6 +57,65 @@ export function ExtensionStatusBar({
       )}
       {trailing && (
         <div className="extension-status-trailing">{trailing}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * fork:ui-ext-float —— 扩展状态的**右上角浮标**形态（用户裁定，2026-09-29）：
+ * 输入框下方不再有任何常驻行，MCP / ponytail 状态收成聊天区右上角的一枚
+ * 胶囊浮标；带插件 widget 时点击展开面板（widget 触发行 + 面板都在浮层里）。
+ * 定位（absolute top-right）由宿主提供，本组件只负责胶囊本体与展开面板。
+ */
+export function ExtensionStatusFloat({
+  statuses,
+  widgets = [],
+}: {
+  statuses: ExtensionStatusItem[];
+  widgets?: ExtensionWidgetItem[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (statuses.length === 0 && widgets.length === 0) return null;
+
+  const statusLine = formatExtensionStatusLine(statuses);
+  const plainStatusLine = stripAnsi(statusLine);
+  const expandable = widgets.length > 0;
+
+  return (
+    <div style={{ position: "relative", pointerEvents: "auto" }}>
+      <button
+        type="button"
+        className="ext-float-pill"
+        onClick={expandable ? () => setOpen((v) => !v) : undefined}
+        aria-expanded={expandable ? open : undefined}
+        aria-label={plainStatusLine}
+        title={plainStatusLine}
+        style={{ cursor: expandable ? "pointer" : "default" }}
+      >
+        <span className="ext-float-text">
+          <AnsiText text={statusLine} />
+        </span>
+        {expandable && (
+          <span className="pw-ico" style={{ display: "inline-flex", flexShrink: 0 }}>
+            <i data-ico={open ? "chevron-up" : "chevron-down"} data-size="12"></i>
+          </span>
+        )}
+      </button>
+      {open && expandable && (
+        <div
+          className="ext-float-panel"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            zIndex: 40,
+            width: "min(420px, calc(100vw - 32px))",
+          }}
+        >
+          <ExtensionWidgets widgets={widgets} />
+        </div>
       )}
     </div>
   );

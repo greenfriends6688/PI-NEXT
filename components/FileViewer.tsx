@@ -530,7 +530,7 @@ function DiffView({ patch }: { patch: string }) {
                   ? segments.map((segment, index) => (
                       <span
                         key={index}
-                        style={segment.changed ? { background: changedBackground, borderRadius: 2 } : undefined}
+                        style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-xs)" } : undefined}
                       >
                         {segment.text}
                       </span>
@@ -770,7 +770,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
               transform: `translate(${offset.x}px, ${offset.y}px) scale(${clampZoom(zoom)})`,
               transformOrigin: "center",
               transition: panRef.current ? "none" : "transform 120ms ease-out",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              boxShadow: "var(--shadow-popover)",
               userSelect: "none",
               touchAction: "none",
             }}
@@ -1208,9 +1208,9 @@ function FileSelectionQuotePopover({
         overflowY: "auto",
         padding: inputOpen ? 12 : 3,
         border: "1px solid var(--border)",
-        borderRadius: 6,
+        borderRadius: "var(--radius-lg)",
         background: "var(--bg)",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
+        boxShadow: "var(--shadow-popover)",
       }}
     >
       {inputOpen ? (
@@ -1222,7 +1222,7 @@ function FileSelectionQuotePopover({
             </button>
           </div>
           <ChatInput ref={chatInputRef} compact onSend={askInNewChat} onAbort={closeInput} isStreaming={false} />
-          {error && <div role="alert" style={{ color: "#dc2626", fontSize: TEXT.sm, overflowWrap: "anywhere" }}>{error}</div>}
+          {error && <div role="alert" style={{ color: "var(--danger)", fontSize: TEXT.sm, overflowWrap: "anywhere" }}>{error}</div>}
         </fieldset>
       ) : <>
         <button
@@ -1578,7 +1578,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             sandbox={isPdf ? undefined : "allow-same-origin"}
             title={t("i18n.previewFile", { file: getFileName(filePath) })}
             onLoad={isPdf ? undefined : attachFrameSelection}
-            style={{ width: "100%", height: "100%", border: "none", background: isPdf ? "var(--bg)" : "#eef1f5" }}
+            style={{ width: "100%", height: "100%", border: "none", background: isPdf ? "var(--bg)" : "var(--n-surface)" }}
           />
         )}
       </div>
@@ -2621,7 +2621,7 @@ function TextFileViewer({
             gap: 10,
             padding: "5px 8px",
             border: "1px solid var(--border)",
-            borderRadius: 6,
+            borderRadius: "var(--radius-lg)",
             color: "var(--text-dim)",
             fontSize: TEXT.xs,
           }}

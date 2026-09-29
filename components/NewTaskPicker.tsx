@@ -182,7 +182,22 @@ export function NewTaskPicker({
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: project.key === activeKey ? "var(--text)" : undefined }}>
                 {project.name}
               </span>
-              {project.key === activeKey && <span style={{ color: "var(--success)", flexShrink: 0 }}>✓</span>}
+              {project.key === activeKey && (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{ color: "var(--success)", flexShrink: 0 }}
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
             </button>
           ))}
 

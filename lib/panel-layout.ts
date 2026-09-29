@@ -1,13 +1,12 @@
 export const MOBILE_MAX_WIDTH = 640;
 export const SPLIT_PANEL_MIN_WIDTH = 960;
 
-// Zeno rail sizing (`SHELL_SIDEBAR` in zeno-main's apps/desktop/src/renderer/lib/layout.ts):
-// default 300px inside a 232–360 drag band. The previous 272/216/520 came from Zeno's
-// legacy `--sidebar-width` CSS fallback, which is not the width its rail actually
-// renders at — the real rail width is JS-computed and clamped to that band.
-export const SIDEBAR_DEFAULT_WIDTH = 300;
-export const SIDEBAR_MIN_WIDTH = 232;
-export const SIDEBAR_MAX_WIDTH = 360;
+// fork:design-system PR-06 — 侧栏尺寸照设计 §2.2 / tokens.css §11：
+// 默认 280px、可拖 220–480。旧值 300 / 232–360 是 Zeno 血统
+// （`SHELL_SIDEBAR` 的 300px + 232–360 拖动带）。
+export const SIDEBAR_DEFAULT_WIDTH = 280;
+export const SIDEBAR_MIN_WIDTH = 220;
+export const SIDEBAR_MAX_WIDTH = 480;
 
 /**
  * fork:panel-default-width — the secondary workspace opens with the file tree **and** a

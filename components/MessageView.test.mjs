@@ -163,7 +163,8 @@ test("renders subagents as standard tool calls with only an extra session button
     onOpenSession() {},
   });
 
-  assert.match(html, /border:1px solid transparent/);
+  // fork:design-components —— 工具卡收起态：透明时间轴行（border:none），不再是透明描边卡。
+  assert.match(html, /border:none/);
   assert.match(html, />Agent</);
   assert.match(html, />Explore</);
   assert.match(html, /aria-label="Open sub-agent session"/);
@@ -205,7 +206,7 @@ test("renders a provider error when the assistant message has no content", () =>
   assert.match(html, /&lt;html&gt;request forbidden&lt;\/html&gt;/);
 });
 
-test("renders a truncation notice for stopReason length", () => {
+test("renders a turn-end row for stopReason length", () => {
   const html = renderMessage({
     role: "assistant",
     provider: "anthropic",
@@ -214,12 +215,13 @@ test("renders a truncation notice for stopReason length", () => {
     stopReason: "length",
   });
 
-  assert.match(html, /role="alert"/);
+  // fork:design-system PR-11 — length 不再是告警块，改由回合结束行的徽章表达。
+  assert.match(html, />length</);
   assert.match(html, /output limit/i);
   assert.match(html, /follow-up/i);
 });
 
-test("renders a truncation notice for thinking-only messages with stopReason length", () => {
+test("renders a turn-end row for thinking-only messages with stopReason length", () => {
   const html = renderMessage({
     role: "assistant",
     provider: "anthropic",
@@ -228,7 +230,7 @@ test("renders a truncation notice for thinking-only messages with stopReason len
     stopReason: "length",
   });
 
-  assert.match(html, /role="alert"/);
+  assert.match(html, />length</);
   assert.match(html, /output limit/i);
 });
 
@@ -278,10 +280,10 @@ test("renders user messages as right-aligned prompt bubbles", () => {
 
   assert.match(html, /align-items:flex-end/);
   assert.match(html, /justify-content:flex-end/);
-  assert.match(html, /--fork-user-bubble-max, min\(70%, 620px\)/);
-  // fork:zn-11 — Zeno bubble: solid --user-bg fill, transparent hairline, radius xl.
-  assert.match(html, /background:var\(--user-bg\)/);
-  assert.match(html, /border:1px solid transparent/);
+  // fork:design-components —— 用户气泡直接用画板 .pw-msg-user（右对齐 78% / 发丝边框 /
+  // 面板底 / radius-6，board.css 承担视觉），不再有 inline 的背景与盒样式。
+  assert.match(html, /class="pw-msg-user"/);
+  assert.doesNotMatch(html, /background:var\(--user-bg\)/);
   assert.doesNotMatch(html, /max-width:88%/);
 });
 

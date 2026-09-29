@@ -1,17 +1,13 @@
 "use client";
 
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 
 /*
- * fork:ui-newhome — empty-state hero for a brand new session.
- *
- * Structure follows upstream pi-web 0.14.6 (`new-session-home` in
- * components/ChatWindow.tsx:699-760): centred hero, one row of starter cards,
- * composer below. The starters are plain prompts instead of upstream's
- * `/skill:<name>` inserts, because this fork ships no fixed skill set — a
- * hard-coded skill the user does not have would fill the composer with a
- * command that fails.
+ * fork:design-components —— 新会话空态首屏**直接使用画板 01 的组件**：
+ * 结构 = design/pi-web-design/01-workbench.html 的 .pw-empty 段
+ *   （.pw-empty-inner > .mark + h2 + p + .pw-starters > .pw-starter），
+ * 样式全部来自 assets/board.css，图标走 <i data-ico>（icons.js hydrate）。
+ * 本文件不写一行视觉样式（入场错开除外——那是画板 05 的动效 token）。
  */
 
 function cwdBasename(cwd: string | null | undefined): string | null {
@@ -21,56 +17,11 @@ function cwdBasename(cwd: string | null | undefined): string | null {
 }
 
 const STARTERS = [
-  { key: "chat.homeExplore", prompt: "chat.homeExplorePrompt", icon: "compass" },
-  { key: "chat.homeReview", prompt: "chat.homeReviewPrompt", icon: "review" },
-  { key: "chat.homeTest", prompt: "chat.homeTestPrompt", icon: "flask" },
-  { key: "chat.homeExplain", prompt: "chat.homeExplainPrompt", icon: "book" },
+  { key: "chat.homeExplore", desc: "chat.homeExploreDesc", prompt: "chat.homeExplorePrompt", icon: "scan-search" },
+  { key: "chat.homeReview", desc: "chat.homeReviewDesc", prompt: "chat.homeReviewPrompt", icon: "git-compare" },
+  { key: "chat.homeTest", desc: "chat.homeTestDesc", prompt: "chat.homeTestPrompt", icon: "square-check" },
+  { key: "chat.homeExplain", desc: "chat.homeExplainDesc", prompt: "chat.homeExplainPrompt", icon: "book-open" },
 ] as const;
-
-function StarterIcon({ name }: { name: string }) {
-  const common = {
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-
-  if (name === "compass") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="9" />
-        <polygon points="15.5 8.5 13.6 13.6 8.5 15.5 10.4 10.4" />
-      </svg>
-    );
-  }
-  if (name === "review") {
-    return (
-      <svg {...common}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    );
-  }
-  if (name === "flask") {
-    return (
-      <svg {...common}>
-        <path d="M9 3h6M10 3v6.5L5.2 18A2 2 0 0 0 7 21h10a2 2 0 0 0 1.8-3L14 9.5V3" />
-        <path d="M7.5 15h9" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5Z" />
-      <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5" />
-    </svg>
-  );
-}
 
 export function NewSessionHome({
   cwd,
@@ -83,90 +34,66 @@ export function NewSessionHome({
 }) {
   const { t } = useI18n();
   const label = cwdBasename(cwd);
+  // 提示行里 @ 与 / 用画板的 .pw-kbd 标出（01 画板原文如此）。
+  const hint = t("chat.homeHint");
+  const [hintBeforeAt, hintAfterAt = ""] = hint.split("@");
+  const [hintMid, hintAfterSlash = ""] = hintAfterAt.split("/");
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 py-8">
-        <div className="my-auto w-full text-center" style={{ maxWidth: 720 }}>
-          <div
+      <div className="pw-empty" style={{ padding: "32px 16px", overflowY: "auto" }}>
+        <div className="pw-empty-inner">
+          <span
+            className="mark fork-row-enter"
             aria-hidden="true"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              // fork:zn-03 — 48px mark (Zeno hero logo size-12) on the 12px
-              // surface radius; it was a 40px badge on the control radius.
-              width: 48,
-              height: 48,
-              marginBottom: 14,
-              borderRadius: "var(--radius-lg)",
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border-faint)",
-              color: "var(--text-muted)",
-              fontSize: TEXT["2xl"],
-              fontWeight: 600,
-              fontFamily: "var(--font-mono)",
-            }}
+            style={{ animationDelay: "0ms" }}
           >
-            π
-          </div>
-          <h1
-            style={{
-              margin: 0,
-              // fork:zn-03 — 26px semibold hero title (Zeno empty hero).
-              fontSize: "var(--zn-hero-title)",
-              fontWeight: 600,
-              letterSpacing: "-0.03em",
-              color: "var(--text)",
-              lineHeight: "var(--leading-title)",
-            }}
+            <i data-ico="pi" data-size="20"></i>
+          </span>
+          <h2
+            className="fork-row-enter"
+            style={{ animationDelay: "calc(var(--motion-stagger) * 1)" }}
           >
             {label ? t("chat.homeTitle", { cwd: label }) : t("chat.homeTitleGeneric")}
-          </h1>
+          </h2>
+          <p
+            className="fork-row-enter"
+            style={{ animationDelay: "calc(var(--motion-stagger) * 2)" }}
+          >
+            {hintAfterAt ? (
+              <>
+                {hintBeforeAt}
+                <span className="pw-kbd">@</span>
+                {hintMid}
+                <span className="pw-kbd">/</span>
+                {hintAfterSlash}
+              </>
+            ) : (
+              hint
+            )}
+          </p>
           <div
+            className="pw-starters fork-row-enter"
             style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))",
-              gap: 10,
-              marginTop: 20,
-              textAlign: "left",
+              // 画板 60：移动端单列堆叠（同构约定：放不下就折成一列）。
+              gridTemplateColumns: isMobile ? "1fr" : undefined,
+              // 成组错开封顶 3 项：起始卡整体跟随提示行，不再逐张延后。
+              animationDelay: "calc(var(--motion-stagger) * 2)",
             }}
           >
-            {STARTERS.map(({ key, prompt, icon }) => (
+            {STARTERS.map(({ key, desc, prompt, icon }) => (
               <button
                 key={key}
                 type="button"
+                className="pw-starter"
+                style={{ cursor: "pointer", font: "inherit" }}
                 onClick={() => onInsertPrompt(t(prompt))}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 10,
-                  minHeight: 92,
-                  padding: "12px 14px",
-                  background: "var(--bg-panel)",
-                  border: "1px solid var(--border-faint)",
-                  borderRadius: "var(--radius-lg)",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  fontSize: "var(--text-ui)",
-                  lineHeight: "var(--leading-ui)",
-                  textAlign: "left",
-                  transition: "background 0.12s, border-color 0.12s",
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.background = "var(--bg-hover)";
-                  event.currentTarget.style.borderColor = "var(--border)";
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.background = "var(--bg-panel)";
-                  event.currentTarget.style.borderColor = "var(--border-faint)";
-                }}
               >
-                <span style={{ color: "var(--text-muted)", display: "flex" }}>
-                  <StarterIcon name={icon} />
-                </span>
-                <span>{t(key)}</span>
+                <b>
+                  <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>
+                  {t(key)}
+                </b>
+                <span>{t(desc)}</span>
               </button>
             ))}
           </div>

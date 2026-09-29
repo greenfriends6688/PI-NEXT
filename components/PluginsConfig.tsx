@@ -192,10 +192,10 @@ function ScopeTag({ scope }: { scope: PluginScope }) {
       style={{
         fontSize: TEXT["2xs"],
         padding: "1px 5px",
-        borderRadius: 3,
+        borderRadius: "var(--radius-xs)",
         flexShrink: 0,
-        background: scope === "project" ? "rgba(99,102,241,0.12)" : "rgba(120,120,120,0.12)",
-        color: scope === "project" ? "rgba(99,102,241,0.85)" : "var(--text-dim)",
+        background: scope === "project" ? "var(--accent-soft)" : "var(--n-surface)",
+        color: scope === "project" ? "var(--accent-text)" : "var(--text-dim)",
       }}
     >
       {scope}
@@ -459,8 +459,8 @@ function PackageDetail({
               style={{
                 fontSize: TEXT["2xs"],
                 padding: "1px 5px",
-                borderRadius: 3,
-                background: "rgba(120,120,120,0.12)",
+                borderRadius: "var(--radius-xs)",
+                background: "var(--n-surface)",
                 color: "var(--text-dim)",
               }}
             >
@@ -471,8 +471,8 @@ function PackageDetail({
               style={{
                 fontSize: TEXT["2xs"],
                 padding: "1px 5px",
-                borderRadius: 3,
-                background: "rgba(245,158,11,0.12)",
+                borderRadius: "var(--radius-xs)",
+                background: "var(--warning-soft)",
                 color: "var(--warning)",
               }}
             >
@@ -709,8 +709,8 @@ function McpServerDetail({
               style={{
                 fontSize: TEXT["2xs"],
                 padding: "1px 5px",
-                borderRadius: 3,
-                background: "rgba(120,120,120,0.12)",
+                borderRadius: "var(--radius-xs)",
+                background: "var(--n-surface)",
                 color: "var(--text-dim)",
               }}
             >
@@ -1626,7 +1626,20 @@ export function PluginsConfig({
                             </ConfigSidebarText>
                             {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
                               <span title={t("i18n.updateAvailable")} className="skill-update-indicator">
-                                ↑
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <path d="m5 12 7-7 7 7" />
+                                  <path d="M12 19V5" />
+                                </svg>
                               </span>
                             )}
                           </ConfigSidebarItem>

@@ -349,15 +349,21 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
   };
 
   return (
-    <div className="markdown-code-block">
-      <div className="markdown-code-header">
-        <span className="markdown-code-lang">{lang || "text"}</span>
+    /* fork:design-components —— 代码块直接使用画板 10 的 .pw-code 组件
+       （board.css：发丝边框 / 面板底 / 36px 头部 / file-code 图标 / .pw-btn.sm 复制钮）。 */
+    <div className="markdown-code-block pw-code">
+      <div className="markdown-code-header pw-code-head">
+        <span className="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
+        <span className="markdown-code-lang pw-mono">{lang || "text"}</span>
+        <span className="grow"></span>
         <div className="markdown-code-actions">
           {headerAction}
           <button
             onClick={copy}
-            className="markdown-code-action"
+            className="markdown-code-action pw-btn sm"
+            style={{ cursor: "pointer" }}
           >
+            <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13"></i></span>
             {copied ? t("i18n.copied") : t("i18n.copy")}
           </button>
         </div>
@@ -373,7 +379,7 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
             padding: "11px 13px",
             fontSize: "calc(12.5px + var(--chat-font-size-offset, 0px))",
             lineHeight: 1.62,
-            borderRadius: 0,
+            borderRadius: "0",
             background: "color-mix(in srgb, var(--bg) 92%, var(--bg-panel))",
           }}
           codeTagProps={{ style: { fontFamily: "var(--font-mono)" } }}

@@ -70,7 +70,8 @@ html.keyboard-open .extension-status-shelf {
  * hence the `!important`s; delete this section once DialogShell lands.
  * ------------------------------------------------------------------------- */
 @keyframes fork-sheet-up {
-  from { transform: translateY(14px); opacity: 0.5; }
+  /* 设计 §1.6：移动端抽屉上滑位移 = --motion-sheet（14px）。 */
+  from { transform: translateY(var(--motion-sheet)); opacity: 0.5; }
   to { transform: none; opacity: 1; }
 }
 
@@ -153,10 +154,12 @@ html.keyboard-open .extension-status-shelf {
     0.9640 76.92%, 0.9865 79.49%, 0.9971 82.05%, 1.0000 84.62%, 0.9974 87.18%,
     0.9928 89.74%, 0.9895 92.31%, 0.9900 94.87%, 0.9958 97.44%, 1
   );
-  --fork-motion-menu: var(--motion-fast); /* DSN-06：130ms→120ms，同档 */
-  --fork-motion-chip: var(--motion-base); /* DSN-06：180ms→150ms，同档 */
-  --fork-motion-fade: var(--motion-base); /* DSN-06：160ms→150ms，同档 */
-  --fork-motion-height: var(--motion-slow); /* DSN-06：240ms→250ms，同档 */
+  /* fork:design-system（2026-09-28）—— 全部收敛到设计系统的四档：
+     菜单/弹层 160、芯片 160、淡入淡出 120、高度 240（布局档）。 */
+  --fork-motion-menu: var(--motion-base);   /* 弹层出现 = 160ms */
+  --fork-motion-chip: var(--motion-fast);   /* 芯片 hover = 120ms */
+  --fork-motion-fade: var(--motion-base);   /* 淡入淡出 = 160ms */
+  --fork-motion-height: var(--motion-layout); /* 高度 = 240ms（布局档）*/
   --fork-travel-menu: 4px;
 }
 
@@ -495,7 +498,7 @@ html.keyboard-open .extension-status-shelf {
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
 }
-.process-step[data-live="true"] .process-step-label {
+.pw-step[data-live="true"] .pw-verb {
   background-image: linear-gradient(
     90deg,
     color-mix(in srgb, var(--text-muted) 40%, transparent) 0%,
@@ -509,10 +512,10 @@ html.keyboard-open .extension-status-shelf {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: fork-shimmer 1.4s linear infinite;
+  animation: fork-shimmer var(--motion-sweep) linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .process-step[data-live="true"] .process-step-label {
+  .pw-step[data-live="true"] .pw-verb {
     animation: none;
     background: none;
     -webkit-text-fill-color: currentColor;
@@ -605,7 +608,7 @@ html.keyboard-open .extension-status-shelf {
 }
 
 .fork-row-enter {
-  animation: fork-row-in 160ms ease-out backwards;
+  animation: fork-row-in var(--motion-base) var(--ease-out) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -838,18 +841,40 @@ html.keyboard-open .extension-status-shelf {
 @keyframes fork-stream-enter {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    /* 设计 §1.6：流式内容入场上移 = --motion-stream（4px）。 */
+    transform: translateY(var(--motion-stream));
+  }
+}
+
+/* 设计 §1.6 五类转场之一：整块替换（切会话 / 切标签）——200ms + 8px 上移。
+   只动 opacity 与 transform 两个属性，符合「不同时动 3 个以上属性」。 */
+@keyframes fork-turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fork-turn-enter {
+  animation: fork-turn-in var(--motion-transition) var(--ease) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fork-turn-enter {
+    animation: none;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  [data-fork-stream-animate="true"] > .process-step[data-fork-enter="true"] {
+  [data-fork-stream-animate="true"] > .pw-step[data-fork-enter="true"] {
     animation: fork-stream-enter var(--fork-enter-duration) var(--ease-out)
       var(--fork-enter-delay, 0ms) backwards;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .process-step[data-fork-enter="true"] {
+  .pw-step[data-fork-enter="true"] {
     animation: none;
   }
 }
@@ -1254,7 +1279,7 @@ html[data-rail-translucent="true"] .sidebar-container {
   --ui-font-size: var(--text-md);
 }
 
-/* 「系统默认」= 不设 `--font-ui-base`，body 回落到 `--font-inter` + 平台栈。
+/* 「系统默认」= 不设 `--font-ui-base`，body 回落到 `--font-ui`（设计默认 Geist）+ 平台栈。
  * 具体字体栈由 hooks/useUiFont.ts 内联写到 `<html>` 上：可选项是运行时枚举出来的
  * 任意系统族名（lib/font-discovery.ts），不可能预先在 CSS 里列出来。
  * 枚举出的每条栈都自带回退，所以选了不存在的字体不会让整页变成衬线。 */
@@ -1429,7 +1454,7 @@ html[data-rail-translucent="true"] .sidebar-container {
   text-align: left;
   cursor: pointer;
   scroll-snap-align: start;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: border-color var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease-out);
 }
 
 .fork-skin-card:hover:not(:disabled) {
@@ -2161,3 +2186,193 @@ html[data-theme-skin="true"] .extension-status-shelf {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
+
+/* ===========================================================================
+ * fork:design-components — 画板组件的「产品侧接线」
+ *
+ * 画板（design/pi-web-design/assets/board.css）里的 pw-* 元素是静态的 div/span；
+ * 产品里同名的大多是可点行、可点钮、真输入框。本块**只做 UA 默认值归零**与
+ * 「静态元素 → 可交互元素」这一层适配，不重复写任何颜色 / 尺寸 / 间距 ——
+ * 那些值只有一个来源：board.css。改视觉请改 board.css，不要改这里。
+ * ======================================================================== */
+
+/* 行 / 钮：清掉 button 的 UA 边框、底色、字体与居中，其余交给 board.css */
+button.pw-row,
+button.pw-session,
+button.pw-trow,
+button.pw-starter,
+button.pw-prow,
+button.pw-litem,
+button.pw-chipbtn,
+button.pw-tab,
+button.pw-select,
+button.pw-iconbtn,
+button.pw-todo,
+button.pw-btn,
+button.pw-side-foot,
+button.pw-group-title,
+button.pw-starter,
+button.pw-snav-row {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.pw-row,
+button.pw-session,
+button.pw-trow,
+button.pw-starter,
+button.pw-prow,
+button.pw-litem,
+button.pw-chipbtn,
+button.pw-tab,
+button.pw-select,
+button.pw-todo,
+button.pw-side-foot,
+button.pw-group-title {
+  width: 100%;
+}
+button.pw-iconbtn { width: var(--control-xs); height: var(--control-xs); cursor: pointer; }
+button.pw-iconbtn.sm { width: 22px; height: 22px; }
+button.pw-btn { width: auto; }
+button.pw-side-foot { display: flex; align-items: center; gap: var(--s2); }
+
+/* 画板 .pw-seg 的子项是 span；产品要键盘可切换，所以是 button —— 值照抄那一行。 */
+.pw-seg > button {
+  text-align: center;
+  padding: 4px 0;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-secondary);
+  color: var(--n-muted);
+  cursor: pointer;
+}
+.pw-seg > button.is-on { background: var(--surface-canvas); color: var(--n-strong); font-weight: 500; }
+
+/* 画板 .pw-side-search 是静态盒；产品里是真输入框，盒内的 input 归零后继承盒的色值。 */
+.pw-side-search { cursor: text; }
+.pw-side-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-secondary);
+  color: var(--n-text);
+  outline: none;
+}
+.pw-side-search input::placeholder { color: inherit; }
+.pw-side-search:focus-within { border-color: var(--accent); }
+.pw-side-search input::-webkit-search-cancel-button { display: none; }
+
+/* 画板只在 .pw-row 里给了 .pw-acts 的 flex；会话行 / 聊天工作区行也要同一组。
+   少了这一条，三个动作钮会各自成行竖着堆在标题右边（错行）。 */
+.pw-session .pw-acts,
+.pw-row .pw-acts {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 模型名不该被挤成一个字母（板 G 轮的教训：逐层 min-width:0 会让 flex 把芯片
+   压瘪成「D…」）：模型芯片按内容定宽、不参与收缩。工具条自然总宽 ~672px，
+   低于 700px 折叠阈值时由 ChatInput 的窄屏形态（narrowControls）接管，
+   窄形态里左组走 grid 收缩，不需要芯片自己省略。 */
+.pw-composer-bar .model-selector { flex: 0 0 auto; }
+.pw-composer-bar .model-selector .pw-select > span { flex: 0 0 auto; }
+
+/* fork:ui-composer-pop —— board.css 的 .pw-composer 自带 overflow:hidden
+   （为裁圆角），但产品输入框里有一整层向上弹的浮层（上下文环 .pw-pop、
+   思考/权限下拉、@ 与 / 菜单），竖向必须放行，否则浮窗只露出卡片内的一角
+   （实测环浮窗被裁剩「压缩上下文」一行）。横向保留裁切语义：工具条塞满时
+   被裁的是行尾芯片，不该横着溢出卡片。0-2-0 特异性压过 board 的 0-1-0。 */
+.chat-input-shell.pw-composer {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+/* 统计条在窄列里不许把一格文本折成两行（「上下文」和「2% / 1.0M」分离很难读）：
+   格内 nowrap，放不下时整格换行。 */
+.session-stats-inline-toggle.pw-stats { flex-wrap: wrap; row-gap: 2px; }
+.session-stats-inline-toggle.pw-stats > span { white-space: nowrap; }
+
+/* 运行中的扫掠亮点是 96px 的绝对定位条，跑出容器就会撑出横向滚动条 —— 行内裁掉。 */
+.pw-session.running,
+.pw-session.awaiting { overflow: hidden; }
+
+/* 上下文环的浮窗（画板 01 帧 C / 20）：悬浮或键盘聚焦才展开，
+   不在输入框下面再放第二条常显横条。 */
+.composer-ring-pop {
+  position: absolute;
+  right: -6px;
+  bottom: calc(100% + 8px);
+  z-index: 120;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--motion-fast) var(--ease), visibility var(--motion-fast) var(--ease);
+}
+.composer-ring:hover .composer-ring-pop,
+.composer-ring:focus-within .composer-ring-pop {
+  opacity: 1;
+  visibility: visible;
+}
+.composer-ring:hover .pw-ring,
+.composer-ring:focus-within .pw-ring {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* 环本体是 <button>（可聚焦 / 可 Tab 到），只归零 UA 默认值。 */
+button.pw-ring { border: 0; padding: 0; cursor: pointer; }
+
+/* fork:ui-stats-ring —— 点击圆环钉住浮窗（/session 命令与触屏入口）：
+   钉住态与悬浮态同一套可见性。 */
+.composer-ring.is-pinned .composer-ring-pop {
+  opacity: 1;
+  visibility: visible;
+}
+.composer-ring.is-pinned .pw-ring {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:ui-ext-float —— 扩展状态（MCP / ponytail）的右上角胶囊浮标。
+ * 输入框下方不再有任何常驻行（用户裁定）：状态条从 composer 底下挪到这里。
+ * 胶囊本身 pointer-events:auto，容器由 ChatWindow 给 none。
+ * ------------------------------------------------------------------------- */
+.ext-float-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  max-width: min(46vw, 460px);
+  padding: 0 10px;
+  border: 1px solid var(--n-border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--n-muted);
+}
+.ext-float-pill .ext-float-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ext-float-panel {
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--n-border-subtle);
+  border-radius: var(--radius-6);
+  background: var(--surface-popover);
+  box-shadow: var(--shadow-modal);
+}
+/* 移动端键盘弹出时与旧状态条同待遇：让位给输入框。 */
+html.keyboard-open .ext-float-pill,
+html.keyboard-open .ext-float-panel { display: none; }

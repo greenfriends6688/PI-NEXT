@@ -133,7 +133,7 @@ type AutoNameStatus =
   | { kind: "success" }
   | { kind: "error"; message: string };
 
-const TOP_BAR_ICON_BUTTON_SIZE = 28;
+const TOP_BAR_ICON_BUTTON_SIZE = "var(--topbar-icon-size, 28px)";
 // The tree column beside a document only renders when the panel is this wide
 // (see the container query on .file-panel-body).
 // Widened once when a document opens. Kept at 760 deliberately: on a wide screen the
@@ -1625,7 +1625,9 @@ export function AppShell() {
   // ThreadHeader until the timeline has activity). Mobile keeps the bar: the
   // sidebar drawer toggle lives there and empty state has no other entry.
   const [chatEmpty, setChatEmpty] = useState(false);
-  const hideTopBar = showChat && chatEmpty && !isMobile;
+  // fork:design-components —— 画板 01 帧 A 在空会话时**仍然画顶栏**（标题 + 分支 + 动作），
+  // 所以不再隐藏；移动端本来就是抽屉开合按钮的载体。
+  const hideTopBar = false;
   // fork:ui-projectchip — the new-session page's workspace selector. Mirrors what the
   // sidebar's NewTaskPicker already offers, minus the two actions it lacks:
   // "open folder" (validate a folder, then start there) and "new blank project".
@@ -1809,6 +1811,10 @@ export function AppShell() {
       || selectedSession.firstMessage?.trim().replace(/\s+/g, " ").slice(0, 80)
       || translate("i18n.newSession"))
     : translate("i18n.newSession");
+  // fork:design-components —— 画板 01/02 顶栏的 .pw-chipbtn：当前工作区（项目 / 分支）。
+  // 有会话时给分支，没有会话时给新会话将要落地的目录名。
+  const topBarBranch = selectedSession?.branch?.trim() || null;
+  const topBarWorkspace = selectedSession ? null : newSessionCwd;
 
   useEffect(() => {
     const syncWindowTitle = () => {
@@ -1840,26 +1846,20 @@ export function AppShell() {
         onToggleSidebar={handleSidebarToggle}
         searchRequestId={searchRequestId}
       />
-      {/* fork:zn-13 — 导轨底栏（Zeno `.sidebar-footer`）：`mt-auto` 钉底 +
-          一条与导轨内缩对齐的 hairline。此前是一个裸的 `padding: 8px` 包裹层，
-          没有分隔线，设置入口也贴着左边。 */}
-      <div className="fork-rail-footer">
-        <button
-          type="button"
-          onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
-          title={translate("common.settings")}
-          aria-label={translate("common.settings")}
-          className="fork-nav-item"
-        >
-          <span className="fork-nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </span>
-          <span className="fork-nav-label">{translate("common.settings")}</span>
-        </button>
-      </div>
+      {/* fork:design-components —— 导轨底栏 = 画板 02 的 .pw-side-foot
+          （settings 图标 + 「设置」+ 右端版本徽章），整行可点开设置。 */}
+      <button
+        type="button"
+        onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
+        title={translate("common.settings")}
+        aria-label={translate("common.settings")}
+        className="pw-side-foot"
+      >
+        <span className="pw-ico"><i data-ico="settings" data-size="14"></i></span>
+        {translate("common.settings")}
+        <span className="grow" />
+        <span className="pw-badge count">v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}</span>
+      </button>
     </>
   );
 
@@ -1935,56 +1935,23 @@ export function AppShell() {
           disabled={!selectedSession}
           title={selectedSession ? translate("history.full") : translate("history.unsaved")}
           aria-label={translate("history.full")}
+          /* fork:design-components —— 顶栏动作钮 = 画板 .pw-iconbtn（data-ico=history）。 */
+          className="pw-iconbtn"
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
             width: TOP_BAR_ICON_BUTTON_SIZE,
             height: TOP_BAR_ICON_BUTTON_SIZE,
-            borderRadius: "var(--radius-md)",
             margin: 0,
             padding: mobile ? 0 : "0 10px",
-            background: "none",
-            border: "none",
-
-            color: selectedSession ? "var(--text-muted)" : "var(--text-dim)",
+            color: selectedSession ? undefined : "var(--text-dim)",
             cursor: selectedSession ? "pointer" : "not-allowed",
             opacity: selectedSession ? 1 : 0.45,
             flexShrink: 0,
             fontSize: TEXT.xs,
             whiteSpace: "nowrap",
-            transition: "color 0.1s, background 0.1s, opacity 0.1s",
-          }}
-          onMouseEnter={(event) => {
-            if (!selectedSession) return;
-            event.currentTarget.style.color = "var(--text)";
-            event.currentTarget.style.background = "var(--bg-hover)";
-          }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.color = selectedSession ? "var(--text-muted)" : "var(--text-dim)";
-            event.currentTarget.style.background = "none";
           }}
           data-mobile-toolbar-action={mobile ? "history" : undefined}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              color: selectedSession ? "var(--text-muted)" : "var(--text-dim)",
-              flexShrink: 0,
-            }}
-            aria-hidden="true"
-          >
-            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-            <path d="M3 3v5h5" />
-            <path d="M12 7v5l3 2" />
-          </svg>
+          <span className="pw-ico"><i data-ico="history" data-size="14"></i></span>
 
         </button>
         {(() => {
@@ -2021,44 +1988,27 @@ export function AppShell() {
               disabled={disabled}
               title={title}
               aria-label={label}
+              /* fork:design-components —— 画板 .pw-iconbtn；naming=loader-circle / success=check / 默认=wand-sparkles。 */
+              className="pw-iconbtn"
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                gap: 6,
                 width: TOP_BAR_ICON_BUTTON_SIZE,
-                height: TOP_BAR_ICON_BUTTON_SIZE, borderRadius: "var(--radius-md)", margin: 0, padding: 0,
-                background: "none", border: "none",
-
-                color: isError ? "var(--danger)" : isSuccess ? "var(--accent)" : disabled ? "var(--text-dim)" : "var(--text-muted)",
+                height: TOP_BAR_ICON_BUTTON_SIZE,
+                margin: 0,
+                padding: 0,
+                color: isError ? "var(--error)" : isSuccess ? "var(--accent-text)" : disabled ? "var(--text-dim)" : undefined,
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled && autoNameStatus.kind !== "naming" ? 0.45 : 1,
                 flexShrink: 0, fontSize: TEXT.xs, whiteSpace: "nowrap",
-                transition: "color 0.1s, background 0.1s, opacity 0.1s",
-              }}
-              onMouseEnter={(event) => {
-                if (disabled) return;
-                event.currentTarget.style.color = isError ? "var(--danger)" : "var(--text)";
-                event.currentTarget.style.background = "var(--bg-hover)";
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.color = isError ? "var(--danger)" : isSuccess ? "var(--accent)" : disabled ? "var(--text-dim)" : "var(--text-muted)";
-                event.currentTarget.style.background = "none";
               }}
               data-mobile-toolbar-action={mobile ? "name" : undefined}
             >
               {autoNameStatus.kind === "naming" ? (
-                <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" opacity="0.25" />
-                  <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
+                <span className="pw-ico" style={{ animation: "spin 0.8s linear infinite" }}><i data-ico="loader-circle" data-size="14"></i></span>
               ) : isSuccess ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
               ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m15 4 5 5L7 22l-5-5Z" />
-                  <path d="m14 5 5 5" />
-                  <path d="M6 4V2M5 3H3M19 19v3M17.5 20.5h3" />
-                </svg>
+                <span className="pw-ico"><i data-ico="wand-sparkles" data-size="14"></i></span>
               )}
 
             </button>
@@ -2071,31 +2021,21 @@ export function AppShell() {
             title={translate("agentSwitcher.title")}
             aria-label={translate("agentSwitcher.title")}
             aria-pressed={activeTopPanel === "agents"}
+            /* fork:design-components —— 画板 .pw-iconbtn + 数量徽标；data-ico=bot。 */
+            className="pw-iconbtn"
             style={{
-              position: "relative",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              // fork:ui-agent-icon — 原来是固定 28px 宽，里面要放「图标 + 6px 间距 + ≥15px 徽标」，
-              // flex 只能把图标压扁：实测 svg 渲染成 7×16，看上去就是「这个图标特别小」。
-              // 改成按内容撑开（高度不变，与同排按钮等高），并把图标设为不可收缩。
               width: "auto",
               minWidth: TOP_BAR_ICON_BUTTON_SIZE,
-              height: TOP_BAR_ICON_BUTTON_SIZE, borderRadius: "var(--radius-md)", margin: 0,
+              height: TOP_BAR_ICON_BUTTON_SIZE,
+              margin: 0,
               padding: "0 6px",
-              background: activeTopPanel === "agents" ? "var(--bg-selected)" : "none",
-              border: "none",
-
-              color: activeTopPanel === "agents" ? "var(--text)" : "var(--text-muted)",
+              background: activeTopPanel === "agents" ? "var(--bg-selected)" : undefined,
+              color: activeTopPanel === "agents" ? "var(--text)" : undefined,
               cursor: "pointer", flexShrink: 0, fontSize: TEXT.xs, whiteSpace: "nowrap",
-              transition: "color 0.1s, background 0.1s",
             }}
             data-mobile-toolbar-action={mobile ? "agents" : undefined}
           >
-            {/* fork:ui-agent-icon — 字形画满 viewBox（17×17 墨量，原来只占 58%），
-                并显式 `flexShrink: 0`：它旁边挂着子代理数量徽标，容器一窄就会被压扁。 */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
-              <rect x="3.5" y="5.5" width="17" height="14" rx="3.5" />
-              <path d="M8.5 10.5h.01M15.5 10.5h.01M9 15h6M12 5.5V3M9.5 2.5h5" />
-            </svg>
+            <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="bot" data-size="14"></i></span>
 
             <span
               aria-hidden="true"
@@ -2117,23 +2057,18 @@ export function AppShell() {
             title={translate("i18n.branches")}
             aria-label={translate("i18n.branches")}
             aria-pressed={activeTopPanel === "branches"}
+            /* fork:design-components —— 画板 .pw-iconbtn；会话分支用 git-fork，
+               与左侧 git-branch 的 main 芯片区分。 */
+            className="pw-iconbtn"
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-              background: activeTopPanel === "branches" ? "var(--bg-selected)" : "none",
-              border: "none",
-
-              color: activeTopPanel === "branches" ? "var(--text)" : "var(--text-muted)",
+              width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE,
+              background: activeTopPanel === "branches" ? "var(--bg-selected)" : undefined,
+              color: activeTopPanel === "branches" ? "var(--text)" : undefined,
               cursor: "pointer", flexShrink: 0,
             }}
             data-mobile-toolbar-action="branches"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: branchTree.length > 0 ? "var(--accent)" : "var(--text-dim)" }} aria-hidden="true">
-              <line x1="6" y1="3" x2="6" y2="15" />
-              <circle cx="18" cy="6" r="3" />
-              <circle cx="6" cy="18" r="3" />
-              <path d="M18 9a9 9 0 0 1-9 9" />
-            </svg>
+            <span className="pw-ico" style={{ color: branchTree.length > 0 ? "var(--accent)" : undefined }}><i data-ico="git-fork" data-size="14"></i></span>
           </button>
         ) : (
           <BranchNavigator
@@ -2155,33 +2090,19 @@ export function AppShell() {
           title={translate("system.prompt")}
           aria-label={translate("system.prompt")}
           aria-pressed={activeTopPanel === "system"}
+          className="pw-iconbtn"
           style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             width: TOP_BAR_ICON_BUTTON_SIZE,
-            height: TOP_BAR_ICON_BUTTON_SIZE, alignSelf: "center", borderRadius: "var(--radius-md)", margin: 0, padding: 0,
-            background: activeTopPanel === "system" ? "var(--bg-selected)" : "none",
-            border: "none",
-
+            height: TOP_BAR_ICON_BUTTON_SIZE, alignSelf: "center", margin: 0,
+            background: activeTopPanel === "system" ? "var(--bg-selected)" : undefined,
             cursor: mobile && !showChat ? "not-allowed" : "pointer",
-            color: activeTopPanel === "system" ? "var(--text)" : "var(--text-muted)",
+            color: activeTopPanel === "system" ? "var(--text)" : undefined,
             opacity: mobile && !showChat ? 0.45 : 1,
-            fontSize: TEXT.xs, whiteSpace: "nowrap", transition: "color 0.1s, background 0.1s",
-          }}
-          onMouseEnter={(event) => {
-            if (mobile && !showChat) return;
-            event.currentTarget.style.color = "var(--text)";
-          }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.color = activeTopPanel === "system" ? "var(--text)" : "var(--text-muted)";
+            fontSize: TEXT.xs, whiteSpace: "nowrap",
           }}
           data-mobile-toolbar-action={mobile ? "system" : undefined}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: systemPrompt ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="8" y1="13" x2="16" y2="13" />
-            <line x1="8" y1="17" x2="13" y2="17" />
-          </svg>
+          <span className="pw-ico" style={{ color: systemPrompt ? "var(--accent)" : undefined, flexShrink: 0 }}><i data-ico="file-text" data-size="14"></i></span>
 
         </button>
         <button
@@ -2191,30 +2112,19 @@ export function AppShell() {
           title={translate("tools.title")}
           aria-label={translate("tools.title")}
           aria-pressed={activeTopPanel === "tools"}
+          className="pw-iconbtn"
           style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             width: TOP_BAR_ICON_BUTTON_SIZE,
-            height: TOP_BAR_ICON_BUTTON_SIZE, alignSelf: "center", borderRadius: "var(--radius-md)", margin: 0, padding: 0,
-            background: activeTopPanel === "tools" ? "var(--bg-selected)" : "none",
-            border: "none",
-
+            height: TOP_BAR_ICON_BUTTON_SIZE, alignSelf: "center", margin: 0,
+            background: activeTopPanel === "tools" ? "var(--bg-selected)" : undefined,
             cursor: mobile && !showChat ? "not-allowed" : "pointer",
-            color: activeTopPanel === "tools" ? "var(--text)" : "var(--text-muted)",
+            color: activeTopPanel === "tools" ? "var(--text)" : undefined,
             opacity: mobile && !showChat ? 0.45 : 1,
-            fontSize: TEXT.xs, whiteSpace: "nowrap", transition: "color 0.1s, background 0.1s",
-          }}
-          onMouseEnter={(event) => {
-            if (mobile && !showChat) return;
-            event.currentTarget.style.color = "var(--text)";
-          }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.color = activeTopPanel === "tools" ? "var(--text)" : "var(--text-muted)";
+            fontSize: TEXT.xs, whiteSpace: "nowrap",
           }}
           data-mobile-toolbar-action={mobile ? "tools" : undefined}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: systemTools?.some((tool) => tool.active) ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z" />
-          </svg>
+          <span className="pw-ico" style={{ color: systemTools?.some((tool) => tool.active) ? "var(--accent)" : undefined, flexShrink: 0 }}><i data-ico="wrench" data-size="14"></i></span>
 
         </button>
         {/* fork:ui-14b — 导出 Markdown 从 ⋯ 菜单搬成图标：与其它四个动作同一行，
@@ -2229,33 +2139,18 @@ export function AppShell() {
           disabled={!selectedSession}
           title={translate("session.exportMarkdown")}
           aria-label={translate("session.exportMarkdown")}
+          /* fork:design-components —— 画板 .pw-iconbtn；data-ico=download。 */
+          className="pw-iconbtn"
           style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
             width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE,
-            alignSelf: "center", borderRadius: "var(--radius-md)", margin: 0, padding: 0,
-            background: "none", border: "none",
-            color: selectedSession ? "var(--text-muted)" : "var(--text-dim)",
+            alignSelf: "center", margin: 0,
+            color: selectedSession ? undefined : "var(--text-dim)",
             cursor: selectedSession ? "pointer" : "not-allowed",
             opacity: selectedSession ? 1 : 0.45,
             fontSize: TEXT.xs, whiteSpace: "nowrap",
-            transition: "color 0.1s, background 0.1s, opacity 0.1s",
-          }}
-          onMouseEnter={(event) => {
-            if (!selectedSession) return;
-            event.currentTarget.style.color = "var(--text)";
-            event.currentTarget.style.background = "var(--bg-hover)";
-          }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.color = selectedSession ? "var(--text-muted)" : "var(--text-dim)";
-            event.currentTarget.style.background = "none";
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <path d="M12 11v6" />
-            <polyline points="9.5 14.5 12 17 14.5 14.5" />
-          </svg>
+          <span className="pw-ico"><i data-ico="download" data-size="14"></i></span>
         </button>
       </div>
     );
@@ -2305,7 +2200,7 @@ export function AppShell() {
       className="desktop-sidebar-toggle fork-collapsed-rail"
       style={{
         position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 46px) - var(--control-md, 28px)) / 2)",
+        top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
         left: 4,
         zIndex: 230,
         display: "flex",
@@ -2407,7 +2302,7 @@ export function AppShell() {
         style={{
           // fork:ui-topbar-align — see the sidebar toggle: same 9px offset.
           position: mobile ? "relative" : "absolute",
-          top: mobile ? undefined : "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 46px) - var(--control-md, 28px)) / 2)",
+          top: mobile ? undefined : "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
           // The resizer writes this CSS variable on every pointer move, while
           // React state is intentionally committed only when dragging ends.
           // Reading the variable here keeps the divider control in lockstep.
@@ -2434,14 +2329,12 @@ export function AppShell() {
         onMouseLeave={(event) => { event.currentTarget.style.color = rightPanelOpen ? "var(--accent)" : "var(--text-muted)"; }}
       >
         {/* fork:pwa-tablet-tier — a bare rect + divider read as an empty box (a loading
-            placeholder) at 16px in a 44px bar. The content lines on the left make it
-            "a page with a side panel", i.e. what the button actually toggles. */}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <line x1="14" y1="3" x2="14" y2="21" />
-          <line x1="6.5" y1="8" x2="10.5" y2="8" />
-          <line x1="6.5" y1="12" x2="10.5" y2="12" />
-        </svg>
+            placeholder) at 16px in a 44px bar. The skin's lucide panel-right keeps the
+            "page with a side panel" reading and stays inside the icon system. */}
+        {/* fork:design-components —— 皮肤 lucide 图标：panel-right。 */}
+        <span className="pw-ico">
+          <i data-ico="panel-right" data-size="16"></i>
+        </span>
       </button>
     );
   };
@@ -2458,7 +2351,7 @@ export function AppShell() {
       style={{
         position: "absolute",
         // fork:ui-topbar-align — third boundary control, same centring fix.
-        top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 46px) - var(--control-md, 28px)) / 2)",
+        top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
         right: 0,
         zIndex: 261,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -2470,10 +2363,10 @@ export function AppShell() {
       onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
       onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text)"; }}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M7 7h12" /><polyline points="15 3 19 7 15 11" />
-        <path d="M17 17H5" /><polyline points="9 13 5 17 9 21" />
-      </svg>
+      {/* fork:design-components —— 皮肤 lucide 图标：columns-2（工作区对调）。 */}
+      <span className="pw-ico">
+        <i data-ico="columns-2" data-size="16"></i>
+      </span>
     </button>
   );
 
@@ -2555,7 +2448,7 @@ export function AppShell() {
         is open, and as a right-hand column beside the active viewer. One node
         keeps the two spots from drifting apart. */}
     {(() => {})()}
-    <div ref={appShellRef} className="app-shell-layout" style={{
+    <div ref={appShellRef} className="app-shell-layout pw-app" style={{
       position: "relative",
       display: "flex",
       width: "100%",
@@ -2590,13 +2483,9 @@ export function AppShell() {
       <div
         ref={sidebarResizer.panelRef}
         id="session-sidebar"
-        className={`sidebar-container${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
+        className={`sidebar-container pw-side${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
         style={{
           "--sidebar-width": `${sidebarResizer.width}px`,
-          background: "var(--bg-panel)",
-          borderRight: "1px solid var(--border)",
-          display: "flex",
-          flexDirection: "column",
           flexShrink: 0,
           paddingTop: "env(safe-area-inset-top)",
           paddingBottom: "env(safe-area-inset-bottom)",
@@ -2629,12 +2518,12 @@ export function AppShell() {
            // 展开时那个位置没有浮层，顶栏第一个动作可以贴边。
            // 手机保留原值：移动端的开合按钮是表头里的**流内**元素，不靠这条 inset 让位，
            // 顺手把这里改成 92px 只会把标题顶到 92px 处。
-           "--main-workspace-header-leading-inset": isMobile
-             ? `${TOP_BAR_ICON_BUTTON_SIZE}px`
-             : sidebarOpen ? "0px" : "92px",
-           // The right-edge role control is independent of both content
-           // surfaces, so keep it out of the last header action as well.
-           "--main-workspace-header-trailing-inset": `${TOP_BAR_ICON_BUTTON_SIZE}px`,
+          "--main-workspace-header-leading-inset": isMobile
+            ? TOP_BAR_ICON_BUTTON_SIZE
+            : sidebarOpen ? "0px" : "92px",
+          // The right-edge role control is independent of both content
+          // surfaces, so keep it out of the last header action as well.
+          "--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,
          } as React.CSSProperties}
        >
        {!isMobile && renderMainFileToggle(false)}
@@ -2653,7 +2542,8 @@ export function AppShell() {
             positioning effect) while removing the bar from layout and the
             accessibility tree. Mobile keeps the bar (drawer toggle). */}
         <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg)", display: hideTopBar ? "none" : undefined }}>
-        <div className="main-workspace-header" style={{ display: "flex", alignItems: "center", position: "relative", borderBottom: "1px solid var(--border)", height: "calc(var(--height-toolbar, 46px) + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
+        {/* fork:design-components —— 顶栏挂画板 .pw-topbar（36px / 发丝底线 / 间距节奏）。 */}
+        <div className="main-workspace-header pw-topbar" style={{ position: "relative", height: "calc(var(--height-toolbar, 36px) + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
           {/* fork:desktop-shell — the drag handle is a real element, not the header box:
               it is inset past the boundary toggles so the drag region never covers them.
               `no-drag` alone only helps elements the region rule can reach, and those two
@@ -2663,61 +2553,51 @@ export function AppShell() {
             onClick={handleSidebarToggle}
              title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
              aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
+            /* fork:design-components —— 皮肤 lucide 图标：展开态 panel-left，收起态 menu。 */
+            className="pw-iconbtn"
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0, borderRadius: "var(--radius-md)",
-              background: "none", border: "none",
+              width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE,
+              margin: 0, padding: 0,
               color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
           >
-            {sidebarOpen ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" />
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
+            <span className="pw-ico">
+              <i data-ico={sidebarOpen ? "panel-left" : "menu"} data-size={sidebarOpen ? 16 : 17}></i>
+            </span>
           </button>}
           {!isMobile && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                minWidth: 0,
-                maxWidth: "min(46vw, 560px)",
-                marginLeft: 8,
-                marginRight: 16,
-                overflow: "hidden",
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                style={{ flexShrink: 0, color: "var(--text-muted)" }}
-              >
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <path d="M8 9h8M8 13h5" />
-              </svg>
+            // fork:design-components —— 会话标题 = 画板 01/02 的 .pw-tb-title
+            // （panel-left 图标 + 标题，标题本身仍是「最近会话」下拉的触发钮）。
+            <span className="pw-tb-title">
+              <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span>
               {/* fork:ui-18 — the title doubles as the session switcher (MusePi
                   GuiHeader.tsx:748): recent sessions open from here, so switching
-                  does not require going back to the sidebar. It uses the top-bar
-                  popover machinery (this component sits outside the ContextMenu
-                  provider, which its children use). Rendered through
-                  `renderSessionTitle` so the phone toolbar can reuse it. */}
+                  does not require going back to the sidebar. */}
               {renderSessionTitle()}
-            </div>
+            </span>
+          )}
+          {!isMobile && selectedSession && runningSessionIds.has(selectedSession.id) && (
+            // 画板 01 帧 B：运行中在标题右侧给一枚状态芯片。
+            <span className="pw-chipbtn">
+              <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="loader-circle" data-size="14"></i></span>
+              {translate("chat.running")}
+            </span>
+          )}
+          {!isMobile && !topBarBranch && topBarWorkspace && (
+            // 画板 01 帧 A：没有会话时芯片显示工作区（目录名）。
+            <span className="pw-chipbtn" title={topBarWorkspace}>
+              <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+              {getFileName(topBarWorkspace) || topBarWorkspace}
+            </span>
+          )}
+          {!isMobile && topBarBranch && (
+            // 画板 01 帧 A/B：工作区上下文给「分支」芯片（git-branch + 分支名）。
+            <span className="pw-chipbtn" title={topBarBranch}>
+              <span className="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>
+              {topBarBranch}
+            </span>
           )}
           {isMobile && (
             <div
@@ -2741,25 +2621,21 @@ export function AppShell() {
                   aria-controls="mobile-toolbar-actions"
                   aria-expanded={mobileToolbarMoreOpen}
                   data-mobile-toolbar-more="true"
+                  /* fork:design-components —— 画板 60 的「更多控件」钮 = .pw-iconbtn（ellipsis / x）。 */
+                  className="pw-iconbtn"
                   style={{
                     position: "relative",
                     zIndex: mobileToolbarMoreOpen ? 21 : undefined,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0, borderRadius: "var(--radius-md)",
-                    background: mobileToolbarMoreOpen ? "var(--bg-selected)" : "none",
-                    border: "none",
-                    color: mobileToolbarMoreOpen ? "var(--text)" : "var(--text-muted)",
-                    cursor: "pointer", flexShrink: 0, transition: "color 0.12s, background 0.12s",
+                    width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE,
+                    background: mobileToolbarMoreOpen ? "var(--bg-selected)" : undefined,
+                    color: mobileToolbarMoreOpen ? "var(--text)" : undefined,
+                    cursor: "pointer", flexShrink: 0,
                   }}
                 >
                   {mobileToolbarMoreOpen ? (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" />
-                    </svg>
+                    <span className="pw-ico"><i data-ico="x" data-size="15"></i></span>
                   ) : (
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                    </svg>
+                    <span className="pw-ico"><i data-ico="ellipsis" data-size="17"></i></span>
                   )}
                 </button>
               )}
@@ -2788,7 +2664,7 @@ export function AppShell() {
                     display: "flex",
                     alignItems: "stretch",
                     background: "color-mix(in srgb, var(--bg-panel) 94%, var(--bg))",
-                    boxShadow: "4px 0 18px rgba(0,0,0,0.12)",
+                    boxShadow: "var(--shadow-popover)",
                     backdropFilter: "blur(10px)",
                   }}
                 >
@@ -2892,7 +2768,22 @@ export function AppShell() {
                           onMouseLeave={(event) => { if (!isCurrent) event.currentTarget.style.background = "none"; }}
                         >
                           <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-                          {isCurrent && <span style={{ flexShrink: 0, color: "var(--accent)" }}>✓</span>}
+                          {isCurrent && (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                              style={{ flexShrink: 0, color: "var(--accent)" }}
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
                         </button>
                       );
                     })}
@@ -3036,22 +2927,16 @@ export function AppShell() {
         id="file-panel"
         aria-hidden={!workspaceSwapped && !rightPanelOpen ? true : undefined}
         inert={!workspaceSwapped && !rightPanelOpen ? true : undefined}
-        className={`right-panel-container workspace-slot${workspaceSwapped ? " main-workspace" : ` secondary-workspace${rightPanelOpen ? " secondary-workspace-open" : " secondary-workspace-closed"}`}${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}${rightPanelResizer.isResizing ? " right-panel-resizing" : ""}`}
+        className={`right-panel-container workspace-slot pw-panel${workspaceSwapped ? " main-workspace" : ` secondary-workspace${rightPanelOpen ? " secondary-workspace-open" : " secondary-workspace-closed"}`}${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}${rightPanelResizer.isResizing ? " right-panel-resizing" : ""}`}
         style={{
           display: "flex",
           flexDirection: "column",
-          background: "var(--bg)",
         } as React.CSSProperties}
       >
         {/* Right panel tab bar */}
-        <div className="main-workspace-header" style={{
-          display: "flex",
-          alignItems: "center",
-          flexShrink: 0,
-          height: "calc(var(--height-toolbar-pane, 40px) + env(safe-area-inset-top))",
+        <div className="main-workspace-header pw-panel-head" style={{
+          height: "calc(var(--topbar-height, 36px) + env(safe-area-inset-top))",
           paddingTop: "env(safe-area-inset-top)",
-          background: "var(--bg-panel)",
-          borderBottom: "1px solid var(--border)",
           position: "relative",
         }}>
           {/* fork:desktop-shell — the drag handle is a real element, not the header box:
@@ -3127,7 +3012,7 @@ export function AppShell() {
 
         {/* Body: the active viewer plus an optional tree column. Both live in the
             same container so the tree no longer replaces the document. */}
-        <div className="file-panel-body">
+        <div className="file-panel-body pw-panel-body">
         <div className="file-panel-main">
           {activeFileTabId === GIT_GRAPH_TAB_ID && gitGraphOpen ? (
             // fork:git-graph-tab — 点提交里的文件直接开 diff 视图（FileViewer 已支持 modeHint）。

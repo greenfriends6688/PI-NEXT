@@ -99,10 +99,10 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
           disabled={!enabled || querying}
           title={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
           aria-label={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
-          style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 30, padding: 0, background: "none", border: "none", color: refreshDone ? "#4ade80" : "var(--text-dim)", cursor: enabled && !querying ? "pointer" : "default", borderRadius: 5, flexShrink: 0, opacity: enabled ? 1 : 0.6, transition: "color 0.3s" }}
+          style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 30, padding: 0, background: "none", border: "none", color: refreshDone ? "var(--success)" : "var(--text-dim)", cursor: enabled && !querying ? "pointer" : "default", borderRadius: "var(--radius-sm)", flexShrink: 0, opacity: enabled ? 1 : 0.6, transition: "color 0.3s" }}
         >
           {refreshDone ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           ) : (
@@ -120,7 +120,7 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
       </div>
 
       {!report && !error && <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)" }}>{t("providerUsage.notQueried")}</span>}
-      {error && <span style={{ fontSize: TEXT.sm, color: "#f87171" }}>{error}</span>}
+      {error && <span style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>{error}</span>}
       {report && (
         <div style={{ display: "grid", gridTemplateColumns: "180px minmax(0, 1fr)", columnGap: 14, rowGap: 8, alignItems: "baseline", minWidth: 0, width: "min(100%, 420px)", maxWidth: "100%", fontSize: TEXT.sm }}>
           {report.buckets.map((bucket) => (

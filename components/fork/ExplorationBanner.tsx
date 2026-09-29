@@ -170,7 +170,7 @@ export function ExplorationBanner({
           background: canBringBack ? "var(--accent)" : "var(--bg-subtle)",
           border: "none",
           borderRadius: "var(--radius-sm)",
-          color: canBringBack ? "var(--accent-contrast, #fff)" : "var(--text-dim)",
+          color: canBringBack ? "var(--accent-contrast)" : "var(--text-dim)",
           cursor: canBringBack ? "pointer" : "not-allowed",
           fontSize: TEXT.xs,
           fontWeight: 500,

@@ -313,8 +313,10 @@ test("renders the read-only tool preset as the active selection", () => {
     ),
   );
 
-  assert.match(html, /title="Change tool preset: read-only"/);
-  assert.match(html, />read-only<\/span>/);
+  // fork:design-components —— 控件上印的是画板的短标签（Read only），
+  // 不再是内部枚举名 read-only。
+  assert.match(html, /title="Change tool preset: Read only"/);
+  assert.match(html, />Read only<\/span>/);
 });
 
 test("renders the empty tool preset as Chat only", () => {

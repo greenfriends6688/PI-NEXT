@@ -91,18 +91,19 @@ test("keeps theme and language in settings instead of the chat toolbar", () => {
   assert.match(source, /useTheme\(\);/);
 });
 
-test("keeps the inline statistics strip compact and expandable", async () => {
-  // fork:ui-stats-inline — 统计改到 composer 下方：窄屏只留上下文百分比，
-  // 展开后才是完整的 Token 明细（见 SessionStatsBar）。
+test("keeps the session stats in the context-ring popover, not a bottom strip", async () => {
+  // fork:ui-stats-ring — 输入框下方不再有任何常驻条：完整统计（SessionStatsDetails）
+  // 收进上下文环浮窗，/session 与触屏用 openStatsPopover 钉住它。
   const stats = await readFile(new URL("./SessionStatsBar.tsx", import.meta.url), "utf8");
-  assert.match(stats, /export function SessionStatsBar/);
+  assert.match(stats, /export function SessionStatsDetails/);
   assert.match(stats, /export function formatCompactTokens/);
-  assert.match(stats, /const contextText = ctx\?\.contextWindow/);
-  assert.match(stats, /aria-expanded=\{expanded\}/);
   assert.match(stats, /t\("session\.cacheHitRate"\)/);
+  assert.doesNotMatch(stats, /session-stats-inline-toggle/);
   const chatWindow = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
-  assert.match(chatWindow, /<SessionStatsBar[\s\S]*?expanded=\{statsExpanded\}/);
-  assert.match(chatWindow, /<ExtensionStatusBar[\s\S]*?trailing=\{/);
+  assert.match(chatWindow, /statsDetails=\{sessionStats\}/);
+  // fork:ui-ext-float —— 扩展状态条同样移出 composer 底部，变成右上角胶囊浮标。
+  assert.match(chatWindow, /<ExtensionStatusFloat[\s\S]*?statuses=\{extensionStatuses\}/);
+  assert.doesNotMatch(chatWindow, /<ExtensionStatusBar[\s\S]*?statuses=\{extensionStatuses\}[\s\S]*?widgets=\{extensionWidgets\}[\s\S]*?\/>/);
 });
 
 test("places trust warnings below the mobile toolbar and the file toggle in toolbar flow", () => {

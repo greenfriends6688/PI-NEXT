@@ -804,13 +804,13 @@
 .config-button-primary.is-success {
   border-color: var(--success);
   background: var(--success);
-  animation: saved-pop 0.45s ease;
+  animation: saved-pop var(--motion-slow) var(--ease-out);
 }
 
 .config-button-success-icon {
   flex-shrink: 0;
   stroke-dasharray: 18;
-  animation: saved-check-draw 0.35s ease forwards;
+  animation: saved-check-draw var(--motion-base) var(--ease-out) forwards;
 }
 
 .config-button.is-pushed-right {

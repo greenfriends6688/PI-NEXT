@@ -259,7 +259,7 @@ function renderPreviewBody(
           src={previewSrc ?? src}
           sandbox="allow-same-origin"
           title={name}
-          style={{ width: "100%", height: "min(78dvh, 720px)", border: "none", background: "#eef1f5" }}
+          style={{ width: "100%", height: "min(78dvh, 720px)", border: "none", background: "var(--n-surface)" }}
         />
       );
     case "audio":
@@ -277,7 +277,7 @@ function renderPreviewBody(
           controls
           preload="metadata"
           src={src}
-          style={{ display: "block", maxWidth: "100%", maxHeight: "calc(100dvh - 140px)", background: "#000" }}
+          style={{ display: "block", maxWidth: "100%", maxHeight: "calc(100dvh - 140px)", background: "var(--n-strong)" }}
         />
       );
     case "text": {

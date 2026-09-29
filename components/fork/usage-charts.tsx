@@ -151,7 +151,7 @@ export function UsageHeatmap({
           <span
             key={level}
             aria-hidden="true"
-            style={{ width: CELL, height: CELL, borderRadius: 2.5, background: cellFill(level), opacity: cellOpacity(level) }}
+            style={{ width: CELL, height: CELL, borderRadius: "var(--radius-xs)", background: cellFill(level), opacity: cellOpacity(level) }}
           />
         ))}
         <span>{moreLabel}</span>
@@ -296,11 +296,11 @@ export function UsageRequestsErrors({
       </svg>
       <div style={{ display: "flex", gap: 14, fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 4, background: "var(--accent)" }} />
+          <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "var(--radius-sm)", background: "var(--accent)" }} />
           {requestsLabel}
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 4, background: "var(--danger)" }} />
+          <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "var(--radius-sm)", background: "var(--danger)" }} />
           {errorsLabel}
         </span>
       </div>
@@ -324,7 +324,7 @@ export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSl
     <div
       role="img"
       aria-label={label}
-      style={{ display: "flex", width: "100%", height: 10, borderRadius: 5, overflow: "hidden", background: "var(--bg-hover)" }}
+      style={{ display: "flex", width: "100%", height: 10, borderRadius: "var(--radius-sm)", overflow: "hidden", background: "var(--bg-hover)" }}
     >
       {visible.map((slice, index) => (
         <span
@@ -369,7 +369,7 @@ export function UsageListRow({
       }}
     >
       {accent && (
-        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 4, background: "var(--accent)", flexShrink: 0 }} />
+        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "var(--radius-sm)", background: "var(--accent)", flexShrink: 0 }} />
       )}
       <span style={{ display: "grid", gap: 2, minWidth: 0, flex: 1 }}>
         <span style={{ fontSize: TEXT.sm, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={title}>

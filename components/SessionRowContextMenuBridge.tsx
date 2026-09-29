@@ -84,6 +84,25 @@ export function SessionRowContextMenuBridge({
         },
         { type: "separator" },
         {
+          // fork:design-system PR-25 — 设计 51 画板：会话行菜单里的「导出为 HTML」。
+          // 复用既有的导出路由（HTML 用 inline=1），只是把入口补到菜单里。
+          label: t("session.exportHtml"),
+          icon: (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 3h6v6" />
+              <path d="M10 14 21 3" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+          ),
+          onSelect: () => {
+            window.open(
+              `/api/sessions/${encodeURIComponent(detail.id)}/export?inline=1`,
+              "_blank",
+              "noopener,noreferrer",
+            );
+          },
+        },
+        {
           label: t("session.copyReference"),
           feedbackLabel: t("session.copied"),
           icon: (

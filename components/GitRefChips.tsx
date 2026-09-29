@@ -24,7 +24,7 @@ function RefChip({ tag, laneColor }: { tag: GitRefTag; laneColor: string }) {
   return (
     <span
       title={tag.ref}
-      style={{ display: "inline-flex", alignItems: "center", minWidth: 0, maxWidth: 180, height: 17, padding: "0 6px", borderRadius: 4, border: "1px solid transparent", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], fontWeight: 600, lineHeight: 1, whiteSpace: "nowrap", flexShrink: 0, ...refChipStyle(tag.kind, laneColor) }}
+      style={{ display: "inline-flex", alignItems: "center", minWidth: 0, maxWidth: 180, height: 17, padding: "0 6px", borderRadius: "var(--radius-sm)", border: "1px solid transparent", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], fontWeight: 600, lineHeight: 1, whiteSpace: "nowrap", flexShrink: 0, ...refChipStyle(tag.kind, laneColor) }}
     >
       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{tag.label}</span>
     </span>
@@ -38,7 +38,7 @@ function FusedRefChip({ head, branch, laneColor }: { head: GitRefTag; branch: Gi
   return (
     <span
       title={branch.ref}
-      style={{ display: "inline-flex", alignItems: "center", height: 17, borderRadius: 4, border: `1px solid color-mix(in srgb, ${laneColor} 40%, transparent)`, background: `color-mix(in srgb, ${laneColor} 10%, transparent)`, fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], fontWeight: 600, lineHeight: 1, whiteSpace: "nowrap", flexShrink: 0, overflow: "hidden" }}
+      style={{ display: "inline-flex", alignItems: "center", height: 17, borderRadius: "var(--radius-sm)", border: `1px solid color-mix(in srgb, ${laneColor} 40%, transparent)`, background: `color-mix(in srgb, ${laneColor} 10%, transparent)`, fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], fontWeight: 600, lineHeight: 1, whiteSpace: "nowrap", flexShrink: 0, overflow: "hidden" }}
     >
       <span style={{ display: "inline-flex", alignItems: "center", height: "100%", padding: "0 6px", background: laneColor, color: "var(--bg)" }}>
         {head.label}

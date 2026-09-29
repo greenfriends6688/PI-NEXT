@@ -255,9 +255,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   const [thinkingExpanded, setThinkingExpanded] = useState(false);
   const [pushRegistering, setPushRegistering] = useState(false);
   const [pushStatus, setPushStatus] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
-  const [webAuthEnabled, setWebAuthEnabled] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState("");
 
   /* fork:zn-15 — 「UI 字号」下拉的档位。逐 px 列会让 12–16 有五个选项，
      这是 Zeno 的粒度（它的字体设置也是逐 px）。 */
@@ -322,25 +319,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
 
   useEffect(() => {
     setThinkingExpanded(isThinkingExpandedByDefault());
-    void fetch("/api/web-auth")
-      .then((response) => response.ok ? response.json() : null)
-      .then((data: { enabled?: boolean } | null) => setWebAuthEnabled(data?.enabled === true))
-      .catch(() => {});
   }, []);
-
-  const logOut = async () => {
-    setLoggingOut(true);
-    setLogoutError("");
-    try {
-      const response = await fetch("/api/web-auth", { method: "DELETE" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      window.location.replace("/login");
-    } catch {
-      setLogoutError(t("auth.logoutFailed"));
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -912,17 +891,8 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         </div>
       </section>
 
-      {webAuthEnabled && (
-        <section className="settings-general-section">
-          <ConfigButton variant="secondary" disabled={loggingOut} onClick={() => void logOut()}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            </svg>
-            {loggingOut ? t("auth.loggingOut") : t("auth.logOut")}
-          </ConfigButton>
-          {logoutError && <p role="alert" className="settings-general-error">{logoutError}</p>}
-        </section>
-      )}
+      {/* fork:design-system —— 本产品没有登录：整个「退出登录」分节删除
+          （设计裁定 2026-09-28，见 design/pi-web-design/50-dialogs.html 与 DIVERGENCE 第 18 条）。 */}
       {editing ? (
         <ThemeSkinStudio
           skin={editing.skin}
@@ -1018,8 +988,10 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
       className="settings-dialog-backdrop"
     >
-      <div className="settings-dialog-surface">
-        <div className="settings-dialog-header">
+      {/* fork:design-components —— 设置壳直接用画板的 .pw-modal + .pw-settings
+          （弹层阴影 / 200px 左列 + 内容区 grid 来自 board.css）。 */}
+      <div className="settings-dialog-surface pw-modal">
+        <div className="settings-dialog-header pw-modal-head">
           <strong className="settings-dialog-title">{t("settings.title")}</strong>
           <select
             aria-label={t("settings.title")}
@@ -1034,13 +1006,15 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
             ))}
           </select>
 
-          <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close">×</button>
+          <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close pw-iconbtn">
+            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+          </button>
         </div>
 
         {/* fork:ui-08 — sections are a left column now (upstream 0.14.6 uses
             `grid-template-columns: 184px minmax(0,1fr)`); the phone keeps the
             select picker above and hides this column in CSS. */}
-        <div className="settings-dialog-body">
+        <div className="settings-dialog-body pw-settings">
           <nav aria-label={t("settings.title")} className="settings-section-tabs">
             {sections.map((item) => {
               const selected = section === item.id;

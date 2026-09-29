@@ -41,12 +41,16 @@ test("resizing updates live without layout-transition lag", () => {
 test("the main workspace header reserves the independent sidebar control lane", () => {
   // Mobile keeps the in-flow toolbar size; desktop opens the 92px collapsed
   // rail lane (3×28 + gaps) when the sidebar is closed.
+  // fork:design-system PR-27 — 顶栏图标按钮改成 CSS 变量（桌面 28 / 粗指针 36），
+  // 所以这里断言的是变量名而不是拼出来的 px 值。
   assert.match(
     source,
-    /"--main-workspace-header-leading-inset": isMobile\s*\?\s*`\$\{TOP_BAR_ICON_BUTTON_SIZE\}px`\s*:\s*sidebarOpen \? "0px" : "92px"/,
+    /"--main-workspace-header-leading-inset": isMobile\s*\?\s*TOP_BAR_ICON_BUTTON_SIZE\s*:\s*sidebarOpen \? "0px" : "92px"/,
   );
-  assert.match(source, /"--main-workspace-header-trailing-inset": `\$\{TOP_BAR_ICON_BUTTON_SIZE\}px`/);
-  assert.equal(source.match(/className="main-workspace-header"/g)?.length, 2);
+  assert.match(source, /"--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,/);
+  // fork:design-components —— 两处头行现在同时挂画板类（主区 .pw-topbar / 右栏 .pw-panel-head），
+  // 断言的是「恰好两处」这条结构约束，与挂哪个画板类无关。
+  assert.equal(source.match(/className="main-workspace-header pw-/g)?.length, 2);
   assert.match(css, /\.main-panels > \.main-workspace \.main-workspace-header[\s\S]*?padding-inline-start: var\(--main-workspace-header-leading-inset, 36px\)/);
   assert.match(css, /\.main-panels \.main-workspace-header[\s\S]*?padding-inline-end: var\(--main-workspace-header-trailing-inset, 36px\)/);
 });

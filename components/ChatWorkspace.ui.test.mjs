@@ -18,13 +18,14 @@ test("the chat row offers select, new chat, configure and collapse as separate b
   assert.ok(selectButtonEnd > 0 && newChatIndex > selectButtonEnd, "action buttons follow the select button");
 });
 
-// 聊天 与 项目 平级：标题行与「项目」标题行同款排版（fork:zn-02 后两侧都走
-// --zn-row 高 + TEXT.lg / 500 / text-dim + 28×28 图标按钮）。
-// 断言「两边一致」而不是钉死某一个字号：这才是这个测试的真正约束。
+// 聊天 与 项目 平级：两行**都用画板的同一个 .pw-row 组件**，
+// 尺寸 / 字号 / 选中态只有 board.css 一个来源，不可能再走偏。
 test("the chat caption matches the projects caption typography", () => {
-  assert.match(row, /fontSize: TEXT\.lg,\n\s+fontWeight: 500,/);
-  assert.match(row, /minHeight: "var\(--zn-row\)"/);
-  assert.match(row, /width: 28,\n\s+height: 28,/);
+  assert.match(row, /className="pw-row"/);
+  assert.match(row, /className="pw-ico"><i data-ico="messages-square"/);
+  // 动作组同样是画板的 .pw-acts + .pw-iconbtn.sm。
+  assert.match(row, /className="pw-acts"/);
+  assert.match(row, /className="pw-iconbtn sm"/);
 });
 
 test("the workspace picker lists projects plus the not-in-a-project entry", () => {

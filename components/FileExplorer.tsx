@@ -279,7 +279,7 @@ function CreateEntryInput({
         paddingLeft: 8 + depth * 14,
         paddingRight: 8,
         height: 24,
-        borderRadius: 4,
+        borderRadius: "var(--radius-sm)",
         userSelect: "none",
       }}
     >
@@ -306,7 +306,7 @@ function CreateEntryInput({
           height: 20,
           padding: "0 4px",
           border: "1px solid var(--accent)",
-          borderRadius: 3,
+          borderRadius: "var(--radius-xs)",
           outline: "none",
           background: "var(--bg)",
           color: "var(--text)",
@@ -449,6 +449,9 @@ function TreeNode({
       <div
         ref={rowRef}
         role="treeitem"
+        /* fork:design-components —— 文件树行直接用画板 30 的 .pw-trow（24px /
+            radius-4 / hover 叠色，来自 board.css）。 */
+        className="pw-trow"
         aria-expanded={node.isDir ? open : undefined}
         aria-selected={false}
         tabIndex={0}
@@ -477,26 +480,21 @@ function TreeNode({
           ...(node.isDir && open
             ? { position: "sticky" as const, top: Math.min(depth, 3) * 24, zIndex: 5, background: "var(--bg-panel)" }
             : { position: "relative" as const }),
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
+          // fork:design-components —— 行高 / 圆角 / hover 叠色全部交给画板 .pw-trow，
+          // 这里只留树特有的缩进与避让（inline 会压过类，重复属性必须删干净）。
           paddingLeft: 8 + depth * 14,
           paddingRight: 8,
-          height: 24,
           cursor: "pointer",
-          background: hovered ? "var(--bg-hover)" : undefined,
-          borderRadius: "var(--radius-xs)",
           userSelect: "none",
         }}
       >
         {node.isDir && (
-          <svg
-            width="10" height="10" viewBox="0 0 10 10" fill="none"
-            stroke="var(--text-dim)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-            style={{ flexShrink: 0, transform: open ? "rotate(90deg)" : "none", transition: "transform 0.1s" }}
+          <span
+            className="pw-ico"
+            style={{ flexShrink: 0, color: "var(--text-dim)", transform: open ? "rotate(90deg)" : "none", transition: "transform var(--motion-fast)" }}
           >
-            <polyline points="3 2 7 5 3 8" />
-          </svg>
+            <i data-ico="chevron-right" data-size="10"></i>
+          </span>
         )}
         {!node.isDir && <span style={{ width: 10, flexShrink: 0 }} />}
         <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
@@ -525,7 +523,7 @@ function TreeNode({
               height: 20,
               padding: "0 4px",
               border: "1px solid var(--accent)",
-              borderRadius: 3,
+              borderRadius: "var(--radius-xs)",
               outline: "none",
               background: "var(--bg)",
               color: "var(--text)",
@@ -758,7 +756,7 @@ function RootSection({
           style={{
             flexShrink: 0,
             padding: "1px 6px",
-            borderRadius: 999,
+            borderRadius: "var(--radius-pill)",
             border: "1px solid var(--border)",
             fontFamily: "var(--font-mono)",
           }}
@@ -1581,7 +1579,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           disabled={mutating || creating !== null}
           title={t("files.newFile")}
           aria-label={t("files.newFile")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 20, padding: 0, border: "none", borderRadius: 4, background: "none", color: "var(--text-dim)", cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 20, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
         >
@@ -1595,7 +1593,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           disabled={mutating || creating !== null}
           title={t("files.newFolder")}
           aria-label={t("files.newFolder")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 20, padding: 0, border: "none", borderRadius: 4, background: "none", color: "var(--text-dim)", cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 20, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
         >
@@ -1604,7 +1602,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           </svg>
         </button>
         {actionError && (
-          <span role="alert" style={{ flex: 1, minWidth: 0, fontSize: TEXT["2xs"], color: "#f87171", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>
+          <span role="alert" style={{ flex: 1, minWidth: 0, fontSize: TEXT["2xs"], color: "var(--danger)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>
             {actionError}
           </span>
         )}
@@ -1650,7 +1648,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               {uploadPhase === "uploading" && <span style={{ fontSize: TEXT["2xs"] }}>{uploadProgress}%</span>}
             </div>
             {uploadPhase === "uploading" && (
-              <div style={{ height: 3, marginTop: 4, overflow: "hidden", borderRadius: 2, background: "var(--border)" }}>
+              <div style={{ height: 3, marginTop: 4, overflow: "hidden", borderRadius: "var(--radius-xs)", background: "var(--border)" }}>
                 <div style={{ width: "100%", height: "100%", background: "var(--text-muted)", transform: `scaleX(${Math.max(0, Math.min(100, uploadProgress)) / 100})`, transformOrigin: "left", transition: "transform 120ms ease" }} />
               </div>
             )}
@@ -1929,8 +1927,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               padding: "4px 0",
               background: "var(--bg-panel)",
               border: "1px solid var(--border)",
-              borderRadius: 6,
-              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.28)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-popover)",
               fontSize: TEXT.sm,
             }}
           >
@@ -1947,7 +1945,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   border: "none",
                   background: "none",
                   textAlign: "left",
-                  color: item.danger ? "#f87171" : "var(--text)",
+                  color: item.danger ? "var(--danger)" : "var(--text)",
                   cursor: "pointer",
                   fontSize: TEXT.sm,
                   whiteSpace: "nowrap",

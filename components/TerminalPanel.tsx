@@ -17,6 +17,49 @@ interface Props {
   onCloseError: () => void;
 }
 
+/**
+ * fork:design-system —— 把设计系统的 ANSI 槽位读成 xterm 需要的具体色值。
+ *
+ * xterm 不接受 `var(--x)`：它自己往 canvas 上画，需要能直接喂给 fillStyle 的字符串。
+ * 所以这里读 `getComputedStyle`，并且**逐项回退**——某一项读不到时用 xterm 默认，
+ * 不因为一个 token 缺失就把整个终端刷成黑白。
+ */
+const ANSI_TOKENS = {
+  background: "--ansi-black",
+  foreground: "--ansi-white",
+  cursor: "--ansi-blue",
+  selectionBackground: "--ansi-cyan",
+  black: "--ansi-black",
+  red: "--ansi-red",
+  green: "--ansi-green",
+  yellow: "--ansi-yellow",
+  blue: "--ansi-blue",
+  magenta: "--ansi-magenta",
+  cyan: "--ansi-cyan",
+  white: "--ansi-white",
+  brightBlack: "--n-placeholder",
+  brightRed: "--ansi-red",
+  brightGreen: "--ansi-green",
+  brightYellow: "--ansi-yellow",
+  brightBlue: "--ansi-blue",
+  brightMagenta: "--ansi-magenta",
+  brightCyan: "--ansi-cyan",
+  brightWhite: "--n-strong",
+} as const;
+
+function readTerminalTheme(element: HTMLElement): Record<string, string> {
+  const styles = getComputedStyle(element);
+  const theme: Record<string, string> = {};
+  for (const [key, token] of Object.entries(ANSI_TOKENS)) {
+    const value = styles.getPropertyValue(token).trim();
+    if (value) theme[key] = value;
+  }
+  // 终端底用画布色（--ansi-black 是正文前景，做底太亮）。
+  const canvas = styles.getPropertyValue("--bg").trim();
+  if (canvas) theme.background = canvas;
+  return theme;
+}
+
 export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }: Props) {
   const { t } = useI18n();
   const { id, cwd, restored } = tab;
@@ -54,15 +97,11 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
       scrollback: 8000,
       screenReaderMode: true,
       disableStdin: true,
-      theme: {
-        background: "#111318", foreground: "#d7dce5", cursor: "#60a5fa",
-        selectionBackground: "#365b8a",
-        black: "#1d222b", red: "#f87171", green: "#4ade80", yellow: "#facc15",
-        blue: "#60a5fa", magenta: "#c084fc", cyan: "#22d3ee", white: "#e5e7eb",
-        brightBlack: "#6b7280", brightRed: "#fca5a5", brightGreen: "#86efac",
-        brightYellow: "#fde047", brightBlue: "#93c5fd", brightMagenta: "#d8b4fe",
-        brightCyan: "#67e8f9", brightWhite: "#ffffff",
-      },
+      // fork:design-system —— xterm 的 theme 只吃**具体色值**（它自己画 canvas，
+      // 不解析 CSS 变量），所以这里必须读计算值。颜色全部来自设计系统的
+      // `--ansi-*` / `--n-*` / 语义槽位，深浅主题切换时随 token 走，不再写死一套
+      // 自造的十六色。读不到时（SSR / 未挂载）回退到终端自身的默认值。
+      theme: readTerminalTheme(container),
     });
     terminalRef.current = terminal;
     const fit = new FitAddon();
@@ -203,23 +242,21 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
   }, [id, tab.closing]);
 
   return (
-    <section className="terminal-panel" aria-label={t("terminal.title")}>
-      <header className="terminal-panel-header">
+    /* fork:design-components —— 终端卡直接用画板 31 的 .pw-term（暗色常驻面板 +
+       头部路径行 / 状态点），终端主体仍由 xterm.js 渲染。 */
+    <section className="terminal-panel pw-term" aria-label={t("terminal.title")}>
+      <header className="terminal-panel-header pw-card-head">
         <div className="terminal-panel-path">
           <span className={`terminal-status-dot is-${status}`} title={t(`terminal.${status}`)} />
           <span title={cwd}>{cwd}</span>
         </div>
         {status === "error" && (
           <button type="button" onClick={() => setReconnectKey((key) => key + 1)} disabled={Boolean(tab.closing)} title={t("terminal.reconnect")} aria-label={t("terminal.reconnect")}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2" />
-            </svg>
+            <span className="pw-ico"><i data-ico="link" data-size="14"></i></span>
           </button>
         )}
         <button type="button" onClick={onRestart} disabled={Boolean(tab.closing)} title={t("terminal.restart")} aria-label={t("terminal.restart")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M20 11a8 8 0 1 0-2.34 5.66" /><polyline points="20 4 20 11 13 11" />
-          </svg>
+          <span className="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span>
         </button>
       </header>
       <div>
