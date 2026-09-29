@@ -68,51 +68,37 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "var(--bg)" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 10px",
-          borderBottom: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
+      {/* fork:design-system SW-06 —— 头行 = pw-viewer-head（画板 31：地址栏 + 视口预设）。 */}
+      <div className="pw-viewer-head" style={{ flexShrink: 0 }}>
         <button
           type="button"
-          className="file-viewer-icon-button"
+          className="pw-iconbtn sm"
           title={t("browser.back")}
           aria-label={t("browser.back")}
           disabled={historyIndex <= 0}
           onClick={() => go(-1)}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M19 12H5" /><polyline points="11 18 5 12 11 6" />
-          </svg>
+          <span className="pw-ico"><i data-ico="arrow-left" data-size="14"></i></span>
         </button>
         <button
           type="button"
-          className="file-viewer-icon-button"
+          className="pw-iconbtn sm"
           title={t("browser.forward")}
           aria-label={t("browser.forward")}
           disabled={historyIndex >= history.length - 1}
           onClick={() => go(1)}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M5 12h14" /><polyline points="13 6 19 12 13 18" />
-          </svg>
+          <span className="pw-ico"><i data-ico="arrow-right" data-size="14"></i></span>
         </button>
         <button
           type="button"
-          className="file-viewer-icon-button"
+          className="pw-iconbtn sm"
           title={t("browser.reload")}
           aria-label={t("browser.reload")}
           disabled={!currentUrl}
           onClick={() => setReloadKey((key) => key + 1)}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-          </svg>
+          <span className="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span>
         </button>
         <input
           value={draft}
@@ -126,19 +112,8 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
           aria-label={t("browser.address")}
           spellCheck={false}
           autoComplete="off"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: 28,
-            padding: "0 10px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg)",
-            color: "var(--text)",
-            fontFamily: "var(--font-mono)",
-            fontSize: TEXT.sm,
-            outline: "none",
-          }}
+          className="pw-input"
+          style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)" }}
         />
         <a
           href={currentUrl || undefined}
@@ -146,14 +121,11 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
           rel="noopener noreferrer"
           title={t("browser.openExternal")}
           aria-label={t("browser.openExternal")}
-          className="file-viewer-icon-button"
+          className="pw-iconbtn sm"
           aria-disabled={!currentUrl}
           style={{ opacity: currentUrl ? 1 : 0.45, pointerEvents: currentUrl ? "auto" : "none" }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M15 3h6v6" /><path d="M10 14 21 3" />
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-          </svg>
+          <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
         </a>
         {/* fork:ui-30 — device widths for checking a responsive layout in place. */}
         <select

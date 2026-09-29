@@ -149,9 +149,10 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
           style={{ flex: 1, minHeight: 0, overflow: "auto" }}
         >
+          {/* fork:design-system SW-06 —— 表格骨架 = pw-table（边框/表头底/斑马纹来自 board.css）。 */}
           <table
+            className="pw-table"
             style={{
-              borderCollapse: "collapse",
               fontFamily: "var(--font-mono)",
               fontSize: TEXT.sm,
               width: "max-content",
