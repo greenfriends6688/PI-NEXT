@@ -1717,7 +1717,7 @@ pre, code {
 }
 
 @media (max-width: 380px) {
-  .file-viewer-toolbar {
+  .pw-viewer-head {
     gap: 6px !important;
     padding-inline: 8px !important;
   }

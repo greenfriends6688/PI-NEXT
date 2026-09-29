@@ -328,7 +328,7 @@ function DownloadLink({ filePath, sourceSessionId }: { filePath: string; sourceS
       download={getFileName(filePath)}
       title={t("i18n.downloadFile")}
       aria-label={t("i18n.downloadFile")}
-      className="file-viewer-icon-button"
+      className="pw-iconbtn sm"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -680,7 +680,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
           <button
             type="button"
-            className="file-viewer-icon-button"
+            className="pw-iconbtn sm"
             onClick={() => setZoom((value) => stepZoom(value, -1))}
             disabled={zoom <= ZOOM_MIN}
             aria-label={t("i18n.zoomOut")}
@@ -690,7 +690,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           </button>
           <button
             type="button"
-            className="file-viewer-icon-button"
+            className="pw-iconbtn sm"
             onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }}
             aria-label={t("i18n.zoomReset")}
             title={t("i18n.zoomReset")}
@@ -700,7 +700,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           </button>
           <button
             type="button"
-            className="file-viewer-icon-button"
+            className="pw-iconbtn sm"
             onClick={() => setZoom((value) => stepZoom(value, 1))}
             disabled={zoom >= ZOOM_MAX}
             aria-label={t("i18n.zoomIn")}
@@ -1217,7 +1217,7 @@ function FileSelectionQuotePopover({
         <fieldset disabled={submitting} aria-busy={submitting} style={{ width: "100%", minWidth: 0, margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, fontWeight: 600 }}>{t("chat.askInNewChat")}</span>
-            <button type="button" className="file-viewer-icon-button" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={submitting} onClick={closeInput} style={{ border: "none" }}>
+            <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={submitting} onClick={closeInput} style={{ border: "none" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
           </div>
@@ -1227,7 +1227,7 @@ function FileSelectionQuotePopover({
       ) : <>
         <button
           type="button"
-          className="file-viewer-icon-button"
+          className="pw-iconbtn sm"
           title={t("chat.askInCurrent")}
           aria-label={t("chat.askInCurrent")}
           onPointerDown={(event) => event.preventDefault()}
@@ -1240,7 +1240,7 @@ function FileSelectionQuotePopover({
         {onAskInNewChat && (
           <button
             type="button"
-            className="file-viewer-icon-button"
+            className="pw-iconbtn sm"
             title={t("chat.askInNewChat")}
             aria-label={t("chat.askInNewChat")}
             onPointerDown={(event) => event.preventDefault()}
@@ -1517,7 +1517,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
           <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
             <button
               type="button"
-              className="file-viewer-icon-button"
+              className="pw-iconbtn sm"
               onClick={() => setPdfZoom((value) => stepZoom(value, -1))}
               disabled={pdfZoom <= ZOOM_MIN}
               aria-label={t("i18n.zoomOut")}
@@ -1527,7 +1527,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             </button>
             <button
               type="button"
-              className="file-viewer-icon-button"
+              className="pw-iconbtn sm"
               onClick={() => setPdfZoom(1)}
               aria-label={t("i18n.zoomReset")}
               title={t("i18n.zoomReset")}
@@ -1537,7 +1537,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             </button>
             <button
               type="button"
-              className="file-viewer-icon-button"
+              className="pw-iconbtn sm"
               onClick={() => setPdfZoom((value) => stepZoom(value, 1))}
               disabled={pdfZoom >= ZOOM_MAX}
               aria-label={t("i18n.zoomIn")}
@@ -2457,25 +2457,14 @@ function TextFileViewer({
 
   return (
     <div data-expanded={isExpanded || undefined} className="file-viewer-shell" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div
-        className="file-viewer-toolbar"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "5px 12px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: TEXT.xs,
-          color: "var(--text-dim)",
-          background: "var(--bg)",
-          flexShrink: 0,
-        }}
-      >
-        <span className="file-viewer-path" style={{ fontFamily: "var(--font-mono)" }} title={filePath}>
+      {/* fork:design-system SW-04 —— 头行 = 画板 30/52 的 pw-viewer-head：
+          pw-ico + pw-mono 路径 + pw-badge 元信息 + 6px 同步点 + grow + 动作区。 */}
+      <div className="pw-viewer-head" style={{ flexShrink: 0 }}>
+        <span className="file-viewer-path pw-mono" title={filePath}>
           {getRelativeFilePath(filePath, cwd)}
         </span>
 
-        <span className="file-viewer-meta" title={metadata}>{metadata}</span>
+        <span className="file-viewer-meta pw-badge" title={metadata}>{metadata}</span>
         {!isDeletedDiff && (
           <span
             title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
@@ -2495,7 +2484,10 @@ function TextFileViewer({
             <div className="file-viewer-mode-switch" aria-label={t("i18n.fileViewMode")}>
               {displayModes.map((mode) => {
                 const active = !diffOpen && effectiveDisplayMode === mode;
-                return (
+                // 画板 52 帧 D：当前模式是 accent 徽章，其余模式才是可点按钮。
+                return active ? (
+                  <span key={mode} className="pw-badge accent">{DISPLAY_MODE_LABELS[mode]}</span>
+                ) : (
                   <button
                     key={mode}
                     type="button"
@@ -2503,12 +2495,7 @@ function TextFileViewer({
                       updateDisplayMode(mode);
                       if (diffOpen) updateDiffOpen(false);
                     }}
-                    aria-pressed={active}
-                    className="file-viewer-mode-button"
-                    style={{
-                      background: active ? "var(--bg-selected)" : "transparent",
-                      color: active ? "var(--text)" : "var(--text-muted)",
-                    }}
+                    className="pw-btn sm"
                   >
                     {DISPLAY_MODE_LABELS[mode]}
                   </button>
@@ -2526,8 +2513,10 @@ function TextFileViewer({
               title={t("files.compareHead")}
               aria-label={t("files.compareHead")}
               aria-pressed={diffOpen}
-              className="file-viewer-mode-button file-viewer-diff-toggle"
+              className="pw-btn sm"
+              style={diffOpen ? { background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent-text)" } : undefined}
             >
+              <span className="pw-ico"><i data-ico="git-compare" data-size="13"></i></span>
               {t("files.compareHead")}
             </button>
           )}
@@ -2554,33 +2543,21 @@ function TextFileViewer({
                 }
                 aria-label={t("files.mention")}
                 disabled={!onAtMention && !onMentionLines}
-                className="file-viewer-icon-button"
+                className="pw-iconbtn sm"
               >
                 <MentionIcon />
               </button>
             )}
             <button
               type="button"
-              className="file-viewer-icon-button"
+              className="pw-iconbtn sm"
               title={t(isExpanded ? "files.collapse" : "files.expand")}
               aria-label={t(isExpanded ? "files.collapse" : "files.expand")}
               aria-pressed={isExpanded}
               onClick={() => setIsExpanded((value) => !value)}
             >
               {/* fork:ui-expand — ⤢ 把文档铺满整个应用窗口（原来的 Fullscreen API 按钮已并入这里）。 */}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                {isExpanded ? (
-                  <>
-                    <path d="M9 4v5H4" /><path d="M15 20v-5h5" />
-                    <path d="M9 9 4 4" /><path d="m15 15 5 5" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M4 9V4h5" /><path d="M20 15v5h-5" />
-                    <path d="M4 4l5 5" /><path d="m20 20-5-5" />
-                  </>
-                )}
-              </svg>
+              <span className="pw-ico"><i data-ico={isExpanded ? "minimize-2" : "maximize-2"} data-size="14"></i></span>
             </button>
             {!liveEditing && !diffOpen && effectiveDisplayMode === "source" && (
               <>
@@ -2590,12 +2567,13 @@ function TextFileViewer({
                   title={wrapLines ? t("i18n.disableWrap") : t("i18n.enableWrap")}
                   aria-label={wrapLines ? t("i18n.disableWrap") : t("i18n.enableWrap")}
                   aria-pressed={wrapLines}
-                  className="file-viewer-icon-button"
+                  className="pw-iconbtn sm"
                   style={{
                     background: wrapLines ? "var(--bg-selected)" : "transparent",
                     color: wrapLines ? "var(--text)" : "var(--text-muted)",
                   }}
                 >
+                  {/* icons.js 未注册 wrap-text（lucide 官名 text-wrap），此处保留内联 lucide 路径 —— 登记图标集缺口 */}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M3 6h18" />
                     <path d="M3 12h15a3 3 0 1 1 0 6h-4" />
@@ -2732,16 +2710,19 @@ function TextFileViewer({
             {/* A deleted file has no content to render behind the overlay, so say what
                 happened instead of leaving an empty pane when the comparison is closed. */}
             {data === null && isDeletedDiff && !diffOpen && (
-              <div className="file-viewer-deleted-notice" role="status">{t("files.deletedNotice")}</div>
+              <div className="file-viewer-deleted-notice pw-prow pw-desc" role="status">{t("files.deletedNotice")}</div>
             )}
             {diffOpen && (
               <div className="file-viewer-diff-overlay">
-                <div className="file-viewer-diff-banner" role="status">
+                {/* fork:design-system SW-05 —— 覆盖层横幅 = pw-viewer-head 变体（ico + 文案 + grow + pw-btn sm）。 */}
+                <div className="file-viewer-diff-banner pw-viewer-head" role="status">
+                  <span className="pw-ico"><i data-ico={isDeletedDiff ? "file-diff" : "git-compare"} data-size="14"></i></span>
                   <span>{isDeletedDiff ? t("files.deletedNotice") : t("files.compareHead")}</span>
+                  <span className="grow" />
                   <button
                     type="button"
                     onClick={() => updateDiffOpen(false)}
-                    className="file-viewer-mode-button file-viewer-diff-toggle"
+                    className="pw-btn sm"
                   >
                     {t("files.backToSource")}
                   </button>

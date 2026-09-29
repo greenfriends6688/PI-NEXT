@@ -136,7 +136,8 @@ test("the switch offers two modes and the HEAD comparison is an overlay", () => 
   // The overlay is its own layer, dismissed from its own banner.
   assert.match(source, /const updateDiffOpen = useCallback\(\(nextDiffOpen: boolean\) => \{/);
   assert.match(source, /\{diffOpen && \(/);
-  assert.match(source, /className="file-viewer-diff-banner"/);
+  // fork:design-system SW-05 —— 横幅本体换成 pw-viewer-head 变体（类名跟随画板）。
+  assert.match(source, /className="file-viewer-diff-banner pw-viewer-head"/);
   assert.match(source, /t\("files\.backToSource"\)/);
   // A deleted file has no content behind the overlay, so it needs a notice.
   assert.match(source, /data === null && isDeletedDiff && !diffOpen/);
