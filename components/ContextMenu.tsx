@@ -293,6 +293,77 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // key → 索引，供反馈标签与 runItem 用（子菜单行不在 entries 索引里，传 -1）。
+  const entryIndexByKey = new Map<string, number>();
+  menu?.entries.forEach((entry, index) => {
+    if (!isSeparator(entry)) entryIndexByKey.set(`${(entry as ContextMenuItem).label}-${index}`, index);
+  });
+
+  const renderEntryIcon = (entry: ContextMenuItem, danger?: boolean) => {
+    // 画板 51：选中行 = 图标位换 check + is-on 强调淡底；危险行 icon 继承 error 色。
+    if (entry.checked) {
+      return (
+        <span className="pw-ico" style={danger ? { color: "var(--error)" } : undefined}>
+          <i data-ico="check" data-size="14"></i>
+        </span>
+      );
+    }
+    if (entry.icon) {
+      return <span className="pw-ico" style={danger ? { color: "var(--error)" } : undefined}>{entry.icon}</span>;
+    }
+    return null;
+  };
+
+  const renderRow = (entry: ContextMenuItem, key: string, opts: {
+    index?: number;
+    isActive?: boolean;
+    hasSubmenu?: boolean;
+    submenuOpen?: boolean;
+    onActivate?: (el: HTMLButtonElement) => void;
+  }) => {
+    const danger = Boolean(entry.danger);
+    const index = opts.index ?? -1;
+    const trailing = entry.hint !== undefined || opts.hasSubmenu;
+    return (
+      <button
+        key={key}
+        type="button"
+        role="menuitem"
+        className={`pw-prow${opts.isActive ? " is-on" : ""}`}
+        style={{
+          width: "100%",
+          // 画板 51 的禁用行/危险行就是这两条行内覆盖，board.css 没有对应修饰类。
+          ...(entry.disabled ? { opacity: 0.45, cursor: "default" } : {}),
+          ...(danger ? { color: "var(--error)" } : {}),
+        }}
+        aria-haspopup={opts.hasSubmenu ? "menu" : undefined}
+        aria-expanded={opts.hasSubmenu ? Boolean(opts.submenuOpen) : undefined}
+        aria-disabled={entry.disabled || undefined}
+        disabled={entry.disabled}
+        title={entry.title}
+        onMouseEnter={opts.onActivate ? (event) => opts.onActivate!(event.currentTarget) : undefined}
+        onClick={() => void runItem(entry, index)}
+      >
+        {renderEntryIcon(entry, danger)}
+        {trailing
+          ? <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+              {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
+            </span>
+          : <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+              {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
+            </span>}
+        {entry.hint !== undefined && (
+          <span className="pw-dim" style={{ fontSize: "var(--text-meta)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{entry.hint}</span>
+        )}
+        {opts.hasSubmenu && (
+          <span className="pw-ico pw-dim" style={{ flexShrink: 0 }}>
+            <i data-ico="chevron-right" data-size="14"></i>
+          </span>
+        )}
+      </button>
+    );
+  };
+
   return (
     <ContextMenuContext.Provider value={{ openMenu, closeMenu }}>
       {children}
@@ -302,92 +373,46 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
           role="menu"
           tabIndex={-1}
           aria-label="Context menu"
-          className={`${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
-          style={{ top: pos.y, left: pos.x, minWidth: MIN_WIDTH }}
+          className={`pw-pop ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
+          style={{ top: pos.y, left: pos.x, minWidth: MIN_WIDTH, maxWidth: "min(360px, calc(100vw - 12px))" }}
           onContextMenu={(event) => event.preventDefault()}
           onKeyDown={onMenuKeyDown}
         >
           {menu.entries.map((entry, index) => {
             if (isSeparator(entry)) {
-              return <div key={`sep-${index}`} role="separator" className="context-menu-separator" />;
+              return <div key={`sep-${index}`} role="separator" className="pw-sep" />;
             }
             const item = entry as ContextMenuItem;
             const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
-            const isActive = index === activeIndex;
+            const key = `${item.label}-${index}`;
             return (
-              <div key={`${item.label}-${index}`} className="context-menu-item-wrap">
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={[
-                    "context-menu-item",
-                    item.danger ? " is-danger" : "",
-                    isActive ? " is-active" : "",
-                  ].filter(Boolean).join(" ")}
-                  aria-haspopup={hasSubmenu ? "menu" : undefined}
-                  aria-expanded={hasSubmenu ? submenuIndex === index : undefined}
-                  aria-disabled={item.disabled || undefined}
-                  disabled={item.disabled}
-                  title={item.title}
-                  onMouseEnter={(event) => {
+              <div key={key}>
+                {renderRow(item, key, {
+                  index,
+                  isActive: index === activeIndex,
+                  hasSubmenu,
+                  submenuOpen: submenuIndex === index,
+                  onActivate: (el) => {
                     setActiveIndex(index);
                     if (hasSubmenu) {
-                      const rect = event.currentTarget.getBoundingClientRect();
+                      const rect = el.getBoundingClientRect();
                       setSubmenuIndex(index);
                       setSubmenuPos({ x: rect.right - 4, y: rect.top - 5 });
                     } else {
                       setSubmenuIndex(null);
                     }
-                  }}
-                  onClick={() => void runItem(item, index)}
-                >
-                  <span className="context-menu-icon" aria-hidden="true">
-                    {item.checked ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m5 13 4 4L19 7" />
-                      </svg>
-                    ) : item.icon}
-                  </span>
-                  <span className="context-menu-label">
-                    {feedbackIndex === index && item.feedbackLabel ? item.feedbackLabel : item.label}
-                  </span>
-                  {item.hint !== undefined && <span className="context-menu-hint">{item.hint}</span>}
-                  {hasSubmenu && (
-                    <span className="context-menu-caret" aria-hidden="true">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m9 6 6 6-6 6" />
-                      </svg>
-                    </span>
-                  )}
-                </button>
+                  },
+                })}
 
                 {hasSubmenu && submenuIndex === index && submenuPos && (
                   <div
                     role="menu"
-                    className="context-menu context-menu-submenu"
-                    style={{ top: submenuPos.y, left: submenuPos.x, minWidth: MIN_WIDTH - 24 }}
+                    className="pw-pop context-menu context-menu-submenu"
+                    style={{ top: submenuPos.y, left: submenuPos.x, minWidth: MIN_WIDTH - 24, maxWidth: "min(320px, calc(100vw - 12px))" }}
                     onMouseLeave={() => setSubmenuIndex(null)}
                   >
                     {item.submenu!.map((sub, subIndex) => (
-                      <button
-                        key={`${sub.label}-${subIndex}`}
-                        type="button"
-                        role="menuitem"
-                        className={`context-menu-item${sub.danger ? " is-danger" : ""}`}
-                        disabled={sub.disabled}
-                        title={sub.title}
-                        onClick={() => void runItem(sub, -1)}
-                      >
-                        <span className="context-menu-icon" aria-hidden="true">
-                          {sub.checked ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="m5 13 4 4L19 7" />
-                            </svg>
-                          ) : sub.icon}
-                        </span>
-                        <span className="context-menu-label">{sub.label}</span>
-                        {sub.hint !== undefined && <span className="context-menu-hint">{sub.hint}</span>}
-                      </button>
+                      renderRow(sub, `sub-${key}-${subIndex}`, {})
                     ))}
                   </div>
                 )}

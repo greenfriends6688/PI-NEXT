@@ -2328,7 +2328,7 @@ textarea,
   [role="option"],
   [role="menuitem"],
   [role="menuitemradio"],
-  .context-menu-item,
+  .pw-prow,
   .config-sidebar-item,
   .settings-theme-option {
     min-height: var(--control-touch);
@@ -2724,111 +2724,22 @@ button.process-file-chip:hover {
 }
 
 /* --- Context menu ---------------------------------------------------------
-   `components/ContextMenu.tsx` renders through a portal on `document.body`, so
-   nothing here may depend on an ancestor. Position stays inline (pointer
-   coordinates, already flipped at the viewport edges); the rest is class-based
-   so the menu follows the active palette and the pi-theme overlay. */
+   fork:design-system SW-01 —— 菜单本体换成画板 51 的 pw-pop + pw-prow 原子表
+   （八种行：普通 / is-on 选中 / 勾选 / kbd / 子菜单 / 反馈 / 禁用 / 危险）。
+   这里只留布局与选择语义；边框/圆角/底/阴影/内边距全部来自 board.css 的
+   .pw-pop，行样式来自 .pw-prow。fork-ui.css 继续提供两段入场与滚动兜底。 */
 .context-menu {
   position: fixed;
   z-index: var(--z-modal);
-  max-width: 300px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-lg);
+  width: max-content;
   transform-origin: top left;
-  transition: opacity var(--motion-instant) ease, transform var(--motion-instant) ease;
   user-select: none;
-}
-
-.context-menu.is-closing {
-  opacity: 0;
-  transform: translateY(-4px) scale(0.98);
 }
 
 .context-menu-submenu {
   z-index: calc(var(--z-modal) + 1);
 }
 
-.context-menu-item-wrap {
-  position: relative;
-}
-
-.context-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 28px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-/* Keyboard and pointer share one highlight: the component sets `is-active`
-   from `onMouseEnter`, so a `:hover` rule would be a second source of truth. */
-.context-menu-item.is-active {
-  background: var(--bg-hover);
-}
-
-.context-menu-item:disabled {
-  color: var(--text-dim);
-  opacity: 0.55;
-  cursor: default;
-}
-
-.context-menu-item.is-danger {
-  color: var(--danger);
-}
-
-.context-menu-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: var(--text-dim);
-}
-
-.context-menu-item.is-danger .context-menu-icon {
-  color: inherit;
-}
-
-.context-menu-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.context-menu-hint {
-  flex-shrink: 0;
-  margin-left: 12px;
-  color: var(--text-dim);
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.context-menu-caret {
-  display: inline-flex;
-  flex-shrink: 0;
-  color: var(--text-dim);
-}
-
-.context-menu-separator {
-  height: 1px;
-  margin: 4px -4px;
-  background: var(--border);
-}
 
 /* ---------------------------------------------------------------------------
    fork:boardui-bridge — BoardUI 语义 token 接管 Zeno 的颜色槽位。
