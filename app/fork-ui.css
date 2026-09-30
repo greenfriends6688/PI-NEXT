@@ -558,17 +558,26 @@ html.keyboard-open .extension-status-shelf {
  * or an invisible row would still swallow clicks aimed at the text underneath.
  * Gated on `(hover: hover)`: on touch there is no hover to reveal them, so the
  * row stays permanently visible there.
+ *
+ * fork:design-components —— 选择器是 `.pw-msg-acts`（画板 10 的类名）。
+ * 画板把动作行放在气泡**里面**（`.pw-msg-user:hover .pw-msg-acts`），产品把它
+ * 放在气泡的**兄弟**位置（`components/MessageView.tsx`：动作行是
+ * `[data-message-role]` 容器的直接子节点），所以画板那条规则在产品里永远不成立。
+ * board.css 只负责 `opacity: 0`，显隐是行为钩子，由这里按产品的真实结构兜住 ——
+ * 判据⑦允许产品 CSS 留行为钩子；形态差异登记在 DIVERGENCE。
+ * 历史：换肤把类名从 `.fork-msg-actions` 改成 `.pw-msg-acts` 时漏改这里，
+ * 动作行因此恒为透明（用户可见的 bug，2026-09-30 修）。
  * ------------------------------------------------------------------------- */
 @media (hover: hover) {
-  .fork-msg-actions {
+  .pw-msg-acts {
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--motion-fast) var(--ease-out);
   }
-  [data-message-role]:hover > .fork-msg-actions,
-  [data-message-role]:focus-within > .fork-msg-actions,
-  .fork-msg-actions:hover,
-  .fork-msg-actions:focus-within {
+  [data-message-role]:hover > .pw-msg-acts,
+  [data-message-role]:focus-within > .pw-msg-acts,
+  .pw-msg-acts:hover,
+  .pw-msg-acts:focus-within {
     opacity: 1;
     pointer-events: auto;
   }
@@ -579,11 +588,11 @@ html.keyboard-open .extension-status-shelf {
    这里用 CSS 兜住键盘用户的焦点环，并把圆角对齐 BoardUI 的 rounded-md(6px)
    （内联值是 4px，4→6 的差很小，但统一后和 process 行的 chip 一致）。
    `!important`：只有聊到内联样式的属性才用（fork-ui.css 的两条纪律之一）。 */
-.fork-msg-actions button,
+.pw-msg-acts button,
 .fork-section-actions button {
   border-radius: var(--radius-sm) !important;
 }
-.fork-msg-actions button:focus-visible,
+.pw-msg-acts button:focus-visible,
 .fork-section-actions button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;

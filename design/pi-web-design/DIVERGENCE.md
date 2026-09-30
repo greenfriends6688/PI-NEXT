@@ -1449,3 +1449,44 @@ board.css   .pw-shead 规则条数 = 5     ← 落地时才新造的类
 
 
 
+---
+
+## O · 2026-09-30 同日深夜：把 N-3 的「诊断」补成「闸门」（第 163–166 条）
+
+对照上游参考项目（`pi参考项目/AcpAgentClient-main`）的落地机制后的补课。它的两条根本做法：
+**组件里不许写样式字面量**（`validate.ps1` 的 20 条正则，命中即构建失败）、
+**画板与实现用同一套 DOM**（手抄画板 DOM + 接线阶段 `git diff lib/theme lib/ui` 必须为空）。
+我们换肤走的是「画板 CSS 进运行时 + 产品 DOM 挂画板类名」——颜色因此能对齐（判据⑦那套），
+**结构从来没有任何一条闸**，所以「按钮和位置对不上」会反复长出来。
+
+163. **内联几何字面量进 `check:design`**（`fork:gate-inline-geometry`）：
+     `check-style-literals.mjs` 新增第五条规则，拦内联样式里的单值数字几何
+     （`gap|width|height|margin|padding|top|left|...: <数字>`；0、`var()`、`calc()`、`%` 与
+     相对单位放行，`非主题值` 标记可豁免）。存量 **307 处 / 41 个键**冻结在
+     `scripts/style-literal-baseline.json`：**只许变少**，新增即失败（`--update` 只用于清理后收窄）。
+     这是「位置不再飘」的根本 —— 写不出字面量，就只能取 token 或抄 board.css 的类。
+
+164. **live 几何对位进 CI**：`.github/workflows/ci.yml` 的 e2e job 新增两步
+     `npm run check:design` 与 `npm run verify:boards`（自起服务）。
+     此前**两条命令谁都不跑**（check:design 只在人记得时手动跑，CI 只跑 lint/tsc/test/e2e/对比度）。
+     为了让同一条命令在本地与 CI 都能跑，三个画板脚本的浏览器启动收进
+     `scripts/launch-chrome.mjs`：优先真 Chrome，失败回退捆绑 Chromium（CI 只装 Chromium）。
+
+165. **`board-diff-all` 每次跑打印对位覆盖**：现在 **8/30 张画板**有 spec，未覆盖的 22 张逐张列出。
+     对位没有「全量自动」这回事（选择器必须一板一配，且要能确定性打开产品那一面），
+     所以纪律是 **改到哪张画板就补哪张的 spec**；它是「有仲裁者」与「又回到人眼比」的分界线。
+
+166. **消息动作行恒不可见（用户可见 bug，已修）**：画板 10 把动作行放在气泡**里面**
+     （`.pw-msg-user:hover .pw-msg-acts`），产品把它放在气泡的**兄弟**位置，显隐历来由
+     `fork-ui.css` 的行为钩子承担 —— 但换肤把类名改成 `.pw-msg-acts` 时**漏改了那份 CSS**
+     （还留着 `.fork-msg-actions`），而 `MessageView.test.mjs` 又断言渲染结果里不许出现旧名：
+     三处各自正确，合起来是动作行恒为 `opacity: 0` 且没有任何规则把它提上来。
+     修法：按产品的真实结构把钩子改到 `.pw-msg-acts`（判据⑦允许产品 CSS 留行为钩子），
+     形态差异登记在此：**动作行是气泡的兄弟、不参与气泡内的排布**（画板 10 是嵌在气泡内）。
+     **同一次改名还留下三处死 CSS**（`.fork-section-actions` / `.fork-section-head` /
+     `.fork-fade-title`）：当前不影响可见行为（那几个 `opacity` 已由组件内联驱动），登记待清理。
+
+**由此得到的第三条通用规则**：**颜色靠 token、结构靠闸门，两者要分开守**。
+token 能保证「值是对的」，保证不了「元素在对的位置」——后者只有三条路：
+同一份 DOM（照画板抄）、不许写字面量（只能取 token 或类）、逐画板对数（board-diff）。
+三条缺一条，漂移就会回来。

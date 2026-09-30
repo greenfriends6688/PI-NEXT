@@ -411,6 +411,30 @@ test("renders the user action row as the board's pw-msg-acts with pw-btn members
   assert.equal((html.match(/<button[^>]+title="[^"]*"/g) ?? []).length >= 4, true);
 });
 
+// fork:design-components —— 类名改名时的同步守卫（2026-09-30 事故）。
+//
+// board.css 只给 `.pw-msg-acts` 一个 `opacity: 0`；显隐由 app/fork-ui.css 的
+// 行为钩子按产品的真实结构（动作行是 [data-message-role] 的直接子节点）承担。
+// 换肤把类名从 `.fork-msg-actions` 改成 `.pw-msg-acts` 时只改了 tsx、漏改了 CSS，
+// 而旧断言只钉「HTML 里有 .pw-msg-acts」 —— 结果动作行恒为透明，没有任何测试变红。
+// 这个守卫钉住「两边的类名是同一个」：任一例改名/倒退都会失败。
+test("pw-msg-acts 的显隐钩子与组件类名同步（board.css 只给 opacity:0）", async () => {
+  const css = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
+  assert.match(css, /\[data-message-role\]:hover > \.pw-msg-acts/);
+  assert.match(css, /\.pw-msg-acts:focus-within/);
+  // 注释里允许提旧名（要记历史）；**选择器**里不许再有它。
+  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ""), /\.fork-msg-actions\b/);
+  const boardCss = await readFile(
+    new URL("../design/pi-web-design/assets/board.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(boardCss, /\.pw-msg-acts \{[^}]*opacity: 0/);
+  assert.match(
+    renderMessage({ role: "user", content: "再跑一次就好", timestamp: Date.parse("2026-09-30T10:00:00Z") }),
+    /class="pw-msg-acts"/,
+  );
+});
+
 test("carries the provider error in the board's pw-alert with its icon slot", () => {
   const html = renderMessage({
     role: "assistant",
