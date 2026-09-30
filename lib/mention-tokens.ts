@@ -248,7 +248,9 @@ function toMentionSpan(node: HastNode, kind: MentionKind, value: string): HastNo
     type: "element",
     tagName: "span",
     properties: {
-      className: ["mention-token", `mention-token-${kind}`],
+      // fork:design-system —— 画板 20 的 @ 引用高亮是 `.pw-tok-ref`（/ 命令才是
+      // `.pw-tok-cmd`，区分靠前缀字符）；kind 仍在 data-mention-kind 上。
+      className: ["pw-tok-ref"],
       dataMentionKind: kind,
       dataMentionValue: value,
     },

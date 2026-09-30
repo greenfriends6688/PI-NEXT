@@ -305,10 +305,19 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
     </span>
   );
 
+  // fork:design-components —— 手绘 chevron 换皮肤 lucide（图标纪律：手绘 SVG 清零）。
   const chevron = (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-      <polyline points="2 3.5 5 6.5 8 3.5" />
-    </svg>
+    <span
+      className="pw-ico"
+      style={{
+        marginLeft: 2,
+        color: "var(--text-dim)",
+        transform: open ? "rotate(180deg)" : "none",
+        transition: "transform 0.15s",
+      }}
+    >
+      <i data-ico="chevron-down" data-size="10"></i>
+    </span>
   );
 
 

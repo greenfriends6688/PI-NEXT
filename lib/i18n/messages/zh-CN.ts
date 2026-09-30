@@ -1120,6 +1120,7 @@ export const zhCNLocale: LocalePlugin = {
     "i18n.zoomIn": "放大",
     "i18n.zoomReset": "重置缩放",
     "i18n.fitToWidth": "适应宽度",
+    "i18n.mermaidZoomHint": "50% – 300%，步进 25%；「适应宽度」一键回 100%。Esc / 点遮罩 / × 关闭。",
     "models.discoveryFetching": "正在导入模型…",
     "models.discoveryFetch": "导入模型…",
     "models.discoveryFilterPlaceholder": "筛选 {count} 个模型…",

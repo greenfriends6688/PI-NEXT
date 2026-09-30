@@ -1121,6 +1121,7 @@ export const enLocale: LocalePlugin = {
     "i18n.zoomIn": "Zoom in",
     "i18n.zoomReset": "Reset zoom",
     "i18n.fitToWidth": "Fit to width",
+    "i18n.mermaidZoomHint": "50% – 300%, step 25%; “Fit to width” returns to 100%. Esc / click outside / × to close.",
     "models.discoveryFetching": "Importing models…",
     "models.discoveryFetch": "Import models…",
     "models.discoveryFilterPlaceholder": "Filter {count} models…",

@@ -3657,7 +3657,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   segment.type === "text" || !segment.token.valid ? (
                     segment.text
                   ) : (
-                    <span key={i} className={`mention-token mention-token-${segment.token.kind}`}>{segment.text}</span>
+                    <span key={i} className="pw-tok-ref">{segment.text}</span>
                   )
                 )}
               </div>

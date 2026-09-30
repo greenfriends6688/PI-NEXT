@@ -184,52 +184,67 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
         onClose();
       }}
     >
-      <div className="mermaid-zoom-layout">
-        <div className="mermaid-zoom-toolbar">
-          <span className="mermaid-zoom-title">{t("i18n.mermaidDiagram")}</span>
-          <div className="mermaid-zoom-actions">
-            <div className="mermaid-zoom-stepper">
-              <button
-                type="button"
-                onClick={() => setZoom((value) => Math.max(ZOOM_MIN, value - ZOOM_STEP))}
-                disabled={zoom <= ZOOM_MIN}
-                title={t("i18n.zoomOut")}
-                aria-label={t("i18n.zoomOut")}
-              >
-                {/* fork:design-components —— 画板 10:246-253 的缩放器工具条用 lucide data-ico，
-                    这里把四只手绘 svg 换成同一套图标名（minus / plus / maximize-2 / x）。 */}
-                <span className="pw-ico"><i data-ico="minus" data-size="13"></i></span>
-              </button>
-              <span className="mermaid-zoom-value">{Math.round(zoom * 100)}%</span>
-              <button
-                type="button"
-                onClick={() => setZoom((value) => Math.min(ZOOM_MAX, value + ZOOM_STEP))}
-                disabled={zoom >= ZOOM_MAX}
-                title={t("i18n.zoomIn")}
-                aria-label={t("i18n.zoomIn")}
-              >
-                <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
-              </button>
-            </div>
+      {/* fork:design-components —— 画板 10 帧 C 的全屏缩放查看器：`.pw-modal`（760 宽）
+          三段 = `.pw-modal-head`（git-fork 图标 + 标题 + grow + 缩放器（minus/数值/plus
+          一格包住）+ 适配宽度 + 关闭）/ 可滚动画布 / `.pw-card-foot` 脚注。
+          Esc / 点遮罩 / × 三种关法，与图片灯箱一致。 */}
+      <div
+        className="pw-modal"
+        style={{ width: "100%", maxWidth: "760px", display: "flex", flexDirection: "column" }}
+      >
+        <div className="pw-modal-head" style={{ padding: "6px var(--s3)", background: "var(--surface-panel)" }}>
+          <span className="pw-ico pw-dim"><i data-ico="git-fork" data-size="14"></i></span>
+          <span style={{ fontSize: "var(--text-secondary)", fontWeight: 500 }}>{t("i18n.mermaidDiagram")}</span>
+          <span className="pw-grow"></span>
+          <span
+            className="pw-inline"
+            style={{ gap: 0, border: "1px solid var(--n-border)", borderRadius: "var(--radius-4)", height: 28, overflow: "hidden" }}
+          >
             <button
               type="button"
-              className="mermaid-zoom-icon-button"
-              onClick={() => setZoom(1)}
-              title={t("i18n.fitToWidth")}
-              aria-label={t("i18n.fitToWidth")}
+              className="pw-iconbtn sm"
+              onClick={() => setZoom((value) => Math.max(ZOOM_MIN, value - ZOOM_STEP))}
+              disabled={zoom <= ZOOM_MIN}
+              title={t("i18n.zoomOut")}
+              aria-label={t("i18n.zoomOut")}
             >
-              <span className="pw-ico"><i data-ico="maximize-2" data-size="13"></i></span>
+              <span className="pw-ico"><i data-ico="minus" data-size="13"></i></span>
             </button>
+            <span
+              className="pw-mono"
+              style={{ minWidth: 52, textAlign: "center", fontVariantNumeric: "tabular-nums" }}
+            >
+              {Math.round(zoom * 100)}%
+            </span>
             <button
               type="button"
-              className="mermaid-zoom-icon-button"
-              onClick={onClose}
-              title={t("i18n.close")}
-              aria-label={t("i18n.close")}
+              className="pw-iconbtn sm"
+              onClick={() => setZoom((value) => Math.min(ZOOM_MAX, value + ZOOM_STEP))}
+              disabled={zoom >= ZOOM_MAX}
+              title={t("i18n.zoomIn")}
+              aria-label={t("i18n.zoomIn")}
             >
-              <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+              <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
             </button>
-          </div>
+          </span>
+          <button
+            type="button"
+            className="pw-iconbtn sm"
+            onClick={() => setZoom(1)}
+            title={t("i18n.fitToWidth")}
+            aria-label={t("i18n.fitToWidth")}
+          >
+            <span className="pw-ico"><i data-ico="maximize-2" data-size="14"></i></span>
+          </button>
+          <button
+            type="button"
+            className="pw-iconbtn sm"
+            onClick={onClose}
+            title={t("i18n.close")}
+            aria-label={t("i18n.close")}
+          >
+            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+          </button>
         </div>
         <div
           className="mermaid-zoom-viewport"
@@ -242,6 +257,10 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
             style={{ width: `${zoom * 100}%` }}
             dangerouslySetInnerHTML={{ __html: svg }}
           />
+        </div>
+        <div className="pw-card-foot">
+          <span className="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+          <span>{t("i18n.mermaidZoomHint")}</span>
         </div>
       </div>
     </dialog>
