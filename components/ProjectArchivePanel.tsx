@@ -13,6 +13,10 @@
  *
  * 这个页面**永不删东西**：没有删除按钮、不动 `.jsonl`、不动磁盘目录。归档/恢复与打开
  * 是仅有的三个动作。
+ *
+ * fork:design-system —— 画板 46 帧「归档历史」上半：`.pw-sec-title`（标题 + 计数徽章）
+ * + 每个项目一张 `.pw-detail`（头行 = chevron + folder + 项目名 + 会话数徽章 +
+ * 归档时间 + 恢复项目；展开后 `.pw-list` 列会话，行点击即打开）。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -88,90 +92,91 @@ export function ProjectArchivePanel({
   // `visible` 仍然算出来是为了「归档了当前项目之后它还留在列表里」的那条规则，
   // 但不再渲染。
   void visible;
-  const sections = [
-    { id: "archived", label: t("settings.projectsArchived"), rows: archived },
-  ].filter((section) => section.rows.length > 0);
-
-  const renderRow = (project: RecentProject, isArchived: boolean) => {
-    const own = sessionsForProject(allSessions, project.key);
-    const latest = own.reduce((max, session) => (session.modified > max ? session.modified : max), "");
-    const expanded = openKey === project.key;
-    const archivedAt = flags.archivedAt[project.key];
-    return (
-      <div key={project.key} className="settings-archived-group">
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <button
-            type="button"
-            className="settings-archived-title"
-            title={project.root}
-            aria-expanded={expanded}
-            onClick={() => setOpenKey(expanded ? null : project.key)}
-          >
-            <span className="settings-archived-name">{project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}</span>
-            <span className="settings-archived-meta">
-              {t("settings.projectsSessionCount", { count: own.length })}
-              {latest ? ` · ${formatRelativeTime(new Date(latest), locale)}` : ""}
-              {isArchived && archivedAt ? ` · ${t("settings.archivedAt", { time: formatRelativeTime(new Date(archivedAt), locale) })}` : ""}
-            </span>
-          </button>
-          <div className="settings-archived-actions">
-            <ConfigButton
-              variant="secondary"
-              size="small"
-              disabled={busyKey === project.key}
-              onClick={() => void setArchived(project.key, !isArchived)}
-            >
-              {isArchived ? t("settings.projectsRestore") : t("settings.projectsArchive")}
-            </ConfigButton>
-          </div>
-        </div>
-        {expanded && (
-          <div className="settings-archived-row" style={{ display: "block" }}>
-            {own.length === 0 && <p className="settings-pi-theme-note">{t("settings.projectsNoSessions")}</p>}
-            {own
-              .slice()
-              .sort((a, b) => b.modified.localeCompare(a.modified))
-              .slice(0, 20)
-              .map((session) => (
-                <button
-                  key={session.id}
-                  type="button"
-                  className="settings-archived-title"
-                  title={session.id}
-                  disabled={!onOpenSession}
-                  onClick={() => onOpenSession?.(session.id)}
-                >
-                  <span className="settings-archived-name">{session.name || session.firstMessage || session.id.slice(0, 8)}</span>
-                  <span className="settings-archived-meta">{formatRelativeTime(new Date(session.modified), locale)}</span>
-                </button>
-              ))}
-            {own.length > 20 && (
-              <p className="settings-pi-theme-note">{t("settings.projectsMoreSessions", { count: own.length - 20 })}</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
-    <section className="settings-archive-section">
-      {/* 头部归整档页所有（SettingsPanel 渲染），这里只出小节标题：原先两页各有自己的
-          h3 + 说明，叠在一起像两张不相干的卡片。 */}
-      <div className="settings-archive-section-label">{t("settings.projectsArchived")}</div>
+    <>
+      <div className="pw-sec-title">
+        {t("settings.projectsArchived")}
+        <span className="pw-grow" aria-hidden="true" />
+        <span className="pw-badge count">{archived.length}</span>
+      </div>
 
-      {error && <p className="settings-general-error" role="alert">{error}</p>}
-      {sessions === null && <p className="settings-pi-theme-note">{t("i18n.loading")}</p>}
-      {sessions !== null && sections.length === 0 && (
-        <p className="settings-pi-theme-note">{t("settings.projectsNoneArchived")}</p>
+      {error && (
+        <div role="alert" className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{error}</span>
+        </div>
+      )}
+      {sessions === null && <p role="status" className="sub">{t("i18n.loading")}</p>}
+      {sessions !== null && archived.length === 0 && (
+        <p role="status" className="sub">{t("settings.projectsNoneArchived")}</p>
       )}
 
-      {sections.map((section) => (
-        <div key={section.id} style={{ marginTop: 12 }}>
-          <div className="settings-archived-group-label">{section.label}</div>
-          {section.rows.map((project) => renderRow(project, section.id === "archived"))}
-        </div>
-      ))}
-    </section>
+      {archived.map((project, index) => {
+        const own = sessionsForProject(allSessions, project.key);
+        const expanded = openKey === project.key;
+        const archivedAt = flags.archivedAt[project.key];
+        return (
+          <div key={project.key} className="pw-detail" style={index > 0 ? { marginTop: "var(--s2)" } : undefined}>
+            <div className="pw-inline">
+              <button
+                type="button"
+                className="pw-inline"
+                style={{ minWidth: 0, textAlign: "left" }}
+                title={project.root}
+                aria-expanded={expanded}
+                onClick={() => setOpenKey(expanded ? null : project.key)}
+              >
+                <span className="pw-ico"><i data-ico={expanded ? "chevron-down" : "chevron-right"} data-size="14" aria-hidden="true" /></span>
+                <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true" /></span>
+                <b style={{ fontWeight: 500 }}>{project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}</b>
+              </button>
+              <span className="pw-badge count">{t("settings.projectsSessionCount", { count: own.length })}</span>
+              <span className="pw-grow" aria-hidden="true" />
+              {archivedAt && (
+                <span className="pw-mono pw-dim">{t("settings.archivedAt", { time: formatRelativeTime(new Date(archivedAt), locale) })}</span>
+              )}
+              <ConfigButton
+                variant="secondary"
+                size="small"
+                disabled={busyKey === project.key}
+                onClick={() => void setArchived(project.key, false)}
+              >
+                <span className="pw-ico"><i data-ico="archive-restore" data-size="13" aria-hidden="true" /></span>
+                {t("settings.projectsRestore")}
+              </ConfigButton>
+            </div>
+            {expanded && (
+              <div className="pw-list" style={{ marginTop: "var(--s2)", paddingLeft: "var(--s4)" }}>
+                {own.length === 0 && <p role="status" className="sub">{t("settings.projectsNoSessions")}</p>}
+                {own
+                  .slice()
+                  .sort((a, b) => b.modified.localeCompare(a.modified))
+                  .slice(0, 20)
+                  .map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      className="pw-litem"
+                      title={session.id}
+                      disabled={!onOpenSession}
+                      onClick={() => onOpenSession?.(session.id)}
+                    >
+                      <span className="pw-ico pw-dim"><i data-ico="message-square" data-size="13" aria-hidden="true" /></span>
+                      <span className="grow">
+                        <span className="pw-lname">{session.name || session.firstMessage || session.id.slice(0, 8)}</span>
+                      </span>
+                      <span className="pw-lsub">{formatRelativeTime(new Date(session.modified), locale)}</span>
+                    </button>
+                  ))}
+                {own.length > 20 && (
+                  <p role="status" className="sub">{t("settings.projectsMoreSessions", { count: own.length - 20 })}</p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
   );
 }

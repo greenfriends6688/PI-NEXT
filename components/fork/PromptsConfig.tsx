@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigButton } from "../SettingsUi";
-import { TEXT } from "@/lib/typography";
+import { ConfigButton, ConfigEmptyState } from "../SettingsUi";
 import type { PromptFile } from "@/lib/prompt-files";
 
 /*
@@ -13,6 +12,10 @@ import type { PromptFile } from "@/lib/prompt-files";
  * on the composer side: saving a prompt here makes `/name` available the next
  * time the palette is opened. The editor sends only `description` and `body`;
  * the route merges them surgically so hand-written frontmatter stays intact.
+ *
+ * fork:design-system —— 画板 46 帧「自定义命令」：左列搜索 + `.pw-list`
+ * （行点击即选中编辑），右列 `.pw-detail` 三段式编辑（命令名带 `/` 前缀格、
+ * 描述、正文长文本区），动作（在查看器打开 / 删除）收在详情头行。
  */
 
 interface EditorState {
@@ -132,13 +135,23 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
   };
 
   return (
-    <div className="settings-general">
-      <h2 className="settings-general-title">{t("prompts.title")}</h2>
-      <p className="settings-chat-range-hint" style={{ marginTop: -6 }}>{t("prompts.subtitle")}</p>
-      {dir && <p className="settings-chat-range-hint" style={{ marginTop: -2, fontFamily: "var(--font-mono)", fontSize: TEXT.xs }}>{dir}</p>}
+    <>
+      {/* 画板 46：标题行 = h2 + 计数徽章 + 新建命令；说明在下一行。 */}
+      <div className="pw-inline">
+        <h2 style={{ margin: 0 }}>{t("prompts.title")}</h2>
+        <span className="pw-badge count">{prompts.length}</span>
+        <span className="pw-grow" aria-hidden="true" />
+        <ConfigButton variant="primary" size="small" onClick={startCreate}>
+          <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+          {t("prompts.new")}
+        </ConfigButton>
+      </div>
+      <p className="sub">{t("prompts.subtitle")}</p>
+      {dir && <p className="sub"><span className="pw-mono pw-dim">{dir}</span></p>}
 
-      <section className="settings-general-section">
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+      <div className="pw-cols">
+        <div>
+          {/* 画板 46 的搜索格：整列宽、28 高、下距 s2（inline 照抄画板）。 */}
           <input
             type="search"
             value={query}
@@ -146,113 +159,131 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
             placeholder={t("prompts.search")}
             aria-label={t("prompts.search")}
             maxLength={60}
-            className="settings-search-input"
-            style={{ flex: 1, minWidth: 0 }}
+            className="pw-input"
+            style={{ width: "100%", minWidth: 0, height: 28, marginBottom: "var(--s2)" }}
           />
-          <ConfigButton variant="primary" size="small" onClick={startCreate}>
-            {t("prompts.new")}
-          </ConfigButton>
+          <div className="pw-list">
+            {filtered.map((prompt) => (
+              <button
+                key={prompt.name}
+                type="button"
+                className={`pw-litem${editor?.originalName === prompt.name ? " is-on" : ""}`}
+                onClick={() => startEdit(prompt)}
+              >
+                <span className="pw-ico" style={editor?.originalName === prompt.name ? { color: "var(--accent-text)" } : undefined}>
+                  <i data-ico="square-function" data-size="14" aria-hidden="true" />
+                </span>
+                <span className="grow">
+                  <span className="pw-lname">/{prompt.name}</span>
+                  <span className="pw-lsub">{prompt.description || t("prompts.noDescription")}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {loading && <p role="status" className="sub">{t("i18n.loading")}</p>}
+          {!loading && filtered.length === 0 && (
+            <p role="status" className="sub">{query.trim() ? t("prompts.noMatch") : t("prompts.empty")}</p>
+          )}
         </div>
 
-        {loading && <p role="status" className="settings-chat-range-hint">{t("i18n.loading")}</p>}
-        {!loading && filtered.length === 0 && (
-          <p role="status" className="settings-chat-range-hint">{query.trim() ? t("prompts.noMatch") : t("prompts.empty")}</p>
-        )}
-
-        <div style={{ display: "grid", gap: 4 }}>
-          {filtered.map((prompt) => (
-            <div
-              key={prompt.name}
-              style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 9px",
-                border: "1px solid var(--border-faint)", borderRadius: "var(--radius-md)",
-                background: editor?.originalName === prompt.name ? "var(--bg-selected)" : "var(--bg-panel)",
-              }}
-            >
-              <span style={{ flex: 1, minWidth: 0, display: "grid", gap: 1 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: TEXT.sm, color: "var(--text)" }}>
-                  /{prompt.name}
-                </span>
-                <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {prompt.description || t("prompts.noDescription")}
-                  {` · ${prompt.size} B · ${new Date(prompt.mtime).toLocaleString()}`}
-                </span>
-              </span>
-              {onOpenFile && (
-                <ConfigButton variant="ghost" size="small" onClick={() => onOpenFile(`${dir}/${prompt.name}.md`)}>
+        {editor ? (
+          <div className="pw-detail">
+            <div className="pw-inline">
+              <h3 className="pw-mono" style={{ margin: 0 }}>
+                {editor.originalName === null ? t("prompts.newTitle") : `/${editor.originalName}`}
+              </h3>
+              <span className="pw-grow" aria-hidden="true" />
+              {editor.originalName !== null && onOpenFile && (
+                <ConfigButton variant="ghost" size="small" onClick={() => onOpenFile(`${dir}/${editor.originalName}.md`)}>
+                  <span className="pw-ico"><i data-ico="external-link" data-size="13" aria-hidden="true" /></span>
                   {t("prompts.openInViewer")}
                 </ConfigButton>
               )}
-              <ConfigButton variant="secondary" size="small" onClick={() => startEdit(prompt)}>
-                {t("i18n.edit")}
-              </ConfigButton>
-              <ConfigButton variant="ghost" size="small" onClick={() => void remove(prompt.name)}>
-                {t("i18n.delete")}
-              </ConfigButton>
-            </div>
-          ))}
-        </div>
-        <p className="settings-chat-range-hint">{t("prompts.paletteHint")}</p>
-      </section>
-
-      {editor && (
-        <section className="settings-general-section">
-          <h3 className="settings-general-heading">
-            {editor.originalName === null ? t("prompts.newTitle") : t("prompts.editTitle", { name: editor.originalName })}
-          </h3>
-          <div style={{ display: "grid", gap: 8 }}>
-            <label style={{ display: "grid", gap: 3 }}>
-              <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)" }}>{t("prompts.name")}</span>
-              <input
-                className="settings-field-input"
-                value={editor.name}
-                disabled={editor.originalName !== null}
-                onChange={(event) => setEditor({ ...editor, name: event.target.value })}
-                placeholder="review"
-                spellCheck={false}
-              />
-              <span className="settings-chat-range-hint" style={{ margin: 0 }}>{t("prompts.nameHint")}</span>
-            </label>
-            <label style={{ display: "grid", gap: 3 }}>
-              <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)" }}>{t("prompts.description")}</span>
-              <input
-                className="settings-field-input"
-                value={editor.description}
-                onChange={(event) => setEditor({ ...editor, description: event.target.value })}
-                placeholder={t("prompts.descriptionPlaceholder")}
-              />
-              <span className="settings-chat-range-hint" style={{ margin: 0 }}>{t("prompts.descriptionHint")}</span>
-            </label>
-            <label style={{ display: "grid", gap: 3 }}>
-              <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)" }}>{t("prompts.body")}</span>
-              <textarea
-                className="settings-field-input"
-                value={editor.body}
-                onChange={(event) => setEditor({ ...editor, body: event.target.value })}
-                spellCheck={false}
-                style={{ minHeight: 200, fontFamily: "var(--font-mono)", fontSize: TEXT.sm, lineHeight: 1.55, resize: "vertical" }}
-              />
-              <span className="settings-chat-range-hint" style={{ margin: 0 }}>{t("prompts.bodyHint")}</span>
-            </label>
-            <div style={{ display: "flex", gap: 6 }}>
-              <ConfigButton variant="primary" size="small" disabled={saving || editor.name.trim() === ""} onClick={() => void save()}>
-                {saving ? t("prompts.saving") : t("i18n.save")}
-              </ConfigButton>
               {editor.originalName !== null && (
-                <ConfigButton variant="danger" size="small" disabled={saving} onClick={() => void remove(editor.originalName!)}>
+                <ConfigButton variant="danger" size="small" onClick={() => void remove(editor.originalName!)}>
+                  <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
                   {t("i18n.delete")}
                 </ConfigButton>
               )}
-              <ConfigButton variant="ghost" size="small" onClick={() => setEditor(null)}>
+            </div>
+
+            <div className="pw-field" style={{ marginTop: "var(--s3)" }}>
+              <span className="pw-label">
+                {t("prompts.name")}
+                <small>{t("prompts.nameHint")}</small>
+              </span>
+              <span className="pw-ctl">
+                <span className="pw-mono pw-dim">/</span>
+                <input
+                  className="pw-input"
+                  style={{ minWidth: 0, width: 180 }}
+                  value={editor.name}
+                  disabled={editor.originalName !== null}
+                  onChange={(event) => setEditor({ ...editor, name: event.target.value })}
+                  placeholder="review"
+                  spellCheck={false}
+                  aria-label={t("prompts.name")}
+                />
+              </span>
+            </div>
+            <div className="pw-field">
+              <span className="pw-label">{t("prompts.description")}</span>
+              <input
+                className="pw-input"
+                style={{ minWidth: 0, width: 280 }}
+                value={editor.description}
+                onChange={(event) => setEditor({ ...editor, description: event.target.value })}
+                placeholder={t("prompts.descriptionPlaceholder")}
+                aria-label={t("prompts.description")}
+              />
+            </div>
+
+            <div className="pw-sec-title" style={{ marginTop: "var(--s3)" }}>
+              {t("prompts.body")}
+              <span className="pw-grow" aria-hidden="true" />
+            </div>
+            <textarea
+              className="pw-textarea"
+              style={{ minHeight: 200 }}
+              value={editor.body}
+              onChange={(event) => setEditor({ ...editor, body: event.target.value })}
+              spellCheck={false}
+              aria-label={t("prompts.body")}
+            />
+
+            <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
+              <span className="pw-badge accent">
+                <span className="pw-ico"><i data-ico="info" data-size="11" aria-hidden="true" /></span>
+                {t("prompts.bodyHint")}
+              </span>
+              <span className="pw-grow" aria-hidden="true" />
+              <ConfigButton variant="ghost" onClick={() => setEditor(null)}>
                 {t("i18n.cancel")}
+              </ConfigButton>
+              <ConfigButton variant="primary" disabled={saving || editor.name.trim() === ""} onClick={() => void save()}>
+                {saving ? t("prompts.saving") : t("i18n.save")}
               </ConfigButton>
             </div>
           </div>
-        </section>
-      )}
+        ) : (
+          <ConfigEmptyState>
+            <p>{t("prompts.paletteHint")}</p>
+          </ConfigEmptyState>
+        )}
+      </div>
 
-      {message && <p role="status" style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text)" }}>{message}</p>}
-      {error && <p role="alert" className="settings-general-error">{error}</p>}
-    </div>
+      {message && (
+        <div role="status" className="pw-alert info">
+          <span className="pw-ico"><i data-ico="circle-check" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{message}</span>
+        </div>
+      )}
+      {error && (
+        <div className="pw-alert" role="alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{error}</span>
+        </div>
+      )}
+    </>
   );
 }

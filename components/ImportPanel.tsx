@@ -14,19 +14,23 @@
  *
  * 这里也是 PD-14（导入后把新出现的项目从归档态恢复）的落点：导入会话前先记下项目 key 集合，
  * 导入后把**新增**的那些从归档里拿出来。只动新增的，不做全量刷新。
+ *
+ * fork:design-system —— 画板 46 帧「从其它 agent 导入」：页头行（h2 + 重新扫描）+
+ * 四类资产 `.pw-radio`（带计数）+ `.pw-cols`（左列：搜索行 + 按来源分组列表，行内
+ * `.pw-switch` 即选中态；右列 300px：「本次选择」与「上次导入结果」两张 `.pw-detail`）。
+ * 结果三色：success / warning / error 各配一枚图标（画板注记）。
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
 import { useI18n } from "@/hooks/useI18n";
 import {
   groupCandidates,
   groupsForKind,
-  groupSelectionState,
   summarizeResults,
-  toggleAllSelection,
   toggleGroupSelection,
   type ImportGroupBy,
+  type ImportResultSummary,
 } from "@/lib/import/groups";
 // The contract, not `./types`: that module owns the filesystem helpers and pulls in
 // `node:fs/promises`, which a client component cannot bundle.
@@ -34,7 +38,7 @@ import { IMPORT_KINDS, type ImportCandidate, type ImportKind, type ImportSourceD
 import { getRecentProjects } from "@/lib/project-groups";
 import { useProjectFlags } from "@/lib/project-flags";
 import type { SessionInfo } from "@/lib/types";
-import { ConfigButton, ConfigFooter } from "./SettingsUi";
+import { ConfigButton, ConfigSwitch, PwRadio } from "./SettingsUi";
 
 interface KindState {
   /** null = 还没扫过。 */
@@ -44,6 +48,8 @@ interface KindState {
   applying: boolean;
   error: string | null;
   status: string | null;
+  /** 上一次 apply 的三色统计（画板 46 右下角的「上次导入结果」）。 */
+  lastSummary: ImportResultSummary | null;
   selected: ReadonlySet<string>;
   groupBy: ImportGroupBy;
 }
@@ -55,6 +61,7 @@ const EMPTY_KIND: KindState = {
   applying: false,
   error: null,
   status: null,
+  lastSummary: null,
   selected: new Set(),
   groupBy: "source",
 };
@@ -64,6 +71,13 @@ const KIND_LABEL_KEY: Record<ImportKind, string> = {
   models: "import.kindModels",
   skills: "import.kindSkills",
   mcp: "import.kindMcp",
+};
+
+const KIND_ICON: Record<ImportKind, string> = {
+  sessions: "message-square",
+  models: "cpu",
+  skills: "box",
+  mcp: "server",
 };
 
 const SOURCE_LABEL_KEY: Record<string, string> = {
@@ -80,6 +94,7 @@ export function ImportPanel() {
   const { t } = useI18n();
   const { flags: projectFlags, restore: restoreProject } = useProjectFlags();
   const [active, setActive] = useState<ImportKind>("sessions");
+  const [query, setQuery] = useState("");
   const [states, setStates] = useState<Record<ImportKind, KindState>>({
     sessions: { ...EMPTY_KIND },
     models: { ...EMPTY_KIND },
@@ -155,7 +170,11 @@ export function ImportPanel() {
       // ids the server rejects. The summary is written *after* that refresh, because
       // `scan` clears `status` on its way in.
       await scan(kind);
-      setKind(kind, { applying: false, status: t("import.result", { ...summary }) });
+      setKind(kind, {
+        applying: false,
+        status: t("import.result", { ...summary }),
+        lastSummary: summary,
+      });
 
       if (kind === "sessions" && before) {
         const after = await readProjectKeys();
@@ -181,65 +200,24 @@ export function ImportPanel() {
   const renderKind = (kind: ImportKind) => {
     const state = states[kind];
     const candidates = state.candidates;
+    const keyword = query.trim().toLowerCase();
+    const filtered = candidates && keyword
+      ? candidates.filter((item) => describeCandidate(item).toLowerCase().includes(keyword)
+        || itemModel(item, t).toLowerCase().includes(keyword))
+      : candidates;
     // Grouping is O(candidates) over a list the scanner already capped, and this runs
     // for four panels — a hook here would be a conditional hook (renderKind is called
     // from a map), so it stays a plain call.
-    const groups = candidates ? groupCandidates(candidates, state.groupBy) : [];
-    const overall = candidates ? groupSelectionState(candidates, state.selected) : "none";
+    const groups = filtered ? groupCandidates(filtered, state.groupBy) : [];
     const groupBys = groupsForKind(kind);
+    const lastSummary = state.lastSummary;
 
     return (
       <div key={kind} hidden={kind !== active}>
-        {/* 三组：动作（扫描）｜视图（按来源/按项目）｜结果（已选 + 导入）。
-            原先五个控件平铺一行、样式权重相同，看不出哪几个是一组，右侧也没有落点。 */}
-        <div className="import-toolbar">
-          <div className="import-toolbar-group">
-            <ConfigButton variant="secondary" size="small" disabled={state.scanning} onClick={() => void scan(kind)}>
-              {state.scanning ? t("i18n.loading") : t("import.scan")}
-            </ConfigButton>
-          </div>
-          {candidates !== null && groupBys.length > 1 && (
-            <div className="import-toolbar-group" role="group" aria-label={t("import.groupBy")}>
-              {groupBys.map((by) => (
-                <ConfigButton
-                  key={by}
-                  variant={state.groupBy === by ? "primary" : "ghost"}
-                  size="small"
-                  aria-pressed={state.groupBy === by}
-                  onClick={() => setKind(kind, { groupBy: by })}
-                >
-                  {by === "source" ? t("import.groupBySource") : t("import.groupByProject")}
-                </ConfigButton>
-              ))}
-            </div>
-          )}
-          {candidates !== null && candidates.length > 0 && (
-            <div className="import-toolbar-group import-toolbar-end">
-              <label className="import-select-all">
-                <input
-                  type="checkbox"
-                  checked={overall === "all"}
-                  ref={(node) => { if (node) node.indeterminate = overall === "some"; }}
-                  onChange={() => setKind(kind, { selected: toggleAllSelection(state.selected, candidates) })}
-                />
-                {t("import.selectedOf", { selected: state.selected.size, total: candidates.length })}
-              </label>
-              <ConfigButton
-                variant="primary"
-                size="small"
-                disabled={state.selected.size === 0 || state.applying}
-                onClick={() => void apply(kind)}
-              >
-                {state.applying ? t("i18n.loading") : t("import.applySelected")}
-              </ConfigButton>
-            </div>
-          )}
-        </div>
-
         {/* What was looked at, including the sources that were not there. A missing
             source is normal and has to be visible, or an empty list looks broken. */}
         {state.sources.length > 0 && (
-          <p className="settings-pi-theme-note" style={{ marginBottom: 8 }}>
+          <p className="sub">
             {state.sources.map((source) => {
               const label = SOURCE_LABEL_KEY[source.source]
                 ? t(SOURCE_LABEL_KEY[source.source])
@@ -254,100 +232,198 @@ export function ImportPanel() {
           </p>
         )}
 
-        {state.error && <p className="settings-general-error" role="alert">{state.error}</p>}
-        {candidates === null && !state.scanning && (
-          <p className="settings-pi-theme-note">{t("import.idleHint")}</p>
+        {state.error && (
+          <div role="alert" className="pw-alert">
+            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+            <span className="grow">{state.error}</span>
+          </div>
         )}
-        {candidates !== null && candidates.length === 0 && (
-          <p className="settings-pi-theme-note">{t("import.empty")}</p>
-        )}
+        {candidates === null && !state.scanning && <p className="sub">{t("import.idleHint")}</p>}
+        {candidates !== null && candidates.length === 0 && <p className="sub">{t("import.empty")}</p>}
 
-        {groups.map((group) => {
-          const groupState = groupSelectionState(group.items, state.selected);
-          const label = group.key
-            ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
-            : t("import.noProject");
-          return (
-            <div key={group.key || "__none"} className="settings-archived-group">
-              <label className="settings-archived-group-label" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={groupState === "all"}
-                  ref={(node) => { if (node) node.indeterminate = groupState === "some"; }}
-                  onChange={() => setKind(kind, { selected: toggleGroupSelection(state.selected, group.items) })}
+        <div className="pw-cols" style={{ gridTemplateColumns: "minmax(0,1fr) 300px" }}>
+          <div>
+            {/* 画板 46 的搜索行：search 图标 + 输入格 + 按来源/按项目 radio。 */}
+            <div className="pw-inline" style={{ marginBottom: "var(--s2)" }}>
+              <span className="pw-ico pw-dim"><i data-ico="search" data-size="14" aria-hidden="true" /></span>
+              <input
+                type="search"
+                className="pw-input"
+                style={{ flex: 1, minWidth: 0, height: 28 }}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("import.searchPlaceholder")}
+                aria-label={t("import.searchPlaceholder")}
+              />
+              {candidates !== null && groupBys.length > 1 && (
+                <PwRadio
+                  value={state.groupBy}
+                  ariaLabel={t("import.groupBy")}
+                  options={groupBys.map((by) => ({
+                    value: by,
+                    label: by === "source" ? t("import.groupBySource") : t("import.groupByProject"),
+                  }))}
+                  onChange={(by) => setKind(kind, { groupBy: by })}
                 />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-                <span style={{ color: "var(--text-dim)" }}>{group.items.length}</span>
-              </label>
-              {group.items.slice(0, 60).map((item) => (
-                <div key={item.id} className="settings-archived-row" style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={state.selected.has(item.id)}
-                    onChange={() => {
-                      const next = new Set(state.selected);
-                      if (next.has(item.id)) next.delete(item.id);
-                      else next.add(item.id);
-                      setKind(kind, { selected: next });
-                    }}
-                    aria-label={describeCandidate(item)}
-                  />
-                  {/* Titles and descriptions are both arbitrarily long, and the meta cell
-                      ran straight into the title with no separator and no truncation, so a
-                      row read as one run-on line. `flexBasis: 0` + `minWidth: 0` on both
-                      makes them share the row and ellipsise independently. */}
-                  <span
-                    className="settings-archived-name"
-                    style={{ flex: "1 1 0", minWidth: 0 }}
-                    title={describeCandidate(item)}
-                  >
-                    {describeCandidate(item)}
-                  </span>
-                  <span
-                    className="settings-archived-meta"
-                    style={{ flex: "0 1 auto", minWidth: 0, maxWidth: "45%", borderLeft: "1px solid var(--border)", paddingLeft: 8 }}
-                    title={itemModel(item, t)}
-                  >
-                    {itemModel(item, t)}
-                  </span>
-                </div>
-              ))}
-              {group.items.length > 60 && (
-                <p className="settings-pi-theme-note">{t("import.moreInGroup", { count: group.items.length - 60 })}</p>
               )}
             </div>
-          );
-        })}
+
+            {state.scanning && <p role="status" className="sub">{t("i18n.loading")}</p>}
+
+            {groups.map((group) => {
+              const label = group.key
+                ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
+                : t("import.noProject");
+              return (
+                <div key={group.key || "__none"}>
+                  <div className="pw-sec-title">
+                    {label} · {group.items.length}
+                    <span className="pw-grow" aria-hidden="true" />
+                    <ConfigButton
+                      variant="ghost"
+                      size="small"
+                      onClick={() => setKind(kind, { selected: toggleGroupSelection(state.selected, group.items) })}
+                    >
+                      {t("import.selectAll")}
+                    </ConfigButton>
+                  </div>
+                  <div className="pw-list">
+                    {group.items.slice(0, 60).map((item) => (
+                      <div key={item.id} className="pw-litem">
+                        <ConfigSwitch
+                          checked={state.selected.has(item.id)}
+                          label={describeCandidate(item)}
+                          onChange={() => {
+                            const next = new Set(state.selected);
+                            if (next.has(item.id)) next.delete(item.id);
+                            else next.add(item.id);
+                            setKind(kind, { selected: next });
+                          }}
+                        />
+                        <span className="grow" title={describeCandidate(item)}>
+                          <span className="pw-lname" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {describeCandidate(item)}
+                          </span>
+                          <span className="pw-lsub" title={itemModel(item, t)}>{itemModel(item, t)}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {group.items.length > 60 && (
+                    <p className="sub">{t("import.moreInGroup", { count: group.items.length - 60 })}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 画板 46 右列：本次选择 + 上次导入结果（300px 定宽列）。 */}
+          <div style={{ display: "grid", gap: "var(--s3)", alignContent: "start" }}>
+            <div className="pw-detail">
+              <h3 style={{ margin: 0, fontSize: "var(--text-body)" }}>{t("import.selectionTitle")}</h3>
+              <dl className="pw-kv" style={{ marginTop: "var(--s2)" }}>
+                <dt>{t("import.selectedOf", { selected: state.selected.size, total: candidates?.length ?? 0 })}</dt>
+                <dd className="pw-mono">{state.selected.size}</dd>
+              </dl>
+              <div className="pw-inline" style={{ marginTop: "var(--s3)" }}>
+                <ConfigButton
+                  variant="secondary"
+                  size="small"
+                  disabled={state.selected.size === 0}
+                  onClick={() => setKind(kind, { selected: new Set() })}
+                >
+                  {t("import.clearSelection")}
+                </ConfigButton>
+                <span className="pw-grow" aria-hidden="true" />
+                <ConfigButton
+                  variant="primary"
+                  size="small"
+                  disabled={state.selected.size === 0 || state.applying}
+                  onClick={() => void apply(kind)}
+                >
+                  {state.applying ? t("i18n.loading") : t("import.applySelected")}
+                </ConfigButton>
+              </div>
+            </div>
+
+            {lastSummary && (
+              <div className="pw-detail">
+                <h3 style={{ margin: 0, fontSize: "var(--text-body)" }}>{t("import.lastResultTitle")}</h3>
+                <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                  <div className="pw-litem">
+                    <span className="pw-ico" style={{ color: "var(--success)" }}>
+                      <i data-ico="circle-check" data-size="14" aria-hidden="true" />
+                    </span>
+                    <span className="grow">
+                      <span className="pw-lname">{t("import.resultImported", { count: lastSummary.imported })}</span>
+                    </span>
+                  </div>
+                  <div className="pw-litem">
+                    <span className="pw-ico" style={{ color: "var(--warning)" }}>
+                      <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+                    </span>
+                    <span className="grow">
+                      <span className="pw-lname">{t("import.resultSkipped", { count: lastSummary.skipped })}</span>
+                    </span>
+                  </div>
+                  <div className="pw-litem">
+                    <span className="pw-ico" style={{ color: "var(--error)" }}>
+                      <i data-ico="circle-x" data-size="14" aria-hidden="true" />
+                    </span>
+                    <span className="grow">
+                      <span className="pw-lname">{t("import.resultFailed", { count: lastSummary.failed })}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   };
 
   return (
-    <section className="fork-settings-block">
-      <h3 className="fork-settings-block-label">{t("import.title")}</h3>
-      <p className="settings-pi-theme-description">{t("import.description")}</p>
-
-      <div role="tablist" aria-label={t("import.title")} style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
-        {IMPORT_KINDS.map((kind) => (
-          <ConfigButton
-            key={kind}
-            variant={kind === active ? "primary" : "ghost"}
-            size="small"
-            aria-pressed={kind === active}
-            onClick={() => setActive(kind)}
-          >
-            {t(KIND_LABEL_KEY[kind])}
-          </ConfigButton>
-        ))}
+    <>
+      {/* 画板 46：标题行 = h2 + 重新扫描；说明在下一行。 */}
+      <div className="pw-inline">
+        <h2 style={{ margin: 0 }}>{t("import.title")}</h2>
+        <span className="pw-grow" aria-hidden="true" />
+        <ConfigButton
+          variant="secondary"
+          size="small"
+          disabled={states[active].scanning}
+          onClick={() => void scan(active)}
+        >
+          <span className="pw-ico"><i data-ico="scan-search" data-size="13" aria-hidden="true" /></span>
+          {states[active].scanning ? t("i18n.loading") : t("import.scan")}
+        </ConfigButton>
       </div>
+      <p className="sub">{t("import.description")}</p>
+
+      {/* 四类资产页签：`.pw-radio` + 每类计数（扫过的才显示数字）。 */}
+      <PwRadio
+        value={active}
+        ariaLabel={t("import.title")}
+        options={IMPORT_KINDS.map((kind) => {
+          const count = states[kind].candidates;
+          return {
+            value: kind,
+            icon: KIND_ICON[kind],
+            label: count !== null ? `${t(KIND_LABEL_KEY[kind])} ${count.length}` : t(KIND_LABEL_KEY[kind]),
+          };
+        })}
+        onChange={setActive}
+      />
+      <div style={{ height: "var(--s3)" }} aria-hidden="true" />
 
       {/* All four stay mounted: switching tabs must not throw away a scan result. */}
       {IMPORT_KINDS.map(renderKind)}
-
-      <ConfigFooter status={states[active].status ?? undefined} />
-    </section>
+    </>
   );
 }
+
+/** `import.result` 的状态文案仍保留（无障碍读出用），三色统计走结构化的 `lastSummary`。 */
 
 /** One line that identifies a row well enough to decide whether to import it. */
 function describeCandidate(candidate: ImportCandidate): string {

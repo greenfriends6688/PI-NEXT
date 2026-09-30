@@ -11,6 +11,10 @@
  *   - 数据源是 `lib/session-flags.ts` 的 `archived` + `archivedAt`（本地、跨标签页同步）；
  *   - 会话标题/项目从 `/api/sessions` 取；文件已经不在的归档项照样列出来（按 id 显示）；
  *   - 「恢复」= 取消归档（行回到项目列表）；「删除」= 删掉会话文件（二次确认）。
+ *
+ * fork:design-system —— 画板 46 帧「归档历史」下半：`.pw-sec-title`（标题 + 计数徽章 +
+ * 「显示文件已消失」开关）+ `.pw-grid2` 里每项目一张 `.pw-detail`，行是 `.pw-litem`
+ * （消失的会话用 triangle-alert 图标 + 0.6 透明度，画板原样）；恢复与删除收在行尾。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -116,85 +120,106 @@ export function ArchivedSessionsPanel({
   const visibleRows = showDeleted ? rows : rows.filter((row) => row.live);
 
   return (
-    <div className="settings-general-section">
-<section className="settings-archive-section">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div className="settings-archive-section-label">{t("settings.archivedSessionsLabel")}</div>
-          {rows.length > 0 && (
+    <>
+      <div className="pw-sec-title" style={{ marginTop: "var(--s4)" }}>
+        {t("settings.archivedSessionsLabel")}
+        <span className="pw-grow" aria-hidden="true" />
+        <span className="pw-badge count">{rows.length}</span>
+        {rows.length > 0 && (
+          <span className="pw-inline" style={{ marginLeft: "var(--s3)" }}>
             <ConfigSwitch
               checked={showDeleted}
               label={t("settings.archivedShowMissing", { count: missing.length })}
               onChange={setShowDeleted}
             />
-          )}
-        </div>
-        <p className="settings-pi-theme-description">{t("settings.archivedDescription")}</p>
-
-        {error && <p className="settings-general-error" role="alert">{error}</p>}
-
-        {sessions === null && <p className="settings-pi-theme-note">{t("i18n.loading")}</p>}
-
-        {sessions !== null && visibleRows.length === 0 && (
-          <p className="settings-pi-theme-note">{t("settings.archivedEmpty")}</p>
+            <span style={{ fontSize: "var(--text-meta)", color: "var(--n-muted)" }}>
+              {t("settings.archivedShowMissing", { count: missing.length })}
+            </span>
+          </span>
         )}
+      </div>
 
+      {error && (
+        <div role="alert" className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{error}</span>
+        </div>
+      )}
+      {sessions === null && <p role="status" className="sub">{t("i18n.loading")}</p>}
+      {sessions !== null && visibleRows.length === 0 && (
+        <p role="status" className="sub">{t("settings.archivedEmpty")}</p>
+      )}
+
+      <div className="pw-grid2" style={{ gap: "var(--s3)" }}>
         {grouped.map(([project, group]) => {
           const shown = group.filter((row) => showDeleted || row.live);
           if (shown.length === 0) return null;
           return (
-            <div key={project} className="settings-archived-group">
-              <div className="settings-archived-group-label">{project}</div>
+            <div key={project} className="pw-detail" style={{ padding: "var(--s2) var(--s3)" }}>
+              <div className="pw-inline" style={{ marginBottom: "var(--s2)" }}>
+                <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true" /></span>
+                <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)" }}>{project}</b>
+                <span className="pw-badge count">{shown.length}</span>
+              </div>
               {shown.map((row) => (
-                <div key={row.id} className="settings-archived-row" data-missing={row.live ? undefined : "true"}>
+                <div key={row.id} className="pw-litem" style={row.live ? undefined : { opacity: 0.6 }}>
+                  <span className="pw-ico pw-dim">
+                    <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="13" aria-hidden="true" />
+                  </span>
                   <button
                     type="button"
-                    className="settings-archived-title"
+                    className="grow"
+                    style={{ minWidth: 0, textAlign: "left" }}
                     title={row.id}
                     disabled={!row.live || !onOpenSession}
                     onClick={() => onOpenSession?.(row.id)}
                   >
-                    <span className="settings-archived-name">{row.title}</span>
-                    <span className="settings-archived-meta">
+                    <span className="pw-lname">{row.title}</span>
+                    <span className="pw-lsub">
                       {row.archivedAt
                         ? t("settings.archivedAt", { time: formatRelativeTime(new Date(row.archivedAt), locale) })
                         : t("settings.archivedAtUnknown")}
                     </span>
                   </button>
-                  <div className="settings-archived-actions">
-                    <ConfigButton
-                      variant="secondary"
-                      size="small"
-                      onClick={() => restore(row.id)}
-                      disabled={busyId === row.id}
-                    >
-                      {t("settings.archivedRestore")}
-                    </ConfigButton>
-                    {row.live && (pendingDelete === row.id ? (
-                      <>
-                        <ConfigButton
-                          variant="danger"
-                          size="small"
-                          onClick={() => void remove(row.id)}
-                          disabled={busyId === row.id}
-                        >
-                          {t("settings.archivedDeleteConfirm")}
-                        </ConfigButton>
-                        <ConfigButton variant="ghost" size="small" onClick={() => setPendingDelete(null)}>
-                          {t("i18n.cancel")}
-                        </ConfigButton>
-                      </>
-                    ) : (
-                      <ConfigButton variant="ghost" size="small" onClick={() => setPendingDelete(row.id)}>
-                        {t("settings.archivedDelete")}
+                  <ConfigButton
+                    variant="ghost"
+                    size="small"
+                    onClick={() => restore(row.id)}
+                    disabled={busyId === row.id}
+                  >
+                    {t("settings.archivedRestore")}
+                  </ConfigButton>
+                  {row.live && (pendingDelete === row.id ? (
+                    <>
+                      <ConfigButton
+                        variant="danger"
+                        size="small"
+                        onClick={() => void remove(row.id)}
+                        disabled={busyId === row.id}
+                      >
+                        {t("settings.archivedDeleteConfirm")}
                       </ConfigButton>
-                    ))}
-                  </div>
+                      <ConfigButton variant="ghost" size="small" onClick={() => setPendingDelete(null)}>
+                        {t("i18n.cancel")}
+                      </ConfigButton>
+                    </>
+                  ) : (
+                    <ConfigButton
+                      variant="danger"
+                      size="small"
+                      onClick={() => setPendingDelete(row.id)}
+                      title={t("settings.archivedDelete")}
+                      aria-label={t("settings.archivedDelete")}
+                    >
+                      <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
+                    </ConfigButton>
+                  ))}
                 </div>
               ))}
             </div>
           );
         })}
-      </section>
-    </div>
+      </div>
+    </>
   );
 }
