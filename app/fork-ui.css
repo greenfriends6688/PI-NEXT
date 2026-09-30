@@ -1372,250 +1372,10 @@ html[data-rail-translucent="true"] .sidebar-container {
 }
 
 /* ---------------------------------------------------------------------------
- * fork:zn-19 — 主题皮肤卡片条（Zeno `.theme-skin-library` / `.theme-skin-*`，
- * styles.css:4667-4815）。
- *
- * 三列 grid 是这套东西的关键：`2rem / 1fr / 2rem` —— 左右两列是滚动按钮，
- * 中间才是轨道。这样按钮**永远占位**，有没有更多卡片都不会让轨道跳动
- * （换成绝对定位的悬浮按钮，滚动到两端时内容会左右晃一下）。
- *
- * 卡片是 160×矩形（断点下 148），不是正方形：缩略图要装下一个侧栏 + 一段会话，
- * 正方形塞不下，两侧会各裁掉一半。
+ * fork:design-system —— 画板 47 皮肤工作室已接 `.pw-scrim / .pw-modal / .pw-tabs`
+ * 画板原件（ThemeSkinStudio.tsx）；原 fork-skin-library / fork-skin-dialog-* 规则
+ * 退役。只剩功能性预览的 `fork-skin-preview-*`（见下方保留段）。
  * ------------------------------------------------------------------------- */
-.fork-skin-library {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev);
-}
-
-.fork-skin-rail {
-  position: relative;
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
-  align-items: stretch;
-  padding: 13px 8px;
-}
-
-.fork-skin-grid {
-  display: flex;
-  gap: 10px;
-  min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  padding: 0 5px 4px;
-  scroll-behavior: smooth;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-}
-
-.fork-skin-grid::-webkit-scrollbar { display: none; }
-
-.fork-skin-scroll-button {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  width: 1.75rem;
-  min-height: 100%;
-  place-items: center;
-  align-self: center;
-  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-elev) 90%, transparent);
-  color: var(--text);
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  transition: opacity var(--motion-base) var(--ease-out),
-    border-color var(--motion-base) var(--ease-out),
-    background var(--motion-base) var(--ease-out);
-}
-
-.fork-skin-scroll-button:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: var(--bg-hover);
-}
-
-.fork-skin-scroll-button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.fork-skin-scroll-button:disabled { opacity: 0.24; cursor: default; }
-
-.fork-skin-card {
-  display: flex;
-  width: 160px;
-  min-width: 160px;
-  flex: 0 0 160px;
-  flex-direction: column;
-  gap: 7px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-elev) 86%, transparent);
-  padding: 9px;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  scroll-snap-align: start;
-  transition: border-color var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease-out);
-}
-
-.fork-skin-card:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
-}
-
-/* 选中：`--accent` 描边 + 1px 内阴影。Zeno 用 ring 色，本仓的 ring 即 accent。 */
-.fork-skin-card[data-active="true"] {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
-}
-
-.fork-skin-card:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 60%, transparent);
-}
-
-.fork-skin-card-art {
-  position: relative;
-  display: block;
-  height: 82px;
-  overflow: hidden;
-  border-radius: 8px;
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-}
-
-/* 右下角那块「玻璃」：皮肤的面板透明度 + 圆角 + 模糊都体现在它身上，
-   所以它不能只是个装饰色块。 */
-.fork-skin-card-glass {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 1;
-  display: flex;
-  width: 66%;
-  height: 45%;
-  align-items: flex-end;
-  border: 1px solid rgb(255 255 255 / 0.46);
-  box-shadow: 0 8px 16px rgb(0 0 0 / 0.16);
-  opacity: 0.84;
-}
-
-.fork-skin-card-accent {
-  display: block;
-  width: 38%;
-  height: 5px;
-  margin: 0 0 7px 7px;
-  border-radius: 999px;
-}
-
-.fork-skin-card-name {
-  overflow: hidden;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 动作栏：与卡片之间一条 hairline，按钮本身用既有的 config-button。 */
-.fork-skin-library-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  padding: 12px;
-}
-
-/* ---------------------------------------------------------------------------
- * fork:zn-19 — 编辑主题对话框（Zeno `.theme-skin-dialog*`，styles.css:4816-4970）。
- *
- * 布局：头部 / 两个 tab / 1100×820 的双列体（预览列 | 控件列）/ 底部。预览列有自己的
- * 底色（比控件列暗一档），因为它是「另一块屏幕」而不是本对话框的一部分。
- *
- * 预览盒子里的颜色全部由 `ThemeSkinStudio` 内联给（走 `--preview-*` 变量），
- * 不写 `<html>` —— 编辑中的皮肤不能当场改掉整个应用，否则「取消」没法回滚。
- * ------------------------------------------------------------------------- */
-/* 工作室是弹窗：遮罩 + 居中浮层。 */
-.fork-skin-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--scrim);
-}
-
-.fork-skin-dialog {
-  display: flex;
-  width: min(1100px, calc(100vw - 2rem));
-  max-height: min(820px, calc(100vh - 2rem));
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev);
-  box-shadow: var(--shadow-xl);
-}
-
-.fork-skin-dialog-header {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  padding: 18px 20px 16px;
-  font-size: var(--text-xl);
-}
-
-.fork-skin-dialog-close {
-  border: none;
-  background: none;
-  color: var(--text-muted);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.fork-skin-dialog-close:hover { color: var(--text); }
-
-.fork-skin-dialog-tabs {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 3px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  padding: 6px 18px 0;
-}
-
-/* Zeno 的 tab 是「上圆角 + 与面板同底」而不是整块 pill：这样激活态与下方的
-   内容区连成一片，读起来是「切页」而不是「切按钮」。 */
-.fork-skin-dialog-tab {
-  min-height: 32px;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 7px 7px 0 0;
-  background: transparent;
-  padding: 0 12px;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-
-.fork-skin-dialog-tab[data-active="true"] {
-  border-color: color-mix(in srgb, var(--border) 90%, transparent);
-  background: var(--bg-elev);
-  color: var(--text);
-}
-
-.fork-skin-dialog-body {
-  display: grid;
-  min-height: 0;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(340px, 0.9fr) minmax(440px, 1.1fr);
-}
 
 /* fork:ui-project-actions — 项目行「⋯」菜单（打开文件夹 / 重命名 / 从列表中移除）。
    注意：这段必须自成一条规则，别插进别的选择器列表里（曾经插坏过两条规则）。 */
@@ -1742,82 +1502,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   gap: 6px;
 }
 
-/* fork:zn-19-variant — 颜色行右侧的「继承/还原」小按钮。 */
-.fork-skin-color-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.fork-skin-color-controls input[type="color"][data-inherited="true"] {
-  opacity: 0.55;
-}
-
-.fork-skin-color-reset {
-  border: none;
-  background: none;
-  padding: 0 2px;
-  color: var(--text-dim);
-  font-size: var(--text-sm);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.fork-skin-color-reset:hover { color: var(--text); }
-
-.fork-skin-dialog-controls {
-  overflow: visible;
-}
-
-.fork-skin-dialog-preview-column {
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-  flex-direction: column;
-  gap: 13px;
-  border-right: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  background: color-mix(in srgb, var(--bg) 55%, var(--bg-elev));
-  padding: 17px;
-  overflow-y: auto;
-}
-
-.fork-skin-dialog-controls {
-  min-width: 0;
-  padding: 18px;
-  overflow-y: auto;
-}
-
-.fork-skin-preview-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: var(--text-md);
-}
-
-.fork-skin-preview-mode {
-  display: inline-flex;
-  gap: 2px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 2px;
-}
-
-.fork-skin-preview-mode button {
-  border: none;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  padding: 3px 10px;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-
-.fork-skin-preview-mode button[data-active="true"] {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
 /* 迷你外壳：绝对定位的壁纸 + 压暗层在下，chrome 在上。 */
 .fork-skin-preview {
   position: relative;
@@ -1902,125 +1586,39 @@ html[data-rail-translucent="true"] .sidebar-container {
   backdrop-filter: blur(var(--preview-blur));
 }
 
-.fork-skin-dialog-asset-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+/* ---------------------------------------------------------------------------
+ * fork:design-system —— 画板 47 工作室的接线块（只做产品语义，不重复画板值）：
+ * - `.pw-scrim` 在画板里是舞台内的一格，产品里是覆盖层 → 补 fixed 定位与层级；
+ * - 900×720 弹窗的窄屏 clamp（inline 照抄画板，clamp 是窄屏语义）；
+ * - 色块 `<input type="color">` 归零 UA 外观，落画板 47 的 24×24 几何；
+ * - `.pw-wallpaper-thumb` 的选中态（画板 40 只画了静置一格）。
+ * ------------------------------------------------------------------------- */
+.fork-skin-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
 }
 
-.fork-skin-fit { margin-left: auto; }
-
-.fork-skin-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: var(--text-md);
+.fork-skin-modal {
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
 }
 
-.fork-skin-text-input {
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  padding: 0 12px;
-  color: var(--text);
-  font-size: var(--text-md);
-}
-
-.fork-skin-text-input:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.fork-skin-color-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
-  margin-top: 16px;
-}
-
-.fork-skin-color-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 54px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 0 14px;
-  font-size: var(--text-md);
-}
-
-.fork-skin-color-field input[type="color"] {
-  width: 30px;
-  height: 22px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: none;
+.pw-ctl input[type="color"] {
+  width: 24px;
+  height: 24px;
   padding: 0;
+  border: 1px solid var(--n-border);
+  border-radius: var(--radius-4);
+  background: none;
   cursor: pointer;
 }
 
-/* 双列滑块：Zeno `.theme-skin-slider-grid`（`repeat(2, 1fr)`，间距 10/14）。 */
-.fork-skin-slider-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
-  margin-top: 16px;
-}
+.pw-ctl input[type="color"][data-inherited="true"] { opacity: 0.55; }
 
-.fork-skin-dialog-css {
-  display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 10px;
-  padding: 18px;
-}
-
-.fork-skin-dialog-css-hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-.fork-skin-css-input {
-  min-height: 320px;
-  flex: 1 1 auto;
-  resize: vertical;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  padding: 12px;
-  color: var(--text);
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: var(--text-sm);
-  line-height: 1.6;
-}
-
-.fork-skin-dialog-message {
-  margin: 0;
-  padding: 0 18px 10px;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
-.fork-skin-dialog-footer {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  padding: 14px 18px;
-}
-
-.fork-skin-dialog-footer-right { display: flex; align-items: center; gap: 8px; }
-
-@media (max-width: 900px) {
-  .fork-skin-dialog-body { grid-template-columns: minmax(0, 1fr); }
-  .fork-skin-dialog-preview-column { border-right: none; border-bottom: 1px solid var(--border); }
-  .fork-skin-card { width: 148px; min-width: 148px; flex-basis: 148px; }
+.pw-wallpaper-thumb.is-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2096,7 +1694,7 @@ html[data-theme-skin="true"] .fork-settings-card,
 html[data-theme-skin="true"] .context-menu,
 html[data-theme-skin="true"] .config-panel-surface,
 html[data-theme-skin="true"] .settings-dialog-surface,
-html[data-theme-skin="true"] .fork-skin-dialog {
+html[data-theme-skin="true"] .pw-modal {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px)) saturate(120%);
   backdrop-filter: blur(var(--skin-blur, 0px)) saturate(120%);
 }

@@ -3,21 +3,22 @@
 /**
  * fork:zn-19 — 编辑主题（Zeno `ThemeSkinStudio.tsx`）。
  *
- * 两块：`主题设置` 与 `自定义 CSS`。左边的预览列是**一个真的迷你外壳**（侧栏 +
- * 会话列 + 作曲器），不是色卡 —— 圆角、玻璃模糊、透明度、边框强度这四个旋钮
- * 只有画出一整套 chrome 才看得出来。右边是名称 + 4 个基色 + 11 个滑块。
- *
- * 11 个滑块**全部真的落到 CSS 变量上**（`lib/theme-skins.ts` 的 `writeSkin`），
- * 没有只做 UI 的：焦点/缩放/压暗走壁纸层，阅读遮罩垫在消息列下，三个透明度决定
- * 侧栏/页面/卡片各让多少底透出来，模糊走 `backdrop-filter`，圆角写 `--radius-base`
- * （`app/globals.css` 里所有圆角都由它派生），边框强度参与 `--border` 的混色比例。
+ * 两块：`主题设置` 与 `自定义 CSS`。11 个滑块**全部真的落到 CSS 变量上**
+ * （`lib/theme-skins.ts` 的 `writeSkin`），没有只做 UI 的：焦点/缩放/压暗走壁纸层，
+ * 阅读遮罩垫在消息列下，三个透明度决定侧栏/页面/卡片各让多少底透出来，模糊走
+ * `backdrop-filter`，圆角写 `--radius-base`（`app/globals.css` 里所有圆角都由它派生），
+ * 边框强度参与 `--border` 的混色比例。
  *
  * 保存是**整套替换**而不是逐项 patch：皮肤是一个 18 个字段的整体，逐项合并会让
  * 「取消」和「恢复默认」都要各自维护一份逆操作。
  *
- * fork:zn-19-inline — 它是**内联编辑区**（卡片条下方展开），不是弹窗：Zeno 的外观页
- * 也是这个形态，一处编辑、没有第二层窗口。所以根元素是 `<section>` 而不是 dialog，
- * 也不用焦点陷阱。
+ * fork:design-system —— 画板 47「工作室对话框外壳（按实现）」五行：
+ * `.pw-modal-head`（标题 + 关闭钮，页签不进头行）/ `.pw-tabs` 页签行 /
+ * `.pw-modal-body` 内容行（左设置 1fr · 右预览 340px，发丝线分栏，布局照帧 1）/
+ * 提示行（role=status，无消息时整行不存在）/ `.pw-modal-foot` 动作行
+ * （删除 danger 仅编辑态 · 取消 / 恢复默认 outline / 保存 primary）。
+ * 实时预览的迷你外壳是产品的功能性部件（圆角/玻璃/透明度旋钮只有画出整套
+ * chrome 才看得出来），保留 `fork-skin-preview-*` 自有类 —— 登记同 Git 图泳道。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -35,35 +36,69 @@ import {
   type SkinWallpaperFit,
   type ThemeSkin,
 } from "@/lib/theme-skins";
-import { ConfigButton, SettingsSlider } from "./SettingsUi";
+import { ConfigButton, PwField, PwRadio, PwRange, PwSelectBox, PwValue } from "./SettingsUi";
 import { BuiltinWallpaperPicker, builtinIdForWallpaperUrl } from "./BuiltinWallpaperPicker";
 import { paintingPath } from "@/lib/wallpaper-builtin";
 import { SKIN_MODE_PALETTE } from "@/lib/theme-skins";
 
-const SLIDER_ORDER: Array<{ key: keyof typeof SKIN_RANGES; labelKey: string; unit: string }> = [
-  { key: "focusX", labelKey: "settings.skinFocusX", unit: "%" },
-  { key: "focusY", labelKey: "settings.skinFocusY", unit: "%" },
-  { key: "wallpaperScale", labelKey: "settings.skinWallpaperScale", unit: "%" },
-  { key: "wallpaperDim", labelKey: "settings.skinWallpaperDim", unit: "%" },
-  { key: "readingMask", labelKey: "settings.skinReadingMask", unit: "%" },
-  { key: "sidebarOpacity", labelKey: "settings.skinSidebarOpacity", unit: "%" },
-  { key: "pageOpacity", labelKey: "settings.skinPageOpacity", unit: "%" },
-  { key: "cardOpacity", labelKey: "settings.skinCardOpacity", unit: "%" },
-  { key: "blur", labelKey: "settings.skinBlur", unit: "px" },
+/** 滑块按画板 47 的分组落位：几何 / 不透明度与遮罩 / 壁纸（右列）。 */
+const GEOMETRY_SLIDERS: Array<{ key: keyof typeof SKIN_RANGES; labelKey: string; unit: string }> = [
   { key: "radius", labelKey: "settings.skinRadius", unit: "px" },
   { key: "borderAlpha", labelKey: "settings.skinBorderAlpha", unit: "%" },
 ];
 
+const OPACITY_SLIDERS: Array<{ key: keyof typeof SKIN_RANGES; labelKey: string; unit: string }> = [
+  { key: "sidebarOpacity", labelKey: "settings.skinSidebarOpacity", unit: "%" },
+  { key: "pageOpacity", labelKey: "settings.skinPageOpacity", unit: "%" },
+  { key: "cardOpacity", labelKey: "settings.skinCardOpacity", unit: "%" },
+  { key: "blur", labelKey: "settings.skinBlur", unit: "px" },
+  { key: "readingMask", labelKey: "settings.skinReadingMask", unit: "%" },
+];
+
+const WALLPAPER_SLIDERS: Array<{ key: keyof typeof SKIN_RANGES; labelKey: string; unit: string }> = [
+  { key: "focusX", labelKey: "settings.skinFocusX", unit: "%" },
+  { key: "focusY", labelKey: "settings.skinFocusY", unit: "%" },
+  { key: "wallpaperScale", labelKey: "settings.skinWallpaperScale", unit: "%" },
+  { key: "wallpaperDim", labelKey: "settings.skinWallpaperDim", unit: "%" },
+];
+
 const COLOR_FIELDS: Array<{ key: keyof ThemeSkin; labelKey: string }> = [
+  { key: "accent", labelKey: "settings.skinAccent" },
   { key: "background", labelKey: "settings.skinBackground" },
   { key: "panel", labelKey: "settings.skinPanel" },
-  { key: "accent", labelKey: "settings.skinAccent" },
   { key: "text", labelKey: "settings.skinText" },
 ];
 
 /** `<input type="color">` 只认 `#rrggbb`；基色可能是 oklch 或 color-mix，统一转一道。 */
 function toColorInputValue(value: string, fallback: string): string {
   return resolveCssColorToHex(value, fallback) || fallback;
+}
+
+function SkinSlider({ entry, draft, patch, t }: {
+  entry: { key: keyof typeof SKIN_RANGES; labelKey: string; unit: string };
+  draft: ThemeSkin;
+  patch: (next: Partial<ThemeSkin>) => void;
+  t: (key: string) => string;
+}) {
+  const range = SKIN_RANGES[entry.key];
+  const value = draft[entry.key] as number;
+  const id = `skin-slider-${entry.key}`;
+  return (
+    <PwField label={<label htmlFor={id}>{t(entry.labelKey)}</label>} control={
+      <span className="pw-ctl">
+        <PwRange
+          id={id}
+          value={value}
+          displayValue={`${value}${entry.unit}`}
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          ariaLabel={t(entry.labelKey)}
+          onChange={(next) => patch({ [entry.key]: next } as Partial<ThemeSkin>)}
+        />
+      </span>
+    } />
+  );
 }
 
 export function ThemeSkinStudio({
@@ -86,7 +121,6 @@ export function ThemeSkinStudio({
   const [message, setMessage] = useState("");
   // fork:zn-19-inline 回退 — 编辑走**弹窗**（用户要求）：内联会把设置面板撑得很长，
   // 而且卡片条下方那块空间本来就窄。回到 dialog + 焦点约束。
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose: onCancel });
 
   useEffect(() => { setDraft(skin); }, [skin]);
@@ -165,22 +199,30 @@ export function ThemeSkinStudio({
     <div
       ref={dialogRef}
       {...dialogProps}
-      className="fork-skin-dialog-backdrop"
+      className="pw-scrim fork-skin-scrim"
       onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}
     >
-      <div className="fork-skin-dialog" aria-label={isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}>
-        <header className="fork-skin-dialog-header">
-          <strong>{isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}</strong>
-          <button type="button" className="fork-skin-dialog-close" aria-label={t("i18n.close")} onClick={onCancel}>×</button>
-        </header>
+      {/* 画板 47 帧「工作室对话框」：900×720 的 `.pw-modal`，inline 尺寸照抄画板；
+          窄屏的 clamp 在 fork-ui.css 的 `.fork-skin-scrim` 接线里（窄屏语义）。 */}
+      <div
+        className="pw-modal fork-skin-modal"
+        aria-label={isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}
+        style={{ width: "900px", height: "720px", display: "flex", flexDirection: "column" }}
+      >
+        <div className="pw-modal-head">
+          {isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}
+          <span className="pw-grow" aria-hidden="true" />
+          <button type="button" className="pw-iconbtn sm" aria-label={t("i18n.close")} title={t("i18n.close")} onClick={onCancel}>
+            <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
+          </button>
+        </div>
 
-        <div role="tablist" className="fork-skin-dialog-tabs">
+        <div role="tablist" className="pw-tabs">
           <button
             type="button"
             role="tab"
             aria-selected={tab === "settings"}
-            className="fork-skin-dialog-tab"
-            data-active={tab === "settings" ? "true" : undefined}
+            className={`pw-tab${tab === "settings" ? " is-on" : ""}`}
             onClick={() => setTab("settings")}
           >
             {t("settings.skinTabSettings")}
@@ -189,8 +231,7 @@ export function ThemeSkinStudio({
             type="button"
             role="tab"
             aria-selected={tab === "css"}
-            className="fork-skin-dialog-tab"
-            data-active={tab === "css" ? "true" : undefined}
+            className={`pw-tab${tab === "css" ? " is-on" : ""}`}
             onClick={() => setTab("css")}
           >
             {t("settings.skinTabCss")}
@@ -198,34 +239,92 @@ export function ThemeSkinStudio({
         </div>
 
         {tab === "settings" ? (
-          <div className="fork-skin-dialog-body">
-            <div className="fork-skin-dialog-preview-column">
-              <div className="fork-skin-preview-head">
-                <span>{t("settings.skinPreview")}</span>
-                <div role="radiogroup" aria-label={t("settings.skinPreview")} className="fork-skin-preview-mode">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={previewMode === "light"}
-                    data-active={previewMode === "light" ? "true" : undefined}
-                    onClick={() => { setPreviewMode("light"); patch({ mode: "light" }); }}
-                  >
-                    {t("settings.skinModeLight")}
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={previewMode === "dark"}
-                    data-active={previewMode === "dark" ? "true" : undefined}
-                    onClick={() => { setPreviewMode("dark"); patch({ mode: "dark" }); }}
-                  >
-                    {t("settings.skinModeDark")}
-                  </button>
-                </div>
-              </div>
+          <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "1fr 340px", overflow: "hidden" }}>
+            {/* 左：设置（画板 47 帧 1：基本信息 / 四色 / 几何 / 不透明度与遮罩） */}
+            <div style={{ overflowY: "auto", minHeight: 0, display: "grid", gap: "var(--s2)", alignContent: "start" }}>
+              <div className="pw-sec-title">{t("settings.skinSectionBasic")}<span className="pw-grow" aria-hidden="true" /></div>
+              <PwField label={t("settings.skinName")} control={
+                <input
+                  ref={nameRef}
+                  type="text"
+                  className="pw-input"
+                  style={{ minWidth: 0, width: 220 }}
+                  maxLength={60}
+                  value={draft.name}
+                  onChange={(event) => patch({ name: event.target.value })}
+                  aria-label={t("settings.skinName")}
+                />
+              } />
+              <PwField label={t("settings.skinPreviewMode")} control={
+                <PwRadio
+                  value={previewMode}
+                  ariaLabel={t("settings.skinPreviewMode")}
+                  options={[
+                    { value: "light", icon: "sun", label: t("settings.skinModeLight") },
+                    { value: "dark", icon: "moon", label: t("settings.skinModeDark") },
+                  ]}
+                  onChange={(mode) => { setPreviewMode(mode); patch({ mode }); }}
+                />
+              } />
 
-              {/* 迷你外壳：侧栏 + 会话列 + 作曲器。圆角/玻璃/透明度/边框只在这三块上
-                  同时出现时才看得出来。 */}
+              <div className="pw-sec-title" style={{ marginTop: "var(--s3)" }}>
+                {t("settings.skinSectionColors")}<span className="pw-grow" aria-hidden="true" />
+              </div>
+              {/* fork:zn-19-variant — 这四个色输入编辑的是**当前模式的变体**（Zeno 的
+                  `updateVariantColor`）。变体为空时显示继承来的共享值，右侧的 ↺ 可以
+                  清掉覆盖、退回共享。 */}
+              {COLOR_FIELDS.map((field) => {
+                const key = field.key as SkinColorKey;
+                const variantValue = draft[previewMode][key];
+                const effective = resolveSkinColors(draft, previewMode)[key];
+                const inherited = !variantValue;
+                return (
+                  <PwField key={String(field.key)} label={t(field.labelKey)} control={
+                    <span className="pw-ctl">
+                      <input
+                        type="color"
+                        value={toColorInputValue(effective, SKIN_MODE_PALETTE[previewMode][key])}
+                        data-inherited={inherited ? "true" : undefined}
+                        onChange={(event) => patchVariantColor(key, event.target.value)}
+                        aria-label={t(field.labelKey)}
+                      />
+                      {!inherited && (
+                        <ConfigButton
+                          variant="ghost"
+                          size="small"
+                          title={t("settings.skinColorInherit")}
+                          aria-label={t("settings.skinColorInherit")}
+                          onClick={() => patchVariantColor(key, "")}
+                        >
+                          <span className="pw-ico"><i data-ico="rotate-ccw" data-size="13" aria-hidden="true" /></span>
+                        </ConfigButton>
+                      )}
+                    </span>
+                  } />
+                );
+              })}
+
+              <div className="pw-sec-title" style={{ marginTop: "var(--s3)" }}>
+                {t("settings.skinSectionGeometry")}<span className="pw-grow" aria-hidden="true" />
+              </div>
+              {GEOMETRY_SLIDERS.map((entry) => (
+                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
+              ))}
+
+              <div className="pw-sec-title" style={{ marginTop: "var(--s3)" }}>
+                {t("settings.skinSectionOpacity")}<span className="pw-grow" aria-hidden="true" />
+              </div>
+              {OPACITY_SLIDERS.map((entry) => (
+                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
+              ))}
+            </div>
+
+            {/* 右：预览列（画板 47：发丝线分栏 + 实时预览 + 壁纸） */}
+            <div style={{ borderLeft: "1px solid var(--n-border-subtle)", paddingLeft: "var(--s3)", display: "grid", gap: "var(--s2)", alignContent: "start", overflowY: "auto", minHeight: 0 }}>
+              <div className="pw-sec-title">{t("settings.skinSectionPreview")}<span className="pw-grow" aria-hidden="true" /></div>
+
+              {/* 迷你外壳：侧栏 + 会话列 + 作曲器（fork-skin-preview-* 是功能性预览，
+                  自有类保留 —— 圆角/玻璃/透明度/边框只在这三块上同时出现时才看得出来）。 */}
               <div className="fork-skin-preview" style={previewStyle} data-mode={previewMode}>
                 {draft.wallpaper ? (
                   <div
@@ -261,7 +360,10 @@ export function ThemeSkinStudio({
                 </div>
               </div>
 
-              <div className="fork-skin-dialog-asset-actions">
+              <div className="pw-sec-title" style={{ marginTop: "var(--s2)" }}>
+                {t("settings.skinSectionWallpaper")}<span className="pw-grow" aria-hidden="true" />
+              </div>
+              <div className="pw-inline">
                 <ConfigButton variant="secondary" size="small" onClick={pickWallpaper}>
                   {t("settings.skinChooseWallpaper")}
                 </ConfigButton>
@@ -273,20 +375,17 @@ export function ThemeSkinStudio({
                 >
                   {t("settings.skinRemoveWallpaper")}
                 </ConfigButton>
-                <label className="fork-skin-fit">
-                  <span className="sr-only">{t("settings.skinWallpaperFit")}</span>
-                  <select
-                    className="fork-settings-select"
-                    value={draft.wallpaperFit}
-                    aria-label={t("settings.skinWallpaperFit")}
-                    onChange={(event) => patch({ wallpaperFit: event.target.value as SkinWallpaperFit })}
-                  >
-                    {SKIN_WALLPAPER_FIT_VALUES.map((fit) => (
-                      <option key={fit} value={fit}>{t(`settings.skinFit_${fit}`)}</option>
-                    ))}
-                  </select>
-                </label>
+                <span className="pw-grow" aria-hidden="true" />
+                <PwSelectBox
+                  value={draft.wallpaperFit}
+                  ariaLabel={t("settings.skinWallpaperFit")}
+                  options={SKIN_WALLPAPER_FIT_VALUES.map((fit) => ({ value: fit, label: t(`settings.skinFit_${fit}`) }))}
+                  onChange={(fit) => patch({ wallpaperFit: fit as SkinWallpaperFit })}
+                />
               </div>
+              {WALLPAPER_SLIDERS.map((entry) => (
+                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
+              ))}
 
               {/* fork:zn-19-merge — 内置画作也能在这里直接挑：原来只有设置里的「壁纸」
                   区块能选，进工作室配皮肤时挑不到，得退出去再进来。 */}
@@ -296,118 +395,46 @@ export function ThemeSkinStudio({
                 onPick={(id) => patch({ wallpaper: paintingPath(id) })}
               />
             </div>
-
-            <div className="fork-skin-dialog-controls">
-              <label className="fork-skin-field">
-                <span>{t("settings.skinName")}</span>
-                <input
-                  ref={nameRef}
-                  type="text"
-                  className="fork-skin-text-input"
-                  maxLength={60}
-                  value={draft.name}
-                  onChange={(event) => patch({ name: event.target.value })}
-                />
-              </label>
-
-              {/* fork:zn-19-variant — 这四个色输入编辑的是**当前模式的变体**（Zeno 的
-                  `updateVariantColor`）。变体为空时显示继承来的共享值，右侧的 ↺ 可以
-                  清掉覆盖、退回共享。 */}
-              <div className="fork-skin-color-grid">
-                {COLOR_FIELDS.map((field) => {
-                  const key = field.key as SkinColorKey;
-                  const variantValue = draft[previewMode][key];
-                  const effective = resolveSkinColors(draft, previewMode)[key];
-                  const inherited = !variantValue;
-                  return (
-                    <label key={String(field.key)} className="fork-skin-color-field">
-                      <span>{t(field.labelKey)}</span>
-                      <span className="fork-skin-color-controls">
-                        <input
-                          type="color"
-                          value={toColorInputValue(effective, SKIN_MODE_PALETTE[previewMode][key])}
-                          data-inherited={inherited ? "true" : undefined}
-                          onChange={(event) => patchVariantColor(key, event.target.value)}
-                        />
-                        {!inherited && (
-                          <button
-                            type="button"
-                            className="fork-skin-color-reset"
-                            title={t("settings.skinColorInherit")}
-                            aria-label={t("settings.skinColorInherit")}
-                            onClick={() => patchVariantColor(key, "")}
-                          >
-                            ↺
-                          </button>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="fork-skin-slider-grid">
-                {SLIDER_ORDER.map((entry) => {
-                  const range = SKIN_RANGES[entry.key];
-                  const value = draft[entry.key] as number;
-                  return (
-                    <SettingsSlider
-                      key={entry.key}
-                      label={t(entry.labelKey)}
-                      value={value}
-                      displayValue={`${value}${entry.unit}`}
-                      min={range.min}
-                      max={range.max}
-                      step={range.step}
-                      onChange={(next) => patch({ [entry.key]: next } as Partial<ThemeSkin>)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
           </div>
         ) : (
-          <div className="fork-skin-dialog-css">
-            <p className="fork-skin-dialog-css-hint">{t("settings.skinCustomCssHint")}</p>
+          <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, overflow: "hidden", gridTemplateRows: "auto 1fr" }}>
+            <p className="sub">{t("settings.skinCustomCssHint")}</p>
             <textarea
-              className="fork-skin-css-input"
+              className="pw-textarea"
+              style={{ minHeight: 0, height: "100%" }}
               spellCheck={false}
               value={draft.customCss}
               onChange={(event) => patch({ customCss: event.target.value })}
               placeholder={".sidebar-container { letter-spacing: 0.01em; }"}
+              aria-label={t("settings.skinTabCss")}
             />
           </div>
         )}
 
-        {message ? <p className="fork-skin-dialog-message" role="status">{message}</p> : null}
+        {/* 提示行：画板 47 —— 无消息时整行不存在。 */}
+        {message ? (
+          <div role="status" className="pw-alert" style={{ margin: "0 var(--s4)" }}>
+            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+            <span className="grow">{message}</span>
+          </div>
+        ) : null}
 
-        <footer className="fork-skin-dialog-footer">
-          <div className="fork-skin-dialog-footer-left">
-            {onDelete && !isNew ? (
-              <ConfigButton
-                variant="ghost"
-                size="small"
-                onClick={() => onDelete(draft.id)}
-              >
-                {t("i18n.delete")}
-              </ConfigButton>
-            ) : null}
-          </div>
-          <div className="fork-skin-dialog-footer-right">
-            <ConfigButton variant="ghost" size="small" onClick={onCancel}>
-              {t("i18n.cancel")}
+        <footer className="pw-modal-foot">
+          {onDelete && !isNew ? (
+            <ConfigButton variant="danger" onClick={() => onDelete(draft.id)}>
+              {t("i18n.delete")}
             </ConfigButton>
-            <ConfigButton
-              variant="secondary"
-              size="small"
-              onClick={() => setDraft(createSkinDraft(draft.id, draft.name, draft.mode))}
-            >
-              {t("settings.skinReset")}
-            </ConfigButton>
-            <ConfigButton variant="primary" size="small" onClick={() => onSave(draft)}>
-              {t("i18n.save")}
-            </ConfigButton>
-          </div>
+          ) : null}
+          <span className="pw-grow" aria-hidden="true" />
+          <ConfigButton variant="ghost" onClick={onCancel}>
+            {t("i18n.cancel")}
+          </ConfigButton>
+          <ConfigButton variant="secondary" onClick={() => setDraft(createSkinDraft(draft.id, draft.name, draft.mode))}>
+            {t("settings.skinReset")}
+          </ConfigButton>
+          <ConfigButton variant="primary" onClick={() => onSave(draft)}>
+            {t("i18n.save")}
+          </ConfigButton>
         </footer>
       </div>
     </div>
