@@ -1,7 +1,7 @@
 {
   "name": "@agegr/pi-web",
   "version": "0.1.6",
-  "description": "Pi Agent — local coding agent workbench",
+  "description": "PI NEXT — local coding agent workbench",
   "homepage": "https://github.com/greenfriends6688/Pi-Agent#readme",
   "repository": {
     "type": "git",
@@ -46,7 +46,7 @@
     "check:motion": "node scripts/check-motion-tokens.mjs",
     "check:icons": "node scripts/check-icons.mjs",
     "check:contrast": "node docs/codex-skin/check-contrast.mjs",
-    "verify:boards": "node scripts/verify-against-boards.mjs && node scripts/board-diff.mjs",
+    "verify:boards": "node scripts/verify-against-boards.mjs && node scripts/board-diff-all.mjs",
     "check:design": "node scripts/check-style-literals.mjs && node scripts/check-motion-tokens.mjs && node scripts/check-icons.mjs && node design/pi-web-design/scripts/check-boards.mjs && node design/pi-web-design/scripts/check-align.mjs",
     "release": "npm version patch --no-git-tag-version && npm run build && npm publish --access public",
     "desktop": "electron .",
@@ -121,11 +121,11 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^5"
   },
-  "productName": "Pi Agent",
+  "productName": "PI NEXT",
   "main": "electron/main.js",
   "build": {
     "appId": "com.greenfriends6688.pinkslab",
-    "productName": "Pi Agent",
+    "productName": "PI NEXT",
     "asar": false,
     "npmRebuild": false,
     "files": [
@@ -226,9 +226,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Pi Agent",
+      "shortcutName": "PI NEXT",
       "artifactName": "${productName}-Setup-${version}.${ext}",
-      "uninstallDisplayName": "Pi Agent ${version}"
+      "uninstallDisplayName": "PI NEXT ${version}"
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}.${ext}"

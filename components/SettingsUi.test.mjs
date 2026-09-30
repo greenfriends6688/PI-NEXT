@@ -22,6 +22,8 @@ const configSources = await Promise.all(
 test("provides one template for config layout and controls", () => {
   for (const primitive of [
     "ConfigPanelShell",
+    "SettingsPage",
+    "PwSearch",
     "ConfigSplitView",
     "ConfigSidebar",
     "ConfigSidebarGroupLabel",
@@ -50,11 +52,11 @@ test("provides one template for config layout and controls", () => {
   ]) {
     assert.match(templateSource, new RegExp(`export function ${primitive}`));
   }
-  // 两栏骨架 = 画板 41 的 `.pw-cols`（260px 列表 + 1fr 详情，gap s4）。
+  // 两栏骨架 = 画板 62 的 `.pw-cols`（300px 列表 + 上限 760 的详情，gap s4）。
   assert.match(templateSource, /export function ConfigSplitView[\s\S]*?className="pw-cols"/);
   assert.match(templateSource, /export function ConfigSidebarList[\s\S]*?className="pw-list"/);
   assert.match(templateSource, /export function ConfigDetail[\s\S]*?className="pw-detail"/);
-  assert.match(boardSource, /\.pw-cols \{[\s\S]*?grid-template-columns: 260px minmax\(0, 1fr\)/);
+  assert.match(boardSource, /\.pw-cols \{[\s\S]*?grid-template-columns: 300px minmax\(0, 760px\)/);
   assert.match(boardSource, /\.pw-detail \{[\s\S]*?border: 1px solid var\(--n-border-subtle\)/);
   // 列宽 / 卡内距的唯一来源是 board.css；模板直接输出 `.pw-cols` / `.pw-detail`，
   // 不再输出 settings.css 里那套 240px / 20px 抄写对应的自绘类。
@@ -72,9 +74,9 @@ test("loads settings presentation from its dedicated stylesheet", () => {
   assert.doesNotMatch(globalCssSource, /\.settings-dialog-backdrop \{/);
 });
 
-test("all four settings sections use the shared list-detail layout", () => {
+test("all four settings sections use the shared page frame and list-detail layout", () => {
   for (const [name, source] of configSources) {
-    for (const primitive of ["ConfigPanelShell", "ConfigSplitView", "ConfigSidebar", "ConfigDetail", "ConfigFooter"]) {
+    for (const primitive of ["ConfigPanelShell", "SettingsPage", "ConfigSplitView", "ConfigSidebar", "ConfigDetail"]) {
       assert.match(source, new RegExp(`<${primitive}`), `${name} should use ${primitive}`);
     }
   }
@@ -205,25 +207,75 @@ test("keeps shared static presentation in the design system stylesheet", () => {
   );
 });
 
-test("embedded sections do not repeat Settings close actions", () => {
-  const sources = Object.fromEntries(configSources);
-  assert.match(sources.ModelsConfig, /!embedded && <ConfigButton onClick=\{onClose\}>\{t\("i18n\.cancel"\)\}/);
-  assert.match(sources.SkillsConfig, /!embedded && <ConfigButton onClick=\{onClose\}>\{t\("i18n\.close"\)\}/);
-  assert.match(sources.PluginsConfig, /!embedded && <ConfigButton onClick=\{onClose\}>\{t\("i18n\.close"\)\}/);
+/**
+ * fork:settings-frame（画板 62）—— **画板与实现必须是同一套 DOM**。
+ *
+ * 用户实测反馈：「设计的好，但真正落地的时候就有差距了，就不按照规划的进行设计了」。
+ * 根因（已实测）：画板 62 的帧是**手写内联样式**画的（`pw-shead` 在画板里出现 **0 次**），
+ * 而实现落地时新造了 `.pw-shead` / `.pw-stools` / `.pw-scontent` 三个类。
+ * 两套 DOM 没有共同选择器 → `scripts/board-diff.mjs` 逐项报「画板里没有这个选择器」
+ * → 只能靠人眼比 → 必然漂移。
+ *
+ * 这条测试把「共用同一套类」钉死，**不需要浏览器**，所以能进 check:design。
+ */
+test("画板与实现共用同一套设置页框架类（否则 live 对位失效）", async () => {
+  // 1. 实现：`SettingsPage` 输出的类，board.css 必须有对应规则
+  for (const cls of ["pw-shead", "pw-shead-copy", "pw-shead-acts", "pw-stools", "pw-scontent"]) {
+    assert.match(templateSource, new RegExp(cls), `SettingsPage 应输出 .${cls}`);
+    assert.match(boardSource, new RegExp(`\\.${cls}\\b`), `board.css 应定义 .${cls}`);
+  }
+  // 2. 画板：设置分节的页帧必须用三件套，不许再留「.pw-sbody 直接跟标题」的旧帧
+  for (const name of [
+    "40-settings-general",
+    "41-settings-models",
+    "42-settings-agents-skills",
+    "43-settings-plugins-mcp",
+    "44-settings-cron-memory",
+    "45-settings-shortcuts-usage",
+    "46-settings-prompts-archive-import",
+    "62-settings-layout",
+  ]) {
+    const src = await readFile(
+      new URL(`../design/pi-web-design/${name}.html`, import.meta.url),
+      "utf8",
+    );
+    assert.match(src, /class="pw-shead"/, `${name} 的页帧应使用 .pw-shead`);
+    assert.match(src, /class="pw-scontent/, `${name} 的页帧应使用 .pw-scontent`);
+    assert.doesNotMatch(
+      src,
+      /class="pw-sbody"[^>]*>\s*<h2>/,
+      `${name} 里还有旧帧（.pw-sbody 直接跟 h2）`,
+    );
+    assert.doesNotMatch(
+      src,
+      /class="pw-sbody"[^>]*>\s*<div class="pw-inline">/,
+      `${name} 里还有旧帧（.pw-sbody 直接跟 pw-inline 标题行）`,
+    );
+  }
 });
 
-test("subpanel footers share sizing while maintenance actions stay secondary", () => {
+test("embedded sections do not repeat Settings close actions", () => {
   const sources = Object.fromEntries(configSources);
-  // 底栏 = 画板的 `.pw-modal-foot`（左状态等宽弱化 + 右动作组），字号与内距来自 board.css。
-  assert.match(templateSource, /export function ConfigFooter[\s\S]*?className="pw-modal-foot"/);
-  assert.match(boardSource, /\.pw-modal-foot \{[\s\S]*?display: flex[\s\S]*?justify-content: space-between/);
-  for (const source of Object.values(sources)) {
-    assert.match(source, /<ConfigFooter/);
+  for (const [name, source] of Object.entries(sources)) {
+    // fork:settings-frame（画板 62）—— 关闭动作只属于设置面板的页头，
+    // 嵌入的分节一个都不重复（原先靠页脚里 `!embedded &&` 兜着，页脚已删）。
+    assert.doesNotMatch(source, /onClick=\{onClose\}/, `${name} should not repeat the close action`);
   }
+});
+
+test("动作按层级归位：页级在页头、表单级在表单底部，页脚不再放动作", () => {
+  const sources = Object.fromEntries(configSources);
+  // 画板 62 的 ①：页级动作挂在 SettingsPage 的 actions 槽。
+  for (const [name, source] of Object.entries(sources)) {
+    assert.match(source, /<SettingsPage/, `${name} should use the shared page frame`);
+    assert.doesNotMatch(source, /<ConfigFooter/, `${name} should not render a page footer`);
+  }
+  // ④ 表单级：保存按钮留在它保存的那张卡里。
   assert.match(sources.ModelsConfig, /<ConfigButton\s+variant="primary"[\s\S]*?onClick=\{handleSave\}/);
   assert.match(sources.AgentsConfig, /<ConfigButton\s+variant="primary"[\s\S]*?onClick=\{\(\) => void save\(\)\}/);
-  assert.match(sources.SkillsConfig, /<ConfigButton variant="secondary" onClick=\{\(\) => void checkForUpdates\(\)\}/);
-  assert.match(sources.PluginsConfig, /<ConfigButton variant="secondary" onClick=\{\(\) => void loadPlugins\(\)\}/);
+  // ② 列表级：刷新 / 检查更新与计数同排（工具栏）。
+  assert.match(sources.SkillsConfig, /onClick=\{\(\) => void checkForUpdates\(\)\}/);
+  assert.match(sources.PluginsConfig, /onClick=\{\(\) => void loadPlugins\(\)\}/);
 });
 
 test("skills, agents, and plugins share enabled and disabled controls", () => {
@@ -271,4 +323,37 @@ test("provider usage summary renders the artboard stat cards", async () => {
   assert.match(usageSource, /pw-anim-spin/);
   assert.doesNotMatch(usageSource, /<svg/);
   assert.doesNotMatch(usageSource, /style=\{\{/);
+});
+
+/**
+ * fork:settings-frame（画板 62）—— 两栏设置页的**两列各自滚动**。
+ *
+ * 症状（2026-09-30 用户实测）：模型页的「可用模型」列到面板底部被切断、
+ * 底部的保存按钮像浮在列表上。根因：只有左列声明了 `overflow-y:auto`，
+ * 右列按内容长高；外层 `overflow:hidden` 把多出来的部分直接裁掉。
+ *
+ * 现在的规格更硬一层：**分节内容区是唯一滚动容器**，列表页把滚动下放给两列。
+ */
+test("两栏设置页的左右列都是滚动容器（否则右列被裁、底部动作条压内容）", () => {
+  assert.match(
+    boardSource,
+    /\.pw-scontent\.is-fixed > \.pw-cols > \* \{[\s\S]*?overflow-y: auto/,
+  );
+  // 装了三件套的分节宿主改成 flex column：页头与工具栏固定，内容区接管滚动。
+  assert.match(
+    cssSource,
+    /\.settings-section-host\.pw-sbody:has\(\.pw-shead\) \{[\s\S]*?overflow: hidden/,
+  );
+});
+
+/**
+ * fix:block-rhythm —— 块内紧跟字段行的提示 / 横幅要有上边距。
+ * 画板的 `.pw-block` 只有 `.pw-field`；产品补的状态行在 Tailwind preflight
+ * 把 `<p>` 的 UA margin 归零后会紧贴上一行（用户实测「间距特别近」）。
+ */
+test("块内的提示与横幅不再贴着上一行", () => {
+  assert.match(
+    cssSource,
+    /\.pw-block > \.pw-alert,\s*\n\.pw-block > \.pw-hint,[\s\S]*?margin-top: var\(--s2\)/,
+  );
 });

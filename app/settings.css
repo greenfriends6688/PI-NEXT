@@ -53,6 +53,17 @@
   overflow-y: auto;
 }
 
+/* fix:settings-detail-scroll —— 右列（详情卡堆）也要能滚。
+   原来只有左列声明了 `overflow-y:auto`，右列按内容长高；`.config-panel-surface`
+   是 `overflow:hidden`，于是**多出来的部分被直接裁掉**，而底部的 `.pw-modal-foot`
+   （保存按钮）仍然贴在面板底 —— 看起来就是「保存按钮浮在列表上、最后几行被切掉」
+   （用户实测：模型页的可用模型列表）。两列各自滚动，底部动作条不再压内容。 */
+.config-panel-surface > .pw-cols > :last-child {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .config-panel-root.is-modal > .config-panel-surface {
   width: min(var(--config-panel-width), calc(100vw - 16px));
   height: min(var(--config-panel-height), calc(100dvh - 16px));
@@ -691,13 +702,67 @@
   overflow-x: hidden;
 }
 
+/* fork:settings-frame（画板 62）—— 分节里装了三件套（`.pw-shead` /
+   `.pw-stools` / `.pw-scontent`）时，宿主改成一个 **flex column**：
+   页头与工具栏固定，`.pw-scontent` 是唯一滚动容器。
+   页边距改由三件套自己出（40px 左右、24/12 上下），宿主归零，
+   否则页头吸不到顶、`.pw-scontent` 也拿不到完整高度。
+
+   为什么用 `:has()`：分节可以**一页一页迁移** —— 还没迁移的分节继续走上面那条
+   默认滚动，不会因为宿主改了布局而被裁掉。
+
+   注意是**后代**选择器而不是 `> .pw-shead`：列表页（模型 / 技能 / 子代理 / 插件 / MCP）
+   外面还套着 `ConfigPanelShell` 的 `.config-panel-root` / `.config-panel-surface` 两层，
+   三件套不是宿主的直接子元素。用直接子选择器会让这 5 页漏掉 —— 宿主仍带
+   24/40/32 的内边距 + 自己的滚动条，100% 高的内层因此溢出 56px、右侧多出一条滚动条。 */
+.settings-section-host.pw-sbody:has(.pw-shead) {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 列表页（模型 / 技能 / 子代理 / 插件 / MCP）的外壳本来就是 flex column，
+   三件套直接挂上去即可；这里只把 `.pw-cols` 从「吃掉剩余高度」改到
+   `.pw-scontent` 里 —— 两列各自滚动，见 board.css 的 `.pw-scontent.is-fixed`。 */
+.config-panel-surface > .pw-shead,
+.config-panel-surface > .pw-stools,
+.config-panel-surface > .pw-scontent {
+  flex: none;
+}
+.config-panel-surface > .pw-scontent {
+  flex: 1;
+  min-height: 0;
+}
+
+/* fork:settings-frame（画板 62）—— 详情列是 **760 定宽**，而里面那两层
+   `ConfigDetailStack` 是 grid。grid 子项默认 `min-width: auto`，会被
+   min-content 撑破卡片：技能详情的 SKILL.md 只读盒（长代码行）把内容顶到
+   847 宽、横向溢出卡片 88px（用户实测「内容被横向裁掉」）。
+   栈是嵌套的，所以按「栈的所有子项」一次给够；长行交给盒子自己的 `overflow: auto`。 */
+.pw-detail > *,
+.pw-detail .pw-detail-stack > * {
+  min-width: 0;
+}
+
+/* fix:block-rhythm —— 块内「字段行之后」的提示 / 横幅要一点上边距。
+   画板的 `.pw-block` 里只有 `.pw-field`；产品补了状态行（通知块的状态提示、记忆块的
+   说明、子代理列表的加载条）。Tailwind 的 preflight 把 `<p>` 的 UA margin 归零后，
+   这些补充元素会**紧贴上一行**——用户实测「有的页面间距特别近」，说的就是这类位置。 */
+.pw-block > .pw-alert,
+.pw-block > .pw-hint,
+.pw-detail > .pw-hint,
+.pw-detail > .pw-alert,
+.pw-hint:not(:first-child) {
+  margin-top: var(--s2);
+}
+
 /* fork:settings-field-density —— 画板的 `.pw-field` 是「标签在左、控件在右」，
    控件槽 `.pw-ctl { flex: none }`。画板里的控件都是定宽小控件（180 / 280px），
    标签永远放得下；产品的子代理详情里有整行 textarea 和 `min-width: 200px`
    的 `.pw-input`，`flex: none` 的控件把标签挤到一两个字符宽，于是
    「显示名称」断成两行、「系统指令」断成三行，行与行之间看着也挤在一起。
-   修法在接线层，不动画板：标签给一个不可压缩的下限，控件槽允许收缩。 */
-.settings-dialog-main .pw-field {
+   修法在接线层，不动画板：标签给一个不可压缩的下限，控件槽允许收缩。 */.settings-dialog-main .pw-field {
   /* 控制放不下时换到标签下一行，而不是把卡片撑出一截（子代理的「工具」芯片行
      与「指定模型 / 思考级别 / 最大轮次」三列网格都遇到过）。 */
   flex-wrap: wrap;
@@ -710,8 +775,13 @@
 }
 
 .settings-dialog-main .pw-field > .pw-label {
-  flex: 0 0 auto;
+  /* fork:settings-frame（画板 62）—— 原来是 `flex: 0 0 auto`（不许收缩）。
+     块流页收进 570 宽的一栏后，长 `small` 说明（推送注册那句 30+ 字）会把标签
+     撑到 1300+ 宽、整块溢出内容区 338px。改成可收缩 + 132px 下限：
+     文字照常换行，控件不够放时由 `.pw-field` 的 `flex-wrap` 换到下一行。 */
+  flex: 0 1 auto;
   min-width: 132px;
+  max-width: 100%;
 }
 
 .settings-dialog-main .pw-field > .pw-ctl {
@@ -844,9 +914,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
   /* fork:design-system SW-07 — 画板 40 的页边距是桌面值（左右各 40）；手机上内容列
-     只有 ~380px，左右各留 40 太贵，收到 s4（横向）并保持同一套行规格。 */
+     只有 ~380px，左右各留 40 太贵，收到 s4（横向）并保持同一套行规格。
+     fork:settings-frame（画板 62）—— 桌面值现在写在三件套自己身上
+     （`.pw-shead` / `.pw-stools` / `.pw-scontent` 各 40），所以这里改它们。 */
   .settings-section-host.pw-sbody {
     padding: var(--s4) var(--s4) var(--s5);
+  }
+  .pw-shead,
+  .pw-stools,
+  .pw-scontent,
+  .pw-scontent.is-fixed {
+    padding-left: var(--s4);
+    padding-right: var(--s4);
   }
 
   .settings-mobile-section-picker {

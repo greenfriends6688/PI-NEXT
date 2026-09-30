@@ -32,6 +32,8 @@ const MINIMAP_PADDING = 12;
 const MINIMAP_TRIGGER_TAIL = 16;
 const PREVIEW_HIDE_DELAY = 250;
 const NAVIGATION_ACTIVE_LOCK_MS = 1600;
+/** fix:minimap-hover —— 时间线浮层宽（画板 53：320），tooltip 要避让它的宽度。 */
+const MINIMAP_POP_WIDTH = 320;
 
 interface AssistantPreview {
   markdown: string;
@@ -736,7 +738,10 @@ export function ChatMinimap({
             data-minimap-tooltip=""
             style={{
               position: "absolute",
-              left: 34,
+              // fix:minimap-hover —— 导轨在最右缘，`left: 34`（导轨右侧）等于把卡片
+              // 推到屏外、再被 `.chat-content` 的 overflow 裁掉。改成朝**左**展开，
+              // 并且让开 320px 的时间线浮层 —— 卡片落在浮层左边，两者不叠加。
+              right: `calc(100% + ${MINIMAP_POP_WIDTH + 8}px)`,
               top: `calc(${node.topRatio * 100}% + ${MINIMAP_PADDING}px)`,
               zIndex: 3,
               transform: "translateY(-50%)",
@@ -768,7 +773,9 @@ export function ChatMinimap({
       })()}
 
       {/* 导轨节点：6px 圆点，当前 8px 转 accent（`.node.on`），标题轮走 muted
-          （`.node.heading`）。kind 由 `deriveTurnNodeKind` 纯前端派生。 */}
+          （`.node.heading`）。kind 由 `deriveTurnNodeKind` 纯前端派生。
+          fix:minimap-hover —— 另给「指针最近的那一颗」挂 data 属性：悬停导轨时
+          这颗点放大 + 转 accent，配合左侧浮层里对应轮的高亮，回答「我hover的是哪一轮」。 */}
       {positionedNodes.map((node) => (
         <span
           key={node.index}
@@ -776,6 +783,7 @@ export function ChatMinimap({
           data-minimap-node-index={node.index}
           data-minimap-node-kind={node.kind}
           data-minimap-node-active={activeIndex === node.index ? "" : undefined}
+          data-minimap-node-hover={minimapHovered && nearestNodeIndex === node.index ? "" : undefined}
           style={{ top: `${node.topRatio * 100}%` }}
         />
       ))}

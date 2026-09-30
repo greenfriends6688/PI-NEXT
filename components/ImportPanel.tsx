@@ -38,7 +38,7 @@ import { IMPORT_KINDS, type ImportCandidate, type ImportKind, type ImportSourceD
 import { getRecentProjects } from "@/lib/project-groups";
 import { useProjectFlags } from "@/lib/project-flags";
 import type { SessionInfo } from "@/lib/types";
-import { ConfigButton, ConfigSwitch, PwRadio } from "./SettingsUi";
+import { ConfigButton, ConfigSwitch, PwRadio, SettingsPage } from "./SettingsUi";
 
 interface KindState {
   /** null = 还没扫过。 */
@@ -385,40 +385,47 @@ export function ImportPanel() {
 
   return (
     <>
-      {/* 画板 46：标题行 = h2 + 重新扫描；说明在下一行。 */}
-      <div className="pw-inline">
-        <h2 style={{ margin: 0 }}>{t("import.title")}</h2>
-        <span className="pw-grow" aria-hidden="true" />
-        <ConfigButton
-          variant="secondary"
-          size="small"
-          disabled={states[active].scanning}
-          onClick={() => void scan(active)}
-        >
-          <span className="pw-ico"><i data-ico="scan-search" data-size="13" aria-hidden="true" /></span>
-          {states[active].scanning ? t("i18n.loading") : t("import.scan")}
-        </ConfigButton>
-      </div>
-      <p className="sub">{t("import.description")}</p>
-
-      {/* 四类资产页签：`.pw-radio` + 每类计数（扫过的才显示数字）。 */}
-      <PwRadio
-        value={active}
-        ariaLabel={t("import.title")}
-        options={IMPORT_KINDS.map((kind) => {
-          const count = states[kind].candidates;
-          return {
-            value: kind,
-            icon: KIND_ICON[kind],
-            label: count !== null ? `${t(KIND_LABEL_KEY[kind])} ${count.length}` : t(KIND_LABEL_KEY[kind]),
-          };
-        })}
-        onChange={setActive}
-      />
-      <div style={{ height: "var(--s3)" }} aria-hidden="true" />
-
+      {/* fork:settings-frame（画板 62）—— 导入页的三件套。
+          h2 原来被包在 `.pw-inline` 里（够不到 board.css 的 `.pw-sbody > h2`），
+          四类资产页签与说明挤在内容区第一行；「扫描」是页级动作、页签是列表级
+          筛选，现在分列页头与工具栏。 */}
+      <SettingsPage
+        title={t("import.title")}
+        sub={t("import.description")}
+        actions={
+          <ConfigButton
+            variant="secondary"
+            size="small"
+            disabled={states[active].scanning}
+            onClick={() => void scan(active)}
+          >
+            <span className="pw-ico"><i data-ico="scan-search" data-size="13" aria-hidden="true" /></span>
+            {states[active].scanning ? t("i18n.loading") : t("import.scan")}
+          </ConfigButton>
+        }
+        toolbar={
+          <>
+            {/* 四类资产页签：`.pw-radio` + 每类计数（扫过的才显示数字）。 */}
+            <PwRadio
+              value={active}
+              ariaLabel={t("import.title")}
+              options={IMPORT_KINDS.map((kind) => {
+                const count = states[kind].candidates;
+                return {
+                  value: kind,
+                  icon: KIND_ICON[kind],
+                  label: count !== null ? `${t(KIND_LABEL_KEY[kind])} ${count.length}` : t(KIND_LABEL_KEY[kind]),
+                };
+              })}
+              onChange={setActive}
+            />
+            <span className="pw-grow" aria-hidden="true" />
+          </>
+        }
+      >
       {/* All four stay mounted: switching tabs must not throw away a scan result. */}
       {IMPORT_KINDS.map(renderKind)}
+      </SettingsPage>
     </>
   );
 }

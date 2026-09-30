@@ -27,8 +27,9 @@
  *
  * **新代码用 `DESIGN_TEXT` 的规范名**，不要再用旧名。
  *
- * 注意：聊天正文字号不归本模块管 —— 那是用户可调的 `useChatAppearance`
- * （12–24px，写 `--chat-content-font-size`）。
+ * 注意：聊天正文字号不归本模块的梯子管 —— 它由用户可选，选项来自
+ * `USER_TEXT_SIZE_OPTIONS`（规范五档去掉 meta，即 12 / 13 / 15 / 20），
+ * 写在 CSS 变量 `--chat-content-font-size` 上。
  *
  * 纯数据模块：服务端与客户端都可 import，不依赖任何平台 API。
  */
@@ -160,3 +161,39 @@ export const TEXT_STEP_TO_DESIGN: Record<TextStep, DesignTextStep> = {
   "2xl": "display",
   "3xl": "display",
 };
+
+/**
+ * 用户在设置里能选的**字号档位**（界面字号 / 聊天字号 / 扩展组件字号）。
+ *
+ * 取规范五档去掉 `meta`(11)：11 是标签与时间戳用的元信息档，把它发给正文或界面文字
+ * 只会得到一个没人想要的结果。**上限就是规范的 `display`(20) **——
+ * 以前这三个设置是 `<input type=range>` 的连续值（界面 12–16 / 聊天与扩展组件 12–24），
+ * 用户随手就能停在 14 · 16 · 24 上，而这三个值都不在规范的五档里（实测：
+ * 当时 composer 的输入框就是 14px）。现在选项由规范推导，改规范只改这一处。
+ */
+export const USER_TEXT_SIZE_OPTIONS: readonly number[] = DESIGN_TEXT_STEPS
+  .filter((step) => step !== "meta")
+  .map((step) => DESIGN_TEXT_PX[step]);
+
+/**
+ * 把任意字号**归并到用户可选的档位**，返回 px。
+ *
+ * 与 `nearestDesignTextStep` 的区别：那个会归到 11（用户选不到），这个只在
+ * `USER_TEXT_SIZE_OPTIONS` 里挑。用途是读回 localStorage 里的旧值：
+ * 存过 14 的旧用户应该落在 13（规范的正文档），存过 24 的落在 20。
+ */
+export function snapUserTextSize(px: number): number {
+  const options = USER_TEXT_SIZE_OPTIONS;
+  if (!Number.isFinite(px)) return DESIGN_TEXT_PX.body;
+  const first = options[0];
+  const last = options[options.length - 1];
+  if (px <= first) return first;
+  if (px >= last) return last;
+  let best = first;
+  for (const option of options) {
+    // 严格小于才替换：并列（如 14 距 13 与 15 各 1）时收敛到较小档，与
+    // `nearestTextStepName` 同一口径。
+    if (Math.abs(px - option) < Math.abs(px - best)) best = option;
+  }
+  return best;
+}

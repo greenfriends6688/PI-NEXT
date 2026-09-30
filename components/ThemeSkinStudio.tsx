@@ -239,9 +239,13 @@ export function ThemeSkinStudio({
         </div>
 
         {tab === "settings" ? (
-          <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "1fr 340px", overflow: "hidden" }}>
-            {/* 左：设置（画板 47 帧 1：基本信息 / 四色 / 几何 / 不透明度与遮罩） */}
-            <div style={{ overflowY: "auto", minHeight: 0, display: "grid", gap: "var(--s2)", alignContent: "start" }}>
+          // fix:skin-preview-left（用户裁定 2026-09-30）—— 实时预览挪到**左列**。
+          // 画板 47 帧 1 画的是「左设置 1fr · 右预览 340px」，用户明确要求反过来
+          // （「为啥把预览放在右边了啊，应该放到左边啊」）。DOM 顺序不动，用 grid 的
+          // `order` 把预览列排到第一格，两个子块各写一个 order（见下）。
+          <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "340px 1fr", overflow: "hidden" }}>
+            {/* 右（原左）：设置（画板 47 帧 1：基本信息 / 四色 / 几何 / 不透明度与遮罩） */}
+            <div style={{ order: 2, overflowY: "auto", minHeight: 0, display: "grid", gap: "var(--s2)", alignContent: "start" }}>
               <div className="pw-sec-title">{t("settings.skinSectionBasic")}<span className="pw-grow" aria-hidden="true" /></div>
               <PwField label={t("settings.skinName")} control={
                 <input
@@ -319,8 +323,8 @@ export function ThemeSkinStudio({
               ))}
             </div>
 
-            {/* 右：预览列（画板 47：发丝线分栏 + 实时预览 + 壁纸） */}
-            <div style={{ borderLeft: "1px solid var(--n-border-subtle)", paddingLeft: "var(--s3)", display: "grid", gap: "var(--s2)", alignContent: "start", overflowY: "auto", minHeight: 0 }}>
+            {/* 左（原右）：预览列（画板 47 的分栏语义保留，只是换到左侧 —— 发丝线改成右边线） */}
+            <div style={{ order: 1, borderRight: "1px solid var(--n-border-subtle)", paddingRight: "var(--s3)", display: "grid", gap: "var(--s2)", alignContent: "start", overflowY: "auto", minHeight: 0 }}>
               <div className="pw-sec-title">{t("settings.skinSectionPreview")}<span className="pw-grow" aria-hidden="true" /></div>
 
               {/* 迷你外壳：侧栏 + 会话列 + 作曲器（fork-skin-preview-* 是功能性预览，

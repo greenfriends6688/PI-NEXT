@@ -1,12 +1,12 @@
-# Pinkslab
+# PI NEXT
 
-> **Pinkslab** = **Pi** + **Ink** + **Slab** —— 为 [pi 编程智能体](https://github.com/earendil-works/pi) 做的工作台：一套本地浏览器界面，加一个桌面应用，共用 pi 自己的会话、模型与配置。
+> **PI NEXT** —— AI for what’s next。为 [pi 编程智能体](https://github.com/earendil-works/pi) 做的工作台：一套本地浏览器界面，加一个桌面应用，共用 pi 自己的会话、模型与配置。
 
 [English](./README.md) | 简体中文
 
-![Pinkslab 正在跑一个 pi 会话：可折叠的工具调用、带语法高亮的回答与输入框](./assets/readme-screenshot.png)
+![PI NEXT 正在跑一个 pi 会话：可折叠的工具调用、带语法高亮的回答与输入框](./assets/readme-screenshot.png)
 
-在 pi 终端里开始的对话，可以直接在 Pinkslab 里接着聊，再交回终端——因为 Pinkslab 读写的就是 pi 自己的文件：`~/.pi/agent/sessions` 下的会话，以及 `models.json`、`settings.json`、认证、技能和插件包。数据不出本机：服务只绑 `127.0.0.1`，供应商密钥始终留在 pi 的配置里。
+在 pi 终端里开始的对话，可以直接在 PI NEXT 里接着聊，再交回终端——因为 PI NEXT 读写的就是 pi 自己的文件：`~/.pi/agent/sessions` 下的会话，以及 `models.json`、`settings.json`、认证、技能和插件包。数据不出本机：服务只绑 `127.0.0.1`，供应商密钥始终留在 pi 的配置里。
 
 ## 特点
 
@@ -119,18 +119,18 @@
 ## 环境要求
 
 - Node.js 22.19.0 或更新（`node --version`）。
-- 一个能用的 pi 安装，且至少配好一个供应商。Pinkslab 默认读 `~/.pi/agent`；pi 数据在别处时用 `PI_CODING_AGENT_DIR` 指向它。
+- 一个能用的 pi 安装，且至少配好一个供应商。PI NEXT 默认读 `~/.pi/agent`；pi 数据在别处时用 `PI_CODING_AGENT_DIR` 指向它。
 
 ## 运行
 
 ```bash
 git clone https://github.com/greenfriends6688/Pi-Agent.git
-cd pinkslab
+cd Pi-Agent
 npm install
 npm run prod        # 生产构建并跑在 http://127.0.0.1:30141
 ```
 
-Pinkslab 只监听 `127.0.0.1`。改代码时用 `npm run dev:clean`，跑单测用 `npm test`，类型检查用 `npx tsc --noEmit`。
+PI NEXT 只监听 `127.0.0.1`。改代码时用 `npm run dev:clean`，跑单测用 `npm test`，类型检查用 `npx tsc --noEmit`。
 
 ### 桌面应用
 
@@ -142,18 +142,18 @@ npm run desktop:dist:win   # 交叉打 Windows 安装包
 
 桌面外壳内置同一套 Next.js 服务，所以浏览器版和桌面版是同一个产品。
 
-> Pinkslab 只能从源码安装。npm 上的 `@agegr/pi-web` 是上游 Pi Web，另一个项目。
+> PI NEXT 只能从源码安装。npm 上的 `@agegr/pi-web` 是上游 Pi Web，另一个项目。
 
 ## 数据与隐私
 
-- 会话、模型、认证、技能和插件都在 pi 自己的目录里；Pinkslab 只额外保存草稿、布局和本地标记。
+- 会话、模型、认证、技能和插件都在 pi 自己的目录里；PI NEXT 只额外保存草稿、布局和本地标记。
 - 供应商凭据通过 pi 的认证存储读取，任何接口都不会把密钥返回给浏览器。
 - 文件浏览器只覆盖会话记录过的工作目录、它们的项目根目录，以及你显式添加的根目录，不是通用文件管理器。
-- 密码保护不加密传输。不要把 Pinkslab 以明文 HTTP 暴露到公网，请走可信反向代理的 HTTPS 或可信 VPN。
+- 密码保护不加密传输。不要把 PI NEXT 以明文 HTTP 暴露到公网，请走可信反向代理的 HTTPS 或可信 VPN。
 
 ## 致谢
 
-Pinkslab 是 [@agegr](https://github.com/agegr/pi-web) 的 [Pi Web](https://github.com/agegr/pi-web) 的分支。会话浏览、进程内 AgentSession 层、文件与预览栈，以及大部分配置界面都源自那里——感谢原作者的工作，没有它就没有这个分支。
+PI NEXT 是 [@agegr](https://github.com/agegr/pi-web) 的 [Pi Web](https://github.com/agegr/pi-web) 的分支。会话浏览、进程内 AgentSession 层、文件与预览栈，以及大部分配置界面都源自那里——感谢原作者的工作，没有它就没有这个分支。
 
 智能体运行时、会话文件格式与终端体验来自 [earendil-works](https://github.com/earendil-works) 的 [pi](https://github.com/earendil-works/pi)。
 

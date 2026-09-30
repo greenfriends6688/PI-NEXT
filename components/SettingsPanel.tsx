@@ -10,11 +10,7 @@ import {
   CHAT_CONTENT_WIDTH_MAX,
   CHAT_CONTENT_WIDTH_MIN,
   CHAT_CONTENT_FONT_SIZE_DEFAULT,
-  CHAT_CONTENT_FONT_SIZE_MAX,
-  CHAT_CONTENT_FONT_SIZE_MIN,
   EXTENSION_WIDGET_FONT_SIZE_DEFAULT,
-  EXTENSION_WIDGET_FONT_SIZE_MAX,
-  EXTENSION_WIDGET_FONT_SIZE_MIN,
   useChatAppearance,
 } from "@/hooks/useChatAppearance";
 import { sendAgentCommand } from "@/lib/agent-client";
@@ -36,9 +32,8 @@ import { ModelsConfig } from "./ModelsConfig";
 import { CronConfig } from "./fork/CronConfig";
 import { McpConfig } from "./fork/McpConfig";
 import { PiMemoryConfig } from "./fork/PiMemoryConfig";
-// fork:zc-04 / fork:zc-03 / fork:zc-16 — new sections rendered by this panel.
+// fork:zc-03 / fork:zc-16 — new sections rendered by this panel.
 import { PromptsConfig } from "./fork/PromptsConfig";
-import { ShortcutsSettings } from "./fork/ShortcutsSettings";
 import { UsageStatsPanel } from "./fork/UsageStatsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
@@ -48,12 +43,12 @@ import {
   PwBlock,
   PwCtl,
   PwField,
-  PwPageHead,
   PwRadio,
   PwRange,
   PwSelectBox,
   PwSwitch,
   PwValue,
+  SettingsPage,
 } from "./SettingsUi";
 import { WallpaperSettings } from "./WallpaperSettings";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
@@ -72,6 +67,7 @@ import { ThemeSkinStudio } from "./ThemeSkinStudio";
 import { createSkinDraft, readCurrentSkinBase, serializeSkinForExport, type ThemeSkin } from "@/lib/theme-skins";
 import { useUiFont } from "@/hooks/useUiFont";
 import { UI_FONT_SIZE_OPTIONS } from "@/lib/ui-font";
+import { USER_TEXT_SIZE_OPTIONS } from "@/lib/typography";
 // fork:zn-18 — 系统字体枚举（Local Font Access → canvas 探测）。
 import { SYSTEM_FONT_ID, listInstalledUiFonts, type FontChoice } from "@/lib/font-discovery";
 import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH } from "@/lib/panel-layout";
@@ -120,7 +116,6 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   mcp: "server",
   cron: "clock",
   memory: "brain",
-  shortcuts: "keyboard",
   usage: "chart-column",
   prompts: "square-function",
   archived: "archive",
@@ -397,8 +392,15 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
 
   return (
     <>
-      <PwPageHead title={t("settings.general")} sub={t("settings.generalSub")} />
-
+      <SettingsPage title={t("settings.general")} sub={t("settings.generalSub")}>
+        {/* fork:settings-frame（画板 62）—— 常规页 = 两栏块流。
+            10 个块原来排成一条 **1160px 宽**的单列（实测内容高 1862，要滚两屏），
+            而且每行的「标签—控件」跨度也是 1160（「桌面通知」在最左、开关在最右）。
+            现在按语义分两栏，每栏 570：
+              左 = 外观与显示（外观 / 主题皮肤 / 壁纸 / 侧栏）
+              右 = 交互与系统（通知 / 字体 / 语言 / 聊天 / Shell / 推送） */}
+        <div className="pw-grid2">
+          <div>
       {/* fork:design-system SW-07 —— 画板 40 第一块「外观」：主题是 `.pw-radio` 三档
           （图标 sun / moon / monitor 与画板同源），边框深度是 `.pw-ctl`（滑块 +
           等宽读数 + 重置钮，与画板「聊天内容宽度」那一行同一形态）。 */}
@@ -541,7 +543,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }
         />
       </PwBlock>
+          </div>
 
+          <div>
       {/* fork:zn-16 —— 通知：五条开关行 + 行末两个动作钮（画板 40 的「通知」块）。 */}
       <PwBlock icon="bell" title={t("settings.notificationBlock")}>
         <PwField
@@ -787,52 +791,34 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           label={t("settings.chatContentFontSize")}
           htmlFor="settings-chat-content-font-size"
           control={
-            <PwCtl>
-              <PwRange
-                id="settings-chat-content-font-size"
-                value={fontSize}
-                displayValue={`${fontSize} px`}
-                min={CHAT_CONTENT_FONT_SIZE_MIN}
-                max={CHAT_CONTENT_FONT_SIZE_MAX}
-                ariaLabel={t("settings.chatContentFontSize")}
-                onChange={setFontSize}
-              />
-              <button
-                type="button"
-                className="pw-btn sm"
-                title={t("settings.resetChatContentFontSize")}
-                disabled={fontSize === CHAT_CONTENT_FONT_SIZE_DEFAULT}
-                onClick={() => setFontSize(CHAT_CONTENT_FONT_SIZE_DEFAULT)}
-              >
-                {t("settings.reset")}
-              </button>
-            </PwCtl>
+            /* fork:type-scale（2026-09-30）—— 原先是 12–24 的 `<input type=range>`：
+               连续值意味着用户能停在 14 / 16 / 24 上，而这三个都不在规范的五档里（实测当时
+               composer 的输入框就是 14px）。改成与「界面字号」同一个下拉，选项由规范推导
+               （12 / 13 / 15 / 20）；选 13 就是默认值，所以不再另给「重置」钮。 */
+            <PwSelectBox
+              value={String(fontSize)}
+              ariaLabel={t("settings.chatContentFontSize")}
+              options={USER_TEXT_SIZE_OPTIONS.map((size) => ({
+                value: String(size),
+                label: `${size} px`,
+              }))}
+              onChange={(next) => setFontSize(Number(next))}
+            />
           }
         />
         <PwField
           label={t("settings.extensionWidgetFontSize")}
           htmlFor="settings-extension-widget-font-size"
           control={
-            <PwCtl>
-              <PwRange
-                id="settings-extension-widget-font-size"
-                value={extensionWidgetFontSize}
-                displayValue={`${extensionWidgetFontSize} px`}
-                min={EXTENSION_WIDGET_FONT_SIZE_MIN}
-                max={EXTENSION_WIDGET_FONT_SIZE_MAX}
-                ariaLabel={t("settings.extensionWidgetFontSize")}
-                onChange={setExtensionWidgetFontSize}
-              />
-              <button
-                type="button"
-                className="pw-btn sm"
-                title={t("settings.resetExtensionWidgetFontSize")}
-                disabled={extensionWidgetFontSize === EXTENSION_WIDGET_FONT_SIZE_DEFAULT}
-                onClick={() => setExtensionWidgetFontSize(EXTENSION_WIDGET_FONT_SIZE_DEFAULT)}
-              >
-                {t("settings.reset")}
-              </button>
-            </PwCtl>
+            <PwSelectBox
+              value={String(extensionWidgetFontSize)}
+              ariaLabel={t("settings.extensionWidgetFontSize")}
+              options={USER_TEXT_SIZE_OPTIONS.map((size) => ({
+                value: String(size),
+                label: `${size} px`,
+              }))}
+              onChange={(next) => setExtensionWidgetFontSize(Number(next))}
+            />
           }
         />
         <PwField
@@ -892,6 +878,8 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           </div>
         ) : null}
       </PwBlock>
+          </div>
+        </div>
 
       {/* fork:design-system —— 本产品没有登录：整个「退出登录」分节删除
           （设计裁定 2026-09-28，见 design/pi-web-design/50-dialogs.html 与 DIVERGENCE 第 18 条）。 */}
@@ -911,6 +899,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }}
         />
       ) : null}
+      </SettingsPage>
     </>
   );
 }
@@ -930,8 +919,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
     { id: "mcp", label: t("mcp.sectionTitle"), requiresProject: false },
     { id: "cron", label: t("cron.title"), requiresProject: false },
     { id: "memory", label: t("memory.title"), requiresProject: false },
-    // fork:zc-04 / fork:zc-03 / fork:zc-16 — global sections.
-    { id: "shortcuts", label: t("settings.shortcuts.title"), requiresProject: false },
+    // fork:zc-03 / fork:zc-16 — global sections.
     { id: "usage", label: t("usage.title"), requiresProject: false },
     { id: "prompts", label: t("prompts.title"), requiresProject: false },
     // fork:ui-archive-history
@@ -1031,6 +1019,12 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
                   type="button"
                   className={`pw-row${selected ? " is-on" : ""}`}
                   disabled={disabled}
+                  /* fork:settings-frame（画板 62）—— 分节 id 落在 DOM 上。
+                     没有它，脚本 / 测试只能按**本地化后的中文标签**找分节行
+                     （`board-diff.mjs` 的 `settings:skills` 因此一直是空转的：
+                     它按英文 label 找 `.pw-row`，永远找不到 → 设置面板根本没打开
+                     → 所有 `.pw-*` 选择器都报「产品里没有」）。 */
+                  data-section={item.id}
                   title={disabled ? t("settings.projectRequired") : item.label}
                   aria-current={selected ? "page" : undefined}
                   onClick={() => activateSection(item.id)}
@@ -1064,8 +1058,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
             {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
             {sectionHost("cron", <CronConfig cwd={cwd} onOpenSession={onOpenSession} />)}
             {sectionHost("memory", <PiMemoryConfig cwd={cwd} onOpenFile={onOpenFile} />)}
-            {/* fork:zc-04 / fork:zc-03 / fork:zc-16 — shortcut table, usage stats, prompt files. */}
-            {sectionHost("shortcuts", <ShortcutsSettings />)}
+            {/* fork:zc-03 / fork:zc-16 — usage stats, prompt files. */}
             {sectionHost("usage", <UsageStatsPanel />)}
             {sectionHost("prompts", <PromptsConfig onOpenFile={onOpenFile} />)}
             {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
@@ -1073,24 +1066,20 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
               // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
               // 所以合成一页：上面是项目索引，下面是会话归档。原先是两个导航项，
               // 用户看着像两套互不相干的归档。
-              // fork:settings-page-frame — 外层 `.settings-general` 是各页共用的页面框
-              // （页边距与页头排版都在画板 40 的 `.pw-sbody` 上，见 settings.css）。
-              <div className="settings-general">
-                <PwPageHead title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")} />
+              // fork:settings-frame（画板 62）—— 页头原来是 `<div class="settings-general">`
+              // 里的一枚旧类名 h2（`.settings-general-title`），够不到 board.css 的
+              // `.pw-sbody > h2`，字号与常规 / 记忆页不一致。现在走三件套。
+              <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")}>
                 <div className="settings-archive-page">
                   <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
                   <ArchivedSessionsPanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
                 </div>
-              </div>
+              </SettingsPage>
             ))}
 
             {/* fork:import-ui — 显式扫描 + 显式导入，绝不自动跑。
-                fork:settings-page-frame — 同归档页，补上共用的页面框。 */}
-            {sectionHost("import", (
-              <div className="settings-general">
-                <ImportPanel />
-              </div>
-            ))}
+                fork:settings-frame —— 页面框（页头 + 滚动）由 ImportPanel 自己的三件套出。 */}
+            {sectionHost("import", <ImportPanel />)}
           </main>
         </div>
       </div>

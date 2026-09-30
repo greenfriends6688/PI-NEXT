@@ -113,7 +113,9 @@ test("groups chat display controls in one board block", () => {
   // 它们都带作用域，不会跟 board.css 抢；不带作用域的裸 `.pw-field {` 一律不许有。
   const fieldStyles = cssSource.match(/^\.pw-field \{[\s\S]*?\}/m)?.[0] ?? "";
   assert.equal(fieldStyles, "");
-  assert.match(cssSource, /\.settings-dialog-main \.pw-field > \.pw-label \{\s*flex: 0 0 auto;\s*min-width: 132px;/);
+  // fork:settings-frame（画板 62）—— 标签从 `flex: 0 0 auto` 改成 `0 1 auto`：
+  // 块流页收进 570 的一栏后，长 `small` 说明会把不可收缩的标签撑到 1300+ 宽、溢出内容区。
+  assert.match(cssSource, /\.settings-dialog-main \.pw-field > \.pw-label \{[\s\S]*?flex: 0 1 auto;[\s\S]*?min-width: 132px;/);
 });
 
 test("keeps General free of divider rows", () => {
@@ -174,7 +176,8 @@ test("labels agent profiles as sub-agents", () => {
 test("uses the board 40 icon set for every settings section", () => {
   // fork:design-system SW-07 —— 分节图标一律走画板图标集（icons.js 的 lucide，
   // 经 <i data-ico> 水合）。13 段手绘 SVG 与 agents 的 scale(1.25) 补丁都已退役，
-  // 名称与画板 40 的左导航逐项一致。
+  // 名称与画板 40 的左导航逐项一致。（`shortcuts` 一节已按用户要求从设置里去掉，
+  // 快捷键引擎本身（lib/shortcuts.ts + useKeyboardShortcuts）不受影响。）
   const expected = {
     general: "sliders-horizontal",
     models: "cpu",
@@ -184,7 +187,6 @@ test("uses the board 40 icon set for every settings section", () => {
     mcp: "server",
     cron: "clock",
     memory: "brain",
-    shortcuts: "keyboard",
     usage: "chart-column",
     prompts: "square-function",
     archived: "archive",

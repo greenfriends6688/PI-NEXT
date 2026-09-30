@@ -43,31 +43,46 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <h2>子代理</h2>
-          <p class="sub">内置子代理的开关与并发，以及项目 / 全局 / 工作区三档作用域下的自定义子代理。</p>
-
-          <div class="pw-block" style="margin-top:0">
-            <h3><span class="pw-ico"><i data-ico="toggle-right" data-size="14"></i></span>内置子代理</h3>
-            <div class="pw-field">
-              <span class="pw-label">启用内置子代理<small>Explore / Plan 等随包提供的子代理</small></span>
-              <span class="pw-switch on"><i></i></span>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>子代理</h2>
+              <p class="sub">内置与自定义子代理。并发上限决定一个父会话同时能跑几个。</p>
             </div>
-            <div class="pw-field">
-              <span class="pw-label">并发上限</span>
-              <span class="pw-ctl"><span class="pw-selectbox" style="min-width:90px">4<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></span>
+            <div class="pw-shead-acts">
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建子代理</span>
             </div>
-            <div class="pw-field">
-              <span class="pw-label"></span>
-              <span class="pw-ctl"><span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>改动需要重载会话才生效</span></span>
-            </div>
+          </header>
+          <!-- 工具栏：搜索 + 计数（画板 62 的 ②） -->
+          <div class="pw-stools">
+            <span class="pw-search">
+              <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+              <input type="search" value="搜索子代理">
+            </span>
+            <span class="pw-grow"></span>
+            <span class="pw-badge count">7 个子代理</span>
           </div>
+          <div class="pw-scontent is-fixed">
+
 
           <div class="pw-cols">
             <div>
-              <div class="pw-inline" style="margin-bottom:var(--s2)">
-                <input class="pw-input" style="flex:1;min-width:0;height:28px" placeholder="搜索子代理">
-                <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></span>
+              <!-- fork:settings-frame（画板 62）—— 「内置子代理」两项从**两栏上方**收进列表列：
+                   原来它们是两条整宽设置行，标签与控件相距 1000px。 -->
+              <div class="pw-block" style="margin-top:0">
+                <h3><span class="pw-ico"><i data-ico="toggle-right" data-size="14"></i></span>内置子代理</h3>
+                <div class="pw-field">
+                  <span class="pw-label">启用内置子代理<small>Explore / Plan 等随包提供的子代理</small></span>
+                  <span class="pw-switch on"><i></i></span>
+                </div>
+                <div class="pw-field">
+                  <span class="pw-label">并发上限</span>
+                  <span class="pw-ctl"><span class="pw-selectbox" style="min-width:90px">4<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></span>
+                </div>
+                <div class="pw-field">
+                  <span class="pw-label"></span>
+                  <span class="pw-ctl"><span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>改动需要重载会话才生效</span></span>
+                </div>
               </div>
               <div class="pw-list">
                 <div class="pw-group-title" style="padding-top:0">项目 · pi-codex</div>
@@ -134,7 +149,9 @@
               <div class="pw-field"><span class="pw-label">启用</span><span class="pw-switch on"><i></i></span></div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>
@@ -162,14 +179,19 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <div class="pw-inline">
-            <h2 style="margin:0">技能</h2>
-            <span class="pw-badge count">全局 6 · 项目 4 · 路径 1</span>
-            <span class="pw-grow"></span>
-            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
-            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>安装技能</span>
-          </div>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>技能</h2>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-badge count">全局 6 · 项目 4 · 路径 1</span>
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>安装技能</span>
+            </div>
+          </header>
+          <div class="pw-scontent is-fixed">
+
           <p class="sub" style="margin-top:var(--s2)">技能来自 skills.sh 与 SkillHub 两个市场，也可从本机目录加载。</p>
 
           <div class="pw-cols">
@@ -222,7 +244,9 @@ agent_created: false
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>

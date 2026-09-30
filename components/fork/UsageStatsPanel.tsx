@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigButton } from "../SettingsUi";
+import { ConfigButton, SettingsPage } from "../SettingsUi";
 import {
   UsageDailyBars,
   UsageHeatmap,
@@ -53,10 +53,12 @@ function projectName(cwd: string): string {
   return parts[parts.length - 1] ?? cwd;
 }
 
-/** 画板 45 §用量统计 的 `.pw-stat`：标签在上、等宽数值居中、一行补充。 */
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: ReactNode }): ReactNode {
+/** 画板 45 §用量统计 的 `.pw-stat`：标签在上、等宽数值居中、一行补充。
+ *  fork:settings-frame（画板 62）—— `wide` 让一张卡横跨整行（两列栅格下 9 张卡
+ *  会剩最后一张孤零零占半行；把「Token」这张最长的撑满，2×4 + 1 就齐了）。 */
+function StatCard({ label, value, hint, wide = false }: { label: string; value: string; hint?: ReactNode; wide?: boolean }): ReactNode {
   return (
-    <div className="pw-stat">
+    <div className={`pw-stat${wide ? " is-wide" : ""}`}>
       <span className="k">{label}</span>
       <span className="v">{value}</span>
       {hint ? <span className="s">{hint}</span> : null}
@@ -64,9 +66,11 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-/** 画板 45 §用量统计 的 `.pw-stats-grid`：四列栅格。 */
-function StatGrid({ children }: { children: ReactNode }): ReactNode {
-  return <div className="pw-stats-grid">{children}</div>;
+/** 画板 45 §用量统计 的 `.pw-stats-grid`：默认四列栅格。
+ *  fork:settings-frame（画板 62）—— 两栏块流里一栏只有 570，四列会挤成 130px 一卡，
+ *  这时改用 `.is-2col`（两列）。 */
+function StatGrid({ columns = 4, children }: { columns?: 2 | 4; children: ReactNode }): ReactNode {
+  return <div className={`pw-stats-grid${columns === 2 ? " is-2col" : ""}`}>{children}</div>;
 }
 
 export function UsageStatsPanel(): ReactNode {
@@ -175,48 +179,57 @@ export function UsageStatsPanel(): ReactNode {
     : (yearSummary?.days ?? summary?.days ?? []);
 
   return (
-    <div className="settings-general">
-      <h2 className="settings-general-title">{t("usage.title")}</h2>
-      <p className="settings-chat-range-hint" style={{ marginTop: -6 }}>{t("usage.subtitle")}</p>
-
-      <section className="settings-general-section">
-        <div className="pw-wrap" style={{ alignItems: "center" }}>
-          {RANGE_ORDER.map((option) => (
-            <ConfigButton
-              key={option}
-              variant={range === option ? "primary" : "secondary"}
-              size="small"
-              aria-pressed={range === option}
-              onClick={() => setRange(option)}
-            >
-              {t(RANGE_KEYS[option])}
-            </ConfigButton>
-          ))}
-          <span className="pw-grow" />
-          <ConfigButton variant="ghost" size="small" disabled={loading} onClick={() => void load(range)}>
+    /* fork:settings-frame（画板 62）—— 用量页的三件套。
+       页头原来是一枚旧类名 h2（`.settings-general-title`），够不到 board.css 的
+       `.pw-sbody > h2`；周期芯片与「刷新」原本挤在内容区第一行、和统计卡连在一起。
+       现在周期芯片 + 刷新 + 扫描进度进工具栏，统计与图表分两栏（570 × 2）——
+       热力图原来拉满 1100，九张卡排成 4+4+1（末行孤一张）。 */
+    <SettingsPage
+      title={t("usage.title")}
+      sub={t("usage.subtitle")}
+      toolbar={
+        <>
+          <span className="pw-radio">
+            {RANGE_ORDER.map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={range === option}
+                className={range === option ? "is-on" : undefined}
+                onClick={() => setRange(option)}
+              >
+                {t(RANGE_KEYS[option])}
+              </button>
+            ))}
+          </span>
+          <span className="pw-grow" aria-hidden="true" />
+          {summary && (
+            <span className="pw-hint">
+              {t("usage.scannedHint", { files: summary.scanned.files, parsed: summary.scanned.parsed })}
+            </span>
+          )}
+          <ConfigButton size="small" disabled={loading} onClick={() => void load(range)}>
             {t("usage.refresh")}
           </ConfigButton>
-        </div>
-        {summary && (
-          <p className="settings-chat-range-hint" style={{ marginBottom: 0 }}>
-            {t("usage.scannedHint", { files: summary.scanned.files, parsed: summary.scanned.parsed })}
-          </p>
-        )}
-      </section>
-
+        </>
+      }
+    >
       {loading && !summary && (
-        <p role="status" className="settings-chat-range-hint">{t("usage.loading")}</p>
+        <p role="status" className="pw-hint">{t("usage.loading")}</p>
       )}
-      {error && <p role="alert" className="settings-general-error">{t("usage.error")} {error}</p>}
+      {error && <p role="alert" className="pw-alert">{t("usage.error")} {error}</p>}
 
       {summary && derived && (
         <>
-          <section className="settings-general-section">
-            <StatGrid>
+          <div className="pw-grid2">
+          <div>
+          <section className="settings-general-section" style={{ marginTop: 0 }}>
+            <StatGrid columns={2}>
               <StatCard
                 label={t("usage.tokens")}
                 value={formatCompact(summary.totals.tokens, locale)}
                 hint={tokenKinds.map((kind) => `${kind.label} ${formatCompact(kind.value, locale)}`).join(" · ")}
+                wide
               />
               <StatCard label={t("usage.sessions")} value={formatCompact(summary.totals.sessions, locale)} />
               <StatCard label={t("usage.messages")} value={formatCompact(summary.totals.messages, locale)} />
@@ -240,44 +253,11 @@ export function UsageStatsPanel(): ReactNode {
           {!hasActivity && (
             <p role="status" className="settings-chat-range-hint">{t("usage.empty")}</p>
           )}
+          </div>
 
-          {hasActivity && (
+          <div>
+            {hasActivity && (
             <>
-              <section className="settings-general-section">
-                <div className="pw-cell">
-                  <h4>
-                    <span className="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>
-                    {t("usage.heatmap")}
-                  </h4>
-                  <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
-                    <ConfigButton
-                      variant={metric === "sessions" ? "primary" : "ghost"}
-                      size="small"
-                      aria-pressed={metric === "sessions"}
-                      onClick={() => setMetric("sessions")}
-                    >
-                      {t("usage.metricSessions")}
-                    </ConfigButton>
-                    <ConfigButton
-                      variant={metric === "tokens" ? "primary" : "ghost"}
-                      size="small"
-                      aria-pressed={metric === "tokens"}
-                      onClick={() => setMetric("tokens")}
-                    >
-                      {t("usage.metricTokens")}
-                    </ConfigButton>
-                    <span className="pw-grow" />
-                  </div>
-                  <UsageHeatmap
-                    days={heatmapDays}
-                    metric={metric}
-                    label={t("usage.heatmap")}
-                    lessLabel={t("usage.less")}
-                    moreLabel={t("usage.more")}
-                  />
-                </div>
-              </section>
-
               {summary.models.length > 0 && (
                 <section className="settings-general-section">
                   <div className="pw-cell">
@@ -318,7 +298,55 @@ export function UsageStatsPanel(): ReactNode {
                   />
                 </div>
               </section>
+            </>
+            )}
+          </div>
+          </div>
 
+          {/* fork:settings-frame（画板 62）—— 热力图单独占**一整行**（1160）。
+              放进 570 的一栏时，那张「53 周 × 14px ≈ 742px」的年度网格只有前 514px 可见，
+              而**最近的活动全在最右端**（今天在最后一列）—— 用户看到的就是一整片
+              空白灰格子，第一反应是「这页是假数据吧」。整行放得下，12 个月标签也齐。 */}
+          {hasActivity && (
+            <section className="settings-general-section">
+              <div className="pw-cell">
+                <h4>
+                  <span className="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>
+                  {t("usage.heatmap")}
+                </h4>
+                <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
+                  <ConfigButton
+                    variant={metric === "sessions" ? "primary" : "ghost"}
+                    size="small"
+                    aria-pressed={metric === "sessions"}
+                    onClick={() => setMetric("sessions")}
+                  >
+                    {t("usage.metricSessions")}
+                  </ConfigButton>
+                  <ConfigButton
+                    variant={metric === "tokens" ? "primary" : "ghost"}
+                    size="small"
+                    aria-pressed={metric === "tokens"}
+                    onClick={() => setMetric("tokens")}
+                  >
+                    {t("usage.metricTokens")}
+                  </ConfigButton>
+                  <span className="pw-grow" />
+                </div>
+                <UsageHeatmap
+                  days={heatmapDays}
+                  metric={metric}
+                  label={t("usage.heatmap")}
+                  lessLabel={t("usage.less")}
+                  moreLabel={t("usage.more")}
+                />
+              </div>
+            </section>
+          )}
+
+          {hasActivity && (
+          <div className="pw-grid2">
+          <div>
               <section className="settings-general-section">
                 <div className="pw-cell">
                   <h4>
@@ -328,7 +356,9 @@ export function UsageStatsPanel(): ReactNode {
                   <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
                 </div>
               </section>
+          </div>
 
+          <div>
               {projects.length > 0 && (
                 <section className="settings-general-section">
                   <div className="pw-cell">
@@ -352,10 +382,11 @@ export function UsageStatsPanel(): ReactNode {
                   </div>
                 </section>
               )}
-            </>
+          </div>
+          </div>
           )}
         </>
       )}
-    </div>
+    </SettingsPage>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+// fork:icons-manual —— **必须排在 icons.js 前面**：它把画板文件末尾那次自跑关掉
+// （自跑会赶在 React 认领流式片段之前改 DOM → hydration mismatch）。
+import "./pw-icons-manual";
 // fork:design-components —— 设计画板的图标集**原样进 client bundle**：
 // 这是一次副作用 import，执行后 window.Icons = { paths, svg, hydrate }。
 // 产品组件里直接写 <i data-ico="check" data-size="12"></i>，与画板 HTML 同一写法。

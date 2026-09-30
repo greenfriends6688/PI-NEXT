@@ -40,17 +40,42 @@ const render = (node) => renderToStaticMarkup(node);
 /* ---------------------------------------------------------------- 结构守卫 */
 
 test("the stat cards and every chart card ride the board 45 primitives", () => {
-  assert.match(panelSource, /<div className="pw-stats-grid">/);
-  assert.match(panelSource, /<div className="pw-stat">/);
+  // fork:settings-frame（画板 62）—— 两栏块流里一栏只有 570，统计卡改两列。
+  assert.match(panelSource, /<div className=\{`pw-stats-grid\$\{columns === 2 \? " is-2col" : ""\}`\}>/);
+  assert.match(panelSource, /<StatGrid columns=\{2\}>/);
+  assert.match(panelSource, /<div className=\{`pw-stat\$\{wide \? " is-wide" : ""\}`\}>/);
   // 画板的顺序是「标签在上、数值在下」，不是产品原先的「大数在上」。
-  assert.match(panelSource, /<div className="pw-stat">\s*<span className="k">\{label\}<\/span>\s*<span className="v">\{value\}<\/span>/);
+  assert.match(panelSource, /<span className="k">\{label\}<\/span>\s*<span className="v">\{value\}<\/span>/);
   assert.match(panelSource, /<span className="s">\{hint\}<\/span>/);
   assert.equal(panelSource.match(/<div className="pw-cell">/g).length, 5);
   assert.match(panelSource, /<div className="pw-list"/);
+  // 三件套：页头 + 工具栏（周期芯片 / 刷新）+ 内容区。
+  assert.match(panelSource, /<SettingsPage[\s\S]*?sub=\{t\("usage\.subtitle"\)\}/);
+  assert.match(panelSource, /className="pw-grid2"/);
 
   for (const cls of ["pw-bars", "pw-legend", "pw-litem", "pw-lname", "pw-lsub", "pw-mono", "pw-ico"]) {
     assert.ok(chartsSource.includes(cls), `usage-charts must use .${cls}`);
   }
+});
+
+/**
+ * fix:usage-heatmap（2026-09-30 用户实测「用量页面好像是假的，没有真实数据吗」）——
+ *
+ * 数据是真的（接口回 158 会话 / 40186 消息 / 4.15B token），假的是**图**：
+ * 年度热力图是「53 周 × 14px ≈ 742px」的固定轨道网格，塞进 570 的一栏时只有
+ * 前 514px 可见，而**最近的活动全在最右端**（今天在最后一列）——
+ * 用户看到的是一整片空白灰格子。所以它必须**占一整行**：
+ * 布局是「两栏 → 整行热力图 → 两栏」。
+ */
+test("年度热力图占一整行，不塞进 570 的一栏", () => {
+  const grids = [...panelSource.matchAll(/className="pw-grid2"/g)].map((m) => m.index);
+  assert.equal(grids.length, 2, "用量页的骨架是「两栏 → 整行 → 两栏」");
+  const heatAt = panelSource.indexOf("<UsageHeatmap");
+  assert.ok(heatAt > 0, "热力图必须在用量页里");
+  assert.ok(
+    grids[0] < heatAt && heatAt < grids[1],
+    "热力图必须落在两段两栏之间（整行），否则年度网格的右半截（最近的活动）会被裁掉",
+  );
 });
 
 test("no hand-drawn SVG and no numeric font size survives (DSN-07)", () => {

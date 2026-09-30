@@ -1,12 +1,12 @@
-# Pinkslab
+# PI NEXT
 
-> **Pinkslab** = **Pi** + **Ink** + **Slab** — a workbench for the [pi coding agent](https://github.com/earendil-works/pi): a local browser UI and a desktop app that share pi's own sessions, models and configuration.
+> **PI NEXT** — AI for what’s next. A workbench for the [pi coding agent](https://github.com/earendil-works/pi): a local browser UI and a desktop app that share pi's own sessions, models and configuration.
 
 English | [简体中文](./README.zh-CN.md)
 
-![Pinkslab driving a pi session: collapsible tool calls, a syntax-highlighted answer and the composer](./assets/readme-screenshot.png)
+![PI NEXT driving a pi session: collapsible tool calls, a syntax-highlighted answer and the composer](./assets/readme-screenshot.png)
 
-A conversation started in the pi terminal can be picked up in Pinkslab and handed back, because Pinkslab reads and writes the same files pi does — sessions under `~/.pi/agent/sessions`, plus `models.json`, `settings.json`, auth, skills and packages. Nothing leaves the machine: the server binds to `127.0.0.1` and provider keys stay in pi's own config.
+A conversation started in the pi terminal can be picked up in PI NEXT and handed back, because PI NEXT reads and writes the same files pi does — sessions under `~/.pi/agent/sessions`, plus `models.json`, `settings.json`, auth, skills and packages. Nothing leaves the machine: the server binds to `127.0.0.1` and provider keys stay in pi's own config.
 
 ## Highlights
 
@@ -119,18 +119,18 @@ A conversation started in the pi terminal can be picked up in Pinkslab and hande
 ## Requirements
 
 - Node.js 22.19.0 or newer (`node --version`).
-- A working pi installation with at least one provider configured. Pinkslab reads `~/.pi/agent`; point `PI_CODING_AGENT_DIR` elsewhere if your pi data lives in another directory.
+- A working pi installation with at least one provider configured. PI NEXT reads `~/.pi/agent`; point `PI_CODING_AGENT_DIR` elsewhere if your pi data lives in another directory.
 
 ## Run it
 
 ```bash
 git clone https://github.com/greenfriends6688/Pi-Agent.git
-cd pinkslab
+cd Pi-Agent
 npm install
 npm run prod        # builds for production and serves http://127.0.0.1:30141
 ```
 
-Pinkslab listens on `127.0.0.1` only. Use `npm run dev:clean` while working on the code, `npm test` for the unit suite and `npx tsc --noEmit` for types.
+PI NEXT listens on `127.0.0.1` only. Use `npm run dev:clean` while working on the code, `npm test` for the unit suite and `npx tsc --noEmit` for types.
 
 ### Desktop app
 
@@ -142,18 +142,18 @@ npm run desktop:dist:win   # Windows installers, cross-built
 
 The desktop shell bundles the same Next.js server, so the browser and the app are the same product.
 
-> Pinkslab is installed from source. The `@agegr/pi-web` package on npm is upstream Pi Web, a different project.
+> PI NEXT is installed from source. The `@agegr/pi-web` package on npm is upstream Pi Web, a different project.
 
 ## Data and privacy
 
-- Sessions, models, auth, skills and plugins all live in pi's own directories; Pinkslab adds its own state only for drafts, layout and local flags.
+- Sessions, models, auth, skills and plugins all live in pi's own directories; PI NEXT adds its own state only for drafts, layout and local flags.
 - Provider credentials are read through pi's auth storage and are never returned by an API endpoint.
 - The file browser is limited to working directories recorded by your sessions, their project roots and roots you explicitly add — it is not a general filesystem browser.
-- Password protection does not encrypt traffic. Do not expose Pinkslab over plain HTTP to the internet; put it behind HTTPS on a trusted reverse proxy or a VPN.
+- Password protection does not encrypt traffic. Do not expose PI NEXT over plain HTTP to the internet; put it behind HTTPS on a trusted reverse proxy or a VPN.
 
 ## Credits
 
-Pinkslab is a fork of [Pi Web](https://github.com/agegr/pi-web) by [@agegr](https://github.com/agegr/pi-web). Session browsing, the in-process agent session layer, the file and preview stack, and most of the configuration surfaces started there — thank you for the original work, without it this fork would not exist.
+PI NEXT is a fork of [Pi Web](https://github.com/agegr/pi-web) by [@agegr](https://github.com/agegr/pi-web). Session browsing, the in-process agent session layer, the file and preview stack, and most of the configuration surfaces started there — thank you for the original work, without it this fork would not exist.
 
 The agent runtime, session format and terminal experience belong to [pi](https://github.com/earendil-works/pi) by [earendil-works](https://github.com/earendil-works).
 

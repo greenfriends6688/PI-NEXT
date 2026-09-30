@@ -2,11 +2,16 @@ import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import type { SessionInfo } from "./types";
 
-const MAX_FILES = 500;
-const MAX_RESULTS = 30;
+// fix:search-limits —— 画板 02 帧 C 的结果区写的是「只显示前 50 条，缩小范围试试」，
+// 原来卡在 30 条：一个关键词命中 30 个会话就报「已达到搜索上限」，用户看到的是
+// 一份被砍掉的列表。上限抬到画板口径的 50 条，候选文件同步放宽（否则 500 个文件
+// 之后的结果根本不会被扫到，表现为「结果不全」）。时间预算一起放宽到 4s，
+// 保证 50 条填得满，同时仍是本地顺序读、不建索引。
+const MAX_FILES = 2000;
+const MAX_RESULTS = 50;
 const MAX_FILE_BYTES = 16 * 1024 * 1024;
 const MAX_LINE_CHARS = 1024 * 1024;
-const TIME_BUDGET_MS = 3000;
+const TIME_BUDGET_MS = 4000;
 
 export interface SessionSearchResult {
   session: SessionInfo;

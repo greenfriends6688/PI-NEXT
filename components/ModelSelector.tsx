@@ -147,13 +147,12 @@ export function ModelSelector({
         textAlign: "left",
       }
     : {
-        // fork:design-components —— 工具栏形态的尺寸 / 颜色 / 圆角全部来自画板
-        // 的 .pw-select（board.css），这里只留三态与可点性；
-        // 之前这里写的 height/padding/radius 是 inline 声明，会把 .pw-select 压掉。
+        // fork:design-components —— 工具栏形态的尺寸 / 颜色 / 圆角 / 间隙全部来自画板
+        // 的 .pw-select（board.css：height/padding/gap 4），这里只留三态与可点性；
+        // 之前这里写的 height/padding/radius/gap 是 inline 声明，会把 .pw-select 压掉。
         display: "flex",
         alignItems: "center",
         justifyContent: isMobile ? "flex-start" : undefined,
-        gap: 6,
         width: isMobile ? "100%" : undefined,
         maxWidth: isMobile ? "100%" : 220,
         overflow: "hidden",

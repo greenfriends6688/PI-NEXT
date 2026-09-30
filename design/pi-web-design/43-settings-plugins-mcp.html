@@ -43,15 +43,23 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <div class="pw-inline">
-            <h2 style="margin:0">插件</h2>
-            <span class="pw-badge count">3 个包</span>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>插件</h2>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加插件</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加插件</span>
+            </div>
+          </header>
+          <div class="pw-stools">
             <span class="pw-grow"></span>
-            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
-            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>更新全部</span>
-            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加插件</span>
+            <span class="pw-badge count">3 个包</span>
           </div>
+          <div class="pw-scontent is-fixed">
+
           <p class="sub" style="margin-top:var(--s2)">插件是 npm 包形式的扩展：可以贡献命令、工具、面板与 MCP 服务器。装完需要重载会话。</p>
 
           <div class="pw-cols">
@@ -59,8 +67,7 @@
               <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-git</span><span class="pw-lsub">v1.4.0 · 6 个资源</span></span></div>
               <div class="pw-litem"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">@pi/plugin-figma</span><span class="pw-lsub">v0.9.2 · 3 个资源</span></span><span class="pw-badge warn">可更新</span></div>
               <div class="pw-litem"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span><span class="grow"><span class="pw-lname">pi-plugin-notify</span><span class="pw-lsub">v2.0.0 · 1 个资源</span></span><span class="pw-badge">已禁用</span></div>
-              <div class="pw-litem pw-litem-add"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span><span class="grow">从 npm 添加插件包</span></div>
-              <div style="height:1px;background:var(--n-border-subtle);margin:var(--s2) 0"></div>
+                <div style="height:1px;background:var(--n-border-subtle);margin:var(--s2) 0"></div>
               <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">MCP 服务器</span><span class="pw-lsub">由插件贡献 · 2 个</span></span><span class="pw-ico"><i data-ico="chevron-right" data-size="13"></i></span></div>
             </div>
 
@@ -101,7 +108,9 @@
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>
@@ -129,14 +138,19 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <div class="pw-inline">
-            <h2 style="margin:0">MCP 服务器</h2>
-            <span class="pw-badge count">5 个 · 3 个已连接</span>
-            <span class="pw-grow"></span>
-            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="import" data-size="13"></i></span>从其它 agent 导入</span>
-            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加服务器</span>
-          </div>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>MCP 服务器</h2>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-badge count">5 个 · 3 个已连接</span>
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="import" data-size="13"></i></span>从其它 agent 导入</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加服务器</span>
+            </div>
+          </header>
+          <div class="pw-scontent is-fixed">
+
           <p class="sub" style="margin-top:var(--s2)">MCP（Model Context Protocol）服务器给 agent 提供额外的工具与资源。stdio 走本地进程，http 走远程端点。</p>
 
           <div class="pw-cols">
@@ -146,8 +160,7 @@
               <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">playwright</span><span class="pw-lsub">stdio · 全局</span></span><span class="pw-badge warn">未连接</span></div>
               <div class="pw-litem"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">linear</span><span class="pw-lsub">http · 全局</span></span><span class="pw-badge bad">需要授权</span></div>
               <div class="pw-litem" style="opacity:.55"><span class="pw-ico pw-dim"><i data-ico="server" data-size="14"></i></span><span class="grow"><span class="pw-lname">notion</span><span class="pw-lsub">http · 全局</span></span><span class="pw-badge">已禁用</span></div>
-              <div class="pw-litem pw-litem-add"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span><span class="grow">添加 MCP 服务器</span></div>
-            </div>
+              </div>
 
             <div class="pw-detail">
               <div class="pw-inline">
@@ -188,7 +201,9 @@
 }</div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>

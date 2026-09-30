@@ -42,13 +42,27 @@ const PRESETS = {
     if (s) s.click();`,
 };
 
-/** 在设置面板里切到某个分节（分节按钮是 .pw-row，文字等于分节名） */
-const settingsSection = (label) => `
+/**
+ * 在设置面板里切到某个分节。
+ *
+ * fix:settings-section-target —— 原来按**分节行的文字**找
+ * （`textContent === "skills"`），但界面是中文（「技能」），于是
+ * `settings:skills` 一直是空转的：设置面板根本没打开，随后所有 `.pw-*`
+ * 选择器都报「产品里没有这个选择器（未换肤）」。**这个假阴性掩盖了真实的差距**。
+ * 现在按 `[data-section]` 找 —— 分节 id 是稳定的、与语言无关的。
+ *
+ * 另外：分节是**懒挂载**的（`mountedSections`），点完要等它挂上再量。
+ */
+const settingsSection = (target) => `
   const opener = document.querySelector("button.pw-side-foot");
   if (opener) opener.click();
-  await new Promise((r) => setTimeout(r, 1200));
-  const row = [...document.querySelectorAll("button.pw-row")].find((x) => x.textContent?.trim() === ${JSON.stringify(label)});
-  if (row) row.click();`;
+  await new Promise((r) => setTimeout(r, 1500));
+  const byId = document.querySelector('button.pw-row[data-section=${JSON.stringify(target)}]');
+  const byText = [...document.querySelectorAll("button.pw-row")].find((x) => x.textContent?.trim() === ${JSON.stringify(target)});
+  const row = byId ?? byText;
+  if (!row) throw new Error("settings section not found: ${target}");
+  row.click();
+  await new Promise((r) => setTimeout(r, 1600));`;
 
 function presetScript(app) {
   if (!app) return "";
@@ -61,11 +75,26 @@ function presetScript(app) {
 async function probe(page, selectors, frameIndex) {
   return page.evaluate(
     ({ sels, frameIndex }) => {
-      const scope = frameIndex == null ? document : document.querySelectorAll(".pw-frame")[frameIndex];
+      // 产品侧：设置分节是**懒挂载 + 常驻**的（`mountedSections`，切走只加 `hidden`）。
+      // 直接 `document.querySelector(".pw-scontent")` 会命中**上一个分节**的节点
+      // —— 实测：技能页被拿去和常规页的 `.pw-scontent` 比（padding 16 vs 0、block vs flex）。
+      // 所以这里不缩范围，而是**跳过藏在 `[hidden]` 里的匹配**：
+      // 壳级选择器（`.pw-settings` / `.pw-snav`）在分节宿主之外，照样能取到。
+      const scope = frameIndex == null
+        ? document
+        : document.querySelectorAll(".pw-frame")[frameIndex];
+      const visibleOnly = frameIndex == null;
+      const pick = (sel) => {
+        for (const el of scope.querySelectorAll(sel)) {
+          if (!visibleOnly) return el;
+          if (!el.closest("[hidden]")) return el;
+        }
+        return null;
+      };
       if (!scope) return { __error: "frame not found" };
       const out = {};
       for (const sel of sels) {
-        const el = scope.querySelector(sel);
+        const el = pick(sel);
         if (!el) {
           out[sel] = { missing: true };
           continue;
@@ -187,7 +216,12 @@ try {
     const bv = boardRes[bs];
     const av = appRes[as_];
     if (!bv || bv.missing) { skipped++; results.push({ sel: bs, status: "skip", why: "画板里没有这个选择器" }); continue; }
-    if (!av || av.missing) { fails++; results.push({ sel: as_, status: "FAIL", why: "产品里没有这个选择器（未换肤）" }); continue; }
+    if (!av || av.missing) {
+      // 「产品里没有」不一定是不符：详情卡 / 编辑器那类节点**要有数据或选中态才存在**
+      // （模型页没选供应商、自定义命令 0 条）。登记过就按已登记分歧算，不再一律判失败。
+      if (known.has(as_)) { results.push({ sel: as_, status: "known", diffs: [], why: known.get(as_) }); continue; }
+      fails++; results.push({ sel: as_, status: "FAIL", why: "产品里没有这个选择器（未换肤）" }); continue;
+    }
     const diffs = compare(bv, av, tol);
     if (!diffs.length) { results.push({ sel: as_, status: "OK" }); continue; }
     if (known.has(as_)) { results.push({ sel: as_, status: "known", diffs, why: known.get(as_) }); continue; }

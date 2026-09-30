@@ -22,8 +22,6 @@ import {
   ConfigDetailTitle,
   ConfigEmptyState,
   ConfigField,
-  ConfigFooter,
-  ConfigListAction,
   ConfigPanelShell,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
@@ -34,6 +32,7 @@ import {
   ConfigSplitView,
   ConfigStatusDot,
   ConfigSwitch,
+  SettingsPage,
 } from "./SettingsUi";
 
 type PluginScope = PluginPackageInfo["scope"];
@@ -1356,8 +1355,118 @@ export function PluginsConfig({
   const footerBusy = loading || busyKey !== null || checkingUpdates.size > 0 || updatingAll;
 
   return (
-    <ConfigPanelShell embedded={embedded} title={t("common.plugins")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
+    <ConfigPanelShell
+      embedded={embedded}
+      title={mcpOnly ? t("mcp.sectionTitle") : t("common.plugins")}
+      subtitle={shortenPath(cwd)}
+      closeLabel={t("i18n.close")}
+      onClose={onClose}
+    >
+      {/* fork:settings-frame（画板 62）—— 插件页与 MCP 页共用这一份实现，
+          所以三件套的文案与动作按 `mcpOnly` 分叉。
 
+          页脚整块删掉了：它原来同时干三件事 —— 放统计（`4 ext · 7 skills …`）、
+          放动作（检查更新 / 刷新）、并且**在 MCP 页原样显示插件页的统计**
+          （`only="mcp"` 模式没把它一起关掉）。现在统计进工具栏的等宽徽章，
+          动作按级别归位，页脚不再存在。 */}
+      <SettingsPage
+        title={mcpOnly ? t("mcp.sectionTitle") : t("common.plugins")}
+        sub={mcpOnly ? t("mcp.pageSub") : t("plugins.pageSub")}
+        actions={
+          mcpOnly ? (
+            <>
+              <ConfigButton
+                variant="secondary"
+                size="small"
+                onClick={() => {
+                  setView("mcp");
+                  setMcpAddMode(false);
+                  setMcpImportOpen(true);
+                  setMcpActionError(null);
+                  void loadDiscovered();
+                }}
+              >
+                <span className="pw-ico"><i data-ico="import" data-size="13" aria-hidden="true" /></span>
+                {t("mcp.importButton")}
+              </ConfigButton>
+              <ConfigButton
+                variant="primary"
+                size="small"
+                onClick={() => {
+                  setView("mcp");
+                  setMcpAddMode(true);
+                  setMcpEditTarget(null);
+                  setMcpActionError(null);
+                  setMcpActionMessage(null);
+                }}
+              >
+                <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+                {t("mcp.addButton")}
+              </ConfigButton>
+            </>
+          ) : (
+            <>
+              {hasCheckablePackages && (
+                <ConfigButton
+                  variant={availableUpdateCount > 0 ? "primary" : "secondary"}
+                  size="small"
+                  onClick={() => void (availableUpdateCount > 0 ? updateAllPluginsAction() : checkForUpdates())}
+                  disabled={footerBusy}
+                  title={availableUpdateCount > 0 ? t("i18n.updateAllPluginsHint") : undefined}
+                >
+                  <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+                  {updatingAll
+                    ? t("i18n.updating")
+                    : checkingAll
+                      ? t("i18n.checking")
+                      : availableUpdateCount > 0
+                        ? `${t("i18n.updateAllPlugins")} (${availableUpdateCount})`
+                        : t("i18n.checkUpdates")}
+                </ConfigButton>
+              )}
+              <ConfigButton
+                variant="primary"
+                size="small"
+                onClick={() => {
+                  setView("plugins");
+                  setAddMode(true);
+                  setActionError(null);
+                  setActionMessage(null);
+                }}
+              >
+                <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+                {t("i18n.addPlugin")}
+              </ConfigButton>
+            </>
+          )
+        }
+        toolbar={
+          <>
+            <span className="pw-grow" aria-hidden="true" />
+            {mcpOnly ? (
+              <ConfigBadge tone="count">{t("mcp.count", { count: String(mcpData?.servers.length ?? 0) })}</ConfigBadge>
+            ) : (
+              <>
+                {data?.diagnostics.length ? (
+                  <ConfigBadge
+                    tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
+                    title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
+                  >
+                    {data.diagnostics.length} diagnostic{data.diagnostics.length === 1 ? "" : "s"}
+                  </ConfigBadge>
+                ) : null}
+                <ConfigBadge tone="count">
+                  {data ? `${data.totals.extensions} ext · ${data.totals.skills} skills` : ""}
+                </ConfigBadge>
+              </>
+            )}
+            <ConfigButton size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
+              {t("i18n.refresh")}
+            </ConfigButton>
+          </>
+        }
+        fill
+      >
         {/* fork:design-system SW-14 —— 画板 42 / 43 的信任提示是 `.pw-alert info` 一行。 */}
         {!projectResourcesLoaded && (
           <div role="status" className="pw-alert info">
@@ -1510,40 +1619,6 @@ export function PluginsConfig({
                     )}
                   </>}
             </ConfigSidebarList>
-            {!mcpOnly && <ConfigListAction
-                active={view === "plugins" && addMode}
-                onClick={() => {
-                  setView("plugins");
-                  setAddMode(true);
-                  setActionError(null);
-                  setActionMessage(null);
-                }}
-              >
-                 {t("i18n.addPlugin")}
-            </ConfigListAction>}
-            {mcpOnly && <ConfigListAction
-                active={view === "mcp" && mcpAddMode}
-                onClick={() => {
-                  setView("mcp");
-                  setMcpAddMode(true);
-                  setMcpEditTarget(null);
-                  setMcpActionError(null);
-                  setMcpActionMessage(null);
-                }}
-              >
-                 {t("mcp.addButton")}
-            </ConfigListAction>}
-            {mcpOnly && <ConfigListAction
-                onClick={() => {
-                  setView("mcp");
-                  setMcpAddMode(false);
-                  setMcpImportOpen(true);
-                  setMcpActionError(null);
-                  void loadDiscovered();
-                }}
-              >
-                 {t("mcp.importButton")}
-            </ConfigListAction>}
           </ConfigSidebar>
 
           <ConfigDetail>
@@ -1689,48 +1764,7 @@ export function PluginsConfig({
             </ConfigDetailStack>
           </ConfigDetail>
         </ConfigSplitView>
-
-        <ConfigFooter status={
-            availableUpdateCount > 0 ? (
-              /* 状态槽是画板徽章（pw-badge），不再手写 inline 颜色。 */
-              <ConfigBadge tone="accent">
-                {availableUpdateCount}{" "}
-                {availableUpdateCount === 1 ? t("i18n.update") : t("i18n.updates")}
-              </ConfigBadge>
-            ) : data?.diagnostics.length ? (
-              <ConfigBadge
-                tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
-                title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
-              >
-                {data.diagnostics.length} diagnostic{data.diagnostics.length === 1 ? "" : "s"}
-              </ConfigBadge>
-            ) : (
-              <span>
-                {data ? `${data.totals.extensions} ext · ${data.totals.skills} skills · ${data.totals.prompts} prompts · ${data.totals.themes} themes` : ""}
-              </span>
-            )}
-        >
-          {!embedded && <ConfigButton onClick={onClose}>{t("i18n.close")}</ConfigButton>}
-          {hasCheckablePackages && (
-            <ConfigButton
-              variant={availableUpdateCount > 0 ? "primary" : "secondary"}
-              onClick={() => void (availableUpdateCount > 0 ? updateAllPluginsAction() : checkForUpdates())}
-              disabled={footerBusy}
-              title={availableUpdateCount > 0 ? t("i18n.updateAllPluginsHint") : undefined}
-            >
-              {updatingAll
-                ? t("i18n.updating")
-                : checkingAll
-                  ? t("i18n.checking")
-                  : availableUpdateCount > 0
-                    ? `${t("i18n.updateAllPlugins")} (${availableUpdateCount})`
-                    : t("i18n.checkUpdates")}
-            </ConfigButton>
-          )}
-          <ConfigButton variant="secondary" onClick={() => void loadPlugins()} disabled={footerBusy}>
-             {t("i18n.refresh")}
-          </ConfigButton>
-        </ConfigFooter>
+      </SettingsPage>
     </ConfigPanelShell>
   );
 }

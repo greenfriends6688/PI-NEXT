@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>62 · 设置 · 布局重设计 — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>62 · 设置 · 布局重设计</h1>
+  <p>12 个设置分节现在用了 <b>4 种互不相同的骨架</b>，字段行的「标签—控件」跨度最大 1000px，动作按钮四处漂移（视口右下角的浮动保存、页脚跨页复用的检查更新）。这一张把 12 页收敛成<b>一套骨架 + 两个宽度</b>，并给出逐页落位。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：设置</span>
+    <span class="pw-tag">组件：SettingsPanel / SettingsUi / SkillsConfig / AgentsConfig / PluginsConfig / McpConfig / ModelsConfig / CronConfig / PiMemoryConfig / UsageStatsPanel / PromptsConfig / ArchivedSessionsPanel / ImportPanel</span>
+    <span class="pw-tag accent">1440 × 900 × 3</span>
+  </div>
+</header>
+
+<!-- ======================================================================
+     帧 A · 诊断：四种骨架
+     ====================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>诊断 · 现在有四种骨架</b> · 同一层级的 12 个分节，切换时视觉锚点会跳<span class="grow"></span>2026-09-30 仓库构建实测</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-grid4">
+
+      <div class="pw-cell">
+        <h4>骨架 A · 单列块流<span class="grow"></span><span class="pw-badge count">5 页</span></h4>
+        <div style="margin-top:var(--s2);height:150px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden;display:grid;grid-template-columns:60px 1fr;background:var(--surface-canvas)">
+          <div style="background:var(--surface-panel);border-right:1px solid var(--n-border-subtle)"></div>
+          <div style="padding:6px;display:grid;gap:4px;align-content:start">
+            <div style="height:10px;width:40%;background:var(--n-border)"></div>
+            <div style="height:26px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="height:26px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="height:26px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="height:26px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+          </div>
+        </div>
+        <p class="pw-desc" style="margin-top:var(--s2);display:block">常规 / 用量 / 归档历史 / 导入 / 自定义命令（半）</p>
+        <p class="pw-hint">块宽 = 内容区全宽 <b>1160px</b>：字段行「标签在最左、控件在最右」，两者相距 <b>1000px</b>。</p>
+      </div>
+
+      <div class="pw-cell">
+        <h4>骨架 B · 列表 + 详情<span class="grow"></span><span class="pw-badge count">5 页</span></h4>
+        <div style="margin-top:var(--s2);height:150px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden;display:grid;grid-template-columns:60px 1fr;background:var(--surface-canvas)">
+          <div style="background:var(--surface-panel);border-right:1px solid var(--n-border-subtle)"></div>
+          <div style="padding:6px;display:grid;grid-template-columns:26% 1fr;gap:4px">
+            <div style="display:grid;gap:3px;align-content:start">
+              <div style="height:8px;background:var(--accent-soft);border-radius:2px"></div>
+              <div style="height:8px;background:var(--n-surface);border-radius:2px"></div>
+              <div style="height:8px;background:var(--n-surface);border-radius:2px"></div>
+              <div style="height:8px;background:var(--n-surface);border-radius:2px"></div>
+            </div>
+            <div style="border:1px solid var(--n-border-subtle);border-radius:3px;padding:4px;display:grid;gap:3px;align-content:start">
+              <div style="height:6px;width:50%;background:var(--n-border)"></div>
+              <div style="height:5px;width:80%;background:var(--n-surface)"></div>
+              <div style="height:5px;width:70%;background:var(--n-surface)"></div>
+            </div>
+          </div>
+        </div>
+        <p class="pw-desc" style="margin-top:var(--s2);display:block">模型 / 技能 / 子代理 / 插件 / MCP 服务器</p>
+        <p class="pw-hint">列表 <b>260px</b>、详情 <b>884px</b>。详情里只有 350px 的内容，其余 530px 是空白。</p>
+      </div>
+
+      <div class="pw-cell">
+        <h4>骨架 C · 顶部整宽条 + 两栏<span class="grow"></span><span class="pw-badge count">1 页</span></h4>
+        <div style="margin-top:var(--s2);height:150px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden;display:grid;grid-template-columns:60px 1fr;background:var(--surface-canvas)">
+          <div style="background:var(--surface-panel);border-right:1px solid var(--n-border-subtle)"></div>
+          <div style="padding:6px;display:grid;gap:4px;align-content:start">
+            <div style="height:22px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="height:22px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="display:grid;grid-template-columns:26% 1fr;gap:4px;height:80px">
+              <div style="background:var(--n-surface);border-radius:2px"></div>
+              <div style="border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            </div>
+          </div>
+        </div>
+        <p class="pw-desc" style="margin-top:var(--s2);display:block">子代理</p>
+        <p class="pw-hint">「启用内置子代理 / 并发上限」占满 <b>1160px</b>：标签与开关相距 <b>1000px</b>，然后才切进两栏。</p>
+      </div>
+
+      <div class="pw-cell">
+        <h4>骨架 D · 块流 + 底部两栏<span class="grow"></span><span class="pw-badge count">1 页</span></h4>
+        <div style="margin-top:var(--s2);height:150px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);overflow:hidden;display:grid;grid-template-columns:60px 1fr;background:var(--surface-canvas)">
+          <div style="background:var(--surface-panel);border-right:1px solid var(--n-border-subtle)"></div>
+          <div style="padding:6px;display:grid;gap:4px;align-content:start">
+            <div style="height:24px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="height:30px;border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            <div style="display:grid;grid-template-columns:26% 1fr;gap:4px;height:52px">
+              <div style="background:var(--n-surface);border-radius:2px"></div>
+              <div style="border:1px solid var(--n-border-subtle);border-radius:3px"></div>
+            </div>
+          </div>
+        </div>
+        <p class="pw-desc" style="margin-top:var(--s2);display:block">记忆</p>
+        <p class="pw-hint">先两块全宽，再两栏 —— 两栏只有 <b>420px</b> 高，被夹在页面中段。</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================================
+     帧 B · 新框架解剖
+     ====================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>新框架解剖</b> · 一套骨架 · 两个宽度（列表 300 / 内容 760）· 唯一滚动在内容区<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+
+        <nav class="pw-snav">
+          <div class="pw-row"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">导入</span></div>
+          <span class="pw-grow"></span>
+          <div class="pw-row pw-snav-close"><span class="pw-ico"><i data-ico="arrow-left"></i></span><span class="pw-name">返回工作区</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0">
+
+          <!-- ① 页头 —— 用**产品同名的类**（.pw-shead / .pw-shead-copy / .pw-shead-acts）。
+               画板与实现必须是同一套 DOM，否则 board-diff 对不上、只能靠人眼比，
+               差距就会一直存在。 -->
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>技能</h2>
+              <p class="sub">技能来自 skills.sh / SkillHub 市场或本机目录，agent 按描述自动调用。</p>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="refresh-cw" data-size="13"></i></span>检查更新</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>安装技能</span>
+            </div>
+          </header>
+
+          <!-- ② 工具栏 —— .pw-stools + .pw-search（board.css 里就是这两个类） -->
+          <div class="pw-stools">
+            <span class="pw-search">
+              <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+              <input type="search" value="搜索技能">
+            </span>
+            <span class="pw-sep"></span>
+            <span class="pw-radio"><span class="is-on">全部</span><span>项目</span><span>全局</span><span>路径</span></span>
+            <span class="pw-grow"></span>
+            <span class="pw-badge count">17 个 · 4 个可更新</span>
+            <span class="pw-btn sm">全部更新</span>
+          </div>
+
+          <!-- ③ 内容区 —— `.pw-scontent.is-fixed`：内容区不滚，两列各自滚 -->
+          <div class="pw-scontent is-fixed">
+
+            <!-- ④ 列表列 300 ／ ⑤ 详情列 760（两个宽度都由 board.css 的 `.pw-cols` 出） -->
+            <div class="pw-cols">
+
+            <div style="position:relative;min-height:0;overflow-y:auto;border-right:1px solid var(--n-border-subtle);padding-right:var(--s3);margin-right:-8px">
+              <div class="pw-group-title" style="padding-top:var(--s2)">项目 · pi-codex</div>
+              <div class="pw-list">
+                <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">zhaobiao-extract</span><span class="pw-lsub">招标结构化抽取</span></span><span class="pw-badge accent">SkillHub</span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">merge-upstream-into-fork</span><span class="pw-lsub">合并上游到 fork</span></span></div>
+              </div>
+              <div class="pw-group-title">全局</div>
+              <div class="pw-list">
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">image-gen</span><span class="pw-lsub">文生图</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">impeccable</span><span class="pw-lsub">界面设计评审</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">pideck-doctor</span><span class="pw-lsub">诊断 PiDeck</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">raster-poster-editable</span><span class="pw-lsub">海报改可编辑</span></span><span class="pw-badge warn">可更新</span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">browser-use</span><span class="pw-lsub">浏览器自动化</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">code-review-and-quality</span><span class="pw-lsub">代码评审</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">computer-use</span><span class="pw-lsub">桌面操作</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">constraint-driven-development</span><span class="pw-lsub">约束驱动开发</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">context-engineering</span><span class="pw-lsub">上下文工程</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">debugging-and-error-recovery</span><span class="pw-lsub">调试与恢复</span></span><span class="pw-switch on"><i></i></span></div>
+                <div class="pw-litem"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow"><span class="pw-lname">documentation-and-adrs</span><span class="pw-lsub">文档与 ADR</span></span><span class="pw-switch on"><i></i></span></div>
+              </div>
+              <div class="pw-group-title">路径</div>
+              <div class="pw-list">
+                <div class="pw-litem"><span class="pw-ico pw-dim"><i data-ico="folder-cog" data-size="14"></i></span><span class="grow"><span class="pw-lname">~/skills</span><span class="pw-lsub">3 个技能 · 只读</span></span></div>
+              </div>
+            </div>
+
+            <!-- ⑤ 详情列 -->
+            <div style="position:relative;min-height:0;overflow-y:auto">
+              <div class="pw-detail">
+                <div class="pw-inline">
+                  <h3 style="margin:0">zhaobiao-extract</h3>
+                  <span class="pw-badge accent">项目</span>
+                  <span class="pw-grow"></span>
+                  <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>在文件面板打开</span>
+                  <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="check" data-size="13"></i></span>检查更新</span>
+                </div>
+                <dl class="pw-kv" style="margin-top:var(--s3)">
+                  <dt>来源</dt><dd>SkillHub · 已安装 v1.2.0</dd>
+                  <dt>路径</dt><dd class="pw-mono">.workbuddy-ai/skills/zhaobiao-extract</dd>
+                  <dt>允许自动调用</dt><dd><span class="pw-switch on"><i></i></span></dd>
+                </dl>
+
+                <div class="pw-sec-title" style="margin-top:var(--s4)">SKILL.md<span class="grow"></span><span class="pw-btn sm"><span class="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>编辑</span></div>
+                <textarea class="pw-textarea" style="min-height:190px">---
+name: zhaobiao-extract
+description: 把招投标 Excel 逐条抽取 15 个字段…
+---
+
+## 用法
+1. 读取源表（.xls / .xlsx / .csv）
+2. 逐条抽取字段
+3. 本地确定性后处理
+4. 输出新工作簿</textarea>
+
+                <div class="pw-inline" style="margin-top:var(--s3)">
+                  <span class="pw-badge warn"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>磁盘上的文件在你编辑期间被改过</span>
+                  <span class="pw-grow"></span>
+                  <span class="pw-btn outline sm">放弃我的修改</span>
+                  <span class="pw-btn primary sm">覆盖磁盘</span>
+                </div>
+              </div>
+            </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================================
+     帧 C · 两栏块流（常规 / 用量这类没有「条目」概念的页）
+     ====================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>块流页 · 两栏</b> · 没有「条目」概念的分节用两栏块流，每栏 570 —— 字段行跨度从 1160 收到 570<span class="grow"></span>1440 × 900</div>
+  <div class="pw-frame-body">
+    <div style="height:900px">
+      <div class="pw-settings">
+
+        <nav class="pw-snav">
+          <div class="pw-row is-on"><span class="pw-ico"><i data-ico="sliders-horizontal"></i></span><span class="pw-name">常规</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="cpu"></i></span><span class="pw-name">模型</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="box"></i></span><span class="pw-name">技能</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="bot"></i></span><span class="pw-name">子代理</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="blocks"></i></span><span class="pw-name">插件</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="server"></i></span><span class="pw-name">MCP 服务器</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="clock"></i></span><span class="pw-name">定时任务</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="brain"></i></span><span class="pw-name">记忆</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="chart-column"></i></span><span class="pw-name">用量</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="square-function"></i></span><span class="pw-name">自定义命令</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="archive"></i></span><span class="pw-name">归档历史</span></div>
+          <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">导入</span></div>
+          <span class="pw-grow"></span>
+          <div class="pw-row pw-snav-close"><span class="pw-ico"><i data-ico="arrow-left"></i></span><span class="pw-name">返回工作区</span></div>
+        </nav>
+
+        <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0">
+
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>常规</h2>
+              <p class="sub">外观、交互与系统偏好。改动即时生效，不需要保存。</p>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-badge">无页级动作 · 即时生效</span>
+            </div>
+          </header>
+
+          <div class="pw-scontent">
+            <div class="pw-grid2">
+
+              <div>
+                <div class="pw-block" style="margin-top:0">
+                  <h3><span class="pw-ico"><i data-ico="palette" data-size="14"></i></span>外观</h3>
+                  <div class="pw-field">
+                    <span class="pw-label">主题<small>浅色 / 深色 / 跟随系统</small></span>
+                    <span class="pw-radio">
+                      <span class="is-on"><span class="pw-ico"><i data-ico="sun" data-size="12"></i></span>浅色</span>
+                      <span><span class="pw-ico"><i data-ico="moon" data-size="12"></i></span>深色</span>
+                      <span><span class="pw-ico"><i data-ico="monitor" data-size="12"></i></span>跟随系统</span>
+                    </span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">边框深度<small>分隔线与控件轮廓的深浅</small></span>
+                    <span class="pw-ctl"><input type="range" class="pw-range" min="0" max="100" value="50"><span class="pw-mono pw-dim">50</span><span class="pw-btn sm">重置</span></span>
+                  </div>
+                </div>
+
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="wand-sparkles" data-size="14"></i></span>主题皮肤</h3>
+                  <div class="pw-skin-strip">
+                    <div class="pw-skin is-on"><div class="prev"><span class="a"></span><span class="b"></span></div><div class="cap"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>默认</div></div>
+                    <div class="pw-skin"><div class="prev" style="grid-template-columns:22px 1fr"><span class="a" style="background:#eae6dd"></span><span class="b" style="background:#fdfcf8"></span></div><div class="cap">纸感</div></div>
+                    <div class="pw-skin" style="display:grid;place-items:center;min-height:96px"><span class="pw-btn sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建</span></div>
+                  </div>
+                  <div class="pw-inline pw-skin-actions">
+                    <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="upload" data-size="13"></i></span>导入</span>
+                    <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="download" data-size="13"></i></span>导出</span>
+                    <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="paintbrush" data-size="13"></i></span>皮肤工作室</span>
+                  </div>
+                </div>
+
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="panel-left" data-size="14"></i></span>侧栏</h3>
+                  <div class="pw-field"><span class="pw-label">半透明<small>侧栏底透出壁纸</small></span><span class="pw-switch"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">宽度</span><span class="pw-ctl"><input type="range" class="pw-range" min="220" max="480" value="280"><span class="pw-mono pw-dim">280 px</span></span></div>
+                </div>
+
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="type" data-size="14"></i></span>界面字体</h3>
+                  <div class="pw-field"><span class="pw-label">UI 字体</span><span class="pw-selectbox">系统默认<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+                  <div class="pw-field"><span class="pw-label">UI 字号</span><span class="pw-selectbox" style="min-width:90px">13 px<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+                  <div class="pw-field"><span class="pw-label">界面语言</span><span class="pw-radio"><span class="is-on">简体中文</span><span>繁體中文</span><span>English</span></span></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="pw-block" style="margin-top:0">
+                  <h3><span class="pw-ico"><i data-ico="message-square" data-size="14"></i></span>聊天</h3>
+                  <div class="pw-field"><span class="pw-label">会话自动命名</span><span class="pw-switch on"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">命名用的模型</span><span class="pw-selectbox" style="min-width:220px">DeepSeek V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+                  <div class="pw-field"><span class="pw-label">思考块默认展开</span><span class="pw-switch"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">界面密度</span><span class="pw-radio"><span>紧凑</span><span class="is-on">标准</span><span>宽松</span></span></div>
+                  <div class="pw-field">
+                    <span class="pw-label">过程步骤默认展开<small>推理 / 命令 / 工具分别控制</small></span>
+                    <span class="pw-radio">
+                      <span><span class="pw-ico"><i data-ico="brain" data-size="12"></i></span>推理</span>
+                      <span class="is-on"><span class="pw-ico"><i data-ico="terminal" data-size="12"></i></span>命令</span>
+                      <span><span class="pw-ico"><i data-ico="wrench" data-size="12"></i></span>工具</span>
+                    </span>
+                  </div>
+                  <div class="pw-field"><span class="pw-label">聊天内容宽度</span><span class="pw-ctl"><span class="pw-mono pw-dim">800 px</span><span class="pw-btn sm">重置</span></span></div>
+                  <div class="pw-field"><span class="pw-label">聊天字号</span><span class="pw-selectbox" style="min-width:90px">13 px<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span></div>
+                </div>
+
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="bell" data-size="14"></i></span>通知</h3>
+                  <div class="pw-field"><span class="pw-label">桌面通知<small>允许发送系统通知</small></span><span class="pw-switch on"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">任务完成时通知</span><span class="pw-switch on"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">任务出错时通知</span><span class="pw-switch on"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">仅在窗口不在前台时通知</span><span class="pw-switch"><i></i></span></div>
+                  <div class="pw-field"><span class="pw-label">提示音</span><span class="pw-switch on"><i></i></span></div>
+                  <div class="pw-field">
+                    <span class="pw-label"></span>
+                    <span class="pw-ctl"><span class="pw-btn outline sm">发送测试通知</span><span class="pw-btn sm">打开系统通知设置</span></span>
+                  </div>
+                </div>
+
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="wallpaper" data-size="14"></i></span>默认外观壁纸</h3>
+                  <div class="pw-field"><span class="pw-label">启用壁纸</span><span class="pw-switch"><i></i></span></div>
+                  <div class="pw-field">
+                    <span class="pw-label">当前壁纸</span>
+                    <span class="pw-ctl"><span class="pw-wallpaper-thumb" style="background:var(--n-surface)"></span><span class="pw-btn outline sm">选择图片</span></span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================================
+     帧 D · 空态三态 + 动作层级
+     ====================================================================== -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>空态三态 · 动作层级</b> · 空态必须有落点；动作只有四个层级，页脚不再放动作</div>
+  <div class="pw-frame-body pw-pad pw-grid2">
+
+    <div class="pw-cell">
+      <h4>列表空（列表列内）</h4>
+      <div style="margin-top:var(--s2);height:220px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);padding:var(--s4);display:grid;place-items:center;background:var(--surface-canvas)">
+        <div style="display:grid;gap:var(--s2);justify-items:center;text-align:center">
+          <span class="pw-ico pw-dim" style="width:32px;height:32px;border:1px solid var(--n-border);border-radius:var(--radius-6);display:grid;place-items:center"><i data-ico="box" data-size="16"></i></span>
+          <span style="color:var(--n-text);font-size:var(--text-secondary)">还没有技能</span>
+          <span class="pw-hint">从市场装一个，或从本机目录加载</span>
+        </div>
+      </div>
+      <p class="pw-hint" style="margin-top:var(--s2)">32px 图标 + 一句 + 一句说明。<b>列表列多窄都不折行</b>，所以文案控制在 12 字内。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4>详情未选（详情列内）</h4>
+      <div style="margin-top:var(--s2);height:220px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas);display:grid;place-items:center">
+        <div class="pw-empty-inner">
+          <span class="mark"><i data-ico="square-mouse-pointer" data-size="16"></i></span>
+          <p>从左边选一个技能查看它的来源、路径与 SKILL.md</p>
+        </div>
+      </div>
+      <p class="pw-hint" style="margin-top:var(--s2)">40px 方框图标 + 一句引导，<b>居中</b>。现在这一格是「飘在右上角的一段说明」（自定义命令页）。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4>整页空（内容区居中）</h4>
+      <div style="margin-top:var(--s2);height:220px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas);display:grid;place-items:center">
+        <div class="pw-empty-inner">
+          <span class="mark"><i data-ico="archive" data-size="16"></i></span>
+          <h2>还没有归档</h2>
+          <p>侧栏项目行的 ⋯ 里选「归档项目」，或会话行的 ⋯ 里选「归档」。归档只把条目收起来，不动磁盘上的文件。</p>
+          <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="external-link" data-size="13"></i></span>去侧栏</span>
+        </div>
+      </div>
+      <p class="pw-hint" style="margin-top:var(--s2)">20px 标题 + 说明 + 一个出口动作。<b>说明写在空态里，不要飘到别处</b>。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4>动作层级（只有四级）</h4>
+      <div class="pw-list" style="margin-top:var(--s2)">
+        <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="panel-top" data-size="14"></i></span><span class="grow"><span class="pw-lname">① 页级 · 页头右端</span><span class="pw-lsub">最多 2 个：1 主 + 1 次。安装技能 / 检查更新</span></span></div>
+        <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="list-filter" data-size="14"></i></span><span class="grow"><span class="pw-lname">② 列表级 · 工具栏右端</span><span class="pw-lsub">与计数同排。全部开启 / 全部关闭 / 刷新目录</span></span></div>
+        <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="square-pen" data-size="14"></i></span><span class="grow"><span class="pw-lname">③ 条目级 · 详情头右端</span><span class="pw-lsub">测试连接 / 编辑 / 移除</span></span></div>
+        <div class="pw-litem"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="save" data-size="14"></i></span><span class="grow"><span class="pw-lname">④ 表单级 · 表单块底部右对齐</span><span class="pw-lsub">保存。绝不浮在视口右下角</span></span></div>
+        <div class="pw-litem" style="opacity:.6"><span class="pw-ico" style="color:var(--error)"><i data-ico="ban" data-size="14"></i></span><span class="grow"><span class="pw-lname">禁止 · 页脚放动作</span><span class="pw-lsub">页脚只放只读状态，且必须是本页自己的</span></span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ======================================================================
+     帧 E · 12 页落位表
+     ====================================================================== -->
+<section class="pw-frame" style="max-width:1440px">
+  <div class="pw-frame-label"><b>12 个分节逐页落位</b> · 骨架二选一 · 页头恒在 · 页级动作最多 2 个<span class="grow"></span>骨架 A = 两栏块流（570 × 2）　骨架 B = 列表 300 + 详情 760</div>
+  <div class="pw-frame-body pw-pad">
+    <table style="width:100%;border-collapse:collapse;font-size:var(--text-secondary)">
+      <thead>
+        <tr style="text-align:left;color:var(--n-muted);font-size:var(--text-meta)">
+          <th style="padding:var(--s2) var(--s2);border-bottom:1px solid var(--n-border);font-weight:500;width:96px">分节</th>
+          <th style="padding:var(--s2) var(--s2);border-bottom:1px solid var(--n-border);font-weight:500;width:70px">现在</th>
+          <th style="padding:var(--s2) var(--s2);border-bottom:1px solid var(--n-border);font-weight:500;width:110px">新骨架</th>
+          <th style="padding:var(--s2) var(--s2);border-bottom:1px solid var(--n-border);font-weight:500">页头 sub（一句「这页是干嘛的」）</th>
+          <th style="padding:var(--s2) var(--s2);border-bottom:1px solid var(--n-border);font-weight:500;width:230px">页级动作</th>
+          <th style="padding:var(--s2) var(--s2);border-bottom:1px solid var(--n-border);font-weight:500;width:250px">这一页要改的结构</th>
+        </tr>
+      </thead>
+      <tbody style="color:var(--n-text)">
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">常规</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">A</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">A · 两栏</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">外观、交互与系统偏好。改动即时生效，不需要保存。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">—</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">9 块单列 1862px 高 → 两栏 570；字段跨度 1000 → 570</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">模型</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">供应商、登录、可用模型与定价。改动写入 models.json。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">—</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)"><b style="color:var(--error);font-weight:500">保存按钮浮在视口右下角</b> → 移进「连接」块底部；模型列表进工具栏 + 自己滚</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">技能</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">技能来自市场或本机目录，agent 按描述自动调用。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">安装技能 · 检查更新</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">详情从「Name / Description / 内容」的裸字段罗列 → 头部 + kv + 正文；列表补搜索与作用域分组</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">子代理</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge bad">C</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">内置与自定义子代理；并发上限决定同时跑几个。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">新建子代理</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)"><b style="color:var(--error);font-weight:500">顶部两条整宽设置行撤掉</b> → 收进列表「内置」组顶部的一条紧凑设置行</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">插件</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">npm 包扩展；可贡献命令、工具、面板与 MCP 服务器。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">添加插件 · 检查更新</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">删掉页脚的「检查更新 / 刷新」；「已解析资源」用列表行而不是 kv</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">MCP 服务器</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">stdio 走本地进程，http 走远程端点。凭据存系统钥匙串。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">添加服务器 · 从其它 agent 导入</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)"><b style="color:var(--error);font-weight:500">页脚显示的是插件页的统计</b>（4 ext · 7 skills…）→ 删；kv 表 → 行式字段</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">定时任务</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">按计划自动跑提示词，结果落在新会话。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">新建任务</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">sub 现在是「任务列表」（那是内容不是说明）；16 行表单跨度 500 → 570 内两列</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">记忆</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge bad">D</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">长期记忆是 agent 目录下的 markdown，跨会话读写。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">标记已整理</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">状态块 + 工具块 + 两栏（仅 420 高）→ 统一两栏；「标记已整理」从孤行 → 页头动作</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">用量</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">A</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">A · 两栏</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">本地统计，数据不出本机；只存解析后的计数。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">刷新</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">9 张卡 4+4+1（末行孤一张）→ 两栏里 2×2 对齐；热力图从 1100 收到 570</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">自定义命令</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">A/B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">~/.pi/agent/prompts 下的模板，每个文件是一条斜杠命令。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">新建命令</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">空态说明飘在右列中段 → 详情列居中空态；h2 要成为内容区直接子元素</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><b style="font-weight:500">归档历史</b></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge">A</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">归档只把条目从侧栏收起来，不动磁盘上的文件。</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">—</td>
+          <td style="padding:var(--s2);border-bottom:1px solid var(--n-border-subtle);color:var(--n-muted)">两小节各带一个无标签眼睛图标 → 项目 / 会话两个分组；h2 从嵌套 div 提到内容区直接子元素</td>
+        </tr>
+        <tr>
+          <td style="padding:var(--s2)"><b style="font-weight:500">导入</b></td>
+          <td style="padding:var(--s2)"><span class="pw-badge">A</span></td>
+          <td style="padding:var(--s2)"><span class="pw-badge accent">B</span></td>
+          <td style="padding:var(--s2);color:var(--n-muted)">扫描本机其它 agent 的对话、供应商、技能与 MCP，挑要导入的。</td>
+          <td style="padding:var(--s2);color:var(--n-muted)">扫描</td>
+          <td style="padding:var(--s2);color:var(--n-muted)">右侧「本次选择」浮卡与搜索框不对齐 → 选择摘要进工具栏右端</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================================
+     帧 F · 与现状的差异清单
+     ====================================================================== -->
+<section class="pw-frame" style="max-width:1440px">
+  <div class="pw-frame-label"><b>新框架的硬规则</b> · 每一条都对应一个实测到的现状问题</div>
+  <div class="pw-frame-body pw-pad">
+    <div class="pw-grid2">
+      <div class="pw-cell">
+        <h4><span class="pw-ico"><i data-ico="square-dashed" data-size="14"></i></span>尺寸</h4>
+        <ul style="margin:var(--s2) 0 0;padding-left:16px;color:var(--n-muted);font-size:var(--text-secondary)">
+          <li>设置内容区 = 1440 − 200 导航 = <b>1240</b>；左右内边距各 40 → 可用 <b>1160</b>。</li>
+          <li>全站只有两个内容宽度：<b>列表 300</b>、<b>内容 760</b>（两栏块流则各 <b>570</b>）。</li>
+          <li>列表与内容之间 <b>gap 16</b>；760 之后剩下的 80 留白，不做拉伸。</li>
+          <li>页头 padding <b>24 / 40 / 12</b>；工具栏高 <b>40</b>；内容区 padding <b>16 / 40 / 24</b>。</li>
+        </ul>
+      </div>
+      <div class="pw-cell">
+        <h4><span class="pw-ico"><i data-ico="arrow-up-down" data-size="14"></i></span>滚动</h4>
+        <ul style="margin:var(--s2) 0 0;padding-left:16px;color:var(--n-muted);font-size:var(--text-secondary)">
+          <li>分节内容区是 <code>flex column + min-height:0</code>；<b>页头与工具栏不滚</b>。</li>
+          <li>列表页：列表列与详情列<b>各自滚</b>，互不影响。选中第 20 项时详情仍在视野内。</li>
+          <li>块流页：只有块流区滚，一个滚动条。</li>
+          <li>详情内部<b>不再套第二层滚动</b>（技能页的 SKILL.md 现在是内部滚动框，会把长正文裁掉）。</li>
+        </ul>
+      </div>
+      <div class="pw-cell">
+        <h4><span class="pw-ico"><i data-ico="panel-top" data-size="14"></i></span>页头</h4>
+        <ul style="margin:var(--s2) 0 0;padding-left:16px;color:var(--n-muted);font-size:var(--text-secondary)">
+          <li><b>12 个分节全部有页头</b>。现在技能 / 子代理 / 插件 / MCP / 用量 / 自定义命令 / 导入 7 页没有。</li>
+          <li>h2 必须是内容区的<b>直接子元素</b>——归档 / 导入 / 用量 / 自定义命令把 h2 包在 <code>.settings-general</code> 里，<code>board.css</code> 的 <code>&gt; h2</code> 选择器没命中。</li>
+          <li>sub 写「这页是干嘛的」，<b>不写数据</b>；计数进工具栏的等宽徽章（定时任务现在把「任务列表」当 sub）。</li>
+          <li>页级动作最多 2 个，1 主 1 次，永远在页头右端。</li>
+        </ul>
+      </div>
+      <div class="pw-cell">
+        <h4><span class="pw-ico"><i data-ico="ban" data-size="14"></i></span>禁止项</h4>
+        <ul style="margin:var(--s2) 0 0;padding-left:16px;color:var(--n-muted);font-size:var(--text-secondary)">
+          <li><b>不许有浮在视口右下角的按钮</b>（模型页的「保存」现在就是）。</li>
+          <li><b>页脚不放动作</b>，也不放别的页面的统计（MCP 页现在显示插件页的 <code>4 ext · 7 skills</code>）。</li>
+          <li>同一个动作不在两处出现（插件页页头与页脚各有一个「检查更新」）。</li>
+          <li>空态说明不许脱离空态本体（自定义命令页那句「保存后斜杠面板立即可用」飘在右列中段）。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>12 个分节收敛成 2 种骨架</b>：有「条目」概念的用「列表 300 + 内容 760」，没有的用「两栏块流 570 × 2」。现在实际存在 4 种（单列块流 / 列表+详情 / 顶部整宽条+两栏 / 块流+底部两栏）。</li>
+    <li><b>唯一滚动在内容区</b>，页头与工具栏固定；列表页的两列各自滚。这解决「选中列表第 20 项后详情滚出视野」。</li>
+    <li><b>全站两个宽度</b>：列表 300、内容 760。字段行的「标签—控件」跨度从 1000 收到 760（块流页 570）。</li>
+    <li><b>动作四级归位</b>：页级 → 页头右端；列表级 → 工具栏右端；条目级 → 详情头右端；表单级 → 表单块底部。<b>页脚不再放动作。</b></li>
+    <li><b>页头恒在</b>，且 h2 必须是内容区直接子元素 —— 现在有 7 页没有页头、4 页把 h2 包错层。</li>
+    <li><b>空态三态各有落点</b>：列表空在列表列内（32px 图标）、详情未选在详情列居中（40px 方框）、整页空在内容区居中（20px 标题 + 出口动作）。</li>
+    <li><b>「内容区不滚」只给纯列表页</b>（<code>.pw-scontent.is-fixed</code>）：分节里只要还有别的块（状态块 / 工具块 / 说明块），就必须用默认滚动 —— 否则超出的部分会被静默裁掉，连滚动条都没有。记忆页实测被裁 243px。</li>
+    <li><b>固定轨道的长跨度图表不要放进 570 的一栏</b>：年度热力图是 53 周 × 14px ≈ 742px 的定宽网格，塞进半栏只剩 514px 可见，而<b>最近的活动全在最右端</b> —— 看起来就是一整片空白格子「像假数据」。它要占一整行。</li>
+    <li>这一张是<b>提案</b>，落地前需要裁定：是否接受「列表 300 / 内容 760」这两个固定宽度、是否接受把子代理页顶部的两条整宽设置行收进列表列。裁定结果记入 <code>DIVERGENCE.md</code>。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+// fork:ui-pop-portal-fix —— worktree 切换 / 项目 ⋯ 菜单共用这一份（容器带 `--z-popover`）。
+import { PortalDropdown } from "./PortalDropdown";
 import type { SessionInfo } from "@/lib/types";
 import { listSessionFamilies, type SessionFamily } from "@/lib/session-family";
 import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
@@ -13,8 +14,7 @@ import { filterArchivedProjects, useProjectFlags } from "@/lib/project-flags";
 // fork:zc-11 — 用户自定义项目分组 + 拖拽排序（localStorage 展示层偏好）。
 import { useSessionGroups } from "@/lib/session-groups";
 import { filterHiddenProjects, projectDisplayName, useProjectPrefs } from "@/lib/project-prefs";
-import { bucketOf, groupByTimeBucket, timeBucketKey, type TimeBucket, type TimeGroupEntry } from "@/lib/time-groups";
-import { loadCollapsedTimeGroups, saveCollapsedTimeGroups, type CollapsedTimeGroups } from "@/lib/time-group-state";
+import { flatTimeGroupEntries, type TimeGroupEntry } from "@/lib/time-groups";
 import { desktopTrafficLightInset } from "@/lib/desktop-shell";
 import { workspaceKeyOf } from "@/lib/workspace-memory";
 import { formatRelativeTime } from "@/lib/i18n/format";
@@ -25,8 +25,8 @@ import { DirectoryPicker } from "./DirectoryPicker";
 import { GroupedProjectList, useProjectDrag } from "./fork/GroupedProjectList";
 // fork:chat-workspace — standalone chat section (docs/patches/0001-chat-workspace.md)
 import { ChatWorkspaceRow } from "./ChatWorkspaceRow";
-import { SessionSearch } from "./SessionSearch";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { SessionSearch } from "./SessionSearch";import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTheme } from "@/hooks/useTheme";
 import { TEXT } from "@/lib/typography";
 
 // fork:design-system — 会话行按画板 02 重做成**两行**（标题 + 元信息行），
@@ -262,136 +262,12 @@ function PathLabel({ text, style }: { text: string; style?: CSSProperties }) {
   );
 }
 
-const DROPDOWN_ANIMATION_MS = 140;
-
-function AnimatedDropdown({ open, children, style, className }: { open: boolean; children: ReactNode; style: CSSProperties; className?: string }) {
-  const [mounted, setMounted] = useState(open);
-  const [visible, setVisible] = useState(open);
-
-  useEffect(() => {
-    let frame: number | undefined;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
-    if (open) {
-      setMounted(true);
-      setVisible(false);
-      frame = window.requestAnimationFrame(() => {
-        frame = window.requestAnimationFrame(() => setVisible(true));
-      });
-    } else {
-      setVisible(false);
-      timeout = setTimeout(() => setMounted(false), DROPDOWN_ANIMATION_MS);
-    }
-
-    return () => {
-      if (frame !== undefined) window.cancelAnimationFrame(frame);
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [open]);
-
-  if (!mounted) return null;
-
-  return (
-    <div
-      className={className}
-      style={{
-        ...style,
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.96)",
-        transformOrigin: "top center",
-        transition: `opacity ${DROPDOWN_ANIMATION_MS}ms ease, transform ${DROPDOWN_ANIMATION_MS}ms ease`,
-        pointerEvents: open ? "auto" : "none",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/**
- * fork:ui-pop-portal — 渲染在 <body> 上的定值定位下拉。
- *
- * 侧栏的下拉（worktree 切换、项目 ⋯ 菜单）以前是 `position:absolute` 挂在滚动区
- * 里的行上：行靠近滚动区底部时浮窗要么被 `overflow` 裁掉、要么把滚动区撑长。
- * portal + fixed 让浮窗脱离所有裁切祖先；展开方向沿用 ModelSelector 的规则——
- * 下面放不下（<260px）才朝上，否则贴着触发点向下开。
- */
-function PortalDropdown({
-  open,
-  anchorRef,
-  panelRef,
-  className,
-  width,
-  align,
-  children,
-}: {
-  open: boolean;
-  anchorRef: React.RefObject<HTMLElement | null>;
-  panelRef?: React.RefObject<HTMLDivElement | null>;
-  className?: string;
-  /** 期望宽度；缺省跟随触发点宽度。 */
-  width?: number;
-  /** right = 浮窗右缘对齐触发点右缘（⋯ 菜单）；left = 左缘对齐触发点左缘。 */
-  align?: "left" | "right";
-  children: ReactNode;
-}) {
-  const [rect, setRect] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
-  const [above, setAbove] = useState(false);
-  const [maxH, setMaxH] = useState(360);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    const update = () => {
-      const el = anchorRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const viewportH = window.innerHeight;
-      const viewportW = window.innerWidth;
-      const w = width ?? r.width;
-      const spaceBelow = viewportH - r.bottom - 8;
-      const spaceAbove = r.top - 8;
-      // 与 ModelSelector 相同的规则：下方还有一段就不朝上。
-      const openAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
-      setAbove(openAbove);
-      setMaxH(Math.max(180, Math.min(openAbove ? spaceAbove : spaceBelow, viewportH * 0.6)));
-      const left = align === "right"
-        ? Math.max(8, Math.min(r.right - w, viewportW - w - 8))
-        : Math.max(8, Math.min(r.left, viewportW - w - 8));
-      setRect({ left, top: r.top, bottom: r.bottom, width: w });
-    };
-    update();
-    window.addEventListener("resize", update);
-    // 捕获阶段才能收到侧栏滚动容器的滚动。
-    document.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      document.removeEventListener("scroll", update, true);
-    };
-  }, [open, align, width]);
-
-  if (!rect) return null;
-
-  return createPortal(
-    <div ref={panelRef}>
-      <AnimatedDropdown
-        open={open}
-        className={className}
-        style={{
-          position: "fixed",
-          left: rect.left,
-          width: rect.width,
-          ...(above
-            ? { bottom: window.innerHeight - rect.top + 6, maxHeight: maxH }
-            : { top: rect.bottom + 6, maxHeight: maxH }),
-          overflowY: "auto",
-        }}
-      >
-        {children}
-      </AnimatedDropdown>
-    </div>,
-    document.body,
-  );
-}
+// fork:ui-pop-portal-fix —— 侧栏的两个下拉（worktree 切换 / 项目 ⋯ 菜单）改用共享的
+// `components/PortalDropdown.tsx`。这里此前留着一份 2026-09-29 的**旧副本**，
+// 而那份副本没有 portal 容器的 z-index 修复：浮窗虽然 portal 到了 body，
+// 但自身在根层叠上下文里是第 0 层，被 `.sidebar-container`（`z-index: 200`）整块盖住 ——
+// DOM 里有、点不到、看不见，用户看到的就是「这个 main 点不了 / 这三个点点了没反应」。
+// 共享版把容器包在 `position: relative; z-index: var(--z-popover)` 里，改一处全治。
 
 const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
 
@@ -443,8 +319,12 @@ function PiWebTitle() {
   const [scrambling, setScrambling] = useState(false);
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Agent";
+  // fork:brand-logo — 产品名图（public/pi-next-wordmark.png）里「PI」是深藏青，
+  // 深色主题下压在侧栏底上等于看不见，所以深色退回同字号的实色文字。
+  const { theme } = useTheme();
+  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "PI NEXT";
   const display = useScramble(target, scrambling);
+  const wordmark = !showVersion && !scrambling && theme === "light";
 
   const triggerScramble = useCallback((toVersion: boolean) => {
     setShowVersion(toVersion);
@@ -479,7 +359,10 @@ function PiWebTitle() {
         minWidth: "6ch",
       }}
     >
-      {display}
+      {wordmark ? (
+        // eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器
+        <img src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} style={{ display: "block", height: 10, width: "auto" }} />
+      ) : display}
     </button>
   );
 }
@@ -595,7 +478,17 @@ function ProjectRow({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       draggable={drag.draggable}
-      onDragStart={drag.onDragStart}
+      // fix:row-actions-drag —— 项目行整体是拖拽源，而 ⋯ / ⊕ 这些动作钮只有 22px。
+      // 在 draggable 的元素上按下再抬起，只要有 2-3px 位移，浏览器就开始 HTML5 拖拽
+      // 并**取消这次 click** —— 表现就是「这三个点点了没反应」（实测在 WebKit/Electron
+      // 下尤其容易触发）。从动作区起手的拖拽一律取消，让点击照常派发。
+      onDragStart={(event) => {
+        if ((event.target as HTMLElement | null)?.closest?.("[data-project-actions]")) {
+          event.preventDefault();
+          return;
+        }
+        drag.onDragStart(event);
+      }}
       onDragEnd={drag.onDragEnd}
       // fork:design-components —— 项目行 = 画板 01/02 的 .pw-row（30 高 / 内缩 8px /
       // hover 叠色 / .is-on 选中）+ .pw-name + .pw-count + .pw-acts。
@@ -634,8 +527,10 @@ function ProjectRow({
       <span className="grow" />
       {typeof count === "number" && <span className="pw-count">{count}</span>}
       {showProjectActivity(activity, t)}
-      {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾）。 */}
-      <span className="pw-acts" style={{ opacity: hovered || menuOpen ? 1 : 0, flexShrink: 0 }}>
+      {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾）。
+          fix:row-actions-drag —— `data-project-actions` 让行上的 dragstart 识别「这次
+          是从动作区起手的」，直接取消拖拽、保住点击。 */}
+      <span className="pw-acts" data-project-actions="" draggable={false} style={{ opacity: hovered || menuOpen ? 1 : 0, flexShrink: 0 }}>
       {(onOpenFolder || onRename || onRemove || onArchive) && (
         <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
           <span
@@ -761,15 +656,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   // fork:ui-10 — list order + the "expand/collapse all" switch.
   // fork:ui — 排序开关已移除（用户要求）：会话固定按最后修改时间倒序，state 一并删掉。
-  // PR-03 — 时间分组头的折叠状态（earlier 默认折叠），写 localStorage 跨刷新保留。
-  const [collapsedGroups, setCollapsedGroups] = useState<CollapsedTimeGroups>(() => loadCollapsedTimeGroups());
-  const toggleGroup = useCallback((bucket: TimeBucket) => {
-    setCollapsedGroups((prev) => {
-      const next = { ...prev, [bucket]: !prev[bucket] };
-      saveCollapsedTimeGroups(next);
-      return next;
-    });
-  }, []);
+  // fix:no-time-groups —— 时间分组头的折叠状态（今天/昨天/本周…）整块退役：
+  // 侧栏列表改成一行一个会话，不再分桶。`lib/time-group-state` 与其测试仍在
+  // （那是独立模块），侧栏不再读写它。
   // 归档区默认折叠；每个项目独立记忆展开状态（取消归档的右键菜单入口）。
   // fork:zc-11 — 项目分组/顺序的 localStorage store（状态 + 纯操作封装）。
   const sessionGroups = useSessionGroups();
@@ -788,12 +677,24 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // fork:ui-pop-portal — 下拉本体 portal 到 body，关闭判据要连同面板一起算。
   const wtPanelRef = useRef<HTMLDivElement>(null);
   const wtNewInputRef = useRef<HTMLInputElement>(null);
-  /* fork:design-components —— 画板 02 的搜索是**常显**一格（.pw-side-search），
-     所以不再有「开/关搜索框」的状态：输入框一直在，头部那个搜索钮只负责聚焦它。
-     `searchRequestId` 是折叠导轨点搜索时 AppShell 递过来的计数，收到就聚焦。 */
+  /* fix:search-collapsed —— 搜索是**一个状态**，不是一个常驻格子：
+     默认收起（画板 02 帧 A 的项目 pane 根本没有搜索格），点头部搜索钮才展开并聚焦，
+     清除钮 / Esc / 清空后失焦即收起。台账见 DIVERGENCE 38。
+     `searchRequestId` 是折叠导轨点搜索时 AppShell 递过来的计数，收到就展开并聚焦。 */
+  const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
+  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchToggleRef = useRef<HTMLButtonElement>(null);
+  const closeSessionSearch = useCallback(() => {
+    setSessionSearchQuery("");
+    setSessionSearchOpen(false);
+    // 焦点还留在正在卸载的输入框上会掉到 body，键盘 Tab 要从头开始 —— 交还给触发钮。
+    searchToggleRef.current?.focus();
+  }, []);
   useEffect(() => {
-    if (searchRequestId > 0) searchInputRef.current?.focus();
+    if (searchRequestId <= 0) return;
+    setSessionSearchOpen(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
   }, [searchRequestId]);
   const [sidebarPane, setSidebarPane] = useState<SidebarPane>(readStoredSidebarPane);
   const selectPane = (next: SidebarPane) => {
@@ -806,8 +707,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       setExpandedProjects((prev) => (prev.has(chatProject.key) ? prev : new Set(prev).add(chatProject.key)));
     }
   };
-  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
-  const sessionSearchActive = Boolean(sessionSearchQuery.trim());
+  // fix:search-collapsed —— 搜索态 = 「盒子展开」且「有检索词」。列表虚拟化与
+  // SessionSearch 都以这个值为准（展开但没输入时仍然显示正常会话列表）。
+  const sessionSearchActive = sessionSearchOpen && Boolean(sessionSearchQuery.trim());
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
   // fork:design-system — 「等你处理」（画板 02 第三态）：挂起扩展请求、不在跑的会话。
   // 与 running 同一次轮询取回，所以不额外发请求。
@@ -1530,6 +1432,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const chatProject: RecentProject | null = chatWorkspace
     ? chatProjectOf(projectChoices, chatProjectKey) ?? { key: chatWorkspace.key, root: chatWorkspace.cwd }
     : null;
+  // fork:design-system 判据⑦ —— 画板 01/02 的 `.pw-group-title` 左侧就是那枚
+  // chevrons-up-down（展开 / 折叠全部的记号），右端才是动作位；画板里它是静态 div。
+  // 这里把那一行整体接上同一个动作，元素层级保持与画板一致（不再另起一枚按钮，
+  // 否则 22px 的 `.pw-iconbtn.sm` 会把标题推右 10px、行高从 29 增到 34）。
+  const toggleAllProjects = () => {
+    const keys = visibleProjects.map((project) => project.key);
+    const allOpen = keys.length > 0 && keys.every((key) => expandedProjects.has(key));
+    setExpandedProjects(allOpen ? new Set() : new Set(keys));
+  };
 
   // Per-project activity counts (running / unread) for the workspace selector.
   // Uses the same stable server key as the project list and filtering.
@@ -1585,23 +1496,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
   const sessionFamilies = listSessionFamilies(applySessionFlags(filteredSessions, sessionFlags));
 
-  // PR-03 — 时间分组：pinned 单独成桶并置顶（延续 applySessionFlags 的分区意图），
-  // 其余按 family.latestModified 的本地日历日分桶。同一桶内保持传入顺序，
-  // 因此 sessionSort / worktree 合并后的相对顺序不会被重排。
-  const pinnedSessionIds = useMemo(() => new Set(sessionFlags.pinned), [sessionFlags.pinned]);
-  const bucketOfFamily = useCallback(
-    (family: SessionFamily): TimeBucket => (
-      pinnedSessionIds.has(family.root.id) ? "pinned" : bucketOf(family.latestModified)
-    ),
-    [pinnedSessionIds],
-  );
-  // 虚拟列表关键坑：分组头与条目共用这条扁平数组，每个元素恰好占一个
-  // SESSION_LIST_ITEM_HEIGHT 槽位（TimeGroupHeader 也强制同高）。因此
-  // getSessionListIndices 用 entries.length 计数后，index 与实际槽位一一对应，
-  // 插入分组头不会造成偏移或越界；折叠分组只是从数组里移除条目。
-  const sessionListEntries = useMemo(
-    () => groupByTimeBucket(sessionFamilies, bucketOfFamily, collapsedGroups),
-    [sessionFamilies, bucketOfFamily, collapsedGroups],
+  // fix:no-time-groups —— 不再按时间分桶（今天 / 昨天 / 本周 / 本月 / 更早）。
+  // 顺序完全由 `orderedProjectSessions`（modified 倒序）+ `applySessionFlags`
+  // 的置顶分区决定，所以「置顶在最前、其余新的在前」保持不变。
+  // 虚拟列表的口径也简单了：每个元素都是一个会话行，槽位高度只可能是
+  // SESSION_LIST_ITEM_HEIGHT / _TALL 两种。
+  const sessionListEntries = useMemo<TimeGroupEntry<SessionFamily>[]>(
+    () => flatTimeGroupEntries(sessionFamilies),
+    [sessionFamilies],
   );
 
   useLayoutEffect(() => {
@@ -1649,7 +1551,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     sessionListTallIndices,
   );
 
-  // 所有列表表面共用的行渲染；分组头渲染也走同一份 collapsedGroups。
+  // 所有列表表面共用的行渲染。
   const renderFamilyRow = (family: SessionFamily) => {
     const familySessions = [family.root, ...family.subagents];
     const displaySession = family.latestModified === family.root.modified ? family.root : { ...family.root, modified: family.latestModified };
@@ -1659,14 +1561,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       </div>
     );
   };
-  const renderGroupHeader = (bucket: TimeBucket, count: number) => (
-    <TimeGroupHeader
-      bucket={bucket}
-      count={count}
-      collapsed={collapsedGroups[bucket]}
-      onToggle={() => toggleGroup(bucket)}
-    />
-  );
   const sessionEntryKey = (entry: TimeGroupEntry<SessionFamily>) => (
     entry.type === "header" ? `time-group-${entry.bucket}` : entry.item.root.id
   );
@@ -1708,20 +1602,26 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       <div className="pw-side-head" style={{ paddingLeft: Math.max(12, desktopTrafficLightInset()) }}>
         <span className="pw-brand">
           <span className="pw-logo" aria-hidden="true">
-            {/* fork:brand-logo — 画板 brand/ 的 π 几何（一条横杠 + 两条竖腿）。 */}
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 7h16" /><path d="M8 7v11" /><path d="M16 7v11" />
-            </svg>
+            {/* fork:brand-logo — 主品牌渐变图形（public/pi-next-logo.png）原图直出，
+                16px 宽占满画板 02 的 .pw-logo 胶囊；不做重绘。 */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+            <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: 16, height: "auto" }} />
           </span>
           <PiWebTitle />
         </span>
         <span className="grow" />
         <button
           type="button"
-          onClick={() => searchInputRef.current?.focus()}
+          ref={searchToggleRef}
+          onClick={() => {
+            setSessionSearchOpen(true);
+            // 展开后输入框才存在，焦点要等这一帧挂上去。
+            requestAnimationFrame(() => searchInputRef.current?.focus());
+          }}
+          aria-expanded={sessionSearchOpen}
           title={t("sidebar.toggleSessionSearch")}
           aria-label={t("sidebar.toggleSessionSearch")}
-          className="pw-iconbtn"
+          className={`pw-iconbtn${sessionSearchOpen ? " is-on" : ""}`}
         >
           <span className="pw-ico"><i data-ico="search"></i></span>
         </button>
@@ -1779,36 +1679,55 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </button>
       </div>
 
-      {/* fork:design-components —— 会话搜索 = 画板 02 的 .pw-side-search（常显）。
-          画板里是一个静态盒，产品里换成真输入框；视觉全取 board.css。 */}
-      <label className="pw-side-search">
-        <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
-        <input
-          id="session-search-input"
-          ref={searchInputRef}
-          type="search"
-          value={sessionSearchQuery}
-          maxLength={200}
-          aria-label={t("sidebar.searchSessions")}
-          placeholder={t("sidebar.searchSessions")}
-          onChange={(event) => setSessionSearchQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.stopPropagation();
-              setSessionSearchQuery("");
-            }
-          }}
-        />
-      </label>
+      {/* fix:search-collapsed —— 画板 02：帧 A（项目 pane）**没有**搜索格，
+          `.pw-side-search` 只出现在帧 C（搜索态）。台账 DIVERGENCE 38 写得很清楚：
+          「默认收起、点搜索才展开并聚焦」——常显会让「默认」与「搜索中」在界面上
+          不可分，还白占一行高度。所以这一格只在 `sessionSearchOpen` 时渲染。 */}
+      {sessionSearchOpen && (
+        <label className="pw-side-search">
+          <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
+          <input
+            id="session-search-input"
+            ref={searchInputRef}
+            type="search"
+            value={sessionSearchQuery}
+            maxLength={200}
+            autoComplete="off"
+            aria-label={t("sidebar.searchSessions")}
+            placeholder={t("sidebar.searchSessions")}
+            onChange={(event) => setSessionSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.stopPropagation();
+                closeSessionSearch();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={closeSessionSearch}
+            title={t("sidebar.clearSearch")}
+            aria-label={t("sidebar.clearSearch")}
+            className="pw-iconbtn sm"
+          >
+            <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+          </button>
+        </label>
+      )}
 
       {/* fork:design-components —— 列表区 = 画板 02 的 .pw-side-scroll（flex-1 + 内缩 8px）。 */}
       <div className="pw-side-scroll">
 
         <SessionSearch open={sessionSearchActive} query={sessionSearchQuery} selectedSessionId={selectedSessionId} onSelectSession={handleSelectSessionFromList}>
+        {/* fix:sidebar-scroll —— 这个容器**才是**会话列表的滚动容器。
+            原来写的是 `flex: 1 1 auto`，但父级 `.pw-side-scroll` 是 `overflow:hidden`
+            的普通块（不是 flex），flex 简写在这里完全失效 → 容器高度=内容高度，
+            超出的部分被父级直接裁掉，整列**滚不动**（用户实测「左侧无法滑动」）。
+            改成占满父级高度 + 自己滚，与 `.pw-search-results` 同一口径。 */}
         <div
           ref={listScrollRef}
           onScroll={handleListScroll}
-          style={{ flex: "1 1 auto", overflowY: "auto", minHeight: 80 }}
+          style={{ height: "100%", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain" }}
         >
           {loading && projectChoices.length === 0 && (
             <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: TEXT.sm }}>
@@ -1839,25 +1758,25 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           {sidebarPane === "projects" && (
           <>
           {/* fork:design-components —— 分区头 = 画板 01/02 的 .pw-group-title：
-              左侧组图标（装饰），右端动作位。本产品只有「展开 / 折叠全部」
-              一个动作 —— 「添加项目」按用户要求已从这里移除。 */}
-          <div className="pw-group-title">
-            <span className="pw-ico"><i data-ico="list-tree" data-size="12"></i></span>
+              左侧组图标（画板画的就是 chevrons-up-down = 展开 / 折叠全部的记号）；
+              右端原本是 filter + plus，「添加项目」已按用户要求移除（DIVERGENCE 84）。
+              整行接上「展开 / 折叠全部」那一个动作，元素层级与画板一字不动。 */}
+          <div
+            className="pw-group-title"
+            role="button"
+            tabIndex={0}
+            title={t("sidebar.expandCollapseAll")}
+            aria-label={t("sidebar.expandCollapseAll")}
+            onClick={toggleAllProjects}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              toggleAllProjects();
+            }}
+          >
+            <span className="pw-ico"><i data-ico="chevrons-up-down" data-size="12"></i></span>
             {t("sidebar.projects")}
             <span className="grow" />
-            <button
-              type="button"
-              onClick={() => {
-                const keys = visibleProjects.map((project) => project.key);
-                const allOpen = keys.length > 0 && keys.every((key) => expandedProjects.has(key));
-                setExpandedProjects(allOpen ? new Set() : new Set(keys));
-              }}
-              title={t("sidebar.expandCollapseAll")}
-              aria-label={t("sidebar.expandCollapseAll")}
-              className="pw-iconbtn sm"
-            >
-              <span className="pw-ico"><i data-ico="chevrons-up-down" data-size="12"></i></span>
-            </button>
           </div>
 
           {visibleProjects.map((project) => {
@@ -2158,7 +2077,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     const families = listSessionFamilies(projectSessions);
                     // fork:ui-archive-history — 归档的会话不再在项目下开折叠区，
                     // 统一去 设置 → 归档历史 里看（用户要求）。
-                    const projectEntries = groupByTimeBucket(families, bucketOfFamily, collapsedGroups);
+                    // fix:no-time-groups —— 项目下不再按「今天/昨天/本周」分段，
+                    // 一行一个会话（顺序来自 orderedProjectSessions 的倒序 + 置顶分区）。
+                    const projectEntries = flatTimeGroupEntries(families);
                     if (families.length === 0) {
                       return (
                         <div style={{ padding: "6px 0 6px 34px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
@@ -2172,13 +2093,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                             <div style={{ position: "relative", height: rowOffsets[sessionListEntries.length] }}>
                               {virtualIndices.map((index) => {
                                 const entry = sessionListEntries[index];
-                                if (!entry) return null;
-                                const isItem = entry.type === "item";
+                                if (!entry || entry.type !== "item") return null;
                                 const top = rowOffsets[index] ?? index * SESSION_LIST_ITEM_HEIGHT;
                                 const height = (rowOffsets[index + 1] ?? top + SESSION_LIST_ITEM_HEIGHT) - top;
                                 return (
-                                  <div key={sessionEntryKey(entry)} data-session-id={isItem ? entry.item.root.id : undefined} onFocus={isItem ? () => setFocusedSessionId(entry.item.root.id) : undefined} onBlur={isItem ? () => setFocusedSessionId(null) : undefined} style={{ position: "absolute", top, left: 0, right: 0, height }}>
-                                    {isItem ? renderFamilyRow(entry.item) : renderGroupHeader(entry.bucket, entry.count)}
+                                  <div key={sessionEntryKey(entry)} data-session-id={entry.item.root.id} onFocus={() => setFocusedSessionId(entry.item.root.id)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top, left: 0, right: 0, height }}>
+                                    {renderFamilyRow(entry.item)}
                                   </div>
                                 );
                               })}
@@ -2191,7 +2111,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       <div style={{ display: "flex", flexDirection: "column", gap: 1, marginLeft: 8, borderLeft: "1px solid var(--border-faint)", paddingLeft: 4 }}>
                         {projectEntries.map((entry) => (
                           <div key={sessionEntryKey(entry)}>
-                            {entry.type === "item" ? renderFamilyRow(entry.item) : renderGroupHeader(entry.bucket, entry.count)}
+                            {renderFamilyRow(entry.item)}
                           </div>
                         ))}
                       </div>
@@ -2218,9 +2138,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             const isSelectedChat = chatProject.key === selectedProject?.key;
             const isChatExpanded = expandedProjects.has(chatProject.key);
             const chatFamilies = listSessionFamilies(orderedProjectSessions(chatProject.key));
-            // 聊天列表复用同一套时间分组与折叠状态；窗口单独计算，避免与项目
-            // 列表的 entries 长度耦合，index 永远落在 chatEntries 范围内。
-            const chatEntries = groupByTimeBucket(chatFamilies, bucketOfFamily, collapsedGroups);
+            // fix:no-time-groups —— 聊天列表与项目列表同一口径：不再分桶，
+            // 一行一个会话。窗口单独计算，避免与项目列表的 entries 长度耦合。
+            const chatEntries = flatTimeGroupEntries(chatFamilies);
             const chatTallIndices = chatEntries
               .map((entry, index) => (entry.type === "item" && isFamilyTall(entry.item) ? index : -1))
               .filter((index) => index >= 0);
@@ -2274,11 +2194,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       <div style={{ position: "relative", height: chatOffsets[chatEntries.length] }}>
                         {chatVirtualIndices.map((index) => {
                           const entry = chatEntries[index];
-                          if (!entry) return null;
-                          const isItem = entry.type === "item";
+                          if (!entry || entry.type !== "item") return null;
                           return (
-                            <div key={sessionEntryKey(entry)} data-session-id={isItem ? entry.item.root.id : undefined} onFocus={isItem ? () => setFocusedSessionId(entry.item.root.id) : undefined} onBlur={isItem ? () => setFocusedSessionId(null) : undefined} style={{ position: "absolute", top: chatOffsets[index], left: 0, right: 0, height: (chatOffsets[index + 1] ?? chatOffsets[index]) - chatOffsets[index] }}>
-                              {isItem ? renderFamilyRow(entry.item) : renderGroupHeader(entry.bucket, entry.count)}
+                            <div key={sessionEntryKey(entry)} data-session-id={entry.item.root.id} onFocus={() => setFocusedSessionId(entry.item.root.id)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top: chatOffsets[index], left: 0, right: 0, height: (chatOffsets[index + 1] ?? chatOffsets[index]) - chatOffsets[index] }}>
+                              {renderFamilyRow(entry.item)}
                             </div>
                           );
                         })}
@@ -2289,7 +2208,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                     {chatEntries.map((entry) => (
                       <div key={sessionEntryKey(entry)}>
-                        {entry.type === "item" ? renderFamilyRow(entry.item) : renderGroupHeader(entry.bucket, entry.count)}
+                        {renderFamilyRow(entry.item)}
                       </div>
                     ))}
                         </div>
@@ -2340,39 +2259,6 @@ function showProjectActivity(
         </span>
       )}
     </span>
-  );
-}
-
-/**
- * PR-03 — 会话列表的时间分组头（可点击折叠，earlier 默认折叠）。
- *
- * 高度固定为 SESSION_LIST_ITEM_HEIGHT 是关键：虚拟列表把分组头和会话行当成同一种
- * 槽位来计算 index，若头部高度不同，绝对定位的 top 就会错位/越界。
- */
-function TimeGroupHeader({ bucket, count, collapsed, onToggle }: {
-  bucket: TimeBucket;
-  count: number;
-  collapsed: boolean;
-  onToggle: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={!collapsed}
-      title={t(collapsed ? "session.expandGroup" : "session.collapseGroup")}
-      // fork:design-components —— 时间分组头 = 画板 02 的 .pw-group-title；
-      // 高度必须保持 SESSION_LIST_ITEM_HEIGHT（虚拟列表把分组头与会话行当同一种槽位）。
-      className="pw-group-title"
-      style={{ width: "100%", height: SESSION_LIST_ITEM_HEIGHT, cursor: "pointer" }}
-    >
-      <span className="pw-ico">
-        <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
-      </span>
-      {t(timeBucketKey(bucket), { count })}
-      <span className="grow" />
-    </button>
   );
 }
 
@@ -2592,7 +2478,7 @@ function SessionItem({
             >
               {title}
             </span>
-            <span className="pw-m">
+            <span className="pw-m fork-session-meta">
               <span>{formatRelativeTime(session.modified, locale)}</span>
               <span aria-hidden="true"> · </span>
               <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>

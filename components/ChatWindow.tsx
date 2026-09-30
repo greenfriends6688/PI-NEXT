@@ -2,7 +2,7 @@
 import { registerAbortHandler } from "@/hooks/useKeyboardShortcuts";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { AgentMessage, AssistantContentBlock, AssistantMessage, BashExecutionMessage, BlockingExtensionUiRequest, ExtensionUiRequest, SessionInfo, SessionTreeNode, ToolResultMessage, UserMessage } from "@/lib/types";
+import type { AgentMessage, AssistantContentBlock, AssistantMessage, BashExecutionMessage, BlockingExtensionUiRequest, ExtensionStatusItem, ExtensionUiRequest, ExtensionWidgetItem, SessionInfo, SessionTreeNode, ToolResultMessage, UserMessage } from "@/lib/types";
 import { normalizeCustomPanelLines } from "@/lib/ansi";
 import { splitDialogTitle, splitDialogTitleCode } from "@/lib/dialog-title";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
@@ -18,9 +18,10 @@ import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { FileLocationTarget } from "./FileViewer";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
-import { ExtensionStatusFloat } from "./ExtensionStatusBar";
 import { NewSessionHome } from "./fork/NewSessionHome";
 import { ProjectChip, type NewSessionTargets } from "./fork/ProjectChip";
+// fork:ui-ctxbar —— 新会话上下文条的分支项：与顶栏同一枚工作区（worktree）下拉。
+import { BranchChip } from "./TopBarPopovers";
 // fork:zc-02 — in-conversation find bar (⌘F): bar component + pure search index.
 import { ConversationFindBar } from "./fork/ConversationFindBar";
 import {
@@ -37,6 +38,7 @@ import { extractTodoState } from "@/lib/todo-state";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
 import { ProcessGroup, summarizeProcessBlocks } from "./ProcessGroup";
+import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import { messageToProcessContentBlocks, type ProcessContentBlock } from "@/lib/process-content";
 import { useAgentSession, type AgentPhase, type NoticeItem } from "@/hooks/useAgentSession";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -105,6 +107,8 @@ interface Props {
   onSessionStatsChange?: (stats: SessionStatsInfo | null) => void;
   onSessionStatsPanelOpen?: () => void;
   onContextUsageChange?: (usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => void;
+  /** fix:mcp-topbar-icons —— 扩展状态（MCP / 插件）上报给 AppShell：两枚图标改挂顶栏。 */
+  onExtensionStatusChange?: (statuses: ExtensionStatusItem[], widgets: ExtensionWidgetItem[]) => void;
   onOpenFile?: (filePath: string, hint?: number | Omit<FileLocationTarget, "filePath">) => void;
   onOpenSession?: (sessionId: string) => void;
   onAskInNewChat?: (prompt: string, sourceSessionId: string, sourceEntryId: string) => Promise<void>;
@@ -521,7 +525,7 @@ function withAssistantBlocks(
   return next;
 }
 
-function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done" | "failed"; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
+function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done"; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   useLayoutEffect(() => {
     if (reveal) setExpanded(true);
@@ -534,43 +538,66 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   if (toolCallCount > 0) parts.push(`${toolCallCount} ${t(toolCallCount === 1 ? "chat.toolCall" : "chat.toolCalls")}`);
   const label = summaryText ?? parts.join(" · ");
   const open = expanded || reveal;
-  // fork:design-components —— 状态徽标（画板 11：进行中 accent / 已完成 ok / 失败 bad）。
+  // fork:design-motion —— 组体与步骤正文走同一套折叠动画（画板 11「展开折叠」）：
+  // 外层 grid 壳常驻、行高 0fr↔1fr，正文在收起过渡结束后才卸载。
+  const collapseRef = useRef<HTMLDivElement>(null);
+  const bodyMounted = useCollapsePresence(open, undefined, collapseRef);
+  // fork:design-components —— 状态徽标（画板 11：进行中 accent / 已完成 ok）。
+  // 没有「失败」档：一轮里有工具报错是**过程中**的事实，不是这一轮的终态 ——
+  // 抬头挂「失败」会把「跑完了、但有两条命令没跑通」直接读成「这一轮失败了」。
+  // 画板 11 的抬头也只画 进行中 / 已完成 两档，失败信息本来就在计数里（`N 次失败`）。
   const badge = status === "running"
     ? { cls: "accent", icon: "loader-circle", text: t("process.running") }
-    : status === "failed"
-      ? { cls: "bad", icon: "triangle-alert", text: t("process.failed") }
-      : { cls: "ok", icon: "check", text: t("process.done") };
+    : { cls: "ok", icon: "check", text: t("process.done") };
 
   return (
     // fork:design-components —— 过程时间轴外壳 = 画板 01/11 的 .pw-proc：
     // 头行（chevron + 计数汇总 + 状态徽标）与 .pw-proc-body 都来自 board.css。
+    // fork:transcript-proc-head —— 头行**整行**是折叠开关：
+    //   ① 原来只有一枚 16px 的 chevron 图标可点，热区小到一个像素级目标，
+    //      「点这一行没反应」是实测反馈；
+    //   ② 头上没有「展开 / 收起」的文字，收起来之后看不出这一行还能点开；
+    //   ③ 箭头改成同一枚 chevron-down 旋转（`--motion-base`），不再换图标。
+    // 折叠态仍是 `borderBottom: 0`（board.css 的 `.pw-proc-head` 有下边线，
+    // 收起时那条线会像一条悬空的分隔）。
     <div className="pw-proc" style={{ marginBottom: 14 }}>
-      <div className="pw-proc-head" style={open ? undefined : { borderBottom: 0 }}>
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setExpanded((v) => !v)}
+      <button
+        type="button"
+        className="pw-proc-head"
+        aria-expanded={open}
+        onClick={() => setExpanded((v) => !v)}
+        title={open ? t("chat.collapseProcess") : t("chat.expandProcess")}
+        style={open ? undefined : { borderBottom: 0 }}
+      >
+        <span
           className="pw-ico pw-dim"
-          style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}
-          title={open ? t("chat.collapseProcess") : t("chat.expandProcess")}
+          style={{
+            transform: open ? "none" : "rotate(-90deg)",
+            transition: "transform var(--motion-base) var(--ease)",
+          }}
         >
-          <i data-ico={open ? "chevron-down" : "chevron-right"} data-size="14"></i>
-        </button>
+          <i data-ico="chevron-down" data-size="14"></i>
+        </span>
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label}
         </span>
         <span className="grow" />
+        {/* fork:design-components —— 画板 11 的头行右侧顺序是**先徽标、后「展开 / 收起」**
+            （帧 B：`✓ 已完成` 在 `展开` 之前），原来是反的。 */}
         <span className={`pw-badge ${badge.cls}`}>
           <span className="pw-ico"><i data-ico={badge.icon} data-size="12"></i></span>
           {badge.text}
         </span>
+        <span className="pw-desc">{open ? t("i18n.collapse") : t("i18n.expand")}</span>
+      </button>
+      <div ref={collapseRef} className="fork-collapse" data-fork-collapse={open ? "open" : "closed"}>
+        {bodyMounted && <div className="fork-collapse-body">{children}</div>}
       </div>
-      {open && children}
     </div>
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onExtensionStatusChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -1410,15 +1437,17 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [ctxKey, onContextUsageChange]);
   useEffect(() => () => { onContextUsageChange?.(null); }, [onContextUsageChange]);
 
-  // fork:design-components — 画板 01 帧 C 的上下文浮窗末行「结束原因」：
-  // 取最后一条助手消息的 stopReason（pi 的真值词表）。
-  const lastStopReason = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const message = messages[i];
-      if (message.role === "assistant" && message.stopReason) return message.stopReason;
-    }
-    return null;
-  }, [messages]);
+  // fix:mcp-topbar-icons —— 把扩展状态（MCP / 插件）上报给 AppShell：两枚图标改挂
+  // 顶栏（悬停/点击出浮窗）。键用「状态条数 + 插件条数 + 状态文本」拼，避免每次
+  // 轮询都把 AppShell 重渲一遍。
+  const extensionKey = `${extensionStatuses.length}|${extensionWidgets.length}|${extensionStatuses.map((status) => status.text).join("\u0001")}`;
+  const extensionRef = useRef({ statuses: extensionStatuses, widgets: extensionWidgets });
+  extensionRef.current = { statuses: extensionStatuses, widgets: extensionWidgets };
+  useEffect(() => {
+    const { statuses, widgets } = extensionRef.current;
+    onExtensionStatusChange?.(statuses, widgets);
+  }, [extensionKey, onExtensionStatusChange]);
+  useEffect(() => () => { onExtensionStatusChange?.([], []); }, [onExtensionStatusChange]);
 
   const onDrop = useCallback((files: File[]) => {
     // fork:gap07-attachments — 拖拽入口与其他入口统一：图片内联，其余落盘后插路径引用
@@ -1838,9 +1867,40 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // rendered by ChatInput immediately above the card; see the `protrusion` prop.
   // It only exists on the new-session page, so a normal session never renders one
   // (and therefore never loses the card's top corners).
+  // fork:ui-ctxbar — 新会话的上下文条 = 画板 20 的「工作区 + 分支」两项。
+  // 分支从 `/api/git/branch` 读（`resolveProject()` 一次 git rev-parse，带缓存；
+  // 不是 /api/git/status 的 status+diff 全量）。读不到（非 git 目录 / 无权限）
+  // 就不渲染这一项，不是错误态。
+  const ctxbarCwd = newSessionTargets?.activeCwd ?? newSessionCwd ?? null;
+  const [ctxbarBranch, setCtxbarBranch] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isEmptyNew || !ctxbarCwd) {
+      setCtxbarBranch(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/git/branch?cwd=${encodeURIComponent(ctxbarCwd)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { branch?: string | null } | null) => {
+        if (!cancelled) setCtxbarBranch(data?.branch?.trim() || null);
+      })
+      .catch(() => { if (!cancelled) setCtxbarBranch(null); });
+    return () => { cancelled = true; };
+  }, [isEmptyNew, ctxbarCwd]);
+
   const composerProtrusion = isEmptyNew && newSessionTargets ? (
     <>
       <ProjectChip targets={newSessionTargets} />
+      {/* fix:new-session-pick-dir —— 「选目录」那枚按钮原来是自造的 `.pw-chip`，
+          用户裁定换成**分支**（画板 20 上下文条本来画的就是工作区 + 分支两项）：
+          选目录的入口还在工作区芯片的菜单里，分支则换回顶部那枚芯片撤掉后的位置。 */}
+      {ctxbarBranch && ctxbarCwd && (
+        <BranchChip
+          branch={ctxbarBranch}
+          cwd={ctxbarCwd}
+          onSelectWorkspace={newSessionTargets.onPickWorkspace}
+        />
+      )}
       {newSessionTargets.error && (
         <span role="alert" className="pw-chip" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
           {newSessionTargets.error}
@@ -1914,7 +1974,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         branch: session.branch ?? null,
         isWorktree: session.isWorktree,
       } : null}
-      lastStopReason={lastStopReason}
       onAudioUnlock={unlockAudio}
       draftKey={session?.id ?? newSessionDraftKey ?? undefined}
       onLocateSelectionContext={locateSelectionContext}
@@ -2005,26 +2064,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         <NoticeShelf notices={notices} floating onPauseChange={setNoticePaused} />
       </div>
 
-      {/* fork:ui-ext-float —— 扩展状态（MCP / ponytail）收成聊天区右上角的一枚
-          胶囊浮标；输入框下方不再有任何常驻行（统计进上下文环浮窗）。
-          z 在通知条之下：通知出现时短暂盖住它，6 秒自收不抢布局。 */}
-      {!isEmptyNew && (
-        <div
-          style={{
-            position: "absolute",
-            top: 12,
-            left: 0,
-            right: isMobile ? 0 : CHAT_MINIMAP_WIDTH,
-            zIndex: 38,
-            display: "flex",
-            justifyContent: "flex-end",
-            padding: `0 ${CHAT_COLUMN_PADDING_CSS}`,
-            pointerEvents: "none",
-          }}
-        >
-          <ExtensionStatusFloat statuses={extensionStatuses} widgets={extensionWidgets} />
-        </div>
-      )}
+      {/* fix:mcp-topbar-icons —— 原来聊天区右上角的扩展状态胶囊（MCP / 插件）整块搬去
+          顶栏的两枚图标（AppShell 渲染 `McpStatusButton` / `PluginStatusButton`，
+          悬停或点击出画板 22 的浮窗）。这里不再有常驻浮标，转录区右上角让给通知条。 */}
 
       <div
         className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"
@@ -2367,7 +2409,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         defaultExpanded={!finalAnswerMessage}
                         reveal={revealProcess}
                         summaryText={groupedSummary}
-                        status={groupedProcessBlocks.some((block) => block.type === "toolCall" && block.status === "error") ? "failed" : "done"}
                         t={t}
                       >
                         <ProcessGroup

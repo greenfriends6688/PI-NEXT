@@ -8,9 +8,7 @@ export const SETTINGS_SECTION_VALUES = [
   "mcp",
   "cron",
   "memory",
-  // fork:zc-04 / fork:zc-03 / fork:zc-16 — the shortcut table, local usage stats
-  // and slash-command templates are global pages too.
-  "shortcuts",
+  // fork:zc-04 / fork:zc-16 — local usage stats and slash-command templates are global pages too.
   "usage",
   "prompts",
   // fork:ui-archive-history — 归档历史（Zeno 设置 → 数据 → 归档）。

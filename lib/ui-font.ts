@@ -3,8 +3,12 @@
  *
  * 两件事：
  *
- *   - **字号**写 `--ui-font-size`，默认等于 `--text-lg`（body 原本的字号），
- *     所以不设这项时行为与之前完全一致。
+ *   - **字号**写 `--ui-font-size`。默认 13 = 设计规范的正文字阶基准
+ *     （DESIGN-SPEC §1.5「正文与控件 13」；画板 40 的「界面字号」一帧也是 13）。
+ *     2026-09-30 换肤收尾：Zeno 时代默认 14，与画板对表时全站字号差一档，
+ *     按规范收敛到 13。*（同日 fork:type-scale）* 可选值也从 12–16 的连续档
+ *     收成**规范五档去掉 meta**（12 / 13 / 15 / 20）—— 14 与 16 不在规范里，
+ *     存过它们的旧值会归并到最近的档（14 → 13、16 → 15）。
  *   - **字体**存的是**完整 CSS 字体栈**，不是枚举 id。原因见
  *     `lib/font-discovery.ts`：真实可选项是本机装了哪些字体，是运行时枚举出来的，
  *     枚举不出来的（Safari/Firefox、或用户拒绝授权）只能给「系统默认」。
@@ -15,12 +19,12 @@
  * 纯数据模块：服务端可 import，不碰 DOM。
  */
 
+import { DESIGN_TEXT_PX, USER_TEXT_SIZE_OPTIONS, snapUserTextSize } from "@/lib/typography";
+
 export const UI_FONT_STORAGE_KEY = "pi-ui-font";
 export const UI_FONT_SIZE_STORAGE_KEY = "pi-ui-font-size";
 
-export const UI_FONT_SIZE_MIN = 12;
-export const UI_FONT_SIZE_MAX = 16;
-export const UI_FONT_SIZE_DEFAULT = 14;
+export const UI_FONT_SIZE_DEFAULT = DESIGN_TEXT_PX.body;
 
 /** 空栈即「系统默认」；`--font-ui-base` 会被移除而不是设成空格。 */
 export function parseStoredUiFontStack(raw: string | null): string {
@@ -31,11 +35,8 @@ export function parseStoredUiFontStack(raw: string | null): string {
 export function parseStoredUiFontSize(raw: string | null): number {
   const parsed = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(parsed)) return UI_FONT_SIZE_DEFAULT;
-  return Math.min(UI_FONT_SIZE_MAX, Math.max(UI_FONT_SIZE_MIN, parsed));
+  return snapUserTextSize(parsed);
 }
 
-/** 逐 px 的档位（Zeno 的字体设置也是逐 px）。 */
-export const UI_FONT_SIZE_OPTIONS: readonly number[] = Array.from(
-  { length: UI_FONT_SIZE_MAX - UI_FONT_SIZE_MIN + 1 },
-  (_, index) => UI_FONT_SIZE_MIN + index,
-);
+/** 档位由规范推导（`USER_TEXT_SIZE_OPTIONS`），不是写死的一份拷贝。 */
+export const UI_FONT_SIZE_OPTIONS: readonly number[] = USER_TEXT_SIZE_OPTIONS;

@@ -20,7 +20,7 @@ design/pi-web-design/
     tokens.css         Token 表（唯一样式来源）
     board.css          画板样式（pw- 前缀）
     icons.js           lucide 图标集（255 个，data-ico 用法）
-  00-tokens.html … 61-system-states.html   （29 张，不含本目录的 index.html）
+  00-tokens.html … 62-settings-layout.html   （30 张，不含本目录的 index.html）
 ```
 
 ## 约定
@@ -82,6 +82,7 @@ design/pi-web-design/
 | 45 | 设置 · 快捷键 / 用量 | 设置 | `45-settings-shortcuts-usage.html` | 已出画板 |
 | 46 | 设置 · 命令 / 归档 / 导入 | 设置 | `46-settings-prompts-archive-import.html` | 已出画板 |
 | 47 | 皮肤工作室与壁纸（含**对话框外壳**） | 设置 | `47-skin-studio.html` | 已出画板 |
+| 62 | 设置 · **布局重设计**（诊断四种骨架 / 新框架解剖 / 两栏块流 / 空态三态 / 动作四级 / 12 页落位表） | 设置 | `62-settings-layout.html` | 已出画板（提案，待裁定） |
 
 ### P6 · 其它页面
 
@@ -460,6 +461,6 @@ node design/pi-web-design/scripts/render-boards.mjs /tmp/pw-boards 01-workbench.
 - **首版入库**：00–51 共 **21 张画板**全部产出，另有导航首页 `index.html`。
   - 配套三份文档：`DESIGN-SPEC.md`（规范）、`README.md`（本文件）、`DIVERGENCE.md`（偏离）。
   - 资源：`assets/tokens.css`（Token 唯一来源）、`assets/board.css`（画板样式，`pw-` 前缀）、`assets/icons.js`（247 个 lucide 图标）。
-  - 品牌：`brand/app-icon.svg`（单色 π 标记）+ `brand/README.md`。
+  - 品牌：`public/pi-next-logo.png` / `public/pi-next-wordmark.png`（所有者交付的渐变标识，原图直出）+ `brand/README.md` + 出处总览板 `brand/pi-next-brand-board.png`。
   - 全项目**零 emoji**，图标一律 lucide 内联 SVG。
   - 与参考项目 `AcpAgentClient/design/` 的逐条对应见上文「与参考项目的逐条对应」：40 张画板里 34 张有对位落点。

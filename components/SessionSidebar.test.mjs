@@ -182,3 +182,15 @@ test("keeps a standalone chat section beside the projects", () => {
   assert.doesNotMatch(source, /selectedCwd \|\| homeDir \|\| "\/"/);
   assert.doesNotMatch(source, /chatWorkspace\?\.cwd \|\| homeDir \|\| "\/"/);
 });
+
+// fork:ui-pop-portal-fix —— 侧栏的两个下拉（worktree 切换 / 项目 ⋯）必须用**共享的**
+// `components/PortalDropdown.tsx`。9-29 那轮只改了共享版，侧栏里留着一份同源旧副本
+// （没有给 portal 容器 z-index），于是浮窗被 `.sidebar-container`(z 200) 整块盖住 ——
+// DOM 里有、点不到、看不见。这条守卫防止副本再长回来。
+test("reuses the shared PortalDropdown instead of a local copy", () => {
+  assert.match(source, /import \{ PortalDropdown \} from "\.\/PortalDropdown";/);
+  assert.doesNotMatch(source, /^(const|function) DROPDOWN_ANIMATION_MS/m);
+  assert.doesNotMatch(source, /^function AnimatedDropdown\(/m);
+  assert.doesNotMatch(source, /^function PortalDropdown\(\{/m);
+  assert.doesNotMatch(source, /from "react-dom"/, "portal 只在共享件里做");
+});

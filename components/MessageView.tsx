@@ -1192,13 +1192,13 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
 
   return (
     /* fork:design-components —— 工具卡直接用画板 11 的 .pw-card（展开/错误时上卡，
-       收起态保持时间轴行的透明形态，与画板「过程时间轴是收起形态」一致）。 */
+       收起态保持时间轴行的透明形态，与画板「过程时间轴是收起形态」一致）。
+       fork:design-components —— 失败态**不再整卡描红**：画板 11 帧 B 只换两处
+       （卡头状态图标 + 输出区底色），卡体自己保持发丝边框 + 画布底。 */
     <div
       className={showExpandedSurface ? "pw-card" : undefined}
       style={showExpandedSurface
-        ? (isError
-          ? { fontSize: TEXT.sm, borderColor: "color-mix(in srgb, var(--error) 38%, var(--border))", background: "var(--error-soft)" }
-          : { fontSize: TEXT.sm })
+        ? { fontSize: TEXT.sm }
         : { fontSize: TEXT.sm, border: "none", background: "transparent", borderRadius: "var(--radius-lg)", overflow: "visible" }}
     >
       {/* ── Tool call header ── */}
@@ -1231,7 +1231,7 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
           <span className="pw-ico" style={{ color: isError ? "var(--error)" : undefined, flexShrink: 0 }}>
             <ToolCallIcon toolName={block.toolName} />
           </span>
-          <span className="pw-tool" style={{ color: isError ? "var(--error)" : undefined, flexShrink: 0 }}>
+          <span className="pw-tool" style={{ flexShrink: 0 }}>
             {block.toolName}
           </span>
           <span className="pw-path" style={{ flex: 1 }}>
@@ -1585,7 +1585,10 @@ function PairedResult({ text, isEmpty, isError }: {
 }) {
   const { t } = useI18n();
   return (
-    <div className="pw-card-body">
+    /* fork:design-components —— 失败**只**由两处表达：卡头状态图标转 error，
+       输出区底色转 `error.soft`（画板 11 工具卡帧 B：「不给整卡着色」——
+       卡边框仍是发丝线、不加左侧彩条、不加整卡描红）。 */
+    <div className="pw-card-body" style={isError ? { background: "var(--error-soft)" } : undefined}>
       <div
         className="pw-term"
         style={{ maxHeight: 400, overflow: "auto", color: isEmpty ? "var(--n-placeholder)" : undefined }}

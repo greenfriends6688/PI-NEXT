@@ -21,5 +21,10 @@ export default {
   // （计划 §6.3 历史裁定「主题三档 light/dark/auto」）。宽度差来自选项个数，不是样式。
   knownDiffs: [
     { sel: ".pw-radio", reason: "主题六档 vs 三档（历史裁定保留三档，DIVERGENCE 已登记）" },
+    {
+      sel: ".pw-field",
+      reason: "gap 6 16 vs 画板 16：fork:settings-field-density 接线（控件放不下换行、"
+        + "标签 132px 下限），settings.css 有注释登记",
+    },
   ],
 };

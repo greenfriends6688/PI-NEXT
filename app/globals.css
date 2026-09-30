@@ -1814,6 +1814,16 @@ textarea,
     width: var(--sidebar-width, 260px);
     min-width: var(--sidebar-width, 260px);
   }
+  /* fork:design-system 判据⑦ —— 画板 01/02 的 `.pw-seg` / `.pw-side-search` 靠**自己的
+     左右外边距**内缩 8px（board.css `margin: var(--s1) var(--s2) var(--s2)`）。上面那条
+     固定宽度会连外边距一起顶出去：实测 seg `x=8 / width=280`，右缘 288 > 容器 280（溢出
+     16px，画板同项是 263）。这两个块交还给拉伸宽度（279 - 8×2 = 263，与画板逐像素一致），
+     其余块保留固定宽度。 */
+  .sidebar-container > .pw-seg,
+  .sidebar-container > .pw-side-search {
+    width: auto;
+    min-width: 0;
+  }
   .sidebar-container.sidebar-resizing,
   .sidebar-container.sidebar-resizing > * {
     transition: none !important;
@@ -2202,9 +2212,12 @@ textarea,
   box-shadow: none !important;
 }
 
-/* Focus lives on the composer box, not the bare textarea. */
-.chat-content div[style*="--radius-composer"]:focus-within {
-  box-shadow: 0 0 0 3px var(--focus-ring) !important;
+/* Focus lives on the composer box, not the bare textarea.
+   fix:field-focus-modality —— 规范 §1.4：焦点环只在**键盘**焦点时出现。原来只要
+   光标落进输入框（鼠标点击也算）就套一圈 3px 强调色，用户实测「输入的地方都有
+   蓝色的框」。现在只在键盘模态下画，并按规范收成 1.5px。 */
+html[data-focus-modality="keyboard"] .chat-content div[style*="--radius-composer"]:focus-within {
+  box-shadow: 0 0 0 1.5px var(--accent) !important;
 }
 
 /* --- Focus ---------------------------------------------------------------
@@ -2222,15 +2235,19 @@ textarea,
    文本框与 select 的 `:focus-visible` 在**鼠标点击**时同样成立（规范如此，
    它们「总是需要可见的焦点指示」），于是点一下就同时出现「字段自身的 1px 边框」
    和「2px 外描边」—— 两个方框套在一起，就是「输入框里有个蓝框」。
-   字段的焦点改用强调色描边表达，与画板 02 帧 C 的 `.pw-side-search`
-   （`border-color: var(--accent)`）同一个口径。
    注意：这一条**必须**排在 `!important` 那条的后面且同样带 `!important`，
-   否则压不过它。 */
-:where(input:not([type="hidden"]), select, textarea):focus-visible {
+   否则压不过它。
+
+   fix:field-focus-modality（用户裁定 2026-09-30）—— 规范 §1.4 写的是「焦点环
+   1.5px 强调色描边、偏移 1px，**只在键盘焦点时出现**」，而浏览器对文本框 / select
+   的 `:focus-visible` 在鼠标点击时也会命中 —— 纯 CSS 表达不出「只在键盘时出现」。
+   于是由 AppShell 维护一个输入模态标记（pointerdown → `pointer`，键盘按键 →
+   `keyboard`），在**鼠标档**下用 `!important` 统一关掉所有字段（含设置页各处）的
+   焦点描边；键盘档下各组件自己的 `:focus-visible` 规则照常生效（1.5px 强调色 +1px）。
+   原来那条满强度的 `border-color: var(--accent)` 一并去掉 —— 它是「蓝框」的第二个
+   来源，键盘焦点已经有规范的描边表达，不需要再套一层实心描边。 */
+html[data-focus-modality="pointer"] :where(input, select, textarea):focus-visible {
   outline: none !important;
-}
-:where(input:not([type="hidden"]), select, textarea):focus {
-  border-color: var(--accent) !important;
 }
 
 /* --- Hover convention ----------------------------------------------------
@@ -2430,8 +2447,18 @@ textarea,
 }
 .process-step-row:hover { background: var(--overlay-hover); }
 .process-step-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
-/* 展开的正文与行首对齐（行首内缩 22px 来自 .pw-step）。 */
-.process-step-detail { flex: 0 1 auto; }
+/* 展开的正文与行首对齐（行首内缩 22px 来自 .pw-step）。
+   fix:proc-row-nowrap —— 关闭态的行上摘要（`.pw-arg` / 画板 11 的 `.pw-think`）
+   一律单行截断：`.pw-arg` 自己带了 nowrap，但画板的 `.pw-think` 是给多行推理体用的，
+   不带截断 —— 推理行是 flex 子项，长句会折成两行把 24px 的行高处撑开（实测「推理行错行」）。
+   截断写在这一个产品类上，不动 board.css 的 `.pw-think`（画板 10 的推理体仍可多行）。 */
+.process-step-detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* --- File chips -----------------------------------------------------------
    Small raised tokens carrying the file-type icon, so a change is identifiable
    without opening it. */
@@ -2450,6 +2477,19 @@ textarea,
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1;
+  /* fix:proc-step-wrap —— 芯片自己**不换行**：长文件名（`proma-pr-plan-2026-09-18.md`）
+     原来会在 190px 上限处折成两行，行高 19px 装不下，整条 24px 的步骤行看起来「错行」。
+     现在一律单行 + 省略号，完整路径在 title 里（用户实测：转录里的「修改」行错行）。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.process-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 button.process-file-chip {
@@ -2474,7 +2514,31 @@ button.process-file-chip:hover {
    缩进与行首对齐（行首内缩 22px 来自 board.css 的 .pw-step）。 */
 
 .process-step-body-wrap {
+  position: relative;
   padding-left: 22px;
+}
+
+/* fork:design-components —— 展开正文补上被自己截断的那段竖线。
+   board.css 的连线是 `.pw-step::before`，按**步骤行**自己的行高画的；正文作为
+   行的**兄弟**插进来后，两个图标之间的线就断了一截（实测：时间轴看起来是虚线）。
+   正文自己补一段同位置的线，整条时间轴才连成一条。
+   `left: 9px` 与发丝线颜色必须与 board.css 的 `.pw-step::before` 逐个值对齐。 */
+.process-step-body-wrap::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--n-border-subtle);
+}
+
+/* fork:design-motion —— 折叠壳必须常驻才能从 0fr 过渡到 1fr（点开那一刻才挂载的话，
+   `1fr` 就是初始值，根本没有可过渡的起点）。代价：它是 `.pw-proc-body` 的第二个
+   grid 子项，收起时自身还占 1px（board.css 的 `gap:1px` 不再作用在「行 → 正文」上，
+   而是作用在「行 → 折叠壳」上）。`margin-top:-1px` 把这一格压回 0px，
+   剩下的差异只有容器 gap 的那 1px —— 在 `check:align` 的 1px 容差内。 */
+.process-steps > .fork-collapse[data-fork-collapse="closed"] {
+  margin-top: -1px;
 }
 
 .process-step-body {

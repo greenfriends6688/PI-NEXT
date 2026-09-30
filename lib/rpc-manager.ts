@@ -432,7 +432,7 @@ export class AgentSessionWrapper {
             id: randomUUID(),
             method: "notify",
             notifyType: "warning",
-            message: "Extension requested shutdown, but shutdown is not supported in Pi Agent.",
+            message: "Extension requested shutdown, but shutdown is not supported in PI NEXT.",
           } as ExtensionUiRequest as AgentEvent),
           onError: (error) => this.emit({
             type: "extension_error",
@@ -1861,7 +1861,7 @@ export class AgentSessionWrapper {
       get theme() { return PLAIN_TEXT_THEME; },
       getAllThemes: () => [],
       getTheme: () => undefined,
-      setTheme: () => ({ success: false, error: "Theme switching is not supported in Pi Agent extension UI yet" }),
+      setTheme: () => ({ success: false, error: "Theme switching is not supported in PI NEXT extension UI yet" }),
       getToolsExpanded: () => false,
       setToolsExpanded: () => {},
     };

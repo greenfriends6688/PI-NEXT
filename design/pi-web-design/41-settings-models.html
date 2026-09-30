@@ -43,20 +43,33 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4);padding-right:var(--s5)">
-          <h2>模型</h2>
-          <p class="sub">供应商、订阅登录、可用模型与定价。改动写入 <span class="pw-mono">~/.pi/agent/models.json</span>。</p>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>模型</h2>
+              <p class="sub">供应商、订阅登录、可用模型与定价。改动写入 <span class="pw-mono">~/.pi/agent/models.json</span>。</p>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>添加供应商</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="save" data-size="13"></i></span>保存</span>
+            </div>
+          </header>
+          <div class="pw-stools">
+            <span class="pw-search">
+              <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+              <input type="search" value="搜索供应商">
+            </span>
+            <span class="pw-grow"></span>
+            <span class="pw-badge count">6 个供应商</span>
+          </div>
+          <div class="pw-scontent is-fixed">
+
 
           <div class="pw-cols">
             <!-- 左：供应商列表 -->
             <div>
-              <div class="pw-inline" style="margin-bottom:var(--s2)">
-                <span class="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
-                <input class="pw-input" style="flex:1;min-width:0;height:28px" placeholder="搜索供应商">
-                <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span></span>
-              </div>
               <div class="pw-list">
-                <div class="pw-group-title" style="padding-top:0">订阅</div>
+                <div class="pw-group-title">订阅</div>
                 <div class="pw-litem"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span><span class="grow"><span class="pw-lname">Anthropic</span></span><span class="pw-ico" style="color:var(--warning)"><i data-ico="star" data-size="13"></i></span></div>
                 <div class="pw-litem"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span><span class="grow"><span class="pw-lname">OpenAI</span></span></div>
                 <div class="pw-litem is-on"><span class="pw-ico" style="color:var(--accent-text)"><i data-ico="zap" data-size="14"></i></span><span class="grow"><span class="pw-lname">DeepSeek</span><span class="pw-lsub">2 个模型已启用</span></span><span class="pw-badge ok">已登录</span></div>
@@ -108,8 +121,7 @@
                   <div class="pw-litem"><span class="pw-switch on" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V4.1 Reasoner</span><span class="pw-lsub">128K 上下文 · $0.55 / $2.19</span></span><span class="pw-badge">思考档可钉</span></div>
                   <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V3.2 Chat</span><span class="pw-lsub">64K 上下文 · $0.07 / $0.28</span></span></div>
                   <div class="pw-litem"><span class="pw-switch" style="transform:scale(.85)"><i></i></span><span class="grow"><span class="pw-lname">V3.2 Reasoner</span><span class="pw-lsub">64K 上下文 · $0.07 / $0.28</span></span></div>
-                  <div class="pw-litem pw-litem-add"><span class="pw-ico"><i data-ico="plus" data-size="14"></i></span><span class="grow">添加模型</span><span class="pw-kbd">⌘K</span></div>
-                </div>
+                      </div>
                 <div class="pw-inline" style="margin-top:var(--s2)">
                   <p class="pw-hint" style="margin:0">项目级只读：本项目的模型开关由项目配置锁定</p>
                   <span class="pw-grow"></span>
@@ -118,7 +130,9 @@
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>

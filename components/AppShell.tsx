@@ -48,6 +48,11 @@ import { ProjectTrustDialog } from "./ProjectTrustDialog";
 import { InstallPromptBanner } from "./fork/InstallPromptBanner";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, hasSessionBranches } from "./BranchNavigator";
+// fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
+import { BranchChip, McpStatusButton, PluginStatusButton } from "./TopBarPopovers";
+// fix:new-session-pick-dir / topbar-chip-clickable —— 工作区芯片复用输入框上方那枚
+// `.pw-chip`（项目列表 + 打开文件夹）。NewSessionTargets 类型来自 ProjectChip。
+import type { NewSessionTargets } from "./fork/ProjectChip";
 import { SystemPromptPanel } from "./SystemPromptPanel";
 import { ToolDefinitionsPanel } from "./ToolDefinitionsPanel";
 import { AgentSessionPanel } from "./AgentSessionPanel";
@@ -60,6 +65,8 @@ import { pickDirectory } from "@/lib/pick-directory";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile, useIsNarrowMobile, useIsCompact } from "@/hooks/useIsMobile";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
+// fix:field-focus-modality —— 输入模态标记（焦点环只在键盘焦点时出现，规范 §1.4）。
+import { useFocusModality } from "@/hooks/useFocusModality";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 // fork:zn-16 — 通知开关矩阵（Zeno 通知页）：取值走 getNotificationPrefs()，
 // hook 只用来订阅「设置里改了开关」。
@@ -95,7 +102,7 @@ import {
 import type { SessionRowContextMenuDetail } from "@/lib/session-row-context-menu";
 import { ContextMenuProvider } from "./ContextMenu";
 import { LinkOpenProvider } from "./LinkOpenContext";
-import type { NewSessionProject, NewSessionTargets } from "./fork/ProjectChip";
+import type { NewSessionProject } from "./fork/ProjectChip";
 // fork:proma-05-explore — 右栏并排看探索分支（只读）
 import { ExplorationPane } from "./fork/ExplorationPane";
 import { SessionRowContextMenuBridge } from "./SessionRowContextMenuBridge";
@@ -118,7 +125,7 @@ import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
 } from "@/lib/panel-layout";
-import type { BlockingExtensionUiRequest, SessionInfo, SessionTreeNode } from "@/lib/types";
+import type { BlockingExtensionUiRequest, ExtensionStatusItem, ExtensionWidgetItem, SessionInfo, SessionTreeNode } from "@/lib/types";
 import type { ProjectTrustStatus } from "@/lib/api-types";
 import type { ChatInputHandle } from "./ChatInput";
 import type { SessionStatsInfo } from "@/lib/pi-types";
@@ -127,6 +134,7 @@ import type { ToolEntry } from "@/lib/tool-presets";
 import { getSessionFamily } from "@/lib/session-family";
 import { getLastSettingsSection, type SettingsSection } from "@/lib/settings-navigation";
 import { TEXT } from "@/lib/typography";
+import { formatRelativeTime } from "@/lib/i18n/format";
 
 type AutoNameStatus =
   | { kind: "idle" }
@@ -148,6 +156,11 @@ const AGENT_PANEL_WIDTH = 420;
 /* fork:top-panel-anchor —— 画板 22 的 `.pw-pop` 是 320 宽；系统提示词 / 工具两个
    浮层的内容按这个宽度排版。Agent 面板有自己的宽度（上方 AGENT_PANEL_WIDTH）。 */
 const TOP_BAR_PANEL_WIDTH = 320;
+/* fix:tools-panel-width —— 工具定义是**双栏**面板（左列表 + 右详情，画板 22 给了
+   300px 列表 + 自适应详情 + 四列表格）。按 320 宽排版时左栏被 clamp 到 112px，工具名
+   被挤成一个字母加省略号（"I…" / "b…"），右栏正文逐字换行 —— 这就是「没引用成功」
+   的观感来源。给它一个真正装得下双栏的宽度，其余单栏浮层仍走 320。 */
+const TOP_BAR_WIDE_PANEL_WIDTH = 860;
 /** Below this rendered panel width the tree column is dropped so the document keeps room. */
 
 function parkedNewSessionDraftKey(cwd: string): string {
@@ -165,6 +178,8 @@ export function AppShell() {
   const isCompact = useIsCompact();
   const isNarrowMobile = useIsNarrowMobile();
   useViewportHeight();
+  // fix:field-focus-modality —— 全局输入模态标记（样式层据此决定字段要不要画焦点框）。
+  useFocusModality();
   const appShellRef = useRef<HTMLDivElement>(null);
 
   // Once the user has granted notification permission, register a Web Push
@@ -426,6 +441,16 @@ export function AppShell() {
     setSessionStats(stats);
   }, []);
 
+  /* fix:mcp-topbar-icons —— 扩展状态（MCP / 插件）由 ChatWindow 上报（它才持有
+     useAgentSession），顶栏那两枚图标读这里。原来这块内容挂在聊天区右上角的常驻
+     胶囊上，用户要求改成顶栏两枚 icon + 悬停/点击出浮窗。 */
+  const [extensionStatuses, setExtensionStatuses] = useState<ExtensionStatusItem[]>([]);
+  const [extensionWidgets, setExtensionWidgets] = useState<ExtensionWidgetItem[]>([]);
+  const handleExtensionStatusChange = useCallback((statuses: ExtensionStatusItem[], widgets: ExtensionWidgetItem[]) => {
+    setExtensionStatuses(statuses);
+    setExtensionWidgets(widgets);
+  }, []);
+
   // Single active panel — only one dropdown open at a time
   const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | "sessions" | null>(null);
   const TOP_BAR_SESSIONS_MENU_WIDTH = 300;
@@ -561,7 +586,8 @@ export function AppShell() {
         const width = widthFor(
           activeTopPanel === "agents" ? AGENT_PANEL_WIDTH
             : activeTopPanel === "sessions" ? TOP_BAR_SESSIONS_MENU_WIDTH
-              : TOP_BAR_PANEL_WIDTH,
+              : activeTopPanel === "tools" ? TOP_BAR_WIDE_PANEL_WIDTH
+                : TOP_BAR_PANEL_WIDTH,
         );
         setTopPanelPos({
           top: rect.bottom,
@@ -575,6 +601,17 @@ export function AppShell() {
           top: topBarRect.bottom,
           left: topBarRect.left,
           width: widthFor(AGENT_PANEL_WIDTH),
+        });
+        return;
+      }
+      // fix:tools-panel-width —— 工具面板没量到触发钮时**右对齐**顶栏右缘（它挂在
+      // 顶栏最右那颗工具钮下面），否则 860 宽的宽面板会从顶栏左缘冒出来、右半截出屏。
+      if (activeTopPanel === "tools") {
+        const width = widthFor(TOP_BAR_WIDE_PANEL_WIDTH);
+        setTopPanelPos({
+          top: topBarRect.bottom,
+          left: Math.max(8, topBarRect.right - width - 8),
+          width,
         });
         return;
       }
@@ -1770,16 +1807,25 @@ export function AppShell() {
         setHomeTargetError(null);
         if (chatWorkspaceTarget) startSessionIn(chatWorkspaceTarget.cwd, chatWorkspaceTarget.cwd, chatWorkspaceTarget.key);
       },
+      /* fork:ui-ctxbar —— 输入框上方那枚分支芯片点开的工作区（worktree）列表；
+         选中另一个工作区 = 切目录并在那里开一条新会话，与侧栏/顶栏同一动作。 */
+      onPickWorkspace: (path, projectRoot) => {
+        setHomeTargetError(null);
+        startSessionIn(path, projectRoot ?? path);
+      },
       onOpenFolder: () => {
         setHomeTargetError(null);
         // fork:ui-pick-directory — 优先系统原生文件夹选择器；桌面版直接拿到绝对路径并
         // 切到那个目录。拿不到（浏览器/远程）才回退到手输路径的弹窗。
+        // fix:pick-directory-cancel — 用户在系统选框里点「取消」时**什么都不做**：
+        // 取消不是「没有原生能力」，再弹一个手输弹窗就是二次打扰（用户实测）。
         void (async () => {
-          const cwd = await pickDirectory();
-          if (cwd) {
-            startSessionIn(cwd, cwd);
+          const result = await pickDirectory();
+          if (result.status === "picked") {
+            startSessionIn(result.cwd, result.cwd);
             return;
           }
+          if (result.status === "cancelled") return;
           setHomeFolderPickerOpen(true);
         })();
       },
@@ -1844,16 +1890,17 @@ export function AppShell() {
 
   const activeFileTab = fileTabs.find((tab) => tab.id === activeFileTabId) ?? null;
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
-  const windowTitle = activeCwdName ? `${activeCwdName} - Pi Agent` : "Pi Agent";
+  const windowTitle = activeCwdName ? `${activeCwdName} - PI NEXT` : "PI NEXT";
   const topBarSessionTitle = selectedSession
     ? (selectedSession.name?.trim()
       || selectedSession.firstMessage?.trim().replace(/\s+/g, " ").slice(0, 80)
       || translate("i18n.newSession"))
     : translate("i18n.newSession");
-  // fork:design-components —— 画板 01/02 顶栏的 .pw-chipbtn：当前工作区（项目 / 分支）。
-  // 有会话时给分支，没有会话时给新会话将要落地的目录名。
+  // fork:design-components —— 画板 01/02 顶栏的 .pw-chipbtn：有会话时给分支（工作区列表
+  // 的触发钮）。新会话那枚工作区芯片已按用户要求撤掉 —— 它的两个职责都有更好的去处：
+  // 换工作区/目录在输入框上方的 `.pw-ctxbar`（ProjectChip + 分支芯片），
+  // 标题旁不再重复一枚可点的项目名。
   const topBarBranch = selectedSession?.branch?.trim() || null;
-  const topBarWorkspace = selectedSession ? null : newSessionCwd;
 
   useEffect(() => {
     const syncWindowTitle = () => {
@@ -2391,9 +2438,12 @@ export function AppShell() {
   );
 
   const browserTabButton = (
+    /* fork:design-components —— 面板头行的动作钮一律是画板 30/01 的 `.pw-iconbtn.sm`
+       （22px / 发丝 hover 叠色），原来挂的是自绘的 `file-viewer-icon-button`
+       （26px / 自己的颜色与 hover），比同排其余钮大一圈、颜色也对不上。 */
     <button
       type="button"
-      className="file-viewer-icon-button"
+      className="pw-iconbtn sm"
       title={translate("browser.newTab")}
       aria-label={translate("browser.newTab")}
       onClick={() => handleOpenBrowser()}
@@ -2518,12 +2568,15 @@ export function AppShell() {
            // Reserve its hit-target width inside whichever surface is currently
            // in the main region, so the control never covers its first action.
            // fork:zn-21 — 折叠态图标条是 3 个 28px 按钮 + 2 个 2px 间隙 + 左偏 4px。
-           // 展开时那个位置没有浮层，顶栏第一个动作可以贴边。
+           // 展开时那个位置没有浮层，顶栏不需要额外的避让宽度 —— 但也不能把
+           // 画板 `.pw-topbar { padding: 0 var(--s2) }` 的左内边距一起归零：
+           // 归零后标题里的 panel-left 图标会贴到主区左缘（画板实测在 16px 处）。
+           // 展开态回落到画板自己的 --s2，只有折叠态才让位给图标条。
            // 手机保留原值：移动端的开合按钮是表头里的**流内**元素，不靠这条 inset 让位，
            // 顺手把这里改成 92px 只会把标题顶到 92px 处。
           "--main-workspace-header-leading-inset": isMobile
             ? TOP_BAR_ICON_BUTTON_SIZE
-            : sidebarOpen ? "0px" : "92px",
+            : sidebarOpen ? "var(--s2, 8px)" : "92px",
           // The right-edge role control is independent of both content
           // surfaces, so keep it out of the last header action as well.
           "--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,
@@ -2582,19 +2635,27 @@ export function AppShell() {
               {translate("chat.running")}
             </span>
           )}
-          {!isMobile && !topBarBranch && topBarWorkspace && (
-            // 画板 01 帧 A：没有会话时芯片显示工作区（目录名）。
-            <span className="pw-chipbtn" title={topBarWorkspace}>
-              <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
-              {getFileName(topBarWorkspace) || topBarWorkspace}
-            </span>
-          )}
           {!isMobile && topBarBranch && (
-            // 画板 01 帧 A/B：工作区上下文给「分支」芯片（git-branch + 分支名）。
-            <span className="pw-chipbtn" title={topBarBranch}>
-              <span className="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>
-              {topBarBranch}
-            </span>
+            /* fix:branch-chip-clickable —— 画板 01 帧 A/B / 02 帧 B：分支芯片是**可点
+               的下拉触发钮**（git-branch + 分支名 + chevron-down），点开是工作区
+               （worktree）列表。原来这里是个没有 onClick 的 `<span class="pw-chipbtn">`
+               —— 用户实测「这个 main 点不了」。改用 TopBarPopovers 的 BranchChip
+               （它本来就是照画板写的，只是没接线）。选中另一个工作区 = 切目录并在
+               那里开一个新 composer，与侧栏 worktree 切换同一动作。 */
+            <BranchChip
+              branch={topBarBranch}
+              cwd={selectedSession?.cwd ?? newSessionCwd ?? ""}
+              onSelectWorkspace={(path, projectRoot) => startSessionIn(path, projectRoot)}
+            />
+          )}
+          {/* fix:mcp-topbar-icons —— MCP / 插件两枚状态图标（原来在聊天区右上角是一枚
+              常驻胶囊）。悬停或点击出画板 22 的浮窗：MCP = server 图标 + 已启用台数
+              徽标，插件 = blocks 图标。内容全在 TopBarPopovers 里，浮窗一律只读。 */}
+          {!isMobile && showChat && (
+            <>
+              <McpStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={extensionStatuses} />
+              <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={extensionStatuses} widgets={extensionWidgets} />
+            </>
           )}
           {isMobile && (
             <div
@@ -2723,14 +2784,14 @@ export function AppShell() {
               )}
               {activeTopPanel === "sessions" && (
                 // fork:ui-18 — recent sessions, newest first.
-                <div style={{
-                  margin: 4,
-                  padding: 4,
-                  background: "var(--bg-elev)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-lg)",
-                  boxShadow: "var(--shadow-lg)",
-                }}>
+                // fix:top-panel-board22 —— 这一块原来是**整段自绘**（`--bg-elev` /
+                // `--radius-lg` / `--shadow-lg` 那套旧 token，行是 30px 的内联盒子），
+                // 与画板 22 的「最近会话」不是一个东西。改成画板原件：
+                //   `.pw-pop` 外壳 + `.pw-pop-title` 标题 + 每行 `.pw-prow`
+                //   （message-square 图标 + 标题 + 相对时间 `.pw-desc`；当前项 `is-on`）
+                //   + `.pw-sep` + `.pw-prow` 新建任务行（带 `.pw-kbd`）。
+                <div className="pw-pop" style={{ margin: 4 }}>
+                  <div className="pw-pop-title">{translate("sidebar.recentSessions")}</div>
                   {[...sessionCatalog]
                     .sort((a, b) => b.modified.localeCompare(a.modified))
                     .slice(0, 10)
@@ -2744,30 +2805,28 @@ export function AppShell() {
                           key={session.id}
                           type="button"
                           title={session.cwd}
+                          className={`pw-prow${isCurrent ? " is-on" : ""}`}
+                          style={{ width: "100%" }}
                           onClick={() => {
                             toggleTopPanel("sessions", false);
                             handleSelectSession(session, true);
                           }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8, width: "100%", height: 30,
-                            padding: "0 10px", background: isCurrent ? "var(--bg-selected)" : "none",
-                            border: "none", borderRadius: "var(--radius-md)",
-                            color: isCurrent ? "var(--text)" : "var(--text-muted)",
-                            cursor: "pointer", fontSize: TEXT.sm, textAlign: "left",
-                          }}
-                          onMouseEnter={(event) => { if (!isCurrent) event.currentTarget.style.background = "var(--bg-hover)"; }}
-                          onMouseLeave={(event) => { if (!isCurrent) event.currentTarget.style.background = "none"; }}
                         >
-                          <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-                          {isCurrent && (
-                            <span className="pw-ico" style={{ flexShrink: 0, color: "var(--accent)" }}><i data-ico="check" data-size="14"></i></span>
-                          )}
+                          <span className="pw-ico"><i data-ico="message-square" data-size="14"></i></span>
+                          <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                          <span className="pw-desc">
+                            {isCurrent
+                              ? translate("sidebar.currentSession")
+                              : formatRelativeTime(session.modified, locale)}
+                          </span>
                         </button>
                       );
                     })}
-                  <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+                  <div className="pw-sep" />
                   <button
                     type="button"
+                    className="pw-prow"
+                    style={{ width: "100%" }}
                     onClick={() => {
                       const cwd = selectedSession?.cwd ?? activeCwd;
                       toggleTopPanel("sessions", false);
@@ -2775,16 +2834,10 @@ export function AppShell() {
                       const tempId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}`;
                       handleNewSession(tempId, cwd);
                     }}
-                    style={{
-                      display: "flex", alignItems: "center", width: "100%", height: 30,
-                      padding: "0 10px", background: "none", border: "none",
-                      borderRadius: "var(--radius-md)", color: "var(--text)",
-                      cursor: "pointer", fontSize: TEXT.sm, textAlign: "left",
-                    }}
-                    onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-                    onMouseLeave={(event) => { event.currentTarget.style.background = "none"; }}
                   >
-                    {translate("sidebar.newTask")}
+                    <span className="pw-ico"><i data-ico="square-pen" data-size="14"></i></span>
+                    <span className="grow">{translate("sidebar.newTask")}</span>
+                    <span className="pw-kbd">⌘N</span>
                   </button>
                 </div>
               )}
@@ -2827,6 +2880,7 @@ export function AppShell() {
               onSystemToolsChange={handleSystemToolsChange}
               onSystemInfoLoaderChange={handleSystemInfoLoaderChange}
               onSessionStatsChange={handleSessionStatsChange}
+              onExtensionStatusChange={handleExtensionStatusChange}
               onSessionStatsPanelOpen={openSessionStatsPanel}
               onOpenFile={handleOpenLinkedFile}
               onOpenSession={handleOpenSession}

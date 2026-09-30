@@ -1304,3 +1304,34 @@ SDK 里唯一的 `--approve/--no-approve` 是**项目信任**（是否加载项�
 `--bg/--bg-panel/--bg-elev/--bg-hover/--bg-selected/--border*`/`--text*`/`--code-bg` 换回
 `docs/codex-skin/visual-spec.md` 的上一版表格值（该表在 git history 里），并同步
 `verify-themes.mjs` 的 `EXPECTED`。
+
+### 32. 改名 PI NEXT + 新标识原图直出（2026-09-30，品牌）
+
+用户交付整套新标识（渐变图形 + 「PI NEXT」字标 + 品牌总览板），并把产品名从 **Pi Agent** 改为 **PI NEXT**。
+
+**素材（原图直出，不重绘）**
+
+| 文件 | 用途 |
+| --- | --- |
+| `public/pi-next-logo.png` | 主品牌渐变图形（708×435 透明底；原图 296K 无损重压到 58K） |
+| `public/pi-next-wordmark.png` | 字标 PI NEXT（931×107 透明底；92K → 20K） |
+| `design/pi-web-design/brand/pi-next-brand-board.png` | 品牌总览板留档（规范出处） |
+
+**接线**
+
+| 面 | 改动 | 文件 |
+| --- | --- | --- |
+| 侧栏品牌行 | `.pw-logo` 胶囊内换成标记图（14px 宽）；字标图 10px 高接在 `.pw-brand` 里 | `SessionSidebar.tsx`、5 张画板 |
+| 字标只在浅色主题 | 字标里「PI」实测最暗 `#010129`，深色侧栏底上不可读 → 深色回落实色文字「PI NEXT」 | `SessionSidebar.tsx`（`useTheme()`） |
+| 应用图标 / web 图标 | `gen-icons.mjs` 改为以 `public/pi-next-logo.png` 为唯一素材，一次出 icns / 菜单栏 template / PWA 192·512 / apple-touch / favicon.ico；透明方底（图形占宽 78%，≤32px 放大到 94%） | `scripts/gen-icons.mjs`、`build/icon.icns`、`public/icons/*`、`app/favicon.ico` |
+| 产品名 | `layout.tsx` 元数据 / `manifest.ts` / `AppShell` 窗口标题 / i18n 三语 6 键 / `productName` / NSIS 显示名 / electron `APP_NAME` | 见 `git show --stat` |
+| userData 迁移 | `APP_NAME` 由 `Pinkslab` 改为 `PI NEXT`，`LEGACY_APP_NAMES` 前面补 `Pinkslab`，老窗口尺寸/草稿不丢 | `electron/main.js`、`electron/legacy-user-data.test.mjs` |
+| 品牌文档 | `brand/README.md` 重写、`brand/app-icon.svg` 删除（单色 π 提案作废）、DIVERGENCE A-2 标记作废 | `design/pi-web-design/` |
+
+**为什么应用图标是透明方底**：所有者要求「直接用图，不要重新设计」，所以没给标记配底板/圆角矩形，
+只做机械的等比缩放 + 居中留白。要换回带底板的 macOS 风格方形图标，在 `gen-icons.mjs` 的 `square()`
+里给 `background` 传一个底色即可。
+
+**测试断言同步**：`electron/legacy-user-data.test.mjs` 的 `APP` / `LEGACY` 常量。
+未改：仓库内部注释里仍写作「Pi Web」的历史称谓（`lib/`、`app/design/tokens.css` 等），
+它们不是用户可见文案，改它们只是 churn；`docs/patches/` 台账未新增条目（改名走本台账，同 §30 先例）。

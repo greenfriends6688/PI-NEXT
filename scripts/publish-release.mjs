@@ -80,7 +80,7 @@ function buildZip() {
 function releaseNotes() {
   const file = args["notes-file"] ?? `docs/release-notes-${version}.md`;
   if (existsSync(file)) return readFileSync(file, "utf8");
-  return `# Pi Agent ${tag}\n\n（没有 ${file}，这里是占位正文）`;
+  return `# PI NEXT ${tag}\n\n（没有 ${file}，这里是占位正文）`;
 }
 
 async function main() {
@@ -108,7 +108,7 @@ async function main() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tag_name: tag,
-        name: `Pi Agent ${tag}`,
+        name: `PI NEXT ${tag}`,
         body,
         draft: false,
         prerelease: version.includes("-"),

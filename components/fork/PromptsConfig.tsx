@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigButton, ConfigEmptyState } from "../SettingsUi";
+import { ConfigBadge, ConfigButton, ConfigEmptyState, ConfigSplitView, PwSearch, SettingsPage } from "../SettingsUi";
 import type { PromptFile } from "@/lib/prompt-files";
 
 /*
@@ -137,31 +137,36 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
   return (
     <>
       {/* 画板 46：标题行 = h2 + 计数徽章 + 新建命令；说明在下一行。 */}
-      <div className="pw-inline">
-        <h2 style={{ margin: 0 }}>{t("prompts.title")}</h2>
-        <span className="pw-badge count">{prompts.length}</span>
-        <span className="pw-grow" aria-hidden="true" />
-        <ConfigButton variant="primary" size="small" onClick={startCreate}>
-          <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
-          {t("prompts.new")}
-        </ConfigButton>
-      </div>
-      <p className="sub">{t("prompts.subtitle")}</p>
-      {dir && <p className="sub"><span className="pw-mono pw-dim">{dir}</span></p>}
-
-      <div className="pw-cols">
+      {/* fork:settings-frame（画板 62）—— 自定义命令页的三件套。
+          h2 原来被包在 `.pw-inline` 里，够不到 board.css 的 `.pw-sbody > h2`
+          （字号吃不到 15/500）；搜索框在左列里、计数在页头、目录在第二行 sub，
+          三处各说各的。现在：页头 = 标题 + 一句说明 + 新建；工具栏 = 搜索 + 目录 + 计数。 */}
+      <SettingsPage
+        title={t("prompts.title")}
+        sub={t("prompts.subtitle")}
+        actions={
+          <ConfigButton variant="primary" size="small" onClick={startCreate}>
+            <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+            {t("prompts.new")}
+          </ConfigButton>
+        }
+        toolbar={
+          <>
+            <PwSearch
+              value={query}
+              placeholder={t("prompts.search")}
+              ariaLabel={t("prompts.search")}
+              onChange={setQuery}
+            />
+            <span className="pw-grow" aria-hidden="true" />
+            {dir && <span className="pw-mono pw-dim">{dir}</span>}
+            <ConfigBadge tone="count">{t("prompts.count", { count: String(filtered.length) })}</ConfigBadge>
+          </>
+        }
+        fill
+      >
+      <ConfigSplitView>
         <div>
-          {/* 画板 46 的搜索格：整列宽、28 高、下距 s2（inline 照抄画板）。 */}
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("prompts.search")}
-            aria-label={t("prompts.search")}
-            maxLength={60}
-            className="pw-input"
-            style={{ width: "100%", minWidth: 0, height: 28, marginBottom: "var(--s2)" }}
-          />
           <div className="pw-list">
             {filtered.map((prompt) => (
               <button
@@ -270,20 +275,21 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
             <p>{t("prompts.paletteHint")}</p>
           </ConfigEmptyState>
         )}
-      </div>
+      </ConfigSplitView>
 
       {message && (
         <div role="status" className="pw-alert info">
           <span className="pw-ico"><i data-ico="circle-check" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{message}</span>
+          <span className="pw-grow">{message}</span>
         </div>
       )}
       {error && (
         <div className="pw-alert" role="alert">
           <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{error}</span>
+          <span className="pw-grow">{error}</span>
         </div>
       )}
+      </SettingsPage>
     </>
   );
 }

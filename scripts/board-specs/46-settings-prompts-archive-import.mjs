@@ -16,4 +16,41 @@ export default {
     ".pw-sec-title",
     ".pw-badge",
   ],
+  knownDiffs: [
+    {
+      sel: ".pw-inline",
+      reason:
+        "产品接线层给可点行归零 UA（fork-ui.css 的 `button.pw-*` 清单），gap/padding 由所在行的接线块出；画板是静态 span",
+    },
+    {
+      sel: ".pw-litem",
+      reason:
+        "**数据依赖**：本机 0 条自定义命令 → 列表是空态，没有 `.pw-litem`",
+    },
+    {
+      sel: ".pw-detail",
+      reason:
+        "同上（没选中任何命令 → 详情是空态）",
+    },
+    {
+      sel: ".pw-field",
+      reason:
+        "同上（编辑器的字段行）",
+    },
+    {
+      sel: ".pw-ctl",
+      reason:
+        "同上",
+    },
+    {
+      sel: ".pw-textarea",
+      reason:
+        "同上（命令正文编辑器）",
+    },
+    {
+      sel: ".pw-sec-title",
+      reason:
+        "同上",
+    },
+  ],
 };

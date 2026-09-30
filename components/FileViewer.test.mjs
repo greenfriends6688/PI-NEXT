@@ -147,3 +147,19 @@ test("the diff is parsed once per patch, not on every render", () => {
   assert.match(source, /const diff = useMemo\(\(\) => diffLines\(patch\), \[patch\]\);/);
   assert.match(source, /const segments = useMemo\(\(\) => diffSegments\(diff\), \[diff\]\);/);
 });
+
+// fix:viewer-stage-fill —— 源码层必须自己给高度。`CodeFileEditor` 的根是
+// `.pw-viewer`（flex 列 + `height:100%`），挂在一个 auto 高度的
+// `div[data-file-stage="source"]` 上时百分比落回 auto：编辑器只剩内容高，
+// 底栏（Ln · Col / EOL · UTF-8）浮在面板中间，下面留一大片空白。
+// preview 层**不能**锁高度 —— 里面的 markdown 是随内容长的，锁死就滚不动了。
+test("gives the source stage a definite height but leaves preview content-driven", () => {
+  assert.match(source, /data-file-stage="source"[^>]*style=\{\{ height: "100%", minHeight: 0 \}\}/);
+  assert.doesNotMatch(source, /data-file-stage="preview"[^>]*style=/);
+});
+
+// fix:sel-pop-nowrap —— 选中文字的浮窗不许折行（两个按钮原来会各占一行）。
+test("keeps the selection popover on a single line", () => {
+  assert.match(source, /flexWrap: "nowrap",\s*\n\s*whiteSpace: "nowrap",/);
+  assert.match(source, /width: inputOpen \? "min\(420px, calc\(100vw - 16px\)\)" : "max-content",/);
+});

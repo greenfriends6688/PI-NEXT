@@ -29,7 +29,7 @@ import { useEffect, useState, type RefObject } from "react";
  * in app/fork-ui.css.
  */
 
-export const COLLAPSE_DURATION_MS = 260;
+export const COLLAPSE_DURATION_MS = 160;
 
 /** Grace after the CSS duration before the fallback gives up on `transitionend`. */
 export const COLLAPSE_FALLBACK_GRACE_MS = 50;

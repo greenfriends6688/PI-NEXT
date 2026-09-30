@@ -4,7 +4,6 @@ import { useRef, type ReactNode } from "react";
 import { useContextMenu, type ContextMenuEntry } from "../ContextMenu";
 import { getFileName } from "@/lib/file-paths";
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 
 /*
  * fork:ui-projectchip — "this chat runs in <workspace>" selector on the new-session
@@ -43,6 +42,8 @@ export interface NewSessionTargets {
   onPickProject: (project: NewSessionProject) => void;
   onPickChat: () => void;
   onOpenFolder: () => void;
+  /** fork:ui-ctxbar —— 上方上下文条的分支芯片点开工作区（worktree）列表后选中另一个。 */
+  onPickWorkspace: (path: string, projectRoot: string | null) => void;
 }
 
 type Translate = (key: string, params?: Record<string, string | number>) => string;
@@ -60,33 +61,28 @@ export function resolveActiveTarget(
   };
 }
 
-const iconProps = {
-  width: 14,
-  height: 14,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.8,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  "aria-hidden": true,
-};
+/* fork:design-components 判据⑦ —— 这四个字以前是手绘 SVG（folder / folder-open /
+   message-square / chevron-down 的近似形），违反「图标一律 lucide，经 `<i data-ico>`
+   由 PwIcons 水合，禁手绘 SVG」。现在返回的就是那个 `<i>`：`.pw-ico` 壳由宿主给
+   （ContextMenu 的行已经包了 `.pw-ico`；芯片本身那两处自带壳）。 */
+function BoardIcon({ name, size = 14 }: { name: string; size?: number }): ReactNode {
+  return <i data-ico={name} data-size={size} aria-hidden="true"></i>;
+}
 
 function FolderIcon(): ReactNode {
-  return <svg {...iconProps}><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>;
+  return <BoardIcon name="folder" />;
 }
 
 function OpenFolderIcon(): ReactNode {
-  return <svg {...iconProps}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v1" /><path d="M3 10h18l-2 8a2 2 0 0 1-2 1.6H5.6A2 2 0 0 1 3.6 18Z" /></svg>;
+  return <BoardIcon name="folder-open" />;
 }
 
-
 function ChatIcon(): ReactNode {
-  return <svg {...iconProps}><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.4-4.6A8 8 0 1 1 21 12Z" /></svg>;
+  return <BoardIcon name="message-square" />;
 }
 
 function ChevronIcon(): ReactNode {
-  return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>;
+  return <BoardIcon name="chevron-down" size={12} />;
 }
 
 /**
@@ -171,13 +167,15 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
       className="pw-chip accent"
       style={{ maxWidth: "min(100%, 260px)", cursor: "pointer" }}
     >
-      <span style={{ display: "flex", flexShrink: 0 }}>
+      {/* fork:design-components 判据⑦ —— 图标壳用画板的 `.pw-ico`（line-height 归零 +
+          与文字垂直居中，check-align 的口径），不再自写 display:flex / opacity 包壳。 */}
+      <span className="pw-ico">
         {active.activeChat ? <ChatIcon /> : <FolderIcon />}
       </span>
       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {label}
       </span>
-      <span style={{ display: "flex", flexShrink: 0, opacity: 0.6 }}><ChevronIcon /></span>
+      <span className="pw-ico"><ChevronIcon /></span>
     </button>
   );
 }

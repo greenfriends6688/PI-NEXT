@@ -73,6 +73,22 @@ export interface TimeGroupItemEntry<T> {
 export type TimeGroupEntry<T> = TimeGroupHeaderEntry | TimeGroupItemEntry<T>;
 
 /**
+ * fix:no-time-groups（用户裁定 2026-09-30）—— **不再插时间分组头**。
+ *
+ * 侧栏列表原本在每个项目下再按「今天 / 昨天 / 本周 / 本月 / 更早」分一段，
+ * 用户要求去掉这层分类：一行一个会话，直接读。
+ *
+ * 排序不受影响：`orderedProjectSessions`（modified 倒序）+ `applySessionFlags`
+ * 已经把置顶分区排在最前，这里只做「不加头」的扁平化，保持传入顺序。
+ *
+ * `groupByTimeBucket` / `bucketOf` / `timeBucketKey` 保留给测试与其它可能的入口，
+ * 侧栏已不再调用它们。
+ */
+export function flatTimeGroupEntries<T>(items: readonly T[]): TimeGroupItemEntry<T>[] {
+  return items.map((item) => ({ type: "item", item }));
+}
+
+/**
  * 把已排好序的条目按时间桶摊平成"扁平条目数组"。
  *
  * 虚拟列表关键坑：返回数组就是滚动虚拟化的槽位来源——头部和条目各占一个槽位，

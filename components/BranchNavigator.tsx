@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import type { BranchPreview, SessionEntry, SessionTreeNode } from "@/lib/types";
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 
 interface Props {
   tree: SessionTreeNode[];
@@ -126,6 +125,11 @@ interface TreeNodeProps {
   onSelect: (id: string) => void;
 }
 
+/** 缩进一格 16px；树线固定在这一格的左 7px 处。 */
+const BRANCH_GUIDE_WIDTH = 16;
+/** fix:branch-popover —— 浮层宽度取画板 22 的 `.pw-pop`（320），不再跟随触发点。 */
+const BRANCH_MENU_WIDTH = 320;
+
 function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelect }: TreeNodeProps) {
   const { node: rep, skipped, branchPreview, labelEntry } = compressChain(node);
   const isActive = activePathIds.has(rep.entry.id);
@@ -139,105 +143,47 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
 
   return (
     <div>
-      {/* This node row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: 24,
-          cursor: "pointer",
-        }}
+      {/* fork:design-system —— 行本体是画板的 `.pw-row` 语义（26px / radius-4 /
+          hover 6% / 选中 accent 淡底）。原来这一行是**不可聚焦的 div**、没有 hover
+          底、颜色走的是旧 token（`--border` / `--bg-hover`），点起来既没反馈也够
+          不到键盘。这里换成 button，视觉与 hover / 选中态全部来自 fork-ui.css 的
+          `.pw-branch-row`（值仍然只有一个来源：board.css 的 `.pw-row` / `.pw-prow`）。 */}
+      <button
+        type="button"
         onClick={() => onSelect(rep.entry.id)}
+        aria-current={isActive ? "true" : undefined}
+        title={label}
+        className={`pw-branch-row${isActive ? " is-on" : ""}`}
       >
         {/* Indent guide lines */}
         {parentLines.map((hasLine, i) => (
-          <div key={i} style={{ width: 16, flexShrink: 0, position: "relative", height: "100%", alignSelf: "stretch" }}>
-            {hasLine && (
-              <div style={{
-                position: "absolute",
-                left: 7,
-                top: 0,
-                bottom: 0,
-                width: 1,
-                background: "var(--border)",
-              }} />
-            )}
-          </div>
+          <span key={i} className="pw-branch-guide" style={{ width: BRANCH_GUIDE_WIDTH }} data-line={hasLine ? "" : undefined} />
         ))}
 
         {/* Branch connector */}
-        <div style={{ width: 16, flexShrink: 0, position: "relative", height: "100%", alignSelf: "stretch" }}>
-          {/* vertical line up (to parent) */}
-          <div style={{
-            position: "absolute",
-            left: 7,
-            top: 0,
-            bottom: isLast ? "50%" : 0,
-            width: 1,
-            background: "var(--border)",
-          }} />
-          {/* horizontal line to node */}
-          <div style={{
-            position: "absolute",
-            left: 7,
-            top: "50%",
-            width: 9,
-            height: 1,
-            background: "var(--border)",
-          }} />
-        </div>
+        <span
+          className="pw-branch-guide"
+          style={{ width: BRANCH_GUIDE_WIDTH }}
+          data-line=""
+          data-elbow={isLast ? "last" : "mid"}
+        />
 
         {/* Node dot */}
-        <div style={{
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          flexShrink: 0,
-          background: isActive ? "var(--accent)" : isOnPath ? "var(--text-muted)" : "var(--border)",
-          border: isActive ? "none" : "1px solid var(--text-dim)",
-          marginRight: 6,
-          transition: "background 0.12s",
-        }} />
+        <span className="pw-branch-dot" data-state={isActive ? "on" : isOnPath ? "path" : "off"} />
 
         {/* Role badge */}
         {role && (
-          <span style={{
-            fontSize: TEXT["2xs"],
-            fontFamily: "var(--font-mono)",
-            color: role === "user" ? "var(--accent)" : "var(--text-dim)",
-            background: role === "user" ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "var(--bg-hover)",
-            border: `1px solid ${role === "user" ? "var(--accent-border)" : "var(--border)"}`,
-            borderRadius: "var(--radius-xs)",
-            padding: "0 4px",
-            marginRight: 5,
-            flexShrink: 0,
-            lineHeight: "16px",
-          }}>
+          <span className="pw-branch-role" data-role={role}>
             {role === "user" ? "U" : "A"}
           </span>
         )}
 
         {/* Skipped indicator */}
-        {skipped > 0 && (
-          <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginRight: 5, flexShrink: 0 }}>
-            +{skipped}
-          </span>
-        )}
+        {skipped > 0 && <span className="pw-branch-skip">+{skipped}</span>}
 
         {/* Label */}
-        <span style={{
-          fontSize: TEXT.xs,
-          color: isActive ? "var(--text)" : isOnPath ? "var(--text-muted)" : "var(--text-dim)",
-          fontWeight: isActive ? 500 : 400,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          flex: 1,
-          minWidth: 0,
-        }}>
-          {label}
-        </span>
-      </div>
+        <span className="pw-branch-label">{label}</span>
+      </button>
 
       {/* Children */}
       {rep.children.map((child, idx) => (
@@ -260,20 +206,34 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   const [openInternal, setOpenInternal] = useState(false);
   const open = openProp !== undefined ? openProp : openInternal;
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
+  // fix:branch-popover —— 浮层定位：宽度取画板 22 的 320（**不再**取触发点宽度，
+  // 芯片只有 ~90px 宽，跟随之浮窗被压成一条缝还溢出横向滚动条）；上缘贴触发点下沿
+  // +6，右缘越界时把左缘收回来；高度按剩余视口给，长树自滚。
   useEffect(() => {
     if (!open || !inline) return;
     const anchor = containerRef?.current ?? btnRef.current;
     if (!anchor) return;
     const update = () => {
       const rect = anchor.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+      const width = Math.min(BRANCH_MENU_WIDTH, window.innerWidth - 16);
+      const top = rect.bottom + 6;
+      setDropdownPos({
+        top,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        width,
+        maxHeight: Math.max(200, window.innerHeight - top - 16),
+      });
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(anchor);
-    return () => ro.disconnect();
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, [open, inline, containerRef]);
 
   const activePathIds = useMemo(
@@ -324,62 +284,59 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   if (inline) {
     return (
       <div style={{ display: "flex", alignItems: "center" }}>
+        {/* fork:design-system —— 触发点是画板 02 帧 B 的 `.pw-chipbtn`（24px /
+            radius-4 / muted，hover 抬色）；激活档挂 `is-on`。原来是自己写的一套
+            28px 高、`--bg-selected` 底的盒子，与同一行其它图标按钮不是同一个高度，
+            看起来「间距不齐」。 */}
         <button
           ref={btnRef}
           onClick={() => onToggle ? onToggle() : setOpenInternal((v) => !v)}
-          style={{
-            display: hideInlineButton ? "none" : "flex",
-            alignItems: "center",
-            gap: 4,
-            height: 28,
-            padding: "0 8px",
-            borderRadius: "var(--radius-md)",
-            background: open ? "var(--bg-selected)" : "none",
-            border: "none",
-            cursor: "pointer",
-            color: open ? "var(--text)" : "var(--text-muted)",
-            fontSize: TEXT.xs,
-            whiteSpace: "nowrap",
-            transition: "color 0.1s, background 0.1s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = open ? "var(--text)" : "var(--text-muted)"; }}
-           title={t("i18n.branches")}
-           aria-label={t("i18n.branches")}
+          className={`${compact ? "pw-iconbtn" : "pw-chipbtn"}${open ? " is-on" : ""}`}
+          style={{ display: hideInlineButton ? "none" : undefined }}
+          title={t("i18n.branches")}
+          aria-label={t("i18n.branches")}
+          aria-expanded={open}
           aria-pressed={open}
         >
           {branchIcon}
-           {!compact && <span>{t("i18n.branches")}</span>}
+          {!compact && <span>{t("i18n.branches")}</span>}
+          {!compact && chevron}
         </button>
         {open && dropdownPos && (
-          <div style={{
-            position: "fixed",
-            top: dropdownPos.top,
-            left: dropdownPos.left,
-            width: dropdownPos.width,
-            background: "var(--bg-elev)",
-            borderBottom: "1px solid var(--border)",
-            zIndex: 500,
-          }}>
-            {hasContent ? (
-              <div style={{ padding: "4px 12px 8px 12px", maxHeight: 260, overflowY: "auto" }}>
-                {topLevel.map((child, idx) => (
-                  <TreeNodeView
-                    key={child.entry.id}
-                    node={child}
-                    activePathIds={activePathIds}
-                    depth={0}
-                    isLast={idx === topLevel.length - 1}
-                    parentLines={[]}
-                    onSelect={handleSelect}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div style={{ padding: "10px 16px", fontSize: TEXT.sm, color: "var(--text-muted)", fontStyle: "italic" }}>
-                {noBranchReason}
-              </div>
-            )}
+          // fix:branch-popover —— 浮窗 = 画板 22 的 `.pw-pop`（320 宽 / 圆角 6 /
+          // 唯一一种阴影 / 1px 描边）。面板自己成列：标题行固定，树体自滚。
+          <div
+            className="anim-popover-down"
+            style={{
+              position: "fixed",
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              maxHeight: dropdownPos.maxHeight,
+              zIndex: 500,
+              display: "flex",
+            }}
+          >
+            <div className="pw-pop" style={{ display: "flex", flexDirection: "column", width: "100%", maxHeight: "100%", padding: "var(--s1)" }}>
+              <div className="pw-pop-title">{t("i18n.branches")}</div>
+              {hasContent ? (
+                <div style={{ minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", padding: "0 var(--s1) var(--s1)" }}>
+                  {topLevel.map((child, idx) => (
+                    <TreeNodeView
+                      key={child.entry.id}
+                      node={child}
+                      activePathIds={activePathIds}
+                      depth={0}
+                      isLast={idx === topLevel.length - 1}
+                      parentLines={[]}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="pw-prow"><span className="pw-desc">{noBranchReason}</span></div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -387,26 +344,15 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   }
 
   return (
-    <div style={{ borderBottom: "1px solid var(--border)", background: "var(--bg)", flexShrink: 0, position: "relative" }}>
+    <div style={{ borderBottom: "1px solid var(--n-border-subtle)", background: "var(--surface-canvas)", flexShrink: 0, position: "relative" }}>
       {/* Header toggle */}
       <button
         onClick={() => setOpenInternal((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          width: "100%",
-          padding: "5px 12px",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "var(--text-muted)",
-          fontSize: TEXT.xs,
-          textAlign: "left",
-        }}
+        className="pw-chipbtn"
+        style={{ width: "100%", justifyContent: "flex-start", color: "var(--n-muted)" }}
       >
         {branchIcon}
-         <span style={{ color: "var(--text-muted)" }}>{t("i18n.branches")}</span>
+        <span>{t("i18n.branches")}</span>
         {chevron}
       </button>
 
@@ -417,13 +363,13 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           top: "100%",
           left: 0,
           right: 0,
-          background: "var(--bg)",
-          borderBottom: "1px solid var(--border)",
+          background: "var(--surface-canvas)",
+          borderBottom: "1px solid var(--n-border-subtle)",
           boxShadow: "var(--shadow-popover)",
           zIndex: 100,
         }}>
           {hasContent ? (
-            <div style={{ padding: "4px 12px 8px 12px", maxHeight: 260, overflowY: "auto" }}>
+            <div style={{ padding: "0 var(--s1) var(--s1)", maxHeight: 260, overflowY: "auto" }}>
               {topLevel.map((child, idx) => (
                 <TreeNodeView
                   key={child.entry.id}
@@ -437,9 +383,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
               ))}
             </div>
           ) : (
-            <div style={{ padding: "10px 16px", fontSize: TEXT.sm, color: "var(--text-muted)", fontStyle: "italic" }}>
-              {noBranchReason ?? t("i18n.noBranches")}
-            </div>
+            <div className="pw-prow"><span className="pw-desc">{noBranchReason ?? t("i18n.noBranches")}</span></div>
           )}
         </div>
       )}

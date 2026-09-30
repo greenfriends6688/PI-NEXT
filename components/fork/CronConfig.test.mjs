@@ -68,7 +68,7 @@ test("the run history region pages 8 rows and links to the run session", () => {
  * `settings-chat-*` 自有类与内联盒子必须清零。
  */
 test("the page is the board's two-column layout, not bespoke settings boxes", () => {
-  assert.match(source, /<PwPageHead title=\{t\("cron\.title"\)\} \/>/);
+  assert.match(source, /<SettingsPage[\s\S]*?title=\{t\("cron\.title"\)\}[\s\S]*?sub=\{t\("cron\.pageSub"\)\}/);
   assert.match(source, /<ConfigSplitView>/);
   assert.match(source, /<ConfigSidebarList>/);
   assert.match(source, /<div className="pw-litem">/);

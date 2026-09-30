@@ -107,8 +107,13 @@ test("keeps the session stats in the context-ring popover, not a bottom strip", 
   assert.doesNotMatch(stats, /session-stats-inline-toggle/);
   const chatWindow = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
   assert.match(chatWindow, /statsDetails=\{sessionStats\}/);
-  // fork:ui-ext-float —— 扩展状态条同样移出 composer 底部，变成右上角胶囊浮标。
-  assert.match(chatWindow, /<ExtensionStatusFloat[\s\S]*?statuses=\{extensionStatuses\}/);
+  // fix:mcp-topbar-icons（用户裁定 2026-09-30）—— 扩展状态（MCP / 插件）从「聊天区
+  // 右上角胶囊浮标」搬去顶栏两枚图标：ChatWindow 只负责把 statuses / widgets 上报，
+  // 浮窗由 AppShell 的 McpStatusButton / PluginStatusButton 渲染。
+  assert.match(chatWindow, /onExtensionStatusChange\?\.\(statuses, widgets\)/);
+  assert.doesNotMatch(chatWindow, /<ExtensionStatusFloat/);
+  assert.match(source, /<McpStatusButton[\s\S]{0,120}?statuses=\{extensionStatuses\}/);
+  assert.match(source, /<PluginStatusButton[\s\S]{0,160}?widgets=\{extensionWidgets\}/);
   assert.doesNotMatch(chatWindow, /<ExtensionStatusBar[\s\S]*?statuses=\{extensionStatuses\}[\s\S]*?widgets=\{extensionWidgets\}[\s\S]*?\/>/);
 });
 

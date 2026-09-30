@@ -291,7 +291,16 @@
   }
 
   global.Icons = { paths: PATHS, svg: svg, hydrate: hydrate };
-  if (typeof document !== "undefined") {
+  // 画板页面（00-tokens / 05-motion …）是静态 HTML，靠这一次自跑把 <i data-ico> 补上。
+  //
+  // fork:icons-manual（2026-09-30）—— **产品要关掉它**：Next 的流式渲染会先把
+  // Suspense 片段的 HTML 补进 DOM，再让 React 认领它；自跑若恰好跑在这两步之间，
+  // 就会把 `data-ico-done="1"` 与 <svg> 先塞进那些节点，React 随后认领时发现
+  // “服务端 HTML 与客户端渲染不一致” → 整个子树重生（实测：侧栏搜索钮那枚
+  // `data-ico="search"` 是第一个撞上的）。产品在 import 本文件**之前**把
+  // `global.__piIconsManual` 设成 true（见 components/pw-icons-manual.ts），
+  // 改用 `components/PwIcons.tsx` 自己的 hydrator（commit 之后 + MutationObserver）。
+  if (typeof document !== "undefined" && !global.__piIconsManual) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", function () { hydrate(); });
     } else {

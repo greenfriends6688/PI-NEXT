@@ -169,8 +169,6 @@ interface Props {
   /** fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条内容）。 */
   statsDetails?: SessionStatsInfo | null;
   statsSession?: SessionStatsSessionInfo | null;
-  /** 上一轮的结束原因（画板 01 帧 C 的浮窗末行）。 */
-  lastStopReason?: string | null;
   onAudioUnlock?: () => void;
   draftKey?: string;
   /** Initial context items for a focused composer, such as the new-chat quote popover. */
@@ -239,6 +237,11 @@ const MANUAL_MAX_HEIGHT_FRACTION = 0.55;
 // fork:ui-composer-pop — 卡片窄于此宽度就把左侧控件收进「更多控件」：
 // 全量工具条（最长的模型名 + 五个控件 + 右侧组）的自然宽度约 690px。
 const NARROW_CONTROLS_SHELL_WIDTH = 700;
+/**
+ * fix:ring-pop-always-details —— 上下文环浮窗的宽度：明细常显，所以恒取
+ * 「会话信息 / 消息 / Token 三节并排」那一档（620），只按视口收窄。
+ */
+const RING_POP_DETAILS_WIDTH = 620;
 const INPUT_HEIGHT_STORAGE_KEY = "pi-chat-input-height";
 
 // fork:pr14-compact — 真实用户滚动的「意图窗口」：wheel / touch / pointer / 滚动
@@ -908,7 +911,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   slashCommands, slashCommandsLoading, onLoadSlashCommands,
   onBuiltinCommand,
   soundEnabled, onSoundToggle, onAudioUnlock,
-  contextUsage, sessionStats, lastStopReason, statsDetails = null, statsSession = null,
+  contextUsage, sessionStats, statsDetails = null, statsSession = null,
   onPromptWithStreamingBehavior,
   draftKey,
   initialSelectionContexts,
@@ -1124,9 +1127,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // fork:context-pop-portal —— 明细浮窗的宽度要跟着视口（原 inline style 是
   // `min(680px, 100vw - 48px)`）。PortalDropdown 按这个数算左缘，窄屏时不给它
   // 一个真实宽度就会把浮窗推到屏幕外。
-  const [ringPopWidth, setRingPopWidth] = useState(680);
+  // fix:ring-pop-compact —— 680px 是**三栏并排**时代的宽度（信息区最小 168px × 3
+  // + 间距才装得下）。默认状态下它读起来就是「一大块」：一屏宽的浮窗里三列数字
+  // 铺开，而用户点环想看的往往只是「用了多少 / 花了多少」。默认收成画板 22 的
+  // `.pw-pop` 宽度（320），完整三节明细挂到「显示详情」后面按需展开。
+  const [ringPopWidth, setRingPopWidth] = useState(RING_POP_DETAILS_WIDTH);
   useEffect(() => {
-    const fit = () => setRingPopWidth(Math.min(680, Math.max(320, window.innerWidth - 48)));
+    // fix:ring-pop-always-details —— 明细常显，所以宽度恒取「三节并排」那一档（620），
+    // 只按视口收窄。原来分 320 / 620 两档，是为了配合「显示详情」的折叠。
+    const fit = () => setRingPopWidth(Math.min(RING_POP_DETAILS_WIDTH, Math.max(240, window.innerWidth - 24)));
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
@@ -2912,29 +2921,20 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             <span className="grow" />
             {contextText && <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>{contextText}</span>}
           </div>
-          {statsDetails ? (
-            // 完整明细（会话信息 / 消息 / Token），与原统计长条展开面板同源。
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "14px 28px", padding: "0 var(--s2) var(--s1)", fontSize: TEXT.sm, lineHeight: 1.5 }}>
+          {/* fix:ring-pop-always-details —— 只保留「本轮 ↑ / ↓」这一行：它是**本轮**用量，
+              明细里的 Token 小节给的是会话累计（输入/输出/缓存/总计/花费/上下文），
+              两者不重复。原来另外那三行（上下文 / 上下文已用 / 本会话花费）与明细重复，
+              用户说的「为啥多一块」就是它们。 */}
+          {sessionStats && (
+            <div className="pw-prow">
+              <span className="grow">{t("chat.turnTokens")}</span>
+              <span className="pw-mono">{sessionStats.tokens.input.toLocaleString()} / {sessionStats.tokens.output.toLocaleString()}</span>
+            </div>
+          )}
+          {statsDetails && (
+            <div className="composer-ring-details">
               <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} session={statsSession} />
             </div>
-          ) : (
-            <>
-              {contextUsage?.tokens != null && (
-                <div className="pw-prow"><span className="grow">Context</span><span className="pw-mono">{contextUsage.tokens.toLocaleString()}</span></div>
-              )}
-              {sessionStats && (
-                <div className="pw-prow">
-                  <span className="grow">{t("chat.turnTokens")}</span>
-                  <span className="pw-mono">{sessionStats.tokens.input.toLocaleString()} / {sessionStats.tokens.output.toLocaleString()}</span>
-                </div>
-              )}
-              {sessionStats && sessionStats.cost > 0 && (
-                <div className="pw-prow"><span className="grow">{t("chat.sessionCost")}</span><span className="pw-mono">${sessionStats.cost.toFixed(4)}</span></div>
-              )}
-            </>
-          )}
-          {lastStopReason && (
-            <div className="pw-prow"><span className="grow">{t("chat.stopReason")}</span><span className="pw-mono">{lastStopReason}</span></div>
           )}
           {onCompact && (
             <>
@@ -3331,7 +3331,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 // fork:ui-slash-pop —— .pw-pop 在 board.css 里写死了 width:320px，
                 // 但斜杠弹窗是 composer 内部的辅助面板，应当按卡片宽定上限，
                 // 否则左下角命令列就被挤成单列、描述直接裁掉。
-                width: "min(680px, calc(100vw - 24px))",
+                // fix:slash-menu-wide —— 680 宽 × minmax(220px) 会排成 3 列、每列
+                // 只有 ~218px：`/name` 那格带 `overflowWrap:anywhere`，稍长一点的
+                // 技能命令就折成两行（用户实测「很多命令都换行了」）。放宽到 760 宽、
+                // 每列下限 260，排 2 列 —— 名字与描述都能单行读完。
+                width: "min(760px, calc(100vw - 24px))",
                 maxWidth: "100%",
                 maxHeight: slashMenuMaxHeight === null
                   ? "min(72.8vh, 598px)"
@@ -3383,7 +3387,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                           gap: 8,
                         }}
                       >
@@ -3414,7 +3418,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 style={{
                                   minWidth: 0,
                                   fontFamily: "var(--font-mono)",
-                                  overflowWrap: "anywhere",
+                                  // fix:slash-menu-wide —— 命令名**不换行**：这里原来写的是
+                                  // `overflowWrap:anywhere`，配合 `height:auto` 的行高，
+                                  // 长命令会被折成两行、整列行高参差不齐。命令只有一个
+                                  // 词，超出就省略号，读起来反而整齐。
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
                                   color: dormant ? "var(--n-placeholder)" : undefined,
                                 }}
                               >
@@ -3754,7 +3764,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               onClick={() => fileInputRef.current?.click()}
               title={t("chat.attachFile")}
               className={`pw-iconbtn${attachedImages.length ? " is-on" : ""}`}
-              style={{ width: "var(--control-sm)", height: "var(--control-sm)", cursor: "pointer" }}
+              style={{ cursor: "pointer" }}
             >
               <span className="pw-ico"><i data-ico="plus" data-size="16"></i></span>
             </button>

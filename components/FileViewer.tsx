@@ -1200,9 +1200,14 @@ function FileSelectionQuotePopover({
         left,
         zIndex: 130,
         display: "flex",
-        flexWrap: "wrap",
+        // fix:sel-pop-nowrap —— 选中文字的浮窗**不许折行**。原来 `flexWrap: "wrap"`
+        // 且宽度交给 shrink-to-fit：两个按钮（「@ 在当前对话询问」/「↗ 在新对话询问」）
+        // 一超宽就各自占一行，浮窗变成两行高、还带一条竖向滚动条（用户实测：
+        // 「这俩按钮显示还换行呢」）。宽度改成 max-content，两个按钮恒在同一行。
+        flexWrap: "nowrap",
+        whiteSpace: "nowrap",
         gap: 3,
-        width: inputOpen ? "min(420px, calc(100vw - 16px))" : undefined,
+        width: inputOpen ? "min(420px, calc(100vw - 16px))" : "max-content",
         maxWidth: "calc(100vw - 16px)",
         maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
         overflowY: "auto",
@@ -1232,7 +1237,7 @@ function FileSelectionQuotePopover({
           aria-label={t("chat.askInCurrent")}
           onPointerDown={(event) => event.preventDefault()}
           onClick={onAskInCurrent}
-          style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500 }}
+          style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500, whiteSpace: "nowrap" }}
         >
           <span aria-hidden="true" style={{ fontSize: TEXT.xl }}>@</span>
           <span>{t("chat.askInCurrent")}</span>
@@ -1245,7 +1250,7 @@ function FileSelectionQuotePopover({
             aria-label={t("chat.askInNewChat")}
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => toggleInput(true)}
-            style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500 }}
+            style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500, whiteSpace: "nowrap" }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 3v12M18 9a9 9 0 0 1-9 9" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
@@ -2644,7 +2649,13 @@ function TextFileViewer({
           // 所以打开它时把 stage 遮蔽而不是卸载：关掉对比后编辑器还要原样回来。
           <>
             {data !== null && mountedStages.includes("source") && (
-              <div data-file-stage="source" hidden={diffOpen || effectiveDisplayMode !== "source"}>
+              <div data-file-stage="source" hidden={diffOpen || effectiveDisplayMode !== "source"} style={{ height: "100%", minHeight: 0 }}>
+                {/* fix:viewer-stage-fill —— 这一层必须**自己给高度**。`CodeFileEditor` 的根是
+                    `.pw-viewer`（flex 列 + `height: 100%`），而本层原来是 auto 高度，
+                    于是 100% 落回 auto：编辑器只剩内容高，底栏（Ln/Col · EOL · UTF-8）
+                    浮在面板中间，下面留一大片空白（用户实测：「编辑页面为啥下面空白那么多」）。
+                    只给 source 层高度：preview 层里的 markdown 是**随内容长**的，
+                    高度锁 100% 会让长文档再也滚不动。 */}
                 {useCodeEditor ? (
                   <CodeFileEditor
                     filePath={filePath}

@@ -68,17 +68,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pi Agent",
-  description: "Pi Agent — local coding agent workbench",
-  applicationName: "Pi Agent",
+  title: "PI NEXT",
+  description: "PI NEXT — local coding agent workbench",
+  applicationName: "PI NEXT",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
-      // fork:brand-logo — 浏览器标签页优先用 SVG（清晰），PNG 留给旧浏览器与 PWA。
-      {
-        url: "/pi-agent-logo.svg",
-        type: "image/svg+xml",
-      },
+      // fork:brand-logo — 标签页用 PWA 同源的方形 PNG（由 pi-next-logo.png 生成，
+      // 见 scripts/gen-icons.mjs）；矢量版换成位图后这里不再单列 SVG。
       {
         url: "/icons/icon-192.png",
         sizes: "192x192",
@@ -96,7 +93,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Pi Agent",
+    title: "PI NEXT",
   },
   formatDetection: {
     telephone: false,

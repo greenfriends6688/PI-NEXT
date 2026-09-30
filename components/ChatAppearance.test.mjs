@@ -9,8 +9,9 @@ const settingsPanel = await readFile(new URL("./SettingsPanel.tsx", import.meta.
 const settingsUi = await readFile(new URL("./SettingsUi.tsx", import.meta.url), "utf8");
 const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const chatAppearanceHook = await readFile(new URL("../hooks/useChatAppearance.ts", import.meta.url), "utf8");
-const jiti = createJiti(import.meta.url);
+const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const { clampChatContentWidth, clampChatContentFontSize, clampExtensionWidgetFontSize } = await jiti.import("../hooks/useChatAppearance.ts");
+const { USER_TEXT_SIZE_OPTIONS } = await jiti.import("../lib/typography.ts");
 
 const widthVariable = /var\(--chat-content-max-width, 800px\)/g;
 const composerVariable = /var\(--composer-max-width, 892px\)/g;
@@ -43,7 +44,6 @@ test("General chat settings own the chat width preference", () => {
   assert.match(chatAppearanceHook, /pi-chat-content-width/);
   assert.match(chatAppearanceHook, /localStorage\.setItem/);
 });
-
 test("chat width validation preserves the default and supported range", () => {
   assert.equal(clampChatContentWidth(undefined), 800);
   assert.equal(clampChatContentWidth("invalid"), 800);
@@ -52,23 +52,30 @@ test("chat width validation preserves the default and supported range", () => {
   assert.equal(clampChatContentWidth(2400), 2000);
 });
 
-test("chat font size preserves the default and bounds stored or supplied values", () => {
-  // fork:zn-11 —默认字号 13 → 14（Zeno 的正文尺寸）；下限/上限不变。
+test("第 13 条——字号只允许停在规范的五档上（去掉 meta）", () => {
+  // fork:type-scale（2026-09-30）—— 旧行为是 12–24 的连续钳位，14 / 16 / 24 都能活下来，
+  // 而这三个值不在设计规范的 11 / 12 / 13 / 15 / 20 里。现在存过的旧值归并到最近的规范档。
+  assert.equal(USER_TEXT_SIZE_OPTIONS.join(","), "12,13,15,20");
   for (const value of [undefined, null, "invalid", Infinity, NaN]) {
-    assert.equal(clampChatContentFontSize(value), 14);
+    assert.equal(clampChatContentFontSize(value), 13);
+    assert.equal(clampExtensionWidgetFontSize(value), 13);
   }
+  // 归并口径：并列时收敛到较小档（14 距 13 与 15 各 1 → 13）。
   assert.equal(clampChatContentFontSize(8), 12);
-  assert.equal(clampChatContentFontSize("18"), 18);
-  assert.equal(clampChatContentFontSize(18.7), 19);
-  assert.equal(clampChatContentFontSize(30), 24);
-});
-
-test("extension widget font size preserves the default and bounds stored or supplied values", () => {
-  for (const value of [undefined, null, "invalid", Infinity, NaN]) {
-    assert.equal(clampExtensionWidgetFontSize(value), 14);
-  }
+  assert.equal(clampChatContentFontSize(14), 13);
+  assert.equal(clampChatContentFontSize("18"), 20);
+  assert.equal(clampChatContentFontSize(16), 15);
+  assert.equal(clampChatContentFontSize(30), 20);
   assert.equal(clampExtensionWidgetFontSize(8), 12);
-  assert.equal(clampExtensionWidgetFontSize("18"), 18);
-  assert.equal(clampExtensionWidgetFontSize(18.7), 19);
-  assert.equal(clampExtensionWidgetFontSize(30), 24);
+  assert.equal(clampExtensionWidgetFontSize(14), 13);
+  assert.equal(clampExtensionWidgetFontSize("18"), 20);
+  assert.equal(clampExtensionWidgetFontSize(16), 15);
+  assert.equal(clampExtensionWidgetFontSize(30), 20);
+  // 选项与默认值都由规范推导，不再是一份手写拷贝。
+  assert.match(chatAppearanceHook, /DESIGN_TEXT_PX\.body/);
+  assert.match(chatAppearanceHook, /snapUserTextSize/);
+  assert.doesNotMatch(chatAppearanceHook, /CHAT_CONTENT_FONT_SIZE_MAX/);
+  assert.match(settingsPanel, /USER_TEXT_SIZE_OPTIONS/);
+  // 字号不再用连续滑块（滑块只留给「聊天内容宽度」那一行）。
+  assert.doesNotMatch(settingsPanel, /settings-chat-content-font-size"[\s\S]{0,600}<PwRange/);
 });

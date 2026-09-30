@@ -16,7 +16,6 @@ import {
 import {
   ConfigBadge,
   ConfigButton,
-  ConfigControl,
   ConfigDetail,
   ConfigDetailActions,
   ConfigDetailHeader,
@@ -24,9 +23,7 @@ import {
   ConfigDetailStack,
   ConfigDetailTitle,
   ConfigEmptyState,
-  ConfigField,
-  ConfigFooter,
-  ConfigListAction,
+  ConfigKv,
   ConfigPanelShell,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
@@ -38,6 +35,8 @@ import {
   ConfigStatusDot,
   ConfigSwitch,
   PwRadio,
+  PwSearch,
+  SettingsPage,
 } from "./SettingsUi";
 import { MarkdownBody } from "./MarkdownBody";
 
@@ -197,6 +196,28 @@ function SkillDetail({
           </span>
         </ConfigDetailHeaderInfo>
         <ConfigDetailActions>
+          {/* fork:settings-frame（画板 62）的 ③ 条目级动作：检查 / 更新都在详情头右端，
+              不再挂在「版本」那一行里（那一行现在是只读的 `.pw-kv` 属性）。 */}
+          {skill.install?.canCheckForUpdates && (
+            <ConfigButton
+              size="small"
+              onClick={onCheckUpdate}
+              disabled={checkingUpdate || updating}
+            >
+              <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+              {t("i18n.check")}
+            </ConfigButton>
+          )}
+          {updateStatus?.state === "update-available" && (
+            <ConfigButton
+              variant="primary"
+              size="small"
+              onClick={onUpdate}
+              disabled={updating || checkingUpdate}
+            >
+              {updating ? t("i18n.updating") : t("i18n.update")}
+            </ConfigButton>
+          )}
           <ConfigSwitch
             checked={enabled}
             loading={toggling}
@@ -210,87 +231,69 @@ function SkillDetail({
         {saveError && <ConfigBadge tone="bad">{saveError}</ConfigBadge>}
       </div>
 
-      {skill.install?.skillsShUrl && (
-        <ConfigField label="Source">
-          {/* 画板 42 的来源链接是等宽元信息（AddPluginPanel 的 `pw-mono pw-dim` 锚点同款）。 */}
-          <a
-            href={skill.install.skillsShUrl}
-            target="_blank"
-            rel="noreferrer"
-            title={skill.install.skillsShUrl}
-            className="pw-mono pw-dim"
-          >
-            {skill.install.skillsShUrl.replace(/^https?:\/\//, "")} ↗
-          </a>
-        </ConfigField>
-      )}
-
-      {skill.install && (
-        <ConfigField label="Version">
-          <ConfigControl>
-            <span className="pw-mono">
-              {shortVersion(updateStatus?.currentVersion ?? skill.install.versionHash)}
-            </span>
-            {skill.install.canCheckForUpdates && (
-              <ConfigButton
-                size="small"
-                onClick={onCheckUpdate}
-                disabled={checkingUpdate || updating}
+      {/* fork:settings-frame（画板 62）—— 技能详情的元信息改成 **`.pw-kv` 属性表**。
+          原来 Name / Description / Source / Version 是四行 `.pw-field`（标签最左、
+          值最右）：详情列 760 宽时「Name」与「image-gen」相距 640px，读起来是两段
+          不相干的文字。画板 42 对这类「只读属性」用的就是 140px 标签 + 值的表。
+          版本那一行的动作（检查 / 更新）按「条目级」归到详情头右端。 */}
+      <ConfigKv>
+        <dt>{t("skills.fieldName")}</dt>
+        <dd className="pw-mono">{skill.name}</dd>
+        <dt>{t("skills.fieldDescription")}</dt>
+        <dd>{skill.description}</dd>
+        {skill.install?.skillsShUrl && (
+          <>
+            <dt>{t("skills.fieldSource")}</dt>
+            <dd>
+              <a
+                href={skill.install.skillsShUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={skill.install.skillsShUrl}
+                className="pw-mono pw-dim"
               >
-                 {t("i18n.check")}
-              </ConfigButton>
-            )}
-            {updateStatus?.state === "update-available" && (
-              <ConfigBadge tone="warn" title={t("i18n.updateAvailable")}>
-                {shortVersion(updateStatus.latestVersion)}
-              </ConfigBadge>
-            )}
-            {(checkingUpdate ||
-              (updateStatus && updateStatus.state !== "update-available")) && (
-              <ConfigBadge
-                tone={checkingUpdate
-                  ? undefined
-                  : updateStatus?.state === "up-to-date"
-                    ? "ok"
-                    : updateStatus?.state === "error"
-                      ? "bad"
-                      : undefined}
-              >
-                {checkingUpdate
-                   ? t("i18n.checking")
-                  : updateStatus?.state === "up-to-date"
-                     ? t("i18n.upToDate")
-                    : updateStatus?.state === "unsupported"
-                         ? t("i18n.automaticChecksUnavailable")
-                         : updateStatus?.message || t("i18n.checkFailed")}
-              </ConfigBadge>
-            )}
-            {updateStatus?.state === "update-available" && (
-              <ConfigButton
-                variant="primary"
-                size="small"
-                onClick={onUpdate}
-                disabled={updating || checkingUpdate}
-              >
-                 {updating ? t("i18n.updating") : t("i18n.update")}
-              </ConfigButton>
-            )}
-          </ConfigControl>
-          {updateError && <ConfigBadge tone="bad">{updateError}</ConfigBadge>}
-        </ConfigField>
-      )}
-
-      <ConfigField label="Name">
-        <span className="pw-mono">
-          {skill.name}
-        </span>
-      </ConfigField>
-
-      <ConfigField label="Description">
-        <span>
-          {skill.description}
-        </span>
-      </ConfigField>
+                {skill.install.skillsShUrl.replace(/^https?:\/\//, "")} ↗
+              </a>
+            </dd>
+          </>
+        )}
+        {skill.install && (
+          <>
+            <dt>{t("skills.fieldVersion")}</dt>
+            <dd>
+              <span className="pw-mono">
+                {shortVersion(updateStatus?.currentVersion ?? skill.install.versionHash)}
+              </span>
+              {updateStatus?.state === "update-available" && (
+                <ConfigBadge tone="warn" title={t("i18n.updateAvailable")}>
+                  {shortVersion(updateStatus.latestVersion)}
+                </ConfigBadge>
+              )}
+              {(checkingUpdate ||
+                (updateStatus && updateStatus.state !== "update-available")) && (
+                <ConfigBadge
+                  tone={checkingUpdate
+                    ? undefined
+                    : updateStatus?.state === "up-to-date"
+                      ? "ok"
+                      : updateStatus?.state === "error"
+                        ? "bad"
+                        : undefined}
+                >
+                  {checkingUpdate
+                    ? t("i18n.checking")
+                    : updateStatus?.state === "up-to-date"
+                      ? t("i18n.upToDate")
+                      : updateStatus?.state === "unsupported"
+                        ? t("i18n.automaticChecksUnavailable")
+                        : updateStatus?.message || t("i18n.checkFailed")}
+                </ConfigBadge>
+              )}
+            </dd>
+          </>
+        )}
+      </ConfigKv>
+      {updateError && <ConfigBadge tone="bad">{updateError}</ConfigBadge>}
 
       <div>
         <ConfigSectionTitle>{t("skills.content")}</ConfigSectionTitle>
@@ -691,6 +694,9 @@ export function SkillsConfig({
   const [toggling, setToggling] = useState<Set<string>>(new Set());
   const [saveError, setSaveError] = useState<string | null>(null);
   const [addMode, setAddMode] = useState(false);
+  /* fork:settings-frame（画板 62）—— 工具栏里的搜索。列表原来没有搜索框，
+     17 个技能只能靠滚。按名字 + 描述过滤。 */
+  const [listQuery, setListQuery] = useState("");
   const [updateStatuses, setUpdateStatuses] = useState<Record<string, SkillUpdateResult>>({});
   const [checkingUpdates, setCheckingUpdates] = useState<Set<string>>(new Set());
   const [checkingAll, setCheckingAll] = useState(false);
@@ -858,9 +864,64 @@ export function SkillsConfig({
 
   const selectedSkill = skills.find((s) => s.filePath === selected) ?? null;
 
+  /* fork:settings-frame（画板 62）—— 工具栏的计数与搜索过滤。
+     计数从页脚搬到工具栏（页脚不再放动作，也不再重复列表的信息）。 */
+  const updateCount = Object.values(updateStatuses).filter(
+    (status) => status.state === "update-available",
+  ).length;
+  const listQueryTrimmed = listQuery.trim().toLowerCase();
+  const visibleSkills = listQueryTrimmed
+    ? skills.filter(
+        (skill) =>
+          skill.name.toLowerCase().includes(listQueryTrimmed) ||
+          skill.description.toLowerCase().includes(listQueryTrimmed) ||
+          skill.filePath.toLowerCase().includes(listQueryTrimmed),
+      )
+    : skills;
+
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.skills")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
-
+      <SettingsPage
+        title={t("common.skills")}
+        sub={t("skills.pageSub")}
+        actions={
+          <>
+            {skills.some((skill) => Boolean(skill.install)) && (
+              <ConfigButton
+                variant="secondary"
+                size="small"
+                onClick={() => void checkForUpdates()}
+                disabled={checkingAll || updatingSkill !== null}
+              >
+                <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+                {checkingAll ? t("i18n.checking") : t("i18n.checkUpdates")}
+              </ConfigButton>
+            )}
+            <ConfigButton variant="primary" size="small" onClick={() => setAddMode(true)}>
+              <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+              {t("i18n.addSkill")}
+            </ConfigButton>
+          </>
+        }
+        toolbar={
+          <>
+            <PwSearch
+              value={listQuery}
+              placeholder={t("skills.search")}
+              ariaLabel={t("skills.search")}
+              onChange={setListQuery}
+            />
+            <span className="pw-grow" aria-hidden="true" />
+            {updateCount > 0 && (
+              <ConfigBadge tone="warn">
+                {updateCount} {updateCount === 1 ? t("i18n.update") : t("i18n.updates")}
+              </ConfigBadge>
+            )}
+            <ConfigBadge tone="count">{t("skills.count", { count: String(visibleSkills.length) })}</ConfigBadge>
+          </>
+        }
+        fill
+      >
         {/* fork:design-system SW-14 —— 画板 42 / 43 的信任提示是 `.pw-alert info` 一行。 */}
         {!projectResourcesLoaded && (
           <div role="status" className="pw-alert info">
@@ -869,7 +930,6 @@ export function SkillsConfig({
           </div>
         )}
 
-        {/* Body */}
         <ConfigSplitView>
           {/* Left: skill list */}
           <ConfigSidebar>
@@ -884,11 +944,11 @@ export function SkillsConfig({
                   <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
                   <span className="pw-grow">{error}</span>
                 </div>
-              ) : skills.length === 0 ? (
-                <div className="pw-alert info">
-                  <span className="pw-ico"><i data-ico="box" data-size="14"></i></span>
-                  <span className="pw-grow">{t("i18n.noSkills")}</span>
-                </div>
+              ) : visibleSkills.length === 0 ? (
+                <ConfigEmptyState>
+                  <span className="mark"><i data-ico="box" data-size="16" aria-hidden="true" /></span>
+                  <p>{listQueryTrimmed ? t("skills.noneFound") : t("i18n.noSkills")}</p>
+                </ConfigEmptyState>
               ) : (
                 (() => {
                   const groups: { label: string; skills: typeof skills }[] = [];
@@ -928,7 +988,7 @@ export function SkillsConfig({
                     },
                   ];
                   for (const { label, matches } of groupDefinitions) {
-                    const grpSkills = skills.filter(matches);
+                    const grpSkills = visibleSkills.filter(matches);
                     if (grpSkills.length > 0)
                       groups.push({ label, skills: grpSkills });
                   }
@@ -980,13 +1040,6 @@ export function SkillsConfig({
                 })()
               )}
             </ConfigSidebarList>
-            {/* Add skill button */}
-            <ConfigListAction
-                onClick={() => setAddMode(true)}
-                active={addMode}
-              >
-                 {t("i18n.addSkill")}
-            </ConfigListAction>
           </ConfigSidebar>
 
           {/* Right: detail or add panel */}
@@ -1042,34 +1095,7 @@ export function SkillsConfig({
             </ConfigDetailStack>
           </ConfigDetail>
         </ConfigSplitView>
-
-        {/* Footer */}
-        <ConfigFooter status={
-            Object.values(updateStatuses).filter(
-              (status) => status.state === "update-available",
-            ).length > 0 && (
-              /* 可更新计数是画板的 `.pw-badge warn`，不再手写 inline 颜色。 */
-              <ConfigBadge tone="warn">
-                {
-                  Object.values(updateStatuses).filter(
-                    (status) => status.state === "update-available",
-                  ).length
-                }{" "}
-                {Object.values(updateStatuses).filter(
-                  (status) => status.state === "update-available",
-                ).length === 1
-                   ? t("i18n.update")
-                   : t("i18n.updates")}
-              </ConfigBadge>
-            )
-        }>
-          {!embedded && <ConfigButton onClick={onClose}>{t("i18n.close")}</ConfigButton>}
-          {skills.some((skill) => Boolean(skill.install)) && (
-            <ConfigButton variant="secondary" onClick={() => void checkForUpdates()} disabled={checkingAll || updatingSkill !== null}>
-              {checkingAll ? t("i18n.checking") : t("i18n.checkUpdates")}
-            </ConfigButton>
-          )}
-        </ConfigFooter>
+      </SettingsPage>
     </ConfigPanelShell>
   );
 }

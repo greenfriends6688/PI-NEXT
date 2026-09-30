@@ -16,4 +16,11 @@ export default {
     ".pw-switch",
     ".pw-badge",
   ],
+  knownDiffs: [
+    {
+      sel: ".pw-field",
+      reason:
+        "fork:settings-field-density 接线（标签 132px 下限 + 控件放不下换行），settings.css 有注释登记；画板 40 的 spec 也登记过同一条",
+    },
+  ],
 };

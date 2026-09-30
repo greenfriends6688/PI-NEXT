@@ -35,7 +35,6 @@ import {
   ConfigDetailTitle,
   ConfigEmptyState,
   ConfigField,
-  ConfigFooter,
   ConfigKv,
   ConfigPanelShell,
   ConfigSectionTitle,
@@ -55,7 +54,7 @@ import {
   PwSelectBox,
   type PwRadioOption,
 } from "./SettingsUi";
-import { PwPageHead } from "./SettingsUi";
+import { PwSearch, SettingsPage } from "./SettingsUi";
 import {
   EnabledModelsBanner,
   EnabledModelsProviderSwitch,
@@ -2476,36 +2475,65 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   return (
     <>
     <ConfigPanelShell embedded={embedded} title={t("common.models")} subtitle="~/.pi/agent/models.json" closeLabel={t("i18n.close")} onClose={onClose}>
-        <PwPageHead title={t("common.models")} sub={t("models.pageSub")} />
-
+      {/* fork:settings-frame（画板 62）—— 模型页的三件套。
+          「保存」原来在页面页脚（`.pw-modal-foot`），面板 `overflow:hidden` 时它贴在
+          视口右下角，**和它保存的表单完全脱开**（未选中任何供应商时右列整片空白，
+          保存按钮还孤零零挂在右下角）。现在它是页级动作，跟「添加供应商」一起
+          固定在页头右端 —— 始终可见，且明确是「保存整份 models.json」。 */}
+      <SettingsPage
+        title={t("common.models")}
+        sub={t("models.pageSub")}
+        actions={
+          <>
+            <ConfigButton variant="secondary" size="small" onClick={() => setPickerOpen(true)}>
+              <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+              {t("models.addProvider")}
+            </ConfigButton>
+            <ConfigButton
+              variant="primary"
+              size="small"
+              onClick={handleSave}
+              disabled={saving || savedOk}
+              className={savedOk ? "is-success" : undefined}
+            >
+              {savedOk && (
+                /* 保存成功的对勾收编为画板图标（`pw-ico` + data-ico=check）；
+                   settings.css 的 .config-button-success-icon 继续提供描画动画。 */
+                <span className="config-button-success-icon pw-ico">
+                  <i data-ico="check" data-size="14"></i>
+                </span>
+              )}
+              <span>{savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}</span>
+            </ConfigButton>
+          </>
+        }
+        toolbar={
+          <>
+            <PwSearch
+              value={providerFilter}
+              placeholder={t("models.searchProviders")}
+              ariaLabel={t("models.searchProviders")}
+              onChange={setProviderFilter}
+            />
+            <span className="pw-grow" aria-hidden="true" />
+            {saveError || saveWarnings.length > 0 ? (
+              <span style={{ color: saveError ? "var(--error)" : "var(--warning)" }}>
+                {saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
+              </span>
+            ) : null}
+            <ConfigBadge tone="count">{t("models.providerCount", { count: String(visibleOAuth.length + visibleApiKey.length + visibleProviders.length) })}</ConfigBadge>
+          </>
+        }
+        fill
+      >
         <EnabledModelsBanner controller={enabledModels} />
 
         {/* Body */}
         <ConfigSplitView>
 
-          {/* Left: provider list (画板 41：搜索行 + 「订阅」/「自定义」两组) */}
+          {/* Left: provider list（画板 62：搜索与「添加供应商」都提到页头/工具栏，
+              列表列只留列表本身） */}
           <ConfigSidebar>
-            <ConfigDetailHeader>
-              {/* 画板 41 搜索行的形态；pw-input 的默认高度就是画板的 control-sm。 */}
-              <input
-                className="pw-input"
-                style={FILL_ROW_INPUT}
-                value={providerFilter}
-                onChange={(event) => setProviderFilter(event.target.value)}
-                placeholder={t("models.searchProviders")}
-                aria-label={t("models.searchProviders")}
-              />
-              <button
-                type="button"
-                className="pw-iconbtn sm"
-                title={t("models.addProvider")}
-                aria-label={t("models.addProvider")}
-                onClick={() => setPickerOpen(true)}
-              >
-                <span className="pw-ico"><i data-ico="plus" data-size="14"></i></span>
-              </button>
-            </ConfigDetailHeader>
-
             <ConfigSidebarList>
               {managedProviders.length > 0 && (
                 <ConfigSidebarGroupLabel>{t("models.groupSubscription")}</ConfigSidebarGroupLabel>
@@ -2655,31 +2683,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
             )}
           </ConfigDetailStack>
         </ConfigSplitView>
-
-        {/* Footer —— 状态色按「错误 / 内置覆盖警告」运行时给出；画板的状态槽
-            （pw-mono pw-dim）没有这两个语义档。 */}
-        <ConfigFooter status={saveError || saveWarnings.length > 0 ? (
-          <span style={{ color: saveError ? "var(--danger)" : "var(--warning)" }}>
-            {saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
-          </span>
-        ) : null}>
-          {!embedded && <ConfigButton onClick={onClose}>{t("i18n.cancel")}</ConfigButton>}
-          <ConfigButton
-            variant="primary"
-            onClick={handleSave}
-            disabled={saving || savedOk}
-            className={savedOk ? "is-success" : undefined}
-          >
-            {savedOk && (
-              /* 保存成功的对勾收编为画板图标（`pw-ico` + data-ico=check）；
-                 settings.css 的 .config-button-success-icon 继续提供描画动画。 */
-              <span className="config-button-success-icon pw-ico">
-                <i data-ico="check" data-size="14"></i>
-              </span>
-            )}
-             <span>{savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}</span>
-          </ConfigButton>
-        </ConfigFooter>
+      </SettingsPage>
     </ConfigPanelShell>
     {pickerOpen && (
       <AddProviderPicker

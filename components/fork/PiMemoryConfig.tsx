@@ -5,7 +5,6 @@ import { useI18n } from "@/hooks/useI18n";
 import {
   ConfigButton,
   ConfigDetail,
-  ConfigDetailActions,
   ConfigDetailHeader,
   ConfigDetailTitle,
   ConfigEmptyState,
@@ -17,9 +16,9 @@ import {
   ConfigSwitch,
   PwBlock,
   PwCtl,
-  PwPageHead,
+  SettingsPage,
 } from "../SettingsUi";
-import { PI_MEMORY_PACKAGE_SOURCE, PI_MEMORY_TEMPLATES, PI_MEMORY_TOOLS } from "@/lib/pi-memory";
+import { MEMORY_DIR_NAME, PI_MEMORY_PACKAGE_SOURCE, PI_MEMORY_TEMPLATES, PI_MEMORY_TOOL_HINT_KEYS, PI_MEMORY_TOOLS } from "@/lib/pi-memory";
 import { filterMemoryEntries, isWritableMemoryPath, type MemoryCatalogEntry } from "@/lib/memory-catalog";
 
 /*
@@ -227,6 +226,18 @@ export function PiMemoryConfig({
   const visibleCatalog = useMemo(() => filterMemoryEntries(catalog, fileQuery), [catalog, fileQuery]);
   const openFileWritable = openFile ? isWritableMemoryPath(openFile.path) : false;
 
+  /* fix:memory-layout（画板 44）—— 列表头那枚「新建」把缺失的 pi-memory 文件一次建出来。
+     原来是每个缺失文件行尾各挂一枚按钮（新增入口位置与画板不符，行也被按钮挤窄）。 */
+  const createMissing = async () => {
+    const targets = missingFiles.map((file) => file.path);
+    if (targets.length === 0) return;
+    for (const path of targets) {
+      const ok = await write(path, PI_MEMORY_TEMPLATES[path] ?? `# ${path}\n`, undefined, undefined);
+      if (!ok) return;
+    }
+    setMessage(t("memory.fileCreated"));
+  };
+
   /* fork:design-system —— 画板 44 的记忆页：两块 `.pw-block`（开关与状态 / 记忆
      工具）+ 一组 `.pw-cols`（左：过滤 + `.pw-list` 文件目录；右：`.pw-detail`
      编辑器）。原先是页面自有的 section / option 类 + 一堆内联盒子。 */
@@ -238,18 +249,34 @@ export function PiMemoryConfig({
 
   return (
     <>
-      <PwPageHead title={t("memory.title")} sub={t("memory.subtitle")} />
+      {/* fork:settings-frame（画板 62）—— 记忆页的三件套。
+          「标记已整理」原来孤零零挂在页头下面一行（`ConfigDetailActions` 没有任何
+          归属），现在它是页级动作，进页头右端。 */}
+      <SettingsPage
+        title={t("memory.title")}
+        sub={t("memory.subtitle")}
+        actions={
+          <ConfigButton variant="secondary" size="small" onClick={() => void markTidied()}>
+            <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true" /></span>
+            {t("memory.tidyMark")}
+          </ConfigButton>
+        }
+      >
+      {message && (
+        <div className="pw-alert info" role="status">
+          <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+          <span className="pw-grow">{message}</span>
+        </div>
+      )}
 
-      <ConfigDetailActions>
-        <ConfigButton variant="ghost" size="small" onClick={() => void markTidied()}>
-          {t("memory.tidyMark")}
-        </ConfigButton>
-        <span className="pw-grow" aria-hidden="true" />
-        {message && <span className="pw-hint" role="status">{message}</span>}
-      </ConfigDetailActions>
-
+      {/* fix:memory-layout —— 画板 44 的状态块是三行 `.pw-field`：
+          启用记忆（开关，说明走 `.pw-label small`）/ pi-memory 状态（徽章 + 重新安装）/
+          记忆文件目录（等宽路径 + 打开）。原来只有两行 + 块尾一行 `.pw-hint` 段落。
+          fork:settings-frame —— 两块收进 `.pw-narrow`（760）：1440 面板下原来是 1160，
+          「启用记忆」与它的开关相距 1000px。 */}
+      <div className="pw-narrow">
       <PwBlock icon="brain" title={t("memory.switches")}>
-        <ConfigField label={t("memory.enable")}>
+        <ConfigField label={t("memory.enable")} hint={t("memory.enableHint")}>
           {installed ? (
             <ConfigSwitch
               label={t("memory.enable")}
@@ -263,14 +290,31 @@ export function PiMemoryConfig({
             </ConfigButton>
           )}
         </ConfigField>
-        <ConfigField label={PI_MEMORY_PACKAGE_SOURCE}>
+        <ConfigField label={t("memory.status")}>
           <PwCtl>
             <span className={enabled ? "pw-badge ok" : "pw-badge"} role="status">{statusText}</span>
+            {installed && (
+              <ConfigButton variant="ghost" size="small" disabled={busy !== null} onClick={() => void act("install")}>
+                {busy === "install" ? t("memory.installing") : t("memory.reinstall")}
+              </ConfigButton>
+            )}
           </PwCtl>
         </ConfigField>
-        <p className="pw-hint">{t("memory.enableHint")}</p>
+        <ConfigField label={t("memory.dirLabel")}>
+          <PwCtl>
+            <span className="pw-mono pw-dim">{dir || `~/.pi/agent/${MEMORY_DIR_NAME}`}</span>
+            {onOpenFile && dir && (
+              <ConfigButton variant="ghost" size="small" onClick={() => onOpenFile(dir)}>
+                <span className="pw-ico"><i data-ico="external-link" data-size="13" aria-hidden="true" /></span>
+                {t("memory.openDir")}
+              </ConfigButton>
+            )}
+          </PwCtl>
+        </ConfigField>
       </PwBlock>
 
+      {/* 记忆工具：一行一个工具，名字 + 一句说明（`.pw-lname` / `.pw-lsub`）。
+          原来只画名字，把整段说明挤成列表下面的 `.pw-hint` 段落 —— 那是「间距特别近」的来源。 */}
       <PwBlock icon="wrench" title={t("memory.tools")}>
         <ConfigSidebarList>
           {PI_MEMORY_TOOLS.map((tool) => (
@@ -278,16 +322,18 @@ export function PiMemoryConfig({
               <span className="pw-ico"><i data-ico="wrench" data-size="14" aria-hidden="true" /></span>
               <span className="grow">
                 <span className="pw-lname pw-mono">{tool}</span>
+                <span className="pw-lsub">{t(PI_MEMORY_TOOL_HINT_KEYS[tool])}</span>
               </span>
             </div>
           ))}
         </ConfigSidebarList>
-        <p className="pw-hint">{t("memory.toolsHint")}</p>
       </PwBlock>
+      </div>
 
       <ConfigSplitView>
         <ConfigSidebar>
-          {/* 画板 44 的文件列表头：`.pw-inline` 里是过滤框 + 计数徽章 */}
+          {/* 画板 44 的文件列表头：过滤框 + 计数徽章 + 「新建」图标钮（原来每个缺失文件
+              行尾各挂一枚「新建」按钮，位置与画板不符）。 */}
           <ConfigDetailHeader>
             <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true" /></span>
             <input
@@ -301,27 +347,32 @@ export function PiMemoryConfig({
               style={{ minWidth: 0, flex: 1 }}
             />
             <span className="pw-badge count">{t("memory.fileCount", { count: catalog.length })}</span>
+            {missingFiles.length > 0 && (
+              <button
+                type="button"
+                className="pw-iconbtn sm"
+                title={t("memory.createMissing")}
+                aria-label={t("memory.createMissing")}
+                disabled={busy !== null}
+                onClick={() => void createMissing()}
+              >
+                <span className="pw-ico"><i data-ico="file-plus" data-size="14" aria-hidden="true" /></span>
+              </button>
+            )}
           </ConfigDetailHeader>
-          {dir && <p className="pw-mono pw-dim">{dir}</p>}
 
-          {/* 还没建出来的 pi-memory 文件：给一个一键创建，别让空目录像功能缺失 */}
+          {/* 还没建出来的 pi-memory 文件仍然列出来（空目录不该像功能缺失），但行尾不再挂
+              按钮 —— 创建入口收到上面那枚图标钮里。 */}
           {missingFiles.length > 0 && (
             <ConfigSidebarList>
               {missingFiles.map((file) => (
-                <div className="pw-litem" key={file.path}>
-                  <span className="pw-ico"><i data-ico="file-plus" data-size="14" aria-hidden="true" /></span>
+                <div className="pw-litem" key={file.path} style={{ opacity: 0.72 }}>
+                  <span className="pw-ico pw-dim"><i data-ico="file-plus" data-size="14" aria-hidden="true" /></span>
                   <span className="grow">
                     <span className="pw-lname pw-mono">{file.path}</span>
                     <span className="pw-lsub">{t("memory.fileMissing")}</span>
                   </span>
-                  <ConfigButton
-                    variant="secondary"
-                    size="small"
-                    disabled={busy === file.path}
-                    onClick={() => void write(file.path, PI_MEMORY_TEMPLATES[file.path] ?? `# ${file.path}\n`, t("memory.fileCreated"))}
-                  >
-                    {t("memory.createFile")}
-                  </ConfigButton>
+                  <span className="pw-badge">{t("memory.fileMissing")}</span>
                 </div>
               ))}
             </ConfigSidebarList>
@@ -350,10 +401,12 @@ export function PiMemoryConfig({
               <p>{fileQuery.trim() ? t("memory.fileNoMatch") : t("memory.filesEmpty")}</p>
             </ConfigEmptyState>
           )}
-          <p className="pw-hint">{t("memory.filesHint")}</p>
         </ConfigSidebar>
 
-        <ConfigDetail>
+        {/* fix:memory-layout —— 右栏给一个与编辑器同量级的最小高度：没选文件时
+            `.pw-empty` 的 `place-items:center` 才有地方居中。原来 `.pw-detail` 高度由
+            内容决定（≈一行），那一行说明就飘在右栏顶部、看着像「浮空的段落」。 */}
+        <ConfigDetail style={{ minHeight: 420 }}>
           {openFile ? (
             <>
               <ConfigDetailHeader>
@@ -415,9 +468,10 @@ export function PiMemoryConfig({
       {error && (
         <div className="pw-alert" role="alert">
           <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{error}</span>
+          <span className="pw-grow">{error}</span>
         </div>
       )}
+      </SettingsPage>
     </>
   );
 }

@@ -174,13 +174,13 @@ test("the three model-detail cards separate sections instead of drawing dividers
   assert.doesNotMatch(modelDetail, /borderBottom: "1px solid var\(--border\)"/);
 });
 
-test("the models page is a page head plus a two-column split, not one giant card", () => {
+test("the models page is a page frame plus a two-column split, not one giant card", () => {
   const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
-  assert.match(modelsConfig, /<PwPageHead title=\{t\("common\.models"\)\} sub=\{t\("models\.pageSub"\)\} \/>/);
+  assert.match(modelsConfig, /<SettingsPage[\s\S]*?sub=\{t\("models\.pageSub"\)\}/);
   assert.match(modelsConfig, /<ConfigSplitView>/);
   // 右列是 `ConfigDetailStack`（一列独立的卡），不再包一层撑满高度的 `ConfigDetail`。
   assert.doesNotMatch(modelsConfig, /<ConfigDetail>\s*<ConfigDetailStack/);
-  assert.match(cssSource, /\.config-panel-surface > \.pw-cols \{\s*flex: 1;/);
+  assert.match(cssSource, /\.config-panel-surface > \.pw-scontent \{\s*flex: 1;/);
 });
 
 test("thinking level overrides keep explicit default, disabled, and custom controls", () => {

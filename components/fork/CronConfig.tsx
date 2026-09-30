@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import {
+  ConfigBadge,
   ConfigButton,
   ConfigDetail,
   ConfigDetailActions,
@@ -17,9 +18,9 @@ import {
   ConfigSplitView,
   ConfigSwitch,
   PwCtl,
-  PwPageHead,
   PwRadio,
   PwSelectBox,
+  SettingsPage,
 } from "../SettingsUi";
 import { CRON_EXAMPLES } from "@/lib/cron-expression";
 import { compileCronRule, parseClockTime, type CronRule } from "@/lib/cron-rule";
@@ -507,9 +508,26 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
 
   return (
     <>
-      {/* fork:design-system —— 画板 44 的页头：`PwPageHead` 直接出 `.pw-sbody > h2`
-          + `> p.sub`（board.css 的选择器就认这两个直接子元素）。 */}
-      <PwPageHead title={t("cron.title")} />
+      {/* fork:settings-frame（画板 62）—— 定时任务页的三件套。
+          页头原来只有 h2、**没有 sub**（左列那个「任务列表」是小节标题，不是页头说明），
+          用户进来看不到「这页是干嘛的」；计数也散在列里。现在说明与计数归位。 */}
+      <SettingsPage
+        title={t("cron.title")}
+        sub={t("cron.pageSub")}
+        toolbar={
+          <>
+            <span className="pw-grow" aria-hidden="true" />
+            <ConfigBadge tone="count">{t("cron.count", { count: String(tasks.length) })}</ConfigBadge>
+          </>
+        }
+        fill
+      >
+      {error && (
+        <div className="pw-alert" role="alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="pw-grow">{error}</span>
+        </div>
+      )}
 
       {/* fork:design-system —— 画板 44：左列 = 任务列表 + 每个任务的运行历史
           （`.pw-litem` 行 + `.pw-detail` 卡），右列 = 新建任务表单。
@@ -1002,13 +1020,7 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
           <p className="pw-hint">{t("cron.hint")}</p>
         </ConfigDetail>
       </ConfigSplitView>
-
-      {error && (
-        <div className="pw-alert" role="alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{error}</span>
-        </div>
-      )}
+      </SettingsPage>
     </>
   );
 }

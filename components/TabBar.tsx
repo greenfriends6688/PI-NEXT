@@ -207,8 +207,6 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 2,
-        padding: "0 4px",
         background: "transparent",
         overflowX: "hidden",
         flexShrink: 0,
@@ -271,21 +269,14 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
               if (!tab.closing) onCloseTab(tab.id);
             }}
             style={{
+              // fork:design-components —— 尺寸 / 内边距 / 圆角 / 间距 / 字号全部来自画板
+              // 的 `.pw-tab`（board.css：26 高 / 0 8px / radius-4 4 0 0 / gap 5 / --text-meta）。
+              // 这里只留折叠与拖拽需要的宽度约束、光标与主题色三态。
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              height: 28,
-              paddingLeft: 10,
-              paddingRight: 4,
               border: "none",
-              borderRadius: "var(--radius-md)",
-              // fork:zm-05 — the active surface now lives on `.fork-tab-pill`;
-              // the tab itself stays transparent so the pill can slide beneath it.
               background: "transparent",
               cursor: "pointer",
-              fontSize: TEXT.sm,
-              color: isActive ? "var(--text)" : "var(--text-muted)",
-              whiteSpace: "nowrap",
               maxWidth: 180,
               minWidth: 80,
               flexShrink: 0,
@@ -293,17 +284,14 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
               transition: "color 0.1s, transform 120ms var(--ease-out)",
             }}
           >
-            <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: "flex", alignItems: "center" }}>
+            <span className="pw-ico" style={{ opacity: isActive ? 1 : 0.7 }}>
               {tab.kind === "terminal" ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
+                <i data-ico="terminal" data-size={13} aria-hidden="true"></i>
               ) : tab.kind === "browser" ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" /><path d="M3 12h18" />
-                  <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z" />
-                </svg>
-              ) : getFileIcon(tab.label, 13)}
+                <i data-ico="globe" data-size={13} aria-hidden="true"></i>
+              ) : (
+                getFileIcon(tab.label, 13)
+              )}
             </span>
             <span
               style={{
@@ -317,32 +305,25 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
               {tab.label}
             </span>
             <button
+              type="button"
               disabled={tab.closing}
               onClick={(e) => { e.stopPropagation(); onCloseTab(tab.id); }}
               onMouseEnter={() => setHoveredClose(tab.id)}
               onMouseLeave={() => setHoveredClose(null)}
               onFocus={() => setFocusedClose(tab.id)}
               onBlur={() => setFocusedClose(null)}
+              /* fork:design-components —— 关闭钮 = 画板 31/30 的 `.pw-tab .x`：
+                 `x` 字形走 data-ico（11px / --n-placeholder 来自 board.css），不再自绘 SVG。
+                 画板里 `.x` 是静态 span，产品里是可点钮 —— UA 归零在 fork-ui.css 的接线块里。 */
+              className="x"
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                width: 22, height: 22,
-                background: hoveredClose === tab.id ? "var(--bg-hover)" : "transparent",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                color: hoveredClose === tab.id ? "var(--text)" : "var(--text-dim)",
                 cursor: "pointer",
-                padding: 0,
-                flexShrink: 0,
-                opacity: isActive || hoveredClose === tab.id || focusedClose === tab.id ? 1 : 0,
-                transition: "background 0.1s, color 0.1s, opacity 0.12s",
+                color: hoveredClose === tab.id || focusedClose === tab.id ? "var(--n-muted)" : undefined,
               }}
                title={t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")}
                aria-label={`${t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")} ${tab.label}`}
             >
-              <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-                <line x1="2" y1="2" x2="8" y2="8" />
-                <line x1="8" y1="2" x2="2" y2="8" />
-              </svg>
+              <i data-ico="x" data-size={11} aria-hidden="true"></i>
             </button>
           </div>
         );
@@ -370,9 +351,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT.xs,
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="6" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="18" cy="12" r="1.6" />
-          </svg>
+          <i data-ico="ellipsis" data-size={14} aria-hidden="true"></i>
           {hiddenTabs.length}
         </button>
       )}
@@ -399,9 +378,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             color: overviewOpen ? "var(--text)" : "var(--text-muted)", cursor: "pointer",
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="14" y2="17" />
-          </svg>
+          <i data-ico="rows-3" data-size={14} aria-hidden="true"></i>
         </button>
       )}
       {overview && (

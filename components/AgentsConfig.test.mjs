@@ -16,7 +16,7 @@ test("keeps same-name profiles selectable by scope and groups writable sources f
 
 test("uses the shared enabled status treatment", () => {
   assert.match(source, /<ConfigStatusDot active=\{profile\.enabled\}/);
-  assert.match(source, /className=\{`is-grow\$\{profile\.enabled \? "" : " is-muted"\}`\}/);
+  assert.match(source, /className=\{profile\.enabled \? "" : " is-muted"\}/);
   assert.match(cssSource, /\.config-sidebar-text\.is-muted \{[\s\S]*?color: var\(--text-dim\)/);
 });
 
@@ -55,9 +55,16 @@ test("offers both writable scopes when creating a profile", () => {
   assert.doesNotMatch(source, /beginOverride|mode === "override"|agents\.readOnly|agents\.override/);
 });
 
-test("uses the shared sidebar action for new profiles", () => {
-  assert.match(source, /<ConfigListAction[\s\S]*?active=\{creating\}[\s\S]*?onClick=\{beginCreate\}/);
-  assert.match(source, /t\("agents\.new"\)[\s\S]*?<\/ConfigListAction>/);
+test("fork:settings-frame — 新建入口在页头（画板 62），搜索在工具栏，不在列表末尾", () => {
+  assert.match(source, /<PwSearch[\s\S]{0,260}?placeholder=\{t\("agents\.searchPlaceholder"\)\}/);
+  assert.match(source, /variant="primary" size="small" onClick=\{beginCreate\}/);
+  // 列表末尾那行 `.pw-litem-add` 已按画板 42 撤掉（41/43 才用 pw-litem-add）。
+  assert.doesNotMatch(source, /<ConfigListAction/);
+});
+
+test("fix:agents-layout — 列表行是「图标 + 名字 + 一句说明」两段", () => {
+  assert.match(source, /<i data-ico="bot" data-size="14" aria-hidden="true" \/>/);
+  assert.match(source, /<ConfigSidebarSub>\{profile\.description \|\| profile\.name\}<\/ConfigSidebarSub>/);
 });
 
 test("sends the selected scope for saves and the source scope for deletes", () => {

@@ -23,4 +23,31 @@ export default {
     ".pw-btn",
     ".pw-badge",
   ],
+  knownDiffs: [
+    {
+      sel: ".pw-field",
+      reason:
+        "fork:settings-field-density 接线（标签 132px 下限 + 控件放不下换行），settings.css 有注释登记；画板 40 的 spec 也登记过同一条",
+    },
+    {
+      sel: ".pw-detail",
+      reason:
+        "**数据依赖**：这一帧量的是「选中一个供应商」之后的详情卡；自动对位跑在没有选中任何供应商的状态，右列是空态 —— 不是漂移",
+    },
+    {
+      sel: ".pw-kv",
+      reason:
+        "同上（供应商详情的属性表）",
+    },
+    {
+      sel: ".pw-stats-grid",
+      reason:
+        "同上（用量摘要的统计卡网格）",
+    },
+    {
+      sel: ".pw-stat",
+      reason:
+        "同上（单张统计卡）",
+    },
+  ],
 };

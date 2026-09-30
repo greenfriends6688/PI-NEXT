@@ -43,13 +43,18 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4);padding-right:var(--s5)">
-          <div class="pw-inline">
-            <h2 style="margin:0">定时任务</h2>
-            <span class="pw-badge count">3 个 · 2 个已启用</span>
-            <span class="pw-grow"></span>
-            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建任务</span>
-          </div>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>定时任务</h2>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-badge count">3 个 · 2 个已启用</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建任务</span>
+            </div>
+          </header>
+          <div class="pw-scontent is-fixed">
+
           <p class="sub" style="margin-top:var(--s2)">按计划自动给 agent 发一条提示词。每次运行会产生一条会话，可以点进去看全过程。</p>
 
           <div class="pw-cols" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
@@ -134,7 +139,9 @@
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>
@@ -162,9 +169,15 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <h2>记忆</h2>
-          <p class="sub">记忆让 agent 跨会话记住你的偏好与项目约定。它由 <span class="pw-mono">pi-memory</span> 包提供。</p>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>记忆</h2>
+              <p class="sub">记忆让 agent 跨会话记住你的偏好与项目约定。它由 <span class="pw-mono">pi-memory</span> 包提供。</p>
+            </div>
+          </header>
+          <div class="pw-scontent">
+
 
           <div class="pw-block" style="margin-top:0">
             <div class="pw-field">
@@ -233,7 +246,9 @@
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>

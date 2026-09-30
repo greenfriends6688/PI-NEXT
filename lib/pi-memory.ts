@@ -40,5 +40,23 @@ export const PI_MEMORY_TOOLS = [
   "memory_status",
 ] as const;
 
+/**
+ * fix:memory-layout（2026-09-30）—— 每个工具一句话说明的 i18n key。
+ *
+ * 画板 44 的工具列表是 `.pw-litem`：图标 + 名字（`.pw-lname`）+ **一句说明**（`.pw-lsub`）。
+ * 之前面板只画名字，把「memory_write / memory_read 存长期事实…」整段挤成列表下面的一行
+ * `.pw-hint` —— 行高太矮、说明贴着列表（用户实测「间距特别近」「显示不合理」）。
+ * 说明拆进每一行，段落删除。
+ */
+export const PI_MEMORY_TOOL_HINT_KEYS: Record<(typeof PI_MEMORY_TOOLS)[number], string> = {
+  memory_write: "memory.tool.write",
+  memory_read: "memory.tool.read",
+  memory_forget: "memory.tool.forget",
+  memory_restore: "memory.tool.restore",
+  scratchpad: "memory.tool.scratchpad",
+  memory_search: "memory.tool.search",
+  memory_status: "memory.tool.status",
+};
+
 /** Search needs the external `qmd` binary; everything else works without it. */
 export const PI_MEMORY_SEARCH_HINT_URL = "https://github.com/tobi/qmd";

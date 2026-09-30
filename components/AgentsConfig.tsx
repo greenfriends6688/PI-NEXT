@@ -23,20 +23,22 @@ import {
   ConfigDetailStack,
   ConfigEmptyState,
   ConfigField,
-  ConfigFooter,
-  ConfigListAction,
   ConfigPanelShell,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
   ConfigSidebarItem,
   ConfigSidebarList,
+  ConfigSidebarSub,
   ConfigSidebarText,
   ConfigSplitView,
   ConfigSectionTitle,
   ConfigStatusDot,
   ConfigSwitch,
+  ConfigDetailTitle,
   PwRadio,
+  PwSearch,
   PwSelectBox,
+  SettingsPage,
 } from "./SettingsUi";
 import { ModelSelector } from "./ModelSelector";
 
@@ -187,6 +189,8 @@ export function AgentsConfig({
   const [mode, setMode] = useState<EditorMode>("view");
   const [targetScope, setTargetScope] = useState<SubagentWritableScope>("global");
   const [loading, setLoading] = useState(true);
+  // fix:agents-layout（画板 42）—— 左列头是「搜索子代理 + 新建图标钮」，过滤走这里。
+  const [agentQuery, setAgentQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -475,64 +479,105 @@ export function AgentsConfig({
     }
   };
 
+  /* fork:settings-frame（画板 62）—— 工具栏的计数与搜索过滤（列表与工具栏共用同一个判据）。 */
+  const agentNeedle = agentQuery.trim().toLowerCase();
+  const matchesAgentQuery = (profile: SubagentProfile) =>
+    !agentNeedle ||
+    profile.displayName.toLowerCase().includes(agentNeedle) ||
+    profile.name.toLowerCase().includes(agentNeedle) ||
+    (profile.description ?? "").toLowerCase().includes(agentNeedle);
+  const visibleProfileCount = profiles.filter(matchesAgentQuery).length;
+
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.agents")} subtitle={shortenPath(cwd)} closeLabel={t("agents.close")} onClose={onClose}>
-      {/* fork:design-system —— 画板 42 的「内置子代理」块：`.pw-block` 卡 + `pw-field` 行。
-          原先是 settings.css 的 .agents-feature-* 自绘横条，收编后那组规则已退役。
-          `margin-top:0` 是画板自带的 inline（pw-block 默认 margin-top:var(--s3)，
-          这里它贴着面板头，没有前序内容）。 */}
-      <div className="pw-block" style={{ marginTop: 0 }}>
-        <ConfigField label={t("agents.builtInTitle")} hint={t("agents.builtInDescription")}>
-          <ConfigControl>
-            {reloadNeeded && sessionId && (
-              <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
-                {reloading ? t("agents.reloading") : t("agents.reloadSession")}
-              </ConfigButton>
-            )}
-            <ConfigSwitch
-              checked={builtInEnabled}
-              disabled={settingsLoading || reloading}
-              loading={settingsSaving}
-              label={t("agents.builtInTitle")}
-              onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
+      <SettingsPage
+        title={t("common.agents")}
+        sub={t("agents.pageSub")}
+        actions={
+          <ConfigButton variant="primary" size="small" onClick={beginCreate}>
+            <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+            {t("agents.new")}
+          </ConfigButton>
+        }
+        toolbar={
+          <>
+            <PwSearch
+              value={agentQuery}
+              placeholder={t("agents.searchPlaceholder")}
+              ariaLabel={t("agents.searchPlaceholder")}
+              onChange={setAgentQuery}
             />
-          </ConfigControl>
-        </ConfigField>
-        <ConfigField label={t("agents.maxConcurrent")} hint={t("agents.maxConcurrentDescription")}>
-          {/* 数字步进宽度是运行时布局值（pw-input 默认 min-width:200px 太宽）。 */}
-          <input
-            aria-label={t("agents.maxConcurrent")}
-            type="number"
-            min={1}
-            max={32}
-            value={maxConcurrent}
-            disabled={settingsLoading || settingsSaving}
-            onChange={(event) => setMaxConcurrent(Number(event.target.value))}
-            onBlur={() => void updateMaxConcurrent(maxConcurrent)}
-            className="pw-input"
-            style={{ width: 64, textAlign: "center" }}
-          />
-        </ConfigField>
-        {/* 画板 42 的第三行：空标签 + 右侧警示徽章（「改动需要重载会话才生效」）。 */}
-        {reloadNeeded && (
-          <ConfigField label="">
-            <ConfigBadge tone="warn">
-              <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
-              {t("agents.reloadRequired")}
-            </ConfigBadge>
-          </ConfigField>
-        )}
-      </div>
+            <span className="pw-grow" aria-hidden="true" />
+            <ConfigBadge tone="count">{t("agents.count", { count: String(visibleProfileCount) })}</ConfigBadge>
+          </>
+        }
+        fill
+      >
       <ConfigSplitView>
         <ConfigSidebar>
+          {/* fork:settings-frame（画板 62）—— 「内置子代理」两项从**顶部整宽**收进列表列。
+              原来它们是两条 1160px 宽的设置行：标签在最左、开关/输入框在最右，
+              两者相距 1000px；下面才切进两栏。现在放进 300px 的列表列顶部，
+              标签与控件的距离回到一屏之内。 */}
+          <div className="pw-block" style={{ marginTop: 0 }}>
+            <ConfigField label={t("agents.builtInTitle")} hint={t("agents.builtInDescription")}>
+              <ConfigControl>
+                {reloadNeeded && sessionId && (
+                  <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
+                    {reloading ? t("agents.reloading") : t("agents.reloadSession")}
+                  </ConfigButton>
+                )}
+                <ConfigSwitch
+                  checked={builtInEnabled}
+                  disabled={settingsLoading || reloading}
+                  loading={settingsSaving}
+                  label={t("agents.builtInTitle")}
+                  onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
+                />
+              </ConfigControl>
+            </ConfigField>
+            <ConfigField label={t("agents.maxConcurrent")} hint={t("agents.maxConcurrentDescription")}>
+              {/* 数字步进宽度是运行时布局值（pw-input 默认 min-width:200px 太宽）。 */}
+              <input
+                aria-label={t("agents.maxConcurrent")}
+                type="number"
+                min={1}
+                max={32}
+                value={maxConcurrent}
+                disabled={settingsLoading || settingsSaving}
+                onChange={(event) => setMaxConcurrent(Number(event.target.value))}
+                onBlur={() => void updateMaxConcurrent(maxConcurrent)}
+                className="pw-input"
+                style={{ width: 64, textAlign: "center" }}
+              />
+            </ConfigField>
+            {/* 画板 42 的第三行：空标签 + 右侧警示徽章（「改动需要重载会话才生效」）。 */}
+            {reloadNeeded && (
+              <ConfigField label="">
+                <ConfigBadge tone="warn">
+                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
+                  {t("agents.reloadRequired")}
+                </ConfigBadge>
+              </ConfigField>
+            )}
+          </div>
           <ConfigSidebarList>
               {loading ? (
                 <div className="pw-alert info">
                   <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
                   <span className="pw-grow">{t("agents.loading")}</span>
                 </div>
+              ) : visibleProfileCount === 0 ? (
+                /* fork:settings-frame（画板 62）—— 列表空态落在列表列内（32px 图标 + 一句），
+                   不再让「搜不到」静默留白。 */
+                <ConfigEmptyState>
+                  <span className="mark"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
+                  <p>{agentNeedle ? t("agents.noneFound") : t("agents.empty")}</p>
+                </ConfigEmptyState>
               ) : (["project", "global", "workspace", "builtin"] as const).map((scope) => {
-                const scopedProfiles = profiles.filter((profile) => profile.scope === scope);
+                const scopedProfiles = profiles.filter(
+                  (profile) => profile.scope === scope && matchesAgentQuery(profile),
+                );
                 if (scopedProfiles.length === 0) return null;
                 // fork:design-system —— 画板 42 的分组标题就是 `.pw-list` 的直接子元素
                 // （pw-group-title），不再包自绘的 config-sidebar-group 层。
@@ -547,10 +592,20 @@ export function AgentsConfig({
                           active={selectedKey === profileKey(profile) && !creating}
                           onClick={() => selectProfile(profile)}
                         >
-                          <ConfigStatusDot active={profile.enabled} />
-                          <ConfigSidebarText className={`is-grow${profile.enabled ? "" : " is-muted"}`}>{profile.displayName}</ConfigSidebarText>
+                          {/* 画板 42：行首是**类型图标**（`.pw-ico` 的 bot），不再是自绘圆点；
+                              启用时走 accent-text，停用/内置走弱化。 */}
+                          <span className={`pw-ico${profile.enabled ? "" : " pw-dim"}`} style={profile.enabled ? { color: "var(--accent-text)" } : undefined}>
+                            <i data-ico="bot" data-size="14" aria-hidden="true" />
+                          </span>
+                          {/* 名字 + 一句说明（`.pw-lname` / `.pw-lsub`）—— 一行两段，
+                              原来是「圆点 + 光名字」，一列看下来太素也没有辨识度。 */}
+                          <span className="grow">
+                            <ConfigSidebarText className={profile.enabled ? "" : " is-muted"}>{profile.displayName}</ConfigSidebarText>
+                            <ConfigSidebarSub>{profile.description || profile.name}</ConfigSidebarSub>
+                          </span>
                           {/* 被覆盖项给一枚中性徽章（画板 42：不标红）。 */}
                           {overridden && <ConfigBadge>{t("agents.overridden")}</ConfigBadge>}
+                          <ConfigStatusDot active={profile.enabled} />
                         </ConfigSidebarItem>
                       );
                     })}
@@ -558,12 +613,6 @@ export function AgentsConfig({
                 );
               })}
           </ConfigSidebarList>
-          <ConfigListAction
-                active={creating}
-                onClick={beginCreate}
-              >
-                {t("agents.new")}
-          </ConfigListAction>
         </ConfigSidebar>
 
         {/* fork:settings-dialog-frame —— 画板 42 的右列只有一张 pw-detail 卡，
@@ -577,6 +626,10 @@ export function AgentsConfig({
                 <ConfigDetailStack>
                   <ConfigDetailHeader>
                     <ConfigDetailHeaderInfo>
+                      {/* fix:agents-layout（画板 42）—— 详情头第一项是**名字**（h3），
+                          后面才是作用域徽章与等宽路径。原来这一行没有名字，只有
+                          「徽章 + 路径」，卡片没有标题。 */}
+                      <ConfigDetailTitle>{draft.displayName || draft.name || t("agents.new")}</ConfigDetailTitle>
                       {/* fork:design-system SW-14 —— 画板 42 的详情头：作用域徽章 + 等宽路径。 */}
                       {displayedScope && (
                         <ConfigBadge tone={displayedScope === "project" ? "accent" : undefined}>
@@ -658,7 +711,9 @@ export function AgentsConfig({
                     style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
                   />
 
-                  {/* 画板 42 的「工具与资源」：芯片表达，已选 accent、未选带 plus。 */}
+                  {/* 画板 42 的「工具与资源」：芯片表达，已选 accent、未选带 plus。
+                      fix:agents-layout —— 芯片的两种状态原来没有任何文字说明，
+                      用户实测「按钮啥的看不懂」；补一行 `.pw-hint` 讲清点法。 */}
                   <ConfigSectionTitle>{t("agents.tools")}</ConfigSectionTitle>
                   <div className="pw-wrap">
                     {TOOL_OPTIONS.map((tool) => (
@@ -672,12 +727,14 @@ export function AgentsConfig({
                       </ToolChip>
                     ))}
                   </div>
+                  <p className="pw-hint">{t("agents.toolsHint")}</p>
 
                   <ConfigSectionTitle>{t("agents.resources")}</ConfigSectionTitle>
                   <div className="pw-wrap">
                     <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
                     <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
                   </div>
+                  <p className="pw-hint">{t("agents.resourcesHint")}</p>
 
                   {/* 画板 42 详情底部的一组 `pw-field` 行（标签左、控件右）。 */}
                   <ConfigField label={t("agents.thinking")}>
@@ -707,26 +764,37 @@ export function AgentsConfig({
                   <ConfigField label={t("agents.background")}>
                     <ConfigSwitch checked={draft.runInBackground} disabled={disabled} label={t("agents.background")} onChange={(checked) => update("runInBackground", checked)} />
                   </ConfigField>
+
+                  {/* fork:settings-frame（画板 62）—— 表单级动作落在**表单块底部右对齐**，
+                      不再放页面页脚：页脚是视口级的，滚动时它会脱离它保存的那张卡。 */}
+                  {editing && (
+                    <div className="pw-inline" style={{ marginTop: "var(--s3)" }}>
+                      <span className="pw-grow" aria-hidden="true" />
+                      <ConfigButton
+                        variant="primary"
+                        onClick={() => void save()}
+                        disabled={saving || savedOk || toggling || !draft.name.trim()}
+                        className={savedOk ? "is-success" : undefined}
+                      >
+                        {savedOk && (
+                          <span className="pw-ico"><i data-ico="check" data-size="13"></i></span>
+                        )}
+                        <span>{savedOk ? t("i18n.saved") : saving ? t("agents.saving") : t("agents.save")}</span>
+                      </ConfigButton>
+                    </div>
+                  )}
+                  {(settingsError || error) && (
+                    <div role="alert" className="pw-alert">
+                      <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+                      <span className="pw-grow">{settingsError || error}</span>
+                    </div>
+                  )}
                 </ConfigDetailStack>
               )}
           </ConfigDetailStack>
         </ConfigDetail>
       </ConfigSplitView>
-      <ConfigFooter status={(settingsError || error) && <ConfigBadge tone="bad" role="alert">{settingsError || error}</ConfigBadge>}>
-        {editing && (
-          <ConfigButton
-            variant="primary"
-            onClick={() => void save()}
-            disabled={saving || savedOk || toggling || !draft.name.trim()}
-            className={savedOk ? "is-success" : undefined}
-          >
-            {savedOk && (
-              <span className="pw-ico"><i data-ico="check" data-size="13"></i></span>
-            )}
-            <span>{savedOk ? t("i18n.saved") : saving ? t("agents.saving") : t("agents.save")}</span>
-          </ConfigButton>
-        )}
-      </ConfigFooter>
+      </SettingsPage>
     </ConfigPanelShell>
   );
 }

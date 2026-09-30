@@ -1,11 +1,12 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { MarkdownBody } from "./MarkdownBody";
 import { ToolCallBlock, getMessageImages, getMessageText, imageSource } from "./MessageView";
 import { ImagePreview } from "./ImagePreview";
 import { getFileIcon } from "./FileIcons";
 import { useI18n } from "@/hooks/useI18n";
+import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import type { ProcessContentBlock } from "@/lib/process-content";
 import type { ToolResultMessage } from "@/lib/types";
 import {
@@ -92,6 +93,7 @@ interface Step {
   blocks: ProcessContentBlock[];
 }
 
+/** 步骤行的图标名（语义名，不是 lucide 名）。 */
 type IconName =
   | "brain"
   | "search"
@@ -108,50 +110,33 @@ type IconName =
   | "warning";
 
 /**
- * Inline 16px glyphs matching the app's existing hand-rolled SVG vocabulary
- * (this repository deliberately avoids an icon dependency).
+ * 语义名 → 画板 11 `.pw-step-ico` 里那枚 lucide。
+ *
+ * fork:step-icons（2026-09-30）—— 这里原来是 13 个**手绘 `<svg>`**（`width=14`、
+ * `stroke-width=1.7`），而画板 11 画的是 `<span class="pw-step-ico"><i data-ico="brain"
+ * data-size="12"></i></span>`：图标集只有一份（`assets/icons.js` 的 lucide 路径表），
+ * 手绘的都算错。下面每一行都能在画板 11/12 里找到出处，找不到出处的只有 `toolbox`
+ * （工具名认不出来时的兑底）。
  */
+const STEP_ICON: Record<IconName, string> = {
+  brain: "brain",          // 推理
+  search: "file-search",   // 搜索
+  read: "file-text",       // 读取
+  edit: "pencil-line",     // 编辑
+  create: "file-plus",     // 新建
+  delete: "trash-2",       // 删除
+  terminal: "terminal",    // 运行
+  toolbox: "wrench",       // 兑底（画板 05「准备运行工具」用的是 wrench）
+  image: "image",
+  list: "list",
+  checklist: "list-checks",
+  folder: "folder",
+  warning: "triangle-alert", // 失败行（画板 11 帧 A）
+};
+
+/** 步骤行图标：`.pw-step-ico` 是 14px 方框（board.css），里面一枚 12px lucide。 */
 function StepIcon({ name }: { name: IconName }) {
-  const common = {
-    width: 14,
-    height: 14,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-  switch (name) {
-    case "create":
-      return <svg {...common}><path d="M14 3v5h5M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M12 12v5M9.5 14.5h5" /></svg>;
-    case "edit":
-      return <svg {...common}><path d="M12 20h9" /><path d="M16.5 3.6a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>;
-    case "delete":
-      return <svg {...common}><path d="M4 6h16M9 6V4h6v2M18 6l-1 14H7L6 6M10 11v5M14 11v5" /></svg>;
-    case "read":
-      return <svg {...common}><path d="M12 6.5C10.5 5 8 4 4 4v14c4 0 6.5 1 8 2.5 1.5-1.5 4-2.5 8-2.5V4c-4 0-6.5 1-8 2.5z" /><path d="M12 6.5V20.5" /></svg>;
-    case "search":
-      return <svg {...common}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></svg>;
-    case "list":
-      return <svg {...common}><path d="M8 6h13M8 12h9M8 18h5" /><circle cx="5" cy="6" r="1.3" /><circle cx="5" cy="12" r="1.3" /><circle cx="5" cy="18" r="1.3" /></svg>;
-    case "folder":
-      return <svg {...common}><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>;
-    case "terminal":
-      return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 10 3 2.5-3 2.5M13 15h4" /></svg>;
-    case "checklist":
-      return <svg {...common}><path d="m3 7 2 2 3-3M3 17l2 2 3-3M13 8h8M13 18h8" /></svg>;
-    case "image":
-      return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="m21 17-5-5-6 6" /></svg>;
-    case "brain":
-      return <svg {...common}><path d="M9.5 4A3 3 0 0 0 7 6.8 3 3 0 0 0 6 12a3 3 0 0 0 1 5.2A3 3 0 0 0 9.5 20a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" /><path d="M14.5 4A3 3 0 0 1 17 6.8 3 3 0 0 1 18 12a3 3 0 0 1-1 5.2A3 3 0 0 1 14.5 20a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" /></svg>;
-    case "warning":
-      return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.5h.01" /></svg>;
-    case "toolbox":
-    default:
-      return <svg {...common}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18" /></svg>;
-  }
+  return <i data-ico={STEP_ICON[name]} data-size="12" />;
 }
 
 // --- Classification ---------------------------------------------------------
@@ -497,6 +482,25 @@ function FileChips({
       })}
       {rest > 0 && <span className="process-file-more">+{rest}</span>}
     </>
+  );
+}
+
+/**
+ * fork:design-motion（2026-09-30）—— 展开正文的折叠动画。
+ *
+ * 画板 11 的「本页动效」把展开折叠定成 160ms 的**高度 + 透明度**；这里原来是
+ * `{isOpen && …}` 直接增删 DOM，浏览器没有可动的东西 —— 点行头永远是瞬跳，
+ * 这就是用户说的「动效和画板对不上」。复用全站那一个折叠原语：
+ * 外层 `.fork-collapse` 常驻、`grid-template-rows` 在 0fr ↔ 1fr 之间过渡，
+ * 正文由 `useCollapsePresence` 在收起过渡结束后卸载（折叠态 DOM 里不留内容）。
+ */
+function StepCollapse({ open, children }: { open: boolean; children: ReactNode }) {
+  const collapseRef = useRef<HTMLDivElement>(null);
+  const bodyMounted = useCollapsePresence(open, undefined, collapseRef);
+  return (
+    <div ref={collapseRef} className="fork-collapse" data-fork-collapse={open ? "open" : "closed"}>
+      {bodyMounted && <div className="fork-collapse-body">{children}</div>}
+    </div>
   );
 }
 
@@ -939,13 +943,20 @@ export function ProcessGroup({
                   <FileChips targets={step.targets} onOpenFile={onOpenFile} />
                   {/* fork:process-dedupe — 推理行展开后正文就是这段文字，行上再挂一份
                       截断版等于同一句话说两遍（闭合时仍保留，避免只剩一个「推理」）。 */}
-                  {step.detail && !isOpen && <span className="pw-arg process-step-detail">{step.detail}</span>}
+                  {/* fork:design-components —— 画板 11 的推理行把摘要挂成 `.pw-think`
+                      （正文色阶、非等宽，与内文同族），命令 / 工具行才是 `.pw-arg`
+                      （等宽的命令或参数）。两者共用产品类 `.process-step-detail` 做单行截断。 */}
+                  {step.detail && !isOpen && (
+                    <span className={step.reasoning ? "pw-think process-step-detail" : "pw-arg process-step-detail"}>
+                      {step.detail}
+                    </span>
+                  )}
                   <span className="grow" />
                   <Duration seconds={step.duration} />
                   {step.failed && <span className="pw-badge bad">{t("process.failed")}</span>}
                 </button>
-                {isOpen && (
-                  <div className="process-step-body-wrap" style={{ position: "relative" }}>
+                <StepCollapse open={isOpen}>
+                  <div className="process-step-body-wrap">
                     <div
                       ref={last ? latestStepScrollRef : undefined}
                       style={{ maxHeight: 320, overflowY: "auto", overflowX: "hidden" }}
@@ -988,7 +999,7 @@ export function ProcessGroup({
                       />
                     )}
                   </div>
-                )}
+                </StepCollapse>
               </Fragment>
             );
           })}

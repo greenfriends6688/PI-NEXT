@@ -1,97 +1,79 @@
-// gen-icons.mjs — 生成 macOS 应用图标与菜单栏 template 图标
+// gen-icons.mjs — 从品牌图生成全平台图标
 // 用法: node scripts/gen-icons.mjs   (在项目根目录运行)
-// 产物:
-//   build/icon.icns          应用图标（1024 全出血 master → iconset → icns）
-//   build/icon.png          1024 master（调试用）
-//   build/trayTemplate.png  菜单栏 template 图标（单色黑 + alpha，22pt）
-//   build/trayTemplate@2x.png                              44pt
-// macOS 会把图标裁成 squircle，因此 master 必须全出血（不预置圆角/透明角）。
-import { Resvg } from "@resvg/resvg-js";
+//
+// 唯一素材：public/pi-next-logo.png（主品牌渐变图形，透明底 708×435）。
+// 这里只做**机械缩放与留白**，不改图、不叠底、不重画：
+//   build/icon.icns            应用图标（1024 → iconset → icns，透明方底）
+//   build/icon.png             1024 master（调试用）
+//   build/trayTemplate.png     菜单栏 template（黑色 + 原图 alpha，22pt，系统自动反白）
+//   build/trayTemplate@2x.png                                    44pt
+//   public/icons/icon-512.png / icon-192.png    PWA / manifest
+//   public/icons/apple-touch-icon.png           iOS 主屏（白底，见下）
+//   public/favicon.png / app/favicon.ico        浏览器标签页
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import sharp from "sharp";
 
-const outDir = join(process.cwd(), "build");
-mkdirSync(outDir, { recursive: true });
+const SRC = join(process.cwd(), "public", "pi-next-logo.png");
+const { width: SRC_W, height: SRC_H } = await sharp(SRC).metadata();
+const ASPECT = SRC_W / SRC_H;
 
-// ── 应用图标 master：pi 品牌图标，macOS 圆角矩形规格 ───────────────────────
-// 底色/字形用 pi 自己的图标素材（public/icons/icon-512.png）：#23454B + 白色 π。
-//
-// 规格来自实测本机参考 App（WorkBuddy / Calculator / ChatGPT）的 .icns：
-//   画布 1024，圆角矩形 820x820 居中（四边留 102 白边），圆角半径 ≈185，
-//   四角 alpha = 0（透明）。注意 macOS **不会**自动裁圆角：参考 App 的图标
-//   都是自己画好的圆角矩形，所以这里必须自带圆角与留白。
-//   角形拟合表明它们用的是普通圆弧圆角（平均偏差 4~9px），不是超椭圆。
-//
-// 原素材是「透明底 + 圆形气泡」，气泡是纯色 #23454B（实测无渐变），所以把素材
-// 放大后铺进圆角矩形内部、与底色同色即可无缝衔接；左下角的气泡小尾巴也一并
-// 融入。素材必须 clip 进圆角矩形，否则它自己的圆形边缘会溢出到留白区。
-const TILE_BG = "#23454B";
-const CANVAS = 1024;
-const TILE = 820;              // 实测 0.801 * 1024
-const TILE_INSET = (CANVAS - TILE) / 2;   // 102
-const TILE_RADIUS = 185;       // Apple 规格 r/TILE ≈ 0.225（实测 WorkBuddy .221 / Calculator .231）
-const SRC = 512;               // 素材画布边长
-// 素材里字形包围盒 x:126..385  y:148..375
-const GLYPH_W = 385 - 126 + 1;            // 260
-const GLYPH_FRAC = GLYPH_W / SRC;         // 字形占素材画布的比例 ≈ 0.508
-const GLYPH_CX = (126 + 385 + 1) / 2;     // 把字形包围盒中心对准圆角矩形中心
-const GLYPH_CY = (148 + 375 + 1) / 2;
+// 方底留白：图形居中占画布宽的 78%（Apple 图标安全区惯例）。
+const COVER = 0.78;
+// ≤32px 的光学补偿：16px 时图形只有 12px 宽、7px 高，缩略图上会糊成一团。
+const COVER_SMALL = 0.94;
+const SMALL_MAX_DIM = 32;
 
-const piArtworkBase64 = readFileSync(
-  join(process.cwd(), "public", "icons", "icon-512.png"),
-).toString("base64");
+const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
-// glyphRatio = π 宽度 / 圆角矩形宽度。
-// 大尺寸用 0.62；≤32px 单独放大到 0.78 做光学补偿——16px 时矩形只有 13px，
-// 按 0.62 算 π 只有 8px，缩略图上会糊成一团。
-function masterSvg(glyphRatio) {
-  const artSize = Math.round((glyphRatio * TILE) / GLYPH_FRAC);
-  const s = artSize / SRC;
-  const artX = Math.round(CANVAS / 2 - GLYPH_CX * s);
-  const artY = Math.round(CANVAS / 2 - GLYPH_CY * s);
-  return `<svg width="${CANVAS}" height="${CANVAS}" viewBox="0 0 ${CANVAS} ${CANVAS}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <clipPath id="tile">
-      <rect x="${TILE_INSET}" y="${TILE_INSET}" width="${TILE}" height="${TILE}" rx="${TILE_RADIUS}" ry="${TILE_RADIUS}"/>
-    </clipPath>
-  </defs>
-  <g clip-path="url(#tile)">
-    <rect x="${TILE_INSET}" y="${TILE_INSET}" width="${TILE}" height="${TILE}" fill="${TILE_BG}"/>
-    <image href="data:image/png;base64,${piArtworkBase64}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid meet" image-rendering="optimizeQuality"/>
-  </g>
-</svg>`;
+/** 把品牌图形摆进 size×size 的方底（`background` 为 null 时留透明）。 */
+async function square(size, background = null, cover = size <= SMALL_MAX_DIM ? COVER_SMALL : COVER) {
+  const targetW = Math.round(size * cover);
+  const mark = await sharp(SRC)
+    .resize(targetW, Math.round(targetW / ASPECT), { fit: "contain", background: TRANSPARENT })
+    .png()
+    .toBuffer();
+  return sharp({ create: { width: size, height: size, channels: 4, background: background ?? TRANSPARENT } })
+    .composite([{ input: mark, gravity: "center" }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
-const MASTER_SVG = masterSvg(0.62);
-const SMALL_SVG = masterSvg(0.78);
-const SMALL_MAX_DIM = 32;      // ≤ 此边长的图标用小尺寸母版
 
-// ── 菜单栏 template 图标（单色黑 + alpha，系统自动反白）─────────────────────
-const TRAY_SVG = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-  <path d="M${size * 0.16} ${size * 0.26} L${size * 0.5} ${size * 0.5} L${size * 0.16} ${size * 0.74}"
-        stroke="#000000" stroke-width="${size * 0.14}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="${size * 0.62}" y="${size * 0.6}" width="${size * 0.26}" height="${size * 0.18}" rx="${size * 0.08}" fill="#000000"/>
-</svg>`;
-
-function renderPng(svg, width) {
-  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width } });
-  return resvg.render().asPng();
+/** 菜单栏 template：只保留原图 alpha，颜色一律涂黑（系统按明暗自动反白）。 */
+async function trayTemplate(size) {
+  const { data, info } = await sharp(SRC)
+    .resize(size, size, { fit: "contain", background: TRANSPARENT })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const out = Buffer.alloc(info.width * info.height * 4);
+  for (let i = 0; i < data.length; i += 4) {
+    out[i] = 0;
+    out[i + 1] = 0;
+    out[i + 2] = 0;
+    out[i + 3] = data[i + 3];
+  }
+  return sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 function sips(src, width, height, dst) {
-  execFileSync("sips", ["-z", String(height), String(width), src, "--out", dst], {
-    stdio: "inherit",
-  });
+  execFileSync("sips", ["-z", String(height), String(width), src, "--out", dst], { stdio: "inherit" });
 }
 
-// 1. 应用图标
-const masterPng = join(outDir, "icon.png");
-writeFileSync(masterPng, renderPng(MASTER_SVG, 1024));
-// 小尺寸母版（π 放大到 0.78 做光学补偿），只用于 ≤32px 的条目
-const smallMasterPng = join(outDir, "icon-small.png");
-writeFileSync(smallMasterPng, renderPng(SMALL_SVG, 1024));
+const buildDir = join(process.cwd(), "build");
+const iconsDir = join(process.cwd(), "public", "icons");
+mkdirSync(buildDir, { recursive: true });
 
-const iconset = join(outDir, "icon.iconset");
+// ── 1. 应用图标（icns）─────────────────────────────────────────────────────
+const masterPng = join(buildDir, "icon.png");
+writeFileSync(masterPng, await square(1024));
+const smallMasterPng = join(buildDir, "icon-small.png");
+writeFileSync(smallMasterPng, await square(1024, null, COVER_SMALL));
+
+const iconset = join(buildDir, "icon.iconset");
 rmSync(iconset, { recursive: true, force: true });
 mkdirSync(iconset, { recursive: true });
 
@@ -108,17 +90,27 @@ const sizes = [
   [1024, "icon_512x512@2x.png"],
 ];
 for (const [dim, name] of sizes) {
-  // ≤32px 走小尺寸母版（字形更大，缩略图上更清楚）
   const src = dim <= SMALL_MAX_DIM ? smallMasterPng : masterPng;
   sips(src, dim, dim, join(iconset, name));
 }
-execFileSync("iconutil", ["-c", "icns", iconset, "-o", join(outDir, "icon.icns")], {
-  stdio: "inherit",
-});
+execFileSync("iconutil", ["-c", "icns", iconset, "-o", join(buildDir, "icon.icns")], { stdio: "inherit" });
 rmSync(iconset, { recursive: true, force: true });
 console.log("✓ build/icon.icns");
 
-// 2. 菜单栏 template 图标
-writeFileSync(join(outDir, "trayTemplate.png"), renderPng(TRAY_SVG(22), 22));
-writeFileSync(join(outDir, "trayTemplate@2x.png"), renderPng(TRAY_SVG(44), 44));
+// ── 2. 菜单栏 template 图标 ────────────────────────────────────────────────
+writeFileSync(join(buildDir, "trayTemplate.png"), await trayTemplate(22));
+writeFileSync(join(buildDir, "trayTemplate@2x.png"), await trayTemplate(44));
 console.log("✓ build/trayTemplate.png / trayTemplate@2x.png");
+
+// ── 3. PWA / 主屏 / 标签页（web 侧与 build/ 同源同参数）─────────────────────
+writeFileSync(join(iconsDir, "icon-512.png"), await square(512));
+writeFileSync(join(iconsDir, "icon-192.png"), await square(192));
+// iOS 会把透明区填成黑色，而主品牌图形的左半是深蓝紫 —— 必须自己给白底。
+writeFileSync(join(iconsDir, "apple-touch-icon.png"), await square(180, { r: 255, g: 255, b: 255, alpha: 1 }));
+console.log("✓ public/icons/icon-512.png / icon-192.png / apple-touch-icon.png");
+
+const faviconPng = join(process.cwd(), "public", "favicon.png");
+writeFileSync(faviconPng, await square(64));
+// Next 的 `app/favicon.ico` 是文件约定，sips 直接写单尺寸 ico（浏览器会自行缩放）。
+execFileSync("sips", ["-s", "format", "ico", faviconPng, "--out", join(process.cwd(), "app", "favicon.ico")], { stdio: "inherit" });
+console.log("✓ public/favicon.png / app/favicon.ico");

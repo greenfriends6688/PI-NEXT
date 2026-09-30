@@ -29,9 +29,9 @@ const http = require("node:http");
 const path = require("node:path");
 const fs = require("node:fs");
 
-const APP_NAME = "Pinkslab";
+const APP_NAME = "PI NEXT";
 /** Previous product names, newest first; the migration below picks the first that exists. */
-const LEGACY_APP_NAMES = ["Pi Codex", "pi-web"];
+const LEGACY_APP_NAMES = ["Pinkslab", "Pi Codex", "pi-web"];
 const { legacyUserDataSource } = require("./legacy-user-data");
 let mainWindow = null;
 let tray = null;
@@ -102,7 +102,7 @@ async function pickPort(requested) {
   }
   const fallback = await getFreePort();
   console.warn(
-    `[pinkslab] 固定端口 ${DESKTOP_PORTS.join("/")} 全被占用，退回随机端口 ${fallback}；` +
+    `[pi-next] 固定端口 ${DESKTOP_PORTS.join("/")} 全被占用，退回随机端口 ${fallback}；` +
     "本次启动的界面设置不会保留（origin 变了）。",
   );
   return fallback;
@@ -154,7 +154,7 @@ async function startServer(appRoot) {
   });
 
   serverPort = port;
-  console.log(`[pinkslab] Next.js 服务启动: http://127.0.0.1:${port} (dev=${useDevServer})`);
+  console.log(`[pi-next] Next.js 服务启动: http://127.0.0.1:${port} (dev=${useDevServer})`);
   return { port, useDevServer };
 }
 
@@ -252,7 +252,7 @@ function createWindow() {
 
   // Crash visibility: a silent white window is the worst possible failure mode.
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
-    console.error("[pinkslab] renderer gone:", details.reason);
+    console.error("[pi-next] renderer gone:", details.reason);
     dialog.showMessageBox({
       type: "error",
       title: APP_NAME,
@@ -274,10 +274,10 @@ function createWindow() {
   // 排查只能靠猜。现在每次拦截都打一行日志，冒烟脚本会去收集它。
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^(https?|mailto):/.test(url)) {
-      console.log(`[pinkslab] blocked window.open → 交给系统浏览器: ${url}`);
+      console.log(`[pi-next] blocked window.open → 交给系统浏览器: ${url}`);
       shell.openExternal(url);
     } else {
-      console.log(`[pinkslab] blocked window.open（非 http(s)/mailto，已丢弃）: ${url}`);
+      console.log(`[pi-next] blocked window.open（非 http(s)/mailto，已丢弃）: ${url}`);
     }
     return { action: "deny" };
   });
@@ -286,10 +286,10 @@ function createWindow() {
     if (target.port && Number(target.port) === serverPort) return;
     event.preventDefault();
     if (/^(https?|mailto):/.test(url)) {
-      console.log(`[pinkslab] blocked will-navigate → 交给系统浏览器: ${url}（应用内表现为"按钮无反应"）`);
+      console.log(`[pi-next] blocked will-navigate → 交给系统浏览器: ${url}（应用内表现为"按钮无反应"）`);
       shell.openExternal(url);
     } else {
-      console.log(`[pinkslab] blocked will-navigate（非 http(s)/mailto，已丢弃）: ${url}`);
+      console.log(`[pi-next] blocked will-navigate（非 http(s)/mailto，已丢弃）: ${url}`);
     }
   });
 
@@ -409,9 +409,9 @@ function migrateLegacyUserData() {
     if (!legacy) return;
     const next = path.join(support, APP_NAME);
     fs.cpSync(legacy, next, { recursive: true });
-    console.log(`[pinkslab] migrated user data: ${legacy} → ${next}`);
+    console.log(`[pi-next] migrated user data: ${legacy} → ${next}`);
   } catch (error) {
-    console.error("[pinkslab] user data migration failed:", error);
+    console.error("[pi-next] user data migration failed:", error);
   }
 }
 
@@ -451,7 +451,7 @@ function saveWindowState(win) {
       maximized: win.isMaximized(),
     }, null, 2));
   } catch (error) {
-    console.error("[pinkslab] failed to persist window state:", error);
+    console.error("[pi-next] failed to persist window state:", error);
   }
 }
 
@@ -492,7 +492,7 @@ if (!gotLock) {
       applicationName: APP_NAME,
       applicationVersion: app.getVersion(),
       version: `Electron ${process.versions.electron} · Node ${process.versions.node}`,
-      copyright: "Pinkslab — local coding agent workbench",
+      copyright: "PI NEXT — local coding agent workbench",
     });
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([

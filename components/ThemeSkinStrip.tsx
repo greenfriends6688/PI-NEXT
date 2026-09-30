@@ -19,7 +19,7 @@
  * 画板 47 只画两块色，按「画板即规格」收敛掉。
  */
 
-import { useRef } from "react";
+import { useRef, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import {
   DEFAULT_THEME_SKIN,
@@ -30,15 +30,33 @@ import {
 } from "@/lib/theme-skins";
 import { BUILTIN_SKIN_LABEL_KEYS } from "@/lib/builtin-skins";
 
+/* fix:skin-card-wallpaper —— 内置皮肤（蔡徐坤 / 章若楠）的四个基色是**故意留空**的
+   （继承主题配色，见 lib/builtin-skins.ts），它们唯一的标识就是那张画。原来只把
+   基色铺进卡面，于是空值回落成 `--n-panel` / `--n-canvas` 两块主题色 —— 两张卡
+   看起来就是空白的（用户实测「为什么不显示图片」）。
+   现在：`.a`（22px 侧栏列）仍是面板色，`.b`（内容列）有画就铺画（cover），
+   没画才铺底色 —— 画板的 `grid-template-columns: 22px 1fr` 结构不变。
+   抽成纯函数是为了让这条判据有一处可测（components/ThemeSkinStrip.test.mjs）。 */
+export function skinCardPaint(skin: ThemeSkin | null): {
+  a: CSSProperties | undefined;
+  b: CSSProperties | undefined;
+} {
+  if (!skin) return { a: undefined, b: undefined };
+  const wallpaper = skin.wallpaper?.trim();
+  return {
+    a: skin.panel ? { background: skin.panel } : undefined,
+    b: wallpaper
+      ? { backgroundImage: `url("${wallpaper}")`, backgroundSize: "cover", backgroundPosition: "center" }
+      : skin.background ? { background: skin.background } : undefined,
+  };
+}
+
 function SkinCardArt({ skin }: { skin: ThemeSkin | null }) {
-  if (!skin) {
-    // 默认皮肤：不写内联，`.a` / `.b` 用 board.css 的面板色与画布色。
-    return <span className="prev"><span className="a" /><span className="b" /></span>;
-  }
+  const paint = skinCardPaint(skin);
   return (
     <span className="prev">
-      <span className="a" style={{ background: skin.panel }} />
-      <span className="b" style={{ background: skin.background }} />
+      <span className="a" style={paint.a} />
+      <span className="b" style={paint.b} />
     </span>
   );
 }

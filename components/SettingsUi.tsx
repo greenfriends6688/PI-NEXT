@@ -172,13 +172,15 @@ export function ConfigStat({ label, value, hint }: { label: string; value: strin
 }
 
 /** 右列：画板是 `style="display:grid;gap:var(--s3)"` 的容器（不是卡）。
- *  原样照抄那行 inline —— 它就是画板 DOM 的一部分，不是产品自创的样式。 */
+ *  原样照抄那行 inline —— 它就是画板 DOM 的一部分，不是产品自创的样式。
+ *  fork:settings-frame（画板 62）—— 补一个 `.pw-detail-stack` 钩子类：
+ *  详情卡改成 flex 列后，这一层要 `flex:1` 才能把高度传给空态（见 board.css）。 */
 export function ConfigDetailStack({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       {...props}
       style={{ display: "grid", gap: "var(--s3)", ...props.style }}
-      className={className}
+      className={["pw-detail-stack", className].filter(Boolean).join(" ")}
     />
   );
 }
@@ -468,36 +470,6 @@ export function SettingsSlider({
   );
 }
 
-export function SettingsSelect({
-  value,
-  options,
-  ariaLabel,
-  disabled = false,
-  onChange,
-}: {
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  ariaLabel: string;
-  disabled?: boolean;
-  onChange: (next: string) => void;
-}) {
-  return (
-    <select
-      className="fork-settings-select"
-      value={value}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 /* ---------------------------------------------------------------------------
  * fork:design-system SW-07 — 画板 40 的设置控件基件（pw-* 版）。
  *
@@ -511,20 +483,86 @@ export function SettingsSelect({
  * 批次 C 的分节逐个迁到这一套，迁完一个才退役一个的旧 CSS。
  * ------------------------------------------------------------------------- */
 
-/** 设置页的内容栏：`.pw-sbody`。
+/* ---------------------------------------------------------------------------
+ * fork:settings-frame（画板 62）—— 设置页三件套。
  *
- * fork:design-system SW-07 —— 它挂在 `SettingsPanel` 的分节宿主上
- * （`components/SettingsPanel.tsx` 的 `settings-section-host pw-sbody`），
- * 所以这里不导出单独的包装组件：一个分节只有一个内容栏，多一层就是多一层。
- * 页头用 `PwPageHead`（直接子元素 `h2` + `p.sub`，board.css 的选择器这么认）。 */
-export function PwPageHead({ title, sub }: { title: string; sub?: string }) {
+ * 12 个分节原来有 4 种骨架（单列块流 / 列表+详情 / 顶部整宽条+两栏 /
+ * 块流+底部两栏），页头只有 5 页有、4 页的 h2 还被包在 wrapper 里够不到
+ * `board.css` 的 `> h2`。现在统一成：
+ *
+ *   页头（h2 + sub + 页级动作）  ── 恒在
+ *   工具栏（搜索 + 筛选 + 计数 + 列表级动作）── 有列表才有
+ *   内容区 ── 唯一滚动容器
+ *
+ * 三个块是**分节宿主的直接子元素**，不另包一层：宿主本身已经是 flex column
+ * （块流页是 `.settings-section-host`，列表页是 `.config-panel-surface`）。
+ * 所以这里返回 Fragment，而不是一个 wrapper —— 多一层会让 `height:100%`
+ * 的传递断掉。
+ *
+ * `fill` 给列表页用：内容区不滚，交给 `.pw-cols` 的两列各自滚
+ * （画板 62 帧 B「唯一滚动在内容区」的列表页形态）。
+ * ------------------------------------------------------------------------- */
+
+export function SettingsPage({
+  title,
+  sub,
+  actions,
+  toolbar,
+  fill = false,
+  children,
+}: {
+  title: string;
+  /** 一句「这页是干嘛的」。**不写数据** —— 计数进工具栏的等宽徽章。 */
+  sub?: string;
+  /** 页级动作，最多 2 个（1 primary + 1 outline），永远在页头右端。 */
+  actions?: ReactNode;
+  /** 列表级动作与搜索行；省略即不出工具栏。 */
+  toolbar?: ReactNode;
+  fill?: boolean;
+  children: ReactNode;
+}) {
   return (
     <>
-      <h2>{title}</h2>
-      {sub ? <p className="sub">{sub}</p> : null}
+      <header className="pw-shead">
+        <div className="pw-shead-copy">
+          <h2>{title}</h2>
+          {sub ? <p className="sub">{sub}</p> : null}
+        </div>
+        {actions ? <div className="pw-shead-acts">{actions}</div> : null}
+      </header>
+      {toolbar ? <div className="pw-stools">{toolbar}</div> : null}
+      <div className={fill ? "pw-scontent is-fixed" : "pw-scontent"}>{children}</div>
     </>
   );
 }
+
+/** 工具栏里的搜索框（画板 62 帧 B 的 ②）：240 宽、24 高、带前置放大镜。 */
+export function PwSearch({
+  value,
+  placeholder,
+  ariaLabel,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  ariaLabel: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <span className="pw-search">
+      <span className="pw-ico pw-dim"><i data-ico="search" data-size="14" aria-hidden="true" /></span>
+      <input
+        type="search"
+        value={value}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        maxLength={60}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </span>
+  );
+}
+
 
 /** 分组卡：`pw-block` + 带图标的 `h3`。 */
 export function PwBlock({ icon, title, children }: { icon: string; title: string; children: ReactNode }) {

@@ -659,9 +659,69 @@ body.pw.dark { background: #0f0f13; }
 .pw-sbody { overflow: hidden; padding: var(--s5) 40px var(--s6); }
 .pw-sbody > h2 { margin: 0 0 var(--s1); font-size: var(--text-title); font-weight: 500; color: var(--n-strong); }
 .pw-sbody > p.sub { margin: 0 0 var(--s4); color: var(--n-muted); font-size: var(--text-secondary); max-width: 720px; }
-.pw-block { margin-top: var(--s3); padding: var(--s3) var(--s4) var(--s2); border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); }
+
+/* ===========================================================================
+ * fork:settings-frame —— 设置页三件套（画板 62）。
+ *
+ * 12 个设置分节原来有 4 种骨架：单列块流 / 列表+详情 / 顶部整宽条+两栏 /
+ * 块流+底部两栏。现在收敛成一套：**页头 +（可选）工具栏 + 唯一滚动的内容区**。
+ *
+ * 三个块都是**分节宿主的直接子元素**，不另包一层 wrapper —— 宿主本身已经是
+ * flex column 的两种形态之一：
+ *   · `.settings-section-host`（块流页，见 app/settings.css 的接线块）
+ *   · `.config-panel-surface`（列表页的 embedded 外壳，本来就是 flex column）
+ *
+ * 宽度只有两个：列表 300、内容 760（`.pw-cols` 的第二列上限）。块流页用
+ * `.pw-grid2` 的两栏（各 570）替代 1160 的单列。
+ * =========================================================================== */
+.pw-shead {
+  flex: none; display: flex; align-items: flex-end; gap: var(--s2);
+  padding: var(--s5) 40px var(--s3);
+  border-bottom: 1px solid var(--n-border-subtle);
+}
+.pw-shead-copy { flex: 1; min-width: 0; }
+.pw-shead-copy > h2 { margin: 0; font-size: var(--text-title); font-weight: 500; color: var(--n-strong); }
+.pw-shead-copy > p.sub { margin: var(--s1) 0 0; color: var(--n-muted); font-size: var(--text-secondary); max-width: 720px; }
+.pw-shead-acts { flex: none; display: flex; align-items: center; gap: var(--s2); }
+
+.pw-stools {
+  flex: none; display: flex; align-items: center; gap: var(--s2);
+  height: 40px; padding: 0 40px;
+  border-bottom: 1px solid var(--n-border-subtle);
+}
+.pw-stools .pw-search {
+  display: flex; align-items: center; gap: var(--s1);
+  width: 240px; height: var(--control-xs); padding: 0 var(--s2);
+  border: 1px solid var(--n-border); border-radius: var(--radius-4);
+  background: var(--surface-canvas);
+}
+.pw-stools .pw-search input {
+  flex: 1; min-width: 0; border: 0; background: transparent;
+  color: var(--n-text); font: inherit; font-size: var(--text-secondary); outline: none;
+}
+
+.pw-scontent { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: var(--s4) 40px var(--s5); }
+/* 列表页：内容区不滚，两列各自滚（画板 62 帧 B）。 */
+.pw-scontent.is-fixed { overflow: hidden; display: flex; flex-direction: column; padding: 0 40px var(--s5); }
+.pw-scontent.is-fixed > .pw-cols { flex: 1; min-height: 0; align-items: stretch; padding-top: var(--s4); }
+/* 内容宽度 760（画板 62 的第二个宽度）：没有两栏意义的块流，或与详情列同宽的对齐块。
+   1440 面板下原来是 1160，字段行「标签—控件」的跨度因此到 1000。 */
+.pw-narrow { max-width: 760px; }
+.pw-scontent.is-fixed > .pw-cols > * { min-height: 0; overflow-y: auto; }
+/* fork:block-rhythm（2026-09-30，用户裁定）—— 区块间距 12 → 16，上下内边距 12/8 → 12/12。
+ * 用户带截图来看设置页：「每个菜单之间的间距太紧了」。逐项对数后确认**产品与画板当时是逐像素一致的**
+ * （区块 margin-top 12 / padding 12 16 8 / 行高 34），所以这不是产品偏离，是规范值本身偏紧：
+ * 两个带边框的盒子之间只留 12px，视觉上粘在一起；末行又只离下边框 8px（比上内边距少一档）。
+ * 现在：区块之间 `--s4`(16)，四边内边距对称 `--s3`/`--s4`(12/16)。
+ * 影响面：全部设置分节（40~47 用同一个 `.pw-block`），有意保持一致。 */
+.pw-block { margin-top: var(--s4); padding: var(--s3) var(--s4); border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); }
 .pw-block > h3 { margin: 0 0 var(--s2); font-size: var(--text-secondary); font-weight: 500; color: var(--n-strong); display: flex; align-items: center; gap: var(--s2); }
-.pw-field { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); min-height: 34px; font-size: var(--text-secondary); }
+/* fork:block-rhythm（2026-09-30，用户裁定）—— 行内的竖向留白。
+ * `.pw-field` 原来只有 `min-height: 34px`、零内边距：单行标签（19.5px）有余量，
+ * 但**两行标签**（标签 + `small` 说明 = 36px）会正好撑满行高，文字直接贴着上下两条发丝线 ——
+ * 用户的「太紧」有一半来自这里（通知块五行的「桌面通知 / 允许发送系统通知」这类）。
+ * 现在给 4px 上下内边距：单行行高仍是 34（内容 27.5 < 34），两行行高 36 → 44。 */
+.pw-field { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); min-height: 34px; padding: var(--s1) 0; font-size: var(--text-secondary); }
 .pw-field + .pw-field { border-top: 1px solid var(--n-border-subtle); }
 .pw-field .pw-label { color: var(--n-text); }
 .pw-field .pw-label small { display: block; color: var(--n-placeholder); font-size: var(--text-meta); }
@@ -682,12 +742,34 @@ body.pw.dark { background: #0f0f13; }
 .pw-btn {
   display: inline-flex; align-items: center; gap: 5px; height: var(--control-sm);
   padding: 0 var(--s3); border: 0; border-radius: var(--radius-4);
-  background: transparent; color: var(--n-text); font: inherit; font-size: var(--text-secondary);
+  /* fork:btn-foreground（2026-09-30，用户裁定）—— 前景从 `--n-text`（正文黑）改成
+   * `--n-muted`（次要文字灰）。
+   *
+   * 理由：幽灵按钮是**次要动作**（复制 / 重新安装 / 打开 / 刷新 / 重置 / 取消 /
+   * 排队发送…），而 token 表把 `--n-text` 定义为「正文」、`--n-muted` 定义为「次要文字」；
+   * 把正文色用在按钮上，一整页的次要动作会和正文一样黑，压过真正该抢注意力的东西。
+   * 实测用户反馈：「跟随系统 / 浅色 / 深色」那几个 `.pw-radio` 芯片（`--n-muted`）看着
+   * 舒服，「设置里一串黑字按钮」不舒服。改完按钮与芯片同族，层次靠
+   * primary（accent 填充）/ danger（error）/ ghost（muted）三级拉开。
+   * primary 与 danger 各自覆盖前景色，不受影响。 */
+  background: transparent; color: var(--n-muted); font: inherit; font-size: var(--text-secondary);
+  /* fork:settings-frame（画板 62）—— 按钮文字不换行。块流页收进 570 的一栏后，
+     「打开皮肤工作室」这类 6 字标签会被折成两行、按钮高度翻倍。 */
+  white-space: nowrap;
 }
 .pw-btn:hover { background: var(--overlay-hover); }
 .pw-btn.primary { background: var(--accent); color: var(--accent-on); }
 .pw-btn.primary:hover { background: var(--accent-active); }
-.pw-btn.outline { border: 1px solid var(--n-border); background: var(--surface-canvas); }
+/* 有边界的次要动作。值向 `.pw-radio > span` 看齐（发丝边框 + 透明底 + 次要灰字）。
+ *
+ * 00-tokens 的按钮一栏只列 ghost / hover 6% / active 10% / selected / primary /
+ * danger ghost / focus ring，并写明「按钮默认无边框无填充，悬浮才出现 6% 深色容器，
+ * 按下 10%；主按钮是唯一的强调色填充例外」。
+ *
+ * 旧值（`--n-border` 二级深边框 + `--surface-canvas` 实底 + 继承的 `--n-text` 正文黑）
+ * 比这条纪律重两档：一整排「导入 / 导出 / 打开皮肤工作室 / 选择图片」看上去是四个
+ * 黑字方框，与紧挨着的 `.pw-radio` 芯片（同样的位置、同样的大小）不同族。 */
+.pw-btn.outline { border: 1px solid var(--n-border-subtle); background: transparent; color: var(--n-muted); }
 .pw-btn.outline:hover { background: var(--overlay-hover); }
 .pw-btn.danger { color: var(--error); }
 .pw-btn.sm { height: var(--control-xs); padding: 0 var(--s2); font-size: var(--text-meta); }
@@ -712,7 +794,11 @@ body.pw.dark { background: #0f0f13; }
 .pw-radio > span.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
 
 /* 设置：列表 + 详情（模型 / 技能 / 子代理等） */
-.pw-cols { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--s4); }
+/* fork:settings-frame（画板 62）—— 两个宽度：列表 300、内容 760。
+ * 原来是 `260px minmax(0, 1fr)`：1440 面板下详情列 884px，而详情里的内容
+ * 只占 350px，右边 530px 是空白；`.pw-field` 的「标签—控件」跨度也因此拉到 1000px
+ * （常规页块宽 1160）。现在内容列有上限，多余宽度留白，不拉伸。 */
+.pw-cols { display: grid; grid-template-columns: 300px minmax(0, 760px); gap: var(--s4); }
 .pw-list { display: grid; gap: 2px; align-content: start; }
 .pw-litem { display: flex; align-items: center; gap: var(--s2); padding: 7px var(--s2); border-radius: var(--radius-4); font-size: var(--text-secondary); }
 .pw-litem:hover { background: var(--overlay-hover); }
@@ -724,7 +810,14 @@ body.pw.dark { background: #0f0f13; }
 .pw-litem .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .pw-litem .pw-lname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pw-litem .pw-lsub { color: var(--n-placeholder); font-size: var(--text-meta); }
-.pw-detail { border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); padding: var(--s3) var(--s4); }
+/* fork:settings-frame（画板 62）—— 详情卡改成 flex 列。
+ * 原来它是 block，里面那层 `.pw-detail-stack` 是 `height:auto` 的 grid，
+ * 于是详情列的空态（`.pw-empty` 的 `flex:1` + `place-items:center`）只在
+ * **自己那点内容高度**里居中，看起来是「飘在右上角的一段说明」（用户实测：
+ * 自定义命令页、记忆页）。改成 flex 列后，栈能拿到确定高度，空态才真的居中。 */
+.pw-detail { display: flex; flex-direction: column; border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); padding: var(--s3) var(--s4); }
+.pw-detail > .pw-detail-stack { flex: 1; min-height: 0; }
+.pw-detail .pw-empty { height: 100%; min-height: 180px; }
 .pw-detail > h3 { margin: 0 0 var(--s1); font-size: var(--text-title); font-weight: 500; color: var(--n-strong); }
 .pw-detail > .pw-mono { color: var(--n-placeholder); }
 .pw-kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 4px var(--s3); font-size: var(--text-secondary); }
@@ -733,6 +826,10 @@ body.pw.dark { background: #0f0f13; }
 
 /* 用量统计 */
 .pw-stats-grid { display: grid; gap: var(--s3); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* 两栏块流里的一栏只有 570，四列会挤成 130px 一卡 —— 换成两列。 */
+.pw-stats-grid.is-2col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* 张数是奇数时让第一张横跨整行，剩下的两两成对（用量页 9 张：1 + 2×4）。 */
+.pw-stats-grid > .pw-stat.is-wide { grid-column: 1 / -1; }
 .pw-stat { display: grid; gap: 2px; padding: var(--s3); border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); background: var(--surface-panel); }
 .pw-stat .k { color: var(--n-muted); font-size: var(--text-meta); }
 .pw-stat .v { font-family: var(--font-mono); font-size: var(--text-title); font-weight: 500; color: var(--n-strong); font-variant-numeric: tabular-nums; }

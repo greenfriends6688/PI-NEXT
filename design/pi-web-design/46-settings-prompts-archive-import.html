@@ -43,13 +43,18 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <div class="pw-inline">
-            <h2 style="margin:0">自定义命令</h2>
-            <span class="pw-badge count">5 条</span>
-            <span class="pw-grow"></span>
-            <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建命令</span>
-          </div>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>自定义命令</h2>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-badge count">5 条</span>
+              <span class="pw-btn primary sm"><span class="pw-ico"><i data-ico="plus" data-size="13"></i></span>新建命令</span>
+            </div>
+          </header>
+          <div class="pw-scontent is-fixed">
+
           <p class="sub" style="margin-top:var(--s2)">这些命令会出现在输入框的 <span class="pw-mono">/</span> 菜单里，正文会作为提示词发给 agent。</p>
 
           <div class="pw-cols">
@@ -103,7 +108,9 @@
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>
@@ -131,9 +138,15 @@
           <div class="pw-row"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <h2>归档历史</h2>
-          <p class="sub">归档只是从列表里收起来，文件都还在。彻底删除才会动磁盘。</p>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>归档历史</h2>
+              <p class="sub">归档只是从列表里收起来，文件都还在。彻底删除才会动磁盘。</p>
+            </div>
+          </header>
+          <div class="pw-scontent">
+
 
           <div class="pw-sec-title">已归档的项目<span class="grow"></span><span class="pw-badge count">2</span></div>
           <div class="pw-detail">
@@ -188,7 +201,9 @@
             <span class="pw-grow">「彻底删除」会移除会话文件，无法恢复。</span>
             <span class="pw-btn sm" style="color:var(--error)">清理 30 天前的归档</span>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>
@@ -216,12 +231,17 @@
           <div class="pw-row is-on"><span class="pw-ico"><i data-ico="import"></i></span><span class="pw-name">从其它 agent 导入</span></div>
         </nav>
 
-        <div class="pw-sbody" style="padding-left:var(--s4)">
-          <div class="pw-inline">
-            <h2 style="margin:0">从其它 agent 导入</h2>
-            <span class="pw-grow"></span>
-            <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="scan-search" data-size="13"></i></span>重新扫描</span>
-          </div>
+                <div class="pw-sbody" style="display:flex;flex-direction:column;min-height:0;padding:0">
+          <header class="pw-shead">
+            <div class="pw-shead-copy">
+              <h2>从其它 agent 导入</h2>
+            </div>
+            <div class="pw-shead-acts">
+              <span class="pw-btn outline sm"><span class="pw-ico"><i data-ico="scan-search" data-size="13"></i></span>重新扫描</span>
+            </div>
+          </header>
+          <div class="pw-scontent is-fixed">
+
           <p class="sub" style="margin-top:var(--s2)">扫描本机上其它 agent 的配置与会话，把想要的搬过来。扫描是只读的，只有点「导入所选」才会写入。</p>
 
           <div class="pw-radio" style="margin-bottom:var(--s3)">
@@ -285,7 +305,9 @@
               </div>
             </div>
           </div>
-        </div>
+        
+          </div>
+</div>
       </div>
     </div>
   </div>

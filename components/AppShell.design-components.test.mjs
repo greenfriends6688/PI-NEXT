@@ -46,10 +46,15 @@ test("the top bar action buttons take their size from the board classes", () => 
   // repeat width/height inline. The only two that still do are the workspace
   // boundary chips (renderMainFileToggle / renderWorkspaceRoleToggle) — they
   // straddle a panel edge and the board has no primitive for them.
+  // fork:design-system 2026-09-30 — 面板头的「新建浏览器标签」从自绘
+  // `.file-viewer-icon-button`（26px）换成画板的 `.pw-iconbtn.sm`，
+  // 所以 `className="pw-iconbtn sm"` 从 2 处变成 3 处。
   assert.equal(source.match(/width: TOP_BAR_ICON_BUTTON_SIZE/g)?.length, 2);
   assert.equal(source.match(/className=\{mobile \? "pw-touch" : "pw-iconbtn"\}/g)?.length, 6);
   assert.equal(source.match(/className="pw-iconbtn"/g)?.length, 3);
-  assert.equal(source.match(/className="pw-iconbtn sm"/g)?.length, 2);
+  // 3 = 面板头行两枚「更多控件」+ 右栏那枚「新建浏览器标签」（原来自绘
+  // `.file-viewer-icon-button` 26px，比同排其余钮大一圈，已换成画板 .pw-iconbtn.sm）。
+  assert.equal(source.match(/className="pw-iconbtn sm"/g)?.length, 3);
 });
 
 test("the empty chat placeholder is the board's .pw-empty frame", () => {

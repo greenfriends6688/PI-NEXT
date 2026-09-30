@@ -25,11 +25,13 @@ test("renders active tool definitions in a selectable master-detail layout", () 
 });
 
 test("SW-14: the master-detail grid keeps two columns at every width", () => {
-  // 不变量：列表列有 112px 下限、详情列吃掉剩余空间 —— 窄屏因此不需要断点，
-  // 也不会退化成上下堆叠（旧内联 <style> 的 @media 规则已随 <style> 一起退役）。
+  // 不变量：列表列有下限、详情列吃掉剩余空间 —— 窄屏因此不需要断点，也不会退化成
+  // 上下堆叠（旧内联 <style> 的 @media 规则已随 <style> 一起退役）。
+  // fix:tools-panel-width —— 下限从 112px 提到 240px：112px 下工具名（`get_subagent_result`
+  // 这一档）全被截成「I…」「b…」，与画板 22 的 300px 列表量级差太远。
   assert.match(
     panelSource,
-    /gridTemplateColumns: "clamp\(112px, 26%, 220px\) minmax\(0, 1fr\)"/,
+    /gridTemplateColumns: "clamp\(240px, 30%, 300px\) minmax\(0, 1fr\)"/,
   );
   assert.doesNotMatch(panelSource, /display: "block"/);
 });

@@ -132,9 +132,13 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
     const body = (
       <>
         <span className="pw-ico"><i data-ico={toolIcon(tool.name)} data-size="14"></i></span>
-        <span className="grow pw-mono" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-meta)" }}>{tool.name}</span>
+        {/* fix:tools-panel-width —— 名字先拿空间、短标签后让位。原来是名字 `grow`
+            而短标签写死 `maxWidth: 45%`：左栏 112px 时 45% 只剩 50px，名字被压成
+            「I…」「b…」。现在名字 `flex: 1 1 auto`（可收缩、省略号），短标签
+            `flex: 0 1 auto` 且上限 96px，两条都是「谁多余谁先让」。 */}
+        <span className="pw-mono" style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-meta)" }}>{tool.name}</span>
         {label ? (
-          <span className="pw-desc" style={{ maxWidth: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+          <span className="pw-desc" style={{ flex: "0 1 auto", maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
         ) : null}
       </>
     );
@@ -166,12 +170,14 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
     // 左 pw-pop（pw-pop-search 头 + 已启用/未启用 pw-pop-title 分组 + pw-prow 行），
     // 右 pw-pop 详情（accent 图标 + 工具名 + 短标签徽章 + 已启用徽章 + pw-sec-title + 参数）。
     // 参数表维持两列（名字 + 类型/描述/允许值/默认）——⊘ DIVERGENCE 29 信息等价，不压四列。
-    // 两列网格 clamp(112px, 26%, 220px)：窄屏自动收到 112px，不需要断点，因此没有媒体查询。
+    // 两列网格 clamp(240px, 30%, 300px)：左列表按画板 22 的 300px 量级给（工具名
+    // 是 `get_subagent_result` 这种长度，112px 装不下就会全被截成一个字母），
+    // 右详情自适应。整块面板的宽度由 AppShell 的 TOP_BAR_WIDE_PANEL_WIDTH 给。
     <div
       className="tool-definitions-panel"
       style={{
         display: "grid",
-        gridTemplateColumns: "clamp(112px, 26%, 220px) minmax(0, 1fr)",
+        gridTemplateColumns: "clamp(240px, 30%, 300px) minmax(0, 1fr)",
         gap: "var(--s3)",
         height: "min(600px, 75dvh)",
         minHeight: 240,

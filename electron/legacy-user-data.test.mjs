@@ -8,11 +8,11 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const { legacyUserDataSource } = require("./legacy-user-data.js");
 
-const APP = "Pinkslab";
-const LEGACY = ["Pi Codex", "pi-web"];
+const APP = "PI NEXT";
+const LEGACY = ["Pinkslab", "Pi Codex", "pi-web"];
 
 function sandbox(dirs = []) {
-  const dir = mkdtempSync(join(tmpdir(), "pinkslab-"));
+  const dir = mkdtempSync(join(tmpdir(), "pi-next-"));
   for (const name of dirs) mkdirSync(join(dir, name));
   return { dir, done: () => rmSync(dir, { recursive: true, force: true }) };
 }
@@ -24,8 +24,8 @@ test("fresh install: nothing to migrate", () => {
 });
 
 test("migrates from the newest legacy name when both exist", () => {
-  const s = sandbox(["pi-web", "Pi Codex"]);
-  assert.equal(legacyUserDataSource(s.dir, APP, LEGACY), join(s.dir, "Pi Codex"));
+  const s = sandbox(["pi-web", "Pi Codex", "Pinkslab"]);
+  assert.equal(legacyUserDataSource(s.dir, APP, LEGACY), join(s.dir, "Pinkslab"));
   s.done();
 });
 
