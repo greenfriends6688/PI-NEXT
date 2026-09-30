@@ -239,14 +239,10 @@
        200 整块替换（切会话 / 切标签）
        240 **只用于布局尺寸**（侧栏折叠 / 面板宽度）—— 唯一允许 >200ms 的一类
      全系统一条曲线；两处 linear 例外：侧栏扫掠线（1400ms）与 spinner。
-     旧名保留（instant/slow 等已被多处引用），值向新档收拢：
-       instant 90→120 · fast 120 · base 150→160 · slow 250→240
-     `--motion-instant` 语义上对应设计里的「按下 / 焦点环 = 0ms 不做过渡」，
-     但产品里它用在「退出 / 提示类短动效」上，那些确实要一点时间，所以取最接近的一档。 */
-  --motion-instant: var(--ds-motion-fast);      /* 90 → 120 */
+     2026-09-30：旧名 --motion-instant / --motion-slow 的 13 处引用已改用设计名
+     （fast / layout），别名定义随之删除。 */
   --motion-fast: var(--ds-motion-fast);         /* 120 */
   --motion-base: var(--ds-motion-base);         /* 150 → 160 */
-  --motion-slow: var(--ds-motion-layout);       /* 250 → 240（布局档）*/
   --ease-out: var(--ds-ease);
 
   /* 设计系统的其余动效值（位移 / 错开 / 周期 / 等待期）*/
@@ -863,7 +859,11 @@ pre, code {
   font-family: var(--font-mono);
 }
 
-/* react-markdown output styles */
+/* fork:design-system 登记 —— `.markdown-body` 现在只服务于**文件查看器**的
+   Markdown 预览（FileViewer.tsx；聊天正文走 `.pw-md`，board.css 是唯一来源）。
+   `.markdown-table-wrap`（横向滚动容器）、`.markdown-source-line`（源码行高亮钩子）、
+   `.markdown-sync-notice`、`.markdown-conflict`、`.markdown-user-message` 等是
+   产品专属语义（pw-md 无对应件），保留在此。 */
 .chat-content {
   --chat-font-size-offset: calc(var(--chat-content-font-size, 13px) - 13px);
 }
@@ -922,15 +922,6 @@ pre, code {
   height: auto;
   margin: 8px 0;
   border-radius: var(--radius-lg);
-}
-.markdown-body .markdown-inline-code {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-faint);
-  border-radius: var(--radius-xs);
-  padding: 1px 5px;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 0.9em;
 }
 .markdown-body .contains-task-list {
   padding-left: 0;
@@ -1051,132 +1042,7 @@ pre, code {
   padding: 4px 8px;
 }
 .markdown-custom-message .markdown-table-wrap,
-.markdown-custom-message .markdown-code-block {
-  margin: 4px 0;
-}
-
-.markdown-compaction-message {
-  line-height: 1.5;
-}
-.markdown-compaction-message p { margin: 0 0 7px; }
-.markdown-compaction-message h1,
-.markdown-compaction-message h2,
-.markdown-compaction-message h3,
-.markdown-compaction-message h4,
-.markdown-compaction-message h5,
-.markdown-compaction-message h6 {
-  margin: 8px 0 3px;
-  line-height: 1.25;
-}
-.markdown-compaction-message ul,
-.markdown-compaction-message ol {
-  margin: 4px 0 8px;
-}
-.markdown-compaction-message li { margin: 2px 0; }
-.markdown-compaction-message .markdown-table-wrap,
-.markdown-compaction-message .markdown-code-block {
-  margin: 6px 0;
-}
-
-.compaction-file-details {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-.compaction-file-details summary {
-  cursor: pointer;
-  font-weight: 600;
-  line-height: 1.4;
-}
-.compaction-file-section {
-  margin-top: 8px;
-}
-.compaction-file-title {
-  margin-bottom: 4px;
-  color: var(--text);
-  font-size: var(--text-xs);
-  font-weight: 650;
-}
-.compaction-file-list {
-  max-height: 180px;
-  margin: 0;
-  padding: 8px 10px;
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-elev);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  list-style: none;
-}
-.compaction-file-list li {
-  overflow-wrap: anywhere;
-}
-.compaction-file-list li + li {
-  margin-top: 3px;
-}
-
-.markdown-code-block {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  margin: 8px 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  background: var(--code-bg);
-}
-.markdown-code-header {
-  padding: 6px 12px;
-  background: transparent;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-dim);
-  font-size: var(--text-xs);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-.markdown-code-lang {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-.markdown-code-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.markdown-code-action {
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 2px 7px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--text-xs);
-  line-height: 1.25;
-}
-.markdown-code-action:hover:not(:disabled) {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-.markdown-code-action:disabled {
-  color: var(--text-dim);
-  cursor: not-allowed;
-  opacity: 0.75;
-}
-.markdown-code-action.is-active {
-  background: var(--bg-selected);
-  color: var(--text);
-}
-
-.mermaid-block {
+.markdown-custom-message .mermaid-block {
   padding: 14px;
   overflow-x: auto;
   background: var(--code-bg);
@@ -1692,6 +1558,9 @@ pre, code {
 }
 
 /* YAML frontmatter metadata card (file preview) */
+/* fork:design-system 登记 —— frontmatter 卡壳已是画板 52 的 `.pw-card/.pw-card-head/
+   .pw-kv/.pw-badge`（FrontmatterCard.tsx）；下面这组是叠在画板件上的产品排版细化
+   （标题字号 / 标签间距 / kv 列宽 / dt 等宽 / dd 溢出），pw 无对应件，保留。 */
 .markdown-frontmatter {
   margin-bottom: 20px;
   padding: 14px 16px 12px;
@@ -1929,7 +1798,7 @@ textarea,
        开合视觉与之前一致；拖拽中 .sidebar-resizing 照旧 transition: none。
        彻底的合成器友好做法是父级改 grid-template-columns 过渡
        （同文件 .main-panels 已是此写法），那需要动布局结构，留给主 Agent。 */
-    transition: min-width var(--motion-slow) var(--ease-out);
+    transition: min-width var(--motion-layout) var(--ease-out);
   }
   .sidebar-container.sidebar-open {
     width: var(--sidebar-width, 260px);
@@ -2020,7 +1889,7 @@ textarea,
     display: grid;
     grid-template-columns: minmax(0, 1fr) 0 minmax(0, 0px);
     grid-template-areas: "main separator secondary";
-    transition: grid-template-columns var(--motion-slow) ease;
+    transition: grid-template-columns var(--motion-layout) ease;
   }
   .main-panels.workspace-panel-open {
     /* The resize target has negative inline margins, so its 12px hit area
@@ -2106,7 +1975,7 @@ textarea,
     background: var(--scrim);
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--motion-slow) var(--ease-out);
+    transition: opacity var(--motion-layout) var(--ease-out);
   }
   .right-panel-overlay-backdrop.is-open {
     opacity: 1;
@@ -2122,7 +1991,7 @@ textarea,
     min-width: 300px;
     overflow: hidden;
     box-shadow: var(--shadow-xl);
-    transition: transform var(--motion-slow) var(--ease-out);
+    transition: transform var(--motion-layout) var(--ease-out);
   }
   .secondary-workspace.secondary-workspace-open {
     transform: translateX(0);
@@ -2163,7 +2032,7 @@ textarea,
     width: 280px;
     max-width: 85vw;
     height: var(--app-viewport-height, 100dvh);
-    transition: transform var(--motion-slow) var(--ease-out), box-shadow var(--motion-slow) var(--ease-out);
+    transition: transform var(--motion-layout) var(--ease-out), box-shadow var(--motion-layout) var(--ease-out);
   }
   .sidebar-container.sidebar-open {
     transform: translateX(0);
@@ -2180,7 +2049,7 @@ textarea,
     height: var(--app-viewport-height, 100dvh);
     z-index: 250;
     overflow: hidden;
-    transition: transform var(--motion-slow) var(--ease-out);
+    transition: transform var(--motion-layout) var(--ease-out);
   }
   .secondary-workspace.secondary-workspace-open {
     width: auto;
