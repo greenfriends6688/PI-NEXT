@@ -296,7 +296,7 @@ export function ThemeSkinStudio({
                           aria-label={t("settings.skinColorInherit")}
                           onClick={() => patchVariantColor(key, "")}
                         >
-                          <span className="pw-ico"><i data-ico="rotate-ccw" data-size="13" aria-hidden="true" /></span>
+                          <span className="pw-ico"><i data-ico="undo-2" data-size="13" aria-hidden="true" /></span>
                         </ConfigButton>
                       )}
                     </span>

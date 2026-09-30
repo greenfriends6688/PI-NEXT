@@ -45,6 +45,7 @@ import { GitGraphTab } from "./GitGraphTab";
 import { SettingsPanel } from "./SettingsPanel";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { ProjectTrustDialog } from "./ProjectTrustDialog";
+import { InstallPromptBanner } from "./fork/InstallPromptBanner";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, hasSessionBranches } from "./BranchNavigator";
 import { SystemPromptPanel } from "./SystemPromptPanel";
@@ -1903,6 +1904,35 @@ export function AppShell() {
 
   const renderProjectTrustWarning = (mobileBanner: boolean) => {
     if (!showChat || !projectTrust?.requiresTrust || projectTrust.trusted) return null;
+    // fork:design-system SW-16 —— 画板 60 帧 D（用户裁定）：移动端**不弹模态框**
+    // （窄屏会把输入框整个挡掉），改成顶栏下方这条常驻 `.pw-banner`，横幅内联
+    // 「信任」按钮直接完成信任动作；桌面维持「点开画板 50 的 pw-modal」。
+    if (mobileBanner) {
+      return (
+        <div
+          className="pw-banner"
+          data-mobile-trust-banner="true"
+          role={projectTrustError ? "alert" : "status"}
+          style={{ flexShrink: 0 }}
+        >
+          <span className="pw-ico" style={{ color: "var(--warning)" }}>
+            <i data-ico="shield-question" data-size="16" aria-hidden="true"></i>
+          </span>
+          <span className="grow" style={{ fontSize: "var(--text-secondary)" }}>
+            {translate("trust.mobileBannerBody")}
+            {projectTrustError ? <span className="pw-dim"> · {projectTrustError}</span> : null}
+          </span>
+          <button
+            type="button"
+            className="pw-btn primary sm"
+            disabled={projectTrustBusy}
+            onClick={() => void handleTrustProject()}
+          >
+            {projectTrustBusy ? translate("trust.trusting") : translate("trust.trustShort")}
+          </button>
+        </div>
+      );
+    }
     return (
       <button
         type="button"
@@ -1912,11 +1942,9 @@ export function AppShell() {
         }}
         title={translate("trust.resourcesNotLoaded")}
         aria-label={translate("trust.resourcesNotLoaded")}
-        /* fork:design-components —— 桌面是画板的一条 `.pw-alert`（错误底 + 红色），
-           手机上是画板 60 的 `.pw-banner`（浮层底 + 阴影）；底色 / 圆角 / 字号全部
-           来自 board.css，组件里只剩 UA 归零与「手机占满一行」这一档排版。 */
+        /* fork:design-components —— 桌面是画板的一条 `.pw-alert`（错误底 + 红色）；
+           底色 / 圆角 / 字号全部来自 board.css，组件里只剩 UA 归零这一档。 */
         style={{
-          width: mobileBanner ? "100%" : undefined,
           alignSelf: "center",
           margin: 0,
           border: 0,
@@ -1925,8 +1953,7 @@ export function AppShell() {
           cursor: "pointer",
           flexShrink: 0,
         }}
-        data-mobile-trust-banner={mobileBanner ? "true" : undefined}
-        className={mobileBanner ? "pw-banner" : "pw-alert"}
+        className="pw-alert"
       >
         <span className="pw-ico"><i data-ico="shield-question" data-size="13"></i></span>
         <span>{translate("trust.resourcesNotLoaded")}</span>
@@ -2766,6 +2793,9 @@ export function AppShell() {
 
         </div>
         {isMobile && renderProjectTrustWarning(true)}
+        {/* fork:design-system SW-16 —— 画板 60 帧 B 的分平台安装提示（Android
+            beforeinstallprompt / iOS 教学；standalone 或已关闭时自隐藏）。 */}
+        {isMobile && <InstallPromptBanner />}
         </div>
 
         {/* Chat content */}

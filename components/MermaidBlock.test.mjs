@@ -137,9 +137,15 @@ test("fork:design-components — 缩放器工具条用 lucide data-ico，不再�
   const source = readFileSync(new URL("./MermaidBlock.tsx", import.meta.url), "utf8");
 
   assert.doesNotMatch(source, /<svg/);
-  for (const name of ["minus", "plus", "maximize-2", "x"]) {
+  // 画板 10 帧 C：缩放器里 minus/plus 是 13，右侧 maximize-2 / x 是 14。
+  for (const name of ["minus", "plus"]) {
     assert.match(source, new RegExp(`<i data-ico="${name}" data-size="13">`));
   }
+  for (const name of ["maximize-2", "x"]) {
+    assert.match(source, new RegExp(`<i data-ico="${name}" data-size="14">`));
+  }
+  assert.match(source, /className="pw-modal"/, "缩放查看器挂画板 .pw-modal 壳");
+  assert.match(source, /className="pw-card-foot"/, "脚注是画板 .pw-card-foot");
 });
 
 test("fork:design-components — 高亮 token 映射到画板 10 的 .pw-tok-* 分层", async () => {

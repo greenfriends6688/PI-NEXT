@@ -65,7 +65,10 @@ test("the mobile shell uses the board's drawer, scrim, banner and touch targets"
   // The drawer is the sidebar container itself, and only on mobile.
   assert.match(source, /className=\{`sidebar-container pw-side\$\{isMobile \? " pw-drawer" : ""\}/);
   assert.match(source, /sidebar-overlay-backdrop pw-scrim-layer/);
-  assert.match(source, /className=\{mobileBanner \? "pw-banner" : "pw-alert"\}/);
+  // fork:design-system SW-16 —— 画板 60 帧 D：移动端信任横幅是 .pw-banner（内联信任钮），
+  // 桌面仍是 .pw-alert。
+  assert.match(source, /className="pw-banner"/);
+  assert.match(source, /className="pw-alert"/);
   assert.match(source, /data-ico="shield-question"/);
   // No bottom control bar was introduced.
   assert.doesNotMatch(source, /pw-mobile-bar|pw-sheet/);
