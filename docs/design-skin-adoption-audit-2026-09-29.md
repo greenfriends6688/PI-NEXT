@@ -137,6 +137,11 @@ node design/pi-web-design/scripts/check-boards.mjs → 30 画板 0 错误
 | -------------------------------------------------- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 设置壳 + 常规分节 + `WallpaperSettings`                   | 已用  | `pw-modal/pw-settings/pw-snav/pw-row` 齐全（`SettingsPanel.tsx:996-1057`），导航图标 lucide 同序；产品另有画板未画的 `.pw-snav-close` 关闭行（`:1043-1051`）与移动端 `<select>`（`:999-1006`）                                                                                                                           |
 | 模型 / 技能 / 子代理 / 插件 / MCP                           | 半迁移 | 结构基件已改挂 `pw-cols/pw-list/pw-detail/pw-litem/pw-btn/pw-switch`（`SettingsUi.tsx:94-330`）；**详情内仍是 `config-scope-tag` / `config-detail-*` + 内联盒**（`ModelsConfig:413/516-525`、`SkillsConfig:189-193/339`、`AgentsConfig:545-549`、`PluginsConfig:1552-1673`）；`AgentsConfig:660-662` 还有手绘成功勾 SVG |
+> **时效声明（2026-09-30 换肤收尾后）**：下表是 2026-09-29 审计时的快照，**已滞后**。
+> 换肤收尾轮（见 `design/pi-web-design/DIVERGENCE.md` 第 I 节）已把定时 / 记忆 / 快捷键 /
+> 用量 / 归档 / 导入 / 命令 / 皮肤工作室全部迁到画板件，`app/boardui/` 也已删除。
+> 表格原文按历史保留，现状以 DIVERGENCE I 节与 `docs/design-skin-swap-plan-2026-09-29.md` 为准。
+
 | 定时任务 `fork/CronConfig.tsx`                         | 未迁移 | 单栏 `settings-general*` + `<details>` 内联（`:112-140/484-491`），画板 44 是 `pw-cols` 双栏 + 运行历史                                                                                                                                                                                                  |
 | 记忆 `fork/PiMemoryConfig.tsx`                       | 未迁移 | `settings-general` + 全内联（`:216-265`）                                                                                                                                                                                                                                                     |
 | 快捷键 `fork/ShortcutsSettings.tsx`                   | 未迁移 | 键帽全内联（`:34-58/273-290`），未用 `pw-field` / `pw-kbd`                                                                                                                                                                                                                                         |
@@ -210,7 +215,7 @@ node design/pi-web-design/scripts/check-boards.mjs → 30 画板 0 错误
 | §1.5 字重只 400/500 | 119 处                      | 600×92、650×7、700×20；最差 `app/boardui/typography.css`(26)、`ModelsConfig.tsx`(17)、`globals.css`(11)、`settings.css`(11)、`ChatWindow.tsx`(7)                                                                                |
 | §1.6 图标一律 lucide | 手绘内联 `<svg>` 171 处 / 42 文件 | `ChatInput.tsx`(13)、`FileExplorer.tsx`(13)、`ProcessGroup.tsx`(13)、`AppShell.tsx`(10)、`MessageView.tsx`(10)；`data-ico` 已用 154 处 / 30 文件                                                                                 |
 | §1.6 禁 emoji     | 渲染态 2 处 + i18n 6 行         | `ModelsConfig.tsx:351/353`（供应商 emoji 图标）、`i18n/messages/*.ts:184-185`（✅❌）；`ExplorationBanner.tsx:115` 一个 `⑂`；另有 `✕ ↺ ● ↗` 五个符号字形当图标                                                                                    |
-| §1.1 单一强调色       | 3 类第二色入口                   | `app/boardui/theme.css:35-45`(`--color-accent-*`)、`:343-365`(`--color-chart-1..9` 九个色相)、`:368-371`(4 条渐变)——**定义存在但产品消费 = 0（惰性死变量）**；真正会出现的第二色相只有皮肤工作室自定义 accent（`ThemeSkinStudio.tsx:60`，用户已裁定保留）                      |
+| §1.1 单一强调色       | 3 类第二色入口                   | `app/boardui/theme.css:35-45`(`--color-accent-*`)、`:343-365`(`--color-chart-1..9` 九个色相)、`:368-371`(4 条渐变)——**定义存在但产品消费 = 0（惰性死变量）**；真正会出现的第二色相只有皮肤工作室自定义 accent（`ThemeSkinStudio.tsx:60`，用户已裁定保留）（2026-09-30 起 boardui 已删，该行仅存档）                      |
 | §1.2 三级表面        | 达标                         | `globals.css:2784-2797` 桥接层把 `--bg*` 全映射到同一条 10 级中性阶                                                                                                                                                                   |
 
 ---

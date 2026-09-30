@@ -3,10 +3,9 @@
 /* fork:shadcn（PR-20）—— 声明式入场/退场动效工具类（shadcn/ui 同款）。
    提供 animate-in/out + fade-in-0 / zoom-in-95 / slide-in-from-{侧}-N。 */
 @import "tw-animate-css";
-/* BoardUI 地基（fork:boardui）：466 个语义色 token + 52 个复合排版样式。
-   只引入 token 层与排版层，不引入它的 globals.css（全局规则与本项目的全局样式冲突）。 */
-@import "./boardui/theme.css";
-@import "./boardui/typography.css";
+/* fork:boardui 已删除（2026-09-30 裁定）：颜色权威早已迁到 pi-web-design 的
+   --ds-* token（fork:design-system 桥接块在文件末尾），52 个排版类全仓零使用。
+   Tailwind 工具类仍可用 —— --color-* 反向桥在下方 :root 块里，不依赖这两个文件。 */
 
 /* fork:shadcn（PR-20）—— 声明式状态变体（shadcn/ui 的写法）。
    让弹层/开关可以用 `data-open:` / `data-closed:` 直接声明动效，

@@ -286,25 +286,20 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 --font-mono
 ```
 
-### BoardUI 体系（fork:boardui，2026-09-20 起）
+### 设计系统：design/pi-web-design（fork:design-system，2026-09-28 起）
 
-颜色与排版已换成 **BoardUI**（`app/boardui/theme.css` + `typography.css`）：
+界面唯一风格来源是 **`design/pi-web-design/`**（29 张画板 + `DESIGN-SPEC.md` + `DIVERGENCE.md` + `assets/tokens.css/board.css/icons.js`）。BoardUI 层（2026-09-20 引入）已于 2026-09-30 删除：颜色权威早已迁到设计 token，52 个排版类全仓零使用。
 
-* **颜色槽位的唯一来源是 BoardUI 的语义 token**。`app/globals.css` 末尾的 `fork:boardui-bridge`（`:root:root` + `:root:root.dark`）把上面的 Zeno 变量 指向 `--color-*`。**新代码写&#x20;**`var(--bg)`**&#x20;这类 Zeno 名**（它们已跟随明暗）； 要直接用 BoardUI 类名也可以（`bg-background-primary-default`、 `text-text-primary`），不要再写 hex。
-
-* **主题只剩 light / dark / auto**（PR-06）。`lib/theme.ts` 的 `THEME_OPTIONS` 是唯一清单；不再有 palette 分支。
-
-* **对比度门禁**：改任何前景/背景色后跑 `node docs/codex-skin/check-contrast.mjs` （8 组组合 × light/dark，需服务在 30141 运行）。BoardUI 原生的 `text-secondary`(neutral-500) 与 `text-tertiary` 不达 AA，桥接层已各调一档。
-
-* **排版**：BoardUI 的 52 个复合样式（`text-body-medium` 等，一次绑齐 size/line-height/letter-spacing/weight）已在 `@theme` 注册；用 `cx()` （`utils/cx.ts`，已注册排版类名）合并类名。
-
-* **圆角**：`--radius-2xl` = 24px（BoardUI 的 rounded-3xl，面板/弹窗）； `--radius-composer` 指向它。控件/行保持 10/6px（与 BoardUI 的 rounded-2lg/rounded-md 一致）。
-
-* **字体**：Inter（`next/font/google`，中文回退 PingFang SC）。
-
-* **动效**：主题切换走 `view-transition` 圆扩散（`hooks/useTheme.ts`）； 列表行入场用 `.fork-row-enter`（fork-ui.css，`prefers-reduced-motion` 下关闭）。
-
-* **已知缺口**：组件的内联样式按钮没有 `:focus-visible`，fork-ui.css 末尾用 CSS 兜底（`.fork-msg-actions button` / `.chat-input-shell button`）； 逐组件重写时改成语义类。
+* **颜色链路**：`design/pi-web-design/assets/tokens.css`（规范真值）→ `app/design/tokens.css`（`--ds-*` 逐值副本）→ `globals.css` 末尾 `fork:boardui-bridge` 块（把 `--bg/--text/--accent` 等 Zeno 槽位指向 `--ds-*`）。**新代码写 `var(--bg)` 这类 Zeno 名**，不写 hex。
+* **CSS 引入顺序**（`app/layout.tsx`）：katex → tokens.css → `app/design/tokens.css` → globals.css → settings.css → wallpaper.css → **board.css（画板原件，刻意在产品样式之后）** → fork-ui.css（永远最后）。产品要覆盖画板用 0-2-0 双类（`.chat-input-shell.pw-composer`），并注明为什么。
+* **第〇原则：禁止截图模仿**。改组件 = 打开定义它的画板 HTML，原样复制那段 DOM（类名/层级/`<i data-ico>`），再接产品数据与事件；计划与验收协议见 `docs/design-skin-swap-plan-2026-09-29.md`（SW-00~17 批次 + 陷阱清单 + 组件矩阵）。
+* **判据⑦**：新 `pw-*` 类必须先进 `board.css` + 出现在至少一张画板 + 记进 `DIVERGENCE.md`；产品 CSS 不许另起同名 `pw-*` 类（fork-ui.css 里只留「UA 归零 / cursor / 窄屏 / 滚动」行为钩子，带注释）。
+* **对比度门禁**：改任何前景/背景色后跑 `node docs/codex-skin/check-contrast.mjs`（需服务在 30141）。
+* **主题只剩 light / dark / auto**；`lib/theme.ts` 的 `THEME_OPTIONS` 是唯一清单。字体 Geist + Geist Mono（`next/font/google`，中文回退 Noto Sans SC/PingFang SC）。
+* **圆角 3/4/6 三档**（`--radius-3/4/6`，板面/弹层 6），控件高度 24/28/32；字阶五档 11/12/13/15/20；动效十一项 token（`--motion-*`，唯一曲线 `--ease`）。
+* **门禁**：`npm run check:design`（style-literals + motion-tokens + icons + check-boards + check-align）；`npm run check:contrast`；`npm run verify:boards`（需 prod 起服）。改组件时同步跑。
+* **图标**：全部 lucide，经 `<i data-ico="name">` 由 `components/PwIcons.tsx` 水合；禁 emoji、禁手绘 SVG。改完跑 `npm run check:icons`。
+* **已登记不改的形态差异**（DIVERGENCE 37/49 裁定）：Git 图自绘 SVG 泳道、子代理以工具卡徽标呈现、diff 词级视图、BranchNavigator 树画布、皮肤工作室的 `fork-skin-preview-*` 实时预览、会话行扫掠线（fork-ui.css）。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

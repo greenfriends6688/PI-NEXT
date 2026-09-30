@@ -253,41 +253,23 @@
   </div>
 </section>
 
-<!-- 统计条 + 上下文环 -->
+<!-- 上下文环三档 -->
 <section class="pw-frame" style="max-width:848px">
-  <div class="pw-frame-label"><b>会话统计条与上下文环</b> · 三档配色：正常 / &gt;70% 警告 / &gt;90% 危险</div>
+  <div class="pw-frame-label"><b>上下文环三档</b> · 正常 accent / &gt;70% warning / &gt;90% error —— 载体是 composer 工具条里的圆环 + 浮窗（§2.7 裁定：输入框下方没有第二条横条）</div>
   <div class="pw-frame-body pw-pad pw-rowgap">
 
-    <div class="pw-mono pw-dim">A · 正常（&lt; 70%）</div>
-    <div class="pw-stats" style="width:100%;margin:0">
-      <span class="pw-ring" style="--p:26%;width:16px;height:16px"></span>
-      <span>上下文 26% · 260k / 1M</span>
-      <span>·</span><span>本轮 ↑ 8,912 ↓ 1,328</span>
-      <span>·</span><span>$0.021</span>
-      <span class="grow"></span>
-      <span>4.2s</span>
-      <span class="pw-ico pw-dim"><i data-ico="chevron-up" data-size="13"></i></span>
-    </div>
+    <div class="pw-mono pw-dim">A · 正常（&lt; 70%，accent）</div>
+    <div class="pw-inline"><span class="pw-ring" style="--p:26%;width:16px;height:16px"></span><span style="font-size:var(--text-secondary)">26%</span></div>
 
     <div class="pw-mono pw-dim">B · 警告（&gt; 70%，环转 warning）</div>
-    <div class="pw-stats" style="width:100%;margin:0;border-color:var(--warning)">
-      <span class="pw-ring warn" style="--p:74%;width:16px;height:16px"></span>
-      <span style="color:var(--warning)">上下文 74% · 740k / 1M</span>
-      <span>·</span><span>本轮 ↑ 12,204 ↓ 1,860</span>
-      <span class="grow"></span>
-      <span style="color:var(--warning)">接近上限，建议压缩</span>
-      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="package" data-size="13"></i></span>压缩</span>
-    </div>
+    <div class="pw-inline"><span class="pw-ring warn" style="--p:74%;width:16px;height:16px"></span><span style="font-size:var(--text-secondary);color:var(--warning)">74%</span></div>
 
     <div class="pw-mono pw-dim">C · 危险（&gt; 90%，环转 error）</div>
-    <div class="pw-stats" style="width:100%;margin:0;border-color:var(--error)">
-      <span class="pw-ring bad" style="--p:94%;width:16px;height:16px"></span>
-      <span style="color:var(--error)">上下文 94% · 940k / 1M</span>
-      <span>·</span><span>只剩约 60k</span>
-      <span class="grow"></span>
-      <span style="color:var(--error)">下一轮可能被截断</span>
-      <span class="pw-btn sm"><span class="pw-ico"><i data-ico="package" data-size="13"></i></span>立即压缩</span>
-    </div>
+    <div class="pw-inline"><span class="pw-ring bad" style="--p:94%;width:16px;height:16px"></span><span style="font-size:var(--text-secondary);color:var(--error)">94%</span></div>
+
+    <p class="pw-mono pw-dim">注：§2.7 裁定「用量不进长条」。三档配色判据继续有效，载体从旧稿的横条改成
+    composer 工具条里的 `.pw-ring`（悬浮 / 点击钉住展开会话明细浮窗，画板 01 帧 C 已画）。
+    旧的三帧 `.pw-stats` 横条已按裁定删除，不要照旧稿实现。</p>
 
   </div>
 </section>

@@ -1935,7 +1935,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           <div className="pw-anim-shimmer" style={{ height: 56, width: "92%", alignSelf: "flex-end" }} />
           <div className="pw-anim-shimmer" style={{ height: 14, width: "24%" }} />
         </div>
-        <div className="text-xs text-text-muted">{t("chat.loadingSession")}</div>
+        <div className="text-xs" style={{ color: "var(--text-muted)" }}>{t("chat.loadingSession")}</div>
       </div>
     );
   }
@@ -2412,7 +2412,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               return (
                 <>
                   {hasMore && (
-                     <div ref={sentinelRef} className="py-3 text-center text-xs text-text-muted">
+                     <div ref={sentinelRef} className="py-3 text-center text-xs" style={{ color: "var(--text-muted)" }}>
                        {t("chat.loadEarlier")}
                     </div>
                   )}
@@ -2485,7 +2485,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               // fork:zm-07 — 垂直间距放在 PhaseRoll 自己身上，不放在这层 wrapper 上：
               // PhaseRoll 在“没有相位可显”时返回 null（与改动前同一契约），
               // 而 wrapper 带着 py-2 渲染就会在等待结束后留下一条看不见的空隙。
-              <div className="break-words text-xs text-text-muted">
+              <div className="break-words text-xs" style={{ color: "var(--text-muted)" }}>
                 <PhaseRoll
                   text={agentPhase ? phaseLabel(agentPhase, t) : null}
                   phaseKey={phaseKeyOf(agentPhase)}
@@ -2495,7 +2495,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             )}
 
             {bashRunning && !pendingBash && (
-              <div className="py-2 text-xs text-text-muted" role="status" aria-live="polite">
+              <div className="py-2 text-xs" style={{ color: "var(--text-muted)" }} role="status" aria-live="polite">
                 <span>{t("chat.runningCommand")}</span>
               </div>
             )}

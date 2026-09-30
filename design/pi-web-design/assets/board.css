@@ -546,16 +546,6 @@ body.pw.dark { background: #0f0f13; }
 /* 悬浮 / 按下态：外圈加一圈淡底光晕，表示「这里有浮窗」 */
 .pw-ring.is-hover { box-shadow: 0 0 0 3px var(--accent-soft); cursor: pointer; }
 
-/* 统计条（输入框下方） */
-.pw-stats {
-  width: min(var(--composer-max), 100%); margin: var(--s2) auto 0;
-  display: flex; align-items: center; gap: var(--s3);
-  padding: 5px var(--s3); border: 1px solid var(--n-border-subtle);
-  border-radius: var(--radius-4); background: var(--surface-panel);
-  font-family: var(--font-mono); font-size: var(--text-meta); color: var(--n-muted);
-  font-variant-numeric: tabular-nums;
-}
-.pw-stats .grow { flex: 1; }
 
 /* ===========================================================================
  * 右栏

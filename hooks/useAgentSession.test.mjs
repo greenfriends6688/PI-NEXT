@@ -344,8 +344,8 @@ test("delegates event stream readiness and hides an empty agent phase", () => {
   // 否则 PhaseRoll 返回 null 时仍会留一条空行（这正是以前 gate 在 agentPhase 上的原因）。
   assert.match(chatWindowSource, /agentRunning && !hasStreamingContent && \(/);
   assert.match(chatWindowSource, /<PhaseRoll[\s\S]{0,200}?text=\{agentPhase \? phaseLabel\(agentPhase, t\) : null\}/);
-  assert.match(chatWindowSource, /break-words text-xs text-text-muted[\s\S]{0,400}?<PhaseRoll/);
-  assert.doesNotMatch(chatWindowSource, /break-words py-2 text-xs text-text-muted[\s\S]{0,400}?<PhaseRoll/,
+  assert.match(chatWindowSource, /break-words text-xs" style=\{\{ color: "var\(--text-muted\)" \}\}[\s\S]{0,400}?<PhaseRoll/);
+  assert.doesNotMatch(chatWindowSource, /break-words py-2 text-xs" style=\{\{ color: "var\(--text-muted\)" \}\}[\s\S]{0,400}?<PhaseRoll/,
     "相位行的间距不能留在 wrapper 上，否则空相位会留下空隙");
   assert.match(phaseRollSource, /if \(!displayed && !exiting\) return null;/);
   assert.match(phaseRollSource, /padding: "8px 0"/);

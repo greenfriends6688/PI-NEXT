@@ -567,3 +567,63 @@
       （`topbar.mcpServers` / `topbar.pluginTotals` / `topbar.mcpNone` …），
       运行时会把原始键名渲染到界面上。画板 22 用了这些键**应该有的中文**，不照抄键名。
     - `PathActions` 用的仍是自有类 `.fork-path-actions`，没换成画板基元（见第 62 条）。
+
+---
+
+## I · 2026-09-30 换肤收尾轮（集中修复 P0–P5）
+
+71. **BoardUI 层已删除**（用户裁定）：`app/boardui/`（theme.css 867 行 + typography.css 257 行）从
+    `globals.css` 的 `@import` 移除并整目录删除。此前它已被架空——颜色权威在 2026-09-28 就迁到了
+    `--ds-*`（fork:design-system 桥），52 个排版类全仓零使用，`--font-inter`/`--font-mono-source`
+    是死引用。Tailwind 的 `--color-*` 反向桥（globals.css `@theme` 块）保留，工具类仍可用。
+    ChatWindow 里 4 处 `text-text-muted` 换成 `var(--text-muted)`。
+
+72. **70 条 (b) 闭环**：TopBarPopovers 用的 10 个 `topbar.*` 键已按画板 22 用词补进三语字典
+    （mcp / mcpServers / mcpLoadFailed / mcpNone / plugins / extensionStatus / pluginPackages /
+    pluginLoadFailed / pluginNone / pluginTotals）。运行时不再渲染原始键名。
+
+73. **70 条 (a) 部分闭环**：fork-ui.css 与 board.css 的同名 `pw-*` 顶层定义从 7 个收敛到 4 个，
+    且全部是**行为钩子**（不复制视觉值，各带注释）：`.pw-side-search`（cursor:text）、
+    `.pw-skin-strip`（横向滚动语义）、`.pw-range`（真 input 的 UA 归零）、`.pw-md`
+    （overflow-wrap，画板 61 溢出规则）。三个纯重复（`.pw-skin-actions` / `.pw-snav-close` /
+    `.pw-wallpaper-thumb`）已删本地副本。settings.css 的 12 处 pw- 命中全是 0-2-0
+    双类接线的注释与选择器，非独立重定义。
+
+74. **画板 20 的三帧 `.pw-stats` 旧稿已删**（第 53 条的处置）：按 §2.7 裁定重画为
+    「上下文环三档」帧——三档配色判据（正常 accent / >70% warning / >90% error）不变，
+    载体 = composer 工具条里的 `.pw-ring`（浮窗见画板 01 帧 C）。board.css 与 fork-ui.css
+    里无人使用的 `.pw-stats` 规则同步删除。
+
+75. **设置三件落地**（SW-12 收尾）：PromptsConfig / ProjectArchivePanel+ArchivedSessionsPanel /
+    ImportPanel 照画板 46 重写为 pw 件（此前 pw=0）。Custom commands 的「参数提示」字段、
+    归档页的「清理 30 天前归档」、导入页「预计写入」明细：产品无对应数据源，按 §2.1
+    「结构照实现」不上。
+
+76. **皮肤工作室落地**（SW-13 收尾）：ThemeSkinStudio 接画板 47「按实现」五行外壳
+    （pw-modal-head / pw-tabs / pw-modal-body 1fr+340px / 提示行 / pw-modal-foot）；
+    fork-skin-dialog-* 与已死的 fork-skin-library 家族（约 300 行）退役；
+    `fork-skin-preview-*` 实时预览是功能性部件，保留（登记同 Git 图泳道）。
+    BuiltinWallpaperPicker 接 `.pw-wallpaper-thumb`；选中态（accent 描边）画板没画，
+    在 fork-ui.css 接线块补一条。
+
+77. **移动端两件落地**（SW-16 收尾）：移动端信任横幅照画板 60 帧 D——`.pw-banner`
+    内联「信任」钮直接调信任接口，**不再弹模态框**；PWA 安装提示照画板 60 帧 B
+    （Android beforeinstallprompt / iOS share-2 教学 / standalone 与已关闭不显示）。
+    桌面端安装提示画板未画，不做。
+
+78. **token 高亮对表**（SW-15）：@ 引用与消息正文 mention 统一接画板 20 的
+    `.pw-tok-ref`（`/` 命令才是 `.pw-tok-cmd`，区分靠前缀字符）；`.mention-token`
+    （--accent，比画板差一档）与无 CSS 的 `mention-token-{kind}` 后缀退役。
+
+79. **MermaidZoom 接 pw-modal**（SW-15）：照画板 10 帧 C 重写（760 宽三段 +
+    缩放器一格包住 + pw-card-foot 脚注）；globals 里 11 条自绘规则退役，只留
+    dialog 壳与画布两条功能规则。
+
+80. **登记不改**：
+    - 拖放超限阈值：实现 10MB（`lib/image-attachments.ts`），画板 61 写 20MB——
+      画板是提案值，按 §2.1 结构照实现保留 10MB；
+    - BranchNavigator 树画布：自绘连接线/节点点（token 取色），画板 22 画的是
+      扁平分支列表，与产品的树导航不同构——登记同 Git 图泳道；
+    - 内容块六分支的 resource_link / 音频 / embedded text：`AssistantContentBlock`
+      类型没有这些变体（`lib/types.ts`），无数据源不画；
+    - 导入「本次选择」的来源/预计写入明细：产品选择态只有 id 集合，明细无从算起。

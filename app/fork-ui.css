@@ -697,17 +697,11 @@ html.keyboard-open .extension-status-shelf {
 /* ---------------------------------------------------------------------------
  * D2-PR-12 — @file / /skill: mention 高亮。
  *
- * 同一个 .mention-token 同时用于输入框高亮层与消息正文（remark 插件产出）。
- * 字号必须和文本域共用 --chat-content-font-size：写死会在换行/滚动时逐行错位
- * （AGENTS.md 记录的坑：文本域与高亮层必须共享字号）。
+ * fork:design-system —— 高亮类已换画板 20 的 `.pw-tok-ref`（/ 命令是
+ * `.pw-tok-cmd`，区分靠前缀字符），视觉值只有 board.css 一个来源；原
+ * `.mention-token`（--accent 差一档）退役。字号与文本域共享
+ * --chat-content-font-size 的坑由 `.chat-input-highlight` 承接（见下）。
  * ------------------------------------------------------------------------- */
-.mention-token {
-  color: var(--accent);
-  text-decoration: underline dotted;
-  text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-}
 
 /* 输入框高亮层：viewport 由 JS 同步成 textarea 的 clientWidth/clientHeight，
    绝对定位盖住内容盒并裁剪溢出行；layer 用 transform 跟随 textarea 滚动。 */
@@ -1870,6 +1864,8 @@ html[data-theme-skin="true"] .extension-status-shelf {
 .pw-seg > button.is-on { background: var(--surface-canvas); color: var(--n-strong); font-weight: 500; }
 
 /* 画板 .pw-side-search 是静态盒；产品里是真输入框，盒内的 input 归零后继承盒的色值。 */
+/* fork:design-system 判据⑦登记 —— 布局在 board.css；这行只补「点哪里都能聚焦」
+   的行为语义（画板里它是装饰格，产品里是真输入格）。 */
 .pw-side-search { cursor: text; }
 .pw-side-search input {
   flex: 1;
@@ -1914,8 +1910,7 @@ html[data-theme-skin="true"] .extension-status-shelf {
 
 /* 统计条在窄列里不许把一格文本折成两行（「上下文」和「2% / 1.0M」分离很难读）：
    格内 nowrap，放不下时整格换行。 */
-.session-stats-inline-toggle.pw-stats { flex-wrap: wrap; row-gap: 2px; }
-.session-stats-inline-toggle.pw-stats > span { white-space: nowrap; }
+.session-stats-inline-toggle.session-stats-inline-toggle.pw-stats > span { white-space: nowrap; }
 
 /* 运行中的扫掠亮点是 96px 的绝对定位条，跑出容器就会撑出横向滚动条 —— 行内裁掉。 */
 .pw-session.running,
@@ -2042,13 +2037,12 @@ button.pw-switch:disabled {
 
 /* 画板 40 的滑块是静态轨道（180×4 / 圆角 2 / 12px 圆钮），board.css 没有对应类，
    所以这里按那一帧的几何写一份骨架，色值全部走 token。 */
+/* fork:design-system 判据⑦ —— 几何（180×12、accent 色）只在 board.css；
+   这里只留真 `<input type=range>` 的 UA 归零（画板是静态轨道，没有这部分）。 */
 .pw-range {
-  width: 180px;
-  height: 12px;
   margin: 0;
   padding: 0;
   border: 0;
-  background: transparent;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
@@ -2111,9 +2105,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 /* 画板皮肤条是固定 5 张的静态行；产品皮肤数量不定，横向可滚动（画板没有的产品语义）。 */
 .pw-skin-strip { overflow-x: auto; padding-bottom: 2px; }
-/* 画板动作行的一次性 inline `margin-top:var(--s2)`。 */
-.pw-skin-actions { margin-top: var(--s2); }
-
 /* 画板 40 是 1440px 的「标签左 / 控件右」两栏行；390px 里同一行塞不下（标签会被
    挤成一字一行）。手机上让标签独占一行、控件换到下一行右对齐 —— 行的规格
    （行高 / 发丝线 / 控件尺寸）一个不改，只改排列方向。 */
@@ -2132,28 +2123,16 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   .pw-skin-actions > .pw-btn { flex: none; }
 }
 
-/* 关闭行（用户裁定：关闭入口放左导航底部，而非页头）。行规格与其它 `.pw-row`
-   完全相同，只多一条发丝上边线把它和 13 个分节分开。 */
-.pw-snav-close {
-  margin-top: var(--s2);
-  border-top: 1px solid var(--n-border-subtle);
-}
+/* 关闭行（用户裁定：关闭入口放左导航底部，而非页头）——规格在 board.css 的
+   `.pw-snav-close`（发丝上边线把它和 13 个分节分开），这里不再复制。 */
 
 /* 画板 40 的标签都是一行短词；产品的说明句可以很长（「后台推送」那一行），
    长标签会把同一行里的按钮压成两行。规矩：标签可收缩，行内按钮不收缩。 */
 .pw-field .pw-label { min-width: 0; }
 .pw-field > .pw-btn { flex: none; }
 
-/* 壁纸缩略图：几何照画板 40 的「当前壁纸」一格（64×36 / radius-4 / 发丝边框）。
-   图片本身是用户数据，只有 background-image 由组件内联。 */
-.pw-wallpaper-thumb {
-  width: 64px;
-  height: 36px;
-  border: 1px solid var(--n-border);
-  border-radius: var(--radius-4);
-  background-position: center;
-  background-size: cover;
-}
+/* 壁纸缩略图：几何在 board.css 的 `.pw-wallpaper-thumb`（画板 40 的 64×36）；
+   图片是用户数据，background-image 仍由组件内联，选中态接线在下方。 */
 
 /* 侧栏聊天工作区行：画板 .pw-row 是静态 div，产品里标题那一格是可点 button
    （行尾还有 .pw-acts 的真钮，button 不能嵌套 button）。只归零 UA。 */
@@ -2191,5 +2170,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* 转录正文（画板 10 的 .pw-md）：长串不溢出是产品侧的必要补丁，不是新视觉——
    画板 10 是 800 宽的静态稿，产品正文列更窄且允许任意长路径/哈希。 */
+/* fork:design-system 判据⑦登记 —— 字阶/行高在 board.css；这行是画板 61 的
+   长文本溢出规则（CJK 长串不撑破卡片），属产品排版语义。 */
 .pw-md { overflow-wrap: anywhere; }
 .pw-md table { max-width: 100%; }
