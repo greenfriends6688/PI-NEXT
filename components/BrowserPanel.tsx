@@ -167,7 +167,7 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
         panelRef={viewportPanelRef}
         className="pw-pop"
         width={200}
-        align="end"
+        align="right"
       >
         {VIEWPORT_PRESETS.map((preset) => (
           <button
