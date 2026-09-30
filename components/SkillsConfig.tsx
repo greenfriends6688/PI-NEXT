@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import type {
   SkillInfo as Skill,
@@ -16,6 +16,7 @@ import {
 import {
   ConfigBadge,
   ConfigButton,
+  ConfigControl,
   ConfigDetail,
   ConfigDetailActions,
   ConfigDetailHeader,
@@ -36,9 +37,9 @@ import {
   ConfigSectionTitle,
   ConfigStatusDot,
   ConfigSwitch,
+  PwRadio,
 } from "./SettingsUi";
 import { MarkdownBody } from "./MarkdownBody";
-import { TEXT } from "@/lib/typography";
 
 function shortenPath(p: string): string {
   // Match common home dir patterns: /Users/xxx, /home/xxx
@@ -184,53 +185,50 @@ function SkillDetail({
   return (
     <ConfigDetailStack>
       {/* Path + tag + toggle, with a stable status row below. */}
-      <div className="skill-detail-heading">
-        <ConfigDetailHeader>
-          <ConfigDetailHeaderInfo>
-            {/* fork:design-system SW-14 —— 作用域是状态徽章（画板 42 的 `.pw-badge accent`），
-                路径是等宽元信息（画板 42 的 `.pw-mono` dd）。 */}
-            <ConfigBadge tone={label === "project" ? "accent" : undefined}>
-              {label}
-            </ConfigBadge>
-            <span className="pw-mono pw-dim pw-grow">
-              {displayPath(skill.filePath)}
-            </span>
-          </ConfigDetailHeaderInfo>
-          <ConfigDetailActions>
-            <ConfigSwitch
-              checked={enabled}
-              loading={toggling}
-              label={enabled ? t("i18n.visibleInPrompt") : t("i18n.hiddenFromPrompt")}
-              onChange={() => onToggle(skill)}
-            />
-          </ConfigDetailActions>
-        </ConfigDetailHeader>
-        <div className="pw-inline">
-          {!enabled && <span className="pw-dim">{t("i18n.hiddenButInvocable")}</span>}
-          {saveError && <ConfigBadge tone="bad">{saveError}</ConfigBadge>}
-        </div>
+      <ConfigDetailHeader>
+        <ConfigDetailHeaderInfo>
+          {/* fork:design-system SW-14 —— 作用域是状态徽章（画板 42 的 `.pw-badge accent`），
+              路径是等宽元信息（画板 42 的 `.pw-mono` dd）。 */}
+          <ConfigBadge tone={label === "project" ? "accent" : undefined}>
+            {label}
+          </ConfigBadge>
+          <span className="pw-mono pw-dim pw-grow">
+            {displayPath(skill.filePath)}
+          </span>
+        </ConfigDetailHeaderInfo>
+        <ConfigDetailActions>
+          <ConfigSwitch
+            checked={enabled}
+            loading={toggling}
+            label={enabled ? t("i18n.visibleInPrompt") : t("i18n.hiddenFromPrompt")}
+            onChange={() => onToggle(skill)}
+          />
+        </ConfigDetailActions>
+      </ConfigDetailHeader>
+      <div className="pw-inline">
+        {!enabled && <span className="pw-dim">{t("i18n.hiddenButInvocable")}</span>}
+        {saveError && <ConfigBadge tone="bad">{saveError}</ConfigBadge>}
       </div>
 
       {skill.install?.skillsShUrl && (
         <ConfigField label="Source">
+          {/* 画板 42 的来源链接是等宽元信息（AddPluginPanel 的 `pw-mono pw-dim` 锚点同款）。 */}
           <a
             href={skill.install.skillsShUrl}
             target="_blank"
             rel="noreferrer"
             title={skill.install.skillsShUrl}
-            className="skill-source-link"
+            className="pw-mono pw-dim"
           >
-            <span className="skill-source-link-text">
-              {skill.install.skillsShUrl.replace(/^https?:\/\//, "")} ↗
-            </span>
+            {skill.install.skillsShUrl.replace(/^https?:\/\//, "")} ↗
           </a>
         </ConfigField>
       )}
 
       {skill.install && (
         <ConfigField label="Version">
-          <div className="skill-version-row">
-            <span className="skill-version-value">
+          <ConfigControl>
+            <span className="pw-mono">
               {shortVersion(updateStatus?.currentVersion ?? skill.install.versionHash)}
             </span>
             {skill.install.canCheckForUpdates && (
@@ -243,20 +241,20 @@ function SkillDetail({
               </ConfigButton>
             )}
             {updateStatus?.state === "update-available" && (
-              <span className="skill-version-value is-update">
+              <ConfigBadge tone="warn" title={t("i18n.updateAvailable")}>
                 {shortVersion(updateStatus.latestVersion)}
-              </span>
+              </ConfigBadge>
             )}
             {(checkingUpdate ||
               (updateStatus && updateStatus.state !== "update-available")) && (
-              <span
-                className={`skill-update-status ${checkingUpdate
-                  ? "is-checking"
+              <ConfigBadge
+                tone={checkingUpdate
+                  ? undefined
                   : updateStatus?.state === "up-to-date"
-                    ? "is-success"
+                    ? "ok"
                     : updateStatus?.state === "error"
-                      ? "is-error"
-                      : "is-muted"}`}
+                      ? "bad"
+                      : undefined}
               >
                 {checkingUpdate
                    ? t("i18n.checking")
@@ -265,7 +263,7 @@ function SkillDetail({
                     : updateStatus?.state === "unsupported"
                          ? t("i18n.automaticChecksUnavailable")
                          : updateStatus?.message || t("i18n.checkFailed")}
-              </span>
+              </ConfigBadge>
             )}
             {updateStatus?.state === "update-available" && (
               <ConfigButton
@@ -277,55 +275,55 @@ function SkillDetail({
                  {updating ? t("i18n.updating") : t("i18n.update")}
               </ConfigButton>
             )}
-          </div>
+          </ConfigControl>
           {updateError && <ConfigBadge tone="bad">{updateError}</ConfigBadge>}
         </ConfigField>
       )}
 
       <ConfigField label="Name">
-        <span className="skill-name-value">
+        <span className="pw-mono">
           {skill.name}
         </span>
       </ConfigField>
 
       <ConfigField label="Description">
-        <span className="skill-description">
+        <span>
           {skill.description}
         </span>
       </ConfigField>
 
       <div>
+        <ConfigSectionTitle>{t("skills.content")}</ConfigSectionTitle>
+        {/* 画板 42 的编辑行动作：左状态徽章 + `.pw-grow` 撑开 + 右侧按钮组。 */}
         <div className="pw-inline">
-          <ConfigSectionTitle>{t("skills.content")}</ConfigSectionTitle>
-          <div className="pw-inline pw-grow" style={{ justifyContent: "flex-end" }}>
-            {savedAt && !editing && (
-              <span className="pw-badge ok">{t("i18n.saved")}</span>
-            )}
-            {content !== null && !editing && (
-              <ConfigButton size="small" onClick={() => { setDraft(content); setEditing(true); setSavedAt(false); }}>
-                {t("skills.edit")}
+          {savedAt && !editing && (
+            <ConfigBadge tone="ok">{t("i18n.saved")}</ConfigBadge>
+          )}
+          <span className="pw-grow" aria-hidden="true" />
+          {content !== null && !editing && (
+            <ConfigButton size="small" onClick={() => { setDraft(content); setEditing(true); setSavedAt(false); }}>
+              {t("skills.edit")}
+            </ConfigButton>
+          )}
+          {editing && (
+            <>
+              <ConfigButton
+                size="small"
+                disabled={saving}
+                onClick={() => { setDraft(content ?? ""); setEditing(false); setContentError(null); }}
+              >
+                {t("i18n.cancel")}
               </ConfigButton>
-            )}
-            {editing && (
-              <>
-                <ConfigButton
-                  size="small"
-                  disabled={saving}
-                  onClick={() => { setDraft(content ?? ""); setEditing(false); setContentError(null); }}
-                >
-                  {t("i18n.cancel")}
-                </ConfigButton>
-                <ConfigButton
-                  variant="primary"
-                  size="small"
-                  disabled={saving}
-                  onClick={() => { void saveContent(); }}
-                >
-                  {saving ? t("i18n.saving") : t("i18n.save")}
-                </ConfigButton>
-              </>
-            )}
-          </div>
+              <ConfigButton
+                variant="primary"
+                size="small"
+                disabled={saving}
+                onClick={() => { void saveContent(); }}
+              >
+                {saving ? t("i18n.saving") : t("i18n.save")}
+              </ConfigButton>
+            </>
+          )}
         </div>
 
         {loadingContent ? (
@@ -335,14 +333,22 @@ function SkillDetail({
           </div>
         ) : editing ? (
           <>
+            {/* 画板 42 的 SKILL.md 编辑器就是 `.pw-textarea`；min/max 高度照它给
+                textarea 写 inline 的写法，与只读视图（.skill-content-view）共用高度。 */}
             <textarea
-              className="skill-content-editor"
+              className="pw-textarea"
               value={draft}
               spellCheck={false}
               aria-label={`${t("skills.content")} · ${skill.name}`}
               onChange={(event) => setDraft(event.target.value)}
+              style={{ minHeight: 200, maxHeight: 420 }}
             />
-            <p className="settings-chat-range-hint" style={{ marginTop: 6 }}>{t("skills.contentHint")}</p>
+            {/* fork:design-system —— 编辑提示是画板 42 的 `.pw-alert info` 一行
+                （「安装会走 npx skills add」同款），不再用自绘的 range-hint 类。 */}
+            <div className="pw-alert info">
+              <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+              <span className="pw-grow">{t("skills.contentHint")}</span>
+            </div>
           </>
         ) : content !== null ? (
           <div className="skill-content-view">
@@ -364,6 +370,47 @@ function SkillDetail({
         )}
       </div>
     </ConfigDetailStack>
+  );
+}
+
+/** fork:design-system —— 作用域切换 = 画板 42/43 的 `.pw-radio` 芯片组。
+ *  不走 SettingsUi 的 PwRadio：它把 disabled 挂在整组上，而这里要按选项
+ *  单独禁用「项目」（项目资源未加载时），所以像 PluginsConfig 的
+ *  SegmentedScope 一样手写画板 DOM（产品侧接线由 fork-ui.css 的
+ *  `.pw-radio > button` 承担）。 */
+function ScopeRadio({
+  value,
+  projectResourcesLoaded,
+  onChange,
+}: {
+  value: "global" | "project";
+  projectResourcesLoaded: boolean;
+  onChange: (scope: "global" | "project") => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <span className="pw-radio" role="radiogroup" aria-label={t("i18n.scope")}>
+      {(["global", "project"] as const).map((s) => {
+        const active = value === s;
+        const disabled = s === "project" && !projectResourcesLoaded;
+        return (
+          <button
+            key={s}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={disabled}
+            title={disabled ? t("trust.projectScopeUnavailable") : undefined}
+            className={active ? "is-on" : undefined}
+            onClick={() => {
+              if (!disabled) onChange(s);
+            }}
+          >
+            {s}
+          </button>
+        );
+      })}
+    </span>
   );
 }
 
@@ -488,151 +535,78 @@ function AddSkillPanel({
       : `${shortenPath(cwd)}/.pi/skills/`;
 
   return (
-    <ConfigDetailStack className="is-full-height">
-      {/* ── Header area ── */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <ConfigDetailTitle>{t("i18n.addSkill")}</ConfigDetailTitle>
+    <ConfigDetailStack>
+      <ConfigDetailTitle>{t("i18n.addSkill")}</ConfigDetailTitle>
 
-        {/* fork:skillhub — 市场切换：skills.sh（CLI 安装）↔ SkillHub（直接下载） */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
-            style={{
-              display: "flex",
-              borderRadius: "var(--radius-xs)",
-              border: "1px solid var(--border)",
-              overflow: "hidden",
-              fontSize: TEXT.sm,
-              flexShrink: 0,
-            }}
-          >
-            {(["skills.sh", "skillhub"] as const).map((id) => (
-              <button
-                key={id}
-                onClick={() => switchSource(id)}
-                style={{
-                  padding: "3px 10px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: source === id ? "var(--bg-selected)" : "none",
-                  color: source === id ? "var(--text)" : "var(--text-dim)",
-                  fontWeight: source === id ? 600 : 400,
-                  borderRight: id === "skills.sh" ? "1px solid var(--border)" : "none",
-                }}
-              >
-                {id === "skills.sh" ? "skills.sh" : "SkillHub"}
-              </button>
-            ))}
-          </div>
-          {source === "skillhub" && (
-            <span style={{ fontSize: TEXT.xs, color: "var(--text-dim)" }}>
-              {skillhubTotal > 0 ? t("skills.skillhubTotal", { total: skillhubTotal }) : t("skills.skillhubHint")}
-            </span>
-          )}
-        </div>
-
-        {/* Search row */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") search(query);
-            }}
-             placeholder={t("i18n.skillSearchPlaceholder")}
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              fontSize: TEXT.sm,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text)",
-              outline: "none",
-            }}
-          />
-          <ConfigButton
-            variant="primary"
-            onClick={() => search(query)}
-            disabled={searching || (!query.trim() && source !== "skillhub")}
-          >
-             {searching ? t("i18n.searching") : t("i18n.search")}
-          </ConfigButton>
-        </div>
-
-        {/* Scope + install path row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              borderRadius: "var(--radius-xs)",
-              border: "1px solid var(--border)",
-              overflow: "hidden",
-              fontSize: TEXT.sm,
-              flexShrink: 0,
-            }}
-          >
-            {(["global", "project"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => {
-                  if (s === "global" || projectResourcesLoaded) setScope(s);
-                }}
-                disabled={s === "project" && !projectResourcesLoaded}
-                title={s === "project" && !projectResourcesLoaded ? t("trust.projectScopeUnavailable") : undefined}
-                style={{
-                  padding: "3px 10px",
-                  border: "none",
-                  cursor: s === "project" && !projectResourcesLoaded ? "not-allowed" : "pointer",
-                  background: scope === s ? "var(--bg-selected)" : "none",
-                  color: scope === s ? "var(--text)" : "var(--text-dim)",
-                  fontWeight: scope === s ? 600 : 400,
-                  opacity: s === "project" && !projectResourcesLoaded ? 0.45 : 1,
-                  borderRight:
-                    s === "global" ? "1px solid var(--border)" : "none",
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <span
-            style={{
-              fontSize: TEXT.sm,
-              color: "var(--text-dim)",
-              fontFamily: "var(--font-mono)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            → {installPath}
+      {/* fork:skillhub —— 画板 42 安装对话框：市场切换是 `.pw-radio` 芯片组，
+          右端是等宽元信息（总数 / 提示），与画板的 sec-title 尾注同款。 */}
+      <div className="pw-inline">
+        <PwRadio
+          value={source}
+          options={[
+            { value: "skills.sh", label: "skills.sh" },
+            { value: "skillhub", label: "SkillHub" },
+          ]}
+          ariaLabel={t("i18n.addSkill")}
+          onChange={switchSource}
+        />
+        <span className="pw-grow" aria-hidden="true" />
+        {source === "skillhub" && (
+          <span className="pw-mono pw-dim">
+            {skillhubTotal > 0 ? t("skills.skillhubTotal", { total: skillhubTotal }) : t("skills.skillhubHint")}
           </span>
-        </div>
-
-        {/* Errors */}
-        {searchError && (
-          <div style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>{searchError}</div>
-        )}
-        {installError && (
-          <div
-            style={{ fontSize: TEXT.sm, color: "var(--danger)", wordBreak: "break-word" }}
-          >
-            {installError}
-          </div>
         )}
       </div>
 
-      {/* ── Results list ── */}
-      {results.length > 0 ? (
-        <div style={{ flex: 1, overflowY: "auto" }}>
+      {/* 搜索行：`.pw-input` 吃掉剩余宽度是画板 42 自带的 inline（搜索框 + 动作钮）。 */}
+      <div className="pw-inline">
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") search(query);
+          }}
+          placeholder={t("i18n.skillSearchPlaceholder")}
+          className="pw-input"
+          style={{ flex: 1, minWidth: 0 }}
+        />
+        <ConfigButton
+          variant="primary"
+          onClick={() => search(query)}
+          disabled={searching || (!query.trim() && source !== "skillhub")}
+        >
+           {searching ? t("i18n.searching") : t("i18n.search")}
+        </ConfigButton>
+      </div>
+
+      {/* Scope + install path row */}
+      <div className="pw-inline">
+        <ScopeRadio value={scope} projectResourcesLoaded={projectResourcesLoaded} onChange={setScope} />
+        <span className="pw-grow" aria-hidden="true" />
+        {/* 安装位置是等宽元信息（画板 43 AddPluginPanel 的同一款）。 */}
+        <span className="pw-mono pw-dim">→ {installPath}</span>
+      </div>
+
+      {/* Errors */}
+      {searchError && (
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{searchError}</span>
+        </div>
+      )}
+      {installError && (
+        <div className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+          <span className="pw-grow">{installError}</span>
+        </div>
+      )}
+
+      {/* Results list —— 画板 42 安装对话框的 `.pw-prow` 行：
+          图标 + 名字（b fw500）/ 描述（pw-desc block）/ 等宽 repo，
+          右端安装量徽章（pw-badge count）+ 安装动作。 */}
+      {results.length > 0 && (
+        <div className="pw-list">
           {results.map((r) => {
             const isInstalled =
               installedPackages[scope].has(r.package) ||
@@ -644,148 +618,57 @@ function AddSkillPanel({
             const repopart = atIdx > -1 ? r.package.slice(0, atIdx) : r.package;
             const skillpart = atIdx > -1 ? r.package.slice(atIdx + 1) : null;
             return (
-              <div
-                key={r.package}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  padding: "12px 0",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* skill name prominent */}
-                  <div
-                    style={{
-                      fontSize: TEXT.md,
-                      fontWeight: 600,
-                      color: "var(--text)",
-                      marginBottom: 3,
-                    }}
-                  >
-                    {skillpart ?? repopart}
-                  </div>
-                  {/* fork:skillhub — SkillHub 的条目带摘要，装之前能看清是什么 */}
+              <div key={r.package} className="pw-prow" title={r.package}>
+                <span className="pw-ico"><i data-ico="box" data-size="14"></i></span>
+                <span className="grow">
+                  <b style={{ fontWeight: 500 }}>{skillpart ?? repopart}</b>
+                  {/* fork:skillhub — SkillHub 的条目带摘要，装之前能看清是什么；
+                      `display:block` 与 `font-weight:500` 都是画板 prow 的自带 inline。 */}
                   {r.description && (
-                    <div
-                      style={{
-                        fontSize: TEXT.xs,
-                        color: "var(--text-muted)",
-                        marginBottom: 4,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
+                    <span className="pw-desc" style={{ display: "block" }}>
                       {r.description}
-                    </div>
+                    </span>
                   )}
-                  {/* repo + installs + link row */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      flexWrap: "wrap",
-                    }}
+                  <span className="pw-mono pw-dim" style={{ display: "block" }}>
+                    {repopart}
+                  </span>
+                </span>
+                <span className="pw-badge count">{r.installs}</span>
+                {r.url && (
+                  <a href={r.url} target="_blank" rel="noreferrer" className="pw-mono pw-dim">
+                    {rowSource === "skillhub" ? "skillhub.cn ↗" : "skills.sh ↗"}
+                  </a>
+                )}
+                {isInstalled ? (
+                  <ConfigBadge tone="ok">
+                    <span className="pw-ico"><i data-ico="check" data-size="11"></i></span>
+                    {t("i18n.installed")}
+                  </ConfigBadge>
+                ) : (
+                  <ConfigButton
+                    size="small"
+                    onClick={() => !isInstalling && install(r.package, rowSource)}
+                    disabled={isInstalling || installing !== null}
                   >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: TEXT.xs,
-                        color: "var(--text-dim)",
-                      }}
-                    >
-                      {repopart}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: TEXT.sm,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {r.installs}
-                    </span>
-                    {r.url && (
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          fontSize: TEXT.sm,
-                          color: "var(--accent)",
-                          textDecoration: "none",
-                        }}
-                      >
-                        {rowSource === "skillhub" ? "skillhub.cn ↗" : "skills.sh ↗"}
-                      </a>
-                    )}
-                  </div>
-                </div>
-                <ConfigButton
-                  size="small"
-                  onClick={() =>
-                    !isInstalled && !isInstalling && install(r.package, rowSource)
-                  }
-                  disabled={isInstalled || isInstalling || installing !== null}
-                  style={{
-                    flexShrink: 0,
-                    background: isInstalled ? "var(--success-soft)" : "none",
-                    color: isInstalled
-                      ? "var(--success)"
-                      : isInstalling
-                        ? "var(--accent)"
-                        : "var(--text-muted)",
-                  }}
-                >
-                  {isInstalled ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      {t("i18n.installed")}
-                    </span>
-                  ) : isInstalling ? (
-                    t("i18n.installing")
-                  ) : (
-                    t("i18n.install")
-                  )}
-                </ConfigButton>
+                    {isInstalling ? t("i18n.installing") : t("i18n.install")}
+                  </ConfigButton>
+                )}
               </div>
             );
           })}
         </div>
-      ) : (
-        !searchError &&
-        !searching && (
-          <div
-            style={{ fontSize: TEXT.md, color: "var(--text-dim)", lineHeight: 1.8 }}
-          >
+      )}
+      {results.length === 0 && !searchError && !searching && (
+        <div className="pw-alert info">
+          <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+          <span className="pw-grow">
             Search{" "}
-            <a
-              href="https://skills.sh"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "none" }}
-            >
+            <a href="https://skills.sh" target="_blank" rel="noreferrer" className="pw-mono">
               skills.sh
             </a>{" "}
             to discover and install skills for your agent.
-          </div>
-        )
+          </span>
+        </div>
       )}
     </ConfigDetailStack>
   );
@@ -1070,22 +953,10 @@ export function SkillsConfig({
                           const key = updateKey(skill);
                           const status = key ? updateStatuses[key] : undefined;
                           if (status?.state !== "update-available") return null;
+                          // 可更新标记 = 画板 43 列表行的 `.pw-ico` 箭头，不再手绘 SVG。
                           return (
-                            <span title={t("i18n.updateAvailable")} className="skill-update-indicator">
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
-                              >
-                                <path d="m5 12 7-7 7 7" />
-                                <path d="M12 19V5" />
-                              </svg>
+                            <span title={t("i18n.updateAvailable")} className="pw-ico">
+                              <i data-ico="arrow-up" data-size="12"></i>
                             </span>
                           );
                         })()}
@@ -1094,13 +965,15 @@ export function SkillsConfig({
                   };
                   return groups.map(
                     ({ label: grpLabel, skills: grpSkills }) => {
+                      // fork:design-system —— 画板 42 的分组标题就是 `.pw-list` 的直接
+                      // 子元素（pw-group-title），不再包自绘的 config-sidebar-group 层。
                       return (
-                        <div key={grpLabel} className="config-sidebar-group">
+                        <Fragment key={grpLabel}>
                           <ConfigSidebarGroupLabel>
                             {grpLabel}
                           </ConfigSidebarGroupLabel>
                           {orderSkillsByDormancy(grpSkills).map(renderSkillRow)}
-                        </div>
+                        </Fragment>
                       );
                     },
                   );
@@ -1175,7 +1048,8 @@ export function SkillsConfig({
             Object.values(updateStatuses).filter(
               (status) => status.state === "update-available",
             ).length > 0 && (
-              <span style={{ fontSize: TEXT.sm, color: "var(--warning)" }}>
+              /* 可更新计数是画板的 `.pw-badge warn`，不再手写 inline 颜色。 */
+              <ConfigBadge tone="warn">
                 {
                   Object.values(updateStatuses).filter(
                     (status) => status.state === "update-available",
@@ -1186,9 +1060,9 @@ export function SkillsConfig({
                 ).length === 1
                    ? t("i18n.update")
                    : t("i18n.updates")}
-              </span>
-            )}
-        >
+              </ConfigBadge>
+            )
+        }>
           {!embedded && <ConfigButton onClick={onClose}>{t("i18n.close")}</ConfigButton>}
           {skills.some((skill) => Boolean(skill.install)) && (
             <ConfigButton variant="secondary" onClick={() => void checkForUpdates()} disabled={checkingAll || updatingSkill !== null}>

@@ -184,16 +184,22 @@ test("the models page is a page head plus a two-column split, not one giant card
 });
 
 test("thinking level overrides keep explicit default, disabled, and custom controls", () => {
+  // 三态选项的常量定义在编辑器函数之前，切片从常量开始才能盖住全部形态。
   const editor = source.slice(
-    source.indexOf("function ThinkingLevelMapEditor"),
+    source.indexOf("const LEVEL_STATE_OPTIONS"),
     source.indexOf("// ── Model detail"),
   );
 
   assert.match(editor, /THINKING_LEVELS\.map/);
-  assert.match(editor, />\s*Default\s*</);
-  assert.match(editor, />\s*Disabled\s*</);
-  assert.match(editor, />\s*Custom\s*</);
-  assert.match(editor, /state === "omit"/);
-  assert.match(editor, /state === "null"/);
-  assert.match(editor, /state === "string"/);
+  // 三态分段从自绘 inline 换成了画板的 `.pw-radio`（SettingsUi 的 PwRadio 基件），
+  // 但三个状态仍然是显式的：omit（Default）/ null（Disabled）/ string（Custom+值）。
+  assert.match(editor, /<PwRadio/);
+  assert.match(editor, /value: "omit", label: "Default"/);
+  assert.match(editor, /value: "null", label: "Disabled"/);
+  assert.match(editor, /value: "string", label: "Custom"/);
+  assert.match(editor, /const state: ThinkingLevelState/);
+  assert.match(editor, /value=\{state\}/);
+  assert.match(editor, /next === "omit" \? "omit" : next === "null" \? null : strVal \|\| level/);
+  assert.match(editor, /state === "string" && \(/);
+  assert.match(editor, /onChange=\{\(e\) => setLevel\(level, e\.target\.value\)\}/);
 });

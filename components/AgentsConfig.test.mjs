@@ -26,16 +26,20 @@ test("offers a persisted built-in sub-agent switch with explicit session reload"
   assert.match(source, /<ConfigSwitch[\s\S]*?checked=\{builtInEnabled\}[\s\S]*?t\("agents\.builtInTitle"\)/);
   assert.match(source, /sendAgentCommand\(sessionId, \{ type: "reload" \}\)/);
   assert.match(source, /reloadNeeded && sessionId/);
-  assert.match(source, /className="agents-concurrency-control"[\s\S]*?t\("agents\.maxConcurrent"\)/);
-  assert.equal((source.match(/className="agents-feature-setting"/g) ?? []).length, 1);
-  assert.match(cssSource, /\.agents-feature-setting \{[\s\S]*?border-bottom: 1px solid var\(--border\)/);
-  assert.match(cssSource, /\.agents-concurrency-control \{[\s\S]*?white-space: nowrap;/);
+  // fork:design-system —— 画板 42 的「内置子代理」块：`pw-block` 卡 + `pw-field`
+  // 行（开关与并发各一行），不再是自绘的横条。
+  assert.match(source, /className="pw-block"[\s\S]*?t\("agents\.maxConcurrent"\)/);
+  assert.match(source, /aria-label=\{t\("agents\.maxConcurrent"\)\}/);
+  // 重载提示是画板的警示徽章（空标签 + 右侧控件），旧的横条 CSS 已退役。
+  assert.match(source, /<ConfigBadge tone="warn">[\s\S]*?t\("agents\.reloadRequired"\)/);
+  assert.doesNotMatch(cssSource, /\.agents-feature-setting|\.agents-concurrency-control/);
 });
 
 test("marks profiles shadowed by a higher-precedence source", () => {
   assert.match(source, /isSubagentProfileOverridden\(profile, profiles\)/);
-  assert.match(source, /overridden && <span className="agents-overridden-label">\{t\("agents\.overridden"\)\}<\/span>/);
-  assert.match(cssSource, /\.agents-overridden-label \{[\s\S]*?white-space: nowrap;/);
+  // 画板 42：被覆盖项给一枚中性 `.pw-badge`，不标红。
+  assert.match(source, /overridden && <ConfigBadge>\{t\("agents\.overridden"\)\}<\/ConfigBadge>/);
+  assert.doesNotMatch(cssSource, /\.agents-overridden-label/);
 });
 
 test("treats global and project profiles as directly editable", () => {
@@ -46,7 +50,8 @@ test("treats global and project profiles as directly editable", () => {
 
 test("offers both writable scopes when creating a profile", () => {
   assert.match(source, /\{creating && \(/);
-  assert.match(source, /\["global", "project"\] as const/);
+  // 画板 42 编辑器的「保存作用域」是 `PwRadio` 芯片单选组。
+  assert.match(source, /<PwRadio[\s\S]*?value=\{targetScope\}[\s\S]*?t\("agents\.scope\.global"\)[\s\S]*?t\("agents\.scope\.project"\)/);
   assert.doesNotMatch(source, /beginOverride|mode === "override"|agents\.readOnly|agents\.override/);
 });
 
@@ -100,28 +105,31 @@ test("reuses the ChatInput model selector with scoped models", () => {
 
 test("renders the stable agent id as text outside create mode", () => {
   assert.match(source, /creating \? \(\s*<input aria-label=\{t\("agents\.name"\)\}/);
-  assert.match(source, /<code style=\{\{ minHeight: 34,[\s\S]*?\{draft\.name\}[\s\S]*?<\/code>/);
+  // 只读 ID 是等宽文本（画板 42 的 ID 字段形态），不再带手写 inline。
+  assert.match(source, /<code className="pw-mono">\{draft\.name\}<\/code>/);
   assert.doesNotMatch(source, /disabled=\{disabled \|\| !creating\}/);
 });
 
 test("uses the same form controls for editable and readonly profiles", () => {
   assert.match(source, /<input aria-label=\{t\("agents\.displayName"\)\}[\s\S]*?disabled=\{disabled\}/);
   assert.match(source, /<input aria-label=\{t\("agents\.description"\)\}[\s\S]*?disabled=\{disabled\}/);
-  assert.match(source, /<textarea className="agents-system-prompt"[\s\S]*?disabled=\{disabled\}/);
-  assert.match(source, /<Toggle key=\{tool\}[\s\S]*?disabled=\{disabled\}/);
-  assert.match(source, /<select aria-label=\{t\("agents\.thinking"\)\}[\s\S]*?disabled=\{disabled\}/);
-  assert.match(source, /<input aria-label=\{t\("agents\.maxTurns"\)[\s\S]*?disabled=\{disabled\}/);
-  assert.match(source, /<Toggle label=\{t\("agents\.inheritContext"\)\} disabled=\{disabled\}/);
-  assert.match(source, /<Toggle label=\{t\("agents\.background"\)\} disabled=\{disabled\}/);
-  assert.match(source, /<Toggle label=\{t\("agents\.loadSkills"\)\} disabled=\{disabled\}/);
-  assert.match(source, /<Toggle label=\{t\("agents\.loadExtensions"\)\} disabled=\{disabled\}/);
+  assert.match(source, /<textarea\s+className="pw-textarea agents-system-prompt"[\s\S]*?aria-label=\{t\("agents\.prompt"\)\}[\s\S]*?disabled=\{disabled\}/);
+  // 画板 42 的「工具与资源」：已选 accent 芯片 / 未选带 plus 的芯片。
+  assert.match(source, /TOOL_OPTIONS\.map\(\(tool\) => \(/);
+  assert.match(source, /<ToolChip[\s\S]*?selected=\{draft\.tools\.includes\(tool\)\}[\s\S]*?disabled=\{disabled\}/);
+  assert.match(source, /<PwSelectBox[\s\S]*?ariaLabel=\{t\("agents\.thinking"\)\}[\s\S]*?disabled=\{disabled\}/);
+  assert.match(source, /<input[\s\S]*?aria-label=\{t\("agents\.maxTurns"\)\}[\s\S]*?disabled=\{disabled\}/);
+  assert.match(source, /<ConfigSwitch checked=\{draft\.inheritContext\} disabled=\{disabled\}/);
+  assert.match(source, /<ConfigSwitch checked=\{draft\.runInBackground\} disabled=\{disabled\}/);
+  assert.match(source, /<ToolChip selected=\{draft\.loadSkills\} disabled=\{disabled\}/);
+  assert.match(source, /<ToolChip selected=\{draft\.loadExtensions\} disabled=\{disabled\}/);
   assert.doesNotMatch(source, /ReadonlyValue|readonlyPromptStyle|agents-readonly/);
 });
 
 test("shows disabled controls with a gray background", () => {
   const disabledStyle = source.match(/const disabledInputStyle: CSSProperties = \{([\s\S]*?)\n\};/)?.[1] ?? "";
   assert.match(source, /<textarea[^>]*aria-label=\{t\("agents\.prompt"\)\}[\s\S]*?disabled=\{disabled\}/);
-  assert.match(source, /height: 195,[\s\S]*?minHeight: 195,[\s\S]*?maxHeight: "60vh"[\s\S]*?resize: disabled \? "none" : "vertical"/);
+  assert.match(source, /minHeight: 195,[\s\S]*?maxHeight: "60vh"[\s\S]*?resize: disabled \? "none" : "vertical"/);
   assert.doesNotMatch(source, /agents-system-prompt[^\n]*fontFamily/);
   assert.match(disabledStyle, /background: "var\(--bg-panel\)"/);
   assert.match(disabledStyle, /color: "var\(--text-dim\)"/);
@@ -129,7 +137,7 @@ test("shows disabled controls with a gray background", () => {
 });
 
 test("keeps a larger resize corner when system instructions need a scrollbar", () => {
-  assert.match(source, /<textarea className="agents-system-prompt" aria-label=\{t\("agents\.prompt"\)\}/);
+  assert.match(source, /<textarea\s+className="pw-textarea agents-system-prompt"[\s\S]*?aria-label=\{t\("agents\.prompt"\)\}/);
   assert.match(cssSource, /.agents-system-prompt \{[\s\S]*?scrollbar-width: auto;/);
   assert.match(cssSource, /\.agents-system-prompt::-webkit-scrollbar \{[\s\S]*?width: 14px;[\s\S]*?height: 14px;/);
   assert.match(cssSource, /\.agents-system-prompt::-webkit-scrollbar-thumb \{[\s\S]*?border: 5px solid transparent;/);

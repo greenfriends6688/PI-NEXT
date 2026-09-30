@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
@@ -35,7 +35,6 @@ import {
   ConfigStatusDot,
   ConfigSwitch,
 } from "./SettingsUi";
-import { TEXT } from "@/lib/typography";
 
 type PluginScope = PluginPackageInfo["scope"];
 type PluginAction = "install" | "remove" | "update" | "disable" | "enable";
@@ -1389,7 +1388,9 @@ export function PluginsConfig({
               ) : (
                 <>
                   {standaloneExtensions.length > 0 && (
-                    <div className="config-sidebar-group">
+                    // fork:design-system —— 画板 42/43 的分组标题就是 `.pw-list` 的直接
+                    // 子元素（pw-group-title），不再包自绘的 config-sidebar-group 层。
+                    <>
                       <ConfigSidebarGroupLabel>{t("i18n.extensions")}</ConfigSidebarGroupLabel>
                       {standaloneExtensions.map((extension) => {
                         const key = extensionKey(extension);
@@ -1412,10 +1413,10 @@ export function PluginsConfig({
                           </ConfigSidebarItem>
                         );
                       })}
-                    </div>
+                    </>
                   )}
                   {groupedPackages.map((group) => (
-                    <div key={group.scope} className="config-sidebar-group">
+                    <Fragment key={group.scope}>
                       <ConfigSidebarGroupLabel>
                         {group.scope}
                       </ConfigSidebarGroupLabel>
@@ -1447,12 +1448,12 @@ export function PluginsConfig({
                           </ConfigSidebarItem>
                         );
                       })}
-                    </div>
+                    </Fragment>
                   ))}
                 </>
               )}
               </>)}
-                  {mcpOnly && <div className="config-sidebar-group">
+                  {mcpOnly && <>
                     <ConfigSidebarGroupLabel>
                       {t("mcp.sectionTitle")}
                     </ConfigSidebarGroupLabel>
@@ -1474,7 +1475,7 @@ export function PluginsConfig({
                     ) : (
                       <>
                         {groupedMcp.map((group) => (
-                          <div key={group.scope} className="config-sidebar-group">
+                          <Fragment key={group.scope}>
                             <ConfigSidebarGroupLabel>{group.scope}</ConfigSidebarGroupLabel>
                             {group.servers.map((server) => {
                               const isMcpSelected =
@@ -1503,11 +1504,11 @@ export function PluginsConfig({
                                 </ConfigSidebarItem>
                               );
                             })}
-                          </div>
+                          </Fragment>
                         ))}
                       </>
                     )}
-                  </div>}
+                  </>}
             </ConfigSidebarList>
             {!mcpOnly && <ConfigListAction
                 active={view === "plugins" && addMode}
@@ -1554,10 +1555,24 @@ export function PluginsConfig({
                     <span className="pw-grow" />
                     <ConfigButton variant="ghost" size="small" onClick={() => setMcpImportOpen(false)}>{t("mcp.cancel")}</ConfigButton>
                   </div>
-                  <p className="settings-chat-range-hint" style={{ margin: 0 }}>{t("mcp.importHint")}</p>
-                  {mcpDiscovering && <p className="settings-chat-range-hint">{t("i18n.loading")}</p>}
+                  {/* fork:design-system —— 说明 / 加载 / 空态都是画板的 `.pw-alert info`
+                      一行（画板 42 安装对话框的「安装会走 npx skills add」同款），
+                      不再用自绘的 range-hint 类。 */}
+                  <div className="pw-alert info">
+                    <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+                    <span className="pw-grow">{t("mcp.importHint")}</span>
+                  </div>
+                  {mcpDiscovering && (
+                    <div className="pw-alert info">
+                      <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                      <span className="pw-grow">{t("i18n.loading")}</span>
+                    </div>
+                  )}
                   {!mcpDiscovering && mcpDiscovered.length === 0 && (
-                    <p className="settings-chat-range-hint">{t("mcp.importEmpty")}</p>
+                    <div className="pw-alert info">
+                      <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+                      <span className="pw-grow">{t("mcp.importEmpty")}</span>
+                    </div>
                   )}
                   <div className="pw-pop">
                     {mcpDiscovered.map((server) => (
@@ -1574,6 +1589,8 @@ export function PluginsConfig({
                             {server.disabled ? ` · ${t("mcp.itemDisabled")}` : ""}
                             {server.shadowed ? ` · ${t("mcp.importShadowed")}` : ""}
                           </span>
+                          {/* 命令行可能很长：单行省略是行为语义（pw 只有 .pw-litem 里有
+                              ellipsis），保留最小 inline，没有可用的 pw 基件。 */}
                           <span className="pw-mono pw-dim" title={server.path} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {server.def.command ? `${server.def.command} ${(server.def.args as string[] | undefined)?.join(" ") ?? ""}`.trim() : String(server.def.url ?? server.def.socket ?? "")}
                           </span>
@@ -1675,17 +1692,18 @@ export function PluginsConfig({
 
         <ConfigFooter status={
             availableUpdateCount > 0 ? (
-              <span style={{ fontSize: TEXT.sm, color: "var(--accent)" }}>
+              /* 状态槽是画板徽章（pw-badge），不再手写 inline 颜色。 */
+              <ConfigBadge tone="accent">
                 {availableUpdateCount}{" "}
                 {availableUpdateCount === 1 ? t("i18n.update") : t("i18n.updates")}
-              </span>
+              </ConfigBadge>
             ) : data?.diagnostics.length ? (
-              <span
+              <ConfigBadge
+                tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
                 title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
-                style={{ color: data.diagnostics.some((d) => d.type === "error") ? "var(--danger)" : "var(--warning)" }}
               >
                 {data.diagnostics.length} diagnostic{data.diagnostics.length === 1 ? "" : "s"}
-              </span>
+              </ConfigBadge>
             ) : (
               <span>
                 {data ? `${data.totals.extensions} ext · ${data.totals.skills} skills · ${data.totals.prompts} prompts · ${data.totals.themes} themes` : ""}

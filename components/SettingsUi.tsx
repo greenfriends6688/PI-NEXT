@@ -615,7 +615,14 @@ export function PwSwitch({
 export interface PwRadioOption<T extends string> {
   value: T;
   label: string;
+  /** data-ico 图标名（画板 sprite）。 */
   icon?: string;
+  /** 画板的 radio 芯片可带前置 `pw-ico`；产品的芯片还要放**非 sprite 名**的图案
+   *  （画板 41 · 模型设置的图标模式选择放的是品牌 ProviderIcon），所以允许直接传
+   *  节点；与 `icon` 同时给时 `node` 优先。 */
+  node?: ReactNode;
+  /** 原生 title 提示（如 LimitChips 芯片上的原始数值）。 */
+  title?: string;
 }
 
 /**
@@ -645,11 +652,16 @@ export function PwRadio<T extends string>({
             type="button"
             role="radio"
             aria-checked={on}
+            title={option.title}
             disabled={disabled}
             className={on ? "is-on" : undefined}
             onClick={() => onChange(option.value)}
           >
-            {option.icon ? <span className="pw-ico"><i data-ico={option.icon} data-size="12"></i></span> : null}
+            {option.node
+              ? option.node
+              : option.icon
+                ? <span className="pw-ico"><i data-ico={option.icon} data-size="12"></i></span>
+                : null}
             {option.label}
           </button>
         );

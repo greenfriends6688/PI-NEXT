@@ -665,6 +665,7 @@ body.pw.dark { background: #0f0f13; }
 .pw-field + .pw-field { border-top: 1px solid var(--n-border-subtle); }
 .pw-field .pw-label { color: var(--n-text); }
 .pw-field .pw-label small { display: block; color: var(--n-placeholder); font-size: var(--text-meta); }
+.pw-hint { color: var(--n-placeholder); font-size: var(--text-meta); }
 .pw-field .pw-hint { color: var(--n-placeholder); font-size: var(--text-meta); }
 .pw-field .pw-ctl { display: flex; align-items: center; gap: var(--s2); flex: none; }
 .pw-input {

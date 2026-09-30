@@ -198,8 +198,8 @@ html.keyboard-open .extension-status-shelf {
   opacity: 0;
   transform: translateY(-4px) scale(0.98);
   transition:
-    opacity var(--motion-instant) ease,
-    transform var(--motion-instant) ease;
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 /* Submenus mount per hover; they ride the same two-phase contract. */
 .context-menu-submenu {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SubagentProfilesResponse, SubagentSettingsResponse } from "@/lib/api-types";
@@ -15,6 +15,7 @@ import {
 import {
   ConfigBadge,
   ConfigButton,
+  ConfigControl,
   ConfigDetail,
   ConfigDetailActions,
   ConfigDetailHeader,
@@ -31,11 +32,13 @@ import {
   ConfigSidebarList,
   ConfigSidebarText,
   ConfigSplitView,
+  ConfigSectionTitle,
   ConfigStatusDot,
   ConfigSwitch,
+  PwRadio,
+  PwSelectBox,
 } from "./SettingsUi";
 import { ModelSelector } from "./ModelSelector";
-import { TEXT } from "@/lib/typography";
 
 const TOOL_OPTIONS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const THINKING_OPTIONS = ["", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
@@ -57,23 +60,21 @@ const EMPTY_PROFILE: EditableProfile = {
   enabled: true,
 };
 
-const inputStyle: CSSProperties = {
-  width: "100%",
-  minWidth: 0,
-  height: 34,
-  padding: "0 9px",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-xs)",
-  background: "var(--bg)",
-  color: "var(--text)",
-  fontSize: TEXT.sm,
-  outline: "none",
-};
-
+/** pw-input 没有画板禁用态（画板没画 disabled 的输入框）：只读档
+ *  （内置 / 工作区）的输入框要灰底示意「这里不可写」，所以保留这个
+ *  运行时按 `disabled` 挂的条件 inline —— 全部走 token，没有字面值。 */
 const disabledInputStyle: CSSProperties = {
   background: "var(--bg-panel)",
   color: "var(--text-dim)",
-  cursor: "default",
+};
+
+/** 画板 42 编辑器网格（`.pw-grid2`）单元格的自带 inline：去掉 `.pw-field` 的
+ *  行高与相邻发丝线，标签改到控件上方。逐字照抄画板，不是产品自创样式。 */
+const gridFieldStyle: CSSProperties = {
+  border: 0,
+  minHeight: 0,
+  display: "grid",
+  gap: 4,
 };
 
 function editableProfile(profile: SubagentProfile): EditableProfile {
@@ -135,16 +136,30 @@ function displayProfilePath(profile: SubagentProfile, cwd: string): string | nul
   return shortenPath(profile.filePath);
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <ConfigField label={label}>{children}</ConfigField>;
-}
-
-function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disabled: boolean; label: string; onChange: (checked: boolean) => void }) {
+/** fork:design-system —— 画板 42 的「工具与资源」芯片：已选项是 `.pw-chip accent`，
+ *  未选项带 plus 图标。芯片是可点按钮（Tailwind preflight 归零 UA，board.css 出形）。 */
+function ToolChip({
+  selected,
+  disabled,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 7, color: disabled ? "var(--text-dim)" : "var(--text-muted)", fontSize: TEXT.sm, cursor: disabled ? "default" : "pointer" }}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
-      {label}
-    </label>
+    <button
+      type="button"
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onClick}
+      className={selected ? "pw-chip accent" : "pw-chip"}
+    >
+      {!selected && <span className="pw-ico"><i data-ico="plus" data-size="12"></i></span>}
+      {children}
+    </button>
   );
 }
 
@@ -373,7 +388,6 @@ export function AgentsConfig({
       ? { provider: "", modelId: draft.model }
       : { provider: draft.model.slice(0, separator), modelId: draft.model.slice(separator + 1) };
   })();
-  const controlStyle = disabled ? { ...inputStyle, ...disabledInputStyle } : inputStyle;
   const switchDisabled = creating
     ? disabled
     : !selected || !isTogglableScope(selected.scope) || saving || toggling;
@@ -463,50 +477,67 @@ export function AgentsConfig({
 
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.agents")} subtitle={shortenPath(cwd)} closeLabel={t("agents.close")} onClose={onClose}>
-      <div className="agents-feature-setting">
-        <div className="agents-feature-copy">
-          <strong>{t("agents.builtInTitle")}</strong>
-          <span>{t("agents.builtInDescription")}</span>
-          {reloadNeeded && <span role="status" className="agents-feature-reload-notice">{t("agents.reloadRequired")}</span>}
-        </div>
-        <div className="agents-feature-actions">
-          {reloadNeeded && sessionId && (
-            <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
-              {reloading ? t("agents.reloading") : t("agents.reloadSession")}
-            </ConfigButton>
-          )}
-          <label className="agents-concurrency-control" title={t("agents.maxConcurrentDescription")}>
-            <span>{t("agents.maxConcurrent")}</span>
-            <input
-              aria-label={t("agents.maxConcurrent")}
-              type="number"
-              min={1}
-              max={32}
-              value={maxConcurrent}
-              disabled={settingsLoading || settingsSaving}
-              onChange={(event) => setMaxConcurrent(Number(event.target.value))}
-              onBlur={() => void updateMaxConcurrent(maxConcurrent)}
+      {/* fork:design-system —— 画板 42 的「内置子代理」块：`.pw-block` 卡 + `pw-field` 行。
+          原先是 settings.css 的 .agents-feature-* 自绘横条，收编后那组规则已退役。
+          `margin-top:0` 是画板自带的 inline（pw-block 默认 margin-top:var(--s3)，
+          这里它贴着面板头，没有前序内容）。 */}
+      <div className="pw-block" style={{ marginTop: 0 }}>
+        <ConfigField label={t("agents.builtInTitle")} hint={t("agents.builtInDescription")}>
+          <ConfigControl>
+            {reloadNeeded && sessionId && (
+              <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
+                {reloading ? t("agents.reloading") : t("agents.reloadSession")}
+              </ConfigButton>
+            )}
+            <ConfigSwitch
+              checked={builtInEnabled}
+              disabled={settingsLoading || reloading}
+              loading={settingsSaving}
+              label={t("agents.builtInTitle")}
+              onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
             />
-          </label>
-          <ConfigSwitch
-            checked={builtInEnabled}
-            disabled={settingsLoading || reloading}
-            loading={settingsSaving}
-            label={t("agents.builtInTitle")}
-            onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
+          </ConfigControl>
+        </ConfigField>
+        <ConfigField label={t("agents.maxConcurrent")} hint={t("agents.maxConcurrentDescription")}>
+          {/* 数字步进宽度是运行时布局值（pw-input 默认 min-width:200px 太宽）。 */}
+          <input
+            aria-label={t("agents.maxConcurrent")}
+            type="number"
+            min={1}
+            max={32}
+            value={maxConcurrent}
+            disabled={settingsLoading || settingsSaving}
+            onChange={(event) => setMaxConcurrent(Number(event.target.value))}
+            onBlur={() => void updateMaxConcurrent(maxConcurrent)}
+            className="pw-input"
+            style={{ width: 64, textAlign: "center" }}
           />
-        </div>
+        </ConfigField>
+        {/* 画板 42 的第三行：空标签 + 右侧警示徽章（「改动需要重载会话才生效」）。 */}
+        {reloadNeeded && (
+          <ConfigField label="">
+            <ConfigBadge tone="warn">
+              <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
+              {t("agents.reloadRequired")}
+            </ConfigBadge>
+          </ConfigField>
+        )}
       </div>
       <ConfigSplitView>
         <ConfigSidebar>
           <ConfigSidebarList>
               {loading ? (
-                <div style={{ padding: 10, color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("agents.loading")}</div>
+                <div className="pw-alert info">
+                  <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                  <span className="pw-grow">{t("agents.loading")}</span>
+                </div>
               ) : (["project", "global", "workspace", "builtin"] as const).map((scope) => {
                 const scopedProfiles = profiles.filter((profile) => profile.scope === scope);
                 if (scopedProfiles.length === 0) return null;
+                // fork:design-system —— 画板 42 的分组标题就是 `.pw-list` 的直接子元素
+                // （pw-group-title），不再包自绘的 config-sidebar-group 层。
                 return (
-                  <div key={scope} className="config-sidebar-group">
+                  <Fragment key={scope}>
                     <ConfigSidebarGroupLabel>{t(`agents.scope.${scope}`)}</ConfigSidebarGroupLabel>
                     {scopedProfiles.map((profile) => {
                       const overridden = isSubagentProfileOverridden(profile, profiles);
@@ -518,11 +549,12 @@ export function AgentsConfig({
                         >
                           <ConfigStatusDot active={profile.enabled} />
                           <ConfigSidebarText className={`is-grow${profile.enabled ? "" : " is-muted"}`}>{profile.displayName}</ConfigSidebarText>
-                          {overridden && <span className="agents-overridden-label">{t("agents.overridden")}</span>}
+                          {/* 被覆盖项给一枚中性徽章（画板 42：不标红）。 */}
+                          {overridden && <ConfigBadge>{t("agents.overridden")}</ConfigBadge>}
                         </ConfigSidebarItem>
                       );
                     })}
-                  </div>
+                  </Fragment>
                 );
               })}
           </ConfigSidebarList>
@@ -563,62 +595,36 @@ export function AgentsConfig({
                   </ConfigDetailHeader>
 
                   {creating && (
-                    <Field label={t("agents.saveScope")}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, padding: 3, border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)" }}>
-                        {(["global", "project"] as const).map((scope) => (
-                          <button
-                            key={scope}
-                            type="button"
-                            onClick={() => setTargetScope(scope)}
-                            disabled={saving}
-                            style={{ height: 28, border: "none", borderRadius: "var(--radius-xs)", background: targetScope === scope ? "var(--bg-selected)" : "transparent", color: targetScope === scope ? "var(--text)" : "var(--text-muted)", cursor: saving ? "default" : "pointer", fontSize: TEXT.xs, fontWeight: targetScope === scope ? 600 : 400 }}
-                          >
-                            {t(`agents.scope.${scope}`)}
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
+                    <ConfigField label={t("agents.saveScope")}>
+                      {/* 画板 42 编辑器的「保存作用域」是芯片单选组（PwRadio）。 */}
+                      <PwRadio
+                        value={targetScope}
+                        options={[
+                          { value: "global", label: t("agents.scope.global") },
+                          { value: "project", label: t("agents.scope.project") },
+                        ]}
+                        ariaLabel={t("agents.saveScope")}
+                        disabled={saving}
+                        onChange={setTargetScope}
+                      />
+                    </ConfigField>
                   )}
 
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
-                    <Field label={t("agents.name")}>
+                  {/* 画板 42 编辑器的两栏字段网格：ID / 显示名 / 模型覆盖。
+                      窄屏收成一栏是运行时值（board.css 不含断点，没有 pw 基件）。 */}
+                  <div className="pw-grid2" style={isMobile ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
+                    <ConfigField label={t("agents.name")} style={gridFieldStyle}>
                       {creating ? (
-                        <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} style={inputStyle} />
+                        <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="pw-input pw-mono" style={{ width: "100%", minWidth: 0 }} />
                       ) : (
-                        <code style={{ minHeight: 34, display: "flex", alignItems: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text)", fontSize: TEXT.sm }}>
-                          {draft.name}
-                        </code>
+                        <code className="pw-mono">{draft.name}</code>
                       )}
-                    </Field>
-                    <Field label={t("agents.displayName")}>
-                      <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} style={controlStyle} />
-                    </Field>
-                  </div>
-                  <Field label={t("agents.description")}>
-                    <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} style={controlStyle} />
-                  </Field>
-                  <Field label={t("agents.prompt")}>
-                    <textarea className="agents-system-prompt" aria-label={t("agents.prompt")} value={draft.systemPrompt} disabled={disabled} onChange={(event) => update("systemPrompt", event.target.value)} style={{ ...controlStyle, height: 195, minHeight: 195, maxHeight: "60vh", padding: 9, overflow: "auto", resize: disabled ? "none" : "vertical", lineHeight: 1.5 }} />
-                  </Field>
-
-                  <Field label={t("agents.tools")}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px" }}>
-                      {TOOL_OPTIONS.map((tool) => (
-                        <Toggle key={tool} label={tool} disabled={disabled} checked={draft.tools.includes(tool)} onChange={(checked) => update("tools", checked ? [...draft.tools, tool] : draft.tools.filter((item) => item !== tool))} />
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label={t("agents.resources")}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px" }}>
-                      <Toggle label={t("agents.loadSkills")} disabled={disabled} checked={draft.loadSkills} onChange={(checked) => update("loadSkills", checked)} />
-                      <Toggle label={t("agents.loadExtensions")} disabled={disabled} checked={draft.loadExtensions} onChange={(checked) => update("loadExtensions", checked)} />
-                    </div>
-                  </Field>
-
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(120px, 0.75fr) minmax(100px, 0.5fr)", gap: 12 }}>
-                    <Field label={t("agents.model")}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    </ConfigField>
+                    <ConfigField label={t("agents.displayName")} style={gridFieldStyle}>
+                      <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="pw-input" style={disabled ? disabledInputStyle : { width: "100%", minWidth: 0 }} />
+                    </ConfigField>
+                    <ConfigField label={t("agents.model")} style={gridFieldStyle}>
+                      <div className="pw-rowgap">
                         <ModelSelector
                           options={modelSelectorOptions}
                           value={selectedModel}
@@ -631,29 +637,82 @@ export function AgentsConfig({
                           variant="field"
                           placement="auto"
                         />
-                        {modelsError && <span style={{ color: "var(--danger)", fontSize: TEXT["2xs"] }}>{modelsError}</span>}
+                        {modelsError && <ConfigBadge tone="bad">{modelsError}</ConfigBadge>}
                       </div>
-                    </Field>
-                    <Field label={t("agents.thinking")}>
-                      <select aria-label={t("agents.thinking")} value={draft.thinking ?? ""} disabled={disabled} onChange={(event) => update("thinking", (event.target.value || undefined) as EditableProfile["thinking"])} style={controlStyle}>
-                        {THINKING_OPTIONS.map((value) => <option key={value || "default"} value={value}>{value || t("agents.inherit")}</option>)}
-                      </select>
-                    </Field>
-                    <Field label={t("agents.maxTurns")}>
-                      <input aria-label={t("agents.maxTurns")} type="number" min={1} value={draft.maxTurns ?? ""} disabled={disabled} onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)} style={controlStyle} />
-                    </Field>
+                    </ConfigField>
                   </div>
 
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px" }}>
-                    <Toggle label={t("agents.inheritContext")} disabled={disabled} checked={draft.inheritContext} onChange={(checked) => update("inheritContext", checked)} />
-                    <Toggle label={t("agents.background")} disabled={disabled} checked={draft.runInBackground} onChange={(checked) => update("runInBackground", checked)} />
+                  {/* 画板 42 的长文本段：`pw-sec-title` 小节标题 + 通栏控件。 */}
+                  <ConfigSectionTitle>{t("agents.description")}</ConfigSectionTitle>
+                  <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="pw-input" style={{ width: "100%", minWidth: 0 }} />
+
+                  <ConfigSectionTitle>{t("agents.prompt")}</ConfigSectionTitle>
+                  {/* `.agents-system-prompt` 保留：只承担「全局滚动条在场时仍可拖拽
+                      右下角」的滚动条行为语义（settings.css，无画板对应物）。 */}
+                  <textarea
+                    className="pw-textarea agents-system-prompt"
+                    aria-label={t("agents.prompt")}
+                    value={draft.systemPrompt}
+                    disabled={disabled}
+                    onChange={(event) => update("systemPrompt", event.target.value)}
+                    style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
+                  />
+
+                  {/* 画板 42 的「工具与资源」：芯片表达，已选 accent、未选带 plus。 */}
+                  <ConfigSectionTitle>{t("agents.tools")}</ConfigSectionTitle>
+                  <div className="pw-wrap">
+                    {TOOL_OPTIONS.map((tool) => (
+                      <ToolChip
+                        key={tool}
+                        selected={draft.tools.includes(tool)}
+                        disabled={disabled}
+                        onClick={() => update("tools", draft.tools.includes(tool) ? draft.tools.filter((item) => item !== tool) : [...draft.tools, tool])}
+                      >
+                        {tool}
+                      </ToolChip>
+                    ))}
                   </div>
+
+                  <ConfigSectionTitle>{t("agents.resources")}</ConfigSectionTitle>
+                  <div className="pw-wrap">
+                    <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
+                    <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
+                  </div>
+
+                  {/* 画板 42 详情底部的一组 `pw-field` 行（标签左、控件右）。 */}
+                  <ConfigField label={t("agents.thinking")}>
+                    <PwSelectBox
+                      value={draft.thinking ?? ""}
+                      options={THINKING_OPTIONS.map((value) => ({ value, label: value || t("agents.inherit") }))}
+                      ariaLabel={t("agents.thinking")}
+                      disabled={disabled}
+                      onChange={(value) => update("thinking", (value || undefined) as EditableProfile["thinking"])}
+                    />
+                  </ConfigField>
+                  <ConfigField label={t("agents.maxTurns")}>
+                    <input
+                      aria-label={t("agents.maxTurns")}
+                      type="number"
+                      min={1}
+                      value={draft.maxTurns ?? ""}
+                      disabled={disabled}
+                      onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)}
+                      className="pw-input"
+                      style={{ width: 80, textAlign: "center" }}
+                    />
+                  </ConfigField>
+                  <ConfigField label={t("agents.inheritContext")}>
+                    <ConfigSwitch checked={draft.inheritContext} disabled={disabled} label={t("agents.inheritContext")} onChange={(checked) => update("inheritContext", checked)} />
+                  </ConfigField>
+                  <ConfigField label={t("agents.background")}>
+                    <ConfigSwitch checked={draft.runInBackground} disabled={disabled} label={t("agents.background")} onChange={(checked) => update("runInBackground", checked)} />
+                  </ConfigField>
                 </ConfigDetailStack>
               )}
           </ConfigDetailStack>
         </ConfigDetail>
       </ConfigSplitView>
-      <ConfigFooter status={(settingsError || error) && <span role="alert" style={{ color: "var(--danger)" }}>{settingsError || error}</span>}>
+      <ConfigFooter status={(settingsError || error) && <ConfigBadge tone="bad" role="alert">{settingsError || error}</ConfigBadge>}>
         {editing && (
           <ConfigButton
             variant="primary"

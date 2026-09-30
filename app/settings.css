@@ -133,20 +133,9 @@
   overflow-y: auto;
 }
 
-.config-sidebar-group {
-  margin-bottom: 6px;
-}
-
-.config-sidebar-group-label {
-  padding: 4px 8px 3px;
-  color: var(--text-dim);
-  font-family: inherit;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
+/* fork:design-system —— `.config-sidebar-group` / `.config-sidebar-group-label`
+   已随画板 42 收编退役：分组标题由 SettingsUi 的 ConfigSidebarGroupLabel 直接
+   输出画板的 `.pw-group-title`，作为 `.pw-list` 的直接子元素。 */
 
 .config-sidebar-item {
   display: flex;
@@ -395,71 +384,10 @@
   color: var(--text-dim);
 }
 
-.agents-overridden-label {
-  flex: 0 0 auto;
-  color: var(--text-dim);
-  font-size: var(--text-2xs);
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.agents-feature-setting {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  min-height: 68px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-panel);
-}
-
-.agents-feature-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  color: var(--text);
-  font-size: var(--text-sm);
-}
-
-.agents-feature-copy > span {
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.agents-feature-copy > .agents-feature-reload-notice {
-  color: var(--warning);
-}
-
-.agents-feature-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 10px;
-}
-
-.agents-concurrency-control {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.agents-concurrency-control input {
-  width: 52px;
-  height: 28px;
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  text-align: center;
-}
+/* fork:design-system —— 旧的自绘类已随画板 42 收编退役（2026-09-30）：
+   agents-overridden-label（被覆盖项改 pw-badge）、agents-feature-* 与
+   agents-concurrency-control（内置开关 + 并发上限改 pw-block 卡 + pw-field 行，
+   ConfigSwitch / ConfigButton / pw-input 由 board.css 出形）。 */
 
 .config-sidebar-message {
   padding: 10px 8px;
@@ -625,91 +553,12 @@
   font-size: var(--text-sm);
 }
 
-.skill-detail-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.skill-detail-status-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 16px;
-  text-align: right;
-}
-
-.skill-source-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  max-width: 100%;
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.skill-source-link-text {
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.skill-version-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.skill-version-value,
-.skill-name-value {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
-
-.skill-version-value.is-update,
-.skill-update-indicator {
-  color: var(--accent);
-}
-
-.skill-name-value {
-  color: var(--text);
-}
-
-.skill-update-status {
-  color: var(--text-dim);
-  font-size: var(--text-sm);
-}
-
-.skill-update-status.is-checking {
-  color: var(--accent);
-}
-
-.skill-update-status.is-success {
-  color: var(--success);
-}
-
-.skill-update-status.is-error {
-  color: var(--danger);
-}
-
-.skill-description {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-}
-
-.skill-update-indicator {
-  flex-shrink: 0;
-  font-size: var(--text-md);
-  line-height: 1;
-}
+/* fork:design-system —— SkillsConfig 详情的旧自绘类已随画板 42 收编退役
+   （2026-09-30）：skill-detail-heading、skill-detail-status-row、
+   skill-source-link(-text)、skill-version-row(-value)、skill-name-value、
+   skill-update-status、skill-update-indicator、skill-description ——
+   来源 / 版本 / 名称 / 描述走 `pw-field` + `pw-mono`，更新状态走
+   `pw-badge`（ok / warn / bad），可更新标记走 `pw-ico` 箭头。 */
 
 .config-footer {
   display: flex;
@@ -824,7 +673,7 @@
 .config-button-primary.is-success {
   border-color: var(--success);
   background: var(--success);
-  animation: saved-pop var(--motion-slow) var(--ease-out);
+  animation: saved-pop var(--motion-layout) var(--ease-out);
 }
 
 .config-button-success-icon {
@@ -1387,17 +1236,6 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .agents-feature-setting {
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 14px;
-  }
-
-  .agents-feature-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
   .config-detail {
     padding: 14px;
   }
@@ -1786,10 +1624,11 @@
   outline-offset: -1px;
 }
 
-/* fork:skills-content — 技能正文：只读用 MarkdownBody 渲染，编辑用等宽 textarea。
-   两者共用同一块边框与最大高度，切换时不会跳高度。 */
-.skill-content-view,
-.skill-content-editor {
+/* fork:skills-content — 技能正文：只读用 MarkdownBody 渲染，编辑态是画板 42 的
+   `.pw-textarea`（SKILL.md 编辑器本身，min/max 高度由画板式 inline 给出）。
+   `.skill-content-editor` 已随画板收编退役；`.skill-content-view` 保留 —— 它是
+   fork 特有的只读预览盒，与编辑态共用同一档 max-height，切换时不跳高度。 */
+.skill-content-view {
   max-height: 420px;
   min-height: 160px;
   overflow: auto;
@@ -1797,22 +1636,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-panel);
-}
-
-.skill-content-editor {
-  display: block;
-  width: 100%;
-  resize: vertical;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  tab-size: 2;
-}
-
-.skill-content-editor:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--accent));
-  outline-offset: -1px;
 }
 
 .skill-content-view > :first-child {

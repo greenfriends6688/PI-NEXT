@@ -40,7 +40,10 @@ test("tracks the visual viewport while the software keyboard is open", () => {
 
 test("contains chat content and inputs within the mobile viewport", () => {
   assert.match(cssSource, /\.markdown-body \{[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;[\s\S]*?overflow-x: hidden;/);
-  assert.match(cssSource, /\.markdown-code-block \{[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
+  // 2026-09-30：markdown-code-* 家族已退役（代码块走画板 10 的 .pw-code，
+  // 画板件自带 overflow 处理）；globals 侧只保留表格滚动容器这条守卫。
+  assert.doesNotMatch(cssSource, /\.markdown-code-block \{/, "旧代码块家族不得回归");
+  assert.match(cssSource, /\.markdown-table-wrap \{[\s\S]*?overflow-x: auto;/);
   assert.match(chatWindowSource, /overflow-x-hidden overflow-y-auto/);
   assert.match(chatWindowSource, /maxHeight: "min\(760px, 100%\)"/);
   assert.match(chatInputSource, /flex: compact \? "none" : 1,\s*minWidth: 0,\s*width: "100%",/);

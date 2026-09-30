@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { Fragment, useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { formatUpdatedTime } from "@/lib/i18n/format";
@@ -32,6 +32,7 @@ import {
   ConfigDetailHeader,
   ConfigDetailHeaderInfo,
   ConfigDetailStack,
+  ConfigDetailTitle,
   ConfigEmptyState,
   ConfigField,
   ConfigFooter,
@@ -47,7 +48,12 @@ import {
   ConfigSplitView,
   ConfigStat,
   ConfigStatGrid,
+  ConfigStatusDot,
   ConfigSwitch,
+  PwCtl,
+  PwRadio,
+  PwSelectBox,
+  type PwRadioOption,
 } from "./SettingsUi";
 import { PwPageHead } from "./SettingsUi";
 import {
@@ -78,7 +84,6 @@ import {
   subscribeFavoriteModels,
   toggleFavoriteModelKey,
 } from "@/lib/favorite-models";
-import { TEXT } from "@/lib/typography";
 import { describeThinkingRequestFromFields, type ThinkingModelFields } from "@/lib/thinking-request-core";
 import type { ThinkingProfileInputs } from "@/lib/models-cache";
 import { formatThinkingRequestParams } from "./models-config-helpers";
@@ -207,21 +212,27 @@ const API_OPTIONS = ["openai-completions", "openai-responses", "anthropic-messag
 
 // ── Form field helpers ────────────────────────────────────────────────────────
 
-const inputStyle = {
-  padding: "6px 9px",
-  background: "var(--bg-panel)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-xs)",
-  color: "var(--text)",
-  fontSize: TEXT.sm,
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box" as const,
-};
+/* fork:design-system —— 表单控件全部换成画板的 `.pw-input` / `.pw-selectbox`
+   （视觉全在 board.css）。三个只存在于画板 DOM / 产品行为里的行内值集中在这里：
+   · FILL_ROW_INPUT = 画板 41 搜索行的 `style="flex:1;min-width:0"` —— pw-input
+     （或包着它的行）在 flex 行里要吃掉剩余宽度、并盖掉 min-width:200px
+     （ChatWindow 同款先例）。
+   · DISCOVERY_CHECKBOX —— 画板没有复选框基件（.pw-switch 是开关不是多选）：
+     上游导入清单勾选框的几何与 accentColor 只能留在行内。
+   · BREAKABLE_LINK —— 画板没有链接基件；颜色走 token，授权 URL 很长必须可断行。 */
+const FILL_ROW_INPUT = { flex: 1, minWidth: 0 } as const;
+const DISCOVERY_CHECKBOX = { width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 } as const;
+const BREAKABLE_LINK = { color: "var(--accent)", wordBreak: "break-all" } as const;
 
 function TextInput({ value, onChange, placeholder, mono }: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean }) {
-  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-    style={{ ...inputStyle, fontFamily: mono ? "var(--font-mono)" : "inherit" }} />;
+  return (
+    <input
+      className={mono ? "pw-input pw-mono" : "pw-input"}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
+  );
 }
 
 function SecretTextInput({
@@ -250,71 +261,53 @@ function SecretTextInput({
     if (!value) setVisible(false);
   }, [value]);
 
+  /* 显隐切换从「盖在输入框上的浮动按钮」改成画板 41 搜索行的形态：
+     pw-inline 行 + pw-input + 行尾 pw-iconbtn，浮动定位不再需要自绘。 */
   return (
-    <div style={{ position: "relative", width: "100%", ...style }}>
+    <div className="pw-inline" style={style}>
       <input
         type={visible ? "text" : "password"}
+        className={mono ? "pw-input pw-mono" : "pw-input"}
+        style={FILL_ROW_INPUT}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        style={{ ...inputStyle, paddingRight: 34, fontFamily: mono ? "var(--font-mono)" : "inherit" }}
         autoComplete={autoComplete}
         spellCheck={spellCheck}
       />
       <button
         type="button"
+        className="pw-iconbtn sm"
         onClick={() => setVisible((v) => !v)}
-         aria-label={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
-         title={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
-        style={{
-          position: "absolute",
-          right: 5,
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 24,
-          height: 24,
-          padding: 0,
-          border: "none",
-          background: "transparent",
-          color: "var(--text-dim)",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        aria-label={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
+        title={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
       >
-        {visible ? (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.89 1 12a18.45 18.45 0 0 1 5.06-6.94" />
-            <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-            <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
-            <path d="M1 1l22 22" />
-          </svg>
-        ) : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        )}
+        <span className="pw-ico"><i data-ico={visible ? "eye-off" : "eye"} data-size="13"></i></span>
       </button>
     </div>
   );
 }
 
 function NumInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return <input type="number" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />;
+  return (
+    <input
+      type="number"
+      className="pw-input"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
+  );
 }
 
-function Select({ value, onChange, options, required }: { value: string; onChange: (v: string) => void; options: readonly string[]; required?: boolean }) {
+function Select({ value, onChange, options, required, ariaLabel }: { value: string; onChange: (v: string) => void; options: readonly string[]; required?: boolean; ariaLabel: string }) {
   const { t } = useI18n();
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      style={{ ...inputStyle, color: value ? "var(--text)" : "var(--text-dim)" }}>
-       {!required && <option value="">— {t("i18n.default")} / none —</option>}
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
-    </select>
-  );
+  const choices = [
+    ...(required ? [] : [{ value: "", label: `— ${t("i18n.default")} / none —` }]),
+    ...options.map((o) => ({ value: o, label: o })),
+  ];
+  return <PwSelectBox value={value} options={choices} ariaLabel={ariaLabel} onChange={onChange} />;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -353,47 +346,30 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
     setProviderEmoji(providerId, value || null);
   };
 
+  /* fork:design-system —— 四段模式就是画板的 radio 芯片（`.pw-radio > button`，
+     SettingsUi 的 PwRadio 基件）：选中态 accent 由画板给；芯片前置的图案是品牌
+     ProviderIcon（非 sprite 名），走 PwRadioOption.node。 */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div
-        role="radiogroup"
-        aria-label={t("models.providerIcon")}
-        style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
-      >
-        {PROVIDER_ICON_MODES.map((modeOption) => {
-          const selected = current === modeOption;
-          return (
-            <button
-              key={modeOption}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              title={t(ICON_MODE_LABEL_KEYS[modeOption])}
-              onClick={() => chooseMode(modeOption)}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 9px",
-                border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
-                borderRadius: "var(--radius-xs)",
-                background: selected ? "var(--accent-soft)" : "var(--bg-panel)",
-                color: selected ? "var(--accent-text)" : "var(--text-muted)",
-                cursor: "pointer", fontSize: TEXT.xs,
-              }}
-            >
-              <ProviderIcon id={providerId} api={api} size={14} mode={modeOption} />
-              <span>{t(ICON_MODE_LABEL_KEYS[modeOption])}</span>
-            </button>
-          );
-        })}
-      </div>
+    <div className="pw-rowgap">
+      <PwRadio
+        value={current}
+        options={PROVIDER_ICON_MODES.map((modeOption) => ({
+          value: modeOption,
+          label: t(ICON_MODE_LABEL_KEYS[modeOption]),
+          node: <ProviderIcon id={providerId} api={api} size={12} mode={modeOption} />,
+        }))}
+        ariaLabel={t("models.providerIcon")}
+        onChange={chooseMode}
+      />
       {current === "emoji" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="pw-inline">
           <input
+            className="pw-input pw-mono"
             value={emojiDraft}
             onChange={(event) => updateEmoji(event.target.value)}
             placeholder={t("models.providerIconEmojiPlaceholder")}
             aria-label={t("models.providerIconEmoji")}
             maxLength={16}
-            style={{ ...inputStyle, width: 180 }}
           />
           <ConfigButton
             variant="ghost"
@@ -405,9 +381,7 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
           </ConfigButton>
         </div>
       )}
-      <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>
-        {t("models.providerIconModeDescription")}
-      </span>
+      <div className="pw-mono pw-dim">{t("models.providerIconModeDescription")}</div>
     </div>
   );
 }
@@ -555,7 +529,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
         <ConfigDetailHeader>
           <ConfigDetailHeaderInfo>
             <ProviderIcon id={name} size={22} />
-            <h3 style={{ margin: 0 }}>{name}</h3>
+            <ConfigDetailTitle>{name}</ConfigDetailTitle>
             <ConfigBadge tone="count">{provider.api ?? "openai-completions"}</ConfigBadge>
             <span className="pw-grow" aria-hidden="true" />
             <EnabledModelsProviderSwitch providerId={name} controller={enabledModels} />
@@ -583,13 +557,15 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
 
       <ConfigDetail>
         <ConfigDetailHeader>
-          <h3 style={{ margin: 0 }}>{t("models.availableModels")}</h3>
+          <ConfigDetailTitle>{t("models.availableModels")}</ConfigDetailTitle>
           <ConfigBadge tone="count">
             {t("models.modelsCount", { count: provider.models?.length ?? 0, enabled: enabledCount })}
           </ConfigBadge>
           <span className="pw-grow" aria-hidden="true" />
           <input
             className="pw-input"
+            /* 画板 41 的过滤框自带 inline（height:24px;min-width:120px）；
+               flex 基准是本产品行内的收放。 */
             style={{ height: 24, minWidth: 120, flex: "0 1 160px" }}
             value={modelFilter}
             onChange={(event) => setModelFilter(event.target.value)}
@@ -638,7 +614,8 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
         )}
 
         <ConfigDetailHeader>
-          <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>
+          {/* `.pw-mono` 本身就是 var(--text-meta)，不需要再补字号。 */}
+          <span className="pw-mono pw-dim">
             {t("models.enabledProjectScope")}
           </span>
           <span className="pw-grow" aria-hidden="true" />
@@ -656,9 +633,9 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
 
       {discoveryState.phase !== "idle" && (
         <ConfigDetail>
-          <ConfigDetailHeader>
-            <h3 style={{ margin: 0 }}>{t("models.importFromUpstream")}</h3>
-            <span className="pw-grow" aria-hidden="true" />
+        <ConfigDetailHeader>
+          <ConfigDetailTitle>{t("models.importFromUpstream")}</ConfigDetailTitle>
+          <span className="pw-grow" aria-hidden="true" />
             {discoveryState.phase === "success" && (
               <ConfigButton size="small" variant="ghost" onClick={() => setDiscoveryState({ phase: "idle" })}>
                 {t("i18n.close")}
@@ -675,7 +652,6 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
               <ConfigField label={t("models.discoveryFilter")}>
                 <input
                   className="pw-input"
-                  style={{ minWidth: 0 }}
                   value={discoveryQuery}
                   onChange={(event) => setDiscoveryQuery(event.target.value)}
                   placeholder={t("models.discoveryFilterPlaceholder", { count: discoveryState.models.length })}
@@ -691,7 +667,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
                     checked={allShownSelected}
                     disabled={selectableShownIds.length === 0}
                     onChange={toggleShownModels}
-                    style={{ width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 }}
+                    style={DISCOVERY_CHECKBOX}
                   />
                   <ConfigSidebarText>{t("models.discoverySelectShown")}</ConfigSidebarText>
                 </label>
@@ -709,7 +685,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
                         checked={selectedModelIds.includes(model.id) || alreadyAdded}
                         disabled={alreadyAdded}
                         onChange={() => toggleDiscoveredModel(model.id)}
-                        style={{ width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 }}
+                        style={DISCOVERY_CHECKBOX}
                       />
                       <span className="grow">
                         <ConfigSidebarText>{model.name ?? model.id}</ConfigSidebarText>
@@ -722,10 +698,11 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
               </div>
 
               <ConfigDetailHeader>
+                {/* `.catalog-status-text`（settings.css）就是「X / Y」状态行的截断语义；
+                    `.pw-mono` 自带 meta 字号。 */}
                 <span
                   title={discoveryState.endpoint}
-                  className="pw-mono pw-dim"
-                  style={{ fontSize: "var(--text-meta)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  className="pw-mono pw-dim catalog-status-text"
                 >
                   {filteredDiscoveredModels.length > shownDiscoveredModels.length
                     ? t("models.discoveryShowing", { shown: shownDiscoveredModels.length, total: filteredDiscoveredModels.length })
@@ -751,12 +728,14 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
       <ConfigDetail>
         <h3>{t("models.connectionTitle")}</h3>
         <ConfigField label={t("i18n.providerName")}>
-          <TextInput value={editingName} onChange={setEditingName} placeholder="provider-name" mono />
-          {editingName !== name && editingName.trim() && (
-            <ConfigButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
-              {t("i18n.rename")}
-            </ConfigButton>
-          )}
+          <PwCtl>
+            <TextInput value={editingName} onChange={setEditingName} placeholder="provider-name" mono />
+            {editingName !== name && editingName.trim() && (
+              <ConfigButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
+                {t("i18n.rename")}
+              </ConfigButton>
+            )}
+          </PwCtl>
         </ConfigField>
 
         {/* D2-PR-20：provider 图标模式（auto/api/letter/emoji）。 */}
@@ -769,19 +748,17 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
             placeholder="https://api.example.com/v1" mono />
         </ConfigField>
 
-        <ConfigField label={t("models.apiKeyLabel")}>
+        <ConfigField label={t("models.apiKeyLabel")} hint={t("models.apiKeyHint")}>
           <SecretTextInput value={provider.apiKey ?? ""} onChange={(v) => set("apiKey", v || undefined)}
             placeholder="ENV_VAR_NAME, !shell-command, or literal key" mono />
-          <span className="pw-hint">{t("models.apiKeyHint")}</span>
         </ConfigField>
 
         <ConfigField label={t("models.apiLabel")}>
-          <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required />
+          <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required ariaLabel={t("models.apiLabel")} />
         </ConfigField>
 
-        <ConfigField label={t("models.headers")}>
+        <ConfigField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
           <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
-          <span className="pw-hint">{t("models.providerHeadersHint")}</span>
         </ConfigField>
       </ConfigDetail>
     </ConfigDetailStack>
@@ -806,6 +783,17 @@ const LEVEL_COLORS: Record<ThinkingLevel, string> = {
   max:     "var(--danger)",
 };
 
+/* 画板 41「能力」区的三态没有开关二值那么简单：每档是
+   omit（跟随默认）/ null（Disabled）/ string（Custom + 值），画成分段芯片就是
+   `.pw-radio`（PwRadio 基件，键盘可切换）。 */
+const LEVEL_STATE_OPTIONS = [
+  { value: "omit", label: "Default" },
+  { value: "null", label: "Disabled" },
+  { value: "string", label: "Custom" },
+] as const;
+
+type ThinkingLevelState = (typeof LEVEL_STATE_OPTIONS)[number]["value"];
+
 function ThinkingLevelMapEditor({
   value,
   onChange,
@@ -829,126 +817,61 @@ function ThinkingLevelMapEditor({
     onChange(Object.keys(next).length ? next : undefined);
   };
 
+  /* fork:design-system —— 行结构换成画板 41「规格」区的 pw-field 形态：
+     左侧「档名 + 该档实际请求的小字说明」、右侧 pw-ctl 三态芯片；
+     行间发丝线来自画板的 `.pw-field + .pw-field`。档位色点沿用七档语义色
+     （LEVEL_COLORS，运行时色值），Disabled 档做淡出。 */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <div className="pw-rowgap">
       {THINKING_LEVELS.map((level) => {
         const raw = map[level];
-        const state: "omit" | "null" | "string" =
+        const state: ThinkingLevelState =
           !(level in map) ? "omit" : raw === null ? "null" : "string";
         const strVal = typeof raw === "string" ? raw : "";
-        const color = LEVEL_COLORS[level];
-
-        const btnBase: React.CSSProperties = {
-          padding: "4px 10px",
-          fontSize: TEXT["2xs"],
-          border: "none",
-          cursor: "pointer",
-          fontWeight: 400,
-          transition: "background 0.1s, color 0.1s",
-          whiteSpace: "nowrap",
-          background: "var(--bg-panel)",
-          color: "var(--text-dim)",
-        };
-        const btnActive: React.CSSProperties = {
-          background: "var(--primary-bg)",
-          color: "var(--primary-fg)",
-          fontWeight: 600,
-        };
-        const btnActiveDisabled: React.CSSProperties = {
-          background: "var(--danger)",
-          color: "var(--danger-contrast)",
-          fontWeight: 600,
-        };
+        const described = describeLevel?.(level) ?? null;
+        const invalid = described?.invalid !== undefined;
+        const dotColor = state === "null"
+          ? `color-mix(in srgb, ${LEVEL_COLORS[level]} 30%, transparent)`
+          : LEVEL_COLORS[level];
 
         return (
-          <div
-            key={level}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "5px 4px",
-              borderRadius: "var(--radius-sm)",
-              background: "transparent",
-              border: "1px solid transparent",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 5, width: 68, flexShrink: 0 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0, opacity: state === "null" ? 0.3 : 1 }} />
-              <span style={{
-                fontSize: TEXT.xs,
-                fontFamily: "var(--font-mono)",
-                color: state === "null" ? "var(--text-dim)" : "var(--text-muted)",
-                textDecoration: state === "null" ? "line-through" : "none",
-              }}>
+          <div key={level} className="pw-field">
+            <span className="pw-label">
+              <ConfigStatusDot color={dotColor} />
+              <span
+                className={state === "null" ? "pw-mono pw-dim" : "pw-mono"}
+                style={state === "null" ? { textDecoration: "line-through" } : undefined}
+              >
                 {level}
               </span>
-            </div>
-
-            <div style={{ display: "flex", borderRadius: "var(--radius-xs)", border: "1px solid var(--border)", overflow: "hidden", flexShrink: 0 }}>
-              <button
-                onClick={() => setLevel(level, "omit")}
-                style={{ ...btnBase, ...(state === "omit" ? btnActive : {}) }}
-              >
-                Default
-              </button>
-              <button
-                onClick={() => setLevel(level, null)}
-                style={{ ...btnBase, borderLeft: "1px solid var(--border)", ...(state === "null" ? btnActiveDisabled : {}) }}
-              >
-                Disabled
-              </button>
-            </div>
-
-            {describeLevel && (() => {
-              const described = describeLevel(level);
-              if (!described) return null;
-              const invalid = described.invalid !== undefined;
-              return (
-                <span
+              {described ? (
+                <small
                   title={invalid ? described.invalid : described.text ?? undefined}
-                  style={{
-                    minWidth: 0,
-                    flex: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: TEXT["2xs"],
-                    color: invalid ? "var(--danger)" : described.text ? "var(--text-muted)" : "var(--text-dim)",
-                  }}
+                  style={invalid ? { color: "var(--danger)" } : undefined}
                 >
                   {invalid ? described.invalid : described.text ?? t("models.thinkingSendsNothing")}
-                </span>
-              );
-            })()}
-
-            <div style={{ display: "flex", borderRadius: "var(--radius-xs)", border: `1px solid ${state === "string" ? "var(--accent)" : "var(--border)"}`, overflow: "hidden", transition: "border-color 0.1s" }}>
-              <button
-                onClick={() => setLevel(level, strVal || level)}
-                style={{ ...btnBase, ...(state === "string" ? btnActive : {}), borderRight: "1px solid var(--border)", flexShrink: 0 }}
-              >
-                Custom
-              </button>
-              <input
-                value={strVal}
-                onChange={(e) => setLevel(level, e.target.value)}
-                onFocus={() => { if (state !== "string") setLevel(level, strVal || level); }}
-                placeholder={level}
-                maxLength={10}
-                style={{
-                  width: "12ch",
-                  background: state === "string" ? "var(--bg)" : "var(--bg-panel)",
-                  border: "none",
-                  outline: "none",
-                  color: state === "string" ? "var(--text)" : "var(--text-dim)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: TEXT.xs,
-                  padding: "4px 7px",
-                  transition: "background 0.1s, color 0.1s",
-                }}
+                </small>
+              ) : null}
+            </span>
+            <PwCtl>
+              <PwRadio
+                value={state}
+                options={LEVEL_STATE_OPTIONS}
+                ariaLabel={level}
+                onChange={(next) => setLevel(level, next === "omit" ? "omit" : next === "null" ? null : strVal || level)}
               />
-            </div>
+              {state === "string" && (
+                <input
+                  className="pw-input pw-mono"
+                  value={strVal}
+                  onChange={(e) => setLevel(level, e.target.value)}
+                  placeholder={level}
+                  maxLength={10}
+                  /* `.pw-input` 的 min-width:200px 会把 pw-ctl 撑爆；自定义映射值很短（≤10 字符）。 */
+                  style={{ width: "12ch", minWidth: 0 }}
+                />
+              )}
+            </PwCtl>
           </div>
         );
       })}
@@ -1003,57 +926,42 @@ function formatTokenLimit(value: number): string {
   return `${Math.round(value / 1_000)}k`;
 }
 
-function limitChipStyle(active: boolean, fromCatalog: boolean): React.CSSProperties {
-  return {
-    padding: "2px 7px",
-    borderRadius: "var(--radius-xs)",
-    border: `1px solid ${fromCatalog ? "var(--accent)" : "var(--border)"}`,
-    background: active ? "var(--bg-selected)" : "transparent",
-    color: active ? "var(--text)" : "var(--text-muted)",
-    fontSize: TEXT["2xs"],
-    fontVariantNumeric: "tabular-nums",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-}
-
-function LimitChips({ value, ladder, catalogValue, onChange }: {
+function LimitChips({ value, ladder, catalogValue, ariaLabel, onChange }: {
   value: number | undefined;
   ladder: readonly number[];
   catalogValue: number | undefined;
+  ariaLabel: string;
   onChange: (next: number | undefined) => void;
 }) {
   const { t } = useI18n();
   const followsCatalog = catalogValue !== undefined && value === catalogValue;
+  /* fork:design-system —— 快捷档位就是画板的 radio 芯片（`.pw-radio > button`）：
+     单选、选中态 accent，自绘 chip 的边框/圆角/字号全部退役。
+     原始数值留在芯片的 title 上（PwRadioOption.title）。 */
+  const options: PwRadioOption<string>[] = ladder.map((preset) => ({
+    value: String(preset),
+    label: formatTokenLimit(preset),
+    title: String(preset),
+  }));
+  if (catalogValue !== undefined) {
+    options.push({
+      value: String(catalogValue),
+      label: followsCatalog ? t("models.followingCatalog") : t("models.followCatalog"),
+      title: `${t("models.followCatalog")} ${catalogValue}`,
+    });
+  }
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, alignItems: "center" }}>
-      {ladder.map((preset) => (
-        <button
-          key={preset}
-          type="button"
-          onClick={() => onChange(preset)}
-          title={String(preset)}
-          aria-pressed={value === preset}
-          style={limitChipStyle(value === preset, preset === catalogValue)}
-        >
-          {formatTokenLimit(preset)}
-        </button>
-      ))}
-      {catalogValue !== undefined && (
-        <button
-          type="button"
-          onClick={() => onChange(catalogValue)}
-          title={`${t("models.followCatalog")} ${catalogValue}`}
-          aria-pressed={followsCatalog}
-          style={{ ...limitChipStyle(followsCatalog, true), color: followsCatalog ? "var(--text)" : "var(--accent)" }}
-        >
-          {followsCatalog ? t("models.followingCatalog") : t("models.followCatalog")}
-        </button>
-      )}
+    <>
+      <PwRadio
+        value={value !== undefined ? String(value) : ""}
+        options={options}
+        ariaLabel={ariaLabel}
+        onChange={(next) => onChange(Number(next))}
+      />
       {catalogValue !== undefined && value !== undefined && !followsCatalog && (
-        <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("models.overridden")}</span>
+        <span className="pw-mono pw-dim">{t("models.overridden")}</span>
       )}
-    </div>
+    </>
   );
 }
 
@@ -1093,7 +1001,9 @@ function SamplingParamsEditor({ value, onChange }: {
   };
 
   return (
-    <div>
+    /* `.pw-textarea` 是画板的系统提示级 textarea（min-height 120）；这里是两行的
+       JSON 参数编辑器，按内容收高，缩进需要 pre。 */
+    <div className="pw-rowgap">
       <textarea
         value={editing ? draft : serialized}
         onFocus={() => { setDraft(serialized); setEditing(true); }}
@@ -1103,9 +1013,10 @@ function SamplingParamsEditor({ value, onChange }: {
         spellCheck={false}
         placeholder={'{ "temperature": 0.7 }'}
         aria-invalid={error !== null}
-        style={{ ...inputStyle, fontFamily: "var(--font-mono)", resize: "vertical", whiteSpace: "pre" }}
+        className="pw-textarea"
+        style={{ minHeight: 0, whiteSpace: "pre" }}
       />
-      {error && <div role="alert" style={{ marginTop: 4, fontSize: TEXT["2xs"], color: "var(--danger)" }}>{error}</div>}
+      {error && <div role="alert" className="pw-alert">{error}</div>}
     </div>
   );
 }
@@ -1129,34 +1040,31 @@ function HeaderListEditor({ headers, onChange }: {
   const removeEntry = (id: number): void => {
     applyRows(rows.filter((row) => row.id !== id));
   };
-  const rowBtnStyle = {
-    padding: "6px 9px",
-    background: "none",
-    border: "1px solid color-mix(in srgb, var(--danger) 35%, transparent)",
-    borderRadius: "var(--radius-xs)",
-    color: "var(--danger)",
-    cursor: "pointer",
-    fontSize: TEXT.xs,
-    lineHeight: 1,
-  } satisfies React.CSSProperties;
+  const { t } = useI18n();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="pw-rowgap">
       {rows.map((row) => (
-        <div key={row.id} style={{ display: "flex", gap: 6 }}>
+        <div key={row.id} className="pw-inline">
           <input value={row.name} onChange={(e) => setEntry(row.id, { name: e.target.value })}
-            placeholder="Header-Name" style={{ ...inputStyle, fontFamily: "var(--font-mono)", flex: 1 }} />
+            placeholder="Header-Name" className="pw-input pw-mono" style={FILL_ROW_INPUT} />
           <input value={row.value} onChange={(e) => setEntry(row.id, { value: e.target.value })}
-            placeholder="value" style={{ ...inputStyle, fontFamily: "var(--font-mono)", flex: 1 }} />
-          <button onClick={() => removeEntry(row.id)} style={rowBtnStyle}>✕</button>
+            placeholder="value" className="pw-input pw-mono" style={FILL_ROW_INPUT} />
+          <ConfigButton variant="danger" size="small" onClick={() => removeEntry(row.id)} aria-label={t("i18n.delete")}>
+            <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+          </ConfigButton>
         </div>
       ))}
-      <button onClick={() => setRows((current) => [
-        ...current,
-        { id: nextRowIdRef.current++, name: "", value: "" },
-      ])}
-        style={{ padding: "5px 9px", background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT.xs, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, alignSelf: "flex-start" }}>
-        + Add header
-      </button>
+      <ConfigButton
+        variant="ghost"
+        size="small"
+        onClick={() => setRows((current) => [
+          ...current,
+          { id: nextRowIdRef.current++, name: "", value: "" },
+        ])}
+      >
+        <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
+        Add header
+      </ConfigButton>
     </div>
   );
 }
@@ -1206,24 +1114,7 @@ function fillEmptyModelFields(
   return { model: next, appliedCount };
 }
 
-/** 收藏星标图标；填充表示已收藏。 */
-function FavoriteStarIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
+/** 收藏星标改用画板 41 的 `pw-ico` + star（见侧栏模型行）；这里不再自绘 SVG。 */
 
 function ModelDetail({
   providerName,
@@ -1514,7 +1405,7 @@ function ModelDetail({
       <ConfigDetail>
         <ConfigDetailHeader>
           <ConfigDetailHeaderInfo>
-            <h3 style={{ margin: 0 }}>{model.name || model.id || t("i18n.newModel")}</h3>
+            <ConfigDetailTitle>{model.name || model.id || t("i18n.newModel")}</ConfigDetailTitle>
             <ConfigBadge>{providerName}</ConfigBadge>
             {model.reasoning ? <ConfigBadge tone="accent">{t("models.badgePinnable")}</ConfigBadge> : null}
           </ConfigDetailHeaderInfo>
@@ -1549,6 +1440,7 @@ function ModelDetail({
           </a>
         </ConfigDetailHeader>
         {catalogStatusText && (
+          /* 状态色是运行时按「成功 / 不可靠 / 出错」算出来的。 */
           <div className="catalog-status" aria-live="polite" style={{ color: catalogStatusColor }}>
             <span title={catalogStatusText} className="catalog-status-text">{catalogStatusText}</span>
             {catalogUndoRef.current && (
@@ -1577,27 +1469,33 @@ function ModelDetail({
 
         <ConfigSectionTitle>{t("models.specs")}</ConfigSectionTitle>
         <ConfigField label={t("models.contextWindow")}>
-          <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
-            onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
-          <LimitChips
-            value={model.contextWindow}
-            ladder={CONTEXT_WINDOW_LADDER}
-            catalogValue={catalogValue?.contextWindow}
-            onChange={(next) => set("contextWindow", next)}
-          />
+          <div className="pw-rowgap">
+            <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
+              onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
+            <LimitChips
+              value={model.contextWindow}
+              ladder={CONTEXT_WINDOW_LADDER}
+              catalogValue={catalogValue?.contextWindow}
+              ariaLabel={t("models.contextWindow")}
+              onChange={(next) => set("contextWindow", next)}
+            />
+          </div>
         </ConfigField>
         <ConfigField label={t("models.maxOutputTokens")}>
-          <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
-            onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
-          <LimitChips
-            value={model.maxTokens}
-            ladder={MAX_OUTPUT_LADDER}
-            catalogValue={catalogValue?.maxTokens}
-            onChange={(next) => set("maxTokens", next)}
-          />
+          <div className="pw-rowgap">
+            <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
+              onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
+            <LimitChips
+              value={model.maxTokens}
+              ladder={MAX_OUTPUT_LADDER}
+              catalogValue={catalogValue?.maxTokens}
+              ariaLabel={t("models.maxOutputTokens")}
+              onChange={(next) => set("maxTokens", next)}
+            />
+          </div>
         </ConfigField>
         {model.contextWindow !== undefined && model.maxTokens !== undefined && model.maxTokens > model.contextWindow && (
-          <div role="alert" className="pw-alert" style={{ marginTop: 8 }}>{t("models.maxTokensExceedsContext")}</div>
+          <div role="alert" className="pw-alert">{t("models.maxTokensExceedsContext")}</div>
         )}
 
         <ConfigField label={t("models.samplingParams")} hint={t("models.samplingParamsHint")}>
@@ -1627,7 +1525,8 @@ function ModelDetail({
           </ConfigStatGrid>
         )}
         {costEditing && hasModelCostDraftValue(costDraft) && !parseCompleteModelCost(costDraft) && (
-          <div aria-live="polite" className="pw-hint" style={{ color: "var(--warning)" }}>{t("models.costAllRequired")}</div>
+          /* 画板的状态文案只有 pw-dim 一档；这里是「填了一半」的警告语义色。 */
+          <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>{t("models.costAllRequired")}</div>
         )}
         <ConfigDetailHeader>
           <span className="pw-grow" aria-hidden="true" />
@@ -1639,7 +1538,7 @@ function ModelDetail({
 
       <ConfigDetail>
         <ConfigDetailHeader>
-          <h3 style={{ margin: 0 }}>{t("models.advancedTitle")}</h3>
+          <ConfigDetailTitle>{t("models.advancedTitle")}</ConfigDetailTitle>
           <span className="pw-grow" aria-hidden="true" />
           <ConfigButton
             size="small"
@@ -1655,7 +1554,7 @@ function ModelDetail({
         {advancedOpen && (
           <div id="model-advanced-settings">
             <ConfigField label={t("models.apiOverride")}>
-              <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} />
+              <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} ariaLabel={t("models.apiOverride")} />
             </ConfigField>
 
             <ConfigField label={t("models.headers")} hint={t("models.headersHelp")}>
@@ -1887,18 +1786,14 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
       <ConfigDetailHeader>
         <ConfigDetailHeaderInfo>
           <ProviderIcon id={provider.id} size={22} />
-          <h3 style={{ margin: 0 }}>{provider.name}</h3>
+          <ConfigDetailTitle>{provider.name}</ConfigDetailTitle>
           <ConfigBadge tone={provider.loggedIn ? "ok" : undefined}>
             {provider.loggedIn ? t("models.badgeLoggedIn") : t("models.badgeNotLoggedIn")}
           </ConfigBadge>
         </ConfigDetailHeaderInfo>
         <ConfigDetailActions>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: provider.loggedIn ? "var(--success)" : "var(--border)", display: "inline-block" }} />
-            <span style={{ fontSize: TEXT.xs, color: provider.loggedIn ? "var(--success)" : "var(--text-dim)" }}>
-               {provider.loggedIn ? t("i18n.connected") : t("i18n.notConnected")}
-            </span>
-          </div>
+          {/* 登录态就是画板 41 头部的徽章（头卡左侧那枚 pw-badge ok 已给出），
+              不再重复一个「圆点 + 文案」的自绘状态。 */}
           {isWorking ? (
             <ConfigButton
               size="small"
@@ -1930,94 +1825,103 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
       </ConfigDetailHeader>
 
       {/* Status */}
+      {/* 运行时才确定的高度：已登录且空闲时不占位，其余流程给足一行。 */}
       <div style={{ minHeight: provider.loggedIn && loginState.phase === "idle" ? 0 : 48 }}>
         {loginState.phase === "idle" && (
           !provider.loggedIn && (
-            <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)", lineHeight: 1.5 }}>
+            /* 登录引导文案按画板的弱化等宽信息行（`pw-mono pw-dim`，画板 41 的
+               「项目级只读…」同款）；p 的 UA 边距用 div 规避。 */
+            <div className="pw-mono pw-dim">
               Connect your {provider.name} account.
-            </p>
+            </div>
           )
         )}
         {loginState.phase === "connecting" && (
-            <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)" }}>{t("i18n.openingBrowser")}</p>
+            <div className="pw-mono pw-dim">{t("i18n.openingBrowser")}</div>
         )}
         {loginState.phase === "select" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)", lineHeight: 1.5 }}>
+          <div className="pw-rowgap">
+            <div className="pw-mono pw-dim">
               {loginState.message}
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            </div>
+            <div className="pw-list">
               {loginState.options.map((option) => (
-                <button
+                <ConfigSidebarItem
                   key={option.id}
                   onClick={() => submitSelection(loginState.token, option.id)}
-                  style={{ padding: "6px 9px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", color: "var(--text)", cursor: "pointer", fontSize: TEXT.sm, textAlign: "left" }}
                 >
-                  {option.label}
-                </button>
+                  <span className="grow">
+                    <ConfigSidebarText>{option.label}</ConfigSidebarText>
+                  </span>
+                </ConfigSidebarItem>
               ))}
             </div>
           </div>
         )}
         {(loginState.phase === "auth" || loginState.phase === "prompt") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)", lineHeight: 1.5 }}>
+          <div className="pw-rowgap">
+            <div className="pw-mono pw-dim">
               {loginState.phase === "auth"
                 ? "Complete sign-in in the browser, then copy the redirect URL from the address bar and paste it below."
                 : loginState.message}
-            </p>
+            </div>
             {loginState.phase === "auth" && (
-              <p style={{ margin: 0, fontSize: TEXT.xs, color: "var(--text-dim)", lineHeight: 1.5 }}>
+              <div className="pw-mono pw-dim">
                 If the browser window did not open,{" "}
-                <a href={loginState.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", wordBreak: "break-all" }}>
+                <a href={loginState.url} target="_blank" rel="noopener noreferrer" style={BREAKABLE_LINK}>
                   click here to open the login page
                 </a>
                 .
-              </p>
+              </div>
             )}
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="pw-inline">
               <input
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") submitCode(loginState.token, inputValue); }}
                 placeholder={loginState.phase === "auth" ? "http://localhost:1455/auth/callback?code=…" : (loginState.placeholder ?? "Enter value…")}
-                style={{ flex: 1, padding: "6px 9px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", color: "var(--text)", fontSize: TEXT.sm, outline: "none", fontFamily: "var(--font-mono)", boxSizing: "border-box" }}
+                className="pw-input pw-mono"
+                style={FILL_ROW_INPUT}
               />
-              <button
+              <ConfigButton
+                variant="primary"
                 onClick={() => submitCode(loginState.token, inputValue)}
                 disabled={!inputValue.trim()}
-                style={{ padding: "6px 12px", background: inputValue.trim() ? "var(--accent)" : "var(--bg-panel)", border: "none", borderRadius: "var(--radius-xs)", color: inputValue.trim() ? "var(--accent-contrast)" : "var(--text-dim)", cursor: inputValue.trim() ? "pointer" : "not-allowed", fontSize: TEXT.sm, fontWeight: 600, flexShrink: 0 }}
               >
                  {t("i18n.submit")}
-              </button>
+              </ConfigButton>
             </div>
           </div>
         )}
         {loginState.phase === "device_code" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)", lineHeight: 1.5 }}>
+          <div className="pw-rowgap">
+            <div className="pw-mono pw-dim">
               Open the verification page and enter this code:
-            </p>
-            <div style={{ padding: "8px 10px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", color: "var(--text)", fontSize: TEXT.xl, fontWeight: 700, fontFamily: "var(--font-mono)", letterSpacing: 0 }}>
-              {loginState.userCode}
             </div>
-            <p style={{ margin: 0, fontSize: TEXT.xs, color: "var(--text-dim)", lineHeight: 1.5 }}>
-              <a href={loginState.verificationUri} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", wordBreak: "break-all" }}>
+            {/* 设备码 = 画板的等宽小件（`.pw-kbd`，画板 41 的 ⌘K 同款）。 */}
+            <div><span className="pw-kbd">{loginState.userCode}</span></div>
+            <div className="pw-mono pw-dim">
+              <a href={loginState.verificationUri} target="_blank" rel="noopener noreferrer" style={BREAKABLE_LINK}>
                 {loginState.verificationUri}
               </a>
               {loginState.expiresInSeconds ? ` Expires in ${Math.ceil(loginState.expiresInSeconds / 60)} minutes.` : ""}
-            </p>
+            </div>
           </div>
         )}
         {loginState.phase === "progress" && (
-          <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--text-muted)" }}>{loginState.message}</p>
+          <div className="pw-mono pw-dim">{loginState.message}</div>
         )}
         {loginState.phase === "success" && (
-             <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--success)" }}>{t("i18n.connectedSuccessfully")}</p>
+          /* 画板 41 的成功徽章（check 图标 + ok 色）。 */
+          <ConfigBadge tone="ok">
+            <span className="pw-ico"><i data-ico="check" data-size="11"></i></span>
+            {t("i18n.connectedSuccessfully")}
+          </ConfigBadge>
         )}
         {loginState.phase === "error" && (
-          <p style={{ margin: 0, fontSize: TEXT.sm, color: "var(--danger)" }}>{loginState.message}</p>
+          /* 错误走画板的 `.pw-alert`。 */
+          <div className="pw-alert">{loginState.message}</div>
         )}
       </div>
 
@@ -2101,15 +2005,12 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
       <ConfigDetail>
       <ConfigDetailHeader>
         <ConfigDetailHeaderInfo>
-          <SectionTitle>API Key</SectionTitle>
+          <ConfigDetailTitle>API Key</ConfigDetailTitle>
+          <ConfigBadge tone={provider.configured ? "ok" : undefined}>
+            {provider.configured ? t("i18n.configured") : t("i18n.notConfigured")}
+          </ConfigBadge>
         </ConfigDetailHeaderInfo>
         <ConfigDetailActions>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: provider.configured ? "var(--success)" : "var(--border)", display: "inline-block" }} />
-            <span style={{ fontSize: TEXT.xs, color: provider.configured ? "var(--success)" : "var(--text-dim)" }}>
-               {provider.configured ? t("i18n.configured") : t("i18n.notConfigured")}
-            </span>
-          </div>
           {provider.configured && (
             <ConfigButton
               variant="danger"
@@ -2129,12 +2030,13 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
         </p>
       )}
       <ConfigDetailHeader>
+        {/* 行内填充（flex:1）走画板 41 搜索行的同款 inline 常量。 */}
         <SecretTextInput
           value={apiKey}
           onChange={setApiKey}
           onKeyDown={(e) => { if (e.key === "Enter" && apiKey.trim()) handleSave(); }}
           placeholder={provider.configured ? "Enter new key to replace…" : "sk-…"}
-          style={{ flex: 1 }}
+          style={FILL_ROW_INPUT}
           autoComplete="off"
           spellCheck={false}
           mono
@@ -2191,34 +2093,22 @@ function AddProviderPicker({
 
   const totalCount = availableOAuth.length + availableApiKey.length + (showCustom ? 1 : 0);
 
-  const cardStyle: React.CSSProperties = {
-    display: "flex", flexDirection: "row", alignItems: "center", gap: 8,
-    padding: "10px 12px",
-    background: "var(--bg-panel)",
-    border: "1px solid var(--border)",
-    borderRadius: "var(--radius-sm)",
-    boxSizing: "border-box",
-    cursor: "pointer",
-    minWidth: 0,
-    textAlign: "left",
-    transition: "border-color 0.12s, background 0.12s",
-    width: "100%",
-  };
-
-
-
   // fork:dsn-dialog-a11y — 这个自绘弹层原先只在容器上听 Escape，而 Escape 只有
   // 焦点恰好落在容器内部才触发；也没有任何焦点约束（Tab 能走到背景的侧栏/输入框）。
   // 现在交给共享 hook：打开移焦（优先搜索框）、Tab 循环、Esc 关闭、背景 inert、
   // 关闭后把焦点还给触发元素。外层的 onKeyDown 保留作为兜底。
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose, initialFocusRef: inputRef });
 
+  /* fork:design-system —— 弹层换画板 50 的 `.pw-scrim` + `.pw-modal`，供应商列表
+     换画板 41 的 `.pw-list` 行（pw-ico 图标 + pw-lname/pw-lsub），自绘卡片、
+     hover JS、搜索图标 SVG 全部退役。覆盖层的 fixed/层级画板没有产品等价物
+     （fork-ui 只给皮肤工作室接了线，z 顺序不能共用），保留这组行为 inline。 */
   return (
     <div
       ref={dialogRef}
       {...dialogProps}
       aria-label={t("models.title")}
-      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "var(--scrim)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "var(--scrim)", display: "grid", placeItems: "center" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       onKeyDown={(e) => {
         if (e.key !== "Escape") return;
@@ -2227,83 +2117,65 @@ function AddProviderPicker({
         onClose();
       }}
     >
-      <div style={{ width: 820, maxWidth: "calc(100vw - 32px)", maxHeight: "min(72vh, calc(100vh - 32px))", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
-        {/* Search */}
-        <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)", flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+      <div className="pw-modal">
+        {/* Search —— 画板 41 搜索行的形态（pw-ico + pw-input 吃掉剩余宽度）。 */}
+        <div className="pw-modal-head">
+          <span className="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
           <input
             ref={inputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
              placeholder={t("i18n.searchProviders")}
-            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--text)", fontSize: TEXT.md, boxSizing: "border-box" }}
+            className="pw-input"
+            style={FILL_ROW_INPUT}
           />
         </div>
 
-        {/* Card grid */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
+        {/* List —— 画板 50 的 pw-modal 是内容定高的确认框；这个选择器是长列表，
+            滚动上边界是产品行为，留在行内。 */}
+        <div className="pw-modal-body" style={{ overflowY: "auto", maxHeight: "min(72vh, calc(100vh - 32px))" }}>
           {totalCount === 0 ? (
-            <div style={{ padding: "20px 0", fontSize: TEXT.sm, color: "var(--text-dim)", textAlign: "center" }}>{t("i18n.noProviders")}</div>
+            <ConfigEmptyState>{t("i18n.noProviders")}</ConfigEmptyState>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))", gap: 8 }}>
+            <div className="pw-list">
+              {showCustom && <ConfigSidebarGroupLabel>{t("i18n.custom")}</ConfigSidebarGroupLabel>}
               {showCustom && (
-                 <div style={{ gridColumn: "1 / -1", fontSize: TEXT["2xs"], fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{t("i18n.custom")}</div>
-              )}
-              {showCustom && (
-                <button
+                <ConfigSidebarItem
                   onClick={() => { onAddCustom(); onClose(); }}
-                  style={cardStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-panel)"; }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: TEXT.sm, fontWeight: 600, color: "var(--text)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>OpenAI / Anthropic compatible</div>
-                     <div style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginTop: 2 }}>{t("i18n.customEndpoint")}</div>
-                  </div>
-                  <span style={{ width: 26, height: 26, borderRadius: "var(--radius-xs)", background: "var(--bg-hover)", border: "1px dashed var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)" }}>
-                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
+                  <span className="pw-ico"><i data-ico="plus" data-size="14"></i></span>
+                  <span className="grow">
+                    <ConfigSidebarText>OpenAI / Anthropic compatible</ConfigSidebarText>
+                    <ConfigSidebarSub>{t("i18n.customEndpoint")}</ConfigSidebarSub>
                   </span>
-                </button>
+                </ConfigSidebarItem>
               )}
 
               {availableOAuth.length > 0 && (
-                 <div style={{ gridColumn: "1 / -1", paddingTop: showCustom ? 6 : 0, fontSize: TEXT["2xs"], fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{t("i18n.subscriptions")}</div>
+                <ConfigSidebarGroupLabel>{t("i18n.subscriptions")}</ConfigSidebarGroupLabel>
               )}
               {availableOAuth.map((p) => (
-                <button key={p.id} onClick={() => { onSelectOAuth(p.id); onClose(); }}
-                  style={cardStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-panel)"; }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: TEXT.sm, fontWeight: 600, color: "var(--text)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                    <div style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginTop: 2 }}>OAuth</div>
-                  </div>
-                  <ProviderIcon id={p.id} size={28} />
-                </button>
+                <ConfigSidebarItem key={p.id} onClick={() => { onSelectOAuth(p.id); onClose(); }}>
+                  <ProviderIcon id={p.id} size={16} />
+                  <span className="grow">
+                    <ConfigSidebarText>{p.name}</ConfigSidebarText>
+                    <ConfigSidebarSub>OAuth</ConfigSidebarSub>
+                  </span>
+                </ConfigSidebarItem>
               ))}
 
               {availableApiKey.length > 0 && (
-                <div style={{ gridColumn: "1 / -1", paddingTop: availableOAuth.length > 0 ? 6 : 0, fontSize: TEXT["2xs"], fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.07em" }}>API Key</div>
+                <ConfigSidebarGroupLabel>API Key</ConfigSidebarGroupLabel>
               )}
               {availableApiKey.map((p) => (
-                <button key={p.id} onClick={() => { onSelectApiKey(p.id); onClose(); }}
-                  style={cardStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-panel)"; }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: TEXT.sm, fontWeight: 600, color: "var(--text)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.displayName}</div>
-                    <div style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", marginTop: 2 }}>{p.modelCount} models</div>
-                  </div>
-                  <ProviderIcon id={p.id} size={28} />
-                </button>
+                <ConfigSidebarItem key={p.id} onClick={() => { onSelectApiKey(p.id); onClose(); }}>
+                  <ProviderIcon id={p.id} size={16} />
+                  <span className="grow">
+                    <ConfigSidebarText>{p.displayName}</ConfigSidebarText>
+                    <ConfigSidebarSub>{p.modelCount} models</ConfigSidebarSub>
+                  </span>
+                </ConfigSidebarItem>
               ))}
-
             </div>
           )}
         </div>
@@ -2614,9 +2486,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           {/* Left: provider list (画板 41：搜索行 + 「订阅」/「自定义」两组) */}
           <ConfigSidebar>
             <ConfigDetailHeader>
+              {/* 画板 41 搜索行的形态；pw-input 的默认高度就是画板的 control-sm。 */}
               <input
                 className="pw-input"
-                style={{ flex: 1, minWidth: 0, height: 28 }}
+                style={FILL_ROW_INPUT}
                 value={providerFilter}
                 onChange={(event) => setProviderFilter(event.target.value)}
                 placeholder={t("models.searchProviders")}
@@ -2690,8 +2563,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               ) : visibleProviders.map(([pName, pData]) => {
                 const isProviderSelected = selection?.type === "provider" && selection.name === pName;
                 const models = pData.models ?? [];
+                /* Fragment 让 provider 行 / 模型行 / 添加行都是 `.pw-list` 的直接
+                   网格项，行距由 pw-list 统一给，不再包一层补 margin 的 div。 */
                 return (
-                  <div key={pName} style={{ marginBottom: 2 }}>
+                  <Fragment key={pName}>
                     {/* Provider row */}
                     <ConfigSidebarItem
                       onClick={() => setSelection({ type: "provider", name: pName })}
@@ -2720,15 +2595,19 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                           className="models-sidebar-indented-item"
                           onClick={() => setSelection({ type: "model", providerName: pName, index: i })}
                         >
-                          <ConfigSidebarText className="is-grow" style={{ color: m.id ? "var(--text-muted)" : "var(--text-dim)" }}>
+                          <ConfigSidebarText className={m.id ? undefined : "pw-dim"}>
                              {m.id || t("i18n.newModel")}
                           </ConfigSidebarText>
                           {m.reasoning && (
-                            <span style={{ fontSize: TEXT["2xs"], padding: "1px 4px", background: "var(--accent-soft)", color: "var(--accent-text)", borderRadius: "var(--radius-xs)", flexShrink: 0 }}>T</span>
+                            <ConfigBadge tone="accent">T</ConfigBadge>
                           )}
-                          <span
-                            role="button"
+                          {/* 收藏星 = 画板 41 供应商行上的那枚 `pw-ico` + star；
+                              颜色/可见度随收藏态（运行时）。 */}
+                          <button
+                            type="button"
+                            className="pw-iconbtn sm"
                             tabIndex={favoriteKey ? 0 : -1}
+                            disabled={!favoriteKey}
                             aria-pressed={isFavorite}
                             aria-label={isFavorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
                             title={isFavorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
@@ -2742,19 +2621,14 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                               event.stopPropagation();
                               if (favoriteKey) toggleFavoriteModelKey(favoriteKey);
                             }}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexShrink: 0,
-                              padding: 2,
-                              color: isFavorite ? "var(--accent)" : "var(--text-dim)",
-                              opacity: favoriteKey ? 1 : 0.35,
-                              cursor: favoriteKey ? "pointer" : "not-allowed",
-                            }}
                           >
-                            <FavoriteStarIcon filled={isFavorite} />
-                          </span>
+                            <span
+                              className="pw-ico"
+                              style={{ color: isFavorite ? "var(--accent)" : "var(--text-dim)", opacity: favoriteKey ? 1 : 0.35 }}
+                            >
+                              <i data-ico="star" data-size="13"></i>
+                            </span>
+                          </button>
                         </ConfigSidebarItem>
                       );
                     })}
@@ -2766,7 +2640,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                     >
                        <ConfigSidebarText>+ {t("i18n.model")}</ConfigSidebarText>
                     </ConfigSidebarItem>
-                  </div>
+                  </Fragment>
                 );
               })}
             </ConfigSidebarList>
@@ -2782,12 +2656,13 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           </ConfigDetailStack>
         </ConfigSplitView>
 
-        {/* Footer */}
-        <ConfigFooter status={saveError
-          ? <span style={{ color: "var(--danger)" }}>{saveError}</span>
-          : saveWarnings.length > 0
-            ? <span style={{ color: "var(--warning)" }}>{t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}</span>
-            : null}>
+        {/* Footer —— 状态色按「错误 / 内置覆盖警告」运行时给出；画板的状态槽
+            （pw-mono pw-dim）没有这两个语义档。 */}
+        <ConfigFooter status={saveError || saveWarnings.length > 0 ? (
+          <span style={{ color: saveError ? "var(--danger)" : "var(--warning)" }}>
+            {saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
+          </span>
+        ) : null}>
           {!embedded && <ConfigButton onClick={onClose}>{t("i18n.cancel")}</ConfigButton>}
           <ConfigButton
             variant="primary"
@@ -2796,10 +2671,11 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
             className={savedOk ? "is-success" : undefined}
           >
             {savedOk && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-                className="config-button-success-icon">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              /* 保存成功的对勾收编为画板图标（`pw-ico` + data-ico=check）；
+                 settings.css 的 .config-button-success-icon 继续提供描画动画。 */
+              <span className="config-button-success-icon pw-ico">
+                <i data-ico="check" data-size="14"></i>
+              </span>
             )}
              <span>{savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}</span>
           </ConfigButton>
