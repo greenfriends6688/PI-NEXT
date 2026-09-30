@@ -1109,8 +1109,11 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
         style={{ flex: 1, minWidth: 0 }}
       >
         {bodyMounted && (
+          /* fork:design-components —— 思考正文 = 画板 10 的 `.pw-think`（推理体的
+             muted 底色与排版由 board.css 承担）；`.pw-muted` 保留在 class 里，
+             错误态仍按原样转 `--error`。时长在下面一行，已经挂 `.pw-dim`。 */
           <div
-            className="fork-collapse-body pw-muted"
+            className="fork-collapse-body pw-muted pw-think"
             style={error ? { color: "var(--error)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" } : { whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
           >
             {loading ? (
@@ -1251,7 +1254,7 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
             onClick={() => onOpenSession(subagent.sessionId)}
             title={t("subagent.open")}
             aria-label={t("subagent.open")}
-            style={{ borderLeft: "1px solid var(--n-border-subtle)", borderRadius: 0, alignSelf: "stretch" }}
+            style={{ borderLeft: "1px solid var(--n-border-subtle)", alignSelf: "stretch" }}
           >
             <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
           </button>
@@ -1678,13 +1681,28 @@ function CompactionFileMetadata({ readFiles, modifiedFiles }: { readFiles: strin
   );
 }
 
+/**
+ * fork:design-components —— 文件/资源卡 = 画板 12 的 `.pw-filecard`（发丝框 / radius-6 /
+ * 名称 `.pw-fname` + 右侧 `.pw-meta`）。产品没有 mime/大小可用，右槽放文件后缀
+ * （`.pw-meta` 本来就是等宽小字）；点开动作仍不在这里（压缩卡是只读摘要）。
+ */
+function fileExtension(file: string): string {
+  const name = file.slice(file.lastIndexOf("/") + 1);
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1) : "";
+}
+
 function CompactionFileList({ title, files }: { title: string; files: string[] }) {
   return (
     <div className="compaction-file-section">
       <div className="compaction-file-title">{title}</div>
-      <ul className="compaction-file-list">
+      <ul className="pw-list" style={{ maxHeight: 180, overflow: "auto" }}>
         {files.map((file) => (
-          <li key={file}>{file}</li>
+          <li key={file} className="pw-filecard">
+            <span className="pw-ico"><i data-ico="file" data-size="14" aria-hidden="true"></i></span>
+            <span className="pw-fname">{file}</span>
+            {fileExtension(file) && <span className="pw-meta">{fileExtension(file)}</span>}
+          </li>
         ))}
       </ul>
     </div>

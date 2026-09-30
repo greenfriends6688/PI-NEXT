@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
-import { TEXT } from "@/lib/typography";
 
 interface DirectoryEntry {
   name: string;
@@ -31,50 +30,11 @@ async function loadDirectories(directory?: string): Promise<BrowseResponse> {
   return data;
 }
 
-function FolderIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-      <path d="M1.5 3h4l1.5 2h7.5v7.5h-13z" />
-    </svg>
-  );
-}
-
-function NewFolderIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1.75 4h5l1.5 2h8v8.25a1 1 0 0 1-1 1H2.75a1 1 0 0 1-1-1z" />
-      <path d="M12.25 8.25v4M10.25 10.25h4" />
-    </svg>
-  );
-}
-
-function RenameIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m11.8 3.1 3.1 3.1M3 15l2.9-.6L14.4 5.9a1.5 1.5 0 0 0-2.1-2.1L3.8 12.1z" />
-    </svg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
-}
-
-function DriveIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="10" rx="1.5" />
-      <path d="M2 9h12" />
-      <circle cx="11.5" cy="11" r="0.6" fill="currentColor" stroke="none" />
-    </svg>
-  );
+/* fork:design-system —— 图标改画板图标集（`data-ico` + icons.js 水合），手绘 SVG 全部退役。
+ * 实名与画板 50 的 D 段一致：目录列表 folder / 盘符 hard-drive、上一级 arrow-up、
+ * 新建 folder-plus、重命名 square-pen、删除 trash-2、关闭 x。 */
+function Icon({ name, size = 14 }: { name: string; size?: number }) {
+  return <span className="pw-ico"><i data-ico={name} data-size={size}></i></span>;
 }
 
 function isWindowsDriveRoot(directory: string): boolean {
@@ -260,263 +220,274 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
       }}
       style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--scrim)" }}
     >
-      <div className="directory-picker-panel pw-modal" style={{ width: 520, maxWidth: "calc(100vw - 16px)", height: "min(620px, calc(100dvh - 16px))", maxHeight: "calc(100dvh - 16px)", display: "flex", flexDirection: "column", background: "var(--surface-panel)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ color: "var(--text)", fontWeight: 700, fontSize: TEXT.xl }}>{t("directoryPicker.selectDirectory")}</div>
-          </div>
+      {/* fork:design-system —— 自绘降级态 = 画板 50 的 D 段「目录选择 · 回退：自绘浏览器」：
+        * pw-modal 壳 › pw-modal-head（folder-open 图标 + 标题 + grow + 「上一级」pw-btn.sm +
+        * pw-iconbtn.sm 关闭）› pw-modal-body（路径行 / 目录列表 pw-list + pw-litem /
+        * 错误 pw-alert）› pw-modal-foot（取消 pw-btn + 选中 pw-btn.primary）。
+        * 系统原生选择器那条主路径（/api/cwd/pick）不在本文件，不受本段影响。 */}
+      <div className="directory-picker-panel pw-modal" style={{ width: 520, maxWidth: "calc(100vw - 16px)", height: "min(620px, calc(100dvh - 16px))", maxHeight: "calc(100dvh - 16px)", display: "flex", flexDirection: "column" }}>
+        <div className="pw-modal-head">
+          <span className="pw-ico"><i data-ico="folder-open" data-size="16"></i></span>
+          <span className="grow">{t("directoryPicker.selectDirectory")}</span>
+          <button
+            className="directory-picker-back pw-btn sm"
+            type="button"
+            onClick={() => void navigateTo(parentDirectory ?? undefined)}
+            disabled={loading || pickerBusy || !canNavigateUp}
+            title={t("directoryPicker.goToParent")}
+            aria-label={t("directoryPicker.goToParent")}
+            style={canNavigateUp && !pickerBusy ? undefined : { opacity: 0.45 }}
+          >
+            <span className="pw-ico"><i data-ico="arrow-up" data-size="13"></i></span>
+            {t("directoryPicker.goToParent")}
+          </button>
           <button
             type="button"
             onClick={onCancel}
             disabled={pickerBusy}
             title={t("i18n.close")}
             aria-label={t("i18n.close")}
-            style={{ padding: "2px 6px", border: 0, background: "none", color: "var(--text-muted)", fontSize: TEXT["2xl"], lineHeight: 1, cursor: pickerBusy ? "default" : "pointer", opacity: pickerBusy ? 0.5 : 1 }}
+            className="pw-iconbtn sm"
+            style={pickerBusy ? { opacity: 0.5 } : undefined}
           >
-            ×
+            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
           </button>
         </div>
 
-        <form onSubmit={handlePathSubmit} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-          <button className="directory-picker-back" type="button" onClick={() => void navigateTo(parentDirectory ?? undefined)} disabled={loading || pickerBusy || !canNavigateUp} title={t("directoryPicker.goToParent")} aria-label={t("directoryPicker.goToParent")} style={{ width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--bg-hover)", color: "var(--text-muted)", cursor: canNavigateUp ? "pointer" : "default", opacity: canNavigateUp && !pickerBusy ? 1 : 0.45 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m18 15-6-6-6 6" />
-            </svg>
-          </button>
-          <label htmlFor="directory-path" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
-            {t("directoryPicker.directoryPath")}
-          </label>
-          <input
-            className="directory-picker-path"
-            id="directory-path"
-            type="text"
-            value={pathInput}
-            placeholder="/path/to/project or ~/project"
-            autoFocus
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(event) => {
-              setPathInput(event.target.value);
-              setLoadError(null);
-            }}
-            style={{ minWidth: 0, flex: 1, height: 36, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", outline: "none", background: "var(--bg-panel)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: TEXT.sm }}
-          />
-          <button
-            className="directory-picker-new"
-            type="button"
-            onClick={beginCreate}
-            disabled={loading || pickerBusy || !currentPath}
-            title={t("directoryPicker.newFolder")}
-            aria-label={t("directoryPicker.newFolder")}
-            style={{ width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--bg-hover)", color: "var(--text-muted)", cursor: loading || pickerBusy || !currentPath ? "default" : "pointer", opacity: loading || pickerBusy || !currentPath ? 0.45 : 1 }}
-          >
-            <NewFolderIcon />
-          </button>
-          <button
-            className="directory-picker-action"
-            type="submit"
-            disabled={loading || pickerBusy || !pathInput.trim()}
-            title={t("directoryPicker.goToDirectory")}
-            style={{ minWidth: 58, height: 36, padding: "0 12px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--bg-hover)", color: "var(--text-muted)", cursor: loading || pickerBusy || !pathInput.trim() ? "default" : "pointer", opacity: loading || pickerBusy || !pathInput.trim() ? 0.6 : 1 }}
-          >
-            {t("directoryPicker.go")}
-          </button>
-        </form>
-
-        {operation?.kind === "create" && (
-          <form onSubmit={handleOperationSubmit} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, padding: "8px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-panel)" }}>
-            <label htmlFor="directory-operation-name" style={{ flexShrink: 0, color: "var(--text-muted)", fontSize: TEXT.xs }}>{t("directoryPicker.newFolder")}</label>
+        <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
+          <form onSubmit={handlePathSubmit} className="pw-inline">
+            <span className="pw-ico pw-dim"><i data-ico="folder" data-size="13"></i></span>
+            <label htmlFor="directory-path" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
+              {t("directoryPicker.directoryPath")}
+            </label>
             <input
-              id="directory-operation-name"
+              className="directory-picker-path pw-input"
+              id="directory-path"
               type="text"
-              value={operation.name}
+              value={pathInput}
+              placeholder="/path/to/project or ~/project"
               autoFocus
               autoComplete="off"
               spellCheck={false}
               onChange={(event) => {
-                setOperation((current) => current ? { ...current, name: event.target.value } : current);
-                setOperationError(null);
+                setPathInput(event.target.value);
+                setLoadError(null);
               }}
-              style={{ minWidth: 0, flex: 1, height: 32, padding: "0 9px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", outline: "none", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: TEXT.sm }}
+              style={{ minWidth: 0, flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
             />
-            <button className="directory-picker-action" type="button" onClick={() => { setOperation(null); setOperationError(null); }} disabled={operationBusy} style={{ height: 32, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-muted)", cursor: operationBusy ? "default" : "pointer", fontSize: TEXT.sm }}>{t("i18n.cancel")}</button>
-            <button className="directory-picker-action" type="submit" disabled={operationBusy || !operation.name.trim()} style={{ height: 32, padding: "0 10px", border: 0, borderRadius: "var(--radius-sm)", background: "var(--accent)", color: "var(--accent-contrast)", cursor: operationBusy || !operation.name.trim() ? "default" : "pointer", opacity: operationBusy || !operation.name.trim() ? 0.6 : 1, fontSize: TEXT.sm, fontWeight: 600 }}>{operationBusy ? t("i18n.saving") : t("directoryPicker.create")}</button>
+            <button
+              className="directory-picker-new pw-btn sm"
+              type="button"
+              onClick={beginCreate}
+              disabled={loading || pickerBusy || !currentPath}
+              title={t("directoryPicker.newFolder")}
+              aria-label={t("directoryPicker.newFolder")}
+              style={loading || pickerBusy || !currentPath ? { opacity: 0.45 } : undefined}
+            >
+              <span className="pw-ico"><i data-ico="folder-plus" data-size="13"></i></span>
+              {t("directoryPicker.newFolder")}
+            </button>
+            <button
+              className="directory-picker-action pw-btn sm"
+              type="submit"
+              disabled={loading || pickerBusy || !pathInput.trim()}
+              title={t("directoryPicker.goToDirectory")}
+            >
+              {t("directoryPicker.go")}
+            </button>
           </form>
-        )}
 
-        <div className="directory-picker-list" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "8px 10px" }}>
-          {loading ? (
-            <div style={{ padding: 8, color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("directoryPicker.loadingDirectories")}</div>
-          ) : drives !== null ? (
-            <>
-              {drives.length > 0 ? (
-                drives.map((drive) => (
-                  <button
-                    key={drive.path}
-                    className="directory-picker-entry"
-                    type="button"
-                    onClick={() => void navigateTo(drive.path)}
-                    disabled={pickerBusy}
-                    title={drive.path}
-                    style={{ width: "100%", minHeight: 34, display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", border: 0, borderRadius: "var(--radius-xs)", background: "none", color: "var(--text-muted)", cursor: "pointer", textAlign: "left", fontFamily: "var(--font-mono)", fontSize: TEXT.xs }}
-                  >
-                    <DriveIcon />
-                    <span>{drive.name}</span>
-                  </button>
-                ))
-              ) : (
-                <div style={{ padding: 8, color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("directoryPicker.noDrives")}</div>
-              )}
-            </>
-          ) : directories.length > 0 ? (
-            directories.map((entry) => (
-              (() => {
-                const isRenaming = operation?.kind === "rename" && operation.path === entry.path;
-                const isConfirmingDelete = confirmDeletePath === entry.path;
-                const isHovered = hoveredDirectoryPath === entry.path;
-                return (
-                  <div
-                    key={entry.path}
-                    onMouseEnter={() => setHoveredDirectoryPath(entry.path)}
-                    onMouseLeave={() => setHoveredDirectoryPath(null)}
-                    style={{ minHeight: 30, display: "flex", alignItems: "center", gap: 4, paddingLeft: isConfirmingDelete ? 6 : 0, borderRadius: "var(--radius-xs)", background: isConfirmingDelete ? "color-mix(in srgb, var(--danger) 6%, transparent)" : isHovered && !isRenaming ? "var(--bg-hover)" : "transparent", borderLeft: isConfirmingDelete ? "2px solid var(--danger)" : "2px solid transparent", transition: "background 0.1s", overflow: "hidden" }}
-                  >
-                    {isConfirmingDelete ? (
-                      <>
-                        <div style={{ flex: 1, minWidth: 0, fontSize: TEXT.xs, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {t("directoryPicker.confirmDeleteFolder", { name: entry.name.slice(0, 22) + (entry.name.length > 22 ? "…" : "") })}
-                        </div>
-                        <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+          {operation?.kind === "create" && (
+            <form onSubmit={handleOperationSubmit} className="pw-inline">
+              <span className="pw-ico pw-dim"><i data-ico="folder-plus" data-size="13"></i></span>
+              <input
+                id="directory-operation-name"
+                className="pw-input"
+                type="text"
+                value={operation.name}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => {
+                  setOperation((current) => current ? { ...current, name: event.target.value } : current);
+                  setOperationError(null);
+                }}
+                style={{ minWidth: 0, flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
+              />
+              <button className="directory-picker-action pw-btn sm" type="button" onClick={() => { setOperation(null); setOperationError(null); }} disabled={operationBusy}>
+                {t("i18n.cancel")}
+              </button>
+              <button className="directory-picker-action pw-btn sm primary" type="submit" disabled={operationBusy || !operation.name.trim()}>
+                {operationBusy ? t("i18n.saving") : t("directoryPicker.create")}
+              </button>
+            </form>
+          )}
+
+          <div className="directory-picker-list pw-list" style={{ flex: 1, minHeight: 0, overflow: "auto", alignContent: "start" }}>
+            {loading ? (
+              <div className="pw-litem pw-dim" role="status">{t("directoryPicker.loadingDirectories")}</div>
+            ) : drives !== null ? (
+              <>
+                {drives.length > 0 ? (
+                  drives.map((drive) => (
+                    <button
+                      key={drive.path}
+                      className="directory-picker-entry pw-litem"
+                      type="button"
+                      onClick={() => void navigateTo(drive.path)}
+                      disabled={pickerBusy}
+                      title={drive.path}
+                    >
+                      <Icon name="hard-drive" />
+                      <span className="grow"><span className="pw-lname">{drive.name}</span></span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="pw-litem pw-dim" role="status">{t("directoryPicker.noDrives")}</div>
+                )}
+              </>
+            ) : directories.length > 0 ? (
+              directories.map((entry) => (
+                (() => {
+                  const isRenaming = operation?.kind === "rename" && operation.path === entry.path;
+                  const isConfirmingDelete = confirmDeletePath === entry.path;
+                  const isHovered = hoveredDirectoryPath === entry.path;
+                  return (
+                    <div
+                      key={entry.path}
+                      className="directory-picker-row pw-litem"
+                      onMouseEnter={() => setHoveredDirectoryPath(entry.path)}
+                      onMouseLeave={() => setHoveredDirectoryPath(null)}
+                      style={isConfirmingDelete ? { boxShadow: "inset 2px 0 0 var(--error)" } : undefined}
+                    >
+                      {isConfirmingDelete ? (
+                        <>
+                          <span className="pw-ico" style={{ color: "var(--error)" }}>
+                            <i data-ico="trash-2" data-size="14"></i>
+                          </span>
+                          <span className="grow">
+                            <span className="pw-lname">
+                              {t("directoryPicker.confirmDeleteFolder", { name: entry.name.slice(0, 22) + (entry.name.length > 22 ? "…" : "") })}
+                            </span>
+                          </span>
                           <button
+                            className="pw-btn sm"
                             type="button"
                             onClick={() => void performDelete(entry)}
                             disabled={deleteBusy}
                             title={t("directoryPicker.deleteFolder")}
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, height: 30, padding: "0 11px", background: "var(--danger)", border: "none", borderRadius: "var(--radius-sm)", color: "var(--accent-contrast)", cursor: deleteBusy ? "default" : "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap", opacity: deleteBusy ? 0.6 : 1 }}
+                            style={{ background: "var(--error)", color: "var(--accent-on)" }}
                           >
-                            <DeleteIcon />
+                            <span className="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>
                             {t("sidebar.delete")}
                           </button>
                           <button
+                            className="pw-btn sm outline"
                             type="button"
                             onClick={() => { setConfirmDeletePath(null); setDeleteError(null); }}
                             disabled={deleteBusy}
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 30, padding: "0 11px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-muted)", cursor: deleteBusy ? "default" : "pointer", fontSize: TEXT.xs, fontWeight: 500, whiteSpace: "nowrap", opacity: deleteBusy ? 0.6 : 1 }}
                           >
                             {t("sidebar.cancel")}
                           </button>
-                        </div>
-                      </>
-                    ) : isRenaming ? (
-                      <input
-                        ref={renameInputRef}
-                        value={operation.name}
-                        onChange={(event) => {
-                          setOperation((current) => current?.kind === "rename" ? { ...current, name: event.target.value } : current);
-                          setOperationError(null);
-                        }}
-                        onBlur={() => {
-                          if (skipRenameBlurRef.current) {
-                            skipRenameBlurRef.current = false;
-                            return;
-                          }
-                          const activeOperation = operation;
-                          if (activeOperation?.kind === "rename" && activeOperation.path === entry.path) void submitOperation(activeOperation);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
+                        </>
+                      ) : isRenaming ? (
+                        <input
+                          ref={renameInputRef}
+                          className="pw-input"
+                          value={operation.name}
+                          onChange={(event) => {
+                            setOperation((current) => current?.kind === "rename" ? { ...current, name: event.target.value } : current);
+                            setOperationError(null);
+                          }}
+                          onBlur={() => {
+                            if (skipRenameBlurRef.current) {
+                              skipRenameBlurRef.current = false;
+                              return;
+                            }
                             const activeOperation = operation;
                             if (activeOperation?.kind === "rename" && activeOperation.path === entry.path) void submitOperation(activeOperation);
-                          }
-                          if (event.key === "Escape") {
-                            event.stopPropagation();
-                            skipRenameBlurRef.current = true;
-                            setOperation(null);
-                            setOperationError(null);
-                          }
-                        }}
-                        autoFocus
-                        aria-label={`${t("i18n.rename")}: ${entry.name}`}
-                        style={{ flex: 1, minWidth: 0, fontSize: TEXT.xs, padding: "5px 8px", border: "1px solid var(--accent)", borderRadius: "var(--radius-xs)", outline: "none", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-mono)", height: 30 }}
-                      />
-                    ) : (
-                      <>
-                        <button
-                          className="directory-picker-entry"
-                          type="button"
-                          onClick={() => void navigateTo(entry.path)}
-                          disabled={pickerBusy}
-                          title={entry.path}
-                          style={{ flex: 1, minWidth: 0, minHeight: 30, display: "flex", alignItems: "center", gap: 7, padding: "5px 8px", border: 0, borderRadius: "var(--radius-xs)", background: "none", color: "var(--text-muted)", cursor: pickerBusy ? "default" : "pointer", textAlign: "left", fontFamily: "var(--font-mono)", fontSize: TEXT.xs, opacity: pickerBusy ? 0.6 : 1 }}
-                        >
-                          <FolderIcon />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.name}</span>
-                        </button>
-                        {isHovered && !pickerBusy && (
-                          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                            <button
-                              className="directory-picker-rename"
-                              type="button"
-                              onClick={() => beginRename(entry)}
-                              title={`${t("i18n.rename")}: ${entry.name}`}
-                              aria-label={`${t("i18n.rename")}: ${entry.name}`}
-                              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, padding: 0, flexShrink: 0, background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-muted)", cursor: "pointer", transition: "background 0.12s, color 0.12s, border-color 0.12s" }}
-                              onMouseEnter={(event) => {
-                                event.currentTarget.style.background = "var(--bg-selected)";
-                                event.currentTarget.style.color = "var(--accent)";
-                                event.currentTarget.style.borderColor = "color-mix(in srgb, var(--accent) 35%, transparent)";
-                              }}
-                              onMouseLeave={(event) => {
-                                event.currentTarget.style.background = "var(--bg-hover)";
-                                event.currentTarget.style.color = "var(--text-muted)";
-                                event.currentTarget.style.borderColor = "var(--border)";
-                              }}
-                            >
-                              <RenameIcon />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => beginDelete(entry)}
-                              title={t("directoryPicker.deleteFolder")}
-                              aria-label={`${t("directoryPicker.deleteFolder")}: ${entry.name}`}
-                              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, padding: 0, flexShrink: 0, background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-muted)", cursor: "pointer", transition: "background 0.12s, color 0.12s, border-color 0.12s" }}
-                              onMouseEnter={(event) => {
-                                event.currentTarget.style.background = "color-mix(in srgb, var(--danger) 10%, transparent)";
-                                event.currentTarget.style.color = "var(--danger)";
-                                event.currentTarget.style.borderColor = "color-mix(in srgb, var(--danger) 35%, transparent)";
-                              }}
-                              onMouseLeave={(event) => {
-                                event.currentTarget.style.background = "var(--bg-hover)";
-                                event.currentTarget.style.color = "var(--text-muted)";
-                                event.currentTarget.style.borderColor = "var(--border)";
-                              }}
-                            >
-                              <DeleteIcon />
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })()
-            ))
-          ) : (
-            <div style={{ padding: 8, color: "var(--text-dim)", fontSize: TEXT.xs }}>{t("directoryPicker.noSubdirectories")}</div>
-          )}
-           {(loadError || error || operationError || deleteError) && <div style={{ padding: "8px", color: "var(--danger)", fontSize: TEXT.xs }}>{loadError ?? error ?? operationError ?? deleteError}</div>}
-         </div>
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              const activeOperation = operation;
+                              if (activeOperation?.kind === "rename" && activeOperation.path === entry.path) void submitOperation(activeOperation);
+                            }
+                            if (event.key === "Escape") {
+                              event.stopPropagation();
+                              skipRenameBlurRef.current = true;
+                              setOperation(null);
+                              setOperationError(null);
+                            }
+                          }}
+                          autoFocus
+                          aria-label={`${t("i18n.rename")}: ${entry.name}`}
+                          style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
+                        />
+                      ) : (
+                        <>
+                          <button
+                            className="directory-picker-entry pw-litem"
+                            type="button"
+                            onClick={() => void navigateTo(entry.path)}
+                            disabled={pickerBusy}
+                            title={entry.path}
+                            style={{ flex: 1, minWidth: 0, margin: 0, padding: 0 }}
+                          >
+                            <Icon name="folder" />
+                            <span className="grow"><span className="pw-lname">{entry.name}</span></span>
+                          </button>
+                          {isHovered && !pickerBusy && (
+                            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                              <button
+                                className="directory-picker-rename pw-iconbtn sm"
+                                type="button"
+                                onClick={() => beginRename(entry)}
+                                title={`${t("i18n.rename")}: ${entry.name}`}
+                                aria-label={`${t("i18n.rename")}: ${entry.name}`}
+                              >
+                                <span className="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>
+                              </button>
+                              <button
+                                className="pw-iconbtn sm"
+                                type="button"
+                                onClick={() => beginDelete(entry)}
+                                title={t("directoryPicker.deleteFolder")}
+                                aria-label={`${t("directoryPicker.deleteFolder")}: ${entry.name}`}
+                              >
+                                <span className="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()
+              ))
+            ) : (
+              <div className="pw-litem pw-dim" role="status">{t("directoryPicker.noSubdirectories")}</div>
+            )}
+            {(loadError || error || operationError || deleteError) && (
+              <div className="pw-alert" role="alert">
+                <span className="pw-ico"><i data-ico="circle-alert" data-size="14"></i></span>
+                <span className="grow">{loadError ?? error ?? operationError ?? deleteError}</span>
+              </div>
+            )}
+          </div>
+        </div>
  
-         <div className="directory-picker-footer" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, flexShrink: 0, padding: "10px 18px", borderTop: "1px solid var(--border)" }}>
-           <button className="directory-picker-action" type="button" onClick={onCancel} disabled={pickerBusy} style={{ padding: "6px 14px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-muted)", cursor: pickerBusy ? "default" : "pointer", fontSize: TEXT.md }}>{t("i18n.cancel")}</button>
+        <div className="directory-picker-footer pw-modal-foot">
+          <button className="directory-picker-action pw-btn" type="button" onClick={onCancel} disabled={pickerBusy}>
+            {t("i18n.cancel")}
+          </button>
           <button
-            className="directory-picker-action"
+            className="directory-picker-action pw-btn primary"
             type="button"
             onClick={() => onSelect(currentPath)}
             disabled={!canSelect}
             title={hasUncommittedPath ? t("directoryPicker.openBeforeSelecting") : t("directoryPicker.selectCurrentDirectory")}
-            style={{ padding: "7px 16px", border: "1px solid var(--primary-bg)", borderRadius: "var(--radius-md)", background: "var(--primary-bg)", color: "var(--primary-fg)", fontSize: TEXT.md, fontWeight: 600, opacity: canSelect ? 1 : 0.6, cursor: canSelect ? "pointer" : "default" }}
+            style={canSelect ? undefined : { opacity: 0.6 }}
           >
             {busy ? t("i18n.checking") : t("directoryPicker.selectThisFolder")}
           </button>

@@ -289,7 +289,7 @@
         <span class="pw-grow"></span>
         <span class="pw-btn sm">返回源码</span>
       </div>
-      <div class="pw-diff" style="border:0;border-radius:0">
+      <div class="pw-diff-body">
         <div class="pw-diff-line"><span class="no">41</span><span class="del">-  const rows = useMemo(() =&gt; sessions.filter(isVisible), [sessions]);</span></div>
         <div class="pw-diff-line"><span class="no">41</span><span class="add">+  const rows = useMemo(() =&gt; sessions.filter(isVisible), [sessions, query]);</span></div>
         <div class="pw-diff-line"><span class="no">42</span><span>   const grouped = groupByProject(rows);</span></div>
@@ -327,7 +327,7 @@
           <span class="pw-grow"></span>
           <span class="pw-btn sm">返回源码</span>
         </div>
-        <div class="pw-diff" style="border:0;border-radius:0">
+        <div class="pw-diff-body">
           <div class="pw-diff-line"><span class="no">1</span><span class="del">- export * from "./legacy-shim";</span></div>
           <div class="pw-diff-line"><span class="no">1</span><span class="del">- // TODO: 待清理</span></div>
         </div>

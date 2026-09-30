@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createJiti } from "jiti";
+
+const source = await readFile(new URL("./MessageView.tsx", import.meta.url), "utf8");
 
 const jiti = createJiti(import.meta.url, {
   jsx: { runtime: "automatic" },
@@ -582,4 +585,46 @@ test("renders no hand-drawn inline svg in the transcript", () => {
   assert.match(html, /class="pw-turn-end"/);
   // 工具卡图标槽是 <i data-ico>，不是内联 svg 路径。
   assert.doesNotMatch(html, /<span class="pw-ico"><svg/);
+});
+test("carries the thinking body in the board's pw-think and the duration in pw-dim", async () => {
+  const source = await readFile(new URL("./MessageView.tsx", import.meta.url), "utf8");
+  const html = renderToStaticMarkup(
+    React.createElement(
+      I18nProvider,
+      null,
+      React.createElement(ThinkingBlock, {
+        block: { type: "thinking", thinking: "first line of reasoning" },
+        duration: 3,
+      }),
+    ),
+  );
+
+  // 思考块默认收起，正文不进 SSR 快照（同压缩卡那条用例的理由），
+  // 所以正文结构在源码上钉，渲染侧只钉收起态的外壳没回退。
+  assert.match(source, /className="fork-collapse-body pw-muted pw-think"/);
+  assert.match(source, /className="pw-dim"/);
+  assert.match(html, /aria-expanded="false"/);
+});
+
+test("carries the compaction file list in the board's pw-filecard rows", () => {
+  // 压缩卡默认收起，正文不进 SSR 快照，所以文件清单的结构在源码上钉；
+  // 渲染侧只钉外壳没回退。
+  const html = renderMessage({
+    role: "custom",
+    customType: "compaction",
+    content: "压掉 12 轮。\n\n<read-files>\ncomponents/MessageView.tsx\n</read-files>",
+    display: true,
+    timestamp: Date.parse("2026-09-29T10:00:00Z"),
+  });
+  assert.match(html, /class="pw-compact"/);
+
+  // 文件清单 = .pw-list 容器 + 每行一张 .pw-filecard：file 图标 + .pw-fname 全路径 +
+  // .pw-meta 后缀（画板 12 的「资源文件 / 兜底文件卡」形态）。
+  assert.match(source, /<ul className="pw-list"/);
+  assert.match(source, /<li key=\{file\} className="pw-filecard">/);
+  assert.match(source, /className="pw-fname">\{file\}<\/span>/);
+  assert.match(source, /className="pw-meta">\{fileExtension\(file\)\}/);
+  assert.match(source, /<i data-ico="file" data-size="14"/);
+  // 旧的自绘列表（compaction-file-list）不再挂载。
+  assert.doesNotMatch(source, /className="compaction-file-list"/);
 });

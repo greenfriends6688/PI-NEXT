@@ -167,9 +167,13 @@ export function MarkdownFilePreview({ content, filePath, cwd, sourceSessionId, o
   const rehypePlugins = useMemo(() => sourceLines
     ? [...(markdownPreviewRehypePlugins ?? []), rehypeSourceLineSpans]
     : (markdownPreviewRehypePlugins ?? []), [sourceLines]);
+  // fork:design-system —— 正文容器挂画板 10 的 .pw-md（段落 / 标题 / 列表 / 行内代码 /
+  // 引用 / 链接 / 分割线的排版全归它），frontmatter 卡仍在卡外单独成卡（画板 52 B 段）。
   return <>
     {frontmatter.data && <FrontmatterCard data={frontmatter.data} />}
-    <ReactMarkdown remarkPlugins={markdownPreviewRemarkPlugins} rehypePlugins={rehypePlugins}
-      urlTransform={onOpenFile ? markdownUrlTransform : undefined} components={components}>{normalized}</ReactMarkdown>
+    <div className="pw-md">
+      <ReactMarkdown remarkPlugins={markdownPreviewRemarkPlugins} rehypePlugins={rehypePlugins}
+        urlTransform={onOpenFile ? markdownUrlTransform : undefined} components={components}>{normalized}</ReactMarkdown>
+    </div>
   </>;
 }

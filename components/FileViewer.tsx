@@ -2469,11 +2469,7 @@ function TextFileViewer({
           <span
             title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
             aria-label={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-            className="file-viewer-live-indicator"
-            style={{
-              background: watching ? "var(--success)" : "var(--border)",
-              boxShadow: watching ? "0 0 4px var(--success)" : "none",
-            }}
+            className={`pw-live${watching ? " on" : ""}`}
           />
         )}
 

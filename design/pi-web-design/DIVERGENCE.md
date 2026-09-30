@@ -440,13 +440,18 @@
     | `.pw-litem-add` | 列表末尾的「新增一行」条目（行规格同 `.pw-litem`，文字与图标弱化） | `41-settings-models.html` 模型列表、`43-settings-plugins-mcp.html` 插件包与 MCP 服务器列表 |
 
     十条全部满足 `DESIGN-SPEC.md` §5 判据 ⑦ 的三条（先进 `board.css` + 至少出现在一张画板 + 进本台账）。
-    **仍有两条欠账**（本轮未动，登记在此）：`.pw-diff` 与 `.pw-up-arrow` 在画板里被用到但 `board.css` 没有定义
-    （`52-file-viewer-modes.html` / `56-update-and-auth.html`），属于上一轮遗留；按「缺类先列清单、不擅自加」的规矩，
-    留给下一轮决定是补类还是改画板。
+    **两条欠账已在同日第二次执行中清掉**（不再留着）：`.pw-diff` 与 `.pw-up-arrow` 此前是画板用到、
+    `board.css` 没有定义的空类。处理方式是**改画板、不补类**——`.pw-diff`（`52-file-viewer-modes.html:292/330`）
+    改用已有的 `.pw-diff-body`；`.pw-up-arrow`（`56-update-and-auth.html:116/120`）改用
+    `.pw-ico` + `data-ico="arrow-up"`。判据 ⑦ 双向核对现在为「画板用到的 `pw-` 类全部有定义」。
 
-53. **画板 20 修订（由主线程执行，本轮同步台账）**：composer 下方的常显 `.pw-stats` 统计条删除，
-    用量全部收进上下文环浮窗；输入框下面不再有任何常驻行。`DESIGN-SPEC.md` §2.7 已按此重写
-    （含三栏明细、可钉住、`/session` 与触屏两条无 hover 触发路径），§4 的画板 20 行同步。
+53. **画板 20 与 §2.7 的冲突：规范侧已裁定，画板侧仍是旧稿**。§2.7 早已裁定「输入框下方无常驻横条、
+    用量全部收进上下文环浮窗」，`DESIGN-SPEC.md` §2.7 已按此重写（含三栏明细、可钉住、
+    `/session` 与触屏两条无 hover 触发路径）。但 **`20-composer.html` 里那三帧 `.pw-stats`
+    （正常 / >70% / >90%）至今还在**（第 53 条早先写成「已删除」是不实的，此处更正）。
+    处理办法已写进规范：§2.7 加了一段明确的「本条优先于 §2.5」，并把画板 20 那三帧标为
+    **待重画的旧稿**——三档配色判据（>70% warning / >90% error）继续有效，载体从「横条」改成
+    「圆环 + 浮窗」；重画前不要照那三帧实现。重画本身属画板侧工作，留给下一轮。
 
 54. **画板 54 修订 —— 扩展归位到顶栏插件浮窗**。扩展 widget 从「输入框上方的可折叠块」移进
     **顶栏插件浮窗**（`TopBarPopovers.tsx:353` 的 `PluginStatusButton`），扩展状态条从
@@ -489,10 +494,16 @@
 60. **补画 4 —— 附件预览灯箱**（`fork/AttachmentPreview.tsx` / `ImagePreview.tsx`）→ `50-dialogs.html`。
     图片整屏壳 + 多类型卡片壳，用 `.pw-scrim` + `.pw-modal*` + `.pw-iconbtn`。
 
-61. **补画 5 —— 输入历史弹层与 `/` 命令菜单的实现形态**（`ChatInput.tsx:3414-3617`）→ `21-menus.html`。
-    历史弹层用 `.pw-pop` + `.pw-kbd`；命令菜单按实现画成 680 宽、两列 `minmax(220px,1fr)`、
-    sticky 分组头 + 计数徽标 + 休眠态。顺带改掉旧注记里「`/` 也带搜索框」的错误说法
-    （实现是输入即筛选，没有独立搜索框）。
+61. **补画 5 —— 输入历史弹层与 `/` 命令菜单的实现形态**（`ChatInput.tsx:3368-3558`）→ `21-menus.html`。
+    历史弹层用 `.pw-pop` + 30px 头 + `.pw-prow.is-on`；命令菜单按实现画成**与输入框同宽**
+    （`left:0; right:0` 贴在输入框容器上，上限 `--composer-max-width: 800px`）、
+    `repeat(auto-fit, minmax(220px, 1fr))` 组内自适应列（800 宽下自然排**三列**）、
+    sticky 分组头 + 计数徽标 + 休眠态；命令名 `.pw-mono` 不省略、描述单行省略。
+    顺带改掉旧注记里「`/` 也带搜索框」的错误说法（实现是输入即筛选，没有独立搜索框），
+    并把开头「弹层宽度统一 320」改成「只有模型/思考/工具/权限/`@` 五件归 320 那一族」。
+    **更正本条早先草稿里的「680 宽、两列」**：680 是**上下文环浮窗**的宽度
+    （`ChatInput.tsx:1143` 的 `ringPopWidth = min(680px, 100vw − 48px)`），不是命令菜单的；
+    画板 21 的注记已按实现改正。
 
 62. **补画 6 —— 路径操作簇**（`fork/PathActions.tsx`）→ `51-menus.html` 新增「行内动作簇」段。
     完整形挂在 `.pw-card-head`（`.pw-path` + 三枚 `.pw-btn.sm`），紧凑形挂在 `.pw-trow`（三枚 `.pw-iconbtn.sm`），
@@ -500,10 +511,13 @@
     本轮画板用画板基元表达，落地时按判据 ⑦ 处理（要么把 `.fork-path-actions` 换成画板基元，要么给
     `board.css` 补一个 `pw-path-actions`）——这一步属产品侧，本轮不做。**
 
-63. **补画 7 —— 皮肤工作室对话框外壳**（`ThemeSkinStudio.tsx:168-384`）→ `47-skin-studio.html`。
-    内容行第 47 帧早已画全，缺的是**壳**：遮罩、portal 到 body 的理由、四段结构（head 带页签 / body 可滚 /
-    foot 三钮）、三条关闭路径。用 `.pw-scrim` + `.pw-modal*` + `.pw-radio` + `.pw-iconbtn`，
-    画的是已有内容行的压缩表示。
+63. **补画 7 —— 皮肤工作室对话框外壳**（`ThemeSkinStudio.tsx:164-414`）→ `47-skin-studio.html`。
+    900×720 的对话框正文早已画全，缺的是**壳的结构**。按实现补成**五行**（不是「head 带页签」那版）：
+    头行（标题 + 一枚关闭钮，**页签不进头行**）/ 页签行（`role="tablist"`，`pw-tabs` + `pw-tab`）/
+    内容行（左控件 + 右实时预览，中间发丝线）/ 提示行（`role="status"`，无消息时整行不存在）/
+    动作行（左「删除」仅编辑态 · 右「取消 / 恢复默认 / 保存」）。另画出编辑态与新建态两枚，
+    以及遮罩与 portal 到 body 的理由。用 `.pw-scrim` + `.pw-modal*` + `.pw-tabs` + `.pw-iconbtn`，
+    全部是已有基元，没有新增类。
 
 64. **补画 8 —— 「已选目录但没有会话」的选中型空态**（`AppShell.tsx:2934-2951`）→ `01-workbench.html`。
     两态并排：整屏居中一句「从侧边栏选择一个会话」（`activeCwd` 有值）；
@@ -528,3 +542,28 @@
     **D-31**（统计条冲突已在第十一轮裁定）、**G-38**（`.pw-side-search` 实为仅搜索态，不是常显）、
     **第 29 条的「参数表两列」**（`ToolDefinitionsPanel.tsx:246` 起已恢复四列）、
     **第十轮第 36 条的「设置分节内容不换」与第 37 条同款**（分节结构基件已改挂 `pw-*`）。
+
+68. **同日第二次执行：九张画板的补画与 8 条判据在画板侧真正落地**。
+    第十二轮的正文（52–67）当天被一次外部 `git reset` 回滚过：`DIVERGENCE.md` 与
+    `assets/board.css` 的第十一轮派生件幸存，九张画板内容、`index.html`、`README.md`、
+    `DESIGN-SPEC.md` 全部丢失。第二次执行把丢的部分逐张补回并逐张读回确认：
+    `54`（整帧重画）、`60`（断点对齐）、`22`（MCP / 插件浮窗）、`02`（自定义分组）、
+    `01`（起步三卡 + 选中型空态）、`50`（附件灯箱）、`21`（历史弹层 + 命令菜单）、
+    `51`（路径动作簇）、`47`（工作室外壳）。本节 52–67 与第 68 条合起来才是完整的第十二轮。
+
+69. **`.pw-quote` 从后代选择器提成独立件**（`assets/board.css`）。
+    此前它只写在 `.pw-msg-user .pw-quote` 下，而画板 `10-transcript-text.html:34` 的
+    引用块在正文里、不是用户消息的一部分，**拿不到任何样式**。现改为独立 `.pw-quote`
+    （上下 margin 归一），另留一条 `.pw-msg-user .pw-quote` 只把下边距收成 0。
+
+70. **本轮仍未做的事**（留给产品侧，画板侧无能为力）：
+    - `app/globals.css` / `app/fork-ui.css` / `app/settings.css` 里仍重定义着二十多个同名 `pw-` 类
+      （重构前的历史拷贝）。判据 ⑦ 只约束**新增**的类，老的这批清理属产品侧。
+    - `assets/board.css` 里**定义了但没有任何画板用到**的 15 个 `pw-` 类
+      （`pw-usage` / `pw-ctxbar` / `pw-ctx-name` / `pw-browser-body` / `pw-hint` / `pw-swatches` /
+      `pw-swatch` / `pw-login` / `pw-login-card` / `pw-login-form` / `pw-mobile-bar` / `pw-sheet` /
+      `pw-icon-cell` / `pw-tokens-grid` / `pw-anim-bar`）按判据 ⑦ 登记在此，等下一轮决定删类还是补画板。
+    - `TopBarPopovers` 用到的 `topbar.*` i18n 键在 `lib/i18n/messages/*.ts` 里**目前不存在**
+      （`topbar.mcpServers` / `topbar.pluginTotals` / `topbar.mcpNone` …），
+      运行时会把原始键名渲染到界面上。画板 22 用了这些键**应该有的中文**，不照抄键名。
+    - `PathActions` 用的仍是自有类 `.fork-path-actions`，没换成画板基元（见第 62 条）。

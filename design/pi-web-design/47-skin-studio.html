@@ -179,6 +179,95 @@
   </div>
 </section>
 
+<!-- 工作室外壳（按实现） -->
+<section class="pw-frame">
+  <div class="pw-frame-label"><b>工作室对话框外壳</b> · 头 / 页签行 / 内容行 / 提示行 / 动作行 · 五行，缺一行就少一条约定<span class="grow"></span>900 × 720</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-inline" style="gap:var(--s4);align-items:flex-start">
+
+      <div class="pw-stage-cell" style="width:520px">
+        <div class="cap">编辑态 · 左下有「删除」，右下三枚</div>
+        <div class="pw-scrim" style="padding:var(--s3)">
+          <div class="pw-modal" style="width:100%">
+            <div class="pw-modal-head">
+              编辑主题
+              <span class="pw-grow"></span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+            </div>
+            <div class="pw-tabs" style="padding:var(--s1) var(--s2) 0">
+              <span class="pw-tab is-on">主题设置</span>
+              <span class="pw-tab">自定义 CSS</span>
+            </div>
+            <div class="pw-modal-body" style="grid-template-columns:1fr 200px;display:grid;min-height:150px">
+              <div style="display:grid;gap:var(--s2);align-content:start">
+                <div class="pw-field" style="min-height:30px"><span class="pw-label">名称</span><span class="pw-ctl"><input class="pw-input" style="min-width:0;width:150px;height:24px;font-size:var(--text-meta)" value="纸感"></span></div>
+                <div class="pw-field" style="min-height:30px"><span class="pw-label">强调色</span><span class="pw-ctl"><span style="width:20px;height:20px;border-radius:var(--radius-4);background:#5566d8;border:1px solid var(--n-border)"></span><span class="pw-mono" style="font-size:var(--text-meta)">#5566d8</span></span></div>
+              </div>
+              <div style="border-left:1px solid var(--n-border-subtle);padding-left:var(--s3);display:grid;gap:var(--s2);align-content:start">
+                <div class="pw-mono pw-dim" style="font-size:var(--text-meta)">实时预览</div>
+                <div style="height:96px;border:1px solid var(--n-border);border-radius:var(--radius-6);background:#fdfcf8;display:grid;grid-template-columns:36px 1fr;overflow:hidden">
+                  <div style="background:#f5f3ec;border-right:1px solid #e6e2d6;padding:5px;display:grid;gap:3px;align-content:start"><div style="height:10px;border-radius:3px;background:#e6e2d6"></div><div style="height:10px;border-radius:3px;background:#5566d8;opacity:.25"></div></div>
+                  <div style="padding:6px;display:grid;gap:4px;align-content:start"><div style="height:8px;width:70%;border-radius:3px;background:#e6e2d6"></div><div style="height:8px;width:50%;border-radius:3px;background:#ece8dc"></div><div style="height:18px;border-radius:4px;background:#5566d8"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="pw-modal-foot">
+              <span class="pw-btn danger">删除</span>
+              <span class="pw-grow"></span>
+              <span class="pw-btn">取消</span>
+              <span class="pw-btn outline">恢复默认</span>
+              <span class="pw-btn primary">保存</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pw-stage-cell" style="width:340px">
+        <div class="cap">新建态 + 提示行</div>
+        <div class="pw-scrim" style="padding:var(--s3)">
+          <div class="pw-modal" style="width:100%">
+            <div class="pw-modal-head">
+              新建主题
+              <span class="pw-grow"></span>
+              <span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="x" data-size="14"></i></span></span>
+            </div>
+            <div class="pw-tabs" style="padding:var(--s1) var(--s2) 0">
+              <span class="pw-tab is-on">主题设置</span>
+              <span class="pw-tab">自定义 CSS</span>
+            </div>
+            <div class="pw-modal-body">
+              <div class="pw-field" style="min-height:30px"><span class="pw-label">名称</span><span class="pw-ctl"><input class="pw-input" style="min-width:0;width:150px;height:24px;font-size:var(--text-meta)" placeholder="给这套主题起个名"></span></div>
+              <span class="pw-alert info">已恢复为默认主题</span>
+            </div>
+            <div class="pw-modal-foot">
+              <span class="pw-grow"></span>
+              <span class="pw-btn">取消</span>
+              <span class="pw-btn outline">恢复默认</span>
+              <span class="pw-btn primary">保存</span>
+            </div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim">新建态<b>左下没有「删除」</b>——还没有一个能删的东西。</p>
+      </div>
+
+    </div>
+
+    <div class="pw-cell" style="max-width:900px">
+      <h4>外壳的五行约定</h4>
+      <div class="pw-rowgap" style="margin-top:var(--s2);font-size:var(--text-secondary);color:var(--n-muted)">
+        <div><b>头行</b>只有标题与一枚 <code>.pw-iconbtn</code> 关闭钮。<b>页签不进头行</b>——头行是「这是哪个东西」，页签是「你在看它的哪一面」，混在一行会挤掉关闭钮。</div>
+        <div><b>页签行</b>是 <code>.pw-tabs</code> + <code>.pw-tab</code>，选中项是「更亮的底 + 加重文字」，不是强调色填充；两组都常驻，<b>不懒加载</b>（切过去就是一行表单，代价极低）。</div>
+        <div><b>内容行</b>左控件右预览，中间一条发丝线。预览是唯一实时的东西——改任何一个色值它都要跟着变，否则「所见即所得」是假的。</div>
+        <div><b>提示行</b>在内容与动作之间，<code>role="status"</code>，没有消息时整行不存在（不留空行占位）。它是结果播报，不是错误对话框。</div>
+        <div><b>动作行</b>左「删除」（仅编辑态）+ 右「取消 / 恢复默认 / 保存」。「恢复默认」是 outline 不是 ghost——它会丢改动，需要被看见；「保存」是全对话框唯一的主按钮。</div>
+        <div>整个对话框 <b>portal 到 body</b>，不挂在设置面板里：面板带 <code>backdrop-filter</code> 时，<code>position: fixed</code> 会相对面板定位，标题和保存按钮会被裁掉。</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
 <!-- 自定义 CSS + 壁纸选择器 -->
 <section class="pw-frame">
   <div class="pw-frame-label"><b>自定义 CSS 页签 · 内置壁纸选择器</b> · CSS 覆盖层 + 壁纸画廊</div>
@@ -281,6 +370,9 @@
     <li><b>CSS 校验会比对 token 规范</b>：超出规范的值（如圆角 &gt; 6）给一条 error 徽章提示，但不阻止保存——皮肤是用户自由。</li>
     <li><b>壁纸选择器分「内置 / 本机图片」</b>；内置用渐变色块占位（规范禁用图片素材），本机图片走文件选择。</li>
     <li><b>各面适配分四个面</b>（侧栏 / 主区 / 右栏 / 输入框），每面三选一（实心 / 半透明 / 磨砂）+ 一个全局遮罩浓度。</li>
+    <li><b>工作室外壳是五行</b>：头（标题 + 关闭）/ 页签行 / 内容行（左控件右预览）/ 提示行（<code>role="status"</code>，无消息时不存在）/ 动作行（左删除 · 右 取消 · 恢复默认 · 保存）。页签<b>不进头行</b>，提示行<b>不留空占位</b>。</li>
+    <li><b>「删除」只在新建态缺席</b>：还没有一个能删的东西。左下常空是故意的，不拿占位去对齐。</li>
+    <li><b>对话框 portal 到 body</b>：挂在设置面板里、面板又带 <code>backdrop-filter</code> 时，<code>position: fixed</code> 会相对面板定位，标题与保存按钮会被面板裁掉。</li>
   </ul>
 </section>
 

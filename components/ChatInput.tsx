@@ -390,6 +390,23 @@ function formatTokenCount(tokens: number): string {
   return tokens.toLocaleString();
 }
 
+/**
+ * fork:design-components —— 附件芯片的图标名 = 画板 20「附件与引用」用的那组 lucide
+ * （image / file-text / file / music / play）。芯片是 .pw-chip，图标走 <i data-ico>，
+ * 不再按扩展名去调 getFileIcon 的 catppuccin 图标集 —— 画板里没有第二套图标。
+ */
+function attachmentChipIcon(kind: AttachmentPreviewKind): string {
+  switch (kind) {
+    case "image": return "image";
+    case "audio": return "music";
+    case "video": return "play";
+    case "pdf":
+    case "docx":
+    case "text": return "file-text";
+    default: return "file";
+  }
+}
+
 type BuiltinSlashCommand = {
   name: string;
   description: string;
@@ -674,67 +691,33 @@ function QueuedMessageRow({
 }
 
 function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "warning"; title: string; body: string; onClose?: () => void }) {
-  // fork:design-system —— 走语义 token，不再手搓 rgb 三元组（设计只留 4 个语义色）。
-  const toneVars = tone === "error"
-    ? { border: "var(--error)", bg: "var(--error-soft)", fg: "var(--error)" }
-    : { border: "var(--warning)", bg: "var(--warning-soft)", fg: "var(--warning)" };
+  // fork:design-components —— 通知条 = 画板 50 的 .pw-alert：error 是基态（软红底），
+  // warning 走 .warn 变体。颜色不再在组件里拼三元组，语义色由 board.css 一处给出。
   return (
     <div
       role="alert"
+      className={`pw-alert${tone === "error" ? "" : " warn"}`}
       style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 8,
         maxHeight: 120,
         marginBottom: 8,
-        padding: "7px 10px",
         overflowY: "auto",
-        border: `1px solid ${toneVars.border}`,
-        borderRadius: "var(--radius-sm)",
-        background: toneVars.bg,
-        color: toneVars.fg,
-        fontSize: TEXT.xs,
-        lineHeight: 1.45,
       }}
     >
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ flexShrink: 0, marginTop: 1 }}
-        aria-hidden="true"
-      >
-        <path d="M10.3 2.9 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.9a2 2 0 0 0-3.4 0Z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontWeight: 600 }}>{title}</div>
+      <span className="pw-ico"><i data-ico={tone === "error" ? "circle-alert" : "triangle-alert"} data-size="14"></i></span>
+      <div className="grow" style={{ minWidth: 0 }}>
+        <b style={{ fontWeight: 500 }}>{title}</b>
         <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{body}</div>
       </div>
       {onClose && (
+        /* 关闭 = 画板 20/50 的 .pw-iconbtn（22px 方钮 / hover 叠色），不是符号字形。 */
         <button
           type="button"
+          className="pw-iconbtn"
           onClick={onClose}
           aria-label="Dismiss"
-          style={{
-            flexShrink: 0,
-            background: "none",
-            border: "none",
-            padding: "0 2px",
-            cursor: "pointer",
-            color: "inherit",
-            opacity: 0.7,
-            fontSize: TEXT.md,
-            lineHeight: 1,
-          }}
+          title="Dismiss"
         >
-          ×
+          <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
         </button>
       )}
     </div>
@@ -771,22 +754,12 @@ export function ModelScopeWarningBanner({ warnings }: { warnings?: string[] }) {
   );
 }
 
-/** 星标图标；填充表示已收藏。 */
+/** 星标图标；已收藏填星、未收藏画星划（画板图标集是 lucide 描边，没有填充变体）。 */
 function FavoriteStarIcon({ filled }: { filled: boolean }) {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
+    <span className="pw-ico" aria-hidden="true">
+      <i data-ico={filled ? "star" : "star-off"} data-size="14"></i>
+    </span>
   );
 }
 
@@ -832,6 +805,8 @@ function FavoriteModelMenu({
 
   return (
     <div ref={rootRef} style={{ position: "relative", flexShrink: 0 }}>
+      {/* fork:design-components —— 触发器 = 画板 20/50 的 .pw-iconbtn（22px 方钮 / hover 叠色 /
+          is-on 选中），星标色继续由「已收藏」决定。 */}
       <button
         type="button"
         aria-haspopup="menu"
@@ -839,22 +814,13 @@ function FavoriteModelMenu({
         aria-label={t("models.favorites")}
         title={t("models.favorites")}
         onClick={() => setOpen((current) => !current)}
+        className={`pw-iconbtn${open ? " is-on" : ""}`}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           width: "var(--spacing-token-button-composer, 28px)",
           height: "var(--spacing-token-button-composer, 28px)",
-          padding: 0,
-          background: open ? "var(--bg-hover)" : "none",
-          border: "none",
-          borderRadius: "var(--radius-md)",
-          color: currentFavorited ? "var(--accent)" : "var(--text-muted)",
           cursor: "pointer",
-          transition: "background 0.12s, color 0.12s",
+          color: currentFavorited ? "var(--accent)" : "var(--n-muted)",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = open ? "var(--bg-hover)" : "none"; }}
       >
         <FavoriteStarIcon filled={currentFavorited} />
       </button>
@@ -883,18 +849,20 @@ function FavoriteModelMenu({
                 aria-label={currentFavorited ? t("models.unfavoriteModel") : t("models.favoriteCurrent")}
                 title={currentFavorited ? t("models.unfavoriteModel") : t("models.favoriteCurrent")}
                 onClick={() => toggleFavoriteModelKey(currentKey)}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, background: "none", border: "none", color: currentFavorited ? "var(--accent)" : "var(--text-dim)", cursor: "pointer" }}
+                className="pw-iconbtn sm"
+                style={{ color: currentFavorited ? "var(--accent)" : "var(--n-placeholder)", cursor: "pointer" }}
               >
                 <FavoriteStarIcon filled={currentFavorited} />
               </button>
             )}
           </div>
           {entries.length === 0 ? (
-            <div style={{ padding: "6px 10px 8px", color: "var(--text-dim)", fontSize: TEXT.xs }}>
-              {t("models.noFavorites")}
-            </div>
+            /* 空态与 / 菜单、@ 菜单同一条：.pw-prow + .pw-desc。 */
+            <div className="pw-prow pw-desc">{t("models.noFavorites")}</div>
           ) : entries.map(({ key, option }) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: 2, margin: "0 4px", opacity: option ? 1 : 0.5 }}>
+            /* fork:design-components —— 行 = 画板 21 的 .pw-prow：可用模型挂 sparkles 图标、
+               下线模型按画板同一行（circle-off + 压暗）保留但不可点。 */
+            <div key={key} className="pw-inline" style={{ opacity: option ? 1 : 0.45 }}>
               <button
                 type="button"
                 role="menuitem"
@@ -905,36 +873,21 @@ function FavoriteModelMenu({
                   onSelect(option.provider, option.modelId);
                 }}
                 title={option ? `${option.name} · ${option.provider}` : `${key} · ${t("models.unavailableModel")}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flex: 1,
-                  minWidth: 0,
-                  padding: "5px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "none",
-                  border: "none",
-                  color: option ? "var(--text)" : "var(--text-dim)",
-                  cursor: option ? "pointer" : "not-allowed",
-                  fontSize: TEXT.sm,
-                  textAlign: "left",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                }}
-                onMouseEnter={(e) => { if (option) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                className="pw-prow"
+                style={{ flex: 1, minWidth: 0, cursor: option ? "pointer" : "not-allowed" }}
               >
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span className="pw-ico"><i data-ico={option ? "sparkles" : "circle-off"} data-size="14"></i></span>
+                <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {option?.name || option?.modelId || key.slice(key.indexOf(":") + 1)}
                 </span>
               </button>
               <button
                 type="button"
+                className="pw-iconbtn sm"
                 aria-label={t("models.unfavoriteModel")}
                 title={t("models.unfavoriteModel")}
                 onClick={() => toggleFavoriteModelKey(key)}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 4, background: "none", border: "none", color: "var(--accent)", cursor: "pointer" }}
+                style={{ color: "var(--accent)", cursor: "pointer" }}
               >
                 <FavoriteStarIcon filled />
               </button>
@@ -3001,53 +2954,45 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       </PortalDropdown>
     </span>
   ) : null;
+  // fork:design-components —— 排队两个动作 = 画板 20/50 的 .pw-btn（28px / radius-4 /
+  // 无铬），三态色（可用 / 不可用 / 强调）继续在组件里给：设计系统只有 4 个语义色，
+  // 「立刻打断」是 warning、「跑完再发」是 accent，这条语义色差是运行时状态，不进 board.css。
   const queueControls = isStreaming ? (
     <>
       {onSteer && (
         <button
+          type="button"
+          className="pw-btn"
           onClick={() => sendQueued("steer")}
           disabled={!canQueueStreamingMessage}
           title={t("chat.steerHint")}
           style={{
-            display: "flex", alignItems: "center", gap: 5,
-            height: 28, padding: "0 9px",
-            background: canQueueStreamingMessage ? "var(--warning-soft)" : "none",
-            border: `1px solid ${canQueueStreamingMessage ? "var(--warning)" : "var(--border)"}`,
-            borderRadius: "var(--radius-md)",
-            color: canQueueStreamingMessage ? "var(--warning)" : "var(--text-dim)",
+            background: canQueueStreamingMessage ? "var(--warning-soft)" : undefined,
+            color: canQueueStreamingMessage ? "var(--warning)" : undefined,
             cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
-            fontSize: TEXT.sm, fontWeight: 500,
-            whiteSpace: "nowrap",
+            opacity: canQueueStreamingMessage ? 1 : 0.5,
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 1 L9 5 L5 9" /><line x1="1" y1="5" x2="9" y2="5" />
-          </svg>
+          <span className="pw-ico"><i data-ico="arrow-right" data-size="13"></i></span>
           {t("chat.steer")}
         </button>
       )}
       {onFollowUp && (
         <button
+          type="button"
+          className="pw-btn"
           onClick={() => sendQueued("followup")}
           disabled={!canQueueStreamingMessage}
           title={`${t("chat.followUpHint")} (${isMobile ? "Ctrl/Cmd+" : ""}Alt/Option+Enter)`}
           aria-keyshortcuts={isMobile ? "Control+Alt+Enter Meta+Alt+Enter" : "Alt+Enter"}
           style={{
-            display: "flex", alignItems: "center", gap: 5,
-            height: 28, padding: "0 9px",
-            background: canQueueStreamingMessage ? "var(--accent-soft)" : "none",
-            border: `1px solid ${canQueueStreamingMessage ? "var(--accent-border)" : "var(--border)"}`,
-            borderRadius: "var(--radius-md)",
-            color: canQueueStreamingMessage ? "var(--accent)" : "var(--text-dim)",
+            background: canQueueStreamingMessage ? "var(--accent-soft)" : undefined,
+            color: canQueueStreamingMessage ? "var(--accent-text)" : undefined,
             cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
-            fontSize: TEXT.sm, fontWeight: 500,
-            whiteSpace: "nowrap",
+            opacity: canQueueStreamingMessage ? 1 : 0.5,
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="1" x2="5" y2="6" /><polyline points="2.5 3.5 5 1 7.5 3.5" />
-            <line x1="2" y1="9" x2="8" y2="9" />
-          </svg>
+          <span className="pw-ico"><i data-ico="arrow-up" data-size="13"></i></span>
           {t("chat.followUp")}
         </button>
       )}
@@ -3129,62 +3074,25 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           );
         })()}
         {/* Queued steering / follow-up messages (delivered by pi on upcoming turns) */}
+        {/* fork:design-components —— 队列 = 画板 20「流式排队」那一段：一行 .pw-badge count
+            说明排了几条（+ 召回钮），下面每条消息一行 .pw-prow。画板里没有外层盒子，
+            所以这里也不再有自绘的描边 + 底色盒。 */}
         {((queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0)) > 0 && (
-          <div className="anim-popover-down" style={{
-            marginBottom: 8,
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg-elev)",
-            padding: "5px 0",
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-              padding: "2px 8px 4px 10px",
-            }}>
-              <span style={{
-                fontSize: TEXT["2xs"],
-                fontFamily: "var(--font-mono)",
-                color: "var(--text-dim)",
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-              }}>
+          <div className="anim-popover-down pw-rowgap" style={{ marginBottom: 8 }}>
+            <div className="pw-inline">
+              <span className="pw-badge count">
                 {t("chat.queued", { count: (queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0) })}
               </span>
+              <span className="pw-grow" />
               {onRecallQueue && (
                 <button
+                  type="button"
+                  className="pw-btn sm"
                   onClick={onRecallQueue}
-                   title={t("chat.recallTitle")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 12px",
-                    fontSize: TEXT.sm,
-                    color: "var(--text)",
-                    background: "transparent",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-sm)",
-                    cursor: "pointer",
-                    transition: "background 0.12s, border-color 0.12s",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                    e.currentTarget.style.borderColor = "color-mix(in srgb, var(--accent) 45%, var(--border))";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "var(--border)";
-                  }}
+                  title={t("chat.recallTitle")}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 14 4 9 9 4" />
-                    <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                  </svg>
-                   {t("chat.recall")}
+                  <span className="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>
+                  {t("chat.recall")}
                 </button>
               )}
             </div>
@@ -3229,52 +3137,36 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             ))}
           </div>
         )}
-        {/* Retry banner */}
+        {/* fork:design-components —— 三条瞬时提示 = 画板 50 的 .pw-alert 四态：
+            重试 warn / 压缩成功 ok / 压缩失败 error（基态）。底色与文字色都由 board.css 给。 */}
         {retryInfo && (
-          <div style={{
-            marginBottom: 8, padding: "5px 10px",
-            background: "var(--warning-soft)", border: "1px solid color-mix(in srgb, var(--warning) 30%, transparent)",
-            borderRadius: "var(--radius-md)", fontSize: TEXT.sm, color: "var(--warning)",
-            display: "flex", alignItems: "center", gap: 6,
-          }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-             {t("chat.retrying", { attempt: retryInfo.attempt, max: retryInfo.maxAttempts })}{retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: 4 }}>— {retryInfo.errorMessage}</span>}
+          <div className="pw-alert warn" style={{ marginBottom: 8 }}>
+            <span className="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span>
+            <span className="grow">
+              {t("chat.retrying", { attempt: retryInfo.attempt, max: retryInfo.maxAttempts })}
+              {retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: 4 }}>— {retryInfo.errorMessage}</span>}
+            </span>
           </div>
         )}
         {compactResultText && (
-          <div style={{
-            marginBottom: 8, padding: "5px 10px",
-            background: "var(--success-soft)", border: "1px solid color-mix(in srgb, var(--success) 30%, transparent)",
-            borderRadius: "var(--radius-md)", fontSize: TEXT.sm, color: "var(--success)",
-            display: "flex", alignItems: "center", gap: 6,
-          }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            {compactResultText}
+          <div className="pw-alert ok" style={{ marginBottom: 8 }}>
+            <span className="pw-ico"><i data-ico="circle-check" data-size="14"></i></span>
+            <span className="grow">{compactResultText}</span>
           </div>
         )}
         {compactError && (
           <div
             role="alert"
+            className="pw-alert"
             style={{
               marginBottom: 8,
-              padding: "7px 10px",
-              background: "var(--danger-soft)",
-              border: "1px solid color-mix(in srgb, var(--danger) 32%, transparent)",
-              borderRadius: "var(--radius-md)",
-              color: "var(--danger)",
-              fontFamily: "var(--font-mono)",
-              fontSize: TEXT.sm,
-              lineHeight: 1.5,
+              // 错误正文原样换行不断词（服务端可能回 HTML 片段），这两条不能交给组件类。
               whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
             }}
           >
-            {compactError}
+            <span className="pw-ico"><i data-ico="circle-alert" data-size="14"></i></span>
+            <span className="grow">{compactError}</span>
           </div>
         )}
         <ComposerContextStrip
@@ -3301,13 +3193,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           }}
         />
         {todoSummary && todoSummary.total > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+          <div className="pw-rowgap" style={{ marginBottom: 6 }}>
             <TodoChip summary={todoSummary} />
           </div>
         )}
-        {/* Image previews */}
+        {/* fork:design-components —— 附件区 = 画板 20「附件与引用」A 帧：一条 .pw-chips，
+            文件是 .pw-chip（类型图标 + 文件名 + 芯片内 data-ico="x" 移除钮）。
+            图片保留 56px 缩略图（画板没画缩略图形态，而 ChatInput 的既有测试要求
+            草稿图片必须渲染出 <img>），但它的行与移除钮同样由画板基件承载。 */}
         {attachedImages.length > 0 && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+          <div className="pw-chips">
             {attachedImages.map((img, i) => (
               <div key={i} style={{ position: "relative", flexShrink: 0 }}>
                 <ImagePreview key={img.previewUrl} src={img.previewUrl}>
@@ -3320,20 +3215,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 </ImagePreview>
                 <button
                   type="button"
+                  className="pw-iconbtn sm composer-thumb-remove"
                   onClick={() => removeImage(i)}
                   title={t("chat.removeAttachment")}
                   aria-label={t("chat.removeAttachment")}
-                  style={{
-                    position: "absolute", top: -4, right: -4,
-                    width: 16, height: 16, borderRadius: "50%",
-                    background: "var(--bg-panel)", border: "1px solid var(--border)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", padding: 0, color: "var(--text-muted)",
-                  }}
+                  style={{ position: "absolute", top: -6, right: -6 }}
                 >
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <line x1="1" y1="1" x2="7" y2="7" /><line x1="7" y1="1" x2="1" y2="7" />
-                  </svg>
+                  <span className="pw-ico"><i data-ico="x" data-size="12"></i></span>
                 </button>
               </div>
             ))}
@@ -3343,53 +3231,31 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         {/* fork:zc-08 — 非图片附件的 chips：点开按类型预览（PDF/DOCX/音视频/文本），
             X 移除时同步清掉输入框里的 `@文件名`。 */}
         {referenceAttachments.length > 0 && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+          <div className="pw-chips">
             {referenceAttachments.map((chip) => (
-              <div key={chip.path} style={{ position: "relative", flexShrink: 0 }}>
+              /* 芯片本身是静态盒（画板 20 的 .pw-chip 就是 span）：里面的预览触发器是
+                 AttachmentPreview 自己渲染的 button，移除钮是芯片末尾的 .pw-ico 按钮。 */
+              <span key={chip.path} className="pw-chip" style={{ maxWidth: 220 }}>
                 <AttachmentPreview
                   name={chip.name}
                   kind={chip.kind}
                   src={attachmentPreviewUrl(chip.path)}
                   previewSrc={chip.kind === "docx" ? attachmentPreviewUrl(chip.path, "preview") : undefined}
+                  style={{ flex: 1, minWidth: 0, overflow: "hidden", textAlign: "left" }}
                 >
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      height: 28,
-                      maxWidth: 220,
-                      padding: "0 8px",
-                      boxSizing: "border-box",
-                      background: "var(--bg-panel)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      color: "var(--text)",
-                      fontSize: TEXT.sm,
-                    }}
-                  >
-                    {getFileIcon(chip.name, 14)}
-                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chip.name}</span>
-                  </span>
+                  <span className="pw-ico"><i data-ico={attachmentChipIcon(chip.kind)} data-size="12"></i></span>
+                  <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chip.name}</span>
                 </AttachmentPreview>
                 <button
                   type="button"
+                  className="pw-ico"
                   onClick={() => removeReferenceAttachment(chip.path)}
                   title={t("chat.removeAttachment")}
                   aria-label={t("chat.removeAttachment")}
-                  style={{
-                    position: "absolute", top: -4, right: -4,
-                    width: 16, height: 16, borderRadius: "50%",
-                    background: "var(--bg-panel)", border: "1px solid var(--border)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", padding: 0, color: "var(--text-muted)",
-                  }}
                 >
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <line x1="1" y1="1" x2="7" y2="7" /><line x1="7" y1="1" x2="1" y2="7" />
-                  </svg>
+                  <i data-ico="x" data-size="11"></i>
                 </button>
-              </div>
+              </span>
             ))}
           </div>
         )}
@@ -3406,37 +3272,22 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 right: 0,
                 bottom: "calc(100% + 8px)",
                 zIndex: 120,
+                display: "flex",
+                flexDirection: "column",
+                boxSizing: "border-box",
                 maxHeight: "min(44vh, 360px)",
               }}
             >
-              <div
-                title={t("chat.inputHistory")}
-                style={{
-                  height: 30,
-                  padding: "0 10px",
-                  borderBottom: "1px solid var(--border)",
-                  display: "flex",
-                  alignItems: "center",
-                  color: "var(--text-dim)",
-                }}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 12a9 9 0 1 0 3-6.7" />
-                  <path d="M3 4v5h5" />
-                  <path d="M12 7v5l3 2" />
-                </svg>
+              {/* fork:design-components —— 浮窗 = 画板 21：.pw-pop 壳 + .pw-pop-title 头
+                  （history 图标 + 标题）+ .pw-prow 行（当前项 is-on）。滚动区改成
+                  「flex 1 + overflow」的列，不再靠减一个魔数高度。 */}
+              <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
+                <span className="pw-ico"><i data-ico="history" data-size="14"></i></span>
+                <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {t("chat.inputHistory")}
+                </span>
               </div>
-              <div style={{ maxHeight: "calc(min(44vh, 360px) - 31px)", overflowY: "auto", padding: 4 }}>
+              <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                 {inputHistory.map((item, index) => {
                   const active = index === historyActiveIndex;
                   return (
@@ -3451,26 +3302,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         applyHistoryInput(item);
                       }}
                       onMouseEnter={() => setHistoryActiveIndex(index)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        padding: "7px 8px",
-                        border: "none",
-                        borderRadius: "var(--radius-sm)",
-                        background: active ? "var(--bg-selected)" : "none",
-                        color: "var(--text)",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        fontSize: TEXT.sm,
-                        lineHeight: 1.45,
-                      }}
+                      className={`pw-prow${active ? " is-on" : ""}`}
+                      style={{ alignItems: "flex-start", cursor: "pointer" }}
                     >
-                      <span style={{ flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: TEXT.xs, color: "var(--text-dim)", paddingTop: 1 }}>
-                        {index + 1}
-                      </span>
-                      <span style={{ minWidth: 0, display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden", overflowWrap: "anywhere" }}>
+                      <span className="pw-badge count">{index + 1}</span>
+                      <span className="grow" style={{ minWidth: 0, display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden", overflowWrap: "anywhere" }}>
                         {item}
                       </span>
                     </button>
@@ -3492,15 +3328,30 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 boxSizing: "border-box",
                 display: "flex",
                 flexDirection: "column",
+                // fork:ui-slash-pop —— .pw-pop 在 board.css 里写死了 width:320px，
+                // 但斜杠弹窗是 composer 内部的辅助面板，应当按卡片宽定上限，
+                // 否则左下角命令列就被挤成单列、描述直接裁掉。
+                width: "min(680px, calc(100vw - 24px))",
+                maxWidth: "100%",
                 maxHeight: slashMenuMaxHeight === null
                   ? "min(72.8vh, 598px)"
                   : `min(72.8vh, 598px, ${slashMenuMaxHeight}px)`,
               }}
             >
-              <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{slashCommandsLoading ? t("chat.loadingCommands") : t("chat.slashCommands", { label: slashCommandCountLabel })}</span>
-                 <span className="grow" />
-                 <span className="pw-kbd">{t("chat.tabEnter")}</span>
+              {/* fork:design-components —— 搜索头 = 画板 21「/ 命令」那一行（.pw-pop-search：
+                  slash 图标 + 当前查询 + 分隔线）；右侧补计数徽标与 Tab/Enter 提示。 */}
+              <div
+                className="pw-pop-search"
+                style={{ borderBottom: "1px solid var(--n-border-subtle)", margin: "0 0 var(--s1)", flexShrink: 0 }}
+              >
+                <span className="pw-ico"><i data-ico="slash" data-size="14"></i></span>
+                <span className="pw-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--n-text)" }}>
+                  {slashCommandsLoading ? t("chat.loadingCommands") : `/${slashQuery}`}
+                </span>
+                {!slashCommandsLoading && (
+                  <span className="pw-badge count" style={{ flexShrink: 0 }}>{slashCommandCountLabel}</span>
+                )}
+                <span className="pw-kbd" style={{ flexShrink: 0 }}>{t("chat.tabEnter")}</span>
               </div>
               <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                 {!slashCommandsLoading && filteredSlashCommands.length === 0 ? (
@@ -3683,24 +3534,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             <div
               role="status"
               aria-live="polite"
+              // fork:design-components —— 落盘结果 = 画板 50 的 .pw-alert info（中性底 +
+              // info 字色）；行内的 warning / danger 语义色仍按结果逐行给。
+              className="pw-alert info"
               style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 8,
                 // 宽度由外层 composer 容器（`--composer-max-width`）统一约束，
                 // 这里不再声明自己的 maxWidth —— 上层的 ChatAppearance 测试
                 // 就要求这个变量在文件里只出现一次。
                 margin: "0 0 6px",
-                padding: "5px 8px 5px 10px",
-                border: "1px solid var(--border-faint)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--bg-panel)",
-                color: "var(--text-muted)",
-                fontSize: TEXT.xs,
-                lineHeight: 1.5,
               }}
             >
-              <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+              <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+              <div className="grow" style={{ display: "grid", gap: 2, minWidth: 0 }}>
                 {attachmentNotice.added.length > 0 && (
                   <span>{t("chat.attachmentAdded", { names: attachmentNotice.added.join("、") })}</span>
                 )}
@@ -3713,29 +3558,20 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   </span>
                 )}
                 {attachmentNotice.failed.length > 0 && (
-                  <span style={{ color: "var(--danger)" }}>
+                  <span style={{ color: "var(--error)" }}>
                     {t("chat.attachmentFailed", { names: attachmentNotice.failed.join("、") })}
                   </span>
                 )}
               </div>
               <button
                 type="button"
+                className="pw-iconbtn sm"
                 onClick={() => setAttachmentNotice(null)}
                 aria-label={t("chat.close")}
                 title={t("chat.close")}
-                style={{
-                  marginLeft: "auto",
-                  flexShrink: 0,
-                  padding: "0 4px",
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--text-dim)",
-                  cursor: "pointer",
-                  fontSize: TEXT.md,
-                  lineHeight: 1,
-                }}
+                style={{ flexShrink: 0, alignSelf: "flex-start" }}
               >
-                ×
+                <span className="pw-ico"><i data-ico="x" data-size="12"></i></span>
               </button>
             </div>
           )}
@@ -4152,6 +3988,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             marginLeft: narrowControls ? 0 : "auto",
           }}>
             {narrowControls && (
+              /* fork:design-components —— 窄屏「更多控件」= 画板 60 C 帧的 ellipsis 图标钮（.pw-iconbtn），点开是覆盖式工具条、末尾一个 x 收起。 */
               <button
                 type="button"
                  title={controlsMenuOpen ? undefined : t("chat.moreControls")}
@@ -4162,36 +3999,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 onClick={() => {
                   setControlsMenuOpen(true);
                 }}
+                className="pw-iconbtn"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "100%",
-                  height: 28,
-                  padding: "6px 10px",
-                  background: "none",
-                  border: "none",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--text-muted)",
                   cursor: controlsMenuOpen ? "default" : "pointer",
-                  fontSize: TEXT.sm,
-                  fontWeight: 500,
                   visibility: controlsMenuOpen ? "hidden" : "visible",
                   pointerEvents: controlsMenuOpen ? "none" : "auto",
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  if (controlsMenuOpen) return;
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--text)";
-                }}
-                onMouseLeave={(e) => {
-                  if (controlsMenuOpen) return;
-                  e.currentTarget.style.background = "none";
-                  e.currentTarget.style.color = "var(--text-muted)";
                 }}
               >
-                {t("chat.moreControls")}
+                <span className="pw-ico"><i data-ico="ellipsis" data-size="15"></i></span>
               </button>
             )}
             <div style={{
@@ -4243,33 +4058,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   setThinkingDropdownOpen(false);
                   setControlsMenuOpen(false);
                 }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 36,
-                  height: 28,
-                  padding: 0,
-                  marginLeft: 0,
-                  background: "var(--bg-hover)",
-                  border: "none",
-                  borderLeft: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
-                  borderRadius: "0 9px 9px 0",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-selected)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                }}
+                className="pw-iconbtn"
+                style={{ cursor: "pointer" }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
               </button>
             )}
             {!isMobile && (isStreaming ? stopButton : sendButton)}

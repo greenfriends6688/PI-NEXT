@@ -203,6 +203,54 @@
   </div>
 </section>
 
+<!-- 路径动作簇 -->
+<section class="pw-frame" style="max-width:848px">
+  <div class="pw-frame-label"><b>路径动作簇</b> · 复制路径 / 在文件管理器中显示 / 用默认应用打开 · 行内 <code>.pw-btn sm</code>，失败时才多出一枚徽章</div>
+  <div class="pw-frame-body pw-pad pw-rowgap">
+
+    <div class="pw-cell">
+      <h4>默认态 · 三个动作并排，24 高</h4>
+      <div class="pw-inline" style="gap:3px;padding:var(--s2) 0">
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="12"></i></span>复制路径</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="folder-open" data-size="12"></i></span>在文件管理器中显示</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="12"></i></span>用默认应用打开</span>
+      </div>
+      <p>图标 + 文字，一行放不下就换行，绝不换成三枚纯图标——「在文件管理器中显示」和「用默认应用打开」是两件事，纯图标分不出来。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4>已复制 · 只翻第一枚的图标，1.4 秒后自己回去</h4>
+      <div class="pw-inline" style="gap:3px;padding:var(--s2) 0">
+        <span class="pw-btn sm" style="color:var(--accent-text)"><span class="pw-ico"><i data-ico="check" data-size="12"></i></span>已复制</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="folder-open" data-size="12"></i></span>在文件管理器中显示</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="12"></i></span>用默认应用打开</span>
+      </div>
+      <p>另外两个动作不跟着变色——它们没被触发。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4>失败态 · 多出一枚 error 徽章，2.6 秒后收</h4>
+      <div class="pw-inline" style="gap:3px;padding:var(--s2) 0">
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="copy" data-size="12"></i></span>复制路径</span>
+        <span class="pw-btn sm danger"><span class="pw-ico"><i data-ico="folder-open" data-size="12"></i></span>在文件管理器中显示</span>
+        <span class="pw-btn sm"><span class="pw-ico"><i data-ico="external-link" data-size="12"></i></span>用默认应用打开</span>
+        <span class="pw-badge bad">这个动作没有执行成功</span>
+      </div>
+      <p>只有失败才说话：系统动作成功时结果发生在应用之外（访达里弹出了窗口），再弹一次通知条是噪音。</p>
+    </div>
+
+    <div class="pw-cell">
+      <h4>紧凑变体 · 文件树行内，只有三枚 <code>.pw-iconbtn sm</code></h4>
+      <div class="pw-cell" style="margin-top:var(--s2);padding:0;overflow:hidden">
+        <div class="pw-trow"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span><span class="grow">components/fork/PathActions.tsx</span><span class="pw-inline" style="gap:2px"><span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="copy" data-size="12"></i></span></span><span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="folder-open" data-size="12"></i></span></span><span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="external-link" data-size="12"></i></span></span></span></div>
+        <div class="pw-trow"><span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span><span class="grow">components/ChatInput.tsx</span><span class="pw-inline" style="gap:2px"><span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="copy" data-size="12"></i></span></span><span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="folder-open" data-size="12"></i></span></span><span class="pw-iconbtn sm"><span class="pw-ico"><i data-ico="external-link" data-size="12"></i></span></span></span></div>
+      </div>
+      <p style="margin-top:var(--s2)">紧凑变体挂在文件树行尾，只有 title 没有文字——所以那一格必须留够 66px，否则第三个按钮被行尾的省略吞掉。</p>
+    </div>
+
+  </div>
+</section>
+
 <section class="pw-notes">
   <h2>这一张在定什么</h2>
   <ul>
@@ -212,6 +260,9 @@
     <li><b>长菜单必须带搜索头</b>（新建任务、工作区切换、标签概览、模型选择），内容区封顶 320 高后内部滚动，搜索框不随滚动。</li>
     <li><b>工作区切换器的两枚徽章并排</b>：在跑数（accent）+ 等你数（warning），当前工作区也挂；对勾在最右，徽章排它左边。</li>
     <li><b>菜单宽度按内容收</b>：行内菜单 230、带副标题的 300–320，不强行统一——统一的是行的密度与配色。</li>
+    <li><b>路径动作簇不是菜单，是行内按钮</b>：三个动作（复制路径 / 在文件管理器中显示 / 用默认应用打开）永远并排，不收进 <code>…</code>。它挂在文件树行尾与工具卡页脚上——那两个位置用户是「已经看到路径」的，收进菜单等于把答案藏起来。</li>
+    <li><b>三种反馈各只说一次</b>：复制成功翻第一枚的图标 1.4 秒；系统动作成功不弹任何东西（结果在应用之外）；只有失败才多出一枚 error 徽章，2.6 秒后自己收。</li>
+    <li><b>紧凑变体是另一套几何</b>：文件树行尾用三枚 <code>.pw-iconbtn sm</code>（22 高），只靠 title 说明——行尾必须留够 66px，否则第三枚被省略吞掉。</li>
   </ul>
 </section>
 

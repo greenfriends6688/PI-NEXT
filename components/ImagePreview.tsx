@@ -88,20 +88,44 @@ export function ImagePreview({ src, alt = "", children, className, style }: Imag
             if (event.target === event.currentTarget) closePreview();
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="image-preview-image" src={src} alt={alt} />
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="image-preview-close"
-            onClick={closePreview}
-            aria-label={t("chat.close")}
-            title={t("chat.close")}
+          {/* fork:design-components —— 与 components/fork/AttachmentPreview.tsx 的灯箱
+              同一套壳：`.pw-modal` + `.pw-modal-head/-body/-foot`，关闭钮是
+              `.pw-iconbtn`（画板 50 附件预览灯箱的头部写法）。外层 `<dialog>` 保留
+              `.image-preview-dialog` —— 原生 dialog 的全屏定位、::backdrop、焦点陷阱
+              / Esc / 点遮罩关闭全靠它；图片本体在 .pw-modal-body 里 contain 不裁切。 */}
+          <div
+            className="pw-modal"
+            style={{ display: "flex", flexDirection: "column", width: "100%", maxWidth: "100%", height: "100%", maxHeight: "100%" }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
+            <div className="pw-modal-head">
+              <span className="pw-ico"><i data-ico="image" data-size="16"></i></span>
+              <span
+                className="pw-grow"
+                title={alt}
+                style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {alt.trim() || previewLabel}
+              </span>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="pw-iconbtn"
+                onClick={closePreview}
+                aria-label={t("chat.close")}
+                title={t("chat.close")}
+              >
+                <span className="pw-ico"><i data-ico="x" data-size="16"></i></span>
+              </button>
+            </div>
+            <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "grid", placeItems: "center", padding: 0 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="image-preview-image" src={src} alt={alt} />
+            </div>
+            <div className="pw-modal-foot">
+              <span className="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
+              <span className="pw-dim">{t("chat.previewImage")}</span>
+            </div>
+          </div>
         </dialog>
       )}
     </>

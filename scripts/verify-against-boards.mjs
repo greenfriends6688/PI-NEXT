@@ -58,6 +58,11 @@ const EXTRACT = () => {
 /* ------------------------------------------------------------------ 巡检步骤 */
 const step = (name, note, run) => ({ name, note, run });
 
+
+// 画板为了「把一帧装进页面」而存在的展示脚手架：它们不是产品组件，
+// 产品里永远不会出现（产品的「帧」就是真实界面）。对表时必须剔除，否则缺口会被它们淹没。
+const SCAFFOLD = /^(pw-frame|pw-pad$|pw-rowgap$|pw-stage|pw-anim-stage|pw-anim-box|pw-anim-cell|pw-anim-cap|pw-split$|pw-col$|pw-icons$|pw-notes$|pw-head$|pw-tag$|pw-tags$|pw-phone|pw-homebar|pw-notch$|pw-statusbar$|pw-live-states$|pw-scrim-layer$)/;
+const isComponent = (c) => !SCAFFOLD.test(c);
 const STEPS = [
   step("01-空态首屏", "画板 01 帧 A：新会话页（上下文条 / 起步卡 / 输入卡）", async () => {}),
   step("02-输入卡弹层", "画板 20/21：五个 pw-select + 上下文环浮窗 + 附件芯片", async (page) => {
@@ -107,7 +112,33 @@ const STEPS = [
     await page.locator(".pw-snav-close").first().click({ timeout: 2500 }).catch(() => {});
     await page.waitForTimeout(400);
   }),
-  step("08-移动端同构", "画板 60：390×800 抽屉 / 顶栏 48 / 覆盖式工具条 / 信任横幅", async (page) => {
+  step("08-文件树与查看器", "画板 30/52：树头动作组 / 分组头 / 右键菜单 / 查看器头与 diff 覆盖层", async (page) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const toggles = page.locator('.pw-panel-head [data-ico="folder-open"]');
+    if (await toggles.count()) await toggles.first().click({ timeout: 2500 }).catch(() => {});
+    await page.waitForTimeout(600);
+    const rows = page.locator(".pw-trow");
+    if (await rows.count()) {
+      await rows.nth(Math.min(2, (await rows.count()) - 1)).click({ button: "right", timeout: 2500 }).catch(() => {});
+      await page.waitForTimeout(300);
+      await page.keyboard.press("Escape").catch(() => {});
+      await rows.nth(Math.min(2, (await rows.count()) - 1)).dblclick({ timeout: 2500 }).catch(() => {});
+    }
+    await page.waitForTimeout(900);
+  }),
+  step("09-终端面板", "画板 31：cwd 状态条 + 状态徽章 + 重连/重启", async (page) => {
+    const tabs = page.locator('[role="tab"]');
+    const n = await tabs.count();
+    for (let i = 0; i < n; i++) {
+      const label = (await tabs.nth(i).textContent()) ?? "";
+      if (label.toLowerCase().includes("terminal") || label.includes("终端")) {
+        await tabs.nth(i).click({ timeout: 2500 }).catch(() => {});
+        break;
+      }
+    }
+    await page.waitForTimeout(800);
+  }),
+  step("11-移动端同构", "画板 60：390×800 抽屉 / 顶栏 48 / 覆盖式工具条 / 信任横幅", async (page) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.waitForTimeout(500);
     await page.locator('[data-ico="panel-left"]').first().click({ timeout: 2500 }).catch(() => {});
@@ -178,15 +209,16 @@ const tour = [];
 }
 
 /* ---- 3. 对表 ---- */
-const boardClasses = new Set(boards.flatMap((b) => b.classes));
+const boardClasses = new Set(boards.flatMap((b) => b.classes).filter(isComponent));
 const missingGlobally = [...boardClasses].filter((c) => !appClasses.has(c)).sort();
 const appOnly = [...appClasses].filter((c) => !boardClasses.has(c)).sort();
 
 const rows = [];
 for (const b of boards) {
   for (const f of b.frames) {
-    const miss = f.classes.filter((c) => !appClasses.has(c));
-    rows.push({ board: b.file, feature: f.label, total: f.classes.length, missing: miss });
+    const own = f.classes.filter(isComponent);
+    const miss = own.filter((c) => !appClasses.has(c));
+    rows.push({ board: b.file, feature: f.label, total: own.length, missing: miss });
     if (miss.length) note("缺口", `${b.file} · ${f.label}：${miss.join(" ")}`);
   }
 }

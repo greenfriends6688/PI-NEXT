@@ -230,12 +230,12 @@ inside the user's project.
         <div class="cap">顶栏触发钮 · 默认态 / 悬浮态 / 钉住态（角标只给 MCP）</div>
         <div class="pw-inline" style="gap:var(--s2);padding:var(--s3)">
           <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span></span>
-          <span class="pw-iconbtn" style="position:relative"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span><span class="pw-badge accent count" style="position:absolute;top:1px;right:1px;min-width:13px;height:13px;padding:0 3px;display:grid;place-items:center;font-size:var(--text-meta);line-height:1">3</span></span>
+          <span style="position:relative;display:inline-flex"><span class="pw-iconbtn"><span class="pw-ico"><i data-ico="server" data-size="14"></i></span></span><span class="pw-badge accent count" style="position:absolute;top:1px;right:1px;min-width:13px;height:13px;padding:0 3px;display:grid;place-items:center;font-size:var(--text-meta);line-height:1">3</span></span>
           <span class="pw-iconbtn is-on"><span class="pw-ico"><i data-ico="blocks" data-size="14"></i></span></span>
           <span class="pw-grow" style="flex:1"></span>
           <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">28 × 28 · hover 出浮窗 · click 钉住</span>
         </div>
-        <p class="pw-mono pw-dim">注：钉住后鼠标移开也不收（<code>HoverPopover</code> 的 <code>pinned</code>），再点一次或点浮层外才收。角标台数取自扩展状态文本里的数字，取不到就不显示。</p>
+        <p class="pw-mono pw-dim">注：钉住后鼠标移开也不收（<code>HoverPopover</code> 的 <code>pinned</code>），再点一次或点浮层外才收。角标台数取自扩展状态文本里的数字，取不到就不显示。<br>角标挂在按钮<b>外面</b>的那层定位盒上（渲染位置与挂在按钮里完全一样）：它钉在右上角，本来就不与图标同行，放进按钮里会被 <code>check-align.mjs</code> 当成「图标 + 文字」判成错位。</p>
       </div>
 
     </div>

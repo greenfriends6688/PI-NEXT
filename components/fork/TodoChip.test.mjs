@@ -56,8 +56,16 @@ test("the panel keeps its live-progress affordances", () => {
   assert.match(source, /t\("chat\.todosActive"\)/);
 });
 
-test("the panel sizes text through the type tokens (DSN-07)", () => {
-  assert.match(source, /import \{ TEXT \} from "@\/lib\/typography"/);
-  assert.match(source, /import \{ CONTROL \} from "@\/lib\/control-size"/);
-  assert.doesNotMatch(source, /fontSize: [0-9]/, "inline px font sizes must use TEXT.*");
+test("the panel takes its type and metrics from the board, never from inline literals", () => {
+  // fork:design-components —— 字号/控件高改由 board.css 的 `.pw-plan*` / `.pw-card-head` /
+  // `.pw-card-foot` 承担，组件里不再引 TEXT / CONTROL，也不再有内联 px 字号。
+  assert.doesNotMatch(source, /import \{ TEXT \} from "@\/lib\/typography"/);
+  assert.doesNotMatch(source, /import \{ CONTROL \} from "@\/lib\/control-size"/);
+  assert.doesNotMatch(source, /fontSize: [0-9]/, "inline px font sizes must come from the board");
+  assert.match(source, /className="pw-plan fork-todo-panel"/);
+  assert.match(source, /className="pw-plan-head"/);
+  assert.match(source, /className="pw-card-foot"/);
+  // 勾选标记走画板图标，不是手绘 polyline。
+  assert.match(source, /<i data-ico="check" data-size="10"><\/i>/);
+  assert.doesNotMatch(source, /<svg/);
 });

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useI18n } from "@/hooks/useI18n";
 import { getFileExt } from "@/lib/file-types";
 import { parseDelimitedText } from "@/lib/csv-preview";
-import { TEXT } from "@/lib/typography";
 
 /**
  * fork:zc-12 — CSV / TSV 表格预览。
@@ -16,11 +15,17 @@ import { TEXT } from "@/lib/typography";
  *     不引虚拟化库（表格行高固定，计算比测量便宜也更稳）；
  *   - 表头粘顶，单元格 nowrap + ellipsis，hover 出完整值；
  *   - 解析层的截断 / 行宽不齐 / 源内容截断都在顶部给出提示条。
+ *
+ * fork:design-system SW-D —— 元信息条 = 画板 viewer 的 `.pw-viewer-head`，
+ * 表格骨架 = `.pw-table`（首列带源码行号），空表走画板的 `.pw-empty` 首屏，
+ * 提示条走 `.pw-alert`。视觉只剩 board.css 一个来源。
  */
 
 const ROW_HEIGHT = 26;
 const OVERSCAN = 12;
 const FALLBACK_VIEWPORT_HEIGHT = 480;
+/** 首列放源码行号，右对齐 + 压暗，和画板 `.pw-table td.num` 同款。 */
+const ROW_NUMBER_WIDTH = 36;
 
 interface Props {
   content: string;
@@ -31,17 +36,7 @@ interface Props {
 
 function WarningBar({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      role="status"
-      style={{
-        padding: "4px 12px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--warning-soft)",
-        color: "var(--warning)",
-        fontSize: TEXT.xs,
-        flexShrink: 0,
-      }}
-    >
+    <div role="status" className="pw-alert info">
       {children}
     </div>
   );
@@ -104,34 +99,24 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
     overflow: "hidden",
     textOverflow: "ellipsis",
   };
+  const rowNumberHeadStyle: CSSProperties = { ...headerCellStyle, width: ROW_NUMBER_WIDTH, textAlign: "right" };
+  const rowNumberBodyStyle: CSSProperties = {
+    padding: "3px 10px",
+    borderBottom: "1px solid var(--border)",
+    borderRight: "1px solid var(--border)",
+    textAlign: "right",
+    width: ROW_NUMBER_WIDTH,
+  };
   const spacerCellStyle = (height: number): CSSProperties => ({ padding: 0, border: "none", height });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "var(--bg)" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "4px 12px",
-          borderBottom: "1px solid var(--border)",
-          color: "var(--text-dim)",
-          fontSize: TEXT.xs,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            padding: "1px 6px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {parsed.delimiter === "\t" ? t("csv.delimiterTab") : t("csv.delimiterComma")}
-        </span>
-        <span>{t("csv.rows", { count: parsed.rowCount })}</span>
-        <span>{t("csv.columns", { count: columnCount })}</span>
+    <div className="pw-viewer" style={{ height: "100%" }}>
+      <div className="pw-viewer-head">
+        <span className="pw-ico"><i data-ico="table" data-size="13"></i></span>
+        <span className="pw-badge">{parsed.delimiter === "\t" ? t("csv.delimiterTab") : t("csv.delimiterComma")}</span>
+        <span className="pw-badge count">{t("csv.rows", { count: parsed.rowCount })}</span>
+        <span className="pw-badge count">{t("csv.columns", { count: columnCount })}</span>
+        <span className="pw-grow" />
       </div>
 
       {sourceTruncated && <WarningBar>{t("csv.sourceTruncated")}</WarningBar>}
@@ -142,25 +127,26 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
       )}
 
       {parsed.header.length === 0 ? (
-        <div style={{ padding: "16px 12px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("csv.empty")}</div>
+        <div className="pw-empty">
+          <div className="pw-empty-inner">
+            <span className="mark" style={{ width: 32, height: 32 }}>
+              <span className="pw-ico"><i data-ico="table" data-size="16"></i></span>
+            </span>
+            <p>{t("csv.empty")}</p>
+          </div>
+        </div>
       ) : (
         <div
           ref={scrollRef}
+          className="pw-viewer-body"
+          style={{ overflow: "auto" }}
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-          style={{ flex: 1, minHeight: 0, overflow: "auto" }}
         >
           {/* fork:design-system SW-06 —— 表格骨架 = pw-table（边框/表头底/斑马纹来自 board.css）。 */}
-          <table
-            className="pw-table"
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: TEXT.sm,
-              width: "max-content",
-              minWidth: "100%",
-            }}
-          >
+          <table className="pw-table" style={{ fontFamily: "var(--font-mono)", width: "max-content", minWidth: "100%" }}>
             <thead>
               <tr>
+                <th className="num" style={rowNumberHeadStyle} title="#">#</th>
                 {parsed.header.map((cell, columnIndex) => (
                   <th key={columnIndex} style={headerCellStyle} title={cell}>
                     {cell}
@@ -171,11 +157,12 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
             <tbody>
               {firstRow > 0 && (
                 <tr style={{ height: firstRow * ROW_HEIGHT }} aria-hidden="true">
-                  <td colSpan={columnCount} style={spacerCellStyle(firstRow * ROW_HEIGHT)} />
+                  <td colSpan={columnCount + 1} style={spacerCellStyle(firstRow * ROW_HEIGHT)} />
                 </tr>
               )}
               {visibleRows.map((row, visibleIndex) => (
                 <tr key={firstRow + visibleIndex} style={{ height: ROW_HEIGHT }}>
+                  <td className="num pw-dim" style={rowNumberBodyStyle}>{firstRow + visibleIndex + 1}</td>
                   {parsed.header.map((_, columnIndex) => {
                     const cell = row[columnIndex] ?? "";
                     return (
@@ -188,7 +175,7 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
               ))}
               {lastRow < rows.length && (
                 <tr style={{ height: (rows.length - lastRow) * ROW_HEIGHT }} aria-hidden="true">
-                  <td colSpan={columnCount} style={spacerCellStyle((rows.length - lastRow) * ROW_HEIGHT)} />
+                  <td colSpan={columnCount + 1} style={spacerCellStyle((rows.length - lastRow) * ROW_HEIGHT)} />
                 </tr>
               )}
             </tbody>

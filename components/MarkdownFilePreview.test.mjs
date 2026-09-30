@@ -71,3 +71,17 @@ test("fork:fix-md-preview — sourceLines=false 时不注入行号 spans（阅�
   // 块级区间仍然保留：它只服务滚动定位，不会产生逐行节点。
   assert.match(html, /<p[^>]*data-source-start-line="3"[^>]*data-source-end-line="4"/);
 });
+
+test("fork:design-system —— 正文容器是画板 10 的 .pw-md，frontmatter 卡在卡外", () => {
+  const html = renderToStaticMarkup(React.createElement(I18nProvider, null,
+    React.createElement(MarkdownFilePreview, {
+      content: "---\ntitle: 收尾\n---\n\n正文段落。\n",
+      filePath: "D:/workspace/example.md",
+    }),
+  ));
+
+  // 正文（ReactMarkdown 的输出）包在 .pw-md 里，frontmatter 卡仍是它前面的兄弟节点。
+  assert.match(html, /<div class="pw-md"><p[^>]*>[\s\S]*?正文段落。<\/span><\/p><\/div>$/);
+  assert.doesNotMatch(html, /<div class="pw-md"><div class="markdown-frontmatter/);
+  assert.match(html, /class="markdown-frontmatter pw-card"/);
+});

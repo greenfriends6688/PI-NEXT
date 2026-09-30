@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { normalizeBrowserUrl, type BrowserTab } from "./browser-tab-state";
-import { TEXT } from "@/lib/typography";
+import { PortalDropdown } from "./PortalDropdown";
 
 interface Props {
   tab: BrowserTab;
@@ -27,6 +27,11 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
   // number pins it to a device width and centres it, which is the only way to
   // check a responsive layout without a second device.
   const [viewport, setViewport] = useState<number | null>(null);
+  // fork:design-system SW-06 — 视口预设按画板 31 是一枚 `.pw-chipbtn`，点开是
+  // `.pw-pop` 列表（不是原生 <select>）。
+  const [viewportOpen, setViewportOpen] = useState(false);
+  const viewportAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const viewportPanelRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // A tab restored from sessionStorage carries a url the component never saw.
@@ -66,10 +71,19 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
     onChangeUrl(tab.id, url);
   };
 
+  // fork:design-system SW-06 —— 视口预设清单：图标与顺序照画板 31 帧 B。
+  const VIEWPORT_PRESETS = [
+    { value: null, icon: "maximize-2", label: t("browser.viewportFill") },
+    { value: 390, icon: "smartphone", label: t("browser.viewportPhone") },
+    { value: 768, icon: "tablet", label: t("browser.viewportTablet") },
+    { value: 1024, icon: "monitor", label: t("browser.viewportLaptop") },
+    { value: 1280, icon: "monitor-sm", label: t("browser.viewportDesktop") },
+  ] as const;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "var(--bg)" }}>
+    <div className="pw-browser">
       {/* fork:design-system SW-06 —— 头行 = pw-viewer-head（画板 31：地址栏 + 视口预设）。 */}
-      <div className="pw-viewer-head" style={{ flexShrink: 0 }}>
+      <div className="pw-browser-bar">
         <button
           type="button"
           className="pw-iconbtn sm"
@@ -100,6 +114,8 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
         >
           <span className="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span>
         </button>
+        {/* fork:design-system SW-06 —— 地址栏 = 画板 31 的 .pw-url（等宽、面板底、细边框）。
+           .pw-url 在画板里是 span，这里是真实 input：只补上边框/底色归零之外的行为样式。 */}
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -112,8 +128,8 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
           aria-label={t("browser.address")}
           spellCheck={false}
           autoComplete="off"
-          className="pw-input"
-          style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)" }}
+          className="pw-url"
+          style={{ font: "inherit", minWidth: 0 }}
         />
         <a
           href={currentUrl || undefined}
@@ -127,41 +143,51 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
         >
           <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
         </a>
-        {/* fork:ui-30 — device widths for checking a responsive layout in place. */}
-        <select
-          value={viewport === null ? "fill" : String(viewport)}
-          onChange={(event) => setViewport(event.target.value === "fill" ? null : Number(event.target.value))}
+        {/* fork:ui-30 + fork:design-system SW-06 —— 视口预设：画板 31 是一枚
+            `.pw-chipbtn`，点开是 `.pw-pop` 列表；portal 到 body 免得被右栏裁掉。 */}
+        <button
+          ref={viewportAnchorRef}
+          type="button"
+          className="pw-chipbtn"
+          aria-haspopup="menu"
+          aria-expanded={viewportOpen}
           title={t("browser.viewport")}
           aria-label={t("browser.viewport")}
-          style={{
-            height: 28,
-            padding: "0 4px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg)",
-            color: "var(--text-muted)",
-            fontSize: TEXT.xs,
-            flexShrink: 0,
-          }}
+          onClick={() => setViewportOpen((open) => !open)}
         >
-          <option value="fill">{t("browser.viewportFill")}</option>
-          <option value="390">{t("browser.viewportPhone")}</option>
-          <option value="768">{t("browser.viewportTablet")}</option>
-          <option value="1024">{t("browser.viewportLaptop")}</option>
-          <option value="1280">{t("browser.viewportDesktop")}</option>
-        </select>
+          <span className="pw-ico"><i data-ico={viewport === null ? "maximize-2" : "smartphone"} data-size="13"></i></span>
+          <span>{viewport === null ? t("browser.viewportFill") : `${viewport}`}</span>
+          <span className="pw-ico"><i data-ico="chevron-down" data-size="11"></i></span>
+        </button>
       </div>
 
+      <PortalDropdown
+        open={viewportOpen}
+        anchorRef={viewportAnchorRef}
+        panelRef={viewportPanelRef}
+        className="pw-pop"
+        width={200}
+        align="end"
+      >
+        {VIEWPORT_PRESETS.map((preset) => (
+          <button
+            key={preset.value ?? "fill"}
+            type="button"
+            className={`pw-prow${viewport === preset.value ? " is-on" : ""}`}
+            onClick={() => {
+              setViewport(preset.value);
+              setViewportOpen(false);
+            }}
+          >
+            <span className="pw-ico"><i data-ico={preset.icon} data-size="14"></i></span>
+            <span className="grow">{preset.label}</span>
+            {viewport === preset.value && <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>}
+          </button>
+        ))}
+      </PortalDropdown>
+
       {currentUrl ? (
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            display: "flex",
-            justifyContent: "center",
-            background: viewport === null ? "var(--bg)" : "var(--bg-panel)",
-          }}
-        >
+        <div className="pw-browser-body">
         <iframe
           ref={iframeRef}
           key={`${currentUrl}#${reloadKey}`}
@@ -181,22 +207,13 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
         />
         </div>
       ) : (
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            padding: 24,
-            color: "var(--text-dim)",
-            fontSize: TEXT.sm,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ color: "var(--text-muted)", fontSize: TEXT.md }}>{t("browser.emptyTitle")}</div>
-          <div style={{ maxWidth: 420, lineHeight: 1.6 }}>{t("browser.emptyHint")}</div>
+        /* 画板 31 帧 B 的空态：`.pw-empty-inner` + 记号 + 两句说明 */
+        <div className="pw-browser-body">
+          <div className="pw-empty-inner">
+            <span className="mark"><span className="pw-ico"><i data-ico="globe" data-size="16"></i></span></span>
+            <p>{t("browser.emptyTitle")}</p>
+            <p className="pw-dim">{t("browser.emptyHint")}</p>
+          </div>
         </div>
       )}
     </div>

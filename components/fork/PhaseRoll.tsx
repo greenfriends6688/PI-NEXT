@@ -74,6 +74,26 @@ export function dropLatePhaseBacklog(
   return [...queue];
 }
 
+/**
+ * fork:design-components —— 画板 53 帧 A 的四枚相位图标（词表来自画板，不是产品自选）：
+ * 等待模型 = loader-circle（accent，滚起来）/ 排队 = clock / 准备工具 = wrench /
+ * 执行命令 = terminal。相位身份来自 ChatWindow 的 `phaseKeyOf`，组件不新增 props。
+ */
+const PHASE_ICON: Record<string, { ico: string; color?: string; spin?: boolean }> = {
+  waiting_model: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
+  running_command: { ico: "terminal" },
+  running_tools: { ico: "wrench" },
+  tools: { ico: "wrench" },
+};
+
+function phaseIcon(key: string): { ico: string; color?: string; spin?: boolean } {
+  const named = PHASE_ICON[key];
+  if (named) return named;
+  // `tools:<id>` 这类带后缀的相位（换工具才换相位）走工具图标，其余回落 clock。
+  if (key.startsWith("tools")) return PHASE_ICON.tools;
+  return { ico: "clock" };
+}
+
 const LAYER_STYLE: CSSProperties = {
   position: "absolute",
   inset: 0,
@@ -223,26 +243,45 @@ export function PhaseRoll({
 
   if (!displayed && !exiting) return null;
 
+  const icon = phaseIcon(displayed?.key ?? exiting?.key ?? "");
   return (
+    /* fork:design-components —— 画板 53 帧 A 的 `.pw-step`：图标槽 `.pw-step-ico`
+       （绝对定位在左侧轨上，board.css 画竖线）+ `.pw-verb` 文案 + `.grow` 轨。
+       轨就是原来那两层 translateY 动画的宿主（LAYER_STYLE 仍是 inset:0 的绝对层），
+       滚动机制一行没动；根节点继续自带 8px 上下间距（挂载方的 wrapper 不带 padding，
+       否则本组件返回 null 时会留下一条空行）。 */
     <span
       role="status"
       aria-live="polite"
       className={className}
       data-fork-phase-roll={displayed?.key ?? ""}
-      // fork:zm-07 — 间距由本组件自持（py-2 等价）。挂载方那层 wrapper 不带 padding，
-      // 否则本组件返回 null 时 wrapper 仍会留下一条空行。
-      style={{ position: "relative", display: "block", padding: "8px 0", height: `${lineHeightEm}em`, maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
+      style={{ display: "block", padding: "8px 0", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
     >
-      {exiting && displayed && (
-        <span key={exiting.key} ref={exitingNodeRef} aria-hidden="true" style={LAYER_STYLE}>
-          {exiting.text}
+      <span className="pw-step" style={{ paddingLeft: 22 }}>
+        <span className="pw-step-ico" style={{ left: 3 }}>
+          <span
+            className={`pw-ico${icon.color ? "" : " pw-dim"}`}
+            style={icon.color ? { color: icon.color } : undefined}
+          >
+            <i data-ico={icon.ico} data-size="12" className={icon.spin ? "pw-anim-spin" : undefined} aria-hidden="true"></i>
+          </span>
         </span>
-      )}
-      {displayed && (
-        <span key={displayed.key} ref={displayedNodeRef} style={LAYER_STYLE}>
-          {displayed.text}
+        <span
+          className="pw-verb grow"
+          style={{ position: "relative", height: `${lineHeightEm}em`, overflow: "hidden" }}
+        >
+          {exiting && displayed && (
+            <span key={exiting.key} ref={exitingNodeRef} aria-hidden="true" style={LAYER_STYLE}>
+              {exiting.text}
+            </span>
+          )}
+          {displayed && (
+            <span key={displayed.key} ref={displayedNodeRef} style={LAYER_STYLE}>
+              {displayed.text}
+            </span>
+          )}
         </span>
-      )}
+      </span>
     </span>
   );
 }

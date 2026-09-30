@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { ConfigButton } from "../SettingsUi";
-import { TEXT } from "@/lib/typography";
 import {
   UsageDailyBars,
   UsageHeatmap,
@@ -54,37 +53,20 @@ function projectName(cwd: string): string {
   return parts[parts.length - 1] ?? cwd;
 }
 
+/** 画板 45 §用量统计 的 `.pw-stat`：标签在上、等宽数值居中、一行补充。 */
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: ReactNode }): ReactNode {
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 3,
-        alignContent: "start",
-        padding: "12px 13px",
-        border: "1px solid var(--border-faint)",
-        borderRadius: "var(--radius-lg)",
-        background: "var(--bg-panel)",
-        minWidth: 0,
-      }}
-    >
-      <strong style={{ fontSize: TEXT.xl, color: "var(--text)", fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {value}
-      </strong>
-      <span style={{ fontSize: TEXT.xs, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      {hint && (
-        <span style={{ fontSize: TEXT["2xs"], color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hint}</span>
-      )}
+    <div className="pw-stat">
+      <span className="k">{label}</span>
+      <span className="v">{value}</span>
+      {hint ? <span className="s">{hint}</span> : null}
     </div>
   );
 }
 
+/** 画板 45 §用量统计 的 `.pw-stats-grid`：四列栅格。 */
 function StatGrid({ children }: { children: ReactNode }): ReactNode {
-  return (
-    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
-      {children}
-    </div>
-  );
+  return <div className="pw-stats-grid">{children}</div>;
 }
 
 export function UsageStatsPanel(): ReactNode {
@@ -198,7 +180,7 @@ export function UsageStatsPanel(): ReactNode {
       <p className="settings-chat-range-hint" style={{ marginTop: -6 }}>{t("usage.subtitle")}</p>
 
       <section className="settings-general-section">
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="pw-wrap" style={{ alignItems: "center" }}>
           {RANGE_ORDER.map((option) => (
             <ConfigButton
               key={option}
@@ -210,7 +192,7 @@ export function UsageStatsPanel(): ReactNode {
               {t(RANGE_KEYS[option])}
             </ConfigButton>
           ))}
-          <span style={{ flex: 1 }} />
+          <span className="pw-grow" />
           <ConfigButton variant="ghost" size="small" disabled={loading} onClick={() => void load(range)}>
             {t("usage.refresh")}
           </ConfigButton>
@@ -262,87 +244,112 @@ export function UsageStatsPanel(): ReactNode {
           {hasActivity && (
             <>
               <section className="settings-general-section">
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <h3 className="settings-general-heading" style={{ margin: 0 }}>{t("usage.heatmap")}</h3>
-                  <span style={{ flex: 1 }} />
-                  <ConfigButton
-                    variant={metric === "sessions" ? "primary" : "ghost"}
-                    size="small"
-                    aria-pressed={metric === "sessions"}
-                    onClick={() => setMetric("sessions")}
-                  >
-                    {t("usage.metricSessions")}
-                  </ConfigButton>
-                  <ConfigButton
-                    variant={metric === "tokens" ? "primary" : "ghost"}
-                    size="small"
-                    aria-pressed={metric === "tokens"}
-                    onClick={() => setMetric("tokens")}
-                  >
-                    {t("usage.metricTokens")}
-                  </ConfigButton>
+                <div className="pw-cell">
+                  <h4>
+                    <span className="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>
+                    {t("usage.heatmap")}
+                  </h4>
+                  <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
+                    <ConfigButton
+                      variant={metric === "sessions" ? "primary" : "ghost"}
+                      size="small"
+                      aria-pressed={metric === "sessions"}
+                      onClick={() => setMetric("sessions")}
+                    >
+                      {t("usage.metricSessions")}
+                    </ConfigButton>
+                    <ConfigButton
+                      variant={metric === "tokens" ? "primary" : "ghost"}
+                      size="small"
+                      aria-pressed={metric === "tokens"}
+                      onClick={() => setMetric("tokens")}
+                    >
+                      {t("usage.metricTokens")}
+                    </ConfigButton>
+                    <span className="pw-grow" />
+                  </div>
+                  <UsageHeatmap
+                    days={heatmapDays}
+                    metric={metric}
+                    label={t("usage.heatmap")}
+                    lessLabel={t("usage.less")}
+                    moreLabel={t("usage.more")}
+                  />
                 </div>
-                <UsageHeatmap
-                  days={heatmapDays}
-                  metric={metric}
-                  label={t("usage.heatmap")}
-                  lessLabel={t("usage.less")}
-                  moreLabel={t("usage.more")}
-                />
               </section>
 
               {summary.models.length > 0 && (
                 <section className="settings-general-section">
-                  <h3 className="settings-general-heading">{t("usage.byModel")}</h3>
-                  <UsageShareBar
-                    slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
-                    label={t("usage.modelShare")}
-                  />
-                  <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
-                    {summary.models.slice(0, 8).map((model) => (
-                      <UsageListRow
-                        key={model.model}
-                        accent
-                        title={model.model}
-                        meta={`${t("usage.requests", { count: model.messages })} · ${formatCompact(model.tokens, locale)} tok · ${formatCost(model.cost, locale)}`}
-                        trailing={`${(model.share * 100).toFixed(1)}%`}
-                      />
-                    ))}
+                  <div className="pw-cell">
+                    <h4>
+                      <span className="pw-ico"><i data-ico="chart-pie" data-size="14"></i></span>
+                      {t("usage.byModel")}
+                    </h4>
+                    <UsageShareBar
+                      slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
+                      label={t("usage.modelShare")}
+                    />
+                    <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                      {summary.models.slice(0, 8).map((model) => (
+                        <UsageListRow
+                          key={model.model}
+                          accent
+                          title={model.model}
+                          meta={`${t("usage.requests", { count: model.messages })} · ${formatCompact(model.tokens, locale)} tok · ${formatCost(model.cost, locale)}`}
+                          trailing={`${(model.share * 100).toFixed(1)}%`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </section>
               )}
 
               <section className="settings-general-section">
-                <h3 className="settings-general-heading">{t("usage.requestsErrors")}</h3>
-                <UsageRequestsErrors
-                  days={summary.days}
-                  label={t("usage.requestsErrors")}
-                  requestsLabel={t("usage.requestsLegend")}
-                  errorsLabel={t("usage.errorsLegend")}
-                />
+                <div className="pw-cell">
+                  <h4>
+                    <span className="pw-ico"><i data-ico="activity" data-size="14"></i></span>
+                    {t("usage.requestsErrors")}
+                  </h4>
+                  <UsageRequestsErrors
+                    days={summary.days}
+                    label={t("usage.requestsErrors")}
+                    requestsLabel={t("usage.requestsLegend")}
+                    errorsLabel={t("usage.errorsLegend")}
+                  />
+                </div>
               </section>
 
               <section className="settings-general-section">
-                <h3 className="settings-general-heading">{t("usage.dailyTokens")}</h3>
-                <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
+                <div className="pw-cell">
+                  <h4>
+                    <span className="pw-ico"><i data-ico="chart-column" data-size="14"></i></span>
+                    {t("usage.dailyTokens")}
+                  </h4>
+                  <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
+                </div>
               </section>
 
               {projects.length > 0 && (
                 <section className="settings-general-section">
-                  <h3 className="settings-general-heading">{t("usage.byProject")}</h3>
-                  <div style={{ display: "grid", gap: 6 }}>
-                    {projects.slice(0, 8).map((project) => (
-                      <UsageListRow
-                        key={project.project || "unknown"}
-                        title={projectName(project.project)}
-                        meta={`${t("usage.sessionsCount", { count: project.sessions })} · ${t("usage.requests", { count: project.messages })} · ${formatCost(project.cost, locale)}`}
-                        trailing={`${formatCompact(project.tokens, locale)} tok`}
-                      />
-                    ))}
+                  <div className="pw-cell">
+                    <h4>
+                      <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+                      {t("usage.byProject")}
+                    </h4>
+                    <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                      {projects.slice(0, 8).map((project) => (
+                        <UsageListRow
+                          key={project.project || "unknown"}
+                          title={projectName(project.project)}
+                          meta={`${t("usage.sessionsCount", { count: project.sessions })} · ${t("usage.requests", { count: project.messages })} · ${formatCost(project.cost, locale)}`}
+                          trailing={`${formatCompact(project.tokens, locale)} tok`}
+                        />
+                      ))}
+                    </div>
+                    {projects.length > 8 && (
+                      <p className="pw-muted" style={{ marginTop: "var(--s2)" }}>{t("usage.moreProjects", { count: projects.length - 8 })}</p>
+                    )}
                   </div>
-                  {projects.length > 8 && (
-                    <p className="settings-chat-range-hint">{t("usage.moreProjects", { count: projects.length - 8 })}</p>
-                  )}
                 </section>
               )}
             </>

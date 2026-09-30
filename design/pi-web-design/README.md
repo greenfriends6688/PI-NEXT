@@ -90,7 +90,7 @@ design/pi-web-design/
 | 50 | 对话框（项目信任 / 目录选择 / 扩展请求 / 确认 / 通知条 / **附件预览灯箱**） | 全局 | `50-dialogs.html` | 已出画板 |
 | 51 | 菜单合集（原子表 + 四个真实菜单 + **行内动作簇**） | 全局 | `51-menus.html` | 已出画板 |
 | 56 | 更新与认证 | 设置 / 会话工作台 | `56-update-and-auth.html` | 已出画板（2026-09-29 由 `56-agent-management.html` 更名，编号不变） |
-| 60 | 移动端与 PWA | 会话工作台（窄屏） | `60-mobile-pwa.html` | 已出画板 |
+| 60 | 移动端与 PWA（断点 **1024 / 640 / 480**，与 `hooks/useIsMobile.ts` 同源） | 会话工作台（窄屏） | `60-mobile-pwa.html` | 已出画板（2026-09-29 断点按实现对齐，380 → 480） |
 | 61 | 系统状态页（错误页 / 拖放 / worktree / **离线态** / **长文本溢出**） | 全局 / 会话工作台 | `61-system-states.html` | 已出画板 |
 
 状态取值：`已出画板`（画板已产出，代码未跟进）/ `已实现（R<N>）` / `已废弃`。
@@ -247,6 +247,31 @@ design/pi-web-design/
 `lease`（纯 SSE 保活，无 UI）、`file-watch`（文件树自动刷新，无独立 UI）、`app-update`（`56` 已画）、
 `push` 订阅（`40` 的通知开关已覆盖）。
 
+### 第六轮（2026-09-29）：十二轮收尾的 9 处补画
+
+前五轮都是「按组件扫」，这一轮改按**产品里已经存在、但画板没画的那一面**扫——
+扫的是 2026-09-29 用户裁定之后产品侧改掉的地方（扩展归位顶栏、输入框下方去横条、断点取整），
+以及几个一直有实现却没有画板的组件。共补 9 处，**全部落在已有画板上，不新增编号**：
+
+| # | 补画的是什么 | 产品依据 | 落在 |
+|---|---|---|---|
+| 1 | 顶栏 MCP / 插件两枚浮窗与两枚触发钮 | `TopBarPopovers.tsx`（`McpStatusButton` / `PluginStatusButton` / `HoverPopover`） | `22` |
+| 2 | 侧栏用户自定义分组四态 + 「拖到这里移出分组」落点 | `fork/GroupedProjectList.tsx`、`lib/session-groups.ts` | `02` |
+| 3 | 无项目的零会话起步三卡与三卡展开态 | `fork/EmptyStateGuide.tsx` | `01` |
+| 4 | 附件预览灯箱（图片整屏壳 / 多类型卡片壳 / 壳约定） | `fork/AttachmentPreview.tsx`、`ImagePreview.tsx` | `50` |
+| 5 | 输入历史弹层 + `/` 命令菜单的实现形态 | `ChatInput.tsx` 的 `historyMenuOpen` / `slashMenuOpen` 两段 | `21` |
+| 6 | 路径动作簇（复制 / 显示 / 打开，四态） | `fork/PathActions.tsx` | `51` |
+| 7 | 皮肤工作室对话框外壳五行 | `ThemeSkinStudio.tsx` | `47` |
+| 8 | 选中型空态两态（有目录 / 无目录） | `AppShell.tsx` 的 `showPlaceholder` 分支 | `01` |
+| 9 | 画板 54 整帧重画：扩展 widget 进顶栏浮窗、状态条变右上角 mono 胶囊 | `TopBarPopovers.tsx:353`、`ExtensionStatusFloat` | `54` |
+
+同轮还做了三件不是「补画」但同样属于画板侧的事：`board.css` 把 `.pw-quote` 从
+`.pw-msg-user` 的后代选择器提成独立件（画板 10 正文的引用块此前拿不到样式）；
+`52` 与 `56` 里两个**画板用到但 `board.css` 没有定义**的类（`.pw-diff` / `.pw-up-arrow`）改用已有基元表达；
+`DESIGN-SPEC.md` 把八处「尽量少 / 合理样例」改成可量判据（详见该文件 §1.1 §1.2 §1.4 §2.1 §3 §4 §5）。
+
+**本轮没有新增基元**：9 处补画全部复用 `board.css` 已有的 `pw-*` 类。
+
 ### 审计后确认已覆盖的
 
 - **壳**：`AppShell` / `SessionSidebar` / `TabBar` / `SettingsPanel` / `SettingsUi` → `01` `02` `40`
@@ -343,8 +368,8 @@ design/pi-web-design/
 |---|---|---|---|
 | 50 registry | Agents 面板（ACP Registry） | `43-settings-plugins-mcp.html` | 本项目改写：npm 包插件 + MCP 服务器，无 registry 市场 |
 | 51 registry-states | Registry 条目状态 | `43-settings-plugins-mcp.html` | 同上，并入插件/MCP 状态 |
-| 52 auth | agent 认证 | `41-settings-models.html` + `56-agent-management.html` | 本项目改写：模型供应商订阅登录；agent 认证是提案（56） |
-| 53 registry-upgrade | Registry 升级态 | `43-settings-plugins-mcp.html` + `56-agent-management.html` | 对位：插件/技能/应用的更新五态 |
+| 52 auth | agent 认证 | `41-settings-models.html` + `56-update-and-auth.html` | 本项目改写：模型供应商订阅登录；agent 认证是提案（56） |
+| 53 registry-upgrade | Registry 升级态 | `43-settings-plugins-mcp.html` + `56-update-and-auth.html` | 对位：插件/技能/应用的更新五态 |
 | 60 files-panel | 文件面板 | `30-files-panel.html` | 对位 |
 | 61 terminal-panel | 终端面板 | `31-terminal-browser-git.html` | 对位 |
 | 70 settings | 设置 | `40`–`47` | 本项目改写：设置从 4 块扩成 **13 个分节**，拆成 8 张画板 |

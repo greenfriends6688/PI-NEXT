@@ -587,14 +587,14 @@
         <h4>无目录 · 左上角「开始使用」两步</h4>
         <div style="position:relative;height:200px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-4);background:var(--surface-canvas)">
           <div style="position:absolute;top:12px;left:12px;display:flex;align-items:flex-start;gap:var(--s2);user-select:none">
-            <span class="pw-ico" style="color:var(--accent-text);opacity:.7"><i data-ico="arrow-left" data-size="44"></i></span>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex:none" aria-hidden="true"><line x1="20" y1="12" x2="4" y2="12" /><polyline points="10 6 4 12 10 18" /></svg>
             <div>
               <div style="font-size:var(--text-display);font-weight:500;color:var(--n-strong);margin-bottom:var(--s2)">开始使用</div>
               <div style="font-size:var(--text-secondary);color:var(--n-muted);line-height:1.8"><span style="color:var(--n-placeholder);margin-right:6px">1.</span>从侧边栏选择项目目录<br><span style="color:var(--n-placeholder);margin-right:6px">2.</span>打开底部的「设置」，然后选择「模型」</div>
             </div>
           </div>
         </div>
-        <p style="margin-top:var(--s2)">两步版靠 44px 的返回箭头指回侧栏。它<b>不居中</b>：居中会让人以为主区该有东西，而此刻该去的是侧栏。</p>
+        <p style="margin-top:var(--s2)">两步版靠 44px 的返回箭头指回侧栏。它<b>不居中</b>：居中会让人以为主区该有东西，而此刻该去的是侧栏。<br>这枚 44px 记号是<b>内联 SVG 而不是 <code>.pw-ico</code></b>：§1.6 的垂直居中规则管的是「16px 网格图标 + 同一行文字」，44px 记号与标题是<b>块对块</b>的关系（产品里也是这么画的），套 <code>.pw-ico</code> 反而会被 <code>check-align.mjs</code> 判成同排错位。</p>
       </div>
 
     </div>

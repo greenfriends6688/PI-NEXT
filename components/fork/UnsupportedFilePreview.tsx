@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { encodeFilePathForApi, getFileName } from "@/lib/file-paths";
 import { unsupportedReasonKey } from "@/lib/file-preview-support";
-import { TEXT } from "@/lib/typography";
 
 /**
  * fork:gap-unsupported-preview — 无法预览文件的降级卡片。
@@ -69,60 +68,52 @@ export function UnsupportedFilePreview({ filePath, cwd, size, sourceSessionId }:
     }
   }, [filePath, sourceSessionId]);
 
-  const buttonStyle = {
-    padding: "5px 12px",
-    fontSize: TEXT.sm,
-    borderRadius: "var(--radius-md)",
-    border: "1px solid var(--border)",
-    background: "var(--bg-panel)",
-    color: "var(--text)",
-    cursor: "pointer",
-    font: "inherit",
-  } as const;
+  const sizeText = typeof size === "number" ? formatBytes(size) : "";
 
+  // fork:design-system SW-D —— 兜底卡 = 画板的 `.pw-card`：头（`.pw-ico` + `.pw-tool`
+  // + 类型 / 大小徽章）、体（原因与所在目录）、脚（可复制路径 + 两个画板按钮）。
+  // 整块挂在 `.pw-empty` / `.pw-empty-inner` 上居中，视觉只剩 board.css 一个来源。
   return (
-    <div
-      role="status"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        height: "100%",
-        padding: 24,
-        textAlign: "center",
-        color: "var(--text-muted)",
-      }}
-    >
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--text-dim)" }}>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <path d="M14 2v6h6" />
-        <path d="M9 15h6" />
-      </svg>
-      <div style={{ fontSize: TEXT.md, fontWeight: 600, color: "var(--text)", wordBreak: "break-all" }}>{name}</div>
-      <div style={{ fontSize: TEXT.sm, lineHeight: 1.7 }}>
-        {t(unsupportedReasonKey(filePath))}
-        <br />
-        {[
-          extension ? t("i18n.unsupportedType", { type: extension }) : null,
-          typeof size === "number" ? formatBytes(size) : null,
-          cwd ? cwd : null,
-        ].filter(Boolean).join(" · ")}
+    <div className="pw-empty" role="status" style={{ height: "100%" }}>
+      <div className="pw-empty-inner" style={{ width: "100%" }}>
+        <div className="pw-card" style={{ width: "100%" }}>
+          <div className="pw-card-head">
+            <span className="pw-ico"><i data-ico="file" data-size="13"></i></span>
+            <span className="pw-tool">{name}</span>
+            <span className="pw-grow" />
+            {extension ? <span className="pw-badge">{t("i18n.unsupportedType", { type: extension })}</span> : null}
+            {sizeText ? <span className="pw-badge count">{sizeText}</span> : null}
+          </div>
+          <div className="pw-card-body">
+            <p style={{ margin: "0 0 4px" }}>{t(unsupportedReasonKey(filePath))}</p>
+            {cwd ? <p className="pw-dim" style={{ margin: 0 }}>{cwd}</p> : null}
+          </div>
+          <div className="pw-card-foot">
+            {/* 保留一个可复制的路径，方便用户自己去终端处理。 */}
+            <span className="pw-mono pw-dim">{encodeFilePathForApi(filePath)}</span>
+            <span className="pw-grow" />
+            <button
+              type="button"
+              className="pw-btn sm"
+              disabled={busy !== null}
+              onClick={() => void runAction("reveal")}
+            >
+              <span className="pw-ico"><i data-ico="folder-open" data-size="13"></i></span>
+              {busy === "reveal" ? t("i18n.opening") : t("i18n.showInFolder")}
+            </button>
+            <button
+              type="button"
+              className="pw-btn sm primary"
+              disabled={busy !== null}
+              onClick={() => void runAction("open")}
+            >
+              <span className="pw-ico"><i data-ico="external-link" data-size="13"></i></span>
+              {busy === "open" ? t("i18n.opening") : t("i18n.openWithDefaultApp")}
+            </button>
+          </div>
+        </div>
+        {error ? <div className="pw-alert" role="alert">{error}</div> : null}
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-        <button type="button" style={buttonStyle} disabled={busy !== null} onClick={() => void runAction("open")}>
-          {busy === "open" ? t("i18n.opening") : t("i18n.openWithDefaultApp")}
-        </button>
-        <button type="button" style={buttonStyle} disabled={busy !== null} onClick={() => void runAction("reveal")}>
-          {busy === "reveal" ? t("i18n.opening") : t("i18n.showInFolder")}
-        </button>
-      </div>
-      {error && <div role="alert" style={{ fontSize: TEXT.sm, color: "var(--danger)" }}>{error}</div>}
-      {/* 保留一个可复制的路径，方便用户自己去终端处理。 */}
-      <code style={{ fontSize: TEXT.xs, color: "var(--text-dim)", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
-        {encodeFilePathForApi(filePath)}
-      </code>
     </div>
   );
 }

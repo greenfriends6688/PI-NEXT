@@ -262,7 +262,17 @@ body.pw.dark { background: #0f0f13; }
   padding: 8px 12px; border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6);
   background: var(--surface-panel);
 }
-.pw-msg-user .pw-quote { margin-top: var(--s2); padding-left: var(--s2); border-left: 2px solid var(--n-border); color: var(--n-muted); font-size: var(--text-secondary); }
+/* 引用块 —— 独立件，不挂在 .pw-msg-user 下面：
+   用户消息里的引用是它的**一种**位置，转录正文里也有一模一样的引用块
+   （画板 10 用它）。挂在后代选择器下，正文那处就拿不到样式。 */
+.pw-quote {
+  margin: var(--s2) 0;
+  padding-left: var(--s2);
+  border-left: 2px solid var(--n-border);
+  color: var(--n-muted);
+  font-size: var(--text-secondary);
+}
+.pw-msg-user .pw-quote { margin-top: var(--s2); margin-bottom: 0; }
 .pw-msg-acts { display: flex; gap: var(--s1); justify-content: flex-end; margin-top: var(--s2); opacity: 0; }
 .pw-msg-user:hover .pw-msg-acts { opacity: 1; }
 

@@ -123,14 +123,33 @@ export function ExtensionWidgets({ widgets }: { widgets: ExtensionWidgetItem[] }
             const triggerId = `${idPrefix}-trigger-${index}`;
             const panelId = `${idPrefix}-panel-${index}`;
             return (
+              /* fork:design-components —— 画板 54 帧 B 的展开面板：`.pw-card` 外壳 +
+                 `.pw-card-head`（blocks 图标 + 等宽键名 + 行数徽章 + chevron 收起钮）
+                 + `.pw-code-body`（等宽正文可横向滚动）。`.extension-widget-content`
+                 仍挂着 —— 它带用户的「扩展 widget 字号」设置（--extension-widget-font-size），
+                 视觉并轨的写法见本轮交接里给 fork-ui.css 的片段。 */
               <section
                 key={widget.key}
                 id={panelId}
-                className="extension-widget-panel"
+                className="extension-widget-panel pw-card"
                 aria-labelledby={triggerId}
               >
-                <div className="extension-widget-panel-heading">{widget.key}</div>
-                <pre className="extension-widget-content">
+                <div className="pw-card-head">
+                  <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="blocks" data-size="13" aria-hidden="true"></i></span>
+                  <span className="pw-mono">{widget.key}</span>
+                  <span className="grow" />
+                  <span className="pw-badge count">{widget.lines.length}</span>
+                  <button
+                    type="button"
+                    className="pw-iconbtn sm"
+                    onClick={() => toggleWidget(widget)}
+                    title={t("i18n.collapse")}
+                    aria-label={t("i18n.collapse")}
+                  >
+                    <span className="pw-ico"><i data-ico="chevron-up" data-size="13" aria-hidden="true"></i></span>
+                  </button>
+                </div>
+                <pre className="pw-code-body extension-widget-content">
                   <AnsiText text={formatExtensionWidgetContent(widget.lines)} />
                 </pre>
               </section>
@@ -157,21 +176,12 @@ export function ExtensionWidgets({ widgets }: { widgets: ExtensionWidgetItem[] }
           const content = (
             <>
               <span className="extension-widget-update-pulse" aria-hidden="true" />
-              <span className="extension-widget-placement" aria-hidden="true">
-                <svg
-                  className="extension-widget-placement-icon"
-                  viewBox="0 0 8 6"
-                  width="8"
-                  height="6"
-                  data-direction={widget.placement === "belowEditor" ? "down" : "up"}
-                  focusable="false"
-                >
-                  <path
-                    d={widget.placement === "belowEditor"
-                      ? "M0 0h8L4 6z"
-                      : "M4 0l4 6H0z"}
-                  />
-                </svg>
+              {/* fork:design-components —— 方位三角改画板图标槽：编辑器下方 = chevron-down、
+                  上方 = chevron-up（画板图标集里没有实心三角，`triangle-alert` 是警告语义，
+                  不能借用）。外层 `.extension-widget-placement` 仍是产品为 108px 固定格做的
+                  定位槽，只是不再自己画 svg。 */}
+              <span className="extension-widget-placement pw-ico pw-dim" aria-hidden="true">
+                <i data-ico={widget.placement === "belowEditor" ? "chevron-down" : "chevron-up"} data-size="12"></i>
               </span>
               <span className="extension-widget-key">{widget.key}</span>
             </>

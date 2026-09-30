@@ -23,7 +23,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { TEXT } from "@/lib/typography";
 import { ImagePreview } from "@/components/ImagePreview";
 import {
   TEXT_PREVIEW_MAX_LINES,
@@ -171,61 +170,51 @@ export function AttachmentPreview({
             if (event.target === event.currentTarget) closePreview();
           }}
         >
+          {/* fork:design-components —— 弹窗由画板 50 的对话框基元拼成：
+              `.pw-modal` + `.pw-modal-head/-body/-foot`，关闭钮是画板头部的
+              `.pw-iconbtn.sm`。`<dialog>` 的壳（.image-preview-dialog）留着 ——
+              它是原生 dialog 的全屏定位与遮罩，焦点陷阱 / Esc / 遮罩点击都靠它。 */}
           <div
+            className="pw-modal"
             style={{
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
-              gap: 10,
-              width: "100%",
-              maxWidth: kind === "pdf" || kind === "docx" ? 1000 : 760,
+              width: kind === "pdf" || kind === "docx" ? 1000 : 760,
+              maxWidth: "100%",
               maxHeight: "100%",
-              minHeight: 0,
             }}
           >
-            <div
-              style={{
-                maxWidth: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "var(--text-muted)",
-                fontSize: TEXT.sm,
-              }}
-            >
-              <span title={name} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div className="pw-modal-head">
+              <span className="pw-ico"><i data-ico="file" data-size="14"></i></span>
+              <span
+                className="pw-grow"
+                title={name}
+                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
                 {name}
               </span>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="pw-iconbtn sm"
+                onClick={closePreview}
+                aria-label={t("chat.close")}
+                title={t("chat.close")}
+              >
+                <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+              </button>
             </div>
-            <div
-              style={{
-                width: "100%",
-                maxHeight: "calc(100dvh - 96px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "var(--bg-elev)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-xl)",
-                boxShadow: "var(--shadow-lg)",
-                overflow: "hidden",
-              }}
-            >
+            <div className="pw-modal-body" style={{ overflow: "auto" }}>
               {renderPreviewBody(kind, { name, src, previewSrc, text, t })}
             </div>
+            <div className="pw-modal-foot">
+              <span className="pw-dim">{t("chat.previewAttachment")}</span>
+              <span className="pw-grow" />
+              <button type="button" className="pw-btn sm" onClick={closePreview}>
+                {t("chat.close")}
+              </button>
+            </div>
           </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="image-preview-close"
-            onClick={closePreview}
-            aria-label={t("chat.close")}
-            title={t("chat.close")}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
         </dialog>
       )}
     </>
@@ -282,39 +271,26 @@ function renderPreviewBody(
       );
     case "text": {
       if (text.status === "loading" || text.status === "idle") {
-        return <div style={{ padding: 24, color: "var(--text-muted)", fontSize: TEXT.sm }}>{t("chat.previewLoading")}</div>;
+        return (
+          <div className="pw-alert info">
+            <span className="pw-ico"><i data-ico="loader-circle" data-size="14"></i></span>
+            {t("chat.previewLoading")}
+          </div>
+        );
       }
       if (text.status === "error") {
-        return <div style={{ padding: 24, color: "var(--danger)", fontSize: TEXT.sm }}>{t("chat.previewTextFailed")}</div>;
+        return (
+          <div className="pw-alert">
+            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+            {t("chat.previewTextFailed")}
+          </div>
+        );
       }
       return (
-        <div style={{ width: "100%", maxHeight: "calc(100dvh - 96px)", overflow: "auto", textAlign: "left" }}>
-          <pre
-            style={{
-              margin: 0,
-              padding: "14px 16px",
-              fontFamily: "var(--font-mono)",
-              fontSize: TEXT.sm,
-              lineHeight: 1.55,
-              color: "var(--text)",
-              whiteSpace: "pre",
-              tabSize: 2,
-            }}
-          >
-            {text.lines.join("\n")}
-          </pre>
+        <div className="pw-code" style={{ width: "100%" }}>
+          <div className="pw-code-body">{text.lines.join("\n")}</div>
           {text.truncated && (
-            <div
-              style={{
-                position: "sticky",
-                bottom: 0,
-                padding: "6px 16px",
-                background: "var(--bg-panel)",
-                borderTop: "1px solid var(--border)",
-                color: "var(--text-dim)",
-                fontSize: TEXT.xs,
-              }}
-            >
+            <div className="pw-card-foot">
               {t("chat.previewTextTruncated", { count: TEXT_PREVIEW_MAX_LINES })}
             </div>
           )}
@@ -323,7 +299,8 @@ function renderPreviewBody(
     }
     default:
       return (
-        <div style={{ padding: 24, color: "var(--text-dim)", fontSize: TEXT.sm, textAlign: "center" }}>
+        <div className="pw-alert info">
+          <span className="pw-ico"><i data-ico="circle-help" data-size="14"></i></span>
           {t("chat.previewUnsupported")}
         </div>
       );

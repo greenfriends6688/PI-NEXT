@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { getDraft, setDraft } from "@/lib/draft-store";
-import { TEXT } from "@/lib/typography";
 import {
   deriveExplorationOrigin,
   explorationDelta,
@@ -96,48 +95,30 @@ export function ExplorationBanner({
   };
 
   return (
+    /* fork:design-components —— 画板 54 的探索抬头条：一行 `.pw-inline`（图标 + `.pw-strong`
+       标题 + `.pw-dim` 来源 + grow + 状态文案 + 两个 `.pw-btn.outline.sm` + 一个
+       `.pw-btn.primary.sm`）。旧的内联边框/底色/圆角由 board.css 承担。 */
     <div
       role="status"
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 8,
-        margin: "0 0 10px",
-        padding: "6px 10px",
-        border: "1px solid var(--accent-border)",
-        borderRadius: "var(--radius-md)",
-        background: "var(--accent-soft)",
-        fontSize: TEXT.sm,
-        color: "var(--text)",
-      }}
+      className="pw-inline"
+      style={{ flexWrap: "wrap", gap: "var(--s2)", margin: "0 0 10px" }}
     >
-      <span aria-hidden="true" style={{ fontSize: TEXT.md, lineHeight: 1 }}>⑂</span>
-      <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-        <strong style={{ fontWeight: 600 }}>{t("explore.title")}</strong>
-        <span style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 420 }}>
-          {t("explore.from", { label: sourceLabel })}
-        </span>
+      <span className="pw-ico" style={{ color: "var(--accent-text)" }} aria-hidden="true">
+        <i data-ico="git-fork" data-size="14"></i>
       </span>
-      <span style={{ flex: 1 }} />
-      {broughtBack && <span role="status" style={{ fontSize: TEXT.xs, color: "var(--text-muted)" }}>{t("explore.broughtBack")}</span>}
-      {!broughtBack && !canBringBack && (
-        <span style={{ fontSize: TEXT.xs, color: "var(--text-muted)" }}>{t("explore.nothingYet")}</span>
-      )}
+      <b className="pw-strong">{t("explore.title")}</b>
+      <span className="pw-dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 420 }}>
+        {t("explore.from", { label: sourceLabel })}
+      </span>
+      <span className="grow" />
+      {broughtBack && <span className="pw-dim">{t("explore.broughtBack")}</span>}
+      {!broughtBack && !canBringBack && <span className="pw-dim">{t("explore.nothingYet")}</span>}
       {onOpenPane && (
         <button
           type="button"
+          className="pw-btn outline sm"
           onClick={onOpenPane}
           title={t("explore.openPane")}
-          style={{
-            padding: "3px 8px",
-            background: "none",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontSize: TEXT.xs,
-          }}
         >
           {t("explore.openPane")}
         </button>
@@ -145,36 +126,20 @@ export function ExplorationBanner({
       {onOpenParent && (
         <button
           type="button"
+          className="pw-btn outline sm"
           onClick={() => onOpenParent(parentSessionId)}
           title={t("explore.openParent")}
-          style={{
-            padding: "3px 8px",
-            background: "none",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontSize: TEXT.xs,
-          }}
         >
           {t("explore.openParent")}
         </button>
       )}
       <button
         type="button"
+        /* 不可带回时退成 `.pw-btn.outline`（画板的中性描边形态），语义仍在 disabled 上。 */
+        className={`pw-btn sm ${canBringBack ? "primary" : "outline"}`}
         onClick={handleBringBack}
         disabled={!canBringBack}
         title={t("explore.bringBackHint")}
-        style={{
-          padding: "3px 10px",
-          background: canBringBack ? "var(--accent)" : "var(--bg-subtle)",
-          border: "none",
-          borderRadius: "var(--radius-sm)",
-          color: canBringBack ? "var(--accent-contrast)" : "var(--text-dim)",
-          cursor: canBringBack ? "pointer" : "not-allowed",
-          fontSize: TEXT.xs,
-          fontWeight: 500,
-        }}
       >
         {t("explore.bringBack")}
       </button>

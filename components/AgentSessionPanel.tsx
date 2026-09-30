@@ -32,41 +32,29 @@ function formatRelativeTime(value: string, locale: string): string {
   return formatter.format(Math.round(elapsedHours / 24), "day");
 }
 
-function statusColor(status: SubagentSessionStatus): string {
-  if (status === "running" || status === "starting") return "var(--accent)";
-  if (status === "completed") return "var(--success)";
-  if (status === "failed") return "var(--danger)";
-  if (status === "aborted") return "var(--warning)";
-  return "var(--text-dim)";
-}
+/**
+ * 画板 22「子代理切换」的状态图标词表：六种状态六枚 lucide 图标
+ * （运行中 loader-circle / 排队 clock / 已完成 check / 失败 circle-x /
+ * 已中止 circle-stop / 已中断 ban），颜色走画板自己的 token。
+ */
+type StatusIconName = { ico: string; color?: string; spin?: boolean };
+
+const STATUS_ICON: Record<SubagentSessionStatus, StatusIconName> = {
+  starting: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
+  running: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
+  queued: { ico: "clock", color: "var(--warning)" },
+  completed: { ico: "check", color: "var(--success)" },
+  failed: { ico: "circle-x", color: "var(--error)" },
+  aborted: { ico: "circle-stop" },
+  interrupted: { ico: "ban" },
+};
 
 function StatusIcon({ status }: { status: SubagentSessionStatus }) {
-  if (status === "running" || status === "starting") {
-    return (
-      <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-        <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (status === "failed") {
-    return (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" />
-      </svg>
-    );
-  }
-  if (status === "aborted" || status === "interrupted") {
-    return (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" /><path d="M9 9h6v6H9z" />
-      </svg>
-    );
-  }
+  const { ico, color, spin } = STATUS_ICON[status];
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" />
-    </svg>
+    <span className={`pw-ico${color ? "" : " pw-dim"}`} style={color ? { color } : undefined}>
+      <i data-ico={ico} data-size="14" className={spin ? "pw-anim-spin" : undefined} aria-hidden="true"></i>
+    </span>
   );
 }
 
@@ -92,54 +80,46 @@ function AgentRow({
     : `${relation?.profile ?? t("agentSwitcher.subagent")} · ${formatRelativeTime(session.modified, locale)}`;
 
   return (
+    /* fork:design-components —— 整块换成画板 22 的 `.pw-pop` + `.pw-pop-title` +
+       `.pw-prow(.is-on)` + `.pw-pop-search`：行是「图标槽 + 主副标题（grow）+ 状态短标签
+       （pw-desc）」，悬停/选中由 board.css 给，不再手写 onMouseEnter 改背景。 */
     <button
       type="button"
       role="option"
       aria-selected={selected}
       onClick={onSelect}
-      style={{
-        width: "100%",
-        minHeight: 56,
-        display: "grid",
-        gridTemplateColumns: "28px minmax(0, 1fr) auto",
-        alignItems: "center",
-        gap: 9,
-        padding: "7px 12px",
-        border: "none",
-        borderBottom: "1px solid var(--border)",
-        borderLeft: selected ? "2px solid var(--accent)" : "2px solid transparent",
-        background: selected ? "var(--bg-selected)" : "transparent",
-        color: "var(--text)",
-        cursor: "pointer",
-        textAlign: "left",
-      }}
-      onMouseEnter={(event) => {
-        if (!selected) event.currentTarget.style.background = "var(--bg-hover)";
-      }}
-      onMouseLeave={(event) => {
-        if (!selected) event.currentTarget.style.background = "transparent";
-      }}
+      className={`pw-prow${selected ? " is-on" : ""}`}
+      /* fork-reset 已给 button.pw-prow 归零（width 100% / text-align left / 无边框底色）；
+         这里只留产品这一行特有的两行高度。 */
+      style={{ minHeight: 56 }}
     >
-      <span style={{ width: 28, height: 28, display: "grid", placeItems: "center", color: main ? "var(--text-muted)" : "var(--accent)" }}>
-        {main ? (
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
-          </svg>
-        ) : (
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="5" y="7" width="14" height="11" rx="2" /><path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" />
-          </svg>
-        )}
+      <span className="pw-ico" style={main ? undefined : { color: "var(--accent-text)" }}>
+        <i data-ico={main ? "user" : "bot"} data-size="14" aria-hidden="true"></i>
       </span>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.sm, fontWeight: selected ? 600 : 500 }} title={primary}>
+      <span className="grow" style={{ minWidth: 0 }}>
+        <span
+          className={selected ? "pw-strong" : undefined}
+          style={{
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontSize: TEXT.sm,
+            fontWeight: selected ? 600 : 500,
+          }}
+          title={primary}
+        >
           {primary}
         </span>
-        <span style={{ display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-dim)", fontSize: TEXT.xs }} title={secondary}>
+        <span
+          className="pw-desc"
+          style={{ display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          title={secondary}
+        >
           {secondary}
         </span>
       </span>
-      <span style={{ display: "flex", alignItems: "center", gap: 6, color: main && !running ? "var(--text-dim)" : statusColor(status), fontSize: TEXT.xs, whiteSpace: "nowrap" }}>
+      <span className="pw-desc" style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
         {main && !running ? (
           selected ? t("agentSwitcher.current") : null
         ) : (
@@ -173,70 +153,59 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
   const runningCount = subagents.filter((session) => runningSessionIds.has(session.id)).length;
 
   return (
+    /* fork:design-components —— 面板本体 = 画板 22 的 `.pw-pop`（320 宽 / radius-6 /
+       单一阴影 / padding-s1 / overflow hidden）。左侧贴边、下圆角的旧形态由
+       fork-ui.css 的 `.agent-session-panel` 覆盖（见本轮交接说明），这里不再内联边框。 */
     <div
       role="listbox"
       aria-label={t("agentSwitcher.title")}
-      style={{
-        background: "var(--bg-elev)",
-        borderLeft: "1px solid var(--border)",
-        borderRight: "1px solid var(--border)",
-        borderBottom: "1px solid var(--border)",
-        borderRadius: "0 0 var(--radius-md) var(--radius-md)",
-        boxShadow: "var(--shadow-md)",
-        overflow: "hidden",
-      }}
+      className="pw-pop agent-session-panel"
+      style={{ width: "auto", minWidth: 320, maxWidth: "100%" }}
     >
-      <div>
-        <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderBottom: "1px solid var(--border)" }}>
-          <strong style={{ fontSize: TEXT.sm, fontWeight: 600 }}>{t("agentSwitcher.title")}</strong>
-          <span style={{ color: "var(--text-dim)", fontSize: TEXT.xs }}>
-            {t("agentSwitcher.count", { count: subagents.length })}
-          </span>
-          {runningCount > 0 && (
-            <span style={{ marginLeft: "auto", color: "var(--accent)", fontSize: TEXT.xs }}>
-              {t("agentSwitcher.runningCount", { count: runningCount })}
-            </span>
-          )}
-        </div>
-        {subagents.length > 8 && (
-          <div style={{ padding: 8, borderBottom: "1px solid var(--border)" }}>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("agentSwitcher.search")}
-              aria-label={t("agentSwitcher.search")}
-              style={{
-                width: "100%", height: 32, padding: "0 10px",
-                border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
-                background: "var(--bg)", color: "var(--text)", fontSize: TEXT.sm, outline: "none",
-              }}
-            />
-          </div>
+      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span>{t("agentSwitcher.title")}</span>
+        <span className="pw-badge count">{t("agentSwitcher.count", { count: subagents.length })}</span>
+        <span className="grow" />
+        {runningCount > 0 && (
+          <span className="pw-badge accent count">{t("agentSwitcher.runningCount", { count: runningCount })}</span>
         )}
-        <div style={{ maxHeight: "min(58dvh, 480px)", overflowY: "auto" }}>
-          <AgentRow
-            session={rootSession}
-            main
-            selected={rootSession.id === selectedSessionId}
-            running={runningSessionIds.has(rootSession.id)}
-            onSelect={() => onSelectSession(rootSession)}
+      </div>
+      {subagents.length > 8 && (
+        /* 画板 22 的 `.pw-pop-search`（slash/search 图标槽 + `.pw-input`），钉在列表上方。 */
+        <div className="pw-pop-search" style={{ margin: "0 0 var(--s1)" }}>
+          <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true"></i></span>
+          <input
+            className="pw-input"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("agentSwitcher.search")}
+            aria-label={t("agentSwitcher.search")}
+            style={{ minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent" }}
           />
-          {visibleSubagents.map((session) => (
-            <AgentRow
-              key={session.id}
-              session={session}
-              selected={session.id === selectedSessionId}
-              running={runningSessionIds.has(session.id)}
-              onSelect={() => onSelectSession(session)}
-            />
-          ))}
-          {visibleSubagents.length === 0 && (
-            <div style={{ padding: "22px 12px", color: "var(--text-dim)", fontSize: TEXT.sm, textAlign: "center" }}>
-              {t("agentSwitcher.noMatches")}
-            </div>
-          )}
         </div>
+      )}
+      <div className="pw-sep" />
+      <div style={{ maxHeight: "min(58dvh, 480px)", overflowY: "auto" }}>
+        <AgentRow
+          session={rootSession}
+          main
+          selected={rootSession.id === selectedSessionId}
+          running={runningSessionIds.has(rootSession.id)}
+          onSelect={() => onSelectSession(rootSession)}
+        />
+        {visibleSubagents.map((session) => (
+          <AgentRow
+            key={session.id}
+            session={session}
+            selected={session.id === selectedSessionId}
+            running={runningSessionIds.has(session.id)}
+            onSelect={() => onSelectSession(session)}
+          />
+        ))}
+        {visibleSubagents.length === 0 && (
+          <div className="pw-prow"><span className="pw-desc">{t("agentSwitcher.noMatches")}</span></div>
+        )}
       </div>
     </div>
   );

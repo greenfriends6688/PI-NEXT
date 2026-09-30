@@ -837,3 +837,84 @@ test("the process head button fills its card so the expand toggle sits at the ri
   );
   assert.match(board, /\.pw-proc-head \.grow \{ flex: 1; \}/);
 });
+
+// fork:design-components —— composer 剩下的自绘盒全部换成画板基件：
+// 通知条 = .pw-alert（画板 50 四态）、附件芯片 = .pw-chips / .pw-chip（画板 20）、
+// 输入历史与 / 命令浮窗 = .pw-pop + .pw-pop-title / .pw-pop-search + .pw-prow（画板 21），
+// 图标一律 <i data-ico>（画板图标集），文件里不再留手绘内联 <svg>。
+test("the composer's notices, chips and popover headers ride on the board components", () => {
+  const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+
+  // 通知条：error 基态 + warn / ok / info 三个变体。
+  assert.match(source, /className=\{`pw-alert\$\{tone === "error" \? "" : " warn"\}`\}/);
+  assert.match(source, /className="pw-alert warn"/);
+  assert.match(source, /className="pw-alert ok"/);
+  assert.match(source, /className="pw-alert info"/);
+  assert.match(source, /className="pw-alert"\n\s+style=\{\{\n\s+marginBottom: 8,\n\s+\/\/ 错误正文原样换行不断词/);
+
+  // 附件芯片：容器 .pw-chips，非图片附件是 .pw-chip，芯片末尾的移除钮是 data-ico="x"。
+  assert.equal((source.match(/<div className="pw-chips">/g) ?? []).length, 2);
+  assert.match(source, /<span key=\{chip\.path\} className="pw-chip"/);
+  assert.match(source, /<span className="pw-ico"><i data-ico=\{attachmentChipIcon\(chip\.kind\)\} data-size="12"><\/i><\/span>/);
+  assert.match(source, /className="pw-ico"\n\s+onClick=\{\(\) => removeReferenceAttachment\(chip\.path\)\}/);
+
+  // 队列行与排队两个动作：画板 20 的 .pw-prow / .pw-btn。
+  assert.match(source, /className="pw-prow"\n\s+\/\/ 拖动中的那一行压暗/);
+  assert.match(source, /<span className="pw-badge count">\{index \+ 1\}<\/span>/);
+  assert.match(source, /className="pw-btn"\n\s+onClick=\{\(\) => sendQueued\("steer"\)\}/);
+
+  // 输入历史浮窗：头是 .pw-pop-title，行是 .pw-prow（当前项 is-on）。
+  assert.match(source, /<div className="pw-pop-title" style=\{\{ display: "flex", alignItems: "center", gap: "var\(--s2\)", flexShrink: 0 \}\}>\s*<span className="pw-ico"><i data-ico="history"/);
+  assert.match(source, /className=\{`pw-prow\$\{active \? " is-on" : ""\}`\}/);
+
+  // / 命令菜单补画板 21 的搜索头（slash 图标 + 查询），分组小标题仍是 .pw-pop-title。
+  assert.match(source, /className="pw-pop-search"/);
+  assert.match(source, /<i data-ico="slash" data-size="14"><\/i>/);
+  // 四个弹层头都挂画板 21 的 .pw-pop-title：输入历史 / 收藏 / @ 文件 / / 命令分组。
+  assert.equal((source.match(/className="pw-pop-title"/g) ?? []).length, 4);
+  assert.match(source, /className="pw-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
+
+  // 13 处手绘内联 svg 清零：图标只走 <i data-ico>。
+  assert.doesNotMatch(source, /<svg/);
+});
+
+test("the model notices render as board alerts with a leading icon", () => {
+  const error = renderToStaticMarkup(
+    React.createElement(I18nProvider, null, React.createElement(ModelErrorBanner, { error: "boom" })),
+  );
+  assert.match(error, /class="pw-alert"/);
+  assert.match(error, /data-ico="circle-alert"/);
+  assert.match(error, /role="alert"/);
+  assert.doesNotMatch(error, /class="pw-alert warn"/);
+
+  const warning = renderToStaticMarkup(
+    React.createElement(
+      I18nProvider,
+      null,
+      React.createElement(ModelScopeWarningBanner, { warnings: ['No models match pattern "ghost/*"'] }),
+    ),
+  );
+  assert.match(warning, /class="pw-alert warn"/);
+  assert.match(warning, /data-ico="triangle-alert"/);
+  assert.match(warning, /role="alert"/);
+});
+
+test("a finished compaction reports through the ok alert", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(
+      I18nProvider,
+      null,
+      React.createElement(ChatInput, {
+        onSend() {},
+        onAbort() {},
+        onCompact() {},
+        isStreaming: false,
+        compactResult: { reason: "manual", tokensBefore: 12000, estimatedTokensAfter: 4000 },
+      }),
+    ),
+  );
+
+  assert.match(html, /class="pw-alert ok"/);
+  assert.match(html, /data-ico="circle-check"/);
+  assert.ok(html.indexOf('class="pw-alert ok"') < html.indexOf("<textarea"));
+});

@@ -373,7 +373,7 @@ export default function CodeFileEditor({
   const unsaved = sync?.dirty ?? false;
 
   return (
-    <div className="pw-viewer">
+    <div className="pw-viewer" style={{ height: "100%" }}>
       <div className="pw-viewer-head">
         <span className="pw-ico"><i data-ico={hasConflicts ? "triangle-alert" : "file-code"} data-size="13"></i></span>
         <span className="pw-mono">{getFileName(filePath)}</span>
@@ -392,8 +392,7 @@ export default function CodeFileEditor({
         </button>
         <button
           type="button"
-          className="pw-btn primary sm"
-          onClick={() => void sync?.save()}
+          className="pw-btn primary sm" onClick={() => void sync?.save()}
           disabled={state.saving || !unsaved}
         >
           <span className="pw-ico"><i data-ico="save" data-size="13"></i></span>
@@ -414,7 +413,7 @@ export default function CodeFileEditor({
           <h3>{t("files.textConflict")}</h3>
           {state.conflicts.map((conflict) => (
             <div key={conflict.key} style={{ display: "grid", gap: "var(--s2)", marginTop: "var(--s2)" }}>
-              <pre className="pw-code-body grow">{conflict.local}</pre>
+              <pre className="pw-code-body grow" style={{ maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.local}</pre>
               <button
                 type="button"
                 className="pw-btn sm"
@@ -422,7 +421,7 @@ export default function CodeFileEditor({
               >
                 {t("files.textKeepLocal")}
               </button>
-              <pre className="pw-code-body grow">{conflict.external}</pre>
+              <pre className="pw-code-body grow" style={{ maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.external}</pre>
               <button
                 type="button"
                 className="pw-btn sm"
@@ -438,6 +437,7 @@ export default function CodeFileEditor({
       <div
         ref={host}
         className="pw-code-body grow"
+        style={{ minHeight: 0, padding: 0, overflow: "hidden" }}
         aria-label={getFileName(filePath)}
         data-saving={state.saving ? "true" : "false"}
       />
@@ -446,7 +446,7 @@ export default function CodeFileEditor({
         <span className="pw-ico pw-dim"><i data-ico="circle" data-size="12"></i></span>
         <span>Ln {cursor[0]} · Col {cursor[1]}</span>
         <span className="grow" />
-        <span>{typeLabel} · {state.content.includes("\r\n") ? "CRLF" : "LF"}, "UTF-8"</span>
+        <span>{[typeLabel, state.content.includes("\r\n") ? "CRLF" : "LF", "UTF-8"].join(" · ")}</span>
       </div>
     </div>
   );

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getFileIcon } from "../FileIcons";
 import { useI18n } from "@/hooks/useI18n";
 import type { RestorableTab } from "@/lib/recent-closed-tabs";
-import { TEXT } from "@/lib/typography";
 
 /*
  * fork:zc-06 — 右栏 tab 概览。
@@ -45,38 +44,22 @@ interface Props {
 
 const PANEL_WIDTH = 300;
 
+/* fork:design-system —— 标签字形改画板 31 的图标实名：终端 `terminal`、浏览器
+ * `globe`、会话 `bot`、Git 图 `git-branch`（画板 31 注释里定的就是这四个）。
+ * 文件标签仍走 FileIcons 的按扩展名取图。 */
+const TAB_KIND_ICON: Record<string, string> = {
+  terminal: "terminal",
+  browser: "globe",
+  session: "bot",
+  "git-graph": "git-branch",
+};
+
 function TabGlyph({ tab }: { tab: TabOverviewEntry }) {
-  const size = 12;
-  if (tab.kind === "terminal") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-      </svg>
-    );
+  const icon = tab.kind ? TAB_KIND_ICON[tab.kind] : undefined;
+  if (icon) {
+    return <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>;
   }
-  if (tab.kind === "browser") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" /><path d="M3 12h18" />
-      </svg>
-    );
-  }
-  if (tab.kind === "session") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M4 5h16v10H7l-3 3z" />
-      </svg>
-    );
-  }
-  if (tab.kind === "git-graph") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
-        <path d="M18 9a9 9 0 0 1-9 9" />
-      </svg>
-    );
-  }
-  return <>{getFileIcon(tab.label, size)}</>;
+  return <span className="pw-ico">{getFileIcon(tab.label, 12)}</span>;
 }
 
 export function TabOverview({
@@ -140,19 +123,19 @@ export function TabOverview({
 
   if (!open || !anchor) return null;
 
-  const rowStyle: React.CSSProperties = {
-    display: "flex", alignItems: "center", gap: 8, width: "100%",
-    padding: "0 8px", height: 30, minWidth: 0,
-    background: "none", border: "none", borderRadius: "var(--radius-md)",
-    color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm,
-  };
-
   return (
+    // fork:design-system SW-02 —— 整个浮层就是画板 31-B 的那一个长菜单：
+    // pw-pop 壳 › pw-pop-search（search 图标 + 过滤输入）› pw-pop-title「全部标签」
+    // › pw-prow 行（当前项 is-on，末位一枚 pw-iconbtn.sm 关闭）› pw-sep ›
+    // pw-pop-title「最近关闭」› pw-prow 行（history 图标 + pw-btn.sm 恢复）›
+    // pw-sep › 三个 pw-prow 动作行（关闭其他 / 关闭全部 / 清空最近关闭）。
+    // 定位仍然是 fixed：宿主 tab 栏 overflow-x:hidden，任何 in-flow 下拉都会被裁掉。
     <div
       ref={panelRef}
       data-tab-overview="true"
       role="dialog"
       aria-label={t("tabs.overview")}
+      className="pw-pop"
       style={{
         position: "fixed",
         top: anchor.top,
@@ -162,42 +145,11 @@ export function TabOverview({
         maxHeight: "min(70vh, 480px)",
         display: "flex",
         flexDirection: "column",
-        padding: 6,
-        background: "var(--bg-elev)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-lg)",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px 0" }}>
-        <span style={{ flex: 1, fontSize: TEXT.xs, color: "var(--text-muted)", fontWeight: 500 }}>
-          {t("tabs.overview")}
-        </span>
-        <button
-          type="button"
-          onClick={onCloseOthers}
-          disabled={tabs.length < 2}
-          style={{
-            background: "none", border: "none", padding: "2px 4px",
-            color: tabs.length < 2 ? "var(--text-dim)" : "var(--text-muted)",
-            cursor: tabs.length < 2 ? "default" : "pointer", fontSize: TEXT.xs,
-          }}
-        >
-          {t("tabs.closeOthers")}
-        </button>
-        <button
-          type="button"
-          onClick={onCloseAll}
-          style={{
-            background: "none", border: "none", padding: "2px 4px",
-            color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT.xs,
-          }}
-        >
-          {t("tabs.closeAll")}
-        </button>
-      </div>
-
-      <div style={{ padding: "6px 4px 4px" }}>
+      <div className="pw-pop-search" style={{ flexShrink: 0 }}>
+        <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
         <input
           ref={inputRef}
           type="search"
@@ -206,16 +158,20 @@ export function TabOverview({
           placeholder={t("tabs.overviewSearch")}
           aria-label={t("tabs.overviewSearch")}
           style={{
-            width: "100%", height: 26, padding: "0 8px",
-            background: "var(--bg-panel)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)", color: "var(--text)", fontSize: TEXT.sm,
+            minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent",
+            font: "inherit", color: "inherit",
           }}
         />
       </div>
 
       <div style={{ overflowY: "auto", minHeight: 0, flex: 1 }}>
+        <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+          <span>{t("tabs.overview")}</span>
+          <span className="grow" />
+          <span className="pw-badge count">{visibleTabs.length}</span>
+        </div>
         {visibleTabs.length === 0 && (
-          <div role="status" style={{ padding: "10px 8px", fontSize: TEXT.xs, color: "var(--text-muted)" }}>
+          <div className="pw-prow pw-desc" role="status">
             {t("tabs.overviewEmpty")}
           </div>
         )}
@@ -228,81 +184,78 @@ export function TabOverview({
                 onClick={() => { onSelectTab(tab.id); onClose(); }}
                 title={tab.filePath}
                 aria-current={isActive ? "true" : undefined}
-                style={{ ...rowStyle, fontWeight: isActive ? 500 : 400 }}
-                onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(event) => { event.currentTarget.style.background = "none"; }}
+                className={`pw-prow${isActive ? " is-on" : ""}`}
+                style={{ flex: 1, minWidth: 0 }}
               >
-                <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: "flex", alignItems: "center", color: isActive ? "var(--accent)" : "inherit" }}>
-                  <TabGlyph tab={tab} />
-                </span>
-                <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {tab.label}
-                </span>
+                <TabGlyph tab={tab} />
+                <span className="grow">{tab.label}</span>
               </button>
               <button
                 type="button"
                 onClick={() => onCloseTab(tab.id)}
                 title={t("i18n.close")}
                 aria-label={`${t("i18n.close")} ${tab.label}`}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 22, height: 22, flexShrink: 0, background: "none",
-                  border: "none", borderRadius: "var(--radius-sm)",
-                  color: "var(--text-dim)", cursor: "pointer", padding: 0,
-                }}
+                className="pw-iconbtn sm"
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-                  <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-                </svg>
+                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
               </button>
             </div>
           );
         })}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 4px 2px", borderTop: "1px solid var(--border)", paddingTop: 6 }}>
-          <span style={{ flex: 1, fontSize: TEXT.xs, color: "var(--text-muted)", fontWeight: 500 }}>
-            {t("tabs.recentlyClosed")}
-          </span>
-          {recentClosed.length > 0 && (
-            <button
-              type="button"
-              onClick={onClearRecent}
-              style={{ background: "none", border: "none", padding: "2px 4px", color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT.xs }}
-            >
-              {t("tabs.clearRecent")}
-            </button>
-          )}
-        </div>
-
+        <div className="pw-sep" />
+        <div className="pw-pop-title">{t("tabs.recentlyClosed")}</div>
         {recentClosed.length === 0 ? (
-          <div role="status" style={{ padding: "6px 8px 10px", fontSize: TEXT.xs, color: "var(--text-dim)" }}>
+          <div className="pw-prow pw-desc" role="status">
             {t("tabs.recentlyClosedEmpty")}
           </div>
         ) : (
           recentClosed.map((tab) => (
-            <div key={`recent:${tab.id}`} style={{ display: "flex", alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={() => { onRestore(tab); onClose(); }}
-                title={tab.filePath}
-                style={{ ...rowStyle, color: "var(--text-muted)" }}
-                onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(event) => { event.currentTarget.style.background = "none"; }}
-              >
-                <span style={{ flexShrink: 0, opacity: 0.6, display: "flex", alignItems: "center" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 4 3 10 9 10" />
-                  </svg>
-                </span>
-                <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {tab.label}
-                </span>
-                <span style={{ flexShrink: 0, fontSize: TEXT.xs, color: "var(--text-dim)" }}>
-                  {t("tabs.restore")}
-                </span>
-              </button>
-            </div>
+            <button
+              key={`recent:${tab.id}`}
+              type="button"
+              onClick={() => { onRestore(tab); onClose(); }}
+              title={tab.filePath}
+              className="pw-prow"
+            >
+              <span className="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span>
+              <span className="grow">{tab.label}</span>
+              <span className="pw-btn sm">{t("tabs.restore")}</span>
+            </button>
           ))
+        )}
+
+        <div className="pw-sep" />
+        <button
+          type="button"
+          onClick={onCloseOthers}
+          disabled={tabs.length < 2}
+          className="pw-prow"
+          style={tabs.length < 2 ? { opacity: 0.45 } : undefined}
+        >
+          <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+          <span className="grow">{t("tabs.closeOthers")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onCloseAll}
+          className="pw-prow"
+        >
+          <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+          <span className="grow">{t("tabs.closeAll")}</span>
+        </button>
+        {recentClosed.length > 0 && (
+          <button
+            type="button"
+            onClick={onClearRecent}
+            className="pw-prow"
+            style={{ color: "var(--error)" }}
+          >
+            <span className="pw-ico" style={{ color: "var(--error)" }}>
+              <i data-ico="eraser" data-size="14"></i>
+            </span>
+            <span className="grow">{t("tabs.clearRecent")}</span>
+          </button>
         )}
       </div>
     </div>

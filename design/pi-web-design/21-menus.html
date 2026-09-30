@@ -13,7 +13,7 @@
 
 <header class="pw-head">
   <h1>21 · 输入框弹层</h1>
-  <p>输入框上能展开的全部弹层：模型选择器、思考档、工具档、权限档、<code>@</code> 引用菜单、<code>/</code> 命令菜单。弹层宽度统一 320，最大高度 320 后内部滚动。</p>
+  <p>输入框上能展开的全部弹层：模型选择器、思考档、工具档、权限档、<code>@</code> 引用菜单、<code>/</code> 命令菜单、输入历史。除了 <code>/</code> 与输入历史，这一族宽度统一 320、最大高度 320 后内部滚动。</p>
   <div class="pw-tags">
     <span class="pw-tag">页面：会话工作台</span>
     <span class="pw-tag">组件：ModelSelector / ComposerReferenceMenu / ChatInput 下拉</span>
@@ -146,6 +146,70 @@
         </div>
       </div>
 
+      <!-- 输入历史 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">输入历史 · ↑ 唤出 · 贴在输入框正上方、与输入框同宽</div>
+        <div style="position:relative;max-width:800px">
+          <div class="pw-pop" style="width:100%;padding:0">
+            <div style="height:30px;padding:0 10px;border-bottom:1px solid var(--n-border-subtle);display:flex;align-items:center;color:var(--n-placeholder)">
+              <span class="pw-ico"><i data-ico="history" data-size="14"></i></span>
+              <span class="grow" style="flex:1"></span>
+              <span class="pw-mono pw-dim" style="font-size:var(--text-meta)">↑ ↓ 选择 · Enter 填入</span>
+            </div>
+            <div style="padding:4px">
+              <div class="pw-prow is-on" style="align-items:flex-start"><span class="pw-mono pw-dim" style="font-size:var(--text-meta);padding-top:1px">1</span><span style="min-width:0">把 design/pi-web-design 的断点表按实现改成 1024 / 640 / 480</span></div>
+              <div class="pw-prow" style="align-items:flex-start"><span class="pw-mono pw-dim" style="font-size:var(--text-meta);padding-top:1px">2</span><span style="min-width:0">排查最新 Release 与本地待上传改动</span></div>
+              <div class="pw-prow" style="align-items:flex-start"><span class="pw-mono pw-dim" style="font-size:var(--text-meta);padding-top:1px">3</span><span style="min-width:0">窗口切在回合中间时的渲染修复</span></div>
+            </div>
+          </div>
+          <div class="pw-composer" style="width:100%;margin-top:var(--s2)">
+            <div class="pw-composer-top">给 Pi Agent 发消息…</div>
+            <div class="pw-composer-bar">
+              <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+              <span class="pw-grow" style="flex:1"></span>
+              <span class="pw-send disabled"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+            </div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim">注：只有输入框<b>全空</b>时按 ↑ 才唤出；有字就不唤出（那时 ↑ 是别的意思）。历史条只填进输入框，不直接发送。</p>
+      </div>
+
+      <!-- / 命令菜单 -->
+      <div class="pw-stage-cell pw-stage-wide">
+        <div class="cap">/ 命令菜单 · 与输入框同宽 · 分组标题 sticky · 组内自适应列</div>
+        <div style="max-width:800px">
+          <div class="pw-pop" style="width:100%">
+            <div class="pw-pop-title" style="display:flex;align-items:center;gap:var(--s2)"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">命令 · 24 个</span><span class="grow" style="flex:1"></span><span class="pw-kbd">Tab 补全 · Enter 执行</span></div>
+            <div style="padding:0 4px 4px">
+              <section style="margin-bottom:var(--s3)">
+                <div class="pw-pop-title" style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:4px 4px 6px"><span>内置</span><span class="pw-badge count">4</span></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--s2)">
+                  <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="slash" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/compact</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">压缩上下文</span></div>
+                  <div class="pw-prow"><span class="pw-ico"><i data-ico="slash" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/reload</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">重载 agent 连接</span></div>
+                  <div class="pw-prow"><span class="pw-ico"><i data-ico="slash" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/usage</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">本轮用量</span></div>
+                  <div class="pw-prow"><span class="pw-ico"><i data-ico="slash" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/session</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">会话统计</span></div>
+                </div>
+              </section>
+              <section style="margin-bottom:var(--s3)">
+                <div class="pw-pop-title" style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:4px 4px 6px"><span>技能</span><span class="pw-badge count">2</span></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--s2)">
+                  <div class="pw-prow"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/zhaobiao-extract</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">招标结构化抽取</span></div>
+                  <div class="pw-prow" style="opacity:.5"><span class="pw-ico"><i data-ico="box" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/pdf</span><span class="pw-desc" style="flex-shrink:0">休眠</span></div>
+                </div>
+              </section>
+              <section>
+                <div class="pw-pop-title" style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:4px 4px 6px"><span>自定义命令</span><span class="pw-badge count">2</span></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--s2)">
+                  <div class="pw-prow"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/review</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">评审当前改动</span></div>
+                  <div class="pw-prow"><span class="pw-ico"><i data-ico="square-function" data-size="14"></i></span><span class="grow pw-mono" style="min-width:0">/release</span><span class="pw-desc" style="flex-shrink:1;min-width:0;max-width:50%">打 tag 并更新台账</span></div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim">注：命令名是 <code>.pw-mono</code>（等宽、不省略、可折行），描述才是单行省略——名字要能被扫，描述看不清可以悬停。<b>没有搜索框</b>：筛选就是你在输入框里已经打出的那几个字。</p>
+      </div>
+
     </div>
   </div>
 </section>
@@ -153,12 +217,16 @@
 <section class="pw-notes">
   <h2>这一张在定什么</h2>
   <ul>
-    <li><b>弹层只有一个尺寸族</b>：宽 320，圆角 6，边框 1px 发丝线，唯一一种阴影（<code>--shadow-popover</code>）。没有二级边框、没有箭头。</li>
+    <li><b>窄弹层只有一个尺寸族</b>：宽 320，圆角 6，边框 1px 发丝线，唯一一种阴影（<code>--shadow-popover</code>）。没有二级边框、没有箭头。模型 / 思考 / 工具 / 权限 / <code>@</code> 五件都归这一族。</li>
     <li><b>行高与悬浮</b>：行内边距 6/8，悬浮出现 6% 深色容器（<code>--overlay-hover</code>），当前项用强调淡底 + 强调色文字 + 右端对勾。</li>
     <li><b>搜索框钉在顶部</b>，不随内容滚动；内容区封顶 320 高后内部滚动，键盘上下键把高亮移出视口时自动露出。</li>
     <li><b>分组用小标题</b>（11px、弱化色、全大写或来源名），分组之间用一条发丝分隔线。</li>
     <li><b>「不可用」用透明度 + 弱化图标</b>，不划删除线、不用红色；右侧给一句原因（未启用 / 未连接 / 已禁用自动调用）。</li>
-    <li><b><code>@</code> 与 <code>/</code> 是同一个弹层的两种入口</b>，都带搜索框；<code>@</code> 分四组（文件 / 会话 / MCP / 待办），<code>/</code> 分四组（内置 / 自定义 / 技能 / 扩展）。</li>
+    <li><b><code>/</code> 命令菜单不归 320 那一族</b>：它与输入框<b>同宽</b>（<code>left:0; right:0</code> 贴在输入框上，上限 <code>--composer-max</code> 800）。命令多的那一族要的是「一次看见有多少」，320 宽会逼用户滚动找命令。</li>
+    <li><b><code>/</code> 菜单里没有搜索框</b>（实现如此）：筛选就是你在输入框里已经打出的那几个字，菜单只是把它列出来。再加一个框等于让用户输两遍。</li>
+    <li><b>命令菜单是分组 + 组内自适应列</b>：分组标题是 <code>.pw-pop-title</code> 且<b>sticky 钉顶</b>（滚到下一组时上一组的标题不跟着走会迷路），右端给该组条数；组内用 <code>repeat(auto-fit, minmax(220px, 1fr))</code>，800 宽下自然排三列。</li>
+    <li><b>命令名与描述的省略规则相反</b>：命令名等宽、<b>不省略</b>（长名字宁可折行，它是可执行的标识符）；描述单行 + 省略号（看不清可以悬停拿 title）。</li>
+    <li><b>输入历史是一枚贴在输入框上方的弹层</b>：30px 头（只有 history 图标，没有文字）+ 序号加两行截断的正文，<code>↑</code> 唤出且<b>只在输入框全空时</b>唤出。选中只填入，不发送。</li>
   </ul>
 </section>
 
