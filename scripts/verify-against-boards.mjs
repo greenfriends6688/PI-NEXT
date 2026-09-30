@@ -12,10 +12,11 @@
 //   node scripts/verify-against-boards.mjs --app http://127.0.0.1:30141 --keep-open
 // 产出：
 //   docs/screenshots/skin-verify-<日期>/report.md + step-*.png
-import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { launchChrome } from "./launch-chrome.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DES = join(ROOT, "design/pi-web-design");
@@ -147,7 +148,7 @@ const STEPS = [
 ];
 
 /* ------------------------------------------------------------------ 主流程 */
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await launchChrome();
 const problems = [];
 const appClasses = new Set();
 const appButtons = new Map(); // JSON → 次数

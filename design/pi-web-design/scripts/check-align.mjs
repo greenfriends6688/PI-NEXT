@@ -1,9 +1,10 @@
 // 量测：图标与相邻文字的垂直中心偏差。
 // 用法：node scripts/check-align.mjs [文件...]   （不带参数则全量）
-import { chromium } from "playwright";
 import { readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { launchChrome } from "../../../scripts/launch-chrome.mjs";
 
 const DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const files = process.argv.slice(2).length
@@ -14,7 +15,7 @@ const files = process.argv.slice(2).length
 // 折行的提示条在 1500px 视口下会有 1px 的亚像素取整抖动，属于渲染噪声。
 const TOL = 1.0;
 
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await launchChrome();
 const page = await browser.newPage({ viewport: { width: 1500, height: 1100 } });
 
 let total = 0;

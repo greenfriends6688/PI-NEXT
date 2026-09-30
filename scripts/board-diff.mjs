@@ -18,10 +18,11 @@
 //     pairs: [["boardSel", "appSel"]],      // 两边选择器不同名时用这个
 //     tolerance: { box: 2, fontSize: 0 },   // 允许的像素/字号偏差
 //   }
-import { chromium } from "playwright";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { launchChrome } from "./launch-chrome.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -168,7 +169,7 @@ const pairs = spec.pairs ?? selectors.map((s) => [s, s]);
 const allBoard = [...new Set(pairs.map((p) => p[0]))];
 const allApp = [...new Set(pairs.map((p) => p[1]))];
 
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await launchChrome();
 const results = [];
 let fails = 0;
 let skipped = 0;

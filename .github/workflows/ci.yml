@@ -29,7 +29,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,6 +54,22 @@ jobs:
             sleep 1
           done
           E2E_BASE_URL=http://127.0.0.1:30141 npm run test:themes
+          kill "$SERVER_PID"
+      # fork:design-gates —— 设计侧门禁进 CI（2026-09-30）。
+      # 此前 check:design / verify:boards 谁也不跑：颜色有对比度门禁守着，
+      # 而「按钮/位置与画板不一样」全是结构层的事，没有一条被拦住。
+      # 静态部分不需要服务；live 部分（画板↔产品几何对位）要起服。
+      - name: Design gates · 静态（字面量 / 动效 / 图标 / 画板 / 图标对齐）
+        run: npm run check:design
+      - name: Design gates · live（画板 ↔ 产品几何对位）
+        run: |
+          npx next start -H 127.0.0.1 -p 30141 &
+          SERVER_PID=$!
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:30141/ && break
+            sleep 1
+          done
+          npm run verify:boards
           kill "$SERVER_PID"
       - uses: actions/upload-artifact@v4
         if: failure()
