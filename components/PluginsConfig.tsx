@@ -65,7 +65,7 @@ function extensionKey(extension: PluginStandaloneExtensionInfo): string {
  *
  * 「关掉」会额外排除**带资源过滤的包**（`keepOn`）：停用一个包是把它的
  * extensions / skills / prompts / themes 全写成空数组
- * （`app/api/plugins/route.ts:setPackageDisabled`），没有任何东西会把过滤条件
+ * （`app/api/plugins/route.ts:setPackagesDisabled`），没有任何东西会把过滤条件
  * 存回去 —— 「全部停用」再「全部启用」就会静默抹掉它。所以这种包保持启用，
  * 由调用方如实报出去，只能用它自己的开关处理。独立扩展没有开关，不在这里。
  */
@@ -81,6 +81,15 @@ export function filteredPackagesKeptOn<T extends Pick<PluginPackageInfo, "disabl
   packages: readonly T[],
 ): T[] {
   return packages.filter((pkg) => !pkg.disabled && pkg.filtered);
+}
+
+/** fork:bulk-routes（上游 `eceac13` #1020）—— 批量启停里**每一个**包的结果：
+ *  `error` 为空即写成功，有值表示该包保持原状。与
+ *  `app/api/plugins/route.ts` 的 `PluginToggleResult` 同形。 */
+export interface PluginToggleResult {
+  source: string;
+  scope: PluginScope;
+  error?: string;
 }
 
 function resourceSummary(pkg: PluginPackageInfo, t: ReturnType<typeof useI18n>["t"]): string {
@@ -1549,11 +1558,14 @@ export function PluginsConfig({
   }, [cwd]);
 
   /* fork:group-switch（G4）—— 一个作用域的分组开关：包里全部启用 / 全部停用。
-     我们没有上游那个 `packages: [...]` 批量路由（`POST /api/plugins` 只收一个
-     `source`，而路由不在本文件边界内），所以按 `packagesToSwitch` 算出的目标
-     **逐条**发：每个包一次 settings.json 的 flush，串行执行才不互相踩。
-     每条都是全量 `PluginsResponse` 返回，所以直接拿最后一次成功的响应当列表状态，
-     不用再拉一次。被拒的包保持原状，报在该组标题下。 */
+     fork:bulk-routes（上游 `eceac13` #1020）—— 路由现在收
+     `packages: [{ source, scope }]`，所以这里一次请求发完（改前是逐条串行：
+     每个包一次 settings.json 的 flush，互相同一个文件连着写）。只把
+     `packagesToSwitch` 算出的目标发出去，所以带 resource filter 的包
+     （`keepOn`）根本不在请求里 —— 停用它会清空过滤条件且没人能存回去。
+     路由逐包作答，被拒的包保持原状并逐条报在该组标题下。
+     成功时响应仍是一份全量 `PluginsResponse`（外加 `results`），直接拿它当
+     列表状态，不用再拉一次。 */
   const setGroupPackages = useCallback(async (
     scope: PluginScope,
     groupPackages: PluginPackageInfo[],
@@ -1571,40 +1583,53 @@ export function PluginsConfig({
     }
     const action = enabled ? "enable" : "disable";
     setBusyKey(`group:${scope}`);
-    let lastPayload: PluginsResponse | null = null;
-    const failures: string[] = [];
     try {
-      for (const pkg of targets) {
-        try {
-          const res = await fetch("/api/plugins", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action, source: pkg.source, scope: pkg.scope, cwd }),
-          });
-          const next = (await res.json().catch(() => ({}))) as PluginsResponse & { error?: string };
-          if (!res.ok || next.error) {
-            failures.push(`${pkg.source}: ${next.error ?? `HTTP ${res.status}`}`);
-            continue;
-          }
-          lastPayload = next;
-        } catch (err) {
-          failures.push(`${pkg.source}: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
-      if (lastPayload) {
-        setData(lastPayload);
+      const res = await fetch("/api/plugins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          packages: targets.map((pkg) => ({ source: pkg.source, scope: pkg.scope })),
+          cwd,
+        }),
+      });
+      const next = (await res.json().catch(() => ({}))) as PluginsResponse & {
+        results?: PluginToggleResult[];
+        error?: string;
+      };
+      if (res.ok && !next.error && Array.isArray(next.results)) {
+        setData(next as PluginsResponse);
         const message = enabled ? t("plugins.groupEnabled") : t("plugins.groupDisabled");
         setActionMessage(sessionId ? `${message} ${t("agents.reloadRequired")}` : message);
       }
+      // 请求整体失败 → 所有目标都算失败，列表一行不动；逐包失败 → 只剩那几条不动。
+      const results: PluginToggleResult[] = Array.isArray(next.results)
+        ? next.results
+        : targets.map((pkg) => ({
+            source: pkg.source,
+            scope: pkg.scope,
+            error: next.error ?? `HTTP ${res.status}`,
+          }));
+      const failures = results.filter((result) => result.error);
       setGroupStatus({
         scope,
         note,
         lines: failures.length > 0
           ? [
-              t("plugins.groupFailed", { count: failures.length, total: targets.length }),
-              ...failures,
+              t("plugins.groupFailed", { count: failures.length, total: results.length }),
+              ...failures.map((failure) => `${failure.source}: ${failure.error}`),
             ]
           : [],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setGroupStatus({
+        scope,
+        note,
+        lines: [
+          t("plugins.groupFailed", { count: targets.length, total: targets.length }),
+          ...targets.map((pkg) => `${pkg.source}: ${message}`),
+        ],
       });
     } finally {
       setBusyKey(null);

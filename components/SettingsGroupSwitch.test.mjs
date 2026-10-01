@@ -96,9 +96,11 @@ test("both sections wire the switch into the group heading and report under it",
   // 单条开关仍走单条形态（`filePath`），不能被批量改坏。
   assert.match(skillsSource, /filePath: skill\.filePath,\s*\n\s*disableModelInvocation: next,/);
 
-  // 插件侧：批量路由还没接上，仍是逐条串行（一个包一次 settings.json 的 flush）。
-  assert.doesNotMatch(pluginGroup, /packages: targets\.map/);
-  assert.match(pluginGroup, /for \(const pkg of targets\)/);
+  // 插件侧：批量路由接上了，同一次请求带全部 packages；逐包 results 兜底。
+  assert.match(pluginGroup, /packages: targets\.map\(\(pkg\) => \(\{ source: pkg\.source, scope: pkg\.scope \}\)\)/);
+  assert.doesNotMatch(pluginGroup, /for \(const pkg of targets\)/);
+  assert.match(pluginGroup, /Array\.isArray\(next\.results\)/);
+  // 单条开关仍走单条形态（`source` / `scope`），不能被批量守卫吃掉。
   assert.match(pluginsSource, /JSON\.stringify\(\{ action, source: pkg\.source, scope: pkg\.scope, cwd \}\)/);
 });
 
