@@ -195,6 +195,29 @@ test("model specs keep catalog-filled prices visible outside advanced settings",
   assert.match(modelDetail, /formatCost\(key\)/);
 });
 
+// fork:cost-tiers (B3) —— 阶梯定价编辑器接在基础价之后（同一个 cost 对象），
+// 且只用画板已有的类：`.pw-field` 行 + `.pw-numin` 窄数值框。
+test("tiered pricing has an editor wired into the model cost object", () => {
+  const editor = source.slice(
+    source.indexOf("function CostTiersEditor"),
+    source.indexOf("function fillEmptyModelFields"),
+  );
+  assert.match(editor, /parseModelCostTiers\(next\)/);
+  // 控件全是画板已固化的基件：`.pw-field` 行 + `.pw-numin` 窄数值框（画板 40）。
+  assert.match(editor, /className="pw-field"/);
+  assert.match(editor, /className="pw-input pw-numin pw-mono"/);
+
+  const modelDetail = source.slice(
+    source.indexOf("function ModelDetail"),
+    source.indexOf("// ── OAuth detail"),
+  );
+  assert.match(modelDetail, /<CostTiersEditor[\s\S]*?tiers=\{costTiers\}[\s\S]*?onChange=\{setCostTiers\}/);
+  // 清空阶梯就删掉 `tiers` 键，不留 `tiers: []`。
+  assert.match(modelDetail, /const costTiers = Array\.isArray\(model\.cost\?\.tiers\) \? model\.cost\.tiers : \[\]/);
+  assert.match(modelDetail, /if \(tiers\?\.length\) nextCost\.tiers = tiers;/);
+  assert.match(modelDetail, /else delete nextCost\.tiers;/);
+});
+
 test("the three model-detail cards separate sections instead of drawing dividers", () => {
   const modelDetail = source.slice(
     source.indexOf("function ModelDetail"),

@@ -3,7 +3,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createJiti } from "jiti";
 
-const { formatThinkingRequestParams, renameProviderEntry, savedModelIds, serializeHeaderRows } = await createJiti(import.meta.url)
+const {
+  formatThinkingRequestParams,
+  hasModelCostTierDraftValue,
+  modelCostTierToDraft,
+  parseModelCostTier,
+  parseModelCostTiers,
+  renameProviderEntry,
+  savedModelIds,
+  serializeHeaderRows,
+} = await createJiti(import.meta.url)
   .import("./models-config-helpers.ts");
 
 test("A1 — header rows with a blank value never reach models.json", () => {
@@ -114,4 +123,46 @@ test("a provider added since the last save is renamed without a settings rewrite
 
   assert.deepEqual(Object.keys(renamed.providers), ["house"]);
   assert.deepEqual([...tracking.renames], []);
+});
+
+// fork:cost-tiers (B3) —— pi-ai `ModelCostTier`：输入超过阈值后整笔改用这组价格，
+// `calculateCost()`（dist/models.js）取最高匹配的阈值。
+const tierDraft = (over = {}) => ({ inputTokensAbove: "200000", input: "2", output: "3", cacheRead: "0.25", cacheWrite: "0", ...over });
+
+test("a tier round-trips through its draft without losing the threshold", () => {
+  const tier = { inputTokensAbove: 200000, input: 2, output: 3, cacheRead: 0.25, cacheWrite: 0 };
+  assert.deepEqual(modelCostTierToDraft(tier), tierDraft());
+  assert.deepEqual(parseModelCostTier(tierDraft()), tier);
+});
+
+test("a tier needs a positive whole threshold and all four prices", () => {
+  for (const bad of ["0", "-1", "1.5", "", "abc", "200000 tokens"]) {
+    assert.equal(parseModelCostTier(tierDraft({ inputTokensAbove: bad })), undefined, `threshold ${bad}`);
+  }
+  // 阈值合法但价格没填全 → 不落盘（半档比没有更危险：会按 0 计费）。
+  assert.deepEqual(parseModelCostTier(tierDraft({ cacheWrite: "" })), { inputTokensAbove: 200000, input: 2, output: 3, cacheRead: 0.25, cacheWrite: 0 });
+  assert.equal(parseModelCostTier(tierDraft({ output: "-2" })), undefined);
+  assert.equal(hasModelCostTierDraftValue(tierDraft({ inputTokensAbove: "" })), true);
+  assert.equal(hasModelCostTierDraftValue({ inputTokensAbove: "", input: "", output: "", cacheRead: "", cacheWrite: "" }), false);
+});
+
+test("tiers are sorted ascending and blank rows never reach models.json", () => {
+  assert.deepEqual(parseModelCostTiers([
+    tierDraft({ inputTokensAbove: "1000000", input: "10", output: "20", cacheRead: "1", cacheWrite: "2" }),
+    tierDraft(),
+    { inputTokensAbove: "", input: "", output: "", cacheRead: "", cacheWrite: "" },
+  ]), [
+    { inputTokensAbove: 200000, input: 2, output: 3, cacheRead: 0.25, cacheWrite: 0 },
+    { inputTokensAbove: 1000000, input: 10, output: 20, cacheRead: 1, cacheWrite: 2 },
+  ]);
+  // 解析不出来的档被丢掉而不是写成 0 元。
+  assert.deepEqual(parseModelCostTiers([tierDraft({ inputTokensAbove: "-1" })]), undefined);
+  assert.equal(parseModelCostTiers([]), undefined);
+});
+
+test("a duplicated threshold keeps the later row, matching what pi charges", () => {
+  assert.deepEqual(parseModelCostTiers([
+    tierDraft({ inputTokensAbove: "200000", input: "2" }),
+    tierDraft({ inputTokensAbove: "200000", input: "9" }),
+  ]), [{ inputTokensAbove: 200000, input: 9, output: 3, cacheRead: 0.25, cacheWrite: 0 }]);
 });

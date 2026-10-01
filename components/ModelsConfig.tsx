@@ -15,8 +15,12 @@ import {
 import {
   collectModelRenames,
   hasModelCostDraftValue,
+  hasModelCostTierDraftValue,
+  modelCostTierToDraft,
   modelCostToDraft,
   parseCompleteModelCost,
+  parseModelCostTier,
+  parseModelCostTiers,
   renameProviderEntry,
   savedModelIds,
   serializeHeaderRows,
@@ -26,6 +30,8 @@ import {
   type HeaderRow,
   type ModelCostDraft,
   type ModelCostKey,
+  type ModelCostTier,
+  type ModelCostTierDraft,
 } from "./models-config-helpers";
 // fork:input-limits —— 多模态上限 / 图片 resize / 提示词缓存时长的输入区。
 import { ModelInputLimitsFields } from "./ModelLimitsFields";
@@ -140,7 +146,7 @@ interface ModelEntry {
   promptCache?: ModelPromptCache;
   contextWindow?: number;
   maxTokens?: number;
-  cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: unknown };
+  cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: ModelCostTier[] };
   headers?: Record<string, string>;
   /** Arbitrary provider request parameters (temperature, top_p, …). pi merges this
    *  into the request options, so it is the real "advanced parameters" escape hatch. */
@@ -1089,6 +1095,109 @@ function HeaderListEditor({ headers, onChange }: {
   );
 }
 
+/**
+ * fork:cost-tiers (B3) — 阶梯定价编辑器。pi-ai 的 `ModelCostTier`（`dist/types.d.ts`）
+ * 是一组「输入 tokens 超过阈值后整笔改用这组价格」，`calculateCost()` 取最高匹配的
+ * 阈值 —— 没有编辑器就只能手改 JSON，于是显示用的基础价与实际扣费对不上。
+ *
+ * 每一档是一组 `.pw-field` 行（画板 41 规格行已经在用的形态）：左阈值 + 右边四个
+ * `.pw-numin` 窄数值框。行内不加自造类。
+ */
+const COST_TIER_RATE_FIELDS: readonly { key: ModelCostKey; label: string }[] = [
+  { key: "input", label: "in" },
+  { key: "output", label: "out" },
+  { key: "cacheRead", label: "cache r" },
+  { key: "cacheWrite", label: "cache w" },
+];
+function CostTiersEditor({ tiers, onChange }: {
+  tiers: ModelCostTier[];
+  onChange: (next: ModelCostTier[] | undefined) => void;
+}) {
+  const { t } = useI18n();
+  const draftsRef = useRef<ModelCostTierDraft[]>(tiers.map(modelCostTierToDraft));
+  const [drafts, setDrafts] = useState(draftsRef.current);
+  // 已保存的档变了（撤销目录回填 / 换模型）就重新起草。
+  useEffect(() => {
+    draftsRef.current = tiers.map(modelCostTierToDraft);
+    setDrafts(draftsRef.current);
+  }, [tiers]);
+
+  const apply = (next: ModelCostTierDraft[]) => {
+    const parsed = parseModelCostTiers(next);
+    draftsRef.current = next;
+    setDrafts(next);
+    onChange(parsed);
+  };
+  const setDraft = (index: number, changes: Partial<ModelCostTierDraft>) => {
+    apply(drafts.map((draft, i) => (i === index ? { ...draft, ...changes } : draft)));
+  };
+
+  return (
+    <div className="pw-rowgap">
+      {drafts.map((draft, index) => {
+        return (
+          <div key={index} className="pw-field">
+            <span className="pw-label">
+              {t("models.costTierAbove")}
+              <small>{t("models.costTierAboveHint", { value: formatTokenLimit(Number(draft.inputTokensAbove) || 0) })}</small>
+            </span>
+            <PwCtl>
+              <input
+                className="pw-input pw-numin pw-mono"
+                type="number"
+                min={1}
+                value={draft.inputTokensAbove}
+                onChange={(event) => setDraft(index, { inputTokensAbove: event.target.value })}
+                aria-label={t("models.costTierAbove")}
+              />
+              {COST_TIER_RATE_FIELDS.map(({ key, label }) => (
+                <input
+                  key={key}
+                  className="pw-input pw-numin"
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={draft[key]}
+                  onChange={(event) => setDraft(index, { [key]: event.target.value })}
+                  aria-label={`${t("models.costTierPrice")}: ${label}`}
+                  placeholder={label}
+                />
+              ))}
+              <ConfigButton
+                variant="danger"
+                size="small"
+                aria-label={t("i18n.delete")}
+                onClick={() => apply(drafts.filter((_, i) => i !== index))}
+              >
+                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+              </ConfigButton>
+            </PwCtl>
+          </div>
+        );
+      })}
+      {drafts.some((draft) => hasModelCostTierDraftValue(draft) && !parseModelCostTier(draft)) && (
+        <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>
+          {t("models.costTierInvalid")}
+        </div>
+      )}
+      <ConfigButton
+        variant="ghost"
+        size="small"
+        onClick={() => apply([...drafts, {
+          inputTokensAbove: "",
+          input: "",
+          output: "",
+          cacheRead: "",
+          cacheWrite: "",
+        }])}
+      >
+        <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
+        {t("models.costTierAdd")}
+      </ConfigButton>
+    </div>
+  );
+}
+
 function fillEmptyModelFields(
   model: ModelEntry,
   preset: ModelCatalogPreset,
@@ -1249,6 +1358,16 @@ function ModelDetail({
     costDraftRef.current = nextDraft;
     setCostDraft(nextDraft);
     setCostEditing(true);
+  };
+  // fork:cost-tiers (B3) —— 阶梯挂在同一个 cost 对象上，所以走同一份模板（保持
+  // tiers 之外的手写字段），只换 tiers 本身；清空就删键，不留 `tiers: []`。
+  const costTiers = Array.isArray(model.cost?.tiers) ? model.cost.tiers : [];
+  const setCostTiers = (tiers: ModelCostTier[] | undefined) => {
+    const nextCost = { ...(costTemplateRef.current ?? {}) };
+    if (tiers?.length) nextCost.tiers = tiers;
+    else delete nextCost.tiers;
+    costTemplateRef.current = nextCost;
+    onChange({ ...model, cost: nextCost });
   };
   const testSummary = (() => {
     if (testState.phase === "idle") return null;
@@ -1548,6 +1667,17 @@ function ModelDetail({
           /* 画板的状态文案只有 pw-dim 一档；这里是「填了一半」的警告语义色。 */
           <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>{t("models.costAllRequired")}</div>
         )}
+
+        {/* fork:cost-tiers (B3) —— 阶梯定价是基础价之外的第二层：基础价那四个格子是
+            “每百万 tokens”，阶梯是“输入超过某个阈值后整笔改用另一组”。同一分节里，
+            阈值行用画板已有的 `.pw-numin` 窄数值框；没配时编辑器就是空的（只有
+            「+ 加一档」），不是假装有一档。 */}
+        <ConfigDetailHeader>
+          <ConfigDetailTitle>{t("models.costTiers")}</ConfigDetailTitle>
+          {costTiers.length > 0 && <ConfigBadge tone="count">{costTiers.length}</ConfigBadge>}
+        </ConfigDetailHeader>
+        <p className="pw-hint">{t("models.costTiersHint")}</p>
+        <CostTiersEditor tiers={costTiers} onChange={setCostTiers} />
         <ConfigDetailHeader>
           <span className="pw-grow" aria-hidden="true" />
           <ConfigButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>

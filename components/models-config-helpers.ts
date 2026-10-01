@@ -17,6 +17,59 @@ export type ModelCostRates = Record<ModelCostKey, number>;
 
 export type ModelCostDraft = Record<ModelCostKey, string>;
 
+/**
+ * fork:cost-tiers (B3) — pi-ai `ModelCostTier`（`dist/types.d.ts` 的
+ * `ModelCostTier extends ModelCostRates { inputTokensAbove }`）：请求总输入
+ * tokens 超过某个阈值后，整笔请求改用该档价格，取**最高匹配的阈值**（自证：
+ * `dist/models.js` 的 `calculateCost()`）。长上下文档位的模型不配阶梯，显示的
+ * 基础价和实际扣费就对不上。
+ */
+export interface ModelCostTier {
+  inputTokensAbove: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+export interface ModelCostTierDraft extends ModelCostDraft {
+  inputTokensAbove: string;
+}
+
+export function modelCostTierToDraft(tier: ModelCostTier): ModelCostTierDraft {
+  return { inputTokensAbove: String(tier.inputTokensAbove), ...modelCostToDraft(tier) };
+}
+
+/** 阈值必须是正整数（pi 的 schema 是 `Type.Number()`，但 0/负数没有意义），价格四项全填才落盘。 */
+export function parseModelCostTier(
+  draft: ModelCostTierDraft,
+): ModelCostTier | undefined {
+  const threshold = Number(draft.inputTokensAbove.trim());
+  if (!Number.isInteger(threshold) || threshold <= 0) return undefined;
+  const rates = parseCompleteModelCost(draft);
+  return rates ? { inputTokensAbove: threshold, ...rates } : undefined;
+}
+
+export function hasModelCostTierDraftValue(draft: ModelCostTierDraft): boolean {
+  return draft.inputTokensAbove.trim() !== "" || hasModelCostDraftValue(draft);
+}
+
+/**
+ * 草稿 → 落盘的阶梯数组。阈值必须递增，否则 pi 的「最高匹配阈值」比较会被
+ * 后面的乱序档遮蔽 —— 直接按升序排，并丢掉解析不出阈值 / 价格的档。
+ */
+export function parseModelCostTiers(
+  drafts: readonly ModelCostTierDraft[],
+): ModelCostTier[] | undefined {
+  const tiers = drafts
+    .map((draft) => parseModelCostTier(draft))
+    .filter((tier): tier is ModelCostTier => tier !== undefined)
+    .sort((a, b) => a.inputTokensAbove - b.inputTokensAbove);
+  if (!tiers.length) return undefined;
+  // 同一阈值重复出现时只留最后一个（读的那一份也是后者生效）。
+  return tiers.filter((tier, index) => index === tiers.length - 1 || tiers[index + 1].inputTokensAbove !== tier.inputTokensAbove);
+}
+
 export function modelCostToDraft(cost?: Partial<ModelCostRates>): ModelCostDraft {
   return {
     input: cost?.input === undefined ? "" : String(cost.input),
