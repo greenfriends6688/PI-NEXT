@@ -41,7 +41,7 @@ import type { SessionInfo } from "@/lib/types";
 import { ConfigButton, ConfigSwitch, PwRadio, SettingsPage } from "./SettingsUi";
 /* fork:disabled-reasons —— 「为什么不能点」的本地文案（语言包在 lib/i18n/messages/**，
  * 本轮不允许改 lib/，所以走与 AgentsConfig 同一套本地表，详见那里的注释）。 */
-import { localCopy, type LocalCopy } from "./AgentsConfig";
+import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 
 interface KindState {
   /** null = 还没扫过。 */

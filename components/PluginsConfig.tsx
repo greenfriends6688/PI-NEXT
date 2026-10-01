@@ -291,6 +291,10 @@ function AddPluginPanel({
           variant="primary"
           onClick={onInstall}
           disabled={busy || !source.trim()}
+          // fork:fix-disabled-title（2026-10-01）—— 禁用原因写 title。
+          // 对照正例：MCP 导入条目 title="已被同名条目遮蔽"、插件页「重新加载会话」
+          // title="打开会话后才能重新加载"。
+          title={!source.trim() ? t("i18n.installNeedsSource") : undefined}
           className="is-pushed-right"
         >
           {busy ? t("i18n.installing") : t("i18n.install")}

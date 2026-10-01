@@ -143,6 +143,9 @@ export function ThemeSkinStrip({
           type="button"
           className="pw-btn outline sm"
           disabled={activeSkin === null}
+          // fork:fix-disabled-title（2026-10-01）—— 禁用原因写 title（不写功能名）。
+          // 默认外观下 activeSkin 为 null：它不是一份皮肤文件，既导不出也进不了工作室。
+          title={activeSkin === null ? t("settings.skinActionsNeedCustom") : t("settings.skinExport")}
           onClick={() => activeSkin && onExport(activeSkin)}
         >
           <span className="pw-ico"><i data-ico="download" data-size="13" aria-hidden="true" /></span>
@@ -152,6 +155,7 @@ export function ThemeSkinStrip({
           type="button"
           className="pw-btn outline sm"
           disabled={activeSkin === null}
+          title={activeSkin === null ? t("settings.skinActionsNeedCustom") : t("settings.skinStudio")}
           onClick={() => activeSkin && onEdit(activeSkin.id)}
         >
           <span className="pw-ico"><i data-ico="paintbrush" data-size="13" aria-hidden="true" /></span>

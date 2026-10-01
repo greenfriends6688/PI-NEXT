@@ -27,7 +27,7 @@ import { compileCronRule, parseClockTime, type CronRule } from "@/lib/cron-rule"
 import type { CronRunRecord, CronSchedule, CronTaskView } from "@/lib/cron-schedule";
 /* fork:disabled-reasons —— 「这台机器一个模型都没有」的口径与 AgentsConfig /
  * SettingsPanel 共用同一张表（定义在 AgentsConfig，理由见那里的注释）。 */
-import { NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "../AgentsConfig";
+import { NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "../settings-disabled-reasons";
 
 const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 const THINKING_LABELS: Record<(typeof THINKING_LEVELS)[number], string> = {

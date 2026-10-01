@@ -41,7 +41,8 @@ import { SkillsConfig } from "./SkillsConfig";
  * 共用同一份「一个模型都没有」口径（NO_MODEL_PROVIDERS_HINT），避免同一个原因在三个
  * 分节里说成三句话；`localCopy` 与文案表都定义在 AgentsConfig，理由见那里的注释。
  * 语言包在 lib/i18n/messages/**（这一轮不允许改 lib/），所以这几条走本地表而不是 t()。 */
-import { AgentsConfig, NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "./AgentsConfig";
+import { AgentsConfig } from "./AgentsConfig";
+import { NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "./settings-disabled-reasons";
 import { PluginsConfig } from "./PluginsConfig";
 import {
   PwBlock,
