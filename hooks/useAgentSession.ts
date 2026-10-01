@@ -23,6 +23,8 @@ import {
 } from "@/lib/session-view-cache";
 import { clearDraft, rekeyDraft, restoreDraftSubmission } from "@/lib/draft-store";
 import { getPreferredToolPreset, setPreferredToolPreset } from "@/lib/tool-preset-preference";
+// fork:thinking-level-prefill —— 进新会话时按 per-model 记忆预选推理强度。
+import { resolvePrefilledThinkingLevel } from "@/lib/thinking-level-prefill";
 import { CONFIGURED_TOOL_PRESET, getPresetFromToolNames, getToolNamesForPreset, type ToolEntry, type ToolPreset } from "@/lib/tool-presets";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import { mergeSessionStats, type SessionFileStats } from "@/lib/session-stats";
@@ -305,6 +307,8 @@ type ModelsResponse = {
   thinkingLevels?: Record<string, string[]>;
   thinkingLevelMaps?: Record<string, Record<string, string | null>>;
   thinkingLevelPins?: Record<string, string>;
+  /** fork:thinking-level-prefill —— per-model 记忆（key `provider/modelId`，斜杠）。 */
+  thinkingLevelMemory?: Record<string, string>;
   modelError?: string;
   modelScopeWarnings?: string[];
 };
@@ -406,6 +410,14 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const newSessionPromotedRef = useRef(false);
   const newSessionModelOverrideRef = useRef<SelectedModel | null>(null);
   const thinkingLevelOverrideRef = useRef<Exclude<ThinkingLevelOption, "auto"> | null>(null);
+  // fork:thinking-level-prefill —— 三张档位表的最新快照。读它们的地方（换模型）与写它们的地方
+  // （loadModels）不在同一个回调里，放 state 会把 handleModelChange 的依赖数组绑到每次
+  // 模型列表刷新上；放 ref 则依赖不变。
+  const thinkingLevelTablesRef = useRef<{
+    thinkingLevels: Record<string, string[]>;
+    thinkingLevelPins: Record<string, string>;
+    thinkingLevelMemory: Record<string, string>;
+  }>({ thinkingLevels: {}, thinkingLevelPins: {}, thinkingLevelMemory: {} });
   const promptRunIdRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
   const modelSwitchPendingRef = useRef(false);
@@ -1892,6 +1904,18 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       newSessionModelOverrideRef.current = selectedModel;
       setNewSessionModel(selectedModel);
       setPendingModel(selectedModel);
+      /* fork:thinking-level-prefill —— 换模型时按新模型自己的记忆重新预选。
+         会话还没建时只是改选择器显示（真正的档位随 /api/agent/new 一起送），
+         已经在跑的新会话不动 —— 中途改档会让这一轮的账单与记忆不一致。 */
+      if (!sessionIdRef.current && thinkingLevelOverrideRef.current === null) {
+        const prefill = resolvePrefilledThinkingLevel({ provider, modelId, ...thinkingLevelTablesRef.current });
+        if (prefill) {
+          setThinkingLevel(prefill.level);
+          if (prefill.source === "memory") thinkingLevelOverrideRef.current = prefill.level;
+        } else {
+          setThinkingLevel("auto");
+        }
+      }
       const sid = sessionIdRef.current ?? await ensuringNewSessionRef.current;
       if (!sid) return;
       try {
@@ -1982,6 +2006,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     setModelScopeWarnings(d.modelScopeWarnings ?? []);
     setModelThinkingLevels(d.thinkingLevels ?? {});
     setModelThinkingLevelMaps(d.thinkingLevelMaps ?? {});
+    thinkingLevelTablesRef.current = {
+      thinkingLevels: d.thinkingLevels ?? {},
+      thinkingLevelPins: d.thinkingLevelPins ?? {},
+      thinkingLevelMemory: d.thinkingLevelMemory ?? {},
+    };
     const nextModelList = d.modelList ?? [];
     setModelList(nextModelList);
     const displayDefaultModel = d.defaultModel
@@ -1992,11 +2021,27 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       : null);
     if (isNew && !sessionIdRef.current) {
       // The first listed model is not necessarily the runtime's automatic choice.
-      // An `enabledModels` pattern may pin a thinking level (`anthropic/*:high`).
-      // Like pi, apply it to the model a new session starts with.
-      const pinned = displayDefaultModel && d.thinkingLevelPins?.[`${displayDefaultModel.provider}/${displayDefaultModel.id}`];
+      // An `enabledModels` pattern may pin a thinking level (`anthropic/*:high`),
+      // and pi-web remembers the level last actually used per model.
+      // fork:thinking-level-prefill —— 两条配置进同一处：pin 优先于记忆，都没有就不动
+      //（auto = 不碰 pi 当前的设置）。写记忆仍然只发生在 rpc-manager 的两处
+      //（set_thinking_level / 新会话显式指定档位），前端不写。
       if (thinkingLevelOverrideRef.current === null) {
-        setThinkingLevel((pinned as ThinkingLevelOption | undefined) ?? "auto");
+        const prefill = displayDefaultModel
+          ? resolvePrefilledThinkingLevel({
+            provider: displayDefaultModel.provider,
+            modelId: displayDefaultModel.id,
+            ...thinkingLevelTablesRef.current,
+          })
+          : null;
+        if (prefill) {
+          setThinkingLevel(prefill.level);
+          // pin 由服务端建会话时解析 enabledModels 自己应用，不重复钉；
+          // 记忆是我们读出来的，得钉住，否则选择器显示的档和真跑的不一样。
+          if (prefill.source === "memory") thinkingLevelOverrideRef.current = prefill.level;
+        } else {
+          setThinkingLevel("auto");
+        }
       }
     }
   }, [isNew, newSessionCwd, session?.cwd]);
