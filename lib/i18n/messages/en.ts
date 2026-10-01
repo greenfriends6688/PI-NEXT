@@ -680,6 +680,12 @@ export const enLocale: LocalePlugin = {
     "files.menuRename": "Rename",
     "files.menuDelete": "Delete",
     "files.renameEntry": "Rename entry",
+    // fork:linked-directory — 指向项目之外的符号链接目录（#748）。
+    "files.outsideLink": "Links to {target}, outside this project",
+    "files.outsideLinkEncloses": "That folder also contains this project or your home folder.",
+    "files.allowOutsideLink": "Allow browsing",
+    "files.allowOutsideLinkTitle": "Browse {target} until Pi Web restarts. No other folder is opened.",
+    "files.allowEnclosingLinkConfirm": "Allow browsing {target}? It also contains this project or your home folder.",
     "files.confirmDeleteFile": "Delete file \"{name}\"? This cannot be undone.",
     "files.confirmDeleteFolder": "Delete folder \"{name}\" and everything inside it? This cannot be undone.",
     "files.editFile": "Edit file",

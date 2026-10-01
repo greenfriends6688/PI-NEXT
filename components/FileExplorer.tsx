@@ -31,6 +31,10 @@ interface FileEntry {
   isDir: boolean;
   size: number;
   modified: string;
+  /** fork:linked-directory — 指向 roots 之外的目录链接（#748）：列得出来，点进去要操作员先放行。 */
+  outsideLinkTarget?: string;
+  /** 目标还包着本项目或主目录，界面要额外警告并确认。 */
+  outsideLinkEncloses?: boolean;
 }
 
 interface FileNode {
@@ -40,6 +44,9 @@ interface FileNode {
   size: number;
   children?: FileNode[];
   loaded?: boolean;
+  /** fork:linked-directory — 服务端在列表里报的目标。 */
+  outsideLinkTarget?: string;
+  outsideLinkEncloses?: boolean;
 }
 
 interface Props {
@@ -140,19 +147,21 @@ async function mutateFileEntry(
   return { ok: false, error: data.error ?? `Request failed (HTTP ${res.status})` };
 }
 
+async function responseError(res: Response, fallback: string): Promise<Error> {
+  let message = `${fallback} (HTTP ${res.status})`;
+  try {
+    const data = await res.json() as { error?: string };
+    if (data.error) message = data.error;
+  } catch {
+    // ignore non-JSON error bodies
+  }
+  return new Error(message);
+}
+
 async function fetchEntries(dirPath: string): Promise<FileNode[]> {
   const encoded = encodeFilePathForApi(dirPath);
   const res = await fetch(`/api/files/${encoded}?type=list`);
-  if (!res.ok) {
-    let message = `Failed to load files (HTTP ${res.status})`;
-    try {
-      const data = await res.json() as { error?: string };
-      if (data.error) message = data.error;
-    } catch {
-      // ignore non-JSON error bodies
-    }
-    throw new Error(message);
-  }
+  if (!res.ok) throw await responseError(res, "Failed to load files");
   const data = await res.json() as { entries?: FileEntry[] };
   // A response without an entries array is a failure, not an empty directory:
   // silently rendering "no files" made a broken listing look like an empty folder.
@@ -166,7 +175,21 @@ async function fetchEntries(dirPath: string): Promise<FileNode[]> {
     size: e.size,
     children: e.isDir ? [] : undefined,
     loaded: !e.isDir,
+    // fork:linked-directory — 把服务端报的目标带下去，展开时才问要不要放行。
+    outsideLinkTarget: e.outsideLinkTarget,
+    outsideLinkEncloses: e.outsideLinkEncloses,
   }));
+}
+
+// fork:linked-directory — 带上操作员**当时看到**的目标，服务端据此比对 realpath：
+// 链接被改指到别处就 409，而不是授权一个没人看过的目录。
+async function allowOutsideLink(linkPath: string, target: string): Promise<void> {
+  const res = await fetch(`/api/files/${encodeFilePathForApi(linkPath)}?type=allow-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target }),
+  });
+  if (!res.ok) throw await responseError(res, "Failed to allow the linked folder");
 }
 
 async function fetchGitStatus(cwd: string): Promise<GitStatusResponse> {
@@ -329,7 +352,7 @@ function CreateEntryInput({
   );
 }
 
-function TreeNode({
+export function TreeNode({
   node,
   depth,
   cwd,
@@ -387,7 +410,17 @@ function TreeNode({
   const [children, setChildren] = useState<FileNode[]>(node.children ?? []);
   const [loaded, setLoaded] = useState(node.loaded ?? false);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
+  // fork:linked-directory — 放行只对本次操作员点过的那一条生效，重启即失效。
+  const [allowedLinkTarget, setAllowedLinkTarget] = useState<string | null>(null);
+  const [allowingLink, setAllowingLink] = useState(false);
+  const [allowLinkError, setAllowLinkError] = useState<string | null>(null);
+  // fork:linked-directory — 通向项目之外的链接默认不列（列了也只是 403），改为
+  // 在行下问一次「要不要放行这个目标」。
+  const pendingLinkTarget = node.outsideLinkTarget && node.outsideLinkTarget !== allowedLinkTarget
+    ? node.outsideLinkTarget
+    : null;
   const rowRef = useRef<HTMLDivElement>(null);
   const emptyRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRenaming = renaming?.fullPath === node.fullPath;
@@ -406,9 +439,17 @@ function TreeNode({
     if (isCreatingHere) createInputRef.current?.focus();
   }, [isCreatingHere]);
 
+  // fork:linked-directory — 列表又报出同一个目标（服务端重启忘了刚才的放行，或链接
+  // 被改指）时，需要操作员重新做一次决定。
+  useEffect(() => {
+    setAllowedLinkTarget(null);
+    setAllowLinkError(null);
+  }, [node.outsideLinkTarget]);
+
   const loadChildren = useCallback(async (force = false, isRetry = false) => {
     if (loaded && !force) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const entries = await fetchEntries(node.fullPath);
       setChildren(entries);
@@ -419,8 +460,10 @@ function TreeNode({
         if (emptyRetryRef.current) clearTimeout(emptyRetryRef.current);
         emptyRetryRef.current = setTimeout(() => { void loadChildren(true, true); }, 800);
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      // fork:linked-directory — 以前这里是空 catch，目录展开失败就变成一个永远
+      // 空着的文件夹（#748）。现在把原因显示在那一行下面。
+      setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -439,7 +482,7 @@ function TreeNode({
 
   // Re-fetch children when the tree refreshes and the directory is open.
   useEffect(() => {
-    if (refreshToken !== undefined && open && loaded) {
+    if (refreshToken !== undefined && open && loaded && !pendingLinkTarget) {
       loadChildren(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -449,11 +492,36 @@ function TreeNode({
     if (node.isDir) {
       const next = !open;
       onToggleExpanded(node.fullPath, next);
-      if (next && !loaded) loadChildren();
+      // fork:linked-directory — 待放行的链接不去列（列了也只是 403）。
+      if (next && !loaded && !pendingLinkTarget) loadChildren();
     } else {
       onOpenFile(node.fullPath, node.name);
     }
-  }, [node.isDir, node.fullPath, node.name, loaded, open, loadChildren, onOpenFile, onToggleExpanded]);
+  }, [node.isDir, node.fullPath, node.name, loaded, open, pendingLinkTarget, loadChildren, onOpenFile, onToggleExpanded]);
+
+  const handleAllowLink = useCallback(async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!pendingLinkTarget) return;
+    // fork:linked-directory — 通向 `/`、`~` 或项目父目录的链接一口气开出去的东西太多，
+    // 而克隆下来的仓库就可能带着这样一条，所以先警告 + 确认。
+    if (
+      node.outsideLinkEncloses
+      && !window.confirm(t("files.allowEnclosingLinkConfirm", { target: pendingLinkTarget }))
+    ) {
+      return;
+    }
+    setAllowingLink(true);
+    setAllowLinkError(null);
+    try {
+      await allowOutsideLink(node.fullPath, pendingLinkTarget);
+      setAllowedLinkTarget(pendingLinkTarget);
+      await loadChildren(true);
+    } catch (error) {
+      setAllowLinkError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAllowingLink(false);
+    }
+  }, [node.fullPath, node.outsideLinkEncloses, pendingLinkTarget, loadChildren, t]);
 
   return (
     <div>
@@ -570,6 +638,17 @@ function TreeNode({
             <span style={{ width: "var(--dot-sm)", height: "var(--dot-sm)", borderRadius: "50%", background: "var(--accent)" }} />
           </span>
         )}
+        {/* fork:linked-directory — 行上的「通向项目外」标记（不占 hover 位置）。 */}
+        {!hovered && pendingLinkTarget && (
+          <span
+            title={t("files.outsideLink", { target: pendingLinkTarget })}
+            aria-label={t("files.outsideLink", { target: pendingLinkTarget })}
+            className="pw-ico pw-dim"
+            style={{ flexShrink: 0 }}
+          >
+            <i data-ico="external-link" data-size="11" aria-hidden="true"></i>
+          </span>
+        )}
         {!hovered && !node.isDir && gitStatus && (
           <GitStatusBadge status={gitStatus} t={t} />
         )}
@@ -660,7 +739,53 @@ function TreeNode({
           </a>
         )}
       </div>
-      {node.isDir && open && (
+      {/* fork:linked-directory —— 展开一条待放行的链接时，用画板已有的权限卡
+          （.pw-perm / .pw-perm-title / .pw-perm-body / .pw-perm-acts + .pw-btn）
+          把「目标在哪 / 会打开多大范围 / 放行哪一条」讲清楚，再给一个按钮。
+          不新增 .pw-* 类：这几条已经登记在 board.css 并出现在画板 01 / 12 / 60。 */}
+      {node.isDir && open && pendingLinkTarget && (
+        <div className="pw-perm" style={{ margin: "0 var(--s1) var(--s1)", gap: "var(--s2)" }}>
+          <div className="pw-perm-title">
+            <span className="pw-ico">
+              <i data-ico="external-link" data-size="12" aria-hidden="true"></i>
+            </span>
+            {t("files.outsideLink", { target: pendingLinkTarget })}
+          </div>
+          {node.outsideLinkEncloses && (
+            <div role="note" className="pw-alert">
+              <span className="pw-ico">
+                <i data-ico="triangle-alert" data-size="12" aria-hidden="true"></i>
+              </span>
+              {t("files.outsideLinkEncloses")}
+            </div>
+          )}
+          <div className="pw-perm-body" style={{ wordBreak: "break-all" }}>{pendingLinkTarget}</div>
+          <div className="pw-perm-acts">
+            <button
+              type="button"
+              className="pw-btn primary sm"
+              onClick={handleAllowLink}
+              disabled={allowingLink}
+              title={t("files.allowOutsideLinkTitle", { target: pendingLinkTarget })}
+            >
+              {t("files.allowOutsideLink")}
+            </button>
+            {allowLinkError && (
+              <span role="alert" className="pw-dim">{allowLinkError}</span>
+            )}
+          </div>
+        </div>
+      )}
+      {node.isDir && open && !pendingLinkTarget && loadError && (
+        <div
+          role="alert"
+          className="pw-alert"
+          style={{ margin: "0 var(--s1) var(--s1)", wordBreak: "break-word" }}
+        >
+          {loadError}
+        </div>
+      )}
+      {node.isDir && open && !pendingLinkTarget && (
         <div>
           {children.map((child) => (
             <TreeNode

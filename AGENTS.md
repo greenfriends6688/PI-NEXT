@@ -106,6 +106,8 @@ lib/
   draft-store.ts       local draft persistence helpers
   file-access.ts       allowed file roots for /api/files and worktrees
   file-paths.ts        client/server path encoding helpers
+  file-tree-visibility.ts  which entries the file tree lists: git check-ignore, name-list fallback
+  linked-directory.ts   directory links out of the roots: listing marker + one-off operator approval
   markdown.ts          shared markdown helpers
   gfm-autolink-email-loader.cjs  bundler loader: remark-gfm's email regex without a lookbehind literal (#753)
   npx.ts               npx runner used by skill install
@@ -214,6 +216,24 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - `/api/cwd/validate`, `/api/default-cwd`, and `/api/worktrees` call `allowFileRoot()` when they make a new location browsable.
 - `/api/files/...?sessionId=` also reads (never lists) a file outside the roots when that exact path appears in the session, so a chat link to it opens (`lib/session-file-references-core.ts`). Three things never count: transcript system messages (they carry every tool schema), `context_edit` replacements (the UI never shows them, and they often restate a tool result), and the result text of any tool other than pi's coding tools and the subagent tools — MCP and extension results relay text a remote party controls, so any string in it would become readable. Such a result still authorizes its `details.fullOutputPath` and the arguments of the coding-tool calls it made through `ctx.executeTool()` (`nestedCalls`); arguments of its nested MCP calls do not count, because a script hands one MCP result to the next call without the model reading it. User and assistant messages, the model's own tool call arguments (MCP calls included) and the other entries count as before. Tools are matched by name, so keep `CODING_TOOL_NAMES` in step with `lib/rpc-manager.ts`.
 - Allowed roots are stored slash-normalized, but that is a Set-key convention, not a correctness requirement: `isPathWithinRoots()` (`lib/path-security.ts`, the single implementation behind `isFilePathAllowed()`) re-resolves and case-folds both sides, so either path form authorizes correctly. Keep that one implementation — it is the security boundary.
+
+### File tree visibility (fork:file-tree-visibility, 上游 #1014 / 13bc2b0)
+- 列表里「不显示什么」由 Git 决定，可见性**不是**授权：被隐藏的条目照样能按路径读到（`/api/files` 只按 allowed root 授权，从不看这个模块）。
+- `lib/file-tree-visibility.ts` 先用一次 `git check-ignore --no-index --stdin`（全部条目名走 stdin，NUL 分隔，不经 shell，所以空格 / 中文 / 引号 / `-` 开头的名字都不会被当成参数或路径魔法），再用一次 `git ls-files --cached` 找出哪些被忽略的名字底下**有跟踪文件**——忽略对跟踪内容不生效，所以被跟踪的 `build/` 照常显示，被忽略目录里被 force-add 的文件也显示。
+- **不要让 check-ignore 读索引**（不要去掉 `--no-index`）：它每个名字扫一遍索引，20 万文件的仓里 1000 条目的目录要 2.4s，然后就在 5s 超时上退回名字表。名字一律以 `./name` 送进 check-ignore（pathspec 魔法 `:(...)` 会让**整批**报错），送进 ls-files 时带 `--literal-pathspecs`（否则 `*.log`、`[id]` 会 glob 命中被跟踪的 `app.log`、`i`）。
+- 两次调用都带 `-c core.fsmonitor=false`：读索引会执行「用户刚展开的那个仓」里配的 fsmonitor 钩子。名字表（`node_modules`/`dist`/`build`…）只在 Git 看不见时兜底——work tree 外、git 缺失 / 失败 / 超时，以及目录本身被忽略且底下无跟踪文件（否则 dotfiles 仓忽略 `*` 时临时目录会列成空）。
+- 列表因此要**等 git**（每次判定 ≤5s，超时即降级）。`getFileTreeVisibility()` 接请求自己的 `signal`：浏览器中途离开就杀掉 git，不让它白等满 5s。同一个（目录 + 条目名集合）在途共用一次判定、结果缓存 1s——文件树每次目录变更都会重取所有已展开的目录，不合并就会 fork 出一串 git 进程；缓存键含条目名，所以新增条目立刻重判。
+- `/api/file-index` 的 readdir 兜底复用同一个 `isHiddenOutsideGit()`，不再各留一份名字表（那条路由的 git 分支本来就走 `ls-files --exclude-standard`，注释里「Git-tracked repos rely on .gitignore」说的就是它自己）。
+
+### 项目之外的符号链接目录（fork:linked-directory，上游 #1018 / 687af27）
+- 克隆的仓库里常有指向项目外的符号链接目录。边界不动：**仓库内容不得自己放宽 roots**（否则一条提交的软链就能让 `~/.ssh`、`/` 变得可读）。这类链接照常列出来，但带 `outsideLinkTarget`（目标还包着项目或主目录时再加 `outsideLinkEncloses`）。
+- 唯一的通路是操作员在文件树里点一次「允许浏览」→ `POST ?type=allow-link`（等价于他在目录选择器里选中那个目录，`/api/cwd/validate` 同等级）。`lib/linked-directory.ts` 把这一圈全部钉死：
+  · 链接必须**直接**坐在解析后仍在 roots 内的目录里 —— 穿过另一条没放行的链接到达的，403；
+  · `lstat` 必须是 symlink（Windows junction 也算）且目标是目录，否则 400/404；
+  · 请求带的是**列表当时展示给操作员的那个目标**，realpath 变了就 409（界面提示刷新），不授权没人看过的目录；
+  · 只 `allowFileRoot()` 这一个目标，不放宽全局 roots，进程重启即失效；每条链接各是一次独立的选择。
+- 授权边界因此**只能一次性、绑定 realpath**。`hasParentDirectorySegment()`（`lib/path-security.ts`）在 `isExistingPathWithinRoots()` 里拒绝任何 `..` 分段：Node 的 `realpathSync` 先消 `..` 再跟链接，文件系统反过来，`root/link/..` 字典序上等于 `root`（授权通过）实际却打开链接目标旁边那一格。这条覆盖所有拿 cwd / 文件路径做授权的路由，fail closed。
+- 界面用画板已有的 `.pw-perm` / `.pw-perm-title` / `.pw-perm-body` / `.pw-perm-acts` + `.pw-btn primary sm`（已登记在 board.css，画板 01 / 12 / 60 在用），**不新增 `.pw-*` 类**；包住项目/主目录时先 `.pw-alert` 警告再 `window.confirm`（与删除确认同一套交互）。目录展开失败也不再被吞掉，原因显示在该行下面。
 
 ### Plugins and skills
 - `/api/plugins` uses pi's `SettingsManager` + `DefaultPackageManager` for global/project package install, remove, update, enable, and disable. Disabling writes empty `extensions/skills/prompts/themes` arrays for that package entry.
