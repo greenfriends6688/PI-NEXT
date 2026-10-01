@@ -130,8 +130,12 @@
 ### 第三批（台账补录，0047–0056：代码里已有、但前两批都没记的能力）
 
 这批是 2026-10-01 按 `docs/upstream-audit-2026-10-01/feature-gap.md` §2.1「台账未覆盖」逐条
-**重新用 `git log --diff-filter=A` / `git log -S` 核实**后补的（审计是快照，代码才是准的；
-核实结论与审计有两处出入，见下面每条的「核实」小节）。编号从 0047 接在 0046 之后。
+**重新用 `git log --diff-filter=A` / `git log -S` / `git cat-file` 核实**后补的
+（审计是快照，代码才是准的）。**审计有 5 处与代码对不上，每条 `.md` 的「核实」小节都写了实证**：
+0048 把与上游逐字节相同的 `lib/git-status.ts` 算成 fork 文件、且 `branch` 路由的真实首落点不是 `22fa16a`；
+0051 列的 `hooks/useLazyHighlighter.ts` 在树上不存在；0052 把两个相隔 3 天的 commit 压成一个；
+0054 把 `ProviderUsageCards.tsx` 算进收藏模型（它 0 命中 favorite）；0056 的「上游若已合入会冲突」
+方向反了（上游是**主动关闭**了 PR #899）。编号从 0047 接在 0046 之后。
 
 | 编号 | 名称 | 状态 | 新增文件（T0） | 上游接触面（T1） |
 | --- | --- | --- | --- | --- |
@@ -146,7 +150,7 @@
 | 0055 | [文件 `@` 提及（拖入绝对路径 → cwd 相对引用）](./0055-file-mentions.md) | 已实现（单测 30）。**不是 0003 的一部分**：0003 的 `.patch` 里 `file-mentions`/`mention-tokens` **0 命中** | `lib/file-mentions.ts`、`lib/mention-tokens.ts` | `components/ChatInput.tsx`、`MessageView.tsx`、`MarkdownBody.tsx` |
 | 0056 | [文件压缩包（zip / 解包）+ 文件增删改](./0056-file-archives.md) | 已实现（单测 5）。**源自上游 PR #899**（上游以 scope 为由关闭该 PR，未合入主线） | `lib/file-archives.ts`、`lib/archive-names.ts`、`lib/file-mutations.ts` | `app/api/files/[...path]/route.ts`、`components/{FileExplorer,FileViewer,ExplorerPanel}.tsx` |
 
-> **这批与前两批的两个差别**：
+> **这批与前两批的三点差别**：
 > 1. 0020–0046 多数只在索引表里留了行，**没有独立 `.md`**；本批按约定 1（一个补丁 = 一个意图、
 >    自带验证）补齐了 `.md`，所以 `git grep "fork:"` 的用法与 0001–0019 一致。
 > 2. 本批**全部是「上游没有的能力」**（`git cat-file -e agegr/main:<path>` 逐个验证为 absent，
