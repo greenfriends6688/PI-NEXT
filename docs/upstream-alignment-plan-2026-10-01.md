@@ -318,3 +318,31 @@ PR-9 全程排队，逐条单独评审
 5. **别把 `docs/upstream-audit-2026-10-01/` 当活文档**——它是 2026-10-01 的快照，结论过期就重跑审计，不要在它上面直接改。
 6. **`pi-web-pr-inbox/` 的快照已过期**：里面 61 个 open PR 现在只剩 7 个还 open（其余 54 个已被合并或关闭）。下一次收 PR 前先重跑 `fetch.sh`。
 7. **台账补录要等脏树落 commit**：cron/memory/prompts 那批改动已经删掉了对应路由，基于它们的台账判定（PR-10）会失真，commit 之后重跑一遍。
+---
+
+## 8. 执行状态
+
+> 分支都在独立 worktree（`/Users/yingjing/Desktop/pi-codex-worktrees/<name>`，`node_modules` symlink），避免与主工作树上并行的会话撞车。
+
+| 分支 | PR | 状态 | 验证 |
+| --- | --- | --- | --- |
+| `up/pr10-ledger` | PR-10 台账补录 | ✅ 已合入 main | 11 commit，纯 docs（0047–0056） |
+| `up/pr2-security` | PR-2 安全与数据 | ✅ 完成，已 rebase 到 main | `tsc` 0 · 2328/0 |
+| `up/pr3-render` | PR-3 渲染兼容 | ✅ 完成，已 rebase（含 1 处测试文件冲突已手工合） | `tsc` 0 · 2336/0 · `check:design` 全绿 |
+| `up/pr12-model-config` | PR-12 模型配置 A 批 | ✅ 完成，已 rebase | `tsc` 0 · 2371/0 · `check:design` 全绿 |
+| `up/pr6-files` | PR-6 文件与工作区 | 🔄 运行中 | — |
+| — | PR-4 / PR-5 / PR-7 | ⏸ 排队（与主工作树在途改动同文件） | — |
+| — | PR-1 依赖升级、PR-11 MCP | ⏸ 等排期 | — |
+
+**合并前置**：主工作树当时有另一会话的未提交改动（`ChatWindow` / `MessageView` / i18n / `board.css` 等），PR-2/3/12 与之重叠，**必须等它落 commit 后再合**，合完统一跑一次 `npm run prod` + 浏览器验收。
+
+### 已知的验收缺口（agent 记的，逐条要人补）
+
+- **G5 真机 Safari / iOS 16.2 与 Playwright WebKit 未验**（无设备，agent 禁止跑 build）。已记进 AGENTS.md 待办。
+- **`browserslist` 加 safari/ios_saf 16.2 后 bundle 体积变化未量化**（PR-3 额外项）。
+- **`verify:boards` 像素级对齐全部欠着**：它需要服务着本分支产物的 30141，而主工作树的 dev 占用 `.next/dev/lock`，起第二个会争锁并污染共享 `.next`。只能合并后统一跑。
+- **PR-12 的 A5/A6 未做**（压缩预算、思考档 token 预算）：两者都需新画板控件，A6 同样没有 SDK setter，建议合成一条一起做。
+
+---
+
+## 9. 风险与未尽事项
