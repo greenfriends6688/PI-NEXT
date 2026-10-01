@@ -190,9 +190,9 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
           Esc / 点遮罩 / × 三种关法，与图片灯箱一致。 */}
       <div
         className="pw-modal"
-        style={{ width: "100%", maxWidth: "760px", display: "flex", flexDirection: "column" }}
+        style={{ width: "100%", maxWidth: "var(--modal-w-lg)", display: "flex", flexDirection: "column" }}
       >
-        <div className="pw-modal-head" style={{ padding: "6px var(--s3)", background: "var(--surface-panel)" }}>
+        <div className="pw-modal-head" style={{ padding: "var(--space-row) var(--s3)", background: "var(--surface-panel)" }}>
           <span className="pw-ico pw-dim"><i data-ico="git-fork" data-size="14"></i></span>
           <span style={{ fontSize: "var(--text-secondary)", fontWeight: 500 }}>{t("i18n.mermaidDiagram")}</span>
           <span className="pw-grow"></span>

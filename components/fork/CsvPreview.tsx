@@ -90,7 +90,7 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
     textOverflow: "ellipsis",
   };
   const bodyCellStyle: CSSProperties = {
-    padding: "3px 10px",
+    padding: "var(--space-icon) 10px",
     borderBottom: "1px solid var(--border)",
     borderRight: "1px solid var(--border)",
     color: "var(--text)",
@@ -101,7 +101,7 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
   };
   const rowNumberHeadStyle: CSSProperties = { ...headerCellStyle, width: ROW_NUMBER_WIDTH, textAlign: "right" };
   const rowNumberBodyStyle: CSSProperties = {
-    padding: "3px 10px",
+    padding: "var(--space-icon) 10px",
     borderBottom: "1px solid var(--border)",
     borderRight: "1px solid var(--border)",
     textAlign: "right",

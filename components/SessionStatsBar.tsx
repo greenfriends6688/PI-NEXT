@@ -146,12 +146,12 @@ export function SessionStatsDetails({ sessionStats, contextUsage, session }: Ses
   const renderSection = (title: string, sectionRows: Array<[string, ReactNode, SessionCopyField | null]>, titleColor?: string) => (
     <div key={title} style={{ minWidth: 168, maxWidth: 320 }}>
       {/* fork:design-components —— 会话文件越大切换越慢，这一档提醒放在「消息」小节标题上。 */}
-      <div style={{ fontSize: TEXT.xs, fontWeight: 700, color: titleColor ?? "var(--text)", marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: TEXT.xs, fontWeight: 700, color: titleColor ?? "var(--text)", marginBottom: "var(--space-row)" }}>{title}</div>
       <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", columnGap: "var(--s3)", rowGap: "var(--s1)" }}>
         {sectionRows.map(([label, value, copyField]) => (
           <div key={`${title}:${label}`} style={{ display: "contents" }}>
             <div style={{ color: "var(--text-dim)", whiteSpace: "nowrap" }}>{label}</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "var(--space-row)", minWidth: 0 }}>
               <span style={{
                 color: "var(--text-muted)",
                 minWidth: 0,

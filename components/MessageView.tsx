@@ -476,7 +476,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
               <img
                 src={src}
                 alt=""
-                style={{ maxWidth: 240, maxHeight: 240, objectFit: "contain", display: "block" }}
+                style={{ maxWidth: "var(--img-max)", maxHeight: "var(--img-max)", objectFit: "contain", display: "block" }}
               />
             </ImagePreview>
           </div>
@@ -493,7 +493,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
       data-message-role="user"
       style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "flex-end" }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: 6, width: "100%", maxWidth: "100%" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: "var(--space-row)", width: "100%", maxWidth: "100%" }}>
         <div
           /* fork:design-components —— 用户气泡直接用画板 10 的 .pw-msg-user
              （右对齐 78% / 发丝边框 / 面板底 / radius-6，board.css 承担全部视觉）。 */
@@ -509,7 +509,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
           }}
         >
           {commandText ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-row)", minWidth: 0 }}>
               {imageBlocksNode}
               <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--s2)", flexWrap: "wrap" }}>
                 <button
@@ -519,7 +519,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: "var(--space-row)",
                     flexShrink: 0,
                     padding: 0,
                     background: "none",
@@ -562,7 +562,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                 style={{ marginTop: -6 }}
               >
                 {bodyMounted && (
-                  <div className="fork-collapse-body" style={{ marginTop: 6 }}>
+                  <div className="fork-collapse-body" style={{ marginTop: "var(--space-row)" }}>
                     <MarkdownBody className="markdown-user-message" {...markdownMentionProps}>{content}</MarkdownBody>
                   </div>
                 )}
@@ -816,7 +816,7 @@ function AssistantMessageView({
             marginBottom: "var(--s1)",
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: "var(--space-row)",
           }}
         >
           {message.provider && (
@@ -828,7 +828,7 @@ function AssistantMessageView({
               <>
                 {est > 0 && (
                   <span style={{ display: "flex", alignItems: "center", gap: "var(--s1)" }} title={t("i18n.estimatedTokens")}>
-                    <span className="pw-mono" style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <span className="pw-mono" style={{ display: "flex", alignItems: "center", gap: "var(--space-tight)" }}>
                       <span className="pw-ico"><i data-ico="arrow-down" data-size="10"></i></span>
                       {est}
                     </span>
@@ -916,7 +916,7 @@ function AssistantMessageView({
                 : stopReason === "error" ? t("chat.turnEnd.error")
                   : null;
         return (
-          <div className="pw-turn-end" style={{ marginTop: 6 }}>
+          <div className="pw-turn-end" style={{ marginTop: "var(--space-row)" }}>
             <span className={`pw-badge ${badgeClass}`}>
               <span className="pw-ico"><i data-ico={icon} data-size="12"></i></span>
               {stopReason}
@@ -1116,10 +1116,10 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
 
   return (
     <div style={{
-      display: "flex", alignItems: "flex-start", gap: 6, minWidth: 0,
+      display: "flex", alignItems: "flex-start", gap: "var(--space-row)", minWidth: 0,
       border: "none",
       borderRadius: "0",
-      padding: "2px 0",
+      padding: "var(--space-tight) 0",
       background: "transparent",
       fontFamily: "var(--font-mono)",
       fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
@@ -1139,7 +1139,7 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 6,
+          gap: "var(--space-row)",
           width: expandedView ? 14 : "100%",
           flexShrink: expandedView ? 0 : 1,
           minWidth: 0,
@@ -1177,7 +1177,7 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
             style={error ? { color: "var(--error)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" } : { whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
           >
             {loading ? (
-              <span style={{ display: "flex", flexDirection: "column", gap: 6, padding: "2px 0" }} aria-hidden="true">
+              <span style={{ display: "flex", flexDirection: "column", gap: "var(--space-row)", padding: "var(--space-tight) 0" }} aria-hidden="true">
                 <span className="skeleton-line" style={{ height: 10, width: "92%" }} />
                 <span className="skeleton-line" style={{ height: 10, width: "78%" }} />
               </span>
@@ -1428,7 +1428,7 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
   })), [files]);
 
   return (
-    <div className="pw-diff-body" style={{ maxHeight: 560, overflowY: "auto", overflowX: "hidden" }}>
+    <div className="pw-diff-body" style={{ maxHeight: "var(--content-cap-lg)", overflowY: "auto", overflowX: "hidden" }}>
       {files.map((file, fileIndex) => (
         <div
           key={fileIndex}
@@ -1654,7 +1654,7 @@ function PairedResult({ text, isEmpty, isError }: {
     <div className="pw-card-body" style={isError ? { background: "var(--error-soft)" } : undefined}>
       <div
         className="pw-term"
-        style={{ maxHeight: 400, overflow: "auto", color: isEmpty ? "var(--n-placeholder)" : undefined }}
+        style={{ maxHeight: "var(--content-cap-md)", overflow: "auto", color: isEmpty ? "var(--n-placeholder)" : undefined }}
       >
         {isError ? <span className="err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
       </div>
@@ -1835,7 +1835,7 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
                             <img
                               src={src}
                               alt=""
-                              style={{ maxWidth: 240, maxHeight: 240, objectFit: "contain", display: "block" }}
+                              style={{ maxWidth: "var(--img-max)", maxHeight: "var(--img-max)", objectFit: "contain", display: "block" }}
                             />
                           </ImagePreview>
                         </div>
@@ -2063,7 +2063,7 @@ function BashExecutionView({ message, sessionId }: { message: BashExecutionMessa
       };
 
   return (
-    <div style={{ margin: "6px 0" }}>
+    <div style={{ margin: "var(--space-row) 0" }}>
       <ToolCallBlock block={block} result={result} />
       {/* fork:design-components —— 截断提示行用画板的 `.pw-btn sm`（复制 / 下载这类
           小动作的统一形态）+ `.pw-dim` 报错文案。i18n 文案与行为照旧。 */}

@@ -454,7 +454,7 @@ function DiffView({ patch }: { patch: string }) {
             <div
               key={si}
               style={{
-                padding: "2px 16px",
+                padding: "var(--space-tight) 16px",
                 color: "var(--text-dim)",
                 background: "var(--bg-panel)",
                 fontSize: TEXT.xs,
@@ -666,8 +666,8 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         >
           <span
             style={{
-              width: 7,
-              height: 7,
+              width: "var(--dot-md)",
+              height: "var(--dot-md)",
               borderRadius: "50%",
               background: watching ? "var(--success)" : "var(--border)",
               display: "inline-block",
@@ -677,7 +677,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           {watching ? "live" : "static"}
         </span>
         {/* fork:gap-viewer-zoom — 缩放控件（键盘可达，带 aria-label）。 */}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-tight)" }}>
           <button
             type="button"
             className="pw-iconbtn sm"
@@ -899,8 +899,8 @@ function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         >
           <span
             style={{
-              width: 7,
-              height: 7,
+              width: "var(--dot-md)",
+              height: "var(--dot-md)",
               borderRadius: "50%",
               background: watching ? "var(--success)" : "var(--border)",
               display: "inline-block",
@@ -1052,8 +1052,8 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         >
           <span
             style={{
-              width: 7,
-              height: 7,
+              width: "var(--dot-md)",
+              height: "var(--dot-md)",
               borderRadius: "50%",
               background: watching ? "var(--success)" : "var(--border)",
               display: "inline-block",
@@ -1206,7 +1206,7 @@ function FileSelectionQuotePopover({
         // 「这俩按钮显示还换行呢」）。宽度改成 max-content，两个按钮恒在同一行。
         flexWrap: "nowrap",
         whiteSpace: "nowrap",
-        gap: 3,
+        gap: "var(--space-icon)",
         width: inputOpen ? "min(420px, calc(100vw - 16px))" : "max-content",
         maxWidth: "calc(100vw - 16px)",
         maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
@@ -1519,7 +1519,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         {/* fork:gap-viewer-zoom — 只给 PDF 加缩放：DOCX 走的是自己排版的 HTML，不需要。
             通过 fragment 驱动内置阅读器，按钮步进避免每次滚轮都重载文档。 */}
         {isPdf && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-tight)" }}>
             <button
               type="button"
               className="pw-iconbtn sm"
@@ -1559,8 +1559,8 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         >
           <span
             style={{
-              width: 7,
-              height: 7,
+              width: "var(--dot-md)",
+              height: "var(--dot-md)",
               borderRadius: "50%",
               background: watching ? "var(--success)" : "var(--border)",
               display: "inline-block",
@@ -2597,8 +2597,8 @@ function TextFileViewer({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 10,
-            padding: "5px 8px",
+            gap: "var(--space-loose)",
+            padding: "var(--space-ctrl) 8px",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg)",
             color: "var(--text-dim)",

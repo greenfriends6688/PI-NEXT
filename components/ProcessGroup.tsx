@@ -543,7 +543,7 @@ function ProcessImage({ src }: { src: string }) {
       <img
         src={src}
         alt=""
-        style={{ maxWidth: 240, maxHeight: 240, borderRadius: "var(--radius-sm)", objectFit: "contain", display: "block", border: "1px solid var(--border)" }}
+        style={{ maxWidth: "var(--img-max)", maxHeight: "var(--img-max)", borderRadius: "var(--radius-sm)", objectFit: "contain", display: "block", border: "1px solid var(--border)" }}
       />
     </ImagePreview>
   );
@@ -553,7 +553,7 @@ function ProcessImage({ src }: { src: string }) {
 function ProcessImages({ images }: { images: string[] }) {
   if (images.length === 0) return null;
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: "var(--space-row)", flexWrap: "wrap" }}>
       {images.map((src, index) => (
         <ProcessImage key={`${src}-${index}`} src={src} />
       ))}

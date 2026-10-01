@@ -2082,7 +2082,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     const projectEntries = flatTimeGroupEntries(families);
                     if (families.length === 0) {
                       return (
-                        <div style={{ padding: "6px 0 6px 34px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
+                        <div style={{ padding: "var(--space-row) 0 6px 34px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
                       );
                     }
                     if (project.key === selectedProject?.key) {
@@ -2108,7 +2108,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       );
                     }
                     return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginLeft: "var(--s2)", borderLeft: "1px solid var(--border-faint)", paddingLeft: "var(--s1)" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", marginLeft: "var(--s2)", borderLeft: "1px solid var(--border-faint)", paddingLeft: "var(--s1)" }}>
                         {projectEntries.map((entry) => (
                           <div key={sessionEntryKey(entry)}>
                             {renderFamilyRow(entry.item)}
@@ -2187,7 +2187,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     }}
                 />
                 {isChatExpanded && (chatFamilies.length === 0 ? (
-                  <div style={{ padding: "6px 0 6px 24px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
+                  <div style={{ padding: "var(--space-row) 0 6px 24px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
                 ) : isSelectedChat ? (
                   <div ref={sessionListRef} style={{ minHeight: chatEntries.length > 0 ? chatOffsets[chatEntries.length] : 34 }}>
                     {chatEntries.length > 0 && (
@@ -2205,7 +2205,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     )}
                           </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)" }}>
                     {chatEntries.map((entry) => (
                       <div key={sessionEntryKey(entry)}>
                         {renderFamilyRow(entry.item)}
@@ -2489,8 +2489,8 @@ function SessionItem({
                   {t(awaitingKind === "input" ? "sidebar.awaitingInputShort" : "sidebar.awaitingApprovalShort")}
                 </span>
               ) : tag ? (
-                <span title={t(`session.tag.${tag}`)} aria-label={t(`session.tag.${tag}`)} style={{ display: "inline-flex", flex: "none", marginLeft: 5 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: SESSION_TAG_TONES[tag] }} />
+                <span title={t(`session.tag.${tag}`)} aria-label={t(`session.tag.${tag}`)} style={{ display: "inline-flex", flex: "none", marginLeft: "var(--space-ctrl)" }}>
+                  <span style={{ width: "var(--dot-sm)", height: "var(--dot-sm)", borderRadius: "50%", background: SESSION_TAG_TONES[tag] }} />
                 </span>
               ) : isUnread ? (
                 <span className="pw-dot unread" title={t("sidebar.newActivity")} aria-label={t("sidebar.newSessionActivity")} />

@@ -463,7 +463,7 @@ function NewSessionUpdateLink({
         display: "inline-flex",
         alignItems: "center",
         alignSelf: "center",
-        gap: 3,
+        gap: "var(--space-icon)",
         minHeight: "var(--control-md)",
         minWidth: 0,
         padding: "0 4px",
@@ -2578,7 +2578,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             zIndex: 260,
             display: "flex",
             flexWrap: "wrap",
-            gap: 3,
+            gap: "var(--space-icon)",
             width: quoteInputOpen ? "min(420px, calc(100vw - 16px))" : undefined,
             maxWidth: "calc(100vw - 16px)",
             maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
@@ -2661,7 +2661,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               right: isMobile ? 0 : CHAT_MINIMAP_WIDTH,
               display: "flex",
               justifyContent: "center",
-              paddingBottom: 10,
+              paddingBottom: "var(--space-loose)",
               pointerEvents: "none",
               zIndex: 20,
             }}
@@ -2811,7 +2811,7 @@ function renderDialogTitle(title: string): ReactNode {
         <pre
           key={i}
           style={{
-            margin: "6px 0",
+            margin: "var(--space-row) 0",
             padding: "8px 10px",
             borderRadius: "var(--radius-sm)",
             background: "color-mix(in srgb, var(--danger) 10%, transparent)",
@@ -2993,10 +2993,10 @@ function ExtensionDialog({
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: "var(--space-loose)",
             maxWidth: "min(560px, 100%)",
             width: "100%",
-            padding: "10px 12px",
+            padding: "var(--space-loose) 12px",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-md)",
             background: "var(--bg)",
@@ -3050,12 +3050,12 @@ function ExtensionDialog({
             blocks 图标 + 标题 + .pw-badge.count 倒计时秒数 + 收起按钮 .pw-iconbtn.sm。
             倒计时条按画板 50 的写法贴在头部正下方（3px 轨道，轨道底 --n-surface，填充 --accent）。 */}
         <div className="pw-modal-head" style={{ alignItems: "flex-start", padding: "12px 14px" }}>
-          <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0, marginTop: 2 }}>
+          <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0, marginTop: "var(--space-tight)" }}>
             <i data-ico="blocks" data-size="16"></i>
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="pw-strong" style={{ fontSize: TEXT.lg, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
-            <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", marginTop: 3, fontSize: "var(--text-meta)" }}>
+            <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", marginTop: "var(--space-icon)", fontSize: "var(--text-meta)" }}>
               <span>{t("chat.extensionRequest")}</span>
             </div>
           </div>
@@ -3067,7 +3067,7 @@ function ExtensionDialog({
             aria-expanded={true}
             title={t("chat.extensionCollapse")}
             aria-label={t("chat.extensionCollapse")}
-            style={{ flexShrink: 0, marginTop: 2 }}
+            style={{ flexShrink: 0, marginTop: "var(--space-tight)" }}
           >
             <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
           </button>
@@ -3263,10 +3263,10 @@ function ExtensionCustomPanel({
             pointerEvents: "auto",
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: "var(--space-loose)",
             maxWidth: "min(920px, 100%)",
             width: "100%",
-            padding: "10px 12px",
+            padding: "var(--space-loose) 12px",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-md)",
             background: "var(--bg)",

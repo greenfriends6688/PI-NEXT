@@ -283,7 +283,7 @@ export function ModelSelector({
             }}
           >
             {showFilter && (
-              <div style={{ flexShrink: 0, padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ flexShrink: 0, padding: "var(--space-row) 8px", borderBottom: "1px solid var(--border)" }}>
                 <input
                   value={filter}
                   onChange={(event) => setFilter(event.target.value)}
@@ -296,7 +296,7 @@ export function ModelSelector({
                     boxSizing: "border-box",
                     width: "100%",
                     minWidth: isMobile ? 0 : 220,
-                    padding: "5px 8px",
+                    padding: "var(--space-ctrl) 8px",
                     border: "1px solid var(--border)",
                     borderRadius: "var(--radius-xs)",
                     outline: "none",
@@ -319,7 +319,7 @@ export function ModelSelector({
               {/* fork:ui — 收藏的模型置顶成组（用户要求「收藏的排序往前排」）。 */}
               {favoriteOptions.length > 0 && (
                 <div>
-                  <div style={{ padding: "6px 12px 4px", borderTop: onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
+                  <div style={{ padding: "var(--space-row) 12px 4px", borderTop: onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
                     {t("models.favorites")}
                   </div>
                   {favoriteOptions.map((option) => (
@@ -344,7 +344,7 @@ export function ModelSelector({
               ) : modelsByProvider.map((group, index) => (
                 <div key={group.provider}>
                   {modelsByProvider.length > 1 && (
-                    <div style={{ padding: "6px 12px 4px", borderTop: index > 0 || onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
+                    <div style={{ padding: "var(--space-row) 12px 4px", borderTop: index > 0 || onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
                       {group.provider}
                     </div>
                   )}
@@ -408,7 +408,7 @@ function ModelOptionButton({ active, label, provider, modelId, isFavorite, onTog
           }}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            width: 22, height: 22, flexShrink: 0,
+            width: "var(--control-2xs)", height: "var(--control-2xs)", flexShrink: 0,
             borderRadius: "var(--radius-sm)",
             color: isFavorite ? "var(--accent)" : "var(--text-dim)",
             cursor: "pointer",

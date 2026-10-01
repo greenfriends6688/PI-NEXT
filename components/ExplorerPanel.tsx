@@ -188,7 +188,7 @@ export function ExplorerPanel({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 5,
+            gap: "var(--space-ctrl)",
             minWidth: 0,
             background: "none",
             border: "none",
@@ -294,7 +294,7 @@ export function ExplorerPanel({
         {trailingActions}
       </div>
       {fileManagerErrorMessage && (
-        <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "0 10px 6px", fontSize: TEXT["2xs"], lineHeight: 1.35, color: "var(--danger)" }}>
+        <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-row)", padding: "0 10px 6px", fontSize: TEXT["2xs"], lineHeight: 1.35, color: "var(--danger)" }}>
           <span style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}>{fileManagerErrorMessage}</span>
           <DismissButton onClick={() => setFileManagerError(null)} title={t("files.dismissError")} />
         </div>

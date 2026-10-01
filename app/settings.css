@@ -431,8 +431,15 @@
 /* fork:design-system SW-07 —— 画板 40/45 的设置页是**整屏页面**（左导航 200 +
    内容列），没有页头；关闭入口按用户裁定放到左导航底部（`.pw-snav-close`）。
    手机（<640px）导航整列隐藏，页头还要承担分节下拉，所以只在窄屏保留页头。 */
-.settings-dialog-header.pw-modal-head {
-  /* 0-2-0：`.pw-modal-head`（board.css，本文件之后引入）也声明 `display: flex`。 */
+/* fork:fix-head-scope（2026-10-01）—— 原来这两条的**选择器没有作用域限定**
+   （`.settings-dialog-header.pw-modal-head`，0-2-0），本意只针对设置壳自己的页头，
+   却把**皮肤工作室**（`ThemeSkinStudio.tsx` 的根不是 `.settings-dialog-surface`）的
+   `.pw-modal-head` 一起藏了：实测工作室头部 `display:none`、padding 漏成 `0 52px 0 18px`
+   （`47-skin-studio.mjs` 量到 `display 画板 flex ≠ 产品 none`）。
+   用 `>` 直接子级把作用域收紧到设置壳本身，两个状态（默认隐藏 / 窄屏显示）都跟着走。
+   注：board.css:635 的 `.pw-modal-head` 是未分层的，`app/settings.css` 在它之后，
+   但只要选择器不越界就不会误伤别的宿主。 */
+.settings-dialog-surface > .settings-dialog-header.pw-modal-head {
   position: relative;
   display: none;
   flex-shrink: 0;
@@ -601,18 +608,42 @@
   margin-top: 0;
 }
 
-/* fork:settings-field-density（2026-10-01 重修为画板 62 帧 C 语义）——
-   这一坨接线覆盖**全部删除**：标签 132px/104px 不可压缩下限、`.pw-ctl` 允许收缩
-   （画板是 `flex: none`）、字段行 flex-wrap + row-gap 换行、整行 textarea 的
-   flex 基准 —— 它们都是画板没有的私货，是为了兜住「字段行里塞整行控件」这一
-   画板不存在的形态而打的补丁。
+/* fork:settings-field-density —— 这一族接线覆盖**已全部删除，不要重建**
+   （2026-10-01 按画板 62 帧 C 语义重修；同日复核，结论见下）。
 
-   board.css 的 `.pw-field` 就是完整规格：行是 `space-between` 的
-   「标签（flex 默认可收缩、文字照常换行）+ 控件」，控件槽 `.pw-ctl` 是
-   `flex: none`；画板 62 帧 B 把**整行宽**的输入（SKILL.md 的 textarea）放在
-   `.pw-detail` 直下而不是字段行里，字段行里只放定宽小控件（180 / 280px）。
-   分节里若再出现「标签被挤扁 / 控件放不下」，修法是照 62 帧 B 把整行控件搬出
-   `.pw-field`，不是在这里重新加覆盖。 */
+   删掉的私货是：标签 132px / 104px 的不可压缩下限、`.pw-ctl` 允许收缩（画板是
+   `flex: none`）、字段行 `flex-wrap: wrap` + `row-gap: 6px`、整行 textarea 的
+   flex 基准 —— 全是为了兜住「字段行里塞整行控件」这一画板不存在的形态而打的补丁。
+
+   `board.css:740` 的 `.pw-field` 就是完整规格，本文件对它**零覆盖**：
+     gap: var(--s4)          → 16px，横向「标签 ↔ 控件」的唯一间距来源
+     flex-wrap: nowrap       → 桌面不换行
+     padding: var(--s1) 0    → 上下 4px
+     min-height: 34px
+   行是 `space-between` 的「标签 + 控件」：控件槽 `.pw-ctl` 是 `flex: none`
+   （board.css:746），标签靠 flex 默认的 `0 1 auto` 加 `min-width: 0`
+   （fork-ui.css:2116）收缩、文字照常换行。画板 62 帧 B 的正解是把**整行宽**的输入
+   （SKILL.md 的 textarea、子代理的系统指令）搬出 `.pw-field`、直接放 `.pw-detail`
+   直下 —— 分节已经照此改完。分节里若再出现「标签被挤扁 / 控件放不下」，修法仍然是
+   照 62 帧 B 搬控件，不是在这里重新加覆盖。
+
+   **为什么还要写这一段**（board-diff 报过 `gap: 画板 16px ≠ 产品 6px 16px`）：
+   根因不是残留覆盖，而是那次比对**对着旧构建跑的**。线上服务那份 CSS 里仍带着一
+   条 0-2-0 的「设置内容列作用域下的 `.pw-field`」接线规则
+   （`flex-wrap:wrap;row-gap:6px`）—— 它压过后引入的 board.css 那条 0-1-0，于是
+   column-gap 仍是 16、row-gap 被改成 6，`cs.gap` 正好读成 `6px 16px`。
+   （正因为会被 `SettingsPanel.test.mjs` 的守卫按整份文件正则扫，那条选择器串也不许
+   在本文件里以任何形式再出现 —— 包括写进注释。）本文件当前对 `.pw-field` 的 gap
+   没有任何声明；按 `app/layout.tsx` 的引入顺序（tokens → globals → settings →
+   board → fork-ui）把五个样式表拼进空白页量 computed style，1440 与 900 视口实测
+   都是 `gap: 16px`。
+
+   **「标签放不下就换行」这个意图没有丢，换了机制承担**：它在
+   `fork-ui.css:2096` 的 `@media (max-width: 640px)` 里（`.pw-field{flex-wrap:wrap;
+   row-gap:var(--s2)}` + `.pw-label{flex:1 1 100%}`）。那是手机视口下控件真的放不下
+   时的**整行换向**，换行后的竖向呼吸位用 `--s2`（= 8px，注意不是 6px），与桌面
+   16px 的横向 gap 是两件事、互不干扰。board-diff 默认视口 1440 够不到那条媒体查询，
+   所以它不可能是 `6px 16px` 的源头。该规则归 fork-ui.css，画板与本文件都不动它。 */
 
 /* fork:design-system SW-07 — 页面框本身不再画任何东西：页边距与页头排版都在画板 62
    的三件套（`.pw-shead` / `.pw-stools` / `.pw-scontent`）上。旧的 `.settings-general`
@@ -658,7 +689,7 @@
     display: none;
   }
 
-  .settings-dialog-header.pw-modal-head {
+  .settings-dialog-surface > .settings-dialog-header.pw-modal-head {
     display: flex;
   }
 

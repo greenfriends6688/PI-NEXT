@@ -270,7 +270,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
     <span
       className="pw-ico"
       style={{
-        marginLeft: 2,
+        marginLeft: "var(--space-tight)",
         color: "var(--text-dim)",
         transform: open ? "rotate(180deg)" : "none",
         transition: "transform 0.15s",

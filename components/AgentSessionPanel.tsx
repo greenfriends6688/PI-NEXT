@@ -113,13 +113,13 @@ function AgentRow({
         </span>
         <span
           className="pw-desc"
-          style={{ display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          style={{ display: "block", marginTop: "var(--space-tight)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
           title={secondary}
         >
           {secondary}
         </span>
       </span>
-      <span className="pw-desc" style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+      <span className="pw-desc" style={{ display: "flex", alignItems: "center", gap: "var(--space-row)", whiteSpace: "nowrap" }}>
         {main && !running ? (
           selected ? t("agentSwitcher.current") : null
         ) : (
@@ -160,7 +160,7 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
       role="listbox"
       aria-label={t("agentSwitcher.title")}
       className="pw-pop agent-session-panel"
-      style={{ width: "auto", minWidth: 320, maxWidth: "100%" }}
+      style={{ width: "auto", minWidth: "var(--pop-w)", maxWidth: "100%" }}
     >
       <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
         <span>{t("agentSwitcher.title")}</span>

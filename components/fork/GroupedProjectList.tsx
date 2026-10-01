@@ -231,18 +231,18 @@ export function GroupedProjectList<T extends { key: string }>({
 
   return (
     <ProjectDragContext.Provider value={dragContext}>
-      <div ref={listRootRef} data-fork-grouped-projects="true" style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <div ref={listRootRef} data-fork-grouped-projects="true" style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)" }}>
         {sections.map((section) => {
           const group = section.group;
           if (!group) {
             return (
-              <div key="__ungrouped" style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <div key="__ungrouped" style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)" }}>
                 {section.projects.map(renderProjectRow)}
               </div>
             );
           }
           return (
-            <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)" }}>
               <GroupHeader
                 group={group}
                 count={section.projects.length}
@@ -287,7 +287,7 @@ export function GroupedProjectList<T extends { key: string }>({
             onDragLeave={() => setUngroupDropActive(false)}
             onDrop={dropOnUngrouped}
             className="pw-drop"
-            style={{ minHeight: ROW_HEIGHT, padding: "2px 8px", gridAutoFlow: "column", gap: 6 }}
+            style={{ minHeight: ROW_HEIGHT, padding: "var(--space-tight) 8px", gridAutoFlow: "column", gap: "var(--space-row)" }}
           >
             <span className="pw-ico"><i data-ico="inbox" data-size="12"></i></span>
             <span>{t("sidebar.ungroupHint")}</span>
@@ -376,7 +376,7 @@ function GroupHeader({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="pw-group-title"
-      style={{ borderRadius: "var(--radius-md)", padding: "2px var(--s2)", gap: "var(--s1)" }}
+      style={{ borderRadius: "var(--radius-md)", padding: "var(--space-tight) var(--s2)", gap: "var(--s1)" }}
     >
       <button
         type="button"

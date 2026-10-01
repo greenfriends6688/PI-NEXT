@@ -567,7 +567,7 @@ function TreeNode({
             aria-label={t("files.newlyUploaded")}
             style={{ width: "var(--icon-sm)", height: "var(--icon-sm)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
+            <span style={{ width: "var(--dot-sm)", height: "var(--dot-sm)", borderRadius: "50%", background: "var(--accent)" }} />
           </span>
         )}
         {!hovered && !node.isDir && gitStatus && (
@@ -586,7 +586,7 @@ function TreeNode({
               justifyContent: "center",
             }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--warning)" }} />
+            <span style={{ width: "var(--dot-sm)", height: "var(--dot-sm)", borderRadius: "50%", background: "var(--warning)" }} />
           </span>
         )}
         {loading && (
@@ -753,7 +753,7 @@ function RootSection({
   }, [root.path, refreshToken]);
 
   return (
-    <div style={{ padding: "2px 4px" }}>
+    <div style={{ padding: "var(--space-tight) 4px" }}>
       {/* fork:design-components —— 分区头 = 画板 30 树里那条 `.pw-inline`
           （行 131-136 的骨架：徽章 + 弱化文字 + grow），只把「7 个改动」换成
           「作用域 + 根目录名」。 */}
@@ -843,8 +843,8 @@ function ChangeRow({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 6,
-        paddingLeft: 10,
+        gap: "var(--space-row)",
+        paddingLeft: "var(--space-loose)",
         paddingRight: "var(--s2)",
         height: "var(--control-xs)",
         cursor: "pointer",
@@ -901,7 +901,7 @@ function ChangeRow({
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
-            gap: 5,
+            gap: "var(--space-ctrl)",
             marginLeft: "var(--s1)",
             fontFamily: "var(--font-mono)",
             fontSize: TEXT["2xs"],
@@ -1600,7 +1600,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           `.pw-iconbtn.sm`（头行那七个动作的同款按钮；新建文件 / 新建文件夹的
           字形取右键菜单里的 `file-plus` / `folder-plus`）。hover / disabled
           归 board.css，UA 归零归 `button.pw-iconbtn`。 */}
-      <div className="pw-inline" style={{ padding: "3px 6px", gap: 2, borderBottom: "1px solid var(--border)" }}>
+      <div className="pw-inline" style={{ padding: "var(--space-icon) 6px", gap: "var(--space-tight)", borderBottom: "1px solid var(--border)" }}>
         <button
           type="button"
           className="pw-iconbtn sm"
@@ -1631,7 +1631,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         )}
       </div>
       {creating && creating.parentDir === cwd && (
-        <div style={{ padding: "2px 4px" }}>
+        <div style={{ padding: "var(--space-tight) 4px" }}>
           <CreateEntryInput
             depth={0}
             type={creating.type}
@@ -1650,7 +1650,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         </div>
       )}
       {showUploadFeedback && (
-        <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ padding: "var(--space-row) 8px", borderBottom: "1px solid var(--border)" }}>
         {uploadBusy && (
           <div role="status" aria-live="polite" aria-label={uploadPhase === "checking" ? t("files.checking") : t("files.uploading", { progress: uploadProgress })}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)", minHeight: "var(--icon-sm)", color: "var(--text-muted)" }}>
@@ -1679,18 +1679,18 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               {t("files.conflictSummary", { count: pendingConflict.conflicts.length, countSuffix: pendingConflict.conflicts.length === 1 ? "" : "s", files: pendingConflict.conflicts.join(", ") })}
             </div>
             {pendingConflict.nonReplaceable.length > 0 && (
-              <div style={{ marginTop: 3, fontSize: TEXT["2xs"], color: "var(--warning)", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+              <div style={{ marginTop: "var(--space-icon)", fontSize: TEXT["2xs"], color: "var(--warning)", lineHeight: 1.35, overflowWrap: "anywhere" }}>
                 {t("files.cannotReplace", { files: pendingConflict.nonReplaceable.join(", ") })}
               </div>
             )}
-            <div style={{ display: "flex", gap: 5, marginTop: 7 }}>
-              <button type="button" onClick={() => void performUpload(pendingConflict.files, "overwrite")} style={{ height: 22, padding: "0 7px", border: "1px solid var(--danger)", borderRadius: "var(--radius-xs)", background: "transparent", color: "var(--danger)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
+            <div style={{ display: "flex", gap: "var(--space-ctrl)", marginTop: 7 }}>
+              <button type="button" onClick={() => void performUpload(pendingConflict.files, "overwrite")} style={{ height: "var(--control-2xs)", padding: "0 7px", border: "1px solid var(--danger)", borderRadius: "var(--radius-xs)", background: "transparent", color: "var(--danger)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
                 {t("files.replace")}
               </button>
-              <button type="button" onClick={() => void performUpload(pendingConflict.files, "skip")} style={{ height: 22, padding: "0 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
+              <button type="button" onClick={() => void performUpload(pendingConflict.files, "skip")} style={{ height: "var(--control-2xs)", padding: "0 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
                 {t("files.skipExisting")}
               </button>
-              <button type="button" onClick={() => setPendingConflict(null)} style={{ height: 22, padding: "0 7px", border: "none", borderRadius: "var(--radius-xs)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
+              <button type="button" onClick={() => setPendingConflict(null)} style={{ height: "var(--control-2xs)", padding: "0 7px", border: "none", borderRadius: "var(--radius-xs)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
                 {t("files.cancel")}
               </button>
             </div>
@@ -1698,7 +1698,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         )}
 
         {uploadError && (
-          <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: TEXT.xs, lineHeight: 1.35, color: "var(--danger)" }}>
+          <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-row)", fontSize: TEXT.xs, lineHeight: 1.35, color: "var(--danger)" }}>
             <span style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}>{uploadError}</span>
             <DismissButton onClick={() => setUploadError(null)} title={t("files.dismissError")} />
           </div>
@@ -1709,19 +1709,19 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minHeight: 22, fontSize: TEXT.xs }}>
               <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: "var(--s2)" }}>
                 {uploadSummary.uploaded.length > 0 && (
-                  <span className="pw-inline" style={{ gap: 3, color: "var(--success)" }} title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`}>
+                  <span className="pw-inline" style={{ gap: "var(--space-icon)", color: "var(--success)" }} title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`}>
                     <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true"></i></span>
                     <span>{uploadSummary.uploaded.length}</span>
                   </span>
                 )}
                 {uploadSummary.skipped.length > 0 && (
-                  <span className="pw-inline pw-dim" style={{ gap: 3 }} title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`}>
+                  <span className="pw-inline pw-dim" style={{ gap: "var(--space-icon)" }} title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`}>
                     <span className="pw-ico"><i data-ico="circle-minus" data-size="13" aria-hidden="true"></i></span>
                     <span>{uploadSummary.skipped.length}</span>
                   </span>
                 )}
                 {uploadSummary.errors.length > 0 && (
-                  <span className="pw-inline" style={{ gap: 3, color: "var(--danger)" }} title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`}>
+                  <span className="pw-inline" style={{ gap: "var(--space-icon)", color: "var(--danger)" }} title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`}>
                     <span className="pw-ico"><i data-ico="triangle-alert" data-size="13" aria-hidden="true"></i></span>
                     <span>{uploadSummary.errors.length}</span>
                   </span>
@@ -1733,7 +1733,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   onClick={addUploadedFilesToChat}
                   title={uploadSummary.uploaded.length === 1 ? t("files.addUploadedFile") : t("files.addAllUploadedFiles")}
                   aria-label={uploadSummary.uploaded.length === 1 ? t("files.addUploadedFile") : t("files.addAllUploadedFiles")}
-                  style={{ height: 22, padding: "0 7px", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--s1)", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
+                  style={{ height: "var(--control-2xs)", padding: "0 7px", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--s1)", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
                 >
                   <MentionIcon />
                   {t("files.mention")}
@@ -1742,7 +1742,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               <DismissButton onClick={() => setUploadSummary(null)} title={t("files.dismissUploadResults")} />
             </div>
             {uploadSummary.errors.map((item) => (
-              <div key={item.name} title={item.error} className="pw-inline" style={{ gap: "var(--s1)", marginTop: 3, minWidth: 0, fontSize: "var(--text-meta)", color: "var(--danger)" }}>
+              <div key={item.name} title={item.error} className="pw-inline" style={{ gap: "var(--s1)", marginTop: "var(--space-icon)", minWidth: 0, fontSize: "var(--text-meta)", color: "var(--danger)" }}>
                 <span className="pw-ico"><i data-ico="circle-alert" data-size="11" aria-hidden="true"></i></span>
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
               </div>
@@ -1753,7 +1753,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       )}
 
       {fileSearchOpen && (
-      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ padding: "var(--space-row) 8px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ position: "relative" }}>
           <span className="pw-ico pw-dim" style={{ position: "absolute", left: "var(--s2)", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
             <i data-ico="search" data-size="12" aria-hidden="true"></i>
@@ -1781,9 +1781,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           )}
         </div>
         {hasSearchQuery && (
-          <div style={{ paddingTop: 3 }}>
-            {searchLoading && <div role="status" style={{ padding: "6px 2px", fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("sidebar.searchingFiles")}</div>}
-            {!searchLoading && searchError && <div role="alert" style={{ padding: "6px 2px", fontSize: TEXT["2xs"], color: "var(--danger)" }}>{t("i18n.networkError")}</div>}
+          <div style={{ paddingTop: "var(--space-icon)" }}>
+            {searchLoading && <div role="status" style={{ padding: "var(--space-row) 2px", fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("sidebar.searchingFiles")}</div>}
+            {!searchLoading && searchError && <div role="alert" style={{ padding: "var(--space-row) 2px", fontSize: TEXT["2xs"], color: "var(--danger)" }}>{t("i18n.networkError")}</div>}
             {!searchLoading && !searchError && searchPaths.length === 0 && (
               /* 同画板 30 行 266-272 的「过滤无结果」那一格。 */
               <div className="pw-empty">
@@ -1884,7 +1884,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       )}
 
       {(changesCollapsed || gitFiles.length === 0) && (!fileSearchOpen || !hasSearchQuery) && (
-        <div style={{ padding: "2px 4px" }}>
+        <div style={{ padding: "var(--space-tight) 4px" }}>
           {loading ? (
             <div style={{ padding: "8px 12px", fontSize: TEXT.xs, color: "var(--text-dim)" }}>Loading files...</div>
           ) : error ? (

@@ -549,7 +549,7 @@ export function PiMemoryConfig({
                 spellCheck={false}
                 readOnly={!openFileWritable}
                 onChange={(event) => setDraft(event.target.value)}
-                style={{ minHeight: 340 }}
+                style={{ minHeight: "var(--edit-min-lg)" }}
               />
               {openFileWritable && <p className="pw-hint">{t("memory.autoSaveHint")}</p>}
             </>

@@ -386,6 +386,28 @@ export function ConfigStatusDot({ active, color }: { active?: boolean; color?: s
  * （画板 62 帧 B「唯一滚动在内容区」的列表页形态）。
  * ------------------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------------------
+ * `.pw-shead-acts` 的契约（画板 62「动作四级归位」①：页级 · 页头右端）
+ *
+ * 页级动作**只走 `actions` 这一个口**，类名照画板 62 帧 B（board.css:696：
+ * `flex: none` + `gap: var(--s2)`）。右对齐不另加 margin —— 是
+ * `.pw-shead-copy { flex: 1; min-width: 0 }` 把右槽顶出去的。层级不许混：
+ *   ① 页级   → actions（页头右端，最多 2 个：1 主 1 次）
+ *   ② 列表级 → toolbar（与计数徽章同排）
+ *   ③ 条目级 → ConfigDetailActions（详情头右端）
+ *   ④ 表单级 → 表单块底部右对齐（绝不浮在视口右下角）
+ *   页脚     → 只放只读状态，且必须是本页自己的（画板 62 帧 D）
+ *
+ * **`actions` 省略时这个槽整个不出现在 DOM 里，这是对的。** 不要为了「让某一帧
+ * 量得到」而渲染一个空的 `.pw-shead-acts`：画板 62 帧 E 的 12 分节落位表把
+ * **常规 / 归档历史**（模型页按画板 41 的 DOM 裁定另算）的「页级动作」一栏写成
+ * 「—」；帧 2 之所以在 `.pw-shead-acts` 里塞一枚 `无页级动作 · 即时生效` 徽章，
+ * 是样张为了把页头三段式（copy + 右槽）画全而**自己加的批注**，不是产品要出的
+ * 东西 —— 「改动即时生效、不需要保存」这句话产品的页头 sub 已经说了
+ * （`settings.generalSub`）。`scripts/board-specs/62-frame2.mjs` 该把
+ * `.pw-shead-acts` 登记成已知分歧，而不是让产品去补一枚空槽。
+ * ------------------------------------------------------------------------- */
+
 export function SettingsPage({
   title,
   sub,
@@ -397,7 +419,9 @@ export function SettingsPage({
   title: string;
   /** 一句「这页是干嘛的」。**不写数据** —— 计数进工具栏的等宽徽章。 */
   sub?: string;
-  /** 页级动作，最多 2 个（1 primary + 1 outline），永远在页头右端。 */
+  /** 页级动作，最多 2 个（1 primary + 1 outline），永远在页头右端。
+   *  省略即**不渲染** `.pw-shead-acts` —— 画板 62 帧 E 的落位表把常规 / 归档历史
+   *  这一栏写成「—」，空槽不是缺陷（见上方契约说明）。 */
   actions?: ReactNode;
   /** 列表级动作与搜索行；省略即不出工具栏。 */
   toolbar?: ReactNode;
@@ -411,6 +435,8 @@ export function SettingsPage({
           <h2>{title}</h2>
           {sub ? <p className="sub">{sub}</p> : null}
         </div>
+        {/* ① 页级动作（动作四级归位 ①）：画板 62 帧 B 的类，右对齐由
+            `.pw-shead-copy{flex:1}` 顶出，不另加 margin。见上方契约。 */}
         {actions ? <div className="pw-shead-acts">{actions}</div> : null}
       </header>
       {toolbar ? <div className="pw-stools">{toolbar}</div> : null}
@@ -549,6 +575,24 @@ export interface PwRadioOption<T extends string> {
 /**
  * 单选芯片组：画板是 `.pw-radio > span`，产品换成 `<button role="radio">`
  * （键盘可切换），键名与状态类（`.is-on`）照抄。
+ *
+ * **什么时候是 `PwRadio`、什么时候是 `PwSelectBox`**（判据见下；画板 62 帧 B / 帧 C
+ * 逐行清点，2026-10-01 复核）：
+ *   - `.pw-radio`：**少量互斥、且要一眼看全**的档位。常规页四组 —— 主题
+ *     （浅色 / 深色 / 跟随系统，带 sun / moon / monitor 图标）、界面语言
+ *     （简体中文 / 繁體中文 / English，与 `lib/i18n/registry.ts` 的三个 locale
+ *     一一对应）、界面密度（紧凑 / 标准 / 宽松）、过程步骤默认展开
+ *     （推理 / 命令 / 工具 —— 产品语义是三个**独立**开关，所以那一组是
+ *     `aria-pressed` 的 `.pw-radio` 而不是 role=radio）。列表页一组 —— 技能页
+ *     工具栏的作用域筛选（全部 / 项目 / 全局 / 路径，画板 62 帧 B）。
+ *   - `.pw-selectbox`：**值本身是一串要背下来的标识、或选项多到芯片排不下**的字段
+ *     —— UI 字体（字体栈）、UI 字号 / 聊天字号 / 扩展字号、会话命名用的模型、
+ *     子代理的保存作用域与思考强度、MCP 的传输方式与来源、壁纸的适配方式与遮罩。
+ *   - 画板 43 / 44 / 45 / 46 同族：插件与 MCP 的作用域及 Basic / JSON、定时任务的
+ *     频率与复用策略、用量的时间范围、导入的四类资产与「按来源 / 按项目」。
+ *   - 判据不是「几个选项」而是「值的性质」：`.pw-radio` 的芯片宽度跟着文案走，
+ *     选项一多就把字段行那 16px gap 顶破；`.pw-selectbox` 是定宽盒（board.css:830，
+ *     `min-width: 150px`），值再长也不变形。**新加字段先按这条判，别一律下拉。**
  */
 export function PwRadio<T extends string>({
   value,

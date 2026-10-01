@@ -344,7 +344,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
           aria-label={t("tabs.more", { count: hiddenTabs.length })}
           aria-expanded={overflowOpen}
           style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--space-icon)",
             height: "var(--control-sm)", width: TAB_OVERFLOW_BUTTON_WIDTH, flexShrink: 0,
             background: overflowOpen ? "var(--bg-selected)" : "transparent",
             border: "none", borderRadius: "var(--radius-md)",
@@ -406,7 +406,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             top: overflowPos.top,
             left: overflowPos.left,
             zIndex: 400,
-            width: 240,
+            width: "var(--pop-w-sm)",
             maxHeight: "min(60vh, 420px)",
             overflowY: "auto",
             padding: "var(--s1)",
@@ -459,7 +459,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
                 aria-label={`${t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")} ${tab.label}`}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 22, height: 22, flexShrink: 0, background: "none",
+                  width: "var(--control-2xs)", height: "var(--control-2xs)", flexShrink: 0, background: "none",
                   border: "none", borderRadius: "var(--radius-sm)",
                   color: "var(--text-dim)", cursor: "pointer", padding: 0,
                 }}

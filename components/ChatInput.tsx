@@ -837,7 +837,7 @@ function FavoriteModelMenu({
             bottom: "calc(100% + 6px)",
             left: 0,
             zIndex: 300,
-            width: 240,
+            width: "var(--pop-w-sm)",
             maxHeight: 320,
             overflowY: "auto",
           }}
@@ -3193,7 +3193,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           }}
         />
         {todoSummary && todoSummary.total > 0 && (
-          <div className="pw-rowgap" style={{ marginBottom: 6 }}>
+          <div className="pw-rowgap" style={{ marginBottom: "var(--space-row)" }}>
             <TodoChip summary={todoSummary} />
           </div>
         )}
@@ -3555,7 +3555,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               }}
             >
               <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-              <div className="grow" style={{ display: "grid", gap: 2, minWidth: 0 }}>
+              <div className="grow" style={{ display: "grid", gap: "var(--space-tight)", minWidth: 0 }}>
                 {attachmentNotice.added.length > 0 && (
                   <span>{t("chat.attachmentAdded", { names: attachmentNotice.added.join("、") })}</span>
                 )}
@@ -3734,7 +3734,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           </div>
 
           {(compact || isMobile) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, alignSelf: "flex-end" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-row)", flexShrink: 0, alignSelf: "flex-end" }}>
               {isStreaming ? stopButton : sendButton}
             </div>
           )}
@@ -3855,7 +3855,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                             : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
                           <span className="grow">
                             {displayLabel}
-                            {showOriginal && <span className="pw-mono" style={{ fontSize: TEXT["2xs"], marginLeft: 5 }}>({lvl})</span>}
+                            {showOriginal && <span className="pw-mono" style={{ fontSize: TEXT["2xs"], marginLeft: "var(--space-ctrl)" }}>({lvl})</span>}
                           </span>
                           <span className="pw-desc">{desc}</span>
                         </button>
@@ -4035,7 +4035,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 right: 0,
                 bottom: 0,
                 zIndex: 60,
-                padding: 1,
+                padding: "var(--space-hair)",
                 width: "max-content",
                 maxWidth: "calc(100vw - 32px)",
                 flexWrap: "nowrap",

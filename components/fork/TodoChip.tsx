@@ -143,7 +143,7 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
             bottom: "calc(100% + 6px)",
             left: 0,
             zIndex: 60,
-            width: 320,
+            width: "var(--pop-w)",
             maxWidth: "min(320px, 92vw)",
             maxHeight: 320,
             overflowY: "auto",

@@ -19,6 +19,18 @@
  * （删除 danger 仅编辑态 · 取消 / 恢复默认 outline / 保存 primary）。
  * 实时预览的迷你外壳是产品的功能性部件（圆角/玻璃/透明度旋钮只有画出整套
  * chrome 才看得出来），保留 `fork-skin-preview-*` 自有类 —— 登记同 Git 图泳道。
+ *
+ * fix:board47-css-tab（画板 47 帧 3 左半，2026-09-30）—— CSS 页签补三样：头内
+ * `.pw-badge warn`「高级」、文本域上方的 `.pw-alert` 警告、动作行左槽在 CSS 页签
+ * 变成「清空」。仍**缺**（需 lib/i18n 键或新能力，见报告）：画板那条 `.pw-inline`
+ * 里的 `.pw-btn sm`「格式化」与 `.pw-badge bad` token 校验徽章。
+ *
+ * fix:board47-switch-vs-slider（**不改产品**，登记）—— 画板帧 1 把焦点环 / 玻璃模糊 /
+ * 阅读遮罩画成 `.pw-switch`，产品这三个是滑块。复核结论：blur 是 0–40px、readingMask
+ * 是 0–100% 的连续量（`lib/theme-skins.ts` 的 `SKIN_RANGES`），中间档是有意义的；
+ * 「焦点环」产品根本没有这个旋钮（`ThemeSkin` 无该字段、CSS 也不发对应变量）。把连续
+ * 量换成两档开关会删掉中间档，加一个开关则要动 `lib/theme-skins.ts` + CSS（超出文件
+ * 范围）。所以本轮不动，判给画板：帧 1 这一处是画板滞后于实现。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +48,7 @@ import {
   type SkinWallpaperFit,
   type ThemeSkin,
 } from "@/lib/theme-skins";
-import { ConfigButton, PwField, PwRadio, PwRange, PwSelectBox, PwValue } from "./SettingsUi";
+import { ConfigButton, PwField, PwRadio, PwRange, PwSelectBox } from "./SettingsUi";
 import { BuiltinWallpaperPicker, builtinIdForWallpaperUrl } from "./BuiltinWallpaperPicker";
 import { paintingPath } from "@/lib/wallpaper-builtin";
 import { SKIN_MODE_PALETTE } from "@/lib/theme-skins";
@@ -134,6 +146,9 @@ export function ThemeSkinStudio({
 
   const patch = (next: Partial<ThemeSkin>) => setDraft((current) => ({ ...current, ...next }));
 
+  /** CSS 页签动作行「清空」的显隐条件：只有真的有内容时才有东西可清。 */
+  const hasCustomCss = draft.customCss.trim().length > 0;
+
   /** 写当前模式变体的一个颜色；空串 = 清掉覆盖，回到共享值。 */
   const patchVariantColor = (key: SkinColorKey, value: string) => {
     setDraft((current) => ({
@@ -212,6 +227,14 @@ export function ThemeSkinStudio({
         <div className="pw-modal-head">
           {isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}
           <span className="pw-grow" aria-hidden="true" />
+          {/* fix:board47-css-badge（画板 47 帧 3）—— 「自定义 CSS」这一页在头里挂一枚
+              `.pw-badge warn`「高级」：它是整个工作室里唯一能直接把样式表改坏的页面，
+              头是「这是哪个东西」那一行，警示放在这里才不会被滚出视野。文案复用
+              `models.advancedTitle`（三语都是「高级 / Advanced / 進階」）—— i18n 键在
+              lib/i18n/messages/*，本轮文件范围外，不新造键（键名串味登记在报告里）。 */}
+          {tab === "css" ? (
+            <span className="pw-badge warn">{t("models.advancedTitle")}</span>
+          ) : null}
           <button type="button" className="pw-iconbtn sm" aria-label={t("i18n.close")} title={t("i18n.close")} onClick={onCancel}>
             <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
           </button>
@@ -402,7 +425,17 @@ export function ThemeSkinStudio({
           </div>
         ) : (
           <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, overflow: "hidden", gridTemplateRows: "auto 1fr" }}>
-            <p className="sub">{t("settings.skinCustomCssHint")}</p>
+            {/* fix:board47-css-warn（画板 47 帧 3 左半）—— 文本域之上常驻一条 `.pw-alert`：
+                这一页的规则会覆盖皮肤设置，写错能让界面没法用，所以警告必须**先于**
+                编辑器出现，而不是等到保存失败。原先是 `.sub` 一行灰字（`.pw-sbody>p.sub`
+                的样式），在弹窗里既不显眼也没有图标，等于把一句警告写成了脚注。
+                文案沿用 `settings.skinCustomCssHint`（「可以覆盖任何规则 / 仅作用于本机」），
+                画板那句「写错可能导致界面不可用，但可以随时重置为默认」需要新 i18n 键，
+                见报告。 */}
+            <div className="pw-alert">
+              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+              <span className="pw-grow">{t("settings.skinCustomCssHint")}</span>
+            </div>
             <textarea
               className="pw-textarea"
               style={{ minHeight: 0, height: "100%" }}
@@ -424,11 +457,24 @@ export function ThemeSkinStudio({
         ) : null}
 
         <footer className="pw-modal-foot">
-          {onDelete && !isNew ? (
-            <ConfigButton variant="danger" onClick={() => onDelete(draft.id)}>
-              {t("i18n.delete")}
-            </ConfigButton>
-          ) : null}
+          {/* fix:board47-css-clear（画板 47 帧 3 左半）—— 动作行的**左槽按页签换语义**，
+              不并排两枚 danger：CSS 页签是「清空」（清掉这份自定义规则，换一个出口），
+              主题设置页签是「删除」（删掉这套皮肤）。两枚红按钮并排时用户分不清点的是
+              「删这段 CSS」还是「删整套皮肤」—— 而这两件事的代价差三个数量级。
+              「清空」按内容显隐：画板自己就是这么定这个槽的（帧 2 的新建态左下**没有**
+              「删除」——「还没有一个能删的东西」）。空编辑器时留一枚点不动的红按钮，
+              既是不留死控件，也是它自己的那条约定。 */}
+          {tab === "css"
+            ? (hasCustomCss ? (
+              <ConfigButton variant="danger" onClick={() => patch({ customCss: "" })}>
+                {t("tabs.clearRecent")}
+              </ConfigButton>
+            ) : null)
+            : onDelete && !isNew ? (
+              <ConfigButton variant="danger" onClick={() => onDelete(draft.id)}>
+                {t("i18n.delete")}
+              </ConfigButton>
+            ) : null}
           <span className="pw-grow" aria-hidden="true" />
           <ConfigButton variant="ghost" onClick={onCancel}>
             {t("i18n.cancel")}

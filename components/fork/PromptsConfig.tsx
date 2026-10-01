@@ -255,7 +255,7 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
                 （board 46:94 `style="min-height:200px"`），门禁基线冻结的就是它。 */}
             <textarea
               className="pw-textarea"
-              style={{ minHeight: 200 }}
+              style={{ minHeight: "var(--edit-min)" }}
               value={editor.body}
               onChange={(event) => setEditor({ ...editor, body: event.target.value })}
               spellCheck={false}

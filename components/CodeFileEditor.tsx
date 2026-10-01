@@ -413,7 +413,7 @@ export default function CodeFileEditor({
           <h3>{t("files.textConflict")}</h3>
           {state.conflicts.map((conflict) => (
             <div key={conflict.key} style={{ display: "grid", gap: "var(--s2)", marginTop: "var(--s2)" }}>
-              <pre className="pw-code-body grow" style={{ maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.local}</pre>
+              <pre className="pw-code-body grow" style={{ maxHeight: "var(--content-cap-xs)", overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.local}</pre>
               <button
                 type="button"
                 className="pw-btn sm"
@@ -421,7 +421,7 @@ export default function CodeFileEditor({
               >
                 {t("files.textKeepLocal")}
               </button>
-              <pre className="pw-code-body grow" style={{ maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.external}</pre>
+              <pre className="pw-code-body grow" style={{ maxHeight: "var(--content-cap-xs)", overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.external}</pre>
               <button
                 type="button"
                 className="pw-btn sm"

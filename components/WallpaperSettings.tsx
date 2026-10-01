@@ -8,6 +8,18 @@
  * （等宽读数）。产品把「适配方式」换成三行真实存在的作用域选择（消息区 / 侧栏面板 /
  * 输入框），遮罩浓度给的是真滑块 —— 行形态与控件种类都照画板，只换数据。
  *
+ * fix:board47-area-chips（2026-09-30）—— 三个作用域从 `.pw-selectbox` 下拉换成
+ * 画板 47 帧 3「各面适配」的 `.pw-radio` 芯片排。理由不是好看：三档只有
+ * 「不透明 / 半透明 / 毛玻璃」，下拉把另外两档折进一个箭头里，用户得点开才知道
+ * 这个面能选什么；芯片一排摊开，三面并排一眼可比（原来三行下拉，读者要在脑子里
+ * 做三次数组查询才能比）。`.pw-radio` 是画板自带的原子（board.css），产品走
+ * `SettingsUi` 的 `PwRadio`（键盘可达 + `role="radiogroup"`），不新造控件。
+ *
+ * 与画板的**数量**差异保持登记：画板画的是四个面（侧栏 / 主区 / 右栏 / 输入框），
+ * 产品是三个（消息区 / 侧栏面板 / 输入框）。补第四个面要动 `lib/wallpaper.ts`
+ * （新增一个持久字段 + 迁移旧状态）与 `app/wallpaper.css` 的取值分支，超出组件范围，
+ * 见报告。画板帧 3 的「各面适配」小标题同样缺：它需要一个新的 i18n 键。
+ *
  * 原实现（fork:ui-wallpaper / fork:zn-19）是自绘的 `settings-wallpaper-*`
  * 一排按钮 + 复选开关，已退役。
  *
@@ -18,7 +30,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useWallpaper } from "@/hooks/useWallpaper";
-import { PwCtl, PwField, PwRange, PwSelectBox, PwSwitch } from "./SettingsUi";
+import { PwCtl, PwField, PwRadio, PwRange, PwSwitch } from "./SettingsUi";
 import {
   WALLPAPER_SCRIM_MAX,
   WALLPAPER_SCRIM_MIN,
@@ -108,7 +120,7 @@ export function WallpaperSettings({
     <PwField
       label={t(labelKey)}
       control={
-        <PwSelectBox
+        <PwRadio
           value={value}
           ariaLabel={t(labelKey)}
           options={AREA_MODES.map((mode) => ({
@@ -119,7 +131,7 @@ export function WallpaperSettings({
                   : "settings.wallpaperModeBlur",
             ),
           }))}
-          onChange={(next) => onChange(next as WallpaperAreaMode)}
+          onChange={onChange}
         />
       }
     />

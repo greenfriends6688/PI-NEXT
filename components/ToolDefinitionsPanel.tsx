@@ -257,7 +257,7 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
                       <td style={{ whiteSpace: "nowrap" }}>
                         <span className="pw-mono">{field.name}</span>
                         {field.required && (
-                          <span className="pw-badge bad" style={{ marginLeft: 6 }}>{translate("tools.required")}</span>
+                          <span className="pw-badge bad" style={{ marginLeft: "var(--space-row)" }}>{translate("tools.required")}</span>
                         )}
                       </td>
                       <td style={{ minWidth: 0, overflowWrap: "anywhere" }}>

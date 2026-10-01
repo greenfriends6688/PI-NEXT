@@ -172,7 +172,7 @@ function CommitFileRow({ file, cwd, onOpenFile }: {
       <span style={{ minWidth: 0, overflow: "hidden", display: "flex", alignItems: "baseline", flex: 1, whiteSpace: "nowrap" }}>
         <span style={{ flexShrink: 0 }}>{fileName}</span>
         {directoryText && directoryText !== fileName && (
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: "var(--text-muted)", marginLeft: 6 }}>{directoryText}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: "var(--text-muted)", marginLeft: "var(--space-row)" }}>{directoryText}</span>
         )}
       </span>
     </button>
@@ -375,7 +375,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
 
   return (
     <div style={{ ...laneVars, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", userSelect: isResizing ? "none" : undefined }}>
-      <div style={{ display: "flex", alignItems: "center", flexShrink: 0, padding: "6px 10px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", alignItems: "center", flexShrink: 0, padding: "var(--space-row) 10px", borderBottom: "1px solid var(--border)" }}>
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.xs, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-muted)", textAlign: "left" }}>
           {t("git.graph")}
         </span>
@@ -508,7 +508,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
                     style={{ position: "absolute", left: 0, right: 0, top: rowTops[node.row], height: rowHeightOf(node.row), display: "flex", alignItems: "center", cursor: "pointer" }}
                   >
                     <div style={{ flex: 1, minWidth: 0, paddingLeft: TEXT_GAP, paddingRight: 10, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-ctrl)", minWidth: 0 }}>
                         <RefTagList tags={parseGitRefTags(commit.refs)} laneColor={laneVar(node.colorIndex)} />
                         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.md, fontWeight: 500, color: "var(--text)" }}>
                           {commit.subject}
@@ -535,7 +535,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
               zIndex: 2,
               display: "flex",
               justifyContent: "center",
-              padding: "6px 0 8px",
+              padding: "var(--space-row) 0 8px",
               // Opaque backing so pinned graph rows/text don't show through.
               background: "var(--bg)",
               pointerEvents: atListBottom ? "auto" : "none",
@@ -558,11 +558,11 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
 
       {selectedCommit && (
         <div style={{ flexShrink: 0, maxHeight: "45%", overflowY: "auto", overflowX: "hidden", borderTop: "1px solid var(--border)", padding: "8px 10px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-row)" }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.md, fontWeight: 500, color: "var(--text)", wordBreak: "break-word" }}>
               {selectedCommit.subject}
               {selectedCommit.refs.length > 0 && selectedNode && (
-                <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "var(--s1)", marginLeft: 6, verticalAlign: "middle" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "var(--s1)", marginLeft: "var(--space-row)", verticalAlign: "middle" }}>
                   <RefTagList tags={parseGitRefTags(selectedCommit.refs)} laneColor={laneVar(selectedNode.colorIndex)} />
                 </span>
               )}
@@ -574,18 +574,18 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
               aria-label={t("i18n.close")}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, padding: 0, flexShrink: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "var(--control-2xs)", height: "var(--control-2xs)", padding: 0, flexShrink: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
             >
               <CloseIcon />
             </button>
           </div>
-          <div style={{ marginTop: 2, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"] }}>
+          <div style={{ marginTop: "var(--space-tight)", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"] }}>
             {selectedCommit.author} · {timeFormat.format(new Date(selectedCommit.timestamp * 1000))} · {selectedCommit.hash.slice(0, 10)}
           </div>
-          <div style={{ marginTop: 6, fontSize: TEXT.xs, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+          <div style={{ marginTop: "var(--space-row)", fontSize: TEXT.xs, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-muted)" }}>
             {t("git.commitFiles")}
           </div>
-          <div style={{ marginTop: 2 }}>
+          <div style={{ marginTop: "var(--space-tight)" }}>
             {commitLoading ? (
               <div style={{ padding: "4px 5px", color: "var(--text-dim)", fontSize: TEXT.sm }}>
                 <RefreshIcon spinning />
