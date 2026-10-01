@@ -34,6 +34,8 @@ import { useIsMobile, useIsCompact } from "@/hooks/useIsMobile";
 import { useResizableHeight } from "@/hooks/useResizableHeight";
 import { useI18n } from "@/hooks/useI18n";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
+// fork:send-key（G6 · 上游 `5df8278` #1001）—— 发送键可配（Enter 直发 / Ctrl+Enter 才发）。
+import { useEnterSendMode } from "@/hooks/useEnterSendMode";
 import { ThinkingIcon } from "./ThinkingIcon";
 import type { ToolPreset } from "@/lib/tool-presets";
 // fork:proma-02-mode — 会话权限模式
@@ -926,6 +928,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const { t } = useI18n();
   const { fontSize } = useChatAppearance();
   const isMobile = useIsMobile();
+  const enterSendMode = useEnterSendMode();
   // fork:pwa-tablet-tier — the composer's control strip is one non-wrapping row, so the
   // breakpoint that decides "inline or behind a button" has to be the tablet one, not the
   // phone one. Padding/width cosmetics below still key off `isMobile`: they are about
@@ -2481,14 +2484,24 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
       const nativeEvent = e.nativeEvent;
-      const sendShortcut = e.key === "Enter" && !e.shiftKey && (!isMobile || e.ctrlKey || e.metaKey);
+      // fork:send-key（G6）—— 两个不同的意图拆成两个量：
+      //   sendShortcut     = 「发送」：Enter 直发（默认）或 Ctrl/Cmd+Enter 才发（设置里切）。
+      //   acceptShortcut   = 「当前 Enter 是确认键」：桌面键盘上两个模式都是纯 Enter ——
+      //                     弹层菜单与 IME 守卫都要它（上游 #1001 的修复：Ctrl+Enter 模式下
+      //                     菜单不再吃掉 Enter 去换行）；手机键盘的 Enter 是换行键，
+      //                     所以那里仍取 sendShortcut（Ctrl/Cmd+Enter）。
+      const enterKey = e.key === "Enter" && !e.shiftKey;
+      const sendShortcut = isMobile || enterSendMode === "ctrlEnter"
+        ? enterKey && (e.ctrlKey || e.metaKey)
+        : enterKey;
+      const acceptShortcut = isMobile ? sendShortcut : enterKey;
       const recentlyComposed = Date.now() - lastCompositionEndAtRef.current < COMPOSITION_END_ENTER_GRACE_MS;
       const isComposing =
         isComposingRef.current ||
         nativeEvent.isComposing ||
         nativeEvent.keyCode === 229;
 
-      if (sendShortcut && (isComposing || recentlyComposed)) {
+      if (acceptShortcut && (isComposing || recentlyComposed)) {
         if (recentlyComposed) e.preventDefault();
         return;
       }
@@ -2509,7 +2522,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           setHistoryMenuOpen(false);
           return;
         }
-        if ((e.key === "Tab" || sendShortcut) && inputHistory[historyActiveIndex]) {
+        if ((e.key === "Tab" || acceptShortcut) && inputHistory[historyActiveIndex]) {
           e.preventDefault();
           applyHistoryInput(inputHistory[historyActiveIndex]);
           return;
@@ -2548,11 +2561,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           applySlashCommand(selectedCommand);
           return;
         }
-        if (sendShortcut && selectedCommand) {
+        if (acceptShortcut && selectedCommand) {
           e.preventDefault();
           const canSubmitNow = !isStreaming
             || (selectedCommand.source === "builtin" && selectedCommand.availableWhileStreaming === true);
-          if (canSubmitNow && isExactSlashCommand(value, selectedCommand)) {
+          // fork:send-key（G6）—— Ctrl+Enter 模式下纯 Enter 是「选中这条命令」而不是
+          // 直接发送，否则确认菜单的那一下就把消息发了。
+          if (sendShortcut && canSubmitNow && isExactSlashCommand(value, selectedCommand)) {
             setSlashMenuOpen(false);
             void handleSend();
           } else {
@@ -2580,7 +2595,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           setReferenceMenuOpen(false);
           return;
         }
-        if ((e.key === "Tab" || sendShortcut) && referenceItems[referenceActiveIndex]) {
+        if ((e.key === "Tab" || acceptShortcut) && referenceItems[referenceActiveIndex]) {
           e.preventDefault();
           applyReferenceCompletion(referenceItems[referenceActiveIndex]);
           return;
@@ -2605,7 +2620,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           setAtMenuOpen(false);
           return;
         }
-        if ((e.key === "Tab" || sendShortcut) && atMatches[atActiveIndex]) {
+        if ((e.key === "Tab" || acceptShortcut) && atMatches[atActiveIndex]) {
           e.preventDefault();
           applyAtCompletion(atMatches[atActiveIndex]);
           return;
@@ -2666,7 +2681,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         }
       }
     },
-    [isMobile, isStreaming, onSteer, onFollowUp, onAbort, slashMenuOpen, slashQuery, displayedSlashCommands, slashActiveIndex, applySlashCommand, sendQueued, handleSend, getNextSlashIndex, atMenuOpen, atQuery, atMatches, atActiveIndex, applyAtCompletion, referenceMenuOpen, referenceQuery, referenceItems, referenceActiveIndex, applyReferenceCompletion, historyMenuOpen, inputHistory, historyActiveIndex, applyHistoryInput, value]
+    [isMobile, enterSendMode, isStreaming, onSteer, onFollowUp, onAbort, slashMenuOpen, slashQuery, displayedSlashCommands, slashActiveIndex, applySlashCommand, sendQueued, handleSend, getNextSlashIndex, atMenuOpen, atQuery, atMatches, atActiveIndex, applyAtCompletion, referenceMenuOpen, referenceQuery, referenceItems, referenceActiveIndex, applyReferenceCompletion, historyMenuOpen, inputHistory, historyActiveIndex, applyHistoryInput, value]
   );
 
   const handleInput = useCallback(() => {

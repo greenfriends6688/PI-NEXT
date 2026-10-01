@@ -39,6 +39,8 @@ import { SkillsConfig } from "./SkillsConfig";
 import { AgentsConfig } from "./AgentsConfig";
 import { NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "./settings-disabled-reasons";
 import { PluginsConfig } from "./PluginsConfig";
+// fork:send-key（G6）—— 「发送键」偏好行（自带 hook，故单文件）。
+import { EnterSendModeSetting } from "./EnterSendModeSetting";
 import {
   PwBlock,
   PwCtl,
@@ -779,6 +781,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
+        {/* fork:send-key（G6 · 上游 `5df8278` #1001）—— 「发送键」跟在同一个聊天块
+            末尾：它是输入框的行为，与上面几行同属「聊天」。自成一个组件是因为它带
+            hook（useEnterSendMode），设置页不该为了一行偏好多背一个订阅。
+            行数断言见 SettingsPanel.test.mjs：这一行是子组件，不计入本块的 PwField。 */}
+        <EnterSendModeSetting />
       </PwBlock>
 
       {/* fork:zn-16 —— 通知（画板 62 帧 C 右栏第二块）：总开关 + 四条开关行 + 空标签
