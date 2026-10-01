@@ -2212,6 +2212,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
+  /* fork:pr2-security（上游 499aa4f）—— models.json 读不出来时（带注释以外的语法
+     错误、截断的写入…）**禁用保存**：面板保存的是整份 draft，而 draft 并不是从这
+     个文件读出来的，一存就把用户所有 provider 覆盖没了。 */
+  const [loadError, setLoadError] = useState<string | null>(null);
   // fork:builtin-models — 上次保存回传的内置模型覆盖警告。
   const [saveWarnings, setSaveWarnings] = useState<string[]>([]);
   const [selection, setSelection] = useState<Selection | null>(readRememberedSelection);
@@ -2242,8 +2246,14 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
 
   useEffect(() => {
     fetch("/api/models-config")
-      .then((r) => r.json())
-      .then((d: ModelsJson) => {
+      .then(async (r) => {
+        const d = await r.json() as ModelsJson & { error?: string };
+        // 422（读不出 models.json）不是一个空配置：当成空配置渲染会把「保存」变成
+        // 「清空所有 provider」。
+        if (!r.ok || d.error) throw new Error(d.error ?? `HTTP ${r.status}`);
+        return d;
+      })
+      .then((d) => {
         const normalized = d.providers ? d : { ...d, providers: {} };
         setConfig(normalized);
         savedProvidersRef.current = new Set(Object.keys(normalized.providers ?? {}));
@@ -2255,7 +2265,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
             ? { type: "provider", name: keys[0] }
             : null);
       })
-      .catch(() => setConfig({ providers: {} }))
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
     refreshAuthProviders();
   }, [refreshAuthProviders]);
@@ -2377,6 +2387,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (loadError) return;
     setSaving(true);
     setSaveError(null);
     setSavedOk(false);
@@ -2409,7 +2420,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     } finally {
       setSaving(false);
     }
-  }, [config, enabledModels]);
+  }, [config, enabledModels, loadError]);
 
   // `12/40` next to a provider makes a narrowed selector visible at a glance.
   const scopeBadge = (providerId: string) => {
@@ -2513,7 +2524,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               variant="primary"
               size="small"
               onClick={handleSave}
-              disabled={saving || savedOk}
+              disabled={saving || savedOk || loadError !== null}
               className={savedOk ? "is-success" : undefined}
             >
               {savedOk && (
@@ -2536,9 +2547,11 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               onChange={setProviderFilter}
             />
             <span className="pw-grow" aria-hidden="true" />
-            {saveError || saveWarnings.length > 0 ? (
-              <span style={{ color: saveError ? "var(--error)" : "var(--warning)" }}>
-                {saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
+            {loadError || saveError || saveWarnings.length > 0 ? (
+              <span style={{ color: loadError || saveError ? "var(--error)" : "var(--warning)" }}>
+                {loadError
+                  ? t("models.configUnreadable", { error: loadError })
+                  : saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
               </span>
             ) : null}
             <ConfigBadge tone="count">{t("models.providerCount", { count: String(visibleOAuth.length + visibleApiKey.length + visibleProviders.length) })}</ConfigBadge>
@@ -2557,6 +2570,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
             <ConfigSidebarList>
               {loading ? (
                 <p className="pw-hint">{t("i18n.loading")}</p>
+              ) : loadError ? (
+                /* 读不出 models.json ≠ 库是空的：空态那句「还没有供应商」会把用户
+                   引去「添加供应商」，而保存已被禁用（见页头）。只报现状。 */
+                <p className="pw-hint">{t("models.listUnreadable")}</p>
               ) : !hasVisibleRows ? (
                 /* fork:settings-frame（画板 62 帧 D）—— 「列表空」落在**列表列内**：
                    方框图标 + 一句，不折行；过滤无结果与「一个供应商都没有」都不再

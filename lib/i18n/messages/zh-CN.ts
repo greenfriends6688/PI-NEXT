@@ -1110,6 +1110,8 @@ export const zhCNLocale: LocalePlugin = {
     "models.addProvider": "添加供应商",
     "models.listEmpty": "还没有供应商",
     "models.listEmptyHint": "点右上角「添加供应商」接入订阅或接口。",
+    "models.listUnreadable": "models.json 读不出来，供应商列表未知，已禁用保存。",
+    "models.configUnreadable": "无法读取 models.json，为避免覆盖已禁用保存。请修复该文件后重新打开此面板。{error}",
     "models.detailEmpty": "从左边选一个供应商或模型，查看它的连接、模型与定价",
     "models.providerCount": "{count} 个供应商",
     "models.groupSubscription": "订阅",
