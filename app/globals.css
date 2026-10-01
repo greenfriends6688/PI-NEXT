@@ -1706,10 +1706,22 @@ textarea,
   to { transform: rotate(360deg); }
 }
 
+/* fork:motion-spin-2026-10-01 —— Tailwind 的 `.animate-spin` 自带 1s，
+   与产品的 0.8s（内联，已改 token）与画板 `.pw-anim-spin` 的 0.9s 是**三个周期**。
+   画板 tokens.css 把 spinner 定为 `--motion-spin: 900ms` —— 这里把 Tailwind 的那条
+   拉回同一个 token，全系统只剩一个 spinner 周期（动效诊断表 C）。 */
+.animate-spin { animation-duration: var(--motion-spin); }
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* fork:motion-breathe-2026-10-01 —— board 05 第 16 项的呼吸动效（1600ms 一来一回）。
+   `@keyframes pulse` 此前是**孤儿**（定义了零引用）：等待类状态没有「还在动」的提示。
+   刻意**不**在这里给 `.pw-*` 挂规则 —— 产品当前没有任何组件会给 `is-busy`（grep 为 0），
+   挂上去就是一条永不生效的死规则。真正接线时（重载 agent / 压缩中 / 扩展等待）
+   由组件传 `is-busy`，规则写在这一处。 */
 
 @keyframes notice-shelf-in {
   from {

@@ -516,6 +516,15 @@
   animation: saved-check-draw var(--motion-base) var(--ease-out) forwards;
 }
 
+/* fork:motion-saved-pop-2026-10-01 —— `@keyframes saved-pop` 一直是**孤儿**
+   （定义了零引用）：保存成功只有勾线的描画动画，按钮本身不弹。board 05 的保存成功是
+   「弹一下 + 描画」两段，这里把弹的那一段接上（值一字未改，只补挂点）——
+   真实的状态 class 是 ModelsConfig 等处传的 `is-success`（不是自造的 is-saved）。 */
+.config-button.is-success { animation: saved-pop var(--motion-base) var(--ease) 1; }
+@media (prefers-reduced-motion: reduce) {
+  .config-button.is-success { animation: none; }
+}
+
 .config-button.is-pushed-right {
   margin-left: auto;
 }

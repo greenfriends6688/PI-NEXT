@@ -1490,14 +1490,59 @@ i[data-ico] > svg { display: block; }
 .pw-live.on { background: var(--success); box-shadow: 0 0 4px var(--success); }
 .pw-viewer-head .pw-meta { color: var(--n-placeholder); font-family: var(--font-mono); font-size: var(--text-meta); }
 
-/* ---- 可交互四态演示（鼠标真 hover / 真按下 / Tab 真焦点） -------------- */
-.pw-live-states .pw-btn,
-.pw-live-states button {
+/* ---- 可交互四态演示（鼠标真 hover / 真按下 / Tab 真焦点） --------------
+ * fork:board-live-states（2026-10-01）—— 这一族原来只在 `.pw-live-states` 演示盒里
+ * 生效，于是**全站真实控件都没有 120ms 悬浮过渡**（`pw-row` / `pw-session` /
+ * `pw-iconbtn` / `pw-proc-head` / `pw-seg button` / `pw-select` / `pw-starter` 全是
+ * `transition: all 0s`，鼠标扫过去是硬切 —— 动效诊断实测 52 个可交互元素里只有 3 个
+ * 有过渡）。值与画板 05 / SPEC「轻量交互第 1 条」一字未改，只是把**演示盒专属的规则
+ * 提到画板原子层**，让画板与产品同源。演示盒仍然命中（它是这些类的子集）。 */
+.pw-btn,
+.pw-row,
+.pw-session,
+.pw-trow,
+.pw-prow,
+.pw-litem,
+.pw-litem-add,
+.pw-proc-head,
+.pw-group-title,
+.pw-snav-row,
+.pw-seg button,
+.pw-chipbtn,
+.pw-starter,
+.pw-tab,
+.pw-todo,
+.pw-side-foot {
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease);
 }
-.pw-live-states button:hover { background: var(--overlay-hover); }
 /* 按下不做过渡：立即换色（全系统纪律）。 */
+.pw-btn:active,
+.pw-row:active,
+.pw-session:active,
+.pw-trow:active,
+.pw-prow:active,
+.pw-litem:active,
+.pw-proc-head:active,
+.pw-group-title:active,
+.pw-snav-row:active,
+.pw-seg button:active,
+.pw-chipbtn:active,
+.pw-starter:active,
+.pw-tab:active,
+.pw-todo:active,
+.pw-side-foot:active { transition: none; }
+/* 图标钮只换底色（它没有文字色态），单独一条避免多余的 color 过渡。 */
+.pw-iconbtn,
+.pw-iconbtn.sm,
+.pw-select { transition: background var(--motion-fast) var(--ease); }
+.pw-iconbtn:active,
+.pw-iconbtn.sm:active,
+.pw-select:active { transition: none; }
+
+.pw-live-states .pw-btn,
+.pw-live-states button { cursor: pointer; }
+.pw-live-states button:hover { background: var(--overlay-hover); }
 .pw-live-states button:active { transition: none; background: var(--overlay-active); }
 .pw-live-states button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--n-strong)); }
 .pw-live-states button.danger:hover { background: var(--error-soft); color: var(--error); }

@@ -958,8 +958,11 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
       key={id}
       hidden={section !== id}
       /* fork:design-system SW-07 — 每个分节的内容栏就是画板 40 的 `.pw-sbody`
-         （页边距 24/40/32、`> h2` / `> p.sub` 的页头规格全在 board.css）。 */
-      className="settings-section-host pw-sbody"
+         （页边距 24/40/32、`> h2` / `> p.sub` 的页头规格全在 board.css）。
+         fork:motion-2026-10-01 —— 分节是懒挂载 + 常驻（切走只加 hidden），所以给
+         **当前分节**挂 `fork-turn-enter`：分节刚被激活时重放一次整块替换
+         （200ms + 8px）。此前切换分节是 `getAnimations() === []` 的硬切。 */
+      className={`settings-section-host pw-sbody${section === id ? " fork-turn-enter" : ""}`}
     >
       {content}
     </div>
@@ -980,8 +983,11 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
       className="settings-dialog-backdrop"
     >
       {/* fork:design-components —— 设置壳直接用画板的 .pw-modal + .pw-settings
-          （弹层阴影 / 200px 左列 + 内容区 grid 来自 board.css）。 */}
-      <div className="settings-dialog-surface pw-modal">
+          （弹层阴影 / 200px 左列 + 内容区 grid 来自 board.css）。
+          fork:motion-2026-10-01 —— 补 `anim-dialog`（弹层 160ms + 4px）：
+          此前设置面板是 `animationName:none` 的硬切，与同类弹窗
+          （ChatWindow 的 .anim-dialog）不一致 —— 动效诊断实测「打开设置面板完全没动」。 */}
+      <div className="settings-dialog-surface pw-modal anim-dialog">
         <div className="settings-dialog-header pw-modal-head">
           <strong className="settings-dialog-title">{t("settings.title")}</strong>
           <select

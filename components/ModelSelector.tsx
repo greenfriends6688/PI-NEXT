@@ -217,7 +217,7 @@ export function ModelSelector({
         }}
       >
         {busy ? (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{ animation: "spin 0.8s linear infinite", flexShrink: 0 }} aria-hidden="true">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{ animation: "spin var(--motion-spin) linear infinite", flexShrink: 0 }} aria-hidden="true">
             <path d="M21 12a9 9 0 1 1-2.64-6.36" />
           </svg>
         ) : (

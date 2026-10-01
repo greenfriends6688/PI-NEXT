@@ -2089,7 +2089,7 @@ export function AppShell() {
               className={mobile ? "pw-touch" : "pw-iconbtn"}
             >
               {autoNameStatus.kind === "naming" ? (
-                <span className="pw-ico" style={{ animation: "spin 0.8s linear infinite" }}><i data-ico="loader-circle" data-size="14"></i></span>
+                <span className="pw-ico" style={{ animation: "spin var(--motion-spin) linear infinite" }}><i data-ico="loader-circle" data-size="14"></i></span>
               ) : isSuccess ? (
                 <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
               ) : (

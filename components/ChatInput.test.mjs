@@ -400,7 +400,10 @@ test("shows and locks the optimistic model while a switch is pending", () => {
   assert.match(html, /aria-busy="true"/);
   assert.match(html, /disabled=""/);
   assert.match(html, />DeepSeek V4 Flash</);
-  assert.match(html, /animation:spin 0\.8s linear infinite/);
+  // fork:motion-spin-2026-10-01 —— spinner 周期从写死的 0.8s 改成 var(--motion-spin)
+  // （画板 tokens.css 的 900ms）。全系统曾有三套周期（0.8 / 0.9 / Tailwind 的 1s）。
+  assert.match(html, /animation:spin var\(--motion-spin\) linear infinite/);
+  assert.doesNotMatch(html, /animation:spin \d/, "spinner 周期必须走 token，不许写死");
 });
 
 test("filters model options by name and id", () => {
