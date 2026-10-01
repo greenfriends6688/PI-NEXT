@@ -1155,6 +1155,25 @@
      实测（1440×900 / 2x，playwright 量盒子）：两处均为 245×43、两钮同行 y 相同、
      无横竖滚动条。
 
+131. **终端恒定传统深色，不跟主题**（`components/TerminalPanel.tsx` + `app/globals.css`）：
+     用户裁定：「终端的样式还是给我用传统的黑色的吧，不要这样有白色背景」——
+     浅色主题下终端画布是**白底深字**（实测 `--bg` = `#fbfbfc` / `--ansi-white` = `#33333d`），
+     而终端头、标签、边框仍是 globals.css 里那组固定的深色 island —— 中间白一块，
+     「不伦不类」。病因在 `readTerminalTheme()`：它读的是**应用主题槽位**（`--bg` + 16 个
+     `--ansi-*`），而 globals.css 早就声明「terminal island 是每个主题都一样的固定深面」。
+     现在两处对齐：
+     - JS 只读 island 槽位：`--terminal-surface`（底）/ `--terminal-text`（字 + 光标 +
+       brightWhite）/ `--terminal-text-dim`（brightBlack）/ 新增的 `--terminal-selection`
+       （选区高亮；深底上原来的 `--ansi-cyan` 等于隐形）；**16 色 ANSI 交给 xterm 自己的
+       传统调色板**（也就是「传统」本来的意思），不再被浅色主题的暗色阶污染。
+     - 画布与 `.terminal-xterm .xterm-viewport`（同一个 `--terminal-surface`）同色，
+       与终端头无接缝。
+     画板 31 的 `.pw-term` 本身是**跟主题**的（`color: var(--n-text)`，浅色主题下就是浅底）
+     —— 这里是**登记不改**的用户裁定。回归守卫：`components/TerminalPanel.test.mjs`
+     「the xterm palette comes from the fixed dark island tokens, never the app theme」。
+     实测（1440×900 / 浅色主题 / playwright）：画布与终端头同为 `rgb(17,19,24)`，
+     正文 `#d7dce5`，ANSI 十六色与 `ls -la` 配色在深底上均可读。
+
 **本轮登记不改（工作台）：**
 - **右栏文件查看器全套**（`.pw-viewer / .pw-viewer-head / .pw-viewer-body / .pw-tree / .pw-split`）：
      仍是 `file-viewer-*` + 74 处内联，0 个 pw 类 —— 属计划里的 **SW-04/05**（最大遗留面），

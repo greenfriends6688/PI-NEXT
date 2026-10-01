@@ -427,15 +427,10 @@ export function EnabledModelsSection({
           const lastOne = isLastEnabledModel(view, model);
           return (
             <div key={model.ref} className="pw-litem enabled-models-row">
-              <ConfigSwitch
-                checked={model.enabled}
-                loading={pending === model.ref}
-                disabled={busy || !view?.editable || lastOne}
-                label={lastOne
-                  ? t("models.enabledLastModel")
-                  : t("models.enabledToggle", { model: model.name })}
-                onChange={(checked) => controller.setModels(model.ref, [model.ref], checked)}
-              />
+              {/* fork:row-alignment（2026-10-01）—— 开关从行首挪到行末，与侧栏 `.pw-row`
+                  的「图标 + 名称 + .grow + 右侧动作」同规（board.css:141-154 / 画板 02:68-71）。
+                  .pw-acts 的 hover 显隐（board.css:153-154）**不适用**：开关是常驻状态控件，
+                  不是 hover 才出现的行内动作，所以直接跟在徽章后面，不包 .pw-acts。 */}
               <span className="grow enabled-models-row-text">
                 <ConfigSidebarText>{model.name}</ConfigSidebarText>
                 <ConfigSidebarSub>{model.id}</ConfigSidebarSub>
@@ -445,6 +440,15 @@ export function EnabledModelsSection({
                   {model.thinkingPin}
                 </ConfigBadge>
               )}
+              <ConfigSwitch
+                checked={model.enabled}
+                loading={pending === model.ref}
+                disabled={busy || !view?.editable || lastOne}
+                label={lastOne
+                  ? t("models.enabledLastModel")
+                  : t("models.enabledToggle", { model: model.name })}
+                onChange={(checked) => controller.setModels(model.ref, [model.ref], checked)}
+              />
             </div>
           );
         })}

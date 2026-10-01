@@ -1,7 +1,7 @@
 // fork:usage-relative-time — upstream-port marker
 "use client";
 
-import { ConfigButton, ConfigSectionTitle, ConfigStat, ConfigStatGrid } from "./SettingsUi";
+import { ConfigButton, ConfigDetailTitle, ConfigStat, ConfigStatGrid } from "./SettingsUi";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { formatUpdatedTime } from "@/lib/i18n/format";
@@ -94,7 +94,13 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
       {/* fork:design-system SW-14 —— 画板 41 的「用量摘要」卡：小节标题 + 四列统计卡。
           标题行右侧挂唯一的刷新动作（画板 41 的 `.pw-btn outline sm` + `refresh-cw`）。 */}
       <div className="pw-inline">
-        <ConfigSectionTitle>{t("providerUsage.usage")}</ConfigSectionTitle>
+        {/* fork:usage-card-head（2026-10-01）—— 用量摘要现在自成一张卡（画板 41:101-109），
+            标题改用卡内标题基件 `ConfigDetailTitle`（`SettingsUi.tsx:215` 的 `<h3>`），
+            与自定义供应商那条路、以及 AgentsConfig / ImportPanel / 归档的卡内标题同规。
+            原先用分节专用的 `ConfigSectionTitle`：`.pw-sec-title` 是**大写 + 字距 .06em** 的
+            分段标记，还带 margin-bottom 与一个撑满的 `.pw-grow` —— 放在卡内 inline 头行里
+            既与按钮基线差一截，右侧还多一段空白。 */}
+        <ConfigDetailTitle>{t("providerUsage.usage")}</ConfigDetailTitle>
         <ConfigButton
           size="small"
           onClick={query}

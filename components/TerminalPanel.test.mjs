@@ -85,3 +85,19 @@ test("failed or stopped delivery discards queued input without retrying commands
   await setImmediate();
   assert.equal(fetch.mock.callCount(), 1);
 });
+
+// fork:terminal-dark（用户裁定 2026-10-01）—— 终端恒定传统深色：调色板只读
+// globals.css 的 island 槽位（每个主题同值），**不许**再读应用主题槽位
+// （浅色主题下 `--bg` 是白的、`--ansi-white` 是深灰 → 白底深字）。
+test("the xterm palette comes from the fixed dark island tokens, never the app theme", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("./TerminalPanel.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  for (const token of ["--terminal-surface", "--terminal-text", "--terminal-text-dim", "--terminal-selection"]) {
+    assert.match(source, new RegExp(`"${token}"`), `${token} is part of the xterm theme`);
+    assert.match(css, new RegExp(`${token}: `), `${token} is declared in the island block`);
+  }
+  const themeBlock = source.slice(source.indexOf("const ISLAND_TOKENS"), source.indexOf("function readTerminalTheme"));
+  assert.doesNotMatch(themeBlock, /--bg|--ansi-/, "the palette must not follow the app theme");
+  assert.doesNotMatch(source, /theme\.background = canvas/);
+});

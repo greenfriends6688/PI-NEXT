@@ -265,8 +265,10 @@ export function McpStatusButton({ cwd, statuses }: { cwd: string | null; statuse
   const servers = data?.servers ?? [];
   // 没打开过浮窗时用状态文本里的台数（零请求）；打开过就以真实配置为准。
   const enabled = data ? servers.filter((server) => !server.disabled).length : enabledCountFromStatus(statuses);
-  const title = statuses.length > 0
-    ? statuses.map((status) => stripAnsi(status.text)).join(" ")
+  // fork:zh-topbar —— 提示框只说本地话：扩展自己打的状态行是英文（“🔌 MCP: 3 servers
+  // enabled”），那串原文留在浮窗正文（StatusRows）里，不拿到 title 上。
+  const title = enabled > 0
+    ? `${t("topbar.mcp")} · ${t("topbar.enabledCount", { count: enabled })}`
     : t("topbar.mcp");
 
   return (
@@ -329,9 +331,10 @@ export function PluginStatusButton({
   const url = open && cwd ? `/api/plugins?cwd=${encodeURIComponent(cwd)}` : null;
   const { data, failed } = useLazyJson<PluginsResponse>(open, url);
   const packages = data?.packages ?? [];
-  const standalone = data?.standaloneExtensions ?? [];  const title = statuses.length > 0
-    ? statuses.map((status) => stripAnsi(status.text)).join(" ")
-    : t("topbar.plugins");
+  const standalone = data?.standaloneExtensions ?? [];
+  // fork:zh-topbar —— 同上：插件钮的 title 之前直接复用扩展的英文状态行（而且 MCP 与
+  // 插件两枚拿到的是同一串），改成中文名；明细仍在浮窗里。
+  const title = t("topbar.plugins");
 
   return (
     <HoverPopover

@@ -124,13 +124,20 @@
      theme-aware. `--terminal-surface` MUST equal that theme's `background`,
      otherwise the panel chrome and the canvas show a seam between two near
      blacks. Making the terminal follow the theme means editing that JS palette,
-     which is out of scope for a CSS-only pass (visual-spec.md §7). */
+     which is out of scope for a CSS-only pass (visual-spec.md §7).
+
+     fork:terminal-dark（用户裁定 2026-10-01）—— 「终端的样式还是给我用传统的黑色的吧」。
+     终端**恒定深色**（浅色主题下也是）：`TerminalPanel` 只读下面这组 island 槽位，
+     16 色 ANSI 走 xterm 自己的传统调色板。原先它读应用主题槽位（`--bg` / `--ansi-*`），
+     浅色主题下画布被刷成 `#fbfbfc`、正文 `#33333d` —— 四周终端头还是深色，中间一块白。
+     新增 `--terminal-selection`：选区高亮必须有，深色底上原来的 `--ansi-cyan` 等于隐形。 */
   --terminal-surface: #111318;
   --terminal-chrome: #171b22;
   --terminal-border: #262b34;
   --terminal-hover: #1e232c;
   --terminal-text: #d7dce5;
   --terminal-text-dim: #8b93a1;
+  --terminal-selection: rgb(215 220 229 / 0.28);
 
   /* Type scale —every font-size literal in the app maps to exactly one step:
      10→2xs  11→xs  12→sm  14→md  15→lg  16→xl  18→2xl  24→3xl

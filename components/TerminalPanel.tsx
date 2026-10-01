@@ -18,45 +18,36 @@ interface Props {
 }
 
 /**
- * fork:design-system —— 把设计系统的 ANSI 槽位读成 xterm 需要的具体色值。
+ * 终端恒定是**传统深色**（用户裁定 2026-10-01：「终端的样式还是给我用传统的黑色的吧，
+ * 不要这样有白色背景」）。
  *
- * xterm 不接受 `var(--x)`：它自己往 canvas 上画，需要能直接喂给 fillStyle 的字符串。
- * 所以这里读 `getComputedStyle`，并且**逐项回退**——某一项读不到时用 xterm 默认，
- * 不因为一个 token 缺失就把整个终端刷成黑白。
+ * 底 / 字 / 光标 / 选区读 globals.css 里那组「terminal island」定值
+ * （`--terminal-surface` / `--terminal-text` / …，`:root` 里**每个主题都一样**），
+ * 16 色 ANSI 交给 xterm 自己的传统调色板。
+ *
+ * 原来这里读的是**应用主题槽位**（`--bg` / `--ansi-*`）：浅色主题下 xterm 就把画布刷成
+ * 白色、正文刷成深灰（实测 `--bg`=#fbfbfc / `--ansi-white`=#33333d），而四周的终端头
+ * 仍是 island 的深色 —— 于是中间一块白，截图里「不伦不类」。
+ *
+ * xterm 不接受 `var(--x)`（它自己往 canvas 上画），所以读 `getComputedStyle`；
+ * **逐项回退**——某一项读不到时用 xterm 默认，不因为一个 token 缺失就把终端刷成黑白。
  */
-const ANSI_TOKENS = {
-  background: "--ansi-black",
-  foreground: "--ansi-white",
-  cursor: "--ansi-blue",
-  selectionBackground: "--ansi-cyan",
-  black: "--ansi-black",
-  red: "--ansi-red",
-  green: "--ansi-green",
-  yellow: "--ansi-yellow",
-  blue: "--ansi-blue",
-  magenta: "--ansi-magenta",
-  cyan: "--ansi-cyan",
-  white: "--ansi-white",
-  brightBlack: "--n-placeholder",
-  brightRed: "--ansi-red",
-  brightGreen: "--ansi-green",
-  brightYellow: "--ansi-yellow",
-  brightBlue: "--ansi-blue",
-  brightMagenta: "--ansi-magenta",
-  brightCyan: "--ansi-cyan",
-  brightWhite: "--n-strong",
+const ISLAND_TOKENS = {
+  background: "--terminal-surface",
+  foreground: "--terminal-text",
+  cursor: "--terminal-text",
+  brightBlack: "--terminal-text-dim",
+  brightWhite: "--terminal-text",
+  selectionBackground: "--terminal-selection",
 } as const;
 
 function readTerminalTheme(element: HTMLElement): Record<string, string> {
   const styles = getComputedStyle(element);
   const theme: Record<string, string> = {};
-  for (const [key, token] of Object.entries(ANSI_TOKENS)) {
+  for (const [key, token] of Object.entries(ISLAND_TOKENS)) {
     const value = styles.getPropertyValue(token).trim();
     if (value) theme[key] = value;
   }
-  // 终端底用画布色（--ansi-black 是正文前景，做底太亮）。
-  const canvas = styles.getPropertyValue("--bg").trim();
-  if (canvas) theme.background = canvas;
   return theme;
 }
 
