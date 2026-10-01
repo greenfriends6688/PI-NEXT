@@ -143,6 +143,27 @@ test("manual price editing commits completed costs and removes only an all-blank
   assert.match(modelDetail, /value=\{costDraft\[key\]\}/);
 });
 
+// fork:model-rename-save（上游 bd85004 #969，fixes #903）—— 保存时把输入框里的
+// 重命名一起落盘，并拒绝被占用的 id（models.json 以 id 为键，撞了就是静默覆盖）。
+test("Save applies a provider name typed without pressing Rename", () => {
+  const providerDetail = source.slice(
+    source.indexOf("function ProviderDetail"),
+    source.indexOf("// ── ThinkingLevelMap editor"),
+  );
+  // 输入框改的是面板的草稿，不是 Save 看不见的组件本地 state。
+  assert.doesNotMatch(providerDetail, /useState\(name\)/);
+  assert.match(providerDetail, /onChange=\{onEditingNameChange\}/);
+
+  const save = source.slice(
+    source.indexOf("const handleSave = useCallback"),
+    source.indexOf("const providers = Object.entries(config.providers"),
+  );
+  assert.match(save, /applyProviderRename\(config, providerNameDraft\.provider, pendingName\)/);
+  assert.match(save, /body: JSON\.stringify\(draft\)/);
+  assert.match(save, /collectModelRenames\(draft,/);
+  assert.match(save, /setSaveError\(t\("models\.providerNameTaken", \{ name: pendingName \}\)\)/);
+});
+
 // fork:models-board —— 模型详情按画板 41 拆成三张独立的 `.pw-detail`
 // （能力 / 规格 / 成本 → 高级 → 测试连接），所以标题串换成了画板的措辞。
 test("model specs keep catalog-filled prices visible outside advanced settings", () => {

@@ -1154,6 +1154,7 @@ export const enLocale: LocalePlugin = {
     "models.listEmptyHint": "Add one with “Add provider” in the header",
     "models.listUnreadable": "models.json could not be read, so its providers are unknown and saving is disabled.",
     "models.configUnreadable": "Could not read models.json, so saving is disabled to avoid overwriting it. Fix the file, then reopen this panel. {error}",
+    "models.providerNameTaken": "Another provider is already named \"{name}\". Choose a different name.",
     "models.detailEmpty": "Select a provider or model to edit its connection, models and pricing",
     "models.providerCount": "{count} providers",
     "models.groupSubscription": "Subscriptions",

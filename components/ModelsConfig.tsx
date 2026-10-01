@@ -17,6 +17,7 @@ import {
   hasModelCostDraftValue,
   modelCostToDraft,
   parseCompleteModelCost,
+  renameProviderEntry,
   savedModelIds,
   serializeHeaderRows,
   setCompatBool,
@@ -394,9 +395,13 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
 
 // ── Provider detail ───────────────────────────────────────────────────────────
 
-function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune }: {
-  name: string; provider: ProviderEntry;
-  onChange: (p: ProviderEntry) => void; onRename: (n: string) => void; onDelete: () => void;
+/* fork:model-rename-save（上游 bd85004 #969）—— 供应商名输入框的草稿由面板持有，
+   不再是 ProviderDetail 的本地 state：只有 Rename 按钮能动 draft 时，页脚 Save
+   就看不见输入框里的改动，直接序列化等于静默丢掉一次重命名。 */
+function ProviderDetail({ name, editingName, provider, onChange, onEditingNameChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune }: {
+  name: string; editingName: string; provider: ProviderEntry;
+  onChange: (p: ProviderEntry) => void; onEditingNameChange: (n: string) => void;
+  onRename: (n: string) => void; onDelete: () => void;
   onAddModels: (models: DiscoveredModel[]) => void; enabledModels: EnabledModelsController;
   /** 画板 41 的「可用模型」是一行一个模型：点它就钻到模型详情。 */
   onOpenModel: (index: number) => void;
@@ -404,13 +409,11 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
   onPrune: () => void;
 }) {
   const { t, locale } = useI18n();
-  const [editingName, setEditingName] = useState(name);
   const [discoveryState, setDiscoveryState] = useState<ModelDiscoveryState>({ phase: "idle" });
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const discoveryRequestIdRef = useRef(0);
   const selectShownRef = useRef<HTMLInputElement>(null);
-  useEffect(() => setEditingName(name), [name]);
   const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) => onChange({ ...provider, [k]: v });
 
   useEffect(() => {
@@ -735,7 +738,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
         <h3>{t("models.connectionTitle")}</h3>
         <ConfigField label={t("i18n.providerName")}>
           <PwCtl>
-            <TextInput value={editingName} onChange={setEditingName} placeholder="provider-name" mono />
+            <TextInput value={editingName} onChange={onEditingNameChange} placeholder="provider-name" mono />
             {editingName !== name && editingName.trim() && (
               <ConfigButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
                 {t("i18n.rename")}
@@ -2263,6 +2266,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
    * from an unrelated edit without guessing.
    */
   const savedModelIdsRef = useRef<Map<string, (string | null)[]>>(new Map());
+  /* fork:model-rename-save（上游 bd85004 #969，fixes #903）—— 供应商名输入框的草稿。
+     只有它跟 provider 的 id 不同才非 null：Save 会把它当普通可见编辑一起落盘，
+     Rename 按钮则立刻应用；面板自己持有它，所以 Save 看得见。 */
+  const [providerNameDraft, setProviderNameDraft] = useState<{ provider: string; name: string } | null>(null);
   // fork:pr17-favorites — 与输入框模型选择器共用同一个收藏 store。
   const favoriteModels = useSyncExternalStore(subscribeFavoriteModels, getFavoriteModelsSnapshot, getFavoriteModelsServerSnapshot);
 
@@ -2318,40 +2325,33 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     setConfig((prev) => ({ ...prev, providers: { ...(prev.providers ?? {}), [name]: p } }));
   }, []);
 
-  const renameProvider = useCallback((oldName: string, newName: string) => {
-    // Remember where each saved provider ended up, so the enabledModels entries
-    // can follow it on save instead of pointing at an id that no longer exists.
-    const renames = renamesRef.current;
-    let original = oldName;
-    for (const [from, to] of renames) {
-      if (to !== oldName) continue;
-      original = from;
-      break;
-    }
-    if (original === newName) renames.delete(original);
-    else if (savedProvidersRef.current.has(original)) renames.set(original, newName);
-    const slots = savedModelIdsRef.current.get(oldName);
-    if (slots) {
-      savedModelIdsRef.current.delete(oldName);
-      savedModelIdsRef.current.set(newName, slots);
-    }
-    setConfig((prev) => {
-      const entries = Object.entries(prev.providers ?? {});
-      const idx = entries.findIndex(([k]) => k === oldName);
-      if (idx === -1) return prev;
-      entries[idx] = [newName, entries[idx][1]];
-      return { ...prev, providers: Object.fromEntries(entries) };
-    });
+  /** fork:model-rename-save — 在 draft 里搬一个 provider；id 已被占用时返回 null 且不记录。 */
+  const applyProviderRename = useCallback((draft: ModelsJson, oldName: string, newName: string): ModelsJson | null => {
+    const next = renameProviderEntry(draft, {
+      savedProviders: savedProvidersRef.current,
+      renames: renamesRef.current,
+      slots: savedModelIdsRef.current,
+    }, oldName, newName);
+    if (!next) return null;
+    setConfig(next);
+    setProviderNameDraft(null);
     setSelection((prev) => {
       if (!prev) return prev;
       if (prev.type === "provider" && prev.name === oldName) return { type: "provider", name: newName };
       if (prev.type === "model" && prev.providerName === oldName) return { ...prev, providerName: newName };
       return prev;
     });
+    return next;
   }, []);
+
+  const renameProvider = useCallback((oldName: string, newName: string) => {
+    if (applyProviderRename(config, oldName, newName)) setSaveError(null);
+    else setSaveError(t("models.providerNameTaken", { name: newName }));
+  }, [applyProviderRename, config, t]);
 
   const deleteProvider = useCallback((name: string) => {
     savedModelIdsRef.current.delete(name);
+    setProviderNameDraft((prev) => prev?.provider === name ? null : prev);
     setConfig((prev) => {
       const providers = { ...(prev.providers ?? {}) };
       delete providers[name];
@@ -2423,11 +2423,24 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     setSaving(true);
     setSaveError(null);
     setSavedOk(false);
+    // fork:model-rename-save —— 输入框里改了名但没点 Rename 的供应商，和其它可见编辑
+    // 一样是「保存」的一部分：先把它搬完再写盘，enabledModels 才能跟着改名。
+    let draft = config;
+    const pendingName = providerNameDraft?.name.trim();
+    if (providerNameDraft && pendingName && config.providers?.[providerNameDraft.provider]) {
+      const renamed = applyProviderRename(config, providerNameDraft.provider, pendingName);
+      if (!renamed) {
+        setSaveError(t("models.providerNameTaken", { name: pendingName }));
+        setSaving(false);
+        return;
+      }
+      draft = renamed;
+    }
     try {
       const res = await fetch("/api/models-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(draft),
       });
       const d = await res.json() as { success?: boolean; error?: string; warnings?: string[] };
       if (!res.ok || d.error) setSaveError(d.error ?? `HTTP ${res.status}`);
@@ -2441,9 +2454,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         // renamed, models added, deleted or renamed. Re-verify the stored
         // patterns against the new catalog and re-read.
         const renames = [...renamesRef.current].map(([from, to]) => ({ from, to }));
-        const modelRenames = collectModelRenames(config, savedModelIdsRef.current, renamesRef.current);
-        savedProvidersRef.current = new Set(Object.keys(config.providers ?? {}));
-        savedModelIdsRef.current = savedModelIds(config);
+        const modelRenames = collectModelRenames(draft, savedModelIdsRef.current, renamesRef.current);
+        savedProvidersRef.current = new Set(Object.keys(draft.providers ?? {}));
+        savedModelIdsRef.current = savedModelIds(draft);
         renamesRef.current.clear();
         enabledModels.resync(renames, modelRenames);
       }
@@ -2452,7 +2465,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     } finally {
       setSaving(false);
     }
-  }, [config, enabledModels, loadError]);
+  }, [applyProviderRename, config, enabledModels, loadError, providerNameDraft, t]);
 
   // `12/40` next to a provider makes a narrowed selector visible at a glance.
   const scopeBadge = (providerId: string) => {
@@ -2506,8 +2519,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         <ProviderDetail
           key={selection.name}
           name={selection.name}
+          editingName={providerNameDraft?.provider === selection.name ? providerNameDraft.name : selection.name}
           provider={provider}
           onChange={(p) => updateProvider(selection.name, p)}
+          onEditingNameChange={(n) => setProviderNameDraft(n === selection.name ? null : { provider: selection.name, name: n })}
           onRename={(n) => renameProvider(selection.name, n)}
           onDelete={() => deleteProvider(selection.name)}
           onAddModels={(models) => addDiscoveredModels(selection.name, models)}

@@ -126,6 +126,59 @@ export function collectModelRenames(
   return renames;
 }
 
+/** What the panel remembers between saves to tell renames from edits. */
+export interface ProviderRenameTracking {
+  /** Provider ids as models.json has them on disk. */
+  savedProviders: Set<string>;
+  /** Saved provider id -> where renames since the last save moved it. */
+  renames: Map<string, string>;
+  /** Saved model ids per provider, keyed by the provider's current id. */
+  slots: Map<string, (string | null)[]>;
+}
+
+/**
+ * fork:model-rename-save (upstream bd85004 / #969, fixes #903) — moves a provider to a
+ * new id while keeping its place in models.json, and records the move so the
+ * enabledModels entries can follow it on save.
+ *
+ * Returns null and records nothing when the provider is gone or the new id is
+ * already taken: models.json is keyed by id, so the move would silently replace
+ * the other provider. Returns the config unchanged when the id already matches.
+ */
+export function renameProviderEntry<T extends ModelsConfigDraft>(
+  config: T,
+  tracking: ProviderRenameTracking,
+  oldName: string,
+  newName: string,
+): T | null {
+  const providers = config.providers ?? {};
+  if (!Object.hasOwn(providers, oldName)) return null;
+  if (oldName === newName) return config;
+  if (Object.hasOwn(providers, newName)) return null;
+
+  const { renames, savedProviders, slots } = tracking;
+  // A provider may already have been renamed once; keep the disk spelling as the
+  // from side so `enabledModels` entries follow a single move, not a chain.
+  let original = oldName;
+  for (const [from, to] of renames) {
+    if (to !== oldName) continue;
+    original = from;
+    break;
+  }
+  if (original === newName) renames.delete(original);
+  else if (savedProviders.has(original)) renames.set(original, newName);
+  const saved = slots.get(oldName);
+  if (saved) {
+    slots.delete(oldName);
+    slots.set(newName, saved);
+  }
+
+  const entries = Object.entries(providers);
+  const index = entries.findIndex(([name]) => name === oldName);
+  entries[index] = [newName, entries[index][1]];
+  return { ...config, providers: Object.fromEntries(entries) };
+}
+
 /**
  * D2-PR-21 — render one level's actual request params as a single compact line.
  *

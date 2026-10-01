@@ -1151,6 +1151,7 @@ export const zhTWLocale: LocalePlugin = {
     "models.listEmptyHint": "點右上角「新增供應商」接訂閱或介面。",
 "models.listUnreadable": "models.json 讀不出來，供應商清單未知，已停用儲存。",
     "models.configUnreadable": "無法讀取 models.json，為避免覆寫已停用儲存。請修正該檔案後重新開啟此面板。{error}",
+    "models.providerNameTaken": "已有一個供應商叫「{name}」，請換一個名稱。",
     "models.detailEmpty": "選一個供應商或模型，查看它的連線、模型與定價",
     "models.providerCount": "{count} 個供應商",
     "models.groupSubscription": "訂閱",
