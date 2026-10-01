@@ -18,12 +18,10 @@
  *   - `<ArchivedSessionsGroup>`  渲染「会话」分组的组标题（含「显示文件已消失」开关，
  *     画板 46 的带标签形态）与行；由宿主放进列表列；
  *   - `<ArchivedSessionDetail>`  渲染选中会话的详情卡（恢复 / 彻底删除收在详情头右端）；
- *     由宿主放进详情列；
- *   - `<ArchivedSessionsPanel>`  **旧的两段式入口，现在恒渲染 null**：会话内容全部由
- *     宿主承载，这里再渲染一份就是重复。它继续存在只是为了让 SettingsPanel 里
- *     `<ProjectArchivePanel/> <ArchivedSessionsPanel/>` 的旧组合不至于渲染出两份——
- *     SettingsPanel 侧的清理（去掉这个兄弟节点 + div.settings-archive-page + 补 fill）
- *     见交付报告；清掉后这个壳可以整个删除。
+ *     由宿主放进详情列。
+ *
+ * 旧的两段式入口（恒渲染 null）已删：SettingsPanel 里它那个兄弟节点和
+ * `div.settings-archive-page` 早已摘除，留着只是一具第二套骨架的残骸。
  *
  * 会话的**删除**动作只住在这个文件里：ProjectArchivePanel 是项目索引，对用户数据只读
  * （那里的测试把这条焊死了）。
@@ -37,6 +35,10 @@ import type { SessionInfo } from "@/lib/types";
 import {
   ConfigBadge,
   ConfigButton,
+  ConfigDetailHeader,
+  ConfigDetailStack,
+  ConfigDetailTitle,
+  ConfigEmptyState,
   ConfigSidebarGroupLabel,
   ConfigSidebarItem,
   ConfigSidebarList,
@@ -62,10 +64,10 @@ function projectLabelOf(session: SessionInfo): string {
 export function deriveArchivedRows(
   archived: readonly string[],
   archivedAt: Record<string, string>,
-  sessions: readonly SessionInfo[] | null,
+  sessions: readonly SessionInfo[],
   missingProjectLabel: string,
 ): ArchivedRow[] {
-  const byId = new Map((sessions ?? []).map((session) => [session.id, session]));
+  const byId = new Map(sessions.map((session) => [session.id, session]));
   const list = archived.map((id) => {
     const session = byId.get(id);
     return {
@@ -90,7 +92,7 @@ export function ArchivedSessionsGroup({
   selectedId,
   onSelect,
 }: {
-  sessions: readonly SessionInfo[] | null;
+  sessions: readonly SessionInfo[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -119,8 +121,17 @@ export function ArchivedSessionsGroup({
         )}
         <ConfigBadge tone="count">{rows.length}</ConfigBadge>
       </ConfigSidebarGroupLabel>
-      {sessions === null ? null : visibleRows.length === 0 ? (
-        <p role="status" className="sub">{t("settings.archivedEmpty")}</p>
+      {visibleRows.length === 0 ? (
+        /* 两种「列不出来」要分开说（画板 62 帧 D：空态必须有落点）：
+           一条都没归档过 → 空态 + 本机存储说明（fix:archive-local-only）；
+           归档过但文件都没了 → 「文件已不存在」，上面组标题的开关就是出口。 */
+        <ConfigEmptyState>
+          <span className="mark">
+            <i data-ico={rows.length > 0 ? "triangle-alert" : "archive"} data-size="16" aria-hidden="true" />
+          </span>
+          <p>{rows.length > 0 ? t("settings.archivedMissingProject") : t("settings.archivedEmpty")}</p>
+          {rows.length === 0 && <p className="pw-hint">{t("settings.archiveStoredLocally")}</p>}
+        </ConfigEmptyState>
       ) : (
         <ConfigSidebarList>
           {visibleRows.map((row) => (
@@ -160,7 +171,7 @@ export function ArchivedSessionDetail({
   onSessionsChanged,
   onReload,
 }: {
-  sessions: readonly SessionInfo[] | null;
+  sessions: readonly SessionInfo[];
   sessionId: string;
   onSessionsChanged?: () => void;
   /** 删除会话文件之后由宿主重读 /api/sessions（项目索引随之刷新）。 */
@@ -203,18 +214,22 @@ export function ArchivedSessionDetail({
   };
 
   return (
-    <>
+    /* 宿主的详情栈只有一个子元素（就是本卡），行高会被拉满。卡里再套一层
+       `align-content: start` 的栈：几行内容收回顶部（实测否则是 373 + 367 两行、
+       kv 被擑到半空）。一个对齐关键字，不是新尺寸；满屏的项目详情不受影响。 */
+    <ConfigDetailStack style={{ alignContent: "start" }}>
       {error && (
         <div role="alert" className="pw-alert">
           <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
           <span className="grow">{error}</span>
         </div>
       )}
-      <div className="pw-inline">
+      <ConfigDetailHeader>
         <span className="pw-ico pw-dim">
           <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="14" aria-hidden="true" />
         </span>
-        <b style={{ fontWeight: 500 }}>{row.title}</b>
+        {/* 画板 62 帧 B 的详情头第一项是**名字**（h3），不是行内加粗的 `<b>`。 */}
+        <ConfigDetailTitle>{row.title}</ConfigDetailTitle>
         <span className="pw-grow" aria-hidden="true" />
         {row.archivedAt && (
           <span className="pw-mono pw-dim">
@@ -245,7 +260,7 @@ export function ArchivedSessionDetail({
             <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
           </ConfigButton>
         ))}
-      </div>
+      </ConfigDetailHeader>
       <dl className="pw-kv">
         <dt>{t("settings.projectsActive")}</dt>
         <dd>{row.projectLabel}</dd>
@@ -256,18 +271,6 @@ export function ArchivedSessionDetail({
           {t("settings.archivedMissingProject")}
         </p>
       )}
-    </>
+    </ConfigDetailStack>
   );
-}
-
-/**
- * 旧的两段式入口。会话内容已全部并入骨架 B 的合页（见文件头注释），这里恒渲染
- * null——渲染任何东西都会与宿主列表列里的 `<ArchivedSessionsGroup>` 重复。
- */
-export function ArchivedSessionsPanel(_props: {
-  onOpenSession?: (id: string) => void;
-  onSessionsChanged?: () => void;
-}) {
-  void _props;
-  return null;
 }

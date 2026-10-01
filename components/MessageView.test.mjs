@@ -14,6 +14,7 @@ const { renderToStaticMarkup } = await jiti.import("react-dom/server");
 const {
   MessageView,
   ThinkingBlock,
+  formatDuration,
   getModelDisplayName,
   getTokenEstimateText,
   getToolCallInputText,
@@ -67,7 +68,8 @@ test("previews the first thinking line and reveals the full text with the saved 
       assert.equal((html.match(/>[^<]*Independent reasoning[^<]*</g) ?? []).length, 1);
       assert.equal(html.includes("Detailed second line."), expanded);
       assert.match(html, /aria-label="Thinking: /);
-      assert.match(html, /3s/);
+      // 思考块头与回合结束行共用 formatDuration：≥ 1s 一位小数（3 → 3.0s）。
+      assert.match(html, /3\.0s/);
     }
   } finally {
     if (previousWindow === undefined) delete globalThis.window;
@@ -651,4 +653,17 @@ test("carries the compaction file list in the board's pw-filecard rows", () => {
   assert.match(source, /<i data-ico="file" data-size="14"/);
   // 旧的自绘列表（compaction-file-list）不再挂载。
   assert.doesNotMatch(source, /className="compaction-file-list"/);
+});
+
+// 亚秒耗时不能一律显示 0.0s：< 1s 走毫秒，< 1ms 兜底成 <1ms。
+test("formats sub-second durations in milliseconds instead of 0.0s", () => {
+  assert.equal(formatDuration(0), "<1ms");
+  assert.equal(formatDuration(0.0004), "<1ms");
+  assert.equal(formatDuration(0.012), "12ms");
+  assert.equal(formatDuration(0.9994), "999ms");
+  assert.equal(formatDuration(1), "1.0s");
+  assert.equal(formatDuration(4.24), "4.2s");
+  assert.equal(formatDuration(59.96), "60.0s");
+  assert.equal(formatDuration(60), "1m00s");
+  assert.equal(formatDuration(220), "3m40s");
 });

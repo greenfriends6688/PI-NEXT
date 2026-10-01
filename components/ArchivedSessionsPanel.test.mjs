@@ -26,18 +26,54 @@ test("the session group keeps board 46's labeled form", () => {
   assert.match(sessionsPanel, /opacity: 0\.6/);
 });
 
+test("the group's empty states each have a landing, and neither says 'nothing archived' for hidden rows", () => {
+  // 画板 62 帧 D「空态必须有落点」。两个「列不出来」要分开：
+  //   一条都没归档过 → archive 图标 + 「还没有归档任何会话」+ 本机存储说明
+  //   归档过但文件都没了 → triangle-alert + 「文件已不存在」（组标题的开关就是出口）
+  const group = sessionsPanel.slice(
+    sessionsPanel.indexOf("export function ArchivedSessionsGroup"),
+    sessionsPanel.indexOf("export function ArchivedSessionDetail"),
+  );
+  assert.match(group, /<ConfigEmptyState>/);
+  assert.match(group, /rows\.length > 0 \? t\("settings\.archivedMissingProject"\) : t\("settings\.archivedEmpty"\)/);
+  // fix:archive-local-only —— 归档只在本机 localStorage，代价写在空态里（不是飘到别处）。
+  assert.match(group, /settings\.archiveStoredLocally/);
+  // 加载态归宿主（列表列一行 loading），这里不再需要「sessions 为 null」的空分支。
+  assert.doesNotMatch(group, /sessions === null/);
+});
+
 test("the session detail keeps restore and delete at the detail header", () => {
-  // 画板 62 动作层级 ③ 条目级 · 详情头右端。
+  // 画板 62 动作层级 ③ 条目级 · 详情头右端；名字用画板的 h3（ConfigDetailTitle），
+  // 不是行内加粗的 <b>。
   const detail = sessionsPanel.slice(sessionsPanel.indexOf("export function ArchivedSessionDetail"));
+  assert.match(detail, /<ConfigDetailHeader>/);
+  assert.match(detail, /<ConfigDetailTitle>/);
   assert.match(detail, /settings\.archivedRestore/);
   assert.match(detail, /data-ico="trash-2"/);
   assert.match(detail, /className="pw-kv"/);
+});
+
+test("the legacy two-section entry point is gone", () => {
+  // fix:archive-legacy-shell —— 那个叫 `ArchivedSessionsPanel` 的**入口组件**恒渲染 null、
+  // SettingsPanel 里的调用方早已摘除；留着它等于留一套没人渲染的骨架。这是门禁，不许长回来。
+  //
+  // fork:archive-layout（2026-10-01）：组件本体保留 —— 它导出的是两个**真组件**
+  // （`ArchivedSessionsGroup` 组标题 / `ArchivedSessionDetail` 详情），现在由
+  // `ProjectArchivePanel`（骨架 B 宿主）直接消费。所以门禁从「文件里不能出现
+  // ArchivedSessionsPanel」改成「**不能有同名入口组件**」，否则把这两个真组件一起禁掉了。
+  assert.doesNotMatch(sessionsPanel, /export (?:default )?function ArchivedSessionsPanel\b/);
+  assert.doesNotMatch(sessionsPanel, /export \{[^}]*\bArchivedSessionsPanel\b/);
+  // 这两个真组件必须在（它们是归档会话的渲染入口）。
+  assert.match(sessionsPanel, /export function ArchivedSessionsGroup\b/);
+  assert.match(sessionsPanel, /export function ArchivedSessionDetail\b/);
 });
 
 test("deriveArchivedRows is a pure helper shared by group and detail", () => {
   assert.match(sessionsPanel, /export function deriveArchivedRows/);
   // 新的在前：无时间戳的老条目保持在尾部。
   assert.match(sessionsPanel, /localeCompare\(a\.archivedAt \?\? ""\)/);
+  // 会话索引由宿主喂进来（宿主已经加载完 /api/sessions），所以这里只收数组。
+  assert.match(sessionsPanel, /sessions: readonly SessionInfo\[\],/);
   // 项目索引页不重新实现行推导——它消费会话分组组件。
   assert.doesNotMatch(projectPanel, /deriveArchivedRows/);
 });

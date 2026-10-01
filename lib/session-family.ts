@@ -42,7 +42,16 @@ function resolveFamilyRoots(sessions: readonly SessionInfo[]): Map<string, strin
   return roots;
 }
 
-/** Groups visible main/fork sessions with every persisted subagent descendant. */
+/**
+ * Groups visible main/fork sessions with every persisted subagent descendant.
+ *
+ * Order is the caller's: `families` is a Map keyed by root id and filled in
+ * first-seen order, and nothing is re-sorted here. `latestModified` is still
+ * reported (it is the family-level activity stamp) but the sidebar's ordering
+ * — modified desc + the pinned partition from `applySessionFlags` — reaches us
+ * already applied; re-sorting by `latestModified` silently undid the pinned
+ * partition, so pinning looked like a no-op.
+ */
 export function listSessionFamilies(sessions: readonly SessionInfo[]): SessionFamily[] {
   const rootsBySessionId = resolveFamilyRoots(sessions);
   const families = new Map<string, SessionFamily>();
@@ -65,7 +74,7 @@ export function listSessionFamilies(sessions: readonly SessionInfo[]): SessionFa
     if (session.modified > family.latestModified) family.latestModified = session.modified;
   }
 
-  return [...families.values()].sort((a, b) => b.latestModified.localeCompare(a.latestModified));
+  return [...families.values()];
 }
 
 export function getSessionFamily(

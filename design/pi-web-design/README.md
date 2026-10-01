@@ -359,7 +359,7 @@ design/pi-web-design/
 | 参考画板 | 参考内容 | 本项目落点 | 处理 |
 |---|---|---|---|
 | 40 composer-popovers | 模型 / 思考 / 模式 / 布尔选项 / 用量 | `21-menus.html` | 对位，另加工具档与权限档 |
-| 41 topbar-popovers | 项目切换 / 分支 / 新建会话 / 会话菜单 | `22-top-panels.html` | 本项目改写：项目切换在侧栏，顶栏下拉换成系统提示/工具定义/子代理/最近会话 |
+| 41 topbar-popovers | 项目切换 / 分支 / 新建会话 / 会话菜单 | `22-top-panels.html` | 本项目改写：项目切换在侧栏，顶栏下拉换成系统提示/工具定义/子代理（最近会话已按用户要求撤掉） |
 | 42 inline-menus | `@` 提及 / `/` 命令 | `21-menus.html` | 对位，`@` 菜单扩成四类（文件/会话/MCP/Todos） |
 | 43 session-timeline | 会话时间线弹层 | `22-top-panels.html` | 本项目改写：会话查找条 + 迷你地图 |
 

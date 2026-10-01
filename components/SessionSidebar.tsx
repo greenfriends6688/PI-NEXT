@@ -9,7 +9,7 @@ import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
 import { skillExpansionToCommand } from "@/lib/slash-display";
 import { chatProjectOf, getProjectActivity, getRecentProjects, sessionsForProject, withoutChatProject } from "@/lib/project-groups";
 import type { RecentProject } from "@/lib/project-groups";
-import { SESSION_TAG_TONES, applySessionFlags, useSessionFlags, type SessionTag } from "@/lib/session-flags";
+import { applySessionFlags, useSessionFlags } from "@/lib/session-flags";
 import { filterArchivedProjects, useProjectFlags } from "@/lib/project-flags";
 // fork:zc-11 — 用户自定义项目分组 + 拖拽排序（localStorage 展示层偏好）。
 import { useSessionGroups } from "@/lib/session-groups";
@@ -1494,11 +1494,17 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         }
       : null);
 
-  const sessionFamilies = listSessionFamilies(applySessionFlags(filteredSessions, sessionFlags));
+  // fix:pin-partition —— 顺序在这里给（modified 倒序 → `applySessionFlags` 的置顶分区），
+  // `listSessionFamilies` 不再自己按 `latestModified` 重排 —— 那个重排会把刚分出来的
+  // 置顶分区又洗回时间序，置顶因此“点了没反应”。
+  const sessionFamilies = listSessionFamilies(applySessionFlags(
+    [...filteredSessions].sort((a, b) => b.modified.localeCompare(a.modified)),
+    sessionFlags,
+  ));
 
   // fix:no-time-groups —— 不再按时间分桶（今天 / 昨天 / 本周 / 本月 / 更早）。
-  // 顺序完全由 `orderedProjectSessions`（modified 倒序）+ `applySessionFlags`
-  // 的置顶分区决定，所以「置顶在最前、其余新的在前」保持不变。
+  // 顺序完全由上面的 modified 倒序 + `applySessionFlags` 的置顶分区决定，
+  // 所以「置顶在最前、其余新的在前」保持不变。
   // 虚拟列表的口径也简单了：每个元素都是一个会话行，槽位高度只可能是
   // SESSION_LIST_ITEM_HEIGHT / _TALL 两种。
   const sessionListEntries = useMemo<TimeGroupEntry<SessionFamily>[]>(
@@ -1557,7 +1563,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     const displaySession = family.latestModified === family.root.modified ? family.root : { ...family.root, modified: family.latestModified };
     return (
       <div style={{ flex: 1, minWidth: 0 }}>
-        <SessionItem session={displaySession} isSelected={familySessions.some((session) => session.id === selectedSessionId)} isRunning={familySessions.some((session) => runningSessionIds.has(session.id))} isAwaiting={familySessions.some((session) => awaitingSessionIds.has(session.id))} awaitingKind={familySessions.map((session) => awaitingSessionKinds[session.id]).find(Boolean)} isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))} tag={sessionFlags.tags[family.root.id]} onClick={() => handleSelectSessionFromList(family.root)} onRenamed={loadSessions} onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }} />
+        <SessionItem session={displaySession} isSelected={familySessions.some((session) => session.id === selectedSessionId)} isRunning={familySessions.some((session) => runningSessionIds.has(session.id))} isAwaiting={familySessions.some((session) => awaitingSessionIds.has(session.id))} awaitingKind={familySessions.map((session) => awaitingSessionKinds[session.id]).find(Boolean)} isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))} onClick={() => handleSelectSessionFromList(family.root)} onRenamed={loadSessions} onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }} />
       </div>
     );
   };
@@ -2269,7 +2275,6 @@ function SessionItem({
   isAwaiting,
   awaitingKind,
   isUnread,
-  tag,
   onClick,
   onRenamed,
   onDeleted,
@@ -2285,8 +2290,6 @@ function SessionItem({
   isAwaiting?: boolean;
   awaitingKind?: "approval" | "input";
   isUnread?: boolean;
-  /** fork:ui-10 — manual status tag; drives the coloured dot. */
-  tag?: SessionTag;
   onClick: () => void;
   onRenamed?: () => void;
   onDeleted?: (id: string) => void;
@@ -2482,15 +2485,12 @@ function SessionItem({
               <span>{formatRelativeTime(session.modified, locale)}</span>
               <span aria-hidden="true"> · </span>
               <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>
-              {/* 三者互斥：等你处理 > 未读 > 手动标签。运行中不出右侧标记（它靠底边扫掠表达）。 */}
+              {/* 两者互斥：等你处理 > 未读。运行中不出右侧标记（它靠底边扫掠表达）。
+                  fork:no-session-tag（用户 2026-10-01）—— 手动「状态标记」及其彩色点已撤掉。 */}
               {isAwaiting ? (
                 <span className="pw-await" title={t(awaitingKind === "input" ? "sidebar.awaitingInput" : "sidebar.awaitingApproval")}>
                   <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
                   {t(awaitingKind === "input" ? "sidebar.awaitingInputShort" : "sidebar.awaitingApprovalShort")}
-                </span>
-              ) : tag ? (
-                <span title={t(`session.tag.${tag}`)} aria-label={t(`session.tag.${tag}`)} style={{ display: "inline-flex", flex: "none", marginLeft: "var(--space-ctrl)" }}>
-                  <span style={{ width: "var(--dot-sm)", height: "var(--dot-sm)", borderRadius: "50%", background: SESSION_TAG_TONES[tag] }} />
                 </span>
               ) : isUnread ? (
                 <span className="pw-dot unread" title={t("sidebar.newActivity")} aria-label={t("sidebar.newSessionActivity")} />

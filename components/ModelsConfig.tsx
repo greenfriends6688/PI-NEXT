@@ -75,6 +75,7 @@ import {
   type ProviderIconMode,
 } from "@/lib/provider-icon";
 import { ProviderUsageSummary } from "./ProviderUsageSummary";
+import { isProviderUsageId } from "@/lib/provider-usage-ids";
 import { ProviderUsageCards } from "./fork/ProviderUsageCards";
 import {
   favoriteModelKey,
@@ -1919,9 +1920,21 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
           <div className="pw-alert">{loginState.message}</div>
         )}
       </div>
-
-      <ProviderUsageSummary providerId={provider.id} enabled={provider.loggedIn} />
       </ConfigDetail>
+
+    {/* fork:models-board —— 画板 41:101-109：「用量摘要」是**自己一张 `.pw-detail` 卡**
+        （标题行 + 四张小卡），不是登录卡里的一段。原先它紧跟在登录表单后面，
+        根节点 `<section class="pw-rowgap">` 顶着上一行、卡片 padding 也被它和
+        stat 卡分成两组，看着像贴上去的药膏；成卡之后与「登录 / 可用模型」三张卡
+        同底、同边线、同一组内距。
+        行尾的「更新于 …」是元信息档（`.pw-mono pw-dim`，即 var(--text-meta)），
+        由 `ProviderUsageSummary` 自己出（那个文件不在本次改动范围内）。
+        没有用量能力的 provider 由 `isProviderUsageId` 挡掉，不发一张空卡。 */}
+    {isProviderUsageId(provider.id) && (
+      <ConfigDetail>
+        <ProviderUsageSummary providerId={provider.id} enabled={provider.loggedIn} />
+      </ConfigDetail>
+    )}
 
     <ConfigDetail>
       {provider.loggedIn
@@ -2046,9 +2059,15 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
       </ConfigDetailHeader>
 
       {error ? <div className="pw-alert">{error}</div> : null}
-
-      <ProviderUsageSummary providerId={provider.id} enabled={provider.configured} />
     </ConfigDetail>
+
+    {/* 画板 41:101 —— 与 OAuthDetail 同理：用量摘要是自己一张 `.pw-detail` 卡，
+        不挂在登录卡的末尾当一段（原因见上面那条注释）。 */}
+    {isProviderUsageId(provider.id) && (
+      <ConfigDetail>
+        <ProviderUsageSummary providerId={provider.id} enabled={provider.configured} />
+      </ConfigDetail>
+    )}
 
     <ConfigDetail>
       {/* 标题行由 EnabledModelsSection 自己给（画板 41 的「可用模型」头），
@@ -2637,9 +2656,18 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                           className="models-sidebar-indented-item"
                           onClick={() => setSelection({ type: "model", providerName: pName, index: i })}
                         >
-                          <ConfigSidebarText className={m.id ? undefined : "pw-dim"}>
-                             {m.id || t("i18n.newModel")}
-                          </ConfigSidebarText>
+                          {/* fork:models-board —— 名字包 `.grow`，思考档徽章与收藏星
+                              因此贴到行右缘（board.css:858 `.pw-litem .grow{flex:1}`）。
+                              依据：画板 41:74 的供应商行是
+                              `<span class="grow">…</span>` + 行尾星标，画板 02:41/68-71
+                              的 `.pw-row` 同样是「图标 + 名称 + grow + 右侧动作」。
+                              少了这层 `.grow`，星标会紧贴模型 id 顶在左边、右侧空一大片 ——
+                              与上面那一行供应商、以及右列「可用模型」卡都不齐。 */}
+                          <span className="grow">
+                            <ConfigSidebarText className={m.id ? undefined : "pw-dim"}>
+                               {m.id || t("i18n.newModel")}
+                            </ConfigSidebarText>
+                          </span>
                           {m.reasoning && (
                             <ConfigBadge tone="accent">T</ConfigBadge>
                           )}

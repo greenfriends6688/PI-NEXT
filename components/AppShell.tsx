@@ -134,7 +134,6 @@ import type { ToolEntry } from "@/lib/tool-presets";
 import { getSessionFamily } from "@/lib/session-family";
 import { getLastSettingsSection, type SettingsSection } from "@/lib/settings-navigation";
 import { TEXT } from "@/lib/typography";
-import { formatRelativeTime } from "@/lib/i18n/format";
 
 type AutoNameStatus =
   | { kind: "idle" }
@@ -387,8 +386,6 @@ export function AppShell() {
   const [pendingQuotePrompt, setPendingQuotePrompt] = useState<{ sessionId: string; text: string } | null>(null);
   const [pendingNewSessionPrompt, setPendingNewSessionPrompt] = useState<{ draftId: string; cwd: string; text: string } | null>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
-  // fork:ui-18 — anchor for the title session switcher.
-  const topBarTitleRef = useRef<HTMLButtonElement>(null);
   const mobileToolbarRef = useRef<HTMLDivElement>(null);
   // Branch navigator state — populated by ChatWindow via onBranchDataChange
   const [branchTree, setBranchTree] = useState<SessionTreeNode[]>([]);
@@ -452,8 +449,9 @@ export function AppShell() {
   }, []);
 
   // Single active panel — only one dropdown open at a time
-  const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | "sessions" | null>(null);
-  const TOP_BAR_SESSIONS_MENU_WIDTH = 300;
+  // fork:no-recent-sessions（用户 2026-10-01）—— 顶栏标题原先是「最近会话」下拉的
+  // 触发钮（`"sessions"` 那一档）。整块撤掉：侧栏本来就是切会话的地方。
+  const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | null>(null);
   const [topPanelPos, setTopPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
@@ -474,7 +472,7 @@ export function AppShell() {
      这里记下「谁被点了」，定位时量那一个元素；量不到时回落到顶栏左缘。 */
   const topPanelAnchorRef = useRef<HTMLElement | null>(null);
   const toggleTopPanel = useCallback((
-    panel: "agents" | "branches" | "system" | "tools" | "sessions",
+    panel: "agents" | "branches" | "system" | "tools",
     keepMobileToolbarOpen = false,
     trigger?: HTMLElement | null,
   ) => {
@@ -585,9 +583,8 @@ export function AppShell() {
         const rect = anchor.getBoundingClientRect();
         const width = widthFor(
           activeTopPanel === "agents" ? AGENT_PANEL_WIDTH
-            : activeTopPanel === "sessions" ? TOP_BAR_SESSIONS_MENU_WIDTH
-              : activeTopPanel === "tools" ? TOP_BAR_WIDE_PANEL_WIDTH
-                : TOP_BAR_PANEL_WIDTH,
+            : activeTopPanel === "tools" ? TOP_BAR_WIDE_PANEL_WIDTH
+              : TOP_BAR_PANEL_WIDTH,
         );
         setTopPanelPos({
           top: rect.bottom,
@@ -611,18 +608,6 @@ export function AppShell() {
         setTopPanelPos({
           top: topBarRect.bottom,
           left: Math.max(8, topBarRect.right - width - 8),
-          width,
-        });
-        return;
-      }
-      // fork:ui-18 — the session switcher hangs under the title, so it keeps the
-      // left edge of the title area instead of the bar's right edge.
-      if (activeTopPanel === "sessions") {
-        const titleRect = topBarTitleRef.current?.getBoundingClientRect();
-        const width = widthFor(TOP_BAR_SESSIONS_MENU_WIDTH);
-        setTopPanelPos({
-          top: topBarRect.bottom,
-          left: Math.max(8, Math.min(titleRect?.left ?? topBarRect.left, topBarRect.right - width - 8)),
           width,
         });
         return;
@@ -2257,25 +2242,18 @@ export function AppShell() {
 
   /* fork:design-components —— 顶栏标题 = 画板 01/02 的 `.pw-tb-title`：一枚淡色
      panel-left + 标题文本，省略号由 `.pw-topbar .pw-tb-title span` 给（board.css
-     line 224-225），所以这里不再自绘盒子。标题同时是「最近会话」下拉的触发钮
-     （fork:ui-18），激活档由 `is-on` 表达。手机上表头左侧已经有自己的
+     line 224-225），所以这里不再自绘盒子。它曾经是「最近会话」下拉的触发钮
+     （fork:ui-18），那一档已按用户要求撤掉（fork:no-recent-sessions），所以现在是
+     纯文本而不是 `<button>`。手机上表头左侧已经有自己的
      panel-left / menu 钮，所以这里不再重复一枚图标。 */
   const renderSessionTitle = () => (
-<button
-  type="button"
-  ref={topBarTitleRef}
+<div
   title={topBarSessionTitle}
-  aria-label={translate("sidebar.recentSessions")}
-  aria-expanded={activeTopPanel === "sessions"}
-  onClick={() => toggleTopPanel("sessions", false)}
-  style={{ border: 0, background: "transparent", fontFamily: "inherit", cursor: "pointer", textAlign: "left" }}
-  onMouseEnter={(event) => { event.currentTarget.style.background = activeTopPanel === "sessions" ? "var(--bg-selected)" : "var(--bg-hover)"; }}
-  onMouseLeave={(event) => { event.currentTarget.style.background = activeTopPanel === "sessions" ? "var(--bg-selected)" : "transparent"; }}
-  className={activeTopPanel === "sessions" ? "pw-tb-title is-on" : "pw-tb-title"}
+  className="pw-tb-title"
 >
   {!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span>}
   <span>{topBarSessionTitle}</span>
-</button>
+</div>
   );
 
 
@@ -2819,65 +2797,6 @@ export function AppShell() {
                   translate={translate}
                 />
               )}
-              {activeTopPanel === "sessions" && (
-                // fork:ui-18 — recent sessions, newest first.
-                // fix:top-panel-board22 —— 这一块原来是**整段自绘**（`--bg-elev` /
-                // `--radius-lg` / `--shadow-lg` 那套旧 token，行是 30px 的内联盒子），
-                // 与画板 22 的「最近会话」不是一个东西。改成画板原件：
-                //   `.pw-pop` 外壳 + `.pw-pop-title` 标题 + 每行 `.pw-prow`
-                //   （message-square 图标 + 标题 + 相对时间 `.pw-desc`；当前项 `is-on`）
-                //   + `.pw-sep` + `.pw-prow` 新建任务行（带 `.pw-kbd`）。
-                <div className="pw-pop" style={{ margin: "var(--s1)" }}>
-                  <div className="pw-pop-title">{translate("sidebar.recentSessions")}</div>
-                  {[...sessionCatalog]
-                    .sort((a, b) => b.modified.localeCompare(a.modified))
-                    .slice(0, 10)
-                    .map((session) => {
-                      const label = session.name?.trim()
-                        || session.firstMessage?.trim().replace(/\s+/g, " ").slice(0, 60)
-                        || translate("i18n.newSession");
-                      const isCurrent = session.id === selectedSession?.id;
-                      return (
-                        <button
-                          key={session.id}
-                          type="button"
-                          title={session.cwd}
-                          className={`pw-prow${isCurrent ? " is-on" : ""}`}
-                          style={{ width: "100%" }}
-                          onClick={() => {
-                            toggleTopPanel("sessions", false);
-                            handleSelectSession(session, true);
-                          }}
-                        >
-                          <span className="pw-ico"><i data-ico="message-square" data-size="14"></i></span>
-                          <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-                          <span className="pw-desc">
-                            {isCurrent
-                              ? translate("sidebar.currentSession")
-                              : formatRelativeTime(session.modified, locale)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  <div className="pw-sep" />
-                  <button
-                    type="button"
-                    className="pw-prow"
-                    style={{ width: "100%" }}
-                    onClick={() => {
-                      const cwd = selectedSession?.cwd ?? activeCwd;
-                      toggleTopPanel("sessions", false);
-                      if (!cwd) return;
-                      const tempId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}`;
-                      handleNewSession(tempId, cwd);
-                    }}
-                  >
-                    <span className="pw-ico"><i data-ico="square-pen" data-size="14"></i></span>
-                    <span className="grow">{translate("sidebar.newTask")}</span>
-                    <span className="pw-kbd">⌘N</span>
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -3184,7 +3103,6 @@ export function AppShell() {
     {settingsSection && (
       <SettingsPanel
         onOpenSession={handleOpenSession}
-        onOpenFile={(filePath) => handleOpenFile(filePath, getFileName(filePath))}
         sessionId={selectedSession?.id ?? null}
         initialSection={settingsSection}
         sidebarWidth={sidebarResizer.width}

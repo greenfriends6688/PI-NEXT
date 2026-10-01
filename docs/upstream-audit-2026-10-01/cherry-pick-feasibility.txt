@@ -1,0 +1,123 @@
+CONFLICT	e17d2cc  	files=6  	same=0/6	fix(chat): drop extension UI requests the server closed while the stream
+CONFLICT	34c8fdf  	files=2  	same=0/2	fix(sessions): wait for a closing wrapper before reopening its session
+CONFLICT	18758b7  	files=3  	same=0/3	fix(tools): carry only active tools and keep session tools across naviga
+CONFLICT	197a3e5  	files=17 	same=0/17	refactor(settings): share settings panel blocks and localize Plugins and
+CONFLICT	70470ca  	files=9  	same=0/9	fix(chat): queue extension dialogs and custom panels by request id
+CONFLICT	b8e0b71  	files=8  	same=0/8	perf(sse): slim nested tool events and coalesce tool updates
+CONFLICT	aed0f3c  	files=3  	same=0/3	fix(sessions): treat a wrapper as gone once shutdown starts and bound se
+CONFLICT	73104ba  	files=4  	same=0/4	refactor(tools): stop withExtensionTools from forcing inactive tools on
+ok	85f9cb1  	files=5  	same=0/5	feat(mcp): load the SDK's unexported MCP modules and scrub stdio environ
+CONFLICT	b3c7255  	files=2  	same=0/2	fix(files): stop authorizing paths from system messages and non-coding t
+ok	62542da  	files=3  	same=0/3	refactor(subagents): register the subagent control tools as model-only
+ok	89bd25b  	files=0  	same=0/1	docs(adr): record how MCP and Code mode are supported (ADR 0006)
+CONFLICT	94c1f5c  	files=5  	same=0/5	fix(chat): preserve drafts when selecting history edits
+CONFLICT	19774b8  	files=11 	same=0/11	feat(chat): fork a session while it is running (#1023)
+CONFLICT	4de9f77  	files=3  	same=0/3	fix(settings): enlarge skill and plugin group switches
+CONFLICT	2bb48f5  	files=10 	same=0/10	chore(deps): upgrade pi to 0.99.1
+CONFLICT	d0bf6be  	files=3  	same=0/3	feat(chat): change the reasoning level while a run streams (#851) (#1022
+CONFLICT	b9622a1  	files=11 	same=0/11	refactor(settings): switch skill and plugin groups from their headings (
+CONFLICT	687af27  	files=11 	same=0/11	fix(files): let the operator open symlinked folders outside the project 
+CONFLICT	eceac13  	files=15 	same=0/15	feat(settings): Enable all / Disable all for Skills and Plugins (#1020)
+CONFLICT	13bc2b0  	files=5  	same=0/5	fix(files): let Git decide what the file tree hides (#1014)
+CONFLICT	f52fd84  	files=6  	same=0/6	fix(compat): load on Safari and iOS 16.2 (#1019)
+CONFLICT	faeff03  	files=5  	same=0/5	fix(chat): keep typed line breaks in user messages (#1015)
+ok	f5e768e  	files=5  	same=0/5	fix(bash): let Stop end a command whose output a survivor holds open (#1
+CONFLICT	9ede521  	files=2  	same=0/2	fix(sessions): reap a run Stop cannot unwind when idle shutdown is disab
+CONFLICT	d8f89c5  	files=5  	same=0/5	feat(models): resolve the discovery endpoint from pi's provider catalog 
+CONFLICT	5df8278  	files=9  	same=0/9	feat(settings): configurable send key (Enter or Ctrl+Enter) (#1001)
+CONFLICT	6b0c6a5  	files=2  	same=0/2	fix(agent-events): bound the per-client SSE backlog (#997)
+CONFLICT	390e70f  	files=5  	same=0/5	fix(ui): keep the mobile composer above the keyboard and give typing mor
+CONFLICT	680db65  	files=7  	same=0/7	Add directory creation to the folder picker (#981)
+CONFLICT	2a71c57  	files=5  	same=0/5	fix(subagents): say when a background report comes from a resumed run (#
+CONFLICT	00156d5  	files=2  	same=0/2	fix(subagents): report a run orphaned by a restart as interrupted (#990)
+CONFLICT	c8ff7e8  	files=4  	same=0/4	fix(subagents): key the collected-result mark by run, not session (#987)
+CONFLICT	6f92983  	files=3  	same=0/3	fix(agent): report the system prompt before a session's first message (#
+CONFLICT	6a97d0b  	files=3  	same=0/3	fix: preserve currency formatting alongside inline math (#976)
+CONFLICT	4a5081a  	files=4  	same=0/4	fix: stop autolink literals at CJK punctuation (#971) (#972)
+ok	92ae057  	files=2  	same=0/2	fix(models): do not open the keyboard when the model picker opens on mob
+CONFLICT	0bae9b6  	files=2  	same=0/2	fix(chat): collapse process details once a turn's answer appears (#1011)
+CONFLICT	fe288c0  	files=15 	same=0/15	Review follow-ups for #907, #946 and #968 (#1010)
+CONFLICT	7303179  	files=5  	same=0/5	fix(chat): branch a history edit only when it is sent (#1009)
+CONFLICT	2e66e40  	files=5  	same=0/5	fix(chat): report compaction instead of "waiting for model" during auto-
+ok	4cc0770  	files=6  	same=0/6	fix: confirm force removal for submodule worktrees (#1007)
+CONFLICT	bd85004  	files=7  	same=0/7	fix(models): save a typed provider name with the Save button (#969)
+CONFLICT	342fc9a  	files=13 	same=0/13	fix(chat): tell unanswered output truncation to compact instead of retry
+CONFLICT	46b5235  	files=2  	same=0/2	fix(chat): let a long extension dialog title shrink instead of hiding th
+ok	162a749  	files=4  	same=0/4	fix(subagents): resolve `ext:` selectors against real extension sources 
+CONFLICT	69882b9  	files=2  	same=0/2	fix: group a turn whose anchor falls outside the first history page (#94
+CONFLICT	a0c00f3  	files=9  	same=3/9	feat(sidebar): open workspace in the system file manager (#907)
+CONFLICT	433d09e  	files=6  	same=0/6	feat(default-cwd): create dated folders under ~/pi-cwd using the local d
+CONFLICT	6a1246e  	files=20 	same=0/20	fix: do not persist new-session model picks into global defaults (#871)
+CONFLICT	fd037e4  	files=3  	same=0/3	feat(chat): continue Markdown lists on new lines in the composer (#884)
+ok	96966e5  	files=5  	same=0/6	fix(demo): CI typecheck, downloads on Pages, README auto-tab (#950)
+CONFLICT	4857da3  	files=266	same=0/268	feat(demo): static Pi Web demo for GitHub Pages (#949)
+CONFLICT	0876cf4  	files=1  	same=0/1	Release v0.9.3
+CONFLICT	b908729  	files=1  	same=0/1	chore(deps): upgrade pi to 0.87.1
+CONFLICT	a3f24ea  	files=2  	same=0/2	fix(agent): deliver events to every listener when one unsubscribes mid-e
+CONFLICT	499aa4f  	files=8  	same=0/8	fix(models): read models.json like pi and never save over an unreadable 
+ok	6ad18cd  	files=4  	same=0/5	fix(env): keep PI_WEB_PASSWORD out of agent bash and terminal shells
+CONFLICT	3e1f436  	files=4  	same=0/4	fix(auth): reject login redirects that resolve to another origin
+CONFLICT	beb32a9  	files=2  	same=0/2	fix(auth): throttle Basic Auth attempts with the login form
+CONFLICT	f101948  	files=2  	same=0/2	perf(ui): reduce session list scroll work
+CONFLICT	ea8a278  	files=4  	same=0/4	fix(ui): stabilize subtle scrollbars
+CONFLICT	79c2a44  	files=1  	same=0/1	chore(deps): trim the production install and bump next, semver, undici (
+CONFLICT	040fadd  	files=1  	same=0/1	Release v0.9.2
+CONFLICT	234e19e  	files=27 	same=0/27	perf(session): #928 + #912 rebased onto main, with fixes (#940)
+CONFLICT	1bd40e4  	files=6  	same=0/6	feat(minimap): show a per-turn tool-call count in the hover preview (#93
+CONFLICT	058341d  	files=8  	same=1/8	feat(models): add a manual "Refresh catalog" button to the Models panel 
+CONFLICT	12d3599  	files=4  	same=0/4	fix(subagents): drop the completion notification for an already collecte
+CONFLICT	03a9f5d  	files=13 	same=0/13	fix(tools): stop overriding settings.json defaultTools on new sessions (
+CONFLICT	54aa49c  	files=4  	same=0/4	fix(subagents): mark background results as non-user messages (#875) (#93
+CONFLICT	f07d4a2  	files=8  	same=0/9	feat(subagents): switch individual built-in sub-agents off (#874) (#934)
+CONFLICT	0b307d5  	files=2  	same=0/2	fix(chat): reopen the session event stream under Strict Mode effect re-r
+CONFLICT	5933184  	files=2  	same=0/2	fix(ui): make scrollbars grabbable and show one in the chat (#873, #788)
+CONFLICT	8b084d3  	files=3  	same=0/3	fix(models): show relative time when provider usage was not updated toda
+CONFLICT	da1b28b  	files=24 	same=1/24	chore(deps): upgrade pi to 0.87.0 (#931)
+CONFLICT	50f6cce  	files=16 	same=1/17	feat(models): enabledModels switches in Settings → Models, as minimal 
+CONFLICT	0611857  	files=3  	same=0/3	fix(chat): keep earlier replies visible after a subagent notification (#
+CONFLICT	ef1de89  	files=7  	same=0/7	feat(sessions): remember the open session per browser tab (#887)
+CONFLICT	1eb5e66  	files=9  	same=2/9	feat: scroll to latest button (#845)
+CONFLICT	38cba2b  	files=7  	same=0/7	feat(plugins): show package description in the Plugins panel (#868)
+ok	f3a4ff6  	files=2  	same=0/2	fix: keep selection toolbar above the session sidebar (#855)
+CONFLICT	be38e5d  	files=1  	same=0/1	feat(files): add mention button and middle-ellipsis path to changed-file
+CONFLICT	31f0505  	files=2  	same=0/2	fix: raise Next.js proxy body buffer so large uploads work (#846)
+CONFLICT	20a2579  	files=3  	same=0/3	fix(subagents): include session ID in foreground completion text (#847)
+CONFLICT	9d282da  	files=2  	same=0/2	fix(subagents): report provider stream errors as failed runs (#886)
+CONFLICT	b4a4539  	files=2  	same=0/2	fix(pwa): bound the navigation and asset fetches so a dead upstream cann
+SAME	6e95fba  	files=3  	same=3/3	feat(models): show OpenCode Go provider usage quota (#844)
+CONFLICT	5e9b997  	files=13 	same=0/13	fix(file-viewer): honor #page= fragments in PDF links (#841)
+ok	8df5132  	files=3  	same=2/3	fix: preserve extension widget order on updates (#839)
+SAME	002400d  	files=2  	same=2/2	fix(streaming): stop duplicating the first streamed chunk (#835)
+SAME	afd2575  	files=4  	same=4/4	fix(plugins): run npm update checks without the npm.cmd shim on Windows 
+CONFLICT	c844973  	files=8  	same=0/8	fix: surface when a response is truncated by the output limit (#830)
+SAME	79894b9  	files=5  	same=5/5	fix(models): include extension-registered providers in settings and auth
+CONFLICT	f2d600b  	files=7  	same=0/7	feat(chat): add /auto-compact slash command to toggle auto-compaction (#
+CONFLICT	d11d344  	files=5  	same=0/5	Show tool-result images while the tool card is collapsed (#826)
+ok	fce666a  	files=1  	same=0/1	fix(plugins): normalize relativePath separators for Windows (#827)
+SAME	404923e  	files=3  	same=3/3	fix(cli): disable Wasm lazy compilation on RISC-V (#823)
+CONFLICT	ed50d88  	files=8  	same=0/8	feat(sidebar): make conversation and file panes resizable (#825)
+ok	58c1a21  	files=1  	same=0/1	chore: ignore .agents/ and skills-lock.json
+CONFLICT	a84093e  	files=2  	same=0/2	fix: keep the shutdown hook out of the Edge instrumentation entry
+CONFLICT	974c8bb  	files=2  	same=0/2	Name sessions from a bounded transcript (#807)
+ok	eac6f14  	files=1  	same=0/1	fix(e2e): size the compacted fixture for the visible-message tail
+CONFLICT	50a2fd4  	files=2  	same=0/2	fix: count only visible messages toward the session tail budget (#810)
+CONFLICT	1f79174  	files=2  	same=0/2	fix: close SSE streams on shutdown so Next 16 drain cannot strand a zomb
+CONFLICT	47a0bb2  	files=1  	same=0/1	fix: use crypto randomUUID for manual-code handshake tokens (#811)
+CONFLICT	ffb2daf  	files=8  	same=0/8	Add a full-width toggle to the file panel (#790)
+ok	ed7a4d7  	files=0  	same=0/0	docs(AGENTS): list plugin-updates helper in lib file map (#821)
+ok	6edbecb  	files=0  	same=0/0	docs(AGENTS): sync API file map with app/api routes (#820)
+ok	5b96a9d  	files=0  	same=0/0	docs(AGENTS): document PI_WEB_IDLE_TIMEOUT_MS for session idle shutdown 
+CONFLICT	b44017a  	files=12 	same=0/12	fix: see sessions written by another pi process (#796)
+CONFLICT	3f07a5f  	files=13 	same=0/13	Show the reasoning level of the running turn (#777)
+CONFLICT	d2056b6  	files=2  	same=0/2	feat: preview image attachments in the chat composer (#735)
+CONFLICT	e70c367  	files=7  	same=1/7	Render apply_patch tool calls (GPT) as split diffs (#744)
+CONFLICT	b42d3f4  	files=3  	same=0/3	Keep user-opened tools expanded across streaming updates (#743)
+CONFLICT	860698a  	files=1  	same=0/1	feat: add extension widget font size setting (#733)
+CONFLICT	744ee93  	files=1  	same=0/1	feat(worktree): fetch origin before add and raise git timeout for large 
+CONFLICT	20ad98b  	files=8  	same=0/8	fix(auth): throttle web password failures with global backoff
+CONFLICT	ed0eea9  	files=1  	same=0/1	fix: keep focused extension select option clear of the scroller edge
+CONFLICT	e5a2434  	files=2  	same=0/2	fix(deps): upgrade Next.js to 16.3.5 and disable image optimizer
+CONFLICT	fcd94bf  	files=2  	same=0/2	fix: preserve newlines in extension dialog titles like pi's TUI
+ok	c1e544b  	files=2  	same=0/2	fix(auth): use SameSite=Lax for pi_web_session cookie (#818)
+CONFLICT	c04bab7  	files=3  	same=0/3	fix: preserve UNC roots in file API paths
+CONFLICT	135517b  	files=1  	same=0/1	Align new session branding with chat input

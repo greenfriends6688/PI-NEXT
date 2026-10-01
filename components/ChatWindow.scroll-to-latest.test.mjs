@@ -68,3 +68,13 @@ test("exposes the detached-tail flag from the session hook without a ref read", 
   );
   assert.match(hookSource, /promptAnchorActive,\s*showScrollToBottom,\s*\/\/ Refs/);
 });
+
+// fix:sel-pop-nowrap —— 选区浮窗收起态是**两枚带文案的动作钮**：恒定同一行，
+// 宽度交给内容（`.pw-pop` 自带的 320 只适合列表型弹层；更长的语言会把它挤到换行
+// + 竖向滚动条）。展开态是 420 宽的小编辑器，内部的 ChatInput 要自己换行，
+// 所以 nowrap 只作用在收起态。
+test("the transcript selection toolbar stays on one line and sizes to its content", () => {
+  assert.match(source, /flexWrap: quoteInputOpen \? "wrap" : "nowrap",\s*\n\s*whiteSpace: quoteInputOpen \? undefined : "nowrap",/);
+  assert.match(source, /width: quoteInputOpen \? "min\(420px, calc\(100vw - 16px\)\)" : "max-content",/);
+  assert.equal((source.match(/className="pw-btn sm"/g) ?? []).length >= 2, true, "both actions are labelled buttons");
+});

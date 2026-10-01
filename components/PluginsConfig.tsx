@@ -872,7 +872,24 @@ function AddMcpServer({
  *  芯片 + `.pw-sep` + `.pw-prow` 行）› `.pw-modal-foot`（计数 + 取消）。
  *  覆盖层的 fixed / 层级画板没有产品等价物（`.pw-scrim` 已被皮肤工作室接线占用
  *  z 序），照 ModelsConfig 的先例保留这组行为 inline。画板 62 上轮裁定：导入要
- *  模态，不再占详情列。 */
+ *  模态，不再占详情列。
+ *
+ *  fork:settings-modal-scroll —— 弹层壳另外补了三处滚动语义（实测数据见下）。
+ *  画板 50 的 `.pw-modal`（board.css:631）是 **560 定宽、height:auto 的普通确认框**，
+ *  产品这个弹层的内容行数是数据（一次能扫到十几个 MCP server），于是：
+ *   ① 壳没有高度上限 → `.pw-modal`（`overflow:hidden`）比视口高（900 视口下实测
+ *      991px，上下各溢出 45px），底部 `.pw-modal-foot` 被裁在视口外；
+ *   ② `.pw-modal-body` 虽然有 `overflow-y:auto`（board.css:643），但它的 height 是
+ *      auto = 内容高（实测 clientHeight 887 === scrollHeight 887），**滚动容器没有
+ *      确定高度就永远不会滚** —— 用户看到的正是「列了一长串、滑不动」；
+ *   ③ `.pw-modal-body` 是 `display:grid`，列宽 auto 取 min-content：导入行里那行
+ *      `white-space:nowrap` 的命令行把整条轨道顶到 825px（实测 scrollWidth 857 vs
+ *      clientWidth 558），于是连**横向**都溢出，壳 `overflow:hidden` 把右端的
+ *      「导入」按钮裁掉。
+ *  修法（照 DirectoryPicker.tsx:228/257 的既有写法：壳 inline 一个视口上限 + flex 列，
+ *  内容行 `flex:1; min-height:0`）：壳 maxHeight 吃视口、内容行成为唯一的滚动容器、
+ *  网格列改 `minmax(0,1fr)` 让行宽回到壳内（长命令在行内单行省略，`.grow` 的
+ *  `min-width:0` 已在位）。head / foot 不参与滚动，永远可见。 */
 function McpImportModal({
   open,
   discovering,
@@ -915,7 +932,19 @@ function McpImportModal({
         if (event.target === event.currentTarget) onDismiss();
       }}
     >
-      <div className="pw-modal">
+      <div
+        className="pw-modal"
+        /* fork:settings-modal-scroll —— 壳要一个确定的高度上限，内容行才有确定的
+           可视高度可滚。`- 32px` 是视口边距（沿用 ChatWindow / FileViewer 的
+           `calc(var(--app-viewport-height, 100dvh) - 16px)` 写法，留两倍呼吸）。
+           maxWidth 同理：560 是画板给桌面确认框的定宽，窄视口下壳不该顶出屏幕。 */
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "calc(var(--app-viewport-height, 100dvh) - 32px)",
+          maxWidth: "calc(100vw - 32px)",
+        }}
+      >
         <div className="pw-modal-head">
           <span className="pw-ico"><i data-ico="import" data-size="16"></i></span>
           {t("mcp.importTitle")}
@@ -931,7 +960,11 @@ function McpImportModal({
           </button>
         </div>
 
-        <div className="pw-modal-body">
+        {/* fork:settings-modal-scroll —— `flex:1 + min-height:0` 让内容行吃满
+            「壳高 − 头 − 脚」，剩下的高度就是它的滚动区（board.css:643 已给
+            `overflow-y:auto`）；`minmax(0,1fr)` 把网格列从 min-content 收成壳宽，
+            长命令行在行内单行省略而不是把壳顶宽。 */}
+        <div className="pw-modal-body" style={{ flex: "1 1 0%", minHeight: 0, gridTemplateColumns: "minmax(0, 1fr)" }}>
           <p className="pw-hint">{t("mcp.importHint")}</p>
           {sourceCounts.size > 0 && (
             <>
@@ -1553,14 +1586,45 @@ export function PluginsConfig({
 
           页脚整块删掉了：它原来同时干三件事 —— 放统计（`4 ext · 7 skills …`）、
           放动作（检查更新 / 刷新）、并且**在 MCP 页原样显示插件页的统计**
-          （`only="mcp"` 模式没把它一起关掉）。现在统计进工具栏的等宽徽章，
-          动作按级别归位，页脚不再存在。 */}
+          （`only="mcp"` 模式没把它一起关掉）。现在统计进等宽徽章，
+          动作按级别归位，页脚不再存在。
+
+          fork:mcp-head-actions —— MCP 分节**不再有工具栏那一行**：它原来只有
+          「N 个服务器」徽章 + 「刷新」两枚东西，被 `.pw-stools`（board.css:698，
+          定高 40px + 下边框）撑成一整行，右边一小块、左边一大片空。画板 43 的 MCP
+          帧（146–149 行）把计数徽章放在 `.pw-shead-acts` 的**第一位**，primary 的
+          「添加服务器」收在最后一位，中间是 outline 的「从其它 agent 导入」；画板 62
+          帧 B 的工具栏示例也写着「列表级 · 与计数同排」。所以这里照抄画板 43 的顺序：
+          计数徽章 › 刷新 › 导入 › 添加MCP，间距由 `.pw-shead-acts{gap:var(--s2)}`
+          （board.css:696）承担，不另加 margin。刷新带 refresh-cw 图标，跟同一排的
+          两枚按钮对齐（画板 43:148-149 / 画板 62:146，页头动作都是「图标 + 文案」）。
+          〔有意偏离〕SettingsUi 的 actions 契约写「页级动作最多 2 个（1 主 1 次）」：
+          这里页头是「1 徽章 + 3 钮」（徽章不是动作）。依据是画板 43 的 MCP 帧本身
+          就把徽章放进 `.pw-shead-acts`，加上用户明确要求「计数与刷新并进页头、
+          删掉那一整行」；实测 1440 下这排只占 325px（x1075–1400），间距恒 8px，
+          900px 窄视口下也仍是单行不换行（`.pw-shead-acts` 是 `flex-wrap:nowrap`）。 */}
       <SettingsPage
         title={mcpOnly ? t("mcp.sectionTitle") : t("common.plugins")}
         sub={mcpOnly ? t("mcp.pageSub") : t("plugins.pageSub")}
         actions={
           mcpOnly ? (
             <>
+              {/* 画板 43:147 —— 计数徽章是 `.pw-shead-acts` 的第一枚，不是页头文案：
+                  「这页是干嘛的」归 p.sub，数据归徽章（SettingsUi 的 actions 契约）。 */}
+              <ConfigBadge tone="count">{t("mcp.count", { count: String(mcpData?.servers.length ?? 0) })}</ConfigBadge>
+              {/* fix:mcp-refresh-target —— 位置从工具栏搬进页头动作，行为不变：
+                  它原来调 loadPlugins()（只打 /api/plugins、写插件页状态，于是列表、
+                  徽章、错误态都不动），MCP 模式调 loadMcp()，置灰跟 MCP 自己的状态
+                  （加载中 / MCP 动作在飞），不被插件页的 loading 牵连。 */}
+              <ConfigButton
+                variant="secondary"
+                size="small"
+                onClick={() => void loadMcp()}
+                disabled={mcpLoading || mcpBusy}
+              >
+                <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+                {t("i18n.refresh")}
+              </ConfigButton>
               <ConfigButton
                 variant="secondary"
                 size="small"
@@ -1629,42 +1693,29 @@ export function PluginsConfig({
             </>
           )
         }
-        toolbar={
+        /* fork:mcp-head-actions —— MCP 分节没有工具栏（画板 43 的 MCP 帧在页头与
+           内容区之间没有 `.pw-stools`），省略 prop 即不渲染那一行（SettingsUi:442）。
+           插件分节的工具栏原样保留：诊断徽章 + 资源计数 + 刷新，那一枚刷新继续调
+           loadPlugins()、置灰跟 footerBusy —— 与 MCP 那枚是两回事。 */
+        toolbar={mcpOnly ? undefined : (
           <>
             <span className="pw-grow" aria-hidden="true" />
-            {mcpOnly ? (
-              <ConfigBadge tone="count">{t("mcp.count", { count: String(mcpData?.servers.length ?? 0) })}</ConfigBadge>
-            ) : (
-              <>
-                {data?.diagnostics.length ? (
-                  <ConfigBadge
-                    tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
-                    title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
-                  >
-                    {t("plugins.diagnostics", { count: data.diagnostics.length })}
-                  </ConfigBadge>
-                ) : null}
-                <ConfigBadge tone="count">
-                  {data ? `${data.totals.extensions} ext · ${data.totals.skills} skills` : ""}
-                </ConfigBadge>
-              </>
-            )}
-            {/* fix:mcp-refresh-target —— MCP 分节那枚「刷新」原来调的是 loadPlugins()：
-                它只打 /api/plugins、写的是插件页状态，于是右侧列表、顶部「N 个服务器」
-                徽章、错误态一个字都不动（手工改过 mcp.json 回来点刷新也永远看不到新条目）。
-                MCP 模式改调 loadMcp()，置灰也跟着 MCP 自己的状态（加载中 / MCP 动作在飞），
-                不再被插件页的 loading 牵连。 */}
-            {mcpOnly ? (
-              <ConfigButton size="small" onClick={() => void loadMcp()} disabled={mcpLoading || mcpBusy}>
-                {t("i18n.refresh")}
-              </ConfigButton>
-            ) : (
-              <ConfigButton size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
-                {t("i18n.refresh")}
-              </ConfigButton>
-            )}
+            {data?.diagnostics.length ? (
+              <ConfigBadge
+                tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
+                title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
+              >
+                {t("plugins.diagnostics", { count: data.diagnostics.length })}
+              </ConfigBadge>
+            ) : null}
+            <ConfigBadge tone="count">
+              {data ? `${data.totals.extensions} ext · ${data.totals.skills} skills` : ""}
+            </ConfigBadge>
+            <ConfigButton size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
+              {t("i18n.refresh")}
+            </ConfigButton>
           </>
-        }
+        )}
         fill
       >
         {/* fork:design-system SW-14 —— 画板 42 / 43 的信任提示是 `.pw-alert info` 一行。 */}

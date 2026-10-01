@@ -679,6 +679,7 @@
     `--radius-lg` / `--shadow-lg` 那套旧 token + 30px 内联行），换成 `.pw-pop` +
     `.pw-pop-title` + `.pw-prow`（message-square + 标题 + 相对时间 / 当前项用新增的
     `sidebar.currentSession`）+ `.pw-sep` + 新建任务行（`.pw-kbd` ⌘N）。
+    **→ 这扇浮窗已于 129 条整块撤掉**（用户要求），连同那两条 i18n 文案。
 
 87. **斜杠命令浮窗不再换行**（`ChatInput.tsx`）：680×`minmax(220px)` 排 3 列时每列只有
     ~218px，而命令名那格带 `overflowWrap: anywhere` —— 稍长的技能命令折成两行。
@@ -833,6 +834,7 @@
      浮窗底部有横向滚动条 —— 那是**打包快照里的旧面板**（旧面板是自绘的、没有 `.pw-pop`
      约束）。仓库构建实测：320 宽、`overflow-x: hidden`、`popScrollX:false`、
      行内 `pw-desc` 时间格 `scrollWidth === clientWidth`（0 处裁切），1440 / 1080 两档一致。
+     **→ 129 条：这扇浮窗已按用户要求整块撤掉，本条的裁切结论随之作废。**
 
 105. **供应商选择弹窗的图标**（`components/ProviderIcon.tsx`）：**登记不改**。
      用户「icon 没了 / 显示慢」。仓库构建实测（30141，设置 → 模型 → `+`）：
@@ -1110,6 +1112,48 @@
      把它的注释块提前闭合了，后面 10 行 `* …` 悬空成非法 token —— webpack 生产构建容忍它，
      Turbopack（`npm run dev:clean`）直接报 `Invalid dangling combinator in selector` 并拒绝编译。
      已并回同一个注释块。
+
+129. **用户 2026-10-01 的三处减法**（顶栏最近会话 / 工作区芯片的蓝 / 会话状态标记）：
+     - **顶栏「最近会话」浮窗撤掉**（`AppShell.tsx`）：画板 22 帧 0 画了这扇下拉，
+       产品从顶栏标题挂出去（`activeTopPanel === "sessions"`）。用户：「这个下拉的这个弹窗，
+       一会儿帮我删除掉吧」。现在标题是纯文本（`.pw-tb-title` 仍是画板 01/02 的那一个），
+       不再是 `<button>`，那一档连同 `TOP_BAR_SESSIONS_MENU_WIDTH` 一起删了。
+       切会话仍然只走侧栏（本来就够）。量尺迁移：画板 22 / 51 两份 spec 原本拿这扇浮窗
+       当 `.pw-pop` / `.pw-pop-title` / `.pw-prow` 的量尺，现在改用输入框工具条的思考档
+       下拉（`composer:model-menu`，与 21-menus 同一扇）——量的仍是这三个原语。
+     - **工作区芯片不再是 accent 蓝**（`components/fork/ProjectChip.tsx`）：
+       画板 20 里 `.pw-chip.accent` 是**附件**芯片的高亮态（screenshot.png），而产品把这枚
+       常驻的工作区芯片也涂成了 accent 描边 + accent 淡底 + accent 文字，默认态看着像
+       「被点亮」。用户：「这个默认的蓝色，帮我弄掉吧」。现在用中性 `.pw-chip`，
+       高亮档仍归引用 / 附件芯片。
+     - **会话「状态标记」整项退役**（`SessionRowContextMenuBridge.tsx` / `SessionSidebar.tsx`
+       / `lib/session-flags.ts`）：菜单里那枚子菜单（已完成 / 被中断 / 出错 / 已中止 / 待处理）
+       与它驱动的右侧彩色点一起删掉，`SESSION_TAGS` / `SESSION_TAG_TONES` / `tags` 字段
+       与 21 条 i18n 文案随之退场（老 localStorage 里残留的 `tags` 解析时忽略）。
+       用户：「那个标记为啥意思啊，没啥用吧」。行内**活动**指示（运行中扫掠 / 未读点 /
+       等你处理）不在此列，仍是画板 02 的那三态。
+     - **顺带修一个真 bug：置顶不生效**（`lib/session-family.ts`）：`listSessionFamilies`
+       收尾按 `latestModified` 重排，把调用方 `applySessionFlags` 刚分出来的**置顶分区**
+       又洗回时间序 —— 置顶标记写进了 localStorage，列表却纹丝不动。现在这个函数**不再排序**，
+       顺序由调用方给（侧栏两个调用点都补上 modified 倒序 → 置顶分区），
+       `latestModified` 仍作为家族活动戳上报。回归守卫：`lib/session-family.test.mjs`
+       「family order follows the caller's order so a pinned row stays first」。
+
+130. **选区引用浮窗：文件查看器那份换回画板原件**（`components/FileViewer.tsx`）：
+     用户截图里那两枚动作钮（「@ 在当前对话询问」/「↗ 在新对话询问」）在**文件查看器**里
+     排成上下两行、浮窗变两行高还多一条竖向滚动条。原因不是宽度：那两个按钮挂的是
+     **`.pw-iconbtn`**（画板 02 的**方形图标钮**，`display:grid; place-items:center`），
+     而它们各有**两个子节点**（图标 + 文案）——grid 自动放置把两者**各占一格**，
+     于是「@」和文案上下叠，35px 的行高压不住内容。现在与转录里那份（`ChatWindow.tsx`，
+     本来就用 `.pw-btn`）统一：壳 = `.pw-pop anim-popover-down`（删掉手绘的
+     `border / --radius-lg / --bg / --shadow-popover` 四行内联），动作钮 = `.pw-btn sm`，
+     图标换成画板的 `at-sign` / `git-fork`（原为一个字号更大的 `@` 文本字符 + 一枚手绘 SVG）。
+     顺带把 `flexWrap` / `width` 按「收起态 / 展开态」分开：收起态恒定一行
+     （`nowrap` + `max-content`），展开态是 420 宽的小编辑器、内部 ChatInput 要自己换行。
+     回归守卫：`components/FileViewer.test.mjs`（`pw-btn` × 2 / `pw-iconbtn` × 1 / 无 `<svg>`）
+     + `components/ChatWindow.scroll-to-latest.test.mjs`（收起态单行断言）。
+     实测（1440×900 / 2x，playwright 量盒子）：两处均为 245×43、两钮同行 y 相同、
+     无横竖滚动条。
 
 **本轮登记不改（工作台）：**
 - **右栏文件查看器全套**（`.pw-viewer / .pw-viewer-head / .pw-viewer-body / .pw-tree / .pw-split`）：

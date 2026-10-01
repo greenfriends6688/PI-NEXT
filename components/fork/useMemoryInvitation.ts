@@ -16,6 +16,11 @@ import { useEffect, useRef } from "react";
  *   - 每个应用生命周期最多检查一次（模块级标记），切会话不重复弹
  *     （notice-dedupe 也会兜底）；
  *   - 运行中/自动化会话不触发（调用方传 sessionBusy）。
+ *
+ * ⚠️ **已下线（跟随「设置 → 记忆」分节整体删除）**：`app/api/memory/refresh/` 与
+ * `lib/memory-refresh.ts` 一起删了，前台唯一的调用方 `ChatWindow` 也已摘掉这根接线，
+ * 所以本文件现在是**没有调用方的孤儿**（用户明确要求保留，不要当成还在跑的东西）。
+ * 要么整份删掉，要么先把记忆面板 + 接口找回来再接上。
  */
 
 export function useMemoryInvitation(options: {

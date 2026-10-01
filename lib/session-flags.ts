@@ -20,29 +20,11 @@ import type { SessionInfo } from "./types";
 const STORAGE_KEY = "pi-session-flags";
 const CHANGE_EVENT = "pi-session-flags-change";
 
-/**
- * fork:ui-10 — a manual status per session ("what happened to this one?").
- *
- * Same reasoning as pin/archive: presentation-only, stored in localStorage, never
- * written into the session file. The tag is what drives the coloured dot in the
- * sidebar; it is deliberately orthogonal to the live run state (a running session
- * shows its spinner regardless of its tag).
+/*
+ * fork:no-session-tag（用户 2026-10-01）—— 手动「状态标记」（`SESSION_TAGS` / `tags` /
+ * 彩色点）整块退役：它只改 localStorage，刷新后没人再看，右侧那个点也没人认得。
+ * `parseSessionFlags` 照旧忽略老 payload 里残留的 `tags` 字段。
  */
-export const SESSION_TAGS = ["complete", "interrupted", "error", "aborted", "pending"] as const;
-export type SessionTag = (typeof SESSION_TAGS)[number];
-
-/** Dot colour per tag — the tokens the rest of the app already uses. */
-export const SESSION_TAG_TONES: Record<SessionTag, string> = {
-  complete: "var(--success)",
-  interrupted: "var(--warning)",
-  error: "var(--danger)",
-  aborted: "var(--text-dim)",
-  pending: "var(--accent)",
-};
-
-export function isSessionTag(value: unknown): value is SessionTag {
-  return typeof value === "string" && (SESSION_TAGS as readonly string[]).includes(value);
-}
 
 export interface SessionFlags {
   pinned: string[];
@@ -54,11 +36,9 @@ export interface SessionFlags {
    * 字段，解析时按缺失处理（这些行按 id 顺序排在末尾）。
    */
   archivedAt: Record<string, string>;
-  /** session id → tag. A session without a tag has no dot. */
-  tags: Record<string, SessionTag>;
 }
 
-const EMPTY: SessionFlags = { pinned: [], archived: [], archivedAt: {}, tags: {} };
+const EMPTY: SessionFlags = { pinned: [], archived: [], archivedAt: {} };
 
 const listeners = new Set<() => void>();
 let cache: SessionFlags | null = null;
@@ -73,19 +53,18 @@ function sanitizeIdList(value: unknown): string[] {
 }
 
 export function parseSessionFlags(raw: string | null): SessionFlags {
-  if (!raw) return { ...EMPTY, tags: {} };
+  if (!raw) return { ...EMPTY };
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return { ...EMPTY, tags: {} };
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return { ...EMPTY };
     const record = parsed as Record<string, unknown>;
     return {
       pinned: sanitizeIdList(record.pinned),
       archived: sanitizeIdList(record.archived),
       archivedAt: sanitizeArchivedAt(record.archivedAt),
-      tags: sanitizeTags(record.tags),
     };
   } catch {
-    return { ...EMPTY, tags: {} };
+    return { ...EMPTY };
   }
 }
 
@@ -95,16 +74,6 @@ function sanitizeArchivedAt(value: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [id, at] of Object.entries(value as Record<string, unknown>)) {
     if (id && typeof at === "string" && at) out[id] = at;
-  }
-  return out;
-}
-
-/** Unknown tags and non-string ids are dropped rather than rendered as a "?" dot. */
-function sanitizeTags(value: unknown): Record<string, SessionTag> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const out: Record<string, SessionTag> = {};
-  for (const [id, tag] of Object.entries(value as Record<string, unknown>)) {
-    if (id && isSessionTag(tag)) out[id] = tag;
   }
   return out;
 }
@@ -167,19 +136,6 @@ export function toggleArchived(id: string): void {
   write({ ...current, archived, archivedAt });
 }
 
-/** Set or clear one session's tag (`null` clears it). */
-export function setSessionTag(id: string, tag: SessionTag | null): void {
-  const current = ensure();
-  const tags = { ...current.tags };
-  if (tag === null) delete tags[id];
-  else tags[id] = tag;
-  write({ ...current, tags });
-}
-
-export function getSessionTag(id: string): SessionTag | undefined {
-  return ensure().tags[id];
-}
-
 /** Non-hook accessor for imperative callers (context menu actions). */
 export function getSessionFlags(): SessionFlags {
   return ensure();
@@ -231,7 +187,6 @@ export function useSessionFlags() {
 
   const pin = useCallback((id: string) => togglePinned(id), []);
   const archive = useCallback((id: string) => toggleArchived(id), []);
-  const setTag = useCallback((id: string, tag: SessionTag | null) => setSessionTag(id, tag), []);
 
-  return { flags, pin, archive, setTag };
+  return { flags, pin, archive };
 }

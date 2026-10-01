@@ -718,7 +718,8 @@ function AssistantMessageView({
   // This is the total generation time (thinking + any text before first tool call)
   const thinkingDurationFromFile = useMemo<number | undefined>(() => {
     if (!message.timestamp || !prevTimestamp) return undefined;
-    const secs = Math.round((message.timestamp - prevTimestamp) / 1000);
+    // 不取整：亚秒的思考/工具耗时只有保留小数才量得出来（取整后一律变 0s 被丢掉）。
+    const secs = (message.timestamp - prevTimestamp) / 1000;
     return secs > 0 ? secs : undefined;
   }, [message.timestamp, prevTimestamp]);
 
@@ -730,7 +731,7 @@ function AssistantMessageView({
     if (!toolResults || !message.timestamp) return map;
     for (const [callId, result] of toolResults) {
       if (result.timestamp && message.timestamp) {
-        const secs = Math.round((result.timestamp - message.timestamp) / 1000);
+        const secs = (result.timestamp - message.timestamp) / 1000;
         if (secs > 0) map.set(callId, secs);
       }
     }
@@ -751,7 +752,7 @@ function AssistantMessageView({
       setStreamingDurations((prev: Map<number, number>) => {
         const next = new Map(prev);
         for (const [idx, start] of blockStartTimesRef.current) {
-          if (!next.has(idx)) next.set(idx, Math.round((now - start) / 1000));
+          if (!next.has(idx)) next.set(idx, (now - start) / 1000);
         }
         return next;
       });
@@ -778,7 +779,7 @@ function AssistantMessageView({
           if (!next.has(originalIndex) && blockStartTimesRef.current.has(originalIndex)) {
             const start = blockStartTimesRef.current.get(originalIndex)!;
             const nextStart = blockStartTimesRef.current.get(nextOriginalIndex) ?? now;
-            next.set(originalIndex, Math.round((nextStart - start) / 1000));
+            next.set(originalIndex, (nextStart - start) / 1000);
             changed = true;
           }
         }
@@ -923,7 +924,7 @@ function AssistantMessageView({
             </span>
             {durationSec !== null && (
               <>
-                <span className="pw-mono">{formatTurnDuration(durationSec)}</span>
+                <span className="pw-mono">{formatDuration(durationSec)}</span>
                 <span>·</span>
               </>
             )}
@@ -1186,7 +1187,7 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
         )}
       </div>
       {duration !== undefined && (
-        <span className="pw-dim" style={{ flexShrink: 0 }}>{duration}s</span>
+        <span className="pw-dim" style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
       )}
     </div>
   );
@@ -1301,7 +1302,7 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
             {isStreamingInput ? t("chat.generatingToolInput") : (patchLabel ?? getToolPreview(block))}
           </span>
           {duration !== undefined && (
-            <span className="pw-dim" style={{ flexShrink: 0 }}>{duration}s</span>
+            <span className="pw-dim" style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
           )}
           <span className="pw-ico" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--motion-fast)" }}>
             <i data-ico="chevron-down" data-size="11"></i>
@@ -2001,8 +2002,14 @@ function formatUsageCost(usage: { cost: { total: number } }): string | null {
   return usage.cost?.total ? `$${usage.cost.total.toFixed(3)}` : null;
 }
 
-/** 回合耗时：< 60s 给一位小数（4.2s），≥ 60s 给 3m40s。 */
-function formatTurnDuration(seconds: number): string {
+/** 耗时（回合结束行 / 思考块 / 工具卡头共用）：
+ *  < 1s 给毫秒（820ms，快工具不再一律显示「0.0s」或干脆不显示），
+ *  < 60s 给一位小数（4.2s），≥ 60s 给 3m40s。 */
+export function formatDuration(seconds: number): string {
+  if (seconds < 1) {
+    const ms = Math.round(seconds * 1000);
+    return ms < 1 ? "<1ms" : `${ms}ms`;
+  }
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   const minutes = Math.floor(seconds / 60);
   const rest = Math.round(seconds % 60);

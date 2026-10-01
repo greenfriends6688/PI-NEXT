@@ -1194,6 +1194,14 @@ function FileSelectionQuotePopover({
       ref={popoverRef}
       role={inputOpen ? "dialog" : "toolbar"}
       aria-label={t(inputOpen ? "chat.newQuoteChat" : "chat.askSelection")}
+      // fix:sel-pop-grid —— 壳与两个动作钮改用画板原件（与转录里那份选区浮窗同一套）：
+      //   壳 = `.pw-pop`（发丝边框 / radius-6 / surface-popover / shadow-popover / padding-s1），
+      //   动作钮 = `.pw-btn`（inline-flex + align-items:center）。
+      // 原来壳是手绘的四行内联（`--bg` + `--radius-lg`），动作钮用的是 **`.pw-iconbtn`** ——
+      // 那是「方形图标钮」：`display:grid; place-items:center`，两个子节点（图标 + 文案）
+      // 被**各放一格**（自动换行成两行），于是「@」和「在当前对话询问」上下摞起来、
+      // 按钮高过 35px 溢出、浮窗变成两行高还多一条竖向滚动条（用户截图实测）。
+      className="pw-pop anim-popover-down"
       style={{
         position: "fixed",
         top,
@@ -1204,18 +1212,14 @@ function FileSelectionQuotePopover({
         // 且宽度交给 shrink-to-fit：两个按钮（「@ 在当前对话询问」/「↗ 在新对话询问」）
         // 一超宽就各自占一行，浮窗变成两行高、还带一条竖向滚动条（用户实测：
         // 「这俩按钮显示还换行呢」）。宽度改成 max-content，两个按钮恒在同一行。
-        flexWrap: "nowrap",
-        whiteSpace: "nowrap",
+        flexWrap: inputOpen ? "wrap" : "nowrap",
+        whiteSpace: inputOpen ? undefined : "nowrap",
         gap: "var(--space-icon)",
         width: inputOpen ? "min(420px, calc(100vw - 16px))" : "max-content",
         maxWidth: "calc(100vw - 16px)",
         maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
         overflowY: "auto",
         padding: inputOpen ? 12 : 3,
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-lg)",
-        background: "var(--bg)",
-        boxShadow: "var(--shadow-popover)",
       }}
     >
       {inputOpen ? (
@@ -1223,7 +1227,7 @@ function FileSelectionQuotePopover({
           <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, fontWeight: 600 }}>{t("chat.askInNewChat")}</span>
             <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={submitting} onClick={closeInput} style={{ border: "none" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+              <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
             </button>
           </div>
           <ChatInput ref={chatInputRef} compact onSend={askInNewChat} onAbort={closeInput} isStreaming={false} />
@@ -1232,29 +1236,27 @@ function FileSelectionQuotePopover({
       ) : <>
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className="pw-btn sm"
           title={t("chat.askInCurrent")}
           aria-label={t("chat.askInCurrent")}
           onPointerDown={(event) => event.preventDefault()}
           onClick={onAskInCurrent}
-          style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500, whiteSpace: "nowrap" }}
+          style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
         >
-          <span aria-hidden="true" style={{ fontSize: TEXT.xl }}>@</span>
+          <span className="pw-ico"><i data-ico="at-sign" data-size="14"></i></span>
           <span>{t("chat.askInCurrent")}</span>
         </button>
         {onAskInNewChat && (
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className="pw-btn sm"
             title={t("chat.askInNewChat")}
             aria-label={t("chat.askInNewChat")}
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => toggleInput(true)}
-            style={{ width: "auto", height: 35, flex: "0 0 auto", gap: 5, padding: "0 10px", border: "none", fontSize: TEXT.sm, fontWeight: 500, whiteSpace: "nowrap" }}
+            style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M6 3v12M18 9a9 9 0 0 1-9 9" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
-            </svg>
+            <span className="pw-ico"><i data-ico="git-fork" data-size="14"></i></span>
             <span>{t("chat.askInNewChat")}</span>
           </button>
         )}

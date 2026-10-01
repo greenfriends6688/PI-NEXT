@@ -131,7 +131,11 @@ test("does not expose disk-backed actions for transient sessions", () => {
 test("hides subagent rows and aggregates their state into the main session row", () => {
   // The session list feeds through the client-side pin/archive flags before it is
   // grouped into families, so a pinned row sorts first and an archived row drops out.
-  assert.match(source, /const sessionFamilies = listSessionFamilies\(applySessionFlags\(filteredSessions, sessionFlags\)\)/);
+  // fix:pin-partition —— 排序在这里给：listSessionFamilies 不再重排（会把置顶洗掉）。
+  assert.match(
+    source,
+    /const sessionFamilies = listSessionFamilies\(applySessionFlags\(\s*\[\.\.\.filteredSessions\]\.sort\(\(a, b\) => b\.modified\.localeCompare\(a\.modified\)\),\s*sessionFlags,\s*\)\)/,
+  );
   assert.match(source, /familySessions\.some\(\(session\) => session\.id === selectedSessionId\)/);
   assert.match(source, /familySessions\.some\(\(session\) => runningSessionIds\.has\(session\.id\)\)/);
   assert.doesNotMatch(source, /function SessionTreeItem/);

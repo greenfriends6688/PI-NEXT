@@ -83,12 +83,8 @@ const PRESETS = {
     if (!b) throw new Error("侧栏头部找不到折叠按钮");
     b.click();
     await new Promise((r) => setTimeout(r, 700));`,
-  // 顶栏的会话切换器（画板 22 帧 0）：点 .pw-tb-title 出 .pw-pop 下拉。
-  "topbar:session-switcher": `
-    const title = document.querySelector(".pw-tb-title");
-    if (!title) throw new Error("顶栏没有 .pw-tb-title");
-    title.click();
-    await new Promise((r) => setTimeout(r, 900));`,
+  // fork:no-recent-sessions（2026-10-01）—— 顶栏标题不再是「最近会话」下拉的触发钮，
+  // 这个 preset 随那扇浮窗一起退役（`.pw-tb-title` 现在是纯文本 div，点了没反应）。
 };
 
 /**

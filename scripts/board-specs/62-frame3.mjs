@@ -6,7 +6,9 @@ export default {
   "board": "62-settings-layout.html",
   "boardFrame": 3,
   "app": {
-    "open": "settings:prompts"
+    // 原驱动是 `settings:prompts`（自定义命令一节已下线），换成一个同样会出
+    // 空态的全局页：归档历史。比对的选择器全是通用空态基件（.pw-empty*），与分节无关。
+    "open": "settings:archived"
   },
   "tolerance": {
     "box": 2,

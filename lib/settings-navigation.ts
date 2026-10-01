@@ -4,13 +4,10 @@ export const SETTINGS_SECTION_VALUES = [
   "skills",
   "agents",
   "plugins",
-  // fork:cron / fork:memory / fork:mcp-section — global sections added by this fork.
+  // fork:mcp-section — a global section added by this fork.
   "mcp",
-  "cron",
-  "memory",
-  // fork:zc-04 / fork:zc-16 — local usage stats and slash-command templates are global pages too.
+  // fork:zc-04 — local usage stats is a global page too.
   "usage",
-  "prompts",
   // fork:ui-archive-history — 归档历史（Zeno 设置 → 数据 → 归档）。
   "archived",
   // fork:import-ui — 从其它 agent 导入（会话 / 模型 / 技能 / MCP）。

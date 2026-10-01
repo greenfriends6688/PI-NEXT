@@ -8,7 +8,6 @@ import { splitDialogTitle, splitDialogTitleCode } from "@/lib/dialog-title";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
 import { countToolCallBlocks, getAssistantErrorMessage, getDisplayableAssistantBlocks, isAssistantTruncated, isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
 import { extractTurnWrittenFiles, type WrittenFile } from "@/lib/turn-written-files";
-import { useMemoryInvitation } from "@/components/fork/useMemoryInvitation";
 import { buildQuotedSelection } from "@/lib/quoted-selection";
 import { createSelectionContextId, type SelectionContext } from "@/lib/composer-context";
 import type { SessionReference } from "@/lib/composer-context";
@@ -675,7 +674,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
     notices, extensionDialog, extensionCustomUi, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
-    addNotice,
     isAutoModelSelection,
     agentPhase,
     isNew,
@@ -701,18 +699,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   });
   const sessionBusy = agentRunning || bashRunning;
 
-  // fork:fix-memory-refresh — 前台会话懒检查记忆周检（FIX-11）：非运行中、
-  // 非子 Agent 会话才触发；每个应用生命周期最多一次，冷却状态在服务端。
-  const memoryInvitationEnabled = Boolean(session) && !sessionBusy && session?.relation?.kind !== "subagent";
-  useMemoryInvitation({
-    enabled: memoryInvitationEnabled,
-    onInvite: useCallback((days: number | null) => {
-      addNotice({
-        type: "warning",
-        message: t("memory.inviteNotice", { days: days ?? "—" }),
-      });
-    }, [addNotice, t]),
-  });
   const locateSelectionContext = useCallback((context: SelectionContext) => {
     const clearConversationLocation = () => {
       scrollContainerRef.current?.querySelectorAll<HTMLElement>(`.${LOCATION_HIGHLIGHT_CLASS}`).forEach((highlight) => {
@@ -2577,9 +2563,13 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             left: quotedSelection.left,
             zIndex: 260,
             display: "flex",
-            flexWrap: "wrap",
+            // fix:sel-pop-nowrap —— 收起态是**两枚带文案的动作钮**：恒定同一行、宽度
+            // 交给内容（`.pw-pop` 自带的 320 只是给列表型弹层的定宽）。展开态是 420 宽的
+            // 小编辑器，内部的 ChatInput 需要自己换行，所以 nowrap 只作用在收起态。
+            flexWrap: quoteInputOpen ? "wrap" : "nowrap",
+            whiteSpace: quoteInputOpen ? undefined : "nowrap",
             gap: "var(--space-icon)",
-            width: quoteInputOpen ? "min(420px, calc(100vw - 16px))" : undefined,
+            width: quoteInputOpen ? "min(420px, calc(100vw - 16px))" : "max-content",
             maxWidth: "calc(100vw - 16px)",
             maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
             overflowY: "auto",

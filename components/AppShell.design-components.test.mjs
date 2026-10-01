@@ -24,10 +24,14 @@ test("the top bar title is the board's .pw-tb-title, not a hand-styled button", 
   // the ellipsis comes from `.pw-topbar .pw-tb-title span`.
   assert.match(boardCss, /\.pw-topbar \.pw-tb-title \{[\s\S]*?min-width: 0/);
   assert.match(boardCss, /\.pw-topbar \.pw-tb-title span \{ overflow: hidden; text-overflow: ellipsis/);
+  // fork:no-recent-sessions —— 标题不再是「最近会话」下拉的触发钮（那一档已撤），
+  // 也不再是任何交互元素：纯文本标题，点它什么都不发生。
   assert.match(
     source,
-    /className=\{activeTopPanel === "sessions" \? "pw-tb-title is-on" : "pw-tb-title"\}\s*>\s*\{!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"><\/i><\/span>\}\s*<span>\{topBarSessionTitle\}<\/span>/,
+    /<div\n  title=\{topBarSessionTitle\}\n  className="pw-tb-title"\n>\s*\{!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"><\/i><\/span>\}\s*<span>\{topBarSessionTitle\}<\/span>\s*<\/div>/,
   );
+  assert.doesNotMatch(source, /activeTopPanel === "sessions"/);
+  assert.doesNotMatch(source, /sidebar\.recentSessions/);
   // The title is no longer a bare <button> carrying its own box.
   assert.doesNotMatch(source, /textOverflow: "ellipsis",\s*whiteSpace: "nowrap",\s*maxWidth: "100%",\s*padding: "3px 6px",/);
 });

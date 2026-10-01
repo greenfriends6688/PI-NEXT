@@ -6,6 +6,7 @@ const panel = await readFile(new URL("./ProjectArchivePanel.tsx", import.meta.ur
 const sessionsPanel = await readFile(new URL("./ArchivedSessionsPanel.tsx", import.meta.url), "utf8");
 const sidebar = await readFile(new URL("./SessionSidebar.tsx", import.meta.url), "utf8");
 const navigation = await readFile(new URL("../lib/settings-navigation.ts", import.meta.url), "utf8");
+const settingsPanel = await readFile(new URL("./SettingsPanel.tsx", import.meta.url), "utf8");
 
 test("the archive page is read-only about the user's data", () => {
   // fork:project-archive — archiving is presentation only. The page must never offer a
@@ -14,7 +15,10 @@ test("the archive page is read-only about the user's data", () => {
   assert.doesNotMatch(panel, /method:\s*'DELETE'/);
   assert.doesNotMatch(panel, /archivedDelete|removeSession|projectsDelete/);
   // The only write it performs is the localStorage flag, through the store.
-  assert.match(panel, /const \{ flags, archive, restore \} = useProjectFlags\(\)/);
+  // fix:archive-selection-scope:项目表与会话表分开订阅（projectFlags / sessionFlags）。
+  // fork:archive-layout（2026-10-01）：实现里还多解构了一个 sessionFlags（会话级标志），
+  // 断言跟上真实写法。
+  assert.match(panel, /const \{ flags: projectFlags, archive, restore \} = useProjectFlags\(\)/);
   // The destructive action moved WITH the session rows: it lives in
   // ArchivedSessionsPanel.tsx and nowhere else on this page.
   assert.match(sessionsPanel, /method:\s*"DELETE"/);
@@ -58,19 +62,46 @@ test("the project index shares one settings page with the session archive", () =
   assert.match(panel, /<ConfigSplitView>/);
   assert.match(panel, /<ArchivedSessionsGroup/);
   assert.match(panel, /import \{ ArchivedSessionDetail, ArchivedSessionsGroup \} from "\.\/ArchivedSessionsPanel"/);
-  // The legacy two-section entry point must not render a second copy of the content.
-  assert.match(sessionsPanel, /export function ArchivedSessionsPanel/);
-  assert.match(sessionsPanel, /return null;/);
+  // fix:archive-legacy-shell — 旧的两段式入口恒渲染 null，且 SettingsPanel 里已无调用方。
+  // 留着它就是第二套骨架的残骸：删干净，并且不许长回来（注释里提到它不算）。
+  assert.doesNotMatch(sessionsPanel, /export function ArchivedSessionsPanel/);
+  assert.doesNotMatch(settingsPanel, /import \{ ArchivedSessionsPanel \}/);
+  assert.doesNotMatch(settingsPanel, /<ArchivedSessionsPanel/);
 });
 
 test("the merged page follows board 62 frame D for its empty states", () => {
   // 整页空（两个分组都空）: 标题 + 说明 + 一个出口动作，居中在内容区。
   const pageEmpty = panel.slice(panel.indexOf("pageEmpty ? ("), panel.indexOf("</ConfigEmptyState>"));
-  assert.match(pageEmpty, /settings\.archivedEmpty/);
+  assert.match(pageEmpty, /settings\.archivedEmptyTitle/);
   assert.match(pageEmpty, /settings\.projectsNoneArchived/);
   assert.match(pageEmpty, /onCloseRequest/);
   // 详情未选：40px 方框 mark + 一句引导，居中在详情列。
   const detailEmpty = panel.slice(panel.indexOf("<ConfigDetail>"), panel.indexOf("</ConfigDetail>"));
   assert.match(detailEmpty, /square-mouse-pointer/);
   assert.match(detailEmpty, /settings\.archivedDescription/);
+});
+
+test("session archives are read from the session table, not the project table", () => {
+  // fix:archive-selection-scope（探针实测）—— 两种归档是两张 localStorage 表：
+  // projectKey 进 `pi-project-flags`，session id 进 `pi-session-flags`。
+  // 拿项目表去判「整页空 / 选中会话」时，只归档过会话的用户会看到整页空态、
+  // 会话行点开也没有详情卡（恢复 / 彻底删除全都够不着）。
+  assert.match(panel, /const \{ flags: sessionFlags \} = useSessionFlags\(\)/);
+  assert.match(panel, /sessionFlags\.archived\.includes\(selected\.id\)/);
+  assert.match(panel, /archivedProjects\.length === 0 && sessionFlags\.archived\.length === 0/);
+  // 两组各查各的表：项目行来自 partitionProjects(projectFlags)。
+  assert.match(panel, /partitionProjects\(projects, projectFlags\)\.archived/);
+  // 会话分组自己已经 useSessionFlags，不需要宿主再喂一份标志。
+  assert.doesNotMatch(panel, /sessionFlags\.archivedAt/);
+});
+
+test("the project count is stated once: in the list row, not again in the detail", () => {
+  // 用户实测「项目卡片自己又画了一遍 1 个对话」。骨架 B 里左列行已经带会话数，
+  // 详情列只补行里没有的：归档时间 + 恢复动作 + 会话子列表。
+  const detail = panel.slice(panel.indexOf("function ProjectArchiveDetail"));
+  assert.doesNotMatch(detail, /projectsSessionCount/);
+  assert.match(detail, /settings\.projectsRestore/);
+  // 行副标题仍带计数（唯一一处）。
+  const rows = panel.slice(panel.indexOf("<ConfigSidebarList>"), panel.indexOf("</ConfigSidebarList>"));
+  assert.match(rows, /projectsSessionCount/);
 });

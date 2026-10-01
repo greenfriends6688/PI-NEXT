@@ -65,7 +65,6 @@ await check("应用首页", "/");
 await check("会话列表", "/api/sessions");
 await check("运行中会话快照", "/api/agent/running");
 await check("模型列表", "/api/models");
-await check("定时任务列表", "/api/cron");
 await check("文件索引（模糊搜索）", `/api/file-index?cwd=${encodeURIComponent(cwd)}&q=package`);
 // 这一条是最关键的：包内 allow-list 若与调试环境不同，文件树会空白、且所有
 // 依赖文件的按钮会静默无操作。403 就是那个信号。

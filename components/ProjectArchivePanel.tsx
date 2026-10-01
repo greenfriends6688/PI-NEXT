@@ -1,36 +1,40 @@
 "use client";
 
 /**
- * fork:project-archive — 设置 → 归档历史（项目 + 会话合页的宿主）。
+ * fork:project-archive — 设置 → 归档历史（骨架 B 的宿主：一套列表列 + 一套详情列）。
  *
- * 项目索引 + 就地详情。数据源是 `/api/sessions` 派生出来的项目列表
- * （`lib/project-groups.ts` 的 `getRecentProjects`）——与侧栏用的是**同一个**身份
- * （`workspaceKeyOf` = 服务端算的 `projectKey`），所以「一个归档项目」就是侧栏里的
- * 一行，worktree 也不例外。归档标志本身在 `lib/project-flags.ts`，纯 localStorage。
- *
- * 这个页面**永不删东西**：没有删除按钮、不动 `.jsonl`、不动磁盘目录。归档/恢复与打开
- * 是仅有的几个动作；会话的「彻底删除」住在 ArchivedSessionsPanel.tsx（它的测试把
- * 「这一页对用户数据只读」焊死了）。
+ * 数据源是 `/api/sessions` 派生出来的项目列表（`lib/project-groups.ts` 的
+ * `getRecentProjects`）——与侧栏用的是**同一个**身份（`workspaceKeyOf` = 服务端算的
+ * `projectKey`），所以「一个归档项目」就是侧栏里的一行，worktree 也不例外。
  *
  * fork:settings-frame（画板 62，2026-10-01）—— 归档历史从「ProjectArchivePanel +
  * ArchivedSessionsPanel 上下两块」改成**骨架 B（列表 300 + 详情 760）**：
  *
- *   列表列（ConfigSidebar）
- *     .pw-group-title「项目」+ 计数徽章 —— 已归档项目行（folder 图标 + 名称 + 会话数）
- *     <ArchivedSessionsGroup> —— 「会话」分组（组标题带「显示文件已消失」开关，画板 46
- *        的带标签形态）+ 已归档会话行
- *   详情列（ConfigDetail）
- *     选中项目 → 画板 46 项目卡的详情形态：头行（folder + 项目名 + 会话数徽章 +
- *       归档时间 + 恢复项目）+ 展开的会话列表（点行打开会话）
+ *   列表列（300，`.pw-cols > :first-child` 自己滚）
+ *     「项目」分组   —— 已归档项目行：folder + 名称 + 会话数（会话数**只在这里**出现）
+ *     「会话」分组   —— 组标题带「显示文件已消失」开关（画板 46 的带标签形态）
+ *                       + 计数徽章；行 = 会话名 + 归档时间
+ *   详情列（760，`.pw-detail` 自己滚）
+ *     选中项目 → 画板 46 项目卡的详情形态：头行（folder + 项目名 + 归档时间 + 恢复项目）
+ *                 + 画板 46 原样的会话子列表（缩进 + 点行打开会话）
  *     选中会话 → <ArchivedSessionDetail>
  *     未选     → 画板 62 帧 D 的「详情未选」空态（40px 方框图标 + 一句引导）
- *   整页空（两分组都空）→ 画板 62 帧 D 的「整页空」：20px 标题 + 说明 + 一个出口动作
+ *   整页空（两个分组都空）→ 画板 62 帧 D 的「整页空」：20px 标题 + 说明 + 一个出口动作
  *
  * 宿主持有**唯一的选中态**（项目行 / 会话行互斥），两处分组都只回调 onSelect。
+ * SettingsPanel 直挂本组件（`<SettingsPage title sub fill>`），恒渲染 null 的
+ * ArchivedSessionsPanel 旧壳已删。
  *
- * SettingsPanel 已配合迁移：`<SettingsPage title sub fill>` 直挂本组件（旧
- * `div.settings-archive-page` 壳与恒渲染 null 的 ArchivedSessionsPanel 兄弟已删），
- * 两列各自滚由 `.pw-scontent.is-fixed` 出。
+ * fix:archive-selection-scope —— **两种归档是两张表**，别把它们混着读：
+ *   `useProjectFlags()` 的 `archived` 里装的是 **projectKey**，
+ *   `useSessionFlags()` 的 `archived` 里装的是 **session id**。
+ *   原来整页空判定与「选中会话」校验都去问项目表，于是：只归档过会话的用户打开本页
+ *   看到的是「还没有归档任何会话。」（会话明明还在 localStorage 里，只是被项目表
+ *   判成空），点会话行也永远打不开它的恢复 / 彻底删除卡。
+ *
+ * 这个页面**永不删东西**：没有删除按钮、不动 `.jsonl`、不动磁盘目录。归档/恢复与打开
+ * 是仅有的几个动作；会话的「彻底删除」住在 ArchivedSessionsPanel.tsx（它的测试把
+ * 「这一页对用户数据只读」焊死了）。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,13 +44,16 @@ import type { Locale } from "@/lib/i18n/types";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { getRecentProjects, sessionsForProject, withoutChatProject, type RecentProject } from "@/lib/project-groups";
 import { partitionProjects, useProjectFlags } from "@/lib/project-flags";
+import { useSessionFlags } from "@/lib/session-flags";
 import type { SessionInfo } from "@/lib/types";
 import { ArchivedSessionDetail, ArchivedSessionsGroup } from "./ArchivedSessionsPanel";
 import {
   ConfigBadge,
   ConfigButton,
   ConfigDetail,
+  ConfigDetailHeader,
   ConfigDetailStack,
+  ConfigDetailTitle,
   ConfigEmptyState,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
@@ -69,7 +76,9 @@ export function ProjectArchivePanel({
   onCloseRequest?: () => void;
 }) {
   const { t, locale } = useI18n();
-  const { flags, archive, restore } = useProjectFlags();
+  // 项目归档在项目表，会话归档在会话表。列表列的两组分别读自己那张。
+  const { flags: projectFlags, archive, restore } = useProjectFlags();
+  const { flags: sessionFlags } = useSessionFlags();
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
   const [chatProjectKey, setChatProjectKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,9 +113,10 @@ export function ProjectArchivePanel({
     () => withoutChatProject(getRecentProjects(allSessions), chatProjectKey),
     [allSessions, chatProjectKey],
   );
-  const { visible, archived } = useMemo(
-    () => partitionProjects(projects, flags),
-    [projects, flags],
+  // 列表列只列**已归档**的项目（`visible` 那半边是侧栏的事，这里不渲染）。
+  const archivedProjects = useMemo(
+    () => partitionProjects(projects, projectFlags).archived,
+    [projects, projectFlags],
   );
 
   const setArchived = useCallback(async (key: string, next: boolean) => {
@@ -120,19 +130,16 @@ export function ProjectArchivePanel({
     onSessionsChanged?.();
   }, [archive, restore, onSessionsChanged]);
 
-  // fork:project-archive — 列表列只列**已归档**的。`visible` 仍然算出来是为了
-  // 「归档了当前项目之后它还留在列表里」的那条规则，但不再渲染。
-  void visible;
-
   // 选中态有效性：行被恢复 / 删除后选择自动失效，详情列落回「未选」空态。
   const selectedProject = selected?.kind === "project"
-    ? archived.find((project) => project.key === selected.key) ?? null
+    ? archivedProjects.find((project) => project.key === selected.key) ?? null
     : null;
-  const selectedSessionId = selected?.kind === "session" && flags.archived.includes(selected.id)
+  // 会话 id 要问**会话表**（fix:archive-selection-scope）。
+  const selectedSessionId = selected?.kind === "session" && sessionFlags.archived.includes(selected.id)
     ? selected.id
     : null;
-  // 整页空（画板 62 帧 D）：两个分组都没有任何条目。加载中不算空。
-  const pageEmpty = sessions !== null && archived.length === 0 && flags.archived.length === 0;
+  // 整页空（画板 62 帧 D）：两个分组都没有任何条目 —— 项目组与会话组各查各的表。
+  const pageEmpty = sessions !== null && archivedProjects.length === 0 && sessionFlags.archived.length === 0;
 
   return (
     <>
@@ -145,7 +152,9 @@ export function ProjectArchivePanel({
       {pageEmpty ? (
         <ConfigEmptyState>
           <span className="mark"><i data-ico="archive" data-size="16" aria-hidden="true" /></span>
-          <h2>{t("settings.archivedEmpty")}</h2>
+          {/* 画板 62 帧 D「整页空」：20px 标题（`.pw-empty-inner h2`）+ 说明 + 一个出口动作。
+              标题用 archivedEmptyTitle（画板 62:411 的「还没有归档」），说明落在正文行。 */}
+          <h2>{t("settings.archivedEmptyTitle")}</h2>
           <p>{t("settings.projectsNoneArchived")}</p>
           {onCloseRequest && (
             <ConfigButton variant="secondary" size="small" onClick={onCloseRequest}>
@@ -153,21 +162,34 @@ export function ProjectArchivePanel({
               {t("settings.backToWorkspace")}
             </ConfigButton>
           )}
+          {/* fix:archive-local-only —— 标志只在本机 localStorage（不动 `.jsonl` 是硬规矩）。
+              「我明明归档过」的第一嫌疑就是这里，所以代价写在空态本体里，不飘到别处。 */}
+          <p className="pw-hint">{t("settings.archiveStoredLocally")}</p>
         </ConfigEmptyState>
       ) : (
         <ConfigSplitView>
           <ConfigSidebar>
-            {archived.length > 0 ? (
+            {sessions === null ? (
+              <div role="status" className="pw-inline">
+                <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin" aria-hidden="true" /></span>
+                <span className="grow">{t("i18n.loading")}</span>
+              </div>
+            ) : (
               <>
                 <ConfigSidebarGroupLabel>
                   {t("settings.projectsActive")}
                   <span className="pw-grow" aria-hidden="true" />
-                  <ConfigBadge tone="count">{archived.length}</ConfigBadge>
+                  <ConfigBadge tone="count">{archivedProjects.length}</ConfigBadge>
                 </ConfigSidebarGroupLabel>
-                <ConfigSidebarList>
-                  {archived.map((project) => {
-                    const count = sessionsForProject(allSessions, project.key).length;
-                    return (
+                {archivedProjects.length === 0 ? (
+                  /* 空的项目组也要有落点（画板 62 帧 D 的列表空态形态），不能静默留白。 */
+                  <ConfigEmptyState>
+                    <span className="mark"><i data-ico="folder" data-size="16" aria-hidden="true" /></span>
+                    <p>{t("settings.projectsNoneArchived")}</p>
+                  </ConfigEmptyState>
+                ) : (
+                  <ConfigSidebarList>
+                    {archivedProjects.map((project) => (
                       <ConfigSidebarItem
                         key={project.key}
                         active={selectedProject?.key === project.key}
@@ -179,23 +201,22 @@ export function ProjectArchivePanel({
                           <span className="pw-lname">
                             {project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}
                           </span>
-                          <span className="pw-lsub">{t("settings.projectsSessionCount", { count })}</span>
+                          {/* 会话数只在这里出现一次 —— 详情列不再复述（画板 62 骨架 B）。 */}
+                          <span className="pw-lsub">{t("settings.projectsSessionCount", {
+                            count: sessionsForProject(allSessions, project.key).length,
+                          })}</span>
                         </span>
                       </ConfigSidebarItem>
-                    );
-                  })}
-                </ConfigSidebarList>
+                    ))}
+                  </ConfigSidebarList>
+                )}
+                <ArchivedSessionsGroup
+                  sessions={allSessions}
+                  selectedId={selectedSessionId}
+                  onSelect={(id) => setSelected({ kind: "session", id })}
+                />
               </>
-            ) : (
-              sessions !== null && (
-                <p role="status" className="sub">{t("settings.projectsNoneArchived")}</p>
-              )
             )}
-            <ArchivedSessionsGroup
-              sessions={allSessions}
-              selectedId={selectedSessionId}
-              onSelect={(id) => setSelected({ kind: "session", id })}
-            />
           </ConfigSidebar>
 
           <ConfigDetail>
@@ -204,7 +225,7 @@ export function ProjectArchivePanel({
                 <ProjectArchiveDetail
                   project={selectedProject}
                   sessions={allSessions}
-                  archivedAt={flags.archivedAt[selectedProject.key] ?? null}
+                  archivedAt={projectFlags.archivedAt[selectedProject.key] ?? null}
                   busy={busyKey === selectedProject.key}
                   locale={locale}
                   t={t}
@@ -233,7 +254,10 @@ export function ProjectArchivePanel({
 }
 
 /**
- * 选中项目的详情卡（画板 46 项目卡的详情形态）：头行 + 展开的会话列表。
+ * 选中项目的详情卡（画板 46 项目卡的详情形态）：头行 + 画板 46 原样的会话子列表。
+ *
+ * 头行里**没有**会话数徽章 —— 左列那行已经写了（画板 62 骨架 B 的列表列 300 宽，
+ * 「N 个对话」放在行副标题里正好；详情列要补的是行里没有的：归档时间 + 恢复动作）。
  * 会话行点击即打开（这些会话本身没有被归档，行上不放「恢复」——恢复是项目级的）。
  */
 function ProjectArchiveDetail({
@@ -263,12 +287,9 @@ function ProjectArchiveDetail({
 
   return (
     <>
-      <div className="pw-inline">
+      <ConfigDetailHeader>
         <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true" /></span>
-        <b style={{ fontWeight: 500 }}>
-          {project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}
-        </b>
-        <span className="pw-badge count">{t("settings.projectsSessionCount", { count: own.length })}</span>
+        <ConfigDetailTitle>{project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}</ConfigDetailTitle>
         <span className="pw-grow" aria-hidden="true" />
         {archivedAt && (
           <span className="pw-mono pw-dim">
@@ -279,8 +300,10 @@ function ProjectArchiveDetail({
           <span className="pw-ico"><i data-ico="archive-restore" data-size="13" aria-hidden="true" /></span>
           {t("settings.projectsRestore")}
         </ConfigButton>
-      </div>
-      <div className="pw-list" style={{ paddingLeft: "var(--s4)" }}>
+      </ConfigDetailHeader>
+      {/* 画板 46 的项目卡：子列表缩进一级（`margin-top`/`padding-left` 两个 token，
+          照抄画板那一行，不新增几何值）。 */}
+      <div className="pw-list" style={{ marginTop: "var(--s2)", paddingLeft: "var(--s4)" }}>
         {own.length === 0 && <p role="status" className="sub">{t("settings.projectsNoSessions")}</p>}
         {recent.map((session) => (
           <button

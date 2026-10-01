@@ -277,8 +277,19 @@ function SkillDetail({
       )}
 
       {/* fork:settings-frame（画板 62 帧 B）—— kv 属性表：来源 / 路径 / 允许自动调用。
-          版本折进「来源」一行（画板：`SkillHub · 已安装 v1.2.0`），更新状态徽章跟在后面。 */}
+          版本折进「来源」一行（画板：`SkillHub · 已安装 v1.2.0`），更新状态徽章跟在后面。
+          fork:skills-row-name-only（2026-10-02）—— 首行补「描述」：列表行撤掉副标题
+          之后，这是描述唯一的出口（SKILL.md 预览把 frontmatter 当 yaml 节点吃掉 ——
+          lib/markdown.ts 的 remark-frontmatter），落在详情头正下方 = 画板 kv 的
+          「头 → 字段表」次序。形态照 PluginsConfig.tsx:425：插件详情的 kv 首行就是
+          i18n.description，空则不出这一行。文案复用既有键，不新增 i18n。 */}
       <ConfigKv>
+        {skill.description && (
+          <>
+            <dt>{t("i18n.description")}</dt>
+            <dd>{skill.description}</dd>
+          </>
+        )}
         <dt>{t("skills.fieldSource")}</dt>
         <dd>
           {skill.install ? (
@@ -577,8 +588,37 @@ function InstallSkillsModal({
       }}
     >
       {/* 画板 42 的弹层宽 640；board.css 的 `.pw-modal` 默认 560，这里用 min()
-          压过它（门禁放行 calc/min，不写裸像素）。 */}
-      <div className="pw-modal" style={{ width: "min(640px, calc(100vw - 32px))" }}>
+          压过它（门禁放行 calc/min，不写裸像素）。
+          fork:skills-modal-scroll（2026-10-02，用户实测「添加技能弹窗滑不动」）——
+          壳改成 **视口上限 + flex 列**，内容行拿 flex + min-height:0 才能收缩，
+          board.css:643 的 `overflow-y:auto` 才真正生效。
+          CDP 逐层量出来的原因（1440×900，50 条搜索结果，从弹层本体往上每一级）：
+            · 弹层 `.pw-modal` 本体：display:block / overflow-y:hidden（board.css:632）
+              / height:2678px / max-height:none —— 内容定高，顶端被顶出视口（top=-889）；
+            · board.css:643 的 `.pw-modal-body{min-height:0;overflow-y:auto}` 形同虚设：
+              scrollHeight 2576 === clientHeight 2576（父级没有上限，body 永远等于内容高）；
+            · 祖先链 config-panel-surface / settings-section-host / settings-dialog-main /
+              settings-dialog-surface / body / html **全是 overflow:hidden**，中间那层
+              fixed 遮罩是 overflow:visible 且 scrollHeight 1789 > clientHeight 900 ——
+              滚轮事件一路冒到 html 也没有可滚容器，所以滚轮 / 拖动 / 键盘三条路全断；
+            · transform / filter 全是 none（逐级量过），`position:fixed` 没有失效，
+              所以不是「弹层挂在 transform 祖先下」那一类。
+          横向额外一处：内容行是 `display:grid`，列宽 auto 取 min-content，
+          行内一个不断词的长名就能把轨道顶宽 → 给它 `gridTemplateColumns: minmax(0,1fr)`。
+          修法照本仓既有的同一家族（不是自创）：ChatWindow.tsx:3028 的扩展对话框、
+          ImagePreview.tsx:97、DirectoryPicker.tsx:228，以及并行修的 PluginsConfig.tsx:932
+          （MCP 导入弹层 · fork:settings-modal-scroll，同一根因）——解法完全一致，
+          这里跟同一口径。`- 32px` 用 `var(--app-viewport-height, 100dvh)`（同
+          ChatWindow.tsx:2570 / FileViewer.tsx:1212），上限跟应用自己量出的视口高走。 */}
+      <div
+        className="pw-modal"
+        style={{
+          width: "min(640px, calc(100vw - 32px))",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "calc(var(--app-viewport-height, 100dvh) - 32px)",
+        }}
+      >
         <div className="pw-modal-head">
           <span className="pw-ico"><i data-ico="box" data-size="16" aria-hidden="true" /></span>
           {t("i18n.addSkill")}
@@ -593,7 +633,19 @@ function InstallSkillsModal({
             <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
           </button>
         </div>
-        <div className="pw-modal-body">
+        {/* 内容行 = 唯一滚动容器（头尾固定）：flex + min-height:0 让它在壳的
+            max-height 里收缩，overflow-y 与 board.css:643 同值（显式写出来是为了让
+            「这个 bug 的正主就是这行」在源码里自证）；
+            gridTemplateColumns 把 grid 列从 min-content 收成壳宽，防横向滚动条。 */}
+        <div
+          className="pw-modal-body"
+          style={{
+            flex: "1 1 0%",
+            minHeight: 0,
+            overflowY: "auto",
+            gridTemplateColumns: "minmax(0, 1fr)",
+          }}
+        >
           {/* 画板 42 帧 3 第一行：市场切换 radio 在左，安装位置 selectbox 在右。 */}
           <div className="pw-inline">
             <PwRadio
@@ -641,7 +693,10 @@ function InstallSkillsModal({
               {searching ? t("i18n.searching") : t("i18n.search")}
             </ConfigButton>
           </div>
-          <span className="pw-mono pw-dim">→ {installPath}</span>
+          {/* fork:skills-modal-scroll —— 路径是不断词的长 token，`.pw-mono` 没有折行规则；
+              内容行一旦有了 overflow-y:auto，横向溢出就会变成一条横滚动条（overflow-x
+              由 visible 计算成 auto），所以这里让它自己折行而不是把壳撑宽。 */}
+          <span className="pw-mono pw-dim" style={{ overflowWrap: "anywhere" }}>→ {installPath}</span>
           {/* 画板 42 安装弹层的底部信息条：安装走 npx、需要网络。 */}
           <span className="pw-hint">{t("skills.installHint")}</span>
           {source === "skillhub" && (
@@ -682,7 +737,12 @@ function InstallSkillsModal({
                 return (
                   <div key={r.package} className="pw-prow" title={r.package}>
                     <span className="pw-ico"><i data-ico="box" data-size="14"></i></span>
-                    <span className="grow">
+                    {/* fork:skills-modal-scroll —— board.css:625 的 `.pw-prow .grow` 只给了
+                        `flex:1`，没有 `.pw-litem .grow`（board.css:858）那行 `min-width:0`。
+                        技能名 / repo 是不断词 token：flex 项的自动最小宽度等于
+                        min-content，撞不下的名字会把整行顶宽 → 内容行出横向滚动条。
+                        补回同款 min-width:0，并让长 token 就地折行。 */}
+                    <span className="grow" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                       <b style={{ fontWeight: 500 }}>{skillpart ?? repopart}</b>
                       {/* fork:skillhub — SkillHub 的条目带摘要，装之前能看清是什么；
                           `display:block` 与 `font-weight:500` 都是画板 prow 的自带 inline。 */}
@@ -962,9 +1022,23 @@ export function SkillsConfig({
 
   const projectName = cwd.split(/[\\/]+/).filter(Boolean).pop() ?? cwd;
 
-  /* fork:settings-frame（画板 62 帧 B）—— 列表行 = pw-litem：图标（path 组用
-      folder-cog 弱化）+ pw-lname 名称 + pw-lsub 描述副标题，行尾「可更新」warn
-      徽标或快捷开关（画板行尾的 pw-switch；键盘 / 读屏走详情 kv 的真开关）。
+  /* fork:skills-row-name-only（2026-10-02，替代上条 fork:settings-frame 的「名称 +
+      描述副标题」）—— 列表行 = pw-litem：图标（path 组用 folder-cog 弱化）+
+      **只留 pw-lname**，行尾「可更新」warn 徽标或快捷开关（画板行尾的 pw-switch；
+      键盘 / 读屏走详情 kv 的真开关）。
+      为什么撤掉 pw-lsub（用户截图 · image-gen 铺 6 行、impeccable 铺 19 行）：
+      画板 42 的副标题全是**一两行的手写短句**（「招标结构化抽取」/「PDF 读写」），
+      而 board.css:860 的 `.pw-litem .pw-lsub` 只有 `color` + `font-size` ——
+      **没有 overflow/white-space 钳位**，实测产品里 `white-space: normal`、
+      行高 117~381px、副标题 5~19 行。副标题槽位本身不保证一行，真实描述一进来
+      就把行高撑爆、把行尾开关推到几百像素之外。
+      「截断成一行放副标题」需要补一条钳位 CSS，而 board.css 不归本文件管；
+      名称一侧的钳位 board.css:859 已经给了（`.pw-lname` min-width:0 +
+      overflow:hidden + text-overflow:ellipsis + white-space:nowrap），所以
+      **行内只保留名称**：超长名走类自带的单行省略，不写内联高度。
+      描述没有丢 —— 它挪到详情列的 kv 首行（见 SkillDetail 的 fork 注释）：
+      SKILL.md 正文那一侧因为 lib/markdown.ts 的 remark-frontmatter 把 yaml 节点
+      吃掉了，frontmatter 的 description 在页面上根本没有第二处出口。
       SkillHub / skills.sh 来源画板是徽标，但产品的 SkillHub 安装不写
       skills-lock（无法从数据区分），来源信息只在详情 kv 显示。 */
   const renderSkillRow = (skill: Skill) => {
@@ -985,7 +1059,6 @@ export function SkillsConfig({
         </span>
         <span className="grow">
           <span className={`pw-lname${disabled ? " pw-dim" : ""}`}>{skill.name}</span>
-          <span className="pw-lsub">{skill.description}</span>
         </span>
         {hasUpdate ? (
           <ConfigBadge tone="warn" title={t("i18n.updateAvailable")}>

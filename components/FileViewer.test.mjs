@@ -160,6 +160,22 @@ test("gives the source stage a definite height but leaves preview content-driven
 
 // fix:sel-pop-nowrap —— 选中文字的浮窗不许折行（两个按钮原来会各占一行）。
 test("keeps the selection popover on a single line", () => {
-  assert.match(source, /flexWrap: "nowrap",\s*\n\s*whiteSpace: "nowrap",/);
+  assert.match(source, /flexWrap: inputOpen \? "wrap" : "nowrap",\s*\n\s*whiteSpace: inputOpen \? undefined : "nowrap",/);
   assert.match(source, /width: inputOpen \? "min\(420px, calc\(100vw - 16px\)\)" : "max-content",/);
+});
+
+// fix:sel-pop-grid —— 收起态那两枚是**带文案的动作钮**，不是方形图标钮：
+// `.pw-iconbtn` 是 `display:grid; place-items:center`，图标 + 文案会被各放一格
+// （上下两行），按钮撑破 35px、浮窗变两行高还多一条竖向滚动条（用户截图实测）。
+// 壳与动作钮一起改回画板原件（`.pw-pop` + `.pw-btn`），与转录里那份同一套。
+test("the selection popover uses the board shell and labelled buttons, not icon buttons", () => {
+  const start = source.indexOf("function FileSelectionQuotePopover");
+  const popover = source.slice(start, source.indexOf("\nfunction ", start + 10));
+  assert.match(popover, /className="pw-pop anim-popover-down"/);
+  assert.doesNotMatch(popover, /boxShadow: "var\(--shadow-popover\)"/, "shell chrome comes from .pw-pop, not hand-written inline");
+  assert.equal((popover.match(/className="pw-btn sm"/g) ?? []).length, 2, "both toolbar actions are .pw-btn");
+  assert.equal((popover.match(/className="pw-iconbtn sm"/g) ?? []).length, 1, "only the close button stays an icon button");
+  assert.match(popover, /data-ico="at-sign"/);
+  assert.match(popover, /data-ico="git-fork"/);
+  assert.doesNotMatch(popover, /<svg/, "no hand-drawn icons in the popover");
 });

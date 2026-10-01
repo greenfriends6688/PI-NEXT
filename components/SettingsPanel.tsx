@@ -27,15 +27,12 @@ import {
   setTitleModel,
 } from "@/lib/title-settings";
 import { ModelsConfig } from "./ModelsConfig";
-import { CronConfig } from "./fork/CronConfig";
 import { McpConfig } from "./fork/McpConfig";
-import { PiMemoryConfig } from "./fork/PiMemoryConfig";
-// fork:zc-03 / fork:zc-16 — new sections rendered by this panel.
-import { PromptsConfig } from "./fork/PromptsConfig";
+// fork:zc-03 — new sections rendered by this panel.
 import { UsageStatsPanel } from "./fork/UsageStatsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
-/* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig / fork/CronConfig
+/* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig
  * 共用同一份「一个模型都没有」口径（NO_MODEL_PROVIDERS_HINT），避免同一个原因在三个
  * 分节里说成三句话；`localCopy` 与文案表都定义在 AgentsConfig，理由见那里的注释。
  * 语言包在 lib/i18n/messages/**（这一轮不允许改 lib/），所以这几条走本地表而不是 t()。 */
@@ -89,10 +86,8 @@ interface Props {
   onSessionReloaded: () => void;
   quoteSelectionEnabled: boolean;
   onQuoteSelectionChange: (enabled: boolean) => void;
-  /** fork:cron — open the session a scheduled run created. */
+  /** fork:ui-archive-history — open the session picked in the archive history. */
   onOpenSession?: (sessionId: string) => void;
-  /** fork:memory-panel — open a memory markdown file in the main viewer. */
-  onOpenFile?: (filePath: string) => void;
   /** fork:zn-15 — 外观页的「侧边栏宽度」滑块要直接驱动轨宽，所以由 AppShell 注入
    *  （宽度由 `useResizablePanel` 拥有，重开一份 state 会两边打架）。 */
   sidebarWidth?: number;
@@ -116,10 +111,7 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   agents: "bot",
   plugins: "blocks",
   mcp: "server",
-  cron: "clock",
-  memory: "brain",
   usage: "chart-column",
-  prompts: "square-function",
   archived: "archive",
   import: "import",
 };
@@ -277,7 +269,7 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
         }
       />
       {/* fork:disabled-reasons —— 一句话讲清「为什么下拉里只有『使用会话模型』」。
-          文案与 AgentsConfig / fork/CronConfig 的空模型列表提示同源。 */}
+          文案与 AgentsConfig 的空模型列表提示同源。 */}
       {titleModelList.state === "empty" && (
         <p className="pw-hint">{localCopy(NO_MODEL_PROVIDERS_HINT, locale)}</p>
       )}
@@ -963,7 +955,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   );
 }
 // fork:zc-15 — the section keyword table moved into `lib/settings-navigation.ts`
-export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, onOpenSession, onOpenFile, sidebarWidth, onSidebarWidthChange, soundEnabled, onSoundToggle }: Props) {
+export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, onOpenSession, sidebarWidth, onSidebarWidthChange, soundEnabled, onSoundToggle }: Props) {
   const { t } = useI18n();
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const [mountedSections, setMountedSections] = useState<ReadonlySet<SettingsSection>>(
@@ -976,11 +968,8 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
     { id: "agents", label: t("common.agents"), requiresProject: true },
     { id: "plugins", label: t("common.plugins"), requiresProject: true },
     { id: "mcp", label: t("mcp.sectionTitle"), requiresProject: false },
-    { id: "cron", label: t("cron.title"), requiresProject: false },
-    { id: "memory", label: t("memory.title"), requiresProject: false },
-    // fork:zc-03 / fork:zc-16 — global sections.
+    // fork:zc-03 — global sections.
     { id: "usage", label: t("usage.title"), requiresProject: false },
-    { id: "prompts", label: t("prompts.title"), requiresProject: false },
     // fork:ui-archive-history
     { id: "archived", label: t("settings.archivedTitle"), requiresProject: false },
     // fork:import-ui
@@ -1119,19 +1108,16 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
             {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} />)}
             {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
             {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-            {/* fork:cron / fork:memory / fork:mcp-section — global pages, no project needed. */}
+            {/* fork:mcp-section — global pages, no project needed. */}
             {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-            {sectionHost("cron", <CronConfig cwd={cwd} onOpenSession={onOpenSession} />)}
-            {sectionHost("memory", <PiMemoryConfig cwd={cwd} onOpenFile={onOpenFile} />)}
-            {/* fork:zc-03 / fork:zc-16 — usage stats, prompt files. */}
+            {/* fork:zc-03 — usage stats. */}
             {sectionHost("usage", <UsageStatsPanel />)}
-            {sectionHost("prompts", <PromptsConfig onOpenFile={onOpenFile} />)}
             {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
             {sectionHost("archived", (
               // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
               // 合成一页：骨架 B（列表 300 + 详情 760），ConfigSplitView 与整页空态都由
               // ProjectArchivePanel 自己出；会话归档的分组 / 详情卡也并进了同一个
-              // ConfigSplitView（旧 `<ArchivedSessionsPanel/>` 两段式入口恒渲染 null，摘除）。
+              // ConfigSplitView（旧的两段式入口 ArchivedSessionsPanel 恒渲染 null，已删）。
               // fork:settings-frame（画板 62 帧 B）—— `fill` 与删掉 `div.settings-archive-page`
               // 必须同一提交：is-fixed 是 overflow:hidden，中间多一层 div 会把超高一列
               // 静默裁掉；删掉后 `.pw-scontent.is-fixed` 的直接子元素就只有

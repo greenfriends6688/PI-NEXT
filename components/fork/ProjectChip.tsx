@@ -157,6 +157,9 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
     // fork:design-components —— 新会话的工作区选择 = 画板 20 的 .pw-chip：
     // 它是输入框**内部**的一枚芯片（画板 20「附件与引用」的 .pw-chips 行），
     // 不再是输入框上方另起的一条横条。
+    // fork:no-chip-accent（用户 2026-10-01）—— 原来是 `pw-chip accent`：accent 描边 +
+    // accent 淡底 + accent 文字（画板 20 里那是「有引用上下文」的高亮态）。工作区芯片
+    // 常驻，一眼看着像默认态被点亮 —— 现在用中性 `.pw-chip`，高亮仍归引用芯片。
     <button
       ref={buttonRef}
       type="button"
@@ -164,7 +167,7 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
       title={targets.activeCwd ?? undefined}
       aria-label={t("home.workspaceTarget")}
       aria-haspopup="menu"
-      className="pw-chip accent"
+      className="pw-chip"
       style={{ maxWidth: "min(100%, 260px)", cursor: "pointer" }}
     >
       {/* fork:design-components 判据⑦ —— 图标壳用画板的 `.pw-ico`（line-height 归零 +
