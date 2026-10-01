@@ -6,6 +6,8 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import type { Extension } from "micromark-util-types";
+import type { Plugin } from "unified";
 
 const markdownSanitizeSchema = {
   ...defaultSchema,
@@ -461,11 +463,49 @@ function remarkSplitAutolinkLiterals() {
   };
 }
 
+/**
+ * 在**分词阶段**就拒掉有歧义的单美元对，让数学不要把 Markdown 的强调或链接一起吞掉：
+ * 价格后面那一个 `$`（`$20 … $6`）不能闭合公式，后面空格后的公式（`$20 and $x$`）也不是。
+ * 真正的公式、代码、转义与 `$$` 一律交给 remark-math 自己的 tokenizer / resolver。
+ *
+ * 与上游写死的下标 `text[36]` 不同，这里按名字在**本次 remark-math 新加**的扩展里找
+ * `mathText` construct（`36` 是 micromark 代码点表里的位置，跟着版本漂）。
+ */
+const remarkCurrencySafeMath: Plugin = function () {
+  const data = this.data() as { micromarkExtensions?: Extension[] };
+  const addedFrom = (data.micromarkExtensions ?? []).length;
+  remarkMath.call(this);
+  const extensions = (data.micromarkExtensions ?? []).slice(addedFrom);
+  for (const extension of extensions) {
+    const constructs = Object.values(extension.text ?? {}).flat();
+    for (const construct of constructs) {
+      if (!construct || construct.name !== "mathText") continue;
+      const tokenize = construct.tokenize;
+      construct.tokenize = function (effects, ok, nok) {
+        const start = this.now();
+        return tokenize.call(this, effects, (code) => {
+          const source = this.sliceSerialize({ start, end: this.now() });
+          if (source.startsWith("$") && !source.startsWith("$$")) {
+            const content = source.slice(1, -1);
+            const startsWithAmount = /^\s*[+-]?(?:\d|\.\d)/.test(content);
+            const closesBeforeNumber = code !== null && code >= 48 && code <= 57;
+            // 前后都有空格的写法（`$ x + y $`）继续支持，多行公式也是；
+            // 只有单边空格才是散文，不是行内公式的边界。
+            const mismatchedPadding = /^\s/.test(content) !== /\s$/.test(content);
+            if (startsWithAmount && (closesBeforeNumber || mismatchedPadding)) return nok(code);
+          }
+          return ok(code);
+        }, nok);
+      };
+    }
+  }
+};
+
 export const markdownRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
   remarkSplitAutolinkLiterals,
-  remarkMath,
+  remarkCurrencySafeMath,
 ];
 /**
  * fork:fix-user-line-breaks —— 用户消息里每一个换行都保留（#680 / #1015）。
@@ -534,7 +574,7 @@ export const markdownPreviewRemarkPlugins: ReactMarkdownOptions["remarkPlugins"]
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
   remarkSplitAutolinkLiterals,
-  remarkMath,
+  remarkCurrencySafeMath,
 ];
 
 export const markdownRehypePlugins: ReactMarkdownOptions["rehypePlugins"] = [
