@@ -749,6 +749,13 @@ body.pw.dark { background: #0f0f13; }
   border: 1px solid var(--n-border); border-radius: var(--radius-4);
   background: var(--surface-canvas); color: var(--n-text); font: inherit; font-size: var(--text-secondary);
 }
+/* fork:numin（2026-10-01，画板 40「重试策略」）—— 字段行右侧的**窄数值框**。
+ * 画板 44 的「最大运行次数」一行早就给出了这个形态：`.pw-ctl` 里一个 `.pw-input` 收到
+ * 90px（画板上是内联 `min-width:0;width:90px`）。产品的 `check-style-literals` 不许把
+ * 宽度写进内联样式，所以把那 90px 收成类 —— **值一字未改**，画板 44 那一行与画板 40 的
+ * 「最大重试次数 / 重试基础延迟」两行共用它。
+ * 90px 装得下 5 位数 + 上下箭头；再宽就该用 `.pw-input` 默认的 200px（那是文本框的档）。 */
+.pw-numin { min-width: 0; width: 90px; font-variant-numeric: tabular-nums; }
 .pw-textarea {
   width: 100%; min-height: 120px; padding: var(--s2) var(--s3);
   border: 1px solid var(--n-border); border-radius: var(--radius-4);

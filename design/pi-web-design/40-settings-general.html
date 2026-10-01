@@ -266,6 +266,27 @@
           <span class="pw-btn outline sm">注册</span>
         </div>
       </div>
+
+      <!-- fork:numin（2026-10-01）—— 「重试策略」块：pi 的 settings.retry
+           （enabled / maxRetries / baseDelayMs）一直只在 settings.json 里，本产品先前
+           没有入口。控件全是既有的：开关照「通知」块，窄数值框照画板 44「最大运行次数」
+           那一行（`.pw-ctl > .pw-input.pw-numin`），单位进标签（画板 40 的读数位是
+           `.pw-mono`，这里是可编辑框，不是读数）。 -->
+      <div class="pw-block">
+        <h3><span class="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span>重试策略</h3>
+        <div class="pw-field">
+          <span class="pw-label">自动重试<small>请求失败后按退避重试，新会话生效</small></span>
+          <span class="pw-switch on"><i></i></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">最大重试次数</span>
+          <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="20" value="3"></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">基础延迟（毫秒）<small>首次重试的等待时间，之后按次数指数退避</small></span>
+          <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="60000" step="100" value="2000"></span>
+        </div>
+      </div>
     </div>
 
   </div>

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { Script } from "node:vm";
+import { createJiti } from "jiti";
 import ts from "typescript";
 
 const source = ts.createSourceFile(
@@ -28,6 +29,10 @@ function script(text) {
 const loadScript = script(`(${loader.initializer.arguments[0].getText(source)})`);
 const retryScript = script(retry.getText(source));
 
+// fork:thinking-level-prefill —— loadModels 里多了一次预选判定，把真函数与那张表快照
+// 一并放进沙箱（与其它依赖一样处理：沙箱只缺它没有注入的东西）。
+const { resolvePrefilledThinkingLevel } = await createJiti(import.meta.url).import("../lib/thinking-level-prefill.ts");
+
 function setup(fetchImpl) {
   const writes = [];
   const delays = [];
@@ -36,6 +41,8 @@ function setup(fetchImpl) {
     controller: new AbortController(),
     newSessionCwd: "/project", session: null, isNew: true,
     sessionIdRef: { current: null }, thinkingLevelOverrideRef: { current: null },
+    thinkingLevelTablesRef: { current: { thinkingLevels: {}, thinkingLevelPins: {}, thinkingLevelMemory: {} } },
+    resolvePrefilledThinkingLevel,
     fetch: fetchImpl,
     MODELS_RETRY_DELAYS_MS: script(schedule.initializer.getText(source)).runInNewContext(),
     delay: async (ms) => { delays.push(ms); },
@@ -77,6 +84,46 @@ test("model-load failures stay visible through bounded retries and clear on reco
   assert.ok(recovered.writes.some(([name, value]) => name === "ModelList" && value[0].id === "test"));
   assert.ok(recovered.writes.some(([name, value]) => name === "NewSessionDefaultModel" && value.modelId === "test"));
   assert.ok(recovered.writes.some(([name, value]) => name === "ThinkingLevel" && value === "high"));
+});
+
+// fork:thinking-level-prefill —— 没有 pin 时按 per-model 记忆预选，并把「记忆」来源
+// 钉到 thinkingLevelOverrideRef（否则选择器显示的档和真跑的不一样）；pin 来源不钉。
+test("the remembered level preselects the new session and is pinned onto it", async () => {
+  const payload = {
+    models: { "custom:test": "Test" },
+    modelList: [{ provider: "custom", id: "test", name: "Test" }],
+    defaultModel: { provider: "custom", modelId: "test" },
+    thinkingLevels: { "custom:test": ["low", "high"] },
+    thinkingLevelMemory: { "custom/test": "high" },
+  };
+  const state = setup(async () => Response.json(payload));
+  await state.run();
+  assert.ok(state.writes.some(([name, value]) => name === "ThinkingLevel" && value === "high"));
+  assert.equal(state.context.thinkingLevelOverrideRef.current, "high");
+});
+
+test("no pin and no memory leaves the new session on 'auto' and pins nothing", async () => {
+  const state = setup(async () => Response.json({
+    models: { "custom:test": "Test" },
+    modelList: [{ provider: "custom", id: "test", name: "Test" }],
+    defaultModel: { provider: "custom", modelId: "test" },
+  }));
+  await state.run();
+  assert.ok(state.writes.some(([name, value]) => name === "ThinkingLevel" && value === "auto"));
+  assert.equal(state.context.thinkingLevelOverrideRef.current, null);
+});
+
+test("an explicit override from the user is never replaced by the prefill", async () => {
+  const state = setup(async () => Response.json({
+    models: { "custom:test": "Test" },
+    modelList: [{ provider: "custom", id: "test", name: "Test" }],
+    defaultModel: { provider: "custom", modelId: "test" },
+    thinkingLevelMemory: { "custom/test": "high" },
+  }));
+  state.context.thinkingLevelOverrideRef.current = "low";
+  await state.run();
+  assert.ok(!state.writes.some(([name]) => name === "ThinkingLevel"));
+  assert.equal(state.context.thinkingLevelOverrideRef.current, "low");
 });
 
 test("cancelling model loads prevents state writes and further retries", async () => {

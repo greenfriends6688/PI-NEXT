@@ -363,6 +363,25 @@ description: 把招投标 Excel 逐条抽取 15 个字段…
                     <span class="pw-ctl"><span class="pw-wallpaper-thumb" style="background:var(--n-surface)"></span><span class="pw-btn outline sm">选择图片</span></span>
                   </div>
                 </div>
+
+                <!-- fork:numin（2026-10-01）—— 「重试策略」块，与画板 40 帧 1 的那一块
+                     逐行同构（帧 C 只是节选，这里补齐右栏实际落位的最后一块）。
+                     控件：开关 + 窄数值框（`.pw-numin`，来自画板 44「最大运行次数」行）。 -->
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span>重试策略</h3>
+                  <div class="pw-field">
+                    <span class="pw-label">自动重试<small>请求失败后按退避重试，新会话生效</small></span>
+                    <span class="pw-switch on"><i></i></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">最大重试次数</span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="20" value="3"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">基础延迟（毫秒）<small>首次重试的等待时间，之后按次数指数退避</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="60000" step="100" value="2000"></span>
+                  </div>
+                </div>
               </div>
 
             </div>

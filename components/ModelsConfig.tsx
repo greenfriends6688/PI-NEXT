@@ -4,6 +4,8 @@ import { Fragment, useState, useEffect, useCallback, useMemo, useRef, useSyncExt
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { formatUpdatedTime } from "@/lib/i18n/format";
+// fork:input-limits —— pi-ai 原生的 `inputLimits` / `promptCache` 类型（见 ModelEntry）。
+import type { ModelInputLimits, ModelPromptCache } from "@earendil-works/pi-ai";
 import type { ModelCatalogPreset, ModelCatalogRecommendation } from "@/lib/model-catalog";
 import type { DiscoveredModel } from "@/lib/model-discovery";
 import {
@@ -24,6 +26,8 @@ import {
   type ModelCostDraft,
   type ModelCostKey,
 } from "./models-config-helpers";
+// fork:input-limits —— 多模态上限 / 图片 resize / 提示词缓存时长的输入区。
+import { ModelInputLimitsFields } from "./ModelLimitsFields";
 import {
   ConfigBadge,
   ConfigButton,
@@ -127,6 +131,12 @@ interface ModelEntry {
   reasoning?: boolean;
   thinkingLevelMap?: Record<string, string | null>;
   input?: string[];
+  /* fork:input-limits —— pi-ai 的原生字段（`@earendil-works/pi-ai` 的 `Model` 上
+     是 `inputLimits?` / `promptCache?`），先前这里没声明，所以 models.json 编辑器
+     配不了它们。类型直接引 SDK 的，不自己抄一份（抄了就会漂）。
+     pi 的校验在 `model-config.js:121-136`，见 components/ModelLimitsFields.tsx。 */
+  inputLimits?: ModelInputLimits;
+  promptCache?: ModelPromptCache;
   contextWindow?: number;
   maxTokens?: number;
   cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: unknown };
@@ -1572,6 +1582,18 @@ function ModelDetail({
                 onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
               />
             </ConfigField>
+
+            {/* fork:input-limits —— pi-ai 原生的 `inputLimits` / `promptCache`（多模态上限、
+                图片 resize 策略、提示词缓存时长）。放在高级分节里：这三类只在自建网关 /
+                显式开 1h 缓存时才要动，与 apiOverride / headers / compat 是同一档。
+                控件是画板 41 规格行已经在用的 `.pw-input` + `type=number`（`.pw-grid2` 两列），
+                不新造控件。 */}
+            <ModelInputLimitsFields
+              inputLimits={model.inputLimits}
+              promptCache={model.promptCache}
+              onInputLimitsChange={(next) => set("inputLimits", next)}
+              onPromptCacheChange={(next) => set("promptCache", next)}
+            />
 
             {model.reasoning && (
               <>

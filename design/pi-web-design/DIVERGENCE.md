@@ -1913,3 +1913,116 @@ board.css 里 **49 处**离网格字面量（29 处 gap + 9 处 padding:6 + 5 �
 按项目规矩 `knownDiffs` 只许登记接线/数据/状态/取景/画板自身不一致，
 所以这些红项**先留着红**，逐条裁定后才收。具体清单见各 spec 的 `✗` 输出与
 下批的收敛顺序（先修接线层 4 条 + 快捷键整节的裁定）。
+
+---
+
+## V · 2026-10-01：PR-12 A2 —— 「重试策略」块与窄数值框 `.pw-numin`（判据⑦ 第一次为「补控件」走流程）
+
+### V-0 · 这一条在定什么
+
+上游 closed PR #918 是「后端已有、只差 UI」那类里最便宜的一条：pi 认 `settings.retry`
+（`settings-manager.d.ts:23-29, :90`），本 fork 也一直把它读出来透传
+（`lib/pi-types.ts:140` ← `lib/rpc-manager.ts:854`），但**没有任何入口能改**。
+画板 40 / 62 帧 C 右栏末位补一块「重试策略」，三行：开关 + 两个数值。
+
+### V-1 · 新类 `.pw-numin`（不是新控件，是画板 44 已有形态的收编）
+
+画板 44 的「最大运行次数」一行早就是 `.pw-ctl` 里一个 90px 宽的 `.pw-input`
+（画板上是内联 `min-width:0;width:90px`）。**产品的 `check-style-literals` 不许把宽度
+写进内联样式**，而 `board.css` 里没有对应类 —— 于是有两种走法：加进内联几何基线
+（基线只许变少）或把它收成类。**选后者**：
+
+- `.pw-numin { min-width: 0; width: 90px; font-variant-numeric: tabular-nums; }`
+- `90px` 与画板 44 那一行**一字未改**；`tabular-nums` 是新增的那一档（画板 40 的
+  「等宽数字」判据只约束 `.pw-mono` 读数位，这里是可编辑框，数字宽度一致更好读）。
+- 落位：画板 **40 帧 1 右栏末块** + **62 帧 C 右栏末块**（两块逐行同构）。
+- 组件：`components/RetrySettingsBlock.tsx`，直接用 `.pw-input` + `.pw-numin`。
+
+### V-2 · 与画板的三处有意的差
+
+| 处 | 画板 | 产品 | 为什么 |
+|---|---|---|---|
+| 基础延迟的单位 | 值里带（`2000`） | **进标签**（「基础延迟（毫秒）」） | 画板 40 的「280 px」单位在 `.pw-mono` 读数位里；这里是可编辑的 `<input type=number>`，读数位不存在，挂在标签上比再塞一个 span 少一个原子 |
+| 数值输入 | 静态 `value="3"` | 真 `<input type=number>` + `onBlur` 提交 | 画板只定形态；即时生效语义（画板 62 的动作四级）要求提交发生在离开输入框时，不是每次按键 |
+| 数字输入的上下箭头 | 画板 44 那一行是文本框，没有箭头 | 有 | UA 行为，不进 board.css（`check-boards` 只校验图标 / emoji / 变量 / 标签） |
+
+### V-3 · 这一块**不是**「快捷键整节」那类待裁定项
+
+U-2 记的「快捷键整节缺失」是画板 40–46 与 62 自相矛盾、**需要设计裁定**的情形。
+重试策略不同：画板原先没有这一块，但产品本来就有这份配置（只是没入口），
+补画板是「把已有能力画出来」，不是「推翻一块画板」。两份画板（40 / 62 帧 C）同步补齐，
+`62-settings-blockflow.mjs` 的 `.pw-block` 取第一个匹配（外观块），不受影响。
+
+---
+
+## W · 2026-10-01：PR-12 A3 —— 输入框工具条上的配额芯片（不新造控件，只换落位）
+
+### W-0 · 这一条在定什么
+
+上游 closed PR #867「show provider quota beside the model selector」。后端
+`POST /api/provider-usage/query` 一直就能问出额度，数据一直都在，但只出现在设置页的
+模型详情里（`components/ProviderUsageSummary.tsx`）。现在把它挂到输入框工具条上、
+模型选择器右侧，写代码时一眼能看到还剩多少。
+
+### W-1 · 复用的是画板 20 帧 B 那一族徽章，不是新控件
+
+画板 20 帧 B 的工具条里已经有一枚带前置图标的 `.pw-badge count`（「2 条排队」）——
+`.pw-composer-bar` 里放徽章这件事画板早就定过。配额芯片是同一族，只换图标
+（`gauge`）与读数，落在**帧 A 的模型选择器之后**（本轮一并补进帧 A）。
+
+**所以本条不涉及判据⑦**：没有新 `.pw-*` 类，`board.css` 不动。
+芯片 DOM 就是 `20-composer.html:36-38` 那一行。
+
+### W-2 · 与画板的三处有意的差
+
+| 处 | 画板 | 产品 | 为什么 |
+|---|---|---|---|
+| 语气 | 帧 B 是静态 `count` | 按最紧窗口的余量分 `ok` / `warn` / `bad` | 额度芯片的价值就是「快没了」要看得见；`.pw-badge` 三个语气档（board.css:222-225）本来就是这件事 |
+| 读数 | 帧 A 写死 `82%` | 「最紧窗口的 remaining」；没有百分比窗口就退到余额 / 指标 | Codex 同时报 5 小时窗与周窗，用户关心的是哪一个快见底 |
+| 窄屏 | 画板没有窄屏这一帧 | `narrowControls` 时只留图标 | 输入框在移动端本来就窄，工具条其它控件也是这个处理（`(!narrowControls \|\| controlsMenuOpen) && …`） |
+
+### W-3 · 三条静默约定（这一条比像素重要）
+
+1. **输入区不报错**：没有 provider / provider 不支持额度查询 / 没缓存过 / 查询失败 ——
+   全部**不渲染芯片**，不弹提示、不占位。写代码的地方不是设置页。
+2. **不打供应商接口**：先读设置页写下的 `localStorage` 缓存，缓存超过 5 分钟才在后台
+   悄悄刷一次；输入区常驻，每次会话打开都查一次是不可接受的。
+3. **没有会话时怎么拿 provider**（上游 PR 正文自己留下的那个约束）：芯片的 provider
+   取自 `model.provider` —— **没选模型就没有 provider，于是没有芯片**。不猜、不回退到
+   「上一次用过的 provider」。
+
+---
+
+## X · 2026-10-01：PR-12 A4 —— 模型详情的「输入上限与提示词缓存」小节（控件全部复用）
+
+### X-0 · 这一条在定什么
+
+pi-ai 的 `Model` 上有 `inputLimits?`（`ModelInputLimits` → `images.resize.*` /
+`images.maxPerMessage` / `images.maxPerRequest` / `maxRequestBytes`）与 `promptCache?`
+（`ModelPromptCache`，`short` / `long` 两档，单位秒）。本 fork 的 `ModelEntry`
+（`components/ModelsConfig.tsx:123`）**没声明**它们，编辑器也就没有入口。
+
+**上游同样缺**：`pi参考项目/pi-web-main`（agegr/main HEAD）全树
+`grep -rn "inputLimits\|promptCache"` **零命中** —— 所以这条不是「只补类型没做的那部分」，
+类型与 UI 一起补（计划里「读一遍上游有没有做」的前置假设不成立，以代码为准）。
+
+### X-1 · 落位与控件
+
+放在模型详情的**高级分节**里（`apiOverride` / `headers` / `compat` 之后、思考档映射之前），
+理由与那三项一致：只在自建网关 / 显式开 1h 缓存时才要动，不是每个模型都要填的规格。
+小节标题用 `.pw-sec-title`，九行用 `.pw-grid2` 两列 + `.pw-field` 行 + `.pw-input`
+（画板 41 规格行已经在用的那一个数字输入框），**不新造控件**，
+所以 `board.css` 不动、判据⑦ 不触发。
+
+### X-2 · 三条与画板无关但更重要的约定
+
+1. **范围照抄 pi 的 Typebox**，不自己发明：`model-config.js:121-136` 规定
+   整数 ≥ 1（`maxRequestBytes` / `maxPerMessage` / `maxPerRequest` /
+   `resize.maxWidth|maxHeight|maxBytes`）、`jpegQuality` 整数 1–100、
+   `promptCache.{short,long}` > 0。越界值一律**丢弃而不是夹取** —— models.json 写出一个
+   越界值会让 pi 读不动整条模型定义，夹取等于替用户编数据。
+2. **清空即删键，并剪掉空掉的父对象**：清掉最后一个 `jpegQuality` 之后，
+   `resize` → `images` → `inputLimits` 逐层消失，不在 models.json 里攒
+   `{ inputLimits: { images: { resize: {} } } }` 这类空壳（A1 的同一条教训）。
+3. **单位不做隐式换算**：`promptCache` 就是秒（`300` / `3600`），
+   与文件里写的完全一致；`maxBytes` 就是字节。省掉一层「用户以为填的是 MB」的可能。

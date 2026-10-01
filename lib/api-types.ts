@@ -1,5 +1,6 @@
 import type { ResourceDiagnostic } from "@earendil-works/pi-coding-agent";
 import type { SubagentProfile } from "./subagents";
+import type { RetrySettings } from "./retry-settings";
 
 export interface SubagentProfilesResponse {
   profiles: SubagentProfile[];
@@ -14,6 +15,9 @@ export interface ShellToolSettingsResponse {
   isWindows: boolean;
   powerShellEnabled: boolean;
 }
+
+/** `GET/PUT /api/retry-settings` 的响应体（缺字段时回落 pi 的内建默认）。 */
+export type RetrySettingsResponse = RetrySettings;
 
 export interface SkillSearchResult {
   package: string;

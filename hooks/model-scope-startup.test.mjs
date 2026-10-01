@@ -46,5 +46,9 @@ test("model-list refresh does not overwrite a live session or explicit thinking 
     loadModelsSource,
     /thinkingLevelOverrideRef\.current === null/,
   );
-  assert.match(loadModelsSource, /setThinkingLevel\(\(pinned[\s\S]*\?\? "auto"\)/);
+  /* fork:thinking-level-prefill（2026-10-01）—— 这一行不再只读 `enabledModels` 的 pin，
+     还要按 per-model 记忆预选（`lib/thinking-level-prefill.ts`）；两者都没有时回 `auto`。
+     取值判定本身在 lib 的单测里，这里只钉住「两条配置进同一个分支」这件事。 */
+  assert.match(loadModelsSource, /resolvePrefilledThinkingLevel\(\{/);
+  assert.match(loadModelsSource, /if \(prefill\) \{[\s\S]*?\} else \{\s*setThinkingLevel\("auto"\);/);
 });
