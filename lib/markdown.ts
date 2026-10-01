@@ -1,3 +1,4 @@
+import type { Content, Link, Parent, Root } from "mdast";
 import { defaultUrlTransform, type Options as ReactMarkdownOptions } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -394,9 +395,76 @@ function isLikelyMathExpression(value: string): boolean {
 // GFM's default single-tilde strikethrough silently mangled such ranges (#385).
 const remarkGfmOptions = { singleTilde: false } as const;
 
+// GFM autolink literal（`https://…` / `www.…`）只在空白处收尾，行尾标点的裁剪也只认
+// ASCII 标点，所以紧跟中文的 URL 会把后面的散文一起吞进去：`见 https://a.com/docs。`
+// 变成一个 href 为 `https://a.com/docs%E3%80%82` 的链接，点进去哪儿也不是。
+//
+// 这是上游行为而不是 remark-gfm 的 bug：它跟 GitHub 走，GitHub 同样只在 ASCII 标点处
+// 终止 autolink（remarkjs/remark-gfm#83 就以「非 ASCII 终止符」未计划结案，指向
+// github/cmark-gfm#377 这个还没落地的规范请求）。在那之前在这里把 literal 切开：中日文里
+// CJK 标点就是句子边界，所以 URL 仍可点、后面的字仍是正文。表意文字**刻意不**当边界，
+// 这样 `https://zh.wikipedia.org/wiki/中文条目` 这种真 CJK 路径照常可用。
+const cjkPunctuationPattern =
+  /[\u3001\u3002\u3008-\u3011\u3014-\u301B\uFF01\uFF08\uFF09\uFF0C\uFF1A\uFF1B\uFF1F\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u00B7\uFF5E\u301C]/;
+
+/**
+ * 把每个 GFM autolink literal 在**第一个** CJK 标点处切开，后半段还原成普通文本节点。
+ *
+ * `source` 必须是这棵树解析自的 markdown 原文。autolink literal 的 raw 源码**就是**它的
+ * 文字，而手写的 `[text](url)` 的 raw 源码是 `[text](url)` —— 比对两者才能让显式链接原样
+ * 保留，哪怕它的文字恰好等于它的 url。
+ */
+export function splitAutolinkLiteralsAtCjkPunctuation(tree: Root, source: string): void {
+  const walk = (node: Root | Parent): void => {
+    const children = node.children as Content[];
+    for (let index = 0; index < children.length; index++) {
+      const child = children[index];
+      if (child.type === "link") splitAutolinkLiteral(children, index, child, source);
+      const current = children[index];
+      if ("children" in current && Array.isArray(current.children)) walk(current as Parent);
+    }
+  };
+  walk(tree);
+}
+
+function splitAutolinkLiteral(siblings: Content[], index: number, node: Link, source: string): void {
+  if (node.title != null || node.children.length !== 1) return;
+  const textNode = node.children[0];
+  if (textNode.type !== "text") return;
+
+  const start = node.position?.start;
+  const end = node.position?.end;
+  if (start?.offset == null || end?.offset == null) return;
+  if (source.slice(start.offset, end.offset) !== textNode.value) return;
+
+  const text = textNode.value;
+  const cut = text.search(cjkPunctuationPattern);
+  // `cut === 0` 说明 literal 自己就是以标点开头的 —— 那不是 URL。
+  if (cut <= 0 || !node.url.endsWith(text)) return;
+
+  const head = text.slice(0, cut);
+  const boundary = { line: start.line, column: start.column + cut, offset: start.offset + cut };
+  // url 带的是 `http://`（www. 时）或 `mailto:` 前缀，文字里没有。
+  node.url = node.url.slice(0, node.url.length - text.length) + head;
+  textNode.value = head;
+  node.position = { start, end: boundary };
+  siblings.splice(index + 1, 0, {
+    type: "text",
+    value: text.slice(cut),
+    position: { start: boundary, end },
+  });
+}
+
+function remarkSplitAutolinkLiterals() {
+  return (tree: Root, file: { value?: unknown }): void => {
+    splitAutolinkLiteralsAtCjkPunctuation(tree, typeof file.value === "string" ? file.value : "");
+  };
+}
+
 export const markdownRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
+  remarkSplitAutolinkLiterals,
   remarkMath,
 ];
 /**
@@ -465,6 +533,7 @@ export const markdownUserRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = 
 export const markdownPreviewRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
+  remarkSplitAutolinkLiterals,
   remarkMath,
 ];
 

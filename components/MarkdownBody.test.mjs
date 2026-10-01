@@ -309,3 +309,31 @@ test("fork:fix-user-line-breaks — 打开 raw-text 标签的块保持默认渲�
   const list = renderMarkdown("- item <textarea>\n  more\n- two\n  lines", { keepLineBreaks: true });
   assert.match(list, /<li>two<br\/>lines<\/li>/);
 });
+
+test("fork:cjk-autolink — 紧跟 URL 的中文标点不再被吞进链接（#971 / #972）", () => {
+  const html = renderMarkdown("开 http://localhost:4321，或直接开 library/x.png。");
+
+  assert.match(html, /<a (?=[^>]*href="http:\/\/localhost:4321")[^>]*>http:\/\/localhost:4321<\/a>/);
+  assert.match(html, /<\/a>，或直接开 library\/x\.png。/);
+  assert.doesNotMatch(html, /%EF%BC%8C/);
+});
+
+test("fork:cjk-autolink — 行尾的中文句号停在链接外", () => {
+  const html = renderMarkdown("见 https://example.com/docs。");
+
+  assert.match(html, /<a (?=[^>]*href="https:\/\/example\.com\/docs")[^>]*>https:\/\/example\.com\/docs<\/a>/);
+  assert.match(html, /<\/a>。/);
+});
+
+test("fork:cjk-autolink — 显式链接、CJK 路径与查询串原样保留（#971 / #972）", () => {
+  const explicit = renderMarkdown("[文档](https://example.com/docs)，说明");
+  assert.match(explicit, /<a (?=[^>]*href="https:\/\/example\.com\/docs")[^>]*>文档<\/a>/);
+  assert.match(explicit, /<\/a>，说明/);
+
+  const cjkPath = renderMarkdown("https://zh.wikipedia.org/wiki/中文条目");
+  assert.match(cjkPath, /href="https:\/\/zh\.wikipedia\.org\/wiki\/%E4%B8%AD%E6%96%87%E6%9D%A1%E7%9B%AE"/);
+
+  const query = renderMarkdown("https://a.com/p?a=1&b=2，后面");
+  assert.match(query, /href="https:\/\/a\.com\/p\?a=1&amp;b=2"/);
+  assert.match(query, /<\/a>，后面/);
+});
