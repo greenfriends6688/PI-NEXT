@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import {
+  allowFileRoot,
   getAllowedFileRoots,
   isExistingFilePathAllowed,
   isFilePathAllowed,
@@ -20,6 +21,9 @@ import {
 import { resolveDirentIsDirectory } from "@/lib/file-dirent";
 // fork:file-tree-visibility — 列表里的「隐藏什么」交给 Git（#677，见该模块头注）。
 import { getFileTreeVisibility } from "@/lib/file-tree-visibility";
+// fork:linked-directory — 指向 roots 之外的符号链接目录：列表标出目标，操作员
+// 显式放行后只授权这一条（#748，见该模块头注）。
+import { checkLinkedDirectoryApproval, withOutsideLinkTargets } from "@/lib/linked-directory";
 import { isFilePathReferencedBySession } from "@/lib/session-file-references";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import {
@@ -41,6 +45,7 @@ import {
 import { compressToZip, extractArchive } from "@/lib/file-archives";
 import { parseFormDataWithinLimit, RequestBodyTooLargeError } from "@/lib/bounded-form-data";
 import { filePathFromApiSegments, samePath } from "@/lib/paths";
+import { hasParentDirectorySegment } from "@/lib/path-security";
 import { readTextPreviewChunk } from "@/lib/text-preview";
 import { writeTextFile, MarkdownFileError, MAX_TEXT_EDIT_BYTES } from "@/lib/markdown-file";
 
@@ -123,6 +128,32 @@ async function getUploadDirectory(segments: string[]): Promise<
   }
 
   return { directory: realDirectory };
+}
+
+// fork:linked-directory — 目标在 allowed roots 之外的目录链接：列表里列得出来，
+// 但点进去一律 403。要能浏览只能由操作员显式放行 —— 相当于他在目录选择器里
+// 选中那个目录（`/api/cwd/validate` 同等级的授权），且只到重启为止。
+async function allowLinkedDirectory(
+  request: NextRequest,
+  segments: string[],
+): Promise<NextResponse> {
+  if (!hasJsonContentType(request)) {
+    return NextResponse.json({ error: "Content-Type must be application/json" }, { status: 415 });
+  }
+  const body = await request.json().catch(() => null) as { target?: unknown } | null;
+  if (typeof body?.target !== "string" || !body.target) {
+    return NextResponse.json({ error: "target must be the link target shown in the listing" }, { status: 400 });
+  }
+  const approval = checkLinkedDirectoryApproval(
+    filePathFromApiSegments(segments),
+    body.target,
+    await getAllowedFileRoots(),
+  );
+  if (!approval.ok) {
+    return NextResponse.json({ error: approval.error }, { status: approval.status });
+  }
+  if (!approval.alreadyAllowed) allowFileRoot(approval.target);
+  return NextResponse.json({ path: approval.target });
 }
 
 function parseUploadFileNames(value: unknown): string[] | null {
@@ -310,10 +341,12 @@ export async function POST(
       return await handleFileMutation(request, segments, mutationType as FileMutationType);
     }
 
+    const type = request.nextUrl.searchParams.get("type") ?? "upload";
+    if (type === "allow-link") return allowLinkedDirectory(request, segments);
+
     const uploadDirectory = await getUploadDirectory(segments);
     if ("response" in uploadDirectory) return uploadDirectory.response;
     const { directory } = uploadDirectory;
-    const type = request.nextUrl.searchParams.get("type") ?? "upload";
 
     if (type === "upload-check") {
       const body = await request.json().catch(() => null) as { fileNames?: unknown } | null;
@@ -607,6 +640,13 @@ export async function GET(
   try {
     const { path: segments } = await params;
     const filePath = filePathFromApiSegments(segments);
+    // fork:linked-directory — 授权先把 `..` 按字典序消掉，文件系统却在**跟完**
+    // 链接之后才消，所以 `link/../x` 指的是链接目标旁边的文件，在 roots 之外。
+    // URL 解析本就会丢掉真的 `..` 分段，能带着它到达的只有编码斜杠；这里直接
+    // 拒绝，不依赖上游那道「已存在路径」检查（会话引用的文件会跳过它）。
+    if (hasParentDirectorySegment(filePath)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
     const rawType = request.nextUrl.searchParams.get("type") ?? "list";
     const type = parseFileRequestType(rawType);
     if (!type) {
@@ -839,7 +879,10 @@ export async function GET(
         return a.name.localeCompare(b.name);
       });
 
-    return NextResponse.json({ entries, path: filePath });
+    return NextResponse.json({
+      entries: withOutsideLinkTargets(filePath, entries, dirents, allowedRoots),
+      path: filePath,
+    });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

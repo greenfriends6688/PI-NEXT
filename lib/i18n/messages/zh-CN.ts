@@ -675,6 +675,12 @@ export const zhCNLocale: LocalePlugin = {
     "files.menuRename": "重命名",
     "files.menuDelete": "删除",
     "files.renameEntry": "重命名",
+    // fork:linked-directory — 指向项目之外的符号链接目录（#748）。
+    "files.outsideLink": "指向 {target}，在本项目之外",
+    "files.outsideLinkEncloses": "该文件夹里还包含本项目或你的主目录。",
+    "files.allowOutsideLink": "允许浏览",
+    "files.allowOutsideLinkTitle": "浏览 {target}，直到 Pi Web 重启为止。不会放开别的目录。",
+    "files.allowEnclosingLinkConfirm": "确定允许浏览 {target} 吗？它里面还包含本项目或你的主目录。",
     "files.confirmDeleteFile": "确定删除文件 \"{name}\" 吗？此操作不可撤销。",
     "files.confirmDeleteFolder": "确定删除文件夹 \"{name}\" 及其中的全部内容吗？此操作不可撤销。",
     "files.editFile": "编辑文件",
