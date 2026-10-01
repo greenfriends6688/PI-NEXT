@@ -1454,7 +1454,13 @@ function ModelDetail({
   };
   // fork:cost-tiers (B3) —— 阶梯挂在同一个 cost 对象上，所以走同一份模板（保持
   // tiers 之外的手写字段），只换 tiers 本身；清空就删键，不留 `tiers: []`。
-  const costTiers = Array.isArray(model.cost?.tiers) ? model.cost.tiers : [];
+  //
+  // `useMemo` 不是洁癖：CostTiersEditor 的 `useEffect([tiers])` 会用 tiers 重建草稿，
+  // 没有它时 `?? []` 每次渲染都是新数组 → 每次渲染都重设草稿 → 无限重渲染。
+  const costTiers = useMemo(
+    () => (Array.isArray(model.cost?.tiers) ? model.cost.tiers : []),
+    [model.cost?.tiers],
+  );
   const setCostTiers = (tiers: ModelCostTier[] | undefined) => {
     const nextCost = { ...(costTemplateRef.current ?? {}) };
     if (tiers?.length) nextCost.tiers = tiers;

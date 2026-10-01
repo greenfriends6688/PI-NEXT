@@ -252,7 +252,8 @@ test("tiered pricing has an editor wired into the model cost object", () => {
   );
   assert.match(modelDetail, /<CostTiersEditor[\s\S]*?tiers=\{costTiers\}[\s\S]*?onChange=\{setCostTiers\}/);
   // 清空阶梯就删掉 `tiers` 键，不留 `tiers: []`。
-  assert.match(modelDetail, /const costTiers = Array\.isArray\(model\.cost\?\.tiers\) \? model\.cost\.tiers : \[\]/);
+  assert.match(modelDetail, /const costTiers = useMemo\(/);
+  assert.match(modelDetail, /\[\s*model\.cost\?\.tiers\s*\],?\s*\);/);
   assert.match(modelDetail, /if \(tiers\?\.length\) nextCost\.tiers = tiers;/);
   assert.match(modelDetail, /else delete nextCost\.tiers;/);
 });
