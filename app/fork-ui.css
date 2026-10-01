@@ -2185,3 +2185,41 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     margin-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:pwa-hit-slop —— 手机上把「够不着」的图标钮补上命中区。
+ *
+ * 现状：globals.css 的 DSN-04 段给所有 `button` 补了 `min-height: var(--control-touch)`
+ * （36px），所以量测里这些钮的**高**已经达标；但**宽**仍是画板的原值 ——
+ * `.pw-iconbtn.sm` 22px、`.pw-select`（推理级别 / 全自动 / 工具预设 / 压缩上下文）
+ * 27px。手机横向一排 5 枚，指腹比它们宽得多，实测
+ * `/tmp/pwa-audit/390/chat.png`：输入区控件条一行挤 4 枚 27px 的芯片。
+ *
+ * 手段与 DSN-04 / `.panel-resize-handle` 同一套：不改盒子（画板规格一个像素不动），
+ * 用 `::after` 把命中区向左右外扩。相邻芯片间距 4px，外扩量取 6px（不越过邻居中线），
+ * 22px → 34px、27px → 39px，两枚都不再互相抢命中。
+ * 只在 ≤640px 生效；`pointer: coarse` 再叠一层，覆盖平板触控（宽但用手指）。
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .chat-input-toolbar .pw-select,
+  .chat-input-toolbar .pw-iconbtn,
+  .chat-input-toolbar .pw-send,
+  .pw-composer-bar .pw-select,
+  .pw-composer-bar .pw-iconbtn,
+  .chat-input-toolbar .pw-ring,
+  .main-workspace-header .pw-iconbtn,
+  .main-workspace-header .pw-select {
+    position: relative;
+  }
+  .chat-input-toolbar .pw-select::after,
+  .chat-input-toolbar .pw-iconbtn::after,
+  .pw-composer-bar .pw-select::after,
+  .pw-composer-bar .pw-iconbtn::after,
+  .chat-input-toolbar .pw-ring::after,
+  .main-workspace-header .pw-iconbtn::after,
+  .main-workspace-header .pw-select::after {
+    content: "";
+    position: absolute;
+    inset: 0 -6px;
+  }
+}

@@ -1,9 +1,9 @@
 # 画板 ↔ 产品对表（真 Chrome）· 2026-10-01
 
 - 产品地址：`http://127.0.0.1:30141`
-- 画板：30 张，共 1451 类引用（去重 212）
+- 画板：30 张，共 1455 类引用（去重 213）
 - 产品巡检：10 步，实际渲染出 106 个画板类
-- **画板有、产品巡检未出现：109 个类**
+- **画板有、产品巡检未出现：110 个类**
 - 产品用了、任何画板都没有的类：3 个（pw-detail-stack pw-rowgap pw-scrim-layer）
 
 ## 一、逐帧对表
@@ -67,7 +67,7 @@
 | 31-terminal-browser-git.html | 应用内浏览器 · 地址栏 + 前进后退刷新 + 视口预设；空态 / 已加载 | 14 | pw-browser pw-browser-bar pw-chipbtn pw-url |
 | 31-terminal-browser-git.html | Git 图谱 · 标签条与标签概览 · 泳道 + 变更文件；标签溢出折叠 | 22 | pw-card-foot pw-commit pw-git pw-pop-search pw-tab |
 | 40-settings-general.html | 设置 · 常规（整屏） · 左导航 200 + 右内容 · 分节 13 个 · 内容区左右各留 401440 × 900 | 27 | pw-wallpaper-thumb |
-| 40-settings-general.html | 设置 · 常规（续） · 字体 / 聊天 / 语言 | 12 | ✅ 全出现 |
+| 40-settings-general.html | 设置 · 常规（续） · 字体 / 聊天 / 语言 | 14 | pw-numin |
 | 40-settings-general.html | 本页动效 · 循环播放 · 规格与全量清单见画板 05-motion布局尺寸是唯一允许 >200ms 的一类 | 6 | pw-anim-collapse pw-anim-reveal pw-anim-saved pw-muted |
 | 41-settings-models.html | 模型 · 供应商详情 · 左列表 260 + 右详情 · 订阅登录 / 用量摘要 / 模型启用 / 上游导入1440 × 900 | 31 | ✅ 全出现 |
 | 41-settings-models.html | 模型详情 · 能力 / 规格 / 成本 / 高级 / 测试连接 | 19 | pw-tok-key |
@@ -120,7 +120,7 @@
 | 61-system-states.html | 本页动效 · 循环播放 · 规格与全量清单见画板 05-motion拖到输入框 = 加附件 | 7 | pw-anim-drop pw-anim-row pw-drop |
 | 62-settings-layout.html | 诊断 · 现在有四种骨架 · 同一层级的 12 个分节，切换时视觉锚点会跳2026-09-30 仓库构建实测 | 5 | pw-grid4 |
 | 62-settings-layout.html | 新框架解剖 · 一套骨架 · 两个宽度（列表 300 / 内容 760）· 唯一滚动在内容区1440 × 900 | 32 | ✅ 全出现 |
-| 62-settings-layout.html | 块流页 · 两栏 · 没有「条目」概念的分节用两栏块流，每栏 570 —— 字段行跨度从 1160 收到 5701440 × 900 | 30 | pw-wallpaper-thumb |
+| 62-settings-layout.html | 块流页 · 两栏 · 没有「条目」概念的分节用两栏块流，每栏 570 —— 字段行跨度从 1160 收到 5701440 × 900 | 32 | pw-numin pw-wallpaper-thumb |
 | 62-settings-layout.html | 空态三态 · 动作层级 · 空态必须有落点；动作只有四个层级，页脚不再放动作 | 11 | ✅ 全出现 |
 | 62-settings-layout.html | 12 个分节逐页落位 · 骨架二选一 · 页头恒在 · 页级动作最多 2 个骨架 A = 两栏块流（570 × 2） 骨架 B = 列表 300 + 详情 760 | 1 | ✅ 全出现 |
 | 62-settings-layout.html | 新框架的硬规则 · 每一条都对应一个实测到的现状问题 | 3 | ✅ 全出现 |
@@ -189,6 +189,7 @@
 - `pw-modal-body`
 - `pw-modal-foot`
 - `pw-muted`
+- `pw-numin`
 - `pw-path`
 - `pw-perm`
 - `pw-perm-acts`
@@ -457,5 +458,5 @@
 
 ## 五、汇总
 
-- 画板类落地率：**106 / 212 = 50%**
-- 按帧计无缺口：26 / 114
+- 画板类落地率：**106 / 213 = 50%**
+- 按帧计无缺口：25 / 114
