@@ -106,6 +106,7 @@ lib/
   draft-store.ts       local draft persistence helpers
   file-access.ts       allowed file roots for /api/files and worktrees
   file-paths.ts        client/server path encoding helpers
+  file-tree-visibility.ts  which entries the file tree lists: git check-ignore, name-list fallback
   markdown.ts          shared markdown helpers
   npx.ts               npx runner used by skill install
   pi-types.ts          local structural types for pi SDK objects
@@ -212,6 +213,14 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - `/api/files` is intentionally not a general filesystem browser. Allowed roots come from session cwds, their resolved project roots, `~/pi-cwd-*`, and roots explicitly added with `allowFileRoot()`.
 - `/api/cwd/validate`, `/api/default-cwd`, and `/api/worktrees` call `allowFileRoot()` when they make a new location browsable.
 - Allowed roots are stored slash-normalized, but that is a Set-key convention, not a correctness requirement: `isPathWithinRoots()` (`lib/path-security.ts`, the single implementation behind `isFilePathAllowed()`) re-resolves and case-folds both sides, so either path form authorizes correctly. Keep that one implementation — it is the security boundary.
+
+### File tree visibility (fork:file-tree-visibility, 上游 #1014 / 13bc2b0)
+- 列表里「不显示什么」由 Git 决定，可见性**不是**授权：被隐藏的条目照样能按路径读到（`/api/files` 只按 allowed root 授权，从不看这个模块）。
+- `lib/file-tree-visibility.ts` 先用一次 `git check-ignore --no-index --stdin`（全部条目名走 stdin，NUL 分隔，不经 shell，所以空格 / 中文 / 引号 / `-` 开头的名字都不会被当成参数或路径魔法），再用一次 `git ls-files --cached` 找出哪些被忽略的名字底下**有跟踪文件**——忽略对跟踪内容不生效，所以被跟踪的 `build/` 照常显示，被忽略目录里被 force-add 的文件也显示。
+- **不要让 check-ignore 读索引**（不要去掉 `--no-index`）：它每个名字扫一遍索引，20 万文件的仓里 1000 条目的目录要 2.4s，然后就在 5s 超时上退回名字表。名字一律以 `./name` 送进 check-ignore（pathspec 魔法 `:(...)` 会让**整批**报错），送进 ls-files 时带 `--literal-pathspecs`（否则 `*.log`、`[id]` 会 glob 命中被跟踪的 `app.log`、`i`）。
+- 两次调用都带 `-c core.fsmonitor=false`：读索引会执行「用户刚展开的那个仓」里配的 fsmonitor 钩子。名字表（`node_modules`/`dist`/`build`…）只在 Git 看不见时兜底——work tree 外、git 缺失 / 失败 / 超时，以及目录本身被忽略且底下无跟踪文件（否则 dotfiles 仓忽略 `*` 时临时目录会列成空）。
+- 列表因此要**等 git**（每次判定 ≤5s，超时即降级）。`getFileTreeVisibility()` 接请求自己的 `signal`：浏览器中途离开就杀掉 git，不让它白等满 5s。同一个（目录 + 条目名集合）在途共用一次判定、结果缓存 1s——文件树每次目录变更都会重取所有已展开的目录，不合并就会 fork 出一串 git 进程；缓存键含条目名，所以新增条目立刻重判。
+- `/api/file-index` 的 readdir 兜底复用同一个 `isHiddenOutsideGit()`，不再各留一份名字表（那条路由的 git 分支本来就走 `ls-files --exclude-standard`，注释里「Git-tracked repos rely on .gitignore」说的就是它自己）。
 
 ### Plugins and skills
 - `/api/plugins` uses pi's `SettingsManager` + `DefaultPackageManager` for global/project package install, remove, update, enable, and disable. Disabling writes empty `extensions/skills/prompts/themes` arrays for that package entry.
