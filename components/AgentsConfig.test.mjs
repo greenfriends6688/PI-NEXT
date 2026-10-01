@@ -38,7 +38,15 @@ test("offers a persisted built-in sub-agent switch with explicit session reload"
   // pw-ctl 控件在右），不再是独立卡片。
   assert.match(source, /<ConfigField label=\{t\("agents\.builtInTitle"\)\} hint=\{t\("agents\.builtInDescription"\)\}>/);
   assert.match(source, /<ConfigControl>\s*<ConfigSwitch\s+checked=\{builtInEnabled\}/);
-  assert.match(source, /checked=\{builtInEnabled\}[\s\S]{0,600}?aria-label=\{t\("agents\.maxConcurrent"\)\}/);
+  // 窗口只看「开关与数字框在同一条 pw-ctl 里」；中间的注释不计入（原先 600 字符刚好
+  // 卡在注释长度上，fix:agents-row-collapse 加了病因注释就被顶出去了）。
+  assert.match(source, /checked=\{builtInEnabled\}[\s\S]{0,1200}?aria-label=\{t\("agents\.maxConcurrent"\)\}/);
+  // fix:agents-row-collapse —— `.pw-input` 的 `min-width: 200px` 会压过内联的
+  // `width: 64`，把 295px 列表列里的标签挤成 53px（一行 194px 高）。两处窄数字框
+  // （并发上限 / 最大回合数）都必须同时归零 min-width。
+  for (const width of ["width: 64", "width: 80"]) {
+    assert.match(source, new RegExp(`${width}, minWidth: 0`), `${width} also needs minWidth: 0`);
+  }
   // 独立卡片形态（pw-block）已删除；重载提示是画板的警示徽章（空标签 + 右侧控件）。
   assert.doesNotMatch(source, /className="pw-block"/);
   assert.match(source, /<ConfigBadge tone="warn">[\s\S]*?t\("agents\.reloadRequired"\)/);

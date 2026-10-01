@@ -796,7 +796,7 @@ export function AgentsConfig({
                       disabled={disabled}
                       onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)}
                       className="pw-input"
-                      style={{ width: 80, textAlign: "center" }}
+                      style={{ width: 80, minWidth: 0, textAlign: "center" }}
                     />
                   </ConfigField>
                   <ConfigField label={t("agents.inheritContext")}>
