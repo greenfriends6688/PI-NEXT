@@ -1,3 +1,5 @@
+import { hasDelegatedWorkRunning } from "./delegated-work";
+
 const SESSION_LIVENESS_PROTOCOL_VERSION = 1;
 export const SESSION_LIVENESS_REGISTRY_KEY = "@agegr/pi-web/session-liveness/v1";
 export const SESSION_LIVENESS_LEASE_TTL_MS = 90_000;
@@ -194,6 +196,20 @@ export function registerSessionLivenessProvider(provider: SessionLivenessProvide
   return registry.register(provider);
 }
 
+/**
+ * 这个会话还有没有东西必须留着 —— 空至关停的回收路径问的就是这句。
+ *
+ * 两个来源：
+ *  1. 注册过的 provider（浏览器 SSE 租约、扩展登记的工作）；
+ *  2. fork:upstream-998-delegated-work —— 底下还有活着的委派工作（子代理 run）。
+ *     `isRunning()` 只覆盖 wrapper 自己那一轮，后台子 run 会在父轮结束后继续跑；
+ *     把这种会话当成空闲回收，子代理的结果就再也取不回来。
+ *
+ * 只影响**自动空闲回收**；显式关停（`forceShutdownOnIdle`）与运行时替换照旧优先。
+ * 注册表对象本身（`Symbol.for(SESSION_LIVENESS_REGISTRY_KEY)`，扩展直接用的那份契约）
+ * 仍然只认 provider，第 2 条只在这层组合，不改扩展看到的行为。
+ */
 export function hasActiveSessionLivenessProvider(session: SessionIdentity): boolean {
+  if (hasDelegatedWorkRunning(session)) return true;
   return registry.hasActiveProvider(session);
 }
