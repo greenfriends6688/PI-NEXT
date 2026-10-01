@@ -26,6 +26,8 @@ import {
   ConfigPanelShell,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
+  ConfigSidebarGroupStatus,
+  ConfigSidebarGroupSwitch,
   ConfigSidebarItem,
   ConfigSidebarList,
   ConfigSidebarText,
@@ -34,6 +36,7 @@ import {
   ConfigStatusDot,
   ConfigSwitch,
   SettingsPage,
+  itemsToSwitch,
 } from "./SettingsUi";
 
 type PluginScope = PluginPackageInfo["scope"];
@@ -54,6 +57,30 @@ function packageKey(pkg: Pick<PluginPackageInfo, "source" | "scope">): string {
 
 function extensionKey(extension: PluginStandaloneExtensionInfo): string {
   return `extension\0${extension.path}`;
+}
+
+/**
+ * fork:group-switch（G4 · 上游 `eceac13` #1020 + `b9622a1` #1021）——
+ * 一个作用域的分组开关会改动的包：还没处在目标状态的那些。
+ *
+ * 「关掉」会额外排除**带资源过滤的包**（`keepOn`）：停用一个包是把它的
+ * extensions / skills / prompts / themes 全写成空数组
+ * （`app/api/plugins/route.ts:setPackageDisabled`），没有任何东西会把过滤条件
+ * 存回去 —— 「全部停用」再「全部启用」就会静默抹掉它。所以这种包保持启用，
+ * 由调用方如实报出去，只能用它自己的开关处理。独立扩展没有开关，不在这里。
+ */
+export function packagesToSwitch<T extends Pick<PluginPackageInfo, "disabled" | "filtered">>(
+  packages: readonly T[],
+  enabled: boolean,
+): T[] {
+  return itemsToSwitch(packages, enabled, (pkg) => !pkg.disabled, (pkg) => pkg.filtered);
+}
+
+/** 分组开关「关掉」时保持启用的包（带资源过滤的那些）。 */
+export function filteredPackagesKeptOn<T extends Pick<PluginPackageInfo, "disabled" | "filtered">>(
+  packages: readonly T[],
+): T[] {
+  return packages.filter((pkg) => !pkg.disabled && pkg.filtered);
 }
 
 function resourceSummary(pkg: PluginPackageInfo, t: ReturnType<typeof useI18n>["t"]): string {
@@ -1100,6 +1127,9 @@ export function PluginsConfig({
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  /* fork:group-switch（G4）—— 上一次分组开关没做完的部分，报在刚跑过的那一组标题下：
+     `note` = 保持启用的带过滤包数量，`lines` = 被路由拒掉的包。 */
+  const [groupStatus, setGroupStatus] = useState<{ scope: PluginScope; note?: string; lines: string[] } | null>(null);
   const [updateStatuses, setUpdateStatuses] = useState<Record<string, PluginUpdateResult>>({});
   const [checkingUpdates, setCheckingUpdates] = useState<Set<string>>(new Set());
   const [checkingAll, setCheckingAll] = useState(false);
@@ -1472,6 +1502,7 @@ export function PluginsConfig({
     setBusyKey(`${action}:${key}`);
     setActionError(null);
     setActionMessage(null);
+    setGroupStatus(null);
     try {
       const res = await fetch("/api/plugins", {
         method: "POST",
@@ -1517,6 +1548,69 @@ export function PluginsConfig({
     }
   }, [cwd]);
 
+  /* fork:group-switch（G4）—— 一个作用域的分组开关：包里全部启用 / 全部停用。
+     我们没有上游那个 `packages: [...]` 批量路由（`POST /api/plugins` 只收一个
+     `source`，而路由不在本文件边界内），所以按 `packagesToSwitch` 算出的目标
+     **逐条**发：每个包一次 settings.json 的 flush，串行执行才不互相踩。
+     每条都是全量 `PluginsResponse` 返回，所以直接拿最后一次成功的响应当列表状态，
+     不用再拉一次。被拒的包保持原状，报在该组标题下。 */
+  const setGroupPackages = useCallback(async (
+    scope: PluginScope,
+    groupPackages: PluginPackageInfo[],
+    enabled: boolean,
+  ) => {
+    const targets = packagesToSwitch(groupPackages, enabled);
+    const keptOn = enabled ? 0 : filteredPackagesKeptOn(groupPackages).length;
+    const note = keptOn > 0 ? t("plugins.groupKeptFiltered", { count: keptOn }) : undefined;
+    setActionError(null);
+    setActionMessage(null);
+    setGroupStatus(null);
+    if (targets.length === 0) {
+      if (note) setGroupStatus({ scope, note, lines: [] });
+      return;
+    }
+    const action = enabled ? "enable" : "disable";
+    setBusyKey(`group:${scope}`);
+    let lastPayload: PluginsResponse | null = null;
+    const failures: string[] = [];
+    try {
+      for (const pkg of targets) {
+        try {
+          const res = await fetch("/api/plugins", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, source: pkg.source, scope: pkg.scope, cwd }),
+          });
+          const next = (await res.json().catch(() => ({}))) as PluginsResponse & { error?: string };
+          if (!res.ok || next.error) {
+            failures.push(`${pkg.source}: ${next.error ?? `HTTP ${res.status}`}`);
+            continue;
+          }
+          lastPayload = next;
+        } catch (err) {
+          failures.push(`${pkg.source}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      if (lastPayload) {
+        setData(lastPayload);
+        const message = enabled ? t("plugins.groupEnabled") : t("plugins.groupDisabled");
+        setActionMessage(sessionId ? `${message} ${t("agents.reloadRequired")}` : message);
+      }
+      setGroupStatus({
+        scope,
+        note,
+        lines: failures.length > 0
+          ? [
+              t("plugins.groupFailed", { count: failures.length, total: targets.length }),
+              ...failures,
+            ]
+          : [],
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }, [cwd, sessionId, t]);
+
   const installPlugin = useCallback(async () => {
     const source = normalizePluginSourceInput(installSource).trim();
     if (!source) return;
@@ -1525,6 +1619,7 @@ export function PluginsConfig({
     setBusyKey(`install:${key}`);
     setActionError(null);
     setActionMessage(null);
+    setGroupStatus(null);
     try {
       const res = await fetch("/api/plugins", {
         method: "POST",
@@ -1551,6 +1646,7 @@ export function PluginsConfig({
     setBusyKey("reload");
     setActionError(null);
     setActionMessage(null);
+    setGroupStatus(null);
     try {
       await sendAgentCommand(sessionId, { type: "reload" });
       onReloaded?.();
@@ -1781,43 +1877,63 @@ export function PluginsConfig({
                       })}
                     </>
                   )}
-                  {groupedPackages.map((group) => (
-                    <Fragment key={group.scope}>
-                      <ConfigSidebarGroupLabel>
-                        {group.scope}
-                      </ConfigSidebarGroupLabel>
-                      {group.packages.map((pkg) => {
-                        const key = packageKey(pkg);
-                        const isSelected = !addMode && selected === key;
-                        return (
-                          <ConfigSidebarItem
-                            key={key}
-                            active={isSelected}
-                            title={pkg.description ?? pkg.source}
-                            onClick={() => {
-                              setView("plugins");
-                              setSelected(key);
-                              setAddMode(false);
-                              setActionError(null);
-                              setActionMessage(null);
-                            }}
-                          >
-                            <ConfigStatusDot active={!pkg.disabled} color={statusColor(pkg.status)} />
-                            <span className="grow">
-                              <ConfigSidebarText className={pkg.disabled ? "pw-dim" : undefined}>
-                                {pkg.source}
-                              </ConfigSidebarText>
-                            </span>
-                            {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
-                              <span title={t("i18n.updateAvailable")} className="pw-ico">
-                                <i data-ico="arrow-up" data-size="12"></i>
+                  {groupedPackages.map((group) => {
+                    /* fork:group-switch（G4）—— 标题右侧是 `n/m` + 整组开关；
+                       只有全开才算开（部分开的组读起来是「关」，点一下补齐）。 */
+                    const enabledCount = group.packages.filter((pkg) => !pkg.disabled).length;
+                    const allEnabled = enabledCount === group.packages.length;
+                    return (
+                      <Fragment key={group.scope}>
+                        <ConfigSidebarGroupLabel
+                          aside={
+                            <ConfigSidebarGroupSwitch
+                              enabled={enabledCount}
+                              total={group.packages.length}
+                              disabled={footerBusy}
+                              loading={busyKey === `group:${group.scope}`}
+                              label={t(allEnabled ? "plugins.groupSwitchDisable" : "plugins.groupSwitchEnable", { group: group.scope })}
+                              onChange={(enabled) => void setGroupPackages(group.scope, group.packages, enabled)}
+                            />
+                          }
+                        >
+                          {group.scope}
+                        </ConfigSidebarGroupLabel>
+                        {groupStatus?.scope === group.scope && (
+                          <ConfigSidebarGroupStatus note={groupStatus.note} errorLines={groupStatus.lines} />
+                        )}
+                        {group.packages.map((pkg) => {
+                          const key = packageKey(pkg);
+                          const isSelected = !addMode && selected === key;
+                          return (
+                            <ConfigSidebarItem
+                              key={key}
+                              active={isSelected}
+                              title={pkg.description ?? pkg.source}
+                              onClick={() => {
+                                setView("plugins");
+                                setSelected(key);
+                                setAddMode(false);
+                                setActionError(null);
+                                setActionMessage(null);
+                              }}
+                            >
+                              <ConfigStatusDot active={!pkg.disabled} color={statusColor(pkg.status)} />
+                              <span className="grow">
+                                <ConfigSidebarText className={pkg.disabled ? "pw-dim" : undefined}>
+                                  {pkg.source}
+                                </ConfigSidebarText>
                               </span>
-                            )}
-                          </ConfigSidebarItem>
-                        );
-                      })}
-                    </Fragment>
-                  ))}
+                              {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
+                                <span title={t("i18n.updateAvailable")} className="pw-ico">
+                                  <i data-ico="arrow-up" data-size="12"></i>
+                                </span>
+                              )}
+                            </ConfigSidebarItem>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
                 </>
               )}
               </>)}
