@@ -63,11 +63,17 @@ export function updateHeaderRow(
   return rows.map((row) => row.id === id ? { ...row, ...changes } : row);
 }
 
+/**
+ * Model-level `headers` are merged over the provider's, so an empty value is not
+ * "clear it" — it silently blanks a header the provider still needs. Drop those rows.
+ * (Upstream closed PR #482①, same bug on both sides.)
+ */
 export function serializeHeaderRows(rows: readonly HeaderRow[]): Record<string, string> | undefined {
   const headers: Record<string, string> = {};
   for (const row of rows) {
     const name = row.name.trim();
-    if (name) headers[name] = row.value;
+    if (!name || !row.value.trim()) continue;
+    headers[name] = row.value;
   }
   return Object.keys(headers).length ? headers : undefined;
 }
