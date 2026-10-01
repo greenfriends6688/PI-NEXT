@@ -3060,13 +3060,27 @@ function ExtensionDialog({
         {/* fork:design-components —— 扩展请求对话框用画板 50 的 .pw-modal（发丝边框 /
             弹层底 / modal 阴影 / radius-6 由类承担）。头部走 .pw-modal-head：
             blocks 图标 + 标题 + .pw-badge.count 倒计时秒数 + 收起按钮 .pw-iconbtn.sm。
-            倒计时条按画板 50 的写法贴在头部正下方（3px 轨道，轨道底 --n-surface，填充 --accent）。 */}
-        <div className="pw-modal-head" style={{ alignItems: "flex-start", padding: "12px 14px" }}>
+            倒计时条按画板 50 的写法贴在头部正下方（3px 轨道，轨道底 --n-surface，填充 --accent）。
+            fork:extension-dialog-title（上游 #961 / #890 移植）—— 两个 fork-* 钩子把
+            「标题过长时收缩」交给 app/fork-ui.css（board.css 的 .pw-modal-head 不能改）：
+            头部可收缩 + 限高可滚（选项列表与取消键不再被顶出对话框），标题本体钳成
+            省略号。`whiteSpace: "pre-wrap"` 原样留着 —— splitDialogTitle 给出的
+            head 仍按扩展给的换行分行，一个换行都不吞；完整标题另有 title / aria-label。 */}
+        <div
+          className="pw-modal-head fork-ext-dialog-head"
+          style={{ alignItems: "flex-start", padding: "12px 14px" }}
+        >
           <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0, marginTop: "var(--space-tight)" }}>
             <i data-ico="blocks" data-size="16"></i>
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="pw-strong" style={{ fontSize: TEXT.lg, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
+            <div
+              className="pw-strong fork-ext-dialog-title"
+              title={titleHead}
+              style={{ fontSize: TEXT.lg, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+            >
+              {titleHead}
+            </div>
             <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", marginTop: "var(--space-icon)", fontSize: "var(--text-meta)" }}>
               <span>{t("chat.extensionRequest")}</span>
             </div>
