@@ -99,8 +99,9 @@ body.pw.dark { background: #0f0f13; }
 }
 .pw-brand { display: flex; align-items: center; gap: var(--s2); font-weight: 500; font-size: var(--text-body); color: var(--n-strong); }
 .pw-brand .pw-logo {
-  width: 20px; height: 20px; flex: none; border-radius: var(--radius-4);
-  background: var(--n-canvas); border: 1px solid var(--n-border-subtle);
+  /* 2026-10-01 所有者裁定：品牌标记**不套底色、不描边**（原图直出，见 brand/README.md）。
+     旧版 20×20 白底胶囊 + 发丝边被去掉，只留尺寸与居中；深浅主题都不加框。 */
+  width: 20px; height: 20px; flex: none;
   display: grid; place-items: center; color: var(--n-strong);
 }
 .pw-side-head .grow { flex: 1; }
@@ -128,13 +129,12 @@ body.pw.dark { background: #0f0f13; }
 
 /* 折叠导轨 */
 .pw-rail { display: flex; flex-direction: column; align-items: center; gap: var(--s2); padding: var(--s2) 0; background: var(--surface-panel); border-right: 1px solid var(--n-border-subtle); }
-/* 折叠导轨顶端的应用标记：画板 02 帧 C 的样张用内联样式画的就是这五个值，
-   这里固化成规则（判据⑦ 第 3 条：派生件只固化画板已画出的几何）——
+/* 折叠导轨顶端的应用标记：几何（24×24 + 居中）固化在这里，底色与描边按 2026-10-01
+   裁定一并去掉 —— 与侧栏品牌行同一条口径：标记裸出，不套框。
    产品的导轨里只挂 .pw-logo 一个类，不再套 .pw-brand（那是侧栏品牌行）。 */
 .pw-rail .pw-logo {
   width: 24px; height: 24px; margin-bottom: var(--s1);
-  border-radius: var(--radius-4); background: var(--surface-canvas);
-  border: 1px solid var(--n-border-subtle); display: grid; place-items: center;
+  display: grid; place-items: center;
 }
 
 /* ---- 行 ---------------------------------------------------------------- */

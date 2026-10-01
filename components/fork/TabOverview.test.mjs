@@ -13,7 +13,9 @@ test("fork:design-system —— 浮层是画板 31-B 的 pw-pop 长菜单", () =
   assert.match(source, /position: "fixed"/, "仍然是 fixed 定位（宿主 tab 栏横向裁切）");
   assert.match(source, /zIndex: 400/, "层级不变");
   assert.match(source, /width: PANEL_WIDTH/, "宽度仍由 PANEL_WIDTH 给，不写死");
-  assert.match(source, /const PANEL_WIDTH = 300;/, "300 宽保持不变");
+  // fork:board-diff-2026-10-01 —— 宽度从 300 对齐到画板 31 第三节样张的 340
+  // （board.css 的 .pw-pop 默认 320，样张写死 340；连带的 .pw-sep 等子件跟着宽 40px）。
+  assert.match(source, /const PANEL_WIDTH = 340;/, "340 宽对齐画板样张");
   assert.match(source, /className="pw-pop-search"/, "搜索头是画板的 .pw-pop-search");
   assert.match(
     source,

@@ -1,7 +1,7 @@
 // gen-icons.mjs — 从品牌图生成全平台图标
 // 用法: node scripts/gen-icons.mjs   (在项目根目录运行)
 //
-// 唯一素材：public/pi-next-logo.png（主品牌渐变图形，透明底 708×435）。
+// 唯一素材：public/pi-next-logo.png（主品牌渐变图形，透明底 800×492）。
 // 这里只做**机械缩放与留白**，不改图、不叠底、不重画：
 //   build/icon.icns            应用图标（1024 → iconset → icns，透明方底）
 //   build/icon.png             1024 master（调试用）

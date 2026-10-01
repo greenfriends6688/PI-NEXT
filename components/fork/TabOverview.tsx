@@ -42,7 +42,10 @@ interface Props {
   onClearRecent: () => void;
 }
 
-const PANEL_WIDTH = 300;
+/* fork:board-diff-2026-10-01 —— 画板 31 第三节的「标签概览」样张是 340px 宽
+   （board.css 的 `.pw-pop` 默认 320）。300 是拍脑袋值，实测比画板窄 40px，
+   导致 `.pw-sep` 等子件跟着窄（318 vs 278）。按画板对齐。 */
+const PANEL_WIDTH = 340;
 
 /* fork:design-system —— 标签字形改画板 31 的图标实名：终端 `terminal`、浏览器
  * `globe`、会话 `bot`、Git 图 `git-branch`（画板 31 注释里定的就是这四个）。

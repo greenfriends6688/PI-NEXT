@@ -1990,12 +1990,15 @@ export function AppShell() {
         title={translate("trust.resourcesNotLoaded")}
         aria-label={translate("trust.resourcesNotLoaded")}
         /* fork:design-components —— 桌面是画板的一条 `.pw-alert`（错误底 + 红色）；
-           底色 / 圆角 / 字号全部来自 board.css，组件里只剩 UA 归零这一档。 */
+           底色 / 圆角 / 字号全部来自 board.css，组件里只剩 UA 归零这一档。
+           fork:board-diff-2026-10-01 —— `font: "inherit"` 与上一行注释矛盾：
+           它把 board.css:872 的 `font-size: var(--text-secondary)`（12px）顶成了
+           继承正文 13px（`50-dialogs` 的 spec 报出 fs 13 ≠ 12 / lh 19.5 ≠ 18）。
+           只归零 UA 的话删掉 font 即可，字号由类给。 */
         style={{
           alignSelf: "center",
           margin: 0,
           border: 0,
-          font: "inherit",
           textAlign: "left",
           cursor: "pointer",
           flexShrink: 0,
@@ -3143,7 +3146,14 @@ export function AppShell() {
           ))}
         </div>
         {showExplorerColumn ? (
-          <div className="explorer-column">{explorerPanel}</div>
+          /* fork:board-diff-2026-10-01 —— 这一列就是画板 30 的 `.pw-tree`
+             （board.css:578：padding var(--s1)/font-size var(--text-secondary)=12px/
+             发丝右边线）。此前产品只挂了 `.explorer-column`（自己的类），
+             画板那整条规则全部落空 —— 树行字号退回 13px（与会话行同大，
+             「比会话行密一倍」的设计意图没了）、没有发丝右边线，
+             `30-files-panel` 的 spec 把它报成了漂移（fs 12≠13 / lh 18≠19.5）。
+             `explorer-column` 保留（宽度档位在 fork-ui.css:449）。 */
+          <div className="explorer-column pw-tree">{explorerPanel}</div>
         ) : null}
         </div>
       </div>

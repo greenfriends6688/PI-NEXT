@@ -1207,19 +1207,22 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
           onClick={handleToggle}
           className="pw-card-head"
           style={{
+            // fork:board-diff-2026-10-01 —— 头行的几何（gap / padding / 圆角）全部
+            // 由 board.css 的 `.pw-card-head` 承担（gap var(--s2) / padding 7px var(--s3) / 无圆角），
+            // 这里只留交互态与「展开时多一行内容」要的内收。原先的 gap:7 / 7px 10px /
+            // borderRadius var(--radius-md) 是内联压过画板，`12-transcript-interactive`
+            // 的 spec 把它报成了漂移（radius 0→4 / padding 12→10 / gap 8→7）。
             display: "flex",
             alignItems: "center",
-            gap: 7,
             flex: 1,
             minWidth: 0,
-            padding: expanded ? "7px 10px" : "5px 8px",
+            padding: expanded ? undefined : "5px 8px",
             background: "none",
             border: "none",
             color: "var(--text-muted)",
             cursor: "pointer",
             fontSize: TEXT.sm,
             textAlign: "left",
-            borderRadius: "var(--radius-md)",
           }}
           onMouseEnter={(e) => {
             if (!expanded) e.currentTarget.style.background = "var(--bg-hover)";

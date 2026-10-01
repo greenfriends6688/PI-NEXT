@@ -115,6 +115,10 @@ const settingsSection = (target) => `
 
 function presetScript(app) {
   if (!app) return "";
+  // fork:board-specs —— spec 可以自带一段页面脚本（app.script），
+  // 不用往本文件的 PRESETS 里加全局预设。这样每份 spec 自包含，
+  // 多份 spec 可以并行编写而不争同一个文件；行为不够稳定的驱动就别写进 spec。
+  if (typeof app.script === "string") return app.script;
   if (app.open && app.open.startsWith("settings:")) {
     return settingsSection(app.open.slice("settings:".length));
   }

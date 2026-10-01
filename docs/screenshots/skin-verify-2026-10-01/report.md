@@ -2,8 +2,8 @@
 
 - 产品地址：`http://127.0.0.1:30141`
 - 画板：30 张，共 1451 类引用（去重 212）
-- 产品巡检：10 步，实际渲染出 104 个画板类
-- **画板有、产品巡检未出现：112 个类**
+- 产品巡检：10 步，实际渲染出 105 个画板类
+- **画板有、产品巡检未出现：111 个类**
 - 产品用了、任何画板都没有的类：4 个（pw-detail-stack pw-narrow pw-rowgap pw-scrim-layer）
 
 ## 一、逐帧对表
@@ -56,16 +56,16 @@
 | 20-composer.html | 阅读态输入框塌陷 · 上下文浮窗 · 向上翻阅时收成一行；悬浮圆环看 Context / Rules / cost | 21 | ✅ 全出现 |
 | 20-composer.html | 上下文环三档 · 正常 accent / >70% warning / >90% error —— 载体是 composer 工具条里的圆环 + 浮窗（§2.7 裁定：输入框下方没有第二条横条） | 4 | ✅ 全出现 |
 | 20-composer.html | 流式排队 · 运行中继续输入 → 排队；可召回编辑、逐条移除、立即发送 | 11 | ✅ 全出现 |
-| 20-composer.html | 输入历史 · 模型错误 · 流式两种模式 · 收起控件 | 18 | pw-desc |
+| 20-composer.html | 输入历史 · 模型错误 · 流式两种模式 · 收起控件 | 18 | ✅ 全出现 |
 | 20-composer.html | 本页动效 · 循环播放 · 规格与全量清单见画板 05-motion输入框下面没有第二条横条 | 10 | pw-anim-pending pw-anim-pop pw-anim-step pw-anim-trigger |
-| 21-menus.html | 弹层合集 · 全部 320 宽 · 圆角 6 · 唯一一种阴影 · 悬浮行用 6% 深色容器1200 × 800 | 18 | pw-desc pw-pop-search |
-| 22-top-panels.html | 顶栏下拉合集 · 全部从顶栏图标按钮挂出 · 圆角 6 · 唯一一种阴影1200 × 800 | 23 | pw-card pw-card-foot pw-card-head pw-desc pw-pop-search |
+| 21-menus.html | 弹层合集 · 全部 320 宽 · 圆角 6 · 唯一一种阴影 · 悬浮行用 6% 深色容器1200 × 800 | 18 | pw-pop-search |
+| 22-top-panels.html | 顶栏下拉合集 · 全部从顶栏图标按钮挂出 · 圆角 6 · 唯一一种阴影1200 × 800 | 23 | pw-card pw-card-foot pw-card-head pw-pop-search |
 | 30-files-panel.html | 整屏 · 文件面板展开 · 右栏 420 · 左树 220 + 右查看器 · 转录在左1440 × 900 | 54 | pw-arg pw-assistant pw-await pw-body pw-chat pw-composer-wrap pw-dur pw-m pw-main pw-proc pw-proc-body pw-proc-head pw-session pw-step pw-step-ico pw-t pw-tab pw-tree pw-verb pw-viewer pw-viewer-body pw-viewer-head |
 | 30-files-panel.html | 查看器的六种形态 · 源码 / Markdown 预览 / 图片 / 外部改动冲突 / 文件已删除 / 空态 | 18 | pw-live pw-meta pw-tok-key pw-viewer-head |
 | 30-files-panel.html | 文件树右键菜单 · 文件与目录两套；危险项在末尾并用 error 色 | 14 | pw-modal-body pw-modal-foot |
 | 31-terminal-browser-git.html | 终端面板 · 多标签（可关）/ 运行中 / 已退出 / 空态 · cwd 常驻标签栏右侧 | 14 | pw-tab pw-term |
 | 31-terminal-browser-git.html | 应用内浏览器 · 地址栏 + 前进后退刷新 + 视口预设；空态 / 已加载 | 14 | pw-browser pw-browser-bar pw-chipbtn pw-url |
-| 31-terminal-browser-git.html | Git 图谱 · 标签条与标签概览 · 泳道 + 变更文件；标签溢出折叠 | 22 | pw-card-foot pw-commit pw-desc pw-git pw-pop-search pw-tab |
+| 31-terminal-browser-git.html | Git 图谱 · 标签条与标签概览 · 泳道 + 变更文件；标签溢出折叠 | 22 | pw-card-foot pw-commit pw-git pw-pop-search pw-tab |
 | 40-settings-general.html | 设置 · 常规（整屏） · 左导航 200 + 右内容 · 分节 13 个 · 内容区左右各留 401440 × 900 | 27 | pw-wallpaper-thumb |
 | 40-settings-general.html | 设置 · 常规（续） · 字体 / 聊天 / 语言 | 12 | ✅ 全出现 |
 | 40-settings-general.html | 本页动效 · 循环播放 · 规格与全量清单见画板 05-motion布局尺寸是唯一允许 >200ms 的一类 | 6 | pw-anim-collapse pw-anim-reveal pw-anim-saved |
@@ -73,10 +73,10 @@
 | 41-settings-models.html | 模型详情 · 能力 / 规格 / 成本 / 高级 / 测试连接 | 19 | pw-tok-key |
 | 42-settings-agents-skills.html | 子代理 · 内置开关 + 并发上限 + 作用域分组 + 编辑器1440 × 900 | 37 | ✅ 全出现 |
 | 42-settings-agents-skills.html | 技能 · 作用域列表 + SKILL.md 编辑 + 市场安装对话框1440 × 900 | 27 | ✅ 全出现 |
-| 42-settings-agents-skills.html | 安装技能对话框 · 市场切换（skills.sh ↔ SkillHub）+ 搜索 + 结果 | 19 | pw-desc pw-modal-body pw-modal-foot |
+| 42-settings-agents-skills.html | 安装技能对话框 · 市场切换（skills.sh ↔ SkillHub）+ 搜索 + 结果 | 19 | pw-modal-body pw-modal-foot |
 | 43-settings-plugins-mcp.html | 插件 · 包列表 + 详情（描述 / 状态 / 版本 / 资源数 / 安装路径 / 已解析资源）+ 更新与移除1440 × 900 | 26 | ✅ 全出现 |
 | 43-settings-plugins-mcp.html | MCP 服务器 · 列表 + 详情（Basic / JSON 双模式）+ 从其它 agent 导入 + OAuth1440 × 900 | 33 | pw-tok-key |
-| 43-settings-plugins-mcp.html | 从其它 agent 导入 MCP · OAuth 授权 · 八个来源 + 同名冲突提示；http 型服务器的授权流程 | 24 | pw-desc pw-modal-body pw-modal-foot pw-tok-key |
+| 43-settings-plugins-mcp.html | 从其它 agent 导入 MCP · OAuth 授权 · 八个来源 + 同名冲突提示；http 型服务器的授权流程 | 24 | pw-modal-body pw-modal-foot pw-tok-key |
 | 44-settings-cron-memory.html | 定时任务 · 左：任务列表 + 运行历史 · 右：新建表单（频率六种 + 会话模式 + 通知策略）1440 × 900 | 32 | pw-grid3 |
 | 44-settings-cron-memory.html | 记忆 · 开关与状态 / 工具说明 / 记忆文件（列表 + 编辑，含冲突重载）1440 × 900 | 29 | ✅ 全出现 |
 | 45-settings-shortcuts-usage.html | 快捷键 · 搜索 + 分组 + 录制 + 冲突提示1440 × 900 | 25 | ✅ 全出现 |
@@ -88,13 +88,13 @@
 | 47-skin-studio.html | 皮肤工作室 · 两页签：皮肤设置 / 自定义 CSS · 左侧实时预览900 × 720 | 18 | pw-modal-foot |
 | 47-skin-studio.html | 工作室对话框外壳 · 头 / 页签行 / 内容行 / 提示行 / 动作行 · 五行，缺一行就少一条约定900 × 720 | 20 | pw-modal-body pw-modal-foot pw-scrim pw-tab |
 | 47-skin-studio.html | 自定义 CSS 页签 · 内置壁纸选择器 · CSS 覆盖层 + 壁纸画廊 | 20 | pw-grid3 pw-modal-body pw-modal-foot |
-| 50-dialogs.html | 项目信任 · 目录选择器 · 信任三态（确认 / 信任中 / 失败）；目录选择两态：系统原生对话框（主路径） / 自绘浏览器（回退） | 23 | pw-desc pw-modal-body pw-modal-foot |
+| 50-dialogs.html | 项目信任 · 目录选择器 · 信任三态（确认 / 信任中 / 失败）；目录选择两态：系统原生对话框（主路径） / 自绘浏览器（回退） | 23 | pw-modal-body pw-modal-foot |
 | 50-dialogs.html | 扩展请求对话框 · 四种：选择 / 确认 / 输入 / 编辑器 · 带倒计时条 · 对应参考项目的 elicitation 卡 | 18 | pw-modal-body pw-modal-foot |
 | 50-dialogs.html | 二次确认 · 通知条 · 通用确认框（含危险动作）；壳级通知条三色 | 11 | pw-modal-body pw-modal-foot pw-toast |
 | 50-dialogs.html | 附件预览灯箱 · 遮罩 + 全屏 <dialog> · 图片整屏壳 / 多类型卡片壳（最多 1000 宽）/ 壳本身的约定 | 13 | pw-card-foot pw-scrim |
 | 51-menus.html | 菜单原子 · 一套原子拼出全部菜单；圆角 6、宽 320（可收窄）、唯一一种阴影 | 14 | pw-grid3 pw-pop-search |
-| 51-menus.html | 新建任务选择器 · 工作区切换器 · 侧栏与顶栏挂出的两个长菜单 | 10 | pw-desc pw-pop-search |
-| 51-menus.html | 会话行右键菜单 · 顶栏溢出菜单 · 标签概览 · 三个真实菜单 | 13 | pw-desc pw-pop-search |
+| 51-menus.html | 新建任务选择器 · 工作区切换器 · 侧栏与顶栏挂出的两个长菜单 | 10 | pw-pop-search |
+| 51-menus.html | 会话行右键菜单 · 顶栏溢出菜单 · 标签概览 · 三个真实菜单 | 13 | pw-pop-search |
 | 51-menus.html | 路径动作簇 · 复制路径 / 在文件管理器中显示 / 用默认应用打开 · 行内 .pw-btn sm，失败时才多出一枚徽章 | 7 | ✅ 全出现 |
 | 52-file-viewer-modes.html | 可编辑源码 · 只读 / 编辑中（有未保存改动）/ 保存冲突 | 17 | pw-card pw-card-foot pw-tok-key pw-viewer-head |
 | 52-file-viewer-modes.html | CSV 表格预览 · Markdown frontmatter 卡 | 12 | pw-card pw-card-foot pw-card-head pw-viewer-head |
@@ -103,8 +103,8 @@
 | 52-file-viewer-modes.html | 与 HEAD 对比（覆盖层）· 文件被删除 · 对比不是新标签、不是新页面，是同一个查看器上盖一层 | 12 | pw-card pw-card-foot pw-diff-body pw-diff-line pw-viewer-head |
 | 53-turn-and-nav.html | 转录迷你地图（ChatMinimap） · 右缘 36px 导轨 + 悬浮展开的 320px 时间线浮层 · 锚在导轨左侧整屏局部 | 15 | pw-anim-flash pw-assistant pw-chat pw-minimap-pop pw-minimap-rail pw-proc pw-proc-head |
 | 53-turn-and-nav.html | 等待首 token 的阶段行 · 回合写过的文件 | 15 | pw-card pw-card-body pw-card-foot pw-dur pw-step pw-step-ico pw-verb |
-| 53-turn-and-nav.html | 输入框旁的芯片 · 路径动作 · Git ref 芯片 · 项目芯片 / 待办芯片 / 路径菜单 / 分支标签 | 20 | pw-chips pw-desc |
-| 54-extension-links-exploration.html | 扩展浮窗 · 状态胶囊 · widget 在顶栏 blocks 浮窗里展开；状态收成聊天区右上角一枚 mono 胶囊（输入框下方无常驻行） | 13 | pw-card pw-card-head pw-desc |
+| 53-turn-and-nav.html | 输入框旁的芯片 · 路径动作 · Git ref 芯片 · 项目芯片 / 待办芯片 / 路径菜单 / 分支标签 | 20 | pw-chips |
+| 54-extension-links-exploration.html | 扩展浮窗 · 状态胶囊 · widget 在顶栏 blocks 浮窗里展开；状态收成聊天区右上角一枚 mono 胶囊（输入框下方无常驻行） | 13 | pw-card pw-card-head |
 | 54-extension-links-exploration.html | 链接在哪儿打开 · 附件预览 · 正文里的外链给三选一；附件点开按类型分渲染分支 | 15 | pw-filecard pw-fname pw-meta |
 | 54-extension-links-exploration.html | 探索分支 · 转录顶部的抬头条 + 右栏只读并排视图（带「带回结论」）1440 × 760 | 44 | pw-assistant pw-body pw-card-foot pw-chat pw-composer-wrap pw-m pw-main pw-session pw-t pw-tab |
 | 56-update-and-auth.html | 插件更新 · 五态 · 状态机是 PluginUpdateState：update-available / up-to-date / unsupported / error，外加一个 checking 布尔 | 8 | ✅ 全出现 |
@@ -116,9 +116,9 @@
 | 60-mobile-pwa.html | 本页动效 · 循环播放 · 规格与全量清单见画板 05-motion移动端与桌面同构 | 8 | pw-anim-pop pw-anim-sheet |
 | 61-system-states.html | 应用级错误页 · A 路由错误（带主题 token）· B 根布局错误（无 token，跟随系统） | 8 | pw-card-foot |
 | 61-system-states.html | 拖放落区 · A 可接受（拖文件进窗口）· B 拒绝（拖进的是不支持的东西）· C 拖到输入框 | 16 | pw-drop |
-| 61-system-states.html | worktree 切换器 · 一个项目下多份检出：切换 / 过滤 / 新建 / 移除（未提交要强制确认） | 29 | pw-await pw-body pw-desc pw-m pw-modal-body pw-modal-foot pw-pop-search pw-session pw-t |
+| 61-system-states.html | worktree 切换器 · 一个项目下多份检出：切换 / 过滤 / 新建 / 移除（未提交要强制确认） | 29 | pw-await pw-body pw-m pw-modal-body pw-modal-foot pw-pop-search pw-session pw-t |
 | 61-system-states.html | 本页动效 · 循环播放 · 规格与全量清单见画板 05-motion拖到输入框 = 加附件 | 7 | pw-anim-drop pw-anim-row pw-drop |
-| 62-settings-layout.html | 诊断 · 现在有四种骨架 · 同一层级的 12 个分节，切换时视觉锚点会跳2026-09-30 仓库构建实测 | 5 | pw-desc pw-grid4 |
+| 62-settings-layout.html | 诊断 · 现在有四种骨架 · 同一层级的 12 个分节，切换时视觉锚点会跳2026-09-30 仓库构建实测 | 5 | pw-grid4 |
 | 62-settings-layout.html | 新框架解剖 · 一套骨架 · 两个宽度（列表 300 / 内容 760）· 唯一滚动在内容区1440 × 900 | 32 | ✅ 全出现 |
 | 62-settings-layout.html | 块流页 · 两栏 · 没有「条目」概念的分节用两栏块流，每栏 570 —— 字段行跨度从 1160 收到 5701440 × 900 | 30 | pw-wallpaper-thumb |
 | 62-settings-layout.html | 空态三态 · 动作层级 · 空态必须有落点；动作只有四个层级，页脚不再放动作 | 11 | ✅ 全出现 |
@@ -165,7 +165,6 @@
 - `pw-commit`
 - `pw-compact`
 - `pw-composer-wrap`
-- `pw-desc`
 - `pw-diff-body`
 - `pw-diff-head`
 - `pw-diff-line`
@@ -447,18 +446,18 @@
 
 ## 四、巡检步骤与截图
 
-- `step-01-空态首屏.png` — **01-空态首屏**：画板 01 帧 A：新会话页（上下文条 / 起步卡 / 输入卡）（40 类 / 62 可点）
-- `step-02-输入卡弹层.png` — **02-输入卡弹层**：画板 20/21：五个 pw-select + 上下文环浮窗 + 附件芯片（44 类 / 64 可点）
-- `step-03-引用与命令菜单.png` — **03-引用与命令菜单**：画板 21：@ 四类 + / 命令 + 输入历史（46 类 / 69 可点）
-- `step-04-转录与过程时间轴.png` — **04-转录与过程时间轴**：画板 10/11/12：消息卡 + 步骤流 + 结束行 + 迷你地图（46 类 / 69 可点）
-- `step-05-右栏各标签.png` — **05-右栏各标签**：画板 30/31/52：文件树 / 查看器 / 终端 / 浏览器 / Git · ⚠️ document is not defined（45 类 / 67 可点）
-- `step-06-设置十三分节.png` — **06-设置十三分节**：画板 40~47：左导航 13 节逐个打开（101 类 / 289 可点）
-- `step-07-关闭设置后的工作台.png` — **07-关闭设置后的工作台**：画板 01 帧 B/C（45 类 / 67 可点）
-- `step-08-文件树与查看器.png` — **08-文件树与查看器**：画板 30/52：树头动作组 / 分组头 / 右键菜单 / 查看器头与 diff 覆盖层（45 类 / 67 可点）
-- `step-09-终端面板.png` — **09-终端面板**：画板 31：cwd 状态条 + 状态徽章 + 重连/重启（45 类 / 67 可点）
-- `step-11-移动端同构.png` — **11-移动端同构**：画板 60：390×800 抽屉 / 顶栏 48 / 覆盖式工具条 / 信任横幅（47 类 / 62 可点）
+- `step-01-空态首屏.png` — **01-空态首屏**：画板 01 帧 A：新会话页（上下文条 / 起步卡 / 输入卡）（40 类 / 63 可点）
+- `step-02-输入卡弹层.png` — **02-输入卡弹层**：画板 20/21：五个 pw-select + 上下文环浮窗 + 附件芯片（44 类 / 65 可点）
+- `step-03-引用与命令菜单.png` — **03-引用与命令菜单**：画板 21：@ 四类 + / 命令 + 输入历史（47 类 / 74 可点）
+- `step-04-转录与过程时间轴.png` — **04-转录与过程时间轴**：画板 10/11/12：消息卡 + 步骤流 + 结束行 + 迷你地图（47 类 / 74 可点）
+- `step-05-右栏各标签.png` — **05-右栏各标签**：画板 30/31/52：文件树 / 查看器 / 终端 / 浏览器 / Git · ⚠️ document is not defined（46 类 / 72 可点）
+- `step-06-设置十三分节.png` — **06-设置十三分节**：画板 40~47：左导航 13 节逐个打开（102 类 / 294 可点）
+- `step-07-关闭设置后的工作台.png` — **07-关闭设置后的工作台**：画板 01 帧 B/C（46 类 / 72 可点）
+- `step-08-文件树与查看器.png` — **08-文件树与查看器**：画板 30/52：树头动作组 / 分组头 / 右键菜单 / 查看器头与 diff 覆盖层（46 类 / 72 可点）
+- `step-09-终端面板.png` — **09-终端面板**：画板 31：cwd 状态条 + 状态徽章 + 重连/重启（46 类 / 72 可点）
+- `step-11-移动端同构.png` — **11-移动端同构**：画板 60：390×800 抽屉 / 顶栏 48 / 覆盖式工具条 / 信任横幅（48 类 / 67 可点）
 
 ## 五、汇总
 
-- 画板类落地率：**104 / 212 = 49%**
-- 按帧计无缺口：28 / 114
+- 画板类落地率：**105 / 212 = 50%**
+- 按帧计无缺口：29 / 114

@@ -299,8 +299,8 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 * **圆角 3/4/6 三档**（`--radius-3/4/6`，板面/弹层 6），控件高度 24/28/32；字阶五档 11/12/13/15/20；动效十一项 token（`--motion-*`，唯一曲线 `--ease`）。
 * **门禁**：`npm run check:design`（style-literals + motion-tokens + icons + check-boards + check-align）；`npm run check:contrast`；`npm run verify:boards`（需 prod 起服）。改组件时同步跑。
   * **结构层才是漂移的来源**（2026-09-30 加）：颜色有对比度门禁守着，而「按钮/位置与画板不一样」全部是结构层的事。两条新闸：
-    ① `check-style-literals` 新增 `inline-geometry-literal`（内联样式里写死的 `gap/width/height/margin/padding/top...` 数字）；存量 307 处冻结在 `scripts/style-literal-baseline.json`，**只许变少**，新增即失败，清理后跑 `--update` 收窄。确属非主题值在上一行写「非主题值」。
-    ② `npm run verify:boards` 的几何对位（`board-diff-all`）已进 CI（e2e job）；每次跑都打印**对位覆盖率**（现 13/30）与未覆盖画板 —— 对位是一板一 spec，**改到哪张画板就补哪张的 spec**。
+    ① `check-style-literals` 新增 `inline-geometry-literal`（内联样式里写死的 `gap/width/height/margin/padding/top...` 数字）；存量 **198 处**冻结在 `scripts/style-literal-baseline.json`（**只许变少**，新增即失败，清理后跑 `--update` 收窄）。已清掉 109 处（307→198）：能等值换 token 的都换了（间距 `--s1..--s6`、控件 `--control-*`、图标 `--icon-*`），像素不变；剩下的多是面板/树列这类 token 表里没有的尺寸 —— 逐条登记在 `DIVERGENCE.md` Q 节，收敛只有两条路：固化进 `board.css` 的 `.pw-*`，或先进设计裁定出新 token，**不许留死数字**。根级错误页与独立 HTML 文档（`app/error.tsx` / `app/global-error.tsx`）是例外，那边 `var()` 可能解空。
+    ② `npm run verify:boards` 的几何对位（`board-diff-all`）已进 CI（e2e job）；每次跑都打印**对位覆盖率**（现 19/30、22 份 spec、两个环境各 0 不符）与未覆盖画板 —— 对位是一板一 spec，**改到哪张画板就补哪张的 spec**。spec 需要特殊状态时用 `app.script` 自己驱动（写在 spec 里，不进共享预设表），这样多份 spec 能并行编写而不争同一个文件。
        · 转录 / 输入框 / 侧栏那几张要「开着一条有消息的会话」才量得到：CI 用 `npm run verify:boards:seeded`（`scripts/verify-boards-live.mjs` 自建临时 agent 目录走 `PI_CODING_AGENT_DIR`，不碰用户数据），本机对着真服务仍用 `npm run verify:boards`。
        · spec 里的 `knownDiffs` 只许登记「接线」与「数据依赖」，每条必须写清为什么；改到某张画板却没 spec，等于又回到人眼比。
   * 换类名 / 挪 DOM 时留下死 CSS 是**已经发生过的事故**（`.fork-msg-actions` → `.pw-msg-acts` 漏改，动作行恒为透明）：改「画板类名与本组件的对应关系」时，同一提交里搜一遍旧名（`grep -rn "旧名" app/*.css components`）。

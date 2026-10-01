@@ -9,12 +9,19 @@ test("fork:design-system SW-06 —— 地址栏挂画板 31 的 .pw-url", () => 
 
   assert.match(bar, /className="pw-url"/, "地址栏 input 挂 .pw-url");
   assert.doesNotMatch(bar, /className="pw-input"/, "旧的 .pw-input 写法已退役");
-  // .pw-url 在画板里是 span（等宽、面板底、细边框）；产品是 input，只归零 UA 行为样式。
+  // .pw-url 在画板里是 span（等宽、面板底、细边框）；产品是 input，只补布局值。
+  // fork:board-diff-2026-10-01 —— 原来的 `font: "inherit"` 把 board.css:605 的等宽 11px
+  // 顶成了无衬线 13px（`31-terminal-browser-git` 的 spec 报出 fontSize 13≠11 /
+  // fontFamily 无引号）。现在**字体与字号都交给 .pw-url**，input 只补 min-width。
   assert.match(
     bar,
-    /className="pw-url"[\s\S]*?style=\{\{ font: "inherit", minWidth: 0 \}\}/,
-    "input 只补字体继承与 min-width，视觉值全交给 .pw-url",
+    /className="pw-url"[\s\S]*?style=\{\{ minWidth: 0 \}\}/,
+    "input 只补 min-width，字体/字号/面板底全交给 .pw-url",
   );
+  // 同上，但只查 .pw-url 元素**自身**的那一段（后面可能还有别的 input 合法地补字体）。
+  const urlEl = bar.slice(bar.indexOf('className="pw-url"'), bar.indexOf('className="pw-url"') + 200);
+  assert.doesNotMatch(urlEl, /font: "inherit"/, ".pw-url 不许再用 font:inherit 压掉画板的等宽");
+  assert.doesNotMatch(urlEl, /fontSize:/, ".pw-url 的字号由 board.css 给");
 });
 
 test("keeps the browser bar primitives around it untouched", () => {

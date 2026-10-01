@@ -257,8 +257,10 @@ export function PhaseRoll({
       data-fork-phase-roll={displayed?.key ?? ""}
       style={{ display: "block", padding: "8px 0", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
     >
-      <span className="pw-step" style={{ paddingLeft: 22 }}>
-        <span className="pw-step-ico" style={{ left: 3 }}>
+      <span className="pw-step">
+        {/* 缩进（22）与图标横位（3）由 board.css 的 `.pw-step`（padding 2 6 2 22）
+            与 `.pw-step-ico`（left 3）承担，与画板同值（audit-2026-10-01）。 */}
+        <span className="pw-step-ico">
           <span
             className={`pw-ico${icon.color ? "" : " pw-dim"}`}
             style={icon.color ? { color: icon.color } : undefined}

@@ -2756,8 +2756,8 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
               // The floating wrapper is pointerEvents:"none" (click-through by design),
               // so the toast itself must opt back into interactivity or hover events never reach it
               pointerEvents: "auto",
-              // 画板 50：通知条 380px 宽，右缘对齐（外层容器已右锚定）
-              width: 380,
+              // 画板 50：通知条 380px 宽由 board.css 的 `.pw-toast` 承担
+              // （audit-2026-10-01：内联的 380 与画板同值，删掉即可，像素不变）
               maxWidth: "100%",
               marginBottom: index === notices.length - 1 ? 0 : 6,
               overflow: "hidden",

@@ -129,7 +129,11 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
           spellCheck={false}
           autoComplete="off"
           className="pw-url"
-          style={{ font: "inherit", minWidth: 0 }}
+          /* fork:board-diff-2026-10-01 —— 地址栏的等宽字体/字号由 board.css 的
+             `.pw-url`（font-family var(--font-mono) / font-size var(--text-meta)）承担，
+             这里只留布局所需的 min-width。原来的 `font: "inherit"` 把等宽 11px 顶成了
+             UI 无衬线 13px —— `31-terminal-browser-git` 的 spec 把它报成了漂移。 */
+          style={{ minWidth: 0 }}
         />
         <a
           href={currentUrl || undefined}

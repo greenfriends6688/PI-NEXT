@@ -82,13 +82,16 @@ export function ProjectTrustDialog({
           )}
         </div>
         <div className="pw-modal-foot">
-          <button type="button" className="pw-btn outline sm" onClick={onCancel} disabled={busy}>
+          {/* fork:board-diff-2026-10-01 —— 画板 50 帧 0/1/2 的 modal foot 一律用
+              **md** 档（60×28 / 12px / padding 0 12），产品挑了 sm（40×24 / 11px / 0 8），
+              `50-dialogs` 的 spec 量到 40×24 vs 60×28。md 档原子本身与画板逐项一致。 */}
+          <button type="button" className="pw-btn outline" onClick={onCancel} disabled={busy}>
             {t("trust.cancel")}
           </button>
           <span className="grow" />
           <button
             type="button"
-            className="pw-btn primary sm"
+            className="pw-btn primary"
             onClick={onConfirm}
             disabled={busy}
             style={busy ? { opacity: 0.7, cursor: "wait" } : undefined}

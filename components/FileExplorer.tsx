@@ -493,8 +493,12 @@ function TreeNode({
             : { position: "relative" as const }),
           // fork:design-components —— 行高 / 圆角 / hover 叠色全部交给画板 .pw-trow，
           // 这里只留树特有的缩进与避让（inline 会压过类，重复属性必须删干净）。
-          paddingLeft: 8 + depth * 14,
-          paddingRight: "var(--s2)",
+          // fork:board-diff-2026-10-01 —— 缩进基线对齐画板：board.css 的
+          // `.pw-trow` 是 `padding: 0 6px`，`.indent-1` 左内缩 20、`.indent-2` 34
+          // （即 depth 1 → 20 / depth 2 → 34，每级 +14）。原来的 8 + depth*14
+          // 整体大2px（实测 8/22/36 vs 画板 6/20/34），基线交给 board.css。
+          paddingLeft: depth === 0 ? undefined : 6 + depth * 14,
+          paddingRight: depth === 0 ? undefined : "var(--s2)",
           cursor: "pointer",
           userSelect: "none",
         }}
@@ -504,7 +508,7 @@ function TreeNode({
             className="pw-ico"
             style={{ flexShrink: 0, color: "var(--text-dim)", transform: open ? "rotate(90deg)" : "none", transition: "transform var(--motion-fast)" }}
           >
-            <i data-ico="chevron-right" data-size="10"></i>
+            <i data-ico="chevron-right" data-size="12"></i>
           </span>
         )}
         {!node.isDir && <span style={{ width: 10, flexShrink: 0 }} />}

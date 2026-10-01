@@ -111,9 +111,12 @@ const RULES = [  {
     // 判据：内联样式对象里的**单值数字**。放行 0、`var()`、`calc()`、百分比、
     // 相对单位（vw/ch/fr）与 JS 变量——只拦「写死的像素几何」。
     // 确属非主题值（canvas 尺寸、图像常量）在上一行加「非主题值」。
+    // fork:board-diff（2026-10-01）—— 单位组只留 px / pt：**em / rem 是相对单位**，
+    // `minHeight: "1.5em"`（MessageView.tsx）这类写法跟着根字号走，不是写死的几何，
+    // 之前被当成本地像素几何收进了基线，永远消不掉（audit-2026-10-01 指出）。
     id: "inline-geometry-literal",
     pattern: new RegExp(
-      `(?:^|[\\s,{(])${GEOMETRY_KEYS}(?:Top|Right|Bottom|Left|Block|Inline|Start|End)?\\s*:\\s*"?\\s*(\\d+(?:\\.\\d+)?)(px|rem|em|pt)?\\s*"?\\s*(?=[,}\\n])`,
+      `(?:^|[\\s,{(])${GEOMETRY_KEYS}(?:Top|Right|Bottom|Left|Block|Inline|Start|End)?\\s*:\\s*"?\\s*(\\d+(?:\\.\\d+)?)(px|pt)?\\s*"?\\s*(?=[,}\\n])`,
     ),
     skip: (_line, match) => Number(match[1]) === 0,
     message:

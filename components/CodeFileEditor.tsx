@@ -437,7 +437,12 @@ export default function CodeFileEditor({
       <div
         ref={host}
         className="pw-code-body grow"
-        style={{ minHeight: 0, padding: 0, overflow: "hidden" }}
+        /* fork:board-diff-2026-10-01 —— `padding: 0` 把 board.css 的
+           `padding: var(--s2) var(--s3)`（8/12）顶掉了 —— 编辑器正文比画板内缩少一截
+           （`52-file-viewer-modes` 的 spec 实测 padding 0 vs 8px 12px）。
+           只读那一支（.file-source-view）本来就零 pw-* 类，暂不在本轮范围。
+           这里删掉 padding 让画板给；CodeMirror 自身的行内边距由它自己的主题管。 */
+        style={{ minHeight: 0, overflow: "hidden" }}
         aria-label={getFileName(filePath)}
         data-saving={state.saving ? "true" : "false"}
       />
