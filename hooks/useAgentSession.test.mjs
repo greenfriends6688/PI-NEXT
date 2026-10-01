@@ -342,8 +342,9 @@ test("delegates event stream readiness and hides an empty agent phase", () => {
   // 但拆成了两半：挂载点只负责 agentRunning && !hasStreamingContent，
   // “空相位不渲染”由 PhaseRoll 自己的 null 分支保证；同时外层 wrapper 不得带 padding，
   // 否则 PhaseRoll 返回 null 时仍会留一条空行（这正是以前 gate 在 agentPhase 上的原因）。
-  assert.match(chatWindowSource, /agentRunning && !hasStreamingContent && \(/);
-  assert.match(chatWindowSource, /<PhaseRoll[\s\S]{0,200}?text=\{agentPhase \? phaseLabel\(agentPhase, t\) : null\}/);
+  assert.match(chatWindowSource, /agentRunning && !hasStreamingContent && \(agentPhase \|\| isCompacting\)/);
+  assert.match(chatWindowSource, /<PhaseRoll[\s\S]{0,200}?text=\{phaseLabel\(agentPhase, t, isCompacting\)\}/);
+  assert.match(chatWindowSource, /<PhaseRoll[\s\S]{0,200}?phaseKey=\{phaseKeyOf\(agentPhase, isCompacting\)\}/);
   assert.match(chatWindowSource, /break-words text-xs" style=\{\{ color: "var\(--text-muted\)" \}\}[\s\S]{0,400}?<PhaseRoll/);
   assert.doesNotMatch(chatWindowSource, /break-words py-2 text-xs" style=\{\{ color: "var\(--text-muted\)" \}\}[\s\S]{0,400}?<PhaseRoll/,
     "相位行的间距不能留在 wrapper 上，否则空相位会留下空隙");
@@ -464,8 +465,10 @@ test("shows the latest streamed tool execution progress in the running phase", (
 
   assert.match(updateSource, /getToolExecutionProgress\(event\.partialResult\)/);
   assert.match(updateSource, /tools: \[\.\.\.tools\.filter\([\s\S]*?, updated\]/);
-  assert.match(chatWindowSource, /if \(latest\?\.progress\)/);
-  assert.match(chatWindowSource, /chat\.runningNamedTool[\s\S]*latest\.progress/);
+  // fork:zm-08 — 文案纯函数搬到 components/fork/PhaseRoll.tsx（那里才能被 node 直接测）。
+  assert.match(phaseRollSource, /if \(latest\?\.progress\)/);
+  assert.match(phaseRollSource, /chat\.runningNamedTool[\s\S]*latest\.progress/);
+  assert.doesNotMatch(chatWindowSource, /function phaseLabel\(/);
 });
 
 test("reconnects active shell output to its streaming tool call", () => {

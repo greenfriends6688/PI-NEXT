@@ -39,7 +39,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { ProcessGroup, summarizeProcessBlocks } from "./ProcessGroup";
 import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import { messageToProcessContentBlocks, type ProcessContentBlock } from "@/lib/process-content";
-import { useAgentSession, type AgentPhase, type NoticeItem } from "@/hooks/useAgentSession";
+import { useAgentSession, type NoticeItem } from "@/hooks/useAgentSession";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SessionStatsInfo } from "@/lib/pi-types";
@@ -71,8 +71,8 @@ import {
   type ScrollIntent,
 } from "@/lib/scroll-follow";
 import { ScrollFadeViewport } from "./fork/ScrollFadeViewport";
-// fork:zm-07 — 等待态状态行（串行滚动）。
-import { PhaseRoll } from "./fork/PhaseRoll";
+// fork:zm-07 — 等待首 token 时的「串行滚动」状态行。
+import { PhaseRoll, phaseKeyOf, phaseLabel } from "./fork/PhaseRoll";
 // fork:zm-04 — 倒计时条共享同一个动效偏好守卫。
 import { useMotionPreference } from "./fork/RollingNumber";
 // fork:zc-17 — 零会话首屏的三条起步路径。
@@ -123,39 +123,6 @@ interface Props {
   onSoundToggle?: () => void;
   playDoneSound?: () => void;
   unlockAudio?: () => void;
-}
-
-function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, string | number>) => string): string | null {
-  if (phase?.kind === "running_tools") {
-    const latest = phase.tools[phase.tools.length - 1];
-    if (latest?.progress) {
-      return `${t("chat.runningNamedTool", { name: latest.name })} ${latest.progress}`;
-    }
-    const names = phase.tools.map((t) => t.name);
-    if (names.length === 0) return t("chat.runningTool");
-    if (names.length === 1) return t("chat.runningNamedTool", { name: names[0] });
-    if (names.length <= 3) return t("chat.runningTools", { names: names.join(", ") });
-    return t("chat.runningToolsMore", { names: names.slice(0, 2).join(", "), count: names.length - 2 });
-  }
-  if (phase?.kind === "waiting_model") return t("chat.waitingModel");
-  if (phase?.kind === "running_command") return t("chat.runningCommand");
-  return null;
-}
-
-/**
- * fork:zm-07 — 相位身份（PhaseRoll 的 key）。
- *
- * 同一个工具/命令的 progress 更新必须保持同 key（原地换文字，不重播滚动）；
- * 换工具、换相位才是一条新状态。
- */
-function phaseKeyOf(phase: AgentPhase): string {
-  if (!phase) return "idle";
-  if (phase.kind === "running_tools") {
-    const latest = phase.tools[phase.tools.length - 1];
-    if (!latest) return "tools";
-    return `tools:${latest.id || latest.name}`;
-  }
-  return phase.kind;
 }
 
 /** fork:zm-03 — 滚动指标（纯读数，不触碰布局）。 */
@@ -2562,14 +2529,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               })()
             )}
 
-            {agentRunning && !hasStreamingContent && (
+            {agentRunning && !hasStreamingContent && (agentPhase || isCompacting) && (
               // fork:zm-07 — 垂直间距放在 PhaseRoll 自己身上，不放在这层 wrapper 上：
               // PhaseRoll 在“没有相位可显”时返回 null（与改动前同一契约），
               // 而 wrapper 带着 py-2 渲染就会在等待结束后留下一条看不见的空隙。
+              // fork:zm-08 — 压缩中即便相位为空也显一行（上游 2e66e40 / #1008）。
               <div className="break-words text-xs" style={{ color: "var(--text-muted)" }}>
                 <PhaseRoll
-                  text={agentPhase ? phaseLabel(agentPhase, t) : null}
-                  phaseKey={phaseKeyOf(agentPhase)}
+                  text={phaseLabel(agentPhase, t, isCompacting)}
+                  phaseKey={phaseKeyOf(agentPhase, isCompacting)}
                   lineHeightEm={1.4}
                 />
               </div>
