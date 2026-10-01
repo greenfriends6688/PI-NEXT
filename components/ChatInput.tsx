@@ -3984,17 +3984,22 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </div>
             )}
 
-            {!isStreaming && onCompact && (
+            {/* fork:upstream-2e66e40（#1008 移植）—— 露出条件是 `!isStreaming || isCompacting`：
+                手动压缩从空闲会话起，按钮本来就在，只翻成「停止压缩」；**自动压缩是
+                一轮跑到一半才开始的**，那时 isStreaming 已经是 true，旧守卫
+                `!isStreaming` 让按钮整轮都不渲染，只剩一个笼统的「停止」，用户没有
+                「跳过这次压缩、让这一轮继续」的手段（上游 #1008 的原话：看起来像卡死）。
+                改成 `!isStreaming || isCompacting` 之后，「流式中且不在压缩」那几条分支
+                （disabled / 0.5 透明度 / not-allowed 光标）永远到不了，按上游的做法删掉
+                而不是留成死代码：`cursor:pointer` 由 fork-ui.css 的 `button.pw-select` 承担。 */}
+            {(!isStreaming || isCompacting) && onCompact && (
               <div>
                 {/* fork:design-components —— 压缩按钮 = 画板 .pw-select；进行中转 error 色 + loader。 */}
                 <button
                   type="button"
                   onClick={isCompacting ? onAbortCompaction : onCompact}
-                  disabled={isStreaming && !isCompacting}
                   className="pw-select"
                   style={{
-                    cursor: (isStreaming && !isCompacting) ? "not-allowed" : "pointer",
-                    opacity: (isStreaming && !isCompacting) ? 0.5 : 1,
                     color: isCompacting ? "var(--error)" : undefined,
                     background: isCompacting ? "var(--error-soft)" : undefined,
                     width: isMobile ? "auto" : undefined,
