@@ -119,68 +119,17 @@
   color: var(--text);
 }
 
-.config-split-view {
-  display: flex;
-  flex: 1;
-  flex-direction: row;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.config-sidebar {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  width: 240px;
-  min-height: 0;
-  border-right: 1px solid var(--border);
-  background: var(--bg-panel);
-}
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— `.config-split-view` /
+   `.config-sidebar` 已随 ConfigSplitView / ConfigSidebar 挂画板类退役：
+   现在分别输出 board.css 的 `.pw-cols` / `.pw-list`，零引用，规则删除。 */
 
 /* fork:design-system —— `.config-sidebar-group` / `.config-sidebar-group-label`
    已随画板 42 收编退役：分组标题由 SettingsUi 的 ConfigSidebarGroupLabel 直接
    输出画板的 `.pw-group-title`，作为 `.pw-list` 的直接子元素。 */
 
-.config-sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-  height: 32px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: var(--radius-md);
-  outline: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: 400;
-  text-align: left;
-  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
-}
-
-.config-sidebar-item:not(:disabled):hover,
-.config-sidebar-item:not(:disabled):focus-visible {
-  background: var(--bg-hover);
-}
-
-.config-sidebar-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.config-sidebar-item[aria-current="page"] {
-  background: var(--bg-selected);
-  font-weight: 600;
-}
-
-.config-sidebar-item:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— `.config-sidebar-item`
+   行基件已随 ConfigSidebarItem 挂 `.pw-litem` 退役，hover / focus / 选中 / 禁用
+   四态全部由 board.css 的 `.pw-litem`（含 `is-on`）出形，零引用，整族删除。 */
 
 .models-sidebar-indented-item {
   padding-left: 26px;
@@ -369,66 +318,20 @@
 }
 
 
-.config-sidebar-text {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.config-sidebar-text.is-grow {
-  flex: 1;
-}
-
-.config-sidebar-text.is-muted {
-  color: var(--text-dim);
-}
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— `.config-sidebar-text`
+   （列表行主/副文字的自绘省略列）已随 ConfigSidebarText / ConfigSidebarSub 挂
+   `.pw-lname` / `.pw-lsub` 退役，零引用，整族删除（含 is-grow / is-muted）。 */
 
 /* fork:design-system —— 旧的自绘类已随画板 42 收编退役（2026-09-30）：
    agents-overridden-label（被覆盖项改 pw-badge）、agents-feature-* 与
    agents-concurrency-control（内置开关 + 并发上限改 pw-block 卡 + pw-field 行，
    ConfigSwitch / ConfigButton / pw-input 由 board.css 出形）。 */
 
-.config-sidebar-message {
-  padding: 10px 8px;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-.config-sidebar-message.is-error {
-  color: var(--danger);
-}
-
-.config-sidebar-message.is-empty {
-  color: var(--text-dim);
-}
-
-.config-detail {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: 20px;
-  overflow-y: auto;
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 1.5;
-}
-
-.config-detail-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  min-width: 0;
-}
-
-.config-detail-stack.is-full-height {
-  height: 100%;
-}
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— 列表 / 详情列的自绘壳已
+   整族退役，零引用：`.config-sidebar-message`（+ is-error / is-empty，提示行走
+   画板 `.pw-alert`）、`.config-detail`（ConfigDetail 挂 `.pw-detail`）、
+   `.config-detail-stack`（+ is-full-height，ConfigDetailStack 挂
+   `.pw-detail-stack`）。 */
 
 /* Keep the native resize corner usable when the global scrollbar is present. */
 .agents-system-prompt {
@@ -451,65 +354,15 @@
   border-radius: var(--radius-sm);
 }
 
-.config-detail-path {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— 详情列的三枚自绘件已退役，
+   零引用：`.config-detail-path`（路径走 `.pw-mono`）、`.config-scope-tag`
+   （+ is-project，作用域走 `.pw-badge`）、`.config-trust-notice`（提示走
+   `.pw-alert`）。 */
 
-.config-scope-tag {
-  flex-shrink: 0;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: rgba(120, 120, 120, 0.12);
-  color: var(--text-dim);
-  font-size: var(--text-2xs);
-}
-
-.config-scope-tag.is-project {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.config-trust-notice {
-  padding: 8px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-panel);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-.config-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-width: 1px;
-  border-style: solid;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-family: inherit;
-  letter-spacing: 0;
-  line-height: 1;
-  white-space: nowrap;
-  transition: background-color var(--motion-base) ease, border-color var(--motion-base) ease, color var(--motion-base) ease, box-shadow var(--motion-base) ease;
-}
-
-.config-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.config-button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— `.config-button` 基础块
+   （display/border/cursor/transition + focus-visible + :disabled）随 ConfigButton
+   挂画板 `.pw-btn` 退役，视觉规格全部由 board.css 出形；下面只保留仍有生产者的
+   `.config-button-success-icon`（ModelsConfig 的保存成功对勾）与两条状态钩子。 */
 .config-button-success-icon {
   flex-shrink: 0;
   stroke-dasharray: 18;
@@ -519,67 +372,22 @@
 /* fork:motion-saved-pop-2026-10-01 —— `@keyframes saved-pop` 一直是**孤儿**
    （定义了零引用）：保存成功只有勾线的描画动画，按钮本身不弹。board 05 的保存成功是
    「弹一下 + 描画」两段，这里把弹的那一段接上（值一字未改，只补挂点）——
-   真实的状态 class 是 ModelsConfig 等处传的 `is-success`（不是自造的 is-saved）。 */
-.config-button.is-success { animation: saved-pop var(--motion-base) var(--ease) 1; }
+   真实的状态 class 是 ModelsConfig 等处传的 `is-success`（不是自造的 is-saved）。
+   2026-10-01 挂点随基件迁移改到 `.pw-btn`：ConfigButton 输出的是画板的 `pw-btn`，
+   原挂点 `.config-button.is-success` 已经匹配不到任何元素（静默失效）。 */
+.pw-btn.is-success { animation: saved-pop var(--motion-base) var(--ease) 1; }
 @media (prefers-reduced-motion: reduce) {
-  .config-button.is-success { animation: none; }
+  .pw-btn.is-success { animation: none; }
 }
 
-.config-button.is-pushed-right {
+/* 同上：PluginsConfig 的「安装」钮传 `is-pushed-right`，挂点随基件迁移到 `.pw-btn`。 */
+.pw-btn.is-pushed-right {
   margin-left: auto;
 }
 
-.config-switch {
-  position: relative;
-  flex-shrink: 0;
-  width: 32px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-selected);
-  cursor: pointer;
-  transition: background var(--motion-base), border-color var(--motion-base);
-}
-
-.config-switch[aria-checked="true"] {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-
-.config-switch:not(:disabled):hover {
-  border-color: var(--text-muted);
-}
-
-.config-switch[aria-checked="true"]:not(:disabled):hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
-}
-
-.config-switch::before {
-  content: "";
-  position: absolute;
-  inset: -5px -3px;
-}
-
-.config-switch:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.config-switch.is-loading:disabled {
-  cursor: wait;
-}
-
-.config-switch[aria-checked="true"] .config-switch-knob {
-  transform: translateX(14px);
-  background: var(--bg);
-}
-
-.config-switch:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— `.config-switch` 整族
+   （底色 / 选中 / 悬停 / ::before 热区 / 禁用 / is-loading / 圆钮位移 / 焦点环）
+   随 ConfigSwitch 挂画板 `.pw-switch` 退役，零引用，规则删除。 */
 
 .settings-dialog-backdrop {
   position: fixed;
@@ -662,9 +470,9 @@
   overflow-y: auto;
 }
 
-/* fork:settings-focus — 导航行的键盘焦点环内缩（同 `.config-sidebar-item`）。
-   全局焦点规则（globals.css）是 offset:2px，在 200px 宽的导航列里会越过分隔线
-   画到右侧内容页上，看着像两层边框。 */
+/* fork:settings-focus — 导航行的键盘焦点环内缩（原 `.config-sidebar-item` 的同款
+   语义，基件退役后落在这里）。全局焦点规则（globals.css）是 offset:2px，
+   在 200px 宽的导航列里会越过分隔线画到右侧内容页上，看着像两层边框。 */
 .settings-section-tabs .pw-row:focus-visible {
   outline-offset: -2px !important;
 }
@@ -731,6 +539,25 @@
   overflow: hidden;
 }
 
+/* fork:settings-frame（画板 62）—— 分节可选的**页面级骨架**备忘（给分节作者）：
+ *
+ *   骨架 A · 块流页（常规 / 用量这类没有「条目」概念的页）
+ *     <SettingsPage title={…} sub={…}>            ← 页头固定，不滚
+ *       <div className="pw-grid2">…块…</div>      ← `.pw-scontent` 是唯一滚动容器
+ *     </SettingsPage>
+ *
+ *   骨架 B · 列表 + 详情页（模型 / 技能 / 子代理 / 插件 / MCP…）
+ *     <SettingsPage title={…} sub={…} fill toolbar={…}>
+ *       <ConfigSplitView>                         ← 输出 `.pw-cols`（300 + 760）
+ *         左列 .pw-list / 右列 .pw-detail
+ *       </ConfigSplitView>
+ *     </SettingsPage>
+ *     `fill` 让 `.pw-scontent` 拿到 `is-fixed`：内容区本身不滚，**两列各自滚**
+ *     —— 滚动行为钩子在 board.css 的 `.pw-scontent.is-fixed > .pw-cols > *`
+ *     （min-height:0 + overflow-y:auto），这里不重复定义。
+ *     注意：分节里只要还有别的整宽块（状态块 / 工具块 / 说明块），就不许用
+ *     `fill` —— 用默认滚动，否则超出的部分被静默裁掉（画板 62 帧注）。 */
+
 /* 列表页（模型 / 技能 / 子代理 / 插件 / MCP）的外壳本来就是 flex column，
    三件套直接挂上去即可；这里只把 `.pw-cols` 从「吃掉剩余高度」改到
    `.pw-scontent` 里 —— 两列各自滚动，见 board.css 的 `.pw-scontent.is-fixed`。 */
@@ -766,71 +593,31 @@
   margin-top: var(--s2);
 }
 
-/* fork:settings-field-density —— 画板的 `.pw-field` 是「标签在左、控件在右」，
-   控件槽 `.pw-ctl { flex: none }`。画板里的控件都是定宽小控件（180 / 280px），
-   标签永远放得下；产品的子代理详情里有整行 textarea 和 `min-width: 200px`
-   的 `.pw-input`，`flex: none` 的控件把标签挤到一两个字符宽，于是
-   「显示名称」断成两行、「系统指令」断成三行，行与行之间看着也挤在一起。
-   修法在接线层，不动画板：标签给一个不可压缩的下限，控件槽允许收缩。 */.settings-dialog-main .pw-field {
-  /* 控制放不下时换到标签下一行，而不是把卡片撑出一截（子代理的「工具」芯片行
-     与「指定模型 / 思考级别 / 最大轮次」三列网格都遇到过）。 */
-  flex-wrap: wrap;
-  row-gap: 6px;
+/* fork:settings-frame（画板 62 帧 C）—— 两栏块流每栏的**首块不带顶距**：画板里
+   是首块自身的 inline `margin-top:0`，产品的门禁禁新增内联几何，落成这条接线规则
+   （只撤画板没有的间距，不出新值）。块流页（常规 / 用量）的每栏因此与块间距
+   `--s4` 保持同一节奏，顶部从内容区的 padding 起。 */
+.pw-grid2 > div > .pw-block:first-child {
+  margin-top: 0;
 }
 
-.settings-dialog-main .pw-field > *:not(.pw-label) {
-  min-width: 0;
-  max-width: 100%;
-}
+/* fork:settings-field-density（2026-10-01 重修为画板 62 帧 C 语义）——
+   这一坨接线覆盖**全部删除**：标签 132px/104px 不可压缩下限、`.pw-ctl` 允许收缩
+   （画板是 `flex: none`）、字段行 flex-wrap + row-gap 换行、整行 textarea 的
+   flex 基准 —— 它们都是画板没有的私货，是为了兜住「字段行里塞整行控件」这一
+   画板不存在的形态而打的补丁。
 
-.settings-dialog-main .pw-field > .pw-label {
-  /* fork:settings-frame（画板 62）—— 原来是 `flex: 0 0 auto`（不许收缩）。
-     块流页收进 570 宽的一栏后，长 `small` 说明（推送注册那句 30+ 字）会把标签
-     撑到 1300+ 宽、整块溢出内容区 338px。改成可收缩 + 132px 下限：
-     文字照常换行，控件不够放时由 `.pw-field` 的 `flex-wrap` 换到下一行。 */
-  flex: 0 1 auto;
-  min-width: 132px;
-  max-width: 100%;
-}
+   board.css 的 `.pw-field` 就是完整规格：行是 `space-between` 的
+   「标签（flex 默认可收缩、文字照常换行）+ 控件」，控件槽 `.pw-ctl` 是
+   `flex: none`；画板 62 帧 B 把**整行宽**的输入（SKILL.md 的 textarea）放在
+   `.pw-detail` 直下而不是字段行里，字段行里只放定宽小控件（180 / 280px）。
+   分节里若再出现「标签被挤扁 / 控件放不下」，修法是照 62 帧 B 把整行控件搬出
+   `.pw-field`，不是在这里重新加覆盖。 */
 
-.settings-dialog-main .pw-field > .pw-ctl {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.settings-dialog-main .pw-field > .pw-input,
-.settings-dialog-main .pw-field > .pw-textarea,
-.settings-dialog-main .pw-field > textarea,
-.settings-dialog-main .pw-field > select {
-  min-width: 0;
-}
-
-.settings-dialog-main .pw-field > .pw-textarea,
-.settings-dialog-main .pw-field > textarea {
-  flex: 1 1 260px;
-}
-
-/* 窄屏两栏已经叠成一列，标签不需要留那么宽。 */
-@media (max-width: 900px) {
-  .settings-dialog-main .pw-field > .pw-label {
-    min-width: 104px;
-  }
-}
-
-/* fork:design-system SW-07 — 页面框本身不再画任何东西：页边距与页头排版都在画板 40
-   的 `.pw-sbody` 上（外壳已挂那个类）。这里只剩「占满内容列」这条产品布局语义；
-   原先的 840px 上限与自带滚动已删（第一轮 fork:ui-08 的宽度上限 + 双层滚动条）。 */
-.settings-general {
-  width: 100%;
-}
-
-.settings-general-title {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--text-2xl);
-  /* fork:boardui — BoardUI 的 title-3 是 medium(500)；中文在 500 下偏细，取 600 */
-  font-weight: 600;
-}
+/* fork:design-system SW-07 — 页面框本身不再画任何东西：页边距与页头排版都在画板 62
+   的三件套（`.pw-shead` / `.pw-stools` / `.pw-scontent`）上。旧的 `.settings-general`
+   宽度壳与 `.settings-general-title` 旧类名 h2 已无引用，随 2026-10-01 的孤儿清理
+   删除（分节页头一律走 SettingsPage 的三件套）。 */
 
 .settings-general-section {
   margin-top: 16px;
@@ -843,44 +630,9 @@
   margin-top: 24px;
 }
 
-.settings-theme-option {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 400;
-}
-
-.settings-theme-option:has(input:checked) {
-  background: var(--bg-selected);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.settings-theme-option:not(:has(input:checked)):hover {
-  background: var(--bg-hover);
-}
-
-.settings-theme-option:has(input:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.settings-general-error {
-  margin: 8px 0 0;
-  color: var(--danger);
-  font-size: var(--text-xs);
-}
+/* fork:design-system SW-07（2026-10-01 孤儿清理）—— `.settings-theme-option`
+   （主题三档自绘行）已随画板 40 的 `.pw-radio` 芯片组退役；`.settings-general-error`
+   的错误行换成画板的 `.pw-alert`。两者零引用，规则删除。 */
 
 @media (max-width: 640px) {
   .config-panel-root.is-modal > .config-panel-surface {
@@ -888,20 +640,11 @@
     height: calc(100dvh - 16px);
   }
 
-  .config-split-view {
-    flex-direction: column;
-  }
-
-  .config-sidebar {
-    width: 100%;
-    height: 190px;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .config-detail {
-    padding: 14px;
-  }
+  /* fork:design-system SW-08~14（2026-10-01 孤儿清理）—— 窄屏叠列的
+     `.config-split-view` / `.config-sidebar` / `.config-detail` 三规则删除：
+     基件已挂画板类（`.pw-cols` / `.pw-list` / `.pw-detail`），这三个旧类零生产者，
+     规则早已匹配不到元素。注意 board.css 的 `.pw-cols` 目前没有窄屏叠列媒体查询，
+     这属于画板形态本身的待办，不是这里删出来的回归。 */
 
   .settings-dialog-surface {
     width: calc(100vw - 12px);
@@ -994,23 +737,7 @@
   }
 }
 
-.settings-select {
-  width: 100%;
-  max-width: 260px;
-  height: var(--control-md);
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel);
-  color: var(--text);
-  font-size: var(--text-sm);
-}
-
-.settings-select:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
-}
-
+/* 用量页的状态 / 空态提示行（fork/UsageStatsPanel 仍在用）。 */
 .settings-chat-range-hint {
   margin: 6px 0 0;
   color: var(--text-muted);
@@ -1019,55 +746,31 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Wallpaper settings (components/WallpaperSettings.tsx).
+   2026-10-01 孤儿清理 —— 以下零引用的自绘类已删除：
+   `.settings-select`（画板形态走 `.pw-selectbox`）、`.settings-wallpaper` /
+   `.settings-wallpaper-area`（WallpaperSettings 已是 pw-block + pw-field 行）、
+   `.settings-field-input`（Cron / Memory 已迁 `.pw-input` / `.pw-textarea`）、
+   `.settings-general` / `.settings-general-title` / `.settings-theme-option` /
+   `.settings-general-error`（分节页头与主题档走 SettingsPage 三件套 / `.pw-radio`）。
 --------------------------------------------------------------------------- */
 
-.settings-wallpaper {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  max-width: 520px;
-}
-
-.settings-wallpaper-area .settings-select {
-  max-width: 160px;
-}
-
-/* fork:ui-14 — settings search: input, jump hint, row highlight. */
-/* Matching rows get a tinted wash rather than a border: rows are different
-   components, and only a background survives their own hover rules. */
-
-/* fork:cron / fork:memory — compact form fields used by the two new sections. */
-.settings-field-input {
-  width: 100%;
-  min-width: 0;
-  min-height: 30px;
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-.settings-field-input:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--accent));
-  outline-offset: -1px;
-}
-
 /* fork:skills-content — 技能正文：只读用 MarkdownBody 渲染，编辑态是画板 42 的
-   `.pw-textarea`（SKILL.md 编辑器本身，min/max 高度由画板式 inline 给出）。
-   `.skill-content-editor` 已随画板收编退役；`.skill-content-view` 保留 —— 它是
-   fork 特有的只读预览盒，与编辑态共用同一档 max-height，切换时不跳高度。 */
+   `.pw-textarea`（SKILL.md 编辑器本身，行高随草稿 rows 增长）。max-height/overflow
+   已按画板 62 硬规则「详情内部不再套第二层滚动」撤掉 —— 只读与编辑都随详情列滚，
+   长正文不再被内滚框裁掉。 */
 .skill-content-view {
-  max-height: 420px;
   min-height: 160px;
-  overflow: auto;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-panel);
+}
+
+/* fork:settings-switch-loading（2026-10-01）—— ConfigSwitch 的 is-loading 产品态
+   （画板没有加载中的开关）：沿用 board.css 的禁用视觉语言（opacity .45），
+   aria-busy 已由组件给出，这里只补看得见的一半。 */
+.pw-switch.is-loading {
+  opacity: 0.45;
 }
 
 .skill-content-view > :first-child {
@@ -1078,48 +781,10 @@
   margin-bottom: 0;
 }
 
-/* fork:settings-archive-layout — 归档页：一条页面级说明 + 两个等权小节。
-   原来两页各带 h3 + 说明叠在一起，看起来像两张不相干的卡片。 */
-.settings-archive-page {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  /* fork:settings-page-frame — 页面左右内缩交给外层 `.settings-general`，这里只管小节间距。 */
-  margin-top: 14px;
-}
+/* fork:settings-archive-layout（2026-10-01 孤儿清理）—— `.settings-archive-page`
+   （归档页「一条说明 + 两个等权小节」的 flex 壳）已随归档页迁画板 62 帧 B 骨架退役：
+   列表 + 详情走 `SettingsPage fill` + ProjectArchivePanel 的 `.pw-cols`，零引用。 */
 
-/* fork:import-toolbar — 导入工具栏分三组：动作 ｜ 视图 ｜ 结果，结果靠右。 */
-.import-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.import-toolbar-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.import-toolbar-end {
-  margin-left: auto;
-  gap: 10px;
-}
-
-.import-select-all {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-@media (max-width: 700px) {
-  .import-toolbar-end {
-    margin-left: 0;
-  }
-}
+/* fork:import-toolbar（2026-10-01 孤儿清理）—— 导入页的工具栏三组（动作 ｜ 视图 ｜
+   结果）已随画板 62 的 `.pw-stools` 工具栏退役，零引用，规则删除。 */
 

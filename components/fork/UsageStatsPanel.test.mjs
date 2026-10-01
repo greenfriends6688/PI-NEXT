@@ -47,15 +47,38 @@ test("the stat cards and every chart card ride the board 45 primitives", () => {
   // 画板的顺序是「标签在上、数值在下」，不是产品原先的「大数在上」。
   assert.match(panelSource, /<span className="k">\{label\}<\/span>\s*<span className="v">\{value\}<\/span>/);
   assert.match(panelSource, /<span className="s">\{hint\}<\/span>/);
-  assert.equal(panelSource.match(/<div className="pw-cell">/g).length, 5);
+  // 五个图表卡（按模型 / 请求与错误 / 热力图 / 每日 token / 按项目）都是画板 45 的
+  // `.pw-cell`（整行的热力图带 margin inline，所以按前缀匹配而不是整串）。
+  assert.equal(panelSource.match(/<div className="pw-cell"/g).length, 5);
   assert.match(panelSource, /<div className="pw-list"/);
-  // 三件套：页头 + 工具栏（周期芯片 / 刷新）+ 内容区。
+  // 三件套：页头 + 工具栏（周期芯片）+ 内容区。
   assert.match(panelSource, /<SettingsPage[\s\S]*?sub=\{t\("usage\.subtitle"\)\}/);
   assert.match(panelSource, /className="pw-grid2"/);
 
   for (const cls of ["pw-bars", "pw-legend", "pw-litem", "pw-lname", "pw-lsub", "pw-mono", "pw-ico"]) {
     assert.ok(chartsSource.includes(cls), `usage-charts must use .${cls}`);
   }
+});
+
+test("「刷新」是页级动作（页头右端），不再留在工具栏", () => {
+  // 画板 62 落位表：用量的页级动作是「刷新」；画板 45 §用量的页头动作就是
+  // `pw-btn outline sm` + refresh-cw。工具栏只留周期芯片与扫描计数。
+  const actionsAt = panelSource.indexOf("actions={");
+  const toolbarAt = panelSource.indexOf("toolbar={");
+  const refreshAt = panelSource.indexOf("usage.refresh");
+  assert.ok(actionsAt >= 0 && toolbarAt > actionsAt, "页头 actions 必须存在且在 toolbar 之前");
+  assert.ok(refreshAt > actionsAt && refreshAt < toolbarAt, "刷新按钮必须挂在页头 actions 里");
+  assert.match(panelSource, /data-ico="refresh-cw" data-size="13"/, "动作形态抄画板 45 页头：图标 + sm 按钮");
+  // 62 的页头规则：计数进工具栏的等宽读数，不进 sub、也不再用旧 hint 类。
+  assert.match(panelSource, /className="pw-mono pw-dim">\s*\{t\("usage\.scannedHint"/);
+});
+
+test("用量页不再套产品自绘的旧壳类（DIVERGENCE 145 登记残留清掉）", () => {
+  // `.settings-general-section` 的边框/圆角是产品 token（--border / --radius-lg），
+  // 与画板 `.pw-cell` 的边框叠成双框；空态提示行同理换画板的 `.pw-hint`。
+  assert.doesNotMatch(panelSource, /className="settings-general-section"/);
+  assert.doesNotMatch(panelSource, /className="settings-chat-range-hint"/);
+  assert.match(panelSource, /className="pw-hint">\{t\("usage\.empty"\)\}/);
 });
 
 /**
@@ -196,11 +219,25 @@ test("requests and errors share one max, keep both series' titles and the legend
   assert.match(html, /title="2026-05-01 · 请求 0"[^>]*style="height:2%"/);
   assert.match(html, /title="2026-05-02 · 请求 10"[^>]*style="height:50%"/);
   assert.match(html, /class="hot"[^>]*title="2026-05-03 · 请求 20"[^>]*style="height:100%"/);
-  assert.match(html, /title="2026-05-03 · 错误 5"[^>]*style="height:25%;background:var\(--error\)"/);
+  assert.match(html, /title="2026-05-03 · 错误 5"[^>]*style="height:25%;background:var\(--border\)"/);
   // 零错误的格子不挂 title（与旧实现一致：只有真的有失败才提示）。
   assert.doesNotMatch(html, /title="2026-05-01 · 错误/);
   // 图例仍然可读，且在 role="img" 之外。
   assert.match(html, /<div class="pw-legend">[\s\S]*?请求[\s\S]*?错误/);
+});
+
+test("charts only use the board's three colours (画板 45：accent 主 / n-border 次 / n-hover 底)", () => {
+  // 画板 45 §用量统计 注记：「图表只用三种色……不引入新色相」。失败序列原来是
+  // error 红 —— 画板里没有的新色相，换成次要色（产品的 Zeno 槽位 --border）。
+  assert.doesNotMatch(chartsSource, /var\(--error\)/, "图表不许引入 error 红这类新色相");
+  assert.doesNotMatch(chartsSource, /var\(--warning\)/, "图表不许引入 warning 黄这类新色相");
+  assert.match(chartsSource, /background: "var\(--border\)"/, "失败序列走次要色");
+  // 另外两色：主序列 / 热柱走 accent，空档与轨道走 n-hover（--bg-hover）。
+  assert.match(chartsSource, /var\(--accent\)/);
+  assert.match(chartsSource, /var\(--bg-hover\)/);
+  // 进度条圆角是画板的三档之一（--radius-3 = 3px），不是产品旧别名 --radius-sm。
+  assert.match(chartsSource, /borderRadius: "var\(--radius-3\)"/);
+  assert.doesNotMatch(chartsSource, /var\(--radius-sm\)/);
 });
 
 test("the model share bar keeps its per-slice widths, titles and accessible name", () => {

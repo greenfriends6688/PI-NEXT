@@ -458,7 +458,8 @@ export function PiMemoryConfig({
           {missingFiles.length > 0 && (
             <ConfigSidebarList>
               {missingFiles.map((file) => (
-                <div className="pw-litem" key={file.path} style={{ opacity: 0.72 }}>
+                /* 画板 44 的弱化行（`opacity:.6`）：还没建出来的文件弱显示。 */
+                <div className="pw-litem" key={file.path} style={{ opacity: 0.6 }}>
                   <span className="pw-ico pw-dim"><i data-ico="file-plus" data-size="14" aria-hidden="true" /></span>
                   <span className="grow">
                     <span className="pw-lname pw-mono">{file.path}</span>
@@ -489,16 +490,19 @@ export function PiMemoryConfig({
           </ConfigSidebarList>
 
           {!loading && visibleCatalog.length === 0 && (
+            /* fork:settings-frame（画板 62 帧 D）—— 列表空态落在列表列内：
+               32px 记号图标 + 一句，居中；不再是一行飘字。 */
             <ConfigEmptyState>
+              <span className="mark"><i data-ico="file-text" data-size="16" aria-hidden="true" /></span>
               <p>{fileQuery.trim() ? t("memory.fileNoMatch") : t("memory.filesEmpty")}</p>
             </ConfigEmptyState>
           )}
         </ConfigSidebar>
 
-        {/* fix:memory-layout —— 右栏给一个与编辑器同量级的最小高度：没选文件时
-            `.pw-empty` 的 `place-items:center` 才有地方居中。原来 `.pw-detail` 高度由
-            内容决定（≈一行），那一行说明就飘在右栏顶部、看着像「浮空的段落」。 */}
-        <ConfigDetail style={{ minHeight: 420 }}>
+        {/* fix:memory-layout —— 画板 62 帧 D 的「详情未选」空态：`.pw-empty` 的居中
+            由 board.css 自己的最小高度（`.pw-detail .pw-empty { min-height:180px }`）
+            兜底，组件不再写内联 minHeight —— 那正是 62 诊断里「两栏仅 420 高」的来历。 */}
+        <ConfigDetail>
           {openFile ? (
             <>
               <ConfigDetailHeader>
@@ -550,7 +554,10 @@ export function PiMemoryConfig({
               {openFileWritable && <p className="pw-hint">{t("memory.autoSaveHint")}</p>}
             </>
           ) : (
+            /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框记号 + 一句引导，
+               在详情列居中（`pw-empty-inner > .mark`，与技能页同形）。 */
             <ConfigEmptyState>
+              <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
               <p>{t("memory.filesHint")}</p>
             </ConfigEmptyState>
           )}

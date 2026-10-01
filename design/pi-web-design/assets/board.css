@@ -637,6 +637,10 @@ body.pw.dark { background: #0f0f13; }
 .pw-modal-body { padding: var(--s3) var(--s4); display: grid; gap: var(--s2); font-size: var(--text-secondary); }
 .pw-modal-foot { display: flex; align-items: center; gap: var(--s2); justify-content: flex-end; padding: var(--s3) var(--s4); border-top: 1px solid var(--n-border-subtle); }
 .pw-modal-foot .grow { flex: 1; }
+/* fork:settings-modal-scroll（2026-10-01）—— 产品弹层的内容行可能比画板长
+ * （导入 MCP 的来源行数是数据，不是排版），给内容行滚动语义；画板是内容
+ * 恰好放下的静态稿，overflow 不触发，渲染零变化。 */
+.pw-modal-body { min-height: 0; overflow-y: auto; }
 .pw-scrim { background: var(--scrim); padding: var(--s5); display: grid; place-items: center; }
 
 /* 通知条 */
@@ -715,6 +719,11 @@ body.pw.dark { background: #0f0f13; }
    1440 面板下原来是 1160，字段行「标签—控件」的跨度因此到 1000。 */
 .pw-narrow { max-width: 760px; }
 .pw-scontent.is-fixed > .pw-cols > * { min-height: 0; overflow-y: auto; }
+/* fork:settings-frame（2026-10-01）—— 画板 62 帧 B 把列表列的右缘发丝线与选中行
+ * 的图标强调色写成**列/行上的内联样式**（内联优先，这两条类规则对画板渲染零变化）；
+ * 产品侧 ConfigSplitView / 列表行发不出内联，靠这两条跟上画板。 */
+.pw-scontent.is-fixed > .pw-cols > :first-child { border-right: 1px solid var(--n-border-subtle); padding-right: var(--s3); margin-right: -8px; }
+.pw-litem.is-on .pw-ico { color: var(--accent-text); }
 /* fork:block-rhythm（2026-09-30，用户裁定）—— 区块间距 12 → 16，上下内边距 12/8 → 12/12。
  * 用户带截图来看设置页：「每个菜单之间的间距太紧了」。逐项对数后确认**产品与画板当时是逐像素一致的**
  * （区块 margin-top 12 / padding 12 16 8 / 行高 34），所以这不是产品偏离，是规范值本身偏紧：
@@ -849,6 +858,13 @@ body.pw.dark { background: #0f0f13; }
 .pw-litem .grow { flex: 1; min-width: 0; display: grid; gap: var(--space-tight); }
 .pw-litem .pw-lname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pw-litem .pw-lsub { color: var(--n-placeholder); font-size: var(--text-meta); }
+/* fork:litem-switch-scale（2026-10-01，用户裁定）—— 列表行里的开关缩小一档。
+ * 画板 41/42/43/44/46 的 `.pw-litem` 行都把行尾开关以内联 `transform:scale(.8)`
+ * 摆进 300px 的列表列（22 处；其中 41/43/46 的 15 处是 scale(.85)，画板内部两档
+ * 并存，裁定统一取 .8）—— 30×17 的原尺寸开关与两行文字（pw-lname + pw-lsub）
+ * 抢行内重心，缩小后主次才对。画板里是内联样式、内联优先，这条类规则对画板
+ * 渲染零变化；产品行内没有内联缩放，靠它跟上画板。 */
+.pw-litem .pw-switch { transform: scale(.8); }
 /* fork:settings-frame（画板 62）—— 详情卡改成 flex 列。
  * 原来它是 block，里面那层 `.pw-detail-stack` 是 `height:auto` 的 grid，
  * 于是详情列的空态（`.pw-empty` 的 `flex:1` + `place-items:center`）只在

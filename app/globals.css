@@ -2131,9 +2131,7 @@ textarea,
   [role="option"],
   [role="menuitem"],
   [role="menuitemradio"],
-  .pw-prow,
-  .config-sidebar-item,
-  .settings-theme-option {
+  .pw-prow {
     min-height: var(--control-touch);
   }
 

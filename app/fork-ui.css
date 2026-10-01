@@ -1073,188 +1073,18 @@ html.keyboard-open .extension-status-shelf {
 }
 
 /* ---------------------------------------------------------------------------
- * fork:zn-15 — 设置分组卡与设置行（Zeno `.settings-card` / `.settings-row*`）。
- *
- * 规格原文：styles.css:4654-4665（卡片）、5849-5920（行）。
- * 三处是这套东西的识别特征，缺一个就不像：
- *
- *   1. **卡片是独立面板**：1px `--border` + `--radius-panel` + `--surface-panel`
- *      实底，行不画自己的边框 —— 分隔线是行内缩 16px 的 `::after`，不是
- *      `border-bottom`。所以分隔线两头都不碰卡片边缘。
- *   2. **标题 400 字重、描述小一号**：Zeno 明确写了
- *      `font-size: var(--ui-font-size)` + `font-weight: normal`，描述是
- *      `calc(var(--ui-font-size) * 0.86)`。层级靠字号与颜色，不靠加粗。
- *   3. **末行不画线**（`.settings-row-last`），否则卡片底边会出现双线。
+ * fork:zn-15 退役（2026-10-01 孤儿清理）—— `.fork-settings-block/card/row*`
+ * 全部删除：它们服务的 `SettingsBlock` / `SettingsRow`（Zeno「标题在上、控件在
+ * 右上」的行形态）全仓零引用，设置分节已统一走画板 40/62 的 `.pw-block` /
+ * `.pw-field` 行规格（视觉唯一来源 board.css，接线在 SettingsUi 的 pw-* 基件）。
  * ------------------------------------------------------------------------- */
-.fork-settings-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* fork:zn-19-merge — 同一张卡里的第二个子区块（主题皮肤 / 壁纸）。
-   SettingsPanel 不许写内联 style（components/SettingsPanel.test.mjs 钉着），所以间距走类。 */
-.fork-settings-block.is-spaced {
-  margin-top: 12px;
-}
-
-/* Zeno `.settings-section-label`：与导轨分组标签同一套字（group-label）。 */
-.fork-settings-block-label {
-  margin: 0;
-  padding: 0 2px;
-  font-size: var(--group-label-size, var(--text-md));
-  font-weight: var(--group-label-weight, 500);
-  line-height: 1.35;
-  color: var(--text-dim);
-}
-
-.fork-settings-card {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev);
-}
-
-.fork-settings-row {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 14px 16px;
-}
-
-.fork-settings-row:not(.is-last)::after {
-  content: "";
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 0;
-  height: 1px;
-  background: var(--border);
-  pointer-events: none;
-}
-
-/* 只有标题没有描述的行：竖直居中，上下内距收窄。 */
-.fork-settings-row.is-compact {
-  align-items: center;
-  padding-top: 9px;
-  padding-bottom: 9px;
-}
-
-.fork-settings-row-copy {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.fork-settings-row-title {
-  font-size: var(--ui-font-size);
-  font-weight: 400;
-  line-height: 1.375;
-  color: var(--text);
-}
-
-.fork-settings-row-desc {
-  margin-top: 4px;
-  font-size: calc(var(--ui-font-size) * 0.86);
-  font-weight: 400;
-  line-height: 1.625;
-  color: var(--text-muted);
-}
-
-.fork-settings-row-control {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.fork-settings-row-control.is-multiline {
-  padding-top: 2px;
-}
 
 /* ---------------------------------------------------------------------------
- * fork:zn-15 — 设置里的滑块（Zeno `.theme-skin-slider`）。
- *
- * 规格原文：styles.css:5598-5654。滑块是「标签 + 数值」在上、轨道在下的一列，
- * 数值右对齐且等宽（tabular-nums，拖动时数字不会左右跳）。
- *
- * track 4px / thumb 14px：「细轨道 + 大圆点」是 Zeno 的滑杆形状；thumb 的
- * 2px 描边取面板底色（`--surface-panel`），所以在卡片里看起来是「挖空」的一圈。
+ * fork:zn-15 退役（2026-10-01 孤儿清理）—— `.fork-settings-slider*`（Zeno 滑杆，
+ * 「标签+数值」在上、轨道在下）随 `SettingsSlider` 基件一并删除，全仓零引用；
+ * 设置页的滑杆是 board.css 的 `.pw-range`（画板 40 帧 DOM）。规格原文
+ * （styles.css:5598-5654）随画板收编不再需要。
  * ------------------------------------------------------------------------- */
-.fork-settings-slider {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
-/* 内联形态（Zeno 设置页里的宽度滑块）：轨道占满，数值右对齐。 */
-.fork-settings-slider.is-inline {
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-}
-
-.fork-settings-slider.is-inline input[type="range"] {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.fork-settings-slider.is-inline output {
-  flex-shrink: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.fork-settings-slider > .fork-settings-slider-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.fork-settings-slider output {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.fork-settings-slider input[type="range"] {
-  width: 100%;
-  height: 14px;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  accent-color: var(--accent);
-}
-
-.fork-settings-slider input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 24%, transparent);
-}
-
-.fork-settings-slider input[type="range"]::-webkit-slider-thumb {
-  width: 14px;
-  height: 14px;
-  margin-top: -5px;
-  border: 2px solid var(--bg-elev);
-  border-radius: 999px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
-}
-
-.fork-settings-slider input[type="range"]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.fork-settings-slider input[type="range"]:disabled {
-  cursor: not-allowed;
-  opacity: 0.34;
-}
 
 /* ---------------------------------------------------------------------------
  * fork:zn-15 — 侧边栏半透明（Zeno 设置 → 外观 →「侧边栏半透明」）。
@@ -1297,29 +1127,10 @@ html[data-rail-translucent="true"] .sidebar-container {
  * 枚举出的每条栈都自带回退，所以选了不存在的字体不会让整页变成衬线。 */
 
 /* ---------------------------------------------------------------------------
- * fork:zn-15 — 卡片里的开关要能看见。
- *
- * `.config-switch` 的 off 底色是 `--bg-selected`，而 Zeno 设置卡片的底是
- * `--bg-elev`。在本仓当前的颜色桥接下这两个槽位是**同一个值**，所以开关放进卡片
- * 后只剩一个浮空的圆点（轨道完全隐进卡片）。这在 Zeno 里不是问题：它的 off 底是
- * `--input`(#3c3c3c)，卡片是 `--surface-panel`(#2d2d2d)，差一档。
- * 这里只改卡片内部：轨道取 `--border-strong`，与卡片底差一档，跟 Zeno 的观感一致。
+ * fork:zn-15 退役（2026-10-01 孤儿清理）—— 「卡片里的开关要能看见」这条
+ * `.fork-settings-card .config-switch` 随卡片本身一并删除：没有元素再输出
+ * `.fork-settings-card`，开关行现在是 board.css 的 `.pw-switch`。
  * ------------------------------------------------------------------------- */
-.fork-settings-card .config-switch {
-  border-color: var(--border-strong);
-  background: var(--border-strong);
-}
-
-.fork-settings-card .config-switch:not(:disabled):hover {
-  border-color: var(--text-dim);
-  background: var(--text-dim);
-}
-
-.fork-settings-card .config-switch[aria-checked="true"],
-.fork-settings-card .config-switch[aria-checked="true"]:not(:disabled):hover {
-  border-color: var(--accent);
-  background: var(--accent);
-}
 
 /* ---------------------------------------------------------------------------
  * fork:zn-17 — 小地图 dash 的悬停 tooltip（Zeno `.minimap-popover`，styles.css:1388-1417）。
@@ -1437,78 +1248,10 @@ html[data-rail-translucent="true"] .sidebar-container {
 
 .session-history-note.is-error { color: var(--danger); }
 
-/* fork:ui-archive-history — 归档历史（设置 → 归档）的分组与行。 */
-.settings-archived-group {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin-top: 6px;
-}
-
-.settings-archived-group-label {
-  padding: 4px 2px;
-  color: var(--text-dim);
-  font-size: var(--text-xs);
-}
-
-.settings-archived-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  min-width: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  padding: 2px 6px 2px 2px;
-  /* A long path on the right must ellipsize inside the row, not get clipped
-     by the dialog's overflow-x with no "…" (import rows). */
-  overflow: hidden;
-}
-
-.settings-archived-row[data-missing="true"] .settings-archived-name {
-  color: var(--text-dim);
-  text-decoration: line-through;
-}
-
-.settings-archived-title {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: baseline;
-  gap: 8px;
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--text);
-  font-size: var(--text-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.settings-archived-title:disabled { cursor: default; }
-
-.settings-archived-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-archived-meta {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-dim);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.settings-archived-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-}
+/* fork:ui-archive-history（2026-10-01 孤儿清理）—— `.settings-archived-*` 整族
+   （分组 / 组标签 / 行 / 行名 / 标题钮 / meta / 动作）随归档页迁画板 62 骨架 B 退役：
+   会话行现在是 ConfigSidebarItem（`.pw-litem`）+ ConfigDetailHeader，零引用，
+   规则删除。 */
 
 /* 迷你外壳：绝对定位的壁纸 + 压暗层在下，chrome 在上。 */
 .fork-skin-preview {
@@ -1698,7 +1441,6 @@ html[data-theme-skin="true"] .right-panel-container {
       的容器（dock）透明 —— 否则卡片是半透明的，它下面那层不透明的 dock 又把壁纸挡回去。 */
 html[data-theme-skin="true"] .chat-content > div,
 html[data-theme-skin="true"] .chat-input-shell,
-html[data-theme-skin="true"] .fork-settings-card,
 html[data-theme-skin="true"] .context-menu,
 html[data-theme-skin="true"] .config-panel-surface,
 html[data-theme-skin="true"] .settings-dialog-surface,
@@ -1845,7 +1587,10 @@ html[data-theme-skin="true"] .extension-status-shelf {
   button.pw-prow,
   button.pw-litem,
   button.pw-chipbtn,
-  button.pw-tab,
+  /* fork:settings-tab-width（2026-10-01）—— `button.pw-tab` 从这张拉满清单移除：
+     画板 21/22/31/47 的 tab 是**按内容自适应**（board.css 的 inline-flex + 0 s2），
+     拉满后皮肤工作室的两枚页签被平分 900px 弹窗、各 440 宽，与画板形态不符。
+     行式控件（pw-row 等）占满整行是它们的行语义；tab 不是行，是芯片。 */
   button.pw-select,
   button.pw-todo,
   button.pw-side-foot,

@@ -250,7 +250,7 @@ export function UsageDailyBars({
 }
 
 /* ---------------------------------------------------------------------------
- * 请求与错误 — 每天一个蓝点（请求）和一个红点（失败的工具调用）。
+ * 请求与错误 — 每天两根柱（上排请求、下排失败的工具调用）。
  * ------------------------------------------------------------------------- */
 export function UsageRequestsErrors({
   days,
@@ -270,13 +270,16 @@ export function UsageRequestsErrors({
 
   return (
     <div role="img" aria-label={label} style={{ marginTop: "var(--s2)" }}>
+      {/* 画板 45 §用量统计 注记：「图表只用三种色：accent（主）、n-border（次要）、
+          n-hover（其它）……不引入新色相」。请求是主序列走 accent，失败是次要序列
+          走 n-border（产品的 Zeno 槽位 `--border`）—— 不再用 error 红。 */}
       <div className="pw-legend">
         <div className="li">
           <span className="sw" style={{ background: "var(--accent)" }} />
           <span className="grow">{requestsLabel}</span>
         </div>
         <div className="li">
-          <span className="sw" style={{ background: "var(--error)" }} />
+          <span className="sw" style={{ background: "var(--border)" }} />
           <span className="grow">{errorsLabel}</span>
         </div>
       </div>
@@ -296,7 +299,7 @@ export function UsageRequestsErrors({
           <i
             key={`e-${day.day}`}
             title={day.errors > 0 ? `${day.day} · ${errorsLabel} ${day.errors}` : undefined}
-            style={{ height: barHeight(day.errors, max), background: "var(--error)" }}
+            style={{ height: barHeight(day.errors, max), background: "var(--border)" }}
           />
         ))}
       </div>
@@ -318,12 +321,12 @@ export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSl
   const visible = slices.filter((slice) => slice.share > 0);
   if (visible.length === 0) return null;
   // 画板 45 §按项目 列表里那根「轨道 + 填充」进度条：轨道 `--n-surface` 起步，
-  // 段与段之间不留缝。
+  // 段与段之间不留缝，圆角是 3 那一档（`--radius-3`）。
   return (
     <div
       role="img"
       aria-label={label}
-      style={{ display: "flex", gap: 0, width: "100%", height: "var(--s2)", marginTop: "var(--s2)", borderRadius: "var(--radius-sm)", overflow: "hidden", background: "var(--bg-hover)" }}
+      style={{ display: "flex", gap: 0, width: "100%", height: "var(--s2)", marginTop: "var(--s2)", borderRadius: "var(--radius-3)", overflow: "hidden", background: "var(--bg-hover)" }}
     >
       {visible.map((slice, index) => (
         <span

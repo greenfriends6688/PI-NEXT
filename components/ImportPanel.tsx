@@ -15,13 +15,19 @@
  * 这里也是 PD-14（导入后把新出现的项目从归档态恢复）的落点：导入会话前先记下项目 key 集合，
  * 导入后把**新增**的那些从归档里拿出来。只动新增的，不做全量刷新。
  *
- * fork:design-system —— 画板 46 帧「从其它 agent 导入」：页头行（h2 + 重新扫描）+
- * 四类资产 `.pw-radio`（带计数）+ `.pw-cols`（左列：搜索行 + 按来源分组列表，行内
- * `.pw-switch` 即选中态；右列 300px：「本次选择」与「上次导入结果」两张 `.pw-detail`）。
- * 结果三色：success / warning / error 各配一枚图标（画板注记）。
+ * fork:settings-frame（画板 62，2026-10-01）—— 页面改**骨架 B（列表 300 + 详情 760）**，
+ * 三件套各就各位：
+ *   - 「扫描」是页级动作 → 页头右端（画板 46 页头同款 scan-search outline 按钮）；
+ *   - 工具栏 = 四类资产 `.pw-radio`（带计数）+ 搜索 + 按来源/按项目 + grow + **选择摘要**
+ *     （`已选 n / m` 徽章 + 清空选择 + 导入所选）——「本次选择」摘要卡从右侧浮列收进
+ *     工具栏右端（落位表：「浮卡与搜索框不对齐 → 选择摘要进工具栏右端」），清空/导入
+ *     是列表级动作，按 62 的动作层级就位；
+ *   - 列表列 = 扫描空态（62 帧 D：图标 + 一句 + 说明）/ 按来源分组的 `.pw-sec-title` +
+ *     `.pw-list` 行（行首 `.pw-switch` 即选中态，画板 46 原样）；
+ *   - 详情列 = 扫描来源说明 +「上次导入结果」卡（三色行，画板 46 注记）或「未选」空态。
  */
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState } from "react";
 
 import { useI18n } from "@/hooks/useI18n";
 import {
@@ -38,7 +44,21 @@ import { IMPORT_KINDS, type ImportCandidate, type ImportKind, type ImportSourceD
 import { getRecentProjects } from "@/lib/project-groups";
 import { useProjectFlags } from "@/lib/project-flags";
 import type { SessionInfo } from "@/lib/types";
-import { ConfigButton, ConfigSwitch, PwRadio, SettingsPage } from "./SettingsUi";
+import {
+  ConfigBadge,
+  ConfigButton,
+  ConfigDetail,
+  ConfigDetailStack,
+  ConfigDetailTitle,
+  ConfigEmptyState,
+  ConfigSidebar,
+  ConfigSidebarList,
+  ConfigSplitView,
+  ConfigSwitch,
+  PwRadio,
+  PwSearch,
+  SettingsPage,
+} from "./SettingsUi";
 /* fork:disabled-reasons —— 「为什么不能点」的本地文案（语言包在 lib/i18n/messages/**，
  * 本轮不允许改 lib/，所以走与 AgentsConfig 同一套本地表，详见那里的注释）。 */
 import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
@@ -51,7 +71,7 @@ interface KindState {
   applying: boolean;
   error: string | null;
   status: string | null;
-  /** 上一次 apply 的三色统计（画板 46 右下角的「上次导入结果」）。 */
+  /** 上一次 apply 的三色统计（详情列的「上次导入结果」卡）。 */
   lastSummary: ImportResultSummary | null;
   selected: ReadonlySet<string>;
   groupBy: ImportGroupBy;
@@ -203,11 +223,14 @@ export function ImportPanel() {
     }
   }, [projectFlags.archived, readProjectKeys, restoreProject, scan, setKind, states, t]);
 
-  // NOTE: this runs for all four kinds on every render, and it must read the state it
-  // was handed rather than a captured copy — an earlier version built the group list from
-  // a `useMemo` inside this loop (a conditional hook) and the grouping toggle silently
-  // stopped re-rendering.
-  const renderKind = (kind: ImportKind) => {
+  const activeState = states[active];
+  const activeGroupBys = groupsForKind(active);
+
+  // NOTE: the two renderers below run for all four kinds on every render, and they must
+  // read the state they are handed rather than a captured copy — an earlier version built
+  // the group list from a `useMemo` inside this loop (a conditional hook) and the grouping
+  // toggle silently stopped re-rendering. They stay plain functions on purpose.
+  const renderList = (kind: ImportKind) => {
     const state = states[kind];
     const candidates = state.candidates;
     const keyword = query.trim().toLowerCase();
@@ -216,14 +239,88 @@ export function ImportPanel() {
         || itemModel(item, t).toLowerCase().includes(keyword))
       : candidates;
     // Grouping is O(candidates) over a list the scanner already capped, and this runs
-    // for four panels — a hook here would be a conditional hook (renderKind is called
+    // for four panels — a hook here would be a conditional hook (renderList is called
     // from a map), so it stays a plain call.
     const groups = filtered ? groupCandidates(filtered, state.groupBy) : [];
-    const groupBys = groupsForKind(kind);
-    const lastSummary = state.lastSummary;
+
+    if (state.scanning) {
+      return <p role="status" className="sub">{t("i18n.loading")}</p>;
+    }
+    // 画板 62 帧 D 的列表空态：图标 + 一句 + 一句说明，落在列表列内。
+    if (candidates === null) {
+      return (
+        <ConfigEmptyState>
+          <span className="mark"><i data-ico="scan-search" data-size="16" aria-hidden="true" /></span>
+          <p>{t("import.idleHint")}</p>
+        </ConfigEmptyState>
+      );
+    }
+    if (candidates.length === 0) {
+      return (
+        <ConfigEmptyState>
+          <span className="mark"><i data-ico="inbox" data-size="16" aria-hidden="true" /></span>
+          <p>{t("import.empty")}</p>
+        </ConfigEmptyState>
+      );
+    }
 
     return (
-      <div key={kind} hidden={kind !== active}>
+      <>
+        {groups.map((group) => {
+          const label = group.key
+            ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
+            : t("import.noProject");
+          return (
+            <div key={group.key || "__none"}>
+              <div className="pw-sec-title">
+                {label} · {group.items.length}
+                <span className="pw-grow" aria-hidden="true" />
+                <ConfigButton
+                  variant="ghost"
+                  size="small"
+                  onClick={() => setKind(kind, { selected: toggleGroupSelection(state.selected, group.items) })}
+                >
+                  {t("import.selectAll")}
+                </ConfigButton>
+              </div>
+              <ConfigSidebarList>
+                {group.items.slice(0, 60).map((item) => (
+                  <div key={item.id} className="pw-litem">
+                    <ConfigSwitch
+                      checked={state.selected.has(item.id)}
+                      label={describeCandidate(item)}
+                      onChange={() => {
+                        const next = new Set(state.selected);
+                        if (next.has(item.id)) next.delete(item.id);
+                        else next.add(item.id);
+                        setKind(kind, { selected: next });
+                      }}
+                    />
+                    <span className="grow" title={describeCandidate(item)}>
+                      <span className="pw-lname">{describeCandidate(item)}</span>
+                      <span className="pw-lsub" title={itemModel(item, t)}>{itemModel(item, t)}</span>
+                    </span>
+                  </div>
+                ))}
+              </ConfigSidebarList>
+              {group.items.length > 60 && (
+                <p className="sub">{t("import.moreInGroup", { count: group.items.length - 60 })}</p>
+              )}
+            </div>
+          );
+        })}
+        {/* 关键词把当前类过滤光时列表不能静默变白板，给一句落点。 */}
+        {groups.length === 0 && candidates !== null && (
+          <p role="status" className="sub">{t("import.empty")}</p>
+        )}
+      </>
+    );
+  };
+
+  const renderDetail = (kind: ImportKind) => {
+    const state = states[kind];
+    return (
+      <>
         {/* What was looked at, including the sources that were not there. A missing
             source is normal and has to be visible, or an empty list looks broken. */}
         {state.sources.length > 0 && (
@@ -242,205 +339,148 @@ export function ImportPanel() {
           </p>
         )}
 
-        {state.error && (
-          <div role="alert" className="pw-alert">
-            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-            <span className="grow">{state.error}</span>
-          </div>
+        {state.lastSummary ? (
+          <ConfigDetail>
+            <ConfigDetailStack>
+              <ConfigDetailTitle>{t("import.lastResultTitle")}</ConfigDetailTitle>
+              <ConfigSidebarList>
+                <div className="pw-litem">
+                  <span className="pw-ico" style={{ color: "var(--success)" }}>
+                    <i data-ico="circle-check" data-size="14" aria-hidden="true" />
+                  </span>
+                  <span className="grow">
+                    <span className="pw-lname">{t("import.resultImported", { count: state.lastSummary.imported })}</span>
+                  </span>
+                </div>
+                <div className="pw-litem">
+                  <span className="pw-ico" style={{ color: "var(--warning)" }}>
+                    <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+                  </span>
+                  <span className="grow">
+                    <span className="pw-lname">{t("import.resultSkipped", { count: state.lastSummary.skipped })}</span>
+                  </span>
+                </div>
+                <div className="pw-litem">
+                  <span className="pw-ico" style={{ color: "var(--error)" }}>
+                    <i data-ico="circle-x" data-size="14" aria-hidden="true" />
+                  </span>
+                  <span className="grow">
+                    <span className="pw-lname">{t("import.resultFailed", { count: state.lastSummary.failed })}</span>
+                  </span>
+                </div>
+              </ConfigSidebarList>
+            </ConfigDetailStack>
+          </ConfigDetail>
+        ) : (
+          <ConfigEmptyState>
+            <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+            <p>{t("import.idleHint")}</p>
+          </ConfigEmptyState>
         )}
-        {candidates === null && !state.scanning && <p className="sub">{t("import.idleHint")}</p>}
-        {candidates !== null && candidates.length === 0 && <p className="sub">{t("import.empty")}</p>}
-
-        <div className="pw-cols" style={{ gridTemplateColumns: "minmax(0,1fr) 300px" }}>
-          <div>
-            {/* 画板 46 的搜索行：search 图标 + 输入格 + 按来源/按项目 radio。 */}
-            <div className="pw-inline" style={{ marginBottom: "var(--s2)" }}>
-              <span className="pw-ico pw-dim"><i data-ico="search" data-size="14" aria-hidden="true" /></span>
-              <input
-                type="search"
-                className="pw-input"
-                style={{ flex: 1, minWidth: 0, height: "var(--control-sm)" }}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t("import.searchPlaceholder")}
-                aria-label={t("import.searchPlaceholder")}
-              />
-              {candidates !== null && groupBys.length > 1 && (
-                <PwRadio
-                  value={state.groupBy}
-                  ariaLabel={t("import.groupBy")}
-                  options={groupBys.map((by) => ({
-                    value: by,
-                    label: by === "source" ? t("import.groupBySource") : t("import.groupByProject"),
-                  }))}
-                  onChange={(by) => setKind(kind, { groupBy: by })}
-                />
-              )}
-            </div>
-
-            {state.scanning && <p role="status" className="sub">{t("i18n.loading")}</p>}
-
-            {groups.map((group) => {
-              const label = group.key
-                ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
-                : t("import.noProject");
-              return (
-                <div key={group.key || "__none"}>
-                  <div className="pw-sec-title">
-                    {label} · {group.items.length}
-                    <span className="pw-grow" aria-hidden="true" />
-                    <ConfigButton
-                      variant="ghost"
-                      size="small"
-                      onClick={() => setKind(kind, { selected: toggleGroupSelection(state.selected, group.items) })}
-                    >
-                      {t("import.selectAll")}
-                    </ConfigButton>
-                  </div>
-                  <div className="pw-list">
-                    {group.items.slice(0, 60).map((item) => (
-                      <div key={item.id} className="pw-litem">
-                        <ConfigSwitch
-                          checked={state.selected.has(item.id)}
-                          label={describeCandidate(item)}
-                          onChange={() => {
-                            const next = new Set(state.selected);
-                            if (next.has(item.id)) next.delete(item.id);
-                            else next.add(item.id);
-                            setKind(kind, { selected: next });
-                          }}
-                        />
-                        <span className="grow" title={describeCandidate(item)}>
-                          <span className="pw-lname" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {describeCandidate(item)}
-                          </span>
-                          <span className="pw-lsub" title={itemModel(item, t)}>{itemModel(item, t)}</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {group.items.length > 60 && (
-                    <p className="sub">{t("import.moreInGroup", { count: group.items.length - 60 })}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 画板 46 右列：本次选择 + 上次导入结果（300px 定宽列）。 */}
-          <div style={{ display: "grid", gap: "var(--s3)", alignContent: "start" }}>
-            <div className="pw-detail">
-              <h3 style={{ margin: 0, fontSize: "var(--text-body)" }}>{t("import.selectionTitle")}</h3>
-              <dl className="pw-kv" style={{ marginTop: "var(--s2)" }}>
-                <dt>{t("import.selectedOf", { selected: state.selected.size, total: candidates?.length ?? 0 })}</dt>
-                <dd className="pw-mono">{state.selected.size}</dd>
-              </dl>
-              <div className="pw-inline" style={{ marginTop: "var(--s3)" }}>
-                <ConfigButton
-                  variant="secondary"
-                  size="small"
-                  /* fork:disabled-reasons —— 两枚按钮在没勾选时恒灰，原来没有任何
-                     title：用户只能推断「是不是坏了」。写禁用原因，不是功能名。 */
-                  title={state.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
-                  disabled={state.selected.size === 0}
-                  onClick={() => setKind(kind, { selected: new Set() })}
-                >
-                  {t("import.clearSelection")}
-                </ConfigButton>
-                <span className="pw-grow" aria-hidden="true" />
-                <ConfigButton
-                  variant="primary"
-                  size="small"
-                  title={state.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
-                  disabled={state.selected.size === 0 || state.applying}
-                  onClick={() => void apply(kind)}
-                >
-                  {state.applying ? t("i18n.loading") : t("import.applySelected")}
-                </ConfigButton>
-              </div>
-            </div>
-
-            {lastSummary && (
-              <div className="pw-detail">
-                <h3 style={{ margin: 0, fontSize: "var(--text-body)" }}>{t("import.lastResultTitle")}</h3>
-                <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
-                  <div className="pw-litem">
-                    <span className="pw-ico" style={{ color: "var(--success)" }}>
-                      <i data-ico="circle-check" data-size="14" aria-hidden="true" />
-                    </span>
-                    <span className="grow">
-                      <span className="pw-lname">{t("import.resultImported", { count: lastSummary.imported })}</span>
-                    </span>
-                  </div>
-                  <div className="pw-litem">
-                    <span className="pw-ico" style={{ color: "var(--warning)" }}>
-                      <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
-                    </span>
-                    <span className="grow">
-                      <span className="pw-lname">{t("import.resultSkipped", { count: lastSummary.skipped })}</span>
-                    </span>
-                  </div>
-                  <div className="pw-litem">
-                    <span className="pw-ico" style={{ color: "var(--error)" }}>
-                      <i data-ico="circle-x" data-size="14" aria-hidden="true" />
-                    </span>
-                    <span className="grow">
-                      <span className="pw-lname">{t("import.resultFailed", { count: lastSummary.failed })}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      </>
     );
   };
 
   return (
-    <>
-      {/* fork:settings-frame（画板 62）—— 导入页的三件套。
-          h2 原来被包在 `.pw-inline` 里（够不到 board.css 的 `.pw-sbody > h2`），
-          四类资产页签与说明挤在内容区第一行；「扫描」是页级动作、页签是列表级
-          筛选，现在分列页头与工具栏。 */}
-      <SettingsPage
-        title={t("import.title")}
-        sub={t("import.description")}
-        actions={
+    <SettingsPage
+      title={t("import.title")}
+      sub={t("import.description")}
+      actions={
+        <ConfigButton
+          variant="secondary"
+          size="small"
+          disabled={activeState.scanning}
+          onClick={() => void scan(active)}
+        >
+          <span className="pw-ico"><i data-ico="scan-search" data-size="13" aria-hidden="true" /></span>
+          {activeState.scanning ? t("i18n.loading") : t("import.scan")}
+        </ConfigButton>
+      }
+      toolbar={
+        <>
+          {/* 四类资产页签：`.pw-radio` + 每类计数（扫过的才显示数字）。 */}
+          <PwRadio
+            value={active}
+            ariaLabel={t("import.title")}
+            options={IMPORT_KINDS.map((kind) => {
+              const count = states[kind].candidates;
+              return {
+                value: kind,
+                icon: KIND_ICON[kind],
+                label: count !== null ? `${t(KIND_LABEL_KEY[kind])} ${count.length}` : t(KIND_LABEL_KEY[kind]),
+              };
+            })}
+            onChange={setActive}
+          />
+          {/* 画板 62 帧 B 的工具栏搜索（240px 定宽原语）。 */}
+          <PwSearch
+            value={query}
+            placeholder={t("import.searchPlaceholder")}
+            ariaLabel={t("import.searchPlaceholder")}
+            onChange={setQuery}
+          />
+          {activeState.candidates !== null && activeGroupBys.length > 1 && (
+            <PwRadio
+              value={activeState.groupBy}
+              ariaLabel={t("import.groupBy")}
+              options={activeGroupBys.map((by) => ({
+                value: by,
+                label: by === "source" ? t("import.groupBySource") : t("import.groupByProject"),
+              }))}
+              onChange={(by) => setKind(active, { groupBy: by })}
+            />
+          )}
+          <span className="pw-grow" aria-hidden="true" />
+          {/* 「本次选择」摘要收进工具栏右端（画板 62 落位表）。 */}
+          <ConfigBadge tone="count">
+            {t("import.selectedOf", { selected: activeState.selected.size, total: activeState.candidates?.length ?? 0 })}
+          </ConfigBadge>
           <ConfigButton
             variant="secondary"
             size="small"
-            disabled={states[active].scanning}
-            onClick={() => void scan(active)}
+            /* fork:disabled-reasons —— 两枚按钮在没勾选时恒灰，原来没有任何
+               title：用户只能推断「是不是坏了」。写禁用原因，不是功能名。 */
+            title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
+            disabled={activeState.selected.size === 0}
+            onClick={() => setKind(active, { selected: new Set() })}
           >
-            <span className="pw-ico"><i data-ico="scan-search" data-size="13" aria-hidden="true" /></span>
-            {states[active].scanning ? t("i18n.loading") : t("import.scan")}
+            {t("import.clearSelection")}
           </ConfigButton>
-        }
-        toolbar={
-          <>
-            {/* 四类资产页签：`.pw-radio` + 每类计数（扫过的才显示数字）。 */}
-            <PwRadio
-              value={active}
-              ariaLabel={t("import.title")}
-              options={IMPORT_KINDS.map((kind) => {
-                const count = states[kind].candidates;
-                return {
-                  value: kind,
-                  icon: KIND_ICON[kind],
-                  label: count !== null ? `${t(KIND_LABEL_KEY[kind])} ${count.length}` : t(KIND_LABEL_KEY[kind]),
-                };
-              })}
-              onChange={setActive}
-            />
-            <span className="pw-grow" aria-hidden="true" />
-          </>
-        }
-      >
+          <ConfigButton
+            variant="primary"
+            size="small"
+            title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
+            disabled={activeState.selected.size === 0 || activeState.applying}
+            onClick={() => void apply(active)}
+          >
+            {activeState.applying ? t("i18n.loading") : t("import.applySelected")}
+          </ConfigButton>
+        </>
+      }
+      fill
+    >
+      {activeState.error && (
+        <div role="alert" className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+          <span className="grow">{activeState.error}</span>
+        </div>
+      )}
+
       {/* All four stay mounted: switching tabs must not throw away a scan result. */}
-      {IMPORT_KINDS.map(renderKind)}
-      </SettingsPage>
-    </>
+      <ConfigSplitView>
+        <ConfigSidebar>
+          {IMPORT_KINDS.map((kind) => (
+            <div key={kind} hidden={kind !== active}>{renderList(kind)}</div>
+          ))}
+        </ConfigSidebar>
+        {/* 画板 46 导入帧的右列：一列独立的 `.pw-detail` 卡（`ConfigDetailStack`）。 */}
+        <ConfigDetailStack>
+          {IMPORT_KINDS.map((kind) => (
+            <div key={kind} hidden={kind !== active}>{renderDetail(kind)}</div>
+          ))}
+        </ConfigDetailStack>
+      </ConfigSplitView>
+    </SettingsPage>
   );
 }
 

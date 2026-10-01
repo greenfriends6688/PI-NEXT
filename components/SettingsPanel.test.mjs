@@ -84,10 +84,11 @@ test("groups chat display controls in one board block", () => {
   // fork:design-system SW-07 —— 画板 40 把「聊天」画成一个 `.pw-block`，行是
   // `.pw-field`（标签在左、控件在右，见 SettingsUi 的 PwField）。这里钉住 chat
   // 块里仍是**同一张卡**里的若干行，而不是各画各的背景。
-  const chatSection = panelSource.slice(
-    panelSource.indexOf('<PwBlock icon="message-square"'),
-    panelSource.indexOf("{shellSettings?.isWindows"),
-  );
+  // fork:settings-frame 2026-10-01 —— 62 帧 C 把通知 / 壁纸排到了聊天块之后，
+  // 切片终点从「Shell 块开头」改为聊天块自己的闭合标签（块内没有嵌套 PwBlock），
+  // 不再受块顺序调整影响。
+  const chatStart = panelSource.indexOf('<PwBlock icon="message-square"');
+  const chatSection = panelSource.slice(chatStart, panelSource.indexOf("</PwBlock>", chatStart));
 
   assert.match(chatSection, /<PwBlock icon="message-square"/);
   // 行数：思考块 1 + 界面密度 1 + 步骤展开 1 + 宽度 / 字号 / 扩展字号 3 + 选中文字 1
@@ -109,13 +110,15 @@ test("groups chat display controls in one board block", () => {
 
   assert.doesNotMatch(panelSource, /ThinkingIcon|settings-thinking-/);
   // chat 块的所有行共用画板的 `.pw-field` 规格（board.css），产品不再自带行样式。
-  // 允许的只有**接线层**规则（`fork:settings-field-density`：标签下限 + 放不下时换行），
-  // 它们都带作用域，不会跟 board.css 抢；不带作用域的裸 `.pw-field {` 一律不许有。
+  // 不带作用域的裸 `.pw-field {` 一律不许有。
   const fieldStyles = cssSource.match(/^\.pw-field \{[\s\S]*?\}/m)?.[0] ?? "";
   assert.equal(fieldStyles, "");
-  // fork:settings-frame（画板 62）—— 标签从 `flex: 0 0 auto` 改成 `0 1 auto`：
-  // 块流页收进 570 的一栏后，长 `small` 说明会把不可收缩的标签撑到 1300+ 宽、溢出内容区。
-  assert.match(cssSource, /\.settings-dialog-main \.pw-field > \.pw-label \{[\s\S]*?flex: 0 1 auto;[\s\S]*?min-width: 132px;/);
+  // fork:settings-field-density 2026-10-01 重修为画板 62 帧 C 语义：整族接线覆盖拆除 ——
+  // 标签不再有 132px/104px 的不可压缩下限（board.css 的 flex 默认就能收缩、文字照常
+  // 换行），控件槽 `.pw-ctl` 回到画板的 `flex: none`，字段行不再 flex-wrap；整行控件
+  // 照 62 帧 B 放 `.pw-detail` 直下，不进字段行。
+  assert.doesNotMatch(cssSource, /\.settings-dialog-main \.pw-field/);
+  assert.doesNotMatch(cssSource, /min-width: 132px|min-width: 104px/);
 });
 
 test("keeps General free of divider rows", () => {

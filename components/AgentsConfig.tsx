@@ -2,11 +2,9 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SubagentProfilesResponse, SubagentSettingsResponse } from "@/lib/api-types";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { ModelsData } from "@/lib/models-cache";
-import type { Locale } from "@/lib/i18n/types";
 import { isSubagentProfileOverridden } from "@/lib/subagent-profile-precedence";
 import type { SubagentProfile, SubagentScope, SubagentWritableScope } from "@/lib/subagents";
 import {
@@ -42,7 +40,7 @@ import {
   SettingsPage,
 } from "./SettingsUi";
 import { ModelSelector } from "./ModelSelector";
-import { localCopy, NO_MODEL_PROVIDERS_HINT, READONLY_PROFILE_HINT, type LocalCopy } from "./settings-disabled-reasons";
+import { localCopy, NO_MODEL_PROVIDERS_HINT, READONLY_PROFILE_HINT } from "./settings-disabled-reasons";
 
 
 const TOOL_OPTIONS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
@@ -71,15 +69,6 @@ const EMPTY_PROFILE: EditableProfile = {
 const disabledInputStyle: CSSProperties = {
   background: "var(--bg-panel)",
   color: "var(--text-dim)",
-};
-
-/** 画板 42 编辑器网格（`.pw-grid2`）单元格的自带 inline：去掉 `.pw-field` 的
- *  行高与相邻发丝线，标签改到控件上方。逐字照抄画板，不是产品自创样式。 */
-const gridFieldStyle: CSSProperties = {
-  border: 0,
-  minHeight: 0,
-  display: "grid",
-  gap: "var(--s1)",
 };
 
 function editableProfile(profile: SubagentProfile): EditableProfile {
@@ -181,7 +170,6 @@ export function AgentsConfig({
   onReloaded?: () => void;
   embedded?: boolean;
 }) {
-  const isMobile = useIsMobile();
   const { t, locale } = useI18n();
   const [profiles, setProfiles] = useState<SubagentProfile[]>([]);
   const [modelOptions, setModelOptions] = useState<ModelsData["modelList"]>([]);
@@ -497,6 +485,34 @@ export function AgentsConfig({
     profile.name.toLowerCase().includes(agentNeedle) ||
     (profile.description ?? "").toLowerCase().includes(agentNeedle);
   const visibleProfileCount = profiles.filter(matchesAgentQuery).length;
+  // fork:settings-frame（画板 62 落位表）—— 列表行 = pw-litem（图标 + 名称 +
+  // 描述副标题 + 被覆盖徽标 / 状态点），列表与「内置」组的行共用同一渲染。
+  const renderAgentRow = (profile: SubagentProfile) => {
+    const overridden = isSubagentProfileOverridden(profile, profiles);
+    return (
+      <ConfigSidebarItem
+        key={profileKey(profile)}
+        active={selectedKey === profileKey(profile) && !creating}
+        onClick={() => selectProfile(profile)}
+      >
+        {/* 画板 42：行首是**类型图标**（`.pw-ico` 的 bot），启用走 accent-text
+            （画板 42 行内 `style="color:var(--accent-text)"` 原样），停用/被覆盖走 pw-dim。 */}
+        <span className={`pw-ico${profile.enabled ? "" : " pw-dim"}`} style={profile.enabled ? { color: "var(--accent-text)" } : undefined}>
+          <i data-ico="bot" data-size="14" aria-hidden="true" />
+        </span>
+        {/* 名字 + 一句说明（`.pw-lname` / `.pw-lsub`）。停用态不再给名字挂旧的
+            弱化类（settings.css 的 config-sidebar-text 族已退役）：画板 42 的
+            停用行只弱化图标与状态点，名字保持正文色。 */}
+        <span className="grow">
+          <ConfigSidebarText>{profile.displayName}</ConfigSidebarText>
+          <ConfigSidebarSub>{profile.description || profile.name}</ConfigSidebarSub>
+        </span>
+        {/* 被覆盖项给一枚中性徽章（画板 42：不标红）。 */}
+        {overridden && <ConfigBadge>{t("agents.overridden")}</ConfigBadge>}
+        <ConfigStatusDot active={profile.enabled} />
+      </ConfigSidebarItem>
+    );
+  };
 
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.agents")} subtitle={shortenPath(cwd)} closeLabel={t("agents.close")} onClose={onClose}>
@@ -525,18 +541,15 @@ export function AgentsConfig({
       >
       <ConfigSplitView>
         <ConfigSidebar>
-          {/* fork:settings-frame（画板 62）—— 「内置子代理」两项从**顶部整宽**收进列表列。
-              原来它们是两条 1160px 宽的设置行：标签在最左、开关/输入框在最右，
-              两者相距 1000px；下面才切进两栏。现在放进 300px 的列表列顶部，
-              标签与控件的距离回到一屏之内。 */}
-          <div className="pw-block" style={{ marginTop: 0 }}>
+          <ConfigSidebarList>
+            {/* fork:settings-frame（画板 62 落位表）—— 「启用内置子代理」开关 +
+                「并发上限」从**顶部整宽的独立卡片**收成「内置」组顶部的一条紧凑
+                设置行（行 anatomy 照画板 42 的 pw-field：标签 + small 说明在左，
+                控件在右；两条整宽行 → 一行）。设置行不依赖列表加载结果，
+                任何时候都可操作，所以挂在 loading / 空态分支之外。 */}
+            <ConfigSidebarGroupLabel>{t("agents.scope.builtin")}</ConfigSidebarGroupLabel>
             <ConfigField label={t("agents.builtInTitle")} hint={t("agents.builtInDescription")}>
               <ConfigControl>
-                {reloadNeeded && sessionId && (
-                  <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
-                    {reloading ? t("agents.reloading") : t("agents.reloadSession")}
-                  </ConfigButton>
-                )}
                 <ConfigSwitch
                   checked={builtInEnabled}
                   disabled={settingsLoading || reloading}
@@ -544,84 +557,74 @@ export function AgentsConfig({
                   label={t("agents.builtInTitle")}
                   onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
                 />
+                {/* 数字步进宽度是运行时布局值（pw-input 默认 min-width:200px 太宽）。 */}
+                <input
+                  aria-label={t("agents.maxConcurrent")}
+                  title={t("agents.maxConcurrentDescription")}
+                  type="number"
+                  min={1}
+                  max={32}
+                  value={maxConcurrent}
+                  disabled={settingsLoading || settingsSaving}
+                  onChange={(event) => setMaxConcurrent(Number(event.target.value))}
+                  onBlur={() => void updateMaxConcurrent(maxConcurrent)}
+                  className="pw-input"
+                  style={{ width: 64, textAlign: "center" }}
+                />
               </ConfigControl>
             </ConfigField>
-            <ConfigField label={t("agents.maxConcurrent")} hint={t("agents.maxConcurrentDescription")}>
-              {/* 数字步进宽度是运行时布局值（pw-input 默认 min-width:200px 太宽）。 */}
-              <input
-                aria-label={t("agents.maxConcurrent")}
-                type="number"
-                min={1}
-                max={32}
-                value={maxConcurrent}
-                disabled={settingsLoading || settingsSaving}
-                onChange={(event) => setMaxConcurrent(Number(event.target.value))}
-                onBlur={() => void updateMaxConcurrent(maxConcurrent)}
-                className="pw-input"
-                style={{ width: 64, textAlign: "center" }}
-              />
-            </ConfigField>
-            {/* 画板 42 的第三行：空标签 + 右侧警示徽章（「改动需要重载会话才生效」）。 */}
+            {/* 画板 42 的第三行：空标签 + 右侧警示徽章（「改动需要重载会话才生效」）
+                与重载入口（会话在场时）。 */}
             {reloadNeeded && (
               <ConfigField label="">
-                <ConfigBadge tone="warn">
-                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
-                  {t("agents.reloadRequired")}
-                </ConfigBadge>
+                <ConfigControl>
+                  {reloadNeeded && sessionId && (
+                    <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
+                      {reloading ? t("agents.reloading") : t("agents.reloadSession")}
+                    </ConfigButton>
+                  )}
+                  <ConfigBadge tone="warn">
+                    <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
+                    {t("agents.reloadRequired")}
+                  </ConfigBadge>
+                </ConfigControl>
               </ConfigField>
             )}
-          </div>
-          <ConfigSidebarList>
-              {loading ? (
-                <div className="pw-alert info">
-                  <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-                  <span className="pw-grow">{t("agents.loading")}</span>
-                </div>
-              ) : visibleProfileCount === 0 ? (
-                /* fork:settings-frame（画板 62）—— 列表空态落在列表列内（32px 图标 + 一句），
-                   不再让「搜不到」静默留白。 */
-                <ConfigEmptyState>
-                  <span className="mark"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
-                  <p>{agentNeedle ? t("agents.noneFound") : t("agents.empty")}</p>
-                </ConfigEmptyState>
-              ) : (["project", "global", "workspace", "builtin"] as const).map((scope) => {
-                const scopedProfiles = profiles.filter(
-                  (profile) => profile.scope === scope && matchesAgentQuery(profile),
-                );
-                if (scopedProfiles.length === 0) return null;
-                // fork:design-system —— 画板 42 的分组标题就是 `.pw-list` 的直接子元素
-                // （pw-group-title），不再包自绘的 config-sidebar-group 层。
-                return (
-                  <Fragment key={scope}>
-                    <ConfigSidebarGroupLabel>{t(`agents.scope.${scope}`)}</ConfigSidebarGroupLabel>
-                    {scopedProfiles.map((profile) => {
-                      const overridden = isSubagentProfileOverridden(profile, profiles);
-                      return (
-                        <ConfigSidebarItem
-                          key={profileKey(profile)}
-                          active={selectedKey === profileKey(profile) && !creating}
-                          onClick={() => selectProfile(profile)}
-                        >
-                          {/* 画板 42：行首是**类型图标**（`.pw-ico` 的 bot），不再是自绘圆点；
-                              启用时走 accent-text，停用/内置走弱化。 */}
-                          <span className={`pw-ico${profile.enabled ? "" : " pw-dim"}`} style={profile.enabled ? { color: "var(--accent-text)" } : undefined}>
-                            <i data-ico="bot" data-size="14" aria-hidden="true" />
-                          </span>
-                          {/* 名字 + 一句说明（`.pw-lname` / `.pw-lsub`）—— 一行两段，
-                              原来是「圆点 + 光名字」，一列看下来太素也没有辨识度。 */}
-                          <span className="grow">
-                            <ConfigSidebarText className={profile.enabled ? "" : " is-muted"}>{profile.displayName}</ConfigSidebarText>
-                            <ConfigSidebarSub>{profile.description || profile.name}</ConfigSidebarSub>
-                          </span>
-                          {/* 被覆盖项给一枚中性徽章（画板 42：不标红）。 */}
-                          {overridden && <ConfigBadge>{t("agents.overridden")}</ConfigBadge>}
-                          <ConfigStatusDot active={profile.enabled} />
-                        </ConfigSidebarItem>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
+            {loading ? (
+              <div className="pw-alert info">
+                <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                <span className="pw-grow">{t("agents.loading")}</span>
+              </div>
+            ) : visibleProfileCount === 0 ? (
+              /* fork:settings-frame（画板 62）—— 列表空态落在列表列内（32px 图标 + 一句），
+                 不再让「搜不到」静默留白。 */
+              <ConfigEmptyState>
+                <span className="mark"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
+                <p>{agentNeedle ? t("agents.noneFound") : t("agents.empty")}</p>
+              </ConfigEmptyState>
+            ) : (
+              <>
+                {/* fork:settings-frame（画板 62 落位表）—— 「内置」组紧随组顶部的
+                    设置行：先内置子代理行，再自定义组（项目 / 全局 / 工作区）。 */}
+                {profiles
+                  .filter((profile) => profile.scope === "builtin" && matchesAgentQuery(profile))
+                  .map(renderAgentRow)}
+                {(["project", "global", "workspace"] as const).map((scope) => {
+                  const scopedProfiles = profiles.filter(
+                    (profile) => profile.scope === scope && matchesAgentQuery(profile),
+                  );
+                  if (scopedProfiles.length === 0) return null;
+                  // fork:design-system —— 画板 42 的分组标题就是 `.pw-list` 的直接子元素
+                  // （pw-group-title），不再包自绘的 config-sidebar-group 层。
+                  return (
+                    <Fragment key={scope}>
+                      <ConfigSidebarGroupLabel>{t(`agents.scope.${scope}`)}</ConfigSidebarGroupLabel>
+                      {scopedProfiles.map(renderAgentRow)}
+                    </Fragment>
+                  );
+                })}
+              </>
+            )}
           </ConfigSidebarList>
         </ConfigSidebar>
 
@@ -631,7 +634,12 @@ export function AgentsConfig({
         <ConfigDetail>
           <ConfigDetailStack>
               {!selected && !creating ? (
-                <ConfigEmptyState>{t("agents.empty")}</ConfigEmptyState>
+                /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框图标
+                   （`.mark`）+ 一句引导，居中。 */
+                <ConfigEmptyState>
+                  <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                  <p>{t("agents.empty")}</p>
+                </ConfigEmptyState>
               ) : (
                 <ConfigDetailStack>
                   <ConfigDetailHeader>
@@ -688,48 +696,48 @@ export function AgentsConfig({
                     </ConfigField>
                   )}
 
-                  {/* 画板 42 编辑器的两栏字段网格：ID / 显示名 / 模型覆盖。
-                      窄屏收成一栏是运行时值（board.css 不含断点，没有 pw 基件）。 */}
-                  <div className="pw-grid2" style={isMobile ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
-                    <ConfigField label={t("agents.name")} style={gridFieldStyle}>
-                      {creating ? (
-                        <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="pw-input pw-mono" style={{ width: "100%", minWidth: 0 }} />
-                      ) : (
+                  {/* fork:settings-frame（画板 62 落位表）—— 详情字段一律 `.pw-field`
+                      行（标签左 / 控件右）：子代理 ID、显示名称、指定模型、描述。
+                      原来的两栏网格（标签在控件上方）退役；画板的 `.pw-field` 就是
+                      为这种「标签左、定宽控件右」的行设计的，字段跨度与左列协调。 */}
+                  <ConfigField label={t("agents.name")}>
+                    {creating ? (
+                      <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="pw-input pw-mono" style={disabled ? disabledInputStyle : undefined} />
+                    ) : (
+                      // 只读 ID 是等宽文本（画板 42 的 ID 字段形态）。
+                      <ConfigControl>
                         <code className="pw-mono">{draft.name}</code>
-                      )}
-                    </ConfigField>
-                    <ConfigField label={t("agents.displayName")} style={gridFieldStyle}>
-                      <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="pw-input" style={disabled ? disabledInputStyle : { width: "100%", minWidth: 0 }} />
-                    </ConfigField>
-                    <ConfigField label={t("agents.model")} style={gridFieldStyle}>
-                      <div
-                        className="pw-rowgap"
-                        title={modelsUnavailable ? noModelsHint : undefined}
-                      >
-                        <ModelSelector
-                          options={modelSelectorOptions}
-                          value={selectedModel}
-                          onChange={(provider, modelId) => update("model", `${provider}/${modelId}`)}
-                          onClear={() => update("model", undefined)}
-                          emptyLabel={modelsLoading ? t("agents.modelsLoading") : t("agents.inherit")}
-                          selectedLabel={draft.model && !selectedModelAvailable ? t("agents.modelUnavailable", { model: draft.model }) : undefined}
-                          disabled={disabled || modelsLoading || (modelOptions.length === 0 && !draft.model)}
-                          ariaLabel={t("agents.model")}
-                          variant="field"
-                          placement="auto"
-                        />
-                        {modelsError && <ConfigBadge tone="bad">{modelsError}</ConfigBadge>}
-                      </div>
-                      {/* 「没有模型可选」是一句可见的说明，不只是控件上的 title：
-                          整页就这一处能解释下拉为什么只剩「跟随父会话」。 */}
-                      {modelsUnavailable && <p className="pw-hint">{noModelsHint}</p>}
-                    </ConfigField>
-                  </div>
+                      </ConfigControl>
+                    )}
+                  </ConfigField>
+                  <ConfigField label={t("agents.displayName")}>
+                    <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="pw-input" style={disabled ? disabledInputStyle : undefined} />
+                  </ConfigField>
+                  <ConfigField label={t("agents.model")}>
+                    <ModelSelector
+                      options={modelSelectorOptions}
+                      value={selectedModel}
+                      onChange={(provider, modelId) => update("model", `${provider}/${modelId}`)}
+                      onClear={() => update("model", undefined)}
+                      emptyLabel={modelsLoading ? t("agents.modelsLoading") : t("agents.inherit")}
+                      selectedLabel={draft.model && !selectedModelAvailable ? t("agents.modelUnavailable", { model: draft.model }) : undefined}
+                      disabled={disabled || modelsLoading || (modelOptions.length === 0 && !draft.model)}
+                      ariaLabel={t("agents.model")}
+                      variant="field"
+                      placement="auto"
+                    />
+                  </ConfigField>
+                  {/* 「没有模型可选」是一句可见的说明，不只是控件上的 title：
+                      整页就这一处能解释下拉为什么只剩「跟随父会话」。 */}
+                  {modelsError && <ConfigBadge tone="bad">{modelsError}</ConfigBadge>}
+                  {modelsUnavailable && <p className="pw-hint">{noModelsHint}</p>}
+                  <ConfigField label={t("agents.description")}>
+                    <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="pw-input" style={disabled ? disabledInputStyle : undefined} />
+                  </ConfigField>
 
-                  {/* 画板 42 的长文本段：`pw-sec-title` 小节标题 + 通栏控件。 */}
-                  <ConfigSectionTitle>{t("agents.description")}</ConfigSectionTitle>
-                  <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="pw-input" style={{ width: "100%", minWidth: 0 }} />
-
+                  {/* 画板 42 的长文本段：`pw-sec-title` 小节标题 + 通栏控件。
+                      系统指令是整行宽控件，放 `.pw-detail` 直下、不塞进字段行 ——
+                      board.css 的 `.pw-field` 只为定宽小控件设计。 */}
                   <ConfigSectionTitle>{t("agents.prompt")}</ConfigSectionTitle>
                   {/* `.agents-system-prompt` 保留：只承担「全局滚动条在场时仍可拖拽
                       右下角」的滚动条行为语义（settings.css，无画板对应物）。 */}
@@ -742,9 +750,11 @@ export function AgentsConfig({
                     style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
                   />
 
-                  {/* 画板 42 的「工具与资源」：芯片表达，已选 accent、未选带 plus。
-                      fix:agents-layout —— 芯片的两种状态原来没有任何文字说明，
-                      用户实测「按钮啥的看不懂」；补一行 `.pw-hint` 讲清点法。 */}
+                  {/* fork:settings-frame —— 画板 42 的「工具与资源」是一个芯片区：
+                      已选工具 accent 芯片 + 「+ 加载技能 / + 加载扩展」入口芯片。
+                      原来「工具 / 资源」分两个小节，现照画板合并。芯片的两种状态
+                      原来没有任何文字说明，用户实测「按钮啥的看不懂」；两行
+                      `.pw-hint` 讲清点法与作用。 */}
                   <ConfigSectionTitle>{t("agents.tools")}</ConfigSectionTitle>
                   <div className="pw-wrap">
                     {TOOL_OPTIONS.map((tool) => (
@@ -757,14 +767,10 @@ export function AgentsConfig({
                         {tool}
                       </ToolChip>
                     ))}
-                  </div>
-                  <p className="pw-hint">{t("agents.toolsHint")}</p>
-
-                  <ConfigSectionTitle>{t("agents.resources")}</ConfigSectionTitle>
-                  <div className="pw-wrap">
                     <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
                     <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
                   </div>
+                  <p className="pw-hint">{t("agents.toolsHint")}</p>
                   <p className="pw-hint">{t("agents.resourcesHint")}</p>
 
                   {/* 画板 42 详情底部的一组 `pw-field` 行（标签左、控件右）。 */}
@@ -799,7 +805,7 @@ export function AgentsConfig({
                   {/* fork:settings-frame（画板 62）—— 表单级动作落在**表单块底部右对齐**，
                       不再放页面页脚：页脚是视口级的，滚动时它会脱离它保存的那张卡。 */}
                   {editing && (
-                    <div className="pw-inline" style={{ marginTop: "var(--s3)" }}>
+                    <div className="pw-inline">
                       <span className="pw-grow" aria-hidden="true" />
                       <ConfigButton
                         variant="primary"

@@ -9,8 +9,6 @@ import {
   CHAT_CONTENT_WIDTH_DEFAULT,
   CHAT_CONTENT_WIDTH_MAX,
   CHAT_CONTENT_WIDTH_MIN,
-  CHAT_CONTENT_FONT_SIZE_DEFAULT,
-  EXTENSION_WIDGET_FONT_SIZE_DEFAULT,
   useChatAppearance,
 } from "@/hooks/useChatAppearance";
 import { sendAgentCommand } from "@/lib/agent-client";
@@ -57,7 +55,6 @@ import {
 } from "./SettingsUi";
 import { WallpaperSettings } from "./WallpaperSettings";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
-import { ArchivedSessionsPanel } from "./ArchivedSessionsPanel";
 import { ProjectArchivePanel } from "./ProjectArchivePanel";
 import { ImportPanel } from "./ImportPanel";
 import { useBorderDepth } from "@/hooks/useBorderDepth";
@@ -141,15 +138,6 @@ const TITLE_MODEL_LIST_FAILED: LocalCopy = {
   en: "Could not load the model list: {error}. The title model falls back to the session model until this succeeds.",
   "zh-CN": "模型列表加载失败：{error}。在那之前，命名模型会退回使用会话自身的模型。",
   "zh-TW": "模型清單載入失敗：{error}。在那之前，命名模型會退回使用工作階段自身的模型。",
-};
-
-/** fork:disabled-reasons —— 默认外观下「导出 / 打开皮肤工作室」恒 disabled 的原因。
- *  这两枚按钮在 ThemeSkinStrip.tsx（不在本轮可改的文件里），所以用一句可见的说明
- *  补在皮肤条下方，而不是给按钮加 title。 */
-const SKIN_ACTIONS_NEED_CUSTOM_SKIN: LocalCopy = {
-  en: "The default look is not a skin file, so Export and Open skin studio are disabled. Pick one of your own skins above, or create one first.",
-  "zh-CN": "当前是「默认」外观，它不是一份皮肤文件，所以「导出」与「打开皮肤工作室」不可点。先在上面选一套自己的皮肤，或「新建主题」。",
-  "zh-TW": "目前是「預設」外觀，它不是一份皮膚檔案，所以「匯出」與「開啟皮膚工作室」不可點。先在上面選一套自己的皮膚，或「新增主題」。",
 };
 
 /** fork:disabled-reasons —— 「发送测试通知」在桌面通知总开关关闭时恒 disabled。 */
@@ -460,12 +448,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   return (
     <>
       <SettingsPage title={t("settings.general")} sub={t("settings.generalSub")}>
-        {/* fork:settings-frame（画板 62）—— 常规页 = 两栏块流。
-            10 个块原来排成一条 **1160px 宽**的单列（实测内容高 1862，要滚两屏），
-            而且每行的「标签—控件」跨度也是 1160（「桌面通知」在最左、开关在最右）。
-            现在按语义分两栏，每栏 570：
-              左 = 外观与显示（外观 / 主题皮肤 / 壁纸 / 侧栏）
-              右 = 交互与系统（通知 / 字体 / 语言 / 聊天 / Shell / 推送） */}
+        {/* fork:settings-frame（画板 62 帧 C，用户拍板）—— 常规页 = 两栏块流，每栏 570，
+            字段行「标签—控件」跨度从 1160 收到 570。块的排列逐项照帧 C：
+              左 = 外观 → 主题皮肤 → 侧栏 → 界面字体（62 帧 C 把「界面语言」排进这块）
+              右 = 聊天 → 通知 → 默认外观壁纸 →（产品实有、画板 40 续帧的两块）
+                    Shell 工具（仅 Windows）→ 后台推送 */}
         <div className="pw-grid2">
           <div>
       {/* fork:design-system SW-07 —— 画板 40 第一块「外观」：主题是 `.pw-radio` 三档
@@ -517,7 +504,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       </PwBlock>
 
       {/* fork:zn-19 / fork:design-system SW-07 —— 主题皮肤：卡片条 + 导入 / 导出 /
-          打开皮肤工作室（都在 ThemeSkinStrip 里，DOM 是画板 47 的 `.pw-skin-strip`）。 */}
+          打开皮肤工作室，DOM 是画板 40/47 的 `.pw-skin-strip` + `.pw-inline.pw-skin-actions`
+          （长说明「皮肤会接管壁纸与强调色…」照画板排在动作行右端，见 ThemeSkinStrip）。
+          fork:settings-frame 2026-10-01 —— 原先补在块底的那句「为什么导出/工作室不可点」
+          膏药已撤：ThemeSkinStrip 的 fork:fix-disabled-title 把原因写在了两枚禁用钮的
+          title 上（`settings.skinActionsNeedCustom`），同一句话不再出现两处。 */}
       <PwBlock icon="wand-sparkles" title={t("settings.skinLibrary")}>
         <ThemeSkinStrip
           skins={skins}
@@ -560,26 +551,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             URL.revokeObjectURL(url);
           }}
         />
-        {/* fork:disabled-reasons —— 默认外观下 ThemeSkinStrip 的「导出 / 打开皮肤
-            工作室」恒 disabled（没有可导出的皮肤文件）。那两枚按钮在
-            ThemeSkinStrip.tsx，不在本轮可改的文件里，所以在这里用一句可见说明
-            补上原因；按钮的 title 请在同一处补（见报告）。 */}
-        {activeSkin === null && <p className="pw-hint">{localCopy(SKIN_ACTIONS_NEED_CUSTOM_SKIN, locale)}</p>}
       </PwBlock>
 
-      {/* fork:zn-19-merge —— 壁纸与皮肤是同一件事的两个粒度：没有自定义皮肤时这里就是
-          「默认外观」的壁纸；有皮肤时由皮肤接管（WallpaperSettings 自己判断并只留
-          一条去编辑皮肤的提示）。画板 40 把壁纸单列一块，这里照画板。 */}
-      <PwBlock icon="wallpaper" title={t("settings.wallpaperDefaultTitle")}>
-        <WallpaperSettings
-          skinActive={activeSkin ? activeSkin.id !== THEME_SKIN_DEFAULT_ID : false}
-          {...(activeSkin && activeSkin.id !== THEME_SKIN_DEFAULT_ID
-            ? { onEditSkin: () => setEditing({ skin: activeSkin, isNew: false }) }
-            : {})}
-        />
-      </PwBlock>
-
-      {/* fork:zn-15 —— 外观 → 侧边栏：半透明开关 + 宽度滑块（画板 40 的「侧栏」块）。 */}
+      {/* fork:zn-15 —— 外观 → 侧边栏：半透明开关 + 宽度滑块（画板 62 帧 C 左栏第三块）。 */}
       <PwBlock icon="panel-left" title={t("settings.railBlock")}>
         <PwField
           label={t("settings.railTranslucentRow")}
@@ -615,104 +589,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }
         />
       </PwBlock>
-          </div>
 
-          <div>
-      {/* fork:zn-16 —— 通知：五条开关行 + 行末两个动作钮（画板 40 的「通知」块）。 */}
-      <PwBlock icon="bell" title={t("settings.notificationBlock")}>
-        <PwField
-          label={t("settings.notifyMaster")}
-          hint={t("settings.notifyMasterHint")}
-          control={
-            <PwSwitch
-              checked={notificationPrefs.enabled}
-              label={t("settings.notifyMaster")}
-              onChange={(next) => setNotificationPref("enabled", next)}
-            />
-          }
-        />
-        <PwField
-          label={t("settings.notifyOnComplete")}
-          hint={t("settings.notifyOnCompleteHint")}
-          control={
-            <PwSwitch
-              checked={notificationPrefs.onComplete}
-              disabled={!notificationPrefs.enabled}
-              label={t("settings.notifyOnComplete")}
-              onChange={(next) => setNotificationPref("onComplete", next)}
-            />
-          }
-        />
-        <PwField
-          label={t("settings.notifyOnError")}
-          hint={t("settings.notifyOnErrorHint")}
-          control={
-            <PwSwitch
-              checked={notificationPrefs.onError}
-              disabled={!notificationPrefs.enabled}
-              label={t("settings.notifyOnError")}
-              onChange={(next) => setNotificationPref("onError", next)}
-            />
-          }
-        />
-        <PwField
-          label={t("settings.notifyOnlyUnfocused")}
-          hint={t("settings.notifyOnlyUnfocusedHint")}
-          control={
-            <PwSwitch
-              checked={notificationPrefs.onlyWhenUnfocused}
-              disabled={!notificationPrefs.enabled}
-              label={t("settings.notifyOnlyUnfocused")}
-              onChange={(next) => setNotificationPref("onlyWhenUnfocused", next)}
-            />
-          }
-        />
-        <PwField
-          label={t("settings.notifySound")}
-          hint={t("settings.notifySoundHint")}
-          control={
-            <PwSwitch
-              checked={soundEnabled}
-              label={t("settings.notifySound")}
-              onChange={(next) => onSoundToggle?.(next)}
-            />
-          }
-        />
-        {/* 画板这一行是空 `.pw-label` + 两个动作钮，照抄。 */}
-        <PwField
-          label=""
-          control={
-            <PwCtl>
-              <button
-                type="button"
-                className="pw-btn outline sm"
-                disabled={!notificationPrefs.enabled}
-                title={notificationPrefs.enabled ? undefined : localCopy(NOTIFY_TEST_NEEDS_MASTER, locale)}
-                onClick={() => void sendTestNotification()}
-              >
-                {t("settings.notifyTest")}
-              </button>
-              <button
-                type="button"
-                className="pw-btn sm"
-                onClick={() => void openSystemNotificationSettings()}
-              >
-                {t("settings.notifyOpenSystem")}
-              </button>
-            </PwCtl>
-          }
-        />
-        {notificationNote ? (
-          <div role="status" className="pw-alert info">
-            <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
-            <span className="pw-grow">{notificationNote}</span>
-          </div>
-        ) : null}
-      </PwBlock>
-
-      {/* fork:zn-18 —— 界面字体（画板 40「界面字体」块：UI 字体 + UI 字号两行）。
-          画板还画了「代码字体 / 代码等宽中文字体」两行，本产品没有这两个设置，
-          不凭空造控件。 */}
+      {/* fork:zn-18 —— 界面字体（画板 62 帧 C 左栏末块：UI 字体 + UI 字号 + 界面语言）。
+          画板 62 帧 C 把「界面语言」排进这块（原独立「语言」块按 62 收编，语言行不
+          带说明小字——「选择整个界面使用的语言」是标签的同义复述）；画板还画了
+          「代码字体 / 代码等宽中文字体」两行，本产品没有这两个设置，不凭空造控件。 */}
       <PwBlock icon="type" title={t("settings.typographyBlock")}>
         <PwField
           label={t("settings.uiFont")}
@@ -747,13 +628,8 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
-      </PwBlock>
-
-      {/* 语言：画板 40 用 `.pw-radio` 排三档，照抄。 */}
-      <PwBlock icon="languages" title={t("common.language")}>
         <PwField
           label={t("common.language")}
-          hint={t("settings.languageDescription")}
           control={
             <PwRadio
               value={locale}
@@ -767,6 +643,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }
         />
       </PwBlock>
+          </div>
+
+          <div>
 
       {/* fork:design-system SW-07 —— 聊天块：画板 40 画的九行逐行对上。
           过程步骤的三个芯片在画板里是单选（`.pw-radio`），产品的语义是三个**独立**
@@ -905,6 +784,111 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               onChange={onQuoteSelectionChange}
             />
           }
+        />
+      </PwBlock>
+
+      {/* fork:zn-16 —— 通知（画板 62 帧 C 右栏第二块）：总开关 + 四条开关行 + 空标签
+          动作行。fork:settings-frame 2026-10-01 —— 「任务完成 / 任务失败 / 仅在窗口
+          未聚焦」三行不再渲染说明小字：语言包里的 hint 是标题的同义复述（用户实测
+          截图「标题与副标题疑似重复」），画板 40/62 的这几行本来就只有标签；
+          `notifySoundHint` 保留（它说明与输入框声音按钮是同一个开关，不是复述）。 */}
+      <PwBlock icon="bell" title={t("settings.notificationBlock")}>
+        <PwField
+          label={t("settings.notifyMaster")}
+          hint={t("settings.notifyMasterHint")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.enabled}
+              label={t("settings.notifyMaster")}
+              onChange={(next) => setNotificationPref("enabled", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifyOnComplete")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.onComplete}
+              disabled={!notificationPrefs.enabled}
+              label={t("settings.notifyOnComplete")}
+              onChange={(next) => setNotificationPref("onComplete", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifyOnError")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.onError}
+              disabled={!notificationPrefs.enabled}
+              label={t("settings.notifyOnError")}
+              onChange={(next) => setNotificationPref("onError", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifyOnlyUnfocused")}
+          control={
+            <PwSwitch
+              checked={notificationPrefs.onlyWhenUnfocused}
+              disabled={!notificationPrefs.enabled}
+              label={t("settings.notifyOnlyUnfocused")}
+              onChange={(next) => setNotificationPref("onlyWhenUnfocused", next)}
+            />
+          }
+        />
+        <PwField
+          label={t("settings.notifySound")}
+          hint={t("settings.notifySoundHint")}
+          control={
+            <PwSwitch
+              checked={soundEnabled}
+              label={t("settings.notifySound")}
+              onChange={(next) => onSoundToggle?.(next)}
+            />
+          }
+        />
+        {/* 画板这一行是空 `.pw-label` + 两个动作钮，照抄。 */}
+        <PwField
+          label=""
+          control={
+            <PwCtl>
+              <button
+                type="button"
+                className="pw-btn outline sm"
+                disabled={!notificationPrefs.enabled}
+                title={notificationPrefs.enabled ? undefined : localCopy(NOTIFY_TEST_NEEDS_MASTER, locale)}
+                onClick={() => void sendTestNotification()}
+              >
+                {t("settings.notifyTest")}
+              </button>
+              <button
+                type="button"
+                className="pw-btn sm"
+                onClick={() => void openSystemNotificationSettings()}
+              >
+                {t("settings.notifyOpenSystem")}
+              </button>
+            </PwCtl>
+          }
+        />
+        {notificationNote ? (
+          <div role="status" className="pw-alert info">
+            <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+            <span className="pw-grow">{notificationNote}</span>
+          </div>
+        ) : null}
+      </PwBlock>
+
+      {/* fork:zn-19-merge —— 壁纸（画板 62 帧 C 右栏末块「默认外观壁纸」）：启用开关 +
+          当前壁纸行（缩略图 + 选择/更换/移除）都在 WallpaperSettings 里；有皮肤生效时
+          它自己收成一条「去编辑皮肤」的提示。 */}
+      <PwBlock icon="wallpaper" title={t("settings.wallpaperDefaultTitle")}>
+        <WallpaperSettings
+          skinActive={activeSkin ? activeSkin.id !== THEME_SKIN_DEFAULT_ID : false}
+          {...(activeSkin && activeSkin.id !== THEME_SKIN_DEFAULT_ID
+            ? { onEditSkin: () => setEditing({ skin: activeSkin, isNew: false }) }
+            : {})}
         />
       </PwBlock>
 
@@ -1145,16 +1129,15 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
             {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
             {sectionHost("archived", (
               // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
-              // 所以合成一页：上面是项目索引，下面是会话归档。原先是两个导航项，
-              // 用户看着像两套互不相干的归档。
-              // fork:settings-frame（画板 62）—— 页头原来是 `<div class="settings-general">`
-              // 里的一枚旧类名 h2（`.settings-general-title`），够不到 board.css 的
-              // `.pw-sbody > h2`，字号与常规 / 记忆页不一致。现在走三件套。
-              <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")}>
-                <div className="settings-archive-page">
-                  <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
-                  <ArchivedSessionsPanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} />
-                </div>
+              // 合成一页：骨架 B（列表 300 + 详情 760），ConfigSplitView 与整页空态都由
+              // ProjectArchivePanel 自己出；会话归档的分组 / 详情卡也并进了同一个
+              // ConfigSplitView（旧 `<ArchivedSessionsPanel/>` 两段式入口恒渲染 null，摘除）。
+              // fork:settings-frame（画板 62 帧 B）—— `fill` 与删掉 `div.settings-archive-page`
+              // 必须同一提交：is-fixed 是 overflow:hidden，中间多一层 div 会把超高一列
+              // 静默裁掉；删掉后 `.pw-scontent.is-fixed` 的直接子元素就只有
+              // ProjectArchivePanel 的 ConfigSplitView（或整页空态 / 错误行）。
+              <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")} fill>
+                <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} onCloseRequest={onClose} />
               </SettingsPage>
             ))}
 

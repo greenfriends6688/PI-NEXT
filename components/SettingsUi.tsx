@@ -349,126 +349,12 @@ export function ConfigStatusDot({ active, color }: { active?: boolean; color?: s
 }
 
 /* ---------------------------------------------------------------------------
- * fork:zn-15 — Zeno 的设置分组卡与设置行。
- *
- * 规格搬到了 `app/fork-ui.css` 的 `.fork-settings-*`；这里只做结构。
- * 与既有的 `ConfigField` 并列而不是替换它：`ConfigField` 是「标签在左、控件在右」
- * 的紧凑表格行，Zeno 的 `SettingsRow` 是「标题 + 说明在上、控件在右上」的卡片行，
- * 两者在 Zeno 里也是并存的（`.settings-row` vs `.settings-field`）。
+ * fork:zn-15 退役（2026-10-01 孤儿清理）—— Zeno 形态的 `SettingsBlock` /
+ * `SettingsRow` / `SettingsSlider` 三个基件及其 `.fork-settings-*` 样式已删除：
+ * 全仓零引用，分节已全部迁到画板 40/62 的 `.pw-block` / `.pw-field` 行规格
+ * （下面那组 pw-* 基件）。「标题在上、控件在右上」的行形态在画板里没有对应物，
+ * 不再保留第二套设置行。
  * ------------------------------------------------------------------------- */
-
-export function SettingsBlock({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="fork-settings-block">
-      <h3 className="fork-settings-block-label">{label}</h3>
-      <div className="fork-settings-card">{children}</div>
-    </section>
-  );
-}
-
-export function SettingsRow({
-  title,
-  description,
-  control,
-  last = false,
-}: {
-  title: string;
-  /** 省略即「紧凑行」：`is-compact` 让行竖直居中、上下内距收窄。 */
-  description?: ReactNode;
-  control: ReactNode;
-  last?: boolean;
-}) {
-  const hasDescription =
-    description != null && description !== false && description !== "";
-  return (
-    <div
-      className={[
-        "fork-settings-row",
-        hasDescription ? "" : "is-compact",
-        last ? "is-last" : "",
-      ].filter(Boolean).join(" ")}
-    >
-      <div className="fork-settings-row-copy">
-        <div className="fork-settings-row-title">{title}</div>
-        {hasDescription ? <div className="fork-settings-row-desc">{description}</div> : null}
-      </div>
-      <div
-        className={[
-          "fork-settings-row-control",
-          hasDescription ? "is-multiline" : "",
-        ].filter(Boolean).join(" ")}
-      >
-        {control}
-      </div>
-    </div>
-  );
-}
-
-export function SettingsSlider({
-  label,
-  ariaLabel,
-  value,
-  displayValue,
-  min,
-  max,
-  step = 1,
-  disabled = false,
-  onChange,
-}: {
-  /** 省略即「内联形态」：轨道与数值同一行，标签由外层 `SettingsRow` 给。
-   *  Zeno 两形态都有 —— 设置行里的宽度滑块是一行（`SettingsPage.tsx:2459`），
-   *  主题工作室里的调参是「标签+数值」在上、轨道在下（`.theme-skin-slider`）。 */
-  label?: string;
-  ariaLabel?: string;
-  value: number;
-  /** 右侧显示的文本（如 `244px`、`30%`）—— Zeno 把单位和数值一起显示。 */
-  displayValue: string;
-  min: number;
-  max: number;
-  step?: number;
-  disabled?: boolean;
-  onChange: (next: number) => void;
-}) {
-  const id = `fork-slider-${(label ?? ariaLabel ?? "range").replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}`;
-  const range = (
-    <input
-      id={id}
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      disabled={disabled}
-      aria-label={label ? undefined : ariaLabel}
-      onChange={(event) => onChange(Number(event.target.value))}
-    />
-  );
-
-  if (!label) {
-    return (
-      <div className="fork-settings-slider is-inline">
-        {range}
-        <output htmlFor={id}>{displayValue}</output>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fork-settings-slider">
-      <div className="fork-settings-slider-head">
-        <label htmlFor={id}>{label}</label>
-        <output htmlFor={id}>{displayValue}</output>
-      </div>
-      {range}
-    </div>
-  );
-}
 
 /* ---------------------------------------------------------------------------
  * fork:design-system SW-07 — 画板 40 的设置控件基件（pw-* 版）。
@@ -477,10 +363,7 @@ export function SettingsSlider({
  * `pw-block`（发丝边框卡片，标题带 14px 图标）与 `pw-field`（标签可带一句小字 +
  * 右侧控件，行高 34、行间发丝线）拼成。这一组基件只做结构，规格全部来自
  * `design/pi-web-design/assets/board.css` —— 这里不写任何颜色 / 尺寸 / 间距。
- *
- * 与 `SettingsBlock` / `SettingsRow`（fork:zn-15，Zeno 形态）并存而不是替换：
- * 那套是「标题+说明在上、控件在右上」，画板 40 是「标签在左、控件在右」的表格行。
- * 批次 C 的分节逐个迁到这一套，迁完一个才退役一个的旧 CSS。
+ * （fork:zn-15 的 Zeno 形态行已退役，见上方退役说明：这是唯一的设置行形态。）
  * ------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------

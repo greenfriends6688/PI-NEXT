@@ -31,7 +31,6 @@
     "components/ProjectTrustDialog.tsx::inline-geometry-literal": 1,
     "components/SessionSidebar.tsx::inline-geometry-literal": 10,
     "components/SessionStatsBar.tsx::inline-geometry-literal": 5,
-    "components/SkillsConfig.tsx::inline-geometry-literal": 1,
     "components/SystemPromptPanel.tsx::inline-geometry-literal": 1,
     "components/TabBar.tsx::inline-geometry-literal": 5,
     "components/ThemeSkinStudio.tsx::inline-geometry-literal": 1,

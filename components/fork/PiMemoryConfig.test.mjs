@@ -81,10 +81,23 @@ test("the conflict banner and errors use the board's pw-alert", () => {
   assert.match(source, /onClick=\{\(\) => void read\(openFile\.path\)\}>\s*\n\s*\{t\("memory\.reload"\)\}/);
 });
 
-test("empty states use pw-empty + pw-empty-inner", () => {
-  assert.match(source, /<ConfigEmptyState>\s*\n\s*<p>\{fileQuery\.trim\(\) \? t\("memory\.fileNoMatch"\) : t\("memory\.filesEmpty"\)\}<\/p>/);
-  assert.match(source, /<ConfigEmptyState>\s*\n\s*<p>\{t\("memory\.filesHint"\)\}<\/p>/);
-  // fix:memory-layout —— 右栏给最小高度，`.pw-empty` 的居中才有地方可用
-  //（否则那行说明飘在右上角，看着像「浮空的段落」）。
-  assert.match(source, /<ConfigDetail style=\{\{ minHeight: 420 \}\}>/);
+test("状态块/工具块留在两栏上方（DIVERGENCE 146 的裁定），弱化行用画板的 opacity", () => {
+  // 〔与提案的差异〕画板 62 写的是「统一两栏」；裁定：把两块塞进详情列会让
+  // 「未选中文件」的空态与状态块打架 —— 两块仍留在两栏上方，收进 .pw-narrow(760)。
+  const narrowAt = source.indexOf('className="pw-narrow"');
+  const colsAt = source.indexOf("<ConfigSplitView>");
+  assert.ok(narrowAt > -1 && colsAt > narrowAt, "pw-narrow 状态块/工具块必须在两栏上方");
+  // 画板 44 的弱化行：还没建出来的 pi-memory 文件用 opacity:.6。
+  assert.match(source, /style=\{\{ opacity: 0\.6 \}\}/);
+});
+
+test("empty states use pw-empty + pw-empty-inner with the frame-D mark", () => {
+  // fork:settings-frame（画板 62 帧 D）—— 列表空 / 详情未选都带记号图标：
+  // 列表空 = 分节自己的图标；详情未选 = 40px 方框记号 + 一句引导，居中。
+  assert.match(source, /<ConfigEmptyState>\s*\n\s*<span className="mark"><i data-ico="file-text" data-size="16" aria-hidden="true" \/><\/span>\s*\n\s*<p>\{fileQuery\.trim\(\) \? t\("memory\.fileNoMatch"\) : t\("memory\.filesEmpty"\)\}<\/p>/);
+  assert.match(source, /<ConfigEmptyState>\s*\n\s*<span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" \/><\/span>\s*\n\s*<p>\{t\("memory\.filesHint"\)\}<\/p>/);
+  // fix:memory-layout（画板 62 帧 D「详情未选」）—— 空态的居中由 board.css 自己的
+  // `.pw-detail .pw-empty { min-height:180px }` 兜底，组件不再写内联 minHeight
+  //（那个 420 正是 62 诊断里「两栏仅 420 高」的来历）。
+  assert.doesNotMatch(source, /minHeight: 420/);
 });

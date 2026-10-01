@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { McpDiscoveredServer as DiscoveredMcpServer } from "@/lib/mcp-discovery";
 import {
   getLastSettingsSelection,
@@ -237,20 +238,16 @@ function AddPluginPanel({
         <div className="pw-inline">
           <ConfigDetailTitle>{t("i18n.addPlugin")}</ConfigDetailTitle>
           <span className="pw-grow" />
+          {/* fork:design-system（2026-10-01）—— 这里原来是一枚手绘的 npm logo SVG
+              （28px + `fill="#000"` 字面色）；设计系统只认 sprite 的 lucide 图标
+              （`<i data-ico>`，禁手绘 SVG），换成同一语境的 package 图标。 */}
           <a
             href="https://pi.dev/packages"
             target="_blank"
             rel="noopener noreferrer"
             className="pw-mono pw-dim"
           >
-            <svg width="28" height="28" viewBox="0 0 800 800" aria-hidden="true" focusable="false" style={{ flexShrink: 0 }}>
-              <path
-                fill="#000"
-                fillRule="evenodd"
-                d="M165.29 165.29H517.36V400H400V517.36H282.65V634.72H165.29ZM282.65 282.65V400H400V282.65Z"
-              />
-              <path fill="#000" d="M517.36 400H634.72V634.72H517.36Z" />
-            </svg>
+            <span className="pw-ico"><i data-ico="package" data-size="14"></i></span>
             pi.dev/packages
           </a>
         </div>
@@ -259,7 +256,7 @@ function AddPluginPanel({
         </span>
       </div>
 
-      <ConfigField label="Source">
+      <ConfigField label={t("plugins.sourceLabel")}>
         <input
           id="plugin-source"
           ref={inputRef}
@@ -302,7 +299,7 @@ function AddPluginPanel({
       </div>
 
       <div>
-        <ConfigSectionTitle>Examples</ConfigSectionTitle>
+        <ConfigSectionTitle>{t("plugins.examples")}</ConfigSectionTitle>
         <div className="pw-list">
           {examples.map((example) => (
             <button
@@ -366,7 +363,7 @@ function PackageDetail({
 
   return (
     <ConfigDetailStack>
-      <ConfigDetailHeader className="is-top-aligned">
+      <ConfigDetailHeader>
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={pkg.scope} />
           {/* fork:design-system SW-14 —— 画板 43 的详情头：状态徽章 + 包名等宽串。 */}
@@ -517,6 +514,21 @@ function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneE
   );
 }
 
+/** fork:design-system（画板 62 落位表 + 画板 43）—— MCP 详情的行式字段：
+ *  标签左 / 值右。画板的 `.pw-field` 控件侧放的是可编辑控件，这里放只读等宽串，
+ *  而参数 / env / JSON 可能很长：值要能收缩折行 —— `minWidth: 0` 是门禁放行的 0 值，
+ *  `overflowWrap` 折行是行为语义（flex 子项默认 `min-width:auto` 顶破卡片），
+ *  不是画板外观。 */
+function McpReadonlyField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <ConfigField label={label}>
+      <span className="pw-mono" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+        {value}
+      </span>
+    </ConfigField>
+  );
+}
+
 function McpServerDetail({
   server,
   cwd,
@@ -551,7 +563,7 @@ function McpServerDetail({
 
   return (
     <ConfigDetailStack>
-      <ConfigDetailHeader className="is-top-aligned">
+      <ConfigDetailHeader>
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={server.scope} />
           {/* fork:design-system SW-14 —— 画板 43 的 MCP 详情头：作用域 / 禁用徽章 / 等宽名。 */}
@@ -585,32 +597,39 @@ function McpServerDetail({
         </ConfigDetailActions>
       </ConfigDetailHeader>
 
-      <ConfigKv>
-        <dt>{t("mcp.fieldType")}</dt>
-        <dd className="pw-mono">{server.kind}</dd>
-        <dt>
-          {server.kind === "url"
-            ? t("mcp.kindUrl")
-            : server.kind === "socket"
-              ? t("mcp.kindSocket")
-              : t("mcp.kindCommand")}
-        </dt>
-        <dd className="pw-mono">{target ?? "—"}</dd>
+      {/* fork:design-system（画板 62 落位表）—— MCP 详情的属性表从 `.pw-kv` 的
+          dt/dd 改成画板 43 的 `.pw-field` 行式字段（标签左 / 值右）。整组包一层
+          普通块：`.pw-field + .pw-field` 的发丝线要靠相邻兄弟连续，拆散进
+          ConfigDetailStack 的网格会把行距撑成 s3。 */}
+      <div>
+        <McpReadonlyField label={t("mcp.fieldType")} value={server.kind} />
+        <McpReadonlyField
+          label={
+            server.kind === "url"
+              ? t("mcp.kindUrl")
+              : server.kind === "socket"
+                ? t("mcp.kindSocket")
+                : t("mcp.kindCommand")
+          }
+          value={target ?? "—"}
+        />
         {server.kind === "command" && (
-          <>
-            <dt>{t("mcp.fieldArgs")}</dt>
-            <dd className="pw-mono">{server.args.length ? server.args.join(" ") : "—"}</dd>
-          </>
+          <McpReadonlyField
+            label={t("mcp.fieldArgs")}
+            value={server.args.length ? server.args.join(" ") : "—"}
+          />
         )}
-        <dt>{t("mcp.fieldEnv")}</dt>
-        <dd className="pw-mono">{server.envKeys.length ? server.envKeys.join(", ") : "—"}</dd>
-        <dt>{t("mcp.fieldOptions")}</dt>
-        <dd className="pw-mono">{Object.keys(server.options).length ? JSON.stringify(server.options) : "—"}</dd>
-        <dt>{t("mcp.fieldSource")}</dt>
-        <dd className="pw-mono">{shortenPath(server.source)}</dd>
-        <dt>{t("mcp.fieldCwd")}</dt>
-        <dd className="pw-mono">{shortenPath(cwd)}</dd>
-      </ConfigKv>
+        <McpReadonlyField
+          label={t("mcp.fieldEnv")}
+          value={server.envKeys.length ? server.envKeys.join(", ") : "—"}
+        />
+        <McpReadonlyField
+          label={t("mcp.fieldOptions")}
+          value={Object.keys(server.options).length ? JSON.stringify(server.options) : "—"}
+        />
+        <McpReadonlyField label={t("mcp.fieldSource")} value={shortenPath(server.source)} />
+        <McpReadonlyField label={t("mcp.fieldCwd")} value={shortenPath(cwd)} />
+      </div>
 
       {authActions}
 
@@ -844,6 +863,169 @@ function AddMcpServer({
         </div>
       )}
     </ConfigDetailStack>
+  );
+}
+
+/** fork:design-system（画板 43「从其它 agent 导入」帧 + 画板 50 对话框）——
+ *  导入从详情列的内联视图改成画板的 pw-modal 弹层：
+ *  `.pw-modal-head`（import 图标 + 标题 + 关闭）› `.pw-modal-body`（说明 + 来源
+ *  芯片 + `.pw-sep` + `.pw-prow` 行）› `.pw-modal-foot`（计数 + 取消）。
+ *  覆盖层的 fixed / 层级画板没有产品等价物（`.pw-scrim` 已被皮肤工作室接线占用
+ *  z 序），照 ModelsConfig 的先例保留这组行为 inline。画板 62 上轮裁定：导入要
+ *  模态，不再占详情列。 */
+function McpImportModal({
+  open,
+  discovering,
+  discovered,
+  importing,
+  actionError,
+  actionMessage,
+  onDismiss,
+  onImport,
+}: {
+  open: boolean;
+  discovering: boolean;
+  discovered: DiscoveredMcpServer[];
+  importing: string | null;
+  /** 与详情列共用的动作反馈：弹层开着时失败 / 成功也要在弹层里可见。 */
+  actionError: string | null;
+  actionMessage: string | null;
+  onDismiss: () => void;
+  onImport: (server: DiscoveredMcpServer) => void;
+}) {
+  const { t } = useI18n();
+  // fork:dsn-dialog-a11y —— 打开移焦、Tab 循环、Esc 关闭、背景 inert。
+  const { dialogRef, dialogProps } = useDialogA11y({ open, onClose: onDismiss });
+  if (!open) return null;
+
+  // 画板 43 的来源芯片行：`Claude Code · 4`。计数从发现结果按来源 agent 聚合；
+  // 「未找到」的来源服务端不返回（只能列找到的），芯片一律带 check。
+  const sourceCounts = new Map<string, number>();
+  for (const server of discovered) {
+    sourceCounts.set(server.tool, (sourceCounts.get(server.tool) ?? 0) + 1);
+  }
+
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={t("mcp.importTitle")}
+      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "var(--scrim)", display: "grid", placeItems: "center" }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onDismiss();
+      }}
+    >
+      <div className="pw-modal">
+        <div className="pw-modal-head">
+          <span className="pw-ico"><i data-ico="import" data-size="16"></i></span>
+          {t("mcp.importTitle")}
+          <span className="pw-grow" aria-hidden="true" />
+          <button
+            type="button"
+            className="pw-iconbtn"
+            onClick={onDismiss}
+            title={t("i18n.close")}
+            aria-label={t("i18n.close")}
+          >
+            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+          </button>
+        </div>
+
+        <div className="pw-modal-body">
+          <p className="pw-hint">{t("mcp.importHint")}</p>
+          {sourceCounts.size > 0 && (
+            <>
+              <div className="pw-wrap">
+                {[...sourceCounts.entries()].map(([tool, count]) => (
+                  <span key={tool} className="pw-chip">
+                    <span className="pw-ico"><i data-ico="check" data-size="12"></i></span>
+                    {tool} · {count}
+                  </span>
+                ))}
+              </div>
+              <div className="pw-sep" aria-hidden="true" />
+            </>
+          )}
+          {discovering ? (
+            <div className="pw-alert info">
+              <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+              <span className="pw-grow">{t("i18n.loading")}</span>
+            </div>
+          ) : discovered.length === 0 ? (
+            <div className="pw-alert info">
+              <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
+              <span className="pw-grow">{t("mcp.importEmpty")}</span>
+            </div>
+          ) : (
+            discovered.map((server) => (
+              <div
+                key={`${server.path}:${server.name}`}
+                className="pw-prow"
+                /* 画板 43 弱化行（已禁用 / 被同名条目遮蔽）的 `opacity:.55`
+                   原样 inline —— 画板自身就是这个写法。 */
+                style={server.shadowed || server.disabled ? { opacity: 0.55 } : undefined}
+              >
+                <span className="pw-ico"><i data-ico="server" data-size="14"></i></span>
+                {/* grow 允许收缩（flex 子项默认 min-width:auto），下面命令行的
+                    单行省略才接得住长值；0 是门禁放行值。 */}
+                <span className="grow" style={{ minWidth: 0 }}>
+                  {/* 画板 43 导入行的名字就是 `<b style="font-weight:500">`
+                      原样 inline（b 默认 700，画板要 500）。 */}
+                  <b style={{ fontWeight: 500 }}>{server.name}</b>
+                  <div className="pw-desc">
+                    {server.tool} · {server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}
+                  </div>
+                  {/* 命令行可能很长：单行省略是行为语义（board.css 只在
+                      .pw-litem 这类具体语境里给 ellipsis），没有可用的 pw 基件，
+                      保留最小 inline。 */}
+                  <div
+                    className="pw-mono pw-dim"
+                    title={server.path}
+                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    {server.def.command
+                      ? `${server.def.command} ${(server.def.args as string[] | undefined)?.join(" ") ?? ""}`.trim()
+                      : String(server.def.url ?? server.def.socket ?? "")}
+                  </div>
+                </span>
+                {/* 画板 43：同名冲突给 warning 徽章而不是阻止；已禁用给中性徽章。 */}
+                {server.shadowed && (
+                  <ConfigBadge tone="warn">{t("mcp.importShadowed")}</ConfigBadge>
+                )}
+                {server.disabled && <ConfigBadge>{t("mcp.itemDisabled")}</ConfigBadge>}
+                <ConfigButton
+                  variant="secondary"
+                  size="small"
+                  disabled={importing === server.name || server.shadowed}
+                  title={server.shadowed ? t("mcp.importShadowedTitle") : undefined}
+                  onClick={() => onImport(server)}
+                >
+                  {importing === server.name ? t("mcp.saving") : t("mcp.importOne")}
+                </ConfigButton>
+              </div>
+            ))
+          )}
+          {actionMessage && (
+            <div className="pw-alert info">
+              <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
+              <span className="pw-grow">{actionMessage}</span>
+            </div>
+          )}
+          {actionError && (
+            <div className="pw-alert">
+              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
+              <span className="pw-grow">{actionError}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="pw-modal-foot">
+          <span className="pw-hint">{t("mcp.count", { count: String(discovered.length) })}</span>
+          <span className="pw-grow" aria-hidden="true" />
+          <ConfigButton onClick={onDismiss}>{t("mcp.cancel")}</ConfigButton>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1275,7 +1457,7 @@ export function PluginsConfig({
             ? extensionKey(next.standaloneExtensions[0])
             : null);
         if (next.packages.length === 0 && next.standaloneExtensions.length === 0) setAddMode(true);
-        setActionMessage("Package removed.");
+        setActionMessage(t("plugins.removed"));
         setUpdateStatuses((current) => {
           const nextStatuses = { ...current };
           delete nextStatuses[key];
@@ -1283,10 +1465,10 @@ export function PluginsConfig({
         });
       } else {
         const messages: Record<Exclude<PluginAction, "remove">, string> = {
-          install: "Package installed.",
-          update: "Package updated.",
-          disable: "Package disabled.",
-          enable: "Package enabled.",
+          install: t("plugins.installed"),
+          update: t("plugins.updated"),
+          disable: t("plugins.disabled"),
+          enable: t("plugins.enabled"),
         };
         setActionMessage(messages[action]);
         if (action === "update") {
@@ -1325,7 +1507,7 @@ export function PluginsConfig({
       setSelected(installed ? packageKey(installed) : key);
       setAddMode(false);
       setInstallSource("");
-      setActionMessage("Package installed.");
+      setActionMessage(t("plugins.installed"));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1342,7 +1524,7 @@ export function PluginsConfig({
       await sendAgentCommand(sessionId, { type: "reload" });
       onReloaded?.();
       await loadPlugins();
-      setActionMessage("Session reloaded.");
+      setActionMessage(t("plugins.sessionReloaded"));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1412,7 +1594,10 @@ export function PluginsConfig({
             <>
               {hasCheckablePackages && (
                 <ConfigButton
-                  variant={availableUpdateCount > 0 ? "primary" : "secondary"}
+                  /* fork:settings-frame（画板 62 帧 D）—— 页级动作只有「1 主 + 1 次」：
+                     添加插件是 primary，检查更新恒为 outline。有可用更新时也不抢主色
+                     —— 数量进按钮文案，行内还有箭头徽标提醒。 */
+                  variant="secondary"
                   size="small"
                   onClick={() => void (availableUpdateCount > 0 ? updateAllPluginsAction() : checkForUpdates())}
                   disabled={footerBusy}
@@ -1456,7 +1641,7 @@ export function PluginsConfig({
                     tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
                     title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
                   >
-                    {data.diagnostics.length} diagnostic{data.diagnostics.length === 1 ? "" : "s"}
+                    {t("plugins.diagnostics", { count: data.diagnostics.length })}
                   </ConfigBadge>
                 ) : null}
                 <ConfigBadge tone="count">
@@ -1497,7 +1682,8 @@ export function PluginsConfig({
               {loading ? (
                 <div className="pw-alert info">
                   <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-                  <span className="pw-grow">Loading...</span>
+                  {/* 这里原来是硬编码的 "Loading..."；i18n.loading 三语值就是它。 */}
+                  <span className="pw-grow">{t("i18n.loading")}</span>
                 </div>
               ) : error ? (
                 <div className="pw-alert">
@@ -1505,10 +1691,12 @@ export function PluginsConfig({
                   <span className="pw-grow">{error}</span>
                 </div>
               ) : packages.length === 0 && standaloneExtensions.length === 0 ? (
-                <div className="pw-alert info">
-                  <span className="pw-ico"><i data-ico="blocks" data-size="14"></i></span>
-                  <span className="pw-grow">No plugins configured</span>
-                </div>
+                /* fork:settings-frame（画板 62 帧 D）—— 列表空态落在列表列内：
+                   记号图标 + 一句，不再是一行 pw-alert 飘字。 */
+                <ConfigEmptyState>
+                  <span className="mark"><i data-ico="blocks" data-size="16" aria-hidden="true" /></span>
+                  <p>No plugins configured</p>
+                </ConfigEmptyState>
               ) : (
                 <>
                   {standaloneExtensions.length > 0 && (
@@ -1531,9 +1719,14 @@ export function PluginsConfig({
                             }}
                           >
                             <ConfigStatusDot active={extension.enabled} />
-                            <ConfigSidebarText className={`is-grow${extension.enabled ? "" : " is-muted"}`}>
-                              {extension.name}
-                            </ConfigSidebarText>
+                            {/* fork:design-system —— 行文本包进画板 `.pw-litem .grow`
+                                （flex:1 + 省略号生效的前提）；停用走 `.pw-dim`
+                                （AgentsConfig 同款），is-grow/is-muted 已随旧族退役。 */}
+                            <span className="grow">
+                              <ConfigSidebarText className={extension.enabled ? undefined : "pw-dim"}>
+                                {extension.name}
+                              </ConfigSidebarText>
+                            </span>
                           </ConfigSidebarItem>
                         );
                       })}
@@ -1561,9 +1754,11 @@ export function PluginsConfig({
                             }}
                           >
                             <ConfigStatusDot active={!pkg.disabled} color={statusColor(pkg.status)} />
-                            <ConfigSidebarText className={`is-grow${pkg.disabled ? " is-muted" : ""}`}>
-                              {pkg.source}
-                            </ConfigSidebarText>
+                            <span className="grow">
+                              <ConfigSidebarText className={pkg.disabled ? "pw-dim" : undefined}>
+                                {pkg.source}
+                              </ConfigSidebarText>
+                            </span>
                             {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
                               <span title={t("i18n.updateAvailable")} className="pw-ico">
                                 <i data-ico="arrow-up" data-size="12"></i>
@@ -1592,10 +1787,11 @@ export function PluginsConfig({
                         <span className="pw-grow">{mcpActionError}</span>
                       </div>
                     ) : (mcpData?.servers.length ?? 0) === 0 ? (
-                      <div className="pw-alert info">
-                        <span className="pw-ico"><i data-ico="server" data-size="14"></i></span>
-                        <span className="pw-grow">{t("mcp.emptyList")}</span>
-                      </div>
+                      /* fork:settings-frame（画板 62 帧 D）—— 列表空态落在列表列内。 */
+                      <ConfigEmptyState>
+                        <span className="mark"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
+                        <p>{t("mcp.emptyList")}</p>
+                      </ConfigEmptyState>
                     ) : (
                       <>
                         {groupedMcp.map((group) => (
@@ -1622,9 +1818,11 @@ export function PluginsConfig({
                                     active={!server.disabled}
                                     color={server.disabled ? undefined : "var(--accent)"}
                                   />
-                                  <ConfigSidebarText className={`is-grow${server.disabled ? " is-muted" : ""}`}>
-                                    {server.name}
-                                  </ConfigSidebarText>
+                                  <span className="grow">
+                                    <ConfigSidebarText className={server.disabled ? "pw-dim" : undefined}>
+                                      {server.name}
+                                    </ConfigSidebarText>
+                                  </span>
                                 </ConfigSidebarItem>
                               );
                             })}
@@ -1638,67 +1836,10 @@ export function PluginsConfig({
 
           <ConfigDetail>
             <ConfigDetailStack>
-              {view === "mcp" && mcpImportOpen ? (
-                <div className="pw-rowgap">
-                  <div className="pw-inline">
-                    <ConfigDetailTitle>{t("mcp.importTitle")}</ConfigDetailTitle>
-                    <span className="pw-grow" />
-                    <ConfigButton variant="ghost" size="small" onClick={() => setMcpImportOpen(false)}>{t("mcp.cancel")}</ConfigButton>
-                  </div>
-                  {/* fork:design-system —— 说明 / 加载 / 空态都是画板的 `.pw-alert info`
-                      一行（画板 42 安装对话框的「安装会走 npx skills add」同款），
-                      不再用自绘的 range-hint 类。 */}
-                  <div className="pw-alert info">
-                    <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-                    <span className="pw-grow">{t("mcp.importHint")}</span>
-                  </div>
-                  {mcpDiscovering && (
-                    <div className="pw-alert info">
-                      <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-                      <span className="pw-grow">{t("i18n.loading")}</span>
-                    </div>
-                  )}
-                  {!mcpDiscovering && mcpDiscovered.length === 0 && (
-                    <div className="pw-alert info">
-                      <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-                      <span className="pw-grow">{t("mcp.importEmpty")}</span>
-                    </div>
-                  )}
-                  <div className="pw-pop">
-                    {mcpDiscovered.map((server) => (
-                      <div
-                        key={`${server.path}:${server.name}`}
-                        className="pw-prow"
-                        style={{ opacity: server.shadowed || server.disabled ? 0.6 : 1 }}
-                      >
-                        <span className="pw-ico"><i data-ico="server" data-size="14"></i></span>
-                        <span className="grow">
-                          <b style={{ fontWeight: 500 }}>{server.name}</b>
-                          <span className="pw-desc" style={{ display: "block" }}>
-                            {server.tool} · {server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}
-                            {server.disabled ? ` · ${t("mcp.itemDisabled")}` : ""}
-                            {server.shadowed ? ` · ${t("mcp.importShadowed")}` : ""}
-                          </span>
-                          {/* 命令行可能很长：单行省略是行为语义（pw 只有 .pw-litem 里有
-                              ellipsis），保留最小 inline，没有可用的 pw 基件。 */}
-                          <span className="pw-mono pw-dim" title={server.path} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {server.def.command ? `${server.def.command} ${(server.def.args as string[] | undefined)?.join(" ") ?? ""}`.trim() : String(server.def.url ?? server.def.socket ?? "")}
-                          </span>
-                        </span>
-                        <ConfigButton
-                          variant="secondary"
-                          size="small"
-                          disabled={mcpImporting === server.name || server.shadowed}
-                          title={server.shadowed ? t("mcp.importShadowedTitle") : undefined}
-                          onClick={() => void importDiscovered(server)}
-                        >
-                          {mcpImporting === server.name ? t("mcp.saving") : t("mcp.importOne")}
-                        </ConfigButton>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : view === "mcp" ? (
+              {/* fork:design-system（画板 62 上轮裁定）—— 「从其它 agent 导入」是
+                  pw-modal 弹层（见下方 McpImportModal），不再占详情列；导入弹层开着
+                  时详情列保持原内容。 */}
+              {view === "mcp" ? (
                 mcpAddMode ? (
                   <AddMcpServer
                     cwd={cwd}
@@ -1741,7 +1882,12 @@ export function PluginsConfig({
                     authActions={renderMcpAuthActions?.(selectedMcp)}
                   />
                 ) : (
-                  <ConfigEmptyState>{t("mcp.emptyDetail")}</ConfigEmptyState>
+                  /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框记号 +
+                     一句引导，居中（mark 的 40px 几何在 board.css）。 */
+                  <ConfigEmptyState>
+                    <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                    <p>{t("mcp.emptyDetail")}</p>
+                  </ConfigEmptyState>
                 )
               ) : addMode ? (
               <AddPluginPanel
@@ -1774,12 +1920,31 @@ export function PluginsConfig({
                 onReloadSession={reloadSession}
               />
               ) : (
-                <ConfigEmptyState>{t("i18n.selectPackage")}</ConfigEmptyState>
+                /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框记号 +
+                   一句引导，居中。 */
+                <ConfigEmptyState>
+                  <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                  <p>{t("i18n.selectPackage")}</p>
+                </ConfigEmptyState>
               )}
             </ConfigDetailStack>
           </ConfigDetail>
         </ConfigSplitView>
       </SettingsPage>
+
+      {/* fork:design-system（画板 43 导入帧）—— 导入弹层。挂在 SettingsPage 的
+          兄弟位（config-panel-surface 的直接子元素），useDialogA11y 的兄弟 inert
+          才能罩住页头 / 工具栏 / 内容区整片。 */}
+      <McpImportModal
+        open={mcpImportOpen}
+        discovering={mcpDiscovering}
+        discovered={mcpDiscovered}
+        importing={mcpImporting}
+        actionError={mcpActionError}
+        actionMessage={mcpActionMessage}
+        onDismiss={() => setMcpImportOpen(false)}
+        onImport={(server) => void importDiscovered(server)}
+      />
     </ConfigPanelShell>
   );
 }

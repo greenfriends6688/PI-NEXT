@@ -136,11 +136,11 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
 
   return (
     <>
-      {/* 画板 46：标题行 = h2 + 计数徽章 + 新建命令；说明在下一行。 */}
-      {/* fork:settings-frame（画板 62）—— 自定义命令页的三件套。
+      {/* fork:settings-frame（画板 62）—— 自定义命令页的三件套（骨架 B）。
           h2 原来被包在 `.pw-inline` 里，够不到 board.css 的 `.pw-sbody > h2`
           （字号吃不到 15/500）；搜索框在左列里、计数在页头、目录在第二行 sub，
-          三处各说各的。现在：页头 = 标题 + 一句说明 + 新建；工具栏 = 搜索 + 目录 + 计数。 */}
+          三处各说各的。现在：页头 = 标题 + 一句说明 + 页级动作「新建命令」；
+          工具栏 = 搜索 + 目录路径 + 计数等宽徽章。 */}
       <SettingsPage
         title={t("prompts.title")}
         sub={t("prompts.subtitle")}
@@ -185,9 +185,9 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
               </button>
             ))}
           </div>
-          {loading && <p role="status" className="sub">{t("i18n.loading")}</p>}
+          {loading && <p role="status" className="pw-hint">{t("i18n.loading")}</p>}
           {!loading && filtered.length === 0 && (
-            <p role="status" className="sub">{query.trim() ? t("prompts.noMatch") : t("prompts.empty")}</p>
+            <p role="status" className="pw-hint">{query.trim() ? t("prompts.noMatch") : t("prompts.empty")}</p>
           )}
         </div>
 
@@ -212,6 +212,9 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
               )}
             </div>
 
+            {/* 编辑器的两个输入宽度照抄画板 46 帧「自定义命令」的 inline：
+                命令名 180、描述 280（`--sidebar-width` 恰是 280px，走 token 不写字面量）；
+                `min-width:0` 盖掉 board.css `.pw-input` 的 200px 下限，否则 180 出不来。 */}
             <div className="pw-field" style={{ marginTop: "var(--s3)" }}>
               <span className="pw-label">
                 {t("prompts.name")}
@@ -247,6 +250,9 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
               {t("prompts.body")}
               <span className="pw-grow" aria-hidden="true" />
             </div>
+            {/* 正文是**整行宽**控件，放 `.pw-detail` 直下不塞字段行（画板 62 帧 B / 46 帧
+                「自定义命令」同款）；`min-height: 200` 是画板 46 原件自带的 inline
+                （board 46:94 `style="min-height:200px"`），门禁基线冻结的就是它。 */}
             <textarea
               className="pw-textarea"
               style={{ minHeight: 200 }}
@@ -271,9 +277,20 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
             </div>
           </div>
         ) : (
-          <ConfigEmptyState>
-            <p>{t("prompts.paletteHint")}</p>
-          </ConfigEmptyState>
+          /* fork:settings-frame（画板 62 帧 D「详情未选」）—— 详情列恒有 `.pw-detail`
+             卡，空态是卡内**居中**的 `.pw-empty`（board.css 的 `.pw-detail .pw-empty`
+             高度规则就是为这个形态写的）：40px 方框图标（`.pw-empty-inner .mark`，
+             DOM 抄帧 D）+ 一句引导。原来那句「保存后斜杠面板立即可用」飘在右列中段、
+             脱离空态本体（62 禁止项），现在收进空态里。 */
+          <div className="pw-detail">
+            <ConfigEmptyState>
+              <span className="mark" aria-hidden="true">
+                <i data-ico="square-mouse-pointer" data-size="16" />
+              </span>
+              <p>{t("prompts.emptyDetail")}</p>
+              <p className="pw-hint">{t("prompts.paletteHint")}</p>
+            </ConfigEmptyState>
+          </div>
         )}
       </ConfigSplitView>
 

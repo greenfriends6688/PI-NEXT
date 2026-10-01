@@ -180,13 +180,18 @@ export function UsageStatsPanel(): ReactNode {
 
   return (
     /* fork:settings-frame（画板 62）—— 用量页的三件套。
-       页头原来是一枚旧类名 h2（`.settings-general-title`），够不到 board.css 的
-       `.pw-sbody > h2`；周期芯片与「刷新」原本挤在内容区第一行、和统计卡连在一起。
-       现在周期芯片 + 刷新 + 扫描进度进工具栏，统计与图表分两栏（570 × 2）——
-       热力图原来拉满 1100，九张卡排成 4+4+1（末行孤一张）。 */
+       「刷新」按 62 落位表是**页级动作**（页头右端；DOM 抄画板 45 §用量的页头动作
+       `pw-btn outline sm` + refresh-cw），不是工具栏按钮。工具栏只留周期芯片
+       （筛选）与扫描计数 —— 62 的页头规则：计数进工具栏的等宽读数，不进 sub。 */
     <SettingsPage
       title={t("usage.title")}
       sub={t("usage.subtitle")}
+      actions={
+        <ConfigButton variant="secondary" size="small" disabled={loading} onClick={() => void load(range)}>
+          <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+          {t("usage.refresh")}
+        </ConfigButton>
+      }
       toolbar={
         <>
           <span className="pw-radio">
@@ -204,13 +209,10 @@ export function UsageStatsPanel(): ReactNode {
           </span>
           <span className="pw-grow" aria-hidden="true" />
           {summary && (
-            <span className="pw-hint">
+            <span className="pw-mono pw-dim">
               {t("usage.scannedHint", { files: summary.scanned.files, parsed: summary.scanned.parsed })}
             </span>
           )}
-          <ConfigButton size="small" disabled={loading} onClick={() => void load(range)}>
-            {t("usage.refresh")}
-          </ConfigButton>
         </>
       }
     >
@@ -221,9 +223,12 @@ export function UsageStatsPanel(): ReactNode {
 
       {summary && derived && (
         <>
+          {/* 第一段两栏：左 = 九张统计卡（is-wide 首卡撑满 → 1 + 2×4，末行不孤），
+              右 = 按模型 / 请求与错误。图表容器是画板 45 的 `.pw-cell` + `h4`，
+              不再套产品自绘的 `.settings-general-section`（那层 --border/--radius-lg
+              壳与 `.pw-cell` 的画板边框叠成双框，DIVERGENCE 145 的登记残留）。 */}
           <div className="pw-grid2">
           <div>
-          <section className="settings-general-section" style={{ marginTop: 0 }}>
             <StatGrid columns={2}>
               <StatCard
                 label={t("usage.tokens")}
@@ -248,56 +253,52 @@ export function UsageStatsPanel(): ReactNode {
               />
               <StatCard label={t("usage.cost")} value={formatCost(summary.totals.cost, locale)} />
             </StatGrid>
-          </section>
 
-          {!hasActivity && (
-            <p role="status" className="settings-chat-range-hint">{t("usage.empty")}</p>
-          )}
+            {!hasActivity && (
+              <p role="status" className="pw-hint">{t("usage.empty")}</p>
+            )}
           </div>
 
           <div>
             {hasActivity && (
             <>
               {summary.models.length > 0 && (
-                <section className="settings-general-section">
-                  <div className="pw-cell">
-                    <h4>
-                      <span className="pw-ico"><i data-ico="chart-pie" data-size="14"></i></span>
-                      {t("usage.byModel")}
-                    </h4>
-                    <UsageShareBar
-                      slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
-                      label={t("usage.modelShare")}
-                    />
-                    <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
-                      {summary.models.slice(0, 8).map((model) => (
-                        <UsageListRow
-                          key={model.model}
-                          accent
-                          title={model.model}
-                          meta={`${t("usage.requests", { count: model.messages })} · ${formatCompact(model.tokens, locale)} tok · ${formatCost(model.cost, locale)}`}
-                          trailing={`${(model.share * 100).toFixed(1)}%`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              <section className="settings-general-section">
                 <div className="pw-cell">
                   <h4>
-                    <span className="pw-ico"><i data-ico="activity" data-size="14"></i></span>
-                    {t("usage.requestsErrors")}
+                    <span className="pw-ico"><i data-ico="chart-pie" data-size="14"></i></span>
+                    {t("usage.byModel")}
                   </h4>
-                  <UsageRequestsErrors
-                    days={summary.days}
-                    label={t("usage.requestsErrors")}
-                    requestsLabel={t("usage.requestsLegend")}
-                    errorsLabel={t("usage.errorsLegend")}
+                  <UsageShareBar
+                    slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
+                    label={t("usage.modelShare")}
                   />
+                  {/* 画板 45 §按项目 的列表挂在 h4 下时自带 `margin-top:var(--s2)` 的 inline。 */}
+                  <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                    {summary.models.slice(0, 8).map((model) => (
+                      <UsageListRow
+                        key={model.model}
+                        accent
+                        title={model.model}
+                        meta={`${t("usage.requests", { count: model.messages })} · ${formatCompact(model.tokens, locale)} tok · ${formatCost(model.cost, locale)}`}
+                        trailing={`${(model.share * 100).toFixed(1)}%`}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </section>
+              )}
+
+              <div className="pw-cell" style={summary.models.length > 0 ? { marginTop: "var(--s3)" } : undefined}>
+                <h4>
+                  <span className="pw-ico"><i data-ico="activity" data-size="14"></i></span>
+                  {t("usage.requestsErrors")}
+                </h4>
+                <UsageRequestsErrors
+                  days={summary.days}
+                  label={t("usage.requestsErrors")}
+                  requestsLabel={t("usage.requestsLegend")}
+                  errorsLabel={t("usage.errorsLegend")}
+                />
+              </div>
             </>
             )}
           </div>
@@ -306,81 +307,76 @@ export function UsageStatsPanel(): ReactNode {
           {/* fork:settings-frame（画板 62）—— 热力图单独占**一整行**（1160）。
               放进 570 的一栏时，那张「53 周 × 14px ≈ 742px」的年度网格只有前 514px 可见，
               而**最近的活动全在最右端**（今天在最后一列）—— 用户看到的就是一整片
-              空白灰格子，第一反应是「这页是假数据吧」。整行放得下，12 个月标签也齐。 */}
+              空白灰格子，第一反应是「这页是假数据吧」。整行放得下，12 个月标签也齐。
+              整行块的 `margin-top:var(--s3)` 抄画板 45 §按项目 的整行 `.pw-cell`。 */}
           {hasActivity && (
-            <section className="settings-general-section">
-              <div className="pw-cell">
-                <h4>
-                  <span className="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>
-                  {t("usage.heatmap")}
-                </h4>
-                <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
-                  <ConfigButton
-                    variant={metric === "sessions" ? "primary" : "ghost"}
-                    size="small"
-                    aria-pressed={metric === "sessions"}
-                    onClick={() => setMetric("sessions")}
-                  >
-                    {t("usage.metricSessions")}
-                  </ConfigButton>
-                  <ConfigButton
-                    variant={metric === "tokens" ? "primary" : "ghost"}
-                    size="small"
-                    aria-pressed={metric === "tokens"}
-                    onClick={() => setMetric("tokens")}
-                  >
-                    {t("usage.metricTokens")}
-                  </ConfigButton>
-                  <span className="pw-grow" />
-                </div>
-                <UsageHeatmap
-                  days={heatmapDays}
-                  metric={metric}
-                  label={t("usage.heatmap")}
-                  lessLabel={t("usage.less")}
-                  moreLabel={t("usage.more")}
-                />
+            <div className="pw-cell" style={{ marginTop: "var(--s3)" }}>
+              <h4>
+                <span className="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>
+                {t("usage.heatmap")}
+              </h4>
+              <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
+                <ConfigButton
+                  variant={metric === "sessions" ? "primary" : "ghost"}
+                  size="small"
+                  aria-pressed={metric === "sessions"}
+                  onClick={() => setMetric("sessions")}
+                >
+                  {t("usage.metricSessions")}
+                </ConfigButton>
+                <ConfigButton
+                  variant={metric === "tokens" ? "primary" : "ghost"}
+                  size="small"
+                  aria-pressed={metric === "tokens"}
+                  onClick={() => setMetric("tokens")}
+                >
+                  {t("usage.metricTokens")}
+                </ConfigButton>
+                <span className="pw-grow" />
               </div>
-            </section>
+              <UsageHeatmap
+                days={heatmapDays}
+                metric={metric}
+                label={t("usage.heatmap")}
+                lessLabel={t("usage.less")}
+                moreLabel={t("usage.more")}
+              />
+            </div>
           )}
 
           {hasActivity && (
-          <div className="pw-grid2">
+          <div className="pw-grid2" style={{ marginTop: "var(--s3)" }}>
           <div>
-              <section className="settings-general-section">
-                <div className="pw-cell">
-                  <h4>
-                    <span className="pw-ico"><i data-ico="chart-column" data-size="14"></i></span>
-                    {t("usage.dailyTokens")}
-                  </h4>
-                  <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
-                </div>
-              </section>
+              <div className="pw-cell">
+                <h4>
+                  <span className="pw-ico"><i data-ico="chart-column" data-size="14"></i></span>
+                  {t("usage.dailyTokens")}
+                </h4>
+                <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
+              </div>
           </div>
 
           <div>
               {projects.length > 0 && (
-                <section className="settings-general-section">
-                  <div className="pw-cell">
-                    <h4>
-                      <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
-                      {t("usage.byProject")}
-                    </h4>
-                    <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
-                      {projects.slice(0, 8).map((project) => (
-                        <UsageListRow
-                          key={project.project || "unknown"}
-                          title={projectName(project.project)}
-                          meta={`${t("usage.sessionsCount", { count: project.sessions })} · ${t("usage.requests", { count: project.messages })} · ${formatCost(project.cost, locale)}`}
-                          trailing={`${formatCompact(project.tokens, locale)} tok`}
-                        />
-                      ))}
-                    </div>
-                    {projects.length > 8 && (
-                      <p className="pw-muted" style={{ marginTop: "var(--s2)" }}>{t("usage.moreProjects", { count: projects.length - 8 })}</p>
-                    )}
+                <div className="pw-cell">
+                  <h4>
+                    <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+                    {t("usage.byProject")}
+                  </h4>
+                  <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                    {projects.slice(0, 8).map((project) => (
+                      <UsageListRow
+                        key={project.project || "unknown"}
+                        title={projectName(project.project)}
+                        meta={`${t("usage.sessionsCount", { count: project.sessions })} · ${t("usage.requests", { count: project.messages })} · ${formatCost(project.cost, locale)}`}
+                        trailing={`${formatCompact(project.tokens, locale)} tok`}
+                      />
+                    ))}
                   </div>
-                </section>
+                  {projects.length > 8 && (
+                    <p className="pw-hint">{t("usage.moreProjects", { count: projects.length - 8 })}</p>
+                  )}
+                </div>
               )}
           </div>
           </div>

@@ -90,8 +90,11 @@ test("all subpanel sidebars share one typography scale", () => {
   assert.match(templateSource, /export function ConfigSidebarSub[\s\S]*?"pw-lsub"/);
   assert.match(boardSource, /\.pw-litem \.pw-lname \{[\s\S]*?text-overflow: ellipsis/);
   assert.match(boardSource, /\.pw-litem \.pw-lsub \{[\s\S]*?color: var\(--n-placeholder\)/);
+  // fork:settings-frame（画板 62）—— 技能列表行照 62 帧 B 直接发 `.pw-litem` 的
+  // pw-lname/pw-lsub（不经过 ConfigSidebarText 包装）；其余分节仍走共享基件。
+  // 两种发射都归 board.css 的同一套 `.pw-litem` 字号，守卫改按「谁在发」断言。
   for (const source of Object.values(sources)) {
-    assert.match(source, /<ConfigSidebarText/);
+    assert.match(source, /<ConfigSidebarText|className=\{`pw-lname/);
   }
   for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigSidebarGroupLabel/);
@@ -161,9 +164,12 @@ test("detail header actions keep buttons and switches aligned to the right", () 
   assert.match(templateSource, /export function ConfigDetailHeader[\s\S]*?"pw-inline", className/);
   assert.match(templateSource, /export function ConfigDetailHeaderInfo[\s\S]*?"pw-inline", "pw-grow"/);
   assert.match(templateSource, /export function ConfigDetailActions[\s\S]*?"pw-inline", className/);
-  for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
+  for (const name of ["AgentsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigDetailActions>/);
   }
+  // fork:settings-frame（画板 62 帧 B）—— 技能详情头照帧直接用 `.pw-inline`
+  // （pw-grow 把动作推到右端），不经过 ConfigDetailActions 基件。
+  assert.match(sources.SkillsConfig, /className="pw-inline">[\s\S]{0,400}pw-grow/);
   assert.match(sources.PluginsConfig, /<ConfigDetailActions>[\s\S]*?<ConfigSwitch[\s\S]*?<\/ConfigDetailActions>/);
 });
 
@@ -282,6 +288,10 @@ test("skills, agents, and plugins share enabled and disabled controls", () => {
   const sources = Object.fromEntries(configSources);
   for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigSwitch/);
+  }
+  // 状态点只属于子代理 / 插件的列表行（画板 42/43 的行 anatomy）；技能行尾是
+  // 「可更新」warn 徽标或 pw-switch 快捷开关（62 帧 B），不再有状态点。
+  for (const name of ["AgentsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigStatusDot/);
   }
 });

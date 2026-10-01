@@ -8,16 +8,23 @@ const cssSource = await readFile(new URL("../app/settings.css", import.meta.url)
 const chatInputSource = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
 const modelSelectorSource = await readFile(new URL("./ModelSelector.tsx", import.meta.url), "utf8");
 
-test("keeps same-name profiles selectable by scope and groups writable sources first", () => {
+test("keeps same-name profiles selectable by scope and leads the list with the built-in group", () => {
   assert.match(source, /return `\$\{profile\.scope\}:\$\{profile\.name\}`/);
-  assert.match(source, /\["project", "global", "workspace", "builtin"\] as const/);
+  // fork:settings-frame（画板 62 落位表）—— 「内置」组提到列表首位（组顶部挂紧凑
+  // 设置行），自定义组（项目 / 全局 / 工作区）随后。
+  assert.match(source, /<ConfigSidebarGroupLabel>\{t\("agents\.scope\.builtin"\)\}<\/ConfigSidebarGroupLabel>/);
+  assert.match(source, /\["project", "global", "workspace"\] as const/);
   assert.match(source, /profile\.scope === scope/);
 });
 
 test("uses the shared enabled status treatment", () => {
   assert.match(source, /<ConfigStatusDot active=\{profile\.enabled\}/);
-  assert.match(source, /className=\{profile\.enabled \? "" : " is-muted"\}/);
-  assert.match(cssSource, /\.config-sidebar-text\.is-muted \{[\s\S]*?color: var\(--text-dim\)/);
+  // 画板 42 的停用行只弱化行首图标（pw-dim）与状态点，名字保持正文色 ——
+  // settings.css 的 config-sidebar-text.is-muted 族已退役，不再挂死类。
+  assert.match(source, /className=\{`pw-ico\$\{profile\.enabled \? "" : " pw-dim"\}`\}/);
+  assert.doesNotMatch(source, /is-muted/);
+  // settings.css 里只允许退役说明注释提到这个族，不允许再出现活的选择器。
+  assert.doesNotMatch(cssSource, /(^|[,{])\s*\.config-sidebar-text/m);
 });
 
 test("offers a persisted built-in sub-agent switch with explicit session reload", () => {
@@ -26,11 +33,14 @@ test("offers a persisted built-in sub-agent switch with explicit session reload"
   assert.match(source, /<ConfigSwitch[\s\S]*?checked=\{builtInEnabled\}[\s\S]*?t\("agents\.builtInTitle"\)/);
   assert.match(source, /sendAgentCommand\(sessionId, \{ type: "reload" \}\)/);
   assert.match(source, /reloadNeeded && sessionId/);
-  // fork:design-system —— 画板 42 的「内置子代理」块：`pw-block` 卡 + `pw-field`
-  // 行（开关与并发各一行），不再是自绘的横条。
-  assert.match(source, /className="pw-block"[\s\S]*?t\("agents\.maxConcurrent"\)/);
-  assert.match(source, /aria-label=\{t\("agents\.maxConcurrent"\)\}/);
-  // 重载提示是画板的警示徽章（空标签 + 右侧控件），旧的横条 CSS 已退役。
+  // fork:settings-frame（画板 62 落位表）—— 开关 + 并发上限收成「内置」组顶部的
+  // 一条紧凑设置行（pw-field，行 anatomy 照画板 42：标签 + small 说明在左、
+  // pw-ctl 控件在右），不再是独立卡片。
+  assert.match(source, /<ConfigField label=\{t\("agents\.builtInTitle"\)\} hint=\{t\("agents\.builtInDescription"\)\}>/);
+  assert.match(source, /<ConfigControl>\s*<ConfigSwitch\s+checked=\{builtInEnabled\}/);
+  assert.match(source, /checked=\{builtInEnabled\}[\s\S]{0,600}?aria-label=\{t\("agents\.maxConcurrent"\)\}/);
+  // 独立卡片形态（pw-block）已删除；重载提示是画板的警示徽章（空标签 + 右侧控件）。
+  assert.doesNotMatch(source, /className="pw-block"/);
   assert.match(source, /<ConfigBadge tone="warn">[\s\S]*?t\("agents\.reloadRequired"\)/);
   assert.doesNotMatch(cssSource, /\.agents-feature-setting|\.agents-concurrency-control/);
 });
@@ -65,6 +75,24 @@ test("fork:settings-frame — 新建入口在页头（画板 62），搜索在�
 test("fix:agents-layout — 列表行是「图标 + 名字 + 一句说明」两段", () => {
   assert.match(source, /<i data-ico="bot" data-size="14" aria-hidden="true" \/>/);
   assert.match(source, /<ConfigSidebarSub>\{profile\.description \|\| profile\.name\}<\/ConfigSidebarSub>/);
+});
+
+test("fork:settings-frame（画板 62 落位表）— 详情字段是 pw-field 行，系统指令整行宽直下", () => {
+  // 字段一律「标签左 / 控件右」的 pw-field 行：子代理 ID / 显示名称 / 指定模型 / 描述。
+  assert.match(source, /<ConfigField label=\{t\("agents\.name"\)\}>/);
+  assert.match(source, /<ConfigField label=\{t\("agents\.displayName"\)\}>/);
+  assert.match(source, /<ConfigField label=\{t\("agents\.model"\)\}>/);
+  assert.match(source, /<ConfigField label=\{t\("agents\.description"\)\}>/);
+  // 原 .pw-grid2 两栏网格（标签在控件上方）与它的 gridFieldStyle inline 退役。
+  assert.doesNotMatch(source, /pw-grid2|gridFieldStyle/);
+  // 系统指令是整行宽控件：pw-sec-title + pw-textarea 直接挂在详情栈下，不塞进字段行。
+  assert.match(source, /<ConfigSectionTitle>\{t\("agents\.prompt"\)\}<\/ConfigSectionTitle>[\s\S]{0,400}?<textarea\s+className="pw-textarea agents-system-prompt"/);
+  assert.doesNotMatch(source, /<ConfigField[^>]*>[\s\S]{0,300}?agents-system-prompt/);
+  // 详情未选照 62 帧 D：40px 方框图标（.mark）+ 一句引导，居中。
+  assert.match(source, /<span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" \/><\/span>/);
+  // 「工具与资源」照画板 42 合并为一个芯片区：工具芯片 + 加载技能 / 加载扩展入口芯片。
+  assert.match(source, /TOOL_OPTIONS\.map\(\(tool\) => \([\s\S]{0,700}?<ToolChip selected=\{draft\.loadSkills\}/);
+  assert.doesNotMatch(source, /t\("agents\.resources"\)/);
 });
 
 test("sends the selected scope for saves and the source scope for deletes", () => {

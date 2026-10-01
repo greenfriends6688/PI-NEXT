@@ -309,10 +309,6 @@ function Select({ value, onChange, options, required, ariaLabel }: { value: stri
   return <PwSelectBox value={value} options={choices} ariaLabel={ariaLabel} onChange={onChange} />;
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <ConfigSectionTitle>{children}</ConfigSectionTitle>;
-}
-
 // ── Provider 图标模式（D2-PR-20）─────────────────────────────────────────────
 
 const ICON_MODE_LABEL_KEYS: Record<ProviderIconMode, string> = {
@@ -2424,6 +2420,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   const visibleOAuth = activeOAuth.filter((p) => nameMatches(p.name, p.id));
   const visibleApiKey = activeApiKey.filter((p) => nameMatches(p.displayName, p.id));
   const visibleProviders = providers.filter(([providerId, entry]) => nameMatches(providerId, entry.baseUrl));
+  /* fork:settings-frame（画板 62 帧 D）—— 列表列要区分「加载中 / 空 / 有行」三态，
+     空态（过滤无结果或一个供应商都没有）不再静默留白。 */
+  const hasVisibleRows = visibleOAuth.length + visibleApiKey.length + visibleProviders.length > 0;
 
   // Resolve current detail
   const detailContent = (() => {
@@ -2476,10 +2475,12 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     <>
     <ConfigPanelShell embedded={embedded} title={t("common.models")} subtitle="~/.pi/agent/models.json" closeLabel={t("i18n.close")} onClose={onClose}>
       {/* fork:settings-frame（画板 62）—— 模型页的三件套。
-          「保存」原来在页面页脚（`.pw-modal-foot`），面板 `overflow:hidden` 时它贴在
-          视口右下角，**和它保存的表单完全脱开**（未选中任何供应商时右列整片空白，
-          保存按钮还孤零零挂在右下角）。现在它是页级动作，跟「添加供应商」一起
-          固定在页头右端 —— 始终可见，且明确是「保存整份 models.json」。 */}
+          「保存」的位置按**画板 41 的 DOM**（模型页专属画板）裁定：那一帧的
+          `.pw-shead-acts` 里就是「添加供应商 outline + 保存 primary」两个页级动作。
+          62 落位表虽写「表单级→连接块底部」，但本页的保存对象是**整份 models.json**
+          （列表列、详情卡、连接表单都在改），不是连接表单自己的表单级动作 ——
+          41 的明确形态优先，且页头动作始终可见，不会像旧版那样浮在视口右下角、
+          与它保存的表单完全脱开（未选中供应商时右列整片空白，按钮还孤零零挂着）。 */}
       <SettingsPage
         title={t("common.models")}
         sub={t("models.pageSub")}
@@ -2535,6 +2536,21 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               列表列只留列表本身） */}
           <ConfigSidebar>
             <ConfigSidebarList>
+              {loading ? (
+                <p className="pw-hint">{t("i18n.loading")}</p>
+              ) : !hasVisibleRows ? (
+                /* fork:settings-frame（画板 62 帧 D）—— 「列表空」落在**列表列内**：
+                   方框图标 + 一句，不折行；过滤无结果与「一个供应商都没有」都不再
+                   静默留白。「先加供应商」的入口常驻页头右端（画板 41 的页级动作），
+                   空态本体只负责点名现状：有过滤词是选择器同款「没有匹配的
+                   Provider」；空库用 models.listEmpty + listEmptyHint 第二句。 */
+                <ConfigEmptyState>
+                  <span className="mark"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
+                  <p>{needle ? t("i18n.noProviders") : t("models.listEmpty")}</p>
+                  {!needle && <p className="pw-hint">{t("models.listEmptyHint")}</p>}
+                </ConfigEmptyState>
+              ) : (
+                <>
               {managedProviders.length > 0 && (
                 <ConfigSidebarGroupLabel>{t("models.groupSubscription")}</ConfigSidebarGroupLabel>
               )}
@@ -2586,9 +2602,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               {visibleProviders.length > 0 && (
                 <ConfigSidebarGroupLabel>{t("models.groupCustom")}</ConfigSidebarGroupLabel>
               )}
-              {loading ? (
-                <p className="pw-hint">{t("i18n.loading")}</p>
-              ) : visibleProviders.map(([pName, pData]) => {
+              {visibleProviders.map(([pName, pData]) => {
                 const isProviderSelected = selection?.type === "provider" && selection.name === pName;
                 const models = pData.models ?? [];
                 /* Fragment 让 provider 行 / 模型行 / 添加行都是 `.pw-list` 的直接
@@ -2683,6 +2697,8 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                   </Fragment>
                 );
               })}
+                </>
+              )}
             </ConfigSidebarList>
 
           </ConfigSidebar>
@@ -2691,7 +2707,13 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               不再套一张撑满高度的巨卡 —— 那是「弹窗影子」的来源。 */}
           <ConfigDetailStack>
             {loading ? null : detailContent ?? (
-              <ConfigEmptyState>{t("i18n.selectProviderModel")}</ConfigEmptyState>
+              /* fork:settings-frame（画板 62 帧 D）—— 「详情未选」：40px 方框图标
+                 （square-mouse-pointer）+ 一句引导，居中。替换旧版那句孤悬在详情列
+                 宽度正中的裸文本「选择 Provider 或模型」。 */
+              <ConfigEmptyState>
+                <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                <p>{t("models.detailEmpty")}</p>
+              </ConfigEmptyState>
             )}
           </ConfigDetailStack>
         </ConfigSplitView>

@@ -178,9 +178,53 @@ test("the models page is a page frame plus a two-column split, not one giant car
   const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
   assert.match(modelsConfig, /<SettingsPage[\s\S]*?sub=\{t\("models\.pageSub"\)\}/);
   assert.match(modelsConfig, /<ConfigSplitView>/);
+  // 骨架 B（画板 62）：内容区拿 is-fixed，不滚，两列各自滚。
+  assert.match(modelsConfig, /\bfill\s*>/);
   // 右列是 `ConfigDetailStack`（一列独立的卡），不再包一层撑满高度的 `ConfigDetail`。
   assert.doesNotMatch(modelsConfig, /<ConfigDetail>\s*<ConfigDetailStack/);
   assert.match(cssSource, /\.config-panel-surface > \.pw-scontent \{\s*flex: 1;/);
+});
+
+// fork:settings-frame（画板 62 帧 D）—— 模型页用到的两个空态各有落点：
+// 「列表空」在列表列内（方框图标 + 一句，不折行），「详情未选」在详情列居中
+// （square-mouse-pointer 方框 + 一句引导），不再是一句孤悬的裸文本。
+test("empty states land in their own columns per board 62 frame D", () => {
+  const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
+
+  const listColumn = modelsConfig.slice(
+    modelsConfig.indexOf("<ConfigSidebar>"),
+    modelsConfig.indexOf("</ConfigSidebar>"),
+  );
+  // 列表列先分「加载中 / 空 / 有行」三态；空态是 ConfigEmptyState（pw-empty）。
+  assert.match(listColumn, /loading \? \(/);
+  assert.match(listColumn, /!hasVisibleRows \? \(/);
+  assert.match(listColumn, /className="mark"><i data-ico="server" data-size="16" aria-hidden="true" \/>/);
+  // 有过滤词沿用选择器的「没有匹配的 Provider」；空库用 models.listEmpty + 第二句
+  // listEmptyHint（帧 D 的「一句 + 一句说明」，键已补进三语包）。
+  assert.match(listColumn, /needle \? t\("i18n\.noProviders"\) : t\("models\.listEmpty"\)/);
+  assert.match(listColumn, /!needle && <p className="pw-hint">\{t\("models\.listEmptyHint"\)\}<\/p>/);
+
+  const detailColumn = modelsConfig.slice(
+    modelsConfig.indexOf("<ConfigDetailStack>"),
+    modelsConfig.indexOf("</ConfigDetailStack>"),
+  );
+  assert.match(detailColumn, /className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" \/>/);
+  assert.match(detailColumn, /<p>\{t\("models\.detailEmpty"\)\}<\/p>/);
+});
+
+// fork:settings-frame（画板 62 帧 D「动作层级」）—— 页级动作只有页头右端两个
+// （添加供应商 outline + 保存 primary）。保存的位置按**画板 41 的 DOM** 裁定
+// （那一帧的 .pw-shead-acts 就是这两个动作；62 落位表「表单级→连接块底部」被
+// 41 的明确形态覆盖，理由见 ModelsConfig.tsx 的注释），页脚与视口右下角不再有动作。
+test("page-level actions stay in the page header per board 41, and the footer has none", () => {
+  const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
+  const actionsBlock = modelsConfig.slice(
+    modelsConfig.indexOf("actions={"),
+    modelsConfig.indexOf("toolbar="),
+  );
+  assert.match(actionsBlock, /variant="secondary"[\s\S]*?t\("models\.addProvider"\)/);
+  assert.match(actionsBlock, /variant="primary"[\s\S]*?onClick=\{handleSave\}/);
+  assert.doesNotMatch(modelsConfig, /<ConfigFooter/);
 });
 
 test("thinking level overrides keep explicit default, disabled, and custom controls", () => {

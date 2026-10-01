@@ -86,8 +86,34 @@ test("the run history is a pw-detail of pw-prow rows, not an inline <details>", 
   assert.doesNotMatch(source, /RUN_STATUS_COLOR/);
 });
 
+test("the page head carries the description sub and the count badge lives in the toolbar", () => {
+  // fork:settings-frame（画板 62 落位表）—— sub 写「这页是干嘛的」，不写数据；
+  // 任务计数进工具栏的等宽徽章。
+  assert.match(source, /sub=\{t\("cron\.pageSub"\)\}/);
+  assert.match(source, /toolbar=\{[\s\S]*?<ConfigBadge tone="count">\{t\("cron\.count"/);
+});
+
+test("「新建任务」is a page-level action in the page head that brings you to the form", () => {
+  // 62 落位表：页级动作「新建任务」进页头右端。表单常驻右列，动作滚到并聚焦它。
+  assert.match(source, /actions=\{\s*\n\s*<ConfigButton variant="primary" size="small" onClick=\{focusNewTaskForm\}>/);
+  assert.match(source, /data-ico="plus"/);
+  assert.match(source, /const focusNewTaskForm = \(\) => \{/);
+  assert.match(source, /ref=\{newNameRef\}/);
+});
+
+test("the create form is a two-column grid of board cells without inline width literals", () => {
+  // 62 落位表「16 行表单跨度 500 → 570 内两列」：短字段两两成格
+  // （画板 42 编辑器网格 / 画板 44 频率三格的同一单元格），长控件通栏。
+  assert.match(source, /const gridFieldStyle: CSSProperties = \{/);
+  assert.match(source, /className="pw-grid2"/);
+  assert.match(source, /className="pw-grid3"/);
+  // 死宽度字面量清零：控件在格子里占满（宽度交给网格，不写数字）。
+  assert.doesNotMatch(source, /width: (?:70|80|130|140|160)\b/);
+  assert.match(source, /style=\{\{ width: "100%", minWidth: 0 \}\}/);
+});
+
 test("the create form rows are pw-field / pw-selectbox / pw-radio primitives", () => {
-  assert.match(source, /<ConfigField label=\{t\("cron\.name"\)\}>/);
+  assert.match(source, /<ConfigField label=\{t\("cron\.name"\)\} style=\{gridFieldStyle\}>/);
   assert.match(source, /className="pw-input pw-mono"/);
   assert.match(source, /className="pw-textarea"/);
   assert.match(source, /options=\{modelOptions\}/);
@@ -97,7 +123,8 @@ test("the create form rows are pw-field / pw-selectbox / pw-radio primitives", (
 });
 
 test("empty, loading and error states use the board's empty / alert primitives", () => {
-  assert.match(source, /<ConfigEmptyState>\s*\n\s*<p>\{t\("cron\.empty"\)\}<\/p>/);
+  // fork:settings-frame（画板 62 帧 D）—— 列表空态带 32px 记号图标，居中。
+  assert.match(source, /<ConfigEmptyState>\s*\n\s*<span className="mark"><i data-ico="clock" data-size="16" aria-hidden="true" \/><\/span>\s*\n\s*<p>\{t\("cron\.empty"\)\}<\/p>/);
   assert.match(source, /<div className="pw-alert" role="alert">/);
   assert.match(source, /data-ico="triangle-alert"/);
 });

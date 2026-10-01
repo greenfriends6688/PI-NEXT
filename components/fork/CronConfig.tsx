@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import {
   ConfigBadge,
@@ -151,6 +151,16 @@ const RUN_STATUS_KEY: Record<string, string> = {
 
 /** 画板 44 的任务列表行：上次状态对应 `.pw-badge` 的哪一档色。 */
 const LAST_STATUS_BADGE: Record<string, string> = { error: "bad", ok: "ok", running: "accent" };
+
+/** 画板 42 编辑器网格（`.pw-grid2`）/ 画板 44 频率三格（`.pw-grid3`）单元格的自带
+ *  inline：去掉 `.pw-field` 的行高与相邻发丝线，标签改到控件上方。逐字照抄画板，
+ *  不是产品自创样式（与 AgentsConfig 的 gridFieldStyle 同一份规格）。 */
+const gridFieldStyle: CSSProperties = {
+  border: 0,
+  minHeight: 0,
+  display: "grid",
+  gap: "var(--s1)",
+};
 
 /**
  * fork:zc-14 — one task's run history: newest first, 8 rows per page, with the
@@ -538,20 +548,22 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
     return `${task.schedule.date ?? ""} ${task.schedule.times.join(", ")}${zone}${window}${end}`;
   };
 
-  /* fork:design-system —— 画板 44 的频率字段组：`input.pw-input` + 单位文字，
-     与画板 `.pw-field > .pw-ctl` 同一形态。 */
-  const intervalInput = (unit: string) => (
-    <PwCtl>
+  /* fork:design-system —— 画板 62 落位「16 行表单跨度 500 → 570 内两列」：
+     新建表单的短字段两两成格，格子是画板 42 编辑器网格 / 画板 44 频率三格的
+     同一形态（单元格自带 inline：去掉 `.pw-field` 的行高与相邻发丝线，标签改到
+     控件上方）。逐字照抄画板，不是产品自创样式；字段行的「标签—控件」跨度
+     因此从整卡收进 570 栏内。 */
+  const intervalField = (unit: string): ReactNode => (
+    <ConfigField label={t("cron.interval")} hint={unit} style={gridFieldStyle}>
       <input
         className="pw-input"
         inputMode="numeric"
         value={intervalValue}
         aria-label={t("cron.interval")}
         onChange={(event) => setIntervalValue(event.target.value.replace(/[^0-9]/g, ""))}
-        style={{ minWidth: 0, width: 70, fontVariantNumeric: "tabular-nums" }}
+        style={{ width: "100%", minWidth: 0, fontVariantNumeric: "tabular-nums" }}
       />
-      <span className="pw-desc">{unit}</span>
-    </PwCtl>
+    </ConfigField>
   );
 
   const modelOptions = useMemo(
@@ -565,6 +577,45 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
     [defaultModelLabel, models, t],
   );
 
+  /* 频率补充格共用的三枚字段（time / date / endDate）——「标签在上、控件占满格」，
+     与画板 44 频率三格同形；结束日期跟随当前频率收进同一行。 */
+  const timeField: ReactNode = (
+    <ConfigField label={t("cron.atTime")} style={gridFieldStyle}>
+      <input
+        className="pw-input"
+        type="time"
+        value={time}
+        aria-label={t("cron.atTime")}
+        onChange={(event) => setTime(event.target.value)}
+        style={{ width: "100%", minWidth: 0 }}
+      />
+    </ConfigField>
+  );
+  const dateField: ReactNode = (
+    <ConfigField label={t("cron.date")} style={gridFieldStyle}>
+      <input
+        className="pw-input"
+        type="date"
+        value={date}
+        aria-label={t("cron.date")}
+        onChange={(event) => setDate(event.target.value)}
+        style={{ width: "100%", minWidth: 0 }}
+      />
+    </ConfigField>
+  );
+  const endDateField: ReactNode = (
+    <ConfigField label={t("cron.endDate")} style={gridFieldStyle}>
+      <input
+        className="pw-input"
+        type="date"
+        value={endDate}
+        aria-label={t("cron.endDate")}
+        onChange={(event) => setEndDate(event.target.value)}
+        style={{ width: "100%", minWidth: 0 }}
+      />
+    </ConfigField>
+  );
+
   /* fork:disabled-reasons —— 「创建任务」不可点时的那句话（可点时为 null，title 不出）。 */
   const createDisabledReason = (!prompt.trim() || !taskCwd.trim())
     ? localCopy(CREATE_NEEDS_FIELDS, locale)
@@ -572,14 +623,30 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
       ? localCopy(CREATE_NEEDS_RULE, locale)
       : null;
 
+  // fork:settings-frame（画板 62）—— 页级动作「新建任务」在页头右端。表单常驻右列，
+  // 这个动作做的是「带你去表单」：把右列滚到表单并聚焦名称框，不另开状态。
+  const newNameRef = useRef<HTMLInputElement | null>(null);
+  const focusNewTaskForm = () => {
+    newNameRef.current?.scrollIntoView({ block: "center" });
+    newNameRef.current?.focus();
+  };
+
   return (
     <>
-      {/* fork:settings-frame（画板 62）—— 定时任务页的三件套。
-          页头原来只有 h2、**没有 sub**（左列那个「任务列表」是小节标题，不是页头说明），
-          用户进来看不到「这页是干嘛的」；计数也散在列里。现在说明与计数归位。 */}
+      {/* fork:settings-frame（画板 62）—— 定时任务页的三件套：
+          页头 = 标题 + 一句说明（cron.pageSub，说明页是干嘛的、不写数据）
+                 + 页级动作「新建任务」（落位表：最多 2 个页级动作，1 主 1 次）；
+          工具栏 = 任务计数徽章（数据不进 sub）；
+          内容区 is-fixed：本页是纯「列表 + 详情」，两列各自滚。 */}
       <SettingsPage
         title={t("cron.title")}
         sub={t("cron.pageSub")}
+        actions={
+          <ConfigButton variant="primary" size="small" onClick={focusNewTaskForm}>
+            <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+            {t("cron.newTask")}
+          </ConfigButton>
+        }
         toolbar={
           <>
             <span className="pw-grow" aria-hidden="true" />
@@ -603,7 +670,10 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
           <ConfigSectionTitle>{t("cron.tasks")}</ConfigSectionTitle>
           {loading && <p className="pw-hint">{t("cron.loading")}</p>}
           {!loading && tasks.length === 0 && (
+            /* fork:settings-frame（画板 62 帧 D）—— 列表空态落在列表列内：
+               32px 记号图标 + 一句，居中；不再是一行飘字。 */
             <ConfigEmptyState>
+              <span className="mark"><i data-ico="clock" data-size="16" aria-hidden="true" /></span>
               <p>{t("cron.empty")}</p>
             </ConfigEmptyState>
           )}
@@ -678,25 +748,42 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
           </ConfigSidebarList>
         </div>
 
-        {/* 右列：画板 44 的「新建任务」`.pw-detail` —— 标签在左、控件在右的
-            `.pw-field` 行，频率用 `.pw-radio`，下拉用 `.pw-selectbox`。 */}
+        {/* 右列：画板 44 的「新建任务」`.pw-detail`。62 落位表「16 行表单跨度 500 →
+            570 内两列」：短字段两两成格（gridFieldStyle 单元格 —— 画板 42 编辑器网格 /
+            画板 44 频率三格的同一形态，标签改到控件上方），长控件（提示词 / 频率芯片 /
+            示例）通栏；下拉用 `.pw-selectbox`，频率用 `.pw-radio`。
+            表单级动作（创建任务）在表单块底部右对齐（62 帧 D 动作第 ④ 级）。 */}
         <ConfigDetail>
           <ConfigDetailHeader>
             <ConfigDetailTitle>{t("cron.newTask")}</ConfigDetailTitle>
           </ConfigDetailHeader>
 
-          <ConfigField label={t("cron.name")}>
-            <PwCtl>
+          <div className="pw-grid2">
+            <ConfigField label={t("cron.name")} style={gridFieldStyle}>
               <input
+                ref={newNameRef}
                 className="pw-input"
                 value={name}
                 maxLength={120}
+                aria-label={t("cron.name")}
                 onChange={(event) => setName(event.target.value)}
                 placeholder={t("cron.namePlaceholder")}
-                style={{ minWidth: 0, flex: 1 }}
+                style={{ width: "100%", minWidth: 0 }}
               />
-            </PwCtl>
-          </ConfigField>
+            </ConfigField>
+            <ConfigField label={t("cron.maxRuns")} style={gridFieldStyle}>
+              <input
+                className="pw-input"
+                inputMode="numeric"
+                value={maxRuns}
+                aria-label={t("cron.maxRuns")}
+                onChange={(event) => setMaxRuns(event.target.value.replace(/[^0-9]/g, ""))}
+                placeholder={t("cron.maxRunsPlaceholder")}
+                title={t("cron.maxRunsHint")}
+                style={{ width: "100%", minWidth: 0, fontVariantNumeric: "tabular-nums" }}
+              />
+            </ConfigField>
+          </div>
 
           <ConfigSectionTitle>{t("cron.prompt")}</ConfigSectionTitle>
           <textarea
@@ -708,27 +795,51 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
             placeholder={t("cron.promptPlaceholder")}
           />
 
-          <ConfigField label={t("cron.cwd")}>
-            <PwCtl>
+          <div className="pw-grid2">
+            <ConfigField label={t("cron.cwd")} style={gridFieldStyle}>
               <input
                 className="pw-input pw-mono"
                 value={taskCwd}
                 aria-label={t("cron.cwd")}
                 onChange={(event) => setTaskCwd(event.target.value)}
                 placeholder={t("cron.cwdPlaceholder")}
-                style={{ minWidth: 0, flex: 1 }}
+                style={{ width: "100%", minWidth: 0 }}
               />
-            </PwCtl>
-          </ConfigField>
+            </ConfigField>
+            <ConfigField label={t("cron.model")} style={gridFieldStyle}>
+              <PwSelectBox
+                value={modelKey}
+                options={modelOptions}
+                ariaLabel={t("cron.model")}
+                onChange={setModelKey}
+              />
+            </ConfigField>
+            <ConfigField label={t("cron.thinking")} style={gridFieldStyle}>
+              <PwSelectBox
+                value={thinking}
+                ariaLabel={t("cron.thinking")}
+                options={[
+                  { value: "", label: t("cron.default") },
+                  ...THINKING_LEVELS.map((level) => ({ value: level, label: THINKING_LABELS[level] })),
+                ]}
+                onChange={setThinking}
+              />
+            </ConfigField>
+            <ConfigField label={t("cron.notify")} style={gridFieldStyle}>
+              <PwSelectBox
+                value={notify}
+                ariaLabel={t("cron.notify")}
+                options={[
+                  { value: "error", label: t("cron.notifyError") },
+                  { value: "success", label: t("cron.notifySuccess") },
+                  { value: "always", label: t("cron.notifyAlways") },
+                  { value: "never", label: t("cron.notifyNever") },
+                ]}
+                onChange={(next) => setNotify(next as "never" | "always" | "success" | "error")}
+              />
+            </ConfigField>
+          </div>
 
-          <ConfigField label={t("cron.model")}>
-            <PwSelectBox
-              value={modelKey}
-              options={modelOptions}
-              ariaLabel={t("cron.model")}
-              onChange={setModelKey}
-            />
-          </ConfigField>
           {/* fork:disabled-reasons —— 200 + 空列表：`modelsError` 不触发，于是下拉
               只剩「默认」却没有任何说法。与 AgentsConfig / SettingsPanel 同一句。 */}
           {modelsLoaded && models.length === 0 && !modelsError && (
@@ -737,35 +848,17 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
               <span className="pw-grow">{localCopy(NO_MODEL_PROVIDERS_HINT, locale)}</span>
             </div>
           )}
+          {modelsError && (
+            <div className="pw-alert" role="status">
+              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
+              {/* fork:disabled-reasons —— `grow` 在 `.pw-alert` 里没有规则（board.css
+                  只在 `.pw-*` 作用域里定义它），真正生效的是全局工具类 `.pw-grow`；
+                  两条模型提示并排出现，改成同一个类才不会一条换行一条不换行。 */}
+              <span className="pw-grow">{t("cron.modelListError", { error: modelsError })}</span>
+            </div>
+          )}
 
-          <ConfigField label={t("cron.thinking")}>
-            <PwSelectBox
-              value={thinking}
-              ariaLabel={t("cron.thinking")}
-              options={[
-                { value: "", label: t("cron.default") },
-                ...THINKING_LEVELS.map((level) => ({ value: level, label: THINKING_LABELS[level] })),
-              ]}
-              onChange={setThinking}
-            />
-          </ConfigField>
-
-          <ConfigField label={t("cron.maxRuns")}>
-            <PwCtl>
-              <input
-                className="pw-input"
-                inputMode="numeric"
-                value={maxRuns}
-                aria-label={t("cron.maxRuns")}
-                onChange={(event) => setMaxRuns(event.target.value.replace(/[^0-9]/g, ""))}
-                placeholder={t("cron.maxRunsPlaceholder")}
-                title={t("cron.maxRunsHint")}
-                style={{ minWidth: 0, flex: 1, fontVariantNumeric: "tabular-nums" }}
-              />
-            </PwCtl>
-          </ConfigField>
-
-          <ConfigField label={t("cron.sessionMode")}>
+          <ConfigField label={t("cron.sessionMode")} style={gridFieldStyle}>
             <PwRadio
               value={sessionMode}
               ariaLabel={t("cron.sessionMode")}
@@ -777,30 +870,6 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
               onChange={setSessionMode}
             />
           </ConfigField>
-
-          <ConfigField label={t("cron.notify")}>
-            <PwSelectBox
-              value={notify}
-              ariaLabel={t("cron.notify")}
-              options={[
-                { value: "error", label: t("cron.notifyError") },
-                { value: "success", label: t("cron.notifySuccess") },
-                { value: "always", label: t("cron.notifyAlways") },
-                { value: "never", label: t("cron.notifyNever") },
-              ]}
-              onChange={(next) => setNotify(next as "never" | "always" | "success" | "error")}
-            />
-          </ConfigField>
-
-          {modelsError && (
-            <div className="pw-alert" role="status">
-              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-              {/* fork:disabled-reasons —— `grow` 在 `.pw-alert` 里没有规则（board.css
-                  只在 `.pw-*` 作用域里定义它），真正生效的是全局工具类 `.pw-grow`；
-                  两条模型提示并排出现，改成同一个类才不会一条换行一条不换行。 */}
-              <span className="pw-grow">{t("cron.modelListError", { error: modelsError })}</span>
-            </div>
-          )}
 
           {/* fork:zc-19 — human-readable frequency editor (compiles to 5-field cron). */}
           <ConfigSectionTitle>{t("cron.frequency")}</ConfigSectionTitle>
@@ -820,57 +889,30 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
             onChange={(next) => setMode(next as EditorMode)}
           />
 
+          {/* 画板 44 的频率补充字段：选中哪档就出现哪几格（标签在上、控件占满格）；
+              「每 N 时」的 间隔 / 时间 / 结束日期 三格与画板的 `.pw-grid3` 三格同形。 */}
           {mode === "minutes" && (
-            <ConfigField label={t("cron.interval")}>{intervalInput(t("cron.unit.minutes"))}</ConfigField>
+            <div className="pw-grid2">
+              {intervalField(t("cron.unit.minutes"))}
+              {endDateField}
+            </div>
           )}
           {mode === "hours" && (
-            <>
-              <ConfigField label={t("cron.interval")}>{intervalInput(t("cron.unit.hours"))}</ConfigField>
-              <ConfigField label={t("cron.atTime")}>
-                <PwCtl>
-                  <input
-                    className="pw-input"
-                    type="time"
-                    value={time}
-                    aria-label={t("cron.atTime")}
-                    onChange={(event) => setTime(event.target.value)}
-                    style={{ minWidth: 0, width: 130 }}
-                  />
-                </PwCtl>
-              </ConfigField>
-            </>
+            <div className="pw-grid3">
+              {intervalField(t("cron.unit.hours"))}
+              {timeField}
+              {endDateField}
+            </div>
           )}
           {(mode === "daily" || mode === "weekly" || mode === "monthly" || mode === "yearly" || mode === "once") && (
-            <ConfigField label={t("cron.atTime")}>
-              <PwCtl>
-                <input
-                  className="pw-input"
-                  type="time"
-                  value={time}
-                  aria-label={t("cron.atTime")}
-                  onChange={(event) => setTime(event.target.value)}
-                  style={{ minWidth: 0, width: 130 }}
-                />
-              </PwCtl>
-            </ConfigField>
-          )}
-          {mode === "once" && (
-            <ConfigField label={t("cron.date")}>
-              <PwCtl>
-                <input
-                  className="pw-input"
-                  type="date"
-                  value={date}
-                  aria-label={t("cron.date")}
-                  onChange={(event) => setDate(event.target.value)}
-                  style={{ minWidth: 0, width: 160 }}
-                />
-              </PwCtl>
-            </ConfigField>
+            <div className="pw-grid2">
+              {timeField}
+              {mode === "once" ? dateField : endDateField}
+            </div>
           )}
           {mode === "monthly" && (
-            <>
-              <ConfigField label={t("cron.monthlyMode")}>
+            <div className="pw-grid2">
+              <ConfigField label={t("cron.monthlyMode")} style={gridFieldStyle}>
                 <PwSelectBox
                   value={monthlyMode}
                   ariaLabel={t("cron.monthlyMode")}
@@ -882,21 +924,19 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
                 />
               </ConfigField>
               {monthlyMode === "date" ? (
-                <ConfigField label={t("cron.dayOfMonth")}>
-                  <PwCtl>
-                    <input
-                      className="pw-input"
-                      inputMode="numeric"
-                      value={monthDay}
-                      aria-label={t("cron.dayOfMonth")}
-                      onChange={(event) => setMonthDay(event.target.value.replace(/[^0-9]/g, ""))}
-                      style={{ minWidth: 0, width: 80, fontVariantNumeric: "tabular-nums" }}
-                    />
-                  </PwCtl>
+                <ConfigField label={t("cron.dayOfMonth")} style={gridFieldStyle}>
+                  <input
+                    className="pw-input"
+                    inputMode="numeric"
+                    value={monthDay}
+                    aria-label={t("cron.dayOfMonth")}
+                    onChange={(event) => setMonthDay(event.target.value.replace(/[^0-9]/g, ""))}
+                    style={{ width: "100%", minWidth: 0, fontVariantNumeric: "tabular-nums" }}
+                  />
                 </ConfigField>
               ) : (
                 <>
-                  <ConfigField label={t("cron.weekday")}>
+                  <ConfigField label={t("cron.weekday")} style={gridFieldStyle}>
                     <PwSelectBox
                       value={String(monthWeekday)}
                       ariaLabel={t("cron.weekday")}
@@ -904,7 +944,7 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
                       onChange={(next) => setMonthWeekday(Number(next))}
                     />
                   </ConfigField>
-                  <ConfigField label={t("cron.ordinal")}>
+                  <ConfigField label={t("cron.ordinal")} style={gridFieldStyle}>
                     <PwSelectBox
                       value={String(monthOrdinal)}
                       ariaLabel={t("cron.ordinal")}
@@ -914,11 +954,11 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
                   </ConfigField>
                 </>
               )}
-            </>
+            </div>
           )}
           {mode === "yearly" && (
-            <>
-              <ConfigField label={t("cron.month")}>
+            <div className="pw-grid2">
+              <ConfigField label={t("cron.month")} style={gridFieldStyle}>
                 <PwSelectBox
                   value={String(yearMonth)}
                   ariaLabel={t("cron.month")}
@@ -926,39 +966,23 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
                   onChange={(next) => setYearMonth(next)}
                 />
               </ConfigField>
-              <ConfigField label={t("cron.dayOfMonth")}>
-                <PwCtl>
-                  <input
-                    className="pw-input"
-                    inputMode="numeric"
-                    value={yearDay}
-                    aria-label={t("cron.dayOfMonth")}
-                    onChange={(event) => setYearDay(event.target.value.replace(/[^0-9]/g, ""))}
-                    style={{ minWidth: 0, width: 80, fontVariantNumeric: "tabular-nums" }}
-                  />
-                </PwCtl>
-              </ConfigField>
-            </>
-          )}
-          {mode !== "once" && (
-            <ConfigField label={t("cron.endDate")}>
-              <PwCtl>
+              <ConfigField label={t("cron.dayOfMonth")} style={gridFieldStyle}>
                 <input
                   className="pw-input"
-                  type="date"
-                  value={endDate}
-                  aria-label={t("cron.endDate")}
-                  onChange={(event) => setEndDate(event.target.value)}
-                  style={{ minWidth: 0, width: 160 }}
+                  inputMode="numeric"
+                  value={yearDay}
+                  aria-label={t("cron.dayOfMonth")}
+                  onChange={(event) => setYearDay(event.target.value.replace(/[^0-9]/g, ""))}
+                  style={{ width: "100%", minWidth: 0, fontVariantNumeric: "tabular-nums" }}
                 />
-              </PwCtl>
-            </ConfigField>
+              </ConfigField>
+            </div>
           )}
 
           {mode !== "once" && <p className="pw-hint">{t("cron.endDateHint")}</p>}
 
           {mode === "weekly" && (
-            <ConfigField label={t("cron.weekday")}>
+            <ConfigField label={t("cron.weekday")} style={gridFieldStyle}>
               {/* 画板 44 的 `.pw-radio` 芯片组（`.is-on` = 选中）；这里多选，
                   所以用 aria-pressed 而不是 radiogroup。 */}
               <span className="pw-radio">
@@ -982,18 +1006,16 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
 
           {mode === "cron" && (
             <>
-              <ConfigField label={t("cron.expression")}>
-                <PwCtl>
-                  <input
-                    className="pw-input pw-mono"
-                    value={expression}
-                    aria-label={t("cron.expression")}
-                    aria-describedby="cron-expression-help"
-                    onChange={(event) => setExpression(event.target.value)}
-                    placeholder="*/5 * * * *"
-                    style={{ minWidth: 0, flex: 1, fontVariantNumeric: "tabular-nums" }}
-                  />
-                </PwCtl>
+              <ConfigField label={t("cron.expression")} style={gridFieldStyle}>
+                <input
+                  className="pw-input pw-mono"
+                  value={expression}
+                  aria-label={t("cron.expression")}
+                  aria-describedby="cron-expression-help"
+                  onChange={(event) => setExpression(event.target.value)}
+                  placeholder="*/5 * * * *"
+                  style={{ width: "100%", minWidth: 0, fontVariantNumeric: "tabular-nums" }}
+                />
               </ConfigField>
               <p id="cron-expression-help" className="pw-hint">{t("cron.expressionHelp")}</p>
               <ConfigSectionTitle>{t("cron.examples")}</ConfigSectionTitle>
@@ -1016,10 +1038,8 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
 
           {mode !== "cron" && mode !== "once" && (
             compiledResult?.ok ? (
-              <ConfigField label={t("cron.compiled")}>
-                <PwCtl>
-                  <span className="pw-mono">{compiledResult.expression}</span>
-                </PwCtl>
+              <ConfigField label={t("cron.compiled")} style={gridFieldStyle}>
+                <span className="pw-mono">{compiledResult.expression}</span>
               </ConfigField>
             ) : (
               <div className="pw-alert" role="status">
@@ -1034,56 +1054,60 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
             <p className="pw-hint">{t("cron.compiledHint")}</p>
           )}
 
-          <ConfigField label={t("cron.windowStart")}>
-            <PwCtl>
-              <input
-                className="pw-input"
-                type="time"
-                value={idleStart}
-                aria-label={t("cron.windowStart")}
-                onChange={(event) => setIdleStart(event.target.value)}
-                style={{ minWidth: 0, width: 140 }}
-              />
-              {(idleStart || idleEnd) && (
-                <ConfigButton
-                  variant="ghost"
-                  size="small"
-                  onClick={() => { setIdleStart(""); setIdleEnd(""); }}
-                >
-                  {t("cron.windowClear")}
-                </ConfigButton>
-              )}
-            </PwCtl>
-          </ConfigField>
-          <ConfigField label={t("cron.windowEnd")}>
-            <PwCtl>
+          {/* 空闲窗口（画板 44 的「只在这个时间段内真正开跑」）：起 / 止成一行两格。 */}
+          <div className="pw-grid2">
+            <ConfigField label={t("cron.windowStart")} style={gridFieldStyle}>
+              <PwCtl>
+                <input
+                  className="pw-input"
+                  type="time"
+                  value={idleStart}
+                  aria-label={t("cron.windowStart")}
+                  onChange={(event) => setIdleStart(event.target.value)}
+                  style={{ minWidth: 0, flex: 1 }}
+                />
+                {(idleStart || idleEnd) && (
+                  <ConfigButton
+                    variant="ghost"
+                    size="small"
+                    onClick={() => { setIdleStart(""); setIdleEnd(""); }}
+                  >
+                    {t("cron.windowClear")}
+                  </ConfigButton>
+                )}
+              </PwCtl>
+            </ConfigField>
+            <ConfigField label={t("cron.windowEnd")} style={gridFieldStyle}>
               <input
                 className="pw-input"
                 type="time"
                 value={idleEnd}
                 aria-label={t("cron.windowEnd")}
                 onChange={(event) => setIdleEnd(event.target.value)}
-                style={{ minWidth: 0, width: 140 }}
+                style={{ width: "100%", minWidth: 0 }}
               />
-            </PwCtl>
-          </ConfigField>
-          <ConfigField label={t("cron.timezone")}>
-            <PwSelectBox
-              value={timezone}
-              ariaLabel={t("cron.timezone")}
-              options={[
-                { value: "host", label: t("cron.timezoneHost") },
-                ...zones.map((zone) => ({ value: zone, label: zone })),
-              ]}
-              onChange={setTimezone}
-            />
-          </ConfigField>
+            </ConfigField>
+          </div>
+
+          <div className="pw-grid2">
+            <ConfigField label={t("cron.timezone")} style={gridFieldStyle}>
+              <PwSelectBox
+                value={timezone}
+                ariaLabel={t("cron.timezone")}
+                options={[
+                  { value: "host", label: t("cron.timezoneHost") },
+                  ...zones.map((zone) => ({ value: zone, label: zone })),
+                ]}
+                onChange={setTimezone}
+              />
+            </ConfigField>
+            <ConfigField label={t("cron.enabled")} style={gridFieldStyle}>
+              <ConfigSwitch label={t("cron.enabled")} checked={taskEnabled} onChange={setTaskEnabled} />
+            </ConfigField>
+          </div>
           <p className="pw-hint">{t("cron.windowHint")}</p>
 
-          <ConfigField label={t("cron.enabled")}>
-            <ConfigSwitch label={t("cron.enabled")} checked={taskEnabled} onChange={setTaskEnabled} />
-          </ConfigField>
-
+          {/* 表单级动作在表单块底部右对齐（62 帧 D 第 ④ 级），不另设页脚。 */}
           <ConfigDetailActions>
             <span className="pw-grow" aria-hidden="true" />
             <ConfigButton
