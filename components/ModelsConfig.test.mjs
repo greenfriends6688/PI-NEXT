@@ -6,6 +6,7 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const {
   hasModelCostDraftValue,
+  KNOWN_MODEL_APIS,
   modelCostToDraft,
   parseCompleteModelCost,
   serializeHeaderRows,
@@ -15,6 +16,25 @@ const {
 
 const source = await readFile(new URL("./ModelsConfig.tsx", import.meta.url), "utf8");
 const cssSource = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
+
+// fork:model-api-protocols (B4) —— 协议下拉必须覆盖 pi-ai 的 `KnownApi` 全集。
+// 清单从 SDK 的类型定义里解析：pi-ai 以后新增协议而这里忘了加，这条测试就红。
+test("the api protocol list is exactly pi-ai's KnownApi union", async () => {
+  const types = await readFile(
+    new URL("../node_modules/@earendil-works/pi-ai/dist/types.d.ts", import.meta.url),
+    "utf8",
+  );
+  const union = types.match(/export type KnownApi =([^;]+);/);
+  assert.ok(union, "pi-ai types.d.ts no longer declares KnownApi");
+  const known = [...union[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+
+  assert.ok(known.length > 4, `KnownApi union parsed only ${known.length} entries`);
+  // 面板用的就是这一个清单（provider 下拉与 model 级覆写下拉共用）。
+  assert.deepEqual([...KNOWN_MODEL_APIS].sort(), [...known].sort());
+  assert.match(source, /const API_OPTIONS = KNOWN_MODEL_APIS;/);
+  // 少一个都不行：协议选不了 = 那个 provider 根本配不出来。
+  for (const api of known) assert.ok(KNOWN_MODEL_APIS.includes(api), `api option missing: ${api}`);
+});
 
 test("uses shared sidebar sizing for providers and matching indented model rows", () => {
   const sidebar = source.slice(source.indexOf("<ConfigSidebar>"), source.indexOf("</ConfigSidebar>"));

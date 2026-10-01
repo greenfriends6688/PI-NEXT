@@ -11,6 +11,48 @@ export interface HeaderRow {
 
 export const MODEL_COST_KEYS = ["input", "output", "cacheRead", "cacheWrite"] as const;
 
+/**
+ * fork:model-api-protocols (B4) —— models.json 里 `api` 字段的合法取值。
+ *
+ * 清单不靠印象，来自 pi-ai 的类型定义
+ * `node_modules/@earendil-works/pi-ai/dist/types.d.ts:15`：
+ *
+ *   export type KnownApi = "openai-completions" | "mistral-conversations"
+ *     | "openai-responses" | "azure-openai-responses" | "openai-codex-responses"
+ *     | "anthropic-messages" | "bedrock-converse-stream" | "google-generative-ai"
+ *     | "google-vertex" | "pi-messages";
+ *   export type Api = KnownApi | (string & {});
+ *
+ * 注意真正的名字是 `bedrock-converse-stream`（不是 bedrock-converse）。
+ *
+ * 三条自证：
+ * ① pi 的 models.json schema 把 `api` 声明为自由字符串
+ *    （pi-coding-agent `core/model-config.js`：`api: Type.Optional(Type.String({minLength:1}))`），
+ *    实测把 `bedrock-converse-stream` / `mistral-conversations` 写进去，
+ *    `ModelRuntime.getModel().api` 原样保留、`getError()` 为空。
+ * ② 十个取值在 pi-ai 的 api-registry 里都有实现（`compat.js` 的 `BUILTIN_APIS`
+ *    + 模块加载时的 `registerBuiltInApiProviders()`），逐个 `getApiProvider(api)`
+ *    实测全部已注册，所以自定义 provider 条目（没有 builtin base provider 时走
+ *    `getApiProvider(model.api)` 分派）真的能发请求。
+ * ③ `components/ModelsConfig.test.mjs` 从 `types.d.ts` 里解析 `KnownApi`
+ *    联合类型并断言本清单与它相等 —— pi-ai 以后新增协议而这里忘了加，测试就红。
+ *
+ * `Api` 是开集（扩展可 `registerApiProvider` 注册自定义 api），下拉选不了的
+ * 仍可在 models.json 手写。
+ */
+export const KNOWN_MODEL_APIS = [
+  "openai-completions",
+  "openai-responses",
+  "anthropic-messages",
+  "google-generative-ai",
+  "google-vertex",
+  "mistral-conversations",
+  "bedrock-converse-stream",
+  "azure-openai-responses",
+  "openai-codex-responses",
+  "pi-messages",
+] as const;
+
 export type ModelCostKey = (typeof MODEL_COST_KEYS)[number];
 
 export type ModelCostRates = Record<ModelCostKey, number>;

@@ -16,6 +16,7 @@ import {
   collectModelRenames,
   hasModelCostDraftValue,
   hasModelCostTierDraftValue,
+  KNOWN_MODEL_APIS,
   modelCostTierToDraft,
   modelCostToDraft,
   parseCompleteModelCost,
@@ -225,7 +226,12 @@ function customSelectionExists(config: ModelsJson, selection: Selection): boolea
   return Boolean(config.providers?.[selection.providerName]?.models?.[selection.index]);
 }
 
-const API_OPTIONS = ["openai-completions", "openai-responses", "anthropic-messages", "google-generative-ai"] as const;
+/**
+ * fork:model-api-protocols (B4) —— 协议下拉与 `KNOWN_MODEL_APIS` 同源：
+ * 那份清单的来源与三条自证写在 components/models-config-helpers.ts 的定义处
+ * （pi-ai `types.d.ts:15` 的 `KnownApi` 联合类型，不是印象）。
+ */
+const API_OPTIONS = KNOWN_MODEL_APIS;
 
 // ── Form field helpers ────────────────────────────────────────────────────────
 
