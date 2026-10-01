@@ -1174,6 +1174,17 @@
      实测（1440×900 / 浅色主题 / playwright）：画布与终端头同为 `rgb(17,19,24)`，
      正文 `#d7dce5`，ANSI 十六色与 `ls -la` 配色在深底上均可读。
 
+132. **`pw-input` 的 `min-width: 200px` 与窄数字框的冲突**（`components/AgentsConfig.tsx`）：
+     画板 62 落位表要求「启用内置子代理 / 并发上限」收进列表「内置」组顶部的一条**紧凑**
+     设置行（`pw-field`：标签 + small 在左、控件在右）。但 `.pw-input` 是画板给**整宽设置页**
+     写的（`min-width: 200px`），它压过了内联的 `width: 64` —— 实测（playwright 量盒子，
+     1440×900 / 浅色）输入框 200px、控件列 238px，把 295px 列表列里的标签挤到 **53px**：
+     标题折三行、说明折成一根 186px 高的条，整行 194px 高，还溢出列表列 12px。
+     两处窄数字框（并发上限 64 / 最大回合数 80）都补 `minWidth: 0`（board.css 的
+     `min-width` 不动，产品侧不加同名 `pw-*` 类 —— 判据⑦）。修后：行 295×76、标签列 177px、
+     控件列 102px、输入框 64px，不再溢出。
+     回归守卫：`components/AgentsConfig.test.mjs`（两处窄框都必须带 `minWidth: 0`）。
+
 **本轮登记不改（工作台）：**
 - **右栏文件查看器全套**（`.pw-viewer / .pw-viewer-head / .pw-viewer-body / .pw-tree / .pw-split`）：
      仍是 `file-viewer-*` + 74 处内联，0 个 pw 类 —— 属计划里的 **SW-04/05**（最大遗留面），

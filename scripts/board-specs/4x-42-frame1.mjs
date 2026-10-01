@@ -14,6 +14,14 @@ export default {
   },
   "knownDiffs": [
     {
+      "sel": ".settings-dialog-surface .pw-lsub",
+      "reason": "**已裁定下线（2026-10-01）**：用户定「技能列表行只显名称，不要把描述铺在这里」。实测原行高随描述长度涨到117～381px（image-gen 5 行副标题、impeccable 19 行），行尾开关被推到几百像素外。现在 `renderSkillRow` 只渲染 `.pw-lname`（`.pw-litem .pw-lname` 自带 ellipsis 钳位，board.css:859），描述挪到**详情面板 kv 首行**（`i18n.description`，形态同插件详情）。画板 42:200-207 / 62:172-191 的副标题是**手写短句**（招标结构化抽取 / PDF 读写）——一行只是样张文案的性质，且 `.pw-lsub`（board.css:860）本身没有任何钳位。要恢复行内副标题，需先给 board.css 的 `.pw-lsub` 补钳位（截断成一行），不是产品侧能单独决定的。"
+    },
+    {
+      "sel": ".settings-dialog-surface .pw-list",
+      "reason": "**画板自身不一致**：画板 42 把 `.pw-list` 直接当左列，于是吃到 board.css:725 的 `padding-right`；产品的左列是裸 div、右列才是 `.pw-list`。这不是产品漂移，是画板样张的取景写法与自身规则冲突。"
+    },
+    {
       "sel": ".settings-dialog-surface .pw-switch",
       "reason": "**取景差异 + 独立真偏离**：画板帧 1 的第一枚 `.pw-switch` 是**列表行里**那枚（写了 `transform:scale(.8)` → 24×13.6），产品的第一枚在 `.pw-field` 里（30×17）。取景不同先放行；「产品没给列表行开关做 scale(.8)」这条单独记在报告里（见 42-frame0 / 44-frame0 / 46-frame2 同一现象）。"
     },
