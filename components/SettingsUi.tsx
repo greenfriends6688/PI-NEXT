@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 
@@ -105,8 +106,126 @@ export function ConfigSidebarList({ children }: { children: ReactNode }) {
   return <div className="pw-list">{children}</div>;
 }
 
-export function ConfigSidebarGroupLabel({ children }: { children: ReactNode }) {
-  return <div className="pw-group-title">{children}</div>;
+/**
+ * fork:group-switch（G4 · 上游 `b9622a1` #1021）—— 分组标题升级成**整组开关**的宿主。
+ *
+ * `aside` 是右端那一格。**右对齐的空格由调用方自己带**（画板里的 `pw-grow`，
+ * 归档面板与项目归档两处已经这么写）：标签本体的子节点一个字不动，所以既有
+ * 调用点的排版与改前逐像素一致。技能页与插件页把
+ * `n/m` + 开关交给 `ConfigSidebarGroupSwitch`（它自带右对齐用的 `pw-grow`）。
+ */
+export function ConfigSidebarGroupLabel({
+  children,
+  aside,
+}: {
+  children: ReactNode;
+  aside?: ReactNode;
+}) {
+  return (
+    <div className="pw-group-title">
+      {children}
+      {aside}
+    </div>
+  );
+}
+
+/**
+ * 一组开关会改动**哪些行**：不在目标状态的那些。
+ *
+ * 关掉一组时 `keepOn` 点名的行被排除在外，交回调用方如实报出去，而不是悄悄改掉
+ * —— 上游唯一用到它的地方是插件包：停用一个带 resource filter 的包会清空它的
+ * 过滤条件（`app/api/plugins/route.ts:setPackageDisabled` 把 extensions/skills/
+ * prompts/themes 都写成空数组），所以这种包在批量停用时保持启用，只能用它自己的
+ * 开关处理。
+ *
+ * 纯函数，与上游 `components/settings-ui-helpers.ts` 的 `itemsToSwitch` 同语义；
+ * 放在这里是因为技能分节与插件分节共用这一个模块（两边都已经 import SettingsUi）。
+ */
+export function itemsToSwitch<T>(
+  items: readonly T[],
+  enabled: boolean,
+  isEnabled: (item: T) => boolean,
+  keepOn?: (item: T) => boolean,
+): T[] {
+  return items.filter((item) => isEnabled(item) !== enabled && (enabled || !keepOn?.(item)));
+}
+
+/**
+ * 一组开关：`n/m` 计数 + 开关。**只有全开才算开** —— 部分开的组读起来是「关」，
+ * 点一下补齐（与模型页的供应商开关同一条口径，上游同款）。
+ * 计数用画板已有的 `.pw-mono` + `.pw-dim`，开关是画板 `.pw-switch`：
+ * **不新造类**（判据⑦），也不缩到 `.pw-litem` 行尾那种 0.8 倍的小尺寸
+ * （上游 `4de9f77` 的结论：分组标题里的开关要画板原尺寸，30×17 才点得中）。
+ * 开头的 `pw-grow` 是标题与右端这一格之间的弹性空档（与归档面板里的写法同款）。
+ */
+export function ConfigSidebarGroupSwitch({
+  enabled,
+  total,
+  label,
+  disabled = false,
+  loading = false,
+  onChange,
+}: {
+  enabled: number;
+  total: number;
+  label: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
+  return (
+    <>
+      <span className="pw-grow" aria-hidden="true" />
+      <span className="pw-mono pw-dim">{`${enabled}/${total}`}</span>
+      <ConfigSwitch
+        checked={total > 0 && enabled === total}
+        disabled={disabled}
+        loading={loading}
+        label={label}
+        onChange={onChange}
+      />
+    </>
+  );
+}
+
+/**
+ * 一次分组开关**没做完的部分**，落在刚跑过的那一组标题下面：提示一行
+ * （`.pw-alert info`，如「带资源过滤的包保持启用」），被拒的行逐行列出
+ * （`.pw-alert`，`role="alert"`）。两行都是画板已有的样式类。
+ * `errorLines` 用数组而不是一整段文本：`.pw-alert` 没有 `white-space` 规则，
+ * 一整段里的换行会被折叠成一行。
+ */
+export function ConfigSidebarGroupStatus({
+  note,
+  errorLines,
+}: {
+  note?: ReactNode;
+  errorLines?: readonly string[];
+}) {
+  if (!note && !errorLines?.length) return null;
+  return (
+    <>
+      {note ? (
+        <div role="status" className="pw-alert info">
+          <span className="pw-ico"><i data-ico="info" data-size="13" aria-hidden="true" /></span>
+          <span className="pw-grow">{note}</span>
+        </div>
+      ) : null}
+      {errorLines && errorLines.length > 0 ? (
+        <div role="alert" className="pw-alert">
+          <span className="pw-ico"><i data-ico="triangle-alert" data-size="13" aria-hidden="true" /></span>
+          <span className="pw-grow">
+            {errorLines.map((line, index) => (
+              <Fragment key={`${index}:${line}`}>
+                {index > 0 ? <br /> : null}
+                {line}
+              </Fragment>
+            ))}
+          </span>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 export function ConfigSidebarItem({

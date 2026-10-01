@@ -25,6 +25,8 @@ import {
   ConfigPanelShell,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
+  ConfigSidebarGroupStatus,
+  ConfigSidebarGroupSwitch,
   ConfigSidebarItem,
   ConfigSplitView,
   ConfigSwitch,
@@ -32,6 +34,7 @@ import {
   PwSearch,
   PwSelectBox,
   SettingsPage,
+  itemsToSwitch,
 } from "./SettingsUi";
 import { MarkdownBody } from "./MarkdownBody";
 
@@ -55,6 +58,31 @@ export function orderSkillsByDormancy<
     ...skills.filter((skill) => !skill.disableModelInvocation),
     ...skills.filter((skill) => skill.disableModelInvocation),
   ];
+}
+
+/** 一次分组开关里每一条的结果：`error` 为空即写成功。 */
+export interface SkillToggleResult {
+  filePath: string;
+  error?: string;
+}
+
+/** 一个分组开关会改动的技能：还没处在目标状态的那些。 */
+export function skillsToSwitch<
+  T extends Pick<Skill, "disableModelInvocation">,
+>(skills: readonly T[], enabled: boolean): T[] {
+  return itemsToSwitch(skills, enabled, (skill) => !skill.disableModelInvocation);
+}
+
+/** 套用一批开关的结果：写失败的那条保持原状，其余换成新状态。 */
+export function applySkillToggleResults<
+  T extends Pick<Skill, "filePath" | "disableModelInvocation">,
+>(skills: T[], results: SkillToggleResult[], disableModelInvocation: boolean): T[] {
+  const changed = new Set(
+    results.filter((result) => !result.error).map((result) => result.filePath),
+  );
+  return skills.map((skill) =>
+    changed.has(skill.filePath) ? { ...skill, disableModelInvocation } : skill,
+  );
 }
 
 function updateKey(skill: Skill): string | null {
@@ -823,6 +851,11 @@ export function SkillsConfig({
   const [selected, setSelected] = useState<string | null>(() => getLastSettingsSelection("skills", cwd));
   const [toggling, setToggling] = useState<Set<string>>(new Set());
   const [saveError, setSaveError] = useState<string | null>(null);
+  /* fork:group-switch（G4 · 上游 `eceac13` #1020 + `b9622a1` #1021）——
+     正在跑的那一次分组开关（scope 键），与上一轮没做完的条目。
+     结果报在**刚跑过的那一组标题下面**，不是页面顶上一块公共区域。 */
+  const [bulkGroup, setBulkGroup] = useState<string | null>(null);
+  const [groupStatus, setGroupStatus] = useState<{ group: string; lines: string[] } | null>(null);
   /* fork:settings-frame（画板 42 帧 3）—— 安装技能从详情列的内联视图改成
      pw-modal 弹层（上轮裁定项），这里只剩开关状态。 */
   const [installOpen, setInstallOpen] = useState(false);
@@ -963,6 +996,7 @@ export function SkillsConfig({
     const next = !skill.disableModelInvocation;
     setToggling((s) => new Set(s).add(skill.filePath));
     setSaveError(null);
+    setGroupStatus(null);
     try {
       const res = await fetch("/api/skills", {
         method: "PATCH",
@@ -995,7 +1029,76 @@ export function SkillsConfig({
     }
   }, []);
 
+  /* fork:group-switch（G4）—— 一个分组开关 = 一个作用域（项目 / 全局 / 路径）
+     里的所有技能一起开或一起关。我们没有上游那个批量路由
+     （`PATCH /api/skills` 只收一个 `filePath`，而路由不在本文件边界内），
+     所以按 `skillsToSwitch` 算出的目标**逐条**发：每条一个 SKILL.md 写入，
+     任何一条被拒（路径不在允许根里 / frontmatter 无法外科手术式修改）都不打断
+     其余，最后报在标题下。串行而不是并发：每个 PATCH 都是一次独立的文件写，
+     并发会互相踩。
+     作用范围是**标题下当前列出来的那些行**（含搜索 / 作用域筛选），与旁边的
+     `n/m` 计数同口径。 */
+  const setGroupSkills = useCallback(async (
+    group: string,
+    groupSkills: Skill[],
+    enabled: boolean,
+  ) => {
+    const targets = skillsToSwitch(groupSkills, enabled);
+    setGroupStatus(null);
+    if (targets.length === 0) return;
+    const disableModelInvocation = !enabled;
+    const filePaths = targets.map((skill) => skill.filePath);
+    const names = new Map(targets.map((skill) => [skill.filePath, skill.name]));
+    setBulkGroup(group);
+    setSaveError(null);
+    setToggling((current) => new Set([...current, ...filePaths]));
+    const results: SkillToggleResult[] = [];
+    try {
+      for (const skill of targets) {
+        try {
+          const res = await fetch("/api/skills", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filePath: skill.filePath, disableModelInvocation }),
+          });
+          const d = (await res.json().catch(() => ({}))) as { error?: string };
+          results.push(
+            res.ok && !d.error
+              ? { filePath: skill.filePath }
+              : { filePath: skill.filePath, error: d.error ?? `HTTP ${res.status}` },
+          );
+        } catch (e) {
+          results.push({
+            filePath: skill.filePath,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      setSkills((prev) => applySkillToggleResults(prev, results, disableModelInvocation));
+      const failures = results.filter((result) => result.error);
+      if (failures.length > 0) {
+        setGroupStatus({
+          group,
+          lines: [
+            t("skills.groupFailed", { count: failures.length, total: results.length }),
+            ...failures.map(
+              (failure) => `${names.get(failure.filePath) ?? failure.filePath}: ${failure.error}`,
+            ),
+          ],
+        });
+      }
+    } finally {
+      setBulkGroup(null);
+      setToggling((current) => {
+        const next = new Set(current);
+        for (const filePath of filePaths) next.delete(filePath);
+        return next;
+      });
+    }
+  }, [t]);
+
   const selectedSkill = skills.find((s) => s.filePath === selected) ?? null;
+  const bulkBusy = loading || toggling.size > 0 || updatingSkill !== null || checkingAll;
 
   /* fork:settings-frame（画板 62）—— 工具栏的计数与搜索过滤。
      计数从页脚搬到工具栏（页脚不再放动作，也不再重复列表的信息）。 */
@@ -1188,9 +1291,29 @@ export function SkillsConfig({
                 const grpLabel = scope === "project"
                   ? `${t("skills.scope.project")} · ${projectName}`
                   : t(`skills.scope.${scope}`);
+                /* fork:group-switch（G4）—— 标题右侧是 `n/m` + 整组开关；
+                   只有全开才算开，部分开的组读起来是「关」，点一下补齐。 */
+                const visibleCount = grpSkills.filter((skill) => !skill.disableModelInvocation).length;
+                const allVisible = visibleCount === grpSkills.length;
                 return (
                   <Fragment key={scope}>
-                    <ConfigSidebarGroupLabel>{grpLabel}</ConfigSidebarGroupLabel>
+                    <ConfigSidebarGroupLabel
+                      aside={
+                        <ConfigSidebarGroupSwitch
+                          enabled={visibleCount}
+                          total={grpSkills.length}
+                          disabled={bulkBusy}
+                          loading={bulkGroup === scope}
+                          label={t(allVisible ? "skills.groupSwitchHide" : "skills.groupSwitchShow", { group: grpLabel })}
+                          onChange={(enabled) => void setGroupSkills(scope, grpSkills, enabled)}
+                        />
+                      }
+                    >
+                      {grpLabel}
+                    </ConfigSidebarGroupLabel>
+                    {groupStatus?.group === scope && (
+                      <ConfigSidebarGroupStatus errorLines={groupStatus.lines} />
+                    )}
                     <div className="pw-list">
                       {orderSkillsByDormancy(grpSkills).map(renderSkillRow)}
                     </div>

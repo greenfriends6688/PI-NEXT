@@ -49,6 +49,8 @@ test("follow-up shortcuts preserve newline, IME, mobile and completion behavior"
   const script = new Script(ts.transpileModule(findHandler(source).getText(source), {
     compilerOptions: { target: ts.ScriptTarget.ES2020 },
   }).outputText);
+  // fork:send-key（G6）—— `enterSendMode: "enter"` 是默认档；Ctrl+Enter 档在
+  // ChatInput.enter-send-mode.test.mjs 里单独驱动。
   const cases = [
     ["Enter steers", {}, {}, "steer"],
     ["Alt+Enter follows up", { altKey: true }, {}, "followup"],
@@ -79,7 +81,7 @@ test("follow-up shortcuts preserve newline, IME, mobile and completion behavior"
     const handler = script.runInNewContext({
       Date: { now: () => 1000 },
       COMPOSITION_END_ENTER_GRACE_MS: 100,
-      isMobile: false, isStreaming: true,
+      isMobile: false, isStreaming: true, enterSendMode: "enter",
       isComposingRef: { current: false }, lastCompositionEndAtRef: { current: 0 },
       historyMenuOpen: false, inputHistory: ["previous"], historyActiveIndex: 0,
       slashMenuOpen: false, slashQuery: null, displayedSlashCommands: [{}], slashActiveIndex: 0,
@@ -122,7 +124,7 @@ test("file mention arrows wrap around the match list", () => {
     const handler = script.runInNewContext({
       Date: { now: () => 1000 },
       COMPOSITION_END_ENTER_GRACE_MS: 100,
-      isMobile: false, isStreaming: false,
+      isMobile: false, isStreaming: false, enterSendMode: "enter",
       isComposingRef: { current: false }, lastCompositionEndAtRef: { current: 0 },
       historyMenuOpen: false, inputHistory: [], historyActiveIndex: 0,
       slashMenuOpen: false, slashQuery: null, displayedSlashCommands: [], slashActiveIndex: 0,
@@ -176,7 +178,7 @@ test("reference menu arrows wrap around its match list", () => {
     const handler = script.runInNewContext({
       Date: { now: () => 1000 },
       COMPOSITION_END_ENTER_GRACE_MS: 100,
-      isMobile: false, isStreaming: false,
+      isMobile: false, isStreaming: false, enterSendMode: "enter",
       isComposingRef: { current: false }, lastCompositionEndAtRef: { current: 0 },
       historyMenuOpen: false, inputHistory: [], historyActiveIndex: 0,
       slashMenuOpen: false, slashQuery: null, displayedSlashCommands: [], slashActiveIndex: 0,
