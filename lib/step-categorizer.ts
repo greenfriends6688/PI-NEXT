@@ -602,7 +602,10 @@ function classifySedCommand(words: string[], binaryBase: string, startIndex: num
  * argument. `bash -c '…'` / `eval '…'` wrappers are unwrapped and re-parsed.
  */
 export function classifyShellCommand(raw: string, depth = 0): ShellCommandInfo {
-  const segments = raw.split(/&&|\n|;(?!;)|(?<!\|)\|(?!\|)/);
+  // `||` / `&&` 只切在成对的那个分隔符上：原来靠 lookbehind 排除前一个 `|`
+  // （Safari 16.4 以下解析不了 lookbehind，解析不了的字面量会让整个 chunk 挂掉，
+  // #753），改成切成两段后丢弃空段 —— 循环本来就会跳过空段。
+  const segments = raw.split(/&&|\n|;(?!;)|\|(?!\|)/).filter((segment) => segment !== "");
   const firstWord = raw.split(/\s+/)[0]?.replace(/^[.\\/]+/, "") || "sh";
   const defaultResult: ShellCommandInfo = {
     kind: "run",

@@ -107,6 +107,7 @@ lib/
   file-access.ts       allowed file roots for /api/files and worktrees
   file-paths.ts        client/server path encoding helpers
   markdown.ts          shared markdown helpers
+  gfm-autolink-email-loader.cjs  bundler loader: remark-gfm's email regex without a lookbehind literal (#753)
   npx.ts               npx runner used by skill install
   pi-types.ts          local structural types for pi SDK objects
   rpc-manager.ts      AgentSessionWrapper + registry + startRpcSession
@@ -242,6 +243,16 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 
 ### Exported session HTML
 - `/api/sessions/[id]/export` delegates to pi's export helper, then patches recursive tree helpers in the generated HTML to iterative versions so very deep linear sessions do not overflow the browser call stack.
+
+### 旧 Safari / iOS 16.2（#753）
+
+`/` 完全在客户端渲染，所以**一个浏览器解析不了的 script chunk 就是白屏**，而不是某个功能坏掉。三处都要修：
+
+- **不许写 RegExp lookbehind**（`(?<=` / `(?<!`）：Safari 16.4 以下解析不了，一个正则**字面量**解析不了就是整个 chunk 的 SyntaxError。改法是 sticky(`y`) 扫描 + 在起点处自己判边界：`lib/markdown.ts` 的 `replaceNotPrecededBy()`、`lib/mention-tokens.ts` 的 `tokenizeMentions()`、`lib/step-categorizer.ts` 的命令切分都是这个路子。`lib/no-regex-lookbehind.test.mjs` 全仓扫描守着这条（注释与 loader 除外）；测试里可以把 lookbehind 版本当**参照实现**留着对比，Node 能解析。
+- **依赖里的 lookbehind 换不掉**：SWC 不能降级 lookbehind，而 `mdast-util-gfm-autolink-literal@2.0.1`（remark-gfm 依赖）的 email 正则就带一个（上游明确不改）。`lib/gfm-autolink-email-loader.cjs` 把该字面量替换成运行时 `new RegExp(...)`（失败再退回 2.0.0 的无 lookbehind 版），在 `next.config.mjs` 的 `turbopack.rules` 与 `webpack()` **两边**都注册（dev 走 Turbopack、`npm run build` 走 webpack；只挂一边时 Next 16 会让 `next dev` 直接退出）。上游正则一变，loader 就抛错让构建失败。
+- **`static {}` 块**：Next 16 默认按 Safari 16.4 编译，`next/dist/client/components/error-boundary.js` 里就有一个 `static{`，16.2 会报 “Unexpected token '{'”。`package.json` 的 `browserslist` 把 safari / ios_saf 降到 16.2 让 SWC 降级它；**其余条目保持 Next 默认值**（`node_modules/next/dist/shared/lib/modern-browserslist-target.js`）。其它 node_modules 保留各自发布的语法，所以 mermaid 与 `@mermaid-js/parser`（懒加载图表 chunk 里约 270 个 static 块）写进 `transpilePackages`。
+
+验证手段：loader 的 transform 函数直接跑单测（断言输出里剩下的 `(?<=` 只在 `new RegExp("…")` 的字符串里），比跑一次 build 更直接。**真机 Safari / iOS 16.2 与 Playwright WebKit 尚未验证**。
 
 ### 桌面端打包（macOS 通用包 / Windows 安装包）
 

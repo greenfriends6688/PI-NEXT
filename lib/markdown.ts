@@ -23,10 +23,40 @@ export function markdownUrlTransform(value: string): string {
   return /^file:/i.test(value) ? value : defaultUrlTransform(value);
 }
 
-const escapedInlineCodePattern = /(?<![\\`])`((?:[^`\n]|\\`)+?)(?<![\\`])`(?!`)/g;
+/**
+ * `value.replace(pattern, replace)` —— 等价于 `pattern` 前面带一个
+ * `(?<![notAfter])` 的 lookbehind：匹配必须以 `opener` 开头，且前一个字符不属于
+ * `notAfter`。Safari 16.4 以下解析不了 lookbehind，而一个解析不了的正则字面量会让
+ * **整个 chunk** 抛 SyntaxError（首页直接白屏，#753）。所以改成：按 lookbehind 版本
+ * 尝试起点的顺序，在每个 `opener` 处用 sticky(`y`) 模式试一次，前一个字符命中排除集
+ * 就跳过。
+ */
+function replaceNotPrecededBy(
+  value: string,
+  opener: string,
+  notAfter: string,
+  pattern: RegExp,
+  replace: (match: RegExpExecArray) => string,
+): string {
+  let result = "";
+  let copied = 0;
+  for (let index = value.indexOf(opener); index !== -1; index = value.indexOf(opener, index + 1)) {
+    if (index > 0 && notAfter.includes(value[index - 1])) continue;
+    pattern.lastIndex = index;
+    const match = pattern.exec(value);
+    if (!match) continue;
+    result += value.slice(copied, index) + replace(match);
+    copied = pattern.lastIndex;
+    index = copied - 1;
+  }
+  return result + value.slice(copied);
+}
+
+// 收尾反引号前不能是 `\` 或另一个反引号，所以内容以「两者都不是」的字符收尾。
+const escapedInlineCodePattern = /`((?:[^`\n]|\\`)*?[^\\`\n])`(?!`)/y;
 
 function rewriteEscapedInlineCodeBackticks(line: string): string {
-  return line.replace(escapedInlineCodePattern, (match, content: string) => {
+  return replaceNotPrecededBy(line, "`", "\\`", escapedInlineCodePattern, ([match, content]) => {
     const code = content.replace(/\\`/g, "`");
     if (code === content) return match;
     const marker = "`".repeat(Math.max(...(code.match(/`+/g)?.map((run) => run.length) ?? [0])) + 1);
@@ -332,6 +362,9 @@ function updateInlineCodeMarker(line: string, initialMarkerSize: number): number
   return markerSize;
 }
 
+// `\(` … `\)`，且收尾的反斜杠本身未被转义。
+const inlineLatexMathPattern = /\\\(([^`\r\n$]*?[^`\r\n$\\])\\\)/y;
+
 function normalizeInlineLatexMath(line: string): string {
   if (
     /^\s{0,3}\[[^\]]+\]:/.test(line) ||
@@ -343,9 +376,9 @@ function normalizeInlineLatexMath(line: string): string {
     return line;
   }
 
-  return line.replace(
-    /(?<!\\)\\\(([^`\r\n$]+?)(?<!\\)\\\)/g,
-    (match, math: string) => (math.trim() ? `$${math}$` : match),
+  // `\(` … `\)` → `$…$`。
+  return replaceNotPrecededBy(line, "\\(", "\\", inlineLatexMathPattern, ([match, math]) =>
+    math.trim() ? `$${math}$` : match,
   );
 }
 
