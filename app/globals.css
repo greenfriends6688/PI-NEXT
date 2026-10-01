@@ -178,6 +178,10 @@
      24 紧凑（芯片 / 行内按钮）/ 28 标准（工具栏 / 输入框内控件）/ 32 主输入区 /
      36 大控件，也是粗指针下的最小触控目标（设计 §1.6 + 移动端硬约定）。 */
   --control-xs: var(--ds-control-xs);       /* 22 → 24 */
+  /* fork:token-control-2xs（2026-10-01）—— 22 这一档在设计表里补名之前，
+     `globals.css` 这一组会覆盖同名变量；只改设计表会造成「产品 CSS 里拿不到、
+     其它地方能拿到」的不一致，所以三处（设计表 / --ds- 副本 / 这里）必须同时有。 */
+  --control-2xs: var(--ds-control-2xs);
   --control-sm: var(--ds-control-sm);       /* 26 → 28 */
   --control-md: var(--ds-control-md);       /* 28 → 32 */
   --control-lg: var(--ds-control-lg);       /* 32 → 36 */

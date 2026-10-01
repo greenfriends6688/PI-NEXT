@@ -1460,9 +1460,20 @@ export function PluginsConfig({
                 </ConfigBadge>
               </>
             )}
-            <ConfigButton size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
-              {t("i18n.refresh")}
-            </ConfigButton>
+            {/* fix:mcp-refresh-target —— MCP 分节那枚「刷新」原来调的是 loadPlugins()：
+                它只打 /api/plugins、写的是插件页状态，于是右侧列表、顶部「N 个服务器」
+                徽章、错误态一个字都不动（手工改过 mcp.json 回来点刷新也永远看不到新条目）。
+                MCP 模式改调 loadMcp()，置灰也跟着 MCP 自己的状态（加载中 / MCP 动作在飞），
+                不再被插件页的 loading 牵连。 */}
+            {mcpOnly ? (
+              <ConfigButton size="small" onClick={() => void loadMcp()} disabled={mcpLoading || mcpBusy}>
+                {t("i18n.refresh")}
+              </ConfigButton>
+            ) : (
+              <ConfigButton size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
+                {t("i18n.refresh")}
+              </ConfigButton>
+            )}
           </>
         }
         fill

@@ -37,7 +37,11 @@ import { PromptsConfig } from "./fork/PromptsConfig";
 import { UsageStatsPanel } from "./fork/UsageStatsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
-import { AgentsConfig } from "./AgentsConfig";
+/* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig / fork/CronConfig
+ * 共用同一份「一个模型都没有」口径（NO_MODEL_PROVIDERS_HINT），避免同一个原因在三个
+ * 分节里说成三句话；`localCopy` 与文案表都定义在 AgentsConfig，理由见那里的注释。
+ * 语言包在 lib/i18n/messages/**（这一轮不允许改 lib/），所以这几条走本地表而不是 t()。 */
+import { AgentsConfig, NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "./AgentsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import {
   PwBlock,
@@ -131,6 +135,36 @@ const THEME_ICON_BY_ID: Record<string, string> = {
   auto: "monitor",
 };
 
+/** fork:disabled-reasons —— 命名模型下拉加载失败（与「一台机器没配供应商」分开说）。 */
+const TITLE_MODEL_LIST_FAILED: LocalCopy = {
+  en: "Could not load the model list: {error}. The title model falls back to the session model until this succeeds.",
+  "zh-CN": "模型列表加载失败：{error}。在那之前，命名模型会退回使用会话自身的模型。",
+  "zh-TW": "模型清單載入失敗：{error}。在那之前，命名模型會退回使用工作階段自身的模型。",
+};
+
+/** fork:disabled-reasons —— 默认外观下「导出 / 打开皮肤工作室」恒 disabled 的原因。
+ *  这两枚按钮在 ThemeSkinStrip.tsx（不在本轮可改的文件里），所以用一句可见的说明
+ *  补在皮肤条下方，而不是给按钮加 title。 */
+const SKIN_ACTIONS_NEED_CUSTOM_SKIN: LocalCopy = {
+  en: "The default look is not a skin file, so Export and Open skin studio are disabled. Pick one of your own skins above, or create one first.",
+  "zh-CN": "当前是「默认」外观，它不是一份皮肤文件，所以「导出」与「打开皮肤工作室」不可点。先在上面选一套自己的皮肤，或「新建主题」。",
+  "zh-TW": "目前是「預設」外觀，它不是一份皮膚檔案，所以「匯出」與「開啟皮膚工作室」不可點。先在上面選一套自己的皮膚，或「新增主題」。",
+};
+
+/** fork:disabled-reasons —— 「发送测试通知」在桌面通知总开关关闭时恒 disabled。 */
+const NOTIFY_TEST_NEEDS_MASTER: LocalCopy = {
+  en: "Turn on Desktop notifications first — this button sends a real system notification through that switch.",
+  "zh-CN": "先打开上面的「桌面通知」总开关——这枚按钮发的是走那个开关的真实系统通知。",
+  "zh-TW": "先打開上面的「桌面通知」總開關——這顆按鈕送的是走那個開關的真實系統通知。",
+};
+
+/** fork:disabled-reasons —— 已经是默认值时「重置」没有可做的事。 */
+const CHAT_WIDTH_ALREADY_DEFAULT: LocalCopy = {
+  en: "Already at the default width — nothing to reset.",
+  "zh-CN": "已经是默认宽度，没有可重置的改动。",
+  "zh-TW": "已經是預設寬度，沒有可重設的改動。",
+};
+
 export function SettingsSectionIcon({ section, size = 16 }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
   return <i data-ico={SECTION_ICON_BY_ID[section] ?? "settings"} data-size={size} aria-hidden="true" />;
 }
@@ -142,10 +176,16 @@ export function SettingsSectionIcon({ section, size = 16 }: { section: SettingsS
  * 这里复用同一套 settings-chat-* 样式类，但作为独立控件组渲染。
  */
 function TitleSettingsControls({ cwd }: { cwd: string | null }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [titleAuto, setTitleAuto] = useState(true);
   const [titleModel, setTitleModelState] = useState<{ provider: string; modelId: string } | null>(null);
   const [titleModelOptions, setTitleModelOptions] = useState<{ provider: string; modelId: string; label: string }[]>([]);
+  /* fork:disabled-reasons —— 原来 `.catch` 与非 2xx 响应都被压成同一个空数组，
+     于是一台没配供应商的机器上这个下拉恒为一项「使用会话模型」，页面上零提示。
+     现在把「空」与「加载失败」分开，并各自给一句说明。 */
+  const [titleModelList, setTitleModelList] = useState<
+    { state: "loading" | "ready" | "empty" | "error"; error: string }
+  >({ state: "loading", error: "" });
 
   // 读取命名开关/模型，并监听其他面板或窗口的 storage 广播。
   useEffect(() => {
@@ -163,8 +203,14 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
     const url = cwd ? `/api/models?cwd=${encodeURIComponent(cwd)}` : "/api/models";
     let cancelled = false;
     void fetch(url)
-      .then((response) => response.ok ? response.json() : null)
-      .then((data: { modelList?: { id: string; name?: string; provider: string }[] } | null) => {
+      .then(async (response) => {
+        if (!response.ok) {
+          const detail = await response.json().catch(() => null) as { error?: string } | null;
+          throw new Error(detail?.error ?? `HTTP ${response.status}`);
+        }
+        return response.json() as Promise<{ modelList?: { id: string; name?: string; provider: string }[] }>;
+      })
+      .then((data) => {
         if (cancelled) return;
         const options = (data?.modelList ?? [])
           .filter((model) => model.id && model.provider)
@@ -175,9 +221,15 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
           }))
           .sort((a, b) => a.label.localeCompare(b.label));
         setTitleModelOptions(options);
+        setTitleModelList({ state: options.length === 0 ? "empty" : "ready", error: "" });
       })
-      .catch(() => {
-        if (!cancelled) setTitleModelOptions([]);
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setTitleModelOptions([]);
+        setTitleModelList({
+          state: "error",
+          error: cause instanceof Error ? cause.message : String(cause),
+        });
       });
     return () => { cancelled = true; };
   }, [cwd]);
@@ -235,6 +287,16 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
           />
         }
       />
+      {/* fork:disabled-reasons —— 一句话讲清「为什么下拉里只有『使用会话模型』」。
+          文案与 AgentsConfig / fork/CronConfig 的空模型列表提示同源。 */}
+      {titleModelList.state === "empty" && (
+        <p className="pw-hint">{localCopy(NO_MODEL_PROVIDERS_HINT, locale)}</p>
+      )}
+      {titleModelList.state === "error" && (
+        <p className="pw-hint">
+          {localCopy(TITLE_MODEL_LIST_FAILED, locale, { error: titleModelList.error })}
+        </p>
+      )}
     </>
   );
 }
@@ -269,6 +331,10 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   /* fork:zn-15 — 「UI 字号」下拉的档位。逐 px 列会让 12–16 有五个选项，
      这是 Zeno 的粒度（它的字体设置也是逐 px）。 */
   const [notificationNote, setNotificationNote] = useState("");
+
+  // fork:disabled-reasons — 「重置（聊天内容宽度）」的禁用判据抽出来，好让
+  // `disabled` 与 `title` 共用同一个（两者不一致就会出现「不可点但写着功能名」）。
+  const chatWidthAtDefault = chatContentWidth === CHAT_CONTENT_WIDTH_DEFAULT;
 
   /* fork:zn-16 — 两个动作按钮。
      「发送测试通知」发一条真的系统通知（走 `Notification`，桌面外壳则由
@@ -493,6 +559,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             URL.revokeObjectURL(url);
           }}
         />
+        {/* fork:disabled-reasons —— 默认外观下 ThemeSkinStrip 的「导出 / 打开皮肤
+            工作室」恒 disabled（没有可导出的皮肤文件）。那两枚按钮在
+            ThemeSkinStrip.tsx，不在本轮可改的文件里，所以在这里用一句可见说明
+            补上原因；按钮的 title 请在同一处补（见报告）。 */}
+        {activeSkin === null && <p className="pw-hint">{localCopy(SKIN_ACTIONS_NEED_CUSTOM_SKIN, locale)}</p>}
       </PwBlock>
 
       {/* fork:zn-19-merge —— 壁纸与皮肤是同一件事的两个粒度：没有自定义皮肤时这里就是
@@ -615,6 +686,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
                 type="button"
                 className="pw-btn outline sm"
                 disabled={!notificationPrefs.enabled}
+                title={notificationPrefs.enabled ? undefined : localCopy(NOTIFY_TEST_NEEDS_MASTER, locale)}
                 onClick={() => void sendTestNotification()}
               >
                 {t("settings.notifyTest")}
@@ -778,8 +850,10 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               <button
                 type="button"
                 className="pw-btn sm"
-                title={t("settings.resetChatContentWidth")}
-                disabled={chatContentWidth === CHAT_CONTENT_WIDTH_DEFAULT}
+                /* fork:disabled-reasons —— title 原来写的是功能名（不可点时等于
+                   什么都没说）。不可点时改成写清「为什么」：已经是默认值。 */
+                title={chatWidthAtDefault ? localCopy(CHAT_WIDTH_ALREADY_DEFAULT, locale) : t("settings.resetChatContentWidth")}
+                disabled={chatWidthAtDefault}
                 onClick={() => setChatContentWidth(CHAT_CONTENT_WIDTH_DEFAULT)}
               >
                 {t("settings.reset")}

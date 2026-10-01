@@ -344,10 +344,17 @@ function useDeferredHighlight(code: string, enabled: boolean): boolean {
   return ready;
 }
 
+type CopyState = "idle" | "copied" | "failed";
+
 export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isStreaming }: CodeBlockProps) {
   const { t } = useI18n();
   const highlighterReady = useHighlighterReady();
-  const [copied, setCopied] = useState(false);
+  // fork:fix-clipboard — 三态而不是 `copied: boolean`：复制**可能失败**，而失败必须看得见。
+  // 之前 `copyText(code).then(...)` 没有 `.catch`，writeText 被拒时既不报错也不提示，
+  // 按钮纹丝不动，控制台挂一条 Uncaught (in promise)。
+  const [copyState, setCopyState] = useState<CopyState>("idle");
+  const copied = copyState === "copied";
+  const failed = copyState === "failed";
   // fork:fix-highlight-chunk — 超大块直接跳过高亮，并在下方给出原因提示。
   const highlightable = shouldHighlightCode(code);
   const deferredReady = useDeferredHighlight(code, !isStreaming && highlighterReady && highlightable);
@@ -355,9 +362,12 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
   const skippedNote = !isStreaming && code.trim() !== "" && !highlightable ? t(HIGHLIGHT_SKIPPED_I18N_KEY) : undefined;
 
   const copy = () => {
-    copyText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+    // `copyText` 现在永远 resolve 成一个明确结果（成功 / 失败），不抛 rejection。
+    void copyText(code).then((result) => {
+      const next: CopyState = result.ok ? "copied" : "failed";
+      setCopyState(next);
+      // 只复位自己刚写下的那一档：连续点两次时旧定时器不能把新状态抹掉。
+      window.setTimeout(() => setCopyState((current) => (current === next ? "idle" : current)), result.ok ? 1500 : 2600);
     });
   };
 
@@ -371,10 +381,21 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
         <span className="pw-mono">{lang || "text"}</span>
         <span className="grow"></span>
         {headerAction}
-        <button type="button" onClick={copy} className="pw-btn sm">
+        {/* fork:fix-clipboard — 失败态复用画板既有的 `.pw-btn.danger` + `.pw-badge.bad`
+            （components/fork/PathActions.tsx 的复制失败就是这套），没有另造提示系统 ——
+            通知条 NoticeShelf 挂在 ChatWindow 的会话态上，代码块拿不到。按钮保持
+            「复制/已复制」文案不变（画板 10 的形态），失败信息由旁边那枚
+            role=status 徽标承担，键盘/读屏用户也能听到。 */}
+        <button
+          type="button"
+          onClick={copy}
+          className={failed ? "pw-btn sm danger" : "pw-btn sm"}
+          title={failed ? t("chat.todosCopyFailed") : undefined}
+        >
           <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13"></i></span>
           {copied ? t("i18n.copied") : t("i18n.copy")}
         </button>
+        {failed && <span role="status" className="pw-badge bad">{t("chat.todosCopyFailed")}</span>}
       </div>
       {showHighlight ? (
         <LazyCodeHighlighter language={lang || "text"} showLineNumbers>

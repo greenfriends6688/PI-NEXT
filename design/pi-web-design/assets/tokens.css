@@ -98,6 +98,20 @@
   --space-chip: 1px 5px;     /* 徽章内边距（唯一非 4px 网格例外） */
   --space-kbd: 0 4px;
 
+  /* ---- 8b. 细间距刻度（fork:token-fine-2026-10-01）-------------------
+   * 4px 网格装不下的那几档。**取值全部收编 board.css 里已经在用的字面量**
+   * （29 处离网格 gap + 9 处 padding:6 + 5 处 padding:5 + 4 处 padding:7），
+   * 不是四舍五入到网格 —— 否则 board.css 与画板会当场分叉。
+   * DESIGN-SPEC §1.6 已授权「为节奏破格，但必须在表里点名」，这就是点名。
+   * 命名按语义分四类（别把它们合并：同值不同义）：
+   */
+  --space-hair: 1px;    /* 堆叠缝：相邻行几乎贴住（board: pw-side-nav / pw-proc-body / pw-git / pw-snav） */
+  --space-tight: 2px;   /* 同块紧排：图标钮成组 / 两行文字（board: pw-row .pw-acts / pw-tabs / pw-list） */
+  --space-icon: 3px;    /* 徽章内：图标 ↔ 字（board: .pw-badge / .pw-session .pw-await） */
+  --space-ctrl: 5px;    /* 可点元件内：图标 ↔ 字（board: pw-chipbtn/pw-chip/pw-tab/pw-trow/pw-url/pw-btn/pw-radio>span） */
+  --space-row: 6px;     /* 行式（非控件）：图标 ↔ 字；块体内距共用（board: pw-proc-head/pw-prow/pw-viewer-head/pw-diff-head） */
+  --space-loose: 10px;  /* 撑满宽的横幅内：图标 ↔ 字 */
+
   /* ---- 9. 字阶（5 档）· 字重 400 / 500 ---------------------------------- */
   --font-ui: "Geist", "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -117,6 +131,11 @@
   --control-sm: 28px;   /* 标准：工具栏 / 输入框内控件 */
   --control-md: 32px;   /* 主输入区 */
   --control-lg: 36px;
+  /* fork:token-control-2xs（2026-10-01）—— DESIGN-SPEC §1.6 写的是「控件高度三档
+     24/28/32」，但 board.css:260 的 `.pw-iconbtn.sm` 事实上已经是 22px
+     （fork-ui.css 的 button.pw-iconbtn.sm 也拄了 22）。22 是**已经在跑的第四档**，
+     缺的只是点名 —— 最小方钮 / 行内小钮 / 树行内钿。 */
+  --control-2xs: 22px;  /* 最小方钮：.pw-iconbtn.sm / 树行内钿 / 计数角标按钮 */
 
   /* ---- 11. 布局刻度 ----------------------------------------------------- */
   --sidebar-width: 280px;
@@ -129,6 +148,23 @@
   --composer-max: 800px;
   --row-height: 48px;
   --tree-row: 24px;
+  /* ---- 11b. 浮层与内容区刻度（fork:token-float-2026-10-01）----------------
+   * 画板的浮层宽散成 200/230/272/280/300/320/340/360/380 **九个值**，内容区上限散成
+   * 十二个 —— 本族把两侧各收成三/四档（收编自板内已有实践，不是新发明）。
+   * 弹层宽只影响「内容装不装得下」，上界只影响「什么时候开始滚」，都是低风险轴。 */
+  --pop-w-sm: 240px;      /* 窄菜单：模型收藏 / 标签溢出 / 文件树右键（板 230/272/280/300/200 全归它） */
+  --pop-w: 320px;         /* 浮层基线宽（board.css .pw-pop / .pw-minimap-pop） */
+  --pop-w-lg: 360px;      /* 宽浮层：查找条 */
+  --modal-w: 560px;       /* 对话框基线宽（board.css:632；产品另有两处分叉待收） */
+  --modal-w-lg: 760px;    /* 灯箱 / 图形查看器（板 10:233） */
+  --content-cap-xs: 160px; /* 浮层里的短片段：模型错误条 / 冲突片段 */
+  --content-cap-sm: 240px; /* 卡片体 / 面板内的输出与编辑区 */
+  --content-cap-md: 400px; /* 面板级滚动区：超长消息 / 终端输出 / 待办面板 */
+  --content-cap-lg: 560px; /* diff 与大图 */
+  --edit-min: 200px;       /* 单文件编辑器的常见最小高（板 42/45/46 的样张在用） */
+  --edit-min-lg: 340px;    /* 大编辑器（板 45 的记忆编辑器样张在用） */
+  --img-max: 240px;        /* 转录列里内联图片的上限（不是 .pw-img 的卡壳 420） */
+  --inset-edge: 20px;      /* 贴底浮层离边缘 */
 
   /* ---- 12. 动效 --------------------------------------------------------- */
   /* 三档内容时长 + 一档布局时长 + 一条曲线。全系统只有这两个例外用 linear：
@@ -151,6 +187,13 @@
   --icon-sm: 14px;
   --icon-md: 16px;
   --icon-stroke: 1.5;
+
+  /* ---- 12b. 状态点（fork:token-dot-2026-10-01）--------------------------
+   * board.css 自己就在用字面 6/7/8px 三个圆点（.pw-dot=7 / .pw-session .pw-m .pw-dot=6 /
+   * .pw-trow .git=6 / .pw-minimap-rail .node=6 / .node.on=8），只是没进表。
+   * 语义分两档：行内/树内的小点 vs 独立状态点。8px 零消费者，留在类里。 */
+  --dot-sm: 6px;   /* 行内 / 树内的小状态点：新上传 / 有改动 / 标签色 */
+  --dot-md: 7px;   /* 独立状态点：会话未读 / 查看器 live-static（board.css:198） */
 }
 
 /* ===========================================================================

@@ -39,6 +39,9 @@ import { getRecentProjects } from "@/lib/project-groups";
 import { useProjectFlags } from "@/lib/project-flags";
 import type { SessionInfo } from "@/lib/types";
 import { ConfigButton, ConfigSwitch, PwRadio, SettingsPage } from "./SettingsUi";
+/* fork:disabled-reasons —— 「为什么不能点」的本地文案（语言包在 lib/i18n/messages/**，
+ * 本轮不允许改 lib/，所以走与 AgentsConfig 同一套本地表，详见那里的注释）。 */
+import { localCopy, type LocalCopy } from "./AgentsConfig";
 
 interface KindState {
   /** null = 还没扫过。 */
@@ -90,8 +93,15 @@ const SOURCE_LABEL_KEY: Record<string, string> = {
   pi: "import.sourcePi",
 };
 
+/** fork:disabled-reasons —— 「清空选择 / 导入所选」在一行都没勾时恒 disabled 的原因。 */
+const NOTHING_SELECTED: LocalCopy = {
+  en: "Nothing is selected yet — tick an entry in the list on the left first.",
+  "zh-CN": "还没有勾选任何条目——先在左边的列表里勾上要导入的东西。",
+  "zh-TW": "還沒有勾選任何項目——先在左邊的清單裡勾上要匯入的東西。",
+};
+
 export function ImportPanel() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const { flags: projectFlags, restore: restoreProject } = useProjectFlags();
   const [active, setActive] = useState<ImportKind>("sessions");
   const [query, setQuery] = useState("");
@@ -329,6 +339,9 @@ export function ImportPanel() {
                 <ConfigButton
                   variant="secondary"
                   size="small"
+                  /* fork:disabled-reasons —— 两枚按钮在没勾选时恒灰，原来没有任何
+                     title：用户只能推断「是不是坏了」。写禁用原因，不是功能名。 */
+                  title={state.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
                   disabled={state.selected.size === 0}
                   onClick={() => setKind(kind, { selected: new Set() })}
                 >
@@ -338,6 +351,7 @@ export function ImportPanel() {
                 <ConfigButton
                   variant="primary"
                   size="small"
+                  title={state.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
                   disabled={state.selected.size === 0 || state.applying}
                   onClick={() => void apply(kind)}
                 >

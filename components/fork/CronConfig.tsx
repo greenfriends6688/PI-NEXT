@@ -25,10 +25,43 @@ import {
 import { CRON_EXAMPLES } from "@/lib/cron-expression";
 import { compileCronRule, parseClockTime, type CronRule } from "@/lib/cron-rule";
 import type { CronRunRecord, CronSchedule, CronTaskView } from "@/lib/cron-schedule";
+/* fork:disabled-reasons —— 「这台机器一个模型都没有」的口径与 AgentsConfig /
+ * SettingsPanel 共用同一张表（定义在 AgentsConfig，理由见那里的注释）。 */
+import { NO_MODEL_PROVIDERS_HINT, localCopy, type LocalCopy } from "../AgentsConfig";
 
 const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 const THINKING_LABELS: Record<(typeof THINKING_LEVELS)[number], string> = {
   auto: "auto", off: "off", minimal: "minimal", low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max",
+};
+
+/* fork:disabled-reasons —— 本文件新增的三句「为什么不能点 / 为什么什么都没发生」。
+ * 同样是本地文案表而不是 t()：语言包在 lib/i18n/messages/**，本轮不允许改 lib/。 */
+
+/** DELETE 失败时的可见提示（任务删除 / 运行记录删除）。 */
+const DELETE_TASK_FAILED: LocalCopy = {
+  en: "Could not delete the task: {error}",
+  "zh-CN": "删除定时任务失败：{error}",
+  "zh-TW": "刪除定時任務失敗：{error}",
+};
+
+const DELETE_RUN_FAILED: LocalCopy = {
+  en: "Could not delete this run from the history: {error}",
+  "zh-CN": "删除这条运行记录失败：{error}",
+  "zh-TW": "刪除這條執行記錄失敗：{error}",
+};
+
+/** 「创建任务」不可点且提示词/工作目录还空着时的原因。 */
+const CREATE_NEEDS_FIELDS: LocalCopy = {
+  en: "Fill in the prompt and the working directory first.",
+  "zh-CN": "先填任务提示词与工作目录。",
+  "zh-TW": "先填任務提示詞與工作目錄。",
+};
+
+/** 上面两项齐了、只差频率编不出合法 cron 时的原因。 */
+const CREATE_NEEDS_RULE: LocalCopy = {
+  en: "This schedule does not compile to a valid cron rule yet — see the message below it, then pick another frequency or fix the time.",
+  "zh-CN": "当前的频率还编译不出合法的 cron 规则（看它下面的提示），换一个频率或改一下时间。",
+  "zh-TW": "目前的頻率還編譯不出合法的 cron 規則（看它下面的提示），換一個頻率或改一下時間。",
 };
 
 /** Zones the runtime knows, big list first; falls back to a short fixed set. */
@@ -239,7 +272,7 @@ function TaskHistory({ task, onOpenSession, onDeleteRun }: {
 }
 
 export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpenSession?: (sessionId: string) => void }): ReactNode {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [tasks, setTasks] = useState<CronTaskView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +310,10 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
   const [models, setModels] = useState<{ key: string; label: string }[]>([]);
   const [defaultModelKey, setDefaultModelKey] = useState("");
   const [modelsError, setModelsError] = useState<string | null>(null);
+  // fork:disabled-reasons —— 200 + 空列表既不是「加载失败」也没有一句解释，于是
+  // 「模型」下拉恒为一项「默认」。这一位把「请求回来了」记下来，好把空列表与
+  // 还在飞行中的加载中区分开。
+  const [modelsLoaded, setModelsLoaded] = useState(false);
   const zones = useMemo(() => timezoneOptions(), []);
 
   useEffect(() => {
@@ -302,11 +339,13 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
         })));
         setDefaultModelKey(data.defaultModel ? `${data.defaultModel.provider}/${data.defaultModel.modelId}` : "");
         setModelsError(data.modelError ?? null);
+        setModelsLoaded(true);
       })
       .catch((cause: unknown) => {
         setModels([]);
         setDefaultModelKey("");
         setModelsError(cause instanceof Error ? cause.message : String(cause));
+        setModelsLoaded(true);
       });
   }, [cwd]);
 
@@ -446,9 +485,20 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
 
   const remove = async (id: string) => {
     setBusyId(id);
+    // fork:disabled-reasons —— 原来 `await fetch(DELETE)` 之后不看 `res.ok`：
+    // 403 / 500 时任务留在原地，页面上一句话都没有（唯一可见的现象就是「点了没反应」）。
+    // 现在判 HTTP 状态 + 错误体，并走页面顶部那块既有的 `.pw-alert`。
     try {
-      await fetch(`/api/cron?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await fetch(`/api/cron?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null) as { error?: string } | null;
+        setError(localCopy(DELETE_TASK_FAILED, locale, { error: detail?.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      setError(null);
       await load();
+    } catch (e) {
+      setError(localCopy(DELETE_TASK_FAILED, locale, { error: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusyId(null);
     }
@@ -457,9 +507,18 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
   // fork:zc-14 — drop one run row without touching the task itself.
   const removeRun = async (taskId: string, runId: string) => {
     setBusyId(taskId);
+    // 同 remove：不判 res.ok 就会在失败时静悄悄地重新 load 出一个没变的列表。
     try {
-      await fetch(`/api/cron?id=${encodeURIComponent(taskId)}&runId=${encodeURIComponent(runId)}`, { method: "DELETE" });
+      const res = await fetch(`/api/cron?id=${encodeURIComponent(taskId)}&runId=${encodeURIComponent(runId)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null) as { error?: string } | null;
+        setError(localCopy(DELETE_RUN_FAILED, locale, { error: detail?.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      setError(null);
       await load();
+    } catch (e) {
+      setError(localCopy(DELETE_RUN_FAILED, locale, { error: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusyId(null);
     }
@@ -505,6 +564,13 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
     ],
     [defaultModelLabel, models, t],
   );
+
+  /* fork:disabled-reasons —— 「创建任务」不可点时的那句话（可点时为 null，title 不出）。 */
+  const createDisabledReason = (!prompt.trim() || !taskCwd.trim())
+    ? localCopy(CREATE_NEEDS_FIELDS, locale)
+    : (mode !== "once" && mode !== "cron" && !compiledResult?.ok)
+      ? localCopy(CREATE_NEEDS_RULE, locale)
+      : null;
 
   return (
     <>
@@ -663,6 +729,14 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
               onChange={setModelKey}
             />
           </ConfigField>
+          {/* fork:disabled-reasons —— 200 + 空列表：`modelsError` 不触发，于是下拉
+              只剩「默认」却没有任何说法。与 AgentsConfig / SettingsPanel 同一句。 */}
+          {modelsLoaded && models.length === 0 && !modelsError && (
+            <div className="pw-alert info" role="status">
+              <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
+              <span className="pw-grow">{localCopy(NO_MODEL_PROVIDERS_HINT, locale)}</span>
+            </div>
+          )}
 
           <ConfigField label={t("cron.thinking")}>
             <PwSelectBox
@@ -721,7 +795,10 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
           {modelsError && (
             <div className="pw-alert" role="status">
               <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-              <span className="grow">{t("cron.modelListError", { error: modelsError })}</span>
+              {/* fork:disabled-reasons —— `grow` 在 `.pw-alert` 里没有规则（board.css
+                  只在 `.pw-*` 作用域里定义它），真正生效的是全局工具类 `.pw-grow`；
+                  两条模型提示并排出现，改成同一个类才不会一条换行一条不换行。 */}
+              <span className="pw-grow">{t("cron.modelListError", { error: modelsError })}</span>
             </div>
           )}
 
@@ -1011,6 +1088,9 @@ export function CronConfig({ cwd, onOpenSession }: { cwd?: string | null; onOpen
             <span className="pw-grow" aria-hidden="true" />
             <ConfigButton
               variant="primary"
+              /* fork:disabled-reasons —— 蓝色 primary、最像能点，却常年灰着。
+                 title 写禁用原因而不是功能名；两个判据都在，就一句说明。 */
+              title={createDisabledReason ?? undefined}
               disabled={!prompt.trim() || !taskCwd.trim() || (mode !== "once" && mode !== "cron" && !compiledResult?.ok)}
               onClick={() => void create()}
             >

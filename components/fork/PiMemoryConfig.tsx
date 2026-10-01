@@ -56,6 +56,21 @@ interface PluginPackageView {
   disabled?: boolean;
 }
 
+// fix:memory-open-dir —— 「记忆目录」是**目录**，不能交给只看文件的入口（AppShell 的
+// 文件查看器）。它由服务端在系统文件管理器里打开：复用 ExplorerPanel / SessionSidebar
+// 已经在用的 POST /api/open-in-explorer（GET 先问能力），不在本机或平台不支持时另有出路。
+interface FileManagerAvailability {
+  supported: boolean;
+  reason: string | null;
+  platform: string;
+}
+
+/** 服务端错误码 → 可翻译文案；未收录的错误码按原文显示（与 ExplorerPanel 同约定）。 */
+const FILE_MANAGER_ERROR_KEYS: Record<string, string> = {
+  remote: "sidebar.openInExplorerRemoteOnly",
+  "unsupported-platform": "sidebar.openInExplorerUnsupported",
+};
+
 export function PiMemoryConfig({
   cwd,
   onOpenFile,
@@ -79,6 +94,9 @@ export function PiMemoryConfig({
   const [openFile, setOpenFile] = useState<{ path: string; content: string; mtime: string } | null>(null);
   const [draft, setDraft] = useState("");
   const [conflict, setConflict] = useState(false);
+  // fix:memory-open-dir —— 目录打开能力与它在途状态。
+  const [fileManager, setFileManager] = useState<FileManagerAvailability | null>(null);
+  const [openingDir, setOpeningDir] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -108,6 +126,17 @@ export function PiMemoryConfig({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // fix:memory-open-dir —— 按钮文案与可用性由服务端说了算：只有服务端能弹系统窗口，
+  // 而且只有浏览器跑在同一台机器上才有意义（远程访问时 reason=remote）。问一次即可。
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/open-in-explorer")
+      .then((res) => (res.ok ? res.json() as Promise<FileManagerAvailability> : null))
+      .then((data) => { if (!cancelled && data) setFileManager(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // fork:fix-memory-ui — 自动保存：draft 偏离基线后防抖 800ms 写盘；冲突时停下，
   // 等用户点「重新加载」再继续。write 未列入依赖：它每次渲染重建，列入会重置防抖计时。
@@ -225,6 +254,22 @@ export function PiMemoryConfig({
   const missingFiles = files.filter((file) => !file.exists);
   const visibleCatalog = useMemo(() => filterMemoryEntries(catalog, fileQuery), [catalog, fileQuery]);
   const openFileWritable = openFile ? isWritableMemoryPath(openFile.path) : false;
+  // fix:memory-open-dir —— 开不了系统文件管理器时的替代目标：**文件**（相对记忆根目录的
+  // 路径），而且优先是用户正在看的那一个，其次是目录里的第一个条目。两个都拿不到时
+  // 留空 —— 绝不能把目录（哪怕带个尾斜杠）再交给只看文件的入口。
+  const dirFallbackRelative = openFile?.path ?? catalog[0]?.path ?? "";
+  const dirFallbackPath = dir && dirFallbackRelative ? `${dir}/${dirFallbackRelative}` : "";
+  const fileManagerUnavailable = fileManager?.supported === false;
+  const fileManagerUnavailableReason = fileManagerUnavailable
+    ? t(FILE_MANAGER_ERROR_KEYS[fileManager?.reason ?? ""] ?? "memory.openDir")
+    : null;
+  const dirButtonLabel = fileManagerUnavailable
+    ? t("memory.openDir")
+    : fileManager?.platform === "darwin"
+      ? t("sidebar.openInFinder")
+      : fileManager?.platform === "win32"
+        ? t("sidebar.openInExplorer")
+        : t("sidebar.openInFileManager");
 
   /* fix:memory-layout（画板 44）—— 列表头那枚「新建」把缺失的 pi-memory 文件一次建出来。
      原来是每个缺失文件行尾各挂一枚按钮（新增入口位置与画板不符，行也被按钮挤窄）。 */
@@ -236,6 +281,43 @@ export function PiMemoryConfig({
       if (!ok) return;
     }
     setMessage(t("memory.fileCreated"));
+  };
+
+  /* fix:memory-open-dir —— 这枚按钮原来把**目录**路径交给 onOpenFile，AppShell 无条件
+     开文件标签，于是 `/api/files/<memoryDir>` 404、标签页里只有一行「Not a file」。
+     记忆目录该由系统文件管理器打开（项目里已有的能力：ExplorerPanel 的面板头、
+     SessionSidebar 的「打开文件夹」打的是同一个 POST /api/open-in-explorer）；
+     这台机器上开不了时退到「在编辑器里打开记忆目录下的一个真实文件」，
+     并把原因写进页面提示 —— 两条路都不会静默失败。 */
+  const openMemoryDir = async () => {
+    if (!dir) return;
+    setOpeningDir(true);
+    setError(null);
+    try {
+      if (fileManagerUnavailable) {
+        if (!onOpenFile || !dirFallbackPath) {
+          // 目录里一个可打开的文件都没有：说清楚为什么这枚按钮没能打开什么。
+          setError(t("memory.filesEmpty"));
+          return;
+        }
+        setMessage(fileManagerUnavailableReason ?? t("memory.openInEditor"));
+        onOpenFile(dirFallbackPath);
+        return;
+      }
+      const res = await fetch("/api/open-in-explorer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd: dir }),
+      });
+      if (res.ok) return;
+      const data = await res.json().catch(() => ({})) as { error?: string };
+      const reason = data.error ?? `HTTP ${res.status}`;
+      setError(t(FILE_MANAGER_ERROR_KEYS[reason] ?? reason));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOpeningDir(false);
+    }
   };
 
   /* fork:design-system —— 画板 44 的记忆页：两块 `.pw-block`（开关与状态 / 记忆
@@ -303,10 +385,20 @@ export function PiMemoryConfig({
         <ConfigField label={t("memory.dirLabel")}>
           <PwCtl>
             <span className="pw-mono pw-dim">{dir || `~/.pi/agent/${MEMORY_DIR_NAME}`}</span>
-            {onOpenFile && dir && (
-              <ConfigButton variant="ghost" size="small" onClick={() => onOpenFile(dir)}>
+            {/* fix:memory-open-dir —— 目录走系统文件管理器（不再是「把目录当文件打开」）；
+                能力探测的结果决定文案：能用就说清是访达 / 资源管理器 / 文件管理器，
+                不能用就退回中性的「打开」并在 title 里说明原因。 */}
+            {dir && (
+              <ConfigButton
+                variant="ghost"
+                size="small"
+                onClick={() => void openMemoryDir()}
+                disabled={openingDir}
+                aria-busy={openingDir || undefined}
+                title={fileManagerUnavailableReason ?? undefined}
+              >
                 <span className="pw-ico"><i data-ico="external-link" data-size="13" aria-hidden="true" /></span>
-                {t("memory.openDir")}
+                {dirButtonLabel}
               </ConfigButton>
             )}
           </PwCtl>

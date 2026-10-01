@@ -2629,22 +2629,34 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                           {m.reasoning && (
                             <ConfigBadge tone="accent">T</ConfigBadge>
                           )}
-                          {/* 收藏星 = 画板 41 供应商行上的那枚 `pw-ico` + star；
-                              颜色/可见度随收藏态（运行时）。 */}
-                          <button
-                            type="button"
+                          {/* fork:fix-nested-button — 收藏星**不能**是真 `<button>`：行本体
+                              `ConfigSidebarItem` 渲染的就是 `<button class="pw-litem">`
+                              （components/SettingsUi.tsx，那个文件不能动），而 HTML 解析器
+                              遇到嵌套 `<button>` 会把里层的**提前闭合并提到外面** ——
+                              SSR 出来的树和客户端渲染的树对不上，于是控制台常驻
+                              `In HTML, <button> cannot be a descendant of <button>`、
+                              开发态右下角常驻 1 Issue、整棵子树客户端重绘。
+                              改用本仓既有写法（components/ModelSelector.tsx 的行内星标、
+                              components/ProcessGroup.tsx 的 file chip，补丁 0019）：
+                              `span[role=button] tabIndex=0` + Enter/Space 键盘处理。
+                              `<span>` 不会被解析器搬走 → 服务端/客户端树一致，无 hydration 报错；
+                              `[role=button]` 命中 app/globals.css 的全局 focus-visible 描边。 */}
+                          <span
+                            role="button"
                             className="pw-iconbtn sm"
                             tabIndex={favoriteKey ? 0 : -1}
-                            disabled={!favoriteKey}
+                            aria-disabled={!favoriteKey}
                             aria-pressed={isFavorite}
                             aria-label={isFavorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
                             title={isFavorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
                             onClick={(event) => {
+                              // stopPropagation：不能让星星的点击带发行选中。
                               event.stopPropagation();
                               if (favoriteKey) toggleFavoriteModelKey(favoriteKey);
                             }}
                             onKeyDown={(event) => {
                               if (event.key !== "Enter" && event.key !== " ") return;
+                              // Space 否则会滚动侧栏，Enter 无所谓，都要拦下。
                               event.preventDefault();
                               event.stopPropagation();
                               if (favoriteKey) toggleFavoriteModelKey(favoriteKey);
@@ -2654,9 +2666,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                               className="pw-ico"
                               style={{ color: isFavorite ? "var(--accent)" : "var(--text-dim)", opacity: favoriteKey ? 1 : 0.35 }}
                             >
-                              <i data-ico="star" data-size="13"></i>
+                              <i data-ico="star" data-size="13" aria-hidden="true"></i>
                             </span>
-                          </button>
+                          </span>
                         </ConfigSidebarItem>
                       );
                     })}

@@ -1728,3 +1728,68 @@ Git 图谱、浏览器面板），要么开了也只用肉眼看「像不像」�
      再把「不需要新 token」的 9 处收掉 → **166**，剩下的才需要新 token。
 192. **审计的方法论留档**：③ 表里「谁更可能对」只是推断不是裁定 —— 尤其 `height: 35`
      与四分叉的 modal 宽度，差值大到不像笔误，**必须设计本人拍板**。
+
+---
+
+## U · 2026-10-01：设置页 24 帧逐帧对位（新增 24 份 spec）+ token 落地第一批
+
+### U-0 · 设置页对位的诚实结论：既有 11 份 spec 是**假绿**
+
+用 5 个并行子任务把设置页 24 帧逐帧拆开量（新增 `4x-4*` 21 份 + `62-frame*` 3 份），
+覆盖 577 个原子。结论比「发现 N 处偏离」更重要的一条：
+
+**既有 11 份设置 spec 全绿，但只量到了 90 个原子（577 的 16%）**，其余靠 knownDiff /
+skip 遮住；其中两条 knownDiff 的**结论本身是错的**：
+
+1. `47-skin-studio.mjs` 写着「皮肤工作室在产品里已经不是 `.pw-modal` 结构」——
+   实为**它从来没打开过工作室**（驱动是 `settings:general`），probe 量到的是设置壳自己
+   的 `.pw-modal`（`settings.css:604`）与被 `display:none` 的 `.pw-modal-head`（`:617`）。
+   新 spec 真正打开工作室后，`.pw-modal` / `-head` / `-body` / `-tabs` / `-tab` **全部通过**。
+2. `45-settings-shortcuts-usage.mjs` 把 `.pw-radio` 的字号差归因为「board.css:799 是 12px、
+   样张写成了 13px」。实际 `board.css:797` 是 `var(--text-meta)` = **11px**；13px 来自
+   `.pw-radio` **容器**在 `.pw-inline`（13px 正文）里继承。芯片两边都是 11px。
+
+**这是门禁的元问题**：knownDiff 写久了会变成「什么都解释得通」。新 spec 不继承旧 knownDiff，
+一切从零量 —— 宁可红。
+
+### U-1 · 接线层悄悄改了排版与结构（合起来 = 「设置页没按设计规范走」的观感来源）
+
+| 处 | 画板 | 产品 | 证据 |
+|---|---|---|---|
+| `.pw-field` gap | `var(--s4)`=16 | `6px 16px` | `app/settings.css:765-770`（row-gap 6 + wrap） |
+| `.pw-field > .pw-label` | 随内容宽 | `min-width:132px` | `settings.css:777-786` |
+| `.pw-field > .pw-input` | `min-width:200px` | `min-width:0`（并发上限实测 164→64） | `settings.css:792-797` |
+| `.pw-tab` | 内容宽 60px | **440px 拉满整行** | `fork-ui.css:1848`（被塞进 `width:100%` 清单） |
+| `.pw-skin .cap` | `display:flex` | `display:grid; grid-auto-flow:column` | `fork-ui.css:2339` |
+| 列表行开关缩放 | 板 22 处 `scale(.8/.85)`（24×13.6） | **0 处**，30×17 | `grep scale(\.8` 全仓 0 |
+
+前四条都是 `settings.css` / `fork-ui.css` 里**有注释自辩**的接线；单看都合理，
+合起来就是「设置页的呼吸节奏和画板不是一回事」。
+
+### U-2 · 两个整块功能缺失
+
+- **整个「快捷键」分节**：画板 40–46 左导航第 9 行 + 画板 45 帧 0 整帧；产品
+  `SETTINGS_SECTION_VALUES`（`lib/settings-navigation.ts:1-15`）12 项无 `shortcuts`。
+  **而画板 62 的「12 页落位表」已经把快捷键删了** —— 两块画板自相矛盾，需设计裁定。
+- **「按条目选」的弹层语义被改成内联视图**：「安装技能」「导入 MCP」「内置壁纸画廊」
+  画板都是 `.pw-modal` 三段式，产品是详情列内联（无 `.pw-modal`/`.pw-scrim`）。
+
+### U-3 · token 落地第一批（像素零变化）
+
+新增 **21 个 token**（取值全部收编 board.css 里已有的字面量，不是四舍五入到网格）：
+6 个 `--space-*`（1/2/3/5/6/10）+ `--control-2xs`(22) + 2 个 `--dot-*`(6/7)
++ 3 个浮层宽（240/320/360）+ `--modal-w`(560) + `--modal-w-lg`(760) + 4 个 `--content-cap-*`
++ `--edit-min`/`--edit-min-lg` + `--img-max` + `--inset-edge`。
+`--control-2xs` 是唯一要动三处的（设计表 + `--ds-` 副本 + `globals.css` 的覆盖组）——
+`globals.css` 那组会覆盖设计表同名变量，只改一处会造成「产品 CSS 拿不到、别处能拿到」。
+
+board.css 里 **49 处**离网格字面量（29 处 gap + 9 处 padding:6 + 5 处 padding:5 等）
+换成 `var(--space-*)`，**值一字未改**；实测 `.pw-field` 的 `rowGap=6px columnGap=16px`
+与收编前一致，既有 30 份 spec 全部 0 不符。
+
+### U-4 · 这一批留下的「已知且不掩盖」清单
+
+21 份新 spec 目前**如实红着**（合计约 70 项不符）：那是它们量出来的真偏离，
+按项目规矩 `knownDiffs` 只许登记接线/数据/状态/取景/画板自身不一致，
+所以这些红项**先留着红**，逐条裁定后才收。具体清单见各 spec 的 `✗` 输出与
+下批的收敛顺序（先修接线层 4 条 + 快捷键整节的裁定）。

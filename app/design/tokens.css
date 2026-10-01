@@ -110,6 +110,7 @@
   --ds-lh-control: 1.35;
 
   /* ---- 10. 控件高度（三档 + 一档触控）----------------------------------- */
+  --ds-control-2xs:   22px;   /* 最小方钮（board.css 的 .pw-iconbtn.sm 事实已在用） */
   --ds-control-xs:    24px;   /* 紧凑：芯片 / 行内按钮 */
   --ds-control-sm:    28px;   /* 标准：工具栏 / 输入框内控件 */
   --ds-control-md:    32px;   /* 主输入区 */
