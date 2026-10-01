@@ -25,7 +25,7 @@
  * `getSupportedThinkingLevels()` 的列表里。预填一个不存在的档位会让选择器显示成
  * 选中的档却发不出去，所以那种情况按「没有记忆」处理。
  */
-import { thinkingLevelMemoryKey } from "./thinking-level-memory";
+import { thinkingLevelMemoryKey } from "./thinking-level-memory-shared";
 
 export type PrefillThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 

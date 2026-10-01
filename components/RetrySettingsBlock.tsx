@@ -31,7 +31,7 @@ import {
   RETRY_MAX_BASE_DELAY_MS,
   RETRY_MAX_RETRIES,
   type RetrySettings,
-} from "@/lib/retry-settings";
+} from "@/lib/retry-settings-shared";
 
 type NumericKey = "maxRetries" | "baseDelayMs";
 

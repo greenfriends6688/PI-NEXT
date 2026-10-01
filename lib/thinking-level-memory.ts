@@ -16,14 +16,13 @@ import { writePrivateFileAtomicSync } from "./atomic-file";
 
 const MEMORY_KEY = "thinkingLevelMemory";
 
-export interface PiWebPreferences {
-  thinkingLevelMemory?: Record<string, string>;
-}
-
-/** per-model 记忆的 key 约定：`provider/modelId`（斜杠形式）。 */
-export function thinkingLevelMemoryKey(provider: string, modelId: string): string {
-  return `${provider}/${modelId}`;
-}
+// fork:pwa-build-2026-10-01 —— 类型与 key 构造函数搬去 `thinking-level-memory-shared.ts`：
+// 本模块带 `fs`，客户端（useAgentSession → thinking-level-prefill）只想要纯 key，
+// 挂在同一个模块里会被 webpack 拖进浏览器依赖图（`Can't resolve 'fs'`）。
+export type { PiWebPreferences } from "./thinking-level-memory-shared";
+export { thinkingLevelMemoryKey } from "./thinking-level-memory-shared";
+import type { PiWebPreferences } from "./thinking-level-memory-shared";
+import { thinkingLevelMemoryKey } from "./thinking-level-memory-shared";
 
 function getPreferencesPath(): string {
   return join(getAgentDir(), "pi-web-preferences.json");

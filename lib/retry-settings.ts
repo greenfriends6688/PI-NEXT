@@ -46,23 +46,12 @@ import { getAgentDir, SettingsManager } from "@earendil-works/pi-coding-agent";
 import lockfile from "proper-lockfile";
 import { writePrivateFileAtomicSync } from "./atomic-file";
 
-/** 面板上暴露的三个键。`maxAgentDelayMs` / `provider.*` 是 pi 的内部上限与供应商级旋钮，本产品不给入口。 */
-export interface RetrySettings {
-  enabled: boolean;
-  maxRetries: number;
-  baseDelayMs: number;
-}
-
-/** 与 `SettingsManager.getRetrySettings()` 的内建默认逐值一致（SDK `settings-manager.js:606-624`）。 */
-export const RETRY_DEFAULTS: RetrySettings = { enabled: true, maxRetries: 3, baseDelayMs: 2000 };
-
-/**
- * UI 与服务端共用的取值范围。SDK 自己不校验（`getRetrySettings()` 直接 `?? 3`），
- * 所以上限是我们定的：重试次数再多只是白等，基础延迟再大只是每次都超时。
- * 与 `pi-agent-core/dist/harness/config.js:17-22` 的下限（≥ 0 的安全整数）对齐。
- */
-export const RETRY_MAX_RETRIES = 20;
-export const RETRY_MAX_BASE_DELAY_MS = 60_000;
+/** 面板上暴露的三个键。`maxAgentDelayMs` / `provider.*` 是 pi 的内部上限与供应商级旋钮，本产品不给入口。
+ *  —— 类型与常量本体在 `lib/retry-settings-shared.ts`（客户端也要用，不能带 fs）。 */
+export type { RetrySettings } from "./retry-settings-shared";
+export { RETRY_DEFAULTS, RETRY_MAX_RETRIES, RETRY_MAX_BASE_DELAY_MS } from "./retry-settings-shared";
+import type { RetrySettings } from "./retry-settings-shared";
+import { RETRY_DEFAULTS, RETRY_MAX_RETRIES, RETRY_MAX_BASE_DELAY_MS } from "./retry-settings-shared";
 
 /** settings.json 坏掉 / 不是对象 —— 调用方应据此禁用保存并显示原因（422）。 */
 export class RetrySettingsReadError extends Error {
