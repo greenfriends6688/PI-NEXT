@@ -39,6 +39,8 @@ import type { ToolPreset } from "@/lib/tool-presets";
 // fork:proma-02-mode — 会话权限模式
 import { nextPermissionMode, PERMISSION_MODE_HINT_KEYS, PERMISSION_MODE_LABEL_KEYS, type PermissionMode } from "@/lib/permission-mode";
 import { ModelSelector, type ModelSelectorOption } from "./ModelSelector";
+// fork:quota-chip —— 模型选择器右侧的供应商配额芯片（上游 closed PR #867）。
+import { ProviderQuotaChip } from "./ProviderQuotaChip";
 import {
   favoriteModelKey,
   getFavoriteModelsServerSnapshot,
@@ -3781,6 +3783,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {/* fork:ui — 输入框侧的独立收藏菜单已移除（用户要求）：收藏现在就在
                 模型下拉里每行右侧的星标上（ModelSelector），不需要第二个入口。 */}
+            {/* fork:quota-chip —— 供应商配额芯片，排在模型选择器右侧（上游 #867）。
+                没选模型 / provider 不支持额度查询 / 没缓存过 / 查询失败 —— 都不渲染，
+                输入区不留报错痕迹。窄屏只留图标，不占输入框宽度。 */}
+            <ProviderQuotaChip providerId={model?.provider ?? null} narrow={narrowControls} />
             {isStreaming && onThinkingLevelChange && (
               // The level cannot change mid-turn, so this is read-only: a button here
               // would invite clicks that do nothing. It still answers the question
