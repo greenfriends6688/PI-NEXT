@@ -293,6 +293,8 @@ export class AgentSessionWrapper {
   private shutdownPromise: Promise<void> | null = null;
   private sessionShutdownEmitted = false;
   private forceShutdownOnIdle = false;
+  /** fork:upstream-stuck-run-reap — #1017 移植：已挂上的空闲定时器就是 Stop 排的那次强制回收。 */
+  private forcedIdleTimerArmed = false;
   private _alive = true;
 
   constructor(
@@ -520,11 +522,22 @@ export class AgentSessionWrapper {
   }
 
   private resetIdleTimer(): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    if (!this._alive) return;
-    // A resolved timeout of 0 disables idle shutdown entirely.
-    if (SESSION_IDLE_TIMEOUT_MS === 0) return;
+    if (!this._alive) {
+      if (this.idleTimer) clearTimeout(this.idleTimer);
+      return;
+    }
     if (!this.isRunning()) this.forceShutdownOnIdle = false;
+    // fork:upstream-stuck-run-reap — #1017 移植：卡住的会话会刷新页面、重开、反复按
+    // Stop，每一条命令都会走到这里。给它们挪动强制回收的期限，就等于让一个 Stop
+    // 收不回来的 run 无限续命。
+    if (this.forceShutdownOnIdle && this.forcedIdleTimerArmed) return;
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    // 0 仍然表示「空闲会话永不关停」，但 Stop 收不回来的 run 依旧按默认延时回收，
+    // 否则它会一直「运行中」到服务器重启为止（#656）。
+    const timeoutMs = SESSION_IDLE_TIMEOUT_MS
+      || (this.forceShutdownOnIdle ? DEFAULT_SESSION_IDLE_TIMEOUT_MS : 0);
+    this.forcedIdleTimerArmed = timeoutMs !== 0 && this.forceShutdownOnIdle;
+    if (timeoutMs === 0) return;
     this.idleTimer = setTimeout(() => {
       if (!this.forceShutdownOnIdle && (this.isRunning() || hasActiveSessionLivenessProvider({
         sessionId: this.sessionId,
@@ -536,7 +549,7 @@ export class AgentSessionWrapper {
       void this.shutdown().catch((error) => {
         console.error("[pi-web] failed to shut down idle session:", error instanceof Error ? error.message : error);
       });
-    }, SESSION_IDLE_TIMEOUT_MS);
+    }, timeoutMs);
   }
 
   private persistBashOnlySession(): void {
@@ -846,6 +859,9 @@ export class AgentSessionWrapper {
 
       case "abort":
         this.forceShutdownOnIdle = true;
+        // fork:upstream-stuck-run-reap — #1017：send() 里那次 reset 跑在置位之前，
+        // 真正的强制回收必须在这里就挂上。
+        this.resetIdleTimer();
         // Stop must unwind extension commands that have not started the agent yet.
         this.extensionUiAbortController.abort(new DOMException("Extension UI cancelled by Stop", "AbortError"));
         try {
@@ -1283,6 +1299,7 @@ export class AgentSessionWrapper {
 
       case "abort_bash": {
         this.forceShutdownOnIdle = true;
+        this.resetIdleTimer();
         this.inner.abortBash();
         return null;
       }
