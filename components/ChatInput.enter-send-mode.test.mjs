@@ -185,3 +185,39 @@ test("menus take plain Enter in both modes; the IME guard covers plain Enter too
   // IME：合成刚结束时确认候选的那个 Enter 不能顺带发送或换行。
   assert.equal(loadKeyHandler({ enterSendMode: "ctrlEnter", lastCompositionEndAtRef: { current: 950 } })({}), "prevented");
 });
+
+test("plain Enter continues the Markdown list once Ctrl+Enter is the send key", () => {
+  // G10：Enter 腾出来之后，列表续行从 Shift+Enter 也跟到纯 Enter 上。
+  // 默认档（Enter 直发）不受影响：同一个函数算出的续行不会被调用。
+  const continuation = { value: "- item\n- ", caret: 9 };
+  let calls = 0;
+  const driven = (enterSendMode, value) => {
+    calls = 0;
+    const press = loadKeyHandler({
+      enterSendMode,
+      value,
+      textareaRef: { current: { selectionStart: value.length, selectionEnd: value.length, focus() {}, setSelectionRange() {}, scrollHeight: 40, style: {} } },
+      valueRef: { current: value },
+      setValue() { calls += 1; },
+      setAtQuery() {},
+      requestAnimationFrame: (fn) => fn(),
+      continueMarkdownList: () => continuation,
+    });
+    return [press({}), calls];
+  };
+
+  assert.deepEqual(driven("ctrlEnter", "- item"), ["prevented", 1]);
+  assert.deepEqual(driven("enter", "- item"), ["send", 0]);
+  // 没有列表结构时返回 null → 落回原生换行（不发送、不改值）。
+  const empty = loadKeyHandler({
+    enterSendMode: "ctrlEnter",
+    value: "just text",
+    textareaRef: { current: { selectionStart: 9, selectionEnd: 9, focus() {}, setSelectionRange() {}, scrollHeight: 40, style: {} } },
+    valueRef: { current: "just text" },
+    setValue() { throw new Error("must not rewrite"); },
+    setAtQuery() {},
+    requestAnimationFrame: (fn) => fn(),
+    continueMarkdownList: () => null,
+  });
+  assert.equal(empty({}), "native");
+});

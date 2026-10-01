@@ -2643,14 +2643,20 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         return;
       }
 
-      // fork:pr13-composer — Shift+Enter 的 Markdown 列表续行：无序列表、有序
-      // 列表（序号 +1）、task 复选框（重置 `[ ]`）、引用 / 缩进组合；空项则删除整
-      // 段前缀（VS Code 行为）。没有结构前缀时返回 null，回退到原生换行。
+      // fork:markdown-continuation（G10 · 上游 `fd037e4` #884）—— Markdown 列表
+      // 续行：无序列表、有序列表（序号 +1、补零）、中文顿号 `1、`、task 复选框（重置
+      // `[ ]`）、引用 / 缩进 / 标记间距的组合；thematic break 与代码围栏里不续行；
+      // 空项则删掉整段前缀（VS Code 行为）。没有结构前缀时返回 null，走原生换行。
+      //
+      // 绑在哪个键上：**换行键**。Shift+Enter 一直如此；把发送键改成 Ctrl+Enter
+      // （fork:send-key）之后纯 Enter 也腾出来了，于是它也走这里 —— 这正是 G6
+      // 腾出 Enter 的意义（依赖：设置里的发送键，默认档 Enter 仍然是发送）。
       //
       // `typeof` 守卫的原因：既有测试直接抽取这个回调在 VM 里执行，不会注入
-      // continueMarkdownList；守卫让那些 Shift+Enter 用例仍走原生行为。
-      if (e.key === "Enter" && e.shiftKey && !isComposing && !recentlyComposed
-        && typeof continueMarkdownList === "function") {
+      // continueMarkdownList；守卫让那些用例仍走原生行为。
+      const wantsLineBreak = e.shiftKey || enterSendMode === "ctrlEnter";
+      if (e.key === "Enter" && wantsLineBreak && !isComposing && !recentlyComposed
+        && !sendShortcut && typeof continueMarkdownList === "function") {
         const ta = textareaRef.current;
         const start = ta?.selectionStart ?? value.length;
         const end = ta?.selectionEnd ?? start;
