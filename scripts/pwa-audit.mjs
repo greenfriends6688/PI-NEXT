@@ -79,9 +79,11 @@ const esc = async () => {
   await page.waitForTimeout(400);
 };
 
-// 页面常驻 SSE（running 轮询 / agent events），networkidle 永远等不到；等 app shell 出现即可。
+// 页面常驻 SSE（running 轮询 / agent events），networkidle 永远等不到。
+// 壳的类名随工作区形态变（chat / chat-workspace / standalone），所以不绑选择器：
+// 等首屏真出文字即可。
 await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-await page.waitForSelector('[class*="shell"]', { timeout: 30000 });
+await page.waitForFunction(() => document.body.innerText.trim().length > 40, { timeout: 45000 });
 await page.waitForTimeout(1500);
 
 /** 量测当前界面。返回结构化缺陷。 */
