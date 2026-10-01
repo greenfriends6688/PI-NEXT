@@ -557,7 +557,11 @@ export function AgentsConfig({
                   label={t("agents.builtInTitle")}
                   onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
                 />
-                {/* 数字步进宽度是运行时布局值（pw-input 默认 min-width:200px 太宽）。 */}
+                {/* fix:agents-row-collapse —— 这条行在**列表列**（295px）里，不是整宽设置页。
+                    `.pw-input` 的 `min-width: 200px` 压过了内联的 `width: 64`（实测输入框
+                    200px、控件列 238px），把标签列挤到 53px —— 标题折三行、说明折成一根
+                    186px 高的条，整行 194px 高。`min-width` 归零后控件列 ≈100px，
+                    标签拿回 ~190px。 */}
                 <input
                   aria-label={t("agents.maxConcurrent")}
                   title={t("agents.maxConcurrentDescription")}
@@ -569,7 +573,7 @@ export function AgentsConfig({
                   onChange={(event) => setMaxConcurrent(Number(event.target.value))}
                   onBlur={() => void updateMaxConcurrent(maxConcurrent)}
                   className="pw-input"
-                  style={{ width: 64, textAlign: "center" }}
+                  style={{ width: 64, minWidth: 0, textAlign: "center" }}
                 />
               </ConfigControl>
             </ConfigField>
