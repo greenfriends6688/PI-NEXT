@@ -864,6 +864,10 @@ function entryToUiMessage(
       const content = message.content;
       return {
         ...message,
+        // fix:turn-stats —— 助手消息附上**落盘时间**（= 响应写完）。`message.timestamp`
+        // 是调用开始时间，单独拿它算“生成耗时”只会得到 3–10ms 的噪声（用户：“这个咋又是
+        // 毫秒啊”）；拿它算工具耗时则会把生成时间算进工具头上（实测 0.3s 的工具显示 6.5s）。
+        completedAt: parseEntryTimestamp(entry.timestamp),
         content: content.map((block) => (
           block.type === "thinking" && block.thinking.trim() !== ""
             ? { ...block, thinking: getThinkingPreview(block.thinking), deferred: true }

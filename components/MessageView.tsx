@@ -714,29 +714,36 @@ function AssistantMessageView({
   const blockStartTimesRef = useRef<Map<number, number>>(new Map());
   const [streamingDurations, setStreamingDurations] = useState<Map<number, number>>(new Map());
 
-  // Thinking duration derived from file timestamps: time from prev message end to this message end
-  // This is the total generation time (thinking + any text before first tool call)
+  // fix:turn-stats —— `message.timestamp` 是**调用开始**，`completedAt`（条目落盘）是响应写完。
+  // 这一步模型真正跑了多久 = 两者之差。旧数据没有 `completedAt`（旧会话文件 / 不带该字段的
+  // 消息）时回落到“与上一条消息的间隔”，那是个 3–10ms 的噪声，但至少不是错的。
+  const generationEnd = (message as { completedAt?: number }).completedAt ?? null;
+  const stepDurationSec = message.timestamp && generationEnd
+    ? Math.max(0, (generationEnd - message.timestamp) / 1000)
+    : null;
   const thinkingDurationFromFile = useMemo<number | undefined>(() => {
+    if (stepDurationSec !== null) return stepDurationSec > 0 ? stepDurationSec : undefined;
     if (!message.timestamp || !prevTimestamp) return undefined;
     // 不取整：亚秒的思考/工具耗时只有保留小数才量得出来（取整后一律变 0s 被丢掉）。
     const secs = (message.timestamp - prevTimestamp) / 1000;
     return secs > 0 ? secs : undefined;
-  }, [message.timestamp, prevTimestamp]);
+  }, [stepDurationSec, message.timestamp, prevTimestamp]);
 
-  // Tool call durations derived from session file timestamps (accurate for completed messages)
-  // assistant message timestamp = when generation ended = when tools started running
-  // toolResult timestamp = when tool execution finished
+  // Tool call durations: the tools start when generation ends, so the end point
+  // is `completedAt` (the entry's append time), not `timestamp` (the call start).
+  // fix:turn-stats —— 旧公式把生成时间算进了每个工具（实测 0.3s 的工具显示 6.5s）。
   const toolCallDurations = useMemo<Map<string, number>>(() => {
     const map = new Map<string, number>();
-    if (!toolResults || !message.timestamp) return map;
+    const toolStart = generationEnd ?? message.timestamp;
+    if (!toolResults || !toolStart) return map;
     for (const [callId, result] of toolResults) {
-      if (result.timestamp && message.timestamp) {
-        const secs = (result.timestamp - message.timestamp) / 1000;
+      if (result.timestamp) {
+        const secs = (result.timestamp - toolStart) / 1000;
         if (secs > 0) map.set(callId, secs);
       }
     }
     return map;
-  }, [toolResults, message.timestamp]);
+  }, [toolResults, message.timestamp, generationEnd]);
 
   const textContent = blocks
     .filter((b): b is TextContent => b.type === "text")
@@ -893,9 +900,10 @@ function AssistantMessageView({
           图标走 <i data-ico>（icons.js hydrate），本组件不再写一行视觉样式。 */}
       {!isStreaming && (() => {
         const stopReason = message.stopReason ?? "stop";
-        const durationSec = prevTimestamp && message.timestamp
-          ? Math.max(0, (message.timestamp - prevTimestamp) / 1000)
-          : null;
+        // fix:turn-stats —— 这一格原来是 `message.timestamp - 上一条消息.timestamp`，
+        // 量的是“条目落盘的间隔”（实测恒为 3–10ms，用户：“这个咋又是毫秒啊，
+        // 统计的一点都不准”）。现在量**这一步模型真正跑了多久**（落盘 − 调用开始）。
+        const durationSec = stepDurationSec;
         const badgeClass = stopReason === "stop" ? "ok"
           : stopReason === "length" ? "warn"
             : stopReason === "error" ? "bad"
@@ -924,19 +932,24 @@ function AssistantMessageView({
             </span>
             {durationSec !== null && (
               <>
-                <span className="pw-mono">{formatDuration(durationSec)}</span>
+                <span className="pw-mono" title={t("chat.turnEnd.durationHint")}>{formatDuration(durationSec)}</span>
                 <span>·</span>
               </>
             )}
-            {usageText && (
+            {usageText && message.usage && (
               <>
-                <span className="pw-mono">{usageText}</span>
+                <span className="pw-mono" title={usageTitle(message.usage, t)}>{usageText}</span>
                 <span>·</span>
               </>
             )}
             {costText && (
               <>
-                <span className="pw-mono">{costText}</span>
+                <span
+                  className="pw-mono"
+                  title={message.usage?.cost?.total ? t("chat.turnEnd.costHint") : t("chat.turnEnd.costFree")}
+                >
+                  {costText}
+                </span>
                 <span>·</span>
               </>
             )}
@@ -1984,7 +1997,7 @@ function getToolPreview(block: ToolCallContent): string {
   return String(first).slice(0, 120);
 }
 
-function formatUsage(usage: {
+export function formatUsage(usage: {
   input: number;
   output: number;
   cacheRead: number;
@@ -1992,14 +2005,48 @@ function formatUsage(usage: {
   cost: { total: number };
 }): string {
   // fork:design-components —— 回合用量行 = 画板 12 的「↑ 8,912 · ↓ 1,328 tok」。
-  // 缓存读写不进这一行（画板没画）；它们属于统计条的展开明细。
-  if (!usage.input && !usage.output) return "";
-  return `↑ ${usage.input.toLocaleString()} · ↓ ${usage.output.toLocaleString()} tok`;
+  //
+  // fix:turn-stats —— `↑` 是**这一次请求真的送进去的 prompt token**：光报
+  // `usage.input` 是不准的（实测一次真实回合 input=71、cacheRead=240,830，却显示
+  // 「↑ 71」—— 看上去只有 71 个 token，而模型读了 24 万）。所以上行 = input +
+  // cacheRead + cacheWrite，过万走紧凑写法；精确拆分放在 title 里。
+  // 缓存读写不再整项丢失（画板没画，但这一行本来就只放“这一轮花了多少”）。
+  const prompt = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+  if (!prompt && !usage.output) return "";
+  return `↑ ${formatCompactTokens(prompt)} · ↓ ${formatCompactTokens(usage.output)} tok`;
 }
 
-/** 费用单独一格（画板 12：用量与费用之间有一个 `·`）。 */
-function formatUsageCost(usage: { cost: { total: number } }): string | null {
-  return usage.cost?.total ? `$${usage.cost.total.toFixed(3)}` : null;
+/** 用量格 title：把紧凑显示的三个数说清楚。 */
+function usageTitle(usage: {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}, t: (key: string, params?: Record<string, string | number>) => string): string {
+  const parts = [
+    `${t("chat.turnEnd.inputTokens", { count: usage.input.toLocaleString() })}`,
+    `${t("chat.turnEnd.cacheRead", { count: (usage.cacheRead ?? 0).toLocaleString() })}`,
+    `${t("chat.turnEnd.cacheWrite", { count: (usage.cacheWrite ?? 0).toLocaleString() })}`,
+    `${t("chat.turnEnd.outputTokens", { count: usage.output.toLocaleString() })}`,
+  ];
+  return parts.join(" · ");
+}
+
+/** 费用（画板 12：用量与费用之间有一个 `·`）。
+ *  fix:turn-stats —— 以前 `cost.total` 为 0 就不渲染，用户看到的是「金额那一格凭空没了」
+ *  （用户：“本轮花多少金额咋没写啊”）。现在 `usage.cost` 存在就画：真的免费/不返回费用的
+ *  模型显示 `$0.000` 并在 title 里说明，而不是留一个空位让人猜。 */
+export function formatUsageCost(usage: { cost?: { total: number } }): string | null {
+  const total = usage.cost?.total;
+  if (total === undefined) return null;
+  return `$${total.toFixed(3)}`;
+}
+
+/** 紧凑 token 数：过万走 k / M（与统计浮窗 `formatCompactTokens` 同一口径）。 */
+function formatCompactTokens(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 10_000) return `${Math.round(value / 1000)}k`;
+  return value.toLocaleString();
 }
 
 /** 耗时（回合结束行 / 思考块 / 工具卡头共用）：

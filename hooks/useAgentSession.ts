@@ -1540,7 +1540,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
             return [...prev, delivered];
           });
         } else if (completed) {
-          setMessages((prev) => [...prev, normalizeToolCalls(completed)]);
+          // fix:turn-stats —— 与服务端 `entryToUiMessage` 同一个字段：流式路径没有条目落盘
+          // 时间（还没落盘），`message_end` 到达即响应写完，用本地时钟补上。
+          const settled = completed.role === "assistant" && completed.timestamp
+            ? { ...completed, completedAt: Date.now() }
+            : completed;
+          setMessages((prev) => [...prev, normalizeToolCalls(settled)]);
         }
         dispatch({ type: "end" });
         setAgentPhase({ kind: "waiting_model" });

@@ -703,6 +703,14 @@ export const enLocale: LocalePlugin = {
     "chat.runningTool": "Running tool...",
     "chat.truncatedByOutputLimit": "This response was cut off after reaching the model’s output limit. Send a follow-up to continue.",
     // fork:design-system PR-11 — turn-end row: plain-language note for abnormal stops.
+    // fix:turn-stats — turn-end row tooltips
+    "chat.turnEnd.durationHint": "How long the model took on this step, request to last token written",
+    "chat.turnEnd.inputTokens": "input {count}",
+    "chat.turnEnd.cacheRead": "cache read {count}",
+    "chat.turnEnd.cacheWrite": "cache write {count}",
+    "chat.turnEnd.outputTokens": "output {count}",
+    "chat.turnEnd.costHint": "Cost of this turn",
+    "chat.turnEnd.costFree": "This model reports no cost data (free or not reported), hence $0.000",
     "chat.turnEnd.toolUse": "Model asked for a tool — this turn continues",
     "chat.turnEnd.deferred": "Handed off to run in the background; it comes back when done",
     "chat.turnEnd.aborted": "You stopped it",

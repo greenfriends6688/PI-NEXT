@@ -79,6 +79,13 @@ export interface AssistantMessage {
   stopReason?: string;
   errorMessage?: string;
   timestamp?: number;
+  /**
+   * fix:turn-stats —— `timestamp` 是**模型调用开始**的时间（实测：条目落盘时间比它晚
+   * 3–18s），所以“生成耗时 / 工具耗时”不能拿它当结束点。这个字段是**条目落盘时间**
+   * = 响应写完的时刻（`entry.timestamp`；流式路径由 `message_end` 补 `Date.now()`）。
+   * 回合结束行的耗时、思考块耗时、工具卡耗时全部由它算。
+   */
+  completedAt?: number;
   usage?: AgentUsage;
 }
 

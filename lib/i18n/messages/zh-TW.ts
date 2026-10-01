@@ -701,6 +701,14 @@ export const zhTWLocale: LocalePlugin = {
     "chat.runningTool": "正在執行工具...",
     "chat.truncatedByOutputLimit": "這則回覆在達到模型輸出上限後被截斷，再送一則追問即可繼續。",
     // fork:design-system PR-11 — 回合結束列：非正常結束的白話說明。
+    // fix:turn-stats —— 回合結束列三格的說明（hover 才出現）
+    "chat.turnEnd.durationHint": "這一步模型從收到請求到寫完用了多久",
+    "chat.turnEnd.inputTokens": "輸入 {count}",
+    "chat.turnEnd.cacheRead": "快取讀 {count}",
+    "chat.turnEnd.cacheWrite": "快取寫 {count}",
+    "chat.turnEnd.outputTokens": "輸出 {count}",
+    "chat.turnEnd.costHint": "這一輪的費用",
+    "chat.turnEnd.costFree": "這個模型不回報費用資料（免費或未回報），所以是 $0.000",
     "chat.turnEnd.toolUse": "模型要求呼叫工具，這一段會接著跑",
     "chat.turnEnd.deferred": "已交給背景繼續跑，完成後回來",
     "chat.turnEnd.aborted": "你按了停止",

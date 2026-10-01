@@ -15,6 +15,8 @@ const {
   MessageView,
   ThinkingBlock,
   formatDuration,
+  formatUsage,
+  formatUsageCost,
   getModelDisplayName,
   getTokenEstimateText,
   getToolCallInputText,
@@ -666,4 +668,33 @@ test("formats sub-second durations in milliseconds instead of 0.0s", () => {
   assert.equal(formatDuration(59.96), "60.0s");
   assert.equal(formatDuration(60), "1m00s");
   assert.equal(formatDuration(220), "3m40s");
+});
+
+// fix:turn-stats（用户 2026-10-01：「这个咋又是毫秒啊……统计的一点都不准」，
+// 「后面的是输入、输出的 token 吗，本轮花多少金额咋没写啊」）。真数据：
+// input=71 / cacheRead=240,830 / output=338 / 落盘比调用开始晚 6.2s。
+test("the turn row counts the whole prompt (input + cache) and always shows a cost cell", () => {
+  const usage = { input: 71, output: 338, cacheRead: 240830, cacheWrite: 0, cost: { total: 0 } };
+  // 光报 usage.input 会显示「↑ 71」，而模型实际读了 24 万 —— 那才是不准。
+  assert.equal(formatUsage(usage), "↑ 241k · ↓ 338 tok");
+  assert.equal(formatUsage({ input: 8912, output: 1328, cacheRead: 0, cacheWrite: 0, cost: { total: 0.021 } }),
+    "↑ 8,912 · ↓ 1,328 tok", "board 12's vocabulary still holds when there is no cache");
+  assert.equal(formatUsage({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } }), "");
+  // 费用为 0 也要画出这一格（免费模型），否则看起来像漏了。
+  assert.equal(formatUsageCost({ cost: { total: 0 } }), "$0.000");
+  assert.equal(formatUsageCost({ cost: { total: 0.0212 } }), "$0.021");
+  assert.equal(formatUsageCost({}), null, "no usage object at all stays empty");
+});
+
+test("durations come from the entry append time, not the gap to the previous message", async () => {
+  // message.timestamp = 调用开始；completedAt = 条目落盘（= 响应写完）。
+  assert.match(source, /completedAt\?: number/);
+  assert.match(source, /const stepDurationSec = message\.timestamp && generationEnd/);
+  assert.match(source, /const toolStart = generationEnd \?\? message\.timestamp;/);
+  assert.doesNotMatch(source, /const durationSec = prevTimestamp && message\.timestamp/);
+  // 服务端与流式路径都要给出 completedAt。
+  const reader = await readFile(new URL("../lib/session-reader.ts", import.meta.url), "utf8");
+  assert.match(reader, /completedAt: parseEntryTimestamp\(entry\.timestamp\)/);
+  const hook = await readFile(new URL("../hooks/useAgentSession.ts", import.meta.url), "utf8");
+  assert.match(hook, /completedAt: Date\.now\(\)/);
 });
