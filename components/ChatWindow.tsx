@@ -2219,7 +2219,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                       : entryIds[idx] === activeFindHit?.entryId
                         ? findSearchBlock
                         : undefined}
-                    onFork={sessionBusy || isNew ? undefined : handleFork}
+                    // fork:upstream-fork-while-running — #1023 移植：fork 只复制磁盘上已完成的
+                    // entry，不碰正在跑的那个 AgentSession，所以只有 `!` shell 命令要拦。
+                    onFork={bashRunning || isNew ? undefined : handleFork}
       // fork:proma-04-rewind — 回退是破坏性操作，先弹一道警示确认（回退不可撤销）
       onRewind={sessionBusy || isNew ? undefined : (entryId) => {
         if (!window.confirm(t("rewind.confirm"))) return;
