@@ -1,0 +1,362 @@
+/* fork:pwa-plugins-agents —— 插件 / 子代理 / 皮肤工作室 / 壁纸的手机档（≤640px）。
+ *
+ * owner：PluginsConfig · AgentsConfig · ThemeSkinStudio · WallpaperSettings。
+ * 引入顺序在 board.css 之后、fork-ui.css 之前（见 app/layout.tsx）。fork-ui.css 里
+ * 已有同族的一条 `@media (max-width:640px)`（`.pw-field` 换行 / `.pw-ctl` 换行 /
+ * `.pw-skin-actions` 换行 / `.pw-skin-strip` 横向滚），本文件要压它时**一律靠多一层
+ * 作用域**（`.fork-pwa-*`、`.config-panel-surface:has()`、`.fork-skin-scrim > X`），
+ * 不靠引入顺序。
+ *
+ * **只写手机档**：行为上的改动全部包在 `@media (max-width: 640px)` 里，≥641px 不变。
+ * 唯一的例外是第 4 / 8 节里两段**桌面基线**（`.fork-pwa-skin-*` / `.fork-pwa-import*`），
+ * 它们把组件里本来就有的 inline 几何逐条搬进类，值与顺序照搬，只是让手机档压得过
+ * 它们（inline 样式 CSS 盖不动）；搬进来的那段本身在 ≥641px 上与搬走前逐条相等。
+ * 画板那套通用手机档（`.pw-cols` / `.pw-grid*` 收成单列、`.pw-shead` / `.pw-stools`
+ * 收窄内距、`.pw-field` / `.pw-kv` 换行）归 board.css，这里**不重复**；这里只补那档
+ * 解决不了的「产品自身结构」：弹层容器、详情头与动作行、单列后两格的高度归属、
+ * 缩略图条与缩略图网格、触摸靶。
+ */
+
+/* ==========================================================================
+   1. 弹层容器：手机上是「全屏 sheet」，不是 900px 居中对话框
+   --------------------------------------------------------------------------
+   改前：`.config-panel-root.is-modal > .config-panel-surface` 在 ≤640px 下是
+   `calc(100vw - 16px) × calc(100dvh - 16px)` 的居中方框 —— 四边 8px 的黑边、
+   底部没有 home indicator 的留白，看起来像「手机上还是桌面那个对话框」。
+   改后：贴满 scrim、只留顶部圆角与一条顶边，底部 `env(safe-area-inset-bottom)`
+   留白（面板自己的底色），滚到最后一项也不会顶在 home indicator 下面。
+   高度交给 `align-items: stretch`，不写死像素。
+   ========================================================================== */
+@media (max-width: 640px) {
+  .config-panel-root.is-modal {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .config-panel-root.is-modal > .config-panel-surface {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    border-width: 1px 0 0;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* iOS standalone：env() 可能报 0，状态栏那一段沿用 app/settings.css 的既有兜底
+   （`max(59px, env(...))` / `max(8px, env(...))`）。上一条 `@media` 的 `padding: 0`
+   会盖掉它，这里在同一个文件里补回来 —— 桌面与横屏那两条由 settings.css 兜住，
+   本块只在竖屏 standalone 生效。 */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    .config-panel-root.is-modal {
+      padding-top: max(59px, env(safe-area-inset-top));
+      padding-right: max(8px, env(safe-area-inset-right));
+      padding-left: max(8px, env(safe-area-inset-left));
+    }
+  }
+}
+
+/* ==========================================================================
+   2. 列表 + 详情：单列之后两格的高度归属
+   --------------------------------------------------------------------------
+   board.css 的手机档（fork:pwa-board）已经把 `.pw-cols` 收成单列、`.pw-scontent
+   .is-fixed` 改成「整页一起滚」——这部分**不重复**。这里只补它与产品侧接线之间
+   的那处硬冲突：
+
+   `app/settings.css` 的 `.config-panel-surface > .pw-cols > :first-child` /
+   `> :last-child { height: 100%; overflow-y: auto }` 是 0-3-0，而画板那档的
+   `> * { overflow: visible }` 只有 0-2-0 —— 压不过。产品分节面板恰好命中这条
+   （`.config-panel-surface` 就是列表页的外壳）。一旦 `.pw-scontent.is-fixed`
+   在手机档变成有确定高度的滚动容器，那两格的 `height: 100%` 就会各等于一整屏：
+   列表格自己成一个满屏滚动区，详情格被顶到**第二屏**以下（`.pw-cols` 自身高度
+   是 auto，百分比现在解不出数，但只要哪天给 `.pw-cols` 一个确定高度就会复现）。
+   这条把两格的高度显式还给内容，滚动仍然只有内容区一个。
+   桌面端（≥641px）那条 0-3-0 的 `height:100%` 照旧生效，本条只在手机档。
+   `.fork-pwa-detail` 是插件 / 子代理两页详情栈上的钩子（见两个组件里的
+   `ConfigDetailStack className`），用来把这条限定在本 owner 的面板里。
+   ========================================================================== */
+@media (max-width: 640px) {
+  .config-panel-surface:has(.fork-pwa-detail) > .pw-scontent.is-fixed > .pw-cols > * {
+    height: auto;
+  }
+}
+
+/* ==========================================================================
+   3. 详情卡：头 / 动作行 / 属性表 / 开关命中区
+   --------------------------------------------------------------------------
+   改前：`ConfigDetailHeader` 与 `ConfigDetailActions` 都是 `.pw-inline`
+   （flex，**默认 nowrap**）。插件详情一行里是「更新 / 重新加载会话 / 移除 / 开关」，
+   MCP 详情是「测试 / 编辑 / 移动 / 删除 / 开关」，390px 宽里必然出界或把中文按钮
+   挤成两行。改后：标题那半占满一行，钮组换行且自身不压缩，开关靠右收尾。
+   ========================================================================== */
+@media (max-width: 640px) {
+  .fork-pwa-head {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  /* 标题 + 徽章 + 路径自己占一整行，钮组落到下一行。 */
+  .fork-pwa-head > :first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  /* 详情头右端那半（`ConfigDetailActions` 基件）同样是一排不换行的按钮 ——
+     插件是「更新 / 重新加载会话 / 移除 / 开关」，MCP 是「测试 / 编辑 / 移动 /
+     删除 / 开关」。这个基件在 SettingsUi.test.mjs 里被钉成**无参**的
+     `<ConfigDetailActions>`，所以不另挂类，按位置选（`fork-pwa-head` 的最后一个子）。 */
+  .fork-pwa-head > :last-child {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  .fork-pwa-head > :last-child > .pw-btn {
+    flex: none;
+  }
+  .fork-pwa-head > :last-child > .pw-switch {
+    margin-left: auto;
+  }
+
+  .fork-pwa-acts {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  .fork-pwa-acts > .pw-btn {
+    flex: none;
+  }
+  .fork-pwa-acts > .pw-radio,
+  .fork-pwa-acts > .pw-selectbox {
+    margin-left: auto;
+  }
+
+  /* 表单末尾的「保存」行：手机上把主按钮拉满宽（表单在单列里就那么宽，
+     右对齐的一枚小钮是拇指最难点到的那个位置）。 */
+  .fork-pwa-save > .pw-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* `.pw-switch` 是 30×17 的画板规格，手指够不着。加一圈**不可见**的命中区
+     （::after 覆盖到画板盒外），不画任何东西、不改盒子的几何。 */
+  .fork-pwa-acts > .pw-switch::after,
+  .fork-pwa-head > :last-child > .pw-switch::after,
+  .config-panel-surface:has(.fork-pwa-detail) .pw-switch::after,
+  .fork-skin-modal .pw-switch::after {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s2) * -1) calc(var(--s1) * -1);
+  }
+}
+
+/* 属性表：`.pw-kv` 的 140px 定宽键列已由画板手机档改成上下两行（board.css
+   `.pw-kv{grid-template-columns:minmax(0,1fr)}`），这里只补**值那一行**：
+   插件详情里 dd 是包名 / 安装路径 / cwd 的等宽长串，不给 anywhere 就地断行。 */
+@media (max-width: 640px) {
+  .fork-pwa-detail .pw-kv dd {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ==========================================================================
+   4. 皮肤工作室（ThemeSkinStudio）
+   --------------------------------------------------------------------------
+   改前：`.pw-modal` 900×720 居中，内容行是 inline `gridTemplateColumns: 340px 1fr`
+   —— 390px 下壳只剩 364 宽，第一格（预览列）吃满 340，第二格（设置列）被压到
+   14px，**整个设置表单在手机上根本点不到**；壳也只有 `calc(100dvh - 2rem)` 的
+   居中高度，底部动作条离 home indicator 只剩 8px。
+   改后：壳是全屏 sheet（顶部圆角 + `env(safe-area-inset-bottom)`）；内容行单列、
+   两格一起滚（预览在上、设置在下），发丝分隔线撤掉；动作行换行。
+
+   桌面基线：下面这一段把组件里原有的 inline 几何逐条搬进类（900×720 的壳、
+   340px 那一格、每格各自滚），**值与顺序都照抄**，`≥641px` 的渲染零变化。
+   必须搬：inline 样式是普通 CSS 压不过的，不搬就没法在手机档改形状。
+   `340px` 是画板 47 帧 1 的定宽（不是本轮新写的数）。
+   ========================================================================== */
+.fork-skin-scrim > .fork-skin-modal {
+  width: 900px;
+  height: 720px;
+  display: flex;
+  flex-direction: column;
+}
+
+.fork-pwa-skin-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  overflow: hidden;
+}
+
+.fork-pwa-skin-col {
+  order: 2;
+  min-height: 0;
+  display: grid;
+  gap: var(--s2);
+  align-content: start;
+  overflow-y: auto;
+}
+
+.fork-pwa-skin-col.fork-pwa-skin-preview {
+  order: 1;
+  border-right: 1px solid var(--n-border-subtle);
+  padding-right: var(--s3);
+}
+
+.fork-pwa-skin-css {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: auto 1fr;
+}
+
+@media (max-width: 640px) {
+  .fork-skin-scrim {
+    padding: 0;
+    place-items: stretch center;
+  }
+
+  .fork-skin-scrim > .fork-skin-modal {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 100dvh;
+    border-width: 1px 0 0;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* 内容行：两格叠成一列，整块一起滚（原来的「每格各自滚」在单列里等于把设置
+     表关在一条 14px 宽的缝里）。预览仍在设置之上 —— 两格各自的 `order` 不动。
+     这里用 flex 列而不是 grid 的 `auto` 行：内容行有确定高度（弹层是 flex 列，
+     它 flex:1），而 grid 的「maximize tracks」步骤会把剩余空间**均分**给
+     `auto` 行 —— 实测两格都被压成 328px（内容各自近 600px），
+     `overflow: visible` 的内容直接画到对方身上。`align-content: start` 治不了
+     （它只改轨道的位置，不改轨道被撑大的尺寸）。flex 列 + `flex: none` 才是
+     「按内容高排、整块一起滚」。 */
+  .fork-pwa-skin-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fork-pwa-skin-col {
+    flex: none;
+    overflow: visible;
+  }
+  .fork-pwa-skin-col.fork-pwa-skin-preview {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  /* 动作行：删除 / 取消 / 恢复默认 / 保存 在 326px 宽里只能塞下两枚。 */
+  .fork-pwa-skin-foot {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  .fork-pwa-skin-foot > .pw-btn {
+    flex: none;
+  }
+}
+
+/* ==========================================================================
+   5. 皮肤缩略图条（`.pw-skin-strip`）
+   --------------------------------------------------------------------------
+   改前：条本身能横滚（fork-ui 的接线），但卡与卡之间没有吸附点，滑到一半
+   两张卡各露一条；条下沿只有 2px 的 `padding-bottom`，横滚条压在卡底描边上。
+   改后：加 `scroll-snap`（每张卡起手对齐）与 `scroll-padding`，条下沿留够
+   横向滚动条的高度。卡的几何（108×…）不动。
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* 选择器带一层 `.pw-block`：fork-ui.css 里那条同族规则（0-1-0，
+     `padding-bottom: 2px`）在本文件之后引入，不加这一层压不过它。 */
+  .pw-block > .pw-skin-strip {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: var(--s2);
+    padding-bottom: var(--s2);
+  }
+  .pw-skin {
+    scroll-snap-align: start;
+  }
+}
+
+/* ==========================================================================
+   6. 壁纸
+   --------------------------------------------------------------------------
+   改前：内置画作缩略格是 64×36 定宽 + 各自一行的画名（BuiltinWallpaperPicker
+   的 `[role=group]`），在 326px 的内容列里只排得下两张、还各占一行标题；
+   「当前壁纸」行的缩略图 + 更换 / 移除三件套在窄列里顶到边。
+   改后：缩略格改成自适应等分网格（比例仍是画板那张 16:9），三件套允许换行。
+   ========================================================================== */
+@media (max-width: 640px) {
+  .pw-field > [role="group"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
+    gap: var(--s2);
+    width: 100%;
+  }
+  .pw-field > [role="group"] > * {
+    min-width: 0;
+  }
+  .pw-field > [role="group"] .pw-wallpaper-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .pw-field > .pw-ctl:has(.pw-wallpaper-thumb) {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+}
+
+/* ==========================================================================
+   7. 触摸靶
+   --------------------------------------------------------------------------
+   `.pw-iconbtn.sm` 是 22×22（画板 00 的最小方钮），在手指上是个 22px 的点。
+   加 `fork-pwa-hit` 的按钮（皮肤工作室的关闭钮）只放大命中区，**不动视觉**。
+   ========================================================================== */
+@media (max-width: 640px) {
+  .fork-pwa-hit {
+    min-width: var(--control-sm);
+    min-height: var(--control-sm);
+  }
+}
+
+/* ==========================================================================
+   8. 「从其它 agent 导入」弹层（MCP）—— 覆盖层与壳的几何
+   --------------------------------------------------------------------------
+   值逐条照抄组件里原来的 inline（`z-index: 1100` 写成 `calc(var(--z-modal) + 100)`
+   是同一个数，换成 token），桌面渲染零变化；手机档再把居中对话框改成贴底 sheet。
+   ========================================================================== */
+.fork-pwa-import-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) + 100);
+  background: var(--scrim);
+  display: grid;
+  place-items: center;
+}
+
+.fork-pwa-import {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--app-viewport-height, 100dvh) - var(--s6));
+  max-width: calc(100vw - var(--s6));
+}
+
+@media (max-width: 640px) {
+  .fork-pwa-import-scrim {
+    place-items: stretch center;
+  }
+  .fork-pwa-import-scrim > .fork-pwa-import {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    border-width: 1px 0 0;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .fork-pwa-import-scrim .pw-modal-foot {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+}

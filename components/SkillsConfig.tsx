@@ -578,6 +578,11 @@ function InstallSkillsModal({
       ref={dialogRef}
       {...dialogProps}
       aria-label={t("i18n.addSkill")}
+      /* fork:pwa-models-skills —— 手机档钩子：≤640px 时安装弹层从 640px 居中框变成
+         全屏 sheet（顶部圆角 + 底部安全区留白）。壳的宽高是内联几何（上面那段），
+         覆盖写在 app/pwa-models-skills.css 的「sheet 一节」——该节用 `!important`
+         压内联，因为「手机改成整片」这件事没法用另一段内联值表达而桌面端不变。 */
+      className="fork-pwa-ms-sheet"
       style={{ position: "fixed", inset: 0, zIndex: 1100, background: "var(--scrim)", display: "grid", placeItems: "center" }}
       onClick={(event) => { if (event.target === event.currentTarget) onDismiss(); }}
       onKeyDown={(event) => {
@@ -1092,7 +1097,15 @@ export function SkillsConfig({
                 {checkingAll ? t("i18n.checking") : t("i18n.checkUpdates")}
               </ConfigButton>
             )}
-            <ConfigButton variant="primary" size="small" onClick={() => setInstallOpen(true)}>
+            <ConfigButton
+              variant="primary"
+              size="small"
+              /* fork:pwa-models-skills —— 作用域钩子，理由同 ModelsConfig 的同名注释：
+                 app/pwa-models-skills.css 的窄屏规则只对本页（`.pw-shead:has(.fork-pwa-ms-page)`）
+                 生效，插件 / 子代理分节零影响。`fork-pwa-ms-skills` 是技能页的细分钩子。 */
+              className="fork-pwa-ms-page fork-pwa-ms-skills"
+              onClick={() => setInstallOpen(true)}
+            >
               <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
               {t("i18n.addSkill")}
             </ConfigButton>

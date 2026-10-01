@@ -233,7 +233,7 @@ function AddPluginPanel({
   }, []);
 
   return (
-    <ConfigDetailStack>
+    <ConfigDetailStack className="fork-pwa-detail">
       <div className="pw-rowgap">
         <div className="pw-inline">
           <ConfigDetailTitle>{t("i18n.addPlugin")}</ConfigDetailTitle>
@@ -278,7 +278,7 @@ function AddPluginPanel({
         />
       </ConfigField>
 
-      <div className="pw-inline">
+      <div className="pw-inline fork-pwa-acts">
         <SegmentedScope
           value={scope}
           projectResourcesLoaded={projectResourcesLoaded}
@@ -362,8 +362,8 @@ function PackageDetail({
   const updateAvailable = updateStatus?.state === "update-available";
 
   return (
-    <ConfigDetailStack>
-      <ConfigDetailHeader>
+    <ConfigDetailStack className="fork-pwa-detail">
+      <ConfigDetailHeader className="fork-pwa-head">
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={pkg.scope} />
           {/* fork:design-system SW-14 —— 画板 43 的详情头：状态徽章 + 包名等宽串。 */}
@@ -497,8 +497,8 @@ function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneE
   const status = extension.enabled ? "loaded" : "disabled";
 
   return (
-    <ConfigDetailStack>
-      <ConfigDetailHeader>
+    <ConfigDetailStack className="fork-pwa-detail">
+      <ConfigDetailHeader className="fork-pwa-head">
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={extension.scope} />
           <ConfigDetailTitle>{extension.name}</ConfigDetailTitle>
@@ -562,8 +562,8 @@ function McpServerDetail({
     server.kind === "url" ? server.url : server.kind === "socket" ? server.socket : server.command;
 
   return (
-    <ConfigDetailStack>
-      <ConfigDetailHeader>
+    <ConfigDetailStack className="fork-pwa-detail">
+      <ConfigDetailHeader className="fork-pwa-head">
         <ConfigDetailHeaderInfo>
           <ScopeTag scope={server.scope} />
           {/* fork:design-system SW-14 —— 画板 43 的 MCP 详情头：作用域 / 禁用徽章 / 等宽名。 */}
@@ -762,7 +762,7 @@ function AddMcpServer({
   );
 
   return (
-    <ConfigDetailStack>
+    <ConfigDetailStack className="fork-pwa-detail">
       <div>
         <ConfigDetailTitle>
           {isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}
@@ -844,7 +844,7 @@ function AddMcpServer({
         </div>
       )}
 
-      <div className="pw-inline">
+      <div className="pw-inline fork-pwa-acts">
         <SegmentedScope
           value={scope}
           projectResourcesLoaded={projectResourcesLoaded}
@@ -927,23 +927,21 @@ function McpImportModal({
       ref={dialogRef}
       {...dialogProps}
       aria-label={t("mcp.importTitle")}
-      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "var(--scrim)", display: "grid", placeItems: "center" }}
+      /* fork:pwa-plugins-agents（手机档）—— 覆盖层的 fixed / 层级 / 居中从 inline
+         搬进 `.fork-pwa-import-scrim`（值逐条照抄，桌面渲染零变化），手机档才能
+         把它从「居中对话框」改成贴底的全屏 sheet —— inline 样式是 CSS 压不过的。 */
+      className="fork-pwa-import-scrim"
       onClick={(event) => {
         if (event.target === event.currentTarget) onDismiss();
       }}
     >
       <div
-        className="pw-modal"
+        className="pw-modal fork-pwa-import"
         /* fork:settings-modal-scroll —— 壳要一个确定的高度上限，内容行才有确定的
            可视高度可滚。`- 32px` 是视口边距（沿用 ChatWindow / FileViewer 的
            `calc(var(--app-viewport-height, 100dvh) - 16px)` 写法，留两倍呼吸）。
-           maxWidth 同理：560 是画板给桌面确认框的定宽，窄视口下壳不该顶出屏幕。 */
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          maxHeight: "calc(var(--app-viewport-height, 100dvh) - 32px)",
-          maxWidth: "calc(100vw - 32px)",
-        }}
+           maxWidth 同理：560 是画板给桌面确认框的定宽，窄视口下壳不该顶出屏幕。
+           fork:pwa-plugins-agents —— 同样搬进 `.fork-pwa-import`（桌面值不变）。 */
       >
         <div className="pw-modal-head">
           <span className="pw-ico"><i data-ico="import" data-size="16"></i></span>
@@ -1886,7 +1884,11 @@ export function PluginsConfig({
           </ConfigSidebar>
 
           <ConfigDetail>
-            <ConfigDetailStack>
+            {/* fork:pwa-plugins-agents（手机档）—— `fork-pwa-detail` 是这台面板的
+                作用域钩子：把产品侧接线里那条只在并排两列成立的 `height: 100%`
+                在手机档还给内容，滚动仍然只有内容区一个（规则见
+                app/pwa-plugins-agents.css 第 2 节）。桌面端该类不参与任何布局。 */}
+            <ConfigDetailStack className="fork-pwa-detail">
               {/* fork:design-system（画板 62 上轮裁定）—— 「从其它 agent 导入」是
                   pw-modal 弹层（见下方 McpImportModal），不再占详情列；导入弹层开着
                   时详情列保持原内容。 */}

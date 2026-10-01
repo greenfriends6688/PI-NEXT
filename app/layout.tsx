@@ -22,6 +22,11 @@ import "./wallpaper.css";
    组件挂上 pw-* 类后，board.css 的规则对同元素取得优先权（画板覆盖实现）。 */
 import "../design/pi-web-design/assets/board.css";
 import "../design/pi-web-design/assets/icons.js";
+/* fork:pwa-* —— 手机档（≤640px）分区补丁，按区域各占一个文件，owner 互不重叠。
+   放在 board.css 之后：画板是 1440px 静态稿，产品窄屏要在它的基础上收成单列。 */
+import "./pwa-settings.css";
+import "./pwa-models-skills.css";
+import "./pwa-plugins-agents.css";
 // fork:ui-css — must stay last: it overrides upstream styles on purpose.
 import "./fork-ui.css";
 

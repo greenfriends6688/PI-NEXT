@@ -174,12 +174,24 @@ export function ConfigStat({ label, value, hint }: { label: string; value: strin
 /** 右列：画板是 `style="display:grid;gap:var(--s3)"` 的容器（不是卡）。
  *  原样照抄那行 inline —— 它就是画板 DOM 的一部分，不是产品自创的样式。
  *  fork:settings-frame（画板 62）—— 补一个 `.pw-detail-stack` 钩子类：
- *  详情卡改成 flex 列后，这一层要 `flex:1` 才能把高度传给空态（见 board.css）。 */
+ *  详情卡改成 flex 列后，这一层要 `flex:1` 才能把高度传给空态（见 board.css）。
+ *  fork:stack-rows（2026-10-01）—— 这一层拿到的是**确定高度**（board.css:874 的
+ *  `flex:1` 让空态能垂直居中）。grid 的行默认 `auto`= 按内容分配比例，于是有实内容时
+ *  行会被拉伸：归档项目详情里「标题行」被撑到 78px、「会话列表」被撑到 754px（里面只有
+ *  2 行），会话行被推到卡片底部 —— 用户实测「右侧空白太多」。
+ *  行改 `min-content`：实内容按内容高排列、贴顶；空态那一层自己 `height:100%`
+ *  （board.css:876）继续在整卡高度里居中 —— 两种形态各归其位。 */
 export function ConfigDetailStack({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
+    // fork:stack-rows（2026-10-01）—— display 与行高策略都交给 board.css
+    // （`.pw-detail > .pw-detail-stack` 及它的 `:has(> .pw-empty:only-child)` 变体：
+    // 有内容时 grid + `min-content` + `align-content:start` 让行贴顶；
+    // 只有空态时那层变 flex、空态 `flex:1` 居中）。
+    // 这里**不写内联 display/grid-***：内联优先级高于类规则，会把 `:has` 那条变体顶掉
+    // （实测 `display` 仍是 grid、`flex:1` 生效但父不是 flex 列 → 空态仍 180px）。
     <div
       {...props}
-      style={{ display: "grid", gap: "var(--s3)", ...props.style }}
+      style={{ gap: "var(--s3)", ...props.style }}
       className={["pw-detail-stack", className].filter(Boolean).join(" ")}
     />
   );
@@ -246,6 +258,13 @@ export function ConfigField({ label, hint, children, style }: {
 
 export function ConfigEmptyState({ children }: { children: ReactNode }) {
   return (
+    // fork:stack-rows（2026-10-01）—— 画板 62 帧 D「整页空」写明：**内容区居中**（40px 方框
+    // 图标 + 一句引导居中，判据原话「说明写在空态里，不要飘到别处」）。
+    //
+    // 居中不再靠 `height:100%` 撑父行 —— 「父行被拉满」与「有内容的行贴顶」是互斥的
+    // （board.css 的 `.pw-detail > .pw-detail-stack:has(> .pw-empty:only-child)` 用
+    // `:has` 把这两种形态分开：空态时那层变 flex、空态 `flex:1`；有内容时保持 grid 贴顶）。
+    // 颜色/内距/字号全由 board.css 的 `.pw-empty` / `.pw-empty-inner` 给，这里不写内联。
     <div className="pw-empty">
       <div className="pw-empty-inner">{children}</div>
     </div>

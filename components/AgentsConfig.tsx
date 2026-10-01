@@ -149,7 +149,7 @@ function ToolChip({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={selected ? "pw-chip accent" : "pw-chip"}
+      className={selected ? "pw-chip accent fork-pwa-hit" : "pw-chip fork-pwa-hit"}
     >
       {!selected && <span className="pw-ico"><i data-ico="plus" data-size="12"></i></span>}
       {children}
@@ -636,7 +636,11 @@ export function AgentsConfig({
             按内容收口。原先这层是 is-fill（min-height:100%），把卡拉成整页高，
             底部留一大片空白、外圈看着像又套了一个弹窗。 */}
         <ConfigDetail>
-          <ConfigDetailStack>
+          {/* fork:pwa-plugins-agents（手机档）—— `fork-pwa-detail` 是这台面板的作用域钩子：
+              把产品侧接线里那条只在并排两列成立的 `height: 100%` 在手机档还给内容，
+              滚动仍然只有内容区一个（规则见 app/pwa-plugins-agents.css 第 2 节）。
+              桌面端该类不参与任何布局。 */}
+          <ConfigDetailStack className="fork-pwa-detail">
               {!selected && !creating ? (
                 /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框图标
                    （`.mark`）+ 一句引导，居中。 */
@@ -646,7 +650,7 @@ export function AgentsConfig({
                 </ConfigEmptyState>
               ) : (
                 <ConfigDetailStack>
-                  <ConfigDetailHeader>
+                  <ConfigDetailHeader className="fork-pwa-head">
                     <ConfigDetailHeaderInfo>
                       {/* fix:agents-layout（画板 42）—— 详情头第一项是**名字**（h3），
                           后面才是作用域徽章与等宽路径。原来这一行没有名字，只有
@@ -809,7 +813,7 @@ export function AgentsConfig({
                   {/* fork:settings-frame（画板 62）—— 表单级动作落在**表单块底部右对齐**，
                       不再放页面页脚：页脚是视口级的，滚动时它会脱离它保存的那张卡。 */}
                   {editing && (
-                    <div className="pw-inline">
+                    <div className="pw-inline fork-pwa-save">
                       <span className="pw-grow" aria-hidden="true" />
                       <ConfigButton
                         variant="primary"

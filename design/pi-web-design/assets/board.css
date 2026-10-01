@@ -871,7 +871,40 @@ body.pw.dark { background: #0f0f13; }
  * **自己那点内容高度**里居中，看起来是「飘在右上角的一段说明」（用户实测：
  * 自定义命令页、记忆页）。改成 flex 列后，栈能拿到确定高度，空态才真的居中。 */
 .pw-detail { display: flex; flex-direction: column; border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); padding: var(--s3) var(--s4); }
-.pw-detail > .pw-detail-stack { flex: 1; min-height: 0; }
+.pw-detail > .pw-detail-stack {
+  /* fork:stack-rows（2026-10-01）—— `display` 与行高策略从组件内联搬到这里（内联优先级
+     高，会把下面那条 `:has` 变体顶掉）。口径：画板 62 帧 B 的详情列是
+     `style="display:grid;gap:var(--s3)"` 的容器。 */
+  display: grid;
+  gap: var(--s3);
+  /* 行按内容高排、贴顶：grid 行默认 `auto` 会按比例瓜分容器高度，于是标题行被拉高
+     （实测 78px）、内容少的列表被撑到 700px、行被推到卡片底部 —— 用户实测「右侧空白太多」。 */
+  grid-auto-rows: min-content;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+}
+/* fork:stack-rows（2026-10-01）—— 让 `.pw-detail-stack` 的行高策略对两种形态都成立：
+ *
+ *  · 有内容（标题行 + 列表 / 字段）：行按内容高排、**贴顶**。默认 grid 行是 `auto`
+ *    = 按比例瓜分容器高度，于是标题行被拉高（实测 78px）、只有 2 行的列表被撑到
+ *    700px、行被推到卡片底部 —— 用户实测「右侧空白太多」。
+ *  · 只有空态（画板 62 帧 D「整页空」）：那一格要**占满并居中**（40px 方框图标 + 一句
+ *    引导居中；判据原话「说明写在空态里，不要飘到别处」）。但 grid 单行不会因为
+ *    `align-self:stretch` 给行高（实测 `height:100%` 依然只有 180px，贴在卡顶、
+ *    下面留 670px 空白）。
+ *
+ * 所以按「唯一子元素是不是空态」分流：空态时这一层变 flex 列、空态 `flex:1`；
+ * 否则保持 grid + `min-content` + `align-content:start`。空态那层自带
+ * `place-items:center`（见下面 `.pw-detail .pw-empty`），两种形态各归其位。 */
+.pw-detail > .pw-detail-stack:has(> .pw-empty:only-child) {
+  display: flex;
+  flex-direction: column;
+}
+.pw-detail > .pw-detail-stack:has(> .pw-empty:only-child) > .pw-empty {
+  flex: 1;
+  height: auto;
+}
 .pw-detail .pw-empty { height: 100%; min-height: 180px; }
 .pw-detail > h3 { margin: 0 0 var(--s1); font-size: var(--text-title); font-weight: 500; color: var(--n-strong); }
 .pw-detail > .pw-mono { color: var(--n-placeholder); }
@@ -1599,3 +1632,202 @@ i[data-ico] > svg { display: block; }
    --n-surface 与画布底色的明度差太小，静态看几乎不可见（截图里像空格子）。 */
 .pw-anim-bar { background: var(--n-border); border-radius: var(--radius-3); }
 .pw-anim-box .pw-anim-shimmer { --pw-shimmer-a: var(--n-hover); --pw-shimmer-b: var(--n-border-subtle); }
+
+/* ===========================================================================
+ * 平板档（641–1024px）—— fork:pwa-board-tablet-2026-10-01
+ *
+ * 产品自己的分档就在这一段：`hooks/useIsMobile.ts` 的 `useIsCompact` 阈值 1024
+ * （输入区控件条在 641–1024 已经收成「更多」了）。但手机档只到 640，于是平板这段
+ * 仍然是纯桌面几何，实测 768×1024 的设置页：内容列 `.pw-scontent` 只剩 568px，
+ * `.pw-grid2` 切出两个 238px 列，列里的 `.pw-field`（204px 可用宽）塞不下 256px 的
+ * `.pw-ctl` —— 4 处越界（/tmp/pwa-audit/768/settings.png，量测 clipped outRight 29/11）。
+ *
+ * 只收**多栏栅格**与**字段行的换行能力**，其余保持桌面几何：平板有足够宽度，
+ * 不该套手机上那套全屏 sheet / 单列阅读流。≥1025 与 ≤640 的行为都不受影响，
+ * 画板本体 1440×900 更是不命中（这一段只服务产品页）。
+ * =========================================================================== */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .pw-grid2,
+  .pw-grid3,
+  .pw-grid4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 控件装不下就换行，不横向溢出（`.pw-ctl` 默认 `flex: none` 不会自己收缩）。 */
+  .pw-field {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  .pw-field .pw-ctl,
+  .pw-field > .pw-radio,
+  .pw-field > .pw-selectbox {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===========================================================================
+ * 手机档（≤640px）—— fork:pwa-board-2026-10-01
+ *
+ * 为什么加这一档：本文件从头到尾只为 **1440px 静态画板**写几何，全文原本只有三条
+ * `@media (prefers-reduced-motion)`，**一条宽度断点都没有**；而产品 DOM 直接挂
+ * `pw-*` 类（app/layout.tsx 把 board.css 排在 globals / settings 之后引入），
+ * 于是这些固定几何在 390px 手机上原样生效：
+ *   · `.pw-grid2/3/4` 把设置页的「外观 / 对话」两张卡压成 ~140px 两栏，中文一字一行
+ *     （/tmp/pwa-audit/390/settings.png，量测 `clipped` 里 7 处越界）；
+ *   · `.pw-cols` 的 `300px + minmax(0,760px)` 让「列表 + 详情」页在手机只剩一条缝；
+ *   · `.pw-range`(180 定宽) / `.pw-selectbox`(min-width 150) / `.pw-ctl` /
+ *     `.pw-skin .cap` 在被压扁的列里直接溢出卡片右缘；
+ *   · `.pw-shead` / `.pw-stools` / `.pw-scontent` / `.pw-sbody` 各留 40px 横向内距，
+ *     手机上内容列只剩 ~300px，一半宽度被内距吃掉。
+ * 这一档只把这些原语**收成手机形态**（单列 / 定宽解除 / 内距换 token），不改任何
+ * 颜色、字阶、行高、圆角与动效 —— 行的规格一个不动，只改排列方向与可用宽度。
+ *
+ * 为什么画板对位（verify:boards）不受影响：
+ *   1. 画板本体与对位脚本 board-diff 的视口是 1440×900，`max-width: 640px` 永不命中，
+ *      本区块对 1440 下的像素是**零影响**（29 份 spec 里 28 份是这个视口）；
+ *   2. 唯一一份 390 视口的 spec（60-mobile-pwa）量的是 `.pw-touch` / `.pw-drawer`
+ *      两个手机壳件，本区块刻意不碰它们；即使碰了，画板页与产品页加载的是**同一份**
+ *      board.css，两边同步变化，对位仍然相等；
+ *   3. 全部新增规则都关在这个 @media 内，文件其余部分逐字未动。
+ *
+ * 值一律取 token（间距 --s1..--s6 / --space-*，控件 --control-*，圆角 --radius-*）。
+ * 本档不新增任何动画；文件里所有动效仍走 --motion-* + --ease。
+ * ======================================================================== */
+@media (max-width: 640px) {
+  /* ---- 画板外壳（只影响直接打开 design/*.html 的人）--------------------
+     body 的 24px 外边距 + 画框圆角在 390px 下把画板内容推出视口。 */
+  body.pw { padding: var(--s3); }
+  .pw-notes { padding: var(--s3); }
+
+  /* ---- 设置三件套：40px 横向内距 → token 档 ----------------------------
+     画板 40/41~47/62 的页边距是 1440 下的桌面值；手机内容列只有 ~340px，
+     左右各 40 相当于吃掉四分之一屏。收成 --s3（12），纵向节奏不动。 */
+  .pw-shead {
+    flex-wrap: wrap; row-gap: var(--s2);
+    padding: var(--s4) var(--s3) var(--s2);
+  }
+  .pw-shead-acts { margin-left: auto; }
+  .pw-stools {
+    height: auto; min-height: var(--control-sm); flex-wrap: wrap; row-gap: var(--s2);
+    padding: var(--s2) var(--s3);
+  }
+  /* 工具条里的搜索框是 240px 定宽，与右侧动作组在同一行必然挤爆。 */
+  .pw-stools .pw-search { flex: 1 1 var(--edit-min); width: auto; min-width: 0; }
+  .pw-scontent { padding: var(--s4) var(--s3) var(--s5); }
+  .pw-sbody { padding: var(--s4) var(--s3) var(--s5); }
+
+  /* ---- 「列表 + 详情」两列（.pw-cols）→ 单列 ---------------------------
+     300 + 760 是画板 62 的两个内容宽度；手机上换成上下两块，整页一起滚。 */
+  .pw-cols { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+  .pw-scontent.is-fixed {
+    display: block; overflow-y: auto;
+    padding: 0 var(--s3) var(--s5);
+  }
+  /* 单列后不该再有「两列各自滚」：让内容区统一滚，长列表不再被截在框里。 */
+  .pw-scontent.is-fixed > .pw-cols > * { overflow: visible; }
+  /* 列表列的右缘发丝线 + `margin-right: -8px` 是为「并排」写的；单列下那 8px
+     负外边距会直接把详情卡顶出容器 —— 这里换成一条横向分隔线。 */
+  .pw-scontent.is-fixed > .pw-cols > :first-child {
+    margin-right: 0; padding-right: 0;
+    border-right: 0;
+    padding-bottom: var(--s3);
+    border-bottom: var(--space-hair) solid var(--n-border-subtle);
+  }
+
+  /* ---- 设置壳（.pw-settings 的 200px 左列）----------------------------
+     app/settings.css 已在窄屏隐藏左列并把轨道收成 1fr（0-2-0）；这条是给
+     其它宿主（如皮肤工作室）兜底，避免 200px 左列把内容压成一条缝。 */
+  .pw-settings { grid-template-columns: minmax(0, 1fr); }
+
+  /* ---- 字段行：标签独占一行，控件换到下一行 --------------------------
+     画板 40 是 1440px 的「标签左 / 控件右」；390px 里同一行塞不下（标签会被
+     挤成一字一行）。行的规格（行高 / 发丝线 / 控件尺寸）不改，只改排列方向。
+     产品侧 fork-ui.css 末尾另有一份同值副本，两边幂等。 */
+  .pw-field { flex-wrap: wrap; row-gap: var(--s2); padding: var(--s2) 0; }
+  .pw-field .pw-label { flex: 1 1 100%; }
+  .pw-field .pw-ctl,
+  .pw-field > .pw-radio,
+  .pw-field > .pw-selectbox,
+  .pw-field > .pw-btn { margin-left: auto; }
+  .pw-ctl,
+  .pw-radio { flex-wrap: wrap; justify-content: flex-end; }
+
+  /* ---- 定宽控件解除 min-width / width（审计里越界的四个）------------- */
+  .pw-input { min-width: 0; width: 100%; max-width: 100%; }
+  .pw-selectbox { min-width: 0; max-width: 100%; overflow: hidden; }
+  .pw-range { max-width: 100%; }
+  .pw-ctxbar { overflow-x: auto; }
+  .pw-ctxbar .pw-chipbtn { max-width: 100%; }
+
+  /* ---- 块流网格：N 列 → 单列（设置页卡片被压成两栏就是这条）------------ */
+  .pw-grid2,
+  .pw-grid3,
+  .pw-grid4 { grid-template-columns: minmax(0, 1fr); }
+  /* 用量页：四列 → 两列；本来就是两列的窄块 → 单列。 */
+  .pw-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pw-stats-grid.is-2col { grid-template-columns: minmax(0, 1fr); }
+  /* 键值表：140px 键列 + 值列 → 上下两行（值不再被挤到断行）。 */
+  .pw-kv { grid-template-columns: minmax(0, 1fr); gap: var(--s1); }
+  .pw-kv dd { margin-bottom: var(--s2); }
+  /* 色卡：10 列的色块名在手机放不下（文字会压到邻格）。 */
+  .pw-swatches { grid-template-columns: repeat(3, 1fr); }
+  .pw-swatches-row { grid-template-columns: repeat(5, 1fr); }
+  /* 演示台是 auto-fill + 最小轨宽：容器比最小轨还窄时整块横向溢出。 */
+  .pw-stage,
+  .pw-anim-stage { grid-template-columns: minmax(0, 1fr); }
+
+  /* ---- 卡片内距：块级内距的 16px 横向收到 12px ------------------------ */
+  .pw-block,
+  .pw-detail { padding: var(--s3); }
+
+  /* ---- 弹层：定宽 → 100%（封顶仍用基线 token）------------------------ */
+  .pw-modal { width: 100%; max-width: var(--modal-w); }
+  .pw-modal-head,
+  .pw-modal-body,
+  .pw-modal-foot { padding-left: var(--s3); padding-right: var(--s3); }
+  /* `.pw-pop` 的 320 定宽只加一道上限，不改成 100%：产品的浮层定位（BranchNavigator
+     BRANCH_MENU_WIDTH / AppShell TOP_BAR_PANEL_WIDTH）按 320 这个数算 left，
+     宽度一变定位就偏。视口窄于 --pop-w 时才收缩。 */
+  .pw-pop { max-width: 100%; }
+  .pw-minimap-pop { width: min(100%, var(--pop-w)); }
+  .pw-toast { width: 100%; }
+  .pw-login-card { width: 100%; max-width: var(--chat-max); }
+  .pw-scrim { padding: var(--s3); }
+  /* 底部面板本来左右贴边（已是 100% 宽），这里收内距并给高度上限 ——
+     面板内容比手机视口高时不能把顶栏顶出屏幕。 */
+  .pw-sheet {
+    max-height: 100%; overflow-y: auto;
+    padding: var(--s2) var(--s3) var(--s4);
+  }
+  .pw-banner { flex-wrap: wrap; }
+  .pw-perm-acts { flex-wrap: wrap; }
+
+  /* ---- 右栏：树 + 查看器的并排改成上下 --------------------------------
+     220px 树列在 390px 里只剩 170px 给查看器；上下排后树自身可滚。
+     只作用于 `.pw-split` 这套**画板结构**：产品里树列是 `.explorer-column pw-tree`
+     的 flex 子项（宽 264 / 窄屏由 @container 规则整列隐藏），不归这条管。 */
+  .pw-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .pw-split > .pw-tree {
+    max-height: 40%; overflow-y: auto;
+    border-right: 0;
+    border-bottom: var(--space-hair) solid var(--n-border-subtle);
+  }
+
+  /* ---- 横向滚动容器（内容宽于手机时滚，而不是被卡片裁掉）--------------
+     `.pw-diff-line` 是 white-space: pre，卡片又是 overflow:hidden，
+     长代码行在手机上会被直接裁掉 —— 给一层横滚。 */
+  .pw-diff-body { overflow-x: auto; }
+  .pw-tabs { overflow-x: auto; }
+  .pw-skin-strip { overflow-x: auto; }
+  .pw-skin-actions { flex-wrap: wrap; }
+
+  /* ---- 转录 / 输入区的横向内距 ---------------------------------------- */
+  .pw-col { padding: 0 var(--s3); }
+  .pw-composer-wrap { padding: var(--s2) var(--s3) var(--s4); }
+  .pw-img { max-width: 100%; }
+  .pw-empty-inner { max-width: 100%; }
+}

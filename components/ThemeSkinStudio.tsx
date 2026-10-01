@@ -222,7 +222,9 @@ export function ThemeSkinStudio({
       <div
         className="pw-modal fork-skin-modal"
         aria-label={isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}
-        style={{ width: "900px", height: "720px", display: "flex", flexDirection: "column" }}
+        /* fork:pwa-skin-frame —— 900×720 的画板 47 尺寸从 inline 搬进类（值照抄，
+           桌面渲染零变化）：手机档要把它从「居中 900px 对话框」改成贴底全屏
+           sheet，而 inline 样式 CSS 压不过。 */
       >
         <div className="pw-modal-head">
           {isNew ? t("settings.skinNewTitle") : t("settings.skinEditTitle")}
@@ -235,7 +237,7 @@ export function ThemeSkinStudio({
           {tab === "css" ? (
             <span className="pw-badge warn">{t("models.advancedTitle")}</span>
           ) : null}
-          <button type="button" className="pw-iconbtn sm" aria-label={t("i18n.close")} title={t("i18n.close")} onClick={onCancel}>
+          <button type="button" className="pw-iconbtn sm fork-pwa-hit" aria-label={t("i18n.close")} title={t("i18n.close")} onClick={onCancel}>
             <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
           </button>
         </div>
@@ -266,9 +268,14 @@ export function ThemeSkinStudio({
           // 画板 47 帧 1 画的是「左设置 1fr · 右预览 340px」，用户明确要求反过来
           // （「为啥把预览放在右边了啊，应该放到左边啊」）。DOM 顺序不动，用 grid 的
           // `order` 把预览列排到第一格，两个子块各写一个 order（见下）。
-          <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "340px 1fr", overflow: "hidden" }}>
+          <div
+            className="pw-modal-body fork-pwa-skin-body"
+            /* fork:pwa-skin-body —— 「左设置 1fr · 右预览 340px」的分栏从 inline
+               搬进类（值逐条照抄，桌面渲染零变化），手机档才能把它收成单列：
+               inline 样式是 CSS 压不过的。 */
+          >
             {/* 右（原左）：设置（画板 47 帧 1：基本信息 / 四色 / 几何 / 不透明度与遮罩） */}
-            <div style={{ order: 2, overflowY: "auto", minHeight: 0, display: "grid", gap: "var(--s2)", alignContent: "start" }}>
+            <div className="fork-pwa-skin-col">
               <div className="pw-sec-title">{t("settings.skinSectionBasic")}<span className="pw-grow" aria-hidden="true" /></div>
               <PwField label={t("settings.skinName")} control={
                 <input
@@ -347,7 +354,7 @@ export function ThemeSkinStudio({
             </div>
 
             {/* 左（原右）：预览列（画板 47 的分栏语义保留，只是换到左侧 —— 发丝线改成右边线） */}
-            <div style={{ order: 1, borderRight: "1px solid var(--n-border-subtle)", paddingRight: "var(--s3)", display: "grid", gap: "var(--s2)", alignContent: "start", overflowY: "auto", minHeight: 0 }}>
+            <div className="fork-pwa-skin-col fork-pwa-skin-preview">
               <div className="pw-sec-title">{t("settings.skinSectionPreview")}<span className="pw-grow" aria-hidden="true" /></div>
 
               {/* 迷你外壳：侧栏 + 会话列 + 作曲器（fork-skin-preview-* 是功能性预览，
@@ -424,7 +431,7 @@ export function ThemeSkinStudio({
             </div>
           </div>
         ) : (
-          <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, overflow: "hidden", gridTemplateRows: "auto 1fr" }}>
+          <div className="pw-modal-body fork-pwa-skin-css">
             {/* fix:board47-css-warn（画板 47 帧 3 左半）—— 文本域之上常驻一条 `.pw-alert`：
                 这一页的规则会覆盖皮肤设置，写错能让界面没法用，所以警告必须**先于**
                 编辑器出现，而不是等到保存失败。原先是 `.sub` 一行灰字（`.pw-sbody>p.sub`
@@ -456,7 +463,7 @@ export function ThemeSkinStudio({
           </div>
         ) : null}
 
-        <footer className="pw-modal-foot">
+        <footer className="pw-modal-foot fork-pwa-skin-foot">
           {/* fix:board47-css-clear（画板 47 帧 3 左半）—— 动作行的**左槽按页签换语义**，
               不并排两枚 danger：CSS 页签是「清空」（清掉这份自定义规则，换一个出口），
               主题设置页签是「删除」（删掉这套皮肤）。两枚红按钮并排时用户分不清点的是

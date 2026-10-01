@@ -17,6 +17,7 @@ const {
   formatDuration,
   formatUsage,
   formatUsageCost,
+  rowUsageOf,
   getModelDisplayName,
   getTokenEstimateText,
   getToolCallInputText,
@@ -674,16 +675,54 @@ test("formats sub-second durations in milliseconds instead of 0.0s", () => {
 // 「后面的是输入、输出的 token 吗，本轮花多少金额咋没写啊」）。真数据：
 // input=71 / cacheRead=240,830 / output=338 / 落盘比调用开始晚 6.2s。
 test("the turn row counts the whole prompt (input + cache) and always shows a cost cell", () => {
-  const usage = { input: 71, output: 338, cacheRead: 240830, cacheWrite: 0, cost: { total: 0 } };
   // 光报 usage.input 会显示「↑ 71」，而模型实际读了 24 万 —— 那才是不准。
-  assert.equal(formatUsage(usage), "↑ 241k · ↓ 338 tok");
-  assert.equal(formatUsage({ input: 8912, output: 1328, cacheRead: 0, cacheWrite: 0, cost: { total: 0.021 } }),
+  assert.equal(formatUsage({ input: 71, output: 338, cacheRead: 240830, cacheWrite: 0 }), "↑ 241k · ↓ 338 tok");
+  assert.equal(formatUsage({ input: 8912, output: 1328, cacheRead: 0, cacheWrite: 0 }),
     "↑ 8,912 · ↓ 1,328 tok", "board 12's vocabulary still holds when there is no cache");
-  assert.equal(formatUsage({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } }), "");
-  // 费用为 0 也要画出这一格（免费模型），否则看起来像漏了。
-  assert.equal(formatUsageCost({ cost: { total: 0 } }), "$0.000");
-  assert.equal(formatUsageCost({ cost: { total: 0.0212 } }), "$0.021");
-  assert.equal(formatUsageCost({}), null, "no usage object at all stays empty");
+  assert.equal(formatUsage({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }), "");
+  // 金额只在真的有费用时出现（用户裁定 2026-10-01「那就把这个金额去掉吧」：免费 / 不上报
+  // 价格的模型常年一格 $0.000 是噪声）。
+  assert.equal(formatUsageCost({ costTotal: 0.0212 }), "$0.021");
+  assert.equal(formatUsageCost({ costTotal: 0 }), null, "free model → no amount cell");
+});
+
+// fix:turn-stats 二轮（用户裁定：「应该是 ai 每轮任务的时候，从每轮思考一直到本轮结束的
+// 时间吧……你看像输入、输出，以及金额，不也是这么算的吗」）：四格必须是**本轮**口径。
+test("the turn row reads the whole-turn aggregate ChatWindow computed", async () => {
+  const { computeTurnStats } = await import("../lib/turn-stats.ts");
+  const usage = (input, output, cost) => ({
+    input, output, cacheRead: 0, cacheWrite: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: cost },
+  });
+  const messages = [
+    { role: "user", content: "hi", timestamp: 0 },
+    { role: "assistant", content: [], model: "m", provider: "p", stopReason: "toolUse", timestamp: 2000, completedAt: 8200, usage: usage(17_564, 161, 0) },
+    { role: "toolResult", toolCallId: "t1", content: [], timestamp: 9000 },
+    { role: "assistant", content: [], model: "m", provider: "p", stopReason: "stop", timestamp: 10_000, completedAt: 20_400, usage: usage(2000, 900, 0.01) },
+  ];
+  const stats = computeTurnStats(messages);
+  const last = stats.get(3);
+  // 最后一行：本轮 20.4s、输入 19,564、输出 1,061、费用 $0.010 —— 一个口径。
+  assert.equal(last.elapsedSec, 20.4);
+  // 渲染路径：TurnStats / AgentUsage 两个来源都先归一到 RowUsage，再进同一套格式化。
+  const row = rowUsageOf(last, messages[3].usage);
+  assert.equal(formatUsage(row), "↑ 20k · ↓ 1,061 tok", "19,564 过万走紧凑");
+  assert.equal(formatUsageCost(row), "$0.010");
+  assert.deepEqual(rowUsageOf(undefined, messages[3].usage), {
+    input: 2000, output: 900, cacheRead: 0, cacheWrite: 0, costTotal: 0.01,
+  }, "没有本轮快照时退回这条消息自己的 usage");
+  assert.equal(rowUsageOf(undefined, undefined), null);
+  // 中间那行只见到自己那一步（3k 输入 / 1.4s），不借用后面的数据。
+  assert.equal(stats.get(1).elapsedSec, 8.2);
+  assert.equal(formatUsage(stats.get(1)), "↑ 18k · ↓ 161 tok", "中间那行只看得到自己那一步（17,564 过万走紧凑）");
+  // ChatWindow 必须把快照传下来（每个助手消息一份）。
+  const chatWindow = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
+  assert.match(chatWindow, /const turnStatsByIndex = useMemo\(\(\) => computeTurnStats\(messages\), \[messages\]\)/);
+  assert.match(chatWindow, /turnStats=\{turnStatsByIndex\.get\(idx\)\}/);
+  assert.match(source, /const durationSec = turnStats\?\.elapsedSec \?\? stepDurationSec;/);
+  // 单步 / 多步两条说明分开：多步才提“这一步模型 Xs”，单步不要留一个空尾巴。
+  assert.match(source, /turnStats && turnStats\.steps > 1 && stepDurationSec !== null/);
+  assert.match(source, /chat\.turnEnd\.durationHintTurnSteps/);
+  assert.doesNotMatch(source, /step: ""/);
 });
 
 test("durations come from the entry append time, not the gap to the previous message", async () => {

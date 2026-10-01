@@ -705,12 +705,12 @@ export const zhCNLocale: LocalePlugin = {
     // fork:design-system PR-11 — 回合结束行：非正常结束的人话解释（停靠徽章右侧）。
     // fix:turn-stats —— 回合结束行三格的说明（hover 才出现）
     "chat.turnEnd.durationHint": "这一步模型从收到请求到写完用了多久",
+    "chat.turnEnd.durationHintTurn": "本轮一共 {turn}（从你发出消息到这一轮结束，含工具执行）",
+    "chat.turnEnd.durationHintTurnSteps": "本轮一共 {turn}（从你发出消息到这一轮结束，含工具执行）· 其中这一步模型 {step}（本轮 {steps} 步）",
     "chat.turnEnd.inputTokens": "输入 {count}",
     "chat.turnEnd.cacheRead": "缓存读 {count}",
     "chat.turnEnd.cacheWrite": "缓存写 {count}",
     "chat.turnEnd.outputTokens": "输出 {count}",
-    "chat.turnEnd.costHint": "这一轮的费用",
-    "chat.turnEnd.costFree": "这个模型不返回费用数据（免费或未上报），所以是 $0.000",
     "chat.turnEnd.toolUse": "模型要求调工具，下一段接着跑",
     "chat.turnEnd.deferred": "已交给后台继续跑，完成后回来",
     "chat.turnEnd.aborted": "你点了停止",
@@ -1118,7 +1118,7 @@ export const zhCNLocale: LocalePlugin = {
     "models.addProvider": "添加供应商",
     "models.listEmpty": "还没有供应商",
     "models.listEmptyHint": "点右上角「添加供应商」接入订阅或接口。",
-    "models.detailEmpty": "从左边选一个供应商或模型，查看它的连接、模型与定价",
+    "models.detailEmpty": "选一个供应商或模型，查看它的连接、模型与定价",
     "models.providerCount": "{count} 个供应商",
     "models.groupSubscription": "订阅",
     "models.groupCustom": "自定义",

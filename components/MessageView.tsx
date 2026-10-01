@@ -19,12 +19,14 @@ import { buildIntralineSegments, diffIntraline, type IntralineSpan } from "@/lib
 import { applyPatchPreviewToFiles, extractApplyPatchPaths, getApplyPatchInputText, parseApplyPatchInput } from "@/lib/apply-patch";
 import { isApplyPatchToolName, isEditToolName } from "@/lib/tool-names";
 import { isThinkingExpandedByDefault, THINKING_EXPANDED_EVENT } from "@/lib/thinking-expansion-preference";
+import type { TurnStats } from "@/lib/turn-stats";
 import { TurnWrittenFiles } from "./TurnWrittenFiles";
 import type { WrittenFile } from "@/lib/turn-written-files";
 import { skillExpansionToCommand } from "@/lib/slash-display";
 import type { SubagentToolDetails } from "@/lib/subagent-extension";
 import type {
   AgentMessage,
+  AgentUsage,
   UserMessage,
   AssistantMessage,
   CustomMessage,
@@ -210,6 +212,8 @@ interface Props {
   onEditContent?: (message: UserMessage) => void;
   showTimestamp?: boolean;
   prevTimestamp?: number;
+  /** fix:turn-stats —— 本轮（用户消息 → 这条助手消息结束）的累计统计，由 ChatWindow 算好。 */
+  turnStats?: TurnStats;
   sessionId?: string;
   /**
    * Files this turn wrote, derived by the caller from the whole turn's
@@ -349,12 +353,12 @@ function haveSameRelevantToolResults(
   return true;
 }
 
-export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, onOpenSession, entryId, searchBlock, onFork, forking, onRewind, rewinding, onNavigate, onEditContent, showTimestamp, prevTimestamp, sessionId, writtenFiles, expandedToolIds, onToggleTool }: Props) {
+export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, onOpenSession, entryId, searchBlock, onFork, forking, onRewind, rewinding, onNavigate, onEditContent, showTimestamp, prevTimestamp, turnStats, sessionId, writtenFiles, expandedToolIds, onToggleTool }: Props) {
   if (message.role === "user") {
     return <UserMessageView message={message as UserMessage} cwd={cwd} onOpenFile={onOpenFile} entryId={entryId} onFork={onFork} forking={forking} onRewind={onRewind} rewinding={rewinding} onNavigate={onNavigate} onEditContent={onEditContent} />;
   }
   if (message.role === "assistant") {
-    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} sessionId={sessionId} entryId={entryId} searchBlock={searchBlock} writtenFiles={writtenFiles} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />;
+    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} turnStats={turnStats} sessionId={sessionId} entryId={entryId} searchBlock={searchBlock} writtenFiles={writtenFiles} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />;
   }
   if (message.role === "toolResult") {
     // Rendered inline under its toolCall — skip standalone rendering if paired
@@ -389,6 +393,7 @@ export const MessageView = memo(function MessageView({ message, isStreaming, too
     && prev.onEditContent === next.onEditContent
     && prev.showTimestamp === next.showTimestamp
     && prev.prevTimestamp === next.prevTimestamp
+    && prev.turnStats === next.turnStats
     && prev.writtenFiles === next.writtenFiles
     && prev.sessionId === next.sessionId
     && prev.expandedToolIds === next.expandedToolIds
@@ -651,6 +656,7 @@ function AssistantMessageView({
   onOpenSession,
   showTimestamp,
   prevTimestamp,
+  turnStats,
   sessionId,
   entryId,
   searchBlock,
@@ -667,6 +673,7 @@ function AssistantMessageView({
   onOpenSession?: (sessionId: string) => void;
   showTimestamp?: boolean;
   prevTimestamp?: number;
+  turnStats?: TurnStats;
   sessionId?: string;
   entryId?: string;
   searchBlock?: AssistantContentBlock;
@@ -902,8 +909,10 @@ function AssistantMessageView({
         const stopReason = message.stopReason ?? "stop";
         // fix:turn-stats —— 这一格原来是 `message.timestamp - 上一条消息.timestamp`，
         // 量的是“条目落盘的间隔”（实测恒为 3–10ms，用户：“这个咋又是毫秒啊，
-        // 统计的一点都不准”）。现在量**这一步模型真正跑了多久**（落盘 − 调用开始）。
-        const durationSec = stepDurationSec;
+        // 统计的一点都不准”）。先改成“这一步模型跑了多久”（落盘 − 调用开始），再按用户裁定
+        // 升级为**本轮**口径：“从每轮思考一直到本轮结束”，与输入 / 输出 / 费用同口径
+        // （见 lib/turn-stats.ts）。缺本轮快照时退回单步值。
+        const durationSec = turnStats?.elapsedSec ?? stepDurationSec;
         const badgeClass = stopReason === "stop" ? "ok"
           : stopReason === "length" ? "warn"
             : stopReason === "error" ? "bad"
@@ -916,8 +925,11 @@ function AssistantMessageView({
                 : stopReason === "aborted" ? "circle-stop"
                   : stopReason === "error" ? "circle-x"
                     : "ellipsis";
-        const usageText = message.usage ? formatUsage(message.usage) : "";
-        const costText = message.usage ? formatUsageCost(message.usage) : null;
+        // 用量与费用同样按**本轮**累加：四格必须是同一个口径，否则「17k 输入 + 161 输出」
+        // 配一个 4.4s 的耗时读起来自相矛盾。缺快照时退回这条消息自己的 usage。
+        const rowUsage = rowUsageOf(turnStats, message.usage);
+        const usageText = rowUsage ? formatUsage(rowUsage) : "";
+        const costText = rowUsage ? formatUsageCost(rowUsage) : null;
         const note = stopReason === "toolUse" ? t("chat.turnEnd.toolUse")
           : stopReason === "length" ? t("chat.truncatedByOutputLimit")
             : stopReason === "deferred" ? t("chat.turnEnd.deferred")
@@ -932,24 +944,33 @@ function AssistantMessageView({
             </span>
             {durationSec !== null && (
               <>
-                <span className="pw-mono" title={t("chat.turnEnd.durationHint")}>{formatDuration(durationSec)}</span>
-                <span>·</span>
-              </>
-            )}
-            {usageText && message.usage && (
-              <>
-                <span className="pw-mono" title={usageTitle(message.usage, t)}>{usageText}</span>
-                <span>·</span>
-              </>
-            )}
-            {costText && (
-              <>
                 <span
                   className="pw-mono"
-                  title={message.usage?.cost?.total ? t("chat.turnEnd.costHint") : t("chat.turnEnd.costFree")}
+                  title={turnStats && turnStats.steps > 1 && stepDurationSec !== null
+                    ? t("chat.turnEnd.durationHintTurnSteps", {
+                      turn: formatDuration(durationSec),
+                      step: formatDuration(stepDurationSec),
+                      steps: turnStats.steps,
+                    })
+                    : t("chat.turnEnd.durationHintTurn", { turn: formatDuration(durationSec) })}
                 >
-                  {costText}
+                  {formatDuration(durationSec)}
                 </span>
+                <span>·</span>
+              </>
+            )}
+            {usageText && rowUsage && (
+              <>
+                <span className="pw-mono" title={usageTitle(rowUsage, t)}>{usageText}</span>
+                <span>·</span>
+              </>
+            )}
+            {/* 金额只在真的有费用时出现（画板 12 的 `$0.021`）。`$0.000` 不画 ——
+                用户裁定 2026-10-01「那就把这个金额去掉吧」：免费 / 不上报价格的模型
+                （单价为 0）常年显示一格 0 纯属噪声，还让人以为漏算了。 */}
+            {costText && (
+              <>
+                <span className="pw-mono">{costText}</span>
                 <span>·</span>
               </>
             )}
@@ -1997,12 +2018,24 @@ function getToolPreview(block: ToolCallContent): string {
   return String(first).slice(0, 120);
 }
 
+/**
+ * 回合结束行那一格用的归一形状：本轮累计（`TurnStats`）与单条消息的 `usage` 都归到它，
+ * 两个来源共用一套格式化 —— 免得「本轮口径」上线后单步路径悄悄走另一套。
+ */
+export interface RowUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  /** 本轮费用合计；0 / undefined = 不画这一格（免费或没上报价格）。 */
+  costTotal: number;
+}
+
 export function formatUsage(usage: {
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
-  cost: { total: number };
 }): string {
   // fork:design-components —— 回合用量行 = 画板 12 的「↑ 8,912 · ↓ 1,328 tok」。
   //
@@ -2033,16 +2066,37 @@ function usageTitle(usage: {
 }
 
 /** 费用（画板 12：用量与费用之间有一个 `·`）。
- *  fix:turn-stats —— 以前 `cost.total` 为 0 就不渲染，用户看到的是「金额那一格凭空没了」
- *  （用户：“本轮花多少金额咋没写啊”）。现在 `usage.cost` 存在就画：真的免费/不返回费用的
- *  模型显示 `$0.000` 并在 title 里说明，而不是留一个空位让人猜。 */
-export function formatUsageCost(usage: { cost?: { total: number } }): string | null {
-  const total = usage.cost?.total;
-  if (total === undefined) return null;
-  return `$${total.toFixed(3)}`;
+ *  fix:turn-stats —— **只有真的有费用才画**：单价为 0 的模型（`space-bunny-free` 这类免费档，
+ *  pi 的价格表里 cost 全是 0）恒为 `$0.000`，一格常年 0 是噪声而不是信息
+ *  （用户裁定 2026-10-01：“那就把这个金额去掉吧”）。上游报了 0 就是没花钱，不画。 */
+export function formatUsageCost(usage: { costTotal: number }): string | null {
+  return usage.costTotal > 0 ? `$${usage.costTotal.toFixed(3)}` : null;
 }
 
-/** 紧凑 token 数：过万走 k / M（与统计浮窗 `formatCompactTokens` 同一口径）。 */
+/** 本轮累计优先，缺快照退回这条消息自己的 usage（老调用方 / 单条渲染）。 */
+export function rowUsageOf(turn: TurnStats | undefined, usage: AgentUsage | undefined): RowUsage | null {
+  if (turn && turn.steps > 0) {
+    return {
+      input: turn.input,
+      output: turn.output,
+      cacheRead: turn.cacheRead,
+      cacheWrite: turn.cacheWrite,
+      costTotal: turn.cost,
+    };
+  }
+  if (!usage) return null;
+  return {
+    input: usage.input ?? 0,
+    output: usage.output ?? 0,
+    cacheRead: usage.cacheRead ?? 0,
+    cacheWrite: usage.cacheWrite ?? 0,
+    costTotal: usage.cost?.total ?? 0,
+  };
+}
+
+/** 回合行的 token 写法：< 10k 保留精确数字（画板 12 写的是 `8,912`），过万才紧凑。
+ *  与统计浮窗的 `formatCompactTokens`（components/SessionStatsBar.tsx）阈值不同是有意的：
+ *  那边是**会话累计**（要短），这边是**单轮**（1,328 显示成 “1k” 就是错信息）。 */
 function formatCompactTokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 10_000) return `${Math.round(value / 1000)}k`;

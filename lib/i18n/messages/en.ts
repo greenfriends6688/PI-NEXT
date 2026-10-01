@@ -705,12 +705,12 @@ export const enLocale: LocalePlugin = {
     // fork:design-system PR-11 — turn-end row: plain-language note for abnormal stops.
     // fix:turn-stats — turn-end row tooltips
     "chat.turnEnd.durationHint": "How long the model took on this step, request to last token written",
+    "chat.turnEnd.durationHintTurn": "This turn took {turn} end to end (your message to the end of the turn, tools included)",
+    "chat.turnEnd.durationHintTurnSteps": "This turn took {turn} end to end (your message to the end of the turn, tools included) · this step alone {step} ({steps} steps in the turn)",
     "chat.turnEnd.inputTokens": "input {count}",
     "chat.turnEnd.cacheRead": "cache read {count}",
     "chat.turnEnd.cacheWrite": "cache write {count}",
     "chat.turnEnd.outputTokens": "output {count}",
-    "chat.turnEnd.costHint": "Cost of this turn",
-    "chat.turnEnd.costFree": "This model reports no cost data (free or not reported), hence $0.000",
     "chat.turnEnd.toolUse": "Model asked for a tool — this turn continues",
     "chat.turnEnd.deferred": "Handed off to run in the background; it comes back when done",
     "chat.turnEnd.aborted": "You stopped it",

@@ -703,12 +703,12 @@ export const zhTWLocale: LocalePlugin = {
     // fork:design-system PR-11 — 回合結束列：非正常結束的白話說明。
     // fix:turn-stats —— 回合結束列三格的說明（hover 才出現）
     "chat.turnEnd.durationHint": "這一步模型從收到請求到寫完用了多久",
+    "chat.turnEnd.durationHintTurn": "本輪一共 {turn}（從你發出訊息到這一輪結束，含工具執行）",
+    "chat.turnEnd.durationHintTurnSteps": "本輪一共 {turn}（從你發出訊息到這一輪結束，含工具執行）· 其中這一步模型 {step}（本輪 {steps} 步）",
     "chat.turnEnd.inputTokens": "輸入 {count}",
     "chat.turnEnd.cacheRead": "快取讀 {count}",
     "chat.turnEnd.cacheWrite": "快取寫 {count}",
     "chat.turnEnd.outputTokens": "輸出 {count}",
-    "chat.turnEnd.costHint": "這一輪的費用",
-    "chat.turnEnd.costFree": "這個模型不回報費用資料（免費或未回報），所以是 $0.000",
     "chat.turnEnd.toolUse": "模型要求呼叫工具，這一段會接著跑",
     "chat.turnEnd.deferred": "已交給背景繼續跑，完成後回來",
     "chat.turnEnd.aborted": "你按了停止",
@@ -1116,7 +1116,7 @@ export const zhTWLocale: LocalePlugin = {
     "models.addProvider": "新增供應商",
     "models.listEmpty": "還沒有供應商",
     "models.listEmptyHint": "點右上角「新增供應商」接訂閱或介面。",
-    "models.detailEmpty": "從左邊選一個供應商或模型，查看它的連線、模型與定價",
+    "models.detailEmpty": "選一個供應商或模型，查看它的連線、模型與定價",
     "models.providerCount": "{count} 個供應商",
     "models.groupSubscription": "訂閱",
     "models.groupCustom": "自訂",

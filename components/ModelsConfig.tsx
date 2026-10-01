@@ -2118,10 +2118,17 @@ function AddProviderPicker({
      hover JS、搜索图标 SVG 全部退役。覆盖层的 fixed/层级画板没有产品等价物
      （fork-ui 只给皮肤工作室接了线，z 顺序不能共用），保留这组行为 inline。 */
   return (
+    /* fork:pwa-models-skills —— `fork-pwa-ms-sheet` 是**本文件私有的**手机档钩子
+       （app/pwa-models-skills.css）：≤640px 时这个选择器从 560px 的居中对话框变成
+       全屏 sheet（顶部圆角 + 底部安全区留白）。壳的宽高是内联几何（`.pw-modal` 的
+       width 与内容行的 max-height），覆盖写在 app/pwa-models-skills.css 的
+       「sheet 一节」——该节用 `!important` 压内联，因为「手机上换成整片」这件事
+       没法再写一段内联值来表达而桌面端不变。 */
     <div
       ref={dialogRef}
       {...dialogProps}
       aria-label={t("models.title")}
+      className="fork-pwa-ms-sheet"
       style={{ position: "fixed", inset: 0, zIndex: 1100, background: "var(--scrim)", display: "grid", placeItems: "center" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       onKeyDown={(e) => {
@@ -2146,7 +2153,10 @@ function AddProviderPicker({
         </div>
 
         {/* List —— 画板 50 的 pw-modal 是内容定高的确认框；这个选择器是长列表，
-            滚动上边界是产品行为，留在行内。 */}
+            滚动上边界是产品行为，留在行内。
+            fork:pwa-models-skills —— 手机档把 72vh 换成 sheet 的整片可用高度，
+            那条覆盖写在 app/pwa-models-skills.css（用 `!important` 压这条内联几何，
+            理由见该文件「sheet 一节」）。 */}
         <div className="pw-modal-body" style={{ overflowY: "auto", maxHeight: "min(72vh, calc(100vh - 32px))" }}>
           {totalCount === 0 ? (
             <ConfigEmptyState>{t("i18n.noProviders")}</ConfigEmptyState>
@@ -2504,8 +2514,19 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         title={t("common.models")}
         sub={t("models.pageSub")}
         actions={
+          /* fork:pwa-models-skills —— `fork-pwa-ms-page` 是**本页的手机档作用域钩子**：
+             app/pwa-models-skills.css 的每条窄屏规则都从「页头动作区里有这个类」出发
+             （`.pw-shead:has(.fork-pwa-ms-page) ~ …`），因为 `.pw-shead` / `.pw-stools` /
+             `.pw-scontent` / `.pw-cols` 全是 SettingsUi 的**共享基件**——不挂钩子就没法
+             只改模型页而不波及插件 / 子代理分节。全仓只有本页与 SkillsConfig 发这个类。
+             `fork-pwa-ms-models` 是同页专属的细分钩子（技能页是 fork-pwa-ms-skills）。 */
           <>
-            <ConfigButton variant="secondary" size="small" onClick={() => setPickerOpen(true)}>
+            <ConfigButton
+              variant="secondary"
+              size="small"
+              className="fork-pwa-ms-page fork-pwa-ms-models"
+              onClick={() => setPickerOpen(true)}
+            >
               <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
               {t("models.addProvider")}
             </ConfigButton>

@@ -1185,6 +1185,52 @@
      控件列 102px、输入框 64px，不再溢出。
      回归守卫：`components/AgentsConfig.test.mjs`（两处窄框都必须带 `minWidth: 0`）。
 
+133. **回合统计三处“算错/没写”**（`lib/types.ts` / `lib/session-reader.ts` /
+     `hooks/useAgentSession.ts` / `components/MessageView.tsx`）—— 用户裁定 2026-10-01：
+     「这个咋又是毫秒啊……统计的一点都不准啊，还有后面的是输入、输出的 token 吗，
+     本轮花多少金额咋没写啊」。一个根因带出三处：
+     - **`message.timestamp` 是「模型调用开始」，不是结束**（实测：条目落盘时间比它晚
+       3–18s）。旧代码把它当结束点，于是：① 回合结束行的耗时 = `message.timestamp −
+       上一条消息.timestamp`，量的是**两条日志的间隔**，恒为 3–10ms（“25ms”）；
+       ② 思考块耗时同一个公式 → 几乎恒为 0；③ 工具卡耗时 = `toolResult.timestamp −
+       message.timestamp`，把**整段生成时间算进了每个工具**（实测 0.3s 的 bash 显示
+       6.5s）。现在 `AssistantMessage` 带一个 `completedAt`（服务端取 `entry.timestamp`，
+       流式路径在 `message_end` 补 `Date.now()`），三处统一用 `completedAt − timestamp`。
+       实测：回合行 4.4s / 17.2s，思考块 6s，工具 1s。
+     - **`↑` 只报 `usage.input`**：实测一轮真实 `input=71 / cacheRead=240,830` 却显示
+       「↑ 71」——看上去只读了 71 个 token，而模型读了 24 万。现在 `↑` = input + cacheRead +
+       cacheWrite（这一次请求**真的送进去**的 prompt），< 10k 保留精确数字、过万走紧凑
+       （阈值与统计浮窗的 `formatCompactTokens` 不同是有意的：那边是会话累计，这边是单轮）；
+       精确拆分放进 `title`。画板 12 的 `↑ … · ↓ … tok` 词表不变。
+     - **金额格只在真的有费用时出现**（用户裁定 2026-10-01 二次修正：「那就把这个金额去掉吧」）：
+       先前为了让“免费”与“漏了”能区分，133 条把 `cost.total === 0` 也画成 `$0.000` 并加了
+       hover 说明；实测本机主力模型 `opencode-go/space-bunny-free` 在 pi 的价格表里
+       `cost` 四项全是 0（`~/.pi/agent/models-store.json`），也就是说这一格**长期**只会是
+       `$0.000` —— 常年 0 是噪声而不是信息。现在回到「有费用才画」（同供应商的
+       `deepseek-v4.1-flash` 单价 $0.15/$0.60 per M，10013 条消息累计 $18.17，那一格照常出现），
+       `RowUsage.costKnown` 这个只为区分 0/未上报而存在的字段一并删掉。
+     回归守卫：`components/MessageView.test.mjs` 两个用例（`formatUsage` / `formatUsageCost`
+     的真数据 + “耗时不许再拿上一条消息的间隔”）。金额格的最终口径（0 → 不画）见下条。
+
+134. **回合结束行四格统一成「本轮」口径**（新增 `lib/turn-stats.ts` +
+     `components/ChatWindow.tsx` + `components/MessageView.tsx`）—— 用户裁定 2026-10-01：
+     「这个时间我觉得应该是 ai 每轮任务的时候，就是从每轮思考一直到本轮结束的时间吧，
+     这样才合理吧，你看像输入、输出，以及金额，不也是这么算的吗」。
+     上一条（133）把耗时改成了**单步**（落盘 − 调用开始），但输入 / 输出 / 费用仍是那一步的
+     —— 于是最后一行是「4.4s · ↑ 18k · ↓ 161 tok」，17k 输入 + 161 输出配 4.4 秒读起来
+     自相矛盾。现在四格同一个口径：**一轮任务 = 最后一条用户消息 → 这条助手消息结束**：
+     - 耗时 = 本轮起点 → 这条消息的 `completedAt`（**含期间的工具执行时间**）；
+     - `↑` / `↓` = 本轮内**每一条**助手消息的 usage 累加（`↑` 仍是 input + cache 读 + 写）；
+     - 费用 = 本轮累加（`costKnown` 区分“上报了 0”与“完全没上报”）。
+     中间的 `toolUse` 行看到的是**当时**的累计（快照式，不是最终值），最后一行是整轮总数。
+     `computeTurnStats(messages)` 一次前向扫描给每个助手消息下标一份快照，回合结束行只读自己那份。
+     思考块 / 工具卡的时长**仍是单步**（它们是块级信息，不是本轮汇总）。
+     hover 文案分两条：单步只说本轮，多步才补“其中这一步模型 Xs（本轮 N 步）”。
+     实测：两轮对话的最后一行 `23.3s · ↑ 36k · ↓ 415 tok · $0.000`。
+     回归守卫：`lib/turn-stats.test.mjs`（5 条：跨步累加 / 用户消息开新一轮 /
+     缺时间戳退 null / 无用户消息的开头 / 上报 0 与没上报的区别）+
+     `components/MessageView.test.mjs`（`rowUsageOf` 归一 + 快照接线）。
+
 **本轮登记不改（工作台）：**
 - **右栏文件查看器全套**（`.pw-viewer / .pw-viewer-head / .pw-viewer-body / .pw-tree / .pw-split`）：
      仍是 `file-viewer-*` + 74 处内联，0 个 pw 类 —— 属计划里的 **SW-04/05**（最大遗留面），

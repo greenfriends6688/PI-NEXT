@@ -46,6 +46,7 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 import type { AppUpdateResponse } from "@/lib/api-types";
 import type { ToolEntry } from "@/lib/tool-presets";
 import { findChatScrollAnchor, type ChatScrollPosition } from "@/lib/chat-scroll-position";
+import { computeTurnStats } from "@/lib/turn-stats";
 import {
   captureScrollDistance,
   getPromptAnchorSpacerHeight,
@@ -1456,6 +1457,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     }
     return map;
   }, [activeToolResults, messages]);
+  // fix:turn-stats —— 回合结束行的四格（耗时 / 输入 / 输出 / 费用）用**同一个口径**：
+  // 一轮任务 = 最后一条用户消息 → 这条助手消息结束（见 lib/turn-stats.ts）。
+  const turnStatsByIndex = useMemo(() => computeTurnStats(messages), [messages]);
   const inputHistory = useMemo(() => {
     const seen = new Set<string>();
     const history: string[] = [];
@@ -2211,6 +2215,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     onEditContent={handleEditContent}
                     showTimestamp={showTimestamp}
                     prevTimestamp={idx > 0 ? (messages[idx - 1] as AgentMessage & { timestamp?: number }).timestamp : undefined}
+                    turnStats={turnStatsByIndex.get(idx)}
                     sessionId={session?.id ?? sessionIdRef.current ?? undefined}
                     writtenFiles={options.writtenFiles}
                     expandedToolIds={expandedToolIds}

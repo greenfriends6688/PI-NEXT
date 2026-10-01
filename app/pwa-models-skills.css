@@ -1,0 +1,318 @@
+/* fork:pwa-<area> —— 手机档补丁，owner 见各节注释。规则只在这里加，不动共享画板/产品样式。 */
+
+/* ===========================================================================
+   fork:pwa-models-skills —— 模型页 / 技能页的手机档（≤640px）
+   ---------------------------------------------------------------------------
+   owner: components/ModelsConfig.tsx + components/SkillsConfig.tsx 的**产品自身结构**
+   ——弹层壳、两列的滚动契约、列表行命中区、详情卡内栅格、底部安全区。
+
+   与 board.css 那档通用手机档原语的分工：
+     · board.css 管**基件**（.pw-cols 单列 / .pw-grid* 单列 / .pw-shead 内距 /
+       .pw-field 换行）。那些是 1440 画板形态在窄屏的降级，全站通用。
+     · 本文件管**产品语义**：把两列改成「纵向两段、每段有明确滚动契约」，而不是
+       让两个「各自撑满面板高」的滚动框叠在一起（那会把第二列整段推到折线以下）；
+       以及弹层从「居中 560/640px 对话框」变成「全屏 sheet」。
+   board.css 那档先到或后到都不冲突：本文件的规则特异度更高（见下），同向收敛。
+
+   **作用域**：`.pw-shead:has(.fork-pwa-ms-page)`。`.fork-pwa-ms-page` 由本页页头的
+   一个动作钮发出（全仓只有 ModelsConfig / SkillsConfig 两处），`.pw-shead` /
+   `.pw-stools` / `.pw-scontent` / `.pw-cols` 都是 SettingsUi 的**共享基件**，
+   不带这个钩子就没法只改模型 / 技能两页而不波及插件、子代理分节。
+   `.pw-scontent` 与 `.pw-shead` 是兄弟（SettingsPage 返回 Fragment），所以内容区
+   只能从页头用 `~` 一般兄弟选择过去。
+
+   **桌面端**：本文件所有规则都在 `@media (max-width: 640px)` 里，≥641px 零命中。
+   =========================================================================== */
+
+@media (max-width: 640px) {
+  /* ---- 1. 弹层容器（.config-panel-root.is-modal）→ 全屏 sheet ------------
+     改前：`.config-panel-surface` 是 `min(900px, 100vw - 16px) × min(78vh, 100dvh - 16px)`
+     的居中对话框，手机上左右各留 8px、上下各留 8px，两列再塞进 ~340px —— 右列直接被压没。
+     改后：surface 吃掉 `.config-panel-root` 的整个内容盒（standalone 下那块内容盒本身
+     已经按 `env(safe-area-inset-*)` 内缩，app/settings.css 的 standalone 块负责），
+     顶部留圆角、底部贴边，读起来是「一张从底部升起的 sheet」。
+     特异度：`.config-panel-root.is-modal:has(.fork-pwa-ms-page) > .config-panel-surface`
+     = (0,4,0)，高于 settings.css 的 (0,3,0)（`:has()` 按参数算一个类），不需要
+     依赖引入顺序。 */
+  .config-panel-root.is-modal:has(.fork-pwa-ms-page) > .config-panel-surface {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-width: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  /* 弹层页头：标题可能被长路径挤走，钳成省略；关闭钮从 30 抬到触控档 32。
+     `.config-panel-header` 只在 modal 形态存在（embedded 形态没有它）。 */
+  .config-panel-root.is-modal:has(.fork-pwa-ms-page) .config-panel-header {
+    height: auto;
+    min-height: var(--control-lg);
+    gap: var(--s2);
+    padding: var(--s2) var(--s3) var(--s2) var(--s4);
+  }
+  .config-panel-root.is-modal:has(.fork-pwa-ms-page) .config-panel-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .config-panel-root.is-modal:has(.fork-pwa-ms-page) .config-close-button {
+    width: var(--control-md);
+    height: var(--control-md);
+  }
+
+  /* ---- 2. 两列 → 纵向两段；滚动契约从「两列各自滚」改成「内容区滚」 -------
+     改前（实测 390×844）：`.pw-cols` 仍是 `300px minmax(0,760px)`，面板宽 390 →
+     左列吃掉 308px、右列被挤成 **0px**（模型页：整页只有列表，右列详情完全看不见；
+     技能页：右列从 x=357 开始，右半张卡被裁在视口外，`86 个技能` 徽章越界 16px）。
+     叠成一列之后如果照搬「两列各自 `height:100%` + `overflow-y:auto`」，会变成两个
+     满屏高的滚动框上下摞 —— 第二个永远在折线以下。
+     改后：`.pw-scontent` 自己滚（唯一的滚动容器），列表列给一个视口相关的上限并自己滚，
+     详情列按内容长高、跟着内容区一起滚。列表再长也不会把详情顶到几千像素外。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent.is-fixed {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols {
+    flex: none;
+    height: auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+    align-items: start;
+    padding-bottom: 0;
+  }
+  /* 两列都不再是「撑满面板高的滚动框」；列表列的滚动契约在下一条单给。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > * {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow-y: visible;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :first-child {
+    max-height: 46dvh;
+    overflow-y: auto;
+    /* 不设 `overscroll-behavior: contain`：列表滑到底之后要能把余势**接力**给
+       外层内容区（contain 会把用户卡在列表里）。 */
+    /* 竖列变横排后，列表列右缘那条发丝线没有意义（它原本是「这里是列表」的边界）。 */
+    border-right: 0;
+    padding-right: 0;
+    margin-right: 0;
+  }
+  /* 底部安全区：两页都没有常驻的底部动作条（保存 / 添加都在页头），但最后一行内容
+     仍然会被 Home 指示条压住。24px 的留白在刘海屏上不够，加进安全区。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent {
+    padding-bottom: calc(var(--s5) + env(safe-area-inset-bottom));
+  }
+
+  /* ---- 3. 页头：一句话说明独占整行 → 动作钮落到第二行 --------------------
+     改前：`.pw-shead` 是 `align-items:flex-end` 的一行，`.pw-shead-copy` 拿到剩下的
+     宽度（实测 ~155px），说明句被压成三行，右端两个动作钮悬在一行里。
+     改后：copy 整行（说明句拿满 358px，最多两行），动作钮换到第二行右对齐。
+     高度其实没多花（原来是 1 行标题 + 3 行说明 ≈ 3 行，现在是 2 行 + 1 行按钮），
+     但可读性和命中区都好一截。 */
+  .pw-shead:has(.fork-pwa-ms-page) {
+    flex-wrap: wrap;
+    align-items: flex-end;
+    padding-top: var(--s4);
+    padding-bottom: var(--s2);
+  }
+  .pw-shead:has(.fork-pwa-ms-page) .pw-shead-copy {
+    flex: 1 1 100%;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) .pw-shead-copy > p.sub {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) .pw-shead-acts {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: var(--s2);
+  }
+  /* 动作钮在手机上抬到触控档（`.pw-btn.sm` 桌面是 24px）。 */
+  .pw-shead:has(.fork-pwa-ms-page) .pw-shead-acts .pw-btn.sm {
+    height: var(--control-md);
+  }
+
+  /* ---- 4. 工具条：搜索独占一行、作用域整行、分隔线撤掉 --------------------
+     改前：`.pw-stools` 是 `height:40px` 的不换行一行。技能页实测：搜索框 + 分隔线 +
+     四个作用域芯片 + 计数徽章 + 「全部更新」按钮一起挤在 358px 里 —— 芯片组被压成
+     「全/部」一列竖排、盖在「添加技能」按钮上，计数徽章越界 16px。
+     改后：这一条 flex 行整体允许换行；搜索框整行、控件高度抬到 32（触控档）；
+     作用域芯片组整行（`.pw-radio` 自带 `flex-wrap:wrap`，整行后四个芯片并排放得下）；
+     竖分隔线在换行后变成一条无主的横线，撤掉。计数徽章与按钮自然落到最后一行。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-stools {
+    height: auto;
+    min-height: var(--control-lg);
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: var(--s2);
+    padding-top: var(--s2);
+    padding-bottom: var(--s2);
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-stools .pw-search {
+    flex: 1 1 100%;
+    width: auto;
+    min-width: 0;
+    height: var(--control-md);
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-stools > .pw-radio {
+    flex: 1 1 100%;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-stools > .pw-sep {
+    display: none;
+  }
+
+  /* ---- 5. 左列（列表）：行高下限 + 行尾动作的命中区 ------------------------
+     改前：`.pw-litem` 桌面行高约 36px（够手指），但行尾两个可点的**方钮/开关**
+     本身远小于 32 —— 模型页的收藏星是 `span[role=button].pw-iconbtn.sm`，实测宽
+     **22px**；技能页行尾快捷开关是 30×17 再 `scale(.8)`，命中区约 24×14。
+     改后：行高下限抬到触控档；收藏星撑到 ≥32（图标尺寸不变，只多呼吸位）；
+     快捷开关不撑布局（那会把行宽挤掉），改用一层 `::after` 把命中区向外扩到
+     ≥32×32 —— 视觉尺寸逐像素不变，命中区达标。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :first-child .pw-litem {
+    min-height: var(--control-md);
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :first-child .pw-litem > .pw-iconbtn.sm {
+    min-width: var(--control-md);
+    min-height: var(--control-md);
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :first-child .pw-litem > .pw-switch {
+    position: relative;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :first-child .pw-litem > .pw-switch::after {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s2) * -1);
+  }
+
+  /* ---- 6. 右列（详情卡堆）：内栅格、kv、长文本、行内按钮组 -----------------
+     `.pw-cols > :last-child` 就是详情列（模型页直接是 `ConfigDetailStack`，
+     技能页是 `ConfigDetail` 包一层）。下面每条只作用于它内部的元素。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid2,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid3,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 用量四张小卡（`.pw-stats-grid` 桌面 4 列）：手机上 2×2，比 1×4 少一半滚动。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* `.pw-input` 的 `min-width:200px` / `.pw-selectbox` 的 `min-width:150px` 是
+     桌面「控件独占一格」的假设；358px 的内容列里它们会把卡片顶宽并出横向滚动条。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-input,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-selectbox {
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* 「标签 / 值」表竖排：140px 定宽的标签列在 326px 的卡里只剩 186px 给值，
+     路径 / URL 这类长 token 只能折成碎行。改成标签一行、值一行。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s1) var(--s3);
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-kv dd {
+    overflow-wrap: anywhere;
+  }
+  /* 字段行：标签整行、控件整行（`fork-ui.css` 的 `.pw-field` 手机档已经把标签
+     推到整行，这里补的是「控件吃掉整行宽度」，输入框才是整行的可点区）。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-input,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-selectbox,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-textarea,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-rowgap,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-ctl {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  /* 行内动作组（详情头 / 分节标题行）：1440 是一行，326px 的卡里必须能换行，
+     否则「打开方式 / 检查 / 更新」会被压成每行一个字。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-inline,
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-sec-title {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  /* 长文本 / 代码块自己横滚，不把整页撑出横向滚动条。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child pre {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-mono {
+    overflow-wrap: anywhere;
+  }
+  /* 详情卡内距收到 s3：390 宽的卡，s4（16px）双侧各吃掉 32px。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-detail {
+    padding: var(--s3);
+  }
+  /* 空态在「按内容收口」的列里不该再撑 min-height:180px 的大白框。 */
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-empty {
+    height: auto;
+    min-height: 0;
+    padding: var(--s5) 0;
+  }
+
+  /* ---- 7. 页内弹层（添加供应商 / 添加技能）→ 全屏 sheet -------------------
+     改前：`width: min(640px, 100vw - 32px)` / `max-height: 视口 - 32px` 的居中框，
+     390px 宽的弹层里，安装结果行（`.pw-prow`：图标 + 名字 + 描述 + repo + 徽章 +
+     安装钮）会挤成一列字。
+     改后：吃掉整片视口，顶部圆角、底部按安全区留白，内容行吃掉除头尾以外的全部高度。
+     这两条要压的是**内联几何**（SkillsConfig 的 `width`/`maxHeight`、
+     ModelsConfig 的内容行 `maxHeight`），内联只能被 `!important` 盖 —— 本文件里
+     唯一用 `!important` 的地方，理由就是「同一份内联值要同时服务 1440 画板形态
+     和手机 sheet 形态，除此之外没有表达方式」。 */
+  .fork-pwa-ms-sheet > .pw-modal {
+    width: 100% !important;
+    height: 100%;
+    max-height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    border-width: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* 内容行吃掉剩余高度（与 SkillsConfig 内联的 `flex:1 1 0%` 同一口径）。
+     `align-content: start` 是必须的：内容行的 grid 行默认 `align-content:stretch`，
+     壳一撑到整片高、内容还不够多时，各行会被平均撑高（安装弹层的搜索行与提示条之间
+     裂开三四百像素）。贴顶排，内容不够就留白在下面。 */
+  .fork-pwa-ms-sheet > .pw-modal > .pw-modal-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    max-height: none !important;
+    align-content: start;
+  }
+  .fork-pwa-ms-sheet > .pw-modal > .pw-modal-foot {
+    /* 底部动作条不能压内容：它本身就是 flex 列的最后一项，安全区由壳的
+       `padding-bottom` 让出，这里只保证按钮够得着（触控档高度）。 */
+    row-gap: var(--s2);
+    flex-wrap: wrap;
+  }
+  .fork-pwa-ms-sheet > .pw-modal > .pw-modal-foot .pw-btn {
+    height: var(--control-md);
+  }
+  /* 安装结果行：名字 / 描述 / repo 换行，右端的徽章与动作钮落到下一行，不再横溢。 */
+  .fork-pwa-ms-sheet .pw-prow {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+  .fork-pwa-ms-sheet .pw-prow > .grow {
+    flex: 1 1 100%;
+  }
+}
+
+/* iOS standalone：`env()` 在浏览器标签里恒为 0，只有装成 PWA 才拿得到状态栏/底部
+   安全区。这块与 app/settings.css 的同名块同口径（那里管设置弹层外壳，这里管这两页
+   **自己的**页内弹层 —— 它们是 `position:fixed; inset:0`，不继承外壳的内缩）。
+   必须同时卡 ≤640px：sheet 只在手机档成立，桌面上这块壳仍是居中框，不该被内缩。 */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) and (max-width: 640px) {
+    .fork-pwa-ms-sheet {
+      padding-top: max(59px, env(safe-area-inset-top));
+      padding-right: max(8px, env(safe-area-inset-right));
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      padding-left: max(8px, env(safe-area-inset-left));
+    }
+  }
+}

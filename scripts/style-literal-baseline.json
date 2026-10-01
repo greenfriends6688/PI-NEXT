@@ -28,7 +28,6 @@
     "components/SessionStatsBar.tsx::inline-geometry-literal": 3,
     "components/SystemPromptPanel.tsx::inline-geometry-literal": 1,
     "components/TabBar.tsx::inline-geometry-literal": 2,
-    "components/ThemeSkinStudio.tsx::inline-geometry-literal": 1,
     "components/ToolDefinitionsPanel.tsx::inline-geometry-literal": 2,
     "components/TopBarPopovers.tsx::inline-geometry-literal": 1
   }
