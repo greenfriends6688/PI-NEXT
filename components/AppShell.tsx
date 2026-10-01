@@ -2273,7 +2273,7 @@ export function AppShell() {
           board.css 的 `.pw-rail .pw-logo` 承担全部视觉）。 */}
       <span className="pw-logo" aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
-        <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: 16, height: "auto" }} />
+        <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: "var(--icon-md)", height: "auto" }} />
       </span>
       <button
         type="button"

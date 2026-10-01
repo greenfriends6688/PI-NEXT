@@ -210,7 +210,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
         background: "transparent",
         overflowX: "hidden",
         flexShrink: 0,
-        height: 36,
+        height: "var(--control-lg)",
         minWidth: 0,
       }}
     >
@@ -345,7 +345,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
           aria-expanded={overflowOpen}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
-            height: 28, width: TAB_OVERFLOW_BUTTON_WIDTH, flexShrink: 0,
+            height: "var(--control-sm)", width: TAB_OVERFLOW_BUTTON_WIDTH, flexShrink: 0,
             background: overflowOpen ? "var(--bg-selected)" : "transparent",
             border: "none", borderRadius: "var(--radius-md)",
             color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT.xs,
@@ -372,7 +372,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
           aria-expanded={overviewOpen}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            height: 28, width: 28, flexShrink: 0,
+            height: "var(--control-sm)", width: "var(--control-sm)", flexShrink: 0,
             background: overviewOpen ? "var(--bg-selected)" : "transparent",
             border: "none", borderRadius: "var(--radius-md)",
             color: overviewOpen ? "var(--text)" : "var(--text-muted)", cursor: "pointer",

@@ -507,7 +507,7 @@ function DiffView({ patch }: { patch: string }) {
               </span>
               <span
                 style={{
-                  minWidth: 16,
+                  minWidth: "var(--icon-md)",
                   padding: "0 6px",
                   color: prefixColor,
                   userSelect: "none",

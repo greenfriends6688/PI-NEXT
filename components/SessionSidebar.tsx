@@ -1605,7 +1605,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             {/* fork:brand-logo — 主品牌渐变图形（public/pi-next-logo.png）原图直出，
                 16px 宽占满画板 02 的 .pw-logo 胶囊；不做重绘。 */}
             {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
-            <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: 16, height: "auto" }} />
+            <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: "var(--icon-md)", height: "auto" }} />
           </span>
           <PiWebTitle />
         </span>

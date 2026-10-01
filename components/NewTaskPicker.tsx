@@ -97,7 +97,7 @@ export function NewTaskPicker({
         aria-haspopup="menu"
         style={{
           width: 26,
-          height: 36,
+          height: "var(--control-lg)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

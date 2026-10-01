@@ -148,7 +148,7 @@ export function ConversationFindBar({
           aria-label={t("chat.findLabel")}
           spellCheck={false}
           autoComplete="off"
-          style={{ minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent" }}
+          style={{ minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent" }}
         />
 
         {truncated && hasQuery && (

@@ -464,7 +464,7 @@ function NewSessionUpdateLink({
         alignItems: "center",
         alignSelf: "center",
         gap: 3,
-        minHeight: 32,
+        minHeight: "var(--control-md)",
         minWidth: 0,
         padding: "0 4px",
         background: "transparent",
@@ -1989,10 +1989,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       // reduced-motion 时由 board.css 的 motion 折叠块统一关掉。
       <div className="flex h-full flex-col items-center justify-center gap-3 px-8" role="status" aria-live="polite" aria-label={t("chat.loadingSession")}>
         <div style={{ display: "flex", flexDirection: "column", gap: 7, width: "min(100%, 480px)" }} aria-hidden="true">
-          <div className="pw-anim-shimmer" style={{ height: 14, width: "38%" }} />
+          <div className="pw-anim-shimmer" style={{ height: "var(--icon-sm)", width: "38%" }} />
           <div className="pw-anim-shimmer" style={{ height: 56, width: "100%" }} />
           <div className="pw-anim-shimmer" style={{ height: 56, width: "92%", alignSelf: "flex-end" }} />
-          <div className="pw-anim-shimmer" style={{ height: 14, width: "24%" }} />
+          <div className="pw-anim-shimmer" style={{ height: "var(--icon-sm)", width: "24%" }} />
         </div>
         <div className="text-xs" style={{ color: "var(--text-muted)" }}>{t("chat.loadingSession")}</div>
       </div>
@@ -2050,7 +2050,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       <div
         style={{
           position: "absolute",
-          top: 12,
+          top: "var(--s3)",
           left: 0,
           right: isMobile ? 0 : CHAT_MINIMAP_WIDTH,
           zIndex: 40,

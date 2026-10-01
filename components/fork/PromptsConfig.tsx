@@ -235,7 +235,7 @@ export function PromptsConfig({ onOpenFile }: { onOpenFile?: (path: string) => v
               <span className="pw-label">{t("prompts.description")}</span>
               <input
                 className="pw-input"
-                style={{ minWidth: 0, width: 280 }}
+                style={{ minWidth: 0, width: "var(--sidebar-width)" }}
                 value={editor.description}
                 onChange={(event) => setEditor({ ...editor, description: event.target.value })}
                 placeholder={t("prompts.descriptionPlaceholder")}

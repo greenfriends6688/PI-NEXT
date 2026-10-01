@@ -565,7 +565,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
             className="pw-input"
             /* 画板 41 的过滤框自带 inline（height:24px;min-width:120px）；
                flex 基准是本产品行内的收放。 */
-            style={{ height: 24, minWidth: 120, flex: "0 1 160px" }}
+            style={{ height: "var(--control-xs)", minWidth: 120, flex: "0 1 160px" }}
             value={modelFilter}
             onChange={(event) => setModelFilter(event.target.value)}
             placeholder={t("models.filterModels")}

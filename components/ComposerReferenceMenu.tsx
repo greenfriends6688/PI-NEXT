@@ -48,8 +48,8 @@ const SHELL: CSSProperties = {
 /** 三类行的前置图标，沿用应用内手写 SVG 的既有词汇（不引图标依赖）。 */
 function ReferenceIcon({ item }: { item: ComposerReferenceItem }) {
   const common = {
-    width: 14,
-    height: 14,
+    width: "var(--icon-sm)",
+    height: "var(--icon-sm)",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",

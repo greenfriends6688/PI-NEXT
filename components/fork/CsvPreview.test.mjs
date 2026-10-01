@@ -37,7 +37,8 @@ test("the empty table renders the board empty state instead of a bare line", () 
   const html = render({ content: "", filePath: "/data/rows.csv" });
 
   assert.match(html, /<div class="pw-empty">\s*<div class="pw-empty-inner">/);
-  assert.match(html, /<span class="mark" style="width:32px;height:32px">/);
+  // fork:spacing-token（2026-09-30）—— 空态图标盒的 32 换成了 var(--control-md)（值不变 32px）
+  assert.match(html, /<span class="mark" style="width:var\(--control-md\);height:var\(--control-md\)">/);
   assert.match(html, /no rows to preview/);
   assert.doesNotMatch(html, /<table/);
 });

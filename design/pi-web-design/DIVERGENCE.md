@@ -1533,3 +1533,97 @@ N-3 补上了「能跑」，O 补上了「有闸」；这一轮补的是**覆盖
 **已知数据依赖（登记在各自 spec 的 `knownDiffs`，不是漂移）**：`.pw-tasklist`（正文里没有 `- [ ]` 就没有）、
 `.pw-ring`（新会话没有上下文占用）、`.pw-litem/.pw-lname/.pw-lsub`（种子环境 0 个供应商）、
 `.pw-kv`（没装插件）、`.pw-step.reasoning`（会话里没有思考块）—— 这五处对着带数据的会话跑时会照常对位。
+
+---
+
+## Q · 2026-09-31：剩余内联几何清点（内联几何基线 307 → 198）
+
+本轮把内联几何基线从 307 收到 **198**（109 处清掉），做法全是「值不变、只把数字换成等值 token」：
+间距键 → `--s1..--s6`（4/8/12/16/24/32），尺寸键 → `--control-xs/sm/md/lg`（24/28/32/36）
+与 `--icon-sm/md`（14/16），宽高再对 `--chat-max` / `--sidebar-width` / `--sidebar-max`。
+**根级错误页与独立 HTML 文档（`app/error.tsx` / `app/global-error.tsx`）一个字没动** ——
+它们渲染时 globals.css 可能没加载，`var()` 解空会把声明整条丢掉。
+三处源码守卫（导轨结构 / 顶栏 inset / 弹层头数量）与两处数值守卫（通知 top / CSV 空态图标盒）
+改成了新的等价约束。
+
+剩下 199 处里，绝大多数是「**token 表里根本没有的尺寸**」——面板宽度、树列宽、步骤行高等，
+属设计裁定的尺寸而非现成 token。它们已按文件登记在下表（值分布可直接查到），
+逐个收敛要走两条路之一：① 该几何在画板里有对应 → 固化进 `board.css` 的 `.pw-*`；
+② 画板也没有 → 先进设计裁定出新 token，**不许在组件里留死数字**。
+
+| 文件 | 处数 | 值分布 |
+|---|---|---|
+|---|---|---|
+| `components/FileExplorer.tsx` | 30 | height×10 gap×9 width×5 paddingLeft×2 padding×2 marginTop×1 paddingTop×1 |
+| `components/MessageView.tsx` | 26 | gap×9 maxHeight×8 maxWidth×2 marginBottom×2 marginTop×2 height×2 minHeight×1 |
+| `components/ChatWindow.tsx` | 20 | gap×6 height×5 width×2 padding×2 marginTop×2 marginBottom×1 paddingBottom×1 minHeight×1 |
+| `components/FileViewer.tsx` | 16 | width×6 height×4 gap×4 minWidth×2 |
+| `components/ChatInput.tsx` | 14 | maxHeight×3 width×3 gap×3 minWidth×2 maxWidth×1 marginLeft×1 padding×1 |
+| `components/GitGraphTab.tsx` | 10 | width×3 gap×3 marginTop×3 marginLeft×1 |
+| `components/SessionSidebar.tsx` | 10 | width×4 gap×2 height×1 padding×1 marginTop×1 marginLeft×1 |
+| `components/fork/TodoChip.tsx` | 6 | width×2 height×2 maxWidth×1 maxHeight×1 |
+| `components/SessionStatsBar.tsx` | 5 | minWidth×1 marginBottom×1 gap×1 width×1 height×1 |
+| `components/TabBar.tsx` | 5 | width×2 maxWidth×1 minWidth×1 gap×1 |
+| `components/AgentSessionPanel.tsx` | 4 | minHeight×1 marginTop×1 gap×1 width×1 |
+| `components/AppShell.tsx` | 4 | gap×1 minWidth×1 top×1 maxWidth×1 |
+| `components/ModelSelector.tsx` | 4 | width×2 gap×1 height×1 |
+| `components/fork/GroupedProjectList.tsx` | 4 | gap×3 minHeight×1 |
+| `components/AgentsConfig.tsx` | 3 | width×2 minHeight×1 |
+| `components/ProcessGroup.tsx` | 3 | maxWidth×1 gap×1 maxHeight×1 |
+| `components/ToolDefinitionsPanel.tsx` | 3 | maxWidth×1 minHeight×1 marginLeft×1 |
+| `components/fork/usage-charts.tsx` | 3 | height×2 gap×1 |
+| `components/BranchNavigator.tsx` | 2 | marginLeft×1 padding×1 |
+| `components/CodeFileEditor.tsx` | 2 | maxHeight×2 |
+| `components/DirectoryPicker.tsx` | 2 | width×2 |
+| `components/ExplorerPanel.tsx` | 2 | gap×2 |
+| `components/GitRefChips.tsx` | 2 | maxWidth×2 |
+| `components/MermaidBlock.tsx` | 2 | width×1 minWidth×1 |
+| `components/ModelsConfig.tsx` | 2 | width×1 height×1 |
+| `components/fork/ConversationFindBar.tsx` | 2 | top×1 minWidth×1 |
+| `components/fork/PhaseRoll.tsx` | 2 | paddingLeft×1 left×1 |
+| `components/fork/PiMemoryConfig.tsx` | 2 | minHeight×2 |
+| `components/NewTaskPicker.tsx` | 1 | width×1 |
+| `components/ProjectTrustDialog.tsx` | 1 | width×1 |
+| `components/SkillsConfig.tsx` | 1 | minHeight×1 |
+| `components/SystemPromptPanel.tsx` | 1 | height×1 |
+| `components/ThemeSkinStudio.tsx` | 1 | width×1 |
+| `components/TopBarPopovers.tsx` | 1 | top×1 |
+| `components/fork/EmptyStateGuide.tsx` | 1 | minWidth×1 |
+| `components/fork/ExplorationBanner.tsx` | 1 | maxWidth×1 |
+| `components/fork/PromptsConfig.tsx` | 1 | minHeight×1 |
+
+
+**收敛判据**：一个文件的内联几何清到 0，就把 `scripts/style-literal-baseline.json` 里那个键删掉
+（`node scripts/check-style-literals.mjs --update` 会自动收窄），门禁随之把它彻底锁死。
+
+---
+
+## R · 2026-09-31：对位补到 22 份 spec / 19 张画板（0/22 不符）
+
+在 Q 节（内联几何基线 307→198）之后，本轮继续补画板对位覆盖。本轮**没有新增产品改动**——
+全部是把已有产品形态「登记成可跑的规格」，并借对位把几处「画板词表过时 vs 真实漂移」分清。
+
+173. **新增六份 spec**（对位 13/30 → **19/30**，总 22 份，两个环境各 0 不符）：
+     `22-top-panels`（顶栏会话切换器）、`44-settings-cron-memory`（定时/记忆）、
+     `45-settings-shortcuts-usage`（快捷键）、`51-menus`（菜单原语）、`53-turn-and-nav`（迷你地图轨道）、
+     `60-mobile-pwa`（手机壳，`board-diff` 的 viewport 固定 390×800）。新增预设 `topbar:session-switcher`。
+174. **画板 45 的 `.pw-radio` 字号（B 类，画板自身不一致）**：board.css:799 的 `.pw-radio > span`
+     是 `--text-meta`=12px，但画板 45 帧里的样张写成了 13px。产品照 board.css 的规则做 12px ——
+     以规则为准，样张待设计侧修正。这不是实现的漂移。
+175. **画板 44/45 的表单词表过时**：画板用 `.pw-input` 直接当控件，实现早已换成控件基件
+     （`PwSelectBox` → `.pw-selectbox`、开关 `.pw-switch`、字段壳 `.pw-field`+`.pw-label`）——
+     62/40/41/42/43 量的都是基件。这两份 spec 因此只量**壳与字段基件**，控件词表以 62 为准。
+176. **几处已登记的数据/状态/尺寸依赖**（不是漂移，各带理由）：
+     `.pw-minimap-rail` 整条高度随转录实际高度（画板是固定 518px 样张，槽与样式按格子一致）；
+     `.pw-prow.is-on` 哪行高亮取决于「当前会话是哪条」；`.pw-brand` 在产品里被 `.pw-side-head`
+     36px 表头行撑开（画板 60 手机态是独立 20px 标记）。
+
+**仍未覆盖的 11 张**（都要额外状态装配，不在本轮硬凑，属于下一批预设的活）：
+`30-files-panel`（要开文件面板 + 选中文件）、`31-terminal-browser-git`（要起终端）、
+`50-dialogs`（要弹出一个 modal）、`52-file-viewer-modes`（六种查看器形态）、
+`54-extension-links-exploration`、`56-update-and-auth`、`61-system-states`、
+`00-tokens`/`05-motion`/`07-dark-tokens`（设计规范页本身，非产品界面）、`12-transcript-interactive`
+（权限/表单卡，要挂起的请求态）。
+
+**怎么收口**：`scripts/board-specs/<NN>-<name>.mjs` 一板一文件，`npm run verify:boards`（本机真服务）
+或 `npm run verify:boards:seeded`（自带种子、CI 用）跑全量，每个门禁 0 不符为准。

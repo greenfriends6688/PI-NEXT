@@ -280,7 +280,7 @@ export function McpStatusButton({ cwd, statuses }: { cwd: string | null; statuse
           {enabled}
         </span>
       ) : undefined}
-      style={{ position: "relative", width: 28, height: 28 }}
+      style={{ position: "relative", width: "var(--control-sm)", height: "var(--control-sm)" }}
       className="pw-iconbtn"
     >
       {() => (
@@ -339,7 +339,7 @@ export function PluginStatusButton({
       icon="blocks"
       title={title}
       onOpenChange={setOpen}
-      style={{ position: "relative", width: 28, height: 28 }}
+      style={{ position: "relative", width: "var(--control-sm)", height: "var(--control-sm)" }}
       className="pw-iconbtn"
     >
       {() => (

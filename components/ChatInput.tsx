@@ -3852,7 +3852,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         >
                           {isActive
                             ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
-                            : <span style={{ width: 14, flexShrink: 0 }} />}
+                            : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
                           <span className="grow">
                             {displayLabel}
                             {showOriginal && <span className="pw-mono" style={{ fontSize: TEXT["2xs"], marginLeft: 5 }}>({lvl})</span>}
@@ -3946,7 +3946,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         >
                           {isActive
                             ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
-                            : <span style={{ width: 14, flexShrink: 0 }} />}
+                            : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
                           <span className="grow">{t(`chat.toolPreset.${lvl}`)}</span>
                           <span className="pw-desc">{desc}</span>
                         </button>
@@ -4059,7 +4059,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                  title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
                  aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
                 className={`pw-iconbtn${soundEnabled ? "" : " is-on"}`}
-                style={{ width: 32, height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
+                style={{ width: "var(--control-md)", height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
               >
                 <span className="pw-ico"><i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i></span>
               </button>

@@ -198,7 +198,7 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
           <span className="pw-grow"></span>
           <span
             className="pw-inline"
-            style={{ gap: 0, border: "1px solid var(--n-border)", borderRadius: "var(--radius-4)", height: 28, overflow: "hidden" }}
+            style={{ gap: 0, border: "1px solid var(--n-border)", borderRadius: "var(--radius-4)", height: "var(--control-sm)", overflow: "hidden" }}
           >
             <button
               type="button"

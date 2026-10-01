@@ -85,7 +85,7 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
     fontWeight: 600,
     textAlign: "left",
     whiteSpace: "nowrap",
-    maxWidth: 360,
+    maxWidth: "var(--control-lg)",
     overflow: "hidden",
     textOverflow: "ellipsis",
   };
@@ -95,7 +95,7 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
     borderRight: "1px solid var(--border)",
     color: "var(--text)",
     whiteSpace: "nowrap",
-    maxWidth: 360,
+    maxWidth: "var(--control-lg)",
     overflow: "hidden",
     textOverflow: "ellipsis",
   };
@@ -129,7 +129,7 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
       {parsed.header.length === 0 ? (
         <div className="pw-empty">
           <div className="pw-empty-inner">
-            <span className="mark" style={{ width: 32, height: 32 }}>
+            <span className="mark" style={{ width: "var(--control-md)", height: "var(--control-md)" }}>
               <span className="pw-ico"><i data-ico="table" data-size="16"></i></span>
             </span>
             <p>{t("csv.empty")}</p>

@@ -250,7 +250,7 @@ export function ModelSelector({
           ? { bottom: viewportHeight - anchorRect.top + 6 }
           : { top: anchorRect.bottom + 6 };
         const horizontalPosition: CSSProperties = isMobile
-          ? { left: 8, right: 8, maxWidth: "calc(100vw - 16px)" }
+          ? { left: "var(--s2)", right: "var(--s2)", maxWidth: "calc(100vw - 16px)" }
           : {
             // fork:popover-anchor — clamp the left edge so a trigger near the right edge
             // does not push a `max-content` popover off screen.

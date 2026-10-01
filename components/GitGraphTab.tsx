@@ -166,9 +166,9 @@ function CommitFileRow({ file, cwd, onOpenFile }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={file.filePath}
-      style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--s1)", padding: "0 5px", height: 24, border: "none", borderRadius: "var(--radius-sm)", background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
+      style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--s1)", padding: "0 5px", height: "var(--control-xs)", border: "none", borderRadius: "var(--radius-sm)", background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
     >
-      <span style={{ width: 14, flexShrink: 0, color, fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 600, textAlign: "center" }}>{file.code}</span>
+      <span style={{ width: "var(--icon-sm)", flexShrink: 0, color, fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 600, textAlign: "center" }}>{file.code}</span>
       <span style={{ minWidth: 0, overflow: "hidden", display: "flex", alignItems: "baseline", flex: 1, whiteSpace: "nowrap" }}>
         <span style={{ flexShrink: 0 }}>{fileName}</span>
         {directoryText && directoryText !== fileName && (

@@ -200,8 +200,8 @@ function GitStatusBadge({ status, t }: { status: GitFileStatus; t: Translate }) 
       title={t(GIT_STATUS_KEYS[status.status])}
       aria-label={t(GIT_STATUS_KEYS[status.status])}
       style={{
-        width: 14,
-        height: 14,
+        width: "var(--icon-sm)",
+        height: "var(--icon-sm)",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
@@ -289,7 +289,7 @@ function CreateEntryInput({
         gap: "var(--s1)",
         paddingLeft: 8 + depth * 14,
         paddingRight: "var(--s2)",
-        height: 24,
+        height: "var(--control-xs)",
         borderRadius: "var(--radius-sm)",
         userSelect: "none",
       }}
@@ -561,7 +561,7 @@ function TreeNode({
           <span
             title={t("files.newlyUploaded")}
             aria-label={t("files.newlyUploaded")}
-            style={{ width: 14, height: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{ width: "var(--icon-sm)", height: "var(--icon-sm)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
           </span>
@@ -574,8 +574,8 @@ function TreeNode({
             title={t("files.containsChangedFiles")}
             aria-label={t("files.containsChangedFiles")}
             style={{
-              width: 14,
-              height: 14,
+              width: "var(--icon-sm)",
+              height: "var(--icon-sm)",
               flexShrink: 0,
               display: "flex",
               alignItems: "center",
@@ -630,7 +630,7 @@ function TreeNode({
             title={t("files.download")}
             style={{
               position: "absolute",
-              right: 4,
+              right: "var(--s1)",
               top: "50%",
               transform: "translateY(-50%)",
               display: "flex",
@@ -842,7 +842,7 @@ function ChangeRow({
         gap: 6,
         paddingLeft: 10,
         paddingRight: "var(--s2)",
-        height: 24,
+        height: "var(--control-xs)",
         cursor: "pointer",
         background: hovered ? "var(--bg-hover)" : "transparent",
         borderRadius: "var(--radius-xs)",
@@ -925,7 +925,7 @@ function ChangeRow({
           title={t("files.insertPath")}
           style={{
             position: "absolute",
-            right: 4,
+            right: "var(--s1)",
             top: "50%",
             transform: "translateY(-50%)",
             display: "flex",
@@ -1649,7 +1649,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
         {uploadBusy && (
           <div role="status" aria-live="polite" aria-label={uploadPhase === "checking" ? t("files.checking") : t("files.uploading", { progress: uploadProgress })}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)", minHeight: 14, color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)", minHeight: "var(--icon-sm)", color: "var(--text-muted)" }}>
               {uploadPhase === "checking" ? (
                 <span className="pw-ico">
                   <i data-ico="loader-circle" data-size="13" className="animate-spin" aria-hidden="true"></i>
@@ -1751,7 +1751,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       {fileSearchOpen && (
       <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ position: "relative" }}>
-          <span className="pw-ico pw-dim" style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+          <span className="pw-ico pw-dim" style={{ position: "absolute", left: "var(--s2)", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
             <i data-ico="search" data-size="12" aria-hidden="true"></i>
           </span>
           <input
@@ -1770,7 +1770,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               onClick={() => setSearchQuery("")}
               title={t("sidebar.clearSearch")}
               aria-label={t("sidebar.clearSearch")}
-              style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)" }}
+              style={{ position: "absolute", right: "var(--s1)", top: "50%", transform: "translateY(-50%)" }}
             >
               <span className="pw-ico"><i data-ico="x" data-size="11" aria-hidden="true"></i></span>
             </button>
@@ -1784,7 +1784,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               /* 同画板 30 行 266-272 的「过滤无结果」那一格。 */
               <div className="pw-empty">
                 <div className="pw-empty-inner" style={{ gap: "var(--s2)" }}>
-                  <span className="mark" style={{ width: 32, height: 32 }}>
+                  <span className="mark" style={{ width: "var(--control-md)", height: "var(--control-md)" }}>
                     <span className="pw-ico">
                       <i data-ico="folder-search" data-size="16" aria-hidden="true"></i>
                     </span>
@@ -1928,7 +1928,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                过滤无结果」：`.pw-empty` > `.pw-empty-inner` > mark + 一句话。 */
             <div className="pw-empty">
               <div className="pw-empty-inner" style={{ gap: "var(--s2)" }}>
-                <span className="mark" style={{ width: 32, height: 32 }}>
+                <span className="mark" style={{ width: "var(--control-md)", height: "var(--control-md)" }}>
                   <span className="pw-ico">
                     <i data-ico="folder-search" data-size="16" aria-hidden="true"></i>
                   </span>

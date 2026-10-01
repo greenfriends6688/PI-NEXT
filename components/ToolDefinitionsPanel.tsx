@@ -199,7 +199,7 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={translate("tools.searchPlaceholder")}
             aria-label={translate("tools.searchPlaceholder")}
-            style={{ minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent" }}
+            style={{ minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent" }}
           />
         </div>
         <div className="tool-definitions-list" style={{ minHeight: 0, flex: 1, overflowY: "auto", padding: "0 var(--s1) var(--s1)" }}>

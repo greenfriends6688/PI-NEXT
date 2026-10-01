@@ -389,7 +389,7 @@ function GroupHeader({
           {group.name}
         </span>
       </button>
-      <span style={{ flexShrink: 0, minWidth: 14, textAlign: "right" }}>{count}</span>
+      <span style={{ flexShrink: 0, minWidth: "var(--icon-sm)", textAlign: "right" }}>{count}</span>
       <span className="pw-acts" style={{ opacity: hovered || dropActive ? 1 : 0 }}>
         <button type="button" className="pw-iconbtn sm" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
           <span className="pw-ico"><i data-ico="pencil" data-size="12"></i></span>

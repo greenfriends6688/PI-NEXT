@@ -181,7 +181,7 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("agentSwitcher.search")}
             aria-label={t("agentSwitcher.search")}
-            style={{ minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent" }}
+            style={{ minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent" }}
           />
         </div>
       )}

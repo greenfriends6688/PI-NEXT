@@ -158,7 +158,7 @@ export function TabOverview({
           placeholder={t("tabs.overviewSearch")}
           aria-label={t("tabs.overviewSearch")}
           style={{
-            minWidth: 0, flex: 1, height: 24, border: 0, background: "transparent",
+            minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent",
             font: "inherit", color: "inherit",
           }}
         />

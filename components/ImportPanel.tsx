@@ -249,7 +249,7 @@ export function ImportPanel() {
               <input
                 type="search"
                 className="pw-input"
-                style={{ flex: 1, minWidth: 0, height: 28 }}
+                style={{ flex: 1, minWidth: 0, height: "var(--control-sm)" }}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={t("import.searchPlaceholder")}
