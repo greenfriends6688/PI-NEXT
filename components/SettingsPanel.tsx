@@ -51,6 +51,8 @@ import {
   SettingsPage,
 } from "./SettingsUi";
 import { WallpaperSettings } from "./WallpaperSettings";
+// fork:upstream-0.9.3-retry-settings —— settings.retry 的三个控件（画板 40 帧 1 / 62 帧 C 末块）。
+import { RetrySettingsBlock } from "./RetrySettingsBlock";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
 import { ProjectArchivePanel } from "./ProjectArchivePanel";
 import { ImportPanel } from "./ImportPanel";
@@ -929,6 +931,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           </div>
         ) : null}
       </PwBlock>
+          {/* fork:upstream-0.9.3-retry-settings —— 重试策略块排在推送块之后（右栏末位），
+          与画板 40 帧 1 / 62 帧 C 右栏的落位一致。控件：开关 + 两个 `.pw-numin` 窄数值框。 */}
+      <RetrySettingsBlock cwd={cwd} />
           </div>
         </div>
 
