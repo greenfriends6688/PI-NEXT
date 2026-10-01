@@ -146,7 +146,14 @@ test("all subpanel detail panes share one content hierarchy", () => {
   const sources = Object.fromEntries(configSources);
   // 详情列 = 画板 41 的 `style="display:grid;gap:var(--s3)"` 容器；
   // 卡 = `.pw-detail`，字段行 = `.pw-field > .pw-label`，空态 = `.pw-empty`。
-  assert.match(templateSource, /export function ConfigDetailStack[\s\S]*?style=\{\{ display: "grid", gap: "var\(--s3\)"/);
+  // fork:stack-rows（2026-10-01）—— `display` / 行高策略从组件内联搬进 board.css 了
+  // （内联优先级高，会把 `.pw-detail-stack:has(> .pw-empty:only-child)` 那条变体顶掉：
+  // 实测 `:has` 匹配成功、空态也拿到 `flex:1`，但父层 `display` 仍是 grid → 空态没居中）。
+  // 所以这里断言的是**分工**：组件只挂类名 + gap，几何与行高策略由画板样式表给。
+  assert.match(templateSource, /export function ConfigDetailStack[\s\S]*?style=\{\{ gap: "var\(--s3\)"/);
+  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack \{[\s\S]*?display: grid;[\s\S]*?grid-auto-rows: min-content;[\s\S]*?align-content: start;/);
+  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack:has\(> \.pw-empty:only-child\) \{[\s\S]*?display: flex;/);
+  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack:has\(> \.pw-empty:only-child\) > \.pw-empty \{[\s\S]*?flex: 1;/);
   assert.match(templateSource, /export function ConfigField[\s\S]*?className="pw-field"[\s\S]*?<span className="pw-label">/);
   assert.match(templateSource, /export function ConfigEmptyState[\s\S]*?"pw-empty"[\s\S]*?"pw-empty-inner"/);
   assert.match(templateSource, /export function ConfigSectionTitle[\s\S]*?"pw-sec-title"/);
