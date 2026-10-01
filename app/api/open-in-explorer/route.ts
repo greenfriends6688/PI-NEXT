@@ -33,12 +33,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "cwd-required" }, { status: 400 });
     }
     const target = resolve(body.cwd);
-    if (!(await stat(target)).isDirectory()) {
-      return NextResponse.json({ error: "not-a-directory" }, { status: 400 });
-    }
+    // 先查白名单再 stat：白名单外一律 403，不管路径存不存在，否则 400 / 403 / 500
+    // 的差别就是一台「路径存不存在」的探测器。`isExistingFilePathAllowed()` 本身
+    // 已经要求路径存在，后面的 stat 不会再因路径缺失抛错。
     const roots = await getAllowedFileRoots();
     if (!isExistingFilePathAllowed(target, roots)) {
       return NextResponse.json({ error: "access-denied" }, { status: 403 });
+    }
+    if (!(await stat(target)).isDirectory()) {
+      return NextResponse.json({ error: "not-a-directory" }, { status: 400 });
     }
 
     await launchFileManager(target);
