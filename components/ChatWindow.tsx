@@ -421,6 +421,42 @@ const CHAT_COLUMN_PADDING_CSS = `calc(${CHAT_COLUMN_PADDING}px * var(--fork-dens
 // A dialog replacing another one within this window is a single interaction
 // (e.g. select followed by a free-text input) and must not re-ring.
 const EXTENSION_DIALOG_SOUND_MIN_GAP_MS = 2000;
+// fork:extension-ui-queue —— 两类弹层各自的叠层高度（对话框在 custom 面板之下，与改动前一致）。
+const EXTENSION_DIALOG_STACK_Z_INDEX = 90;
+const EXTENSION_CUSTOM_STACK_Z_INDEX = 95;
+
+/**
+ * fork:extension-ui-queue —— 扩展弹层的宿主叠层。
+ *
+ * 原来每个弹层自己带一份 `position: absolute; inset: 0` 的 overlay，只有一个弹层时与
+ * 现在逐格同形；排队之后同一个宿主里摞着放，几格从上往下排、离输入框最近的是最新来的。
+ *
+ * 尺寸都留在各自那一格身上（这一层只有内边距与缝）：单条队列时几何与改动前逐像素相同，
+ * `verify:boards` 的画板 50 量到的还是同一个框。
+ */
+function ExtensionOverlayStack({ zIndex, children }: { zIndex: number; children: ReactNode }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex,
+        display: "flex",
+        flexDirection: "column",
+        // 最新的那格贴在输入框正上方，与「折叠 / 展开都停在消息区底部」的旧行为同源。
+        justifyContent: "flex-end",
+        alignItems: "center",
+        gap: "var(--s2)",
+        padding: 20,
+        // 两格加不下一屏时（并行审批的多个对话框）从这一层滚，弹层本身不缩。
+        overflowY: "auto",
+        pointerEvents: "none",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function NewSessionUpdateLink({
   label,
@@ -674,7 +710,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     retryInfo, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
-    notices, extensionDialog, extensionCustomUi, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
+    notices, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
     isAutoModelSelection,
     agentPhase,
     isNew,
@@ -923,17 +959,20 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [initialPrompt, loading, error, handleSend, onInitialPromptConsumed]);
 
   useEffect(() => {
+    // fork:extension-ui-queue —— 队列的队首上屏才响：答掉一个之后下一个才冒出来，
+    // 由下面那个最短间隔兼掉这一串连锁响。
+    const headDialogId = extensionDialogs[0]?.id ?? null;
     if (
       !completionNotificationsEnabled
-      || !extensionDialog
-      || soundedExtensionDialogIdRef.current === extensionDialog.id
+      || !headDialogId
+      || soundedExtensionDialogIdRef.current === headDialogId
     ) return;
-    soundedExtensionDialogIdRef.current = extensionDialog.id;
+    soundedExtensionDialogIdRef.current = headDialogId;
     const now = Date.now();
     if (now - extensionDialogLastSoundAtRef.current < EXTENSION_DIALOG_SOUND_MIN_GAP_MS) return;
     extensionDialogLastSoundAtRef.current = now;
     playDoneSoundRef.current();
-  }, [completionNotificationsEnabled, extensionDialog]);
+  }, [completionNotificationsEnabled, extensionDialogs]);
 
   // Register the abort handler for the global Esc shortcut
   useEffect(() => {
@@ -1707,7 +1746,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         const tag = target.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
       }
-      if (isEmptyNew || extensionDialog) return;
+      if (isEmptyNew || extensionDialogs.length > 0) return;
       if (!findOpenRef.current) {
         findPreviousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       }
@@ -1718,7 +1757,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     };
     window.addEventListener("keydown", onFindShortcut);
     return () => window.removeEventListener("keydown", onFindShortcut);
-  }, [extensionDialog, isEmptyNew]);
+  }, [extensionDialogs, isEmptyNew]);
 
   // fork:ui-todo — the session's task list, read back from the transcript (the
   // built-in `todo` tool stores each list in its tool result). Memoized: the scan
@@ -2076,11 +2115,21 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             focusSignal={findFocusSeq}
           />
         )}
-        {extensionDialog && (
-          <ExtensionDialog key={extensionDialog.id} request={extensionDialog} onRespond={respondToExtensionUi} />
+        {extensionDialogs.length > 0 && (
+          /* fork:extension-ui-queue —— 一条队列一格，按到达顺序自上而下排开，最新的
+             离输入框最近；单条时与改动前同一格（容器不占位，高度/边距都在弹层自己身上）。 */
+          <ExtensionOverlayStack zIndex={EXTENSION_DIALOG_STACK_Z_INDEX}>
+            {extensionDialogs.map((request) => (
+              <ExtensionDialog key={request.id} request={request} onRespond={respondToExtensionUi} />
+            ))}
+          </ExtensionOverlayStack>
         )}
-        {extensionCustomUi && (
-          <ExtensionCustomPanel key={extensionCustomUi.id} request={extensionCustomUi} onInput={sendExtensionCustomInput} />
+        {extensionCustomUis.length > 0 && (
+          <ExtensionOverlayStack zIndex={EXTENSION_CUSTOM_STACK_Z_INDEX}>
+            {extensionCustomUis.map((request) => (
+              <ExtensionCustomPanel key={request.id} request={request} onInput={sendExtensionCustomInput} />
+            ))}
+          </ExtensionOverlayStack>
         )}
         {/* fork:ui-newhome — hero + starter cards for a brand new session. */}
         {isEmptyNew && (
@@ -2965,16 +3014,15 @@ function ExtensionDialog({
         onRespond(request, { cancelled: true });
       }}
       style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 90,
+        // fork:extension-ui-queue —— 这一格是宿主叠层里的一个 flex item，尺寸在这一格定，
+        // 叠层只管把它们排开。
+        pointerEvents: "auto",
+        flexShrink: 0,
         display: "flex",
-        // Collapsed or expanded, the card stays just above the composer: the top of
-        // the message area reads as "detached" from what it is asking about.
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: 20,
-        pointerEvents: "none",
+        flexDirection: "column",
+        width: "min(560px, 100%)",
+        // 百分比相对叠层那个定高盒子解析，所以这一格能撑满消息区又不越界。
+        maxHeight: "min(760px, 100%)",
       }}
     >
       {collapsed ? (
@@ -2989,7 +3037,6 @@ function ExtensionDialog({
             display: "flex",
             alignItems: "center",
             gap: "var(--space-loose)",
-            maxWidth: "min(560px, 100%)",
             width: "100%",
             padding: "var(--space-loose) 12px",
             border: "1px solid var(--border)",
@@ -3033,8 +3080,10 @@ function ExtensionDialog({
         style={{
           pointerEvents: "auto",
           position: "relative",
-          width: "min(560px, 100%)",
-          maxHeight: "min(760px, 100%)",
+          // 这一格已经量好宽高上限（maxHeight 在宿主叠层那一格），卡片只在里面撑满。
+          flex: "1 1 auto",
+          minHeight: 0,
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -3239,14 +3288,13 @@ function ExtensionCustomPanel({
   return (
     <div
       style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 95,
+        // fork:extension-ui-queue —— 同对话框：宿主叠层里的一格，尺寸在这一格定。
+        pointerEvents: "auto",
+        flexShrink: 0,
         display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: 20,
-        pointerEvents: "none",
+        flexDirection: "column",
+        width: "min(920px, 100%)",
+        maxHeight: "min(760px, 100%)",
       }}
     >
       {collapsed ? (
@@ -3259,7 +3307,6 @@ function ExtensionCustomPanel({
             display: "flex",
             alignItems: "center",
             gap: "var(--space-loose)",
-            maxWidth: "min(920px, 100%)",
             width: "100%",
             padding: "var(--space-loose) 12px",
             border: "1px solid var(--border)",
@@ -3296,8 +3343,9 @@ function ExtensionCustomPanel({
         style={{
           pointerEvents: "auto",
           position: "relative",
-          width: "min(920px, 100%)",
-          maxHeight: "min(760px, 100%)",
+          flex: "1 1 auto",
+          minHeight: 0,
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",

@@ -33,6 +33,13 @@ import { AgentEventConnection } from "@/lib/agent-event-connection";
 import { isSystemMessageEvent } from "@/lib/agent-event-wire";
 import { getToolExecutionProgress } from "@/lib/tool-execution-progress";
 import { updateExtensionWidgets } from "@/lib/extension-widgets";
+// fork:extension-ui-queue —— 扩展 UI 按 id 排队（单槽会挂死并行审批）
+import {
+  enqueueExtensionUiRequest,
+  removeExtensionUiRequest,
+  retainExtensionUiRequests,
+  upsertExtensionUiRequest,
+} from "@/lib/extension-ui-queue";
 import {
   CHAT_SCROLL_REATTACH_TOLERANCE,
   CHAT_SCROLL_TAIL_TOLERANCE,
@@ -275,6 +282,32 @@ function readCompactResult(result: unknown, reason: string): CompactResultInfo |
   return { reason, tokensBefore: r.tokensBefore, estimatedTokensAfter: r.estimatedTokensAfter };
 }
 
+/**
+ * fork:extension-ui-queue —— 重连「重放窗口」的两档时限。
+ *
+ * 上游（e17d2cc）是让服务端在 `connected` 事件里带上它还握着的请求 id；本仓不能改
+ * `lib/rpc-manager.ts` / `lib/agent-event-stream.ts`，于是客户端从服务端**已经会发的
+ * 那份重放**里自己收集：`onEvent()` 订阅时会把每一条待决请求原样重放，而它们紧跟在
+ * `connected` 之后到达，所以「窗口内见到的 id」就是待决集合。
+ *
+ * 窗口空闲 `EXTENSION_UI_REPLAY_IDLE_MS` 就收口（主线程被长任务压住时，重放事件可能
+ * 比第一个计时器晚到，重新起一次计时器）；`EXTENSION_UI_REPLAY_MAX_MS` 是硬上限，
+ * 防一个每秒重渲染的自定义面板把窗口一直续着。
+ *
+ * 窗口提前收口也不会出事：被误裁掉的请求马上会被随后的重放重新入队（enqueue/upsert
+ * 都按 id 去重），最多闪一下；反过来窗口开着只影响陈旧请求赖着不走的时长，看不见。
+ */
+export const EXTENSION_UI_REPLAY_IDLE_MS = 500;
+export const EXTENSION_UI_REPLAY_MAX_MS = 2000;
+
+/** fork:extension-ui-queue —— 一次重连的重放窗口（只活在 ref 里，不进渲染）。 */
+export interface ExtensionUiReplayWindow {
+  /** 窗口内见过的请求 id = 服务端此刻还握着的请求。 */
+  ids: Set<string>;
+  startedAt: number;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
 export interface ChatInputHandle {
   insertText: (text: string) => void;
   insertIfEmpty: (content: string) => void;
@@ -367,8 +400,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [slashCommandsLoading, setSlashCommandsLoading] = useState(false);
   const [noticeState, dispatchNotice] = useReducer(noticeReducer, { visible: [], pending: [] });
   const [sessionStatsOverride, setSessionStatsOverride] = useState<SessionStatsInfo | null>(null);
-  const [extensionDialog, setExtensionDialog] = useState<ExtensionUiDialogRequest | null>(null);
-  const [extensionCustomUi, setExtensionCustomUi] = useState<ExtensionUiCustomRequest | null>(null);
+  // fork:extension-ui-queue —— 两条按 id 排的队列（对话框 / custom 面板），不是单槽。
+  // 并行工具各自被权限扩展 gate 住时服务端会同时握着好几个请求，单槽会让后一个顶掉
+  // 前一个，而前一个在服务端永远等不到回应。
+  const [extensionDialogs, setExtensionDialogs] = useState<ExtensionUiDialogRequest[]>([]);
+  const [extensionCustomUis, setExtensionCustomUis] = useState<ExtensionUiCustomRequest[]>([]);
   const [extensionStatuses, setExtensionStatuses] = useState<ExtensionStatusItem[]>([]);
   const [extensionWidgets, setExtensionWidgets] = useState<ExtensionWidgetItem[]>([]);
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessages>({ steering: [], followUp: [] });
@@ -383,6 +419,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const eventConnectionRef = useRef<AgentEventConnection | null>(null);
   const eventStreamGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * fork:extension-ui-queue —— 重连后的重放窗口（见 EXTENSION_UI_REPLAY_IDLE_MS 注释）。
+   * 窗口开着时收到的一切扩展 UI 请求 id 都算「服务端还握着」，窗口收口时据此裁剪队列。
+   */
+  const extensionUiReplayRef = useRef<ExtensionUiReplayWindow | null>(null);
   const eventStreamGraceGenerationRef = useRef(0);
   const eventStreamGraceActiveRef = useRef(false);
   const sessionIdRef = useRef<string | null>(session?.id ?? null);
@@ -1050,12 +1091,55 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     };
   }, [closeEvents, maintainEventsConnected, session?.id]);
 
+  // fork:extension-ui-queue —— 重放窗口的两个动作：`connected` 开窗（重放紧跟其后），
+  // 窗口收口时两条队列都按服务端仍然握着的 id 裁一遍（幸存项保持原对象，面板里打进去的
+  // 输入因此活下来）。
+  const closeExtensionUiReplayWindow = useCallback(() => {
+    const replay = extensionUiReplayRef.current;
+    extensionUiReplayRef.current = null;
+    if (!replay) return;
+    if (replay.timer !== null) clearTimeout(replay.timer);
+    setExtensionDialogs((queue) => retainExtensionUiRequests(queue, replay.ids));
+    setExtensionCustomUis((queue) => retainExtensionUiRequests(queue, replay.ids));
+  }, []);
+
+  const armExtensionUiReplayTimer = useCallback((replay: ExtensionUiReplayWindow) => {
+    if (replay.timer !== null) clearTimeout(replay.timer);
+    const remaining = EXTENSION_UI_REPLAY_MAX_MS - (Date.now() - replay.startedAt);
+    replay.timer = setTimeout(
+      closeExtensionUiReplayWindow,
+      Math.max(0, Math.min(EXTENSION_UI_REPLAY_IDLE_MS, remaining)),
+    );
+  }, [closeExtensionUiReplayWindow]);
+
+  const beginExtensionUiReplayWindow = useCallback(() => {
+    const previous = extensionUiReplayRef.current;
+    if (previous?.timer != null) clearTimeout(previous.timer);
+    const replay: ExtensionUiReplayWindow = { ids: new Set(), startedAt: Date.now(), timer: null };
+    extensionUiReplayRef.current = replay;
+    armExtensionUiReplayTimer(replay);
+  }, [armExtensionUiReplayTimer]);
+
+  // 窗口里的每一条请求都是「服务端还握着」的证据，顺手把空闲计时器重起一次。
+  const noteExtensionUiReplayedRequest = useCallback((id: string) => {
+    const replay = extensionUiReplayRef.current;
+    if (!replay || !id) return;
+    replay.ids.add(id);
+    armExtensionUiReplayTimer(replay);
+  }, [armExtensionUiReplayTimer]);
+
+  useEffect(() => () => {
+    const replay = extensionUiReplayRef.current;
+    if (replay?.timer != null) clearTimeout(replay.timer);
+    extensionUiReplayRef.current = null;
+  }, []);
+
   const respondToExtensionUi = useCallback(async (
     request: ExtensionUiDialogRequest,
     response: { value: string } | { confirmed: boolean } | { cancelled: true },
   ) => {
     const sid = sessionIdRef.current;
-    setExtensionDialog((current) => current?.id === request.id ? null : current);
+    setExtensionDialogs((queue) => removeExtensionUiRequest(queue, request.id));
     if (!sid) return;
     try {
       await sendAgentCommand(sid, {
@@ -1102,13 +1186,14 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const handleExtensionUiRequest = useCallback((request: ExtensionUiRequest) => {
     if (isBlockingExtensionUiRequest(request)) onAttentionNeeded?.(request);
+    noteExtensionUiReplayedRequest(request.id);
 
     switch (request.method) {
       case "select":
       case "confirm":
       case "input":
       case "editor":
-        setExtensionDialog(request);
+        setExtensionDialogs((queue) => enqueueExtensionUiRequest(queue, request));
         break;
       case "notify": {
         addNotice({
@@ -1141,13 +1226,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         opts.chatInputRef?.current?.insertText(request.text);
         break;
       case "custom":
-        setExtensionCustomUi((current) => {
-          if (request.closed) return current?.id === request.id ? null : current;
-          return request;
-        });
+        setExtensionCustomUis((queue) => request.closed
+          ? removeExtensionUiRequest(queue, request.id)
+          : upsertExtensionUiRequest(queue, request));
         break;
     }
-  }, [addNotice, onAttentionNeeded, opts.chatInputRef]);
+  }, [addNotice, noteExtensionUiReplayedRequest, onAttentionNeeded, opts.chatInputRef]);
 
   const settleUiStage = useCallback(() => {
     const wasRunning = agentRunningRef.current;
@@ -1384,6 +1468,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     switch (event.type) {
       case "connected": {
         dispatch({ type: "end" });
+        // fork:extension-ui-queue —— 重连（也是首次连接）：服务端紧接着把还握着的每一条
+        // 待决扩展请求重放一遍，窗口据此把断流期间已被关掉的陈旧请求裁掉。
+        beginExtensionUiReplayWindow();
         if (event.isStreaming === true) {
           cancelEventStreamGrace();
           sdkAgentActiveRef.current = true;
@@ -1657,10 +1744,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         handleExtensionUiRequest(event as ExtensionUiRequest);
         break;
       case "extension_ui_closed":
-        setExtensionDialog((current) => current?.id === event.id ? null : current);
+        // 两条队列都只摘这一个 id：custom 面板也是靠这个事件收尾的（服务端 settle 之后
+        // 才补发），回答对话框时本地已经先摘过一次，重复摘是无操作。
+        setExtensionDialogs((queue) => removeExtensionUiRequest(queue, event.id as string));
+        setExtensionCustomUis((queue) => removeExtensionUiRequest(queue, event.id as string));
         break;
     }
-  }, [addNotice, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, scheduleEventStreamClose, scrollToBottom, settleUiStage, syncLiveModel]);
+  }, [addNotice, beginExtensionUiReplayWindow, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, scheduleEventStreamClose, scrollToBottom, settleUiStage, syncLiveModel]);
   handleAgentEventRef.current = handleAgentEvent;
 
   const handleSend = useCallback(async (
@@ -2419,6 +2509,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (activeSessionId !== sid || result?.recreated) {
         cancelEventStreamGrace();
         closeEvents();
+        // 换工具会重建 wrapper，旧 wrapper 的待决扩展 UI 要等它的事件流关了才被取消，
+        // 那些关闭事件因此永远到不了客户端 —— 直接在这里清空两条队列，否则旧请求一直
+        // 排在前面挡着新 wrapper 的。
+        setExtensionDialogs([]);
+        setExtensionCustomUis([]);
+        extensionUiReplayRef.current = null;
         sessionIdRef.current = activeSessionId;
         if (result?.recreated && sessionPropIdRef.current === activeSessionId) {
           maintainEventsConnected(activeSessionId);
@@ -2751,7 +2847,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     retryInfo, contextUsage, systemPrompt, forkingEntryId,
     isCompacting, compactError, compactResult, currentModel, displayModel, modelSwitching, sessionStats, autoCompactionEnabled,
     slashCommands, slashCommandsLoading, queuedMessages,
-    notices: noticeState.visible, extensionDialog, extensionCustomUi, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput,
+    notices: noticeState.visible, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput,
     isAutoModelSelection: isNew && newSessionModel === null,
     agentPhase,
     isNew,

@@ -487,12 +487,15 @@ test("reconnects active shell output to its streaming tool call", () => {
 });
 
 test("plays the enabled sound once for each extension dialog", () => {
+  // fork:extension-ui-queue — the queue's head is the one on screen; answering it
+  // surfaces the next one, which is a new head and rings on its own.
   assert.match(chatWindowSource, /soundedExtensionDialogIdRef = useRef<string \| null>\(null\)/);
+  assert.match(chatWindowSource, /const headDialogId = extensionDialogs\[0\]\?\.id \?\? null;/);
   assert.match(
     chatWindowSource,
-    /soundedExtensionDialogIdRef\.current === extensionDialog\.id/,
+    /soundedExtensionDialogIdRef\.current === headDialogId/,
   );
-  assert.match(chatWindowSource, /soundedExtensionDialogIdRef\.current = extensionDialog\.id/);
+  assert.match(chatWindowSource, /soundedExtensionDialogIdRef\.current = headDialogId/);
   assert.match(chatWindowSource, /playDoneSoundRef\.current\(\)/);
 });
 
@@ -508,7 +511,7 @@ test("suppresses sounds and browser attention for the active subagent session", 
 
   assert.match(chatWindowSource, /completionNotificationsEnabled = session\?\.relation\?\.kind !== "subagent"/);
   assert.match(chatWindowSource, /completionNotificationsEnabled && soundEnabledRef\.current/);
-  assert.match(chatWindowSource, /!completionNotificationsEnabled[\s\S]*?!extensionDialog/);
+  assert.match(chatWindowSource, /!completionNotificationsEnabled[\s\S]*?!headDialogId/);
   assert.match(completionSource, /selectedSession\?\.relation\?\.kind === "subagent"\) return/);
   assert.match(attentionSource, /selectedSession\?\.relation\?\.kind === "subagent"\) return/);
 });
@@ -541,6 +544,65 @@ test("routes blocking extension requests through deduplicated browser attention 
   assert.match(attentionSource, /claimExtensionAttentionNotification\(request, notifiedAttentionRequestIdsRef\.current\)/);
   assert.match(attentionSource, /tag: `pi-extension-ui:\$\{request\.id\}`/);
   assert.match(appShellSource, /onAttentionNeeded=\{handleAttentionNeeded\}/);
+});
+
+test("queues extension dialogs and custom panels by request id instead of holding one slot", () => {
+  // Upstream 70470ca + e17d2cc: parallel tools each gated by a permission extension
+  // hold several server-side futures at once, and one single-slot state let the
+  // newest request hide an earlier one that then never got answered.
+  assert.match(source, /const \[extensionDialogs, setExtensionDialogs\] = useState<ExtensionUiDialogRequest\[\]>\(\[\]\)/);
+  assert.match(source, /const \[extensionCustomUis, setExtensionCustomUis\] = useState<ExtensionUiCustomRequest\[\]>\(\[\]\)/);
+  assert.doesNotMatch(source, /useState<ExtensionUiDialogRequest \| null>/);
+  assert.doesNotMatch(source, /useState<ExtensionUiCustomRequest \| null>/);
+
+  const respondSource = source.slice(
+    source.indexOf("const respondToExtensionUi = useCallback"),
+    source.indexOf("const sendExtensionCustomInput = useCallback"),
+  );
+  const requestSource = source.slice(
+    source.indexOf("  const handleExtensionUiRequest = useCallback"),
+    source.indexOf("  const settleUiStage = useCallback"),
+  );
+  const closedSource = source.slice(source.indexOf('case "extension_ui_closed"'));
+
+  // Answering, and the server's close event, each drop exactly their own id.
+  assert.match(respondSource, /setExtensionDialogs\(\(queue\) => removeExtensionUiRequest\(queue, request\.id\)\)/);
+  assert.match(closedSource, /setExtensionDialogs\(\(queue\) => removeExtensionUiRequest\(queue, event\.id as string\)\)/);
+  assert.match(closedSource, /setExtensionCustomUis\(\(queue\) => removeExtensionUiRequest\(queue, event\.id as string\)\)/);
+
+  // Dialogs queue (a replayed request is deduped by id), custom panels upsert because
+  // every change re-sends the whole render under the same id.
+  assert.match(requestSource, /setExtensionDialogs\(\(queue\) => enqueueExtensionUiRequest\(queue, request\)\)/);
+  assert.match(requestSource, /setExtensionCustomUis\(\(queue\) => request\.closed\s*\?\s*removeExtensionUiRequest\(queue, request\.id\)\s*:\s*upsertExtensionUiRequest\(queue, request\)\)/);
+
+  // A rebuild of the wrapper drops both queues: the old wrapper's close events never
+  // arrive, and its requests would sit in front of the new wrapper's.
+  const presetSource = source.slice(
+    source.indexOf("const handleToolPresetChange"),
+    source.indexOf("const scrollToMessage"),
+  );
+  assert.match(presetSource, /setExtensionDialogs\(\[\]\)/);
+  assert.match(presetSource, /setExtensionCustomUis\(\[\]\)/);
+});
+
+test("drops stale extension requests the server closed while the event stream was down", () => {
+  // Upstream reads `connected.pendingExtensionUiIds`; this fork cannot touch the
+  // server event, so the client collects the ids from the replay the server already
+  // sends right after `connected` (rpc-manager replays every pending UI request on
+  // subscribe) and prunes both queues to that set.
+  const replaySource = source.slice(
+    source.indexOf("const closeExtensionUiReplayWindow = useCallback"),
+    source.indexOf("const respondToExtensionUi = useCallback"),
+  );
+  const connectedSource = source.slice(source.indexOf('case "connected"'), source.indexOf('case "agent_start"'));
+
+  assert.match(source, /export const EXTENSION_UI_REPLAY_IDLE_MS = \d+/);
+  assert.match(source, /export const EXTENSION_UI_REPLAY_MAX_MS = \d+/);
+  assert.match(replaySource, /setExtensionDialogs\(\(queue\) => retainExtensionUiRequests\(queue, replay\.ids\)\)/);
+  assert.match(replaySource, /setExtensionCustomUis\(\(queue\) => retainExtensionUiRequests\(queue, replay\.ids\)\)/);
+  assert.match(replaySource, /replay\.ids\.add\(id\)/);
+  assert.match(replaySource, /Math\.min\(EXTENSION_UI_REPLAY_IDLE_MS, remaining\)/);
+  assert.match(connectedSource, /beginExtensionUiReplayWindow\(\)/);
 });
 
 test("keeps live following cancellable when the user scrolls away from the tail", () => {

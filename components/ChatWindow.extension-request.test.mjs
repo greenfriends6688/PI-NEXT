@@ -3,6 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
+const stackSource = source.slice(
+  source.indexOf("function ExtensionOverlayStack"),
+  source.indexOf("type ExtensionDialogRequest"),
+);
 const dialogSource = source.slice(source.indexOf("function ExtensionDialog"));
 const customSource = source.slice(source.indexOf("function ExtensionCustomPanel"));
 
@@ -10,13 +14,13 @@ test("confines extension overlays to the content region above the composer", () 
   assert.doesNotMatch(source, /function ExtensionRequestSheet/);
   assert.match(
     source,
-    /className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"[\s\S]*?<ExtensionDialog[\s\S]*?<ExtensionCustomPanel[\s\S]*?className="relative shrink-0"[\s\S]*?{chatInputElement}/,
+    /className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"[\s\S]*?<ExtensionOverlayStack[\s\S]*?<ExtensionOverlayStack[\s\S]*?className="relative shrink-0"[\s\S]*?{chatInputElement}/,
   );
-  assert.match(dialogSource, /position: "absolute"[\s\S]*?inset: 0/);
-  assert.match(dialogSource, /pointerEvents: "none"/);
+  // fork:extension-ui-queue — one host overlay per queue, the cards are its items.
+  assert.match(stackSource, /position: "absolute"[\s\S]*?inset: 0/);
+  assert.match(stackSource, /pointerEvents: "none"/);
   assert.match(dialogSource, /pointerEvents: "auto"/);
-  assert.match(customSource, /position: "absolute"[\s\S]*?inset: 0/);
-  assert.match(customSource, /pointerEvents: "none"/);
+  assert.match(customSource, /pointerEvents: "auto"/);
   assert.doesNotMatch(source, /z-\[100\]|zIndex: 100/);
   assert.match(customSource, /maxHeight: "min\(760px, 100%\)"/);
 });
@@ -36,18 +40,33 @@ test("renders extension confirmation and options as markdown", () => {
 });
 
 test("resets collapse state when a new extension request arrives", () => {
-  assert.match(source, /<ExtensionDialog key=\{extensionDialog.id\}/);
-  assert.match(source, /<ExtensionCustomPanel key=\{extensionCustomUi.id\}/);
-  assert.match(customSource, /if \(!collapsed\) inputRef.current\?\.focus\(\);\s*}, \[collapsed\]\)/);
+  // fork:extension-ui-queue — every queued request carries its own key, so a dialog
+  // surfacing after the one above it answered starts collapsed=false.
+  assert.match(source, /\{extensionDialogs\.map\(\(request\) => \(\s*<ExtensionDialog key=\{request\.id\}/);
+  assert.match(source, /\{extensionCustomUis\.map\(\(request\) => \(\s*<ExtensionCustomPanel key=\{request\.id\}/);
+  assert.match(customSource, /if \(!collapsed\) inputRef\.current\?\.focus\(\);\s*}, \[collapsed\]\)/);
+});
+
+test("stacks every queued extension request instead of letting the newest hide the oldest", () => {
+  // Two parallel tools gated by a permission extension hold two server-side futures;
+  // a single slot meant the hidden one could never be answered (upstream 70470ca).
+  assert.match(source, /extensionDialogs\.length > 0 &&/);
+  assert.match(source, /extensionCustomUis\.length > 0 &&/);
+  assert.match(source, /notices, extensionDialogs, extensionCustomUis, extensionStatuses/);
+  // One card per entry, the oldest at the top of the host stack.
+  assert.match(stackSource, /flexDirection: "column"/);
+  assert.match(stackSource, /justifyContent: "flex-end"/);
+  assert.match(dialogSource, /flexShrink: 0/);
+  assert.match(customSource, /flexShrink: 0/);
 });
 
 test("docks extension overlays to the bottom, right above the composer", () => {
   // Collapsing must not send the card back to the top of the message area: the
   // collapsed bar stays where the user is looking, just above the composer.
-  for (const overlay of [dialogSource, customSource]) {
-    assert.match(overlay, /alignItems: "flex-end"/);
-    assert.doesNotMatch(overlay, /alignItems: collapsed \?/);
-  }
+  assert.match(stackSource, /justifyContent: "flex-end"/);
+  assert.match(stackSource, /alignItems: "center"/);
+  assert.doesNotMatch(stackSource, /alignItems: collapsed \?/);
+  assert.doesNotMatch(dialogSource, /alignItems: collapsed \?/);
 });
 
 test("debounces the completion sound across chained dialogs", () => {
