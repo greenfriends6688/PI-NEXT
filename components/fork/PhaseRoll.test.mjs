@@ -18,6 +18,8 @@ const {
   PhaseRoll,
   dropLatePhaseBacklog,
   enqueuePhaseSnapshot,
+  phaseKeyOf,
+  phaseLabel,
 } = await jiti.import("./PhaseRoll.tsx");
 
 const source = await readFile(new URL("./PhaseRoll.tsx", import.meta.url), "utf8");
@@ -99,4 +101,67 @@ test("the WAAPI roll is gated on explicit no-preference and only nudges transfor
   assert.doesNotMatch(source, /from "framer-motion"|from "motion\/react"/);
   // 不动布局尺寸：动画键只有 transform / opacity。
   assert.doesNotMatch(source, /animate\(\[\s*\{[^}]*\b(width|height|top|left)\b/);
+});
+
+// fork:zm-08 —— 压缩期间的相位文案与相位身份（上游 2e66e40 / #1008）。
+// 这两个纯函数从 ChatWindow.tsx 搬到这里，就是为了让优先级能被 node 直接断言：
+// ChatWindow 一 import 就把 next/image 与整棵组件树拖进来，测不了。
+
+/** 把 key 与参数原样拼回去的 t，断言读起来就是意图。 */
+const t = (key, params = {}) => (Object.keys(params).length ? `${key}:${JSON.stringify(params)}` : key);
+
+test("names the phase the stream is actually in", () => {
+  assert.equal(phaseLabel({ kind: "waiting_model" }, t), "chat.waitingModel");
+  assert.equal(phaseLabel({ kind: "running_command" }, t), "chat.runningCommand");
+  assert.equal(phaseLabel(null, t), null);
+  assert.equal(phaseLabel(undefined, t), null);
+});
+
+test("describes the tools currently running", () => {
+  assert.equal(phaseLabel({ kind: "running_tools", tools: [{ name: "Read" }] }, t), 'chat.runningNamedTool:{"name":"Read"}');
+  assert.equal(
+    phaseLabel({ kind: "running_tools", tools: [{ name: "Read" }, { name: "Grep" }] }, t),
+    'chat.runningTools:{"names":"Read, Grep"}',
+  );
+  assert.equal(phaseLabel({ kind: "running_tools", tools: [] }, t), "chat.runningTool");
+  // Progress belongs to the newest tool, not the first one.
+  assert.equal(
+    phaseLabel({ kind: "running_tools", tools: [{ name: "Read" }, { name: "Bash", progress: "3/5" }] }, t),
+    'chat.runningNamedTool:{"name":"Bash"} 3/5',
+  );
+});
+
+test("compaction outranks waiting for model so a long compaction does not read as a hang", () => {
+  // The reported bug: a turn enters auto-compaction, the stream has not produced a token
+  // yet, and the phase is still the one set when the prompt was sent.
+  assert.equal(phaseLabel({ kind: "waiting_model" }, t, true), "chat.compacting");
+  assert.equal(phaseLabel({ kind: "running_tools", tools: [{ name: "Read" }] }, t, true), "chat.compacting");
+  // Compaction can also be the only thing blocking the turn: no phase at all.
+  assert.equal(phaseLabel(null, t, true), "chat.compacting");
+  assert.equal(phaseLabel(undefined, t, true), "chat.compacting");
+});
+
+test("the compaction flag off keeps the phase label", () => {
+  assert.equal(phaseLabel({ kind: "waiting_model" }, t, false), "chat.waitingModel");
+  assert.equal(phaseLabel({ kind: "running_command" }, t, false), "chat.runningCommand");
+});
+
+test("compaction is its own phase identity so the status line rolls into it", () => {
+  // Same key would swap the text in place without the roll, and the switch into
+  // compaction is exactly the change the user has to notice.
+  assert.equal(phaseKeyOf({ kind: "waiting_model" }), "waiting_model");
+  assert.equal(phaseKeyOf(null), "idle");
+  assert.equal(phaseKeyOf({ kind: "running_tools", tools: [{ name: "Read", id: "t1" }] }), "tools:t1");
+  assert.equal(phaseKeyOf({ kind: "waiting_model" }, true), "compacting");
+  assert.equal(phaseKeyOf(null, true), "compacting");
+  assert.notEqual(phaseKeyOf({ kind: "waiting_model" }, true), phaseKeyOf({ kind: "waiting_model" }));
+});
+
+test("the compacting phase reuses the model spinner glyph", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(PhaseRoll, { text: phaseLabel({ kind: "waiting_model" }, t, true), phaseKey: phaseKeyOf(null, true), reducedMotion: true }),
+  );
+  assert.match(html, /data-fork-phase-roll="compacting"/);
+  assert.match(html, /data-ico="loader-circle"/);
+  assert.match(html, /chat\.compacting/);
 });

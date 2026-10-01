@@ -39,7 +39,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { ProcessGroup, summarizeProcessBlocks } from "./ProcessGroup";
 import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import { messageToProcessContentBlocks, type ProcessContentBlock } from "@/lib/process-content";
-import { useAgentSession, type AgentPhase, type NoticeItem } from "@/hooks/useAgentSession";
+import { useAgentSession, type NoticeItem } from "@/hooks/useAgentSession";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SessionStatsInfo } from "@/lib/pi-types";
@@ -71,8 +71,8 @@ import {
   type ScrollIntent,
 } from "@/lib/scroll-follow";
 import { ScrollFadeViewport } from "./fork/ScrollFadeViewport";
-// fork:zm-07 — 等待态状态行（串行滚动）。
-import { PhaseRoll } from "./fork/PhaseRoll";
+// fork:zm-07 — 等待首 token 时的「串行滚动」状态行。
+import { PhaseRoll, phaseKeyOf, phaseLabel } from "./fork/PhaseRoll";
 // fork:zm-04 — 倒计时条共享同一个动效偏好守卫。
 import { useMotionPreference } from "./fork/RollingNumber";
 // fork:zc-17 — 零会话首屏的三条起步路径。
@@ -123,39 +123,6 @@ interface Props {
   onSoundToggle?: () => void;
   playDoneSound?: () => void;
   unlockAudio?: () => void;
-}
-
-function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, string | number>) => string): string | null {
-  if (phase?.kind === "running_tools") {
-    const latest = phase.tools[phase.tools.length - 1];
-    if (latest?.progress) {
-      return `${t("chat.runningNamedTool", { name: latest.name })} ${latest.progress}`;
-    }
-    const names = phase.tools.map((t) => t.name);
-    if (names.length === 0) return t("chat.runningTool");
-    if (names.length === 1) return t("chat.runningNamedTool", { name: names[0] });
-    if (names.length <= 3) return t("chat.runningTools", { names: names.join(", ") });
-    return t("chat.runningToolsMore", { names: names.slice(0, 2).join(", "), count: names.length - 2 });
-  }
-  if (phase?.kind === "waiting_model") return t("chat.waitingModel");
-  if (phase?.kind === "running_command") return t("chat.runningCommand");
-  return null;
-}
-
-/**
- * fork:zm-07 — 相位身份（PhaseRoll 的 key）。
- *
- * 同一个工具/命令的 progress 更新必须保持同 key（原地换文字，不重播滚动）；
- * 换工具、换相位才是一条新状态。
- */
-function phaseKeyOf(phase: AgentPhase): string {
-  if (!phase) return "idle";
-  if (phase.kind === "running_tools") {
-    const latest = phase.tools[phase.tools.length - 1];
-    if (!latest) return "tools";
-    return `tools:${latest.id || latest.name}`;
-  }
-  return phase.kind;
 }
 
 /** fork:zm-03 — 滚动指标（纯读数，不触碰布局）。 */
@@ -421,6 +388,42 @@ const CHAT_COLUMN_PADDING_CSS = `calc(${CHAT_COLUMN_PADDING}px * var(--fork-dens
 // A dialog replacing another one within this window is a single interaction
 // (e.g. select followed by a free-text input) and must not re-ring.
 const EXTENSION_DIALOG_SOUND_MIN_GAP_MS = 2000;
+// fork:extension-ui-queue —— 两类弹层各自的叠层高度（对话框在 custom 面板之下，与改动前一致）。
+const EXTENSION_DIALOG_STACK_Z_INDEX = 90;
+const EXTENSION_CUSTOM_STACK_Z_INDEX = 95;
+
+/**
+ * fork:extension-ui-queue —— 扩展弹层的宿主叠层。
+ *
+ * 原来每个弹层自己带一份 `position: absolute; inset: 0` 的 overlay，只有一个弹层时与
+ * 现在逐格同形；排队之后同一个宿主里摞着放，几格从上往下排、离输入框最近的是最新来的。
+ *
+ * 尺寸都留在各自那一格身上（这一层只有内边距与缝）：单条队列时几何与改动前逐像素相同，
+ * `verify:boards` 的画板 50 量到的还是同一个框。
+ */
+function ExtensionOverlayStack({ zIndex, children }: { zIndex: number; children: ReactNode }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex,
+        display: "flex",
+        flexDirection: "column",
+        // 最新的那格贴在输入框正上方，与「折叠 / 展开都停在消息区底部」的旧行为同源。
+        justifyContent: "flex-end",
+        alignItems: "center",
+        gap: "var(--s2)",
+        padding: 20,
+        // 两格加不下一屏时（并行审批的多个对话框）从这一层滚，弹层本身不缩。
+        overflowY: "auto",
+        pointerEvents: "none",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function NewSessionUpdateLink({
   label,
@@ -674,7 +677,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     retryInfo, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
-    notices, extensionDialog, extensionCustomUi, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
+    notices, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
     isAutoModelSelection,
     agentPhase,
     isNew,
@@ -923,17 +926,20 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [initialPrompt, loading, error, handleSend, onInitialPromptConsumed]);
 
   useEffect(() => {
+    // fork:extension-ui-queue —— 队列的队首上屏才响：答掉一个之后下一个才冒出来，
+    // 由下面那个最短间隔兼掉这一串连锁响。
+    const headDialogId = extensionDialogs[0]?.id ?? null;
     if (
       !completionNotificationsEnabled
-      || !extensionDialog
-      || soundedExtensionDialogIdRef.current === extensionDialog.id
+      || !headDialogId
+      || soundedExtensionDialogIdRef.current === headDialogId
     ) return;
-    soundedExtensionDialogIdRef.current = extensionDialog.id;
+    soundedExtensionDialogIdRef.current = headDialogId;
     const now = Date.now();
     if (now - extensionDialogLastSoundAtRef.current < EXTENSION_DIALOG_SOUND_MIN_GAP_MS) return;
     extensionDialogLastSoundAtRef.current = now;
     playDoneSoundRef.current();
-  }, [completionNotificationsEnabled, extensionDialog]);
+  }, [completionNotificationsEnabled, extensionDialogs]);
 
   // Register the abort handler for the global Esc shortcut
   useEffect(() => {
@@ -1707,7 +1713,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         const tag = target.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
       }
-      if (isEmptyNew || extensionDialog) return;
+      if (isEmptyNew || extensionDialogs.length > 0) return;
       if (!findOpenRef.current) {
         findPreviousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       }
@@ -1718,7 +1724,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     };
     window.addEventListener("keydown", onFindShortcut);
     return () => window.removeEventListener("keydown", onFindShortcut);
-  }, [extensionDialog, isEmptyNew]);
+  }, [extensionDialogs, isEmptyNew]);
 
   // fork:ui-todo — the session's task list, read back from the transcript (the
   // built-in `todo` tool stores each list in its tool result). Memoized: the scan
@@ -2076,11 +2082,21 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             focusSignal={findFocusSeq}
           />
         )}
-        {extensionDialog && (
-          <ExtensionDialog key={extensionDialog.id} request={extensionDialog} onRespond={respondToExtensionUi} />
+        {extensionDialogs.length > 0 && (
+          /* fork:extension-ui-queue —— 一条队列一格，按到达顺序自上而下排开，最新的
+             离输入框最近；单条时与改动前同一格（容器不占位，高度/边距都在弹层自己身上）。 */
+          <ExtensionOverlayStack zIndex={EXTENSION_DIALOG_STACK_Z_INDEX}>
+            {extensionDialogs.map((request) => (
+              <ExtensionDialog key={request.id} request={request} onRespond={respondToExtensionUi} />
+            ))}
+          </ExtensionOverlayStack>
         )}
-        {extensionCustomUi && (
-          <ExtensionCustomPanel key={extensionCustomUi.id} request={extensionCustomUi} onInput={sendExtensionCustomInput} />
+        {extensionCustomUis.length > 0 && (
+          <ExtensionOverlayStack zIndex={EXTENSION_CUSTOM_STACK_Z_INDEX}>
+            {extensionCustomUis.map((request) => (
+              <ExtensionCustomPanel key={request.id} request={request} onInput={sendExtensionCustomInput} />
+            ))}
+          </ExtensionOverlayStack>
         )}
         {/* fork:ui-newhome — hero + starter cards for a brand new session. */}
         {isEmptyNew && (
@@ -2513,14 +2529,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               })()
             )}
 
-            {agentRunning && !hasStreamingContent && (
+            {agentRunning && !hasStreamingContent && (agentPhase || isCompacting) && (
               // fork:zm-07 — 垂直间距放在 PhaseRoll 自己身上，不放在这层 wrapper 上：
               // PhaseRoll 在“没有相位可显”时返回 null（与改动前同一契约），
               // 而 wrapper 带着 py-2 渲染就会在等待结束后留下一条看不见的空隙。
+              // fork:zm-08 — 压缩中即便相位为空也显一行（上游 2e66e40 / #1008）。
               <div className="break-words text-xs" style={{ color: "var(--text-muted)" }}>
                 <PhaseRoll
-                  text={agentPhase ? phaseLabel(agentPhase, t) : null}
-                  phaseKey={phaseKeyOf(agentPhase)}
+                  text={phaseLabel(agentPhase, t, isCompacting)}
+                  phaseKey={phaseKeyOf(agentPhase, isCompacting)}
                   lineHeightEm={1.4}
                 />
               </div>
@@ -2965,16 +2982,15 @@ function ExtensionDialog({
         onRespond(request, { cancelled: true });
       }}
       style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 90,
+        // fork:extension-ui-queue —— 这一格是宿主叠层里的一个 flex item，尺寸在这一格定，
+        // 叠层只管把它们排开。
+        pointerEvents: "auto",
+        flexShrink: 0,
         display: "flex",
-        // Collapsed or expanded, the card stays just above the composer: the top of
-        // the message area reads as "detached" from what it is asking about.
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: 20,
-        pointerEvents: "none",
+        flexDirection: "column",
+        width: "min(560px, 100%)",
+        // 百分比相对叠层那个定高盒子解析，所以这一格能撑满消息区又不越界。
+        maxHeight: "min(760px, 100%)",
       }}
     >
       {collapsed ? (
@@ -2989,7 +3005,6 @@ function ExtensionDialog({
             display: "flex",
             alignItems: "center",
             gap: "var(--space-loose)",
-            maxWidth: "min(560px, 100%)",
             width: "100%",
             padding: "var(--space-loose) 12px",
             border: "1px solid var(--border)",
@@ -3033,8 +3048,10 @@ function ExtensionDialog({
         style={{
           pointerEvents: "auto",
           position: "relative",
-          width: "min(560px, 100%)",
-          maxHeight: "min(760px, 100%)",
+          // 这一格已经量好宽高上限（maxHeight 在宿主叠层那一格），卡片只在里面撑满。
+          flex: "1 1 auto",
+          minHeight: 0,
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -3239,14 +3256,13 @@ function ExtensionCustomPanel({
   return (
     <div
       style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 95,
+        // fork:extension-ui-queue —— 同对话框：宿主叠层里的一格，尺寸在这一格定。
+        pointerEvents: "auto",
+        flexShrink: 0,
         display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: 20,
-        pointerEvents: "none",
+        flexDirection: "column",
+        width: "min(920px, 100%)",
+        maxHeight: "min(760px, 100%)",
       }}
     >
       {collapsed ? (
@@ -3259,7 +3275,6 @@ function ExtensionCustomPanel({
             display: "flex",
             alignItems: "center",
             gap: "var(--space-loose)",
-            maxWidth: "min(920px, 100%)",
             width: "100%",
             padding: "var(--space-loose) 12px",
             border: "1px solid var(--border)",
@@ -3296,8 +3311,9 @@ function ExtensionCustomPanel({
         style={{
           pointerEvents: "auto",
           position: "relative",
-          width: "min(920px, 100%)",
-          maxHeight: "min(760px, 100%)",
+          flex: "1 1 auto",
+          minHeight: 0,
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",

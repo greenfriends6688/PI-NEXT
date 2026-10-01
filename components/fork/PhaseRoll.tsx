@@ -19,6 +19,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMotionPreference } from "./RollingNumber";
+// 类型导入，编译后消失（PhaseRoll 不能在 node 里把整个 hook 拉进来）。
+import type { AgentPhase } from "@/hooks/useAgentSession";
 
 export const PHASE_ROLL_TRANSITION_MS = 300;
 export const PHASE_ROLL_HOLD_MS = 500;
@@ -31,6 +33,53 @@ export interface PhaseSnapshot {
   /** 相位身份（kind + 具体工具）。同 key 只更新文字，不重播滚动。 */
   key: string;
   text: string;
+}
+
+/** i18n 的 t 形参（本模块只需要这一种）。 */
+export type PhaseTranslate = (key: string, params?: Record<string, string | number>) => string;
+
+/**
+ * fork:zm-08 —— 状态行文案（上游依据 2e66e40 / #1008「压缩中不要报等模型」）。
+ *
+ * `isCompacting` 压过相位本身：自动压缩会把一轮卡住好几十秒才出下一个 token，
+ * 期间相位还停在 `waiting_model`（相位是在发消息那一刻定的，没人跟着压缩改），
+ * 文案就一直是「正在等待模型...」，读起来像挂死。压缩期间真正该告诉用户的是
+ * 「正在压缩」，所以先判它。
+ */
+export function phaseLabel(phase: AgentPhase, t: PhaseTranslate, isCompacting?: boolean): string | null {
+  if (isCompacting) return t("chat.compacting");
+  if (phase?.kind === "running_tools") {
+    const latest = phase.tools[phase.tools.length - 1];
+    if (latest?.progress) {
+      return `${t("chat.runningNamedTool", { name: latest.name })} ${latest.progress}`;
+    }
+    const names = phase.tools.map((tool) => tool.name);
+    if (names.length === 0) return t("chat.runningTool");
+    if (names.length === 1) return t("chat.runningNamedTool", { name: names[0] });
+    if (names.length <= 3) return t("chat.runningTools", { names: names.join(", ") });
+    return t("chat.runningToolsMore", { names: names.slice(0, 2).join(", "), count: names.length - 2 });
+  }
+  if (phase?.kind === "waiting_model") return t("chat.waitingModel");
+  if (phase?.kind === "running_command") return t("chat.runningCommand");
+  return null;
+}
+
+/**
+ * fork:zm-07 —— 相位身份（PhaseRoll 的 key）。
+ *
+ * 同一个工具/命令的 progress 更新必须保持同 key（原地换文字，不重播滚动）；
+ * 换工具、换相位才是一条新状态。压缩必须换一个 key，否则从「等模型」切进压缩
+ * 时文字会原地替换、不滚进来，而这正是要让人看见的一次切换。
+ */
+export function phaseKeyOf(phase: AgentPhase, isCompacting?: boolean): string {
+  if (isCompacting) return "compacting";
+  if (!phase) return "idle";
+  if (phase.kind === "running_tools") {
+    const latest = phase.tools[phase.tools.length - 1];
+    if (!latest) return "tools";
+    return `tools:${latest.id || latest.name}`;
+  }
+  return phase.kind;
 }
 
 function now(): number {
@@ -81,6 +130,9 @@ export function dropLatePhaseBacklog(
  */
 const PHASE_ICON: Record<string, { ico: string; color?: string; spin?: boolean }> = {
   waiting_model: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
+  // fork:zm-08 —— 压缩同样是在等模型算（画板 53 帧 A 的词表只有四枚图标，
+  // 不为它新画一枚），沿用同一枚转圈字形，靠文案区分。
+  compacting: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
   running_command: { ico: "terminal" },
   running_tools: { ico: "wrench" },
   tools: { ico: "wrench" },
