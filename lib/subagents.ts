@@ -4,6 +4,9 @@ import { dump as stringifyYaml } from "js-yaml";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "fs";
 import { basename, dirname, join, resolve } from "path";
 import { parseFrontmatter } from "./frontmatter";
+// fork:pr2-security（上游 162a749）—— `ext:` 选择器要对真实扩展来源解析，
+// 共享一个无依赖的 npm source 解析器（上游同样把 parseNpmSource 拆到 lib/npm-source.ts）。
+import { parseNpmSource } from "./npm-source";
 import { writePrivateFileAtomicSync } from "./atomic-file";
 import { isExistingPathWithinRoots } from "./path-security";
 // fork:builtin-subagent-disable — built-ins carry no file, so their off state is a name in settings.json.
@@ -27,6 +30,8 @@ export interface SubagentProfile {
   systemPrompt: string;
   tools: string[];
   extensionTools?: string[];
+  /** fork:pr2-security：原始的 `ext:` 禁用名单选择器，在 spawn 时对着已加载的扩展解析。 */
+  disallowedExtensionTools?: string[];
   loadSkills: boolean;
   loadExtensions: boolean;
   model?: string;
@@ -256,8 +261,8 @@ function unmanagedFrontmatter(stored: Record<string, unknown>): Record<string, u
  * another runtime's `ext:<name>` selectors on every save — carry them through.
  */
 function composeToolsField(tools: string[], storedTools: unknown): string {
-  const selectors = stringList(storedTools).filter((tool) => tool.startsWith("ext:"));
-  const combined = [...tools, ...selectors.filter((selector) => !tools.includes(selector))];
+  const selectors = stringList(storedTools).filter((tool) => tool.toLowerCase().startsWith("ext:"));
+  const combined = [...tools, ...selectors.filter((selector) => !tools.some((tool) => tool.toLowerCase() === selector.toLowerCase()))];
   return combined.length > 0 ? combined.join(", ") : "none";
 }
 
@@ -287,9 +292,20 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
     const maxTurnsValue = typeof data?.max_turns === "number" ? Math.floor(data.max_turns) : undefined;
     const tools = parseTools(data?.tools, DEFAULT_TOOLS);
     const disallowedTools = new Set(parseTools(data?.disallowed_tools, []));
-    const disallowedExtensionTools = new Set(parseExtensionToolSelectors(data?.disallowed_tools).map((tool) => tool.toLowerCase()));
+    const disallowedExtensionTools = parseExtensionToolSelectors(data?.disallowed_tools);
+    // 这层只是解析期的字面快速路径：它看不见扩展别名（`ext:codegraph` 与
+    // `ext:@scope/pi-codegraph` 是同一个扩展），所以只能归一写法，不能当唯一的闸门；
+    // 真正的判定在 spawn 时由 `selectSubagentExtensionTools()` 对着已加载的扩展做。
+    const deniedKeys = new Set(
+      disallowedExtensionTools.map((tool) => normalizeExtensionSelector(tool).toLowerCase()),
+    );
     const extensionTools = parseExtensionToolSelectors(data?.tools)
-      .filter((tool) => !disallowedExtensionTools.has(tool.toLowerCase()));
+      .filter((tool) => {
+        const allowed = normalizeExtensionSelector(tool).toLowerCase();
+        return ![...deniedKeys].some((denied) => (
+          denied === "*" || allowed === denied || allowed.startsWith(`${denied}/`)
+        ));
+      });
     return {
       name,
       displayName: stringValue(data?.display_name) ?? name,
@@ -297,6 +313,7 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
       systemPrompt: rest.trim(),
       tools: tools.filter((tool) => !disallowedTools.has(tool)),
       ...(extensionTools.length > 0 ? { extensionTools } : {}),
+      ...(disallowedExtensionTools.length > 0 ? { disallowedExtensionTools } : {}),
       loadSkills: resourceBoolean(data?.load_skills ?? data?.skills, false),
       loadExtensions: resourceBoolean(data?.load_extensions ?? data?.extensions, extensionTools.length > 0),
       ...(stringValue(data?.model) ? { model: stringValue(data?.model) } : {}),
@@ -558,27 +575,148 @@ export function withSubagentExtensionTools(
   ])];
 }
 
+interface SubagentExtensionLike {
+  path: string;
+  sourceInfo?: { source?: string; origin?: string };
+  tools: Map<string, unknown>;
+}
+
+/**
+ * 把一个 `ext:` 选择器归一到它的本体：去掉尾部斜杠与 `/*` 段，于是
+ * `ext:name` / `ext:name/` / `ext:name/*` 是同一个选择器。允许名单与禁用名单
+ * 共用它，两边才不会对「一个选择器是什么意思」各说各话。
+ */
+function normalizeExtensionSelector(selector: string): string {
+  const body = selector.slice(4).trim().replace(/\/+$/, "");
+  return body.endsWith("/*") ? body.slice(0, -2) : body;
+}
+
+function extensionPathParts(extension: SubagentExtensionLike): { parentDir: string; baseName: string } {
+  const segments = extension.path.replaceAll("\\", "/").split("/");
+  return {
+    parentDir: segments.at(-2) ?? extension.path,
+    baseName: (segments.at(-1) ?? "").replace(/\.[^.]+$/, ""),
+  };
+}
+
+/**
+ * 一个扩展文件属于哪个来源。只有 package 资源在 `sourceInfo.source` 里真的有身份；
+ * 顶层资源都带同一个常量（settings 条目的 `"local"` 或自动发现的 `"auto"`），所以它们
+ * 退回用自己的路径当身份 —— 否则所有互不相干的本地扩展会被当成一个单元，把下面的
+ * 名字闸门反过来。
+ */
+function extensionSourceKey(extension: SubagentExtensionLike): string {
+  const info = extension.sourceInfo;
+  const source = info?.source?.trim();
+  return source && info?.origin === "package" ? source : extension.path;
+}
+
+/**
+ * 一个扩展能被 `ext:<name>` 叫出的所有写法：文件所在目录名、文件名基名，以及——只对
+ * package 资源——npm 来源名和去掉 scope 后的那个名字（`npm:@scope/pkg@1.2.3` 贡献的是
+ * `@scope/pkg`，不是版本 pin）。`"local"` / `"auto"` 故意不做候选：它们是共享常量，
+ * 认了等于 `ext:local` = 所有本地扩展。
+ */
+function extensionCandidateNames(extension: SubagentExtensionLike): string[] {
+  const { parentDir, baseName } = extensionPathParts(extension);
+  const names = [parentDir, baseName];
+  const info = extension.sourceInfo;
+  if (info?.origin === "package") {
+    const source = (info.source ?? "").trim();
+    const packageName = parseNpmSource(source)?.name ?? source;
+    names.push(packageName, packageName.replace(/^@[^/]+\//, ""));
+  }
+  return [...new Set(names.map((name) => name.toLowerCase()).filter(Boolean))];
+}
+
+/**
+ * 名字 → 声称它的来源集合。被多于一个来源声称的名字不可寻址：`index.ts`、共用的
+ * `extensions/` 目录、两个包去掉 scope 后同名（`@a/tool`、`@b/tool`）都很常见，
+ * 否则一个选择器就能从不相干的扩展里拿到工具。**同一个**来源的多个文件可以共用一个
+ * 名字 —— 那是一个单元，不是冲突。
+ */
+function extensionNameOwners(extensions: readonly SubagentExtensionLike[]): Map<string, Set<string>> {
+  const owners = new Map<string, Set<string>>();
+  for (const extension of extensions) {
+    const owner = extensionSourceKey(extension);
+    for (const name of extensionCandidateNames(extension)) {
+      const claimed = owners.get(name) ?? new Set<string>();
+      claimed.add(owner);
+      owners.set(name, claimed);
+    }
+  }
+  return owners;
+}
+
+interface ExtensionSelectorMatch {
+  name: string;
+  toolName?: string;
+}
+
+/**
+ * 对**全部**已加载扩展的可寻址名字解析一个选择器，取最长匹配，并返回它要的
+ * （若有）工具名。逐扩展解析会让 `ext:@scope/pkg` 绑到另一个扩展提供的更短、
+ * 无关的名字 `@scope` 上。扩展名大小写不敏感；工具名按写法精确匹配。
+ */
+function resolveExtensionSelector(
+  selector: string,
+  addressableNames: Iterable<string>,
+): ExtensionSelectorMatch | null {
+  const lower = selector.toLowerCase();
+  let best: string | undefined;
+  for (const name of addressableNames) {
+    if (lower !== name && !lower.startsWith(`${name}/`)) continue;
+    if (best === undefined || name.length > best.length) best = name;
+  }
+  if (best === undefined) return null;
+  const toolName = lower === best ? undefined : selector.slice(best.length + 1) || undefined;
+  return { name: best, ...(toolName === undefined ? {} : { toolName }) };
+}
+
 export function selectSubagentExtensionTools(
-  extensions: Iterable<{ path: string; sourceInfo?: { source?: string }; tools: Map<string, unknown> }>,
+  extensions: Iterable<SubagentExtensionLike>,
   selectors: readonly string[],
+  deniedSelectors: readonly string[] = [],
 ): string[] {
-  const wanted = selectors.map((selector) => selector.slice(4).toLowerCase());
-  return [...extensions].flatMap((extension) => {
-    const pathName = extension.path.replaceAll("\\", "/").split("/").at(-2) ?? extension.path;
-    const sourceName = (extension.sourceInfo?.source ?? "").replace(/^npm:/, "");
-    const extensionNames = new Set([pathName.toLowerCase(), sourceName.toLowerCase()]);
-    const selected = wanted.some((selector) => {
-      if (selector === "*") return true;
-      const [extensionName, toolName] = selector.split("/", 2);
-      return extensionNames.has(extensionName) && (!toolName || extension.tools.has(toolName));
-    });
-    if (!selected) return [];
-    return [...extension.tools.keys()].filter((toolName) => wanted.some((selector) => {
-      if (selector === "*" || selector.endsWith("/*")) return selector === "*" || extensionNames.has(selector.slice(0, -2));
-      const [extensionName, selectedTool] = selector.split("/", 2);
-      return extensionNames.has(extensionName) && (!selectedTool || selectedTool === toolName);
-    }));
+  const normalizeAll = (values: readonly string[]) => values
+    .filter((selector) => selector.toLowerCase().startsWith("ext:"))
+    .map((selector) => normalizeExtensionSelector(selector))
+    .filter(Boolean);
+  const wanted = normalizeAll(selectors);
+  const denied = normalizeAll(deniedSelectors);
+  if (wanted.length === 0) return [];
+  const loaded = [...extensions];
+  const owners = extensionNameOwners(loaded);
+  const addressable = new Set([...owners].filter(([, claimed]) => claimed.size === 1).map(([name]) => name));
+  const everyExtension = wanted.includes("*");
+  const denyEveryExtension = denied.includes("*");
+  // 允许与禁用用**同一套**候选名字解析，所以用一种别名写的禁用（`ext:codegraph`）
+  // 也能盖住用另一种别名写的允许（`ext:@scope/pkg/tool`）。
+  const resolveAll = (values: readonly string[]) => values.flatMap((selector) => {
+    if (selector === "*") return [];
+    const match = resolveExtensionSelector(selector, addressable);
+    return match === null ? [] : [match];
   });
+  const matches = resolveAll(wanted);
+  const denials = resolveAll(denied);
+
+  const selected: string[] = [];
+  for (const extension of loaded) {
+    const toolNames = [...extension.tools.keys()];
+    const owned = new Set(extensionCandidateNames(extension).filter((name) => addressable.has(name)));
+    const ownedMatches = matches.filter((match) => owned.has(match.name));
+    if (!everyExtension && ownedMatches.length === 0) continue;
+    const ownedDenials = denials.filter((match) => owned.has(match.name));
+    const covers = (match: ExtensionSelectorMatch, toolName: string) => (
+      match.toolName === undefined || match.toolName === toolName
+    );
+    selected.push(...toolNames.filter((toolName) => {
+      const granted = everyExtension || ownedMatches.some((match) => covers(match, toolName));
+      if (!granted || denyEveryExtension) return false;
+      return !ownedDenials.some((match) => covers(match, toolName));
+    }));
+  }
+  return [...new Set(selected)];
 }
 
 export function readSubagentRun(entries: readonly SessionEntry[], sessionId: string, sessionPath: string): SubagentRunInfo | null {
