@@ -645,7 +645,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: "var(--s3)",
           padding: "4px 16px",
           borderBottom: "1px solid var(--border)",
           fontSize: TEXT.xs,
@@ -662,7 +662,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         {formatSizeStr && <span>{formatSizeStr}</span>}
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: 4, color: watching ? "var(--success)" : "var(--text-dim)" }}
+          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)" }}
         >
           <span
             style={{
@@ -725,7 +725,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 16,
+          padding: "var(--s4)",
           cursor: isZoomed(zoom) ? "grab" : "default",
           backgroundImage:
             "linear-gradient(45deg, var(--bg) 25%, transparent 25%), linear-gradient(-45deg, var(--bg) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--bg) 75%), linear-gradient(-45deg, transparent 75%, var(--bg) 75%)",
@@ -878,7 +878,7 @@ function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: "var(--s3)",
           padding: "4px 16px",
           borderBottom: "1px solid var(--border)",
           fontSize: TEXT.xs,
@@ -895,7 +895,7 @@ function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         {size != null && <span>{formatSize(size)}</span>}
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: 4, color: watching ? "var(--success)" : "var(--text-dim)" }}
+          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)" }}
         >
           <span
             style={{
@@ -917,13 +917,13 @@ function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 24,
+          padding: "var(--s5)",
           background: "var(--bg)",
         }}
       >
         <div style={{ width: "min(680px, 100%)" }}>
           {error && (
-            <div style={{ color: "var(--danger)", fontSize: TEXT.md, marginBottom: 12, textAlign: "center" }}>
+            <div style={{ color: "var(--danger)", fontSize: TEXT.md, marginBottom: "var(--s3)", textAlign: "center" }}>
               {error}
             </div>
           )}
@@ -1031,7 +1031,7 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: "var(--s3)",
           padding: "4px 16px",
           borderBottom: "1px solid var(--border)",
           fontSize: TEXT.xs,
@@ -1048,7 +1048,7 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         {size != null && <span>{formatSize(size)}</span>}
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: 4, color: watching ? "var(--success)" : "var(--text-dim)" }}
+          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)" }}
         >
           <span
             style={{
@@ -1070,14 +1070,14 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 24,
+          padding: "var(--s5)",
           background: "var(--bg-panel)",
           minHeight: 0,
         }}
       >
         <div style={{ width: "min(960px, 100%)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
           {error && (
-            <div style={{ color: "var(--danger)", fontSize: TEXT.md, marginBottom: 12, textAlign: "center" }}>
+            <div style={{ color: "var(--danger)", fontSize: TEXT.md, marginBottom: "var(--s3)", textAlign: "center" }}>
               {error}
             </div>
           )}
@@ -1220,7 +1220,7 @@ function FileSelectionQuotePopover({
     >
       {inputOpen ? (
         <fieldset disabled={submitting} aria-busy={submitting} style={{ width: "100%", minWidth: 0, margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, fontWeight: 600 }}>{t("chat.askInNewChat")}</span>
             <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={submitting} onClick={closeInput} style={{ border: "none" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
@@ -1502,7 +1502,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: "var(--s3)",
           padding: "4px 16px",
           borderBottom: "1px solid var(--border)",
           fontSize: TEXT.xs,
@@ -1555,7 +1555,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: 4, color: watching ? "var(--success)" : "var(--text-dim)", flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)", flexShrink: 0 }}
         >
           <span
             style={{
@@ -1572,7 +1572,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
       </div>
       <div style={{ flex: 1, minHeight: 0, background: "var(--bg-panel)" }}>
         {error ? (
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, color: "var(--danger)", fontSize: TEXT.md, textAlign: "center" }}>
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--s5)", color: "var(--danger)", fontSize: TEXT.md, textAlign: "center" }}>
             {error}
           </div>
         ) : (

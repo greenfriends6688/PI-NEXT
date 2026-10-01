@@ -1972,7 +1972,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                                       title={t("sidebar.removeWorktreeTitle", { path: wt.path })}
                                       aria-label={t("sidebar.removeWorktreeTitle", { path: wt.path })}
                                       className="pw-iconbtn sm"
-                                      style={{ color: "var(--error)", marginRight: 4, flexShrink: 0 }}
+                                      style={{ color: "var(--error)", marginRight: "var(--s1)", flexShrink: 0 }}
                                     >
                                       <span className="pw-ico"><i data-ico="trash-2" data-size="12"></i></span>
                                     </button>
@@ -2025,7 +2025,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                                 className="pw-input"
                                 style={{ width: "100%", minWidth: 0, fontFamily: "var(--font-mono)", borderColor: "var(--accent)" }}
                               />
-                              <div className="pw-inline" style={{ gap: 4, marginTop: 4 }}>
+                              <div className="pw-inline" style={{ gap: "var(--s1)", marginTop: "var(--s1)" }}>
                                 <button
                                   type="button"
                                   onClick={() => void handleCreateWorktree()}
@@ -2108,7 +2108,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       );
                     }
                     return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginLeft: 8, borderLeft: "1px solid var(--border-faint)", paddingLeft: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginLeft: "var(--s2)", borderLeft: "1px solid var(--border-faint)", paddingLeft: "var(--s1)" }}>
                         {projectEntries.map((entry) => (
                           <div key={sessionEntryKey(entry)}>
                             {renderFamilyRow(entry.item)}
@@ -2237,7 +2237,7 @@ function showProjectActivity(
 ): ReactNode {
   if (!activity || (activity.running === 0 && activity.unread === 0)) return null;
   return (
-    <span className="pw-inline" style={{ gap: 4, flexShrink: 0 }}>
+    <span className="pw-inline" style={{ gap: "var(--s1)", flexShrink: 0 }}>
       {activity.running > 0 && (
         <span
           className="pw-badge accent count"

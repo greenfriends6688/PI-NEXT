@@ -702,7 +702,7 @@ function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "wa
       className={`pw-alert${tone === "error" ? "" : " warn"}`}
       style={{
         maxHeight: 120,
-        marginBottom: 8,
+        marginBottom: "var(--s2)",
         overflowY: "auto",
       }}
     >
@@ -842,7 +842,7 @@ function FavoriteModelMenu({
             overflowY: "auto",
           }}
         >
-          <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)" }}>
             <span>{t("models.favorites")}</span>
             {currentKey && (
               <button
@@ -3078,7 +3078,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             说明排了几条（+ 召回钮），下面每条消息一行 .pw-prow。画板里没有外层盒子，
             所以这里也不再有自绘的描边 + 底色盒。 */}
         {((queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0)) > 0 && (
-          <div className="anim-popover-down pw-rowgap" style={{ marginBottom: 8 }}>
+          <div className="anim-popover-down pw-rowgap" style={{ marginBottom: "var(--s2)" }}>
             <div className="pw-inline">
               <span className="pw-badge count">
                 {t("chat.queued", { count: (queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0) })}
@@ -3140,16 +3140,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         {/* fork:design-components —— 三条瞬时提示 = 画板 50 的 .pw-alert 四态：
             重试 warn / 压缩成功 ok / 压缩失败 error（基态）。底色与文字色都由 board.css 给。 */}
         {retryInfo && (
-          <div className="pw-alert warn" style={{ marginBottom: 8 }}>
+          <div className="pw-alert warn" style={{ marginBottom: "var(--s2)" }}>
             <span className="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span>
             <span className="grow">
               {t("chat.retrying", { attempt: retryInfo.attempt, max: retryInfo.maxAttempts })}
-              {retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: 4 }}>— {retryInfo.errorMessage}</span>}
+              {retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: "var(--s1)" }}>— {retryInfo.errorMessage}</span>}
             </span>
           </div>
         )}
         {compactResultText && (
-          <div className="pw-alert ok" style={{ marginBottom: 8 }}>
+          <div className="pw-alert ok" style={{ marginBottom: "var(--s2)" }}>
             <span className="pw-ico"><i data-ico="circle-check" data-size="14"></i></span>
             <span className="grow">{compactResultText}</span>
           </div>
@@ -3159,7 +3159,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             role="alert"
             className="pw-alert"
             style={{
-              marginBottom: 8,
+              marginBottom: "var(--s2)",
               // 错误正文原样换行不断词（服务端可能回 HTML 片段），这两条不能交给组件类。
               whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
@@ -3364,7 +3364,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   </div>
                 ) : (
                   groupedSlashCommands.map((group) => (
-                    <section key={group.source} style={{ marginBottom: 12 }}>
+                    <section key={group.source} style={{ marginBottom: "var(--s3)" }}>
                       {/* fork:design-system SW-02 —— 分组标题 = pw-pop-title（sticky 钉顶）。 */}
                       <div
                         className="pw-pop-title"
@@ -3375,7 +3375,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          gap: 8,
+                          gap: "var(--s2)",
                           margin: "0 -4px",
                           padding: "4px 4px 6px",
                           background: "var(--surface-popover)",
@@ -3388,7 +3388,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                          gap: 8,
+                          gap: "var(--s2)",
                         }}
                       >
                         {group.items.map(({ command, index }) => {
@@ -3489,7 +3489,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 }}
               >
                 {/* fork:design-system SW-02 —— 头行 = 画板 21 的 pw-pop-title（标题 + grow + kbd）。 */}
-                <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {indexLoading
                        ? t("chat.loadingFiles")
@@ -3638,7 +3638,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               minWidth: 0,
               display: "flex",
               flexDirection: compact ? "column" : "row",
-              gap: 8,
+              gap: "var(--s2)",
               alignItems: compact ? "stretch" : "flex-start",
             }}
           >
@@ -3742,7 +3742,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
         {/* Bash mode status label */}
         {bashMode && (
-          <div className="text-xs px-2 py-1" style={{ color: bashExcluded ? "var(--text-muted)" : "var(--accent)", marginTop: 4 }}>
+          <div className="text-xs px-2 py-1" style={{ color: bashExcluded ? "var(--text-muted)" : "var(--accent)", marginTop: "var(--s1)" }}>
              {t("chat.shell")} · {bashExcluded ? t("chat.outputLocal") : t("chat.outputModel")}
           </div>
         )}
@@ -3827,6 +3827,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       zIndex: 100, minWidth: 180,
                     }}
                   >
+                    {/* fork:design-components —— 画板 21 的弹层有**标题行**：
+                        `<div class="pw-pop-title">思考强度</div>`（board.css:622 一行纯文本，
+                        meta 字号 / placeholder 色 / padding s2 s2 s1）。样式全部来自 board.css，
+                        这里不加内联。 */}
+                    <div className="pw-pop-title">{t("chat.thinkingTitle")}</div>
                     {THINKING_LEVELS.filter((lvl) => {
                       if (!availableThinkingLevels) return true;
                       if (lvl === "auto") return true;
@@ -3920,6 +3925,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       minWidth: 120,
                     }}
                   >
+                    {/* fork:design-components —— 同思考档：标题行照画板 21。 */}
+                    <div className="pw-pop-title">{t("tools.label")}</div>
                     {TOOL_PRESETS.map((lvl) => {
                       const preset = TOOL_PRESET_MAP[lvl];
                       const isActive = (toolPreset ?? "configured") === preset;

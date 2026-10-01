@@ -120,7 +120,7 @@ export function ComposerReferenceMenu({
           : `min(48vh, 400px, ${maxHeight}px)`,
       }}
     >
-      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
           {loading ? t("chat.referenceLoading") : t(titleKey, { label: countLabel })}
         </span>

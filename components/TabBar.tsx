@@ -409,7 +409,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             width: 240,
             maxHeight: "min(60vh, 420px)",
             overflowY: "auto",
-            padding: 4,
+            padding: "var(--s1)",
             background: "var(--bg-elev)",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg)",
@@ -427,7 +427,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
                 }}
                 title={tab.filePath}
                 style={{
-                  display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, height: 30,
+                  display: "flex", alignItems: "center", gap: "var(--s2)", flex: 1, minWidth: 0, height: 30,
                   padding: "0 8px", background: "none", border: "none",
                   borderRadius: "var(--radius-md)", color: "var(--text)",
                   cursor: "pointer", fontSize: TEXT.sm, textAlign: "left",

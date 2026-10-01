@@ -376,7 +376,7 @@ function GroupHeader({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="pw-group-title"
-      style={{ borderRadius: "var(--radius-md)", padding: "2px var(--s2)", gap: 4 }}
+      style={{ borderRadius: "var(--radius-md)", padding: "2px var(--s2)", gap: "var(--s1)" }}
     >
       <button
         type="button"

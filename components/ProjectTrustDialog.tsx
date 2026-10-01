@@ -41,7 +41,7 @@ export function ProjectTrustDialog({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: "var(--s4)",
         background: "var(--scrim)",
       }}
       onClick={(event) => {

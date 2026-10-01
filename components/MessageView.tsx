@@ -454,7 +454,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
           {commandText ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
               {imageBlocksNode}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--s2)", flexWrap: "wrap" }}>
                 <button
                   onClick={() => setExpanded((prev) => !prev)}
                   title={expanded ? t("i18n.collapse") : t("i18n.expand")}
@@ -755,7 +755,7 @@ function AssistantMessageView({
           className="pw-muted"
           style={{
             fontSize: TEXT.xs,
-            marginBottom: 4,
+            marginBottom: "var(--s1)",
             display: "flex",
             alignItems: "center",
             gap: 6,
@@ -769,7 +769,7 @@ function AssistantMessageView({
             return (
               <>
                 {est > 0 && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }} title={t("i18n.estimatedTokens")}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "var(--s1)" }} title={t("i18n.estimatedTokens")}>
                     <span className="pw-mono" style={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <span className="pw-ico"><i data-ico="arrow-down" data-size="10"></i></span>
                       {est}
@@ -791,7 +791,7 @@ function AssistantMessageView({
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
         {blockItems.map(({ block, originalIndex }) => (
           <BlockView key={`${entryId ?? "stream"}-${originalIndex}`} block={block} searchTarget={block === searchBlock} toolResults={toolResults} isStreaming={isStreaming} streamingDuration={streamingDurations.get(originalIndex) ?? (block.type === "thinking" ? thinkingDurationFromFile : undefined)} toolCallDurations={toolCallDurations} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} sessionId={sessionId} entryId={entryId} blockIndex={originalIndex} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />
         ))}
@@ -1613,7 +1613,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
   const time = formatTime(message.timestamp);
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: "var(--s4)" }}>
       {/* fork:design-components —— 压缩卡直接用画板 12 的 .pw-compact（发丝边框 / 面板底）。 */}
       <div className="pw-compact" style={{ flexDirection: "column", alignItems: "stretch", padding: 0, overflow: "hidden" }}>
         {/* fork:design-components —— 卡头用画板 11 的 `.pw-card-head`（flex / gap / 字号 /
@@ -1745,7 +1745,7 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
        `.pw-card-body`（正文与图片）+ `.pw-card-foot`（复制 / 展开）。
        隐藏消息的「点标题看内容」预览行 = 画板 12 C 压缩卡的「看摘要」按钮形态
        （`.pw-btn sm` + `chevron-down`）。details JSON 走 `.pw-card-body` + `.pw-term`。 */
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: "var(--s4)" }}>
       <div className="pw-card">
         <div className="pw-card-head">
           <span className="pw-mono">{title}</span>

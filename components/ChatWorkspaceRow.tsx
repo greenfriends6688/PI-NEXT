@@ -62,7 +62,7 @@ export function ChatWorkspaceRow({
       </button>
 
       {activity && (activity.running > 0 || activity.unread > 0) && (
-        <span className="pw-inline" style={{ gap: 4, flexShrink: 0 }}>
+        <span className="pw-inline" style={{ gap: "var(--s1)", flexShrink: 0 }}>
           {activity.running > 0 && (
             <span className="pw-badge accent count" title={t("sidebar.agentRunning")}>
               <span className="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>

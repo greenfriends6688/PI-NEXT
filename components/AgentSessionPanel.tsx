@@ -162,7 +162,7 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
       className="pw-pop agent-session-panel"
       style={{ width: "auto", minWidth: 320, maxWidth: "100%" }}
     >
-      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
         <span>{t("agentSwitcher.title")}</span>
         <span className="pw-badge count">{t("agentSwitcher.count", { count: subagents.length })}</span>
         <span className="grow" />

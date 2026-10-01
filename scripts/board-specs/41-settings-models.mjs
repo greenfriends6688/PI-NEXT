@@ -49,5 +49,19 @@ export default {
       reason:
         "同上（单张统计卡）",
     },
+    {
+      sel: ".pw-litem",
+      reason:
+        "**数据依赖**：种子环境（verify-boards-live 的临时 agent 目录）里 0 个供应商，"
+        + "左列列表一行都没有；对着本机真服务跑时会列出来并逐项对位。",
+    },
+    {
+      sel: ".pw-lname",
+      reason: "同上（供应商行的名字列，随 .pw-litem 一起才有）",
+    },
+    {
+      sel: ".pw-lsub",
+      reason: "同上（供应商行的副标题列）",
+    },
   ],
 };

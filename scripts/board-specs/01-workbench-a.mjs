@@ -71,5 +71,11 @@ export default {
       reason: "右内边距 28 = 让位给右栏边界的面板开关（.desktop-secondary-workspace-toggle，"
         + "绝对定位在顶栏右端，画板里这枚钮是顶栏内最后一个子元素）—— 视觉终点同一个位置。",
     },
+    {
+      sel: ".pw-select",
+      reason: "**接线**：产品每个下拉芯片外面套一层 `position: relative` 锚点 div（浮窗要相对它定位），"
+        + "于是芯片不再是 flex 的直接子元素、display 停在 inline-flex（与画板同值，blockification "
+        + "链不同）；盒子 24 高、padding 0/7、gap 4、圆角逐项一致。",
+    },
   ],
 };

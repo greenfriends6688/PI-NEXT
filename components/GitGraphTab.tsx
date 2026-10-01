@@ -166,7 +166,7 @@ function CommitFileRow({ file, cwd, onOpenFile }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={file.filePath}
-      style={{ width: "100%", display: "flex", alignItems: "center", gap: 4, padding: "0 5px", height: 24, border: "none", borderRadius: "var(--radius-sm)", background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
+      style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--s1)", padding: "0 5px", height: 24, border: "none", borderRadius: "var(--radius-sm)", background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
     >
       <span style={{ width: 14, flexShrink: 0, color, fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 600, textAlign: "center" }}>{file.code}</span>
       <span style={{ minWidth: 0, overflow: "hidden", display: "flex", alignItems: "baseline", flex: 1, whiteSpace: "nowrap" }}>
@@ -562,7 +562,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
             <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.md, fontWeight: 500, color: "var(--text)", wordBreak: "break-word" }}>
               {selectedCommit.subject}
               {selectedCommit.refs.length > 0 && selectedNode && (
-                <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4, marginLeft: 6, verticalAlign: "middle" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "var(--s1)", marginLeft: 6, verticalAlign: "middle" }}>
                   <RefTagList tags={parseGitRefTags(selectedCommit.refs)} laneColor={laneVar(selectedNode.colorIndex)} />
                 </span>
               )}

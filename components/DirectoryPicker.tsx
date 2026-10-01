@@ -438,7 +438,7 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
                             <span className="grow"><span className="pw-lname">{entry.name}</span></span>
                           </button>
                           {isHovered && !pickerBusy && (
-                            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                            <div style={{ display: "flex", gap: "var(--s1)", flexShrink: 0 }}>
                               <button
                                 className="directory-picker-rename pw-iconbtn sm"
                                 type="button"

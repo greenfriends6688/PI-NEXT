@@ -76,7 +76,7 @@ const gridFieldStyle: CSSProperties = {
   border: 0,
   minHeight: 0,
   display: "grid",
-  gap: 4,
+  gap: "var(--s1)",
 };
 
 function editableProfile(profile: SubagentProfile): EditableProfile {

@@ -30,6 +30,19 @@ const BOARD_DIR = join(ROOT, "design/pi-web-design");
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:30141";
 
 // 产品侧「打开某个面」的动作库。每个 preset 是一段在页面里跑的脚本。
+const OPEN_SESSION = `
+  const byIco = (root, name) => [...root.querySelectorAll('[data-ico="' + name + '"]')][0];
+  // 项目组默认是收起的（没有选中会话时），先点开箭头再点会话行。
+  if (!document.querySelector(".pw-session")) {
+    const chev = byIco(document.querySelector(".pw-side-scroll") ?? document, "chevron-right");
+    const toggle = chev?.closest("[role=button]");
+    if (toggle) { toggle.click(); await new Promise((r) => setTimeout(r, 700)); }
+  }
+  const row = document.querySelector(".pw-session");
+  if (!row) throw new Error("侧栏里没有 .pw-session（种子没被列出来？）");
+  row.click();
+  await new Promise((r) => setTimeout(r, 2200));`;
+
 const PRESETS = {
   "none": "",
   "home": `
@@ -41,6 +54,35 @@ const PRESETS = {
   "settings:general": `
     const s = [...document.querySelectorAll("button")].find((x) => x.textContent?.trim() === "设置");
     if (s) s.click();`,
+
+  // fork:board-specs（2026-09-30）—— 转录 / 输入框 / 侧栏要对位，就得让产品
+  // 「开着一条有消息的会话」。数据来自 scripts/verify-boards-live.mjs 种的临时
+  // agent 目录（PI_CODING_AGENT_DIR）；对着真实服务跑时就是本机最近的一条会话。
+  // 找不到目标一律 throw（不静默跳过）—— N-3 记录的假阴性就是这么来的。
+  "session:first": OPEN_SESSION,
+  // 回合结束后过程时间轴是**折起**的（画板 08 的折叠规则），`11-transcript-process`
+  // 要量 `.pw-step` 那一排就得先把它展开。
+  "session:first-expanded": `${OPEN_SESSION}
+    const head = document.querySelector(".pw-proc-head");
+    if (head && head.getAttribute("aria-expanded") === "false") {
+      head.click();
+      await new Promise((r) => setTimeout(r, 900));
+    }`,
+  // 点**思考档**那枚芯片，不点「第一个 .pw-select」——那是模型选择器，
+  // 它是自绘浮层（.anim-popover，不挂 .pw-pop），点它量不到画板 21 的弹层原子。
+  // 思考档的下拉才是画板 21 的那族：.pw-pop / .pw-pop-title / .pw-prow。
+  "composer:model-menu": `
+    const chips = [...document.querySelectorAll(".pw-select")];
+    const chip = chips.find((x) => /推理|Reasoning/.test(x.getAttribute("aria-label") ?? ""))
+      ?? chips.find((x) => /工具|Tools/.test(x.getAttribute("aria-label") ?? ""));
+    if (!chip) throw new Error("输入框工具条里没有思考档/工具档芯片");
+    chip.click();
+    await new Promise((r) => setTimeout(r, 900));`,
+  "sidebar:collapsed": `
+    const b = document.querySelector('.pw-side-head button[aria-controls="session-sidebar"]');
+    if (!b) throw new Error("侧栏头部找不到折叠按钮");
+    b.click();
+    await new Promise((r) => setTimeout(r, 700));`,
 };
 
 /**
@@ -118,7 +160,11 @@ async function probe(page, selectors, frameIndex) {
           fontWeight: cs.fontWeight,
           padding: cs.padding,
           gap: cs.gap,
-          display: cs.display,
+          display: (() => {
+            const pd = parent ? getComputedStyle(parent).display : "";
+            return /flex|grid/.test(pd) && cs.display.startsWith("inline-") ? cs.display.slice(7) : cs.display;
+          })(),
+          tag: el.tagName.toLowerCase(),
           alignItems: cs.alignItems,
           color: cs.color,
           background: cs.backgroundColor,
@@ -138,10 +184,24 @@ const EXACT = ["radius", "fontSize", "fontWeight", "padding", "gap", "display", 
 const NUMERIC = ["w", "h"];
 const IGNORE = ["color", "background", "borderColor"]; // 主题色受皮肤/壁纸影响，单独由 check-contrast 管
 
+/** 裸 <button> 的 UA 默认值：画板原子带着它们，产品归零，不算漂移（见 compare）。 */
+const UA_BUTTON = { padding: "1px 6px", fontSize: "13.3333px", lineHeight: "normal" };
+
+/**
+ * 父容器是 flex/grid 时，`inline-X` 的子元素实际按 `X` 排版（CSS blockification）。
+ * fork:board-diff-blockify —— 画板样张与产品组件常在两种父容器里，拿原值比等于在比父容器。
+ * 注意：probe 的取样式在**页面上下文**里跑，那份实现写在 evaluate 内部（这里保留同一份供阅读）。
+ */
 function compare(boardVal, appVal, tol) {
   const diffs = [];
   for (const k of EXACT) {
-    if (boardVal[k] !== appVal[k]) diffs.push(`${k}: 画板 ${boardVal[k]} ≠ 产品 ${appVal[k]}`);
+    if (boardVal[k] === appVal[k]) continue;
+    // fork:board-diff-ua-button —— 画板的原子是**裸 <button>**，产品按 §4.1 把 UA 盒归零
+    // （padding 1px 6px / 字号 13.33 / line-height normal）。这是 UA 层不是设计差异，
+    // 且每一份比到 .pw-iconbtn 的 spec 都会撞到，所以在工具里放行：
+    // **只在画板侧确实就是 button 的 UA 默认值时**跳过这三项。
+    if (boardVal.tag === "button" && UA_BUTTON[k] === boardVal[k]) continue;
+    diffs.push(`${k}: 画板 ${boardVal[k]} ≠ 产品 ${appVal[k]}`);
   }
   // 只有「两边都不是撑满父容器的块」且「文本相同」时才比宽度——
   // 撑满的差的是取景框内边距，文本不同的差的是内容长度
@@ -170,6 +230,16 @@ const allBoard = [...new Set(pairs.map((p) => p[0]))];
 const allApp = [...new Set(pairs.map((p) => p[1]))];
 
 const browser = await launchChrome();
+
+// 连跑十几份 spec 时偶发 "waiting until load" 超时（Chrome 在忙，30s 默认值不够），
+// 一次重试就够 —— 不带重试的版本会让整轮汇总里冒出一份「（无结果）」。
+const goto = async (page, url) => {
+  try {
+    await page.goto(url, { waitUntil: "load", timeout: 60000 });
+  } catch {
+    await page.goto(url, { waitUntil: "load", timeout: 60000 });
+  }
+};
 const results = [];
 let fails = 0;
 let skipped = 0;
@@ -177,7 +247,7 @@ let skipped = 0;
 try {
   // 画板页
   const bp = await browser.newPage({ viewport: spec.viewport ?? { width: 1440, height: 900 } });
-  await bp.goto(pathToFileURL(join(BOARD_DIR, spec.board)).href, { waitUntil: "load" });
+  await goto(bp, pathToFileURL(join(BOARD_DIR, spec.board)).href);
   // 画板页有自己的「取景外壳」：body 的 24px 外边距、.pw-frame 的 1px 边框与 1440 上限、
   // .pw-frame-body 的 pw-pad 内边距。它们不是被设计的组件的一部分，却会让每一层容器
   // 比产品窄 50px，逐项对数时整片飘红。剥掉外壳，让两边内容宽一致，剩下的差异才是真的。
@@ -202,7 +272,7 @@ try {
   const ap = await browser.newPage({ viewport: spec.viewport ?? { width: 1440, height: 900 } });
   const consoleErrors = [];
   ap.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text().slice(0, 200)); });
-  await ap.goto(APP_URL, { waitUntil: "load" });
+  await goto(ap, APP_URL);
   await ap.waitForTimeout(6500);
   const script = presetScript(spec.app);
   if (script) {

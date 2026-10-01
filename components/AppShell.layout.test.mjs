@@ -39,17 +39,19 @@ test("resizing updates live without layout-transition lag", () => {
 });
 
 test("the main workspace header reserves the independent sidebar control lane", () => {
-  // Mobile keeps the in-flow toolbar size; desktop opens the 92px collapsed
-  // rail lane (3×28 + gaps) when the sidebar is closed.
+  // Mobile keeps the in-flow toolbar size; on desktop the collapsed rail is now a
+  // **column that occupies width** (board 02 frame C), so the header no longer has
+  // to dodge a floating strip — both states use the board's own --s2.
   // fork:design-system PR-27 — 顶栏图标按钮改成 CSS 变量（桌面 28 / 粗指针 36），
   // 所以这里断言的是变量名而不是拼出来的 px 值。
-  // fork:design-system 2026-09-30 —— 展开态原来把左内边距归零（“没有浮层就贴边”），
-  // 但那会把画板 `.pw-topbar { padding: 0 var(--s2) }` 的 8px 一起吃掉，
-  // 标题里的 panel-left 图标贴到主区左缘（画板实测在 16px 处）。现在展开态回落到 --s2。
+  // fork:design-components 2026-09-30 —— 折叠态导轨从「绝对定位在顶栏左端的浮块」
+  // 改成画板 02 的全高竖列（logo 顶 / 设置贴底），92px 的让位宽度随之去掉；
+  // 展开态回落到 --s2 这条不变（归零会把画板 `.pw-topbar { padding: 0 var(--s2) }` 吃掉）。
   assert.match(
     source,
-    /"--main-workspace-header-leading-inset": isMobile\s*\?\s*TOP_BAR_ICON_BUTTON_SIZE\s*:\s*sidebarOpen \? "var\(--s2, 8px\)" : "92px"/,
+    /"--main-workspace-header-leading-inset": isMobile\s*\?\s*TOP_BAR_ICON_BUTTON_SIZE\s*:\s*"var\(--s2, 8px\)"/,
   );
+  assert.doesNotMatch(source, /--main-workspace-header-leading-inset"?:[\s\S]{0,80}?"92px"/);
   assert.match(source, /"--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,/);
   // fork:design-components —— 两处头行现在同时挂画板类（主区 .pw-topbar / 右栏 .pw-panel-head），
   // 断言的是「恰好两处」这条结构约束，与挂哪个画板类无关。

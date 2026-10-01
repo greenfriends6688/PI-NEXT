@@ -286,9 +286,9 @@ function CreateEntryInput({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 4,
+        gap: "var(--s1)",
         paddingLeft: 8 + depth * 14,
-        paddingRight: 8,
+        paddingRight: "var(--s2)",
         height: 24,
         borderRadius: "var(--radius-sm)",
         userSelect: "none",
@@ -494,7 +494,7 @@ function TreeNode({
           // fork:design-components —— 行高 / 圆角 / hover 叠色全部交给画板 .pw-trow，
           // 这里只留树特有的缩进与避让（inline 会压过类，重复属性必须删干净）。
           paddingLeft: 8 + depth * 14,
-          paddingRight: 8,
+          paddingRight: "var(--s2)",
           cursor: "pointer",
           userSelect: "none",
         }}
@@ -605,7 +605,7 @@ function TreeNode({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 4,
+              gap: "var(--s1)",
               padding: "0 8px",
               height: 20,
               background: "var(--bg-panel)",
@@ -636,7 +636,7 @@ function TreeNode({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 4,
+              gap: "var(--s1)",
               padding: "0 5px",
               height: 20,
               background: "var(--bg-panel)",
@@ -753,7 +753,7 @@ function RootSection({
       {/* fork:design-components —— 分区头 = 画板 30 树里那条 `.pw-inline`
           （行 131-136 的骨架：徽章 + 弱化文字 + grow），只把「7 个改动」换成
           「作用域 + 根目录名」。 */}
-      <div className="pw-inline" style={{ padding: "0 4px var(--s1)", gap: 4 }}>
+      <div className="pw-inline" style={{ padding: "0 4px var(--s1)", gap: "var(--s1)" }}>
         <span className="pw-badge">
           {t(root.scope === "project" ? "files.scopeProject" : "files.scopeSession")}
         </span>
@@ -841,7 +841,7 @@ function ChangeRow({
         alignItems: "center",
         gap: 6,
         paddingLeft: 10,
-        paddingRight: 8,
+        paddingRight: "var(--s2)",
         height: 24,
         cursor: "pointer",
         background: hovered ? "var(--bg-hover)" : "transparent",
@@ -898,7 +898,7 @@ function ChangeRow({
             display: "flex",
             alignItems: "center",
             gap: 5,
-            marginLeft: 4,
+            marginLeft: "var(--s1)",
             fontFamily: "var(--font-mono)",
             fontSize: TEXT["2xs"],
             lineHeight: 1,
@@ -931,7 +931,7 @@ function ChangeRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
+            gap: "var(--s1)",
             padding: "0 8px",
             height: 20,
             background: "var(--bg-panel)",
@@ -1649,7 +1649,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
         {uploadBusy && (
           <div role="status" aria-live="polite" aria-label={uploadPhase === "checking" ? t("files.checking") : t("files.uploading", { progress: uploadProgress })}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 14, color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)", minHeight: 14, color: "var(--text-muted)" }}>
               {uploadPhase === "checking" ? (
                 <span className="pw-ico">
                   <i data-ico="loader-circle" data-size="13" className="animate-spin" aria-hidden="true"></i>
@@ -1662,7 +1662,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               {uploadPhase === "uploading" && <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>{uploadProgress}%</span>}
             </div>
             {uploadPhase === "uploading" && (
-              <div style={{ height: 3, marginTop: 4, overflow: "hidden", borderRadius: "var(--radius-xs)", background: "var(--border)" }}>
+              <div style={{ height: 3, marginTop: "var(--s1)", overflow: "hidden", borderRadius: "var(--radius-xs)", background: "var(--border)" }}>
                 <div style={{ width: "100%", height: "100%", background: "var(--text-muted)", transform: `scaleX(${Math.max(0, Math.min(100, uploadProgress)) / 100})`, transformOrigin: "left", transition: "transform 120ms ease" }} />
               </div>
             )}
@@ -1702,8 +1702,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
 
         {uploadSummary && (
           <div aria-live="polite">
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 22, fontSize: TEXT.xs }}>
-              <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minHeight: 22, fontSize: TEXT.xs }}>
+              <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: "var(--s2)" }}>
                 {uploadSummary.uploaded.length > 0 && (
                   <span className="pw-inline" style={{ gap: 3, color: "var(--success)" }} title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`}>
                     <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true"></i></span>
@@ -1729,7 +1729,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   onClick={addUploadedFilesToChat}
                   title={uploadSummary.uploaded.length === 1 ? t("files.addUploadedFile") : t("files.addAllUploadedFiles")}
                   aria-label={uploadSummary.uploaded.length === 1 ? t("files.addUploadedFile") : t("files.addAllUploadedFiles")}
-                  style={{ height: 22, padding: "0 7px", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
+                  style={{ height: 22, padding: "0 7px", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--s1)", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
                 >
                   <MentionIcon />
                   {t("files.mention")}
@@ -1738,7 +1738,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               <DismissButton onClick={() => setUploadSummary(null)} title={t("files.dismissUploadResults")} />
             </div>
             {uploadSummary.errors.map((item) => (
-              <div key={item.name} title={item.error} className="pw-inline" style={{ gap: 4, marginTop: 3, minWidth: 0, fontSize: "var(--text-meta)", color: "var(--danger)" }}>
+              <div key={item.name} title={item.error} className="pw-inline" style={{ gap: "var(--s1)", marginTop: 3, minWidth: 0, fontSize: "var(--text-meta)", color: "var(--danger)" }}>
                 <span className="pw-ico"><i data-ico="circle-alert" data-size="11" aria-hidden="true"></i></span>
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
               </div>
@@ -1851,7 +1851,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               additions: gitLineStats.additions,
               deletions: gitLineStats.deletions,
             })}
-            style={{ padding: "0 4px var(--s1)", gap: 4 }}
+            style={{ padding: "0 4px var(--s1)", gap: "var(--s1)" }}
           >
             <span className="pw-badge count">
               <span className="pw-ico">

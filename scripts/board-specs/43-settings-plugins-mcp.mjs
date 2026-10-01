@@ -14,4 +14,12 @@ export default {
     ".pw-badge",
     ".pw-alert",
   ],
+  knownDiffs: [
+    {
+      sel: ".pw-kv",
+      reason:
+        "**数据依赖**：种子环境（临时 agent 目录）里没装任何插件，详情欄的属性表没有行；"
+        + "本机装了插件时会列出来并逐项对位。",
+    },
+  ],
 };

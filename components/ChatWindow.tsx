@@ -2592,7 +2592,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               aria-busy={quoteSubmitting}
               style={{ width: "100%", minWidth: 0, margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 10 }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
                 <span className="pw-strong" style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm }}>{t("chat.askInNewChat")}</span>
                 <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={quoteSubmitting} onClick={closeQuotedSelection}>
                   <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
@@ -2683,7 +2683,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           </div>
         )}
         {isEmptyNew && (
-          <div className="mx-auto w-full" style={{ maxWidth: "var(--composer-max-width, 892px)", paddingLeft: 16, paddingRight: 16 }}>
+          <div className="mx-auto w-full" style={{ maxWidth: "var(--composer-max-width, 892px)", paddingLeft: "var(--s4)", paddingRight: "var(--s4)" }}>
             <NewSessionUpdateLink label={(version) => t("appUpdate.releaseNotes", { version })} />
           </div>
         )}
@@ -3055,7 +3055,7 @@ function ExtensionDialog({
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="pw-strong" style={{ fontSize: TEXT.lg, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{titleHead}</div>
-            <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 3, fontSize: "var(--text-meta)" }}>
+            <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", marginTop: 3, fontSize: "var(--text-meta)" }}>
               <span>{t("chat.extensionRequest")}</span>
             </div>
           </div>
@@ -3084,7 +3084,7 @@ function ExtensionDialog({
           }}
         >
           {titleRest && (
-            <div style={{ marginBottom: 12, color: "var(--text-muted)", fontSize: TEXT.md, lineHeight: 1.55 }}>
+            <div style={{ marginBottom: "var(--s3)", color: "var(--text-muted)", fontSize: TEXT.md, lineHeight: 1.55 }}>
               {renderDialogTitle(titleRest)}
             </div>
           )}
@@ -3105,7 +3105,7 @@ function ExtensionDialog({
                 buttons[next].focus({ preventScroll: true });
                 buttons[next].scrollIntoView({ block: "nearest" });
               }}
-              style={{ display: "grid", gap: 8 }}
+              style={{ display: "grid", gap: "var(--s2)" }}
             >
               {request.options.map((option, index) => (
                 <div

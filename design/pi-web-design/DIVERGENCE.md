@@ -1490,3 +1490,46 @@ board.css   .pw-shead 规则条数 = 5     ← 落地时才新造的类
 token 能保证「值是对的」，保证不了「元素在对的位置」——后者只有三条路：
 同一份 DOM（照画板抄）、不许写字面量（只能取 token 或类）、逐画板对数（board-diff）。
 三条缺一条，漂移就会回来。
+
+---
+
+## P · 2026-09-30 深夜：把对位从 8 张扩到 13 张，并修掉它抓出来的三处（第 167–172 条）
+
+N-3 补上了「能跑」，O 补上了「有闸」；这一轮补的是**覆盖面**与**第一轮真修**。
+
+167. **种子对位器 `scripts/verify-boards-live.mjs`（+ `npm run verify:boards:seeded`）**：
+     转录 / 输入框 / 侧栏这几张画板要「开着一条有消息的会话」才量得到，而 CI 没有本机会话。
+     现在它自己建一份临时 agent 目录（走 SDK 的 `PI_CODING_AGENT_DIR`，不碰用户数据：两条会话、
+     用户消息 + 思考 + 工具调用 + **工具后的最终回答** + 任务清单/表格/引用/代码），
+     起一个 `next start`，跑 `board-diff-all`，收摊。`--keep` 留着服务和种子手工探 DOM。
+     **注意**：缺了「工具后的最终回答」那一轮，整段正文会被折进过程块 —— 富文本类全都量不到（踩过）。
+     CI 的 live 门禁改用它（`npm run verify:boards:seeded`），本机对着真服务仍可用 `npm run verify:boards`。
+168. **五份新 spec**：`02-sidebar-rail`（折叠导轨）、`10-transcript-text` / `10-transcript-md`（气泡 / 助手富文本）、
+     `11-transcript-process`（过程时间轴）、`20-composer`（输入框）、`21-menus`（输入框下拉）。
+     覆盖 8/30 → **13/30**。新增三个驱动预设：`session:first`、`session:first-expanded`（回合结束后过程是折起的）、
+     `composer:model-menu`（**按语义点思考档芯片**，不点第一个 `.pw-select` —— 那是模型选择器，
+     自绘浮层不挂 `.pw-pop`，点它量不到画板 21 的弹层原子）。
+169. **折叠导轨照画板 02 帧 C 重抄**：原先是绝对定位在顶栏左端的 3 按钮浮块（没有 logo 与设置、
+     不占列宽，顶栏靠 92px 的 leading inset 让位）。现在是画板的全高竖列：`.pw-logo` 在顶、
+     展开 / 搜索 / 新建会话（无选中会话时 `is-on`）/ grow / 设置贴底；顶栏 92px 的让位随之删除。
+     macOS 红绿灯压在这一列顶端 → 让位写进 `app/fork-ui.css` 的平台钩子
+     （`[data-desktop-platform="darwin"] .pw-rail { padding-top: 40px }`），不写内联。
+     `.pw-rail .pw-logo` 的 24×24 胶囊按判据⑦ 第 3 条从画板样张的内联值固化成规则（画板 PNG 不变：
+     样张自己的内联仍在，只有产品走规则）。
+170. **两处真是漂移、已修**：① 思考档与工具档的下拉**没有标题行** —— 画板 21 的每个弹层都以
+     `.pw-pop-title` 开头（`21-menus` 的 spec 直接把「产品里没有这个选择器」报了出来）；
+     补上后六个弹层头形态一致（新增 i18n 键 `chat.thinkingTitle`，工具档复用 `tools.label`）。
+     ② `21-menus` 的 spec 在真机上打不开：预设点错了芯片（见 168）。
+171. **`board-diff` 两处工具级归一**（每份 spec 都要撞的噪声，不该抄进 16 份 spec）：
+     ① **blockification**：`display: inline-flex` 在 flex/grid 子元素上会算成 `flex` —— 同一个
+     CSS 值、父容器不同就不同算，两边都先块化再比；② **UA button 层**：画板原子是裸 `<button>`
+     （padding 1px 6px / 字号 13.33 / line-height normal），产品按 §4.1 归零 —— 只在画板侧
+     确实就是 UA 默认值时跳过这三项。另补一次 `goto` 重试（连跑十几份 spec 时 `wait until load` 会偶发超时）。
+172. **间距字面量等值换 token（84 处 / 20 个文件）**：`margin/padding/gap: 4|8|12|16|24|32`
+     → `var(--s1|s2|s3|s4|s5|s6)`，像素完全不变、只是不再写死数字；内联几何基线 307 → **240**。
+     独立 HTML 文档与根级错误页（`app/error.tsx` / `app/global-error.tsx`）**不动**：
+     它们渲染时 globals.css 可能没加载，`var()` 解空会把声明整条丢掉。
+
+**已知数据依赖（登记在各自 spec 的 `knownDiffs`，不是漂移）**：`.pw-tasklist`（正文里没有 `- [ ]` 就没有）、
+`.pw-ring`（新会话没有上下文占用）、`.pw-litem/.pw-lname/.pw-lsub`（种子环境 0 个供应商）、
+`.pw-kv`（没装插件）、`.pw-step.reasoning`（会话里没有思考块）—— 这五处对着带数据的会话跑时会照常对位。

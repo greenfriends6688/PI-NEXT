@@ -405,6 +405,15 @@ html.keyboard-open .extension-status-shelf {
   -webkit-app-region: no-drag;
 }
 
+/* fork:design-components —— 画板 02 的折叠导轨是全高竖列（占列宽，不再是浮块），
+ * 顶端放应用标记；macOS 的红绿灯（electron/main.js: trafficLightPosition {x:14,y:16}，
+ * 约 54×14）正压在那里 —— 整条让到它们下面。与 `.pw-side-head` 的 64px 内缩同一件事，
+ * 属平台钩子（UA / 平台归位），所以写在这里而不是组件的内联样式里。 */
+[data-desktop-platform="darwin"] .pw-rail {
+  /* ponytail: 40 = 红绿灯底缘 30 + 画板 --s2 的呼吸；红绿灯换位置只改这一个值 */
+  padding-top: 40px;
+}
+
 /* Secondary handle: the sidebar's brand row. It has a wide empty stretch between the
  * brand and the search button, and it sits under the traffic lights anyway — moving the
  * window from there is what people expect in a sidebar app. Its own controls opt out. */

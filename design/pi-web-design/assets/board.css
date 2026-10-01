@@ -128,7 +128,14 @@ body.pw.dark { background: #0f0f13; }
 
 /* 折叠导轨 */
 .pw-rail { display: flex; flex-direction: column; align-items: center; gap: var(--s2); padding: var(--s2) 0; background: var(--surface-panel); border-right: 1px solid var(--n-border-subtle); }
-.pw-rail .pw-logo { margin-bottom: var(--s1); }
+/* 折叠导轨顶端的应用标记：画板 02 帧 C 的样张用内联样式画的就是这五个值，
+   这里固化成规则（判据⑦ 第 3 条：派生件只固化画板已画出的几何）——
+   产品的导轨里只挂 .pw-logo 一个类，不再套 .pw-brand（那是侧栏品牌行）。 */
+.pw-rail .pw-logo {
+  width: 24px; height: 24px; margin-bottom: var(--s1);
+  border-radius: var(--radius-4); background: var(--surface-canvas);
+  border: 1px solid var(--n-border-subtle); display: grid; place-items: center;
+}
 
 /* ---- 行 ---------------------------------------------------------------- */
 .pw-row {

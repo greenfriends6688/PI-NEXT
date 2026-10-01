@@ -2112,7 +2112,7 @@ export function AppShell() {
               padding: "0 6px",
               display: "inline-flex",
               alignItems: "center",
-              gap: 4,
+              gap: "var(--s1)",
               background: activeTopPanel === "agents" ? "var(--bg-selected)" : undefined,
               color: activeTopPanel === "agents" ? "var(--text)" : undefined,
             }}
@@ -2255,22 +2255,26 @@ export function AppShell() {
   );
 
 
-  /* fork:zn-21 — 折叠态的紧凑图标条。
-     折叠按钮本身搬进了导轨品牌行（见 `SessionSidebar`），所以这里不再有「边界按钮」
-     —— 但导轨归零后用户仍然需要三条最常用的动作，于是折叠态留一条 3 图标的条：
-     展开 / 搜索 / 新建会话。位置仍是主区顶栏左端，`--main-workspace-header-leading-inset`
-     会让出它的宽度，顶栏第一个动作不会被压住。条本身用画板 01 的 `.pw-rail`
-     （竖排 + 居中 + 面板底 + 发丝右线），三个动作是画板的 `.pw-iconbtn`。 */
+  /* fork:zn-21 / fork:design-components —— 折叠导轨照画板 02 帧 C 重抄（2026-09-30）。
+     画板那一条是**全高竖列**：logo 在顶，展开 / 搜索 / 新建会话居中，设置贴底，
+     面板底 + 发丝右线。原实现是绝对定位在顶栏左端的 3 按钮浮块 —— 少了 logo 与设置，
+     也不占列宽（顶栏只能靠 92px 的 leading inset 给它让位），与画板结构不同。
+     macOS 的红绿灯压住这一列顶端：那一段让位放在 fork-ui.css 的平台钩子里，
+     不写进内联（`[data-desktop-platform="darwin"] .pw-rail`）。 */
   const renderCollapsedRail = () => (
     <div
       className="pw-rail"
       style={{
-        position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
-        left: 4,
-        zIndex: 230,
+        flexShrink: 0,
+        zIndex: 200,
       }}
     >
+      {/* 画板 02 的导轨顶端是应用标记（口径 24×24 + canvas 底 + 发丝边，
+          board.css 的 `.pw-rail .pw-logo` 承担全部视觉）。 */}
+      <span className="pw-logo" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+        <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: 16, height: "auto" }} />
+      </span>
       <button
         type="button"
         onClick={handleSidebarToggle}
@@ -2280,7 +2284,8 @@ export function AppShell() {
         aria-label={translate("sidebar.show")}
         className="pw-iconbtn"
       >
-        <span className="pw-ico"><i data-ico="panel-left" data-size="16"></i></span>
+        {/* 画板 02 的导轨第一枚是 panel-right（把侧栏拉回来）。 */}
+        <span className="pw-ico"><i data-ico="panel-right" data-size="16"></i></span>
       </button>
       <button
         type="button"
@@ -2305,9 +2310,20 @@ export function AppShell() {
         }}
         title={translate("sidebar.newTask")}
         aria-label={translate("sidebar.newTask")}
-        className="pw-iconbtn"
+        className={`pw-iconbtn${selectedSession ? "" : " is-on"}`}
       >
         <span className="pw-ico"><i data-ico="square-pen" data-size="16"></i></span>
+      </button>
+      <span className="grow" />
+      {/* 画板 02 的导轨贴底是设置入口（侧栏展开时它在 .pw-side-foot）。 */}
+      <button
+        type="button"
+        onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
+        title={translate("common.settings")}
+        aria-label={translate("common.settings")}
+        className="pw-iconbtn"
+      >
+        <span className="pw-ico"><i data-ico="settings" data-size="16"></i></span>
       </button>
     </div>
   );
@@ -2567,16 +2583,13 @@ export function AppShell() {
            // The sidebar control is deliberately outside the workspace header.
            // Reserve its hit-target width inside whichever surface is currently
            // in the main region, so the control never covers its first action.
-           // fork:zn-21 — 折叠态图标条是 3 个 28px 按钮 + 2 个 2px 间隙 + 左偏 4px。
-           // 展开时那个位置没有浮层，顶栏不需要额外的避让宽度 —— 但也不能把
-           // 画板 `.pw-topbar { padding: 0 var(--s2) }` 的左内边距一起归零：
-           // 归零后标题里的 panel-left 图标会贴到主区左缘（画板实测在 16px 处）。
-           // 展开态回落到画板自己的 --s2，只有折叠态才让位给图标条。
-           // 手机保留原值：移动端的开合按钮是表头里的**流内**元素，不靠这条 inset 让位，
-           // 顺手把这里改成 92px 只会把标题顶到 92px 处。
+           // fork:zn-21 — 折叠态导轨现在是**占列**的（画板 02 的全高竖列），
+           // 顶栏第一个动作不会再被它压住，两态都用画板自己的 --s2；
+           // 原先折叠态那个 92px 的让位宽度随绝对定位浮块一起去掉了。
+           // 手机保留原值：移动端的开合按钮是表头里的**流内**元素。
           "--main-workspace-header-leading-inset": isMobile
             ? TOP_BAR_ICON_BUTTON_SIZE
-            : sidebarOpen ? "var(--s2, 8px)" : "92px",
+            : "var(--s2, 8px)",
           // The right-edge role control is independent of both content
           // surfaces, so keep it out of the last header action as well.
           "--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,
@@ -2727,7 +2740,7 @@ export function AppShell() {
             </div>
           )}
           {!isMobile && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, paddingRight: 4, marginLeft: "auto", minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--s1)", paddingRight: "var(--s1)", marginLeft: "auto", minWidth: 0 }}>
               {renderProjectTrustWarning(false)}
               {renderChatToolbarActions(false)}
               {/* The workspace toggle is rendered once, as the boundary control on
@@ -2790,7 +2803,7 @@ export function AppShell() {
                 //   `.pw-pop` 外壳 + `.pw-pop-title` 标题 + 每行 `.pw-prow`
                 //   （message-square 图标 + 标题 + 相对时间 `.pw-desc`；当前项 `is-on`）
                 //   + `.pw-sep` + `.pw-prow` 新建任务行（带 `.pw-kbd`）。
-                <div className="pw-pop" style={{ margin: 4 }}>
+                <div className="pw-pop" style={{ margin: "var(--s1)" }}>
                   <div className="pw-pop-title">{translate("sidebar.recentSessions")}</div>
                   {[...sessionCatalog]
                     .sort((a, b) => b.modified.localeCompare(a.modified))
@@ -2901,7 +2914,7 @@ export function AppShell() {
           ) : initialCwdStatus === "validating" ? (
             <div
               role="status"
-              style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 24, color: "var(--text-muted)", textAlign: "center" }}
+              style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "var(--s2)", padding: "var(--s5)", color: "var(--text-muted)", textAlign: "center" }}
             >
                <div style={{ fontSize: TEXT.lg, color: "var(--text)" }}>{translate("workspace.opening")}</div>
               <div style={{ maxWidth: "min(720px, 100%)", overflowWrap: "anywhere", fontFamily: "var(--font-mono)", fontSize: TEXT.sm }}>
@@ -2911,7 +2924,7 @@ export function AppShell() {
           ) : initialCwdStatus === "error" ? (
             <div
               role="alert"
-              style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 24, color: "var(--text-muted)", textAlign: "center" }}
+              style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "var(--s2)", padding: "var(--s5)", color: "var(--text-muted)", textAlign: "center" }}
             >
                <div style={{ fontSize: TEXT.lg, color: "var(--danger)" }}>{translate("workspace.unable")}</div>
               <div style={{ maxWidth: "min(720px, 100%)", overflowWrap: "anywhere", fontFamily: "var(--font-mono)", fontSize: TEXT.sm }}>

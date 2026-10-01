@@ -300,7 +300,9 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 * **门禁**：`npm run check:design`（style-literals + motion-tokens + icons + check-boards + check-align）；`npm run check:contrast`；`npm run verify:boards`（需 prod 起服）。改组件时同步跑。
   * **结构层才是漂移的来源**（2026-09-30 加）：颜色有对比度门禁守着，而「按钮/位置与画板不一样」全部是结构层的事。两条新闸：
     ① `check-style-literals` 新增 `inline-geometry-literal`（内联样式里写死的 `gap/width/height/margin/padding/top...` 数字）；存量 307 处冻结在 `scripts/style-literal-baseline.json`，**只许变少**，新增即失败，清理后跑 `--update` 收窄。确属非主题值在上一行写「非主题值」。
-    ② `npm run verify:boards` 的几何对位（`board-diff-all`）已进 CI（e2e job，需服务在 30141）；每次跑都打印**对位覆盖率**与未覆盖画板 —— 对位是一板一 spec，**改到哪张画板就补哪张的 spec**。
+    ② `npm run verify:boards` 的几何对位（`board-diff-all`）已进 CI（e2e job）；每次跑都打印**对位覆盖率**（现 13/30）与未覆盖画板 —— 对位是一板一 spec，**改到哪张画板就补哪张的 spec**。
+       · 转录 / 输入框 / 侧栏那几张要「开着一条有消息的会话」才量得到：CI 用 `npm run verify:boards:seeded`（`scripts/verify-boards-live.mjs` 自建临时 agent 目录走 `PI_CODING_AGENT_DIR`，不碰用户数据），本机对着真服务仍用 `npm run verify:boards`。
+       · spec 里的 `knownDiffs` 只许登记「接线」与「数据依赖」，每条必须写清为什么；改到某张画板却没 spec，等于又回到人眼比。
   * 换类名 / 挪 DOM 时留下死 CSS 是**已经发生过的事故**（`.fork-msg-actions` → `.pw-msg-acts` 漏改，动作行恒为透明）：改「画板类名与本组件的对应关系」时，同一提交里搜一遍旧名（`grep -rn "旧名" app/*.css components`）。
 * **图标**：全部 lucide，经 `<i data-ico="name">` 由 `components/PwIcons.tsx` 水合；禁 emoji、禁手绘 SVG。改完跑 `npm run check:icons`。
 * **已登记不改的形态差异**（DIVERGENCE 37/49 裁定）：Git 图自绘 SVG 泳道、子代理以工具卡徽标呈现、diff 词级视图、BranchNavigator 树画布、皮肤工作室的 `fork-skin-preview-*` 实时预览、会话行扫掠线（fork-ui.css）。

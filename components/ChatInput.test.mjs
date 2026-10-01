@@ -850,7 +850,7 @@ test("the composer's notices, chips and popover headers ride on the board compon
   assert.match(source, /className="pw-alert warn"/);
   assert.match(source, /className="pw-alert ok"/);
   assert.match(source, /className="pw-alert info"/);
-  assert.match(source, /className="pw-alert"\n\s+style=\{\{\n\s+marginBottom: 8,\n\s+\/\/ 错误正文原样换行不断词/);
+  assert.match(source, /className="pw-alert"\n\s+style=\{\{\n\s+marginBottom: "var\(--s2\)",\n\s+\/\/ 错误正文原样换行不断词/);
 
   // 附件芯片：容器 .pw-chips，非图片附件是 .pw-chip，芯片末尾的移除钮是 data-ico="x"。
   assert.equal((source.match(/<div className="pw-chips">/g) ?? []).length, 2);
@@ -870,8 +870,10 @@ test("the composer's notices, chips and popover headers ride on the board compon
   // / 命令菜单补画板 21 的搜索头（slash 图标 + 查询），分组小标题仍是 .pw-pop-title。
   assert.match(source, /className="pw-pop-search"/);
   assert.match(source, /<i data-ico="slash" data-size="14"><\/i>/);
-  // 四个弹层头都挂画板 21 的 .pw-pop-title：输入历史 / 收藏 / @ 文件 / / 命令分组。
-  assert.equal((source.match(/className="pw-pop-title"/g) ?? []).length, 4);
+  // 六个弹层头都挂画板 21 的 .pw-pop-title：输入历史 / 收藏 / @ 文件 / / 命令分组 /
+  // 思考档 / 工具档（后两个是 2026-09-30 按画板 21 补的：此前它们没有标题行，
+  // `21-menus` 的 spec 直接把「.pw-pop-title 不存在」报了出来）。
+  assert.equal((source.match(/className="pw-pop-title"/g) ?? []).length, 6);
   assert.match(source, /className="pw-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
 
   // 13 处手绘内联 svg 清零：图标只走 <i data-ico>。
