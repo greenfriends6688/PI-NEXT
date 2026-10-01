@@ -446,7 +446,10 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
   }, [name, provider.baseUrl, provider.api, provider.apiKey]);
 
   const handleDiscoverModels = useCallback(async () => {
-    if (!provider.baseUrl?.trim() || discoveryState.phase === "loading") return;
+    // fork:discover-catalog-endpoint —— 不再自己判断 baseUrl 为空：`/api/models-config/discover`
+    // 已经会在 models.json 没写 baseUrl 时去 pi 的 provider catalog 反查（那个 provider
+    // 条目可能只为覆盖内置模型而存在）。入口再按 baseUrl 禁用，就把这个能力又堵回去了。
+    if (discoveryState.phase === "loading") return;
     const requestId = ++discoveryRequestIdRef.current;
     setDiscoveryState({ phase: "loading" });
     setSelectedModelIds([]);
@@ -462,7 +465,8 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
         setDiscoveryState({ phase: "error", message: data.error ?? `HTTP ${res.status}` });
         return;
       }
-      setDiscoveryState({ phase: "success", models: data.models, endpoint: data.endpoint ?? provider.baseUrl });
+      // baseUrl 可能为空（端点来自 pi 的 catalog），所以 endpoint 也要有底线。
+      setDiscoveryState({ phase: "success", models: data.models, endpoint: data.endpoint ?? provider.baseUrl ?? "" });
       setLastSync({ at: Date.now(), count: data.models.length });
     } catch (error) {
       if (requestId !== discoveryRequestIdRef.current) return;
@@ -610,7 +614,7 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
           <ConfigButton
             variant="secondary"
             size="small"
-            disabled={!provider.baseUrl?.trim() || discoveryState.phase === "loading"}
+            disabled={discoveryState.phase === "loading"}
             onClick={handleDiscoverModels}
           >
             <span className="pw-ico"><i data-ico="download" data-size="13"></i></span>
@@ -780,7 +784,7 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
           <ProviderIconModePicker providerId={name} api={provider.api} />
         </ConfigField>
 
-        <ConfigField label={t("models.kvBaseUrl")}>
+        <ConfigField label={t("models.kvBaseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
           <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
             placeholder="https://api.example.com/v1" mono />
         </ConfigField>

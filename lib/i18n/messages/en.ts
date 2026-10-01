@@ -1151,6 +1151,7 @@ export const enLocale: LocalePlugin = {
     "models.providerDefaults": "Using provider defaults",
     "models.pageSub": "Providers, subscription login, available models and pricing. Changes are written to ~/.pi/agent/models.json.",
     "models.kvBaseUrl": "Endpoint",
+    "models.baseUrlCatalogFallbackHint": "Leave empty to use the endpoint pi ships for this provider.",
     "models.kvAuth": "Authentication",
     "models.kvAuthNotSet": "Not set",
     "models.kvAuthShell": "Shell command",

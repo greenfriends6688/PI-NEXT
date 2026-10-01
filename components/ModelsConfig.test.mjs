@@ -343,3 +343,16 @@ test("thinking level overrides keep explicit default, disabled, and custom contr
   assert.match(editor, /state === "string" && \(/);
   assert.match(editor, /onChange=\{\(e\) => setLevel\(level, e\.target\.value\)\}/);
 });
+
+// fork:discover-catalog-endpoint（上游 d8f89c5 #1006）—— 发现端点可从 pi 的 provider
+// catalog 反查，后端早就做了；入口别再按 baseUrl 为空把按钮禁掉。
+test("import models is not gated on a configured base URL", () => {
+  const providerDetail = source.slice(
+    source.indexOf("function ProviderDetail"),
+    source.indexOf("// ── ThinkingLevelMap editor"),
+  );
+  assert.doesNotMatch(providerDetail, /disabled=\{!provider\.baseUrl\?\.trim\(\)/);
+  assert.match(providerDetail, /disabled=\{discoveryState\.phase === "loading"\}/);
+  assert.match(providerDetail, /if \(discoveryState\.phase === "loading"\) return;/);
+  assert.match(source, /hint=\{t\("models\.baseUrlCatalogFallbackHint"\)\}/);
+});

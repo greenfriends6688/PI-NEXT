@@ -1150,6 +1150,7 @@ export const zhCNLocale: LocalePlugin = {
     "models.providerDefaults": "沿用 Provider 默认设置",
     "models.pageSub": "供应商、订阅登录、可用模型与定价。改动写入 ~/.pi/agent/models.json。",
     "models.kvBaseUrl": "接口地址",
+    "models.baseUrlCatalogFallbackHint": "留空则使用 pi 为该供应商自带的接口地址。",
     "models.kvAuth": "认证方式",
     "models.kvAuthNotSet": "未设置",
     "models.kvAuthShell": "Shell 命令",
