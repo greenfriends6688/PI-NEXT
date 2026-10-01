@@ -1098,6 +1098,18 @@ export const enLocale: LocalePlugin = {
     "models.overridden": "changed",
     "models.maxTokensExceedsContext": "Max output is larger than the context window; the provider will reject or clamp it.",
 
+    "models.inputLimitsTitle": "Input limits & prompt cache",
+    "models.inputLimitsHint": "Empty means the provider default. Pi only accepts integers of at least 1 (JPEG quality 1–100); prompt cache values are seconds.",
+    "models.limitMaxRequestBytes": "Max request bytes",
+    "models.limitImagesPerMessage": "Images per message",
+    "models.limitImagesPerRequest": "Images per request",
+    "models.limitResizeWidth": "Resize max width (px)",
+    "models.limitResizeHeight": "Resize max height (px)",
+    "models.limitResizeBytes": "Resize max bytes",
+    "models.limitJpegQuality": "JPEG quality",
+    "models.promptCacheShort": "Cache short tier (s)",
+    "models.promptCacheLong": "Cache long tier (s)",
+
     "models.contextWindow": "Context window (tokens)",
     "models.maxOutputTokens": "Max output tokens",
     "models.costPerMillion": "Cost per million tokens",

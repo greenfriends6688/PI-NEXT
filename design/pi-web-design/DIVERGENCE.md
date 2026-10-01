@@ -1944,3 +1944,39 @@ U-2 记的「快捷键整节缺失」是画板 40–46 与 62 自相矛盾、**�
 3. **没有会话时怎么拿 provider**（上游 PR 正文自己留下的那个约束）：芯片的 provider
    取自 `model.provider` —— **没选模型就没有 provider，于是没有芯片**。不猜、不回退到
    「上一次用过的 provider」。
+
+---
+
+## X · 2026-10-01：PR-12 A4 —— 模型详情的「输入上限与提示词缓存」小节（控件全部复用）
+
+### X-0 · 这一条在定什么
+
+pi-ai 的 `Model` 上有 `inputLimits?`（`ModelInputLimits` → `images.resize.*` /
+`images.maxPerMessage` / `images.maxPerRequest` / `maxRequestBytes`）与 `promptCache?`
+（`ModelPromptCache`，`short` / `long` 两档，单位秒）。本 fork 的 `ModelEntry`
+（`components/ModelsConfig.tsx:123`）**没声明**它们，编辑器也就没有入口。
+
+**上游同样缺**：`pi参考项目/pi-web-main`（agegr/main HEAD）全树
+`grep -rn "inputLimits\|promptCache"` **零命中** —— 所以这条不是「只补类型没做的那部分」，
+类型与 UI 一起补（计划里「读一遍上游有没有做」的前置假设不成立，以代码为准）。
+
+### X-1 · 落位与控件
+
+放在模型详情的**高级分节**里（`apiOverride` / `headers` / `compat` 之后、思考档映射之前），
+理由与那三项一致：只在自建网关 / 显式开 1h 缓存时才要动，不是每个模型都要填的规格。
+小节标题用 `.pw-sec-title`，九行用 `.pw-grid2` 两列 + `.pw-field` 行 + `.pw-input`
+（画板 41 规格行已经在用的那一个数字输入框），**不新造控件**，
+所以 `board.css` 不动、判据⑦ 不触发。
+
+### X-2 · 三条与画板无关但更重要的约定
+
+1. **范围照抄 pi 的 Typebox**，不自己发明：`model-config.js:121-136` 规定
+   整数 ≥ 1（`maxRequestBytes` / `maxPerMessage` / `maxPerRequest` /
+   `resize.maxWidth|maxHeight|maxBytes`）、`jpegQuality` 整数 1–100、
+   `promptCache.{short,long}` > 0。越界值一律**丢弃而不是夹取** —— models.json 写出一个
+   越界值会让 pi 读不动整条模型定义，夹取等于替用户编数据。
+2. **清空即删键，并剪掉空掉的父对象**：清掉最后一个 `jpegQuality` 之后，
+   `resize` → `images` → `inputLimits` 逐层消失，不在 models.json 里攒
+   `{ inputLimits: { images: { resize: {} } } }` 这类空壳（A1 的同一条教训）。
+3. **单位不做隐式换算**：`promptCache` 就是秒（`300` / `3600`），
+   与文件里写的完全一致；`maxBytes` 就是字节。省掉一层「用户以为填的是 MB」的可能。
