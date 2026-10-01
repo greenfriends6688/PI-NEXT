@@ -145,6 +145,19 @@ test("manual price editing commits completed costs and removes only an all-blank
 
 // fork:model-rename-save（上游 bd85004 #969，fixes #903）—— 保存时把输入框里的
 // 重命名一起落盘，并拒绝被占用的 id（models.json 以 id 为键，撞了就是静默覆盖）。
+test("discovered model specs land in models.json instead of only the id", () => {
+  const importBlock = source.slice(
+    source.indexOf("const addDiscoveredModels"),
+    source.indexOf("const updateModel"),
+  );
+  assert.match(importBlock, /entry\.contextWindow = discoveredModel\.contextWindow/);
+  assert.match(importBlock, /entry\.maxTokens = discoveredModel\.maxTokens/);
+  assert.match(importBlock, /entry\.input = \[\.\.\.discoveredModel\.input\]/);
+  // 上游没报的字段不写进 models.json（0 会被 pi 当成声明值）。
+  assert.match(importBlock, /if \(discoveredModel\.contextWindow !== undefined\)/);
+  assert.match(importBlock, /if \(discoveredModel\.input !== undefined\)/);
+});
+
 test("Save applies a provider name typed without pressing Rename", () => {
   const providerDetail = source.slice(
     source.indexOf("function ProviderDetail"),

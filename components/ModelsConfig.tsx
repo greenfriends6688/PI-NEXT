@@ -460,6 +460,15 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
     || model.id.toLocaleLowerCase().includes(normalizedDiscoveryQuery)
     || model.name?.toLocaleLowerCase().includes(normalizedDiscoveryQuery));
   const shownDiscoveredModels = filteredDiscoveredModels.slice(0, 300);
+  /* fork:model-discovery-specs —— 导入清单副标题里先告知上游报了哪些规格，勾之前就
+     知道会带什么进来。只用现成的 `formatTokenLimit`，没有新类名。 */
+  const discoveredModelSpecs = (model: DiscoveredModel): string | null => {
+    const parts: string[] = [];
+    if (model.contextWindow) parts.push(t("models.specsContextShort", { value: formatTokenLimit(model.contextWindow) }));
+    if (model.maxTokens) parts.push(t("models.specsOutputShort", { value: formatTokenLimit(model.maxTokens) }));
+    if (model.input?.includes("image")) parts.push(t("models.specsImageShort"));
+    return parts.length ? parts.join(" · ") : null;
+  };
   const selectableShownIds = shownDiscoveredModels
     .filter((model) => !existingModelIds.has(model.id))
     .map((model) => model.id);
@@ -684,6 +693,8 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
                   <p className="pw-hint">{t("models.discoveryNoMatches")}</p>
                 ) : shownDiscoveredModels.map((model) => {
                   const alreadyAdded = existingModelIds.has(model.id);
+                  // fork:model-discovery-specs —— 勾之前就告知这行会带哪些规格进来。
+                  const specs = discoveredModelSpecs(model);
                   return (
                     <label
                       key={model.id}
@@ -698,7 +709,7 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
                       />
                       <span className="grow">
                         <ConfigSidebarText>{model.name ?? model.id}</ConfigSidebarText>
-                        <ConfigSidebarSub>{model.id}</ConfigSidebarSub>
+                        <ConfigSidebarSub>{model.id}{specs ? ` · ${specs}` : ""}</ConfigSidebarSub>
                       </span>
                       {alreadyAdded && <ConfigBadge>{t("models.discoveryAdded")}</ConfigBadge>}
                     </label>
@@ -2392,7 +2403,15 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       for (const discoveredModel of discovered) {
         if (existingIds.has(discoveredModel.id)) continue;
         existingIds.add(discoveredModel.id);
-        models.push({ id: discoveredModel.id, name: discoveredModel.name });
+        /* fork:model-discovery-specs —— 上游报上来的规格跟着一起进 models.json：
+           私有网关 / vLLM / 自建端点在 models.dev 上查不到，`/models` 是唯一来源。
+           没报的字段就不写（绝不写 0 —— 0 会被 pi 当成声明值）。 */
+        const entry: ModelEntry = { id: discoveredModel.id };
+        if (discoveredModel.name !== undefined) entry.name = discoveredModel.name;
+        if (discoveredModel.contextWindow !== undefined) entry.contextWindow = discoveredModel.contextWindow;
+        if (discoveredModel.maxTokens !== undefined) entry.maxTokens = discoveredModel.maxTokens;
+        if (discoveredModel.input !== undefined) entry.input = [...discoveredModel.input];
+        models.push(entry);
       }
       return { ...prev, providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models } } };
     });
