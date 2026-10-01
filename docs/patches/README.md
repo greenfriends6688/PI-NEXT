@@ -127,6 +127,38 @@
 `sessionId` 单值贯穿 `useAgentSession`（SSE/流式/草稿/滚动），两 pane = 两份独立实例 + 两套 SSE，
 不是加一层 CSS grid 能解决的；PROMA 计划也早已判定方向相反（`proma-pr-plan:953`）。
 
+### 第三批（台账补录，0047–0056：代码里已有、但前两批都没记的能力）
+
+这批是 2026-10-01 按 `docs/upstream-audit-2026-10-01/feature-gap.md` §2.1「台账未覆盖」逐条
+**重新用 `git log --diff-filter=A` / `git log -S` / `git cat-file` 核实**后补的
+（审计是快照，代码才是准的）。**审计有 5 处与代码对不上，每条 `.md` 的「核实」小节都写了实证**：
+0048 把与上游逐字节相同的 `lib/git-status.ts` 算成 fork 文件、且 `branch` 路由的真实首落点不是 `22fa16a`；
+0051 列的 `hooks/useLazyHighlighter.ts` 在树上不存在；0052 把两个相隔 3 天的 commit 压成一个；
+0054 把 `ProviderUsageCards.tsx` 算进收藏模型（它 0 命中 favorite）；0056 的「上游若已合入会冲突」
+方向反了（上游是**主动关闭**了 PR #899）。编号从 0047 接在 0046 之后。
+
+| 编号 | 名称 | 状态 | 新增文件（T0） | 上游接触面（T1） |
+| --- | --- | --- | --- | --- |
+| 0047 | [Electron 桌面打包（DMG/NSIS + 原生桥 + 打包硬门禁）](./0047-electron-desktop-packaging.md) | 已实现（重建自 `6bd923f` 剔除之后；单测 4 + `desktop:verify`/`desktop:smoke` 门禁）。**风险最高**：冲突面全在 `package.json` + `.gitignore` + 构建脚本 | `electron/preload.js`、`electron/legacy-user-data.js`、`lib/desktop-shell.ts` | `package.json`（6 脚本 + `build` 块 + 3 依赖）、`.gitignore`（`!/build/` 取反）、`eslint.config.mjs`、`AppShell.tsx`（4 处）等 12 个 |
+| 0048 | [Git 图谱 / 分支 / 提交历史](./0048-git-graph.md) | 已实现（单测 24）；上游 `agegr/main` 只有 `/status` + `/diff`，无 `branch`/`log`/图谱 | `lib/git-graph{,-geometry,-lanes,-palette,-parser,-refs}.ts`、`app/api/git/{branch,log}/route.ts`、`components/GitGraphTab.tsx`、`GitRefChips.tsx` | `components/AppShell.tsx`（右栏 tab 体系 6 处） |
+| 0049 | [跨 agent 导入（会话/技能/模型/MCP）](./0049-cross-agent-import.md) | 已实现（单测 61） | `lib/import/`（8 个 + 6 份测试）、`app/api/import/{scan,apply}/route.ts`、`components/ImportPanel.tsx` | `components/SettingsPanel.tsx`、`components/ProviderUsageSummary.tsx`、`lib/settings-disabled-reasons.ts` |
+| 0050 | [SkillHub 市场 + 内置技能目录](./0050-skillhub-market.md) | 已实现（`skillhub` 单测 7）；走纯 HTTP API，不走 CLI | `lib/skillhub.ts`、`app/api/skills/{skillhub,install-skillhub}/route.ts`、`lib/default-skills.ts` | `components/SkillsConfig.tsx`、`lib/api-types.ts` |
+| 0051 | [工作区 Markdown / 代码编辑器（CodeMirror）](./0051-workspace-markdown-editor.md) | 已实现（单测 24）；`@codemirror/*` 9 个依赖为 fork 独有，上游合并不会带进来 | `components/{CodeFileEditor,MarkdownFilePreview}.tsx`、`lib/markdown-{file,sync,incremental}.ts`、`hooks/useMarkdownFile.ts`、`lib/code-highlight-schedule.ts` | `components/FileViewer.tsx`、`lib/file-editor-types.ts` |
+| 0052 | [会话 / 项目归档](./0052-session-project-archive.md) | 已实现（单测 20）；只隐藏不删数据 | `components/{ArchivedSessionsPanel,ProjectArchivePanel}.tsx`、`lib/project-flags.ts`、`lib/archive-names.ts` | `components/SettingsPanel.tsx`、`components/SessionSidebar.tsx` |
+| 0053 | [通知偏好与语义提示音](./0053-notification-prefs-and-sounds.md) | 已实现（`sound-presets` 单测 5）；0 音频文件体积（全 Web Audio 振荡器参数） | `lib/notification-prefs.ts`、`hooks/useNotificationPrefs.ts`、`lib/sound-presets.ts` | `components/AppShell.tsx`、`components/SettingsPanel.tsx` |
+| 0054 | [收藏模型（星标 + 置顶成组）](./0054-favorite-models.md) | 已实现（单测 8） | `lib/favorite-models.ts` | `components/{ChatInput,ModelSelector,ModelsConfig}.tsx`、`components/fork/ProviderUsageCards.tsx` |
+| 0055 | [文件 `@` 提及（拖入绝对路径 → cwd 相对引用）](./0055-file-mentions.md) | 已实现（单测 30）。**不是 0003 的一部分**：0003 的 `.patch` 里 `file-mentions`/`mention-tokens` **0 命中** | `lib/file-mentions.ts`、`lib/mention-tokens.ts` | `components/ChatInput.tsx`、`MessageView.tsx`、`MarkdownBody.tsx` |
+| 0056 | [文件压缩包（zip / 解包）+ 文件增删改](./0056-file-archives.md) | 已实现（单测 5）。**源自上游 PR #899**（上游以 scope 为由关闭该 PR，未合入主线） | `lib/file-archives.ts`、`lib/archive-names.ts`、`lib/file-mutations.ts` | `app/api/files/[...path]/route.ts`、`components/{FileExplorer,FileViewer,ExplorerPanel}.tsx` |
+
+> **这批与前两批的三点差别**：
+> 1. 0020–0046 多数只在索引表里留了行，**没有独立 `.md`**；本批按约定 1（一个补丁 = 一个意图、
+>    自带验证）补齐了 `.md`，所以 `git grep "fork:"` 的用法与 0001–0019 一致。
+> 2. 本批**全部是「上游没有的能力」**（`git cat-file -e agegr/main:<path>` 逐个验证为 absent，
+>    例外只有 `lib/git-status.ts` / `lib/file-fuzzy.ts`，它们与上游**逐字节相同**，不是 fork 改动）。
+>    合并上游时这批不会被「上游覆盖」，但会与上游在 `package.json` / 路由目录 / 设置面板上抢位置。
+> 3. `.patch` 全部未产出：这批的引入 commit（`8885206` / `a1d5f75` / `ac4ec72` / `22fa16a` …）都在
+>    换肤大快照里，没有 staged-baseline 快照可反演；重打以各 `.md` 的 `fork:` 标记清单为准。
+
 ## 工具：没有版本控制时怎么产出 `.patch`
 
 本机的树是从 macOS 拷过来的，**没有 `.git`，也没有 `git` / `diff` / `python`**
