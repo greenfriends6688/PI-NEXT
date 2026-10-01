@@ -737,3 +737,27 @@ test("durations come from the entry append time, not the gap to the previous mes
   const hook = await readFile(new URL("../hooks/useAgentSession.ts", import.meta.url), "utf8");
   assert.match(hook, /completedAt: Date\.now\(\)/);
 });
+
+test("fork:fix-user-line-breaks — 粘贴的纯文本每一行都在（#680 / #1015）", () => {
+  const lines = [
+    "第1题（看门狗）",
+    "嵌入式系统中，看门狗（WatchDog）的基本工作原理是（ ）",
+    "A. 监控系统温度，过热时自动降频",
+    "B. 计数器自动计数，程序定期将其重置；若程序跑飞计数器溢出，则系统复位重启",
+  ];
+  const expected = `<p>${lines.join("<br/>")}</p>`;
+
+  for (const lineEnding of ["\n", "\r\n", "\r"]) {
+    const html = renderMessage({ role: "user", content: lines.join(lineEnding) });
+    assert.ok(html.includes(expected), JSON.stringify(lineEnding));
+    // Chrome 在 pre-wrap 下也把落单 \r 渲染成空格，所以文本里不能留 \r。
+    assert.doesNotMatch(html, /\r/);
+  }
+
+  const listHtml = renderMessage({
+    role: "user",
+    content: [{ type: "text", text: "1. 看门狗的原理是（ ）\nA. 监控温度\nB. 计数器" }],
+  });
+  assert.match(listHtml, /<li>看门狗的原理是（ ）<br\/>A\. 监控温度<br\/>B\. 计数器<\/li>/);
+}
+);

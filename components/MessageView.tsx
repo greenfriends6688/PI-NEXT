@@ -422,13 +422,18 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   const collapseRef = useRef<HTMLDivElement>(null);
   const bodyMounted = useCollapsePresence(expanded, undefined, collapseRef);
 
-  const content =
+  // fork:fix-user-line-breaks (#680) —— 会话文件里可能是 `\r\n` 或落单的 `\r`。
+  // Chrome 即使在 pre-wrap 下也把落单 `\r` 渲染成空格，于是粘贴的老式 Mac 换行
+  // 会被折成一段。命令参数、超长消息的原始视图、复制都走这份文本；
+  // 会话文件里保存的仍是原文。
+  const content = (
     typeof message.content === "string"
       ? message.content
       : message.content
           .filter((b): b is TextContent => b.type === "text")
           .map((b) => b.text)
-          .join("\n");
+          .join("\n")
+  ).replace(/\r\n?/g, "\n");
 
   const imageBlocks: ImageContent[] =
     typeof message.content === "string"
@@ -448,7 +453,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
     },
     isSkill: (name) => (skillInfo ? skillInfo.has(name) : undefined),
   }), [fileIndex, skillInfo]);
-  const markdownMentionProps = { cwd, onOpenFile, highlightMentions: true, mentionValidators } as const;
+  const userMessageMarkdownProps = { cwd, onOpenFile, highlightMentions: true, mentionValidators, keepLineBreaks: true } as const;
 
   const commandText = skillExpansionToCommand(content);
   const commandSeparator = commandText?.search(/\s/) ?? -1;
@@ -568,7 +573,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
               >
                 {bodyMounted && (
                   <div className="fork-collapse-body" style={{ marginTop: "var(--space-row)" }}>
-                    <MarkdownBody className="markdown-user-message" {...markdownMentionProps}>{content}</MarkdownBody>
+                    <MarkdownBody className="markdown-user-message" {...userMessageMarkdownProps}>{content}</MarkdownBody>
                   </div>
                 )}
               </div>
@@ -576,7 +581,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
           ) : (
           <>
           {imageBlocksNode}
-          {content && <SafeMarkdownBody className="markdown-user-message" {...markdownMentionProps}>{content}</SafeMarkdownBody>}
+          {content && <SafeMarkdownBody className="markdown-user-message" {...userMessageMarkdownProps}>{content}</SafeMarkdownBody>}
           </>
           )}
         </div>

@@ -14,6 +14,14 @@
   "engines": {
     "node": ">=22.19.0"
   },
+  "//browserslist": "Next 16 compiles for Safari 16.4+ by default and leaves class `static {}` blocks alone; Safari 16.2 rejects the App Router runtime chunk outright (#753). Keep the other entries at Next's defaults (node_modules/next/dist/shared/lib/modern-browserslist-target.js).",
+  "browserslist": [
+    "chrome 111",
+    "edge 111",
+    "firefox 111",
+    "safari 16.2",
+    "ios_saf 16.2"
+  ],
   "bin": {
     "pi-web": "bin/pi-web.js"
   },

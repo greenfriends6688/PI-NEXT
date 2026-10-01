@@ -1,3 +1,4 @@
+import type { Content, Link, Parent, Root } from "mdast";
 import { defaultUrlTransform, type Options as ReactMarkdownOptions } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -5,6 +6,8 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import type { Extension } from "micromark-util-types";
+import type { Plugin } from "unified";
 
 const markdownSanitizeSchema = {
   ...defaultSchema,
@@ -23,10 +26,40 @@ export function markdownUrlTransform(value: string): string {
   return /^file:/i.test(value) ? value : defaultUrlTransform(value);
 }
 
-const escapedInlineCodePattern = /(?<![\\`])`((?:[^`\n]|\\`)+?)(?<![\\`])`(?!`)/g;
+/**
+ * `value.replace(pattern, replace)` —— 等价于 `pattern` 前面带一个
+ * `(?<![notAfter])` 的 lookbehind：匹配必须以 `opener` 开头，且前一个字符不属于
+ * `notAfter`。Safari 16.4 以下解析不了 lookbehind，而一个解析不了的正则字面量会让
+ * **整个 chunk** 抛 SyntaxError（首页直接白屏，#753）。所以改成：按 lookbehind 版本
+ * 尝试起点的顺序，在每个 `opener` 处用 sticky(`y`) 模式试一次，前一个字符命中排除集
+ * 就跳过。
+ */
+function replaceNotPrecededBy(
+  value: string,
+  opener: string,
+  notAfter: string,
+  pattern: RegExp,
+  replace: (match: RegExpExecArray) => string,
+): string {
+  let result = "";
+  let copied = 0;
+  for (let index = value.indexOf(opener); index !== -1; index = value.indexOf(opener, index + 1)) {
+    if (index > 0 && notAfter.includes(value[index - 1])) continue;
+    pattern.lastIndex = index;
+    const match = pattern.exec(value);
+    if (!match) continue;
+    result += value.slice(copied, index) + replace(match);
+    copied = pattern.lastIndex;
+    index = copied - 1;
+  }
+  return result + value.slice(copied);
+}
+
+// 收尾反引号前不能是 `\` 或另一个反引号，所以内容以「两者都不是」的字符收尾。
+const escapedInlineCodePattern = /`((?:[^`\n]|\\`)*?[^\\`\n])`(?!`)/y;
 
 function rewriteEscapedInlineCodeBackticks(line: string): string {
-  return line.replace(escapedInlineCodePattern, (match, content: string) => {
+  return replaceNotPrecededBy(line, "`", "\\`", escapedInlineCodePattern, ([match, content]) => {
     const code = content.replace(/\\`/g, "`");
     if (code === content) return match;
     const marker = "`".repeat(Math.max(...(code.match(/`+/g)?.map((run) => run.length) ?? [0])) + 1);
@@ -332,6 +365,9 @@ function updateInlineCodeMarker(line: string, initialMarkerSize: number): number
   return markerSize;
 }
 
+// `\(` … `\)`，且收尾的反斜杠本身未被转义。
+const inlineLatexMathPattern = /\\\(([^`\r\n$]*?[^`\r\n$\\])\\\)/y;
+
 function normalizeInlineLatexMath(line: string): string {
   if (
     /^\s{0,3}\[[^\]]+\]:/.test(line) ||
@@ -343,9 +379,9 @@ function normalizeInlineLatexMath(line: string): string {
     return line;
   }
 
-  return line.replace(
-    /(?<!\\)\\\(([^`\r\n$]+?)(?<!\\)\\\)/g,
-    (match, math: string) => (math.trim() ? `$${math}$` : match),
+  // `\(` … `\)` → `$…$`。
+  return replaceNotPrecededBy(line, "\\(", "\\", inlineLatexMathPattern, ([match, math]) =>
+    math.trim() ? `$${math}$` : match,
   );
 }
 
@@ -361,15 +397,184 @@ function isLikelyMathExpression(value: string): boolean {
 // GFM's default single-tilde strikethrough silently mangled such ranges (#385).
 const remarkGfmOptions = { singleTilde: false } as const;
 
+// GFM autolink literal（`https://…` / `www.…`）只在空白处收尾，行尾标点的裁剪也只认
+// ASCII 标点，所以紧跟中文的 URL 会把后面的散文一起吞进去：`见 https://a.com/docs。`
+// 变成一个 href 为 `https://a.com/docs%E3%80%82` 的链接，点进去哪儿也不是。
+//
+// 这是上游行为而不是 remark-gfm 的 bug：它跟 GitHub 走，GitHub 同样只在 ASCII 标点处
+// 终止 autolink（remarkjs/remark-gfm#83 就以「非 ASCII 终止符」未计划结案，指向
+// github/cmark-gfm#377 这个还没落地的规范请求）。在那之前在这里把 literal 切开：中日文里
+// CJK 标点就是句子边界，所以 URL 仍可点、后面的字仍是正文。表意文字**刻意不**当边界，
+// 这样 `https://zh.wikipedia.org/wiki/中文条目` 这种真 CJK 路径照常可用。
+const cjkPunctuationPattern =
+  /[\u3001\u3002\u3008-\u3011\u3014-\u301B\uFF01\uFF08\uFF09\uFF0C\uFF1A\uFF1B\uFF1F\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u00B7\uFF5E\u301C]/;
+
+/**
+ * 把每个 GFM autolink literal 在**第一个** CJK 标点处切开，后半段还原成普通文本节点。
+ *
+ * `source` 必须是这棵树解析自的 markdown 原文。autolink literal 的 raw 源码**就是**它的
+ * 文字，而手写的 `[text](url)` 的 raw 源码是 `[text](url)` —— 比对两者才能让显式链接原样
+ * 保留，哪怕它的文字恰好等于它的 url。
+ */
+export function splitAutolinkLiteralsAtCjkPunctuation(tree: Root, source: string): void {
+  const walk = (node: Root | Parent): void => {
+    const children = node.children as Content[];
+    for (let index = 0; index < children.length; index++) {
+      const child = children[index];
+      if (child.type === "link") splitAutolinkLiteral(children, index, child, source);
+      const current = children[index];
+      if ("children" in current && Array.isArray(current.children)) walk(current as Parent);
+    }
+  };
+  walk(tree);
+}
+
+function splitAutolinkLiteral(siblings: Content[], index: number, node: Link, source: string): void {
+  if (node.title != null || node.children.length !== 1) return;
+  const textNode = node.children[0];
+  if (textNode.type !== "text") return;
+
+  const start = node.position?.start;
+  const end = node.position?.end;
+  if (start?.offset == null || end?.offset == null) return;
+  if (source.slice(start.offset, end.offset) !== textNode.value) return;
+
+  const text = textNode.value;
+  const cut = text.search(cjkPunctuationPattern);
+  // `cut === 0` 说明 literal 自己就是以标点开头的 —— 那不是 URL。
+  if (cut <= 0 || !node.url.endsWith(text)) return;
+
+  const head = text.slice(0, cut);
+  const boundary = { line: start.line, column: start.column + cut, offset: start.offset + cut };
+  // url 带的是 `http://`（www. 时）或 `mailto:` 前缀，文字里没有。
+  node.url = node.url.slice(0, node.url.length - text.length) + head;
+  textNode.value = head;
+  node.position = { start, end: boundary };
+  siblings.splice(index + 1, 0, {
+    type: "text",
+    value: text.slice(cut),
+    position: { start: boundary, end },
+  });
+}
+
+function remarkSplitAutolinkLiterals() {
+  return (tree: Root, file: { value?: unknown }): void => {
+    splitAutolinkLiteralsAtCjkPunctuation(tree, typeof file.value === "string" ? file.value : "");
+  };
+}
+
+/**
+ * 在**分词阶段**就拒掉有歧义的单美元对，让数学不要把 Markdown 的强调或链接一起吞掉：
+ * 价格后面那一个 `$`（`$20 … $6`）不能闭合公式，后面空格后的公式（`$20 and $x$`）也不是。
+ * 真正的公式、代码、转义与 `$$` 一律交给 remark-math 自己的 tokenizer / resolver。
+ *
+ * 与上游写死的下标 `text[36]` 不同，这里按名字在**本次 remark-math 新加**的扩展里找
+ * `mathText` construct（`36` 是 micromark 代码点表里的位置，跟着版本漂）。
+ */
+const remarkCurrencySafeMath: Plugin = function () {
+  const data = this.data() as { micromarkExtensions?: Extension[] };
+  const addedFrom = (data.micromarkExtensions ?? []).length;
+  remarkMath.call(this);
+  const extensions = (data.micromarkExtensions ?? []).slice(addedFrom);
+  for (const extension of extensions) {
+    const constructs = Object.values(extension.text ?? {}).flat();
+    for (const construct of constructs) {
+      if (!construct || construct.name !== "mathText") continue;
+      const tokenize = construct.tokenize;
+      construct.tokenize = function (effects, ok, nok) {
+        const start = this.now();
+        return tokenize.call(this, effects, (code) => {
+          const source = this.sliceSerialize({ start, end: this.now() });
+          if (source.startsWith("$") && !source.startsWith("$$")) {
+            const content = source.slice(1, -1);
+            const startsWithAmount = /^\s*[+-]?(?:\d|\.\d)/.test(content);
+            const closesBeforeNumber = code !== null && code >= 48 && code <= 57;
+            // 前后都有空格的写法（`$ x + y $`）继续支持，多行公式也是；
+            // 只有单边空格才是散文，不是行内公式的边界。
+            const mismatchedPadding = /^\s/.test(content) !== /\s$/.test(content);
+            if (startsWithAmount && (closesBeforeNumber || mismatchedPadding)) return nok(code);
+          }
+          return ok(code);
+        }, nok);
+      };
+    }
+  }
+};
+
 export const markdownRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
-  remarkMath,
+  remarkSplitAutolinkLiterals,
+  remarkCurrencySafeMath,
 ];
+/**
+ * fork:fix-user-line-breaks —— 用户消息里每一个换行都保留（#680 / #1015）。
+ *
+ * `.markdown-user-message p { white-space: pre-wrap }`（app/globals.css）只能救**段落**
+ * 内部的软换行；紧列表项（`1. 题目\nA. 选项`）、setext 标题的文本不在 `<p>` 里，浏览器
+ * 直接把换行折成空格；Chrome 在 pre-wrap 下也把落单的 `\r` 渲染成空格（粘贴的老式
+ * Mac 换行就是这么粘成一段的）；硬换行（行尾两空格或 `\`）则是 remark-rehype 输出
+ * `<br>` + 一个 "\n"，pre-wrap 再渲染一次 → 多出一整行空白。
+ *
+ * 所以正文里每个行尾都换成**裸 `<br>`**：这是一个自定义 mdast 节点，靠 `data.hName`
+ * 让 remark-rehype 直接吐 `<br>`，而不是 mdast 的 `break`（后者会带一个 "\n" 尾巴）。
+ * 硬换行也一并换成它。代码 / 行内代码 / 公式 / raw HTML 是别的节点类型，文本原样保留。
+ * 助手消息不受影响（只有用户消息传 keepLineBreaks）。
+ */
+interface MarkdownTreeNode {
+  type: string;
+  value?: string;
+  children?: MarkdownTreeNode[];
+  data?: { hName?: string };
+}
+
+const LINE_ENDING = /[ \t]*(?:\r\n|\r|\n)[ \t]*/;
+const PHRASING_BLOCK_TYPES = new Set(["paragraph", "heading", "tableCell"]);
+// raw-text 元素会把内容一路吃到闭合标签为止，而 rehype-raw 在下一个元素处就退出该状态；
+// 跟在未闭合的 `<textarea>` / `<script>` 后面的 `<br>` 会把整块内容搅乱或吞掉。
+const RAW_TEXT_OPEN_TAG = /^<(?:iframe|noembed|noframes|noscript|plaintext|script|style|textarea|title|xmp)(?=[\s/>]|$)/i;
+
+function opensRawTextElement(node: MarkdownTreeNode): boolean {
+  if (node.type === "html") return RAW_TEXT_OPEN_TAG.test(node.value ?? "");
+  return node.children?.some(opensRawTextElement) ?? false;
+}
+
+function lineBreakNode(): MarkdownTreeNode {
+  return { type: "lineBreak", data: { hName: "br" } };
+}
+
+function keepLineBreaks(parent: MarkdownTreeNode): void {
+  if (!parent.children) return;
+  // 这类块保持默认渲染：段落里的换行仍由 pre-wrap 规则显示。
+  if (PHRASING_BLOCK_TYPES.has(parent.type) && opensRawTextElement(parent)) return;
+  parent.children = parent.children.flatMap((node) => {
+    if (node.type === "break") return [lineBreakNode()];
+    if (node.type !== "text" || !node.value) {
+      keepLineBreaks(node);
+      return [node];
+    }
+    return node.value.split(LINE_ENDING).flatMap((line, index) => [
+      ...(index > 0 ? [lineBreakNode()] : []),
+      ...(line ? [{ type: "text", value: line }] : []),
+    ]);
+  });
+}
+
+function remarkKeepLineBreaks() {
+  return (tree: MarkdownTreeNode) => keepLineBreaks(tree);
+}
+
+/** 用户消息用的 remark 链：与通用链一致，末尾追加换行保留插件。 */
+export const markdownUserRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
+  ...(markdownRemarkPlugins ?? []),
+  remarkKeepLineBreaks,
+];
+
 export const markdownPreviewRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
-  remarkMath,
+  remarkSplitAutolinkLiterals,
+  remarkCurrencySafeMath,
 ];
 
 export const markdownRehypePlugins: ReactMarkdownOptions["rehypePlugins"] = [

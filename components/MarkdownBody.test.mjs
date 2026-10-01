@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import ReactMarkdown from "react-markdown";
 import { createJiti } from "jiti";
 
 const jiti = createJiti(import.meta.url, {
@@ -9,7 +10,7 @@ const jiti = createJiti(import.meta.url, {
   tsconfigPaths: true,
 });
 const { MarkdownBody } = await jiti.import("./MarkdownBody.tsx");
-const { normalizeDisplayMath } = await jiti.import("../lib/markdown.ts");
+const { markdownPreviewRehypePlugins, markdownPreviewRemarkPlugins, normalizeDisplayMath } = await jiti.import("../lib/markdown.ts");
 const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
 function renderMarkdown(markdown, props = {}) {
@@ -250,4 +251,153 @@ test("fork:design-components — GFM 表格仍是画板 10 的 .pw-table", () =>
   const html = renderMarkdown("| a | b |\n| - | - |\n| 1 | 2 |");
 
   assert.match(html, /<table class="pw-table">/);
+});
+
+test("fork:fix-user-line-breaks — 只有 keepLineBreaks 才把行尾变成 <br>（#680 / #1015）", () => {
+  assert.match(renderMarkdown("one\ntwo"), /<p>one\ntwo<\/p>/);
+  assert.doesNotMatch(renderMarkdown("one\ntwo"), /<br/);
+
+  for (const markdown of ["one\ntwo", "one\r\ntwo", "one\rtwo", "one   \t\n   two"]) {
+    assert.match(renderMarkdown(markdown, { keepLineBreaks: true }), /<p>one<br\/>two<\/p>/, JSON.stringify(markdown));
+  }
+});
+
+test("fork:fix-user-line-breaks — 紧列表项与标题里的换行也保留", () => {
+  const ordered = renderMarkdown("1. 看门狗的原理是（ ）\nA. 监控温度\nB. 计数器\n2. 下一题", { keepLineBreaks: true });
+  const nested = renderMarkdown("- outer\n  more\n  - inner\n- next", { keepLineBreaks: true });
+  const heading = renderMarkdown("Heading one\nheading two\n===", { keepLineBreaks: true });
+
+  assert.match(ordered, /<li>看门狗的原理是（ ）<br\/>A\. 监控温度<br\/>B\. 计数器<\/li>/);
+  assert.match(ordered, /<li>下一题<\/li>/);
+  // 嵌套列表前那个换行分隔的是块，不该变成 <br>。
+  assert.match(nested, /<li>outer<br\/>more\n<ul>\n<li>inner<\/li>/);
+  assert.match(heading, /<h1>Heading one<br\/>heading two<\/h1>/);
+  assert.doesNotMatch(renderMarkdown("- alpha\n\n- beta", { keepLineBreaks: true }), /<br/);
+});
+
+test("fork:fix-user-line-breaks — 硬换行只渲染一次", () => {
+  // remark-rehype 把 mdast break 写成 <br> 加一个 "\n"，pre-wrap 会把后者再渲染一遍。
+  const html = renderMarkdown("trailing spaces  \nbackslash\\\nend", { keepLineBreaks: true });
+
+  assert.match(html, /<p>trailing spaces<br\/>backslash<br\/>end<\/p>/);
+});
+
+test("fork:fix-user-line-breaks — 代码与公式的行尾原样保留", () => {
+  const code = renderMarkdown("```\nfirst\nsecond\n```", { keepLineBreaks: true });
+  const math = renderMarkdown("$$\nx = 1\ny = 2\n$$", { keepLineBreaks: true });
+  const emphasis = renderMarkdown("*one\ntwo* `a b`", { keepLineBreaks: true });
+
+  assert.doesNotMatch(code, /<br/);
+  assert.match(code, /first[\s\S]*\n[\s\S]*second/);
+  assert.doesNotMatch(math, /<br/);
+  assert.match(math, /<annotation encoding="application\/x-tex">x = 1\ny = 2<\/annotation>/);
+  assert.match(emphasis, /<em>one<br\/>two<\/em>/);
+});
+
+test("fork:fix-user-line-breaks — 打开 raw-text 标签的块保持默认渲染", () => {
+  // 未闭合的 <textarea> / <script> 后面跟一个 <br> 会提前结束 rehype-raw 的
+  // raw-text 状态，整块内容要么被粘在一起要么直接消失。
+  for (const markdown of [
+    "Use a <textarea> here\nand a button\nplease",
+    "Set <title>My\nPage</title> first\nthen deploy",
+    "add <script>a()\nb()</script> to the page\nthen reload",
+    "some *<style>x\ny</style>* then\nnext",
+  ]) {
+    assert.equal(renderMarkdown(markdown, { keepLineBreaks: true }), renderMarkdown(markdown));
+  }
+
+  assert.match(renderMarkdown("normal <kbd>Ctrl</kbd>\nline two", { keepLineBreaks: true }), /<\/kbd><br\/>line two/);
+  const list = renderMarkdown("- item <textarea>\n  more\n- two\n  lines", { keepLineBreaks: true });
+  assert.match(list, /<li>two<br\/>lines<\/li>/);
+});
+
+test("fork:cjk-autolink — 紧跟 URL 的中文标点不再被吞进链接（#971 / #972）", () => {
+  const html = renderMarkdown("开 http://localhost:4321，或直接开 library/x.png。");
+
+  assert.match(html, /<a (?=[^>]*href="http:\/\/localhost:4321")[^>]*>http:\/\/localhost:4321<\/a>/);
+  assert.match(html, /<\/a>，或直接开 library\/x\.png。/);
+  assert.doesNotMatch(html, /%EF%BC%8C/);
+});
+
+test("fork:cjk-autolink — 行尾的中文句号停在链接外", () => {
+  const html = renderMarkdown("见 https://example.com/docs。");
+
+  assert.match(html, /<a (?=[^>]*href="https:\/\/example\.com\/docs")[^>]*>https:\/\/example\.com\/docs<\/a>/);
+  assert.match(html, /<\/a>。/);
+});
+
+test("fork:cjk-autolink — 显式链接、CJK 路径与查询串原样保留（#971 / #972）", () => {
+  const explicit = renderMarkdown("[文档](https://example.com/docs)，说明");
+  assert.match(explicit, /<a (?=[^>]*href="https:\/\/example\.com\/docs")[^>]*>文档<\/a>/);
+  assert.match(explicit, /<\/a>，说明/);
+
+  const cjkPath = renderMarkdown("https://zh.wikipedia.org/wiki/中文条目");
+  assert.match(cjkPath, /href="https:\/\/zh\.wikipedia\.org\/wiki\/%E4%B8%AD%E6%96%87%E6%9D%A1%E7%9B%AE"/);
+
+  const query = renderMarkdown("https://a.com/p?a=1&b=2，后面");
+  assert.match(query, /href="https:\/\/a\.com\/p\?a=1&amp;b=2"/);
+  assert.match(query, /<\/a>，后面/);
+});
+
+test("fork:currency-math — 段落换行两侧的价格与粗体标题都保住（#976）", () => {
+  const html = renderMarkdown("**3. Membership — $20/mo (+tax)**\nOne free hour monthly. Waives the $6 activation fee.\n→ https://example.com/pricing");
+
+  assert.match(html, /<strong>3\. Membership — \$20\/mo \(\+tax\)<\/strong>/);
+  assert.match(html, /One free hour monthly\. Waives the \$6 activation fee\./);
+  assert.match(html, /href="https:\/\/example\.com\/pricing"/);
+  assert.doesNotMatch(html, /class="katex|\*\*/);
+});
+
+test("fork:currency-math — 相邻金额、区间与小数都算货币（#976）", () => {
+  for (const prices of ["$15+$15", "$20–$30", "$1,200.50 or $900.00", "**$20** and *$6*", "US$20 / CA$30"]) {
+    const html = renderMarkdown(prices);
+    assert.doesNotMatch(html, /class="katex/, prices);
+    assert.equal((html.match(/\$/g) ?? []).length, 2, prices);
+  }
+});
+
+test("fork:currency-math — 价格不会把同段里后面的公式吞掉（#976）", () => {
+  const html = renderMarkdown("Pay $20 for the $x + 1$ option, or $30 for $2x + 3$.");
+
+  assert.match(html, /Pay \$20 for the/);
+  assert.match(html, /or \$30 for/);
+  assert.equal((html.match(/class="katex pw-math"/g) ?? []).length, 2);
+  assert.match(html, /<annotation encoding="application\/x-tex">x \+ 1<\/annotation>/);
+  assert.match(html, /<annotation encoding="application\/x-tex">2x \+ 3<\/annotation>/);
+});
+
+test("fork:currency-math — 真正的单美元公式仍照常渲染（#976）", () => {
+  for (const math of ["$x + y$", "$2 + 2 = 4$", "$20$", "$ x + y $", "$x $", "$ x$", "$x$2", "$x +\ny$", "$$x + y$$"]) {
+    const html = renderMarkdown(math);
+    assert.match(html, /class="katex/, math);
+    assert.doesNotMatch(html, /katex-error/, math);
+  }
+});
+
+test("fork:currency-math — 文件预览与缩略图用同一套货币安全规则（#976）", () => {
+  const html = renderToStaticMarkup(React.createElement(ReactMarkdown, {
+    remarkPlugins: markdownPreviewRemarkPlugins,
+    rehypePlugins: markdownPreviewRehypePlugins,
+  }, "**Price: $20/month**\nPlus a $6 fee. Formula: $2 + 2 = 4$."));
+  assert.match(html, /<strong>Price: \$20\/month<\/strong>/);
+  assert.match(html, /Plus a \$6 fee/);
+  // 预览链路不走 MarkdownBody 的 span 渲染器，类名就是 rehype-katex 的原样输出。
+  assert.equal((html.match(/class="katex"/g) ?? []).length, 1);
+});
+
+test("fork:currency-math — 转义货币、代码与链接目标原样保留（#976）", () => {
+  const html = renderMarkdown("Prices: \\$20 and \\$6. Code: `$20 + $6`. [Price](https://example.com/$20/$6)");
+  assert.doesNotMatch(html, /class="katex/);
+  assert.match(html, /Prices: \$20 and \$6\./);
+  assert.match(html, /<code[^>]*>\$20 \+ \$6<\/code>/);
+  assert.match(html, /href="https:\/\/example\.com\/\$20\/\$6"/);
+  const fenced = renderMarkdown("```text\n$20 + $6\n```");
+  assert.doesNotMatch(fenced, /class="katex/);
+});
+
+test("fork:currency-math — 货币文本照常过 HTML / URL 消毒（#976）", () => {
+  const html = renderMarkdown('$20 <img src="x" onerror="alert(1)"> $6 [click](javascript:alert(1))');
+  assert.doesNotMatch(html, /onerror|javascript:|class="katex/);
+  assert.match(html, /\$20/);
+  assert.match(html, /\$6/);
 });

@@ -58,8 +58,14 @@ export type InputSegment = TextSegment | MentionSegment;
  * 未闭合说明 token 还在输入中。`@comment:` 分支必须排在通用 `@` 之前，
  * 否则会被当成（不存在的）文件路径吞掉；全角冒号兼容 IME 布局。
  * `/skill:` 同样需要边界，名字一直取到下一个空白。
+ *
+ * 边界原本写成 lookbehind（`(?<=^|[\\s\\u00A0])`），但 Safari 16.4 以下解析不了
+ * lookbehind，而一个解析不了的正则字面量会让整个 chunk 抛 SyntaxError（首页白屏，
+ * #753）。所以边界改由扫描时的 `MENTION_BOUNDARY_RE` 判断，正则本体用 sticky（`y`）
+ * 从起点匹配 —— 遍历顺序与原来逐位置尝试一致。
  */
-const MENTION_RE = /(?<=^|[\s\u00A0])(@"[^"\n]*"|@comment[：:][^\s"]+|@[^\s"]+|\/skill:[^\s]+)/g;
+const MENTION_RE = /(@"[^"\n]*"|@comment[：:][^\s"]+|@[^\s"]+|\/skill:[^\s]+)/y;
+const MENTION_BOUNDARY_RE = /[\s\u00A0]/;
 
 /**
  * D2-PR-12 — sha 格式的内联校验。
@@ -115,24 +121,35 @@ export function tokenizeMentions(
 ): InputSegment[] {
   const segments: InputSegment[] = [];
   let lastIndex = 0;
-  MENTION_RE.lastIndex = 0;
+  let index = 0;
 
-  let match: RegExpExecArray | null;
-  while ((match = MENTION_RE.exec(text)) !== null) {
-    const raw = match[0];
-    const start = match.index;
-    const end = start + raw.length;
+  while (index < text.length) {
+    // 先用便宜的字符判断筛掉绝大多数位置，再查边界与 sticky 匹配（见 MENTION_RE）。
+    if (text[index] === "@" || text.startsWith("/skill:", index)) {
+      if (index === 0 || MENTION_BOUNDARY_RE.test(text[index - 1])) {
+        MENTION_RE.lastIndex = index;
+        const match = MENTION_RE.exec(text);
+        if (match) {
+          const raw = match[0];
+          const start = index;
+          const end = start + raw.length;
 
-    if (start > lastIndex) {
-      segments.push({ type: "text", text: text.slice(lastIndex, start) });
+          if (start > lastIndex) {
+            segments.push({ type: "text", text: text.slice(lastIndex, start) });
+          }
+          if (activeTokenStart !== null && start === activeTokenStart) {
+            // 正在输入（自动补全打开）的 token：连同原始文本保持纯文本。
+            segments.push({ type: "text", text: raw });
+          } else {
+            segments.push({ type: "mention", text: raw, token: classifyToken(raw, validators) });
+          }
+          lastIndex = end;
+          index = end;
+          continue;
+        }
+      }
     }
-    if (activeTokenStart !== null && start === activeTokenStart) {
-      // 正在输入（自动补全打开）的 token：连同原始文本保持纯文本。
-      segments.push({ type: "text", text: raw });
-    } else {
-      segments.push({ type: "mention", text: raw, token: classifyToken(raw, validators) });
-    }
-    lastIndex = end;
+    index++;
   }
 
   if (lastIndex < text.length) {
