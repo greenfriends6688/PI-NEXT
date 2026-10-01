@@ -4,7 +4,7 @@ import { Children, createContext, memo, useContext, useMemo, useRef, type Compon
 import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import { parsePdfPageFragment, resolveLocalFileHref, shouldOpenLinkInApp, shouldOpenLocalFileInApp } from "@/lib/file-links";
 import { encodeFilePathForApi } from "@/lib/file-paths";
-import { markdownRehypePluginsFor, markdownRemarkPlugins, markdownUrlTransform, normalizeDisplayMath } from "@/lib/markdown";
+import { markdownRehypePluginsFor, markdownRemarkPlugins, markdownUrlTransform, markdownUserRemarkPlugins, normalizeDisplayMath } from "@/lib/markdown";
 import { mentionRehypePlugin, mentionRemarkPlugin, type MentionValidators } from "@/lib/mention-tokens";
 import { splitStableParts } from "@/lib/markdown-incremental";
 import { useThrottledText } from "@/hooks/useThrottledText";
@@ -78,6 +78,8 @@ interface MarkdownBodyProps {
   highlightMentions?: boolean;
   /** D2-PR-12 — 合法性查询；数据未加载时返回 undefined（一律不高亮，不猜）。 */
   mentionValidators?: MentionValidators;
+  /** fork:fix-user-line-breaks —— 用户消息：每一个换行都渲染成 <br>（#680 / #1015）。 */
+  keepLineBreaks?: boolean;
 }
 
 function MarkdownImage({
@@ -289,7 +291,7 @@ const MarkdownPart = memo(function MarkdownPart({
   );
 });
 
-export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile, highlightMentions, mentionValidators }: MarkdownBodyProps) {
+export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile, highlightMentions, mentionValidators, keepLineBreaks }: MarkdownBodyProps) {
   // fork:fix-markdown-stream — 节流后的可见文本。
   //
   // 原先这里直接 `useMemo(normalizeDisplayMath, [children])`：`children` 是流式增长的
@@ -312,10 +314,13 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
     const base = markdownRehypePluginsFor(Boolean(isStreaming)) ?? [];
     return mentionPlugins.length ? [...base, mentionRehypePlugin] : base;
   }, [isStreaming, mentionPlugins]);
-  const remarkPlugins = useMemo(
-    () => (mentionPlugins.length ? [...(markdownRemarkPlugins ?? []), ...mentionPlugins] : markdownRemarkPlugins),
-    [mentionPlugins],
-  );
+  // fork:fix-user-line-breaks —— 用户消息换用「保留换行」链（见 lib/markdown.ts）。
+  // 必须在 mention 插件之前：本插件会把 text 节点拆成 text + 自定义换行节点，
+  // mention 插件随后只在自己的 text 节点上工作，两者互不影响。
+  const remarkPlugins = useMemo(() => {
+    const base = keepLineBreaks ? markdownUserRemarkPlugins : markdownRemarkPlugins;
+    return mentionPlugins.length ? [...(base ?? []), ...mentionPlugins] : base;
+  }, [keepLineBreaks, mentionPlugins]);
   // 流式状态用 ref 透传给叶子渲染器，这样 `components` 的依赖里就不必包含
   // `isStreaming`：否则流式结束翻转那一下会让全部 code/img/a 渲染器 identity 失效，
   // 触发整棵消息树 reconcile。叶子在同一次 render 里读到的是最新值。

@@ -251,3 +251,61 @@ test("fork:design-components — GFM 表格仍是画板 10 的 .pw-table", () =>
 
   assert.match(html, /<table class="pw-table">/);
 });
+
+test("fork:fix-user-line-breaks — 只有 keepLineBreaks 才把行尾变成 <br>（#680 / #1015）", () => {
+  assert.match(renderMarkdown("one\ntwo"), /<p>one\ntwo<\/p>/);
+  assert.doesNotMatch(renderMarkdown("one\ntwo"), /<br/);
+
+  for (const markdown of ["one\ntwo", "one\r\ntwo", "one\rtwo", "one   \t\n   two"]) {
+    assert.match(renderMarkdown(markdown, { keepLineBreaks: true }), /<p>one<br\/>two<\/p>/, JSON.stringify(markdown));
+  }
+});
+
+test("fork:fix-user-line-breaks — 紧列表项与标题里的换行也保留", () => {
+  const ordered = renderMarkdown("1. 看门狗的原理是（ ）\nA. 监控温度\nB. 计数器\n2. 下一题", { keepLineBreaks: true });
+  const nested = renderMarkdown("- outer\n  more\n  - inner\n- next", { keepLineBreaks: true });
+  const heading = renderMarkdown("Heading one\nheading two\n===", { keepLineBreaks: true });
+
+  assert.match(ordered, /<li>看门狗的原理是（ ）<br\/>A\. 监控温度<br\/>B\. 计数器<\/li>/);
+  assert.match(ordered, /<li>下一题<\/li>/);
+  // 嵌套列表前那个换行分隔的是块，不该变成 <br>。
+  assert.match(nested, /<li>outer<br\/>more\n<ul>\n<li>inner<\/li>/);
+  assert.match(heading, /<h1>Heading one<br\/>heading two<\/h1>/);
+  assert.doesNotMatch(renderMarkdown("- alpha\n\n- beta", { keepLineBreaks: true }), /<br/);
+});
+
+test("fork:fix-user-line-breaks — 硬换行只渲染一次", () => {
+  // remark-rehype 把 mdast break 写成 <br> 加一个 "\n"，pre-wrap 会把后者再渲染一遍。
+  const html = renderMarkdown("trailing spaces  \nbackslash\\\nend", { keepLineBreaks: true });
+
+  assert.match(html, /<p>trailing spaces<br\/>backslash<br\/>end<\/p>/);
+});
+
+test("fork:fix-user-line-breaks — 代码与公式的行尾原样保留", () => {
+  const code = renderMarkdown("```\nfirst\nsecond\n```", { keepLineBreaks: true });
+  const math = renderMarkdown("$$\nx = 1\ny = 2\n$$", { keepLineBreaks: true });
+  const emphasis = renderMarkdown("*one\ntwo* `a b`", { keepLineBreaks: true });
+
+  assert.doesNotMatch(code, /<br/);
+  assert.match(code, /first[\s\S]*\n[\s\S]*second/);
+  assert.doesNotMatch(math, /<br/);
+  assert.match(math, /<annotation encoding="application\/x-tex">x = 1\ny = 2<\/annotation>/);
+  assert.match(emphasis, /<em>one<br\/>two<\/em>/);
+});
+
+test("fork:fix-user-line-breaks — 打开 raw-text 标签的块保持默认渲染", () => {
+  // 未闭合的 <textarea> / <script> 后面跟一个 <br> 会提前结束 rehype-raw 的
+  // raw-text 状态，整块内容要么被粘在一起要么直接消失。
+  for (const markdown of [
+    "Use a <textarea> here\nand a button\nplease",
+    "Set <title>My\nPage</title> first\nthen deploy",
+    "add <script>a()\nb()</script> to the page\nthen reload",
+    "some *<style>x\ny</style>* then\nnext",
+  ]) {
+    assert.equal(renderMarkdown(markdown, { keepLineBreaks: true }), renderMarkdown(markdown));
+  }
+
+  assert.match(renderMarkdown("normal <kbd>Ctrl</kbd>\nline two", { keepLineBreaks: true }), /<\/kbd><br\/>line two/);
+  const list = renderMarkdown("- item <textarea>\n  more\n- two\n  lines", { keepLineBreaks: true });
+  assert.match(list, /<li>two<br\/>lines<\/li>/);
+});

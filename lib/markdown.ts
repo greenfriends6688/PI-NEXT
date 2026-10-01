@@ -399,6 +399,69 @@ export const markdownRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkGfm, remarkGfmOptions],
   remarkMath,
 ];
+/**
+ * fork:fix-user-line-breaks —— 用户消息里每一个换行都保留（#680 / #1015）。
+ *
+ * `.markdown-user-message p { white-space: pre-wrap }`（app/globals.css）只能救**段落**
+ * 内部的软换行；紧列表项（`1. 题目\nA. 选项`）、setext 标题的文本不在 `<p>` 里，浏览器
+ * 直接把换行折成空格；Chrome 在 pre-wrap 下也把落单的 `\r` 渲染成空格（粘贴的老式
+ * Mac 换行就是这么粘成一段的）；硬换行（行尾两空格或 `\`）则是 remark-rehype 输出
+ * `<br>` + 一个 "\n"，pre-wrap 再渲染一次 → 多出一整行空白。
+ *
+ * 所以正文里每个行尾都换成**裸 `<br>`**：这是一个自定义 mdast 节点，靠 `data.hName`
+ * 让 remark-rehype 直接吐 `<br>`，而不是 mdast 的 `break`（后者会带一个 "\n" 尾巴）。
+ * 硬换行也一并换成它。代码 / 行内代码 / 公式 / raw HTML 是别的节点类型，文本原样保留。
+ * 助手消息不受影响（只有用户消息传 keepLineBreaks）。
+ */
+interface MarkdownTreeNode {
+  type: string;
+  value?: string;
+  children?: MarkdownTreeNode[];
+  data?: { hName?: string };
+}
+
+const LINE_ENDING = /[ \t]*(?:\r\n|\r|\n)[ \t]*/;
+const PHRASING_BLOCK_TYPES = new Set(["paragraph", "heading", "tableCell"]);
+// raw-text 元素会把内容一路吃到闭合标签为止，而 rehype-raw 在下一个元素处就退出该状态；
+// 跟在未闭合的 `<textarea>` / `<script>` 后面的 `<br>` 会把整块内容搅乱或吞掉。
+const RAW_TEXT_OPEN_TAG = /^<(?:iframe|noembed|noframes|noscript|plaintext|script|style|textarea|title|xmp)(?=[\s/>]|$)/i;
+
+function opensRawTextElement(node: MarkdownTreeNode): boolean {
+  if (node.type === "html") return RAW_TEXT_OPEN_TAG.test(node.value ?? "");
+  return node.children?.some(opensRawTextElement) ?? false;
+}
+
+function lineBreakNode(): MarkdownTreeNode {
+  return { type: "lineBreak", data: { hName: "br" } };
+}
+
+function keepLineBreaks(parent: MarkdownTreeNode): void {
+  if (!parent.children) return;
+  // 这类块保持默认渲染：段落里的换行仍由 pre-wrap 规则显示。
+  if (PHRASING_BLOCK_TYPES.has(parent.type) && opensRawTextElement(parent)) return;
+  parent.children = parent.children.flatMap((node) => {
+    if (node.type === "break") return [lineBreakNode()];
+    if (node.type !== "text" || !node.value) {
+      keepLineBreaks(node);
+      return [node];
+    }
+    return node.value.split(LINE_ENDING).flatMap((line, index) => [
+      ...(index > 0 ? [lineBreakNode()] : []),
+      ...(line ? [{ type: "text", value: line }] : []),
+    ]);
+  });
+}
+
+function remarkKeepLineBreaks() {
+  return (tree: MarkdownTreeNode) => keepLineBreaks(tree);
+}
+
+/** 用户消息用的 remark 链：与通用链一致，末尾追加换行保留插件。 */
+export const markdownUserRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
+  ...(markdownRemarkPlugins ?? []),
+  remarkKeepLineBreaks,
+];
+
 export const markdownPreviewRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
