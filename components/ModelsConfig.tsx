@@ -14,6 +14,9 @@ import {
 } from "@/lib/settings-navigation";
 import {
   collectModelRenames,
+  compatFlagState,
+  compatFlagsForApi,
+  countUnknownCompatKeys,
   hasModelCostDraftValue,
   hasModelCostTierDraftValue,
   KNOWN_MODEL_APIS,
@@ -26,8 +29,10 @@ import {
   savedModelIds,
   serializeHeaderRows,
   setCompatBool,
+  setCompatFlag,
   trackAddedModels,
   updateHeaderRow,
+  type CompatFlagState,
   type HeaderRow,
   type ModelCostDraft,
   type ModelCostKey,
@@ -792,6 +797,17 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
         <ConfigField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
           <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
         </ConfigField>
+
+        {/* fork:compat-flags (B5) —— provider 级 compat 是整个网关的默认，pi 在运行时
+            把它合进每个模型（`applyModelsJson` 的 `mergeCompat(providerConfig.compat,
+            definition.compat)`），所以它以前同样只能手改 models.json。 */}
+        <ConfigField label={t("models.compatibility")} hint={t("models.compatProviderHint")}>
+          <CompatFlagsEditor
+            compat={provider.compat}
+            api={provider.api}
+            onChange={(key, state) => onChange(setCompatFlag(provider, key, state))}
+          />
+        </ConfigField>
       </ConfigDetail>
     </ConfigDetailStack>
   );
@@ -939,6 +955,73 @@ function setDeepseekCompat(model: ModelEntry, enabled: boolean): ModelEntry {
 // write to the model entry so a per-model override is explicit.
 function effectiveCompat(provider: ProviderEntry, model: ModelEntry): Record<string, unknown> {
   return { ...(provider.compat ?? {}), ...(model.compat ?? {}) };
+}
+
+/* fork:compat-flags (B5) —— 三态：Default（不写键）/ On（写 true）/ Off（写 false）。
+   Default 之所以是三态而不是两态：pi-ai 对不少字段是 `model.compat.x ?? detected.x`
+   （按 baseUrl 自动探测），对另一些是固定默认值 —— 两态开关会把「跟随自动探测」
+   和「显式打开」混成同一个值，要么写一堆与默认相同的噪声，要么改不了自动探测。 */
+const COMPAT_FLAG_STATE_OPTIONS = [
+  { value: "default", label: "Default" },
+  { value: "on", label: "On" },
+  { value: "off", label: "Off" },
+] as const satisfies readonly { value: CompatFlagState; label: string }[];
+
+/**
+ * 该协议的 compat 布尔开关表。清单与默认值的来源写在
+ * `components/models-config-helpers.ts` 的 `COMPAT_FLAGS_BY_API` 定义处
+ * （pi-ai `types.d.ts` 的条件类型 + `dist/api/*.js` 里逐个 `??` 的默认值）。
+ *
+ * 显示读的是 provider+model 合并后的**生效值**（provider-composer 在运行时也是
+ * 这个合并规则），写入只落在 model 条目上，所以一个 model 的覆盖是显式的。
+ */
+function CompatFlagsEditor({ compat, api, onChange }: {
+  compat: Record<string, unknown> | undefined;
+  api: string | undefined;
+  onChange: (key: string, state: CompatFlagState) => void;
+}) {
+  const { t } = useI18n();
+  const specs = compatFlagsForApi(api);
+
+  if (specs.length === 0) {
+    return (
+      <p className="pw-hint">
+        {api ? t("models.compatNoneForApi", { api }) : t("models.compatNeedApi")}
+      </p>
+    );
+  }
+
+  return (
+    <div className="pw-rowgap">
+      {specs.map((spec) => {
+        const state = compatFlagState(compat, spec);
+        return (
+          <div key={spec.key} className="pw-field">
+            <span className="pw-label">
+              {t(spec.labelKey)}
+              <small>{spec.defaultValue === null
+                ? t("models.compatDefaultAuto")
+                : t("models.compatDefaultValue", { value: String(spec.defaultValue) })}</small>
+            </span>
+            <PwCtl>
+              <PwRadio
+                value={state}
+                options={COMPAT_FLAG_STATE_OPTIONS}
+                ariaLabel={t(spec.labelKey)}
+                onChange={(next) => onChange(spec.key, next as CompatFlagState)}
+              />
+            </PwCtl>
+          </div>
+        );
+      })}
+      {countUnknownCompatKeys(compat, specs) > 0 && (
+        /* 枚举 / 对象 / 手改 JSON 写进来的键：报个数，不假装能编辑。 */
+        <p className="pw-hint">
+          {t("models.compatOtherKeys", { count: countUnknownCompatKeys(compat, specs) })}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // Editable key/value request-header list for a provider or model. Rows stay
@@ -1525,6 +1608,8 @@ function ModelDetail({
     compatibilityOverrideCount += 1;
     remainingCompatKeys.delete("supportsDeveloperRole");
   }
+  // fork:compat-flags (B5) —— 开关表里的那些已经被编辑器接管，剩下的（枚举 / 对象 /
+  // 手改 JSON 写进来的）仍然只报个数。
   compatibilityOverrideCount += remainingCompatKeys.size;
   const advancedSummaryParts = [
     model.api ? `API: ${model.api}` : null,
@@ -1732,6 +1817,18 @@ function ModelDetail({
                 onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
               />
             </ConfigField>
+
+            {/* fork:compat-flags (B5) —— 剩下那些只能手改 models.json 的 compat 子键。
+                行结构沿用同文件里 ThinkingLevelMapEditor 的三态 `.pw-field`：
+                Default（不写键，跟随 pi 的默认或按 baseUrl 自动探测）/ On / Off。
+                行集合由 `compatFlagsForApi()` 按**本行的协议**给（pi-ai 的 compat
+                是按 api 分支的条件类型，google-* / pi-messages 那一支是 `never`，
+                配了也没人读），所以每行只出现该协议真的认的开关。 */}
+            <CompatFlagsEditor
+              compat={effectiveCompat(provider, model)}
+              api={model.api ?? provider.api}
+              onChange={(key, state) => onChange(setCompatFlag(model, key, state))}
+            />
 
             {/* fork:input-limits —— pi-ai 原生的 `inputLimits` / `promptCache`（多模态上限、
                 图片 resize 策略、提示词缓存时长）。放在高级分节里：这三类只在自建网关 /

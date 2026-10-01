@@ -1,9 +1,13 @@
 // fork:upstream-0.9.2-thinking-profile — D2-PR-21 展示层的单测
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createJiti } from "jiti";
 
 const {
+  compatFlagState,
+  compatFlagsForApi,
+  countUnknownCompatKeys,
   formatThinkingRequestParams,
   hasModelCostTierDraftValue,
   modelCostTierToDraft,
@@ -12,6 +16,7 @@ const {
   renameProviderEntry,
   savedModelIds,
   serializeHeaderRows,
+  setCompatFlag,
 } = await createJiti(import.meta.url)
   .import("./models-config-helpers.ts");
 
@@ -165,4 +170,67 @@ test("a duplicated threshold keeps the later row, matching what pi charges", () 
     tierDraft({ inputTokensAbove: "200000", input: "2" }),
     tierDraft({ inputTokensAbove: "200000", input: "9" }),
   ]), [{ inputTokensAbove: 200000, input: 9, output: 3, cacheRead: 0.25, cacheWrite: 0 }]);
+});
+
+// fork:compat-flags (B5) —— 合法字段清单来自 pi-ai 的类型定义，不是猜的。
+test("compat switches exist only for protocols pi actually reads", () => {
+  // pi-ai 的 compat 是按 api 分支的条件类型（types.d.ts:829）；这些分支是真的。
+  for (const api of ["openai-completions", "openai-responses", "anthropic-messages", "bedrock-converse-stream", "mistral-conversations"]) {
+    assert.ok(compatFlagsForApi(api).length > 0, `${api} should have compat flags`);
+  }
+  // google-generative-ai / google-vertex / pi-messages 的那一支是 `never`：配了没人读。
+  for (const api of ["google-generative-ai", "google-vertex", "pi-messages", "not-a-protocol", undefined]) {
+    assert.deepEqual(compatFlagsForApi(api), [], `${api} must not offer compat switches`);
+  }
+});
+
+test("every listed compat flag is a boolean pi-ai reads, with an i18n label in all three locales", async () => {
+  const types = await readFile(
+    new URL("../node_modules/@earendil-works/pi-ai/dist/types.d.ts", import.meta.url),
+    "utf8",
+  );
+  const locales = await Promise.all(["en", "zh-CN", "zh-TW"].map(async (id) => (
+    await readFile(new URL(`../lib/i18n/messages/${id}.ts`, import.meta.url), "utf8")
+  )));
+
+  for (const api of ["openai-completions", "openai-responses", "azure-openai-responses", "anthropic-messages"]) {
+    for (const spec of compatFlagsForApi(api)) {
+      // pi-ai 类型里确实声明了这个布尔字段。
+      assert.match(types, new RegExp(`\\b${spec.key}\\?: boolean;`), `${spec.key} is not a boolean in pi-ai`);
+      assert.ok(spec.defaultValue === null || typeof spec.defaultValue === "boolean", spec.key);
+      for (const [index, locale] of locales.entries()) {
+        assert.ok(locale.includes(`"${spec.labelKey}"`), `${spec.labelKey} missing from locale #${index}`);
+      }
+    }
+  }
+});
+
+test("a compat flag reads back Default / On / Off and drops the key for Default", () => {
+  const [spec] = compatFlagsForApi("openai-completions");
+  assert.equal(compatFlagState(undefined, spec), "default");
+  assert.equal(compatFlagState({}, spec), "default");
+  assert.equal(compatFlagState({ [spec.key]: true }, spec), "on");
+  assert.equal(compatFlagState({ [spec.key]: false }, spec), "off");
+  // pi-ai 的字段是 boolean：非布尔值既不是 On 也不是 Off，只能当没配。
+  assert.equal(compatFlagState({ [spec.key]: "yes" }, spec), "default");
+
+  assert.deepEqual(setCompatFlag({ compat: { supportsStore: true } }, "supportsStore", "off"),
+    { compat: { supportsStore: false } });
+  assert.deepEqual(setCompatFlag({ compat: { supportsStore: true, zaiToolStream: true } }, "supportsStore", "default"),
+    { compat: { zaiToolStream: true } });
+  // 删到空就把 compat 整个去掉（`compat: undefined` 序列化时不落盘），不留 `compat: {}`。
+  assert.deepEqual(setCompatFlag({ compat: { supportsStore: true } }, "supportsStore", "default"), { compat: undefined });
+  assert.equal(JSON.stringify(setCompatFlag({ compat: { supportsStore: true } }, "supportsStore", "default")), "{}");
+  assert.deepEqual(setCompatFlag({}, "supportsStore", "on"), { compat: { supportsStore: true } });
+});
+
+test("unknown compat keys are counted, not silently folded into the summary", () => {
+  const specs = compatFlagsForApi("openai-completions");
+  assert.equal(countUnknownCompatKeys(undefined, specs), 0);
+  assert.equal(countUnknownCompatKeys({ supportsStore: true }, specs), 0);
+  // 枚举 / 对象字段没有开关，只能报个数。
+  assert.equal(countUnknownCompatKeys({ thinkingFormat: "deepseek", openRouterRouting: {} }, specs), 2);
+  // 换一个协议就不是「已知」了：supportsToolSearch 是 responses 家族的字段。
+  assert.equal(countUnknownCompatKeys({ supportsToolSearch: true }, compatFlagsForApi("openai-completions")), 1);
+  assert.equal(countUnknownCompatKeys({ supportsToolSearch: true }, compatFlagsForApi("openai-responses")), 0);
 });

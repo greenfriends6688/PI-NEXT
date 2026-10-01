@@ -19,6 +19,25 @@ const cssSource = await readFile(new URL("../app/settings.css", import.meta.url)
 
 // fork:model-api-protocols (B4) —— 协议下拉必须覆盖 pi-ai 的 `KnownApi` 全集。
 // 清单从 SDK 的类型定义里解析：pi-ai 以后新增协议而这里忘了加，这条测试就红。
+// fork:compat-flags (B5) —— 开关表按协议切换，且在 model 与 provider 两层都能编辑。
+test("compat switches are protocol-scoped and editable at both levels", () => {
+  const editor = source.slice(
+    source.indexOf("const COMPAT_FLAG_STATE_OPTIONS"),
+    source.indexOf("/* fork:models-presets"),
+  );
+  assert.match(editor, /compatFlagsForApi\(api\)/);
+  // 三态而不是两态：Default = 不写键（跟随 pi 默认或按 baseUrl 自动探测）。
+  assert.match(editor, /value: "default", label: "Default"/);
+  assert.match(editor, /value: "on", label: "On"/);
+  assert.match(editor, /value: "off", label: "Off"/);
+  assert.match(editor, /compatFlagState\(compat, spec\)/);
+
+  // model 层：读 provider+model 合并后的生效值，写回 model 条目。
+  assert.match(source, /<CompatFlagsEditor[\s\S]{0,220}compat=\{effectiveCompat\(provider, model\)\}[\s\S]{0,120}api=\{model\.api \?\? provider\.api\}/);
+  // provider 层：以前同样只能手改 models.json。
+  assert.match(source, /<CompatFlagsEditor[\s\S]{0,220}compat=\{provider\.compat\}[\s\S]{0,120}api=\{provider\.api\}/);
+});
+
 test("the api protocol list is exactly pi-ai's KnownApi union", async () => {
   const types = await readFile(
     new URL("../node_modules/@earendil-works/pi-ai/dist/types.d.ts", import.meta.url),

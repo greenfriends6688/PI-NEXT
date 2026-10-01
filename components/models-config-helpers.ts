@@ -150,6 +150,162 @@ export function setCompatBool<T extends CompatEntry>(entry: T, key: string, valu
   };
 }
 
+/**
+ * fork:compat-flags (B5) —— `compat` 子键的合法全集与默认值。
+ *
+ * 清单来自 pi-ai 的类型定义，不是猜的：
+ * `node_modules/@earendil-works/pi-ai/dist/types.d.ts:829` 写明 compat 是**按 api 分支**的：
+ *
+ *   compat?: TApi extends "openai-completions" ? OpenAICompletionsCompat
+ *     : TApi extends "openai-responses" | "azure-openai-responses" | "openai-codex-responses" ? OpenAIResponsesCompat
+ *     : TApi extends "anthropic-messages" ? AnthropicMessagesCompat
+ *     : TApi extends "bedrock-converse-stream" ? BedrockCompat
+ *     : TApi extends "mistral-conversations" ? MistralConversationsCompat : never;
+ *
+ * 也就是说 google-generative-ai / google-vertex / pi-messages **根本没有 compat**
+ * （分支是 `never`），给它们配 compat 是假配置。
+ *
+ * 只收录布尔字段，且只收录 pi-ai 的请求构造真的读的（逐个 `grep` 过
+ * `dist/api/<api>.js`）：枚举 / 对象 / 数字字段（`thinkingFormat`、`maxTokensField`、
+ * `openRouterRouting`、`chatTemplateKwargs`、`vllmPriority`…）不给开关 —— 那是
+ * 键值编辑器的活，不是开关的活。
+ *
+ * `defaultValue`：
+ * · `null` = pi 按 baseUrl 自动探测（openai-completions 的多数字段就是这一类，
+ *   自证：`dist/api/openai-completions.js` 的 `getCompat()` 是
+ *   `model.compat.x ?? detected.x`）。
+ * · `true`/`false` = pi-ai 声明的固定默认值（自证：`compat?.x ?? true|false`）。
+ */
+export interface CompatFlagSpec {
+  /** models.json `compat` 里的键名（与 pi-ai 类型同名）。 */
+  key: string;
+  /** i18n key，形如 `models.compatFlag.<key>`。 */
+  labelKey: string;
+  /** `null` = 按 baseUrl 自动探测；其余是 pi-ai 的固定默认值。 */
+  defaultValue: boolean | null;
+}
+
+const flag = (key: string, defaultValue: boolean | null): CompatFlagSpec => ({
+  key,
+  labelKey: `models.compatFlag.${key}`,
+  defaultValue,
+});
+
+/** openai-completions（OpenAICompletionsCompat）—— 自建网关 / vLLM / llama.cpp 主要受害者。 */
+const OPENAI_COMPLETIONS_FLAGS = [
+  flag("supportsStore", null),
+  flag("supportsReasoningEffort", null),
+  flag("supportsUsageInStreaming", null),
+  flag("supportsFinishReason", null),
+  flag("requiresToolResultName", null),
+  flag("requiresAssistantAfterToolResult", null),
+  flag("requiresThinkingAsText", null),
+  flag("zaiToolStream", false),
+  flag("supportsStrictMode", null),
+  flag("supportsOpenAIGrammarTools", false),
+  flag("supportsMidConvoSystemMessages", null),
+  flag("supportsMidConvoToolAdditions", null),
+  flag("sendSessionAffinityHeaders", null),
+  flag("supportsLongCacheRetention", true),
+] as const;
+
+/**
+ * openai-responses 家族（OpenAIResponsesCompat）。三个 api 的默认值不同：
+ * `supportsStrictMode` 在 openai-responses 是 false，在 azure / codex 是 true
+ * （自证：`dist/api/azure-openai-responses.js` 与 `openai-codex-responses.js`
+ * 都是 `supportsStrictMode ?? true`，`openai-responses.js` 是 `?? false`），
+ * 所以按 api 分开写，不能合并。
+ */
+const OPENAI_RESPONSES_FLAGS = [
+  flag("supportsMidConvoSystemMessages", false),
+  flag("supportsStrictMode", false),
+  flag("supportsOpenAIGrammarTools", false),
+  flag("supportsAdditionalTools", false),
+  flag("supportsToolSearch", false),
+  flag("supportsExplicitPromptCacheMode", false),
+  flag("supportsMaxOutputTokens", true),
+  flag("supportsLongCacheRetention", true),
+] as const;
+
+const OPENAI_RESPONSES_STRICT_DEFAULT_FLAGS = OPENAI_RESPONSES_FLAGS.map((spec) => (
+  spec.key === "supportsStrictMode" ? { ...spec, defaultValue: true } : spec
+));
+
+/** anthropic-messages（AnthropicMessagesCompat）。 */
+const ANTHROPIC_MESSAGES_FLAGS = [
+  flag("supportsEagerToolInputStreaming", true),
+  flag("supportsLongCacheRetention", true),
+  flag("supportsCacheControlOnTools", true),
+  flag("supportsTemperature", true),
+  flag("forceAdaptiveThinking", false),
+  flag("allowEmptySignature", false),
+  flag("supportsStrictTools", false),
+  flag("supportsMidConvoEffort", false),
+  flag("supportsMidConvoSystemMessages", false),
+  flag("supportsMidConvoToolChanges", false),
+] as const;
+
+/**
+ * api → 该协议真正接受的布尔 compat 字段。
+ * 不在表里的 api 一律返回空数组：pi-ai 的条件类型对它们是 `never`，
+ * 配了也不会被请求构造读。
+ */
+const COMPAT_FLAGS_BY_API: Readonly<Record<string, readonly CompatFlagSpec[]>> = {
+  "openai-completions": OPENAI_COMPLETIONS_FLAGS,
+  "openai-responses": OPENAI_RESPONSES_FLAGS,
+  "azure-openai-responses": OPENAI_RESPONSES_STRICT_DEFAULT_FLAGS,
+  "openai-codex-responses": OPENAI_RESPONSES_STRICT_DEFAULT_FLAGS,
+  "anthropic-messages": ANTHROPIC_MESSAGES_FLAGS,
+  "bedrock-converse-stream": [flag("supportsStrictMode", false)],
+  "mistral-conversations": [flag("supportsMidConvoSystemMessages", false)],
+};
+
+export function compatFlagsForApi(api: string | undefined): readonly CompatFlagSpec[] {
+  if (!api) return [];
+  return COMPAT_FLAGS_BY_API[api] ?? [];
+}
+
+export type CompatFlagState = "default" | "on" | "off";
+
+/**
+ * 实际生效值：`default` = 没写这个键（pi 按 `defaultValue` 决定），`on` / `off` =
+ * 写了显式值。默认态不写键，所以 models.json 里不会多出一堆与 pi 默认相同的噪声。
+ */
+export function compatFlagState(
+  compat: Record<string, unknown> | undefined,
+  spec: CompatFlagSpec,
+): CompatFlagState {
+  const value = compat?.[spec.key];
+  if (value === true) return "on";
+  if (value === false) return "off";
+  return "default";
+}
+
+/** 回到默认态就是删键 —— 「没配」与「配成默认值」在 models.json 里应当长得一样。 */
+export function setCompatFlag<T extends CompatEntry>(
+  entry: T,
+  key: string,
+  state: CompatFlagState,
+): T {
+  const compat = { ...(entry.compat ?? {}) };
+  if (state === "default") delete compat[key];
+  else compat[key] = state === "on";
+  return { ...entry, compat: Object.keys(compat).length ? compat : undefined };
+}
+
+/**
+ * 开关集合里没被任何一行编辑的键（枚举 / 对象 / 手改 JSON 写进来的）。
+ * 高级分节只统计「已知字段」，未知键单独报个数，不再把整个 compat 说成
+ * 「N 个兼容项」而看不出是哪些。
+ */
+export function countUnknownCompatKeys(
+  compat: Record<string, unknown> | undefined,
+  specs: readonly CompatFlagSpec[],
+): number {
+  const known = new Set(specs.map((spec) => spec.key));
+  return Object.keys(compat ?? {}).filter((key) => !known.has(key)).length;
+}
+
 export function updateHeaderRow(
   rows: readonly HeaderRow[],
   id: number,
