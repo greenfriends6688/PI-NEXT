@@ -393,6 +393,7 @@ export const zhCNLocale: LocalePlugin = {
     "session.cacheHitRate": "平均缓存命中率",
     "session.copy": "复制{value}",
     "session.copied": "已复制",
+    "session.copyReferenceFailed": "没能复制这条会话的引用",
     "sidebar.recentSessions": "最近会话",
     // fix:top-panel-board22 —— 画板 22「最近会话」当前项右侧的短标签。
     "sidebar.currentSession": "当前",
@@ -1056,6 +1057,7 @@ export const zhCNLocale: LocalePlugin = {
     "i18n.close": "关闭",
     "i18n.copy": "复制",
     "i18n.copied": "已复制",
+    "i18n.copyFailed": "复制失败",
     "i18n.codeTooLargeToHighlight": "代码块过大，未做语法高亮",
     "i18n.cancel": "取消",
     "i18n.save": "保存",

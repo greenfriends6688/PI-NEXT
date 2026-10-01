@@ -16,6 +16,11 @@ import { copyText } from "@/lib/clipboard";
  * the route refuses or the spawn fails — success is visible outside the app, so a
  * toast would be noise.
  *
+ * fork:fix-clipboard —— 复制也会失败，而且失败必须看得见。`copyText` 现在永远
+ * resolve 成 {ok}，所以 copy 走同一套 `.danger` + `.pw-badge bad` 失败态（和
+ * reveal/open 的失败态共用一个 state，本来就是同一个「这个动作没成」）。之前是
+ * 无条件 setCopied(true)：两条路都被拒时按钮纹丝不动，用户以为复制过了。
+ *
  * fork:design-components —— 视觉全部交给 board.css：紧凑簇 = `.pw-iconbtn.sm`，
  * 文字簇 = `.pw-btn.sm`，图标取画板 53「路径动作」那一组
  * （copy / folder-open / external-link），失败态挂画板的 `.danger`，
@@ -42,6 +47,13 @@ export function PathActions({
   // fork:design-components —— 紧凑簇走画板的图标钮，展开簇走文字钮。
   const className = compact ? "pw-iconbtn sm" : "pw-btn sm";
 
+  // 三个动作共用一份失败态：钩子（.danger）+ 那枚 .pw-badge bad 文案，
+  // 2.6s 后自动收回；只复位自己刚写下的那一档，连点两次时旧定时器不抹掉新状态。
+  const markFailed = () => {
+    setState("failed");
+    window.setTimeout(() => setState((current) => (current === "failed" ? "idle" : current)), 2600);
+  };
+
   const run = async (action: "reveal" | "open") => {
     setState("busy");
     try {
@@ -53,13 +65,17 @@ export function PathActions({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setState("idle");
     } catch {
-      setState("failed");
-      window.setTimeout(() => setState((current) => (current === "failed" ? "idle" : current)), 2600);
+      markFailed();
     }
   };
 
   const copy = () => {
-    void copyText(path).then(() => {
+    // `copyText` 永不 reject：失败是一个明确的结果，不是异常。
+    void copyText(path).then((result) => {
+      if (!result.ok) {
+        markFailed();
+        return;
+      }
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
     });

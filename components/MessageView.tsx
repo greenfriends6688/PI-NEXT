@@ -255,6 +255,67 @@ function formatTime(ts?: number): string | null {
   return `${date} ${time}`;
 }
 
+/* fork:fix-clipboard —— 三个消息视图（用户 / 助手 / 扩展自定义卡）共用的复制三态。
+ *
+ * 之前三处都是 `copyText(x).then(() => setCopied(true))`：返回值被丢掉，而
+ * `copyText` 现在**永不 reject**、只会 resolve 成 `{ok:false,reason}`，于是
+ * 写剪贴板被拒时按钮纹丝不动 —— 用户点完什么反馈都没有。
+ *
+ * 收敛规则与 components/MermaidBlock.tsx 的 CodeBlock 一致：
+ *  - 成功档观感一个字没动（CopyStateIcon 形变 + 「已复制」，1500ms 复位）；
+ *  - 失败档 2600ms，给用户留出读完一句话的时间；
+ *  - 复位走函数式 setState 且只复位**自己刚写下**的那一档，连点两次时
+ *    上一次的定时器不会把新状态抹掉。 */
+type CopyState = "idle" | "copied" | "failed";
+
+const COPY_RESET_MS = 1500;
+const COPY_FAILED_RESET_MS = 2600;
+
+function useMessageCopy() {
+  const [state, setState] = useState<CopyState>("idle");
+  const resetTimerRef = useRef<number | null>(null);
+
+  // 复制完立刻切会话/滚走这条消息是常事，卸载后别再 setState。
+  useEffect(() => () => {
+    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+  }, []);
+
+  const copy = useCallback((text: string) => {
+    // `copyText` 永不 reject：读 `ok` 决定给不给反馈，所以这里不写 .catch。
+    void copyText(text).then((result) => {
+      const next: CopyState = result.ok ? "copied" : "failed";
+      setState(next);
+      if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = window.setTimeout(() => {
+        resetTimerRef.current = null;
+        setState((current) => (current === next ? "idle" : current));
+      }, result.ok ? COPY_RESET_MS : COPY_FAILED_RESET_MS);
+    });
+  }, []);
+
+  return { copied: state === "copied", failed: state === "failed", copy };
+}
+
+/*
+ * fork:fix-clipboard —— 失败提示挂在**消息列**里，不挂在动作行里。
+ * `.pw-msg-acts` 在 `@media (hover: hover)` 下是 `opacity:0`（app/fork-ui.css），
+ * 失败徽标放进去等于没提示：鼠标一移开就消失，读屏用户也拿不到位置。
+ *
+ * 形态复用本文件**已有**的失败态 —— provider 错误框那条 `.pw-alert`（error 底 +
+ * `circle-x` 图标槽 + `.pw-grow` 正文，components/MessageView.tsx:800）：
+ * 不另造提示系统。文案用仓库里已存在、此前无人引用的 `chat.todosCopyFailed`
+ * （三语齐全，与 MermaidBlock 同一枚键）。
+ */
+function CopyFailedNotice({ style }: { style?: React.CSSProperties }) {
+  const { t } = useI18n();
+  return (
+    <div role="status" className="pw-alert" style={style}>
+      <span className="pw-ico"><i data-ico="circle-x" data-size="14"></i></span>
+      <span className="pw-grow">{t("chat.todosCopyFailed")}</span>
+    </div>
+  );
+}
+
 export function replaceUserMessageText(message: UserMessage, text: string): UserMessage {
   if (typeof message.content === "string") return { ...message, content: text };
 
@@ -348,7 +409,8 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   onEditContent?: (message: UserMessage) => void;
 }) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
+  // fork:fix-clipboard —— 三态而不是 `copied: boolean`：复制**可能失败**。
+  const { copied, failed, copy } = useMessageCopy();
   const [expanded, setExpanded] = useState(false);
   // fork:zm-01 — 折叠正文的两段式存在性：grid wrapper 常驻负责行高动画，正文在
   // 收起过渡结束后才卸载（见 hooks/useCollapsePresence.ts）。
@@ -424,12 +486,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   );
   const canNavigate = !!entryId && !!onNavigate;
 
-  const copyContent = () => {
-    copyText(copyTarget).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
+  const copyContent = () => copy(copyTarget);
 
   return (
     <div
@@ -525,12 +582,16 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
           整行右对齐，成员一律 `.pw-btn sm` + `.pw-ico` + `i[data-ico]`。
           hover/焦点显隐仍由 app/fork-ui.css 承担（画板的 `.pw-msg-user:hover` 规则
           在产品里不成立 —— 动作行是消息列的兄弟节点，不在气泡内；需要的片段见报告）。 */}
+      {/* fork:fix-clipboard —— 失败提示在**动作行外面**（见 CopyFailedNotice 的
+          注释）：动作行 hover 才显形，提示放里面等于没提示。按钮本身照旧只说
+          「复制 / 已复制」，失败档走 `.pw-btn.sm.danger` + title，另由那枚
+          role=status 提示条承担文案。 */}
       <div className="pw-msg-acts">
         <button
           type="button"
           onClick={copyContent}
-          title={t("i18n.copyMessage")}
-          className="pw-btn sm"
+          title={failed ? t("chat.todosCopyFailed") : t("i18n.copyMessage")}
+          className={failed ? "pw-btn sm danger" : "pw-btn sm"}
         >
           <span className="pw-ico">{CopyStateIcon({ copied })}</span>
           {copied ? t("i18n.copied") : t("i18n.copy")}
@@ -575,6 +636,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
         )}
         {time && <span className="pw-dim">{time}</span>}
       </div>
+      {failed && <CopyFailedNotice style={{ marginTop: "var(--s1)" }} />}
     </div>
   );
 }
@@ -621,7 +683,8 @@ function AssistantMessageView({
   const providerError = getAssistantErrorMessage(message, { isStreaming });
   // fork:design-system PR-11 — 「输出被上限截断」不再单开告警块，改由回合结束行
   // 的 `length` 徽章 + `chat.truncatedByOutputLimit` 解释表达（设计 12 画板）。
-  const [copied, setCopied] = useState(false);
+  // fork:fix-clipboard —— 复制改成三态（见 useMessageCopy）。
+  const { copied, failed, copy } = useMessageCopy();
   const streamStartRef = useRef<number | null>(null);
   const [tps, setTps] = useState<number | null>(null);
   const blockItemsRef = useRef(blockItems);
@@ -679,12 +742,7 @@ function AssistantMessageView({
     .map((b) => b.text)
     .join("\n");
 
-  const copyContent = () => {
-    copyText(textContent).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
+  const copyContent = () => copy(textContent);
 
   useEffect(() => {
     if (!isStreaming) {
@@ -889,14 +947,15 @@ function AssistantMessageView({
 
       {/* fork:design-components —— 助手消息的动作行同样换成画板 10 的 `.pw-msg-acts`：
           复制按钮 = `.pw-btn sm` + `.pw-ico`（CopyStateIcon 保留形变）+ 文字；
-          时间戳用 `.pw-grow` 顶到行尾（与原 `margin-left:auto` 等价）。 */}
+          时间戳用 `.pw-grow` 顶到行尾（与原 `margin-left:auto` 等价）。
+          fork:fix-clipboard —— 失败提示条挂在这一行**外面**（见 CopyFailedNotice）。 */}
       <div className="pw-msg-acts">
         {textContent && !isStreaming && (
           <button
             type="button"
             onClick={copyContent}
-            title={t("i18n.copyMessage")}
-            className="pw-btn sm"
+            title={failed ? t("chat.todosCopyFailed") : t("i18n.copyMessage")}
+            className={failed ? "pw-btn sm danger" : "pw-btn sm"}
           >
             <span className="pw-ico">{CopyStateIcon({ copied })}</span>
             {copied ? t("i18n.copied") : t("i18n.copy")}
@@ -909,6 +968,7 @@ function AssistantMessageView({
           <span className="pw-dim">{time}</span>
         )}
       </div>
+      {failed && <CopyFailedNotice style={{ marginTop: "var(--s1)" }} />}
     </div>
   );
 }
@@ -1720,7 +1780,8 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
   const isHiddenDisplay = message.display === false;
   const [contentExpanded, setContentExpanded] = useState(!isHiddenDisplay);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // fork:fix-clipboard —— 复制改成三态（见 useMessageCopy）。
+  const { copied, failed, copy } = useMessageCopy();
   const text = getMessageText(message.content);
   const images = getMessageImages(message.content);
   const hasDetails = message.details !== undefined;
@@ -1735,12 +1796,7 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
   const title = formatCustomType(message.customType);
   const time = formatTime(message.timestamp);
 
-  const copyContent = () => {
-    copyText(text || detailsText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
+  const copyContent = () => copy(text || detailsText);
 
   return (
     /* fork:design-components —— 扩展自定义消息卡换成画板 11 的通用卡三段：
@@ -1805,7 +1861,15 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
 
         <div className="pw-card-foot">
           {text || detailsText ? (
-            <button type="button" onClick={copyContent} className="pw-btn sm">
+            /* fork:fix-clipboard —— 失败档：按钮挂 `.pw-btn.sm.danger`，文案由下面
+               那条 role=status 提示条承担（卡脚是常驻的，不像 `.pw-msg-acts`
+               那样 hover 才显形，所以失败提示直接接在脚下面这一段里）。 */
+            <button
+              type="button"
+              onClick={copyContent}
+              title={failed ? t("chat.todosCopyFailed") : undefined}
+              className={failed ? "pw-btn sm danger" : "pw-btn sm"}
+            >
               <span className="pw-ico">{CopyStateIcon({ copied })}</span>
               {copied ? t("i18n.copied") : t("i18n.copy")}
             </button>
@@ -1826,6 +1890,14 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
             </button>
           )}
         </div>
+
+        {/* fork:fix-clipboard —— 复制失败的提示条：挂在卡脚正下方的一段 `.pw-card-body`
+            （本卡正文区已经这么分段，padding 也取同一档），失败时多出一行。 */}
+        {failed && (
+          <div className="pw-card-body" style={{ padding: "var(--s2) var(--s3)" }}>
+            <CopyFailedNotice />
+          </div>
+        )}
 
         {/* fork:zm-01 — details 区的常驻 grid；折叠时不渲染 pre，收起过渡期间保留。 */}
         <div

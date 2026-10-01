@@ -24,10 +24,17 @@ import type { TodoSummary } from "@/lib/todo-state";
  * too, so a mid-run glance says what the agent is doing right now.
  */
 
+type CopyState = "idle" | "copied" | "failed";
+
 export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // fork:fix-clipboard —— 三态而不是 `copied: boolean`：复制**可能失败**，
+  // 而失败必须看得见。之前是无条件 setCopied(true)：两条路都被拒时按钮纹丝不动，
+  // 用户拿着一个空剪贴板把清单粘回会话。
+  const [copyState, setCopyState] = useState<CopyState>("idle");
+  const copied = copyState === "copied";
+  const copyFailed = copyState === "failed";
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,9 +69,12 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
     const text = summary.todos
       .map((todo) => `- [${todo.done ? "x" : " "}] ${todo.text}`)
       .join("\n");
-    void copyText(text).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1400);
+    // `copyText` 现在永远 resolve 成一个明确结果（成功 / 失败），不抛 rejection。
+    void copyText(text).then((result) => {
+      const next: CopyState = result.ok ? "copied" : "failed";
+      setCopyState(next);
+      // 只复位自己刚写下的那一档：连点两次时旧定时器不能把新状态抹掉。
+      window.setTimeout(() => setCopyState((current) => (current === next ? "idle" : current)), result.ok ? 1400 : 2600);
     });
   };
 
@@ -144,11 +154,26 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
             {t("chat.todos")}
             <span className="pw-badge count">{progressText}</span>
             <span className="grow" />
-            <button type="button" className="pw-btn sm" onClick={copy} title={t("chat.copyTodos")}>
+            <button
+              type="button"
+              className={copyFailed ? "pw-btn sm danger" : "pw-btn sm"}
+              onClick={copy}
+              title={copyFailed ? t("chat.todosCopyFailed") : t("chat.copyTodos")}
+            >
               <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13" aria-hidden="true"></i></span>
               {copied ? t("i18n.copied") : t("chat.copyTodos")}
             </button>
           </div>
+
+          {/* fork:fix-clipboard —— 失败徽标**另起一行**，不挂进 .pw-plan-head：
+              头里已经站着图标 + 标题 + 进度徽标 + 复制钮，英文 "Could not copy"
+              塞进去会把标题挤到换行（浮层只有 320px / 92vw），头就长高一截。
+              `.pw-plan` 自己是 grid + gap，插一行白拿间距，面板本来就能滚。 */}
+          {copyFailed && (
+            <div>
+              <span role="status" className="pw-badge bad">{t("chat.todosCopyFailed")}</span>
+            </div>
+          )}
 
           <div
             role="progressbar"

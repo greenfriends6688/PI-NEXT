@@ -803,7 +803,28 @@ export function AppShell() {
     };
     const text = serializeSessionReferenceClipboard(reference);
     if (!text) return;
-    await copyText(text);
+    /* fork:fix-clipboard —— `copyText` 永不 reject，只会 resolve 出 `{ok,reason}`；
+       之前 `await copyText(text)` 把结果整个丢掉，写入被拒时用户**什么都看不到**。
+
+       成功路径一个字没动：这一串动作的可见反馈不在 AppShell，而在菜单那一侧 ——
+       会话行右键 →「复制会话引用」的 `feedbackLabel`（t("session.copied")，
+       components/SessionRowContextMenuBridge.tsx）。
+
+       失败路径**目前接不上**（已查遍，能说明原因）：
+         - 那枚反馈标签是**无条件**的：`ContextMenu.runItem` 先 `setFeedbackIndex`
+           再 `await onSelect()`，拿不到本次复制的结果，所以失败时菜单照样闪
+           「已复制」；改它要动 components/ContextMenu.tsx + 上面的 Bridge
+           （例如让 `onSelect` 返回 `{ok}`，菜单按结果在
+           `feedbackLabel` / `feedbackLabelFailed` 之间切）。
+         - AppShell 自己也没有可接的通知区：没有 toast / NoticeShelf，notices 是
+           `useAgentSession` 的状态、在 ChatWindow 另一棵子树里渲染；
+           `deliverSessionNotification` 是 OS 级通知，且由用户偏好与「仅未聚焦时」
+           把关，拿它报一个右键菜单的复制失败是滥用。
+
+       所以这里先把失败记下来（不静默当成功），可见反馈等上面两处支持按结果
+       切换文案后补上。 */
+    const result = await copyText(text);
+    if (!result.ok) console.error(`[pi-web] copy session reference failed: ${result.reason}`);
   }, []);
 
   const handleFileLocationHandled = useCallback((target: FileLocationTarget) => {
