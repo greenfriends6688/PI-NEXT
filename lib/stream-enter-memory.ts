@@ -31,11 +31,11 @@ export const STREAM_ENTER_MAX_KEYS = 800;
 /** How long the `data-fork-enter` marker stays after an entrance starts. */
 export const STREAM_ENTER_CLEANUP_MS = 1000;
 
-/** Stagger unit for the entrance delay (`--fork-enter-delay`). */
-export const STREAM_ENTER_STEP_MS = 36;
-
-/** Delay is clamped to this many stagger steps (~360ms) so late rows never wait seconds. */
-export const STREAM_ENTER_MAX_STAGGER = 10;
+/**
+ * Cap on stagger steps: design §1.6 「成组错开最多 3 项，第 4 项起不再延后」，
+ * otherwise a long transcript reads as "it froze for a moment, then they all came out".
+ */
+export const STREAM_ENTER_MAX_STAGGER = 3;
 
 export interface StreamEnterMemoryOptions {
   /** Maximum remembered ids; defaults to `STREAM_ENTER_MAX_KEYS`. */
@@ -67,16 +67,19 @@ export function normalizeStreamEnterId(id: string): string | null {
  * CSS value for one row's entrance delay. `sequence` is the stable per-turn
  * ordinal assigned by buildProcessSteps — never the render window's array
  * index, which shifts when older messages are prepended.
+ *
+ * The unit is the design's `--motion-stagger` token (not a literal), so the
+ * board table stays the single source for "40ms × at most 3".
  */
 export function streamEnterDelay(
   sequence: number,
-  options?: { stepMs?: number; maxSteps?: number },
+  options?: { stepMs?: string; maxSteps?: number },
 ): string {
-  const stepMs = options?.stepMs ?? STREAM_ENTER_STEP_MS;
+  const stepMs = options?.stepMs ?? "var(--motion-stagger)";
   const maxSteps = options?.maxSteps ?? STREAM_ENTER_MAX_STAGGER;
   const finite = Number.isFinite(sequence) ? sequence : 0;
   const clamped = Math.max(0, Math.min(Math.floor(finite), maxSteps));
-  return `calc(${clamped} * ${stepMs}ms)`;
+  return `calc(${clamped} * ${stepMs})`;
 }
 
 export function createStreamEnterMemory(options: StreamEnterMemoryOptions = {}): StreamEnterMemory {

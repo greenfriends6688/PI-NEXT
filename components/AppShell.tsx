@@ -274,6 +274,10 @@ export function AppShell() {
   // fork:zn-16 — 订阅一次让设置里改开关后主区立刻生效（回调里走 getNotificationPrefs()）。
   useNotificationPrefs();
   const [sessionKey, setSessionKey] = useState(0);
+  /* 板 05 B 类转场：「重载会话」**不再** bump sessionKey（那会把整个 ChatWindow
+     remount 成骨架屏）。reload 换成转录列降到 0.5 的就地刷新，见 ChatWindow 的
+     reloadToken。其余六处 sessionKey（切会话 / 换 cwd / fork / 项目信任）仍然是真 remount。 */
+  const [sessionReloadToken, setSessionReloadToken] = useState(0);
   const sessionScrollPositionsRef = useRef(new Map<string, ChatScrollPosition>());
   const handleSessionScrollPositionChange = useCallback((sessionId: string, position: ChatScrollPosition) => {
     sessionScrollPositionsRef.current.set(sessionId, position);
@@ -3218,7 +3222,7 @@ export function AppShell() {
           setSettingsSkillSlug(null);
           setModelsRefreshKey((key) => key + 1);
         }}
-        onSessionReloaded={() => setSessionKey((key) => key + 1)}
+        onSessionReloaded={() => setSessionReloadToken((key) => key + 1)}
         cwd={projectTrustCwd}
       />
     )}

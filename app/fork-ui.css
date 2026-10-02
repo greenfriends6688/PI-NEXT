@@ -126,38 +126,21 @@ html.keyboard-open .extension-status-shelf {
  *
  * Upstream ships three coarse durations (`--motion-fast/base/slow`) and one
  * cross-fade transition, which is not enough vocabulary for anything that moves
- * with intent. MusePi keeps a named token per primitive plus three damped-spring
- * `linear()` curves (docs/gui-design.md §3, gui-base.css:13-71); we adopt the
- * same shape so new motion reads as one system instead of ad-hoc beziers.
+ * with intent. MusePi keeps a named token per primitive (docs/gui-design.md §3,
+ * gui-base.css:13-71); we adopt the same shape so new motion reads as one
+ * system instead of ad-hoc durations.
+ *
+ * 2026-10-03：原先这里还有两条 damped-spring `linear()` 曲线
+ * (`--fork-spring` / `--fork-spring-snappy`)，已删。设计 §1.6「全系统唯一曲线
+ * `--ease`」且「**不弹跳**：不用 spring / overshoot」，两条曲线各有 1 个消费者
+ * (`.context-menu` 位移 / `.fork-copy-glyph` 换字形)，现都走 `--ease`。
  *
  * Rule (same as the reference): new animations read these tokens — keyframes may
  * be redefined, but durations/easings must not be hardcoded, otherwise a future
  * motion pack cannot restyle the app. `prefers-reduced-motion` still collapses
  * everything globally (globals.css:1853).
- *
- * Springs are the reference's measured point lists (keep them verbatim — a
- * hand-written bezier overshoots differently and reads as a different product).
  * ------------------------------------------------------------------------- */
 :root {
-  --fork-spring: linear(
-    0.0000, 0.0126 3.23%, 0.0458 6.45%, 0.0935 9.68%, 0.1511 12.90%,
-    0.2147 16.13%, 0.2812 19.35%, 0.3483 22.58%, 0.4143 25.81%, 0.4778 29.03%,
-    0.5379 32.26%, 0.5941 35.48%, 0.6460 38.71%, 0.6933 41.94%, 0.7362 45.16%,
-    0.7747 48.39%, 0.8089 51.61%, 0.8392 54.84%, 0.8657 58.06%, 0.8888 61.29%,
-    0.9088 64.52%, 0.9260 67.74%, 0.9407 70.97%, 0.9531 74.19%, 0.9635 77.42%,
-    0.9722 80.65%, 0.9794 83.87%, 0.9853 87.10%, 0.9900 90.32%, 0.9938 93.55%,
-    0.9968 96.77%, 1
-  );
-  --fork-spring-snappy: linear(
-    0.0000, 0.0120 2.56%, 0.0432 5.13%, 0.0880 7.69%, 0.1410 10.26%,
-    0.1972 12.82%, 0.2524 15.38%, 0.3026 17.95%, 0.3449 20.51%, 0.3770 23.08%,
-    0.3975 25.64%, 0.4067 28.21%, 0.4061 30.77%, 0.3978 33.33%, 0.3846 35.90%,
-    0.3693 38.46%, 0.3548 41.03%, 0.3440 43.59%, 0.3394 46.15%, 0.3431 48.72%,
-    0.3570 51.28%, 0.3824 53.85%, 0.4198 56.41%, 0.4690 58.97%, 0.5291 61.54%,
-    0.5986 64.10%, 0.6754 66.67%, 0.7569 69.23%, 0.8404 71.79%, 0.9227 74.36%,
-    0.9640 76.92%, 0.9865 79.49%, 0.9971 82.05%, 1.0000 84.62%, 0.9974 87.18%,
-    0.9928 89.74%, 0.9895 92.31%, 0.9900 94.87%, 0.9958 97.44%, 1
-  );
   /* fork:design-system（2026-09-28）—— 全部收敛到设计系统的四档：
      菜单/弹层 160、芯片 160、淡入淡出 120、高度 240（布局档）。 */
   --fork-motion-menu: var(--motion-base);   /* 弹层出现 = 160ms */
@@ -187,7 +170,7 @@ html.keyboard-open .extension-status-shelf {
   transform: translateY(calc(-1 * var(--fork-travel-menu))) scale(0.98);
   transition:
     opacity var(--fork-motion-menu) var(--ease-out),
-    transform var(--fork-motion-menu) var(--fork-spring);
+    transform var(--fork-motion-menu) var(--ease);
 }
 .context-menu--entered {
   opacity: 1;
@@ -244,7 +227,7 @@ html.keyboard-open .extension-status-shelf {
   justify-content: center;
   transition:
     opacity var(--fork-motion-chip) var(--ease-out),
-    transform var(--fork-motion-chip) var(--fork-spring-snappy);
+    transform var(--fork-motion-chip) var(--ease);
 }
 .fork-copy-glyph__idle {
   opacity: 1;
@@ -554,6 +537,26 @@ html.keyboard-open .extension-status-shelf {
     background: none;
     -webkit-text-fill-color: currentColor;
     color: var(--text-muted);
+  }
+}
+
+/* 设计画板 05 第 03 项「等待期减弱」（--opacity-pending = 0.5）：就地重读
+   （手动压缩）时旧内容**留在屏上**降到 0.5，不换骨架屏、不做假进度 ——
+   时长不可预知，假进度比不动的 0.5 更让人焦虑。同时不可交互。
+   只给转录列这一个容器：等待期输入框 / 顶栏 / 侧栏都不许跟着变暗。 */
+.fork-pending {
+  opacity: var(--opacity-pending);
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--ease);
+}
+/* reduced-motion：终态本身没有动画，0.01ms 的全局兜底照样到位（降不降都可读）。 */
+
+/* 设计画板 05 第 16 项的另一半「呼吸」：文字在微光里跑，图标同时一暗一亮，
+   这一行才是「还在动」的那条证据（`@keyframes pulse` 此前是孤儿）。
+   复用 globals.css 的 pulse：0.5 低点正好等于 `--opacity-pending`。 */
+@media (prefers-reduced-motion: no-preference) {
+  .pw-step[data-live="true"] .pw-step-ico {
+    animation: pulse var(--motion-hint) var(--ease) infinite;
   }
 }
 
@@ -876,9 +879,11 @@ html.keyboard-open .extension-status-shelf {
  *   3. 本文件的 no-preference 媒体块（reduce 下即使属性在也不会有动画）。
  * keyframe 名带 fork- 前缀，避免 ZCode 那种同名覆盖（后写的静默盖掉先写的）。
  * ------------------------------------------------------------------------- */
+/* 时长走设计档：流式入场是**内容类**动效，设计 §1.6 定的是 `--motion-base`
+   （160ms），此前的 260ms 越了「内容类不超过 200ms」那条线。错开档数在
+   lib/stream-enter-memory.ts 里算，单位是同一个 `--motion-stagger` token。 */
 :root {
-  --fork-enter-duration: 260ms;
-  --fork-enter-step: 36ms;
+  --fork-enter-duration: var(--motion-base);
 }
 
 @keyframes fork-stream-enter {
@@ -906,6 +911,23 @@ html.keyboard-open .extension-status-shelf {
 }
 @media (prefers-reduced-motion: reduce) {
   .fork-turn-enter {
+    animation: none;
+  }
+}
+
+/* 设计画板 05 第 14 项「跳转高亮」——查找到某一轮 / 从小地图跳过去之后，
+   1.6s 的一次性提示：6% 底 + 2px 强调色左边线。原先是 ChatWindow 里一段
+   WAAPI（2500ms、无强调色边线），这里是它唯一的实现。 */
+@keyframes fork-jump-flash {
+  0%, 4%   { background: transparent; box-shadow: inset 2px 0 0 transparent; }
+  10%, 62% { background: color-mix(in srgb, var(--text) 6%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+  100%     { background: transparent; box-shadow: inset 2px 0 0 transparent; }
+}
+.fork-jump-flash {
+  animation: fork-jump-flash var(--motion-hint) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fork-jump-flash {
     animation: none;
   }
 }

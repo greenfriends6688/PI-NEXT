@@ -90,6 +90,9 @@ interface Props {
   initialScrollPosition?: ChatScrollPosition | null;
   onScrollPositionChange?: (sessionId: string, position: ChatScrollPosition) => void;
   sessionRunning?: boolean;
+  /** 设置里改完东西点「重载会话」：AppShell +1 即可，**不再 remount 本组件**
+   *  （板05 B 类转场：旧内容留在屏上降到 0.5，不做骨架屏）。 */
+  reloadToken?: number;
   newSessionCwd: string | null;
   newSessionDraftKey: string | null;
   onAgentEnd?: () => void;
@@ -608,7 +611,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onExtensionStatusChange, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, onWrittenFilesChange }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onExtensionStatusChange, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, onWrittenFilesChange }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -681,6 +684,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   const {
     loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
+    refreshing, refreshAfterReload,
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
@@ -1090,6 +1094,14 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     }
   }, [entryIds, pendingScrollRestore, restoreAnchorReady, scrollToBottom, scrollToMessage, searchTarget, visibleCount]);
 
+  // 设置里的「重载会话」：就地刷新（转录列降到 0.5 等着），不再 remount 整个窗口。
+  const lastReloadToken = useRef(reloadToken);
+  useEffect(() => {
+    if (reloadToken === lastReloadToken.current) return;
+    lastReloadToken.current = reloadToken;
+    void refreshAfterReload();
+  }, [reloadToken, refreshAfterReload]);
+
   useEffect(() => {
     if (!searchTarget || loading) return;
     const controller = new AbortController();
@@ -1124,13 +1136,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     const element = scrollContainerRef.current?.querySelector<HTMLElement>(searchMessage?.role === "user" ? selector : `${selector} [data-search-target]`);
     if (element) {
       scrollToMessage(element);
-      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      if (!reduceMotion) {
-        element.animate([
-          { backgroundColor: "var(--bg-selected)" },
-          { backgroundColor: "transparent" },
-        ], { duration: 2500 });
-      }
+      // 画板 05 第 14 项：跳转高亮 1.6s 一次性。此前是一段 WAAPI（2500ms、无强调色边线），
+      // 现在是 .fork-jump-flash —— reduced-motion 由 CSS 自己停。
+      element.classList.remove("fork-jump-flash");
+      void element.offsetWidth;
+      element.classList.add("fork-jump-flash");
     }
     setPendingSearchScroll(null);
     onSearchTargetHandled?.(pendingSearchScroll);
@@ -2039,7 +2049,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     />
   );
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       // fork:design-components —— 骨架 = 画板 01「会话正在加载 · 骨架」那一格：
       // 微光循环由 board.css 的 .pw-anim-shimmer（@keyframes pw-shimmer）承担，
@@ -2185,7 +2195,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           // fork:upstream-0.9.2-scrollbar — 消息列是唯一必须用长输出拖动的位置，
           // 所以显示自己的滚动条而不是藏起来（minimap 只标回合）；
           // stable gutter 让短会话长出屏幕时居中列不会横向跳动。
-          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-gutter:stable]"
+          className={`min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-gutter:stable]${refreshing ? " fork-pending" : ""}`}
+          aria-busy={refreshing || undefined}
           style={{ visibility: pendingScrollRestore ? "hidden" : undefined }}
         >
           <div style={{ minWidth: 0, padding: `0 ${CHAT_COLUMN_PADDING_CSS}` }}>
@@ -2872,10 +2883,11 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
               maxHeight: NOTICE_MAX_HEIGHT_PX,
               transformOrigin: "top right",
               // Use backwards fill for the entrance animation so height styles return to
-              // inline styles once it finishes
+              // inline styles once it finishes. 180ms/ease-out → 设计 §1.6 弹层档
+              // (`--motion-base` + 全系统唯一曲线 `--ease`).
               animation: notice.exiting
-                ? "notice-shelf-out 0.18s ease-in forwards"
-                : "notice-shelf-in 0.18s ease-out backwards",
+                ? "notice-shelf-out var(--motion-base) var(--ease) forwards"
+                : "notice-shelf-in var(--motion-base) var(--ease) backwards",
             }}
           >
             <span className="pw-ico"><i data-ico={typeIcon} data-size="14"></i></span>

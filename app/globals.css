@@ -254,6 +254,7 @@
      （fast / layout），别名定义随之删除。 */
   --motion-fast: var(--ds-motion-fast);         /* 120 */
   --motion-base: var(--ds-motion-base);         /* 150 → 160 */
+  /* 旧名保留为别名：全系统只有设计那一条曲线（--ds-ease），这里不再另立一条。 */
   --ease-out: var(--ds-ease);
 
   /* 设计系统的其余动效值（位移 / 错开 / 周期 / 等待期）*/
@@ -266,6 +267,7 @@
   --motion-pop: var(--ds-motion-pop);
   --motion-sheet: var(--ds-motion-sheet);
   --motion-stagger: var(--ds-motion-stagger);
+  --motion-hint: var(--ds-motion-hint);
   --opacity-pending: var(--ds-opacity-pending);
 }
 
@@ -1641,15 +1643,8 @@ span.token.table {
   display: inline;
 }
 
-@keyframes drop-zone-in {
-  from { opacity: 0; transform: scale(0.97); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes drop-ripple {
-  0%   { transform: scale(0); opacity: 0.6; }
-  100% { transform: scale(1); opacity: 0; }
-}
+/* drop-zone-in / drop-ripple 已删：零引用（拖放落区走画板 .pw-anim-drop，
+   board.css 里那一格才是实现），而且它们 scale(0.97) —— 设计 §1.6「不缩放」。 */
 
 /* Keyboard users get the same affordance hover users get.
    fork:focus-ring — 值按设计 §1.4「焦点环 1.5px 强调色描边、偏移 1px」收敛
@@ -1749,14 +1744,15 @@ textarea,
     max-height: 0;
     min-height: 0;
     margin-bottom: 0;
-    transform: translateY(-6px) scale(0.995);
+    /* 设计 §1.6：通知条只动「高度 + 位移」，没有缩放（scale 会让文字发虚）。 */
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
     height: 60px;
     max-height: 60px;
     min-height: 60px;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
 }
 
@@ -1766,7 +1762,7 @@ textarea,
     height: 60px;
     max-height: 60px;
     min-height: 60px;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
   to {
     opacity: 0;
@@ -1774,7 +1770,7 @@ textarea,
     max-height: 0;
     min-height: 0;
     margin-bottom: 0;
-    transform: translateY(-5px) scale(0.995);
+    transform: translateY(-5px);
   }
 }
 

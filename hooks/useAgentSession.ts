@@ -400,6 +400,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [pendingModel, setPendingModel] = useState<{ provider: string; modelId: string } | null>(null);
   const [modelSwitching, setModelSwitching] = useState(false);
   const [isCompacting, setIsCompacting] = useState(false);
+  /** 画板 05 第 03 项「等待期」：**就地重读**（手动压缩）的那段等待。与 `loading` 的区别：
+      `loading` 是「没有内容可显示」（首屏 / 切会话 → 骨架屏）；这里是内容还在屏上，
+      不该被骨架屏顶掉，按设计降到 --opacity-pending。 */
+  const [refreshing, setRefreshing] = useState(false);
   const [autoCompactionEnabled, setAutoCompactionEnabled] = useState(true);
   const [compactError, setCompactError] = useState<string | null>(null);
   const [compactResult, setCompactResult] = useState<CompactResultInfo | null>(null);
@@ -2096,11 +2100,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     try {
       const result = await sendAgentCommand<CompactCommandResult>(sid, { type: "compact" });
       setCompactResult(readCompactResult(result, "manual"));
+      setRefreshing(true);
       await loadSession(sid, true);
     } catch (e) {
       setCompactError(e instanceof Error ? e.message : String(e));
       setCompactResult(null);
     } finally {
+      setRefreshing(false);
       setIsCompacting(false);
     }
   }, [isCompacting, loadSession]);
@@ -2176,6 +2182,27 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       }
     }
   }, [isNew, newSessionCwd, session?.cwd]);
+
+  /** 画板 05 的 B 类转场 + 第 03 项「等待期减弱」：重载 agent 后**就地**刷新，
+   *  转录列降到 --opacity-pending 等着（`refreshing`），不再靠 AppShell 把整个
+   *  ChatWindow remount 一次顶成骨架屏。
+   *
+   *  为什么不remount 也安全：SDK 的 `AgentSession.reload()` 是**同一个对象内部**
+   *  重建（`_buildRuntime`），事件发射器不变，所以 `rpc-manager` 里那一次
+   *  `inner.subscribe()` 继续有效 —— SSE 不用重连，重读文件 + 三张表即可。
+   */
+  const refreshAfterReload = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    setRefreshing(true);
+    try {
+      await loadSession(sid, true, true, { force: true });
+      // reload 换掉的是工具表 / 扩展 / 模型缓存，这三张表跟着重读。
+      await Promise.all([loadTools(sid), loadSlashCommands(), loadModels()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadSession, loadTools, loadSlashCommands, loadModels]);
 
   const handleBuiltinSlashCommand = useCallback(async (text: string): Promise<BuiltinSlashCommandResult> => {
     if (!text.startsWith("/")) return { handled: false };
@@ -2894,7 +2921,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   return {
     // State
-    data, loading, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
+    data, loading, refreshing, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
+    refreshAfterReload,
     agentRunning, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, systemPrompt, forkingEntryId,
     isCompacting, compactError, compactResult, currentModel, displayModel, modelSwitching, sessionStats, autoCompactionEnabled,
