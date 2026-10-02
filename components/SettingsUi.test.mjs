@@ -151,9 +151,11 @@ test("all subpanel detail panes share one content hierarchy", () => {
   // 实测 `:has` 匹配成功、空态也拿到 `flex:1`，但父层 `display` 仍是 grid → 空态没居中）。
   // 所以这里断言的是**分工**：组件只挂类名 + gap，几何与行高策略由画板样式表给。
   assert.match(templateSource, /export function ConfigDetailStack[\s\S]*?style=\{\{ gap: "var\(--s3\)"/);
-  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack \{[\s\S]*?display: grid;[\s\S]*?grid-auto-rows: min-content;[\s\S]*?align-content: start;/);
-  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack:has\(> \.pw-empty:only-child\) \{[\s\S]*?display: flex;/);
-  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack:has\(> \.pw-empty:only-child\) > \.pw-empty \{[\s\S]*?flex: 1;/);
+  // ce8eff84 把选择器从 `> .pw-detail-stack` 扩成 `> .pw-detail-stack, .pw-detail-stack`
+  // （产品里有嵌套一层的详情卡，祖先选择器挂不到），所以断言接受**两者并列**的形状。
+  assert.match(boardSource, /\.pw-detail > \.pw-detail-stack,\s*\.pw-detail \.pw-detail-stack \{[\s\S]*?display: grid;[\s\S]*?grid-auto-rows: min-content;[\s\S]*?align-content: start;/);
+  assert.match(boardSource, /\.pw-detail \.pw-detail-stack:has\(> \.pw-empty:only-child\) \{[\s\S]*?display: flex;/);
+  assert.match(boardSource, /\.pw-detail \.pw-detail-stack:has\(> \.pw-empty:only-child\) > \.pw-empty \{[\s\S]*?flex: 1;/);
   assert.match(templateSource, /export function ConfigField[\s\S]*?className="pw-field"[\s\S]*?<span className="pw-label">/);
   assert.match(templateSource, /export function ConfigEmptyState[\s\S]*?"pw-empty"[\s\S]*?"pw-empty-inner"/);
   assert.match(templateSource, /export function ConfigSectionTitle[\s\S]*?"pw-sec-title"/);
