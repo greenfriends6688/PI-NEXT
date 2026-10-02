@@ -261,6 +261,30 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - Skill toggling edits only the `disable-model-invocation` frontmatter key on the target `SKILL.md`; keep that surgical so user formatting survives.
 - `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
 
+### 产品能力不许降级成 skill（fork:proma-00-skill-policy）
+
+参考项目 Proma 的 17 个内置 skill 里，`automation` / `in-app-browser` / `agent-collaboration` / `knowledge-maintenance` / `writing-plans` / `docx` / `pdf` / `xlsx` / `pptx` 这九条**在 Proma 全是一方代码 + 注册给模型的真实工具**（22 个 `Browser*`、11 个委派工具、7 个 automation 工具、`file-preview-service.ts`），skill 只是挂在工具上面的一层提示词。**照抄目录 = 把产品功能降级成「模型可能想起来读、也可能不读的 markdown」**，五条后果同时发生：
+
+- **不保证发生** —— 工具注册了就一定在模型面前；skill 靠模型自己想起来加载。
+- **界面里看不见** —— 用 skill 只是消息流里一条 tool call，没有状态、没有进度、没有可点的入口。
+- **拦不住** —— `tool_call` 审批引擎（`lib/approval-policy.ts`）拦的是**工具**，不是 skill；skill 里写着的 Bash 照样直接跑。
+- **没法度量** —— 没有工具名就没有 token 统计、没有 session 列表旁证。
+- **模型换了就失效** —— 提示词工程的产物绑死在特定模型的行为上。
+
+**动手前先分类**，别先想「写个 skill 多快」：
+- 要读写文件 / 调 API / 起进程 / **改状态** ⇒ **工具**（`lib/<name>-extension.ts` 一方扩展），skill 最多当使用说明
+- 要用户**看到、点到、审批** ⇒ **工具 + UI**，skill 无权替代
+- 纯知识 / 纯写作 / 纯方法论**且不碰任何状态** ⇒ 才轮得到 skill；用户自己领域的内容（标书、小说）也**不进** `assets/default-skills/`
+
+**本仓现状不用改，这就是要保持的形态。** 有状态的能力已经全是工具：`lib/subagent-extension.ts`（`Agent` / `get_subagent_result` / `steer_subagent`）、`lib/todo-extension.ts`（`todo`）、`lib/approval-extension.ts`、`lib/plan-mode-extension.ts` —— 都在 `lib/rpc-manager.ts:2417` 的 `extensionFactories` 里注册，工具名进 `get_tools` 清单、并随会话创建时的 `toolNames[]` 过档（`withExtensionTools()`，`lib/rpc-manager.ts:243`），所以可拦、可统计、有 UI。`assets/default-skills/` 只有 `guizang-ppt-skill`（靠 CLI 工具链出片）和 `skill-creator`（只产 markdown）两个，**都通过判定，保持现状、不要再加**（许可表与升级方式见 `assets/default-skills/README.md`，真实资产门禁在 `lib/default-skills.test.mjs`）。新增能力的落点是 `lib/<name>-extension.ts` + 一行注册 + `.test.mjs`，不是新的 skill 目录。
+
+**新增任何能力先答三问**（写进 PR 描述，答不出「是」不许合）：
+1. 这个能力改状态吗？ → 改 ⇒ 必须有**工具名**（可拦、可统计、可审批）
+2. 用户能从界面看到它发生吗？ → 看得到 ⇒ 必须有 **UI 组件**，不能只有消息流里一条 tool call
+3. 它是提示词还是代码？ → 提示词 ⇒ 证明它**不碰任何状态**，且不是某条已有工具的使用说明
+
+完整判定表与逐条依据见 `docs/proma-borrowing-plan-2026-10-02.md` §0.4。
+
 ### Built-in subagents
 - The global `builtInEnabled` switch is persisted in `~/.pi/agent/agents/settings.json` and defaults to `false` when the file or field is absent. Malformed settings fail closed; atomic updates preserve unknown fields.
 - The inline built-in extension factory is always present so reloading an existing wrapper can apply setting changes, but it registers no tools while disabled. After changing the switch, the user must explicitly reload the current session.
