@@ -14,7 +14,7 @@ import { retryNoticeMessageKey, type RetryNotice as RetryNoticeModel, type Retry
  *   所以前五次网络抖动不会出现在这里（降噪）。
  * - **终态不重复**：`upsertRetryNotice` 按 attempt 覆盖，同一第 N 次只会有一行。
  * - 数字用 `tabular-nums`：否则「第 3 次」变「第 10 次」时整行宽度会跳。
- * - 壳是画板已有的 `.pw-toast` + `warn/ok/bad` 语气档（TaskProgressOverlay 同款），
+ * - 壳是画板已有的 `.pw-toast` + `warn/ok/bad` 语气档（消息流的通知条同款），
  *   图标走 lucide 的 `<i data-ico>`；只新增一个 `fork-retry-notices` 布局钩子。
  */
 

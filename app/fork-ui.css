@@ -3236,50 +3236,56 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   color: var(--error);
 }
 
+
 /* ---------------------------------------------------------------------------
- * fork:proma-31-task-progress —— 浮层是**唯一**的待办入口（TodoChip 已删除）。
+ * fork:ui-todo —— 待办芯片（输入框左上角）的几何。
  *
- * 合并 PR-31 时浮层与 composer 里的 TodoChip 同时渲染同一份 extractTodoState，
- * 待办清单在屏幕上出现两遍（用户截图指出）。用户裁定删芯片、留浮层，并把芯片
- * 原来的「点击展开完整清单 + 复制」搬进浮层 —— 所以浮层从纯展示件变成可点件。
- *
- * 这里只放三类东西，其余外观全部由画板类给：
- *   · UA 归零（button 的 font / text-align）与 cursor —— 行为钩子，按仓库规矩
- *     写在这个文件，不写进画板
- *   · 展开面板的定位与尺寸（组件里只留内容，几何收在这里）
- *   · 清单列表的排布（替代原先写在 TodoChip 里的内联样式）
+ * 这几条原来以内联样式写在 `components/fork/TodoChip.tsx` 里，是样式字面量基线
+ * （scripts/style-literal-baseline.json）里的存量。2026-10-02 恢复这枚芯片时把
+ * 它们收成类，而不是把基线改回去 —— 基线只许变少。
+ * 面板的定位与尺寸同理：组件里只留内容。
  * ------------------------------------------------------------------------- */
-.fork-task-progress {
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
+.fork-todo-rail {
+  flex: none;
+  width: 34px;
+  height: 4px;
+  border-radius: var(--radius-xs);
+  background: var(--border);
+  overflow: hidden;
 }
 
-.fork-task-progress-chevron {
-  transition: transform var(--motion-fast);
+.fork-todo-rail-full {
+  height: 4px;
+  border-radius: var(--radius-xs);
+  background: var(--border);
+  overflow: hidden;
 }
-.fork-task-progress-chevron[data-open="true"] {
-  transform: rotate(180deg);
+
+/* DSN-05：宽度固定 100% + transform: scaleX，避免逐帧触发布局重排。
+   填充色由组件给（完成态用中性色），因为它是运行时状态不是主题值。 */
+.fork-todo-rail-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  transition: transform var(--fork-motion-chip) var(--ease-out);
 }
 
 .fork-todo-panel {
   position: absolute;
-  bottom: calc(100% + var(--s1));
+  bottom: calc(100% + 6px);
   left: 0;
   z-index: 60;
   width: var(--pop-w);
   max-width: min(320px, 92vw);
   max-height: 320px;
   overflow-y: auto;
-  /* 宿主定位带是 pointer-events:none，可点的面板要自己收回指针。 */
-  pointer-events: auto;
 }
 
-.fork-todo-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
+/* 芯片标题那一格：定宽 + 单行省略（原来是内联的 maxWidth 160）。 */
+.fork-todo-title {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

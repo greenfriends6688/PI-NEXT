@@ -2375,3 +2375,25 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
 - `preview/12-transcript-interactive.png` 已用
   `node design/pi-web-design/scripts/render-boards.mjs design/pi-web-design/preview 12-transcript-interactive.html`
   重新生成。
+
+### AB-4 · ⛔ 已撤销（2026-10-02，同日）
+
+用户在看到真实渲染后裁定**删掉整个浮层**，恢复输入框左上角那枚待办芯片（`TodoChip`）。
+理由有两条，第二条是这次截图才暴露的：
+
+1. 浮层与 `TodoChip` 读同一份 `extractTodoState`，待办清单在屏幕上**出现两遍**。
+2. 浮层挂在 `pointerEvents: none` 的定位带上，**点不动** —— 芯片能点开完整清单、能复制，
+   浮层只是一个只读计数器。
+
+所以本节随之下沉：
+
+- `components/fork/TaskProgressOverlay.tsx` + 其测试、`lib/task-progress.ts` + 其测试 **已删除**。
+- **`.pw-progress` 已从 `board.css` 撤掉**（本节 AB-1 登记的那个新类）。它唯一的消费者就是
+  这条浮层的进度轨；用户还说那根横杆「感觉多一块」—— 进度已经由 `.pw-badge.count` 的
+  `2/4` 说清楚了，横条是同一信息的第二次表达。
+- 产品侧接线（`ChatWindow` 的挂载、`app/fork-ui.css` 的 `.fork-task-progress` /
+  `.fork-todo-panel` / `.fork-todo-list`、i18n 的 `chat.taskProgress*`）全部移除。
+- 记录留在本节而不是删掉：**下次再有人想「给待办加个更显眼的进度件」时，先看 AB-4。**
+
+教训（与 AD 节同源）：**画板类落地率、组件看起来对不对，都不能替代把真东西渲出来看一眼。**
+这条浮层在单测、类型检查、设计门禁全绿的情况下上线，问题只在截图里显形。
