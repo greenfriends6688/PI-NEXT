@@ -112,6 +112,7 @@ import { LinkOpenProvider } from "./LinkOpenContext";
 import type { NewSessionProject } from "./fork/ProjectChip";
 // fork:proma-05-explore — 右栏并排看探索分支（只读）
 import { ExplorationPane } from "./fork/ExplorationPane";
+import { PlanningWorkspace } from "./fork/PlanningWorkspace";
 import { SessionRowContextMenuBridge } from "./SessionRowContextMenuBridge";
 import { WallpaperLayer } from "./WallpaperLayer";
 import { initWallpaper } from "@/hooks/useWallpaper";
@@ -659,6 +660,9 @@ export function AppShell() {
   const [changesUnseen, setChangesUnseen] = useState(false);
   // ChatWindow 聚合上来的本会话写入文件（非 Git 项目的改动来源）。
   const [sessionWrittenFiles, setSessionWrittenFiles] = useState<WrittenFile[]>([]);
+  // fork:proma-44-planning — 单例「任务 / 日程」工作区（遮罩层，不占右栏 tab：
+  // 它有自己的两列布局与周/月日历，塞进 tab 会和文件树抢同一份宽度）。
+  const [planningOpen, setPlanningOpen] = useState(false);
   // fork:proma-05-explore — 探索分支的右栏只读 tab（可与主线并排看）
   const [branchTabs, setBranchTabs] = useState<{ id: string; sessionId: string; parentSessionId: string | null; label: string }[]>([]);
   const [browsersRestored, setBrowsersRestored] = useState(false);
@@ -2806,6 +2810,22 @@ export function AppShell() {
               <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={extensionStatuses} widgets={extensionWidgets} />
             </>
           )}
+          {/* fork:proma-44-planning — 任务 / 日程工作区的入口，与 MCP / 插件两枚
+              状态图标同一排。**不进折叠导轨**：画板 02 帧 C 的导轨是「logo +
+              四枚方钮 + 设置贴底」，那里加第五枚会让 `npm test` 里的画板断言
+              （`AppShell.design-components.test.mjs` 钉 4 枚）当场变红。
+              导轨只在侧栏收起时出现，那也正是顶栏可见的时候，所以入口不丢。 */}
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={() => setPlanningOpen(true)}
+              title={translate("planning.title")}
+              aria-label={translate("planning.title")}
+              className="fork-plan-launcher"
+            >
+              <span className="pw-ico"><i data-ico="calendar-days" data-size="16"></i></span>
+            </button>
+          )}
           {isMobile && (
             <div
               ref={mobileToolbarRef}
@@ -3338,6 +3358,17 @@ export function AppShell() {
           if (!projectTrustBusy) setProjectTrustDialogOpen(false);
         }}
         onConfirm={() => void handleTrustProject()}
+      />
+    )}
+    {/* fork:proma-44-planning — 遮罩层工作区。候选目录取会话目录表去重后的结果：
+        「就这条起一次 Agent」需要一个工作目录，而候选集只能来自用户已经打开过
+        （因而已经被 allowed roots 授权）的那些。 */}
+    {planningOpen && (
+      <PlanningWorkspace
+        workspaces={Array.from(new Set(sessionCatalog.map((session) => session.cwd).filter((cwd): cwd is string => Boolean(cwd))))
+          .map((cwd) => ({ cwd, name: getFileName(cwd) || cwd }))}
+        activeCwd={activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? null}
+        onClose={() => setPlanningOpen(false)}
       />
     )}
     {/* fork:ui-projectchip — "open folder" for the new-session workspace selector. */}
