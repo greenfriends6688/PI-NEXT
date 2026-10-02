@@ -33,6 +33,8 @@ import {
 } from "@/lib/conversation-find";
 // fork:proma-05-explore — 分支会话的来源抬头条 + 带回结论
 import { ExplorationBanner } from "./fork/ExplorationBanner";
+// fork:proma-31-task-progress — 吸底任务进度浮层（PR-31）
+import { TaskProgressOverlay } from "./fork/TaskProgressOverlay";
 import { extractTodoState } from "@/lib/todo-state";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
@@ -2692,11 +2694,18 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               right: isMobile ? 0 : CHAT_MINIMAP_WIDTH,
               display: "flex",
               justifyContent: "center",
+              gap: "var(--space-row)",
               paddingBottom: "var(--space-loose)",
               pointerEvents: "none",
               zIndex: 20,
             }}
           >
+            {/* fork:proma-31-task-progress — 进度浮层挂在这条已经钉好的定位带上（composer 正上方），
+                和「回到最下方」同一个居中行 —— 与 Proma 的 TaskProgressOverlay 布局一致。
+                数据是现成的 `todoSummary`（同一条 `extractTodoState`）；`agentRunning` 才是
+                Proma 那个 `streaming`：它盖住整个 run（工具调用之间的空档也是 true），
+                4 秒倒计时闸门靠它，而不是 `streamState.isStreaming`。 */}
+            <TaskProgressOverlay summary={todoSummary} streaming={agentRunning} />
             <button
               type="button"
               className={`chat-scroll-to-bottom${showScrollToBottom && !pendingScrollRestore ? " is-visible" : ""}`}

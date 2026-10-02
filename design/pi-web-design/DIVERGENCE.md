@@ -2157,3 +2157,57 @@ GET 不建文件 → 读不出来抛 `ThinkingBudgetReadError`（422）。这与
 把钳位写进 `.pw-modal-head` 会让所有静态画板帧都带上一个它们用不到的滚动容器。
 另：标题继续内联 `pre-wrap`，这两个钩子**不碰 `white-space`**，所以 `splitDialogTitle`
 的换行一个不吞；全文另有 `title` + 既有 `aria-label`。
+
+---
+
+## AB · 2026-10-02：PR-31 吸底任务进度浮层（新类 `.pw-progress`，其余全部复用）
+
+### AB-0 · 这一条在定什么
+
+Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**已有**的
+`lib/todo-state.ts`（`extractTodoState` 从转录里读回 `todo` 工具结果），
+逻辑层是 `lib/task-progress.ts` 的纯函数，界面层是
+`components/fork/TaskProgressOverlay.tsx`。全程只读，不新增工具、不改协议。
+本条登记的是它对画板体系的那一处影响：**一个新 `.pw-*` 类**。
+
+### AB-1 · 新类 `.pw-progress`（一条只读轨 + 一段填充）
+
+画板里本来没有这个件：`.pw-ring` 是**环**（composer 工具条的上下文占用），
+`.pw-anim-bar` 是动效演示里的占位块，`.pw-badge` 是徽章。计划卡（画板 12 A）与
+浮层那一行要的都是线性轨，于是按判据⑦ 新增：
+
+- `.pw-progress` —— 轨：`flex:none; width:72px; height:4px; radius-3;`
+  底色 `--n-border-subtle`，`overflow:hidden`；
+- `.pw-progress > i` —— 填充：`width/height:100%` + `transform: scaleX()`
+  （DSN-05：轨宽固定，逐帧只合成不重排），过渡 `--motion-base / --ease`；
+- 四档填充色：默认 `--accent`、`.warn` → `--warning`、`.bad` → `--error`、
+  `.done` → `--n-placeholder`。**完成态特意不用强调色** —— 全部做完之后再挂着
+  强调色是在替用户喊「还在忙」，而这正是这一条最初要修的那个毛病。
+
+**还没画进画板**（与第 70 条那批「定义了但没有画板用到」的类同一状态，按判据⑦ 登记在案）。
+它该落的两张板已定：画板 12 的计划卡 A 帧（轨 + `2 / 4` 徽标同一行）与新增的
+浮层帧（`.pw-toast` + `.pw-progress`）。补画板要连带补 `scripts/board-specs/`
+的对位 spec，本 PR 不做——**先画出来再测对位**，反过来做会把没定稿的形态量成基线。
+
+### AB-2 · 复用的都是画板既有件（产品 DOM 一览）
+
+| 产品 DOM | 类 | 来源 |
+| --- | --- | --- |
+| 浮层壳 | `.pw-toast`（+ `.warn` / `.bad` 两档语气） | 画板 12 帧 5 / 画板 50 的通知条三态 |
+| 计数 | `.pw-badge.count` | 画板 12 A 计划卡头的 `2 / 4` |
+| 任务名 | `.pw-grow`（内联 `text-overflow: ellipsis`） | board.css 通用小件 |
+| 图标 | `<span class="pw-ico"><i data-ico>` | 画板 12 A 的 `list-checks` / 画板 05 的 spinner |
+| 进度轨 | `.pw-progress` | **本条新增**（AB-1） |
+| 退场 | `.fork-collapse` + `hooks/useCollapsePresence.ts` | 产品既有折叠原语（非画板件） |
+
+### AB-3 · 三条比像素更重要的静默约定
+
+1. **定位不在浮层自己身上**。它挂在 ChatWindow 已经钉好的那条带子上
+   （composer 正上方 `position:absolute; bottom:100%` 的居中行），与「回到最下方」
+   同排 —— 与 Proma 的布局一致，而画板不为它单开一帧。产品侧不新增定位钩子类。
+2. **`streaming` 传的是 `agentRunning`，不是 `streamState.isStreaming`**。后者在
+   两次工具调用之间会短暂为 false，拿它当「run 结束」会让浮层在 agent 还在干活时
+   就开始 4 秒倒计时。倒计时闸门本身是 `lib/task-progress.ts` 的
+   `shouldRetainTaskProgress()`，有单测。
+3. **4 秒窗口结束后清单仍在转录里**。所以浮层只「不再显示」，不回写任何历史：
+   再发一轮消息时同一个签名会重新出现，而数据永远是 `extractTodoState` 的读数。

@@ -802,6 +802,9 @@ export const enLocale: LocalePlugin = {
     "chat.todosHint": "The agent updates this list as it works; copy it into a message when you need to hand it back.",
     "chat.copyTodos": "Copy list",
     "chat.todosCopyFailed": "Could not copy",
+    // fork:proma-31-task-progress —— 吸底任务进度浮层。计数复用 chat.todosProgress。
+    "chat.taskProgress": "Task progress",
+    "chat.taskProgressDone": "All tasks done",
     "chat.queued": "Queued · {count}",
     "chat.recall": "Recall to input",
     "chat.recallTitle": "Remove all queued messages and put them back into the input box for editing",

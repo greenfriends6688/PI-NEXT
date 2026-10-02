@@ -802,6 +802,9 @@ export const zhCNLocale: LocalePlugin = {
     "chat.todosHint": "AI 会随进度实时更新这份清单；需要时可以复制成一条消息发回给它。",
     "chat.copyTodos": "复制清单",
     "chat.todosCopyFailed": "复制失败",
+    // fork:proma-31-task-progress —— 吸底任务进度浮层。计数复用 chat.todosProgress。
+    "chat.taskProgress": "任务进度",
+    "chat.taskProgressDone": "任务都做完了",
     "chat.queued": "已排队 · {count}",
     "chat.recall": "移回输入框",
     "chat.recallTitle": "移除所有排队消息并将其放回输入框编辑",

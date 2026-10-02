@@ -1194,6 +1194,24 @@ i[data-ico] > svg { display: block; }
   background: var(--surface-panel); white-space: nowrap;
 }
 .pw-ico { display: inline-flex; align-items: center; }
+/* fork:proma-31-task-progress（2026-10-02）—— 线性进度轨（任务进度浮层 / 计划卡）。
+   画板原来没有这个件：`.pw-ring` 是环、`.pw-anim-bar` 是动效演示里的占位块，
+   而「一条只读轨 + 一段填充」在浮层那一行里已经要用了（判据⑦ 新类）。
+   填充用 `transform: scaleX()` 而不是 width（DSN-05 同款）：轨宽固定，
+   逐帧只合成，不触发布局重排。填充色分四档：正常 / 阻塞（warning）/ 失败（error） /
+   全部完成（neutral —— 完成后再挂着强调色是在替用户喊「还在忙」）。 */
+.pw-progress {
+  flex: none; width: 72px; height: 4px; overflow: hidden;
+  border-radius: var(--radius-3); background: var(--n-border-subtle);
+}
+.pw-progress > i {
+  display: block; width: 100%; height: 100%;
+  background: var(--accent); transform-origin: left;
+  transition: transform var(--motion-base) var(--ease);
+}
+.pw-progress.warn > i { background: var(--warning); }
+.pw-progress.bad > i { background: var(--error); }
+.pw-progress.done > i { background: var(--n-placeholder); }
 .pw-muted { color: var(--n-muted); }
 .pw-dim { color: var(--n-placeholder); }
 .pw-strong { color: var(--n-strong); }
