@@ -11,6 +11,9 @@ import {
   type SubagentRunInfo,
 } from "./subagents";
 import { MAX_SUBAGENT_INPUT_FILES } from "./subagent-input";
+// PR-36 · 收敛软提醒 + thinkingLevel 档位来源（与全仓思考档共用同一套定义）
+import { subagentConvergenceReminder } from "./subagent-convergence";
+import { THINKING_LEVELS } from "./subagent-thinking";
 
 export const HOST_SUBAGENT_EXTENSION_NAME = "pi-web-subagents";
 const HOST_SUBAGENT_EXTENSION_PATH = `<inline:${HOST_SUBAGENT_EXTENSION_NAME}>`;
@@ -32,6 +35,8 @@ export interface SubagentToolDetails {
   worktreePath?: string;
   worktreeBranch?: string;
   worktreeCleanupError?: string;
+  /** PR-36 · 取结果时同一父会话里仍未收敛的子代理数（含本次这个，如果它还在跑）。 */
+  pendingSubagentCount?: number;
 }
 
 export interface StartSubagentRequest {
@@ -71,6 +76,8 @@ export interface SubagentExtensionRuntime {
   start(request: StartSubagentRequest): Promise<SubagentExecution>;
   resume(request: ResumeSubagentRequest): Promise<SubagentExecution>;
   get(sessionId: string): Promise<SubagentRunInfo | null>;
+  /** PR-36 · 同一父会话里仍处于 starting/queued/running 的子代理；缺省时按「无」处理。 */
+  listActive?(parentSessionId: string): Promise<SubagentRunInfo[]>;
   steer(sessionId: string, message: string): Promise<void>;
   notifyParent(run: SubagentRunInfo): Promise<void>;
   // fork:upstream-0.9.2-subagent-notify — #937 移植
@@ -90,7 +97,7 @@ function agentTypeDescription(profiles: readonly SubagentProfile[]): string {
   }).join("\n");
 }
 
-export function subagentToolDetails(run: SubagentRunInfo): SubagentToolDetails {
+export function subagentToolDetails(run: SubagentRunInfo, pendingSubagentCount?: number): SubagentToolDetails {
   return {
     kind: "pi-web-subagent",
     sessionId: run.sessionId,
@@ -104,7 +111,25 @@ export function subagentToolDetails(run: SubagentRunInfo): SubagentToolDetails {
     ...(run.worktreePath ? { worktreePath: run.worktreePath } : {}),
     ...(run.worktreeBranch ? { worktreeBranch: run.worktreeBranch } : {}),
     ...(run.worktreeCleanupError ? { worktreeCleanupError: run.worktreeCleanupError } : {}),
+    ...(pendingSubagentCount && pendingSubagentCount > 0 ? { pendingSubagentCount } : {}),
   };
+}
+
+/**
+ * PR-36 · 取结果时同一父会话里还有几个子代理没收敛。读失败一律当 0（提醒是软提醒，
+ * 不能让一次注册表读取异常变成工具报错）。runtime 没实现 `listActive` 时也当 0。
+ */
+async function pendingSubagentCount(
+  runtime: SubagentExtensionRuntime,
+  ctx: Pick<ExtensionContext, "sessionManager"> | undefined,
+): Promise<number> {
+  const parentSessionId = ctx?.sessionManager?.getSessionId?.();
+  if (!parentSessionId || !runtime.listActive) return 0;
+  try {
+    return (await runtime.listActive(parentSessionId)).length;
+  } catch {
+    return 0;
+  }
 }
 
 export function subagentFinalText(run: SubagentRunInfo): string {
@@ -177,7 +202,10 @@ export function createSubagentExtension(
           description: Type.String({ description: "Short activity label shown in the UI." }),
           run_in_background: Type.Optional(Type.Boolean({ description: "Return immediately and notify this session when complete." })),
           model: Type.Optional(Type.String({ description: "Optional provider/modelId override." })),
-          thinking: Type.Optional(Type.String({ description: "Optional thinking level override." })),
+          thinkingLevel: Type.Optional(Type.Union(
+            THINKING_LEVELS.map((level) => Type.Literal(level)),
+            { description: "Optional thinking level override for the subagent: off | minimal | low | medium | high | xhigh | max. Omit to keep the new session's own default. A level the child model does not support is normalized to its nearest available level instead of failing." },
+          )),
           max_turns: Type.Optional(Type.Number({ description: "Optional positive agent turn limit." })),
           inherit_context: Type.Optional(Type.Boolean({ description: "Include the parent session's active conversation context." })),
           isolation: Type.Optional(Type.String({ description: "Run the subagent in an isolated git worktree." })),
@@ -208,7 +236,7 @@ export function createSubagentExtension(
               description: params.description,
               ...(params.run_in_background !== undefined ? { runInBackground: params.run_in_background } : {}),
               ...(params.model ? { model: params.model } : {}),
-              ...(params.thinking ? { thinking: params.thinking } : {}),
+              ...(params.thinkingLevel ? { thinking: params.thinkingLevel } : {}),
               ...(params.max_turns ? { maxTurns: params.max_turns } : {}),
               ...(params.inherit_context !== undefined ? { inheritContext: params.inherit_context } : {}),
               ...(params.isolation === "worktree" ? { isolation: "worktree" as const } : {}),
@@ -230,14 +258,14 @@ export function createSubagentExtension(
                 });
               return {
                 content: [{ type: "text", text: `Subagent started in background. Session ID: ${execution.run.sessionId}. You will be notified when it completes.` }],
-                details: subagentToolDetails(execution.run),
+                details: subagentToolDetails(execution.run, await pendingSubagentCount(runtime, ctx)),
               };
             }
 
             const run = await execution.completion;
             return {
               content: [{ type: "text", text: subagentFinalText(run) }],
-              details: subagentToolDetails(run),
+              details: subagentToolDetails(run, await pendingSubagentCount(runtime, ctx)),
               ...(run.status === "failed" ? { isError: true } : {}),
             };
           } catch (error) {
@@ -258,7 +286,7 @@ export function createSubagentExtension(
           agent_id: Type.String({ description: "Subagent session ID." }),
           wait: Type.Optional(Type.Boolean({ description: "Wait until the subagent finishes." })),
         }),
-        async execute(_toolCallId, params, signal) {
+        async execute(_toolCallId, params, signal, _onUpdate, ctx) {
           let run = await runtime.get(params.agent_id);
           if (!run) return { content: [{ type: "text", text: `Subagent not found: ${params.agent_id}` }], details: undefined, isError: true };
           while (params.wait && (run.status === "starting" || run.status === "running")) {
@@ -281,9 +309,13 @@ export function createSubagentExtension(
           // The parent now holds this result, so the background completion notification must not
           // deliver the same text again and wake a duplicate turn.
           if (run.runInBackground && TERMINAL_SUBAGENT_STATUSES.has(run.status)) runtime.markResultConsumed(run);
+          // PR-36 · 收敛屏障（软提醒）：结果取回来了，但同会话还有别的子代理没收敛时，
+          // 明确告诉模型这不是终态。返回值照常给，不阻断。
+          const pending = await pendingSubagentCount(runtime, ctx);
+          const reminder = subagentConvergenceReminder(pending);
           return {
-            content: [{ type: "text", text: subagentFinalText(run) }],
-            details: subagentToolDetails(run),
+            content: [{ type: "text", text: reminder ? `${subagentFinalText(run)}\n\n${reminder}` : subagentFinalText(run) }],
+            details: subagentToolDetails(run, pending),
             ...(run.status === "failed" ? { isError: true } : {}),
           };
         },

@@ -1361,6 +1361,19 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
           <span className="pw-tool" style={{ flexShrink: 0 }}>
             {block.toolName}
           </span>
+          {subagent?.pendingSubagentCount ? (
+            /* PR-36 · 消息流里的收敛状态点：同会话还有子代理在跑时，人也能一眼看到。
+               复用画板已有的 .pw-badge/.pw-ico/.pw-anim-spin，不新造类名。 */
+            <span
+              className="pw-badge accent count"
+              title={t("subagent.pendingCount", { count: subagent.pendingSubagentCount })}
+            >
+              <span className="pw-ico">
+                <i data-ico="loader-circle" data-size="11" className="pw-anim-spin" aria-hidden="true"></i>
+              </span>
+              {t("subagent.pendingCount", { count: subagent.pendingSubagentCount })}
+            </span>
+          ) : null}
           <span className="pw-path" style={{ flex: 1 }}>
             {isStreamingInput ? t("chat.generatingToolInput") : (patchLabel ?? getToolPreview(block))}
           </span>
