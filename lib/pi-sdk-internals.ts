@@ -746,17 +746,55 @@ function directExposure(exposure: McpExposure | undefined): McpExposure | undefi
 }
 
 /**
+ * pi 1.0 的 `isEnabled` 只看 `enabled !== false`（`dist/extensions/mcp/index.js`）；
+ * 旧版 pi.web 写的 `disabled` 它完全不认。UI（route 的 `serverInfoFromDef`）与运行时
+ * 都从这里取判定，两边必须同源。
+ */
+export function isMcpServerEnabled(config: McpServerConfig): boolean {
+  const value = config as unknown as { enabled?: unknown; disabled?: unknown };
+  return value.enabled !== false && value.disabled !== true;
+}
+
+/**
+ * pi 的 `loadMcpConfig` 会把 JSON.parse 的原始报错塞进 `errors`（config.js 把
+ * `${path}: ${error.message}` 推入），而 V8 的报错**会引用文件内容**（env / header
+ * 里的秘密）。这个清洗与 HTTP 路径（`lib/mcp-config-file.ts`）共用，任何路径下
+ * parser 原文都不进浏览器。
+ *
+ * 判定方式不依赖重读文件（无 TOCTOU）：只放行 pi 已知的安全错误形状
+ * （校验 / 信封 / 顶层开关），其余一律归为 `malformed JSON`。
+ */
+const SAFE_MCP_CONFIG_ERROR_DETAILS = [
+  "server ",
+  "invalid server name",
+  "autoEnableCodemode ",
+  "expected an object",
+];
+
+export function sanitizeMcpConfigErrors(files: string[], errors: string[]): string[] {
+  return errors.map((error) => {
+    const file = files.find((candidate) => error.startsWith(`${candidate}:`));
+    if (!file) return error;
+    const detail = error.slice(file.length + 1).trimStart();
+    if (SAFE_MCP_CONFIG_ERROR_DETAILS.some((prefix) => detail.startsWith(prefix))) return error;
+    return `${file}: malformed JSON`;
+  });
+}
+
+/**
  * pi-web 运行时对 `loadMcpConfig` 结果的适配：
  * - `codemode` / `deferred` 工具改为 `direct`。pi 只把 `direct` / `model-only` 声明给模型，
  *   而 codemode / tool-search 两个内置扩展本仓没注册（ADR 0006 的 P1 后续项），
  *   所以不改的话这些工具在会话里根本到不了模型。`hidden` 保持隐藏。
- * - 其余原样透传（名称、项目覆盖、错误列表都由 pi 的加载器决定）。
+ * - 旧版 pi.web 的 `disabled: true` 折成 pi 的 `enabled: false` 并删掉 `disabled`：
+ *   SDK 的 `isEnabled` 不认 `disabled`，不在运行时出口折的话用户关掉的 server 会被连上。
+ * - errors 过 `sanitizeMcpConfigErrors`（解析原文不进扩展通知/浏览器）。
  */
 export function normalizeMcpConfigForPiWeb(loaded: LoadedMcpConfig): LoadedMcpConfig {
   return {
     ...loaded,
     servers: loaded.servers.map((entry) => {
-      const config = { ...entry.config };
+      const config = { ...entry.config } as McpServerConfig & { disabled?: unknown };
       // 未声明时 pi 的默认就是 `codemode`；pi-web 没有 codemode/tool-search，
       // 所以这里必须把「默认」也显式落成 `direct`。
       config.exposure = directExposure(config.exposure ?? "codemode") ?? "codemode";
@@ -765,6 +803,8 @@ export function normalizeMcpConfigForPiWeb(loaded: LoadedMcpConfig): LoadedMcpCo
           Object.entries(config.toolExposure).map(([tool, exposure]) => [tool, directExposure(exposure) ?? "codemode"]),
         );
       }
+      if (!isMcpServerEnabled(config)) config.enabled = false;
+      delete config.disabled;
       return { ...entry, config };
     }),
   };
@@ -783,10 +823,12 @@ export function normalizeMcpConfigForPiWeb(loaded: LoadedMcpConfig): LoadedMcpCo
  *
  * ADR 0006 三个坑的处置：
  *   1. **fan-out**：`loadConfig` 总是返回真实配置，但 `createTransport` 外面包了
- *      `lib/session-liveness.ts` 的租约闸门（`createMcpSessionLivenessGate`）：
- *      只有浏览器真的在看这个会话（SSE 租约）才构造 transport，stdio 进程才可能 spawn；
+ *      `lib/session-liveness.ts` 的**浏览器 SSE 租约**闸门（`createMcpSessionLivenessGate`）：
+ *      只有浏览器真的在看这个会话才构造 transport，stdio 进程才可能 spawn；
  *      切会话 `get_tools`、自动命名、SSE 预热这类没人看的 wrapper 永远等不到闸门放行，
- *      会话关停时 `session_shutdown` 立刻中止等待。等待有 10 分钟上限（与空闲回收同档）。
+ *      有后台委派工作但无 SSE 租约的 wrapper 也不算「在看」（详见闸门注释）。
+ *      等待不设 deadline（超时后无法重连会静默不可用），由 `session_shutdown` 的
+ *      dispose 中止并回收已创建的 transport。
  *   2. **stop**：`before_agent_start` 的 10s 等待用 `startupWaitMs: 0` 绕开——首个
  *      prompt 不阻塞；晚连上的 direct 工具在注册时激活，下一轮就进模型。
  *   3. **env**：`createTransport` 走 `lib/mcp-transport.ts` 的洗 env 工厂
@@ -822,7 +864,7 @@ export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuilt
     let gate: McpSessionLivenessGate | undefined;
     let identity: { sessionId: string; sessionFile?: string } = { sessionId: "" };
     const gateForThisSession = (): McpSessionLivenessGate => {
-      gate ??= createMcpSessionLivenessGate(identity);
+      gate ??= createMcpSessionLivenessGate({ sessionId: identity.sessionId });
       return gate;
     };
     const builtinFactory = createMcpExtension({
@@ -830,11 +872,20 @@ export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuilt
         ? (ctx: unknown) => {
             const context = extensionContextFromPiContext(ctx);
             identity = { sessionId: context.sessionId, sessionFile: context.sessionFile };
-            return normalizeMcpConfigForPiWeb(internals.loadMcpConfig({
-              agentDir: piSdk.getAgentDir(),
+            const agentDir = piSdk.getAgentDir();
+            const loaded = internals.loadMcpConfig({
+              agentDir,
               cwd: context.cwd,
               projectTrusted: context.projectTrusted,
-            }));
+            });
+            // 解析原文（会引用文件内容）绝不能随扩展通知进浏览器。
+            return normalizeMcpConfigForPiWeb({
+              ...loaded,
+              errors: sanitizeMcpConfigErrors(
+                [join(agentDir, "mcp.json"), join(context.cwd, ".pi", "mcp.json")],
+                loaded.errors,
+              ),
+            });
           }
         : () => ({ servers: [], errors: [] }),
       // 首个 prompt 不等连接，Stop 始终按得动（ADR 0006 坑 2 的绕开）。

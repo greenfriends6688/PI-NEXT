@@ -21,7 +21,7 @@
  */
 
 import { sanitizeProjectCommandEnvironment } from "./project-command-env";
-import { hasActiveSessionLivenessProvider } from "./session-liveness";
+import { hasActiveSessionLivenessLease } from "./session-liveness";
 import type { McpServerConfig, McpTransport, McpTransportFactory, PiSdkInternals } from "./pi-sdk-internals";
 
 // MCP server 是替某个项目跑的，和它的 bash 命令算同一类：给项目 bash 命令的环境，
@@ -148,50 +148,54 @@ export function createPiNextMcpTransportFactory(
   };
 }
 
-// ─────────────────── fan-out 闸门：会话真的活着才准连 ───────────────────
+// ─────────────────── fan-out 闸门：浏览器真的在看才准连 ───────────────────
 
-/** 没人看会话时，连接最多等这么久；会话空闲回收默认也是 10 分钟（rpc-manager）。 */
-export const MCP_LIVENESS_WAIT_MS = 10 * 60 * 1000;
 const MCP_LIVENESS_POLL_MS = 250;
 
 export interface McpSessionLivenessGate {
-  /** 会话有活跃租约（浏览器 SSE / 显式登记）时 resolve；否则等；dispose / 超时 reject。 */
+  /** 会话有**浏览器 SSE 租约**时 resolve；否则一直等；dispose 时 reject。 */
   waitForActive(): Promise<void>;
-  /** 会话关停：中止所有等待，此后不再放行任何连接。 */
+  /**
+   * 登记一个已创建的内层 transport（含 connect 还没完成的）：dispose 时会被关掉。
+   * 返回注销函数。
+   */
+  track(transport: McpTransport): () => void;
+  /** 会话关停：中止所有等待、关闭已登记的 transport，此后不再放行任何连接。 */
   dispose(): void;
   readonly disposed: boolean;
 }
 
 export interface McpSessionLivenessGateOptions {
   sessionId: string;
-  sessionFile?: string;
-  /** 等活跃租约的上限，默认 `MCP_LIVENESS_WAIT_MS`。 */
-  waitMs?: number;
   pollMs?: number;
-  /** 单测接缝；默认问 `lib/session-liveness.ts`。 */
+  /** 单测接缝；默认只问浏览器 SSE 租约（`hasActiveSessionLivenessLease`）。 */
   isActive?: () => boolean;
 }
 
 /**
  * fan-out 的闸门（ADR 0006 坑 1）。pi 的扩展在 `session_start` 上连**全部**启用
  * server，而 pi-web 每个 wrapper 都会建（切会话 `get_tools`、自动命名、SSE 预热）；
- * 这里用空闲回收已经在用的同一份 session-liveness 租约做门：只有浏览器真的在
- * 看这个会话（SSE 租约）时才放行，没人看的 wrapper 永远不 spawn。
+ * 这里用空闲回收同一份租约表做门：只有浏览器真的在看这个会话（SSE 租约）时才放行，
+ * 没人看的 wrapper 永远不 spawn。
  *
- * 等待有上限且可被 `dispose()`（session_shutdown）中止，所以不会留下永久挂着的
- * 连接尝试；定时器 `unref()`，不会把进程钉住。
+ * **只看 SSE 租约，不把委派工作算成「在看」**（`hasActiveSessionLivenessLease`
+ * 而非 `hasActiveSessionLivenessProvider`）：空闲回收必须把后台子代理 run 算成忙，
+ * 但那只是「别回收父会话」，不代表父 wrapper 该把全部 MCP server 拉起来；子代理自己
+ * 的 wrapper 有它自己的会话与租约。
+ *
+ * 等待**不设 deadline**：超时后 lease 再出现也无法重连（SDK 只在 session_start 连一次），
+ * 会把该会话本次生命周期内的 MCP 变成静默不可用。等待期间不持有任何进程，定时器
+ * `unref()`；wrapper 真被回收时 `session_shutdown` 的 `dispose()` 会中止等待并关掉
+ * 已登记的内层 transport。
  */
 export function createMcpSessionLivenessGate(
   options: McpSessionLivenessGateOptions,
 ): McpSessionLivenessGate {
-  const waitMs = options.waitMs ?? MCP_LIVENESS_WAIT_MS;
   const pollMs = options.pollMs ?? MCP_LIVENESS_POLL_MS;
-  const isActive = options.isActive ?? (() => hasActiveSessionLivenessProvider({
-    sessionId: options.sessionId,
-    sessionFile: options.sessionFile,
-  }));
+  const isActive = options.isActive ?? (() => hasActiveSessionLivenessLease({ sessionId: options.sessionId }));
   let disposed = false;
   const waiters = new Set<{ reject: (error: Error) => void; timer: ReturnType<typeof setInterval> | undefined }>();
+  const tracked = new Set<McpTransport>();
   const failAll = (error: Error): void => {
     for (const waiter of [...waiters]) {
       if (waiter.timer) clearInterval(waiter.timer);
@@ -207,7 +211,6 @@ export function createMcpSessionLivenessGate(
       if (disposed) return Promise.reject(new Error("MCP session ended before the server could start"));
       if (isActive()) return Promise.resolve();
       return new Promise<void>((resolve, reject) => {
-        const deadline = Date.now() + waitMs;
         const waiter = { reject, timer: undefined as ReturnType<typeof setInterval> | undefined };
         waiter.timer = setInterval(() => {
           if (disposed) return;
@@ -215,22 +218,30 @@ export function createMcpSessionLivenessGate(
             if (waiter.timer) clearInterval(waiter.timer);
             waiters.delete(waiter);
             resolve();
-            return;
-          }
-          if (Date.now() >= deadline) {
-            if (waiter.timer) clearInterval(waiter.timer);
-            waiters.delete(waiter);
-            reject(new Error(`MCP server did not start: the session was not active within ${waitMs}ms`));
           }
         }, pollMs);
         (waiter.timer as unknown as { unref?: () => void }).unref?.();
         waiters.add(waiter);
       });
     },
+    track(transport) {
+      if (disposed) {
+        void transport.close().catch(() => undefined);
+        return () => {};
+      }
+      tracked.add(transport);
+      return () => tracked.delete(transport);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
       failAll(new Error("MCP session ended before the server could start"));
+      for (const transport of [...tracked]) {
+        tracked.delete(transport);
+        // connect 还没完成的 transport 不会被 McpServerConnection.close() 摸到，
+        // 所以这里必须由闸门自己关，子进程才不会活过会话。
+        void transport.close().catch(() => undefined);
+      }
     },
   };
 }
@@ -250,6 +261,7 @@ export function createSessionGatedTransportFactory(
 
 class SessionGatedTransport implements McpTransport {
   private inner: McpTransport | undefined;
+  private untrack: (() => void) | undefined;
   private started = false;
   private closed = false;
   private protocolVersion: string | undefined;
@@ -268,6 +280,10 @@ class SessionGatedTransport implements McpTransport {
     return new Error(`MCP server "${this.serverName}" transport closed before it started`);
   }
 
+  private sessionEndedError(): Error {
+    return new Error(`MCP server "${this.serverName}" session ended before the transport started`);
+  }
+
   private aborted(): Promise<never> {
     if (this.controller.signal.aborted) return Promise.reject(this.closedError());
     return new Promise((_, reject) => {
@@ -280,9 +296,12 @@ class SessionGatedTransport implements McpTransport {
     if (this.closed) throw this.closedError();
     this.started = true;
     await Promise.race([this.gate.waitForActive(), this.aborted()]);
+    // 放行与 dispose/close 之间没有原子性：两边各查一次，任何一边关了就绝不构造内层。
+    if (this.gate.disposed) throw this.sessionEndedError();
     if (this.closed) throw this.closedError();
     const inner = this.createInner();
     this.inner = inner;
+    this.untrack = this.gate.track(inner);
     for (const [listener, dispose] of this.messageListeners) {
       dispose();
       this.messageListeners.set(listener, inner.onMessage(listener));
@@ -308,6 +327,8 @@ class SessionGatedTransport implements McpTransport {
     if (this.closed) return;
     this.closed = true;
     this.controller.abort();
+    this.untrack?.();
+    this.untrack = undefined;
     await this.inner?.close();
   }
 

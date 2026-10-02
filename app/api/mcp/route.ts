@@ -5,6 +5,7 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getProjectTrustStatus } from "@/lib/project-trust";
+import { isMcpServerEnabled } from "@/lib/pi-sdk-internals";
 import type { McpResponse, McpScope, McpServerInfo } from "@/lib/api-types";
 import {
   addMcpServer,
@@ -48,9 +49,9 @@ function serverInfoFromDef(
   return {
     name,
     scope,
-    // pi 1.0 uses `enabled: false`; `disabled: true` is kept readable so configs
-    // written by older pi.web versions still render as off (see setMcpServerEnabled).
-    disabled: def.enabled === false || def.disabled === true,
+    // 与运行时同源：pi 的 isEnabled 只看 `enabled !== false`，旧 `disabled: true`
+    // 在 normalizeMcpConfigForPiWeb 里已折成 `enabled: false`，这里用同一个判定。
+    disabled: !isMcpServerEnabled(def as unknown as McpServerConfig),
     kind: socket ? "socket" : url ? "url" : "command",
     command,
     args,

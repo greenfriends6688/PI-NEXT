@@ -27,6 +27,7 @@ import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import {
   loadPiSdkInternals,
+  sanitizeMcpConfigErrors,
   type LoadedMcpConfig,
   type McpServerConfig,
   type McpServerConfigPatch,
@@ -55,36 +56,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Whether the file parses as a JSON object; parse details are deliberately dropped. */
-function parsesAsConfig(file: string): boolean {
-  if (!existsSync(file)) return true;
-  try {
-    return isRecord(JSON.parse(readFileSync(file, "utf8")));
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Replace parse-error strings (`<path>: Unexpected token '…' in JSON…`) with a
- * constant label. The value of the offending config must never reach a response.
- */
-function sanitizeErrors(files: string[], errors: string[]): string[] {
-  const malformed = files.filter((file) => !parsesAsConfig(file));
-  if (malformed.length === 0) return errors;
-  return errors.map((error) => {
-    const file = malformed.find((candidate) => error.startsWith(`${candidate}:`));
-    return file ? `${file}: malformed JSON` : error;
-  });
-}
-
 /** Global and (when trusted) project config, in pi's precedence order. */
 export async function loadMcpConfigFiles(context: McpConfigFileContext): Promise<LoadedMcpConfig> {
   const internals = await requireInternals();
   const loaded = internals.loadMcpConfig(context);
   return {
     ...loaded,
-    errors: sanitizeErrors(
+    errors: sanitizeMcpConfigErrors(
       [join(context.agentDir, "mcp.json"), join(context.cwd, ".pi", "mcp.json")],
       loaded.errors,
     ),

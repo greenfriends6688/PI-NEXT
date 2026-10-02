@@ -213,3 +213,20 @@ export function hasActiveSessionLivenessProvider(session: SessionIdentity): bool
   if (hasDelegatedWorkRunning(session)) return true;
   return registry.hasActiveProvider(session);
 }
+
+/**
+ * 只有**浏览器 SSE 租约**是否在保这个会话（fork:pr11-mcp 的 fan-out 闸门专用）。
+ *
+ * 与 `hasActiveSessionLivenessProvider()` 刻意分开：这里不把委派工作、也不把扩展
+ * 登记的任意 provider 当成「有人在看」。空闲回收继续用上面那个函数（子代理跑着时
+ * 父会话必须算忙）；MCP 闸门只认 `acquireSessionLivenessLease()` 写的那份租约表，
+ * 否则一个只有后台子代理在跑的 wrapper 会把所有启用 server 拉起来。
+ */
+export function hasActiveSessionLivenessLease(session: SessionIdentity): boolean {
+  const leases = getLeaseStore().get(session.sessionId);
+  if (!leases) return false;
+  for (const lease of leases) {
+    if (!lease.released && lease.expiresAt > Date.now()) return true;
+  }
+  return false;
+}
