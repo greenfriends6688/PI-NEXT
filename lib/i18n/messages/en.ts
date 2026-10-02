@@ -803,6 +803,10 @@ export const enLocale: LocalePlugin = {
     "chat.recall": "Recall to input",
     "chat.recallTitle": "Remove all queued messages and put them back into the input box for editing",
     "chat.retrying": "Retrying ({attempt}/{max})…",
+    // fork:proma-37-deferred-model —— 运行中改模型：选择器旁边那枚「下轮生效」芯片。
+    "chat.modelQueuedNextTurn": "{model} · next turn",
+    "chat.modelQueuedNextTurnTitle": "The current turn keeps running on its own model. {model} starts on the next turn",
+    "chat.modelQueuedNextTurnCancel": "Click to cancel the queued switch",
     // fork:proma-35-retry —— 消息流里的重试提示（五态各一句，数字用 {attempt}/{max}）
     "chat.retryNotice.scheduled": "Waiting to continue the current answer (retry {attempt}/{max})…",
     "chat.retryNotice.running": "Continuing the current answer (retry {attempt}/{max})…",

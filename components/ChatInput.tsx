@@ -135,6 +135,11 @@ interface Props {
   modelScopeWarnings?: string[];
   onModelChange?: (provider: string, modelId: string) => void;
   modelSwitching?: boolean;
+  /** fork:proma-37-deferred-model —— 运行中选中的模型，已排队、下一轮生效。
+   *  非空时选择器旁边挂一枚「下轮生效」芯片（.pw-chip accent）。 */
+  pendingModel?: { provider: string; modelId: string; name: string } | null;
+  /** fork:proma-37-deferred-model —— 撤销排队（纯客户端，无需通知服务端）。 */
+  onCancelPendingModel?: () => void;
   onCompact?: () => void;
   onAbortCompaction?: () => void;
   isCompacting?: boolean;
@@ -930,7 +935,7 @@ function FavoriteModelMenu({
   );
 }
 
-export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching,
+export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching, pendingModel, onCancelPendingModel,
   onCompact, onAbortCompaction, isCompacting, streamSpeed, compactError, compactResult, toolPreset, onToolPresetChange,
   permissionMode, onPermissionModeChange,
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
@@ -3816,16 +3821,36 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             >
               <span className="pw-ico"><i data-ico="plus" data-size="16"></i></span>
             </button>
-            {/* Model selector - visible always, disabled while the session or switch is busy */}
+            {/* fork:proma-37-deferred-model —— 模型选择器**不再因运行中而置灰**：
+                Proma 的行为是「Agent 运行时可以预先切换模型，当前轮结束后自动按新模型
+                执行下一轮」。改前这里是 disabled={isStreaming}，用户只能等本轮跑完；
+                改后运行中选模型只把选择记到「下轮生效」，由 useAgentSession 在本轮
+                真正结束时（settleTurn）才发 set_model，不打断当前轮。 */}
             {(modelOptions.length > 0 || model || modelError) && onModelChange && (
               <ModelSelector
                 options={modelOptions}
                 value={model}
                 onChange={onModelChange}
-                disabled={isStreaming}
                 busy={modelSwitching}
                 isAutoSelection={isAutoModelSelection}
               />
+            )}
+            {/* fork:proma-37-deferred-model —— 「已排队，下轮生效」提示。挂在选择器
+                紧右侧，用画板既有的 .pw-chip accent（不新增 .pw-* 类），图标走 lucide
+                的 clock。点一下撤销排队：纯客户端操作，本轮仍在用原来的模型。 */}
+            {pendingModel && (
+              <button
+                type="button"
+                className="pw-chip accent"
+                style={{ cursor: onCancelPendingModel ? "pointer" : "default", maxWidth: "calc(var(--s5) * 6)", minWidth: 0 }}
+                title={`${t("chat.modelQueuedNextTurnTitle", { model: pendingModel.name })} — ${t("chat.modelQueuedNextTurnCancel")}`}
+                onClick={onCancelPendingModel}
+              >
+                <span className="pw-ico"><i data-ico="clock" data-size="12"></i></span>
+                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {t("chat.modelQueuedNextTurn", { model: pendingModel.name })}
+                </span>
+              </button>
             )}
             {/* fork:ui — 输入框侧的独立收藏菜单已移除（用户要求）：收藏现在就在
                 模型下拉里每行右侧的星标上（ModelSelector），不需要第二个入口。 */}

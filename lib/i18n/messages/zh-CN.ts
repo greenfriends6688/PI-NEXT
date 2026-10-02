@@ -803,6 +803,10 @@ export const zhCNLocale: LocalePlugin = {
     "chat.recall": "移回输入框",
     "chat.recallTitle": "移除所有排队消息并将其放回输入框编辑",
     "chat.retrying": "正在重试（{attempt}/{max}）…",
+    // fork:proma-37-deferred-model —— 运行中改模型：模型选择器旁边那枚「下轮生效」芯片。
+    "chat.modelQueuedNextTurn": "{model} · 下轮生效",
+    "chat.modelQueuedNextTurnTitle": "当前这一轮仍用原模型跑完，{model} 从下一轮开始生效",
+    "chat.modelQueuedNextTurnCancel": "点击可撤销这次排队",
     // fork:proma-35-retry —— 消息流里的重试提示（五态各一句，数字用 {attempt}/{max}）
     "chat.retryNotice.scheduled": "网络暂时中断，即将第 {attempt}/{max} 次继续当前回答…",
     "chat.retryNotice.running": "正在第 {attempt}/{max} 次继续当前回答…",

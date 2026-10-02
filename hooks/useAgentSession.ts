@@ -31,6 +31,13 @@ import { mergeSessionStats, type SessionFileStats } from "@/lib/session-stats";
 import { userMessageKey } from "@/lib/prompt-recovery";
 import { AgentEventConnection } from "@/lib/agent-event-connection";
 import { isSystemMessageEvent } from "@/lib/agent-event-wire";
+// fork:proma-37-deferred-model —— 运行中改模型 / 下轮生效。纯函数层在 lib/pending-model.ts。
+import {
+  decideModelSelection,
+  pendingFlushDecision,
+  shouldClearPendingModel,
+  type PendingModel,
+} from "@/lib/pending-model";
 // fork:proma-35-retry —— 重试事件映射 / 降噪（前 5 次不上报）/ run 隔离。纯函数层在 lib/retry-policy.ts。
 import {
   mapRetryEvent,
@@ -398,6 +405,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [currentModelOverride, setCurrentModelOverride] = useState<{ provider: string; modelId: string } | null>(null);
   const [liveModel, setLiveModel] = useState<{ provider: string; modelId: string } | null>(null);
   const [pendingModel, setPendingModel] = useState<{ provider: string; modelId: string } | null>(null);
+  // fork:proma-37-deferred-model —— 「下轮生效」的模型。运行中选模型只写这里，
+  // 真正的 set_model 挂在 settleTurn()（本轮真正结束）上。ref 镜像是为了让
+  // flushNextTurnModel / handleModelChange 之间的互相调用不受渲染时序影响。
+  const [nextTurnModel, setNextTurnModel] = useState<PendingModel | null>(null);
   const [modelSwitching, setModelSwitching] = useState(false);
   const [isCompacting, setIsCompacting] = useState(false);
   const [autoCompactionEnabled, setAutoCompactionEnabled] = useState(true);
@@ -475,6 +486,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const promptRunStartedAtRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
   const modelSwitchPendingRef = useRef(false);
+  // fork:proma-37-deferred-model —— 排队中的模型 + 当前正在看的会话身份。
+  const nextTurnModelRef = useRef<PendingModel | null>(null);
+  const pendingModelSessionIdRef = useRef<string | null>(session?.id ?? null);
+  // settleUiStage 定义在 handleModelChange 之前，但落地要复用后者的既有路径，
+  // 所以走 ref 中转（同本文件 handleAgentEventRef 的写法）。
+  const handleModelChangeRef = useRef<((provider: string, modelId: string) => Promise<void>) | null>(null);
   const draftKeyAliasesRef = useRef(new Map<string, string>());
   const sessionHookMountedRef = useRef(true);
   // In-flight session reads, keyed by session id (or force:<id> for fresh reads).
@@ -628,6 +645,15 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     ? (newSessionModel ?? newSessionDefaultModel)
     : currentModel ?? (data?.context.messages.length === 0 ? newSessionDefaultModel : null);
   const composerDraftKey = session?.id ?? newSessionDraftKey ?? undefined;
+
+  // fork:proma-37-deferred-model —— 排队模型的展示形态：解析成人看得懂的名字，
+  // 供输入框那枚「下轮生效」芯片直接渲染（芯片自己不该再去翻模型表）。
+  const nextTurnModelView = useMemo(() => {
+    if (!nextTurnModel) return null;
+    const { provider, modelId } = nextTurnModel.model;
+    const listed = modelList.find((entry) => entry.provider === provider && entry.id === modelId);
+    return { provider, modelId, name: listed?.name ?? modelNames[`${provider}:${modelId}`] ?? modelId };
+  }, [modelList, modelNames, nextTurnModel]);
 
   const syncLiveModel = useCallback((state?: AgentStateResponse) => {
     setLiveModel(state?.model
@@ -1042,6 +1068,19 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     eventConnectionRef.current!.maintain(sid);
   }, []);
 
+  // fork:proma-37-deferred-model —— 换会话就丢掉排队中的模型（A 会话点的模型不许
+  // 带到 B 会话）。侧边栏切会话本来就会 bump sessionKey 让整棵树重挂载，这里是
+  // 第二道闸：hook 实例万一活过了换会话（promote / 深链接）也不会把队列带走。
+  // `null → 新会话 id` 是 promoteNewSession 的正常晋升，刻意不算换会话。
+  useEffect(() => {
+    const nextId = session?.id ?? null;
+    if (shouldClearPendingModel(pendingModelSessionIdRef.current, nextId)) {
+      nextTurnModelRef.current = null;
+      setNextTurnModel(null);
+    }
+    pendingModelSessionIdRef.current = nextId;
+  }, [session?.id]);
+
   // Keep the selected session warm even while its agent is idle. The SSE lease
   // is renewed separately below and expires if the browser disappears.
   useEffect(() => {
@@ -1272,6 +1311,37 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     return wasRunning;
   }, [dispatch]);
 
+  // fork:proma-37-deferred-model —— 把排队中的模型真正落地：取出 pending 之后
+  // 原样走 handleModelChange（此刻 isStreaming 已是 false，会走既有的立即切换路径）。
+  // 闸门不通过时**不清 pending**，留给下一轮结束再试 —— 取走再发现发不了，模型就丢了。
+  const flushNextTurnModel = useCallback(() => {
+    const outcome = pendingFlushDecision({
+      pending: nextTurnModelRef.current,
+      hasSession: sessionIdRef.current !== null,
+      isStreaming: agentRunningRef.current,
+      modelSwitchInFlight: modelSwitchPendingRef.current,
+    });
+    if (outcome !== "flush") return;
+    const pending = nextTurnModelRef.current;
+    if (!pending) return;
+    nextTurnModelRef.current = null;
+    setNextTurnModel(null);
+    void handleModelChangeRef.current?.(pending.model.provider, pending.model.modelId);
+  }, []);
+
+  // fork:proma-37-deferred-model —— 本轮真正结束的唯一出口。
+  //
+  // AGENTS.md「Running state polling + reconciliation」里那条既有的结束路径
+  // （`prompt_done` / `agent_settled` / 无 SSE 兜底的 `finishPromptWithoutStream`）
+  // 全部经过 `settleUiStage()`，所以把「下轮生效的模型落地」挂在这里，而不是
+  // 新开一个定时器：既有的幂等闸门（promptRunIdRef / notifiedPromptRunIdRef）
+  // 已经保证重复事件不会重复收尾，这里再叠一层「pending 只在能发时才取走」。
+  const settleTurn = useCallback(() => {
+    const wasRunning = settleUiStage();
+    flushNextTurnModel();
+    return wasRunning;
+  }, [settleUiStage, flushNextTurnModel]);
+
   const notifyPromptStage = useCallback((runId: number) => {
     if (notifiedPromptRunIdRef.current === runId) return false;
     notifiedPromptRunIdRef.current = runId;
@@ -1355,7 +1425,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       rpcPromptPendingRef.current = false;
       sdkAgentActiveRef.current = false;
       optimisticUserMessageKeyRef.current = null;
-      const wasRunning = settleUiStage();
+      const wasRunning = settleTurn();
       if (promptWasPending) {
         notifyPromptStage(runId);
       } else if (agentWasActive && wasRunning) {
@@ -1363,7 +1433,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       }
       if (sid) scheduleEventStreamClose(sid);
     }
-  }, [loadSession, notifyPromptStage, onAgentEnd, scheduleEventStreamClose, settleUiStage]);
+  }, [loadSession, notifyPromptStage, onAgentEnd, scheduleEventStreamClose, settleTurn]);
 
   const waitForPromptSettlement = useCallback(async (sid: string, runId?: number) => {
     await delay(PROMPT_SETTLE_INITIAL_DELAY_MS);
@@ -1564,7 +1634,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         if (!agentWasActive || rpcPromptPendingRef.current) break;
 
         const sid = sessionIdRef.current;
-        const wasRunning = settleUiStage();
+        const wasRunning = settleTurn();
         setIsCompacting(false);
         if (sid) {
           void loadSession(sid);
@@ -1588,7 +1658,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           // command's prompt_done. Keep that active stage visible and let its
           // agent_settled event perform the next completion transition.
           if (!sdkAgentActiveRef.current) {
-            settleUiStage();
+            settleTurn();
             if (sid) scheduleEventStreamClose(sid);
           }
         }
@@ -1788,7 +1858,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         setExtensionCustomUis((queue) => removeExtensionUiRequest(queue, event.id as string));
         break;
     }
-  }, [addNotice, applyRetryEvent, beginExtensionUiReplayWindow, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, scheduleEventStreamClose, scrollToBottom, settleUiStage, syncLiveModel]);
+  }, [addNotice, applyRetryEvent, beginExtensionUiReplayWindow, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, scheduleEventStreamClose, scrollToBottom, settleTurn, syncLiveModel]);
   handleAgentEventRef.current = handleAgentEvent;
 
   const handleSend = useCallback(async (
@@ -2030,6 +2100,29 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, [loadContext]);
 
   const handleModelChange = useCallback(async (provider: string, modelId: string) => {
+    const next = { provider, modelId };
+    // fork:proma-37-deferred-model —— 运行中选模型**只记账**，不发 set_model
+    // （硬约束：set_model 会打断当前轮）。落地由 settleTurn() 在本轮真正结束时
+    // 原样重放一次本函数，那时 isStreaming 已是 false，自然走既有的立即切换路径。
+    const decision = decideModelSelection({
+      next,
+      // 自动选型（isNew 且用户还没手动选过）时 current 视为 null：选中的正是当前
+      // 显示的那个模型，也仍然要把「自动」钉成显式选择（ModelSelector 的
+      // choose() 在 isAutoSelection 下无视 active 就是这个原因）。
+      current: isNew && newSessionModel === null ? null : displayModel,
+      pending: nextTurnModelRef.current,
+      isStreaming: agentRunningRef.current,
+      runId: promptRunIdRef.current,
+    });
+    if (decision.kind === "noop") return;
+    if (decision.kind === "defer") {
+      // 排队态里选择器仍然显示**当前这一轮**的模型，排队中的那个由界面上的
+      // 「下轮生效」芯片负责显示 —— 所以这里刻意不动 newSessionModel /
+      // currentModelOverride，否则落地时会被判成 noop 而永远发不出去。
+      nextTurnModelRef.current = decision.pending;
+      setNextTurnModel(decision.pending);
+      return;
+    }
     if (isNew) {
       const selectedModel = { provider, modelId };
       newSessionModelOverrideRef.current = selectedModel;
@@ -2085,7 +2178,16 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       modelSwitchPendingRef.current = false;
       setModelSwitching(false);
     }
-  }, [addNotice, currentModelOverride, isNew, loadSession, setNewSessionModel]);
+  }, [addNotice, currentModelOverride, displayModel, isNew, loadSession, newSessionModel, setNewSessionModel]);
+
+  handleModelChangeRef.current = handleModelChange;
+
+  // fork:proma-37-deferred-model —— 用户在排队生效前反悔：直接丢掉队列即可，
+  // 本轮仍在用原来的模型，不需要向服务端发任何命令。
+  const handlePendingModelCancel = useCallback(() => {
+    nextTurnModelRef.current = null;
+    setNextTurnModel(null);
+  }, []);
 
   const handleCompact = useCallback(async () => {
     const sid = sessionIdRef.current;
@@ -2898,6 +3000,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     agentRunning, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, systemPrompt, forkingEntryId,
     isCompacting, compactError, compactResult, currentModel, displayModel, modelSwitching, sessionStats, autoCompactionEnabled,
+    // fork:proma-37-deferred-model —— 排队中、将在下一轮生效的模型（null = 没有）。
+    nextTurnModel: nextTurnModelView,
     slashCommands, slashCommandsLoading, queuedMessages,
     notices: noticeState.visible, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput,
     isAutoModelSelection: isNew && newSessionModel === null,
@@ -2922,6 +3026,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     handleBuiltinSlashCommand,
     setNoticePaused: setPausedNoticeId,
     handleToolPresetChange, handleThinkingLevelChange, loadTools, loadSlashCommands, setActiveLeafId, setData, setMessages, loadContext,
+    // fork:proma-37-deferred-model
+    handlePendingModelCancel,
     scrollToBottom, scrollUserMsgToTop, scrollToMessage,
     dispatch, setAgentRunning, setForkingEntryId,
     bashRunning, pendingBash,

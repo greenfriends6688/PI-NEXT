@@ -802,6 +802,10 @@ export const zhTWLocale: LocalePlugin = {
     "chat.recall": "移回輸入框",
     "chat.recallTitle": "將所有佇列中的訊息移回輸入框以便編輯",
     "chat.retrying": "正在重試（{attempt}/{max}）…",
+    // fork:proma-37-deferred-model —— 執行中改模型：模型選擇器旁邊那枚「下輪生效」晶片。
+    "chat.modelQueuedNextTurn": "{model} · 下輪生效",
+    "chat.modelQueuedNextTurnTitle": "目前這一輪仍用原模型跑完，{model} 從下一輪開始生效",
+    "chat.modelQueuedNextTurnCancel": "點擊可取消這次排隊",
     // fork:proma-35-retry —— 訊息流裡的重試提示（五態各一句，數字用 {attempt}/{max}）
     "chat.retryNotice.scheduled": "網路暫時中斷，即將第 {attempt}/{max} 次繼續目前回答…",
     "chat.retryNotice.running": "正在第 {attempt}/{max} 次繼續目前回答…",

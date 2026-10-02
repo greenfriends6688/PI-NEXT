@@ -684,6 +684,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
+    // fork:proma-37-deferred-model
+    nextTurnModel: nextTurnModelValue,
     slashCommands, slashCommandsLoading, queuedMessages,
     notices, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
     isAutoModelSelection,
@@ -704,6 +706,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     handleBuiltinSlashCommand,
     handleToolPresetChange, handleThinkingLevelChange, loadSlashCommands, scrollUserMsgToTop,
     loadContext, activeLeafId, scrollToBottom, scrollToMessage,
+    // fork:proma-37-deferred-model
+    handlePendingModelCancel,
   } = useAgentSession({
     session, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd: wrappedOnAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked,
     modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsPanelOpen: handleSessionStatsPanelOpen,
@@ -1987,6 +1991,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       modelScopeWarnings={modelScopeWarnings}
       onModelChange={handleModelChange}
       modelSwitching={modelSwitching}
+      // fork:proma-37-deferred-model —— 运行中改模型不打断当前轮，只排队；
+      // 界面上的「下轮生效」提示就挂在 ChatInput 的模型选择器旁边。
+      pendingModel={nextTurnModelValue}
+      onCancelPendingModel={handlePendingModelCancel}
       onCompact={session || isNew ? handleCompact : undefined}
       onAbortCompaction={handleAbortCompaction}
       isCompacting={isCompacting}
