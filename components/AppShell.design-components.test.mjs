@@ -55,7 +55,8 @@ test("the collapsed rail is the board's vertical .pw-rail column", () => {
   }
   assert.equal((railBlock.match(/<button/g) ?? []).length, 4);
   // macOS 红绿灯让位不是内联写的，而是平台钩子（属产品 CSS 的行为位）。
-  assert.match(forkCss, /\[data-desktop-platform="darwin"\] \.pw-rail \{/);
+  // 两个让位目标（导轨、设置左导航）共用一条 darwin 钩子，所以断言跟 :is() 列表。
+  assert.match(forkCss, /\[data-desktop-platform="darwin"\] :is\(\s*\.pw-rail,/);
 });
 
 test("the top bar action buttons take their size from the board classes", () => {
