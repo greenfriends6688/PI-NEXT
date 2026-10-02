@@ -3888,6 +3888,80 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   white-space: nowrap;
 }
 
+/* fork:proma-43-automation —— 定时任务面板
+ *
+ * 只补**画板没有的结构**：运行历史那几行、interval 的周几芯片组、以及几个控件的
+ * 收窄宽度。颜色 / 圆角 / 字阶 / 控件高度一律来自 board.css 的 `.pw-*` 与
+ * `app/design/tokens.css`，这里不出现新的色值，也不出现新的 `.pw-*` 类名。
+ * ------------------------------------------------------------------------- */
+
+/* 周几芯片组：7 个要能在一行里折行，所以自己带 flex 与 gap（board.css 的
+   `.pw-chipbtn` 只管单个芯片的外形，不管排布）。 */
+.fork-automation-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+/* 选中态。画板里选中芯片走 `.pw-chipbtn.is-on`（`design/.../board.css` 有 `.is-on`
+   但只挂在 `.pw-litem` 上），所以这里用 `aria-pressed` 自己出形 —— 状态在 DOM 上，
+   颜色仍取板上的语义槽位。 */
+.fork-automation-day[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-on, #fff);
+  border-color: transparent;
+}
+
+/* 数字 / 时间输入框：board.css 的 `.pw-input` 是撑满的，数字框撑满会很难看。 */
+.fork-automation-narrow {
+  width: var(--control-2xs);
+  min-width: var(--control-2xs);
+  max-width: 12ch;
+}
+
+input[type="time"].fork-automation-narrow,
+input[type="datetime-local"].fork-automation-narrow {
+  min-width: 0;
+  max-width: none;
+}
+
+/* 提示词：多行文本框，需要能竖向拖。 */
+.fork-automation-prompt {
+  width: 100%;
+  min-height: 5lh;
+  resize: vertical;
+  font-family: var(--font-mono);
+}
+
+/* 运行历史：与 `.pw-list` 同节奏的单列行。 */
+.fork-automation-history {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fork-automation-run {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) var(--s2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  min-width: 0;
+}
+
+.fork-automation-run > * {
+  min-width: 0;
+}
+
+.fork-automation-run .pw-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .fork-plan-reminder-act {
   display: inline-grid;
   place-items: center;
@@ -4050,4 +4124,5 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
+
 
