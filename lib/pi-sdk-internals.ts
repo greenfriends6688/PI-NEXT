@@ -38,6 +38,12 @@ import { readFileSync, realpathSync } from "node:fs";
 import { findPackageJSON } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  createMcpSessionLivenessGate,
+  createPiNextMcpTransportFactory,
+  createSessionGatedTransportFactory,
+  type McpSessionLivenessGate,
+} from "./mcp-transport";
 
 const SDK_PACKAGE = "@earendil-works/pi-coding-agent";
 const MCP_PACKAGE = "@earendil-works/pi-mcp";
@@ -685,6 +691,85 @@ export function loadPiSdkInternals(): Promise<PiSdkInternalsResult> {
 /** 缺 `createMcpExtension` 时只打一行，别在每个会话上刷屏。 */
 let missingMcpSdkLogged = false;
 
+/** `session_start` 的 ctx 里本仓接线要用的那部分（不 import SDK 的 ExtensionContext 类型）。 */
+export interface PiWebExtensionContext {
+  cwd: string;
+  projectTrusted: boolean;
+  sessionId: string;
+  sessionFile?: string;
+}
+
+/** 从扩展 ctx 里取 cwd / 项目信任 / 会话身份；取不到就退到安全默认值。 */
+export function extensionContextFromPiContext(ctx: unknown): PiWebExtensionContext {
+  const value = isRecord(ctx) ? ctx : {};
+  const cwd = typeof value.cwd === "string" && value.cwd ? value.cwd : process.cwd();
+  const isProjectTrusted = value.isProjectTrusted;
+  let projectTrusted = false;
+  if (typeof isProjectTrusted === "function") {
+    try {
+      projectTrusted = (isProjectTrusted as () => unknown).call(value) === true;
+    } catch {
+      projectTrusted = false;
+    }
+  }
+  const manager = isRecord(value.sessionManager) ? value.sessionManager : {};
+  const getSessionId = manager.getSessionId;
+  let sessionId = "";
+  if (typeof getSessionId === "function") {
+    try {
+      sessionId = String((getSessionId as () => unknown).call(manager) ?? "");
+    } catch {
+      sessionId = "";
+    }
+  }
+  const getSessionFile = manager.getSessionFile;
+  let fileValue: unknown;
+  if (typeof getSessionFile === "function") {
+    try {
+      fileValue = (getSessionFile as () => unknown).call(manager);
+    } catch {
+      fileValue = undefined;
+    }
+  }
+  return {
+    cwd,
+    projectTrusted,
+    sessionId,
+    sessionFile: typeof fileValue === "string" && fileValue ? fileValue : undefined,
+  };
+}
+
+/** pi-web 没有注册 codemode / tool-search，`codemode` / `deferred` 工具没人能调到。 */
+function directExposure(exposure: McpExposure | undefined): McpExposure | undefined {
+  if (exposure === "codemode" || exposure === "codemode-deferred" || exposure === "deferred") return "direct";
+  return exposure;
+}
+
+/**
+ * pi-web 运行时对 `loadMcpConfig` 结果的适配：
+ * - `codemode` / `deferred` 工具改为 `direct`。pi 只把 `direct` / `model-only` 声明给模型，
+ *   而 codemode / tool-search 两个内置扩展本仓没注册（ADR 0006 的 P1 后续项），
+ *   所以不改的话这些工具在会话里根本到不了模型。`hidden` 保持隐藏。
+ * - 其余原样透传（名称、项目覆盖、错误列表都由 pi 的加载器决定）。
+ */
+export function normalizeMcpConfigForPiWeb(loaded: LoadedMcpConfig): LoadedMcpConfig {
+  return {
+    ...loaded,
+    servers: loaded.servers.map((entry) => {
+      const config = { ...entry.config };
+      // 未声明时 pi 的默认就是 `codemode`；pi-web 没有 codemode/tool-search，
+      // 所以这里必须把「默认」也显式落成 `direct`。
+      config.exposure = directExposure(config.exposure ?? "codemode") ?? "codemode";
+      if (config.toolExposure) {
+        config.toolExposure = Object.fromEntries(
+          Object.entries(config.toolExposure).map(([tool, exposure]) => [tool, directExposure(exposure) ?? "codemode"]),
+        );
+      }
+      return { ...entry, config };
+    }),
+  };
+}
+
 /**
  * `lib/rpc-manager.ts` 的 `extensionFactories` 要加的那一条。
  *
@@ -692,26 +777,26 @@ let missingMcpSdkLogged = false;
  * `-builtin:mcp` / `--no-extensions` 能关掉，`pi config` 列得出来，第三方扩展注册
  * `/mcp` 时能让位（`replaceable`）。ADR 0006 的 Loading 决策。
  *
- * **为什么在 SDK 不具备 MCP 时返回空数组**：0.87 上没有 `createMcpExtension` 这个导出，
- * 硬接会让 tsc 直接红（静态命名 import 在 ESM 里是 link 期错误）。所以这里是能力探测：
- * 有才注册，没有就一行日志跳过，等 SDK 升到 0.99 自动生效。
+ * 传了 `internals`（rpc-manager 先 `await loadPiSdkInternals()`）才通电；不传时
+ * 保持「关」的形状（空配置 + 一律抛错的 transport），契约测试与 SDK 不具备 MCP 的
+ * 降级都靠它。
  *
- * 三个坑（ADR 0006 全中，本轮只处理第三个）：
- *   1. **fan-out**：扩展在 `session_start` 上连**全部**启用的 server，而本仓每个 wrapper
- *      都会建（切会话 `get_tools`、自动命名、SSE 预热），浏览一个会话就把所有 stdio
- *      server 拉起来常驻。所以这里 `loadConfig` 返回空列表——`session_start` 不连任何
- *      server，那 10 秒的启动等待也不会上膛。真正的「会话要哪台 server 就连哪台」
- *      （每次用户 prompt 前比对配置指纹、只连变化的那几台）是 P1 的 `McpHost`。
- *   2. **stop**：`before_agent_start` 最多等 10s 且不理会 abort，这期间 Stop 按不动。
- *      同样因为现在不连 server 而不触发；`McpHost` 版本的等待必须自己认 abort。
- *   3. **env**：SDK 默认的 stdio transport 把整个 `process.env` 交给子进程，本仓的
- *      `PI_WEB_PASSWORD` 就在里面。这里**不做**回退：`createTransport` 一律抛错，
- *      直到 P1 把 `lib/mcp-transport.ts` 的洗 env 工厂挂上来。宁可连不上，也不泄漏。
+ * ADR 0006 三个坑的处置：
+ *   1. **fan-out**：`loadConfig` 总是返回真实配置，但 `createTransport` 外面包了
+ *      `lib/session-liveness.ts` 的租约闸门（`createMcpSessionLivenessGate`）：
+ *      只有浏览器真的在看这个会话（SSE 租约）才构造 transport，stdio 进程才可能 spawn；
+ *      切会话 `get_tools`、自动命名、SSE 预热这类没人看的 wrapper 永远等不到闸门放行，
+ *      会话关停时 `session_shutdown` 立刻中止等待。等待有 10 分钟上限（与空闲回收同档）。
+ *   2. **stop**：`before_agent_start` 的 10s 等待用 `startupWaitMs: 0` 绕开——首个
+ *      prompt 不阻塞；晚连上的 direct 工具在注册时激活，下一轮就进模型。
+ *   3. **env**：`createTransport` 走 `lib/mcp-transport.ts` 的洗 env 工厂
+ *      （`inheritEnv: false` + 洗过的环境 + server 自己声明的 env）；引用
+ *      `PI_WEB_PASSWORD` 的条目在 SDK 解析任何值之前就拒。
  *
- * 另外两个上游写死的限制（远程部署才要紧）：OAuth 回调只听 `127.0.0.1`，
- * `.pi/mcp.json` 靠目录信任继承（被信任的父目录会让子目录的条目直接开跑）。
+ * 另两个上游限制（远程部署才要紧）：OAuth 回调只听 `127.0.0.1`，
+ * `.pi/mcp.json` 靠目录信任继承。
  */
-export function mcpBuiltinExtensionEntries(): McpBuiltinExtension[] {
+export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuiltinExtension[] {
   const createMcpExtension = sdkCreateMcpExtension();
   if (!createMcpExtension) {
     if (!missingMcpSdkLogged) {
@@ -722,17 +807,49 @@ export function mcpBuiltinExtensionEntries(): McpBuiltinExtension[] {
     }
     return [];
   }
+
+  const baseTransport = internals
+    ? createPiNextMcpTransportFactory(internals)
+    : (entry: McpServerEntry) => {
+        throw new Error(
+          `MCP server "${entry.name}": SDK 内部件未加载或不可用，洗 env 的 transport 工厂没有接上（见 lib/mcp-transport.ts）`,
+        );
+      };
+
+  const factory: piSdk.ExtensionFactory = (pi) => {
+    // 工厂按会话调用一次，所以闸门/会话身份放在这里：即使同一个 entry 被复用到
+    // 多个会话，也不会拿错会话的租约。
+    let gate: McpSessionLivenessGate | undefined;
+    let identity: { sessionId: string; sessionFile?: string } = { sessionId: "" };
+    const gateForThisSession = (): McpSessionLivenessGate => {
+      gate ??= createMcpSessionLivenessGate(identity);
+      return gate;
+    };
+    const builtinFactory = createMcpExtension({
+      loadConfig: internals
+        ? (ctx: unknown) => {
+            const context = extensionContextFromPiContext(ctx);
+            identity = { sessionId: context.sessionId, sessionFile: context.sessionFile };
+            return normalizeMcpConfigForPiWeb(internals.loadMcpConfig({
+              agentDir: piSdk.getAgentDir(),
+              cwd: context.cwd,
+              projectTrusted: context.projectTrusted,
+            }));
+          }
+        : () => ({ servers: [], errors: [] }),
+      // 首个 prompt 不等连接，Stop 始终按得动（ADR 0006 坑 2 的绕开）。
+      startupWaitMs: 0,
+      createTransport: (entry, cwd, authProvider) =>
+        createSessionGatedTransportFactory(baseTransport, gateForThisSession())(entry, cwd, authProvider),
+    });
+    // 会话关停：中止还在等活跃租约的连接尝试，绝不在会话死后补拉进程。
+    pi.on("session_shutdown", () => gate?.dispose());
+    return builtinFactory(pi);
+  };
   return [
     {
       name: "mcp",
-      factory: createMcpExtension({
-        loadConfig: () => ({ servers: [], errors: [] }),
-        createTransport: (entry) => {
-          throw new Error(
-            `MCP server "${entry.name}": 洗 env 的 transport 工厂还没接上（见 lib/mcp-transport.ts）`,
-          );
-        },
-      }),
+      factory,
       replaceable: true,
       builtin: true,
     },

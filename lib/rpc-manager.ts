@@ -34,7 +34,7 @@ import {
 } from "./project-command-env";
 import { cacheSessionPath, getLatestModelChange, invalidateSessionListCache, resolveSessionPath } from "./session-reader";
 // fork:pr11-mcp — ADR 0006 的 Loading：把内置 `mcp` 扩展挂上 builtin:mcp
-import { mcpBuiltinExtensionEntries } from "./pi-sdk-internals";
+import { loadPiSdkInternals, mcpBuiltinExtensionEntries } from "./pi-sdk-internals";
 import { getProjectTrustStatus, projectTrustReloadOptions } from "./project-trust";
 import { persistExplicitStartupPreferences } from "./startup-preferences";
 import { rememberThinkingLevel, thinkingLevelMemoryKey } from "./thinking-level-memory";
@@ -2354,6 +2354,9 @@ export async function startRpcSession(
     // Some extensions access the SDK's global theme even outside the terminal UI.
     if (!chatOnly) initTheme();
     const agentDir = getAgentDir();
+    // fork:pr11-mcp — builtin:mcp 的配置/连接原语要在 `session_start` 同步取到，
+    // 所以在这里先把内部件加载好（进程内 globalThis 缓存，只第一次有开销）。
+    const mcpInternals = await loadPiSdkInternals();
 
     // Determine which tools to pass based on requested toolNames.
     // Since v0.68.0, session creation expects string[] tool names instead of Tool[] instances.
@@ -2434,11 +2437,10 @@ export async function startRpcSession(
               // `mcp`，`DefaultResourceLoader` 才按 `builtin:mcp` 解析（`-builtin:mcp` /
               // `--no-extensions` 能关，第三方扩展注册 `/mcp` 时让位）。SDK 不带内置 MCP
               // 时（0.87）返回空数组并打一行日志，所以 tsc 不会红、运行时等于没接。
-              // 三个坑写在 lib/pi-sdk-internals.ts 的 `mcpBuiltinExtensionEntries` 上：
-              // fan-out（不连任何 server，所以不拉起 stdio 进程）、stop（不触发那段
-              // 不认 abort 的 10s 等待）、env（`createTransport` 一律抛错，绝不回退到
-              // SDK 默认 transport 把 `PI_WEB_PASSWORD` 交给子进程）。
-              ...mcpBuiltinExtensionEntries(),
+              // 三个坑的处置写在 lib/pi-sdk-internals.ts 的 `mcpBuiltinExtensionEntries` 上：
+              // fan-out（session-liveness 租约闸门）、stop（startupWaitMs: 0 不等连接）、
+              // env（createPiNextMcpTransportFactory 洗 env，绝不回退到 SDK 默认 transport）。
+              ...mcpBuiltinExtensionEntries(mcpInternals.ok ? mcpInternals : undefined),
             ],
             extensionsOverride: (base) => preferUserBashExtension(preferPiWebSubagentExtension(base)),
           },

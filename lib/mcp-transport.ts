@@ -21,7 +21,8 @@
  */
 
 import { sanitizeProjectCommandEnvironment } from "./project-command-env";
-import type { McpServerConfig, McpTransportFactory, PiSdkInternals } from "./pi-sdk-internals";
+import { hasActiveSessionLivenessProvider } from "./session-liveness";
+import type { McpServerConfig, McpTransport, McpTransportFactory, PiSdkInternals } from "./pi-sdk-internals";
 
 // MCP server 是替某个项目跑的，和它的 bash 命令算同一类：给项目 bash 命令的环境，
 // 不给配置/守护这个 Next.js 进程的变量（ADR 0006「Safety → Environment」）。
@@ -145,4 +146,197 @@ export function createPiNextMcpTransportFactory(
       inheritEnv: false,
     });
   };
+}
+
+// ─────────────────── fan-out 闸门：会话真的活着才准连 ───────────────────
+
+/** 没人看会话时，连接最多等这么久；会话空闲回收默认也是 10 分钟（rpc-manager）。 */
+export const MCP_LIVENESS_WAIT_MS = 10 * 60 * 1000;
+const MCP_LIVENESS_POLL_MS = 250;
+
+export interface McpSessionLivenessGate {
+  /** 会话有活跃租约（浏览器 SSE / 显式登记）时 resolve；否则等；dispose / 超时 reject。 */
+  waitForActive(): Promise<void>;
+  /** 会话关停：中止所有等待，此后不再放行任何连接。 */
+  dispose(): void;
+  readonly disposed: boolean;
+}
+
+export interface McpSessionLivenessGateOptions {
+  sessionId: string;
+  sessionFile?: string;
+  /** 等活跃租约的上限，默认 `MCP_LIVENESS_WAIT_MS`。 */
+  waitMs?: number;
+  pollMs?: number;
+  /** 单测接缝；默认问 `lib/session-liveness.ts`。 */
+  isActive?: () => boolean;
+}
+
+/**
+ * fan-out 的闸门（ADR 0006 坑 1）。pi 的扩展在 `session_start` 上连**全部**启用
+ * server，而 pi-web 每个 wrapper 都会建（切会话 `get_tools`、自动命名、SSE 预热）；
+ * 这里用空闲回收已经在用的同一份 session-liveness 租约做门：只有浏览器真的在
+ * 看这个会话（SSE 租约）时才放行，没人看的 wrapper 永远不 spawn。
+ *
+ * 等待有上限且可被 `dispose()`（session_shutdown）中止，所以不会留下永久挂着的
+ * 连接尝试；定时器 `unref()`，不会把进程钉住。
+ */
+export function createMcpSessionLivenessGate(
+  options: McpSessionLivenessGateOptions,
+): McpSessionLivenessGate {
+  const waitMs = options.waitMs ?? MCP_LIVENESS_WAIT_MS;
+  const pollMs = options.pollMs ?? MCP_LIVENESS_POLL_MS;
+  const isActive = options.isActive ?? (() => hasActiveSessionLivenessProvider({
+    sessionId: options.sessionId,
+    sessionFile: options.sessionFile,
+  }));
+  let disposed = false;
+  const waiters = new Set<{ reject: (error: Error) => void; timer: ReturnType<typeof setInterval> | undefined }>();
+  const failAll = (error: Error): void => {
+    for (const waiter of [...waiters]) {
+      if (waiter.timer) clearInterval(waiter.timer);
+      waiter.reject(error);
+    }
+    waiters.clear();
+  };
+  return {
+    get disposed() {
+      return disposed;
+    },
+    waitForActive() {
+      if (disposed) return Promise.reject(new Error("MCP session ended before the server could start"));
+      if (isActive()) return Promise.resolve();
+      return new Promise<void>((resolve, reject) => {
+        const deadline = Date.now() + waitMs;
+        const waiter = { reject, timer: undefined as ReturnType<typeof setInterval> | undefined };
+        waiter.timer = setInterval(() => {
+          if (disposed) return;
+          if (isActive()) {
+            if (waiter.timer) clearInterval(waiter.timer);
+            waiters.delete(waiter);
+            resolve();
+            return;
+          }
+          if (Date.now() >= deadline) {
+            if (waiter.timer) clearInterval(waiter.timer);
+            waiters.delete(waiter);
+            reject(new Error(`MCP server did not start: the session was not active within ${waitMs}ms`));
+          }
+        }, pollMs);
+        (waiter.timer as unknown as { unref?: () => void }).unref?.();
+        waiters.add(waiter);
+      });
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      failAll(new Error("MCP session ended before the server could start"));
+    },
+  };
+}
+
+/**
+ * 在洗 env 的工厂外面再包一层闸门：`start()` 先等会话活跃，活跃后才构造真正的
+ * transport（stdio 进程只在 `start()` 里 spawn）。等待期收到 close/dispose 就
+ * 直接拒绝，绝不在会话死后补拉一个进程。
+ */
+export function createSessionGatedTransportFactory(
+  inner: McpTransportFactory,
+  gate: McpSessionLivenessGate,
+): McpTransportFactory {
+  return (entry, cwd, authProvider) =>
+    new SessionGatedTransport(entry.name, () => inner(entry, cwd, authProvider), gate);
+}
+
+class SessionGatedTransport implements McpTransport {
+  private inner: McpTransport | undefined;
+  private started = false;
+  private closed = false;
+  private protocolVersion: string | undefined;
+  private readonly controller = new AbortController();
+  private readonly messageListeners = new Map<(message: unknown) => void, () => void>();
+  private readonly errorListeners = new Map<(error: Error) => void, () => void>();
+  private readonly closeListeners = new Map<() => void, () => void>();
+
+  constructor(
+    private readonly serverName: string,
+    private readonly createInner: () => McpTransport,
+    private readonly gate: McpSessionLivenessGate,
+  ) {}
+
+  private closedError(): Error {
+    return new Error(`MCP server "${this.serverName}" transport closed before it started`);
+  }
+
+  private aborted(): Promise<never> {
+    if (this.controller.signal.aborted) return Promise.reject(this.closedError());
+    return new Promise((_, reject) => {
+      this.controller.signal.addEventListener("abort", () => reject(this.closedError()), { once: true });
+    });
+  }
+
+  async start(): Promise<void> {
+    if (this.started) throw new Error("MCP transport already started");
+    if (this.closed) throw this.closedError();
+    this.started = true;
+    await Promise.race([this.gate.waitForActive(), this.aborted()]);
+    if (this.closed) throw this.closedError();
+    const inner = this.createInner();
+    this.inner = inner;
+    for (const [listener, dispose] of this.messageListeners) {
+      dispose();
+      this.messageListeners.set(listener, inner.onMessage(listener));
+    }
+    for (const [listener, dispose] of this.errorListeners) {
+      dispose();
+      this.errorListeners.set(listener, inner.onError(listener));
+    }
+    for (const [listener, dispose] of this.closeListeners) {
+      dispose();
+      this.closeListeners.set(listener, inner.onClose(listener));
+    }
+    if (this.protocolVersion !== undefined) inner.setProtocolVersion?.(this.protocolVersion);
+    await inner.start();
+  }
+
+  async send(message: unknown): Promise<void> {
+    if (!this.inner) throw new Error(`MCP server "${this.serverName}" transport has not started`);
+    await this.inner.send(message);
+  }
+
+  async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    this.controller.abort();
+    await this.inner?.close();
+  }
+
+  setProtocolVersion(version: string): void {
+    this.protocolVersion = version;
+    this.inner?.setProtocolVersion?.(version);
+  }
+
+  onMessage(listener: (message: unknown) => void): () => void {
+    this.messageListeners.set(listener, this.inner?.onMessage(listener) ?? (() => {}));
+    return () => {
+      this.messageListeners.get(listener)?.();
+      this.messageListeners.delete(listener);
+    };
+  }
+
+  onError(listener: (error: Error) => void): () => void {
+    this.errorListeners.set(listener, this.inner?.onError(listener) ?? (() => {}));
+    return () => {
+      this.errorListeners.get(listener)?.();
+      this.errorListeners.delete(listener);
+    };
+  }
+
+  onClose(listener: () => void): () => void {
+    this.closeListeners.set(listener, this.inner?.onClose(listener) ?? (() => {}));
+    return () => {
+      this.closeListeners.get(listener)?.();
+      this.closeListeners.delete(listener);
+    };
+  }
 }
