@@ -999,7 +999,14 @@ pre, code {
   min-width: 100%;
   font-size: calc(13px + var(--chat-font-size-offset, 0px));
 }
-.markdown-table-wrap > table { width: max-content; }
+/* fork:table-wrap-2026-10-02 —— 表格**填满容器**，不再 `width: max-content`。
+   `max-content` 把列宽定成「最长那一格」，于是一张两列表里只要有一行长句（CJK 没有空格，
+   `overflow-wrap: anywhere` 只管 min-content），整张表就宽出容器 → 外层横滚、其余各行
+   的格子留下一大片空白（用户截图里红框那块）。实测同一段表格：容器 558px 时
+   `max-content` → 表 676px、全行 35px（一行切掉）；`100%` → 表 558px 不横滚、长句在
+   格子内折成两行。列数多到真的装不下时，`min-width: 100%` + 外层 `overflow-x: auto`
+   仍然负责横滚。 */
+.markdown-table-wrap > table { width: 100%; }
 .markdown-body th, .markdown-body td {
   border: 0;
   border-bottom: 1px solid var(--border);
