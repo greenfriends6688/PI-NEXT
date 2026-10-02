@@ -92,11 +92,12 @@ test("the phone tier widens the group-title switch hit area without touching its
   assert.match(pwaCss, /\.pw-litem > \.pw-switch::after/);
   assert.doesNotMatch(pwaCss, /\.pw-group-title [^{]*\.pw-switch/);
 
-  const media = forkCss.slice(forkCss.lastIndexOf("@media (max-width: 640px), (pointer: coarse)"));
-  const hit = block(media.replace(/^@media[^{]*\{/, ""), ".pw-group-title .pw-switch::after");
+  // fork-ui.css 里有多个同名 @media 块（不同功能各占一个），不能用 lastIndexOf 假定
+  // 这条规则在最后一个块里 —— 那个假定会在后来有人再添一个块时静默失效（已经发生过）。
+  const hit = block(forkCss, ".pw-group-title .pw-switch::after");
   assert.match(hit, /content: ""/);
   assert.match(hit, /position: absolute/);
   // 热区靠伪元素外扩：四周各一个 s2（8px），30×17 → 46×33，短边越过触控档 32。
   assert.match(hit, /inset: calc\(var\(--s2\) \* -1\)/);
-  assert.match(block(media.replace(/^@media[^{]*\{/, ""), ".pw-group-title .pw-switch"), /position: relative/);
+  assert.match(block(forkCss, ".pw-group-title .pw-switch"), /position: relative/);
 });
