@@ -1698,7 +1698,15 @@ textarea,
 
   /* 例外：加载/更新中的状态指示（本质是状态，不是装饰）。 */
   .animate-spin,
-  svg[style*="spin"],
+  [style*="spin"],
+  /* fork:motion-spin-2026-10-02 —— board.css 在同一个 media query 里把
+     `.pw-anim-spin` 整条关掉了（它和 sheet/phase/flash 一组）。那是装饰列表，
+     但这一枚恰恰是 DSN-09 点名的「冻住会被读成卡死」的那类：产品里所有
+     loader-circle 都挂它（顶栏运行中、侧栏运行徽标、过程抬头、配置弹层的
+     loading）。不列进例外，系统开了「减弱动态效果」的用户看到的是一枚
+     永动的假死图标。同理 `[style*="spin"]` 不限定 svg —— AppShell 的
+     自动命名是 <span style="animation:spin…">。 */
+  .pw-anim-spin,
   .extension-widget-update-pulse,
   .extension-widget-update-pulse::before {
     animation-duration: var(--motion-spin) !important;

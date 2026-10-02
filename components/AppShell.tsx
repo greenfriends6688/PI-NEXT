@@ -2646,7 +2646,11 @@ export function AppShell() {
           {!isMobile && selectedSession && runningSessionIds.has(selectedSession.id) && (
             // 画板 01 帧 B：运行中在标题右侧给一枚状态芯片。
             <span className="pw-chipbtn">
-              <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="loader-circle" data-size="14"></i></span>
+              {/* fork:motion-spin-2026-10-02 —— 画板 01 帧 B 这枚芯片的 loader-circle
+                  此前**不带动画类**，是一枚静止的弧：会话在跑、图标不动，整枚芯片读成
+                  「卡住」。板上其它 loader-circle（PluginsConfig / SkillsConfig …）
+                  都挂 `.pw-anim-spin`，这里补同一枚。 */}
+              <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
               {translate("chat.running")}
             </span>
           )}

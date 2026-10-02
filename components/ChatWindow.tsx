@@ -588,7 +588,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
         {/* fork:design-components —— 画板 11 的头行右侧顺序是**先徽标、后「展开 / 收起」**
             （帧 B：`✓ 已完成` 在 `展开` 之前），原来是反的。 */}
         <span className={`pw-badge ${badge.cls}`}>
-          <span className="pw-ico"><i data-ico={badge.icon} data-size="12"></i></span>
+          <span className="pw-ico"><i data-ico={badge.icon} data-size="12" className={status === "running" ? "pw-anim-spin" : undefined}></i></span>
           {badge.text}
         </span>
         <span className="pw-desc">{open ? t("i18n.collapse") : t("i18n.expand")}</span>

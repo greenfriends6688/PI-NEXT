@@ -2324,7 +2324,9 @@ function showProjectActivity(
           title={t("sidebar.agentRunning")}
           aria-label={`${t("sidebar.agentRunning")} (${activity.running})`}
         >
-          <span className="pw-ico"><i data-ico="loader-circle" data-size="11"></i></span>
+          {/* fork:motion-spin-2026-10-02 —— 同 ChatWorkspaceRow：项目行的运行徽标是
+              静止的 loader-circle。有会话在跑却纹丝不动，就是「卡死」的错觉。 */}
+          <span className="pw-ico"><i data-ico="loader-circle" data-size="11" className="pw-anim-spin"></i></span>
           {activity.running}
         </span>
       )}
