@@ -3837,6 +3837,57 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   white-space: nowrap;
 }
 
+/* ── fork:proma-42-browser · 受管浏览器面板 ─────────────────────────────────
+ *
+ * 桌面端面板里那格**占位**不是页面：页面是主进程里的 WebContentsView，画在 DOM 之外。
+ * 这一格只负责把自己的盒子边界报出去，所以它必须完全透明、且撑满 iframe 该占的位置，
+ * 否则用户会看到「工具栏下面什么都没有」。
+ *
+ * 视口预设（390/768/…）在 iframe 路径上是内联的宽度；受管路径改成一组修饰类，
+ * 因为宽度是**样式**而不是几何字面量 —— 这样产品样式留在 CSS 里，组件不写死数字。
+ */
+.fork-browser-slot {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  /* 占位不可见：WebContentsView 画在它上面。留一层极淡的底色只为让「未加载」可辨。 */
+  background: var(--bg);
+  border: none;
+}
+
+.fork-browser-slot.is-pinned,
+.fork-browser-slot--390,
+.fork-browser-slot--768,
+.fork-browser-slot--1024,
+.fork-browser-slot--1280 {
+  flex: 0 0 auto;
+  max-width: 100%;
+  box-shadow: var(--shadow-sm);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* 视口预设的宽度是产品样式（画板 31 的视口预设），不是组件里的几何字面量；
+   五个预设就五个类，多一个预设就在这里加一行。 */
+.fork-browser-slot--390 { width: 390px; }
+.fork-browser-slot--768 { width: 768px; }
+.fork-browser-slot--1024 { width: 1024px; }
+.fork-browser-slot--1280 { width: 1280px; }
+
+/* 宿主能力说明：只在有页面时出现，一行、极轻，不与地址栏抢注意力。 */
+.fork-browser-surface-note {
+  margin: 0;
+  padding: var(--s1) var(--s2);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-meta);
+  color: var(--n-placeholder);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .fork-plan-reminder-act {
   display: inline-grid;
   place-items: center;
@@ -3999,3 +4050,4 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
+

@@ -666,6 +666,13 @@ export const zhCNLocale: LocalePlugin = {
     "browser.openExternal": "在新窗口打开",
     "browser.emptyTitle": "内置浏览器",
     "browser.emptyHint": "输入本地地址（例如 localhost:5001）后回车。声明了 X-Frame-Options 或 frame-ancestors CSP 的站点无法被嵌入，这类站点请用“在新窗口打开”。",
+    // fork:proma-42-browser — 受管浏览器（桌面端）/ iframe 退化（Web 端）的能力说明。
+    "browser.managedActive": "受管浏览器：Agent 可以用 browser_* 工具驱动这个页面（观察、点击、输入、抽取）。",
+    "browser.iframeFallbackHint": "Web 版：这里只是一个 iframe，Agent 无法驱动它，声明了 X-Frame-Options 的站点也可能拒绝加载。桌面版用的是真正的受管浏览器。",
+    "browser.riskGate.title": "要开启受管浏览器吗？",
+    "browser.riskGate.body": "站点可能识别出这是自动化浏览器，表现为验证码、限流或风控拦截，有些站点会直接拒绝。请确认你能接受再继续；不要用它绕过任何一道这类检查。",
+    "browser.riskGate.accept": "我知道了，继续",
+    "browser.riskGate.deny": "不开启",
     "files.fullscreen": "全屏",
     "files.exitFullscreen": "退出全屏",
     "files.insertPath": "将路径插入聊天",

@@ -665,6 +665,13 @@ export const enLocale: LocalePlugin = {
     "browser.openExternal": "Open in a new window",
     "browser.emptyTitle": "In-app browser",
     "browser.emptyHint": "Type a local address (for example localhost:5001) and press Enter. Pages that send X-Frame-Options or a frame-ancestors CSP cannot be embedded — use “open in a new window” for those.",
+    // fork:proma-42-browser — 受管浏览器（桌面端）/ iframe 退化（Web 端）的能力说明。
+    "browser.managedActive": "Managed browser: the agent can drive this page with the browser_* tools (observe, click, type, extract).",
+    "browser.iframeFallbackHint": "Web build: this is a plain iframe, so the agent cannot drive it and cross-site pages may refuse to load. The desktop build uses a real managed browser instead.",
+    "browser.riskGate.title": "Turn on the managed browser?",
+    "browser.riskGate.body": "Sites can tell this is an automated browser. You may hit a CAPTCHA, rate limiting, or anti-fraud checks, and some sites will block it outright. Only continue if that is acceptable, and do not use it to bypass any of those checks.",
+    "browser.riskGate.accept": "I understand, continue",
+    "browser.riskGate.deny": "Do not enable",
     "files.fullscreen": "Fullscreen",
     "files.exitFullscreen": "Exit fullscreen",
     "files.insertPath": "Insert path into chat",
