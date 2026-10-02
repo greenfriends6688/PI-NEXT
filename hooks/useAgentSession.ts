@@ -2380,6 +2380,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       } else if (describe === "recall") {
         const moved = result?.moved;
         if (moved) opts.chatInputRef?.current?.prependText(moved);
+      } else if (describe === "edit") {
+        // fork:queue-edit —— 「移至输入框」：从队列摘下这一条并放回输入框（可再编辑）。
+        // 只有服务端确认摘掉了才回填（applied === false 说明中途被交付/下标过期，
+        // 这时把文本塞回输入框会和队列里的同一条重复）。
+        const expect = typeof command.expect === "string" ? command.expect : "";
+        if (expect) opts.chatInputRef?.current?.prependText(expect);
       }
     } catch (error) {
       console.error("Queue operation failed:", error);
@@ -2396,6 +2402,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const handleQueueRemove = useCallback((kind: QueueKind, index: number, expect: string) => (
     runQueueOperation({ type: "queue_remove", kind, index, expect }, "remove")
+  ), [runQueueOperation]);
+
+  /** fork:queue-edit —— 移至输入框：摘掉这一条并把原文放回输入框（可再次编辑）。 */
+  const handleQueueEdit = useCallback((kind: QueueKind, index: number, expect: string) => (
+    runQueueOperation({ type: "queue_remove", kind, index, expect }, "edit")
   ), [runQueueOperation]);
 
   const handleQueueMove = useCallback((kind: QueueKind, from: number, to: number, expect: string) => (
@@ -2866,7 +2877,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     handleRewind, rewinding,
     handleRecallQueue,
     // fork:gap04-queue
-    handleQueueRemove, handleQueueMove, handleQueuePromote,
+    handleQueueRemove, handleQueueMove, handleQueuePromote, handleQueueEdit,
     handleBuiltinSlashCommand,
     setNoticePaused: setPausedNoticeId,
     handleToolPresetChange, handleThinkingLevelChange, loadTools, loadSlashCommands, setActiveLeafId, setData, setMessages, loadContext,

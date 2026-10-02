@@ -862,6 +862,7 @@ export const enLocale: LocalePlugin = {
     "chat.attachImage": "Attach image",
     // fork:gap04-queue — 队列逐条操控
     "chat.queueRemove": "Remove from queue",
+    "chat.queueEditToInput": "Move to input",
     "chat.queueSendNow": "Send now (move to steering)",
     // fork:gap07-attachments — 附件不再限定图片
     "chat.attachFile": "Attach file",
@@ -943,6 +944,7 @@ export const enLocale: LocalePlugin = {
     "chat.contextTokens": "Context used",
     "chat.sessionCost": "Session cost",
     "chat.stopReason": "Stop reason",
+    "chat.streamSpeed": "Live output speed (estimated tokens/s)",
     "chat.compactContext": "Compact context",
     "chat.compacting": "Compacting…",
     "chat.compact": "Compact",

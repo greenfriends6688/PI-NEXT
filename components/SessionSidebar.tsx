@@ -38,6 +38,30 @@ export const SESSION_LIST_ITEM_HEIGHT = 48;
 /** 运行中 / 等你处理的行高（多出的 10px 是给底边扫掠线留的呼吸）。 */
 export const SESSION_LIST_ITEM_HEIGHT_TALL = 58;
 
+/** fork:session-tree —— 虚拟列表的槽位：分桶头 / 主会话 / 子代理会话（缩进一级）。 */
+type SidebarEntry =
+  | { type: "header"; bucket: string }
+  | { type: "family"; family: SessionFamily }
+  | { type: "child"; session: SessionInfo };
+
+/** 主会话后面接上它的子代理会话；收起的根会话不展开。 */
+function expandSidebarEntries(
+  entries: readonly TimeGroupEntry<SessionFamily>[],
+  collapsed: ReadonlySet<string>,
+): SidebarEntry[] {
+  const out: SidebarEntry[] = [];
+  for (const entry of entries) {
+    if (entry.type !== "item") {
+      out.push(entry);
+      continue;
+    }
+    out.push({ type: "family", family: entry.item });
+    if (collapsed.has(entry.item.root.id)) continue;
+    for (const child of entry.item.subagents) out.push({ type: "child", session: child });
+  }
+  return out;
+}
+
 /** 把稀疏的「高行下标」收敛成升序数组，窗口与偏移计算共用。 */
 function normalizeTallIndices(tallIndices: readonly number[] | undefined): number[] {
   if (!tallIndices || tallIndices.length === 0) return [];
@@ -1586,6 +1610,26 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     [sessionFamilies],
   );
 
+  // fork:session-tree（用户 2026-10-02）—— 侧栏第二层：**子代理会话缩进挂在父会话下面**。
+  // 此前它们一条都没渲染（`renderFamilyRow` 只画 `family.root`），而每一行都写着
+  // `.pw-session.child`（26px 缩进 + 弱化标题），于是整个会话列表看上去像一棵分支树，
+  // 实际全是平级会话 —— 用户把三条普通会话认成了「分支机构」。
+  // 现在：根会话用 `.pw-session`（与画板一致），子会话才 `.child` + 一条竖线 + 分支图标，
+  // 父行右侧的 chevron 收放整棵子树。子树行进入虚拟列表（与根行同一种槽位高度）。
+  const [collapsedFamilies, setCollapsedFamilies] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleFamilyCollapsed = useCallback((rootId: string) => {
+    setCollapsedFamilies((current) => {
+      const next = new Set(current);
+      if (next.has(rootId)) next.delete(rootId);
+      else next.add(rootId);
+      return next;
+    });
+  }, []);
+  const sidebarEntries = useMemo<SidebarEntry[]>(
+    () => expandSidebarEntries(sessionListEntries, collapsedFamilies),
+    [sessionListEntries, collapsedFamilies],
+  );
+
   useLayoutEffect(() => {
     const list = listScrollRef.current;
     const section = sessionListRef.current;
@@ -1617,17 +1661,23 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
   const sessionListTallIndices = useMemo(
     () =>
-      sessionListEntries
-        .map((entry, index) => (entry.type === "item" && isFamilyTall(entry.item) ? index : -1))
+      sidebarEntries
+        .map((entry, index) => (
+          entry.type === "family"
+            ? (isFamilyTall(entry.family) ? index : -1)
+            : entry.type === "child"
+              ? (runningSessionIds.has(entry.session.id) || awaitingSessionIds.has(entry.session.id) ? index : -1)
+              : -1
+        ))
         .filter((index) => index >= 0),
-    [sessionListEntries, isFamilyTall],
+    [sidebarEntries, isFamilyTall, runningSessionIds, awaitingSessionIds],
   );
 
   const virtualIndices = getSessionListIndices(
-    sessionListEntries.length,
+    sidebarEntries.length,
     Math.max(0, listScrollTop - sessionListOffsetTop),
     listViewportH,
-    sessionListEntries.findIndex((entry) => entry.type === "item" && entry.item.root.id === focusedSessionId),
+    sidebarEntries.findIndex((entry) => entry.type === "family" && entry.family.root.id === focusedSessionId),
     sessionListTallIndices,
   );
 
@@ -1637,10 +1687,40 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     const displaySession = family.latestModified === family.root.modified ? family.root : { ...family.root, modified: family.latestModified };
     return (
       <div style={{ flex: 1, minWidth: 0 }}>
-        <SessionItem session={displaySession} isSelected={familySessions.some((session) => session.id === selectedSessionId)} isRunning={familySessions.some((session) => runningSessionIds.has(session.id))} isAwaiting={familySessions.some((session) => awaitingSessionIds.has(session.id))} awaitingKind={familySessions.map((session) => awaitingSessionKinds[session.id]).find(Boolean)} isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))} onClick={() => handleSelectSessionFromList(family.root)} onRenamed={loadSessions} onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }} />
+        <SessionItem
+          session={displaySession}
+          isSelected={familySessions.some((session) => session.id === selectedSessionId)}
+          isRunning={familySessions.some((session) => runningSessionIds.has(session.id))}
+          isAwaiting={familySessions.some((session) => awaitingSessionIds.has(session.id))}
+          awaitingKind={familySessions.map((session) => awaitingSessionKinds[session.id]).find(Boolean)}
+          isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))}
+          hasChildren={family.subagents.length > 0}
+          collapsed={collapsedFamilies.has(family.root.id)}
+          onToggleCollapse={family.subagents.length > 0 ? () => toggleFamilyCollapsed(family.root.id) : undefined}
+          onClick={() => handleSelectSessionFromList(family.root)}
+          onRenamed={loadSessions}
+          onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }}
+        />
       </div>
     );
   };
+  /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。 */
+  const renderChildRow = (session: SessionInfo) => (
+    <div style={{ flex: 1, minWidth: 0, marginLeft: 8, paddingLeft: 6, borderLeft: "1px solid var(--border-faint)" }}>
+      <SessionItem
+        session={session}
+        depth={1}
+        isSelected={selectedSessionId === session.id}
+        isRunning={runningSessionIds.has(session.id)}
+        isAwaiting={awaitingSessionIds.has(session.id)}
+        awaitingKind={awaitingSessionKinds[session.id]}
+        isUnread={unreadSessionIds.has(session.id)}
+        onClick={() => handleSelectSessionFromList(session)}
+        onRenamed={loadSessions}
+        onDeleted={(id) => { onSessionDeleted?.(id); loadSessions(); }}
+      />
+    </div>
+  );
   const sessionEntryKey = (entry: TimeGroupEntry<SessionFamily>) => (
     entry.type === "header" ? `time-group-${entry.bucket}` : entry.item.root.id
   );
@@ -2166,19 +2246,20 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       );
                     }
                     if (project.key === selectedProject?.key) {
-                      const rowOffsets = sessionListOffsets(sessionListEntries.length, sessionListTallIndices);
+                      const rowOffsets = sessionListOffsets(sidebarEntries.length, sessionListTallIndices);
                       return (
-                        <div ref={sessionListRef} style={{ minHeight: sessionListEntries.length > 0 ? rowOffsets[sessionListEntries.length] : 34 }}>
-                          {sessionListEntries.length > 0 && (
-                            <div style={{ position: "relative", height: rowOffsets[sessionListEntries.length] }}>
+                        <div ref={sessionListRef} style={{ minHeight: sidebarEntries.length > 0 ? rowOffsets[sidebarEntries.length] : 34 }}>
+                          {sidebarEntries.length > 0 && (
+                            <div style={{ position: "relative", height: rowOffsets[sidebarEntries.length] }}>
                               {virtualIndices.map((index) => {
-                                const entry = sessionListEntries[index];
-                                if (!entry || entry.type !== "item") return null;
+                                const entry = sidebarEntries[index];
+                                if (!entry || entry.type === "header") return null;
                                 const top = rowOffsets[index] ?? index * SESSION_LIST_ITEM_HEIGHT;
                                 const height = (rowOffsets[index + 1] ?? top + SESSION_LIST_ITEM_HEIGHT) - top;
+                                const sessionId = entry.type === "family" ? entry.family.root.id : entry.session.id;
                                 return (
-                                  <div key={sessionEntryKey(entry)} data-session-id={entry.item.root.id} onFocus={() => setFocusedSessionId(entry.item.root.id)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top, left: 0, right: 0, height }}>
-                                    {renderFamilyRow(entry.item)}
+                                  <div key={sessionId} data-session-id={sessionId} onFocus={() => setFocusedSessionId(sessionId)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top, left: 0, right: 0, height, display: "flex" }}>
+                                    {entry.type === "family" ? renderFamilyRow(entry.family) : renderChildRow(entry.session)}
                                   </div>
                                 );
                               })}
@@ -2188,12 +2269,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       );
                     }
                     return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", marginLeft: "var(--s2)", borderLeft: "1px solid var(--border-faint)", paddingLeft: "var(--s1)" }}>
-                        {projectEntries.map((entry) => (
-                          <div key={sessionEntryKey(entry)}>
-                            {renderFamilyRow(entry.item)}
-                          </div>
-                        ))}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", marginLeft: "var(--space-hair)", borderLeft: "1px solid var(--border-faint)", paddingLeft: "var(--s1)" }}>
+                        {expandSidebarEntries(projectEntries, collapsedFamilies).map((entry) => {
+                          if (entry.type === "header") return null;
+                          return (
+                            <div key={entry.type === "family" ? entry.family.root.id : entry.session.id} style={{ display: "flex" }}>
+                              {entry.type === "family" ? renderFamilyRow(entry.family) : renderChildRow(entry.session)}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })()}
@@ -2221,15 +2305,23 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             // fix:no-time-groups —— 聊天列表与项目列表同一口径：不再分桶，
             // 一行一个会话。窗口单独计算，避免与项目列表的 entries 长度耦合。
             const chatEntries = flatTimeGroupEntries(chatFamilies);
-            const chatTallIndices = chatEntries
-              .map((entry, index) => (entry.type === "item" && isFamilyTall(entry.item) ? index : -1))
+            // fork:session-tree —— 聊天分区与项目分区同一套展开（子代理缩进一级）。
+            const chatSidebarEntries = expandSidebarEntries(chatEntries, collapsedFamilies);
+            const chatTallIndices = chatSidebarEntries
+              .map((entry, index) => (
+                entry.type === "family"
+                  ? (isFamilyTall(entry.family) ? index : -1)
+                  : entry.type === "child"
+                    ? (runningSessionIds.has(entry.session.id) || awaitingSessionIds.has(entry.session.id) ? index : -1)
+                    : -1
+              ))
               .filter((index) => index >= 0);
-            const chatOffsets = sessionListOffsets(chatEntries.length, chatTallIndices);
+            const chatOffsets = sessionListOffsets(chatSidebarEntries.length, chatTallIndices);
             const chatVirtualIndices = getSessionListIndices(
-              chatEntries.length,
+              chatSidebarEntries.length,
               Math.max(0, listScrollTop - sessionListOffsetTop),
               listViewportH,
-              chatEntries.findIndex((entry) => entry.type === "item" && entry.item.root.id === focusedSessionId),
+              chatSidebarEntries.findIndex((entry) => entry.type === "family" && entry.family.root.id === focusedSessionId),
               chatTallIndices,
             );
             const toggleChatExpanded = () => {
@@ -2269,15 +2361,16 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 {isChatExpanded && (chatFamilies.length === 0 ? (
                   <div style={{ padding: "var(--space-row) 0 6px 24px", color: "var(--text-dim)", fontSize: TEXT.sm }}>{t("sidebar.noTasks")}</div>
                 ) : isSelectedChat ? (
-                  <div ref={sessionListRef} style={{ minHeight: chatEntries.length > 0 ? chatOffsets[chatEntries.length] : 34 }}>
-                    {chatEntries.length > 0 && (
-                      <div style={{ position: "relative", height: chatOffsets[chatEntries.length] }}>
+                  <div ref={sessionListRef} style={{ minHeight: chatSidebarEntries.length > 0 ? chatOffsets[chatSidebarEntries.length] : 34 }}>
+                    {chatSidebarEntries.length > 0 && (
+                      <div style={{ position: "relative", height: chatOffsets[chatSidebarEntries.length] }}>
                         {chatVirtualIndices.map((index) => {
-                          const entry = chatEntries[index];
-                          if (!entry || entry.type !== "item") return null;
+                          const entry = chatSidebarEntries[index];
+                          if (!entry || entry.type === "header") return null;
+                          const sessionId = entry.type === "family" ? entry.family.root.id : entry.session.id;
                           return (
-                            <div key={sessionEntryKey(entry)} data-session-id={entry.item.root.id} onFocus={() => setFocusedSessionId(entry.item.root.id)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top: chatOffsets[index], left: 0, right: 0, height: (chatOffsets[index + 1] ?? chatOffsets[index]) - chatOffsets[index] }}>
-                              {renderFamilyRow(entry.item)}
+                            <div key={sessionId} data-session-id={sessionId} onFocus={() => setFocusedSessionId(sessionId)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top: chatOffsets[index], left: 0, right: 0, height: (chatOffsets[index + 1] ?? chatOffsets[index]) - chatOffsets[index], display: "flex" }}>
+                              {entry.type === "family" ? renderFamilyRow(entry.family) : renderChildRow(entry.session)}
                             </div>
                           );
                         })}
@@ -2286,11 +2379,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                           </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)" }}>
-                    {chatEntries.map((entry) => (
-                      <div key={sessionEntryKey(entry)}>
-                        {renderFamilyRow(entry.item)}
-                      </div>
-                    ))}
+                    {chatSidebarEntries.map((entry) => {
+                      if (entry.type === "header") return null;
+                      return (
+                        <div key={entry.type === "family" ? entry.family.root.id : entry.session.id} style={{ display: "flex" }}>
+                          {entry.type === "family" ? renderFamilyRow(entry.family) : renderChildRow(entry.session)}
+                        </div>
+                      );
+                    })}
                         </div>
                 ))}
               </div>
@@ -2489,10 +2585,14 @@ function SessionItem({
       // fork:design-components —— 会话行**直接使用画板 02 的 .pw-session**：
       // 48 / 58 两档行高、.child 缩进 26px、hover 叠色、.is-on 选中、
       // .running 底边扫掠线、.awaiting 底边常亮线，全部来自 board.css。
-      // 行入场挂在行容器上是安全的：列表 key 稳定时不重挂载，动画只播一次。
+      // fork:session-tree（用户 2026-10-02）—— `child` 改为**只有子代理行**才带：
+      // 此前写死 `pw-session child`，于是**每一条**会话都缩进 26px、标题弱化，
+      // 整个列表看上去是一棵分支树，实际全是平级会话（用户把三条普通会话认成了
+      // 「分支机构」）。主会话回到画板 02 的 `.pw-session`（8px 内边距），
+      // 子代理行才 `.child`（26px）+ 竖线（父容器 border-left）+ 分支图标。
       className={[
         "fork-row-enter",
-        "pw-session child",
+        depth > 0 ? "pw-session child" : "pw-session",
         isRunning ? "running" : "",
         isAwaiting ? "awaiting" : "",
         isSelected ? "is-on" : "",
@@ -2503,8 +2603,12 @@ function SessionItem({
       onMouseLeave={() => { setHovered(false); }}
       style={{
         width: "100%",
-        // 子代理再缩进一级（画板 02：子代理缩进一级 + corner-down-right 图标）。
-        paddingLeft: depth > 0 ? 26 + depth * 10 : undefined,
+        // 子代理缩进一级（画板 02：子代理缩进一级 + corner-down-right 图标）。
+        // fork:child-indent-2026-10-02 —— 原来是 `26 + depth*10`，再叠上子行容器的
+        // paddingLeft，整条子行被推到 60px 开外：竖线和图标之间空出一大条，标题被甩
+        // 到最右（用户截图）。一级改成 14px：竖线贴着父行左缘、图标紧跟竖线，
+        // 标题回到行内，读起来是一棵贴着走的树。
+        paddingLeft: depth > 0 ? 8 + depth * 6 : undefined,
         cursor: confirmDelete || renaming ? "default" : "pointer",
         opacity: deleting ? 0.5 : 1,
       }}

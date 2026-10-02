@@ -1071,7 +1071,15 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
           fork:motion-2026-10-01 —— 补 `anim-dialog`（弹层 160ms + 4px）：
           此前设置面板是 `animationName:none` 的硬切，与同类弹窗
           （ChatWindow 的 .anim-dialog）不一致 —— 动效诊断实测「打开设置面板完全没动」。 */}
-      <div className="settings-dialog-surface pw-modal anim-dialog">
+      {/* fork:settings-modal-2026-10-02（用户裁定）—— 设置壳从**整屏页面**改成**弹窗**：
+          去掉 `pw-modal`，回到 `.settings-dialog-surface` 自己的 1080×84vh + 圆角 + 阴影
+          （见 app/settings.css 里那条注释）。关闭入口从页头里搬出来常驻右上角 ——
+          页头在宽屏是 `display:none`（画板 40/45 没有页头，返回入口在左导航底部），
+          原来关闭钮就藏在它里面，弹窗化后那样会没有可见的关闭口。 */}
+      <div className="settings-dialog-surface anim-dialog">
+        <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close pw-iconbtn">
+          <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+        </button>
         <div className="settings-dialog-header pw-modal-head">
           <strong className="settings-dialog-title">{t("settings.title")}</strong>
           <select
@@ -1087,7 +1095,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
             ))}
           </select>
 
-          <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close pw-iconbtn">
+          <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close-mobile pw-iconbtn">
             <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
           </button>
         </div>

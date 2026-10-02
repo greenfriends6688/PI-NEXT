@@ -750,3 +750,13 @@ test("auto-compact slash command toggles session auto-compaction", () => {
   assert.match(source, /setAutoCompactionEnabled\(state\?\.autoCompactionEnabled \?\? true\)/);
   assert.match(source, /setAutoCompactionEnabled\(liveState\.autoCompactionEnabled \?\? true\)/);
 });
+
+test("queue edit moves a queued message back into the composer", () => {
+  // fork:queue-edit（用户 2026-10-02）—— 队列里的消息此前只能删或提前发，
+  // 拿回来改没有入口。这一条钉住接线：单条摘下 = queue_remove，成功后把原文
+  // 回填输入框（applied === false 时不回填，避免和队列里的同一条重复）。
+  assert.match(source, /const handleQueueEdit = useCallback\(\(kind: QueueKind, index: number, expect: string\) => \(/);
+  assert.match(source, /runQueueOperation\(\{ type: "queue_remove", kind, index, expect \}, "edit"\)/);
+  assert.match(source, /describe === "edit"[\s\S]*?prependText\(expect\)/);
+  assert.match(source, /handleQueueRemove, handleQueueMove, handleQueuePromote, handleQueueEdit,/);
+});

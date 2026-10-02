@@ -42,7 +42,6 @@ import type { ToolPreset } from "@/lib/tool-presets";
 import { nextPermissionMode, PERMISSION_MODE_HINT_KEYS, PERMISSION_MODE_LABEL_KEYS, type PermissionMode } from "@/lib/permission-mode";
 import { ModelSelector, type ModelSelectorOption } from "./ModelSelector";
 // fork:quota-chip —— 模型选择器右侧的供应商配额芯片（上游 closed PR #867）。
-import { ProviderQuotaChip } from "./ProviderQuotaChip";
 import {
   favoriteModelKey,
   getFavoriteModelsServerSnapshot,
@@ -138,6 +137,9 @@ interface Props {
   onCompact?: () => void;
   onAbortCompaction?: () => void;
   isCompacting?: boolean;
+  /** fork:composer-speed — 流式期间的实时输出速度（估算 token/秒），空 = 不显示。
+   *  数据在 ChatWindow 算（见那里的注释：pi 的 usage 只在消息收尾才有）。 */
+  streamSpeed?: number | null;
   compactError?: string | null;
   compactResult?: CompactResultInfo | null;
   toolPreset?: ToolPreset;
@@ -153,6 +155,8 @@ interface Props {
   onQueueRemove?: (kind: "steer" | "followUp", index: number, expect: string) => void;
   onQueueMove?: (kind: "steer" | "followUp", from: number, to: number, expect: string) => void;
   onQueuePromote?: (index: number, expect: string) => void;
+  /** fork:queue-edit — 移至输入框：从队列摘掉这一条并把原文放回输入框。 */
+  onQueueEdit?: (kind: "steer" | "followUp", index: number, expect: string) => void;
   retryInfo?: { attempt: number; maxAttempts: number; errorMessage?: string } | null;
   queuedMessages?: QueuedMessages | null;
   /** fork:ui-todo — task list of this session, derived from the transcript. */
@@ -642,8 +646,10 @@ function QueuedMessageRow({
   index,
   promoteTitle,
   removeTitle,
+  editTitle,
   onRemove,
   onPromote,
+  onEdit,
   onDragStart,
   onDropOn,
   dragging,
@@ -653,8 +659,11 @@ function QueuedMessageRow({
   index: number;
   promoteTitle: string;
   removeTitle: string;
+  editTitle: string;
   onRemove: () => void;
   onPromote?: () => void;
+  /** fork:queue-edit — 移至输入框（可再次编辑）。 */
+  onEdit?: () => void;
   onDragStart?: () => void;
   onDropOn?: () => void;
   dragging?: boolean;
@@ -673,6 +682,20 @@ function QueuedMessageRow({
       <span className="pw-badge count">{index + 1}</span>
       <span className="pw-badge">{kind}</span>
       <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
+      {/* fork:queue-edit（用户 2026-10-02）—— 「移至输入框」：用户说排好队的消息
+          没法再编辑。放在「立即发送」之前，两者语义不同：一个是拿回来改，一个是
+          提前发。 */}
+      {onEdit && (
+        <button
+          type="button"
+          className="pw-btn sm"
+          onClick={onEdit}
+          title={editTitle}
+          aria-label={`${editTitle} #${index + 1}`}
+        >
+          <span className="pw-ico"><i data-ico="undo-2" data-size="13" aria-hidden="true"></i></span>
+        </button>
+      )}
       {onPromote && (
         <button
           type="button"
@@ -907,11 +930,11 @@ function FavoriteModelMenu({
 }
 
 export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onSteer, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching,
-  onCompact, onAbortCompaction, isCompacting, compactError, compactResult, toolPreset, onToolPresetChange,
+  onCompact, onAbortCompaction, isCompacting, streamSpeed, compactError, compactResult, toolPreset, onToolPresetChange,
   permissionMode, onPermissionModeChange,
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
   retryInfo, queuedMessages, inputHistory = [], onRecallQueue, todoSummary, currentSessionId,
-  onQueueRemove, onQueueMove, onQueuePromote,
+  onQueueRemove, onQueueMove, onQueuePromote, onQueueEdit,
   slashCommands, slashCommandsLoading, onLoadSlashCommands,
   onBuiltinCommand,
   soundEnabled, onSoundToggle, onAudioUnlock,
@@ -2900,7 +2923,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       className="pw-send stop"
       style={{ cursor: "pointer" }}
     >
-      <span className="pw-ico"><i data-ico="square" data-size="13"></i></span>
+      {/* fork:stop-pause-2026-10-02 —— 图标从实心方块（square）改成 ⏸：
+          运行中这枚按钮的动作是「停下当前生成、对话可接着发」，方块读成「录屏停止 /
+          终止会话」。用户裁定要暂停形。画板 01/20 用的是 square —— 记为分叉。 */}
+      <span className="pw-ico"><i data-ico="pause" data-size="13"></i></span>
     </button>
   );
   // fork:design-components —— 上下文环 + 浮窗 = 画板 01 帧 C / 画板 20 的
@@ -3127,8 +3153,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 index={i}
                 promoteTitle={t("chat.queueSendNow")}
                 removeTitle={t("chat.queueRemove")}
+                editTitle={t("chat.queueEditToInput")}
                 dragging={draggingQueue?.kind === "steer" && draggingQueue.index === i}
                 onRemove={() => onQueueRemove?.("steer", i, text)}
+                onEdit={onQueueEdit ? () => onQueueEdit("steer", i, text) : undefined}
                 onDragStart={onQueueMove ? () => beginQueueDrag("steer", i) : undefined}
                 onDropOn={onQueueMove ? () => {
                   const drag = draggingQueueRef.current;
@@ -3146,8 +3174,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 index={i}
                 promoteTitle={t("chat.queueSendNow")}
                 removeTitle={t("chat.queueRemove")}
+                editTitle={t("chat.queueEditToInput")}
                 dragging={draggingQueue?.kind === "followUp" && draggingQueue.index === i}
                 onRemove={() => onQueueRemove?.("followUp", i, text)}
+                onEdit={onQueueEdit ? () => onQueueEdit("followUp", i, text) : undefined}
                 onPromote={onQueuePromote ? () => onQueuePromote(i, text) : undefined}
                 onDragStart={onQueueMove ? () => beginQueueDrag("followUp", i) : undefined}
                 onDropOn={onQueueMove ? () => {
@@ -3830,10 +3860,21 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {/* fork:ui — 输入框侧的独立收藏菜单已移除（用户要求）：收藏现在就在
                 模型下拉里每行右侧的星标上（ModelSelector），不需要第二个入口。 */}
-            {/* fork:quota-chip —— 供应商配额芯片，排在模型选择器右侧（上游 #867）。
-                没选模型 / provider 不支持额度查询 / 没缓存过 / 查询失败 —— 都不渲染，
-                输入区不留报错痕迹。窄屏只留图标，不占输入框宽度。 */}
-            <ProviderQuotaChip providerId={model?.provider ?? null} narrow={narrowControls} />
+            {/* fork:quota-chip-removed（用户 2026-10-02）—— 这里原来挂着供应商配额芯片
+                （`⟳ 1%` = 剩余额度，上游 #867）。用户裁定「放在这里没啥卵用」：额度在设置页
+                的供应商用量里看得到，写代码时盯这条百分比只会分心。芯片与其纯函数库
+                （`components/ProviderQuotaChip.tsx`、`lib/provider-usage-quota.ts` + 单测）
+                一并删除，没有留孤儿代码。这一格改挂**实时速度**徽标（见下）。 */}
+            {/* fork:composer-speed（用户 2026-10-02）—— 模型芯片右边那枚徽标。
+                这里原来是一枚上下文百分比徽标，用户裁定「没啥卵用」；换成**实时速度**
+                （流式期间估算 token/秒，见 ChatWindow 的 streamSpeed）。上下文明细与
+                压缩入口仍在右端那枚环上，没动。 */}
+            {streamSpeed != null && streamSpeed > 0 && (
+              <span className="pw-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
+                <span className="pw-ico"><i data-ico="gauge" data-size="11"></i></span>
+                {streamSpeed} t/s
+              </span>
+            )}
             </div>
             {/* fork:pwa-wb-composer —— 行二：思考 / 权限 / 工具预设 / 压缩四枚模式芯片。
                 窄屏下是 grid 的 `chips` 区（间隙 `--s1`，芯片命中区由 CSS 给到

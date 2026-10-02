@@ -925,3 +925,12 @@ test("a finished compaction reports through the ok alert", () => {
   assert.match(html, /data-ico="circle-check"/);
   assert.ok(html.indexOf('class="pw-alert ok"') < html.indexOf("<textarea"));
 });
+
+test("queued rows offer 移至输入框 (move back to the input box)", () => {
+  // fork:queue-edit —— 每一条排队消息两个动作：立即发送 / 移至输入框（可再编辑），
+  // 外加删除。按钮由 onEdit 决定是否渲染，避免没有回填入口时画一枚死按钮。
+  const queueSource = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+  assert.match(queueSource, /editTitle=\{t\("chat\.queueEditToInput"\)\}/);
+  assert.match(queueSource, /onEdit=\{onQueueEdit \? \(\) => onQueueEdit\("steer", i, text\) : undefined\}/);
+  assert.match(queueSource, /onEdit=\{onQueueEdit \? \(\) => onQueueEdit\("followUp", i, text\) : undefined\}/);
+});

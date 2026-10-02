@@ -413,19 +413,17 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* fork:design-system SW-07 —— 设置是**整屏**，不是居中小弹窗。
-   画板 40/41~47 里 `pw-settings` 那个 1440×900 的帧就是整个窗口：左导航 200 +
-   内容列（页边距 40）铺满，没有外侧边距、没有圆角。原先 1080×84vh 的圆角弹窗
-   把内容列压到 878px，画板上按 1240px 排的东西（快捷键双栏、模型分栏）全部变形。
-   0-2-0 双类覆盖：画板 50 的 `.pw-modal` 是 560px 的通用确认框，不适用。 */
-.settings-dialog-surface.pw-modal {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+/* fork:settings-modal-2026-10-02（用户裁定）—— 设置壳是**弹窗**，不是整屏页面。
+   原来是 `.settings-dialog-surface.pw-modal { width/height:100%; 无圆角无阴影 }`：
+   画板 40/41~47 里 `pw-settings` 那个 1440×900 的帧就是整个窗口，当时按“整屏页面”
+   实现。用户看过后说「纯页面不太合适」，改回 `.settings-dialog-surface` 自己的
+   1080×84vh + radius-2xl + shadow-lg。
+   代价写在明处：内容列从 1240px 收到 880px，画板里按 1240 排的双栏（快捷键、模型
+   分栏）会变窄——已看过实际渲染，分栏用 minmax(0,1fr) 收窄而不破版。
+   这是**产品偏离画板**，登记在 design/pi-web-design/DIVERGENCE.md 第 196 条。 */
+.settings-dialog-surface {
+  /* 右上角关闭钮的定位祖先（原先靠 backdrop 定位，弹窗化后会跑到屏幕角上）。 */
+  position: relative;
 }
 
 /* fork:design-system SW-07 —— 画板 40/45 的设置页是**整屏页面**（左导航 200 +
@@ -489,6 +487,16 @@
 }
 
 .settings-dialog-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  /* fork:settings-modal —— 浮在内容之上（内容列右上角原本可能压着字段），
+     并且是宽屏唯一的可见关闭口。 */
+  z-index: 2;
+}
+/* 手机（<640px）的页头里那一枚：页头已经显示了标题与分节下拉，右上角还有浮着的那枚
+   会叠在一起，所以窄屏只用页头里这枚。 */
+.settings-dialog-close-mobile {
   position: absolute;
   top: 10px;
   right: 14px;
@@ -691,6 +699,11 @@
 
   .settings-dialog-surface > .settings-dialog-header.pw-modal-head {
     display: flex;
+  }
+
+  /* fork:settings-modal —— 窄屏页头里有自己的关闭钮，浮着的那一枚会叠在它上面。 */
+  .settings-dialog-surface > .settings-dialog-close {
+    display: none;
   }
 
   .settings-dialog-body.pw-settings {

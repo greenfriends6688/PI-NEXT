@@ -862,6 +862,7 @@ export const zhCNLocale: LocalePlugin = {
     "chat.attachImage": "附加图片",
     // fork:gap04-queue — 队列逐条操控
     "chat.queueRemove": "从队列移除",
+    "chat.queueEditToInput": "移至输入框",
     "chat.queueSendNow": "立即发送（提升为引导消息）",
     // fork:gap07-attachments — 附件不再限定图片
     "chat.attachFile": "添加附件",
@@ -943,6 +944,7 @@ export const zhCNLocale: LocalePlugin = {
     "chat.contextTokens": "上下文已用",
     "chat.sessionCost": "本会话花费",
     "chat.stopReason": "结束原因",
+    "chat.streamSpeed": "实时输出速度（估算 token/秒）",
     "chat.compactContext": "压缩上下文",
     "chat.compacting": "正在压缩…",
     "chat.compact": "压缩",

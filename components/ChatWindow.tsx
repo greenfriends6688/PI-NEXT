@@ -697,7 +697,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     // fork:proma-02-mode
     permissionMode, handlePermissionModeChange,
     // fork:gap04-queue
-    handleQueueRemove, handleQueueMove, handleQueuePromote,
+    handleQueueRemove, handleQueueMove, handleQueuePromote, handleQueueEdit,
     handleBuiltinSlashCommand,
     handleToolPresetChange, handleThinkingLevelChange, loadSlashCommands, scrollUserMsgToTop,
     loadContext, activeLeafId, scrollToBottom, scrollToMessage,
@@ -1753,6 +1753,40 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       ),
     };
   }, [streamState.isStreaming, streamState.streamingMessage, messages.length, toolResultsMap]);
+  // fork:composer-speed —— 输入区那枚「实时速度」徽标的数据源。
+  //
+  // 为什么不能直接用 usage：pi 只在消息**收尾**时把 usage 落到 result 上
+  // （agent-loop.js:658 `finalized.result.usage`），流式中途 streamingMessage.usage
+  // 恒为空，所以真 token 数在整个流式期间拿不到。于是按已流出文本估算：
+  // CJK 一字≈1 token，其余四字符≈1 token（混合中英的实测误差 ~±20%）。
+  // 速率 = 估算 token ÷ 首字节以来的秒数，随每个 delta 重算（不额外起 interval）。
+  const streamingAnswerText = useMemo(() => {
+    const live = streamState.streamingMessage as AgentMessage | undefined;
+    if (!streamState.isStreaming || !live || live.role !== "assistant") return "";
+    let text = "";
+    for (const block of streamingProcess?.answerBlocks ?? live.content) {
+      if (block.type === "text") text += block.text;
+    }
+    return text;
+  }, [streamState.isStreaming, streamState.streamingMessage, streamingProcess]);
+  const streamSpeedRef = useRef<{ startedAt: number; chars: number } | null>(null);
+  const streamSpeed = (() => {
+    if (!streamState.isStreaming) {
+      streamSpeedRef.current = null;
+      return null;
+    }
+    const chars = streamingAnswerText.length;
+    // 文本变短 = 新的一条助手消息（流式被重置），重新计时。
+    if (!streamSpeedRef.current || chars < streamSpeedRef.current.chars) {
+      streamSpeedRef.current = { startedAt: performance.now(), chars };
+    }
+    const live = streamSpeedRef.current;
+    live.chars = chars;
+    const seconds = (performance.now() - live.startedAt) / 1000;
+    if (chars === 0 || seconds < 0.5) return null;
+    const cjk = (streamingAnswerText.match(/[\u3000-\u9fff]/g) ?? []).length;
+    return Math.round((cjk + (chars - cjk) / 4) / seconds);
+  })();
   // Set by the render pass below when the grouped renderer already emitted the
   // running turn's timeline; the streaming block at the bottom of the list then
   // contributes only the answer half instead of opening a second group.
@@ -1936,6 +1970,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       onCompact={session || isNew ? handleCompact : undefined}
       onAbortCompaction={handleAbortCompaction}
       isCompacting={isCompacting}
+      streamSpeed={streamSpeed}
       compactError={compactError}
       compactResult={compactResult}
       toolPreset={toolPreset}
@@ -1955,6 +1990,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       onQueueRemove={handleQueueRemove}
       onQueueMove={handleQueueMove}
       onQueuePromote={handleQueuePromote}
+      onQueueEdit={handleQueueEdit}
       slashCommands={slashCommands}
       slashCommandsLoading={slashCommandsLoading}
       onLoadSlashCommands={loadSlashCommands}
