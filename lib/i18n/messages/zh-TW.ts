@@ -1433,7 +1433,7 @@ export const zhTWLocale: LocalePlugin = {
     "mcp.msgMoved": "已移動 {name} → {scope}（執行 /reload 生效）",
     "mcp.msgUpdated": "已更新 {name}（執行 /reload 生效）",
     "mcp.msgAdded": "已新增 {name}（執行 /reload 生效）",
-    "mcp.msgTestResult": "測試 {name}：{result}",
+    "mcp.msgTestResult": "測試 {name}（僅設定校驗）：{result}",
     "mcp.msgTestError": "測試 {name}：{error}",
     // fork:zc-18 — MCP OAuth 入口（複製 /mcp login、/mcp logout）
     "mcp.authTitle": "OAuth 授權",

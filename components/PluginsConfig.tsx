@@ -1410,9 +1410,10 @@ export function PluginsConfig({
         });
         const json = (await res.json()) as { ok?: boolean; message?: string; error?: string };
         if (!res.ok || json.error) throw new Error(json.error ?? `HTTP ${res.status}`);
-        // The route answers 200 with { ok: false } when the MCP handshake itself fails
-        // (e.g. the command is not an MCP server). `ok` has to be honoured explicitly,
-        // otherwise a failed probe is rendered as a green success message.
+        // The route answers 200 with { ok: false } when the config fails pi's structural
+        // validation. `ok` has to be honoured explicitly, otherwise an invalid config is
+        // rendered as a success message. `ok: true` is structure only — the server message
+        // says no connection was attempted, so it must not be read as "reachable".
         if (json.ok === false) {
           setMcpActionError(
             t("mcp.msgTestError", { name: server.name, error: json.message ?? "" }),

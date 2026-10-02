@@ -8,6 +8,8 @@
  * - **不再真连一次**。旧实现手写 JSON-RPC，对候选 server 做 `initialize` +
  *   `tools/list` 握手；pi 的校验是**纯结构校验**，不建连接、不拉子进程。
  *   可连性由 pi 内置 `mcp` 扩展在会话启动后自己验证并上报状态。
+ * - 因此 `ok: true` 的文案明确写「结构有效、未建立连接」，绝不把它当连通性；
+ *   连不连得上要看会话里的 MCP 状态（`/mcp`）或真实连接。
  * - 返回 pi 校验后的配置副本：exposure 别名已归一（`codemode-deferred` →
  *   `codemode`），server 名必须匹配 `^[A-Za-z0-9_-]+$`，legacy SSE（`type: "sse"`）
  *   被 pi 拒绝，`url` 必须是 http(s)，stdio 只认 `command` / `args` / `env` / `cwd`。
@@ -34,8 +36,12 @@ export interface McpValidationResult {
 }
 
 function describeConfig(config: McpServerConfig): string {
-  if ("url" in config) return `Valid ${config.type ?? "http"} server: ${config.url}`;
-  return `Valid stdio server: ${[config.command, ...(config.args ?? [])].join(" ")}`;
+  const target = "url" in config
+    ? `${config.type ?? "http"} ${config.url}`
+    : [config.command, ...(config.args ?? [])].join(" ");
+  // 这里**不是**连通性结论：pi 的 validateMcpServerConfig 是纯结构校验，
+  // 不建连接、不拉子进程。文案必须说清楚，否则连不上的 server 会被读成「能用」。
+  return `Config is structurally valid; no connection was attempted (${target})`;
 }
 
 /**

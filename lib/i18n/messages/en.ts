@@ -1436,7 +1436,7 @@ export const enLocale: LocalePlugin = {
     "mcp.msgMoved": "Moved {name} to {scope} (run /reload to apply)",
     "mcp.msgUpdated": "Updated {name} (run /reload to apply)",
     "mcp.msgAdded": "Added {name} (run /reload to apply)",
-    "mcp.msgTestResult": "Test {name}: {result}",
+    "mcp.msgTestResult": "Test {name} (config check only): {result}",
     "mcp.msgTestError": "Test {name}: {error}",
     // fork:zc-18 — MCP OAuth entry (copies /mcp login, /mcp logout)
     "mcp.authTitle": "OAuth",
