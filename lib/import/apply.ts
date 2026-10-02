@@ -24,7 +24,8 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { writePrivateFileAtomicSync } from "../atomic-file";
 import { writeModelsConfig } from "../models-config-store";
-import { readMcpConfigFileResult, writeMcpConfigFile } from "../mcp-config-file";
+import { addMcpServers, loadMcpConfigFile } from "../mcp-config-file";
+import type { McpServerConfig } from "../pi-sdk-internals";
 import { samePath } from "../paths";
 import { scanImports } from "./index";
 import { importedSessionId, readSessionEntries, readSessionTranscript } from "./sessions";
@@ -410,7 +411,7 @@ function mcpServerEntry(candidate: ImportMcpCandidate): Record<string, unknown> 
     if (!candidate.url) return null;
     entry.url = candidate.url;
   }
-  if (candidate.disabled) entry.disabled = true;
+  if (candidate.disabled) entry.enabled = false;
   return entry;
 }
 
@@ -420,29 +421,20 @@ async function applyMcpBatch(
   if (batch.length === 0) return [];
   const configPath = batch[0].candidate.destination;
 
-  const read = readMcpConfigFileResult(configPath);
-  if (read.error !== undefined) {
-    return batch.map(({ index, candidate }) => ({
-      index,
-      item: { id: candidate.id, status: "failed", destination: configPath, error: read.error },
-    }));
-  }
-  const root = read.data ?? {};
-  const servers: Record<string, Record<string, unknown>> = {};
-  if (isRecord(root.mcpServers)) {
-    for (const [name, value] of Object.entries(root.mcpServers)) {
-      if (isRecord(value)) servers[name] = value;
-    }
-  }
+  // fork:pr11-mcp — read via pi's `loadMcpConfig` so "already configured" means
+  // the same thing as it does for the runtime (invalid entries are errors, not
+  // importable names). A malformed file surfaces as an error on write below.
+  const loaded = await loadMcpConfigFile(configPath);
+  const names = new Set(loaded.servers.map((server) => server.name));
 
   const out: IndexedItem[] = [];
-  let changed = false;
+  const toAdd: Array<{ name: string; config: McpServerConfig }> = [];
   for (const { index, candidate } of batch) {
     if (!isSafeKey(candidate.name)) {
       out.push({ index, item: { id: candidate.id, status: "failed", destination: configPath, error: "invalid server name" } });
       continue;
     }
-    if (hasOwn(servers, candidate.name)) {
+    if (names.has(candidate.name)) {
       out.push({ index, item: { id: candidate.id, status: "skipped", destination: configPath } });
       continue;
     }
@@ -451,14 +443,15 @@ async function applyMcpBatch(
       out.push({ index, item: { id: candidate.id, status: "failed", destination: configPath, error: "no command or url" } });
       continue;
     }
-    servers[candidate.name] = entry;
-    changed = true;
+    names.add(candidate.name);
+    toAdd.push({ name: candidate.name, config: entry as unknown as McpServerConfig });
     out.push({ index, item: { id: candidate.id, status: "imported", destination: configPath } });
   }
 
-  if (changed) {
+  if (toAdd.length > 0) {
     try {
-      writeMcpConfigFile(configPath, { ...root, mcpServers: servers });
+      // One staged write for the whole batch: either every new server lands or none does.
+      await addMcpServers(configPath, toAdd);
     } catch (error) {
       const code = errorLabel(error);
       return out.map((entry) => entry.item.status === "imported"

@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { existsSync } from "fs";
 import { join } from "path";
-import { spawn } from "child_process";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getProjectTrustStatus } from "@/lib/project-trust";
 import type { McpResponse, McpScope, McpServerInfo } from "@/lib/api-types";
-import { readMcpConfigFile, writeMcpConfigFile } from "@/lib/mcp-config-file";
+import {
+  addMcpServer,
+  getMcpServerConfig,
+  loadMcpConfigFiles,
+  removeMcpServer,
+  setMcpServerEnabled,
+} from "@/lib/mcp-config-file";
 import { validateMcpServer, type McpServerConfig } from "@/lib/mcp-validator";
 
 export const dynamic = "force-dynamic";
@@ -36,14 +41,16 @@ function serverInfoFromDef(
       : {};
   const options: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(def)) {
-    if (!["command", "url", "socket", "args", "env", "disabled"].includes(k)) {
+    if (!["command", "url", "socket", "args", "env", "enabled", "disabled"].includes(k)) {
       options[k] = v;
     }
   }
   return {
     name,
     scope,
-    disabled: def.disabled === true,
+    // pi 1.0 uses `enabled: false`; `disabled: true` is kept readable so configs
+    // written by older pi.web versions still render as off (see setMcpServerEnabled).
+    disabled: def.enabled === false || def.disabled === true,
     kind: socket ? "socket" : url ? "url" : "command",
     command,
     args,
@@ -56,216 +63,51 @@ function serverInfoFromDef(
 }
 
 async function readMcp(cwd: string): Promise<McpResponse> {
-  const diagnostics: string[] = [];
+  const agentDir = getAgentDir();
   const globalFile = mcpFilePath(cwd, "global");
   const projectFile = mcpFilePath(cwd, "project");
-  const global = readMcpConfigFile(globalFile);
-  const project = readMcpConfigFile(projectFile);
+  const projectTrust = getProjectTrustStatus(cwd, agentDir);
+  // All server-map reads go through pi's `loadMcpConfig` (validated entries,
+  // project-over-global precedence, project file only when the project is trusted).
+  const loaded = await loadMcpConfigFiles({ agentDir, cwd, projectTrusted: projectTrust.trusted });
 
-  const merged: Record<string, Record<string, unknown>> = { ...(global.mcpServers ?? {}) };
-  const scopeOf = new Map<string, McpScope>();
-  const sourceOf = new Map<string, string>();
-  for (const name of Object.keys(merged)) {
-    scopeOf.set(name, "global");
-    sourceOf.set(name, globalFile);
-  }
-  for (const [name, def] of Object.entries(project.mcpServers ?? {})) {
-    merged[name] = def;
-    scopeOf.set(name, "project");
-    sourceOf.set(name, projectFile);
-  }
-  if (!existsSync(globalFile) && Object.keys(project.mcpServers ?? {}).length === 0) {
+  const diagnostics = [...loaded.errors];
+  if (!existsSync(globalFile) && !existsSync(projectFile)) {
     diagnostics.push('No MCP config file found (global ~/.pi/agent/mcp.json or project .pi/mcp.json). Click "Add MCP" to create one.');
   }
 
-  const servers = Object.entries(merged).map(([name, def]) =>
-    serverInfoFromDef(name, def, scopeOf.get(name) ?? "global", sourceOf.get(name) ?? globalFile),
+  const servers = loaded.servers.map((entry) =>
+    serverInfoFromDef(
+      entry.name,
+      entry.config as unknown as Record<string, unknown>,
+      entry.scope === "project" ? "project" : "global",
+      entry.source,
+    ),
   );
-  const settings = { ...(global.settings ?? {}), ...(project.settings ?? {}) };
-  const projectTrust = getProjectTrustStatus(cwd, getAgentDir());
+  // pi 1.0's only top-level config knob is `autoEnableCodemode`; keep it under
+  // the response's stable `settings` field instead of inventing a second shape.
+  const settings = loaded.autoEnableCodemode === undefined
+    ? {}
+    : { autoEnableCodemode: loaded.autoEnableCodemode };
   return { servers, settings, diagnostics, projectResourcesLoaded: projectTrust.trusted };
-}
-
-/**
- * fork:gap-mcp-handshake — 把 mcp.json 里的定义映射成校验器输入。
- * 返回 null 表示"这个定义没法握手"（例如只有 `socket`，或字段类型不对），
- * 此时调用方应跳过校验而不是把用户挡住。
- */
-function toValidatorConfig(def: Record<string, unknown>): McpServerConfig | null {
-  const command = typeof def.command === "string" && def.command.trim() ? def.command.trim() : undefined;
-  if (command) {
-    return {
-      transport: "stdio",
-      command,
-      args: Array.isArray(def.args) ? def.args.filter((a): a is string => typeof a === "string") : undefined,
-      env: def.env && typeof def.env === "object" ? (def.env as Record<string, string>) : undefined,
-      cwd: typeof def.cwd === "string" && def.cwd ? def.cwd : undefined,
-    };
-  }
-  const url = typeof def.url === "string" && def.url.trim() ? def.url.trim() : undefined;
-  if (url) {
-    return {
-      transport: def.type === "sse" ? "sse" : "http",
-      url,
-      headers: def.headers && typeof def.headers === "object" ? (def.headers as Record<string, string>) : undefined,
-    };
-  }
-  return null;
-}
-
-/**
- * fork:gap-mcp-handshake — 启用前握手。
- *
- * 原先只有手动 `test` 动作会去连一次，`enable` / `add` 一律照写，
- * 于是一个连不上的 server 也会显示成"已启用"，直到用户下次发消息才发现。
- * 现在写入前先真实握手（`initialize` + `tools/list`）；失败则不写 enabled，
- * 并把机器可读的错误码回给客户端。
- *
- * 逃生口：`force: true` 会跳过校验（用于"先配好、服务稍后才起"的场景）。
- */
-async function validateBeforeEnable(
-  def: Record<string, unknown>,
-  options: { force?: boolean; timeoutMs?: number },
-): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  if (options.force) return { ok: true };
-  const config = toValidatorConfig(def);
-  if (!config) return { ok: true };
-  const result = await validateMcpServer(config, { timeoutMs: options.timeoutMs ?? 10_000 });
-  if (result.ok) return { ok: true };
-  return {
-    ok: false,
-    status: 400,
-    error: `MCP handshake failed (${result.error ?? "unknown"}): ${result.detail ?? ""}`.trim(),
-  };
-}
-
-function testMcpServer(def: Record<string, unknown>): Promise<{ ok: boolean; detail: string }> {
-  const url = typeof def.url === "string" ? def.url : undefined;
-  const command = typeof def.command === "string" ? def.command : undefined;
-  const args = Array.isArray(def.args)
-    ? def.args.filter((a): a is string => typeof a === "string")
-    : [];
-  const env =
-    def.env && typeof def.env === "object"
-      ? (def.env as Record<string, string>)
-      : {};
-
-  if (url) {
-    return (async () => {
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-          },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "initialize",
-            params: {
-              protocolVersion: "2024-11-05",
-              capabilities: {},
-              clientInfo: { name: "pi-web-mcp-test", version: "1.0" },
-            },
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
-        const text = await res.text();
-        return res.ok && text
-          ? { ok: true, detail: `Connected (HTTP ${res.status})` }
-          : { ok: false, detail: `HTTP ${res.status}` };
-      } catch (error) {
-        return { ok: false, detail: error instanceof Error ? error.message : String(error) };
-      }
-    })();
-  }
-
-  if (command) {
-    return new Promise((resolve) => {
-      let child: ReturnType<typeof spawn> | undefined;
-      let info: { name?: string; version?: string } | undefined;
-      let settled = false;
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        try { child?.kill(); } catch { /* */ }
-        resolve({ ok: false, detail: "Connection timed out (20s)" });
-      }, 20000);
-      try {
-        child = spawn([command, ...args].join(" "), [], {
-          shell: true,
-          stdio: ["pipe", "pipe", "inherit"],
-          windowsHide: true,
-          env: { ...process.env, ...env },
-        });
-      } catch (error) {
-        clearTimeout(timer);
-        resolve({ ok: false, detail: error instanceof Error ? error.message : String(error) });
-        return;
-      }
-      let buf = "";
-      child.stdout?.on("data", (d) => {
-        buf += d.toString();
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const l of lines) {
-          if (!l.trim()) continue;
-          try {
-            const m = JSON.parse(l);
-            if (m.id === 1) {
-              info = m.result?.serverInfo;
-              child?.stdin?.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
-              setTimeout(() => {
-                child?.stdin?.write(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }) + "\n");
-              }, 300);
-            } else if (m.id === 2) {
-              if (settled) return;
-              settled = true;
-              clearTimeout(timer);
-              try { child?.kill(); } catch { /* */ }
-              const tools = Array.isArray(m.result?.tools) ? m.result.tools : [];
-              resolve({ ok: true, detail: `Connected · ${info?.name ?? "server"} ${info?.version ?? ""} · ${tools.length} tools` });
-            }
-          } catch { /* ignore non-JSON lines */ }
-        }
-      });
-      child.stdin?.write(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "pi-web-mcp-test", version: "1.0" },
-          },
-        }) + "\n",
-      );
-      child.on("error", (e) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: false, detail: e.message });
-      });
-      child.on("exit", (code) => {
-        if (!settled) {
-          settled = true;
-          clearTimeout(timer);
-          resolve({ ok: false, detail: `Process exited with code ${code}` });
-        }
-      });
-    });
-  }
-
-  if (typeof def.socket === "string") {
-    return Promise.resolve({ ok: false, detail: "Socket type does not support automatic testing yet" });
-  }
-  return Promise.resolve({ ok: false, detail: "Missing command or url" });
 }
 
 function readScope(scope: unknown): McpScope {
   return scope === "project" ? "project" : "global";
+}
+
+/**
+ * fork:pr11-mcp — 保存/启用前的校验现在直接调 pi 的 `validateMcpServerConfig`
+ * （纯结构校验，不再真连一次；见 lib/mcp-validator.ts）。
+ *
+ * `force: true` 仍是逃生口：配上配置、服务稍后才起的场景跳过校验。
+ */
+async function checkServer(name: string, def: Record<string, unknown>, force: boolean):
+  Promise<{ ok: true; config: McpServerConfig } | { ok: false; error: string; status: number }> {
+  if (force) return { ok: true, config: def as unknown as McpServerConfig };
+  const result = await validateMcpServer(name, def);
+  if (result.ok && result.config) return { ok: true, config: result.config };
+  return { ok: false, status: 400, error: result.detail };
 }
 
 export async function GET(req: Request) {
@@ -284,7 +126,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST /api/mcp body: { action, cwd, scope?, name?, def?, fromScope?, toScope? }
+// POST /api/mcp body: { action, cwd, scope?, name?, def?, fromScope?, toScope?, force? }
 export async function POST(req: Request) {
   if (!isApiRequestAllowed(req)) {
     return NextResponse.json({ error: "Untrusted API request" }, { status: 403 });
@@ -302,7 +144,7 @@ export async function POST(req: Request) {
       fromScope?: McpScope;
       toScope?: McpScope;
       def?: Record<string, unknown>;
-      /** fork:gap-mcp-handshake — 跳过启用前握手校验（"先配好、服务稍后才起"）。 */
+      /** fork:gap-mcp-handshake — 跳过保存/启用前校验（"先配好、服务稍后才起"）。 */
       force?: boolean;
     };
     if (!body.cwd) return NextResponse.json({ error: "cwd required" }, { status: 400 });
@@ -316,17 +158,16 @@ export async function POST(req: Request) {
 
     if (body.action === "test") {
       const scope = readScope(body.scope);
-      const def =
-        body.def ??
-        readMcpConfigFile(mcpFilePath(cwd, scope)).mcpServers?.[body.name ?? ""];
+      const name = body.name?.trim() || "server";
+      const def = body.def ?? await getMcpServerConfig(mcpFilePath(cwd, scope), name);
       if (!def) return NextResponse.json({ error: "server not found" }, { status: 404 });
-      const result = await testMcpServer(def);
+      const result = await validateMcpServer(name, def);
       return NextResponse.json({ ok: result.ok, message: result.detail });
     }
 
     if (body.action === "get") {
       const scope = readScope(body.scope);
-      const def = readMcpConfigFile(mcpFilePath(cwd, scope)).mcpServers?.[body.name ?? ""];
+      const def = await getMcpServerConfig(mcpFilePath(cwd, scope), body.name ?? "");
       if (!def) return NextResponse.json({ error: "server not found" }, { status: 404 });
       // Return the full raw definition (including env values) for advanced JSON editing
       return NextResponse.json({ def });
@@ -349,36 +190,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Requires one of command, url or socket" }, { status: 400 });
       }
       const file = mcpFilePath(cwd, scope);
-      const data = readMcpConfigFile(file);
-      data.mcpServers ??= {};
       // `update` must not silently create a copy in another scope: if the client reports a
       // scope that does not hold this server, fail loudly instead of writing a shadow entry
       // (which would also duplicate any env values into the other mcp.json).
-      if (body.action === "update" && !data.mcpServers[name]) {
+      if (body.action === "update" && !(await getMcpServerConfig(file, name))) {
         return NextResponse.json(
           { error: `Server "${name}" not found in ${scope} scope` },
           { status: 404 },
         );
       }
-      // fork:gap-mcp-handshake — 新增/编辑时只**警告不拦截**。
-      //
-      // 理由：加配置时服务可能还没起（先在浏览器里配好、稍后才启动是很常见的用法），
-      // 这时把写入挡掉会让用户白填一遍。真正的硬门禁放在 `enable`：
-      // 启用意味着"现在就该能用"，那时握手失败必须拦住。
-      let handshakeWarning: string | undefined;
-      if (def.disabled !== true && !body.force) {
-        const check = await validateBeforeEnable(def, {});
-        if (!check.ok) {
-          handshakeWarning = check.error;
-          console.warn(`[pi-web] MCP "${name}" saved without a successful handshake: ${check.error}`);
-        }
-      }
-      data.mcpServers[name] = def;
-      writeMcpConfigFile(file, data);
-      if (handshakeWarning) {
-        const payload = await readMcp(cwd);
-        return NextResponse.json({ ...payload, warning: handshakeWarning });
-      }
+      const check = await checkServer(name, def, body.force === true);
+      if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
+      await addMcpServer(file, name, check.config);
     } else if (body.action === "remove") {
       const scope = readScope(body.scope);
       if (scope === "project" && !projectTrust.trusted) {
@@ -389,12 +212,7 @@ export async function POST(req: Request) {
       }
       const name = body.name?.trim();
       if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
-      const file = mcpFilePath(cwd, scope);
-      const data = readMcpConfigFile(file);
-      if (data.mcpServers?.[name]) {
-        delete data.mcpServers[name];
-        writeMcpConfigFile(file, data);
-      }
+      await removeMcpServer(mcpFilePath(cwd, scope), name);
     } else if (body.action === "enable" || body.action === "disable") {
       const scope = readScope(body.scope);
       if (scope === "project" && !projectTrust.trusted) {
@@ -406,16 +224,14 @@ export async function POST(req: Request) {
       const name = body.name?.trim();
       if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
       const file = mcpFilePath(cwd, scope);
-      const data = readMcpConfigFile(file);
-      if (data.mcpServers?.[name]) {
-        if (body.action === "enable") {
-          // fork:gap-mcp-handshake — 启用前必须真实握手（initialize + tools/list）。
-          const check = await validateBeforeEnable(data.mcpServers[name], { force: body.force });
+      if (body.action === "enable") {
+        const def = await getMcpServerConfig(file, name);
+        if (def) {
+          const check = await checkServer(name, def as unknown as Record<string, unknown>, body.force === true);
           if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
         }
-        data.mcpServers[name].disabled = body.action === "disable";
-        writeMcpConfigFile(file, data);
       }
+      await setMcpServerEnabled(file, name, body.action === "enable");
     } else if (body.action === "move") {
       const from = readScope(body.fromScope);
       const to = readScope(body.toScope);
@@ -430,15 +246,10 @@ export async function POST(req: Request) {
       if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
       const fromFile = mcpFilePath(cwd, from);
       const toFile = mcpFilePath(cwd, to);
-      const fromData = readMcpConfigFile(fromFile);
-      const def = fromData.mcpServers?.[name];
+      const def = await getMcpServerConfig(fromFile, name);
       if (!def) return NextResponse.json({ error: "server not found in source scope" }, { status: 404 });
-      if (fromData.mcpServers) delete fromData.mcpServers[name];
-      writeMcpConfigFile(fromFile, fromData);
-      const toData = readMcpConfigFile(toFile);
-      toData.mcpServers ??= {};
-      toData.mcpServers[name] = def;
-      writeMcpConfigFile(toFile, toData);
+      await removeMcpServer(fromFile, name);
+      await addMcpServer(toFile, name, def);
     } else {
       return NextResponse.json({ error: `Unsupported action: ${body.action}` }, { status: 400 });
     }

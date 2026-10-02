@@ -81,14 +81,16 @@ const MEMBERS = {
 // ───────────────────────── 0.99 的类型，在本文件里手写 ─────────────────────────
 // 0.87 上这些类型不存在，静态 import 会让 tsc 直接红。改动它们之前先改契约测试。
 
-/** pi-mcp 的 transport：SDK 根不导出，MCP 连接只认这个形状。 */
+/** pi-mcp 的 transport：SDK 根不导出，MCP 连接只认这个形状（含返回退订函数的监听器）。 */
 export interface McpTransport {
   start(): Promise<void>;
   send(message: unknown): Promise<void>;
   close(): Promise<void>;
-  onMessage(listener: (message: unknown) => void): void;
-  onError(listener: (error: Error) => void): void;
-  onClose(listener: () => void): void;
+  onMessage(listener: (message: unknown) => void): () => void;
+  onError(listener: (error: Error) => void): () => void;
+  onClose(listener: () => void): () => void;
+  /** pi-mcp 连接成功后会回填协议版本；旧 transport 可以不实现。 */
+  setProtocolVersion?(version: string): void;
 }
 
 export type McpTransportFactory = (
@@ -128,6 +130,9 @@ export interface McpOAuthConfig {
   /** 必须是 `localhost` / `127.0.0.1` / `[::1]` 上的 http URI。 */
   callbackUrl?: string;
   scope?: string;
+  /** 动态注册时发的 `client_name`。 */
+  clientName?: string;
+  authServerMetadataUrl?: string;
 }
 
 export interface McpHttpServerConfig extends McpServerConfigBase {
@@ -156,11 +161,11 @@ export interface LoadedMcpConfig {
 
 /** 0.99 的 `McpOAuthCredentialStore`：每个 server 的状态存在 agent 目录的 `mcp-auth.json`。 */
 export interface McpOAuthCredentialStore {
-  forServer(serverUrl: string): McpOAuthServerStore;
+  forServer(name: string, serverUrl: string): McpOAuthServerStore;
   /** 存下来的 token，用来发现别的进程完成的登录。 */
-  tokens(serverUrl: string): unknown;
-  /** 之前是否真的存过这个 server 的凭据。 */
-  remove(serverUrl: string): boolean;
+  tokens(name: string, serverUrl: string): unknown;
+  /** 之前是否真的存过这个 server 的凭据（按 name + URL 键控）。 */
+  remove(name: string, serverUrl: string): boolean;
 }
 
 export interface McpOAuthServerStore {
@@ -255,6 +260,10 @@ export interface McpOAuthSettings {
   callbackPort?: number;
   callbackUrl?: string;
   scope?: string;
+  /** 动态注册时发的 `client_name`。 */
+  clientName?: string;
+  /** 覆盖授权服务器元数据地址。 */
+  authServerMetadataUrl?: URL;
 }
 
 /** pi-mcp 的 `McpClient` 里本仓要读的那部分。 */
