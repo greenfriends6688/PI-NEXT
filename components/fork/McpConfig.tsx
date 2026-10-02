@@ -10,7 +10,7 @@ import {
   buildMcpAuthCommand,
   buildMcpLogoutCommand,
   isRemoteMcpServer,
-} from "@/lib/mcp-auth-command";
+} from "@/lib/mcp-auth-command-shared";
 
 /*
  * fork:mcp-section — MCP server management as its own settings entry.

@@ -24,7 +24,6 @@
  * 拒绝，而不是清洗成近似名字。
  */
 
-import type { McpServerInfo } from "./api-types";
 import {
   loadPiSdkInternals,
   type McpOAuthChallenge,
@@ -35,58 +34,21 @@ import {
 } from "./pi-sdk-internals";
 
 /**
- * 同时兼容仓库里已有的两种配置形状（只取传输判定需要的字段，不新造解析器）：
- * - `McpServerInfo`（lib/api-types.ts）：`/api/mcp` 返回、MCP 面板渲染的形状；
- * - pi 的 `McpServerConfig`：mcp.json 原始定义的形状（`url` 即 http）。
- */
-export type McpAuthServerShape = {
-  kind?: McpServerInfo["kind"];
-  url?: McpServerInfo["url"];
-  transport?: "stdio" | "http" | "sse";
-};
-
-/** 行终止符（含 U+2028/U+2029）与 C0/C1 控制字符：会破坏「单行命令」这个前提。 */
-const UNSAFE_COMMAND_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
-
-/**
- * 是否是 URL（HTTP/SSE）型 server —— 只有这类才可能走 OAuth 浏览器回调。
+ * **纯常量 / 纯函数的那一半在 `lib/mcp-auth-command-shared.ts`**（客户端面板要用）。
  *
- * 保守口径：stdio / socket 是本地进程，排除；必须存在非空且以 http(s) 开头的
- * `url`。无法从配置形状可靠判断 server 是否声明了 OAuth（`auth` 字段、自动探测
- * 都在扩展里），所以这里只按「远程 URL」放行。
+ * 这里只留服务端那一半：`signInMcpServerWithPrompt` / `signOutMcpServerWithPrompt`
+ * 走 `lib/pi-sdk-internals.ts` 加载的 pi 内部件。**客户端文件一律 import 上面那份 shared，
+ * 不要 import 本模块** —— 那条 import 链会把整个 `@earendil-works/pi-coding-agent`
+ * 拖进浏览器依赖图，`npm run build` 会直接红（`Module not found: Can't resolve 'fs'`）。
+ * 下面这几行 re-export 只给服务端代码与既有单测用。
  */
-export function isRemoteMcpServer(server: McpAuthServerShape | null | undefined): boolean {
-  if (!server || typeof server !== "object") return false;
-  if (server.kind === "command" || server.kind === "socket") return false;
-  if (server.transport === "stdio") return false;
-  const url = typeof server.url === "string" ? server.url.trim() : "";
-  return /^https?:\/\//i.test(url);
-}
+export {
+  buildMcpAuthCommand,
+  buildMcpLogoutCommand,
+  isRemoteMcpServer,
+  type McpAuthServerShape,
+} from "./mcp-auth-command-shared";
 
-function buildCommand(prefix: string, serverName: unknown): string | null {
-  if (typeof serverName !== "string" || !serverName) return null;
-  // 换行/控制字符 = 可能夹带第二条斜杠命令，直接拒绝。
-  if (UNSAFE_COMMAND_CHARS.test(serverName)) return null;
-  // 扩展对参数 trim 后再查表，首尾空白的 key 用命令本来也寻址不到。
-  if (serverName.trim() !== serverName) return null;
-  return `${prefix} ${serverName}`;
-}
-
-/**
- * `/mcp login <server>` —— pi 1.0 内置 `mcp` 扩展的命令（取代 pi-mcp-adapter 的
- * `/mcp-auth`）。名字不可信/无法安全表示时返回 null，由 UI 隐藏入口。
- */
-export function buildMcpAuthCommand(serverName: unknown): string | null {
-  return buildCommand("/mcp login", serverName);
-}
-
-/**
- * `/mcp logout <server>` —— 内置扩展的 `/mcp` 子命令，清掉该 server 存在
- * `<agentDir>/mcp-auth.json` 的凭据。名字不可信/无法安全表示时返回 null。
- */
-export function buildMcpLogoutCommand(serverName: unknown): string | null {
-  return buildCommand("/mcp logout", serverName);
-}
 
 /** `signInMcpServer` / `McpOAuthCredentialStore` 那一小块内部件；单测注入假件。 */
 export type McpAuthInternals = Pick<
