@@ -3756,7 +3756,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             />
           </div>
 
-          {(compact || isMobile) && (
+          {/* fork:pwa-wb-composer —— 手机上「发送 / 停止」不再浮在编辑行右上角。
+              改前：`(compact || isMobile)` 让窄屏走这一格，于是 390 下 send 落在
+              y=689 的编辑行里（实测 `.chat-input-toolbar` 明明在 731–819），
+              和桌面「发送在工具条右端」是两套位置语义，看上去像悬空的一枚。
+              改后：窄屏由**工具条右端**那一格渲染（见下方 `narrowControls` 分支），
+              与桌面同一个位置语义；这一格只留给 `compact`（引用回答）形态 ——
+              那时整条工具条不渲染，发送钮没有别处可去。 */}
+          {compact && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-row)", flexShrink: 0, alignSelf: "flex-end" }}>
               {isStreaming ? stopButton : sendButton}
             </div>
@@ -3773,20 +3780,39 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         {/* fork:design-components —— 工具栏 = 画板 20 的 .pw-composer-bar：
             一行内是 附件 · 模型 · 思考 · 权限 · 工具档 · 压缩 ｜ 上下文环 · 声音 · 发送，
             与画板 20 A 的控件顺序一致。 */}
+        {/* fork:pwa-wb-composer —— 窄屏（narrowControls，≤1024）把工具条收成**两行**：
+            行一 = 附件 + 模型选择器（可省略号），行二 = 四枚模式芯片 + 更多 + 发送。
+            改前这里只有 `minmax(0,1fr) auto` 两列，于是左组的全部控件挤在一行里
+            （实测 390 下左组 min-content 338 > 可用 332，芯片被压到 27px 宽、
+            彼此只隔 2px），右组被挤到第二行独苗一个「更多」——控件条 88px 高，
+            其中大半是空档。行高交给 grid 的显式行轨（`--control-touch`），不再由
+            内容撑出来；`display: contents` 让**桌面（≥1025）的 DOM 保持一条平铺的
+            flex 行**（两个分组盒都不生成，盒模型一个像素不变）。 */}
         {!compact && <div className="chat-input-toolbar pw-composer-bar" style={{
           display: narrowControls ? "grid" : "flex",
-          gridTemplateColumns: narrowControls ? "minmax(0, 1fr) auto" : undefined,
+          gridTemplateColumns: narrowControls ? "minmax(0, 1fr) auto auto" : undefined,
+          gridTemplateRows: narrowControls ? "var(--control-touch) var(--control-touch)" : undefined,
+          gridTemplateAreas: narrowControls ? '"models models models" "chips actions send"' : undefined,
+          rowGap: narrowControls ? "var(--s1)" : undefined,
+          alignItems: narrowControls ? "center" : undefined,
         }}>
 
           {/* LEFT: attach + model selector (idle) or steer/followup toggle (streaming) */}
-          <div style={{ flex: narrowControls ? "1 1 auto" : "0 1 auto", minWidth: 0, display: "flex", alignItems: "center", gap: 2 }}>
+          <div style={{ flex: narrowControls ? undefined : "0 1 auto", minWidth: 0, display: narrowControls ? "contents" : "flex", alignItems: "center", gap: 2 }}>
+            {/* fork:pwa-wb-composer —— 行一：附件 + 模型 + 供应商配额。
+                窄屏下它是 grid 的 `models` 区；宽屏下 `display: contents` 摊平回
+                左组（不生成盒子，桌面几何不变）。 */}
+            <div
+              className="fork-pwa-wb-models"
+              style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "calc(var(--s1) / 2)", minWidth: 0, gridArea: narrowControls ? "models" : undefined }}
+            >
             {/* 附件 +：直接使用画板 20 的 .pw-iconbtn 组件（board.css：无边框 / hover 叠色 / is-on 选中），
                 有附件时挂 is-on（画板的选中态），图标与 20-composer.html 同款 plus。 */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title={t("chat.attachFile")}
-              className={`pw-iconbtn${attachedImages.length ? " is-on" : ""}`}
+              className={`pw-iconbtn fork-pwa-wb-act${attachedImages.length ? " is-on" : ""}`}
               style={{ cursor: "pointer" }}
             >
               <span className="pw-ico"><i data-ico="plus" data-size="16"></i></span>
@@ -3808,6 +3834,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 没选模型 / provider 不支持额度查询 / 没缓存过 / 查询失败 —— 都不渲染，
                 输入区不留报错痕迹。窄屏只留图标，不占输入框宽度。 */}
             <ProviderQuotaChip providerId={model?.provider ?? null} narrow={narrowControls} />
+            </div>
+            {/* fork:pwa-wb-composer —— 行二：思考 / 权限 / 工具预设 / 压缩四枚模式芯片。
+                窄屏下是 grid 的 `chips` 区（间隙 `--s1`，芯片命中区由 CSS 给到
+                `--control-touch + --s1`）；宽屏下 `display: contents` 摊平回左组。 */}
+            <div
+              className="fork-pwa-wb-modes"
+              style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "var(--s1)", minWidth: 0, gridArea: narrowControls ? "chips" : undefined }}
+            >
             {isStreaming && onThinkingLevelChange && (
               // The level cannot change mid-turn, so this is read-only: a button here
               // would invite clicks that do nothing. It still answers the question
@@ -3837,7 +3871,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     cursor: isStreaming ? "not-allowed" : "pointer",
                     opacity: isStreaming ? 0.5 : 1,
                     background: thinkingDropdownOpen ? "var(--overlay-hover)" : undefined,
-                    width: isMobile ? "auto" : undefined,
+                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
+                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
+                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
+                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
+                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
+                    width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                 >
                   <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
@@ -3907,7 +3947,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   cursor: "pointer",
                   // 非默认档位用强调色，因为「当前不全自动」是需要一眼看出来的状态
                   color: permissionMode === "bypass" ? undefined : "var(--accent-text)",
-                  width: isMobile ? "auto" : undefined,
+                  // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
+                  // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
+                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
+                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
+                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
+                    width: isMobile || viewportCompact ? "auto" : undefined,
                 }}
               >
                 <span className="pw-ico">
@@ -3934,7 +3980,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     cursor: isStreaming ? "not-allowed" : "pointer",
                     opacity: isStreaming ? 0.5 : 1,
                     background: toolDropdownOpen ? "var(--overlay-hover)" : undefined,
-                    width: isMobile ? "auto" : undefined,
+                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
+                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
+                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
+                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
+                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
+                    width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                 >
                   <span className="pw-ico"><i data-ico="wrench" data-size="13"></i></span>
@@ -4002,7 +4054,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   style={{
                     color: isCompacting ? "var(--error)" : undefined,
                     background: isCompacting ? "var(--error-soft)" : undefined,
-                    width: isMobile ? "auto" : undefined,
+                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
+                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
+                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
+                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
+                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
+                    width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                   title={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
                   aria-label={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
@@ -4021,20 +4079,35 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 </button>
               </div>
             )}
+            </div>
 
           </div>
 
           {/* 画板 20 的 .pw-composer-bar 用 .grow 顶开左右两组。 */}
-          <span className="grow" />
+          {/* fork:pwa-wb-composer —— 窄屏下 `.grow` 会占掉 grid 的一个自动列，
+              改由 `grid-template-areas` 定位左右两组，所以这一格在窄屏不生成盒子。 */}
+          <span className="grow" style={{ display: narrowControls ? "none" : undefined }} />
+
+          {/* fork:pwa-wb-composer —— 窄屏：发送 / 停止作为工具条的第三个 grid 区
+              （`send`，行二最右），和桌面同一个「控件行右端」的位置语义。
+              改前它在 `.pw-composer-top` 里（编辑行右上），两套形态不一致；
+              改后它还在这一格之外 —— 桌面完全不受影响（`narrowControls` 为 false
+              时不渲染，下方右组里的那一枚才是桌面的）。 */}
+          {narrowControls && (
+            <div className="fork-pwa-wb-send" style={{ gridArea: "send", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {isStreaming ? stopButton : sendButton}
+            </div>
+          )}
 
           {/* RIGHT: 上下文环 + 声音 + 发送（停止） */}
-          <div ref={controlsMenuRef} style={{
+          <div ref={controlsMenuRef} className="fork-pwa-wb-actions" style={{
             flex: "0 0 auto",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
             position: "relative",
             marginLeft: narrowControls ? 0 : "auto",
+            gridArea: narrowControls ? "actions" : undefined,
           }}>
             {narrowControls && (
               /* fork:design-components —— 窄屏「更多控件」= 画板 60 C 帧的 ellipsis 图标钮（.pw-iconbtn），点开是覆盖式工具条、末尾一个 x 收起。 */
@@ -4048,7 +4121,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 onClick={() => {
                   setControlsMenuOpen(true);
                 }}
-                className="pw-iconbtn"
+                className="pw-iconbtn fork-pwa-wb-act"
                 style={{
                   cursor: controlsMenuOpen ? "default" : "pointer",
                   visibility: controlsMenuOpen ? "hidden" : "visible",
@@ -4090,7 +4163,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 onClick={onSoundToggle}
                  title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
                  aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                className={`pw-iconbtn${soundEnabled ? "" : " is-on"}`}
+                className={`pw-iconbtn fork-pwa-wb-act${soundEnabled ? "" : " is-on"}`}
                 style={{ width: "var(--control-md)", height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
               >
                 <span className="pw-ico"><i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i></span>
@@ -4107,13 +4180,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   setThinkingDropdownOpen(false);
                   setControlsMenuOpen(false);
                 }}
-                className="pw-iconbtn"
+                className="pw-iconbtn fork-pwa-wb-act"
                 style={{ cursor: "pointer" }}
               >
                 <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
               </button>
             )}
-            {!isMobile && (isStreaming ? stopButton : sendButton)}
+            {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；
+                窄屏时发送钮在工具条的 `send` 区（上方），这里不再画第二枚。 */}
+            {!narrowControls && (isStreaming ? stopButton : sendButton)}
             </div>
           </div>
 

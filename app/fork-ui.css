@@ -2307,3 +2307,323 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     inset: calc(var(--s2) * -1);
   }
 }
+
+/* ===========================================================================
+ * fork:pwa-workbench —— 手机 / PWA「工作台」（聊天主界面）收尾。
+ *
+ * 归属：components/ChatInput.tsx + components/ChatWindow.tsx +
+ *       components/MessageView.tsx。全部规则关在断点内，≥1025px 一个像素不动
+ *       （board-diff-all 的 1440 视口永不命中本段）。
+ *
+ * ① 输入区控件条两行 + 行高受控 --------------------------------------------
+ *    改前症状（实测 390×844 / PROBE_OUT=/tmp/base390）：
+ *      · 芯片 `推理级别 / 全自动 / 工具预设 / 压缩上下文` 各 **27×36**，`更多` 24×36；
+ *      · 左组 min-content **338px** > 工具条可用 **332px**（`sw 338 / cw 332`），一行放不下就换行，
+ *        控件条被撑到 **88px**（桌面上是 40px），而第二行只有一枚「更多」，大半是空档；
+ *      · `发送`（`.pw-send`）在 `compact || isMobile` 分支渲染在 `.pw-composer-top`：
+ *        390 下 y=689，落在 toolbar 731–819 **之外**（桌面上 send y=841 在 toolbar 835–875 内）
+ *        —— 两种形态不一致，手机上看着像悬空。
+ *    改后（ChatInput.tsx 的 toolbar grid + fork-ui.css）：
+ *      · 行一 = 附件 + 模型选择器 + 配额，行二 = 四枚芯片 + 更多 + 发送；
+ *        行轨由 `grid-template-rows: var(--control-touch) var(--control-touch)` 显式给定，
+ *        不再由内容撑出（`--control-touch` = 36px = 设计系统声明的触控高度）。
+ *      · 发送落在 `send` 区（行二最右），与桌面同一个「控件行右端」的位置语义。
+ *    配套：`.fork-pwa-wb-models` / `.fork-pwa-wb-modes` 在 ≥1025 是 `display: contents`
+ *    （不生成盒子）→ 桌面那条平铺 flex 行的盒模型一个像素不变。
+ *
+ * ② 触摸靶 ≥ 40px（pointer: coarse）--------------------------------------------
+ *    改前（390）：芯片 27×36、`更多` 24×36、`pw-send` 28×36、`pw-ring` 20×36。
+ *    手段沿用 DSN-04 与本文件 `fork:pwa-hit-slop` 那一套：盒子给到
+ *    `--control-touch + --s1`（40px）见方，竖向再用 `::after` 补满 `--s1`（4px）
+ *    —— 正好等于两行之间的行间隙，两枚相邻芯片**不互相抢命中**（横向不外扩）。
+ *    `::after` 在这里是被「收窄」而不是「外扩」：上一段 hit-slop 给 `.pw-select::after`
+ *    写了 `inset: 0 -6px`，本段把横向改回 `0`，否则 40px 的盒子会左右各探 6px
+ *    吃掉邻位的 4px 间隙。
+ *
+ * ③ 转录可读性 --------------------------------------------------------------
+ *    长路径 / 长 URL / 长标识符在 390 里必须换行而不是把卡片撑破或被裁；
+ *    等宽块（行内代码 / 代码块 / diff / 表格）给一层横向滚动容器，
+ *    行内代码允许在 ` / ` 与连字符处断行，避免 `board50-` + `trust/` 这种
+ *    在词中间断开又不换行的半截形态。
+ *
+ * ④ 顶部页头 ---------------------------------------------------------------
+ *    手机页头是 `menu · 更多 · 标题 · 文件面板` 四段。标题容器 `flex: 1; min-width: 0`
+ *    已经有了，但 `.pw-tb-title` 自身没有 `min-width: 0` 的兜底，且「更多」与
+ *    文件面板两枚触控钮是 22px 的 `.pw-iconbtn sm`。这里补标题截断与按钮命中区。
+ *
+ * ⑤ 安装提示横幅 -----------------------------------------------------------
+ *    `.pw-banner` 在流里（把消息列表整体推下去，不覆盖内容），手机上补侧向外距
+ *    与正文可读字号，并保证关闭钮的命中区。
+ * ======================================================================== */
+@media (max-width: 640px) {
+  /* ---- ① 控件条两行（grid 由 ChatInput 内联给出，这里只补收尾约束）---- */
+  /* 模型芯片在窄屏允许收缩 + 省略号：`.pw-composer-bar .model-selector
+     { flex: 0 0 auto }` 是桌面「按内容定宽、不省略」的约定，窄列里长模型名
+     会把 `models` 区撑到超过 1fr（实测 390 下模型芯片 167px，320 下必然溢出）。 */
+  .chat-input-toolbar .model-selector {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-input-toolbar .model-selector .pw-select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-input-toolbar .model-selector .pw-select > span {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* `grid-template-rows` 给的是 `--control-touch`（36）；下面 ② 把它抬到 40，
+     所以行轨跟着抬，否则行会被内容顶高（又回到「靠内容撑」的老路）。 */
+  .chat-input-toolbar {
+    grid-template-rows: var(--control-touch) var(--control-touch);
+  }
+  .fork-pwa-wb-models,
+  .fork-pwa-wb-modes {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .fork-pwa-wb-modes > * {
+    flex: none;
+  }
+}
+
+/* ② 触摸靶：≥40px 见方。`--control-touch`（36）+ `--s1`（4）= 40，
+   竖向那 4px 由 `::after` 补（正好是行二与行一之间的间隙），横向不外扩。 */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  /* 窄列里 `button.pw-select { width: 100% }`（fork-ui.css 的 `@layer fork-reset`
+     行式拉满清单）会生效：容器宽度确定时它按容器算 flex base，于是「全自动」
+     独占 365px（实测 768）、在 390 上又把 chips 行顶爆。写回按内容定宽。 */
+  .chat-input-toolbar button.pw-select {
+    width: auto;
+  }
+  .chat-input-toolbar .fork-pwa-wb-modes .pw-select,
+  .chat-input-toolbar .fork-pwa-wb-models .pw-iconbtn,
+  .chat-input-toolbar .fork-pwa-wb-actions .pw-iconbtn,
+  .chat-input-toolbar .pw-send {
+    position: relative;
+    min-width: calc(var(--control-touch) + var(--s1));
+    min-height: calc(var(--control-touch) + var(--s1));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* 竖向的 4px 已经在盒子里（盒子 = `--control-touch + --s1`），所以这里
+     `inset: 0`：既不外扩（横向再探 6px 会吃掉邻位那 4px 的间隙），
+     也把上一段 hit-slop 写的 `inset: 0 -6px` 收回成 0。 */
+  .chat-input-toolbar .fork-pwa-wb-modes .pw-select::after,
+  .chat-input-toolbar .fork-pwa-wb-models .pw-iconbtn::after,
+  .chat-input-toolbar .fork-pwa-wb-actions .pw-iconbtn::after,
+  .chat-input-toolbar .pw-send::after {
+    inset: 0;
+  }
+  /* `.pw-ring` 的 `::after` 是环心那颗点（board.css），不能占用；
+     它的命中区改用 `::before`（本文件此前没有用过这个伪元素）。 */
+  .chat-input-toolbar .pw-ring {
+    position: relative;
+    min-width: var(--control-touch);
+    min-height: var(--control-touch);
+  }
+  .chat-input-toolbar .pw-ring::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s1) / -2);
+  }
+  /* 「更多」展开后的覆盖条：三者（环 / 声音 / 收起）各自已到 40，间隙给足
+     `--s1`，外扩的 `::after` 才不会互相压住。 */
+  .chat-input-toolbar .fork-pwa-wb-actions > div {
+    gap: var(--s1) !important;
+  }
+}
+
+/* ③ 转录：长串换行 + 等宽块横滚 + 行内代码的断点 ------------------ */
+@media (max-width: 640px) {
+  /* `.pw-md` 已有 `overflow-wrap: anywhere`（本文件上一段）。这里补的是
+     **等宽**内容：行内代码 / 代码块里的路径与长标识符，`anywhere` 会把
+     `board50-trust/` 断成 `board50-` + `trust/` 这种半截形态。
+     `anywhere` 保留（长串仍要能断），但先把可读的断点（斜杠、连字符、
+     句点）标出来 —— 浏览器只在这些位置放不下时才断。 */
+  .pw-md code,
+  .pw-md pre,
+  .pw-md pre code,
+  .pw-md kbd,
+  .pw-md samp {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+  /* 等宽块给一层横滚：`.chat-input-shell` 与转录卡都是 `overflow-x: clip`，
+     宽代码行在手机上被齐根裁掉比横滚更糟（画板 60 的手机档对 diff 也这么判）。 */
+  .pw-md pre,
+  .pw-md pre code,
+  .pw-md table,
+  .pw-md .pw-diff-body {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .pw-md pre {
+    /* 横滚条本身占一条高度；等宽字号在手机上降一档才放得下整行命令。 */
+    -webkit-overflow-scrolling: touch;
+  }
+  .pw-md pre code {
+    /* 长 URL / 长路径在横滚容器里保持一行，由容器滚，不折成 15 行。 */
+    white-space: pre;
+  }
+  /* 表格：手机不缩放（看不清），给横滚；首列不换行。 */
+  .pw-md table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    border-collapse: collapse;
+  }
+  .pw-md th,
+  .pw-md td {
+    white-space: nowrap;
+  }
+
+  /* ---- 工具调用卡 / 步骤流（画板 11）----------------------------------
+     改前症状（实测 390，项目「pi-codex」会话「Compare automations」）：
+     `ol.pw-proc-body` 的单列被定成 **421px**（容器只有 356），每一枚
+     `.pw-step` 也跟着是 421 宽，于是「运行 ×2 grep …」「推理 The UI is
+     Tailwind + shadcn. Our project uses the desig…」在卡片右缘被**齐根切掉**
+     （量测 clipped outRight 193）。根因：步骤行是 `<button>`，作为 grid 项的
+     `min-width: auto` 让这条 `auto` 轨的最小尺寸等于整行的 max-content。
+     行内摘要（`.pw-arg` / `.pw-think`）本身已经带单行省略号，只要行能缩到
+     容器宽度，文字就会正常收成「…」，不用改组件。 */
+  .pw-proc-body,
+  .pw-proc-body > *,
+  .pw-step {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .pw-proc-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 步骤行是触摸目标：`--control-touch`（36）→ 40 见方（与输入区那排芯片同规格）。 */
+  .pw-step {
+    min-height: calc(var(--control-touch) + var(--s1));
+    align-items: center;
+  }
+  .pw-step.reasoning {
+    align-items: flex-start;
+  }
+  /* 动词（运行 / 推理 / 说明 / 修改 / 读取）与耗时是**标签**，不许被摘要挤到折行
+     （实测窄屏上「说明」被压成「说」/「明」两行）。摘要自己让位。 */
+  .pw-step .pw-verb,
+  .pw-step .pw-dur {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* 过程组头行（`ChatWindow.tsx` 的 `.pw-proc-head`，整行是折叠开关）：
+     右端的「已完成」徽标与「收起」是标签，同理不许折行（实测窄屏上「收起」
+     被压成「收」/「起」两行）。头行本身是触摸目标，抬到 40。 */
+  .pw-proc-head {
+    min-height: calc(var(--control-touch) + var(--s1));
+  }
+  .pw-proc-head .pw-badge,
+  .pw-proc-head .pw-desc {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* 折叠体的展开正文（工具输出 / diff / 文件清单）与 `.fork-collapse-body`
+     同宽：它默认 `overflow-x: hidden`，内容一宽就右缘被裁。 */
+  .fork-collapse-body {
+    max-width: 100%;
+  }
+  .fork-collapse-body > * {
+    max-width: 100%;
+  }
+  /* 行内的文件芯片 `.process-file-chip` 是 `flex-shrink: 0` + `max-width: 190px`
+     （globals.css），一行挂两个长路径芯片，min-content 就超过行宽，
+     把整行撑到 387（> 容器 358）—— 量测里被裁掉的最后 29px 正是这里。
+     窄屏改成可收缩 + 省略号（`title` 里仍是完整路径）。 */
+  .pw-step .process-file-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .pw-step .process-file-chip > .process-chip-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ④ 顶部页头 ------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .main-workspace-header .pw-tb-title {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .main-workspace-header .pw-tb-title > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* 页头四段（menu / 更多 / 标题 / 文件面板）：`menu` 是画板 60 的 `.pw-touch`
+     （36 见方，`60-mobile-pwa` spec 以 2px 容差量它），`文件面板` 则是 AppShell 内联
+     `TOP_BAR_ICON_BUTTON_SIZE`（≤1024 也是 36）。这里把中间那枚 `.pw-iconbtn.sm`
+     （22 见方）补到同一行的 36 —— 一排图标钮大小不齐是用户能看出来的。
+     命中区竖向再补 `--s1`（正好是行高 48 与 36 之间的空档，横向不外扩，
+     相邻两枚只隔 `--s1`）。横向保持 36：再宽就要 40，而 40 会顶掉标题，
+     换来的宽度在画板 60 的手机壳上反而不一致。 */
+  .main-workspace-header .pw-iconbtn,
+  .main-workspace-header .pw-touch,
+  .main-workspace-header [data-mobile-toolbar-file] {
+    position: relative;
+    min-width: var(--control-touch);
+    min-height: var(--control-touch);
+  }
+  .main-workspace-header .pw-iconbtn::after,
+  .main-workspace-header .pw-touch::after,
+  .main-workspace-header [data-mobile-toolbar-file]::after {
+    inset: calc(var(--s1) / -2) 0;
+  }
+  /* 消息动作行（复制 / 从此处编辑 / 新会话 / 回退到此处）：触摸设备上恒显
+     （`fork:design-components` 那段把显隐钩子关在 `@media (hover: hover)`），
+     但高度还是 36 —— 指腹按不准，和输入区那排芯片是同一个毛病。 */
+  .pw-msg-acts .pw-btn {
+    min-height: calc(var(--control-touch) + var(--s1));
+  }
+  /* 动作行本身：不换行时它的 min-content 是 350（复制 54 + 从此处编辑 89 +
+     新会话 67 + 回退到此处 89 + 时间戳 35 + 4 间隙），而消息列在 360 只有 328。
+     它是 `align-items: flex-end` 的列向 flex 子项，于是整行从**左边**溢出
+     （实测 x=-10，第一枚「复制」被切掉 8px）。窄屏允许换行。 */
+  .pw-msg-acts {
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* ⑤ 安装提示横幅 -------------------------------------------------------- */
+@media (max-width: 640px) {
+  .pw-banner {
+    /* 画板 60 的横幅是贴边的提示条；手机上让它与消息列同一列宽（消息列左右各
+       16px），否则它比正文宽一截，看起来像另一层界面浮在消息上方。 */
+    margin: 0 var(--s4);
+    /* 手机上一行放不下就换行（board.css 的手机档已有 `flex-wrap: wrap`）；
+       这里把行间距给足，避免两行文字贴在一起。 */
+    row-gap: var(--s2);
+    /* `--text-secondary`（13px）在手机上偏小，安装提示是首屏可读的操作说明。 */
+    font-size: var(--text-body);
+    line-height: 1.5;
+  }
+  .pw-banner .pw-iconbtn {
+    position: relative;
+    min-width: var(--control-touch);
+    min-height: var(--control-touch);
+  }
+  .pw-banner .pw-iconbtn::after {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s1) / -2) 0;
+  }
+  .pw-banner .pw-btn {
+    min-height: var(--control-touch);
+  }
+}
