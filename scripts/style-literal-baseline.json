@@ -7,7 +7,7 @@
     "components/AppShell.tsx::inline-geometry-literal": 3,
     "components/BranchNavigator.tsx::inline-geometry-literal": 1,
     "components/ChatInput.tsx::inline-geometry-literal": 8,
-    "components/ChatWindow.tsx::inline-geometry-literal": 11,
+    "components/ChatWindow.tsx::inline-geometry-literal": 10,
     "components/DirectoryPicker.tsx::inline-geometry-literal": 2,
     "components/FileExplorer.tsx::inline-geometry-literal": 13,
     "components/FileViewer.tsx::inline-geometry-literal": 4,

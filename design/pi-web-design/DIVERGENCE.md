@@ -2130,3 +2130,17 @@ GET 不建文件 → 读不出来抛 `ThinkingBudgetReadError`（422）。这与
 3. `adjustMaxTokensForThinking` 会按模型输出上限再夹一次，并无论如何给答案留
    `MIN_ANSWER_TOKENS`（1024），所以填一个很大的数不等于真能想那么久。
 4. 改动对**下一次请求**生效，已经发出的那一次不受影响。
+
+## AA · 扩展对话框的长标题钳位（fork，#961 / Refs #890）
+
+产品侧加了画板没有的两个钩子类，画板 `.pw-modal-head` **一行没动**：
+
+- `.fork-ext-dialog-head` —— `flex-shrink:1; min-height:0; max-height:50vh; overflow-y:auto`。
+  **关键是那三行里的前两行**：`max-height` 用百分比在**内容驱动高度**的容器里解不出来，
+  没有 `flex-shrink:1; min-height:0` 它根本不生效（这就是上游 #890 的根因）。
+- `.fork-ext-dialog-title` —— `-webkit-line-clamp: 3`。
+
+**为什么不改画板**：画板是设计源，产品的扩展对话框是运行时才知道多长的动态内容；
+把钳位写进 `.pw-modal-head` 会让所有静态画板帧都带上一个它们用不到的滚动容器。
+另：标题继续内联 `pre-wrap`，这两个钩子**不碰 `white-space`**，所以 `splitDialogTitle`
+的换行一个不吞；全文另有 `title` + 既有 `aria-label`。
