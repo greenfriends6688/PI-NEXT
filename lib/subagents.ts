@@ -111,6 +111,8 @@ export interface SubagentRunInfo {
   worktreePath?: string;
   worktreeBranch?: string;
   worktreeCleanupError?: string;
+  /** `resume` 起的 run（它复用前一次 run 的 session id）。不落盘。 */
+  resumed?: boolean;
 }
 
 const DEFAULT_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"];

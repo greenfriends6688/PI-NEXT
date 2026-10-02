@@ -176,7 +176,12 @@ fork 补丁台账（相对上游 pi-web 的功能改动，合并上游后照此�
 ### Fork must destroy the wrapper immediately
 `AgentSession.fork()` **mutates the wrapper's inner state in-place** — after fork, `inner.sessionId` is the *new* session's id. If the wrapper stays alive in the registry under the old id, the next request gets the already-forked state and subsequent forks produce a corrupt `parentSession` chain.
 
-**Fix**: `send("fork")` captures `newSessionId`, then calls `this.destroy()` before returning. The next request for the original session reloads a clean AgentSession from the original file.
+**We never call it.** `send("fork")` opens a **separate `SessionManager`** on the source file and copies the path with `createBranchedSession()`, so `this.inner` is untouched and the chain cannot corrupt (`lib/rpc-manager.test.mjs` locks this: two forks off one wrapper both point `parentSession` at the source file). An **idle** source is still shut down after the fork — the browser moved to the child, and dropping the wrapper is what guarantees the next request for the old id reloads a clean `AgentSession` from the original file.
+
+**A running source keeps its run** (upstream `19774b8`, #1023): the copy needs only *finished* entries, which pi appends synchronously in-process, so the file already holds them. Only a running `!` shell command refuses a fork. The wrapper survives, the run finishes, and the session is reaped by the idle timer like any other.
+
+### In-session branching stays locked mid-run
+One `.jsonl` has exactly one leaf, and the running agent appends under it — so `navigate_tree` refuses while the session is running (only `get_state` and friends are allowed through). "Edit from here" must therefore prefill the composer and branch **when the message is sent** (upstream `7303179`, #1009); navigating on click persists a leaf move the user never committed to, and a reload then shows the conversation cut off.
 
 ### Two kinds of branching — don't confuse them
 - **Fork** ("New session" on user message): creates a new independent `.jsonl` file. Shown as a child in the sidebar tree via `parentSession` header field.

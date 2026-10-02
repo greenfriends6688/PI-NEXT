@@ -183,6 +183,10 @@ export function resolveSessionIdleTimeoutMs(
 const SESSION_IDLE_TIMEOUT_MS = resolveSessionIdleTimeoutMs();
 
 const SESSION_REPLACEMENT_COMMAND_TYPES = new Set(["fork", "clone"]);
+// fork:upstream-fork-while-running — #1023 移植：pi 在第一条用户消息时才落盘，
+// 所以还没有任何对话写进文件的会话，fork 没有可复制的东西。
+const UNSAVED_SESSION_FORK_ERROR =
+  "This session has not been saved yet. Send a message before forking it.";
 const COMMANDS_ALLOWED_DURING_SESSION_REPLACEMENT = new Set([
   "get_state",
   "get_session_stats",
@@ -289,6 +293,8 @@ export class AgentSessionWrapper {
   private shutdownPromise: Promise<void> | null = null;
   private sessionShutdownEmitted = false;
   private forceShutdownOnIdle = false;
+  /** fork:upstream-stuck-run-reap — #1017 移植：已挂上的空闲定时器就是 Stop 排的那次强制回收。 */
+  private forcedIdleTimerArmed = false;
   private _alive = true;
 
   constructor(
@@ -321,6 +327,11 @@ export class AgentSessionWrapper {
 
   get isStreaming(): boolean {
     return this.inner.isStreaming;
+  }
+
+  /** fork:upstream-compaction-status — #1008：SSE 重连快照要带上它。 */
+  get isCompacting(): boolean {
+    return this.inner.isCompacting;
   }
 
   isAlive(): boolean {
@@ -516,11 +527,22 @@ export class AgentSessionWrapper {
   }
 
   private resetIdleTimer(): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    if (!this._alive) return;
-    // A resolved timeout of 0 disables idle shutdown entirely.
-    if (SESSION_IDLE_TIMEOUT_MS === 0) return;
+    if (!this._alive) {
+      if (this.idleTimer) clearTimeout(this.idleTimer);
+      return;
+    }
     if (!this.isRunning()) this.forceShutdownOnIdle = false;
+    // fork:upstream-stuck-run-reap — #1017 移植：卡住的会话会刷新页面、重开、反复按
+    // Stop，每一条命令都会走到这里。给它们挪动强制回收的期限，就等于让一个 Stop
+    // 收不回来的 run 无限续命。
+    if (this.forceShutdownOnIdle && this.forcedIdleTimerArmed) return;
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    // 0 仍然表示「空闲会话永不关停」，但 Stop 收不回来的 run 依旧按默认延时回收，
+    // 否则它会一直「运行中」到服务器重启为止（#656）。
+    const timeoutMs = SESSION_IDLE_TIMEOUT_MS
+      || (this.forceShutdownOnIdle ? DEFAULT_SESSION_IDLE_TIMEOUT_MS : 0);
+    this.forcedIdleTimerArmed = timeoutMs !== 0 && this.forceShutdownOnIdle;
+    if (timeoutMs === 0) return;
     this.idleTimer = setTimeout(() => {
       if (!this.forceShutdownOnIdle && (this.isRunning() || hasActiveSessionLivenessProvider({
         sessionId: this.sessionId,
@@ -532,7 +554,7 @@ export class AgentSessionWrapper {
       void this.shutdown().catch((error) => {
         console.error("[pi-web] failed to shut down idle session:", error instanceof Error ? error.message : error);
       });
-    }, SESSION_IDLE_TIMEOUT_MS);
+    }, timeoutMs);
   }
 
   private persistBashOnlySession(): void {
@@ -842,6 +864,9 @@ export class AgentSessionWrapper {
 
       case "abort":
         this.forceShutdownOnIdle = true;
+        // fork:upstream-stuck-run-reap — #1017：send() 里那次 reset 跑在置位之前，
+        // 真正的强制回收必须在这里就挂上。
+        this.resetIdleTimer();
         // Stop must unwind extension commands that have not started the agent yet.
         this.extensionUiAbortController.abort(new DOMException("Extension UI cancelled by Stop", "AbortError"));
         try {
@@ -904,9 +929,15 @@ export class AgentSessionWrapper {
       }
 
       case "fork": {
-        if (this.isSessionRunningForReplacement()) {
-          throw new Error("Cannot fork while the session is running");
+        if (this.inner.isBashRunning) {
+          throw new Error("Cannot fork while a shell command is running");
         }
+        // fork:upstream-fork-while-running — #1023 移植：fork 只复制**磁盘上已完成的
+        // entry**，从不碰这个 AgentSession（见「Fork must destroy the wrapper
+        // immediately」一节：我们不走 pi 的 in-place `fork()`）。所以源会话在跑时 fork
+        // 依然是安全的，它那一轮继续跑完。只有空闲源才在 fork 后关掉 wrapper，
+        // 因为浏览器已经切到子会话去了。
+        const keepSource = this.isSessionRunningForReplacement();
         return this.withSessionReplacement("fork", async () => {
           const entryId = command.entryId as string;
           const sessionManager = this.inner.sessionManager;
@@ -930,6 +961,7 @@ export class AgentSessionWrapper {
             newSessionFile = forkedManager.getSessionFile() as string;
           } else {
             // Fork after some history: copy path up to (but not including) the fork point
+            if (!existsSync(currentSessionFile)) throw new Error(UNSAVED_SESSION_FORK_ERROR);
             forkedManager = SessionManager.open(currentSessionFile, sessionDir);
             const forkedPath = forkedManager.createBranchedSession(entry.parentId);
             if (!forkedPath) throw new Error("Failed to create forked session");
@@ -948,14 +980,16 @@ export class AgentSessionWrapper {
           const newSessionId = forkedManager.getSessionId();
           cacheSessionPath(newSessionId, newSessionFile);
           invalidateSessionListCache();
-          await this.shutdownAfterSessionReplacement("fork");
+          if (!keepSource) await this.shutdownAfterSessionReplacement("fork");
           return { cancelled: false, newSessionId };
         });
       }
 
       case "fork_branch": {
-        if (this.isSessionRunningForReplacement()) {
-          throw new Error("Cannot fork while the session is running");
+        // fork:upstream-fork-while-running — #1023 移植：引用块「在新会话里问」同理，
+        // 它也只读源文件，运行中的源不受影响。
+        if (this.inner.isBashRunning) {
+          throw new Error("Cannot fork while a shell command is running");
         }
         const entryId = command.entryId as string;
         const sessionManager = this.inner.sessionManager;
@@ -963,6 +997,7 @@ export class AgentSessionWrapper {
         if (!sessionManager.isPersisted()) return { cancelled: true };
         if (!currentSessionFile) throw new Error("Persisted session is missing a session file");
         if (!sessionManager.getEntry(entryId)) throw new Error("Invalid entry ID for forking");
+        if (!existsSync(currentSessionFile)) throw new Error(UNSAVED_SESSION_FORK_ERROR);
 
         const sessionDir = sessionManager.getSessionDir();
         const sourceManager = SessionManager.open(currentSessionFile, sessionDir);
@@ -1004,8 +1039,14 @@ export class AgentSessionWrapper {
       }
 
       case "navigate_tree": {
+        // fork:upstream-fork-while-running — #1023 移植：一个会话文件只有一个 leaf，
+        // 正在跑的那一轮会继续往这个 leaf 下面追加。中途换 leaf 会把实时 run 渲染到
+        // 别的分支下，所以 fork 放开的同时这里必须继续锁住。
         if (this.inner.isBashRunning) {
           throw new Error("Cannot navigate while a shell command is running");
+        }
+        if (this.isSessionRunningForReplacement()) {
+          throw new Error("Cannot navigate while the session is running");
         }
         const result = await this.inner.navigateTree(command.targetId as string, {});
         return { cancelled: result.cancelled };
@@ -1263,6 +1304,7 @@ export class AgentSessionWrapper {
 
       case "abort_bash": {
         this.forceShutdownOnIdle = true;
+        this.resetIdleTimer();
         this.inner.abortBash();
         return null;
       }

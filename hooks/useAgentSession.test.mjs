@@ -193,7 +193,11 @@ test("first user messages expose both branch actions and edit before their own e
     source.indexOf("  const handleLeafChange = useCallback"),
   );
 
-  assert.match(chatWindowSource, /onFork=\{sessionBusy \|\| isNew \? undefined : handleFork\}/);
+  // fork:upstream-fork-while-running — #1023 移植：fork 只复制磁盘上已完成的 entry，
+  // 不碰正在跑的那个 AgentSession，所以「会话在跑」不再是拦它的条件；只有运行中的
+  // `!` shell 命令（bashRunning）要拦，以及没有落盘文件的新会话（isNew）。
+  assert.match(chatWindowSource, /onFork=\{bashRunning \|\| isNew \? undefined : handleFork\}/);
+  assert.doesNotMatch(chatWindowSource, /onFork=\{sessionBusy \|\| isNew \? undefined : handleFork\}/);
   assert.doesNotMatch(chatWindowSource, /idx === 0 && msg\.role === "user"/);
   assert.doesNotMatch(chatWindowSource, /prevAssistantEntryId/);
   assert.match(navigateSource, /type: "navigate_tree",\s*targetId: entryId/);

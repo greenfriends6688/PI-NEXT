@@ -80,7 +80,7 @@ type StoredSubagentExecution = {
 declare global {
   var __piSubagentRuns: Map<string, StoredSubagentExecution> | undefined;
   var __piSubagentQueue: SubagentQueue<SubagentRunInfo> | undefined;
-  var __piSubagentConsumedResults: Set<string> | undefined;
+  var __piSubagentConsumedResults: Map<string, string> | undefined;
 }
 const SUBAGENT_CONTEXT_LIMIT = 50_000;
 const PARENT_IDLE_POLL_MS = 200;
@@ -110,24 +110,50 @@ function getSubagentQueue(): SubagentQueue<SubagentRunInfo> {
   return globalThis.__piSubagentQueue;
 }
 
-// fork:upstream-0.9.2-subagent-notify — #937 移植：父会话已取回的结果不再二次通知
+// fork:upstream-subagent-0.9.2-subagent-notify — #937 移植 / #987 移植（c8ff7e8）
+type SubagentRunIdentity = Pick<SubagentRunInfo, "sessionId" | "completedAt">;
+
 /**
- * Session IDs whose terminal result the parent already collected with `get_subagent_result`.
- * Only background runs are recorded: a foreground run never notifies, so nothing would ever
- * clear its entry. `notifyParent` consumes the mark, so the set stays bounded by the
- * background results still waiting to be delivered.
+ * 父会话已经用 `get_subagent_result` 取回过的**后台 run**的终态结果，
+ * 按子会话 id 存，并记下被取回的那次 run 的 `completedAt`。`resume` 复用同一个
+ * session id，所以这个标记必须指名到 run：父会话在通知**已经送达之后**才轮询，
+ * 会留下一条没人消费的标记，光记 session id 就会把它下一次 run 的通知一起吞掉
+ * （#987）。`resume` **故意不清**这条：父会话可能同一轮里既取回结果又 resume，
+ * 那时这次 run 的通知还压着，标记必须继续压住它（#889）。只记后台 run（前台 run
+ * 从不通知），且每个 session 最多一条。
  */
-function getConsumedSubagentResults(): Set<string> {
-  if (!globalThis.__piSubagentConsumedResults) globalThis.__piSubagentConsumedResults = new Set();
+function getConsumedSubagentResults(): Map<string, string> {
+  // fork:upstream-subagent-notify — 热重载可能在 globalThis 上留下 #987 之前的 Set，
+  // 换掉它，不要在 Set 上调 Map 方法。
+  if (!(globalThis.__piSubagentConsumedResults instanceof Map)) globalThis.__piSubagentConsumedResults = new Map();
   return globalThis.__piSubagentConsumedResults;
 }
 
-function markResultConsumed(sessionId: string): void {
-  getConsumedSubagentResults().add(sessionId);
+function markResultConsumed(run: SubagentRunIdentity): void {
+  // 没有 completedAt 的终态 run（interrupted）从不通知，没什么可丢的。
+  if (!run.completedAt) return;
+  getConsumedSubagentResults().set(run.sessionId, run.completedAt);
 }
 
-function takeResultConsumed(sessionId: string): boolean {
-  return getConsumedSubagentResults().delete(sessionId);
+/** 只在标记指的**就是**这次 run 时才取走；上一次 run 留下的标记一律忽略。 */
+function takeResultConsumed(run: SubagentRunIdentity): boolean {
+  const consumed = getConsumedSubagentResults();
+  if (!run.completedAt || consumed.get(run.sessionId) !== run.completedAt) return false;
+  consumed.delete(run.sessionId);
+  return true;
+}
+
+/**
+ * fork:upstream-subagent-orphan-run — #990 移植（00156d5）
+ *
+ * 一条 run 从派发到结果 entry 落盘一直待在内存表里，所以一条**持久化的
+ * `running` / `queued`** 状态走到 `get()` 时既没有表项、也没有在跑的 wrapper，
+ * 只可能是进程在 run 中途停了，永远不会收尾。报成 `interrupted`（工具本来就会
+ * 把它渲染成「was interrupted before completion」），于是
+ * `get_subagent_result({ wait: true })` 会返回而不是永远轮询，run 也能被 resume。
+ */
+function settleOrphanedRun(run: SubagentRunInfo): SubagentRunInfo {
+  return run.status === "running" || run.status === "queued" ? { ...run, status: "interrupted" } : run;
 }
 
 function parseSubagentModel(runtime: ModelRuntime, value: string | undefined) {
@@ -485,6 +511,8 @@ export function createSubagentController(
       completedAt: undefined,
       result: undefined,
       error: undefined,
+      // fork:upstream-subagent-resumed-notice — #991 移植（2a71c57）
+      resumed: true,
     };
     const manager = wrapper.inner.sessionManager;
     let resolveCompletion!: (run: SubagentRunInfo) => void;
@@ -580,12 +608,13 @@ export function createSubagentController(
         wrapper.sessionFile,
       );
       if (run && wrapper.isRunning()) return { ...run, status: "running" };
-      if (run) return run;
+      if (run) return settleOrphanedRun(run);
     }
     const sessionPath = await dependencies.resolveSessionPath(sessionId);
     if (!sessionPath) return null;
     const manager = SessionManager.open(sessionPath);
-    return readSubagentRun(manager.getEntries() as unknown as SessionEntry[], sessionId, sessionPath);
+    const run = readSubagentRun(manager.getEntries() as unknown as SessionEntry[], sessionId, sessionPath);
+    return run && settleOrphanedRun(run);
   }
 
   async function steer(sessionId: string, message: string): Promise<void> {
@@ -597,7 +626,7 @@ export function createSubagentController(
 
   async function notifyParent(run: SubagentRunInfo): Promise<void> {
     // fork:upstream-0.9.2-subagent-notify — #937 移植：已取回则不送；父会话忙时先等空闲
-    if (takeResultConsumed(run.sessionId)) return;
+    if (takeResultConsumed(run)) return;
     let parent = dependencies.getSession(run.parentSessionId);
     if (!parent?.isAlive()) {
       const sessionFile = await dependencies.resolveSessionPath(run.parentSessionId);
@@ -610,10 +639,10 @@ export function createSubagentController(
     // Hold the notification until the parent is idle and re-check the mark, so a result the
     // parent already consumed never triggers a duplicate turn.
     while (parent.isAlive() && parent.isRunning()) {
-      if (takeResultConsumed(run.sessionId)) return;
+      if (takeResultConsumed(run)) return;
       await new Promise<void>((resolve) => { setTimeout(resolve, PARENT_IDLE_POLL_MS); });
     }
-    if (takeResultConsumed(run.sessionId)) return;
+    if (takeResultConsumed(run)) return;
     if (!parent.isAlive()) throw new Error(`Parent session is no longer available: ${run.parentSessionId}`);
     await parent.inner.sendCustomMessage({
       customType: "pi-web:subagent-notification",
