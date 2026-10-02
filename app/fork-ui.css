@@ -207,6 +207,23 @@ html.keyboard-open .extension-status-shelf {
 }
 
 /* ---------------------------------------------------------------------------
+ * fork:proma-32-skill-usage — the turn's file chips and skill chips share one
+ * wrapping row.
+ *
+ * `components/TurnWrittenFiles.tsx` and `components/fork/TurnSkillUsageSummary.tsx`
+ * each render their own `.pw-wrap` (the design-system chip row). Two of those are
+ * block-level, so side by side would be two stacked blocks; this wrapper is the row
+ * that puts them on one line and wraps them together when it runs out of width.
+ * No geometry here beyond the design tokens, and no new `.pw-*` class: the board
+ * owns the chips, this only owns their line.
+ * ------------------------------------------------------------------------- */
+.fork-turn-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+/* ---------------------------------------------------------------------------
  * fork:ui-21 — copy button glyph cross-fades instead of swapping.
  *
  * Markup is components/fork/CopyStateIcon.tsx: both glyphs are stacked and the

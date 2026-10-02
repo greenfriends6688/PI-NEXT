@@ -21,7 +21,9 @@ import { isApplyPatchToolName, isEditToolName } from "@/lib/tool-names";
 import { isThinkingExpandedByDefault, THINKING_EXPANDED_EVENT } from "@/lib/thinking-expansion-preference";
 import type { TurnStats } from "@/lib/turn-stats";
 import { TurnWrittenFiles } from "./TurnWrittenFiles";
+import { TurnSkillUsageSummary } from "./fork/TurnSkillUsageSummary";
 import type { WrittenFile } from "@/lib/turn-written-files";
+import type { SkillActivation } from "@/lib/skill-usage";
 import { skillExpansionToCommand } from "@/lib/slash-display";
 import type { SubagentToolDetails } from "@/lib/subagent-extension";
 import type {
@@ -222,6 +224,10 @@ interface Props {
    * final answer text-only.
    */
   writtenFiles?: WrittenFile[];
+  /** fork:proma-32-skill-usage —— 本轮用到的 skill（同上，由 ChatWindow 从整轮推导）。 */
+  skillUsage?: SkillActivation[];
+  /** fork:proma-32-skill-usage —— 点 chip 打开 Skills 分节并定位到该 slug。 */
+  onOpenSkill?: (slug: string) => void;
   /** Lifted expanded state for tool calls — when provided, ToolCallBlock becomes controlled. */
   expandedToolIds?: Set<string>;
   onToggleTool?: (toolCallId: string) => void;
@@ -353,12 +359,12 @@ function haveSameRelevantToolResults(
   return true;
 }
 
-export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, onOpenSession, entryId, searchBlock, onFork, forking, onRewind, rewinding, onNavigate, onEditContent, showTimestamp, prevTimestamp, turnStats, sessionId, writtenFiles, expandedToolIds, onToggleTool }: Props) {
+export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, onOpenSession, entryId, searchBlock, onFork, forking, onRewind, rewinding, onNavigate, onEditContent, showTimestamp, prevTimestamp, turnStats, sessionId, writtenFiles, skillUsage, onOpenSkill, expandedToolIds, onToggleTool }: Props) {
   if (message.role === "user") {
     return <UserMessageView message={message as UserMessage} cwd={cwd} onOpenFile={onOpenFile} entryId={entryId} onFork={onFork} forking={forking} onRewind={onRewind} rewinding={rewinding} onNavigate={onNavigate} onEditContent={onEditContent} />;
   }
   if (message.role === "assistant") {
-    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} turnStats={turnStats} sessionId={sessionId} entryId={entryId} searchBlock={searchBlock} writtenFiles={writtenFiles} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />;
+    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} turnStats={turnStats} sessionId={sessionId} entryId={entryId} searchBlock={searchBlock} writtenFiles={writtenFiles} skillUsage={skillUsage} onOpenSkill={onOpenSkill} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />;
   }
   if (message.role === "toolResult") {
     // Rendered inline under its toolCall — skip standalone rendering if paired
@@ -395,6 +401,9 @@ export const MessageView = memo(function MessageView({ message, isStreaming, too
     && prev.prevTimestamp === next.prevTimestamp
     && prev.turnStats === next.turnStats
     && prev.writtenFiles === next.writtenFiles
+    // fork:proma-32-skill-usage
+    && prev.skillUsage === next.skillUsage
+    && prev.onOpenSkill === next.onOpenSkill
     && prev.sessionId === next.sessionId
     && prev.expandedToolIds === next.expandedToolIds
     && prev.onToggleTool === next.onToggleTool;
@@ -666,6 +675,8 @@ function AssistantMessageView({
   entryId,
   searchBlock,
   writtenFiles,
+  skillUsage,
+  onOpenSkill,
   expandedToolIds,
   onToggleTool,
 }: {
@@ -683,6 +694,8 @@ function AssistantMessageView({
   entryId?: string;
   searchBlock?: AssistantContentBlock;
   writtenFiles?: WrittenFile[];
+  skillUsage?: SkillActivation[];
+  onOpenSkill?: (slug: string) => void;
   expandedToolIds?: Set<string>;
   onToggleTool?: (toolCallId: string) => void;
 }) {
@@ -902,8 +915,19 @@ function AssistantMessageView({
         </div>
       )}
 
-      {writtenFiles && writtenFiles.length > 0 && (
-        <TurnWrittenFiles files={writtenFiles} onOpenFile={onOpenFile} />
+      {/* fork:proma-32-skill-usage —— 「本轮用到的 skill」与「改动过的文件」同一行 chips
+          （同一个 wrap 行，不另起区块）：外层这一行 flex 让两组 chips 先横向排列，
+          放不下才各自换行。间距/几何全走 token，样式在 app/fork-ui.css 的
+          `.fork-turn-summary`；chip 本身是画板既有的 `.pw-wrap` + `.pw-chip`。 */}
+      {((writtenFiles && writtenFiles.length > 0) || (skillUsage && skillUsage.length > 0)) && (
+        <div className="fork-turn-summary">
+          {writtenFiles && writtenFiles.length > 0 && (
+            <TurnWrittenFiles files={writtenFiles} onOpenFile={onOpenFile} />
+          )}
+          {skillUsage && skillUsage.length > 0 && (
+            <TurnSkillUsageSummary skills={skillUsage} isStreaming={isStreaming} onOpenSkill={onOpenSkill} />
+          )}
+        </div>
       )}
 
       {/* fork:design-components PR-11 —— 回合结束行直接使用画板 12 的组件：

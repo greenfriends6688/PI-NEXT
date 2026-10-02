@@ -769,6 +769,9 @@ export const enLocale: LocalePlugin = {
     "chat.expandProcess": "Expand process details",
     "chat.filesWritten": "Files changed",
     "chat.openWrittenFile": "Open {name}",
+    // fork:proma-32-skill-usage —— 本轮真正读到过 SKILL.md 的 skill（见 lib/skill-usage.ts）。
+    "chat.skillsUsed": "Skills used this turn",
+    "chat.openSkillUsed": "Open {name} in Skills",
     "chat.loadEarlier": "Scroll up to load earlier messages",
     "chat.findLabel": "Find in conversation",
     "chat.findPlaceholder": "Find in conversation",

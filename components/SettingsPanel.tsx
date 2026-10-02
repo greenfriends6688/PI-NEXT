@@ -90,6 +90,8 @@ interface Props {
   cwd: string | null;
   sessionId: string | null;
   initialSection: SettingsSection;
+  /** fork:proma-32-skill-usage —— 从本轮的 skill chip 进来时，要定位到的那一个 slug。 */
+  focusSkillSlug?: string | null;
   onClose: () => void;
   onSessionReloaded: () => void;
   quoteSelectionEnabled: boolean;
@@ -982,7 +984,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   );
 }
 // fork:zc-15 — the section keyword table moved into `lib/settings-navigation.ts`
-export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, onOpenSession, sidebarWidth, onSidebarWidthChange, soundEnabled, onSoundToggle }: Props) {
+export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, onClose, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, onOpenSession, sidebarWidth, onSidebarWidthChange, soundEnabled, onSoundToggle }: Props) {
   const { t } = useI18n();
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const [mountedSections, setMountedSections] = useState<ReadonlySet<SettingsSection>>(
@@ -1132,7 +1134,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
           <main className="settings-dialog-main">
             {sectionHost("general", <GeneralSettings cwd={cwd} sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} sidebarWidth={sidebarWidth} onSidebarWidthChange={onSidebarWidthChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} />)}
             {sectionHost("models", <ModelsConfig embedded cwd={cwd} onClose={onClose} />)}
-            {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} />)}
+            {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}
             {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
             {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
             {/* fork:mcp-section — global pages, no project needed. */}

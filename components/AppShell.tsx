@@ -281,6 +281,12 @@ export function AppShell() {
   }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+  // fork:proma-32-skill-usage —— 本轮 skill chip 的落点：打开设置并定位到 Skills 分节里的那一条。
+  const [settingsSkillSlug, setSettingsSkillSlug] = useState<string | null>(null);
+  const handleOpenSkill = useCallback((slug: string) => {
+    setSettingsSkillSlug(slug);
+    setSettingsSection("skills");
+  }, []);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [projectTrust, setProjectTrust] = useState<ProjectTrustStatus | null>(null);
   const [projectTrustDialogOpen, setProjectTrustDialogOpen] = useState(false);
@@ -2844,6 +2850,8 @@ export function AppShell() {
               onSessionStatsPanelOpen={openSessionStatsPanel}
               onOpenFile={handleOpenLinkedFile}
               onOpenSession={handleOpenSession}
+              // fork:proma-32-skill-usage
+              onOpenSkill={handleOpenSkill}
               onAskInNewChat={handleAskInNewChat}
               quoteSelectionEnabled={quoteSelectionEnabled}
               initialPrompt={pendingQuotePrompt?.sessionId === selectedSession?.id
@@ -3109,6 +3117,7 @@ export function AppShell() {
         onOpenSession={handleOpenSession}
         sessionId={selectedSession?.id ?? null}
         initialSection={settingsSection}
+        focusSkillSlug={settingsSkillSlug}
         sidebarWidth={sidebarResizer.width}
         onSidebarWidthChange={sidebarResizer.setWidth}
         soundEnabled={soundEnabled}
@@ -3117,6 +3126,7 @@ export function AppShell() {
         onQuoteSelectionChange={handleQuoteSelectionChange}
         onClose={() => {
           setSettingsSection(null);
+          setSettingsSkillSlug(null);
           setModelsRefreshKey((key) => key + 1);
         }}
         onSessionReloaded={() => setSessionKey((key) => key + 1)}

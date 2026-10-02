@@ -767,6 +767,9 @@ export const zhTWLocale: LocalePlugin = {
     "chat.expandProcess": "展開處理詳細資料",
     "chat.filesWritten": "已變更的檔案",
     "chat.openWrittenFile": "開啟 {name}",
+    // fork:proma-32-skill-usage —— 本輪真正讀到過 SKILL.md 的 skill（見 lib/skill-usage.ts）。
+    "chat.skillsUsed": "本輪用到的 Skill",
+    "chat.openSkillUsed": "在 Skills 裡開啟 {name}",
     "chat.loadEarlier": "向上捲動以載入較早的訊息",
     "chat.findLabel": "在會話中尋找",
     "chat.findPlaceholder": "在會話中尋找",

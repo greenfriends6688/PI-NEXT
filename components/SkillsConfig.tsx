@@ -14,6 +14,7 @@ import {
   getLastSettingsSelection,
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
+import { getSkillSlugFromEntryPath } from "@/lib/skill-usage";
 import {
   ConfigBadge,
   ConfigButton,
@@ -49,6 +50,17 @@ function sourceLabel(skill: Skill): string {
   if (scope === "user" || src === "user") return "global";
   if (scope === "project" || src === "project") return "project";
   return "path";
+}
+
+/**
+ * fork:proma-32-skill-usage —— 按 slug 找技能。
+ *
+ * slug 是 `skills/` 下的目录名（`lib/skill-usage.ts` 的 `getSkillSlugFromEntryPath`），
+ * 而列表这一侧给的是绝对路径，所以比对走**同一个正则**，而不是字符串拼接 ——
+ * 同名 skill 可能同时存在于全局与项目两处，命中哪条就选哪条（先到先得）。
+ */
+export function findSkillBySlug(skills: Skill[], slug: string): Skill | undefined {
+  return skills.find((skill) => getSkillSlugFromEntryPath(skill.filePath) === slug);
 }
 
 export function orderSkillsByDormancy<
@@ -841,10 +853,13 @@ export function SkillsConfig({
   cwd,
   onClose,
   embedded = false,
+  focusSlug = null,
 }: {
   cwd: string;
   onClose: () => void;
   embedded?: boolean;
+  /** fork:proma-32-skill-usage —— 从本轮的 skill chip 点进来时，要选中的那一个。 */
+  focusSlug?: string | null;
 }) {
   const { t } = useI18n();
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -883,6 +898,10 @@ export function SkillsConfig({
       setSkills(list);
       setProjectResourcesLoaded(d.projectResourcesLoaded ?? true);
       setSelected((current) => {
+        // fork:proma-32-skill-usage —— chip 带来的 slug 优先于「上次选的那一条」：
+        // 用户点进来就是要看它，落在别的条目上等于没点。
+        const focused = focusSlug ? findSkillBySlug(list, focusSlug) : undefined;
+        if (focused) return focused.filePath;
         if (current && list.some((skill) => skill.filePath === current)) return current;
         const initialSkill = list.find((skill) => !skill.disableModelInvocation) ?? list[0];
         return initialSkill?.filePath ?? null;
@@ -894,7 +913,7 @@ export function SkillsConfig({
     } finally {
       setLoading(false);
     }
-  }, [cwd]);
+  }, [cwd, focusSlug]);
 
   useEffect(() => {
     setUpdateStatuses({});
