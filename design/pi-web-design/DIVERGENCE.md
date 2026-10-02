@@ -1875,6 +1875,21 @@ Git 图谱、浏览器面板），要么开了也只用肉眼看「像不像」�
      初版按 `.child` 的 26px 再叠容器 padding，子行被推到 60px 开外、竖线与文字之间
      空一大条（用户截图），压回贴着走。
 
+196. **设置壳：整屏页面 → 弹窗**（`SettingsPanel.tsx` + `app/settings.css`，**用户裁定 2026-10-02**）——
+     **用户裁定，与画板 40/41~47 相反**。画板里 `pw-settings` 那个 1440×900 的帧就是整个
+     窗口，当年为此写过 `.settings-dialog-surface.pw-modal { width/height:100%; 无圆角无阴影 }`。
+     用户看过后说「纯页面不太合适，帮我变成弹窗」。按用户改判：去掉 `pw-modal`，回到
+     `.settings-dialog-surface` 自己的 1080×84vh + radius-2xl + shadow-lg（居中、有背板、
+     点背板或 Esc 关闭）。**画板不动，产品偏离登记在此。**连带三处：
+     · 关闭钮从页头里搬出来常驻右上角 —— 页头在宽屏是 `display:none`（画板没有页头，
+       返回入口在左导航底部），弹窗化后那样会没有可见的关闭口；
+     · **常规页两栏块流降成单栏**：弹窗内容列只有 800px（1080 − 200 导航 − 80 页边距），
+       画板的两栏是**按 1240 内容列**排的，两栏各 ~394 时字段行标签开始逐字换行
+       （实测「过程步骤默认展 开」「Ctrl+Enter 发 送」）。只降常规页 —— 用量页的统计卡
+       两栏、列表页的 `.pw-cols`（300 + 详情）在 800 下都是好的，不动；
+     · 顶栏红绿灯让位规则（fork:desktop-settings-nav）撤回：弹窗居中，顶部远在
+       红绿灯下方，那条 40px 内距在弹窗里只剩一段死空白。
+
 ---
 
 ## U · 2026-10-01：设置页 24 帧逐帧对位（新增 24 份 spec）+ token 落地第一批
@@ -2314,3 +2329,49 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
    `shouldRetainTaskProgress()`，有单测。
 3. **4 秒窗口结束后清单仍在转录里**。所以浮层只「不再显示」，不回写任何历史：
    再发一轮消息时同一个签名会重新出现，而数据永远是 `extractTodoState` 的读数。
+
+## AD · 2026-10-02：画板 12 的已完成待办「勾看不见」—— board.css 选择器越界（**修正画板本身**）
+
+这一条不是「产品与画板的差异」，是**画板自己的缺陷**，产品和画板一起错。记在这里是因为
+它改了 `board.css`，而 `preview/12-transcript-interactive.png` 是入库资产、需要同步重生成。
+
+### AD-0 · 症状与证据
+
+`.pw-todo.done` 的框在画板与产品里都是一块**纯灰方块**，对勾完全看不见。实测（真 Chrome）：
+
+| 量 | 值 |
+| --- | --- |
+| `.box` 的 `color` | `rgb(139, 139, 150)` |
+| `.box` 的 `background` | `rgb(139, 139, 150)` ← 与上一行相同 |
+| `svg` 的 `stroke` | `rgb(139, 139, 150)` |
+| `--accent-on`（本该是勾的颜色） | `#ffffff` |
+
+勾与底同色，所以是「灰底灰勾」。
+
+### AD-1 · 根因
+
+`board.css:449` 写的是：
+
+```css
+.pw-todo.done span { color: var(--n-placeholder); text-decoration: line-through; }
+```
+
+这条本意是给**正文**加删除线，但画板的 DOM 里 `.box` 也是一个 `<span>`
+（`<div class="pw-todo done"><span class="box"><i data-ico="check"></i></span><span>正文</span></div>`），
+于是它把 `.box` 的 `color` 从 `.pw-todo .box` 给的 `--accent-on`（白）一并改成了
+`--n-placeholder`（灰）。`.now` 档没这个问题，因为没有对应的 `.pw-todo.now span` 规则。
+
+### AD-2 · 修法与影响面
+
+只改选择器，**画板 DOM 一个字节不动**：
+
+```css
+.pw-todo.done > span:not(.box) { color: var(--n-placeholder); text-decoration: line-through; }
+```
+
+- 画板 12 的 4 条 `pw-todo` 结构不变，因此 `check-boards` / `check-align` 无需新 spec。
+- 产品侧（`TaskProgressOverlay` 的展开面板）照抄画板 DOM，因此一并修好 —— 这也说明
+  「照抄画板」在画板本身有 bug 时会连 bug 一起抄过来，**判据⑦ 不能替代实测**。
+- `preview/12-transcript-interactive.png` 已用
+  `node design/pi-web-design/scripts/render-boards.mjs design/pi-web-design/preview 12-transcript-interactive.html`
+  重新生成。

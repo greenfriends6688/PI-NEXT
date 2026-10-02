@@ -446,7 +446,10 @@ body.pw.dark { background: #0f0f13; }
 .pw-todo .box { width: 14px; height: 14px; margin-top: 2px; flex: none; border: 1px solid var(--n-border); border-radius: var(--radius-3); display: grid; place-items: center; color: var(--accent-on); }
 .pw-todo.done .box { background: var(--n-placeholder); border-color: transparent; }
 .pw-todo.done .box svg { width: 10px; height: 10px; }
-.pw-todo.done span { color: var(--n-placeholder); text-decoration: line-through; }
+/* 2026-10-02 修正：原来写的是 `.pw-todo.done span`，而 `.box` 也是 `<span>` ——
+   它把对勾的 color 从 `--accent-on`（白）一并改成了 `--n-placeholder`（灰），
+   于是「灰底灰勾」= 勾完全看不见，画板与产品都是。这里只作用到正文那一格。 */
+.pw-todo.done > span:not(.box) { color: var(--n-placeholder); text-decoration: line-through; }
 .pw-todo.now .box { background: var(--accent); border-color: transparent; }
 .pw-todo.now .box svg { width: 10px; height: 10px; }
 
