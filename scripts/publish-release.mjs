@@ -8,7 +8,7 @@
  * `uploads.github.com`，两个域名实测都通。
  *
  * 用法：
- *   export GITHUB_TOKEN=ghp_xxx      # 勾 `repo` 权限，见 scripts/renumber-github-releases.py 文件头
+ *   export GITHUB_TOKEN=ghp_xxx      # 勾 `repo` 权限（fine-grained PAT 也可以）
  *   node scripts/publish-release.mjs --version=0.1.5-beta.3
  *
  * 可选：
@@ -77,7 +77,7 @@ async function api(path, init = {}) {
       `public/pi-next-logo.png` 生成的（icon.icns / icon.png / trayTemplate），
       同一提交里把 `desktop:dist` 改成先跑 icons，所以从 zip 打包也拿得到。12M → 5.2M。 */
 function buildZip() {
-  const out = join(tmpdir(), `pi-agent-source-${tag}.zip`);
+  const out = join(tmpdir(), `pi-next-source-${tag}.zip`);
   execFileSync("git", ["archive", "--format=zip", "-9", "-o", out, tag, "--", ".", ":(exclude)docs", ":(exclude)design/pi-web-design/preview", ":(exclude)build"], { stdio: "inherit" });
   const size = statSync(out).size;
   console.log(`  打包 ${basename(out)}  ${(size / 1024 / 1024).toFixed(1)} MB（已排除 docs/）`);

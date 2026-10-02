@@ -216,7 +216,7 @@
         "nsis",
         "portable"
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "PI-NEXT-${version}-${arch}.${ext}",
       "electronLanguages": [
         "en-US",
         "zh-CN",
@@ -236,11 +236,11 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "PI NEXT",
-      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "artifactName": "PI-NEXT-Setup-${version}.${ext}",
       "uninstallDisplayName": "PI NEXT ${version}"
     },
     "portable": {
-      "artifactName": "${productName}-Portable-${version}.${ext}"
+      "artifactName": "PI-NEXT-Portable-${version}.${ext}"
     },
     "extraResources": [
       {
