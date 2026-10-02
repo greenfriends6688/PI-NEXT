@@ -809,8 +809,11 @@ function describeMistral(
   if (!model.reasoning) return { kind: "off", params: {} };
   if (level === "off") return { kind: "off", params: {} };
   const effective = clampLevelFromFields(model, level, map);
-  const id = model.id ?? "";
-  const usesReasoningEffort = id === "mistral-small-2603" || id === "mistral-small-latest" || id === "mistral-medium-3.5";
+  // pi-ai 1.0 改了这条规则：**不再按模型 id 名单**（旧镜像里那三个 mistral-* id），
+  // 而是看 `model.reasoning ? model.thinkingLevelMap : undefined` ——
+  // 有 thinkingLevelMap 的走 `reasoning_effort`，其余 reasoning 模型走 `prompt_mode`。
+  // 抄 id 名单的话每上一个新模型就要补一次，1.0 当天就漂了。
+  const usesReasoningEffort = Object.keys(map).length > 0;
   if (usesReasoningEffort) {
     // mapReasoningEffort：`thinkingLevelMap?.[level] ?? "high"`（null 也会落到 "high"）。
     const effort = mappedString(map, effective) ?? "high";
