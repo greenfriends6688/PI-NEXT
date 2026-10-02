@@ -320,29 +320,37 @@ PR-9 全程排队，逐条单独评审
 7. **台账补录要等脏树落 commit**：cron/memory/prompts 那批改动已经删掉了对应路由，基于它们的台账判定（PR-10）会失真，commit 之后重跑一遍。
 ---
 
-## 8. 执行状态
+## 8. 执行状态（已收尾）
 
-> 分支都在独立 worktree（`/Users/yingjing/Desktop/pi-codex-worktrees/<name>`，`node_modules` symlink），避免与主工作树上并行的会话撞车。
+**全部 PR 已合入 main**，pi SDK 已升到 **1.0.0**（上游 agegr/main 还在 0.99.1）。
 
-| 分支 | PR | 状态 | 验证 |
-| --- | --- | --- | --- |
-| `up/pr10-ledger` | PR-10 台账补录 | ✅ 已合入 main | 11 commit，纯 docs（0047–0056） |
-| `up/pr2-security` | PR-2 安全与数据 | ✅ 完成，已 rebase 到 main | `tsc` 0 · 2328/0 |
-| `up/pr3-render` | PR-3 渲染兼容 | ✅ 完成，已 rebase（含 1 处测试文件冲突已手工合） | `tsc` 0 · 2336/0 · `check:design` 全绿 |
-| `up/pr12-model-config` | PR-12 模型配置 A 批 | ✅ 完成，已 rebase | `tsc` 0 · 2371/0 · `check:design` 全绿 |
-| `up/pr6-files` | PR-6 文件与工作区 | 🔄 运行中 | — |
-| — | PR-4 / PR-5 / PR-7 | ⏸ 排队（与主工作树在途改动同文件） | — |
-| — | PR-1 依赖升级、PR-11 MCP | ⏸ 等排期 | — |
+| 里程碑 | 内容 | 状态 |
+| --- | --- | --- |
+| M0 | PR-0 基线 · PR-2 安全与数据 · PR-10 台账 · PR-12 模型配置 A 批 | ✅ |
+| M1 | PR-1 依赖升级（pi **1.0.0** + next 16.3.6）· PR-10 | ✅ |
+| M2 | PR-3 渲染兼容 · PR-4 扩展 UI 排队 · PR-5 会话与流 | ✅ |
+| M3 | PR-6 文件与工作区 · PR-7 设置与 composer · PR-8 模型小修 · PR-13 模型 B 批 | ✅ |
+| M4 | PR-11 MCP 运行时 · PR-9 安全精选 | ✅ |
+| — | PR-12 的 A5/A6（压缩/思考预算）· misc-tail 四条小尾巴 | ✅ |
 
-**合并前置**：主工作树当时有另一会话的未提交改动（`ChatWindow` / `MessageView` / i18n / `board.css` 等），PR-2/3/12 与之重叠，**必须等它落 commit 后再合**，合完统一跑一次 `npm run prod` + 浏览器验收。
+台账新增 **0057–0061**（`docs/patches/`）。验收数据：`tsc --noEmit` 0 ·
+全量 **2691/2691** · MCP 契约 **23/23（0 skipped）** · `check:design` 全绿 ·
+prod 起服冒烟 6 个接口全 200。
 
-### 已知的验收缺口（agent 记的，逐条要人补）
+### pi 1.0.0 升上去时被抓到的两处行为变化（都靠既有测试发现）
 
-- **G5 真机 Safari / iOS 16.2 与 Playwright WebKit 未验**（无设备，agent 禁止跑 build）。已记进 AGENTS.md 待办。
-- **`browserslist` 加 safari/ios_saf 16.2 后 bundle 体积变化未量化**（PR-3 额外项）。
-- **`verify:boards` 像素级对齐全部欠着**：它需要服务着本分支产物的 30141，而主工作树的 dev 占用 `.next/dev/lock`，起第二个会争锁并污染共享 `.next`。只能合并后统一跑。
-- **PR-12 的 A5/A6 未做**（压缩预算、思考档 token 预算）：两者都需新画板控件，A6 同样没有 SDK setter，建议合成一条一起做。
+1. **mistral 思考档镜像漂移**：1.0 把判定依据从「模型 id 名单」换成
+   `model.thinkingLevelMap` 是否存在。`lib/thinking-profile.test.mjs` 那个
+   「镜像 vs 真 SDK」漂移探测器在发布当天抓到。已改成同规则。
+2. **会话首刷时机**：0.99+ 把「有 assistant 消息」改成「有 user **或** assistant 消息」，
+   所以首条用户消息就建盘。`lib/rpc-manager.test.mjs` 的 clone 用例断言随之改写。
 
----
+### 仍未验证（要真设备 / 要人眼）
 
-## 9. 风险与未尽事项
+- **G5 真机 Safari / iOS 16.2 与 Playwright WebKit**（无设备）
+- **`verify:boards` 逐帧对位**：需要独占 30141 与 `.next`；本轮跑了 `check:design`
+  的静态四项，画板逐帧几何对位仍欠着
+- **PR-6 的 `..` fail-closed**：G2 下沉后所有拿 cwd 授权的路由都 fail closed，
+  单测覆盖了但没有运行时实测
+- **PR-11 的 P1 `McpHost` 未做**，所以 MCP 内置扩展虽已注册、仍一个 server 都不连
+- **PR-7 两条 CSS**（分组标题开关热区、状态条间距）只能窄屏人眼验
