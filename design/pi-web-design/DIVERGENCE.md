@@ -2026,3 +2026,107 @@ pi-ai 的 `Model` 上有 `inputLimits?`（`ModelInputLimits` → `images.resize.
    `{ inputLimits: { images: { resize: {} } } }` 这类空壳（A1 的同一条教训）。
 3. **单位不做隐式换算**：`promptCache` 就是秒（`300` / `3600`），
    与文件里写的完全一致；`maxBytes` 就是字节。省掉一层「用户以为填的是 MB」的可能。
+
+---
+
+## Y · 2026-10-01：PR-12 A5 —— 「上下文压缩」块（零新类，全部控件复用）
+
+### Y-0 · 这一条在定什么
+
+pi 认 `settings.compaction.{reserveTokens,keepRecentTokens,modelOverrides}` 与
+`settings.branchSummary.reserveTokens`（`settings-manager.d.ts:4-15, :83-84`），设置页里
+**一个控件都没有**：压缩预留多少 / 保留最近多少 / 某个模型用另一套预算，只能手改
+`~/.pi/agent/settings.json`。画板 40 帧 1 右栏 / 62 帧 C 右栏在「重试策略」之后补一块。
+
+### Y-1 · `modelOverrides` 的真实形状与审计记录的不一样（这条比像素重要）
+
+审计与计划里把 `modelOverrides` 记成「用哪个模型做压缩」。0.87 的类型是
+`Record<"<provider>/<id>", { reserveTokens?, keepRecentTokens? }>`（`CompactionModelOverride`），
+全树 `grep -n "compactionModel" dist/` **零命中** —— pi 根本没有「压缩用哪个模型」这个设置。
+它是给某个模型一套**不同的 token 预算**，解析顺序「模型覆盖 → 全局 → 内建默认」
+（`getCompactionTokenSetting`，`settings-manager.js:566-581`）。UI 按真实形状画：
+一条 `.pw-field`，标签是等宽的模型引用，右侧两个 `.pw-numin` 分别预留 / 保留。
+
+**清空即删键**：某个框清空 = 这个字段不覆盖（回落全局）；两个框都清空 = 删掉整条覆盖、
+那一行随之消失（A1 的同一条教训，见 X-2）。
+
+### Y-2 · 零新 `.pw-*` 类（判据⑦ 不触发，board.css 不动）
+
+| 产品 DOM | 类 | 来源 |
+| --- | --- | --- |
+| 块 / 行 | `.pw-block` / `.pw-field` / `.pw-label` | 画板 40 常规页 |
+| 开关 | `.pw-switch`（`PwSwitch`） | 画板 40「通知」块 |
+| 三个全局数值框 | `.pw-ctl > .pw-input.pw-numin` | 画板 44「最大运行次数」行（V 节收编） |
+| 新增模型覆盖 | `.pw-selectbox`（`PwSelectBox`） | 画板 40「代码字体」行 —— 值是一串要背下来的标识，正合 `PwSelectBox` 的判据 |
+| 移除一条覆盖 | `.pw-iconbtn.sm` + `trash-2` | 画板 41 模型列表行 |
+
+`components/ContextBudgetSettingsBlock.test.mjs` 里有一条「判据⑦」用例：把组件源码里出现的
+每一个 `pw-` 串拿去 `board.css` 里逐个找，必须全部命中（与 G4 的做法同一条路）。
+
+### Y-3 · 与画板的三处有意的差
+
+| 处 | 画板 | 产品 | 为什么 |
+|---|---|---|---|
+| 模型覆盖行数 | 画一条 | 按 `settings.compaction.modelOverrides` 的条数增减（通常 0 条） | 数据依赖，与「皮肤卡片按已装数」同一类；`62-frame2` / `62-settings-blockflow` 的 `.pw-block` 已知差异已登记 |
+| 键的来源 | 写死 `openai/gpt-5` | 只能从 `/api/models` 的清单里挑（SDK 用 `` `${provider}/${id}` `` 查表） | 手打错一个字符就是一条永远不生效的死配置 |
+| 两个 90px 的框 | 靠 `title` 区分 | 同样 `title`，另加 `aria-label` | 画板只定形态；产品里这是两枚可聚焦输入框，无障碍名不能只靠悬停 |
+
+### Y-4 · 四个字段里只有一个走 SDK（逐字段结论）
+
+`compaction.enabled` 有 setter（`setCompactionEnabled()`，`:214`），走 SDK；
+另外三个（`reserveTokens` / `keepRecentTokens` / `modelOverrides`）与
+`branchSummary.reserveTokens` 在 0.87 **没有 setter**，走 `lib/retry-settings.ts`
+已经趟过的那条路（锁内 re-read → 只替换目标顶层键 → 原子写 0600 → GET 不建文件 →
+错误从 `drainErrors()` 取）。细节与锁协议见该文件与 `lib/context-budget-settings.ts` 的文件头。
+
+---
+
+## Z · 2026-10-01：PR-12 A6 —— 「思考档 token 预算」块（零新类）
+
+### Z-0 · 这一条在定什么
+
+pi 认 `settings.thinkingBudgets.{minimal,low,medium,high}`（`settings-manager.d.ts:50-53`、
+`:115`），运行时由 pi-ai 的 `thinkingBudgetForLevel(level, customBudgets)` 消费
+（`dist/api/simple-options.js:47-51`），设置页里一个控件都没有。画板 40 帧 1 右栏 /
+62 帧 C 右栏在「上下文压缩」之后补一块：一句 `.pw-hint` + 四条 `.pw-field`。
+
+### Z-1 · SDK setter 结论：**四个字段一个都没有**，整段走自己的读改写
+
+`settings-manager.d.ts:298` 只有 `getThinkingBudgets()`（返回 `ThinkingBudgetsSettings |
+undefined`），**没有任何 setter**；私有 `markModified` / `save` / `globalSettings` 拿不到，
+`applyOverrides()` 只改内存视图不落盘。所以这一段没有一条能走 SDK 的路 —— 与 A5 的
+`compaction.enabled` 不同，写入全部落在 `lib/thinking-budget-settings.ts`：
+`proper-lockfile` 锁 `settings.json` 本身（与 `FileSettingsStorage` 同一把锁）→ 锁内 re-read
+→ 只替换 `thinkingBudgets` 这一段的顶层键 → `writePrivateFileAtomicSync` 原子写 + 0600 →
+GET 不建文件 → 读不出来抛 `ThinkingBudgetReadError`（422）。这与 `lib/retry-settings.ts`、
+`lib/context-budget-settings.ts` 是同一套不变量，第三处复用。
+
+### Z-2 · 落盘口径：**只写与内建默认不同的值**
+
+等于 `DEFAULT_THINKING_BUDGETS`（1024 / 2048 / 8192 / 16384）的那一档直接删键，四档都等于
+默认就整段删掉 —— settings.json 里不留 `{ thinkingBudgets: {} }`，也不留同值的重复项。
+副作用是**读回来再原样写回去不动文件**（单测钉住了这条幂等性）。代价写在明处：将来 pi-ai
+改了内建默认，曾经「设成默认值」的用户会跟着变 —— 与 A1「清空即删键」同一条取舍。
+
+### Z-3 · 零新 `.pw-*` 类，`.pw-hint` 的 `margin:0` 是一处**刻意的对齐**
+
+| 产品 DOM | 类 | 来源 |
+| --- | --- | --- |
+| 块级说明 | `p.pw-hint` | 画板 41「输入上限与提示词缓存」小节（`ModelLimitsFields.tsx:237` 同一形态） |
+| 四档数值框 | `.pw-ctl > .pw-input.pw-numin` | 画板 44「最大运行次数」行（V 节收编） |
+
+**`margin:0` 要在画板里显式写**：产品有 Tailwind preflight 把 `p` 的外边距归零，画板没有
+全局 reset（`board.css:1-18` 只 reset `html, body`），所以画板上那一行必须带
+`style="margin:0"` 才能与产品对位 —— 与画板 41:126 的处理一模一样。这不是新增内联几何
+（`check-style-literals` 只扫 `components/` 与 `app/`，画板在 `SKIP_DIRS` 里）。
+
+### Z-4 · 这一块必须讲清的四处，否则用户会以为改了就有用
+
+1. 只有**按 token 计思考预算**的供应商用得上（Anthropic / Bedrock / Google）；走
+   reasoning effort 的供应商请求里根本没有这个数。
+2. 思考强度有 7 档，预算只有 4 个键：`off` 不发思考参数，`xhigh` / `max` 被 pi-ai 的
+   `clampReasoning` 折回 `high`（共用 high 那一档）。所以 `off` / `xhigh` / `max`
+   三个键被服务端明确 400 拒掉，不是漏了。
+3. `adjustMaxTokensForThinking` 会按模型输出上限再夹一次，并无论如何给答案留
+   `MIN_ANSWER_TOKENS`（1024），所以填一个很大的数不等于真能想那么久。
+4. 改动对**下一次请求**生效，已经发出的那一次不受影响。
