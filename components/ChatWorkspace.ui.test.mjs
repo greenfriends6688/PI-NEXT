@@ -23,8 +23,8 @@ test("the chat row offers select, new chat, configure and collapse as separate b
 test("the chat caption matches the projects caption typography", () => {
   assert.match(row, /className="pw-row"/);
   assert.match(row, /className="pw-ico"><i data-ico="messages-square"/);
-  // 动作组同样是画板的 .pw-acts + .pw-iconbtn.sm。
-  assert.match(row, /className="pw-acts"/);
+  // 动作组同样是画板的 .pw-acts + .pw-iconbtn.sm（后缀修饰类可以跟在后面）。
+  assert.match(row, /className="pw-acts[ "\n]/);
   assert.match(row, /className="pw-iconbtn sm"/);
 });
 

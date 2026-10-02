@@ -2731,3 +2731,36 @@ button.process-file-chip:hover {
   --text-dim: color-mix(in srgb, var(--ds-n-placeholder) 78%, var(--ds-n-muted));
   --border-strong: color-mix(in srgb, var(--ds-n-border) 72%, var(--ds-n-strong));
 }
+
+/* ===========================================================================
+ * fork:pwa-switch-geometry —— DSN-04 的「所有 button 一律补 min-height」把画板里
+ * **高度写死的小开关**拉变了形（用户实拍：一颗「月牙」压在旁边的计数徽标上）。
+ *
+ * 根因（≤640px 实测）：
+ *   DSN-04（本文件 ~2127）给 `button, select, [role=button], …` 一律补
+ *   `min-height: var(--control-touch)`，而 `--control-touch` 在本仓是 **36px**。
+ *   board.css 的 `.pw-switch` 是 `width:30px; height:17px` + 一颗绝对定位的
+ *   13×13 圆钮（`top:2px; left:2px`）。`min-height` **只压高、不碰宽**，于是开关
+ *   渲染成 **30×36 的椭圆**，圆钮仍钉在顶部 2px —— 这就是那颗「月牙」。
+ *   同一机制也把它所在的行顶穿（行 36 已满，它自己要 36）。
+ *
+ * 改法与 `.panel-resize-handle` / `fork:pwa-hit-slop` / `.pw-group-title .pw-switch`
+ * 完全同一套：盒子回到画板几何（一个像素都不动），命中区改用 `::after` 外扩
+ * —— 30×17 → 46×33，短边越过 `--control-md`(32)，与既有那几条 `::after` 规则同值同口径
+ * （它们只加命中区、没撤 min-height，所以在手机档反被压变形；本段补上撤除那一半）。
+ * 桌面（>640px）整段不生效。`board.css:833` 已给 `.pw-switch{position:relative}`。
+ * ========================================================================= */
+@media (max-width: 640px) {
+  button.pw-switch {
+    /* 只撤 DSN-04 补的那一档；`height` 仍由 board.css 的 `.pw-switch` 给出。 */
+    min-height: 0;
+  }
+  /* 特异性 `button.pw-switch::after`(0,1,2) 低于作用域内的
+     `.pw-group-title .pw-switch::after`(0,2,2) 等既有规则 —— 那些块的 inset 同值，
+     谁赢都一样，不冲突。 */
+  button.pw-switch::after {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s2) * -1);
+  }
+}

@@ -2717,9 +2717,13 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* ---- ③b 聊天工作区行（画板 02 的 B 帧，聊天分区标题行）-------------
      量测：`div.pw-row` 里是「标题 button + 徽标 + 三枚 22px 动作（+ / 齿轮 /
-     折叠）」，三枚 gap 2px，整组 hover 才出现。手机上常驻由 ChatWorkspaceRow
-     的 `isMobile` 内联给出，这里补间距、命中区，以及把三枚收进一条 40px 的
-     命中带：3×22 + 2×24 = 114px，标题还剩 ~120px，够放「聊天工作区」。 */
+     折叠）」，三枚 gap 2px，整组 hover 才出现。触控档常驻由 ChatWorkspaceRow
+     的 `useIsCompact()` 内联给出（`fork:pwa-sidebar`，与 SessionSidebar 同口径），
+     这里补间距、命中区，以及把三枚收进一条 40px 的命中带：
+     3×22 + 2×24 = 114px，标题还剩 ~120px，够放「聊天工作区」。 */
+  /* `fork-pwa-sb-ws-acts` 由 ChatWorkspaceRow 在触控档挂上；桌面档仍有该类名
+     （只是 opacity 为 0），所以下面的 pitch / 命中区在桌面对隐藏的这组也生效，
+     但绘制尺寸一个像素没改 —— 可见时才有意义的间距，桌面不可能被它碰到。 */
   .pw-row .fork-pwa-sb-ws-acts { gap: var(--fork-pwa-sb-hit-pitch); }
   .pw-row .fork-pwa-sb-ws-acts > button { min-height: var(--fork-pwa-sb-hit); }
   /* 标题那一格（`.pw-row > button.pw-inline`，聊天工作区行 / 搜索组头）也占满行高。 */

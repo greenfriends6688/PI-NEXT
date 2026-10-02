@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
+// fork:pwa-sidebar —— 触控档把三枚行内动作从 hover 改成常驻（见下方 `.pw-acts`）。
+import { useIsCompact } from "@/hooks/useIsMobile";
 
 /**
  * 聊天 分区标题行（fork feature: `docs/patches/0001-chat-workspace.md`）。
@@ -41,6 +43,12 @@ export function ChatWorkspaceRow({
 }) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
+  /* fork:pwa-sidebar —— 触屏没有 hover：这一行是**整个聊天工作区唯一的入口**
+     （切工作区 / 新建对话 / 换目录 / 折叠），靠 `onMouseEnter` 显形等于让手指
+     先摸黑点一次。`useIsCompact` 与 `SessionSidebar` 其它行内动作同口径（≤1024）。
+     `fork-pwa-sb-ws-acts` 是 app/fork-ui.css 里已经写好的那套命中区/间距规则 ——
+     在那个文件加上类之前它是死代码。 */
+  const touchActions = useIsCompact();
 
   return (
     <div
@@ -78,7 +86,7 @@ export function ChatWorkspaceRow({
         </span>
       )}
 
-      <span className="pw-acts" style={{ opacity: hovered ? 1 : 0, flexShrink: 0 }}>
+      <span className="pw-acts fork-pwa-sb-ws-acts" style={{ opacity: hovered || touchActions ? 1 : 0, flexShrink: 0 }}>
         <button
           type="button"
           onClick={onNewChat}
