@@ -14,7 +14,6 @@
     "components/fork/ConversationFindBar.tsx::inline-geometry-literal": 2,
     "components/fork/EmptyStateGuide.tsx::inline-geometry-literal": 1,
     "components/fork/ExplorationBanner.tsx::inline-geometry-literal": 1,
-    "components/fork/TodoChip.tsx::inline-geometry-literal": 5,
     "components/GitGraphTab.tsx::inline-geometry-literal": 2,
     "components/GitRefChips.tsx::inline-geometry-literal": 2,
     "components/MermaidBlock.tsx::inline-geometry-literal": 1,

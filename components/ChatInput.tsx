@@ -52,7 +52,6 @@ import {
   toggleFavoriteModelKey,
 } from "@/lib/favorite-models";
 import { ComposerContextStrip } from "./ComposerContextStrip";
-import { TodoChip } from "./fork/TodoChip";
 // fork:zc-08 — 附件 chip 的多类型预览（PDF / DOCX / 音视频 / 文本）。
 import { AttachmentPreview } from "./fork/AttachmentPreview";
 import type { TodoSummary } from "@/lib/todo-state";
@@ -3249,11 +3248,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             requestAnimationFrame(() => textareaRef.current?.focus());
           }}
         />
-        {todoSummary && todoSummary.total > 0 && (
-          <div className="pw-rowgap" style={{ marginBottom: "var(--space-row)" }}>
-            <TodoChip summary={todoSummary} />
-          </div>
-        )}
+        {/* fork:proma-31-task-progress（2026-10-02 用户裁定）—— 待办清单的**唯一**
+            入口是 ChatWindow 里那个吸底浮层（可点展开、可复制）。这里原先还挂着一枚
+            `TodoChip`，和浮层读同一份 extractTodoState，于是清单在屏幕上出现两遍；
+            芯片已删除，不要再加第二个待办入口。`todoSummary` 这个 prop 仍然保留
+            —— 上面的 `~` 引用菜单（filterTodoReferenceItems）还在用它。 */}
         {/* fork:design-components —— 附件区 = 画板 20「附件与引用」A 帧：一条 .pw-chips，
             文件是 .pw-chip（类型图标 + 文件名 + 芯片内 data-ico="x" 移除钮）。
             图片保留 56px 缩略图（画板没画缩略图形态，而 ChatInput 的既有测试要求

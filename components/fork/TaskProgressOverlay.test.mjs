@@ -1,7 +1,7 @@
 /**
  * fork:proma-31-task-progress —— 浮层的结构断言测试。
  *
- * 这里只有 `react-dom/server`（与 components/fork/TodoChip.test.mjs 同一套），
+ * 这里只有 `react-dom/server`（与 `components/fork/RetryNotice.test.mjs` 同一套），
  * 没有 DOM 与计时器，所以**行为断言走源码**：浮层的倒计时与卸载都在 effect 里，
  * 真正被钉住的是「判据来自纯函数」这件事 —— 只要源码里那几行还在，行为就在；
  * 纯函数本身的行为由 lib/task-progress.test.mjs 逐条覆盖。
@@ -61,7 +61,7 @@ test("可见性只由 effect 置起：渲染期自己拿不到签名，所以首
 });
 
 test("浮层的类型、度量与图标全部取自画板，不自己造", () => {
-  assert.match(source, /className=\{`pw-toast\$\{tone === "active" \? "" : ` \$\{tone\}`\}`\}/);
+  assert.match(source, /className=\{`pw-toast fork-task-progress\$\{tone === "active" \? "" : ` \$\{tone\}`\}`\}/);
   assert.match(source, /className="pw-badge count"/);
   assert.match(source, /className="pw-grow"/);
   assert.match(source, /className=\{`pw-progress\$\{railTone\}`\}/);
@@ -73,10 +73,49 @@ test("浮层的类型、度量与图标全部取自画板，不自己造", () =>
 });
 
 test("四个图标名都在 lucide 路径表里（补上 check-icons 认不出的那层）", () => {
-  for (const name of ["circle-alert", "triangle-alert", "loader-circle", "circle-check", "list-checks"]) {
+  for (const name of [
+    // 浮层标题
+    "circle-alert", "triangle-alert", "loader-circle", "circle-check", "list-checks",
+    // 展开面板与条目（check-icons 只认字面量，认不出 data-ico={row.boxIcon}）
+    "chevron-down", "check", "play", "copy",
+  ]) {
     assert.ok(source.includes(`"${name}"`), `组件里用到 ${name}`);
     assert.ok(knownIcons.has(name), `icons.js 未登记 ${name}`);
   }
+});
+
+test("浮层是唯一的待办入口：可点展开，面板里能复制", () => {
+  // 2026-10-02 用户裁定 —— 合并 PR-31 时浮层与 composer 里的 TodoChip 同时渲染同一
+  // 份 extractTodoState，清单在屏幕上出现两遍。芯片已删，入口只留这一个。
+  // 所以浮层必须**自己**可点（而不是退回成纯展示件）。
+  assert.match(source, /className={`pw-toast fork-task-progress/);
+  assert.match(source, /onClick=\{\(\) => setOpen\(\(value\) => !value\)\}/);
+  assert.match(source, /aria-expanded=\{open\}/);
+  // 可点件要自己收回指针：宿主那条定位带是 pointer-events:none。
+  assert.match(source, /pointerEvents: "auto"/);
+  // 面板只在一份清单存在时渲染。
+  assert.match(source, /\{open && \(/);
+  // 面板与条目全部用画板类，不自己造。
+  for (const cls of ["pw-plan", "pw-plan-head", "pw-btn sm", "pw-todo", "pw-card-foot", "fork-todo-list"]) {
+    assert.ok(source.includes(cls), `面板要用画板的 ${cls}`);
+  }
+  // 复制是三态：复制**可能失败**，失败必须看得见（芯片时代的既有教训，搬过来了）。
+  assert.match(source, /type CopyState = "idle" \| "copied" \| "failed"/);
+  assert.match(source, /copyFailed && \(/);
+  assert.match(source, /className=\{copyFailed \? "pw-btn sm danger" : "pw-btn sm"\}/);
+  // 外点 / Esc 关面板。
+  assert.match(source, /document\.addEventListener\("mousedown"/);
+  assert.match(source, /event\.key === "Escape"/);
+});
+
+test("面板开着时不淡出：用户主动展开就是要读它", () => {
+  // 倒计时分支里 `if (open) return;` 必须在装定时器**之前** —— 否则用户点开清单
+  // 正好碰上 run 结束，4 秒后它会自己消失。
+  assert.match(source, /if \(open\) return;\n\s*\/\/ run 结束/);
+  // open 要进依赖数组，否则开关面板不会重算倒计时。
+  assert.match(source, /\[hasDisplayTasks, displaySignature, streaming, open\]/);
+  // 浮层收起时把面板一并收掉，免得下一轮带着旧展开态回来。
+  assert.match(source, /useEffect\(\(\) => \{\n\s*if \(!visible\) setOpen\(false\);\n\s*\}, \[visible\]\);/);
 });
 
 test("倒计时只在 run 结束（streaming=false）时装，且依赖来自纯函数", () => {

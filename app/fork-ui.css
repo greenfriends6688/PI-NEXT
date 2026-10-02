@@ -3235,3 +3235,51 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-changes-reveal.danger {
   color: var(--error);
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:proma-31-task-progress —— 浮层是**唯一**的待办入口（TodoChip 已删除）。
+ *
+ * 合并 PR-31 时浮层与 composer 里的 TodoChip 同时渲染同一份 extractTodoState，
+ * 待办清单在屏幕上出现两遍（用户截图指出）。用户裁定删芯片、留浮层，并把芯片
+ * 原来的「点击展开完整清单 + 复制」搬进浮层 —— 所以浮层从纯展示件变成可点件。
+ *
+ * 这里只放三类东西，其余外观全部由画板类给：
+ *   · UA 归零（button 的 font / text-align）与 cursor —— 行为钩子，按仓库规矩
+ *     写在这个文件，不写进画板
+ *   · 展开面板的定位与尺寸（组件里只留内容，几何收在这里）
+ *   · 清单列表的排布（替代原先写在 TodoChip 里的内联样式）
+ * ------------------------------------------------------------------------- */
+.fork-task-progress {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.fork-task-progress-chevron {
+  transition: transform var(--motion-fast);
+}
+.fork-task-progress-chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.fork-todo-panel {
+  position: absolute;
+  bottom: calc(100% + var(--s1));
+  left: 0;
+  z-index: 60;
+  width: var(--pop-w);
+  max-width: min(320px, 92vw);
+  max-height: 320px;
+  overflow-y: auto;
+  /* 宿主定位带是 pointer-events:none，可点的面板要自己收回指针。 */
+  pointer-events: auto;
+}
+
+.fork-todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
