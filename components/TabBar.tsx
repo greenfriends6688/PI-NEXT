@@ -4,9 +4,17 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { getFileIcon } from "./FileIcons";
 import { TabOverview } from "./fork/TabOverview";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { FileViewerDisplayMode, FileViewerState } from "@/lib/file-viewer-state";
 import type { RestorableTab } from "@/lib/recent-closed-tabs";
 import { splitVisibleTabs } from "@/lib/tab-overflow";
+import {
+  TAB_DRAG_ACTIVATION_PX,
+  dropIndexFromPointer,
+  dropIndicatorX,
+  moveIntentFor,
+  type TabRect,
+} from "@/lib/tab-reorder";
 import { TEXT } from "@/lib/typography";
 
 export interface Tab {
@@ -32,6 +40,12 @@ interface Props {
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
   /**
+   * fork:proma-38-tab-reorder — 把 `tabId` 挪到 `beforeTabId` 之前（`null` = 最末尾）。
+   * 不传就没有拖拽排序（键盘移动也随之关闭），TabBar 在没有 tab 状态所有者的场景
+   * （测试、静态渲染）里仍然可用。
+   */
+  onMoveTab?: (tabId: string, beforeTabId: string | null) => void;
+  /**
    * fork:zc-06 — tab 概览（全部 tab + 最近关闭）。不传就不渲染入口按钮，
    * 这样 TabBar 在没有 tab 状态所有者的场景（测试、静态渲染）里仍然可用。
    */
@@ -47,8 +61,9 @@ interface Props {
 // fork:ui-12 — width of the "…" fold button (kept in sync with its style below).
 const TAB_OVERFLOW_BUTTON_WIDTH = 34;
 
-export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }: Props) {
+export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onMoveTab, overview }: Props) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const [hoveredClose, setHoveredClose] = useState<string | null>(null);
   // fork:ui-14 — the close control stays out of the way until the tab is
   // active, hovered or keyboard-focused (reference implementations reveal it
@@ -76,6 +91,15 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
     width: 0,
     ready: false,
   });
+  /* fork:proma-38-tab-reorder — 拖拽排序。拖动期间**不重排 DOM**：重排会移动每个
+     tab 的 offsetLeft/offsetWidth，`lib/tab-overflow.ts` 的折叠判定与上面那颗滑动
+     pill 都靠这些测量值，来回抖。所以只画一条落点指示线，松手才换顺序。
+
+     `pendingRef` = 按下但还没超过阈值的候选（未超过就是一次普通点击）；
+     `dragRef` + `drag` = 已经成立的拖拽（ref 供 window 监听器读，state 只驱动渲染）。 */
+  const pendingRef = useRef<{ tabId: string; fromIndex: number; startX: number; startY: number } | null>(null);
+  const dragRef = useRef<{ tabId: string; fromIndex: number; insertIndex: number; insertX: number } | null>(null);
+  const [drag, setDrag] = useState<{ tabId: string; fromIndex: number; insertIndex: number; insertX: number } | null>(null);
 
   useEffect(() => {
     // tab 全关光时浮层无事可做，留着只会悬在空栏上。
@@ -199,13 +223,100 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
         : tab.label
   );
 
+  /* fork:proma-38-tab-reorder —— 拖拽排序的几何与手势。 */
+  /** 当前**看得见**的 tab（折叠进「…」的不在 `tabElementsRef` 里），按 tab 顺序量。 */
+  const measureVisibleRects = useCallback((): (TabRect & { id: string })[] => {
+    const bar = containerRef.current;
+    if (!bar) return [];
+    const barLeft = bar.getBoundingClientRect().left;
+    const out: (TabRect & { id: string })[] = [];
+    for (const tab of tabs) {
+      const element = tabElementsRef.current.get(tab.id);
+      if (!element) continue;
+      const rect = element.getBoundingClientRect();
+      out.push({ id: tab.id, left: rect.left - barLeft, width: rect.width });
+    }
+    return out;
+  }, [tabs]);
+
+  const endDrag = useCallback(() => {
+    pendingRef.current = null;
+    dragRef.current = null;
+    setDrag(null);
+  }, []);
+
+  useEffect(() => {
+    if (!onMoveTab) return;
+    const onPointerMove = (event: PointerEvent) => {
+      const pending = pendingRef.current;
+      if (!pending) return;
+      let active = dragRef.current;
+      if (!active) {
+        const moved = Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY);
+        if (moved < TAB_DRAG_ACTIVATION_PX) return;
+        active = { tabId: pending.tabId, fromIndex: pending.fromIndex, insertIndex: pending.fromIndex, insertX: 0 };
+      }
+      const bar = containerRef.current;
+      if (!bar) return;
+      const rects = measureVisibleRects();
+      const insertIndex = dropIndexFromPointer(event.clientX - bar.getBoundingClientRect().left, rects);
+      // 刚落下的第一帧（dragRef 还是 null）必须算：指示线一上来就该在真实落点上。
+      if (dragRef.current && active.insertIndex === insertIndex) return;
+      const next = {
+        ...active,
+        insertIndex,
+        // 指示线的 x 与 pill 同一坐标系（标签栏内容盒左缘为 0），不越出标签行。
+        insertX: Math.max(0, Math.min(dropIndicatorX(rects, insertIndex), bar.clientWidth)),
+      };
+      dragRef.current = next;
+      setDrag(next);
+    };
+    const onPointerUp = () => {
+      const finished = dragRef.current;
+      endDrag();
+      // 没超过阈值时 finished 就是 null —— 那是一次普通点击，交给 onClick。
+      if (!finished) return;
+      const visibleIds = measureVisibleRects().map((rect) => rect.id);
+      const intent = moveIntentFor(visibleIds, finished.fromIndex, finished.insertIndex);
+      if (intent.changed) onMoveTab(finished.tabId, intent.beforeId);
+    };
+    // 手势被系统接管（滚动 / 系统级取消）= 撤销，不落顺序。
+    const onPointerCancel = () => endDrag();
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Esc 取消：拖到一半的落点不生效，标签行回到原样。
+      if (event.key !== "Escape" || !dragRef.current) return;
+      event.preventDefault();
+      endDrag();
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [endDrag, measureVisibleRects, onMoveTab]);
+
+  // 窄屏退化：标签行本身要能横向滑动，拖拽排序让位给滚动（键盘移动仍然可用）。
+  const dragEnabled = Boolean(onMoveTab) && !isMobile && tabs.length > 1;
+
   return (
     <div
       ref={containerRef}
       role="tablist"
       /* fork:design-components —— 标签条直接用画板 31 的 .pw-tabs（2px 间距 / 发丝底线），
          每个标签追加 .pw-tab（.is-on 选中态）；拖拽排序与溢出折叠逻辑不变。 */
-      className="fork-tabbar pw-tabs"
+      className={`fork-tabbar pw-tabs${drag ? " is-reordering" : ""}`}
+      title={dragEnabled ? t("tabs.reorder") : undefined}
+      /* fork:proma-38-tab-reorder —— 拖动中禁掉默认的拖选（否则会选中一行标签文字），
+         拖拽本身不阻止默认行为：点击仍然选中、关闭钮仍然可点。 */
+      onDragStart={(event) => {
+        if (!drag) return;
+        event.preventDefault();
+      }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -229,6 +340,17 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
           opacity: pillState.ready && activeIndex >= 0 && tabs.length > 0 ? 1 : 0,
         }}
       />
+      {/* fork:proma-38-tab-reorder —— 落点指示线。与 pill 一样绝对定位（拖动中不占流，
+          也就不会推动任何 tab）：一条强调色竖线，落在两个 tab 之间或行尾。
+          几何：`.fork-tab-drop` 在 fork-ui.css（判据⑦ 只管 `.pw-*`），高度跟着画板
+          `.pw-tab` 的 26。 */}
+      {drag && (
+        <span
+          aria-hidden="true"
+          className="fork-tab-drop"
+          style={{ transform: `translateX(${drag.insertX}px)` }}
+        />
+      )}
       {tabs.map((tab, index) => {
         if (!visibleSet.has(index)) return null;
         const isActive = tab.id === activeTabId;
@@ -240,12 +362,26 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             className={`fork-tab pw-tab${isActive ? " is-on" : ""}`}
             aria-label={tabAccessibleName(tab)}
             aria-selected={isActive}
+            /* fork:proma-38-tab-reorder —— 拖拽的键盘等价物（窄屏也可用）。 */
+            aria-keyshortcuts={onMoveTab ? "Alt+ArrowLeft Alt+ArrowRight" : undefined}
             tabIndex={isActive || (!activeTabId && tabs[0].id === tab.id) ? 0 : -1}
             onKeyDown={(event) => {
               if (event.target !== event.currentTarget) return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onSelectTab(tab.id);
+              } else if (onMoveTab && event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                // fork:proma-38-tab-reorder —— Alt+←/→ 在整条 tab 顺序里搬动这个 tab
+                // （拖拽的键盘等价物，窄屏也能用）。
+                // **必须排在纯方向键分支前面**：否则 Alt+← 会先被当成「选上一个」。
+                // 往左 = 插到上一个之前；往右 = 插到下一个之前（没有下一个就放末尾）。
+                event.preventDefault();
+                const index = tabs.findIndex((item) => item.id === tab.id);
+                const beforeId = event.key === "ArrowLeft"
+                  ? (tabs[index - 1]?.id ?? null)
+                  : (tabs[index + 1]?.id ?? null);
+                if (beforeId === tab.id) return;
+                onMoveTab(tab.id, beforeId);
               } else if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
                 event.preventDefault();
                 const index = tabs.findIndex((item) => item.id === tab.id);
@@ -261,6 +397,20 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
               }
             }}
             onClick={() => onSelectTab(tab.id)}
+            onPointerDown={(event) => {
+              // fork:proma-38-tab-reorder —— 只认主键 / 主指针；关闭钮上不起拖拽
+              // （那个 click 是「关闭」）。移动端（useIsMobile）不起拖拽：标签行要能
+              // 横向滑动，手势让位给滚动，排序走 Alt+←/→。
+              if (!dragEnabled) return;
+              if (event.button !== 0 || event.isPrimary === false) return;
+              if ((event.target as HTMLElement | null)?.closest("button")) return;
+              pendingRef.current = {
+                tabId: tab.id,
+                fromIndex: visible.findIndex((item) => item === index),
+                startX: event.clientX,
+                startY: event.clientY,
+              };
+            }}
             onMouseDown={(e) => {
               if (e.button === 1) e.preventDefault();
             }}

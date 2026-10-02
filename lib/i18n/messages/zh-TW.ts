@@ -884,6 +884,12 @@ export const zhTWLocale: LocalePlugin = {
     "tabs.recentlyClosedEmpty": "關掉的分頁會出現在這裡。",
     "tabs.restore": "重新開啟",
     "tabs.clearRecent": "清空",
+    // fork:proma-38-tab-reorder / fork:proma-38-tab-boundary
+    "tabs.reorder": "拖動分頁可排序 · Alt+←/→ 移動目前分頁",
+    "tabs.errorTitle": "這個分頁當掉了",
+    "tabs.errorHint": "只有「{name}」這一個分頁出錯，其他分頁、終端機和瀏覽器都正常。可以關掉它，重新開啟檔案再試一次。",
+    "tabs.errorRetry": "重試",
+    "tabs.errorClose": "關閉這個分頁",
     "terminal.tabLabel": "終端機：{name}",
     "terminal.open": "開啟工作區終端機",
     "terminal.close": "終止終端機",

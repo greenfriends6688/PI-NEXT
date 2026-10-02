@@ -885,6 +885,12 @@ export const enLocale: LocalePlugin = {
     "tabs.recentlyClosedEmpty": "Tabs you close show up here.",
     "tabs.restore": "Reopen",
     "tabs.clearRecent": "Clear",
+    // fork:proma-38-tab-reorder / fork:proma-38-tab-boundary
+    "tabs.reorder": "Drag tabs to reorder · Alt+←/→ moves the focused tab",
+    "tabs.errorTitle": "This tab stopped working",
+    "tabs.errorHint": "Only “{name}” failed — the other tabs, terminal and browser are fine. Close it and reopen the file to start over.",
+    "tabs.errorRetry": "Retry",
+    "tabs.errorClose": "Close this tab",
     "terminal.tabLabel": "Terminal: {name}",
     "terminal.open": "Open workspace terminal",
     "terminal.close": "Terminate terminal",

@@ -2397,3 +2397,26 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
 
 教训（与 AD 节同源）：**画板类落地率、组件看起来对不对，都不能替代把真东西渲出来看一眼。**
 这条浮层在单测、类型检查、设计门禁全绿的情况下上线，问题只在截图里显形。
+
+## AE · 2026-10-02：PR-38 Tab 拖拽排序 + 每 Tab 错误边界（零新 `.pw-*` 类）
+
+### AE-0 · 三件事分别落在哪
+
+| PR-38 的能力 | 落点 | 画板来源 |
+| --- | --- | --- |
+| 拖拽排序（指示线） | `.fork-tab-drop`（**`fork-ui.css`，不是 `board.css`**） | 几何抄 `.pw-tab`（26 高 / 标签行内） |
+| 拖动态 | `.fork-tabbar.is-reordering`（光标 + 禁拖选） | — |
+| 每 tab 错误边界 | `components/TabErrorBoundary.tsx`：`.pw-empty` / `.pw-empty-inner` / `.pw-btn` + `triangle-alert` | 画板 61 A 段（路由错误页） |
+
+所以判据⑦ 的「新 `pw-*` 类先进 board.css + 上画板」这条**没有触发**：一个 `pw-*` 都没新增。
+错误态整块照抄画板 61 的 DOM（空态容器 + 圆角 mark + 标题 + 说明 + 一行动作钮），
+只是把它缩小到「一个 tab」的大小并接上「重试 / 关闭」两个动作。
+
+### AE-1 · 为什么落点指示线走 `.fork-*` 而不是新造 `.pw-*`
+
+指示线是**交互瞬态**：拖动时才存在，松手即消失，而且它必须绝对定位在
+`.fork-tabbar` 里（拖动期间**不重排 DOM** —— 重排会移动每个 tab 的
+`offsetLeft/offsetWidth`，`lib/tab-overflow.ts` 的折叠判定与 `.fork-tab-pill` 都会抖）。
+这正是 123 条登记的 `.fork-tab-pill` 的处境，所以同处置：画在 `fork-ui.css` 的
+行为层，几何（高 26、`top: var(--s1)` + `bottom: 0` + `margin: auto` 居中）与 pill 一致，
+粗细取 `calc(var(--space-hair) * 2)`。画板 31 的标签行没有拖拽形态，不给它加静态类。

@@ -975,6 +975,44 @@ html.keyboard-open .extension-status-shelf {
   pointer-events: none;
 }
 
+/* fork:proma-38-tab-reorder —— 拖拽排序的落点指示线与拖动态。
+ *
+ * 与 `.fork-tab-pill` 同理：绝对定位在标签栏（`position: relative`）里，不占流，
+ * 所以拖动过程中**没有任何 tab 被重排**，`.pw-tabs` 的折叠判定与 pill 都不会抖。
+ * 指示线只画一条强调色竖线，落在两个 tab 的边界上（或行尾）。
+ *
+ * 几何全部取 token：高度跟着画板 `.pw-tab` 的 26（与 pill 同一行），粗细是
+ * `calc(var(--space-hair) * 2)`（2px 的发丝加粗），竖向沿用 pill 的 top/bottom +
+ * margin:auto 居中。
+ *
+ * 为什么是 `.fork-*` 而不是新 `.pw-*`（判据⑦）：画板 31 的标签行里**没有**拖拽
+ * 形态，指示线是交互瞬态（拖动时才存在），不属于画板要登记的静态形态；`.pw-*`
+ * 要先进 board.css + 画板 + DIVERGENCE，而这一条按同一份画板的几何画在自己的
+ * 行为层，与 `.fork-tab-pill`（同样是瞬态）保持同一处置。
+ */
+.fork-tabbar.is-reordering {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.fork-tab-drop {
+  position: absolute;
+  top: var(--s1, 4px);
+  bottom: 0;
+  margin-block: auto;
+  left: 0;
+  /* 落点下标是「下一个 tab 的左缘」，也就是缝的右边界；往回退半个缝
+     （`.pw-tabs` 的 gap = --space-tight）让线正好落在缝里。 */
+  margin-left: calc(var(--space-tight, 2px) / -2);
+  height: 26px;
+  width: calc(var(--space-hair) * 2);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  /* 压在 tab 之上（否则被激活 tab 的 `.pw-tab.is-on` 底色盖掉），但不吃点击。 */
+  z-index: 2;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .fork-tab-pill {
     transition:

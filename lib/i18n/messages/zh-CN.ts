@@ -885,6 +885,12 @@ export const zhCNLocale: LocalePlugin = {
     "tabs.recentlyClosedEmpty": "关掉的标签会出现在这里。",
     "tabs.restore": "重新打开",
     "tabs.clearRecent": "清空",
+    // fork:proma-38-tab-reorder / fork:proma-38-tab-boundary
+    "tabs.reorder": "拖动标签可排序 · Alt+←/→ 移动当前标签",
+    "tabs.errorTitle": "这个标签页崩了",
+    "tabs.errorHint": "只有「{name}」这一个标签页出错，其他标签、终端和浏览器都正常。可以关掉它，重新打开文件再来一次。",
+    "tabs.errorRetry": "重试",
+    "tabs.errorClose": "关闭这个标签页",
     "terminal.tabLabel": "终端：{name}",
     "terminal.open": "打开工作区终端",
     "terminal.close": "终止终端",

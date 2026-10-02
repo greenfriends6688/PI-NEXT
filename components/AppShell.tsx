@@ -33,6 +33,11 @@ import { ChatWindow } from "./ChatWindow";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
 import { FileViewer, type FileLocationTarget, type FileSelectionContext } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
+// fork:proma-38-tab-boundary —— 每个 tab 的内容各包一层错误边界。
+import { TabErrorBoundary } from "./TabErrorBoundary";
+// fork:proma-38-tab-reorder / fork:proma-38-tab-mru —— 拖拽排序与关闭回退的纯逻辑。
+import { applyTabOrder, moveTabBefore } from "@/lib/tab-reorder";
+import { EMPTY_TAB_MRU, focusAfterClose, rememberTabVisit, type TabMru } from "@/lib/tab-mru";
 import { openFileTab, saveFileViewerState } from "./file-tab-state";
 // fork:zc-06 — 「最近关闭」快照的纯逻辑与存储。
 import { forgetClosedTab, loadRecentClosedTabs, recordClosedTab, saveRecentClosedTabs, type RestorableTab } from "@/lib/recent-closed-tabs";
@@ -669,6 +674,20 @@ export function AppShell() {
   // 渲染期读会命中 TDZ）。
   const activeWorkspaceKey = selectedSession ? workspaceKeyOf(selectedSession) : null;
 
+  /* fork:proma-38-tab-reorder —— 用户拖过的 tab 顺序（`null` = 没拖过，保持默认的
+     「图谱 / 改动 / 文件 / 终端 / 浏览器 / 探索分支」分组顺序）。
+     只存 id：具体 tab 的元数据仍在各自的 state 里，`panelTabs` 按这张表重排。 */
+  const [tabOrder, setTabOrder] = useState<string[] | null>(null);
+  /* fork:proma-38-tab-mru —— 关掉激活 tab 后回到**这个会话上一次访问过的 tab**。
+     每个会话各记各的（键与右栏 tab 记忆同一把 `workspaceKeyOf` 钥匙）。
+     state / ref 先在这里声明，记录用的 effect 挂在 `panelTabs` 之后（它要用
+     panelTabs 判断「上一个 tab 是不是已经被关掉了」）。 */
+  const [tabMru, setTabMru] = useState<TabMru>(EMPTY_TAB_MRU);
+  const tabVisitRef = useRef<{ sessionKey: string | null; tabId: string | null }>({
+    sessionKey: activeWorkspaceKey,
+    tabId: activeFileTabId,
+  });
+
   useEffect(() => {
     const key = activeWorkspaceKey;
     if (!key) return;
@@ -715,9 +734,9 @@ export function AppShell() {
     });
   }, [activeFileTabId, fileTabs]);
 
-  // fork:zc-06 — memoized so the tab-overview callbacks (close-all / close-others /
-  // close-with-history) do not get a new dependency every render.
-  const panelTabs: Tab[] = useMemo(() => [...(gitGraphOpen ? [{
+  // fork:proma-38-tab-reorder —— 拖过的顺序覆盖默认分组顺序；没拖过（`tabOrder === null`）
+  // 时 applyTabOrder 原样返回，分组顺序一个字不变。
+  const panelTabs: Tab[] = useMemo(() => applyTabOrder<Tab>([...(gitGraphOpen ? [{
     id: GIT_GRAPH_TAB_ID,
     label: translate("git.graph"),
     filePath: "",
@@ -744,7 +763,29 @@ export function AppShell() {
     label: tab.label,
     filePath: tab.sessionId,
     kind: "session" as const,
-  }))], [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, terminalTabs, translate]);
+  }))], tabOrder), [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, tabOrder, terminalTabs, translate]);
+
+  // fork:proma-38-tab-reorder —— 拖拽落点只说「插到谁前面」；第一次拖就把当前默认顺序
+  // 整张物化成顺序表（之后只在这张表上搬），所以关掉重开 tab 不会把顺序打回去。
+  const handleMoveTab = useCallback((tabId: string, beforeTabId: string | null) => {
+    setTabOrder((current) => moveTabBefore(current ?? panelTabs.map((tab) => tab.id), tabId, beforeTabId));
+  }, [panelTabs]);
+
+  useEffect(() => {
+    const previous = tabVisitRef.current;
+    tabVisitRef.current = { sessionKey: activeWorkspaceKey, tabId: activeFileTabId };
+    // 刚被关掉的 tab 不记：否则下一次关闭会拿到一个已经不存在的「上次」。
+    const previousTabId = previous.tabId && panelTabs.some((tab) => tab.id === previous.tabId)
+      ? previous.tabId
+      : null;
+    // 换会话时前后两个 tab 分属不同会话，不记（判定在 lib/tab-mru.ts）。
+    setTabMru((current) => rememberTabVisit(current, {
+      sessionKey: activeWorkspaceKey,
+      previousSessionKey: previous.sessionKey,
+      previousTabId,
+      currentTabId: activeFileTabId,
+    }));
+  }, [activeFileTabId, activeWorkspaceKey, panelTabs]);
 
   useEffect(() => {
     try {
@@ -1574,7 +1615,14 @@ export function AppShell() {
     const replacement = tab.closing === "restart" ? newTerminalTab(tab.cwd) : null;
     const remaining = terminalTabs.filter((item) => item.id !== tab.id);
     setTerminalTabs((tabs) => tabs.flatMap((item) => item.id !== tab.id ? [item] : replacement ? [replacement] : []));
-    setActiveFileTabId((current) => current !== tab.id ? current : replacement?.id ?? remaining.at(-1)?.id ?? fileTabs.at(-1)?.id ?? null);
+    setActiveFileTabId((current) => (current !== tab.id
+      ? current
+      // 重启换的那一个新终端此刻还没进 panelTabs，得显式算进「还开着」里。
+      : pickFocusAfterClose(
+        tab.id,
+        replacement?.id ?? remaining.at(-1)?.id ?? fileTabs.at(-1)?.id ?? null,
+        replacement ? [replacement.id] : [],
+      )));
     if (!workspaceSwapped && !replacement && !remaining.length && !fileTabs.length) setRightPanelOpen(false);
   };
 
@@ -1612,6 +1660,25 @@ export function AppShell() {
     setSessionWrittenFiles(files);
   }, []);
 
+  /* fork:proma-38-tab-mru —— 关掉激活 tab 之后的落点。
+     `remainingTabIds(closedId)` 是「关掉它之后**全部**还开着的 tab」（不分类别：
+     MRU 记的是整个右栏工作区的上一次访问），`fallbackId` 是原来的相邻 / 末尾行为
+     —— MRU 答不出来时用它，所以这次改动只会让落点更贴近「上次去过的地方」。 */
+  const remainingTabIds = useCallback(
+    (closedTabId: string) => panelTabs.filter((tab) => tab.id !== closedTabId).map((tab) => tab.id),
+    [panelTabs],
+  );
+
+  const pickFocusAfterClose = useCallback((closedTabId: string, fallbackId: string | null, extraOpenIds: string[] = []) => (
+    focusAfterClose(tabMru, {
+      sessionKey: activeWorkspaceKey,
+      closedTabId,
+      // `extraOpenIds`：这一刻正要新开、但还没进 panelTabs 的 tab（终端重启换的那一个）。
+      openTabIds: extraOpenIds.length > 0 ? [...remainingTabIds(closedTabId), ...extraOpenIds] : remainingTabIds(closedTabId),
+      fallbackId,
+    })
+  ), [activeWorkspaceKey, remainingTabIds, tabMru]);
+
   const handleCloseFileTab = useCallback((tabId: string) => {
     if (tabId === GIT_GRAPH_TAB_ID) {
       setGitGraphOpen(false);
@@ -1623,7 +1690,9 @@ export function AppShell() {
         ...branchTabs.map((tab) => tab.id),
         ...siblingSingleton,
       ];
-      setActiveFileTabId((current) => current !== tabId ? current : remainingIds.at(-1) ?? null);
+      setActiveFileTabId((current) => (current !== tabId
+        ? current
+        : pickFocusAfterClose(tabId, remainingIds.at(-1) ?? null)));
       if (!workspaceSwapped && remainingIds.length === 0) setRightPanelOpen(false);
       return;
     }
@@ -1638,14 +1707,18 @@ export function AppShell() {
         ...branchTabs.map((tab) => tab.id),
         ...(gitGraphOpen ? [GIT_GRAPH_TAB_ID] : []),
       ];
-      setActiveFileTabId((current) => current !== tabId ? current : remainingIds.at(-1) ?? null);
+      setActiveFileTabId((current) => (current !== tabId
+        ? current
+        : pickFocusAfterClose(tabId, remainingIds.at(-1) ?? null)));
       if (!workspaceSwapped && remainingIds.length === 0) setRightPanelOpen(false);
       return;
     }
     if (branchTabs.some((tab) => tab.id === tabId)) {
       const remaining = branchTabs.filter((tab) => tab.id !== tabId);
       setBranchTabs(remaining);
-      setActiveFileTabId((current) => current !== tabId ? current : remaining.at(-1)?.id ?? fileTabs.at(-1)?.id ?? null);
+      setActiveFileTabId((current) => (current !== tabId
+        ? current
+        : pickFocusAfterClose(tabId, remaining.at(-1)?.id ?? fileTabs.at(-1)?.id ?? null)));
       return;
     }
     if (browserTabs.some((tab) => tab.id === tabId)) {
@@ -1653,7 +1726,7 @@ export function AppShell() {
       setBrowserTabs(remaining);
       setActiveFileTabId((cur) => (cur !== tabId
         ? cur
-        : fileTabs.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? remaining.at(-1)?.id ?? null));
+        : pickFocusAfterClose(tabId, fileTabs.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? remaining.at(-1)?.id ?? null)));
       if (!workspaceSwapped && remaining.length === 0 && fileTabs.length === 0 && terminalTabs.length === 0) {
         setRightPanelOpen(false);
       }
@@ -1671,9 +1744,9 @@ export function AppShell() {
     setActiveFileTabId((cur) => {
       if (cur !== tabId) return cur;
       const remaining = fileTabs.filter((t) => t.id !== tabId);
-      return remaining.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? null;
+      return pickFocusAfterClose(tabId, remaining.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? null);
     });
-  }, [branchTabs, browserTabs, fileTabs, gitGraphOpen, terminalTabs, workspaceSwapped]);
+  }, [branchTabs, browserTabs, fileTabs, gitGraphOpen, pickFocusAfterClose, terminalTabs, workspaceSwapped]);
 
   // fork:zc-06 — tab 概览：记录「最近关闭」，并提供批量关闭 / 重开。
   //
@@ -3007,6 +3080,7 @@ export function AppShell() {
               activeTabId={activeFileTabId ?? ""}
               onSelectTab={setActiveFileTabId}
               onCloseTab={handleCloseTabWithHistory}
+              onMoveTab={handleMoveTab}
               overview={{
                 recentClosed: recentClosedTabs,
                 onCloseAll: handleCloseAllTabs,
@@ -3083,27 +3157,41 @@ export function AppShell() {
             same container so the tree no longer replaces the document. */}
         <div className="file-panel-body pw-panel-body">
         <div className="file-panel-main">
+          {/* fork:proma-38-tab-boundary —— 下面每一个 tab 的内容都包一层自己的错误边界：
+              一个预览崩了只换掉它自己那一格，终端 / 浏览器 / 其余预览照常。 */}
           {activeFileTabId === GIT_GRAPH_TAB_ID && gitGraphOpen ? (
             // fork:git-graph-tab — 点提交里的文件直接开 diff 视图（FileViewer 已支持 modeHint）。
-            <GitGraphTab
-              cwd={activeCwd ?? ""}
-              onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, { modeHint: "diff" })}
-            />
+            <TabErrorBoundary
+              tabId={GIT_GRAPH_TAB_ID}
+              label={translate("git.graph")}
+              onClose={() => handleCloseTabWithHistory(GIT_GRAPH_TAB_ID)}
+            >
+              <GitGraphTab
+                cwd={activeCwd ?? ""}
+                onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, { modeHint: "diff" })}
+              />
+            </TabErrorBoundary>
           ) : null}
           {changesOpen ? (
             // fork:proma-39-changes — 常驻挂载（hidden 而非卸载）：切走时仍轮询，
             // 只把未读计数上报成圆点，绝不自动把 activeFileTabId 抢回来。
             <div hidden={activeFileTabId !== CHANGES_TAB_ID} style={{ width: "100%", height: "100%" }}>
-              <ChangesPanel
-                cwd={activeCwd ?? ""}
-                writtenFiles={sessionWrittenFiles}
-                active={activeFileTabId === CHANGES_TAB_ID}
-                onOpenFile={(filePath, modeHint) => handleOpenFile(filePath, getFileName(filePath), {
-                  modeHint,
-                  sourceSessionId: selectedSession?.id ?? null,
-                })}
-                onUnseenChange={handleChangesUnseen}
-              />
+              <TabErrorBoundary
+                tabId={CHANGES_TAB_ID}
+                label={translate("changes.title")}
+                onClose={() => handleCloseTabWithHistory(CHANGES_TAB_ID)}
+              >
+                <ChangesPanel
+                  cwd={activeCwd ?? ""}
+                  writtenFiles={sessionWrittenFiles}
+                  active={activeFileTabId === CHANGES_TAB_ID}
+                  onOpenFile={(filePath, modeHint) => handleOpenFile(filePath, getFileName(filePath), {
+                    modeHint,
+                    sourceSessionId: selectedSession?.id ?? null,
+                  })}
+                  onUnseenChange={handleChangesUnseen}
+                />
+              </TabErrorBoundary>
             </div>
           ) : null}
           {fileTabs.filter((tab) => mountedFileTabs.has(tab.id)).map((tab) => {
@@ -3113,6 +3201,13 @@ export function AppShell() {
               // 切走只 hidden，滚动位置/搜索/未保存的 markdown 编辑态都保留；
               // 关闭后由下面的剪枝 effect 从 mountedFileTabs 剔除。
               <div key={`${tab.id}:${tab.viewerRevision ?? 0}`} hidden={!isActive} style={{ width: "100%", height: "100%" }}>
+                {/* resetKey = viewerRevision：同一个文件重开一版内容时清掉错误态。 */}
+                <TabErrorBoundary
+                  tabId={tab.id}
+                  label={tab.label}
+                  resetKey={`${tab.id}:${tab.viewerRevision ?? 0}`}
+                  onClose={() => handleCloseTabWithHistory(tab.id)}
+                >
                 <FileViewer
                   filePath={tab.filePath}
                   cwd={activeCwd ?? undefined}
@@ -3141,6 +3236,7 @@ export function AppShell() {
                     { sourceSessionId: tab.sourceSessionId, page },
                   )}
                 />
+                </TabErrorBoundary>
               </div>
             );
           })}
@@ -3162,27 +3258,38 @@ export function AppShell() {
           ) : null}
           {branchTabs.map((tab) => (
             <div key={tab.id} hidden={tab.id !== activeFileTabId} style={{ width: "100%", height: "100%" }}>
-              <ExplorationPane
-                sessionId={tab.sessionId}
-                parentSessionId={tab.parentSessionId}
-                onOpenAsMain={handleOpenSession}
-              />
+              <TabErrorBoundary tabId={tab.id} label={tab.label} onClose={() => handleCloseTabWithHistory(tab.id)}>
+                <ExplorationPane
+                  sessionId={tab.sessionId}
+                  parentSessionId={tab.parentSessionId}
+                  onOpenAsMain={handleOpenSession}
+                />
+              </TabErrorBoundary>
             </div>
           ))}
           {browserTabs.map((tab) => (
             <div key={tab.id} hidden={tab.id !== activeFileTabId} style={{ width: "100%", height: "100%" }}>
-              <BrowserPanel tab={tab} onChangeUrl={handleBrowserUrlChange} />
+              <TabErrorBoundary
+                tabId={tab.id}
+                label={browserTabLabel(tab.url) || translate("browser.newTab")}
+                resetKey={tab.url}
+                onClose={() => handleCloseTabWithHistory(tab.id)}
+              >
+                <BrowserPanel tab={tab} onChangeUrl={handleBrowserUrlChange} />
+              </TabErrorBoundary>
             </div>
           ))}
           {terminalTabs.map((tab) => (
             <div key={tab.id} hidden={tab.id !== activeFileTabId} style={{ width: "100%", height: "100%" }}>
-              <TerminalPanel
-                tab={tab}
-                active={editorVisible && tab.id === activeFileTabId}
-                onRestart={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === tab.id ? { ...item, closing: "restart" } : item))}
-                onClosed={() => handleTerminalClosed(tab)}
-                onCloseError={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === tab.id ? { ...item, closing: undefined } : item))}
-              />
+              <TabErrorBoundary tabId={tab.id} label={getFileName(tab.cwd) || tab.cwd} onClose={() => handleCloseTabWithHistory(tab.id)}>
+                <TerminalPanel
+                  tab={tab}
+                  active={editorVisible && tab.id === activeFileTabId}
+                  onRestart={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === tab.id ? { ...item, closing: "restart" } : item))}
+                  onClosed={() => handleTerminalClosed(tab)}
+                  onCloseError={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === tab.id ? { ...item, closing: undefined } : item))}
+                />
+              </TabErrorBoundary>
             </div>
           ))}
         </div>
