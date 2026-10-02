@@ -27,11 +27,10 @@ type CopyKind = "auth" | "logout";
 /*
  * fork:zc-18 — MCP OAuth entry point for the detail view.
  *
- * `pi-mcp-adapter` already owns OAuth end to end (PKCE, OS-keychain credentials,
- * URL-bound token reuse, and the headless "paste the callback URL back" flow)
- * and registers `/mcp-auth <server>` plus `/mcp logout <server>`. pi-web does
- * not reimplement any of it: this component only copies the exact command the
- * user runs in their session, and explains what the extension will do next.
+ * pi 1.0 的内置 `mcp` 扩展已经接管 OAuth（PKCE、凭据、按 URL 复用 token，以及
+ * 「把 callback URL 粘回来」那条无回调分支），并注册 `/mcp login <server>` 与
+ * `/mcp logout <server>`（旧版的 `/mcp-auth` 已不存在）。pi-web 不重复实现任何一块：
+ * 这个组件只负责复制用户在会话里要跑的那条命令，并说清扩展接下来会做什么。
  *
  * Only URL-based servers get the affordance (see isRemoteMcpServer): stdio and
  * socket servers are local processes, and OAuth support cannot be read reliably
@@ -56,7 +55,7 @@ function McpAuthActions({ server }: { server: McpServerInfo }): ReactNode {
   // 它当初的理由（“被拒的剪贴板写入没有有用的恢复，静默好过一个 toast”）建立在
   // “除了放弃没有别的办法”之上，而 copyText 现在有 execCommand 真兜底，走到这里的
   // 失败是真的什么都没复制 —— 而这一行复制的是 OAuth 命令：用户拿着空剪贴板把命令
-  // 粘回会话，代价是发一条跑不起来的 /mcp-auth。所以这里必须说人话。
+  // 粘回会话，代价是发一条跑不起来的 /mcp login。所以这里必须说人话。
   const copy = (kind: CopyKind, command: string) => {
     void copyText(command).then((result) => {
       const next = { kind, status: result.ok ? "copied" as const : "failed" as const };

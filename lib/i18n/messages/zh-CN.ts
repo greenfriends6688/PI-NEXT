@@ -1437,12 +1437,12 @@ export const zhCNLocale: LocalePlugin = {
     "mcp.msgAdded": "已添加 {name}（执行 /reload 生效）",
     "mcp.msgTestResult": "测试 {name}：{result}",
     "mcp.msgTestError": "测试 {name}：{error}",
-    // fork:zc-18 — MCP OAuth 入口（复制 /mcp-auth、/mcp logout）
+    // fork:zc-18 — MCP OAuth 入口（复制 /mcp login、/mcp logout）
     "mcp.authTitle": "OAuth 授权",
     "mcp.authAuthorize": "授权",
     "mcp.authCopied": "命令已复制",
     "mcp.authLogout": "清除凭据",
-    "mcp.authHint": "复制 /mcp-auth {name} 到剪贴板，粘贴到本会话输入框执行。若浏览器无法回连本机回调地址，扩展会在本应用弹出输入框，让你把回调 URL 粘贴回来。",
+    "mcp.authHint": "复制 /mcp login {name} 到剪贴板，粘贴到本会话输入框执行。若浏览器无法回连本机回调地址，扩展会在本应用弹出输入框，让你把回调 URL 粘贴回来。",
 
     "models.favorites": "收藏",
     "models.favoriteModel": "收藏模型",

@@ -1438,12 +1438,12 @@ export const enLocale: LocalePlugin = {
     "mcp.msgAdded": "Added {name} (run /reload to apply)",
     "mcp.msgTestResult": "Test {name}: {result}",
     "mcp.msgTestError": "Test {name}: {error}",
-    // fork:zc-18 — MCP OAuth entry (copies /mcp-auth, /mcp logout)
+    // fork:zc-18 — MCP OAuth entry (copies /mcp login, /mcp logout)
     "mcp.authTitle": "OAuth",
     "mcp.authAuthorize": "Authorize",
     "mcp.authCopied": "Command copied",
     "mcp.authLogout": "Clear credentials",
-    "mcp.authHint": "Copies /mcp-auth {name} to the clipboard — paste it into this chat's composer to run it here. If the browser cannot reach this machine's callback, the extension asks you to paste the callback URL back into the input box it shows in this app.",
+    "mcp.authHint": "Copies /mcp login {name} to the clipboard — paste it into this chat's composer to run it here. If the browser cannot reach this machine's callback, the extension asks you to paste the callback URL back into the input box it shows in this app.",
 
     "models.favorites": "Favorites",
     "models.favoriteModel": "Favorite model",
