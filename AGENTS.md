@@ -99,9 +99,15 @@ app/api/
   skills/install/route.ts         POST install skills through npx skills add
   skills/search/route.ts          GET/POST skills.sh search
   subagents/settings/route.ts     GET/PUT built-in subagent feature setting
+  lan/pair/generate/route.ts      POST mint a 6-digit LAN pairing code (this machine)
+  lan/pair/redeem/route.ts        POST exchange a pairing code for the LAN cookie
+                                  (the only auth-exempt path)
   worktrees/route.ts              GET/POST/DELETE git worktrees
 
 lib/
+  lan-access.ts        fork:lan-access — the only LAN gate (PI_WEB_LAN_TOKEN, tokens, read-only derivation)
+  lan-pair.ts          fork:lan-access — 6-digit pair codes (globalThis singleton) + LAN URL list
+  subagent-mail.ts     fork:agent-mail — in-process agent↔agent mailbox
   agent-client.ts      typed fetch helper for /api/agent commands
   draft-store.ts       local draft persistence helpers
   file-access.ts       allowed file roots for /api/files and worktrees
@@ -118,6 +124,7 @@ lib/
   tool-presets.ts     PRESET_NONE/READ_ONLY/DEFAULT/FULL + getPresetFromTools()
   tool-preset-preference.ts  browser-persisted default for fresh sessions
   types.ts            shared TypeScript types
+  session-unread.ts   fork:trace-menu — 未读会话 id 的共享 store（侧栏画点、菜单写）
   normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
   worktree.ts         project/worktree resolution and git worktree operations
 
@@ -138,6 +145,8 @@ components/
   FileIcons.tsx       file icon helpers
   FileViewer.tsx      file content in a tab
   TabBar.tsx          tab bar (Chat + open file tabs)
+  TraceFrame.tsx     fork:trace-frame — 调用轨迹（右栏单例 tab：完整历史导出页 + 全屏）
+  fork/SessionActionsMenu.tsx  fork:trace-menu — 顶栏 ⋯ 会话动作菜单
 
 hooks/
   useAgentSession.ts  messages + streaming + SSE + fork/navigate/reconciliation logic
@@ -255,6 +264,33 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - 授权边界因此**只能一次性、绑定 realpath**。`hasParentDirectorySegment()`（`lib/path-security.ts`）在 `isExistingPathWithinRoots()` 里拒绝任何 `..` 分段：Node 的 `realpathSync` 先消 `..` 再跟链接，文件系统反过来，`root/link/..` 字典序上等于 `root`（授权通过）实际却打开链接目标旁边那一格。这条覆盖所有拿 cwd / 文件路径做授权的路由，fail closed。
 - 界面用画板已有的 `.pw-perm` / `.pw-perm-title` / `.pw-perm-body` / `.pw-perm-acts` + `.pw-btn primary sm`（已登记在 board.css，画板 01 / 12 / 60 在用），**不新增 `.pw-*` 类**；包住项目/主目录时先 `.pw-alert` 警告再 `window.confirm`（与删除确认同一套交互）。目录展开失败也不再被吞掉，原因显示在该行下面。
 
+### 调用轨迹与会话动作菜单（fork:trace-frame / fork:trace-menu）
+
+用户 2026-10-02 定的两块形态，方案与取舍写在 `docs/trace-pane-and-session-menu-plan-2026-10-02.md`：
+
+* **「调用轨迹」就是「完整历史」那一页，只是换了位置**（用户第二次裁定，推翻了先前的仿 ZCode 面板）：`components/TraceFrame.tsx` 用**同源 iframe** 装 `GET /api/sessions/<id>/export?inline=1`，装进右栏那个单例 `trace` tab。pi 自己导出的那页已经有侧栏树、搜索、五档过滤（Default / No-tools / User / Labeled / All）、可拖宽侧栏、可展开的工具输出 —— **不再另写一套转录渲染**。为此 `app/api/sessions/[id]/export/route.ts` 只对 `inline=1` 放宽嵌帧（CSP `frame-ancestors 'self'` + `X-Frame-Options: SAMEORIGIN`），**下载仍 `DENY`**。页头只加两枚钮：刷新（`nonce` 变一次重载 iframe）与全屏（`position: fixed; inset: 0` 铺满窗口，Esc 退出）。
+* **入口不动**：顶栏那枚原「完整历史」图标钮（位置 / 图标 / `data-mobile-toolbar-action="history"`）打开这个 tab。导出 HTML / Markdown 在 ⋯ 菜单与侧栏行菜单里。
+* **会话动作 ⋯ 菜单**（`components/fork/SessionActionsMenu.tsx`，走既有 `ContextMenuProvider`）：置顶 / 重命名 / 归档 / 标记未读 ‖ 在访达中打开 / 复制路径 / 复制会话文件路径 / 复制会话 ID / 前往配置 ‖ 调用轨迹 / 导出 HTML / 导出 Markdown。**重命名**=顶栏标题原地变输入框（`PATCH /api/sessions/<id]` + `refreshKey`）；**标记为未读**靠 `lib/session-unread.ts`（未读标记原来是 `SessionSidebar` 私有的 `useState`，外部点不到，抽成和 `lib/session-flags.ts` 同形状的 store）；**在访达中打开**走 `/api/files/reveal` 开**项目目录**（会话文件在 `~/.pi/agent/sessions` 下，不在 allowed roots，所以不 reveal 它），失败由 AppShell 里那条 3 秒的 `.pw-toast` 报出来。pi 没有的两个（ZCode 的「复制日志路径」「反馈问题」）不做。
+* **「读数」与「动作」分开**：`SessionStatsDetails`（上下文环浮窗）只留读数（名称 / 活跃时长 / 消息计数 / Token / 费用 / 上下文 / 命中率），路径类动作全在 ⋯ 菜单里，同一件事只留一个入口。
+
+### 局域网与手机配对（fork:lan-access）
+
+参考实现是 MusePi（`pi参考项目/MusePi-main`）。那边手机**不直连** daemon，而是走自研 collab relay（明文 7654 + 自签 TLS 7655，`0.0.0.0`）、链接里拼 32B 房间密钥 + 16B 写令牌、每帧 AES-256-GCM 密封，另开一个**无鉴权**的 8301 端口解析 6 位配对码。本仓是同源 HTTP，**不抄那半个系统**（relay / 自签证书 / 无鉴权端口），只抄两条语义：
+
+* **「有令牌才允许暴露到网卡」**（他们 `daemon/server.ts:9595-9597` 的规则）。本仓的落法是 `lib/lan-access.ts` + `proxy.ts`：**`PI_WEB_LAN_TOKEN` 不设置时一字不改地保持「没有登录」**（2026-09-28 的裁定不动）；设了之后 loopback 仍然放行（桌面 App / `npm run prod` / e2e 不受影响），只有非本机请求要出示令牌。启动器 `bin/pi-web.js` 把 `?t=` 带上并把告警改成两条：没令牌是「同网段任何人都有全权」，有令牌是「令牌走明文 HTTP」。
+* **配对就是「6 位码 → cookie」**：`lib/lan-pair.ts`（mint / spend / 10 分钟 TTL / 用掉即删）→ `POST /api/lan/pair/generate`（本机申请，附局域网地址）→ 手机开 `/pair` → `POST /api/lan/pair/redeem` 种 cookie → 回 `/`。**只读/完整两种链接**也只差一个种类标记：码里不存令牌，只存 `full | readonly`，兑码时按当时的 env 现算 —— 换令牌等于让所有在飞的码立刻作废，而只读令牌是 `HMAC-SHA256(完整令牌, "pi-web-lan-readonly:v1")`，只放行 `GET`/`HEAD`。
+* **不变量**：(1) `checkLanAccess()` 在无令牌时必须恒放行，否则「本产品没有登录」被推翻；(2) 换令牌时**唯一**免登录可达的路径是 `/api/lan/pair/redeem`（`PAIR_EXEMPT_PATHS`），再添一条就得重新审一遍；(3) `0.0.0.0` **不算** loopback —— 那是别的机器也能连的通配地址，当本机等于开洞；(4) 闸门只读 `Host` 头，因为反代会改写它。
+* **入口在设置里**（`lanPair` 分节 → `components/fork/LanPairPanel.tsx`），**不进侧栏导轨**：导轨几何是画板 02 登记过的（`AppShell.design-components.test.mjs` 数着按钮个数），机器级动作归设置页。
+* 现状实测：手机用浏览器打开局域网地址**已经能直连并操作**，所以这套东西解决的是「**鉴权 + 免输密钥的配对**」，不是「能不能连」。
+
+### agent↔agent 通信（fork:agent-mail）
+
+`lib/subagent-mail.ts` 是进程内信箱（`send` / `peek` / `drain` / `waitFor`，每箱 50 封 FIFO），`lib/subagent-runtime.ts` 的 `deliver()` 负责唤醒活着的会话（`sendCustomMessage` + `deliverAs:"followUp"`），工具面是**一个** `agent_mail`（`action: send | inbox | wait`，`to: "parent" | "all" | <id>`）。三个已有工具只能「父 → 子」，这一个把方向补全（子→父 / 子→兄弟 / 父→全体）。
+
+* **`agent_mail` 刻意不进 `SUBAGENT_CONTROL_TOOL_NAMES`**：那个名单是「不许再委派」的控制工具（spawn 时被 `excludeTools` 排除，也进不了 profile 工具白名单）；它是同伴工具，`withSubagentExtensionTools()` 会把它并进每个子代理的工具集 —— 那正是它存在的意义。
+* 信箱**先落**再 `deliver()`：会话当下不可用（已结束 / 被回收）时信也不丢，`inbox` / `wait` 照样读得到，返回值如实说明「kept in the mailbox」。
+* 它**不进** `lib/session-file-references-core.ts` 的受信工具名单：信箱是旁路通道，不给它新增「消息里提到的路径可被读」的授权面。
+
 ### Plugins and skills
 - `/api/plugins` uses pi's `SettingsManager` + `DefaultPackageManager` for global/project package install, remove, update, enable, and disable. Disabling writes empty `extensions/skills/prompts/themes` arrays for that package entry.
 - `/api/skills` uses `DefaultResourceLoader` so settings paths, package skills, and project `.agents/skills` are listed the same way the runtime sees them.
@@ -305,7 +341,10 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
   · **fan-out**：`createMcpSessionLivenessGate` 复用空闲回收那一份 session-liveness 租约 —— 只有浏览器真的在看这个会话（SSE 租约）才放行；`get_tools` / 自动命名 / SSE 预热建出来的 wrapper 一个进程都不起。等待有 10 分钟上限（与默认空闲回收同档）、timer unref、可被 dispose 中止。
   · **stop**：`startupWaitMs: 0` 绕开 `before_agent_start` 那段「最多等 10s 且不认 abort」的等待；`tool_call` 侧的等待用 SDK 自带的 `ctx.signal`。
   · **env**：见上一条。
-  · **exposure 归一**：pi-web 没注册 `codemode` / `tool-search`，而 pi 只把 `direct` / `model-only` 声明给模型，所以 `loadConfig` 把默认的 `codemode` / `deferred` 一律落成 `direct`（`hidden` 保持隐藏）。这是运行时适配，**不落盘、不改用户的 `mcp.json`**。
+  · **exposure 原样透传**（fork:mcp-native-exposure，2026-10-02）：pi **1.0** 已公开导出 `createCodemodeExtension` / `createToolSearchExtension`（`dist/index.d.ts:29,33`），本仓在 `extensionFactories` 里把它们与 `mcp` 一起注册（`mcpDiscoveryExtensionEntries()`，名字取 CLI 的 `codemode` / `tool-search`）。两枚工具**注册但不激活**，由 mcp 扩展在「真有 server 用到该曝光」时自己打开（`extensions/mcp/index.js:352-378`，按工具形状探测，不依赖注册名）。因此 exposure 语义回到 pi 原生：默认 `codemode`（工具不进模型工具表，脚本里 `searchTools()` 找）、`deferred` 走 `tool_search`、`hidden` 撤回。**降级逻辑没有删，只是变成按能力选**：SDK 拿不到这两个导出时 `loadConfig` 仍把 `codemode`/`deferred` 落成 `direct`（见 `normalizeMcpConfigForPiWeb` 的 `nativeExposure`）。这些都是运行时适配，**不落盘、不改用户的 `mcp.json`**。
+  · **`/mcp` 已经能用**（同一次发现）：mcp 扩展自己 `pi.registerCommand("mcp", …)`（登录 / 登出 / 重连 / 开关 / 改 exposure），本仓加载它即带上了这个命令。
+  · **`updateConfig` 接管落盘**（fork:mcp-auto-reload / P0-3）：`/mcp` 改 `enabled`/`exposure` 时不再由 pi 直接改文件，走本仓的 0600 + staging 原子写（`lib/mcp-config-file.ts` 的 `applyMcpServerPatch`，由 `rpc-manager.ts` 注入以避开循环 import）。`scope === "extension"` 的 server 按 pi 的约定不落盘。
+  · **改完配置自动重载会话**（fork:mcp-auto-reload / P0-2）：`/api/mcp` 六个写动作与连接目录都调 `requestMcpReload(cwd)`（global 改动 = 所有会话，项目级只影响本工作区）；**空闲的立即 `AgentSession.reload()`，正在跑的只登记、等 `finishPrompt()` 再重载**（中途 reload 会换掉工具表、打断 turn）。结果 `{reloaded, deferred}` 回给浏览器给一行反馈。
   · 仍然**没有** per-prompt 的 `McpHost`：连接在浏览器会话打开期间常驻，靠 wrapper 空闲回收关闭。
 - 远程部署仍要单独处理：OAuth 回调只听 `127.0.0.1`；`.pi/mcp.json` 靠目录信任继承；除 host-only 名单外的宿主环境变量仍会传给子进程。
 - 契约测试 `lib/pi-sdk-internals.test.mjs` + `lib/mcp-transport.test.mjs`：SDK 不具备 MCP 时**跳过并打印原因**（`t.skip`）；SDK 1.0.0 下实测 **29 条 0 skipped**。跑法：`node --experimental-strip-types --test "lib/pi-sdk-internals.test.mjs" "lib/mcp-transport.test.mjs"`。

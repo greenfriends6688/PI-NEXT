@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { copyText } from "@/lib/clipboard";
 import { TEXT } from "@/lib/typography";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 // fork:zm-04 — token / 成本 / 耗时这些数字变化时逐位滚动，而不是整串跳。
@@ -13,22 +12,16 @@ import { RollingNumber } from "./fork/RollingNumber";
  * composer 下方的常显长条删除，完整统计收进输入框工具条右下角的**上下文环浮窗**
  * （画板 01 帧 C / 画板 20 的「用量收进圆环」路线）。本文件只剩浮窗用的
  * 明细组件与格式化助手；折叠长条（.pw-stats）随旧形态一起删除。
+ *
+ * fork:trace-menu（用户 2026-10-02）—— 浮窗只剩**读数**：名称、活跃时长、消息计数、
+ * token / 费用 / 上下文 / 命中率。会话文件 / ID / 项目目录 / 分支 / worktree 这些
+ * 带复制钮的**动作**搬去了顶栏的 ⋯ 菜单，所以本文件不再持有剪贴板状态与 `session` 入参。
  */
-
-type SessionCopyField = "file" | "id" | "projectDir" | "gitBranch" | "gitWorktree";
 
 export interface ContextUsageInfo {
   percent: number | null;
   contextWindow: number;
   tokens: number | null;
-}
-
-/** 只取面板要展示的字段，避免把整个 SessionInfo 拖进这个纯展示组件。 */
-export interface SessionStatsSessionInfo {
-  projectRoot?: string | null;
-  cwd: string;
-  branch?: string | null;
-  isWorktree?: boolean;
 }
 
 export function formatCompactTokens(value: number): string {
@@ -58,30 +51,14 @@ export function cacheHitRate(tokens: SessionStatsInfo["tokens"]): number | null 
 interface SessionStatsDetailsProps {
   sessionStats: SessionStatsInfo | null;
   contextUsage: ContextUsageInfo | null;
-  session: SessionStatsSessionInfo | null;
 }
 
 /**
- * 浮窗里的三栏明细：会话信息（名称 / 文件 / ID / 活跃时长 / 项目目录 / Git 分支，
- * 带复制钮）· 消息计数 · Token / 费用 / 上下文 / 命中率。
- * 数据与旧展开面板完全一致，只是宿主从「输入框下方的展开面板」换成了环浮窗。
+ * 浮窗里的三栏明细：会话信息（名称 / 活跃时长）· 消息计数 · Token / 费用 /
+ * 上下文 / 命中率。宿主是输入框右下角上下文环的浮窗；路径类动作在顶栏 ⋯ 菜单。
  */
-export function SessionStatsDetails({ sessionStats, contextUsage, session }: SessionStatsDetailsProps) {
+export function SessionStatsDetails({ sessionStats, contextUsage }: SessionStatsDetailsProps) {
   const { t, locale } = useI18n();
-  const [copiedField, setCopiedField] = useState<SessionCopyField | null>(null);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-  }, []);
-
-  const handleCopy = useCallback((field: SessionCopyField, value: string) => {
-    void copyText(value).then(() => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      setCopiedField(field);
-      copyTimerRef.current = setTimeout(() => setCopiedField(null), 1400);
-    });
-  }, []);
 
   const tokens = sessionStats?.tokens;
   const cost = sessionStats?.cost ?? 0;
@@ -99,19 +76,12 @@ export function SessionStatsDetails({ sessionStats, contextUsage, session }: Ses
 
   const formatNumber = (value: number) => value.toLocaleString(locale);
 
-  const rows: Array<[string, ReactNode, SessionCopyField | null]> = [];
+  const rows: Array<[string, ReactNode]> = [];
   if (sessionStats) {
-    if (sessionStats.sessionName) rows.push([t("session.name"), sessionStats.sessionName, null]);
-    rows.push([t("session.file"), sessionStats.sessionFile ?? t("session.inMemory"), "file"]);
-    rows.push([t("session.id"), sessionStats.sessionId, "id"]);
+    if (sessionStats.sessionName) rows.push([t("session.name"), sessionStats.sessionName]);
     // fork:zm-04 — 耗时每秒都在变，滚动比跳字更不容易看成「页面在闪」。
     if ((sessionStats.totalActiveMs ?? 0) > 0) {
-      rows.push([t("session.totalActive"), <RollingNumber key="active" value={formatStatsDuration(sessionStats.totalActiveMs ?? 0)} />, null]);
-    }
-    if (session) {
-      rows.push([t("session.projectDir"), session.projectRoot ?? session.cwd, "projectDir"]);
-      if (session.branch) rows.push([t("session.gitBranch"), session.branch, "gitBranch"]);
-      if (session.isWorktree) rows.push([t("session.gitWorktree"), session.cwd, "gitWorktree"]);
+      rows.push([t("session.totalActive"), <RollingNumber key="active" value={formatStatsDuration(sessionStats.totalActiveMs ?? 0)} />]);
     }
   }
 
@@ -135,60 +105,23 @@ export function SessionStatsDetails({ sessionStats, contextUsage, session }: Ses
     ...(hitRate !== null ? [[t("session.cacheHitRate"), `${hitRate.toFixed(1)}%`] as [string, string]] : []),
   ] : [];
 
-  const copyTitleKey: Record<SessionCopyField, string> = {
-    file: "session.copyFile",
-    id: "session.copyId",
-    projectDir: "session.copyProjectDir",
-    gitBranch: "session.copyGitBranch",
-    gitWorktree: "session.copyGitWorktree",
-  };
-
-  const renderSection = (title: string, sectionRows: Array<[string, ReactNode, SessionCopyField | null]>, titleColor?: string) => (
+  const renderSection = (title: string, sectionRows: Array<[string, ReactNode]>, titleColor?: string) => (
     <div key={title} style={{ minWidth: 168, maxWidth: 320 }}>
       {/* fork:design-components —— 会话文件越大切换越慢，这一档提醒放在「消息」小节标题上。 */}
       <div style={{ fontSize: TEXT.xs, fontWeight: 700, color: titleColor ?? "var(--text)", marginBottom: "var(--space-row)" }}>{title}</div>
       <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", columnGap: "var(--s3)", rowGap: "var(--s1)" }}>
-        {sectionRows.map(([label, value, copyField]) => (
+        {sectionRows.map(([label, value]) => (
           <div key={`${title}:${label}`} style={{ display: "contents" }}>
             <div style={{ color: "var(--text-dim)", whiteSpace: "nowrap" }}>{label}</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "var(--space-row)", minWidth: 0 }}>
-              <span style={{
-                color: "var(--text-muted)",
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontVariantNumeric: "tabular-nums",
-              }} title={typeof value === "string" ? value : undefined}>{value}</span>
-              {copyField && typeof value === "string" && (
-                <button
-                  type="button"
-                  title={copiedField === copyField ? t("session.copied") : t(copyTitleKey[copyField])}
-                  aria-label={copiedField === copyField ? t("session.copied") : t(copyTitleKey[copyField])}
-                  onClick={() => handleCopy(copyField, value)}
-                  style={{
-                    flex: "0 0 auto",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 20,
-                    height: 20,
-                    padding: 0,
-                    color: copiedField === copyField ? "var(--accent)" : "var(--text-dim)",
-                    background: "transparent",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-xs)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    {copiedField === copyField
-                      ? <path d="m5 13 4 4L19 7" />
-                      : <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></>}
-                  </svg>
-                </button>
-              )}
-            </div>
+            <span style={{
+              color: "var(--text-muted)",
+              textAlign: "right",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontVariantNumeric: "tabular-nums",
+            }} title={typeof value === "string" ? value : undefined}>{value}</span>
           </div>
         ))}
       </div>
@@ -200,8 +133,8 @@ export function SessionStatsDetails({ sessionStats, contextUsage, session }: Ses
   return (
     <>
       {rows.length > 0 && renderSection(t("session.infoSection"), rows)}
-      {messageRows.length > 0 && renderSection(t("session.messages"), messageRows.map(([label, value]) => [label, value, null] as [string, string, SessionCopyField | null]), messageCountColor)}
-      {tokenRows.length > 0 && renderSection(t("session.tokens"), tokenRows.map(([label, value]) => [label, value, null] as [string, string, SessionCopyField | null]))}
+      {messageRows.length > 0 && renderSection(t("session.messages"), messageRows, messageCountColor)}
+      {tokenRows.length > 0 && renderSection(t("session.tokens"), tokenRows)}
     </>
   );
 }

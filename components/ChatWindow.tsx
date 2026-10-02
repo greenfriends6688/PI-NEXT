@@ -2035,12 +2035,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       sessionStats={sessionStats}
       // fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条）。
       statsDetails={sessionStats}
-      statsSession={session ? {
-        projectRoot: session.projectRoot ?? null,
-        cwd: session.cwd,
-        branch: session.branch ?? null,
-        isWorktree: session.isWorktree,
-      } : null}
       onAudioUnlock={unlockAudio}
       draftKey={session?.id ?? newSessionDraftKey ?? undefined}
       onLocateSelectionContext={locateSelectionContext}

@@ -24,7 +24,8 @@ export interface TabOverviewEntry {
   id: string;
   label: string;
   filePath: string;
-  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes";
+  /** fork:trace-pane — `trace` 与图谱 / 改动同属单例视图 tab。 */
+  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes" | "trace";
 }
 
 interface Props {
@@ -56,6 +57,8 @@ const TAB_KIND_ICON: Record<string, string> = {
   session: "bot",
   "git-graph": "git-branch",
   changes: "file-diff",
+  // fork:trace-pane —— 调用轨迹 tab 的字形（与面板头一致）。
+  trace: "activity",
 };
 
 function TabGlyph({ tab }: { tab: TabOverviewEntry }) {

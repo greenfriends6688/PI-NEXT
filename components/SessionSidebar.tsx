@@ -10,6 +10,13 @@ import { skillExpansionToCommand } from "@/lib/slash-display";
 import { chatProjectOf, getProjectActivity, getRecentProjects, sessionsForProject, withoutChatProject } from "@/lib/project-groups";
 import type { RecentProject } from "@/lib/project-groups";
 import { applySessionFlags, useSessionFlags } from "@/lib/session-flags";
+// fork:trace-menu —— 未读标记的共享存储（侧栏画点，顶栏 ⋯ 菜单写）。
+import {
+  clearSessionUnread,
+  markSessionUnread,
+  pruneSessionUnread,
+  useUnreadSessions,
+} from "@/lib/session-unread";
 import { filterArchivedProjects, useProjectFlags } from "@/lib/project-flags";
 // fork:zc-11 — 用户自定义项目分组 + 拖拽排序（localStorage 展示层偏好）。
 import { useSessionGroups } from "@/lib/session-groups";
@@ -209,7 +216,6 @@ interface ValidatedProject {
   key: string;
 }
 
-const UNREAD_SESSIONS_STORAGE_KEY = "pi-web:unread-session-ids";
 const LAST_CUSTOM_CWD_STORAGE_KEY = "pi-web:last-custom-cwd";
 const RUNNING_SESSIONS_POLL_MS = 2500;
 const SESSION_DETAILS_HYDRATION_DELAY_MS = 750;
@@ -229,29 +235,6 @@ function saveLastCustomCwd(cwd: string): void {
     window.localStorage.setItem(LAST_CUSTOM_CWD_STORAGE_KEY, cwd);
   } catch {
     // Persistence is best-effort.
-  }
-}
-
-function loadUnreadSessionIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(UNREAD_SESSIONS_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) return new Set(parsed.filter((id): id is string => typeof id === "string"));
-    return new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function saveUnreadSessionIds(ids: Set<string>): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (ids.size === 0) window.localStorage.removeItem(UNREAD_SESSIONS_STORAGE_KEY);
-    else window.localStorage.setItem(UNREAD_SESSIONS_STORAGE_KEY, JSON.stringify([...ids]));
-  } catch {
-    // ignore storage quota / privacy-mode errors
   }
 }
 
@@ -749,7 +732,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // 与 running 同一次轮询取回，所以不额外发请求。
   const [awaitingSessionIds, setAwaitingSessionIds] = useState<Set<string>>(() => new Set());
   const [awaitingSessionKinds, setAwaitingSessionKinds] = useState<Record<string, "approval" | "input">>({});
-  const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => loadUnreadSessionIds());
+  // fork:trace-menu —— 未读标记搬进 lib/session-unread.ts，顶栏 ⋯ 菜单的「标记为未读」
+  // 与这里画的未读点共用一份存储（原来是本文件私有的 useState，外部点不到）。
+  const unreadSessionIds = useUnreadSessions();
   const { flags: sessionFlags } = useSessionFlags();
   const previousRunningSessionIdsRef = useRef<Set<string>>(new Set());
   const currentSuppressedCompletionSessionIdsRef = useRef<Set<string>>(new Set());
@@ -887,11 +872,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           .filter((session) => session.relation?.kind !== "subagent")
           .map((session) => session.id),
       );
-      setUnreadSessionIds((prev) => {
-        if (prev.size === 0) return prev;
-        const next = new Set([...prev].filter((id) => unreadEligibleIds.has(id)));
-        return next.size === prev.size ? prev : next;
-      });
+      pruneSessionUnread(unreadEligibleIds);
       setError(null);
     } catch (e) {
       if (loadId === sessionLoadIdRef.current) setError(String(e));
@@ -929,12 +910,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       }
     };
   }, [loadSessions, refreshKey]);
-
-  // Persist unread markers so they survive a browser refresh before the user
-  // has actually opened the completed session.
-  useEffect(() => {
-    saveUnreadSessionIds(unreadSessionIds);
-  }, [unreadSessionIds]);
 
   useEffect(() => {
     let stopped = false;
@@ -1032,12 +1007,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     const newlyRunning = [...runningSessionIds].filter((id) => !previous.has(id));
 
     if (completedWithNotifications.length > 0 || newlyRunning.length > 0) {
-      setUnreadSessionIds((prev) => {
-        const next = new Set(prev);
-        runningSessionIds.forEach((id) => next.delete(id));
-        completedWithNotifications.forEach((id) => next.add(id));
-        return next;
-      });
+      runningSessionIds.forEach(clearSessionUnread);
+      completedWithNotifications.forEach(markSessionUnread);
     }
     const hasUnlistedRunningSession = newlyRunning.some(
       (id) => !allSessions.some((session) => session.id === id),
@@ -1059,12 +1030,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
   useEffect(() => {
     if (!selectedSessionId) return;
-    setUnreadSessionIds((prev) => {
-      if (!prev.has(selectedSessionId)) return prev;
-      const next = new Set(prev);
-      next.delete(selectedSessionId);
-      return next;
-    });
+    clearSessionUnread(selectedSessionId);
   }, [selectedSessionId]);
 
   useEffect(() => {

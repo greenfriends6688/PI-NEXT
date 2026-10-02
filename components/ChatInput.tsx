@@ -6,7 +6,7 @@ import type { SkillsResponse } from "@/lib/api-types";
 import type { TextContent, UserMessage } from "@/lib/types";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 // fork:ui-stats-ring — 环浮窗的完整会话明细（原 composer 下方的统计长条内容）。
-import { SessionStatsDetails, type SessionStatsSessionInfo } from "./SessionStatsBar";
+import { SessionStatsDetails } from "./SessionStatsBar";
 import {
   clearDraft,
   getDraft,
@@ -177,7 +177,6 @@ interface Props {
   sessionStats?: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }; cost: number; totalMessages: number } | null;
   /** fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条内容）。 */
   statsDetails?: SessionStatsInfo | null;
-  statsSession?: SessionStatsSessionInfo | null;
   onAudioUnlock?: () => void;
   draftKey?: string;
   /** Initial context items for a focused composer, such as the new-chat quote popover. */
@@ -939,7 +938,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   slashCommands, slashCommandsLoading, onLoadSlashCommands,
   onBuiltinCommand,
   soundEnabled, onSoundToggle, onAudioUnlock,
-  contextUsage, sessionStats, statsDetails = null, statsSession = null,
+  contextUsage, sessionStats, statsDetails = null,
   onPromptWithStreamingBehavior,
   draftKey,
   initialSelectionContexts,
@@ -2986,7 +2985,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           )}
           {statsDetails && (
             <div className="composer-ring-details">
-              <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} session={statsSession} />
+              <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} />
             </div>
           )}
           {onCompact && (

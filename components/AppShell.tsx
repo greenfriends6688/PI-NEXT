@@ -107,6 +107,9 @@ import { LinkOpenProvider } from "./LinkOpenContext";
 import type { NewSessionProject } from "./fork/ProjectChip";
 // fork:proma-05-explore — 右栏并排看探索分支（只读）
 import { ExplorationPane } from "./fork/ExplorationPane";
+import { TraceFrame } from "./TraceFrame";
+import { SessionActionsMenu } from "./fork/SessionActionsMenu";
+import { markSessionUnread } from "@/lib/session-unread";
 import { SessionRowContextMenuBridge } from "./SessionRowContextMenuBridge";
 import { WallpaperLayer } from "./WallpaperLayer";
 import { initWallpaper } from "@/hooks/useWallpaper";
@@ -154,6 +157,8 @@ const EXPLORER_COLUMN_MIN_PANEL_WIDTH = 760;
 const GIT_GRAPH_TAB_ID = "git-graph";
 /** fork:proma-39-changes — 单例改动面板 tab 的 id（同样不与 `file:<path>` 撞名）。 */
 const CHANGES_TAB_ID = "changes";
+/** fork:trace-pane — 单例「调用轨迹」tab 的 id（同一约定）。 */
+const TRACE_TAB_ID = "trace";
 const AGENT_PANEL_WIDTH = 420;
 /* fork:top-panel-anchor —— 画板 22 的 `.pw-pop` 是 320 宽；系统提示词 / 工具两个
    浮层的内容按这个宽度排版。Agent 面板有自己的宽度（上方 AGENT_PANEL_WIDTH）。 */
@@ -288,6 +293,56 @@ export function AppShell() {
   }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+  // fork:trace-menu —— ⋯ 菜单「重命名会话」：标题原地变成输入框（ZCode 的任务标题
+  // 也是这么改的），回车提交 / Esc 取消，失焦也提交。PATCH 之后 bump refreshKey
+  // 让侧栏列表立刻重新读一次（不等它 2.5s 的轮询）。
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  // fork:trace-menu —— 极简通知宿主：菜单里的系统级动作（在访达里打开项目目录）
+  // 失败时必须有地方报，否则就是「点了没反应」。固定一条 `.pw-toast`，3s 自动收。
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((message: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+
+  /* fork:trace-menu —— 菜单里的「在访达中打开」：走 `/api/files/reveal`（与文件树
+     `PathActions` 同一个端点、同一份 allowed roots 判定）。会话文件在
+     `~/.pi/agent/sessions` 下、不在 roots 里，所以这里开的是**项目目录**。 */
+  const revealProjectDir = useCallback(async (dir: string) => {
+    if (!dir) return;
+    try {
+      const res = await fetch("/api/files/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: dir, action: "reveal" }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      showToast(translate("session.revealFailed"));
+    }
+  }, [showToast, translate]);
+
+  const commitSessionRename = useCallback((sessionId: string, name: string) => {
+    setRenamingSessionId(null);
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setRefreshKey((key) => key + 1);
+      } catch {
+        showToast(translate("session.renameFailed"));
+      }
+    })();
+  }, [showToast, translate]);
   // fork:proma-32-skill-usage —— 本轮 skill chip 的落点：打开设置并定位到 Skills 分节里的那一条。
   const [settingsSkillSlug, setSettingsSkillSlug] = useState<string | null>(null);
   const handleOpenSkill = useCallback((slug: string) => {
@@ -654,6 +709,8 @@ export function AppShell() {
   const [gitGraphOpen, setGitGraphOpen] = useState(false);
   // fork:proma-39-changes — 单例「改动」面板（与图谱同为「看一眼」的视图，不持久化）。
   const [changesOpen, setChangesOpen] = useState(false);
+  // fork:trace-pane — 单例「调用轨迹」tab（顶栏原「完整历史」钮打开它）。
+  const [traceOpen, setTraceOpen] = useState(false);
   // 有新改动但用户没在看改动 tab 时的未读标记（只提示，绝不自动切 tab）。
   const [changesUnseen, setChangesUnseen] = useState(false);
   // ChatWindow 聚合上来的本会话写入文件（非 Git 项目的改动来源）。
@@ -732,6 +789,11 @@ export function AppShell() {
     filePath: "",
     kind: "changes" as const,
     unread: changesUnseen,
+  }] : []), ...(traceOpen ? [{
+    id: TRACE_TAB_ID,
+    label: translate("trace.title"),
+    filePath: "",
+    kind: "trace" as const,
   }] : []), ...fileTabs, ...terminalTabs.map((tab) => ({
     id: tab.id,
     label: getFileName(tab.cwd) || tab.cwd,
@@ -748,7 +810,7 @@ export function AppShell() {
     label: tab.label,
     filePath: tab.sessionId,
     kind: "session" as const,
-  }))], [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, terminalTabs, translate]);
+  }))], [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, terminalTabs, traceOpen, translate]);
 
   useEffect(() => {
     try {
@@ -1646,6 +1708,21 @@ export function AppShell() {
       if (!workspaceSwapped && remainingIds.length === 0) setRightPanelOpen(false);
       return;
     }
+    if (tabId === TRACE_TAB_ID) {
+      // fork:trace-pane — 单例 tab 关闭后从面板里拿掉（与图谱 / 改动同一套）。
+      setTraceOpen(false);
+      const remainingIds = [
+        ...fileTabs.map((tab) => tab.id),
+        ...terminalTabs.map((tab) => tab.id),
+        ...browserTabs.map((tab) => tab.id),
+        ...branchTabs.map((tab) => tab.id),
+        ...(gitGraphOpen ? [GIT_GRAPH_TAB_ID] : []),
+        ...(changesOpen ? [CHANGES_TAB_ID] : []),
+      ];
+      setActiveFileTabId((current) => current !== tabId ? current : remainingIds.at(-1) ?? null);
+      if (!workspaceSwapped && remainingIds.length === 0) setRightPanelOpen(false);
+      return;
+    }
     if (branchTabs.some((tab) => tab.id === tabId)) {
       const remaining = branchTabs.filter((tab) => tab.id !== tabId);
       setBranchTabs(remaining);
@@ -1677,7 +1754,7 @@ export function AppShell() {
       const remaining = fileTabs.filter((t) => t.id !== tabId);
       return remaining.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? null;
     });
-  }, [branchTabs, browserTabs, fileTabs, gitGraphOpen, terminalTabs, workspaceSwapped]);
+  }, [branchTabs, browserTabs, changesOpen, fileTabs, gitGraphOpen, terminalTabs, workspaceSwapped]);
 
   // fork:zc-06 — tab 概览：记录「最近关闭」，并提供批量关闭 / 重开。
   //
@@ -1710,6 +1787,7 @@ export function AppShell() {
     setGitGraphOpen(false);
     setChangesOpen(false);
     setChangesUnseen(false);
+    setTraceOpen(false);
     setActiveFileTabId(null);
     if (!workspaceSwapped) setRightPanelOpen(false);
   }, [panelTabs, workspaceSwapped]);
@@ -1726,6 +1804,7 @@ export function AppShell() {
     setGitGraphOpen(keep === GIT_GRAPH_TAB_ID);
     setChangesOpen(keep === CHANGES_TAB_ID);
     setChangesUnseen(false);
+    setTraceOpen(keep === TRACE_TAB_ID);
   }, [activeFileTabId, panelTabs]);
 
   const handleRestoreClosedTab = useCallback((tab: RestorableTab) => {
@@ -1738,13 +1817,14 @@ export function AppShell() {
     handleOpenFile(tab.filePath, tab.label);
   }, [handleOpenFile, openGitGraphTab]);
 
+  // fork:trace-pane —— 顶栏原「完整历史」图标钮（位置、图标、名字都不动，用户
+  // 2026-10-02 裁定）现在开右栏的单例「调用轨迹」tab，而不是 window.open 导出
+  // 的整页 HTML；导出仍从 ⋯ 菜单与侧栏行菜单进。
   const handleViewFullHistory = useCallback(() => {
     if (!selectedSession) return;
-    window.open(
-      `/api/sessions/${encodeURIComponent(selectedSession.id)}/export?inline=1`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    setTraceOpen(true);
+    setActiveFileTabId(TRACE_TAB_ID);
+    setRightPanelOpen(true);
   }, [selectedSession]);
 
   // Show chat area if a session is selected, or if we have a cwd to start a new session in
@@ -2297,6 +2377,27 @@ export function AppShell() {
         >
           <span className="pw-ico"><i data-ico="download" data-size="14"></i></span>
         </button>
+        {/* fork:trace-menu —— 会话动作 ⋯ 菜单（置顶 / 归档 / 复制路径与 ID / 导出）。
+            轨迹入口不在这里：它留在上面那枚「完整历史」图标钮上。 */}
+        <SessionActionsMenu
+          session={selectedSession
+            ? { id: selectedSession.id, path: selectedSession.path, cwd: selectedSession.cwd, projectRoot: selectedSession.projectRoot }
+            : null}
+          mobile={mobile}
+          onRename={() => { if (selectedSession) setRenamingSessionId(selectedSession.id); }}
+          onMarkUnread={() => { if (selectedSession) markSessionUnread(selectedSession.id); }}
+          onReveal={() => { void revealProjectDir(selectedSession?.projectRoot ?? selectedSession?.cwd ?? ""); }}
+          onOpenSettings={() => setSettingsSection("models")}
+          onViewTrace={handleViewFullHistory}
+          onExportHtml={() => {
+            if (!selectedSession) return;
+            window.open(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?inline=1`, "_blank", "noopener,noreferrer");
+          }}
+          onExportMarkdown={() => {
+            if (!selectedSession) return;
+            window.open(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`, "_blank", "noopener,noreferrer");
+          }}
+        />
       </div>
     );
   };
@@ -2316,6 +2417,34 @@ export function AppShell() {
   <span>{topBarSessionTitle}</span>
 </div>
   );
+
+  /* fork:trace-menu —— 重命名态：同一个位置换成输入框（画板 02 那一行的 `.pw-input`）。
+     回车提交、Esc 取消、失焦提交；提交后 bump refreshKey 让侧栏立刻跟上。 */
+  const renderSessionRename = () => {
+    const sessionId = renamingSessionId && selectedSession?.id === renamingSessionId ? renamingSessionId : null;
+    if (!sessionId || !selectedSession) return renderSessionTitle();
+    return (
+      <input
+        className="pw-input"
+        defaultValue={selectedSession.name ?? ""}
+        placeholder={selectedSession.firstMessage?.slice(0, 50) ?? ""}
+        autoFocus
+        aria-label={translate("session.rename")}
+        style={{ width: "min(360px, 46vw)", height: "var(--control-sm)", margin: 0 }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setRenamingSessionId(null);
+            return;
+          }
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          commitSessionRename(sessionId, event.currentTarget.value);
+        }}
+        onBlur={(event) => commitSessionRename(sessionId, event.currentTarget.value)}
+      />
+    );
+  };
 
 
   /* fork:zn-21 / fork:design-components —— 折叠导轨照画板 02 帧 C 重抄（2026-09-30）。
@@ -2379,6 +2508,9 @@ export function AppShell() {
       </button>
       <span className="grow" />
       {/* 画板 02 的导轨贴底是设置入口（侧栏展开时它在 .pw-side-foot）。 */}
+      {/* fork:lan-access —— 手机配对在设置里当一个分节（`lanPair`），**不**往这里加第五枚
+          按钮：导轨几何是画板 02 登记过的（`AppShell.design-components.test.mjs` 数着
+          按钮个数），机器级动作归设置页。 */}
       <button
         type="button"
         onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
@@ -2703,7 +2835,7 @@ export function AppShell() {
               GuiHeader.tsx:748): recent sessions open from here, so switching
               does not require going back to the sidebar. The `.pw-tb-title`
               frame (panel-left + text) lives inside `renderSessionTitle`. */}
-          {!isMobile && renderSessionTitle()}
+          {!isMobile && renderSessionRename()}
           {!isMobile && selectedSession && runningSessionIds.has(selectedSession.id) && (
             // 画板 01 帧 B：运行中在标题右侧给一枚状态芯片。
             <span className="pw-chipbtn">
@@ -2778,7 +2910,7 @@ export function AppShell() {
                   it has to answer. Same session-switcher popover as the desktop header,
                   ellipsised into whatever space the icons leave. */}
               <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, padding: "0 2px" }}>
-                {renderSessionTitle()}
+                {renderSessionRename()}
               </div>
               {renderMainFileToggle(true)}
               {isNarrowMobile && mobileToolbarMoreOpen && (
@@ -2877,6 +3009,7 @@ export function AppShell() {
           {showChat ? (
             <ChatWindow
               key={sessionKey}
+              reloadToken={sessionReloadToken}
               session={selectedSession}
               searchTarget={searchTarget?.sessionId === selectedSession?.id ? searchTarget : null}
               onSearchTargetHandled={handleSearchTargetHandled}
@@ -3110,6 +3243,20 @@ export function AppShell() {
               />
             </div>
           ) : null}
+          {traceOpen ? (
+            // fork:trace-pane — 单例「调用轨迹」tab。常驻挂载（hidden 而非卸载）：
+            // 折叠状态与搜索查询不因切 tab 丢失（同改动面板的做法）。
+            <div hidden={activeFileTabId !== TRACE_TAB_ID} style={{ width: "100%", height: "100%" }}>
+              {/* fork:trace-frame —— 内容就是「完整历史」那一页（pi 自己导出的会话页），
+                  装进右栏这个单例 tab，页头另有刷新与全屏两枚钮。 */}
+              <TraceFrame
+                key={selectedSession?.id ?? "no-session"}
+                sessionId={selectedSession?.id ?? ""}
+                title={selectedSession?.name ?? topBarSessionTitle}
+                active={activeFileTabId === TRACE_TAB_ID}
+              />
+            </div>
+          ) : null}
           {fileTabs.filter((tab) => mountedFileTabs.has(tab.id)).map((tab) => {
             const isActive = tab.id === activeFileTabId;
             return (
@@ -3154,6 +3301,7 @@ export function AppShell() {
             && !branchTabs.some((tab) => tab.id === activeFileTabId)
             && activeFileTabId !== GIT_GRAPH_TAB_ID
             && activeFileTabId !== CHANGES_TAB_ID
+            && activeFileTabId !== TRACE_TAB_ID
             // fork:proma-39-changes — 图谱 / 改动 tab 都占满 file-panel-main，不能再叠一层文件树。
             ? (
             activeCwd ? (
@@ -3250,6 +3398,23 @@ export function AppShell() {
         }}
       />
     )}
+    {/* fork:trace-menu —— 极简通知宿主：系统级动作（在访达里打开、改名失败）没地方报
+        就是「点了没反应」，所以这里补一条 `.pw-toast`（3s 自动收，不堆栈不排队）。 */}
+    {toast ? (
+      <div
+        role="status"
+        className="pw-toast bad"
+        style={{
+          position: "fixed",
+          bottom: "var(--s5)",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 900,
+        }}
+      >
+        {toast}
+      </div>
+    ) : null}
     </>
     </LinkOpenProvider>
     </ContextMenuProvider>
