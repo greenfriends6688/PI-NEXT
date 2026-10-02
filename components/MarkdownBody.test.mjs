@@ -401,3 +401,21 @@ test("fork:currency-math — 货币文本照常过 HTML / URL 消毒（#976）",
   assert.match(html, /\$20/);
   assert.match(html, /\$6/);
 });
+
+// fork:proma-34-mention —— 图片文件的 mention 芯片可点开 ImagePreview 灯箱。
+test("image file mentions render as a preview chip; other mentions stay plain spans", () => {
+  const html = renderMarkdown("看 @assets/logo.ico 和 @src/chat.tsx", {
+    highlightMentions: true,
+    mentionValidators: { fileExists: () => true },
+  });
+
+  // 图片 chip：带 data-mention-previewable，且被预览触发按钮包住（灯箱打开时才渲染 <img>，
+  // SSR 里只看得到按钮与 aria-label）。
+  assert.match(html, /data-mention-previewable="true"/);
+  assert.match(html, /aria-label="Preview image: assets\/logo\.ico"/);
+  assert.match(html, /<button[^>]*><span[^>]*data-mention-previewable="true"[^>]*>@assets\/logo\.ico<\/span><\/button>/);
+  // 非图片 mention 不挂预览属性，仍是裸 span。
+  const nonPreviewable = html.split("data-mention-value=\"src/chat.tsx\"")[0];
+  assert.ok(!/data-mention-value="src\/chat\.tsx"[^>]*data-mention-previewable/.test(html));
+  assert.match(nonPreviewable, /pw-tok-ref/);
+});

@@ -18,8 +18,9 @@
 // 还原成 `<span class="mention-token …">`。高亮表现与 REF 的 raw-HTML 方案一致。
 
 import type { Root } from "mdast";
+import { isImagePath } from "./file-types";
 
-export type MentionKind = "file" | "skill" | "comment";
+export type MentionKind = "file" | "skill" | "comment" | "mcp" | "session";
 
 export interface MentionValidators {
   /**
@@ -63,8 +64,11 @@ export type InputSegment = TextSegment | MentionSegment;
  * lookbehind，而一个解析不了的正则字面量会让整个 chunk 抛 SyntaxError（首页白屏，
  * #753）。所以边界改由扫描时的 `MENTION_BOUNDARY_RE` 判断，正则本体用 sticky（`y`）
  * 从起点匹配 —— 遍历顺序与原来逐位置尝试一致。
+ *
+ * fork:proma-34-mention —— `#mcp:<name>` 与 `&session:<id>::<label>` 是本 PR 新增的
+ * 两种触发符；`file` / `skill` / `comment` 的既有语法与哨兵编码逐字节不变。
  */
-const MENTION_RE = /(@"[^"\n]*"|@comment[：:][^\s"]+|@[^\s"]+|\/skill:[^\s]+)/y;
+const MENTION_RE = /(@"[^"\n]*"|@comment[：:][^\s"]+|@[^\s"]+|\/skill:[^\s]+|#mcp:[^\s]+|&session:[^\s]+)/y;
 const MENTION_BOUNDARY_RE = /[\s\u00A0]/;
 
 /**
@@ -93,6 +97,18 @@ function classifyToken(raw: string, validators: MentionValidators): MentionToken
       value: name,
       valid: validators.isSkill?.(name) === true,
     };
+  }
+  if (raw.startsWith("#mcp:")) {
+    // fork:proma-34-mention —— MCP 服务名没有本地索引可查，有效性来自 token 形状
+    // （非空名字），与 `@comment:` 同一条规则。
+    const name = raw.slice("#mcp:".length);
+    return { kind: "mcp", value: name, valid: name.length > 0 };
+  }
+  if (raw.startsWith("&session:")) {
+    // fork:proma-34-mention —— 形如 `&session:<id>::<label>`；id 必须非空。
+    const value = raw.slice("&session:".length);
+    const id = value.split("::", 1)[0] ?? "";
+    return { kind: "session", value, valid: id.length > 0 };
   }
   if (raw.startsWith("@comment:") || raw.startsWith("@comment：")) {
     // 有效性来自 token 格式本身（sha 形状），不需要 validator 数据：所以
@@ -125,7 +141,7 @@ export function tokenizeMentions(
 
   while (index < text.length) {
     // 先用便宜的字符判断筛掉绝大多数位置，再查边界与 sticky 匹配（见 MENTION_RE）。
-    if (text[index] === "@" || text.startsWith("/skill:", index)) {
+    if (text[index] === "@" || text[index] === "#" || text[index] === "&" || text.startsWith("/skill:", index)) {
       if (index === 0 || MENTION_BOUNDARY_RE.test(text[index - 1])) {
         MENTION_RE.lastIndex = index;
         const match = MENTION_RE.exec(text);
@@ -244,7 +260,7 @@ function decodeMentionHref(href: string): { kind: MentionKind; value: string } |
   const dash = rest.indexOf("-");
   if (dash < 1) return null;
   const kind = rest.slice(0, dash);
-  if (kind !== "file" && kind !== "skill" && kind !== "comment") return null;
+  if (kind !== "file" && kind !== "skill" && kind !== "comment" && kind !== "mcp" && kind !== "session") return null;
   try {
     return { kind, value: decodeURIComponent(rest.slice(dash + 1)) };
   } catch {
@@ -261,6 +277,9 @@ function isMentionLink(node: HastNode): { kind: MentionKind; value: string } | n
 }
 
 function toMentionSpan(node: HastNode, kind: MentionKind, value: string): HastNode {
+  // fork:proma-34-mention —— 图片文件的 mention 芯片可点开预览（MessageView 侧
+  // 的 `.pw-tok-ref` 高亮保持不变，预览由 MarkdownBody 的 span 渲染器接管）。
+  const previewable = kind === "file" && isImagePath(value);
   return {
     type: "element",
     tagName: "span",
@@ -270,6 +289,7 @@ function toMentionSpan(node: HastNode, kind: MentionKind, value: string): HastNo
       className: ["pw-tok-ref"],
       dataMentionKind: kind,
       dataMentionValue: value,
+      ...(previewable ? { dataMentionPreviewable: true } : {}),
     },
     children: node.children ?? [],
   };

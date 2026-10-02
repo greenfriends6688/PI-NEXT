@@ -198,9 +198,27 @@ function buildMarkdownComponents(
     // 数学排版就散架；`.katex-display > .katex` 也依赖这两个类同时存在。
     // 所以这里只在原类名后面**追加** pw-math，不替换。
     span({ node, className, ...props }) {
-      void node;
       if (className === "katex-display") return <span {...props} className="katex-display pw-math block" />;
       if (className === "katex") return <span {...props} className="katex pw-math" />;
+      // fork:proma-34-mention —— 图片文件的 mention 芯片可点开预览。`data-mention-previewable`
+      // 由 lib/mention-tokens.ts 的 rehype 插件打在 span 上；这里只负责接 ImagePreview。
+      const previewable = node?.properties?.dataMentionPreviewable === true;
+      const mentionValue = node?.properties?.dataMentionValue;
+      if (previewable && typeof mentionValue === "string") {
+        const filePath = resolveLocalFileHref(mentionValue, cwd);
+        if (filePath) {
+          return (
+            <ImagePreview
+              src={`/api/files/${encodeFilePathForApi(filePath)}?type=read`}
+              alt={mentionValue}
+              // 内联 chip 不能撑成整行：ImagePreview 的触发钮默认 block。
+              style={{ display: "inline" }}
+            >
+              <span {...props} className={className} />
+            </ImagePreview>
+          );
+        }
+      }
       return <span {...props} className={className} />;
     },
     a({ href, children, ...props }) {
