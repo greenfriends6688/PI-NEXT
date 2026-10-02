@@ -878,7 +878,8 @@ body.pw.dark { background: #0f0f13; }
  * **自己那点内容高度**里居中，看起来是「飘在右上角的一段说明」（用户实测：
  * 自定义命令页、记忆页）。改成 flex 列后，栈能拿到确定高度，空态才真的居中。 */
 .pw-detail { display: flex; flex-direction: column; border: 1px solid var(--n-border-subtle); border-radius: var(--radius-6); padding: var(--s3) var(--s4); }
-.pw-detail > .pw-detail-stack {
+.pw-detail > .pw-detail-stack,
+.pw-detail .pw-detail-stack {
   /* fork:stack-rows（2026-10-01）—— `display` 与行高策略从组件内联搬到这里（内联优先级
      高，会把下面那条 `:has` 变体顶掉）。口径：画板 62 帧 B 的详情列是
      `style="display:grid;gap:var(--s3)"` 的容器。 */
@@ -903,12 +904,20 @@ body.pw.dark { background: #0f0f13; }
  *
  * 所以按「唯一子元素是不是空态」分流：空态时这一层变 flex 列、空态 `flex:1`；
  * 否则保持 grid + `min-content` + `align-content:start`。空态那层自带
- * `place-items:center`（见下面 `.pw-detail .pw-empty`），两种形态各归其位。 */
-.pw-detail > .pw-detail-stack:has(> .pw-empty:only-child) {
+ * `place-items:center`（见下面 `.pw-detail .pw-empty`），两种形态各归其位。
+ *
+ * fork:stack-rows-nest（2026-10-01）—— 这三条原本都写成**直接子元素**
+ * `.pw-detail > .pw-detail-stack`。产品里有**嵌套一层**的详情栈（详情卡里再套
+ * 一张详情卡：子代理 / 插件 / MCP），那层拿不到规则，`display` 回落到 `block`，
+ * 元素上残留的内联 `gap: var(--s3)` 对 block 无效 —— **行距全塌成 0**
+ * （1440×900 实测：agents 分节卡高 901→714、plugins 713→228，行距 12/20→0/8）。
+ * 所以改成后代选择器，与上一条对齐；两处特异度仍在 `.pw-detail` 之内，
+ * board 帧 62 自己的 DOM 行为不变。 */
+.pw-detail .pw-detail-stack:has(> .pw-empty:only-child) {
   display: flex;
   flex-direction: column;
 }
-.pw-detail > .pw-detail-stack:has(> .pw-empty:only-child) > .pw-empty {
+.pw-detail .pw-detail-stack:has(> .pw-empty:only-child) > .pw-empty {
   flex: 1;
   height: auto;
 }

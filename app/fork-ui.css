@@ -2170,9 +2170,13 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  *   ③ 输入框卡片贴着 home indicator，最下面一排控件点不准。
  * 抽屉/次工作区是 `position: fixed` 且已声明 `height: var(--app-viewport-height)`，
  * 所以用 `padding-*` 而不是 `top/bottom` —— 高度不变，只是把内容让进来。
- * 桌面（>640px）不适用，故整段在断点内。
+ *
+ * 断点取 **≤1024px** 而不是 640：iPad 的 standalone 同样没有浏览器地址栏，刘海与
+ * home indicator 一样压在内容上（平板档 641–1024 原先只覆盖了弹层底部，见
+ * `app/settings.css` 的 `@supports (display-mode:standalone)` 段）。
+ * 桌面（>1024）浏览器自带窗口边框，不适用。
  * ------------------------------------------------------------------------- */
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .sidebar-container {
     padding-top: env(safe-area-inset-top, 0px);
   }
