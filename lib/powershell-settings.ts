@@ -3,8 +3,31 @@ import { dirname, join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import lockfile from "proper-lockfile";
 
+/** The tools a `defaultTools` list selects (pi >= 0.99's `DEFAULT_TOOL_NAMES`). */
 const DEFAULT_TOOLS = ["read", "bash", "edit", "write"];
 const SHELL_TOOLS = new Set(["bash", "powershell"]);
+
+function isToolModifier(entry: string): boolean {
+  return entry.startsWith("+") || entry.startsWith("-");
+}
+
+/**
+ * The tools a `defaultTools` list selects, by pi's rule (0.99): plain names replace the
+ * defaults, then each `+name` adds and each `-name` removes a tool, in list order.
+ * Mirrors the SDK's internal `resolveDefaultTools`, which is not exported.
+ */
+export function resolveDefaultToolEntries(entries: readonly string[]): string[] {
+  const plain = entries.filter((entry) => !isToolModifier(entry));
+  const tools = plain.length > 0 || entries.length === 0 ? plain : [...DEFAULT_TOOLS];
+  for (const entry of entries) {
+    if (!isToolModifier(entry)) continue;
+    const name = entry.slice(1);
+    const index = tools.indexOf(name);
+    if (entry.startsWith("+") && index === -1 && name) tools.push(name);
+    else if (entry.startsWith("-") && index !== -1) tools.splice(index, 1);
+  }
+  return tools;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -51,6 +74,11 @@ function parseSettings(path: string): Record<string, unknown> {
   return parsed;
 }
 
+/**
+ * The resolved tool list, never the raw entries: since 0.99 a list may hold `+name`/`-name`
+ * modifiers, and appending a plain name to a modifier-only list would turn it into a plain
+ * list that drops pi's default tools.
+ */
 function configuredTools(settings: Record<string, unknown>): string[] | undefined {
   if (settings.defaultTools === undefined) return undefined;
   if (
@@ -59,7 +87,7 @@ function configuredTools(settings: Record<string, unknown>): string[] | undefine
   ) {
     throw new Error("Invalid settings.json: defaultTools must be an array of strings");
   }
-  return settings.defaultTools as string[];
+  return resolveDefaultToolEntries(settings.defaultTools as string[]);
 }
 
 export async function readPowerShellToolEnabled(

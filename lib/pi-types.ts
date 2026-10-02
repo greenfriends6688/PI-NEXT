@@ -1,6 +1,7 @@
 import type {
   AgentSessionEvent,
   BashOperations,
+  PromptOptions,
   SessionManager,
   SettingsManager,
   SlashCommandInfo,
@@ -20,11 +21,19 @@ export interface ModelLike {
   provider: string;
 }
 
+/**
+ * How the model reaches a tool (pi >= 0.99). Spelled out here instead of imported:
+ * 0.87 does not export the name, and every field it reads defaults to `direct`.
+ */
+export type ToolExposure = "direct" | "model-only" | "codemode" | "deferred" | "hidden";
+
 export interface ToolInfo {
   name: string;
   description: string;
   parameters?: unknown;
   promptGuidelines?: string[];
+  /** pi >= 0.99 only. Absent means `direct`; a 0.87 tool never carries the field. */
+  exposure?: ToolExposure;
   sourceInfo?: unknown;
 }
 
@@ -123,6 +132,14 @@ export interface ExtensionUiContextLike {
   setToolsExpanded(expanded: boolean): void;
 }
 
+/**
+ * pi >= 0.99 resolves `steer()` / `followUp()` to the disposition it dispatched the input
+ * under (`"handled" | "queued"`; before 0.99 they resolved to nothing). pi-web never reads
+ * the value — the queue state comes back from `getQueue()` — so it stays uninspected and the
+ * wrapper keeps ignoring it.
+ */
+export type QueuedInputDisposition = "handled" | "queued" | void;
+
 export interface AgentSessionLike {
   readonly sessionId: string;
   /**
@@ -161,12 +178,13 @@ export interface AgentSessionLike {
   dispose(): void;
   reload(options?: { beforeSessionStart?: () => void | Promise<void> }): Promise<void>;
   subscribe(listener: (event: AgentSessionEvent) => void): () => void;
-  prompt(text: string, options?: {
-    images?: Array<{ type: "image"; data: string; mimeType: string }>;
-    streamingBehavior?: "steer" | "followUp";
-    source?: "interactive" | "rpc";
-    preflightResult?: (success: boolean) => void;
-  }): Promise<void>;
+  /**
+   * The SDK's own `PromptOptions`, never a hand-rolled copy of it: pi 0.99 changed
+   * `preflightResult` from a boolean to a `"handled" | "queued" | "started"`
+   * disposition (and stopped calling it at all for a rejected prompt), so a local
+   * copy is exactly what would stop `AgentSession` from satisfying this interface.
+   */
+  prompt(text: string, options?: PromptOptions): Promise<void>;
   sendCustomMessage<T = unknown>(message: {
     customType: string;
     content: string | (TextContent | ImageContent)[];
@@ -192,8 +210,8 @@ export interface AgentSessionLike {
   getLastAssistantText(): string | undefined;
   setAutoCompactionEnabled(enabled: boolean): void;
   setAutoRetryEnabled(enabled: boolean): void;
-  steer(text: string, images?: Array<{ type: "image"; data: string; mimeType: string }>): Promise<void>;
-  followUp(text: string, images?: Array<{ type: "image"; data: string; mimeType: string }>): Promise<void>;
+  steer(text: string, images?: Array<{ type: "image"; data: string; mimeType: string }>): Promise<QueuedInputDisposition>;
+  followUp(text: string, images?: Array<{ type: "image"; data: string; mimeType: string }>): Promise<QueuedInputDisposition>;
   readonly pendingMessageCount: number;
   getSteeringMessages(): readonly string[];
   getFollowUpMessages(): readonly string[];

@@ -201,6 +201,11 @@ export interface RpcSessionStartOptions {
 }
 
 const CODING_TOOL_NAMES = ["read", "bash", "powershell", "edit", "write", "grep", "find", "ls"];
+// Pi >= 0.99 activates `direct` and `model-only` tools when they are registered. `codemode` and
+// `deferred` tools stay undeclared until something names them, and `hidden` is withdrawn, so
+// carrying every registered extension tool into a preset would newly force those on. Before 0.99
+// no tool carries an exposure and every one of them behaved as `direct`.
+const ACTIVE_ON_REGISTRATION_EXPOSURES: ReadonlySet<string> = new Set(["direct", "model-only"]);
 const THINKING_LEVEL_NAMES = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 // Extensions require a complete Theme, while the web UI applies its own styling.
@@ -238,8 +243,8 @@ function withExtensionTools(session: AgentSessionLike, toolNames: string[]): str
   const selectedToolNames = resolveShellTools(toolNames, session.settingsManager.getDefaultTools());
   const extensionToolNames = session
     .getAllTools()
-    .map((t) => t.name)
-    .filter((name) => !codingToolNames.has(name));
+    .filter((t) => !codingToolNames.has(t.name) && ACTIVE_ON_REGISTRATION_EXPOSURES.has(t.exposure ?? "direct"))
+    .map((t) => t.name);
 
   return [...new Set([...selectedToolNames, ...extensionToolNames])];
 }
@@ -789,8 +794,12 @@ export class AgentSessionWrapper {
               source: "rpc",
               // Match pi's RPC contract: acknowledge only after synchronous prompt
               // validation and extension preflight have accepted the submission.
-              preflightResult: (success) => {
-                if (success) acceptPreflight();
+              // pi >= 0.99 reports how it accepted ("handled" | "queued" | "started")
+              // and never calls this for a rejected prompt, which only rejects the
+              // returned promise; 0.87 passed a boolean instead. Every accepted value
+              // is truthy in both, so this guard means the same thing either way.
+              preflightResult: (disposition) => {
+                if (disposition) acceptPreflight();
               },
             });
           } catch (error) {
@@ -1145,7 +1154,9 @@ export class AgentSessionWrapper {
       }
 
       case "get_tools": {
-        const all: ToolInfo[] = this.inner.getAllTools();
+        // A `hidden` tool is withdrawn: pi ignores it when the active tools are set,
+        // so listing it would offer a toggle that cannot take effect.
+        const all: ToolInfo[] = this.inner.getAllTools().filter((t) => t.exposure !== "hidden");
         const active = new Set<string>(this.inner.getActiveToolNames());
         return all.map((t) => ({
           ...t,
