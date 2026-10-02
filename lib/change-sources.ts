@@ -12,9 +12,9 @@ import type { WrittenFile } from "./turn-written-files";
  *   1. Git 工作区变更 —— `getGitStatus()` 已经按会话 cwd 收敛过（lib/git-changes.ts）。
  *   2. 非 Git 项目下本会话工具写入的文件 —— `lib/turn-written-files.ts` 的
  *      `WrittenFile[]`（调用方从 ChatWindow 的逐轮推导里聚合上来）。
- *   3. 项目记忆变更 —— Proma 用 `memory/` 停靠区展示。本仓还没有这个数据源
- *      （PR-51 knowledge-maintenance 才引入），所以 `memoryFiles` 目前恒为空，
- *      接口先立在这里，接入时不用再改合并逻辑。
+ *   3. 项目记忆变更 —— Proma 用 `memory/` 停靠区展示。本仓没有这个数据源
+ *      （唯一的写入方 `knowledge-maintenance` 已按用户裁定整块删除），所以
+ *      `memoryFiles` 目前恒为空，接口先立在这里，将来接入时不用再改合并逻辑。
  *
  * 两条硬约束写在这里，不散给 UI：
  *

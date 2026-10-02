@@ -953,10 +953,12 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           lib/context-budget-settings.ts 头），设置页先前一个控件都没有。控件全是既有的：
           开关 + 三个 `.pw-numin` 窄数值框 + 模型覆盖行（`.pw-field` + 两个 `.pw-numin` + `.pw-iconbtn`）。 */}
       <ContextBudgetSettingsBlock cwd={cwd} />
-          {/* 2026-10-02 用户裁定 —— 「思考档 token 预算」与「项目知识」两块从设置页移除。
-              组件与它们的 lib/ 写入路径保留（测试也保留），只是不再有入口；
-              要彻底删掉的话连 lib/thinking-budget-settings.ts 与
-              lib/knowledge-*.ts 一起清。 */}
+          {/* 2026-10-02 用户裁定 —— 「思考档 token 预算」与「项目知识」两块连功能一起删除：
+              组件、设置页入口、它们自己的 API 路由与 lib/ 写入路径、对应 i18n 键
+              全部清掉了（`lib/thinking-budget-settings*.ts`、`lib/knowledge-*.ts`、
+              `app/api/thinking-budget-settings/`、`app/api/knowledge-maintenance/`）。
+              `lib/thinking-request-core.ts` 里的思考档核心逻辑不动 —— 那是模型请求
+              的一部分，与这个设置块无关。 */}
           {/* fork:proma-33-shortcut-guide —— 快捷键地图入口排在上下文预算块之后（右栏末位，
           与上面三块同属「画板 62 帧 C 右栏之外的产品续块」）。本仓的快捷键**设置表**
           已按用户裁定下线（见 SettingsPanel.test.mjs 的分节图标用例），所以地图

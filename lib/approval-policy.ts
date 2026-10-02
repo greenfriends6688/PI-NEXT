@@ -84,9 +84,7 @@ const READ_ONLY_RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
 ];
 
 /** 只读工具名（读文件、搜索、列目录）——工具级安全，无需看参数。 */
-// fork:proma-51-knowledge — knowledge_propose 只产生候选 id，不落盘，所以它是只读工具：
-// 计划档必须放行它，ask 档也不该为它弹审批卡。（knowledge_write 故意不在这里 —— 它改状态。）
-const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls", "glob", "search", "knowledge_propose"]);
+const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls", "glob", "search"]);
 
 /** 密钥类参数的脱敏：命中键名就把值换掉，**绝不回显完整内容**。 */
 const SECRET_KEY = /(token|secret|password|passwd|api[-_]?key|authorization|cookie|credential|private[-_]?key)/i;

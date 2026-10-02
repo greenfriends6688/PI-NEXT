@@ -9,8 +9,6 @@ import { validateAgentImages } from "./image-attachments";
 import { createApprovalExtension } from "./approval-extension";
 // fork:proma-03-plan — 计划模式扩展
 import { createPlanModeExtension } from "./plan-mode-extension";
-// fork:proma-51-knowledge — 知识维护工具（AGENTS.md / memory / skill + 授权门）
-import { createKnowledgeExtension } from "./knowledge-extension";
 import {
   DEFAULT_PERMISSION_MODE,
   appendPermissionMode,
@@ -273,6 +271,8 @@ export class AgentSessionWrapper {
   private extensionWidgetGenerations = new Map<string, number>();
   private extensionWidgetsResetting = false;
   private pendingPromptCount = 0;
+  /** fork:mcp-auto-reload —— 跑着的会话收到配置改动，等这一轮结束再重载。 */
+  private pendingMcpReload = false;
   private activeMutatingCommands = 0;
   private sessionReplacement: "fork" | "clone" | null = null;
   private agentRunNeedsCompletion = false;
@@ -346,6 +346,29 @@ export class AgentSessionWrapper {
 
   isChatOnly(): boolean {
     return this.chatOnly;
+  }
+
+  /**
+   * fork:mcp-auto-reload —— 配置改动落在 MCP 上时登记一次「重载」。正在跑的会话
+   * 不能中途 reload（会换掉工具表、打断 turn），所以只置标记，等这一轮跑完
+   * （`finishPrompt`）再执行。
+   * @returns true = 已经排上了；false = 空闲中，立即重载。
+   */
+  requestReloadWhenIdle(): boolean {
+    if (!this._alive) return false;
+    if (this.isRunning() || this.pendingPromptCount > 0) {
+      this.pendingMcpReload = true;
+      return true;
+    }
+    void this.send({ type: "reload" }).catch(() => { /* 重载失败不改配置，下一次生效 */ });
+    return false;
+  }
+
+  /** 跑完一圈时调用：等这一轮结束再重载（MCP 配置在那期间变了）。 */
+  private flushPendingReload(): void {
+    if (!this.pendingMcpReload) return;
+    this.pendingMcpReload = false;
+    void this.send({ type: "reload" }).catch(() => { /* 同上 */ });
   }
 
   hasSuppressedCompletionNotifications(): boolean {
@@ -807,6 +830,8 @@ export class AgentSessionWrapper {
             this.pendingPromptCount = Math.max(0, this.pendingPromptCount - 1);
             this.resetIdleTimer();
             this.notifyAgentRunCompleteIfIdle();
+            // fork:mcp-auto-reload —— turn 结束是「配置改动等不到了」的那一个时刻。
+            this.flushPendingReload();
           };
 
           this.pendingPromptCount += 1;
@@ -2249,6 +2274,36 @@ export function getRunningRpcSessionIds(): string[] {
   return [...ids];
 }
 
+/**
+ * fork:mcp-auto-reload —— MCP 配置改动后让已经打开的会话重读资源。
+ *
+ * 以前改完 MCP 只有两个生效点：新会话（`session_start` 会重读配置）或用户在插件页
+ * 手动点重载；MCP 设置页自己不发任何 reload。结果是「我刚加的 server，模型这轮
+ * 还是调不到」。参考项目 `requestSessionResourceReload` 就是干这件事
+ * （`pi参考项目/pi-agent-desktop-main/lib/rpc-manager.ts:813`），本仓补三条约束：
+ *
+ *   · **正在跑的会话不打断** —— 登记成「等这轮跑完再重载」（`requestReloadWhenIdle`）。
+ *     reload 会换掉工具表，中途做等于把这一轮的基础设施抽掉；
+ *   · **空闲的立即重载**，并把这个结果报给前端（「已重载 N 个会话」）；
+ *   · `cwd` 传了就只重载那个工作区的会话（项目级 `.pi/mcp.json` 只影响本项目），
+ *     不传（global 配置）则全部。
+ *
+ * 返回 `{ reloaded, deferred }`：立即生效的 / 等这轮结束的。调用方（`/api/mcp`）
+ * 把它回给浏览器，浏览器据此给一行反馈。
+ */
+export function requestMcpReload(cwd?: string): { reloaded: number; deferred: number } {
+  const target = cwd ? normalizeRpcCwd(cwd) : null;
+  let reloaded = 0;
+  let deferred = 0;
+  for (const session of getRegistry().values()) {
+    if (!session.isAlive()) continue;
+    if (target && normalizeRpcCwd(session.cwd) !== target) continue;
+    if (session.requestReloadWhenIdle()) deferred += 1;
+    else reloaded += 1;
+  }
+  return { reloaded, deferred };
+}
+
 export function getCompletionNotificationSuppressedRpcSessionIds(): string[] {
   const ids = new Set<string>();
   for (const [sessionId, session] of getRegistry()) {
@@ -2428,11 +2483,6 @@ export async function startRpcSession(
               ),
               // fork:ui-todo — the session's task list (see lib/todo-extension.ts).
               createTodoExtension(),
-              // fork:proma-51-knowledge — knowledge maintenance tools. Registered
-              // unconditionally: knowledge_propose is always usable, and
-              // knowledge_write reads the per-project approval at call time, so
-              // toggling the setting takes effect without a session reload.
-              createKnowledgeExtension(),
               // fork:proma-01-approval — 工具审批。默认档是 bypass，所以这个扩展在默认
               // 配置下等价于不存在（`decideApproval` 直接放行）—— 只有用户显式把会话
               // 设成 ask/plan 才会弹卡。
