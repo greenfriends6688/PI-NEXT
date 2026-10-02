@@ -7,6 +7,8 @@ import { acquireSessionLivenessLease } from "./session-liveness";
 
 export interface AgentEventStreamSession {
   readonly isStreaming: boolean;
+  /** fork:upstream-compaction-status — #1008：自动压缩期间客户端必须知道正在压缩。 */
+  readonly isCompacting: boolean;
   readonly streamingMessage: unknown;
   onEvent(listener: (event: AgentEventLike) => void): () => void;
 }
@@ -219,10 +221,16 @@ export function createAgentEventStream(
           unsubscribe = stopListening;
 
           const snapshot = session.streamingMessage;
+          // fork:upstream-compaction-status — #1008 移植（2e66e40）· 事件侧：
+          // 自动压缩会把一个 turn 吊住好一阵子，而 `compaction_start` 只有一个 SSE
+          // 客户端能收到。重连（息屏、后台标签页）之后 `connected` 只说「在跑」，
+          // 客户端就不知道这一轮卡在压缩上，会一直报“等待模型”。压缩状态跟着快照
+          // 一起发，重连一次就对上了。
           encode({
             type: "connected",
             sessionId,
             isStreaming: session.isStreaming,
+            isCompacting: Boolean(session.isCompacting),
           });
           for (const event of bufferedEvents) forwardEvent(event, snapshot);
           if (snapshot !== undefined && snapshot !== null) {

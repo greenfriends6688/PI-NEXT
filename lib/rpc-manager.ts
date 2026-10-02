@@ -329,6 +329,11 @@ export class AgentSessionWrapper {
     return this.inner.isStreaming;
   }
 
+  /** fork:upstream-compaction-status — #1008：SSE 重连快照要带上它。 */
+  get isCompacting(): boolean {
+    return this.inner.isCompacting;
+  }
+
   isAlive(): boolean {
     return this._alive;
   }
