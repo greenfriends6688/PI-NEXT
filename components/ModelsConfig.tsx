@@ -14,17 +14,30 @@ import {
 } from "@/lib/settings-navigation";
 import {
   collectModelRenames,
+  compatFlagState,
+  compatFlagsForApi,
+  countUnknownCompatKeys,
   hasModelCostDraftValue,
+  hasModelCostTierDraftValue,
+  KNOWN_MODEL_APIS,
+  modelCostTierToDraft,
   modelCostToDraft,
   parseCompleteModelCost,
+  parseModelCostTier,
+  parseModelCostTiers,
+  renameProviderEntry,
   savedModelIds,
   serializeHeaderRows,
   setCompatBool,
+  setCompatFlag,
   trackAddedModels,
   updateHeaderRow,
+  type CompatFlagState,
   type HeaderRow,
   type ModelCostDraft,
   type ModelCostKey,
+  type ModelCostTier,
+  type ModelCostTierDraft,
 } from "./models-config-helpers";
 // fork:input-limits —— 多模态上限 / 图片 resize / 提示词缓存时长的输入区。
 import { ModelInputLimitsFields } from "./ModelLimitsFields";
@@ -139,7 +152,7 @@ interface ModelEntry {
   promptCache?: ModelPromptCache;
   contextWindow?: number;
   maxTokens?: number;
-  cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: unknown };
+  cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: ModelCostTier[] };
   headers?: Record<string, string>;
   /** Arbitrary provider request parameters (temperature, top_p, …). pi merges this
    *  into the request options, so it is the real "advanced parameters" escape hatch. */
@@ -218,7 +231,12 @@ function customSelectionExists(config: ModelsJson, selection: Selection): boolea
   return Boolean(config.providers?.[selection.providerName]?.models?.[selection.index]);
 }
 
-const API_OPTIONS = ["openai-completions", "openai-responses", "anthropic-messages", "google-generative-ai"] as const;
+/**
+ * fork:model-api-protocols (B4) —— 协议下拉与 `KNOWN_MODEL_APIS` 同源：
+ * 那份清单的来源与三条自证写在 components/models-config-helpers.ts 的定义处
+ * （pi-ai `types.d.ts:15` 的 `KnownApi` 联合类型，不是印象）。
+ */
+const API_OPTIONS = KNOWN_MODEL_APIS;
 
 // ── Form field helpers ────────────────────────────────────────────────────────
 
@@ -394,9 +412,13 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
 
 // ── Provider detail ───────────────────────────────────────────────────────────
 
-function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune }: {
-  name: string; provider: ProviderEntry;
-  onChange: (p: ProviderEntry) => void; onRename: (n: string) => void; onDelete: () => void;
+/* fork:model-rename-save（上游 bd85004 #969）—— 供应商名输入框的草稿由面板持有，
+   不再是 ProviderDetail 的本地 state：只有 Rename 按钮能动 draft 时，页脚 Save
+   就看不见输入框里的改动，直接序列化等于静默丢掉一次重命名。 */
+function ProviderDetail({ name, editingName, provider, onChange, onEditingNameChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune }: {
+  name: string; editingName: string; provider: ProviderEntry;
+  onChange: (p: ProviderEntry) => void; onEditingNameChange: (n: string) => void;
+  onRename: (n: string) => void; onDelete: () => void;
   onAddModels: (models: DiscoveredModel[]) => void; enabledModels: EnabledModelsController;
   /** 画板 41 的「可用模型」是一行一个模型：点它就钻到模型详情。 */
   onOpenModel: (index: number) => void;
@@ -404,13 +426,11 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
   onPrune: () => void;
 }) {
   const { t, locale } = useI18n();
-  const [editingName, setEditingName] = useState(name);
   const [discoveryState, setDiscoveryState] = useState<ModelDiscoveryState>({ phase: "idle" });
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const discoveryRequestIdRef = useRef(0);
   const selectShownRef = useRef<HTMLInputElement>(null);
-  useEffect(() => setEditingName(name), [name]);
   const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) => onChange({ ...provider, [k]: v });
 
   useEffect(() => {
@@ -426,7 +446,10 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
   }, [name, provider.baseUrl, provider.api, provider.apiKey]);
 
   const handleDiscoverModels = useCallback(async () => {
-    if (!provider.baseUrl?.trim() || discoveryState.phase === "loading") return;
+    // fork:discover-catalog-endpoint —— 不再自己判断 baseUrl 为空：`/api/models-config/discover`
+    // 已经会在 models.json 没写 baseUrl 时去 pi 的 provider catalog 反查（那个 provider
+    // 条目可能只为覆盖内置模型而存在）。入口再按 baseUrl 禁用，就把这个能力又堵回去了。
+    if (discoveryState.phase === "loading") return;
     const requestId = ++discoveryRequestIdRef.current;
     setDiscoveryState({ phase: "loading" });
     setSelectedModelIds([]);
@@ -442,7 +465,8 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
         setDiscoveryState({ phase: "error", message: data.error ?? `HTTP ${res.status}` });
         return;
       }
-      setDiscoveryState({ phase: "success", models: data.models, endpoint: data.endpoint ?? provider.baseUrl });
+      // baseUrl 可能为空（端点来自 pi 的 catalog），所以 endpoint 也要有底线。
+      setDiscoveryState({ phase: "success", models: data.models, endpoint: data.endpoint ?? provider.baseUrl ?? "" });
       setLastSync({ at: Date.now(), count: data.models.length });
     } catch (error) {
       if (requestId !== discoveryRequestIdRef.current) return;
@@ -457,6 +481,15 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
     || model.id.toLocaleLowerCase().includes(normalizedDiscoveryQuery)
     || model.name?.toLocaleLowerCase().includes(normalizedDiscoveryQuery));
   const shownDiscoveredModels = filteredDiscoveredModels.slice(0, 300);
+  /* fork:model-discovery-specs —— 导入清单副标题里先告知上游报了哪些规格，勾之前就
+     知道会带什么进来。只用现成的 `formatTokenLimit`，没有新类名。 */
+  const discoveredModelSpecs = (model: DiscoveredModel): string | null => {
+    const parts: string[] = [];
+    if (model.contextWindow) parts.push(t("models.specsContextShort", { value: formatTokenLimit(model.contextWindow) }));
+    if (model.maxTokens) parts.push(t("models.specsOutputShort", { value: formatTokenLimit(model.maxTokens) }));
+    if (model.input?.includes("image")) parts.push(t("models.specsImageShort"));
+    return parts.length ? parts.join(" · ") : null;
+  };
   const selectableShownIds = shownDiscoveredModels
     .filter((model) => !existingModelIds.has(model.id))
     .map((model) => model.id);
@@ -581,7 +614,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
           <ConfigButton
             variant="secondary"
             size="small"
-            disabled={!provider.baseUrl?.trim() || discoveryState.phase === "loading"}
+            disabled={discoveryState.phase === "loading"}
             onClick={handleDiscoverModels}
           >
             <span className="pw-ico"><i data-ico="download" data-size="13"></i></span>
@@ -681,6 +714,8 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
                   <p className="pw-hint">{t("models.discoveryNoMatches")}</p>
                 ) : shownDiscoveredModels.map((model) => {
                   const alreadyAdded = existingModelIds.has(model.id);
+                  // fork:model-discovery-specs —— 勾之前就告知这行会带哪些规格进来。
+                  const specs = discoveredModelSpecs(model);
                   return (
                     <label
                       key={model.id}
@@ -695,7 +730,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
                       />
                       <span className="grow">
                         <ConfigSidebarText>{model.name ?? model.id}</ConfigSidebarText>
-                        <ConfigSidebarSub>{model.id}</ConfigSidebarSub>
+                        <ConfigSidebarSub>{model.id}{specs ? ` · ${specs}` : ""}</ConfigSidebarSub>
                       </span>
                       {alreadyAdded && <ConfigBadge>{t("models.discoveryAdded")}</ConfigBadge>}
                     </label>
@@ -735,7 +770,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
         <h3>{t("models.connectionTitle")}</h3>
         <ConfigField label={t("i18n.providerName")}>
           <PwCtl>
-            <TextInput value={editingName} onChange={setEditingName} placeholder="provider-name" mono />
+            <TextInput value={editingName} onChange={onEditingNameChange} placeholder="provider-name" mono />
             {editingName !== name && editingName.trim() && (
               <ConfigButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
                 {t("i18n.rename")}
@@ -749,7 +784,7 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
           <ProviderIconModePicker providerId={name} api={provider.api} />
         </ConfigField>
 
-        <ConfigField label={t("models.kvBaseUrl")}>
+        <ConfigField label={t("models.kvBaseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
           <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
             placeholder="https://api.example.com/v1" mono />
         </ConfigField>
@@ -765,6 +800,17 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
 
         <ConfigField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
           <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
+        </ConfigField>
+
+        {/* fork:compat-flags (B5) —— provider 级 compat 是整个网关的默认，pi 在运行时
+            把它合进每个模型（`applyModelsJson` 的 `mergeCompat(providerConfig.compat,
+            definition.compat)`），所以它以前同样只能手改 models.json。 */}
+        <ConfigField label={t("models.compatibility")} hint={t("models.compatProviderHint")}>
+          <CompatFlagsEditor
+            compat={provider.compat}
+            api={provider.api}
+            onChange={(key, state) => onChange(setCompatFlag(provider, key, state))}
+          />
         </ConfigField>
       </ConfigDetail>
     </ConfigDetailStack>
@@ -913,6 +959,73 @@ function setDeepseekCompat(model: ModelEntry, enabled: boolean): ModelEntry {
 // write to the model entry so a per-model override is explicit.
 function effectiveCompat(provider: ProviderEntry, model: ModelEntry): Record<string, unknown> {
   return { ...(provider.compat ?? {}), ...(model.compat ?? {}) };
+}
+
+/* fork:compat-flags (B5) —— 三态：Default（不写键）/ On（写 true）/ Off（写 false）。
+   Default 之所以是三态而不是两态：pi-ai 对不少字段是 `model.compat.x ?? detected.x`
+   （按 baseUrl 自动探测），对另一些是固定默认值 —— 两态开关会把「跟随自动探测」
+   和「显式打开」混成同一个值，要么写一堆与默认相同的噪声，要么改不了自动探测。 */
+const COMPAT_FLAG_STATE_OPTIONS = [
+  { value: "default", label: "Default" },
+  { value: "on", label: "On" },
+  { value: "off", label: "Off" },
+] as const satisfies readonly { value: CompatFlagState; label: string }[];
+
+/**
+ * 该协议的 compat 布尔开关表。清单与默认值的来源写在
+ * `components/models-config-helpers.ts` 的 `COMPAT_FLAGS_BY_API` 定义处
+ * （pi-ai `types.d.ts` 的条件类型 + `dist/api/*.js` 里逐个 `??` 的默认值）。
+ *
+ * 显示读的是 provider+model 合并后的**生效值**（provider-composer 在运行时也是
+ * 这个合并规则），写入只落在 model 条目上，所以一个 model 的覆盖是显式的。
+ */
+function CompatFlagsEditor({ compat, api, onChange }: {
+  compat: Record<string, unknown> | undefined;
+  api: string | undefined;
+  onChange: (key: string, state: CompatFlagState) => void;
+}) {
+  const { t } = useI18n();
+  const specs = compatFlagsForApi(api);
+
+  if (specs.length === 0) {
+    return (
+      <p className="pw-hint">
+        {api ? t("models.compatNoneForApi", { api }) : t("models.compatNeedApi")}
+      </p>
+    );
+  }
+
+  return (
+    <div className="pw-rowgap">
+      {specs.map((spec) => {
+        const state = compatFlagState(compat, spec);
+        return (
+          <div key={spec.key} className="pw-field">
+            <span className="pw-label">
+              {t(spec.labelKey)}
+              <small>{spec.defaultValue === null
+                ? t("models.compatDefaultAuto")
+                : t("models.compatDefaultValue", { value: String(spec.defaultValue) })}</small>
+            </span>
+            <PwCtl>
+              <PwRadio
+                value={state}
+                options={COMPAT_FLAG_STATE_OPTIONS}
+                ariaLabel={t(spec.labelKey)}
+                onChange={(next) => onChange(spec.key, next as CompatFlagState)}
+              />
+            </PwCtl>
+          </div>
+        );
+      })}
+      {countUnknownCompatKeys(compat, specs) > 0 && (
+        /* 枚举 / 对象 / 手改 JSON 写进来的键：报个数，不假装能编辑。 */
+        <p className="pw-hint">
+          {t("models.compatOtherKeys", { count: countUnknownCompatKeys(compat, specs) })}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // Editable key/value request-header list for a provider or model. Rows stay
@@ -1070,6 +1183,109 @@ function HeaderListEditor({ headers, onChange }: {
       >
         <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
         Add header
+      </ConfigButton>
+    </div>
+  );
+}
+
+/**
+ * fork:cost-tiers (B3) — 阶梯定价编辑器。pi-ai 的 `ModelCostTier`（`dist/types.d.ts`）
+ * 是一组「输入 tokens 超过阈值后整笔改用这组价格」，`calculateCost()` 取最高匹配的
+ * 阈值 —— 没有编辑器就只能手改 JSON，于是显示用的基础价与实际扣费对不上。
+ *
+ * 每一档是一组 `.pw-field` 行（画板 41 规格行已经在用的形态）：左阈值 + 右边四个
+ * `.pw-numin` 窄数值框。行内不加自造类。
+ */
+const COST_TIER_RATE_FIELDS: readonly { key: ModelCostKey; label: string }[] = [
+  { key: "input", label: "in" },
+  { key: "output", label: "out" },
+  { key: "cacheRead", label: "cache r" },
+  { key: "cacheWrite", label: "cache w" },
+];
+function CostTiersEditor({ tiers, onChange }: {
+  tiers: ModelCostTier[];
+  onChange: (next: ModelCostTier[] | undefined) => void;
+}) {
+  const { t } = useI18n();
+  const draftsRef = useRef<ModelCostTierDraft[]>(tiers.map(modelCostTierToDraft));
+  const [drafts, setDrafts] = useState(draftsRef.current);
+  // 已保存的档变了（撤销目录回填 / 换模型）就重新起草。
+  useEffect(() => {
+    draftsRef.current = tiers.map(modelCostTierToDraft);
+    setDrafts(draftsRef.current);
+  }, [tiers]);
+
+  const apply = (next: ModelCostTierDraft[]) => {
+    const parsed = parseModelCostTiers(next);
+    draftsRef.current = next;
+    setDrafts(next);
+    onChange(parsed);
+  };
+  const setDraft = (index: number, changes: Partial<ModelCostTierDraft>) => {
+    apply(drafts.map((draft, i) => (i === index ? { ...draft, ...changes } : draft)));
+  };
+
+  return (
+    <div className="pw-rowgap">
+      {drafts.map((draft, index) => {
+        return (
+          <div key={index} className="pw-field">
+            <span className="pw-label">
+              {t("models.costTierAbove")}
+              <small>{t("models.costTierAboveHint", { value: formatTokenLimit(Number(draft.inputTokensAbove) || 0) })}</small>
+            </span>
+            <PwCtl>
+              <input
+                className="pw-input pw-numin pw-mono"
+                type="number"
+                min={1}
+                value={draft.inputTokensAbove}
+                onChange={(event) => setDraft(index, { inputTokensAbove: event.target.value })}
+                aria-label={t("models.costTierAbove")}
+              />
+              {COST_TIER_RATE_FIELDS.map(({ key, label }) => (
+                <input
+                  key={key}
+                  className="pw-input pw-numin"
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={draft[key]}
+                  onChange={(event) => setDraft(index, { [key]: event.target.value })}
+                  aria-label={`${t("models.costTierPrice")}: ${label}`}
+                  placeholder={label}
+                />
+              ))}
+              <ConfigButton
+                variant="danger"
+                size="small"
+                aria-label={t("i18n.delete")}
+                onClick={() => apply(drafts.filter((_, i) => i !== index))}
+              >
+                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+              </ConfigButton>
+            </PwCtl>
+          </div>
+        );
+      })}
+      {drafts.some((draft) => hasModelCostTierDraftValue(draft) && !parseModelCostTier(draft)) && (
+        <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>
+          {t("models.costTierInvalid")}
+        </div>
+      )}
+      <ConfigButton
+        variant="ghost"
+        size="small"
+        onClick={() => apply([...drafts, {
+          inputTokensAbove: "",
+          input: "",
+          output: "",
+          cacheRead: "",
+          cacheWrite: "",
+        }])}
+      >
+        <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
+        {t("models.costTierAdd")}
       </ConfigButton>
     </div>
   );
@@ -1236,6 +1452,22 @@ function ModelDetail({
     setCostDraft(nextDraft);
     setCostEditing(true);
   };
+  // fork:cost-tiers (B3) —— 阶梯挂在同一个 cost 对象上，所以走同一份模板（保持
+  // tiers 之外的手写字段），只换 tiers 本身；清空就删键，不留 `tiers: []`。
+  //
+  // `useMemo` 不是洁癖：CostTiersEditor 的 `useEffect([tiers])` 会用 tiers 重建草稿，
+  // 没有它时 `?? []` 每次渲染都是新数组 → 每次渲染都重设草稿 → 无限重渲染。
+  const costTiers = useMemo(
+    () => (Array.isArray(model.cost?.tiers) ? model.cost.tiers : []),
+    [model.cost?.tiers],
+  );
+  const setCostTiers = (tiers: ModelCostTier[] | undefined) => {
+    const nextCost = { ...(costTemplateRef.current ?? {}) };
+    if (tiers?.length) nextCost.tiers = tiers;
+    else delete nextCost.tiers;
+    costTemplateRef.current = nextCost;
+    onChange({ ...model, cost: nextCost });
+  };
   const testSummary = (() => {
     if (testState.phase === "idle") return null;
      if (testState.phase === "testing") return t("i18n.testingModel");
@@ -1386,6 +1618,8 @@ function ModelDetail({
     compatibilityOverrideCount += 1;
     remainingCompatKeys.delete("supportsDeveloperRole");
   }
+  // fork:compat-flags (B5) —— 开关表里的那些已经被编辑器接管，剩下的（枚举 / 对象 /
+  // 手改 JSON 写进来的）仍然只报个数。
   compatibilityOverrideCount += remainingCompatKeys.size;
   const advancedSummaryParts = [
     model.api ? `API: ${model.api}` : null,
@@ -1534,6 +1768,17 @@ function ModelDetail({
           /* 画板的状态文案只有 pw-dim 一档；这里是「填了一半」的警告语义色。 */
           <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>{t("models.costAllRequired")}</div>
         )}
+
+        {/* fork:cost-tiers (B3) —— 阶梯定价是基础价之外的第二层：基础价那四个格子是
+            “每百万 tokens”，阶梯是“输入超过某个阈值后整笔改用另一组”。同一分节里，
+            阈值行用画板已有的 `.pw-numin` 窄数值框；没配时编辑器就是空的（只有
+            「+ 加一档」），不是假装有一档。 */}
+        <ConfigDetailHeader>
+          <ConfigDetailTitle>{t("models.costTiers")}</ConfigDetailTitle>
+          {costTiers.length > 0 && <ConfigBadge tone="count">{costTiers.length}</ConfigBadge>}
+        </ConfigDetailHeader>
+        <p className="pw-hint">{t("models.costTiersHint")}</p>
+        <CostTiersEditor tiers={costTiers} onChange={setCostTiers} />
         <ConfigDetailHeader>
           <span className="pw-grow" aria-hidden="true" />
           <ConfigButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>
@@ -1582,6 +1827,18 @@ function ModelDetail({
                 onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
               />
             </ConfigField>
+
+            {/* fork:compat-flags (B5) —— 剩下那些只能手改 models.json 的 compat 子键。
+                行结构沿用同文件里 ThinkingLevelMapEditor 的三态 `.pw-field`：
+                Default（不写键，跟随 pi 的默认或按 baseUrl 自动探测）/ On / Off。
+                行集合由 `compatFlagsForApi()` 按**本行的协议**给（pi-ai 的 compat
+                是按 api 分支的条件类型，google-* / pi-messages 那一支是 `never`，
+                配了也没人读），所以每行只出现该协议真的认的开关。 */}
+            <CompatFlagsEditor
+              compat={effectiveCompat(provider, model)}
+              api={model.api ?? provider.api}
+              onChange={(key, state) => onChange(setCompatFlag(model, key, state))}
+            />
 
             {/* fork:input-limits —— pi-ai 原生的 `inputLimits` / `promptCache`（多模态上限、
                 图片 resize 策略、提示词缓存时长）。放在高级分节里：这三类只在自建网关 /
@@ -2263,6 +2520,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
    * from an unrelated edit without guessing.
    */
   const savedModelIdsRef = useRef<Map<string, (string | null)[]>>(new Map());
+  /* fork:model-rename-save（上游 bd85004 #969，fixes #903）—— 供应商名输入框的草稿。
+     只有它跟 provider 的 id 不同才非 null：Save 会把它当普通可见编辑一起落盘，
+     Rename 按钮则立刻应用；面板自己持有它，所以 Save 看得见。 */
+  const [providerNameDraft, setProviderNameDraft] = useState<{ provider: string; name: string } | null>(null);
   // fork:pr17-favorites — 与输入框模型选择器共用同一个收藏 store。
   const favoriteModels = useSyncExternalStore(subscribeFavoriteModels, getFavoriteModelsSnapshot, getFavoriteModelsServerSnapshot);
 
@@ -2318,40 +2579,33 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     setConfig((prev) => ({ ...prev, providers: { ...(prev.providers ?? {}), [name]: p } }));
   }, []);
 
-  const renameProvider = useCallback((oldName: string, newName: string) => {
-    // Remember where each saved provider ended up, so the enabledModels entries
-    // can follow it on save instead of pointing at an id that no longer exists.
-    const renames = renamesRef.current;
-    let original = oldName;
-    for (const [from, to] of renames) {
-      if (to !== oldName) continue;
-      original = from;
-      break;
-    }
-    if (original === newName) renames.delete(original);
-    else if (savedProvidersRef.current.has(original)) renames.set(original, newName);
-    const slots = savedModelIdsRef.current.get(oldName);
-    if (slots) {
-      savedModelIdsRef.current.delete(oldName);
-      savedModelIdsRef.current.set(newName, slots);
-    }
-    setConfig((prev) => {
-      const entries = Object.entries(prev.providers ?? {});
-      const idx = entries.findIndex(([k]) => k === oldName);
-      if (idx === -1) return prev;
-      entries[idx] = [newName, entries[idx][1]];
-      return { ...prev, providers: Object.fromEntries(entries) };
-    });
+  /** fork:model-rename-save — 在 draft 里搬一个 provider；id 已被占用时返回 null 且不记录。 */
+  const applyProviderRename = useCallback((draft: ModelsJson, oldName: string, newName: string): ModelsJson | null => {
+    const next = renameProviderEntry(draft, {
+      savedProviders: savedProvidersRef.current,
+      renames: renamesRef.current,
+      slots: savedModelIdsRef.current,
+    }, oldName, newName);
+    if (!next) return null;
+    setConfig(next);
+    setProviderNameDraft(null);
     setSelection((prev) => {
       if (!prev) return prev;
       if (prev.type === "provider" && prev.name === oldName) return { type: "provider", name: newName };
       if (prev.type === "model" && prev.providerName === oldName) return { ...prev, providerName: newName };
       return prev;
     });
+    return next;
   }, []);
+
+  const renameProvider = useCallback((oldName: string, newName: string) => {
+    if (applyProviderRename(config, oldName, newName)) setSaveError(null);
+    else setSaveError(t("models.providerNameTaken", { name: newName }));
+  }, [applyProviderRename, config, t]);
 
   const deleteProvider = useCallback((name: string) => {
     savedModelIdsRef.current.delete(name);
+    setProviderNameDraft((prev) => prev?.provider === name ? null : prev);
     setConfig((prev) => {
       const providers = { ...(prev.providers ?? {}) };
       delete providers[name];
@@ -2392,7 +2646,15 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       for (const discoveredModel of discovered) {
         if (existingIds.has(discoveredModel.id)) continue;
         existingIds.add(discoveredModel.id);
-        models.push({ id: discoveredModel.id, name: discoveredModel.name });
+        /* fork:model-discovery-specs —— 上游报上来的规格跟着一起进 models.json：
+           私有网关 / vLLM / 自建端点在 models.dev 上查不到，`/models` 是唯一来源。
+           没报的字段就不写（绝不写 0 —— 0 会被 pi 当成声明值）。 */
+        const entry: ModelEntry = { id: discoveredModel.id };
+        if (discoveredModel.name !== undefined) entry.name = discoveredModel.name;
+        if (discoveredModel.contextWindow !== undefined) entry.contextWindow = discoveredModel.contextWindow;
+        if (discoveredModel.maxTokens !== undefined) entry.maxTokens = discoveredModel.maxTokens;
+        if (discoveredModel.input !== undefined) entry.input = [...discoveredModel.input];
+        models.push(entry);
       }
       return { ...prev, providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models } } };
     });
@@ -2423,11 +2685,24 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     setSaving(true);
     setSaveError(null);
     setSavedOk(false);
+    // fork:model-rename-save —— 输入框里改了名但没点 Rename 的供应商，和其它可见编辑
+    // 一样是「保存」的一部分：先把它搬完再写盘，enabledModels 才能跟着改名。
+    let draft = config;
+    const pendingName = providerNameDraft?.name.trim();
+    if (providerNameDraft && pendingName && config.providers?.[providerNameDraft.provider]) {
+      const renamed = applyProviderRename(config, providerNameDraft.provider, pendingName);
+      if (!renamed) {
+        setSaveError(t("models.providerNameTaken", { name: pendingName }));
+        setSaving(false);
+        return;
+      }
+      draft = renamed;
+    }
     try {
       const res = await fetch("/api/models-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(draft),
       });
       const d = await res.json() as { success?: boolean; error?: string; warnings?: string[] };
       if (!res.ok || d.error) setSaveError(d.error ?? `HTTP ${res.status}`);
@@ -2441,9 +2716,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         // renamed, models added, deleted or renamed. Re-verify the stored
         // patterns against the new catalog and re-read.
         const renames = [...renamesRef.current].map(([from, to]) => ({ from, to }));
-        const modelRenames = collectModelRenames(config, savedModelIdsRef.current, renamesRef.current);
-        savedProvidersRef.current = new Set(Object.keys(config.providers ?? {}));
-        savedModelIdsRef.current = savedModelIds(config);
+        const modelRenames = collectModelRenames(draft, savedModelIdsRef.current, renamesRef.current);
+        savedProvidersRef.current = new Set(Object.keys(draft.providers ?? {}));
+        savedModelIdsRef.current = savedModelIds(draft);
         renamesRef.current.clear();
         enabledModels.resync(renames, modelRenames);
       }
@@ -2452,7 +2727,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     } finally {
       setSaving(false);
     }
-  }, [config, enabledModels, loadError]);
+  }, [applyProviderRename, config, enabledModels, loadError, providerNameDraft, t]);
 
   // `12/40` next to a provider makes a narrowed selector visible at a glance.
   const scopeBadge = (providerId: string) => {
@@ -2506,8 +2781,10 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         <ProviderDetail
           key={selection.name}
           name={selection.name}
+          editingName={providerNameDraft?.provider === selection.name ? providerNameDraft.name : selection.name}
           provider={provider}
           onChange={(p) => updateProvider(selection.name, p)}
+          onEditingNameChange={(n) => setProviderNameDraft(n === selection.name ? null : { provider: selection.name, name: n })}
           onRename={(n) => renameProvider(selection.name, n)}
           onDelete={() => deleteProvider(selection.name)}
           onAddModels={(models) => addDiscoveredModels(selection.name, models)}

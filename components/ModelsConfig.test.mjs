@@ -6,6 +6,7 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const {
   hasModelCostDraftValue,
+  KNOWN_MODEL_APIS,
   modelCostToDraft,
   parseCompleteModelCost,
   serializeHeaderRows,
@@ -15,6 +16,44 @@ const {
 
 const source = await readFile(new URL("./ModelsConfig.tsx", import.meta.url), "utf8");
 const cssSource = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
+
+// fork:model-api-protocols (B4) —— 协议下拉必须覆盖 pi-ai 的 `KnownApi` 全集。
+// 清单从 SDK 的类型定义里解析：pi-ai 以后新增协议而这里忘了加，这条测试就红。
+// fork:compat-flags (B5) —— 开关表按协议切换，且在 model 与 provider 两层都能编辑。
+test("compat switches are protocol-scoped and editable at both levels", () => {
+  const editor = source.slice(
+    source.indexOf("const COMPAT_FLAG_STATE_OPTIONS"),
+    source.indexOf("/* fork:models-presets"),
+  );
+  assert.match(editor, /compatFlagsForApi\(api\)/);
+  // 三态而不是两态：Default = 不写键（跟随 pi 默认或按 baseUrl 自动探测）。
+  assert.match(editor, /value: "default", label: "Default"/);
+  assert.match(editor, /value: "on", label: "On"/);
+  assert.match(editor, /value: "off", label: "Off"/);
+  assert.match(editor, /compatFlagState\(compat, spec\)/);
+
+  // model 层：读 provider+model 合并后的生效值，写回 model 条目。
+  assert.match(source, /<CompatFlagsEditor[\s\S]{0,220}compat=\{effectiveCompat\(provider, model\)\}[\s\S]{0,120}api=\{model\.api \?\? provider\.api\}/);
+  // provider 层：以前同样只能手改 models.json。
+  assert.match(source, /<CompatFlagsEditor[\s\S]{0,220}compat=\{provider\.compat\}[\s\S]{0,120}api=\{provider\.api\}/);
+});
+
+test("the api protocol list is exactly pi-ai's KnownApi union", async () => {
+  const types = await readFile(
+    new URL("../node_modules/@earendil-works/pi-ai/dist/types.d.ts", import.meta.url),
+    "utf8",
+  );
+  const union = types.match(/export type KnownApi =([^;]+);/);
+  assert.ok(union, "pi-ai types.d.ts no longer declares KnownApi");
+  const known = [...union[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+
+  assert.ok(known.length > 4, `KnownApi union parsed only ${known.length} entries`);
+  // 面板用的就是这一个清单（provider 下拉与 model 级覆写下拉共用）。
+  assert.deepEqual([...KNOWN_MODEL_APIS].sort(), [...known].sort());
+  assert.match(source, /const API_OPTIONS = KNOWN_MODEL_APIS;/);
+  // 少一个都不行：协议选不了 = 那个 provider 根本配不出来。
+  for (const api of known) assert.ok(KNOWN_MODEL_APIS.includes(api), `api option missing: ${api}`);
+});
 
 test("uses shared sidebar sizing for providers and matching indented model rows", () => {
   const sidebar = source.slice(source.indexOf("<ConfigSidebar>"), source.indexOf("</ConfigSidebar>"));
@@ -143,6 +182,40 @@ test("manual price editing commits completed costs and removes only an all-blank
   assert.match(modelDetail, /value=\{costDraft\[key\]\}/);
 });
 
+// fork:model-rename-save（上游 bd85004 #969，fixes #903）—— 保存时把输入框里的
+// 重命名一起落盘，并拒绝被占用的 id（models.json 以 id 为键，撞了就是静默覆盖）。
+test("discovered model specs land in models.json instead of only the id", () => {
+  const importBlock = source.slice(
+    source.indexOf("const addDiscoveredModels"),
+    source.indexOf("const updateModel"),
+  );
+  assert.match(importBlock, /entry\.contextWindow = discoveredModel\.contextWindow/);
+  assert.match(importBlock, /entry\.maxTokens = discoveredModel\.maxTokens/);
+  assert.match(importBlock, /entry\.input = \[\.\.\.discoveredModel\.input\]/);
+  // 上游没报的字段不写进 models.json（0 会被 pi 当成声明值）。
+  assert.match(importBlock, /if \(discoveredModel\.contextWindow !== undefined\)/);
+  assert.match(importBlock, /if \(discoveredModel\.input !== undefined\)/);
+});
+
+test("Save applies a provider name typed without pressing Rename", () => {
+  const providerDetail = source.slice(
+    source.indexOf("function ProviderDetail"),
+    source.indexOf("// ── ThinkingLevelMap editor"),
+  );
+  // 输入框改的是面板的草稿，不是 Save 看不见的组件本地 state。
+  assert.doesNotMatch(providerDetail, /useState\(name\)/);
+  assert.match(providerDetail, /onChange=\{onEditingNameChange\}/);
+
+  const save = source.slice(
+    source.indexOf("const handleSave = useCallback"),
+    source.indexOf("const providers = Object.entries(config.providers"),
+  );
+  assert.match(save, /applyProviderRename\(config, providerNameDraft\.provider, pendingName\)/);
+  assert.match(save, /body: JSON\.stringify\(draft\)/);
+  assert.match(save, /collectModelRenames\(draft,/);
+  assert.match(save, /setSaveError\(t\("models\.providerNameTaken", \{ name: pendingName \}\)\)/);
+});
+
 // fork:models-board —— 模型详情按画板 41 拆成三张独立的 `.pw-detail`
 // （能力 / 规格 / 成本 → 高级 → 测试连接），所以标题串换成了画板的措辞。
 test("model specs keep catalog-filled prices visible outside advanced settings", () => {
@@ -159,6 +232,30 @@ test("model specs keep catalog-filled prices visible outside advanced settings",
   assert.ok(advancedIndex > costIndex);
   assert.match(modelDetail, /setCostEditing\(false\)/);
   assert.match(modelDetail, /formatCost\(key\)/);
+});
+
+// fork:cost-tiers (B3) —— 阶梯定价编辑器接在基础价之后（同一个 cost 对象），
+// 且只用画板已有的类：`.pw-field` 行 + `.pw-numin` 窄数值框。
+test("tiered pricing has an editor wired into the model cost object", () => {
+  const editor = source.slice(
+    source.indexOf("function CostTiersEditor"),
+    source.indexOf("function fillEmptyModelFields"),
+  );
+  assert.match(editor, /parseModelCostTiers\(next\)/);
+  // 控件全是画板已固化的基件：`.pw-field` 行 + `.pw-numin` 窄数值框（画板 40）。
+  assert.match(editor, /className="pw-field"/);
+  assert.match(editor, /className="pw-input pw-numin pw-mono"/);
+
+  const modelDetail = source.slice(
+    source.indexOf("function ModelDetail"),
+    source.indexOf("// ── OAuth detail"),
+  );
+  assert.match(modelDetail, /<CostTiersEditor[\s\S]*?tiers=\{costTiers\}[\s\S]*?onChange=\{setCostTiers\}/);
+  // 清空阶梯就删掉 `tiers` 键，不留 `tiers: []`。
+  assert.match(modelDetail, /const costTiers = useMemo\(/);
+  assert.match(modelDetail, /\[\s*model\.cost\?\.tiers\s*\],?\s*\);/);
+  assert.match(modelDetail, /if \(tiers\?\.length\) nextCost\.tiers = tiers;/);
+  assert.match(modelDetail, /else delete nextCost\.tiers;/);
 });
 
 test("the three model-detail cards separate sections instead of drawing dividers", () => {
@@ -246,4 +343,17 @@ test("thinking level overrides keep explicit default, disabled, and custom contr
   assert.match(editor, /next === "omit" \? "omit" : next === "null" \? null : strVal \|\| level/);
   assert.match(editor, /state === "string" && \(/);
   assert.match(editor, /onChange=\{\(e\) => setLevel\(level, e\.target\.value\)\}/);
+});
+
+// fork:discover-catalog-endpoint（上游 d8f89c5 #1006）—— 发现端点可从 pi 的 provider
+// catalog 反查，后端早就做了；入口别再按 baseUrl 为空把按钮禁掉。
+test("import models is not gated on a configured base URL", () => {
+  const providerDetail = source.slice(
+    source.indexOf("function ProviderDetail"),
+    source.indexOf("// ── ThinkingLevelMap editor"),
+  );
+  assert.doesNotMatch(providerDetail, /disabled=\{!provider\.baseUrl\?\.trim\(\)/);
+  assert.match(providerDetail, /disabled=\{discoveryState\.phase === "loading"\}/);
+  assert.match(providerDetail, /if \(discoveryState\.phase === "loading"\) return;/);
+  assert.match(source, /hint=\{t\("models\.baseUrlCatalogFallbackHint"\)\}/);
 });

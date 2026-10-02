@@ -15,6 +15,7 @@ const {
 
 const source = await readFile(new URL("./EnabledModelsSection.tsx", import.meta.url), "utf8");
 const modelsConfigSource = await readFile(new URL("./ModelsConfig.tsx", import.meta.url), "utf8");
+const helpersSource = await readFile(new URL("./models-config-helpers.ts", import.meta.url), "utf8");
 const cssSource = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
 
 const entry = (id, enabled, extra = {}) => ({
@@ -223,8 +224,12 @@ test("the section carries the usage heading font and no rule above it", () => {
 
 test("saving models.json resyncs the switches with the pre-save intent", () => {
   assert.match(modelsConfigSource, /enabledModels\.resync\(renames, modelRenames\)/);
-  assert.match(modelsConfigSource, /collectModelRenames\(config, savedModelIdsRef\.current, renamesRef\.current\)/);
-  assert.match(modelsConfigSource, /savedProvidersRef\.current\.has\(original\)/);
+  // fork:model-rename-save：收集的是落盘的那份 `draft`（含刚应用的供应商改名）。
+  assert.match(modelsConfigSource, /collectModelRenames\(draft, savedModelIdsRef\.current, renamesRef\.current\)/);
+  // fork:model-rename-save：「改名只在落盘过磁盘的那个 provider 上生效」这条判断
+  // 搬进了 `renameProviderEntry()`（Rename 与 Save 共用），这里只校验接线。
+  assert.match(modelsConfigSource, /renameProviderEntry\(draft, \{\s*savedProviders: savedProvidersRef\.current/);
+  assert.match(helpersSource, /else if \(savedProviders\.has\(original\)\) renames\.set\(original, newName\);/);
   // Providers that were fully enabled stay fully enabled across the save.
   assert.match(source, /provider\.enabledCount === provider\.models\.length\)\s*\n\s*\.map\(\(provider\) => provider\.id\)/);
 });
@@ -251,9 +256,15 @@ test("provider rows carry the scope badge", () => {
 
 test("the saved-model slots mirror every move the draft makes", () => {
   assert.match(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(normalized\)/);
-  assert.match(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(config\)/);
+  // fork:model-rename-save：保存落盘的是 `draft`（可能含一次刚应用的供应商改名），
+  // 所以已保存快照要跟着 `draft` 重建，否则下一轮的改名跟踪会挂在旧 id 上。
+  assert.match(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(draft\)/);
+  assert.doesNotMatch(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(config\)/);
   assert.match(modelsConfigSource, /trackAddedModels\(savedModelIdsRef\.current, providerName, 1\)/);
   assert.match(modelsConfigSource, /savedModelIdsRef\.current\.get\(providerName\)\?\.splice\(index, 1\)/);
   assert.match(modelsConfigSource, /savedModelIdsRef\.current\.delete\(name\)/);
-  assert.match(modelsConfigSource, /savedModelIdsRef\.current\.set\(newName, slots\)/);
+  // fork:model-rename-save：搬 provider 时 slots 的跟着搬，这一步搬进了
+  // `renameProviderEntry()`（helpers），Rename 与 Save 走的是同一条路径。
+  assert.match(modelsConfigSource, /renameProviderEntry\(draft, \{/);
+  assert.match(helpersSource, /slots\.delete\(oldName\);\s*slots\.set\(newName, saved\);/);
 });
