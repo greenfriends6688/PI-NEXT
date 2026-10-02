@@ -806,6 +806,12 @@ export const enLocale: LocalePlugin = {
     "chat.todosHint": "The agent updates this list as it works; copy it into a message when you need to hand it back.",
     "chat.copyTodos": "Copy list",
     "chat.todosCopyFailed": "Could not copy",
+    // fork:pr52-plan-tools —— 计划文档（落盘那份，给人读）。与上面的待办是分工关系，不是同一个东西：
+    // 待办是 agent 边做边勾的执行清单，计划文档是 `<cwd>/.pi/plans/<date>-<slug>.md`，可点开、可跨会话引用。
+    "chat.planDocument": "Plan document",
+    "chat.planOpen": "Open plan",
+    "chat.planPreview": "Preview",
+    "chat.planReferences": "Plans mentioned in this message",
     "chat.queued": "Queued · {count}",
     "chat.recall": "Recall to input",
     "chat.recallTitle": "Remove all queued messages and put them back into the input box for editing",

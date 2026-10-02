@@ -806,6 +806,12 @@ export const zhCNLocale: LocalePlugin = {
     "chat.todosHint": "AI 会随进度实时更新这份清单；需要时可以复制成一条消息发回给它。",
     "chat.copyTodos": "复制清单",
     "chat.todosCopyFailed": "复制失败",
+    // fork:pr52-plan-tools —— 计划文档（落盘那份，给人读）。与上面的待办是分工关系，不是同一个东西：
+    // 待办是 agent 边做边勾的执行清单，计划文档是 `<cwd>/.pi/plans/<date>-<slug>.md`，可点开、可跨会话引用。
+    "chat.planDocument": "计划文档",
+    "chat.planOpen": "打开计划",
+    "chat.planPreview": "预览",
+    "chat.planReferences": "这条消息里提到的计划",
     "chat.queued": "已排队 · {count}",
     "chat.recall": "移回输入框",
     "chat.recallTitle": "移除所有排队消息并将其放回输入框编辑",

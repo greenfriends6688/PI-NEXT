@@ -804,6 +804,12 @@ export const zhTWLocale: LocalePlugin = {
     "chat.todosHint": "AI 會隨進度即時更新這份清單；需要時可以複製成一則訊息傳回給它。",
     "chat.copyTodos": "複製清單",
     "chat.todosCopyFailed": "複製失敗",
+    // fork:pr52-plan-tools —— 計畫文件（落盤那份，給人讀）。與上面的待辦是分工關係，不是同一個東西：
+    // 待辦是 agent 邊做邊勾的執行清單，計畫文件是 `<cwd>/.pi/plans/<date>-<slug>.md`，可點開、可跨會話引用。
+    "chat.planDocument": "計畫文件",
+    "chat.planOpen": "開啟計畫",
+    "chat.planPreview": "預覽",
+    "chat.planReferences": "這則訊息裡提到的計畫",
     // fork:proma-31-task-progress —— 吸底任務進度浮層。計數沿用 chat.todosProgress。
     "chat.queued": "已排入佇列 · {count}",
     "chat.recall": "移回輸入框",
