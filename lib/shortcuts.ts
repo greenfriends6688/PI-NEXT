@@ -239,6 +239,32 @@ export function formatShortcutBindingLabel(
   return formatShortcutBindingLabelParts(binding, platformInfo).join(isApplePlatform(platformInfo) ? "" : "+");
 }
 
+/**
+ * fork:proma-33-shortcut-guide — one command can carry several chords (the
+ * aliases in `defaultBindings` plus whatever the user recorded), so the guide
+ * has to render a list, not a single string. Aliases are separated by ` / `
+ * (the shape users already read in shortcut cheatsheets); an empty list is the
+ * empty string, which callers turn into the "not set" label.
+ *
+ * Note the Apple case joins caps with **no** separator, so the alias separator
+ * is the only thing between two chords: `⌘B / ⌘B` reads as two chords and
+ * `⌘B/⌘B` as one mangled one.
+ */
+export function formatShortcutBindingsLabel(
+  bindings: readonly string[],
+  platformInfo?: ShortcutPlatformInfo,
+): string {
+  return bindings.map((binding) => formatShortcutBindingLabel(binding, platformInfo)).join(" / ");
+}
+
+/** Per-chord cap labels, in binding order. The guide renders one `.pw-kbd` per cap. */
+export function formatShortcutBindingCapGroups(
+  bindings: readonly string[],
+  platformInfo?: ShortcutPlatformInfo,
+): string[][] {
+  return bindings.map((binding) => formatShortcutBindingLabelParts(binding, platformInfo));
+}
+
 // ============================================================================
 // Noise filtering (IME / long press)
 // ============================================================================
@@ -480,6 +506,90 @@ export function parseShortcutOverrides(raw: unknown): ShortcutOverrides {
     out[id] = bindings;
   }
   return out;
+}
+
+// ============================================================================
+// Guide projection (fork:proma-33-shortcut-guide)
+// ============================================================================
+
+/** One row of the shortcut map: what the command does, and what actually fires today. */
+export interface ShortcutGuideRow {
+  id: ShortcutCommandId;
+  /** i18n key for the command label (`settings.shortcuts.*`). */
+  labelKey: string;
+  group: ShortcutGroup;
+  /**
+   * true  = `hooks/useKeyboardShortcuts.ts` dispatches it;
+   * false = read-only row another feature registers itself (⌘F). The guide has
+   *         to say so out loud, otherwise the map promises a key that the
+   *         kernel never listens for and the user presses it and nothing moves.
+   */
+  managed: boolean;
+  /** true when the effective bindings differ from the shipped defaults. */
+  customized: boolean;
+  /** Effective bindings (override when present, defaults otherwise). May be empty. */
+  bindings: readonly string[];
+  /** One cap group per binding: the `.pw-kbd` labels for this platform. */
+  capGroups: readonly string[][];
+  /** Flat text of the effective chords — `aria-label` / `title` for the caps. */
+  displayText: string;
+}
+
+/** Rows of one `SHORTCUT_GROUPS` bucket, in table order. */
+export interface ShortcutGuideGroup {
+  group: ShortcutGroup;
+  labelKey: string;
+  rows: readonly ShortcutGuideRow[];
+}
+
+function sameBindings(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((binding, index) => binding === b[index]);
+}
+
+/**
+ * The shortcut map, as data.
+ *
+ * Deliberately **not** the settings table: this is read-only, grouped, and it
+ * shows the *effective* binding (user override first, defaults otherwise, all
+ * aliases listed) with caps already formatted for the caller's platform — so
+ * the component never concatenates a chord string itself.
+ *
+ * `platformInfo` is a parameter rather than a `navigator` read inside because
+ * the server render has no platform: pass the client's value (or omit it and
+ * let `isApplePlatform` sniff, which is what the dispatcher does too).
+ *
+ * Groups with no rows are dropped (`notMigrated` disappears the day its rows
+ * migrate), and group order is the canonical `SHORTCUT_GROUPS` order rather
+ * than the order rows happen to sit in the table.
+ */
+export function buildShortcutGuide(
+  overrides?: ShortcutOverrides | null,
+  platformInfo?: ShortcutPlatformInfo,
+): readonly ShortcutGuideGroup[] {
+  const effective = resolveEffectiveShortcutBindings(overrides);
+  const groups: ShortcutGuideGroup[] = [];
+
+  for (const group of SHORTCUT_GROUPS) {
+    const rows: ShortcutGuideRow[] = [];
+    for (const entry of SHORTCUT_COMMANDS) {
+      if (entry.group !== group) continue;
+      const bindings = effective[entry.id] ?? entry.defaultBindings;
+      rows.push({
+        id: entry.id,
+        labelKey: entry.labelKey,
+        group: entry.group,
+        managed: entry.managed,
+        customized: !sameBindings(bindings, entry.defaultBindings),
+        bindings,
+        capGroups: formatShortcutBindingCapGroups(bindings, platformInfo),
+        displayText: formatShortcutBindingsLabel(bindings, platformInfo),
+      });
+    }
+    if (rows.length === 0) continue;
+    groups.push({ group, labelKey: SHORTCUT_GROUP_LABEL_KEYS[group], rows });
+  }
+
+  return groups;
 }
 
 // ============================================================================

@@ -2144,6 +2144,96 @@ GET 不建文件 → 读不出来抛 `ThinkingBudgetReadError`（422）。这与
    `MIN_ANSWER_TOKENS`（1024），所以填一个很大的数不等于真能想那么久。
 4. 改动对**下一次请求**生效，已经发出的那一次不受影响。
 
+
+## AC · 2026-10-02：PR-33 快捷键地图对话框（零新 `.pw-*` 类，判据⑦ 第二次走「不补控件」这条路）
+
+### AC-0 · 这一条在定什么
+
+`lib/shortcuts.ts` 的 `SHORTCUT_COMMANDS` 一直是一张**只有程序能读**的表：设置里的
+「快捷键」分节被用户裁掉之后（见第 113 条），这张表在界面上就没有任何落点 ——
+用户按 ⌘⇧L 换主题，却无处可查有哪些键。参考项目（Proma `ShortcutGuideDialog`）把
+「查」与「改」分成两件事，本条照这个口径补只读的**快捷键地图**：
+`components/fork/ShortcutGuideDialog.tsx`，挂在常规设置页末尾一枚入口按钮上
+（`components/fork/ShortcutGuideEntry.tsx`）。**不重建**被裁掉的快捷键设置表。
+
+### AC-1 · DOM 全部来自既有两张画板，零新 `.pw-*` 类
+
+| 地图的一部分 | 用的类 | 来源 |
+| --- | --- | --- |
+| 遮罩 + 弹层壳 + 头/内容/脚 | `.pw-scrim` `.pw-modal` `-head` `-body` `-foot` | 画板 50 |
+| 分组标题 | `.pw-sec-title` | 画板 45（快捷键表的分组标题） |
+| 一行命令 | `.pw-field` + `.pw-label` + `.pw-ctl` | 画板 45 |
+| 键帽 | `.pw-kbd` | 画板 00（token 页）/ 45 |
+| 关闭钮 / 动作钮 | `.pw-iconbtn.sm` / `.pw-btn.sm` | 画板 50 |
+
+所以判据⑦的「新 `pw-*` 类先进 board.css + 上画板」这条**没被触发**：本条不补控件，
+只把两块画板里已有的形态拼成一张新弹层。这也是它不需要新对位 spec 的原因
+（`npm run verify:boards` 是一板一 spec，没动画板就没有要补的 spec）。
+
+### AC-2 · 产品侧那六个类只做「接线」，值全部来自画板与 token
+
+`.fork-shortcut-guide-{scrim,modal,body,sub,group,caps,chord,or,flag,foot}` 都在
+`app/fork-ui.css`，逐条对应一件画板没有的产品语义：
+
+1. **`.fork-shortcut-guide-scrim`** —— `.pw-scrim` 在画板里是舞台内的一格，产品里是
+   覆盖层 → 补 `position: fixed; inset: 0; z-index: var(--z-modal)`。与皮肤工作室的
+   `.fork-skin-scrim` 逐字同一条（同一份接线做第二次）。
+2. **`.fork-shortcut-guide-modal`** —— 窄屏钳位 `max-width: calc(100vw - 2rem)`
+   （同 `.fork-skin-modal`）+ **`max-height: 85vh`**。85vh 是**视口比例**不是像素几何，
+   与 `.fork-ext-dialog-head` 的 `50vh`、`.fork-skin-modal` 的 `100dvh - 2rem` 同一口径：
+   地图行数随 `SHORTCUT_COMMANDS` 增长（今天 6 行、4 组），写死像素必然哪天溢出。
+   宽度**不**另给：就用 `.pw-modal` 的 560。
+3. **`.fork-shortcut-guide-body`** —— 把 `.pw-modal-body` 从 `display: grid` 换成
+   `display: block`。画板的 body 是「一列定高内容」，`gap: var(--s2)` 在这里会把
+   「分组」和「组内的行」拉成同一种间距；换成块流后组间距交给
+   `.fork-shortcut-guide-group + … { margin-top: var(--s3) }`。`overflow-y: auto`
+   画板 2026-10-01（`fork:settings-modal-scroll`）已经给了，这里没重复。
+4. **`.fork-shortcut-guide-caps` / `-chord` / `-or`** —— 一行可能有**多个**绑定
+   （`defaultBindings` 的别名 + 用户改过的），段与段之间要分隔。mac 的多段是**连写**
+   （`⌘⇧L`），所以分隔符只加在段与段之间，值是 `/`（不是 `+`：`+` 在非 mac 上是
+   修饰键分隔符，混用会把一个和弦读成两个）。分隔符 `aria-hidden`，整串 chords 的
+   可读文本放在 caps 容器的 `aria-label` / `title` 上。
+5. **`.fork-shortcut-guide-flag`** —— 状态小字（`.pw-field .pw-label small` 已经是
+   画板形态，这里只调色）：`未接入` 用 `--error`（按了没用，是缺陷不是偏好），
+   `你改过` 用 `--n-placeholder`（只是提醒当前不是默认值）。
+6. **`.fork-shortcut-guide-foot` / `-sub`** —— 副标题与页脚小字上的 `margin`，
+   纯 UA 归零补差（画板没有全局 reset）。
+
+### AC-3 · `managed: false` 必须标状态，这是本条的硬要求
+
+`findInConversation`（⌘F）由会话内查找**自己**注册，不经 `useKeyboardShortcuts` 分发，
+所以它在表里是 `managed: false` 的只读行。地图把一串键帽列出来就是在承诺「按了有用」，
+不标注就是骗人 —— 参考项目给未注册键位加 `当前未注册` 状态是同一个道理。故：
+
+* `managed: false` 的行照常留在 `notMigrated` 分组里（不隐藏：用户按的就是 ⌘F），
+  行内带 `未接入` 标记；
+* 行**不可被改**这件事也写进标记文案（「地图改不动它」），免得用户去设置里找入口；
+* 「你改过」（`customized`）是另一枚独立标记：即使 ⌘F 被改过，它仍然是 `managed: false`。
+
+### AC-4 · 平台键帽由纯函数算，组件不拼字符串
+
+`lib/shortcuts.ts` 新增三样（都在「Platform + labels」与「Effective table」两节里，
+与内核其余部分一样是纯函数，`lib/shortcuts-guide.test.mjs` 钉住）：
+
+| 函数 | 职责 |
+| --- | --- |
+| `formatShortcutBindingsLabel(bindings, platformInfo?)` | 多个绑定 → 一行可读文本（` / ` 分隔），空列表 → 空串 |
+| `formatShortcutBindingCapGroups(bindings, platformInfo?)` | 多个绑定 → 每段一组键帽标签，供一枚 `.pw-kbd` 一段渲染 |
+| `buildShortcutGuide(overrides, platformInfo?)` | 表 + overrides → 分组行（`bindings` / `capGroups` / `displayText` / `managed` / `customized`） |
+
+`platformInfo` 是**参数**不是模块内读 `navigator`：服务端渲染没有平台，组件把客户端
+判定的 `{platform, userAgent}` 传进去。副标题（mac / 非 mac 两句）与键帽必须用
+**同一个** `platformInfo`，否则会出现「标题说 Mac、键帽写 `Ctrl+`」的自相矛盾 ——
+这一点由 `ShortcutGuideDialog.test.mjs` 的 `withPlatform()` 双环境渲染钉住。
+
+### AC-5 · 无障碍与接线
+
+* 焦点陷阱 / Esc 关闭 / 背景 `inert` 全部走 `hooks/useDialogA11y`，`role="dialog"`
+  与 `aria-modal` 由它的 `dialogProps` 展开，组件不自己再写一份（测试断言组件源码里
+  没有 `role="dialog"`）。
+* 设置页那边只有两处改动：`import` + 末尾一行 `<ShortcutGuideEntry />`（右栏末位，
+  与 retry / context-budget / thinking-budget 三块同一续块口径）。弹层的开合状态在
+  入口组件自己手里，`SettingsPanel` 不背这个 state。
 ## AA · 扩展对话框的长标题钳位（fork，#961 / Refs #890）
 
 产品侧加了画板没有的两个钩子类，画板 `.pw-modal-head` **一行没动**：

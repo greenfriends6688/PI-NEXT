@@ -2997,3 +2997,94 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     inset: 0 calc(-1 * var(--fork-pwa-sb-slop-x));
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:proma-33-shortcut-guide —— 快捷键地图对话框的产品接线（零新 `.pw-*` 类）。
+ *
+ * 画板给出的形态照抄：画板 50 的 `.pw-scrim` › `.pw-modal`（head / body / foot）
+ * 加画板 45 快捷键表的 `.pw-sec-title` 分组标题 + `.pw-field` 行 + `.pw-kbd`
+ * 键帽。画板**没有**的部分只有三处产品语义，所以下面只写这三处：
+ *
+ *  ① `.pw-scrim` 在画板里是舞台内的一格，产品里是覆盖层 → 补 fixed 与层级
+ *     （与皮肤工作室的 `.fork-skin-scrim` 同一口径，同样用 `--z-modal`）。
+ *  ② 地图比确认框长 → 弹层给 `max-height: 85vh` + flex 列；`.pw-modal-body`
+ *     的 `overflow-y:auto` 画板 2026-10-01 已经有了，这里只把它从 grid
+ *     换成普通块流（行要按分组成段，不能靠 grid 的 gap 分组）。
+ *  ③ 键帽组：一行里有多个绑定时用 `/` 分隔；mac 的多段连写（`⌘⇧L`）内部
+ *     不可插分隔符，所以分隔符只加在**段与段之间**，且 `aria-hidden`
+ *     （读屏只需要 caps 上的整串 aria-label）。
+ *
+ * 85vh 是**视口比例**不是像素几何（同 `.fork-skin-modal` 的 `100dvh - 2rem`）：
+ * 地图行数随 `lib/shortcuts.ts` 的表增长，写死像素必然哪天溢出。
+ * ------------------------------------------------------------------------- */
+.fork-shortcut-guide-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.fork-shortcut-guide-modal {
+  max-width: calc(100vw - 2rem);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fork-shortcut-guide-body {
+  display: block;
+}
+
+.fork-shortcut-guide-sub {
+  margin: 0 0 var(--s2);
+}
+
+.fork-shortcut-guide-group + .fork-shortcut-guide-group {
+  margin-top: var(--s3);
+}
+
+.fork-shortcut-guide-caps {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s1);
+  max-width: 100%;
+}
+
+/* `.pw-field` 是 `justify-content: space-between` 的行，`.pw-ctl` 默认
+   `flex: none`（画板那一列永远是「开关 / 数值框」这种定宽控件）。地图右侧是
+   **键帽组**，条数不定（别名 + 用户改过的），窄屏必须能换行而不是把行撑破，
+   所以这里换成可收缩（`0 1 auto`）+ `min-width: 0`；左侧标签同样给
+   `min-width: 0`，长标签（英文的 "New session in the active project"）才能折行。
+   画板零像素变化：这些值只在内容超过行宽时才开始起作用。 */
+.fork-shortcut-guide-group .pw-label { min-width: 0; }
+.fork-shortcut-guide-group .pw-ctl { flex: 0 1 auto; min-width: 0; }
+
+.fork-shortcut-guide-chord {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-kbd);
+}
+
+.fork-shortcut-guide-or {
+  color: var(--n-placeholder);
+  font-size: var(--text-meta);
+  margin-inline-end: var(--space-kbd);
+}
+
+/* 状态标记：两枚都是 `.pw-field .pw-label small`（画板的行内小字），只调颜色 ——
+   「未接入」是错误色（按了没用），「已改」是弱化色（只是提醒当前不是默认值）。
+   选择器带上 `.pw-label` 是**必需的**：board.css 的 `.pw-field .pw-label small`
+   特异度 (0,2,1) 高过单个 fork 类 (0,1,0)，只写 `.fork-shortcut-guide-flag`
+   会被画板那条压住。 */
+.fork-shortcut-guide-group .pw-label .fork-shortcut-guide-flag {
+  color: var(--error);
+}
+
+.fork-shortcut-guide-group .pw-label .fork-shortcut-guide-flag.custom {
+  color: var(--n-placeholder);
+}
+
+.fork-shortcut-guide-foot {
+  margin-inline-end: var(--s2);
+}

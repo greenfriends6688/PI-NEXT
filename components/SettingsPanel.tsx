@@ -57,6 +57,8 @@ import { WallpaperSettings } from "./WallpaperSettings";
 import { RetrySettingsBlock } from "./RetrySettingsBlock";
 // fork:pr12-a5-context-budget —— settings.compaction / settings.branchSummary 的预算块。
 import { ContextBudgetSettingsBlock } from "./ContextBudgetSettingsBlock";
+// fork:proma-33-shortcut-guide —— 快捷键地图入口（一行 + 弹层，自带 open 状态，故单文件）。
+import { ShortcutGuideEntry } from "./fork/ShortcutGuideEntry";
 // fork:pr12-a6-thinking-budget —— settings.thinkingBudgets 的四档预算块（同一位置）。
 import { ThinkingBudgetSettingsBlock } from "./ThinkingBudgetSettingsBlock";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
@@ -958,6 +960,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           0.87 的 SettingsManager 连 setter 都没有（写入路径见
           lib/thinking-budget-settings.ts 头）。控件是四个 `.pw-numin` 窄数值框。 */}
       <ThinkingBudgetSettingsBlock />
+          {/* fork:proma-33-shortcut-guide —— 快捷键地图入口排在思考预算块之后（右栏末位，
+          与上面三块同属「画板 62 帧 C 右栏之外的产品续块」）。本仓的快捷键**设置表**
+          已按用户裁定下线（见 SettingsPanel.test.mjs 的分节图标用例），所以地图
+          不挂在设置分节里，而是这块只有一行的入口按钮 —— 它只读，不做录制。 */}
+      <ShortcutGuideEntry />
           </div>
         </div>
 
