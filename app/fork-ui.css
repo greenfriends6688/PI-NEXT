@@ -3088,3 +3088,12 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-shortcut-guide-foot {
   margin-inline-end: var(--s2);
 }
+
+/* fork:proma-35-retry —— 消息流里的重试提示是一列 `.pw-toast`（画板 12 / 50 的通知条）。
+   board.css 的 `.pw-toast` 是单枚定宽浮条，这里只补**多枚堆叠**的列间距；
+   单枚内部的几何（padding / 圆角 / 阴影 / 图标对齐）全部由画板类给。 */
+.fork-retry-notices {
+  display: grid;
+  gap: var(--s2);
+  margin-block: var(--s2);
+}

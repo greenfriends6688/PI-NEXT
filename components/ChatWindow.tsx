@@ -36,6 +36,8 @@ import {
 import { ExplorationBanner } from "./fork/ExplorationBanner";
 // fork:proma-31-task-progress — 吸底任务进度浮层（PR-31）
 import { TaskProgressOverlay } from "./fork/TaskProgressOverlay";
+// fork:proma-35-retry — 消息流里的重试提示（PR-35）
+import { RetryNotice } from "./fork/RetryNotice";
 import { extractTodoState } from "@/lib/todo-state";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
@@ -679,7 +681,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   const {
     loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
-    retryInfo, contextUsage, forkingEntryId,
+    retryInfo, retryNotices, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
     notices, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
@@ -2592,6 +2594,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 onOpenSession={onOpenSession}
               />
             )}
+
+            {/* fork:proma-35-retry — 重试提示挂在消息流尾部（最后一条消息之后、
+                prompt 锚点之前）；只在 attempt > 5 时才有内容，run 结束由 hook 清空。 */}
+            <RetryNotice notices={retryNotices} />
 
             <div ref={promptAnchorSpacerRef} aria-hidden="true" />
             </div>

@@ -31,6 +31,14 @@ import { mergeSessionStats, type SessionFileStats } from "@/lib/session-stats";
 import { userMessageKey } from "@/lib/prompt-recovery";
 import { AgentEventConnection } from "@/lib/agent-event-connection";
 import { isSystemMessageEvent } from "@/lib/agent-event-wire";
+// fork:proma-35-retry —— 重试事件映射 / 降噪（前 5 次不上报）/ run 隔离。纯函数层在 lib/retry-policy.ts。
+import {
+  mapRetryEvent,
+  shouldSurfaceRetry,
+  upsertRetryNotice,
+  type RawRetryEvent,
+  type RetryNotice,
+} from "@/lib/retry-policy";
 import { getToolExecutionProgress } from "@/lib/tool-execution-progress";
 import { updateExtensionWidgets } from "@/lib/extension-widgets";
 // fork:extension-ui-queue —— 扩展 UI 按 id 排队（单槽会挂死并行审批）
@@ -382,6 +390,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [toolPreset, setToolPreset] = useState<ToolPreset>(CONFIGURED_TOOL_PRESET);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevelOption>("auto");
   const [retryInfo, setRetryInfo] = useState<{ attempt: number; maxAttempts: number; errorMessage?: string } | null>(null);
+  // fork:proma-35-retry —— 消息流里的重试提示历史（按 attempt upsert，见 lib/retry-policy.ts）。
+  const [retryNotices, setRetryNotices] = useState<RetryNotice[]>([]);
   const [contextUsage, setContextUsage] = useState<{ percent: number | null; contextWindow: number; tokens: number | null } | null>(null);
   const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
   const [forkingEntryId, setForkingEntryId] = useState<string | null>(null);
@@ -460,6 +470,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     thinkingLevelMemory: Record<string, string>;
   }>({ thinkingLevels: {}, thinkingLevelPins: {}, thinkingLevelMemory: {} });
   const promptRunIdRef = useRef(0);
+  // fork:proma-35-retry —— 本轮 prompt 的开始时间，与 run id 一起钉住重试提示；
+  // 迟到旧事件在 upsertRetryNotice 里按 runId 被丢弃。
+  const promptRunStartedAtRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
   const modelSwitchPendingRef = useRef(false);
   const draftKeyAliasesRef = useRef(new Map<string, string>());
@@ -1233,12 +1246,27 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
   }, [addNotice, noteExtensionUiReplayedRequest, onAttentionNeeded, opts.chatInputRef]);
 
+  // fork:proma-35-retry —— 把 pi 的 auto_retry_* 事件映射成消息流提示。
+  // 前 5 次由 mapRetryEvent 直接丢弃（降噪）；同一 attempt 的终态事件 upsert 覆盖，
+  // 不会在历史里追加第二条「第 N 次」；runId 更小的迟到事件被 upsertRetryNotice 丢掉。
+  const applyRetryEvent = useCallback((raw: AgentEvent) => {
+    if (!agentRunningRef.current) return;
+    const notice = mapRetryEvent(raw as RawRetryEvent, {
+      runId: promptRunIdRef.current,
+      runStartedAt: promptRunStartedAtRef.current,
+    });
+    if (!notice) return;
+    setRetryNotices((prev) => upsertRetryNotice(prev, notice));
+  }, []);
+
   const settleUiStage = useCallback(() => {
     const wasRunning = agentRunningRef.current;
     agentRunningRef.current = false;
     setAgentRunning(false);
     setAgentPhase(null);
     setRetryInfo(null);
+    // fork:proma-35-retry —— run 真正结束，提示收起（重试之间的 agent_end 不会走到这里）。
+    setRetryNotices([]);
     setActiveToolResults(new Map());
     dispatch({ type: "end" });
     return wasRunning;
@@ -1482,6 +1510,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       }
       case "agent_start":
         cancelEventStreamGrace();
+        // fork:proma-35-retry —— 扩展注入的 run 没有经过 handleSend，这里补一个开始时间；
+        // 普通 prompt 已由 handleSend 设过（agentRunningRef 仍为 true 时不覆盖）。
+        if (!agentRunningRef.current) promptRunStartedAtRef.current = Date.now();
         sdkAgentActiveRef.current = true;
         agentRunningRef.current = true;
         setAgentRunning(true);
@@ -1717,11 +1748,18 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           followUp: [...((event.followUp as string[] | undefined) ?? [])],
         });
         break;
-      case "auto_retry_start":
-        setRetryInfo({ attempt: event.attempt as number, maxAttempts: event.maxAttempts as number, errorMessage: event.errorMessage as string | undefined });
+      case "auto_retry_start": {
+        // fork:proma-35-retry —— 前 5 次完全不上报（消息流与 composer 同一阈值）。
+        const attempt = event.attempt as number;
+        if (shouldSurfaceRetry(attempt)) {
+          setRetryInfo({ attempt, maxAttempts: event.maxAttempts as number, errorMessage: event.errorMessage as string | undefined });
+        }
+        applyRetryEvent(event);
         break;
+      }
       case "auto_retry_end":
         setRetryInfo(null);
+        applyRetryEvent(event);
         break;
       case "auto_compaction_start":
       case "compaction_start":
@@ -1750,7 +1788,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         setExtensionCustomUis((queue) => removeExtensionUiRequest(queue, event.id as string));
         break;
     }
-  }, [addNotice, beginExtensionUiReplayWindow, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, scheduleEventStreamClose, scrollToBottom, settleUiStage, syncLiveModel]);
+  }, [addNotice, applyRetryEvent, beginExtensionUiReplayWindow, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, scheduleEventStreamClose, scrollToBottom, settleUiStage, syncLiveModel]);
   handleAgentEventRef.current = handleAgentEvent;
 
   const handleSend = useCallback(async (
@@ -1789,6 +1827,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
 
     const promptRunId = promptRunIdRef.current + 1;
+    // fork:proma-35-retry —— 新一轮 prompt：换 run 身份并清掉上一轮的重试提示。
+    promptRunStartedAtRef.current = Date.now();
+    setRetryNotices([]);
     cancelEventStreamGrace();
     rpcPromptPendingRef.current = true;
 
@@ -2844,7 +2885,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     // State
     data, loading, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
     agentRunning, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
-    retryInfo, contextUsage, systemPrompt, forkingEntryId,
+    retryInfo, retryNotices, contextUsage, systemPrompt, forkingEntryId,
     isCompacting, compactError, compactResult, currentModel, displayModel, modelSwitching, sessionStats, autoCompactionEnabled,
     slashCommands, slashCommandsLoading, queuedMessages,
     notices: noticeState.visible, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput,
