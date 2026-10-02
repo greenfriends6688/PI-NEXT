@@ -33,6 +33,8 @@ import {
   preferUserBashExtension,
 } from "./project-command-env";
 import { cacheSessionPath, getLatestModelChange, invalidateSessionListCache, resolveSessionPath } from "./session-reader";
+// fork:pr11-mcp — ADR 0006 的 Loading：把内置 `mcp` 扩展挂上 builtin:mcp
+import { mcpBuiltinExtensionEntries } from "./pi-sdk-internals";
 import { getProjectTrustStatus, projectTrustReloadOptions } from "./project-trust";
 import { persistExplicitStartupPreferences } from "./startup-preferences";
 import { rememberThinkingLevel, thinkingLevelMemoryKey } from "./thinking-level-memory";
@@ -2375,6 +2377,15 @@ export async function startRpcSession(
               // fork:proma-03-plan — 计划档：先调研、给编号计划，非只读动作一律拦。
               // 与审批扩展共存：审批管「问不问」，计划管「允不允许写」。
               createPlanModeExtension(() => permissionMode),
+              // fork:pr11-mcp — 内置 MCP 扩展（ADR 0006「Loading」）。名字必须是 CLI 的
+              // `mcp`，`DefaultResourceLoader` 才按 `builtin:mcp` 解析（`-builtin:mcp` /
+              // `--no-extensions` 能关，第三方扩展注册 `/mcp` 时让位）。SDK 不带内置 MCP
+              // 时（0.87）返回空数组并打一行日志，所以 tsc 不会红、运行时等于没接。
+              // 三个坑写在 lib/pi-sdk-internals.ts 的 `mcpBuiltinExtensionEntries` 上：
+              // fan-out（不连任何 server，所以不拉起 stdio 进程）、stop（不触发那段
+              // 不认 abort 的 10s 等待）、env（`createTransport` 一律抛错，绝不回退到
+              // SDK 默认 transport 把 `PI_WEB_PASSWORD` 交给子进程）。
+              ...mcpBuiltinExtensionEntries(),
             ],
             extensionsOverride: (base) => preferUserBashExtension(preferPiWebSubagentExtension(base)),
           },
