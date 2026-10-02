@@ -264,6 +264,32 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - Skill toggling edits only the `disable-model-invocation` frontmatter key on the target `SKILL.md`; keep that surgical so user formatting survives.
 - `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
 
+### 一方扩展的注册 ≠ 模型看得见（fork:proma-37~53 的共同教训）
+
+`extensionFactories` 里注册了扩展，**编译过、单测绿、画板对位过，都不能证明模型用得上这些工具**。
+
+本仓的一方扩展形状是 `{ name, hidden: true, factory }`：`hidden: true` 意味着工具
+**不自动进 `get_tools`**，要靠会话创建时的 `toolNames[]` 过档（`withExtensionTools()`，
+`lib/rpc-manager.ts`），而 model-only 曝光由 pi 在 prompt 期决定。**中间任何一环没对上，
+模型就是看不见** —— 而这在编译期和单测里都是绿的。
+
+唯一的验证方式是运行时：
+
+```bash
+# 起一个独立端口的服务（别抢主仓 30141）
+ln -sfn <repo>/node_modules node_modules
+node_modules/.bin/next build --webpack && node_modules/.bin/next start -p 30247
+# 拿一个真实会话 id，问它要工具清单
+curl -s -X POST -H 'content-type: application/json' -d '{"type":"get_tools"}' \
+  http://127.0.0.1:30247/api/agent/<sessionId>
+```
+
+`data` **直接是工具数组**（不是 `{tools:[...]}`）。2026-10-02 用这招实测确认
+browser 10 + terminal 4 + document 11 = 25 个工具在运行时全部真的露给了模型。
+
+**推论**：新增一方扩展的 DoD 里，「工厂函数形状」的单测不够，必须补一条运行时验证；
+CI 里如果跑不了，就把工具名清单写进 `SHORTCUT_COMMANDS` 那样的可读表里，至少让人能一眼核对。
+
 ### 产品能力不许降级成 skill（fork:proma-00-skill-policy）
 
 参考项目 Proma 的 17 个内置 skill 里，`automation` / `in-app-browser` / `agent-collaboration` / `knowledge-maintenance` / `writing-plans` / `docx` / `pdf` / `xlsx` / `pptx` 这九条**在 Proma 全是一方代码 + 注册给模型的真实工具**（22 个 `Browser*`、11 个委派工具、7 个 automation 工具、`file-preview-service.ts`），skill 只是挂在工具上面的一层提示词。**照抄目录 = 把产品功能降级成「模型可能想起来读、也可能不读的 markdown」**，五条后果同时发生：
