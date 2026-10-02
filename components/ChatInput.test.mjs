@@ -52,8 +52,9 @@ test("follow-up shortcuts preserve newline, IME, mobile and completion behavior"
   // fork:send-key（G6）—— `enterSendMode: "enter"` 是默认档；Ctrl+Enter 档在
   // ChatInput.enter-send-mode.test.mjs 里单独驱动。
   const cases = [
-    ["Enter steers", {}, {}, "steer"],
-    ["Alt+Enter follows up", { altKey: true }, {}, "followup"],
+    // 2026-10-02 用户裁定 —— 流式中发送一律排队（followUp），不再有「引导」分支。
+    ["Enter queues while streaming", {}, {}, "followup"],
+    ["Alt+Enter also queues", { altKey: true }, {}, "followup"],
     ["idle Alt+Enter sends", { altKey: true }, { isStreaming: false }, "send"],
     ["Shift+Enter inserts a newline", { shiftKey: true }, {}, "native"],
     ["Alt+Shift+Enter keeps native behavior", { altKey: true, shiftKey: true }, {}, "native"],
@@ -66,8 +67,8 @@ test("follow-up shortcuts preserve newline, IME, mobile and completion behavior"
     ["mobile Ctrl+Alt+Enter follows up", { altKey: true, ctrlKey: true }, { isMobile: true }, "followup"],
     ["mobile Cmd+Alt+Enter follows up", { altKey: true, metaKey: true }, { isMobile: true }, "followup"],
     ["mobile modified Enter respects composition grace", { altKey: true, ctrlKey: true }, { isMobile: true, lastCompositionEndAtRef: { current: 950 } }, "prevented"],
-    ["Enter falls back to follow-up", {}, { onSteer: undefined }, "followup"],
-    ["Alt+Enter falls back to steer", { altKey: true }, { onFollowUp: undefined }, "steer"],
+    ["Enter sends when there is no follow-up channel", {}, { onFollowUp: undefined }, "send"],
+    ["Alt+Enter also sends when there is no follow-up channel", { altKey: true }, { onFollowUp: undefined }, "send"],
     ["slash completion takes priority", { altKey: true }, { slashMenuOpen: true, slashQuery: "help" }, "slash"],
     ["available built-in commands take priority", { altKey: true }, { slashMenuOpen: true, slashQuery: "copy", value: "/copy", displayedSlashCommands: [{ name: "copy", source: "builtin", availableWhileStreaming: true }] }, "send"],
     ["file completion takes priority", { altKey: true }, { atMenuOpen: true, atQuery: {} }, "file"],
@@ -89,7 +90,7 @@ test("follow-up shortcuts preserve newline, IME, mobile and completion behavior"
       // fork:gap06-references
       referenceMenuOpen: false, referenceQuery: null, referenceItems: [{}], referenceActiveIndex: 0,
       onSteer() {}, onFollowUp() {},
-      sendQueued(mode) { action = mode; }, handleSend() { action = "send"; },
+      sendQueued() { action = "followup"; }, handleSend() { action = "send"; },
       applySlashCommand() { action = "slash"; },
       isExactSlashCommand, value: "", setSlashMenuOpen() {},
       applyAtCompletion() { action = "file"; },
@@ -222,15 +223,19 @@ test("cycleListIndex wraps in both directions", () => {
   assert.equal(cycleListIndex(-1, 4, 1), 0);
 });
 
-test("shows the follow-up shortcut in the button tooltip", () => {
+test("流式中不再渲染「引导 / 后续消息」按钮（2026-10-02 用户裁定）", () => {
   const html = renderToStaticMarkup(
     React.createElement(I18nProvider, null, React.createElement(ChatInput, {
       onSend() {}, onAbort() {}, onFollowUp() {}, isStreaming: true,
     })),
   );
 
-  assert.match(html, /title="Queue this message after the agent finishes \(Alt\/Option\+Enter\)"/);
-  assert.match(html, /aria-keyshortcuts="Alt\+Enter"/);
+  // 画板 20 帧 B（流式中）的右端只有「2 条排队」徽标 + 上下文环 + 停止键，
+  // 从来没有这两个按钮。现在流式中发送一律自动排队，不再让用户二选一。
+  assert.doesNotMatch(html, />Steer</);
+  assert.doesNotMatch(html, />Follow-up</);
+  assert.doesNotMatch(html, /aria-keyshortcuts="Alt\+Enter"/);
+  assert.doesNotMatch(html, /Interrupt the current run/);
 });
 
 test("renders the upstream model error", () => {
@@ -863,10 +868,12 @@ test("the composer's notices, chips and popover headers ride on the board compon
   assert.match(source, /<span className="pw-ico"><i data-ico=\{attachmentChipIcon\(chip\.kind\)\} data-size="12"><\/i><\/span>/);
   assert.match(source, /className="pw-ico"\n\s+onClick=\{\(\) => removeReferenceAttachment\(chip\.path\)\}/);
 
-  // 队列行与排队两个动作：画板 20 的 .pw-prow / .pw-btn。
+  // 队列行：画板 20 的 .pw-prow。（原先还有「引导 / 后续消息」两枚 .pw-btn，
+  // 2026-10-02 用户裁定删除 —— 流式中发送一律排队，不再二选一。）
   assert.match(source, /className="pw-prow"\n\s+\/\/ 拖动中的那一行压暗/);
   assert.match(source, /<span className="pw-badge count">\{index \+ 1\}<\/span>/);
-  assert.match(source, /className="pw-btn"\n\s+onClick=\{\(\) => sendQueued\("steer"\)\}/);
+  assert.doesNotMatch(source, /sendQueued\("steer"\)/);
+  assert.doesNotMatch(source, /sendQueued\("followup"\)/);
 
   // 输入历史浮窗：头是 .pw-pop-title，行是 .pw-prow（当前项 is-on）。
   assert.match(source, /<div className="pw-pop-title" style=\{\{ display: "flex", alignItems: "center", gap: "var\(--s2\)", flexShrink: 0 \}\}>\s*<span className="pw-ico"><i data-ico="history"/);

@@ -59,10 +59,6 @@ import { RetrySettingsBlock } from "./RetrySettingsBlock";
 import { ContextBudgetSettingsBlock } from "./ContextBudgetSettingsBlock";
 // fork:proma-33-shortcut-guide —— 快捷键地图入口（一行 + 弹层，自带 open 状态，故单文件）。
 import { ShortcutGuideEntry } from "./fork/ShortcutGuideEntry";
-// fork:pr12-a6-thinking-budget —— settings.thinkingBudgets 的四档预算块（同一位置）。
-import { ThinkingBudgetSettingsBlock } from "./ThinkingBudgetSettingsBlock";
-// fork:proma-51-knowledge —— 项目知识维护授权开关（knowledge_write 的授权门）。
-import { KnowledgeMaintenanceBlock } from "./KnowledgeMaintenanceBlock";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
 import { ProjectArchivePanel } from "./ProjectArchivePanel";
 import { ImportPanel } from "./ImportPanel";
@@ -957,13 +953,11 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           lib/context-budget-settings.ts 头），设置页先前一个控件都没有。控件全是既有的：
           开关 + 三个 `.pw-numin` 窄数值框 + 模型覆盖行（`.pw-field` + 两个 `.pw-numin` + `.pw-iconbtn`）。 */}
       <ContextBudgetSettingsBlock cwd={cwd} />
-          {/* fork:pr12-a6-thinking-budget —— 思考档 token 预算块：pi 的
-          settings.thinkingBudgets.{minimal,low,medium,high} 运行时由 pi-ai 消费，
-          0.87 的 SettingsManager 连 setter 都没有（写入路径见
-          lib/thinking-budget-settings.ts 头）。控件是四个 `.pw-numin` 窄数值框。 */}
-      <ThinkingBudgetSettingsBlock />
-      <KnowledgeMaintenanceBlock cwd={cwd} />
-          {/* fork:proma-33-shortcut-guide —— 快捷键地图入口排在思考预算块之后（右栏末位，
+          {/* 2026-10-02 用户裁定 —— 「思考档 token 预算」与「项目知识」两块从设置页移除。
+              组件与它们的 lib/ 写入路径保留（测试也保留），只是不再有入口；
+              要彻底删掉的话连 lib/thinking-budget-settings.ts 与
+              lib/knowledge-*.ts 一起清。 */}
+          {/* fork:proma-33-shortcut-guide —— 快捷键地图入口排在上下文预算块之后（右栏末位，
           与上面三块同属「画板 62 帧 C 右栏之外的产品续块」）。本仓的快捷键**设置表**
           已按用户裁定下线（见 SettingsPanel.test.mjs 的分节图标用例），所以地图
           不挂在设置分节里，而是这块只有一行的入口按钮 —— 它只读，不做录制。 */}
@@ -1043,6 +1037,10 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
   const sectionHost = (id: SettingsSection, content: ReactNode) => mountedSections.has(id) ? (
     <div
       key={id}
+      /* fork:settings-modal-layout —— 分节 id 也落在内容宿主上：弹窗形态下有些分节的
+         内列布局要按可用宽度降档（常规页的两栏块流），CSS 得有稳定的钩子，
+         不能按 `.pw-grid2` 一把梭（用量页的统计卡两栏是好的）。 */
+      data-section={id}
       hidden={section !== id}
       /* fork:design-system SW-07 — 每个分节的内容栏就是画板 40 的 `.pw-sbody`
          （页边距 24/40/32、`> h2` / `> p.sub` 的页头规格全在 board.css）。

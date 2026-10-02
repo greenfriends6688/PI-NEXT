@@ -52,6 +52,7 @@ import {
   toggleFavoriteModelKey,
 } from "@/lib/favorite-models";
 import { ComposerContextStrip } from "./ComposerContextStrip";
+import { TodoChip } from "./fork/TodoChip";
 // fork:zc-08 — 附件 chip 的多类型预览（PDF / DOCX / 音视频 / 文本）。
 import { AttachmentPreview } from "./fork/AttachmentPreview";
 import type { TodoSummary } from "@/lib/todo-state";
@@ -120,7 +121,6 @@ export interface AttachedImage {
 interface Props {
   onSend: (message: string, images?: AttachedImage[], contexts?: SelectionContext[], question?: string, sessionReferences?: SessionReference[]) => void;
   onAbort: () => void;
-  onSteer?: (message: string, images?: AttachedImage[], contexts?: SelectionContext[], question?: string, sessionReferences?: SessionReference[]) => void;
   onFollowUp?: (message: string, images?: AttachedImage[], contexts?: SelectionContext[], question?: string, sessionReferences?: SessionReference[]) => void;
   onPromptWithStreamingBehavior?: (message: string, behavior: "steer" | "followUp", images?: AttachedImage[], contexts?: SelectionContext[], question?: string, sessionReferences?: SessionReference[]) => void;
   isStreaming: boolean;
@@ -930,7 +930,7 @@ function FavoriteModelMenu({
   );
 }
 
-export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onSteer, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching,
+export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching,
   onCompact, onAbortCompaction, isCompacting, streamSpeed, compactError, compactResult, toolPreset, onToolPresetChange,
   permissionMode, onPermissionModeChange,
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
@@ -2323,7 +2323,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     });
   }, []);
 
-  const sendQueued = useCallback((mode: "steer" | "followup") => {
+  // 2026-10-02 用户裁定 —— 流式中发送只有一条路：**排队**（followUp）。原来还要在
+  // 「引导（打断当前轮）/ 后续消息（跑完再发）」之间二选一，那两个按钮已删。
+  // 需要立刻打断时走队列面板里那条「立即发送（提升为引导消息）」，它经服务端的
+  // `queue_promote` 命令生效，不经过这里。
+  const sendQueued = useCallback(() => {
     const question = value.trim();
     if (!question && !attachedImages.length) return;
     const contexts = selectionContextsRef.current;
@@ -2334,19 +2338,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       void runBuiltinCommand(msg);
       return;
     }
-    const streamingBehavior = mode === "steer" ? "steer" : "followUp";
     if (msg.startsWith("/") && onPromptWithStreamingBehavior) {
       clearInput();
-      onPromptWithStreamingBehavior(msg, streamingBehavior, attachedImages.length ? attachedImages : undefined, contexts, question, references);
+      onPromptWithStreamingBehavior(msg, "followUp", attachedImages.length ? attachedImages : undefined, contexts, question, references);
       return;
     }
     clearInput();
-    if (mode === "steer" && onSteer) {
-      onSteer(msg, attachedImages.length ? attachedImages : undefined, contexts, question, references);
-    } else if (mode === "followup" && onFollowUp) {
-      onFollowUp(msg, attachedImages.length ? attachedImages : undefined, contexts, question, references);
-    }
-  }, [value, attachedImages, onBuiltinCommand, onPromptWithStreamingBehavior, onSteer, onFollowUp, clearInput, onAudioUnlock, runBuiltinCommand, t]);
+    onFollowUp?.(msg, attachedImages.length ? attachedImages : undefined, contexts, question, references);
+  }, [value, attachedImages, onBuiltinCommand, onPromptWithStreamingBehavior, onFollowUp, clearInput, onAudioUnlock, runBuiltinCommand, t]);
 
   const getNextSlashIndex = useCallback((direction: "up" | "down" | "left" | "right") => {
     const lastIndex = displayedSlashCommands.length - 1;
@@ -2706,14 +2705,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
       if (sendShortcut) {
         e.preventDefault();
-        if (isStreaming && (onSteer || onFollowUp)) {
-          sendQueued((e.altKey && onFollowUp) || !onSteer ? "followup" : "steer");
+        // 2026-10-02 用户裁定 —— 流式中发送就是排队（followUp），不再让用户选
+        // 「引导」还是「后续消息」。要打断当前轮就走队列面板里的「立即发送」。
+        if (isStreaming && onFollowUp) {
+          sendQueued();
         } else {
           handleSend();
         }
       }
     },
-    [isMobile, enterSendMode, isStreaming, onSteer, onFollowUp, onAbort, slashMenuOpen, slashQuery, displayedSlashCommands, slashActiveIndex, applySlashCommand, sendQueued, handleSend, getNextSlashIndex, atMenuOpen, atQuery, atMatches, atActiveIndex, applyAtCompletion, referenceMenuOpen, referenceQuery, referenceItems, referenceActiveIndex, applyReferenceCompletion, historyMenuOpen, inputHistory, historyActiveIndex, applyHistoryInput, value]
+    [isMobile, enterSendMode, isStreaming, onFollowUp, onAbort, slashMenuOpen, slashQuery, displayedSlashCommands, slashActiveIndex, applySlashCommand, sendQueued, handleSend, getNextSlashIndex, atMenuOpen, atQuery, atMatches, atActiveIndex, applyAtCompletion, referenceMenuOpen, referenceQuery, referenceItems, referenceActiveIndex, applyReferenceCompletion, historyMenuOpen, inputHistory, historyActiveIndex, applyHistoryInput, value]
   );
 
   const handleInput = useCallback(() => {
@@ -3006,50 +3007,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       </PortalDropdown>
     </span>
   ) : null;
-  // fork:design-components —— 排队两个动作 = 画板 20/50 的 .pw-btn（28px / radius-4 /
-  // 无铬），三态色（可用 / 不可用 / 强调）继续在组件里给：设计系统只有 4 个语义色，
-  // 「立刻打断」是 warning、「跑完再发」是 accent，这条语义色差是运行时状态，不进 board.css。
-  const queueControls = isStreaming ? (
-    <>
-      {onSteer && (
-        <button
-          type="button"
-          className="pw-btn"
-          onClick={() => sendQueued("steer")}
-          disabled={!canQueueStreamingMessage}
-          title={t("chat.steerHint")}
-          style={{
-            background: canQueueStreamingMessage ? "var(--warning-soft)" : undefined,
-            color: canQueueStreamingMessage ? "var(--warning)" : undefined,
-            cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
-            opacity: canQueueStreamingMessage ? 1 : 0.5,
-          }}
-        >
-          <span className="pw-ico"><i data-ico="arrow-right" data-size="13"></i></span>
-          {t("chat.steer")}
-        </button>
-      )}
-      {onFollowUp && (
-        <button
-          type="button"
-          className="pw-btn"
-          onClick={() => sendQueued("followup")}
-          disabled={!canQueueStreamingMessage}
-          title={`${t("chat.followUpHint")} (${isMobile ? "Ctrl/Cmd+" : ""}Alt/Option+Enter)`}
-          aria-keyshortcuts={isMobile ? "Control+Alt+Enter Meta+Alt+Enter" : "Alt+Enter"}
-          style={{
-            background: canQueueStreamingMessage ? "var(--accent-soft)" : undefined,
-            color: canQueueStreamingMessage ? "var(--accent-text)" : undefined,
-            cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
-            opacity: canQueueStreamingMessage ? 1 : 0.5,
-          }}
-        >
-          <span className="pw-ico"><i data-ico="arrow-up" data-size="13"></i></span>
-          {t("chat.followUp")}
-        </button>
-      )}
-    </>
-  ) : null;
+  // 2026-10-02 用户裁定 —— 删掉「引导 / 后续消息」两个按钮。画板 20 帧 B（流式中）
+  // 本来也没有它们：那一帧的右端只有「2 条排队」徽标 + 上下文环 + 停止键。
+  // 现在流式中发送一律**自动排队**（见 sendQueued），不再让用户二选一；
+  // 需要立刻打断时走队列面板里那条既有的「立即发送（提升为引导消息）」。
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -3248,11 +3209,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             requestAnimationFrame(() => textareaRef.current?.focus());
           }}
         />
-        {/* fork:proma-31-task-progress（2026-10-02 用户裁定）—— 待办清单的**唯一**
-            入口是 ChatWindow 里那个吸底浮层（可点展开、可复制）。这里原先还挂着一枚
-            `TodoChip`，和浮层读同一份 extractTodoState，于是清单在屏幕上出现两遍；
-            芯片已删除，不要再加第二个待办入口。`todoSummary` 这个 prop 仍然保留
-            —— 上面的 `~` 引用菜单（filterTodoReferenceItems）还在用它。 */}
+        {/* fork:ui-todo —— 会话待办芯片，在输入框**左上角**（附件区上方）。
+            2026-10-02 用户裁定：待办界面就这一个。中间那个吸底进度浮层
+            （`TaskProgressOverlay` / `lib/task-progress.ts`）已删除 —— 它和这枚芯片
+            读同一份 `extractTodoState`，屏幕上是两遍，而且浮层点不动。
+            **不要再加第二个待办入口。** */}
+        {todoSummary && todoSummary.total > 0 && (
+          <div className="pw-rowgap" style={{ marginBottom: "var(--space-row)" }}>
+            <TodoChip summary={todoSummary} />
+          </div>
+        )}
         {/* fork:design-components —— 附件区 = 画板 20「附件与引用」A 帧：一条 .pw-chips，
             文件是 .pw-chip（类型图标 + 文件名 + 芯片内 data-ico="x" 移除钮）。
             图片保留 56px 缩略图（画板没画缩略图形态，而 ChatInput 的既有测试要求
@@ -3667,7 +3633,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               display: "flex",
               flexDirection: "column",
               background: compact ? "none" : undefined,
-              border: compact ? "none" : bashMode ? "1px solid var(--border-strong)" : isStreaming && (onSteer || onFollowUp)
+              border: compact ? "none" : bashMode ? "1px solid var(--border-strong)" : isStreaming && onFollowUp
                 ? "1px solid var(--warning)"
                 : undefined,
               borderRadius: compact ? 0 : undefined,
@@ -3757,8 +3723,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               onInput={handleInput}
               onPaste={handlePaste}
               placeholder={
-                isStreaming && (onSteer || onFollowUp)
-                  ? t("chat.steerPlaceholder")
+                isStreaming && onFollowUp
+                  ? t("chat.queuePlaceholder")
                   : isStreaming ? t("chat.agentPlaceholder")
                   : t("chat.messagePlaceholder")
               }
@@ -4196,8 +4162,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 backdropFilter: "blur(10px)",
               } : null),
             }}>
-            {isStreaming && queueControls}
-
             {contextRing}
 
             {onSoundToggle !== undefined && (
