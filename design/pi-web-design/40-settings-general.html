@@ -326,6 +326,33 @@
           <span class="pw-selectbox">选择模型<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
         </div>
       </div>
+
+      <!-- fork:pr12-a6-thinking-budget（2026-10-01）—— 「思考档 token 预算」块：pi 的
+           settings.thinkingBudgets.{minimal,low,medium,high} 运行时由 pi-ai 消费，设置页先前
+           一个控件都没有；0.87 的 SettingsManager 连 setter 都没有。
+           一句 `.pw-hint`（画板里显式 margin:0，与产品 Tailwind preflight 的归零对齐，
+           与画板 41「输入上限」那一句同一个处理）+ 四条 `.pw-field` + `.pw-numin`。
+           零新 .pw-* 类，board.css 不动。 -->
+      <div class="pw-block">
+        <h3><span class="pw-ico"><i data-ico="brain" data-size="14"></i></span>思考档 token 预算</h3>
+        <p class="pw-hint" style="margin:0">每个思考强度对应的 token 预算。只有按 token 计思考的供应商用得上；xhigh / max 共用 high 这一档，off 没有预算，pi 还会给答案留 1024 tokens。</p>
+        <div class="pw-field">
+          <span class="pw-label">最低<small>pi 默认 1024</small></span>
+          <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="1024"></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">低<small>pi 默认 2048</small></span>
+          <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="2048"></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">中<small>pi 默认 8192</small></span>
+          <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="8192"></span>
+        </div>
+        <div class="pw-field">
+          <span class="pw-label">高<small>pi 默认 16384</small></span>
+          <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="16384"></span>
+        </div>
+      </div>
     </div>
 
   </div>

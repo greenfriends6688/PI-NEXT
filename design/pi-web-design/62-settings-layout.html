@@ -417,6 +417,30 @@ description: 把招投标 Excel 逐条抽取 15 个字段…
                     <span class="pw-selectbox">选择模型<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
                   </div>
                 </div>
+
+                <!-- fork:pr12-a6-thinking-budget（2026-10-01）—— 「思考档 token 预算」块，
+                     与画板 40 帧 1 的那一块逐行同构（帧 C 只是节选，这里补齐右栏最后一块）。
+                     零新 .pw-* 类：一句 .pw-hint（margin:0 与画板 41 同一处理）+ 四条 .pw-field。 -->
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="brain" data-size="14"></i></span>思考档 token 预算</h3>
+                  <p class="pw-hint" style="margin:0">每个思考强度对应的 token 预算。只有按 token 计思考的供应商用得上；xhigh / max 共用 high 这一档，off 没有预算，pi 还会给答案留 1024 tokens。</p>
+                  <div class="pw-field">
+                    <span class="pw-label">最低<small>pi 默认 1024</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="1024"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">低<small>pi 默认 2048</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="2048"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">中<small>pi 默认 8192</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="8192"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">高<small>pi 默认 16384</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="1" max="1000000" step="1024" value="16384"></span>
+                  </div>
+                </div>
               </div>
 
             </div>
