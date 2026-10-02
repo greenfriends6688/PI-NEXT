@@ -78,10 +78,30 @@ test("both sections wire the switch into the group heading and report under it",
   assert.match(skillsSource, /enabled=\{visibleCount\}/);
   assert.match(skillsSource, /total=\{grpSkills\.length\}/);
   assert.match(pluginsSource, /enabled=\{enabledCount\}/);
-  // 没有批量路由（边界内只有单条路由），所以逐条发、串行。
-  assert.doesNotMatch(skillsSource, /filePaths:/);
-  assert.match(skillsSource, /for \(const skill of targets\)/);
-  assert.match(pluginsSource, /for \(const pkg of targets\)/);
+  // fork:bulk-routes（上游 `eceac13` #1020）—— 路由现在收批量，分组开关的串行循环
+  // 换成**一次**请求：一次 PATCH 带全部 filePaths / 一次 POST 带全部 packages。
+  // 只看两个分组开关函数体，别处的循环（「全部更新」等）不算。
+  const skillGroup = skillsSource.slice(
+    skillsSource.indexOf("const setGroupSkills"),
+    skillsSource.indexOf("const selectedSkill"),
+  );
+  const pluginGroup = pluginsSource.slice(
+    pluginsSource.indexOf("const setGroupPackages"),
+    pluginsSource.indexOf("const installPlugin"),
+  );
+  assert.match(skillGroup, /JSON\.stringify\(\{ filePaths, disableModelInvocation \}\)/);
+  assert.doesNotMatch(skillGroup, /for \(const skill of targets\)/);
+  // 路由逐条作答：没拿到 results 时整组都算失败（列表一行不动），不是静默当成成功。
+  assert.match(skillGroup, /Array\.isArray\(d\.results\)/);
+  // 单条开关仍走单条形态（`filePath`），不能被批量改坏。
+  assert.match(skillsSource, /filePath: skill\.filePath,\s*\n\s*disableModelInvocation: next,/);
+
+  // 插件侧：批量路由接上了，同一次请求带全部 packages；逐包 results 兜底。
+  assert.match(pluginGroup, /packages: targets\.map\(\(pkg\) => \(\{ source: pkg\.source, scope: pkg\.scope \}\)\)/);
+  assert.doesNotMatch(pluginGroup, /for \(const pkg of targets\)/);
+  assert.match(pluginGroup, /Array\.isArray\(next\.results\)/);
+  // 单条开关仍走单条形态（`source` / `scope`），不能被批量守卫吃掉。
+  assert.match(pluginsSource, /JSON\.stringify\(\{ action, source: pkg\.source, scope: pkg\.scope, cwd \}\)/);
 });
 
 test("group switch copy exists in all three locales", () => {

@@ -2223,3 +2223,83 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     inset: 0 -6px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:extension-dialog-title —— 扩展请求对话框（画板 50）头部 + 标题的**收缩**。
+ *
+ * 上游依据：#961（`46b5235`），Refs #890。
+ *
+ * 问题：对话框自己只设了 `max-height`（真高度由宿主叠层给），所以头部的
+ * `max-height: 50%` 解不出来；配上 `flex-shrink: 0`，一条长标题（扩展的多行文本、
+ * 折起来的选项预览、格式化过的 SQL 块）就把头部撑到全文高度，于是可滚的正文被
+ * 压到 0、页脚被顶出 `overflow: hidden` —— 选项和「取消」跑到可见框外，对话框看起来
+ * 像卡死（上游实测：40 行标题，头部 1766px 装在 762px 的框里，选项在 y=1850）。
+ *
+ * 改法：上限换成**能解出来的**视口单位，并允许头部收缩 + 自滚。画板的
+ * `.pw-modal-head`（board.css:635）不能改，所以走两个 `fork-*` 钩子
+ * （判据⑦：不新造 `pw-*`）由 ChatWindow 的头部挂上。
+ *
+ * 标题本体（`.fork-ext-dialog-title`）再加一道 `-webkit-line-clamp`：过长时收成
+ * 省略号，头部因此永远不会长过「N 行 + 副行」，选项与页脚始终留在框内。
+ * **`white-space` 仍然由内联的 `pre-wrap` 承担**：`.pw-modal-head` 不带 `white-space`
+ * 规则，这里也不覆盖 —— `splitDialogTitle`（`lib/dialog-title.ts`）给 head 的换行
+ * 照样分行，一个换行都不吞；完整文本另有 `title` / `aria-label` 兜底。
+ * ------------------------------------------------------------------------- */
+.fork-ext-dialog-head {
+  /* `flex-shrink: 0` + 解不出来的百分比上限 = 长标题把正文与页脚顶出框外。 */
+  flex-shrink: 1;
+  min-height: 0;
+  /* 视口单位：对话框高度由内容驱动，百分比上限在这里解不出来（上游 #890）。 */
+  max-height: 50vh;
+  overflow-y: auto;
+  /* 头部自己滚到底之后把余势交回对话框外层，别把用户卡在标题里。 */
+  overscroll-behavior: contain;
+}
+
+.fork-ext-dialog-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  /* 钳成三行：够读清「这是哪个扩展要干什么」，又不至于把选项挤出框。 */
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:group-switch —— G4「按组全开全关」留下的两处 CSS 缺口。
+ *
+ * ① 分组标题下的状态条贴得太紧。
+ *    `app/settings.css` 的 `fix:block-rhythm` 只给 `.pw-block > .pw-alert` 上了
+ *    上边距；分组标题与状态条（`ConfigSidebarGroupStatus` 的 `.pw-alert` /
+ *    `.pw-alert info`）是 `ConfigSidebar`（一个裸 div）里的**兄弟**，那条选择器
+ *    够不着，于是 `.pw-group-title` 的 `padding-bottom: var(--s1)`（4px）直接压着
+ *    状态条上沿，读起来粘在一起。补的是同一条节奏、同一个 token —— `--s2`，
+ *    与 settings.css 里 `.pw-block > .pw-alert` 的取值一致，不出新的几何字面量。
+ *    `.pw-hint` 那一族由 settings.css 的 `.pw-hint:not(:first-child)` 兜着，这里
+ *    只补 `.pw-alert` 这一种（G4 唯一实际用到的那一种）。
+ * ------------------------------------------------------------------------- */
+.pw-group-title + .pw-alert {
+  margin-top: var(--s2);
+}
+
+/* ② 手机档：分组标题里的开关点不准。
+ *    `app/pwa-models-skills.css` 只把 `.pw-litem > .pw-switch` 的命中区撑到触控档；
+ *    分组标题里的开关不在 `.pw-litem` 里，那条规则够不着它，30×17 的原尺寸在手指
+ *    底下只有一半落在点上（`.pw-litem` 行尾那种还额外缩到 0.8 倍）。
+ *    手段与 `fork:pwa-hit-slop` / settings.css 完全一致：**一个像素都不改视觉**，
+ *    用一层 `::after` 把可点区向外撑开 —— `inset: calc(var(--s2) * -1)` 四周各外扩
+ *    8px，30×17 → 46×33，短边越过了触控档 `--control-md`(32)，且不碰相邻元素
+ *    （左右都有 `var(--s1)`/`var(--s2)` 的既有间距垫着，`::after` 也不吃事件，
+ *    盖住的只是标题里的计数文字 —— 它不可点）。
+ *    窄屏 + 粗指针两档，与上面 `fork:pwa-hit-slop` 同一个媒体查询口径。
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .pw-group-title .pw-switch {
+    position: relative;
+  }
+
+  .pw-group-title .pw-switch::after {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s2) * -1);
+  }
+}

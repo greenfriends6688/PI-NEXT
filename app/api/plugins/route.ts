@@ -65,18 +65,48 @@ function getDisabledPackages(settingsManager: SettingsManager): Map<string, bool
   return disabled;
 }
 
-function setPackageDisabled(
+/**
+ * fork:bulk-routes（上游 `eceac13` #1020 移植）—— 一个已启用的**对象型**条目：
+ * 它要么在过滤这个包的资源，要么带 `autoload`。停用会把它的资源列表全清空，而
+ * Pi Web 不留副本，再启用也回不来那些过滤条件。
+ */
+function hasEntrySettings(entry: PackageSource): boolean {
+  return typeof entry === "object" && !isDisabledPackage(entry);
+}
+
+const FILTERED_PACKAGE_ERROR =
+  "Has resource filters, which disabling would remove; use the package's own switch";
+
+/**
+ * fork:bulk-routes（上游 `eceac13` #1020 移植）—— 一个作用域里的若干包
+ * **一次 settings 写入**。返回这个作用域压根没配的 source（`missing`），
+ * 以及因为会丢过滤条件而被 `keepEntrySettings` 放过的那些（`kept`）。
+ *
+ * 已经在目标状态的条目原样留着；启用时只摘掉被清空的那四个资源列表，
+ * `autoload` 之类的自有键留下（否则项目里的 delta 条目会被拍扁成裸 source）。
+ */
+function setPackagesDisabled(
   settingsManager: SettingsManager,
-  source: string,
+  sources: readonly string[],
   scope: PluginScope,
   disabled: boolean,
-): boolean {
+  { keepEntrySettings = false }: { keepEntrySettings?: boolean } = {},
+): { missing: Set<string>; kept: Set<string> } {
   const current = scope === "project"
     ? settingsManager.getProjectSettings().packages ?? []
     : settingsManager.getGlobalSettings().packages ?? [];
+  const missing = new Set(sources);
+  const kept = new Set<string>();
   let changed = false;
   const next = current.map((entry): PackageSource => {
-    if (getPackageSource(entry) !== source) return entry;
+    const source = getPackageSource(entry);
+    if (!sources.includes(source)) return entry;
+    missing.delete(source);
+    if (isDisabledPackage(entry) === disabled) return entry;
+    if (disabled && keepEntrySettings && hasEntrySettings(entry)) {
+      kept.add(source);
+      return entry;
+    }
     changed = true;
     if (disabled) {
       return {
@@ -87,12 +117,85 @@ function setPackageDisabled(
         themes: [],
       };
     }
-    return getPackageSource(entry);
+    if (typeof entry === "string") return source;
+    const rest = { ...entry };
+    delete rest.extensions;
+    delete rest.skills;
+    delete rest.prompts;
+    delete rest.themes;
+    return Object.keys(rest).length > 1 ? rest : source;
   });
-  if (!changed) return false;
-  if (scope === "project") settingsManager.setProjectPackages(next);
-  else settingsManager.setPackages(next);
-  return true;
+  if (changed) {
+    if (scope === "project") settingsManager.setProjectPackages(next);
+    else settingsManager.setPackages(next);
+  }
+  return { missing, kept };
+}
+
+/** 批量启停里**每一个**包的结果：`error` 为空即写成功，有值表示该包保持原状。
+ *  上游把这两个类型放在 `lib/api-types.ts`，那个文件不在本次改动的边界内，
+ *  所以路由这边自带一份同形定义。 */
+export interface PluginToggleResult {
+  source: string;
+  scope: PluginScope;
+  error?: string;
+}
+
+/**
+ * fork:bulk-routes（上游 `eceac13` #1020 移植）—— 插件页「整组开/关」的批量形态。
+ * 逐包作答：被拒的那个（项目未信任 / 面板加载后这个包已被删 / 带过滤条件、
+ * 停用它就得抹掉过滤）不打断其余。
+ *
+ * `SettingsManager` 不抛读写失败：它跳过那次写入、把错误记下来，`flush()` 照样
+ * resolve。所以这里读完 `drainErrors()` 再作答 —— 否则一个坏掉的 settings.json
+ * 会被报成「切换成功」。
+ */
+async function setPackageListDisabled(
+  settingsManager: SettingsManager,
+  packages: readonly { source: string; scope: PluginScope }[],
+  disabled: boolean,
+  projectTrusted: boolean,
+): Promise<PluginToggleResult[]> {
+  const errors = new Map<string, string>();
+  for (const scope of ["global", "project"] as const) {
+    const sources = packages.filter((pkg) => pkg.scope === scope).map((pkg) => pkg.source);
+    if (sources.length === 0) continue;
+    if (scope === "project" && !projectTrusted) {
+      for (const source of sources) {
+        errors.set(keyFor(source, scope), "Project resources must be trusted before modifying project plugins");
+      }
+      continue;
+    }
+    // 「整组停用」不得抹掉操作员手配的资源过滤。
+    const { missing, kept } = setPackagesDisabled(settingsManager, sources, scope, disabled, {
+      keepEntrySettings: true,
+    });
+    for (const source of missing) errors.set(keyFor(source, scope), "Package is not configured");
+    for (const source of kept) errors.set(keyFor(source, scope), FILTERED_PACKAGE_ERROR);
+  }
+  await settingsManager.flush();
+  const settingsErrors = new Map<string, string>();
+  for (const { scope, path, error } of settingsManager.drainErrors()) {
+    if (!settingsErrors.has(scope)) settingsErrors.set(scope, path ? `${path}: ${error.message}` : error.message);
+  }
+  return packages.map((pkg) => {
+    // 加载失败的作用域读起来也像「没配」，所以它的错误优先。
+    const error = settingsErrors.get(pkg.scope) ?? errors.get(keyFor(pkg.source, pkg.scope));
+    return error ? { ...pkg, error } : { ...pkg };
+  });
+}
+
+/** 读 `[{ source, scope }]`，同 key 去重；形态不对就整体退回 null。 */
+function readPackageList(value: unknown): { source: string; scope: PluginScope }[] | null {
+  if (!Array.isArray(value)) return null;
+  const packages = new Map<string, { source: string; scope: PluginScope }>();
+  for (const item of value as { source?: unknown; scope?: unknown }[]) {
+    const source = typeof item?.source === "string" ? item.source.trim() : "";
+    if (!source) return null;
+    const scope = readScope(item.scope);
+    packages.set(keyFor(source, scope), { source, scope });
+  }
+  return [...packages.values()];
 }
 
 function addCount(counts: PluginResourceCounts, kind: keyof PluginResourceCounts): void {
@@ -320,6 +423,8 @@ export async function GET(req: Request) {
 }
 
 // POST /api/plugins body: { action, source?, scope?, cwd }
+// enable / disable 另收 `packages: [{ source, scope }]` 代替 source/scope，
+// 并在响应里加上逐包的 `results`。
 export async function POST(req: Request) {
   if (!isApiRequestAllowed(req)) {
     return NextResponse.json({ error: "Untrusted API request" }, { status: 403 });
@@ -333,6 +438,7 @@ export async function POST(req: Request) {
       action?: PluginAction;
       source?: string;
       scope?: PluginScope;
+      packages?: unknown;
       cwd?: string;
     };
     if (!body.cwd) return NextResponse.json({ error: "cwd required" }, { status: 400 });
@@ -347,6 +453,26 @@ export async function POST(req: Request) {
     const settingsManager = SettingsManager.create(body.cwd, agentDir, {
       projectTrusted: projectTrust.trusted,
     });
+
+    // fork:bulk-routes —— 批量形态先于单条判定，且自带项目信任校验（逐包作答，
+    // 不整体 403），所以不能落到下面那条 `scope === "project"` 的单条守卫上。
+    if (body.packages !== undefined) {
+      if (body.action !== "enable" && body.action !== "disable") {
+        return NextResponse.json({ error: "packages is only supported by enable and disable" }, { status: 400 });
+      }
+      const packages = readPackageList(body.packages);
+      if (!packages) {
+        return NextResponse.json({ error: "packages must be a list of { source, scope }" }, { status: 400 });
+      }
+      const results = await setPackageListDisabled(
+        settingsManager,
+        packages,
+        body.action === "disable",
+        projectTrust.trusted,
+      );
+      return NextResponse.json({ ...(await readPlugins(body.cwd)), results });
+    }
+
     const scope = readScope(body.scope);
     if (scope === "project" && !projectTrust.trusted) {
       return NextResponse.json(
@@ -378,11 +504,11 @@ export async function POST(req: Request) {
       await packageManager.update(source);
     } else if (body.action === "disable") {
       if (!source) return NextResponse.json({ error: "source required" }, { status: 400 });
-      setPackageDisabled(settingsManager, source, scope, true);
+      setPackagesDisabled(settingsManager, [source], scope, true);
       await settingsManager.flush();
     } else if (body.action === "enable") {
       if (!source) return NextResponse.json({ error: "source required" }, { status: 400 });
-      setPackageDisabled(settingsManager, source, scope, false);
+      setPackagesDisabled(settingsManager, [source], scope, false);
       await settingsManager.flush();
     } else {
       return NextResponse.json({ error: `Unsupported action: ${body.action}` }, { status: 400 });

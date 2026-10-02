@@ -60,7 +60,9 @@ export function orderSkillsByDormancy<
   ];
 }
 
-/** 一次分组开关里每一条的结果：`error` 为空即写成功。 */
+/** 一次分组开关里每一条的结果：`error` 为空即写成功。
+ *  与 `app/api/skills/route.ts` 的 `SkillToggleResult` 同形（上游放在
+ *  `lib/api-types.ts`，那个文件不在本次改动的边界内，两边各留一份）。 */
 export interface SkillToggleResult {
   filePath: string;
   error?: string;
@@ -1030,14 +1032,15 @@ export function SkillsConfig({
   }, []);
 
   /* fork:group-switch（G4）—— 一个分组开关 = 一个作用域（项目 / 全局 / 路径）
-     里的所有技能一起开或一起关。我们没有上游那个批量路由
-     （`PATCH /api/skills` 只收一个 `filePath`，而路由不在本文件边界内），
-     所以按 `skillsToSwitch` 算出的目标**逐条**发：每条一个 SKILL.md 写入，
-     任何一条被拒（路径不在允许根里 / frontmatter 无法外科手术式修改）都不打断
-     其余，最后报在标题下。串行而不是并发：每个 PATCH 都是一次独立的文件写，
-     并发会互相踩。
-     作用范围是**标题下当前列出来的那些行**（含搜索 / 作用域筛选），与旁边的
-     `n/m` 计数同口径。 */
+     里的所有技能一起开或一起关。作用范围是**标题下当前列出来的那些行**
+     （含搜索 / 作用域筛选），与旁边的 `n/m` 计数同口径。
+
+     fork:bulk-routes（上游 `eceac13` #1020）—— 路由现在收 `filePaths`，所以这里
+     一次请求发完（改前是逐条串行：每个 PATCH 一次独立文件写、一次独立报错，
+     且第一条失败就把后面的全拖慢）。只把 `skillsToSwitch` 算出的目标发出去。
+     路由逐条作答，某条被拒（路径不在允许根里 / 不是 .md / frontmatter 改不动）
+     不打断其余，最后由 `applySkillToggleResults` 把被拒的那些留在原状态并报出
+     是哪几条。 */
   const setGroupSkills = useCallback(async (
     group: string,
     groupSkills: Skill[],
@@ -1052,28 +1055,23 @@ export function SkillsConfig({
     setBulkGroup(group);
     setSaveError(null);
     setToggling((current) => new Set([...current, ...filePaths]));
-    const results: SkillToggleResult[] = [];
     try {
-      for (const skill of targets) {
-        try {
-          const res = await fetch("/api/skills", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ filePath: skill.filePath, disableModelInvocation }),
-          });
-          const d = (await res.json().catch(() => ({}))) as { error?: string };
-          results.push(
-            res.ok && !d.error
-              ? { filePath: skill.filePath }
-              : { filePath: skill.filePath, error: d.error ?? `HTTP ${res.status}` },
-          );
-        } catch (e) {
-          results.push({
-            filePath: skill.filePath,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
+      const res = await fetch("/api/skills", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePaths, disableModelInvocation }),
+      });
+      const d = (await res.json().catch(() => ({}))) as {
+        results?: SkillToggleResult[];
+        error?: string;
+      };
+      // 请求本身失败（路由整体 400/500）时，全部目标都算失败，列表一行不动。
+      const results: SkillToggleResult[] = Array.isArray(d.results)
+        ? d.results
+        : filePaths.map((filePath) => ({
+            filePath,
+            error: d.error ?? `HTTP ${res.status}`,
+          }));
       setSkills((prev) => applySkillToggleResults(prev, results, disableModelInvocation));
       const failures = results.filter((result) => result.error);
       if (failures.length > 0) {
@@ -1087,6 +1085,23 @@ export function SkillsConfig({
           ],
         });
       }
+    } catch (e) {
+      // 网络层挂掉：一条都没写，列表保持原状。
+      const message = e instanceof Error ? e.message : String(e);
+      setSkills((prev) =>
+        applySkillToggleResults(
+          prev,
+          filePaths.map((filePath) => ({ filePath, error: message })),
+          disableModelInvocation,
+        ),
+      );
+      setGroupStatus({
+        group,
+        lines: [
+          t("skills.groupFailed", { count: filePaths.length, total: filePaths.length }),
+          ...filePaths.map((filePath) => `${names.get(filePath) ?? filePath}: ${message}`),
+        ],
+      });
     } finally {
       setBulkGroup(null);
       setToggling((current) => {
