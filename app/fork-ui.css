@@ -2263,3 +2263,43 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   -webkit-line-clamp: 3;
   overflow: hidden;
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:group-switch —— G4「按组全开全关」留下的两处 CSS 缺口。
+ *
+ * ① 分组标题下的状态条贴得太紧。
+ *    `app/settings.css` 的 `fix:block-rhythm` 只给 `.pw-block > .pw-alert` 上了
+ *    上边距；分组标题与状态条（`ConfigSidebarGroupStatus` 的 `.pw-alert` /
+ *    `.pw-alert info`）是 `ConfigSidebar`（一个裸 div）里的**兄弟**，那条选择器
+ *    够不着，于是 `.pw-group-title` 的 `padding-bottom: var(--s1)`（4px）直接压着
+ *    状态条上沿，读起来粘在一起。补的是同一条节奏、同一个 token —— `--s2`，
+ *    与 settings.css 里 `.pw-block > .pw-alert` 的取值一致，不出新的几何字面量。
+ *    `.pw-hint` 那一族由 settings.css 的 `.pw-hint:not(:first-child)` 兜着，这里
+ *    只补 `.pw-alert` 这一种（G4 唯一实际用到的那一种）。
+ * ------------------------------------------------------------------------- */
+.pw-group-title + .pw-alert {
+  margin-top: var(--s2);
+}
+
+/* ② 手机档：分组标题里的开关点不准。
+ *    `app/pwa-models-skills.css` 只把 `.pw-litem > .pw-switch` 的命中区撑到触控档；
+ *    分组标题里的开关不在 `.pw-litem` 里，那条规则够不着它，30×17 的原尺寸在手指
+ *    底下只有一半落在点上（`.pw-litem` 行尾那种还额外缩到 0.8 倍）。
+ *    手段与 `fork:pwa-hit-slop` / settings.css 完全一致：**一个像素都不改视觉**，
+ *    用一层 `::after` 把可点区向外撑开 —— `inset: calc(var(--s2) * -1)` 四周各外扩
+ *    8px，30×17 → 46×33，短边越过了触控档 `--control-md`(32)，且不碰相邻元素
+ *    （左右都有 `var(--s1)`/`var(--s2)` 的既有间距垫着，`::after` 也不吃事件，
+ *    盖住的只是标题里的计数文字 —— 它不可点）。
+ *    窄屏 + 粗指针两档，与上面 `fork:pwa-hit-slop` 同一个媒体查询口径。
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .pw-group-title .pw-switch {
+    position: relative;
+  }
+
+  .pw-group-title .pw-switch::after {
+    content: "";
+    position: absolute;
+    inset: calc(var(--s2) * -1);
+  }
+}

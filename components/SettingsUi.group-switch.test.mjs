@@ -63,3 +63,40 @@ test("group status renders the board alert pair and keeps refused rows on separa
   assert.match(templateSource, /errorLines\.map\(/);
   assert.match(templateSource, /index > 0 \? <br \/> : null/);
 });
+// fork:group-switch —— 上一轮 agent 报上来的两条 CSS 缺口。两条都在
+// app/fork-ui.css：board.css 与 app/settings.css 都不归这条线管。
+const forkCss = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
+const settingsCss = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
+const pwaCss = await readFile(new URL("../app/pwa-models-skills.css", import.meta.url), "utf8");
+
+function block(css, selector) {
+  // 嵌套在 @media 里的规则会带缩进，匹配时不看行首空白。
+  const start = css.search(new RegExp(`^\\s*${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{`, "m"));
+  assert.ok(start > -1, `${selector} exists in app/fork-ui.css`);
+  return css.slice(start, css.indexOf("}", start));
+}
+
+test("the status bar under a group title gets the block rhythm margin settings.css already uses", () => {
+  // settings.css 的 fix:block-rhythm 只覆盖 `.pw-block > .pw-alert`；分组标题与状态条
+  // 是 ConfigSidebar（裸 div）里的兄弟，那条够不着。
+  assert.match(settingsCss, /\.pw-block > \.pw-alert,[\s\S]*?margin-top: var\(--s2\)/);
+  const rule = block(forkCss, ".pw-group-title + .pw-alert");
+  assert.match(rule, /margin-top: var\(--s2\)/);
+  // 用 token，不许内联几何字面量。
+  assert.doesNotMatch(rule, /margin-top: \d/);
+});
+
+test("the phone tier widens the group-title switch hit area without touching its size", () => {
+  // pwa-models-skills.css 只管 `.pw-litem > .pw-switch`；分组标题里的开关不在
+  // `.pw-litem` 里，仍是 board.css 的 30×17。
+  assert.match(pwaCss, /\.pw-litem > \.pw-switch::after/);
+  assert.doesNotMatch(pwaCss, /\.pw-group-title [^{]*\.pw-switch/);
+
+  const media = forkCss.slice(forkCss.lastIndexOf("@media (max-width: 640px), (pointer: coarse)"));
+  const hit = block(media.replace(/^@media[^{]*\{/, ""), ".pw-group-title .pw-switch::after");
+  assert.match(hit, /content: ""/);
+  assert.match(hit, /position: absolute/);
+  // 热区靠伪元素外扩：四周各一个 s2（8px），30×17 → 46×33，短边越过触控档 32。
+  assert.match(hit, /inset: calc\(var\(--s2\) \* -1\)/);
+  assert.match(block(media.replace(/^@media[^{]*\{/, ""), ".pw-group-title .pw-switch"), /position: relative/);
+});
