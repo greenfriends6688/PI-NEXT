@@ -382,6 +382,41 @@ description: 把招投标 Excel 逐条抽取 15 个字段…
                     <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="60000" step="100" value="2000"></span>
                   </div>
                 </div>
+
+                <!-- fork:pr12-a5-context-budget（2026-10-01）—— 「上下文压缩」块，与画板
+                     40 帧 1 的那一块逐行同构（帧 C 只是节选，这里补齐右栏实际落位的倒数第二块）。
+                     零新 .pw-* 类：开关 + 窄数值框（`.pw-numin`）+ 模型覆盖行（`.pw-iconbtn`）。 -->
+                <div class="pw-block">
+                  <h3><span class="pw-ico"><i data-ico="scan-text" data-size="14"></i></span>上下文压缩</h3>
+                  <div class="pw-field">
+                    <span class="pw-label">自动压缩<small>上下文快满时自动压缩对话，新会话生效</small></span>
+                    <span class="pw-switch on"><i></i></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">摘要预留（tokens）<small>留给摘要本身的空间；剩下的窗口快满时触发压缩</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="1000000" step="1024" value="16384"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">保留最近（tokens）<small>压缩后逐字保留的最近上下文有多长</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="1000000" step="1024" value="20000"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">分支摘要预留（tokens）<small>在会话树里跳转并生成摘要时预留的空间</small></span>
+                    <span class="pw-ctl"><input class="pw-input pw-numin" type="number" min="0" max="1000000" step="1024" value="16384"></span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label"><span class="pw-mono">openai/gpt-5</span></span>
+                    <span class="pw-ctl">
+                      <input class="pw-input pw-numin" type="number" min="0" max="1000000" step="1024" value="60000" title="openai/gpt-5 · 摘要预留">
+                      <input class="pw-input pw-numin" type="number" min="0" max="1000000" step="1024" value="24000" title="openai/gpt-5 · 保留最近">
+                      <button type="button" class="pw-iconbtn sm" title="删除这条覆盖"><span class="pw-ico"><i data-ico="trash-2" data-size="13"></i></span></button>
+                    </span>
+                  </div>
+                  <div class="pw-field">
+                    <span class="pw-label">添加模型覆盖<small>键是 pi 的「供应商/模型」；留空的框表示跟随上面的全局值</small></span>
+                    <span class="pw-selectbox">选择模型<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+                  </div>
+                </div>
               </div>
 
             </div>
