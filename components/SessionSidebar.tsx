@@ -2306,30 +2306,26 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 /** fork:ui-10 — the manual-status dot (tooltip carries the wording). */
 
 /**
- * Compact per-project activity badges for the workspace selector dropdown items:
- * a spinning running icon + count and an unread dot + count. Renders nothing
- * when the project has no activity. Counts share the accent / unread colors of
- * the per-session indicators so the two stay visually consistent.
+ * Per-project activity badge for the workspace/project row: **未读绿点 + 计数**。
+ * Renders nothing when the project has no unread session.
+ *
+ * fork:no-running-badge-on-project-row-2026-10-02 —— 这里原先还有一枚「转圈 + 运行中
+ * 会话数」（旧的 agentRunning 标签）。两处都不合画板：
+ *   · 画板 02 三者互斥表：**运行中 → 右侧标记 = 无**，会话行的运行态一律由
+ *     `.pw-session.running` 的底边扫掠线表达（产品已有，board.css）；
+ *   · 那枚 `⟳N` 的家在**顶栏**（画板 02 帧 B：工作区上下文的动作区，挨着 `⚠N`），
+ *     不在侧栏项目行 —— 侧栏项目行画板只画悬浮动作。
+ * 顺带去掉一处「画板上没有的动效」：会话在跑、图标却钉在侧栏第一行转，读起来是
+ * 「有个项目卡住了」，而不是「这个会话在跑」。
+ * 计数本身仍在（会话行扫掠线 + 顶栏运行中芯片 + 转录区过程抬头 spinner 三处表达）。
  */
 function showProjectActivity(
   activity: { running: number; unread: number } | undefined,
   t: (key: string) => string,
 ): ReactNode {
-  if (!activity || (activity.running === 0 && activity.unread === 0)) return null;
+  if (!activity || activity.unread === 0) return null;
   return (
     <span className="pw-inline" style={{ gap: "var(--s1)", flexShrink: 0 }}>
-      {activity.running > 0 && (
-        <span
-          className="pw-badge accent count"
-          title={t("sidebar.agentRunning")}
-          aria-label={`${t("sidebar.agentRunning")} (${activity.running})`}
-        >
-          {/* fork:motion-spin-2026-10-02 —— 同 ChatWorkspaceRow：项目行的运行徽标是
-              静止的 loader-circle。有会话在跑却纹丝不动，就是「卡死」的错觉。 */}
-          <span className="pw-ico"><i data-ico="loader-circle" data-size="11" className="pw-anim-spin"></i></span>
-          {activity.running}
-        </span>
-      )}
       {activity.unread > 0 && (
         <span
           className="pw-badge ok count"
@@ -2576,8 +2572,21 @@ function SessionItem({
                 <span aria-hidden="true"> · </span>
                 <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>
               </span>
-              {/* 两者互斥：等你处理 > 未读。运行中不出右侧标记（它靠底边扫掠表达）。
+              {/* 两者互斥：等你处理 > 未读。
                   fork:no-session-tag（用户 2026-10-01）—— 手动「状态标记」及其彩色点已撤掉。 */}
+              {/* fork:session-row-running-spinner（用户 2026-10-02）—— 运行中**在行内**
+                  再挂一枚转圈：上一轮按画板把项目行的 `⟳N` 徽标删掉后，运行态只剩
+                  底边那条 1px 扫掠线 —— 实测用户根本看不出哪条会话在跑（「现在我都不
+                  好看出来哪个对话是正在运行中的」）。画板 02 的互斥表写的是
+                  「运行中 → 右侧标记 = 无」，这条按用户 2026-10-02 的要求记为分叉
+                  （design/pi-web-design/DIVERGENCE.md 第 90 条）：扫掠线保留（行高 58
+                  + 底边扫掠），转圈加在 `N 条消息` 之后 —— 与未读点/等你处理同一位，
+                  三者不同时出现（liveness 与 attention 是两件事）。*/}
+              {isRunning && (
+                <span className="pw-ico fork-pwa-sb-flag" title={t("chat.running")} aria-label={t("chat.running")}>
+                  <i data-ico="loader-circle" data-size="11" className="pw-anim-spin" aria-hidden="true"></i>
+                </span>
+              )}
               {isAwaiting ? (
                 <span className="pw-await fork-pwa-sb-flag" title={t(awaitingKind === "input" ? "sidebar.awaitingInput" : "sidebar.awaitingApproval")}>
                   <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>

@@ -178,10 +178,16 @@ body.pw.dark { background: #0f0f13; }
 
 /* 运行中：行高 48 → 58，底边一条 1px 常亮线 + 96px 强调亮点匀速单向掠过 */
 .pw-session.running { height: 58px; }
-.pw-session.running::after {
+/* fork:session-sweep-paint-order（2026-10-02）—— 两条线**同高同位**（bottom:0 · 1px），
+   而 ::after 在 ::before 之后绘制，于是常亮线把扫掠亮点整条盖住：产品与画板里
+   「运行中」从来没亮过（实测逐像素扫会话行底边 5 帧，零个 accent 像素，
+   getComputedStyle 的 ::before 却是 pw-sweep 1.4s —— 动画在跑，只是看不见）。
+   不靠 z-index（行不是层叠上下文，会溢出到相邻行上面去），只把两条线对调：
+   常亮线走 ::before、扫掠走 ::after，后者后画、压在上面。 */
+.pw-session.running::before {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--n-border-subtle);
 }
-.pw-session.running::before {
+.pw-session.running::after {
   content: ""; position: absolute; left: 0; bottom: 0; width: 96px; height: 1px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
   animation: pw-sweep 1400ms linear infinite;
@@ -191,7 +197,7 @@ body.pw.dark { background: #0f0f13; }
   to   { transform: translateX(280px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pw-session.running::before { animation: none; opacity: .55; }
+  .pw-session.running::after { animation: none; opacity: .55; }
 }
 
 /* 未读点：`N 条消息` 之后的 6px success 圆点；只做 opacity，被查看后淡出且不留占位 */
@@ -1199,7 +1205,13 @@ i[data-ico] > svg { display: block; }
 .pw-cell > h4 { margin: 0 0 5px; font-size: var(--text-secondary); font-weight: 500; color: var(--n-strong); display: flex; align-items: center; gap: var(--s2); }
 .pw-cell > p { margin: 0; color: var(--n-muted); font-size: var(--text-meta); }
 .pw-pad { padding: var(--s4); }
-.pw-rowgap { display: grid; gap: var(--s2); }
+/* fork:rowgap-minmax-2026-10-02 —— 单列竖排：列宽显式写 `minmax(0, 1fr)`。
+   隐式 `auto` 列的尺寸上限是子项的 max-content —— 子项里只要有一个 `white-space:nowrap`
+   的文本（队列行 `.pw-prow` 的消息正文就是），整列就撑到全文宽度，行**溢出容器**并压到
+   旁边的面板上（实测 800px 的输入区被撑到 2509px）。写死 1fr 后列永远等于容器宽，
+   长文本由它自己的 `overflow:hidden` + 省略号收尾（行为不变，只是不再溢出）。
+   逐帧对位无变化：单列 auto 与 1fr 在内容不溢出时几何完全一致。 */
+.pw-rowgap { display: grid; gap: var(--s2); grid-template-columns: minmax(0, 1fr); }
 .pw-inline { display: flex; align-items: center; gap: var(--s2); }
 .pw-wrap { display: flex; flex-wrap: wrap; gap: var(--s2); }
 

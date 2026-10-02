@@ -578,7 +578,6 @@ export const enLocale: LocalePlugin = {
     "sidebar.changedFiles": "{count} changed files",
     "sidebar.loading": "Loading...",
     "sidebar.noSessions": "No sessions found",
-    "sidebar.agentRunning": "Agent running…",
     "sidebar.subagentInterrupted": "Sub-agent never finished (app restarted or was interrupted); marked as interrupted",
     "sidebar.newActivity": "New activity",
     "sidebar.newSessionActivity": "New session activity",

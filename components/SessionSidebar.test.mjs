@@ -78,11 +78,12 @@ test("subagent completion stays silent and never becomes unread", () => {
   );
 });
 
-test("includes project activity counts in accessible labels", () => {
-  assert.match(
-    source,
-    /aria-label=\{`\$\{t\("sidebar\.agentRunning"\)\} \(\$\{activity\.running\}\)`\}/,
-  );
+test("keeps the unread count in an accessible label and no running badge on the project row", () => {
+  // fork:no-running-badge-on-project-row-2026-10-02 —— 运行态归会话行的底边扫掠线
+  // （画板 02 三者互斥表：运行中 → 右侧标记 = 无）。这条断言钉住那枚「转圈 + 运行中
+  // 会话数」不会再长回项目行。
+  assert.doesNotMatch(source, /sidebar\.agentRunning/);
+  assert.doesNotMatch(source, /activity\.running/);
   assert.match(
     source,
     /aria-label=\{`\$\{t\("sidebar\.newSessionActivity"\)\} \(\$\{activity\.unread\}\)`\}/,

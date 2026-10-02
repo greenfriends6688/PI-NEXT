@@ -69,20 +69,12 @@ export function ChatWorkspaceRow({
         <span className="grow" />
       </button>
 
-      {activity && (activity.running > 0 || activity.unread > 0) && (
+      {activity && activity.unread > 0 && (
         <span className="pw-inline" style={{ gap: "var(--s1)", flexShrink: 0 }}>
-          {activity.running > 0 && (
-            <span className="pw-badge accent count" title={t("sidebar.agentRunning")}>
-              <span className="pw-ico"><i data-ico="loader-circle" data-size="11" className="pw-anim-spin"></i></span>
-              {activity.running}
-            </span>
-          )}
-          {activity.unread > 0 && (
-            <span className="pw-badge ok count" title={t("sidebar.newSessionActivity")}>
-              <span className="pw-ico"><i data-ico="circle" data-size="8"></i></span>
-              {activity.unread}
-            </span>
-          )}
+          <span className="pw-badge ok count" title={t("sidebar.newSessionActivity")}>
+            <span className="pw-ico"><i data-ico="circle" data-size="8"></i></span>
+            {activity.unread}
+          </span>
         </span>
       )}
 

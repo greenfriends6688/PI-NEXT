@@ -578,7 +578,6 @@ export const zhTWLocale: LocalePlugin = {
     "sidebar.changedFiles": "{count} 個已變更檔案",
     "sidebar.loading": "載入中...",
     "sidebar.noSessions": "找不到工作階段",
-    "sidebar.agentRunning": "Agent 執行中…",
     "sidebar.subagentInterrupted": "子會話未跑完（應用程式重啟/中斷），狀態已標為中斷",
     "sidebar.newActivity": "有新活動",
     "sidebar.newSessionActivity": "工作階段有新活動",

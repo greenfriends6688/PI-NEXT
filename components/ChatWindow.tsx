@@ -2325,6 +2325,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                           // starts — the same rule the finalized group uses.
                           defaultExpanded={!streamingProcess || streamingProcess.answerBlocks.length === 0}
                           summaryText={summarizeProcessBlocks(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
+                          // fork:proc-badge-running（用户 2026-10-02）—— 这一组就是**正在跑
+                          // 的那一轮**（`isLiveTail` 为真才走到这里，判据见上：`sessionBusy`
+                          // 或流式中 + 它是尾巴）。徽标原来没接 `status`，默认落到「已完成」，
+                          // 于是用户看着一条在跑的过程抬头写着「已完成」。
+                          status="running"
                           t={t}
                         >
                           <ProcessGroup
@@ -2418,6 +2423,18 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         defaultExpanded={!finalAnswerMessage}
                         reveal={revealProcess}
                         summaryText={groupedSummary}
+                        // fork:proc-badge-running（用户 2026-10-02）—— 徽标原来只看
+                        // `streamState.isStreaming`，而它在「模型发完一条消息 → 下一条
+                        // 还没来」的窗口里是 false（长命令执行期间尤其如此）：于是正在跑
+                        // 的那一轮抬头恒显「已完成」，用户问「怎么没有运行中」。
+                        // 两个信号单用都不够：`sessionBusy` 会把**上一轮**也点亮；
+                        // 「本轮是尾巴」也不能用 `finalAssistantIdx ===
+                        // messages.length - 1` —— 工具执行时最后一条是 toolResult，
+                        // 索引永远对不上（改完仍显示「已完成」就是漏在这一条）。
+                        // 真正的判据是**这一轮还没有最终回答**（finalAnswerMessage
+                        // 为空）**且它还是尾巴**（只缺前者会把上一条被中断的旧轮次
+                        // 一起点亮），liveness 用会话忙（与顶栏芯片、stop 按钮同源）。
+                        status={sessionBusy && !finalAnswerMessage && userIdx === lastAnchorIdx ? "running" : "done"}
                         t={t}
                       >
                         <ProcessGroup

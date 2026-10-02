@@ -408,8 +408,17 @@ html.keyboard-open .extension-status-shelf {
 /* fork:design-components —— 画板 02 的折叠导轨是全高竖列（占列宽，不再是浮块），
  * 顶端放应用标记；macOS 的红绿灯（electron/main.js: trafficLightPosition {x:14,y:16}，
  * 约 54×14）正压在那里 —— 整条让到它们下面。与 `.pw-side-head` 的 64px 内缩同一件事，
- * 属平台钩子（UA / 平台归位），所以写在这里而不是组件的内联样式里。 */
-[data-desktop-platform="darwin"] .pw-rail {
+ * 属平台钩子（UA / 平台归位），所以写在这里而不是组件的内联样式里。
+ *
+ * fork:desktop-settings-nav —— 设置面板是**整屏页面**（`.settings-dialog-surface.pw-modal`
+ * 宽高 100%，见 app/settings.css），左导航从 y=0 起排，第一行「常规」被红绿灯压住
+ * （截图里只剩「常规」两个字露在绿灯右侧）。同一件事的第三处让位：`.pw-side-head`
+ * 内缩 64（品牌行）、`.pw-rail` 下移 40（导轨）、这里下移 40（设置左导航）。
+ * 只在 darwin 打包版命中 —— 浏览器版与 Windows 原生边框都看不到这条。 */
+[data-desktop-platform="darwin"] :is(
+  .pw-rail,
+  .settings-dialog-body > .settings-section-tabs
+) {
   /* ponytail: 40 = 红绿灯底缘 30 + 画板 --s2 的呼吸；红绿灯换位置只改这一个值 */
   padding-top: 40px;
 }
