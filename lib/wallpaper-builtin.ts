@@ -11,10 +11,11 @@
  * These are static assets served from `/public` and rendered into an `<img src>`,
  * so the SVG restriction that applies to *user* uploads does not apply here.
  *
- * `public/monet-artworks/` still holds the upstream author's original Monet set
- * (`aqua` `gruvbox` `rose` `solarized` `tether`). Nothing points at them since the
- * default was replaced; they are kept on disk so a palette can pick its own art
- * again without re-adding the files. The directory name predates the portraits.
+ * The directory is named after the upstream author's original Monet set, but only the two
+ * portraits in `BUILTIN_WALLPAPERS` are shipped. `aqua` / `gruvbox` / `rose` / `solarized` /
+ * `tether` / `default` were dropped (6 files, 5.5MB) when the built-ins became the two
+ * portraits: nothing pointed at them, and carrying art no code can reach only made every
+ * release zip, npm tarball and desktop bundle bigger.
  */
 
 const PAINTING_DIR = "/monet-artworks";

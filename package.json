@@ -61,8 +61,8 @@
     "desktop": "electron .",
     "desktop:verify": "node scripts/verify-desktop-bundle.mjs",
     "desktop:smoke": "node scripts/desktop-smoke.mjs",
-    "desktop:dist": "npm run build && npm run desktop:verify && electron-builder",
-    "desktop:dist:win": "npm run build && npm run desktop:verify && electron-builder --win",
+    "desktop:dist": "npm run desktop:icons && npm run build && npm run desktop:verify && electron-builder",
+    "desktop:dist:win": "npm run desktop:icons && npm run build && npm run desktop:verify && electron-builder --win",
     "desktop:icons": "node scripts/gen-icons.mjs",
     "test:fileviewer": "node e2e/file-viewer-modes.mjs"
   },

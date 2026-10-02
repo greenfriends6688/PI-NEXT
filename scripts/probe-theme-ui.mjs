@@ -53,18 +53,18 @@ await page.goto(BASE, { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(600);
 const api = await page.evaluate(async () => {
   const themes = await (await fetch("/api/themes")).json();
-  const head = await fetch("/monet-artworks/default.jpg", { method: "HEAD" });
-  const gruvbox = await fetch("/monet-artworks/gruvbox.jpg", { method: "HEAD" });
+  const head = await fetch("/monet-artworks/zhang-ruonan.jpg", { method: "HEAD" });
+  const second = await fetch("/monet-artworks/cai-xukun.jpg", { method: "HEAD" });
   return {
     themeNames: themes.themeSets?.map((set) => set.name) ?? [],
     defaultPainting: head.status,
-    gruvboxPainting: gruvbox.status,
+    secondPainting: second.status,
   };
 });
 console.log("api:", JSON.stringify(api));
 if (api.themeNames.length === 0) failures.push("/api/themes returned no sets");
 if (api.defaultPainting !== 200) failures.push("default wallpaper asset missing");
-if (api.gruvboxPainting !== 200) failures.push("gruvbox wallpaper asset missing");
+if (api.secondPainting !== 200) failures.push("second built-in wallpaper asset missing");
 
 // 3. Enabling the wallpaper should paint the built-in painting.
 await page.addInitScript(() => {

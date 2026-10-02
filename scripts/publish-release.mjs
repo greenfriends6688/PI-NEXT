@@ -67,10 +67,18 @@ async function api(path, init = {}) {
       比手写 exclude 列表可靠 —— 后者漏一个就是把 66M 的「设计风格」打进发布包。
 
       fork:release-exclude-docs — 按用户要求**不把 docs/ 打进发布包**：那里是内部规划、
-      对比与借鉴台账，不适合随发行版分发。`git archive` 支持 pathspec，用 `:(exclude)` 排除。 */
+      对比与借鉴台账，不适合随发行版分发。`git archive` 支持 pathspec，用 `:(exclude)` 排除。
+
+      fork:release-exclude-preview — `design/pi-web-design/preview/` 是 30 张画板截图（13M），
+      全仓零引用（画板 HTML 自己就是原型，截图只是给人看的），检查脚本在
+      `design/pi-web-design/scripts/`，不碰 preview。
+
+      fork:release-exclude-build — `build/` 是 `npm run desktop:icons` 从
+      `public/pi-next-logo.png` 生成的（icon.icns / icon.png / trayTemplate），
+      同一提交里把 `desktop:dist` 改成先跑 icons，所以从 zip 打包也拿得到。12M → 5.2M。 */
 function buildZip() {
   const out = join(tmpdir(), `pi-agent-source-${tag}.zip`);
-  execFileSync("git", ["archive", "--format=zip", "-9", "-o", out, tag, "--", ".", ":(exclude)docs"], { stdio: "inherit" });
+  execFileSync("git", ["archive", "--format=zip", "-9", "-o", out, tag, "--", ".", ":(exclude)docs", ":(exclude)design/pi-web-design/preview", ":(exclude)build"], { stdio: "inherit" });
   const size = statSync(out).size;
   console.log(`  打包 ${basename(out)}  ${(size / 1024 / 1024).toFixed(1)} MB（已排除 docs/）`);
   return out;
