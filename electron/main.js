@@ -33,6 +33,7 @@ const APP_NAME = "PI NEXT";
 /** Previous product names, newest first; the migration below picks the first that exists. */
 const LEGACY_APP_NAMES = ["Pinkslab", "Pi Codex", "pi-web"];
 const { legacyUserDataSource } = require("./legacy-user-data");
+const { attachRendererRecovery } = require("./renderer-recovery");
 let mainWindow = null;
 let tray = null;
 let serverProc = null;
@@ -250,21 +251,16 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Crash visibility: a silent white window is the worst possible failure mode.
-  mainWindow.webContents.on("render-process-gone", (_event, details) => {
-    console.error("[pi-next] renderer gone:", details.reason);
-    dialog.showMessageBox({
-      type: "error",
-      title: APP_NAME,
-      message: "界面进程异常退出",
-      detail: `原因：${details.reason}。点击「重新加载」可以恢复当前会话。`,
-      buttons: ["重新加载", "退出"],
-      defaultId: 0,
-    }).then(({ response }) => {
-      if (response === 0 && mainWindow) mainWindow.reload();
-      else app.quit();
-    });
+  // fork:renderer-recovery —— 白屏是桌面端最糟的失败形态。
+  // 崩溃/无响应/主框架加载失败由 electron/renderer-recovery.js 统一处理：
+  // 有限次自动重启，超限回退到本地兜底页（electron/renderer-crash.html）。
+  const recovery = attachRendererRecovery(mainWindow, {
+    appName: APP_NAME,
+    retryUrl: `http://127.0.0.1:${serverPort}`,
+    crashPagePath: path.join(__dirname, "renderer-crash.html"),
+    isQuitting: () => quitting,
   });
+  mainWindow.on("closed", () => recovery.dispose());
 
   // 外部链接一律交给系统浏览器；页面内跳转到其它 host 也走同一规则
   //
