@@ -1478,6 +1478,19 @@ export const enLocale: LocalePlugin = {
     "git.commitFiles": "Changed files",
     "git.resizeGraph": "Resize graph column",
 
+    // fork:proma-39-changes — 右栏「改动」面板。
+    "changes.title": "Changes",
+    "changes.refresh": "Refresh changes",
+    "changes.empty": "No changes",
+    "changes.emptyNonGit": "No files written in this session yet",
+    "changes.loading": "Loading…",
+    "changes.error": "Could not load changes",
+    "changes.sourceGit": "Git",
+    "changes.sourceSession": "This session",
+    "changes.sourceMemory": "Memory",
+    "changes.unseen": "{count} new changes",
+    "changes.openFile": "Open {name}",
+
     "skills.content": "Content",
     "skills.edit": "Edit",
     "skills.contentLoadFailed": "Failed to load SKILL.md",

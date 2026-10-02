@@ -1475,6 +1475,19 @@ export const zhTWLocale: LocalePlugin = {
     "git.commitFiles": "變更檔案",
     "git.resizeGraph": "調整圖譜欄寬",
 
+    // fork:proma-39-changes — 右欄「改動」面板。
+    "changes.title": "改動",
+    "changes.refresh": "重新整理改動",
+    "changes.empty": "沒有改動",
+    "changes.emptyNonGit": "本工作階段還沒有寫入檔案",
+    "changes.loading": "載入中…",
+    "changes.error": "改動載入失敗",
+    "changes.sourceGit": "Git 工作區",
+    "changes.sourceSession": "本工作階段",
+    "changes.sourceMemory": "專案記憶",
+    "changes.unseen": "{count} 處新改動",
+    "changes.openFile": "開啟 {name}",
+
     "skills.content": "內容",
     "skills.edit": "編輯",
     "skills.contentLoadFailed": "讀取 SKILL.md 失敗",

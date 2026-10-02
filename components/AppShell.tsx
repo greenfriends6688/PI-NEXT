@@ -41,7 +41,9 @@ import { mergeCatalogRow } from "./session-catalog-helpers";
 import { loadRightTabs, saveRightTabs } from "@/lib/right-tabs-memory";
 import { resolveRestoreTarget } from "@/lib/workspace-restore";
 import { GitGraphTab } from "./GitGraphTab";
-// fork:zc-05 — 右栏「变更」单例 tab。
+// fork:proma-39-changes — 右栏「改动」单例 tab（合并 Git / 会话 / 记忆三路来源）。
+import { ChangesPanel } from "./fork/ChangesPanel";
+import type { WrittenFile } from "@/lib/turn-written-files";
 import { SettingsPanel } from "./SettingsPanel";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { ProjectTrustDialog } from "./ProjectTrustDialog";
@@ -150,7 +152,8 @@ const TOP_BAR_ICON_BUTTON_SIZE = "var(--topbar-icon-size, 28px)";
 const EXPLORER_COLUMN_MIN_PANEL_WIDTH = 760;
 /** fork:git-graph-tab — 单例图谱 tab 的 id（不与文件 tab 的 `file:<path>` 撞名）。 */
 const GIT_GRAPH_TAB_ID = "git-graph";
-/** fork:zc-05 — 单例变更面板 tab 的 id。 */
+/** fork:proma-39-changes — 单例改动面板 tab 的 id（同样不与 `file:<path>` 撞名）。 */
+const CHANGES_TAB_ID = "changes";
 const AGENT_PANEL_WIDTH = 420;
 /* fork:top-panel-anchor —— 画板 22 的 `.pw-pop` 是 320 宽；系统提示词 / 工具两个
    浮层的内容按这个宽度排版。Agent 面板有自己的宽度（上方 AGENT_PANEL_WIDTH）。 */
@@ -645,7 +648,12 @@ export function AppShell() {
   const [mountedFileTabs, setMountedFileTabs] = useState<ReadonlySet<string>>(() => new Set());
   // fork:git-graph-tab — 每个工作区一个单例 Git 图谱 tab（不持久化：它是“看一眼”的视图）。
   const [gitGraphOpen, setGitGraphOpen] = useState(false);
-  // fork:zc-05 — 单例 Git 变更面板（与图谱同为「看一眼」的视图，不持久化）。
+  // fork:proma-39-changes — 单例「改动」面板（与图谱同为「看一眼」的视图，不持久化）。
+  const [changesOpen, setChangesOpen] = useState(false);
+  // 有新改动但用户没在看改动 tab 时的未读标记（只提示，绝不自动切 tab）。
+  const [changesUnseen, setChangesUnseen] = useState(false);
+  // ChatWindow 聚合上来的本会话写入文件（非 Git 项目的改动来源）。
+  const [sessionWrittenFiles, setSessionWrittenFiles] = useState<WrittenFile[]>([]);
   // fork:proma-05-explore — 探索分支的右栏只读 tab（可与主线并排看）
   const [branchTabs, setBranchTabs] = useState<{ id: string; sessionId: string; parentSessionId: string | null; label: string }[]>([]);
   const [browsersRestored, setBrowsersRestored] = useState(false);
@@ -714,6 +722,12 @@ export function AppShell() {
     label: translate("git.graph"),
     filePath: "",
     kind: "git-graph" as const,
+  }] : []), ...(changesOpen ? [{
+    id: CHANGES_TAB_ID,
+    label: translate("changes.title"),
+    filePath: "",
+    kind: "changes" as const,
+    unread: changesUnseen,
   }] : []), ...fileTabs, ...terminalTabs.map((tab) => ({
     id: tab.id,
     label: getFileName(tab.cwd) || tab.cwd,
@@ -730,7 +744,7 @@ export function AppShell() {
     label: tab.label,
     filePath: tab.sessionId,
     kind: "session" as const,
-  }))], [branchTabs, browserTabs, fileTabs, gitGraphOpen, terminalTabs, translate]);
+  }))], [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, terminalTabs, translate]);
 
   useEffect(() => {
     try {
@@ -1580,6 +1594,24 @@ export function AppShell() {
     setRightPanelOpen(true);
   }, []);
 
+  // fork:proma-39-changes — 打开 / 切到单例改动 tab；进入即视为已读。
+  const openChangesTab = useCallback(() => {
+    setChangesOpen(true);
+    setActiveFileTabId(CHANGES_TAB_ID);
+    setRightPanelOpen(true);
+    setChangesUnseen(false);
+  }, []);
+
+  // fork:proma-39-changes — 面板上报未读：只亮圆点，绝不调 setActiveFileTabId。
+  const handleChangesUnseen = useCallback((unseen: number) => {
+    setChangesUnseen(unseen > 0);
+  }, []);
+
+  // fork:proma-39-changes — ChatWindow 聚合的本会话写入文件（非 Git 项目来源）。
+  const handleWrittenFilesChange = useCallback((files: WrittenFile[]) => {
+    setSessionWrittenFiles(files);
+  }, []);
+
   const handleCloseFileTab = useCallback((tabId: string) => {
     if (tabId === GIT_GRAPH_TAB_ID) {
       setGitGraphOpen(false);
@@ -1590,6 +1622,21 @@ export function AppShell() {
         ...browserTabs.map((tab) => tab.id),
         ...branchTabs.map((tab) => tab.id),
         ...siblingSingleton,
+      ];
+      setActiveFileTabId((current) => current !== tabId ? current : remainingIds.at(-1) ?? null);
+      if (!workspaceSwapped && remainingIds.length === 0) setRightPanelOpen(false);
+      return;
+    }
+    if (tabId === CHANGES_TAB_ID) {
+      // fork:proma-39-changes — 单例 tab 关闭后从面板里拿掉；切到剩下的最后一个。
+      setChangesOpen(false);
+      setChangesUnseen(false);
+      const remainingIds = [
+        ...fileTabs.map((tab) => tab.id),
+        ...terminalTabs.map((tab) => tab.id),
+        ...browserTabs.map((tab) => tab.id),
+        ...branchTabs.map((tab) => tab.id),
+        ...(gitGraphOpen ? [GIT_GRAPH_TAB_ID] : []),
       ];
       setActiveFileTabId((current) => current !== tabId ? current : remainingIds.at(-1) ?? null);
       if (!workspaceSwapped && remainingIds.length === 0) setRightPanelOpen(false);
@@ -1626,7 +1673,7 @@ export function AppShell() {
       const remaining = fileTabs.filter((t) => t.id !== tabId);
       return remaining.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? null;
     });
-  }, [branchTabs, browserTabs, fileTabs, terminalTabs, workspaceSwapped]);
+  }, [branchTabs, browserTabs, fileTabs, gitGraphOpen, terminalTabs, workspaceSwapped]);
 
   // fork:zc-06 — tab 概览：记录「最近关闭」，并提供批量关闭 / 重开。
   //
@@ -1657,6 +1704,8 @@ export function AppShell() {
     setBrowserTabs([]);
     setBranchTabs([]);
     setGitGraphOpen(false);
+    setChangesOpen(false);
+    setChangesUnseen(false);
     setActiveFileTabId(null);
     if (!workspaceSwapped) setRightPanelOpen(false);
   }, [panelTabs, workspaceSwapped]);
@@ -1671,6 +1720,8 @@ export function AppShell() {
     // 终端 tab 走 closing 标记（要等 PTY 收尾），与单个关闭时的行为一致。
     setTerminalTabs((tabs) => tabs.map((tab) => (tab.id === keep ? tab : { ...tab, closing: "close" as const })));
     setGitGraphOpen(keep === GIT_GRAPH_TAB_ID);
+    setChangesOpen(keep === CHANGES_TAB_ID);
+    setChangesUnseen(false);
   }, [activeFileTabId, panelTabs]);
 
   const handleRestoreClosedTab = useCallback((tab: RestorableTab) => {
@@ -2847,6 +2898,8 @@ export function AppShell() {
               onSystemInfoLoaderChange={handleSystemInfoLoaderChange}
               onSessionStatsChange={handleSessionStatsChange}
               onExtensionStatusChange={handleExtensionStatusChange}
+              // fork:proma-39-changes
+              onWrittenFilesChange={handleWrittenFilesChange}
               onSessionStatsPanelOpen={openSessionStatsPanel}
               onOpenFile={handleOpenLinkedFile}
               onOpenSession={handleOpenSession}
@@ -2985,6 +3038,25 @@ export function AppShell() {
               <span className="pw-ico"><i data-ico="git-branch" data-size="15"></i></span>
             </button>
           )}
+          {activeCwd && !changesOpen && (
+            // fork:proma-39-changes — 打开单例「改动」tab 的入口（与图谱钮同一形态）。
+            <button
+              type="button"
+              onClick={openChangesTab}
+              title={translate("changes.title")}
+              aria-label={translate("changes.title")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "var(--control-xs)", height: "var(--control-xs)", padding: 0,
+                borderRadius: "var(--radius-md)", background: "none", border: "none",
+                color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
+              }}
+              onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
+              onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text-muted)"; }}
+            >
+              <span className="pw-ico"><i data-ico="file-diff" data-size="15"></i></span>
+            </button>
+          )}
           {isMobile && (
             <button
               type="button"
@@ -3017,6 +3089,22 @@ export function AppShell() {
               cwd={activeCwd ?? ""}
               onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, { modeHint: "diff" })}
             />
+          ) : null}
+          {changesOpen ? (
+            // fork:proma-39-changes — 常驻挂载（hidden 而非卸载）：切走时仍轮询，
+            // 只把未读计数上报成圆点，绝不自动把 activeFileTabId 抢回来。
+            <div hidden={activeFileTabId !== CHANGES_TAB_ID} style={{ width: "100%", height: "100%" }}>
+              <ChangesPanel
+                cwd={activeCwd ?? ""}
+                writtenFiles={sessionWrittenFiles}
+                active={activeFileTabId === CHANGES_TAB_ID}
+                onOpenFile={(filePath, modeHint) => handleOpenFile(filePath, getFileName(filePath), {
+                  modeHint,
+                  sourceSessionId: selectedSession?.id ?? null,
+                })}
+                onUnseenChange={handleChangesUnseen}
+              />
+            </div>
           ) : null}
           {fileTabs.filter((tab) => mountedFileTabs.has(tab.id)).map((tab) => {
             const isActive = tab.id === activeFileTabId;
@@ -3061,7 +3149,8 @@ export function AppShell() {
             && !browserTabs.some((tab) => tab.id === activeFileTabId)
             && !branchTabs.some((tab) => tab.id === activeFileTabId)
             && activeFileTabId !== GIT_GRAPH_TAB_ID
-            // fork:zc-05 — 变更 tab 也占满 file-panel-main，不能再叠一层文件树。
+            && activeFileTabId !== CHANGES_TAB_ID
+            // fork:proma-39-changes — 图谱 / 改动 tab 都占满 file-panel-main，不能再叠一层文件树。
             ? (
             activeCwd ? (
               explorerPanel

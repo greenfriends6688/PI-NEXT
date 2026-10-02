@@ -1477,6 +1477,19 @@ export const zhCNLocale: LocalePlugin = {
     "git.commitFiles": "改动文件",
     "git.resizeGraph": "调整图谱列宽",
 
+    // fork:proma-39-changes — 右栏「改动」面板。
+    "changes.title": "改动",
+    "changes.refresh": "刷新改动",
+    "changes.empty": "没有改动",
+    "changes.emptyNonGit": "本会话还没有写入文件",
+    "changes.loading": "加载中…",
+    "changes.error": "改动加载失败",
+    "changes.sourceGit": "Git 工作区",
+    "changes.sourceSession": "本会话",
+    "changes.sourceMemory": "项目记忆",
+    "changes.unseen": "{count} 处新改动",
+    "changes.openFile": "打开 {name}",
+
     "skills.content": "内容",
     "skills.edit": "编辑",
     "skills.contentLoadFailed": "读取 SKILL.md 失败",
