@@ -149,6 +149,11 @@
 | 0054 | [收藏模型（星标 + 置顶成组）](./0054-favorite-models.md) | 已实现（单测 8） | `lib/favorite-models.ts` | `components/{ChatInput,ModelSelector,ModelsConfig}.tsx`、`components/fork/ProviderUsageCards.tsx` |
 | 0055 | [文件 `@` 提及（拖入绝对路径 → cwd 相对引用）](./0055-file-mentions.md) | 已实现（单测 30）。**不是 0003 的一部分**：0003 的 `.patch` 里 `file-mentions`/`mention-tokens` **0 命中** | `lib/file-mentions.ts`、`lib/mention-tokens.ts` | `components/ChatInput.tsx`、`MessageView.tsx`、`MarkdownBody.tsx` |
 | 0056 | [文件压缩包（zip / 解包）+ 文件增删改](./0056-file-archives.md) | 已实现（单测 5）。**源自上游 PR #899**（上游以 scope 为由关闭该 PR，未合入主线） | `lib/file-archives.ts`、`lib/archive-names.ts`、`lib/file-mutations.ts` | `app/api/files/[...path]/route.ts`、`components/{FileExplorer,FileViewer,ExplorerPanel}.tsx` |
+| 0057 | [扩展 UI 按 id 排队 + 压缩相位](./0057-extension-ui-queue.md) | 已实现（单测 8+）。上游 `70470ca` / `e17d2cc` / `2e66e40`(#1008) | `lib/extension-ui-queue.ts` | `hooks/useAgentSession.ts`（5 处 state 点 + 重放窗口）、`components/ChatWindow.tsx`（宿主叠层 + `.map()`）、`components/fork/PhaseRoll.tsx` |
+| 0058 | [MCP 运行时：SDK 内部件适配 + stdio env 清洗 + `builtin:mcp` 接线](./0058-mcp-runtime.md) | 已实现（单测 29，**其中 11 条真 SDK 契约在 pi 0.87 下 skip**；作者已在 /tmp 的 0.99.1 沙盒实测 23/23 全过） | `lib/pi-sdk-internals.ts`、`lib/mcp-transport.ts` | `lib/rpc-manager.ts`（`extensionFactories` 一行）、`AGENTS.md` |
+| 0059 | [技能/插件批量路由 + 扩展对话框长标题钳位 + 两条 CSS 缺口](./0059-misc-tail-batch-and-chrome.md) | 已实现（单测 20+）。上游 `eceac13` 的路由侧 + `46b5235`(#961/#890) | `app/api/{skills,plugins}/route.ts`、`app/fork-ui.css` | `components/{SkillsConfig,PluginsConfig,ChatInput,ChatWindow,SettingsUi}.tsx` |
+| 0060 | [设置页压缩预算与思考档 token 预算](./0060-context-and-thinking-budgets.md) | 已实现（单测 40）。**审计勘误**：`compaction.modelOverrides` 是每模型预算覆盖，不是「用哪个模型压缩」 | `lib/context-budget-settings.ts`、`lib/thinking-budget-settings.ts` | `components/SettingsPanel.tsx`、`lib/i18n/messages/*`、`design/pi-web-design/DIVERGENCE.md`（Y/Z 两节） |
+| 0061 | [会话正在跑时也能 fork + SSE backlog 封顶 + 子代理状态四条](./0061-session-and-stream-correctness.md) | 已实现。**保住「fork 后立即销毁 wrapper」不变量**（上游 `19774b8` #1023 改走 `createBranchedSession()`） | — | `lib/rpc-manager.ts`、`lib/subagents.ts`、`lib/session-liveness.ts`、`components/ChatWindow.tsx`（fork 按钮启用条件一行） |
 
 > **这批与前两批的三点差别**：
 > 1. 0020–0046 多数只在索引表里留了行，**没有独立 `.md`**；本批按约定 1（一个补丁 = 一个意图、

@@ -161,6 +161,17 @@ fork 补丁台账（相对上游 pi-web 的功能改动，合并上游后照此�
 - One `AgentSessionWrapper` per session id, keyed in `globalThis.__piSessions`
 - `globalThis` survives Next.js hot-reload; plain module-level Map does not
 - Idle timeout: 10 minutes. Concurrent `startRpcSession()` calls share a single start Promise (`globalThis.__piStartLocks`)
+- **Idle reclamation only asks `lib/session-liveness.ts`**, which is the single seam every
+  busy-signal flows through: a liveness provider (a visible session holds a lease and is
+  therefore never reclaimed) **plus** `hasActiveSessionLivenessProvider()` and
+  `hasDelegatedWork()` from `lib/delegated-work.ts`. A session whose background sub-agent
+  run is `starting | queued | running` counts as **busy** — otherwise the 10-minute timer
+  reaps the parent while the child is still going and `get_subagent_result` polls forever.
+  Register a new busy-signal through `lib/session-liveness.ts`, never by editing the
+  reclamation line: explicit shutdown and run-time replacement take priority over it, and
+  a read that fails or returns an unexpected shape answers "no delegated work" instead of
+  throwing. The process-wide `__piSubagentRuns` registry (`Symbol.for`) is the source of
+  truth for that signal, not artifact mtimes — our session model has no such files.
 
 ### Fork must destroy the wrapper immediately
 `AgentSession.fork()` **mutates the wrapper's inner state in-place** — after fork, `inner.sessionId` is the *new* session's id. If the wrapper stays alive in the registry under the old id, the next request gets the already-forked state and subsequent forks produce a corrupt `parentSession` chain.
