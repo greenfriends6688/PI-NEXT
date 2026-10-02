@@ -3,6 +3,7 @@
 import { forwardRef, Fragment, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getFileIcon, FolderIcon } from "./FileIcons";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   encodeFilePathForApi,
   getFileDirectory,
@@ -306,6 +307,10 @@ function CreateEntryInput({
 }) {
   return (
     <div
+      /* fork:pwa-sb —— 手机档这一行比别处高：`.pw-trow` 的 --tree-row 收到
+         --control-touch，这一格跟着抬（内联 height 24 要用 !important 压，
+         同 globals.css 皮肤层的做法）。否则输入框上下各剩 2px，手指点不中。 */
+      className="fork-pwa-sb-edit-row"
       style={{
         display: "flex",
         alignItems: "center",
@@ -334,6 +339,7 @@ function CreateEntryInput({
         onBlur={onCancel}
         placeholder={type === "dir" ? t("files.newFolderName") : t("files.newFileName")}
         aria-label={type === "dir" ? t("files.newFolderName") : t("files.newFileName")}
+        className="fork-pwa-sb-edit"
         style={{
           flex: 1,
           minWidth: 0,
@@ -374,6 +380,9 @@ export function TreeNode({
   onCreateValueChange,
   onCreateSubmit,
   onCreateCancel,
+  /** fork:pwa-sb —— 手机上没有 hover：行内两枚动作常驻（从 `FileExplorer` 传下来，
+   *  避免每行各自挂一个 matchMedia 监听）。桌面恒 false，行为一字未变。 */
+  isMobile,
   t,
 }: {
   node: FileNode;
@@ -398,6 +407,7 @@ export function TreeNode({
   onCreateValueChange: (value: string) => void;
   onCreateSubmit: () => void;
   onCreateCancel: () => void;
+  isMobile: boolean;
   t: Translate;
 }) {
   const open = expandedPaths.has(node.fullPath);
@@ -412,6 +422,14 @@ export function TreeNode({
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
+  // fork:pwa-sb —— 行尾两枚动作在桌面靠 `hovered` 出现；手机上 hover 不存在，等
+  // 合成 mouseenter 亮起来时这一行已经被点开了。取舍：
+  //   · 「下载」是 23px 的小图标芯片 —— 手机上常驻，代价只是行尾让出 40px；
+  //   · 「@ 提及」是 55px 宽的**文字**芯片，每行都常驻就是满屏蓝字（手机上文件树
+  //     一屏十几行），所以它留在 hover，但**进了这一行的长按菜单**
+  //     （contextMenuItems 的 `files.insertPath`，菜单项在这一档 44px 高）。
+  const showRowActions = hovered;
+  const showDownload = hovered || isMobile;
   // fork:linked-directory — 放行只对本次操作员点过的那一条生效，重启即失效。
   const [allowedLinkTarget, setAllowedLinkTarget] = useState<string | null>(null);
   const [allowingLink, setAllowingLink] = useState(false);
@@ -529,8 +547,10 @@ export function TreeNode({
         ref={rowRef}
         role="treeitem"
         /* fork:design-components —— 文件树行直接用画板 30 的 .pw-trow（24px /
-            radius-4 / hover 叠色，来自 board.css）。 */
-        className="pw-trow"
+            radius-4 / hover 叠色，来自 board.css）。`fork-pwa-sb-tree-row` 是本文件
+            私有的手机档钩子：≤640px 把行高抬到 --control-touch，并给行内的「插入
+            路径 / 下载」两枚补命中区（它们是内联定位的绝对元素，类改不动）。 */
+        className={`pw-trow fork-pwa-sb-tree-row${showDownload && !node.isDir ? " fork-pwa-sb-tree-row-acts" : ""}`}
         aria-expanded={node.isDir ? open : undefined}
         aria-selected={false}
         tabIndex={0}
@@ -556,8 +576,17 @@ export function TreeNode({
           // fork:gap10-sticky-dir — 展开的目录行在它自己的子项滚动时粘住。
           // `top` 按深度错开（封顶 3 层），否则子目录会盖到父目录上；背景不透明，
           // 否则会看穿到下面的行。
+          // fork:pwa-sb —— 行内两枚（插入路径 / 下载）是组件内联的绝对定位
+          // （`position` 已有，这里只补选择器命中），`download` 一枚只有 23×20。
+          // 粘顶偏移原来写死 `depth * 24`（= 树行高）：手机档行高抬到
+          // --control-touch 后会逐层少错开一半，改成跟着 token 走。
           ...(node.isDir && open
-            ? { position: "sticky" as const, top: Math.min(depth, 3) * 24, zIndex: 5, background: "var(--bg-panel)" }
+            ? {
+                position: "sticky" as const,
+                top: `calc(var(--tree-row) * ${Math.min(depth, 3)})`,
+                zIndex: 5,
+                background: "var(--bg-panel)",
+              }
             : { position: "relative" as const }),
           // fork:design-components —— 行高 / 圆角 / hover 叠色全部交给画板 .pw-trow，
           // 这里只留树特有的缩进与避让（inline 会压过类，重复属性必须删干净）。
@@ -600,6 +629,7 @@ export function TreeNode({
             }}
             onBlur={onRenameCancel}
             aria-label={t("files.renameEntry")}
+            className="fork-pwa-sb-edit"
             style={{
               flex: 1,
               minWidth: 0,
@@ -639,7 +669,7 @@ export function TreeNode({
           </span>
         )}
         {/* fork:linked-directory — 行上的「通向项目外」标记（不占 hover 位置）。 */}
-        {!hovered && pendingLinkTarget && (
+        {!showRowActions && pendingLinkTarget && (
           <span
             title={t("files.outsideLink", { target: pendingLinkTarget })}
             aria-label={t("files.outsideLink", { target: pendingLinkTarget })}
@@ -649,10 +679,10 @@ export function TreeNode({
             <i data-ico="external-link" data-size="11" aria-hidden="true"></i>
           </span>
         )}
-        {!hovered && !node.isDir && gitStatus && (
+        {!showRowActions && !node.isDir && gitStatus && (
           <GitStatusBadge status={gitStatus} t={t} />
         )}
-        {!hovered && containsGitChanges && (
+        {!showRowActions && containsGitChanges && (
           <span
             title={t("files.containsChangedFiles")}
             aria-label={t("files.containsChangedFiles")}
@@ -673,7 +703,7 @@ export function TreeNode({
             <i data-ico="loader-circle" data-size="10" className="animate-spin" aria-hidden="true"></i>
           </span>
         )}
-        {onAtMention && hovered && (
+        {onAtMention && showRowActions && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -705,7 +735,7 @@ export function TreeNode({
             {t("files.mention")}
           </button>
         )}
-        {hovered && !node.isDir && (
+        {showDownload && !node.isDir && (
           <a
             href={`/api/files/${encodeFilePathForApi(node.fullPath)}?type=download`}
             download
@@ -811,6 +841,7 @@ export function TreeNode({
               onCreateSubmit={onCreateSubmit}
               onCreateCancel={onCreateCancel}
               scrollToPath={scrollToPath}
+              isMobile={isMobile}
               t={t}
             />
           ))}
@@ -856,11 +887,13 @@ function RootSection({
   root,
   onOpenFile,
   refreshToken,
+  isMobile,
   t,
 }: {
   root: FileBrowserRoot;
   onOpenFile: OpenFileHandler;
   refreshToken: string;
+  isMobile: boolean;
   t: Translate;
 }) {
   const [entries, setEntries] = useState<FileNode[]>([]);
@@ -927,6 +960,7 @@ function RootSection({
             onCreateValueChange={NOOP}
             onCreateSubmit={NOOP}
             onCreateCancel={NOOP}
+            isMobile={isMobile}
             t={t}
           />
         ))
@@ -1096,6 +1130,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   onFileSearchOpenChange,
 }, ref) {
   const { t } = useI18n();
+  // fork:pwa-sb —— 一处读断点，往下传给每一棵树行（手机上没有 hover，行尾那两枚
+  // 动作得常驻）。挂在宿主这一层而不是每个 TreeNode，是为了不让上百行各挂一个
+  // matchMedia 监听。桌面恒 false。
+  const isMobile = useIsMobile();
   const [roots, setRoots] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1725,7 +1763,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           `.pw-iconbtn.sm`（头行那七个动作的同款按钮；新建文件 / 新建文件夹的
           字形取右键菜单里的 `file-plus` / `folder-plus`）。hover / disabled
           归 board.css，UA 归零归 `button.pw-iconbtn`。 */}
-      <div className="pw-inline" style={{ padding: "var(--space-icon) 6px", gap: "var(--space-tight)", borderBottom: "1px solid var(--border)" }}>
+      <div className="pw-inline fork-pwa-sb-tree-tools" style={{ padding: "var(--space-icon) 6px", gap: "var(--space-tight)", borderBottom: "1px solid var(--border)" }}>
         <button
           type="button"
           className="pw-iconbtn sm"
@@ -1957,6 +1995,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                     onCreateValueChange={handleCreateValueChange}
                     onCreateSubmit={() => void submitCreate()}
                     onCreateCancel={cancelCreate}
+                    isMobile={isMobile}
                     t={t}
                   />
                 ))}
@@ -2038,6 +2077,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                 onCreateValueChange={handleCreateValueChange}
                 onCreateSubmit={() => void submitCreate()}
                 onCreateCancel={cancelCreate}
+                isMobile={isMobile}
                 t={t}
               />
             ))
@@ -2049,6 +2089,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               root={root}
               onOpenFile={onOpenFile}
               refreshToken={`${refreshToken}:${extraWatchPulse}`}
+              isMobile={isMobile}
               t={t}
             />
           ))}
@@ -2083,7 +2124,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                行 = `.pw-prow`（图标槽 + 文字），分组之间是 `.pw-sep`。
                定位值（fixed / left / top / z-index）仍是产品自己的：
                菜单挂在 document.body 上，祖先没有 overflow 裁切问题。 */
-            className="pw-pop"
+            className="pw-pop fork-pwa-sb-menu"
             style={{
               position: "fixed",
               left: Math.min(contextMenu.x, (typeof window !== "undefined" ? window.innerWidth : 0) - 230),

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
 // fork:ui-pop-portal-fix —— worktree 切换 / 项目 ⋯ 菜单共用这一份（容器带 `--z-popover`）。
-import { PortalDropdown } from "./PortalDropdown";
+import { PortalDropdown, useDismissMenu } from "./PortalDropdown";
 import type { SessionInfo } from "@/lib/types";
 import { listSessionFamilies, type SessionFamily } from "@/lib/session-family";
 import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
@@ -25,7 +25,8 @@ import { DirectoryPicker } from "./DirectoryPicker";
 import { GroupedProjectList, useProjectDrag } from "./fork/GroupedProjectList";
 // fork:chat-workspace — standalone chat section (docs/patches/0001-chat-workspace.md)
 import { ChatWorkspaceRow } from "./ChatWorkspaceRow";
-import { SessionSearch } from "./SessionSearch";import { useIsMobile } from "@/hooks/useIsMobile";
+import { SessionSearch } from "./SessionSearch";
+import { useIsCompact, useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 import { TEXT } from "@/lib/typography";
 
@@ -413,6 +414,15 @@ function ProjectRow({
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState(label);
+  // fork:pwa-sb —— 触控设备上没有 hover：行内动作区默认隐藏，等用户「恰好」把手指
+  // 落在行上才出现（合成 mouseenter），而抽屉一点就跟着关掉，等于永远点不到。
+  // 更糟的是隐藏不等于不可点：`opacity: 0` 的 ⊕ 仍然吃 tap（实测 390 宽下
+  // 14 个项目行各有一个 22×36 的隐形命中区压在行尾，探针 .probe-hitsize.mjs
+  // 的「opacity:0 但仍可命中」计数 13 → 0 就是这条）。
+  // 所以判据用 `useIsCompact`（≤1024，含手机）而不是 `useIsMobile`：平板档的
+  // 侧栏虽然停靠而不是抽屉，hover 一样不存在。几何（间距 / 命中区）交给
+  // app/fork-ui.css 的 fork:pwa-sidebar-files 段。
+  const isMobile = useIsCompact();
   const menuRef = useRef<HTMLDivElement>(null);
   // fork:ui-pop-portal — 菜单本体 portal 到 body，关闭判据要连同面板一起算。
   const menuPanelRef = useRef<HTMLDivElement>(null);
@@ -462,7 +472,7 @@ function ProjectRow({
           onBlur={() => onRenameCommit?.(renameDraft)}
           aria-label={t("sidebar.renameProject")}
           maxLength={60}
-          className="pw-input"
+          className="pw-input fork-pwa-sb-input"
           style={{ flex: 1, minWidth: 0, height: "var(--control-xs)", minInlineSize: 0 }}
         />
       </div>
@@ -530,7 +540,7 @@ function ProjectRow({
       {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾）。
           fix:row-actions-drag —— `data-project-actions` 让行上的 dragstart 识别「这次
           是从动作区起手的」，直接取消拖拽、保住点击。 */}
-      <span className="pw-acts" data-project-actions="" draggable={false} style={{ opacity: hovered || menuOpen ? 1 : 0, flexShrink: 0 }}>
+      <span className="pw-acts fork-pwa-sb-proj-acts" data-project-actions="" draggable={false} style={{ opacity: hovered || menuOpen || isMobile ? 1 : 0, flexShrink: 0 }}>
       {(onOpenFolder || onRename || onRemove || onArchive) && (
         <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
           <span
@@ -613,7 +623,7 @@ function ProjectRow({
             onNewSession();
           }}
           className="pw-iconbtn sm"
-          style={{ opacity: hovered ? 1 : 0 }}
+          style={{ opacity: hovered || isMobile ? 1 : 0 }}
         >
           <span className="pw-ico"><i data-ico="plus" data-size="14"></i></span>
         </span>
@@ -731,6 +741,70 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [listScrollTop, setListScrollTop] = useState(0);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const listScrollRafRef = useRef<number | null>(null);
+  /* fork:pwa-drawer-gesture —— 手机抽屉的两条手势（点遮罩关闭由 AppShell 的遮罩
+     onClick 负责，这里补另两条）。抽屉壳在 AppShell 里，但这一列由本组件渲染、
+     `onToggleSidebar` 由 AppShell 递进来，所以监听挂在 `#session-sidebar` 上：
+
+       · **左滑关闭**：`touchstart → touchend`，只在抽屉已打开时生效，且要求横向位移
+         明显大于纵向（不然会把「上下滑列表」误判成关闭）。阈���从
+         `--fork-pwa-sb-swipe` 读，值与其它间距一起放在 fork-ui.css。
+       · **Esc 关闭**：气泡阶段监听且跳过 `defaultPrevented` / 已有对话框在场的情形
+         —— 设置、模型等弹层都自己 document 级监听 Esc，本组件比它们先挂载，
+         不让位的话一次 Esc 会把弹层和抽屉一起关掉。
+
+     只在 ≤640px 的抽屉态接线（`useIsMobile`），桌面端这两个监听根本不注册。 */
+  const isMobileDrawer = useIsMobile();
+  useEffect(() => {
+    if (!onToggleSidebar || !isMobileDrawer) return;
+    const drawer = document.getElementById("session-sidebar");
+    if (!drawer) return;
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) { tracking = false; return; }
+      if (!drawer.classList.contains("sidebar-open")) { tracking = false; return; }
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+      tracking = true;
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      /* 阈值从样式表读（`--fork-pwa-sb-swipe`），组件里不写死像素。
+         自定义属性的计算值是**代入之后**的 token 表达式（`calc(36px + 12px)`），
+         不是 `48px`，所以按 px 项加总，而不是 parseFloat 整个串。 */
+      const raw = getComputedStyle(drawer).getPropertyValue("--fork-pwa-sb-swipe");
+      let threshold = 0;
+      for (const match of raw.matchAll(/(-?[\d.]+)px/g)) threshold += Number.parseFloat(match[1]);
+      if (threshold <= 0) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (dx > -threshold) return;
+      if (Math.abs(dx) < Math.abs(dy)) return;
+      onToggleSidebar();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return;
+      if (!drawer.classList.contains("sidebar-open")) return;
+      event.preventDefault();
+      onToggleSidebar();
+    };
+    drawer.addEventListener("touchstart", onTouchStart, { passive: true });
+    drawer.addEventListener("touchend", onTouchEnd, { passive: true });
+    drawer.addEventListener("touchcancel", () => { tracking = false; }, { passive: true });
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      drawer.removeEventListener("touchstart", onTouchStart);
+      drawer.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onToggleSidebar, isMobileDrawer]);
+
   const handleListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const top = e.currentTarget.scrollTop;
     if (listScrollRafRef.current != null) return;
@@ -2299,6 +2373,11 @@ function SessionItem({
   onToggleCollapse?: () => void;
 }) {
   const { locale, t } = useI18n();
+  // fork:pwa-sb —— 触控档（`useIsCompact` = ≤1024，含手机）把四个行内动作收进
+  // 一枚 ⋯：四枚 22px 钉死就是 88px，外扩到 40px 命中区需要 160px 行宽
+  // （390 抽屉里行只有 255px，标题会被压到 60px）。收进菜单后行尾只占一枚，
+  // 标题多拿 66px，命中区也就不再互相抢；桌面端这段不渲染，行内四枚一字未动。
+  const isMobile = useIsCompact();
   // fork:ui — 置顶/归档的行内入口。与右键菜单共用 session-flags store
   //（useSyncExternalStore，toggle 后所有订阅者自动重渲）。
   const { flags: sessionFlagState, pin, archive } = useSessionFlags();
@@ -2306,6 +2385,11 @@ function SessionItem({
   const isArchived = sessionFlagState.archived.includes(session.id);
   const [hovered, setHovered] = useState(false);
   const showHover = hovered;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useDismissMenu(menuOpen, menuRef, menuPanelRef, closeMenu);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -2482,18 +2566,23 @@ function SessionItem({
               {title}
             </span>
             <span className="pw-m fork-session-meta">
-              <span>{formatRelativeTime(session.modified, locale)}</span>
-              <span aria-hidden="true"> · </span>
-              <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>
+              {/* fork:pwa-sb —— 时间与消息数是这一行唯一会被长文案挤掉的部分
+                  （标题能省略，这两个不能）。手机档把它们收进可收缩的一格，
+                  未读点/等你处理留在外面 —— 不然状态标记会跟着省略号一起被裁掉。 */}
+              <span className="fork-pwa-sb-meta">
+                <span>{formatRelativeTime(session.modified, locale)}</span>
+                <span aria-hidden="true"> · </span>
+                <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>
+              </span>
               {/* 两者互斥：等你处理 > 未读。运行中不出右侧标记（它靠底边扫掠表达）。
                   fork:no-session-tag（用户 2026-10-01）—— 手动「状态标记」及其彩色点已撤掉。 */}
               {isAwaiting ? (
-                <span className="pw-await" title={t(awaitingKind === "input" ? "sidebar.awaitingInput" : "sidebar.awaitingApproval")}>
+                <span className="pw-await fork-pwa-sb-flag" title={t(awaitingKind === "input" ? "sidebar.awaitingInput" : "sidebar.awaitingApproval")}>
                   <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
                   {t(awaitingKind === "input" ? "sidebar.awaitingInputShort" : "sidebar.awaitingApprovalShort")}
                 </span>
               ) : isUnread ? (
-                <span className="pw-dot unread" title={t("sidebar.newActivity")} aria-label={t("sidebar.newSessionActivity")} />
+                <span className="pw-dot unread fork-pwa-sb-flag" title={t("sidebar.newActivity")} aria-label={t("sidebar.newSessionActivity")} />
               ) : null}
             </span>
           </span>
@@ -2522,12 +2611,84 @@ function SessionItem({
             </button>
           )}
 
+          {/* fork:pwa-sb —— 手机档（`useIsMobile` = ≤640px）换成一枚常驻的 ⋯，
+              菜单本体是画板 02 的 `.pw-pop` + `.pw-prow`（与项目行同一个壳），
+              菜单项在手机上有 44px 命中高。桌面端这段不渲染，行内四枚一字未动。 */}
+          {isMobile && !session.transient && !confirmDelete && !renaming ? (
+            <div ref={menuRef} className="fork-pwa-sb-row-menu">
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); setMenuOpen((open) => !open); }}
+                title={t("chat.moreControls")}
+                aria-label={t("chat.moreControls")}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className={`pw-iconbtn sm${menuOpen ? " is-on" : ""}`}
+              >
+                <span className="pw-ico"><i data-ico="ellipsis" data-size="14" aria-hidden="true"></i></span>
+              </button>
+              <PortalDropdown
+                open={menuOpen}
+                anchorRef={menuRef}
+                panelRef={menuPanelRef}
+                className="pw-pop fork-pwa-sb-menu"
+                width={200}
+                align="right"
+              >
+                <div role="menu" aria-label={t("chat.moreControls")}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pw-prow"
+                    style={{ width: "100%" }}
+                    onClick={(event) => { event.stopPropagation(); closeMenu(); pin(session.id); }}
+                  >
+                    <span className="pw-ico"><i data-ico="pin" data-size="14" aria-hidden="true"></i></span>
+                    {t(isPinned ? "session.unpin" : "session.pin")}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pw-prow"
+                    style={{ width: "100%" }}
+                    onClick={(event) => { event.stopPropagation(); closeMenu(); archive(session.id); }}
+                  >
+                    <span className="pw-ico"><i data-ico="archive" data-size="14" aria-hidden="true"></i></span>
+                    {t(isArchived ? "session.unarchive" : "session.archive")}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pw-prow"
+                    style={{ width: "100%" }}
+                    onClick={(event) => { event.stopPropagation(); closeMenu(); startRename(event); }}
+                  >
+                    <span className="pw-ico"><i data-ico="square-pen" data-size="14" aria-hidden="true"></i></span>
+                    {t("sidebar.rename")}
+                  </button>
+                  <div className="pw-sep" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pw-prow"
+                    style={{ width: "100%", color: "var(--error)" }}
+                    onClick={(event) => { event.stopPropagation(); closeMenu(); handleDeleteClick(event); }}
+                  >
+                    <span className="pw-ico" style={{ color: "var(--error)" }}><i data-ico="trash-2" data-size="14" aria-hidden="true"></i></span>
+                    {t("sidebar.delete")}
+                  </button>
+                </div>
+              </PortalDropdown>
+            </div>
+          ) : null}
+
           {/* Hover actions appear over the title's trailing edge; nothing is
               reserved when idle so the title uses the full row width. The
               relative time stays available in the title tooltip above.
               Also shown when a row slides under a stationary pointer after a
-              delete reflows the list (see syncPointerSession). */}
-          {showHover && !session.transient ? (
+              delete reflows the list (see syncPointerSession).
+              手机档走上面的 ⋯ 菜单，这里只在指针设备上渲染。 */}
+          {!isMobile && showHover && !session.transient ? (
             <span className="pw-acts" style={{ opacity: 1, flexShrink: 0 }}>
               {/* fork:ui — 置顶（选中态实心 + accent 色）。 */}
               <button

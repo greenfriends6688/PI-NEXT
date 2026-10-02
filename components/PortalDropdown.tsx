@@ -170,3 +170,45 @@ export function useDismissOnOutside(
     };
   }, [open, anchorRef, panelRef, close]);
 }
+
+/**
+ * fork:pwa-sidebar-files —— 手机上专用的关闭判据，与 `useDismissOnOutside` 同签名。
+ *
+ * 差别只有两处，都是触摸设备上的实故障：
+ *  1. `pointerdown` 取代 `mousedown`。触摸一次会先派发 `pointerdown` → `mousedown` →
+ *     `mouseup` → `click`；旧判据在 `mousedown` 同步卸载面板，那一发 `click` 的目标
+ *     已经不在 DOM 里，菜单项「点了没反应」（项目行 / 面板头的 ⋯ 都是这个症状）。
+ *     `pointerdown` 之后浏览器仍会补上 `click`，面板能吃到这一下。
+ *  2. Escape 走**捕获阶段**并跳过 `defaultPrevented` / `[role=dialog]` / `[aria-modal]`。
+ *     抽屉自己的 Esc 监听在冒泡阶段，浮层的 Esc 也在冒泡阶段 —— 不加这层判据时，
+ *     在 ⋯ 菜单里按一次 Esc 会先把菜单关掉、再被抽屉/设置弹层接手，两个界面一起消失。
+ */
+export function useDismissMenu(
+  open: boolean,
+  anchorRef: RefObject<HTMLElement | null>,
+  panelRef: RefObject<HTMLElement | null>,
+  close: () => void,
+) {
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (anchorRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key !== "Escape") return;
+      const el = event.target as HTMLElement | null;
+      if (el?.closest?.("[role=dialog], [aria-modal=true]")) return;
+      event.stopPropagation();
+      close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open, anchorRef, panelRef, close]);
+}

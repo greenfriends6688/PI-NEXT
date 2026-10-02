@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import { loadExplorerOpen, saveExplorerOpen } from "@/lib/file-explorer-state";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { DismissButton } from "./DismissButton";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
+import { PortalDropdown, useDismissMenu } from "./PortalDropdown";
+// fork:pwa-sb — 触摸安全的浮层关闭（见那里的注释）：PortalDropdown 自带的
+// useDismissOnOutside 在 mousedown 上同步卸载，触摸时会把菜单项的 click 吞掉。
 import { TEXT } from "@/lib/typography";
 
 interface FileManagerAvailability {
@@ -92,6 +96,13 @@ export function ExplorerPanel({
   const [changesCount, setChangesCount] = useState(0);
   const [changesCollapsed, setChangesCollapsed] = useState(true);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
+  // fork:pwa-sb —— 手机档头行的「更多」（见 JSX 里的注释）。
+  const isMobile = useIsMobile();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const morePanelRef = useRef<HTMLDivElement>(null);
+  const closeMore = useCallback(() => setMoreOpen(false), []);
+  useDismissMenu(moreOpen, moreRef, morePanelRef, closeMore);
   const fileExplorerRef = useRef<FileExplorerHandle>(null);
   const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredExplorerOpenRef = useRef(false);
@@ -157,6 +168,58 @@ export function ExplorerPanel({
     ? t(FILE_MANAGER_ERROR_KEYS[fileManagerError] ?? fileManagerError)
     : null;
 
+  const refreshExplorer = useCallback(() => {
+    if (onExplorerRefresh) onExplorerRefresh();
+    else setExplorerKey((k) => k + 1);
+    setExplorerRefreshDone(true);
+    if (explorerRefreshTimerRef.current) clearTimeout(explorerRefreshTimerRef.current);
+    explorerRefreshTimerRef.current = setTimeout(() => setExplorerRefreshDone(false), 2000);
+  }, [onExplorerRefresh]);
+
+  /* fork:pwa-sb —— 手机档收进「更多」的那几项。与桌面那一排同源（同一批动作、
+     同一批文案），只是换一个容器；顺序照桌面从左到右：文件管理器 / 变更 /
+     上传 / 刷新。搜索与终端留在头行（高频，且 `fileSearchOpen` 是搜索框开关）。 */
+  const overflowTools = useMemo(() => {
+    const tools: {
+      key: string;
+      icon: string;
+      label: string;
+      disabled?: boolean;
+      onSelect: () => void;
+    }[] = [
+      {
+        key: "file-manager",
+        icon: "folder-open",
+        label: fileManagerUnavailable
+          ? t(fileManager?.reason === "remote" ? "sidebar.openInExplorerRemoteOnly" : "sidebar.openInExplorerUnsupported")
+          : fileManagerLabel,
+        disabled: fileManagerUnavailable,
+        onSelect: () => { void openInFileManager(); },
+      },
+    ];
+    if (explorerOpen) {
+      tools.push({
+        key: "changes",
+        icon: "file-diff",
+        label: changesCount > 0 ? t("sidebar.reviewChanges", { count: changesCount }) : t("sidebar.noChanges"),
+        disabled: changesCount === 0,
+        onSelect: () => setChangesCollapsed((v) => !v),
+      });
+      tools.push({
+        key: "upload",
+        icon: "upload",
+        label: t("sidebar.uploadFilesTitle"),
+        disabled: explorerUploadBusy,
+        onSelect: () => fileExplorerRef.current?.openUploadPicker(),
+      });
+    }
+    tools.push({ key: "refresh", icon: "refresh-cw", label: t("sidebar.refreshExplorer"), onSelect: refreshExplorer });
+    return tools;
+  }, [
+    changesCount, cwd, explorerOpen, explorerUploadBusy, fileManager, fileManagerUnavailable,
+    fileManagerLabel, onOpenTerminal, openInFileManager, refreshExplorer, t,
+  ]);
+
   return (
     <div
       className="file-explorer-section"
@@ -218,6 +281,70 @@ export function ExplorerPanel({
             {cwd.split(/[\/]/).filter(Boolean).at(-1) ?? cwd}
           </span>
         </button>
+        {/* fork:pwa-sb —— 手机档（≤640px）头行只留「标题 + 搜索 / 终端 / 更多」。
+            桌面端是七枚一字排开（画板 30 头行那一排），但 390 宽下每枚 22px、
+            中心距只有 26px：按到 40px 命中区必须每侧外扩 9px，相邻两枚就会重叠
+            14px —— 手指按哪一枚全看绘制顺序。与其抢命中，不如收进「更多」：
+            菜单项是 `.pw-prow`（手机 44px 高），标题也多出 130px。
+            留在行内的是两个高频动作（搜索 / 终端）；其余五枚（文件管理器 / 变更 /
+            上传 / 刷新 + 头行那枚新建标签由 AppShell 递进来）走「更多」，
+            新建标签是 trailingActions，两档都渲染。
+            桌面端不渲染 ⋯，那一排一字未动（画板 30 的对位不受影响）。 */}
+        {isMobile ? (
+          <>
+            <ToolbarIconButton
+              onClick={() => setFileSearchOpen((open) => !open)}
+              title={t("sidebar.searchFiles")}
+              active={fileSearchOpen}
+              ariaPressed={fileSearchOpen}
+            >
+              <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true"></i></span>
+            </ToolbarIconButton>
+            {onOpenTerminal && (
+              <ToolbarIconButton onClick={() => onOpenTerminal(cwd)} title={t("terminal.open")}>
+                <span className="pw-ico"><i data-ico="square-terminal" data-size="14" aria-hidden="true"></i></span>
+              </ToolbarIconButton>
+            )}
+            <div ref={moreRef} className="fork-pwa-sb-tools-more">
+              <ToolbarIconButton
+                onClick={() => setMoreOpen((open) => !open)}
+                title={t("chat.moreControls")}
+                active={moreOpen}
+                ariaPressed={moreOpen}
+              >
+                <span className="pw-ico"><i data-ico="ellipsis" data-size="14" aria-hidden="true"></i></span>
+              </ToolbarIconButton>
+              <PortalDropdown
+                open={moreOpen}
+                anchorRef={moreRef}
+                panelRef={morePanelRef}
+                className="pw-pop fork-pwa-sb-menu"
+                width={210}
+                align="right"
+              >
+                <div role="menu" aria-label={t("chat.moreControls")}>
+                  {overflowTools.map((tool) => (
+                    <button
+                      key={tool.key}
+                      type="button"
+                      role="menuitem"
+                      className="pw-prow"
+                      style={{ width: "100%" }}
+                      onClick={() => { closeMore(); if (tool.disabled) return; tool.onSelect(); }}
+                      disabled={tool.disabled}
+                    >
+                      <span className="pw-ico">
+                        <i data-ico={tool.icon} data-size="14" aria-hidden="true"></i>
+                      </span>
+                      {tool.label}
+                    </button>
+                  ))}
+                </div>
+              </PortalDropdown>
+            </div>
+          </>
+        ) : (
+          <>
         {/* PR #907 — 在系统文件管理器里打开当前工作区（终端按钮左侧）。字形取画板 30
             头行那一枚（行 114 `folder-open`）；平台差异由 title 文案承担
             （Finder / 资源管理器 / 通用），不再另画一套平台图标。 */}
@@ -277,13 +404,7 @@ export function ExplorerPanel({
           </ToolbarIconButton>
         )}
         <ToolbarIconButton
-          onClick={() => {
-            if (onExplorerRefresh) onExplorerRefresh();
-            else setExplorerKey((k) => k + 1);
-            setExplorerRefreshDone(true);
-            if (explorerRefreshTimerRef.current) clearTimeout(explorerRefreshTimerRef.current);
-            explorerRefreshTimerRef.current = setTimeout(() => setExplorerRefreshDone(false), 2000);
-          }}
+          onClick={refreshExplorer}
           title={t("sidebar.refreshExplorer")}
           active={explorerRefreshDone}
         >
@@ -291,6 +412,11 @@ export function ExplorerPanel({
             <i data-ico={explorerRefreshDone ? "check" : "refresh-cw"} data-size="14" aria-hidden="true"></i>
           </span>
         </ToolbarIconButton>
+          </>
+        )}
+        {/* fork:ui-panel-row —— 调用方（AppShell）递进来的面板级动作（新建浏览器
+            标签）。两档都渲染：手机档它与「搜索 / 更多」同属头行右端那一小段，
+            间距由 `fork:pwa-sb-hit-pitch` 兜住。 */}
         {trailingActions}
       </div>
       {fileManagerErrorMessage && (

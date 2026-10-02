@@ -54,7 +54,8 @@ test("多根时 watch 按根订阅，而不是只订阅会话 cwd", () => {
 test("GAP-10 细节一：展开的目录行在子项滚动时粘住（深度错开、背景不透明）", () => {
   assert.match(source, /fork:gap10-sticky-dir/);
   assert.match(source, /position: "sticky"/);
-  assert.match(source, /top: Math\.min\(depth, 3\) \* 24/);
+  // 错开量改跟 token 走（`--tree-row` 手机档会被抬到 40，写死 24 会让粘顶行错位）。
+  assert.match(source, /top: `calc\(var\(--tree-row\) \* \$\{Math\.min\(depth, 3\)\}\)`/);
   assert.match(source, /background: "var\(--bg-panel\)"/);
 });
 

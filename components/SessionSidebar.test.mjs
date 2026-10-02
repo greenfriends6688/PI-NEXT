@@ -125,7 +125,9 @@ test("lifecycle refreshes bypass the cache while cross-window polling reuses it"
 
 test("does not expose disk-backed actions for transient sessions", () => {
   assert.match(sessionItemSource, /if \(session\.transient\) return;/);
-  assert.match(sessionItemSource, /\{showHover && !session\.transient \? \(/);
+  // fork:pwa-sidebar-files —— 手机上那排 hover 动作改成常驻的一枚 ⋯ 菜单，
+  // 菜单项里仍带 `!session.transient` 的判据；所以这排 inline 动作在手机上完全不渲染。
+  assert.match(sessionItemSource, /\{!isMobile && showHover && !session\.transient \? \(/);
 });
 
 test("hides subagent rows and aggregates their state into the main session row", () => {
@@ -192,7 +194,9 @@ test("keeps a standalone chat section beside the projects", () => {
 // （没有给 portal 容器 z-index），于是浮窗被 `.sidebar-container`(z 200) 整块盖住 ——
 // DOM 里有、点不到、看不见。这条守卫防止副本再长回来。
 test("reuses the shared PortalDropdown instead of a local copy", () => {
-  assert.match(source, /import \{ PortalDropdown \} from "\.\/PortalDropdown";/);
+  // fork:pwa-sidebar-files —— 从共享件多引一枚 `useDismissMenu`（触摸下 `pointerdown`
+  // 判据 + 捕获阶段 Esc），仍然只有一个实现，没长副本。
+  assert.match(source, /import \{ PortalDropdown, useDismissMenu \} from "\.\/PortalDropdown";/);
   assert.doesNotMatch(source, /^(const|function) DROPDOWN_ANIMATION_MS/m);
   assert.doesNotMatch(source, /^function AnimatedDropdown\(/m);
   assert.doesNotMatch(source, /^function PortalDropdown\(\{/m);

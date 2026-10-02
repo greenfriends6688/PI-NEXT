@@ -2627,3 +2627,343 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     min-height: var(--control-touch);
   }
 }
+
+
+/* ===========================================================================
+ * fork:pwa-sidebar-files —— 手机 / PWA 档的**侧栏（会话 + 项目树）与文件面板**。
+ *
+ * 覆盖三个文件：components/SessionSidebar.tsx（会话 / 项目行 + 抽屉手势）、
+ * components/FileExplorer.tsx（文件树行 / 动作条 / 右键浮层）、
+ * components/ExplorerPanel.tsx（面板头工具条）。自定义类前缀 `fork-pwa-sb-*`
+ * 是这三个文件私有的钩子，只为在手机档改几何 —— 视觉（色 / 字阶 / 圆角 / 动效）
+ * 一律来自 board.css，本段不写一个颜色字面量、不写一个动效时长。
+ *
+ * 三条量出来的约束决定了这一段怎么写（数字都是 390×844 上的实测值）：
+ *
+ * ① **命中区与「视觉尺寸」在手机上是对立的。** 画板给的是 1440px 桌面下的
+ *    22px 图标钮（`.pw-iconbtn.sm`），手指要 40px。四枚并排各给 40px 就要
+ *    160px 行尾 —— 实测会话行只有 255px 宽、标题只剩 106px（「19秒前 · 549 条
+ *    消息」整行被省略号吃掉，未读点跟着消失）。所以两件事同时做：
+ *      · **一排一排收进「更多」**（JS：`useIsMobile` 时头行 / 会话行走 ⋯），
+ *        视觉尺寸与命中区不再在同一行里抢；
+ *      · 剩下的相邻两枚把**间距**从 2px 抬到 `--s5`(24)，再用 `::after` 只向
+ *        左右各外扩 9px → 22px 的钮拿到 40×40，两枚之间还留 6px 空隙。
+ *    外扩量（`--fork-pwa-sb-slop-x`）小于间距的一半是硬要求，否则两枚命中盒
+ *    相交，按到哪一枚只看谁后画 —— 那就不是命中区，是抽签。
+ *
+ * ② **纵向一律不加外扩，改成把盒子本身抬到 40。** 相邻行的中心距只有 37px
+ *    （36 行高 + 1px hairline），任何纵向 `::after` 都会伸进邻居那行；把
+ *    图标钮的 `min-height` 抬到 `--fork-pwa-sb-hit`(40) 并让行高 ≥41 就干净了。
+ *    命中区因此是**精确的 40×40，一处重叠都没有**（量测 overlap = 0）。
+ *
+ * ③ **抽屉上的动作在手机上本来就够不着。** `.pw-session` 的行内动作区是
+ *    hover 才挂载的（SessionItem 里 `showHover && …`），手机没有 hover；合成
+ *    mouseenter 又要先点一下行 —— 而那一下已经把抽屉关掉了。所以手机档由 JS
+ *    换成常驻的一枚 ⋯，菜单项（`.pw-prow`）在这一档直接给到 44px。
+ *
+ * 分档：手机档（≤640px）全开；平板档（641–1024 且 `pointer: coarse`）只开
+ * 「隐形命中区」那一小段（见段末的 fork:pwa-sb-tablet）。≥1025px 桌面一个像素
+ * 不变 —— 两段都带 `max-width: 1024px` 上限，且不带 `hasTouch` 的桌面浏览器
+ * 在这一档 `pointer` 是 fine，整段不成立。
+ * ======================================================================== */
+@media (max-width: 640px), (pointer: coarse) and (min-width: 641px) and (max-width: 1024px) {
+  /* ---- 这一档用到的四个量（都从已有 token 算，不写字面量）------------- */
+  :root {
+    /* 触控靶边长 40px：--control-touch(36) + --s1(4)。 */
+    --fork-pwa-sb-hit: calc(var(--control-touch) + var(--s1));
+    /* 图标钮的横向外扩：--space-row(6) + --space-icon(3) = 9px
+       → 22px 的 `.pw-iconbtn.sm` 得到 40px 命中宽。 */
+    --fork-pwa-sb-slop-x: calc(var(--space-row) + var(--space-icon));
+    /* 相邻动作钮的最小间距 24 > 2 × 9，两枚命中盒不重叠。 */
+    --fork-pwa-sb-hit-pitch: var(--s5);
+    /* 抽屉左滑关闭的位移阈值（SessionSidebar 从这里读，不在组件里写死）。 */
+    --fork-pwa-sb-swipe: calc(var(--control-touch) + var(--s3));
+  }
+}
+
+/* 手机档的每一行几何。分档原因见上一段的文件头。 */
+@media (max-width: 640px) {
+  /* ---- ① 抽屉底部：设置入口 ------------------------------------------
+     量测：`button.pw-side-foot` 是 271×36 —— 高度被 board.css 的
+     `height: var(--topbar-height)` 锁死，DSN-04 的 `min-height:
+     var(--control-touch)`(=36) 顶不上去（36 = 36）。它是整行可点的入口，
+     36px 撑不满一条手指。底栏是抽屉的最下一格，往上长不吃任何内容（上面是
+     `flex: 1` 的滚动区）；home indicator 的留白已由 AppShell 内联的
+     `padding-bottom: env(safe-area-inset-bottom)` 垫好，这里不重复。 */
+  /* 44px（--control-touch 36 + --s2）：这是本任务唯一要求 44 的一条 —— 底栏是整行
+     可点的入口，抽屉又贴在屏幕最下缘，44 是手指的下限，不是 `::after` 能解决的
+     （往下外扩会伸进 home indicator 的禁区，OS 根本不再派发触摸）。 */
+  button.pw-side-foot { height: calc(var(--control-touch) + var(--s2)); }
+
+  /* ---- ② 侧栏头（搜索 / 折叠两枚）------------------------------------
+     量测：`.pw-iconbtn` 是 --control-xs(24)、头行高 --topbar-height(36)、
+     gap --s2(8)。头行改成与主区顶栏同档（`--height-toolbar` 在 ≤1024 是 48，
+     原来侧栏头 36 / 主区顶栏 48 本身就对不齐），两枚按钮抬到 40、间距抬到 24。 */
+  .pw-side-head { height: var(--height-toolbar); gap: var(--fork-pwa-sb-hit-pitch); }
+  .pw-side-head > .pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+
+  /* ---- ③ 项目行：行高 + 动作区常驻 + 间距 + 徽标不被压 ----------------
+     量测：`.pw-row .pw-acts` 的两枚（⋯ / ⊕）各 22×36、中心距 24px，且整组
+     `opacity: 0` 直到 `.pw-row:hover` —— 手机上等于不存在（常驻由
+     SessionSidebar 的 `isMobile` 内联给出，这里只补行高 / 间距 / 命中区）。
+     选择器要带 `.pw-row`：board.css 的 `.pw-row .pw-acts` 是两个类，
+     单类写不赢它。 */
+  .pw-row { min-height: var(--fork-pwa-sb-hit); }
+  .pw-row .fork-pwa-sb-proj-acts { gap: var(--fork-pwa-sb-hit-pitch); }
+  .pw-row .fork-pwa-sb-proj-acts [role="button"] { min-height: var(--fork-pwa-sb-hit); }
+  /* 会话数 / 活动徽标不参与收缩：名字让位，数字要一直是完整的。 */
+  .pw-row .pw-count,
+  .pw-row .pw-badge { flex: none; }
+
+  /* ---- ③b 聊天工作区行（画板 02 的 B 帧，聊天分区标题行）-------------
+     量测：`div.pw-row` 里是「标题 button + 徽标 + 三枚 22px 动作（+ / 齿轮 /
+     折叠）」，三枚 gap 2px，整组 hover 才出现。手机上常驻由 ChatWorkspaceRow
+     的 `isMobile` 内联给出，这里补间距、命中区，以及把三枚收进一条 40px 的
+     命中带：3×22 + 2×24 = 114px，标题还剩 ~120px，够放「聊天工作区」。 */
+  .pw-row .fork-pwa-sb-ws-acts { gap: var(--fork-pwa-sb-hit-pitch); }
+  .pw-row .fork-pwa-sb-ws-acts > button { min-height: var(--fork-pwa-sb-hit); }
+  /* 标题那一格（`.pw-row > button.pw-inline`，聊天工作区行 / 搜索组头）也占满行高。 */
+  .pw-row > button.pw-inline { min-height: var(--fork-pwa-sb-hit); }
+  /* 项目行的折叠箭头量到只有 12.4×36 —— 它自己是 `[role=button]`，必须能按到。
+     右侧隔着一个 `.grow` 弹性空档（再到行尾徽标还有 ~50px），外扩 9px 不会
+     碰到任何别的命中盒。 */
+  .pw-row > .pw-ico[role="button"] { min-height: var(--fork-pwa-sb-hit); }
+
+  /* ---- ④ 会话行：常驻的 ⋯ 与折叠箭头的间距 + 命中区 -------------------
+     量测：`.pw-session` 的 gap 是 --s2(8)，折叠箭头与 ⋯ 中心距只有 30px。
+     行高 --row-height(48)（运行中 / 等你处理 58），两枚 40px 的钮竖着放得下，
+     上下各留 4px，不与相邻行（中心距 49）相交。 */
+  .pw-session > .fork-pwa-sb-row-menu { margin-inline-start: var(--fork-pwa-sb-hit-pitch); }
+  .pw-session > .fork-pwa-sb-row-menu > button,
+  .pw-session > button.pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+  /* 副行（时间 · 条数 + 未读点）在 40px 命中带进来之后只剩 ~90px；未读点不许
+     被省略号吃掉，所以那一格固定在行尾。 */
+  .pw-session .pw-m.fork-session-meta { min-width: 0; }
+
+  /* ---- ⑤ 会话行的次要信息行 -------------------------------------------
+     量测：hover 态下 `.pw-m` 只剩 106px，「19秒前 · 549 条消息」整行省略，
+     未读点跟着裁掉 —— 未读恰恰是唯一不能被裁的那个。
+     手机档把这一行改成 flex：时间 / 条数收进可收缩的一格（`fork-pwa-sb-meta`
+     是 SessionItem 里的包裹层，桌面端是纯 inline，零影响），状态标记
+     （`.fork-pwa-sb-flag`：未读点 / 等你处理）固定在行尾不被压掉。 */
+  .pw-session .pw-m.fork-session-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-icon);
+    min-width: 0;
+  }
+  .fork-pwa-sb-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pw-session .pw-m .fork-pwa-sb-flag { flex: none; }
+
+  /* ---- ⑤b 分区头 / 页签切换 / 搜索格 ------------------------------------
+     量测（390，改动前）：「新建任务」255×36、分区头（全部展开/收起）255×36、
+     `.pw-seg` 两枚页签 124.5×36、`.pw-side-search` 高 --control-sm(28) 而里面的
+     清除钮只有 22×24。三者都是整行/整格的入口，抬到 40 不吃任何内容
+     （上面是 `flex: 1` 的滚动区）。`.pw-side-search` 的高度是 board.css 写死的
+     单值，这里只抬里面的钮 + 给输入格留出行高。 */
+  .pw-side-nav > .pw-row,
+  .sidebar-container > .pw-seg > button,
+  .pw-side-scroll .pw-group-title { min-height: var(--fork-pwa-sb-hit); }
+  .pw-side-search { height: var(--fork-pwa-sb-hit); }
+  .pw-side-search > button.pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+
+  /* ---- ⑤c 项目重命名输入框 --------------------------------------------
+     量测：重命名态那一行是 `.pw-row` + `.pw-input`，输入格高 --control-xs(24)、
+     外格 30。手机上 24px 的一行输入框是指尖擦过的高度；内联 height 要用
+     !important 压（同 ⑧ 的口径）。 */
+  .pw-row .fork-pwa-sb-input { height: var(--control-sm) !important; }
+
+  /* ---- ⑥ 抽屉里的浮层菜单项 -------------------------------------------
+     量测：会话行的 ⋯ 菜单 / 项目 ⋯ 菜单项都是 `.pw-prow`（padding
+     --space-row(6) 上下 + 12px 字 = 36px）。菜单项是这一档**唯一**能真正
+     做到 44 的控件：它本来就是一整行文字，没有「保持视觉尺寸」的理由。 */
+  .fork-pwa-sb-menu [role="menuitem"] { min-height: calc(var(--control-touch) + var(--s2)); }
+  /* board.css 的 fork:btn-disabled 把 `.pw-btn / .pw-iconbtn / …` 列进了禁用态，
+     `.pw-prow` 不在其中（画板里菜单行没有禁用态）。这里的「变更（暂无改动）」
+     正是恒禁用的一条 —— 值沿用同一族 `.pw-iconbtn:disabled` 的 0.45 / not-allowed。 */
+  .fork-pwa-sb-menu [role="menuitem"]:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* ---- ⑦ 文件面板：面板头工具条 ---------------------------------------
+     量测（390）：头行七枚 `.pw-iconbtn.sm` 各 22×36、中心距 26px，最后一枚
+     中心在 x=371（行右缘 389）。JS 已把其中五枚收进「更多」，剩下的（搜索 /
+     更多 / 新建标签）把间距抬到 --s5、头行抬到 40。 */
+  .file-explorer-header.pw-panel-head {
+    height: var(--fork-pwa-sb-hit);
+    gap: var(--fork-pwa-sb-hit-pitch);
+  }
+  .file-explorer-header.pw-panel-head > .pw-iconbtn,
+  .file-explorer-header .fork-pwa-sb-tools-more { min-height: var(--fork-pwa-sb-hit); }
+  .file-explorer-header .fork-pwa-sb-tools-more > button { min-height: var(--fork-pwa-sb-hit); }
+  /* 标题（`⌄ 文件浏览器 <目录名>`）那一格本身也是一整块可点的（展开/收起），
+     量到 185×36.5：跟着头行一起抬到 40。 */
+  .file-explorer-header .file-explorer-toggle { min-height: var(--fork-pwa-sb-hit); }
+
+  /* ---- ⑧ 文件树：动作条与文件行 ---------------------------------------
+     量测：树内动作条两枚（新建文件 / 新建文件夹）中心距 24px；文件行
+     `.pw-trow` 高 --tree-row(24)，24px 的一行在手指下就是一擦。
+     动作条的 gap 与行尾内距都是内联几何，只能 !important —— 同 globals.css
+     皮肤层那条口径。行高 24 → 40（--fork-pwa-sb-hit）：纵向命中区不外扩，
+     盒子本身就是 40，竖着正好放进一行里，相邻行（中心距 41）零重叠。
+     粘顶的目录行按 --tree-row 逐层错开（组件里已改成 `calc(var(--tree-row) * n)`），
+     在这一档跟着行高一起放大。 */
+  .fork-pwa-sb-tree-tools { gap: var(--fork-pwa-sb-hit-pitch) !important; }
+  .fork-pwa-sb-tree-tools .pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+  .fork-pwa-sb-tree-row { height: var(--fork-pwa-sb-hit); }
+  /* 行内那两枚（插入路径 55×20 / 下载 23×20）是内联绝对定位的，宽高也是
+     内联的 —— `min-height` 压得住 `height`。
+     手机档这两枚常驻（组件里 `showRowActions = hovered || isMobile`），
+     所以要给行尾留出位置，否则文件名一直伸到按钮底下：
+     目录行只有「插入路径」（right 4 / 宽 55 / 外扩 9 = 68）；
+     文件行两枚都在，且「插入路径」在同行时被左移一档（right 68）让出空隙，
+     合计 68 + 55 + 9 = 132，`.pw-trow` 的 padding-right 是内联的，
+     只能 !important。 */
+  .fork-pwa-sb-tree-row > button,
+  .fork-pwa-sb-tree-row > a { min-height: var(--fork-pwa-sb-hit); }
+  .fork-pwa-sb-tree-row:has(> a) > button { right: calc(var(--s5) + var(--s4)) !important; }
+  .fork-pwa-sb-tree-row-acts {
+    padding-inline-end: calc(var(--s6) + var(--s5) + var(--s2)) !important;
+  }
+  .fork-pwa-sb-tree-row-acts:has(> a) {
+    padding-inline-end: calc(var(--s6) + var(--s6) + var(--s5) + var(--s5) + var(--s4)) !important;
+  }
+
+  /* ---- ⑨ 新建 / 重命名的行内输入 -------------------------------------
+     量测：新建行的外格高 --control-xs(24)、输入框高 20 —— 手机上输入框上下
+     各剩 2px。两处高度都是内联几何，要压只能 !important（同上）。输入格保持
+     --control-sm(28)，外格 36。 */
+  .fork-pwa-sb-edit-row { height: var(--control-touch) !important; }
+  .fork-pwa-sb-edit { height: var(--control-sm) !important; }
+
+  /* ---- ⑩ 命中区（::after 只向左右外扩）-------------------------------
+     纵向靠上面把盒子抬到 40 解决，这里只补横向：22 + 9 × 2 = 40。
+     伪元素是按钮的子节点，超出盒子的部分仍算按钮命中区；有意不设
+     `pointer-events: none`（与 DSN-04 同一条注释）。所有相邻对之间的
+     间距都在 `--fork-pwa-sb-hit-pitch`(24) 以上，两枚互不抢。 */
+  .pw-side-head > .pw-iconbtn,
+  .pw-row > .pw-ico[role="button"],
+  .pw-row .fork-pwa-sb-proj-acts [role="button"],
+  .pw-row .fork-pwa-sb-ws-acts > button,
+  .pw-session > .fork-pwa-sb-row-menu > button,
+  .pw-session > button.pw-iconbtn,
+  .file-explorer-header .fork-pwa-sb-tools-more > button,
+  .file-explorer-header.pw-panel-head > .pw-iconbtn,
+  .fork-pwa-sb-tree-tools .pw-iconbtn,
+  .fork-pwa-sb-tree-row > button,
+  .fork-pwa-sb-tree-row > a {
+    position: relative;
+  }
+  .pw-side-head > .pw-iconbtn::after,
+  .pw-row > .pw-ico[role="button"]::after,
+  .pw-row .fork-pwa-sb-proj-acts [role="button"]::after,
+  .pw-row .fork-pwa-sb-ws-acts > button::after,
+  .pw-session > .fork-pwa-sb-row-menu > button::after,
+  .pw-session > button.pw-iconbtn::after,
+  .file-explorer-header .fork-pwa-sb-tools-more > button::after,
+  .file-explorer-header.pw-panel-head > .pw-iconbtn::after,
+  .fork-pwa-sb-tree-tools .pw-iconbtn::after,
+  .fork-pwa-sb-tree-row > a::after,
+  .fork-pwa-sb-tree-row > button::after {
+    content: "";
+    position: absolute;
+    inset: 0 calc(-1 * var(--fork-pwa-sb-slop-x));
+  }
+
+  /* ---- ⑪ 行内元素的高度守卫 --------------------------------------------
+     用户实拍：「手机宽度下一个大的圆形元素压住了行尾的计数徽标」。
+     探针（见报告）在 360 / 390 / 768 × 明暗 × 项目列表 / 展开 / 聊天 / 文件
+     面板十个状态下遍历了全部 `.pw-row` / `.pw-session` / `.pw-litem` /
+     `.pw-trow` 的子元素：(a) >40px 的圆形/图片 0 处、(b) 与 `.pw-badge.count`
+     矩形相交 0 处、(c) 越出行右缘 0 处、命中栈里盖住徽标的元素 0 个 —— 那个
+     形态在当前代码里**没有出现**。但它的成因（行是固定行高的 flex 行，一个
+     没被约束的圆形/图片顶穿行高、压到行尾徽标上）可以从结构上堵死：行内任何
+     直接子元素、以及行内的图片，都不得高过行本身。
+     只压高度、**不加** `overflow: hidden` —— 加了会把上面 ⑩ 的 `::after`
+     外扩命中区一起裁掉，等于把 22px 的钮又缩回 22px 可点。 */
+  .pw-row > *,
+  .pw-session > *,
+  .pw-litem > *,
+  .pw-trow > img,
+  .pw-row .pw-img,
+  .pw-session .pw-img,
+  .pw-litem .pw-img { max-height: 100%; }
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:pwa-sb-tablet —— 平板档（641–1024 且 `pointer: coarse`）的**侧栏行**。
+ *
+ * 为什么单独一段、且只搬这几条：641–1024 的侧栏是**停靠**的（280px 宽，鼠标也
+ * 在用），它的横向比手机抽屉宽 25px 却少了整个抽屉手势，所以不需要 ⑧/⑨/⑩/⑪
+ * 那些「把五枚收进更多」「树行抬到 40」的重排 —— 那是手机档为省横向做的取舍。
+ * 但有两件事在平板触控上是真的坏，且与「抽屉 vs 停靠」无关：
+ *
+ *   ① **隐藏 ≠ 不可点。** `.pw-acts` 的 `opacity: 0` 只改绘制，命中照旧。探针
+ *      （.probe-hitsize.mjs，768×1024）实测：14 个项目行各有一个 22×36 的**隐形**
+ *      ⊕ 压在行尾 —— 手指按下去没反应（因为看不见），却把整段行尾吃掉了。
+ *      接线在组件里（ProjectRow / ChatWorkspaceRow 用 `useIsCompact`，≤1024）。
+ *      这一段把行高、间距、命中区对齐到手机档的同一组量。
+ *   ② **行太矮。** 项目行 30px、会话行 48px、设置行 36px，在 280px 宽的停靠
+ *      侧栏里 30px 的一行是一擦。
+ *
+ * 不搬的（留给平板继续用桌面几何）：文件树行（`fork-pwa-sb-tree-row`）在停靠
+ * 侧栏里只有 264px 宽，常驻两枚行尾动作要占 128px，名字只剩 8 个字；文件面板
+ * 头行在平板是面板不是抽屉，五枚一字排开还放得下（探针实测 768 下面板头行五枚
+ * 各 22×26、中心距 28px，外扩 9 会互相压 —— 这是「遗留项」里的一条）。
+ *
+ * 上限 1024 + `pointer: coarse` 是硬边界：≥1025 的桌面浏览器 `pointer` 是 fine，
+ * 整段不成立，桌面一个像素不变（同 `fork:pwa-hit-slop` 的那条断点）。
+ * ------------------------------------------------------------------------- */
+@media (pointer: coarse) and (min-width: 641px) and (max-width: 1024px) {
+  /* 侧栏三段固定块：头行（品牌 + 搜索 + 折叠）/ 页签切换 / 底栏设置。
+     量测（768，改动前）：头行 36 高、里面两枚 24×24；`.pw-seg` 两枚页签
+     128.5×26；`button.pw-side-foot` 280×36。三者都是整块入口，抬到 40 / 48
+     不吃任何内容（中间是 `flex: 1` 的滚动区）。 */
+  .pw-side-head { height: var(--height-toolbar); gap: var(--fork-pwa-sb-hit-pitch); }
+  .pw-side-head > .pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+  .sidebar-container > .pw-seg > button { min-height: var(--fork-pwa-sb-hit); }
+  .pw-side-search { height: var(--fork-pwa-sb-hit); }
+  .pw-side-search > button.pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+  button.pw-side-foot { height: var(--fork-pwa-sb-hit); }
+  /* 行：项目行 30px、会话行 48px、分区头 30px。 */
+  .pw-row { min-height: var(--fork-pwa-sb-hit); }
+  .pw-side-nav > .pw-row,
+  .pw-side-scroll .pw-group-title,
+  .pw-row > button.pw-inline { min-height: var(--fork-pwa-sb-hit); }
+  .pw-row .fork-pwa-sb-proj-acts,
+  .pw-row .fork-pwa-sb-ws-acts { gap: var(--fork-pwa-sb-hit-pitch); }
+  .pw-row .fork-pwa-sb-proj-acts [role="button"],
+  .pw-row .fork-pwa-sb-ws-acts > button,
+  .pw-row > .pw-ico[role="button"],
+  .pw-session > .fork-pwa-sb-row-menu > button,
+  .pw-session > button.pw-iconbtn { min-height: var(--fork-pwa-sb-hit); }
+  /* 折叠箭头与常驻的 ⋯ 在会话行里只隔 --s2(8)，外扩 9px 会互相抢 —— 补一档
+     间距（与手机档同一条口径）。行高 48 放得下两枚 40。 */
+  .pw-session > .fork-pwa-sb-row-menu { margin-inline-start: var(--fork-pwa-sb-hit-pitch); }
+  /* 数字不参与收缩。 */
+  .pw-row .pw-count,
+  .pw-row .pw-badge { flex: none; }
+  /* 命中区：22 + 9 × 2 = 40。相邻对之间都 ≥ --fork-pwa-sb-hit-pitch(24)。 */
+  .pw-side-head > .pw-iconbtn,
+  .pw-row > .pw-ico[role="button"],
+  .pw-row .fork-pwa-sb-proj-acts [role="button"],
+  .pw-row .fork-pwa-sb-ws-acts > button,
+  .pw-session > .fork-pwa-sb-row-menu > button,
+  .pw-session > button.pw-iconbtn { position: relative; }
+  .pw-side-head > .pw-iconbtn::after,
+  .pw-row > .pw-ico[role="button"]::after,
+  .pw-row .fork-pwa-sb-proj-acts [role="button"]::after,
+  .pw-row .fork-pwa-sb-ws-acts > button::after,
+  .pw-session > .fork-pwa-sb-row-menu > button::after,
+  .pw-session > button.pw-iconbtn::after {
+    content: "";
+    position: absolute;
+    inset: 0 calc(-1 * var(--fork-pwa-sb-slop-x));
+  }
+}
