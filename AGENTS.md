@@ -271,13 +271,20 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - The `skills` / `extensions` spellings pi-subagents reads are seeded on first save and kept in step while they are booleans; a hand-authored whitelist such as `extensions: pi-advisor-flow` is never rewritten, and the two flags fall back to those aliases when `load_skills` / `load_extensions` are absent.
 - An `ext:<name>` selector is resolved against names derived from the loaded extensions (parent directory, file basename, and for package resources the npm source name plus that name without its scope), not by string equality on what the profile says (`lib/subagents.ts`). A name claimed by more than one *source* is not addressable, `local` / `auto` are never names, and matching takes the longest name — so an alias or an npm scope spelling cannot slip past the `disallowed_tools` deny list, which resolves against the very same names. The parse-time filter in `parseProfileFile()` only normalizes spellings; `disallowedExtensionTools` carries the raw deny selectors to `selectSubagentExtensionTools()` at spawn time, where the loaded extensions supply the real tool names.
 
-### MCP 运行时（fork:pr11-mcp，上游 85f9cb1 + 上游 `docs/adr/0006-mcp-and-code-mode.md`）
-- 本仓自己的 MCP 是**配置管理器**（`app/api/mcp/route.ts` 握手校验、`lib/mcp-discovery.ts` 跳 agent 发现、`lib/mcp-auth-command.ts`），pi 不会替代它们（见 `docs/upstream-alignment-plan-2026-10-01.md` §3.11），**不要删**。pi 那边是运行时，两层并存。
+### MCP 运行时（fork:pr11-mcp + fork:mcp-primitives，上游 85f9cb1 + 上游 `docs/adr/0006-mcp-and-code-mode.md`）
+- **配置面已换成 pi 1.0 官方原语**（`1e4dbac0`）：`lib/mcp-config-file.ts` 的读/写/删/改走 `loadMcpConfig` / `add|update|removeMcpServerConfig`，外面仍包着自己的不变量（同目录 0600 staging + `renameSync`；解析失败只回 `malformed JSON`，绝不让 V8 的 parser 文本回显文件内容）；`lib/mcp-validator.ts` 改调 `validateMcpServerConfig`（**不再真连握手**，socket / legacy SSE 被拒，校验失败 400 不写）；`lib/mcp-auth-command.ts` 走 pi 的 `/mcp login` + `signInMcpServer` / `McpOAuthCredentialStore`。`app/api/mcp/route.ts` 是浏览器唯一入口，**响应形状与状态码一个都没变**，只把内部换成转发。
+- `lib/mcp-discovery.ts` **保留**：从 Claude Code / Codex / Cursor / VS Code 的配置里发现已配 server 并合并，是 pi 完全没有的能力，换掉 = 删功能。
 - pi 的内置 `mcp` 扩展**包不导出**：SDK 根只给 `createMcpExtension` 工厂，连接类 `McpServerConnection`、stdio transport、`mcp.json` 编辑器、OAuth 助手都是内部件。`lib/pi-sdk-internals.ts` 按 file URL 从**本进程跑的那份 SDK** 加载它们（否则 `instanceof` 对不上，server 的 stderr 会丢），并在三处拒绝重复副本：`PI_PACKAGE_DIR`、realpath 不一致、第二份 SDK / 第二份 pi-mcp。`globalThis` 缓存，一个进程只加载一次。
 - `lib/mcp-transport.ts` 是 env 清洗：stdio server 继承的是 `process.env`（含 `PI_WEB_PASSWORD`），SDK 默认 transport 原样传；本仓 `inheritEnv: false` + 洗过的环境（`PORT` / `NODE_ENV` / `NEXT_*` 由 `lib/project-command-env.ts` 洗，`PI_WEB_PASSWORD` 在 mcp 文件里自己洗，等 G7 裁定后两处应合并），引用 `PI_WEB_PASSWORD` 的条目一律拒。**任何情况都不回退到 SDK 默认 transport**。
-- 接线在 `lib/rpc-manager.ts` 的 `extensionFactories`：`...mcpBuiltinExtensionEntries()`，名字必须是 CLI 的 `mcp`，`DefaultResourceLoader` 才按 `builtin:mcp` 解析（实测 0.99.1 下 `loader.getExtensions().extensions[0].path === "builtin:mcp"`）。本仓 SDK 锁 0.87（没有 MCP）时返回空数组并打一行日志，所以 tsc 不会红；升到 0.99 自动生效。
-- ADR 0006 的坑（本仓全中）：**fan-out**（扩展在 `session_start` 连全部启用的 server，而本仓每个 wrapper 都会建——切会话 `get_tools`、自动命名、SSE 预热）、**stop**（`before_agent_start` 最多等 10s 且不认 abort）、**env**（已由 `mcp-transport.ts` 处理）。当前 `loadConfig` 返回空列表、**不连任何 server**，所以前两个暂时不触发；真要连是 P1 的 `McpHost`（每次 prompt 前比对配置指纹、等待认 abort）。远程部署还要单独处理：OAuth 回调只听 `127.0.0.1`，`.pi/mcp.json` 靠目录信任继承。
-- 契约测试 `lib/pi-sdk-internals.test.mjs` + `lib/mcp-transport.test.mjs`：SDK 不具备 MCP 时**跳过并打印原因**（`t.skip`），升级到 0.99 后必须全绿。升级后要跑：`node --experimental-strip-types --test "lib/pi-sdk-internals.test.mjs" "lib/mcp-transport.test.mjs"`（0.99.1 上实测 12 + 11 条全过）。
+- 接线在 `lib/rpc-manager.ts` 的 `extensionFactories`：`...mcpBuiltinExtensionEntries()`，名字必须是 CLI 的 `mcp`，`DefaultResourceLoader` 才按 `builtin:mcp` 解析（实测 0.99.1 下 `loader.getExtensions().extensions[0].path === "builtin:mcp"`）。SDK 不具备 MCP 时返回空数组并打一行日志；本仓现在是 1.0.0，走真身那一条。
+- **运行时已通电**（`42f96a70`），ADR 0006 的两个坑这样处置：
+  · **fan-out**：`createMcpSessionLivenessGate` 复用空闲回收那一份 session-liveness 租约 —— 只有浏览器真的在看这个会话（SSE 租约）才放行；`get_tools` / 自动命名 / SSE 预热建出来的 wrapper 一个进程都不起。等待有 10 分钟上限（与默认空闲回收同档）、timer unref、可被 dispose 中止。
+  · **stop**：`startupWaitMs: 0` 绕开 `before_agent_start` 那段「最多等 10s 且不认 abort」的等待；`tool_call` 侧的等待用 SDK 自带的 `ctx.signal`。
+  · **env**：见上一条。
+  · **exposure 归一**：pi-web 没注册 `codemode` / `tool-search`，而 pi 只把 `direct` / `model-only` 声明给模型，所以 `loadConfig` 把默认的 `codemode` / `deferred` 一律落成 `direct`（`hidden` 保持隐藏）。这是运行时适配，**不落盘、不改用户的 `mcp.json`**。
+  · 仍然**没有** per-prompt 的 `McpHost`：连接在浏览器会话打开期间常驻，靠 wrapper 空闲回收关闭。
+- 远程部署仍要单独处理：OAuth 回调只听 `127.0.0.1`；`.pi/mcp.json` 靠目录信任继承；除 host-only 名单外的宿主环境变量仍会传给子进程。
+- 契约测试 `lib/pi-sdk-internals.test.mjs` + `lib/mcp-transport.test.mjs`：SDK 不具备 MCP 时**跳过并打印原因**（`t.skip`）；SDK 1.0.0 下实测 **29 条 0 skipped**。跑法：`node --experimental-strip-types --test "lib/pi-sdk-internals.test.mjs" "lib/mcp-transport.test.mjs"`。
 
 ### Auth and model config
 - `ModelsConfig` combines models from `~/.pi/agent/models.json` with provider auth status from pi's `AuthStorage`/`ModelRegistry`.

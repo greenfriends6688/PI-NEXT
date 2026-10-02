@@ -236,6 +236,16 @@
 
 **结论**：删掉的结果是设置里只剩一个「复制命令」按钮，MCP 变成不可用。正确路径是 **PR-1（SDK 0.99）→ PR-11（移植上游运行时）→ 未来若上游 P2 落地，只把 `mcp-config-file.ts` 那 57 行换成 pi 官方编辑器**，其余全留。
 
+> **后续（2026-10-02，`1e4dbac0` + `42f96a70`）：上表里的三行已经换了，但换的不是「删我们的」。**
+> 换成的是**同一层里的官方原语**：`mcp-config-file.ts` → `loadMcpConfig`/`add`/`update`/`remove`（外面仍包
+> 0600 staging + `renameSync`）；`mcp-validator.ts` → `validateMcpServerConfig`（**不再真连握手**，
+> 校验失败 400 不写）；`/mcp-auth` → pi 的 `/mcp login` + `signInMcpServer`。
+> `app/api/mcp/route.ts` 保留为浏览器唯一入口（响形不变，内部转发）、`mcp-discovery.ts` 保留
+> （pi 没这能力）。同时运行时真的通电了（见 `docs/patches/0058-mcp-runtime.md`）。
+> 这一段分析里「不能直接换」的理由 1（包不导出 → 我们自己的 `pi-sdk-internals.ts` 解决了）
+> 与理由 3（不是同一层 → 配置层确实是同一层）已被推翻；理由 2（上游未接线）仍然成立 ——
+> 我们比上游先接上了。
+
 ### PR-11 · MCP 运行时（上游 ADR 0006 的 P0+P1，**必须在 PR-1 之后**，M/L）
 
 - **做什么**：移植 `lib/pi-sdk-internals.ts` + `lib/mcp-transport.ts` + 契约测试；把 `mcp`（以及后续 `codemode` / `tool-search`）以 `{ builtin: true, replaceable: true }` 加进 `rpc-manager.ts` 的 `extensionFactories`。
@@ -352,5 +362,7 @@ prod 起服冒烟 6 个接口全 200。
   的静态四项，画板逐帧几何对位仍欠着
 - **PR-6 的 `..` fail-closed**：G2 下沉后所有拿 cwd 授权的路由都 fail closed，
   单测覆盖了但没有运行时实测
-- **PR-11 的 P1 `McpHost` 未做**，所以 MCP 内置扩展虽已注册、仍一个 server 都不连
+- **PR-11 的 per-prompt `McpHost` 未做**：内置扩展已注册、配置面已换官方原语、运行时已通电
+  （会话租约闸门挡 fan-out、`startupWaitMs: 0` 避开 stop 那段等待、真起 stdio server 拿到工具）；
+  剩下的只是「每次 prompt 前比配置指纹」这一层，连接目前靠 wrapper 空闲回收关闭。
 - **PR-7 两条 CSS**（分组标题开关热区、状态条间距）只能窄屏人眼验
