@@ -36,6 +36,8 @@ import {
 import { ExplorationBanner } from "./fork/ExplorationBanner";
 // fork:proma-31-task-progress — 吸底任务进度浮层（PR-31）
 import { TaskProgressOverlay } from "./fork/TaskProgressOverlay";
+// fork:proma-35-retry — 消息流里的重试提示（PR-35）
+import { RetryNotice } from "./fork/RetryNotice";
 import { extractTodoState } from "@/lib/todo-state";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
@@ -110,6 +112,8 @@ interface Props {
   onSessionStatsChange?: (stats: SessionStatsInfo | null) => void;
   onSessionStatsPanelOpen?: () => void;
   onContextUsageChange?: (usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => void;
+  /** fork:proma-39-changes —— 本会话写入的文件聚合后上报给 AppShell（非 Git 项目的改动来源）。 */
+  onWrittenFilesChange?: (files: WrittenFile[]) => void;
   /** fix:mcp-topbar-icons —— 扩展状态（MCP / 插件）上报给 AppShell：两枚图标改挂顶栏。 */
   onExtensionStatusChange?: (statuses: ExtensionStatusItem[], widgets: ExtensionWidgetItem[]) => void;
   onOpenFile?: (filePath: string, hint?: number | Omit<FileLocationTarget, "filePath">) => void;
@@ -605,7 +609,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onExtensionStatusChange, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onExtensionStatusChange, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, onWrittenFilesChange }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -679,7 +683,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   const {
     loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
-    retryInfo, contextUsage, forkingEntryId,
+    retryInfo, retryNotices, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
     notices, extensionDialogs, extensionCustomUis, extensionStatuses, extensionWidgets, respondToExtensionUi, sendExtensionCustomInput, setNoticePaused,
@@ -1792,6 +1796,24 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // contributes only the answer half instead of opening a second group.
   let liveTurnTimeline = false;
   const messageCwd = session?.cwd ?? newSessionCwd ?? undefined;
+  // fork:proma-39-changes —— 本会话写入文件的聚合口径与逐轮 `writtenFiles` 完全一致
+  // （同样的 write/edit/apply_patch 配对），只是把所有 assistant 内容块合在一起再看一遍。
+  // 上报给 AppShell，供右栏改动面板在非 Git 项目里展示。
+  const sessionWrittenFiles = useMemo(() => {
+    const content: AssistantContentBlock[] = [];
+    for (const message of messages) {
+      if (message.role !== "assistant") continue;
+      for (const block of (message as AssistantMessage).content ?? []) content.push(block);
+    }
+    return extractTurnWrittenFiles(content, toolResultsMap, messageCwd);
+  }, [messages, toolResultsMap, messageCwd]);
+  const sessionWrittenFilesKey = sessionWrittenFiles.map((file) => file.filePath).join("\n");
+  const sessionWrittenFilesRef = useRef(sessionWrittenFiles);
+  sessionWrittenFilesRef.current = sessionWrittenFiles;
+  useEffect(() => {
+    onWrittenFilesChange?.(sessionWrittenFilesRef.current);
+  }, [sessionWrittenFilesKey, onWrittenFilesChange]);
+  useEffect(() => () => { onWrittenFilesChange?.([]); }, [onWrittenFilesChange]);
   const promptAnchorSpacerRef = useRef<HTMLDivElement | null>(null);
   const promptAnchorSpacerHeightRef = useRef(0);
   const promptAnchorMeasureFrameRef = useRef<number | null>(null);
@@ -2628,6 +2650,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 onOpenSession={onOpenSession}
               />
             )}
+
+            {/* fork:proma-35-retry — 重试提示挂在消息流尾部（最后一条消息之后、
+                prompt 锚点之前）；只在 attempt > 5 时才有内容，run 结束由 hook 清空。 */}
+            <RetryNotice notices={retryNotices} />
 
             <div ref={promptAnchorSpacerRef} aria-hidden="true" />
             </div>

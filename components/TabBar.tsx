@@ -14,7 +14,9 @@ export interface Tab {
   label: string;
   filePath: string;
   /** fork:git-graph-tab — `git-graph` 是工作区单例视图 tab（无 filePath）。 */
-  kind?: "terminal" | "browser" | "session" | "git-graph";
+  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes";
+  /** fork:proma-39-changes — 后台有新改动时的未读点（只提示，不自动切 tab）。 */
+  unread?: boolean;
   closing?: boolean;
   sourceSessionId?: string | null;
   initialDisplayMode?: FileViewerDisplayMode;
@@ -304,6 +306,8 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             >
               {tab.label}
             </span>
+            {/* fork:proma-39-changes — 未读点：有新改动时亮起，绝不抢当前视图。 */}
+            {tab.unread && <span className="pw-dot unread" aria-hidden="true" />}
             <button
               type="button"
               disabled={tab.closing}

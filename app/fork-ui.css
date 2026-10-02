@@ -3083,3 +3083,155 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-shortcut-guide-foot {
   margin-inline-end: var(--s2);
 }
+
+/* fork:proma-35-retry —— 消息流里的重试提示是一列 `.pw-toast`（画板 12 / 50 的通知条）。
+   board.css 的 `.pw-toast` 是单枚定宽浮条，这里只补**多枚堆叠**的列间距；
+   单枚内部的几何（padding / 圆角 / 阴影 / 图标对齐）全部由画板类给。 */
+.fork-retry-notices {
+  display: grid;
+  gap: var(--s2);
+  margin-block: var(--s2);
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:proma-39-changes —— 右栏「改动」面板的产品接线（零新 `.pw-*` 类）。
+ *
+ * 行结构 = 画板的 `.pw-row`（30 高 / 发丝 hover / 弱化图标）+ 面板头的
+ * `.pw-panel-head`；来源徽章复用 `.pw-badge`，状态点色阶与 `FileExplorer`
+ * 的 `GIT_STATUS_COLORS` 同源。这里只补画板没有的三处：
+ *   ① 行是**两段**可点区域（打开预览 / 在文件管理器中定位），所以 `.pw-row`
+ *      的整行点击语义换成内部按钮，行本身只负责 hover 底色；
+ *   ② 路径分两段（文件名 + 父目录），父目录弱化且可截断；
+ *   ③ 定位钮沿用 `PathActions` 的 hover 才出现（`.pw-row .pw-acts` 的同一口径），
+ *      失败态用画板的 `.danger`。
+ * ------------------------------------------------------------------------- */
+.fork-changes {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.fork-changes-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+}
+
+.fork-changes-head .grow {
+  flex: 1;
+}
+
+.fork-changes-title {
+  font-size: var(--text-body);
+  color: var(--n-strong);
+  white-space: nowrap;
+}
+
+.fork-changes-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s1);
+}
+
+.fork-changes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  height: var(--control-lg);
+  padding: 0 var(--s1) 0 var(--s2);
+  border-radius: var(--radius-4);
+}
+
+.fork-changes-row:hover {
+  background: var(--overlay-hover);
+}
+
+.fork-changes-open {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--n-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.fork-changes-open .pw-ico {
+  flex: none;
+  display: inline-flex;
+  color: var(--n-muted);
+}
+
+.fork-changes-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-secondary);
+}
+
+.fork-changes-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-meta);
+  color: var(--n-placeholder);
+}
+
+.fork-changes-source {
+  flex: none;
+}
+
+.fork-changes-stat {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.fork-changes-add {
+  color: var(--diff-added);
+}
+
+.fork-changes-del {
+  color: var(--diff-removed);
+}
+
+.fork-changes-status {
+  flex: none;
+  width: var(--icon-sm);
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.fork-changes-status[data-status="modified"] { color: var(--warning); }
+.fork-changes-status[data-status="added"] { color: var(--success); }
+.fork-changes-status[data-status="untracked"] { color: var(--success); }
+.fork-changes-status[data-status="deleted"] { color: var(--error); }
+.fork-changes-status[data-status="conflict"] { color: var(--error); }
+.fork-changes-status[data-status="renamed"] { color: var(--accent-text); }
+
+.fork-changes-reveal {
+  opacity: 0;
+}
+
+.fork-changes-row:hover .fork-changes-reveal,
+.fork-changes-reveal:focus-visible {
+  opacity: 1;
+}
+
+.fork-changes-reveal.danger {
+  color: var(--error);
+}

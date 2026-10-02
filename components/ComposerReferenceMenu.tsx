@@ -13,6 +13,11 @@ import type { ComposerReferenceItem, ComposerReferenceKind } from "@/lib/compose
  *
  * 抽成独立组件（而不是继续往 ChatInput 里塞第四段内联 JSX）是本仓补丁约定的第 2 条：
  * 新能力放进新文件，上游文件只留接线。ChatInput 因此只多了些状态和一次渲染。
+ *
+ * fork:proma-34-mention —— 本组件不自己判断触发合法性：`extractReferenceQuery`
+ * 在源头就拦掉了 URL / 色值 `#fff` / HTML 实体 `&amp;` / Markdown 标题 `# 标题`
+ * 这类误触发（规则在 lib/mention-trigger-guard.ts），所以这里拿到的 items 一定
+ * 是用户真的想引用的候选。
  */
 
 interface Props {

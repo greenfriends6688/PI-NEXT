@@ -18,6 +18,7 @@
  */
 
 import type { SessionReference } from "./composer-context";
+import { shouldAllowMentionTrigger } from "./mention-trigger-guard";
 
 export type ComposerReferenceKind = "session" | "mcp" | "todo";
 
@@ -59,7 +60,11 @@ export function extractReferenceQuery(textBeforeCursor: string): ComposerReferen
   if (!kind) return null;
   const query = match[2]!;
   if (kind === "todo" && query.startsWith("/")) return null;
-  return { kind, start: textBeforeCursor.length - query.length - 1, query };
+  const start = textBeforeCursor.length - query.length - 1;
+  // fork:proma-34-mention —— 防误触发：URL / 色值 `#fff` / HTML 实体 `&#39;`·`&amp;`
+  // / Markdown 标题 `# 标题` / `&&` 都不弹菜单。规则在 lib/mention-trigger-guard.ts。
+  if (!shouldAllowMentionTrigger({ text: textBeforeCursor, triggerOffset: start, trigger })) return null;
+  return { kind, start, query };
 }
 
 // --- 打分 -------------------------------------------------------------------

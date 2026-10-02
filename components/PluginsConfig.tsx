@@ -1104,6 +1104,7 @@ export function PluginsConfig({
   embedded = false,
   only,
   renderMcpAuthActions,
+  renderMcpCatalogEntry,
 }: {
   cwd: string;
   sessionId: string | null;
@@ -1123,6 +1124,8 @@ export function PluginsConfig({
    * component stays free of OAuth-command copy.
    */
   renderMcpAuthActions?: (server: McpServerInfo) => ReactNode;
+  /** fork:proma-46-mcp-catalog — optional 连接目录 entry for the MCP page header. */
+  renderMcpCatalogEntry?: (context: { reload: () => void }) => ReactNode;
 }) {
   const mcpOnly = only === "mcp";
   const { t } = useI18n();
@@ -1732,6 +1735,9 @@ export function PluginsConfig({
               {/* 画板 43:147 —— 计数徽章是 `.pw-shead-acts` 的第一枚，不是页头文案：
                   「这页是干嘛的」归 p.sub，数据归徽章（SettingsUi 的 actions 契约）。 */}
               <ConfigBadge tone="count">{t("mcp.count", { count: String(mcpData?.servers.length ?? 0) })}</ConfigBadge>
+              {/* fork:proma-46-mcp-catalog —— 目录入口由 fork/McpConfig.tsx 提供；
+                  配置完回调 reload()，列表与徽章立即跟着更新。 */}
+              {renderMcpCatalogEntry?.({ reload: () => void loadMcp() })}
               {/* fix:mcp-refresh-target —— 位置从工具栏搬进页头动作，行为不变：
                   它原来调 loadPlugins()（只打 /api/plugins、写插件页状态，于是列表、
                   徽章、错误态都不动），MCP 模式调 loadMcp()，置灰跟 MCP 自己的状态

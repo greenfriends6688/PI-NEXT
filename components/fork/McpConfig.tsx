@@ -11,6 +11,8 @@ import {
   buildMcpLogoutCommand,
   isRemoteMcpServer,
 } from "@/lib/mcp-auth-command-shared";
+// fork:proma-46-mcp-catalog — 「连接目录」入口（预设卡片 + 一键 OAuth + 必选冷却）。
+import { McpCatalogEntry } from "./McpCatalog";
 
 /*
  * fork:mcp-section — MCP server management as its own settings entry.
@@ -123,6 +125,10 @@ export function McpConfig({
       // fork:zc-18 — the OAuth affordance is defined in this file; the shared
       // PluginsConfig only exposes the detail slot it renders into.
       renderMcpAuthActions={(server) => <McpAuthActions server={server} />}
+      // fork:proma-46-mcp-catalog — 目录入口只加这一行接线，不改 PluginsConfig 的结构。
+      renderMcpCatalogEntry={({ reload }) => (
+        <McpCatalogEntry cwd={cwd} onReloaded={() => { reload(); onReloaded?.(); }} />
+      )}
     />
   );
 }

@@ -9,6 +9,8 @@ import { validateAgentImages } from "./image-attachments";
 import { createApprovalExtension } from "./approval-extension";
 // fork:proma-03-plan — 计划模式扩展
 import { createPlanModeExtension } from "./plan-mode-extension";
+// fork:proma-51-knowledge — 知识维护工具（AGENTS.md / memory / skill + 授权门）
+import { createKnowledgeExtension } from "./knowledge-extension";
 import {
   DEFAULT_PERMISSION_MODE,
   appendPermissionMode,
@@ -2426,6 +2428,11 @@ export async function startRpcSession(
               ),
               // fork:ui-todo — the session's task list (see lib/todo-extension.ts).
               createTodoExtension(),
+              // fork:proma-51-knowledge — knowledge maintenance tools. Registered
+              // unconditionally: knowledge_propose is always usable, and
+              // knowledge_write reads the per-project approval at call time, so
+              // toggling the setting takes effect without a session reload.
+              createKnowledgeExtension(),
               // fork:proma-01-approval — 工具审批。默认档是 bypass，所以这个扩展在默认
               // 配置下等价于不存在（`decideApproval` 直接放行）—— 只有用户显式把会话
               // 设成 ask/plan 才会弹卡。

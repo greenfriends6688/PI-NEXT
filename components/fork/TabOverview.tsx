@@ -24,7 +24,7 @@ export interface TabOverviewEntry {
   id: string;
   label: string;
   filePath: string;
-  kind?: "terminal" | "browser" | "session" | "git-graph";
+  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes";
 }
 
 interface Props {
@@ -55,6 +55,7 @@ const TAB_KIND_ICON: Record<string, string> = {
   browser: "globe",
   session: "bot",
   "git-graph": "git-branch",
+  changes: "file-diff",
 };
 
 function TabGlyph({ tab }: { tab: TabOverviewEntry }) {

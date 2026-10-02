@@ -34,6 +34,10 @@ import {
 import type { SessionEntry } from "./types";
 import { buildSubagentPromptPlan } from "./subagent-prompt";
 import { appendSubagentInputFiles, loadSubagentInputFiles } from "./subagent-input";
+// PR-36 · 显式 thinkingLevel 按子代理模型归一化；收敛计数复用同一份活跃状态口径。
+import { toThinkingModelFields } from "./thinking-profile";
+import { normalizeSubagentThinkingLevel } from "./subagent-thinking";
+import { filterActiveSubagents } from "./subagent-convergence";
 import { projectTrustReloadOptions } from "./project-trust";
 import { resolveShellTools } from "./powershell-settings";
 import { isBuiltInSubagentsEnabled, readSubagentSettings } from "./subagent-settings";
@@ -221,13 +225,26 @@ export function createSubagentController(
         throw new Error("max_turns must be a non-negative number");
       }
       const turnLimit = maxTurns && maxTurns > 0 ? Math.floor(maxTurns) : undefined;
-      const thinking = request.thinking ?? profile.thinking ?? parent.inner.agent.state?.thinkingLevel;
-      if (thinking && !THINKING_LEVELS.has(thinking as ThinkingLevel)) {
-        throw new Error(`Invalid subagent thinking level: ${thinking}`);
+      const parentModelRuntime = (parent.inner as unknown as { modelRuntime: ModelRuntime }).modelRuntime;
+      // PR-36 · thinkingLevel 归一化要先知道子代理模型。显式请求（工具参数或 profile）
+      // 才做归一化；两者都没有时保持 undefined，让新会话走自己的默认值，不拿父会话
+      // 的档位去覆盖它。
+      const requestedThinking = request.thinking ?? profile.thinking;
+      if (requestedThinking && !THINKING_LEVELS.has(requestedThinking as ThinkingLevel)) {
+        throw new Error(`Invalid subagent thinking level: ${requestedThinking}`);
       }
+      const requestedModel = parseSubagentModel(parentModelRuntime, request.model ?? profile.model);
+      const parentModel = parent.inner.model as ReturnType<ModelRuntime["getModel"]>;
+      const childModel = requestedModel ?? parentModel;
+      const thinking = requestedThinking && childModel
+        ? normalizeSubagentThinkingLevel(
+            requestedThinking,
+            toThinkingModelFields(childModel),
+            childModel.thinkingLevelMap ?? {},
+          )
+        : undefined;
 
       const agentDir = getAgentDir();
-      const parentModelRuntime = (parent.inner as unknown as { modelRuntime: ModelRuntime }).modelRuntime;
       const settingsManager = SettingsManager.create(childCwd, agentDir);
       const inheritedParentContext = inheritContext
         ? `The following is the active conversation context from the parent session. Use it only as background for the delegated task:\n${parentContextText(parent)}`
@@ -313,8 +330,6 @@ export function createSubagentController(
       sessionManager.appendCustomEntry(SUBAGENT_META_TYPE, metadata);
       sessionManager.appendSessionInfo(metadata.description);
 
-      const requestedModel = parseSubagentModel(parentModelRuntime, request.model ?? profile.model);
-      const parentModel = parent.inner.model as ReturnType<ModelRuntime["getModel"]>;
       const { session: inner } = await createAgentSessionFromServices({
         services,
         sessionManager,
@@ -665,8 +680,17 @@ export function createSubagentController(
     await wrapper.inner.abort();
   }
 
+  /**
+   * PR-36 · 同一父会话里仍处于 starting/queued/running 的 run。纯函数负责过滤，
+   * 这里只把注册表里的 `StoredSubagentExecution` 拆成 `run`。
+   */
+  async function listActive(parentSessionId: string): Promise<SubagentRunInfo[]> {
+    const runs = [...getSubagentRuns().values()].map((stored) => stored.run);
+    return filterActiveSubagents(runs, parentSessionId);
+  }
+
   return {
-    extensionRuntime: { start, resume, get, steer, notifyParent, markResultConsumed },
+    extensionRuntime: { start, resume, get, listActive, steer, notifyParent, markResultConsumed },
     get,
     steer,
     abort,

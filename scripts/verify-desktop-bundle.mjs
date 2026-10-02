@@ -142,6 +142,23 @@ if (!existsSync(ptyDir)) {
 }
 
 // ---------------------------------------------------------------------------
+// 3.5 fork:renderer-recovery —— 崩溃兜底页必须随包发布
+// ---------------------------------------------------------------------------
+// 兜底页是渲染进程崩溃后的最后一道防线，缺了它就退回白屏。`build.files` 以
+// `**/*` 开头，排除表里没有任何 `*.html` / `electron/**` 规则，所以
+// `electron/renderer-crash.html` 会随 `electron/` 一起进 `Resources/app/`。
+const recoveryFiles = ["electron/renderer-recovery.js", "electron/renderer-crash.html"];
+const missingRecovery = recoveryFiles.filter((rel) => !existsSync(join(projectDir, rel)));
+if (missingRecovery.length > 0) {
+  fail(
+    `缺少渲染进程恢复文件：${missingRecovery.join(", ")}`,
+    "渲染进程崩溃会重新变成白屏；确认 electron/renderer-recovery.js 与 electron/renderer-crash.html 已提交",
+  );
+} else {
+  pass("渲染进程恢复模块与兜底页存在（build.files 的 **/* 会带上）");
+}
+
+// ---------------------------------------------------------------------------
 // 4. package.json 的打包配置
 // ---------------------------------------------------------------------------
 const pkg = readJson(join(projectDir, "package.json"));

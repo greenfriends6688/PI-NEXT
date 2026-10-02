@@ -39,11 +39,14 @@ import { findPackageJSON } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
+  createCooldownGatedTransportFactory,
   createMcpSessionLivenessGate,
   createPiNextMcpTransportFactory,
   createSessionGatedTransportFactory,
   type McpSessionLivenessGate,
 } from "./mcp-transport";
+import { createMcpFailureCooldown } from "./mcp-catalog";
+import { resolveCatalogCredentialEnvironment } from "./mcp-catalog-credentials";
 
 const SDK_PACKAGE = "@earendil-works/pi-coding-agent";
 const MCP_PACKAGE = "@earendil-works/pi-mcp";
@@ -851,7 +854,13 @@ export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuilt
   }
 
   const baseTransport = internals
-    ? createPiNextMcpTransportFactory(internals)
+    ? createCooldownGatedTransportFactory(
+        createPiNextMcpTransportFactory(internals, {
+          // fork:proma-46-mcp-catalog —— stdio 目录凭据只在启动命令未被改动时注入。
+          resolveStdioCredentialEnvironment: resolveCatalogCredentialEnvironment,
+        }),
+        createMcpFailureCooldown(),
+      )
     : (entry: McpServerEntry) => {
         throw new Error(
           `MCP server "${entry.name}": SDK 内部件未加载或不可用，洗 env 的 transport 工厂没有接上（见 lib/mcp-transport.ts）`,

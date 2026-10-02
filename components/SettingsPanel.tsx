@@ -61,6 +61,8 @@ import { ContextBudgetSettingsBlock } from "./ContextBudgetSettingsBlock";
 import { ShortcutGuideEntry } from "./fork/ShortcutGuideEntry";
 // fork:pr12-a6-thinking-budget —— settings.thinkingBudgets 的四档预算块（同一位置）。
 import { ThinkingBudgetSettingsBlock } from "./ThinkingBudgetSettingsBlock";
+// fork:proma-51-knowledge —— 项目知识维护授权开关（knowledge_write 的授权门）。
+import { KnowledgeMaintenanceBlock } from "./KnowledgeMaintenanceBlock";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
 import { ProjectArchivePanel } from "./ProjectArchivePanel";
 import { ImportPanel } from "./ImportPanel";
@@ -960,6 +962,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           0.87 的 SettingsManager 连 setter 都没有（写入路径见
           lib/thinking-budget-settings.ts 头）。控件是四个 `.pw-numin` 窄数值框。 */}
       <ThinkingBudgetSettingsBlock />
+      <KnowledgeMaintenanceBlock cwd={cwd} />
           {/* fork:proma-33-shortcut-guide —— 快捷键地图入口排在思考预算块之后（右栏末位，
           与上面三块同属「画板 62 帧 C 右栏之外的产品续块」）。本仓的快捷键**设置表**
           已按用户裁定下线（见 SettingsPanel.test.mjs 的分节图标用例），所以地图

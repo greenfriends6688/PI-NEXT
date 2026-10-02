@@ -22,6 +22,7 @@
 
 import { sanitizeProjectCommandEnvironment } from "./project-command-env";
 import { hasActiveSessionLivenessLease } from "./session-liveness";
+import { MCP_FAILURE_COOLDOWN_MS, mcpFailureKey, type McpFailureCooldown } from "./mcp-catalog";
 import type { McpServerConfig, McpTransport, McpTransportFactory, PiSdkInternals } from "./pi-sdk-internals";
 
 // MCP server 是替某个项目跑的，和它的 bash 命令算同一类：给项目 bash 命令的环境，
@@ -45,6 +46,17 @@ export interface PiNextMcpTransportOptions {
   /** stdio server 起进程时的环境基准（清洗之前）。默认在连接时读 `process.env`。 */
   baseEnvironment?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
+  /**
+   * fork:proma-46-mcp-catalog —— 目录类 stdio 凭据的注入接缝。
+   *
+   * 生产由 `lib/pi-sdk-internals.ts` 接上 `lib/mcp-catalog-credentials.ts`：只有
+   * 当前 `command` / `args` 与保存凭据时的绑定一致，才返回要注入的环境变量；
+   * 不一致返回 undefined（**不注入**）。默认不注入，既有调用方行为不变。
+   */
+  resolveStdioCredentialEnvironment?: (
+    serverName: string,
+    config: McpServerConfig,
+  ) => Record<string, string> | undefined;
 }
 
 function isHostOnlyVariable(name: string, platform: NodeJS.Platform): boolean {
@@ -140,12 +152,110 @@ export function createPiNextMcpTransportFactory(
     if (unexpected !== undefined) {
       throw new Error(`MCP server "${entry.name}": the SDK set environment variable ${unexpected}, which its config does not declare`);
     }
+    // fork:proma-46-mcp-catalog —— 目录类 stdio 凭据：绑定校验通过才注入，覆盖同名声明。
+    const credentialEnvironment = options.resolveStdioCredentialEnvironment?.(entry.name, entry.config) ?? {};
     return new internals.StdioTransport({
       ...stdioOptions,
-      env: sanitizedMcpServerEnvironment(options.baseEnvironment ?? process.env, configured, platform),
+      env: sanitizedMcpServerEnvironment(options.baseEnvironment ?? process.env, { ...configured, ...credentialEnvironment }, platform),
       inheritEnv: false,
     });
   };
+}
+
+// ─────────────────── 必选 server 握手失败冷却（2 分钟）───────────────────
+
+/**
+ * fork:proma-46-mcp-catalog —— 在洗 env 的工厂外面再包一层 2 分钟冷却。
+ *
+ * 上游依据：Proma `apps/electron/src/main/lib/adapters/pi-mcp-tools.ts`
+ * `listRequiredMcpTools` / `REQUIRED_MCP_FAILURE_COOLDOWN_MS`。Proma 的实测收益：
+ * 不冷却时，一个连不上的必选 server 会让**每一轮** Agent 都吃满一次完整连接
+ * 超时（默认 30s connect + 60s listTools），首 token 时间被拖死。
+ *
+ * 规则：
+ *   - 冷却 key = `server 名 + 配置指纹`；改配置即换 key，等于立刻解除冷却。
+ *   - 冷却期内直接返回一个 `start()` 立刻失败的 transport，不 spawn、不建连。
+ *   - `start()` 成功后 `markSuccess`（后台重连成功立即恢复必选语义）；失败则
+ *     `markFailure`。
+ *   - 状态表在 `mcpBuiltinExtensionEntries` 的闭包里共享，跨会话生效。
+ */
+export function createCooldownGatedTransportFactory(
+  inner: McpTransportFactory,
+  cooldown: McpFailureCooldown,
+): McpTransportFactory {
+  return (entry, cwd, authProvider) => {
+    const key = mcpFailureKey(entry.name, entry.config);
+    if (cooldown.isCoolingDown(key)) {
+      return new RejectingTransport(
+        `MCP server "${entry.name}" is in a ${Math.round(MCP_FAILURE_COOLDOWN_MS / 1000)}s cooldown after a failed handshake`,
+      );
+    }
+    return new CooldownTrackingTransport(inner(entry, cwd, authProvider), cooldown, key);
+  };
+}
+
+/** 冷却期内不建连：`start()` 直接抛出可读原因。 */
+class RejectingTransport implements McpTransport {
+  constructor(private readonly reason: string) {}
+  async start(): Promise<void> {
+    throw new Error(this.reason);
+  }
+  async send(): Promise<void> {
+    throw new Error(this.reason);
+  }
+  async close(): Promise<void> {}
+  onMessage(): () => void {
+    return () => {};
+  }
+  onError(): () => void {
+    return () => {};
+  }
+  onClose(): () => void {
+    return () => {};
+  }
+}
+
+/** 只拦 `start()` 的成败，其余全部透传。 */
+class CooldownTrackingTransport implements McpTransport {
+  constructor(
+    private readonly inner: McpTransport,
+    private readonly cooldown: McpFailureCooldown,
+    private readonly key: string,
+  ) {}
+
+  async start(): Promise<void> {
+    try {
+      await this.inner.start();
+      this.cooldown.markSuccess(this.key);
+    } catch (error) {
+      this.cooldown.markFailure(this.key);
+      throw error;
+    }
+  }
+
+  send(message: unknown): Promise<void> {
+    return this.inner.send(message);
+  }
+
+  close(): Promise<void> {
+    return this.inner.close();
+  }
+
+  onMessage(listener: (message: unknown) => void): () => void {
+    return this.inner.onMessage(listener);
+  }
+
+  onError(listener: (error: Error) => void): () => void {
+    return this.inner.onError(listener);
+  }
+
+  onClose(listener: () => void): () => void {
+    return this.inner.onClose(listener);
+  }
+
+  setProtocolVersion(version: string): void {
+    this.inner.setProtocolVersion?.(version);
+  }
 }
 
 // ─────────────────── fan-out 闸门：浏览器真的在看才准连 ───────────────────

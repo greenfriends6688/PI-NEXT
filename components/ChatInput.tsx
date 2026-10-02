@@ -27,6 +27,8 @@ import {
 } from "@/lib/file-fuzzy";
 // D2-PR-12 — mention 高亮：输入框 overlay 与消息正文共用同一套切词/校验。
 import { tokenizeMentions } from "@/lib/mention-tokens";
+// fork:proma-34-mention — 引用触发符防误触发（URL / 色值 / HTML 实体 / Markdown 标题 / 绝对路径）。
+import { shouldAllowMentionTrigger } from "@/lib/mention-trigger-guard";
 import { useFileIndex, useSkillNames } from "@/hooks/useProjectContext";
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { ImagePreview } from "./ImagePreview";
@@ -1888,6 +1890,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   }, [value, attachedImages, isStreaming, runBuiltinCommand, onSend, clearInput, onAudioUnlock, t]);
 
   const slashQuery = !compact && value.startsWith("/") && !/\s/.test(value.slice(1))
+    // fork:proma-34-mention —— `/usr/bin` 这类绝对路径不弹命令菜单（规则见 lib/mention-trigger-guard.ts）。
+    && shouldAllowMentionTrigger({ text: value, triggerOffset: 0, trigger: "/" })
     ? value.slice(1).toLowerCase()
     : null;
 
@@ -3288,7 +3292,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {referenceAttachments.map((chip) => (
               /* 芯片本身是静态盒（画板 20 的 .pw-chip 就是 span）：里面的预览触发器是
                  AttachmentPreview 自己渲染的 button，移除钮是芯片末尾的 .pw-ico 按钮。 */
-              <span key={chip.path} className="pw-chip" style={{ maxWidth: 220 }}>
+              <span key={chip.path} className="pw-chip" data-mention-previewable={chip.kind === "image" ? "true" : undefined} style={{ maxWidth: 220 }}>
                 <AttachmentPreview
                   name={chip.name}
                   kind={chip.kind}
