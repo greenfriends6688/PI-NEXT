@@ -242,6 +242,16 @@ body.pw.dark { background: #0f0f13; }
 .pw-topbar .grow { flex: 1; }
 .pw-topbar .pw-tb-title { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s2); font-size: var(--text-body); color: var(--n-strong); min-width: 0; }
 .pw-topbar .pw-tb-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* fork:mobile-tb-subtitle（2026-10-03）—— 手机顶栏标题下的副行（cwd · Context N%）。
+   窄屏看不到会话在哪个目录，而这是手机上唯一能说清楚的地方；上下文百分比也是
+   一块屏上唯一说「还剩多少」的数字（环只在浮窗里报数）。
+   用 `.is-stacked` 修饰符而不是新开一个标题类：标题盒子的内边距 / 字号 / 省略号
+   全部复用上面那两条规则，这里只把方向改成列、间距归零。
+   `align-items` 故意保持 stretch —— 列向 flex 里若改成 flex-start，子项会缩到内容宽，
+   上面那条 `text-overflow: ellipsis` 就永远不触发（长标题会把顶栏撑破）。 */
+.pw-topbar .pw-tb-title.is-stacked { flex-direction: column; align-items: stretch; gap: 0; padding-top: var(--space-hair); padding-bottom: var(--space-hair); }
+.pw-topbar .pw-tb-title.is-stacked > span { min-width: 0; }
+.pw-topbar .pw-tb-title-sub { font-size: var(--text-meta); color: var(--n-placeholder); }
 .pw-chipbtn {
   display: inline-flex; align-items: center; gap: var(--space-ctrl);
   height: var(--control-xs); padding: 0 7px; border-radius: var(--radius-4);

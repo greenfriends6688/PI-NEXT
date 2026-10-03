@@ -85,6 +85,8 @@ import { useAudio } from "@/hooks/useAudio";
 import { copyText } from "@/lib/clipboard";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { getFileName, joinFilePath, sameFilePath } from "@/lib/file-paths";
+// fork:mobile-tb-subtitle —— 副行里的目录名与项目行同一个规则（lib/project-prefs.ts）。
+import { pathBasename } from "@/lib/project-prefs";
 import { getFileExt } from "@/lib/file-types";
 import { buildAtMentionText, buildFileAtMentionsText } from "@/lib/file-fuzzy";
 import {
@@ -2471,15 +2473,39 @@ export function AppShell() {
      （fork:ui-18），那一档已按用户要求撤掉（fork:no-recent-sessions），所以现在是
      纯文本而不是 `<button>`。手机上表头左侧已经有自己的
      panel-left / menu 钮，所以这里不再重复一枚图标。 */
-  const renderSessionTitle = () => (
+  /* fork:mobile-tb-subtitle（2026-10-03）—— 手机顶栏的**会话身份副行**。
+
+     窄屏看不到这个会话在哪个目录里 —— 桌面靠侧栏项目树与输入框上方的 `.pw-ctxbar`，
+     而手机上抽屉是关着的，副行是唯一能一眼说清「我在哪」的地方。上下文百分比同理：
+     环只在浮窗里报数，副行是常驻的那个数字。
+
+     **刻意只放这两项**，不照搬参照物的五项（`cwd · model · thinking · Context% · 运行中`）：
+       · model 与 thinking 已经在输入区常驻（行一的模型选择器、行二的思考芯片）——
+         再放一份就是「同一块屏上摆两枚同一个读数」，AGENTS.md 为这种事记过好几次裁定；
+       · 「运行中」也不用写：发送钮这时已经翻成「停止」，比一个词更明确。
+     副行只在手机渲染（`is-stacked` 只挂窄屏），桌面那一行一字不变。 */
+  const topBarSubtitle = (() => {
+    if (!selectedSession) return null;
+    const parts: string[] = [];
+    if (selectedSession.cwd) parts.push(pathBasename(selectedSession.cwd));
+    const percent = sessionStats?.contextUsage?.percent;
+    if (typeof percent === "number") parts.push(`${translate("topbar.context")} ${Math.round(percent)}%`);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  })();
+
+  const renderSessionTitle = () => {
+    const subtitle = isMobile ? topBarSubtitle : null;
+    return (
 <div
-  title={topBarSessionTitle}
-  className="pw-tb-title"
+  title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
+  className={`pw-tb-title${subtitle ? " is-stacked" : ""}`}
 >
   {!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span>}
   <span>{topBarSessionTitle}</span>
+  {subtitle && <span className="pw-tb-title-sub">{subtitle}</span>}
 </div>
-  );
+    );
+  };
 
   /* fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」宫格的内容。
      这些动作的实现本来就都在 AppShell 里（handleViewFullHistory / handleAutoName /

@@ -939,6 +939,7 @@ export const zhTWLocale: LocalePlugin = {
     "browser.viewportTablet": "平板 768",
     "browser.viewportLaptop": "筆電 1024",
     "browser.viewportDesktop": "桌面 1280",
+    "topbar.context": "上下文",
     "topbar.mcp": "MCP",
     "topbar.mcpServers": "MCP 伺服器",
     "topbar.mcpLoadFailed": "載入失敗",

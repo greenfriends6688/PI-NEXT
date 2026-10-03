@@ -941,6 +941,7 @@ export const enLocale: LocalePlugin = {
     "browser.viewportTablet": "Tablet 768",
     "browser.viewportLaptop": "Laptop 1024",
     "browser.viewportDesktop": "Desktop 1280",
+    "topbar.context": "Context",
     "topbar.mcp": "MCP",
     "topbar.mcpServers": "MCP servers",
     "topbar.mcpLoadFailed": "Failed to load",

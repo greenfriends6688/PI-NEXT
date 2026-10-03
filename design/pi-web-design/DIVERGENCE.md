@@ -2997,3 +2997,35 @@ indicator 上，改成 `max(var(--s5), calc(env(safe-area-inset-bottom) + var(--
   `handleSystemInfoToggle(..., false, trigger)` 与 `data-mobile-toolbar-action` 的
   签名/钩子跟着更新。`AppShell.design-components.test.mjs` 的
   `className="pw-iconbtn sm"` 计数从 4 改 3（删掉的那枚 `…` 钮）。
+
+## AL · 2026-10-03：手机顶栏的会话身份副行（对照 Pi Remote 的标题副行）
+
+形态来源是 `pi参考项目/pi-移动端` 的 `ChatScreen.kt:263-290`：标题下面一行小字
+`cwd · model · thinkingLevel · Context N% · 运行中`，不用点开任何东西就知道
+「我在哪个项目的哪个会话、用什么模型、上下文还剩多少、有没有在跑」。
+
+**新增一个类 + 一个修饰符**（判据⑦：已进 `board.css`、已画在画板 60 帧 C）：
+
+- `.pw-topbar .pw-tb-title.is-stacked` —— 复用标题盒子已有的内边距 / 字号 /
+  省略号规则，只把方向改成列、间距归零。`align-items` **故意保持 `stretch`**：
+  列向 flex 里改成 `flex-start` 会让子项缩到内容宽，上面那条
+  `text-overflow: ellipsis` 就永远不触发，长标题会把顶栏撑破。
+- `.pw-topbar .pw-tb-title-sub` —— 副行本体（`--text-meta` / `--n-placeholder`）。
+
+**只放两项，不照搬参照物的五项**：
+
+- **model 与 thinking 不放**：它们已经在输入区**常驻**（行一的模型选择器、行二的
+  思考芯片）。再放一份就是「同一块屏上摆两枚同一个读数」—— AGENTS.md 为这种事
+  记过好几次裁定（压缩上下文、会话统计、声音开关都是同一个理由删掉的重复入口）。
+- **「运行中」不放**：发送钮这时已经翻成「停止」，比一个词更明确。
+- 于是副行 = `cwd 目录名 · 上下文 N%`。这两项是**别处都没有**的：窄屏看不到会话
+  在哪个目录（桌面靠侧栏项目树 + 输入框上方的 `.pw-ctxbar`，手机抽屉是关着的），
+  而上下文环只在浮窗里报数，副行是常驻的那个数字。
+
+**只在手机渲染**：`is-stacked` 只挂窄屏，桌面顶栏那一行一字不变。
+
+**顺带**：目录名的规则从 `projectDisplayName` 里抽成 `pathBasename`
+（`lib/project-prefs.ts`）—— 副行与项目行用同一条规则，两处各写一遍 `split()` 就是
+两份会各自漂的东西。画板 60 的 `.pw-mobile-top` 补上 `pw-topbar` 类：产品那边手机页头
+本来就是 `main-workspace-header pw-topbar`，画板少了这个类就套不上 `.pw-topbar .pw-*`
+那一族规则（副行在画板上也就不会真的换行）。
