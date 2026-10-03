@@ -82,7 +82,7 @@ export function AutomationEditor({
         <Fragment>
           <ConfigField label={t("automation.interval")}>
             <input
-              className="pw-input fork-automation-narrow"
+              className="pw-input pw-numin"
               type="number"
               min={1}
               step={1}
@@ -91,7 +91,7 @@ export function AutomationEditor({
               onChange={(event) => set("intervalMinutes", Math.max(1, Number(event.target.value) || 1))}
             />
           </ConfigField>
-          <ConfigField label={t("automation.scheduleType")}>
+          <ConfigField label={t("automation.activeDays")}>
             <div className="fork-automation-days">
               {AUTOMATION_WEEKDAYS.map((day) => {
                 const on = (draft.activeWeekdays ?? []).includes(day);
@@ -113,7 +113,7 @@ export function AutomationEditor({
           <ConfigField label={t("automation.window")} hint={t("automation.windowHint")}>
             <div className="pw-inline">
               <input
-                className="pw-input fork-automation-narrow"
+                className="pw-input pw-numin"
                 type="time"
                 disabled={disabled}
                 value={draft.activeWindowStart ?? ""}
@@ -124,7 +124,7 @@ export function AutomationEditor({
               />
               <span className="pw-dim">–</span>
               <input
-                className="pw-input fork-automation-narrow"
+                className="pw-input pw-numin"
                 type="time"
                 disabled={disabled}
                 value={draft.activeWindowEnd ?? ""}
@@ -157,7 +157,7 @@ export function AutomationEditor({
         )}
         <ConfigField label={t("automation.timeOfDay")}>
           <input
-            className="pw-input fork-automation-narrow"
+            className="pw-input pw-numin"
             type="time"
             disabled={disabled}
             value={draft.timeOfDay ?? "09:00"}
@@ -185,7 +185,7 @@ export function AutomationEditor({
       </ConfigField>
       {scheduleFields(draft.scheduleType)}
 
-      <ConfigSectionTitle>{t("automation.prompt")}</ConfigSectionTitle>
+      <ConfigSectionTitle>{t("automation.content")}</ConfigSectionTitle>
       <ConfigField label={t("automation.name")}>
         <input
           className="pw-input"
@@ -196,7 +196,10 @@ export function AutomationEditor({
           onChange={(event) => set("name", event.target.value)}
         />
       </ConfigField>
-      <ConfigField label={t("automation.prompt")} hint={t("automation.promptHint")}>
+      {/* `.pw-field` 是 `align-items: center`：对 28px 的输入框正合适，对 112px 的
+          textarea 会让标签飘在整块中间。这一行是唯一的高控件，就地顶对齐
+          （`alignItems` 不在 check-style-literals 的几何槽位里，不需要 token）。 */}
+      <ConfigField label={t("automation.prompt")} hint={t("automation.promptHint")} style={{ alignItems: "flex-start" }}>
         <textarea
           className="pw-input fork-automation-prompt"
           rows={4}
@@ -222,7 +225,9 @@ export function AutomationEditor({
           value={draft.model ?? ""}
           onChange={(event) => set("model", event.target.value || undefined)}
         >
-          <option value="">{t("automation.modelHint")}</option>
+          {/* 空选项原来借用整句 hint 当标签（「留空则用会话默认模型。」），
+              而同一句又显示在字段下面 —— 一行里说两遍。给个短标签。 */}
+          <option value="">{t("automation.modelDefault")}</option>
           {modelOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -230,7 +235,7 @@ export function AutomationEditor({
       </ConfigField>
       <ConfigField label={t("automation.maxRuns")} hint={t("automation.maxRunsHint")}>
         <input
-          className="pw-input fork-automation-narrow"
+          className="pw-input pw-numin"
           type="number"
           min={1}
           step={1}
@@ -243,7 +248,9 @@ export function AutomationEditor({
         />
       </ConfigField>
 
-      <ConfigSectionTitle>{t("automation.sessionMode")}</ConfigSectionTitle>
+      {/* fork:automation-layout —— 这里原来还有一行 `ConfigSectionTitle`，内容与下面那个
+          字段标签一字不差（这一节只有这一个字段），于是屏幕上出现两遍「子会话复用」。
+          字段标签已经说清了，标题删掉。 */}
       <ConfigField label={t("automation.sessionMode")} hint={t("automation.sessionModeHint")}>
         <select
           className="pw-select"

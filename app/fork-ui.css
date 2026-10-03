@@ -3286,3 +3286,59 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
 .fork-linkbtn:hover { color: var(--accent-text); }
+
+/* ---------------------------------------------------------------------------
+ * fork:automation-layout（2026-10-03）—— 定时任务编辑器与运行历史。
+ *
+ * `components/fork/AutomationEditor.tsx` 的文件头写着「本文件只新增
+ * `.fork-automation-*` 那一小段（见 app/fork-ui.css）」，但**那一段一直没写**。
+ * 后果全部是「挤在一起」：
+ *   · `.fork-automation-prompt` 是个 `rows=4` 的 textarea，却被 `.pw-input` 的
+ *     `height: var(--control-sm)`（28px）压成单行高 —— 提示词只看得到一行；
+ *   · `.fork-automation-days` 里七个星期芯片没有 gap、也不换行，挤成一条；
+ *   · `.fork-automation-history` 是裸 `<ul>`，行首还带着 disc 圆点。
+ *
+ * 视觉仍然全部来自画板件（`.pw-input` / `.pw-chipbtn` / `.pw-badge` / `.pw-mono`），
+ * 这里只补「组件注释承诺过、但没人写」的接线层。窄数值框**不在这里**：
+ * 那四个 `type=number/time` 输入直接用画板已有的 `.pw-numin`（90px / tabular-nums，
+ * 画板 40/44 登记过），不再另造一个宽度。
+ * ------------------------------------------------------------------------- */
+
+/* textarea 必须自己拿回高度：`.pw-input` 的固定高是给单行输入的。
+   `min-height` 用 token 推（控件高 ×4 ≈ 112），不写死像素。 */
+.fork-automation-prompt {
+  height: auto;
+  min-height: calc(var(--control-sm) * 4);
+  padding: var(--s2);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+/* 星期芯片：换行 + 间隙。选中态挂在 `aria-pressed` 上 —— 它是无障碍语义里
+   已有的那个属性（组件本来就写了），比再造一个 `.is-on` 更不容易漂。 */
+.fork-automation-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+.fork-automation-day[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* 运行历史：去掉 `ul` 的圆点与缩进，一行一次运行，长错误信息允许换行。 */
+.fork-automation-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fork-automation-run {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  min-height: var(--control-sm);
+}

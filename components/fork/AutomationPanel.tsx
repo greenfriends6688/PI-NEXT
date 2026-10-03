@@ -321,7 +321,10 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
             </>
           )}
 
-          <ConfigFooter status={t("automation.subtitle")}>
+          {/* fork:automation-layout —— 页脚原来把**整段副标题**（一句 40+ 字的中文）
+              当 status 塞在按钮左边，还套了 `.pw-mono`（等宽 11px）—— 那是「挤」的
+              主要来源，而且那句话在面板顶部已经出现过一次。页脚只留动作。 */}
+          <ConfigFooter>
             <ConfigButton variant="primary" size="small" disabled={readOnly || busy} onClick={save}>
               {t("automation.save")}
             </ConfigButton>
