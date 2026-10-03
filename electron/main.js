@@ -22,6 +22,7 @@ const {
   powerSaveBlocker,
   screen,
   shell,
+  WebContentsView,
 } = require("electron");
 const { spawn } = require("node:child_process");
 const { createServer } = require("node:net");
@@ -38,6 +39,8 @@ let mainWindow = null;
 let tray = null;
 let serverProc = null;
 let serverPort = null;
+/** fork:proma-42-browser —— 受管浏览器宿主；startServer() 里赋值，will-quit 时停。 */
+let browserHost = null;
 let quitting = false;
 let keepAwakeId = null;
 
@@ -156,6 +159,19 @@ async function startServer(appRoot) {
 
   serverPort = port;
   console.log(`[pi-next] Next.js 服务启动: http://127.0.0.1:${port} (dev=${useDevServer})`);
+  // fork:proma-42-browser —— 受管浏览器宿主。必须在 **serverPort 定下来之后**起：
+  // 它要把自己注册进 ~/.pi/agent/browser-host.json，Web 端靠那个文件发现宿主；
+  // 端口没定就注册会让服务端连到一个错的端口。
+  const { createBrowserHost } = require("./browser-host");
+  browserHost = createBrowserHost({ WebContentsView }, {
+    getWindow: () => mainWindow,
+    serverOrigin: () => (serverPort ? `http://127.0.0.1:${serverPort}` : null),
+  });
+  browserHost.start().catch((error) => {
+    // 宿主起不来**不应该**让整个应用起不来：浏览器只是右栏的一个标签页，
+    // 没它的时候用户仍能用「在默认浏览器打开」。
+    console.error("[pi-next] 受管浏览器宿主启动失败（浏览器标签页会走降级）:", error);
+  });
   return { port, useDevServer };
 }
 
@@ -290,6 +306,11 @@ function createWindow() {
   });
 
   const url = `http://127.0.0.1:${serverPort}`;
+  // fork:proma-42-browser —— 把窗口交给浏览器宿主：它要在窗口上叠 WebContentsView
+  // （那层画在 DOM 之外，所以必须在窗口创建之后 attach，不能在 start() 里做）。
+  try { browserHost?.attach(); } catch (error) {
+    console.error("[pi-next] 受管浏览器 attach 失败（标签页会走降级）:", error);
+  }
   mainWindow.loadURL(url);
   return mainWindow;
 }
@@ -457,6 +478,11 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on("second-instance", showWindow);
+  // fork:proma-42-browser —— 退出时停宿主：它持有 WebContentsView 与 CDP 调试通道，
+  // 不停会留下孤儿视图（退出时被系统回收，但调试端口可能占着）。
+  app.on("will-quit", () => {
+    try { browserHost?.stop(); } catch { /* 退出路径上不抛 */ }
+  });
 
   // Must run before the first window/state write so the migrated state is the one
   // that gets read.

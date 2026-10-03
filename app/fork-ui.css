@@ -4126,3 +4126,84 @@ input[type="datetime-local"].fork-automation-narrow {
 }
 
 
+
+ * fork:pr40-split —— 右栏双 Pane 分屏的骨架（两个 Pane + 一条可拖分隔条 + 拖出落点）。
+ *
+ * 结构复用画板的 `.pw-split`（board.css:586，三列 grid）与 `.pw-drop`
+ * （board.css:1178，虚线强调色落区），**不新造 `.pw-*` 类**：`.pw-*` 是画板与
+ * 对位脚本（design/pi-web-design/scripts/check-boards.mjs、board-diff）认得的契约名，
+ * 新增一个就会被当成「板上有、产品没实现」或反过来。所以这里一律用 `.split-pane*`
+ * 前缀把**接线层**的几何补在已有类之上（为什么没进 board.css 见
+ * design/pi-web-design/DIVERGENCE.md §AG）。
+ *
+ * 列宽不写死：`SplitPaneHost` 在内联里写 `--split-pane-columns`（按比例算好的
+ * `minmax(0, …)` 三段），这里只负责把它接到 `grid-template-columns` 上。
+ * 分隔条宽度取 `--s2`（8px，与 lib/right-panel-split.ts 的 SPLIT_DIVIDER_WIDTH 同值）。
+ * ------------------------------------------------------------------------- */
+:root {
+  --split-gutter: var(--s2);
+}
+
+.split-pane-grid {
+  /* 三列：左 Pane | 分隔条 | 右 Pane。比例由 `--split-pane-columns` 带进来。 */
+  grid-template-columns: var(--split-pane-columns);
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-pane {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 焦点那一侧给一道强调色内描边 —— 分屏里「哪一格对应顶栏的选中 tab」不能只靠猜。
+   零几何：inset box-shadow 不占布局，切换不会让两个 Pane 各抖一下。 */
+.split-pane.is-focused {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* 分隔条：与右栏外沿那条 `.panel-resize-handle`（globals.css:1792）同一套语汇 ——
+   静止透明，hover / 键盘聚焦 / 拖拽中才亮起 2px 竖线。没有 `position: relative` 之外的
+   几何改动，命中区仍然是那条 12px 宽的透明带（与外沿把手一致）。 */
+.split-pane-divider {
+  position: relative;
+  z-index: 220;
+  width: var(--split-gutter);
+  flex: 0 0 var(--split-gutter);
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.split-pane-divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: transparent;
+  transition: background var(--motion-fast) ease;
+}
+
+.split-pane-divider:hover::after,
+.split-pane-divider:focus-visible::after,
+.split-pane-divider.is-resizing::after {
+  background: color-mix(in srgb, var(--text-muted) 70%, var(--border));
+}
+
+/* 拖出落点：`.pw-drop` 给的是「一整块虚线落区」的排版（grid + place-items + padding），
+   在半屏宽的 Pane 里需要铺满并压住内容，所以只调对齐，不重画边框/底色
+   （那两项仍来自 board.css 的 `.pw-drop`，主题换了它自己跟着换）。 */
+.split-pane-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}

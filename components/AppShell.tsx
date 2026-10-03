@@ -38,6 +38,10 @@ import { TabErrorBoundary } from "./TabErrorBoundary";
 // fork:proma-38-tab-reorder / fork:proma-38-tab-mru —— 拖拽排序与关闭回退的纯逻辑。
 import { applyTabOrder, moveTabBefore } from "@/lib/tab-reorder";
 import { EMPTY_TAB_MRU, focusAfterClose, rememberTabVisit, type TabMru } from "@/lib/tab-mru";
+// fork:pr40-split —— 右栏双 Pane 分屏的接线（逻辑层与壳都不改，这里只把状态接上）。
+import { useSplitPanes } from "@/hooks/useSplitPanes";
+import { SplitPaneHost } from "./fork/SplitPaneHost";
+import { groupRightPanelSplitTabs, type RightPanelPane } from "@/lib/right-panel-split";
 import { openFileTab, saveFileViewerState } from "./file-tab-state";
 // fork:zc-06 — 「最近关闭」快照的纯逻辑与存储。
 import { forgetClosedTab, loadRecentClosedTabs, recordClosedTab, saveRecentClosedTabs, type RestorableTab } from "@/lib/recent-closed-tabs";
@@ -364,6 +368,15 @@ export function AppShell() {
   });
   const reclampSidebarWidth = sidebarResizer.reclampWidth;
   const reclampRightPanelWidth = rightPanelResizer.reclampWidth;
+  // fork:pr40-split —— 分屏只**借用**右栏的 resizer：宽度归它、存储归它，
+  // 分屏下限 720 只活在会话记忆里（`useSplitPanes` 走 `setWidth(width)` 不落盘）。
+  // `useResizablePanel` 不导出上限，这里按它内部同一口径补一个稳定的壳对象。
+  const splitPanelResizer = useMemo(() => ({
+    width: rightPanelResizer.width,
+    maxWidth: Math.min(RIGHT_PANEL_MAX_WIDTH, getResponsiveRightPanelMaxWidth()),
+    isResizing: rightPanelResizer.isResizing,
+    setWidth: rightPanelResizer.setWidth,
+  }), [getResponsiveRightPanelMaxWidth, rightPanelResizer.isResizing, rightPanelResizer.setWidth, rightPanelResizer.width]);
   // On mobile the sidebar is an overlay drawer; hide it by default so the chat
   // is visible on load. Runs once the breakpoint resolves after hydration.
   useEffect(() => {
@@ -790,6 +803,34 @@ export function AppShell() {
       currentTabId: activeFileTabId,
     }));
   }, [activeFileTabId, activeWorkspaceKey, panelTabs]);
+
+  // fork:pr40-split —— 右栏双 Pane 分屏的接线。四件事都在 hook 里（比例 clamp /
+  // 落点解析 / 两套宽度记忆 / 窄栏退化），这里只负责把 AppShell 自己的 tab 列表
+  // 和激活项喂进去，再把 `selectTab` 接到顶栏。
+  const panelTabIds = useMemo(() => panelTabs.map((tab) => tab.id), [panelTabs]);
+  const splitPanes = useSplitPanes({
+    sessionId: selectedSession?.id ?? null,
+    availableTabIds: panelTabIds,
+    activeTabId: activeFileTabId,
+    onActiveTabIdChange: setActiveFileTabId,
+    isMobile,
+    resizer: splitPanelResizer,
+    dividerAriaLabel: translate("split.divider"),
+  });
+
+  // 分屏的两个 tab 排到相邻位置（其余顺序不变）—— 否则「左格开着 A、右格开着 B」
+  // 却在顶栏被别的 tab 隔开，键盘用户找不到第二个 Pane 的内容。
+  const orderedPanelTabs: Tab[] = useMemo(() => (
+    splitPanes.split
+      ? groupRightPanelSplitTabs(panelTabs, splitPanes.leftTabId, splitPanes.rightTabId)
+      : panelTabs
+  ), [panelTabs, splitPanes.leftTabId, splitPanes.rightTabId, splitPanes.split]);
+
+  // Pane 的可读名字（顶栏 tab 标题），给 `SplitPaneHost` 的 aria-label。
+  const splitPaneLabels = useMemo(() => {
+    const labelOf = (id: string | null) => panelTabs.find((tab) => tab.id === id)?.label ?? "";
+    return { left: labelOf(splitPanes.leftTabId), right: labelOf(splitPanes.rightTabId) };
+  }, [panelTabs, splitPanes.leftTabId, splitPanes.rightTabId]);
 
   useEffect(() => {
     try {
@@ -2618,6 +2659,115 @@ export function AppShell() {
       trailingActions={showExplorerToolbarRow ? browserTabButton : null}
     />
   ) : null;
+
+  // fork:pr40-split —— 一个 tab 的内容。单列与分屏共用同一个函数，避免两条渲染路径
+  // 各自漂移（上一轮自动合并就是在这块 JSX 上断的）。
+  //   `resident` = 单列常驻：切走只 `hidden`，滚动位置 / 搜索 / 未保存的 markdown
+  //     编辑态都保留（fork:file-tab-keep-alive）。
+  //   分屏时 `resident = false`：**每个 Pane 只挂自己那一个 tab** —— 沿用「全量常驻
+  //     + hidden」会让同一个终端 tab 被两个 Pane 各起一个 PTY。
+  const renderTabContent = (tabId: string, resident: boolean) => {
+    const isActive = resident ? tabId === activeFileTabId : true;
+    // 常驻模式需要一层盒子才能 hidden；分屏模式那一层由 SplitPaneHost 提供。
+    const box = (node: React.ReactNode, key: string) => (
+      resident
+        ? <div key={key} hidden={!isActive} style={{ width: "100%", height: "100%" }}>{node}</div>
+        : node
+    );
+    if (tabId === GIT_GRAPH_TAB_ID) {
+      if (!gitGraphOpen) return null;
+      // fork:git-graph-tab — 点提交里的文件直接开 diff 视图（FileViewer 已支持 modeHint）。
+      return box(
+        <GitGraphTab
+          cwd={activeCwd ?? ""}
+          onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, { modeHint: "diff" })}
+        />,
+        tabId,
+      );
+    }
+    if (tabId === TRACE_TAB_ID) {
+      if (!traceOpen) return null;
+      // fork:trace-frame —— 内容就是「完整历史」那一页（pi 自己导出的会话页），
+      // 装进右栏这个单例 tab，页头另有刷新与全屏两枚钮。
+      return box(
+        <TraceFrame
+          key={selectedSession?.id ?? "no-session"}
+          sessionId={selectedSession?.id ?? ""}
+          title={selectedSession?.name ?? topBarSessionTitle}
+          active={isActive}
+        />,
+        tabId,
+      );
+    }
+    const fileTab = fileTabs.find((tab) => tab.id === tabId);
+    if (fileTab) {
+      // 常驻模式下文件 tab 只在首次激活后挂载（关闭后由剪枝 effect 剔除）；
+      // 分屏时这一格就是它自己的内容，没有「先激活再挂」这一步。
+      if (resident && !mountedFileTabs.has(fileTab.id)) return null;
+      return box(
+        <FileViewer
+          key={`${fileTab.id}:${fileTab.viewerRevision ?? 0}`}
+          filePath={fileTab.filePath}
+          cwd={activeCwd ?? undefined}
+          sourceSessionId={fileTab.sourceSessionId}
+          locationTarget={isActive && pendingFileLocation && sameFilePath(pendingFileLocation.filePath, fileTab.filePath)
+            ? pendingFileLocation
+            : null}
+          onLocationHandled={handleFileLocationHandled}
+          onLocationFailed={handleFileLocationFailed}
+          gitRefreshKey={explorerRefreshKey}
+          initialDisplayMode={fileTab.initialDisplayMode}
+          initialPage={fileTab.page}
+          initialState={fileTab.viewerState}
+          watchEnabled={editorVisible && isActive}
+          onStateChange={(viewerState) => handleFileViewerStateChange(
+            fileTab.id,
+            fileTab.viewerRevision ?? 0,
+            viewerState,
+          )}
+          onMentionLines={editorVisible && isActive ? handleFileLineMention : undefined}
+          onAskInNewChat={editorVisible && isActive ? handleFileSelectionInNewChat : undefined}
+          onAtMention={handleAtMention}
+          onOpenFile={(filePath, page) => handleOpenFile(
+            filePath,
+            getFileName(filePath),
+            { sourceSessionId: fileTab.sourceSessionId, page },
+          )}
+        />,
+        fileTab.id,
+      );
+    }
+    const branchTab = branchTabs.find((tab) => tab.id === tabId);
+    if (branchTab) {
+      return box(
+        <ExplorationPane
+          sessionId={branchTab.sessionId}
+          parentSessionId={branchTab.parentSessionId}
+          onOpenAsMain={handleOpenSession}
+        />,
+        branchTab.id,
+      );
+    }
+    const browserTab = browserTabs.find((tab) => tab.id === tabId);
+    if (browserTab) {
+      return box(<BrowserPanel tab={browserTab} onChangeUrl={handleBrowserUrlChange} />, browserTab.id);
+    }
+    const terminalTab = terminalTabs.find((tab) => tab.id === tabId);
+    if (terminalTab) {
+      return box(
+        <TerminalPanel
+          tab={terminalTab}
+          active={editorVisible && isActive}
+          onRestart={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === terminalTab.id ? { ...item, closing: "restart" } : item))}
+          onClosed={() => handleTerminalClosed(terminalTab)}
+          onCloseError={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === terminalTab.id ? { ...item, closing: undefined } : item))}
+        />,
+        terminalTab.id,
+      );
+    }
+    return null;
+  };
+
   // Only wide panels can afford a tree column next to the document (PiDeck-style
   // "document in the middle, file tree on the right"). The width itself is
   // measured by a container query on .file-panel-body — the panel's rendered
@@ -2626,6 +2776,9 @@ export function AppShell() {
   const showExplorerColumn = Boolean(
     explorerPanel
     && !isMobile
+    // fork:pr40-split — 分屏时不要再抢一列树：两个 Pane 已经把 720px 的下限用满，
+    // 再塞一列树就是三个都读不了。退分屏后这一列自己回来。
+    && !splitPanes.isSplitActive
     && (activeFileTab?.filePath
       || terminalTabs.some((tab) => tab.id === activeFileTabId)
       || browserTabs.some((tab) => tab.id === activeFileTabId)),
@@ -2715,6 +2868,9 @@ export function AppShell() {
          ref={rightPanelResizer.panelRef}
          className={`main-panels${workspaceSwapped ? " workspace-swapped" : ""}${rightPanelOpen ? " workspace-panel-open" : " workspace-panel-closed"}${rightPanelResizer.isResizing ? " main-panels-resizing" : ""}`}
          style={{
+           // fork:pr40-split — 分屏激活时这里的 px 是 `useSplitPanes` 算出来的
+           // 「宽工作区宽度」（下限临时换成 720）；用户自己拖出来的普通宽度记在
+           // 另一套会话记忆里，退分屏后原样回来（hook 走 `setWidth(width)`，不落盘）。
            "--right-panel-width": `${rightPanelResizer.width}px`,
            // The sidebar control is deliberately outside the workspace header.
            // Reserve its hit-target width inside whichever surface is currently
@@ -3096,9 +3252,9 @@ export function AppShell() {
           <div className="desktop-drag-handle" aria-hidden="true" />
           <div style={{ flex: 1, overflow: "hidden" }}>
             <TabBar
-              tabs={panelTabs}
+              tabs={orderedPanelTabs}
               activeTabId={activeFileTabId ?? ""}
-              onSelectTab={setActiveFileTabId}
+              onSelectTab={splitPanes.selectTab}
               onCloseTab={handleCloseTabWithHistory}
               onMoveTab={handleMoveTab}
               overview={{
@@ -3108,6 +3264,18 @@ export function AppShell() {
                 onRestore: handleRestoreClosedTab,
                 onClearRecent: () => setRecentClosedTabs([]),
               }}
+              /* fork:pr40-split —— 分屏接线（不传就退回改动前的单列行为）。
+                 `isSplitUnavailable` 只提示「分屏态还在、宽度回来自动恢复」，
+                 所以退分屏钮在窄栏/手机下依然渲染，否则用户会以为分屏丢了。 */
+              handleTabDragChange={splitPanes.handleTabDragChange}
+              handleTabDrop={splitPanes.handleTabDrop}
+              endTabDrag={splitPanes.endTabDrag}
+              isDraggingTab={splitPanes.isDraggingTab}
+              isSplitActive={splitPanes.isSplitActive || splitPanes.isSplitUnavailable}
+              collapseSplit={splitPanes.collapseSplit}
+              collapseSplitLabel={splitPanes.isSplitUnavailable
+                ? translate("split.collapseUnavailable")
+                : translate("split.collapse")}
             />
           </div>
           {/* fork:ui-panel-row — while the file tree is the panel content this
@@ -3177,89 +3345,33 @@ export function AppShell() {
             same container so the tree no longer replaces the document. */}
         <div className="file-panel-body pw-panel-body">
         <div className="file-panel-main">
-          {/* fork:proma-38-tab-boundary —— 下面每一个 tab 的内容都包一层自己的错误边界：
-              一个预览崩了只换掉它自己那一格，终端 / 浏览器 / 其余预览照常。 */}
-          {activeFileTabId === GIT_GRAPH_TAB_ID && gitGraphOpen ? (
-            // fork:git-graph-tab — 点提交里的文件直接开 diff 视图（FileViewer 已支持 modeHint）。
-            <TabErrorBoundary
-              tabId={GIT_GRAPH_TAB_ID}
-              label={translate("git.graph")}
-              onClose={() => handleCloseTabWithHistory(GIT_GRAPH_TAB_ID)}
+          {/* fork:pr40-split —— 分屏时两个 Pane 各挂**一个** tab（见 renderTabContent）。
+              窄栏 / 手机下 `isSplitActive` 为假，这里自动退回单列的全量常驻渲染，
+              分屏态本身留在 `useSplitPanes` 里，宽度一够就自己回来。 */}
+          {splitPanes.isSplitActive && splitPanes.leftTabId && splitPanes.rightTabId ? (
+            <SplitPaneHost
+              ratio={splitPanes.ratio}
+              leftTabId={splitPanes.leftTabId}
+              rightTabId={splitPanes.rightTabId}
+              focusedPane={splitPanes.focusedPane as RightPanelPane}
+              dropTargetPane={splitPanes.dropTargetPane}
+              isDividerResizing={splitPanes.isDividerResizing}
+              dividerProps={splitPanes.dividerProps}
+              paneLabels={splitPaneLabels}
+              dropHint={translate("split.dropHint")}
             >
-              <GitGraphTab
-                cwd={activeCwd ?? ""}
-                onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, { modeHint: "diff" })}
-              />
-            </TabErrorBoundary>
-          ) : null}
-          {changesOpen ? (
-            // fork:proma-39-changes — 常驻挂载（hidden 而非卸载）：切走时仍轮询，
-            // 只把未读计数上报成圆点，绝不自动把 activeFileTabId 抢回来。
-            <div hidden={activeFileTabId !== CHANGES_TAB_ID} style={{ width: "100%", height: "100%" }}>
-              <TabErrorBoundary
-                tabId={CHANGES_TAB_ID}
-                label={translate("changes.title")}
-                onClose={() => handleCloseTabWithHistory(CHANGES_TAB_ID)}
-              >
-                <ChangesPanel
-                  cwd={activeCwd ?? ""}
-                  writtenFiles={sessionWrittenFiles}
-                  active={activeFileTabId === CHANGES_TAB_ID}
-                  onOpenFile={(filePath, modeHint) => handleOpenFile(filePath, getFileName(filePath), {
-                    modeHint,
-                    sourceSessionId: selectedSession?.id ?? null,
-                  })}
-                  onUnseenChange={handleChangesUnseen}
-                />
-              </TabErrorBoundary>
-            </div>
-          ) : null}
-          {fileTabs.filter((tab) => mountedFileTabs.has(tab.id)).map((tab) => {
-            const isActive = tab.id === activeFileTabId;
-            return (
-              // fork:file-tab-keep-alive — 文件 tab 不再「切走即卸载」：首次激活后常驻，
-              // 切走只 hidden，滚动位置/搜索/未保存的 markdown 编辑态都保留；
-              // 关闭后由下面的剪枝 effect 从 mountedFileTabs 剔除。
-              <div key={`${tab.id}:${tab.viewerRevision ?? 0}`} hidden={!isActive} style={{ width: "100%", height: "100%" }}>
-                {/* resetKey = viewerRevision：同一个文件重开一版内容时清掉错误态。 */}
-                <TabErrorBoundary
-                  tabId={tab.id}
-                  label={tab.label}
-                  resetKey={`${tab.id}:${tab.viewerRevision ?? 0}`}
-                  onClose={() => handleCloseTabWithHistory(tab.id)}
-                >
-                <FileViewer
-                  filePath={tab.filePath}
-                  cwd={activeCwd ?? undefined}
-                  sourceSessionId={tab.sourceSessionId}
-                  locationTarget={isActive && pendingFileLocation && sameFilePath(pendingFileLocation.filePath, tab.filePath)
-                    ? pendingFileLocation
-                    : null}
-                  onLocationHandled={handleFileLocationHandled}
-                  onLocationFailed={handleFileLocationFailed}
-                  gitRefreshKey={explorerRefreshKey}
-                  initialDisplayMode={tab.initialDisplayMode}
-                  initialPage={tab.page}
-                  initialState={tab.viewerState}
-                  watchEnabled={editorVisible && isActive}
-                  onStateChange={(viewerState) => handleFileViewerStateChange(
-                    tab.id,
-                    tab.viewerRevision ?? 0,
-                    viewerState,
-                  )}
-                  onMentionLines={editorVisible && isActive ? handleFileLineMention : undefined}
-                  onAskInNewChat={editorVisible && isActive ? handleFileSelectionInNewChat : undefined}
-                  onAtMention={handleAtMention}
-                  onOpenFile={(filePath, page) => handleOpenFile(
-                    filePath,
-                    getFileName(filePath),
-                    { sourceSessionId: tab.sourceSessionId, page },
-                  )}
-                />
-                </TabErrorBoundary>
-              </div>
-            );
-          })}
+              {(_pane, paneTabId) => renderTabContent(paneTabId, false)}
+            </SplitPaneHost>
+          ) : (
+            <>
+          {fileTabs.map((tab) => renderTabContent(tab.id, true))}
+          {branchTabs.map((tab) => renderTabContent(tab.id, true))}
+          {browserTabs.map((tab) => renderTabContent(tab.id, true))}
+          {terminalTabs.map((tab) => renderTabContent(tab.id, true))}
+          {/* fork:git-graph-tab / fork:trace-pane —— 两个单例 tab 常驻（hidden 而非卸载），
+              折叠状态与搜索查询不因切 tab 丢失。 */}
+          {gitGraphOpen ? renderTabContent(GIT_GRAPH_TAB_ID, true) : null}
+          {traceOpen ? renderTabContent(TRACE_TAB_ID, true) : null}
           {fileTabs.length === 0
             && !terminalTabs.some((tab) => tab.id === activeFileTabId)
             && !browserTabs.some((tab) => tab.id === activeFileTabId)
@@ -3276,42 +3388,8 @@ export function AppShell() {
               </div>
             )
           ) : null}
-          {branchTabs.map((tab) => (
-            <div key={tab.id} hidden={tab.id !== activeFileTabId} style={{ width: "100%", height: "100%" }}>
-              <TabErrorBoundary tabId={tab.id} label={tab.label} onClose={() => handleCloseTabWithHistory(tab.id)}>
-                <ExplorationPane
-                  sessionId={tab.sessionId}
-                  parentSessionId={tab.parentSessionId}
-                  onOpenAsMain={handleOpenSession}
-                />
-              </TabErrorBoundary>
-            </div>
-          ))}
-          {browserTabs.map((tab) => (
-            <div key={tab.id} hidden={tab.id !== activeFileTabId} style={{ width: "100%", height: "100%" }}>
-              <TabErrorBoundary
-                tabId={tab.id}
-                label={browserTabLabel(tab.url) || translate("browser.newTab")}
-                resetKey={tab.url}
-                onClose={() => handleCloseTabWithHistory(tab.id)}
-              >
-                <BrowserPanel tab={tab} onChangeUrl={handleBrowserUrlChange} />
-              </TabErrorBoundary>
-            </div>
-          ))}
-          {terminalTabs.map((tab) => (
-            <div key={tab.id} hidden={tab.id !== activeFileTabId} style={{ width: "100%", height: "100%" }}>
-              <TabErrorBoundary tabId={tab.id} label={getFileName(tab.cwd) || tab.cwd} onClose={() => handleCloseTabWithHistory(tab.id)}>
-                <TerminalPanel
-                  tab={tab}
-                  active={editorVisible && tab.id === activeFileTabId}
-                  onRestart={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === tab.id ? { ...item, closing: "restart" } : item))}
-                  onClosed={() => handleTerminalClosed(tab)}
-                  onCloseError={() => setTerminalTabs((tabs) => tabs.map((item) => item.id === tab.id ? { ...item, closing: undefined } : item))}
-                />
-              </TabErrorBoundary>
-            </div>
-          ))}
+</>
+          )}
         </div>
         {showExplorerColumn ? (
           /* fork:board-diff-2026-10-01 —— 这一列就是画板 30 的 `.pw-tree`

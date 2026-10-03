@@ -2420,3 +2420,187 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
 这正是 123 条登记的 `.fork-tab-pill` 的处境，所以同处置：画在 `fork-ui.css` 的
 行为层，几何（高 26、`top: var(--s1)` + `bottom: 0` + `margin: auto` 居中）与 pill 一致，
 粗细取 `calc(var(--space-hair) * 2)`。画板 31 的标签行没有拖拽形态，不给它加静态类。
+
+结论写进令牌契约：**SkeuoCord 系的任何 `to top, transparent …` 渐变都必须配
+`background-color`**，否则在深底上等于没画。浅色端因为渐变本身不透明，一直是对的
+—— 所以这是**只有夜间端犯**的错误，靠肉眼看单张图发现不了。
+
+同一个错在 `.pw-switch` 关态又犯了一次（把 aqua 的浅色渐变写死在组件规则里，
+夜间端一颗白得刺眼的开关泡在深色面板上）。现在开关轨面也是令牌。
+
+#### AF-7-3 · 两处刻意不做
+
+- **进度条的 135° 斜纹动画**：aqua 的 `progress-indicator` 上有
+  `after: animate-[aqua-progress-stripes_0.8s_linear_infinite]`。本仓 `--motion-*`
+  十二个 token 里没有对应档（最接近的 `--motion-spin: 900ms` 语义不对），为一个皮肤
+  加第 13 个动效 token 不值。填充的 gel 渐变照抄，条纹不做。
+- **原生 checkbox 用 `appearance: none` 重画**：这是覆盖一个原生控件，得自己保证
+  键盘与语义（`appearance:none` 不影响，两者都保住了）。做法收窄到皮肤门禁之内，
+  且勾的尺寸全用百分比 + `em` 描边 —— 产品里它只有 13px，写死 `2px` 描边会糊成一团。
+
+#### AF-7-4 · 新增的材质令牌（两支各一份）
+
+投影分档 `--mac-shadow-sm/md/lg/pop`（aqua 每个组件的 shadow 都不一样，不是同一个
+值；SkeuoCord 是同一种硬光晕环按半径分档）、白塑料珠 `--mac-thumb`、
+勾选面 `--mac-ctl-face`、轨 `--mac-track`、语义四档 `--mac-info/-danger-soft/-warn-soft`
+（连同各自的 `-bg`）、蒙层 `--mac-scrim`、工具提示 `--mac-tip*`（浅色端是经典 Mac
+黄底 `#ffffc7`，夜间端是 SkeuoCord 的灰玻璃格）、滚动条 `--mac-scroll-*`
+（他们的夜间端滑块是**浅灰** `rgb(200,200,200)`）、开关轨 `--mac-switch-off`。
+
+### AF-8 · 三个真 bug（用户实测截图发现的，不是评审发现的）
+
+#### AF-8-1 · 交通灯：不该画，删掉
+
+第一版用 `.pw-side-head::before` 画了三颗灯，还加了 `padding-left: 48px` 给品牌让位。
+**两个都错：**
+
+1. macOS 上的红绿灯是 **Electron 原生窗口控件**（`electron/main.js` 的
+   `trafficLightPosition {x:14,y:16}`，约 54×14），由系统画。CSS 再画一套就是**重复**
+   ——打包桌面端会看到两排。用户原话：「这个不是直接加上去的啊」。
+2. 让位这件事**产品自己已经做了**：`SessionSidebar.tsx:1728` 给 `.pw-side-head` 写的是
+   **内联** `style={{ paddingLeft: Math.max(12, desktopTrafficLightInset()) }}`，
+   `desktopTrafficLightInset()`（`lib/desktop-shell.ts:81`）在 darwin 上返回 64。
+   **内联优先级高于样式表** —— 我那条 `padding-left: 48px` 从写下那天起一次都没生效过
+   （实测计算值仍是 12px），它只是让品牌区的位置「看起来像是被推开了」。
+
+删掉整段。浏览器里没有真窗口，画假灯也只是装饰，还会和上面那套让位逻辑打架。
+
+**教训**：`!important` 与内联 `style` 是两道墙。动手改某个面的几何之前，先看它的
+className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「平台归位」模块
+是不是已经处理过了。
+
+#### AF-8-2 · 漏网之鱼：产品的浮窗**不挂 `pw-*` 类**，而且用 `!important` 锁了令牌
+
+第 18 节覆盖的是 `pw-*` 词表。产品里还有一批面整轮漏掉：模型选择器
+（`.anim-popover-down` + **内联** `background: var(--bg-elev)`）、扩展浮层
+（`.ext-float-panel`）、设置面板（`.config-panel-surface`）、移动端抽屉
+（`.fork-pwa-ms-sheet`）。
+
+按组件写规则**赢不了它们**：
+
+```css
+.anim-popover-down {
+  border-radius: var(--radius-lg) !important;
+  box-shadow:  var(--shadow-md) !important;
+}
+```
+
+**解法是改令牌本身**，让 `var(--shadow-md)` 在皮肤下解析成拟物投影：
+两支各接管 `--shadow-sm/md/lg/xl` + `--radius-md/lg/xl` + `--surface-popover`。
+一处改完，全站浮窗换皮，不必逐个去追类名。底色与描边补在第 19 节。
+
+顺带修掉一个真会漏字的坑：内联 `background: var(--bg-elev)` 里的 `--bg-elev`
+是皮肤写的 `color-mix(panel 95%, transparent)`，浮窗底下 5% 是转录正文，
+字会透上来 —— 第 19 节对 `.anim-popover*` 用 `!important` 把底色换成不透明面板。
+
+#### AF-8-3 · 皮肤卡片空白：共享基色不能留空
+
+`ThemeSkinStrip.skinCardPaint()` 画的卡片预览读的是 `skin.panel` / `skin.background`
+这两个**共享**字段（**不读变体**）。第一轮为了「变体优先、共享留空」把四个共享色都
+留成 `""`，结果卡片条里那张卡**全空白**（用户原话：「别就是一个空白的」）。
+
+补上浅色端那一套。运行时不受影响：`resolveSkinColors()` 是 `variant.x || skin.x`，
+两个变体都非空，共享值永远轮不到；它本来就是变体留空时的兜底。
+契约测试那条断言也跟着改了方向（从「共享必须为空」改成「共享必须有值且等于浅色端」）。
+
+**留下的**：卡片现在是**两色块**（左列 panel / 右列 background），不是图片。
+`skinCardPaint` 只支持「壁纸图」或「纯色」两种，没有第三种表达；要给它一张真缩略图
+就必须设 `wallpaper`，而 `writeSkin` 会**连带接管应用壁纸**（并备份用户原有壁纸）。
+那是产品决定，不是实现细节 —— 等用户拍板。
+
+---
+
+## AF · 2026-10-03：画板 54 / 20 / 31 / 52 四张逐条对账（用户「有的你没给我弄好」）
+
+四张板各做了一次逐元素对账。结论分四类，**只有第一类是我该直接改的**，其余三类按 §2.1 分别是
+「画板该跟上裁定」「实现该跟上画板」「形态取舍该登记」。
+
+### AF-1 · 真缺陷（已修）
+
+| 项 | 位置 | 修法 |
+|---|---|---|
+| 视口预设「桌面 1280」那行**没有图标** | `BrowserPanel.tsx:80` 写 `monitor-sm`，`icons.js` 里没有这个名字（`svg()` 命中失败返回空串） | 改回 `monitor` |
+| 队列行直接渲染英文 `steer` / `follow-up` | `ChatInput.tsx:683` `<span className="pw-badge">{kind}</span>`，无 i18n | 加 `chat.queueKindSteer/FollowUp`（zh-CN/en/zh-TW），行内改走 `t()`。两个队列是两块平铺列表、没有分组标题，这一枚徽章是**唯一**的区分手段，不能删 |
+| 图片预览的放大/缩小是文本 `−` `+` | `FileViewer.tsx:683-709` | 换 lucide `zoom-in`/`zoom-out`；`zoom-out` 此前不在图标集里（画板 52:167-168 两枚钮**都**写 `zoom-in`，是板自己的复制粘贴错），两边一起修 |
+
+### AF-2 · 真缺口（产品没实现，等拍板）
+
+| 板 | 缺什么 | 备注 |
+|---|---|---|
+| 54 | **链接「三选一」浮窗整块**：`.pw-pop-title` + 「在应用内浏览器打开 / 用系统浏览器打开 / 复制链接」三行 + 「记住上次选择」。产品只有一条硬约定（无修饰键进内置浏览器、带修饰键出系统浏览器，`MarkdownBody.tsx:55` + `lib/file-links.ts:29`） | 板自己写着「解决有面板没人调」——这条是板 54 的主论点之一 |
+| 54 | **探索面板的说明性 UI**：「只读并排视图 · 这里不能发消息」提示条、`.pw-sec-title`「这条分支的转录」、`.pw-card-foot` 脚注、`.pw-litem` 摘要列表（产品直接铺完整转录）、底部三动作里的「打开为独立会话」 | 功能骨架有，说明件与导航件被整体砍掉 |
+| 54 | `ExtensionStatusFloat` + `.ext-float-pill` CSS **已退役但没删干净**（全仓无渲染点，`AppShell.mobile-toolbar.test.mjs:114` 还断言它不许渲染） | 按 #54 末段的要求该清；纯删除 |
+| 31 | **终端空态整块**（`.pw-empty-inner` + 「还没有终端」+「新建终端」钮），i18n 无对应键；无终端标签时右栏落回文件树 | |
+| 31 | 浏览器地址栏缺 `globe` 前置图标；`external-link` 与视口芯片左右颠倒；**iframe 被 CSP 拦掉时没有任何提示**（`BrowserPanel.tsx:14-17` 的注释却承诺「the hint below the address bar says so」） | 注释漂移 |
+| 52 | **保存冲突只有两选一**（逐 hunk「保留我的/采用外部」），缺板的第三个动作「用磁盘版本 / 覆盖磁盘 / 先看差异」；服务端没有 force-overwrite 通路 | 「agent 改过我的文件」是高频场景 |
+| 52 | **「与 HEAD 对比」只覆盖文本类**：image/audio/video/pdf/docx 在 `FileViewer.tsx:1611` 直接 return，永远没有对比入口；注释承诺的「从 Git 面板打开」全仓无 `diffOpen` 写入点 | |
+| 52 | **图片工具栏少「适应窗口 / 1:1」**（现在只有一枚合并 reset） | 需要容器测量，不是一行 |
+| 52 | **滚动淡出没接查看器**：`ScrollFadeViewport` 组件齐（画板 52-B 指定的形态），但只有 `ChatWindow` 在用，CSV / 文件树 / 长源码三处都没有 | |
+| 52 | CSV 少三处：数值列 `.num` 右对齐、`.pw-card-foot` 只读说明、「跳到行…」 | 附带风险：`.pw-viewer-body` 嵌在没有确定高度的 preview stage 里，行窗口化可能失效，需真机量 |
+| 52 | frontmatter 卡少「复制」钮；布尔值 `false` 渲染成纯文本而不是徽章 | |
+| 20 | **历史提示整条缺失**：`历史 3 / 12` 徽章 + 工具条 ↑/↓ 两枚钮（产品只有键盘路径） | 键盘用户无感，鼠标用户找不到入口 |
+| 20 | **模型错误条只有壳没有动作**：板要求「换一个模型（`cpu`）」+ 关闭；且模型不可用时芯片不转 error、发送键不禁用，用户能点发送再吃一次失败 | |
+| 20 | 「3 行 / 上限 40vh」计数徽章（产品无任何计数）；`.pw-tok-cmd` 类零使用（`/` token 也走 `pw-tok-ref`） | |
+| 20 | 拖高把手 9px vs 板 12px、静止态 `opacity:0` vs 板「默认弱化可见」、上限 55vh/480 vs 板 40vh | |
+| 20 | 塌陷动效完全没接：`.is-compact` 是瞬时 `display:none`，无 120ms transition（PR-13 验收③ 明写） | |
+| 20 | 引用上下文被降级成两个标签：板画的是 2px 强调竖线 + `路径 · 行号` + 原文预览（`ComposerContextStrip.tsx:120-152` 只有「注释1/会话1」） | |
+
+### AF-3 · 画板过时（**照这张板实现会把用户已经删掉的功能装回去**）
+
+画板 20 里有三处元素**你已经在 2026-10-02/03 裁定删掉**，板与台账都没跟上：
+
+1. 工具条配额芯片 `.pw-badge count` + `gauge` + `82%`（板 20:38）—— `ChatInput.tsx:3837` 的注释 `fork:quota-chip-removed` 记着「没啥卵用」；**而 DIVERGENCE §W 仍把它写成「已落地」**。
+2. 工具条压缩芯片 `.pw-select`（板 20:42）——入口已收进上下文环浮窗（`ChatInput.tsx:4100-4107`）。
+3. 队列区的「Steer 立即打断」芯片（板 20:305）与「流式两种模式」整帧（板 20:359-380，含 `inbox`/`zap` 后果徽章）—— 流式发送一律排队（commit a79ac6df）。
+
+另外：`.pw-drop` 在 DIVERGENCE #186 记成「产品未实现」，实际 `ChatWindow.tsx:2069-2089` 已实现；`.pw-composer.collapsed` 类产品零使用且与板自身 CSS 打架；板 20:458 的注记仍写「统计条在输入框下方」，与 §2.7 裁定矛盾；环浮窗（板 20 与板 01 帧 C）都是 `Context/Rules/花费/结束原因` 旧稿，产品已是 620 三栏明细。
+
+### AF-4 · 形态不同但未登记（**该写台账，不该改代码**）
+
+按 §2.1「结构照实现」，下列都是实现侧的取舍，补登记即可，逐条列在各自的组件注释里也已经有一半：
+
+- 54：插件浮窗的段序（板 54 旧序 vs 产品按板 22）、浮窗无 360 高上限（实为 `min(space,60vh)`）、缺无条件 `.pw-sep`、探索分支抬头条是列内裸 `.pw-inline` 而非满宽 accent-soft 条、文案缺「第 N 轮」、顶栏标题恒 `panel-left` 无 `git-fork`、分支页签全同名、无 `plus`；反向登记：产品多出 `.extension-widget-trigger` 触发行、文本预览 loading/error/截断三态、`explore.nothingYet`/`paneFailed` 两态。
+- 20：队列整块移到卡外且行是裸 `.pw-prow`（板上有描边盒）、「N 条排队」计数离开工具条、编辑图标 `undo-2` vs 板 `pencil-line`、「立即发」只有图标无文字、附件失败态是 `.pw-alert` 而非 error 边框芯片、模型芯片 busy 时手绘 spinner。
+- 31：终端一目录一标签（板按进程）、`+`/`eraser` 两枚钮未实现（已登记 S-186）、状态从 `.pw-badge ok`「已连接」降为无 `aria-label` 的 7px 圆点、退出码从徽标降为文字行、「重启」是常驻描边图标钮、Git 图谱面板头自绘 + 26px 纯图标钮、分支徽标挪到提交行 ref 芯片、泳道行无 hash/相对时间列、变更文件用等宽字母码 M/R/T/A/C/D/U 而非 `file-plus`/`file-diff`/`trash-2`、`.pw-tab` 溢出是独立 `.fork-tab-more` 而非 `+3` 芯片、概览行无「当前/单例」`.pw-desc`；**`TabBar.tsx:442-452/475` 溢出菜单里的手绘 SVG 与登记 123「四枚手绘 SVG 全部退役」自相矛盾**。
+- 52：编辑态叠了两行 `.pw-viewer-head`、**编辑态在 ≤640px 直接静默消失**（`useIsMobile` 断点）、撤销钮无文案、⌘S 无 kbd 也**无任何绑定**、图片头尺寸是裸 `<span>` 而非 count 徽章、CSV 头拆成两枚 count 徽章、diff 覆盖层用产品自绘类而非 `.pw-diff-body`、对比钮图标 `git-compare` vs 板 `file-diff`、已删除态只在 Git 仓内有效（非仓库 cwd 直接红色 error 全文页）、UnsupportedFilePreview 卡内无「下载」钮。
+
+### AF-5 · 顺带记一条门禁盲区
+
+`scripts/check-icons.mjs` 只查字面量 `data-ico="name"`，**查不到 JS 里动态传的图标名**（`BrowserPanel.tsx:80` 的 `icon: "monitor-sm"` 正是这样漏过去的，而 `icons.js` 命中失败是 `return ""` 静默返回空图标，不报错）。动态图标名目前靠人眼。
+
+---
+
+## AG · 2026-10-03：fork:pr40-split —— 右栏双 Pane 分屏，`.split-pane*` 留在 fork-ui.css 而不是 board.css
+
+右栏分屏（`lib/right-panel-split.ts` + `hooks/useSplitPanes.ts` + `components/fork/SplitPaneHost.tsx`）
+的骨架类**不进画板**。这是一次**有意的形态取舍**，按 §2.1「结构照实现」登记在案。
+
+### AG-1 · 为什么 `.split-pane*` 没进 board.css
+
+1. **board.css 的 `.pw-*` 是对位契约名**。`design/pi-web-design/scripts/check-boards.mjs`、
+   `scripts/board-diff.mjs`、`scripts/board-specs/*.mjs` 全按 `.pw-` 前缀认类。新增一个 `.pw-split-pane`
+   会被当成「画板上有、产品没实现」或反过来，且**没有画板帧承载它** —— 分屏是一段交互态，
+   不是一张静态排版。对位脚本找不到对应 HTML，报出来的是噪声。
+2. **它复用的两个画板件已经齐了**。结构挂 `.pw-split`（board.css:586，三列 grid），
+   落点挂 `.pw-drop`（board.css:1178，虚线强调色落区）。需要补的只有**接线层**的几何：
+   三列宽度怎么接 `--split-pane-columns`、分隔条怎么画、落点怎么铺满半屏。这三样是
+   「产品怎么用板上的件」，不是「板长什么样」，正是 `app/fork-ui.css` 存在的理由（见该文件头的
+   三条纪律）。
+3. **比例是运行时的**。列宽由 `SplitPaneHost` 按 `ratio` 内联算成
+   `minmax(0, (100% - var(--split-gutter)) × r)` 三段。画板只能给一个静态档位，
+   写死就等于把 0.3–0.7 的可拖比例降级成一张图。
+4. **分隔条宽度取 token**：新加 `--split-gutter: var(--s2)`（8px，与
+   `lib/right-panel-split.ts` 的 `SPLIT_DIVIDER_WIDTH` 同值），不写死 `8px`。
+
+### AG-2 · 反向登记：产品**没有**新造 `.pw-*`，但也没有把板上的 `.pw-split` 用满
+
+- `.split-pane-grid` 只做一件事：把内联的 `--split-pane-columns` 接到
+  `grid-template-columns`。板 586 那条 `220px minmax(0,1fr)` 是「树 + 文档」的两列，
+  产品这一处是「文档 + 分隔条 + 文档」的三列，**列宽结构不同但类名复用** ——
+  这条不构成漂移，因为 `.pw-split` 本身只承诺 grid 骨架，不承诺列数。
+- 焦点描边（`.split-pane.is-focused` 的 1px inset box-shadow）与分隔条的 hover/拖拽
+  高亮（`.split-pane-divider::after`）是产品自绘，**板上没有对应帧**。分隔条的静止透明、
+  hover 才亮 2px 竖线是刻意跟右栏外沿那条 `.panel-resize-handle`（globals.css:1792）
+  对齐 —— 一条右栏上有两条把手，行为必须一样。
+- 拖出阈值（下移出标签栏 12px 且累计位移 ≥18px，照 Proma `TabBar.tsx`）是手势参数，
+  不属于画板语汇。

@@ -460,6 +460,12 @@ export const zhCNLocale: LocalePlugin = {
     "layout.resizeSecondaryWorkspace": "调整右侧工作区宽度",
     "layout.switchChatWorkspace": "交换聊天区与工作区",
     "layout.resizeHint": "拖动调整宽度。双击或按 Enter 恢复默认值。",
+    // fork:pr40-split —— 右栏双 Pane 分屏。
+    "split.divider": "调整右侧两个视图的分界",
+    "split.dividerHint": "拖动改比例。方向键微调，双击恢复对半。",
+    "split.dropHint": "放到这里，两个视图并排显示",
+    "split.collapse": "退出分屏",
+    "split.collapseUnavailable": "退出分屏（右栏太窄，暂时只显示一个视图）",
     "sidebar.new": "新建",
     "sidebar.newTask": "新建任务",
     // fork:chat-workspace

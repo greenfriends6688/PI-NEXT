@@ -459,6 +459,12 @@ export const enLocale: LocalePlugin = {
     "layout.resizeSecondaryWorkspace": "Resize right workspace",
     "layout.switchChatWorkspace": "Swap chat and workspace",
     "layout.resizeHint": "Drag to resize. Double-click or press Enter to reset.",
+    // fork:pr40-split — 右栏双 Pane 分屏。
+    "split.divider": "Resize the two right-pane views",
+    "split.dividerHint": "Drag to change the split. Arrow keys adjust it; double-click to reset.",
+    "split.dropHint": "Drop here to show both side by side",
+    "split.collapse": "Exit split view",
+    "split.collapseUnavailable": "Exit split view (it is hidden while this panel is too narrow)",
     "sidebar.new": "New",
     "sidebar.newTask": "New task",
     // fork:chat-workspace

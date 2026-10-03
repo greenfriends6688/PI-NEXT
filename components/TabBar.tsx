@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { getFileIcon } from "./FileIcons";
 import { TabOverview } from "./fork/TabOverview";
 import { useI18n } from "@/hooks/useI18n";
@@ -15,6 +15,7 @@ import {
   moveIntentFor,
   type TabRect,
 } from "@/lib/tab-reorder";
+import type { RightPanelTabDragState } from "@/lib/right-panel-split";
 import { TEXT } from "@/lib/typography";
 
 export interface Tab {
@@ -56,12 +57,51 @@ interface Props {
     onRestore: (tab: RestorableTab) => void;
     onClearRecent: () => void;
   };
+  /**
+   * fork:pr40-split — 右栏双 Pane 分屏的接线。**全部可选**：六个都不传就是改动前的
+   * 单列行为（TabBar 只多了一批指针事件监听，没有任何视觉或语义变化）。
+   * 它们是 `useSplitPanes` 返回值的同名转发，所以右栏那边不用再做适配。
+   */
+  /** 拖出过程中的落点上报（`null` = 松手 / 取消）。 */
+  handleTabDragChange?: (state: RightPanelTabDragState | null) => void;
+  /** 松手：落在右栏哪一侧由 AppShell 侧的落点解析决定。 */
+  handleTabDrop?: (state: RightPanelTabDragState) => void;
+  /** 强制收尾（切会话 / 右栏关闭）。 */
+  endTabDrag?: () => void;
+  /** 右栏此刻是否在拖出中（拖出时整条标签栏跟手变灰）。 */
+  isDraggingTab?: boolean;
+  /** 有分屏态（窄栏 / 手机下为 true 但渲染不出两格 —— 退分屏钮仍要留着）。 */
+  isSplitActive?: boolean;
+  /** 退分屏。 */
+  collapseSplit?: () => void;
+  /** 退分屏钮的 aria-label / title。 */
+  collapseSplitLabel?: string;
 }
 
 // fork:ui-12 — width of the "…" fold button (kept in sync with its style below).
 const TAB_OVERFLOW_BUTTON_WIDTH = 34;
 
-export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onMoveTab, overview }: Props) {
+// fork:pr40-split — 拖出阈值（照 Proma `TabBar.tsx` 的那一对）：
+//   · **方向**：指针要**向下**离开标签栏 12px（往上是顶栏，不该触发分屏）；
+//   · **距离**：累计位移 ≥ 18px —— 单次抖动 / 误触不该把 tab 拆出去。
+// 两条都满足才算「拖出中」，否则全程只当普通点击。
+const TAB_DRAG_OUT_EXIT_PX = 12;
+const TAB_DRAG_OUT_TRAVEL_PX = 18;
+
+export function TabBar({
+  tabs,
+  activeTabId,
+  onSelectTab,
+  onCloseTab,
+  overview,
+  handleTabDragChange,
+  handleTabDrop,
+  endTabDrag,
+  isDraggingTab,
+  isSplitActive,
+  collapseSplit,
+  collapseSplitLabel,
+}: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const [hoveredClose, setHoveredClose] = useState<string | null>(null);
@@ -100,6 +140,103 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onMoveTab, 
   const pendingRef = useRef<{ tabId: string; fromIndex: number; startX: number; startY: number } | null>(null);
   const dragRef = useRef<{ tabId: string; fromIndex: number; insertIndex: number; insertX: number } | null>(null);
   const [drag, setDrag] = useState<{ tabId: string; fromIndex: number; insertIndex: number; insertX: number } | null>(null);
+
+  /* fork:pr40-split —— 拖出成手势分屏。
+   *
+   * 监听挂在 window 上而不是 tab 上：指针一旦向下移出这条 `overflow-x: hidden` 的
+   * 标签栏，元素级监听就收不到后续 move 了。也因此全程不 `setPointerCapture` ——
+   * 捕获会把事件锁在 tab 上，右栏拿不到真实指针位置，落点会粘在按下那一格。
+   *
+   * 两个回调任一为空就整段不挂（单列路径零成本）。
+   */
+  const dragOutEnabled = Boolean(handleTabDragChange && handleTabDrop);
+  const dragOutRef = useRef<{
+    tabId: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    // 过阈值之前 pointermove 一次都不报，避免每次微小抖动都往返 React。
+    dragging: boolean;
+  } | null>(null);
+  // 拖出成立后紧跟着的那次 click 要吃掉：否则松手会把 tab 切走一次，
+  // 刚建的分屏又被顶栏点选改回去。
+  const suppressClickRef = useRef(false);
+
+  useEffect(() => {
+    if (!dragOutEnabled) return;
+    const finish = (cancelled: boolean) => {
+      const drag = dragOutRef.current;
+      if (!drag) return;
+      dragOutRef.current = null;
+      if (!drag.dragging) return;
+      suppressClickRef.current = !cancelled;
+      // 落点与分屏态全在右栏那边算；这里只报一个坐标，松手后它自己收手。
+      if (cancelled) handleTabDragChange?.(null);
+      else handleTabDrop?.({ tabId: drag.tabId, clientX: drag.lastX, clientY: drag.lastY });
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = dragOutRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+      if (drag.dragging) {
+        handleTabDragChange?.({ tabId: drag.tabId, clientX: event.clientX, clientY: event.clientY });
+        return;
+      }
+      const dy = event.clientY - drag.startY;
+      const travel = Math.hypot(event.clientX - drag.startX, dy);
+      if (dy < TAB_DRAG_OUT_EXIT_PX || travel < TAB_DRAG_OUT_TRAVEL_PX) return;
+      drag.dragging = true;
+      handleTabDragChange?.({ tabId: drag.tabId, clientX: event.clientX, clientY: event.clientY });
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (dragOutRef.current?.pointerId !== event.pointerId) return;
+      finish(false);
+    };
+    const onPointerCancel = (event: PointerEvent) => {
+      if (dragOutRef.current?.pointerId !== event.pointerId) return;
+      finish(true);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !dragOutRef.current) return;
+      finish(true);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+      window.removeEventListener("keydown", onKeyDown, true);
+      // 卸载时通知右栏收手（切会话 / 关右栏时指针可能还在半空）。
+      const drag = dragOutRef.current;
+      dragOutRef.current = null;
+      if (drag?.dragging) handleTabDragChange?.(null);
+    };
+  }, [dragOutEnabled, handleTabDragChange, handleTabDrop]);
+
+  // 右栏自己收手（切会话）后，这边也要把内部状态清掉，否则下一次 pointermove
+  // 还会往一个已经不存在的拖拽上发坐标。
+  useEffect(() => {
+    if (!isDraggingTab && dragOutRef.current?.dragging) dragOutRef.current = null;
+  }, [isDraggingTab]);
+
+  const startTabDragOut = (tabId: string, event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragOutEnabled || event.button !== 0) return;
+    dragOutRef.current = {
+      tabId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      dragging: false,
+    };
+  };
 
   useEffect(() => {
     // tab 全关光时浮层无事可做，留着只会悬在空栏上。
@@ -325,6 +462,10 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onMoveTab, 
         flexShrink: 0,
         height: "var(--control-lg)",
         minWidth: 0,
+        // fork:pr40-split —— 拖出中整条栏变淡：这是「正在把 tab 拆出去」的全局反馈
+        // （落点高亮在右栏那一侧，不依赖具体哪个 tab）。
+        opacity: isDraggingTab ? 0.55 : 1,
+        transition: "opacity 120ms var(--ease-out)",
       }}
     >
       {/* fork:zm-05 — the highlight pill. Absolutely positioned (out of flow) so
@@ -396,21 +537,14 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onMoveTab, 
                 pendingTabFocusRef.current = nextId;
               }
             }}
-            onClick={() => onSelectTab(tab.id)}
-            onPointerDown={(event) => {
-              // fork:proma-38-tab-reorder —— 只认主键 / 主指针；关闭钮上不起拖拽
-              // （那个 click 是「关闭」）。移动端（useIsMobile）不起拖拽：标签行要能
-              // 横向滑动，手势让位给滚动，排序走 Alt+←/→。
-              if (!dragEnabled) return;
-              if (event.button !== 0 || event.isPrimary === false) return;
-              if ((event.target as HTMLElement | null)?.closest("button")) return;
-              pendingRef.current = {
-                tabId: tab.id,
-                fromIndex: visible.findIndex((item) => item === index),
-                startX: event.clientX,
-                startY: event.clientY,
-              };
+            onClick={() => {
+              if (suppressClickRef.current) {
+                suppressClickRef.current = false;
+                return;
+              }
+              onSelectTab(tab.id);
             }}
+            onPointerDown={(e) => startTabDragOut(tab.id, e)}
             onMouseDown={(e) => {
               if (e.button === 1) e.preventDefault();
             }}
@@ -507,6 +641,32 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onMoveTab, 
         >
           <i data-ico="ellipsis" data-size={14} aria-hidden="true"></i>
           {hiddenTabs.length}
+        </button>
+      )}
+      {/* fork:pr40-split —— 退分屏。窄栏 / 手机下也渲染（那时 `isSplitActive` 仍为真，
+          只是画不出两格）—— 不留这颗钮，分屏态就会变成一个用户看得见却删不掉的幽灵。
+          位置在「…」与概览之前：它是**当前布局**的动作，不是 tab 列表的动作。 */}
+      {isSplitActive && collapseSplit && (
+        <button
+          type="button"
+          data-split-collapse="true"
+          className="fork-tab-collapse"
+          onClick={() => {
+            collapseSplit();
+            endTabDrag?.();
+          }}
+          title={collapseSplitLabel}
+          aria-label={collapseSplitLabel}
+          aria-pressed={false}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            height: "var(--control-sm)", width: "var(--control-sm)", flexShrink: 0,
+            background: "transparent",
+            border: "none", borderRadius: "var(--radius-md)",
+            color: "var(--text-muted)", cursor: "pointer",
+          }}
+        >
+          <i data-ico="minimize-2" data-size={14} aria-hidden="true"></i>
         </button>
       )}
       {/* fork:zc-06 — 概览入口。始终存在（只要还有 tab），因为溢出菜单只在
