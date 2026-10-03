@@ -977,7 +977,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // 挤不下时收芯片而不是把行撑破。竖屏手机与平板照旧走两行。
   const landscapeShort = useIsLandscapeShort();
   const [shellNarrow, setShellNarrow] = useState(false);
-  const narrowControls = (viewportCompact && !landscapeShort) || shellNarrow;
+  // fork:pwa-hit-slop-2（2026-10-03）—— `shellNarrow` 原来能推翻横屏档：横屏手机
+  // 宽 844 看着够，但侧栏停靠后聊天列只剩 ~564，`shellNarrow` 就把它拉回两行 ——
+  // 而横屏档存在的全部理由就是「高度是稀缺资源」（实测 844×390 下工具条 52px = 两行，
+  // 注释里写着「两行控件条在 390 高里占掉 ~150px」）。两处都要让位给横屏档。
+  const narrowControls = (viewportCompact || shellNarrow) && !landscapeShort;
   // fork:pr23-resize — 顶部手柄竖向缩放。`height === null` 保持内容驱动的自动
   // 高度；数字表示用户已接管。manualMode 时卡片挂内联固定高度，textarea 交给
   // `.is-manual-height` 的 CSS（`height: 100% !important`）填充并内部滚动，

@@ -2164,6 +2164,71 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 }
 /* ---------------------------------------------------------------------------
+ * fork:pwa-hit-slop-2（2026-10-03）—— 上一段漏掉的三处。
+ *
+ * `scripts/pwa-audit.mjs` 在 390×844 下逐屏报出的可交互元素里，上一段只覆盖了
+ * 输入区与顶栏，下面这几处至今仍是 11～28px 宽（**高**已由 globals.css 的 DSN-04
+ * 补到 36，宽没有）：
+ *   · `button.x`（tab 关闭钮）11px —— 关错 tab 的元凶；
+ *   · 右栏页头两枚裸钮（git 图谱 / 关面板）24px —— 它们没有 `.pw-iconbtn`，
+ *     所以既不在画板规格里、也不在任何命中区清单里（内联 `--control-xs`）；
+ *   · 抽屉底栏那枚手机钮 22px。
+ *
+ * 手段与上一段完全一致：**盒子一个像素不动**，`::after` 外扩命中区。
+ * 这也就是为什么 `pwa-audit` 的 smallTargets 清单永远不会归零 —— 伪元素不计入
+ * 宿主盒子的 `getBoundingClientRect()`，量测看不到外扩后的真实命中区。那张清单
+ * 是**读数**不是门禁：要修的是「按不准」，不是把数字改到 28 以上。
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  /* tab 关闭钮：11 → 21。横向**只往右**扩 8（正好是 `.pw-tab` 自己的右内边距
+     `0 8px`），往左只拿 2（标签与 × 之间的 gap 5 的一半）—— 往左多拿就是
+     「点标签却把 tab 关了」，那比按不准更糟。高已经满行 36。 */
+  .pw-tab > button.x {
+    position: relative;
+  }
+  .pw-tab > button.x::after {
+    content: "";
+    position: absolute;
+    inset: 0 -8px 0 -2px;
+  }
+  /* 折叠菜单（⋯+N）与概览（rows-3）：28 见方 → 向外各扩 6。
+     它们与相邻 tab 之间没有别的控件，`--s1` 的间隙吃得住这 6。 */
+  .fork-tab-more,
+  .fork-tab-overview {
+    position: relative;
+  }
+  .fork-tab-more::after,
+  .fork-tab-overview::after {
+    content: "";
+    position: absolute;
+    inset: 0 -6px;
+  }
+  /* 右栏页头的两枚裸钮（`fork-panel-head-act` 是接线钩子，不新造 `pw-*`）：
+     它们内联 `--control-xs`（24），而**右栏页头不像主页头那样有尺寸档**，所以手机
+     上只有 24。这两枚又紧挨着彼此（git 图谱 / 关面板），用 `::after` 向左右外扩会
+     互相盖住 —— 点 git 图谱的右缘反而关掉面板。所以这里不用伪元素，直接把**盒子**
+     抬到 `--control-touch`（与主页头的 `.pw-iconbtn` 同一档）：
+     `min-width` 胜过内联的 `width`，而页头行本身就是 36 高，盒子刚好塞满。
+     画板对位不受影响：spec 30/31 量的是 `.pw-panel-head .pw-iconbtn`（这两枚
+     没有那个类），量不到它们。 */
+  .fork-panel-head-act {
+    min-width: var(--control-touch);
+    min-height: var(--control-touch);
+  }
+  /* 抽屉底栏的手机钮：22 → 34。左邻是设置行、右邻是版本徽章，各拿 6。
+     用 `data-fork-quick` 定位而不是 `+` 相邻选择器：这一排的成员顺序在
+     fork:phone-push 里已经改过一次（徽章从按钮里挪到外面），下次再挪不该把命中区弄丢。 */
+  [data-fork-quick="phone-push"] {
+    position: relative;
+  }
+  [data-fork-quick="phone-push"]::after {
+    content: "";
+    position: absolute;
+    inset: 0 -6px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * fork:extension-dialog-title —— 扩展请求对话框（画板 50）头部 + 标题的**收缩**。
  *
  * 上游依据：#961（`46b5235`），Refs #890。

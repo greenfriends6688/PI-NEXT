@@ -3384,6 +3384,10 @@ export function AppShell() {
               onClick={openGitGraphTab}
               title={translate("git.graph")}
               aria-label={translate("git.graph")}
+              /* fork:pwa-hit-slop-2 —— 内联 `--control-xs`（24）是画板值，手机上指腹
+                 按不准；挂一枚 `fork-*` 接线钩子让 CSS 用 `::after` 外扩命中区
+                 （不新造 `pw-*`，也不改盒子）。 */
+              className="fork-panel-head-act"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "var(--control-xs)", height: "var(--control-xs)", padding: 0,
@@ -3409,6 +3413,8 @@ export function AppShell() {
               aria-expanded={rightPanelOpen}
               title={translate("files.hidePanel")}
               aria-label={translate("files.hidePanel")}
+              /* fork:pwa-hit-slop-2 —— 同上：24 的盒子不动，命中区由 CSS 外扩。 */
+              className="fork-panel-head-act"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "var(--control-xs)", height: "var(--control-xs)", padding: 0, borderRadius: "var(--radius-md)",
@@ -3542,7 +3548,10 @@ export function AppShell() {
         className="pw-toast bad"
         style={{
           position: "fixed",
-          bottom: "var(--s5)",
+          /* fork:pwa-hit-slop-2 —— 原来只给 `var(--s5)`，standalone 下正好压在
+              iOS home indicator 上（那一条 34px 不吃点击）。取 max()：非全面屏
+             仍是最初的 `--s5`，全面屏额外让出安全区 + `--s3` 的呼吸。 */
+          bottom: "max(var(--s5), calc(env(safe-area-inset-bottom, 0px) + var(--s3)))",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 900,

@@ -2878,3 +2878,46 @@ className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「�
 - 拖出阈值（下移出标签栏 12px 且累计位移 ≥18px，照 Proma `TabBar.tsx`）是手势参数，
   不属于画板语汇。
 
+---
+
+## AI · 2026-10-03：手机档命中区补齐（上一段 `fork:pwa-hit-slop` 漏掉的三处）
+
+`fork:pwa-hit-slop` 只补了输入区与顶栏。按 `scripts/pwa-audit.mjs` 在 390×844 下
+逐屏报出的清单，另有三处可交互元素至今只有 11～28px 宽（**高**早被 globals.css
+的 DSN-04 补到 36，宽没有）。本段逐条修，并记两条**看起来是缺陷其实不是**的：
+
+| 位置 | 之前 | 现在 | 手段 |
+|---|---|---|---|
+| tab 关闭钮 `button.x` | 11×36 | 命中 21×33 | `::after` 只往右扩 8（`.pw-tab` 自己的右内边距）+ 往左 2（与标签的 gap 5 的一半） |
+| tab 概览钮 `.fork-tab-overview` | 28×36 | 命中 35×33 | `::after` 左右各 6 |
+| 右栏页头两枚裸钮 | 24×36 | **36×36** | 直接抬盒子（见下） |
+| 抽屉底栏手机钮 | 22×36 | 命中 33×35 | `::after` 左右各 6，用 `[data-fork-quick]` 定位 |
+
+- **tab 关闭钮只往右扩**：往左多拿就是「点标签却把 tab 关了」，那比按不准更糟。
+  真正的大目标是**概览钮**（`rows-3`，一行一个 tab 的 44px 行 + 每行的关闭），
+  所以 11px 的 × 只需从「按不准」改善到「按得中」。
+- **右栏页头两枚不用伪元素，直接抬盒子**：它们紧挨着彼此（git 图谱 / 关面板），
+  `::after` 互相外扩会盖住对方 —— 点 git 图谱的右缘反而关掉面板。页头行本身是 36 高，
+  盒子抬到 `--control-touch` 刚好塞满，与主页头 `.pw-iconbtn` 同一档。
+  对位不受影响：spec 30/31 量的是 `.pw-panel-head .pw-iconbtn`（这两枚没有那个类）。
+- **`pwa-audit` 的 `smallTargets` 清单永远不会归零，这不是门禁**：伪元素不计入宿主
+  盒子的 `getBoundingClientRect()`，所以「盒子小、命中区大」这一手法量不出来。
+  那张清单是**读数**：要修的是「按不准」，不是把数字改到 28 以上。
+  本轮之后 `shell-terminal` 那一屏从 4 条变 5 条，正是因为给一枚原本匿名的
+  `button` 挂了 `fork-panel-head-act`，去重键变了 —— 不是新增了缺陷。
+
+**两条误报（查证后不改）**
+
+1. **「横屏手机控件条标签全失」——不成立**。`useIsLandscapeShort` 只决定「退回单行」，
+   而标签的显隐条件是 `!narrowControls`，横屏档下正是显示标签的那一支。实测 844×390：
+   单行，`Space Bunny Free` / `max` / `全自动` / `已配置` 四个标签都在。
+   （写计划时照抄了审计结论，实机一量就推翻了 —— 所以本轮只改下面这一条。）
+2. 同一处的**真缺陷**：`narrowControls = (viewportCompact && !landscapeShort) || shellNarrow`
+   —— `shellNarrow`（卡片实测宽度 < 700）能**推翻**横屏档。横屏手机宽 844 看着够，
+   但侧栏停靠后聊天列只剩 ~564，于是又变回两行；而横屏档存在的全部理由就是
+   「高度是稀缺资源」（注释原文：「两行控件条在 390 高里占掉 ~150px（实测 41%）」）。
+   改成 `(viewportCompact || shellNarrow) && !landscapeShort`。实测侧栏停靠下
+   工具条从两行回到一行（`rows: 1`）。
+
+**顺带**：`.pw-toast` 原来只给 `bottom: var(--s5)`，standalone 下正好压在 iOS home
+indicator 上，改成 `max(var(--s5), calc(env(safe-area-inset-bottom) + var(--s3)))`。
