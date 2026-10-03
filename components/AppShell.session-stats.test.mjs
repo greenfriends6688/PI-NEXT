@@ -49,6 +49,15 @@ test("the session action menu keeps the path copies the ring popover dropped", (
   assert.match(menu, /onOpenSettings/);
   assert.match(menu, /onViewTrace/);
   assert.match(appShell, /<SessionActionsMenu/);
+  // fork:trace-menu-2026-10-02 —— 三条复制改由 AppShell 统一处理（失败要弹 toast，
+  // 不能菜单里报了「已复制」其实没复制上）；导出改成同源下载（桌面端 window.open
+  // 会被交给系统浏览器，在应用里等于「点了没反应」）。
+  assert.match(appShell, /const copyWithFeedback = useCallback/);
+  assert.match(appShell, /function downloadSessionFile\(url: string\)/);
+  assert.match(appShell, /onExportHtml=\{\(\) => \{[\s\S]*?downloadSessionFile\(/);
+  // 系统提示词 / 工具定义从顶栏收进菜单（触发钮 ⋯ 当锚点）。
+  assert.match(menu, /t\("system\.prompt"\)/);
+  assert.match(menu, /t\("tools\.title"\)/);
 });
 
 test("warns before a session grows large enough to slow switching", () => {

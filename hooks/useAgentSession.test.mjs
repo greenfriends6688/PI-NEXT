@@ -90,9 +90,12 @@ test("opening System or Tools lazily starts a dormant session without sending a 
   assert.match(loadSystemInfoSource, /setSystemPrompt\(state\.systemPrompt \?\? ""\)/);
   assert.match(loaderEffectSource, /onSystemInfoLoaderChange\?\.\(loadSystemInfo\)/);
   assert.match(loaderEffectSource, /onSystemInfoLoaderChange\?\.\(null\)/);
-  // fork:top-panel-anchor —— 两个入口把 event.currentTarget 一起传下去当定位锚点。
-  assert.match(appShellSource, /onClick=\{\(event\) => handleSystemInfoToggle\("system", mobile, event\.currentTarget\)\}/);
-  assert.match(appShellSource, /onClick=\{\(event\) => handleSystemInfoToggle\("tools", mobile, event\.currentTarget\)\}/);
+  // fork:top-panel-anchor —— 入口把触发元素一起传下去当定位锚点。
+  // fork:trace-menu-2026-10-02 —— 入口从顶栏两枚图标钮搬进顶栏 ⋯ 菜单（用户裁定），
+  // 锚点由菜单把自己的按钮传上来；取数与面板一行没动。
+  assert.match(appShellSource, /onViewSystemPrompt=\{\(trigger\) => handleSystemInfoToggle\("system", false, trigger\)\}/);
+  assert.match(appShellSource, /onViewTools=\{\(trigger\) => handleSystemInfoToggle\("tools", false, trigger\)\}/);
+  assert.match(appShellSource, /<SessionActionsMenu/);
   assert.match(appShellSource, /systemInfoLoaderRef\.current/);
   assert.doesNotMatch(appShellSource, /systemPrompt !== null \|\| systemInfoLoading/);
   assert.match(appShellSource, /const loadId = \+\+systemInfoLoadIdRef\.current/);

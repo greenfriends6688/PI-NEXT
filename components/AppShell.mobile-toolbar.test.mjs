@@ -19,7 +19,9 @@ test("uses a compact narrow-mobile toolbar with a floating action layer", () => 
     /data-mobile-toolbar-actions="true"[\s\S]*?position: "absolute"[\s\S]*?right: 0,[\s\S]*?left: TOP_BAR_ICON_BUTTON_SIZE/,
   );
 
-  for (const action of ["history", "name", "agents", "branches", "system", "tools"]) {
+  // fork:trace-menu-2026-10-02 —— 「系统提示词」「工具定义」收进 ⋯ 菜单，窄屏工具条
+  // 也跟着少这两枚（它们现在走会话动作菜单）。
+  for (const action of ["history", "name", "agents", "branches"]) {
     assert.match(source, new RegExp(`data-mobile-toolbar-action=(?:\\{mobile \\? )?"${action}"`));
   }
 });
@@ -80,8 +82,9 @@ test("keeps the mobile action layer open after using an expanded action", () => 
   }
 
   assert.match(source, /toggleTopPanel\("branches", true, event\.currentTarget\)/);
-  assert.match(source, /handleSystemInfoToggle\("system", mobile, event\.currentTarget\)/);
-  assert.match(source, /handleSystemInfoToggle\("tools", mobile, event\.currentTarget\)/);
+  // fork:trace-menu-2026-10-02 —— 两个只读面板改由 ⋯ 菜单触发（工具条不再有这两枚钮）。
+  assert.match(source, /onViewSystemPrompt=\{\(trigger\) => handleSystemInfoToggle\("system", false, trigger\)\}/);
+  assert.match(source, /onViewTools=\{\(trigger\) => handleSystemInfoToggle\("tools", false, trigger\)\}/);
   assert.match(source, /handleViewFullHistory/);
   // fork:ui-stats-inline — 统计不再占顶栏按钮，因此也没有“点开后保持工具条展开”的需求。
   assert.doesNotMatch(source, /toggleTopPanel\("session"\)/);

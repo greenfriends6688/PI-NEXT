@@ -1,20 +1,18 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { copyText } from "@/lib/clipboard";
 import { useSessionFlags } from "@/lib/session-flags";
 import { useContextMenu, type ContextMenuEntry } from "../ContextMenu";
 
 /**
  * fork:trace-menu —— 顶栏的会话动作 ⋯ 菜单（借鉴 ZCode 的任务菜单，
- * docs/trace-pane-and-session-menu-plan-2026-10-02.md §4.2）。顺序照那张图：
- * 置顶 / 重命名 / 归档 / 标记未读 ‖ 在访达打开 / 复制路径 / 复制任务路径 /
- * 复制会话 ID / 前往配置 ‖ 查看调用轨迹 ‖ 导出 HTML / 导出 Markdown。
+ * docs/trace-pane-and-session-menu-plan-2026-10-02.md §4.2）。顺序照那张图分组：
+ * 置顶 / 重命名 / 归档 / 标记未读 ‖ 在访达打开 / 复制路径 / 复制会话文件路径 /
+ * 复制会话 ID / 前往配置 ‖ 系统提示词 / 工具定义 / 调用轨迹 ‖ 导出 HTML / 导出 Markdown。
  *
- * pi 没有的东西就不摆：ZCode 的「复制日志路径」「反馈问题」在 pi-web 没有对应物
- * （pi 不写会话日志，也没有反馈中心）。轨迹入口既在这里也在顶栏那枚图标钮上，
- * 两处是同一个动作。
+ * 这个组件**只负责摆条目**，动作都在 props 里：复制/导出/打开面板都带可见结果或
+ * 可见失败（AppShell 侧那条 `.pw-toast`），菜单自己不吞异常。
  *
  * 菜单本体用既有的 `ContextMenuProvider`（不是再画一个下拉）：键盘导航、
  * 越界翻转、复制后的 `feedbackLabel` 都是它的既有行为。
@@ -35,7 +33,12 @@ export function SessionActionsMenu({
   onRename,
   onMarkUnread,
   onReveal,
+  onCopyProjectPath,
+  onCopySessionFilePath,
+  onCopySessionId,
   onOpenSettings,
+  onViewSystemPrompt,
+  onViewTools,
   onViewTrace,
   mobile = false,
 }: {
@@ -46,16 +49,24 @@ export function SessionActionsMenu({
   onMarkUnread: () => void;
   /** 在文件管理器里打开项目目录；失败由调用方弹通知。 */
   onReveal: () => void;
+  onCopyProjectPath: () => void;
+  onCopySessionFilePath: () => void;
+  onCopySessionId: () => void;
   onOpenSettings: () => void;
+  /** 打开「系统提示词」「工具定义」两个只读面板，trigger 是定位锚点（⋯ 按钮）。 */
+  onViewSystemPrompt: (trigger: HTMLElement) => void;
+  onViewTools: (trigger: HTMLElement) => void;
   onViewTrace: () => void;
   mobile?: boolean;
 }) {
   const { t } = useI18n();
   const { openMenu } = useContextMenu();
   const { flags, pin, archive } = useSessionFlags();
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-  const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
+  const handleOpen = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     if (!session) return;
+    buttonRef.current = event.currentTarget;
     // 菜单右缘大致贴着触发钮右缘（ContextMenu 自己会在视口边缘翻转）。
     const rect = event.currentTarget.getBoundingClientRect();
     const isPinned = flags.pinned.includes(session.id);
@@ -95,20 +106,20 @@ export function SessionActionsMenu({
         disabled: !projectDir,
         feedbackLabel: t("session.copied"),
         icon: <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true"></i></span>,
-        onSelect: async () => { await copyText(projectDir); },
+        onSelect: () => { onCopyProjectPath(); },
       },
       {
         label: t("session.copyTaskPath"),
         disabled: !session.path,
         feedbackLabel: t("session.copied"),
         icon: <span className="pw-ico"><i data-ico="file-text" data-size="14" aria-hidden="true"></i></span>,
-        onSelect: async () => { await copyText(session.path ?? ""); },
+        onSelect: () => { onCopySessionFilePath(); },
       },
       {
         label: t("session.copyId"),
         feedbackLabel: t("session.copied"),
         icon: <span className="pw-ico"><i data-ico="hash" data-size="14" aria-hidden="true"></i></span>,
-        onSelect: async () => { await copyText(session.id); },
+        onSelect: () => { onCopySessionId(); },
       },
       {
         label: t("session.openSettings"),
@@ -117,13 +128,25 @@ export function SessionActionsMenu({
       },
       { type: "separator" },
       {
+        // fork:trace-menu-2026-10-02 —— 这两枚原来常驻顶栏，现在从 ⋯ 进（低频只读诊断）。
+        label: t("system.prompt"),
+        icon: <span className="pw-ico"><i data-ico="file-text" data-size="14" aria-hidden="true"></i></span>,
+        onSelect: () => { if (buttonRef.current) onViewSystemPrompt(buttonRef.current); },
+      },
+      {
+        label: t("tools.title"),
+        icon: <span className="pw-ico"><i data-ico="wrench" data-size="14" aria-hidden="true"></i></span>,
+        onSelect: () => { if (buttonRef.current) onViewTools(buttonRef.current); },
+      },
+      {
         label: t("trace.title"),
         icon: <span className="pw-ico"><i data-ico="activity" data-size="14" aria-hidden="true"></i></span>,
         onSelect: onViewTrace,
       },
+      { type: "separator" },
       {
         label: t("session.exportHtml"),
-        icon: <span className="pw-ico"><i data-ico="globe" data-size="14" aria-hidden="true"></i></span>,
+        icon: <span className="pw-ico"><i data-ico="download" data-size="14" aria-hidden="true"></i></span>,
         onSelect: onExportHtml,
       },
       {
@@ -134,12 +157,13 @@ export function SessionActionsMenu({
     ];
 
     openMenu(Math.max(8, rect.right - 200), rect.bottom, entries);
-  }, [archive, flags, onExportHtml, onExportMarkdown, onMarkUnread, onOpenSettings, onRename, onReveal, onViewTrace, openMenu, pin, session, t]);
+  }, [archive, flags, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onOpenSettings, onRename, onReveal, onViewSystemPrompt, onViewTools, onViewTrace, openMenu, pin, session, t]);
 
   if (!session) return null;
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={handleOpen}
       title={t("session.actions")}
