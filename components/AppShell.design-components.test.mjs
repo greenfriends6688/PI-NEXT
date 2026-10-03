@@ -72,10 +72,12 @@ test("the top bar action buttons take their size from the board classes", () => 
   // fork:trace-menu-2026-10-02 —— 「系统提示词」「工具定义」收进 ⋯ 菜单后，顶栏少两枚。
   assert.equal(source.match(/className=\{mobile \? "pw-touch" : "pw-iconbtn"\}/g)?.length, 4);
   assert.equal(source.match(/className="pw-iconbtn"/g)?.length, 3);
-  // 4 = 面板头行两枚「更多控件」+ 右栏那枚「新建浏览器标签」（原来自绘
+  // 3 = 面板头行两枚「更多控件」+ 右栏那枚「新建浏览器标签」（原来自绘
   // `.file-viewer-icon-button` 26px，比同排其余钮大一圈，已换成画板 .pw-iconbtn.sm）
   // + fork:phone-push 侧栏底栏那枚手机钮（2026-10-03 用户要的位置：版本徽章左边）。
-  assert.equal(source.match(/className="pw-iconbtn sm"/g)?.length, 4);
+  // fork:mobile-toolbar-slim-2026-10-03 —— 窄屏顶栏那枚「更多控件」⋯（`pw-iconbtn sm`）
+  // 随覆盖层一起删除，所以这里从 4 处变 3 处。
+  assert.equal(source.match(/className="pw-iconbtn sm"/g)?.length, 3);
 });
 
 test("the empty chat placeholder is the board's .pw-empty frame", () => {

@@ -10,8 +10,8 @@ test("keeps System and Tools in separate adjacent toolbar actions", () => {
   // fork:top-panel-anchor —— 两个入口各带各的按钮作为定位锚点。
   // fork:trace-menu-2026-10-02 —— 两个入口从顶栏图标钮搬进顶栏 ⋯ 菜单（用户裁定），
   // 面板与取数一行没动；触发钮（⋯）仍当定位锚点。
-  assert.match(appShellSource, /onViewSystemPrompt=\{\(trigger\) => handleSystemInfoToggle\("system", false, trigger\)\}/);
-  assert.match(appShellSource, /onViewTools=\{\(trigger\) => handleSystemInfoToggle\("tools", false, trigger\)\}/);
+  assert.match(appShellSource, /onViewSystemPrompt=\{\(trigger\) => handleSystemInfoToggle\("system", trigger\)\}/);
+  assert.match(appShellSource, /onViewTools=\{\(trigger\) => handleSystemInfoToggle\("tools", trigger\)\}/);
   assert.doesNotMatch(appShellSource, /data-mobile-toolbar-action=\{mobile \? "(system|tools)" : undefined\}/);
   assert.match(appShellSource, /activeTopPanel === "system"[\s\S]*?<SystemPromptPanel/);
   assert.match(appShellSource, /activeTopPanel === "tools"[\s\S]*?<ToolDefinitionsPanel/);

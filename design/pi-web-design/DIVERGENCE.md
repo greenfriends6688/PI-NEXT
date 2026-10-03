@@ -2957,3 +2957,43 @@ indicator 上，改成 `max(var(--s5), calc(env(safe-area-inset-bottom) + var(--
 历史 / 生成标题 / 子代理 / 分支 / 导出从窄屏顶栏撤掉、拆掉盖住标题的覆盖层）
 是 PR-2，那一步才删。MCP / 插件两枚只读状态浮窗手机上也**不做**：它们读的是
 「已启用几台」，手机上走 设置 › MCP / 插件 即可，顶栏那两枚是桌面快捷方式。
+
+## AK · 2026-10-03：拆掉两条「覆盖式工具条」（画板 60 帧 C 重画）
+
+画板 60 原来那条裁定是「窄屏不新增底部条、不新增底部弹层 —— **放不下的动作收进顶栏那条
+覆盖式工具条**」。这个「收进覆盖层」的答案，在这块屏上产生了两个具体后果：
+
+1. **顶栏那条覆盖层盖住会话标题**。窄屏顶栏要摆六枚（历史 / 生成标题 / 子代理 / 分支 /
+   导出 Markdown / 会话动作 ⋯），放不下，于是 `…` 展开一层 `position: absolute;
+   left: 36px; right: 0` 的模糊浮层压在标题上，同时把文件面板钮按 `visibility: hidden` +
+   `disabled` + `tabIndex: -1` + `aria-hidden` 四件套「关掉」。这是**裁定推出来的必然结果，
+   不是一个设计**：动作数量没变，能放的位置只有那一条。
+2. **输入区行二那条覆盖层**（`controlsMenuOpen`）同一个毛病：它把上下文环与声音开关藏起来，
+   点 `…` 再铺一层浮层盖在行二上。
+
+参照物 `pi参考项目/pi-移动端` 的答案是**宫格**（AJ 节已借）。宫格落地后这两条覆盖层就没有
+存在的理由了，本段把它们拆掉：
+
+- **顶栏**：`renderChatToolbarActions(mobile)` 现在只返回**会话动作 ⋯**，于是窄屏顶栏是
+  菜单 / 会话身份 / ⋯ / 面板开关 —— 四枚，一行放得下，标题再也不会被盖住。
+  桌面这条**不动**（一行摆得下，而且顶栏本来就是它最快的入口）。连带删掉：
+  `mobileToolbarMoreOpen` 状态、`…` 钮、`data-mobile-toolbar-more` /
+  `data-mobile-toolbar-actions` / `data-mobile-toolbar-action` 三个钩子、
+  `covered` 四件套、`handleMobileToolbarMoreToggle`、外部点击/Esc 的两个 effect、
+  以及 `toggleTopPanel` / `handleSystemInfoToggle` 上那个已经无用的
+  `keepMobileToolbarOpen` 参数。`useIsNarrowMobile` 在 AppShell 里也不再需要。
+- **输入区**：`controlsMenuOpen` 整条拆掉，行二变成常驻的
+  思考 / 权限 / 工具预设 / 速度 / 上下文环 / 发送。上下文环**常驻**是对的 ——
+  它是这块屏上唯一说「还剩多少上下文」的地方（`fork:ui-stats-ring` 把完整统计也收进了
+  它的浮窗）。声音开关**不搬进宫格** —— 覆盖层拆掉之后它本来就常驻在行二，
+  再给一格就是「同一块屏上摆两枚同一个动作」（AGENTS.md 那条裁定），
+  所以第一版加的 `actionPanel.sound` 那一格与它的 i18n 键一起撤掉了。
+- **画板 60 帧 C 重画**：原来画的是「更多控件 = 顶栏展开」，现在画「窄屏顶栏只剩会话动作 ⋯」，
+  注里写明那五枚去了帧 E。帧 E 之前被错误地嵌在帧 C 的 `<div>` 里（插入时锚点取在 C 的
+  收尾标签之前），这次一并挪成兄弟节点。
+- **测试同步**（不是放宽）：`AppShell.mobile-toolbar.test.mjs` 里锁「旧覆盖层」的五条断言
+  改写成锁**新形态**（顶栏只剩一枚动作、覆盖层与三个钩子彻底消失、文件开关不再有
+  `covered` 四件套、输入区不再有 `controlsMenuOpen`）；另外四个测试文件里
+  `handleSystemInfoToggle(..., false, trigger)` 与 `data-mobile-toolbar-action` 的
+  签名/钩子跟着更新。`AppShell.design-components.test.mjs` 的
+  `className="pw-iconbtn sm"` 计数从 4 改 3（删掉的那枚 `…` 钮）。

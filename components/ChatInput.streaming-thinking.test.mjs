@@ -24,7 +24,9 @@ test("keeps the level control on the board select", () => {
   // fork:design-components —— 尺寸由画板 .pw-select 提供（board.css：24px 高 /
   // 0 7px 内边距 / radius-4），不再写在各处 inline style 里。
   assert.match(control, /className="pw-select"/);
-  assert.match(control, /\(!narrowControls \|\| controlsMenuOpen\) &&/);
+  // fork:pwa-composer-slim-2026-10-03 —— 覆盖式工具条拆了，标签的显隐只剩窄屏这一个条件。
+  assert.match(control, /!narrowControls && <span style=\{\{ whiteSpace: "nowrap" \}\}>/);
+  assert.doesNotMatch(control, /controlsMenuOpen/);
 });
 
 test("shows the level the runtime actually applies, not the selector placeholder", async () => {

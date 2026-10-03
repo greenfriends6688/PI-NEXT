@@ -1064,7 +1064,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
   // 2026-10-03 用户裁定 —— 权限档也从「点一下循环」改成下拉（与思考档 / 工具档一致）。
   const [permissionDropdownOpen, setPermissionDropdownOpen] = useState(false);
-  const [controlsMenuOpen, setControlsMenuOpen] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>(() => (
     draftImagesToAttachedImages(initialDraft?.images)
   ));
@@ -1161,7 +1160,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const toolDropdownRef = useRef<HTMLDivElement>(null);
   const thinkingDropdownRef = useRef<HTMLDivElement>(null);
   const permissionDropdownRef = useRef<HTMLDivElement>(null);
-  const controlsMenuRef = useRef<HTMLDivElement>(null);
   // fork:mobile-action-panel —— 触发钮就是锚点（浮层 portal 到 body，位置由它算）。
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const actionPanelAnchorRef = useRef<HTMLButtonElement>(null);
@@ -3075,10 +3073,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       if (permissionDropdownRef.current && !permissionDropdownRef.current.contains(e.target as Node)) {
         setPermissionDropdownOpen(false);
       }
-      if (controlsMenuRef.current && !controlsMenuRef.current.contains(e.target as Node)) {
-        setControlsMenuOpen(false);
-      }
-      // fork:mobile-action-panel —— 宫格浮层是 portal，不在 controlsMenuRef 子树里，
+      // fork:mobile-action-panel —— 宫格浮层是 portal 到 body 的，
       // 所以要单独判一次（面板自己也会在格子被点时收起）。
       if (actionPanelPopRef.current && !actionPanelPopRef.current.contains(e.target as Node)
         && actionPanelAnchorRef.current && !actionPanelAnchorRef.current.contains(e.target as Node)) {
@@ -3093,11 +3088,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   }, []);
 
   useEffect(() => {
-    if (!narrowControls) setControlsMenuOpen(false);
     // fork:mobile-action-panel —— 这枚钮只在窄屏渲染，回到宽屏时把状态也清掉，
     // 否则下次变窄会带着一个「上次开着的浮层」出现。
     if (!narrowControls) setActionPanelOpen(false);
-  }, [isMobile, narrowControls]);
+  }, [narrowControls]);
 
 
 
@@ -4002,7 +3996,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   }}
                 >
                   <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
-                  {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
+                  {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
                   {/* 2026-10-03 用户裁定 —— 有选项的芯片一律带向下箭头（与模型选择器同款
                       chevron-down），不然分不清「可点开」与「只是读数」。 */}
                   <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
@@ -4100,7 +4094,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       data-size="13"
                     ></i>
                   </span>
-                  {(!narrowControls || controlsMenuOpen) && (
+                  {!narrowControls && (
                     <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
                   )}
                   <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
@@ -4164,7 +4158,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   }}
                 >
                   <span className="pw-ico"><i data-ico="wrench" data-size="13"></i></span>
-                  {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
+                  {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
                   {/* 2026-10-03 用户裁定 —— 同思考档：有选项就带箭头。 */}
                   <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
                 </button>
@@ -4239,7 +4233,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           )}
 
           {/* RIGHT: 上下文环 + 声音 + 发送（停止） */}
-          <div ref={controlsMenuRef} className="fork-pwa-wb-actions" style={{
+          <div className="fork-pwa-wb-actions" style={{
             flex: "0 0 auto",
             display: "flex",
             alignItems: "center",
@@ -4248,48 +4242,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             marginLeft: narrowControls ? 0 : "auto",
             gridArea: narrowControls ? "actions" : undefined,
           }}>
-            {narrowControls && (
-              /* fork:design-components —— 窄屏「更多控件」= 画板 60 C 帧的 ellipsis 图标钮（.pw-iconbtn），点开是覆盖式工具条、末尾一个 x 收起。 */
-              <button
-                type="button"
-                 title={controlsMenuOpen ? undefined : t("chat.moreControls")}
-                 aria-label={t("chat.moreControls")}
-                aria-expanded={controlsMenuOpen}
-                aria-hidden={controlsMenuOpen || undefined}
-                tabIndex={controlsMenuOpen ? -1 : undefined}
-                onClick={() => {
-                  setControlsMenuOpen(true);
-                }}
-                className="pw-iconbtn fork-pwa-wb-act"
-                style={{
-                  cursor: controlsMenuOpen ? "default" : "pointer",
-                  visibility: controlsMenuOpen ? "hidden" : "visible",
-                  pointerEvents: controlsMenuOpen ? "none" : "auto",
-                }}
-              >
-                <span className="pw-ico"><i data-ico="ellipsis" data-size="15"></i></span>
-              </button>
-            )}
+            {/* fork:pwa-composer-slim（2026-10-03）—— 这里原本是窄屏的「更多控件」
+                ellipsis 钮 + 一条**覆盖式**工具条（把上下文环与声音藏起来、点 ⋯ 再铺
+                一层浮层盖在行二上）。拆掉它的理由：
+                  · 覆盖层是「藏在另一层里的图标」，与顶栏那条盖住标题的覆盖层同一个毛病；
+                  · 声音开关搬进了输入区的「更多动作」宫格（那一格有文字，不用猜）；
+                  · 上下文环是**读数**，本来就该常驻 —— 它是这块屏上唯一说「还剩多少上下文」
+                    的地方（fork:ui-stats-ring 把完整统计也收进了它的浮窗）。
+                所以行二现在是：思考 / 权限 / 工具预设 / 速度 / 上下文环 / 发送，一屏摆得下。 */}
             <div style={{
-              display: narrowControls ? (controlsMenuOpen ? "flex" : "none") : "flex",
+              display: "flex",
               alignItems: "center",
               gap: narrowControls ? 1 : 2,
-              ...(narrowControls ? {
-                position: "absolute",
-                right: 0,
-                bottom: 0,
-                zIndex: 60,
-                padding: "var(--space-hair)",
-                width: "max-content",
-                maxWidth: "calc(100vw - 32px)",
-                flexWrap: "nowrap",
-                justifyContent: "flex-end",
-                border: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
-                borderRadius: "var(--radius-md)",
-                background: "color-mix(in srgb, var(--bg-panel) 92%, var(--bg))",
-                boxShadow: "var(--shadow-popover)",
-                backdropFilter: "blur(10px)",
-              } : null),
             }}>
             {contextRing}
 
@@ -4304,23 +4268,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 style={{ width: "var(--control-md)", height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
               >
                 <span className="pw-ico"><i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i></span>
-              </button>
-            )}
-            {narrowControls && controlsMenuOpen && (
-              <button
-                type="button"
-                 title={t("chat.collapseControls")}
-                 aria-label={t("chat.collapseControls")}
-                aria-expanded={true}
-                onClick={() => {
-                  setToolDropdownOpen(false);
-                  setThinkingDropdownOpen(false);
-                  setControlsMenuOpen(false);
-                }}
-                className="pw-iconbtn fork-pwa-wb-act"
-                style={{ cursor: "pointer" }}
-              >
-                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
               </button>
             )}
             {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；

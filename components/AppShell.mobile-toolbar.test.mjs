@@ -1,38 +1,40 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 const mobileHookSource = await readFile(new URL("../hooks/useIsMobile.ts", import.meta.url), "utf8");
 
-test("keeps action icons inline in medium mobile sidebars", () => {
-  assert.match(mobileHookSource, /NARROW_MOBILE_QUERY = "\(max-width: 480px\)"/);
-  assert.match(source, /const isNarrowMobile = useIsNarrowMobile\(\);/);
-  assert.match(source, /\{!isNarrowMobile && renderChatToolbarActions\(true\)\}/);
-  assert.match(source, /\{isNarrowMobile && \([\s\S]*?data-mobile-toolbar-more="true"/);
+test("the phone top bar carries exactly one action: the session menu", () => {
+  // fork:mobile-toolbar-slim（2026-10-03）—— 手机上这条工具条只留会话动作 ⋯。
+  // 历史 / 生成标题 / 子代理 / 分支 / 导出 Markdown 五枚全部搬进输入区的
+  // 「更多动作」宫格（有文字、拇指够得到），所以窄屏不再需要那条**盖住会话标题**的
+  // 覆盖层 —— 那是「同构 + 不新增底部条」这条裁定的必然后果，不是一个设计。
+  assert.match(source, /if \(mobile\) \{\s*return \(\s*<div[\s\S]*?renderSessionActionsMenu\(true\)/);
+  // 覆盖层与它的入口必须彻底消失，不是留着不渲染。
+  assert.doesNotMatch(source, /mobileToolbarMoreOpen/);
+  assert.doesNotMatch(source, /data-mobile-toolbar-more/);
+  assert.doesNotMatch(source, /data-mobile-toolbar-actions/);
+  assert.doesNotMatch(source, /data-mobile-toolbar-action=/);
+  // ⋯ 菜单抽成了函数：桌面在工具条末尾用它，手机在顶栏用它。
+  assert.match(source, /const renderSessionActionsMenu = \(mobile: boolean\) => \(/);
 });
-
-test("uses a compact narrow-mobile toolbar with a floating action layer", () => {
-  assert.match(source, /data-mobile-toolbar="true"[\s\S]*?flex: 1,[\s\S]*?minWidth: 0/);
-  assert.match(
-    source,
-    /data-mobile-toolbar-actions="true"[\s\S]*?position: "absolute"[\s\S]*?right: 0,[\s\S]*?left: TOP_BAR_ICON_BUTTON_SIZE/,
-  );
-
-  // fork:trace-menu-2026-10-02 —— 「系统提示词」「工具定义」收进 ⋯ 菜单，窄屏工具条
-  // 也跟着少这两枚（它们现在走会话动作菜单）。
-  for (const action of ["history", "name", "agents", "branches"]) {
-    assert.match(source, new RegExp(`data-mobile-toolbar-action=(?:\\{mobile \\? )?"${action}"`));
+test("the desktop toolbar keeps all five icon actions", () => {
+  // 桌面这条一行摆得下，顶栏本来就是它最快的入口 —— 只有手机瘦身。
+  for (const icon of ["history", "wand-sparkles", "download"]) {
+    assert.match(source, new RegExp(`data-ico="${icon}"`));
   }
+  assert.match(source, /\{sessionHasBranches && \(mobile \? \(/);
 });
-
 test("only renders the Agents switcher when the active session family has subagents", () => {
   assert.match(source, /const hasSubagentSessions = Boolean\(activeSessionFamily\?\.subagents\.length\)/);
-  // fork:top-panel-anchor —— 第三个参数是「被点的那颗按钮」，定位时量它而不是整条顶栏。
-  assert.match(source, /\{hasSubagentSessions && \(\s*<button[\s\S]*?toggleTopPanel\("agents", mobile, event\.currentTarget\)/);
+  // fork:top-panel-anchor —— 第二个参数是「被点的那颗按钮」，定位时量它而不是整条顶栏。
+  // （原来还有第三个「保持手机工具条展开」参数，覆盖层拆掉后已删。）
+  assert.match(source, /\{hasSubagentSessions && \(\s*<button[\s\S]*?toggleTopPanel\("agents", event\.currentTarget\)/);
   assert.match(source, /activeTopPanel === "agents" && activeSessionFamily && selectedSession/);
+  assert.doesNotMatch(source, /keepMobileToolbarOpen/);
 });
-
 test("keeps the Agents panel open while switching sessions and hangs it under its button", () => {
   assert.match(source, /const AGENT_PANEL_WIDTH = 420/);
   // fork:top-panel-anchor —— 画板 22：浮层从**各自的按钮下方**挂出，左缘对齐按钮
@@ -54,42 +56,30 @@ test("only renders branch toolbar controls for sessions with branches", () => {
   assert.match(source, /panel === "branches" \? null : panel/);
 });
 
-test("keeps covered file controls out of interaction and focus", () => {
-  // fork:ui-stats-inline — 统计控件已从顶栏移到 composer 下方，只剩文件开关还吃 covered 状态。
-  assert.doesNotMatch(source, /renderSessionStatsButton/);
-  assert.match(source, /const covered = mobile && isNarrowMobile && mobileToolbarMoreOpen;/);
-  assert.match(source, /disabled=\{covered\}[\s\S]*?tabIndex=\{covered \? -1 : undefined\}/);
-  assert.match(source, /data-mobile-toolbar-file=\{mobile \? "true" : undefined\}[\s\S]*?visibility: covered \? "hidden" : "visible"/);
-  assert.match(source, /aria-hidden=\{covered \? true : undefined\}/);
+test("the file toggle is always interactive (the covered trio is gone)", () => {
+  // fork:mobile-toolbar-slim —— 这枚钮原来在窄屏要被「盖住」处理（覆盖层铺开时
+  // visibility:hidden + disabled + tabIndex:-1 + aria-hidden）。覆盖层拆了，
+  // 三件套也一起删：一枚永远可点、永远在无障碍树里的面板开关。
+  assert.doesNotMatch(source, /const covered = mobile/);
+  assert.doesNotMatch(source, /visibility: covered/);
+  assert.match(source, /data-mobile-toolbar-file=\{mobile \? "true" : undefined\}/);
+  assert.match(source, /aria-controls=\{mobile \? "file-panel" : secondaryWorkspaceId\}/);
 });
-
-test("closes the mobile action layer on outside click, Escape, layout changes, and session changes", () => {
-  assert.match(source, /event\.composedPath\(\)\.includes\(toolbar\)/);
-  assert.match(source, /document\.addEventListener\("pointerdown", handlePointerDown, true\)/);
-  assert.match(source, /event\.key !== "Escape"[\s\S]*?setMobileToolbarMoreOpen\(false\)/);
-  assert.match(source, /\}, \[isMobile, isNarrowMobile, selectedSession\?\.id, newSessionDraftId\]\);/);
+test("the composer no longer hides its context ring behind an overlay", () => {
+  // fork:pwa-composer-slim（2026-10-03）—— 输入区行二原本有一条**覆盖式**工具条
+  // （ellipsis 展开，把上下文环与声音藏起来）。与顶栏那条盖住标题的覆盖层是同一个
+  // 毛病，一起拆了：声音开关搬进宫格，上下文环常驻（它是这块屏上唯一说
+  // 「还剩多少上下文」的地方）。
+  const chatInput = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(chatInput, /controlsMenuOpen/);
+  assert.doesNotMatch(chatInput, /chat\.moreControls/);
+  assert.doesNotMatch(chatInput, /chat\.collapseControls/);
+  assert.doesNotMatch(chatInput, /!narrowControls \|\| controlsMenuOpen/);
+  // 声音开关**不**进宫格：拆掉覆盖层之后它本来就常驻在行二，再给一格就是
+  // 「同一块屏上摆两枚同一个动作」（AGENTS.md 那条裁定）。
+  assert.doesNotMatch(source, /id: "sound"/);
+  assert.match(chatInput, /data-ico=\{soundEnabled \? "volume-2" : "volume-x"\}/);
 });
-
-test("keeps the mobile action layer open after using an expanded action", () => {
-  const toggleTopPanel = source.match(/const toggleTopPanel = useCallback\([\s\S]*?\n  \}, \[isMobile, isNarrowMobile\]\);/)?.[0];
-  const historyHandler = source.match(/onClick=\{\(\) => \{[\s\S]*?handleViewFullHistory\(\);[\s\S]*?\n          \}\}/)?.[0];
-  const autoNameHandler = source.match(/onClick=\{\(\) => \{[\s\S]*?void handleAutoName\(\);[\s\S]*?\n              \}\}/)?.[0];
-
-  for (const handler of [toggleTopPanel, historyHandler, autoNameHandler]) {
-    assert.ok(handler);
-    assert.doesNotMatch(handler, /setMobileToolbarMoreOpen\(false\)/);
-    assert.match(handler, /setMobileToolbarMoreOpen\(true\)/);
-  }
-
-  assert.match(source, /toggleTopPanel\("branches", true, event\.currentTarget\)/);
-  // fork:trace-menu-2026-10-02 —— 两个只读面板改由 ⋯ 菜单触发（工具条不再有这两枚钮）。
-  assert.match(source, /onViewSystemPrompt=\{\(trigger\) => handleSystemInfoToggle\("system", false, trigger\)\}/);
-  assert.match(source, /onViewTools=\{\(trigger\) => handleSystemInfoToggle\("tools", false, trigger\)\}/);
-  assert.match(source, /handleViewFullHistory/);
-  // fork:ui-stats-inline — 统计不再占顶栏按钮，因此也没有“点开后保持工具条展开”的需求。
-  assert.doesNotMatch(source, /toggleTopPanel\("session"\)/);
-});
-
 test("keeps theme and language in settings instead of the chat toolbar", () => {
   assert.doesNotMatch(source, /renderThemeButton/);
   assert.doesNotMatch(source, /renderLanguageButton/);
