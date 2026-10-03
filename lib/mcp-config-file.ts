@@ -166,9 +166,85 @@ export async function setMcpServerEnabled(file: string, name: string, enabled: b
     internals.updateMcpServerConfig(staging, name, { enabled } satisfies McpServerConfigPatch));
 }
 
+/**
+ * fork:mcp-undo —— 读出某条目在文件里的**位置**与原文，供删除后撤销用（上游
+ * `lib/mcp-undo.ts` 要求还原时放回原位，所以这里必须拿到 index 与原始 entry，
+ * 而不是 pi 校验后的副本）。
+ */
+export async function readMcpServerEntryAt(
+  file: string,
+  name: string,
+): Promise<{ entry: unknown; index: number } | undefined> {
+  if (!existsSync(file)) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(parsed)) return undefined;
+  const servers = parsed.mcpServers;
+  if (!isRecord(servers)) return undefined;
+  const names = Object.keys(servers);
+  const index = names.indexOf(name);
+  if (index < 0) return undefined;
+  return { entry: servers[name], index };
+}
+
+/**
+ * fork:mcp-undo —— 把条目放回它在文件里的原位置。
+ *
+ * 走 JSON 层而不是 pi 的编辑器：pi 的 `addMcpServerConfig` 只能追加到末尾，而撤销要
+ * 「回到它刚才站的位置」（上游同一个要求）。写入仍然复用 `editMcpConfigFile` 的那套不变量
+ * —— 同目录 staging + `renameSync` 原子替换 + 0600 + 坏文件不覆盖。
+ */
+export async function insertMcpServerAt(
+  file: string,
+  name: string,
+  entry: unknown,
+  index: number,
+): Promise<void> {
+  await editMcpConfigFile(file, async (_internals, staging) => {
+    let parsed: Record<string, unknown> = {};
+    if (existsSync(staging)) {
+      const raw = JSON.parse(readFileSync(staging, "utf8")) as unknown;
+      if (!isRecord(raw)) throw new Error(`${file}: malformed JSON`);
+      parsed = raw;
+    }
+    const servers = isRecord(parsed.mcpServers) ? { ...parsed.mcpServers } : {};
+    if (name in servers) throw new Error(`${file}: defines "${name}" already`);
+    const names = Object.keys(servers);
+    const rest = new Map(names.map((key) => [key, servers[key]]));
+    const at = Math.max(0, Math.min(index, names.length));
+    const next: Record<string, unknown> = {};
+    let inserted = false;
+    for (const key of names) {
+      if (!inserted && rest.size !== 0 && names.indexOf(key) === at) {
+        next[name] = entry;
+        inserted = true;
+      }
+      next[key] = servers[key];
+    }
+    if (!inserted) next[name] = entry;
+    parsed.mcpServers = next;
+    writeFileSync(staging, `${JSON.stringify(parsed, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  });
+}
+
 /** Remove one server. Returns false when the file does not define it. */
 export async function removeMcpServer(file: string, name: string): Promise<boolean> {
   return editMcpConfigFile(file, (internals, staging) => internals.removeMcpServerConfig(staging, name));
+}
+
+/**
+ * fork:mcp-auto-reload / P0-3 —— 落一份 `/mcp` 管理器改出来的 patch（`enabled` /
+ * `exposure`）到它所属的那个 `mcp.json`。pi 1.0 给了 `McpExtensionOptions.updateConfig`
+ * 这个钩子：宿主接管落盘。没接管时 pi 自己改文件，会绕开本仓的两条不变量：
+ * 0600 + 同目录 staging rename（`editMcpConfigFile`）、以及保留文件里的未知顶层键。
+ * 写入仍走 pi 的 `updateMcpServerConfig`，所以「值为默认就删掉这个键」的口径与 pi 一致。
+ */
+export async function applyMcpServerPatch(file: string, name: string, patch: McpServerConfigPatch): Promise<void> {
+  await editMcpConfigFile(file, (internals, staging) => internals.updateMcpServerConfig(staging, name, patch));
 }
 
 /** The config entry of one server in one file, raw enough for the JSON editor. */

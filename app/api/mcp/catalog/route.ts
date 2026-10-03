@@ -21,6 +21,8 @@ import { addMcpServer } from "@/lib/mcp-config-file";
 import { validateMcpServer, type McpServerConfig } from "@/lib/mcp-validator";
 import { buildCatalogServerConfig, findCatalogEntry, isCatalogEntryValid } from "@/lib/mcp-catalog";
 import { saveCatalogCredential } from "@/lib/mcp-catalog-credentials";
+// fork:mcp-auto-reload —— 目录里配好一个 server 也是写 mcp.json，同样要重载会话。
+import { requestMcpReload } from "@/lib/rpc-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +98,9 @@ export async function POST(req: Request) {
     }
 
     await addMcpServer(catalogFilePath(body.cwd, scope), entry.serverName, built.config as unknown as McpServerConfig);
-    return NextResponse.json({ ok: true, name: entry.serverName, scope });
+    // fork:mcp-auto-reload —— global 改动影响所有会话，项目级只影响本工作区。
+    const reload = scope === "global" ? requestMcpReload(undefined) : requestMcpReload(body.cwd);
+    return NextResponse.json({ ok: true, name: entry.serverName, scope, reload });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : String(error) },

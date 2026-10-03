@@ -34,7 +34,6 @@ export interface McpValidationResult {
   /** 给 UI / 日志的一句话；失败时是 pi 的校验错误。 */
   detail: string;
 }
-
 function describeConfig(config: McpServerConfig): string {
   const target = "url" in config
     ? `${config.type ?? "http"} ${config.url}`
@@ -47,8 +46,21 @@ function describeConfig(config: McpServerConfig): string {
 /**
  * Validate one server entry with pi's rules. Never throws: the SDK internals
  * being unavailable is reported as `unsupported`, exactly like an invalid config.
+ *
+ * fork:mcp-native-exposure（2026-10-02）—— pi 1.0 的 `validateMcpServerConfig` 本身已经很全
+ * （exposure / toolExposure / timeout / description / legacy SSE / http(s) / oauth.* /
+ * auth.provider 的 https 或 loopback 要求都在里面），所以这里**不再自己写一套**。
+ * 本仓只补一条**它按定义看不到的规则**：项目级 `mcp.json` 不许用 `auth.provider` ——
+ * 那是仓库内容，不该决定凭据发给哪个 provider（SDK 文档
+ * `extensions/mcp/config.d.ts` 原文：「Project files cannot use it, so a repository
+ * cannot pick where the credential goes.」）。pi 自己不做这条判断，因为它不知道这份
+ * 配置是全局还是项目级。
  */
-export async function validateMcpServer(name: string, raw: unknown): Promise<McpValidationResult> {
+export async function validateMcpServer(
+  name: string,
+  raw: unknown,
+  options: { scope?: "global" | "project" } = {},
+): Promise<McpValidationResult> {
   try {
     const internals = await loadPiSdkInternals();
     if (!internals.ok) {
@@ -58,6 +70,16 @@ export async function validateMcpServer(name: string, raw: unknown): Promise<Mcp
     if (typeof result === "string") {
       return { ok: false, error: "invalid-config", detail: result };
     }
+    // `auth` 只存在于 http 变体（McpHttpServerConfig），stdio 分支上不存在。
+    const httpAuth = "url" in result ? result.auth : undefined;
+    if (options.scope === "project" && isRecord(httpAuth) && typeof httpAuth.provider === "string") {
+      return {
+        ok: false,
+        error: "invalid-config",
+        detail: `server "${name}": auth.provider is not allowed in a project mcp.json `
+          + "(a repository must not choose which provider credential is sent); use oauth, or move the server to the global scope",
+      };
+    }
     return { ok: true, config: result, detail: describeConfig(result) };
   } catch (error) {
     return {
@@ -66,4 +88,8 @@ export async function validateMcpServer(name: string, raw: unknown): Promise<Mcp
       detail: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

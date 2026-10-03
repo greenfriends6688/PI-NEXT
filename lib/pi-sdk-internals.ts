@@ -4,11 +4,21 @@
  * 上游依据：`85f9cb1`（上游 `lib/pi-sdk-internals.ts`，442 行）
  *          + 上游 `docs/adr/0006-mcp-and-code-mode.md`。
  *
- * pi 0.99 起自带 `mcp` / `codemode` / `tool-search` 三个内置扩展，但**包不导出它们**：
+ * pi 0.99 起自带 `mcp` / `codemode` / `tool-search` 三个内置扩展，当时**包不导出它们**：
  * SDK 根只给 `createMcpExtension` 一个工厂，扩展清单、mcp.json 编辑器、连接类
  * `McpServerConnection`、stdio transport 和 OAuth 登录助手全是未导出的内部件
  * （ADR 0006 原文）。这里按文件 URL 从**本进程正在用的那份 SDK** 里把它们取出来，
  * 这样 SDK 内部的 `instanceof` 检查看到的正是我们构造出来的类。
+ *
+ * fork:mcp-native-exposure（2026-10-02）—— **1.0 把前提改了一半**：
+ *   · `createCodemodeExtension` / `createToolSearchExtension` **公开导出了**（`dist/index.d.ts:29,33`），
+ *     所以这两个扩展现在由本仓**正常注册**（`mcpDiscoveryExtensionEntries()`），不再走
+ *     内部件；本文件只剩 `mcp` 扩展的内部件（连接类 / mcp.json 编辑器 / OAuth 助手）要偷。
+ *   · 类型也公开导出了（`LoadedMcpConfig` / `McpServerConfig` / `McpExposure` / `McpServerEntry` /
+ *     `ToolExposure`，`dist/index.d.ts:8,11,31`），下面手写的那份可以逐步退役（P1）。
+ *   · exposure 不再无条件降级：会话里有了 codemode / tool_search，pi 的原生曝光
+ *     （默认 `codemode`、脚本里 `searchTools`、`deferred` 走 `tool_search`）就能用；
+ *     SDK 拿不到这两个导出时**自动退回**降级（见 `normalizeMcpConfigForPiWeb`）。
  *
  * 三道防线（都有测试，见 `lib/pi-sdk-internals.test.mjs`）：
  *   1. `PI_PACKAGE_DIR` 指向别处 → 拒绝（会让 `getPackageDir()` 跑到另一份 SDK 上，
@@ -108,64 +118,32 @@ export type McpTransportFactory = (
   authProvider: unknown,
 ) => McpTransport;
 
-export type McpExposure = "codemode" | "codemode-deferred" | "deferred" | "direct" | "hidden";
+// fork:mcp-native-exposure —— 这四个类型 **1.0 起从 SDK 根公开导出**
+// （`dist/index.d.ts:31`），所以下面不再手写一份。手写那份（0.99 时代）缺了
+// `auth.provider` 与 `description`，本轮就是它先把 `auth` 报成了不存在。
+//
+// `McpExposure` 有一点差别：SDK 的类型是 `"codemode" | "deferred" | "direct" | "hidden"`，
+// **不含** `codemode-deferred`（那是 pi 接受、但不在类型里的别名）。所以下面在导出之上
+// 叠一个 `McpExposureLike`：读**用户写的配置**时用得上别名，写回去之前会归一成
+// `McpExposure`（`normalizeExposureAlias`）。
+import type {
+  LoadedMcpConfig,
+  McpExposure,
+  McpServerConfig,
+  McpServerEntry,
+} from "@earendil-works/pi-coding-agent";
 
-export interface McpServerConfigBase {
-  /** 工具默认只对 codemode 可见（0.99 默认值）。 */
-  exposure?: McpExposure;
-  toolExposure?: Record<string, McpExposure>;
-  /** false 时保留条目但不连接。 */
+export type { LoadedMcpConfig, McpExposure, McpServerConfig, McpServerEntry };
+
+/** 用户配置里可能出现的 exposure（含 pi 接受的 `codemode-deferred` 别名）。 */
+export type McpExposureLike = McpExposure | "codemode-deferred";
+
+/** `/mcp` 面板会改的设置；`enabled: true` 与 `exposure: "codemode"` 会删掉这个键。
+ *  SDK 从 `extensions/mcp/config` 子路径导出它、根上不导出，所以这份仍手写
+ *  （两个字段，形状照 `config.d.ts:56-59`）。 */
+export interface McpServerConfigPatch {
   enabled?: boolean;
-  /** 单次请求超时（秒）。 */
-  timeout?: number;
-  name?: string;
-}
-
-export interface McpStdioServerConfig extends McpServerConfigBase {
-  type?: "stdio";
-  command: string;
-  args?: string[];
-  /** 值可以引用 `${NAME}` / `$NAME` / `!command`。 */
-  env?: Record<string, string>;
-  /** 相对路径按会话工作目录解析。 */
-  cwd?: string;
-}
-
-/** 不支持动态注册的授权服务器用的 OAuth 客户端设置。 */
-export interface McpOAuthConfig {
-  clientId?: string;
-  clientSecret?: string;
-  callbackPort?: number;
-  /** 必须是 `localhost` / `127.0.0.1` / `[::1]` 上的 http URI。 */
-  callbackUrl?: string;
-  scope?: string;
-  /** 动态注册时发的 `client_name`。 */
-  clientName?: string;
-  authServerMetadataUrl?: string;
-}
-
-export interface McpHttpServerConfig extends McpServerConfigBase {
-  type?: "http";
-  url: string;
-  headers?: Record<string, string>;
-  oauth?: McpOAuthConfig;
-}
-
-export type McpServerConfig = McpStdioServerConfig | McpHttpServerConfig;
-
-export interface McpServerEntry {
-  name: string;
-  config: McpServerConfig;
-  /** 定义它的配置文件路径，或注册它的扩展路径。 */
-  source: string;
-  /** `extension` = `pi.registerMcpServer()` 注册的 server，改动不落盘。 */
-  scope?: "global" | "project" | "extension";
-}
-
-export interface LoadedMcpConfig {
-  servers: McpServerEntry[];
-  autoEnableCodemode?: boolean;
-  errors: string[];
+  exposure?: McpExposureLike;
 }
 
 /** 0.99 的 `McpOAuthCredentialStore`：每个 server 的状态存在 agent 目录的 `mcp-auth.json`。 */
@@ -314,6 +292,8 @@ export interface McpServerConnection {
   /** `initialize` 带回来的服务器说明。 */
   instructions: string | undefined;
   challenge: McpOAuthChallenge | undefined;
+  /** 上一次 stdio 服务器连不上时它写出来的 stderr 尾巴（真连测试要拿它，且必须先掩码）。 */
+  stderrTail?: string;
   readonly name: string;
   readonly timeoutMs: number;
   readonly oauthUrl: string | undefined;
@@ -340,12 +320,6 @@ export interface McpSignInOptions {
   settings: McpOAuthSettings;
   challenge?: McpOAuthChallenge;
   prompt: McpSignInPrompt;
-}
-
-/** `/mcp` 面板会改的设置；`enabled: true` 与 `exposure: "codemode"` 会删掉这个键。 */
-export interface McpServerConfigPatch {
-  enabled?: boolean;
-  exposure?: McpExposure;
 }
 
 export interface PiSdkInternals {
@@ -400,6 +374,12 @@ type McpExtensionOptions = {
   createTransport?: McpTransportFactory;
   /** 首次 prompt 时等还在连接的 server 多久（毫秒）。默认 10000。 */
   startupWaitMs?: number;
+  /**
+   * fork:mcp-auto-reload / P0-3 —— pi 1.0 新增：`/mcp` 管理器改了 `enabled` / `exposure`
+   * 之后的落盘钩子。不传则 pi 自己改文件（本仓改了就绕开 0600 + staging 原子写）。
+   * `entry.scope === "extension"` 的条目按 pi 的约定不落盘。
+   */
+  updateConfig?: (entry: McpServerEntry, patch: McpServerConfigPatch) => void;
 };
 
 /**
@@ -444,6 +424,30 @@ function sdkCreateMcpExtension(): ((options?: McpExtensionOptions) => piSdk.Exte
     ? (candidate as (options?: McpExtensionOptions) => piSdk.ExtensionFactory)
     : undefined;
 }
+
+/**
+ * fork:mcp-native-exposure —— codemode / tool_search 两个内置扩展的工厂。
+ *
+ * 1.0 起它们**公开导出**（`dist/index.d.ts:29` `createCodemodeExtension`、
+ * `:33` `createToolSearchExtension`），所以本仓可以自己注册，不再需要绕过 pi 去加载
+ * 内部件。仍然按 `sdkCreateMcpExtension` 那套写法取（可能不存在就返回 undefined）：
+ * 类型引用不写死，SDK 不带这两个导出时本仓安静地不注册。
+ */
+function sdkCreateCodemodeExtension(): (() => piSdk.ExtensionFactory) | undefined {
+  const candidate = (piSdk as { createCodemodeExtension?: unknown }).createCodemodeExtension;
+  return typeof candidate === "function" ? (candidate as () => piSdk.ExtensionFactory) : undefined;
+}
+
+function sdkCreateToolSearchExtension(): (() => piSdk.ExtensionFactory) | undefined {
+  const candidate = (piSdk as { createToolSearchExtension?: unknown }).createToolSearchExtension;
+  return typeof candidate === "function" ? (candidate as () => piSdk.ExtensionFactory) : undefined;
+}
+
+/**
+ * codemode / tool_search 是否真的注册进了会话（1.0 起才有）。false 时 loadConfig 退回
+ * exposure 降级 —— 详见 normalizeMcpConfigForPiWeb 的 `nativeExposure`。
+ */
+const hasDiscoveryExtensions = Boolean(sdkCreateCodemodeExtension() && sdkCreateToolSearchExtension());
 
 /** 本进程用的 SDK 包的实路径。 */
 function runningSdkPackageDir(): string {
@@ -742,10 +746,18 @@ export function extensionContextFromPiContext(ctx: unknown): PiWebExtensionConte
   };
 }
 
-/** pi-web 没有注册 codemode / tool-search，`codemode` / `deferred` 工具没人能调到。 */
-function directExposure(exposure: McpExposure | undefined): McpExposure | undefined {
-  if (exposure === "codemode" || exposure === "codemode-deferred" || exposure === "deferred") return "direct";
-  return exposure;
+/**
+ * fork:mcp-native-exposure —— pi 的 exposure **别名**：老配置里写
+ * `codemode-deferred`，pi 接受它但类型里只有 `codemode`（`core/mcp-servers.d.ts:12`，
+ * 注释写明 "codemode-deferred is accepted as an alias"）。所以只归一别名，不改语义。
+ *
+ * 以前这里是 `codemode` / `deferred` → `direct` 的**降级**（"pi-web 没有 codemode /
+ * tool-search，没人能调到"）。1.0 起 `createCodemodeExtension` / `createToolSearchExtension`
+ * 已公开导出（`dist/index.d.ts:29,33`），那两个扩展现在由本仓注册（见
+ * `mcpDiscoveryExtensionEntries`），所以降级的前提没了，撤掉。
+ */
+function normalizeExposureAlias(exposure: McpExposureLike | undefined): McpExposure | undefined {
+  return exposure === "codemode-deferred" ? "codemode" : exposure;
 }
 
 /**
@@ -786,24 +798,45 @@ export function sanitizeMcpConfigErrors(files: string[], errors: string[]): stri
 
 /**
  * pi-web 运行时对 `loadMcpConfig` 结果的适配：
- * - `codemode` / `deferred` 工具改为 `direct`。pi 只把 `direct` / `model-only` 声明给模型，
- *   而 codemode / tool-search 两个内置扩展本仓没注册（ADR 0006 的 P1 后续项），
- *   所以不改的话这些工具在会话里根本到不了模型。`hidden` 保持隐藏。
+ * - **exposure 原样透传**（fork:mcp-native-exposure，2026-10-02）。以前这里是
+ *   `codemode` / `deferred` → `direct` 的降级，理由是「pi-web 没注册 codemode /
+ *   tool-search，那些工具没人能调到」。1.0 把两个扩展公开导出了（`dist/index.d.ts:29,33`），
+ *   本仓在 `mcpDiscoveryExtensionEntries()` 里注册，mcp 扩展会在需要时自动激活它们
+ *   （`extensions/mcp/index.js:352-378`），所以降级的前提已经不存在。
+ *   现在只归一别名 `codemode-deferred` → `codemode`，`hidden` 保持隐藏。
  * - 旧版 pi.web 的 `disabled: true` 折成 pi 的 `enabled: false` 并删掉 `disabled`：
  *   SDK 的 `isEnabled` 不认 `disabled`，不在运行时出口折的话用户关掉的 server 会被连上。
  * - errors 过 `sanitizeMcpConfigErrors`（解析原文不进扩展通知/浏览器）。
  */
-export function normalizeMcpConfigForPiWeb(loaded: LoadedMcpConfig): LoadedMcpConfig {
+/**
+ * `nativeExposure`：会话里**注册了** codemode / tool_search（pi 1.0 起 `mcpDiscoveryExtensionEntries()`
+ * 才拿得到它们）。true = exposure 原样透传；false = 退回 2026-10-02 之前的降级
+ * （`codemode` / `deferred` → `direct`），因为那时没人能调到这两个曝光的工具。
+ *
+ * 也就是说：**降级还留着，只是不再无条件发生** —— SDK 不带这两个导出时（本仓历史上有过
+ * 0.87 / 0.99）行为与之前完全一致。
+ */
+export function normalizeMcpConfigForPiWeb(
+  loaded: LoadedMcpConfig,
+  options: { nativeExposure?: boolean } = {},
+): LoadedMcpConfig {
+  const nativeExposure = options.nativeExposure ?? true;
   return {
     ...loaded,
     servers: loaded.servers.map((entry) => {
       const config = { ...entry.config } as McpServerConfig & { disabled?: unknown };
-      // 未声明时 pi 的默认就是 `codemode`；pi-web 没有 codemode/tool-search，
-      // 所以这里必须把「默认」也显式落成 `direct`。
-      config.exposure = directExposure(config.exposure ?? "codemode") ?? "codemode";
+      const pick = (value: McpExposure | undefined): McpExposure | undefined => {
+        const aliased = normalizeExposureAlias(value);
+        if (nativeExposure) return aliased;
+        return aliased === "codemode" || aliased === "deferred" ? "direct" : aliased;
+      };
+      const exposure = pick(config.exposure);
+      // 不声明时 pi 自己按默认值（codemode）处理；显式落一遍，免得不同 pi 版本改默认值时
+      // 我们这边跟着漂。降级模式下「默认」要落成 direct（就是默认值本身的效果）。
+      if (exposure) config.exposure = exposure;
       if (config.toolExposure) {
         config.toolExposure = Object.fromEntries(
-          Object.entries(config.toolExposure).map(([tool, exposure]) => [tool, directExposure(exposure) ?? "codemode"]),
+          Object.entries(config.toolExposure).map(([tool, value]) => [tool, pick(value) ?? value]),
         );
       }
       if (!isMcpServerEnabled(config)) config.enabled = false;
@@ -841,7 +874,15 @@ export function normalizeMcpConfigForPiWeb(loaded: LoadedMcpConfig): LoadedMcpCo
  * 另两个上游限制（远程部署才要紧）：OAuth 回调只听 `127.0.0.1`，
  * `.pi/mcp.json` 靠目录信任继承。
  */
-export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuiltinExtension[] {
+export function mcpBuiltinExtensionEntries(
+  internals?: PiSdkInternals,
+  /**
+   * fork:mcp-auto-reload / P0-3 —— 落 `/mcp` 管理器改出来的 patch。由调用方注入
+   * （`rpc-manager.ts` 传 `applyMcpServerPatch`）而不是本模块 import `mcp-config-file`：
+   * 那个模块反过来依赖本模块的 `requireInternals`，直接 import 会成环。
+   */
+  applyPatch?: (file: string, name: string, patch: McpServerConfigPatch) => Promise<void>,
+): McpBuiltinExtension[] {
   const createMcpExtension = sdkCreateMcpExtension();
   if (!createMcpExtension) {
     if (!missingMcpSdkLogged) {
@@ -894,13 +935,27 @@ export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuilt
                 [join(agentDir, "mcp.json"), join(context.cwd, ".pi", "mcp.json")],
                 loaded.errors,
               ),
-            });
+            }, { nativeExposure: hasDiscoveryExtensions });
           }
         : () => ({ servers: [], errors: [] }),
       // 首个 prompt 不等连接，Stop 始终按得动（ADR 0006 坑 2 的绕开）。
       startupWaitMs: 0,
       createTransport: (entry, cwd, authProvider) =>
         createSessionGatedTransportFactory(baseTransport, gateForThisSession())(entry, cwd, authProvider),
+      // fork:mcp-auto-reload / P0-3 —— 接管 `/mcp` 管理器的落盘。没传时 pi 自己改
+      // mcp.json，会绕过本仓的 0600 + staging rename（editMcpConfigFile）。
+      // `entry.scope === "extension"` 的 server 是扩展注册来的，按 pi 的约定**不落盘**。
+      // 钩子是同步的（返回 void），而本仓写入是 async：fire-and-forget，写失败只记日志，
+      // 配置本身没被改坏（原子写要么成功要么原样）。
+      updateConfig: (entry, patch) => {
+        if (!applyPatch) return;
+        if (entry.scope === "extension") return;
+        const file = entry.source;
+        if (!file) return;
+        void applyPatch(file, entry.name, patch).catch((error) => {
+          console.error(`MCP /mcp patch write failed for ${entry.name}:`, error);
+        });
+      },
     });
     // 会话关停：中止还在等活跃租约的连接尝试，绝不在会话死后补拉进程。
     pi.on("session_shutdown", () => gate?.dispose());
@@ -914,4 +969,45 @@ export function mcpBuiltinExtensionEntries(internals?: PiSdkInternals): McpBuilt
       builtin: true,
     },
   ];
+}
+
+/**
+ * fork:mcp-native-exposure —— `codemode` + `tool_search` 两个内置扩展。
+ *
+ * 它们**注册但不激活**（`extensions/codemode/index.js` 与 `tool-search/index.js` 的头部
+ * 注释：`registered inactive. Activate it with --tools, the defaultTools setting, or
+ * setActiveTools()`）。真正激活它们的是 mcp 扩展：`session_start` 时它看配置里有没有
+ * `codemode` / `deferred` 曝光的 server，有就把对应的工具加进 active 集合
+ * （`dist/extensions/mcp/index.js:352-378`）。所以：
+ *
+ *   · 没有 MCP server 用这两种曝光时，这两枚工具**不出现在工具表里**（零开销）；
+ *   · 有了才出现，而且 mcp 扩展会自己激活，不依赖我们的工具预设；
+ *   · 它按**工具形状**识别（`tools.some(isCodemodeTool)`），所以第三方扩展注册同名工具
+ *     不会被误认（pi 源码里那句 “Other extensions' tools of the same names cannot reach
+ *     MCP tools, so never activate them”）。
+ *
+ * 名字与 CLI 一致（`builtin:codemode` / `builtin:tool-search`），于是 `-builtin:codemode`
+ * / `--no-extensions` 也能像 CLI 一样关掉它们。SDK 不带这两个导出时返回空数组。
+ */
+export function mcpDiscoveryExtensionEntries(): McpBuiltinExtension[] {
+  const entries: McpBuiltinExtension[] = [];
+  const createCodemodeExtension = sdkCreateCodemodeExtension();
+  if (createCodemodeExtension) {
+    entries.push({
+      name: "codemode",
+      factory: createCodemodeExtension(),
+      replaceable: true,
+      builtin: true,
+    });
+  }
+  const createToolSearchExtension = sdkCreateToolSearchExtension();
+  if (createToolSearchExtension) {
+    entries.push({
+      name: "tool-search",
+      factory: createToolSearchExtension(),
+      replaceable: true,
+      builtin: true,
+    });
+  }
+  return entries;
 }

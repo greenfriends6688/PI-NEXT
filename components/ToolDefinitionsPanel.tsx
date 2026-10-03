@@ -71,6 +71,8 @@ const TOOL_ICON_BY_NAME: Record<string, string> = {
   Agent: "bot",
   get_subagent_result: "bot",
   steer_subagent: "bot",
+  // fork:agent-mail —— 与上面三个同一族（画板 22 也给 bot）。
+  agent_mail: "bot",
   todo_write: "list-checks",
   todo_read: "list-checks",
 };
