@@ -2398,6 +2398,29 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
 教训（与 AD 节同源）：**画板类落地率、组件看起来对不对，都不能替代把真东西渲出来看一眼。**
 这条浮层在单测、类型检查、设计门禁全绿的情况下上线，问题只在截图里显形。
 
+## AE · 2026-10-02：PR-38 Tab 拖拽排序 + 每 Tab 错误边界（零新 `.pw-*` 类）
+
+### AE-0 · 三件事分别落在哪
+
+| PR-38 的能力 | 落点 | 画板来源 |
+| --- | --- | --- |
+| 拖拽排序（指示线） | `.fork-tab-drop`（**`fork-ui.css`，不是 `board.css`**） | 几何抄 `.pw-tab`（26 高 / 标签行内） |
+| 拖动态 | `.fork-tabbar.is-reordering`（光标 + 禁拖选） | — |
+| 每 tab 错误边界 | `components/TabErrorBoundary.tsx`：`.pw-empty` / `.pw-empty-inner` / `.pw-btn` + `triangle-alert` | 画板 61 A 段（路由错误页） |
+
+所以判据⑦ 的「新 `pw-*` 类先进 board.css + 上画板」这条**没有触发**：一个 `pw-*` 都没新增。
+错误态整块照抄画板 61 的 DOM（空态容器 + 圆角 mark + 标题 + 说明 + 一行动作钮），
+只是把它缩小到「一个 tab」的大小并接上「重试 / 关闭」两个动作。
+
+### AE-1 · 为什么落点指示线走 `.fork-*` 而不是新造 `.pw-*`
+
+指示线是**交互瞬态**：拖动时才存在，松手即消失，而且它必须绝对定位在
+`.fork-tabbar` 里（拖动期间**不重排 DOM** —— 重排会移动每个 tab 的
+`offsetLeft/offsetWidth`，`lib/tab-overflow.ts` 的折叠判定与 `.fork-tab-pill` 都会抖）。
+这正是 123 条登记的 `.fork-tab-pill` 的处境，所以同处置：画在 `fork-ui.css` 的
+行为层，几何（高 26、`top: var(--s1)` + `bottom: 0` + `margin: auto` 居中）与 pill 一致，
+粗细取 `calc(var(--space-hair) * 2)`。画板 31 的标签行没有拖拽形态，不给它加静态类。
+
 ---
 
 ## AE · 2026-10-03：画板 05 十七项动效逐条对账 —— 补 3 条接线、删 2 处死 keyframes、加第 12 个 token
@@ -2788,3 +2811,42 @@ className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「�
   `.pw-dot`；「已就绪」用 `.pw-dot.await`（琥珀），与截图一致。未新增任何 `pw-*` 类。
 - 飞书/Lark 的「中国 / 全球」站点角标照截图保留（`.pw-chip`），i18n key
   `botChannel.regionCN` / `botChannel.regionGlobal`。
+
+
+---
+
+## AG · 2026-10-03：fork:pr40-split —— 右栏双 Pane 分屏，`.split-pane*` 留在 fork-ui.css 而不是 board.css
+
+右栏分屏（`lib/right-panel-split.ts` + `hooks/useSplitPanes.ts` + `components/fork/SplitPaneHost.tsx`）
+的骨架类**不进画板**。这是一次**有意的形态取舍**，按 §2.1「结构照实现」登记在案。
+
+### AG-1 · 为什么 `.split-pane*` 没进 board.css
+
+1. **board.css 的 `.pw-*` 是对位契约名**。`design/pi-web-design/scripts/check-boards.mjs`、
+   `scripts/board-diff.mjs`、`scripts/board-specs/*.mjs` 全按 `.pw-` 前缀认类。新增一个 `.pw-split-pane`
+   会被当成「画板上有、产品没实现」或反过来，且**没有画板帧承载它** —— 分屏是一段交互态，
+   不是一张静态排版。对位脚本找不到对应 HTML，报出来的是噪声。
+2. **它复用的两个画板件已经齐了**。结构挂 `.pw-split`（board.css:586，三列 grid），
+   落点挂 `.pw-drop`（board.css:1178，虚线强调色落区）。需要补的只有**接线层**的几何：
+   三列宽度怎么接 `--split-pane-columns`、分隔条怎么画、落点怎么铺满半屏。这三样是
+   「产品怎么用板上的件」，不是「板长什么样」，正是 `app/fork-ui.css` 存在的理由（见该文件头的
+   三条纪律）。
+3. **比例是运行时的**。列宽由 `SplitPaneHost` 按 `ratio` 内联算成
+   `minmax(0, (100% - var(--split-gutter)) × r)` 三段。画板只能给一个静态档位，
+   写死就等于把 0.3–0.7 的可拖比例降级成一张图。
+4. **分隔条宽度取 token**：新加 `--split-gutter: var(--s2)`（8px，与
+   `lib/right-panel-split.ts` 的 `SPLIT_DIVIDER_WIDTH` 同值），不写死 `8px`。
+
+### AG-2 · 反向登记：产品**没有**新造 `.pw-*`，但也没有把板上的 `.pw-split` 用满
+
+- `.split-pane-grid` 只做一件事：把内联的 `--split-pane-columns` 接到
+  `grid-template-columns`。板 586 那条 `220px minmax(0,1fr)` 是「树 + 文档」的两列，
+  产品这一处是「文档 + 分隔条 + 文档」的三列，**列宽结构不同但类名复用** ——
+  这条不构成漂移，因为 `.pw-split` 本身只承诺 grid 骨架，不承诺列数。
+- 焦点描边（`.split-pane.is-focused` 的 1px inset box-shadow）与分隔条的 hover/拖拽
+  高亮（`.split-pane-divider::after`）是产品自绘，**板上没有对应帧**。分隔条的静止透明、
+  hover 才亮 2px 竖线是刻意跟右栏外沿那条 `.panel-resize-handle`（globals.css:1792）
+  对齐 —— 一条右栏上有两条把手，行为必须一样。
+- 拖出阈值（下移出标签栏 12px 且累计位移 ≥18px，照 Proma `TabBar.tsx`）是手势参数，
+  不属于画板语汇。
+

@@ -65,8 +65,11 @@ test("editor-specific behavior remains active when the editor is the main region
   assert.match(source, /if \(!workspaceSwapped\) setRightPanelOpen\(true\);/);
   assert.match(source, /if \(!workspaceSwapped && !replacement && !remaining\.length && !fileTabs\.length\) setRightPanelOpen\(false\);/);
   // fork:file-tab-keep-alive — 隐藏的 tab 不再看文件变更，只有激活项吃 editorVisible。
+  // fork:pr40-split (2026-10-03) —— 这两行现在由 `renderTabContent` 里的 `isActive` 驱动，
+  // 而 `isActive` 是「**这一格正在显示这个 tab**」：单列时它就是 `activeFileTabId`，
+  // 分屏时是「本 Pane 挂的就是这个 tab」—— 两边都在显示，所以两边都该 watch。
   assert.match(source, /watchEnabled=\{editorVisible && isActive\}/);
-  assert.match(source, /active=\{editorVisible && tab\.id === activeFileTabId\}/);
+  assert.match(source, /active=\{editorVisible && isActive\}/);
 });
 
 test("compact and phone layouts keep role semantics", () => {

@@ -7,6 +7,10 @@ import { resolve } from "path";
 import { validateAgentImages } from "./image-attachments";
 // fork:proma-01-approval / proma-02-mode — 工具审批引擎与会话权限模式
 import { createApprovalExtension } from "./approval-extension";
+import { createTerminalToolsExtension } from "./terminal-tools-extension";
+import { createBrowserToolsExtension } from "./browser-tools-extension";
+import { createDocumentToolsExtension } from "./document-tools-extension";
+import { createPlanToolsExtension } from "./plan-tools-extension";
 // fork:proma-03-plan — 计划模式扩展
 import { createPlanModeExtension } from "./plan-mode-extension";
 import {
@@ -2499,7 +2503,24 @@ export async function startRpcSession(
               createApprovalExtension(() => approvalModeForPlanAwareMode(permissionMode)),
               // fork:proma-03-plan — 计划档：先调研、给编号计划，非只读动作一律拦。
               // 与审批扩展共存：审批管「问不问」，计划管「允不允许写」。
-              createPlanModeExtension(() => permissionMode),
+              createPlanModeExtension(() => permissionMode, sessionCwd),
+              // fork:proma-41-terminal —— Agent 可见终端。不自己 require node-pty：
+              // PTY 宿主是 lib/terminal-manager.ts，agent 与用户共用同一条
+              // /api/terminal/[id]/events SSE 通道，所以用户在右侧看到的标签页就是
+              // agent 在用的那个。
+              createTerminalToolsExtension(),
+              // fork:proma-42-browser —— 受管浏览器。**只在桌面端能工作**：Web 没有
+              // CDP、又不能跨域操作 iframe，靠同源访问驱动 iframe 是明显更大的攻击面。
+              // Web 上这些工具会返回「受管浏览器只在桌面端可用」而不是静默失败。
+              createBrowserToolsExtension(),
+              // fork:proma-53-documents —— docx/xlsx/pptx/pdf 的读写。底层格式处理
+              // 是自己写的最小实现（OOXML 本质是 zip + XML），没引任何依赖。
+              createDocumentToolsExtension(),
+              // fork:pr52-plan-tools —— 计划文档落盘（write_plan / read_plan）。
+              // 目录由扩展自己从 tool input 的 cwd 推（只有测试注入点，没有 cwd 参数）。
+              // 计划档下的放行在 `createPlanModeExtension(() => permissionMode, sessionCwd)`
+              // 里 —— 那个判据需要 cwd，而 pi 的 tool_call 事件不带，只能创建时捕获。
+              createPlanToolsExtension(),
               // fork:pr11-mcp — 内置 MCP 扩展（ADR 0006「Loading」）。名字必须是 CLI 的
               // `mcp`，`DefaultResourceLoader` 才按 `builtin:mcp` 解析（`-builtin:mcp` /
               // `--no-extensions` 能关，第三方扩展注册 `/mcp` 时让位）。SDK 不带内置 MCP

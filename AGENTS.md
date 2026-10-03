@@ -228,6 +228,9 @@ The last preset explicitly selected by the user is stored in browser `localStora
 ### Model defaults for new sessions
 `GET /api/models` returns `defaultModel` read from `~/.pi/agent/settings.json`. `ChatWindow` pre-selects this on mount for new sessions. Explicit browser model/thinking selections are applied atomically during AgentSession construction, then `lib/startup-preferences.ts` persists their effective values without replaying `set_model`/`set_thinking_level`; implicit `enabledModels` fallbacks and thinking pins are not persisted.
 
+### Model switch while a turn is running (fork:proma-37-deferred-model)
+Running a turn and picking another model must **not** interrupt it: `set_model` is never sent while `isStreaming`. The selection is recorded as a pending model (`decideModelSelection` → `defer`) and applied by **replaying `handleModelChange` after the turn ends** — no timer of its own. The apply point is `settleTurn()`, which wraps the existing `settleUiStage()` funnel that `prompt_done`, `agent_settled` and the no-SSE `finishPromptWithoutStream` fallback already share; that is what makes it idempotent per run. `pendingFlushDecision` is the gate that finally takes the pending away: if a new run started, the session vanished, or a switch is already in flight, the pending is **kept** for the next turn end rather than dropped. Switching sessions clears the queue, but `null → real id` (`promoteNewSession`) deliberately does not — that is the same session before its id exists, so a new session's first turn keeps its queue. The composer shows a `.pw-chip accent` next to the model selector (`clock` icon); the selector itself keeps showing the model of the **running** turn. Pure logic lives in `lib/pending-model.ts`.
+
 ### `enabledModels` scoping
 The `enabledModels` setting uses pi's `--models` syntax: minimatch globs against `provider/modelId` or a bare `modelId`, fuzzy matching for non-glob patterns, and an optional `:thinkingLevel` suffix. Never compare those patterns as literal strings — `lib/model-scope.ts` delegates to the SDK's `resolveModelScopeWithDiagnostics()` so pi-web and the TUI agree on the visible model list, and falls back to all available models when patterns resolve to nothing. `startRpcSession()` resolves that scope before creating an AgentSession and passes the selected initial model, thinking pin, and SDK-native `scopedModels` atomically; `GET /api/models` reuses the helper only for selector data, `thinkingLevelPins`, and `modelScopeWarnings` display.
 
@@ -321,6 +324,32 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - `/api/skills` uses `DefaultResourceLoader` so settings paths, package skills, and project `.agents/skills` are listed the same way the runtime sees them.
 - Skill toggling edits only the `disable-model-invocation` frontmatter key on the target `SKILL.md`; keep that surgical so user formatting survives.
 - `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
+
+### 一方扩展的注册 ≠ 模型看得见（fork:proma-37~53 的共同教训）
+
+`extensionFactories` 里注册了扩展，**编译过、单测绿、画板对位过，都不能证明模型用得上这些工具**。
+
+本仓的一方扩展形状是 `{ name, hidden: true, factory }`：`hidden: true` 意味着工具
+**不自动进 `get_tools`**，要靠会话创建时的 `toolNames[]` 过档（`withExtensionTools()`，
+`lib/rpc-manager.ts`），而 model-only 曝光由 pi 在 prompt 期决定。**中间任何一环没对上，
+模型就是看不见** —— 而这在编译期和单测里都是绿的。
+
+唯一的验证方式是运行时：
+
+```bash
+# 起一个独立端口的服务（别抢主仓 30141）
+ln -sfn <repo>/node_modules node_modules
+node_modules/.bin/next build --webpack && node_modules/.bin/next start -p 30247
+# 拿一个真实会话 id，问它要工具清单
+curl -s -X POST -H 'content-type: application/json' -d '{"type":"get_tools"}' \
+  http://127.0.0.1:30247/api/agent/<sessionId>
+```
+
+`data` **直接是工具数组**（不是 `{tools:[...]}`）。2026-10-02 用这招实测确认
+browser 10 + terminal 4 + document 11 = 25 个工具在运行时全部真的露给了模型。
+
+**推论**：新增一方扩展的 DoD 里，「工厂函数形状」的单测不够，必须补一条运行时验证；
+CI 里如果跑不了，就把工具名清单写进 `SHORTCUT_COMMANDS` 那样的可读表里，至少让人能一眼核对。
 
 ### 产品能力不许降级成 skill（fork:proma-00-skill-policy）
 
