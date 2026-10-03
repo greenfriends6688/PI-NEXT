@@ -1205,6 +1205,13 @@ export const zhCNLocale: LocalePlugin = {
     "chat.queueKindFollowUp": "后续",
     "chat.queueSendNow": "立即发送（提升为引导消息）",
     // fork:gap07-attachments — 附件不再限定图片
+    "chat.moreActions": "更多动作",
+    "chat.sendImage": "发送图片",
+    "actionPanel.trace": "调用轨迹",
+    "actionPanel.agents": "子代理",
+    "actionPanel.branches": "分支",
+    "actionPanel.exportHtml": "导出 HTML",
+    "actionPanel.exportMarkdown": "导出 MD",
     "chat.attachFile": "添加附件",
     "chat.attachmentAdded": "已作为引用加入：{names}",
     "chat.attachmentSkipped": "已跳过（超过 {limit}MB 且拿不到本地路径）：{names}",

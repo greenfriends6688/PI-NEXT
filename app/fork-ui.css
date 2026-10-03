@@ -1535,6 +1535,8 @@ html[data-theme-skin="true"] .extension-status-shelf {
   button.pw-tab,
   button.pw-select,
   button.pw-iconbtn,
+  /* fork:mobile-action-panel —— 宫格格子也是按钮：UA 归零只走这一层，视觉仍在 board.css。 */
+  button.pw-actcell,
   button.pw-todo,
   button.pw-btn,
   button.pw-side-foot,
@@ -2126,6 +2128,24 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     margin-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+/* ---------------------------------------------------------------------------
+ * fork:mobile-action-panel —— 手机动作面板（宫格浮层）。
+ *
+ * 壳是 `.pw-pop`（board.css：320 宽 / radius-6 / 浮窗阴影），这里只做两件事：
+ *   1. 手机上的宽度上限 —— `.pw-pop` 写死 320，320 宽的机器上会顶出视口；
+ *   2. 格子在触控档的最小高度 —— 宫格要「拇指够得到」，62 是画板值，
+ *      触控档抬到 `--control-touch` + `--s2`（= 44，iOS 的最小推荐靶）。
+ * 只改尺寸不改形态，所以画板 60 帧 E 与这里的差只有那一档高度。
+ * ------------------------------------------------------------------------- */
+.fork-actpanel {
+  width: min(320px, calc(100vw - var(--s3)));
+}
+@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+  .fork-actpanel .pw-actcell {
+    min-height: calc(var(--control-touch) + var(--s2));
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * fork:pwa-hit-slop —— 手机上把「够不着」的图标钮补上命中区。
  *

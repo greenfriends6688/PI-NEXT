@@ -126,6 +126,12 @@ interface Props {
   isStreaming: boolean;
   /** Text-only composer without the session controls or outer spacing. */
   compact?: boolean;
+  /**
+   * fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」宫格的内容。
+   * 由 AppShell 组装（那些动作的实现都在那边），本组件只负责触发钮 + 浮层壳。
+   * 不传 = 不渲染那枚钮，桌面形态一字不变。
+   */
+  actionPanel?: React.ReactNode;
   model?: { provider: string; modelId: string } | null;
   isAutoModelSelection?: boolean;
   modelNames?: Record<string, string>;
@@ -225,6 +231,15 @@ export interface ChatInputHandle {
   ) => void;
   /** fork:ui-stats-ring — 钉住上下文环浮窗（/session 命令与触屏入口）。 */
   openStatsPopover: () => void;
+  /**
+   * fork:mobile-action-panel —— 开**图片**选择器（`accept="image/*"`）。
+   *
+   * 与 `fileInputRef` 那个「任意文件」输入框是两个入口，不是重复：iOS 上不带
+   * `accept` 的 input 弹的是「照片图库 / 拍照 / 选取文件」三选一，而手机用户说
+   * 「发张图」时想要的是直接进图库。给现有那个加 `accept` 会反过来收窄能力
+   * （它就再也选不了别的文件），所以另开一个只收图片的。
+   */
+  openImagePicker: () => void;
 }
 
 // "configured" sends no override, so the session follows settings.json defaultTools.
@@ -245,6 +260,10 @@ const ANCHORED_MENU_GAP = 8;
 // 自动增高的 200px 上限是内容驱动的轴；手动高度是用户接管的另一条轴，因此下限/
 // 上限单独定义。最小高度保底让工具栏在一行文本时仍然能完整放下。
 const MIN_MANUAL_HEIGHT_DESKTOP = 104;
+// fork:mobile-action-panel —— 宫格浮层的宽度：`.pw-pop` 本身就是 320，
+// 这里显式传给 PortalDropdown（它不传就跟随触发点宽度，而触发钮只有 24）。
+const ACTION_PANEL_WIDTH = 320;
+
 const MIN_MANUAL_HEIGHT_MOBILE = 80;
 const MANUAL_MAX_HEIGHT_CAP = 480;
 const MANUAL_MAX_HEIGHT_FRACTION = 0.55;
@@ -958,6 +977,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   cwd,
   protrusion,
   compact = false,
+  actionPanel,
 }: Props, ref) {
   const { t } = useI18n();
   const { fontSize } = useChatAppearance();
@@ -1142,8 +1162,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const thinkingDropdownRef = useRef<HTMLDivElement>(null);
   const permissionDropdownRef = useRef<HTMLDivElement>(null);
   const controlsMenuRef = useRef<HTMLDivElement>(null);
+  // fork:mobile-action-panel —— 触发钮就是锚点（浮层 portal 到 body，位置由它算）。
+  const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const actionPanelAnchorRef = useRef<HTMLButtonElement>(null);
+  const actionPanelPopRef = useRef<HTMLDivElement>(null);
   const historyMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // fork:mobile-action-panel —— 只收图片的那个入口（见 ChatInputHandle.openImagePicker）。
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
   const lastCompositionEndAtRef = useRef(0);
   const slashCommandsRequestedRef = useRef(false);
@@ -1205,6 +1231,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   }, [ringPinned]);
 
   useImperativeHandle(ref, () => ({
+    openImagePicker() {
+      imageInputRef.current?.click();
+    },
     openStatsPopover() {
       setRingPinned(true);
     },
@@ -3049,6 +3078,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       if (controlsMenuRef.current && !controlsMenuRef.current.contains(e.target as Node)) {
         setControlsMenuOpen(false);
       }
+      // fork:mobile-action-panel —— 宫格浮层是 portal，不在 controlsMenuRef 子树里，
+      // 所以要单独判一次（面板自己也会在格子被点时收起）。
+      if (actionPanelPopRef.current && !actionPanelPopRef.current.contains(e.target as Node)
+        && actionPanelAnchorRef.current && !actionPanelAnchorRef.current.contains(e.target as Node)) {
+        setActionPanelOpen(false);
+      }
       if (historyMenuRef.current && !historyMenuRef.current.contains(e.target as Node) && !textareaRef.current?.contains(e.target as Node)) {
         setHistoryMenuOpen(false);
       }
@@ -3059,7 +3094,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
   useEffect(() => {
     if (!narrowControls) setControlsMenuOpen(false);
-  }, [isMobile]);
+    // fork:mobile-action-panel —— 这枚钮只在窄屏渲染，回到宽屏时把状态也清掉，
+    // 否则下次变窄会带着一个「上次开着的浮层」出现。
+    if (!narrowControls) setActionPanelOpen(false);
+  }, [isMobile, narrowControls]);
 
 
 
@@ -3088,6 +3126,20 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
           // fork:gap07-attachments — 任意文件（原来只收图片，其余静默丢弃）
+          void attachFiles(files);
+          e.target.value = "";
+        }}
+      />}
+      {/* fork:mobile-action-panel —— 只收图片的第二个入口（手机「发送图片」那一格）。
+          桌面不渲染：那枚格子只在窄屏出现，多挂一个 input 只是白占 DOM。 */}
+      {!compact && narrowControls && <input
+        ref={imageInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
           void attachFiles(files);
           e.target.value = "";
         }}
@@ -3841,6 +3893,40 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             >
               <span className="pw-ico"><i data-ico="plus" data-size="16"></i></span>
             </button>
+            {/* fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」：
+                带文字的宫格浮层（内容由 AppShell 组装，这里只给触发钮 + 壳）。
+                为什么不是「把 `+` 换成面板」（参照物的做法）：本仓 `+` 是**附件**，
+                手机上最高频的动作，不该退一层。所以另给一枚 grid-2x2。
+                格子点完就收起：壳上挂一个 onClick 让它冒泡到所有格子，
+                这样 AppShell 那九个回调不用各自再带一个「关面板」。 */}
+            {actionPanel && narrowControls && (
+              <>
+                <button
+                  ref={actionPanelAnchorRef}
+                  type="button"
+                  onClick={() => setActionPanelOpen((open) => !open)}
+                  title={t("chat.moreActions")}
+                  aria-label={t("chat.moreActions")}
+                  aria-expanded={actionPanelOpen}
+                  className={`pw-iconbtn fork-pwa-wb-act${actionPanelOpen ? " is-on" : ""}`}
+                  style={{ cursor: "pointer" }}
+                >
+                  <span className="pw-ico"><i data-ico="grid-2x2" data-size="15"></i></span>
+                </button>
+                <PortalDropdown
+                  open={actionPanelOpen}
+                  anchorRef={actionPanelAnchorRef}
+                  panelRef={actionPanelPopRef}
+                  align="left"
+                  width={ACTION_PANEL_WIDTH}
+                >
+                  <div className="pw-pop fork-actpanel" onClick={() => setActionPanelOpen(false)}>
+                    {actionPanel}
+                  </div>
+                </PortalDropdown>
+              </>
+            )}
+            {/* Model selector - visible always, disabled while the session or switch is busy */}
             {/* fork:proma-37-deferred-model —— 模型选择器**不再因运行中而置灰**：
                 Proma 的行为是「Agent 运行时可以预先切换模型，当前轮结束后自动按新模型
                 执行下一轮」。改前这里是 disabled={isStreaming}，用户只能等本轮跑完；

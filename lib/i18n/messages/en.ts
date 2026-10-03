@@ -1207,6 +1207,13 @@ export const enLocale: LocalePlugin = {
     "chat.queueKindFollowUp": "Follow-up",
     "chat.queueSendNow": "Send now (move to steering)",
     // fork:gap07-attachments — 附件不再限定图片
+    "chat.moreActions": "More actions",
+    "chat.sendImage": "Send image",
+    "actionPanel.trace": "Call trace",
+    "actionPanel.agents": "Subagents",
+    "actionPanel.branches": "Branches",
+    "actionPanel.exportHtml": "Export HTML",
+    "actionPanel.exportMarkdown": "Export MD",
     "chat.attachFile": "Attach file",
     "chat.attachmentAdded": "Added as a reference: {names}",
     "chat.attachmentSkipped": "Skipped (over {limit}MB and no local path to reference): {names}",

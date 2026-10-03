@@ -115,6 +115,8 @@ interface Props {
   onSessionStatsPanelOpen?: () => void;
   /** fork:mcp-slash —— `/mcp` 打开「设置 › MCP」。 */
   onOpenSettingsSection?: (section: string) => void;
+  /** fork:mobile-action-panel —— 窄屏「更多动作」宫格的内容（AppShell 组装）。 */
+  actionPanel?: ReactNode;
   onContextUsageChange?: (usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => void;
   /** fix:mcp-topbar-icons —— 扩展状态（MCP / 插件）上报给 AppShell：两枚图标改挂顶栏。 */
   onExtensionStatusChange?: (statuses: ExtensionStatusItem[], widgets: ExtensionWidgetItem[]) => void;
@@ -611,7 +613,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onOpenSettingsSection, onContextUsageChange, onExtensionStatusChange, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onOpenSettingsSection, onContextUsageChange, onExtensionStatusChange, actionPanel, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -1965,6 +1967,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     <ChatInput
       ref={chatInputRef}
       protrusion={composerProtrusion}
+      actionPanel={actionPanel}
       onSend={(message, images, contexts, question, sessionReferences) => {
         // fork:zm-03 — 发消息是「回到最新」的用户意图：先恢复跟随，再走原路径。
         followingRef.current = true;

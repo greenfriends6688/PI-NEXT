@@ -59,6 +59,7 @@ import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, hasSessionBranches } from "./BranchNavigator";
 // fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
 import { BranchChip, McpStatusButton, PluginStatusButton } from "./TopBarPopovers";
+import { MobileActionPanel } from "./fork/MobileActionPanel";
 // fix:new-session-pick-dir / topbar-chip-clickable —— 工作区芯片复用输入框上方那枚
 // `.pw-chip`（项目列表 + 打开文件夹）。NewSessionTargets 类型来自 ProjectChip。
 import type { NewSessionTargets } from "./fork/ProjectChip";
@@ -2511,6 +2512,84 @@ export function AppShell() {
 </div>
   );
 
+  /* fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」宫格的内容。
+     这些动作的实现本来就都在 AppShell 里（handleViewFullHistory / handleAutoName /
+     导出 / 顶栏浮层），所以在这里组装成节点交给 ChatInput，而不是往它那条已经很长的
+     属性表上再接九个回调。
+
+     为什么只有这七格：**同一块屏上不摆第二个入口**。
+     · 「压缩上下文」与「会话信息」已经在输入区上下文环的浮窗里（AGENTS.md 记过
+       一次为此删掉重复入口的裁定），再放一格就是「一眼看去像两件事」。
+     · 「系统提示词 / 工具定义」是低频只读诊断，刚从顶栏收进 ⋯ 菜单（fork:trace-menu），
+       再搬回宫格等于把那次裁定撤销。
+     · 「置顶 / 重命名 / 归档 / 复制路径」是一族菜单项，留在 ⋯ 菜单里成组，不拆进宫格。
+     宫格与顶栏的旧入口在 PR-1 里**并存**（纯增量），顶栏瘦身在 PR-2。 */
+  const renderMobileActionPanel = () => {
+    const hasMessages = Boolean(
+      selectedSession
+      && ((sessionStats?.userMessages ?? 0) > 0 || selectedSession.messageCount > 0),
+    );
+    const namingBusy = autoNameStatus.kind === "naming";
+    return (
+      <MobileActionPanel
+        cells={[
+          {
+            id: "trace",
+            label: translate("actionPanel.trace"),
+            icon: "history",
+            disabled: !selectedSession,
+            onSelect: () => handleViewFullHistory(),
+          },
+          {
+            id: "name",
+            label: namingBusy ? translate("title.generating") : translate("title.generate"),
+            icon: "wand-sparkles",
+            busy: namingBusy,
+            disabled: !selectedSession || selectedSession.transient || !hasMessages,
+            onSelect: () => void handleAutoName(),
+          },
+          hasSubagentSessions ? {
+            id: "agents",
+            label: translate("actionPanel.agents"),
+            icon: "bot",
+            onSelect: (trigger: HTMLElement) => toggleTopPanel("agents", true, trigger),
+          } : null,
+          sessionHasBranches ? {
+            id: "branches",
+            label: translate("actionPanel.branches"),
+            icon: "git-fork",
+            onSelect: (trigger: HTMLElement) => toggleTopPanel("branches", true, trigger),
+          } : null,
+          {
+            id: "export-html",
+            label: translate("actionPanel.exportHtml"),
+            icon: "download",
+            disabled: !selectedSession,
+            onSelect: () => {
+              if (selectedSession) downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export`);
+            },
+          },
+          {
+            id: "export-md",
+            label: translate("actionPanel.exportMarkdown"),
+            icon: "file-text",
+            disabled: !selectedSession,
+            onSelect: () => {
+              if (selectedSession) downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`);
+            },
+          },
+          {
+            id: "image",
+            label: translate("chat.sendImage"),
+            icon: "image",
+            disabled: !selectedSession,
+            onSelect: () => chatInputRef.current?.openImagePicker(),
+          },
+        ]}
+      />
+    );
+  };
+
   /* fork:trace-menu —— 重命名态：同一个位置换成输入框（画板 02 那一行的 `.pw-input`）。
      回车提交、Esc 取消、失焦提交；提交后 bump refreshKey 让侧栏立刻跟上。 */
   const renderSessionRename = () => {
@@ -3243,6 +3322,7 @@ export function AppShell() {
               onSystemInfoLoaderChange={handleSystemInfoLoaderChange}
               onSessionStatsChange={handleSessionStatsChange}
               onExtensionStatusChange={handleExtensionStatusChange}
+              actionPanel={renderMobileActionPanel()}
               onSessionStatsPanelOpen={openSessionStatsPanel}
               // fork:mcp-slash —— 会话里打 `/mcp` 直接落到设置页的 MCP 分节。
               onOpenSettingsSection={(section) => setSettingsSection(section as SettingsSection)}

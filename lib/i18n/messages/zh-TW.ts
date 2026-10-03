@@ -1204,6 +1204,13 @@ export const zhTWLocale: LocalePlugin = {
     "chat.queueKindFollowUp": "後續",
     "chat.queueSendNow": "立即傳送（提升為引導訊息）",
     // fork:gap07-attachments — 附件不再限定圖片
+    "chat.moreActions": "更多動作",
+    "chat.sendImage": "傳送圖片",
+    "actionPanel.trace": "調用軌跡",
+    "actionPanel.agents": "子代理",
+    "actionPanel.branches": "分支",
+    "actionPanel.exportHtml": "匯出 HTML",
+    "actionPanel.exportMarkdown": "匯出 MD",
     "chat.attachFile": "加入附件",
     "chat.attachmentAdded": "已作為引用加入：{names}",
     "chat.attachmentSkipped": "已略過（超過 {limit}MB 且拿不到本機路徑）：{names}",
