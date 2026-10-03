@@ -70,11 +70,13 @@ test("subagent completion stays silent and never becomes unread", () => {
     source,
     /completedWithNotifications = completedInBackground\.filter\([\s\S]*?!previousSuppressedCompletionSessionIdsRef\.current\.has\(id\)[\s\S]*?!knownSubagentIds\.has\(id\)/,
   );
-  assert.match(source, /completedWithNotifications\.forEach\(\(id\) => next\.add\(id\)\)/);
+  // fork:trace-menu —— 未读标记搬进 lib/session-unread.ts 之后，完成时是
+  // `markSessionUnread(id)`（子代理的过滤仍在 completedWithNotifications 那一步）。
+  assert.match(source, /completedWithNotifications\.forEach\(markSessionUnread\)/);
   assert.match(source, /if \(completedWithNotifications\.length > 0\) \{\s*onBackgroundTaskDone\?\.\(\)/);
   assert.match(
     source,
-    /filter\(\(session\) => session\.relation\?\.kind !== "subagent"\)[\s\S]*?unreadEligibleIds\.has\(id\)/,
+    /filter\(\(session\) => session\.relation\?\.kind !== "subagent"\)[\s\S]*?pruneSessionUnread\(unreadEligibleIds\)/,
   );
 });
 

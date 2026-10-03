@@ -686,7 +686,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
             aria-label={t("i18n.zoomOut")}
             title={t("i18n.zoomOut")}
           >
-            −
+            <span className="pw-ico"><i data-ico="zoom-out" data-size="13"></i></span>
           </button>
           <button
             type="button"
@@ -706,7 +706,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
             aria-label={t("i18n.zoomIn")}
             title={t("i18n.zoomIn")}
           >
-            +
+            <span className="pw-ico"><i data-ico="zoom-in" data-size="13"></i></span>
           </button>
         </span>
         <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />

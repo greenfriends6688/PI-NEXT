@@ -90,9 +90,12 @@ test("opening System or Tools lazily starts a dormant session without sending a 
   assert.match(loadSystemInfoSource, /setSystemPrompt\(state\.systemPrompt \?\? ""\)/);
   assert.match(loaderEffectSource, /onSystemInfoLoaderChange\?\.\(loadSystemInfo\)/);
   assert.match(loaderEffectSource, /onSystemInfoLoaderChange\?\.\(null\)/);
-  // fork:top-panel-anchor —— 两个入口把 event.currentTarget 一起传下去当定位锚点。
-  assert.match(appShellSource, /onClick=\{\(event\) => handleSystemInfoToggle\("system", mobile, event\.currentTarget\)\}/);
-  assert.match(appShellSource, /onClick=\{\(event\) => handleSystemInfoToggle\("tools", mobile, event\.currentTarget\)\}/);
+  // fork:top-panel-anchor —— 入口把触发元素一起传下去当定位锚点。
+  // fork:trace-menu-2026-10-02 —— 入口从顶栏两枚图标钮搬进顶栏 ⋯ 菜单（用户裁定），
+  // 锚点由菜单把自己的按钮传上来；取数与面板一行没动。
+  assert.match(appShellSource, /onViewSystemPrompt=\{\(trigger\) => handleSystemInfoToggle\("system", false, trigger\)\}/);
+  assert.match(appShellSource, /onViewTools=\{\(trigger\) => handleSystemInfoToggle\("tools", false, trigger\)\}/);
+  assert.match(appShellSource, /<SessionActionsMenu/);
   assert.match(appShellSource, /systemInfoLoaderRef\.current/);
   assert.doesNotMatch(appShellSource, /systemPrompt !== null \|\| systemInfoLoading/);
   assert.match(appShellSource, /const loadId = \+\+systemInfoLoadIdRef\.current/);
@@ -184,7 +187,21 @@ test("only the session-mount load probes disk for external appends", () => {
   assert.match(loadSessionSource, /d\.wrapperRebuilt[\s\S]*?eventConnectionRef\.current\?\.close\(\)[\s\S]*?maintain\(sid\)/);
   assert.match(mountSource, /loadSession\(session\.id, !cached, true, \{ force: true \}\)/);
   assert.match(source, /await loadSession\(sid\)/);
-  assert.equal([...source.matchAll(/\{ force: true \}/g)].length, 1);
+  // 两处 force：挂载那次 + 设置里点「重载会话」的就地刷新（板 05 B 类转场）。
+  // 第三个 force 就是又一处默默探盘，这个测试会挡住。
+  assert.equal([...source.matchAll(/\{ force: true \}/g)].length, 2);
+});
+
+test("reload refreshes in place; the chat is not remounted", () => {
+  // 板 05 B 类转场 + 第 03 项：旧内容留在屏上降到 0.5 等新内容，不换骨架屏。
+  assert.match(source, /const refreshAfterReload = useCallback\(async \(\) => \{[\s\S]*?setRefreshing\(true\);[\s\S]*?loadSession\(sid, true, true, \{ force: true \}\)[\s\S]*?finally \{\s*setRefreshing\(false\);/);
+  // AppShell：reload 走新 token，切会话 / 换 cwd / fork 仍走 remount 的 sessionKey。
+  assert.match(appShellSource, /const \[sessionReloadToken, setSessionReloadToken\] = useState\(0\);/);
+  assert.match(appShellSource, /onSessionReloaded=\{\(\) => setSessionReloadToken\(\(key\) => key \+ 1\)\}/);
+  assert.match(appShellSource, /reloadToken=\{sessionReloadToken\}/);
+  assert.doesNotMatch(appShellSource, /onSessionReloaded=\{\(\) => setSessionKey/);
+  assert.match(chatWindowSource, /reloadToken=\{sessionReloadToken\}|\[reloadToken, refreshAfterReload\]/);
+  assert.match(chatWindowSource, /void refreshAfterReload\(\);/);
 });
 
 test("first user messages expose both branch actions and edit before their own entry", () => {
@@ -759,4 +776,16 @@ test("queue edit moves a queued message back into the composer", () => {
   assert.match(source, /runQueueOperation\(\{ type: "queue_remove", kind, index, expect \}, "edit"\)/);
   assert.match(source, /describe === "edit"[\s\S]*?prependText\(expect\)/);
   assert.match(source, /handleQueueRemove, handleQueueMove, handleQueuePromote, handleQueueEdit,/);
+});
+
+test("in-place reload dims the transcript instead of replacing it with a skeleton", () => {
+  // 画板 05 第 03 项「等待期减弱」：手动压缩后要重读整段会话，那次 loadSession
+  // 带 showLoading。若 ChatWindow 见到 loading 就出骨架屏，用户会看到整屏内容被
+  // 骨架顶掉；设计要求旧内容留在屏上降到 --opacity-pending。
+  assert.match(source, /setRefreshing\(true\);\s*await loadSession\(sid, true\);/);
+  assert.match(source, /finally \{\s*setRefreshing\(false\);/);
+  assert.match(source, /data, loading, refreshing, error,/);
+
+  assert.match(chatWindowSource, /if \(loading && !refreshing\)/, "skeleton is for \"no content yet\" only");
+  assert.match(chatWindowSource, /refreshing \? " fork-pending" : ""/, "the wait dims the transcript column");
 });

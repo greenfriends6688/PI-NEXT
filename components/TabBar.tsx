@@ -23,7 +23,8 @@ export interface Tab {
   label: string;
   filePath: string;
   /** fork:git-graph-tab — `git-graph` 是工作区单例视图 tab（无 filePath）。 */
-  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes";
+  /** fork:trace-pane — `trace` 是单例「调用轨迹」视图 tab（同上）。 */
+  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes" | "trace";
   /** fork:proma-39-changes — 后台有新改动时的未读点（只提示，不自动切 tab）。 */
   unread?: boolean;
   closing?: boolean;
@@ -575,6 +576,8 @@ export function TabBar({
                 <i data-ico="terminal" data-size={13} aria-hidden="true"></i>
               ) : tab.kind === "browser" ? (
                 <i data-ico="globe" data-size={13} aria-hidden="true"></i>
+              ) : tab.kind === "trace" ? (
+                <i data-ico="activity" data-size={13} aria-hidden="true"></i>
               ) : (
                 getFileIcon(tab.label, 13)
               )}
@@ -758,6 +761,8 @@ export function TabBar({
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <circle cx="12" cy="12" r="9" /><path d="M3 12h18" />
                     </svg>
+                  ) : tab.kind === "trace" ? (
+                    <i data-ico="activity" data-size={12} aria-hidden="true"></i>
                   ) : getFileIcon(tab.label, 12)}
                 </span>
                 <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tab.label}</span>

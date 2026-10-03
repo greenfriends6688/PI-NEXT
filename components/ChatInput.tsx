@@ -6,7 +6,7 @@ import type { SkillsResponse } from "@/lib/api-types";
 import type { TextContent, UserMessage } from "@/lib/types";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 // fork:ui-stats-ring — 环浮窗的完整会话明细（原 composer 下方的统计长条内容）。
-import { SessionStatsDetails, type SessionStatsSessionInfo } from "./SessionStatsBar";
+import { SessionStatsDetails } from "./SessionStatsBar";
 import {
   clearDraft,
   getDraft,
@@ -182,7 +182,6 @@ interface Props {
   sessionStats?: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }; cost: number; totalMessages: number } | null;
   /** fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条内容）。 */
   statsDetails?: SessionStatsInfo | null;
-  statsSession?: SessionStatsSessionInfo | null;
   onAudioUnlock?: () => void;
   draftKey?: string;
   /** Initial context items for a focused composer, such as the new-chat quote popover. */
@@ -674,6 +673,7 @@ function QueuedMessageRow({
   onDropOn?: () => void;
   dragging?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div
       title={text}
@@ -686,7 +686,9 @@ function QueuedMessageRow({
       style={{ opacity: dragging ? 0.4 : 1, cursor: onDragStart ? "grab" : "default" }}
     >
       <span className="pw-badge count">{index + 1}</span>
-      <span className="pw-badge">{kind}</span>
+      {/* 两个队列是两块平铺的列表、没有分组标题，这一枚徽章是**唯一**能分辨
+          steer / follow-up 的地方，所以走 i18n（此前直接渲染英文 kind）。 */}
+      <span className="pw-badge">{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
       <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
       {/* fork:queue-edit（用户 2026-10-02）—— 「移至输入框」：用户说排好队的消息
           没法再编辑。放在「立即发送」之前，两者语义不同：一个是拿回来改，一个是
@@ -944,7 +946,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   slashCommands, slashCommandsLoading, onLoadSlashCommands,
   onBuiltinCommand,
   soundEnabled, onSoundToggle, onAudioUnlock,
-  contextUsage, sessionStats, statsDetails = null, statsSession = null,
+  contextUsage, sessionStats, statsDetails = null,
   onPromptWithStreamingBehavior,
   draftKey,
   initialSelectionContexts,
@@ -2991,7 +2993,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           )}
           {statsDetails && (
             <div className="composer-ring-details">
-              <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} session={statsSession} />
+              <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} />
             </div>
           )}
           {onCompact && (

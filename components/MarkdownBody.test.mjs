@@ -419,3 +419,19 @@ test("image file mentions render as a preview chip; other mentions stay plain sp
   assert.ok(!/data-mention-value="src\/chat\.tsx"[^>]*data-mention-previewable/.test(html));
   assert.match(nonPreviewable, /pw-tok-ref/);
 });
+
+// fork:table-wrap-2026-10-02 —— 表格填满容器，不再按最长一格定宽（否则 CJK 长句把整张
+// 表撑出容器、其余行留下一大片空白，见 app/globals.css 同名注释里的实测数字）。
+test("GFM tables fill the scroll container instead of sizing to the longest cell", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.markdown-table-wrap > table \{ width: 100%; \}/);
+  assert.doesNotMatch(css, /\.markdown-table-wrap > table \{ width: max-content; \}/);
+  // 外层仍负责真的装不下时的横滚（列多的表格）。
+  assert.match(css, /\.markdown-table-wrap \{[\s\S]*?overflow-x: auto;/);
+
+  // 渲染层：两列表仍然是两个 th + 每行两个 td（之前那个空白块不是渲染出来的）。
+  const html = renderMarkdown("| 端口 | 状态 |\n|---|---|\n| 30155 | 已关 |\n| 30141 | 长句子 |");
+  assert.equal((html.match(/<th[\s>]/g) ?? []).length, 2); // 不含 <thead>
+  assert.equal((html.match(/<td[^>]*>/g) ?? []).length, 4);
+});

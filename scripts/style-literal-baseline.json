@@ -24,7 +24,7 @@
     "components/ProcessGroup.tsx::inline-geometry-literal": 1,
     "components/ProjectTrustDialog.tsx::inline-geometry-literal": 1,
     "components/SessionSidebar.tsx::inline-geometry-literal": 6,
-    "components/SessionStatsBar.tsx::inline-geometry-literal": 3,
+    "components/SessionStatsBar.tsx::inline-geometry-literal": 1,
     "components/SystemPromptPanel.tsx::inline-geometry-literal": 1,
     "components/TabBar.tsx::inline-geometry-literal": 2,
     "components/ToolDefinitionsPanel.tsx::inline-geometry-literal": 2,

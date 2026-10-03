@@ -2398,6 +2398,7 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
 教训（与 AD 节同源）：**画板类落地率、组件看起来对不对，都不能替代把真东西渲出来看一眼。**
 这条浮层在单测、类型检查、设计门禁全绿的情况下上线，问题只在截图里显形。
 
+<<<<<<< HEAD
 ## AE · 2026-10-02：PR-38 Tab 拖拽排序 + 每 Tab 错误边界（零新 `.pw-*` 类）
 
 ### AE-0 · 三件事分别落在哪
@@ -2420,6 +2421,233 @@ Proma 借鉴计划 PR-31（F4「任务进度浮层」）：数据源是本仓**�
 这正是 123 条登记的 `.fork-tab-pill` 的处境，所以同处置：画在 `fork-ui.css` 的
 行为层，几何（高 26、`top: var(--s1)` + `bottom: 0` + `margin: auto` 居中）与 pill 一致，
 粗细取 `calc(var(--space-hair) * 2)`。画板 31 的标签行没有拖拽形态，不给它加静态类。
+
+---
+
+## AE · 2026-10-03：画板 05 十七项动效逐条对账 —— 补 3 条接线、删 2 处死 keyframes、加第 12 个 token
+
+用户质疑「`05-motion.html` 的动效没有都用在这个项目上」。逐条对账（板 17 项 ↔ 产品实现）后落地：
+
+| # | 画板项 | 对账前 | 这次 |
+|---|---|---|---|
+| 01 | 整块替换 200ms/8px | ✅ `fork-turn-in` | — |
+| 02 | 成组错开 40ms×3 | ⚠️ `--motion-stagger` **零引用**，产品用私有 36ms × **10 档** | 档数 10 → **3**（§1.6 封顶），单位改成 `var(--motion-stagger)` |
+| 03 | 等待期减弱 0.5 | ❌ `--opacity-pending` 零引用 | **仍未接线**（见下「不做」） |
+| 04 | 弹层 160ms/4px | ✅ `fork-pop-up` | — |
+| 05 | 展开折叠 160ms | ✅ | — |
+| 06 | 流式入场 4px | ⚠️ 时长 **260ms**，越了「内容类不超过 200ms」 | → `var(--motion-base)`（160ms） |
+| 07 | 骨架微光 | ✅ | — |
+| 08 | 列表行入场 | ✅（刻意不逐行 stagger） | — |
+| 09 | 通知条进出 | ⚠️ 内联 `0.18s ease-out` + `scale(0.995)`（禁缩放） | 走 `--motion-base` + `--ease`，去掉 scale |
+| 10 | 保存成功 | ✅ | — |
+| 11 | 拖放落区 | ✅ 借板 `.pw-anim-drop`；但 globals.css 里 `drop-zone-in` / `drop-ripple` **零引用**且带 scale | **死 keyframes 已删** |
+| 12 | 抽屉上滑 14px | ✅ | — |
+| 13 | 阶段行四相位 | ❌ 零接线 | **不做**（见下） |
+| 14 | 跳转高亮 1.6s | ⚠️ 有，但是 ChatWindow 里一段 WAAPI：2500ms、无强调色边线 | 收成 `fork-ui.css` 的 `.fork-jump-flash`（1.6s + 6% 底 + 2px 强调边线 + reduced-motion 归零） |
+| 15 | spinner 900ms linear | ✅ | — |
+| 16 | 扫掠线 + 呼吸 | 扫掠 ✅；**呼吸零接线**（`@keyframes pulse` 是孤儿） | 呼吸接到活动步骤行的图标上（`.pw-step[data-live="true"] .pw-step-ico`） |
+| 17 | 主题切换 + 侧栏折叠 240ms | ✅ 布局档多处；主题切换走原生 `::view-transition`（不是 clip-path 圆扩散） | — |
+
+### AE-1 · 第 12 个 token：`--motion-hint: 1600ms`
+
+第 14 项（跳转高亮，一次性）与第 16 项（呼吸，持续来回）**都是 1600ms**，但十一项表里没有这一档，
+于是两边各自写死字面量。按 §1.6 自己的规矩（「确实需要新的一条，先加进本画板与本表」）补进
+`assets/tokens.css` §12，并同步 `app/design/tokens.css` → `app/globals.css` 的别名链，
+板 05 规格总表 + `index.html` + `DESIGN-SPEC.md` 的「十一项」计数改十二项，
+`scripts/check-motion-tokens.mjs` 的文件头注释同步（门禁本身不用改）。
+
+### AE-2 · 两条不做（等裁定）
+
+- **第 03 项「等待期减弱」**：唯一能用的面是「重载 agent」，而那条路是
+  `AppShell` bump `sessionKey` → `ChatWindow` **整窗 remount** → 出骨架屏（板 01「会话正在加载」那一格）。
+  板 05 的 B 类转场要求的是「旧内容留在屏上降到 0.5，不做骨架屏、不做假进度」——
+  两者是**换语义**，不是补一条 CSS。要改得动 remount 这条路，属于产品决定，先记待办。
+- **第 13 项「阶段行四相位」**：板上是「思考中 / 等待模型响应 / 准备运行工具 / 执行命令」四行
+  **串行滚过**的演示态。产品一次只有一个活动阶段（`streamingOpen`），
+  它的等价形态就是第 16 项的呼吸（已接）。不为此新造四行阶段 UI。
+
+### AE-3 · 还欠着的两笔（本次没动）
+
+1. **曲线不唯一**：§1.6 写「全系统唯一曲线 `--ease`」，实现里有 **36 处 `var(--ease-out)`**
+   + `--fork-spring` / `--fork-spring-snappy` / 一处裸 `cubic-bezier(.22,1,.36,1)`。
+   收成一条曲线是**一行声明**（把 `--ease-out` 别名到 `--ease`），
+   但会改掉全站 hover / 弹层的起始手感 —— 属于观感裁定，等用户点头。
+2. ~~**跳转高亮只做在搜索跳转**~~：已补（见 AE-6）。小地图**不做**高亮 —— 它是拖着
+   连续滚动，不是「跳到某一轮」，每帧闪一下只会变成噪音。
+
+### AE-4 · 曲线收敛（用户 2026-10-03「你帮我弄吧」）
+
+先更正 AE-3 第 1 条的一处**误判**：36 处 `var(--ease-out)` 其实**早就指向设计曲线**
+（`app/globals.css` 的 `--ease-out: var(--ds-ease)`），不需要动，本次只给它补了
+一行注释说明它是旧名别名。真正越界的只有两条 —— `app/fork-ui.css` 里
+`--fork-spring` / `--fork-spring-snappy` 两条 MusePi 的 damped-spring `linear()` 点表
+（各 36 个采样点，24 行）。已**删除**，两个消费者改走 `--ease`：
+
+- `.context-menu` 的位移（`:root` 之外只剩这一处引用）
+- `.fork-copy-glyph > span` 的字形切换
+
+依据两条硬规矩：§1.6「**全系统唯一曲线** `--ease`」与「**不弹跳**：不用 spring / overshoot」。
+删掉 24 行 token、全站 hover / 弹层 / 复制按钮的手感从「弹一下」变成设计那条曲线。
+
+### AE-5 · 第 03 项「等待期减弱」接线（不再是待办）
+
+上一节说「唯一能用的面是重载 agent」，那是**没找全**：`handleCompact` 手动压缩成功后
+调的是 `loadSession(sid, /* showLoading */ true)`，而 ChatWindow 见到 `loading` 就
+`return` 整块骨架屏 —— 于是**压缩一次，正在读的这段对话被骨架顶掉、屏上什么都不剩**。
+这正是设计 §1.6 与板 05 的 B 类转场要治的病（等待期旧内容留在屏上降到 0.5，
+不做骨架屏、不做假进度）。
+
+改法（`hooks/useAgentSession.ts` + `components/ChatWindow.tsx` + `.fork-pending`）：
+
+- hook 新增 `refreshing`：**只**包住就地重读那一段等待，与 `loading` 分开。
+- ChatWindow 的骨架屏分支收成 `if (loading && !refreshing)`；`refreshing` 时消息列
+  挂 `.fork-pending`（`opacity: var(--opacity-pending)` + `pointer-events: none`
+  + `aria-busy`），**只有转录列降透明度** —— 输入框 / 顶栏 / 侧栏不跟着变暗。
+- 契约测试钉在 `hooks/useAgentSession.test.mjs`（第 40 条）：这三处接线任一被删即红。
+
+**重载 agent 那条路**随后也做掉了，见 AE-6。
+
+### AE-6 · 重载 agent 改成就地刷新（第 03 项在最后一条路径上也落地了）
+
+上一节说「重载那条路要动接线」，用户判「一起做」。查清后接线比预想的浅 ——
+**`AgentSession.reload()` 是同一个对象内部重建**（SDK 的 `_buildRuntime`，只换
+extensionRunner），事件发射器不变，所以 `rpc-manager` 里那一次 `inner.subscribe()`
+继续有效：**remount 从来不是为了 SSE**。它只是「把整窗重建一遍」的省事做法，代价是
+屏上什么都不剩。
+
+改法（`AppShell` / `ChatWindow` / `useAgentSession`）：
+
+- `sessionKey` 一拆为二：**六处**切会话 / 换 cwd / fork / 项目信任仍然是真 remount
+  （`useAgentSession` 的首屏加载是 mount-only effect，换会话必须重建）；
+  **只有**设置里的「重载会话」改为 `sessionReloadToken` → `ChatWindow` 的 `reloadToken`
+  prop → `refreshAfterReload()`。
+- `refreshAfterReload()` 就是第 03 项那段等待：`refreshing=true` → 重读会话文件
+  （force）+ 三张表（tools / slash / models，`reload` 换掉的正是它们）→ 收尾置 false。
+  转录列由 `.fork-pending` 降到 0.5，输入框 / 顶栏 / 侧栏不跟着变暗。
+- 接这个 token 的有 5 个设置面板（agents / plugins / mcp / 项目归档 / general），
+  它们此前共用同一个 remount 杠杆；现在都走就地刷新 —— 对归档这类「工作区变了但当前
+  会话文件没变」的场景，比 remount 更轻。
+
+契约测试（`hooks/useAgentSession.test.mjs`）：`reload refreshes in place; the chat is
+not remounted` 钉住 AppShell 的两个 token、`doesNotMatch(/onSessionReloaded=\{\(\) =>
+setSessionKey/)` 与 ChatWindow 的 effect；同文件另有一条把 `{ force: true }` 的出现
+次数从 1 改成 **2**（挂载 + 这条刷新），第三个 force 就是又一处默默探盘。
+
+### AE-7 · 第 14 项「跳转高亮」补到 TracePane
+
+`TracePane` 的查找上下跳此前是「滚过去就完了」；现在命中的那一行亮 1.6s
+（与 ChatWindow 搜索跳转共用 `.fork-jump-flash`）。小地图不加 —— 那是拖着连续滚动，
+不是跳转。
+
+---
+
+## AF · 2026-10-03：「Mac拟物风格」内置皮肤（fork:mac-skeuo）—— 材质不进画板，进皮肤层
+
+### AF-0 · 这一条在定什么
+
+用户提了三个拟物源：`igorfelipeduca/aqua`（Mac OS X 2000–2007 的 shadcn registry）、
+`pudge-studio/pudge-ui`（2000s 消费电子的设计规范）、`Marda33/SkeuoCord`（Discord 的
+拟物重做）。裁定：**A 打底（Aqua）+ C 当夜间端（SkeuoCord）**，合成一套内置皮肤
+「Mac拟物风格」，浅色 / 夜间两个变体。
+
+**为什么不是第三/第四个主题**：`lib/theme.ts` 的 `THEME_OPTIONS` 那条轴是**明暗**，
+不是**风格**。这一套要的是同一根轴的两个端点，所以它天生就是 `ThemeSkin` 的
+`light` / `dark` 两套 `SkinColorVariant`。`useTheme` 一个字没改。
+
+### AF-1 · 材质层为什么不在 `board.css`，也不在 `customCss`
+
+- **不在 `board.css`**：画板是**设计**，`board.css` 是设计系统的样式。拟物是一套
+  **可选风格**，不是设计系统的基线；放进 `board.css` 会让不选这套皮肤的人也被
+  浮凸和渐变砸到（违反判据⑦的另一半：`.pw-*` 是画板与产品共用的类，不是风格开关）。
+- **不在 `customCss`**：那是给用户写的，`parseThemeSkin` 把它截到 20000 字符。
+  把产品样式塞进去 = 让产品样式依赖一个「用户可编辑」的口子：用户改坏了就是全站
+  样式坏，且没有任何线索指向来源。
+
+落点是 `app/fork-mac-skeuo.css`，靠 `html[data-theme-skin-id="builtin-mac-skeuo"]`
+挂载。`data-theme-skin-id` 是本补丁在 `useThemeSkins.writeSkin()` 里**新增**的唯一
+一个 DOM 属性，且已进 `SKIN_DATA_ATTRIBUTES`（漏进去的话切回默认皮肤时它会留在
+`<html>` 上，用户「恢复默认」恢复不掉）。
+
+### AF-2 · 令牌 + 一遍组件
+
+拟物的观感几乎全部来自**材质对**，不是颜色对。所以颜色按明暗分成两支 `--mac-*`
+材质令牌（面 / 线 / 投影 / **前景色** / 圆角），组件规则只写一遍、全部消费令牌。
+加第三种拟物端只需再加一支令牌，组件块一个字符不动。
+
+**前景色也是材质** —— 这是实测踩出来的：aqua 的 className 里写的是
+`text-[#3a3f47]` 这类浅色端专用字色，直接抄进组件规则，夜间端就是**深底深字**
+（下拉框与按钮上的字在深底上直接读不出来）。现在 `--mac-face-fg` /
+`--mac-panel-fg` / `--mac-chrome-fg` / `--mac-step-fg` 按明暗分两支。
+
+### AF-3 · 取值出处（逐条可追，不是「照着感觉做的拟物」）
+
+| 令牌 | 出处 |
+|---|---|
+| `--aqua-gel-*`（6 个 `color-mix(in oklab, …)`） | `aqua` 的 `@aqua/theme` registry，**逐字抄**。这是它全部 gel 按钮质感的唯一来源 |
+| gel 五段渐变 / 顶面高光胶囊 / 底部白色内发光 | `registry/aqua/ui/button.tsx` |
+| 交通灯、pinstripe、chrome 三段 | `registry/aqua/ui/window.tsx` |
+| 下拉触发器 + 右侧独立 gel 箭头芯片 | `registry/aqua/ui/select.tsx` |
+| 分段控件选中态 | `registry/aqua/ui/tabs.tsx`（`data-[state=active]`） |
+| 用户气泡 `#e4f1fd→#8dbdf0` | `registry/aqua/ui/chat-bubble.tsx` 的 `from="me"` |
+| 开关 / 单选 / 进度 | `registry/aqua/ui/{switch,radio-group,progress}.tsx` |
+| 单元格 `to top, transparent 35%` + `0 0 3px 3px` 硬光晕环 + 圆角归零 | `SkeuoCordBase.css` |
+| 头部 `rgb(58,58,58)→rgb(0,0,0)`、`--cell_top` / `--header_*` / `--sidebar_*` | `SkeuoCord.theme.css` |
+| `--mac-fg-shadow`（文字白投影） | pudge-ui `foundation/materials.md` 的 gel 材质配方 |
+
+### AF-4 · 三个静默失效点（都由 `lib/mac-skeuo.test.mjs` 钉住）
+
+1. **gel 派生必须挂在门禁元素自身**。自定义属性的 `var()` 在**声明它的那一层**就
+   完成替换。aqua 原文写的是 `*, *::before, *::after` —— 抄过来会漏掉 `<html>`
+   本身，于是 `--aqua-gel-*` 在根上是空的，`--mac-gel` 整条解析失败，
+   **所有 gel 表面静默变透明**（不报错、不掉色，只是没了）。这是实测第一轮就中的。
+2. **id 与 CSS 门禁是两份互不相关的声明**。改一边，CSS 静默失效、界面退回默认
+   外观，而 **typecheck 与 check:design 全过**。测试双向查。
+3. **`.pw-side-head` 必须是定位上下文**。交通灯是 `position: absolute` 的子层，
+   否则飞到最近的已定位祖先 —— 实测落到侧栏底部左角压在项目行上。
+
+### AF-5 · 一处 `!important`
+
+全文件唯一一处：夜间端的 `--radius-base: 3px !important`。因为
+`useThemeSkins.writeSkin()` 把 `--radius-base` 写在 `<html>` 的**内联** style 上，
+内联优先级高于普通样式表，只有 `!important` 打得过。
+
+### AF-6 · 门禁
+
+- `npm run check:design` 全绿（材质层在 `check-motion-tokens.mjs` 的 `FILES` 清单里，
+  动效一律走 `--motion-*`）。`check-style-literals` 只扫 `.ts/.tsx`，本补丁的 TS 侧
+  没有新增内联几何。
+- 渲染验证台：`design/pi-web-design/.skeuo/verify.mjs`（按 `app/layout.tsx` 的真实
+  引入顺序全链 CSS，四个变体各截一张，含两个**不带 skin id 的对照组**——
+  用来证明材质层没漏到默认外观上）。
+
+### AF-7 · 组件精修（第二轮）：逐个对齐来源仓
+
+第一轮只做到「让壳像那个年代」。这一轮把材质层覆盖到的**每一个** pw-* 组件都对到
+来源仓的那一颗配方，来源与清单见 `app/fork-mac-skeuo.css` 第 18 节的逐段注释。
+
+**验证台**：`design/pi-web-design/.skeuo/gallery.mjs` —— 把每个组件摆在一页上，
+明暗各截一张。工作台画板只用得到一半组件（没有设置弹窗、右键菜单、提示条、
+代码块、表格、开关、勾选、单选组），逐组件精修必须逐组件**看**。
+
+#### AF-7-1 · 三处选择器写错了，靠读源码才发现
+
+第一轮按 aqua 的**组件名**写规则，三条一条都没命中产品真实 DOM：
+
+| 控件 | 我写的 | 真实 DOM（读源码） |
+|---|---|---|
+| 开关 | `[aria-checked]` + 自己造 thumb | `SettingsUi.tsx`：`<button role="switch" class="pw-switch[ on]"><i/></button>` —— 状态是**类名 `.on`**，滑块是子元素 `<i>`，尺寸 30×17 |
+| 单选 | 一颗 aqua 单选钮 | `board.css`：`.pw-radio` 是**一排选项的 flex 容器**，选中项是 `> span.is-on` |
+| 勾选 | `.pw-checkbox` | `board.css` 里**根本没有** `.pw-checkbox`；产品用的是原生 `<input type=checkbox>`（13×13 + `accent-color`） |
+
+**教训**：组件库的名字不通用。要抄某个组件的样式，先 `grep` 它的 className 与
+子元素结构，别照着来源仓的组件名写。
+
+#### AF-7-2 · 「材质」的边界比想的宽：底色与前景色都是材质
+
+夜间端三档 `.pw-alert` / `.pw-badge` 一开始**长得一模一样**。原因是 SkeuoCord 的
+语义色沿用他们的单元格渐变 `to top, transparent 40%` —— 头 40% 是透明的，而**底下
+没有 `background-color`**，tinted 那一层什么也透不上来。
+>>>>>>> main
 
 结论写进令牌契约：**SkeuoCord 系的任何 `to top, transparent …` 渐变都必须配
 `background-color`**，否则在深底上等于没画。浅色端因为渐变本身不透明，一直是对的
@@ -2567,6 +2795,7 @@ className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「�
 ### AF-5 · 顺带记一条门禁盲区
 
 `scripts/check-icons.mjs` 只查字面量 `data-ico="name"`，**查不到 JS 里动态传的图标名**（`BrowserPanel.tsx:80` 的 `icon: "monitor-sm"` 正是这样漏过去的，而 `icons.js` 命中失败是 `return ""` 静默返回空图标，不报错）。动态图标名目前靠人眼。
+<<<<<<< HEAD
 
 ---
 
@@ -2604,3 +2833,5 @@ className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「�
   对齐 —— 一条右栏上有两条把手，行为必须一样。
 - 拖出阈值（下移出标签栏 12px 且累计位移 ≥18px，照 Proma `TabBar.tsx`）是手势参数，
   不属于画板语汇。
+
+>>>>>>> main

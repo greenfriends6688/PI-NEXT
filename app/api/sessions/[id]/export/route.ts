@@ -285,9 +285,13 @@ export async function GET(
           "Content-Type": "text/html; charset=utf-8",
           "Content-Disposition": getContentDisposition(fileName, inline),
           "Cache-Control": "no-cache",
-          "Content-Security-Policy": "frame-ancestors 'none'",
+          // fork:trace-frame —— `inline=1` 的页面要能**被同源 iframe 装进右栏**
+          // （components/TraceFrame.tsx），所以这两种情况下允许 `self` 嵌帧；
+          // 下载（attachment）仍然不许任何页面把它套起来。
+          // 内容本身是 pi 从用户自己的 .jsonl 生成的，不含第三方来源。
+          "Content-Security-Policy": `frame-ancestors ${inline ? "'self'" : "'none'"}`,
           "X-Content-Type-Options": "nosniff",
-          "X-Frame-Options": "DENY",
+          "X-Frame-Options": inline ? "SAMEORIGIN" : "DENY",
         },
       });
     } finally {

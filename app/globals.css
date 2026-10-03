@@ -254,6 +254,7 @@
      （fast / layout），别名定义随之删除。 */
   --motion-fast: var(--ds-motion-fast);         /* 120 */
   --motion-base: var(--ds-motion-base);         /* 150 → 160 */
+  /* 旧名保留为别名：全系统只有设计那一条曲线（--ds-ease），这里不再另立一条。 */
   --ease-out: var(--ds-ease);
 
   /* 设计系统的其余动效值（位移 / 错开 / 周期 / 等待期）*/
@@ -266,6 +267,7 @@
   --motion-pop: var(--ds-motion-pop);
   --motion-sheet: var(--ds-motion-sheet);
   --motion-stagger: var(--ds-motion-stagger);
+  --motion-hint: var(--ds-motion-hint);
   --opacity-pending: var(--ds-opacity-pending);
 }
 
@@ -997,7 +999,14 @@ pre, code {
   min-width: 100%;
   font-size: calc(13px + var(--chat-font-size-offset, 0px));
 }
-.markdown-table-wrap > table { width: max-content; }
+/* fork:table-wrap-2026-10-02 —— 表格**填满容器**，不再 `width: max-content`。
+   `max-content` 把列宽定成「最长那一格」，于是一张两列表里只要有一行长句（CJK 没有空格，
+   `overflow-wrap: anywhere` 只管 min-content），整张表就宽出容器 → 外层横滚、其余各行
+   的格子留下一大片空白（用户截图里红框那块）。实测同一段表格：容器 558px 时
+   `max-content` → 表 676px、全行 35px（一行切掉）；`100%` → 表 558px 不横滚、长句在
+   格子内折成两行。列数多到真的装不下时，`min-width: 100%` + 外层 `overflow-x: auto`
+   仍然负责横滚。 */
+.markdown-table-wrap > table { width: 100%; }
 .markdown-body th, .markdown-body td {
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -1641,15 +1650,8 @@ span.token.table {
   display: inline;
 }
 
-@keyframes drop-zone-in {
-  from { opacity: 0; transform: scale(0.97); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes drop-ripple {
-  0%   { transform: scale(0); opacity: 0.6; }
-  100% { transform: scale(1); opacity: 0; }
-}
+/* drop-zone-in / drop-ripple 已删：零引用（拖放落区走画板 .pw-anim-drop，
+   board.css 里那一格才是实现），而且它们 scale(0.97) —— 设计 §1.6「不缩放」。 */
 
 /* Keyboard users get the same affordance hover users get.
    fork:focus-ring — 值按设计 §1.4「焦点环 1.5px 强调色描边、偏移 1px」收敛
@@ -1749,14 +1751,15 @@ textarea,
     max-height: 0;
     min-height: 0;
     margin-bottom: 0;
-    transform: translateY(-6px) scale(0.995);
+    /* 设计 §1.6：通知条只动「高度 + 位移」，没有缩放（scale 会让文字发虚）。 */
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
     height: 60px;
     max-height: 60px;
     min-height: 60px;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
 }
 
@@ -1766,7 +1769,7 @@ textarea,
     height: 60px;
     max-height: 60px;
     min-height: 60px;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
   to {
     opacity: 0;
@@ -1774,7 +1777,7 @@ textarea,
     max-height: 0;
     min-height: 0;
     margin-bottom: 0;
-    transform: translateY(-5px) scale(0.995);
+    transform: translateY(-5px);
   }
 }
 

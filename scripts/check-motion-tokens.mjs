@@ -4,7 +4,7 @@
  *
  * fork:design-system（2026-09-28）—— 「设计系统 → 门禁」的第二条。
  *
- * 设计把全系统的动效定成**十一个 token**（`design/pi-web-design/assets/tokens.css` §12），
+ * 设计把全系统的动效定成**十二个 token**（`design/pi-web-design/assets/tokens.css` §12），
  * 但 CSS 里写 `transition: background 150ms` 是顺手就会犯的错，而且看不出来。
  * 这个脚本扫 `app/*.css`，任何**时长字面量**（`120ms` / `0.15s`）都必须来自 token。
  *
