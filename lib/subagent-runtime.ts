@@ -71,6 +71,8 @@ export interface SubagentController {
   readonly extensionRuntime: SubagentExtensionRuntime;
   get(sessionId: string): Promise<SubagentRunInfo | null>;
   steer(sessionId: string, message: string): Promise<void>;
+  /** fork:agent-mail —— 给任意活着的会话送旁路消息。 */
+  deliver(sessionId: string, content: string, details?: unknown): Promise<void>;
   abort(sessionId: string): Promise<void>;
 }
 
@@ -87,6 +89,8 @@ declare global {
   var __piSubagentConsumedResults: Map<string, string> | undefined;
 }
 const SUBAGENT_CONTEXT_LIMIT = 50_000;
+/** fork:agent-mail —— agent↔agent 旁路消息在会话文件里的类型名。 */
+const SUBAGENT_MAIL_TYPE = "pi-web:subagent-mail";
 const PARENT_IDLE_POLL_MS = 200;
 const THINKING_LEVELS = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
@@ -667,8 +671,26 @@ export function createSubagentController(
     }, { deliverAs: "followUp", triggerTurn: true });
   }
 
-  async function abort(sessionId: string): Promise<void> {
+  /**
+   * fork:agent-mail —— 给**任意**活着的会话送一条消息（父 / 兄弟 / 自己）。
+   *
+   * `notifyParent()` 是专用版：它要避开重复唤醒，所以会先等父会话空闲。信箱没有这个
+   * 约束 —— 发信的人不该为了收信的人闲下来而卡住 —— 所以直接 `deliverAs: "followUp"`，
+   * pi 自己排到当前这轮结束时送进去。
+   */
+  async function deliver(sessionId: string, content: string, details?: unknown): Promise<void> {
     const wrapper = dependencies.getSession(sessionId);
+    if (!wrapper?.isAlive()) throw new Error(`Session is not available: ${sessionId}`);
+    if (!content.trim()) throw new Error("Message is required");
+    await wrapper.waitUntilReady();
+    await wrapper.inner.sendCustomMessage({
+      customType: SUBAGENT_MAIL_TYPE,      content,
+      display: true,
+      ...(details === undefined ? {} : { details }),
+    }, { deliverAs: "followUp", triggerTurn: true });
+  }
+
+  async function abort(sessionId: string): Promise<void> {    const wrapper = dependencies.getSession(sessionId);
     const stored = getSubagentRuns().get(sessionId);
     if (stored?.run.status === "queued") {
       stored.abortRequested = true;
@@ -690,9 +712,10 @@ export function createSubagentController(
   }
 
   return {
-    extensionRuntime: { start, resume, get, listActive, steer, notifyParent, markResultConsumed },
+    extensionRuntime: { start, resume, get, listActive, steer, notifyParent, markResultConsumed, deliver },
     get,
     steer,
+    deliver,
     abort,
   };
 }

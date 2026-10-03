@@ -1,4 +1,5 @@
 import { Type } from "@earendil-works/pi-ai";
+import { randomUUID } from "node:crypto";
 import {
   defineTool,
   type ExtensionContext,
@@ -10,6 +11,8 @@ import {
   type SubagentProfile,
   type SubagentRunInfo,
 } from "./subagents";
+// fork:agent-mail — agent↔agent 信箱
+import { formatMail, subagentMailbox } from "./subagent-mail";
 import { MAX_SUBAGENT_INPUT_FILES } from "./subagent-input";
 // PR-36 · 收敛软提醒 + thinkingLevel 档位来源（与全仓思考档共用同一套定义）
 import { subagentConvergenceReminder } from "./subagent-convergence";
@@ -79,6 +82,8 @@ export interface SubagentExtensionRuntime {
   /** PR-36 · 同一父会话里仍处于 starting/queued/running 的子代理；缺省时按「无」处理。 */
   listActive?(parentSessionId: string): Promise<SubagentRunInfo[]>;
   steer(sessionId: string, message: string): Promise<void>;
+  /** fork:agent-mail —— 往任意活着的会话（父 / 兄弟 / 自己）送一条旁路消息。 */
+  deliver?(sessionId: string, content: string, details?: unknown): Promise<void>;
   notifyParent(run: SubagentRunInfo): Promise<void>;
   // fork:upstream-0.9.2-subagent-notify — #937 移植
   markResultConsumed(run: Pick<SubagentRunInfo, "sessionId" | "completedAt">): void;
@@ -336,6 +341,114 @@ export function createSubagentExtension(
           } catch (error) {
             return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], details: undefined, isError: true };
           }
+        },
+      }));
+
+      // fork:agent-mail —— 三个工具已经只能「父 → 子」；这一个把方向补全：
+      // 子 → 父（中途提问 / 交 Findings）、子 → 兄弟、父 → 全体子代理，
+      // 外加一个不用轮询的 wait。形状抄 MusePi 的 `hub` 工具（send/inbox/wait），
+      // 但只用一个工具三个 action，而不是三个工具。
+      pi.registerTool(defineTool({
+        name: "agent_mail",
+        label: "Agent mail",
+        description: "Message another agent session directly: the parent, a sibling, or any session id you know. Use it to ask a question or hand over a finding before the run ends. Also reads your own inbox and waits for a message.",
+        promptSnippet: "Message another agent session directly",
+        promptGuidelines: [
+          "Use agent_mail to ask the parent a question mid-task instead of guessing.",
+          "Use to=all to hand a finding to every sibling at once.",
+          "Prefer action=wait over polling action=inbox in a loop.",
+        ],
+        parameters: Type.Object({
+          action: Type.Optional(Type.Union(
+            [Type.Literal("send"), Type.Literal("inbox"), Type.Literal("wait")],
+            { description: "send (default) | inbox | wait" },
+          )),
+          to: Type.Optional(Type.String({
+            description: "send only: \"parent\", \"all\" (your siblings, or your own subagents), or an agent session id.",
+          })),
+          message: Type.Optional(Type.String({ description: "send only: the message body." })),
+          timeoutMs: Type.Optional(Type.Number({ description: "wait only: how long to wait. Default 30000, max 240000." })),
+        }),
+        async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+          const selfId = ctx.sessionManager.getSessionId();
+          const mailbox = subagentMailbox();
+          const action = params.action ?? "send";
+
+          if (action === "inbox" || action === "wait") {
+            if (action === "wait") {
+              const timeoutMs = Math.min(Math.max(params.timeoutMs ?? 30_000, 0), 240_000);
+              await mailbox.waitFor(selfId, timeoutMs, signal);
+            }
+            const messages = mailbox.drain(selfId);
+            return {
+              content: [{
+                type: "text",
+                text: messages.length === 0 ? "Inbox empty." : `${messages.length} message(s):\n\n${formatMail(messages)}`,
+              }],
+              details: undefined,
+            };
+          }
+
+          const body = params.message?.trim();
+          if (!body) {
+            return { content: [{ type: "text", text: "message is required for action=send" }], details: undefined, isError: true };
+          }
+          if (!runtime.deliver) {
+            return { content: [{ type: "text", text: "Agent mail is not available in this session." }], details: undefined, isError: true };
+          }
+
+          const selfRun = await runtime.get(selfId);
+          const fromLabel = selfRun ? `${selfRun.profile}: ${selfRun.description}` : "top-level session";
+          const parentId = selfRun?.parentSessionId ?? selfId;
+          const peers = runtime.listActive ? await runtime.listActive(parentId) : [];
+          const peerIds = peers.map((run) => run.sessionId).filter((id) => id !== selfId);
+
+          const to = params.to?.trim();
+          let targets: string[];
+          if (!to || to === "all") {
+            targets = peerIds;
+            if (targets.length === 0) {
+              return {
+                content: [{
+                  type: "text",
+                  text: selfRun ? "No sibling agent is running." : "No subagent is running.",
+                }],
+                details: undefined,
+                isError: true,
+              };
+            }
+          } else if (to === "parent") {
+            if (!selfRun) {
+              return { content: [{ type: "text", text: "This session has no parent agent." }], details: undefined, isError: true };
+            }
+            targets = [selfRun.parentSessionId];
+          } else {
+            targets = [to];
+          }
+
+          const id = randomUUID();
+          const sentAt = Date.now();
+          let woke = 0;
+          for (const target of targets) {
+            // 信箱先落：会话当下不可用（已结束 / 被回收）时信也不丢。
+            mailbox.send({ id, from: selfId, fromLabel, to: target, body, sentAt });
+            try {
+              await runtime.deliver(target, `Agent mail from ${fromLabel}:\n\n${body}`);
+              woke += 1;
+            } catch {
+              // 收件人当前不可用 —— 留在信箱里，等它下一次 inbox / wait。
+            }
+          }
+
+          return {
+            content: [{
+              type: "text",
+              text: targets.length === 1
+                ? `Sent to ${targets[0]}${woke ? "" : " (kept in the mailbox; it is not running right now)"}.`
+                : `Sent to ${targets.length} agent(s), ${woke} awake.`,
+            }],
+            details: undefined,
+          };
         },
       }));
     },
