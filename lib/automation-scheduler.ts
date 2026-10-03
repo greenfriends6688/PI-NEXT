@@ -569,13 +569,27 @@ export function createAutomationScheduler(deps: AutomationSchedulerDeps): Automa
   return scheduler;
 }
 
-/** 进程内单例。由 `lib/automation-runtime.ts` 在启动钩子里装配。 */
-let singleton: AutomationScheduler | null = null;
+/**
+ * 进程内单例。由 `lib/automation-runtime.ts` 在启动钩子里装配。
+ *
+ * **必须挂在 globalThis 上（不是模块级变量）**：生产构建里 `instrumentation.ts`
+ * 与 `app/api/automation/route.ts` 是两份独立的模块实例，模块级 `let singleton`
+ * 在两边各有一份。实测后果：调度器在 instrumentation 那份里真的在 tick，而
+ * 路由读到的 `getAutomationScheduler()` 恒为 null —— 面板永远显示「调度器没有在
+ * 跑」，且 `runAutomationNow()` 会在路由那份模块图里**再起一个**调度器，两个
+ * tick 抢同一个 `automations.json`。与 `lib/rpc-manager.ts` 的 `__piSessions`
+ * 同一个坑（那里是防 hot-reload，这里是防多入口）。
+ */
+const SINGLETON_KEY = Symbol.for("pi-web.automationScheduler");
+
+interface SchedulerGlobal {
+  [SINGLETON_KEY]?: AutomationScheduler | null;
+}
 
 export function registerAutomationScheduler(scheduler: AutomationScheduler | null): void {
-  singleton = scheduler;
+  (globalThis as SchedulerGlobal)[SINGLETON_KEY] = scheduler;
 }
 
 export function getAutomationScheduler(): AutomationScheduler | null {
-  return singleton;
+  return (globalThis as SchedulerGlobal)[SINGLETON_KEY] ?? null;
 }
