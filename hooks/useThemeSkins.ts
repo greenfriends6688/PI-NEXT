@@ -89,6 +89,11 @@ const SKIN_DATA_ATTRIBUTES = [
   "themeSkin",
   "themeSkinMode",
   "themeSkinWallpaperFit",
+  // fork:mac-skeuo — 皮肤**自己**的 id。材质层要挂在皮肤 id 上而不是挂在
+  // `data-theme-skin`（那是恒为 "true" 的存在性标记，谁选中都一样），
+  // 这样任何内置风格皮肤都能有自己的 CSS 文件，而不用改 writeSkin 认识它们。
+  // 靠属性而不是 class：clearSkin() 已经在按这个数组统一 removeAttribute。
+  "themeSkinId",
 ] as const;
 
 /**
@@ -197,6 +202,8 @@ function writeSkin(skin: ThemeSkin): void {
   root.style.setProperty("--skin-sidebar-alpha", `${skin.sidebarOpacity}%`);
 
   root.dataset.themeSkin = "true";
+  // fork:mac-skeuo — 皮肤 id 发成变量，材质层按它上挂自己的 CSS。
+  root.dataset.themeSkinId = skin.id;
   // 记录**实际生效**的模式（不是皮肤自称的 mode）：CSS 要按模式分叉时才有意义。
   root.dataset.themeSkinMode = activeMode;
   root.dataset.themeSkinWallpaperFit = skin.wallpaperFit;

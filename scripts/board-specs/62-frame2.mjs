@@ -15,7 +15,11 @@ export default {
   "knownDiffs": [
     {
       "sel": ".settings-dialog-surface .pw-block",
-      "reason": "**数据依赖**：块高按内容，画板帧画的是「外观 / 主题皮肤 / 侧栏 / 字体」四块，产品左栏是同一组但皮肤卡数量不同"
+      "reason": "**数据依赖 + 用户裁定**：块高按内容，画板帧画的是「外观 / 主题皮肤 / 侧栏 / 字体」四块；产品左栏同一组但皮肤卡数量不同，且 2026-10-03 起「壁纸」块从右栏挪到主题皮肤下方"
+    },
+    {
+      "sel": ".settings-dialog-surface .pw-snav-close",
+      "reason": "**用户裁定（2026-10-03）**：画板 62 底部那枚「返回工作区」产品不再渲染，关闭口是弹窗右上角的 X"
     },
     {
       "sel": ".settings-dialog-surface .pw-skin-strip",
@@ -47,7 +51,7 @@ export default {
     },
     {
       "sel": ".settings-dialog-surface .pw-wallpaper-thumb",
-      "reason": "**状态依赖**：`WallpaperSettings.tsx:170` 在没设壁纸时不渲染缩略格。"
+      "reason": "**状态依赖 + 落位变更**：`WallpaperSettings.tsx:170` 在没设壁纸时不渲染缩略格；2026-10-03 起该块从右栏挪到左栏主题皮肤下方，所以坐标不与画板比。"
     }
   ],
   "pairs": [

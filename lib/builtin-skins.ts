@@ -22,6 +22,8 @@ import {
   type ThemeSkinsState,
 } from "./theme-skins";
 import { BUILTIN_WALLPAPERS, paintingPath, type BuiltinWallpaperId } from "./wallpaper-builtin";
+// fork:mac-skeuo — 内置皮肤有两个来源，带壁纸的与不带壁纸的。
+import { MAC_SKEUO_SKIN, MAC_SKEUO_SKIN_ID, MAC_SKEUO_SKIN_LABEL_KEY } from "./mac-skeuo";
 
 export const BUILTIN_SKIN_ID_PREFIX = "builtin-";
 
@@ -30,13 +32,22 @@ export function builtinSkinId(id: BuiltinWallpaperId): string {
 }
 
 /** 卡片标题从目录取（画作名是专有名词，但仍走 i18n，键锁测试才有一致性可查）。 */
-export const BUILTIN_SKIN_LABEL_KEYS: Record<string, string> = Object.fromEntries(
-  BUILTIN_WALLPAPERS.map((item) => [builtinSkinId(item.id), item.labelKey]),
-);
+export const BUILTIN_SKIN_LABEL_KEYS: Record<string, string> = {
+  ...Object.fromEntries(
+    BUILTIN_WALLPAPERS.map((item) => [builtinSkinId(item.id), item.labelKey]),
+  ),
+  // fork:mac-skeuo
+  [MAC_SKEUO_SKIN_ID]: MAC_SKEUO_SKIN_LABEL_KEY,
+};
 
-export const BUILTIN_SKINS: ThemeSkin[] = BUILTIN_WALLPAPERS.map((item) => ({
-  ...createSkinDraft(builtinSkinId(item.id), "", "dark", { wallpaper: paintingPath(item.id) }),
-}));
+export const BUILTIN_SKINS: ThemeSkin[] = [
+  ...BUILTIN_WALLPAPERS.map((item) =>
+    createSkinDraft(builtinSkinId(item.id), "", "dark", { wallpaper: paintingPath(item.id) }),
+  ),
+  // fork:mac-skeuo — 「Mac拟物风格」没有壁纸（它是**材质**皮肤，不是画作皮肤），
+  // 所以不进 BUILTIN_WALLPAPERS（那份清单的每一条都要 paintingPath(item.id)）。
+  MAC_SKEUO_SKIN,
+];
 
 export function isBuiltinSkinId(id: string): boolean {
   return id.startsWith(BUILTIN_SKIN_ID_PREFIX);

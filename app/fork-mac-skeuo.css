@@ -1,0 +1,1393 @@
+/* ===========================================================================
+ * fork:mac-skeuo — 「Mac拟物风格」材质层
+ *
+ * ## 门禁
+ *
+ *   html[data-theme-skin-id="builtin-mac-skeuo"]
+ *   html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="light"]
+ *   html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"]
+ *
+ * 三个属性都由 `hooks/useThemeSkins.ts` 的 `writeSkin()` 写（`data-theme-skin-id`
+ * 是本补丁新增的那一个）。**材质不进 `customCss`**：那份是用户写的，上限 20000
+ * 字符，产品样式不该依赖一个用户可编辑的口子。
+ *
+ * ## 为什么是「令牌 + 一遍组件」
+ *
+ * 拟物的观感几乎全部来自**材质对**，不是颜色对。所以颜色按明暗分成两支材质令牌，
+ * 组件规则只写一遍、全部消费 `--mac-*`。这样加第三种拟物端（比如 Windows 那侧）
+ * 只需要再加一支令牌，组件块一个字符都不用动。
+ *
+ * ## 取值出处（逐条可追）
+ *
+ *   --aqua-gel-*  ← igorfelipeduca/aqua 的 `@aqua/theme` registry，**逐字抄**。
+ *                    那 6 个 `color-mix(in oklab, …)` 是 aqua 全部 gel 按钮质感的
+ *                    唯一来源，抄错了整套按钮就不像 2003 年的 Aqua。
+ *   浅色端材质     ← 同仓 `registry/aqua/ui/{window,button,select,input,switch,
+ *                    tabs,chat-bubble}.tsx` 的 className 原文。
+ *   夜间端材质     ← Marda33/SkeuoCord 的 `updates/SkeuoCordBase.css`：单元格是
+ *                    `linear-gradient(to top, transparent 35%, CELL_TOP)` +
+ *                    `border: 1px solid rgb(92,92,92)` + `0 0 3px 3px rgba(0,0,0,.5)`
+ *                    的硬光晕环；头部 `--header_dark_top rgb(58,58,58)→rgb(0,0,0)`。
+ *
+ * 顺序：本文件在 `app/layout.tsx` 里**最后**引入，board.css / fork-ui.css 的同名
+ * 规则按源码顺序输给它（与 `fork-ui.css` 覆盖上游的约定一致）。
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * 1. gel 派生 —— aqua `@aqua/theme` 逐字
+ *
+ * 抄的是它连 `*, *::before, *::after` 一起挂这一点：伪元素要能用同一组 gel 值。
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] {
+  --aqua-accent: #2f7de0;
+}
+
+/*
+ * 抄的是它连 `*, *::before, *::after` 一起挂这一点：伪元素要能用同一组 gel 值。
+ *
+ * **但必须把门禁元素本身也列进去**：自定义属性的 `var()` 在**声明它的那一层**
+ * 就完成替换。`--mac-gel` 声明在 `<html>` 上，它里面的 `var(--aqua-gel-hi)` 按
+ * `<html>` 上的值算，而 `html[data-…] *` 不匹配 `<html>` 自身 —— 只写 `*` 的话六个
+ * gel 变量在根上是空的，`--mac-gel` 整条解析失败，所有 gel 表面**静默**变透明。
+ */
+html[data-theme-skin-id="builtin-mac-skeuo"],
+html[data-theme-skin-id="builtin-mac-skeuo"] *,
+html[data-theme-skin-id="builtin-mac-skeuo"] *::before,
+html[data-theme-skin-id="builtin-mac-skeuo"] *::after {
+  --aqua-gel-hi: color-mix(in oklab, var(--aqua-accent) 38%, white);
+  --aqua-gel-light: color-mix(in oklab, var(--aqua-accent) 62%, white);
+  --aqua-gel-mid: color-mix(in oklab, var(--aqua-accent) 90%, white);
+  --aqua-gel-deep: color-mix(in oklab, var(--aqua-accent) 85%, black);
+  --aqua-edge: color-mix(in oklab, var(--aqua-accent) 72%, black);
+  --aqua-ring: color-mix(in oklab, var(--aqua-accent) 55%, white);
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. 材质令牌 · 浅色端（Aqua）
+ *
+ * window.tsx 的 pinstripe 是 1px 白 / 1px 半黑交替压在 #d9dbde→#c3c6ca 上；
+ * button.tsx 的 gel 是**五段**渐变（0 / 42 / 50 / 78 / 100），50% 处那道硬转折
+ * 就是 gel 顶面的棱线，少一段就变成「塑料」而不是「果冻」。
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="light"] {
+  --mac-accent: #2f7de0;
+  /* Lucida Grande 是 aqua 的字体栈；本仓是 Web 端，拿得到就用，拿不到退 Helvetica。 */
+  --mac-font: "Lucida Grande", "Lucida Sans Unicode", "Helvetica Neue", "Noto Sans SC", system-ui, sans-serif;
+
+  /* chrome：窗口标题栏与外壳机身 */
+  --mac-chrome: linear-gradient(180deg, #fbfbfc 0%, #e6e8ec 48%, #d2d5da 52%, #eceef1 100%);
+  --mac-chrome-line: #9ea2a9;
+  --mac-chrome-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.16);
+  /* pinstripe：只有 Aqua 有，aqua 的 window.tsx 就是这么写的 */
+  --mac-pin:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.55) 0px, rgba(255, 255, 255, 0.55) 1px,
+      rgba(0, 0, 0, 0.045) 1px, rgba(0, 0, 0, 0.045) 2px
+    );
+
+  /* 浮凸面（按钮 / 芯片 / 图标钮） */
+  --mac-face: linear-gradient(180deg, #fdfdfe 0%, #e4e7ec 48%, #d3d7de 52%, #eceef2 100%);
+  --mac-face-line: #aeb3bc;
+  --mac-face-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(20, 60, 130, 0.2);
+
+  /* gel 主面 */
+  --mac-gel:
+    linear-gradient(
+      180deg,
+      var(--aqua-gel-hi) 0%,
+      var(--aqua-gel-light) 42%,
+      var(--aqua-gel-deep) 50%,
+      var(--aqua-gel-mid) 78%,
+      var(--aqua-gel-hi) 100%
+    );
+  --mac-gel-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.75),
+    inset 0 -3px 7px rgba(255, 255, 255, 0.6),
+    0 1px 3px rgba(20, 60, 130, 0.35);
+  --mac-gel-fg: #ffffff;
+  --mac-gel-fg-shadow: 0 -1px 1px rgba(10, 40, 90, 0.45);
+
+  /* 凹陷井（输入框 / 搜索 / 代码块 / 输入卡） */
+  --mac-well: #ffffff;
+  --mac-well-line: #9599a1;
+  --mac-well-shadow: inset 0 2px 3px rgba(20, 30, 50, 0.15);
+
+  /* Tier 3 面板：card / modal / pop */
+  --mac-panel: linear-gradient(180deg, #f7f8fa 0%, #eceef1 100%);
+  --mac-panel-line: #aeb3bc;
+  --mac-panel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(40, 45, 55, 0.35),
+    0 8px 24px rgba(30, 40, 60, 0.28);
+
+  --mac-cell: #f2f3f5;
+  --mac-hover: rgba(255, 255, 255, 0.7);
+  --mac-selected: linear-gradient(180deg, #1f63bd 0%, var(--mac-accent) 48%, #4a90ec 52%, var(--mac-accent) 100%);
+  --mac-selected-fg: #ffffff;
+  --mac-selected-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 1px 3px rgba(0, 40, 90, 0.4);
+  --mac-accent-text: #1a5fb4;
+  --mac-danger: linear-gradient(180deg, #ffc4c4 0%, #f7826c 42%, #e03a2f 50%, #f2604d 78%, #ffb09f 100%);
+  --mac-warn: linear-gradient(180deg, #fff3d0 0%, #f0c257 100%);
+  --mac-warn-fg: #6b4708;
+  --mac-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.08));
+  --mac-glow: 0 1px 3px rgba(20, 30, 50, 0.22);
+  --mac-text-shadow: none;
+  --mac-radius: 6px;
+  /* 材质上的**前景色**。aqua 的组件 className 里写的是 text-[#3a3f47] 这类
+     浅色端专用字色，直接抄进组件规则，夜间端就是深底深字 —— 所以前景色和面/线/投影
+     一样属于材质，按明暗分两支。 */
+  --mac-face-fg: #3a3f47;
+  --mac-panel-fg: #33383f;
+  --mac-chrome-fg: #43484f;
+  --mac-step-fg: #2b2f36;
+  --mac-fg-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  /* ---- 投影分档：aqua 每个组件的 shadow 都不一样，不是同一个值 ---- */
+  --mac-shadow-sm: 0 1px 2px rgba(20, 60, 130, 0.2);            /* badge / 小件 */
+  --mac-shadow-md: 0 2px 6px rgba(20, 30, 50, 0.15);            /* 面板 */
+  --mac-shadow-lg: 0 26px 60px rgba(20, 30, 50, 0.35), 0 5px 14px rgba(20, 30, 50, 0.18); /* dialog */
+  --mac-shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 10px 28px rgba(20, 30, 50, 0.3), 0 2px 6px rgba(20, 30, 50, 0.15);
+  /* ---- 旋钮 / 勾选面：aqua 的 slider-thumb / radio / checkbox 共用这颗白塑料珠 ---- */
+  --mac-thumb: radial-gradient(circle at 50% 30%, #ffffff, #d5d9df 70%, #c3c8cf 100%);
+  --mac-thumb-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(20, 30, 50, 0.35);
+  --mac-ctl-face: linear-gradient(180deg, #ffffff 0%, #e8ebef 55%, #dcdfe4 100%);
+  --mac-switch-off: linear-gradient(180deg, #c9ccd1 0%, #dfe2e6 60%, #eceef2 100%);
+  --mac-switch-off-line: #8b909a;
+  --mac-ctl-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(20, 30, 50, 0.2);
+  --mac-track: #d7dbe2;
+  --mac-track-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+  /* ---- 语义色板（badge / alert 的四档，aqua 各自一套渐变）---- */
+  --mac-cell-tint: #f2f3f5;
+  --mac-info-bg: #eaf2fc;
+  --mac-info: linear-gradient(180deg, #f4f9fe 0%, #d9e8fa 48%, #c3dbf6 52%, #e2eefb 100%);
+  --mac-info-line: #93a7c2;
+  --mac-info-fg: #1c5fb8;
+  --mac-danger-bg: #fdf4f3;
+  --mac-danger-soft: linear-gradient(180deg, #fef6f5 0%, #fadfdc 48%, #f5c9c4 52%, #fbe7e5 100%);
+  --mac-danger-line: #d9958d;
+  --mac-danger-fg: #a81f1f;
+  --mac-warn-bg: #fdf8e0;
+  --mac-warn-soft: linear-gradient(180deg, #fffbe3 0%, #fdf3bc 100%);
+  --mac-warn-line: #c2b06e;
+  --mac-warn-soft-fg: #5c4d1a;
+  --mac-scrim: rgba(30, 38, 50, 0.35);
+  /* ---- 工具提示：经典 Mac 的黄底小条（aqua tooltip.tsx 原文 #ffffc7）---- */
+  --mac-tip: #ffffc7;
+  --mac-tip-line: #9a9a6e;
+  --mac-tip-fg: #000000;
+  --mac-tip-shadow: 0 2px 5px rgba(20, 30, 50, 0.35);
+  --mac-tip-radius: 3px;
+  /* ---- 滚动条：SkeuoCord 的浅色端口径（轨道半透灰 + 深色滑块）---- */
+  --mac-scroll-track: rgba(140, 140, 140, 0.4);
+  --mac-scroll-line: rgb(60, 60, 60);
+  --mac-scroll-thumb: rgb(120, 120, 120);
+  --mac-scroll-thumb-hover: rgb(150, 150, 150);
+
+  /* Aqua 一侧的圆角；夜间端要压到 3px，靠下面那条 !important。 */
+  --radius-base: 6px;
+
+  /* ---- 接管全局阴影/圆角令牌（这一段是「漏网之鱼」的解法）----
+   *
+   * 产品的浮窗（`.anim-popover*` / `.anim-dialog` / 各类 popover 容器）**不挂 pw-\* 类**，
+   * 它们读的是全局令牌，而且用 `!important` 写死了引用：
+   *     .anim-popover-down { border-radius: var(--radius-lg) !important;
+   *                          box-shadow:  var(--shadow-md) !important; }
+   * 也就是说**按组件写规则赢不了它们** —— 只能改令牌本身，让 `var(--shadow-md)`
+   * 在皮肤下解析成拟物的投影。这一处改完，模型选择器、工具面板、设置浮层、
+   * 右键菜单…… 全站浮窗一次换皮，不需要逐个去追类名。
+   */
+  --shadow-sm: var(--mac-shadow-sm);
+  --shadow-md: var(--mac-shadow-md);
+  --shadow-lg: var(--mac-shadow-lg);
+  --shadow-xl: var(--mac-shadow-lg);
+  --radius-md: var(--mac-radius);
+  --radius-lg: var(--mac-radius);
+  --radius-xl: var(--mac-radius);
+  /* 浮层底色同理：`.ext-float-panel` / `.pw-pop` 读的是这个令牌。 */
+  --surface-popover: #f7f8fa;
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. 材质令牌 · 夜间端（SkeuoCord）
+ *
+ * 他们的单元格签名式原样保留：`to top, transparent 35%` 意味着**底边**泛光、
+ * 顶边透明，这是他们和「普通暗色主题」一眼能分辨的地方。硬光晕环
+ * `0 0 3px 3px` 也照抄 —— 密集小控件上会互相打架，但那是 SkeuoCord 的本体气质，
+ * 改成柔和投影就变成「普通暗色主题」了。
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] {
+  --aqua-accent: #4a8fe0;
+
+  --mac-accent: #4a8fe0;
+  --mac-font: "Lucida Grande", "Lucida Sans Unicode", "Helvetica Neue", "Noto Sans SC", system-ui, sans-serif;
+
+  --mac-chrome: linear-gradient(180deg, #3a3a3a 0%, #2c2c2c 46%, #101010 100%);
+  --mac-chrome-line: #000000;
+  --mac-chrome-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  --mac-pin: none;
+
+  --mac-face: linear-gradient(180deg, #62626a 0%, #3a3a40 48%, #26262b 52%, #38383e 100%);
+  --mac-face-line: #131316;
+  --mac-face-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.55);
+
+  --mac-gel:
+    linear-gradient(
+      180deg,
+      var(--aqua-gel-hi) 0%,
+      var(--aqua-gel-light) 46%,
+      var(--aqua-gel-deep) 52%,
+      var(--aqua-gel-mid) 100%
+    );
+  --mac-gel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  --mac-gel-fg: #ffffff;
+  --mac-gel-fg-shadow: 0 -1px 0 rgba(10, 40, 90, 0.5);
+
+  --mac-well: linear-gradient(180deg, #08090b 0%, #101114 100%);
+  --mac-well-line: #000000;
+  --mac-well-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85);
+
+  --mac-panel: #1a1c20;
+  --mac-panel-line: rgb(92, 92, 92);
+  --mac-panel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 3px 3px rgba(0, 0, 0, 0.5);
+
+  /* 单元格：SkeuoCord 签名式，底边泛光 */
+  --mac-cell: linear-gradient(to top, transparent 35%, hsl(220, 7.7%, 22.9%) 100%);
+  --mac-cell-base: hsl(210, 3.4%, 11.4%);
+  --mac-hover: rgba(255, 255, 255, 0.07);
+  --mac-selected: linear-gradient(180deg, #6ba7e8 0%, #3d7fd0 46%, #2b64a8 52%, #3d7fd0 100%);
+  --mac-selected-fg: #ffffff;
+  --mac-selected-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  --mac-accent-text: #6fb0ff;
+  --mac-danger: linear-gradient(180deg, #f08a7a 0%, #d0463a 46%, #a12b20 52%, #d0463a 100%);
+  --mac-warn: linear-gradient(180deg, #ffd76a 0%, #c98a12 100%);
+  --mac-warn-fg: #2a1c04;
+  --mac-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.05));
+  --mac-glow: 0 0 3px 3px rgba(0, 0, 0, 0.5);
+  --mac-text-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+  --mac-radius: 3px;
+  /* SkeuoCord 的控件面本身是中高灰（#62626a→#26262b），前景要跟到浅色一档，
+     否则下拉框、按钮上的字在深底上直接读不出来。 */
+  --mac-face-fg: #cfd0d6;
+  --mac-panel-fg: #dcdcdf;
+  --mac-chrome-fg: #eaeaee;
+  --mac-step-fg: #ececf0;
+  --mac-fg-shadow: none;
+  /* ---- 投影分档：SkeuoCord 全站是同一种硬光晕环，只是半径分档 ---- */
+  --mac-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --mac-shadow-md: 0 0 3px 3px rgba(0, 0, 0, 0.5);
+  --mac-shadow-lg: 0 0 4px 4px rgba(0, 0, 0, 0.6);
+  --mac-shadow-pop: 0 0 3px 3px rgba(0, 0, 0, 0.6);
+  --mac-thumb: radial-gradient(circle at 35% 30%, #9aa0a8 0%, #5f646b 60%, #43474d 100%);
+  --mac-thumb-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 2px rgba(20, 30, 50, 0.4);
+  --mac-ctl-face: linear-gradient(180deg, #6e6e76 0%, #3c3c42 55%, #2a2a2f 100%);
+  --mac-switch-off: linear-gradient(180deg, #3a3a40 0%, #26262b 60%, #1e1e22 100%);
+  --mac-switch-off-line: #131316;
+  --mac-ctl-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.6);
+  --mac-track: #1a1c20;
+  --mac-track-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.85);
+  /* 语义色：在他们的单元格渐变上染一层色相，不换底。
+     **必须同时给 background-color**：SkeuoCord 的渐变是 `to top, transparent 40%`，
+     头 40% 是透明的 —— 底下没有底色的话 tinted 那一层什么都透不上来，
+     三档 alert / badge 在深底上会长得一模一样（第一轮就这么翻车的）。 */
+  --mac-cell-tint: hsl(210, 3.4%, 11.4%);
+  --mac-info-bg: hsl(214, 24%, 16%);
+  --mac-info: linear-gradient(to top, transparent 40%, hsl(214, 24%, 27%) 100%);
+  --mac-info-line: rgb(92, 92, 92);
+  --mac-info-fg: #8fc2ff;
+  --mac-danger-bg: hsl(6, 20%, 16%);
+  --mac-danger-soft: linear-gradient(to top, transparent 40%, hsl(6, 22%, 28%) 100%);
+  --mac-danger-line: rgb(92, 92, 92);
+  --mac-danger-fg: #ff9a8a;
+  --mac-warn-bg: hsl(42, 18%, 15%);
+  --mac-warn-soft: linear-gradient(to top, transparent 40%, hsl(42, 20%, 27%) 100%);
+  --mac-warn-line: rgb(92, 92, 92);
+  --mac-warn-soft-fg: #ffc94a;
+  --mac-scrim: rgba(8, 10, 14, 0.62);
+  /* 工具提示：SkeuoCord 不是黄底，是一块灰玻璃格（他们 tooltip 的原文口径）*/
+  --mac-tip: rgba(65, 67, 72, 0.98);
+  --mac-tip-line: rgb(92, 92, 92);
+  --mac-tip-fg: #e6e7ea;
+  --mac-tip-shadow: 0 0 3px 3px rgba(0, 0, 0, 0.6);
+  --mac-tip-radius: 5px;
+  /* 滚动条：他们的夜间端滑块是**浅灰**（rgb(200,200,200)），轨道透明 */
+  --mac-scroll-track: rgba(0, 0, 0, 0.28);
+  --mac-scroll-line: rgb(0, 0, 0);
+  --mac-scroll-thumb: rgb(200, 200, 200);
+  --mac-scroll-thumb-hover: rgb(230, 230, 230);
+
+  /* `--radius-base` 是 `useThemeSkins.writeSkin()` 写在 `<html>` 上的**内联**声明，
+     内联优先级高于普通样式表，只有 `!important` 打得过。这是全文件唯一一处
+     `!important`，因为它是唯一一处与内联变量抢的值。 */
+  --radius-base: 3px !important;
+
+  /* 同上：接管全局阴影/圆角令牌，让全站浮窗换皮（浅色端那一支的注释在那儿）。 */
+  --shadow-sm: var(--mac-shadow-sm);
+  --shadow-md: var(--mac-shadow-md);
+  --shadow-lg: var(--mac-shadow-lg);
+  --shadow-xl: var(--mac-shadow-lg);
+  --radius-md: var(--mac-radius);
+  --radius-lg: var(--mac-radius);
+  --radius-xl: var(--mac-radius);
+  --surface-popover: #1a1c20;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. 焦点环 —— aqua 全组件统一 `ring-[3px] ring-[--aqua-ring]/70`
+ *
+ * 用 `outline` 而不是 `box-shadow`：拟物的浮凸已经吃掉两层阴影，再叠一层 ring 会
+ * 把 bevel 糊掉，而 outline 画在边框之外，不参与阴影合成。
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--aqua-ring) 70%, transparent);
+  outline-offset: 1px;
+  border-radius: var(--mac-radius);
+}
+
+/* ---------------------------------------------------------------------------
+ * 5. 外壳：机身 + chrome + 选中
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-app {
+  font-family: var(--mac-font);
+  background-color: #eceef1;
+  background-image: var(--mac-pin), linear-gradient(180deg, #dfe2e6 0%, #cfd2d7 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 0 0 1px rgba(40, 45, 55, 0.32),
+    0 18px 40px rgba(30, 40, 60, 0.28);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-app {
+  background-color: var(--mac-cell-base);
+  background-image: var(--mac-cell);
+  border-color: rgb(92, 92, 92);
+  box-shadow: var(--mac-panel-shadow);
+  text-shadow: var(--mac-text-shadow);
+}
+
+/* chrome：侧栏头与顶栏是同一条，两边同高同渐变才读成一条完整的窗口标题栏 */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-side-head, .pw-topbar, .pw-panel-head) {
+  /* 交通灯是 `position: absolute` 的子层，**必须**让这一层成为定位上下文，
+     否则它会飞到最近的已定位祖先（实测落到侧栏底部左角，压在项目行上）。 */
+  position: relative;
+  background: var(--mac-chrome);
+  border-bottom: 1px solid var(--mac-chrome-line);
+  box-shadow: var(--mac-chrome-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-side {
+  background: linear-gradient(180deg, #e8eaee 0%, #dadce2 100%);
+  border-right: 1px solid var(--mac-chrome-line);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.55);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-side {
+  background: linear-gradient(180deg, hsl(223, 7.5%, 18.2%) 0%, hsl(210, 4%, 9.8%) 100%);
+  border-right: 1px solid #000;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* 交通灯：**不在这里画**。
+ *
+ * 第一版用 `.pw-side-head::before` 画了三颗，还加了 `padding-left: 48px` 给品牌让位。
+ * 两个都错：
+ *   1. macOS 上的红绿灯是 **Electron 原生窗口控件**（`electron/main.js`
+ *      的 `trafficLightPosition {x:14,y:16}`，约 54×14），由系统画。CSS 再画一套
+ *      就是**重复**——打包桌面端会看到两排。
+ *   2. 让位这件事产品自己已经做了：`SessionSidebar.tsx` 给 `.pw-side-head` 写的是
+ *      **内联** `style={{ paddingLeft: Math.max(12, desktopTrafficLightInset()) }}`，
+ *      而 `desktopTrafficLightInset()` 在 darwin 上返回 64。内联优先级高于样式表，
+ *      所以那条 `padding-left: 48px` 从写下那天起就**一次都没生效过**（实测计算值
+ *      仍是 12px）——它只是让品牌区的位置看起来「像是被推开了」。
+ * 浏览器里没有真窗口，画假灯也只是装饰，还会和上面那套让位逻辑打架。删掉。
+ */
+
+/* 选中 / 运行中：列表蓝 gel。`awaiting` 不算选中，只给一条琥珀警示轨。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-row.is-on, .pw-session.is-on, .pw-session.running, .pw-litem.is-on) {
+  color: var(--mac-selected-fg);
+  background: var(--mac-selected);
+  box-shadow: var(--mac-selected-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-row.is-on, .pw-session.is-on, .pw-session.running) :is(.pw-t, .pw-m, .pw-name, .pw-count, .pw-dim) {
+  color: var(--mac-selected-fg);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-session.awaiting {
+  background: linear-gradient(90deg, rgba(232, 163, 61, 0.18), rgba(232, 163, 61, 0));
+  box-shadow: inset 3px 0 0 0 #e8a33d;
+}
+
+/* 分段控件 = aqua tabs 的未选中态外壳 + 选中态 gel */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg {
+  background: linear-gradient(180deg, #c4c7cc, #d6d9dd);
+  border: 1px solid #a2a6ad;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-seg {
+  background: linear-gradient(180deg, #08090b, #131417);
+  border-color: #000;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg > .is-on,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg > span.is-on {
+  color: var(--mac-selected-fg);
+  background: var(--mac-gel);
+  box-shadow: inset 0 2px 4px rgba(10, 40, 90, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. 凹陷井：输入框 / 搜索 / 文本域 / 代码块 / 输入卡 / 权限卡正文
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-input, .pw-textarea, .pw-side-search, .pw-pop-search, .pw-code-body, .pw-term, .pw-perm-body) {
+  background: var(--mac-well);
+  border: 1px solid var(--mac-well-line);
+  box-shadow: var(--mac-well-shadow);
+  border-radius: var(--mac-radius);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-code-body,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-term {
+  font-family: var(--font-mono);
+}
+
+/* ---------------------------------------------------------------------------
+ * 7. 浮凸面：图标钮 / 芯片 / 徽章 / kbd / 树钮
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-iconbtn, .pw-chipbtn, .pw-chip, .pw-kbd, .pw-trow, .pw-litem) {
+  background: var(--mac-face);
+  border: 1px solid var(--mac-face-line);
+  box-shadow: var(--mac-face-shadow);
+  border-radius: var(--mac-radius);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-iconbtn, .pw-chipbtn, .pw-chip):hover {
+  filter: brightness(1.04);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-iconbtn.is-on {
+  color: var(--mac-gel-fg);
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+/* ---------------------------------------------------------------------------
+ * 8. 按钮 —— aqua button.tsx 的三档
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid var(--mac-face-line);
+  background: var(--mac-face);
+  box-shadow: var(--mac-face-shadow);
+  color: var(--mac-face-fg);
+  text-shadow: var(--mac-fg-shadow);
+}
+
+/* aqua 按钮的高光是 `before` 伪元素上的圆角胶囊，只占上 46% —— 这是 gel 顶面。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn::before {
+  content: "";
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 2px;
+  height: 46%;
+  border-radius: 999px;
+  background: var(--mac-gloss);
+  pointer-events: none;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn:hover {
+  filter: brightness(1.04);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn:active {
+  filter: brightness(0.95);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn.primary {
+  color: var(--mac-gel-fg);
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn.danger {
+  color: var(--mac-gel-fg);
+  background: var(--mac-danger);
+  border-color: color-mix(in srgb, var(--mac-danger) 60%, black);
+  box-shadow: var(--mac-gel-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-btn.outline {
+  background: transparent;
+  border-color: var(--mac-face-line);
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * 9. 下拉：aqua select.tsx —— 触发器是浮凸面，右侧箭头是**独立的一颗 gel 芯片**
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-select {
+  background: var(--mac-face);
+  border: 1px solid var(--mac-face-line);
+  box-shadow: var(--mac-face-shadow);
+  border-radius: var(--mac-radius);
+  color: var(--mac-face-fg);
+  text-shadow: var(--mac-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-select:hover {
+  filter: brightness(1.04);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-select > .pw-ico:last-child {
+  padding: 2px 4px;
+  margin: -2px -3px -2px 2px;
+  border-radius: 4px;
+  background: var(--mac-gel);
+  border: 1px solid var(--aqua-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+}
+
+/* 弹出层：aqua select-content 的白板 + 双层投影 */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-pop, .pw-selectbox) {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  box-shadow: var(--mac-panel-shadow);
+  border-radius: var(--mac-radius);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-pop-title {
+  background: var(--mac-chrome);
+  border-bottom: 1px solid var(--mac-chrome-line);
+  color: var(--mac-chrome-fg);
+  text-shadow: var(--mac-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-litem:hover {
+  background: var(--mac-hover);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-sep {
+  background: var(--mac-panel-line);
+}
+
+/* ---------------------------------------------------------------------------
+ * 10. Tier 3 面板：卡片 / 弹窗 / 右栏
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-card, .pw-modal, .pw-panel, .pw-sheet) {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  box-shadow: var(--mac-panel-shadow);
+  border-radius: var(--mac-radius);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] :is(.pw-card, .pw-modal, .pw-panel, .pw-sheet) {
+  background-color: var(--mac-cell-base);
+  background-image: var(--mac-cell);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-card-head, .pw-modal-head, .pw-panel-head, .pw-sub-head) {
+  border-bottom: 1px solid var(--mac-panel-line);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-main {
+  background: #f4f5f7;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-main {
+  background: #0c0d0e;
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-cell,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-kv {
+  background: var(--mac-cell);
+  border: 1px solid var(--mac-panel-line);
+  border-radius: var(--mac-radius);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-cell,
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-kv {
+  background-color: var(--mac-cell-base);
+  background-image: var(--mac-cell);
+}
+
+/* ---------------------------------------------------------------------------
+ * 11. 输入卡 —— aqua 的一只大白输入框，工具条压在上面
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer {
+  background: var(--mac-well);
+  border: 1px solid var(--mac-well-line);
+  border-radius: var(--mac-radius);
+  box-shadow: var(--mac-well-shadow), 0 6px 16px rgba(20, 40, 80, 0.14);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-composer {
+  box-shadow: var(--mac-well-shadow), 0 3px 0 var(--border-deep, #0d0c0a);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-top {
+  background: var(--mac-chrome);
+  border-bottom: 1px solid var(--mac-panel-line);
+  color: var(--mac-chrome-fg);
+  text-shadow: var(--mac-fg-shadow);
+  border-radius: var(--mac-radius) var(--mac-radius) 0 0;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-bar {
+  border-top: 1px solid var(--mac-panel-line);
+}
+
+/* 发送 / 停止钮：gel 圆钮 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-send {
+  color: var(--mac-gel-fg);
+  background: var(--mac-gel);
+  border: 1px solid var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-send.stop {
+  background: var(--mac-danger);
+  border-color: color-mix(in srgb, var(--mac-danger) 60%, black);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-send.disabled {
+  color: #9aa0aa;
+  background: linear-gradient(180deg, #eceef1, #d2d5da);
+  border-color: #b9bcc2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  text-shadow: none;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-ring {
+  background: #e2e4e8;
+  border: 1px solid #b9bcc2;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-ring {
+  background: var(--mac-well);
+  border-color: #000;
+}
+
+/* ---------------------------------------------------------------------------
+ * 12. 用户气泡 —— aqua chat-bubble.tsx 的 `from="me"` 逐字
+ *
+ * 值得注意：aqua 的「我」是**浅蓝**（#e4f1fd→#8dbdf0）而不是饱和蓝，
+ * 2009 年 iChat 就是这个饱和度。之前 mockup 里用饱和蓝是偏了，这里照抄。
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-msg-user {
+  background: linear-gradient(180deg, #e4f1fd 0%, #b8d8f7 55%, #8dbdf0 100%);
+  color: #1a2a44;
+  border: 1px solid #7fb0e2;
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(30, 60, 110, 0.18);
+  text-shadow: none;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-msg-user {
+  background: linear-gradient(180deg, #6ba7e8 0%, #3d7fd0 46%, #2b64a8 52%, #3d7fd0 100%);
+  color: #ffffff;
+  border-color: #14375e;
+  border-radius: var(--mac-radius);
+  box-shadow: var(--mac-selected-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+/* ---------------------------------------------------------------------------
+ * 13. 权限卡：白板 + 强调色左轨 + gel 主键
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-perm {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  border-left: 4px solid var(--mac-accent);
+  border-radius: var(--mac-radius);
+  box-shadow: var(--mac-panel-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-perm-title {
+  color: var(--mac-panel-fg);
+}
+
+/* ---------------------------------------------------------------------------
+ * 14. 过程面板 / 徽章 / 提示条
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-proc {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  border-radius: var(--mac-radius);
+  box-shadow: var(--mac-panel-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-proc-head {
+  background: var(--mac-chrome);
+  border-bottom: 1px solid var(--mac-panel-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: var(--mac-chrome-fg);
+  text-shadow: var(--mac-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-step {
+  border-top: 1px solid var(--mac-panel-line);
+  color: var(--mac-face-fg);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-step:hover {
+  background: var(--mac-hover);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-step .pw-verb {
+  color: var(--mac-step-fg);
+  font-weight: 500;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge {
+  background: var(--mac-face);
+  border: 1px solid var(--mac-face-line);
+  box-shadow: var(--mac-face-shadow);
+  color: var(--mac-face-fg);
+  border-radius: 999px;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge.accent {
+  color: var(--mac-gel-fg);
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge.warn {
+  color: var(--mac-warn-fg);
+  background: var(--mac-warn);
+  border-color: color-mix(in srgb, var(--mac-warn) 55%, black);
+  box-shadow: var(--mac-face-shadow);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-alert {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  border-radius: var(--mac-radius);
+  box-shadow: var(--mac-panel-shadow);
+}
+
+/* ---------------------------------------------------------------------------
+ * 15. 开关 / 单选 / 滑杆 / 进度 —— aqua switch / radio-group / slider / progress
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch {
+  /* 关态吃令牌：第一版把 aqua 的浅色渐变写死在组件规则里，夜间端于是一颗白得刺眼的
+     开关泡在深色面板上。轨面的明暗也是材质的一部分。 */
+  background: var(--mac-switch-off);
+  border: 1px solid var(--mac-switch-off-line);
+  box-shadow: inset 0 2px 3px rgba(20, 30, 50, 0.25);
+  border-radius: 999px;
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch[aria-checked="true"],
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch[data-state="checked"] {
+  background: linear-gradient(180deg, var(--aqua-gel-deep) 0%, var(--aqua-gel-mid) 55%, var(--aqua-gel-hi) 100%);
+  border-color: var(--aqua-edge);
+  box-shadow: inset 0 2px 3px rgba(10, 40, 90, 0.35);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-radio {
+  border: 1px solid #8b909a;
+  background: radial-gradient(circle at 50% 30%, #ffffff, #d5d9df 70%, #c3c8cf 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(20, 30, 50, 0.35);
+}
+
+/* 上下文环：它本来就是 conic-gradient 的一段弧，第一版写的 `overflow` + `::before`
+   对它毫无意义（弧不是子元素）。真正能加的拟物感是**边缘**：外圈浮凸 + 内孔凹陷，
+   弧段的颜色交给 conic-gradient 自己（board.css 用 var(--accent)，皮肤已接管）。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-ring {
+  border: 1px solid var(--mac-face-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(20, 30, 50, 0.2);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-ring::after {
+  background: var(--mac-face);
+  border: 1px solid var(--mac-face-line);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* ---------------------------------------------------------------------------
+ * 16. 提示条 / 浮层小圆角统一
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-toast, .pw-minimap-pop, .pw-drop) {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  box-shadow: var(--mac-panel-shadow);
+  border-radius: var(--mac-radius);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-scrim {
+  background: rgba(20, 30, 50, 0.28);
+  backdrop-filter: blur(1px);
+}
+
+/* ---------------------------------------------------------------------------
+ * 17. 字体
+ *
+ * 只给「本皮肤自己的」元素换栈，不动 `--font-ui` 那个全局变量：改了会让转录正文
+ * （大量中文）跟着换字体，行高与断行全变，属于另一件事（字体设置面板管）。
+ * ------------------------------------------------------------------------ */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-app, .pw-btn, .pw-select, .pw-input, .pw-chip, .pw-badge, .pw-kbd, .pw-seg) {
+  font-family: var(--mac-font);
+}
+
+/* ===========================================================================
+ * 18. 组件精修 —— 逐个对齐来源仓的原文
+ *
+ * 上面 1–17 节是「让壳像那个年代」；这一节是「每个控件都对上来源仓的那一颗」。
+ * 每一段的取值都指向具体来源，不再是「照着感觉做的拟物」。
+ * ========================================================================= */
+
+html[data-theme-skin-id="builtin-mac-skeuo"] {
+  /* ---- 18.1 滚动条：SkeuoCord 的胶囊滑块 + 内阴影，滑块带 hover/active 两态 ---- */
+  scrollbar-width: thin;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] ::-webkit-scrollbar-track {
+  background: var(--mac-scroll-track);
+  border-left: 1px solid var(--mac-scroll-line);
+  box-shadow: inset 0 0 2px 2px rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] ::-webkit-scrollbar-thumb {
+  border: none;
+  border-radius: 999px;
+  background: var(--mac-scroll-thumb);
+  box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.4);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--mac-scroll-thumb-hover);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] ::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--mac-scroll-thumb) 80%, black);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ---- 18.2 开关 / 勾选 / 单选组 ----
+ *
+ * **这三个的真实 DOM 先查过源码**，第一版按 aqua 组件的名字写，三条规则一条都没
+ * 命中产品：
+ *   开关   <button role="switch" class="pw-switch[ on]"><i/></button>（SettingsUi.tsx）
+ *          —— 状态是**类名 `.on`**，滑块是子元素 `<i>`，尺寸 30×17（board.css）
+ *   勾选   <input type="checkbox"> 原生控件，只有 accent-color（ModelsConfig.tsx）
+ *   单选组 .pw-radio 是**一排选项的 flex 容器**，选中项是 `.pw-radio > span.is-on`
+ *          （board.css）—— 它不是一颗单选钮，按 aqua radio-group 去画是画错对象
+ */
+
+/* 开关：轨是凹陷槽，开态上 gel，滑块是 aqua 的那颗白塑料珠 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch {
+  /* 关态吃令牌：第一版把 aqua 的浅色渐变写死在组件规则里，夜间端于是一颗白得刺眼的
+     开关泡在深色面板上。轨面的明暗也是材质的一部分。 */
+  background: var(--mac-switch-off);
+  border: 1px solid var(--mac-switch-off-line);
+  box-shadow: inset 0 2px 3px rgba(20, 30, 50, 0.25);
+  cursor: pointer;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch.on {
+  background: linear-gradient(180deg, var(--aqua-gel-deep) 0%, var(--aqua-gel-mid) 55%, var(--aqua-gel-hi) 100%);
+  border-color: var(--aqua-edge);
+  box-shadow: inset 0 2px 3px rgba(10, 40, 90, 0.35);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch > i {
+  background: var(--mac-thumb);
+  border: 1px solid #8b909a;
+  box-shadow: var(--mac-thumb-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-switch.is-loading {
+  opacity: 0.6;
+}
+
+/* 勾选：原生控件，appearance 归零后按 aqua checkbox.tsx 重画。
+   `accent-color` 那条 inline 样式仍然留着（决定尺寸），两者不冲突。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 3px;
+  background: var(--mac-ctl-face);
+  border: 1px solid var(--mac-well-line);
+  box-shadow: var(--mac-ctl-shadow);
+  cursor: pointer;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] input[type="checkbox"]:checked {
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+}
+/* aqua 的勾是一枚粗体对勾；用 mask-free 的两条边框画，避免引入外部图形 */
+/* 勾的尺寸必须跟着控件走：产品里这个 checkbox 只有 13px（ModelsConfig 的
+   DISCOVERY_CHECKBOX），`border-width: 0 2px 2px 0` 在 13px 上粗到糊成一团。
+   全部用百分比 + em 描边，13px 和 18px 上都读得出。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] input[type="checkbox"]:checked::after {
+  content: "";
+  display: block;
+  width: 22%;
+  height: 46%;
+  margin: 14% auto 0;
+  border: solid #ffffff;
+  border-width: 0 0.14em 0.14em 0;
+  transform: rotate(42deg);
+  filter: drop-shadow(0 1px 0 rgba(10, 40, 90, 0.4));
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] input[type="checkbox"]:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* 单选组 = aqua tabs 的外壳：一条凹槽，选中项是 gel 滑块 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-radio {
+  background: linear-gradient(180deg, #c4c7cc, #d6d9dd);
+  border: 1px solid #a2a6ad;
+  border-radius: var(--mac-radius);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+  padding: 2px;
+  gap: 2px;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-radio > span {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--mac-radius) - 1px);
+  box-shadow: none;
+  color: #4b5058;
+  text-shadow: var(--mac-fg-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-radio > span:hover {
+  background: var(--mac-hover);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-radio > span.is-on {
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  color: var(--mac-gel-fg);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-radio {
+  background: linear-gradient(180deg, #08090b, #131417);
+  border-color: #000;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-radio > span {
+  color: #9b9ca4;
+  text-shadow: none;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-radio > span.is-on {
+  background: var(--mac-gel);
+}
+
+/* ---- 18.3 滑杆 / 进度：aqua slider & progress ----
+   轨是凹陷槽，填充是 gel，滑块是那颗白塑料珠（thumb 三件套）。
+   aqua progress-indicator 上还有一层 135° 斜纹动画（`0.8s linear infinite`），
+   本仓**不做**那条动画：`--motion-*` 里没有对应的档，为一个皮肤加第 13 个动效
+   token 不值（见 DIVERGENCE AF-7）。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-range {
+  background: var(--mac-track);
+  border-radius: 999px;
+  box-shadow: var(--mac-track-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-range > i,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-range > span:first-child {
+  background: linear-gradient(
+    180deg,
+    var(--aqua-gel-hi) 0%,
+    var(--aqua-gel-mid) 50%,
+    var(--mac-accent) 55%,
+    var(--aqua-gel-light) 100%
+  );
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+}
+
+/* ---- 18.4 徽章四档：aqua badge.tsx 的四个 variant 渐变 ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge {
+  background: var(--mac-face);
+  border: 1px solid var(--mac-face-line);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), var(--mac-shadow-sm);
+  color: var(--mac-face-fg);
+  text-shadow: var(--mac-fg-shadow);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge.accent {
+  background: var(--mac-info-bg);
+  background-image: var(--mac-info);
+  border-color: var(--mac-info-line);
+  color: var(--mac-info-fg);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), var(--mac-shadow-sm);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge.danger {
+  background: var(--mac-danger-bg);
+  background-image: var(--mac-danger-soft);
+  border-color: var(--mac-danger-line);
+  color: var(--mac-danger-fg);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), var(--mac-shadow-sm);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge.warn {
+  background: var(--mac-warn-bg);
+  background-image: var(--mac-warn-soft);
+  border-color: var(--mac-warn-line);
+  color: var(--mac-warn-soft-fg);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), var(--mac-shadow-sm);
+}
+
+/* ---- 18.5 提示条三档：aqua alert.tsx ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-alert {
+  background: var(--mac-info-bg);
+  background-image: var(--mac-info);
+  border: 1px solid var(--mac-info-line);
+  color: #2c3e55;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 3px rgba(20, 30, 50, 0.12);
+  border-radius: var(--mac-radius);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-alert.warn {
+  background: var(--mac-warn-bg);
+  background-image: var(--mac-warn-soft);
+  border-color: var(--mac-warn-line);
+  color: var(--mac-warn-soft-fg);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-alert.danger,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-alert.error {
+  background: var(--mac-danger-bg);
+  background-image: var(--mac-danger-soft);
+  border-color: var(--mac-danger-line);
+  color: #7a2a22;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-alert {
+  color: var(--mac-info-fg);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-alert.warn {
+  color: var(--mac-warn-soft-fg);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-alert.danger,
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-alert.error {
+  color: var(--mac-danger-fg);
+}
+
+/* ---- 18.6 弹窗：aqua dialog.tsx ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-modal, .settings-dialog-surface) {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 0 1px rgba(20, 30, 50, 0.2),
+    var(--mac-shadow-lg);
+  border-radius: var(--mac-radius);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-scrim-layer,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-scrim {
+  background: var(--mac-scrim);
+}
+
+/* ---- 18.7 菜单：aqua dropdown-menu.tsx 的项与分隔 ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .context-menu,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-pop.context-menu {
+  background: var(--mac-panel);
+  border: 1px solid #9599a1;
+  box-shadow: var(--mac-shadow-pop);
+  border-radius: var(--mac-radius);
+  padding: 4px;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .context-menu .pw-litem {
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  border-radius: calc(var(--mac-radius) - 1px);
+  color: var(--mac-panel-fg);
+  text-shadow: none;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .context-menu .pw-litem:hover,
+html[data-theme-skin-id="builtin-mac-skeuo"] .context-menu .pw-litem:focus-visible {
+  color: var(--mac-gel-fg);
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .context-menu .pw-litem.danger:hover {
+  background: linear-gradient(180deg, #f0a19a 0%, #dd4f42 50%, #c22d20 51%, #e5766a 100%);
+  border-color: #a81f1f;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .context-menu .pw-litem.danger:hover {
+  background: linear-gradient(180deg, #f08a7a 0%, #d0463a 50%, #a12b20 51%, #d0463a 100%);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .context-menu .pw-sep,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-pop .pw-sep {
+  background: var(--mac-panel-line);
+  border: 0;
+  box-shadow: none;
+  height: 1px;
+  margin: 4px 0;
+  border-radius: 0;
+}
+
+/* ---- 18.8 工具提示：浅色端是经典 Mac 黄底，夜间端是 SkeuoCord 的灰玻璃格 ----
+   本仓产品目前只用原生 `title`，没有自定义气泡组件，所以这份样式先按通用
+   契约写好（`[role="tooltip"]` + aqua 的尺寸档），接上组件即生效。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] [role="tooltip"],
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-minimap-pop {
+  background: var(--mac-tip);
+  border: 1px solid var(--mac-tip-line);
+  color: var(--mac-tip-fg);
+  box-shadow: var(--mac-tip-shadow);
+  border-radius: var(--mac-tip-radius);
+  font-size: 11px;
+  padding: 3px 8px;
+  text-shadow: none;
+}
+
+/* ---- 18.9 瞬时提示：aqua toast.tsx ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-toast {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  box-shadow: 0 1px 3px rgba(20, 30, 50, 0.12), 0 10px 28px rgba(20, 30, 50, 0.3);
+  border-radius: var(--mac-radius);
+}
+/* aqua toast 的关闭钮是一颗金属圆珠 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-toast button {
+  border-radius: 50%;
+  border: 1px solid #5a5f66;
+  background: radial-gradient(circle at 35% 30%, #9aa0a8 0%, #5f646b 60%, #43474d 100%);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 2px rgba(20, 30, 50, 0.4);
+  box-sizing: border-box;
+}
+
+/* ---- 18.10 代码块 + 复制钮：aqua code-block.tsx ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-code, .pw-code-body, .pw-term) {
+  background: var(--mac-well);
+  border: 1px solid var(--mac-panel-line);
+  border-radius: var(--mac-radius);
+  box-shadow: 0 2px 10px rgba(20, 30, 50, 0.08);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-code-head {
+  background: var(--mac-chrome);
+  border-bottom: 1px solid var(--mac-panel-line);
+  color: var(--mac-chrome-fg);
+  text-shadow: var(--mac-fg-shadow);
+  border-radius: var(--mac-radius) var(--mac-radius) 0 0;
+}
+
+/* ---- 18.11 头像：aqua avatar.tsx —— gel 底 + 白字 + 深色描边 ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-icon-cell,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-avatar {
+  background: var(--mac-gel);
+  border: 1px solid #7d828c;
+  color: #ffffff;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(20, 30, 50, 0.3);
+  text-shadow: 0 -1px 1px rgba(10, 30, 70, 0.35);
+}
+
+/* ---- 18.12 头像框 / 用户泡的拟物描边 ----
+   SkeuoCord 的用户头像是「浮凸框」：`0 0 0 2px <浅色> , 0 0 4px 4px rgba(0,0,0,.5)`。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .msg-avatar,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-msg-avatar {
+  border: 2px solid rgba(230, 230, 230, 0.6);
+  box-shadow: 0 0 4px 4px rgba(0, 0, 0, 0.5);
+  border-radius: var(--mac-radius);
+}
+
+/* ---- 18.13 文件树 / 搜索结果：每一行都是浮凸面，命中项上 gel ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-trow, .pw-tree .pw-row, .pw-search-result) {
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  border-radius: var(--mac-radius);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-trow, .pw-search-result):hover {
+  background: var(--mac-hover);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-search-result.is-on,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-trow.is-on {
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  color: var(--mac-gel-fg);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] mark,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-search-hit {
+  background: var(--mac-warn-soft);
+  color: var(--mac-warn-soft-fg);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* ---- 18.14 表格 / 引文 / 分隔：Tier 3 面板语汇 ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-table,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md table {
+  border: 1px solid var(--mac-panel-line);
+  border-radius: var(--mac-radius);
+  overflow: hidden;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md th,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md thead tr:first-child td {
+  background: var(--mac-chrome);
+  color: var(--mac-chrome-fg);
+  text-shadow: var(--mac-fg-shadow);
+  border-bottom: 1px solid var(--mac-panel-line);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md td,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md th {
+  border-color: var(--mac-panel-line);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-quote,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md blockquote {
+  background: var(--mac-cell);
+  border-left: 4px solid var(--mac-accent);
+  border-radius: 0 var(--mac-radius) var(--mac-radius) 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* ---- 18.15 分隔线：拟物的分隔不是「更浅的线」，是一条带倒角的槽 ---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-sep, hr) {
+  background: var(--mac-panel-line);
+  border: 0;
+  height: 2px;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ---- 18.16 选中文本 / 光标 ----
+   Aqua 的 gel 蓝色在选区上要压得住；夜间端跟随 SkeuoCord 的亮蓝，
+   否则深底上选区几乎看不见。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] ::selection {
+  background: color-mix(in srgb, var(--mac-accent) 45%, transparent);
+  color: inherit;
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] textarea,
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer [contenteditable] {
+  caret-color: var(--mac-accent);
+}
+
+/* ---- 18.17 禁用态：拟物的禁用件不是「变灰」，是「按下去不弹」---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(button, [role="button"], .pw-row, .pw-litem, .pw-btn):disabled,
+html[data-theme-skin-id="builtin-mac-skeuo"] [aria-disabled="true"] {
+  opacity: 0.55;
+  filter: saturate(0.6);
+  box-shadow: none;
+  cursor: default;
+}
+
+/* ---- 18.18 输入卡内的小控件：把整条工具条读成「一排旋钮」---- */
+html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-bar {
+  background: linear-gradient(180deg, var(--mac-cell), transparent 60%);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* ===========================================================================
+ * 19. 漏网之鱼 —— 产品自有面（不挂 pw-* 的那些）
+ *
+ * 第 18 节覆盖的是 `pw-*` 词表。产品里还有一批面**不挂 pw-\* 类**，第一轮整轮漏掉：
+ * 模型选择器（`.anim-popover-down` + 内联 `var(--bg-elev)`）、扩展浮层
+ * （`.ext-float-panel`）、设置面板（`.config-panel-surface`）、移动端底部抽屉
+ * （`.fork-pwa-ms-sheet`）。共同点：**底色来自全局令牌，而不是 pw-\* 类**。
+ *
+ * 投影/圆角那一半已经在第 2/3 节通过接管 `--shadow-*` / `--radius-*` 解决了
+ * （它们是 `!important` 引用，只能改令牌）。这一节补**底色与描边**。
+ * ========================================================================= */
+
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(
+  .ext-float-panel,
+  .config-panel-surface,
+  .anim-popover,
+  .anim-popover-down,
+  .anim-popover-up,
+  .anim-dialog,
+  .fork-pwa-ms-sheet
+) {
+  background: var(--mac-panel);
+  border: 1px solid var(--mac-panel-line);
+  border-radius: var(--mac-radius);
+  color: var(--mac-panel-fg);
+}
+
+/* 模型选择器等用**内联** `background: var(--bg-elev)` 的浮窗：内联只能被
+   `!important` 赢，而 `--bg-elev` 是皮肤自己写的（含 95% 透明度），所以这里
+   必须把 alpha 补回来 —— 否则浮窗底下 5% 是转录正文，字会透上来。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(
+  .anim-popover,
+  .anim-popover-down,
+  .anim-popover-up
+) {
+  background: var(--mac-panel) !important;
+  background-image: none !important;
+}
+
+/* 浮窗内的行 / 选中态：与右键菜单同一套 gel 高亮 */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-prow, .pw-litem) {
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  border-radius: calc(var(--mac-radius) - 1px);
+  color: var(--mac-panel-fg);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-prow, .pw-litem):hover {
+  background: var(--mac-gel);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-gel-shadow);
+  color: var(--mac-gel-fg);
+  text-shadow: var(--mac-gel-fg-shadow);
+}
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-prow, .pw-litem).is-on {
+  background: var(--mac-selected);
+  border-color: var(--aqua-edge);
+  box-shadow: var(--mac-selected-shadow);
+  color: var(--mac-selected-fg);
+}
+
+/* 浮窗顶部的搜索 / 标题条 */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-pop-search, .pw-pop-title) {
+  background: var(--mac-chrome);
+  border-bottom: 1px solid var(--mac-panel-line);
+  color: var(--mac-chrome-fg);
+  box-shadow: var(--mac-fg-shadow);
+}
+
+/* 蒙层：弹窗背后的压暗，拟物端也要有（不然浮窗像贴在墙上而不是浮在前面） */
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.anim-scrim, [data-radix-dialog-overlay], .fork-scrim) {
+  background: var(--mac-scrim);
+}

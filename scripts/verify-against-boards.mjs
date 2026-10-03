@@ -102,7 +102,7 @@ const STEPS = [
   step("06-设置十三分节", "画板 40~47：左导航 13 节逐个打开", async (page) => {
     await page.locator('.pw-side-foot [data-ico="settings"]').first().click({ timeout: 3000 }).catch(() => {});
     await page.waitForTimeout(600);
-    const rows = page.locator(".pw-snav > button.pw-row:not(.pw-snav-close)");
+    const rows = page.locator(".pw-snav > button.pw-row");
     const n = await rows.count();
     for (let i = 0; i < n; i++) {
       await rows.nth(i).click({ timeout: 2500 }).catch(() => {});
@@ -110,7 +110,8 @@ const STEPS = [
     }
   }),
   step("07-关闭设置后的工作台", "画板 01 帧 B/C", async (page) => {
-    await page.locator(".pw-snav-close").first().click({ timeout: 2500 }).catch(() => {});
+    // 关闭口：左导航底部的「返回工作区」已撤（2026-10-03 用户裁定），改点右上角的 X。
+    await page.locator(".settings-dialog-close").first().click({ timeout: 2500 }).catch(() => {});
     await page.waitForTimeout(400);
   }),
   step("08-文件树与查看器", "画板 30/52：树头动作组 / 分组头 / 右键菜单 / 查看器头与 diff 覆盖层", async (page) => {

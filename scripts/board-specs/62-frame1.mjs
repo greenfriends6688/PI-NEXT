@@ -15,7 +15,7 @@ export default {
   "knownDiffs": [
     {
       "sel": ".settings-dialog-surface .pw-snav",
-      "reason": "**取景差异**：画板帧 1 的导航多一行「返回工作区」且项数是 12；产品同一份清单 12 项 + 底部「返回工作区」，高度差来自滚动条与分组间距"
+      "reason": "**取景差异**：画板帧 1 的导航多一行「返回工作区」（2026-10-03 用户裁定已从产品撤掉）；项数是 12，高度差来自滚动条与分组间距"
     },
     {
       "sel": ".settings-dialog-surface .pw-snav .pw-row",
@@ -27,7 +27,7 @@ export default {
     },
     {
       "sel": ".settings-dialog-surface .pw-snav-close",
-      "reason": "同上（画板 62 用 `arrow-left` 图标；画板 40 用 `panel-left-close` —— 画板自身不一致，产品跟 62）"
+      "reason": "**用户裁定（2026-10-03）**：画板 62 底部那枚「返回工作区」产品不再渲染，关闭口是弹窗右上角的 X。画板自身也不一致（62 用 `arrow-left`、40 用 `panel-left-close`）"
     },
     {
       "sel": ".settings-dialog-surface .pw-sep",

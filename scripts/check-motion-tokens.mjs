@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // 不含 app/design/tokens.css：那个文件**就是** token 的定义处，值当然是字面量。
-const FILES = ["app/globals.css", "app/fork-ui.css", "app/settings.css", "app/wallpaper.css"];
+const FILES = ["app/globals.css", "app/fork-ui.css", "app/settings.css", "app/wallpaper.css", "app/fork-mac-skeuo.css"];
 
 /** 时长字面量：120ms / 0.15s / 1.4s（不含 0s / 0ms）。 */
 const DURATION = /(?<![\w.-])(\d*\.?\d+)(ms|s)\b/g;

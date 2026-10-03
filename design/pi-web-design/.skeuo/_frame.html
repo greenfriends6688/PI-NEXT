@@ -1,0 +1,127 @@
+<div class="pw-app">
+
+        <aside class="pw-side">
+          <div class="pw-side-head">
+            <span class="pw-brand">
+              <span class="pw-logo"><img src="../../public/pi-next-logo.png" alt="" style="display:block;width:16px;height:auto"></span>
+              <img src="../../public/pi-next-wordmark.png" alt="PI NEXT" style="display:block;height:10px;width:auto">
+            </span>
+            <span class="grow"></span>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="search"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-left"></i></span></button>
+          </div>
+          <div class="pw-side-nav">
+            <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
+          </div>
+          <div class="pw-seg"><span class="is-on">项目</span><span>聊天</span></div>
+          <div class="pw-side-search"><span class="pw-ico"><i data-ico="search" data-size="14"></i></span>搜索会话</div>
+          <div class="pw-side-scroll">
+            <div class="pw-group-title"><span class="pw-ico"><i data-ico="chevrons-up-down" data-size="12"></i></span>项目<span class="grow"></span><span class="pw-ico"><i data-ico="plus" data-size="12"></i></span></div>
+            <div class="pw-row is-on"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">pi-codex</span><span class="pw-count">90</span></div>
+            <div class="pw-session child is-on running"><span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条消息</span></span></div>
+            <div class="pw-session child awaiting"><span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>等你处理</span></span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span></span></div>
+            <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">探项前端页面</span><span class="pw-count">20</span></div>
+            <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">招标改</span><span class="pw-count">6</span></div>
+          </div>
+          <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
+        </aside>
+
+        <main class="pw-main">
+          <div class="pw-topbar">
+            <span class="pw-tb-title"><span class="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span><span>排查最新 Release 与本地待上传改动</span></span>
+            <span class="pw-chipbtn"><span class="pw-ico"><i data-ico="loader-circle" data-size="14" style="color:var(--accent)"></i></span>运行中</span>
+            <span class="grow"></span>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="history" data-size="14"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="square-pen" data-size="14"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="ellipsis" data-size="14"></i></span></button>
+            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-right" data-size="14"></i></span></button>
+          </div>
+
+          <div class="pw-chat">
+            <div class="pw-col">
+              <div class="pw-msg-user">把 release 里那份和本地待上传的改动对一下，差了什么列出来</div>
+
+              <div class="pw-assistant">
+                <div class="pw-proc">
+                  <div class="pw-proc-head">
+                    <span class="pw-ico pw-dim"><i data-ico="chevron-down" data-size="14"></i></span>
+                    <span><b>2 个文件</b> · 4 条命令 · 5 次工具调用 · 1 段思考</span>
+                    <span class="grow"></span>
+                    <span class="pw-badge accent"><span class="pw-ico"><i data-ico="loader-circle" data-size="12"></i></span>进行中</span>
+                  </div>
+                  <div class="pw-proc-body">
+                    <div class="pw-step reasoning">
+                      <span class="pw-step-ico"><i data-ico="brain" data-size="12"></i></span>
+                      <span class="pw-verb">推理</span>
+                      <span class="pw-think">先看 release 目录里落的是哪个版本，再拿 git status 跟它比…</span>
+                    </div>
+                    <div class="pw-step">
+                      <span class="pw-step-ico"><i data-ico="terminal" data-size="12"></i></span>
+                      <span class="pw-verb">运行</span>
+                      <span class="pw-arg">git log --oneline -5</span>
+                      <span class="grow"></span><span class="pw-dur">0.4s</span>
+                    </div>
+                    <div class="pw-step">
+                      <span class="pw-step-ico"><i data-ico="file-search" data-size="12"></i></span>
+                      <span class="pw-verb">搜索</span>
+                      <span class="pw-arg">"v0.9.4" → release/ 下 3 处</span>
+                      <span class="grow"></span><span class="pw-dur">0.9s</span>
+                    </div>
+                    <div class="pw-step">
+                      <span class="pw-step-ico"><i data-ico="file-text" data-size="12"></i></span>
+                      <span class="pw-verb">读取</span>
+                      <span class="pw-arg">release/RELEASE.md</span>
+                      <span class="grow"></span><span class="pw-dur">0.2s</span>
+                    </div>
+                    <div class="pw-step">
+                      <span class="pw-step-ico"><i data-ico="terminal" data-size="12"></i></span>
+                      <span class="pw-verb">运行</span>
+                      <span class="pw-arg">git diff --stat HEAD</span>
+                      <span class="grow"></span>
+                      <span class="pw-badge accent"><span class="pw-ico"><i data-ico="loader-circle" data-size="12"></i></span>运行中</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pw-perm">
+                  <div class="pw-perm-title">
+                    <span class="pw-ico"><i data-ico="shield-check" data-size="14"></i></span>
+                    要写入 3 个文件，需要你确认
+                    <span class="grow"></span>
+                    <span class="pw-badge warn">等你处理</span>
+                  </div>
+                  <div class="pw-perm-body">{ "tool": "write", "paths": ["docs/codex-skin/delta.md", "design/README.md", "design/DESIGN-SPEC.md"] }</div>
+                  <div class="pw-perm-acts">
+                    <span class="pw-btn primary">允许一次</span>
+                    <span class="pw-btn outline">本会话内始终允许</span>
+                    <span class="pw-btn danger">拒绝</span>
+                    <span class="grow"></span>
+                    <span class="pw-kbd">Esc</span>
+                    <span class="pw-dim" style="font-size:var(--text-meta)">拒绝</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pw-composer-wrap">
+            <div class="pw-composer">
+              <div class="pw-composer-top" style="color:var(--n-muted)">边跑边补一句也行，发送后会立刻打断当前这轮…</div>
+              <div class="pw-composer-bar">
+                <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+                <span class="pw-select">DeepSeek V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+                <span class="pw-select">max<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+                <span class="pw-select">需审批<span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></span>
+                <span class="grow"></span>
+                <span class="pw-badge count">1 条排队</span>
+                <span class="pw-ring" style="--p:26%"></span>
+                <span class="pw-send stop"><span class="pw-ico"><i data-ico="square" data-size="13"></i></span></span>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
