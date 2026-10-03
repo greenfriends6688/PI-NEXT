@@ -42,12 +42,17 @@ test("the session action menu keeps the path copies the ring popover dropped", (
   assert.match(menu, /t\("session\.copyId"\)/);
   assert.match(menu, /pin\(session\.id\)/);
   assert.match(menu, /archive\(session\.id\)/);
-  // 图 2 的其余条目也都实现了：重命名 / 未读 / 访达 / 配置 / 轨迹。
+  // 图 2 的其余条目也都实现了：重命名 / 未读 / 访达。
   assert.match(menu, /onRename/);
   assert.match(menu, /onMarkUnread/);
   assert.match(menu, /onReveal/);
-  assert.match(menu, /onOpenSettings/);
-  assert.match(menu, /onViewTrace/);
+  // 2026-10-03 用户裁定 —— 「前往配置」与「调用轨迹」从 ⋯ 菜单**移除**：
+  // 前者与底栏那枚设置钮重复，后者与顶栏那枚时钟图标重复（同一个
+  // `handleViewFullHistory`）。同一个动作只留一个入口，所以这里反过来钉住
+  // 「不许回来」—— 顶栏那条路径仍在，删的是菜单里的第二入口。
+  assert.doesNotMatch(menu, /onOpenSettings/);
+  assert.doesNotMatch(menu, /onViewTrace/);
+  assert.match(appShell, /handleViewFullHistory/);
   assert.match(appShell, /<SessionActionsMenu/);
   // fork:trace-menu-2026-10-02 —— 三条复制改由 AppShell 统一处理（失败要弹 toast，
   // 不能菜单里报了「已复制」其实没复制上）；导出改成同源下载（桌面端 window.open

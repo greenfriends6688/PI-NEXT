@@ -14,7 +14,6 @@
  *   3. When upstream ships the same change, delete the block — do not keep a
  *      redundant override alive.
  */
-
 /* ---------------------------------------------------------------------------
  * fork:ui-02 — semantic aliases for upstream's typography tokens.
  *
@@ -39,7 +38,6 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-04 — phone width for the user prompt card.
  * The 70%/620px cap is inline in components/MessageView.tsx; upstream widens it
@@ -50,7 +48,6 @@
     --fork-user-bubble-max: 92%;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-13 — phone keyboard state.
  *
@@ -63,7 +60,6 @@
 html.keyboard-open .extension-status-shelf {
   display: none;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-10 — phone dialogs become bottom sheets.
  *
@@ -78,7 +74,6 @@ html.keyboard-open .extension-status-shelf {
   from { transform: translateY(var(--motion-sheet)); opacity: 0.5; }
   to { transform: none; opacity: 1; }
 }
-
 @media (max-width: 640px) {
   .directory-picker-backdrop,
   [data-fork-dialog="trust"] {
@@ -97,14 +92,12 @@ html.keyboard-open .extension-status-shelf {
     animation: fork-sheet-up var(--motion-base) var(--ease-out);
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .directory-picker-panel,
   [data-fork-dialog="trust"] > [role="dialog"] {
     animation: none;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-projectchip — the shared ContextMenu gets a height ceiling.
  *
@@ -120,7 +113,6 @@ html.keyboard-open .extension-status-shelf {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-02 (续) — motion tokens for float layers, chips and glosses.
  *
@@ -149,7 +141,6 @@ html.keyboard-open .extension-status-shelf {
   --fork-motion-height: var(--motion-layout); /* 高度 = 240ms（布局档）*/
   --fork-travel-menu: 4px;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-01 — shared floating layer enters in two phases.
  *
@@ -188,7 +179,6 @@ html.keyboard-open .extension-status-shelf {
 .context-menu-submenu {
   transition-duration: var(--motion-fast);
 }
-
 /* ---------------------------------------------------------------------------
  * fork:proma-32-skill-usage — the turn's file chips and skill chips share one
  * wrapping row.
@@ -205,7 +195,6 @@ html.keyboard-open .extension-status-shelf {
   flex-wrap: wrap;
   gap: var(--s2);
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-21 — copy button glyph cross-fades instead of swapping.
  *
@@ -245,7 +234,6 @@ html.keyboard-open .extension-status-shelf {
   opacity: 1;
   transform: scale(1) rotate(0deg);
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-28 — number alignment and CJK line breaking.
  *
@@ -277,7 +265,6 @@ html.keyboard-open .extension-status-shelf {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-33 — rotating tip line fades as it rotates.
  *
@@ -292,7 +279,6 @@ html.keyboard-open .extension-status-shelf {
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: none; }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-22 — interface density.
  *
@@ -312,7 +298,6 @@ html.keyboard-open .extension-status-shelf {
 .settings-general-section {
   margin-bottom: calc(20px * var(--fork-density));
 }
-
 /* ---------------------------------------------------------------------------
  * fork:desktop-shell — drag region for the packaged app.
  *
@@ -386,7 +371,6 @@ html.keyboard-open .extension-status-shelf {
 [data-desktop-shell="true"] #file-panel .main-workspace-header {
   -webkit-app-region: no-drag;
 }
-
 /* The two workspace-boundary toggles are NOT children of the header: they are absolutely
  * positioned siblings that happen to sit on top of it (x = sidebar/panel edge, y = the
  * 46px bar). The drag region is hit-tested by the *browser process* before the renderer
@@ -404,7 +388,6 @@ html.keyboard-open .extension-status-shelf {
 [data-desktop-shell="true"] .desktop-workspace-role-toggle * {
   -webkit-app-region: no-drag;
 }
-
 /* fork:design-components —— 画板 02 的折叠导轨是全高竖列（占列宽，不再是浮块），
  * 顶端放应用标记；macOS 的红绿灯（electron/main.js: trafficLightPosition {x:14,y:16}，
  * 约 54×14）正压在那里 —— 整条让到它们下面。与 `.pw-side-head` 的 64px 内缩同一件事，
@@ -417,7 +400,6 @@ html.keyboard-open .extension-status-shelf {
   /* ponytail: 40 = 红绿灯底缘 30 + 画板 --s2 的呼吸；红绿灯换位置只改这一个值 */
   padding-top: 40px;
 }
-
 /* Secondary handle: the sidebar's brand row. It has a wide empty stretch between the
  * brand and the search button, and it sits under the traffic lights anyway — moving the
  * window from there is what people expect in a sidebar app. Its own controls opt out. */
@@ -430,7 +412,6 @@ html.keyboard-open .extension-status-shelf {
 [data-desktop-shell="true"] .sidebar-brand-row a * {
   -webkit-app-region: no-drag;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-tree-visible — the file tree column must not vanish on a normal window.
  *
@@ -455,7 +436,6 @@ html.keyboard-open .extension-status-shelf {
     width: 200px;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-01 — Zeno layout metrics (read-only aliases).
  *
@@ -475,7 +455,6 @@ html.keyboard-open .extension-status-shelf {
   --zn-header-title: 13px;   /* zeno thread-header h2 */
   --zn-hero-title: 26px;     /* zeno empty hero h1 */
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-07 — conversation breathing room (Zeno thread rhythm).
  *
@@ -500,7 +479,6 @@ html.keyboard-open .extension-status-shelf {
     color: var(--text-muted);
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-10 — shimmer for the live step (Zeno .shimmer).
  *
@@ -539,7 +517,6 @@ html.keyboard-open .extension-status-shelf {
     color: var(--text-muted);
   }
 }
-
 /* 设计画板 05 第 03 项「等待期减弱」（--opacity-pending = 0.5）：就地重读
    （手动压缩）时旧内容**留在屏上**降到 0.5，不换骨架屏、不做假进度 ——
    时长不可预知，假进度比不动的 0.5 更让人焦虑。同时不可交互。
@@ -550,7 +527,6 @@ html.keyboard-open .extension-status-shelf {
   transition: opacity var(--motion-fast) var(--ease);
 }
 /* reduced-motion：终态本身没有动画，0.01ms 的全局兜底照样到位（降不降都可读）。 */
-
 /* 设计画板 05 第 16 项的另一半「呼吸」：文字在微光里跑，图标同时一暗一亮，
    这一行才是「还在动」的那条证据（`@keyframes pulse` 此前是孤儿）。
    复用 globals.css 的 pulse：0.5 低点正好等于 `--opacity-pending`。 */
@@ -559,7 +535,6 @@ html.keyboard-open .extension-status-shelf {
     animation: pulse var(--motion-hint) var(--ease) infinite;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-04 — composer protrusion bar (Zeno .composer-protrusion).
  *
@@ -582,7 +557,6 @@ html.keyboard-open .extension-status-shelf {
   border-radius: var(--radius-md);
   background: var(--composer-protrusion, var(--bg-panel));
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-12 — message meta rows are hover/focus-only (Zeno .timeline-meta-actions).
  *
@@ -615,7 +589,6 @@ html.keyboard-open .extension-status-shelf {
     pointer-events: auto;
   }
 }
-
 /* fork:boardui — 消息操作按钮是内联样式（visual-spec §6 的已知限制：没有
    `:focus-visible` 钩子），BoardUI 的图标按钮都带 focus-visible:ring-2。
    这里用 CSS 兜住键盘用户的焦点环，并把圆角对齐 BoardUI 的 rounded-md(6px)
@@ -636,7 +609,6 @@ html.keyboard-open .extension-status-shelf {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:boardui — 列表行入场（BoardUI globals.css 的 row-fade-in）。
  *
@@ -652,17 +624,14 @@ html.keyboard-open .extension-status-shelf {
     translate: 0 -2px;
   }
 }
-
 .fork-row-enter {
   animation: fork-row-in var(--motion-base) var(--ease-out) backwards;
 }
-
 @media (prefers-reduced-motion: reduce) {
   .fork-row-enter {
     animation: none;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zm-01 — 折叠内容用 grid 行高滑开/收起（ZCode M1）。
  *
@@ -707,7 +676,6 @@ html.keyboard-open .extension-status-shelf {
     transition: none;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:shadcn — 消息区底部渐隐（shadcn message-scroller 的 scroll-fade-b）。
  *
@@ -741,7 +709,6 @@ html.keyboard-open .extension-status-shelf {
     pointer-events: none;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * D2-PR-12 — @file / /skill: mention 高亮。
  *
@@ -750,7 +717,6 @@ html.keyboard-open .extension-status-shelf {
  * `.mention-token`（--accent 差一档）退役。字号与文本域共享
  * --chat-content-font-size 的坑由 `.chat-input-highlight` 承接（见下）。
  * ------------------------------------------------------------------------- */
-
 /* 输入框高亮层：viewport 由 JS 同步成 textarea 的 clientWidth/clientHeight，
    绝对定位盖住内容盒并裁剪溢出行；layer 用 transform 跟随 textarea 滚动。 */
 .chat-input-highlight-viewport {
@@ -774,7 +740,6 @@ html.keyboard-open .extension-status-shelf {
   overflow-wrap: break-word;
   text-align: left;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:pr23-resize — composer 顶部手柄的竖向缩放。
  *
@@ -794,7 +759,6 @@ html.keyboard-open .extension-status-shelf {
      composer reads as a bug, while a clipped chip reads as "the row is full". */
   overflow-x: clip;
 }
-
 /* The control row's children are all fixed-size chips; without this the row's
    min-content width is larger than the column and it pushes everything right. */
 .chat-input-toolbar > * {
@@ -843,7 +807,6 @@ html.keyboard-open .extension-status-shelf {
   min-height: 0 !important;
   overflow: auto;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:pr14-compact — 阅读态输入框塌陷（见 lib/input-compact.ts 的振荡坑注释）。
  *
@@ -864,7 +827,6 @@ html.keyboard-open .extension-status-shelf {
   height: 24px !important; /* 一行文本（约 13px 字号 × 1.6 行高） */
   overflow: hidden !important;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zm-02 — 流式入场：新追加的过程步骤逐条淡入。
  *
@@ -885,7 +847,6 @@ html.keyboard-open .extension-status-shelf {
 :root {
   --fork-enter-duration: var(--motion-base);
 }
-
 @keyframes fork-stream-enter {
   from {
     opacity: 0;
@@ -893,7 +854,6 @@ html.keyboard-open .extension-status-shelf {
     transform: translateY(var(--motion-stream));
   }
 }
-
 /* 设计 §1.6 五类转场之一：整块替换（切会话 / 切标签）——200ms + 8px 上移。
    只动 opacity 与 transform 两个属性，符合「不同时动 3 个以上属性」。 */
 @keyframes fork-turn-in {
@@ -914,7 +874,6 @@ html.keyboard-open .extension-status-shelf {
     animation: none;
   }
 }
-
 /* 设计画板 05 第 14 项「跳转高亮」——查找到某一轮 / 从小地图跳过去之后，
    1.6s 的一次性提示：6% 底 + 2px 强调色左边线。原先是 ChatWindow 里一段
    WAAPI（2500ms、无强调色边线），这里是它唯一的实现。 */
@@ -931,7 +890,6 @@ html.keyboard-open .extension-status-shelf {
     animation: none;
   }
 }
-
 @media (prefers-reduced-motion: no-preference) {
   [data-fork-stream-animate="true"] > .pw-step[data-fork-enter="true"] {
     animation: fork-stream-enter var(--fork-enter-duration) var(--ease-out)
@@ -943,7 +901,6 @@ html.keyboard-open .extension-status-shelf {
     animation: none;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zm-05 — TabBar 滑动指示器 + 按压反馈。
  *
@@ -963,7 +920,6 @@ html.keyboard-open .extension-status-shelf {
 :root {
   --fork-tab-pill-duration: 200ms;
 }
-
 /* 画板 `.pw-tab .x` 是静态 span；产品里它是可点的关闭钮 —— 只补 UA 归零
    （与 `button.pw-*` 那张清单同一条约定），颜色仍由 board.css 的 `.pw-tab .x` 给。 */
 .pw-tab > button.x {
@@ -972,7 +928,6 @@ html.keyboard-open .extension-status-shelf {
   background: transparent;
   font: inherit;
 }
-
 .fork-tabbar {
   position: relative;
 }
@@ -996,7 +951,42 @@ html.keyboard-open .extension-status-shelf {
   background: var(--bg-selected);
   pointer-events: none;
 }
-
+/* fork:proma-38-tab-reorder —— 拖拽排序的落点指示线与拖动态。
+ *
+ * 与 `.fork-tab-pill` 同理：绝对定位在标签栏（`position: relative`）里，不占流，
+ * 所以拖动过程中**没有任何 tab 被重排**，`.pw-tabs` 的折叠判定与 pill 都不会抖。
+ * 指示线只画一条强调色竖线，落在两个 tab 的边界上（或行尾）。
+ *
+ * 几何全部取 token：高度跟着画板 `.pw-tab` 的 26（与 pill 同一行），粗细是
+ * `calc(var(--space-hair) * 2)`（2px 的发丝加粗），竖向沿用 pill 的 top/bottom +
+ * margin:auto 居中。
+ *
+ * 为什么是 `.fork-*` 而不是新 `.pw-*`（判据⑦）：画板 31 的标签行里**没有**拖拽
+ * 形态，指示线是交互瞬态（拖动时才存在），不属于画板要登记的静态形态；`.pw-*`
+ * 要先进 board.css + 画板 + DIVERGENCE，而这一条按同一份画板的几何画在自己的
+ * 行为层，与 `.fork-tab-pill`（同样是瞬态）保持同一处置。
+ */
+.fork-tabbar.is-reordering {
+  cursor: grabbing;
+  user-select: none;
+}
+.fork-tab-drop {
+  position: absolute;
+  top: var(--s1, 4px);
+  bottom: 0;
+  margin-block: auto;
+  left: 0;
+  /* 落点下标是「下一个 tab 的左缘」，也就是缝的右边界；往回退半个缝
+     （`.pw-tabs` 的 gap = --space-tight）让线正好落在缝里。 */
+  margin-left: calc(var(--space-tight, 2px) / -2);
+  height: 26px;
+  width: calc(var(--space-hair) * 2);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  /* 压在 tab 之上（否则被激活 tab 的 `.pw-tab.is-on` 底色盖掉），但不吃点击。 */
+  z-index: 2;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: no-preference) {
   .fork-tab-pill {
     transition:
@@ -1010,7 +1000,6 @@ html.keyboard-open .extension-status-shelf {
     transform: scale(0.985);
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .fork-tab,
   .fork-tab-pill {
@@ -1022,8 +1011,6 @@ html.keyboard-open .extension-status-shelf {
     transform: none;
   }
 }
-
-
 /* ---------------------------------------------------------------------------
  * fork:zn-13 — 侧栏导轨行规格（Zeno `.nav-item` / `.nav-badge` / `.sidebar-footer`）。
  *
@@ -1061,47 +1048,39 @@ html.keyboard-open .extension-status-shelf {
     background var(--motion-fast) var(--ease-out),
     color var(--motion-fast) var(--ease-out);
 }
-
 .fork-nav-item:hover:not(:disabled),
 .fork-nav-item[data-active="true"] {
   background: var(--bg-hover);
   color: var(--text);
 }
-
 .fork-nav-item:disabled {
   cursor: not-allowed;
   opacity: 0.42;
 }
-
 .fork-nav-item:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
-
 .fork-nav-icon {
   display: flex;
   flex-shrink: 0;
   color: var(--text-muted);
 }
-
 .fork-nav-item[data-active="true"] .fork-nav-icon {
   color: var(--text);
 }
-
 .fork-nav-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .fork-nav-badge {
   margin-left: auto;
   flex-shrink: 0;
   font-size: var(--text-xs);
   color: var(--text-dim);
 }
-
 /* Zeno `.sidebar-footer`：`mt-auto` 把底部行钉在导轨下沿，用一条 hairline 与
    上方列表分开。左右 10px 外距是为了让分隔线与导轨内缩（Zeno 的 `p-2.5`）
    对齐 —— 本仓此前是一个裸的 `padding: 8px` 包裹层，没有分隔线。 */
@@ -1114,21 +1093,18 @@ html.keyboard-open .extension-status-shelf {
   border-top: 1px solid var(--border-faint);
   padding-top: 8px;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-15 退役（2026-10-01 孤儿清理）—— `.fork-settings-block/card/row*`
  * 全部删除：它们服务的 `SettingsBlock` / `SettingsRow`（Zeno「标题在上、控件在
  * 右上」的行形态）全仓零引用，设置分节已统一走画板 40/62 的 `.pw-block` /
  * `.pw-field` 行规格（视觉唯一来源 board.css，接线在 SettingsUi 的 pw-* 基件）。
  * ------------------------------------------------------------------------- */
-
 /* ---------------------------------------------------------------------------
  * fork:zn-15 退役（2026-10-01 孤儿清理）—— `.fork-settings-slider*`（Zeno 滑杆，
  * 「标签+数值」在上、轨道在下）随 `SettingsSlider` 基件一并删除，全仓零引用；
  * 设置页的滑杆是 board.css 的 `.pw-range`（画板 40 帧 DOM）。规格原文
  * （styles.css:5598-5654）随画板收编不再需要。
  * ------------------------------------------------------------------------- */
-
 /* ---------------------------------------------------------------------------
  * fork:zn-15 — 侧边栏半透明（Zeno 设置 → 外观 →「侧边栏半透明」）。
  *
@@ -1151,7 +1127,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   -webkit-backdrop-filter: blur(24px) saturate(130%);
   backdrop-filter: blur(24px) saturate(130%);
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-15 — `--ui-font-size`（Zeno 的单一界面字号）。
  *
@@ -1163,18 +1138,15 @@ html[data-rail-translucent="true"] .sidebar-container {
 :root {
   --ui-font-size: var(--text-md);
 }
-
 /* 「系统默认」= 不设 `--font-ui-base`，body 回落到 `--font-ui`（设计默认 Geist）+ 平台栈。
  * 具体字体栈由 hooks/useUiFont.ts 内联写到 `<html>` 上：可选项是运行时枚举出来的
  * 任意系统族名（lib/font-discovery.ts），不可能预先在 CSS 里列出来。
  * 枚举出的每条栈都自带回退，所以选了不存在的字体不会让整页变成衬线。 */
-
 /* ---------------------------------------------------------------------------
  * fork:zn-15 退役（2026-10-01 孤儿清理）—— 「卡片里的开关要能看见」这条
  * `.fork-settings-card .config-switch` 随卡片本身一并删除：没有元素再输出
  * `.fork-settings-card`，开关行现在是 board.css 的 `.pw-switch`。
  * ------------------------------------------------------------------------- */
-
 /* ---------------------------------------------------------------------------
  * fork:zn-17 — 小地图 dash 的悬停 tooltip（Zeno `.minimap-popover`，styles.css:1388-1417）。
  *
@@ -1199,7 +1171,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   pointer-events: none;
   transform: translateY(-50%);
 }
-
 .fork-minimap-popover-role {
   display: flex;
   align-items: center;
@@ -1209,7 +1180,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   font-weight: 500;
   color: var(--text-muted);
 }
-
 /* fork:upstream-0.9.2-minimap-tools — 该回合的工具调用次数，跟在角色标签后面。 */
 .fork-minimap-popover-tools {
   margin-left: auto;
@@ -1220,7 +1190,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-
 .fork-minimap-popover-text {
   display: -webkit-box;
   overflow: hidden;
@@ -1232,13 +1201,11 @@ html[data-rail-translucent="true"] .sidebar-container {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:design-system —— 画板 47 皮肤工作室已接 `.pw-scrim / .pw-modal / .pw-tabs`
  * 画板原件（ThemeSkinStudio.tsx）；原 fork-skin-library / fork-skin-dialog-* 规则
  * 退役。只剩功能性预览的 `fork-skin-preview-*`（见下方保留段）。
  * ------------------------------------------------------------------------- */
-
 /* fork:ui-project-actions — 项目行「⋯」菜单（打开文件夹 / 重命名 / 从列表中移除）。
    注意：这段必须自成一条规则，别插进别的选择器列表里（曾经插坏过两条规则）。 */
 .fork-project-menu-item {
@@ -1254,16 +1221,13 @@ html[data-rail-translucent="true"] .sidebar-container {
   text-align: left;
   cursor: pointer;
 }
-
 .fork-project-menu-item:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
-
 .fork-project-menu-item.is-danger:hover {
   color: var(--danger);
 }
-
 /* fork:ui-history-panel — 顶栏的「完整历史」面板：与系统提示词/工具面板同高同底色，
    内部按聊天区的排版渲染完整转写。 */
 .session-history-panel {
@@ -1274,28 +1238,23 @@ html[data-rail-translucent="true"] .sidebar-container {
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
 }
-
 .session-history-scroll {
   min-height: 0;
   flex: 1;
   overflow: auto;
   padding: 12px 16px;
 }
-
 .session-history-note {
   padding: 10px 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-style: italic;
 }
-
 .session-history-note.is-error { color: var(--danger); }
-
 /* fork:ui-archive-history（2026-10-01 孤儿清理）—— `.settings-archived-*` 整族
    （分组 / 组标签 / 行 / 行名 / 标题钮 / meta / 动作）随归档页迁画板 62 骨架 B 退役：
    会话行现在是 ConfigSidebarItem（`.pw-litem`）+ ConfigDetailHeader，零引用，
    规则删除。 */
-
 /* 迷你外壳：绝对定位的壁纸 + 压暗层在下，chrome 在上。 */
 .fork-skin-preview {
   position: relative;
@@ -1307,23 +1266,19 @@ html[data-rail-translucent="true"] .sidebar-container {
   border-radius: var(--preview-radius);
   background: var(--preview-page);
 }
-
 .fork-skin-preview-wallpaper {
   position: absolute;
   inset: 0;
   background-repeat: no-repeat;
   background-position: center;
 }
-
 .fork-skin-preview-mask { position: absolute; inset: 0; }
-
 .fork-skin-preview-shell {
   position: relative;
   display: grid;
   height: 100%;
   grid-template-columns: 96px minmax(0, 1fr);
 }
-
 .fork-skin-preview-sidebar {
   display: flex;
   flex-direction: column;
@@ -1334,7 +1289,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   -webkit-backdrop-filter: blur(var(--preview-blur));
   backdrop-filter: blur(var(--preview-blur));
 }
-
 .fork-skin-preview-brand {
   display: block;
   width: 46px;
@@ -1342,18 +1296,15 @@ html[data-rail-translucent="true"] .sidebar-container {
   border-radius: 4px;
   background: color-mix(in srgb, var(--preview-accent) 85%, transparent);
 }
-
 .fork-skin-preview-nav {
   display: block;
   height: 16px;
   border-radius: 5px;
   background: color-mix(in srgb, var(--preview-text-muted) 16%, transparent);
 }
-
 .fork-skin-preview-nav[data-active="true"] {
   background: color-mix(in srgb, var(--preview-text-muted) 30%, transparent);
 }
-
 .fork-skin-preview-main {
   display: flex;
   flex-direction: column;
@@ -1361,16 +1312,13 @@ html[data-rail-translucent="true"] .sidebar-container {
   gap: 10px;
   padding: 14px 12px 12px;
 }
-
 .fork-skin-preview-thread { display: flex; flex-direction: column; gap: 9px; }
-
 .fork-skin-preview-line {
   display: block;
   height: 6px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--preview-text-muted) 42%, transparent);
 }
-
 .fork-skin-preview-composer {
   height: 46px;
   border: 1px solid var(--preview-border);
@@ -1379,7 +1327,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   -webkit-backdrop-filter: blur(var(--preview-blur));
   backdrop-filter: blur(var(--preview-blur));
 }
-
 /* ---------------------------------------------------------------------------
  * fork:design-system —— 画板 47 工作室的接线块（只做产品语义，不重复画板值）：
  * - `.pw-scrim` 在画板里是舞台内的一格，产品里是覆盖层 → 补 fixed 定位与层级；
@@ -1392,12 +1339,10 @@ html[data-rail-translucent="true"] .sidebar-container {
   inset: 0;
   z-index: var(--z-modal);
 }
-
 .fork-skin-modal {
   max-width: calc(100vw - 2rem);
   max-height: calc(100dvh - 2rem);
 }
-
 .pw-ctl input[type="color"] {
   width: 24px;
   height: 24px;
@@ -1407,14 +1352,11 @@ html[data-rail-translucent="true"] .sidebar-container {
   background: none;
   cursor: pointer;
 }
-
 .pw-ctl input[type="color"][data-inherited="true"] { opacity: 0.55; }
-
 .pw-wallpaper-thumb.is-on {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-19 — 皮肤与壁纸的融合（Zeno `.skin-wallpaper` + `[data-theme-skin-active]` 那一组）。
  *
@@ -1432,7 +1374,6 @@ html[data-rail-translucent="true"] .sidebar-container {
  *
  * 只在选中非默认皮肤时生效（`data-theme-skin`），默认皮肤走主题原样。
  * ------------------------------------------------------------------------- */
-
 /* 1. 壳透明：把不透明的画布让开，壁纸才看得见。
      内联样式，必须 `!important`（fork-ui.css 允许用它的两种情形之一）。 */
 html[data-theme-skin="true"] .app-shell-layout {
@@ -1440,7 +1381,6 @@ html[data-theme-skin="true"] .app-shell-layout {
   /* 自己的层叠上下文：`::before` 的 -1 要停在这一层里，不能漏到 body 后面。 */
   isolation: isolate;
 }
-
 /* 2. 会话列：半透明页面底 + 模糊 + 方向性阅读遮罩。 */
 html[data-theme-skin="true"] .chat-slot {
   position: relative;
@@ -1449,7 +1389,6 @@ html[data-theme-skin="true"] .chat-slot {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px));
   backdrop-filter: blur(var(--skin-blur, 0px));
 }
-
 html[data-theme-skin="true"] .chat-slot::before {
   content: "";
   position: absolute;
@@ -1465,7 +1404,6 @@ html[data-theme-skin="true"] .chat-slot::before {
     color-mix(in srgb, var(--bg) calc(var(--skin-reading-mask, 78%) * 0.42), transparent) 100%
   );
 }
-
 /* 3. 侧栏 / 副区：各自的面板透明度 + 模糊。两个容器都是内联底色。 */
 html[data-theme-skin="true"] .sidebar-container {
   /* 一层 alpha：基色 × 侧栏透明度。**不要**用 `--bg-elev`（它已经含卡片透明度）。 */
@@ -1473,13 +1411,11 @@ html[data-theme-skin="true"] .sidebar-container {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px)) saturate(130%);
   backdrop-filter: blur(var(--skin-blur, 0px)) saturate(130%);
 }
-
 html[data-theme-skin="true"] .right-panel-container {
   background: color-mix(in srgb, var(--skin-panel-base, var(--bg-elev)) var(--skin-panel-alpha, 74%), transparent) !important;
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px)) saturate(130%);
   backdrop-filter: blur(var(--skin-blur, 0px)) saturate(130%);
 }
-
 /* 4. 卡片 / 作曲器 / 浮层：`--bg-elev` 已经被皮肤写成半透明了，这里补模糊 + 让作曲器
       的容器（dock）透明 —— 否则卡片是半透明的，它下面那层不透明的 dock 又把壁纸挡回去。 */
 html[data-theme-skin="true"] .chat-content > div,
@@ -1491,7 +1427,6 @@ html[data-theme-skin="true"] .pw-modal {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px)) saturate(120%);
   backdrop-filter: blur(var(--skin-blur, 0px)) saturate(120%);
 }
-
 /* 5. 顶栏与状态条：它们横跨整宽，不透明的话会在壁纸上切出一条硬边。 */
 html[data-theme-skin="true"] .main-workspace-header,
 html[data-theme-skin="true"] .extension-status-shelf {
@@ -1499,7 +1434,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px));
   backdrop-filter: blur(var(--skin-blur, 0px));
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-20 — 导轨里的「项目 / 聊天」左右切换（分段控件）。
  *
@@ -1518,7 +1452,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   border-radius: var(--radius-md);
   padding: 2px;
 }
-
 .fork-segmented > button {
   flex: 1 1 0;
   min-width: 0;
@@ -1532,21 +1465,17 @@ html[data-theme-skin="true"] .extension-status-shelf {
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
-
 .fork-segmented > button:hover {
   color: var(--text);
 }
-
 .fork-segmented > button[data-active="true"] {
   background: var(--bg-hover);
   color: var(--text);
 }
-
 .fork-segmented > button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:zn-21 — 折叠态的紧凑图标条（展开 / 搜索 / 新建会话）。
  *
@@ -1571,17 +1500,14 @@ html[data-theme-skin="true"] .extension-status-shelf {
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
 }
-
 .fork-collapsed-rail-button:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
-
 .fork-collapsed-rail-button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
-
 /* ===========================================================================
  * fork:design-components — 画板组件的「产品侧接线」
  *
@@ -1590,7 +1516,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
  * 「静态元素 → 可交互元素」这一层适配，不重复写任何颜色 / 尺寸 / 间距 ——
  * 那些值只有一个来源：board.css。改视觉请改 board.css，不要改这里。
  * ======================================================================== */
-
 /* 行 / 钮：清掉 button 的 UA 边框、底色、字体与居中，其余交给 board.css。
  *
  * 这一段放在 `@layer fork-reset` 里是有原因的：`button.pw-row` 这类选择器是 0-1-1，
@@ -1651,7 +1576,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   button.pw-btn { width: auto; }
   button.pw-side-foot { display: flex; align-items: center; gap: var(--s2); }
 }
-
 /* fork:transcript-proc-head —— 过程头行整行可点之后，需要一条 hover 反馈，
    否则「能点」这件事只写在 aria 里。画板里它是静态 div，没有 hover 档，所以这条
    属于「静态元素 → 可交互元素」的适配：底色仍在 board.css 的 `--surface-panel`
@@ -1659,14 +1583,12 @@ html[data-theme-skin="true"] .extension-status-shelf {
 .pw-proc-head:hover {
   background: color-mix(in srgb, var(--n-text) 4%, var(--surface-panel));
 }
-
 /* fork:design-system 判据⑦ —— 画板 01/02 的 `.pw-group-title`（「项目」分区头）在画板里是
    静态 div，左侧那枚 chevrons-up-down 就是「展开 / 折叠全部」的记号。产品把整行接成那一个
    动作，这里只补「静态元素 → 可交互元素」的一层：cursor + hover 反馈。底色仍在画板的
    `--surface-panel` 上叠 4% 文字色，与 `.pw-proc-head` 同一条口径，不引入新常量色。 */
 .pw-group-title[role="button"] { cursor: pointer; }
 .pw-group-title[role="button"]:hover { background: color-mix(in srgb, var(--n-text) 4%, var(--surface-panel)); }
-
 /* 画板 .pw-seg 的子项是 span；产品要键盘可切换，所以是 button —— 值照抄那一行。 */
 .pw-seg > button {
   text-align: center;
@@ -1680,7 +1602,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   cursor: pointer;
 }
 .pw-seg > button.is-on { background: var(--surface-canvas); color: var(--n-strong); font-weight: 500; }
-
 /* 画板 .pw-side-search 是静态盒；产品里是真输入框，盒内的 input 归零后继承盒的色值。 */
 /* fork:design-system 判据⑦登记 —— 布局在 board.css；这行只补「点哪里都能聚焦」
    的行为语义（画板里它是装饰格，产品里是真输入格）。 */
@@ -1699,7 +1620,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
 .pw-side-search input::placeholder { color: inherit; }
 .pw-side-search:focus-within { border-color: var(--accent); }
 .pw-side-search input::-webkit-search-cancel-button { display: none; }
-
 /* ---------------------------------------------------------------------------
  * fix:search-grouping —— 搜索结果区（画板 02 帧 C）的产品侧语义。
  *
@@ -1724,7 +1644,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
 .pw-search-group + .pw-search-group { margin-top: var(--s1); }
 .pw-search-group > .pw-row { height: 26px; }
 .pw-search-group > .pw-row .pw-ico { color: var(--n-placeholder); }
-
 .pw-search-result {
   display: block;
   width: 100%;
@@ -1759,7 +1678,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   color: var(--n-placeholder);
   font-variant-numeric: tabular-nums;
 }
-
 /* ---------------------------------------------------------------------------
  * fix:branch-popover —— 会话分支浮窗（画板 22 的 `.pw-pop`）里的树行。
  *
@@ -1851,7 +1769,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   white-space: nowrap;
 }
 .pw-branch-row.is-on .pw-branch-label { color: var(--accent-text); font-weight: 500; }
-
 /* 画板只在 .pw-row 里给了 .pw-acts 的 flex；会话行 / 聊天工作区行也要同一组。
    少了这一条，三个动作钮会各自成行竖着堆在标题右边（错行）。 */
 .pw-session .pw-acts,
@@ -1860,14 +1777,12 @@ html[data-theme-skin="true"] .extension-status-shelf {
   align-items: center;
   gap: 2px;
 }
-
 /* 模型名不该被挤成一个字母（板 G 轮的教训：逐层 min-width:0 会让 flex 把芯片
    压瘪成「D…」）：模型芯片按内容定宽、不参与收缩。工具条自然总宽 ~672px，
    低于 700px 折叠阈值时由 ChatInput 的窄屏形态（narrowControls）接管，
    窄形态里左组走 grid 收缩，不需要芯片自己省略。 */
 .pw-composer-bar .model-selector { flex: 0 0 auto; }
 .pw-composer-bar .model-selector .pw-select > span { flex: 0 0 auto; }
-
 /* fork:ui-composer-pop —— board.css 的 .pw-composer 自带 overflow:hidden
    （为裁圆角），但产品输入框里有一整层向上弹的浮层（上下文环 .pw-pop、
    思考/权限下拉、@ 与 / 菜单），竖向必须放行，否则浮窗只露出卡片内的一角
@@ -1877,15 +1792,12 @@ html[data-theme-skin="true"] .extension-status-shelf {
   overflow-x: clip;
   overflow-y: visible;
 }
-
 /* 统计条在窄列里不许把一格文本折成两行（「上下文」和「2% / 1.0M」分离很难读）：
    格内 nowrap，放不下时整格换行。 */
 .session-stats-inline-toggle.session-stats-inline-toggle.pw-stats > span { white-space: nowrap; }
-
 /* 运行中的扫掠亮点是 96px 的绝对定位条，跑出容器就会撑出横向滚动条 —— 行内裁掉。 */
 .pw-session.running,
 .pw-session.awaiting { overflow: hidden; }
-
 /* fork:session-meta-nowrap —— 会话行的副行永远是**一行**。
    鼠标悬停时行尾出一组动作钮（置顶 / 归档 / 重命名 / 删除，约 100px），它是在流的，
    于是 `.pw-body` 被挤窄：标题靠 board.css 的 `.pw-t`（nowrap + 省略号）自动收缩，
@@ -1899,7 +1811,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 /* 上下文环的浮窗（画板 01 帧 C / 20）：悬浮或键盘聚焦才展开，
    不在输入框下面再放第二条常显横条。
    fork:context-pop-portal —— 浮窗现在 portal 到 body（`PortalDropdown`），
@@ -1925,7 +1836,6 @@ html[data-theme-skin="true"] .extension-status-shelf {
   font-size: var(--text-secondary);
   line-height: 1.5;
 }
-
 /* ---------------------------------------------------------------------------
  * fix:minimap-hover —— 转录右侧迷你地图的悬停浮层定位。
  *
@@ -1957,13 +1867,11 @@ html[data-theme-skin="true"] .extension-status-shelf {
 .composer-ring:focus-within .pw-ring {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-
 /* fork:ui-stats-ring —— 点击圆环钉住浮窗（/session 命令与触屏入口）：
    钉住态与悬浮态同一套可见性（fork:context-pop-portal 后由 React 状态决定）。 */
 .composer-ring.is-pinned .pw-ring {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-
 /* ---------------------------------------------------------------------------
  * fork:ui-ext-float —— 扩展状态（MCP / ponytail）的右上角胶囊浮标。
  * 输入框下方不再有任何常驻行（用户裁定）：状态条从 composer 底下挪到这里。
@@ -2002,13 +1910,11 @@ html[data-theme-skin="true"] .extension-status-shelf {
 /* 移动端键盘弹出时与旧状态条同待遇：让位给输入框。 */
 html.keyboard-open .ext-float-pill,
 html.keyboard-open .ext-float-panel { display: none; }
-
 /* ---- SW-07 设置控件：画板 40 的静态元素 → 真控件 ----------------------------------
    画板里这些是 span（.pw-switch / .pw-radio > span / .pw-selectbox），产品必须是
    可聚焦、可键盘操作的真控件。本段只做两件事：UA 默认值归零 + 「静态元素 → 可交互
    元素」的适配。颜色 / 尺寸 / 间距仍然只有一个来源：board.css。
    （`.pw-seg > button` 已是同一先例：画板是 span，产品是 button，值照抄那一行。） */
-
 button.pw-switch {
   border: 0;
   padding: 0;
@@ -2019,7 +1925,6 @@ button.pw-switch:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-
 /* 画板 .pw-radio 的子项是 span，产品是 button —— 值照抄 board.css 的那一行。 */
 .pw-radio > button {
   display: inline-flex;
@@ -2044,7 +1949,6 @@ button.pw-switch:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-
 /* 画板 .pw-selectbox 里是静态文字 + chevron；产品塞进真 <select>，归零原生外观。 */
 .pw-selectbox > select {
   flex: 1;
@@ -2062,7 +1966,6 @@ button.pw-switch:disabled {
   cursor: pointer;
 }
 .pw-selectbox:focus-within { border-color: var(--accent); }
-
 /* 画板 40 的滑块是静态轨道（180×4 / 圆角 2 / 12px 圆钮），board.css 没有对应类，
    所以这里按那一帧的几何写一份骨架，色值全部走 token。 */
 /* fork:design-system 判据⑦ —— 几何（180×12、accent 色）只在 board.css；
@@ -2104,10 +2007,8 @@ button.pw-switch:disabled {
 }
 .pw-range:focus-visible { outline: none; }
 .pw-range:disabled { opacity: 0.45; cursor: not-allowed; }
-
 /* 设置左导航：画板 .pw-snav 的 .pw-row 是 div，产品是 button（已在上面统一归零）。 */
 .pw-snav > button.pw-row { flex: none; }
-
 /* ---- SW-07/13 皮肤条：画板 40/47 的静态行 → 真控件 -------------------------------
    画板里 `.pw-skin` 是 div（静态稿），产品里它必须可点、可聚焦、可单选，所以换成
    button；本段仍然只做 UA 归零 + 画板那两处一次性 inline 的收敛，颜色 / 尺寸 / 间距
@@ -2150,18 +2051,14 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   .pw-skin-actions { flex-wrap: wrap; }
   .pw-skin-actions > .pw-btn { flex: none; }
 }
-
-/* 2026-10-03 用户裁定 —— 关闭行（画板 62 的 `.pw-snav-close`，规格在 board.css）
-   已从左导航撤掉，关闭口只剩弹窗右上角那枚 X。这里不再有产品样式。 */
-
+/* 关闭行（用户裁定：关闭入口放左导航底部，而非页头）——规格在 board.css 的
+   `.pw-snav-close`（发丝上边线把它和 13 个分节分开），这里不再复制。 */
 /* 画板 40 的标签都是一行短词；产品的说明句可以很长（「后台推送」那一行），
    长标签会把同一行里的按钮压成两行。规矩：标签可收缩，行内按钮不收缩。 */
 .pw-field .pw-label { min-width: 0; }
 .pw-field > .pw-btn { flex: none; }
-
 /* 壁纸缩略图：几何在 board.css 的 `.pw-wallpaper-thumb`（画板 40 的 64×36）；
    图片是用户数据，background-image 仍由组件内联，选中态接线在下方。 */
-
 /* 侧栏聊天工作区行：画板 .pw-row 是静态 div，产品里标题那一格是可点 button
    （行尾还有 .pw-acts 的真钮，button 不能嵌套 button）。只归零 UA。 */
 @layer fork-reset {
@@ -2176,7 +2073,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 }
 .pw-row > button.pw-inline { flex: 1; min-width: 0; }
-
 /* 用户自定义分组头（产品功能，画板 02 已补画）：折叠头整行可点，行规格沿用
    .pw-group-title，hover / 落点两档直接取画板 .pw-row 的两档叠色。 */
 @layer fork-reset {
@@ -2195,14 +2091,12 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .pw-group-title[data-fork-group-header][data-active="true"] { background: var(--overlay-selected); }
 .pw-group-title[data-fork-group-header] > button { display: flex; align-items: center; gap: var(--s1); flex: 1; min-width: 0; }
 .pw-group-title[data-fork-group-header] > .pw-input:focus { border-color: var(--accent); }
-
 /* 转录正文（画板 10 的 .pw-md）：长串不溢出是产品侧的必要补丁，不是新视觉——
    画板 10 是 800 宽的静态稿，产品正文列更窄且允许任意长路径/哈希。 */
 /* fork:design-system 判据⑦登记 —— 字阶/行高在 board.css；这行是画板 61 的
    长文本溢出规则（CJK 长串不撑破卡片），属产品排版语义。 */
 .pw-md { overflow-wrap: anywhere; }
 .pw-md table { max-width: 100%; }
-
 /* ---------------------------------------------------------------------------
  * fork:pwa-safe-area —— PWA 独立窗口（`display: standalone` + `viewport-fit: cover`）
  * 里没有浏览器地址栏，系统状态栏 / 刘海 / home indicator 直接压在内容上。
@@ -2232,7 +2126,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     margin-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:pwa-hit-slop —— 手机上把「够不着」的图标钮补上命中区。
  *
@@ -2270,7 +2163,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     inset: 0 -6px;
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:extension-dialog-title —— 扩展请求对话框（画板 50）头部 + 标题的**收缩**。
  *
@@ -2302,7 +2194,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   /* 头部自己滚到底之后把余势交回对话框外层，别把用户卡在标题里。 */
   overscroll-behavior: contain;
 }
-
 .fork-ext-dialog-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -2310,7 +2201,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   -webkit-line-clamp: 3;
   overflow: hidden;
 }
-
 /* ---------------------------------------------------------------------------
  * fork:group-switch —— G4「按组全开全关」留下的两处 CSS 缺口。
  *
@@ -2327,7 +2217,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .pw-group-title + .pw-alert {
   margin-top: var(--s2);
 }
-
 /* ② 手机档：分组标题里的开关点不准。
  *    `app/pwa-models-skills.css` 只把 `.pw-litem > .pw-switch` 的命中区撑到触控档；
  *    分组标题里的开关不在 `.pw-litem` 里，那条规则够不着它，30×17 的原尺寸在手指
@@ -2350,7 +2239,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     inset: calc(var(--s2) * -1);
   }
 }
-
 /* ===========================================================================
  * fork:pwa-workbench —— 手机 / PWA「工作台」（聊天主界面）收尾。
  *
@@ -2433,7 +2321,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     flex: none;
   }
 }
-
 /* ② 触摸靶：≥40px 见方。`--control-touch`（36）+ `--s1`（4）= 40，
    竖向那 4px 由 `::after` 补（正好是行二与行一之间的间隙），横向不外扩。 */
 @media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
@@ -2481,41 +2368,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     gap: var(--s1) !important;
   }
 }
-
-/* ②b 横屏手机（fork:pwa-landscape-composer）-------------------------------
-   改前症状（实测 844×390）：竖屏档的两行控件条原样带进横屏 —— 编辑行 46 +
-   两行 40 + 间隙内距，输入区卡片 **150px**，占 390 高的 **41%**；转写只剩
-   ~200px，一次看不了两轮问答。ChatInput 的 `narrowControls` 在同一视口放行成
-   桌面同款**单行**工具条（`(viewportCompact && !landscapeShort) || shellNarrow`，
-   hook 见 `hooks/useIsMobile.ts` 的 `useIsLandscapeShort`），CSS 这里只补两件
-   单行放不下的收尾：
-
-   · 模型芯片从画板的「按内容定宽、不省略」改成**可收缩 + 省略号** —— 单行的
-     min-content 由最长的控件决定，长模型名会把行撑破（这正是竖屏档当年在 768
-     实测溢出 110px 的同一条约束，见上面 fork:pwa-tablet-tier 的注释）；
-   · `max-height: 500px` 把平板（竖屏高度 ≥600）关在外面，两行照旧。
-
-   触摸靶不降档：② 段的 `(pointer: coarse) and (max-width: 1024px)` 在横屏
-   照样命中，单行仍是 40px 靶 —— 省的是**行数**，不是手指的命中区。 */
-@media (max-width: 1024px) and (max-height: 500px) {
-  .chat-input-toolbar .model-selector {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .chat-input-toolbar .model-selector .pw-select {
-    min-width: 0;
-    max-width: 100%;
-  }
-  .chat-input-toolbar .model-selector .pw-select > span {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 /* ③ 转录：长串换行 + 等宽块横滚 + 行内代码的断点 ------------------ */
 @media (max-width: 640px) {
   /* `.pw-md` 已有 `overflow-wrap: anywhere`（本文件上一段）。这里补的是
@@ -2628,7 +2480,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     white-space: nowrap;
   }
 }
-
 /* ④ 顶部页头 ------------------------------------------------------------ */
 @media (max-width: 640px) {
   .main-workspace-header .pw-tb-title {
@@ -2676,7 +2527,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     max-width: 100%;
   }
 }
-
 /* ⑤ 安装提示横幅 -------------------------------------------------------- */
 @media (max-width: 640px) {
   .pw-banner {
@@ -2704,8 +2554,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     min-height: var(--control-touch);
   }
 }
-
-
 /* ===========================================================================
  * fork:pwa-sidebar-files —— 手机 / PWA 档的**侧栏（会话 + 项目树）与文件面板**。
  *
@@ -2757,7 +2605,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     --fork-pwa-sb-swipe: calc(var(--control-touch) + var(--s3));
   }
 }
-
 /* 手机档的每一行几何。分档原因见上一段的文件头。 */
 @media (max-width: 640px) {
   /* ---- ① 抽屉底部：设置入口 ------------------------------------------
@@ -2976,7 +2823,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   .pw-session .pw-img,
   .pw-litem .pw-img { max-height: 100%; }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:pwa-sb-tablet —— 平板档（641–1024 且 `pointer: coarse`）的**侧栏行**。
  *
@@ -3048,7 +2894,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     inset: 0 calc(-1 * var(--fork-pwa-sb-slop-x));
   }
 }
-
 /* ---------------------------------------------------------------------------
  * fork:proma-33-shortcut-guide —— 快捷键地图对话框的产品接线（零新 `.pw-*` 类）。
  *
@@ -3073,26 +2918,21 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   inset: 0;
   z-index: var(--z-modal);
 }
-
 .fork-shortcut-guide-modal {
   max-width: calc(100vw - 2rem);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
 }
-
 .fork-shortcut-guide-body {
   display: block;
 }
-
 .fork-shortcut-guide-sub {
   margin: 0 0 var(--s2);
 }
-
 .fork-shortcut-guide-group + .fork-shortcut-guide-group {
   margin-top: var(--s3);
 }
-
 .fork-shortcut-guide-caps {
   display: inline-flex;
   flex-wrap: wrap;
@@ -3101,7 +2941,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   gap: var(--s1);
   max-width: 100%;
 }
-
 /* `.pw-field` 是 `justify-content: space-between` 的行，`.pw-ctl` 默认
    `flex: none`（画板那一列永远是「开关 / 数值框」这种定宽控件）。地图右侧是
    **键帽组**，条数不定（别名 + 用户改过的），窄屏必须能换行而不是把行撑破，
@@ -3110,19 +2949,16 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
    画板零像素变化：这些值只在内容超过行宽时才开始起作用。 */
 .fork-shortcut-guide-group .pw-label { min-width: 0; }
 .fork-shortcut-guide-group .pw-ctl { flex: 0 1 auto; min-width: 0; }
-
 .fork-shortcut-guide-chord {
   display: inline-flex;
   align-items: center;
   gap: var(--space-kbd);
 }
-
 .fork-shortcut-guide-or {
   color: var(--n-placeholder);
   font-size: var(--text-meta);
   margin-inline-end: var(--space-kbd);
 }
-
 /* 状态标记：两枚都是 `.pw-field .pw-label small`（画板的行内小字），只调颜色 ——
    「未接入」是错误色（按了没用），「已改」是弱化色（只是提醒当前不是默认值）。
    选择器带上 `.pw-label` 是**必需的**：board.css 的 `.pw-field .pw-label small`
@@ -3131,15 +2967,12 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-shortcut-guide-group .pw-label .fork-shortcut-guide-flag {
   color: var(--error);
 }
-
 .fork-shortcut-guide-group .pw-label .fork-shortcut-guide-flag.custom {
   color: var(--n-placeholder);
 }
-
 .fork-shortcut-guide-foot {
   margin-inline-end: var(--s2);
 }
-
 /* fork:proma-35-retry —— 消息流里的重试提示是一列 `.pw-toast`（画板 12 / 50 的通知条）。
    board.css 的 `.pw-toast` 是单枚定宽浮条，这里只补**多枚堆叠**的列间距；
    单枚内部的几何（padding / 圆角 / 阴影 / 图标对齐）全部由画板类给。 */
@@ -3148,9 +2981,129 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   gap: var(--s2);
   margin-block: var(--s2);
 }
-
-
-
+/* ---------------------------------------------------------------------------
+ * fork:proma-39-changes —— 右栏「改动」面板的产品接线（零新 `.pw-*` 类）。
+ *
+ * 行结构 = 画板的 `.pw-row`（30 高 / 发丝 hover / 弱化图标）+ 面板头的
+ * `.pw-panel-head`；来源徽章复用 `.pw-badge`，状态点色阶与 `FileExplorer`
+ * 的 `GIT_STATUS_COLORS` 同源。这里只补画板没有的三处：
+ *   ① 行是**两段**可点区域（打开预览 / 在文件管理器中定位），所以 `.pw-row`
+ *      的整行点击语义换成内部按钮，行本身只负责 hover 底色；
+ *   ② 路径分两段（文件名 + 父目录），父目录弱化且可截断；
+ *   ③ 定位钮沿用 `PathActions` 的 hover 才出现（`.pw-row .pw-acts` 的同一口径），
+ *      失败态用画板的 `.danger`。
+ * ------------------------------------------------------------------------- */
+.fork-changes {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.fork-changes-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+}
+.fork-changes-head .grow {
+  flex: 1;
+}
+.fork-changes-title {
+  font-size: var(--text-body);
+  color: var(--n-strong);
+  white-space: nowrap;
+}
+.fork-changes-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s1);
+}
+.fork-changes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  height: var(--control-lg);
+  padding: 0 var(--s1) 0 var(--s2);
+  border-radius: var(--radius-4);
+}
+.fork-changes-row:hover {
+  background: var(--overlay-hover);
+}
+.fork-changes-open {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--n-text);
+  cursor: pointer;
+  text-align: left;
+}
+.fork-changes-open .pw-ico {
+  flex: none;
+  display: inline-flex;
+  color: var(--n-muted);
+}
+.fork-changes-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-secondary);
+}
+.fork-changes-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-meta);
+  color: var(--n-placeholder);
+}
+.fork-changes-source {
+  flex: none;
+}
+.fork-changes-stat {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+.fork-changes-add {
+  color: var(--diff-added);
+}
+.fork-changes-del {
+  color: var(--diff-removed);
+}
+.fork-changes-status {
+  flex: none;
+  width: var(--icon-sm);
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+.fork-changes-status[data-status="modified"] { color: var(--warning); }
+.fork-changes-status[data-status="added"] { color: var(--success); }
+.fork-changes-status[data-status="untracked"] { color: var(--success); }
+.fork-changes-status[data-status="deleted"] { color: var(--error); }
+.fork-changes-status[data-status="conflict"] { color: var(--error); }
+.fork-changes-status[data-status="renamed"] { color: var(--accent-text); }
+.fork-changes-reveal {
+  opacity: 0;
+}
+.fork-changes-row:hover .fork-changes-reveal,
+.fork-changes-reveal:focus-visible {
+  opacity: 1;
+}
+.fork-changes-reveal.danger {
+  color: var(--error);
+}
 /* ---------------------------------------------------------------------------
  * fork:ui-todo —— 待办芯片（输入框左上角）的几何。
  *
@@ -3167,14 +3120,12 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   background: var(--border);
   overflow: hidden;
 }
-
 .fork-todo-rail-full {
   height: 4px;
   border-radius: var(--radius-xs);
   background: var(--border);
   overflow: hidden;
 }
-
 /* DSN-05：宽度固定 100% + transform: scaleX，避免逐帧触发布局重排。
    填充色由组件给（完成态用中性色），因为它是运行时状态不是主题值。 */
 .fork-todo-rail-fill {
@@ -3184,7 +3135,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   transform-origin: left;
   transition: transform var(--fork-motion-chip) var(--ease-out);
 }
-
 .fork-todo-panel {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -3195,7 +3145,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   max-height: 320px;
   overflow-y: auto;
 }
-
 /* 芯片标题那一格：定宽 + 单行省略（原来是内联的 maxWidth 160）。 */
 .fork-todo-title {
   max-width: 160px;
@@ -3203,12 +3152,83 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ---------------------------------------------------------------------------
+ * fork:pr40-split —— 右栏双 Pane 分屏的骨架（两个 Pane + 一条可拖分隔条 + 拖出落点）。
+ *
+ * 结构复用画板的 `.pw-split`（board.css:586，三列 grid）与 `.pw-drop`
+ * （board.css:1178，虚线强调色落区），**不新造 `.pw-*` 类**：`.pw-*` 是画板与
+ * 对位脚本（design/pi-web-design/scripts/check-boards.mjs、board-diff）认得的契约名，
+ * 新增一个就会被当成「板上有、产品没实现」或反过来。所以这里一律用 `.split-pane*`
+ * 前缀把**接线层**的几何补在已有类之上（为什么没进 board.css 见
+ * design/pi-web-design/DIVERGENCE.md §AG）。
+ *
+ * 列宽不写死：`SplitPaneHost` 在内联里写 `--split-pane-columns`（按比例算好的
+ * `minmax(0, …)` 三段），这里只负责把它接到 `grid-template-columns` 上。
+ * 分隔条宽度取 `--s2`（8px，与 lib/right-panel-split.ts 的 SPLIT_DIVIDER_WIDTH 同值）。
+ * ------------------------------------------------------------------------- */
+:root {
+  --split-gutter: var(--s2);
+}
+.split-pane-grid {
+  /* 三列：左 Pane | 分隔条 | 右 Pane。比例由 `--split-pane-columns` 带进来。 */
+  grid-template-columns: var(--split-pane-columns);
+  min-width: 0;
+  min-height: 0;
+}
+.split-pane {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+/* 焦点那一侧给一道强调色内描边 —— 分屏里「哪一格对应顶栏的选中 tab」不能只靠猜。
+   零几何：inset box-shadow 不占布局，切换不会让两个 Pane 各抖一下。 */
+.split-pane.is-focused {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+/* 分隔条：与右栏外沿那条 `.panel-resize-handle`（globals.css:1792）同一套语汇 ——
+   静止透明，hover / 键盘聚焦 / 拖拽中才亮起 2px 竖线。没有 `position: relative` 之外的
+   几何改动，命中区仍然是那条 12px 宽的透明带（与外沿把手一致）。 */
+.split-pane-divider {
+  position: relative;
+  z-index: 220;
+  width: var(--split-gutter);
+  flex: 0 0 var(--split-gutter);
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.split-pane-divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: transparent;
+  transition: background var(--motion-fast) ease;
+}
+.split-pane-divider:hover::after,
+.split-pane-divider:focus-visible::after,
+.split-pane-divider.is-resizing::after {
+  background: color-mix(in srgb, var(--text-muted) 70%, var(--border));
+}
+/* 拖出落点：`.pw-drop` 给的是「一整块虚线落区」的排版（grid + place-items + padding），
+   在半屏宽的 Pane 里需要铺满并压住内容，所以只调对齐，不重画边框/底色
+   （那两项仍来自 board.css 的 `.pw-drop`，主题换了它自己跟着换）。 */
+.split-pane-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
 
-/* fork:phone-push —— 「机器人管理」二级弹窗（2026-10-03 对照 ZCode 的 BotsDialog：
- * 左列表右详情）。覆盖层 fixed / 居中 / 压过设置弹窗的层级与 .fork-pwa-import-scrim
- * 同构（那里注释写明这组值是照抄来的），不复用同名——它属于插件页的语义。
- * `.fork-linkbtn` 是渠道入口卡里「去 Bot Channels 配置」的文字链形态（ZCode 卡片里
- * 就是一行加粗文字，不是描边按钮）；button 的 UA 归零沿用本文件既有做法。 */
+/* ── 以下来自 main（合并前主仓独有） ───────────────────────────── */
+
 .fork-bot-dialog-scrim {
   position: fixed;
   inset: 0;
@@ -3265,7 +3285,3 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
 .fork-linkbtn:hover { color: var(--accent-text); }
-
-@media (max-width: 640px) {
-  .fork-bot-dialog-body { grid-template-columns: 1fr; }
-}

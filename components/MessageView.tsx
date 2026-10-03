@@ -30,6 +30,11 @@ import type { WrittenFile } from "@/lib/turn-written-files";
 import type { SkillActivation } from "@/lib/skill-usage";
 import { skillExpansionToCommand } from "@/lib/slash-display";
 import type { SubagentToolDetails } from "@/lib/subagent-extension";
+// fork:pr52-plan-tools —— 计划文档卡：工具结果里的 details 带绝对路径，卡片把它交给宿主既有的
+// 文件打开通道（AppShell.handleOpenFile → openFileTab → FileViewer），不自写预览器。
+import { isPlanToolDetails } from "@/lib/plan-documents";
+import { PlanDocumentCard } from "./fork/PlanDocumentCard";
+import { PlanReferenceList } from "./fork/PlanReferenceList";
 import type {
   AgentMessage,
   AgentUsage,
@@ -601,6 +606,15 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
 
       </div>
 
+      {/* fork:pr52-plan-tools —— 用户在提问里粘了一个计划路径（「按这个改：.pi/plans/x.md」）。
+          识别是纯文本扫描（只认 .pi/plans/*.md，相对路径靠 cwd 解析），能不能打开仍由服务端
+          的 allowed roots 说了算。认不出来就整块不渲染。 */}
+      <PlanReferenceList
+        text={content}
+        cwd={cwd}
+        onOpenFile={onOpenFile ? (filePath) => onOpenFile(filePath) : undefined}
+      />
+
       {/* fork:design-components —— 消息动作行换成画板 10 B 的 `.pw-msg-acts`：
           整行右对齐，成员一律 `.pw-btn sm` + `.pw-ico` + `i[data-ico]`。
           hover/焦点显隐仍由 app/fork-ui.css 承担（画板的 `.pw-msg-user:hover` 规则
@@ -1059,7 +1073,7 @@ function BlockView({ block, searchTarget, toolResults, isStreaming, streamingDur
     const toggleId = tc.toolCallId || fallbackKey;
     const isExpanded = expandedToolIds ? expandedToolIds.has(toggleId) : undefined;
     const handleToggle = onToggleTool ? () => onToggleTool(toggleId) : undefined;
-    return <ToolCallBlock block={tc} result={result} duration={duration} onOpenSession={onOpenSession} expanded={isExpanded} onToggle={handleToggle} reveal={searchTarget} />;
+    return <ToolCallBlock block={tc} result={result} duration={duration} onOpenFile={onOpenFile} onOpenSession={onOpenSession} expanded={isExpanded} onToggle={handleToggle} reveal={searchTarget} />;
   }
   return null;
 }
@@ -1286,7 +1300,7 @@ function ToolCallIcon({ toolName }: { toolName: string }) {
 
 /** Exported for `components/ProcessGroup.tsx`, which reuses the exact same
  *  tool-call surface so the grouped and flat renderers cannot drift apart. */
-export function ToolCallBlock({ block, result, duration, onOpenSession, expanded: controlledExpanded, onToggle, reveal }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number; onOpenSession?: (sessionId: string) => void; expanded?: boolean; onToggle?: () => void; /** fork:zc-02 — 被查找/搜索命中时强制展开（不改用户的展开集合）。 */ reveal?: boolean }) {
+export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSession, expanded: controlledExpanded, onToggle, reveal }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number; onOpenFile?: (filePath: string) => void; onOpenSession?: (sessionId: string) => void; expanded?: boolean; onToggle?: () => void; /** fork:zc-02 — 被查找/搜索命中时强制展开（不改用户的展开集合）。 */ reveal?: boolean }) {
   const { t } = useI18n();
   const [localExpanded, setLocalExpanded] = useState(false);
   const isControlled = controlledExpanded !== undefined && onToggle !== undefined;
@@ -1322,6 +1336,9 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
   const resultIsEmpty = resultText === null ? false : (resultText.trim() === "(no output)" || resultText.trim() === "");
   const isError = result?.isError ?? false;
   const subagent = isSubagentToolDetails(result?.details) ? result.details : null;
+  // fork:pr52-plan-tools —— 计划文档卡常驻在工具卡头下面（收起态也在）：计划落盘之后，
+  // 那个路径必须一眼就能点开，而不是等人展开卡去找一行输出。失败的那次不画卡。
+  const plan = !result?.isError && isPlanToolDetails(result?.details) ? result.details : null;
   const showExpandedSurface = expanded || isError;
 
   return (
@@ -1433,6 +1450,23 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
           </button>
         )}
       </div>
+
+      {/* fork:pr52-plan-tools —— 计划文档卡（画板 54 B 的 `.pw-filecard`）。放在参数区之前，
+          所以收起态也看得见；预览复用宿主既有的 FileViewer 打开通道，不自写预览器。 */}
+      {plan && plan.filePath && (
+        <PlanDocumentCard
+          plan={{
+            filePath: plan.filePath,
+            fileName: plan.fileName,
+            relativePath: plan.relativePath,
+            title: plan.title,
+            bytes: plan.bytes,
+            updatedAt: plan.updatedAt,
+            absolute: true,
+          }}
+          onOpenFile={onOpenFile ? (filePath) => onOpenFile(filePath) : undefined}
+        />
+      )}
 
       {/* fork:zm-01 — 参数区：grid wrapper 常驻，行高 0fr↔1fr；正文在收起过渡结束
           后才卸载，折叠态的 DOM 里仍然没有流式参数文本。 */}

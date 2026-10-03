@@ -36,10 +36,8 @@ export function SessionActionsMenu({
   onCopyProjectPath,
   onCopySessionFilePath,
   onCopySessionId,
-  onOpenSettings,
   onViewSystemPrompt,
   onViewTools,
-  onViewTrace,
   mobile = false,
 }: {
   session: SessionActionsTarget | null;
@@ -52,11 +50,9 @@ export function SessionActionsMenu({
   onCopyProjectPath: () => void;
   onCopySessionFilePath: () => void;
   onCopySessionId: () => void;
-  onOpenSettings: () => void;
   /** 打开「系统提示词」「工具定义」两个只读面板，trigger 是定位锚点（⋯ 按钮）。 */
   onViewSystemPrompt: (trigger: HTMLElement) => void;
   onViewTools: (trigger: HTMLElement) => void;
-  onViewTrace: () => void;
   mobile?: boolean;
 }) {
   const { t } = useI18n();
@@ -121,11 +117,6 @@ export function SessionActionsMenu({
         icon: <span className="pw-ico"><i data-ico="hash" data-size="14" aria-hidden="true"></i></span>,
         onSelect: () => { onCopySessionId(); },
       },
-      {
-        label: t("session.openSettings"),
-        icon: <span className="pw-ico"><i data-ico="settings" data-size="14" aria-hidden="true"></i></span>,
-        onSelect: onOpenSettings,
-      },
       { type: "separator" },
       {
         // fork:trace-menu-2026-10-02 —— 这两枚原来常驻顶栏，现在从 ⋯ 进（低频只读诊断）。
@@ -137,11 +128,6 @@ export function SessionActionsMenu({
         label: t("tools.title"),
         icon: <span className="pw-ico"><i data-ico="wrench" data-size="14" aria-hidden="true"></i></span>,
         onSelect: () => { if (buttonRef.current) onViewTools(buttonRef.current); },
-      },
-      {
-        label: t("trace.title"),
-        icon: <span className="pw-ico"><i data-ico="activity" data-size="14" aria-hidden="true"></i></span>,
-        onSelect: onViewTrace,
       },
       { type: "separator" },
       {
@@ -157,7 +143,7 @@ export function SessionActionsMenu({
     ];
 
     openMenu(Math.max(8, rect.right - 200), rect.bottom, entries);
-  }, [archive, flags, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onOpenSettings, onRename, onReveal, onViewSystemPrompt, onViewTools, onViewTrace, openMenu, pin, session, t]);
+  }, [archive, flags, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onRename, onReveal, onViewSystemPrompt, onViewTools, openMenu, pin, session, t]);
 
   if (!session) return null;
 
