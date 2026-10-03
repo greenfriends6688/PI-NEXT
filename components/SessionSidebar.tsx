@@ -1510,18 +1510,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     applySessionFlags(sortedProjectSessions(projectKey), sessionFlags)
   ), [sortedProjectSessions, sessionFlags]);
 
-  /* fork:mobile-drawer-2026-10-03 —— 「最近」分栏的数据：跨工作区平铺，
-     按最后修改时间倒序，置顶在前、归档剔除（都走 applySessionFlags，与项目树
-     同一份规则，不在这里另写一套）。深度 0，行尾补一枚工作区标签 —— 平铺列表
-     没有父行说明它属于哪个项目，那是这条列表唯一的归属线索。
-     不套用「从列表中移除」的项目偏好：那是项目树的显示偏好，最近列表按时间
-     讲的是另一件事（用户在手机上先要的是「接着刚才那条继续」）。 */
-  const RECENT_LIMIT = 30;
-  const recentSessions = useMemo(() => applySessionFlags(
-    [...allSessions].sort((a, b) => b.modified.localeCompare(a.modified)),
-    sessionFlags,
-  ).slice(0, RECENT_LIMIT), [allSessions, sessionFlags]);
-
   const selectedProject = projectFor(selectedCwd);
   const projectChoices = useMemo(() => {
     const recent = getRecentProjects(allSessions);
@@ -1725,18 +1713,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       </div>
     );
   };
-  /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。
-   *  fork:mobile-drawer-2026-10-03 —— 「最近」分栏复用它，但传 `flat`：
-   *  平铺列表里的行是**顶层**的，缩进、竖线、corner-down-right 全都不该有。
-   */
-  const renderChildRow = (session: SessionInfo, trailing?: string, flat = false) => (
-    <div style={flat
-      ? { flex: 1, minWidth: 0 }
-      : { flex: 1, minWidth: 0, marginLeft: 8, paddingLeft: 6, borderLeft: "1px solid var(--border-faint)" }}>
+  /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。 */
+  const renderChildRow = (session: SessionInfo) => (
+    <div style={{ flex: 1, minWidth: 0, marginLeft: 8, paddingLeft: 6, borderLeft: "1px solid var(--border-faint)" }}>
       <SessionItem
         session={session}
-        depth={flat ? 0 : 1}
-        trailing={trailing}
+        depth={1}
         isSelected={selectedSessionId === session.id}
         isRunning={runningSessionIds.has(session.id)}
         isAwaiting={awaitingSessionIds.has(session.id)}
@@ -1844,17 +1826,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </button>
       </div>
 
-      {/* fork:design-components —— 最近 / 项目 / 聊天 三格 = 画板 02 的 .pw-seg。 */}
+      {/* fork:design-components —— 项目 / 聊天 左右切换 = 画板 02 的 .pw-seg。 */}
       <div className="pw-seg" role="tablist" aria-label={t("sidebar.paneSwitch")}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={sidebarPane === "recent"}
-          className={sidebarPane === "recent" ? "is-on" : undefined}
-          onClick={() => selectPane("recent")}
-        >
-          {t("sidebar.recent")}
-        </button>
         <button
           type="button"
           role="tab"
@@ -1981,20 +1954,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           {/* fork:zn-20 — 两段各自只在被选中时渲染：项目段（分区头 + 项目树 + 分组）
               与聊天段（下面那个 IIFE）互斥。不用 hidden 保活：两段加起来可能上百行，
               留一半在 DOM 里只为了切换快 20ms 不值得。 */}
-          {sidebarPane === "recent" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", paddingTop: "var(--s1)" }}>
-              {!loading && !error && recentSessions.length === 0 && (
-                <div style={{ padding: "var(--s3) var(--s2)", color: "var(--text-dim)", fontSize: TEXT.sm }}>
-                  {t("sidebar.recentEmpty")}
-                </div>
-              )}
-              {recentSessions.map((session) => (
-                <div key={session.id} style={{ display: "flex" }}>
-                  {renderChildRow(session, projectDisplayName(session.projectRoot ?? session.cwd, projectPrefs), true)}
-                </div>
-              ))}
-            </div>
-          )}
           {sidebarPane === "projects" && (
           <>
           {/* fork:design-components —— 分区头 = 画板 01/02 的 .pw-group-title：
@@ -2527,8 +2486,6 @@ function SessionItem({
   onRenamed,
   onDeleted,
   depth = 0,
-  /** fork:mobile-drawer-2026-10-03 —— 行尾的工作区标签（只有「最近」分栏传）。 */
-  trailing,
   hasChildren = false,
   collapsed = false,
   onToggleCollapse,
@@ -2544,7 +2501,6 @@ function SessionItem({
   onRenamed?: () => void;
   onDeleted?: (id: string) => void;
   depth?: number;
-  trailing?: string;
   hasChildren?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -2784,16 +2740,6 @@ function SessionItem({
               ) : null}
             </span>
           </span>
-          {/* fork:mobile-drawer-2026-10-03 —— 工作区标签。项目树里父行已经说了归属，
-              所以只在「最近」这一栏出现（不是重复信息）；用既有 .pw-badge，不新增类。 */}
-          {trailing && (
-            /* 宽度用 em（相对单位，check-style-literals 放行）：行宽在 390 抽屉里只有
-               255px，标签给 5.5em ≈ 66px 够放下「pi-codex」这种，剩下让既有的
-               .fork-pwa-sb-meta 收缩去省略。 */
-            <span className="pw-badge" title={session.projectRoot ?? session.cwd} style={{ flexShrink: 0, maxWidth: "5.5em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {trailing}
-            </span>
-          )}
           {session.isWorktree && session.branch && (
             <span
               title={`Worktree: ${session.cwd}`}

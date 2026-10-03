@@ -107,11 +107,7 @@ body.pw.dark { background: #0f0f13; }
 .pw-side-head .grow { flex: 1; }
 .pw-side-nav { padding: 0 var(--s2) var(--s1); display: grid; gap: var(--space-hair); }
 .pw-seg {
-  /* fork:mobile-drawer-2026-10-03 —— 三格（最近 / 项目 / 聊天）。写死
-     `1fr 1fr` 的话第三格会被挤到第二行去，所以改成 auto-flow 计数式：
-     格子数由内容决定，每格等宽。盒子几何（宽 = 100%、内边距、圆角）一字未动，
-     所以画板 01 的 .pw-seg 对位不受影响。 */
-  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-tight);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-tight);
   margin: var(--s1) var(--s2) var(--s2); padding: var(--space-tight);
   border-radius: var(--radius-4); background: var(--n-surface);
 }

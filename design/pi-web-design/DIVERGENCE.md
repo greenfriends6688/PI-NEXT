@@ -2812,36 +2812,29 @@ className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「�
 - 飞书/Lark 的「中国 / 全球」站点角标照截图保留（`.pw-chip`），i18n key
   `botChannel.regionCN` / `botChannel.regionGlobal`。
 
-## AH · 2026-10-03：侧栏多一格「最近」+ 列表下拉刷新（对照 Pi Remote 的抽屉）
+## AH · 2026-10-03：侧栏列表下拉刷新（对照 Pi Remote 的抽屉）
 
 形态来源是 `pi参考项目/pi-移动端`（Compose Multiplatform）的 `AppDrawer.kt:110-450`：
 它的抽屉是「双按钮 → **常驻搜索框** → 最近 / 工作区 双 Tab → PullToRefreshBox 列表 →
-底部连接状态条」。本节只借两条**不与既有裁定冲突**的，登记如下：
+底部连接状态条」。本节只借一条**不与既有裁定冲突**的，登记如下：
 
-- **`.pw-seg` 从两格变三格**（最近 / 项目 / 聊天）。`board.css` 的 `.pw-seg` 原写死
-  `grid-template-columns: 1fr 1fr`，第三格会被挤到第二行，所以改成
-  `grid-auto-flow: column; grid-auto-columns: 1fr`（格子数由内容决定、每格等宽）。
-  盒子几何（宽 100% / 内边距 / 圆角）一字未动，画板 01 的 `.pw-seg` 对位不受影响。
-  **默认值仍是 `projects`**（`lib/sidebar-pane.ts`），新增的 `recent` 只排在前面。
-  九处画板静态件（01×3 / 02×2 / 30 / 54 / 60）同步加了第三格；画板 02 新增
-  「D · 最近 pane」一帧并把标题改成「四种 pane 状态并排」。
-- **「最近」平铺 + 行尾工作区标签**（画板 02 帧 D）。标签复用既有 `.pw-badge`，
-  **不新增任何类**；只在最近这一栏出现，项目树里父行已经说了归属，不是重复信息。
-  数据走 `applySessionFlags`（置顶在前、归档剔除），与项目树同一份规则。
-  刻意**不**套用「从列表中移除」的项目偏好：那是项目树的显示偏好，最近列表按时间
-  讲的是另一件事（手机上先要的是「接着刚才那条继续」）。
 - **下拉刷新**：容器已有 `overscroll-behavior: contain`，所以只加指示器不抢
   `preventDefault` —— 抢了会与抽屉左滑关闭（`fork:pwa-drawer-gesture`）打架。
   指示器是既有 `loader-circle` + `.pw-m` 那一档，**零新类**；高度是动态量
   （模板字符串），不是写死几何。侧栏本来就有 2.5s 一次的 running 轮询，但它只改
   运行态不重读列表，PC 上新开的会话在手机上只有这一条刷新口。
-- **两条明确不做**：
+- **三条明确不做**：
   1. **常驻搜索框** —— 与第 81 条裁定（"默认收起、点搜索才展开并聚焦"）正面冲突，
      用户已经为此裁定过一次，维持收起。
   2. **底部连接状态条**（`● 已连接 <host>`）—— `.pw-side-foot` 那一行是 5 份画板
      spec + `board-diff.mjs` 的对位锚点，加一行会改 `.pw-side-scroll` 高度，
      按那一行自己的注释就是「拿接线糊弄设计变更」。同一信息在底栏那枚手机钮
      （`data-fork-quick="phone-push"`）后面一屏之内。
+  3. **「最近」第三格** —— 2026-10-03 当天先加后撤（用户裁定不要）。连带撤回的还有
+     `board.css` 里 `.pw-seg` 的 `grid-auto-flow: column`（回到写死的
+     `grid-template-columns: 1fr 1fr`）、画板 02 的「D · 最近 pane」帧、九处画板静态件里
+     的第三格，以及 `SessionItem` 的行尾工作区标签（`.pw-badge`）。`.pw-seg` 因此仍是
+     **两格**：项目 / 聊天，默认值 `projects`（`lib/sidebar-pane.ts`）。
 
 
 ---

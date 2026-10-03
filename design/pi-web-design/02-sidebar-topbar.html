@@ -23,9 +23,9 @@
 
 <!-- ============ 侧栏三态并排 ============ -->
 <section class="pw-frame">
-  <div class="pw-frame-label"><b>侧栏 · 四种 pane 状态并排</b> · 宽 280 · 高 660<span class="grow"></span>A 项目 pane（默认）· B 聊天 pane · C 搜索 · D 最近 pane</div>
+  <div class="pw-frame-label"><b>侧栏 · 三种 pane 状态并排</b> · 宽 280 · 高 660<span class="grow"></span>A 项目 pane · B 聊天 pane · C 搜索</div>
   <div class="pw-frame-body pw-pad">
-    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4);flex-wrap:wrap">
+    <div class="pw-inline" style="align-items:flex-start;gap:var(--s4)">
 
       <!-- A 项目 pane -->
       <div>
@@ -40,7 +40,7 @@
           <div class="pw-side-nav">
             <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
           </div>
-          <div class="pw-seg"><span>最近</span><span class="is-on">项目</span><span>聊天</span></div>
+          <div class="pw-seg"><span class="is-on">项目</span><span>聊天</span></div>
           <div class="pw-side-scroll">
             <div class="pw-group-title"><span class="pw-ico"><i data-ico="chevrons-up-down" data-size="12"></i></span>项目<span class="grow"></span><span class="pw-ico"><i data-ico="filter" data-size="12"></i></span><span class="pw-ico"><i data-ico="plus" data-size="12"></i></span></div>
 
@@ -59,7 +59,7 @@
             </div>
             <div class="pw-session child running"><span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条消息</span></span></div>
             <div class="pw-session child awaiting"><span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span></span></div>
-            <div class="pw-session"><span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span></span></div>
+            <div class="pw-session child"><span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span></span></div>
 
             <div class="pw-group-title" style="padding-top:var(--s2)"><span class="pw-ico"><i data-ico="pin" data-size="12"></i></span>置顶<span class="grow"></span></div>
             <div class="pw-session child"><span class="pw-body"><span class="pw-t">Codex 皮肤 token 台账</span><span class="pw-m">昨天 · 41 条消息</span></span></div>
@@ -89,7 +89,7 @@
           <div class="pw-side-nav">
             <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
           </div>
-          <div class="pw-seg"><span>最近</span><span>项目</span><span class="is-on">聊天</span></div>
+          <div class="pw-seg"><span>项目</span><span class="is-on">聊天</span></div>
           <div class="pw-side-scroll">
             <div class="pw-group-title"><span class="pw-ico"><i data-ico="message-square" data-size="12"></i></span>聊天工作区<span class="grow"></span><span class="pw-ico"><i data-ico="plus" data-size="12"></i></span></div>
 
@@ -121,33 +121,6 @@
           </div>
           <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
         </aside>
-      </div>
-
-      <!-- D 最近 pane（fork:mobile-drawer-2026-10-03） -->
-      <div>
-        <div class="pw-sec-title" style="width:280px">D · 最近 pane（跨工作区平铺）<span class="grow"></span></div>
-        <aside class="pw-side" style="width:280px;height:640px;border:1px solid var(--n-border-subtle);border-radius:var(--radius-6);overflow:hidden">
-          <div class="pw-side-head">
-            <span class="pw-brand"><span class="pw-logo"><img src="../../public/pi-next-logo.png" alt="" style="display:block;width:16px;height:auto"></span><img src="../../public/pi-next-wordmark.png" alt="PI NEXT" style="display:block;height:10px;width:auto"></span>
-            <span class="grow"></span>
-            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="search"></i></span></button>
-            <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="panel-left"></i></span></button>
-          </div>
-          <div class="pw-side-nav">
-            <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
-          </div>
-          <div class="pw-seg"><span class="is-on">最近</span><span>项目</span><span>聊天</span></div>
-          <div class="pw-side-scroll">
-            <div class="pw-session is-on"><span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条</span></span><span class="pw-badge">pi-codex</span></div>
-            <div class="pw-session running"><span class="pw-body"><span class="pw-t">手机与推送：飞书渠道联调</span><span class="pw-m">12 分钟前 · 8 条</span></span><span class="pw-badge">招标改</span></div>
-            <div class="pw-session"><span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">1 小时前 · 24 条</span></span><span class="pw-badge">pi-codex</span></div>
-            <div class="pw-session"><span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">3 小时前 · 6 条</span></span><span class="pw-badge">探项前端</span></div>
-            <div class="pw-session"><span class="pw-body"><span class="pw-t">未标点的 diff 渲染</span><span class="pw-m">昨天 · 31 条</span></span><span class="pw-badge">pi-codex</span></div>
-            <div class="pw-session awaiting"><span class="pw-body"><span class="pw-t">技能装不上时的排查顺序</span><span class="pw-m">昨天 · 11 条<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span></span><span class="pw-badge">招标改</span></div>
-          </div>
-          <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
-        </aside>
-        <p class="pw-mono pw-dim" style="width:280px;margin-top:var(--s2)">行尾那枚标签是工作区：平铺列表没有项目父行，归属只能落在行内（复用 <span class="pw-mono">.pw-badge</span>，不新造类）。</p>
       </div>
 
       <!-- C 搜索 -->
