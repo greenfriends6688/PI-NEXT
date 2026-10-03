@@ -154,7 +154,6 @@
 | 0059 | [技能/插件批量路由 + 扩展对话框长标题钳位 + 两条 CSS 缺口](./0059-misc-tail-batch-and-chrome.md) | 已实现（单测 20+）。上游 `eceac13` 的路由侧 + `46b5235`(#961/#890) | `app/api/{skills,plugins}/route.ts`、`app/fork-ui.css` | `components/{SkillsConfig,PluginsConfig,ChatInput,ChatWindow,SettingsUi}.tsx` |
 | 0060 | [设置页压缩预算与思考档 token 预算](./0060-context-and-thinking-budgets.md) | 已实现（单测 40）。**审计勘误**：`compaction.modelOverrides` 是每模型预算覆盖，不是「用哪个模型压缩」 | `lib/context-budget-settings.ts`、`lib/thinking-budget-settings.ts` | `components/SettingsPanel.tsx`、`lib/i18n/messages/*`、`design/pi-web-design/DIVERGENCE.md`（Y/Z 两节） |
 | 0061 | [会话正在跑时也能 fork + SSE backlog 封顶 + 子代理状态四条](./0061-session-and-stream-correctness.md) | 已实现。**保住「fork 后立即销毁 wrapper」不变量**（上游 `19774b8` #1023 改走 `createBranchedSession()`） | — | `lib/rpc-manager.ts`、`lib/subagents.ts`、`lib/session-liveness.ts`、`components/ChatWindow.tsx`（fork 按钮启用条件一行） |
-| 0062 | [Todo / 日程工作区（描述草稿式自动保存 + 周/月日历 + 提醒 + 从 Todo 发起 Agent）](./0062-planning-workspace.md) | 已实现（单测 83 + `npm test` 2890/2890 + `check:design` 0 偏差）。**与本仓既有 `lib/todo-extension.ts` 是两个数据面**，不接线。**明确不做 macOS EventKit 双向同步**。**浏览器端未实测**（本 PR 不跑 dev/build） | `lib/planning-{types,state,store,view,client,calendar,reminders,reminder-scheduler,draft-save,draft-autosave}.ts`、`app/api/planning/**`、`components/fork/Planning*.tsx` | `components/AppShell.tsx`（3 处接线，顶栏一枚入口按钮，**刻意不进折叠导轨**：画板 02 的 4 枚断言）、`app/fork-ui.css`（`.fork-plan-*`）、`lib/i18n/messages/*`（62 键 ×3） |
 
 > **这批与前两批的三点差别**：
 > 1. 0020–0046 多数只在索引表里留了行，**没有独立 `.md`**；本批按约定 1（一个补丁 = 一个意图、
