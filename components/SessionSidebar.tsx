@@ -750,6 +750,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [listScrollTop, setListScrollTop] = useState(0);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const listScrollRafRef = useRef<number | null>(null);
+
   /* fork:pwa-drawer-gesture —— 手机抽屉的两条手势（点遮罩关闭由 AppShell 的遮罩
      onClick 负责，这里补另两条）。抽屉壳在 AppShell 里，但这一列由本组件渲染、
      `onToggleSidebar` 由 AppShell 递进来，所以监听挂在 `#session-sidebar` 上：
@@ -880,6 +881,48 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       if (loadId === sessionLoadIdRef.current) setLoading(false);
     }
   }, []);
+
+  /* fork:mobile-drawer-2026-10-03 —— 列表**下拉刷新**。
+     侧栏本来就有 2.5s 一次的 running 轮询，但它只改运行态、不重读会话列表；
+     在 PC 上开着的会话（新终端、新目录）只有重新拉列表才看得到，而手机上没有
+     别的刷新口（搜索行是筛选不是刷新）。
+     判定全部在手算里：必须已经在顶部（scrollTop<=0）且方向朝下，否则这是滚动。
+     不调preventDefault —— 容器已有 overscroll-behavior: contain，浏览器自己不会
+     橡皮筋回弹，而抢下默认行为会把手势与抽屉左滑关闭打架。
+     阈值/上限是像素常量（JS 数值，不是样式字面量，不受 check-style-literals 管）。 */
+  const PULL_TRIGGER_PX = 64;
+  const PULL_MAX_PX = 56;
+  const [pullPx, setPullPx] = useState(0);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const pullStartRef = useRef<{ y: number; armed: boolean } | null>(null);
+  const handleListTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    if (pullRefreshing) return;
+    const el = listScrollRef.current;
+    pullStartRef.current = { y: event.touches[0]?.clientY ?? 0, armed: (el?.scrollTop ?? 1) <= 0 };
+    setPullPx(0);
+  }, [pullRefreshing]);
+  const handleListTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    const start = pullStartRef.current;
+    if (!start?.armed || pullRefreshing) return;
+    const dy = (event.touches[0]?.clientY ?? 0) - start.y;
+    if (dy <= 0) {
+      // 回到顶部以内（或改成上滑）就撤销这次下拉 —— 否则松手时仍会触发。
+      start.armed = false;
+      setPullPx(0);
+      return;
+    }
+    // 阻尼：拉得越多越沉，永远到不了阈值上限的无穷大。
+    setPullPx(Math.min(PULL_MAX_PX, dy * 0.5));
+  }, [pullRefreshing]);
+  const handleListTouchEnd = useCallback(() => {
+    const start = pullStartRef.current;
+    pullStartRef.current = null;
+    if (!start?.armed || pullRefreshing) return;
+    setPullPx(0);
+    if (pullPx < PULL_TRIGGER_PX / 2) return;
+    setPullRefreshing(true);
+    void loadSessions(false, true).finally(() => setPullRefreshing(false));
+  }, [loadSessions, pullPx, pullRefreshing]);
 
   const initialLoadDone = useRef(false);
   useEffect(() => {
@@ -1467,6 +1510,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     applySessionFlags(sortedProjectSessions(projectKey), sessionFlags)
   ), [sortedProjectSessions, sessionFlags]);
 
+  /* fork:mobile-drawer-2026-10-03 —— 「最近」分栏的数据：跨工作区平铺，
+     按最后修改时间倒序，置顶在前、归档剔除（都走 applySessionFlags，与项目树
+     同一份规则，不在这里另写一套）。深度 0，行尾补一枚工作区标签 —— 平铺列表
+     没有父行说明它属于哪个项目，那是这条列表唯一的归属线索。
+     不套用「从列表中移除」的项目偏好：那是项目树的显示偏好，最近列表按时间
+     讲的是另一件事（用户在手机上先要的是「接着刚才那条继续」）。 */
+  const RECENT_LIMIT = 30;
+  const recentSessions = useMemo(() => applySessionFlags(
+    [...allSessions].sort((a, b) => b.modified.localeCompare(a.modified)),
+    sessionFlags,
+  ).slice(0, RECENT_LIMIT), [allSessions, sessionFlags]);
+
   const selectedProject = projectFor(selectedCwd);
   const projectChoices = useMemo(() => {
     const recent = getRecentProjects(allSessions);
@@ -1670,12 +1725,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       </div>
     );
   };
-  /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。 */
-  const renderChildRow = (session: SessionInfo) => (
-    <div style={{ flex: 1, minWidth: 0, marginLeft: 8, paddingLeft: 6, borderLeft: "1px solid var(--border-faint)" }}>
+  /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。
+   *  fork:mobile-drawer-2026-10-03 —— 「最近」分栏复用它，但传 `flat`：
+   *  平铺列表里的行是**顶层**的，缩进、竖线、corner-down-right 全都不该有。
+   */
+  const renderChildRow = (session: SessionInfo, trailing?: string, flat = false) => (
+    <div style={flat
+      ? { flex: 1, minWidth: 0 }
+      : { flex: 1, minWidth: 0, marginLeft: 8, paddingLeft: 6, borderLeft: "1px solid var(--border-faint)" }}>
       <SessionItem
         session={session}
-        depth={1}
+        depth={flat ? 0 : 1}
+        trailing={trailing}
         isSelected={selectedSessionId === session.id}
         isRunning={runningSessionIds.has(session.id)}
         isAwaiting={awaitingSessionIds.has(session.id)}
@@ -1783,8 +1844,17 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </button>
       </div>
 
-      {/* fork:design-components —— 项目 / 聊天 左右切换 = 画板 02 的 .pw-seg。 */}
+      {/* fork:design-components —— 最近 / 项目 / 聊天 三格 = 画板 02 的 .pw-seg。 */}
       <div className="pw-seg" role="tablist" aria-label={t("sidebar.paneSwitch")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={sidebarPane === "recent"}
+          className={sidebarPane === "recent" ? "is-on" : undefined}
+          onClick={() => selectPane("recent")}
+        >
+          {t("sidebar.recent")}
+        </button>
         <button
           type="button"
           role="tab"
@@ -1853,8 +1923,38 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         <div
           ref={listScrollRef}
           onScroll={handleListScroll}
+          onTouchStart={handleListTouchStart}
+          onTouchMove={handleListTouchMove}
+          onTouchEnd={handleListTouchEnd}
+          onTouchCancel={handleListTouchEnd}
           style={{ height: "100%", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain" }}
         >
+          {/* fork:mobile-drawer-2026-10-03 —— 下拉指示器：在滚动容器**里面**、
+              列表**上面**的一行，高度跟着手指走。图标是既有那枚 loader-circle
+              （pw-anim-spin 已在用），文案是既有 .pw-m 那一档，不新增任何类。
+              高度是动态量（模板字符串），不是写死的像素几何。 */}
+          {(pullPx > 0 || pullRefreshing) && (
+            <div
+              aria-hidden={!pullRefreshing}
+              role={pullRefreshing ? "status" : undefined}
+              style={{
+                height: `${pullRefreshing ? PULL_MAX_PX : pullPx}px`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "var(--s1)",
+                color: "var(--text-dim)",
+                fontSize: TEXT.sm,
+                overflow: "hidden",
+                transition: pullRefreshing ? undefined : "height 120ms var(--ease)",
+              }}
+            >
+              <span className="pw-ico">
+                <i data-ico="loader-circle" data-size="13" className={pullRefreshing || pullPx >= PULL_TRIGGER_PX / 2 ? "pw-anim-spin" : undefined}></i>
+              </span>
+              <span>{pullRefreshing ? t("sidebar.refreshing") : t("sidebar.pullToRefresh")}</span>
+            </div>
+          )}
           {loading && projectChoices.length === 0 && (
             <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: TEXT.sm }}>
               {t("sidebar.loading")}
@@ -1881,6 +1981,20 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           {/* fork:zn-20 — 两段各自只在被选中时渲染：项目段（分区头 + 项目树 + 分组）
               与聊天段（下面那个 IIFE）互斥。不用 hidden 保活：两段加起来可能上百行，
               留一半在 DOM 里只为了切换快 20ms 不值得。 */}
+          {sidebarPane === "recent" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", paddingTop: "var(--s1)" }}>
+              {!loading && !error && recentSessions.length === 0 && (
+                <div style={{ padding: "var(--s3) var(--s2)", color: "var(--text-dim)", fontSize: TEXT.sm }}>
+                  {t("sidebar.recentEmpty")}
+                </div>
+              )}
+              {recentSessions.map((session) => (
+                <div key={session.id} style={{ display: "flex" }}>
+                  {renderChildRow(session, projectDisplayName(session.projectRoot ?? session.cwd, projectPrefs), true)}
+                </div>
+              ))}
+            </div>
+          )}
           {sidebarPane === "projects" && (
           <>
           {/* fork:design-components —— 分区头 = 画板 01/02 的 .pw-group-title：
@@ -2413,6 +2527,8 @@ function SessionItem({
   onRenamed,
   onDeleted,
   depth = 0,
+  /** fork:mobile-drawer-2026-10-03 —— 行尾的工作区标签（只有「最近」分栏传）。 */
+  trailing,
   hasChildren = false,
   collapsed = false,
   onToggleCollapse,
@@ -2428,6 +2544,7 @@ function SessionItem({
   onRenamed?: () => void;
   onDeleted?: (id: string) => void;
   depth?: number;
+  trailing?: string;
   hasChildren?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -2667,6 +2784,16 @@ function SessionItem({
               ) : null}
             </span>
           </span>
+          {/* fork:mobile-drawer-2026-10-03 —— 工作区标签。项目树里父行已经说了归属，
+              所以只在「最近」这一栏出现（不是重复信息）；用既有 .pw-badge，不新增类。 */}
+          {trailing && (
+            /* 宽度用 em（相对单位，check-style-literals 放行）：行宽在 390 抽屉里只有
+               255px，标签给 5.5em ≈ 66px 够放下「pi-codex」这种，剩下让既有的
+               .fork-pwa-sb-meta 收缩去省略。 */
+            <span className="pw-badge" title={session.projectRoot ?? session.cwd} style={{ flexShrink: 0, maxWidth: "5.5em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {trailing}
+            </span>
+          )}
           {session.isWorktree && session.branch && (
             <span
               title={`Worktree: ${session.cwd}`}

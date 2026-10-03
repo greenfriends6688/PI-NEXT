@@ -33,7 +33,11 @@ test("会话列表不再分时间桶（今天/昨天/本周…），三处调用
 });
 
 test("侧栏列表是滚动的：容器占满父级高度并自己滚（flex 简写在非 flex 父级里失效）", () => {
-  assert.match(code, /ref=\{listScrollRef\}[\s\S]{0,200}?style=\{\{ height: "100%", minHeight: 0, overflowY: "auto"/);
+  // fork:mobile-drawer-2026-03 —— ref 与 style 之间现在还夹着三个 touch 处理器
+  // （下拉刷新），所以两条事实分开断言，而不是用「200 字内必须出现」这种
+  // 会随无关属性一起碎的窗口。
+  assert.match(code, /ref=\{listScrollRef\}/);
+  assert.match(code, /style=\{\{ height: "100%", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain"/);
   assert.doesNotMatch(code, /flex: "1 1 auto", overflowY: "auto", minHeight: 80/);
 });
 
