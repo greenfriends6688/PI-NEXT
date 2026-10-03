@@ -6,6 +6,9 @@ export const SETTINGS_SECTION_VALUES = [
   "plugins",
   // fork:mcp-section — a global section added by this fork.
   "mcp",
+  // fork:proma-43-automation — 定时任务（全局，与项目无关）。位置沿用 1ed2708a
+  // 删掉的那个 cron 分节：mcp 之后、usage 之前。
+  "automation",
   // fork:zc-04 — local usage stats is a global page too.
   "usage",
   // fork:ui-archive-history — 归档历史（Zeno 设置 → 数据 → 归档）。

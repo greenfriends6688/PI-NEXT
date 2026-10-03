@@ -82,6 +82,18 @@ export function startAutomationScheduler(): boolean {
     runner: getRunner(),
     translate,
     log: (message) => console.log(message),
+    /* 30s 的 tick 不许吊住进程：`instrumentation-node.ts` 里那个 30s tick 是
+       全进程唯一一个长驻定时器（Next 的关闭路径靠 `process.exit()`，Electron 与
+       lan-supervisor 的重启则靠事件循环排空），不 unref 的话它就是「进程退不掉」
+       的头号嫌疑。运行期的 2h 超时 timer 调度器自己已经 unref 了。 */
+    timer: {
+      setInterval: (callback, ms) => {
+        const handle = setInterval(callback, ms);
+        handle.unref?.();
+        return handle;
+      },
+      clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>),
+    },
   });
   scheduler.start();
   registerAutomationScheduler(scheduler);

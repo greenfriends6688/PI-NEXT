@@ -131,3 +131,25 @@ test("set-active clears the backoff pause, and reset-failures zeroes the counter
 
   await POST(post({ action: "delete", id: automation.id }));
 });
+
+// fork:proma-43-automation —— 接线。两个接线点都「错了也不报错」：调度器没起，
+// 面板进得去但到点不触发；面板没挂，调度器跑起来也没人看得到。所以钉住两处。
+test("the scheduler starts from node instrumentation and the panel is reachable", async () => {
+  const { readFile } = await import("node:fs/promises");
+  // 先剔掉注释：把调用行注释掉也算「文本还在」，那样这条断言会变绿。
+  const code = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  const instrumentation = code(await readFile(new URL("../../../instrumentation-node.ts", import.meta.url), "utf8"));
+  // 必须在 register() 的异步体里 await import，不能是模块顶层（构建期会被求值）。
+  assert.match(
+    instrumentation,
+    /registerNodeInstrumentation[\s\S]*await import\("@\/lib\/automation-runtime"\)[\s\S]*\n\s*startAutomationScheduler\(\);/,
+  );
+
+  const panel = code(await readFile(new URL("../../../components/SettingsPanel.tsx", import.meta.url), "utf8"));
+  assert.match(panel, /sectionHost\("automation", <AutomationPanel cwd=\{cwd \?\? ""\} \/>\)/);
+  assert.match(panel, /\{ id: "automation", label: t\("automation\.title"\), requiresProject: false \}/);
+
+  const nav = code(await readFile(new URL("../../../lib/settings-navigation.ts", import.meta.url), "utf8"));
+  assert.match(nav, /SETTINGS_SECTION_VALUES = \[[\s\S]*"automation",/);
+});

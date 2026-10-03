@@ -28,6 +28,8 @@ import {
 } from "@/lib/title-settings";
 import { ModelsConfig } from "./ModelsConfig";
 import { McpConfig } from "./fork/McpConfig";
+// fork:proma-43-automation — 定时任务面板（embedded 形态，组件自带页框）。
+import { AutomationPanel } from "./fork/AutomationPanel";
 // fork:zc-03 — new sections rendered by this panel.
 import { UsageStatsPanel } from "./fork/UsageStatsPanel";
 // fork:phone-push — 手机配对 + IM 推送，合成一个分节（机器级，不依赖项目）。
@@ -123,6 +125,7 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   agents: "bot",
   plugins: "blocks",
   mcp: "server",
+  automation: "calendar-clock",
   usage: "chart-column",
   archived: "archive",
   import: "import",
@@ -1009,6 +1012,9 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
     { id: "agents", label: t("common.agents"), requiresProject: true },
     { id: "plugins", label: t("common.plugins"), requiresProject: true },
     { id: "mcp", label: t("mcp.sectionTitle"), requiresProject: false },
+    // fork:proma-43-automation —— 全局页，与项目无关。面板把 cwd 只当**新建任务的
+    // 初值**，每条任务自己的 cwd 在编辑器里填，所以没有项目时传空串也能用。
+    { id: "automation", label: t("automation.title"), requiresProject: false },
     // fork:zc-03 — global sections.
     { id: "usage", label: t("usage.title"), requiresProject: false },
     // fork:ui-archive-history
@@ -1156,6 +1162,9 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
             {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
             {/* fork:mcp-section — global pages, no project needed. */}
             {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+            {/* fork:proma-43-automation — 定时任务。全局页：cwd 只决定新建任务时的
+                初值，每条任务自己的 cwd 在面板里填，所以没有项目也进得来。 */}
+            {sectionHost("automation", <AutomationPanel cwd={cwd ?? ""} />)}
             {/* fork:zc-03 — usage stats. */}
             {sectionHost("usage", <UsageStatsPanel />)}
             {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}

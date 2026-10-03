@@ -12,6 +12,14 @@ export async function registerNodeInstrumentation(): Promise<void> {
   const { configureHttpDispatcher } = await import("@/lib/http-dispatcher");
   configureHttpDispatcher();
 
+  /* fork:proma-43-automation —— 定时任务调度器。
+     必须放在这个**异步体内**：Next 在这里 await 完才放行第一个请求，而 30s 的
+     tick 只需要「进程活着」就会自己跑；放模块顶层则会在构建期被求值。
+     内部自带 try/catch 与 `NEXT_RUNTIME` 闸（Edge 编译会被静态消掉），起不来
+     只把原因打进日志 —— 没有定时任务时 Pi Web 完全能用。 */
+  const { startAutomationScheduler } = await import("@/lib/automation-runtime");
+  startAutomationScheduler();
+
   // 2026-09-06 root-cause fix for the recurring "zombie node, 502" outages:
   // on SIGINT/SIGTERM Next 16 (production) runs server.close() and waits for
   // ALL connections to end before process.exit — with no timeout. Our SSE
