@@ -3477,27 +3477,6 @@ export function AppShell() {
           {gitGraphOpen ? renderTabContent(GIT_GRAPH_TAB_ID, true) : null}
           {traceOpen ? renderTabContent(TRACE_TAB_ID, true) : null}
 
-          {activeFileTabId === GIT_GRAPH_TAB_ID && gitGraphOpen ? (
-            // fork:git-graph-tab — 点提交里的文件直接开 diff 视图（FileViewer 已支持 modeHint）。
-            <GitGraphTab
-              cwd={activeCwd ?? ""}
-              onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, { modeHint: "diff" })}
-            />
-          ) : null}
-          {traceOpen ? (
-            // fork:trace-pane — 单例「调用轨迹」tab。常驻挂载（hidden 而非卸载）：
-            // 折叠状态与搜索查询不因切 tab 丢失。
-            <div hidden={activeFileTabId !== TRACE_TAB_ID} style={{ width: "100%", height: "100%" }}>
-              {/* fork:trace-frame —— 内容就是「完整历史」那一页（pi 自己导出的会话页），
-                  装进右栏这个单例 tab，页头另有刷新与全屏两枚钮。 */}
-              <TraceFrame
-                key={selectedSession?.id ?? "no-session"}
-                sessionId={selectedSession?.id ?? ""}
-                title={selectedSession?.name ?? topBarSessionTitle}
-                active={activeFileTabId === TRACE_TAB_ID}
-              />
-            </div>
-          ) : null}
           {fileTabs.length === 0
             && !terminalTabs.some((tab) => tab.id === activeFileTabId)
             && !browserTabs.some((tab) => tab.id === activeFileTabId)

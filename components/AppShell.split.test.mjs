@@ -63,3 +63,28 @@ test("the split-pane skeleton stays in fork-ui.css and adds no new .pw-* class",
   const splitBlock = css.slice(css.indexOf("fork:pr40-split"));
   assert.doesNotMatch(splitBlock, /^\.pw-/m, "the split block must not define a new .pw-* class");
 });
+test("每个 tab 渲染器在 AppShell 里只出现一次（2026-10-03 用户截图：两个调用轨迹）", () => {
+  /*
+   * PR-40 把六种 tab 的渲染从 inline 搬进 `renderTabContent()`。每搬一种就有一次
+   * 「旧的忘了删」的机会 —— 而两处 JSX 都合法，tsc 不报、单测不报，**只有真渲染
+   * 出来才看得见**。已经出过三次：
+   *   · `<FileViewer>`   —— 同一文件 tab 渲染两遍，两个实例抢同一个 key
+   *   · `<TraceFrame>`   —— 用户截图里的「两个调用轨迹」
+   *   · `<GitGraphTab>`  —— 顺手数出来的，打开图谱也会有两个
+   *
+   * 所以这里改成按渲染器计数：`renderTabContent` 是唯一入口，别处不许再出现。
+   */
+  for (const component of [
+    "TraceFrame",
+    "GitGraphTab",
+    "BrowserPanel",
+    "TerminalPanel",
+    "ExplorationPane",
+    "FileViewer",
+  ]) {
+    const count = source.match(new RegExp(`<${component}[\\s/>]`, "g"))?.length ?? 0;
+    assert.equal(count, 1, `<${component}> 应只在 renderTabContent 里出现一次，实际 ${count} 次`);
+  }
+  // 反面：`ChangesPanel` 已按用户裁定整块删除，不该被谁引回来。
+  assert.doesNotMatch(source, /<ChangesPanel/);
+});
