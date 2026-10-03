@@ -26,10 +26,14 @@ test("the top bar title is the board's .pw-tb-title, not a hand-styled button", 
   assert.match(boardCss, /\.pw-topbar \.pw-tb-title span \{ overflow: hidden; text-overflow: ellipsis/);
   // fork:no-recent-sessions —— 标题不再是「最近会话」下拉的触发钮（那一档已撤），
   // 也不再是任何交互元素：纯文本标题，点它什么都不发生。
+  // fork:mobile-tb-subtitle-2026-10-03 —— 手机多一行副行（`.pw-tb-title-sub`），
+  // 于是 title 与 className 都变成表达式。这里钉的仍是原来那三件事：
+  // 类名是 `.pw-tb-title`、桌面前缀那枚淡色 panel-left、标题本体是一个 span。
   assert.match(
     source,
-    /<div\n  title=\{topBarSessionTitle\}\n  className="pw-tb-title"\n>\s*\{!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"><\/i><\/span>\}\s*<span>\{topBarSessionTitle\}<\/span>\s*<\/div>/,
+    /<div\n  title=\{subtitle \? `\$\{topBarSessionTitle\} · \$\{subtitle\}` : topBarSessionTitle\}\n  className=\{`pw-tb-title\$\{subtitle \? " is-stacked" : ""\}`\}\n>\s*\{!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"><\/i><\/span>\}\s*<span>\{topBarSessionTitle\}<\/span>/,
   );
+  assert.match(source, /\{subtitle && <span className="pw-tb-title-sub">\{subtitle\}<\/span>\}/);
   assert.doesNotMatch(source, /activeTopPanel === "sessions"/);
   assert.doesNotMatch(source, /sidebar\.recentSessions/);
   // The title is no longer a bare <button> carrying its own box.
@@ -72,10 +76,12 @@ test("the top bar action buttons take their size from the board classes", () => 
   // fork:trace-menu-2026-10-02 —— 「系统提示词」「工具定义」收进 ⋯ 菜单后，顶栏少两枚。
   assert.equal(source.match(/className=\{mobile \? "pw-touch" : "pw-iconbtn"\}/g)?.length, 4);
   assert.equal(source.match(/className="pw-iconbtn"/g)?.length, 3);
-  // 4 = 面板头行两枚「更多控件」+ 右栏那枚「新建浏览器标签」（原来自绘
+  // 3 = 面板头行两枚「更多控件」+ 右栏那枚「新建浏览器标签」（原来自绘
   // `.file-viewer-icon-button` 26px，比同排其余钮大一圈，已换成画板 .pw-iconbtn.sm）
   // + fork:phone-push 侧栏底栏那枚手机钮（2026-10-03 用户要的位置：版本徽章左边）。
-  assert.equal(source.match(/className="pw-iconbtn sm"/g)?.length, 4);
+  // fork:mobile-toolbar-slim-2026-10-03 —— 窄屏顶栏那枚「更多控件」⋯（`pw-iconbtn sm`）
+  // 随覆盖层一起删除，所以这里从 4 处变 3 处。
+  assert.equal(source.match(/className="pw-iconbtn sm"/g)?.length, 3);
 });
 
 test("the empty chat placeholder is the board's .pw-empty frame", () => {

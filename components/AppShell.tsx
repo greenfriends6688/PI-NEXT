@@ -59,6 +59,7 @@ import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, hasSessionBranches } from "./BranchNavigator";
 // fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
 import { BranchChip, McpStatusButton, PluginStatusButton } from "./TopBarPopovers";
+import { MobileActionPanel } from "./fork/MobileActionPanel";
 // fix:new-session-pick-dir / topbar-chip-clickable —— 工作区芯片复用输入框上方那枚
 // `.pw-chip`（项目列表 + 打开文件夹）。NewSessionTargets 类型来自 ProjectChip。
 import type { NewSessionTargets } from "./fork/ProjectChip";
@@ -72,7 +73,7 @@ import { browserTabLabel, BROWSER_TABS_KEY, newBrowserTab, restoreBrowserTabs, t
 import { useTheme } from "@/hooks/useTheme";
 import { pickDirectory } from "@/lib/pick-directory";
 import { useI18n } from "@/hooks/useI18n";
-import { useIsMobile, useIsNarrowMobile, useIsCompact } from "@/hooks/useIsMobile";
+import { useIsMobile, useIsCompact } from "@/hooks/useIsMobile";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 // fix:field-focus-modality —— 输入模态标记（焦点环只在键盘焦点时出现，规范 §1.4）。
 import { useFocusModality } from "@/hooks/useFocusModality";
@@ -84,6 +85,8 @@ import { useAudio } from "@/hooks/useAudio";
 import { copyText } from "@/lib/clipboard";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { getFileName, joinFilePath, sameFilePath } from "@/lib/file-paths";
+// fork:mobile-tb-subtitle —— 副行里的目录名与项目行同一个规则（lib/project-prefs.ts）。
+import { pathBasename } from "@/lib/project-prefs";
 import { getFileExt } from "@/lib/file-types";
 import { buildAtMentionText, buildFileAtMentionsText } from "@/lib/file-fuzzy";
 import {
@@ -190,7 +193,6 @@ export function AppShell() {
   const { locale, t: translate } = useI18n();
   const isMobile = useIsMobile();
   const isCompact = useIsCompact();
-  const isNarrowMobile = useIsNarrowMobile();
   useViewportHeight();
   // fix:field-focus-modality —— 全局输入模态标记（样式层据此决定字段要不要画焦点框）。
   useFocusModality();
@@ -390,7 +392,6 @@ export function AppShell() {
   // The grid tracks never swap. This flag only changes which persistent
   // surface occupies the main region and the secondary workspace region.
   const [workspaceSwapped, setWorkspaceSwapped] = useState(false);
-  const [mobileToolbarMoreOpen, setMobileToolbarMoreOpen] = useState(false);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
   const rightPanelWidthRef = useRef(RIGHT_PANEL_FALLBACK_WIDTH);
@@ -580,22 +581,19 @@ export function AppShell() {
   const topPanelAnchorRef = useRef<HTMLElement | null>(null);
   const toggleTopPanel = useCallback((
     panel: "agents" | "branches" | "system" | "tools",
-    keepMobileToolbarOpen = false,
     trigger?: HTMLElement | null,
   ) => {
     if (isMobile) setSidebarOpen(false);
     if (trigger !== undefined) topPanelAnchorRef.current = trigger;
     setActiveTopPanel((cur) => cur === panel ? null : panel);
-    if (isMobile && isNarrowMobile && keepMobileToolbarOpen) setMobileToolbarMoreOpen(true);
-  }, [isMobile, isNarrowMobile]);
+  }, [isMobile]);
 
   const handleSystemInfoToggle = useCallback((
     panel: "system" | "tools",
-    keepMobileToolbarOpen = false,
     trigger?: HTMLElement | null,
   ) => {
     const opening = activeTopPanel !== panel;
-    toggleTopPanel(panel, keepMobileToolbarOpen, trigger);
+    toggleTopPanel(panel, trigger);
     if (!opening || systemInfoLoading) return;
 
     const load = systemInfoLoaderRef.current;
@@ -619,28 +617,19 @@ export function AppShell() {
   // 把 `/session` 之类的入口变成“展开那块面板”，不再切顶栏浮层。
   const openSessionStatsPanel = useCallback(() => {
     if (isMobile) setSidebarOpen(false);
-    setMobileToolbarMoreOpen(false);
   }, [isMobile]);
 
   const handleSidebarToggle = useCallback(() => {
     if (isMobile) {
       setActiveTopPanel(null);
-      setMobileToolbarMoreOpen(false);
     }
     setSidebarOpen((open) => !open);
   }, [isMobile]);
-
-  const handleMobileToolbarMoreToggle = useCallback(() => {
-    setSidebarOpen(false);
-    setActiveTopPanel(null);
-    setMobileToolbarMoreOpen((open) => !open);
-  }, []);
 
   const handleRightPanelToggle = useCallback(() => {
     if (isMobile) {
       setSidebarOpen(false);
       setActiveTopPanel(null);
-      setMobileToolbarMoreOpen(false);
     }
     setRightPanelOpen((open) => !open);
   }, [isMobile]);
@@ -649,33 +638,6 @@ export function AppShell() {
     if (isMobile) return;
     setWorkspaceSwapped((swapped) => !swapped);
   }, [isMobile]);
-
-  useEffect(() => {
-    if (!mobileToolbarMoreOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const toolbar = mobileToolbarRef.current;
-      if (toolbar && event.composedPath().includes(toolbar)) return;
-      setMobileToolbarMoreOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      setMobileToolbarMoreOpen(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [mobileToolbarMoreOpen]);
-
-  useEffect(() => {
-    setMobileToolbarMoreOpen(false);
-  }, [isMobile, isNarrowMobile, selectedSession?.id, newSessionDraftId]);
 
   useEffect(() => {
     if (!activeTopPanel || !topBarRef.current) return;
@@ -2279,8 +2241,55 @@ export function AppShell() {
     );
   };
 
+  /* fork:mobile-toolbar-slim —— 会话动作 ⋯ 菜单抽成一个函数：桌面在工具条末尾、
+     手机在顶栏（它是手机顶栏上**唯一**的动作）。 */
+  const renderSessionActionsMenu = (mobile: boolean) => (
+    /* fork:trace-menu —— 会话动作 ⋯ 菜单（置顶 / 归档 / 复制路径与 ID / 导出）。 */
+    <SessionActionsMenu
+          session={selectedSession
+            ? { id: selectedSession.id, path: selectedSession.path, cwd: selectedSession.cwd, projectRoot: selectedSession.projectRoot }
+            : null}
+          mobile={mobile}
+          onRename={() => { if (selectedSession) setRenamingSessionId(selectedSession.id); }}
+          onMarkUnread={() => { if (selectedSession) markSessionUnread(selectedSession.id); }}
+          onReveal={() => { void revealProjectDir(selectedSession?.projectRoot ?? selectedSession?.cwd ?? ""); }}
+          onCopyProjectPath={() => { void copyWithFeedback(selectedSession?.projectRoot ?? selectedSession?.cwd ?? null); }}
+          onCopySessionFilePath={() => { void copyWithFeedback(selectedSession?.path ?? null); }}
+          onCopySessionId={() => { void copyWithFeedback(selectedSession?.id ?? null); }}
+          // fork:trace-menu-2026-10-02 —— 系统提示词 / 工具定义从顶栏收进这里，
+          // 触发钮（⋯）当定位锚点，面板仍是原来那两个。
+          onViewSystemPrompt={(trigger) => handleSystemInfoToggle("system", trigger)}
+          onViewTools={(trigger) => handleSystemInfoToggle("tools", trigger)}
+          // fork:trace-menu-2026-10-02 —— 导出改成**下载**（attachment）而不是
+          // window.open：桌面端 main.js 的 setWindowOpenHandler 会把 window.open 一律
+          // 交给系统浏览器，在应用里表现就是「点了没反应」。同源 <a download> 在
+          // 浏览器与 Electron 里行为一致。
+          onExportHtml={() => {
+            if (!selectedSession) return;
+            downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export`);
+          }}
+          onExportMarkdown={() => {
+            if (!selectedSession) return;
+            downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`);
+          }}
+        />
+  );
+
   const renderChatToolbarActions = (mobile: boolean) => {
     if (!mobile && !showChat) return null;
+    /* fork:mobile-toolbar-slim（2026-10-03）—— 手机上这条工具条**只留会话动作 ⋯**。
+       历史 / 生成标题 / 子代理 / 分支 / 导出 Markdown 五枚全部搬进输入区的「更多动作」
+       宫格（那一格有文字、拇指够得到），于是窄屏不再需要那条**盖住会话标题**的
+       覆盖层（原来五枚放不下，只能铺一层浮层盖在标题上 —— 那是「同构 + 不新增底部
+       条」这条裁定的必然后果，而不是一个设计）。桌面这条不动：那里一行摆得下，
+       而且顶栏本来就是它最快的入口。 */
+    if (mobile) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-tight)" }}>
+          {renderSessionActionsMenu(true)}
+        </div>
+      );
+    }
     return (
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-tight)" }}>
         {/* fork:ui-14b — 完整历史 / 生成标题 / 导出 / 系统提示词 / 工具定义
@@ -2289,7 +2298,6 @@ export function AppShell() {
           type="button"
           onClick={() => {
             handleViewFullHistory();
-            if (mobile && isNarrowMobile) setMobileToolbarMoreOpen(true);
           }}
           disabled={!selectedSession}
           title={selectedSession ? translate("history.full") : translate("history.unsaved")}
@@ -2304,7 +2312,6 @@ export function AppShell() {
             cursor: selectedSession ? "pointer" : "not-allowed",
             opacity: selectedSession ? 1 : 0.45,
           }}
-          data-mobile-toolbar-action={mobile ? "history" : undefined}
           className={mobile ? "pw-touch" : "pw-iconbtn"}
         >
           <span className="pw-ico"><i data-ico="history" data-size="14"></i></span>
@@ -2339,7 +2346,6 @@ export function AppShell() {
               type="button"
               onClick={() => {
                 void handleAutoName();
-                if (mobile && isNarrowMobile) setMobileToolbarMoreOpen(true);
               }}
               disabled={disabled}
               title={title}
@@ -2353,7 +2359,6 @@ export function AppShell() {
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled && autoNameStatus.kind !== "naming" ? 0.45 : 1,
               }}
-              data-mobile-toolbar-action={mobile ? "name" : undefined}
               className={mobile ? "pw-touch" : "pw-iconbtn"}
             >
               {autoNameStatus.kind === "naming" ? (
@@ -2370,7 +2375,7 @@ export function AppShell() {
         {hasSubagentSessions && (
           <button
             type="button"
-            onClick={(event) => toggleTopPanel("agents", mobile, event.currentTarget)}
+            onClick={(event) => toggleTopPanel("agents", event.currentTarget)}
             title={translate("agentSwitcher.title")}
             aria-label={translate("agentSwitcher.title")}
             aria-pressed={activeTopPanel === "agents"}
@@ -2387,7 +2392,6 @@ export function AppShell() {
               background: activeTopPanel === "agents" ? "var(--bg-selected)" : undefined,
               color: activeTopPanel === "agents" ? "var(--text)" : undefined,
             }}
-            data-mobile-toolbar-action={mobile ? "agents" : undefined}
             className="pw-iconbtn sm"
           >
             <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="bot" data-size="14"></i></span>
@@ -2408,7 +2412,7 @@ export function AppShell() {
         {sessionHasBranches && (mobile ? (
           <button
             type="button"
-            onClick={(event) => toggleTopPanel("branches", true, event.currentTarget)}
+            onClick={(event) => toggleTopPanel("branches", event.currentTarget)}
             title={translate("i18n.branches")}
             aria-label={translate("i18n.branches")}
             aria-pressed={activeTopPanel === "branches"}
@@ -2418,7 +2422,6 @@ export function AppShell() {
               background: activeTopPanel === "branches" ? "var(--bg-selected)" : undefined,
               color: activeTopPanel === "branches" ? "var(--text)" : undefined,
             }}
-            data-mobile-toolbar-action="branches"
             className={mobile ? "pw-touch" : "pw-iconbtn"}
           >
             <span className="pw-ico" style={{ color: branchTree.length > 0 ? "var(--accent)" : undefined }}><i data-ico="git-fork" data-size="14"></i></span>
@@ -2445,7 +2448,6 @@ export function AppShell() {
           onClick={() => {
             if (!selectedSession) return;
             window.open(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`, "_blank", "noopener,noreferrer");
-            if (mobile && isNarrowMobile) setMobileToolbarMoreOpen(true);
           }}
           disabled={!selectedSession}
           title={translate("session.exportMarkdown")}
@@ -2461,36 +2463,6 @@ export function AppShell() {
         >
           <span className="pw-ico"><i data-ico="download" data-size="14"></i></span>
         </button>
-        {/* fork:trace-menu —— 会话动作 ⋯ 菜单（置顶 / 归档 / 复制路径与 ID / 导出）。
-            轨迹入口不在这里：它留在上面那枚「完整历史」图标钮上。 */}
-        <SessionActionsMenu
-          session={selectedSession
-            ? { id: selectedSession.id, path: selectedSession.path, cwd: selectedSession.cwd, projectRoot: selectedSession.projectRoot }
-            : null}
-          mobile={mobile}
-          onRename={() => { if (selectedSession) setRenamingSessionId(selectedSession.id); }}
-          onMarkUnread={() => { if (selectedSession) markSessionUnread(selectedSession.id); }}
-          onReveal={() => { void revealProjectDir(selectedSession?.projectRoot ?? selectedSession?.cwd ?? ""); }}
-          onCopyProjectPath={() => { void copyWithFeedback(selectedSession?.projectRoot ?? selectedSession?.cwd ?? null); }}
-          onCopySessionFilePath={() => { void copyWithFeedback(selectedSession?.path ?? null); }}
-          onCopySessionId={() => { void copyWithFeedback(selectedSession?.id ?? null); }}
-          // fork:trace-menu-2026-10-02 —— 系统提示词 / 工具定义从顶栏收进这里，
-          // 触发钮（⋯）当定位锚点，面板仍是原来那两个。
-          onViewSystemPrompt={(trigger) => handleSystemInfoToggle("system", false, trigger)}
-          onViewTools={(trigger) => handleSystemInfoToggle("tools", false, trigger)}
-          // fork:trace-menu-2026-10-02 —— 导出改成**下载**（attachment）而不是
-          // window.open：桌面端 main.js 的 setWindowOpenHandler 会把 window.open 一律
-          // 交给系统浏览器，在应用里表现就是「点了没反应」。同源 <a download> 在
-          // 浏览器与 Electron 里行为一致。
-          onExportHtml={() => {
-            if (!selectedSession) return;
-            downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export`);
-          }}
-          onExportMarkdown={() => {
-            if (!selectedSession) return;
-            downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`);
-          }}
-        />
       </div>
     );
   };
@@ -2501,15 +2473,117 @@ export function AppShell() {
      （fork:ui-18），那一档已按用户要求撤掉（fork:no-recent-sessions），所以现在是
      纯文本而不是 `<button>`。手机上表头左侧已经有自己的
      panel-left / menu 钮，所以这里不再重复一枚图标。 */
-  const renderSessionTitle = () => (
+  /* fork:mobile-tb-subtitle（2026-10-03）—— 手机顶栏的**会话身份副行**。
+
+     窄屏看不到这个会话在哪个目录里 —— 桌面靠侧栏项目树与输入框上方的 `.pw-ctxbar`，
+     而手机上抽屉是关着的，副行是唯一能一眼说清「我在哪」的地方。上下文百分比同理：
+     环只在浮窗里报数，副行是常驻的那个数字。
+
+     **刻意只放这两项**，不照搬参照物的五项（`cwd · model · thinking · Context% · 运行中`）：
+       · model 与 thinking 已经在输入区常驻（行一的模型选择器、行二的思考芯片）——
+         再放一份就是「同一块屏上摆两枚同一个读数」，AGENTS.md 为这种事记过好几次裁定；
+       · 「运行中」也不用写：发送钮这时已经翻成「停止」，比一个词更明确。
+     副行只在手机渲染（`is-stacked` 只挂窄屏），桌面那一行一字不变。 */
+  const topBarSubtitle = (() => {
+    if (!selectedSession) return null;
+    const parts: string[] = [];
+    if (selectedSession.cwd) parts.push(pathBasename(selectedSession.cwd));
+    const percent = sessionStats?.contextUsage?.percent;
+    if (typeof percent === "number") parts.push(`${translate("topbar.context")} ${Math.round(percent)}%`);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  })();
+
+  const renderSessionTitle = () => {
+    const subtitle = isMobile ? topBarSubtitle : null;
+    return (
 <div
-  title={topBarSessionTitle}
-  className="pw-tb-title"
+  title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
+  className={`pw-tb-title${subtitle ? " is-stacked" : ""}`}
 >
   {!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span>}
   <span>{topBarSessionTitle}</span>
+  {subtitle && <span className="pw-tb-title-sub">{subtitle}</span>}
 </div>
-  );
+    );
+  };
+
+  /* fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」宫格的内容。
+     这些动作的实现本来就都在 AppShell 里（handleViewFullHistory / handleAutoName /
+     导出 / 顶栏浮层），所以在这里组装成节点交给 ChatInput，而不是往它那条已经很长的
+     属性表上再接九个回调。
+
+     为什么只有这七格：**同一块屏上不摆第二个入口**。
+     · 「压缩上下文」与「会话信息」已经在输入区上下文环的浮窗里（AGENTS.md 记过
+       一次为此删掉重复入口的裁定），再放一格就是「一眼看去像两件事」。
+     · 「系统提示词 / 工具定义」是低频只读诊断，刚从顶栏收进 ⋯ 菜单（fork:trace-menu），
+       再搬回宫格等于把那次裁定撤销。
+     · 「置顶 / 重命名 / 归档 / 复制路径」是一族菜单项，留在 ⋯ 菜单里成组，不拆进宫格。
+     宫格与顶栏的旧入口在 PR-1 里**并存**（纯增量），顶栏瘦身在 PR-2。 */
+  const renderMobileActionPanel = () => {
+    const hasMessages = Boolean(
+      selectedSession
+      && ((sessionStats?.userMessages ?? 0) > 0 || selectedSession.messageCount > 0),
+    );
+    const namingBusy = autoNameStatus.kind === "naming";
+    return (
+      <MobileActionPanel
+        cells={[
+          {
+            id: "trace",
+            label: translate("actionPanel.trace"),
+            icon: "history",
+            disabled: !selectedSession,
+            onSelect: () => handleViewFullHistory(),
+          },
+          {
+            id: "name",
+            label: namingBusy ? translate("title.generating") : translate("title.generate"),
+            icon: "wand-sparkles",
+            busy: namingBusy,
+            disabled: !selectedSession || selectedSession.transient || !hasMessages,
+            onSelect: () => void handleAutoName(),
+          },
+          hasSubagentSessions ? {
+            id: "agents",
+            label: translate("actionPanel.agents"),
+            icon: "bot",
+            onSelect: (trigger: HTMLElement) => toggleTopPanel("agents", trigger),
+          } : null,
+          sessionHasBranches ? {
+            id: "branches",
+            label: translate("actionPanel.branches"),
+            icon: "git-fork",
+            onSelect: (trigger: HTMLElement) => toggleTopPanel("branches", trigger),
+          } : null,
+          {
+            id: "export-html",
+            label: translate("actionPanel.exportHtml"),
+            icon: "download",
+            disabled: !selectedSession,
+            onSelect: () => {
+              if (selectedSession) downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export`);
+            },
+          },
+          {
+            id: "export-md",
+            label: translate("actionPanel.exportMarkdown"),
+            icon: "file-text",
+            disabled: !selectedSession,
+            onSelect: () => {
+              if (selectedSession) downloadSessionFile(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`);
+            },
+          },
+          {
+            id: "image",
+            label: translate("chat.sendImage"),
+            icon: "image",
+            disabled: !selectedSession,
+            onSelect: () => chatInputRef.current?.openImagePicker(),
+          },
+        ]}
+      />
+    );
+  };
 
   /* fork:trace-menu —— 重命名态：同一个位置换成输入框（画板 02 那一行的 `.pw-input`）。
      回车提交、Esc 取消、失焦提交；提交后 bump refreshKey 让侧栏立刻跟上。 */
@@ -2640,7 +2714,9 @@ export function AppShell() {
   );
 
   const renderMainFileToggle = (mobile: boolean) => {
-    const covered = mobile && isNarrowMobile && mobileToolbarMoreOpen;
+    /* fork:mobile-toolbar-slim —— 这枚钮原来在窄屏要被「盖住」处理（覆盖层铺开时
+       把它 visibility:hidden + disabled + aria-hidden）。覆盖层拆了，这套三件套
+       也一起删：一枚永远可点、永远在无障碍树里的面板开关。 */
     const label = mobile
       ? rightPanelOpen ? translate("files.hidePanel") : translate("files.showPanel")
       : rightPanelOpen ? translate("layout.hideSecondaryWorkspace") : translate("layout.showSecondaryWorkspace");
@@ -2649,11 +2725,8 @@ export function AppShell() {
         type="button"
         onClick={handleRightPanelToggle}
         className={mobile ? undefined : "desktop-secondary-workspace-toggle"}
-        disabled={covered}
-        tabIndex={covered ? -1 : undefined}
         aria-controls={mobile ? "file-panel" : secondaryWorkspaceId}
         aria-expanded={rightPanelOpen}
-        aria-hidden={covered ? true : undefined}
         title={label}
         aria-label={label}
         data-mobile-toolbar-file={mobile ? "true" : undefined}
@@ -2673,8 +2746,6 @@ export function AppShell() {
           marginLeft: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0, borderRadius: "var(--radius-md)",
-          visibility: covered ? "hidden" : "visible",
-          pointerEvents: covered ? "none" : "auto",
           // Keep the boundary control on the same light surface as the
           // header. The open state is conveyed by the accent color instead
           // of a heavy selected background.
@@ -2683,7 +2754,7 @@ export function AppShell() {
           color: rightPanelOpen ? "var(--accent)" : "var(--text-muted)",
           cursor: "pointer", flexShrink: 0, transition: "color 0.12s, background 0.12s",
         }}
-        onMouseEnter={(event) => { if (!covered) event.currentTarget.style.color = "var(--text)"; }}
+        onMouseEnter={(event) => { event.currentTarget.style.color = "var(--text)"; }}
         onMouseLeave={(event) => { event.currentTarget.style.color = rightPanelOpen ? "var(--accent)" : "var(--text-muted)"; }}
       >
         {/* fork:pwa-tablet-tier — a bare rect + divider read as an empty box (a loading
@@ -3090,29 +3161,7 @@ export function AppShell() {
                 height: "100%",
               }}
             >
-              {isNarrowMobile && (
-                <button
-                  type="button"
-                  onClick={handleMobileToolbarMoreToggle}
-                  title={mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls")}
-                  aria-label={mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls")}
-                  aria-controls="mobile-toolbar-actions"
-                  aria-expanded={mobileToolbarMoreOpen}
-                  data-mobile-toolbar-more="true"
-                  /* fork:design-components —— 画板 60 的「更多控件」钮 = .pw-iconbtn sm
-                     （ellipsis / x）；它是工具条里的一枚紧凑方钮，触控靶由外层
-                     `.pw-mobile-actions` 那一条覆盖层承担。 */
-                  className="pw-iconbtn sm"
-                  style={{ position: "relative", zIndex: mobileToolbarMoreOpen ? 21 : undefined }}
-                >
-                  {mobileToolbarMoreOpen ? (
-                    <span className="pw-ico"><i data-ico="x" data-size="15"></i></span>
-                  ) : (
-                    <span className="pw-ico"><i data-ico="ellipsis" data-size="17"></i></span>
-                  )}
-                </button>
-              )}
-              {!isNarrowMobile && renderChatToolbarActions(true)}
+              {renderChatToolbarActions(true)}
               {/* fork:pwa-tablet-tier — the phone bar used to show three icons and no
                   session identity at all; which conversation you are in is the one thing
                   it has to answer. Same session-switcher popover as the desktop header,
@@ -3121,29 +3170,6 @@ export function AppShell() {
                 {renderSessionRename()}
               </div>
               {renderMainFileToggle(true)}
-              {isNarrowMobile && mobileToolbarMoreOpen && (
-                <div
-                  id="mobile-toolbar-actions"
-                  role="toolbar"
-                  aria-label={translate("chat.moreControls")}
-                  data-mobile-toolbar-actions="true"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    left: TOP_BAR_ICON_BUTTON_SIZE,
-                    zIndex: 20,
-                    display: "flex",
-                    alignItems: "stretch",
-                    background: "color-mix(in srgb, var(--bg-panel) 94%, var(--bg))",
-                    boxShadow: "var(--shadow-popover)",
-                    backdropFilter: "blur(10px)",
-                  }}
-                >
-                  {renderChatToolbarActions(true)}
-                </div>
-              )}
             </div>
           )}
           {!isMobile && (
@@ -3243,6 +3269,7 @@ export function AppShell() {
               onSystemInfoLoaderChange={handleSystemInfoLoaderChange}
               onSessionStatsChange={handleSessionStatsChange}
               onExtensionStatusChange={handleExtensionStatusChange}
+              actionPanel={renderMobileActionPanel()}
               onSessionStatsPanelOpen={openSessionStatsPanel}
               // fork:mcp-slash —— 会话里打 `/mcp` 直接落到设置页的 MCP 分节。
               onOpenSettingsSection={(section) => setSettingsSection(section as SettingsSection)}
@@ -3384,6 +3411,10 @@ export function AppShell() {
               onClick={openGitGraphTab}
               title={translate("git.graph")}
               aria-label={translate("git.graph")}
+              /* fork:pwa-hit-slop-2 —— 内联 `--control-xs`（24）是画板值，手机上指腹
+                 按不准；挂一枚 `fork-*` 接线钩子让 CSS 用 `::after` 外扩命中区
+                 （不新造 `pw-*`，也不改盒子）。 */
+              className="fork-panel-head-act"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "var(--control-xs)", height: "var(--control-xs)", padding: 0,
@@ -3409,6 +3440,8 @@ export function AppShell() {
               aria-expanded={rightPanelOpen}
               title={translate("files.hidePanel")}
               aria-label={translate("files.hidePanel")}
+              /* fork:pwa-hit-slop-2 —— 同上：24 的盒子不动，命中区由 CSS 外扩。 */
+              className="fork-panel-head-act"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "var(--control-xs)", height: "var(--control-xs)", padding: 0, borderRadius: "var(--radius-md)",
@@ -3542,7 +3575,10 @@ export function AppShell() {
         className="pw-toast bad"
         style={{
           position: "fixed",
-          bottom: "var(--s5)",
+          /* fork:pwa-hit-slop-2 —— 原来只给 `var(--s5)`，standalone 下正好压在
+              iOS home indicator 上（那一条 34px 不吃点击）。取 max()：非全面屏
+             仍是最初的 `--s5`，全面屏额外让出安全区 + `--s3` 的呼吸。 */
+          bottom: "max(var(--s5), calc(env(safe-area-inset-bottom, 0px) + var(--s3)))",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 900,

@@ -24,7 +24,7 @@
 
 <!-- 三帧 -->
 <section class="pw-frame">
-  <div class="pw-frame-label"><b>手机 · 三种主状态</b> · A 主界面（与桌面同构）· B 抽屉侧栏 · C 窄屏「更多控件」（展开在顶栏，不是底部）<span class="grow"></span>390 × 800</div>
+  <div class="pw-frame-label"><b>手机 · 五种状态</b> · A 主界面（与桌面同构）· B 抽屉侧栏 · C 窄屏「更多控件」（展开在顶栏，不是底部）· D 最近 pane · E 更多动作宫格<span class="grow"></span>390 × 800</div>
   <div class="pw-frame-body pw-pad">
     <div class="pw-inline" style="align-items:flex-start;gap:var(--s5)">
 
@@ -34,7 +34,7 @@
         <div class="pw-phone">
           <div class="pw-phone-inner">
             <div class="pw-statusbar">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
-            <div class="pw-mobile-top">
+            <div class="pw-mobile-top pw-topbar">
               <span class="pw-touch"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
               <span style="min-width:0;flex:1;display:flex;align-items:center;gap:6px;font-size:var(--text-body);color:var(--n-strong);padding:0 2px">
                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">排查最新 Release 与本地待上传改动</span>
@@ -96,7 +96,7 @@
         <div class="pw-phone">
           <div class="pw-phone-inner">
             <div class="pw-statusbar">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
-            <div class="pw-mobile-top">
+            <div class="pw-mobile-top pw-topbar">
               <span class="pw-touch is-on"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
               <span class="grow"></span>
             </div>
@@ -144,26 +144,15 @@
 
       <!-- C 更多控件 -->
       <div>
-        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">C · 窄屏「更多控件」= 顶栏展开（不是底部条）</div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">C · 窄屏顶栏：<b>只剩会话动作 ⋯</b></div>
         <div class="pw-phone narrow">
           <div class="pw-phone-inner">
             <div class="pw-statusbar" style="padding:0 var(--s3)">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
-            <div class="pw-mobile-top" style="height:44px">
+            <div class="pw-mobile-top pw-topbar" style="height:44px">
               <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="menu" data-size="17"></i></span></span>
-              <span class="pw-grow" style="flex:1"></span>
-              <span class="pw-touch is-on" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="ellipsis" data-size="17"></i></span></span>
-              <!-- 覆盖式工具条：与桌面顶栏右侧同一排动作 -->
-              <div class="pw-mobile-actions">
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="history" data-size="16"></i></span></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="square-pen" data-size="16"></i></span></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="bot" data-size="16"></i></span></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="git-branch" data-size="16"></i></span></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="book-marked" data-size="16"></i></span></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="wrench" data-size="16"></i></span></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="download" data-size="16"></i></span></span>
-                <span class="pw-grow" style="flex:1"></span>
-                <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="x" data-size="16"></i></span></span>
-              </div>
+              <span class="pw-tb-title is-stacked" style="flex:1;min-width:0;padding:0 var(--s2)"><span style="min-width:0">排查最新 Release 与本地待上传改动</span><span class="pw-tb-title-sub">pi-codex · 上下文 42%</span></span>
+              <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="ellipsis" data-size="17"></i></span></span>
+              <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="panel-right" data-size="16"></i></span></span>
             </div>
             <div class="pw-chat" style="padding-top:var(--s2)">
               <div class="pw-col" style="padding:0 var(--s3)">
@@ -176,6 +165,7 @@
                 <div class="pw-composer-top" style="min-height:30px;padding:var(--s2) var(--s3) 4px">继续…</div>
                 <div class="pw-composer-bar" style="padding:2px var(--s1) 4px var(--s1)">
                   <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+                  <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="grid-2x2" data-size="15"></i></span></button>
                   <span class="pw-select" style="font-size:var(--text-meta);min-width:0;max-width:78px;overflow:hidden">V4.1 Flash</span>
                   <span class="grow"></span>
                   <span class="pw-ring" style="--p:18%;width:16px;height:16px"></span>
@@ -186,7 +176,53 @@
             <div class="pw-homebar"><i></i></div>
           </div>
         </div>
-        <p class="pw-mono pw-dim" style="margin-top:var(--s2);max-width:320px">注：7 个动作与桌面顶栏右侧完全一致（历史 / 生成标题 / 子代理 / 分支 / 系统提示词 / 工具定义 / 导出 Markdown），一个不少。</p>
+        <p class="pw-mono pw-dim" style="margin-top:var(--s2);max-width:320px">注：窄屏顶栏现在只有<b>会话动作 ⋯</b>（外加菜单 / 面板开关）。原来那五枚（历史 / 生成标题 / 子代理 / 分支 / 导出）一行放不下，只能铺一条<b>盖住会话标题</b>的覆盖式工具条 —— 那是「同构 + 不新增底部条」这条裁定的必然后果，不是一个设计；2026-10-03 全部搬进帧 E 的宫格后拆掉了。</p>
+      </div>
+
+      <div>
+        <div class="pw-mono pw-dim" style="margin-bottom:var(--s2)">E · 「更多动作」宫格（锚在输入卡上方）</div>
+        <div class="pw-phone narrow">
+          <div class="pw-phone-inner">
+            <div class="pw-statusbar" style="padding:0 var(--s3)">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
+            <div class="pw-mobile-top pw-topbar" style="height:44px">
+              <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="menu" data-size="17"></i></span></span>
+              <span class="grow" style="flex:1"></span>
+              <span class="pw-touch" style="width:32px;height:32px"><span class="pw-ico"><i data-ico="panel-right" data-size="16"></i></span></span>
+            </div>
+            <div class="pw-chat" style="padding-top:var(--s2)">
+              <div class="pw-col" style="padding:0 var(--s3)">
+                <div class="pw-msg-user" style="max-width:90%;font-size:var(--text-secondary)">把 release 里那份对一下</div>
+                <div class="pw-md" style="font-size:var(--text-secondary)"><p>两边差 7 个文件…</p></div>
+              </div>
+            </div>
+            <div class="pw-composer-wrap" style="padding:var(--s2) var(--s2)">
+              <div class="pw-pop fork-actpanel" style="width:100%;margin:0 0 var(--s2);box-shadow:none;background:transparent;border:0;padding:0">
+                <div class="pw-actgrid">
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="history" data-size="17"></i></span><span>调用轨迹</span></div>
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="wand-sparkles" data-size="17"></i></span><span>生成标题</span></div>
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="bot" data-size="17"></i></span><span>子代理</span></div>
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="git-fork" data-size="17"></i></span><span>分支</span></div>
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="download" data-size="17"></i></span><span>导出 HTML</span></div>
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="file-text" data-size="17"></i></span><span>导出 MD</span></div>
+                  <div class="pw-actcell"><span class="pw-ico"><i data-ico="image" data-size="17"></i></span><span>发送图片</span></div>
+                </div>
+              </div>
+              <div class="pw-composer" style="width:100%;margin:0">
+                <div class="pw-composer-top" style="min-height:30px;padding:var(--s2) var(--s3) 4px">继续…</div>
+                <div class="pw-composer-bar" style="padding:2px var(--s1) 4px var(--s1)">
+                  <button class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus"></i></span></button>
+                  <button class="pw-iconbtn is-on"><span class="pw-ico"><i data-ico="grid-2x2" data-size="15"></i></span></button>
+                  <span class="pw-select" style="font-size:var(--text-meta);min-width:0;max-width:78px;overflow:hidden">V4.1 Flash</span>
+                  <span class="grow"></span>
+                  <span class="pw-ring" style="--p:18%;width:16px;height:16px"></span>
+                  <span class="pw-send"><span class="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span></span>
+                </div>
+              </div>
+            </div>
+            <div class="pw-homebar"><i></i></div>
+          </div>
+        </div>
+        <p class="pw-mono pw-dim" style="margin-top:var(--s2);max-width:320px">注：<b>带文字的宫格</b>，不是一排无文字的图标 —— 窄屏放不下的次级动作收在这里，拇指一次够到。`+` 仍是附件（手机上最高频），面板另给一枚 <span class="pw-mono">grid-2x2</span>。压缩上下文与会话信息不在这里：它们已在输入区上下文环的浮窗里。</p>
       </div>
 
     </div>
@@ -205,7 +241,7 @@
           <div class="pw-phone-inner">
             <div class="pw-notch">— 无浏览器地址栏 —</div>
             <div class="pw-statusbar" style="height:30px;padding:0 var(--s4)">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
-            <div class="pw-mobile-top" style="height:44px">
+            <div class="pw-mobile-top pw-topbar" style="height:44px">
               <span class="pw-touch"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
               <span class="grow"></span>
               <span class="pw-touch"><span class="pw-ico"><i data-ico="history" data-size="17"></i></span></span>

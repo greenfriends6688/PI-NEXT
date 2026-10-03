@@ -242,6 +242,16 @@ body.pw.dark { background: #0f0f13; }
 .pw-topbar .grow { flex: 1; }
 .pw-topbar .pw-tb-title { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s2); font-size: var(--text-body); color: var(--n-strong); min-width: 0; }
 .pw-topbar .pw-tb-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* fork:mobile-tb-subtitle（2026-10-03）—— 手机顶栏标题下的副行（cwd · Context N%）。
+   窄屏看不到会话在哪个目录，而这是手机上唯一能说清楚的地方；上下文百分比也是
+   一块屏上唯一说「还剩多少」的数字（环只在浮窗里报数）。
+   用 `.is-stacked` 修饰符而不是新开一个标题类：标题盒子的内边距 / 字号 / 省略号
+   全部复用上面那两条规则，这里只把方向改成列、间距归零。
+   `align-items` 故意保持 stretch —— 列向 flex 里若改成 flex-start，子项会缩到内容宽，
+   上面那条 `text-overflow: ellipsis` 就永远不触发（长标题会把顶栏撑破）。 */
+.pw-topbar .pw-tb-title.is-stacked { flex-direction: column; align-items: stretch; gap: 0; padding-top: var(--space-hair); padding-bottom: var(--space-hair); }
+.pw-topbar .pw-tb-title.is-stacked > span { min-width: 0; }
+.pw-topbar .pw-tb-title-sub { font-size: var(--text-meta); color: var(--n-placeholder); }
 .pw-chipbtn {
   display: inline-flex; align-items: center; gap: var(--space-ctrl);
   height: var(--control-xs); padding: 0 7px; border-radius: var(--radius-4);
@@ -636,6 +646,27 @@ body.pw.dark { background: #0f0f13; }
 .pw-prow .pw-kbd { margin-left: auto; }
 .pw-sep { height: 1px; margin: var(--s1) 6px; background: var(--n-border-subtle); }
 .pw-pop-title { padding: var(--s2) var(--s2) var(--s1); font-size: var(--text-meta); color: var(--n-placeholder); letter-spacing: .04em; }
+
+/* fork:mobile-action-panel（2026-10-03）—— 手机动作面板：**带文字的宫格**。
+   窄屏的顶栏放不下那六七个次级动作（历史 / 生成标题 / 子代理 / 分支 / 导出…），
+   收进一条无文字的覆盖式工具条等于「猜图标」；这里改成图标在上、标签在下的宫格，
+   一屏摆得下 9 项、拇指一次够到，名字写在脸上。
+   壳用 `.pw-pop`（320 宽 / radius-6 / 浮窗阴影），本段只管里面那张网。
+   列数写 4 但用 minmax(0,1fr)：窄屏（≤320）自动收缩而不是溢出，不另开断点。 */
+.pw-actgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-tight); padding: var(--s1); }
+.pw-actcell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s1); min-height: 62px; padding: var(--s1);
+  border-radius: var(--radius-4); font-size: var(--text-meta); line-height: 1.25;
+  color: var(--n-muted); text-align: center;
+}
+.pw-actcell:hover { background: var(--overlay-hover); color: var(--n-strong); }
+.pw-actcell:active { background: var(--overlay-hover); }
+/* 图标比标签重一档：宫格里扫的是图标，读的才是标签。 */
+.pw-actcell .pw-ico { color: var(--n-strong); }
+/* 异步动作（生成标题 / 压缩上下文）在跑：整格变淡且不可点，图标换 spinner。 */
+.pw-actcell[aria-busy="true"] { opacity: .55; cursor: default; }
+.pw-actcell[aria-busy="true"] .pw-ico { color: var(--n-muted); }
 
 .pw-modal {
   width: 560px; border: 1px solid var(--n-border); border-radius: var(--radius-6);

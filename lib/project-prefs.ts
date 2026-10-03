@@ -44,11 +44,20 @@ export function parseProjectPrefs(raw: string | null): ProjectPrefs {
   }
 }
 
+/**
+ * 路径最后一段。单独拎出来是因为这条规则不止项目行在用
+ * （fork:mobile-tb-subtitle 的顶栏副行也要显示 cwd 的目录名）——
+ * 两处各写一遍 `split()` 就是两份会各自漂的规则。
+ */
+export function pathBasename(root: string): string {
+  return root.split(/[/\\]/).filter(Boolean).at(-1) ?? root;
+}
+
 /** 项目行的显示名：有别名用别名，否则用目录名。 */
 export function projectDisplayName(root: string, prefs: ProjectPrefs): string {
   const alias = prefs.aliases[root];
   if (alias) return alias;
-  return root.split(/[/\\]/).filter(Boolean).at(-1) ?? root;
+  return pathBasename(root);
 }
 
 /** 过滤掉「从列表中移除」过的项目（当前选中的那个始终保留，否则会看不见自己在哪）。 */
