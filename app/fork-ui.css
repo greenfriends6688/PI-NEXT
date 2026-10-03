@@ -2368,6 +2368,41 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
     gap: var(--s1) !important;
   }
 }
+
+/* ②b 横屏手机（fork:pwa-landscape-composer）-------------------------------
+   改前症状（实测 844×390）：竖屏档的两行控件条原样带进横屏 —— 编辑行 46 +
+   两行 40 + 间隙内距，输入区卡片 **150px**，占 390 高的 **41%**；转写只剩
+   ~200px，一次看不了两轮问答。ChatInput 的 `narrowControls` 在同一视口放行成
+   桌面同款**单行**工具条（`(viewportCompact && !landscapeShort) || shellNarrow`，
+   hook 见 `hooks/useIsMobile.ts` 的 `useIsLandscapeShort`），CSS 这里只补两件
+   单行放不下的收尾：
+
+   · 模型芯片从画板的「按内容定宽、不省略」改成**可收缩 + 省略号** —— 单行的
+     min-content 由最长的控件决定，长模型名会把行撑破（这正是竖屏档当年在 768
+     实测溢出 110px 的同一条约束，见上面 fork:pwa-tablet-tier 的注释）；
+   · `max-height: 500px` 把平板（竖屏高度 ≥600）关在外面，两行照旧。
+
+   触摸靶不降档：② 段的 `(pointer: coarse) and (max-width: 1024px)` 在横屏
+   照样命中，单行仍是 40px 靶 —— 省的是**行数**，不是手指的命中区。 */
+@media (max-width: 1024px) and (max-height: 500px) {
+  .chat-input-toolbar .model-selector {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-input-toolbar .model-selector .pw-select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-input-toolbar .model-selector .pw-select > span {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 /* ③ 转录：长串换行 + 等宽块横滚 + 行内代码的断点 ------------------ */
 @media (max-width: 640px) {
   /* `.pw-md` 已有 `overflow-wrap: anywhere`（本文件上一段）。这里补的是
@@ -2982,129 +3017,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   margin-block: var(--s2);
 }
 /* ---------------------------------------------------------------------------
- * fork:proma-39-changes —— 右栏「改动」面板的产品接线（零新 `.pw-*` 类）。
- *
- * 行结构 = 画板的 `.pw-row`（30 高 / 发丝 hover / 弱化图标）+ 面板头的
- * `.pw-panel-head`；来源徽章复用 `.pw-badge`，状态点色阶与 `FileExplorer`
- * 的 `GIT_STATUS_COLORS` 同源。这里只补画板没有的三处：
- *   ① 行是**两段**可点区域（打开预览 / 在文件管理器中定位），所以 `.pw-row`
- *      的整行点击语义换成内部按钮，行本身只负责 hover 底色；
- *   ② 路径分两段（文件名 + 父目录），父目录弱化且可截断；
- *   ③ 定位钮沿用 `PathActions` 的 hover 才出现（`.pw-row .pw-acts` 的同一口径），
- *      失败态用画板的 `.danger`。
- * ------------------------------------------------------------------------- */
-.fork-changes {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-.fork-changes-head {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  flex: none;
-}
-.fork-changes-head .grow {
-  flex: 1;
-}
-.fork-changes-title {
-  font-size: var(--text-body);
-  color: var(--n-strong);
-  white-space: nowrap;
-}
-.fork-changes-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--s1);
-}
-.fork-changes-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  height: var(--control-lg);
-  padding: 0 var(--s1) 0 var(--s2);
-  border-radius: var(--radius-4);
-}
-.fork-changes-row:hover {
-  background: var(--overlay-hover);
-}
-.fork-changes-open {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--n-text);
-  cursor: pointer;
-  text-align: left;
-}
-.fork-changes-open .pw-ico {
-  flex: none;
-  display: inline-flex;
-  color: var(--n-muted);
-}
-.fork-changes-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-secondary);
-}
-.fork-changes-dir {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-meta);
-  color: var(--n-placeholder);
-}
-.fork-changes-source {
-  flex: none;
-}
-.fork-changes-stat {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  font-variant-numeric: tabular-nums;
-}
-.fork-changes-add {
-  color: var(--diff-added);
-}
-.fork-changes-del {
-  color: var(--diff-removed);
-}
-.fork-changes-status {
-  flex: none;
-  width: var(--icon-sm);
-  text-align: right;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-}
-.fork-changes-status[data-status="modified"] { color: var(--warning); }
-.fork-changes-status[data-status="added"] { color: var(--success); }
-.fork-changes-status[data-status="untracked"] { color: var(--success); }
-.fork-changes-status[data-status="deleted"] { color: var(--error); }
-.fork-changes-status[data-status="conflict"] { color: var(--error); }
-.fork-changes-status[data-status="renamed"] { color: var(--accent-text); }
-.fork-changes-reveal {
-  opacity: 0;
-}
-.fork-changes-row:hover .fork-changes-reveal,
-.fork-changes-reveal:focus-visible {
-  opacity: 1;
-}
-.fork-changes-reveal.danger {
-  color: var(--error);
-}
-/* ---------------------------------------------------------------------------
  * fork:ui-todo —— 待办芯片（输入框左上角）的几何。
  *
  * 这几条原来以内联样式写在 `components/fork/TodoChip.tsx` 里，是样式字面量基线
@@ -3252,6 +3164,10 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   padding: var(--s4);
   overflow: hidden;
   min-height: 0;
+}
+
+@media (max-width: 640px) {
+  .fork-bot-dialog-body { grid-template-columns: 1fr; }
 }
 
 .fork-bot-dialog-list {
