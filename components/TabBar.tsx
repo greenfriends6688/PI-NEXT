@@ -93,6 +93,7 @@ export function TabBar({
   onSelectTab,
   onCloseTab,
   overview,
+  onMoveTab,
   handleTabDragChange,
   handleTabDrop,
   endTabDrag,
