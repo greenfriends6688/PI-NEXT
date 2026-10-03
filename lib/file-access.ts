@@ -33,15 +33,20 @@ export async function getAllowedFileRoots(): Promise<Set<string>> {
     if (s.projectRoot) roots.add(normalizeSlashes(s.projectRoot));
   }
 
-  // Also allow ~/pi-cwd-* directories created by the default-cwd endpoint.
+  // Also allow the per-day folders the default-cwd endpoint creates:
+  // `~/pi-cwd/<YYYYMMDD>`（fork:default-cwd-local-date：父目录 + 本地日期，与上游一致）。
+  // 只认这一种形状；旧的 `~/pi-cwd-<YYYYMMDD>` 平铺目录**不再**自动进白名单 ——
+  // 它是靠「家目录里有什么」推断出来的，宽到任何本地进程都能创建同名目录就混进来。
+  // 旧的那些目录仍然可用：走 `/api/cwd/validate` 选过一次就进白名单（与其它项目一致）。
   try {
-    for (const name of readdirSync(homedir())) {
-      if (/^pi-cwd-\d{8}$/.test(name)) {
-        roots.add(normalizeSlashes(path.join(homedir(), name)));
+    const parent = path.join(homedir(), "pi-cwd");
+    for (const name of readdirSync(parent)) {
+      if (/^\d{8}$/.test(name)) {
+        roots.add(normalizeSlashes(path.join(parent, name)));
       }
     }
   } catch {
-    // ignore if home is unreadable
+    // ignore if the folder does not exist yet or home is unreadable
   }
 
   // fork:chat-workspace — browsable before its first session exists, so the file
