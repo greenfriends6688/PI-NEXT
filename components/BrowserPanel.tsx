@@ -77,7 +77,7 @@ export function BrowserPanel({ tab, onChangeUrl }: Props) {
     { value: 390, icon: "smartphone", label: t("browser.viewportPhone") },
     { value: 768, icon: "tablet", label: t("browser.viewportTablet") },
     { value: 1024, icon: "monitor", label: t("browser.viewportLaptop") },
-    { value: 1280, icon: "monitor-sm", label: t("browser.viewportDesktop") },
+    { value: 1280, icon: "monitor", label: t("browser.viewportDesktop") },
   ] as const;
 
   return (

@@ -880,6 +880,8 @@ export const enLocale: LocalePlugin = {
     // fork:gap04-queue — 队列逐条操控
     "chat.queueRemove": "Remove from queue",
     "chat.queueEditToInput": "Move to input",
+    "chat.queueKindSteer": "Steering",
+    "chat.queueKindFollowUp": "Follow-up",
     "chat.queueSendNow": "Send now (move to steering)",
     // fork:gap07-attachments — 附件不再限定图片
     "chat.attachFile": "Attach file",

@@ -668,6 +668,7 @@ function QueuedMessageRow({
   onDropOn?: () => void;
   dragging?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div
       title={text}
@@ -680,7 +681,9 @@ function QueuedMessageRow({
       style={{ opacity: dragging ? 0.4 : 1, cursor: onDragStart ? "grab" : "default" }}
     >
       <span className="pw-badge count">{index + 1}</span>
-      <span className="pw-badge">{kind}</span>
+      {/* 两个队列是两块平铺的列表、没有分组标题，这一枚徽章是**唯一**能分辨
+          steer / follow-up 的地方，所以走 i18n（此前直接渲染英文 kind）。 */}
+      <span className="pw-badge">{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
       <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
       {/* fork:queue-edit（用户 2026-10-02）—— 「移至输入框」：用户说排好队的消息
           没法再编辑。放在「立即发送」之前，两者语义不同：一个是拿回来改，一个是

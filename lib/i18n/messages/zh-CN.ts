@@ -880,6 +880,8 @@ export const zhCNLocale: LocalePlugin = {
     // fork:gap04-queue — 队列逐条操控
     "chat.queueRemove": "从队列移除",
     "chat.queueEditToInput": "移至输入框",
+    "chat.queueKindSteer": "引导",
+    "chat.queueKindFollowUp": "后续",
     "chat.queueSendNow": "立即发送（提升为引导消息）",
     // fork:gap07-attachments — 附件不再限定图片
     "chat.attachFile": "添加附件",
