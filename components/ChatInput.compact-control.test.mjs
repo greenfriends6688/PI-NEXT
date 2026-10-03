@@ -3,10 +3,10 @@ import test from "node:test";
 import { createJiti } from "jiti";
 
 // fork:upstream-2e66e40（#1008 移植的另一半）—— 压缩控件在**流式期间**的露出条件。
-// 手动压缩从空闲会话起，旧守卫 `!isStreaming` 看着没问题；自动压缩是一轮跑到一半
-// 才开始（旧守卫下按钮整轮都不渲染，用户只剩一个笼统的「停止」），所以把
-// `disabled={isStreaming && !isCompacting}` 写在按钮上却永远不生效 —— 那条 disabled
-// 本来就自相矛盾：只有「压缩中也要够得着」才说得通。
+// 2026-10-03 用户裁定 —— 工具条上那枚「压缩」芯片**删除**（上下文环的浮窗底部已有同一
+// 动作），所以这里守的不再是「工具条上有按钮」，而是「压缩中必须仍有一个够得着的
+// 停止口」：上游 #1008 的理由是自动压缩可能在一轮跑到一半才开始，那时
+// `!isStreaming` 的旧守卫让按钮整轮都不渲染，用户只剩一个笼统的「停止」。
 
 const jiti = createJiti(import.meta.url, {
   jsx: { runtime: "automatic" },
@@ -22,25 +22,25 @@ function render(props) {
     React.createElement(
       I18nProvider,
       null,
-      React.createElement(ChatInput, { onSend() {}, onAbort() {}, onCompact() {}, ...props }),
+      React.createElement(ChatInput, { onSend() {}, onAbort() {}, ...props }),
     ),
   );
 }
 
-test("mid-turn auto-compaction still offers the compaction control", () => {
-  const html = render({ isStreaming: true, isCompacting: true });
-  assert.match(html, /aria-label="Stop compaction"/);
-  // 「停止压缩」必须可点：不能被 disabled / not-allowed 挡住（上游把这两条死分支删掉）。
-  assert.doesNotMatch(html, /aria-label="Stop compaction"[^>]*\sdisabled/);
+test("the toolbar no longer duplicates the ring's compaction entry", () => {
+  for (const props of [
+    { isStreaming: false, isCompacting: false },
+    { isStreaming: true, isCompacting: true },
+  ]) {
+    const html = render(props);
+    assert.doesNotMatch(html, /aria-label="Compact context"/);
+    assert.doesNotMatch(html, /data-ico="minimize-2"/);
+  }
 });
 
-test("a streaming turn that is not compacting does not render the compact control", () => {
-  const idle = render({ isStreaming: false, isCompacting: false });
-  assert.match(idle, /aria-label="Compact context"/);
-  assert.doesNotMatch(render({ isStreaming: true, isCompacting: false }), /aria-label="Compact context"/);
-});
-
-test("an idle session keeps the manual compaction control", () => {
-  const html = render({ isStreaming: false, isCompacting: false });
-  assert.match(html, /aria-label="Compact context"/);
+test("the composer's compact prop still exists (the ring popover owns the action)", () => {
+  // 环浮窗（contextRing）拿的就是同一个 `onCompact` / `onAbortCompaction`，
+  // 所以这里只钉住 props 形状没有随芯片一起被删。
+  const html = render({ onCompact() {}, onAbortCompaction() {} });
+  assert.match(html, /composer-ring|pw-ring|chat-input-toolbar/);
 });

@@ -44,6 +44,28 @@ function isLoopbackHostname(hostname: string): boolean {
   return hostname === "localhost" || hostname.endsWith(".localhost");
 }
 
+/** The Host header's hostname, or null when it is unusable. */
+export function requestHostname(request: Request): string | null {
+  const host = request.headers.get("host");
+  return host ? hostnameFromAuthority(host) : null;
+}
+
+/**
+ * fork:lan-access —— "这个请求是不是从本机发出来的"。
+ *
+ * `isApiRequestHostAllowed()` 把任意 IP 字面量都判为可信（为了保留局域网访问），
+ * 所以**只有本机这一层**能把 loopback 和局域网区分开。`0.0.0.0` / `::` 刻意**不算**
+ * loopback：那是从别的机器也能连到的通配地址，把它当成本机等于开洞。
+ */
+export function isLoopbackRequest(request: Request): boolean {
+  const hostname = requestHostname(request);
+  if (!hostname) return false;
+  if (isLoopbackHostname(hostname)) return true;
+  const version = isIP(hostname);
+  if (version === 4) return hostname.startsWith("127.");
+  return version === 6 && hostname === "::1";
+}
+
 function configuredHostnamesFromEnvironment(): string[] {
   return [
     process.env.PI_WEB_HOSTNAME,

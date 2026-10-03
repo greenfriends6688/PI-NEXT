@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo, useReducer } from "react";
+import { bareMcpOpensSettings } from "@/lib/mcp-command";
 import type {
   AgentMessage,
   BlockingExtensionUiRequest,
@@ -183,7 +184,7 @@ export interface SlashCommandInfo {
 
 export type BuiltinSlashCommandResult =
   | { handled: false }
-  | { handled: true; message?: string; error?: string; action?: "openSessionStats" };
+  | { handled: true; message?: string; error?: string; action?: "openSessionStats" | "openSettings"; section?: string };
 
 export interface UseAgentSessionOptions {
   session: SessionInfo | null;
@@ -194,6 +195,8 @@ export interface UseAgentSessionOptions {
   /** fork:zn-16 — 一轮运行以错误收场（`prompt_error` / 提交抛错）。设置里的
    *  「任务失败时通知」接这里；完成与失败是两条独立开关，不能共用一个回调。 */
   onAgentError?: (message: string) => void;
+  /** fork:mcp-slash —— `/mcp`（不带子命令）打开「设置 › MCP」。上游同款。 */
+  onOpenSettings?: (section: string) => void;
   onAttentionNeeded?: (request: BlockingExtensionUiRequest) => void;
   onSessionCreated?: (session: SessionInfo, sourceDraftKey: string) => void;
   onSessionForked?: (newSessionId: string) => void;
@@ -360,7 +363,7 @@ type SlashCommandsResponse = {
 
 export function useAgentSession(opts: UseAgentSessionOptions) {
   const {
-    session, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked,
+    session, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onOpenSettings, onAttentionNeeded, onSessionCreated, onSessionForked,
     modelsRefreshKey, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsPanelOpen,
   } = opts;
 
@@ -2216,7 +2219,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (!result.handled) return result;
       if (result.error) {
         addNotice({ type: "error", message: result.error });
-      } else if (result.action !== "openSessionStats") {
+      } else if (result.action !== "openSessionStats" && result.action !== "openSettings") {
         addNotice({ type: "success", message: result.message ?? "Command completed" });
       }
       return result;
@@ -2224,6 +2227,15 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
     try {
       switch (commandName) {
+        // fork:mcp-slash —— 裸 `/mcp` 打开设置页，带子命令的照常发出去（`/mcp login`
+        // 之类是给会话自己的连接用的，判据见 lib/mcp-command.ts 的注释）。
+        case "mcp": {
+          if (args) return { handled: false };
+          if (!bareMcpOpensSettings(slashCommands)) return { handled: false };
+          onOpenSettings?.("mcp");
+          return { handled: true, action: "openSettings", section: "mcp" };
+        }
+
         case "compact": {
           if (!sid || isCompacting) return complete({ handled: true, error: "No active session to compact" });
           setIsCompacting(true);

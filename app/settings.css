@@ -426,8 +426,27 @@
   position: relative;
 }
 
+/* fork:settings-modal-layout-2026-10-02（用户裁定弹窗后的布局降档）——
+   弹窗内容列 = 1080 − 200（左导航）= 880，再减 `.pw-scontent` 的 40px 页边距 = **800**。
+   画板里的两栏块流是**按 1240 内容列**排的（`.pw-grid2` 每栏 ~600）；800 下两栏
+   只剩 ~394，常规页的字段行开始逐字换行（实测：「过程步骤默认展 开」「聊天内容宽 度」
+   「Ctrl+Enter 发 送」）。所以**只把常规页**降成单栏：每块铺满 800，标签 132 +
+   控件 600，读起来是标准的设置弹窗；用量页的统计卡两栏是好的，不动。
+   列顺序不变（左栏四块 → 右栏几块），与手机档同一套降档规则（app/pwa-settings.css）。 */
+.settings-dialog-surface .settings-section-host[data-section="general"] .pw-grid2 {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s4);
+}
+/* 单栏之后第二堆的首块（对话）也吃到 settings.css 的 `margin-top:0`（那条是按
+   「两栏各独立起排」写的）—— 不补回来的话「界面字体 → 对话」这一道缝只剩
+   row-gap，比别处窄一档。手机档踩过同一个坑。 */
+.settings-dialog-surface .settings-section-host[data-section="general"] .pw-grid2 > div + div > .pw-block:first-child {
+  margin-top: var(--s4);
+}
+
 /* fork:design-system SW-07 —— 画板 40/45 的设置页是**整屏页面**（左导航 200 +
-   内容列），没有页头；关闭入口按用户裁定放到左导航底部（`.pw-snav-close`）。
+   内容列），没有页头；关闭口是弹窗右上角那一枚 X（2026-10-03 用户裁定：左导航底部的
+   「返回工作区」已撤）。
    手机（<640px）导航整列隐藏，页头还要承担分节下拉，所以只在窄屏保留页头。 */
 /* fork:fix-head-scope（2026-10-01）—— 原来这两条的**选择器没有作用域限定**
    （`.settings-dialog-header.pw-modal-head`，0-2-0），本意只针对设置壳自己的页头，

@@ -17,6 +17,10 @@ import { parseUnifiedPatch, type SplitDiffCell, type SplitDiffFile } from "@/lib
 // fork:zc-07 — 词级行内 diff：并排 diff 里只标记真正变化的字/词。
 import { buildIntralineSegments, diffIntraline, type IntralineSpan } from "@/lib/diff-intraline";
 import { applyPatchPreviewToFiles, extractApplyPatchPaths, getApplyPatchInputText, parseApplyPatchInput } from "@/lib/apply-patch";
+import { mcpToolLabel } from "@/lib/mcp-tool-display";
+// fork:codemode-view —— codemode 调用的显示助手（脚本 / 调用列表 / 折叠头预览）。
+import { CODEMODE_TOOL_NAME, codemodeCalls, codemodeScript, codemodeScriptPreview, stripCodemodeHeader } from "@/lib/codemode-view";
+import { CodemodeCallList } from "./CodemodeToolView";
 import { isApplyPatchToolName, isEditToolName } from "@/lib/tool-names";
 import { isThinkingExpandedByDefault, THINKING_EXPANDED_EVENT } from "@/lib/thinking-expansion-preference";
 import type { TurnStats } from "@/lib/turn-stats";
@@ -1297,6 +1301,12 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
   const resultMounted = useCollapsePresence(expanded, undefined, resultCollapseRef);
   const inputStr = getToolCallInputText(block);
   const isStreamingInput = block.rawInput !== undefined;
+  // fork:codemode-view（对齐上游 0.10）—— codemode 不再走「通用工具卡」：
+  // 折叠头显示脚本第一行 + 调用数，展开处是脚本文本（不是 JSON 入参），
+  // 下面是它调用的那些工具（lib/codemode-view.ts 解析 SDK 的 details）。
+  const codemodeCode = block.toolName === CODEMODE_TOOL_NAME && !isStreamingInput ? codemodeScript(block.input) : null;
+  const codemode = codemodeCode === null ? null : { code: codemodeCode, ...codemodeCalls(result?.details) };
+  const codemodeCallCount = codemode ? codemode.calls.length + codemode.omitted : 0;
   const isEditTool = isEditToolName(block.toolName);
   const resultDiff = result && !result.isError ? getResultDiff(result) : null;
   const patchFiles = getApplyPatchFiles(block, result);
@@ -1358,9 +1368,22 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
           <span className="pw-ico" style={{ color: isError ? "var(--error)" : undefined, flexShrink: 0 }}>
             <ToolCallIcon toolName={block.toolName} />
           </span>
-          <span className="pw-tool" style={{ flexShrink: 0 }}>
-            {block.toolName}
-          </span>
+          {/* fork:mcp-tool-label —— MCP 工具按上游 0.10 的读法显示 `server/tool`：
+              pi 注册的名字是 `mcp__<server>__<tool>`（还可能带哈希后缀），无法反解，
+              真名只在结果的 details 里；没有结果时保留注册名（那也是 codemode 脚本调用的
+              名）。见 lib/mcp-tool-display.ts（上游原样迁入）。 */}
+          {(() => {
+            // 真名在**结果**的 details 里（`{server, tool}`），不在 toolCall 块上。
+            const label = mcpToolLabel(block.toolName, result?.details);
+            if (!label) return <span className="pw-tool" style={{ flexShrink: 0 }}>{block.toolName}</span>;
+            return (
+              <span className="pw-tool" style={{ flexShrink: 0 }} title={block.toolName}>
+                <span style={{ opacity: 0.6 }}>{label.server}</span>
+                <span style={{ opacity: 0.6 }}>/</span>
+                {label.tool}
+              </span>
+            );
+          })()}
           {subagent?.pendingSubagentCount ? (
             /* PR-36 · 消息流里的收敛状态点：同会话还有子代理在跑时，人也能一眼看到。
                复用画板已有的 .pw-badge/.pw-ico/.pw-anim-spin，不新造类名。 */
@@ -1375,8 +1398,18 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
             </span>
           ) : null}
           <span className="pw-path" style={{ flex: 1 }}>
-            {isStreamingInput ? t("chat.generatingToolInput") : (patchLabel ?? getToolPreview(block))}
+            {isStreamingInput
+              ? t("chat.generatingToolInput")
+              : (patchLabel ?? (codemode ? codemodeScriptPreview(codemode.code) : getToolPreview(block)))}
           </span>
+          {/* fork:codemode-view —— 脚本调了几次，一眼可见（omitted 也算进去）。 */}
+          {codemodeCallCount > 0 && (
+            <span className="pw-dim" style={{ flexShrink: 0 }}>
+              {codemodeCallCount === 1
+                ? t("codemode.callCountOne")
+                : t("codemode.callCount", { count: codemodeCallCount })}
+            </span>
+          )}
           {duration !== undefined && (
             <span className="pw-dim" style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
           )}
@@ -1408,7 +1441,16 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
         className="fork-collapse"
         data-fork-collapse={expanded ? "open" : "closed"}
       >
-        {argsMounted && !isEditTool && !patchFiles && (
+        {argsMounted && !isEditTool && !patchFiles && codemode && (
+          <div className="fork-collapse-body">
+            <div className="pw-card-body">
+              <div className="pw-term" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                {codemode.code.replace(/\r/g, "").trimEnd()}
+              </div>
+            </div>
+          </div>
+        )}
+        {argsMounted && !isEditTool && !patchFiles && !codemode && (
           <div className="fork-collapse-body">
             {/* fork:design-components —— 工具入参 = 画板 11 的 `.pw-card-body` + `.pw-term`
                 （顶部发丝线 + 面板底 + 等宽 pre-wrap 全部由 board.css 承担）。
@@ -1421,6 +1463,12 @@ export function ToolCallBlock({ block, result, duration, onOpenSession, expanded
           </div>
         )}
       </div>
+
+      {/* fork:codemode-view —— 展开时列出这个脚本调过的工具（不是独立卡片，是父卡里的行，
+          与 pi 的 TUI 同一形态）。 */}
+      {expanded && codemode && (
+        <CodemodeCallList calls={codemode.calls} omitted={codemode.omitted} isError={isError} />
+      )}
 
       {/* ── Result images — always visible, independent of the collapsed details ── */}
       {resultImages.length > 0 && <ResultImages images={resultImages} />}

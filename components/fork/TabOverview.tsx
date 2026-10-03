@@ -24,8 +24,8 @@ export interface TabOverviewEntry {
   id: string;
   label: string;
   filePath: string;
-  /** fork:trace-pane — `trace` 与图谱 / 改动同属单例视图 tab。 */
-  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes" | "trace";
+  /** fork:trace-pane — `trace` 与图谱同属单例视图 tab。 */
+  kind?: "terminal" | "browser" | "session" | "git-graph" | "trace";
 }
 
 interface Props {

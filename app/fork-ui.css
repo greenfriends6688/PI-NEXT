@@ -2151,8 +2151,8 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   .pw-skin-actions > .pw-btn { flex: none; }
 }
 
-/* 关闭行（用户裁定：关闭入口放左导航底部，而非页头）——规格在 board.css 的
-   `.pw-snav-close`（发丝上边线把它和 13 个分节分开），这里不再复制。 */
+/* 2026-10-03 用户裁定 —— 关闭行（画板 62 的 `.pw-snav-close`，规格在 board.css）
+   已从左导航撤掉，关闭口只剩弹窗右上角那枚 X。这里不再有产品样式。 */
 
 /* 画板 40 的标签都是一行短词；产品的说明句可以很长（「后台推送」那一行），
    长标签会把同一行里的按钮压成两行。规矩：标签可收缩，行内按钮不收缩。 */
@@ -2479,6 +2479,40 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
      `--s1`，外扩的 `::after` 才不会互相压住。 */
   .chat-input-toolbar .fork-pwa-wb-actions > div {
     gap: var(--s1) !important;
+  }
+}
+
+/* ②b 横屏手机（fork:pwa-landscape-composer）-------------------------------
+   改前症状（实测 844×390）：竖屏档的两行控件条原样带进横屏 —— 编辑行 46 +
+   两行 40 + 间隙内距，输入区卡片 **150px**，占 390 高的 **41%**；转写只剩
+   ~200px，一次看不了两轮问答。ChatInput 的 `narrowControls` 在同一视口放行成
+   桌面同款**单行**工具条（`(viewportCompact && !landscapeShort) || shellNarrow`，
+   hook 见 `hooks/useIsMobile.ts` 的 `useIsLandscapeShort`），CSS 这里只补两件
+   单行放不下的收尾：
+
+   · 模型芯片从画板的「按内容定宽、不省略」改成**可收缩 + 省略号** —— 单行的
+     min-content 由最长的控件决定，长模型名会把行撑破（这正是竖屏档当年在 768
+     实测溢出 110px 的同一条约束，见上面 fork:pwa-tablet-tier 的注释）；
+   · `max-height: 500px` 把平板（竖屏高度 ≥600）关在外面，两行照旧。
+
+   触摸靶不降档：② 段的 `(pointer: coarse) and (max-width: 1024px)` 在横屏
+   照样命中，单行仍是 40px 靶 —— 省的是**行数**，不是手指的命中区。 */
+@media (max-width: 1024px) and (max-height: 500px) {
+  .chat-input-toolbar .model-selector {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-input-toolbar .model-selector .pw-select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-input-toolbar .model-selector .pw-select > span {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -3115,148 +3149,6 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   margin-block: var(--s2);
 }
 
-/* ---------------------------------------------------------------------------
- * fork:proma-39-changes —— 右栏「改动」面板的产品接线（零新 `.pw-*` 类）。
- *
- * 行结构 = 画板的 `.pw-row`（30 高 / 发丝 hover / 弱化图标）+ 面板头的
- * `.pw-panel-head`；来源徽章复用 `.pw-badge`，状态点色阶与 `FileExplorer`
- * 的 `GIT_STATUS_COLORS` 同源。这里只补画板没有的三处：
- *   ① 行是**两段**可点区域（打开预览 / 在文件管理器中定位），所以 `.pw-row`
- *      的整行点击语义换成内部按钮，行本身只负责 hover 底色；
- *   ② 路径分两段（文件名 + 父目录），父目录弱化且可截断；
- *   ③ 定位钮沿用 `PathActions` 的 hover 才出现（`.pw-row .pw-acts` 的同一口径），
- *      失败态用画板的 `.danger`。
- * ------------------------------------------------------------------------- */
-.fork-changes {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-
-.fork-changes-head {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  flex: none;
-}
-
-.fork-changes-head .grow {
-  flex: 1;
-}
-
-.fork-changes-title {
-  font-size: var(--text-body);
-  color: var(--n-strong);
-  white-space: nowrap;
-}
-
-.fork-changes-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--s1);
-}
-
-.fork-changes-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  height: var(--control-lg);
-  padding: 0 var(--s1) 0 var(--s2);
-  border-radius: var(--radius-4);
-}
-
-.fork-changes-row:hover {
-  background: var(--overlay-hover);
-}
-
-.fork-changes-open {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--n-text);
-  cursor: pointer;
-  text-align: left;
-}
-
-.fork-changes-open .pw-ico {
-  flex: none;
-  display: inline-flex;
-  color: var(--n-muted);
-}
-
-.fork-changes-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-secondary);
-}
-
-.fork-changes-dir {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-meta);
-  color: var(--n-placeholder);
-}
-
-.fork-changes-source {
-  flex: none;
-}
-
-.fork-changes-stat {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  font-variant-numeric: tabular-nums;
-}
-
-.fork-changes-add {
-  color: var(--diff-added);
-}
-
-.fork-changes-del {
-  color: var(--diff-removed);
-}
-
-.fork-changes-status {
-  flex: none;
-  width: var(--icon-sm);
-  text-align: right;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-}
-
-.fork-changes-status[data-status="modified"] { color: var(--warning); }
-.fork-changes-status[data-status="added"] { color: var(--success); }
-.fork-changes-status[data-status="untracked"] { color: var(--success); }
-.fork-changes-status[data-status="deleted"] { color: var(--error); }
-.fork-changes-status[data-status="conflict"] { color: var(--error); }
-.fork-changes-status[data-status="renamed"] { color: var(--accent-text); }
-
-.fork-changes-reveal {
-  opacity: 0;
-}
-
-.fork-changes-row:hover .fork-changes-reveal,
-.fork-changes-reveal:focus-visible {
-  opacity: 1;
-}
-
-.fork-changes-reveal.danger {
-  color: var(--error);
-}
 
 
 /* ---------------------------------------------------------------------------
@@ -3310,4 +3202,70 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* fork:phone-push —— 「机器人管理」二级弹窗（2026-10-03 对照 ZCode 的 BotsDialog：
+ * 左列表右详情）。覆盖层 fixed / 居中 / 压过设置弹窗的层级与 .fork-pwa-import-scrim
+ * 同构（那里注释写明这组值是照抄来的），不复用同名——它属于插件页的语义。
+ * `.fork-linkbtn` 是渠道入口卡里「去 Bot Channels 配置」的文字链形态（ZCode 卡片里
+ * 就是一行加粗文字，不是描边按钮）；button 的 UA 归零沿用本文件既有做法。 */
+.fork-bot-dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) + 100);
+  background: var(--scrim);
+  display: grid;
+  place-items: center;
+}
+
+.fork-bot-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(920px, calc(100vw - var(--s6)));
+  max-height: calc(var(--app-viewport-height, 100dvh) - var(--s6));
+}
+
+.fork-bot-dialog-body {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: var(--s4);
+  padding: var(--s4);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.fork-bot-dialog-list {
+  overflow-y: auto;
+  display: grid;
+  gap: var(--s1);
+  align-content: start;
+  min-height: 0;
+}
+
+.fork-bot-dialog-detail {
+  overflow-y: auto;
+  display: grid;
+  gap: var(--s3);
+  align-content: start;
+  min-height: 0;
+}
+
+.fork-linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--n-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fork-linkbtn:hover { color: var(--accent-text); }
+
+@media (max-width: 640px) {
+  .fork-bot-dialog-body { grid-template-columns: 1fr; }
 }

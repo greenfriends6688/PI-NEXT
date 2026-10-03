@@ -30,6 +30,8 @@ import { ModelsConfig } from "./ModelsConfig";
 import { McpConfig } from "./fork/McpConfig";
 // fork:zc-03 — new sections rendered by this panel.
 import { UsageStatsPanel } from "./fork/UsageStatsPanel";
+// fork:phone-push — 手机配对 + IM 推送，合成一个分节（机器级，不依赖项目）。
+import { PhoneAndPushPanel } from "./fork/PhoneAndPushPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
 /* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig
@@ -451,10 +453,12 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
     <>
       <SettingsPage title={t("settings.general")} sub={t("settings.generalSub")}>
         {/* fork:settings-frame（画板 62 帧 C，用户拍板）—— 常规页 = 两栏块流，每栏 570，
-            字段行「标签—控件」跨度从 1160 收到 570。块的排列逐项照帧 C：
-              左 = 外观 → 主题皮肤 → 侧栏 → 界面字体（62 帧 C 把「界面语言」排进这块）
-              右 = 聊天 → 通知 → 默认外观壁纸 →（产品实有、画板 40 续帧的两块）
-                    Shell 工具（仅 Windows）→ 后台推送 */}
+            字段行「标签—控件」跨度从 1160 收到 570。块的排列：
+              左 = 外观 → 主题皮肤 →（2026-10-03 用户裁定）默认外观壁纸 → 侧栏 → 界面字体
+                    （62 帧 C 把「界面语言」排进这块；壁纸原在右栏，挪到皮肤下面——皮肤会接管
+                    壁纸，紧挨着才看得见「谁在管」）
+              右 = 聊天 → 通知 →（产品实有、画板 40 续帧的两块）Shell 工具（仅 Windows）
+                    → 后台推送 */}
         <div className="pw-grid2">
           <div>
       {/* fork:design-system SW-07 —— 画板 40 第一块「外观」：主题是 `.pw-radio` 三档
@@ -552,6 +556,20 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             link.click();
             URL.revokeObjectURL(url);
           }}
+        />
+      </PwBlock>
+
+      {/* fork:zn-19-merge —— 壁纸（画板 62 帧 C 的「默认外观壁纸」块）：启用开关 +
+          当前壁纸行（缩略图 + 选择/更换/移除）都在 WallpaperSettings 里；有皮肤生效时
+          它自己收成一条「去编辑皮肤」的提示。
+          2026-10-03 用户裁定 —— 从右栏挪到主题皮肤**正下方**：皮肤会接管壁纸，两块相邻
+          才看得出「当前是谁在管背景」；跨栏分开放要来回扫视。落位不再随右栏块流。 */}
+      <PwBlock icon="wallpaper" title={t("settings.wallpaperDefaultTitle")}>
+        <WallpaperSettings
+          skinActive={activeSkin ? activeSkin.id !== THEME_SKIN_DEFAULT_ID : false}
+          {...(activeSkin && activeSkin.id !== THEME_SKIN_DEFAULT_ID
+            ? { onEditSkin: () => setEditing({ skin: activeSkin, isNew: false }) }
+            : {})}
         />
       </PwBlock>
 
@@ -887,18 +905,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         ) : null}
       </PwBlock>
 
-      {/* fork:zn-19-merge —— 壁纸（画板 62 帧 C 右栏末块「默认外观壁纸」）：启用开关 +
-          当前壁纸行（缩略图 + 选择/更换/移除）都在 WallpaperSettings 里；有皮肤生效时
-          它自己收成一条「去编辑皮肤」的提示。 */}
-      <PwBlock icon="wallpaper" title={t("settings.wallpaperDefaultTitle")}>
-        <WallpaperSettings
-          skinActive={activeSkin ? activeSkin.id !== THEME_SKIN_DEFAULT_ID : false}
-          {...(activeSkin && activeSkin.id !== THEME_SKIN_DEFAULT_ID
-            ? { onEditSkin: () => setEditing({ skin: activeSkin, isNew: false }) }
-            : {})}
-        />
-      </PwBlock>
-
       {shellSettings?.isWindows && (
         <PwBlock icon="terminal" title={t("settings.shellTool")}>
           <PwField
@@ -1009,6 +1015,8 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
     { id: "archived", label: t("settings.archivedTitle"), requiresProject: false },
     // fork:import-ui
     { id: "import", label: t("import.title"), requiresProject: false },
+    // fork:phone-push
+    { id: "phonePush", label: t("phonePush.title"), requiresProject: false },
   ];
 
   useEffect(() => setLastSettingsSection(initialSection), [initialSection]);
@@ -1135,18 +1143,9 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
                 </button>
               );
             })}
-            {/* 画板 40 的左导航只有 13 个分节；返回入口用户定在导航底部（不是页头）——
-                桌面把导航空隙推到底，手机导航整列隐藏，返回仍在页头（那里有分节下拉）。 */}
-            <span className="pw-grow" aria-hidden="true" />
-            <button
-              type="button"
-              className="pw-row pw-snav-close"
-              title={t("settings.backToWorkspace")}
-              onClick={onClose}
-            >
-              <span className="pw-ico"><i data-ico="arrow-left" data-size="14" aria-hidden="true" /></span>
-              <span className="pw-name">{t("settings.backToWorkspace")}</span>
-            </button>
+            {/* 2026-10-03 用户裁定 —— 左导航底部的「返回工作区」撤掉（画板 62 帧 C 那一行
+                与 `.pw-snav-close` 一同退出产品）：弹窗右上角的 `.settings-dialog-close`
+                就是唯一的关闭口，窄屏页头那枚 X 仍在，所以手机也没少出口。 */}
           </nav>
 
           <main className="settings-dialog-main">
@@ -1177,6 +1176,9 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
             {/* fork:import-ui — 显式扫描 + 显式导入，绝不自动跑。
                 fork:settings-frame —— 页面框（页头 + 滚动）由 ImportPanel 自己的三件套出。 */}
             {sectionHost("import", <ImportPanel />)}
+
+            {/* fork:phone-push — 手机配对 + IM 推送。全局页，与项目无关。 */}
+            {sectionHost("phonePush", <PhoneAndPushPanel />)}
           </main>
         </div>
       </div>

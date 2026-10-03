@@ -34,7 +34,12 @@ import {
 } from "./project-command-env";
 import { cacheSessionPath, getLatestModelChange, invalidateSessionListCache, resolveSessionPath } from "./session-reader";
 // fork:pr11-mcp — ADR 0006 的 Loading：把内置 `mcp` 扩展挂上 builtin:mcp
-import { loadPiSdkInternals, mcpBuiltinExtensionEntries } from "./pi-sdk-internals";
+import { loadPiSdkInternals, mcpBuiltinExtensionEntries, mcpDiscoveryExtensionEntries } from "./pi-sdk-internals";
+// fork:mcp-auto-reload / P0-3 —— 传给内置 mcp 扩展的 `updateConfig` 钩子：
+// 在会话里用 `/mcp` 开关 server / 改 exposure 时，落盘走本仓的 0600 原子写。
+import { applyMcpServerPatch } from "./mcp-config-file";
+// fork:mcp-read-only-policy —— 只读会话里拦下未标 readOnlyHint 的 MCP 工具（上游 0.10）。
+import { createReadOnlyMcpPolicyExtension } from "./mcp-read-only-policy";
 import { getProjectTrustStatus, projectTrustReloadOptions } from "./project-trust";
 import { persistExplicitStartupPreferences } from "./startup-preferences";
 import { rememberThinkingLevel, thinkingLevelMemoryKey } from "./thinking-level-memory";
@@ -56,6 +61,8 @@ import {
   preferPiWebSubagentExtension,
 } from "./subagent-extension";
 import { createTodoExtension } from "./todo-extension";
+// fork:im-bridge — 把消息推到 IM 群机器人（飞书 / 企微 / 钉钉 / Slack / Telegram / 自建）。
+import { createImExtension } from "./im-extension";
 import {
   listSubagentProfiles,
   readSubagentRun,
@@ -2483,6 +2490,9 @@ export async function startRpcSession(
               ),
               // fork:ui-todo — the session's task list (see lib/todo-extension.ts).
               createTodoExtension(),
+              // fork:im-bridge —— 出站推送。一个工具名（im_send）在 get_tools 里、
+              // 能被 tool_call 审批按名字拦；没有配目标时它自己如实说没配，不发空请求。
+              createImExtension(),
               // fork:proma-01-approval — 工具审批。默认档是 bypass，所以这个扩展在默认
               // 配置下等价于不存在（`decideApproval` 直接放行）—— 只有用户显式把会话
               // 设成 ask/plan 才会弹卡。
@@ -2497,7 +2507,25 @@ export async function startRpcSession(
               // 三个坑的处置写在 lib/pi-sdk-internals.ts 的 `mcpBuiltinExtensionEntries` 上：
               // fan-out（session-liveness 租约闸门）、stop（startupWaitMs: 0 不等连接）、
               // env（createPiNextMcpTransportFactory 洗 env，绝不回退到 SDK 默认 transport）。
-              ...mcpBuiltinExtensionEntries(mcpInternals.ok ? mcpInternals : undefined),
+              // fork:mcp-auto-reload / P0-3 —— 第二个参数是「`/mcp` 的落盘接管」：
+              // 在会话里用 `/mcp` 开关 server 或改 exposure 时，pi 不再自己改 mcp.json，
+              // 而是走本仓的 0600 + staging 原子写（applyMcpServerPatch 在
+              // lib/mcp-config-file.ts；那个模块反过来 import 本文件，所以从这儿注入）。
+              ...mcpBuiltinExtensionEntries(
+                mcpInternals.ok ? mcpInternals : undefined,
+                (file, name, patch) => applyMcpServerPatch(file, name, patch),
+              ),
+              // fork:mcp-native-exposure —— codemode + tool_search。MCP 的工具默认就是
+              // `codemode` 曝光（不进模型工具表，脚本里 searchTools 找），这两枚扩展就是
+              // 它的落点；注册但不激活，真有 server 用到时由 mcp 扩展自己打开。
+              ...mcpDiscoveryExtensionEntries(),
+              // fork:mcp-read-only-policy —— 只读会话里 MCP 工具照旧可调（direct 或从
+              // codemode 脚本），是上游 0.10 新增的安全策略（ADR 0006「Safety → Read-only」）：
+              // 会话钉住只读工具选择时，拦下**服务端没有标 readOnlyHint** 的 MCP 工具。
+              // 拦在 tool_call 上，脚本里的嵌套调用同样经过。Chat-only / 子代理不挂。
+              ...(subagentResources || chatOnly
+                ? []
+                : [createReadOnlyMcpPolicyExtension()]),
             ],
             extensionsOverride: (base) => preferUserBashExtension(preferPiWebSubagentExtension(base)),
           },

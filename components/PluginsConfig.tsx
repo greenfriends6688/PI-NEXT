@@ -2,9 +2,16 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { sendAgentCommand } from "@/lib/agent-client";
-import type { McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
+import type { McpReloadReport, McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+// fork:mcp-native-exposure —— 「查看 MCP 日志」弹层（读 agent 目录的 mcp.log）。
+import { McpLogModal } from "./fork/McpLogModal";
+// fork:codemode-settings-ui —— 「代码模式」设置块（自动/始终、mode、工具清单预算）。
+import { McpCodemodeSettings } from "./fork/McpCodemodeSettings";
+// fork:mcp-paste —— 粘贴添加面板。
+import { McpPastePanel } from "./fork/McpPastePanel";
+import type { McpImportFieldValue } from "@/lib/mcp-import";
 import type { McpDiscoveredServer as DiscoveredMcpServer } from "@/lib/mcp-discovery";
 import {
   getLastSettingsSelection,
@@ -565,6 +572,46 @@ function McpReadonlyField({ label, value }: { label: string; value: ReactNode })
   );
 }
 
+/** fork:mcp-native-exposure —— exposure 的四档取值（`core/mcp-servers.d.ts:12`）。 */
+const MCP_EXPOSURES = ["codemode", "deferred", "direct", "hidden"] as const;
+
+/**
+ * fork:mcp-native-exposure —— 工具曝光档选择器。
+ *
+ * 这一档决定**模型怎么用到这个 server 的工具**：
+ *   · `codemode`（pi 默认）：工具不进模型工具表，模型在 codemode 脚本里 `searchTools()` 找；
+ *   · `deferred`：不进工具表，`tool_search` 按需加载后才声明给模型；
+ *   · `direct`：像普通工具一样直接声明（老行为的等价物）；
+ *   · `hidden`：注册但调不到。
+ */
+function McpExposureField({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: NonNullable<McpServerInfo["exposure"]>;
+  disabled: boolean;
+  onChange: (next: NonNullable<McpServerInfo["exposure"]>) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <ConfigField label={t("mcp.fieldExposure")}>
+      <select
+        className="pw-select"
+        value={value}
+        disabled={disabled}
+        title={t(`mcp.exposureHint.${value}`)}
+        aria-label={t("mcp.fieldExposure")}
+        onChange={(event) => onChange(event.target.value as NonNullable<McpServerInfo["exposure"]>)}
+      >
+        {MCP_EXPOSURES.map((option) => (
+          <option key={option} value={option}>{t(`mcp.exposure.${option}`)}</option>
+        ))}
+      </select>
+    </ConfigField>
+  );
+}
+
 function McpServerDetail({
   server,
   cwd,
@@ -576,6 +623,7 @@ function McpServerDetail({
   onMove,
   onTest,
   onEdit,
+  onExposure,
   authActions,
 }: {
   server: McpServerInfo;
@@ -588,6 +636,8 @@ function McpServerDetail({
   onMove: () => void;
   onTest: () => void;
   onEdit: () => void;
+  /** fork:mcp-native-exposure — 改工具曝光档。 */
+  onExposure: (next: NonNullable<McpServerInfo["exposure"]>) => void;
   /** fork:zc-18 — optional OAuth entry slot; rendered by fork/McpConfig.tsx. */
   authActions?: ReactNode;
 }) {
@@ -639,6 +689,13 @@ function McpServerDetail({
           ConfigDetailStack 的网格会把行距撑成 s3。 */}
       <div>
         <McpReadonlyField label={t("mcp.fieldType")} value={server.kind} />
+        {/* fork:mcp-native-exposure —— 这一行决定模型怎么用到工具；未声明按 pi 默认
+            （codemode）显示，避免下拉与文件内容不一致。 */}
+        <McpExposureField
+          value={server.exposure ?? "codemode"}
+          disabled={busy}
+          onChange={(next) => onExposure(next)}
+        />
         <McpReadonlyField
           label={
             server.kind === "url"
@@ -1155,6 +1212,10 @@ export function PluginsConfig({
   const [mcpAddMode, setMcpAddMode] = useState(false);
   // fork:mcp-import — servers found in other agents' config files.
   const [mcpImportOpen, setMcpImportOpen] = useState(false);
+  // fork:mcp-paste —— 「粘贴添加」与现有表单并列（表单用于手填，这里吃命令/JSON/链接）。
+  const [mcpPasteMode, setMcpPasteMode] = useState(false);
+  // fork:mcp-native-exposure —— 日志弹层开关。
+  const [mcpLogOpen, setMcpLogOpen] = useState(false);
   const [mcpDiscovered, setMcpDiscovered] = useState<DiscoveredMcpServer[]>([]);
   const [mcpDiscovering, setMcpDiscovering] = useState(false);
   const [mcpImporting, setMcpImporting] = useState<string | null>(null);
@@ -1162,6 +1223,8 @@ export function PluginsConfig({
   const [mcpEditTarget, setMcpEditTarget] = useState<McpServerInfo | null>(null);
   const [mcpActionError, setMcpActionError] = useState<string | null>(null);
   const [mcpActionMessage, setMcpActionMessage] = useState<string | null>(null);
+  // fork:mcp-undo —— 删除后 60 秒可撤销：服务端只回一个 token，条目原文留在它那边。
+  const [mcpUndo, setMcpUndo] = useState<{ token: string; name: string; expiresAt: number; undoing: boolean } | null>(null);
   const [mcpTesting, setMcpTesting] = useState<string | null>(null);
 
   const packages = useMemo(() => data?.packages ?? [], [data?.packages]);
@@ -1299,9 +1362,17 @@ export function PluginsConfig({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cwd, action, ...payload }),
         });
-        const next = (await res.json()) as McpResponse & { error?: string };
+        const next = (await res.json()) as McpResponse & { error?: string; reload?: McpReloadReport };
         if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
         setMcpData(next);
+        // fork:mcp-auto-reload —— 写完配置服务端会把「多少会话立即重载、多少等这轮
+        // 结束」报回来。不说的话用户不知道「刚加的 server 要不要重开会话」——
+        // 这是以前最容易被当成 bug 的那一步。
+        if (next.reload && (next.reload.reloaded > 0 || next.reload.deferred > 0)) {
+          setMcpActionMessage(next.reload.deferred > 0
+            ? t("mcp.reloadReportRunning", { reloaded: next.reload.reloaded, deferred: next.reload.deferred })
+            : t("mcp.reloadReport", { reloaded: next.reload.reloaded }));
+        }
         return next;
       } catch (err) {
         setMcpActionError(err instanceof Error ? err.message : String(err));
@@ -1311,6 +1382,23 @@ export function PluginsConfig({
       }
     },
     [cwd],
+  );
+
+  /**
+   * fork:mcp-native-exposure —— 改工具曝光档。走 `patch` 动作（pi 自己的
+   * `McpServerConfigPatch` 形状）：写默认值等于删键，所以 UI 上「选回 codemode」=
+   * 文件里没有这个键，与 pi 的 `/mcp` 完全同一口径。
+   */
+  const setMcpExposure = useCallback(
+    async (server: McpServerInfo, exposure: NonNullable<McpServerInfo["exposure"]>) => {
+      const next = await runMcpAction("patch", {
+        name: server.name,
+        scope: server.scope,
+        patch: { exposure },
+      });
+      if (next) setMcpActionMessage(t("mcp.msgExposure", { name: server.name, exposure: t(`mcp.exposure.${exposure}`) }));
+    },
+    [runMcpAction], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const toggleMcp = useCallback(
@@ -1344,9 +1432,105 @@ export function PluginsConfig({
         setMcpSelected(next.servers[0]?.name ?? null);
         setMcpActionMessage(t("mcp.msgDeleted", { name: server.name }));
         if (next.servers.length === 0) setMcpAddMode(true);
+        // fork:mcp-undo —— 有 token 就给一条撤销通知，60 秒后自己消失。
+        if (next.undo) {
+          setMcpUndo({
+            token: next.undo.token,
+            name: next.undo.name,
+            expiresAt: Date.now() + next.undo.expiresInMs,
+            undoing: false,
+          });
+        } else {
+          setMcpUndo(null);
+        }
       }
     },
     [runMcpAction], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  /**
+   * fork:mcp-undo —— 撤销一次删除：把 token 交回服务端，它把条目放回原来的位置。
+   * 失败（过期 / 名字又被占用 / 目录不再受信任）时服务端会把条目退回，
+   * 所以这条通知在剩下的时间里还能再试；410 表示确实没得撤销了。
+   */
+  // fork:mcp-undo —— 通知的寿命与服务端那份一致（60 秒），到期自动消失。
+  useEffect(() => {
+    if (!mcpUndo) return;
+    const remaining = mcpUndo.expiresAt - Date.now();
+    if (remaining <= 0) { setMcpUndo(null); return; }
+    const timer = setTimeout(() => setMcpUndo(null), remaining);
+    return () => clearTimeout(timer);
+  }, [mcpUndo]);
+
+  const undoMcpRemoval = useCallback(async () => {
+    const pending = mcpUndo;
+    if (!pending || pending.undoing) return;
+    setMcpUndo({ ...pending, undoing: true });
+    try {
+      const response = await fetch("/api/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd, action: "undo", token: pending.token }),
+      });
+      const next = (await response.json()) as McpResponse & { error?: string; detail?: string };
+      if (!response.ok) {
+        setMcpActionError(next.detail ?? next.error ?? t("mcp.undoFailed"));
+        if (response.status === 410) setMcpUndo(null);
+        else setMcpUndo({ ...pending, undoing: false });
+        return;
+      }
+      setMcpData(next);
+      setMcpUndo(null);
+      setMcpAddMode(false);
+      setMcpSelected(pending.name);
+      setMcpActionMessage(t("mcp.undoRestored", { name: pending.name }));
+    } catch (error) {
+      setMcpUndo({ ...pending, undoing: false });
+      setMcpActionError(error instanceof Error ? error.message : String(error));
+    }
+  }, [cwd, mcpUndo, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * fork:mcp-paste —— 「粘贴添加」的提交。浏览器发的是**粘贴原文**（外加用户改过的名字、
+   * 作用域、逐字段取值），服务端用同一个解析器再解析一遍才写盘（`action:"paste"` →
+   * `lib/mcp-add.ts` 的 `prepareMcpAdd`）：浏览器拼不出 def 绕过预检。
+   */
+  const pasteMcp = useCallback(
+    async (draft: { text: string; name?: string; rawPi: boolean; server: number; values: Record<string, McpImportFieldValue>; secretReferences: Record<string, string> }) => {
+      setBusyKey("mcp:paste");
+      setMcpActionError(null);
+      setMcpActionMessage(null);
+      try {
+        const res = await fetch("/api/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cwd,
+            action: "paste",
+            scope: mcpScope,
+            text: draft.text,
+            name: draft.name,
+            rawPi: draft.rawPi,
+            server: draft.server,
+            values: draft.values,
+            secretReferences: draft.secretReferences,
+            confirmHostEnv: [],
+          }),
+        });
+        const next = (await res.json()) as McpResponse & { error?: string; reason?: string; added?: { name: string } };
+        if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
+        setMcpData(next);
+        setMcpAddMode(false);
+        setMcpEditTarget(null);
+        setMcpSelected(next.added?.name ?? draft.name ?? "");
+        setMcpActionMessage(t("mcp.msgAdded", { name: next.added?.name ?? draft.name ?? "" }));
+      } catch (err) {
+        setMcpActionError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusyKey(null);
+      }
+    },
+    [cwd, mcpScope, t], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const moveMcp = useCallback(
@@ -1411,7 +1595,7 @@ export function PluginsConfig({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cwd, action: "test", name: server.name, scope: server.scope }),
         });
-        const json = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+        const json = (await res.json()) as { ok?: boolean; message?: string; error?: string; live?: boolean };
         if (!res.ok || json.error) throw new Error(json.error ?? `HTTP ${res.status}`);
         // The route answers 200 with { ok: false } when the config fails pi's structural
         // validation. `ok` has to be honoured explicitly, otherwise an invalid config is
@@ -1422,7 +1606,12 @@ export function PluginsConfig({
             t("mcp.msgTestError", { name: server.name, error: json.message ?? "" }),
           );
         } else {
-          setMcpActionMessage(t("mcp.msgTestResult", { name: server.name, result: json.message ?? "" }));
+          // fork:mcp-live-test —— `live` 决定这句话怎么说：真连过时是「连上了 + 几个工具
+          // + 花了多久」，没开真连的形态只有结构校验，不能读成「连得上」（路由的 detail
+          // 里本来就写明 no connection was attempted）。
+          setMcpActionMessage(json.live
+            ? t("mcp.msgTestLive", { name: server.name, result: json.message ?? "" })
+            : t("mcp.msgTestResult", { name: server.name, result: json.message ?? "" }));
         }
       } catch (err) {
         setMcpActionError(
@@ -1738,6 +1927,18 @@ export function PluginsConfig({
               {/* fork:proma-46-mcp-catalog —— 目录入口由 fork/McpConfig.tsx 提供；
                   配置完回调 reload()，列表与徽章立即跟着更新。 */}
               {renderMcpCatalogEntry?.({ reload: () => void loadMcp() })}
+              {/* fork:mcp-native-exposure —— 看日志：server 连不上时，浏览器只有一句
+                  「MCP failed to load」，真正的第一手材料（哪个 server、握手到哪一步）
+                  在 agent 目录的 mcp.log 里，此前对用户完全不可见。 */}
+              <ConfigButton
+                variant="secondary"
+                size="small"
+                onClick={() => setMcpLogOpen(true)}
+                title={t("mcp.logTitle")}
+              >
+                <span className="pw-ico"><i data-ico="file-text" data-size="13" aria-hidden="true" /></span>
+                {t("mcp.logButton")}
+              </ConfigButton>
               {/* fix:mcp-refresh-target —— 位置从工具栏搬进页头动作，行为不变：
                   它原来调 loadPlugins()（只打 /api/plugins、写插件页状态，于是列表、
                   徽章、错误态都不动），MCP 模式调 loadMcp()，置灰跟 MCP 自己的状态
@@ -1765,12 +1966,30 @@ export function PluginsConfig({
                 <span className="pw-ico"><i data-ico="import" data-size="13" aria-hidden="true" /></span>
                 {t("mcp.importButton")}
               </ConfigButton>
+              {/* fork:mcp-paste —— 粘贴添加（安装命令 / JSON / 安装链接），与下面的
+                  手填表单并列；两者共用同一套解析与预检。 */}
+              <ConfigButton
+                variant="secondary"
+                size="small"
+                onClick={() => {
+                  setView("mcp");
+                  setMcpPasteMode(true);
+                  setMcpAddMode(false);
+                  setMcpEditTarget(null);
+                  setMcpActionError(null);
+                  setMcpActionMessage(null);
+                }}
+              >
+                <span className="pw-ico"><i data-ico="clipboard-list" data-size="13" aria-hidden="true" /></span>
+                {t("mcp.add.pasteButton")}
+              </ConfigButton>
               <ConfigButton
                 variant="primary"
                 size="small"
                 onClick={() => {
                   setView("mcp");
                   setMcpAddMode(true);
+                  setMcpPasteMode(false);
                   setMcpEditTarget(null);
                   setMcpActionError(null);
                   setMcpActionMessage(null);
@@ -1849,6 +2068,23 @@ export function PluginsConfig({
           <div role="status" className="pw-alert info">
             <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
             <span className="pw-grow">{t("trust.pluginsNotLoaded")}</span>
+          </div>
+        )}
+
+        {/* fork:mcp-undo —— 删除后的撤销通知：服务端只给了 token，条目原文在它那边。
+            60 秒后自动消失；410（过期/已撤销）就不给了，失败可再试。 */}
+        {mcpOnly && mcpUndo && (
+          <div role="status" className="pw-alert info">
+            <span className="pw-ico"><i data-ico="undo-2" data-size="14"></i></span>
+            <span className="pw-grow">{t("mcp.undoNotice", { name: mcpUndo.name })}</span>
+            <button
+              type="button"
+              className="pw-btn sm"
+              onClick={() => void undoMcpRemoval()}
+              disabled={mcpUndo.undoing}
+            >
+              {mcpUndo.undoing ? t("mcp.undoing") : t("mcp.undo")}
+            </button>
           </div>
         )}
 
@@ -2036,6 +2272,14 @@ export function PluginsConfig({
                 作用域钩子：把产品侧接线里那条只在并排两列成立的 `height: 100%`
                 在手机档还给内容，滚动仍然只有内容区一个（规则见
                 app/pwa-plugins-agents.css 第 2 节）。桌面端该类不参与任何布局。 */}
+            {/* fork:codemode-settings-ui —— 代码模式三项设置（自动/始终、mode、预算），
+                写在详情区顶部、server 详情之上：它决定**所有** server 的 codemode 曝光
+                工具怎么到达模型，与选不选某个 server 无关。 */}
+            {mcpOnly && !mcpAddMode && (
+              <div style={{ marginBottom: "var(--s3)" }}>
+                <McpCodemodeSettings cwd={cwd || null} />
+              </div>
+            )}
             <ConfigDetailStack className="fork-pwa-detail">
               {/* fork:design-system（画板 62 上轮裁定）—— 「从其它 agent 导入」是
                   pw-modal 弹层（见下方 McpImportModal），不再占详情列；导入弹层开着
@@ -2057,6 +2301,17 @@ export function PluginsConfig({
                       setMcpEditTarget(null);
                     }}
                   />
+                ) : mcpPasteMode ? (
+                  <McpPastePanel
+                    cwd={cwd}
+                    scope={mcpScope}
+                    data={mcpData}
+                    busy={Boolean(busyKey)}
+                    actionError={mcpActionError}
+                    onScopeChange={setMcpScope}
+                    onSubmit={(draft) => void pasteMcp(draft)}
+                    onCancel={() => setMcpPasteMode(false)}
+                  />
                 ) : selectedMcp ? (
                   <McpServerDetail
                     key={selectedMcp.name}
@@ -2069,6 +2324,7 @@ export function PluginsConfig({
                     onRemove={() => void removeMcp(selectedMcp)}
                     onMove={() => void moveMcp(selectedMcp)}
                     onTest={() => void testMcp(selectedMcp)}
+                    onExposure={(exposure) => void setMcpExposure(selectedMcp, exposure)}
                     onEdit={() => {
                       setMcpEditTarget(selectedMcp);
                       // The scope switch has to follow the server being edited: `update`
@@ -2146,6 +2402,9 @@ export function PluginsConfig({
         onDismiss={() => setMcpImportOpen(false)}
         onImport={(server) => void importDiscovered(server)}
       />
+
+      {/* fork:mcp-native-exposure —— 日志弹层与导入弹层同一形态、同一挂点。 */}
+      <McpLogModal open={mcpLogOpen} onDismiss={() => setMcpLogOpen(false)} />
     </ConfigPanelShell>
   );
 }

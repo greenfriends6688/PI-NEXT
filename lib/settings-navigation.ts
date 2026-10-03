@@ -12,6 +12,8 @@ export const SETTINGS_SECTION_VALUES = [
   "archived",
   // fork:import-ui — 从其它 agent 导入（会话 / 模型 / 技能 / MCP）。
   "import",
+  // fork:phone-push — 手机配对 + IM 推送，**合成一栏**（用户 2026-10-03 裁定）。
+  "phonePush",
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTION_VALUES)[number];

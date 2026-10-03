@@ -27,8 +27,12 @@ import "../design/pi-web-design/assets/icons.js";
 import "./pwa-settings.css";
 import "./pwa-models-skills.css";
 import "./pwa-plugins-agents.css";
-// fork:ui-css — must stay last: it overrides upstream styles on purpose.
+// fork:ui-css — must stay last of the upstream overrides: it overrides upstream styles on purpose.
 import "./fork-ui.css";
+// fork:mac-skeuo — 「Mac拟物风格」材质层，**必须在 fork-ui.css 之后**：
+// 它靠 html[data-theme-skin-id] 挂载，与 fork-ui.css 的
+// `html[data-theme-skin="true"] .xxx` 组选择器同权重，靠源码顺序取胜。
+import "./fork-mac-skeuo.css";
 
 // A previously installed production worker can cache Turbopack chunks under the
 // same local origin. Run this before Next's client code in development so a

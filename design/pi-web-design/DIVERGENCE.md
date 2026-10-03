@@ -2770,3 +2770,21 @@ className 上有没有内联 `style`，以及 `lib/desktop-shell.ts` 这类「�
 ### AF-5 · 顺带记一条门禁盲区
 
 `scripts/check-icons.mjs` 只查字面量 `data-ico="name"`，**查不到 JS 里动态传的图标名**（`BrowserPanel.tsx:80` 的 `icon: "monitor-sm"` 正是这样漏过去的，而 `icons.js` 命中失败是 `return ""` 静默返回空图标，不报错）。动态图标名目前靠人眼。
+
+## AG · 2026-10-03：手机与推送改两栏形态（对照 ZCode 的「移动端远程控制」弹窗）
+
+用户拿 ZCode 参考项目（`pi参考项目/ZCode-main`）的 `WebRemoteControlDialog` 截图拍板：
+设置里的「手机与推送」从三节纵排改成**两栏卡**——左栏「手机扫码连接」（状态卡 +
+大二维码），右栏「使用 Bot Channel」（渠道卡 + 底部「机器人管理」抽屉收 IM 推送）。
+本功能不在 30 张画板内（fork 功能，无 board spec），形态来源是参考项目的弹窗，
+登记以下偏离：
+
+- **渠道行用品牌 PNG logo，偏离「图标一律 lucide」**。平台在这里是「要去连的服务」，
+  认品牌是第一眼的事；单色线条图标把微信/飞书/Telegram 画成一个样。PNG（128×128 @2x）
+  vendor 自 ZCode-main 的 `packages/ui/src/assets/channel-icons/`，落 `public/channel-icons/`
+  （telegram / discord / feishu / wechat；lark 与 feishu 共用一张，同 ZCode 的做法）。
+  没有品牌资源的渠道（huawei-today）回落 lucide 名。组件：`components/fork/ChannelIcon.tsx`。
+- **状态卡复用 `.pw-plan` / `.pw-plan-head`**（中性卡原子），徽标是 `.pw-chip` 套
+  `.pw-dot`；「已就绪」用 `.pw-dot.await`（琥珀），与截图一致。未新增任何 `pw-*` 类。
+- 飞书/Lark 的「中国 / 全球」站点角标照截图保留（`.pw-chip`），i18n key
+  `botChannel.regionCN` / `botChannel.regionGlobal`。

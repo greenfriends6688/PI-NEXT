@@ -26,7 +26,10 @@ const eslintConfig = [
   {
     // Last: the Electron main process is CommonJS by construction, and the
     // shared configs above re-enable the rule.
-    files: ["electron/**/*.js"],
+    // bin/ 同样是「按构造就是 CommonJS」：这些是 npm bin 启动器与 LAN 监督器，
+    // 必须在还没构建出任何东西的机器上被 node 直接跑起来（fork:lan-access 给
+    // readLanAccessState 加了同步 require("fs"/"path"/"os")，为此把整个 bin/ 排除）。
+    files: ["electron/**/*.js", "bin/**/*.js", "bin/**/*.cjs"],
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
 ];

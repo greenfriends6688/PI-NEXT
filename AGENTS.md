@@ -99,14 +99,25 @@ app/api/
   skills/install/route.ts         POST install skills through npx skills add
   skills/search/route.ts          GET/POST skills.sh search
   subagents/settings/route.ts     GET/PUT built-in subagent feature setting
+  lan/access/route.ts             GET/PUT LAN access on/off + status (first GET mints the token)
   lan/pair/generate/route.ts      POST mint a 6-digit LAN pairing code (this machine)
   lan/pair/redeem/route.ts        POST exchange a pairing code for the LAN cookie
                                   (the only auth-exempt path)
+  im-bridge/route.ts              GET/PUT/POST IM push targets (masked list / replace / test send)
+  bot-channel/route.ts            GET/POST chat-bot channels (specs + configure | start | stop)
   worktrees/route.ts              GET/POST/DELETE git worktrees
 
 lib/
-  lan-access.ts        fork:lan-access — the only LAN gate (PI_WEB_LAN_TOKEN, tokens, read-only derivation)
+  lan-access.ts        fork:lan-access — the only LAN gate (app-owned token, read-only derivation)
+  lan-supervisor.cjs   fork:lan-access — 盯着配置让「启动」真生效（CJS，两个启动器共用一份）
+  chat-channel-shared.ts fork:bot-channel — 渠道清单与逐条可行性（客户端安全）
+  chat-channel.ts      fork:bot-channel — 渠道配置与 ready 判定（服务端）
+  telegram-channel.ts  fork:bot-channel — 唯一真跑通的入站：Telegram 长轮询、白名单、回程
   lan-pair.ts          fork:lan-access — 6-digit pair codes (globalThis singleton) + LAN URL list
+  qrcode.ts            fork:lan-pair-qr — vendored from MusePi (MIT): ISO/IEC 18004 encoder, zero deps
+  qr-image.ts          fork:lan-pair-qr — QR → bitmap with the quiet zone the scanner needs
+  im-bridge.ts         fork:im-bridge — signing, payload builders, sending, ~/.pi/agent/im-bridge.json
+  im-extension.ts      fork:im-bridge — the im_send tool
   subagent-mail.ts     fork:agent-mail — in-process agent↔agent mailbox
   agent-client.ts      typed fetch helper for /api/agent commands
   draft-store.ts       local draft persistence helpers
@@ -273,15 +284,29 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **会话动作 ⋯ 菜单**（`components/fork/SessionActionsMenu.tsx`，走既有 `ContextMenuProvider`）：置顶 / 重命名 / 归档 / 标记未读 ‖ 在访达中打开 / 复制路径 / 复制会话文件路径 / 复制会话 ID / 前往配置 ‖ 调用轨迹 / 导出 HTML / 导出 Markdown。**重命名**=顶栏标题原地变输入框（`PATCH /api/sessions/<id]` + `refreshKey`）；**标记为未读**靠 `lib/session-unread.ts`（未读标记原来是 `SessionSidebar` 私有的 `useState`，外部点不到，抽成和 `lib/session-flags.ts` 同形状的 store）；**在访达中打开**走 `/api/files/reveal` 开**项目目录**（会话文件在 `~/.pi/agent/sessions` 下，不在 allowed roots，所以不 reveal 它），失败由 AppShell 里那条 3 秒的 `.pw-toast` 报出来。pi 没有的两个（ZCode 的「复制日志路径」「反馈问题」）不做。
 * **「读数」与「动作」分开**：`SessionStatsDetails`（上下文环浮窗）只留读数（名称 / 活跃时长 / 消息计数 / Token / 费用 / 上下文 / 命中率），路径类动作全在 ⋯ 菜单里，同一件事只留一个入口。
 
-### 局域网与手机配对（fork:lan-access）
+### 手机与推送（fork:phone-push + fork:bot-channel + fork:im-bridge）
 
-参考实现是 MusePi（`pi参考项目/MusePi-main`）。那边手机**不直连** daemon，而是走自研 collab relay（明文 7654 + 自签 TLS 7655，`0.0.0.0`）、链接里拼 32B 房间密钥 + 16B 写令牌、每帧 AES-256-GCM 密封，另开一个**无鉴权**的 8301 端口解析 6 位配对码。本仓是同源 HTTP，**不抄那半个系统**（relay / 自签证书 / 无鉴权端口），只抄两条语义：
+形态两次裁定，后者覆盖前者：先（2026-10-03 上午）参照 MusePi 的 `CollabDialog`（`pi参考项目/MusePi-main/packages/desktop-app/src/components/CollabDialog.tsx`）定了「一个分节，左栏扫码连接、右栏聊天 Bot」；同日用户拿 ZCode 参考项目（`pi参考项目/ZCode-main`）的 `WebRemoteControlDialog` 截图把形态拍细——**两栏卡**：左栏「手机扫码连接」（状态卡：状态名 + 「已就绪」徽标 + 停止钮，分隔线下是「无法扫码」兜底动作，下方虚线框里大二维码，`qrImage` 调用处 `scale: 8`），右栏「使用 Bot Channel」只摆**干净入口卡**（第三轮裁定，对照同一天的第二张截图：品牌 logo + 名字 + 站点角标 + 一句「从XX打开这个工作区」+ 「去 Bot Channels 配置」文字链 `.fork-linkbtn`，无状态点/缺项数/启停钮）；「机器人管理」与各卡链接打开**二级弹窗**（`components/fork/BotChannelsDialog.tsx`，对照 ZCode 的 `BotsDialog`：`.fork-bot-dialog*` 壳在 fork-ui.css，左列表=六渠道+推送入口、右详情=扫码/凭证/投递/启停分节卡，推送目标 `ImBridgeBody` 收进弹窗）。偏离与登记见 `DIVERGENCE.md` AG 节。
 
-* **「有令牌才允许暴露到网卡」**（他们 `daemon/server.ts:9595-9597` 的规则）。本仓的落法是 `lib/lan-access.ts` + `proxy.ts`：**`PI_WEB_LAN_TOKEN` 不设置时一字不改地保持「没有登录」**（2026-09-28 的裁定不动）；设了之后 loopback 仍然放行（桌面 App / `npm run prod` / e2e 不受影响），只有非本机请求要出示令牌。启动器 `bin/pi-web.js` 把 `?t=` 带上并把告警改成两条：没令牌是「同网段任何人都有全权」，有令牌是「令牌走明文 HTTP」。
-* **配对就是「6 位码 → cookie」**：`lib/lan-pair.ts`（mint / spend / 10 分钟 TTL / 用掉即删）→ `POST /api/lan/pair/generate`（本机申请，附局域网地址）→ 手机开 `/pair` → `POST /api/lan/pair/redeem` 种 cookie → 回 `/`。**只读/完整两种链接**也只差一个种类标记：码里不存令牌，只存 `full | readonly`，兑码时按当时的 env 现算 —— 换令牌等于让所有在飞的码立刻作废，而只读令牌是 `HMAC-SHA256(完整令牌, "pi-web-lan-readonly:v1")`，只放行 `GET`/`HEAD`。
-* **不变量**：(1) `checkLanAccess()` 在无令牌时必须恒放行，否则「本产品没有登录」被推翻；(2) 换令牌时**唯一**免登录可达的路径是 `/api/lan/pair/redeem`（`PAIR_EXEMPT_PATHS`），再添一条就得重新审一遍；(3) `0.0.0.0` **不算** loopback —— 那是别的机器也能连的通配地址，当本机等于开洞；(4) 闸门只读 `Host` 头，因为反代会改写它。
-* **入口在设置里**（`lanPair` 分节 → `components/fork/LanPairPanel.tsx`），**不进侧栏导轨**：导轨几何是画板 02 登记过的（`AppShell.design-components.test.mjs` 数着按钮个数），机器级动作归设置页。
-* 现状实测：手机用浏览器打开局域网地址**已经能直连并操作**，所以这套东西解决的是「**鉴权 + 免输密钥的配对**」，不是「能不能连」。
+* **能直接迁移的只有形状，代码全部重写**。他们那套 = 自研 collab relay（明文 7654 + 自签 TLS 7655，`0.0.0.0`）+ 链接里拼 32B 房间密钥 + AES-256-GCM 信封 + 一个**无鉴权的 8301** 端口专门解析 6 位码。本仓是同源 HTTP，抄它等于自己写反向代理并顺手开一个裸奔端口，所以只抄语义：token 决定是否上网卡 / 6 位码换 cookie / 只读与完整两种链接。
+* **令牌是应用自己生成的**（`lib/lan-access.ts` → `~/.pi/agent/lan-access.json`，0600），**第一次打开「手机与推送」即视为同意并现生成** —— 这是「打开就有二维码」的落点。启动器（`bin/lan-supervisor.cjs`，`npm run prod` 与 `bin/pi-web.js` 共用一份）盯着那份配置，**off→on / on→off 会自动重启子进程**，所以「启动/停止」是真开关，不用敲任何参数。
+  · 换令牌**不自动重启**（会打断在跑的会话），只提示下次启动生效。
+  · 换令牌 = 作废所有已发链接、已种 cookie 与只读链接。
+* **绑网卡是启动器决定的，进程内改不了** —— 这是与 MusePi 唯一的结构性差别（他们 relay 由 daemon 另开 socket，才能「点一下立刻生效」），所以走父进程重启，三道护栏：去抖 500ms、同方向最多 3 次、每次打日志。`scripts/next-mode.mjs` 也必须接上（`npm run prod` 是日常入口，第一版漏了它导致日常入口下点了没反应）。
+* **不变量**：(1) 没有令牌 / 令牌形状不对 / 文件坏了 → **只绑 loopback**（fail closed，绝不退回裸奔）；(2) `0.0.0.0` 不算 loopback；(3) 闸门只读 `Host`；(4) 换令牌时唯一免登录可达的路径仍是 `/api/lan/pair/redeem`，它自带失败节流（30 次/5 分钟）。
+* **二维码是 vendor 的**：`lib/qrcode.ts` 逐字取自 MusePi 的 `packages/collab-proto/src/qrcode.ts`（MIT）。他们的测试向量**与 `qrcode` 参考库逐字节对拍并用 jsQR 真解过**，本仓 `lib/qrcode.test.mjs` 原样沿用 —— 所以这份 vendor 代码的可用性是「对拍过」，不是「看起来对」。静区在 `lib/qr-image.ts`（那里测得到），组件只涂 canvas。
+* **入站渠道三条真跑通**（2026-10-03 起）：**Telegram**（`lib/telegram-channel.ts`，长轮询、零依赖）、**微信**（`lib/weixin-channel.ts`，挂在微信自家 **iLink bot 平台** `ilinkai.weixin.qq.com/ilink/bot`——扫码 `get_bot_qrcode?bot_type=3` 拿 bot_token，`getupdates` 长轮询收、`sendmessage` 发，零新依赖；这推翻了早先「个人微信没有任何官方 bot API」的结论）、**飞书/Lark**（`lib/feishu-channel.ts`，注册走 `accounts.feishu.cn/oauth/v1/app/registration` 的 device-flow 三步一键建应用——**不用预建应用**，收消息走官方 `@larksuiteoapi/node-sdk` 的 WSClient（在 runner 里**动态 import**，浏览器依赖图看不到），发消息走 REST `tenant_access_token`（缓存 90 分钟）+ `im/v1/messages`）。三者的协议全部**逐字对拍 ZCode 参考仓**（`pi参考项目/ZCode-main/packages/services/src/bots/`），协议纯函数（状态归一化、帧解析、请求形状）各有 `.test.mjs` 用 fetch 桩锁住。Discord 仍要 `ws` 进 dependencies；企业微信只有公网回调，不做。
+* **扫码注册的在途会话**在 `lib/chat-channel-register.ts`（globalThis registry，同渠道一场、过期即废；`register-begin` / `register-poll` / `register-cancel` 三个动作挂在 `/api/bot-channel`）。二维码内容串由前端 `components/fork/QrCanvas.tsx` 画（与配对码共用一套涂格子代码，静区在 `lib/qr-image.ts`）。
+* **白名单语义（扫码渠道）**：凭证只有扫码换来的 token，平台侧无签名校验——所以防线在本仓：**首个发信人自动绑定**（runner 把人 push 进内存白名单并回欢迎语，route 落盘），之后白名单外一律忽略；显式配了 allowFrom 就完全按名单来。微信的「首条消息只激活不进 prompt」同 ZCode。
+* **微信游标**：`getupdates` 的不透明 `get_updates_buf` 落在 `~/.pi/agent/chat-channels-state.json`（0600，与凭证分开——丢了最多重放一批，凭证丢了要重扫码）；**每批处理完才推进**。`message_type === 2` 是自己的回显，必须丢弃，否则自问自答死循环。
+* **渠道品牌 logo 是 vendor 的 PNG**（`public/channel-icons/`，取自 ZCode-main 的 `channel-icons`；lark 与 feishu 共用一张），`components/fork/ChannelIcon.tsx` 渲染、没有资源的渠道回落 lucide 名。这是对「图标一律 lucide」的**已登记偏离**（DIVERGENCE AG 节），别当成要修的漂移。
+* **白名单默认空 = 谁都不许**：拿到机器人令牌的人不该顺手就能用你的模型额度和文件权限开 agent。
+* **出站推送**（`im_send`，`lib/im-bridge.ts`）：飞书 / 企业微信 / 钉钉 / Slack / Telegram + 自建 webhook 五家同构（都是 POST 一个 JSON），认不出平台落 `custom` 原样 POST。
+  · **飞书与钉钉的加签是镜像的**：飞书 key=`ts\nsecret`/message 为空/**秒**/字段在 **body**；钉钉 key=`secret`/message=`ms\nsecret`/**毫秒**/字段在 **query**/base64 后再 URL 编码。因此是两个具名函数，**不许合并**。
+  · **企业微信群机器人没有加签**（官方页只有 IP 白名单），`needsImSecret()` 只有 feishu + dingtalk。长度上限只写文档写明的。
+  · 凭证边界：URL 与 secret 都是凭证；配置 `~/.pi/agent/im-bridge.json`（0600）；`GET /api/im-bridge` 与 `im_send action=list` **只回 host + 掩码**；编辑时**字段缺失 = 沿用已存值**。
+* **客户端与服务端必须拆开**：设置页是 `"use client"`，只能 import `lib/im-bridge-shared.ts` 与 `lib/chat-channel-shared.ts`；`lib/im-bridge.ts` / `lib/chat-channel.ts` 里的 `node:fs` + pi SDK 一碰客户端依赖图，`lib/client-graph-purity.test.mjs` 就红。
+* **入口**：设置里的「手机与推送」分节，外加侧栏底栏版本徽章左边那枚手机钮（同一个分节，快捷入口）。导轨几何是画板 02 登记过的，所以手机钮是底栏里的**兄弟**而不是第五枚导轨按钮。
 
 ### agent↔agent 通信（fork:agent-mail）
 

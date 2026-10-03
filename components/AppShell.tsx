@@ -1865,39 +1865,38 @@ export function AppShell() {
     });
   }, [sessionCatalog, handleSelectSession]);
 
-  const startSessionIn = useCallback((cwd: string, projectRoot?: string | null, projectKey?: string | null) => {
-    handleCwdChange(cwd, projectRoot ?? null, projectKey ?? null);
-    const tempId = typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-    handleNewSession(tempId, cwd);
-  }, [handleCwdChange, handleNewSession]);
+  /* fix:switch-workspace-authorize（用户 2026-10-03：「选了新任务后提示没有模型」）——
+     「切到某个目录开新会话」的全部入口（输入框上方那枚工作区芯片的菜单、上方分支
+     芯片的 worktree 列表、导轨的「新建任务」、首页指南的最近项目、手输目录弹窗）
+     都走这一个漏斗，所以授权也只有这一步：`/api/cwd/validate` 解析服务端身份
+     并把该目录加进文件白名单（allowFileRoot），之后按 cwd 授权的接口才认它。
 
-  // Resolve server-side identity (and add the root to the files allow-list) before a
-  // picked path becomes active — the contract /api/cwd/validate provides the sidebar.
-  // Returns an error message, or null on success.
-  const startSessionAtPath = useCallback(async (path: string): Promise<string | null> => {
+     之前芯片菜单 / worktree / 最近项目直接 `handleCwdChange`，目录没进白名单，
+     新会话立刻去拉 `/api/models?cwd=…` → 403「Access denied」→ 模型清单空 →
+     选择器显示「No models」。浏览器算出来的 projectRoot/projectKey 也一并丢掉：
+     服务端是权威（worktree 归并到主仓、Windows 大小写）。 */
+  const startSessionIn = useCallback(async (cwd: string): Promise<string | null> => {
+    let data: { cwd?: string; projectRoot?: string; projectKey?: string; error?: string };
     try {
       const res = await fetch("/api/cwd/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd: path }),
+        body: JSON.stringify({ cwd }),
       });
-      const data = await res.json().catch(() => ({})) as {
-        cwd?: string;
-        projectRoot?: string;
-        projectKey?: string;
-        error?: string;
-      };
+      data = await res.json().catch(() => ({})) as typeof data;
       if (!res.ok || !data.cwd || !data.projectRoot || !data.projectKey) {
         return data.error ?? `HTTP ${res.status}`;
       }
-      startSessionIn(data.cwd, data.projectRoot, data.projectKey);
-      return null;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
     }
-  }, [startSessionIn]);
+    handleCwdChange(data.cwd!, data.projectRoot!, data.projectKey!);
+    const tempId = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    handleNewSession(tempId, data.cwd!);
+    return null;
+  }, [handleCwdChange, handleNewSession]);
 
 
   const newSessionTargets = useMemo<NewSessionTargets | null>(() => {
@@ -1918,17 +1917,17 @@ export function AppShell() {
       onRefresh: () => { void refreshChatWorkspaceTarget(); },
       onPickProject: (project) => {
         setHomeTargetError(null);
-        startSessionIn(project.root, project.root, project.key);
+        void startSessionIn(project.root).then(setHomeTargetError);
       },
       onPickChat: () => {
         setHomeTargetError(null);
-        if (chatWorkspaceTarget) startSessionIn(chatWorkspaceTarget.cwd, chatWorkspaceTarget.cwd, chatWorkspaceTarget.key);
+        if (chatWorkspaceTarget) void startSessionIn(chatWorkspaceTarget.cwd).then(setHomeTargetError);
       },
       /* fork:ui-ctxbar —— 输入框上方那枚分支芯片点开的工作区（worktree）列表；
          选中另一个工作区 = 切目录并在那里开一条新会话，与侧栏/顶栏同一动作。 */
-      onPickWorkspace: (path, projectRoot) => {
+      onPickWorkspace: (path) => {
         setHomeTargetError(null);
-        startSessionIn(path, projectRoot ?? path);
+        void startSessionIn(path).then(setHomeTargetError);
       },
       onOpenFolder: () => {
         setHomeTargetError(null);
@@ -1939,7 +1938,7 @@ export function AppShell() {
         void (async () => {
           const result = await pickDirectory();
           if (result.status === "picked") {
-            startSessionIn(result.cwd, result.cwd);
+            setHomeTargetError(await startSessionIn(result.cwd));
             return;
           }
           if (result.status === "cancelled") return;
@@ -2465,7 +2464,7 @@ export function AppShell() {
           // 已经是 AppShell 里「切目录 + 起新会话」的既有入口，不另写一份。
           setSidebarOpen(true);
           const cwd = selectedSession?.cwd ?? newSessionCwd ?? activeCwd ?? null;
-          if (cwd) startSessionIn(cwd, projectTrustCwd, null);
+          if (cwd) void startSessionIn(cwd).then((failure) => { if (failure) showToast(failure); });
         }}
         title={translate("sidebar.newTask")}
         aria-label={translate("sidebar.newTask")}
@@ -2824,7 +2823,7 @@ export function AppShell() {
             <BranchChip
               branch={topBarBranch}
               cwd={selectedSession?.cwd ?? newSessionCwd ?? ""}
-              onSelectWorkspace={(path, projectRoot) => startSessionIn(path, projectRoot)}
+              onSelectWorkspace={(path) => void startSessionIn(path).then((failure) => { if (failure) showToast(failure); })}
             />
           )}
           {/* fix:mcp-topbar-icons —— MCP / 插件两枚状态图标（原来在聊天区右上角是一枚
@@ -3327,7 +3326,7 @@ export function AppShell() {
         initialPath={newSessionCwd ?? activeCwd ?? undefined}
         onCancel={() => setHomeFolderPickerOpen(false)}
         onSelect={(path) => {
-          void startSessionAtPath(path).then((failure) => {
+          void startSessionIn(path).then((failure) => {
             setHomeTargetError(failure);
             setHomeFolderPickerOpen(failure !== null);
           });

@@ -94,3 +94,13 @@ e2e_*.mjs
 /build/icon-small.png
 # fork:design-system SW-00 —— 一次性 playwright 量测脚本（换肤验收用，用法见换肤计划 8.1）
 /.scratch/
+
+# fork:mac-skeuo —— 材质层的渲染验证台（截图产物不入库，verify.mjs 每次重生成）
+design/pi-web-design/.skeuo/verify-*.html
+
+# fork:commit-hygiene-2026-10-03 —— 一次性截图 / 量测产物与本地上传素材，不进版本库
+/.shot-30141.mjs
+/.tmp-shot/
+/PI NEXT品牌/
+/docs/screenshots/skin-verify-*/
+/docs/upstream-mcp-staged/

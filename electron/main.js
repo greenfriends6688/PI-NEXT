@@ -38,6 +38,10 @@ let mainWindow = null;
 let tray = null;
 let serverProc = null;
 let serverPort = null;
+/** fork:pr48-restart —— 服务意外退出后的有界退避重启（见 exit 处理器的注释）。 */
+let restartAttempt = 0;
+const SERVER_RESTART_MAX_ATTEMPTS = 5;
+const SERVER_RESTART_MAX_DELAY_MS = 16_000;
 let quitting = false;
 let keepAwakeId = null;
 
@@ -111,6 +115,9 @@ async function pickPort(requested) {
 
 // ── 启动 Next.js 服务 ───────────────────────────────────────────────────────
 async function startServer(appRoot) {
+  // fork:pr48-restart —— 重启时旧句柄可能还在（kill 未完全完成）。先掉引用，
+  // 否则两次 spawn 的子进程都会挂 exit 监听，退避计数会翻倍。
+  serverProc = null;
   // 优先使用外部指定的端口（冒烟测试/运维固定端口），否则用固定端口列表
   const requested = Number(process.env.PI_WEB_PORT || process.env.PORT || 0);
   const port = await pickPort(requested);
@@ -144,17 +151,41 @@ async function startServer(appRoot) {
   });
   serverProc.on("exit", (code, signal) => {
     console.error(`pi-web server exited (code=${code} signal=${signal})`);
-    if (!quitting && !useDevServer) {
-      // 服务意外退出：提示并退出，避免窗口停留在无法连接的页面上
+    if (quitting || useDevServer) return;
+    // fork:pr48-restart —— 服务意外退出**不要立刻退出应用**。
+    //
+    // 原来这里直接 app.quit()：Next 服务一崩，整个窗口就停在“无法连接”的死页上，
+    // 用户什么都没了。PR-47 的崩溃苏底页只管**渲染进程**崩（页面已经加载出来、
+    // 只是某个视图炸了），管不了**服务进程**没���——那时候页面根本加载不出来。
+    //
+    // 现在改成有界退避重启：给几次机会，每次间隔翻倍。理由是多数“意外退出”是
+    // 可恢复的（端口被占、临时 OOM、依赖装到一半），重启一下就回来了；而连续失败
+    // 多次说明是真的起不来，那时候再退出，并**把最后一次原因带进提示里**。
+    //
+    // 退避上限 5 次 / 累计约 31s（1+2+4+8+16）。超过就退出 —— 无限重启会把用户
+    // 锁在一个永远转圈的窗口里，比退出更糟。
+    restartAttempt += 1;
+    if (restartAttempt > SERVER_RESTART_MAX_ATTEMPTS) {
       dialog.showErrorBox(
-        `${APP_NAME} 服务已退出`,
-        "Next.js 本地服务异常退出，应用将关闭。可重新打开应用重试。",
+        `${APP_NAME} 服务反复退出`,
+        `本地服务连续 ${SERVER_RESTART_MAX_ATTEMPTS} 次启动失败，已关闭应用。最后一次退出：code=${code} signal=${signal ?? "-"}\n\n请检查终端输出后重试。`,
       );
       app.quit();
+      return;
     }
+    const delayMs = Math.min(1000 * 2 ** (restartAttempt - 1), SERVER_RESTART_MAX_DELAY_MS);
+    console.warn(`[pi-next] 服务意外退出，${delayMs / 1000}s 后第 ${restartAttempt}/${SERVER_RESTART_MAX_ATTEMPTS} 次重启…`);
+    // 前端不用动：EventSource 在连接断开时会自己重连，服务端回来它就接上了。
+    setTimeout(() => {
+      if (quitting) return;
+      startServer(getAppRoot()).catch((error) => {
+        console.error("[pi-next] 服务重启失败:", error);
+      });
+    }, delayMs);
   });
 
   serverPort = port;
+  restartAttempt = 0;
   console.log(`[pi-next] Next.js 服务启动: http://127.0.0.1:${port} (dev=${useDevServer})`);
   return { port, useDevServer };
 }

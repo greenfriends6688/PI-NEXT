@@ -123,11 +123,14 @@ test("groups chat display controls in one board block", () => {
 
 test("keeps General free of divider rows", () => {
   // fork:design-system SW-07 —— 设置是**整屏**（画板 40/45 的 `.pw-settings` 就是整个
-  // 窗口）：桌面没有页头（画板没画），关闭入口在左导航底部最后一行；窄屏才恢复页头
-  // （那一列被隐藏，分节下拉与关闭都在页头上）。
+  // 窗口）：桌面没有页头（画板没画）；窄屏才恢复页头（那一列被隐藏，分节下拉与关闭都在
+  // 页头上）。
   assert.match(panelSource, /className="settings-dialog-header pw-modal-head"/);
-  assert.match(panelSource, /className="pw-row pw-snav-close"/);
-  assert.match(panelSource, /<span className="pw-grow" aria-hidden="true" \/>/);
+  // 2026-10-03 用户裁定 —— 左导航底部那枚「返回工作区」撤了，关闭口只剩弹窗右上角的
+  // 那一枚 X（宽屏也可见）。`.pw-snav-close` 是画板 62 的那一行，产品不再渲染。
+  assert.match(panelSource, /className="config-close-button settings-dialog-close pw-iconbtn"/);
+  assert.doesNotMatch(panelSource, /className="pw-row pw-snav-close"/);
+  assert.doesNotMatch(panelSource, /t\("settings\.backToWorkspace"\)/);
   assert.match(cssSource, /\.settings-dialog-header\.pw-modal-head \{[\s\S]*?display: none/);
   const narrowHead = cssSource.match(/@media \(max-width: 640px\)[\s\S]*?\.settings-dialog-header\.pw-modal-head \{[\s\S]*?\}/)?.[0] ?? "";
   assert.match(narrowHead, /display: flex/);

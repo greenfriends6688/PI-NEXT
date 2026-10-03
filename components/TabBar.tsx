@@ -15,9 +15,7 @@ export interface Tab {
   filePath: string;
   /** fork:git-graph-tab — `git-graph` 是工作区单例视图 tab（无 filePath）。 */
   /** fork:trace-pane — `trace` 是单例「调用轨迹」视图 tab（同上）。 */
-  kind?: "terminal" | "browser" | "session" | "git-graph" | "changes" | "trace";
-  /** fork:proma-39-changes — 后台有新改动时的未读点（只提示，不自动切 tab）。 */
-  unread?: boolean;
+  kind?: "terminal" | "browser" | "session" | "git-graph" | "trace";
   closing?: boolean;
   sourceSessionId?: string | null;
   initialDisplayMode?: FileViewerDisplayMode;
@@ -309,8 +307,6 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, overview }:
             >
               {tab.label}
             </span>
-            {/* fork:proma-39-changes — 未读点：有新改动时亮起，绝不抢当前视图。 */}
-            {tab.unread && <span className="pw-dot unread" aria-hidden="true" />}
             <button
               type="button"
               disabled={tab.closing}

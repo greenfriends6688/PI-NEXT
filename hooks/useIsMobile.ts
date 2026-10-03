@@ -36,6 +36,15 @@ const subscribeNarrowMobile = (cb: () => void) => subscribeToQuery(NARROW_MOBILE
 const getNarrowMobileSnapshot = () => queryMatches(NARROW_MOBILE_QUERY);
 const subscribeCompact = (cb: () => void) => subscribeToQuery(COMPACT_QUERY, cb);
 const getCompactSnapshot = () => queryMatches(COMPACT_QUERY);
+/**
+ * fork:pwa-landscape-composer — landscape phone (width ≤1024 and height ≤500).
+ * There is plenty of width but almost no height: the composer's two-row control
+ * strip eats ~40% of the viewport, so it falls back to the single desktop row.
+ * The max-height half keeps tablets (portrait heights ≥600) on the two-row strip.
+ */
+const LANDSCAPE_SHORT_QUERY = "(max-width: 1024px) and (max-height: 500px)";
+const subscribeLandscapeShort = (cb: () => void) => subscribeToQuery(LANDSCAPE_SHORT_QUERY, cb);
+const getLandscapeShortSnapshot = () => queryMatches(LANDSCAPE_SHORT_QUERY);
 
 function getServerSnapshot(): boolean {
   return false;
@@ -66,4 +75,16 @@ export function useIsNarrowMobile(): boolean {
  */
 export function useIsCompact(): boolean {
   return useSyncExternalStore(subscribeCompact, getCompactSnapshot, getServerSnapshot);
+}
+
+/**
+ * Returns true on a landscape phone (≤1024 wide **and** ≤500 tall).
+ *
+ * Use it only to give back vertical space that the compact tier borrows — today
+ * that is the composer's two-row control strip. Do not use it for touch
+ * affordances: a landscape phone is still a coarse-pointer device, so 40px hit
+ * targets and drawer gestures stay on `useIsMobile` / the `pointer: coarse` CSS.
+ */
+export function useIsLandscapeShort(): boolean {
+  return useSyncExternalStore(subscribeLandscapeShort, getLandscapeShortSnapshot, getServerSnapshot);
 }

@@ -32,7 +32,7 @@ import { shouldAllowMentionTrigger } from "@/lib/mention-trigger-guard";
 import { useFileIndex, useSkillNames } from "@/hooks/useProjectContext";
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { ImagePreview } from "./ImagePreview";
-import { useIsMobile, useIsCompact } from "@/hooks/useIsMobile";
+import { useIsMobile, useIsCompact, useIsLandscapeShort } from "@/hooks/useIsMobile";
 import { useResizableHeight } from "@/hooks/useResizableHeight";
 import { useI18n } from "@/hooks/useI18n";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
@@ -41,7 +41,7 @@ import { useEnterSendMode } from "@/hooks/useEnterSendMode";
 import { ThinkingIcon } from "./ThinkingIcon";
 import type { ToolPreset } from "@/lib/tool-presets";
 // fork:proma-02-mode — 会话权限模式
-import { nextPermissionMode, PERMISSION_MODE_HINT_KEYS, PERMISSION_MODE_LABEL_KEYS, type PermissionMode } from "@/lib/permission-mode";
+import { PERMISSION_MODES, PERMISSION_MODE_HINT_KEYS, PERMISSION_MODE_LABEL_KEYS, type PermissionMode } from "@/lib/permission-mode";
 import { ModelSelector, type ModelSelectorOption } from "./ModelSelector";
 // fork:quota-chip —— 模型选择器右侧的供应商配额芯片（上游 closed PR #867）。
 import {
@@ -138,8 +138,9 @@ interface Props {
   onCompact?: () => void;
   onAbortCompaction?: () => void;
   isCompacting?: boolean;
-  /** fork:composer-speed — 流式期间的实时输出速度（估算 token/秒），空 = 不显示。
-   *  数据在 ChatWindow 算（见那里的注释：pi 的 usage 只在消息收尾才有）。 */
+  /** fork:composer-speed — AI 响应期间（流式）显示的实时输出速度（估算 token/秒），
+   *  空 = 不显示；停流即隐。数据在 ChatWindow 算（见那里的注释：pi 的 usage 只在
+   *  消息收尾才有，所以流式中途只能按已流出的文本估算）。 */
   streamSpeed?: number | null;
   compactError?: string | null;
   compactResult?: CompactResultInfo | null;
@@ -438,6 +439,8 @@ const BUILTIN_SLASH_COMMANDS: BuiltinSlashCommand[] = [
   { name: "session", description: "chat.commandSession", source: "builtin", availableWhileStreaming: true },
   { name: "copy", description: "chat.commandCopy", source: "builtin", availableWhileStreaming: true },
   { name: "clone", description: "chat.commandClone", source: "builtin" },
+  // fork:mcp-slash —— 裸 `/mcp` 打开「设置 › MCP」（上游同款；带子命令的照常发给会话）。
+  { name: "mcp", description: "chat.commandMcp", source: "builtin", availableWhileStreaming: true },
 ];
 
 function getBuiltinSlashCommand(message: string): BuiltinSlashCommand | undefined {
@@ -963,8 +966,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // ~390px，工具条的右侧组（圆环/声音/发送）被顶出卡片裁掉。折叠判据加上
   // 卡片自身的实测宽度：700px 是全量工具条的自然宽度上限（模型名最长时）。
   const viewportCompact = useIsCompact();
+  // fork:pwa-landscape-composer — 横屏手机（≤1024 宽且 ≤500 高）宽度充足、高度是
+  // 稀缺资源：两行控件条在 390 高里占掉 ~150px（实测 41%）。这里放行成桌面同一
+  // 条单行工具条；模型芯片在横屏档允许收缩省略（fork-ui.css 同名段），长名字
+  // 挤不下时收芯片而不是把行撑破。竖屏手机与平板照旧走两行。
+  const landscapeShort = useIsLandscapeShort();
   const [shellNarrow, setShellNarrow] = useState(false);
-  const narrowControls = viewportCompact || shellNarrow;
+  const narrowControls = (viewportCompact && !landscapeShort) || shellNarrow;
   // fork:pr23-resize — 顶部手柄竖向缩放。`height === null` 保持内容驱动的自动
   // 高度；数字表示用户已接管。manualMode 时卡片挂内联固定高度，textarea 交给
   // `.is-manual-height` 的 CSS（`height: 100% !important`）填充并内部滚动，
@@ -1025,6 +1033,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [value, setValue] = useState(() => initialDraft?.value ?? "");
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
+  // 2026-10-03 用户裁定 —— 权限档也从「点一下循环」改成下拉（与思考档 / 工具档一致）。
+  const [permissionDropdownOpen, setPermissionDropdownOpen] = useState(false);
   const [controlsMenuOpen, setControlsMenuOpen] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>(() => (
     draftImagesToAttachedImages(initialDraft?.images)
@@ -1121,6 +1131,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const toolDropdownRef = useRef<HTMLDivElement>(null);
   const thinkingDropdownRef = useRef<HTMLDivElement>(null);
+  const permissionDropdownRef = useRef<HTMLDivElement>(null);
   const controlsMenuRef = useRef<HTMLDivElement>(null);
   const historyMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3023,6 +3034,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       if (thinkingDropdownRef.current && !thinkingDropdownRef.current.contains(e.target as Node)) {
         setThinkingDropdownOpen(false);
       }
+      if (permissionDropdownRef.current && !permissionDropdownRef.current.contains(e.target as Node)) {
+        setPermissionDropdownOpen(false);
+      }
       if (controlsMenuRef.current && !controlsMenuRef.current.contains(e.target as Node)) {
         setControlsMenuOpen(false);
       }
@@ -3779,8 +3793,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         )}
 
         {/* fork:design-components —— 工具栏 = 画板 20 的 .pw-composer-bar：
-            一行内是 附件 · 模型 · 思考 · 权限 · 工具档 · 压缩 ｜ 上下文环 · 声音 · 发送，
-            与画板 20 A 的控件顺序一致。 */}
+            一行内是 附件 · 模型 · 思考 · 权限 · 工具档 ｜ 上下文环 · 声音 · 发送，
+            与画板 20 A 的控件顺序一致（压缩已并入上下文环，见下面那处注释）。 */}
         {/* fork:pwa-wb-composer —— 窄屏（narrowControls，≤1024）把工具条收成**两行**：
             行一 = 附件 + 模型选择器（可省略号），行二 = 四枚模式芯片 + 更多 + 发送。
             改前这里只有 `minmax(0,1fr) auto` 两列，于是左组的全部控件挤在一行里
@@ -3835,17 +3849,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 （`⟳ 1%` = 剩余额度，上游 #867）。用户裁定「放在这里没啥卵用」：额度在设置页
                 的供应商用量里看得到，写代码时盯这条百分比只会分心。芯片与其纯函数库
                 （`components/ProviderQuotaChip.tsx`、`lib/provider-usage-quota.ts` + 单测）
-                一并删除，没有留孤儿代码。这一格改挂**实时速度**徽标（见下）。 */}
-            {/* fork:composer-speed（用户 2026-10-02）—— 模型芯片右边那枚徽标。
-                这里原来是一枚上下文百分比徽标，用户裁定「没啥卵用」；换成**实时速度**
-                （流式期间估算 token/秒，见 ChatWindow 的 streamSpeed）。上下文明细与
-                压缩入口仍在右端那枚环上，没动。 */}
-            {streamSpeed != null && streamSpeed > 0 && (
-              <span className="pw-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
-                <span className="pw-ico"><i data-ico="gauge" data-size="11"></i></span>
-                {streamSpeed} t/s
-              </span>
-            )}
+                一并删除，没有留孤儿代码。那一格留给**实时速度**徽标（已挪到行二，见下）。 */}
             </div>
             {/* fork:pwa-wb-composer —— 行二：思考 / 权限 / 工具预设 / 压缩四枚模式芯片。
                 窄屏下是 grid 的 `chips` 区（间隙 `--s1`，芯片命中区由 CSS 给到
@@ -3854,34 +3858,24 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               className="fork-pwa-wb-modes"
               style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "var(--s1)", minWidth: 0, gridArea: narrowControls ? "chips" : undefined }}
             >
-            {isStreaming && onThinkingLevelChange && (
-              // The level cannot change mid-turn, so this is read-only: a button here
-              // would invite clicks that do nothing. It still answers the question
-              // that matters while a turn runs, which budget is this one spending.
-              // fork:design-components —— 只读态也用画板 .pw-select：尺寸/内边距
-              // 与旁边可点的思考档完全一致，不会因为「这个不能点」就换一套尺寸。
-              <span
-                className="pw-select"
-                title={t("chat.currentReasoning", { level: thinkingDisplayLabel })}
-                style={{ color: "var(--n-placeholder)" }}
-              >
-                <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
-                {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
-              </span>
-            )}
-            {!isStreaming && onThinkingLevelChange && (
+            {/* fork:thinking-level-while-running（用户 2026-10-02，对齐上游 0.10）——
+                上一轮运行中这枚芯片是**只读**的（注释写着「一轮之内改不了」），于是
+                「运行中也能调推理等级」这条上游新增功能在本仓没有。上游把同一个控件在
+                流式时保持可点，只把 title 换成「当前推理档」。真要改的是**下一轮**：
+                pi 的 set_thinking_level 在 turn 中途生效于后续请求，这一轮的预算不变。 */}
+            {onThinkingLevelChange && (
               <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
                 {/* fork:design-components —— 思考档直接用画板 20/21 的 .pw-select + .pw-pop/.pw-prow。 */}
                 <button
                   type="button"
-                  onClick={() => !isStreaming && setThinkingDropdownOpen((v) => !v)}
-                  disabled={isStreaming}
-                   title={t("chat.changeReasoning", { level: thinkingDisplayLabel })}
+                  onClick={() => setThinkingDropdownOpen((v) => !v)}
+                   title={isStreaming
+                    ? t("chat.currentReasoning", { level: thinkingDisplayLabel })
+                    : t("chat.changeReasoning", { level: thinkingDisplayLabel })}
                    aria-label={t("chat.changeReasoningLabel")}
                   className="pw-select"
                   style={{
-                    cursor: isStreaming ? "not-allowed" : "pointer",
-                    opacity: isStreaming ? 0.5 : 1,
+                    cursor: "pointer",
                     background: thinkingDropdownOpen ? "var(--overlay-hover)" : undefined,
                     // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
                     // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
@@ -3894,6 +3888,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 >
                   <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
                   {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
+                  {/* 2026-10-03 用户裁定 —— 有选项的芯片一律带向下箭头（与模型选择器同款
+                      chevron-down），不然分不清「可点开」与「只是读数」。 */}
+                  <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
                 </button>
                 {thinkingDropdownOpen && (
                   <div
@@ -3944,40 +3941,90 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 )}
               </div>
             )}
+            {/* fork:composer-speed（用户 2026-10-02 创建，同日挪位；2026-10-03 再加空闲读数）——
+                「思考档」与「权限档」之间那枚只读徽标：**只在 AI 响应期间**显示本轮
+                输出速度（ChatWindow 的 streamSpeed，停流即隐），原来它挂在行一的模型
+                芯片右边，那里现在只留附件 + 模型；上下文明细与压缩入口仍在右端那枚
+                环上，没动。 */}
+            {streamSpeed != null && streamSpeed > 0 && (
+              <span className="pw-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
+                <span className="pw-ico"><i data-ico="gauge" data-size="11"></i></span>
+                {streamSpeed} t/s
+              </span>
+            )}
             {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
-                点一下循环切换：全自动 → 需审批 → 计划。 */}
+                2026-10-03 用户裁定 —— 从「点一下循环」改成下拉：三个档并列在浮窗里，
+                与思考档 / 工具档同一形态（`.pw-select` + `.pw-pop` / `.pw-prow`），
+                三档不用轮着点才知道现在在哪。循环切换的 `nextPermissionMode` 已退役。 */}
             {onPermissionModeChange && permissionMode && toolPreset !== "none" && (
-              /* fork:design-components —— 权限档直接用画板 20/21 的 .pw-select 组件
-                 （board.css：28px / 无边框 / hover 叠色；非默认档走强调色文字）。 */
-              <button
-                type="button"
-                onClick={() => onPermissionModeChange(nextPermissionMode(permissionMode))}
-                title={`${t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}：${t(PERMISSION_MODE_HINT_KEYS[permissionMode])}`}
-                aria-label={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
-                className="pw-select"
-                style={{
-                  cursor: "pointer",
-                  // 非默认档位用强调色，因为「当前不全自动」是需要一眼看出来的状态
-                  color: permissionMode === "bypass" ? undefined : "var(--accent-text)",
-                  // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
-                  // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
+              <div ref={permissionDropdownRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setPermissionDropdownOpen((v) => !v)}
+                  title={`${t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}：${t(PERMISSION_MODE_HINT_KEYS[permissionMode])}`}
+                  aria-label={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
+                  aria-expanded={permissionDropdownOpen}
+                  className="pw-select"
+                  style={{
+                    cursor: "pointer",
+                    // 非默认档位用强调色，因为「当前不全自动」是需要一眼看出来的状态
+                    color: permissionMode === "bypass" ? undefined : "var(--accent-text)",
+                    background: permissionDropdownOpen ? "var(--overlay-hover)" : undefined,
+                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
+                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
                     // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
                     // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
                     // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
                     // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
                     width: isMobile || viewportCompact ? "auto" : undefined,
-                }}
-              >
-                <span className="pw-ico">
-                  <i
-                    data-ico={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
-                    data-size="13"
-                  ></i>
-                </span>
-                {(!narrowControls || controlsMenuOpen) && (
-                  <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
+                  }}
+                >
+                  <span className="pw-ico">
+                    <i
+                      data-ico={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
+                      data-size="13"
+                    ></i>
+                  </span>
+                  {(!narrowControls || controlsMenuOpen) && (
+                    <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
+                  )}
+                  <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+                </button>
+                {permissionDropdownOpen && (
+                  <div
+                    className="anim-popover pw-pop"
+                    style={{
+                      position: "absolute",
+                      bottom: "calc(100% + 6px)",
+                      // fork:ui-composer-pop —— 同思考档 / 工具档：左缘锚定，不探出卡片左缘。
+                      left: 0,
+                      zIndex: 100,
+                      // 不写 minWidth：三档的说明句（`PERMISSION_MODE_HINT_KEYS`）本来就长，
+                      // 弹层按内容收口；写死宽度只会多一条内联几何字面量。
+                    }}
+                  >
+                    <div className="pw-pop-title">{t("chat.permissionTitle")}</div>
+                    {PERMISSION_MODES.map((mode) => {
+                      const isActive = mode === permissionMode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => { setPermissionDropdownOpen(false); if (!isActive) onPermissionModeChange(mode); }}
+                          className={`pw-prow${isActive ? " is-on" : ""}`}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {isActive
+                            ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
+                            : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
+                          <span className="grow">{t(PERMISSION_MODE_LABEL_KEYS[mode])}</span>
+                          <span className="pw-desc">{t(PERMISSION_MODE_HINT_KEYS[mode])}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
-              </button>
+              </div>
             )}
             {!isStreaming && onToolPresetChange && (
               <div ref={toolDropdownRef} style={{ position: "relative" }}>
@@ -4003,6 +4050,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 >
                   <span className="pw-ico"><i data-ico="wrench" data-size="13"></i></span>
                   {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
+                  {/* 2026-10-03 用户裁定 —— 同思考档：有选项就带箭头。 */}
+                  <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
                 </button>
                 {toolDropdownOpen && (
                   <div
@@ -4048,49 +4097,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </div>
             )}
 
-            {/* fork:upstream-2e66e40（#1008 移植）—— 露出条件是 `!isStreaming || isCompacting`：
-                手动压缩从空闲会话起，按钮本来就在，只翻成「停止压缩」；**自动压缩是
-                一轮跑到一半才开始的**，那时 isStreaming 已经是 true，旧守卫
-                `!isStreaming` 让按钮整轮都不渲染，只剩一个笼统的「停止」，用户没有
-                「跳过这次压缩、让这一轮继续」的手段（上游 #1008 的原话：看起来像卡死）。
-                改成 `!isStreaming || isCompacting` 之后，「流式中且不在压缩」那几条分支
-                （disabled / 0.5 透明度 / not-allowed 光标）永远到不了，按上游的做法删掉
-                而不是留成死代码：`cursor:pointer` 由 fork-ui.css 的 `button.pw-select` 承担。 */}
-            {(!isStreaming || isCompacting) && onCompact && (
-              <div>
-                {/* fork:design-components —— 压缩按钮 = 画板 .pw-select；进行中转 error 色 + loader。 */}
-                <button
-                  type="button"
-                  onClick={isCompacting ? onAbortCompaction : onCompact}
-                  className="pw-select"
-                  style={{
-                    color: isCompacting ? "var(--error)" : undefined,
-                    background: isCompacting ? "var(--error-soft)" : undefined,
-                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
-                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
-                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
-                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
-                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
-                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
-                    width: isMobile || viewportCompact ? "auto" : undefined,
-                  }}
-                  title={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
-                  aria-label={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
-                >
-                  {isCompacting ? (
-                    <>
-                      <span className="pw-ico"><i data-ico="loader-circle" data-size="13"></i></span>
-                      {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("chat.compacting")}</span>}
-                    </>
-                  ) : (
-                    <>
-                      <span className="pw-ico"><i data-ico="minimize-2" data-size="13"></i></span>
-                      {(!narrowControls || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{t("chat.compact")}</span>}
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+            {/* fork:upstream-2e66e40（#1008 移植）—— 压缩入口原在这行；2026-10-03 用户裁定
+                **删除**：上下文环的浮窗底部已经有同一动作（`.pw-prow` + `package` 字形，
+                同一个 `onCompact` / `onAbortCompaction`，压缩中也翻成「停止压缩」——
+                手工压缩与轮间自动压缩都够得着，见上面 `contextRing` 那段）。
+                同一个动作在一块屏上摆两枚，压缩中那枚还得单独变红，一眼看去像两件事。
+                真要挪回工具条，就把 contextRing 里那个 `pw-prow` 搬过来，别再新增第三处。 */}
             </div>
 
           </div>
