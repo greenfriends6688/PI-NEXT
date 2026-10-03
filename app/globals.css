@@ -239,9 +239,14 @@
   --spacing-token-button-composer: 28px;
   /* Consumed by the skin override layer's chat rhythm rule. */
   --conversation-item-gap: 24px;
-  /* 14px, not 13: Zeno's transcript is body-sized (its `--ui-font-size`), and
-     the chat is the one place where the extra pixel is unmistakable. */
-  --chat-content-font-size: 14px;
+  /* fork:type-unify-2026-10-03 —— 13px，与另外两处对齐：JS 默认值
+     （CHAT_CONTENT_FONT_SIZE_DEFAULT = DESIGN_TEXT_PX.body = 13），以及
+     `.chat-content` 里 offset 的基准（`calc(var(--chat-content-font-size, 13px) - 13px)`）。
+     原来写 14（Zeno 时代「正文大一号」），但 14 不在设计五档（11/12/13/15/20）上，
+     设置里那个下拉也只有 12/13/15/20 —— 结果是「下拉显示 13、正文渲染 14」。
+     这行现在只在 hydration 之前生效（useChatAppearance 一挂载就把它写成用户值），
+     留 14 的唯一效果是首帧字号跳一下。 */
+  --chat-content-font-size: 13px;
 
   /* Motion — fork:design-system（2026-09-28）—— 四档改成设计系统的
      **三档内容 + 一档布局**，并补齐位移 / 错开 / 等待期不透明度：

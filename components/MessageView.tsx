@@ -528,7 +528,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
           className="pw-msg-user"
           style={{
             minWidth: 0,
-            fontSize: "calc(14px + var(--chat-font-size-offset, 0px))",
+            fontSize: "calc(13px + var(--chat-font-size-offset, 0px))",
             lineHeight: 1.65,
             color: "var(--text)",
             wordBreak: "break-word",
@@ -569,7 +569,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                 {commandArgs && (
                   <span style={{
                     color: "var(--text)",
-                    fontSize: "calc(14px + var(--chat-font-size-offset, 0px))",
+                    fontSize: "calc(13px + var(--chat-font-size-offset, 0px))",
                     lineHeight: 1.6,
                     whiteSpace: "pre-wrap",
                     wordBreak: "break-word",
@@ -1870,7 +1870,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
                 <div className="pw-strong" style={{ fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", fontWeight: 500, lineHeight: 1.35 }}>
                    {t("i18n.conversationCompacted")}
                 </div>
-                <div style={{ marginBottom: "var(--s2)", fontSize: "calc(14px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
+                <div style={{ marginBottom: "var(--s2)", fontSize: "calc(13px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
                    {t("i18n.compactionDescription")}
                 </div>
                 {parsedSummary.body ? (
