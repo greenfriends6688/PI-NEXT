@@ -17,6 +17,8 @@ const path = require("path");
 const fs = require("fs");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getHelpText, parseLaunchOptions } = require("./pi-web-options");
+// fork:lan-access —— 局域网开关的监督器（scripts/next-mode.mjs 用同一份）。
+const { superviseLanBind } = require("./lan-supervisor.cjs");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getNextNodeArgs } = require("./pi-web-node-args");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -38,7 +40,10 @@ if (launchOptions.help) {
   process.exit(0);
 }
 
-const { port, hostname, openBrowser } = launchOptions;
+const { port, hostname: launchHostname, openBrowser } = launchOptions;
+let hostname = launchHostname;
+
+
 
 const pkgDir = path.join(__dirname, "..");
 const nextDir = path.join(pkgDir, ".next");
@@ -59,7 +64,9 @@ try {
 }
 
 const loopbackHostnames = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
-const passwordEnabled = Boolean(process.env.PI_WEB_PASSWORD);
+// fork:lan-access（2026-10-03）：产品**没有登录**，`PI_WEB_PASSWORD` 也不再被读。
+// 局域网的实际闸门是 `PI_WEB_LAN_TOKEN`（见 lib/lan-access.ts）。
+const lanToken = (process.env.PI_WEB_LAN_TOKEN || "").trim();
 
 if (!fs.existsSync(nextDir)) {
   console.error("Build artifacts not found. Please report this issue.");
@@ -67,13 +74,14 @@ if (!fs.existsSync(nextDir)) {
 }
 
 if (!loopbackHostnames.has(hostname)) {
-  if (passwordEnabled) {
+  if (lanToken) {
     console.warn(
-      `Warning: pi-web is listening on ${hostname} with password authentication over HTTP. Use HTTPS or a trusted VPN to protect the password in transit.`,
+      `Warning: pi-web is listening on ${hostname} and requires PI_WEB_LAN_TOKEN for other machines. The token travels over plain HTTP — use HTTPS or a trusted VPN.`,
     );
   } else {
     console.warn(
-      `Warning: pi-web is listening on ${hostname} without authentication. Only use this on a trusted network.`,
+      `Warning: pi-web is listening on ${hostname} without authentication. Anyone on this network has full control.`
+      + ` To let a phone connect: open Settings -> Phone & push and press Start (no flags needed after that).`,
     );
   }
 }
@@ -83,15 +91,36 @@ nextArgs.push("-H", hostname);
 
 // Always run next's JS entry with node directly — avoids .bin symlink issues
 // and path-with-spaces problems on Windows when shell: true is used.
-const child = spawn(process.execPath, getNextNodeArgs(nextBin, nextArgs), {
-  cwd: pkgDir,
-  stdio: ["inherit", "pipe", "inherit"],
-  env: { ...process.env, PI_WEB_HOSTNAME: hostname },
+function startChild() {
+  const spawned = spawn(process.execPath, getNextNodeArgs(nextBin, nextArgs), {
+    cwd: pkgDir,
+    stdio: ["inherit", "pipe", "inherit"],
+    env: { ...process.env, PI_WEB_HOSTNAME: hostname },
+  });
+  wireChildProcessLifecycle(spawned);
+  return spawned;
+}
+
+// fork:lan-access —— 点「启动」后由这里重启子进程生效，细节见 lan-supervisor.cjs 的头注。
+superviseLanBind({
+  getHost: () => hostname,
+  restart: (nextHost) => {
+    hostname = nextHost;
+    nextArgs[nextArgs.indexOf("-H") + 1] = hostname;
+    child.kill("SIGTERM");
+    child = startChild();
+  },
 });
-wireChildProcessLifecycle(child);
+
+let child = startChild();
 
 let browserOpened = false;
-const url = `http://${hostname}:${port}`;
+// fork:lan-access：`-H 0.0.0.0` 时自动打开的浏览器，Host 会是 `0.0.0.0`，而 0.0.0.0
+// 刻意不算 loopback，所以本机浏览器也会被闸门拦。把令牌带在 `?t=` 上：proxy 会把它
+// 种成 cookie（lib/lan-access.ts），页面随后就是普通请求了。同一行也是给手机的配对链接。
+const url = lanToken
+  ? `http://${hostname}:${port}/?t=${encodeURIComponent(lanToken)}`
+  : `http://${hostname}:${port}`;
 
 child.stdout.on("data", (chunk) => {
   const text = chunk.toString();

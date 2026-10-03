@@ -14,15 +14,19 @@
  */
 
 import { existsSync, readFileSync, renameSync, statSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 
 const ROOT = process.cwd();
 const NEXT_DIR = join(ROOT, ".next");
-const HOST = "127.0.0.1";
 const PORT = "30141";
+
+// fork:lan-access —— 有令牌就绑 0.0.0.0（手机可连），否则只绑本机。
+// 判定与启动器共用一份，见 bin/lan-supervisor.cjs 的头注。
+const { lanEnabledByConfig, superviseLanBind } = createRequire(import.meta.url)("../bin/lan-supervisor.cjs");
+let HOST = lanEnabledByConfig() ? "0.0.0.0" : "127.0.0.1";
 
 /** 生产构建会写 BUILD_ID；dev（Turbopack）会写 dev/ 子目录。 */
 function currentMode() {
@@ -49,6 +53,61 @@ function nextCli() {
 
 function runNext(args) {
   return spawnSync(process.execPath, [nextCli(), ...args], { stdio: "inherit", cwd: ROOT });
+}
+
+/**
+ * 起服务（异步，因为要能被监督器重启）。
+ *
+ * `npm run prod` 是日常入口（`AGENTS.md` 的「Quick Start」），所以**它也必须**接上
+ * 局域网监督器：否则界面上点「启动」在日常入口下不生效 —— 这正是第一版踩到的坑。
+ */
+function serveWithLanWatch() {
+  let child = null;
+  let restarting = false;
+
+  const start = () => {
+    child = spawn(process.execPath, [nextCli(), "start", "-H", HOST, "-p", PORT], {
+      stdio: "inherit",
+      cwd: ROOT,
+      env: { ...process.env, PI_WEB_HOSTNAME: HOST },
+    });
+    child.on("exit", (code, signal) => {
+      // 我们自己重启的那次不算退出；意外退出才带走整个进程。
+      if (restarting || signal === "SIGTERM") return;
+      process.exit(code ?? 0);
+    });
+    return child;
+  };
+
+  start();
+  superviseLanBind({
+    getHost: () => HOST,
+    restart: (nextHost) => {
+      HOST = nextHost;
+      const previous = child;
+      if (!previous) return start();
+      restarting = true;
+      // **必须等端口真的空出来再起新的**：SIGTERM 是异步的，直接 kill→start 会撞上
+      // EADDRINUSE，next-server 起不来 → 父进程跟着退出 → 整套服务没���。这个坑实测踩过。
+      let settled = false;
+      const once = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(hardKill);
+        restarting = false;
+        start();
+      };
+      previous.once("exit", once);
+      const hardKill = setTimeout(() => {
+        if (settled) return;
+        previous.kill("SIGKILL");
+        once();
+      }, 5_000);
+      previous.kill("SIGTERM");
+    },
+  });
+  // 让这个进程常驻：子进程活着时不退出。
+  process.stdin.resume();
 }
 
 function stash(label) {
@@ -88,10 +147,9 @@ if (mode === "prod") {
     process.exit(b.status ?? 1);
   }
 
-  console.log(`[prod] 启动 next start（http://${HOST}:${PORT}）...`);
-  const s = runNext(["start", "-H", HOST, "-p", PORT]);
-  process.exit(s.status ?? 1);
+  console.log(`[prod] 启动 next start（http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}）...`);
+  serveWithLanWatch();
+} else {
+  console.error("用法: node scripts/next-mode.mjs <dev|prod|status>");
+  process.exit(2);
 }
-
-console.error("用法: node scripts/next-mode.mjs <dev|prod|status>");
-process.exit(2);
