@@ -735,7 +735,6 @@ export const enLocale: LocalePlugin = {
     "session.copyTaskPath": "Copy session file path",
     "session.copyFailed": "Copy failed (clipboard unavailable)",
     "session.copyPath": "Copy path",
-    "session.openSettings": "Open settings",
     "session.revealFailed": "Could not open that directory (it may be outside the browsable roots)",
     "session.actions": "Session actions",
     "session.pin": "Pin to top",

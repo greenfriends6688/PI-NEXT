@@ -734,7 +734,6 @@ export const zhCNLocale: LocalePlugin = {
     "session.copyTaskPath": "复制会话文件路径",
     "session.copyFailed": "复制失败（剪贴板不可用）",
     "session.copyPath": "复制路径",
-    "session.openSettings": "前往配置",
     "session.revealFailed": "没能打开这个目录（可能不在允许浏览的范围内）",
     "session.actions": "会话动作",
     "session.pin": "置顶",

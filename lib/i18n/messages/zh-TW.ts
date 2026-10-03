@@ -733,7 +733,6 @@ export const zhTWLocale: LocalePlugin = {
     "session.copyTaskPath": "複製工作階段檔案路徑",
     "session.copyFailed": "複製失敗（剪貼簿不可用）",
     "session.copyPath": "複製路徑",
-    "session.openSettings": "前往設定",
     "session.revealFailed": "沒能開啟這個目錄（可能不在允許瀏覽的範圍內）",
     "session.actions": "工作階段動作",
     "session.pin": "置頂",

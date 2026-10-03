@@ -2474,12 +2474,10 @@ export function AppShell() {
           onCopyProjectPath={() => { void copyWithFeedback(selectedSession?.projectRoot ?? selectedSession?.cwd ?? null); }}
           onCopySessionFilePath={() => { void copyWithFeedback(selectedSession?.path ?? null); }}
           onCopySessionId={() => { void copyWithFeedback(selectedSession?.id ?? null); }}
-          onOpenSettings={() => setSettingsSection("models")}
           // fork:trace-menu-2026-10-02 —— 系统提示词 / 工具定义从顶栏收进这里，
           // 触发钮（⋯）当定位锚点，面板仍是原来那两个。
           onViewSystemPrompt={(trigger) => handleSystemInfoToggle("system", false, trigger)}
           onViewTools={(trigger) => handleSystemInfoToggle("tools", false, trigger)}
-          onViewTrace={handleViewFullHistory}
           // fork:trace-menu-2026-10-02 —— 导出改成**下载**（attachment）而不是
           // window.open：桌面端 main.js 的 setWindowOpenHandler 会把 window.open 一律
           // 交给系统浏览器，在应用里表现就是「点了没反应」。同源 <a download> 在
