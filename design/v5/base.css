@@ -273,4 +273,9 @@ i[data-ico] > svg { display: block; }
 /* 思考指示器：星（缩放淡入后消失）与彗星（8 字轨道的 dash 绕行） */
 @keyframes nx-star { 0%,100% { transform: scale(0); opacity: 0; } 40% { transform: scale(1); opacity: 1; } 60% { transform: scale(.8); opacity: .9; } }
 @keyframes nx-dash { to { stroke-dashoffset: -100; } }
+/* 思考指示器：点阵逐格点亮（wave / spin 两种走法共用这一条帧，只改 nth-child 延迟）。
+   fork:v5-landing（2026-10-05）—— 原来这条帧住在 web/system.css，PWA 拿不到，只能
+   退而复用 nx-num 呼吸（效果不同）。按铁律三「一个值只有一个来源」，关键帧属两端共用，
+   已从 web/system.css 提到这里，web 侧改为引用（定义不再重复）。 */
+@keyframes nx-think-tick { 0%,100% { opacity: .12; } 40% { opacity: 1; } }
 

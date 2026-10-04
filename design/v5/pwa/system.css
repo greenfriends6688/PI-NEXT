@@ -665,7 +665,9 @@
   grid-auto-rows: var(--nx-sp-1); gap: calc(var(--nx-sp-1) / 2); flex: 0 0 auto; }
 .m-think-dots > i { width: var(--nx-sp-1); height: var(--nx-sp-1);
   border-radius: calc(var(--nx-sp-1) / 4); background: currentColor;
-  animation: nx-num 600ms ease-in-out infinite alternate; }
+  /* fork:v5-landing（2026-10-05）—— 改用 base.css 的共用帧 nx-think-tick：
+     两端的逐格点亮从此是同一条动画（之前这里退而用 nx-num 呼吸，效果不同）。 */
+  animation: nx-think-tick 1200ms linear infinite; }
 .m-think-dots.wave > i:nth-child(1), .m-think-dots.wave > i:nth-child(5), .m-think-dots.wave > i:nth-child(9) { animation-delay: 0ms; }
 .m-think-dots.wave > i:nth-child(2), .m-think-dots.wave > i:nth-child(4), .m-think-dots.wave > i:nth-child(6), .m-think-dots.wave > i:nth-child(8) { animation-delay: -120ms; }
 .m-think-dots.wave > i:nth-child(3), .m-think-dots.wave > i:nth-child(7) { animation-delay: -240ms; }
@@ -682,7 +684,11 @@
 .m-think-comet { width: calc(var(--nx-sp-3) * 2); height: var(--nx-sp-3); flex: 0 0 auto; }
 .m-think-comet path { stroke-dasharray: 100; animation: nx-dash 2200ms linear infinite; }
 .m-run { display: flex; align-items: center; gap: 8px; font-size: var(--nx-fs-cap); color: var(--nx-accent); }
-/* 运行中 = 行内转圈（与 Web 的 .d-run 同一条 1400ms linear 规则），两端同一个读法 */
+/* 运行中 = 行内转圈（与 Web 的 .d-run 同一条 1400ms linear 规则），两端同一个读法。
+   fork:v5-landing（2026-10-05 裁定）—— 本件与 `.m-think-row` **不是同一语义，不合并**：
+   `.m-run` 是「有一件事在转」（搜索中 / 任务运行中 / 目录刷新），固定转圈；
+   `.m-think-row` 是「模型在思考」的四种图案（点阵 wave·spin / 星 / 彗星）。
+   与 Web 侧 `.d-run` 与 `.d-think-*` 的分工一一对应。 */
 .m-run > i:first-child { animation: nx-spin 1400ms linear infinite; }
 @keyframes nx-spin { to { transform: rotate(360deg); } }
 .m-text-live::after { content: "▍"; color: var(--nx-accent); animation: nx-caret 1s steps(1) infinite; }

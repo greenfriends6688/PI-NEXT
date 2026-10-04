@@ -976,8 +976,9 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-think-dots > i { width: 4px; height: 4px; border-radius: 1px; background: currentColor;
   animation: nx-think-tick 1200ms linear infinite; }
 /* 两种走法，同一张 3×3 点阵：wave = 对角波front（左上→右下），spin = 绕心一圈。
-   延迟写死成 nth-child —— 板面因此不需要「每格一个内联 --i」，少一个能写错的地方。 */
-@keyframes nx-think-tick { 0%,100% { opacity: .12; } 40% { opacity: 1; } }
+   延迟写死成 nth-child —— 板面因此不需要「每格一个内联 --i」，少一个能写错的地方。
+   fork:v5-landing（2026-10-05）—— nx-think-tick 已提到 base.css（两端共用一条帧，
+   PWA 的点阵也用它），这里只留引用，定义不再重复。 */
 .d-think-dots.wave > i:nth-child(1), .d-think-dots.wave > i:nth-child(5), .d-think-dots.wave > i:nth-child(9) { animation-delay: 0ms; }
 .d-think-dots.wave > i:nth-child(2), .d-think-dots.wave > i:nth-child(4), .d-think-dots.wave > i:nth-child(6), .d-think-dots.wave > i:nth-child(8) { animation-delay: -240ms; }
 .d-think-dots.wave > i:nth-child(3), .d-think-dots.wave > i:nth-child(7) { animation-delay: -480ms; }
