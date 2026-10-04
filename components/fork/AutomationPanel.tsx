@@ -10,13 +10,11 @@
  * 轮询式刷新比维护一套乐观更新更不容易错）。运行中的任务额外每 5s 刷一次，
  * 让「立即运行」的进度能看见 —— 一次自动运行可能几十分钟。
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  ConfigBadge,
   ConfigButton,
   ConfigDetail,
   ConfigEmptyState,
-  ConfigField,
   ConfigFooter,
   ConfigListAction,
   ConfigPanelShell,
@@ -25,10 +23,11 @@ import {
   ConfigSidebarList,
   ConfigSplitView,
   ConfigStatusDot,
-  ConfigSwitch,
 } from "../SettingsUi";
+import { PortalDropdown, useDismissMenu } from "../PortalDropdown";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/lib/i18n/format";
 import { PwaBanner, PwaPage, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 import { PwaSheet } from "@/components/pwa/PwaSheet";
 import { AutomationEditor } from "./AutomationEditor";
@@ -37,6 +36,7 @@ import {
   AUTOMATION_DAILY_CONTEXT_ROLLOVER_THRESHOLD,
   type Automation,
   type AutomationDraft,
+  type AutomationRun,
 } from "@/lib/automation-types";
 
 /** 运行中任务额外轮询的间隔（ms）。任务空闲时不轮询。 */
@@ -113,6 +113,18 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
   const [draft, setDraft] = useState<AutomationDraft>(() => emptyDraft(cwd, locale));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * fork:v5-landing Wave N1 · D-17 帧 C/D ——
+   * 两处**纯展示**的局部状态：运行历史的结局筛选（画板帧 C 的四枚 `.d-cat`）
+   * 与单次详情展开的那一次运行（帧 D 的「看详情」）。两者都只改「看哪几条」，
+   * 不改数据、不改口径、不发请求。
+   */
+  const [historyFilter, setHistoryFilter] = useState<"all" | "success" | "error" | "skipped">("all");
+  const [openRunAt, setOpenRunAt] = useState<number | null>(null);
+  const [rowMenuOpen, setRowMenuOpen] = useState(false);
+  const rowMenuRef = useRef<HTMLButtonElement | null>(null);
+  const rowMenuPanelRef = useRef<HTMLDivElement | null>(null);
+  useDismissMenu(rowMenuOpen, rowMenuRef, rowMenuPanelRef, () => setRowMenuOpen(false));
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/automation", { cache: "no-store" });
@@ -218,14 +230,36 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
     [locale],
   );
 
+  /*
+   * fork:v5-landing Wave N1 · D-17 帧 A/C —— **三种结局各有自己的徽章档**：
+   * 成功 ok / 失败 bad / 跳过 mute（手机上对应 `.m-dot` ok/bad/warn）。
+   * 「跳过」不是失败：上一轮还没结束、或你正占着那个子会话，调度器就不排队 ——
+   * 把它混进失败那一档，用户会以为任务坏了，进而把好的那条删掉。
+   */
+  const runDot = (status: string): string =>
+    status === "success" ? "ok" : status === "error" ? "bad" : "warn";
+  const runBadge = (status: string): string =>
+    status === "success" ? "ok" : status === "error" ? "bad" : "mute";
+  /** 跳过原因（帧 C 的那一列文字）；不是跳过时返回 null。 */
+  const skipReasonText = (run: AutomationRun): string | null =>
+    run.status === "skipped" && run.skipReason
+      ? t(`automation.skipReason.${run.skipReason === "source-busy" ? "source-busy" : "previous-run-active"}`)
+      : null;
+  /** 单次耗时（帧 C 的「6s」列）。没记到就写「—」，不拿别的东西顶。 */
+  const durationText = (run: AutomationRun): string => {
+    const ms = run.durationMs;
+    if (typeof ms !== "number" || !Number.isFinite(ms)) return "—";
+    return ms >= 60_000
+      ? `${Math.floor(ms / 60_000)}m${String(Math.round((ms % 60_000) / 1_000)).padStart(2, "0")}s`
+      : `${(ms / 1_000).toFixed(1)}s`;
+  };
+
   // fork:v5-landing Wave B · M-09 帧 B · 定时任务 ——
   // 手机上这是一个**独立一级页**，不是 hub 卡片：每张卡只回答两件事
   // （`.m-croncard-head` 末位的调度徽章 + 开关，`.m-cronhist` 的上次成没成 / 下次什么时候），
   // 新建与详情一律走 `.m-sheet` 底部面板，不新开页面。
   // 数据、调度口径、开关语义（直接生效、关闭后历史留着）与桌面**完全同一份**。
   if (mobile) {
-    const runDot = (status: string): string =>
-      status === "success" ? "ok" : status === "error" ? "bad" : "warn";
     const badgeTone = (type: Automation["scheduleType"]): string =>
       type === "daily" ? "ok" : type === "interval" ? "warn" : "mute";
     const totalRuns = automations.reduce((sum, item) => sum + item.runHistory.length, 0);
@@ -514,16 +548,144 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
           )}
           {error && <p className="d-banner err" role="alert">{error}</p>}
 
-          {(creating || selected) && (
-            <ConfigField label={t("automation.schedule")}>
-              <ConfigSwitch
-                checked={draft.active}
-                disabled={readOnly || busy}
-                label={draft.active ? t("automation.pausedManual") : t("automation.reopen")}
-                onChange={(next) => setDraft({ ...draft, active: next })}
-              />
-            </ConfigField>
-          )}
+          {/*
+            fork:v5-landing Wave N1 · D-17 帧 A · 任务列表行 ——
+            DOM 抄画板：`.d-cron-row` › `.d-switch` + `.d-col.d-grow`（`.d-cron-t`
+            + 调度徽章 + 结局徽章，底下 `.d-set-row-s`）+ `.d-cron-when`
+            （下次运行 / 绝对时间 / 相对“几天后”）+ `.d-iconbtn`。
+            **一行同时说四件事**：会不会跑、上次结果如何、结果归谁（目录 · 模型）、
+            下一次什么时候。开关在库里被排到行尾（`.d-cron-row > .d-switch{order:9}`），
+            与画板一致；语义与原来那个“调度”开关**完全相同**（改的是草稿里的 active，
+            要落盘仍靠页脚的保存）。
+          */}
+          {(creating || selected) && (() => {
+            const rowSchedule = describeSchedule({ ...draft, nextRunAt: 0 }, t, locale);
+            const next = listUpcomingRuns({ ...draft, nextRunAt: 0 }, now, 1)[0];
+            const lastRun = selected?.runHistory[selected.runHistory.length - 1];
+            const paused = selected?.pausedReason === "consecutive-failures";
+            const outcome = paused
+              ? `${t("automation.pausedBackoff")}${selected?.consecutiveFailures
+                ? ` · ${t("automation.consecutiveFailures", { count: selected.consecutiveFailures })}`
+                : ""}`
+              : selected?.pausedReason === "completed"
+                ? t("automation.completed")
+                : lastRun
+                  ? t(`automation.runStatus.${lastRun.status}`)
+                  : t("automation.never");
+            const outcomeTone = paused ? "bad" : lastRun ? runBadge(lastRun.status) : "mute";
+            return (
+              <div className="d-cron-row">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={draft.active}
+                  aria-label={draft.active ? t("automation.pausedManual") : t("automation.reopen")}
+                  className={`d-switch${draft.active ? " on" : ""}`}
+                  disabled={readOnly || busy}
+                  onClick={() => setDraft({ ...draft, active: !draft.active })}
+                />
+                <div className="d-col d-grow">
+                  <div className="d-row">
+                    <span className="d-cron-t">{draft.name || t("automation.namePlaceholder")}</span>
+                    <span className="d-badge mute">{rowSchedule}</span>
+                    <span className={`d-badge ${outcomeTone}`}>{outcome}</span>
+                  </div>
+                  <span className="d-set-row-s">
+                    {[
+                      draft.cwd || "—",
+                      draft.model || t("automation.modelDefault"),
+                      // 画板帧 A 的副行末尾写的是「上次 41s」—— 那一个数是真有的
+                      // （`AutomationRun.durationMs`），没记到就不写，不拿别的东西顶。
+                      lastRun && typeof lastRun.durationMs === "number"
+                        ? `${t("automation.lastRun")} ${durationText(lastRun)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </div>
+                <div className="d-cron-when">
+                  <span className="d-t-xs d-t-faint">{t("automation.nextRun")}</span>
+                  <span className="d-t-sm">
+                    {draft.active && next ? formatter.format(new Date(next)) : t("automation.pausedManual")}
+                  </span>
+                  <span className="d-t-xs d-t-faint">
+                    {draft.active && next ? formatRelativeTime(new Date(next), locale, new Date(now)) : ""}
+                  </span>
+                </div>
+                {selected && !creating && (
+                  <>
+                    <button
+                      type="button"
+                      ref={rowMenuRef}
+                      className="d-iconbtn"
+                      aria-expanded={rowMenuOpen}
+                      aria-haspopup="menu"
+                      aria-label={t("automation.edit")}
+                      title={t("automation.edit")}
+                      onClick={() => setRowMenuOpen((open) => !open)}
+                    >
+                      <i data-ico="ellipsis-vertical" data-size="15" aria-hidden="true" />
+                    </button>
+                    {/*
+                      行菜单走共享的 `PortalDropdown`（portal + fixed）：这一块在
+                      `.d-set-main` 里，而那层是 `overflow-y:auto` —— `.d-pop` 那种
+                      `position:absolute` 的浮窗会被它整个裁掉（LANDING §4 第一条陷阱）。
+                      菜单项只挂**面板里已经有的两个动作**（画板那三行里
+                      「复制成新任务」「看 N 次运行记录」是产品没有的功能，不自造）。
+                    */}
+                    <PortalDropdown
+                      open={rowMenuOpen}
+                      anchorRef={rowMenuRef}
+                      panelRef={rowMenuPanelRef}
+                      className="d-pop-float"
+                      width={210}
+                      align="right"
+                    >
+                      <div className="d-pop-title">{selected.name}</div>
+                      <div className="d-sep" />
+                      <div role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="d-menu-row"
+                          disabled={readOnly || busy || scheduler.activeRunIds.includes(selected.id)}
+                          onClick={() => {
+                            setRowMenuOpen(false);
+                            void post({ action: "run-now", id: selected.id });
+                          }}
+                        >
+                          <i data-ico="play" data-size="14" aria-hidden="true" />
+                          {t("automation.runNow")}
+                        </button>
+                      </div>
+                      <div className="d-sep" />
+                      <div role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="d-menu-row danger"
+                          disabled={readOnly || busy}
+                          onClick={() => {
+                            setRowMenuOpen(false);
+                            if (window.confirm(t("automation.deleteConfirm"))) {
+                              void post({ action: "delete", id: selected.id }).then(() => {
+                                setSelectedId(null);
+                                setCreating(false);
+                              });
+                            }
+                          }}
+                        >
+                          <i data-ico="trash-2" data-size="14" aria-hidden="true" />
+                          {t("automation.delete")}
+                        </button>
+                      </div>
+                    </PortalDropdown>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           <AutomationEditor
             draft={draft}
@@ -559,24 +721,174 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
               <ConfigSectionTitle>{t("automation.history")}</ConfigSectionTitle>
               {selected.runHistory.length === 0 ? (
                 <ConfigEmptyState>{t("automation.noRuns")}</ConfigEmptyState>
-              ) : (
-                <ul className="fork-automation-history">
-                  {[...selected.runHistory].reverse().map((run, index) => (
-                    <li key={`${run.runAt}-${index}`} className="fork-automation-run">
-                      <ConfigBadge tone={run.status === "success" ? "ok" : run.status === "error" ? "bad" : undefined}>
-                        {t(`automation.runStatus.${run.status}`)}
-                      </ConfigBadge>
-                      <span className="d-mono d-t-faint">{formatter.format(new Date(run.runAt))}</span>
-                      {run.status === "skipped" && run.skipReason && (
-                        <span className="d-t-xs d-t-faint">
-                          {t(`automation.skipReason.${run.skipReason === "source-busy" ? "source-busy" : "previous-run-active"}`)}
-                        </span>
-                      )}
-                      {run.status === "error" && run.error && <span className="d-t-xs d-t-faint">{run.error}</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              ) : (() => {
+                const runs = [...selected.runHistory].reverse();
+                const countOf = (status: AutomationRun["status"]): number =>
+                  selected.runHistory.filter((run) => run.status === status).length;
+                const shown = runs.filter((run) =>
+                  historyFilter === "all"
+                    ? true
+                    : run.status === historyFilter);
+                const openRun = openRunAt === null
+                  ? null
+                  : runs.find((run) => run.runAt === openRunAt) ?? null;
+                return (
+                  <>
+                    {/*
+                      fork:v5-landing Wave N1 · D-17 帧 C —— 结局筛选。
+                      画板那四枚里有一枚是「已延后」（错峰执行），**产品没有错峰**，
+                      所以这里只列三种结局 + 全部，不自造第四档；每枚带上真实计数。
+                    */}
+                    <div className="d-row">
+                      <span className="d-t-xs d-t-faint">{t("i18n.status")}</span>
+                      <div className="d-cats">
+                        <button
+                          type="button"
+                          className={`d-cat${historyFilter === "success" ? " is-on" : ""}`}
+                          aria-pressed={historyFilter === "success"}
+                          onClick={() => setHistoryFilter(historyFilter === "success" ? "all" : "success")}
+                        >
+                          {t("automation.runStatus.success")} {countOf("success")}
+                        </button>
+                        <button
+                          type="button"
+                          className={`d-cat${historyFilter === "error" ? " is-on" : ""}`}
+                          aria-pressed={historyFilter === "error"}
+                          onClick={() => setHistoryFilter(historyFilter === "error" ? "all" : "error")}
+                        >
+                          {t("automation.runStatus.error")} {countOf("error")}
+                        </button>
+                        <button
+                          type="button"
+                          className={`d-cat${historyFilter === "skipped" ? " is-on" : ""}`}
+                          aria-pressed={historyFilter === "skipped"}
+                          onClick={() => setHistoryFilter(historyFilter === "skipped" ? "all" : "skipped")}
+                        >
+                          {t("automation.runStatus.skipped")} {countOf("skipped")}
+                        </button>
+                        <button
+                          type="button"
+                          className={`d-cat${historyFilter === "all" ? " is-on" : ""}`}
+                          aria-pressed={historyFilter === "all"}
+                          onClick={() => setHistoryFilter("all")}
+                        >
+                          {t("automation.history")} {selected.runHistory.length}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="d-card">
+                      <div className="d-card-body" style={{ padding: "var(--nx-sp-2)" }}>
+                        {shown.length === 0 && (
+                          <span className="d-t-xs d-t-faint">{t("automation.noRuns")}</span>
+                        )}
+                        {shown.map((run) => (
+                          <div className="d-hist-row" key={`${run.runAt}-${run.status}`}>
+                            <span className={`d-badge ${runBadge(run.status)}`}>
+                              {t(`automation.runStatus.${run.status}`)}
+                            </span>
+                            <span className="d-hist-t">{formatter.format(new Date(run.runAt))}</span>
+                            {/* 任务名（`.d-grow` 自适应）与耗时列：画板在这里写的是
+                                `min-width:104px` / `min-width:56px`，而门禁不收内联像素几何，
+                                列宽对齐交给库里那两条规则（`.d-hist-t` 64px /
+                                `.d-hist-cost` 76px，右对齐 + tabular）。类名一字未改。 */}
+                            <span className="d-grow d-t-xs">{selected.name}</span>
+                            <span className="d-t-xs d-t-faint">{durationText(run)}</span>
+                            <span className="d-hist-cost">—</span>
+                            <span className="d-t-xs d-t-faint">
+                              {skipReasonText(run)
+                                ?? (run.status === "error" && run.error ? run.error : "")}
+                            </span>
+                            <span style={{ flex: "0 0 auto" }}>
+                              <button
+                                type="button"
+                                className="d-btn sm"
+                                onClick={() => setOpenRunAt(openRunAt === run.runAt ? null : run.runAt)}
+                              >
+                                {t("i18n.showDetails")}
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/*
+                      fork:v5-landing Wave N1 · D-17 帧 D · 单次运行详情 ——
+                      「为什么判失败」写在输出旁边（最常见的失败根本不是模型出错），
+                      以及「怎么重跑」那一行。
+                      **不画的部分**：`.d-code` 指令快照与 `.d-steps` 步骤耗时 ——
+                      运行记录里没有逐轮快照与分步耗时（`AutomationRun` 只有
+                      runAt / sessionId / status / durationMs / error / skipReason），
+                      不拿当前配置冒充历史快照，也不编步骤。
+                      **`.d-hist-cost` 写「—」**：落盘里没有每次运行的费用字段，
+                      没有样本就不摆数（等存储侧补 per-run cost 再填）。
+                    */}
+                    {openRun && (
+                      <div className="d-card">
+                        <div className="d-card-body">
+                          <div className="d-row">
+                            <span className={`d-badge ${runBadge(openRun.status)}`}>
+                              {t(`automation.runStatus.${openRun.status}`)}
+                            </span>
+                            {selected.pausedReason === "consecutive-failures" && openRun.status === "error" && (
+                              <span className="d-badge mute">{t("automation.pausedBackoff")}</span>
+                            )}
+                            <span className="d-grow" aria-hidden="true" />
+                            <span className="d-t-xs d-t-faint">
+                              {`${durationText(openRun)} · ${formatter.format(new Date(openRun.runAt))}`}
+                            </span>
+                          </div>
+                          {openRun.status === "error" && openRun.error && (
+                            <div className="d-banner err" role="status">
+                              <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+                              <span>
+                                <b>{t("automation.runStatus.error")}</b>
+                                {` · ${openRun.error}`}
+                              </span>
+                            </div>
+                          )}
+                          {skipReasonText(openRun) && (
+                            <div className="d-banner" role="status">
+                              <i data-ico="info" data-size="14" aria-hidden="true" />
+                              <span>
+                                <b>{t("automation.runStatus.skipped")}</b>
+                                {` · ${skipReasonText(openRun)}`}
+                              </span>
+                            </div>
+                          )}
+                          <div className="d-set-row">
+                            <div className="d-set-row-box">
+                              <div className="d-set-row-t">{t("automation.runNow")}</div>
+                              <div className="d-set-row-s">{describeSchedule(selected, t, locale)}</div>
+                            </div>
+                            <span className="d-grow-last">
+                              <button
+                                type="button"
+                                className="d-btn sm"
+                                disabled={readOnly || busy || scheduler.activeRunIds.includes(selected.id)}
+                                onClick={() => void post({ action: "run-now", id: selected.id })}
+                              >
+                                <i data-ico="rotate-cw" data-size="13" aria-hidden="true" />
+                                {t("automation.runNow")}
+                              </button>
+                            </span>
+                          </div>
+                          <div className="d-row" style={{ justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              className="d-btn primary sm"
+                              onClick={() => setOpenRunAt(null)}
+                            >
+                              {t("i18n.close")}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </>
           )}
 

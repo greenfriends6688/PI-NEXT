@@ -25,6 +25,19 @@
  * 原实现（fork:ui-wallpaper / fork:zn-19）是自绘的 `settings-wallpaper-*`
  * 一排按钮 + 复选开关，已退役。
  *
+ * fork:v5-wallpaper-gallery（本轮补的第三处缺口）—— 画板 D-07b「默认外观壁纸」块
+ * 有**五行**，产品先前只有四行：缺的是最后那段「内置壁纸」画廊
+ * （`.d-field` + `.d-store-grid` / `.d-store-card`，三格：两张内置画作 + 一格
+ * 「自己带图」）。产品其实有这份组件（`BuiltinWallpaperPicker`，工作室在用），
+ * 只是设置页这一处没挂 —— 于是「内置画作」在设置里只能看到两条说明横幅
+ * （`wallpaperBuiltinNote` / `wallpaperBuiltinActive`），没有可点的入口。
+ * 画板那段的约定「两个入口共用一份列表，不各挑一次」正是这个组件的由来，所以
+ * 这里直接接它，不再造第二份清单。窄屏（M-05）走同一个组件的 `m-storecard`。
+ *
+ * 画板第三格「自己带图（JPEG / PNG / WebP · SVG 有意拒绝）」由上面那行的
+ * 「选择图片」承担：它的 MIME 白名单与体积上限就是那三句话的实现
+ * （`WALLPAPER_MIME_TYPES` / `fileToWallpaperDataUrl`），不另画一格点同一个动作。
+ *
  * 图片是用户数据（data URL），缩略图的 `background-image` 只能内联；
  * 几何与边框来自形态表的 `.d-thumb`。
  */
@@ -34,6 +47,8 @@ import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useWallpaper } from "@/hooks/useWallpaper";
 import { PwField, PwRange, PwSwitch } from "./SettingsUi";
+import { BuiltinWallpaperPicker } from "./BuiltinWallpaperPicker";
+import { BUILTIN_WALLPAPERS, type BuiltinWallpaperId } from "@/lib/wallpaper-builtin";
 import {
   WALLPAPER_SCRIM_MAX,
   WALLPAPER_SCRIM_MIN,
@@ -75,6 +90,7 @@ export function WallpaperSettings({
   const {
     enabled,
     url,
+    builtin,
     scrim,
     inputMode,
     panelMode,
@@ -87,11 +103,18 @@ export function WallpaperSettings({
     setInputMode,
     setPanelMode,
     setMessageMode,
+    setBuiltin,
   } = useWallpaper();
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /** 当前选中的内置画作 id；空串 = 用户自己的图片（或主题自带的画作）。画廊的
+      选中态读它，所以这一处就是「哪一张内置画作在使用中」的唯一真值。 */
+  const activeBuiltinId: BuiltinWallpaperId | null = BUILTIN_WALLPAPERS.some((item) => item.id === builtin)
+    ? (builtin as BuiltinWallpaperId)
+    : null;
 
   const onPick = () => {
     setError(null);
@@ -263,6 +286,15 @@ export function WallpaperSettings({
           </div>
         </>
       ) : null}
+
+      {/* fork:v5-wallpaper-gallery —— 画板 D-07b 壁纸块最后一段「内置壁纸」：
+          画廊与皮肤工作室共用同一份列表（`BuiltinWallpaperPicker`），选完立刻生效。
+          它不属于「开了壁纸才有意义」那一组：内置画作在没有用户图片时就是当前壁纸，
+          所以整块常驻（画板也是常驻）。 */}
+      <BuiltinWallpaperPicker
+        activeId={activeBuiltinId}
+        onPick={(id) => setBuiltin(id)}
+      />
     </>
   );
 }

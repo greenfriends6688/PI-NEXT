@@ -3091,6 +3091,79 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     if (lvl === "auto" || !thinkingLevelMap) return lvl;
     return thinkingLevelMap[lvl] ?? lvl;
   })();
+
+  /* fork:v5-wave-n1 · D-27 帧 A / D-28 帧 C 的「翻卡」——
+   * 推理档位是全系统最典型的「值被替换」位置：旧值翻下去、新值从背面翻上来，
+   * 视线不用离开这块地方。DOM 逐字抄 D-28 帧 C：外壳 `.d-flap` 只包那一枚图标，
+   * 两段接力 `.is-fall`（150ms）→ 换值 → `.is-rise`（230ms）→ 清场，
+   * 时序与板内那段脚本一致。
+   * 为什么必须清场：两段关键帧都带 `forwards`，不清场就永远停在「侧过去」那一态。
+   * 减弱动效下 system.css 已把两段停成终态，所以这里连 setTimeout 都不起 ——
+   * 值照常换，只是不播（不是「停在半路」）。
+   * 行为零变化：档位怎么改、什么时候改、能不能改，全部还是下面那一个下拉。 */
+  const [flapPhase, setFlapPhase] = useState<"" | "is-fall" | "is-rise">("");
+  const prevThinkingLevelRef = useRef(thinkingLevel);
+  const flapTimersRef = useRef<number[]>([]);
+  useEffect(() => {
+    const timers: number[] = [];
+    flapTimersRef.current = timers;
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+      timers.length = 0;
+    };
+  }, []);
+  useEffect(() => {
+    const previous = prevThinkingLevelRef.current;
+    prevThinkingLevelRef.current = thinkingLevel;
+    if (previous === thinkingLevel) return;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    let reduced = false;
+    try {
+      reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch {
+      reduced = true;
+    }
+    if (reduced) return;
+    setFlapPhase("is-fall");
+    flapTimersRef.current.push(window.setTimeout(() => setFlapPhase("is-rise"), 150));
+    flapTimersRef.current.push(window.setTimeout(() => setFlapPhase(""), 380));
+  }, [thinkingLevel]);
+
+  /* fork:v5-wave-n1 · D-27 帧 F / D-28 帧 C 的「标签上下交换」——
+   * 权限档是「状态词变化」的位置（每次问 / 本会话内允许 / 全部自动允许）：
+   * 旧标签上浮 5px 淡出、新标签从下方 5px 淡入，两个标签**必须叠在同一格里**，
+   * 否则会看见框在长高（板内原话）。所以旧值绝对定位盖在仍在流内的新值上，
+   * 宽度由新值撑着 —— 板里那枚写死 96px 的容器是尺寸占位，产品不写死。
+   * 与 `.d-flap` 分开落在**另一个控件**上：D-28 帧 A 的判据是「被替换走位移」，
+   * 而两种反馈不许同时用在同一处。
+   * 减弱动效下两条动画都被停成终态，不起接力。 */
+  const permissionLabel = permissionMode ? t(PERMISSION_MODE_LABEL_KEYS[permissionMode]) : "";
+  const [permissionLabelOut, setPermissionLabelOut] = useState<string | null>(null);
+  const prevPermissionLabelRef = useRef(permissionLabel);
+  const labelSwapTimersRef = useRef<number[]>([]);
+  useEffect(() => {
+    const timers: number[] = [];
+    labelSwapTimersRef.current = timers;
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+      timers.length = 0;
+    };
+  }, []);
+  useEffect(() => {
+    const previous = prevPermissionLabelRef.current;
+    prevPermissionLabelRef.current = permissionLabel;
+    if (!permissionLabel || previous === permissionLabel) return;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    let reduced = false;
+    try {
+      reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch {
+      reduced = true;
+    }
+    if (reduced) return;
+    setPermissionLabelOut(previous);
+    labelSwapTimersRef.current.push(window.setTimeout(() => setPermissionLabelOut(null), 220));
+  }, [permissionLabel]);
   const rawToolPresetLabel = Object.entries(TOOL_PRESET_MAP).find(([, v]) => v === (toolPreset ?? "configured"))?.[0] ?? "configured";
   // fork:design-components —— 工具档在画板里是中文短标签（已配置 / 需审批 …），
   // 不再把内部枚举名直接印在控件上。
@@ -3338,7 +3411,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     const pwaInputPlaceholder = isStreaming && onFollowUp
       ? t("chat.queuePlaceholder")
       : isStreaming ? t("chat.agentPlaceholder")
-      : t("chat.messagePlaceholder");
+      /* fork:v5-landing —— 窄屏用短占位（M-03 帧 A 的输入胶囊是 390px 宽，
+         桌面那句带「/ 与 @」的长提示会折行把胶囊撑高）。三态在前两态不变。 */
+      : t("chat.messagePlaceholderPwa");
 
     return (
       <div
@@ -3666,7 +3741,22 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         )}
 
         {/* ── 输入卡本体（M-03 帧 A：一行结束） ─────────────────────────────── */}
-        <div className="m-composer">
+        {/* fork:v5-landing-close —— 运行中挂 `.m-loader` 光带（画板 M-03 帧 D-1，
+            与桌面 D-27 帧 B 同构）：此前窄屏运行中只有队列 + ⏸，卡片本身不亮。
+            结构与桌面那条 `.d-loader` 逐字同构（glow 一层 + 一条 pathLength=100 的
+            闭环 path），只有类名与圆角按 PWA 令牌走（--nx-r-xl = 24px）。
+            SVG 的 viewBox 只是几何占位：`.m-loader-svg` 自己算尺寸 +
+            preserveAspectRatio 把 path 拉满卡片边，pathLength=100 让 dashoffset
+            走 -100 正好绕一圈（端点速度恒定、拐角也不变速）。 */}
+        <div className={`m-composer${isStreaming ? " m-loader" : ""}`}>
+          {isStreaming && (
+            <>
+              <div className="m-loader-glow"></div>
+              <svg className="m-loader-svg" viewBox="0 0 366 96" preserveAspectRatio="none" aria-hidden="true">
+                <path pathLength="100" d="M24,2 H342 A22,22 0 0 1 364,24 V72 A22,22 0 0 1 342,94 H24 A22,22 0 0 1 2,72 V24 A22,22 0 0 1 24,2 Z" />
+              </svg>
+            </>
+          )}
           {/* 附件托盘（M-03 帧 D-2）：图片走 `.m-attachbar` 横滚，
               非图片附件走同一条 `.m-tray` 芯片行 —— 都是「卡片内横滚、不撑高卡片」。 */}
           {attachedImages.length > 0 && (
@@ -3776,7 +3866,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     segment.type === "text" || !segment.token.valid ? (
                       segment.text
                     ) : (
-                      <span key={i} className="d-mention">{segment.text}</span>
+                      // fork:v5-landing-close —— 窄屏高亮 token 挂 `.m-mention`
+                      // （PWA 库里已有），此前沿用桌面 `.d-mention`。
+                      <span key={i} className="m-mention">{segment.text}</span>
                     )
                   )}
                 </div>
@@ -4776,9 +4868,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               aria-hidden="true"
             >
               <div ref={highlightLayerRef} className="chat-input-highlight">
-                {/* `.d-mention` 在 `pwa/system.css` 里没有对应件（M-02 也没画这个芯片）。
-                    高亮是**行为**（D2-PR-12 与正文共用一套切词），所以这里保留它；
-                    已登记为缺件，等设计侧补 `m-mention`。 */}
+                {/* `.d-mention` = 画板 D-03b 帧 F 的正文提及芯片；窄屏那一段同一处
+                    高亮挂 `.m-mention`（fork:v5-landing-close，两端等义）。 */}
                 {highlightSegments.map((segment, i) =>
                   segment.type === "text" || !segment.token.valid ? (
                     segment.text
@@ -5020,7 +5111,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                 >
-                  <i data-ico="brain" data-size="13"></i>
+                  {/* fork:v5-wave-n1 · D-28 帧 C：`.d-flap` 外壳只包那枚图标，
+                      文字是它的兄弟节点（板上就是这样分的两列）。 */}
+                  <span className={`d-flap${flapPhase ? ` ${flapPhase}` : ""}`}>
+                    <i data-ico="brain" data-size="13"></i>
+                  </span>
                   {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
                   {/* 2026-10-03 用户裁定 —— 有选项的芯片一律带向下箭头（与模型选择器同款
                       chevron-down），不然分不清「可点开」与「只是读数」。 */}
@@ -5106,8 +5201,29 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       data-ico={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
                       data-size="13"
                     ></i>
+                  {/* fork:v5-wave-n1 · D-28 帧 C 的标签交换：流内是新值（宽度撑着），
+                      退场的旧值绝对定位盖在上面（板上两个标签都 absolute）。 */}
                   {!narrowControls && (
-                    <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
+                    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                      {permissionLabelOut !== null && (
+                        <span
+                          className="d-label-out"
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            whiteSpace: "nowrap",
+                            pointerEvents: "none",
+                          }}
+                        >{permissionLabelOut}</span>
+                      )}
+                      <span
+                        className={permissionLabelOut !== null ? "d-label-in" : undefined}
+                        style={{ whiteSpace: "nowrap" }}
+                      >{permissionLabel}</span>
+                    </span>
                   )}
                   <i data-ico="chevron-down" data-size="12"></i>
                 </button>

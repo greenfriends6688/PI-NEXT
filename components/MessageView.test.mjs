@@ -22,6 +22,7 @@ const {
   getTokenEstimateText,
   getToolCallInputText,
   replaceUserMessageText,
+  countOutputLines,
 } = await jiti.import("./MessageView.tsx");
 const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 const { splitFinalAssistantBlocks } = await jiti.import("@/lib/message-display");
@@ -510,6 +511,73 @@ test("renders a tool-call diff with the board's pw-diff head, body and lines", (
   assert.match(html, /<span class="sign">/);
   // diff 卡外面挂画板 D-03d 的 .d-tool-body（顶部发丝线 + 面板底）。
   assert.match(html, /class="d-tool-body"/);
+  // fork:v5-wave-n1 —— 分栏本体 = 画板 D-03d 帧 C「分栏」那一段：
+  // .d-diff-split › 左栏（.d-diff-head + .d-diff）› .d-sep-v › 右栏（同构）。
+  assert.match(html, /class="d-diff-split"/, "分栏外壳是画板的 .d-diff-split");
+  assert.match(html, /class="d-sep-v"/, "两栏之间是那一竖条 .d-sep-v");
+  assert.equal(
+    (html.match(/class="d-diff"/g) ?? []).length,
+    2,
+    "两侧各自一块 .d-diff（各自横滚，板上原话）",
+  );
+  assert.doesNotMatch(html, /--n-border-subtle/, "旧的 v1 分隔线令牌不再出现在这一段");
+
+  // 两份文件时才起表头（板上分栏帧是单文件起头；产品沿用「多文件才起头」的既有判定），
+  // 表头逐字是画板那一枚：`<i data-ico="chevron-left|right">` + 路径。
+  const twoFiles = renderMessage({
+    role: "assistant",
+    provider: "anthropic",
+    model: "claude-test",
+    content: [{
+      type: "toolCall",
+      toolCallId: "call-apply-2",
+      toolName: "apply_patch",
+      input: {
+        input: [
+          "*** Begin Patch",
+          "*** Update File: hooks/a.ts",
+          "-const a = 1;",
+          "+const a = 2;",
+          "*** Update File: hooks/b.ts",
+          "-const b = 1;",
+          "+const b = 2;",
+          "*** End Patch",
+        ].join("\n"),
+      },
+    }],
+  }, { expandedToolIds: new Set(["call-apply-2"]), onToggleTool() {} });
+
+  assert.match(twoFiles, /<i data-ico="chevron-left" data-size="12"/, "左栏表头带 chevron-left");
+  assert.match(twoFiles, /<i data-ico="chevron-right" data-size="12"/, "右栏表头带 chevron-right");
+  assert.match(twoFiles, /hooks\/a\.ts/, "左栏表头是改前路径");
+  assert.match(twoFiles, /hooks\/b\.ts/, "右栏表头是改后路径");
+});
+
+test("fork:v5-wave-n1 —— 压缩卡 / 扩展消息卡在窄屏走 m-card 三件（d-* 在 ≤640px 是零样式）", () => {
+  assert.match(source, /className=\{isPwa \? "m-card" : "d-card"\}/, "卡壳按形态换");
+  assert.match(source, /className=\{isPwa \? "m-card-head" : "d-card-head"\}/, "卡头按形态换");
+  assert.match(source, /className=\{isPwa \? "m-card-body" : "d-card-body"\}/, "卡体按形态换");
+  assert.match(source, /className=\{isPwa \? "m-code" : "d-term plain"\}|<div className="m-code">/, "details JSON 在窄屏走 .m-code");
+});
+
+test("fork:v5-wave-n1 —— 终端卡带 $ 提示符行与 .d-terminfo 尾条（M-02 那套 m-* 同源）", () => {
+  // 画板 D-03 帧 B / D-03d 帧 D 的终端卡体：
+  //   .d-tool-body › .d-term › <div><span class="d-term-prompt">$</span> 命令</div> › .d-terminfo
+  // 窄屏同一段抄 M-02 帧 B：.m-code › .m-code-head（含 .m-term-ok）› .m-code-body（含 .m-term-prompt）。
+  assert.match(source, /<span className="d-term-prompt">\$<\/span>/, "命令行的 $ 是 .d-term-prompt");
+  assert.match(source, /<div className="d-terminfo">/, "尾部那条信息是 .d-terminfo");
+  assert.match(source, /className="d-term" style=\{\{ minHeight: 0 \}\}/, "输出块是 .d-term（min-height:0 是板上原话）");
+  assert.match(source, /className="m-term-prompt"/, "窄屏那一行是 M-02 的 .m-term-prompt");
+  assert.match(source, /className="m-term-ok"/, "窄屏卡头右格是 M-02 的 .m-term-ok");
+  // 只有「用户自己敲的命令」那张卡带尾条（agent 的工具调用拿不到退出码/截断位）。
+  assert.match(
+    source,
+    /<ToolCallBlock block=\{block\} result=\{result\} terminal=\{\{/,
+    "BashExecutionView 把终端信息递给同一张工具卡",
+  );
+  assert.equal(countOutputLines("a\nb\nc\n"), 3, "尾部「几行」不把结尾换行算成一行");
+  assert.equal(countOutputLines("only"), 1);
+  assert.equal(countOutputLines(""), 0);
 });
 
 test("carries tool-result images in the board's pw-img frame", () => {

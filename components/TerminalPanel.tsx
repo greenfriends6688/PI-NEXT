@@ -54,6 +54,16 @@ function readTerminalTheme(element: HTMLElement): Record<string, string> {
   return theme;
 }
 
+/** `.d-terminfo` 的「已用」读数：`mm:ss`，超过一小时进位成 `h:mm:ss`。 */
+function formatUptime(totalSeconds: number): string {
+  const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+}
+
 export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }: Props) {
   const { t } = useI18n();
   // M-06 帧 C —— 手机档多一条常驻键排；桌面分支（下面那个 return）一个字都没动。
@@ -69,6 +79,11 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
   const [error, setError] = useState<string | null>(null);
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [reconnectKey, setReconnectKey] = useState(0);
+  /* fork:v5-boards D-05 帧 A / 帧 B —— 面板底栏 `.d-terminfo` 的两个读数：
+     网格尺寸（跟着 `fit()` / 窗口变化走）与运行时长（连接建立后开始走）。
+     都从既有状态推，不新开一条数据流：尺寸读 xterm 自己的 `cols/rows`。 */
+  const [grid, setGrid] = useState<{ cols: number; rows: number } | null>(null);
+  const [uptimeSeconds, setUptimeSeconds] = useState(0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -127,6 +142,8 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
       fit.fit();
     };
     const onResize = terminal.onResize(({ cols, rows }) => {
+      // 只在真的变了时 setState：拖窗口时 resize 事件很密，不做这一步会白渲染一片。
+      setGrid((current) => (current && current.cols === cols && current.rows === rows ? current : { cols, rows }));
       if (connected && !exited && !inputFailed) writer.resize(cols, rows);
     });
     const resizeObserver = new ResizeObserver(fitAndResize);
@@ -158,6 +175,7 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
         terminal.options.disableStdin = false;
         setStatus("ready");
         fitAndResize();
+        setGrid((current) => (current && current.cols === terminal.cols && current.rows === terminal.rows ? current : { cols: terminal.cols, rows: terminal.rows }));
         writer.resize(terminal.cols, terminal.rows);
         if (container.offsetWidth && container.offsetHeight) terminal.focus();
       };
@@ -218,6 +236,17 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
   useEffect(() => {
     if (active) terminalRef.current?.focus();
   }, [active]);
+
+  /* fork:v5-boards D-05 —— `.d-terminfo` 的「已用」读数。每秒一跳，只改一个数字；
+     组件卸载 / 换终端时清掉，终端连接本身不碰。SSR 首帧是 0，挂载后才走。 */
+  useEffect(() => {
+    const startedAt = Date.now();
+    setUptimeSeconds(0);
+    const timer = setInterval(() => {
+      setUptimeSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [id]);
 
   useEffect(() => {
     if (!tab.closing) return;
@@ -346,6 +375,15 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
         )}
       </div>
       <div className="terminal-xterm" style={{ flex: "1 1 auto", minHeight: 0 }}><div ref={containerRef} className="terminal-xterm-host" /></div>
+      {/* fork:v5-boards D-05 帧 A / 帧 B —— 底栏 `.d-terminfo`：工作区 · 网格尺寸 ·
+          已用时长 · 编码，四项都是真读数（编码是 PTY 的既定值：`LANG` 未设时
+          终端管理器写 `C.UTF-8`）。它不吃指针事件（库里就是这么定义的）。 */}
+      <div className="d-terminfo">
+        <span>{getFileName(cwd) || cwd}</span>
+        {grid && <span>{`${grid.cols} × ${grid.rows}`}</span>}
+        <span>{formatUptime(uptimeSeconds)}</span>
+        <span>UTF-8</span>
+      </div>
     </section>
   );
 }

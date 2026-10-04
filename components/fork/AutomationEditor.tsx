@@ -16,6 +16,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { PwaPickBar, PwaSetRow } from "@/components/pwa/PwaPage";
 import {
   AUTOMATION_SCHEDULE_TYPES,
+  AUTOMATION_SESSION_MODES,
   AUTOMATION_WEEKDAYS,
   type AutomationDraft,
   type AutomationScheduleType,
@@ -100,7 +101,14 @@ export function AutomationEditor({
             />
           </ConfigField>
           <ConfigField label={t("automation.activeDays")}>
-            <div className="fork-automation-days">
+            {/*
+              fork:v5-landing Wave N1 · D-17 帧 B「调度 › 每周」——
+              周几就是那排 `.d-cats` / `.d-cat`（选中态 `.is-on`），不是产品自绘的
+              `div.fork-automation-days` + `d-chipbtn`：后者是 Wave 之前为了
+              「多选周几」自己起的一套芯片，现在画板给了同一件事的正式写法。
+              值与语义（多选 = 每天各跑一次）一字未改。
+            */}
+            <div className="d-cats">
               {AUTOMATION_WEEKDAYS.map((day) => {
                 const on = (draft.activeWeekdays ?? []).includes(day);
                 return (
@@ -109,7 +117,7 @@ export function AutomationEditor({
                     type="button"
                     disabled={disabled}
                     aria-pressed={on}
-                    className="d-chipbtn fork-automation-day"
+                    className={`d-cat${on ? " is-on" : ""}`}
                     onClick={() => toggleWeekday(day)}
                   >
                     {t(`automation.weekday.${day}`)}
@@ -378,12 +386,14 @@ export function AutomationEditor({
             />)}
           {mobileLabel(t("automation.sessionMode"))}
           <div className="m-pickbar">
+            {/* 三枚互斥 chip（画板 M-09 帧 C 那枚三段 `.m-pickbar` 就是这个形）：
+                每次新建 / 同一自然日 / 始终复用 —— 值与桌面**同一份** AUTOMATION_SESSION_MODES。 */}
             <PwaPickBar
               className="m-grow"
-              options={[
-                { value: "daily", label: t("automation.sessionMode.daily") },
-                { value: "reuse", label: t("automation.sessionMode.reuse") },
-              ]}
+              options={AUTOMATION_SESSION_MODES.map((mode) => ({
+                value: mode,
+                label: t(`automation.sessionMode.${mode}`),
+              }))}
               value={draft.sessionMode}
               onChange={(next) => set("sessionMode", next as AutomationSessionMode)}
             />
@@ -396,18 +406,28 @@ export function AutomationEditor({
   return (
     <Fragment>
       <ConfigSectionTitle>{t("automation.schedule")}</ConfigSectionTitle>
-      <ConfigField label={t("automation.scheduleType")}>
-        <select
-          className="d-select"
-          disabled={disabled}
-          value={draft.scheduleType}
-          onChange={(event) => set("scheduleType", event.target.value as AutomationScheduleType)}
-        >
-          {AUTOMATION_SCHEDULE_TYPES.map((type) => (
-            <option key={type} value={type}>{t(`automation.scheduleType.${type}`)}</option>
-          ))}
-        </select>
-      </ConfigField>
+      {/*
+        fork:v5-landing Wave N1 · D-17 帧 B · 调度四选一 ——
+        DOM 抄画板：`.d-seg` 一排互斥按钮（一次 / 每天 / 每周 / 间隔），
+        切了才换下面那组字段。原来是一个 `.d-select` 下拉：四个值藏在里面，
+        而「间隔」档还多出两个子字段（生效日 / 每日有效时段），下拉里根本看不出来。
+        值集、默认值、写入路径（`set("scheduleType", …)`）与服务端 normalize 一概不动，
+        仍走同一份 `AUTOMATION_SCHEDULE_TYPES`。
+      */}
+      <div className="d-seg">
+        {AUTOMATION_SCHEDULE_TYPES.map((type) => (
+          <button
+            key={type}
+            type="button"
+            aria-pressed={draft.scheduleType === type}
+            className={draft.scheduleType === type ? "is-on" : undefined}
+            disabled={disabled}
+            onClick={() => set("scheduleType", type)}
+          >
+            {t(`automation.scheduleType.${type}`)}
+          </button>
+        ))}
+      </div>
       {scheduleFields(draft.scheduleType)}
 
       <ConfigSectionTitle>{t("automation.content")}</ConfigSectionTitle>
@@ -475,17 +495,40 @@ export function AutomationEditor({
 
       {/* fork:automation-layout —— 这里原来还有一行 `ConfigSectionTitle`，内容与下面那个
           字段标签一字不差（这一节只有这一个字段），于是屏幕上出现两遍「子会话复用」。
-          字段标签已经说清了，标题删掉。 */}
-      <ConfigField label={t("automation.sessionMode")} hint={t("automation.sessionModeHint")}>
-        <select
-          className="d-select"
-          disabled={disabled}
-          value={draft.sessionMode}
-          onChange={(event) => set("sessionMode", event.target.value as AutomationSessionMode)}
-        >
-          <option value="daily">{t("automation.sessionMode.daily")}</option>
-          <option value="reuse">{t("automation.sessionMode.reuse")}</option>
-        </select>
+          字段标签已经说清了，标题删掉。
+          fork:v5-closeout —— 这一行补的就是画板 D-17 帧 B「调度」那枚 `.d-seg` 的同一种形：
+          **少量互斥、且要一眼看全**的三档（每次新建 / 同一自然日 / 始终复用），
+          产品里同形的写法见 `ModelsConfig` 的 `DSeg`（`role="radiogroup"` + `button.is-on`）。
+          值写进 `draft.sessionMode`，与 maxRuns / model / cwd 走同一条写入路径
+          （`AutomationPanel` 的 `post({action:"create"|"update", automation: draft})`
+          → `/api/automation` → `normalizeAutomationDraft()` → `decideSessionTarget()`），
+          所以这一行不需要任何额外的接线。选项集直接读内核那份 `AUTOMATION_SESSION_MODES`，
+          UI 不再自己手写一份名单；新档的语义说明跟着选中值换（`fresh` 没有「复用」可解释，
+          说「同一自然日怎么复用」是废话）。 */}
+      <ConfigField
+        label={t("automation.sessionMode")}
+        hint={draft.sessionMode === "fresh"
+          ? t("automation.sessionMode.freshHint")
+          : t("automation.sessionModeHint")}
+      >
+        <span className="d-seg" role="radiogroup" aria-label={t("automation.sessionMode")}>
+          {AUTOMATION_SESSION_MODES.map((mode) => {
+            const on = mode === draft.sessionMode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                className={on ? "is-on" : undefined}
+                disabled={disabled}
+                onClick={() => set("sessionMode", mode)}
+              >
+                {t(`automation.sessionMode.${mode}`)}
+              </button>
+            );
+          })}
+        </span>
       </ConfigField>
     </Fragment>
   );

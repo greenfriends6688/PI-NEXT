@@ -76,40 +76,32 @@
 .m-md { font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); }
 .m-md p { margin: 0 0 10px; }
 .m-md h1, .m-md h2 { font-size: var(--nx-fs-lg); font-weight: 600; margin: 0 0 8px; }
-/* ── 2b · Markdown 内容块（引用 / 任务清单 / 提及）─────────────────────────────
-   这三块在真实回答里天天出现，`.m-md` 只管段落与标题，于是窄屏上引用块与勾选行
-   掉回 UA 默认渲染（引用无底色、任务项带原生方框）。
-   值取 PWA 形态档：引用块内边距 12/16（比 Web 宽一档，拇指阅读）；
-   圆角走 --nx-r-md（16）；任务勾选框 20px = --nx-ctl-xs 减 --nx-sp-2（能算出来，不是写死的）。
-   与 Web `.d-quote / .d-tasklist / .d-mention` 逐条同义，只有形态值不同。 */
-.m-md .m-quote { margin: 0 0 var(--nx-sp-3); padding: var(--nx-sp-3) var(--nx-sp-4);
-  background: var(--nx-surface); border-radius: var(--nx-r-md); color: var(--nx-text-2); }
-.m-md .m-quote p:last-child { margin-bottom: 0; }
-.m-md ul, .m-md ol { margin: 0 0 var(--nx-sp-3); padding-left: var(--nx-sp-6); }
-.m-md li { margin: var(--nx-sp-1) 0; }
-.m-md li::marker { color: var(--nx-text-3); }
-.m-md .m-tasklist { list-style: none; padding-left: var(--nx-sp-1); margin: 0 0 var(--nx-sp-3); }
-.m-md .m-tasklist > li { display: flex; align-items: flex-start; gap: var(--nx-sp-2); }
-/* 多选框：归档 / 导入的批量选择与任务清单共用一个。
-   半选态（.half）是**必须**的 —— 组里选了一部分时不能显示成「全选」或「全不选」。 */
-.m-checkbox { width: calc(var(--nx-ctl-xs) - var(--nx-sp-2));
-  height: calc(var(--nx-ctl-xs) - var(--nx-sp-2)); border-radius: var(--nx-r-xs);
-  border: 1.5px solid var(--nx-line-hi); background: var(--nx-panel); flex: 0 0 auto;
-  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-  color: transparent; }
+/* ── 2b · Markdown 内容块 ───────────────────────────────────────────────
+   引用块 / 任务清单 / 多选框 / 行内提及此前在 PWA 画板上一处都没画，
+   补类批次一度按「无板不加」把它们退回。**M-02 帧 A 已补上这一段**（见该板
+   `.m-md` 里的引用 + 四项任务清单 + 一处 `@`/`#` 提及），所以这四件现在有板可依。
+   几何全部令牌化，值取自 PWA 形态。 */
+.m-quote { margin: 0 0 var(--nx-sp-3); padding: var(--nx-sp-3) var(--nx-sp-4);
+  border-radius: var(--nx-r-md); background: var(--nx-surface); color: var(--nx-text-2); }
+.m-tasklist { list-style: none; margin: 0 0 var(--nx-sp-3); padding-left: var(--nx-sp-1);
+  display: flex; flex-direction: column; gap: var(--nx-sp-2); }
+.m-tasklist > li { display: flex; align-items: flex-start; gap: var(--nx-sp-2); }
+.m-tasklist > li::marker { content: none; }
+.m-checkbox { width: calc(var(--nx-ctl-xs) - var(--nx-sp-2)); height: calc(var(--nx-ctl-xs) - var(--nx-sp-2));
+  flex: 0 0 auto; margin-top: 2px; border: 1.5px solid var(--nx-line-hi); border-radius: var(--nx-r-xs);
+  display: inline-flex; align-items: center; justify-content: center; color: transparent; }
 .m-checkbox.on { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-fg); }
-.m-checkbox.half { background: var(--nx-panel); border-color: var(--nx-accent); color: var(--nx-accent); }
-.m-checkbox > i { width: var(--nx-sp-3); height: var(--nx-sp-3); }
-.m-checkbox.on > i { display: block; }
-.m-checkbox.half > i { display: block; width: var(--nx-sp-2); height: calc(var(--nx-sp-1) / 2); }
-/* 行内提及（@文件 / #会话 / /命令）：不是芯片，是正文里的一个 token */
-.m-mention { display: inline-flex; align-items: center; gap: var(--nx-sp-1);
-  padding: 0 var(--nx-sp-1); border-radius: var(--nx-r-xs); background: var(--nx-accent-soft);
-  color: var(--nx-accent); font-size: var(--nx-fs-xs); font-family: var(--nx-font-mono);
-  line-height: var(--nx-lh-tight); vertical-align: baseline; }
+.m-checkbox.half { border-color: var(--nx-accent); }
+.m-checkbox.half::after { content: ""; width: var(--nx-sp-2); height: 1.5px; background: var(--nx-accent); }
+.m-mention { padding: 0 var(--nx-sp-1); border-radius: var(--nx-r-xs); background: var(--nx-accent-soft);
+  color: var(--nx-accent); font-size: var(--nx-fs-xs); line-height: var(--nx-lh-tight); }
+/* 引用与列表：与 Web 的 `.m-md` 同口径（间距取令牌，不写字面量）。 */
+.m-md ul, .m-md ol { margin: 0 0 var(--nx-sp-3); padding-left: var(--nx-sp-6); }
+.m-md li { margin: 0 0 var(--nx-sp-1); }
+
 .m-ln { display: inline-block; width: 2em; color: var(--nx-text-3); user-select: none; text-align: right;
   margin-right: 10px; }
-/* 公式容器：M-02 帧 A 已在上用。上下内边距取 --nx-sp-1 的一半（= 原来那 2px），
+/* 公式容器：M-01 / M-02 / M-11 已在上用。上下内边距取 --nx-sp-1 的一半（= 原来那 2px），
    几何一字不变，只是把字面量换成能算出来的值。 */
 .m-math { font-family: var(--nx-font-mono); font-size: var(--nx-fs-cap); background: var(--nx-code-bg);
   border-radius: var(--nx-r-xs); padding: calc(var(--nx-sp-1) / 2) var(--nx-sp-2); }
@@ -126,6 +118,16 @@
 .m-step-row.fail .m-step-dot { background: var(--nx-danger); }
 .m-step-n { margin-left: auto; font-size: var(--nx-fs-xs); color: var(--nx-text-3);
   font-variant-numeric: tabular-nums; }
+
+/* 文件引用芯片（M-02 帧 A 已画）：一步一行地列出这一轮碰过的文件，
+   命中态用实心圆点 + 强调底。与 `.m-tray-chip` 的区别：tray 是**动作**芯片
+   （托盘里的按钮），cite 是**文件名**（只读，指“这个文件被碰过”）。 */
+.m-cites { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); margin-top: var(--nx-sp-2); }
+.m-cite { display: inline-flex; align-items: center; gap: var(--nx-sp-1);
+  min-height: var(--nx-ctl-xs); padding: 0 var(--nx-sp-2); border-radius: var(--nx-r-xs);
+  background: var(--nx-surface); color: var(--nx-text-2); font-size: var(--nx-fs-xs);
+  font-family: var(--nx-font-mono); }
+.m-cite.is-on { background: var(--nx-accent-soft); color: var(--nx-accent); }
 
 /* 工具/代码/表格 */
 .m-tool { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel); overflow: hidden; }
@@ -568,14 +570,13 @@
 .m-hist-row { display: flex; align-items: center; gap: 8px; }
 .m-heat { display: grid; grid-template-columns: repeat(18, 1fr); gap: 3px; min-width: 0; }
 .m-heat-grid { aspect-ratio: 1; border-radius: 3px; background: var(--nx-surface-hi); }
-/* 用量热力 0–4 五档：0 = 无类（--nx-surface-hi 空档）→ l4 = 满强调色。
-   25/50/75/100 是**等差**的四格（能算出来：l4 = 100%，其余三格各差一档），
-   与 Web `.d-heat-grid` 同一把尺子；补 l4 前 l2/l3 是 55%/100%，
-   那样 l3 已经顶格、l4 无处可去，产品五档里有两档读起来一样。 */
+/* 用量热力：PWA 板（M-09 帧 C）只画了 l0/l1/l2/l3 四档，**满强调色那一档没画**，
+   所以 `.m-heat-grid.l4` 不进库（2026-10-05 补类批次裁定 (b)）。
+   阶梯也不动 —— 重新分档会改掉 M-09 现有 60+ 格热力图的观感，而那个变化
+   没有画板背书（铁律五）。要五档就先补板：见汇报。 */
 .m-heat-grid.l1 { background: color-mix(in srgb, var(--nx-accent) 25%, var(--nx-panel)); }
-.m-heat-grid.l2 { background: color-mix(in srgb, var(--nx-accent) 50%, var(--nx-panel)); }
-.m-heat-grid.l3 { background: color-mix(in srgb, var(--nx-accent) 75%, var(--nx-panel)); }
-.m-heat-grid.l4 { background: var(--nx-accent); }
+.m-heat-grid.l2 { background: color-mix(in srgb, var(--nx-accent) 55%, var(--nx-panel)); }
+.m-heat-grid.l3 { background: var(--nx-accent); }
 /* 统计格：四张小卡。手机上两列（4 列会窄到数字换行），
    卡内只放「标签 + 一个大数 + 一行口径」，长解释放 .m-card-body。 */
 .m-statgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--nx-sp-3); }
@@ -699,6 +700,10 @@
 .m-grip { color: var(--nx-text-3); display: inline-flex; flex: 0 0 auto; }
 .m-mono { font-family: var(--nx-font-mono); font-size: var(--nx-fs-xs); }
 /* 数值变化时的一次淡入（计数器 / 余额 / token）—— 挂 base.css 里那条共享关键帧 nx-num。
+   画板依据：**M-05 帧**（设置）`.m-ctx` 里「本月预算已用 72%」的 72，
+   与 **M-01 帧 C** `.m-ctx` 里「上下文 200k · 本轮已用 34%」的 200k / 34% ——
+   读数位真实画在板上，只是当时还是一整句纯文本（裁定 (a)）。
+   落库后这几个读数应当单独包一层 <span class="m-num">。
    时长取 --nx-dur-2（160ms），不写字面量：Web 的 .d-num 写的是 220ms 裸值，
    两端要同一读法的话该在 base.css 补一枚 --nx-dur-num，那不是本批能改的文件。 */
 .m-num { animation: nx-num var(--nx-dur-2) var(--nx-ease-out); }
@@ -780,16 +785,15 @@
 .m-board-head p { font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 .m-scene { margin: 0 auto var(--nx-sp-8); width: max-content; }
 
-/* ── 内容块补全 · 引用出处（2026-10-05）────────────────────────────────────
-   ⚠ m-quote / m-tasklist / m-checkbox / m-mention / m-math 的**唯一定义在 §2b**
-   （本批由 pwa/system.css 的唯一 owner 统一收口）。这里只放 §2b 没有的件，
-   两处各写一遍就是「同一个值两个来源」，那条已经翻过车了。 */
-.m-cite { display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
-  border-radius: var(--nx-r-xs); border: 1px solid var(--nx-line); color: var(--nx-text-2);
-  font-size: var(--nx-fs-xs); }
-.m-cite.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); }
-.m-cites { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); margin-top: var(--nx-sp-2); }
+/* ⚠ 引用出处芯片（m-cite / m-cites）：12 张 PWA 板一处都没画（裁定 (b)，2026-10-05）。
+   与 m-quote / m-tasklist / m-checkbox / m-mention 一并撤出。
+   M-02 的「引用」只是消息动作行里一枚图标钮（m-iconbtn），不是出处芯片。 */
 /* ── 语法着色五档（本批 · 代码高亮）───────────────────────────────────────
+   画板依据：**M-02 帧 A**（一条完整回合）的 `.m-code > .m-code-scroll > .m-code-body`
+   里已有三段着色 span —— 当时库还没有 token 类，就借 `.m-math` 代色，
+   注释段（`/* 字阶比例 */`）则完全没色。部位真实存在，只是写法不对（裁定 (a)）。
+   落库后这三段 + 两段注释应改成：属性名 → m-tok-key，数值 → m-tok-num，
+   `calc(...)` → m-tok-fn，`/* … */` → m-tok-com，字符串 → m-tok-str。
    五档：关键字 / 字符串 / 数字 / 注释 / 函数（`m-tok-fn` 覆盖 Prism 的
    function / function-variable / method / class-name —— 手机上代码块窄，
    函数名恰恰是最需要一眼认出来的一档；Web 侧没有这一档，本批新增）。

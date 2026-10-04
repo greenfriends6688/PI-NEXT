@@ -72,7 +72,8 @@ test("the file toggle is always interactive (the covered trio is gone)", () => {
   assert.doesNotMatch(source, /const covered = mobile/);
   assert.doesNotMatch(source, /visibility: covered/);
   assert.match(source, /data-mobile-toolbar-file=\{mobile \? "true" : undefined\}/);
-  assert.match(source, /aria-controls=\{mobile \? "file-panel" : secondaryWorkspaceId\}/);
+  // fork:v5-wave-b —— aria-controls 收成恒定值（两端同一 id），不再按 mobile 分叉。
+  assert.match(source, /aria-controls=\{secondaryWorkspaceId\}/);
 });
 test("the composer no longer hides its context ring behind an overlay", () => {
   // fork:pwa-composer-slim（2026-10-03）—— 输入区行二原本有一条**覆盖式**工具条

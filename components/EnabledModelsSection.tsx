@@ -2,7 +2,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 import type { EnabledModelsView } from "@/lib/enabled-models";
 import {
   enabledModelsBulkActions,
@@ -11,10 +13,14 @@ import {
   findProviderView,
   isLastEnabledModel,
 } from "./enabled-models-helpers";
-/** v5 D-10 的一枚小件：封装画板的 `.d-switch`（`on` 状态类 + aria 语义不变）。 */
+/** v5 D-10 的一枚小件：封装画板的 `.d-switch`（`on` 状态类 + aria 语义不变）。
+ *
+ *  fork:v5-landing · M-05 —— 窄屏是 `.m-switch`（48×29，是给人用手指拨的那一档）。
+ *  状态类与 aria 完全一致，只有类名前缀换形态；`onChange` 与 disabled 口径不变。 */
 function EnabledSwitch({ checked, disabled = false, loading = false, label, onChange }: {
   checked: boolean; disabled?: boolean; loading?: boolean; label: string; onChange: (checked: boolean) => void;
 }) {
+  const mobile = useIsMobile();
   const inactive = disabled || loading;
   return (
     <button
@@ -25,7 +31,7 @@ function EnabledSwitch({ checked, disabled = false, loading = false, label, onCh
       aria-label={label}
       title={label}
       disabled={inactive}
-      className={`d-switch${checked ? " on" : ""}`}
+      className={`${mobile ? "m-switch" : "d-switch"}${checked ? " on" : ""}`}
       onClick={() => onChange(!checked)}
     />
   );
@@ -203,11 +209,51 @@ export function useEnabledModels(cwd?: string | null): EnabledModelsController {
 /** Panel-wide note shown while `enabledModels` narrows the selector. */
 export function EnabledModelsBanner({ controller }: { controller: EnabledModelsController }) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const { view, pending } = controller;
   if (!view) return null;
   const scoped = !view.allEnabled;
   const stale = view.stalePatterns.length;
   if (!scoped && stale === 0) return null;
+
+  // fork:v5-landing · M-05 —— 窄屏走 `.m-banner`（同一套 warn 档），路径仍然摆上台面：
+  // 「改的是哪一份文件」是这条横幅的全部意义，藏进 title 就等于没写。
+  if (mobile) {
+    return (
+      <div className="m-cardgroup">
+        <PwaBanner icon="triangle-alert" tone="warn" role="status">
+          <span className="m-mono">{view.settingsPath}</span>
+          {" · "}
+          <span className="m-mono">
+            {`enabledModels ${view.enabledTotal}/${view.availableTotal}`}
+            {stale > 0 ? ` · ${t("models.enabledStale", { count: stale })}` : ""}
+          </span>
+        </PwaBanner>
+        <div className="m-pickbar">
+          {view.editable && stale > 0 && (
+            <button
+              type="button"
+              className="m-picktag"
+              onClick={controller.pruneStale}
+              disabled={pending !== null}
+            >
+              {t("models.enabledPrune")}
+            </button>
+          )}
+          {view.editable && scoped && (
+            <button
+              type="button"
+              className="m-picktag"
+              onClick={controller.clearScope}
+              disabled={pending !== null}
+            >
+              {t("models.enabledClear")}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="d-banner warn">
@@ -353,6 +399,7 @@ export function EnabledModelsSection({
   controller: EnabledModelsController;
 }) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const [query, setQuery] = useState("");
   const { view, loading, pending, failure } = controller;
   const provider = findProviderView(view, providerId);
@@ -361,12 +408,12 @@ export function EnabledModelsSection({
   useEffect(() => setQuery(""), [providerId]);
 
   if (loading && !view) {
-    return <div className="d-t-xs d-t-faint">{t("agents.modelsLoading")}</div>;
+    return <div className={mobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{t("agents.modelsLoading")}</div>;
   }
   if (!provider) {
     return failure?.message
       ? <div className="d-err">{failure.message}</div>
-      : <div className="d-t-xs d-t-faint">{t("models.enabledUnavailable")}</div>;
+      : <div className={mobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{t("models.enabledUnavailable")}</div>;
   }
 
   const shown = filterEnabledModels(provider.models, query);
@@ -383,7 +430,100 @@ export function EnabledModelsSection({
 
   /* fork:v5-landing —— 换成画板 D-10 的「可用模型」DOM：`d-set-sec` 分节 +
      `d-card > d-table` 数据表 + `d-switch` 行内开关；thinking 钉不再自绘徽章，
-     直接进表列（画板 D-10 帧 A 的「thinking 钉」列）。绑定与状态机一概不动。 */
+     直接进表列（画板 D-10 帧 A 的「thinking 钉」列）。绑定与状态机一概不动。
+
+     fork:v5-landing · M-05 —— 窄屏那张表**读不出来**（390 宽上三列必然挤成一团），
+     所以按 M-05 帧 B 的「一行一个控件」重排：`.m-cardgroup` + `.m-group-title` +
+     搜索 `.m-searchfield` + 每行一个 `.m-setrow`（模型名 / id / thinking 钉 / 开关）。
+     三个纪律一个不减：pattern 白名单仍是白名单（不是过滤器）、thinking 钉由
+     `enabledModels` 的 `:level` 决定且只读、最后一个启用的模型仍然删不掉。 */
+  if (mobile) {
+    return (
+      <div className="m-cardgroup">
+        <div className="m-group-title">
+          {t("models.enabledSection")}
+          {" · "}
+          {t("models.enabledCount", { enabled: provider.enabledCount, total: provider.models.length })}
+        </div>
+
+        <div className="m-pickbar">
+          <button
+            type="button"
+            className="m-picktag"
+            disabled={busy || !bulk.canEnable}
+            onClick={() => runBulk(true, bulk.enableRefs)}
+          >
+            {filtered ? t("models.enableShown") : t("models.enableAll")}
+          </button>
+          <button
+            type="button"
+            className="m-picktag"
+            disabled={busy || !bulk.canDisable}
+            onClick={() => runBulk(false, bulk.disableRefs)}
+          >
+            {filtered ? t("models.disableShown") : t("models.disableAll")}
+          </button>
+          <button
+            type="button"
+            className="m-picktag"
+            disabled={busy || catalog.refreshing}
+            onClick={catalog.refresh}
+          >
+            {catalog.refreshing ? t("models.refreshingCatalog") : t("models.refreshCatalog")}
+          </button>
+        </div>
+
+        {catalog.note && <PwaBanner icon="info" role="status">{t(catalog.note)}</PwaBanner>}
+        {!view?.editable && <PwaBanner icon="triangle-alert" tone="warn">{t("models.enabledProjectScope")}</PwaBanner>}
+        {failure && (
+          <PwaBanner icon="triangle-alert" tone="err" role="alert">
+            {failure.messageKey ? t(failure.messageKey) : failure.message}
+          </PwaBanner>
+        )}
+
+        <div className="m-searchfield">
+          <i data-ico="search" data-size="14" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("models.enabledFilterPlaceholder", { count: provider.models.length })}
+            aria-label={t("models.enabledFilter")}
+          />
+        </div>
+
+        {shown.length === 0 ? (
+          <PwaSetRow label={t("models.enabledNoMatches")} />
+        ) : shown.map((model) => {
+          const lastOne = isLastEnabledModel(view, model);
+          return (
+            <PwaSwitchRow
+              key={model.ref}
+              icon="cpu"
+              label={model.name}
+              sub={
+                <>
+                  <span className="m-mono">{model.id}</span>
+                  {model.thinkingPin ? (
+                    <>
+                      {" · "}
+                      <span className="m-mono">{model.thinkingPin}</span>
+                    </>
+                  ) : null}
+                </>
+              }
+              checked={model.enabled}
+              disabled={busy || !view?.editable || lastOne}
+              switchLabel={lastOne
+                ? t("models.enabledLastModel")
+                : t("models.enabledToggle", { model: model.name })}
+              onChange={(checked) => controller.setModels(model.ref, [model.ref], checked)}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="d-set-sec">
       <div className="d-row">

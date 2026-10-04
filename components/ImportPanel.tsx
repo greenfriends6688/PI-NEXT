@@ -115,6 +115,26 @@ const SOURCE_LABEL_KEY: Record<string, string> = {
   pi: "import.sourcePi",
 };
 
+/**
+ * 一个扫描来源的**唯一**说法：桌面那一排 `.d-cite` 芯片与窄屏那一行
+ * `PwaSetRow` 共用同一份拼装，所以两端不可能各说各话。
+ * `scanned: false` 三种情形（不存在 / 是目标目录 / 读出错）都不是「扫到 0 条」——
+ * 芯片用空心点，形状本身就在说「这一类没参与」。
+ */
+function describeSourceChip(
+  source: ImportSourceDiagnostic,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): { scanned: boolean; text: string } {
+  const label = SOURCE_LABEL_KEY[source.source] ? t(SOURCE_LABEL_KEY[source.source]) : source.source;
+  if (!source.exists) return { scanned: false, text: `${label}: ${t("import.sourceMissing")}` };
+  // The destination tree is reported, not scanned: it is where imports land,
+  // so nothing in it can be imported anywhere.
+  if (source.error === "destination") return { scanned: false, text: `${label}: ${t("import.sourceDestination")}` };
+  const count = `${label}: ${source.count}${source.truncated ? "+" : ""}`;
+  if (source.error) return { scanned: false, text: `${count} (${source.error})` };
+  return { scanned: true, text: count };
+}
+
 /** fork:disabled-reasons —— 「清空选择 / 导入所选」在一行都没勾时恒 disabled 的原因。 */
 const NOTHING_SELECTED: LocalCopy = {
   en: "Nothing is selected yet — tick an entry in the list on the left first.",
@@ -325,21 +345,25 @@ export function ImportPanel() {
     return (
       <>
         {/* What was looked at, including the sources that were not there. A missing
-            source is normal and has to be visible, or an empty list looks broken. */}
+            source is normal and has to be visible, or an empty list looks broken.
+
+            fork:v5-landing · D-21 帧 B —— 画板把这一行写成 `.d-cites` 一排
+            `.d-cite` 芯片（实心 `circle-dot` = 扫到了，空心 `circle` = 没扫到），
+            而不是一串用 `·` 拼起来的灰字。文案与判据一字未改：仍然逐个来源
+            报告，`sourceMissing` / `sourceDestination` / 截断的 `+` / 读错时的
+            原文错误都照旧，只是从一段话变成了一排芯片。 */}
         {state.sources.length > 0 && (
-          <p className="d-t-xs d-t-faint">
+          <div className="d-cites">
             {state.sources.map((source) => {
-              const label = SOURCE_LABEL_KEY[source.source]
-                ? t(SOURCE_LABEL_KEY[source.source])
-                : source.source;
-              if (!source.exists) return `${label}: ${t("import.sourceMissing")}`;
-              // The destination tree is reported, not scanned: it is where imports land,
-              // so nothing in it can be imported anywhere.
-              if (source.error === "destination") return `${label}: ${t("import.sourceDestination")}`;
-              const count = `${label}: ${source.count}${source.truncated ? "+" : ""}`;
-              return source.error ? `${count} (${source.error})` : count;
-            }).join("  ·  ")}
-          </p>
+              const chip = describeSourceChip(source, t);
+              return (
+                <span className={`d-cite${chip.scanned ? " is-on" : ""}`} key={`${source.source}-${chip.text}`}>
+                  <i data-ico={chip.scanned ? "circle-dot" : "circle"} data-size="12" aria-hidden="true" />
+                  {chip.text}
+                </span>
+              );
+            })}
+          </div>
         )}
 
         {state.lastSummary ? (
@@ -482,15 +506,7 @@ export function ImportPanel() {
         {activeState.sources.length > 0 && (
           <PwaSetRow
             label={t("import.title")}
-            sub={activeState.sources.map((source) => {
-              const label = SOURCE_LABEL_KEY[source.source]
-                ? t(SOURCE_LABEL_KEY[source.source])
-                : source.source;
-              if (!source.exists) return `${label}: ${t("import.sourceMissing")}`;
-              if (source.error === "destination") return `${label}: ${t("import.sourceDestination")}`;
-              const count = `${label}: ${source.count}${source.truncated ? "+" : ""}`;
-              return source.error ? `${count} (${source.error})` : count;
-            }).join("  ·  ")}
+            sub={activeState.sources.map((source) => describeSourceChip(source, t).text).join("  ·  ")}
           />
         )}
 

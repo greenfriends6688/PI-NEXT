@@ -22,6 +22,10 @@ import { useI18n } from "@/hooks/useI18n";
  *
  * 行为零变化：所有回调都由 `components/DirectoryPicker.tsx` 传进来，
  * 接口调用、键盘提交、Esc / 点遮罩关闭都在那边，本组件只换 DOM。
+ *
+ * fork:v5-wave-n1 · M-11 帧 C 的 48 档（`.m-touch-48` = `--nx-ctl-lg`）挂在
+ * 底栏那颗主按钮上 —— 它是这张 sheet 的一级行动钮。其余仍按帧 C 的
+ * 44 硬下限：搜索行 / 托盘 chip / 行内图标钮。
  */
 
 export interface PwaDirectoryEntry {
@@ -377,7 +381,7 @@ export function PwaDirectoryPicker(props: PwaDirectoryPickerProps) {
           </button>
           <button
             type="button"
-            className="m-picktag is-on"
+            className="m-picktag is-on m-touch-48"
             onClick={onSelect}
             disabled={!canSelect}
             title={hasUncommittedPath ? t("directoryPicker.openBeforeSelecting") : t("directoryPicker.selectCurrentDirectory")}

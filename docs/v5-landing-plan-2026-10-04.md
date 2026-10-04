@@ -168,3 +168,24 @@
 ### 7.4 其余登记
 - `ChatWindow` 扩展请求/权限卡：已派 L。
 - 各测试的红/绿以 Wave 全部完成后的全量跑为准。
+
+---
+
+## 8 · 收官轮（用户 2026-10-04 追加：设置与 PWA 的新增内容全做）
+
+新增能力的收敛按**三块**并行，文件互不重叠：
+
+| 组 | 做什么 | 独占文件 |
+|---|---|---|
+| PWA 库 A | 代码高亮五档 / 内容块（引用·任务清单·提及·公式）/ 数字淡入 / 热力第五档 | `design/v5/pwa/system.css`（段落 A） |
+| PWA 库 B | 四态思考 / 运行光带 / 通用卡体·统计 / 原生 select 皮肤 | `design/v5/pwa/system.css`（段落 B） |
+| PWA 接线 | 把新类接到窄屏分支（高亮·内容块·思考·光带·数字·热力） | `AsyncCodeHighlighter` `MarkdownBody` `ThinkingIcon` `ChatInput` `RollingNumber` `UsageStatsPanel` `MermaidBlock` |
+| 设置缺口 | 材质模式（浅/深）UI 接线 + 壁纸适配方式 + D-07b 其余缺行 | `ThemeSkinStudio` `ThemeSkinStrip` `SettingsPanel` `SettingsUi` `WallpaperSettings` |
+| 定时+快捷键 | 会话模式三档 UI（调度层 `decideSessionTarget` 已实现，只缺界面）+ 快捷键只读地图 | `fork/Automation*` `fork/ShortcutGuide*` `lib/i18n/messages/*` |
+| 设置族 spec | 按**新写的对照表**迁 25 份设置 spec 的产品侧选择器 | `scripts/board-specs/*` |
+
+**对照表**：`docs/v5-settings-class-map-2026-10-04.md`（逐条从产品源码 grep 得出，非从 v1 板推）。
+
+两条已被源码证伪的「缺口」（别重复造）：**会话模式**在 `lib/automation-scheduler.ts` 的
+`decideSessionTarget()` 已实现（daily/reuse/新建），只缺 UI；**圆角缩放**已有 radius 滑块；
+**各面模式**在 v5 画板上不存在（是我误读对齐清单）。

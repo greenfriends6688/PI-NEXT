@@ -13,7 +13,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
-import { PwaSetRow } from "@/components/pwa/PwaPage";
 import type { UsageStatsSummary } from "@/lib/usage-stats";
 
 interface Props {
@@ -112,35 +111,45 @@ export function ProviderUsageCards({ providerId }: Props): ReactNode {
     return <div className="d-t-xs d-t-faint" role="status">{t("models.usageNoData")}</div>;
   }
 
-  // fork:v5-landing Wave B · M-09 帧 C：四张小卡在手机上一张卡群里四行
-  // （`.m-cardgroup` › `.m-setrow`），值与那一行补充**一字未改**，仍是同一份切法。
+  // fork:v5-landing Wave N1 · M-09 帧 D —— 手机上这四张小卡不是「一叠行」，
+  // 而是**一块要解释的东西**：`.m-card`（头 + 体）里放 `.m-statgrid` 与四张 `.m-stat`。
+  // 帧 C 那四个数用 `.m-setrow` 平铺；这里是它们需要标题与口径行时的形状。
+  // 数字、口径、占比与桌面**逐字相同**（同一个 `cards` 对象，没有第二份算法）。
   if (mobile) {
     return (
-      <div className="m-cardgroup">
-        <PwaSetRow
-          icon="sigma"
-          label={t("models.usageRequests")}
-          sub={t("models.usageOfTotal", { share: cards.requestShare })}
-          trailing={<span className="m-t-lg m-t-b">{formatCompact(cards.messages, locale)}</span>}
-        />
-        <PwaSetRow
-          icon="arrow-down"
-          label={t("models.usageInputTokens")}
-          sub={t("models.usageCacheHit", { rate: cards.cacheHit })}
-          trailing={<span className="m-t-lg m-t-b">{formatCompact(cards.input, locale)}</span>}
-        />
-        <PwaSetRow
-          icon="arrow-up"
-          label={t("models.usageOutputTokens")}
-          sub={t("models.usageCacheWrite", { count: formatCompact(cards.cacheWrite, locale) })}
-          trailing={<span className="m-t-lg m-t-b">{formatCompact(cards.output, locale)}</span>}
-        />
-        <PwaSetRow
-          icon="percent"
-          label={t("models.usageCost")}
-          sub={t("models.usageOfTotal", { share: cards.costShare })}
-          trailing={<span className="m-t-lg m-t-b">{formatCost(cards.cost, locale)}</span>}
-        />
+      <div className="m-card">
+        <div className="m-card-head">
+          <i data-ico="sigma" data-size="15" aria-hidden="true" />
+          {t("models.usageTitle")}
+          <span className="m-grow" aria-hidden="true" />
+          <span className="m-badge mute">{t("models.usageOfTotal", { share: cards.requestShare })}</span>
+        </div>
+        <div className="m-card-body">
+          <div className="m-statgrid">
+            <div className="m-stat">
+              <span className="m-t-xs m-t-faint">{t("models.usageRequests")}</span>
+              <div className="m-t-lg m-t-b">{formatCompact(cards.messages, locale)}</div>
+              <span className="m-t-xs m-t-faint">{t("models.usageOfTotal", { share: cards.requestShare })}</span>
+            </div>
+            <div className="m-stat">
+              <span className="m-t-xs m-t-faint">{t("models.usageInputTokens")}</span>
+              <div className="m-t-lg m-t-b">{formatCompact(cards.input, locale)}</div>
+              <span className="m-t-xs m-t-faint">{t("models.usageCacheHit", { rate: cards.cacheHit })}</span>
+            </div>
+            <div className="m-stat">
+              <span className="m-t-xs m-t-faint">{t("models.usageOutputTokens")}</span>
+              <div className="m-t-lg m-t-b">{formatCompact(cards.output, locale)}</div>
+              <span className="m-t-xs m-t-faint">
+                {t("models.usageCacheWrite", { count: formatCompact(cards.cacheWrite, locale) })}
+              </span>
+            </div>
+            <div className="m-stat">
+              <span className="m-t-xs m-t-faint">{t("models.usageCost")}</span>
+              <div className="m-t-lg m-t-b">{formatCost(cards.cost, locale)}</div>
+              <span className="m-t-xs m-t-faint">{t("models.usageOfTotal", { share: cards.costShare })}</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

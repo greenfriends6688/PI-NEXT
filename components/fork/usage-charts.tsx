@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 /*
@@ -47,10 +47,17 @@ function shortDay(day: string): string {
   return day.slice(5);
 }
 
+/** 图例里那几颗样例格的边长（`.d-heat-grid` 自带 aspect-ratio，脱离栅格后要显式给宽高）。 */
 const CELL = 11;
-const GAP = 2;
-/** Left gutter for the weekday marks — board 45 puts them outside the cell grid. */
-const GUTTER = 16;
+
+/*
+ * fork:v5-landing Wave N1 · D-19 帧 B —— `.d-heat` 的库规则是
+ * `grid-template-columns: repeat(26, 1fr)`：**一行 26 天**，364 天折成 14 行，
+ * 最旧的一行在上（画板帧标签原话：「每格 1 天 · 最旧的一行在上」）。
+ * 之前这张图是 GitHub 式「一列一周」的自绘网格（轨道写死 11px、内联 gridColumn），
+ * 于是 `.d-heat` 与「每格一天」这条口径一直没进产品；现在整张图按画板原样发。
+ */
+const HEAT_COLUMNS = 26;
 
 /** Shared 5-step scale: level 0 is "nothing happened", 1-4 are quartiles of the max. */
 function levels(value: number, max: number): number {
@@ -69,16 +76,16 @@ function cellClass(level: number): string {
  * 所以顺序必须按「行 = 星期、列 = 周」发：先发 18 个周一，再发 18 个周二……
  * 那块图旁的「周一在上 · 周日在下」说的就是这件事。画板里那串 `<i>` 只是示意。
  *
- * 分级：库只有 `.m-heat-grid.l1 / l2 / l3`（+ 无类 = 空），比桌面的五档少一档。
- * 桌面 `levels()` 的 0-4 映射成 0 / l1 / l2 / l2 / l3（顶部两档合并），
- * **量纲与 max 归一完全不变**，只是颜色再分一档。缺的那一档记在 Wave B 汇报里
- * （`.m-heat-grid.l4` 缺件，不许在产品里自造）。
+ * 分级：库的 `.m-heat-grid` 是 l1 / l2 / l3 / l4 四档（无类 = 空），
+ * 与桌面五档（0-4）**一一对应**：level 0 → 无类，1..4 → `l1..l4`。
+ * fork:v5-landing-close —— 此前库里只有三档，这里把 4 压到 `l3`（顶部两档同色）；
+ * 设计侧补上 `.m-heat-grid.l4` 后改回 `Math.min(4, level)` 即可，量纲不变。
  */
 const MOBILE_HEAT_COLUMNS = 18;
 const MOBILE_HEAT_ROWS = 7;
 function mobileCellClass(level: number): string {
   if (level <= 0) return "m-heat-grid";
-  return `m-heat-grid l${Math.min(3, level)}`;
+  return `m-heat-grid l${Math.min(4, level)}`;
 }
 
 function PwaHeatmap({
@@ -126,7 +133,7 @@ function PwaHeatmap({
         <span className="m-heat" role="img" aria-label={label}>{cells}</span>
         <span className="m-hist-row">
           <span className="m-badge mute">{lessLabel}</span>
-          {[1, 2, 3].map((level) => (
+          {[1, 2, 3, 4].map((level) => (
             <i key={level} aria-hidden="true" className={`m-heat-grid l${level}`} />
           ))}
           <span className="m-grow" />
@@ -177,87 +184,59 @@ export function UsageHeatmap({
 
   const values = days.map((day) => (metric === "sessions" ? day.sessions : day.tokens));
   const max = Math.max(1, ...values);
-  const lead = mondayIndex(days[0].day);
-  const columns = Math.ceil((days.length + lead) / 7);
-  // Same geometry the SVG used, now as a grid: one fixed 11px track per week, one row
-  // per weekday (Monday on top), plus a fixed left gutter for the weekday marks.
-  // 轨道写死而不是 `1fr`：卡片有整栏宽，弹性列会把 11px 的方格拉成扁条。
-  const tracks = `${GUTTER}px repeat(${columns}, ${CELL}px)`;
 
-  // One month label per month, at its first column — but never two labels closer than
-  // three columns (each label is ~18px, i.e. wider than one column).
-  const monthMarks: { column: number; label: string }[] = [];
+  // 月份横排：横跨若干列的一段标签（起点 = 该月第一天所在的列），
+  // 与下面那张格子网格共用同一套列轨，所以天然对齐。
+  const monthMarks: { start: number; span: number; label: string }[] = [];
   let lastMonth = "";
-  let lastMarkColumn = -3;
-  for (let column = 0; column < columns; column += 1) {
-    const index = Math.max(0, Math.min(days.length - 1, column * 7 - lead));
+  for (let index = 0; index < days.length; index += 1) {
     const month = days[index].day.slice(0, 7);
-    if (month === lastMonth || column - lastMarkColumn < 3) continue;
-    monthMarks.push({ column, label: monthLabel(days[index].day) });
+    if (month === lastMonth) continue;
+    monthMarks.push({
+      start: (index % HEAT_COLUMNS) + 1,
+      span: 1,
+      label: monthLabel(days[index].day),
+    });
     lastMonth = month;
-    lastMarkColumn = column;
   }
-
-  const weekdayLabels = [
-    { row: 0, text: "一" },
-    { row: 2, text: "三" },
-    { row: 4, text: "五" },
-  ];
+  // 每一段一直伸到下一段开始（或行尾）。
+  monthMarks.forEach((mark, order) => {
+    const next = monthMarks[order + 1];
+    mark.span = next ? Math.max(1, next.start - mark.start) : HEAT_COLUMNS - mark.start + 1;
+  });
 
   return (
     <>
-      <div
-        role="img"
-        aria-label={label}
-        style={{ overflowX: "auto", marginTop: "var(--nx-sp-2)" }}
-      >
-        {/* 月份横排：与下面那张格子网格共用同一套列轨，所以天然对齐。 */}
-        <div style={{ display: "grid", gridTemplateColumns: tracks, gap: `${GAP}px` }}>
-          {monthMarks.map((mark) => (
-            <span
-              key={`${mark.column}-${mark.label}`}
-              className="d-mono d-t-faint"
-              style={{ gridColumn: mark.column + 2, gridRow: 1, whiteSpace: "nowrap" }}
-            >
-              {mark.label}
-            </span>
-          ))}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: tracks, gap: `${GAP}px`, marginTop: `${GAP}px` }}>
-          {/* 星期标签要占满 7 行：只落在第 1 行的话，它那 7 个 11px 会把第 1 行撑到 89px，
-              整张网格就散了。 */}
-          <div style={{ display: "grid", gridTemplateRows: `repeat(7, ${CELL}px)`, gap: `${GAP}px`, gridRow: "1 / span 7", alignSelf: "start" }}>
-            {weekdayLabels.map((item) => (
-              <span
-                key={item.text}
-                className="d-mono d-t-faint"
-                style={{ gridRow: item.row + 1, alignSelf: "center" }}
-              >
-                {item.text}
-              </span>
-            ))}
-          </div>
-          {days.map((day, index) => {
-            const value = metric === "sessions" ? day.sessions : day.tokens;
-            const level = levels(value, max);
-            const slot = index + lead;
-            return (
-              <span
-                key={day.day}
-                title={`${day.day} · ${value}`}
-                className={`${cellClass(level)} d-cell-pop`}
-                style={{
-                  gridColumn: Math.floor(slot / 7) + 2,
-                  gridRow: (slot % 7) + 1,
-                  height: `${CELL}px`,
-                  animationDelay: `${Math.min(index * 3, 380)}ms`,
-                }}
-              />
-            );
-          })}
-        </div>
+      {/* 画板 D-19 帧 B：`.d-heat` 网格 → 每格一个 `.d-heat-grid`（五档分级）
+          + `.d-cell-pop` 逐格错峰入场；月份标签是这张栅格的第一行。 */}
+      <div className="d-heat" role="img" aria-label={label}>
+        {monthMarks.map((mark) => (
+          <span
+            key={`${mark.start}-${mark.label}`}
+            className="d-mono d-t-faint"
+            style={{ gridColumn: `${mark.start} / span ${mark.span}`, gridRow: 1, whiteSpace: "nowrap" }}
+          >
+            {mark.label}
+          </span>
+        ))}
+        {days.map((day, index) => {
+          const value = metric === "sessions" ? day.sessions : day.tokens;
+          const level = levels(value, max);
+          return (
+            <div
+              key={day.day}
+              title={`${day.day} · ${value}`}
+              className={`${cellClass(level)} d-cell-pop`}
+              style={{
+                gridColumn: (index % HEAT_COLUMNS) + 1,
+                gridRow: Math.floor(index / HEAT_COLUMNS) + 2,
+                animationDelay: `${Math.min(index * 3, 380)}ms`,
+              }}
+            />
+          );
+        })}
       </div>
-      {/* 少 → 多 图例（画板 45 §每日活动 的那一行）。 */}
+      {/* 少 → 多 图例（画板帧 B §年度活跃热力图 的那一行）。 */}
       <div className="d-row" style={{ marginTop: "var(--nx-sp-2)", justifyContent: "flex-end" }}>
         <span className="d-mono d-t-faint">{lessLabel}</span>
         {[0, 1, 2, 3, 4].map((level) => (
@@ -270,6 +249,8 @@ export function UsageHeatmap({
         ))}
         <span className="d-mono d-t-faint">{moreLabel}</span>
       </div>
+      {/* 画板帧 B 的图注（`.d-heat-t`）：这一格按哪个口径着色、一共多少天。 */}
+      <div className="d-heat-t">{`${metricLabel ?? label} · ${days.length}`}</div>
     </>
   );
 }
@@ -286,22 +267,17 @@ function barHeight(value: number, max: number): string {
 /** The sampled x-axis under a bar row: every `xLabelEvery`-th day plus the last one. */
 function DayAxis({ days }: { days: readonly UsageDayPointLike[] }): ReactNode {
   const xLabelEvery = Math.max(1, Math.ceil(days.length / 6));
+  const marks = days
+    .map((day, index) => ({ day, index }))
+    .filter(({ index }) => index % xLabelEvery === 0 || index === days.length - 1);
+  // 画板 D-19 帧 C：x 轴是图下方那一行 `.d-row`，标记之间靠 `.d-grow` 撑开。
   return (
-    <div
-      style={{
-        // `minmax(0, 1fr)`：默认的 `1fr` 下限是 `auto`，标签一旦 nowrap，
-        // 53 个轨道全被撑到标签宽，整条轴就挤在卡片左侧。
-        display: "grid",
-        gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
-        gap: 3,
-        justifyItems: "center",
-        marginTop: "var(--nx-sp-1)",
-      }}
-    >
-      {days.map((day, index) => (
-        <span key={`x-${day.day}`} className="d-mono d-t-faint" style={{ whiteSpace: "nowrap" }}>
-          {index % xLabelEvery === 0 || index === days.length - 1 ? shortDay(day.day) : null}
-        </span>
+    <div className="d-row d-t-xs d-t-faint" style={{ marginTop: "var(--nx-sp-1)" }}>
+      {marks.map(({ day }, order) => (
+        <Fragment key={`x-${day.day}`}>
+          {order > 0 && <span className="d-grow" aria-hidden="true" />}
+          <span className="d-mono" style={{ whiteSpace: "nowrap" }}>{shortDay(day.day)}</span>
+        </Fragment>
       ))}
     </div>
   );
@@ -469,30 +445,42 @@ export interface UsageShareSlice {
   share: number;
 }
 
+/** 紧凑 token 计数（1.2M / 3.4K），与面板里那张卡的读数同一种量纲。 */
+function compactTokens(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(Math.round(value));
+}
+
 export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSlice[]; label: string }): ReactNode {
   const mobile = useIsMobile();
   const visible = slices.filter((slice) => slice.share > 0);
   if (visible.length === 0) return null;
   if (mobile) {
-    // fork:v5-landing Wave B · M-09 帧 C：占比条在手机上是模型行上方那一根
-    // `.m-hist-row` 分段条（同一份数据，同一个 max 归一）。
+    /*
+     * fork:v5-landing Wave N1 · M-09 帧 D「各供应商占比」——
+     * 手机上的占比不是一个手绘的分段条，而是**一行一个 `.m-setrow-body`**：
+     * 名字 → `.m-bar`（条）→ 一行口径（token · 费用 · 百分比）。
+     * 之前这里是 `div.m-hist-row` + 内联背景/不透明度堆出来的分段条：那是产品自绘的
+     * 第二套条形，既不在画板里，也不随深色模式走。同一份数据、同一个 max 归一。
+     */
     return (
-      <div
-        className="m-hist-row"
-        role="img"
-        aria-label={label}
-        style={{ marginTop: "var(--nx-sp-2)" }}
-      >
-        {visible.map((slice, index) => (
-          <span
+      <div role="img" aria-label={label}>
+        {visible.map((slice) => (
+          <div
+            className="m-setrow-body"
             key={slice.key}
             title={`${slice.key} · ${(slice.share * 100).toFixed(1)}%`}
-            style={{
-              width: `${Math.max(slice.share * 100, 0.5)}%`,
-              background: "var(--nx-accent)",
-              opacity: Math.max(0.3, 1 - index * 0.18),
-            }}
-          />
+          >
+            <span className="m-setrow-t m-mono">{slice.key}</span>
+            <span className="m-bar" style={{ margin: "var(--nx-sp-1) 0" }}>
+              <i style={{ width: `${Math.max(slice.share * 100, 0.5)}%` }} />
+            </span>
+            <span className="m-setrow-s">
+              {`${compactTokens(slice.tokens)} · ${(slice.share * 100).toFixed(1)}%`}
+            </span>
+          </div>
         ))}
       </div>
     );

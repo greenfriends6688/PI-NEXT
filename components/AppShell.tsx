@@ -42,6 +42,7 @@ import { EMPTY_TAB_MRU, focusAfterClose, rememberTabVisit, type TabMru } from "@
 import { useSplitPanes } from "@/hooks/useSplitPanes";
 import { SplitPaneHost } from "./fork/SplitPaneHost";
 import { groupRightPanelSplitTabs, type RightPanelPane } from "@/lib/right-panel-split";
+import { MobileRightPanels, type MobileRightPanelItem } from "./pwa/RightPanelsMobile";
 import { openFileTab, saveFileViewerState } from "./file-tab-state";
 // fork:zc-06 — 「最近关闭」快照的纯逻辑与存储。
 import { forgetClosedTab, loadRecentClosedTabs, recordClosedTab, saveRecentClosedTabs, type RestorableTab } from "@/lib/recent-closed-tabs";
@@ -2525,6 +2526,25 @@ export function AppShell() {
 
   const renderSessionTitle = () => {
     const subtitle = isMobile ? topBarSubtitle : null;
+    /* fork:v5-wave-b-2026-10-04 —— 窄屏标题照画板 M-01 帧 A / M-04 帧 A / M-12 帧 A
+       的 `<span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>` 落成：
+       `.m-top-title`（fs-lg / 600 / 单行省略）此前在产品里没挂过 —— 手机顶栏标题
+       一直是 `.d-tb-stack` 一套，而 d-* 只在 ≥641 生效，所以 ≤640 上这一格**没有任何
+       规则命中**（长标题不省略、不换行控制）。
+       副行保留（fork:mobile-tb-subtitle 的既有功能，删它就是删功能），但换 PWA 的
+       字号件：`.m-t-xs.m-t-faint` 承担 `.d-tb-sub` 在画板里的角色。
+       桌面那一支逐字不动。 */
+    if (isMobile) {
+      return (
+        <div
+          title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
+          style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: "1 1 auto", minWidth: 0 }}
+        >
+          <span className="m-top-title">{topBarSessionTitle}</span>
+          {subtitle && <span className="m-t-xs m-t-faint">{subtitle}</span>}
+        </div>
+      );
+    }
     return (
 <div
   title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
@@ -2745,7 +2765,42 @@ export function AppShell() {
     </button>
   );
 
+  /* fork:v5-m12 —— M-12 · 手机右栏面板入口（窄屏）。
+     **列表项不是写死的六项，而是当前右栏真实有的那几个页签**（`panelTabs`）：
+     轨迹 / Git / 文件 / 终端 / 浏览器 / 会话 —— 「审查」已在 2026-10-03 裁定里
+     从右栏删掉，画板还写着六项，这里以产品为准（画板待设计侧跟进）。
+     之所以复用同一份数据而不是另列一份：另列一份就会与真实页签漂移（多一个
+     「轨迹」入口却选不到、或少一个已打开的终端），而这正是「同一个视觉两个来源」。
+     `render: () => renderTabContent(tab.id, false)` 是惰性的 —— 只有切到那一块
+     才挂载，所以不会出现「终端起两个 PTY / 查看器双份取数」的双挂载。 */
+  /* `renderTabContent` 在本函数之后才声明（它依赖下面的面板区 JSX），所以这里不能用它
+     做依赖。改成**惰性 ref**：列表项的 render 只在切到那一块时才读它，
+     而那一块能渲染出来时它必然已经初始化 —— 既不提前读，也不在依赖数组里出现。 */
+  const renderTabContentRef = useRef<((tabId: string, resident: boolean) => React.ReactNode) | null>(null);
+  const mobileRightPanelItems = useMemo<MobileRightPanelItem[]>(() => panelTabs.map((tab) => ({
+    key: tab.id,
+    icon: tab.kind === "git-graph" ? "git-branch"
+      : tab.kind === "trace" ? "route"
+      : tab.kind === "terminal" ? "terminal"
+      : tab.kind === "browser" ? "globe"
+      : tab.kind === "session" ? "message-square" : "file",
+    label: tab.label,
+    description: tab.filePath || "",
+    render: () => (renderTabContentRef.current?.(tab.id, false) ?? null),
+  })), [panelTabs]);
+
   const renderMainFileToggle = (mobile: boolean) => {
+    if (mobile) {
+      /* fork:v5-m12 —— 窄屏：入口与两层（底部选单 → 全屏层）都由 M-12 组件自带，
+         它内部就发那枚 `.m-top-btn` 入口钮，所以这一支不再另外画按钮。 */
+      return (
+        <MobileRightPanels
+          items={mobileRightPanelItems}
+          title={translate("files.showPanel")}
+          closeLabel={translate("chat.close")}
+        />
+      );
+    }
     /* fork:mobile-toolbar-slim —— 这枚钮原来在窄屏要被「盖住」处理（覆盖层铺开时
        把它 visibility:hidden + disabled + aria-hidden）。覆盖层拆了，这套三件套
        也一起删：一枚永远可点、永远在无障碍树里的面板开关。 */
@@ -2760,8 +2815,8 @@ export function AppShell() {
            （玻璃圆钮 / 44px 触控靶 / panel-right）。框由 m-top-btn 给，所以窄屏那条
            不再挂内联几何；handler / aria-controls / aria-expanded / title / 两条
            data-* 全部不变，桌面那一支一个字也没改。 */
-        className={mobile ? "m-top-btn" : "desktop-secondary-workspace-toggle"}
-        aria-controls={mobile ? "file-panel" : secondaryWorkspaceId}
+        className="desktop-secondary-workspace-toggle"
+        aria-controls={secondaryWorkspaceId}
         aria-expanded={rightPanelOpen}
         title={label}
         aria-label={label}
@@ -2989,6 +3044,10 @@ export function AppShell() {
     }
     return null;
   };
+
+  // fork:v5-m12 —— 手机 M-12 那一层的惰性入口：挂在声明之后。列表项的 render
+  // 只在切到那一块时才读它（那时它必然已初始化）。
+  renderTabContentRef.current = renderTabContent;
 
   // Only wide panels can afford a tree column next to the document (PiDeck-style
   // "document in the middle, file tree on the right"). The width itself is
@@ -3244,8 +3303,16 @@ export function AppShell() {
               {renderChatToolbarActions(true)}
               {renderMainFileToggle(true)}            </div>
           )}
+          {/* fork:v5-landing-2026-10-04 —— 顶栏的弹性垫片照画板 D-01 / D-02 /
+              D-02b / D-02c / D-02d 每一条桌面顶栏的原样结构补上：
+              `标题两行（.d-tb-stack） · <div class="d-tb-spacer"></div> · 动作簇`。
+              原来这条垫片是动作簇自己的 `margin-left:auto`，视觉一样但结构不是
+              画板那一段（结构相同 ≠ 类名相同，见 LANDING §0）；现在由
+              `.d-tb-spacer`（flex:1 1 auto）承担，动作簇的 margin 一并撤掉。
+              只在桌面渲染：手机那一支的标题区自带 `flex:1`，插垫片会把标题挤没。 */}
+          {!isMobile && <div className="d-tb-spacer" />}
           {!isMobile && (
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--s1)", paddingRight: "var(--s1)", marginLeft: "auto", minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--s1)", paddingRight: "var(--s1)", minWidth: 0 }}>
               {renderProjectTrustWarning(false)}
               {renderChatToolbarActions(false)}
               {/* The workspace toggle is rendered once, as the boundary control on

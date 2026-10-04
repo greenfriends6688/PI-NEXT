@@ -140,6 +140,53 @@ export function PwaSwitchRow({
 }
 
 /**
+ * `.m-pickselect` —— 原生 `<select>` 的皮肤（壳 + 壳内一个裸 `select` + 右侧 chevron）。
+ *
+ * 画板 M-05 帧 B 把两者写得很清楚：`system.css` 的注释也重复了一遍 ——
+ * 「能力浮层里那些 chip 用 `.m-select`（可点开自绘面板的静态盒），
+ * 设置里的『从若干值里选一个』一律用 `.m-pickselect`」。
+ *
+ * **为什么不自己画下拉**：手机上自绘下拉等于改行为 ——
+ * 滚轮惯性、无障碍朗读、系统级「选取」面板、Android / iOS 的原生选择器
+ * 都是系统资产，替掉它们要重写的正是别人已经写好的部分。
+ * 所以这里只把 appearance 归零、把行高/字号/圆角/配色对齐 `.m-select`，
+ * 下拉本身交给系统；右侧那枚 chevron 因为原生箭头被归零，改由壳来画。
+ *
+ * `<label>` 不是装饰：它把可见文字与控件绑在一起，壳可点即等于选项可点。
+ */
+export function PwaPickSelect({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  disabled,
+}: {
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string; disabled?: boolean }>;
+  onChange: (next: string) => void;
+  ariaLabel: string;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="m-pickselect">
+      <select
+        value={value}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <i data-ico="chevron-down" data-size="15" aria-hidden="true" />
+    </label>
+  );
+}
+
+/**
  * `.m-pickbar` + `.m-picktag`：互斥多选。M-09 帧 B 的「每 30 分 / 每天 / 每晚 / 每周」
  * 与帧 C 的「7 天 / 30 天 / 全部」都是它 —— 手机上多一层下拉只为选三四个值是纯浪费。
  */

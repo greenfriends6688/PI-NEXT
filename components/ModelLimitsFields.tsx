@@ -154,9 +154,14 @@ export function ModelInputLimitsFields({
     <>
       <div className={isMobile ? "m-cardgroup" : undefined}>
         <div className={isMobile ? "m-group-title" : "d-set-sec-t"}>{t("models.inputLimitsTitle")}</div>
-        <div className={isMobile ? "d-col" : "d-grid2"}>
+        {/* fork:v5-landing · M-05 帧 B —— 窄屏是「一行一个控件，标签在上、值在下」：
+            `.m-fieldrow` 是卡内的表单行（与 `.m-setrow` 的区别是**不带分隔线**），
+            行里那段小字是 `.m-fieldrow-s`。桌面的两列 `.d-grid2` 在窄屏上不成立，
+            所以那一层包壳在窄屏直接不渲染 —— 行本来就是块级 flex，自己会堆。
+            数字框与解析口径（夹回合法值 / 清空即删键）一字未改。 */}
+        {isMobile ? null : <div className="d-grid2"></div>}
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitMaxRequestBytes")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitMaxRequestBytes")}</span>
           <LimitNumInput
             id="models-limit-max-request-bytes"
             value={limitText(readInputLimit(inputLimits, "maxRequestBytes"))}
@@ -166,7 +171,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitImagesPerMessage")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitImagesPerMessage")}</span>
           <LimitNumInput
             id="models-limit-images-per-message"
             value={limitText(readInputLimit(inputLimits, "images.maxPerMessage"))}
@@ -176,7 +181,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitImagesPerRequest")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitImagesPerRequest")}</span>
           <LimitNumInput
             id="models-limit-images-per-request"
             value={limitText(readInputLimit(inputLimits, "images.maxPerRequest"))}
@@ -186,7 +191,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitResizeWidth")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitResizeWidth")}</span>
           <LimitNumInput
             id="models-limit-resize-width"
             value={limitText(readInputLimit(inputLimits, "images.resize.maxWidth"))}
@@ -196,7 +201,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitResizeHeight")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitResizeHeight")}</span>
           <LimitNumInput
             id="models-limit-resize-height"
             value={limitText(readInputLimit(inputLimits, "images.resize.maxHeight"))}
@@ -206,7 +211,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitResizeBytes")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitResizeBytes")}</span>
           <LimitNumInput
             id="models-limit-resize-bytes"
             value={limitText(readInputLimit(inputLimits, "images.resize.maxBytes"))}
@@ -216,7 +221,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitJpegQuality")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.limitJpegQuality")}</span>
           <LimitNumInput
             id="models-limit-jpeg-quality"
             value={limitText(readInputLimit(inputLimits, "images.resize.jpegQuality"))}
@@ -227,7 +232,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.promptCacheShort")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.promptCacheShort")}</span>
           <LimitNumInput
             id="models-prompt-cache-short"
             value={cacheValue("short")}
@@ -237,7 +242,7 @@ export function ModelInputLimitsFields({
           />
         </div>
         <div className={isMobile ? "m-fieldrow" : "d-field"}>
-          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.promptCacheLong")}</span>
+          <span className={isMobile ? "m-fieldrow-s m-grow" : "d-field-t"}>{t("models.promptCacheLong")}</span>
           <LimitNumInput
             id="models-prompt-cache-long"
             value={cacheValue("long")}
@@ -246,7 +251,7 @@ export function ModelInputLimitsFields({
             onChange={(raw) => onPromptCacheChange(writePromptCacheSeconds(promptCache, "long", parseLimitInput(raw, { min: 1 })))}
           />
         </div>
-        </div>
+        {isMobile ? null : <div></div>}
       </div>
       <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{t("models.inputLimitsHint")}</div>
     </>

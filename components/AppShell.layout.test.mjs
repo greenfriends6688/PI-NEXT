@@ -23,9 +23,14 @@ test("fixed controls target roles instead of moving with chat or editor content"
   // workspace control still tracks the live right-panel CSS variable.
   // fork:v5-wave-b —— 手机档这一枚换成画板 M-12 帧 A 的 `.m-top-btn`（面板开关由盒子
   // 自身给尺寸，不再挂内联几何），桌面仍是 `desktop-secondary-workspace-toggle`。
-  assert.match(source, /className=\{mobile \? "m-top-btn" : "desktop-secondary-workspace-toggle"\}/);
+  // 右栏面板钮两端同渲、类名固定，靠 `style={mobile ? undefined : {...}}` 跳过手机几何；
+  // 抽屉入口钮（只在手机渲染）才直接发 `m-top-btn`。
+  assert.match(source, /className="m-top-btn"/);
+  assert.match(source, /className="desktop-secondary-workspace-toggle"/);
   assert.match(source, /style=\{mobile \? undefined : \{/);
-  assert.match(source, /aria-controls=\{mobile \? "file-panel" : secondaryWorkspaceId\}/);
+  // fork:v5-wave-b —— 右栏面板钮的 aria-controls 也收成恒定值（两端指向同一个
+  // 次级工作区 id），不再按 mobile 分叉；真正按 mobile 分叉的是下面的宽度变量。
+  assert.match(source, /aria-controls=\{secondaryWorkspaceId\}/);
   assert.match(source, /rightPanelOpen[\s\S]*?\? "var\(--right-panel-width\)"[\s\S]*?: "0px"/);
   assert.match(source, /className="desktop-workspace-role-toggle"/);
   assert.match(source, /\{!isMobile && rightPanelOpen && renderWorkspaceRoleToggle\(\)\}/);

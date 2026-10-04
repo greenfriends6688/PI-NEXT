@@ -125,7 +125,9 @@ export function MarkdownFilePreview({ content, filePath, cwd, sourceSessionId, o
     h5({ node, ...props }) { return <h5 {...props} {...sourceLineAttributes(node)} />; },
     h6({ node, ...props }) { return <h6 {...props} {...sourceLineAttributes(node)} />; },
     p({ node, ...props }) { return <p {...props} {...sourceLineAttributes(node)} />; },
-    blockquote({ node, ...props }) { return <blockquote {...props} className="d-quote" {...sourceLineAttributes(node)} />; },
+    // fork:v5-landing-close —— 两种形态各发各的类（窄屏用 M-02 的 .m-quote），
+    // 固定发 d-quote 会让手机上这段引用块既没有样式、又把形态前缀混了。
+    blockquote({ node, ...props }) { return <blockquote {...props} className={isPwa ? "m-quote" : "d-quote"} {...sourceLineAttributes(node)} />; },
     li({ node, ...props }) { return <li {...props} {...sourceLineAttributes(node)} />; },
     table({ node, ...props }) {
       if (isPwa) {

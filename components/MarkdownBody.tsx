@@ -108,15 +108,24 @@ function MarkdownImage({
  * 的依赖是安全的：这个布尔只在跨越 640px 断点时翻转一次，不会像 `isStreaming`
  * 那样每个 delta 都换一次渲染器身份。
  *
- * 其余渲染器（行内 code / 任务清单 / 引用 / katex / mention）在 PWA 库里**没有**
- * 对应件（缺件已登记），继续带 `d-*`：过渡口径下 d-* 规则在 ≤640px 仍然生效
- * （见 app/design/v5-forms.css），不是裸的。
+ * 其余渲染器（行内 code / 任务清单 / 引用 / katex / mention）也在 PWA 库里有对应件：
+ * fork:v5-landing-close 之前它们继续带 `d-*`（过渡口径下 d-* 规则在 ≤640px 仍生效），
+ * 现在窄屏挂 `.m-quote` / `.m-tasklist` + `.m-checkbox` / `.m-mention` / `.m-math`
+ * —— 与桌面逐项对等。
+ *
+ * fork:v5-wave-n1（行内 code）：M-02 帧 A / 帧 B 的行内代码不是裸标签，是
+ * `<span class="m-mono">`（正文里与表格单元格里都是）。`.m-mono` 的定义在
+ * `design/v5/pwa/system.css:700`，桌面库没有对应件 —— 画板 D-03b 帧 B 的行内代码
+ * 就是裸 `<code>`，所以宽屏一个字节都不动。标签保留 `<code>`（画板用 span 是
+ * 因为它写的是「一段等宽文字」，而这里是 markdown 语义节点，改标签会丢读屏语义）：
+ * 类名照抄画板。
  */
 function buildMarkdownComponents(
   readStreaming: () => boolean,
   cwd: string | undefined,
   onOpenFile: ((filePath: string, page?: number) => void) | undefined,
   isPwa: boolean,
+  isUserMessage: boolean,
 ): Components {
   return {
     code({ className, children, node, ...props }) {
@@ -139,6 +148,8 @@ function buildMarkdownComponents(
       // fork:design-components —— 行内代码就是画板 10:110 的裸 `<code>`，
       // 芯片样式由 board.css:283 的 `.pw-md code` 给。`node` 是 react-markdown 的元数据。
       void node;
+      // fork:v5-wave-n1 —— 窄屏挂 M-02 的 `.m-mono`（见函数头注释）。
+      if (isPwa) return <code {...props} className="m-mono">{children}</code>;
       return <code {...props}>{children}</code>;
     },
     pre({ children }) {
@@ -149,7 +160,7 @@ function buildMarkdownComponents(
     // GFM 给的是 `<ul class="contains-task-list">` + `<li class="task-list-item">` + 原生 checkbox。
     ul({ node, children, ...props }) {
       const isTaskList = hastClassNames(node).includes("contains-task-list");
-      return <ul {...props} className={isTaskList ? "d-tasklist" : undefined}>{children}</ul>;
+      return <ul {...props} className={isTaskList ? (isPwa ? "m-tasklist" : "d-tasklist") : undefined}>{children}</ul>;
     },
     li({ node, children, ...props }) {
       if (!hastClassNames(node).includes("task-list-item")) {
@@ -177,7 +188,7 @@ function buildMarkdownComponents(
       if (type !== "checkbox") return <input type={type} checked={checked} {...props} />;
       return (
         <span
-          className={checked ? "d-checkbox on" : "d-checkbox"}
+          className={checked ? (isPwa ? "m-checkbox on" : "d-checkbox on") : (isPwa ? "m-checkbox" : "d-checkbox")}
           role="checkbox"
           aria-checked={checked === true ? "true" : "false"}
         >
@@ -186,21 +197,33 @@ function buildMarkdownComponents(
       );
     },
     // fork:v5-landing —— 引用块 = 画板 D-03b 帧 F 的 `.d-quote`。
+    // fork:v5-landing-close —— 窄屏 = M-02 的 `.m-quote`（同一段结构，只换形态类）。
     blockquote({ node, children, ...props }) {
       void node;
-      return <blockquote {...props} className="d-quote">{children}</blockquote>;
+      return <blockquote {...props} className={isPwa ? "m-quote" : "d-quote"}>{children}</blockquote>;
     },
     // fork:v5-landing —— rehype-katex 的两个根节点挂画板 D-03b 的 `.d-math`。
     //
     // 关键：`katex` / `katex-display` **必须保留**。katex.min.css 里有 370 条
     // `.katex .xxx` 后代选择器（`.katex .base`、`.katex .mord` …），去掉根类名整套
     // 数学排版就散架；`.katex-display > .katex` 也依赖这两个类同时存在。
-    // 所以这里只在原类名后面**追加** d-math，不替换。
+    // 所以这里只在原类名后面**追加**形态类，不替换。
+    // fork:v5-landing-close —— 窄屏追加的是 `.m-math`。
     span({ node, className, children, ...props }) {
-      if (className === "katex-display") return <span {...props} className="katex-display d-math">{children}</span>;
-      if (className === "katex") return <span {...props} className="katex d-math">{children}</span>;
+      const mathClass = isPwa ? "m-math" : "d-math";
+      if (className === "katex-display") return <span {...props} className={`katex-display ${mathClass}`}>{children}</span>;
+      if (className === "katex") return <span {...props} className={`katex ${mathClass}`}>{children}</span>;
       // fork:proma-34-mention —— mention 芯片 = 画板 D-03b 帧 F 的 `.d-mention`
       // （图标 + 等宽 token）。`data-mention-kind` 决定首枚图标。
+      //
+      // fork:v5-wave-n1 —— 同一个 mention 在**用户消息**里是另一枚芯片：
+      // 画板 D-03b 帧 A（用户消息 · 默认形态）写的是 `.d-cite`（11px 图标，
+      // 中性面 + 描边 + 28px 高），帧 F（助手正文 · 行内提及）写的是 `.d-mention`
+      // （10px 图标，强调底）。两帧是同一个 `@AppShell.tsx` token，所以这不是两套
+      // 视觉，是「谁说的」：用户引用的东西是中性引用，助手提到的 token 是强调。
+      // 窄屏同理换成 `.m-cite`（`design/v5/pwa/system.css:787`）。
+      // `isUserMessage` 就是 `keepLineBreaks` —— 它是产品里唯一的用户消息标记
+      // （全仓只有 MessageView 的 userMessageMarkdownProps 传它）。
       const mentionKind = node?.properties?.dataMentionKind;
       if (typeof mentionKind === "string") {
         const icon = mentionKind === "skill" ? "sparkles"
@@ -210,14 +233,17 @@ function buildMarkdownComponents(
                 : "file-code";
         const mentionValue = node?.properties?.dataMentionValue;
         const previewable = node?.properties?.dataMentionPreviewable === true;
+        const chipClass = isUserMessage
+          ? (isPwa ? "m-cite" : "d-cite")
+          : (isPwa ? "m-mention" : "d-mention");
         const chip = (
           <span
-            className="d-mention"
+            className={chipClass}
             data-mention-kind={mentionKind}
             data-mention-value={mentionValue}
             data-mention-previewable={previewable ? "true" : undefined}
           >
-            <i data-ico={icon} data-size="10" />
+            <i data-ico={icon} data-size={isUserMessage ? "11" : "10"} />
             {children}
           </span>
         );
@@ -314,6 +340,7 @@ const MarkdownPart = memo(function MarkdownPart({
   cwd,
   onOpenFile,
   isPwa,
+  isUserMessage,
 }: {
   text: string;
   partStreaming: boolean;
@@ -322,10 +349,11 @@ const MarkdownPart = memo(function MarkdownPart({
   cwd?: string;
   onOpenFile?: (filePath: string, page?: number) => void;
   isPwa: boolean;
+  isUserMessage: boolean;
 }) {
   const components = useMemo(
-    () => buildMarkdownComponents(() => partStreaming, cwd, onOpenFile, isPwa),
-    [partStreaming, cwd, onOpenFile, isPwa],
+    () => buildMarkdownComponents(() => partStreaming, cwd, onOpenFile, isPwa, isUserMessage),
+    [partStreaming, cwd, onOpenFile, isPwa, isUserMessage],
   );
   return (
     <ReactMarkdown
@@ -378,8 +406,8 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
   streamingRef.current = Boolean(isStreaming);
   // Stable renderer identities keep stateful blocks mounted across message hover updates.
   const components = useMemo<Components>(
-    () => buildMarkdownComponents(() => streamingRef.current, cwd, onOpenFile, isPwa),
-    [cwd, onOpenFile, isPwa],
+    () => buildMarkdownComponents(() => streamingRef.current, cwd, onOpenFile, isPwa, Boolean(keepLineBreaks)),
+    [cwd, onOpenFile, isPwa, keepLineBreaks],
   );
 
   // fork:markdown-incremental — 稳定前缀块与增长的 tail 分开。
@@ -412,6 +440,7 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
             cwd={cwd}
             onOpenFile={onOpenFile}
             isPwa={isPwa}
+            isUserMessage={Boolean(keepLineBreaks)}
           />
         ))
       ) : (

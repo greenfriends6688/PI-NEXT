@@ -231,18 +231,4 @@ export function McpCodemodeSettings({ cwd }: Props) {
       )}
     </div>
   );
-  // 还没拿到设置（首帧 / 读失败）：错误态也分形态，两边说的是同一个 error。
-  // fork:v5-landing Wave B —— 这段排在桌面 return 之后，窄屏那一段整体在前面。
-  if (!data) {
-    if (!error) return null;
-    if (mobile) {
-      return <PwaBanner icon="triangle-alert" tone="err" role="alert">{error}</PwaBanner>;
-    }
-    return (
-      <div className="d-banner err">
-        <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
-        <span className="d-grow">{error}</span>
-      </div>
-    );
-  }
 }

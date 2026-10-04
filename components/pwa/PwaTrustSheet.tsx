@@ -24,6 +24,11 @@ import { useI18n } from "@/hooks/useI18n";
  * `position: absolute`，画板里它们的定位祖先是 `.m-phone-inner`；产品里没有那个
  * 取景框，若就地渲染会落到最近的定位祖先上（面板列）而不是视口。与
  * `DirectoryPicker` 一样 portal 到 body，DOM 类名一个字不改。
+ *
+ * fork:v5-wave-n1 · M-11 帧 C 的 **48 档**（`.m-touch-48` = `--nx-ctl-lg`，
+ * 硬下限 44 之上的那一档）落在「一级行动钮」上 —— 本 sheet 的主按钮就是
+ * 这一屏唯一的主动作。类是画板规格表自己点名要补的（帧 C 注记：
+ * 「让规格与实现同源」），这里只挂类名，不写任何数值。
  */
 
 export function PwaTrustSheet({
@@ -103,7 +108,7 @@ export function PwaTrustSheet({
           <button type="button" className="m-picktag" onClick={onCancel} disabled={busy}>
             {t("trust.cancel")}
           </button>
-          <button type="button" className="m-picktag is-on" onClick={onConfirm} disabled={busy}>
+          <button type="button" className="m-picktag is-on m-touch-48" onClick={onConfirm} disabled={busy}>
             {busy ? t("trust.trusting") : t("trust.trustProject")}
           </button>
         </div>

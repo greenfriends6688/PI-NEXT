@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
+import { Fragment, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { FILE_CODE_STYLE, FILE_LINE_NUMBER_STYLE } from "@/lib/file-source-styles";
@@ -135,7 +135,29 @@ function viewerSkin(isMobile: boolean) {
     emptyIco: isMobile ? "m-empty-ico" : "d-empty-ico",
     emptyTitle: isMobile ? "m-empty-t" : "d-empty-t",
     emptySub: isMobile ? "m-empty-s" : "d-empty-s",
+    // M-06 帧 B —— 图片框：PWA 形态没有对应类（`.d-fileimg` 是 Web 形态值），
+    // 手机档不挂这一层，边框 / 圆角交给 `.m-viewer-scroll` 自己的留白。
+    fileImg: isMobile ? undefined : "d-fileimg",
   };
+}
+
+/**
+ * D-06 帧 A / 帧 B 的面包屑：逐级目录 + 最后一段文件名（`.is-on`）。
+ *
+ * 查看器是**只读**的，目录段不做「跳转」（跳了就得有一套返回栈，那是新行为）；
+ * 它点下去复制到那一层的路径 —— 与同一行「复制路径」是同一族动作
+ * （`PathActions` / 手机顶栏那枚 link），末段复制完整路径。
+ */
+function viewerCrumbs(filePath: string, cwd?: string): { label: string; path: string }[] {
+  const relative = getRelativeFilePath(filePath, cwd);
+  const insideCwd = Boolean(cwd) && relative !== filePath && !relative.startsWith("/");
+  const base = insideCwd && cwd ? cwd.replace(/\/+$/, "") : "";
+  const parts = relative.split("/").filter(Boolean);
+  if (parts.length === 0) return [{ label: relative || filePath, path: filePath }];
+  return parts.map((label, index) => ({
+    label,
+    path: [base, ...parts.slice(0, index + 1)].filter(Boolean).join("/"),
+  }));
 }
 // Matches the write endpoint's content cap in lib/file-mutations.ts.
 // Display mode labels come from i18n now (`i18n.source` / `i18n.preview`).
@@ -450,6 +472,11 @@ function diffSegments(diff: readonly DiffLine[]): Array<{ hidden: true; count: n
 
 function DiffView({ patch }: { patch: string }) {
   const { t } = useI18n();
+  /* M-06 帧 B —— 手机档的差异行换 PWA 形态：`.m-code-add` / `.m-code-del`
+     （横滚不折行、`+ / −` 前缀写在行里；`.m-code-scroll` 的 overflow 由外层
+     `.m-code-body m-code-scroll` 承担）。桌面仍是 `.d-diff-line` + 行号列。
+     两档同一份 `diffLines` 结果，只换画法。 */
+  const isMobile = useIsMobile();
   // fork:perf-viewer-keepalive — `diffLines` parses the patch and runs a word-level
   // LCS for every changed pair. It used to run again on each render of the viewer
   // (selection changes, save state, theme), so the parsed rows and the context
@@ -460,7 +487,10 @@ function DiffView({ patch }: { patch: string }) {
 
   if (!hasChanges) {
     return (
-      <div className="d-t-xs d-t-faint" style={{ padding: "12px 16px", fontFamily: "var(--font-mono)" }}>
+      <div
+        className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}
+        style={{ padding: "12px 16px", fontFamily: "var(--font-mono)" }}
+      >
         {t("i18n.noChanges")}
       </div>
     );
@@ -468,8 +498,10 @@ function DiffView({ patch }: { patch: string }) {
 
   return (
     <div
-      className="d-diff"
-      style={{
+      /* 手机档没有 `.d-diff` 这一层壳：等宽与横滚由 `.m-code-body m-code-scroll` 给
+         （M-06 帧 B 的 `.m-code` 结构），桌面仍是画板 D-06 的 `.d-diff`。 */
+      className={isMobile ? undefined : "d-diff"}
+      style={isMobile ? undefined : {
         width: "max-content",
         minWidth: "100%",
       }}
@@ -479,7 +511,7 @@ function DiffView({ patch }: { patch: string }) {
           return (
             <div
               key={si}
-              className="d-t-xs d-t-faint"
+              className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}
               style={{
                 padding: "var(--nx-sp-1) 16px",
                 background: "var(--nx-panel)",
@@ -499,6 +531,20 @@ function DiffView({ patch }: { patch: string }) {
           // fork:zc-07 — 行内差异段；空行（或无可显示字符）仍用 nbsp 占位。
           const segments = line.intraline === undefined ? null : buildIntralineSegments(line.text, line.intraline);
           const hasVisibleSegments = segments?.some((segment) => segment.text.length > 0) ?? false;
+
+          /* M-06 帧 B：手机档的差异行就是一块 `.m-code-add` / `.m-code-del`
+             （前缀在行内、不带行号列）；词级高亮在手机档不做 —— 那套分段 span
+             是配桌面行号列的，手机上一行一块底色已经说清了。 */
+          if (isMobile) {
+            return (
+              <span
+                key={li}
+                className={line.type === "added" ? "m-code-add" : line.type === "removed" ? "m-code-del" : undefined}
+              >
+                {line.type === "unchanged" ? line.text : `${prefix}${line.text}`}
+              </span>
+            );
+          }
           const changedBackground = line.type === "added"
             ? "color-mix(in srgb, var(--nx-success) 30%, transparent)"
             : "color-mix(in srgb, var(--nx-danger) 30%, transparent)";
@@ -723,7 +769,14 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
         {error ? (
           <div style={{ color: "var(--nx-danger)", fontSize: TEXT.md }}>{error}</div>
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
+          /* D-06 帧 C / D-06b 帧 C 的 `d-fileimg`（Web 形态的图片格：圆角 + 描边）——
+             只在桌面档挂。PWA 形态库里的图片格是 m-viewbox（帧 F），不套这一格，
+             手机档保持原样。内联的居中 / 尺寸是几何，不是设计值。 */
+          <div
+            className={skin.fileImg}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", maxHeight: "100%" }}
+          >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={filePath}
@@ -762,6 +815,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
               touchAction: "none",
             }}
           />
+          </div>
         )}
       </div>
     </div>
@@ -1657,6 +1711,10 @@ function TextFileViewer({
   const gitDiffRequestRef = useRef(0);
   const loadedFilePathRef = useRef<string | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  /* fork:v5-boards D-06b 帧 C —— 长列表的上下渐隐（`.d-fade` / `.d-fade-tail`）：
+     只在桌面档画（PWA 形态同一件事由顶栏的 `.m-fade` 承担），两条都不吃指针、
+     不占布局，滚到那一端就消失 —— 它是「上面还有 / 下面还有」的指示，不是装饰。 */
+  const [scrollEdges, setScrollEdges] = useState({ top: false, bottom: false });
   const liveEditingRef = useRef(false);
   const previousModeRef = useRef(displayMode);
   const defaultPreviewEligibleRef = useRef(
@@ -1919,6 +1977,40 @@ function TextFileViewer({
     && !isDeletedDiff;
   const liveEditing = useCodeEditor && effectiveDisplayMode === "source";
   liveEditingRef.current = liveEditing;
+
+  /* fork:v5-boards D-06b 帧 C —— 渐隐的两端跟着滚动位置与内容高度走。
+     监听挂在**已有的那个滚动容器**上（`contentRef`），不新开观察者：容器自身
+     尺寸不变时 ResizeObserver 不会响，所以连它的直接子节点一起看，正文高度变了
+     就会重算。判断逻辑与 `lib/scroll-follow` 的 `computeScrollMaskState` 同一口径
+     （到头 4px 内就算到底），只是这里要的是「是否显示」而不是遮罩渐变。 */
+  useEffect(() => {
+    if (isMobile) {
+      setScrollEdges((current) => (current.top || current.bottom ? { top: false, bottom: false } : current));
+      return;
+    }
+    const element = contentRef.current;
+    if (!element) return;
+    const update = () => {
+      const scrollable = element.scrollHeight - element.clientHeight;
+      const next = {
+        top: element.scrollTop > 4,
+        bottom: scrollable > 4 && element.scrollTop < scrollable - 4,
+      };
+      setScrollEdges((current) => (current.top === next.top && current.bottom === next.bottom ? current : next));
+    };
+    update();
+    element.addEventListener("scroll", update, { passive: true });
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(update);
+      observer.observe(element);
+      for (const child of Array.from(element.children)) observer.observe(child);
+    }
+    return () => {
+      element.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, [isMobile, filePath, effectiveDisplayMode, diffOpen, data]);
 
   useEffect(() => () => {
     for (const element of locationHighlightRef.current) element.classList.remove(LOCATION_HIGHLIGHT_CLASS);
@@ -2491,11 +2583,26 @@ function TextFileViewer({
       ) : (
       <>
       {/* fork:v5-landing —— 头行 = D-06 帧 A 的 `.d-viewer-bar`：
-          路径 + 元信息徽章 + 同步点 + 动作区 + 模式 `.d-seg`。 */}
+          面包屑 + 元信息徽章 + 同步点 + 动作区 + 模式 `.d-seg`。 */}
       <div className="d-viewer-bar">
-        <span className="file-viewer-path d-viewer-path" title={filePath}>
-          {getRelativeFilePath(filePath, cwd)}
-        </span>
+        {/* D-06 帧 A / 帧 B 的 `.d-crumb` —— 目录段逐级、末段 `.is-on`。
+            `file-viewer-path` 留着：globals.css 的 flex / 省略号挂它上面。 */}
+        <div className="file-viewer-path d-crumb" title={filePath}>
+          {viewerCrumbs(filePath, cwd).map((crumb, index, all) => (
+            <Fragment key={crumb.path}>
+              {index > 0 && <i data-ico="chevron-right" data-size="11" aria-hidden="true"></i>}
+              <button
+                type="button"
+                className={index === all.length - 1 ? "is-on" : undefined}
+                title={crumb.path}
+                aria-label={`${t("files.copyPath")} ${crumb.path}`}
+                onClick={() => { void copyText(crumb.path); }}
+              >
+                {crumb.label}
+              </button>
+            </Fragment>
+          ))}
+        </div>
 
         <span className="file-viewer-meta d-badge mute" title={metadata}>{metadata}</span>
         {!isDeletedDiff && (
@@ -2658,6 +2765,12 @@ function TextFileViewer({
       )}
 
       {/* Content area */}
+      {/* 渐隐条需要一块定位宿主，所以滚动区外面套一层：`position: relative` 与 flex
+          基座都是几何（铁律四允许内联），不引入任何视觉值。手机档不画渐隐条
+          （PWA 形态同一件事由顶栏的 `.m-fade` 承担）。 */}
+      <div
+        style={{ position: "relative", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}
+      >
       <div
         ref={contentRef}
         /* `file-viewer-content` 是 e2e / 脚本的选择器（`file-viewer-content` 非 pw 钩子），
@@ -2775,8 +2888,13 @@ function TextFileViewer({
                     {t("files.backToSource")}
                   </button>
                 </div>
-                <div className="d-code" style={{ border: 0, borderRadius: 0 }}>
-                  <div className="d-code-body" style={{ padding: "var(--nx-sp-2) 0" }}>
+                {/* M-06 帧 B —— 手机档换 PWA 形态的代码壳（`.m-code` / `.m-code-body`
+                    + `.m-code-scroll` 横滚不折行）；桌面仍是 D-06 的 `.d-code`。 */}
+                <div className={isMobile ? "m-code" : "d-code"} style={{ border: 0, borderRadius: 0 }}>
+                  <div
+                    className={isMobile ? "m-code-body m-code-scroll" : "d-code-body"}
+                    style={isMobile ? { padding: 0 } : { padding: "var(--nx-sp-2) 0" }}
+                  >
                     {hasGitDiff
                       ? <DiffView patch={gitDiff.patch!} />
                       : <div className="d-t-xs d-t-faint" style={{ padding: "12px 16px" }}>{t("i18n.loading")}</div>}
@@ -2786,6 +2904,12 @@ function TextFileViewer({
             )}
           </>
         )}
+      </div>
+        {/* D-06b 帧 C —— 上下两条渐隐：只提示「上面还有 / 下面还有」。库里已把它们
+            定义成 `pointer-events: none` 的绝对定位条，所以这里既不吃点击也不占布局；
+            滚到那一端自动消失。 */}
+        {!isMobile && scrollEdges.top && <div className="d-fade" aria-hidden="true" />}
+        {!isMobile && scrollEdges.bottom && <div className="d-fade-tail" aria-hidden="true" />}
       </div>
       {/* M-06 帧 B · 底部动作条三项等分。桌面上这些动作挤在 `.d-viewer-bar` 的
           动作簇里（44px 命中区在 390 宽上不够），手机上搬到常驻底条：

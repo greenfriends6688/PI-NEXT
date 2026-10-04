@@ -24,7 +24,7 @@
   </p>
   <div class="m-doc-tags" data-board-tags>
     <span class="m-doc-tag">页面：插件商店 / 定时任务 / 用量</span>
-    <span class="m-doc-tag">组件：m-storecard · m-cat · m-croncard · m-hist-row · m-heat · m-bars · m-sheet</span>
+    <span class="m-doc-tag">组件：m-storecard · m-cat · m-croncard · m-hist-row · m-heat · m-bars · m-sheet · m-card · m-statgrid · m-stat · m-bar</span>
     <span class="m-doc-tag">状态：列表 / 分类 / 详情面板 / 开关 / 7 天 / 30 天</span>
   </div>
 </header>
@@ -471,6 +471,127 @@
   </div>
 </section>
 
+<!-- ── 帧 D · 通用卡 / 统计格 / 用量条 ─────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 通用卡 <span class="m-mono">.m-card</span> · 统计格 <span class="m-mono">.m-statgrid</span> · 用量条 <span class="m-mono">.m-bar</span> · 手机上「一眼出结论」的那三件家具；帧 C 的四个数用 .m-setrow 排，这里是它们**需要标题与说明时**的形状</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回设置"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">配额与预算</span>
+        <button class="m-top-btn" title="导出报表"><i data-ico="download" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">这个 provider 还剩多少额度？</div>
+
+        <div class="m-md"><p>四张统计格平铺在卡里，<b>两列而不是四列</b> —— 390 宽上四列每格不到 85px，数字会折行。</p></div>
+
+        <div class="m-card">
+          <div class="m-card-head">
+            <i data-ico="sigma" data-size="15"></i>本月 · Anthropic
+            <span class="m-grow"></span><span class="m-badge ok">余 62%</span>
+          </div>
+          <div class="m-card-body">
+            <div class="m-statgrid">
+              <div class="m-stat">
+                <span class="m-t-xs m-t-faint">已用 token</span>
+                <div class="m-t-lg m-t-b m-num">6.12M</div>
+                <span class="m-t-xs m-t-faint">配额 9.80M</span>
+              </div>
+              <div class="m-stat">
+                <span class="m-t-xs m-t-faint">已用费用</span>
+                <div class="m-t-lg m-t-b m-num">¥214.80</div>
+                <span class="m-t-xs m-t-faint">日均 ¥7.16</span>
+              </div>
+              <div class="m-stat">
+                <span class="m-t-xs m-t-faint">请求数</span>
+                <div class="m-t-lg m-t-b m-num">9,204</div>
+                <span class="m-t-xs m-t-faint">均 665 token</span>
+              </div>
+              <div class="m-stat">
+                <span class="m-t-xs m-t-faint">错误率</span>
+                <div class="m-t-lg m-t-b">0.41%</div>
+                <span class="m-t-xs m-t-faint">38 次 · 多为超时</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-t-xs m-t-faint">比例的活交给条：<b>一个供应商一行</b>，行尾那个百分比是给人读的，条才是给人比出来的。</div>
+
+        <div class="m-card">
+          <div class="m-card-head">
+            <i data-ico="activity" data-size="15"></i>各供应商占比
+            <span class="m-grow"></span><span class="m-badge mute">本月</span>
+          </div>
+          <div class="m-card-body">
+            <div class="m-setrow-body">
+              <span class="m-setrow-t">claude-opus-4-6</span>
+              <span class="m-bar" style="margin:var(--nx-sp-1) 0"><i style="width:49%"></i></span>
+              <span class="m-setrow-s">6.12M token · ¥214.80 · 49%</span>
+            </div>
+            <div class="m-setrow-body">
+              <span class="m-setrow-t">claude-sonnet-4-6</span>
+              <span class="m-bar" style="margin:var(--nx-sp-1) 0"><i style="width:31%"></i></span>
+              <span class="m-setrow-s">3.84M token · ¥96.12 · 31%</span>
+            </div>
+            <div class="m-setrow-body">
+              <span class="m-setrow-t">gpt-5.1-codex</span>
+              <span class="m-bar" style="margin:var(--nx-sp-1) 0"><i style="width:13%"></i></span>
+              <span class="m-setrow-s">1.66M token · ¥58.30 · 13%</span>
+            </div>
+            <div class="m-setrow-body">
+              <span class="m-setrow-t">qwen3-coder-30b · 本机</span>
+              <span class="m-bar" style="margin:var(--nx-sp-1) 0"><i style="width:7%"></i></span>
+              <span class="m-setrow-s">0.81M token · 走本机不计费 · 7%</span>
+            </div>
+            <div class="m-t-xs m-t-faint" style="margin-top:var(--nx-sp-3)">
+              缓存命中不计费，但计入 token —— <b>口径永远与图同屏</b>，否则数字会被当成账单。
+            </div>
+          </div>
+        </div>
+
+        <div class="m-card">
+          <div class="m-card-head">
+            <i data-ico="circle-alert" data-size="15"></i>已停用但本月仍有开销
+          </div>
+          <div class="m-card-body">
+            <div class="m-t-cap">gpt-4o-mini 已于 10-02 移除 · 余 41 次调用 · ¥1.92</div>
+            <div class="m-t-xs m-t-faint" style="margin-top:var(--nx-sp-1)">移除不抹账：这条留着，是为了让「本月花费」对得上收款单。</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+          <div class="m-composer-row">
+            <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+            <input class="m-input" placeholder="要不要把预算上限也设成提醒？">
+            <button class="m-cap-btn" title="能力"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+            <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+            <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
 <div class="m-notes">
   <b>这一张在定什么：</b>
   <ul>
@@ -481,6 +602,7 @@
     <li><b>开关就是开关</b>：手机上不用「编辑 → 保存」两步，<span class="m-mono">.m-switch</span> 直接生效，关闭后的历史留着（标明「已关闭 · 下周一才跑」）—— 用户要能确认「我确实关掉了」。</li>
     <li><b>用量三块同源</b>：热力图（18 周 × 每天）、柱状（本周每日）、模型占比读的是同一份会话日志；图旁边永远有一行<b>口径</b>，否则数字会被当成账单。</li>
     <li><b>时间范围用三选一，不用下拉</b>：<span class="m-mono">7 天 / 30 天 / 全部</span> 三个 <span class="m-mono">.m-picktag</span> 互斥 —— 手机上多一层下拉只为选三个值，是纯浪费。</li>
+    <li><b>帧 C 与帧 D 是两种排法，不是两套件。</b>帧 C 的四个数用 <span class="m-mono">.m-setrow</span> 平铺（一行一个数 + 行尾那个值）；帧 D 是它们<b>需要标题、说明与进度</b>时的形状：<span class="m-mono">.m-card</span>（头 + 体）里放 <span class="m-mono">.m-statgrid</span> 与 <span class="m-mono">.m-stat</span> 四格，比例交给 <span class="m-mono">.m-bar</span>。<b>不要拿 .m-cardgroup 装它们</b>：cardgroup 是「一叠行、用分隔线分开」（设置项），而这三样是「一块要解释的东西」。统计格在手机上<b>两列</b>（四列每格不到 85px，数字会折行）。</li>
     <li><b>两处「看起来被裁了」的坑，已在库里修根</b>：① <span class="m-mono">box-sizing</span> 现在是<b>全局</b>声明（<span class="m-mono">base.css</span> 最上面），所以 <span class="m-mono">width:100% + padding</span> 的行放进 <span class="m-mono">overflow:hidden</span> 的卡片不会再横向溢出 28px 把末列裁掉；② 滚动区 / 设置流 / 商店流这几处 flex 列容器的<b>直接子项一律 <span class="m-mono">flex: 0 0 auto</span></b>，带 overflow 与 aspect-ratio 的卡片与横滚条不再被压扁（热力图行曾被压到 4px）。<b>板面因此不再需要任何内联兜底</b> —— 如果你看到别处写着 <span class="m-mono">style="box-sizing:border-box"</span>，那是过期信息，删掉它。</li>
   </ul>
 </div>

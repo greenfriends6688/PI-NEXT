@@ -211,11 +211,32 @@ export function LanPairBody() {
           />
 
           {pair && (
-            <PwaSetRow
-              icon="key-round"
-              label={t("lanPair.codeLabel")}
-              sub={`${pair.code} · ${t("lanPair.hint", { seconds: pair.expiresInSeconds })}`}
-            />
+            /* fork:v5-landing · M-09 帧 D 的 `.m-card` ——
+               画板自己区分得很清楚：`.m-cardgroup` 是「一叠行、用分隔线分开」，
+               `.m-card`（头 + 体）是「一块要解释的东西」。配对码正是后者 ——
+               它不是一列设置项，而是一段要照着输的东西，所以单独占一张卡。
+               头：图标 + 名称 + grow + 到期徽章；体：逐位键帽 + 一句说明。 */
+            <div className="m-card">
+              <div className="m-card-head">
+                <i data-ico="key-round" data-size="15" aria-hidden="true" />
+                {t("lanPair.codeLabel")}
+                <span className="m-grow" aria-hidden="true" />
+                <span className="m-badge warn">
+                  <i data-ico="clock" data-size="12" aria-hidden="true" />
+                  {t("lanPair.hint", { seconds: pair.expiresInSeconds })}
+                </span>
+              </div>
+              <div className="m-card-body">
+                <span className="m-setrow-body">
+                  <span className="m-setrow-t m-hist-row">
+                    {pair.code.split("").map((digit, index) => (
+                      <span className="m-kbd" key={`${pair.code}-${index}`}>{digit}</span>
+                    ))}
+                  </span>
+                  <span className="m-setrow-s">{t("lanPair.sub")}</span>
+                </span>
+              </div>
+            </div>
           )}
           {urls.length > 1 && (
             <PwaSetRow label={t("phonePush.lanTitle")} sub={urls.join("  ·  ")} />
@@ -300,6 +321,54 @@ export function LanPairBody() {
         </div>
       )}
 
+      {/* fork:v5-landing · D-20 帧 A「配对码」——
+          画板把这一段写成独立的一节，而不是正文里的一行小字，理由写在它自己的
+          注记里：**键帽形态是「照着输」的暗示**。所以 6 位逐位渲染成 `.d-kbd`，
+          尺寸那三个值是画板给的行内几何（高度 / 内边距 / 字号，一律走 `var()`），
+          类名与嵌套照抄。副行用已有的 `lanPair.sub` / `lanPair.hint`，
+          不新造文案（缺的第二行已在报告里登记为待补 key）。
+          令牌与配对码的口径一个字没动：同一个 `/api/lan/pair/generate`、同一份 code。 */}
+      {pair && (
+        <div className="d-set-sec">
+          <div className="d-set-sec-t">{t("lanPair.codeLabel")}</div>
+          <div className="d-card">
+            <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
+              <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
+                {pair.code.split("").map((digit, index) => (
+                  <span
+                    key={`${pair.code}-${index}`}
+                    className="d-kbd"
+                    style={{ height: "var(--nx-ctl-lg)", padding: "0 var(--nx-sp-3)", fontSize: "var(--nx-fs-lg)" }}
+                  >
+                    {digit}
+                  </span>
+                ))}
+                <span className="d-grow" aria-hidden="true" />
+                <span className="d-col" style={{ gap: "var(--nx-sp-1)" }}>
+                  <span className="d-t-xs d-t-faint">{t("lanPair.sub")}</span>
+                </span>
+              </div>
+              <div className="d-row">
+                <span className="d-badge warn">
+                  <i data-ico="clock" data-size="12" aria-hidden="true" />
+                  {t("lanPair.hint", { seconds: pair.expiresInSeconds })}
+                </span>
+                <span className="d-grow" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="d-btn sm"
+                  onClick={() => void mint()}
+                  disabled={busy}
+                >
+                  <i data-ico="rotate-cw" data-size="13" aria-hidden="true" />
+                  {t("lanPair.refresh")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
         <input
           id="lan-pair-readonly"
@@ -312,17 +381,22 @@ export function LanPairBody() {
         </label>
       </div>
 
-      {pair && (
-        <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>
-          {t("lanPair.codeLabel")}:{" "}
-          <span className="d-mono" style={{ letterSpacing: "0.2em" }}>{pair.code}</span>
-          {" · "}
-          {t("lanPair.hint", { seconds: pair.expiresInSeconds })}
-        </p>
-      )}
-
-      {urls.length > 1 && (
-        <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>{urls.join("  ·  ")}</p>
+      {/* fork:v5-landing · D-20 帧 B「旁边必须写清的三件事」之一 ——
+          地址是一个「可以直接抄走」的盒子，不是正文里的一串灰字。
+          `.d-urlbox` 内是 `<i data-ico>` + 一段 `.d-mono`（超长省略由 CSS 负责），
+          与画板的 `globe` 那一行同构。地址本身没变：仍是 `access.lanUrls` / `pair.lanUrls`。
+          **原来那句 `urls.join("  ·  ")` 的段落已删**（铁律五：DOM 挪了而旧写法还在
+          = 同一个地址在屏幕上出现两次）。窄屏那一行仍在（形态不同，不是同一段）。 */}
+      {urls.length > 0 && (
+        <div className="d-col" style={{ gap: "var(--nx-sp-1)" }}>
+          <span className="d-t-xs d-t-faint">{t("phonePush.lanTitle")}</span>
+          {urls.map((url) => (
+            <div key={url} className="d-urlbox">
+              <i data-ico="globe" data-size="12" aria-hidden="true" />
+              <span>{url}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -935,9 +935,15 @@ test("the composer's notices, chips and popover headers ride on the board compon
   assert.match(source, /<div className="d-pop-title">\{t\("chat\.permissionTitle"\)\}<\/div>/);
   assert.match(source, /className="d-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
 
-  // 图标仍零手绘：唯一保留的 <svg> 是画板点名的 .d-loader-svg（需要 pathLength 的环绕光带）。
-  assert.equal((source.match(/<svg/g) ?? []).length, 1);
+  // 图标仍零手绘：保留的 <svg> 只有两条输入卡运行光带（都需要 pathLength 的环绕闭环）——
+  // 宽屏是画板 D-27 帧 B 的 .d-loader-svg，窄屏是 PWA 库的 .m-loader-svg
+  // （fork:v5-landing-close 补齐窄屏那一半），除此之外一条都不许有。
+  assert.equal((source.match(/<svg/g) ?? []).length, 2);
   assert.match(source, /className="d-loader-svg"/);
+  assert.match(source, /className="m-loader-svg"/);
+  assert.match(source, /className="m-loader-glow"/);
+  // 光带只在运行中挂：两个形态都是 isStreaming 时才渲染，不改行为。
+  assert.equal((source.match(/isStreaming \? " m-loader"/g) ?? []).length, 1);
 });
 
 test("the model notices render as board alerts with a leading icon", () => {
@@ -988,4 +994,42 @@ test("queued rows offer 移至输入框 (move back to the input box)", () => {
   assert.match(queueSource, /editTitle=\{t\("chat\.queueEditToInput"\)\}/);
   assert.match(queueSource, /onEdit=\{onQueueEdit \? \(\) => onQueueEdit\("steer", i, text\) : undefined\}/);
   assert.match(queueSource, /onEdit=\{onQueueEdit \? \(\) => onQueueEdit\("followUp", i, text\) : undefined\}/);
+});
+
+/* fork:v5-wave-n1 —— D-27 帧 A / D-27 帧 F / D-28 帧 C 的两条「值被替换」反馈。
+ *
+ * ① 翻卡（.d-flap + .is-fall / .is-rise）：推理档位芯片的图标位。两段都带 forwards，
+ *    所以**必须清场** —— 断言里盯着 380ms 那一段把状态收回 ""。
+ * ② 标签上下交换（.d-label-out / .d-label-in）：权限档的状态词。两个标签必须叠在
+ *    同一格里（板内原话「否则会看见框在长高」），所以旧值绝对定位、流内那枚是新值。
+ *
+ * 两条都必须**只在宽屏那一支**出现：窄屏（PWA 形态）走 `.m-sheet-row` 的能力面板，
+ * 库里没有 m-flap / m-label-* 对应件，不许把 d-* 泄进 PWA 分支。 */
+test("推理档位用画板 D-28 帧 C 的翻卡，权限状态词用同帧的标签上下交换", () => {
+  const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+
+  // 翻卡：外壳只包那枚图标，两段接力 150ms → 380ms 清场，减弱动效不起接力。
+  assert.match(source, /className=\{`d-flap\$\{flapPhase \? ` \$\{flapPhase\}` : ""\}`\}/);
+  assert.match(source, /<span className=\{`d-flap\$\{flapPhase \? ` \$\{flapPhase\}` : ""\}`\}>\s*<i data-ico="brain" data-size="13"><\/i>\s*<\/span>/);
+  assert.match(source, /setFlapPhase\("is-fall"\)/);
+  assert.match(source, /window\.setTimeout\(\(\) => setFlapPhase\("is-rise"\), 150\)/);
+  assert.match(source, /window\.setTimeout\(\(\) => setFlapPhase\(""\), 380\)/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
+
+  // 标签交换：旧值 absolute 盖在流内的新值上，220ms 后收场。
+  assert.match(source, /className="d-label-out"/);
+  assert.match(source, /className=\{permissionLabelOut !== null \? "d-label-in" : undefined\}/);
+  assert.match(source, /position: "absolute"/);
+  assert.match(source, /setPermissionLabelOut\(previous\)/);
+  assert.match(source, /window\.setTimeout\(\(\) => setPermissionLabelOut\(null\), 220\)/);
+  // 两种反馈不许同时用在同一处：翻卡在思考芯片，标签交换在权限芯片。
+  assert.ok(source.indexOf("d-flap") < source.indexOf("d-label-out"));
+});
+
+test("翻卡与标签交换不泄进窄屏分支（窄屏走 m-* 基件）", () => {
+  const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+  // 两处渲染都在 `!narrowControls` 的文字分支之外 / 之内：翻卡包的是图标（宽屏表单才有），
+  // 标签交换整段挂 `!narrowControls`。这里只钉住「库里没有的 m-flap / m-label-* 没被自造」。
+  assert.doesNotMatch(source, /\bm-flap\b/);
+  assert.doesNotMatch(source, /\bm-label-(out|in)\b/);
 });

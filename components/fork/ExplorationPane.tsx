@@ -82,7 +82,13 @@ export function ExplorationPane({
         )}
       </div>
 
-      <div className="d-panel-body" style={{ padding: "var(--nx-sp-3)", overflowY: "auto" }}>
+      {/* fork:v5-wave-n1 —— 面板体换成画板 D-03e 帧 D 那一段的 `.d-drawer-body`
+          （flex:1 + min-height:0 + overflow-y:auto —— 就是板上写在抽屉里的滚动体，
+          内边距由板上的行内 padding 给）。**根节点仍是 `.d-panel` 不换**：
+          板上那枚 `.d-drawer` 是 `position:absolute; width:360px; transform:translateX(100%)`
+          的覆盖式抽屉，而产品这一格是右栏 tab 的 flex 子项（右栏容器内的一个槽位），
+          换过去会把整块抽离布局；宿主形态的差异已登记，见汇报。 */}
+      <div className="d-drawer-body" style={{ padding: "var(--nx-sp-3)" }}>
         {error && (
           <div role="alert" className="d-banner err">
             <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>

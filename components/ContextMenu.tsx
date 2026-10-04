@@ -12,6 +12,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { enteredClass, useTwoPhaseEnter } from "@/hooks/useTwoPhaseEnter";
+// fork:v5-wave-b-2026-10-04 —— 形态判据。≤640 才挂 m-*，与
+// `app/design/v5-forms.css` 给 pwa/system.css 的 @import 媒体条件同一个断点；
+// 641–1024 的平板档仍然是 d-* DOM（写成 useIsCompact 会让平板掉进 PWA 形态）。
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /**
  * Generic right-click / dropdown menu.
@@ -33,6 +37,14 @@ import { enteredClass, useTwoPhaseEnter } from "@/hooks/useTwoPhaseEnter";
  *    before the menu closes itself;
  *  - submenus are limited to one level **by the type**, so a nested flyout is
  *    impossible to express.
+ *
+ * fork:v5-wave-b-2026-10-04 —— 窄屏（≤640）分支照画板 **M-04 帧 C** 的菜单件抄：
+ *   外壳 `m-pop-float.is-open`（PWA 浮层）+ 行 `m-menu-row` + 分隔 `m-sep`，
+ *   文字弱化用 `m-t-faint` / `m-t-xs`。桌面分支逐字不动。
+ *   为什么不整套换成 `.m-menu-sheet`（底部升起那一档）：那份是「长按会话行就地
+ *   升起」的形态，会把**所有**右键/下拉菜单的锚点从指针位置改成屏幕底边 ——
+ *   那是行为变更，不在本次换皮的范围内（见汇报的需配合项）。这里只换件，
+ *   定位、翻转、键盘导航、反馈标签与关闭时机全部不变。
  */
 
 export interface ContextMenuItem {
@@ -106,6 +118,8 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // fork:v5-wave-b-2026-10-04 —— 窄屏换 m-* 件；宽屏仍是 d-*。
+  const isMobile = useIsMobile();
 
   const clearTimers = useCallback(() => {
     if (feedbackTimer.current) {
@@ -330,8 +344,10 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
            禁用 = `disabled` + 字弱化（`.d-menu-row:disabled` + `d-t-faint`），
            危险 = `.danger`（文字转红，不是红底）。键盘高亮沿用同族行惯用的 `is-on`
            （system.css 暂无 `.d-menu-row.is-on`，与 ComposerReferenceMenu/ChatInput 一致；
-           选中项的「对勾」由 icon 槽给）。 */
-        className={`d-menu-row${opts.isActive ? " is-on" : ""}${danger ? " danger" : ""}`}
+           选中项的「对勾」由 icon 槽给）。
+           fork:v5-wave-b-2026-10-04 —— 窄屏换成 M-04 帧 C 的 `.m-menu-row`
+           （同形状：图标槽 + 文字 + 右端 chevron；`.danger` / `.is-on` 同义）。 */
+        className={`${isMobile ? "m-menu-row" : "d-menu-row"}${opts.isActive ? " is-on" : ""}${danger ? " danger" : ""}`}
         style={{ width: "100%" }}
         aria-haspopup={opts.hasSubmenu ? "menu" : undefined}
         aria-expanded={opts.hasSubmenu ? Boolean(opts.submenuOpen) : undefined}
@@ -343,13 +359,16 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
       >
         {renderEntryIcon(entry)}
         <span
-          className={entry.disabled ? "d-t-faint" : undefined}
+          className={entry.disabled ? (isMobile ? "m-t-faint" : "d-t-faint") : undefined}
           style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", ...(trailing ? { flex: "1 1 auto" } : {}) }}
         >
           {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
         </span>
         {entry.hint !== undefined && (
-          <span className="d-t-xs d-t-faint" style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{entry.hint}</span>
+          <span
+            className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}
+            style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}
+          >{entry.hint}</span>
         )}
         {opts.hasSubmenu && (
           <i data-ico="chevron-right" data-size="14" aria-hidden="true"></i>
@@ -367,14 +386,26 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
           role="menu"
           tabIndex={-1}
           aria-label="Context menu"
-          className={`d-pop-float ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
-          style={{ top: pos.y, left: pos.x, minWidth: MIN_WIDTH, maxWidth: "min(360px, calc(100vw - 12px))" }}
+          /* fork:v5-wave-b-2026-10-04 —— 窄屏外壳 = 画板 M-04 帧 C 的 `.m-pop-float`
+             （`.is-open` 是它唯一的显形开关，与 `display:none` 成对）。
+             `.m-pop-float` 自带 `left/right: var(--nx-sp-3)`（那是底部面板那种
+             贴边浮层的写法），而本菜单是跟随指针的：所以 `right:"auto"` 与
+             `position:"fixed"` 作为**几何定位**内联（铁律四允许），top/left 沿用
+             视口翻转算出来的那个值。背景 / 描边 / 圆角 / 阴影 / 内边距全在库里。 */
+          className={`${isMobile ? "m-pop-float is-open" : "d-pop-float"} ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
+          style={{
+            ...(isMobile ? { position: "fixed", right: "auto" } : null),
+            top: pos.y,
+            left: pos.x,
+            minWidth: MIN_WIDTH,
+            maxWidth: "min(360px, calc(100vw - 12px))",
+          }}
           onContextMenu={(event) => event.preventDefault()}
           onKeyDown={onMenuKeyDown}
         >
           {menu.entries.map((entry, index) => {
             if (isSeparator(entry)) {
-              return <div key={`sep-${index}`} role="separator" className="d-sep" />;
+              return <div key={`sep-${index}`} role="separator" className={isMobile ? "m-sep" : "d-sep"} />;
             }
             const item = entry as ContextMenuItem;
             const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
@@ -401,8 +432,14 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
                 {hasSubmenu && submenuIndex === index && submenuPos && (
                   <div
                     role="menu"
-                    className="d-pop-float context-menu context-menu-submenu"
-                    style={{ top: submenuPos.y, left: submenuPos.x, minWidth: MIN_WIDTH - 24, maxWidth: "min(320px, calc(100vw - 12px))" }}
+                    className={`${isMobile ? "m-pop-float is-open" : "d-pop-float"} context-menu context-menu-submenu`}
+                    style={{
+                      ...(isMobile ? { position: "fixed", right: "auto" } : null),
+                      top: submenuPos.y,
+                      left: submenuPos.x,
+                      minWidth: MIN_WIDTH - 24,
+                      maxWidth: "min(320px, calc(100vw - 12px))",
+                    }}
                     onMouseLeave={() => setSubmenuIndex(null)}
                   >
                     {item.submenu!.map((sub, subIndex) => (

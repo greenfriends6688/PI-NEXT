@@ -10,7 +10,7 @@
  * | --- | --- |
  * | 1 · 30s 短 tick，不长 setInterval | `createAutomationScheduler().start()` 里的 `setInterval(tick, AUTOMATION_TICK_INTERVAL_MS)`；每次 tick 只判 `nextRunAt <= now` |
  * | 2 · 启动恢复防雪崩 | `rescheduleOverdueOnStart()`（automation-schedule.ts），在 `start()` 里先跑一遍再起定时器 |
- * | 3 · 子会话复用策略 | `decideSessionTarget()`（`daily` 同自然日 / 跨日 / 上下文 ≥70%；`reuse` 恒复用；被接管不复用） |
+ * | 3 · 子会话复用策略 | `decideSessionTarget()`（`fresh` 每次新建；`daily` 同自然日 / 跨日 / 上下文 ≥70%；`reuse` 恒复用；被接管不复用） |
  * | 4 · 失败退避 + 自动暂停 | `applyRunOutcome()` + `withRunTimeout()`（单轮 2 小时） |
  *
  * 另外三条硬要求：
@@ -139,7 +139,9 @@ export type SessionCreateReason =
   | "cross-day"
   | "context-pressure"
   | "taken-over"
-  | "missing-session";
+  | "missing-session"
+  /** 任务自己选了「每次新建」：这是配置决定的，不是被动的结果。 */
+  | "fresh-mode";
 
 export type SessionDecision =
   | { reuse: true; sessionId: string }
@@ -160,8 +162,9 @@ export interface SessionDecisionInput {
  * 判定链（顺序即优先级，先命中先返回）：
  *   1. 没有 `lastSessionId` / 还没跑过 → 新建；
  *   2. 会话已被用户接管 → 新建（**不要**把定时提示词塞进用户正在用的私人会话）；
- *   3. `reuse` 档 → 始终复用；
- *   4. `daily` 档：
+ *   3. `fresh` 档 → **每次都新建**（一次也不接上一轮的上下文）；
+ *   4. `reuse` 档 → 始终复用；
+ *   5. `daily` 档：
  *      · 上次运行不在同一个**本地自然日** → 新建（`getFullYear/Month/Date`，不引时区库）；
  *      · 同日但上下文占用 ≥ 70% → 新建，避开 SDK 约 77.5% 的压缩阈值；
  *      · 占用率读不到（undefined）时**保守复用** —— 宁可多花一次新建的钱，
@@ -175,6 +178,10 @@ export function decideSessionTarget(input: SessionDecisionInput): SessionDecisio
   if (takenOver) return { reuse: false, reason: "taken-over" };
 
   const mode = automation.sessionMode ?? AUTOMATION_DEFAULT_SESSION_MODE;
+  // 「每次新建」是一句主动声明：即便上一次刚跑完、即便上下文还很空，也不接。
+  // 放在 `reuse` 之前，两档的判定互斥；`daily` 的两个被动理由（跨日 / 上下文压力）
+  // 对它没有意义，所以先短路。
+  if (mode === "fresh") return { reuse: false, reason: "fresh-mode" };
   if (mode === "reuse") return { reuse: true, sessionId };
 
   if (!isSameLocalDay(automation.lastRunAt, now)) return { reuse: false, reason: "cross-day" };

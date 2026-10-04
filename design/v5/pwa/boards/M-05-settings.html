@@ -23,7 +23,7 @@
   </p>
   <div class="m-doc-tags" data-board-tags>
     <span class="m-doc-tag">页面：设置 hub / 通用二级页 / 弹窗宿主</span>
-    <span class="m-doc-tag">组件：m-settings · m-cardgroup · m-setrow · m-hero · m-switch · m-select · m-slider · m-input · m-pickbar · m-radio · m-badge · m-sheet</span>
+    <span class="m-doc-tag">组件：m-settings · m-cardgroup · m-setrow · m-hero · m-switch · m-select · m-pickselect · m-slider · m-input · m-pickbar · m-radio · m-badge · m-sheet</span>
     <span class="m-doc-tag">状态：分组 hub / 通用二级页 / 权限档位 / 弹窗宿主 / 深色</span>
   </div>
 </header>
@@ -181,7 +181,7 @@
 
 <!-- ── 帧 B · 分节二级页 · 外观与输入 ───────────────────────────────────── -->
 <section class="m-scene">
-  <div class="m-frame-label"><b>帧 B</b> · 通用 › 二级页 · 外观与输入 · 左上角永远是返回箭头；一行一个控件，标签在上、值在下</div>
+  <div class="m-frame-label"><b>帧 B</b> · 通用 › 二级页 · 外观与输入 · 左上角永远是返回箭头；一行一个控件，标签在上、值在下；<b>取值一律用原生 <span class="m-mono">.m-pickselect</span></b></div>
   <div class="m-phone">
     <div class="m-statusbar">
       <span>9:41</span>
@@ -270,10 +270,26 @@
               <span class="m-setrow-s">选了「换行」的话，输入卡右下角始终显示发送钮</span>
             </span>
           </div>
+          <div class="m-t-xs m-t-faint">① <span class="m-mono">.m-select</span> · <b>静态盒</b>：点它开的是我们自绘的面板（能力浮层里的模型 / 思考强度）</div>
           <button class="m-select">
             <span>发送（推荐）</span>
             <i data-ico="chevron-down" data-size="15"></i>
           </button>
+          <div class="m-t-xs m-t-faint">② <span class="m-mono">.m-pickselect</span> · <b>原生 <code>&lt;select&gt;</code></b>：下拉由系统接管</div>
+          <label class="m-pickselect">
+            <select aria-label="回车键行为（原生下拉）">
+              <option>发送（推荐）</option>
+              <option>换行</option>
+              <option>换行 ⌘/Ctrl + 发送</option>
+            </select>
+            <i data-ico="chevron-down" data-size="15"></i>
+          </label>
+          <div class="m-t-xs m-t-faint" style="padding:var(--nx-sp-2) var(--nx-sp-3) var(--nx-sp-3)">
+            两者<b>几何同档</b>（44px 高 / 12 圆角 / 17px 字），看起来是同一个控件。
+            但设置里的「从若干值里选一个」<b>一律用②</b>：手机上自绘下拉等于改行为
+            （无障碍朗读、选取面板、滚动惯性都是系统资产）。所以②只归零 appearance，
+            行高 / 字号 / 圆角 / 配色对齐①，其余不碰。
+          </div>
         </div>
 
         <div class="m-ctx">

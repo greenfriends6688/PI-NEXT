@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T16:41",
+  "generatedAt": "2026-10-04T21:24",
   "boards": [
     {
       "id": "D-01",
@@ -531,8 +531,8 @@
       "desc": "手机的输入卡是密度最高的一块，也是唯一一块永远在手边的界面：模型、思考强度、权限、工具与上下文、 @ 提文件、/ 提命令、附件、队列、上下文占用全挤在这一个容器里。这张定四条： ① 能力一律收成同一种 chip（Aether 的做法），不再各造一种控件； ② 浮层从输入卡上方落下，不是系统级下拉 —— 拇指不需要离开卡片去找菜单； ③ 有",
       "tags": [
         "页面：输入卡 / 能力浮层 / 补全面板 / 队列面板",
-        "组件：m-composer-wrap · m-tray · m-pop-float · m-queue · m-attachbar · m-send",
-        "状态：静息 / Plus 分离 / 浮层开合 / 补全 / 自动接续与已暂停 / 发送与停止"
+        "组件：m-composer-wrap · m-tray · m-pop-float · m-queue · m-attachbar · m-send · m-loader",
+        "状态：静息 / Plus 分离 / 浮层开合 / 补全 / 自动接续与已暂停 / 发送与停止 / 在跑与已停"
       ]
     },
     {
@@ -557,7 +557,7 @@
       "desc": "手机上的设置是两层：一层 hub（按「你什么时候来改它」分组），一层分节页（进去只讲这一件事）。 两层都不用侧栏导航 —— 手机上横向空间不够摆导航树，改用返回箭头：左上角永远能回去，且不需要菜单键。 控件按手指重做：开关 48×29、滑杆拇指 26px、分段高度 44、输入框高 44， 凡是桌面上「点一下就够」的地方，手机上都要有一个真",
       "tags": [
         "页面：设置 hub / 通用二级页 / 弹窗宿主",
-        "组件：m-settings · m-cardgroup · m-setrow · m-hero · m-switch · m-select · m-slider · m-input · m-pickbar · m-radio · m-badge · m-sheet",
+        "组件：m-settings · m-cardgroup · m-setrow · m-hero · m-switch · m-select · m-pickselect · m-slider · m-input · m-pickbar · m-radio · m-badge · m-sheet",
         "状态：分组 hub / 通用二级页 / 权限档位 / 弹窗宿主 / 深色"
       ]
     },
@@ -609,7 +609,7 @@
       "desc": "这三块在桌面端是设置里的三个分节，在手机上是三个等重的一级页 —— 它们都要「一眼看出状态」， 压进 hub 卡片就等于什么都看不见。所以每页只留一条主线： 商店只回答「能不能装、要动我什么」，定时只回答「下次什么时候跑、上次成没成」， 用量只回答「这个月烧了多少、值不值」。详情与新建一律走底部面板， 不新开页面 —— 手机上「再返回一次",
       "tags": [
         "页面：插件商店 / 定时任务 / 用量",
-        "组件：m-storecard · m-cat · m-croncard · m-hist-row · m-heat · m-bars · m-sheet",
+        "组件：m-storecard · m-cat · m-croncard · m-hist-row · m-heat · m-bars · m-sheet · m-card · m-statgrid · m-stat · m-bar",
         "状态：列表 / 分类 / 详情面板 / 开关 / 7 天 / 30 天"
       ]
     },
@@ -635,7 +635,7 @@
       "desc": "手机上有一半的「操作」根本不是控件：下拉、侧滑、长按。用户看不见它们，只能靠一次成功或失败来学会。 所以这一张把它们写死成规则而不是留给感觉：下拉刷新一句话说完、侧滑返回只占左缘 28px、 长按菜单永远是底部面板、触控目标44 是硬下限而不是建议值。 后几帧是规格：触控目标三档表、系统态清单（九宫格 + 3）与应用级错误页两级， 再加一",
       "tags": [
         "页面：手势规格 / 系统态清单 / 反馈四型",
-        "组件：m-pull · m-swipe · m-menu-sheet · m-modal · m-sizebox · m-skel · m-toast",
+        "组件：m-pull · m-swipe · m-menu-sheet · m-modal · m-sizebox · m-skel · m-toast · m-think-dots · m-think-stars · m-think-comet · m-card",
         "状态：下拉 / 侧滑 / 长按 / 空载错 / 反馈四态"
       ]
     },

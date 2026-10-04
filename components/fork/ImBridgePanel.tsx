@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
-import { PwaBanner, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
+import { PwaBanner, PwaPickSelect, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 // fork:client-graph-purity —— 只能 import `-shared` 那半边：实现留服务端
 // （`lib/im-bridge.ts` 要 node:fs / pi SDK，拖进客户端图会让 build 红）。
 import {
@@ -170,17 +170,15 @@ export function ImBridgeBody() {
 
             <PwaSetRow label={t("imBridge.platform")} sub={PROVIDER_HINTS[row.provider]} />
             <div className="m-doc-body">
-              <select
-                className="m-input"
-                style={{ width: "100%" }}
+              {/* fork:v5-landing · M-05 帧 B —— 设置里的「从若干值里选一个」用
+                  `.m-pickselect`（下拉交给系统），不再拿 `.m-input` 套原生 select。
+                  掩码口径、平台自动识别与写盘全部一字不改。 */}
+              <PwaPickSelect
                 value={row.provider}
-                aria-label={t("imBridge.platform")}
-                onChange={(event) => patch(row.id, { provider: event.target.value as ImProvider })}
-              >
-                {IM_PROVIDER_IDS.map((provider) => (
-                  <option key={provider} value={provider}>{PROVIDER_LABELS[provider]}</option>
-                ))}
-              </select>
+                ariaLabel={t("imBridge.platform")}
+                options={IM_PROVIDER_IDS.map((provider) => ({ value: provider, label: PROVIDER_LABELS[provider] }))}
+                onChange={(value) => patch(row.id, { provider: value as ImProvider })}
+              />
             </div>
 
             <PwaSetRow label={t("imBridge.url")} />

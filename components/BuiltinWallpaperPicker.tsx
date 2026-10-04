@@ -45,7 +45,7 @@ export function BuiltinWallpaperPicker({
     <div className={isMobile ? "m-fieldrow" : "d-field"}>
       <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t(labelKey)}</span>
       <div
-        className={isMobile ? "m-col" : "d-store-grid"}
+        className={isMobile ? "m-grid2" : "d-store-grid"}
         role="group"
         aria-label={t(labelKey)}
       >

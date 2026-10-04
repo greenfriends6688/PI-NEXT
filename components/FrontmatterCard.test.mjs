@@ -55,6 +55,17 @@ test("keeps title, tags and URL rendering behavior", () => {
   assert.doesNotMatch(html, /<span>tags<\/span>/);
 });
 
+test("fork:v5-wave-n1 —— 布尔值给中性徽章（画板 D-06b 帧 B 那一格）", () => {
+  const html = render({ agent_created: false, enabled: true });
+
+  assert.match(
+    html,
+    /<div class="markdown-frontmatter-row d-kv-row"><span>agent_created<\/span><span><span class="d-badge mute">false<\/span><\/span><\/div>/,
+    "布尔值走 .d-badge.mute，而不是裸文本",
+  );
+  assert.match(html, /<span>enabled<\/span><span><span class="d-badge mute">true<\/span><\/span>/);
+});
+
 test("carries no hand-drawn SVG", () => {
   assert.doesNotMatch(source, /<svg/);
 });

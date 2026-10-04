@@ -24,8 +24,11 @@
  *
  * fork:v5-wave-b —— PWA 形态（≤640px）：`isPwa` 时容器换成画板 M-02 的
  * `.m-code-scroll > .m-code-body`，行号列换成 `.m-ln`。
- * `tok-*` 四个类**照旧发出**：PWA 库目前没有 `m-tok-*`（缺件已登记），
- * 所以窄屏的代码暂时是单色的 —— 保留类名是为了设计侧补齐 m-tok-* 后零改动接上。
+ *
+ * fork:v5-landing-close —— 窄屏 token 改挂 PWA 库自己的五档
+ * （`.m-tok-key / str / num / com / fn`）。此前这里只发 `tok-*`（桌面类），
+ * 而窄屏不挂桌面库 → 代码块是单色的。`fn`（函数名 / 方法名 / 类名）是 PWA
+ * 那一档比桌面多出来的，桌面 `.tok-*` 只有四档 —— 窄屏按 PWA 的五档走。
  * 这里只读一个布尔，不参与任何渲染逻辑；高亮与否仍是 `shouldHighlightCode`。
  */
 
@@ -154,6 +157,20 @@ const BOARD_TOKEN_CLASS: Record<string, string> = {
   number: "tok-n",
 };
 
+/**
+ * fork:v5-landing-close —— 窄屏用 PWA 库的五档（`design/v5/pwa/system.css`）。
+ * 与桌面那张表的差别只有两条：**类名前缀** `m-tok-`，以及多出的 `fn` 档
+ * （函数 / 方法 / 类名 —— 手机上代码块窄，函数名恰恰是最需要一眼认出来的一档）。
+ * 未列出的 token 与桌面同样留空，继承 `.m-code-body` 的前景色。 */
+const BOARD_TOKEN_CLASS_PWA: Record<string, string> = {
+  comment: "m-tok-com", prolog: "m-tok-com", doctype: "m-tok-com", cdata: "m-tok-com",
+  keyword: "m-tok-key", boolean: "m-tok-key", atrule: "m-tok-key", important: "m-tok-key",
+  string: "m-tok-str", char: "m-tok-str", "template-string": "m-tok-str", "attr-value": "m-tok-str",
+  number: "m-tok-num",
+  function: "m-tok-fn", "function-variable": "m-tok-fn", method: "m-tok-fn",
+  "class-name": "m-tok-fn", "maybe-class-name": "m-tok-fn",
+};
+
 function renderBoardNode(node: BoardRendererNode, key: string, isPwa: boolean): ReactNode {
   if (node.type === "text") return node.value;
   const classNames = Array.isArray(node.properties?.className) ? node.properties.className.map(String) : [];
@@ -165,7 +182,9 @@ function renderBoardNode(node: BoardRendererNode, key: string, isPwa: boolean): 
   if (classNames.includes("react-syntax-highlighter-line-number")) {
     return <span key={key} className={isPwa ? "m-ln" : "d-ln"}>{children}</span>;
   }
-  const tokenClass = classNames.map((name) => BOARD_TOKEN_CLASS[name]).find(Boolean);
+  const tokenClass = classNames
+    .map((name) => (isPwa ? BOARD_TOKEN_CLASS_PWA[name] : BOARD_TOKEN_CLASS[name]))
+    .find(Boolean);
   return <span key={key} className={tokenClass}>{children}</span>;
 }
 

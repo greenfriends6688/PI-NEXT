@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { formatUpdatedTime } from "@/lib/i18n/format";
 import { isProviderUsageId } from "@/lib/provider-usage-ids";
@@ -38,6 +39,7 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
   const [refreshDone, setRefreshDone] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { locale, t } = useI18n();
+  const mobile = useIsMobile();
 
   useEffect(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -89,13 +91,97 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
 
   const report = snapshot?.status === "ready" ? snapshot.report : undefined;
 
+  /*
+   * fork:v5-landing Wave N1 · M-09 帧 D ——
+   * 上一轮登记的缺件（“pwa/system.css 里没有 m-bar / m-statgrid 的等价物”）**不成立**：
+   * `.m-card` / `.m-card-head` / `.m-card-body` / `.m-statgrid` / `.m-stat` / `.m-bar`
+   * 六件都在库里（`design/v5/pwa/system.css` §统计格 + §通用卡体），且画板帧 D 给了
+   * 它们的用法：配额行 = `.m-setrow-body`（名字 → `.m-bar` → 一行口径），
+   * 指标格 = `.m-statgrid` › `.m-stat`。请求 / localStorage 缓存 / 百分比口径一律不动。
+   */
+  if (mobile) {
+    return (
+      <div className="m-card">
+        <div className="m-card-head">
+          <i data-ico="sigma" data-size="15" aria-hidden="true" />
+          {t("providerUsage.usage")}
+          <span className="m-grow" aria-hidden="true" />
+          {report && (
+            <span className="m-t-xs m-t-faint">
+              {t("providerUsage.updated", { time: formatUpdatedTime(report.capturedAt, locale) })}
+            </span>
+          )}
+          <button
+            type="button"
+            className="m-btn sm"
+            onClick={query}
+            disabled={!enabled || querying}
+            title={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
+            aria-label={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
+            aria-busy={querying || undefined}
+          >
+            {querying ? (
+              <span className="m-run" aria-hidden="true">
+                <i data-ico="refresh-cw" data-size="13"></i>
+              </span>
+            ) : (
+              <i data-ico={refreshDone ? "check" : "refresh-cw"} data-size="13" aria-hidden="true"></i>
+            )}
+            {t("i18n.refresh")}
+          </button>
+        </div>
+        <div className="m-card-body">
+          {!report && !error && <span className="m-t-xs m-t-faint">{t("providerUsage.notQueried")}</span>}
+          {error && (
+            <div className="m-banner">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+              <span>{error}</span>
+            </div>
+          )}
+          {report && (
+            <>
+              {report.buckets.map((bucket) => {
+                const percent = bucketPercent(bucket);
+                const label = bucket.groupLabel ? `${bucket.groupLabel} / ${bucket.label}` : bucket.label;
+                return (
+                  <div className="m-setrow-body" key={bucket.id}>
+                    <span className="m-setrow-t">{label}</span>
+                    {percent !== null && (
+                      <span className="m-bar">
+                        <i style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
+                      </span>
+                    )}
+                    <span className="m-setrow-s">
+                      {[
+                        formatBucket(bucket, t("providerUsage.available")),
+                        percent !== null ? `${Math.round(percent)}%` : null,
+                      ].filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                );
+              })}
+              {report.metrics.length > 0 && (
+                <div className="m-statgrid">
+                  {report.metrics.map((metric) => (
+                    <div key={metric.id} className="m-stat">
+                      <span className="m-t-xs m-t-faint">{metric.label}</span>
+                      <div className="m-t-lg m-t-b">{formatMetric(metric)}</div>
+                      <span className="m-t-xs m-t-faint">{metric.unit ?? "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   /* fork:v5-landing —— 画板 D-08 帧 A「配额」：`d-set-sec` 分节 + 逐条 `.d-bar` 进度行，
      指标走 `.d-statgrid > .d-stat`，数值淡入用 `d-num`（命中时重挂载触发一次）。
      数据 / 请求 / localStorage 缓存逻辑一概不动。
-     fork:v5-landing Wave B —— 本块**窄屏不发 `m-*`**：pwa/system.css 里没有
-     `m-bar` / `m-statgrid` 的等价物（进度条与四张小卡都没画手机形态），而这一轮
-     不许新造 `m-*` 类。与其自绘不如沿用 D-08 的 `d-*`（它是真实存在的一类，
-     在 `m-cardgroup` 里渲染也不破版）。缺口登记在交付报告里，等设计侧补帧。 */
+     fork:v5-landing Wave N1 —— 窄屏那一支已按 M-09 帧 D 落地成 `m-*`（见上）。 */
   return (
     <section className="d-set-sec">
       <div className="d-row">

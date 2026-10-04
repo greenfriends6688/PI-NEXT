@@ -425,6 +425,29 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
             </div>
           )}
 
+          {/* fork:v5-wave-n1 · 画板 D-26b 帧 A「未提交」面板的第二段：
+              <div class="d-empty compact">
+                <div class="d-empty-ico"><i data-ico="folder-search" data-size="20"></i></div>
+                <div class="d-empty-t">选择前请先打开此路径</div>
+                <div class="d-empty-s">…不可点的按钮必须说清为什么…</div>
+              </div>
+              类名 / 嵌套 / 图标照原文，`.d-empty-t` 用**既有** key
+              `directoryPicker.openBeforeSelecting`（值就是画板那一行）。
+              两处有意的偏差，都记在这里：
+              ① `.d-empty-s` 那句是**规格解释**而不是产品状态，且本波不许新增
+                 i18n key，所以这一段留空（需新 key：`directoryPicker.openBeforeSelectingWhy`）；
+              ② 画板在该面板里用这块空态**替换**了目录列表，产品保留列表 ——
+                 路径没回车时用户仍要能点别的目录去「转到」，删掉列表是减功能。
+              横幅与空态都保留：横幅说「出了什么事」，空态说「现在能做什么」。 */}
+          {hasUncommittedPath && (
+            <div className="d-empty compact">
+              <div className="d-empty-ico">
+                <i data-ico="folder-search" data-size="20" aria-hidden="true" />
+              </div>
+              <div className="d-empty-t">{t("directoryPicker.openBeforeSelecting")}</div>
+            </div>
+          )}
+
           <div className="directory-picker-list d-tree" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             {loading ? (
               <div className="d-trow l1 d-t-dim" role="status">{t("directoryPicker.loadingDirectories")}</div>

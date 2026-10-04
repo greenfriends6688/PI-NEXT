@@ -1296,7 +1296,11 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
 
   return (
     /* fork:v5-landing —— 思考块 = 画板 D-03d 帧 A 的 `.d-think`：surface 底 + 圆角，
-       summary 行挂图标与预览，正文挂 `.d-think-body`，时长走 `.d-think-timer`。 */
+       summary 行挂图标与预览，正文挂 `.d-think-body`，时长走 `.d-think-timer`。
+       fork:v5-landing 窄屏 —— PWA 板只画了**四态图案**（`.m-think-row` 宿主 +
+       `.m-think-dots/stars/comet`，见 M-11 帧 E），没画可折叠的思考卡（底/计时器/正文），
+       所以窄屏沿用 d-think 的卡形，只让**图案**走 ThinkingIcon 的 m-* 分支 ——
+       不为没有画板依据的部位造类（铁律二）。 */
     <div className="d-think">
       <button
         type="button"
@@ -1386,9 +1390,20 @@ function ToolCallIcon({ toolName }: { toolName: string }) {
   return <i data-ico="square-terminal" data-size="12"></i>;
 }
 
+/** fork:v5-wave-n1 —— 终端卡的尾部信息（画板 D-03d 帧 D 的 `.d-terminfo`）。
+ *  只有**用户自己敲的命令**（`BashExecutionMessage`）拿得到退出码与截断位；
+ *  agent 的工具调用没有这两个字段，所以不传，卡体形态不变。 */
+export interface TerminalCardInfo {
+  /** 完整命令行（卡头那格是摘要，板上的 `$` 行给的是原样命令）。 */
+  command: string;
+  exitCode?: number;
+  cancelled?: boolean;
+  truncated?: boolean;
+}
+
 /** Exported for `components/ProcessGroup.tsx`, which reuses the exact same
  *  tool-call surface so the grouped and flat renderers cannot drift apart. */
-export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSession, expanded: controlledExpanded, onToggle, reveal }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number; onOpenFile?: (filePath: string) => void; onOpenSession?: (sessionId: string) => void; expanded?: boolean; onToggle?: () => void; /** fork:zc-02 — 被查找/搜索命中时强制展开（不改用户的展开集合）。 */ reveal?: boolean }) {
+export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSession, expanded: controlledExpanded, onToggle, reveal, terminal }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number; onOpenFile?: (filePath: string) => void; onOpenSession?: (sessionId: string) => void; expanded?: boolean; onToggle?: () => void; /** fork:zc-02 — 被查找/搜索命中时强制展开（不改用户的展开集合）。 */ reveal?: boolean; /** 终端卡尾（`.d-terminfo` / M-02 的 `.m-code-head` 右格）；默认 undefined = 普通工具卡。 */ terminal?: TerminalCardInfo }) {
   const { t } = useI18n();
   const [localExpanded, setLocalExpanded] = useState(false);
   const isControlled = controlledExpanded !== undefined && onToggle !== undefined;
@@ -1628,11 +1643,12 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
                 <PairedDiffResult
                   diff={resultDiff}
                 />
-              ) : (!resultIsEmpty || resultImages.length === 0) && (
+              ) : (!resultIsEmpty || resultImages.length === 0 || terminal) && (
                 <PairedResult
                   text={resultText ?? ""}
                   isEmpty={resultIsEmpty}
                   isError={isError}
+                  terminal={terminal}
                 />
               )
             )}
@@ -1677,10 +1693,15 @@ function SplitPatchView({ text }: { text: string }) {
   return <SplitFilesView files={files} />;
 }
 
-/* fork:v5-landing —— diff 用画板 D-03d 帧 C 的三件套：
-   `.d-diff-head`（文件头）/ `.d-diff`（等宽正文）/ `.d-diff-line(.add/.del)`。
+/* fork:v5-landing —— diff 用画板 D-03d 帧 C 的两套形态：
+   「分栏」= `.d-diff-split` › 左栏（`.d-diff-head` + `.d-diff`）› `.d-sep-v` › 右栏（同构）；
+   「行内」= `.d-diff` + `.d-diff-line(.add/.del)`（PatchTextView 用这一套）。
+   本组件渲染的就是画板那一段分栏原文：**两栏各自一块 `.d-diff`，各自横滚**
+   （system.css 对 `.d-diff-split` 的注释原文就是「表头 + 两侧各自滚动」），
+   行对（left/right cell）仍是产品语义 —— 解析器把左右配好对，两栏按同一行序摆出来，
+   视觉与原来那一块双列网格逐行交错一致。
    **词级高亮不动**：fork:zc-07 的 `buildIntralineSegments` + `--diff-*` 配色保持自有实现
-   （DIVERGENCE 已登记等价）。左右两栏的行对结构（left/right cell）是产品语义，也保持不变。 */
+   （DIVERGENCE 已登记等价）。 */
 function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
   const { t } = useI18n();
   const showFileHeaders = files.length > 1;
@@ -1692,36 +1713,59 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
   })), [files]);
 
   return (
-    <div className="d-diff" style={{ maxHeight: "var(--content-cap-lg)", overflowY: "auto", overflowX: "hidden" }}>
+    <div>
       {files.map((file, fileIndex) => (
         <div
           key={fileIndex}
-          style={fileIndex === 0 ? undefined : { borderTop: "1px solid var(--n-border-subtle)" }}
+          className="d-diff-split"
+          /* 画板那条 `grid-template-columns: 1fr 1fr` 只当得下两列，而这一段是
+             **三件**：左栏 / `.d-sep-v` 竖线 / 右栏 —— 照抄会让右栏掉到第二行。
+             列宽是几何（不是设计值），所以在这里补成 `1fr auto 1fr`：竖线那列按
+             `.d-sep-v` 自己的 1px + 边距 auto 收，其余两栏仍然平分。 */
+          style={{ gridTemplateColumns: "1fr auto 1fr" }}
         >
-          {showFileHeaders && (
-            <div
-              className="d-diff-head"
-              style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--surface-panel)" }}
-            >
-              <SplitDiffHeader title={file.oldPath || t("i18n.before")} side="left" />
-              <SplitDiffHeader title={file.newPath || t("i18n.after")} side="right" />
+          <div style={{ minWidth: 0 }}>
+            {showFileHeaders && (
+              <div
+                className="d-diff-head"
+                style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--nx-panel)" }}
+              >
+                <SplitDiffHeader title={file.oldPath || t("i18n.before")} side="left" />
+              </div>
+            )}
+            <div className="d-diff" style={{ maxHeight: "var(--content-cap-lg)", overflowY: "auto" }}>
+              {file.rows.map((row, rowIndex) => row.type !== "hunk" && (
+                <SplitDiffCellView
+                  key={rowIndex}
+                  cell={row.left}
+                  intraline={intraline[fileIndex]?.[rowIndex] === undefined
+                    ? undefined
+                    : intraline[fileIndex][rowIndex]?.left ?? null}
+                />
+              ))}
             </div>
-          )}
-
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
-            {file.rows.map((row, rowIndex) => {
-              if (row.type === "hunk") {
-                return null;
-              }
-
-              const pair = intraline[fileIndex]?.[rowIndex];
-              return (
-                <div key={rowIndex} style={{ display: "contents" }}>
-                  <SplitDiffCellView cell={row.left} side="left" intraline={pair === undefined ? undefined : pair?.left ?? null} />
-                  <SplitDiffCellView cell={row.right} side="right" intraline={pair === undefined ? undefined : pair?.right ?? null} />
-                </div>
-              );
-            })}
+          </div>
+          <div className="d-sep-v" style={{ margin: 0 }}></div>
+          <div style={{ minWidth: 0 }}>
+            {showFileHeaders && (
+              <div
+                className="d-diff-head"
+                style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--nx-panel)" }}
+              >
+                <SplitDiffHeader title={file.newPath || t("i18n.after")} side="right" />
+              </div>
+            )}
+            <div className="d-diff" style={{ maxHeight: "var(--content-cap-lg)", overflowY: "auto" }}>
+              {file.rows.map((row, rowIndex) => row.type !== "hunk" && (
+                <SplitDiffCellView
+                  key={rowIndex}
+                  cell={row.right}
+                  intraline={intraline[fileIndex]?.[rowIndex] === undefined
+                    ? undefined
+                    : intraline[fileIndex][rowIndex]?.right ?? null}
+                />
+              ))}
+            </div>
           </div>
         </div>
       ))}
@@ -1730,22 +1774,18 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
 }
 
 function SplitDiffHeader({ title, side }: { title: string; side: "left" | "right" }) {
+  /* 画板 D-03d 帧 C 分栏：表头是 `<i data-ico="chevron-left|right">` + 路径，
+     一栏一枚（分栏态的中缝由 `.d-sep-v` 承担，头上不再画线）。 */
   return (
-    <span
-      className="d-grow"
-      title={title}
-      style={side === "left"
-        ? { borderRight: "1px solid var(--n-border-subtle)", paddingRight: "var(--s2)" }
-        : { paddingLeft: "var(--s2)" }}
-    >
+    <span className="d-grow" title={title}>
+      <i data-ico={side === "left" ? "chevron-left" : "chevron-right"} data-size="12" aria-hidden="true"></i>
       {title}
     </span>
   );
 }
 
-function SplitDiffCellView({ cell, side, intraline }: {
+function SplitDiffCellView({ cell, intraline }: {
   cell: SplitDiffCell;
-  side: "left" | "right";
   /** fork:zc-07 — undefined=不做行内标记；null=整行回退；数组=具体字符区间。 */
   intraline?: IntralineSpan[] | null;
 }) {
@@ -1759,7 +1799,6 @@ function SplitDiffCellView({ cell, side, intraline }: {
   return (
     <div
       className={`d-diff-line${cell.type === "added" ? " add" : cell.type === "removed" ? " del" : ""}`}
-      style={side === "left" ? { borderRight: "1px solid var(--n-border-subtle)" } : undefined}
     >
       <span className="no">{cell.lineNo ?? ""}</span>
       <span className="sign">{cell.type === "added" ? "+" : cell.type === "removed" ? "−" : ""}</span>
@@ -1907,23 +1946,74 @@ function ResultImages({ images }: { images: ImageContent[] }) {
   );
 }
 
-function PairedResult({ text, isEmpty, isError }: {
+/* fork:v5-wave-n1 —— 工具输出体 = 画板 D-03 帧 B / D-03d 帧 D 那一段：
+   `.d-tool-body` › `.d-term`（`min-height:0` 是板上原话）›
+     `<div><span class="d-term-prompt">$</span> 命令</div>` › 输出正文 › `.d-terminfo`。
+   只有终端卡（`terminal`）才多出 `$` 行与尾部那条信息；普通工具调用保持原来那块
+   `.d-term.plain`，不多不少。
+   fork:v5-wave-b —— 窄屏抄 M-02 帧 B：`.m-code` › `.m-code-head`（图标 + `.m-grow` 标题 +
+   右边一枚 `.m-term-ok`）› `.m-code-scroll` › `.m-code-body`；失败档按 M-02 帧 C 只给正文
+   上 `.m-err`，不给整卡着色。 */
+function PairedResult({ text, isEmpty, isError, terminal }: {
   text: string;
   isEmpty: boolean;
   isError: boolean;
+  /** 终端卡尾；undefined = 普通工具输出。 */
+  terminal?: TerminalCardInfo;
 }) {
   const { t } = useI18n();
   // fork:v5-wave-b —— 窄屏：M-02 帧 B 的工具输出 = `.m-code`（头 + 横滚体），
   // 失败档按画板 M-02 帧 C 只给正文上 `.m-err`，不给整卡着色。
   const isPwa = usePwaSkin();
+  // 失败档的着色只在对应形态里给（`.m-err` / `.d-err` 分别是两套库里的类，
+  // 交叉挂上去在另一形态里等于什么也没挂）。
+  const content = isEmpty ? t("i18n.noOutput") : text;
+  const body = isError
+    ? (isPwa ? <span className="m-err">{content}</span> : <span className="d-err">{content}</span>)
+    : content;
   if (isPwa) {
     return (
       /* M-02 帧 A 里那块 bash 输出就是不带头的 `.m-code`：标题行在 `.m-tool-head`
-         上（永远可见），输出在下面横滚。 */
+         上（永远可见），输出在下面横滚。终端卡多一枚头（板上是「测试输出 / 42 / 42」
+         那一行）：左边 `.m-grow` 给命令，右边那枚 `.m-term-ok` 只在退出码为 0 时出现。 */
       <div className="m-code">
+        {terminal && (
+          <div className="m-code-head">
+            <i data-ico="terminal" data-size="12" aria-hidden="true"></i>
+            <span className="m-grow m-mono">{terminal.command}</span>
+            {terminal.exitCode === 0 && <span className="m-term-ok">exit 0</span>}
+          </div>
+        )}
         <div className="m-code-scroll">
           <div className="m-code-body">
-            {isError ? <span className="m-err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
+            {terminal && (
+              <div><span className="m-term-prompt">$</span> {terminal.command}</div>
+            )}
+            {body}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (terminal) {
+    return (
+      <div className="d-tool-body">
+        <div className="d-term" style={{ minHeight: 0 }}>
+          <div><span className="d-term-prompt">$</span> {terminal.command}</div>
+          <div style={{ maxHeight: "var(--content-cap-md)", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {body}
+          </div>
+          {/* 板上原文是「退出码 0 / 1.8s / 1 行」；本地跑的命令没有时长，
+              只给拿得到的：退出码、行数、截断位。两条英文短串待补 i18n
+              （`bash.exitCode` / `bash.outputLines` 在 lib/i18n，不在本波文件名单里）。 */}
+          <div className="d-terminfo">
+            {terminal.exitCode !== undefined && (
+              <span className="d-mono" title={t("terminal.exitCode", { code: terminal.exitCode })}>
+                exit {terminal.exitCode}
+              </span>
+            )}
+            <span className="d-mono">{countOutputLines(text)} lines</span>
+            {terminal.truncated && <span>truncated</span>}
           </div>
         </div>
       </div>
@@ -1938,14 +2028,28 @@ function PairedResult({ text, isEmpty, isError }: {
         className={isEmpty ? "d-term plain d-t-faint" : "d-term plain"}
         style={{ maxHeight: "var(--content-cap-md)", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
       >
-        {isError ? <span className="d-err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
+        {body}
       </div>
     </div>
   );
 }
 
+/** 终端卡尾那格「几行」：只数不解析，纯展示（板上写的是「1 行」那一格）。 */
+export function countOutputLines(text: string): number {
+  if (!text) return 0;
+  const lines = text.replace(/\r/g, "").split("\n");
+  if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+  return lines.length;
+}
+
 function CompactionMessageView({ message }: { message: CustomMessage }) {
   const { t } = useI18n();
+  // fork:v5-wave-n1 —— 窄屏（画板 M-09 帧 D / M-11 帧 D 的通用卡 `.m-card`）：
+  // 「一块有标题有正文的东西」在 PWA 形态就是 `.m-card` + `.m-card-head` + `.m-card-body`
+  // 三件（desktop 的 `.d-card` 家族被 641px 媒体查询锁在宽屏，窄屏上是零样式）。
+  // 手机上不再写内联字号/行高：字阶由 `.m-*` 自己给，跟着 `--chat-font-size-offset`
+  // 走的桌面字号不该被带进 PWA。
+  const isPwa = usePwaSkin();
   // fork:pr15-compaction — 压缩卡默认收起：折叠态只留一行概览 + caret，展开后
   // 正文限高滚动。文件清单（CompactionFileMetadata）原样保留在展开区里。
   const [expanded, setExpanded] = useState(false);
@@ -1960,13 +2064,13 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
   return (
     <div style={{ marginBottom: "var(--s4)" }}>
       {/* fork:v5-landing —— 压缩卡用画板 D-03c 的 `.d-card`（发丝边框 / 面板底）。 */}
-      <div className="d-card" style={{ overflow: "hidden" }}>
+      <div className={isPwa ? "m-card" : "d-card"} style={{ overflow: "hidden" }}>
         {/* fork:v5-landing —— 卡头用 `.d-card-head`，展开区用 `.d-card-body`。 */}
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
           aria-expanded={expanded}
-          className="d-card-head"
+          className={isPwa ? "m-card-head" : "d-card-head"}
           style={{ width: "100%", border: 0, background: "none", font: "inherit", textAlign: "left", cursor: "pointer" }}
         >
           <i
@@ -1974,12 +2078,12 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
             data-size="13"
             style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--nx-dur-1) var(--nx-ease)" }}
           ></i>
-          <span className="d-mono">compaction</span>
+          <span className={isPwa ? "m-mono" : "d-mono"}>compaction</span>
           <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t("i18n.conversationCompacted")}
           </span>
-          <span className="d-grow" />
-          {time && <span className="d-t-faint">{time}</span>}
+          <span className={isPwa ? "m-grow" : "d-grow"} />
+          {time && <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{time}</span>}
         </button>
 
         {/* fork:zm-01 — 常驻 grid wrapper（0fr↔1fr）；正文在收起过渡结束后卸载。 */}
@@ -1990,17 +2094,19 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
         >
           {bodyMounted && (
             <div className="fork-collapse-body">
-              <div className="d-card-body" style={{ maxHeight: 280, overflowY: "auto" }}>
-                <div className="d-t-b" style={{ fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", lineHeight: 1.35 }}>
+              <div className={isPwa ? "m-card-body" : "d-card-body"} style={{ maxHeight: 280, overflowY: "auto" }}>
+                <div className={isPwa ? "m-t-b" : "d-t-b"} style={isPwa
+                  ? undefined
+                  : { fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", lineHeight: 1.35 }}>
                    {t("i18n.conversationCompacted")}
                 </div>
-                <div style={{ marginBottom: "var(--s2)", fontSize: "calc(13px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
+                <div style={{ marginBottom: "var(--s2)", ...(isPwa ? {} : { fontSize: "calc(13px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }) }}>
                    {t("i18n.compactionDescription")}
                 </div>
                 {parsedSummary.body ? (
                   <MarkdownBody className="markdown-compaction-message">{parsedSummary.body}</MarkdownBody>
                 ) : (
-                   <span className="d-t-faint">{t("i18n.noSummary")}</span>
+                   <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{t("i18n.noSummary")}</span>
                 )}
                 <CompactionFileMetadata readFiles={parsedSummary.readFiles} modifiedFiles={parsedSummary.modifiedFiles} />
               </div>
@@ -2042,6 +2148,9 @@ function fileExtension(file: string): string {
 }
 
 function CompactionFileList({ title, files }: { title: string; files: string[] }) {
+  /* 这一段**不加 m-* 分支**：PWA 库里没有「横向一行」这个原语（`.m-row` 是设置行：
+     列向 / 通宽 / 带边框），`.m-col` 未定义，D-03 帧 C 那一段也只有 Web 画板。
+     不拿形状不符的类硬套，缺件已登记。 */
   return (
     <div className="compaction-file-section">
       <div className="compaction-file-title">{title}</div>
@@ -2060,6 +2169,10 @@ function CompactionFileList({ title, files }: { title: string; files: string[] }
 
 function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessage; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void }) {
   const { t } = useI18n();
+  // fork:v5-wave-n1 —— 窄屏（画板 M-09 帧 D / M-11 帧 D 的通用卡 `.m-card`）：
+  // 扩展自定义消息卡在 PWA 形态就是 `.m-card` + `.m-card-head` + `.m-card-body`
+  // 三件；`.d-card` 家族被 641px 媒体查询锁在宽屏，窄屏上原本是零样式。
+  const isPwa = usePwaSkin();
   const isHiddenDisplay = message.display === false;
   const [contentExpanded, setContentExpanded] = useState(!isHiddenDisplay);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
@@ -2087,12 +2200,12 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
        隐藏消息的「点标题看内容」预览行 = 画板 D-03b C 的 `.d-btn.sm` + chevron。
        details JSON 走 `.d-card-body` + `.d-term.plain`。 */
     <div style={{ marginBottom: "var(--s4)" }}>
-      <div className="d-card">
-        <div className="d-card-head">
-          <span className="d-mono">{title}</span>
-          {isHiddenDisplay && <span className="d-t-faint">{t("i18n.hiddenExtensionMessage")}</span>}
-          <span className="d-grow" />
-          {time && <span className="d-t-faint">{time}</span>}
+      <div className={isPwa ? "m-card" : "d-card"}>
+        <div className={isPwa ? "m-card-head" : "d-card-head"}>
+          <span className={isPwa ? "m-mono" : "d-mono"}>{title}</span>
+          {isHiddenDisplay && <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{t("i18n.hiddenExtensionMessage")}</span>}
+          <span className={isPwa ? "m-grow" : "d-grow"} />
+          {time && <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{time}</span>}
         </div>
 
         {/* fork:zm-01 — 正文区的常驻 grid；折叠态由下面的预览按钮承担，正文在收起
@@ -2104,14 +2217,14 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
         >
           {contentMounted && (
             <div className="fork-collapse-body">
-              <div className="d-card-body">
+              <div className={isPwa ? "m-card-body" : "d-card-body"}>
                 {images.length > 0 && (
                   <div style={{ display: "flex", gap: "var(--nx-sp-2)", flexWrap: "wrap", marginBottom: text ? "var(--nx-sp-2)" : 0 }}>
                     {images.map((img, i) => {
                       const src = imageSource(img);
                       if (!src) return null;
                       return (
-                        <div className="d-placeholder" key={i} style={{ padding: 0, display: "block" }}>
+                        <div className={isPwa ? "m-placeholder" : "d-placeholder"} key={i} style={{ padding: 0, display: "block" }}>
                           <ImagePreview src={src}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -2127,21 +2240,21 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
                 )}
                 {text
                   ? <MarkdownBody className="markdown-custom-message" cwd={cwd} onOpenFile={onOpenFile}>{text}</MarkdownBody>
-                  : <span className="d-t-faint">{t("i18n.noMessage")}</span>}
+                  : <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{t("i18n.noMessage")}</span>}
               </div>
             </div>
           )}
         </div>
         {!contentExpanded && !contentMounted && (
-          <div className="d-card-body">
-            <button type="button" onClick={() => setContentExpanded(true)} className="d-btn sm">
+          <div className={isPwa ? "m-card-body" : "d-card-body"}>
+            <button type="button" onClick={() => setContentExpanded(true)} className={isPwa ? "m-btn sm" : "d-btn sm"}>
               <i data-ico="chevron-down" data-size="13"></i>
               {text ? previewText(text) : t("i18n.showExtensionMessage")}
             </button>
           </div>
         )}
 
-        <div className="d-card-body" style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
+        <div className={isPwa ? "m-card-body" : "d-card-body"} style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
           {text || detailsText ? (
             /* fork:fix-clipboard —— 失败档：按钮挂 `.d-btn.sm.danger`，文案由下面
                那条 role=status 提示条承担。 */
@@ -2149,13 +2262,13 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
               type="button"
               onClick={copyContent}
               title={failed ? t("chat.todosCopyFailed") : undefined}
-              className={failed ? "d-btn sm danger" : "d-btn sm"}
+              className={isPwa ? (failed ? "m-btn sm danger" : "m-btn sm") : (failed ? "d-btn sm danger" : "d-btn sm")}
             >
               <i data-ico={copied ? "check" : "copy"} data-size="13"></i>
               {copied ? t("i18n.copied") : t("i18n.copy")}
             </button>
           ) : null}
-          <span className="d-grow" />
+          <span className={isPwa ? "m-grow" : "d-grow"} />
           {(hasDetails || isHiddenDisplay) && (
             <button
               type="button"
@@ -2163,7 +2276,7 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
                 if (isHiddenDisplay) setContentExpanded((v) => !v);
                 else setDetailsExpanded((v) => !v);
               }}
-              className="d-btn sm"
+              className={isPwa ? "m-btn sm" : "d-btn sm"}
             >
               {isHiddenDisplay
                  ? (contentExpanded ? t("i18n.collapse") : t("i18n.expand"))
@@ -2174,7 +2287,7 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
 
         {/* fork:fix-clipboard —— 复制失败的提示条：挂在卡脚正下方的一段 `.d-card-body`。 */}
         {failed && (
-          <div className="d-card-body">
+          <div className={isPwa ? "m-card-body" : "d-card-body"}>
             <CopyFailedNotice />
           </div>
         )}
@@ -2187,10 +2300,18 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
         >
           {detailsMounted && (
             <div className="fork-collapse-body">
-              <div className="d-card-body">
+              <div className={isPwa ? "m-card-body" : "d-card-body"}>
+                {isPwa ? (
+                  <div className="m-code">
+                    <div className="m-code-scroll">
+                      <div className="m-code-body">{detailsText}</div>
+                    </div>
+                  </div>
+                ) : (
                 <div className="d-term plain" style={{ maxHeight: 360, overflow: "auto" }}>
                   {detailsText}
                 </div>
+                )}
               </div>
             </div>
           )}
@@ -2418,7 +2539,15 @@ function BashExecutionView({ message, sessionId }: { message: BashExecutionMessa
 
   return (
     <div style={{ margin: "var(--space-row) 0" }}>
-      <ToolCallBlock block={block} result={result} />
+      {/* fork:v5-wave-n1 —— 看板 D-03d 帧 D 那一帧「嵌入式终端卡」：卡体还是同一张
+          `.d-tool`，只是卡体里多了 `$ 命令` 一行与尾部那条 `.d-terminfo`（退出码 / 行数 /
+          截断）。数据全来自这条 `BashExecutionMessage`，不解析输出、不改任何判定。 */}
+      <ToolCallBlock block={block} result={result} terminal={{
+        command: message.command,
+        exitCode: message.exitCode,
+        cancelled: message.cancelled,
+        truncated: message.truncated,
+      }} />
       {/* fork:v5-landing —— 截断提示行用画板的 `.d-btn.sm`（复制 / 下载这类
           小动作的统一形态）+ `.d-t-faint` 报错文案。i18n 文案与行为照旧。
           fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-btn sm` + `.m-t-xs.m-t-faint`。 */}

@@ -73,8 +73,12 @@ test("the top bar action buttons take their size from the board classes", () => 
   assert.equal(source.match(/className="d-iconbtn"/g)?.length, 9);
   assert.match(source, /className=\{isMobile \? "m-iconbtn" : "d-iconbtn"\}/);
   // 手机顶栏的两枚（抽屉入口 + 右栏面板开关）现在都是 `.m-top-btn`。
+  // fork:v5-wave-b —— 右栏面板钮后来又收了一步：它两端都在（手机与桌面同一个按钮），
+  // 形态由内联几何的 `mobile ? undefined : {...}` 分支处理，不再用三元类名。
+  // 所以断言改成「两枚入口钮都在、手机那一套几何确实被跳过」——不变的仍是那件事。
   assert.match(source, /className="m-top-btn"/);
-  assert.match(source, /className=\{mobile \? "m-top-btn" : "desktop-secondary-workspace-toggle"\}/);
+  assert.match(source, /className="desktop-secondary-workspace-toggle"/);
+  assert.match(source, /style=\{mobile \? undefined : \{/);
   assert.doesNotMatch(source, /className=\{mobile \? "pw-touch"/);
 });
 

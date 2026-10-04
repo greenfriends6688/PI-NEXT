@@ -861,9 +861,23 @@ export function PwRadio<T extends string>({
 }
 
 /**
- * 下拉：D-07 的 `.d-select` 与 M-05 的 `.m-select` 都是「静态盒 + chevron」，
- * 产品是原生 `<select>` 挂同一个类（原生外观由接线层 `appearance: none` 归零，
- * 登记为设计侧缺口）。
+ * 下拉。桌面 = D-07 的 `<button class="d-select">文案 + <i data-ico="chevron-down">`
+ * （静态盒）；产品是原生 `<select>` 挂同一个类（UA 归零在接线层做，登记为设计侧缺口）。
+ *
+ * fork:v5-landing Wave N1（M-05 帧 B）—— **窄屏这一项不是 `.m-select`，是
+ * `.m-pickselect`**：画板把两者分了工（`design/v5/pwa/system.css` 里那段注释是
+ * 判据原文）——
+ *   · `.m-select` = **静态盒**，点它开的是自绘面板（能力浮层里的模型 / 思考强度）；
+ *   · `.m-pickselect` = **原生 `<select>` 的壳**（壳 + 裸 `<select>` + 右侧
+ *     chevron），下拉由系统接管。
+ * 手机上自绘下拉等于改行为（无障碍朗读、选取面板、滚动惯性都是系统资产），所以设置
+ * 里「从若干值里选一个」一律走后者。原实现窄屏发的是 `<select class="m-select">`，
+ * 那是静态盒的类名，用在原生控件上 —— 已按画板改成壳结构，**行为零变化**（仍然是
+ * 原生 `<select>`，appearance 由 `.m-pickselect > select` 那条规则归零）。
+ *
+ * `m-grow` 是为了在 `div.m-setrow`（44px 触控行）里仍占满右半格：壳是 flex 容器，
+ * 不给 `flex: 1` 会缩成内容宽，而旧实现靠 `.m-select` 的 `width: 100%` 占满。
+ * 类是库里的（`base.css`），与同文件 `PwSearch` 的 `m-searchfield m-grow` 同款。
  */
 export function PwSelectBox({
   value,
@@ -879,11 +893,23 @@ export function PwSelectBox({
   onChange: (next: string) => void;
 }) {
   const isMobile = useIsMobile();
+  const items = options.map((option) => (
+    <option key={option.value} value={option.value}>{option.label}</option>
+  ));
+  if (isMobile) {
+    // M-05 帧 B 的原生下拉：壳 `.m-pickselect` + 壳内裸 `<select>` + 右侧 chevron。
+    return (
+      <label className="m-pickselect m-grow">
+        <select value={value} aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+          {items}
+        </select>
+        <i data-ico="chevron-down" data-size="15" aria-hidden="true" />
+      </label>
+    );
+  }
   return (
-    <select className={isMobile ? "m-select" : "d-select"} value={value} aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>{option.label}</option>
-      ))}
+    <select className="d-select" value={value} aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+      {items}
     </select>
   );
 }

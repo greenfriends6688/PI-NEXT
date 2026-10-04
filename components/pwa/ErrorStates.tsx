@@ -18,6 +18,10 @@ import type { CSSProperties } from "react";
  * 触控下限（M-11 帧 C）：`.m-btn.sm` 的 `min-height` 是 `--nx-ctl-sm`（36px），
  * 低于硬下限，所以每个按钮都补 `.m-touch-44` —— 规格与实现读同一批类。
  * 这里只做 UA 归零 / 触控下限 / 尺寸，没有第二套视觉值。
+ *
+ * fork:v5-wave-n1 · 同一张帧 C 还有 **48 档**（`.m-touch-48` = `--nx-ctl-lg`，
+ * 规格表里那一档写的是「一级行动钮」）—— 重试就是这一屏唯一的一级行动钮，
+ * 所以它比次要动作高一档。三个档都只挂类名，数值仍在库里的令牌上。
  */
 
 export interface PwaErrorAction {
@@ -102,10 +106,12 @@ export function PwaPageError({
 
 function PwaErrorButton({ action }: { action: PwaErrorAction }) {
   const variant = action.variant === "primary" ? "primary" : action.variant === "ghost" ? "ghost" : "";
+  // M-11 帧 C：一级行动钮走 48 档（.m-touch-48），次要动作留在 44 硬下限。
+  const touch = action.variant === "primary" ? "m-touch-48" : "m-touch-44";
   return (
     <button
       type="button"
-      className={`m-btn sm m-touch-44${variant ? ` ${variant}` : ""}`}
+      className={`m-btn sm ${touch}${variant ? ` ${variant}` : ""}`}
       onClick={action.onClick}
       disabled={action.disabled}
     >

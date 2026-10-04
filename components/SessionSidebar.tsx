@@ -367,8 +367,14 @@ function PiWebTitle() {
       }}
     >
       {wordmark ? (
+        // fork:v5-landing-2026-10-04 —— 品牌字标照画板 D-01/D-02/D-02d 的
+        // `<img class="d-wordmark" src="…/wordmark.png" alt="PI NEXT">` 原样抄：
+        // 高 / 宽 / display / flex 收缩全部由 system.css 的 `.d-wordmark`
+        // （height:20px / width:auto / display:block / flex:0 0 auto）给，
+        // 这里不再内联第二份值（原来内联 height:10，让同一个尺寸有了两个来源，
+        // 整行也比画板矮一半）。
         // eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器
-        <img src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} style={{ display: "block", height: 10, width: "auto" }} />
+        <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} />
       ) : display}
     </button>
   );
@@ -719,6 +725,43 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     setSessionSearchOpen(true);
     requestAnimationFrame(() => searchInputRef.current?.focus());
   }, [searchRequestId]);
+  /* fork:v5-landing-2026-10-04 —— 搜索格本体（画板 D-02 帧 D / D-02d 帧 E 的
+     `.d-searchfield`，窄屏换 M-04 帧 B 的 `.m-searchfield`）。
+     input 只有这一份：两支共用同一个 ref / id / maxLength / autoComplete /
+     aria-label / placeholder / onChange / Esc 行为，所以抽成一个取类名的函数，
+     而不是把整段 JSX 复制两遍（复制 = 下一处改动漏一半）。清除钮的类名跟着
+     形态走（`d-iconbtn` / `m-iconbtn`），与画板两帧一致。 */
+  const sessionSearchField = (className: string) => (
+    <label className={className}>
+      <i data-ico="search" data-size={isMobile ? "14" : "13"}></i>
+      <input
+        id="session-search-input"
+        ref={searchInputRef}
+        type="search"
+        value={sessionSearchQuery}
+        maxLength={200}
+        autoComplete="off"
+        aria-label={t("sidebar.searchSessions")}
+        placeholder={t("sidebar.searchSessions")}
+        onChange={(event) => setSessionSearchQuery(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            closeSessionSearch();
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={closeSessionSearch}
+        title={t("sidebar.clearSearch")}
+        aria-label={t("sidebar.clearSearch")}
+        className={isMobile ? "m-iconbtn" : "d-iconbtn"}
+      >
+        <i data-ico="x" data-size="13"></i>
+      </button>
+    </label>
+  );
   const [sidebarPane, setSidebarPane] = useState<SidebarPane>(readStoredSidebarPane);
   const selectPane = (next: SidebarPane) => {
     setSidebarPane(next);
@@ -1880,6 +1923,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         >
           <i data-ico="square-pen" data-size="14"></i>
           <span className="d-grow">{t("sidebar.newTask")}</span>
+          {/* fork:v5-landing-2026-10-04 —— 画板 D-01 / D-02 / D-02d 的
+              `.d-side-nav > .d-row` 行尾都有一枚 `.d-kbd`（⌘N），产品此前漏了。
+              与窄屏那一支的 `.m-badge mute`（同一行、同一个 ⌘N）是同一件东西的
+              两种形态；文案是键盘记号本身，不走 i18n。 */}
+          <span className="d-kbd">⌘N</span>
         </button>
       </div>
       )}
@@ -1912,36 +1960,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           `.d-searchfield` 只出现在帧 D/E（搜索态）。台账 DIVERGENCE 38 写得很清楚：
           「默认收起、点搜索才展开并聚焦」——常显会让「默认」与「搜索中」在界面上
           不可分，还白占一行高度。所以这一格只在 `sessionSearchOpen` 时渲染。 */}
+      {/* fork:v5-landing-2026-10-04 —— 搜索格所在的**那一行**照画板 D-02 帧 D /
+          D-02d 帧 E 补上外层 `.d-side-nav`（`padding: 0 var(--nx-sp-2)`）。
+          原来产品用内联 `margin: 0 var(--nx-sp-2)` 顶替那个盒子 —— 间距值因此有了
+          第二个来源（铁律三）。窄屏那支换 `.m-searchfield`（自带 `margin: 0 14px 8px`），
+          所以外层只在桌面渲染。input 本体只有一份，两支共用同一个 ref / id / 事件。 */}
       {sessionSearchOpen && (
-        <label className={isMobile ? "m-searchfield" : "d-searchfield"} style={isMobile ? undefined : { margin: "0 var(--nx-sp-2)" }}>
-          <i data-ico="search" data-size={isMobile ? "14" : "13"}></i>
-          <input
-            id="session-search-input"
-            ref={searchInputRef}
-            type="search"
-            value={sessionSearchQuery}
-            maxLength={200}
-            autoComplete="off"
-            aria-label={t("sidebar.searchSessions")}
-            placeholder={t("sidebar.searchSessions")}
-            onChange={(event) => setSessionSearchQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
-                closeSessionSearch();
-              }
-            }}
-          />
-          <button
-            type="button"
-            onClick={closeSessionSearch}
-            title={t("sidebar.clearSearch")}
-            aria-label={t("sidebar.clearSearch")}
-            className={isMobile ? "m-iconbtn" : "d-iconbtn"}
-          >
-            <i data-ico="x" data-size="13"></i>
-          </button>
-        </label>
+        isMobile ? sessionSearchField("m-searchfield") : (
+          <div className="d-side-nav">{sessionSearchField("d-searchfield")}</div>
+        )
       )}
 
       {/* fork:v5-landing —— 列表区 = 画板 D-02 的 .d-side-scroll。

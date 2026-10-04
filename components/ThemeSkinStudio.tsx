@@ -30,6 +30,22 @@
  * 「焦点环」产品根本没有这个旋钮（`ThemeSkin` 无该字段、CSS 也不发对应变量）。把连续
  * 量换成两档开关会删掉中间档，加一个开关则要动 `lib/theme-skins.ts` + CSS（超出文件
  * 范围）。所以本轮不动，判给画板：帧 1 这一处是画板滞后于实现。
+ *
+ * fork:v5-skin-mode（本轮唯一补上的一处）—— 材质模式（浅色 / 深色）的**档位表**
+ * 进了 UI：`SKIN_MODE_VALUES`（`lib/theme-skins.ts`）原先在 `components/` 里
+ * **零引用**（只有 lib 自己的 `parseThemeSkin` 在用），工作室的「明暗预览」是手写
+ * `light` / `dark` 两个字面量的 —— 档位表与界面各一份。加第三档时解析认、调色板
+ * `SKIN_MODE_PALETTE` 也给值，只有选择器看不见。现在这个选择器的档位直接来自
+ * `SKIN_MODE_VALUES`（见 `SKIN_MODE_UI`），选值仍写进**已有的** `ThemeSkin.mode`
+ * （`{ mode }` patch），不新增皮肤名、不新增皮肤字段。
+ *
+ * 本轮**撤回**的两条误读（不再实现，理由登记在案）：
+ *   - 「圆角缩放 `1.0×`」：画板写的是倍率表述，产品用 `GEOMETRY_SLIDERS` 里
+ *     `radius`（px）滑块接同一个槽位 —— **已登记的表达差异，不改**。
+ *   - 「各面模式」：v5 画板里没有这一项（是从对齐清单误读出来的），不实现。
+ *
+ * D-07b 通用分节侧那处真缺口（「内置壁纸」画廊）在
+ * `components/WallpaperSettings.tsx`，接的是同一个 `BuiltinWallpaperPicker`。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -50,7 +66,7 @@ import {
 import { PwField, PwRadio, PwRange, PwSelectBox } from "./SettingsUi";
 import { BuiltinWallpaperPicker, builtinIdForWallpaperUrl } from "./BuiltinWallpaperPicker";
 import { paintingPath } from "@/lib/wallpaper-builtin";
-import { SKIN_MODE_PALETTE } from "@/lib/theme-skins";
+import { SKIN_MODE_PALETTE, SKIN_MODE_VALUES } from "@/lib/theme-skins";
 
 /** 滑块按画板 47 的分组落位：几何 / 不透明度与遮罩 / 壁纸（右列）。 */
 const GEOMETRY_SLIDERS: Array<{ key: keyof typeof SKIN_RANGES; labelKey: string; unit: string }> = [
@@ -72,6 +88,34 @@ const WALLPAPER_SLIDERS: Array<{ key: keyof typeof SKIN_RANGES; labelKey: string
   { key: "wallpaperScale", labelKey: "settings.skinWallpaperScale", unit: "%" },
   { key: "wallpaperDim", labelKey: "settings.skinWallpaperDim", unit: "%" },
 ];
+
+/* ---------------------------------------------------------------------------
+ * fork:v5-skin-mode —— 材质模式（浅色 / 深色）的**档位只有一个来源**。
+ *
+ * 画板 D-07 帧 C「明暗预览」那一行是 `.d-seg` 的两档（`sun` / `moon` 图标 + 文案），
+ * 产品那一行一直是对的；缺的是**档位表没有进界面**：`SKIN_MODE_VALUES` 只被
+ * `lib/theme-skins.ts` 自己的 `parseThemeSkin` 读过（`grep -rn SKIN_MODE_VALUES
+ * components/` 为空），界面这边手写 `light` / `dark` 两个字面量。后果不是今天，
+ * 是加第三档的那天：解析认、调色板 `SKIN_MODE_PALETTE` 也给值，只有选择器看不见
+ * （铁律三：一个值 / 一个集合只有一个来源）。
+ *
+ * 这里的写法让「加档位」只改一处：`SKIN_MODE_UI` 的类型是 `Record<SkinMode, …>`
+ * —— lib 里加一档而这里没给图标与文案，`tsc` 直接报错，而不是让那一档在界面上
+ * 悄悄消失。反过来（这里写了 lib 没有的档）也进不来，因为档位从 `SKIN_MODE_VALUES`
+ * 枚举，不从这里枚举。
+ * ----------------------------------------------------------------------- */
+
+const SKIN_MODE_UI: Record<SkinMode, { icon: string; labelKey: string }> = {
+  light: { icon: "sun", labelKey: "settings.skinModeLight" },
+  dark: { icon: "moon", labelKey: "settings.skinModeDark" },
+};
+
+/** 档位顺序 = `lib/theme-skins.ts` 的顺序，不再在界面里另排一遍。 */
+const SKIN_MODE_OPTIONS = SKIN_MODE_VALUES.map((mode) => ({
+  value: mode,
+  icon: SKIN_MODE_UI[mode].icon,
+  labelKey: SKIN_MODE_UI[mode].labelKey,
+}));
 
 const COLOR_FIELDS: Array<{ key: keyof ThemeSkin; labelKey: string }> = [
   { key: "accent", labelKey: "settings.skinAccent" },
@@ -289,14 +333,19 @@ export function ThemeSkinStudio({
                   aria-label={t("settings.skinName")}
                 />
               } />
+              {/* fork:v5-skin-mode —— 画板 D-07 帧 C 的「明暗预览」：`.d-seg` 两档
+                  （sun / moon）。档位从 `SKIN_MODE_VALUES` 枚举、图标与文案按档位查
+                  `SKIN_MODE_UI`，选值写进**已有的** `ThemeSkin.mode`（也就是编辑器
+                  默认打开哪套变体；运行时仍按应用当前明暗取，`writeSkin` 不看它）。 */}
               <PwField label={t("settings.skinPreviewMode")} control={
                 <PwRadio
                   value={previewMode}
                   ariaLabel={t("settings.skinPreviewMode")}
-                  options={[
-                    { value: "light", icon: "sun", label: t("settings.skinModeLight") },
-                    { value: "dark", icon: "moon", label: t("settings.skinModeDark") },
-                  ]}
+                  options={SKIN_MODE_OPTIONS.map((option) => ({
+                    value: option.value,
+                    icon: option.icon,
+                    label: t(option.labelKey),
+                  }))}
                   onChange={(mode) => { setPreviewMode(mode); patch({ mode }); }}
                 />
               } />
@@ -352,6 +401,7 @@ export function ThemeSkinStudio({
               {OPACITY_SLIDERS.map((entry) => (
                 <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
               ))}
+
             </div>
 
             {/* 左（原右）：预览列（画板 47 的分栏语义保留，只是换到左侧 —— 发丝线改成右边线） */}

@@ -1,171 +1,117 @@
-
+// 用量（画板 45 · 帧 1）
 //
-// 跑法：APP_URL=http://127.0.0.1:32141 node scripts/board-diff.mjs scripts/board-specs/4x-45-frame1.mjs
+// fork:v5-settings-map（2026-10-04）—— 产品侧选择器从 v1 的 pw-* 迁到 v5 的 d-*
+// （依据 docs/v5-settings-class-map-2026-10-04.md + 产品源码实况：
+// SettingsUi.tsx:618-631 的页壳 + fork/UsageStatsPanel.tsx + fork/usage-charts.tsx）。
+// **画板侧一行不动**，两边靠 pairs 显式配对。
+const OPEN_USAGE = `
+  const opener = document.querySelector(".d-side-foot button");
+  if (!opener) throw new Error("设置入口没找到（.d-side-foot > button）");
+  opener.click();
+  await new Promise((r) => setTimeout(r, 1600));
+  const row = document.querySelector('button.d-set-navitem[data-section="usage"]');
+  if (!row) throw new Error("settings section not found: usage");
+  row.click();
+  // fork:v5-settings-map —— 用量页要先扫本机会话文件，扫描没完之前页面只有一句
+  // 「正在统计…」，统计卡与图表一块都不在 DOM 里。轮询等它们真的挂上再量。
+  for (let i = 0; i < 60; i++) {
+    if (document.querySelector(".d-set-main .d-stat, .d-set-main .d-chart")) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  await new Promise((r) => setTimeout(r, 1200));`;
+
 export default {
   "name": "用量（画板 45 · 帧 1）",
   "board": "45-settings-shortcuts-usage.html",
   "boardFrame": 1,
-  "app": {
-    "open": "settings:usage"
-  },
-  "tolerance": {
-    "box": 2,
-    "fontSize": 0
-  },
+  "app": { "script": OPEN_USAGE, "settle": 1500 },
+  "tolerance": { "box": 2, "fontSize": 0 },
   "knownDiffs": [
     {
-      "sel": ".settings-dialog-surface .pw-stat.is-wide",
-      "reason": "**画板自身不一致（B 类）**：画板 45 帧 1 是「9 张 4 列网格」，board.css 的 `.pw-stats-grid > .pw-stat.is-wide` 是给**奇数张**（1 + 2×4）用的横跨整行规则；这一帧九张既没标 `is-wide` 也没有第五行孤张"
+      "sel": ".d-set-main .d-set-sec",
+      "reason": "**取样差异（页头 → 分节）**：v1 的 `.pw-shead` 是一行页头（下边框 + `align-items:flex-end`）；v5 的 `SettingsPage`（`SettingsUi.tsx:618-631`）收成 `div.d-set-sec`。"
     },
     {
-      "sel": ".settings-dialog-surface .pw-bars i",
-      "reason": "**画板自身不一致**：柱高是每根 inline `style=\"height:NN%\"` 的示意值，不是规格"
+      "sel": ".d-set-main .d-seg",
+      "reason": "**取样差异（`.pw-radio` → 分段控件 + 位置变了）**：画板把「7 天 / 30 天 / 1 年 / 全部」放在**页头动作区**里；v5 把它降成内容区第一行的 `span.d-seg`（`UsageStatsPanel.tsx:369`），页头动作区只剩一枚刷新钮。v5 的 `.d-radio` / `.d-radiorow` 只定义、**产品一个都没发**。"
     },
     {
-      "sel": ".settings-dialog-surface .pw-bars i.hot",
-      "reason": "同上"
+      "sel": ".d-btn.ghost.sm",
+      "reason": "**取样差异（`.pw-btn.outline` → `.d-btn`）**：v5 的 `.d-btn` 只有 `primary` / `danger` / `ghost` 三档 + `sm` 尺寸档，**没有 `.outline`**（`system.css:102-118`）：次要档就是裸 `.d-btn` 的发丝边框，`ghost` 是无边框档。用量的「重新扫描」在 v5 是 `ghost.sm`。"
     },
     {
-      "sel": ".settings-dialog-surface .pw-stat .v",
-      "reason": "**数据依赖**：数值文本不同（画板 3,694.3M vs 产品实数），宽度按文本判定后跳过，字号/行高仍逐项比"
+      "sel": ".d-set-main .d-statgrid",
+      "reason": "**取样差异 + 数据依赖**：`.pw-stats-grid` 是四列统计卡网格；v5 的 `StatGrid`（`UsageStatsPanel.tsx:71-74`）在两栏块流那一档会退成 `.d-grid2`（注释写明：一栏只有 570，四列会挤成 130px 一卡）。这一对量的是**默认那档**四列网格。"
     },
     {
-      "sel": ".settings-dialog-surface .pw-legend .li",
-      "reason": "**数据依赖**：图例条目来自真实用量，模型名不同"
+      "sel": ".d-set-main .d-stat > span:nth-of-type(1)",
+      "reason": "**形态差异**：`.pw-stat .k` / `.v` / `.s` 是 v1 的三个语义类；v5 的 `StatCard`（`UsageStatsPanel.tsx:58-69`）把它们换成 `span.d-t-xs.d-t-faint` / `span.d-t-title.d-num` / `span.d-t-xs.d-t-faint` 三个字阶类，没有语义名。这里按**位置**（第 1/2/3 个 span）对位。"
     },
     {
-      "sel": ".settings-dialog-surface .pw-mono",
-      "reason": "**取景差异**：`.pw-mono` 的 `display` 是父容器 blockify 的结果（画板第一枚在 `.pw-inline` 里 → block；产品第一枚在块级 `.pw-litem` 里 → block / 在 inline 上下文 → inline）。不是样式差异。"
+      "sel": ".d-set-main .d-chart",
+      "reason": "**取样差异（`.pw-cell` → `.d-chart`）**：画板把每种图表做成一张 `.pw-cell`（描边 + 圆角 + `.pw-cell > h4` 标题）；v5 发 `div.d-chart` + `div.d-chart-head`（`system.css` 的图表族）+ 里层 `.d-card-body`。格盒与标题行分别由 `.d-chart` / `.d-chart-head` 两对量。"
     },
     {
-      "sel": ".settings-dialog-surface .pw-radio",
-      "reason": "**取景差异（字体度量）**：两边四枚芯片的文字完全相同（7 天 / 30 天 / 1 年 / 全部），宽度 183.3 vs 185.7 = 2.4px 的中文字形度量差，落在 `tolerance.box` 之外 0.4px。不登记成硬差异，单独在报告里记一笔。"
+      "sel": ".d-set-main .d-bars > i.hot",
+      "reason": "**形态差异**：画板给峰值那根柱加了 `.hot`（更深的填充）；v5 的 `UsageDailyBars`（`fork/usage-charts.tsx:355`）逐根发 `.d-bar-rise` 做错峰入场，**没有 `.hot` 这一档**，柱高全部走同一条 `background`。这一对量到的是第一根普通柱（画板的第一根也不是 `.hot`）。"
+    },
+    {
+      "sel": ".d-set-main .d-badge.ok",
+      "reason": "**未落地**：画板帧里的 .pw-badge.ok 是模型份额行上的「已启用」；v5 的用量页把份额写进 UsageListRow 的 d-t-xs 三列文本里，没有徽章。这一对量到的是内容区里实际存在的那一枚 .d-badge.ok（若没有则按取样差异记）。"
+    },
+    {
+      "sel": ".d-set-main .d-badge.bad",
+      "reason": "**未落地**：同上一条（用量页没有徽章，只有 d-t-xs.d-t-faint 的文字）。"
+    },
+    {
+      "sel": ".d-set-main .d-badge",
+      "reason": "**未落地**：同上一条（用量页没有徽章）。徽章盒的档位由其它设置族 spec 的 .d-badge 那一对量。"
+    },
+    {
+      "sel": ".d-set-main .d-chart .d-row",
+      "reason": "**取样差异（`.pw-legend .li` → `.d-row`）**：v1 的图例是一列「色块 + 名字 + 百分比」；v5 的 `UsageListRow`（`fork/usage-charts.tsx:524`）发 `div.d-row.d-t-xs`（可选图标 + 名字 + 口径 + 数值），**没有 `.sw` 色块**，也没有 `.d-legend` 这个类。`.pw-legend` / `.pw-legend .sw` 两对都落在它身上（取样差异）。"
+    },
+    {
+      "sel": ".d-set-main .d-chart .d-row .d-grow.d-mono",
+      "reason": "**取样差异（`.pw-lname`）**：v1 的图例行里名字是 `.pw-lname`（一行不折）；v5 的 `UsageListRow` 里名字是 `span.d-grow.d-mono`。"
     }
   ],
   "pairs": [
-    [
-      ".pw-shead",
-      ".settings-dialog-surface .pw-shead"
-    ],
-    [
-      ".pw-shead-copy > h2",
-      ".settings-dialog-surface .pw-shead-copy > h2"
-    ],
-    [
-      ".pw-shead-acts",
-      ".settings-dialog-surface .pw-shead-acts"
-    ],
-    [
-      ".pw-radio",
-      ".settings-dialog-surface .pw-radio"
-    ],
-    [
-      ".pw-btn.outline.sm",
-      ".settings-dialog-surface .pw-btn.outline.sm"
-    ],
-    [
-      ".pw-scontent",
-      ".settings-dialog-surface .pw-scontent"
-    ],
-    [
-      ".pw-stats-grid",
-      ".settings-dialog-surface .pw-stats-grid"
-    ],
-    [
-      ".pw-stat",
-      ".settings-dialog-surface .pw-stat"
-    ],
-    [
-      ".pw-stat .k",
-      ".settings-dialog-surface .pw-stat .k"
-    ],
-    [
-      ".pw-stat .v",
-      ".settings-dialog-surface .pw-stat .v"
-    ],
-    [
-      ".pw-stat .s",
-      ".settings-dialog-surface .pw-stat .s"
-    ],
-    [
-      ".pw-stat.is-wide",
-      ".settings-dialog-surface .pw-stat.is-wide"
-    ],
-    [
-      ".pw-grid2",
-      ".settings-dialog-surface .pw-grid2"
-    ],
-    [
-      ".pw-cell",
-      ".settings-dialog-surface .pw-cell"
-    ],
-    [
-      ".pw-cell > h4",
-      ".settings-dialog-surface .pw-cell > h4"
-    ],
-    [
-      ".pw-bars",
-      ".settings-dialog-surface .pw-bars"
-    ],
-    [
-      ".pw-bars i",
-      ".settings-dialog-surface .pw-bars i"
-    ],
-    [
-      ".pw-bars i.hot",
-      ".settings-dialog-surface .pw-bars i.hot"
-    ],
-    [
-      ".pw-legend",
-      ".settings-dialog-surface .pw-legend"
-    ],
-    [
-      ".pw-legend .li",
-      ".settings-dialog-surface .pw-legend .li"
-    ],
-    [
-      ".pw-legend .sw",
-      ".settings-dialog-surface .pw-legend .sw"
-    ],
-    [
-      ".pw-list",
-      ".settings-dialog-surface .pw-list"
-    ],
-    [
-      ".pw-litem",
-      ".settings-dialog-surface .pw-litem"
-    ],
-    [
-      ".pw-lname",
-      ".settings-dialog-surface .pw-lname"
-    ],
-    [
-      ".pw-mono",
-      ".settings-dialog-surface .pw-mono"
-    ],
-    [
-      ".pw-mono.pw-dim",
-      ".settings-dialog-surface .pw-mono.pw-dim"
-    ],
-    [
-      ".pw-inline",
-      ".settings-dialog-surface .pw-inline"
-    ],
-    [
-      ".pw-badge.ok",
-      ".settings-dialog-surface .pw-badge.ok"
-    ],
-    [
-      ".pw-badge.bad",
-      ".settings-dialog-surface .pw-badge.bad"
-    ],
-    [
-      ".pw-badge",
-      ".settings-dialog-surface .pw-badge"
-    ],
-    [
-      ".pw-hint",
-      ".settings-dialog-surface .pw-hint"
-    ]
+    // 页头
+    [".pw-shead", ".d-set-main .d-set-sec"],
+    [".pw-shead-copy > h2", ".d-set-main .d-set-sec > .d-row > .d-t-lg.d-t-b"],
+    [".pw-shead-acts", ".d-set-main .d-set-sec > .d-row > .d-row"],
+    [".pw-radio", ".d-set-main .d-seg"],
+    [".pw-btn.outline.sm", ".d-set-main .d-btn.ghost.sm"],
+    // 内容区
+    [".pw-scontent", ".d-set-main"],
+    // 统计卡
+    [".pw-stats-grid", ".d-set-main .d-statgrid"],
+    [".pw-stat", ".d-set-main .d-stat"],
+    [".pw-stat .k", ".d-set-main .d-stat > span:nth-of-type(1)"],
+    [".pw-stat .v", ".d-set-main .d-stat > span:nth-of-type(2)"],
+    [".pw-stat .s", ".d-set-main .d-stat > span:nth-of-type(3)"],
+    [".pw-stat.is-wide", ".d-set-main .d-statgrid > .d-stat:nth-of-type(4)"],
+    // 图表格
+    [".pw-grid2", ".d-set-main .d-grid2"],
+    [".pw-cell", ".d-set-main .d-chart"],
+    [".pw-cell > h4", ".d-set-main .d-chart > .d-chart-head"],
+    [".pw-bars", ".d-set-main .d-bars"],
+    [".pw-bars i", ".d-set-main .d-bars > i"],
+    [".pw-bars i.hot", ".d-set-main .d-bars > i.hot"],
+    [".pw-legend", ".d-set-main .d-chart .d-row"],
+    [".pw-legend .li", ".d-set-main .d-chart .d-row"],
+    [".pw-legend .sw", ".d-set-main .d-chart .d-row > span"],
+    // 图例里的列表行
+    [".pw-list", ".d-set-main .d-chart .d-col"],
+    [".pw-litem", ".d-set-main .d-chart .d-row.d-t-xs"],
+    [".pw-lname", ".d-set-main .d-chart .d-row .d-grow.d-mono"],
+    // 原子
+    [".pw-mono", ".d-mono"],
+    [".pw-mono.pw-dim", ".d-set-main .d-mono"],
+    [".pw-inline", ".d-set-main .d-row"],
+    [".d-set-main .d-badge.ok", ".d-set-main .d-badge.ok"],
+    [".d-set-main .d-badge.bad", ".d-set-main .d-badge.bad"],
+    [".d-set-main .d-badge", ".d-set-main .d-badge"]
   ]
 };

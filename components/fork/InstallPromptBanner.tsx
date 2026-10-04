@@ -26,6 +26,11 @@ import { useIsMobile } from "@/hooks/useIsMobile";
  *
  * M-10 的 iOS 三步 / Android 条件自检需要新文案（`install.steps.*`）与真实
  * 数据（体积 / 缓存 / HTTPS 自检），i18n 波未提供前不硬编中文，本波不造。
+ *
+ * fork:v5-wave-n1 · M-11 帧 C 的 **48 档**（`.m-touch-48` = `--nx-ctl-lg`）
+ * 从 44 提到「一级行动钮」那一档：M-10 帧 A-2 的「装到桌面」在画板上就是
+ * sheet 里唯一的 `.m-btn.primary`，它属于 48 档（发送钮 / 顶栏钮 / 一级行动钮），
+ * 不是 44 档。关闭钮仍按 44（它是「出现频率最高」那一档里的图标钮）。
  */
 
 type BeforeInstallPromptEvent = Event & {
@@ -99,7 +104,7 @@ export function InstallPromptBanner() {
           <>
             <i data-ico="download" data-size="16" aria-hidden="true" />
             <span className="m-grow">{t("install.bannerBody")}</span>
-            <button type="button" className="m-btn sm m-touch-44" onClick={() => void install()}>
+            <button type="button" className="m-btn sm m-touch-48" onClick={() => void install()}>
               {t("install.installButton")}
             </button>
           </>

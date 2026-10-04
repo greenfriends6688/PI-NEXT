@@ -21,12 +21,13 @@
     ① <b>能力一律收成同一种 chip</b>（Aether 的做法），不再各造一种控件；
     ② <b>浮层从输入卡上方落下</b>，不是系统级下拉 —— 拇指不需要离开卡片去找菜单；
     ③ <b>有草稿或有托盘时加号浮起</b>，一个布尔量同时驱动五处；
-    ④ <b>队列与暂停是一等公民</b>，能排序、能插队、能删，不是设置里的一个开关。
+    ④ <b>队列与暂停是一等公民</b>，能排序、能插队、能删，不是设置里的一个开关；
+    ⑤ <b>「在跑」是输入卡自己亮一圈</b>（<span class="m-mono">.m-loader</span>），不另占一竖行。
   </p>
   <div class="m-doc-tags" data-board-tags>
     <span class="m-doc-tag">页面：输入卡 / 能力浮层 / 补全面板 / 队列面板</span>
-    <span class="m-doc-tag">组件：m-composer-wrap · m-tray · m-pop-float · m-queue · m-attachbar · m-send</span>
-    <span class="m-doc-tag">状态：静息 / Plus 分离 / 浮层开合 / 补全 / 自动接续与已暂停 / 发送与停止</span>
+    <span class="m-doc-tag">组件：m-composer-wrap · m-tray · m-pop-float · m-queue · m-attachbar · m-send · m-loader</span>
+    <span class="m-doc-tag">状态：静息 / Plus 分离 / 浮层开合 / 补全 / 自动接续与已暂停 / 发送与停止 / 在跑与已停</span>
   </div>
 </header>
 
@@ -258,7 +259,7 @@
 
 <!-- ── 帧 D · 补全面板与队列 ────────────────────────────────────────────── -->
 <section class="m-scene">
-  <div class="m-frame-label"><b>帧 D</b> · 补全 / 队列 / 运行态 · <b>左</b>：最近 / <code>@</code> 提文件 / <code>/</code> 提命令共用一块补全区（分段切换）｜<b>中</b>：队列自动接续 + 附件托盘 + 发送｜<b>右</b>：队列已暂停 + 停止钮</div>
+  <div class="m-frame-label"><b>帧 D</b> · 补全 / 队列 / 运行态 · <b>左</b>：最近 / <code>@</code> 提文件 / <code>/</code> 提命令共用一块补全区（分段切换）｜<b>中</b>：队列自动接续 + 附件托盘 + 发送，<b>输入卡亮着光带 <span class="m-mono">.m-loader</span>（在跑）</b>｜<b>右</b>：队列已暂停 + 停止钮，光带随之熄灭</div>
   <div class="nx-row" style="gap:var(--nx-sp-4)">
 
     <!-- D-1 · @ 与 / -->
@@ -519,7 +520,11 @@
             </div>
           </div>
 
-          <div class="m-composer">
+          <div class="m-composer m-loader">
+            <div class="m-loader-glow"></div>
+            <svg class="m-loader-svg" viewBox="0 0 366 64" preserveAspectRatio="none" aria-hidden="true">
+              <path pathLength="100" d="M24,1 H342 A24,24 0 0 1 366,25 V39 A24,24 0 0 1 342,63 H24 A24,24 0 0 1 0,39 V25 A24,24 0 0 1 24,1 Z"/>
+            </svg>
       <div class="m-composer-row">
         <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
         <input class="m-input" placeholder="运行中：这条会排到队尾">
@@ -594,7 +599,7 @@
             </div>
           </div>
 
-          <div class="m-composer">
+          <div class="m-composer m-loader is-idle">
       <div class="m-composer-row">
         <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
         <input class="m-input" placeholder="停止会结束这一轮，队列保留">
@@ -621,6 +626,7 @@
     <li><b>补全区只有一块，段内再分前缀</b>：<span class="m-mono">.m-seg</span> 三段（最近 / <code>@</code> 提文件 / <code>/</code> 提命令）共用同一个 <span class="m-mono">.m-pop-float</span>，切段等于切前缀。<span class="m-mono">.m-searchfield</span> 回显前缀与已输入的名字，<span class="m-mono">.m-sheet-row</span> 一行一个候选并带副行（文件所在节 / 命令来源）；点一项即插入并收起 —— 文件落成引用，命令落成输入行。<b>手机上默认段是「最近」</b>：翻目录找文件等于没有这个功能。</li>
     <li><b>队列是一等公民</b>：<span class="m-mono">.m-queue</span> 贴在输入卡正上方，每条能<b>提升为 steer</b>（插到当前回合的下一个打断处，带琥珀徽标）或删除；<b>自动接续 / 已暂停</b> 两态写在队列头上 —— 暂停只停自动接续，不打断已经在跑的这一轮。</li>
     <li><b>发送与停止是同一个钮的两种含义</b>：<span class="m-mono">.m-send</span> 是「把这条排进队列」，<span class="m-mono">.m-send.stop</span> 是「结束这一轮，队列保留」。空输入时是灰的禁用态 —— 灰（不能发）与红（发了会被拦）必须分开。</li>
+    <li><b>「在跑」写在这张卡自己身上</b>：<span class="m-mono">.m-loader</span> 挂在 <span class="m-mono">.m-composer</span> 上，内含 <span class="m-mono">.m-loader-glow</span>（卡外一圈强调色光晕）与 <span class="m-mono">.m-loader-svg</span>（<span class="m-mono">pathLength=100</span> 的 dash 绕卡一圈，端点速度恒定、拐角不变速）。本帧中屏是<b>在跑</b>（光带亮），右屏挂 <span class="m-mono">.is-idle</span> 把它熄掉 —— <b>同一个类、两个状态</b>，不是一个「跑」一个「不跑」两个类。手机上竖向本来紧张，「在跑」这件事必须只占一处在看的地方。</li>
     <li><b>附件托盘横滚</b>：<span class="m-mono">.m-attachbar</span> + <span class="m-mono">.m-attachbtn</span> 在卡片内横滚，不换行也不撑高卡片；已选数量回写成托盘上的一个 chip，让「带了多少东西」在发送前就看得见。</li>
     <li><b>四个「本来缺、现已补进 pwa/system.css」的类</b>：
     <span class="m-mono">.m-tray-chip.is-on</span>（开着浮层的那个 chip 要看得出来）、

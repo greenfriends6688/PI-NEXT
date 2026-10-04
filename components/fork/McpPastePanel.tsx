@@ -22,7 +22,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Fragment } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
-import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
+import { PwaBanner, PwaPickSelect, PwaSetRow } from "@/components/pwa/PwaPage";
 import { parseMcpImport, type McpImportServer } from "@/lib/mcp-import";
 import {
   EMPTY_MCP_ADD_DRAFT,
@@ -143,16 +143,16 @@ export function McpPastePanel({
             <Fragment>
               <PwaSetRow label={t("mcp.add.serverCount", { count: parsed.servers.length })} />
               <div className="m-doc-body">
-                <select
-                  className="m-input"
-                  style={{ width: "100%" }}
-                  value={draft.server}
-                  onChange={(event) => update({ server: Number(event.target.value) })}
-                >
-                  {parsed.servers.map((entry, index) => (
-                    <option key={`${entry.name}-${index}`} value={index}>{entry.name}</option>
-                  ))}
-                </select>
+                {/* fork:v5-landing · M-05 帧 B —— 设置里的「从若干值里选一个」
+                    一律用 `.m-pickselect`（壳 + 裸 `<select>` + 壳画的 chevron），
+                    下拉交给系统；不再拿 `.m-input` 硬套一个原生 select。
+                    选项与写盘口径一字不变。 */}
+                <PwaPickSelect
+                  value={String(draft.server)}
+                  ariaLabel={t("mcp.add.serverCount", { count: parsed.servers.length })}
+                  options={parsed.servers.map((entry, index) => ({ value: String(index), label: entry.name }))}
+                  onChange={(value) => update({ server: Number(value) })}
+                />
               </div>
             </Fragment>
           )}
@@ -211,15 +211,15 @@ export function McpPastePanel({
             </div>
             <PwaSetRow label={t("mcp.fieldScope")} />
             <div className="m-doc-body">
-              <select
-                className="m-input"
-                style={{ width: "100%" }}
+              <PwaPickSelect
                 value={scope}
-                onChange={(event) => onScopeChange(event.target.value as McpScope)}
-              >
-                <option value="global">{t("mcp.scope.global")}</option>
-                <option value="project" disabled={!cwd}>{t("mcp.scope.project")}</option>
-              </select>
+                ariaLabel={t("mcp.fieldScope")}
+                options={[
+                  { value: "global", label: t("mcp.scope.global") },
+                  { value: "project", label: t("mcp.scope.project"), disabled: !cwd },
+                ]}
+                onChange={(value) => onScopeChange(value as McpScope)}
+              />
             </div>
             <button
               type="button"

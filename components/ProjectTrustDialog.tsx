@@ -13,6 +13,19 @@ import { PwaTrustSheet } from "./pwa/PwaTrustSheet";
  * fork:v5-wave-b-sysstate —— 窄屏（`useIsMobile()`）走 M-10 帧 C-2 的
  * `.m-scrim.is-open` + `.m-sheet.is-open` 底部 sheet，DOM 在
  * `components/pwa/PwaTrustSheet.tsx`。三态与两枚动作的 props 不变。
+ *
+ * fork:v5-wave-n1 —— 补 D-26 帧 D「信任状态出现在哪」那颗 **信任状态胶囊**：
+ * `<div class="d-row"><span class="d-extpill untrusted"><span class="d-extpill-dot"></span>
+ * 未信任 · ~/Desktop/PI NEXT</span></div>`。类名 / 嵌套照画板原文。
+ * 两处有意的偏差，都记在这里：
+ *   ① 文案用**既有** key `trust.resourcesNotLoaded`（产品里它表示的正是
+ *      「项目资源还没加载 = 受限模式」），不硬编中文、不新增 key；
+ *   ② 画板那行是「未信任 · 路径」，但画板自己的注记写明这颗胶囊的位置是
+ *      **顶栏的工作区胶囊**（「随时能改主意，也能随时撤销信任」），不是模态里；
+ *      顶栏宿主不在本波文件清单里，而模态正下方 `.d-code` 已经写着同一个 cwd，
+ *      所以这里只留状态词，不再把路径写第二遍。
+ * 为什么这个对话框里出现它是如实的：这个模态**只在项目未受信任时**弹出，
+ * 所以「未信任」不是推测，是它此刻唯一可能的状态。
  */
 export function ProjectTrustDialog({
   cwd,
@@ -63,6 +76,16 @@ export function ProjectTrustDialog({
         </div>
         <div className="d-modal-body">
           <div>{t("trust.dialogBody")}</div>
+          {/* fork:v5-wave-n1 · D-26 帧 D「信任状态出现在哪」—— 状态胶囊。
+              画板原文两段：`.d-row` 包一颗 `.d-extpill.untrusted`，pill 首位是
+              `.d-extpill-dot`。未受信任 = warning 色的点（system.css 里
+              `.d-extpill.untrusted .d-extpill-dot` 已经把点改成 warning）。 */}
+          <div className="d-row">
+            <span className="d-extpill untrusted">
+              <span className="d-extpill-dot" />
+              {t("trust.resourcesNotLoaded")}
+            </span>
+          </div>
           <div className="d-code">
             <div className="d-code-head">
               <i data-ico="folder" data-size="13" aria-hidden="true" />

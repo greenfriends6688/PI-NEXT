@@ -25,7 +25,7 @@
   </p>
   <div class="m-doc-tags" data-board-tags>
     <span class="m-doc-tag">页面：手势规格 / 系统态清单 / 反馈四型</span>
-    <span class="m-doc-tag">组件：m-pull · m-swipe · m-menu-sheet · m-modal · m-sizebox · m-skel · m-toast</span>
+    <span class="m-doc-tag">组件：m-pull · m-swipe · m-menu-sheet · m-modal · m-sizebox · m-skel · m-toast · m-think-dots · m-think-stars · m-think-comet · m-card</span>
     <span class="m-doc-tag">状态：下拉 / 侧滑 / 长按 / 空载错 / 反馈四态</span>
   </div>
 </header>
@@ -728,7 +728,7 @@
 
 <!-- ── 帧 E · 四种反馈 ────────────────────────────────────────────────── -->
 <section class="m-scene">
-  <div class="m-frame-label"><b>帧 E</b> · 四种反馈 · <span class="m-mono">.m-banner</span> <b>已经发生</b>｜<span class="m-mono">.m-perm</span> <b>要你选</b>｜<span class="m-mono">.m-run</span> <b>正在做</b>｜<span class="m-mono">.m-toast</span> <b>4 秒确认</b> —— 用错一个，用户就会把「进行中」读成「卡住了」</div>
+  <div class="m-frame-label"><b>帧 E</b> · 四种反馈 · <span class="m-mono">.m-banner</span> <b>已经发生</b>｜<span class="m-mono">.m-perm</span> <b>要你选</b>｜<span class="m-mono">.m-run</span> <b>正在做</b>｜<span class="m-mono">.m-toast</span> <b>4 秒确认</b> —— 用错一个，用户就会把「进行中」读成「卡住了」；<b>「正在做」下面那张卡就是它的四种图案</b> <span class="m-mono">.m-think-*</span></div>
   <div class="m-phone">
     <div class="m-statusbar">
       <span>9:41</span>
@@ -784,6 +784,46 @@
         </div>
 
         <div class="m-run"><i data-ico="loader-circle" data-size="14"></i>正在跑第 3 / 4 步 · 1 分 04 秒</div>
+
+        <div class="m-card">
+          <div class="m-card-head">
+            <i data-ico="brain" data-size="15"></i>「正在做」的四种图案
+            <span class="m-grow"></span><span class="m-badge mute">.m-think-*</span>
+          </div>
+          <div class="m-card-body">
+            <div class="m-think-row">
+              <span class="m-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span>正在推理 · wave（对角波front）</span>
+              <span class="m-grow"></span><span class="m-mono m-t-xs m-t-faint">4s</span>
+            </div>
+            <div class="m-think-row">
+              <span class="m-think-dots spin"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span>正在检索 · spin（绕心一圈）</span>
+              <span class="m-grow"></span><span class="m-mono m-t-xs m-t-faint">11s</span>
+            </div>
+            <div class="m-think-row">
+              <span class="m-think-stars">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16.4l-1.6-5.6L5 9.2l5.4-1.6z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16.4l-1.6-5.6L5 9.2l5.4-1.6z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16.4l-1.6-5.6L5 9.2l5.4-1.6z"/></svg>
+              </span>
+              <span>正在起草 · stars（星光错峰）</span>
+              <span class="m-grow"></span><span class="m-mono m-t-xs m-t-faint">7s</span>
+            </div>
+            <div class="m-think-row">
+              <svg class="m-think-comet" viewBox="0 0 60 26" fill="none" aria-hidden="true">
+                <path pathLength="100" d="M5 13 C5 3 25 3 30 13 C35 23 55 23 55 13 C55 3 35 3 30 13 C25 23 5 23 5 13 Z"
+                      stroke="var(--nx-accent)" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <span>正在搜索 · comet（彗星绕八字）</span>
+              <span class="m-grow"></span><span class="m-mono m-t-xs m-t-faint">19s</span>
+            </div>
+            <div class="m-t-xs m-t-faint" style="margin-top:var(--nx-sp-3)">
+              四态只在图案上不同，<span class="m-mono">.m-think-row</span>（图标 + 文案 + 秒数）是公共件。
+              <b>秒数必写</b>：不写秒数的转圈只是装饰，用户会把「进行中」读成「卡住了」。
+            </div>
+          </div>
+        </div>
 
         <div class="m-md">
           <h2>四 · 4 秒确认 → Toast</h2>
@@ -923,7 +963,7 @@
     <li><b>长按的形态永远一样，内容才不一样。</b>会话行长按与文件行长按都走 <span class="m-mono">.m-menu-sheet</span>（底部菜单），<b>不做右上角的小气泡</b> —— 气泡在 390 宽上会挡住被长按的那一行，而那正是用户正在看的内容。菜单首行用 <span class="m-mono">.m-menu-sheet-title</span> 写清「对谁长按的」，否则用户不知道自己在操作谁。会话菜单与 Web 逐字一致：<b>12 项 / 3 段</b>（置顶 · 重命名会话 · 归档 · 标记为未读 ｜ 在访达中打开 · 复制路径 · 复制会话文件路径 · 复制会话 ID ｜ 系统提示词 · 工具定义 ｜ 导出为 HTML · 导出 Markdown），不含「复制分享链接」；<b>删除不在菜单里</b>，走帧 B 第三屏的危险确认（标题写清会话名，按钮 = 取消 / 删除）。</li>
     <li><b>触控目标三档：44 / 48 / 56，44 是硬下限。</b>44 = 出现频率最高的东西（列表行 / chip / 菜单行）；48 = 拇指移动最远、最容易落空的（发送 / 顶栏 / 一级行动）；56 = 主力与长按（附件 / 加号 / 图标网格）。<b>44 是命中区不是视觉高度</b> —— 小钮可以靠四周 padding 补命中，但它自己不许小于 44；密集相邻时还要再加 8px 间距。本帧的方块按真实像素画，否则规格表本身就不可信。</li>
     <li><b>系统态清单与 Web D-26 / D-26b 对齐，每格写三条判据。</b>空态 / 骨架 / 错误 / 断网 / 权限请求 / 通知 / Toast / 运行中 / 流式 / 确认对话 / 错误页 / PWA 安装 —— 共同结构是「<b>它是什么 · 现在能干什么 · 什么时候会消失</b>」。其中<b>断网 / 通知 / PWA 安装</b>是 PWA 特有，保留但<b>登记豁免</b>，不为对齐 Web 硬造等价物；<b>确认对话</b>固定「标题写清作用对象 + 取消 / 删除」，<b>错误页</b>分两级且两级都必须给「重试」。最容易做错的三格：<b>骨架</b>的形状必须等于将来的内容；<b>运行中</b>必须带秒数与步数；<b>流式</b>中文按标点成段、不是逐字（逐字会让读者读到半个词）。</li>
-    <li><b>四种反馈各归各位，不能互相顶替。</b><span class="m-mono">.m-banner</span> 已经发生（可以一直留着）· <span class="m-mono">.m-perm</span> 要你选（就地出现、一直待到你回答）· <span class="m-mono">.m-run</span> 正在做（和它描述的事情在同一个位置）· <span class="m-mono">.m-toast</span> 4 秒确认（没有按钮也不提问）。用错一个，用户就会把「进行中」读成「卡住了」。</li>
+    <li><b>四种反馈各归各位，不能互相顶替。</b><span class="m-mono">.m-banner</span> 已经发生（可以一直留着）· <span class="m-mono">.m-perm</span> 要你选（就地出现、一直待到你回答）· <span class="m-mono">.m-run</span> 正在做（和它描述的事情在同一个位置）· <span class="m-mono">.m-toast</span> 4 秒确认（没有按钮也不提问）。用错一个，用户就会把「进行中」读成「卡住了」。<br><b>「正在做」的图案有四种</b>（<span class="m-mono">.m-think-dots.wave</span> 对角波front · <span class="m-mono">.spin</span> 绕心一圈 · <span class="m-mono">.m-think-stars</span> 星光错峰 · <span class="m-mono">.m-think-comet</span> 彗星绕八字），但宿主行 <span class="m-mono">.m-think-row</span> 只有一条：<b>图案可换、秒数不可省</b>。四态放在通用卡 <span class="m-mono">.m-card</span> 里（头 + 体），因为它们是「一块要解释的东西」，不是一叠设置行 —— 后者用 <span class="m-mono">.m-cardgroup</span>。</li>
     <li><b>Toast 与更新浮条的堆叠。</b><span class="m-mono">.m-toast</span> 底边 108px、<span class="m-mono">.m-update</span> 底边 96px，只差 12px，同屏必叠 —— 所以有 <span class="m-mono">.m-toast.above</span> 把它抬到更新条之上。本张三处用到：帧 E 的确认、帧 D ⑦ 的系统态对照、以及 M-10 的更新浮条。</li>
     <li><b>这一张暴露的一个类缺口：</b><span class="m-mono">.m-nx-row</span> 不存在（base.css 里只有 <span class="m-mono">.nx-row</span>），本帧的规格行直接用 <span class="m-mono">.nx-row</span>；而触控目标方块的 44/48/56 三档<b>没有现成类</b>，本帧用令牌内联（<span class="m-mono">--nx-touch-min</span> / <span class="m-mono">--nx-ctl-lg</span> / <span class="m-mono">calc(--nx-ctl-lg + --nx-sp-2)</span>）画出，落地时建议补成 <span class="m-mono">.m-touch-44 / .m-touch-48 / .m-touch-56</span> 三个类，让规格与实现同源。</li>
   </ul>

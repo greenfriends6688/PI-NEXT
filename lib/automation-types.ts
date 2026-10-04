@@ -17,12 +17,24 @@ export type AutomationScheduleType = "once" | "daily" | "weekly" | "interval";
 /**
  * 子会话归属策略。
  *
- * - `daily`（默认）：同一本地自然日内的多次触发写进同一个子会话，跨日自动新建。
+ * 三档（画板 D-17 帧 B 的「子会话归属」一节 · 旧设计 44 的三枚互斥芯片）：
+ *
+ * - `fresh`（每次新建）：**每轮都开一个新子会话**，一次也不接上一轮的上下文。
+ *   适合「每轮互相独立、只当一次性批处理跑」的任务：历史不会互相污染，代价是
+ *   每一轮都要重新把背景读一遍。判定见 `decideSessionTarget()`
+ *   （`lib/automation-scheduler.ts`）—— 它直接给出 `reuse: false`，
+ *   于是 `AutomationRunRequest.reuseSessionId` 为空，`openSession()`（`automation-runner.ts`）
+ *   走新建分支拿一个全新的子会话。
+ * - `daily`（同一自然日 · 默认）：同一本地自然日内的多次触发写进同一个子会话，跨日自动新建。
  *   叠加安全阀：同日复用前若该会话上下文占用已 ≥ `AUTOMATION_DAILY_CONTEXT_ROLLOVER_THRESHOLD`，
  *   本次也主动新建 —— 否则这一轮刚开跑就会被 SDK 的压缩阈值（约 77.5%）截胡。
- * - `reuse`：始终复用同一个子会话，长期上下文由用户自己承担 token 成本。
+ * - `reuse`（始终复用）：始终复用同一个子会话，长期上下文由用户自己承担 token 成本。
+ *
+ * 三档之外没有第四档：「已被用户接管过的子会话不复用」是三档之上的**硬规则**，
+ * 不做成档位 —— 它由运行时探测（`hasUserPromptSince`）+ 落盘名单（`takenOverSessionIds`）
+ * 决定，不是用户在表单里能选的意图。
  */
-export type AutomationSessionMode = "daily" | "reuse";
+export type AutomationSessionMode = "fresh" | "daily" | "reuse";
 
 /** 一轮运行的结果。`skipped` 不是失败：上一轮还在跑 / 用户正占着会话，本轮不排队。 */
 export type AutomationRunStatus = "success" | "error" | "skipped";
@@ -193,7 +205,12 @@ export const AUTOMATION_SCHEDULE_TYPES: readonly AutomationScheduleType[] = [
   "interval",
 ];
 
-export const AUTOMATION_SESSION_MODES: readonly AutomationSessionMode[] = ["daily", "reuse"];
+/**
+ * 表单里可选的三档，顺序 = 画板上的从左到右：
+ * 每次新建 → 同一自然日 → 始终复用（复用能力递增，越右越省上下文也越难排障）。
+ * `normalizeAutomationDraft()` 按这份名单收口，所以往这里加一档就等于产品多一档。
+ */
+export const AUTOMATION_SESSION_MODES: readonly AutomationSessionMode[] = ["fresh", "daily", "reuse"];
 
 export const AUTOMATION_LOCALES: readonly AutomationLocale[] = ["en", "zh-CN", "zh-TW"];
 

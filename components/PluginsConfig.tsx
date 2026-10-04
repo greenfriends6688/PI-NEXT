@@ -5,6 +5,7 @@ import { sendAgentCommand } from "@/lib/agent-client";
 import type { McpReloadReport, McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 // fork:mcp-native-exposure —— 「查看 MCP 日志」弹层（读 agent 目录的 mcp.log）。
 import { McpLogModal } from "./fork/McpLogModal";
 // fork:codemode-settings-ui —— 「代码模式」设置块（自动/始终、mode、工具清单预算）。
@@ -32,8 +33,7 @@ import {
 /* fork:v5-skin-d-only —— 本地内容基件只吐 d-*（同 SkillsConfig 的同名块）。
  * 页壳 / 列表基件（SettingsPage / ConfigPanelShell / ConfigSplitView / ConfigSidebar /
  * ConfigSidebarList / ConfigSidebarItem / ConfigSidebarText / ConfigSidebarGroupLabel）
- * 仍走 SettingsUi；其余内容控件在本文件用画板类落地。 */
-function Btn({
+ * 仍走 SettingsUi；其余内容控件在本文件用画板类落地。 */function Btn({
   variant = "secondary",
   size = "default",
   className,
@@ -904,6 +904,17 @@ function McpServerDetail({
   );
 }
 
+/* fork:v5-landing · D-15 帧 B 的面包屑末级只有两个词（「添加」/「编辑」），
+ * 而 `lib/i18n/messages/**` 里没有对应的通用键（只有 `mcp.addTitle` 这类整句）。
+ * 同一波新增的字都先落在这张本地表里（口径与 `settingsHub.ts` /
+ * `settings-disabled-reasons.ts` 一致），待办：迁成 `mcp.crumbAdd` / `mcp.crumbEdit`。
+ * 「添加 / 编辑」两个词本身已是现有键（`i18n.edit` / `mcp.add.pasteSubmit`）的同义口径，
+ * 不引入新语义。 */
+const MCP_CRUMB_COPY: Record<"add" | "edit", LocalCopy> = {
+  add: { en: "Add", "zh-CN": "添加", "zh-TW": "新增" },
+  edit: { en: "Edit", "zh-CN": "编辑", "zh-TW": "編輯" },
+};
+
 function AddMcpServer({
   cwd,
   scope,
@@ -927,7 +938,7 @@ function AddMcpServer({
   onFetchDef: (name: string, serverScope: McpScope) => Promise<Record<string, unknown> | null>;
   onCancel: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const isEdit = !!initial;
   const [name, setName] = useState(isEdit && initial ? initial.name : "");
   const [spec, setSpec] = useState(() => {
@@ -1018,6 +1029,18 @@ function AddMcpServer({
 
   return (
     <Stack className="fork-pwa-detail">
+      {/* fork:v5-landing · D-15 帧 B —— `.d-crumb` 面包屑是这张板对
+          「添加 / 编辑」两态的固定写法：根是分节名（`.is-on` 之外的普通
+          `button`，可回列表），末级是当前动作。类名 / 嵌套 / `<i data-ico>`
+          原样抄，静态文案换成已有的 `mcp.sectionTitle` 与本地表里的
+          「添加 / 编辑」（语言包这一轮不许改，已登记在报告里）。 */}
+      <div className="d-crumb">
+        <button type="button">{t("mcp.sectionTitle")}</button>
+        <i data-ico="chevron-right" data-size="12" aria-hidden="true" />
+        <button type="button" className="is-on">
+          {localCopy(isEdit ? MCP_CRUMB_COPY.edit : MCP_CRUMB_COPY.add, locale)}
+        </button>
+      </div>
       <div>
         <Title>
           {isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}

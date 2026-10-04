@@ -84,9 +84,9 @@
             <div class="m-code-head"><span class="m-grow">npm run check:design</span><span>2.4s</span></div>
             <div class="m-code-scroll">
 <span class="m-ln">1</span>$ npm run check:design
-<span class="m-ln">2</span>style-literals   0 违规
-<span class="m-ln">3</span>motion-tokens    0 违规
-<span class="m-ln">4</span>icons            0 违规
+<span class="m-ln">2</span>style-literals   <span class="m-tok-str">0 违规</span>
+<span class="m-ln">3</span>motion-tokens    <span class="m-tok-str">0 违规</span>
+<span class="m-ln">4</span>icons            <span class="m-tok-str">0 违规</span>
             </div>
           </div>
         </div>
@@ -97,10 +97,10 @@
             <i data-ico="move-diagonal" data-size="12"></i>
           </div>
           <div class="m-code-scroll">
-            <div class="m-code-body"><span class="m-math">--nx-f-xs</span>: 0.79;   /* 字阶比例 */
-<span class="m-math">--nx-r-xs</span>: 4px;    /* 圆角 —— 后者赢 */
-<span class="m-math">--nx-fs-xs</span>: calc(var(--nx-ui) * var(--nx-r-xs));
-   /* → calc(14px * 4px) 整条失效，六档字阶退回继承值 */</div>
+            <div class="m-code-body"><span class="m-tok-fn">--nx-f-xs</span>: <span class="m-tok-num">0.79</span>;   <span class="m-tok-com">/* 字阶比例 */</span>
+<span class="m-tok-fn">--nx-r-xs</span>: <span class="m-tok-num">4px</span>;    <span class="m-tok-com">/* 圆角 —— 后者赢 */</span>
+<span class="m-tok-key">--nx-fs-xs</span>: calc(var(--nx-ui) * var(--nx-r-xs));
+   <span class="m-tok-com">/* → calc(14px * 4px) 整条失效，六档字阶退回继承值 */</span></div>
           </div>
         </div>
 
@@ -110,6 +110,21 @@
         </div>
 
         <div class="m-run"><i data-ico="loader-circle" data-size="14"></i><span class="m-text-live">正在流式输出</span></div>
+
+        <!-- fork:v5-landing（2026-10-04 收官轮）—— 内容块全集：引用 / 任务清单 / 提及。
+             这三类此前窄屏没有任何形态（MarkdownBody 的 blockquote 与 tasklist 块级
+             类名是硬编码的 d-quote / d-tasklist），补上这一帧让 m-quote / m-tasklist /
+             m-checkbox / m-mention 四件有画板依据（铁律二：一个类必须被一张画板用上）。 -->
+        <div class="m-md">
+          <blockquote class="m-quote">长列表里抽一行说清楚：<b>过程只有一条时间轴</b>，工具调用不逐条平铺——平铺之后，五分钟的跑动会变成四十行，回答被淹没。</blockquote>
+          <ul class="m-tasklist">
+            <li><span class="m-checkbox on"><i data-ico="check" data-size="12"></i></span>把门禁写成命令</li>
+            <li><span class="m-checkbox on"><i data-ico="check" data-size="12"></i></span>两处令牌改名</li>
+            <li><span class="m-checkbox"></span>给比例令牌加一条「乘号右侧必须无单位」</li>
+            <li><span class="m-checkbox half"></span>清掉 v4 基座里被覆盖的两档</li>
+          </ul>
+          <p>提到 <span class="m-mention">@design/v5/base.css</span> 与 <span class="m-mention">#42</span> 时用行内芯片，不用一整块卡片。</p>
+        </div>
 
         <div class="m-msg-acts is-on">
           <button class="m-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button>
@@ -380,6 +395,13 @@ not ok 31 - 引用 PI_WEB_PASSWORD 的条目必须被拒
               <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">grep(--nx-r- · 14 处)</span><span class="m-step-n">0.4s</span></div>
               <div class="m-step-row fail"><span class="m-step-dot"></span><span class="m-grow m-t-b">node --test lib/mcp-transport.test.mjs</span><span class="m-step-n">1.9s</span></div>
               <div class="m-step-row"><span class="m-step-dot"></span><span class="m-grow m-t-faint">write(base.css) —— 等你决定</span><span class="m-step-n">—</span></div>
+            </div>
+            <!-- fork:v5-landing（2026-10-04 收官轮）—— 文件 chip 形态：引用的文件名用
+                 m-cite（一步一行，取代桌面那排 d-cite），带命中态与批量计数。 -->
+            <div class="m-cites">
+              <span class="m-cite is-on"><i data-ico="circle-dot" data-size="12"></i>design/v5/base.css</span>
+              <span class="m-cite"><i data-ico="circle" data-size="12"></i>design/v5/pwa/system.css</span>
+              <span class="m-cite"><i data-ico="circle" data-size="12"></i>scripts/board-diff.mjs</span>
             </div>
           </div>
         </div>

@@ -95,8 +95,7 @@ const STEPS = [
     for (let i = 0; i < n; i++) {
       await tabs.nth(i).click({ timeout: 2500 }).catch(() => {});
       await page.waitForTimeout(700);
-      const shot = await EXTRACT();
-      void shot; // 每标签单独截图由外层统一做，这里只保证交互到位
+      // 每标签单独截图由外层统一做，这里只保证交互到位
     }
   }),
   step("06-设置十三分节", "画板 40~47：左导航 13 节逐个打开", async (page) => {

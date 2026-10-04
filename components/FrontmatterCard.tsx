@@ -16,9 +16,20 @@ function isUrl(value: string): boolean {
   return /^(https?:\/\/|mailto:)/i.test(value);
 }
 
-function renderValue(value: unknown): ReactNode {
+/** fork:v5-wave-n1 —— 布尔值给一枚中性徽章（画板 D-06b 帧 B frontmatter 卡原话：
+ *  「布尔值给徽章」，板上那一格是 `<span><span class="d-badge mute">false</span></span>`）。 */
+function renderBoolean(value: boolean, isPwa: boolean): ReactNode {
+  return (
+    <span className={isPwa ? "m-badge mute" : "d-badge mute"}>
+      {String(value)}
+    </span>
+  );
+}
+
+function renderValue(value: unknown, isPwa: boolean): ReactNode {
   const text = formatFrontmatterValue(value);
   if (!text) return null;
+  if (typeof value === "boolean") return renderBoolean(value, isPwa);
   if (typeof value === "string" && isUrl(value)) {
     // Only safe schemes — values come from the user's own file but stay escaped
     // by React regardless; this just prevents javascript: hrefs.
@@ -77,7 +88,7 @@ export function FrontmatterCard({ data }: FrontmatterCardProps) {
             {rows.map(([key, value]) => (
               <div className={`markdown-frontmatter-row ${isPwa ? "m-fieldrow" : "d-kv-row"}`} key={key}>
                 <span>{key}</span>
-                <span>{renderValue(value)}</span>
+                <span>{renderValue(value, isPwa)}</span>
               </div>
             ))}
           </div>

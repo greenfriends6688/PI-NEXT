@@ -620,6 +620,9 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
 export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onOpenSettingsSection, onContextUsageChange, onExtensionStatusChange, actionPanel, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
+  // fork:v5-wave-n1 —— 窄屏形态（画板 M-02 / M-11）：m-* 分支的信号，与
+  // components/pwa/skin 的约定一致（窄屏 = ≤640px = PWA 形态）。
+  const isPwa = usePwaSkin();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
 
   // Wrap onAgentEnd to play the completion sound. This is more reliable than
@@ -2773,6 +2776,13 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           background: "var(--bg)",
         }}
       >
+        {/* fork:v5-wave-n1 —— 手机上转录区的下端渐隐（画板 M-02 帧 A/B/C 每一帧里
+            `</div>`（m-scroll 收尾）与 `.m-composer-wrap` 之间那一块 `.m-fade-tail`：
+            「滚动到顶也不出现硬边」）。`.m-fade-tail` 自带 bottom:0 与
+            pointer-events:none；这里把它钉在输入卡的**上缘**（bottom:100% + left/right 0），
+            位置是几何值。z-index 比 sticky 低一档，正好在转录正文之上、输入卡之下，
+            不挡滚动也不挡「回到最下方」那枚钮（它 z-index:20）。 */}
+        {isPwa && <div className="m-fade-tail" style={{ bottom: "100%", left: 0, right: 0 }} aria-hidden="true" />}
         {!isEmptyNew && (
           <div
             style={{

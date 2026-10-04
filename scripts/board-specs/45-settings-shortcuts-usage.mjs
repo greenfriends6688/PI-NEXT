@@ -1,30 +1,44 @@
-// 画板 45 设置 · 快捷键与用量（帧 A 快捷键）
+// 画板 45（快捷键 / 用量）—— 快捷键分节已下线，这份只对位仍存在的通用基件。
 //
-// 同 44：控件词表以 62 的基件为准（.pw-field/.pw-label/.pw-ctl/.pw-radio），
-// 画板里的 .pw-input/.pw-kbd 是旧口径、不再逐项比；量**壳与字段基件**。
-const SHELL = [".pw-field", ".pw-label", ".pw-ctl", ".pw-radio"];
+// fork:v5-settings-map（2026-10-04）—— 产品侧选择器从 v1 的 pw-* 迁到 v5 的 d-*。
+// **画板侧一行不动**，两边靠 pairs 显式配对。
+const OPEN_GENERAL = `
+  const opener = document.querySelector(".d-side-foot button");
+  if (!opener) throw new Error("设置入口没找到（.d-side-foot > button）");
+  opener.click();
+  await new Promise((r) => setTimeout(r, 1600));
+  const row = document.querySelector('button.d-set-navitem[data-section="general"]');
+  if (!row) throw new Error("settings section not found: general");
+  row.click();
+  await new Promise((r) => setTimeout(r, 1800));`;
 
 export default {
-  name: "快捷键（画板 45 · 帧 A）",
+  name: "快捷键 · 通用基件（画板 45 · 帧 0 · 分节已下线）",
   board: "45-settings-shortcuts-usage.html",
   boardFrame: 0,
-  app: { open: "settings:general" },
-  selectors: SHELL,
+  app: { script: OPEN_GENERAL, settle: 1600 },
+  pairs: [
+    [".pw-field", ".d-set-main .d-set-row"],
+    [".pw-label", ".d-set-main .d-set-row-t"],
+    [".pw-ctl", ".d-set-main .d-set-row > .d-grow-last"],
+    [".pw-radio", ".d-seg"],
+  ],
   knownDiffs: [
     {
-      sel: ".pw-field",
-      reason: "同 62/40 的 fork:settings-field-density 接线（标签下限 + gap 6/16）；既有登记。",
-    },
-    {
-      sel: ".pw-label",
-      reason: "同 .pw-field 的标签下限接线。",
-    },
-    {
-      sel: ".pw-radio",
+      sel: ".d-set-main .d-set-row",
       reason:
-        "**画板自身不一致（B 类）**：board.css:799 的 `.pw-radio > span` 是 font-size var(--text-meta)=12px，"
-        + "但画板 45 帧里的样张写成了 13px（--text-body）。产品照 board.css 的规则做 12px —— "
-        + "以规则为准、样张待设计侧修正。",
+        "**取样差异 + 分节已下线**：画板帧 0 的字段行属于「快捷键」分节，产品**没有这一节**"
+        + "（2026-10-01 用户裁定删分节 + 停执行器）。所以这一份量的**字段行原子**（`.pw-field` /"
+        + " `.pw-label` / `.pw-ctl` 三枚）落在**常规**分节的同类基件上 —— 那一节是产品里唯一"
+        + "还在用「字段行 + 右控件槽」的分节，量到的是行盒本身（高 / 内距 / 字号 / 描边）。"
+        + "另外 v5 的 `.d-set-row`（`system.css:486`）与 v1 的 `.pw-field`（board.css:781 的"
+        + " `justify-content:space-between`）本身也不是同一形态。",
+    },
+    {
+      sel: ".d-seg",
+      reason:
+        "**取样差异（v5 没有单选组）**：v1 的 `.pw-radio` 是一排圆角小片；v5 的 `.d-radio` / `.d-radiorow` "
+        + "只在 `system.css` 里定义、产品一个都没发，实际承载枚举的是 `span.d-seg`。",
     },
   ],
   tolerance: { box: 2, fontSize: 0 },

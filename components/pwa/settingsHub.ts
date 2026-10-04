@@ -27,6 +27,34 @@ export const SETTINGS_HUB_GROUPS: ReadonlyArray<{
 
 type HubCopy = Record<"en" | "zh-CN" | "zh-TW", string>;
 
+/** 四段分组名的文案（画板 D-07 左导航的 `.d-set-navsep`：基础 / 能力 / 运行 / 数据与连接）。
+ *  手机 hub 那一层不画段名（画板 M-05 帧 A 的四张卡也没有标题，靠间距分组），
+ *  但桌面左导航要画 —— 两端读的是**同一张表**，所以段名放这里而不是各写一份。
+ *  语言包里没有这四个键，而这一轮不允许改 `lib/i18n/messages/**`，故走本地表
+ *  （与本文件其余文案同一口径）。 */
+const GROUP_LABELS: Record<string, HubCopy> = {
+  base: {
+    en: "Basics",
+    "zh-CN": "基础",
+    "zh-TW": "基礎",
+  },
+  capability: {
+    en: "Capabilities",
+    "zh-CN": "能力",
+    "zh-TW": "能力",
+  },
+  runtime: {
+    en: "Runtime",
+    "zh-CN": "运行",
+    "zh-TW": "執行",
+  },
+  data: {
+    en: "Data and connections",
+    "zh-CN": "数据与连接",
+    "zh-TW": "資料與連線",
+  },
+};
+
 function hubCopy(
   table: Record<string, HubCopy>,
   key: string,
@@ -95,6 +123,11 @@ const SECTION_HINTS: Record<string, HubCopy> = {
     "zh-TW": "配對碼 · 掃碼連線 · 機器人渠道 · 推播目標",
   },
 };
+
+/** 桌面左导航那一段的段名（D-07 的 `.d-set-navsep`）。 */
+export function settingsHubGroupLabel(groupId: string, locale: string): string {
+  return hubCopy(GROUP_LABELS, groupId, locale);
+}
 
 /** hub 顶部那一段说明（画板帧 A 的 `.m-hero` 第二行）。 */
 const HUB_HERO: HubCopy = {

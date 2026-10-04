@@ -489,6 +489,9 @@ export function UsageStatsPanel(): ReactNode {
               <div className="d-chart-head">
                 <i data-ico="calendar-days" data-size="14" aria-hidden="true" />
                 {t("usage.heatmap")}
+                {/* 画板 D-19 帧 B 的帧头读数（口径写在图旁边，否则数字会被当成账单）。 */}
+                <span className="d-grow" aria-hidden="true" />
+                <span className="d-t-xs d-t-faint">{t("usage.activeDays")}</span>
               </div>
               <div className="d-card-body">
               <div className="d-row" style={{ marginTop: "var(--nx-sp-2)" }}>
@@ -516,6 +519,7 @@ export function UsageStatsPanel(): ReactNode {
                 days={heatmapDays}
                 metric={metric}
                 label={t("usage.heatmap")}
+                metricLabel={metric === "sessions" ? t("usage.metricSessions") : t("usage.metricTokens")}
                 lessLabel={t("usage.less")}
                 moreLabel={t("usage.more")}
               />

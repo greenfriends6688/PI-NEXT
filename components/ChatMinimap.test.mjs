@@ -93,3 +93,17 @@ test("labels the load-earlier row from i18n and shows progress while it loads", 
   assert.match(source, /t\("chatMinimap\.loadEarlier"\)/);
   assert.match(source, /loadingEarlier \? t\("i18n\.loading"\) : t\("chatMinimap\.loadEarlier"\)/);
 });
+
+// fork:v5-wave-n1 — D-03e 帧 A 导轨上的两枚标记：定位横线 + 回合编号。
+test("fork:v5-wave-n1 —— 导轨带 .d-mm-pin 定位线与 .d-mm-turn 回合编号", () => {
+  assert.match(source, /className="d-mm-pin"/, "定位线是画板 D-03e 帧 A 的 .d-mm-pin");
+  assert.match(source, /className="d-mm-turn d-mono"/, "回合编号是 .d-mm-turn.d-mono");
+  // 两枚都只在指针落在某一轮时出现（minimapHovered + nearestNodeIndex），
+  // 不新增 state、不加计时器：钉住浮层时随浮层一起留着，离开即消失。
+  assert.match(
+    source,
+    /minimapHovered && nearestNodeIndex !== null/,
+    "标记由既有悬停状态派生，不另立状态",
+  );
+  assert.match(source, /#\{node\.index \+ 1\}/, "编号是这一轮的序号");
+});

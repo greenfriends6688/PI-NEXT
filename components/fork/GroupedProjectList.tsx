@@ -466,8 +466,8 @@ function GroupHeader({
         </span>
       </button>
       <span className="d-t-xs" style={{ flexShrink: 0, minWidth: "var(--icon-sm)", textAlign: "right" }}>{count}</span>
-      {/* 行内动作：复用系统里现成的悬停动作组（与消息动作同一件），
-          没有独立的 `.d-acts` 类，见汇报。 */}
+      {/* 行内动作：复用系统里现成的悬停动作组（与消息动作同一件）——
+          v5 库里没有单独的「行内动作」类（消息动作件 d-msg-acts 就是它）。 */}
       <span className={`d-msg-acts${hovered || dropActive ? " is-on" : ""}`}>
         <button type="button" className="d-iconbtn" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
           <i data-ico="pencil" data-size="12"></i>

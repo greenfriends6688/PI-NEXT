@@ -14,10 +14,22 @@ const css = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8
 test("搜索框默认收起：只在 sessionSearchOpen 时渲染，点头部搜索钮才展开并聚焦", () => {
   // 台账 DIVERGENCE 38：画板 02 帧 A（项目 pane）没有搜索格，只出现在帧 C（搜索态）。
   assert.match(code, /const \[sessionSearchOpen, setSessionSearchOpen\] = useState\(false\)/);
-  // fork:v5-wave-b —— 搜索格只在 `sessionSearchOpen` 时渲染这条不变；类名变成形态分支
-  // （≤640 走画板 M-04 的 `.m-searchfield`，≥641 走 `.d-searchfield`），
-  // 所以这里钉的是「同一个 label + 两个形态类」这条等价约束。
-  assert.match(code, /\{sessionSearchOpen && \(\s*<label className=\{isMobile \? "m-searchfield" : "d-searchfield"\}/);
+  // fork:v5-wave-b —— 搜索格只在 `sessionSearchOpen` 时渲染这条不变。
+  // fork:v5-landing-2026-10-04 —— 两支拆开（桌面那份按画板 D-02 帧 D / D-02d 帧 E
+  // 补了外层 `.d-side-nav`，间距不再走内联 margin），所以这里钉的是**新的等价约束**：
+  //   ① 搜索格只有一个守卫 `sessionSearchOpen`（两支共用，少一个就是「有一档常显」）；
+  //   ② input 本体只有一份（同一个 id / ref / Esc 行为），形态由取类名的
+  //      `sessionSearchField` 决定：窄屏 `.m-searchfield`、宽屏 `.d-searchfield`；
+  //   ③ 宽屏那份落在 `.d-side-nav` 盒子里，且不再有内联 margin ——
+  //      间距只有一个来源（system.css）。
+  assert.match(code, /const sessionSearchField = \(className: string\) => \(\s*<label className=\{className\}>/);
+  assert.match(code, /\{sessionSearchOpen && \(\s*isMobile \? sessionSearchField\("m-searchfield"\) : \(\s*<div className="d-side-nav">\{sessionSearchField\("d-searchfield"\)\}<\/div>/);
+  assert.equal(
+    (code.match(/id="session-search-input"/g) ?? []).length,
+    1,
+    "搜索格只有一份 input（两支共用），不是复制两遍",
+  );
+  assert.doesNotMatch(code, /margin: "0 var\(--nx-sp-2\)"/);
   assert.match(code, /setSessionSearchOpen\(true\)/);
   assert.match(code, /requestAnimationFrame\(\(\) => searchInputRef\.current\?\.focus\(\)\)/);
   assert.match(code, /aria-expanded=\{sessionSearchOpen\}/);

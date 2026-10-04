@@ -73,6 +73,7 @@ import { useUiDensity } from "@/hooks/useUiDensity";
 // 「需项目」徽章）。窄屏才渲染，桌面那条左导航一个字不动。
 import {
   SETTINGS_HUB_GROUPS,
+  settingsHubGroupLabel,
   settingsHubHeroCopy,
   settingsHubNeedsProjectCopy,
   settingsHubSectionHint,
@@ -1034,6 +1035,51 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
     requiresProject: entry.requiresProject,
   }));
 
+  /* fork:v5-landing Wave N1 · D-07 —— 左导航的四段分组标题 `.d-set-navsep`
+     （基础 / 能力 / 运行 / 数据与连接）。分组表就是手机 hub 的那四张卡
+     （`pwa/settingsHub.ts` 的 `SETTINGS_HUB_GROUPS`，那个文件的头注释写明「分组 id 与
+     顺序抄 D-07 左导航的 `.d-set-navsep` 四段」），所以这里读同一份：两端天然同构，
+     不会再长出「桌面有段名、手机没有」的第二套分类法。
+     段名走该文件的本地文案表 —— 语言包里没有这四个键，而这一轮不允许改
+     `lib/i18n/messages/**`（需要的 i18n key 已登记在报告里）。 */
+  const navEntries = SETTINGS_HUB_GROUPS.flatMap((group) => [
+    { kind: "sep" as const, key: `sep-${group.id}`, label: settingsHubGroupLabel(group.id, locale) },
+    ...group.sections.flatMap((id) => {
+      const entry = sections.find((item) => item.id === id);
+      return entry ? [{ kind: "item" as const, key: entry.id, entry }] : [];
+    }),
+  ]);
+  /* 不在四张卡里的分节（加过分节却忘了更新 hub 表时）接在末尾，不静默消失。
+     SettingsPanel.test.mjs 已经钉住「hub 盖满十一个分节」，这里是第二道。 */
+  const navOrphans = sections.filter(
+    (item) => !SETTINGS_HUB_GROUPS.some((group) => group.sections.includes(item.id)),
+  );
+
+  /** 左导航的一行。抽成函数是因为分组之后同一段 JSX 要在两处各用一次。
+   *  fork:settings-frame（画板 62）—— 分节 id 落在 DOM 上。
+   *  没有它，脚本 / 测试只能按**本地化后的中文标签**找分节行（`board-diff.mjs` 的
+   *  `settings:skills` 因此一直是空转的：它按英文 label 找 `.d-set-navitem`，
+   *  永远找不到 → 设置面板根本没打开 → 所有选择器都报「产品里没有」）。 */
+  const renderNavItem = (item: (typeof sections)[number]) => {
+    const selected = section === item.id;
+    const disabled = item.requiresProject && !cwd;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        className={`d-set-navitem${selected ? " is-on" : ""}`}
+        disabled={disabled}
+        data-section={item.id}
+        title={disabled ? t("settings.projectRequired") : item.label}
+        aria-current={selected ? "page" : undefined}
+        onClick={() => activateSection(item.id)}
+      >
+        <SettingsSectionIcon section={item.id} size={14} />
+        {item.label}
+      </button>
+    );
+  };
+
   useEffect(() => setLastSettingsSection(initialSection), [initialSection]);
 
   useEffect(() => {
@@ -1202,30 +1248,13 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
               左导航在 `app/settings.css` 的 ≤640px 档里 `display:none`）。 */}
           {isMobile ? null : (
           <nav aria-label={t("settings.title")} className="settings-section-tabs d-set-nav">
-            {sections.map((item) => {
-              const selected = section === item.id;
-              const disabled = item.requiresProject && !cwd;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`d-set-navitem${selected ? " is-on" : ""}`}
-                  disabled={disabled}
-                  /* fork:settings-frame（画板 62）—— 分节 id 落在 DOM 上。
-                     没有它，脚本 / 测试只能按**本地化后的中文标签**找分节行
-                     （`board-diff.mjs` 的 `settings:skills` 因此一直是空转的：
-                     它按英文 label 找 `.d-set-navitem`，永远找不到 → 设置面板根本没打开
-                     → 所有选择器都报「产品里没有」）。 */
-                  data-section={item.id}
-                  title={disabled ? t("settings.projectRequired") : item.label}
-                  aria-current={selected ? "page" : undefined}
-                  onClick={() => activateSection(item.id)}
-                >
-                  <SettingsSectionIcon section={item.id} size={14} />
-                  {item.label}
-                </button>
-              );
-            })}
+            {/* fork:v5-landing Wave N1 · D-07 —— 四段分组标题（`.d-set-navsep`）。
+                段名在画板里就是左导航的一部分（基础 / 能力 / 运行 / 数据与连接），
+                手机那一层换成四张卡但**分组是同一张表**，所以两端读的是同一份顺序。 */}
+            {navEntries.map((entry) => entry.kind === "sep"
+              ? <div className="d-set-navsep" key={entry.key}>{entry.label}</div>
+              : renderNavItem(entry.entry))}
+            {navOrphans.map(renderNavItem)}
             {/* 2026-10-03 用户裁定 —— 左导航底部的「返回工作区」撤掉（画板 62 帧 C 那一行
                 与 `.pw-snav-close` 一同退出产品）：弹窗右上角的 `.settings-dialog-close`
                 就是唯一的关闭口，窄屏页头那枚 X 仍在，所以手机也没少出口。

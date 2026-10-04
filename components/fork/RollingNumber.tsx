@@ -18,6 +18,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+// fork:v5-landing-close —— 数字淡入的形态类：宽屏 `.d-num`（D-28），窄屏 `.m-num`。
+// 逐位 WAAPI 翻滚是产品自带的**行为**，两端一致，不动。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 export const ROLLING_DURATION_MS = 160;
 export const ROLLING_EASING = "cubic-bezier(0.4, 0, 0.2, 1)";
@@ -160,6 +163,8 @@ export function RollingNumber({
   reducedMotion?: boolean;
 }) {
   const preference = useMotionPreference();
+  const isPwa = usePwaSkin();
+  const numClass = isPwa ? "m-num" : "d-num";
   const motion: MotionPreference = reducedMotion === true ? "reduce" : preference;
   const text = formatRollingValue(value);
   const characters = Array.from(text);
@@ -175,8 +180,9 @@ export function RollingNumber({
       aria-label={text}
       title={text}
       /* fork:v5-skin D-28 —— 同位数换值的规范类 .d-num（数字淡入）；
-         产品自带的逐位 WAAPI 翻滚仍保留，两者不冲突（d-num 只管容器淡入）。 */
-      className={className ? `${className} d-num` : "d-num"}
+         产品自带的逐位 WAAPI 翻滚仍保留，两者不冲突（d-num 只管容器淡入）。
+         fork:v5-landing-close —— 窄屏是 PWA 库的 .m-num（同一帧，不改时长）。 */
+      className={className ? `${className} ${numClass}` : numClass}
       style={{
         display: "inline-flex",
         alignItems: "center",

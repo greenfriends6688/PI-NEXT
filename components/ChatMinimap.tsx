@@ -805,6 +805,26 @@ export function ChatMinimap({
         );
       })}
 
+      {/* fork:v5-wave-n1 —— 导轨上的两个标记（画板 D-03e 帧 A 导轨逐字）：
+          `.d-mm-pin`（2px 警示色横线 = 「就停在这一轮」）与
+          `.d-mm-turn.d-mono`（`#12` 编号）。两者都挂在**指针当前落在的那一轮**上：
+          悬停导轨即出现，浮层钉住时随浮层一起留着，离开即消失 ——
+          不新增 state、不加计时器（既有 activeIndex 的定位窗口是原有行为，这里只是它的可视标记）。
+          `.d-mm-pin` 自带 position:absolute，`.d-mm-turn` 不是，所以给它补同一套几何定位；
+          两者的 top 与节点的 `topRatio` 同一基准（节点高 3px，针线 2px，编号落在针线下方）。 */}
+      {minimapHovered && nearestNodeIndex !== null && (() => {
+        const node = positionedNodes.find((candidate) => candidate.index === nearestNodeIndex);
+        if (!node) return null;
+        return (
+          <>
+            <div className="d-mm-pin" style={{ top: `calc(${node.topRatio * 100}% + 1px)` }} aria-hidden="true" />
+            <div className="d-mm-turn d-mono" style={{ position: "absolute", left: 0, top: `calc(${node.topRatio * 100}% + 5px)` }}>
+              #{node.index + 1}
+            </div>
+          </>
+        );
+      })()}
+
       {/* 320px 时间线浮层（画板 D-03e 帧 A）：`.d-minimap-pop` 外壳 + `.d-row` 图钉头
           + `.d-tree` 列表（加载更早 + 逐轮编号列/内容列）。定位（锚在导轨左侧）
           是几何，走内联；板的排布由 system.css 的 `.d-minimap-pop` 承担。 */}
