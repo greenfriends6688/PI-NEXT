@@ -76,10 +76,43 @@
 .m-md { font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); }
 .m-md p { margin: 0 0 10px; }
 .m-md h1, .m-md h2 { font-size: var(--nx-fs-lg); font-weight: 600; margin: 0 0 8px; }
+/* ── 2b · Markdown 内容块（引用 / 任务清单 / 提及）─────────────────────────────
+   这三块在真实回答里天天出现，`.m-md` 只管段落与标题，于是窄屏上引用块与勾选行
+   掉回 UA 默认渲染（引用无底色、任务项带原生方框）。
+   值取 PWA 形态档：引用块内边距 12/16（比 Web 宽一档，拇指阅读）；
+   圆角走 --nx-r-md（16）；任务勾选框 20px = --nx-ctl-xs 减 --nx-sp-2（能算出来，不是写死的）。
+   与 Web `.d-quote / .d-tasklist / .d-mention` 逐条同义，只有形态值不同。 */
+.m-md .m-quote { margin: 0 0 var(--nx-sp-3); padding: var(--nx-sp-3) var(--nx-sp-4);
+  background: var(--nx-surface); border-radius: var(--nx-r-md); color: var(--nx-text-2); }
+.m-md .m-quote p:last-child { margin-bottom: 0; }
+.m-md ul, .m-md ol { margin: 0 0 var(--nx-sp-3); padding-left: var(--nx-sp-6); }
+.m-md li { margin: var(--nx-sp-1) 0; }
+.m-md li::marker { color: var(--nx-text-3); }
+.m-md .m-tasklist { list-style: none; padding-left: var(--nx-sp-1); margin: 0 0 var(--nx-sp-3); }
+.m-md .m-tasklist > li { display: flex; align-items: flex-start; gap: var(--nx-sp-2); }
+/* 多选框：归档 / 导入的批量选择与任务清单共用一个。
+   半选态（.half）是**必须**的 —— 组里选了一部分时不能显示成「全选」或「全不选」。 */
+.m-checkbox { width: calc(var(--nx-ctl-xs) - var(--nx-sp-2));
+  height: calc(var(--nx-ctl-xs) - var(--nx-sp-2)); border-radius: var(--nx-r-xs);
+  border: 1.5px solid var(--nx-line-hi); background: var(--nx-panel); flex: 0 0 auto;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  color: transparent; }
+.m-checkbox.on { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-fg); }
+.m-checkbox.half { background: var(--nx-panel); border-color: var(--nx-accent); color: var(--nx-accent); }
+.m-checkbox > i { width: var(--nx-sp-3); height: var(--nx-sp-3); }
+.m-checkbox.on > i { display: block; }
+.m-checkbox.half > i { display: block; width: var(--nx-sp-2); height: calc(var(--nx-sp-1) / 2); }
+/* 行内提及（@文件 / #会话 / /命令）：不是芯片，是正文里的一个 token */
+.m-mention { display: inline-flex; align-items: center; gap: var(--nx-sp-1);
+  padding: 0 var(--nx-sp-1); border-radius: var(--nx-r-xs); background: var(--nx-accent-soft);
+  color: var(--nx-accent); font-size: var(--nx-fs-xs); font-family: var(--nx-font-mono);
+  line-height: var(--nx-lh-tight); vertical-align: baseline; }
 .m-ln { display: inline-block; width: 2em; color: var(--nx-text-3); user-select: none; text-align: right;
   margin-right: 10px; }
+/* 公式容器：M-02 帧 A 已在上用。上下内边距取 --nx-sp-1 的一半（= 原来那 2px），
+   几何一字不变，只是把字面量换成能算出来的值。 */
 .m-math { font-family: var(--nx-font-mono); font-size: var(--nx-fs-cap); background: var(--nx-code-bg);
-  border-radius: var(--nx-r-xs); padding: 2px 8px; }
+  border-radius: var(--nx-r-xs); padding: calc(var(--nx-sp-1) / 2) var(--nx-sp-2); }
 
 /* 过程时间轴（默认折叠） */
 .m-steps { display: flex; flex-direction: column; gap: 2px; }
@@ -105,6 +138,7 @@
 .m-code-body { padding: 12px; font-family: var(--nx-font-mono); font-size: var(--nx-fs-cap);
   line-height: 1.75; overflow-x: auto; white-space: pre; }
 .m-code-scroll { overflow-x: auto; }
+
 .m-code-add, .m-code-del { display: block; padding: 0 8px; white-space: pre; }
 .m-code-add { background: color-mix(in srgb, var(--nx-diff-add) 10%, transparent);
   color: var(--nx-diff-add); }
@@ -211,6 +245,29 @@
   box-shadow: 0 1px 2px color-mix(in srgb, var(--nx-text) 16%, transparent); }
 .m-send.stop { background: var(--nx-danger); }
 .m-send:disabled { background: var(--nx-surface-hi); color: var(--nx-text-3); box-shadow: none; }
+
+/* ── 3b · 输入卡运行光带（.m-loader 挂在 .m-composer 上）───────────────────
+   agent 在跑时，输入卡自己亮起来，不必再在消息流里插一行「正在跑」。
+   SVG 用 pathLength=100 把周长归一化，于是 stroke-dashoffset 走 -100 正好绕行一圈：
+   端点速度恒定、拐角也不变速（这两点用真实周长做不到，圆角处会明显加速）。
+   dasharray 的两个数在 pathLength 空间里，**不是长度**，所以只能是字面量。 */
+.m-loader { position: relative; }
+/* 描边的一半宽 —— 让光带正好压在卡片边框上，而不是浮在里侧或外侧 */
+.m-loader-svg { position: absolute; inset: calc(var(--nx-focus-w) / -2);
+  width: calc(100% + var(--nx-focus-w)); height: calc(100% + var(--nx-focus-w));
+  pointer-events: none; overflow: visible; z-index: var(--nx-z-base); }
+.m-loader-svg path { fill: none; stroke: var(--nx-accent); stroke-width: var(--nx-focus-w);
+  stroke-linecap: round; stroke-dasharray: 26 74;
+  animation: nx-dash 2600ms linear infinite; }
+/* 静息态（默认挂上就是亮的；.is-idle 才收）—— 只停光带，不动卡片本体 */
+.m-loader.is-idle .m-loader-svg path { opacity: 0; }
+.m-loader:not(.is-idle) .m-loader-svg path { animation-play-state: running; }
+/* 光晕：卡片外一圈强调色。inset 与 spread 同宽 → 净效果正好是卡片外 3px 一圈 */
+.m-loader-glow { position: absolute; inset: calc(var(--nx-focus-w) * -2);
+  border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 calc(var(--nx-focus-w) * 2) color-mix(in srgb, var(--nx-accent) 14%, transparent);
+  opacity: 0; transition: opacity var(--nx-dur-4) var(--nx-ease); }
+.m-loader:not(.is-idle) .m-loader-glow { opacity: 1; }
 
 /* 能力 chip 托盘（Aether 归一化抽象） */
 .m-tray { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -344,6 +401,16 @@
   color: var(--nx-text-3); }
 
 /* ── 6 · 设置（灰底白卡）──────────────────────────────────────────────────── */
+/* 通用卡体：与 .m-cardgroup 的区别是**卡体自带内容区**。
+   .m-cardgroup 是「一叠行，用分隔线分开」（设置项）；.m-card 是「一块有标题有正文的东西」
+   —— 商店卡、定时卡、统计卡、思考指示器规格卡都属于后者。之前只有 .m-tool（工具卡），
+   而 .m-tool 的语义绑死在「工具调用输出」，拿来装正文是借用，借久了就成了第二个来源。 */
+.m-card { background: var(--nx-panel); border: 1px solid var(--nx-line);
+  border-radius: var(--nx-r-lg); overflow: hidden; }
+.m-card-head { display: flex; align-items: center; gap: var(--nx-sp-2);
+  padding: var(--nx-sp-3) var(--nx-sp-4); border-bottom: 1px solid var(--nx-line);
+  font-size: var(--nx-fs-body); font-weight: 600; }
+.m-card-body { padding: var(--nx-sp-4); }
 .m-settings { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 108px 14px 32px;
   display: flex; flex-direction: column; gap: 14px; }
 .m-cardgroup { background: var(--nx-panel); border-radius: var(--nx-r-lg); overflow: hidden;
@@ -387,6 +454,23 @@
   min-height: var(--nx-ctl-md); padding: 0 14px; border: 1px solid var(--nx-line);
   border-radius: var(--nx-r-sm); background: var(--nx-panel); font: inherit;
   font-size: var(--nx-fs-body); color: var(--nx-text); cursor: pointer; width: 100%; }
+/* 原生 select 的皮肤（结构：壳 .m-pickselect + 壳内一个裸 <select> + 右侧 chevron）。
+   **为什么不能自绘**：手机上自绘下拉 = 改行为。滚轮惯性、无障碍朗读、系统级「选取」面板、
+   以及 Android/iOS 的原生选择器都是系统资产，替掉它们要重写的正是别人已经写好的部分。
+   所以这里只归零 appearance 并把行高/字号/圆角/配色对齐 .m-select，下拉本身交给系统。
+   注意与 .m-select 的分工：能力浮层里那些 chip 用 .m-select（那是可点开自绘面板的静态盒），
+   设置里的「从若干值里选一个」一律用 .m-pickselect。 */
+.m-pickselect { position: relative; display: flex; align-items: center;
+  min-height: var(--nx-ctl-md); padding: 0 var(--nx-sp-4); border: 1px solid var(--nx-line);
+  border-radius: var(--nx-r-sm); background: var(--nx-panel); color: var(--nx-text);
+  font-size: var(--nx-fs-body); cursor: pointer; }
+.m-pickselect > select { flex: 1 1 auto; min-width: 0; width: 100%; height: 100%;
+  border: 0; background: none; font: inherit; font-size: inherit; color: inherit;
+  padding: 0; outline: none; cursor: pointer;
+  -webkit-appearance: none; appearance: none; }
+/* chevron 压在壳上：原生 select 的箭头已归零，箭头归壳管 */
+.m-pickselect > i[data-ico] { color: var(--nx-text-2); }
+.m-pickselect:focus-within { border-color: var(--nx-accent); }
 .m-badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px;
   border-radius: 999px; font-size: var(--nx-fs-xs); font-weight: 500;
   flex: 0 0 auto; white-space: nowrap; }
@@ -484,9 +568,25 @@
 .m-hist-row { display: flex; align-items: center; gap: 8px; }
 .m-heat { display: grid; grid-template-columns: repeat(18, 1fr); gap: 3px; min-width: 0; }
 .m-heat-grid { aspect-ratio: 1; border-radius: 3px; background: var(--nx-surface-hi); }
+/* 用量热力 0–4 五档：0 = 无类（--nx-surface-hi 空档）→ l4 = 满强调色。
+   25/50/75/100 是**等差**的四格（能算出来：l4 = 100%，其余三格各差一档），
+   与 Web `.d-heat-grid` 同一把尺子；补 l4 前 l2/l3 是 55%/100%，
+   那样 l3 已经顶格、l4 无处可去，产品五档里有两档读起来一样。 */
 .m-heat-grid.l1 { background: color-mix(in srgb, var(--nx-accent) 25%, var(--nx-panel)); }
-.m-heat-grid.l2 { background: color-mix(in srgb, var(--nx-accent) 55%, var(--nx-panel)); }
-.m-heat-grid.l3 { background: var(--nx-accent); }
+.m-heat-grid.l2 { background: color-mix(in srgb, var(--nx-accent) 50%, var(--nx-panel)); }
+.m-heat-grid.l3 { background: color-mix(in srgb, var(--nx-accent) 75%, var(--nx-panel)); }
+.m-heat-grid.l4 { background: var(--nx-accent); }
+/* 统计格：四张小卡。手机上两列（4 列会窄到数字换行），
+   卡内只放「标签 + 一个大数 + 一行口径」，长解释放 .m-card-body。 */
+.m-statgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--nx-sp-3); }
+.m-stat { background: var(--nx-panel); border: 1px solid var(--nx-line);
+  border-radius: var(--nx-r-lg); padding: var(--nx-sp-3) var(--nx-sp-4); min-width: 0; }
+/* 用量进度条：占满行宽，高走一格间距（8px）—— 手机上太细的条在远处看不见。 */
+.m-bar { height: var(--nx-sp-2); border-radius: var(--nx-r-pill);
+  background: var(--nx-surface-hi); overflow: hidden; }
+.m-bar > i { display: block; height: 100%; border-radius: var(--nx-r-pill);
+  background: var(--nx-accent); }
+
 .m-bars { display: flex; align-items: flex-end; gap: 5px; height: 90px; padding: 0 2px; }
 .m-bars > i { flex: 1 1 0; border-radius: 4px 4px 0 0; background: var(--nx-accent); min-height: 4px; }
 
@@ -551,6 +651,35 @@
   z-index: var(--nx-z-toast); background: var(--nx-panel); border: 1px solid var(--nx-line);
   box-shadow: var(--nx-sh-2); border-radius: 999px; padding: 9px 16px; font-size: var(--nx-fs-cap);
   display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+/* 思考指示器四态（波 / 绕心 / 星 / 彗星）—— 与 Web 的 .d-think-* 同义。
+   四态只在**图案**上不同，宿主行 .m-think-row（图标 + 文案 + 秒数）是公共件：
+   任何一处都能单独换图案，不会出现「有的变体有计时器、有的没有」这种半截实现。 */
+.m-think-row { display: inline-flex; align-items: center; gap: var(--nx-sp-2);
+  font-size: var(--nx-fs-xs); color: var(--nx-accent); }
+/* 3×3 点阵。同一张点阵两种走法：wave = 对角波front（左上→右下），spin = 绕心一圈。
+   延迟写死成 nth-child（不做「每格一个内联 --i」），板面因此少一个能写错的地方。
+   呼吸用 base.css 的 nx-num（不透明度淡入）走 alternate：全系统唯一一条现成的淡入帧，
+   复用它就等于「PWA 不给点阵另立一个关键帧」—— 另立一条会变成同一效果的两个来源。 */
+.m-think-dots { display: grid; grid-template-columns: repeat(3, var(--nx-sp-1));
+  grid-auto-rows: var(--nx-sp-1); gap: calc(var(--nx-sp-1) / 2); flex: 0 0 auto; }
+.m-think-dots > i { width: var(--nx-sp-1); height: var(--nx-sp-1);
+  border-radius: calc(var(--nx-sp-1) / 4); background: currentColor;
+  animation: nx-num 600ms ease-in-out infinite alternate; }
+.m-think-dots.wave > i:nth-child(1), .m-think-dots.wave > i:nth-child(5), .m-think-dots.wave > i:nth-child(9) { animation-delay: 0ms; }
+.m-think-dots.wave > i:nth-child(2), .m-think-dots.wave > i:nth-child(4), .m-think-dots.wave > i:nth-child(6), .m-think-dots.wave > i:nth-child(8) { animation-delay: -120ms; }
+.m-think-dots.wave > i:nth-child(3), .m-think-dots.wave > i:nth-child(7) { animation-delay: -240ms; }
+.m-think-dots.spin > i:nth-child(1), .m-think-dots.spin > i:nth-child(5), .m-think-dots.spin > i:nth-child(9) { animation-delay: 0ms; }
+.m-think-dots.spin > i:nth-child(2), .m-think-dots.spin > i:nth-child(4), .m-think-dots.spin > i:nth-child(6), .m-think-dots.spin > i:nth-child(8) { animation-delay: -150ms; }
+.m-think-dots.spin > i:nth-child(3), .m-think-dots.spin > i:nth-child(7) { animation-delay: -300ms; }
+/* 星：缩放淡入后消失（nx-star 是 base.css 里就给思考指示器留的那一条） */
+.m-think-stars { display: inline-flex; gap: var(--nx-sp-1); flex: 0 0 auto; }
+.m-think-stars > svg { width: var(--nx-sp-3); height: var(--nx-sp-3);
+  animation: nx-star 1600ms ease-in-out infinite; }
+.m-think-stars > svg:nth-child(2) { animation-delay: 220ms; }
+.m-think-stars > svg:nth-child(3) { animation-delay: 440ms; }
+/* 彗星：八字轨道，pathLength=100 归一化后 dashoffset 走 -100 绕一圈 */
+.m-think-comet { width: calc(var(--nx-sp-3) * 2); height: var(--nx-sp-3); flex: 0 0 auto; }
+.m-think-comet path { stroke-dasharray: 100; animation: nx-dash 2200ms linear infinite; }
 .m-run { display: flex; align-items: center; gap: 8px; font-size: var(--nx-fs-cap); color: var(--nx-accent); }
 /* 运行中 = 行内转圈（与 Web 的 .d-run 同一条 1400ms linear 规则），两端同一个读法 */
 .m-run > i:first-child { animation: nx-spin 1400ms linear infinite; }
@@ -569,6 +698,10 @@
 .m-banner > span, .m-banner > .m-grow { color: var(--nx-text); }
 .m-grip { color: var(--nx-text-3); display: inline-flex; flex: 0 0 auto; }
 .m-mono { font-family: var(--nx-font-mono); font-size: var(--nx-fs-xs); }
+/* 数值变化时的一次淡入（计数器 / 余额 / token）—— 挂 base.css 里那条共享关键帧 nx-num。
+   时长取 --nx-dur-2（160ms），不写字面量：Web 的 .d-num 写的是 220ms 裸值，
+   两端要同一读法的话该在 base.css 补一枚 --nx-dur-num，那不是本批能改的文件。 */
+.m-num { animation: nx-num var(--nx-dur-2) var(--nx-ease-out); }
 .m-rowlabel { font-size: var(--nx-fs-xs); color: var(--nx-text-3); padding: 0 6px; }
 .m-kbd { display: inline-flex; align-items: center; height: 22px; padding: 0 7px;
   border: 1px solid var(--nx-line); border-radius: var(--nx-r-xs); background: var(--nx-panel);
@@ -646,3 +779,28 @@
 .m-board-head h1 { font-size: var(--nx-fs-title); font-weight: 600; line-height: var(--nx-lh-tight); }
 .m-board-head p { font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 .m-scene { margin: 0 auto var(--nx-sp-8); width: max-content; }
+
+/* ── 内容块补全 · 引用出处（2026-10-05）────────────────────────────────────
+   ⚠ m-quote / m-tasklist / m-checkbox / m-mention / m-math 的**唯一定义在 §2b**
+   （本批由 pwa/system.css 的唯一 owner 统一收口）。这里只放 §2b 没有的件，
+   两处各写一遍就是「同一个值两个来源」，那条已经翻过车了。 */
+.m-cite { display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+  border-radius: var(--nx-r-xs); border: 1px solid var(--nx-line); color: var(--nx-text-2);
+  font-size: var(--nx-fs-xs); }
+.m-cite.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); }
+.m-cites { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); margin-top: var(--nx-sp-2); }
+/* ── 语法着色五档（本批 · 代码高亮）───────────────────────────────────────
+   五档：关键字 / 字符串 / 数字 / 注释 / 函数（`m-tok-fn` 覆盖 Prism 的
+   function / function-variable / method / class-name —— 手机上代码块窄，
+   函数名恰恰是最需要一眼认出来的一档；Web 侧没有这一档，本批新增）。
+   值取 PWA 形态的 --nx-code-*（pwa/tokens.css 自己那一份，深浅色各一套），
+   不复用 Web 的 --nx-code-*，也不借 --nx-accent 顶替 —— 深色下 #93a1ff 与
+   #0a84ff 读起来不是一回事。
+   未列出的 Prism token（operator / punctuation / tag …）刻意留空，继承
+   .m-code-body 的正文色：再多一档就是自行发明配色。
+   类名与产品 `AsyncCodeHighlighter` 的 `BOARD_TOKEN_CLASS_PWA` 一一对应，两端各一套，互不混用。 */
+.m-tok-key { color: var(--nx-code-key); font-weight: 600; }
+.m-tok-str { color: var(--nx-code-str); }
+.m-tok-num { color: var(--nx-code-num); }
+.m-tok-com { color: var(--nx-code-com); }
+.m-tok-fn  { color: var(--nx-code-key); }

@@ -1176,3 +1176,13 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   .d-drawer { transition: none; }
   .d-tabink { transition: none; }
 }
+
+/* ── 行展开 / 收起（grid 轨道 0fr↔1fr）───────────────────────────────
+   画板 D-29 帧 5 用它做「行内展开详情」：外层 .d-row-x 负责轨道与溢出裁剪，
+   .d-row-x-track 是那条 0fr→1fr 的轨道，.is-open 展开、.is-closing 收回。
+   关键帧在 base.css（nx-row-grow-in / nx-row-grow-out / nx-row-slide-out），
+   两端共用，��里只给形态值。 */
+.d-row-x { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--nx-dur-3) var(--nx-ease); }
+.d-row-x > .d-row-x-track { overflow: hidden; min-height: 0; }
+.d-row-x.is-open { grid-template-rows: 1fr; }
+.d-row-x.is-closing { transition: grid-template-rows var(--nx-dur-2) var(--nx-ease); }
