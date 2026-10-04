@@ -52,6 +52,8 @@ import {
   toggleFavoriteModelKey,
 } from "@/lib/favorite-models";
 import { ComposerContextStrip } from "./ComposerContextStrip";
+// fork:element-picker —— 浏览器面板「拾取元素」的交接口。
+import { subscribeBrowserPick, takeBrowserPick } from "@/lib/browser-element-pick";
 import { TodoChip } from "./fork/TodoChip";
 // fork:zc-08 — 附件 chip 的多类型预览（PDF / DOCX / 音视频 / 文本）。
 import { AttachmentPreview } from "./fork/AttachmentPreview";
@@ -1193,6 +1195,24 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   selectionContextsRef.current = selectionContexts;
   sessionReferencesRef.current = sessionReferences;
   initialSelectionContextsRef.current = initialSelectionContexts;
+
+  /* fork:element-picker —— 浏览器面板点一个元素 → 这里变成一条 `@` 引用。
+     面板在右栏 tab 里、输入框在中间，没有父子关系，所以走 `lib/browser-element-pick.ts`
+     的模块级 store（与 `lib/session-unread.ts` 同形）。投递是**单次**的：取走即清，
+     不会给下一个会话留下一条上一个页面点出来的元素。
+     面板在已发送后仍可点，所以这里只进 strip、不动输入框文本。 */
+  useEffect(() => subscribeBrowserPick(() => {
+    const pick = takeBrowserPick();
+    if (!pick) return;
+    const context = normalizeSelectionContext({
+      id: pick.id,
+      text: pick.snippet,
+      label: `${pick.role}「${pick.name}」`,
+    });
+    if (!context) return;
+    setSelectionContexts((current) =>
+      current.some((item) => item.id === context.id) ? current : [...current, context]);
+  }), []);
 
   // fork:ui-stats-ring —— 环浮窗支持点击圆环**钉住**（/session 命令与触屏也靠它打开）。
   const [ringPinned, setRingPinned] = useState(false);
@@ -2379,6 +2399,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const sendQueued = useCallback(() => {
     const question = value.trim();
     if (!question && !attachedImages.length) return;
+    // fork:send-stop-one-slot —— 空闲态不该走这条路。`handleSend` 自己有
+    // `if (isStreaming) return`（:1924），`sendQueued` 原来没有，于是任何在空闲时
+    // 调到它的调用者都会被塞进 followUp 队列（而不是发出去）。按钮侧现在有守卫
+    // （只有运行中才渲染 ↑ 并绑 sendQueued），这里补上服务端语义那一半，
+    // 让「谁在什么时候调它」都收敛到同一条判据。
+    if (!isStreaming) {
+      handleSend();
+      return;
+    }
     const contexts = selectionContextsRef.current;
     const references = sessionReferencesRef.current;
     const msg = serializeComposerMessage(question, contexts, t("chat.quoteIntro"), references);
@@ -2394,7 +2423,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     }
     clearInput();
     onFollowUp?.(msg, attachedImages.length ? attachedImages : undefined, contexts, question, references);
-  }, [value, attachedImages, onBuiltinCommand, onPromptWithStreamingBehavior, onFollowUp, clearInput, onAudioUnlock, runBuiltinCommand, t]);
+  }, [value, attachedImages, isStreaming, handleSend, onBuiltinCommand, onPromptWithStreamingBehavior, onFollowUp, clearInput, onAudioUnlock, runBuiltinCommand, t]);
 
   const getNextSlashIndex = useCallback((direction: "up" | "down" | "left" | "right") => {
     const lastIndex = displayedSlashCommands.length - 1;
@@ -2957,16 +2986,21 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const sendButton = (
     <button
       type="button"
-      onClick={handleSend}
+      /* fork:zc-queue-2026-10-04 —— 运行中点这一枚 = **排队**（与回车同一条路）。
+         原来这里死绑 `handleSend`，而它第一行就是 `if (isStreaming) return`：于是
+         边跑边打字再点发送 = 静默无反应（用户报的「无法排队」）。
+         鼠标这一条路以前只有回车能走，而回车不是能被看见的入口。 */
+      onClick={isStreaming && onFollowUp ? sendQueued : handleSend}
       disabled={!value.trim() && !attachedImages.length}
-      aria-label={t("chat.send")}
-      title={t("chat.send")}
+      aria-label={isStreaming && onFollowUp ? t("chat.queuePlaceholder") : t("chat.send")}
+      title={isStreaming && onFollowUp ? t("chat.queuePlaceholder") : t("chat.send")}
       className={`pw-send${(value.trim() || attachedImages.length) ? "" : " disabled"}`}
       style={{ cursor: (value.trim() || attachedImages.length) ? "pointer" : "not-allowed" }}
     >
       <span className="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span>
     </button>
   );
+  // fork:zc-queue-2026-10-04 —— 运行中的那一枚（⏸）。
   const stopButton = (
     <button
       type="button"
@@ -2982,6 +3016,30 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       <span className="pw-ico"><i data-ico="pause" data-size="13"></i></span>
     </button>
   );
+  // fork:send-stop-one-slot（用户 2026-10-05 裁定）—— **一格，不并排**。
+  // 改前是 `{isStreaming ? stopButton : sendButton}`（运行中把发送钮**卸载**，只剩
+  // ⏸，于是「边跑边打字再点发送」没有入口）；再改前的未提交实验 fork:zc-queue-2026-10-04
+  // 把它拆成并排两枚，又多出一个位置。两者都不是画板 20 帧 B 画的形态 ——
+  // 那帧的原话是「流式中 · 发送变停止，队列计数在左」，画的**就是**单格。
+  //
+  // 判据抄 ZCode（`packages/ui/src/v4/ConversationComposer.tsx:1135`）：
+  //   // 旧 UI 状态机：streaming + 空草稿 → Stop；有草稿 → 发送键（入队）。
+  //   const showStopControl = canStop && !hasDraftToSubmit;
+  // 于是：跑着 + 空输入 = ⏸（中断本轮）；跑着 + 有可发内容 = ↑（点了就排队）；
+  // 空闲 = ↑。**同一格，图标与动作一起换。**
+  //
+  // `hasDraftToSubmit` 与 ZCode 同构（那边是 7 项或）：文本 + 附件 + 代码批注 +
+  // 网页元素 + pptx 引用 + 会话选区 + 待导入共享上下文。本仓对应的是前四类里
+  // 实际存在的：文本、附件、选区引用（`selectionContexts`）、会话引用
+  // （`sessionReferences`）—— 后两者本来就跟着 `onSend` 一起送出去，
+  // 只排文本会把「只挂了引用、没打字」错判成空草稿，于是 ⏸ 盖掉那枚本该能点的 ↑。
+  const hasDraftToSubmit = !!(
+    value.trim()
+    || attachedImages.length
+    || selectionContexts.length
+    || sessionReferences.length
+  );
+  const composerSendCluster = isStreaming && !hasDraftToSubmit ? stopButton : sendButton;
   // fork:design-components —— 上下文环 + 浮窗 = 画板 01 帧 C / 画板 20 的
   // .pw-ring（三档配色）与 .pw-pop + .pw-prow 明细行。
   // 悬浮（鼠标 / 键盘焦点）才展开，不在输入框下面再放第二条横条。
@@ -3835,7 +3893,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               那时整条工具条不渲染，发送钮没有别处可去。 */}
           {compact && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-row)", flexShrink: 0, alignSelf: "flex-end" }}>
-              {isStreaming ? stopButton : sendButton}
+              {composerSendCluster}
             </div>
           )}
           </div>
@@ -4050,17 +4108,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 )}
               </div>
             )}
-            {/* fork:composer-speed（用户 2026-10-02 创建，同日挪位；2026-10-03 再加空闲读数）——
-                「思考档」与「权限档」之间那枚只读徽标：**只在 AI 响应期间**显示本轮
-                输出速度（ChatWindow 的 streamSpeed，停流即隐），原来它挂在行一的模型
-                芯片右边，那里现在只留附件 + 模型；上下文明细与压缩入口仍在右端那枚
-                环上，没动。 */}
-            {streamSpeed != null && streamSpeed > 0 && (
-              <span className="pw-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
-                <span className="pw-ico"><i data-ico="gauge" data-size="11"></i></span>
-                {streamSpeed} t/s
-              </span>
-            )}
             {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
                 2026-10-03 用户裁定 —— 从「点一下循环」改成下拉：三个档并列在浮窗里，
                 与思考档 / 工具档同一形态（`.pw-select` + `.pw-pop` / `.pw-prow`），
@@ -4228,7 +4275,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               时不渲染，下方右组里的那一枚才是桌面的）。 */}
           {narrowControls && (
             <div className="fork-pwa-wb-send" style={{ gridArea: "send", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {isStreaming ? stopButton : sendButton}
+              {composerSendCluster}
             </div>
           )}
 
@@ -4255,6 +4302,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               alignItems: "center",
               gap: narrowControls ? 1 : 2,
             }}>
+            {streamSpeed != null && streamSpeed > 0 && (
+              <span className="pw-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
+                <span className="pw-ico"><i data-ico="gauge" data-size="11"></i></span>
+                {streamSpeed} t/s
+              </span>
+            )}
             {contextRing}
 
             {onSoundToggle !== undefined && (
@@ -4272,7 +4325,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；
                 窄屏时发送钮在工具条的 `send` 区（上方），这里不再画第二枚。 */}
-            {!narrowControls && (isStreaming ? stopButton : sendButton)}
+            {!narrowControls && composerSendCluster}
             </div>
           </div>
 

@@ -46,6 +46,8 @@ export function registerAbortHandler(handler: (() => void) | null): void {
 interface UseGlobalKeyboardShortcutsOptions {
   /** Called when the "new session" binding is pressed. Receives current cwd. */
   onNewSession?: (cwd: string) => void;
+  /** fork:command-palette — 命令面板开/关（两个别名都走这里）。 */
+  onToggleCommandPalette?: () => void;
   /** The currently selected project directory (sidebar cwd). */
   activeCwd?: string | null;
   /**
@@ -77,7 +79,7 @@ interface UseGlobalKeyboardShortcutsOptions {
 export function useGlobalKeyboardShortcuts(
   options: UseGlobalKeyboardShortcutsOptions,
 ): void {
-  const { onNewSession, activeCwd, onToggleSidebar, onToggleRightPanel } = options;
+  const { onNewSession, activeCwd, onToggleSidebar, onToggleRightPanel, onToggleCommandPalette } = options;
   const { effective } = useShortcutBindings();
   const { theme, setThemePreference } = useTheme();
 
@@ -120,6 +122,14 @@ export function useGlobalKeyboardShortcuts(
         return;
       }
 
+      // ---- commandPalette (fork:command-palette, default Cmd/Ctrl+K) ----
+      // 放在 toggleTheme 之前：面板优先级高于外观切换，两组键无冲突。
+      if (matchesAnyShortcutBinding(event, effective.commandPalette ?? [])) {
+        event.preventDefault();
+        onToggleCommandPalette?.();
+        return;
+      }
+
       // ---- toggleTheme ----
       if (matchesAnyShortcutBinding(event, effective.toggleTheme ?? [])) {
         event.preventDefault();
@@ -129,5 +139,5 @@ export function useGlobalKeyboardShortcuts(
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeCwd, effective, onNewSession, onToggleRightPanel, onToggleSidebar, setThemePreference, theme]);
+  }, [activeCwd, effective, onNewSession, onToggleCommandPalette, onToggleRightPanel, onToggleSidebar, setThemePreference, theme]);
 }

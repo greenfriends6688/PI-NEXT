@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo, useReducer } from "react";
 import { bareMcpOpensSettings } from "@/lib/mcp-command";
+// fork:per-turn-observability —— 与 ChatWindow 用的是**同一个**算式，两处口径必须一致。
+import { computeTurnStats, type TurnStats } from "@/lib/turn-stats";
 import type {
   AgentMessage,
   BlockingExtensionUiRequest,
@@ -1305,8 +1307,46 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     setRetryNotices((prev) => upsertRetryNotice(prev, notice));
   }, []);
 
+  /*
+   * fork:per-turn-observability —— 本轮结束落一条观测。
+   *
+   * 挂在 `settleUiStage` 里而不是新开定时器：按 AGENTS.md 那条既有结论，
+   * `prompt_done` / `agent_settled` / 无 SSE 兜底**全部**经过这里，所以这一处
+   * 就是「一轮结束」的唯一出口，不会漏也不会重。
+   *
+   * 口径与 `lib/turn-stats.ts` 一致（最后一条用户消息 → 这条助手消息结束），
+   * 两处算出来要能对上；观测是**旁路**，失败只丢一条记录，不影响任何 UI 状态。
+   */
+  const recordTurnObservation = useCallback(() => {
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) return;
+    const stats = computeTurnStats(messagesRef.current);
+    // 取最后一个助手下标那一份：那就是刚结束的这一轮。
+    let last = -1;
+    stats.forEach((_value: TurnStats, index: number) => { last = index; });
+    if (last < 0) return;
+    const turn = stats.get(last);
+    if (!turn) return;
+    void fetch("/api/usage-stats/turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        startedAt: turn.startTs ?? undefined,
+        endedAt: turn.endTs ?? undefined,
+        input: turn.input,
+        output: turn.output,
+        cacheRead: turn.cacheRead,
+        cacheWrite: turn.cacheWrite,
+        cost: turn.cost,
+      }),
+      // 观测失败不该冒泡成一条控制台错误噪音，更不该影响对话。
+    }).catch(() => {});
+  }, []);
+
   const settleUiStage = useCallback(() => {
     const wasRunning = agentRunningRef.current;
+    recordTurnObservation();
     agentRunningRef.current = false;
     setAgentRunning(false);
     setAgentPhase(null);
@@ -1316,7 +1356,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     setActiveToolResults(new Map());
     dispatch({ type: "end" });
     return wasRunning;
-  }, [dispatch]);
+  }, [dispatch, recordTurnObservation]);
 
   // fork:proma-37-deferred-model —— 把排队中的模型真正落地：取出 pending 之后
   // 原样走 handleModelChange（此刻 isStreaming 已是 false，会走既有的立即切换路径）。

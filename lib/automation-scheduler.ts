@@ -41,6 +41,8 @@ import {
   isSameLocalDay,
   rescheduleOverdueOnStart,
 } from "./automation-schedule";
+// fork:automation-lease —— 跨进程认领（可选，缺省退回进程内 runningIds）。
+import { claimAutomationLease, type AutomationLeaseIo } from "./automation-lease";
 
 /** 翻译函数。默认实现由运行时注入（`lib/automation-runtime.ts`），避免纯模块依赖 i18n 注册表。 */
 export type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
@@ -111,6 +113,16 @@ export interface AutomationSchedulerDeps {
   runner: AutomationRunPort;
   translate: AutomationTranslate;
   timer?: AutomationTimerPort;
+  /**
+   * fork:automation-lease · **跨进程**认领。缺省不装（退回进程内 `runningIds`，
+   * 也就是今天的行为）。装上之后两个进程不会对同一个任务各跑一轮。
+   *
+   * 为什么需要它：`runningIds` 只是进程内的 Set，而桌面壳已经是两个进程
+   * （Electron main + next start）。今天调度器只由 `instrumentation-node.ts`
+   * 起、所以碰巧不重复 —— 但那是靠「恰好只有一个进程 import 它」，不是靠机制。
+   * 这个口就是那道机制。
+   */
+  leaseIo?: AutomationLeaseIo;
   /** 任何一次落盘后回调（前端轮询 / 广播用）。 */
   onChanged?: (automations: Automation[]) => void;
   log?: (message: string) => void;
@@ -359,6 +371,26 @@ const realTimer: AutomationTimerPort = {
 export function createAutomationScheduler(deps: AutomationSchedulerDeps): AutomationScheduler {
   const timer = deps.timer ?? realTimer;
   const runningIds = new Set<string>();
+  /**
+   * fork:automation-lease —— 认领：先问跨进程那道（装了才有），再问进程内那道。
+   * 两道都要过：`runningIds` 挡的是**本进程**内的重入（tick 重叠 / run-now 与
+   * tick 同时命中），租约挡的是**跨进程**。返回 null = 已被别人占着。
+   */
+  const claim = (automationId: string): (() => void) | null => {
+    if (runningIds.has(automationId)) return null;
+    const releaseLease = deps.leaseIo
+      ? claimAutomationLease(deps.leaseIo, automationId, deps.now())
+      : () => {};
+    if (!releaseLease) return null;
+    runningIds.add(automationId);
+    let released = false;
+    return () => {
+      runningIds.delete(automationId);
+      if (released) return;
+      released = true;
+      releaseLease();
+    };
+  };
   let tickTimer: unknown;
   /** 同一时刻只允许一个 tick 在跑，防止慢 tick 与定时 tick 叠加。 */
   let ticking = false;
@@ -467,15 +499,15 @@ export function createAutomationScheduler(deps: AutomationSchedulerDeps): Automa
   };
 
   const runTracked = async (automation: Automation): Promise<void> => {
-    if (runningIds.has(automation.id)) {
+    const release = claim(automation.id);
+    if (!release) {
       recordSkip(automation, SKIP_REASON_PREVIOUS_RUN, now());
       return;
     }
-    runningIds.add(automation.id);
     try {
       await execute(automation);
     } finally {
-      runningIds.delete(automation.id);
+      release();
     }
   };
 
@@ -549,15 +581,15 @@ export function createAutomationScheduler(deps: AutomationSchedulerDeps): Automa
       const automation = deps.store.get(id);
       if (!automation) throw new Error(`automation not found: ${id}`);
       if (!automation.cwd) throw new Error("automation has no cwd configured");
-      if (runningIds.has(id)) {
+      const release = claim(id);
+      if (!release) {
         recordSkip(automation, SKIP_REASON_PREVIOUS_RUN, now());
         return;
       }
-      runningIds.add(id);
       try {
         await execute(automation);
       } finally {
-        runningIds.delete(id);
+        release();
       }
     },
 

@@ -45,6 +45,8 @@ export const SHORTCUT_COMMAND_IDS = [
   "toggleSidebar",
   "toggleRightPanel",
   "toggleTheme",
+  // fork:command-palette — 命令面板。两个别名（照 ZCode 的 `shortcutCommands.ts:61-65`）。
+  "commandPalette",
   "findInConversation",
 ] as const;
 export type ShortcutCommandId = (typeof SHORTCUT_COMMAND_IDS)[number];
@@ -74,6 +76,8 @@ export const SHORTCUT_COMMANDS: readonly ShortcutCommandDefinition[] = [
   { id: "toggleSidebar", labelKey: "settings.shortcuts.toggleSidebar", group: "layout", defaultBindings: ["CmdOrCtrl+b"], managed: true },
   { id: "toggleRightPanel", labelKey: "settings.shortcuts.toggleRightPanel", group: "layout", defaultBindings: ["CmdOrCtrl+Alt+b"], managed: true },
   { id: "toggleTheme", labelKey: "settings.shortcuts.toggleTheme", group: "appearance", defaultBindings: ["CmdOrCtrl+Shift+l"], managed: true },
+  // fork:command-palette — 面板本体：命令 / 会话 / 文件三域统一入口。
+  { id: "commandPalette", labelKey: "settings.shortcuts.commandPalette", group: "essential", defaultBindings: ["CmdOrCtrl+k", "CmdOrCtrl+Shift+p"], managed: true },
   // Read-only rows — see the header comment. Not migrated on purpose.
   { id: "findInConversation", labelKey: "settings.shortcuts.findInConversation", group: "notMigrated", defaultBindings: ["CmdOrCtrl+f"], managed: false },
 ];

@@ -20,7 +20,10 @@ import {
   removeMcpServer,
   setMcpServerEnabled,
 } from "@/lib/mcp-config-file";
+import { resolveBundledScript } from "@/lib/mcp-bundled-script";
 import { validateMcpServer, type McpServerConfig } from "@/lib/mcp-validator";
+
+
 // fork:secrets-never-reach-browser —— 出去掩码、回来还原（规则来自上游 lib/mcp-secrets.ts）。
 import { maskMcpDefForBrowser, restoreMaskedMcpDef } from "@/lib/mcp-secret-mask";
 // fork:mcp-native-exposure —— `patch` 动作的入参形状就是 pi 自己的 McpServerConfigPatch。
@@ -313,6 +316,25 @@ export async function POST(req: Request) {
       const def = body.def;
       if (!name || !def || typeof def !== "object") {
         return NextResponse.json({ error: "name and def required" }, { status: 400 });
+      }
+      /*
+       * fork:simulator-section —— `script` 是本仓的简写：
+       * 浏览器只知道自己要装「仓库里那个 ios-simulator.mjs」，不知道它在磁盘上的
+       * 绝对路径（那是服务端的信息，也不该让客户端来猜 cwd）。所以接受
+       * `{ type:"stdio", script: "mcp/xxx.mjs" }`，在这里解析成
+       * `{ command: process.execPath, args: [<绝对路径>] }`。
+       *
+       * 边界收得很紧（**安全**）：必须落在本仓仓库根之下、必须是文件、扩展名必须是
+       * .mjs。否则 `script: "../../../../etc/passwd"` 就成了一个任意文件读的执行入口。
+       */
+      if ("script" in def && typeof (def as { script?: unknown }).script === "string") {
+        const resolved = resolveBundledScript((def as { script: string }).script);
+        if (!resolved.ok) {
+          return NextResponse.json({ error: resolved.error }, { status: 400 });
+        }
+        const record = def as Record<string, unknown>;
+        delete record.script;
+        Object.assign(record, resolved.def);
       }
       if (!def.command && !def.url && !def.socket) {
         return NextResponse.json({ error: "Requires one of command, url or socket" }, { status: 400 });

@@ -6,6 +6,7 @@ const panelSource = await readFile(new URL("./SettingsPanel.tsx", import.meta.ur
 const cssSource = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
 const globalCssSource = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const shellSource = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
+const navSource = await readFile(new URL("../lib/settings-navigation.ts", import.meta.url), "utf8");
 const sidebarSource = await readFile(new URL("./SessionSidebar.tsx", import.meta.url), "utf8");
 const themeSource = await readFile(new URL("../hooks/useTheme.ts", import.meta.url), "utf8");
 const themeOptionsSource = await readFile(new URL("../lib/theme.ts", import.meta.url), "utf8");
@@ -28,9 +29,13 @@ test("opens one settings panel from the AppShell sidebar footer", () => {
 });
 
 test("keeps every requested configuration surface inside the settings panel", () => {
+  // fork:command-palette —— 分节清单搬到了 `lib/settings-navigation.ts`（`SETTINGS_SECTIONS`，
+  // 带 labelKey）以便命令面板复用同一份，所以断言也跟着换地方。
   for (const section of ["general", "models", "skills", "agents", "plugins"]) {
-    assert.match(panelSource, new RegExp(`id: "${section}"`));
+    assert.match(navSource, new RegExp(`id: "${section}"`));
   }
+  // 面板确实读的是那一份，而不是又抄了一份。
+  assert.match(panelSource, /SETTINGS_SECTIONS\.map\(/);
   for (const component of ["ModelsConfig", "SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
     assert.match(panelSource, new RegExp(`<${component} embedded`));
   }

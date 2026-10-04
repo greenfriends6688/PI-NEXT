@@ -34,8 +34,10 @@ import {
   type AutomationRunPort,
   type AutomationTranslate,
 } from "./automation-scheduler";
+import { leaseIoForDir } from "./automation-lease";
 import {
   AutomationStoreReadError,
+  automationStoreDir,
   getAutomation,
   listAutomations,
   saveAutomation,
@@ -74,6 +76,10 @@ export function startAutomationScheduler(): boolean {
 
   const scheduler = createAutomationScheduler({
     now: () => Date.now(),
+    // fork:automation-lease —— 跨进程认领。与 automations.json 同目录
+    //（同一个 ~/.pi/agent/automation/），但**另一个文件**：租约必须能独立地
+    // 原子写 / 删除，而 index 会被整体重写。
+    leaseIo: leaseIoForDir(automationStoreDir()),
     store: {
       list: () => listAutomations(),
       get: (id: string) => getAutomation(id),
