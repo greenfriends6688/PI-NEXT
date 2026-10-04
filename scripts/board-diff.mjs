@@ -112,7 +112,9 @@ const PRESETS = {
  * 另外：分节是**懒挂载**的（`mountedSections`），点完要等它挂上再量。
  */
 const settingsSection = (target) => `
-  // fork:v5-old-layer（2026-10-04）—— 设置入口已换 `.d-side-foot`（AppShell.tsx:2181）。
+  // fork:v5-old-layer（2026-10-04）—— 设置入口已换 .d-side-foot（AppShell.tsx:2181）。
+  // 注意：这段是模板字符串，里面**不能出现反引号**，否则会被当成插值起点
+  // （上一版注释里写了 \`.d-side-foot\`，直接让所有设置 spec 崩在 ReferenceError）。
   const opener = document.querySelector("button.d-side-foot");
   if (opener) opener.click();
   await new Promise((r) => setTimeout(r, 1500));
