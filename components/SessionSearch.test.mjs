@@ -1,9 +1,9 @@
-// fix:search-grouping —— 结果区按项目归组（画板 02 帧 C）。
+// fork:v5-landing —— 结果区改为画板 D-02d 搜索态的行件（`.d-group-title` + `.d-sess`），
+// 直接落在 SessionSidebar 的 `listScrollRef` 里（唯一滚动容器），不再自建内层滚动。
 //
 // 钉住两件事：
 //   1. 归组 / 排序是纯函数（可在没有 DOM 的环境里单测）；
-//   2. 结果区自己滚（`.pw-search-results` 必须是滚动容器）——父级 `.pw-side-scroll`
-//      是 `overflow:hidden`，容器不滚就只剩裁切，表现就是「结果不全、还很乱」。
+//   2. 结果区用的是画板的行件，且不再自己滚（由侧栏列表容器统一滚）。
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -60,14 +60,15 @@ test("同项目不同会话名互不干扰；空 cwd 也能成组", () => {
   assert.deepEqual(groups[0].results.map(({ session }) => session.id), ["y", "x"]);
 });
 
-test("结果区是滚动容器（父级只裁圆角，不滚）", async () => {
-  const css = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
-  const rule = css.match(/\.pw-search-results\s*\{([\s\S]*?)\}/)?.[1] ?? "";
-  assert.match(rule, /overflow-y:\s*auto/, "结果区必须自己滚");
-  assert.match(rule, /height:\s*100%/, "结果区要占满可用高度");
-
+test("结果区用画板行件，且跟随侧栏唯一滚动容器", async () => {
   const source = await readFile(new URL("./SessionSearch.tsx", import.meta.url), "utf8");
-  assert.match(source, /className="pw-search-results"/);
-  assert.match(source, /className="pw-search-result/, "命中行是结果行按钮，不再复用 .pw-session.child");
-  assert.match(source, /className="pw-mark"/, "命中片段用画板的 .pw-mark");
+  // 分区头 / 项目组头是画板 D-02d 的 .d-group-title；命中行是 .d-sess。
+  // fork:v5-wave-b —— 窄屏（≤640）换成画板 M-04 的 `.m-group-title` / `.m-row`，
+  // 所以下面钉的是「两个形态各有一套行件」这条等价约束，而不是某一个类名。
+  assert.match(source, /className=\{isPhone \? "m-group-title" : "d-group-title"\}/);
+  assert.match(source, /: `d-sess\$\{isCurrent \? " is-on" : ""\}`/);
+  assert.match(source, /isPhone \? `m-row\$\{isCurrent \? " is-on" : ""\}` : `d-sess\$\{isCurrent \? " is-on" : ""\}`/);
+  assert.match(source, /className="d-cmd-hit"/, "命中片段用系统高亮类 .d-cmd-hit");
+  // 结果直接落在 SessionSidebar 的 listScrollRef 里，不再自建内层滚动容器。
+  assert.doesNotMatch(source, /className="pw-search-results"/);
 });

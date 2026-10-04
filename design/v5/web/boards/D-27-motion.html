@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-27 · 动效与交互规格 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-27 · 动效与交互规格</h1>
+  <p>
+    这一张不是页面，是<b>规格台</b>：V5 用到的每条动画都在这里能看见、能重播、能对比。
+    规格来自 BoardUI 的动效手艺（MIT），实现是本仓自己的类 —— 关键帧只写在
+    <code>base.css</code> 一次，两端共用。<b>重播按钮全部是真接线</b>：点一下强制回流重启动画，
+    不是让读者「刷新页面自己看」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">类型：规格台</span>
+    <span class="d-tag">组件：MotionSpec · ComposerLoader · AgentThinking</span>
+    <span class="d-tag">状态：13 组关键帧 + 减弱动效终态</span>
+  </div>
+</header>
+
+<!-- ── A · 等待与变化 ────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 「正在发生」的三种表达：文字流光 / 数字淡入 / 翻卡<span class="d-grow"></span>三段都是静止终态，动画自己在跑</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner">
+
+              <div class="d-set-sec">
+                <div class="d-set-sec-t">文字流光 · d-shimmer</div>
+                <div class="d-card">
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-think-row">
+                      <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                      <span class="d-shimmer">正在检索设计体系的历史决议</span>
+                      <span class="d-think-timer">12s</span>
+                    </div>
+                    <div class="d-think-row">
+                      <span class="d-think-dots spin"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                      <span class="d-shimmer">正在跑 typecheck</span>
+                      <span class="d-think-timer">3s</span>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      标签走流光、点阵走相位、秒表走数字 —— 三条各自动，用户不用读文案就知道「还在动」。
+                    </div>
+                    <div>
+                      <button class="d-btn sm" data-demo-motion=".d-chat-inner .d-shimmer">重播流光</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-set-sec">
+                <div class="d-set-sec-t">数字淡入 · d-num（值一变就淡一下）</div>
+                <div class="d-card">
+                  <div class="d-card-body d-row" style="gap:var(--nx-sp-6)">
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-xs d-t-faint">本轮 token</span>
+                      <span class="d-t-title d-num">18,402</span>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-xs d-t-faint">缓存命中</span>
+                      <span class="d-t-title d-num">71%</span>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-xs d-t-faint">本轮费用</span>
+                      <span class="d-t-title d-num">¥0.42</span>
+                    </div>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm" data-demo-motion=".d-num">重播数字淡入</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-set-sec">
+                <div class="d-set-sec-t">翻卡 · d-flap（150ms 落下 + 230ms 弹回，末尾过冲是机械感的来源）</div>
+                <div class="d-card">
+                  <div class="d-card-body d-row" style="gap:var(--nx-sp-4)">
+                    <div class="d-flap" id="flap" style="width:34px;height:34px;border-radius:var(--nx-r-md);background:var(--nx-accent);color:var(--nx-accent-fg)">
+                      <i data-ico="gauge" data-size="18"></i>
+                    </div>
+                    <div class="d-col d-grow" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b">推理档位</span>
+                      <span class="d-t-xs d-t-faint">切档时旧值翻下去、新值从背面翻上来 —— 视线不用离开这块地方</span>
+                    </div>
+                    <div class="d-seg">
+                      <button>低</button>
+                      <button class="is-on">中</button>
+                      <button>高</button>
+                      <button>xhigh</button>
+                    </div>
+                    <button class="d-btn sm" id="flap-btn" data-demo-motion="#flap" data-demo-motion-class="is-fall">翻下去</button>
+                    <button class="d-btn sm" data-demo-motion="#flap" data-demo-motion-class="is-rise" style="display:none">翻上来</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── B · 输入框环绕光带 ──────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 输入框环绕光带 · d-loader<span class="d-grow"></span>agent 在跑时，输入框边缘自己亮起来</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">输入框的「在跑」状态</span>
+              <span class="d-tb-sub">点右下角的按钮切换 idle / 工作中</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm" id="loader-toggle" data-demo-toggle-loader>切回空闲</button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">claude-opus-4-6</span>
+                </div>
+                <div class="d-think">
+                  <summary><i data-ico="brain" data-size="12"></i>思考</summary>
+                  <div class="d-think-body d-t-xs d-t-dim">
+                    先确认令牌只有一个来源，再看类名有没有第二个出处。改一处只对一半的根因就在这两条。
+                  </div>
+                </div>
+                <div class="d-md">正在把画板的类逐个对到 <code>system.css</code>…</div>
+                <div class="d-stream"><span>已对齐 42 个类，还有 6 个未定义。</span><span class="d-caret"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer d-loader">
+            <div class="d-loader-glow"></div>
+            <svg class="d-loader-svg" viewBox="0 0 760 96" preserveAspectRatio="none" aria-hidden="true">
+                <path id="loader-path" pathLength="100" d="M20,2 H740 A18,18 0 0 1 758,20 V76 A18,18 0 0 1 740,94 H20 A18,18 0 0 1 2,76 V20 A18,18 0 0 1 20,2 Z"/>
+              </svg>
+              <div class="d-composer-top"><span class="">运行中可以排队下一条</span></div>
+              <div class="d-chips">
+                <button class="d-chipbtn"><i data-ico="layers" data-size="12"></i>排队 1 条</button>
+              </div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send stop" title="停止这一轮"><i data-ico="square" data-size="14"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── C · 思考指示器四变体 ────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 思考指示器四变体<span class="d-grow"></span>波 / 绕心 / 星 / 彗星，都配流光标签与计时器</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4)">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="brain" data-size="15"></i>思考指示器 · 四变体</div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-think-row">
+                    <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="d-shimmer">正在推理 · wave（对角波front）</span>
+                    <span class="d-think-timer">4s</span>
+                  </div>
+                  <div class="d-think-row">
+                    <span class="d-think-dots spin"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="d-shimmer">正在检索 · spin（绕心一圈）</span>
+                    <span class="d-think-timer">11s</span>
+                  </div>
+                  <div class="d-think-row">
+                    <span class="d-think-stars">
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16.4l-1.6-5.6L5 9.2l5.4-1.6z"/></svg>
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16.4l-1.6-5.6L5 9.2l5.4-1.6z"/></svg>
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.6L19 9.2l-5.4 1.6L12 16.4l-1.6-5.6L5 9.2l5.4-1.6z"/></svg>
+                    </span>
+                    <span class="d-shimmer">正在起草 · stars（星光错峰）</span>
+                    <span class="d-think-timer">7s</span>
+                  </div>
+                  <div class="d-think-row">
+                    <svg class="d-think-comet" viewBox="0 0 60 26" fill="none" aria-hidden="true">
+                      <path pathLength="100" d="M5 13 C5 3 25 3 30 13 C35 23 55 23 55 13 C55 3 35 3 30 13 C25 23 5 23 5 13 Z"
+                            stroke="var(--nx-accent)" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span class="d-shimmer">正在搜索 · infinity（彗星绕八字）</span>
+                    <span class="d-think-timer">19s</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint">
+                    四变体只在「图案」上不同，标签与计时器是公共件 —— 所以任何一处都能单独换图案，
+                    不会出现「有的变体有计时器、有的没有」这种半截实现。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── D · 行展开与收起 ────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 行展开/收起 · grid 轨道 0fr↔1fr<span class="d-grow"></span>后面的行连续上移，被删的那行从表头底下退走</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设置行的展开与收起</span>
+              <span class="d-tb-sub">点「展开第二行」看 400ms 入场；「收起」是它的精确逆过程</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm" data-demo-motion="#row-x" data-demo-motion-class="is-open">展开第二行</button>
+            <button class="d-btn sm ghost" data-demo-motion="#row-x" data-demo-motion-class="is-closing">收起</button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner" style="max-width:620px">
+              <div class="d-card">
+                <div class="d-set-row">
+                  <div class="d-set-row-box">
+                    <div class="d-set-row-t">上下文预算</div>
+                    <div class="d-set-row-s">压缩阈值按模型覆盖 · 命中缓存时更容易触发</div>
+                  </div>
+                  <button class="d-btn sm"><i data-ico="sliders-horizontal" data-size="13"></i>调整</button>
+                </div>
+
+                <div class="d-row-x" id="row-x">
+                  <div class="d-row-x-track">
+                    <div>
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-3);border-top:1px solid var(--nx-line)">
+                        <div class="d-field">
+                          <span class="d-field-t">压缩阈值</span>
+                          <div class="d-row" style="gap:var(--nx-sp-3)">
+                            <input type="range" class="d-slider" value="72">
+                            <span class="d-t-sm d-t-dim">72%</span>
+                          </div>
+                        </div>
+                        <div class="d-field">
+                          <span class="d-field-t">预留 token</span>
+                          <input class="d-input" value="24000">
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">压缩后自动续跑</div>
+                            <div class="d-set-row-s">压缩完成即把被打断的任务接回去</div>
+                          </div>
+                          <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-set-row">
+                  <div class="d-set-row-box">
+                    <div class="d-set-row-t">重试策略</div>
+                    <div class="d-set-row-s">429 与 5xx 分别退避，最多重试三次</div>
+                  </div>
+                  <span class="d-badge ok">已启用</span>
+                </div>
+                <div class="d-set-row">
+                  <div class="d-set-row-box">
+                    <div class="d-set-row-t">默认工具档</div>
+                    <div class="d-set-row-s">新会话的初始工具集，可在会话内改</div>
+                  </div>
+                  <button class="d-select">完整<i data-ico="chevron-down" data-size="13"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── E · 图表与格子入场 ─────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 图表入场：柱条自基线长起 / 折线自左揭开 / 格子弹入<span class="d-grow"></span>三条各带错峰，不是同时一起出现</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">用量图表入场</span>
+              <span class="d-tb-sub">错峰靠内联 animation-delay（错峰不是设计值）</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm primary" data-demo-motion=".d-chart-reveal, .d-bar-rise, .d-cell-pop">全部重播</button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4)">
+              <div class="d-chart">
+                <div class="d-chart-head"><i data-ico="chart-column" data-size="15"></i>每日 token<span class="d-grow"></span><span class="d-t-xs d-t-faint">近 14 天</span></div>
+                <div class="d-chart-body">
+                  <div class="d-bars" style="height:120px">
+                    <i class="d-bar-rise" style="flex:1;height:38%;animation-delay:0ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:56%;animation-delay:40ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:44%;animation-delay:80ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:72%;animation-delay:120ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:60%;animation-delay:160ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:88%;animation-delay:200ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:52%;animation-delay:240ms"></i>
+                    <i class="d-bar-rise" style="flex:1;height:70%;animation-delay:280ms"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-chart">
+                <div class="d-chart-head"><i data-ico="chart-line" data-size="15"></i>请求成功率<span class="d-grow"></span><span class="d-t-xs d-t-faint">近 30 天</span></div>
+                <div class="d-chart-body">
+                  <svg class="d-chart-reveal" viewBox="0 0 320 90" style="width:100%;height:90px" aria-hidden="true">
+                    <polyline points="0,70 32,58 64,64 96,40 128,46 160,28 192,36 224,20 256,30 288,16 320,22"
+                              fill="none" stroke="var(--nx-accent)" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                  <div class="d-heat" style="grid-template-columns:repeat(18,1fr);margin-top:var(--nx-sp-3)">
+                    <i class="d-heat-grid l1 d-cell-pop"></i><i class="d-heat-grid d-cell-pop"></i>
+                    <i class="d-heat-grid l2 d-cell-pop"></i><i class="d-heat-grid l1 d-cell-pop"></i>
+                    <i class="d-heat-grid l3 d-cell-pop"></i><i class="d-heat-grid d-cell-pop"></i>
+                    <i class="d-heat-grid l4 d-cell-pop"></i><i class="d-heat-grid l2 d-cell-pop"></i>
+                    <i class="d-heat-grid l1 d-cell-pop"></i><i class="d-heat-grid d-cell-pop"></i>
+                    <i class="d-heat-grid l3 d-cell-pop"></i><i class="d-heat-grid l4 d-cell-pop"></i>
+                    <i class="d-heat-grid l2 d-cell-pop"></i><i class="d-heat-grid d-cell-pop"></i>
+                    <i class="d-heat-grid l1 d-cell-pop"></i><i class="d-heat-grid l2 d-cell-pop"></i>
+                    <i class="d-heat-grid l3 d-cell-pop"></i><i class="d-heat-grid l4 d-cell-pop"></i>
+                    <i class="d-heat-grid l2 d-cell-pop"></i>
+                  </div>
+                  <div class="d-heat-t">热力图每格 380ms 弹入，18 列从左往右错峰 —— 密集数据用「逐格」比「整块淡入」更容易看出分布。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── F · 标签交换与对勾描边 ────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 F</b> · 标签上下交换 + 对勾描边<span class="d-grow"></span>值变了要「看得出变了」，而不是闪一下</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="repeat" data-size="15"></i>值变化的两种表达</div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-4)">
+                  <div class="d-row" style="gap:var(--nx-sp-3)">
+                    <span class="d-t-xs d-t-faint" style="width:96px">滚动数字换字</span>
+                    <span class="d-t-title d-label-out">¥0.42</span>
+                    <span class="d-t-title d-label-in">¥0.47</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm" data-demo-motion=".d-label-out, .d-label-in">重播标签交换</button>
+                  </div>
+                  <div class="d-row" style="gap:var(--nx-sp-3)">
+                    <span class="d-t-xs d-t-faint" style="width:96px">勾选态描边</span>
+                    <span class="d-check-draw" style="color:var(--nx-success)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                    <span class="d-t-sm">已写入 41 个类</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm" data-demo-motion=".d-check-draw">重播描边</button>
+                  </div>
+                  <div class="d-t-xs d-t-faint">
+                    数字淡入（.d-num）适合「同一位置换值」，标签交换适合「旧值上浮、新值从下方进来」——
+                    两者的区别是后者能表达「这个值被替换了」，前者只表达「它动了」。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>动效只有一处出处</b>：13 组关键帧写在 <code>base.css</code>，Web 与 PWA 共用；类名分形态（<code>d-*</code> / <code>m-*</code>），不混。</li>
+    <li><b>一律停终态</b>：<code>prefers-reduced-motion</code> 下每条动画都落到「完成的样子」，不是落回初始 —— 否则减弱动效的用户会看见永远转不完的圈。</li>
+    <li><b>等待必须有形状</b>：点阵 + 流光标签 + 计时器三件套，让「还在动」不需要读文案就能看出来（帧 A / C）。</li>
+    <li><b>输入框自己会亮</b>（帧 B）：环绕光带用 SVG 描边绕 pill 一圈，<code>pathLength=100</code> 让速度恒定、拐角不变速；不用 <code>@property</code>（Safari 16.4 才有，本仓地板 16.2）。</li>
+    <li><b>展开与收起必须互为逆过程</b>（帧 D）：grid 轨道动画 + 更短的淡入钟，行先可见再落定；收起是 225ms 的精确反向。</li>
+    <li><b>重播按钮是真接线</b>：<code>animation:none → 强制回流 → 复原</code>，点一下就重跑；不靠刷新页面演示动画。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本张板专属的两个接线：翻卡的两段接力、输入框光带的 idle 切换。
+   都写在板内而不是 demo.js —— 因为只有这张板需要（demo.js 只放跨板复用的能力）。 */
+(function () {
+  var fall = document.getElementById("flap-btn");
+  var rise = fall && fall.nextElementSibling;
+  if (fall && rise) {
+    fall.addEventListener("click", function () { setTimeout(function () { rise.style.display = ""; fall.style.display = "none"; }, 150); });
+    rise.addEventListener("click", function () { setTimeout(function () { fall.style.display = ""; rise.style.display = "none"; }, 380); });
+  }
+  var toggle = document.getElementById("loader-toggle");
+  var host = document.getElementById("loader-host");
+  if (toggle && host) {
+    toggle.addEventListener("click", function () {
+      var idle = host.classList.toggle("is-idle");
+      toggle.textContent = idle ? "切到工作中" : "切回空闲";
+    });
+  }
+})();
+</script>
+</body>
+</html>

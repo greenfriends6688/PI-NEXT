@@ -132,7 +132,7 @@ test("a custom provider is switched from its header, by one switch and no prose"
   // It sits in the detail header, left of the provider's own buttons.
   assert.match(
     modelsConfigSource,
-    /<EnabledModelsProviderSwitch providerId=\{name\} controller=\{enabledModels\} \/>\s*\n\s*<ConfigButton variant="danger"/,
+    /<EnabledModelsProviderSwitch providerId=\{name\} controller=\{enabledModels\} \/>\s*\n\s*<DButton variant="danger"/,
   );
   // Nothing about it is explained in body text any more.
   assert.doesNotMatch(source, /enabledCustomHint/);
@@ -213,7 +213,7 @@ test("a missing custom provider is not blamed on a sign-in", () => {
 });
 
 test("the section carries the usage heading font and no rule above it", () => {
-  assert.match(source, /<span className="enabled-models-title">/);
+  assert.match(source, /<div className="d-set-sec-t">/);
   // 画板 00 的复合排版类：字号 / 字重各只有一个来源（board.css 的 token），
   // 这里的字重与 `.pw-detail > h3` 一致（500），所以一块卡上不会出现两种标题重。
   const title = cssSource.slice(cssSource.indexOf(".enabled-models-title {"));
@@ -247,11 +247,11 @@ test("provider rows carry the scope badge", () => {
   // 自定义供应商行带范围徽章（`narrowed` 那一类）；托管行改带「已登录」徽章
   // —— 它们的开关在详情头部那一枚，列表里再放一个范围徽章只会重复。
   assert.match(sidebar, /\{scopeBadge\(pName\)\}/);
-  assert.match(sidebar, /<ConfigBadge tone="ok">\{t\("models\.badgeLoggedIn"\)\}<\/ConfigBadge>/);
+  assert.match(sidebar, /<DBadge tone="ok">\{t\("models\.badgeLoggedIn"\)\}<\/DBadge>/);
   assert.match(cssSource, /\.models-sidebar-badge \{/);
   // 行与行之间的分隔交给画板的 `.pw-list`（gap 2px），产品不再自绘一条线。
   assert.doesNotMatch(cssSource, /\.enabled-models-row \+ \.enabled-models-row \{/);
-  assert.match(source, /className="pw-litem enabled-models-row"/);
+  assert.match(source, /<table className="d-table">/);
 });
 
 test("the saved-model slots mirror every move the draft makes", () => {

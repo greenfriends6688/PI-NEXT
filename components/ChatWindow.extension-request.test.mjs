@@ -12,9 +12,13 @@ const customSource = source.slice(source.indexOf("function ExtensionCustomPanel"
 
 test("confines extension overlays to the content region above the composer", () => {
   assert.doesNotMatch(source, /function ExtensionRequestSheet/);
+  // fork:design-components —— 内容区与 composer 行现在挂画板 D-03/D-03c 的
+  // `.d-chat` / `.d-chat-inner` / `.d-composer-wrap`（不再用 v1 的 .pw-chat /
+  // .pw-composer-wrap）；要守的不变量没变：
+  // 浮层栈夹在「转录区」与「composer 行」之间，composer 仍在最内层。
   assert.match(
     source,
-    /className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"[\s\S]*?<ExtensionOverlayStack[\s\S]*?<ExtensionOverlayStack[\s\S]*?className="relative shrink-0"[\s\S]*?{chatInputElement}/,
+    /className="relative min-w-0 flex-1 min-h-0 overflow-hidden flex flex-col"[\s\S]*?<ExtensionOverlayStack[\s\S]*?<ExtensionOverlayStack[\s\S]*?className="d-composer-wrap relative shrink-0"[\s\S]*?{chatInputElement}/,
   );
   // fork:extension-ui-queue — one host overlay per queue, the cards are its items.
   assert.match(stackSource, /position: "absolute"[\s\S]*?inset: 0/);

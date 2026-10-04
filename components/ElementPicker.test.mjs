@@ -47,32 +47,30 @@ test("the overlay is a private fork- layer, not new pw- classes", () => {
 // fork:browser-viewport / fork:browser-page-info —— 两个都是**条件渲染**的新控件，
 // 它们的存在不该让画板 31 的对位漂移。下面把那两个前提钉成测试。
 
-test("the viewport preset stays the first .pw-chipbtn in the bar", () => {
-  // 画板 31 那一帧里 `.pw-chipbtn` 只有一枚（视口预设），而
-  // `scripts/board-specs/31-terminal-browser-git.mjs` 按「第一个 `.pw-chipbtn`」配对。
-  // 把缩放芯片插在它前面，那条 spec 就变成拿缩放芯片去对视口预设。
-  const bar = panel.slice(panel.indexOf('className="pw-browser-bar"'));
+test("the viewport preset stays the first .d-chipbtn in the bar", () => {
+  // 画板 D-05 帧 C2 那一帧里工具条第一枚 .d-chipbtn 就是视口预设；产品把预设
+  // 保持在缩放档之前，免得几何对位量到缩放芯片。
+  const bar = panel.slice(panel.indexOf('className="d-row"'));
   const preset = bar.indexOf("ref={viewportAnchorRef}");
   const zoom = bar.indexOf("BROWSER_VIEWPORT_ZOOM_OPTIONS.map");
-  assert.ok(preset > 0 && zoom > 0, "两枚都要在头行里");
+  assert.ok(preset > 0 && zoom > 0, "两枚都要在工具条里");
   assert.ok(preset < zoom, "视口预设必须排在缩放档之前");
 });
 
 test("the free-size control only renders in free-size mode", () => {
-  // 它内含两个 `.pw-input`，默认渲染会把画板 31 量到的头行高度顶高一截。
-  // 从 `className="pw-chipbtn"`（视口预设那枚）之后开始切，避免切到别的同名串。
-  const bar = panel.slice(panel.indexOf('className="pw-browser-bar"'));
+  // 它内含两个 `.d-input`，默认渲染会把工具条顶高一截。从 `className="d-row"`
+  // （工具条那一行）之后开始切，避开切到别的同名串。
+  const bar = panel.slice(panel.indexOf('className="d-row"'));
   const size = bar.indexOf("fork-browser-size");
-  assert.ok(size > 0, "宽高框在头行里");
+  assert.ok(size > 0, "宽高框在工具条里");
   // 它必须整段挂在 `{viewportSize && …}` 里面。
   assert.match(bar.slice(Math.max(0, size - 400), size), /\{viewportSize && \(/, "宽高框必须挂在 viewportSize 上");
 });
 
 test("the title row only renders when a title was actually read", () => {
   // iframe 面拿不到页面内部几何 ⇒ refreshPageInfo 直接 return ⇒ title 恒空 ⇒
-  // 整行不渲染 ⇒ 画板 31（跑在 Web/生产上）看不到它，不需要补帧。
-  // 反过来：去掉这个守卫就会让 `.pw-browser` 多出 20px + 一条发丝边，spec 立刻报漂移。
-  const row = panel.slice(panel.indexOf('className="pw-browser"'));
+  // 整行不渲染。反过来：去掉这个守卫就会让 `.d-viewer` 多出 20px + 一条发丝边。
+  const row = panel.slice(panel.indexOf('className="d-viewer"'));
   assert.match(row.slice(0, 900), /\{pageInfo\.title && \(/, "标题行必须挂在 title 上");
   const probe = panel.slice(panel.indexOf("const refreshPageInfo"));
   assert.match(probe.slice(0, 400), /surface !== "managed"[\s\S]*return;/, "iframe 面必须直接返回，不去探");

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-26 · 对话框与系统态 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-26 · 对话框与系统态（模态 / Toast / 横幅 / 空 / 载 / 错）</h1>
+  <p>
+    系统态是「没人设计过、但天天遇到」的那部分，所以只定三条纪律：
+    <b>能中断的才用模态</b>（不可逆或要离开当前上下文才弹）、<b>Toast 只报已经发生的事</b>（没有按钮、不预告、不追问）、
+    <b>失败必须带下一步</b> —— 错误码 + 原因 + 一条真能按的按钮。空态和骨架不算「失败」，
+    但也不能装作在加载：骨架旁边永远有一句「正在做什么」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：全局 / 对话框与状态</span>
+    <span class="d-tag">组件：ConfirmDialog · Toast · Banner · EmptyState · Skeleton · ErrorState</span>
+    <span class="d-tag">状态：确认 / 危险 / 等待 / 空 / 载入 / 失败 / 目录未信任</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 危险确认模态：不可逆 + 会离开当前上下文时才弹<span class="d-grow"></span>遮罩压暗、焦点锁在盒子里、标题写清作用对象、两个按钮 = 取消 / 删除（危险色）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md">你上一次在这里点了「回滚到上次提交」，之后又改了 3 个文件。回滚会<b>删掉这 3 个改动</b>，所以这次要你点头。</div>
+              </div>
+              <div class="d-steps">
+                <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">回滚到 7b2d0e5，丢弃 3 个未提交改动</span><span class="d-step-meta">2 天前</span></div>
+                <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">重新应用归档里的那份改动</span><span class="d-step-meta">2 天前</span></div>
+                <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">切到 fork/v5-boards，开始新一轮</span><span class="d-step-meta">2 天前</span></div>
+              </div>
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="git-branch" data-size="15"></i><span class="d-grow">PI NEXT · fork/v5-boards</span><span class="d-badge warn">3 个未提交</span></div>
+                <div class="d-card-body d-t-sm d-t-dim">回滚后工作区回到 a3f21c8。会话不会被删，但这一轮之后的改动不在版本里 —— 弹窗把这件事写成一句话，不让用户猜。</div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- 危险确认：真模态（遮罩 + 盒子）。不可逆 = 两个按钮：取消 / 删除（危险色）。 -->
+        <div class="d-modal is-open">
+          <div class="d-modal-box">
+            <div class="d-modal-head">回滚会删除 3 个未提交的改动</div>
+            <div class="d-modal-body">
+              <div>工作区将从 <b>a3f21c8</b> 回到 <b>7b2d0e5</b>，这 3 个文件的本地改动会被删除且无法撤销。</div>
+              <div class="d-mono d-t-xs">M design/v5/web/system.css<br>M design/v5/README.md<br>?? design/v5/web/boards/D-18-dialogs-states.html</div>
+              <div>想留后悔药：先在终端把当前 3 个改动存成一个 <code>.patch</code> 再回来按删除；万一发现删错了，<code>git apply 回滚前.patch</code> 就能拿回来。</div>
+            </div>
+            <div class="d-modal-foot">
+              <button class="d-btn ghost">取消</button>
+              <button class="d-btn danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 模态的另外两种：普通确认（有默认动作）· 等待中（不许关）<span class="d-grow"></span>等待态不给「取消」，只给进度与「后台跑」</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-chat">
+        <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+          <div class="d-grid2">
+
+            <!-- 普通确认 -->
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="circle-help" data-size="15"></i><span class="d-grow">普通确认</span><span class="d-badge mute">可关</span></div>
+              <div class="d-modal-box">
+                <div class="d-modal-head">要把这次改动提交到 fork/v5-boards 吗</div>
+                <div class="d-modal-body">
+                  <div>3 个文件 · <span class="d-mono">+18 −6</span> · 提交信息我按 diff 拟了一条，你可以改。</div>
+                  <div class="d-mono d-t-xs">fix: 右栏页签与当前项接线</div>
+                </div>
+                <div class="d-modal-foot">
+                  <button class="d-btn ghost">取消</button>
+                  <span class="d-grow"></span>
+                  <button class="d-btn primary"><i data-ico="check" data-size="14"></i>提交</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 等待中 -->
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="loader-circle" data-size="15"></i><span class="d-grow">等待中</span><span class="d-badge info">进行</span></div>
+              <div class="d-modal-box">
+                <div class="d-modal-head">正在重建文件索引</div>
+                <div class="d-modal-body">
+                  <div>1,284 个文件 · 已扫 812 个</div>
+                  <div class="d-bar"><i style="width:63%"></i></div>
+                  <div class="d-t-xs">索引期间文件树会短暂不可点 —— 这是刻意的：给一份不完整的树，不如给一个进度。</div>
+                </div>
+                <div class="d-modal-foot">
+                  <button class="d-btn">放到后台跑</button>
+                  <span class="d-grow"></span>
+                  <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="d-think-timer d-t-xs">63%</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="d-pop-foot">
+            三种模态的差别只在<b>能不能关</b>与<b>主按钮写什么</b>：可逆 → 普通确认（Esc 也能关）；
+            不可逆 → 危险确认（标题写清作用对象，两个按钮 = 取消 / 删除（危险色），不写「确定」）；
+            进行中 → 不给取消，只给「放到后台」。遮罩压暗的是 24%，是遮罩不是滤镜 —— 背后的内容要还能认出来。
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · Toast 只报已发生的事 · 横幅承载「要你现在做点什么」<span class="d-grow"></span>Toast 没有按钮、不提问；横幅可以带行动</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-chat">
+        <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+          <div class="d-card">
+            <div class="d-card-head"><i data-ico="send" data-size="15"></i><span class="d-grow">Toast · 三态</span><span class="d-t-xs d-t-faint">出现在底部居中，4 秒后自退；要用户做决定的绝不放在这里</span></div>
+            <div class="d-card-body d-t-sm d-t-dim">
+              <b>成功</b>：已提交 <span class="d-mono">a91f0d2</span> ·
+              <b>进行中</b>：正在上传 3 个文件 · <b>失败</b>：上传失败。
+              Toast 只报<b>已经发生</b>的事：<b>没有按钮、不提问</b>，固定 <b>4 秒自退</b>（与 PWA 同一个值）。要用户决定的，去横幅或模态。
+            </div>
+            <div class="d-card-body d-t-xs d-t-faint">下面是三颗真浮层：点触发钮可以再弹一次，关掉用 Esc 或点外部。</div>
+            <div class="d-row" style="gap:var(--nx-sp-2)">
+              <button class="d-btn sm" id="st-toast-ok-btn"><i data-ico="circle-check" data-size="13"></i>看成功 Toast</button>
+              <button class="d-btn sm" id="st-toast-run-btn"><i data-ico="loader-circle" data-size="13"></i>看进行中 Toast</button>
+              <button class="d-btn sm" id="st-toast-bad-btn"><i data-ico="circle-alert" data-size="13"></i>看失败 Toast</button>
+            </div>
+          </div>
+
+          <div class="d-card">
+            <div class="d-card-head"><i data-ico="triangle-alert" data-size="15"></i><span class="d-grow">横幅 · 三态</span><span class="d-t-xs d-t-faint">常驻、可关闭、能带一个行动</span></div>
+            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-banner">
+                <i data-ico="info" data-size="14"></i>
+                <span class="d-grow">已索引 1,284 个文件，搜索与 @ 提文件现在能用。</span>
+                <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button>
+              </div>
+              <div class="d-banner warn">
+                <i data-ico="triangle-alert" data-size="14"></i>
+                <span class="d-grow">本轮上下文已到 168k / 200k，再对话 4 轮左右就要压缩了。</span>
+                <button class="d-btn sm ghost d-banner-btn">现在压缩</button>
+                <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button>
+              </div>
+              <div class="d-banner err">
+                <i data-ico="circle-alert" data-size="14"></i>
+                <span class="d-grow">手机推送断了 12 分钟（令牌过期），重新扫码即可恢复。</span>
+                <button class="d-btn sm d-banner-btn">重新扫码</button>
+                <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 空态 / 骨架 / 错误 / 目录未信任：四种「现在没有或现在做不到」<span class="d-grow"></span>空态带下一步 · 骨架带进度 · 错误带原因与重试</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-chat">
+        <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+          <div class="d-grid3">
+
+            <!-- 空态 -->
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="inbox" data-size="15"></i><span class="d-grow">空态</span><span class="d-badge mute">无结果</span></div>
+              <div class="d-card-body">
+                <div class="d-empty">
+                  <div class="d-empty-ico"><i data-ico="search" data-size="20"></i></div>
+                  <div class="d-empty-t">没有匹配「令牌来源」的结果</div>
+                  <div class="d-empty-s">索引里没有这几个字。可以换说法，或直接看最可能相关的三个文件。</div>
+                  <div class="d-col">
+                    <button class="d-btn sm">看 base.css</button>
+                    <button class="d-btn sm ghost">重建索引</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 骨架 -->
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="loader-circle" data-size="15"></i><span class="d-grow">骨架</span><span class="d-badge info">载入中</span></div>
+              <div class="d-card-body d-col" style="gap:var(--nx-sp-3)" id="st-load">
+                <div class="d-skel-list">
+                  <div class="d-skel d-skel-70"></div>
+                  <div class="d-skel d-skel-40"></div>
+                  <div class="d-skel d-skel-40"></div>
+                  <div class="d-skel d-skel-40"></div>
+                </div>
+                <div class="d-skel d-skel-block"></div>
+                <div class="d-row d-t-xs d-t-dim">
+                  <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="d-grow">正在读 4 个工作区的 git 历史</span>
+                  <span class="d-think-timer">0:12</span>
+                </div>
+                <div class="d-row">
+                  <button class="d-btn sm" data-demo-motion="#st-load"><i data-ico="rotate-cw" data-size="13"></i>重播载入</button>
+                  <span class="d-grow"></span>
+                  <button class="d-btn sm ghost">在后台跑</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 错误 -->
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="circle-alert" data-size="15"></i><span class="d-grow">错误</span><span class="d-badge bad">失败</span></div>
+              <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-empty-ico"><i data-ico="plug" data-size="20"></i></div>
+                <div class="d-empty-t">接不上模型服务</div>
+                <div class="d-err">ECONNREFUSED 127.0.0.1:8317 · 已重试 3 次（退避 1s / 2s / 4s）</div>
+                <div class="d-t-xs d-t-dim">本地网关没在跑，或 API Key 失效。先确认网关，再重试 —— 重试不会自己变好，但换端口可以。</div>
+                <div class="d-code">
+                  <div class="d-code-head"><span class="d-grow">可复制的下一步</span><button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button></div>
+                  <div class="d-code-body"><span class="d-term-prompt">$</span> pi gateway status</div>
+                </div>
+                <div class="d-row">
+                  <button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+                  <button class="d-btn sm">打开设置</button>
+                  <button class="d-btn sm ghost" data-demo-open="st-diag-d">复制诊断</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 项目信任对话框（也是一个模态，同一个盒子） -->
+          <div class="d-grid2">
+            <div class="d-modal-box">
+              <div class="d-modal-head">信任这个目录？</div>
+              <div class="d-modal-body">
+                <div class="d-mono d-t-xs">~/Desktop/PI NEXT</div>
+                <div>信任后，这个目录里的<b>脚本会被执行</b>：agent 可以跑它的构建与测试命令，读取环境变量，并在你批准后写入文件。</div>
+                <div>我们已经看过：<b>18 个可执行脚本</b>、1 个 <span class="d-mono">.env</span>（只读不外传）、无网络下载脚本。</div>
+                <div class="d-banner warn">
+                  <i data-ico="shield-alert" data-size="14"></i>
+                  <span class="d-grow">只信任这一次的话，下次打开还会再问</span>
+                </div>
+              </div>
+              <div class="d-modal-foot">
+                <button class="d-btn ghost">永不信任</button>
+                <span class="d-grow"></span>
+                <button class="d-btn">信任一次</button>
+                <button class="d-btn primary" data-demo-open="st-trust-d"><i data-ico="shield-check" data-size="14"></i>本次会话信任</button>
+              </div>
+            </div>
+
+            <div class="d-col" style="gap:var(--nx-sp-3)">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="shield-question" data-size="15"></i><span class="d-grow">信任状态出现在哪</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-row"><span class="d-extpill untrusted"><span class="d-extpill-dot"></span>未信任 · ~/Desktop/PI NEXT</span></div>
+                  <div class="d-row"><span class="d-extpill"><span class="d-extpill-dot"></span>已信任 · 本次会话</span></div>
+                  <div class="d-t-xs d-t-dim">未信任时不是把人挡在门外，而是<b>把危险动作降级</b>：能读文件、能搜索，写文件与执行命令要逐次点头。</div>
+                </div>
+              </div>
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="list-checks" data-size="15"></i><span class="d-grow">三个选项的后果</span></div>
+                <div class="d-card-body">
+                  <table class="d-table">
+                    <thead><tr><th>选项</th><th>本次</th><th>下次打开</th></tr></thead>
+                    <tbody>
+                      <tr><td>永不信任</td><td>只读模式，写文件与执行命令逐次问</td><td>常驻说明条，不再问</td></tr>
+                      <tr class="is-on"><td>信任一次</td><td>只放行这一次操作</td><td>再问</td></tr>
+                      <tr><td>本次会话信任</td><td>这一轮会话不再问</td><td>再问（会话结束即失效）</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="d-pop-foot">信任不是一次性的弹窗：顶栏的工作区名旁始终挂着一颗胶囊，随时能改主意，也能随时撤销信任。</div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 「复制诊断」里有什么（可点开） -->
+      <div class="d-pop" data-demo-pop="st-diag-d" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:290px">
+        <div class="d-pop-title">诊断里有什么</div>
+        <div class="d-pop-body d-t-xs d-t-dim">
+          模型名、端点、重试次数与退避节奏、错误码、代理环境变量的<b>名字</b>（不含值）、版本号、工作区路径的哈希。
+          粘到 issue 里就够复现，不必再追问「你用的哪个版本」。
+        </div>
+      </div>
+
+      <!-- 「本次会话信任」的后果（可点开） -->
+      <div class="d-pop" data-demo-pop="st-trust-d" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:290px">
+        <div class="d-pop-title">本次会话信任 = 只在这轮会话里有效</div>
+        <div class="d-pop-body d-t-xs d-t-dim">
+          不写盘、不跨会话、不跨设备：关掉应用或换会话即失效，下次打开还会再问。
+          顶栏的工作区胶囊随时能改主意 —— <b>信任不跨设备同步</b>，这是刻意的。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── E · 常驻浮层三件：Toast · 公告条 · 通知中心 ─────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · Toast / 公告条 / 通知中心<span class="d-grow"></span>三个都是「系统说话」，语气与位置都不同</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">系统说话的三种方式</span>
+              <span class="d-tb-sub">Toast 报结果 · 公告条给行动 · 通知中心攒未读</span>
+            </div>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4)">
+              <div class="d-announce">
+                <i data-ico="sparkles" data-size="14"></i>
+                <span class="d-grow"><b>新版本 0.1.9</b>：定时任务支持错峰执行，手机端补了目录信任横幅。</span>
+                <button class="d-btn sm">看看改了什么</button>
+                <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button>
+              </div>
+              <div class="d-notice unread">
+                <span class="d-notice-ico"><i data-ico="message-square" data-size="12"></i></span>
+                <span class="d-col d-grow">
+                  <span class="d-set-row-t">「画板落地清单」在后台跑完了</span>
+                  <span class="d-set-row-s">3 分钟前 · 41 个类已落地，剩 3 个</span>
+                </span>
+                <button class="d-btn sm ghost">看清单</button>
+              </div>
+              <div class="d-notice">
+                <span class="d-notice-ico"><i data-ico="triangle-alert" data-size="12"></i></span>
+                <span class="d-col d-grow">
+                  <span class="d-set-row-t">工作区 ~/Desktop/pi-codex 的信任已过期</span>
+                  <span class="d-set-row-s">昨天 · 重新确认后才能读文件</span>
+                </span>
+                <button class="d-btn sm">重新确认</button>
+              </div>
+            </div>
+          </div>
+          <div class="d-toast">
+            <i data-ico="check" data-size="14"></i>
+            已复制到剪贴板
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>能中断才用模态。</b>不可逆、或用户必须离开当前上下文才能继续的，才弹模态；其余一律就地解决。危险确认：<b>标题写清作用对象，两个按钮 = 取消 / 删除</b>（危险色），不写「确定」——动词要能被复述。</li>
+    <li><b>等待中不给「取消」。</b>只给进度和「放到后台跑」；Esc 也不关（关掉就丢掉了正在做的事）。骨架旁边永远有一句「正在读什么」。</li>
+    <li><b>Toast 只报已经发生的。</b>没有按钮、不提问，固定 <b>4 秒自退</b>（两端同一个值）；要用户决定的，去横幅或模态。</li>
+    <li><b>横幅 = 需要你做点什么</b>：可关闭、可带一个行动按钮，三态（信息 / 警告 / 错误）只改语义色与边框，不换布局。</li>
+    <li><b>三种「现在没有 / 现在做不到」分开处理：</b>空态给下一步（换说法、重建索引、看最相关的文件）；骨架给进度与可重播；错误给<b>原因 + 可复制的下一步 + 重试</b>，并且明说「重试不会自己变好」。</li>
+    <li><b>项目信任不是一道门，是三档：信任一次 / 本次会话信任 / 永不信任。</b>未信任时把人挡在门外是错的做法 —— 正确做法是把写文件与执行命令<b>降级为逐次点头</b>，并把「目录里有什么、信任之后会发生什么」在弹窗里逐条讲清。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本板专属接线（1 条，写在本板里 —— 只有「Toast 要能真弹出来」需要）：
+   .d-toast 在产品里是 position:fixed 的常驻浮层，4 秒后自退。demo.js 的动作集里没有
+   「弹一颗会消失的提示」，所以它没有也不该有 data-demo-open / data-demo-pop（那对是
+   「点开一个下拉」用的，给 Toast 用会把一次点击做成两件事）。这里接管三颗触发钮：点一下
+   把对应 Toast 放进**按下按钮的那一帧**里，4 秒后撤掉；点另一颗会立刻换掉上一颗。
+   Toast 只报已经发生的事：这里三颗都不带按钮，与规格一致。
+   Toast 的长相与出现位置仍然 100% 来自 system.css，这里只做「进出」，
+   补图标则调 icons.js 自己暴露的 Icons.hydrate（动态插进来的节点不会自己 hydrate）。 */
+(function () {
+  var ICON = {
+    ok:  '<i data-ico="circle-check" data-size="15"></i><span>已提交 a91f0d2 · 3 个文件</span>',
+    run: '<span class="d-run"><i data-ico="loader-circle" data-size="14"></i>正在上传 3 个文件 · 68%</span>',
+    bad: '<i data-ico="circle-alert" data-size="15"></i><span>上传失败：连接被重置</span>'
+  };
+  function drop(host) {
+    Array.prototype.slice.call(host.querySelectorAll(".d-toast")).forEach(function (el) {
+      if (el.parentElement) el.parentElement.removeChild(el);
+    });
+  }
+  function fire(btn, markup) {
+    var frame = btn.closest(".d-frame");
+    if (!frame) return;
+    drop(frame);
+    var box = document.createElement("div");
+    box.className = "d-toast";
+    box.innerHTML = markup;
+    frame.appendChild(box);
+    if (window.Icons && window.Icons.hydrate) window.Icons.hydrate(box);
+    setTimeout(function () { if (box.parentElement) box.parentElement.removeChild(box); }, 4000);
+  }
+  [["st-toast-ok-btn", ICON.ok], ["st-toast-run-btn", ICON.run], ["st-toast-bad-btn", ICON.bad]]
+    .forEach(function (pair) {
+      var btn = document.getElementById(pair[0]);
+      if (btn) btn.addEventListener("click", function () { fire(btn, pair[1]); });
+    });
+})();
+</script>
+</body>
+</html>

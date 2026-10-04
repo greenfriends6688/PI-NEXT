@@ -20,6 +20,11 @@ import { useI18n } from "@/hooks/useI18n";
  *
  * Removal stays in the sidebar project context menu — this selector only switches and
  * creates targets, exactly like the reference.
+ *
+ * fork:v5-wave-b —— **有意不加 m-* 分支**：这一枚是输入框上方的「当前工作区」芯片，
+ * 对应画板 D-04；PWA 库里最接近的 `.m-chipbtn` 是**能力芯片**（模型 / 思考 / 权限，
+ * 见 M-01 帧 A 输入卡那行），语义不同 —— 同一块屏上摆两种芯片会被读成「两个同类入口」。
+ * 所以窄屏仍走 `.d-chipbtn`，登记为缺件（设计侧若定「工作区芯片在手机上怎么摆」再补）。
  */
 
 export interface NewSessionProject {
@@ -64,7 +69,7 @@ export function resolveActiveTarget(
 /* fork:design-components 判据⑦ —— 这四个字以前是手绘 SVG（folder / folder-open /
    message-square / chevron-down 的近似形），违反「图标一律 lucide，经 `<i data-ico>`
    由 PwIcons 水合，禁手绘 SVG」。现在返回的就是那个 `<i>`：`.pw-ico` 壳由宿主给
-   （ContextMenu 的行已经包了 `.pw-ico`；芯片本身那两处自带壳）。 */
+   （ContextMenu 的行已经包了壳；v5 芯片按 D-04 把 `<i>` 直接放在 .d-chipbtn 里）。 */
 function BoardIcon({ name, size = 14 }: { name: string; size?: number }): ReactNode {
   return <i data-ico={name} data-size={size} aria-hidden="true"></i>;
 }
@@ -154,12 +159,8 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
   };
 
   return (
-    // fork:design-components —— 新会话的工作区选择 = 画板 20 的 .pw-chip：
-    // 它是输入框**内部**的一枚芯片（画板 20「附件与引用」的 .pw-chips 行），
-    // 不再是输入框上方另起的一条横条。
-    // fork:no-chip-accent（用户 2026-10-01）—— 原来是 `pw-chip accent`：accent 描边 +
-    // accent 淡底 + accent 文字（画板 20 里那是「有引用上下文」的高亮态）。工作区芯片
-    // 常驻，一眼看着像默认态被点亮 —— 现在用中性 `.pw-chip`，高亮仍归引用芯片。
+    // fork:v5-landing —— 新会话的工作区选择 = 画板 D-04 的 .d-chipbtn：
+    // folder 图标 + .d-ctx-name 标签 + chevron-down，芯片常驻中性态。
     <button
       ref={buttonRef}
       type="button"
@@ -167,18 +168,11 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
       title={targets.activeCwd ?? undefined}
       aria-label={t("home.workspaceTarget")}
       aria-haspopup="menu"
-      className="pw-chip"
-      style={{ maxWidth: "min(100%, 260px)", cursor: "pointer" }}
+      className="d-chipbtn"
     >
-      {/* fork:design-components 判据⑦ —— 图标壳用画板的 `.pw-ico`（line-height 归零 +
-          与文字垂直居中，check-align 的口径），不再自写 display:flex / opacity 包壳。 */}
-      <span className="pw-ico">
-        {active.activeChat ? <ChatIcon /> : <FolderIcon />}
-      </span>
-      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {label}
-      </span>
-      <span className="pw-ico"><ChevronIcon /></span>
+      {active.activeChat ? <ChatIcon /> : <FolderIcon />}
+      <span className="d-ctx-name">{label}</span>
+      <ChevronIcon />
     </button>
   );
 }

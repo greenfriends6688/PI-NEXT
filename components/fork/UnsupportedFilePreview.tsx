@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { encodeFilePathForApi, getFileName } from "@/lib/file-paths";
 import { unsupportedReasonKey } from "@/lib/file-preview-support";
 
@@ -39,6 +40,11 @@ function formatBytes(value: number): string {
 
 export function UnsupportedFilePreview({ filePath, cwd, size, sourceSessionId }: UnsupportedFilePreviewProps) {
   const { t } = useI18n();
+  // M-06 帧 F · 手机档：降级卡 = `.m-viewbox`（`.m-doc-head` + `.m-doc-body`）+
+  // `.m-pickbar` 两条替代路径。画板原话「降级不是白屏：至少给两条替代路径」——
+  // 两条动作与桌面**完全相同**（同一个 `runAction`、同一个 `/api/files/reveal`），
+  // 只是容器从卡片脚换成确认条；`src`-free 的纯展示壳，两档不共用 DOM。 */
+  const isMobile = useIsMobile();
   const [busy, setBusy] = useState<"open" | "reveal" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const name = getFileName(filePath);
@@ -70,50 +76,99 @@ export function UnsupportedFilePreview({ filePath, cwd, size, sourceSessionId }:
 
   const sizeText = typeof size === "number" ? formatBytes(size) : "";
 
-  // fork:design-system SW-D —— 兜底卡 = 画板的 `.pw-card`：头（`.pw-ico` + `.pw-tool`
-  // + 类型 / 大小徽章）、体（原因与所在目录）、脚（可复制路径 + 两个画板按钮）。
-  // 整块挂在 `.pw-empty` / `.pw-empty-inner` 上居中，视觉只剩 board.css 一个来源。
-  return (
-    <div className="pw-empty" role="status" style={{ height: "100%" }}>
-      <div className="pw-empty-inner" style={{ width: "100%" }}>
-        <div className="pw-card" style={{ width: "100%" }}>
-          <div className="pw-card-head">
-            <span className="pw-ico"><i data-ico="file" data-size="13"></i></span>
-            <span className="pw-tool">{name}</span>
-            <span className="pw-grow" />
-            {extension ? <span className="pw-badge">{t("i18n.unsupportedType", { type: extension })}</span> : null}
-            {sizeText ? <span className="pw-badge count">{sizeText}</span> : null}
+  // fork:v5-landing —— 兜底卡 = D-06b 帧 E 的降级卡：`.d-empty` 居中，里面一张
+  // `.d-card`（头：file 图标 + 等宽文件名 + 类型/大小徽章；体：原因与所在目录；
+  // 脚：可复制路径 + 两枚 `.d-btn`）。整块不再有产品自有视觉类。
+  if (isMobile) {
+    return (
+      <>
+        <div className="m-viewbox">
+          <div className="m-doc-head">
+            <i data-ico="file" data-size="14" aria-hidden="true"></i>
+            <span className="m-grow m-mono">{name}</span>
+            {extension ? <span className="m-badge mute">{t("i18n.unsupportedType", { type: extension })}</span> : null}
+            {sizeText ? <span className="m-badge mute">{sizeText}</span> : null}
           </div>
-          <div className="pw-card-body">
-            <p style={{ margin: "0 0 4px" }}>{t(unsupportedReasonKey(filePath))}</p>
-            {cwd ? <p className="pw-dim" style={{ margin: 0 }}>{cwd}</p> : null}
-          </div>
-          <div className="pw-card-foot">
-            {/* 保留一个可复制的路径，方便用户自己去终端处理。 */}
-            <span className="pw-mono pw-dim">{encodeFilePathForApi(filePath)}</span>
-            <span className="pw-grow" />
-            <button
-              type="button"
-              className="pw-btn sm"
-              disabled={busy !== null}
-              onClick={() => void runAction("reveal")}
-            >
-              <span className="pw-ico"><i data-ico="folder-open" data-size="13"></i></span>
-              {busy === "reveal" ? t("i18n.opening") : t("i18n.showInFolder")}
-            </button>
-            <button
-              type="button"
-              className="pw-btn sm primary"
-              disabled={busy !== null}
-              onClick={() => void runAction("open")}
-            >
-              <span className="pw-ico"><i data-ico="external-link" data-size="13"></i></span>
-              {busy === "open" ? t("i18n.opening") : t("i18n.openWithDefaultApp")}
-            </button>
+          <div className="m-doc-body">
+            <div className="m-t-xs">{t(unsupportedReasonKey(filePath))}</div>
+            {cwd ? <div className="m-t-faint">{cwd}</div> : null}
           </div>
         </div>
-        {error ? <div className="pw-alert" role="alert">{error}</div> : null}
+
+        <div className="m-pickbar">
+          <button
+            type="button"
+            className="m-picktag"
+            disabled={busy !== null}
+            onClick={() => void runAction("reveal")}
+          >
+            <i data-ico="folder-open" data-size="15" aria-hidden="true"></i>
+            {busy === "reveal" ? t("i18n.opening") : t("i18n.showInFolder")}
+          </button>
+          <button
+            type="button"
+            className="m-picktag is-on"
+            disabled={busy !== null}
+            onClick={() => void runAction("open")}
+          >
+            <i data-ico="external-link" data-size="15" aria-hidden="true"></i>
+            {busy === "open" ? t("i18n.opening") : t("i18n.openWithDefaultApp")}
+          </button>
+        </div>
+
+        {error ? (
+          <div role="alert" className="m-banner err">
+            <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+            <span className="m-grow">{error}</span>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <div className="d-empty" role="status" style={{ height: "100%" }}>
+      <div className="d-card" style={{ width: "100%", maxWidth: 560 }}>
+        <div className="d-card-head">
+          <i data-ico="file" data-size="14"></i>
+          <span className="d-grow d-mono">{name}</span>
+          {extension ? <span className="d-badge mute">{t("i18n.unsupportedType", { type: extension })}</span> : null}
+          {sizeText ? <span className="d-badge mute">{sizeText}</span> : null}
+        </div>
+        <div className="d-card-body">
+          <div className="d-t-xs">{t(unsupportedReasonKey(filePath))}</div>
+          {cwd ? <div className="d-t-faint">{cwd}</div> : null}
+        </div>
+        <div className="d-pop-foot" style={{ borderTop: "1px solid var(--nx-line)" }}>
+          {/* 保留一个可复制的路径，方便用户自己去终端处理。 */}
+          <span className="d-mono">{encodeFilePathForApi(filePath)}</span>
+          <span className="d-grow" />
+          <button
+            type="button"
+            className="d-btn sm"
+            disabled={busy !== null}
+            onClick={() => void runAction("reveal")}
+          >
+            <i data-ico="folder-open" data-size="13"></i>
+            {busy === "reveal" ? t("i18n.opening") : t("i18n.showInFolder")}
+          </button>
+          <button
+            type="button"
+            className="d-btn sm primary"
+            disabled={busy !== null}
+            onClick={() => void runAction("open")}
+          >
+            <i data-ico="external-link" data-size="13"></i>
+            {busy === "open" ? t("i18n.opening") : t("i18n.openWithDefaultApp")}
+          </button>
+        </div>
       </div>
+      {error ? (
+        <div className="d-banner err" role="alert">
+          <i data-ico="circle-alert" data-size="14"></i>
+          <span className="d-grow">{error}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -9,25 +9,42 @@ test("composer attachments render as a board chip row, one remove button per ima
   const inputSource = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
   assert.match(inputSource, /import \{ ImagePreview \} from "\.\/ImagePreview"/);
 
-  // 本轮 skin-chatinput 把图片附件区换成画板 20 的 `.pw-chips` 芯片行：
-  // 一条芯片行里，每个附件 = 缩略图 ImagePreview + 一枚 `.pw-iconbtn.sm` 移除钮。
-  const start = inputSource.indexOf("{attachedImages.length > 0 && (");
-  assert.ok(start > -1, "图片附件区仍然存在");
-  const end = inputSource.indexOf("{referenceAttachments.length > 0", start);
-  assert.ok(end > start, "图片附件区与文件附件区仍然分得开");
-  const chips = inputSource.slice(start, end);
+  // fork:v5-wave-b（M-03）—— 图片附件区现在有**两套基件**：桌面仍是画板 20 的
+  // `.d-chips` 芯片行，窄屏换成 M-03 的 `.m-attachbar` 横滚托盘（`.m-attachbtn` 一格一张）。
+  // 两条等式都要守：每张图一枚移除钮、缩略图仍是共享预览的 children、零手绘 SVG。
+  const mobileStart = inputSource.indexOf("{attachedImages.length > 0 && (");
+  assert.ok(mobileStart > -1, "窄屏的图片附件区存在");
+  const desktopStart = inputSource.lastIndexOf("{attachedImages.length > 0 && (");
+  assert.ok(desktopStart > mobileStart, "桌面那一段仍在（它在窄屏分支之后）");
+  const end = inputSource.indexOf("{referenceAttachments.length > 0", desktopStart);
+  assert.ok(end > desktopStart, "图片附件区与文件附件区仍然分得开");
+  const chips = inputSource.slice(desktopStart, end);
 
-  assert.match(chips, /<div className="pw-chips">/, "附件行挂在画板的 .pw-chips 上");
+  assert.match(chips, /<div className="d-chips">/, "附件行挂在画板的 .d-chips 上");
   assert.match(chips, /<ImagePreview key=\{img\.previewUrl\} src=\{img\.previewUrl\}>/);
   assert.match(chips, /<img[\s\S]*?src=\{img\.previewUrl\}[\s\S]*?\/>/, "缩略图仍是共享预览的 children");
   assert.match(
     chips,
-    /<\/ImagePreview>\s*<button[\s\S]*?type="button"[\s\S]*?className="pw-iconbtn sm[\s\S]*?onClick=\{\(\) => removeImage\(i\)\}[\s\S]*?aria-label=\{t\("chat\.removeAttachment"\)\}[\s\S]*?<i data-ico="x"/,
-    "每张图紧跟一枚画板的 .pw-iconbtn.sm 移除钮（图标走 data-ico）",
+    /<\/ImagePreview>\s*<button[\s\S]*?type="button"[\s\S]*?className="d-iconbtn sm[\s\S]*?onClick=\{\(\) => removeImage\(i\)\}[\s\S]*?aria-label=\{t\("chat\.removeAttachment"\)\}[\s\S]*?<i data-ico="x"/,
+    "每张图紧跟一枚画板的 .d-iconbtn.sm 移除钮（图标走 data-ico）",
   );
   assert.doesNotMatch(chips, /<svg/, "移除钮不再手绘 × SVG");
   assert.doesNotMatch(chips, /borderRadius: "50%"/, "旧的 16px 圆形移除钮已经退役");
   assert.doesNotMatch(chips, /display: "flex", gap: 6, marginBottom: 6/, "芯片行的排布交给 .pw-chips");
+
+  // 窄屏那一段的等价约束：`.m-attachbar` › `.m-attachbtn` › ImagePreview › 移除钮。
+  const pwaEnd = inputSource.indexOf("{referenceAttachments.length > 0", mobileStart);
+  assert.ok(pwaEnd > mobileStart, "窄屏的图片附件区与文件附件区仍然分得开");
+  const pwaChips = inputSource.slice(mobileStart, pwaEnd);
+  assert.match(pwaChips, /<div className="m-attachbar">/, "窄屏的附件行挂在 M-03 的 .m-attachbar 上");
+  assert.match(pwaChips, /<span key=\{i\} className="m-attachbtn"/, "一格一张（M-03 的 .m-attachbtn）");
+  assert.match(pwaChips, /<ImagePreview key=\{img\.previewUrl\} src=\{img\.previewUrl\}>/);
+  assert.match(
+    pwaChips,
+    /<\/ImagePreview>\s*<button[\s\S]*?className="m-iconbtn"[\s\S]*?onClick=\{\(\) => removeImage\(i\)\}[\s\S]*?aria-label=\{t\("chat\.removeAttachment"\)\}[\s\S]*?<i data-ico="x"/,
+    "每张图紧跟一枚 .m-iconbtn 移除钮（图标走 data-ico）",
+  );
+  assert.doesNotMatch(pwaChips, /<svg/, "窄屏的移除钮同样零手绘 SVG");
 });
 
 test("uses a native modal dialog and restores focus to its trigger", () => {
@@ -72,22 +89,24 @@ test("keeps the lightbox inside mobile safe areas", () => {
   );
 });
 
-test("fork:design-system —— 灯箱壳换画板 50 的 pw-modal 结构，关闭钮走 data-ico", () => {
+test("fork:v5-landing —— 灯箱壳换 D-26b 的 d-modal 结构，关闭钮走 data-ico", () => {
   const lightbox = source.slice(source.indexOf("{open && ("));
 
-  assert.match(lightbox, /className="pw-modal"/, "灯箱壳是画板的 .pw-modal");
-  assert.match(lightbox, /<div className="pw-modal-head">/, "壳头是 .pw-modal-head");
-  assert.match(lightbox, /<div className="pw-modal-body"/, "图片本体在 .pw-modal-body 里");
-  assert.match(lightbox, /<div className="pw-modal-foot">/, "壳脚是 .pw-modal-foot");
+  // 2026-10-04（Wave B）：窄屏换 PWA 形态的模态壳，所以断言的是**形态映射**，
+  // 两个形态必须挂在同一批节点上（`.m-modal-*` 与 `.d-modal-*` 一一对应）。
+  assert.match(lightbox, /isMobile \? "m-modal-box" : "d-modal-box"/, "灯箱壳按断点换形态");
+  assert.match(lightbox, /isMobile \? "m-modal-head" : "d-modal-head"/, "壳头按断点换形态");
+  assert.match(lightbox, /isMobile \? "m-modal-body" : "d-modal-body"/, "图片本体在壳体里");
+  assert.match(lightbox, /isMobile \? "m-modal-foot" : "d-modal-foot"/, "壳脚按断点换形态");
   assert.match(
     lightbox,
-    /<span className="pw-ico"><i data-ico="image" data-size="16"><\/i><\/span>/,
+    /<i data-ico="image" data-size="16"><\/i>/,
     "壳头左侧是画板的 image 图标",
   );
   assert.match(
     lightbox,
-    /<button\s+ref=\{closeButtonRef\}\s+type="button"\s+className="pw-iconbtn"[\s\S]*?<span className="pw-ico"><i data-ico="x" data-size="16"><\/i><\/span>/,
-    "关闭钮是画板的 .pw-iconbtn，图标走 data-ico（与 fork/AttachmentPreview.tsx 同一写法）",
+    /<button\s+ref=\{closeButtonRef\}\s+type="button"\s+className=\{isMobile \? "m-iconbtn m-touch-44" : "d-iconbtn"\}[\s\S]*?<i data-ico="x" data-size="16"><\/i>/,
+    "关闭钮走画板 / 形态库的动作钮，图标走 data-ico（手机档另加 44px 命中区）",
   );
   assert.doesNotMatch(lightbox, /<svg/, "灯箱里不再手绘 SVG");
   // 与兄弟组件一致：全屏定位与遮罩仍由原生 dialog 的壳承担，焦点陷阱不靠 CSS。

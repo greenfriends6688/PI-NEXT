@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-03 · 转录 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-03 · 转录（消息全集）</h1>
+  <p>
+    转录是这个产品真正的界面。三条排版决定：① <b>用户说的话永远在右边</b>，形状与颜色和助手消息彻底不同，
+    扫一眼就知道谁说的；② <b>过程是时间轴不是日志</b>：工具与推理挂在一条竖线上，首末行不画线；
+    ③ <b>可展开的东西默认折叠</b>：工具输出、思考、diff 都默认收起，标题行永远可见。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区</span>
+    <span class="d-tag">组件：MessageView · ProcessGroup · ToolCard · CodeBlock · BranchSwitch</span>
+    <span class="d-tag">状态：静息 / 流式 / 运行中 / 失败重试 / 未读分割</span>
+  </div>
+</header>
+
+<!-- ── A · 一条完整的助手回合 ──────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 一条完整回合：过程时间轴 → 思考 → 正文 → 代码<span class="d-grow"></span>竖线只连中间的行</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">令牌只有一个来源</span>
+              <span class="d-sess-m"><span class="d-dot run"></span><span>运行中 · 2 分</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span>
+              <span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">令牌只有一个来源</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards · 上下文 18%</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-branch">
+              <button class="d-branch-btn"><i data-ico="chevron-left" data-size="12"></i></button>
+              <span class="d-branch-n">2 / 3</span>
+              <button class="d-branch-btn"><i data-ico="chevron-right" data-size="12"></i></button>
+            </span>
+            <button class="d-iconbtn" title="调用轨迹"><i data-ico="history" data-size="15"></i></button>
+            <button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="15"></i></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+
+              <div class="d-msg-user">
+                查一下设计体系里为什么字阶改一处只对一半。
+              </div>
+
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">claude-opus-4-6</span>
+                  <span class="d-grow"></span>
+                  <span class="d-plan-meta">3 分 12 秒 · 18.4k token</span>
+                </div>
+
+                <!-- 过程时间轴 -->
+                <div class="d-steps">
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="check" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">read(base.css)</span>
+                    <span class="d-step-meta">1.2k</span>
+                  </div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="check" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">grep(--nx-r- · system.css tokens.css)</span>
+                    <span class="d-step-meta">14 处</span>
+                  </div>
+                  <div class="d-step running">
+                    <span class="d-step-ico"><i data-ico="loader-circle" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">read(design/v5/web/system.css)</span>
+                    <span class="d-step-meta">…</span>
+                  </div>
+                  <div class="d-step">
+                    <span class="d-step-ico"></span>
+                    <span class="d-step-body d-t-faint">等待下一步</span>
+                  </div>
+                </div>
+
+                <!-- 思考（默认折叠） -->
+                <details class="d-think">
+                  <summary><i data-ico="brain" data-size="12"></i>思考 · 4 步</summary>
+                  <div class="d-think-body">
+                    <p>字阶比例与圆角都用了 <code>--nx-r-*</code> 这个前缀。CSS 里同名后者覆盖前者，
+                    所以 <code>calc(14px * 4px)</code> 整条无效，<code>--nx-fs-xs</code> 退回继承值。</p>
+                    <p>门禁只查「有没有定义」，不查「算不算得出来」，所以一路绿灯。</p>
+                  </div>
+                </details>
+
+                <!-- 正文 -->
+                <div class="d-md">
+                  <h1>根因：<code>--nx-r-*</code> 同时是字阶比例与圆角</h1>
+                  <p><code>base.css</code> 里先写了七档字阶比例（<code>--nx-r-xs: 0.79</code> …），
+                  后面又写了圆角（<code>--nx-r-xs: 4px</code> …）。后者赢，于是：</p>
+                  <div class="d-code">
+                    <div class="d-code-head">base.css</div>
+                    <div class="d-code-body"><span class="tok-k">--nx-r-xs</span>: <span class="tok-n">0.79</span>;   <span class="tok-c">/* 字阶比例 */</span>
+<span class="tok-k">--nx-r-xs</span>: <span class="tok-n">4px</span>;    <span class="tok-c">/* 圆角 —— 后者赢 */</span>
+<span class="tok-k">--nx-fs-xs</span>: <span class="tok-k">calc</span>(<span class="tok-k">var</span>(--nx-ui) * <span class="tok-k">var</span>(--nx-r-xs));
+<span class="tok-c">/* → calc(14px * 4px) 无效 → 六档字阶全部退回继承值 */</span></div>
+                  </div>
+                  <p>影响面：六档派生字阶（<code>xs/sm/cap/lg/title/display</code>）全部退回继承值，
+                  而门禁只检查令牌<b>有没有被定义</b>，不检查它<b>算不算得出来</b> —— 所以一路绿灯。</p>
+                  <table>
+                    <thead><tr><th>档</th><th>应该是</th><th>实际</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>--nx-fs-xs</code></td><td>11px</td><td>继承（14px）</td></tr>
+                      <tr><td><code>--nx-fs-sm</code></td><td>12px</td><td>继承（14px）</td></tr>
+                      <tr><td><code>--nx-fs-title</code></td><td>20px</td><td>继承（14px）</td></tr>
+                    </tbody>
+                  </table>
+                  <p>修法：比例令牌改名 <code>--nx-f-*</code>，圆角保留 <code>--nx-r-*</code>，
+                  并在门禁里加一条「<code>*</code> 右侧的比例必须无单位」。</p>
+                </div>
+
+                <!-- 动作行（悬浮显现） -->
+                <div class="d-msg-acts is-on">
+                  <button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button>
+                  <button class="d-iconbtn" title="重新生成"><i data-ico="redo-2" data-size="13"></i></button>
+                  <button class="d-iconbtn" title="从这里分支"><i data-ico="git-fork" data-size="13"></i></button>
+                  <button class="d-iconbtn" title="引用"><i data-ico="quote" data-size="13"></i></button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer d-loader">
+            <div class="d-loader-glow"></div>
+            <svg class="d-loader-svg" viewBox="0 0 760 56" preserveAspectRatio="none" aria-hidden="true">
+                <path pathLength="100" d="M16,2 H744 A14,14 0 0 1 758,16 V40 A14,14 0 0 1 744,54 H16 A14,14 0 0 1 2,40 V16 A14,14 0 0 1 16,2 Z"/>
+              </svg>
+              <div class="d-composer-top"><span class="d-t-dim">运行中：发送会排队</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限" data-demo-open="d-perm"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send stop" title="停止这一轮"><i data-ico="square" data-size="14"></i></button>
+              </div>
+          </div>
+          <!-- 权限档四项：与 D-03c / D-04 用同一套措辞，不另造一版 -->
+          <div class="d-pop up" data-demo-pop="d-perm" hidden style="min-width:300px">
+            <div class="d-pop-title">权限</div>
+            <button class="d-menu-row">
+              <i data-ico="shield-question" data-size="14"></i>
+              <span class="d-col d-grow" style="text-align:left">
+                <span>每次问</span>
+                <span class="d-t-xs d-t-faint">非只读的工具调用先弹审批卡，只读白名单永不问</span>
+              </span>
+              <i data-ico="check" data-size="14"></i>
+            </button>
+            <button class="d-menu-row">
+              <i data-ico="shield-check" data-size="14"></i>
+              <span class="d-col d-grow" style="text-align:left">
+                <span>本会话内允许读与查</span>
+                <span class="d-t-xs d-t-faint">读与查直接放行，写操作仍然逐次问</span>
+              </span>
+            </button>
+            <button class="d-menu-row">
+              <i data-ico="shield" data-size="14"></i>
+              <span class="d-col d-grow" style="text-align:left">
+                <span>全部自动允许</span>
+                <span class="d-t-xs d-t-faint">工具调用一律直接执行，不询问</span>
+              </span>
+              <span class="d-badge bad">危险</span>
+            </button>
+            <button class="d-menu-row danger">
+              <i data-ico="ban" data-size="14"></i>
+              <span class="d-col d-grow" style="text-align:left">
+                <span>拒绝本会话内一切写操作</span>
+                <span class="d-t-xs d-t-faint">写操作全部拒绝；读与查照常</span>
+              </span>
+            </button>
+            <div class="d-sep"></div>
+            <div class="d-pop-foot">读文件、grep、git status 这类只读命令永不问 —— 白名单在 <span class="d-mono">lib/approval-policy.ts</span>，不在界面上。</div>
+          </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── B · 工具卡 · diff · 失败与重试 ────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 工具卡与失败态：输出默认收起，失败必须能重试<span class="d-grow"></span>长输出永远有截断提示</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">工具输出与失败</span>
+              <span class="d-tb-sub">标题行永远可见，内容要用户点开</span>
+            </div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-b">PI NEXT</span>
+                </div>
+
+                <!-- 成功的工具卡 -->
+                <div class="d-tool">
+                  <div class="d-tool-head" data-demo-toggle-tool="tool-1">
+                    <i data-ico="chevron-down" data-size="13"></i>
+                    <i data-ico="terminal" data-size="13"></i>
+                    <span class="d-grow d-mono">npm test -- lib/*.test.mjs</span>
+                    <span class="d-badge ok">通过</span>
+                    <span class="d-t-xs d-t-faint">2.4s</span>
+                  </div>
+                  <div class="d-tool-body" id="tool-1">
+                    <div class="d-term" style="min-height:0">
+                      <div><span class="d-term-prompt">$</span> node --test lib/qrcode.test.mjs</div>
+                      <div class="d-term-ok"><i data-ico="check" data-size="11"></i> 全部 42 个测试向量与参考库逐字节一致</div>
+                      <div class="d-term-ok"><i data-ico="check" data-size="11"></i> jsQR 真解通过（8 个版本）</div>
+                      <div class="d-terminfo"># tests 42 · # pass 42 · # fail 0 · 3.1s</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- diff -->
+                <div class="d-tool">
+                  <div class="d-tool-head">
+                    <i data-ico="file-diff" data-size="13"></i>
+                    <span class="d-grow d-mono">design/v5/base.css</span>
+                    <span class="d-badge info">+7 −7</span>
+                  </div>
+                  <div class="d-tool-body">
+                    <div class="d-diff">
+<span class="d-diff-line del">-  --nx-r-xs: 0.79;   /* 字阶比例 */</span>
+<span class="d-diff-line add">+  --nx-f-xs: 0.79;   /* 字阶比例 */</span>
+<span class="d-diff-line del">-  --nx-r-lg: 1.14;</span>
+<span class="d-diff-line add">+  --nx-f-lg: 1.14;</span>
+<span class="d-diff-line add">+  --nx-fs-title: calc(var(--nx-ui) * var(--nx-f-title));</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 失败 + 重试 -->
+                <div class="d-tool">
+                  <div class="d-tool-head">
+                    <i data-ico="triangle-alert" data-size="13"></i>
+                    <span class="d-grow d-mono">node --test lib/mcp-transport.test.mjs</span>
+                    <span class="d-badge bad">失败</span>
+                  </div>
+                  <div class="d-tool-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-err">AssertionError: 引用 PI_WEB_PASSWORD 的条目必须被拒 —— 实际放行了 1 条</div>
+                    <div class="d-t-xs d-t-faint">exit 1 · 1.9s · 第 31 行</div>
+                    <div class="d-row">
+                      <button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试这一步</button>
+                      <button class="d-btn sm ghost">改参数再试</button>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm ghost">跳过</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 权限请求 -->
+                <div class="d-perm">
+                  <div class="d-perm-body">
+                    <div class="d-row">
+                      <i data-ico="shield-question" data-size="15"></i>
+                      <span class="d-t-b d-grow">要执行 <code class="d-mono">rm -rf build/cache</code></span>
+                    </div>
+                    <div class="d-t-xs d-t-dim">这个路径在本工作区内，但删除不可撤销。三种回法：允许一次 / 本会话允许 / 永远拒绝。</div>
+                    <div class="d-row">
+                      <button class="d-btn sm primary">允许一次</button>
+                      <button class="d-btn sm">本会话允许</button>
+                      <button class="d-btn sm ghost">永远拒绝</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 流式正文 -->
+                <div class="d-md">
+                  <p>两条路我都堵上了：比例令牌改名之后，门禁加了一条
+                  「<code>*</code> 右侧的比例必须无单位」—— 这条以后谁再犯都会红。</p>
+                  <p class="d-stream">还要顺手修 v4 基座里<span class="pending">另外两个被覆盖的档</span>，否则…<span class="d-caret"></span></p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">接着说…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── C · 未读分割 · 待办 · 计划 ─────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 未读分割与结构化块：todo / 计划 / 已写文件<span class="d-grow"></span>这些不是消息，是卡片</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">后台跑完后回到这条会话</span>
+              <span class="d-tb-sub">上次读到「规范」这一行</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge info">3 条新消息</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+
+              <div class="d-msg-user">
+                把剩下两个分节也补完，然后跑一遍门禁。
+              </div>
+
+              <div class="d-sep"></div>
+              <div class="d-t-xs d-t-faint" style="align-self:center">↓ 以下是你离开后发生的</div>
+              <div class="d-sep"></div>
+
+              <!-- 计划卡 -->
+              <div class="d-msg-ai">
+                <div class="d-plan">
+                  <div class="d-plan-head">
+                    <i data-ico="list-todo" data-size="15"></i>
+                    <span class="d-grow">画板落地清单</span>
+                    <span class="d-badge ok">3 / 6</span>
+                  </div>
+                  <div class="d-plan-body">
+                    <div class="d-plan-rail">
+                      <div class="d-plan-step done"><span class="d-plan-dot"></span>冻结令牌与类名</div>
+                      <div class="d-plan-step done"><span class="d-plan-dot"></span>写落地契约</div>
+                      <div class="d-plan-step done"><span class="d-plan-dot"></span>画板全集</div>
+                      <div class="d-plan-step run"><span class="d-plan-dot"></span>Web 分节两批落地</div>
+                      <div class="d-plan-step"><span class="d-plan-dot"></span>PWA 落地</div>
+                      <div class="d-plan-step"><span class="d-plan-dot"></span>验收六件套</div>
+                    </div>
+                  </div>
+                  <div class="d-plan-foot">
+                    <span>第 4 步进行中</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm ghost">暂停</button>
+                    <button class="d-btn sm">查看清单</button>
+                  </div>
+                </div>
+
+                <!-- 待办芯片 -->
+                <div class="d-chips">
+                  <span class="d-cite is-on"><i data-ico="circle-dot" data-size="12"></i>补 D-13 用量</span>
+                  <span class="d-cite"><i data-ico="circle" data-size="12"></i>补 D-14 推送</span>
+                  <span class="d-cite"><i data-ico="circle" data-size="12"></i>补 D-15 数据</span>
+                  <button class="d-chipbtn"><i data-ico="plus" data-size="12"></i>加一条</button>
+                </div>
+
+                <!-- 计划文档卡 -->
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="file-text" data-size="14"></i>
+                    docs/v5-landing-plan.md
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm ghost">打开</button>
+                  </div>
+                  <div class="d-card-body d-t-cap d-t-dim">
+                    落地批次、每批的验收命令、以及三条不许破的纪律。
+                  </div>
+                </div>
+
+                <!-- 已写文件 -->
+                <div class="d-tool">
+                  <div class="d-tool-head">
+                    <i data-ico="file-plus" data-size="13"></i>
+                    <span class="d-grow">本轮改了 4 个文件</span>
+                    <span class="d-badge mute">+312 −18</span>
+                  </div>
+                  <div class="d-tool-body d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-row d-mono d-t-xs"><span class="d-dot ok"></span>design/v5/base.css<span class="d-grow"></span><span class="d-t-xs d-t-faint">+9 −9</span></div>
+                    <div class="d-row d-mono d-t-xs"><span class="d-dot ok"></span>design/v5/scripts/check-v5.mjs<span class="d-grow"></span><span class="d-t-xs d-t-faint">+38</span></div>
+                    <div class="d-row d-mono d-t-xs"><span class="d-dot ok"></span>design/v5/web/system.css<span class="d-grow"></span><span class="d-t-xs d-t-faint">+210</span></div>
+                    <div class="d-row d-mono d-t-xs"><span class="d-dot ok"></span>design/v5/README.md<span class="d-grow"></span><span class="d-t-xs d-t-faint">+55</span></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">接着做…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>用户气泡永远在右</b>：右对齐 + 强调底 + 右下角小圆角，这一组形状差异是「谁说的」的唯一可靠信号。</li>
+    <li><b>过程是竖线时间轴</b>（`.d-steps`），首行从图标中心起画、末行到中心收笔 —— 中间连、两边断，这是竖线唯一合理的收法。</li>
+    <li><b>默认折叠的是过程，不是结论</b>：工具输出、思考、diff 收起，但<b>标题行永远可见</b>（含状态徽章与耗时），所以折叠态也能读出「做过什么、成没成」。</li>
+    <li><b>失败必须给三件事</b>：错在哪（行号）、怎么重试、还有别的选择（改参数 / 跳过）。只给一句「失败」等于把活推给用户。</li>
+    <li><b>权限请求内联在转录里</b>，不是浮在角上：它属于这一轮的语义，离开这条消息就失去上下文。</li>
+    <li><b>未读分割用两条发丝线 + 一行说明</b>，不要用色块；色块在这个界面里已经被「选中 / 运行中」占用了。</li>
+    <li><b>结构化块是卡片不是消息</b>：计划 / 待办 / 计划文档 / 已写文件各有形态，因为它们的生命周期与消息不同（消息不可编辑，卡片可重排）。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 工具卡展开/收起：标题行点一下切换内容的 hidden。
+   demo.js 里有「浮层 / 页签 / 抽屉 / 开关」四类接线，工具卡折叠是本张板独有的语义，
+   所以写在这里（15 行），不放进跨板共用的 demo.js。 */
+(function () {
+  document.querySelectorAll("[data-demo-toggle-tool]").forEach(function (head) {
+    head.addEventListener("click", function () {
+      var body = document.getElementById(head.getAttribute("data-demo-toggle-tool"));
+      if (body) body.hidden = !body.hidden;
+    });
+  });
+})();
+</script>
+</body>
+</html>

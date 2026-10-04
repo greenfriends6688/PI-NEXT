@@ -27,6 +27,15 @@ test("the desktop toolbar keeps all five icon actions", () => {
   }
   assert.match(source, /\{sessionHasBranches && \(mobile \? \(/);
 });
+
+test("the desktop toolbar also carries the session-actions menu", () => {
+  // fork:trace-menu-2026-10-04 —— `renderSessionActionsMenu` 只有 `if (mobile)` 那一处
+  // 调用，所以桌面上置顶 / 归档 / 重命名 / 在访达中打开 / 复制路径与 ID / 导出
+  // 压根没有入口（顶栏末尾留着一个空位）。手机与桌面用同一个组件、只差一个参数。
+  assert.match(source, /const renderSessionActionsMenu = \(mobile: boolean\) => \(/);
+  assert.match(source, /if \(mobile\) \{[\s\S]*?renderSessionActionsMenu\(true\)/);
+  assert.match(source, /\{renderSessionActionsMenu\(false\)\}/);
+});
 test("only renders the Agents switcher when the active session family has subagents", () => {
   assert.match(source, /const hasSubagentSessions = Boolean\(activeSessionFamily\?\.subagents\.length\)/);
   // fork:top-panel-anchor —— 第二个参数是「被点的那颗按钮」，定位时量它而不是整条顶栏。
@@ -114,7 +123,8 @@ test("places trust warnings below the mobile toolbar and the file toggle in tool
   assert.match(source, /\{isMobile && renderProjectTrustWarning\(true\)\}/);
   // fork:design-system SW-16 —— 画板 60 帧 D：移动端横幅内联「信任」钮，不再弹模态框。
   assert.match(source, /data-mobile-trust-banner="true"/);
-  assert.match(source, /className="pw-btn primary sm"[\s\S]{0,160}?void handleTrustProject\(\)/);
+  // fork:v5-wave-b —— 横幅里的「信任」钮在窄屏是 `.m-btn.primary.sm`，桌面是 `.d-btn.primary.sm`。
+  assert.match(source, /className=\{mobileBanner \? "m-btn primary sm" : "d-btn primary sm"\}[\s\S]{0,160}?void handleTrustProject\(\)/);
   assert.doesNotMatch(source, /File panel toggle — always visible at top-right/);
   assert.doesNotMatch(source, /position: "fixed", top: "env\(safe-area-inset-top\)"/);
 });

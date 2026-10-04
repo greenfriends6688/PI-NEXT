@@ -223,8 +223,9 @@ test("renders a turn-end row for stopReason length", () => {
     stopReason: "length",
   });
 
-  // fork:design-system PR-11 — length 不再是告警块，改由回合结束行的徽章表达。
-  assert.match(html, />length</);
+  // fork:v5-landing — length 由回合结束行（画板 D-03c 的 .d-turn-end）表达。
+  assert.match(html, /class="d-turn-end"/);
+  assert.match(html, /length/);
   assert.match(html, /output limit/i);
   assert.match(html, /follow-up/i);
 });
@@ -238,7 +239,8 @@ test("renders a turn-end row for thinking-only messages with stopReason length",
     stopReason: "length",
   });
 
-  assert.match(html, />length</);
+  assert.match(html, /class="d-turn-end"/);
+  assert.match(html, /length/);
   assert.match(html, /output limit/i);
 });
 
@@ -288,9 +290,9 @@ test("renders user messages as right-aligned prompt bubbles", () => {
 
   assert.match(html, /align-items:flex-end/);
   assert.match(html, /justify-content:flex-end/);
-  // fork:design-components —— 用户气泡直接用画板 .pw-msg-user（右对齐 78% / 发丝边框 /
-  // 面板底 / radius-6，board.css 承担视觉），不再有 inline 的背景与盒样式。
-  assert.match(html, /class="pw-msg-user"/);
+  // fork:v5-landing —— 用户气泡直接用画板 D-03 A 的 .d-msg-user（右对齐 78% /
+  // 强调底 / 右下小圆角，system.css 承担视觉）。
+  assert.match(html, /class="d-msg-user"/);
   assert.doesNotMatch(html, /background:var\(--user-bg\)/);
   assert.doesNotMatch(html, /max-width:88%/);
 });
@@ -392,7 +394,7 @@ test("links the opt-in URL inside a provider error", () => {
 // fork:design-components —— 下面这些断言钉住「转录卡片由画板件承载」这条结构契约：
 // DOM 抄自画板 10 / 11 / 12，类名与嵌套不得退回自绘形态。
 
-test("renders the user action row as the board's pw-msg-acts with pw-btn members", () => {
+test("renders the user action row as the board's d-msg-acts with d-btn members", () => {
   const html = renderMessage(
     { role: "user", content: "revert this turn", timestamp: Date.parse("2026-09-29T10:00:00Z") },
     {
@@ -403,10 +405,10 @@ test("renders the user action row as the board's pw-msg-acts with pw-btn members
     },
   );
 
-  // 画板 10 B：整行 .pw-msg-acts，成员一律 .pw-btn.sm + .pw-ico + i[data-ico]
-  assert.match(html, /class="pw-msg-acts"/);
+  // 画板 D-03b 帧 A2：整行 .d-msg-acts，成员一律 .d-btn.sm + i[data-ico]
+  assert.match(html, /class="d-msg-acts"/);
   assert.doesNotMatch(html, /fork-msg-actions/);
-  assert.match(html, /class="pw-btn sm"/);
+  assert.match(html, /class="d-btn sm"/);
   // 复制钮的字形由 fork/CopyStateIcon 提供（形变动画不在本轮范围），
   // 另三个动作按画板 10 B 抄 data-ico：编辑 / 分支 / 从此处回退。
   assert.match(html, /<i data-ico="pencil-line"/);
@@ -416,31 +418,27 @@ test("renders the user action row as the board's pw-msg-acts with pw-btn members
   assert.equal((html.match(/<button[^>]+title="[^"]*"/g) ?? []).length >= 4, true);
 });
 
-// fork:design-components —— 类名改名时的同步守卫（2026-09-30 事故）。
+// fork:v5-landing —— 动作行显隐守卫。
 //
-// board.css 只给 `.pw-msg-acts` 一个 `opacity: 0`；显隐由 app/fork-ui.css 的
-// 行为钩子按产品的真实结构（动作行是 [data-message-role] 的直接子节点）承担。
-// 换肤把类名从 `.fork-msg-actions` 改成 `.pw-msg-acts` 时只改了 tsx、漏改了 CSS，
-// 而旧断言只钉「HTML 里有 .pw-msg-acts」 —— 结果动作行恒为透明，没有任何测试变红。
-// 这个守卫钉住「两边的类名是同一个」：任一例改名/倒退都会失败。
-test("pw-msg-acts 的显隐钩子与组件类名同步（board.css 只给 opacity:0）", async () => {
-  const css = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
-  assert.match(css, /\[data-message-role\]:hover > \.pw-msg-acts/);
-  assert.match(css, /\.pw-msg-acts:focus-within/);
-  // 注释里允许提旧名（要记历史）；**选择器**里不许再有它。
-  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ""), /\.fork-msg-actions\b/);
-  const boardCss = await readFile(
-    new URL("../design/pi-web-design/assets/board.css", import.meta.url),
-    "utf8",
-  );
-  assert.match(boardCss, /\.pw-msg-acts \{[^}]*opacity: 0/);
+// 换皮后组件 DOM 只带 v5 类：`.d-msg-acts` 默认 `opacity: 0`。助手行在 `.d-msg-ai` 内部，
+// 由 system.css 的 `.d-msg-ai:hover .d-msg-acts` 显隐；用户行是气泡的**兄弟**，
+// 那条规则不成立，由 React 在 hover/focus 时挂 `.is-on`（同 ChatWorkspaceRow / SessionSidebar）。
+// 旧的 app/fork-ui.css `.pw-msg-acts` 钩子不在组件上留残：组件不得再挂 pw-*。
+test("d-msg-acts 显隐：v5 类 + React is-on，且不再挂 pw-msg-acts", async () => {
+  const systemCss = await readFile(new URL("../design/v5/web/system.css", import.meta.url), "utf8");
+  assert.match(systemCss, /\.d-msg-acts \{[^}]*opacity: 0/);
+  assert.match(systemCss, /\.d-msg-ai:hover \.d-msg-acts, \.d-msg-user:hover \.d-msg-acts/);
+  const source = await readFile(new URL("./MessageView.tsx", import.meta.url), "utf8");
+  assert.ok(source.includes('d-msg-acts${actionsVisible ? " is-on" : ""}'), "用户行 hover/focus 挂 is-on");
+  assert.ok(source.includes('d-msg-acts${actionsFocused ? " is-on" : ""}'), "助手行键盘焦点挂 is-on");
+  assert.doesNotMatch(source, /pw-msg-acts/);
   assert.match(
     renderMessage({ role: "user", content: "再跑一次就好", timestamp: Date.parse("2026-09-30T10:00:00Z") }),
-    /class="pw-msg-acts"/,
+    /class="d-msg-acts"/,
   );
 });
 
-test("carries the provider error in the board's pw-alert with its icon slot", () => {
+test("carries the provider error in the board's d-banner err with its icon slot", () => {
   const html = renderMessage({
     role: "assistant",
     content: [],
@@ -449,27 +447,27 @@ test("carries the provider error in the board's pw-alert with its icon slot", ()
   });
 
   assert.match(html, /role="alert"/);
-  assert.match(html, /class="pw-alert"/);
-  assert.match(html, /<span class="pw-ico"><i data-ico="circle-x"/);
-  // 错误原文仍在等宽块里（.pw-term），链接拆分照旧。
-  assert.match(html, /class="pw-term"/);
+  assert.match(html, /class="d-banner err"/);
+  assert.match(html, /<i data-ico="circle-x"/);
+  // 错误原文仍在等宽块里（.d-term.plain），链接拆分照旧。
+  assert.match(html, /class="d-term plain"/);
   assert.match(html, /upstream connection reset/);
   // 旧的自绘错误框（danger-soft + radius-md 内联）不再出现。
   assert.doesNotMatch(html, /--danger-soft/);
 });
 
-test("offers the oversized-message reveal as a pw-alert button and a pw-term body", () => {
+test("offers the oversized-message reveal as a d-banner info button and a d-term body", () => {
   const html = renderMessage({
     role: "user",
     content: "x".repeat(120_000),
   });
 
-  // 画板 12 的提示条形态：整条可点，info 态 + info 图标。
-  assert.match(html, /<button[^>]+class="pw-alert info"/);
+  // 画板 D-03e 的提示条形态：整条可点，info 态 + info 图标。
+  assert.match(html, /<button[^>]+class="d-banner info"/);
   assert.match(html, /<i data-ico="info"/);
   assert.match(html, /Message content is very large/);
-  // 未展开：原始正文不进 DOM（.pw-term 只在展开后出现）。
-  assert.doesNotMatch(html, /class="pw-term"/);
+  // 未展开：原始正文不进 DOM（.d-term 只在展开后出现）。
+  assert.doesNotMatch(html, /class="d-term plain"/);
 });
 
 test("renders a tool-call diff with the board's pw-diff head, body and lines", () => {
@@ -504,14 +502,14 @@ test("renders a tool-call diff with the board's pw-diff head, body and lines", (
     onToggleTool() {},
   });
 
-  assert.match(html, /class="pw-diff-body"/);
-  assert.match(html, /class="pw-diff-line/);
-  assert.match(html, /class="pw-diff-line add"/);
-  assert.match(html, /class="pw-diff-line del"/);
+  assert.match(html, /class="d-diff"/);
+  assert.match(html, /class="d-diff-line/);
+  assert.match(html, /class="d-diff-line add"/);
+  assert.match(html, /class="d-diff-line del"/);
   assert.match(html, /<span class="no">/);
   assert.match(html, /<span class="sign">/);
-  // diff 卡外面挂画板 11 的 .pw-card-body（顶部发丝线 + 面板底）。
-  assert.match(html, /class="pw-card-body"/);
+  // diff 卡外面挂画板 D-03d 的 .d-tool-body（顶部发丝线 + 面板底）。
+  assert.match(html, /class="d-tool-body"/);
 });
 
 test("carries tool-result images in the board's pw-img frame", () => {
@@ -533,13 +531,13 @@ test("carries tool-result images in the board's pw-img frame", () => {
     content: [{ type: "image", data: "YWJj", mimeType: "image/png" }],
   }]]) });
 
-  assert.match(html, /class="pw-img"/);
-  assert.match(html, /class="pw-card-body"/);
+  assert.match(html, /class="d-placeholder"/);
+  assert.match(html, /class="d-tool-body"/);
   // 旧的自绘图片容器（720px 上限 + 内联 border）不再出现。
   assert.doesNotMatch(html, /min\(100%, 720px\)/);
 });
 
-test("carries a custom extension message in the board's pw-card head/body/foot", () => {
+test("carries a custom extension message in the board's d-card head/body", () => {
   const html = renderMessage({
     role: "custom",
     customType: "extension",
@@ -549,11 +547,10 @@ test("carries a custom extension message in the board's pw-card head/body/foot",
     timestamp: Date.parse("2026-09-29T10:00:00Z"),
   });
 
-  assert.match(html, /class="pw-card"/);
-  assert.match(html, /class="pw-card-head"/);
-  assert.match(html, /class="pw-card-body"/);
-  assert.match(html, /class="pw-card-foot"/);
-  assert.match(html, /class="pw-btn sm"/);
+  assert.match(html, /class="d-card"/);
+  assert.match(html, /class="d-card-head"/);
+  assert.match(html, /class="d-card-body"/);
+  assert.match(html, /class="d-btn sm"/);
   // 旧的自绘卡（fontWeight:650 的标题 + 内联 border）不再出现。
   assert.doesNotMatch(html, /font-weight:650/);
   assert.doesNotMatch(html, /fontWeight:650/);
@@ -582,8 +579,8 @@ test("carries a tool result body in the board's pw-term inside pw-card-body", ()
     onToggleTool() {},
   });
 
-  assert.match(html, /class="pw-card-body"/);
-  assert.match(html, /class="pw-term"/);
+  assert.match(html, /class="d-tool-body"/);
+  assert.match(html, /class="d-term plain"/);
   assert.match(html, /hi/);
 });
 
@@ -611,11 +608,11 @@ test("renders no hand-drawn inline svg in the transcript", () => {
   // （客户端由 icons.js hydrate 成 lucide SVG）。
   assert.match(html, /<i data-ico="book-open"/);
   assert.match(html, /<i data-ico="chevron-down"/);
-  assert.match(html, /class="pw-turn-end"/);
+  assert.match(html, /class="d-turn-end"/);
   // 工具卡图标槽是 <i data-ico>，不是内联 svg 路径。
   assert.doesNotMatch(html, /<span class="pw-ico"><svg/);
 });
-test("carries the thinking body in the board's pw-think and the duration in pw-dim", async () => {
+test("carries the thinking body in the board's d-think-body and the duration in d-think-timer", async () => {
   const source = await readFile(new URL("./MessageView.tsx", import.meta.url), "utf8");
   const html = renderToStaticMarkup(
     React.createElement(
@@ -630,12 +627,12 @@ test("carries the thinking body in the board's pw-think and the duration in pw-d
 
   // 思考块默认收起，正文不进 SSR 快照（同压缩卡那条用例的理由），
   // 所以正文结构在源码上钉，渲染侧只钉收起态的外壳没回退。
-  assert.match(source, /className="fork-collapse-body pw-muted pw-think"/);
-  assert.match(source, /className="pw-dim"/);
+  assert.match(source, /className={`fork-collapse-body d-think-body/);
+  assert.match(source, /className="d-think-timer"/);
   assert.match(html, /aria-expanded="false"/);
 });
 
-test("carries the compaction file list in the board's pw-filecard rows", () => {
+test("carries the compaction file list in the board's d-row rows", () => {
   // 压缩卡默认收起，正文不进 SSR 快照，所以文件清单的结构在源码上钉；
   // 渲染侧只钉外壳没回退。
   const html = renderMessage({
@@ -645,14 +642,14 @@ test("carries the compaction file list in the board's pw-filecard rows", () => {
     display: true,
     timestamp: Date.parse("2026-09-29T10:00:00Z"),
   });
-  assert.match(html, /class="pw-compact"/);
+  assert.match(html, /class="d-card"/);
 
-  // 文件清单 = .pw-list 容器 + 每行一张 .pw-filecard：file 图标 + .pw-fname 全路径 +
-  // .pw-meta 后缀（画板 12 的「资源文件 / 兜底文件卡」形态）。
-  assert.match(source, /<ul className="pw-list"/);
-  assert.match(source, /<li key=\{file\} className="pw-filecard">/);
-  assert.match(source, /className="pw-fname">\{file\}<\/span>/);
-  assert.match(source, /className="pw-meta">\{fileExtension\(file\)\}/);
+  // 文件清单 = .d-col 容器 + 每行一条 .d-row.d-mono.d-t-xs：file 图标 + .d-grow 全路径 +
+  // .d-t-xs.d-t-faint 后缀（画板 D-03 帧 C 的「已写文件」形态）。
+  assert.match(source, /<ul className="d-col"/);
+  assert.match(source, /<li key=\{file\} className="d-row d-mono d-t-xs">/);
+  assert.match(source, /className="d-grow">\{file\}<\/span>/);
+  assert.match(source, /className="d-t-xs d-t-faint">\{fileExtension\(file\)\}/);
   assert.match(source, /<i data-ico="file" data-size="14"/);
   // 旧的自绘列表（compaction-file-list）不再挂载。
   assert.doesNotMatch(source, /className="compaction-file-list"/);

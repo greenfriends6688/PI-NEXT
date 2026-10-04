@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-08 · 手机命令中心 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-08 · 手机命令中心</h1>
+  <p>
+    桌面有 <code>⌘K</code>，手机没有物理键盘 —— 所以命令中心不能是「一个弹窗加一个搜索框」，
+    得先把<b>三件桌面端默认的事</b>在手机上补回来：<b>前缀即分类</b>（<code>&gt;</code> 命令 / <code>#</code> 会话 /
+    <code>@</code> 文件）、<b>有历史可退</b>（最近搜索常驻第一屏）、<b>有近路可走</b>（快捷入口）。
+    形态上它是<b>弹层</b>不是新页面：从顶栏搜索钮、会话抽屉第一条、输入框里的 <code>&gt;</code> 与
+    <code>@</code> 都能进来，进来之后整块内容还在原来的位置底下。
+    这一张还定了一条容易被做错的：<b>搜不到必须说清是哪种搜不到</b> ——
+    真没有 / 有但不在手机索引里 / 索引还没建完，三种解释与三种去处都不一样。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：命令中心（弹层）/ 前缀分类 / 空态</span>
+    <span class="m-doc-tag">组件：m-sheet · m-searchfield · m-sheet-row · m-rowlabel · m-kbd</span>
+    <span class="m-doc-tag">状态：静息 / 最近搜索 / 三类前缀 / 真空态 / 索引未覆盖</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 入口 · 最近搜索 · 快捷入口 ───────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 入口与第一屏 · <b>左</b>：入口有三处（顶栏搜索钮 / 会话抽屉第一条 / 输入框前缀），面板是<b>弹层</b>不是新页面｜<b>右</b>：打开后第一屏先给<b>最近搜索</b>与<b>快捷入口</b>，光标落在搜索框上</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- A-1 · 入口 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-sheet" id="cc-sheet-a1">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">命令中心</div>
+          <div class="m-sheet-body">
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="search" data-size="14"></i>
+              <input placeholder="搜会话、文件、命令" autofocus>
+            </div>
+            <div class="m-pop-foot">⌘K 在手机上不存在，所以入口必须多留几处 —— 而且每一处的落点都是这一块，不是三个不同的界面。</div>
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag is-on" data-demo-drawer="toggle" data-demo-drawer-target="#cc-sheet-a1">试着打开命令中心</button>
+          </div>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+          <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#cc-sheet-a1" title="命令中心"><i data-ico="search" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">手机上没有 ⌘K，命令中心得自己找得到。</div>
+          <div class="m-md">
+            <p>三个入口指向<b>同一块弹层</b>：顶栏的搜索钮、会话抽屉的第一条「命令中心」、以及输入框里打 <code>/</code> 或 <code>@</code>。不是三个页面 —— 三个入口各自的上下文不同，但结果列表、排序、选中态必须长得一模一样，否则用户每换一处就要重学一次。</p>
+            <h2>顶栏右钮不叫「更多」</h2>
+            <p>顶栏右钮从「⋯」改成放大镜：手机上 <code>⋯</code> 这个符号猜不出来，而放大镜不用猜。会话信息（导出 / 归档 / 置顶）挪到长按会话行与抽屉底部，不再占顶栏。</p>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="打 &gt; 提命令、@ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+         <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- A-2 · 第一屏：最近搜索 + 快捷入口 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="cc-sheet-a2">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">命令中心</div>
+
+          <div class="m-sheet-body">
+
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="search" data-size="14"></i>
+              <input placeholder="搜会话、文件、命令">
+            </div>
+
+            <div class="m-tray" style="margin-bottom:var(--nx-sp-2)">
+              <button class="m-tray-chip"><i data-ico="terminal" data-size="12"></i>&gt; 命令</button>
+              <button class="m-tray-chip"><i data-ico="hash" data-size="12"></i># 会话</button>
+              <button class="m-tray-chip"><i data-ico="at-sign" data-size="12"></i>@ 文件</button>
+              <span class="m-grow"></span>
+              <span class="m-t-xs m-t-faint">前缀即分类</span>
+            </div>
+
+            <div class="m-rowlabel">最近搜索 · 6 条</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">&gt; compact</span>
+                  <span class="m-sheet-row-desc">命令 · 今天 15:20 用过 3 次</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono"># 定时任务错峰执行</span>
+                  <span class="m-sheet-row-desc">会话 · 昨天 21:40 打开过</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">@ check-v5.mjs</span>
+                  <span class="m-sheet-row-desc">文件 · 今天 09:12 读过</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">&gt; branch</span>
+                  <span class="m-sheet-row-desc">命令 · 3 天前用过</span>
+                </span>
+              </button>
+            </div>
+
+            <div class="m-rowlabel">快捷入口</div>
+            <div class="m-grid2">
+              <button class="m-btn sm"><i data-ico="square-pen" data-size="13"></i>新建任务</button>
+              <button class="m-btn sm"><i data-ico="calendar-clock" data-size="13"></i>打开定时任务</button>
+              <button class="m-btn sm"><i data-ico="folder-tree" data-size="13"></i>切换项目</button>
+              <button class="m-btn sm"><i data-ico="refresh-cw" data-size="13"></i>重新连接手机</button>
+              <button class="m-btn sm"><i data-ico="smartphone" data-size="13"></i>手机与推送</button>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">历史只留本机 20 条，最近 7 天的；清历史在设置里，不在弹层里再加一层。</div>
+
+          </div>
+
+          <div class="m-pickbar">
+            <span class="m-kbd">↑</span><span class="m-kbd">↓</span>
+            <span class="m-t-xs m-t-faint">选择</span>
+            <span class="m-kbd">↵</span>
+            <span class="m-t-xs m-t-faint">打开</span>
+            <span class="m-grow"></span>
+            <span class="m-kbd">Esc</span>
+            <span class="m-t-xs m-t-faint">收起</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 B · 前缀分类 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 前缀分类 · 一块面板 + 一排前缀 chip；<b>三个前缀是同一套行的三种筛选</b>：行结构、选中态、排序完全一致，只有图标与副行不同</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- B-1 · > 命令 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="cc-sheet-b1">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">命令中心</div>
+
+          <div class="m-sheet-body" data-demo-scope>
+
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="command" data-size="14"></i>
+              <input value="&gt;" readonly>
+            </div>
+
+            <div class="m-seg" data-demo-tabs>
+              <button data-demo-tab="b-all">全部</button>
+              <button class="is-on" data-demo-tab="b-cmd">命令</button>
+              <button data-demo-tab="b-sess">会话</button>
+              <button data-demo-tab="b-file">文件</button>
+            </div>
+
+            <!-- 全部 -->
+            <div data-demo-pane="b-all" hidden>
+              <div class="m-rowlabel">最常用</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="terminal" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; compact 压缩上下文</span>
+                    <span class="m-sheet-row-desc">命令 · 内置</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row is-on" data-demo-select>
+                  <i data-ico="message-square" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t"># 设计体系 V5 · PWA 画板</span>
+                    <span class="m-sheet-row-desc">会话 · 运行中</span>
+                  </span>
+                  <span class="m-dot run"></span>
+                </button>
+              </div>
+              <div class="m-rowlabel">文件</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">@ design/v5/pwa/system.css</span>
+                    <span class="m-sheet-row-desc">文件 · 12 分钟前读过</span>
+                  </span>
+                </button>
+              </div>
+              <div class="m-sep"></div>
+              <div class="m-t-xs m-t-faint">「全部」不新建一套行，它就是三个前缀的并排 —— 顺序按最近一次命中，不按类型。</div>
+            </div>
+
+            <!-- > 命令 -->
+            <div data-demo-pane="b-cmd">
+              <div class="m-rowlabel">最近用过</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="terminal" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; compact 压缩上下文</span>
+                    <span class="m-sheet-row-desc">内置 · 3 轮前 · 压掉 41%</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row is-on" data-demo-select>
+                  <i data-ico="git-branch" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; branch 从这条分叉</span>
+                    <span class="m-sheet-row-desc">内置 · 昨天 · 会保留上下文</span>
+                  </span>
+                </button>
+              </div>
+
+              <div class="m-rowlabel">内置 · 13 条</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="undo-2" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; rewind 回退到上一轮</span>
+                    <span class="m-sheet-row-desc">保留分支，回退后可再前进</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="list-checks" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; todo 列待办</span>
+                    <span class="m-sheet-row-desc">只读，不改任何文件</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="square-pen" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; rename 重命名会话</span>
+                    <span class="m-sheet-row-desc">只改标题，不动内容</span>
+                  </span>
+                </button>
+              </div>
+
+              <div class="m-rowlabel">扩展 · 5 条（商店启用后才有）</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="git-commit-horizontal" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; commit 提交当前改动</span>
+                    <span class="m-sheet-row-desc">git-helper · 会先跑一遍门禁</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="git-pull-request" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">&gt; pr 开一个 PR</span>
+                    <span class="m-sheet-row-desc">git-helper · 需联网</span>
+                  </span>
+                </button>
+              </div>
+              <div class="m-sep"></div>
+              <div class="m-t-xs m-t-faint">扩展没启用的命令<b>不列</b>，也不画成灰的 —— 灰行会让人以为「装了不能用」，去商店装一次就永远消失。</div>
+            </div>
+
+            <!-- # 会话 -->
+            <div data-demo-pane="b-sess" hidden>
+              <div class="m-rowlabel">今天</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="message-square" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">设计体系 V5 · PWA 画板</span>
+                    <span class="m-sheet-row-desc">运行中 · 14 条 · 刚刚</span>
+                  </span>
+                  <span class="m-dot run"></span>
+                </button>
+                <button class="m-sheet-row is-on" data-demo-select>
+                  <i data-ico="message-square" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">手机端顶栏瘦身收尾</span>
+                    <span class="m-sheet-row-desc">后台跑门禁 · 6 分</span>
+                  </span>
+                  <span class="m-dot run"></span>
+                </button>
+              </div>
+              <div class="m-rowlabel">昨天</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="pin" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">release 0.1.8 收尾</span>
+                    <span class="m-sheet-row-desc">置顶 · 21:40 · 62 条</span>
+                  </span>
+                </button>
+              </div>
+              <div class="m-rowlabel">归档 · 41 条</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="archive" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">定时任务错峰执行</span>
+                    <span class="m-sheet-row-desc">归档 · 昨天 18:02</span>
+                  </span>
+                </button>
+              </div>
+              <div class="m-sep"></div>
+              <div class="m-t-xs m-t-faint">点一条即切换会话并收起面板；正在跑的那条带圆点，因为切过去会看到它还在烧配额。</div>
+            </div>
+
+            <!-- @ 文件 -->
+            <div data-demo-pane="b-file" hidden>
+              <div class="m-rowlabel">当前项目内</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">design/v5/pwa/system.css</span>
+                    <span class="m-sheet-row-desc">第 10 节 · 手势与系统态</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row is-on" data-demo-select>
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">design/v5/scripts/check-v5.mjs</span>
+                    <span class="m-sheet-row-desc">脚本 · 127 行门禁</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">design/v5/base.css</span>
+                    <span class="m-sheet-row-desc">两端共用的唯一真值</span>
+                  </span>
+                </button>
+              </div>
+              <div class="m-rowlabel">最近读过</div>
+              <div data-demo-list>
+                <button class="m-sheet-row" data-demo-select>
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">app/api/sessions/route.ts</span>
+                    <span class="m-sheet-row-desc">接口 · 32 分钟前</span>
+                  </span>
+                </button>
+              </div>
+              <div class="m-sep"></div>
+              <div class="m-t-xs m-t-faint">@ 只在<b>已信任</b>的目录里搜。没信任的目录不进索引 —— 手机上你看不见的路径，也不该出现在候选里。</div>
+            </div>
+
+          </div>
+
+          <div class="m-pickbar">
+            <span class="m-kbd">↑</span><span class="m-kbd">↓</span>
+            <span class="m-t-xs m-t-faint">移动</span>
+            <span class="m-kbd">↵</span>
+            <span class="m-t-xs m-t-faint">打开</span>
+            <span class="m-grow"></span>
+            <span class="m-t-xs m-t-faint">18 条命令命中</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- B-2 · 搜索中的 & 命令 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="cc-sheet-b2">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">命令中心</div>
+
+          <div class="m-sheet-body">
+
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="command" data-size="14"></i>
+              <input value="&gt; br" readonly>
+            </div>
+
+            <div class="m-rowlabel">命令 · 2 条命中</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="undo-2" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; rewind 回退到上一轮</span>
+                  <span class="m-sheet-row-desc">内置 · 保留分支</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="terminal" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; branch 从这条分叉</span>
+                  <span class="m-sheet-row-desc">内置 · 会复制上下文到新会话</span>
+                </span>
+              </button>
+            </div>
+
+            <div class="m-rowlabel">会话 · 1 条命中</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="message-square" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">定时任务错峰执行</span>
+                  <span class="m-sheet-row-desc">昨天 · 命中「br」=「错峰」拼音首字母</span>
+                </span>
+              </button>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-banner">
+              <i data-ico="info" data-size="14"></i>
+              <span class="m-grow">带前缀时<b>只搜那一类</b>；去掉前缀才跨三类混排。混排结果按命中位置排序，所以上面第 3 行才是会话。</span>
+            </div>
+
+            <div class="m-rowlabel">还没搜的</div>
+            <div class="m-grid2">
+              <button class="m-btn sm"><i data-ico="git-branch" data-size="13"></i>&gt; branch</button>
+              <button class="m-btn sm"><i data-ico="minimize-2" data-size="13"></i>&gt; compact</button>
+              <button class="m-btn sm"><i data-ico="timer" data-size="13"></i>&gt; todo</button>
+              <button class="m-btn sm"><i data-ico="square-terminal" data-size="13"></i>&gt; run</button>
+            </div>
+
+          </div>
+
+          <div class="m-pickbar">
+            <span class="m-kbd">退格</span>
+            <span class="m-t-xs m-t-faint">删前缀即回到全部</span>
+            <span class="m-grow"></span>
+            <span class="m-kbd">Esc</span>
+            <span class="m-t-xs m-t-faint">收起</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 C · 空态与索引未命中 ────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 搜不到 · <b>左</b>：真没有结果（<span class="m-mono">.m-empty</span> + 去处）｜<b>右</b>：<b>索引未覆盖</b> —— 说清手机索引到底装了什么、没装什么，以及三种「搜不到」的判据</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- C-1 · 真空态 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="cc-sheet-c1">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">命令中心</div>
+
+          <div class="m-sheet-body">
+
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="command" data-size="14"></i>
+              <input value="&gt; rebase" readonly>
+            </div>
+
+            <div class="m-empty">
+              <div class="m-empty-ico"><i data-ico="search" data-size="20"></i></div>
+              <div class="m-empty-t">没有这条命令</div>
+              <div class="m-empty-s">手机命令中心只列<b>已注册的命令</b>（内置 13 + 商店启用 5）。<code>rebase</code> 属于 git-helper 的桌面端能力，扩展没把这条命令注册到手机。</div>
+              <div class="m-pickbar" style="width:100%">
+                <button class="m-picktag">清空</button>
+                <button class="m-picktag">去掉前缀</button>
+                <button class="m-picktag is-on">去商店</button>
+              </div>
+            </div>
+
+            <div class="m-rowlabel">也许你要的是</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="terminal" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; commit 提交当前改动</span>
+                  <span class="m-sheet-row-desc">git-helper · 已启用 · 含提交信息生成</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="square-terminal" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; run 跑一条命令</span>
+                  <span class="m-sheet-row-desc">内置 · 会在手机上逐行回显</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="git-branch" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; branch 从这条分叉</span>
+                  <span class="m-sheet-row-desc">内置 · 回退与分叉是同一件事的两面</span>
+                </span>
+              </button>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">空态必须给<b>三条可点的去处</b>，只写「没找到」等于把活推给用户。</div>
+
+          </div>
+
+          <div class="m-pickbar">
+            <span class="m-kbd">Esc</span>
+            <span class="m-t-xs m-t-faint">收起</span>
+            <span class="m-grow"></span>
+            <span class="m-t-xs m-t-faint">搜过 1,284 个文件 + 14 个会话 + 18 条命令</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- C-2 · 索引未命中 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="cc-sheet-c2">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">索引没有它</div>
+
+          <div class="m-sheet-body">
+
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="search" data-size="14"></i>
+              <input value="budget" readonly>
+            </div>
+
+            <div class="m-banner">
+              <i data-ico="circle-help" data-size="14"></i>
+              <span class="m-grow"><b>它可能在，只是不在手机索引里。</b>手机不建全量索引 —— 索引跟着同步走，超过 2 万条就只留本机项目。下面是这次到底搜了什么。</span>
+            </div>
+
+            <div class="m-cardgroup">
+              <div class="m-setrow">
+                <i data-ico="check" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">这次搜过：本机 1,284 个文件</span>
+                  <span class="m-setrow-s">文件名 + 一段正文摘要</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="check" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">这次搜过：14 个会话</span>
+                  <span class="m-setrow-s">标题 + 首轮提问 + 最近 10 条</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="check" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">这次搜过：18 条命令</span>
+                  <span class="m-setrow-s">手机端已注册的那些</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="circle-x" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">没搜：桌面端归档的历史会话</span>
+                  <span class="m-setrow-s">归档只在产生它的设备上</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="circle-x" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">没搜：未信任目录下的任何文件</span>
+                  <span class="m-setrow-s">没信任的路径不进索引</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="circle-x" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">没搜：刚同步下来的 2 个会话</span>
+                  <span class="m-setrow-s">索引落后于同步，最长 30 秒</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-rowlabel">三种「搜不到」，三种去处</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="circle-help" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">真没有 · 换个词再搜一次</span>
+                  <span class="m-sheet-row-desc">文件路径与命令名都对得上，仍是 0 条</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="database" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">有但不在索引 · 去桌面搜</span>
+                  <span class="m-sheet-row-desc">在电脑上打开同一个项目，全量索引就在那儿</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="refresh-cw" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">索引还没建完 · 等 30 秒</span>
+                  <span class="m-sheet-row-desc">刚同步进来的东西会先进队列，再进索引</span>
+                </span>
+              </button>
+            </div>
+
+          </div>
+
+          <div class="m-pickbar">
+            <span class="m-kbd">Esc</span>
+            <span class="m-t-xs m-t-faint">收起</span>
+            <span class="m-grow"></span>
+            <span class="m-badge mute">索引 1,284 文件 · 30 秒前更新</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>命令中心是弹层，不是新页面。</b><span class="m-mono">.m-sheet</span> + <span class="m-mono">.m-scrim</span>，底下那一屏会话原样留着 —— 手机上「换页」意味着丢失位置，命令中心恰恰是频繁跳来跳去的地方。</li>
+    <li><b>入口留三处，但只有一块界面。</b>顶栏右钮（放大镜，不是「⋯」）· 会话抽屉第一条 · 输入框里的 <code>&gt;</code> 与 <code>@</code>。三处的<b>行结构、排序、选中态完全一致</b>；不一致就会变成三套要分别学的东西。</li>
+    <li><b>分段固定、前缀即分类</b>：分段永远是 <b>全部 / 命令 / 会话 / 文件</b>（「全部」在最前）；前缀 <code>&gt;</code> 命令 / <code>#</code> 会话 / <code>@</code> 文件用一排前缀 chip（<span class="m-mono">.m-tray</span>）做图示，分组标题用 <span class="m-mono">.m-rowlabel</span>；带前缀时<b>只搜那一类</b>，去掉前缀才混排 —— 混排按命中位置排，不按类型排。</li>
+    <li><b>结果行统一用 <span class="m-mono">.m-sheet-row</span></b>，选中态是 <span class="m-mono">.is-on</span>（带对勾 + 强调底色）。同组互斥由 <span class="m-mono">data-demo-list</span> + <span class="m-mono">data-demo-select</span> 驱动，<b>预选中项不排第一</b> —— 排第一会让「第一条 = 默认项」的肌肉记忆把用户直接送进最不该去的那一项。</li>
+    <li><b>最近搜索与快捷入口必须在第一屏。</b>命令中心 90% 的使用是重复动作，靠打字找的成本远高于点两下；历史只留本机 20 条 / 7 天，清历史去设置，不在弹层里再套一层。</li>
+    <li><b>底部键位提示</b>用 <span class="m-mono">.m-kbd</span> 写在面板底：<code>↑↓</code> 选、<code>↵</code> 开、<code>Esc</code> 收。外接键盘时这行是真的，手机上它至少说明「这块可以被键盘驱动」。</li>
+    <li><b>空态要区分「真空态」与「索引未覆盖」。</b>前者给三条可点的去处；后者把<b>这次到底搜了什么</b>逐条列出来（用 / 不用 / 不用 三种标记表达），再给三种「搜不到」各自对应的动作。写成一句「没有找到结果」是这一张最要避免的失败态 —— 用户无法判断是东西不存在、是权限不够、还是还没同步完，三种情况的后续动作完全不同。</li>
+    <li><b>三条硬规矩在本张的落法</b>：① 层级一律靠<b>底色 / 圆点 / 徽章 / 图标</b>（<span class="m-mono">.m-dot.run</span> 标运行中、<span class="m-mono">.m-badge.mute</span> 标索引时间），全表零 <code>border-left</code>；② 设置分节一律走 <span class="m-mono">.m-sheet</span>，不新开页面；③ 图标全部 <code>lucide</code>，零 emoji。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

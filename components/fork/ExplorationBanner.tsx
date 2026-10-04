@@ -95,28 +95,28 @@ export function ExplorationBanner({
   };
 
   return (
-    /* fork:design-components —— 画板 54 的探索抬头条：一行 `.pw-inline`（图标 + `.pw-strong`
-       标题 + `.pw-dim` 来源 + grow + 状态文案 + 两个 `.pw-btn.outline.sm` + 一个
-       `.pw-btn.primary.sm`）。旧的内联边框/底色/圆角由 board.css 承担。 */
+    /* fork:design-components —— 画板 D-03e 帧 D 的探索抬头条：一行 `.d-announce`
+       （git-fork + `.d-grow` 标题 + `.d-t-xs.d-t-faint` 来源 + `.d-btn.sm` 两枚 +
+       一枚 `.d-btn.sm.primary` 带回结论）。旧的内联边框/底色/圆角由 system.css 承担。 */
     <div
       role="status"
-      className="pw-inline"
-      style={{ flexWrap: "wrap", gap: "var(--s2)", margin: "0 0 10px" }}
+      className="d-announce"
+      style={{ flexWrap: "wrap", margin: "0 0 10px" }}
     >
-      <span className="pw-ico" style={{ color: "var(--accent-text)" }} aria-hidden="true">
-        <i data-ico="git-fork" data-size="14"></i>
-      </span>
-      <b className="pw-strong">{t("explore.title")}</b>
-      <span className="pw-dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 420 }}>
+      <i data-ico="git-fork" data-size="14" aria-hidden="true"></i>
+      <span className="d-grow d-t-b">{t("explore.title")}</span>
+      <span
+        className="d-t-xs d-t-faint"
+        style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 420 }}
+      >
         {t("explore.from", { label: sourceLabel })}
       </span>
-      <span className="grow" />
-      {broughtBack && <span className="pw-dim">{t("explore.broughtBack")}</span>}
-      {!broughtBack && !canBringBack && <span className="pw-dim">{t("explore.nothingYet")}</span>}
+      {broughtBack && <span className="d-t-xs d-t-faint">{t("explore.broughtBack")}</span>}
+      {!broughtBack && !canBringBack && <span className="d-t-xs d-t-faint">{t("explore.nothingYet")}</span>}
       {onOpenPane && (
         <button
           type="button"
-          className="pw-btn outline sm"
+          className="d-btn sm"
           onClick={onOpenPane}
           title={t("explore.openPane")}
         >
@@ -126,7 +126,7 @@ export function ExplorationBanner({
       {onOpenParent && (
         <button
           type="button"
-          className="pw-btn outline sm"
+          className="d-btn sm"
           onClick={() => onOpenParent(parentSessionId)}
           title={t("explore.openParent")}
         >
@@ -135,12 +135,13 @@ export function ExplorationBanner({
       )}
       <button
         type="button"
-        /* 不可带回时退成 `.pw-btn.outline`（画板的中性描边形态），语义仍在 disabled 上。 */
-        className={`pw-btn sm ${canBringBack ? "primary" : "outline"}`}
+        /* 不可带回时退成 `.d-btn.sm` 中性描边形态，语义仍在 disabled 上。 */
+        className={`d-btn sm${canBringBack ? " primary" : ""}`}
         onClick={handleBringBack}
         disabled={!canBringBack}
         title={t("explore.bringBackHint")}
       >
+        <i data-ico="inbox" data-size="13" aria-hidden="true"></i>
         {t("explore.bringBack")}
       </button>
     </div>

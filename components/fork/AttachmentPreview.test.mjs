@@ -14,20 +14,20 @@ import test from "node:test";
 const source = await readFile(new URL("./AttachmentPreview.tsx", import.meta.url), "utf8");
 const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-test("弹窗由画板 50 的对话框基元拼成", () => {
-  assert.match(code, /className="pw-modal"/, "壳是 .pw-modal");
-  assert.match(code, /className="pw-modal-head"/, "有头");
-  assert.match(code, /className="pw-modal-body"/, "有体");
-  assert.match(code, /className="pw-modal-foot"/, "有脚");
-  assert.match(code, /className="pw-iconbtn sm"/, "关闭钮是画板头部的 .pw-iconbtn.sm");
-  assert.match(code, /<span className="pw-grow" \/>/, "脚部用画板的 .pw-grow 把关闭钮推到右侧");
+test("弹窗由画板 D-03b 帧 E 的对话框基元拼成", () => {
+  assert.match(code, /className="d-modal-box"/, "壳是 .d-modal-box");
+  assert.match(code, /className="d-modal-head"/, "有头");
+  assert.match(code, /className="d-modal-body"/, "有体");
+  assert.match(code, /className="d-modal-foot"/, "有脚");
+  assert.match(code, /className="d-iconbtn"/, "关闭钮是画板头部的 .d-iconbtn");
+  assert.match(code, /<span className="d-grow" \/>/, "脚部用画板的 .d-grow 把关闭钮推到右侧");
 });
 
-test("文本分支用画板 10 的代码卡，截断脚注用 .pw-card-foot", () => {
-  assert.match(code, /<div className="pw-code"/, "等宽正文走 .pw-code");
-  assert.match(code, /<div className="pw-code-body">/, "正文走 .pw-code-body");
-  assert.match(code, /<div className="pw-card-foot">/, "截断提示走 .pw-card-foot");
-  assert.match(code, /<div className="pw-alert">/, "读取失败走 .pw-alert");
+test("文本分支用画板 D-03b 的代码卡，截断脚注用 .d-t-xs.d-t-faint", () => {
+  assert.match(code, /<div className="d-code"/, "等宽正文走 .d-code");
+  assert.match(code, /<div className="d-code-body">/, "正文走 .d-code-body");
+  assert.match(code, /className="d-t-xs d-t-faint"/, "截断提示走 .d-t-xs.d-t-faint");
+  assert.match(code, /<div className="d-banner err">/, "读取失败走 .d-banner.err");
 });
 
 test("零手绘 SVG、零自绘灯箱盒", () => {

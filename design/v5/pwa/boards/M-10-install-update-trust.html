@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-10 · 安装 · 更新 · 离线 · 目录信任 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-10 · 安装 · 更新 · 离线 · 目录信任</h1>
+  <p>
+    手机端有一半的界面是<b>看不见的生命周期</b>：它什么时候被装上、什么时候会被更新、断网时还剩什么、
+    以及用户第一次把遥控器对准哪个目录。这四条如果各写各的，最后一定是「弹窗套弹窗」。
+    所以这一张定的是<b>四条提示的分工与轻重</b>：
+    <b>安装分平台说人话</b>（iOS 只能三步手动，Android 与桌面能一键）、
+    <b>更新只做浮条不做弹窗</b>（正在输入的草稿一个字都不许丢）、
+    <b>断网只在顶部留一条黄条并写清代价</b>、
+    <b>目录信任钉在顶上直到处理为止</b>；装完之后的 standalone 首启是三步，三步各带开关，
+    用户可以先关掉某步继续用。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：安装提示 / 更新浮条 / 离线条 / 目录信任 / 首启</span>
+    <span class="m-doc-tag">组件：m-sheet · m-step-card · m-update · m-offline · m-trust · m-onboard</span>
+    <span class="m-doc-tag">状态：未安装 / 待更新 / 断网 / 未信任 / standalone 首启</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 安装提示（分平台） ───────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 安装提示分平台 · <b>左</b> iOS Safari：没有一键，唯一诚实的写法就是三步｜<b>中</b> Android Chrome：握住了 <code>beforeinstallprompt</code>，一条主按钮｜<b>右</b> 桌面 Chrome：入口在工具栏，不是横幅</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- A-1 · iOS -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="sheet-ios">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">装到主屏幕</div>
+          <div class="m-sheet-body">
+
+            <div class="m-banner">
+              <i data-ico="circle-help" data-size="14"></i>
+              <span class="m-grow">iOS Safari 没有「一键安装」这个能力。三步就是全部，别给它画一个假的按钮。</span>
+            </div>
+
+            <div class="m-step-card">
+              <div class="m-step-dot-lg">1</div>
+              <div class="m-step-row-2">
+                <div class="m-setrow-t">点底部工具栏中间的<b>分享</b></div>
+                <div class="m-setrow-s"><i data-ico="share-2" data-size="12"></i> 那个方框里一个向上箭头的图标，在「新建标签」和「添加书签」之间</div>
+              </div>
+            </div>
+
+            <div class="m-step-card">
+              <div class="m-step-dot-lg">2</div>
+              <div class="m-step-row-2">
+                <div class="m-setrow-t">在分享列表里往下滑，选<b>添加到主屏幕</b></div>
+                <div class="m-setrow-s"><i data-ico="plus" data-size="12"></i> 列表偏长，要滑到「操作」那一组 —— 这一步最容易漏，所以图标要点出来</div>
+              </div>
+            </div>
+
+            <div class="m-step-card">
+              <div class="m-step-dot-lg">3</div>
+              <div class="m-step-row-2">
+                <div class="m-setrow-t">确认名字，点<b>添加</b></div>
+                <div class="m-setrow-s">图标是应用自己的，没有 Safari 的网址小字；名字可以改，改了之后随时能在主屏长按改名</div>
+              </div>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">装完从主屏图标进，没有地址栏、没有「打开方式浏览器」。这一条要在装之前就说，不然用户会以为装了个假的。</div>
+
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag">不再提示</button>
+            <button class="m-picktag is-on">稍后再说</button>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- A-2 · Android -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="zap" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="sheet-android">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">装到桌面</div>
+          <div class="m-sheet-body">
+
+            <div class="m-banner">
+              <i data-ico="zap" data-size="14"></i>
+              <span class="m-grow">已满足安装条件（manifest + Service Worker 就绪 + HTTPS），系统安装框<b>已被握住</b>，随时可以调起。</span>
+            </div>
+
+            <div class="m-storecard">
+              <div class="m-store-cover"><i data-ico="smartphone" data-size="22"></i></div>
+              <div class="m-setrow-body">
+                <span class="m-setrow-t m-t-lg">PI NEXT</span>
+                <span class="m-setrow-s">装完会出现在桌面与抽屉里，有独立图标与独立窗口，断网也能开。</span>
+              </div>
+              <div class="m-setrow-body">
+                <span class="m-setrow-s">体积 6.8MB · 缓存 12MB · 已用掉 2 次启动</span>
+                <span class="m-row-m"><span class="m-dot ok"></span><span>HTTPS</span><span>·</span><span>manifest 齐</span><span>·</span><span>SW 就绪</span></span>
+              </div>
+            </div>
+
+            <div class="m-sep"></div>
+            <button class="m-btn primary"><i data-ico="download" data-size="14"></i>装到桌面</button>
+            <div class="m-pickbar">
+              <button class="m-picktag">用浏览器用就好</button>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">握到安装框只在本次会话有效；这次不装，下次进站要重新等条件满足 —— 所以这条提示<b>每周最多出现一次</b>，不是每次访问都追着人要。</div>
+
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- A-3 · 桌面 Chrome -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>14:02</span>
+        <span class="m-grow"></span>
+        <i data-ico="monitor" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="sheet-desktop">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">在电脑上装一个</div>
+          <div class="m-sheet-body">
+
+            <div class="m-doc-frame">
+              <div class="m-doc-head"><i data-ico="layout-grid" data-size="14"></i><span>浏览器工具栏（示意）</span></div>
+              <div class="m-doc-body">
+                <div class="nx-row" style="gap:var(--nx-sp-2)">
+                  <div class="m-sizebox m-grow"><span class="m-mono">pi.local:39411/v5</span></div>
+                  <div class="m-sizebox"><i data-ico="download" data-size="14"></i></div>
+                  <div class="m-sizebox"><i data-ico="ellipsis-vertical" data-size="14"></i></div>
+                </div>
+                <div class="m-t-xs m-t-faint" style="margin-top:var(--nx-sp-2)">地址栏右侧那个「安装」图标就是全部入口 —— 桌面端已经有它了，不需要我们再造一条横幅。</div>
+              </div>
+            </div>
+
+            <div class="m-step-card">
+              <div class="m-step-dot-lg"><i data-ico="download" data-size="13"></i></div>
+              <div class="m-step-row-2">
+                <div class="m-setrow-t">点地址栏右侧的<b>安装</b>图标</div>
+                <div class="m-setrow-s">条件满足时才出现；不满足就是灰的，鼠标停上去写清缺什么</div>
+              </div>
+            </div>
+
+            <div class="m-step-card">
+              <div class="m-step-dot-lg"><i data-ico="ellipsis-vertical" data-size="13"></i></div>
+              <div class="m-step-row-2">
+                <div class="m-setrow-t">或者菜单 →<b>投放、保存和分享</b> → 安装页面</div>
+                <div class="m-setrow-s">没有入口时这条路一定通；两条路写在一起，哪条都别单独发</div>
+              </div>
+            </div>
+
+            <div class="m-step-card">
+              <div class="m-step-dot-lg"><i data-ico="app-window" data-size="13"></i></div>
+              <div class="m-step-row-2">
+                <div class="m-setrow-t">装完是一个<b>独立窗口</b></div>
+                <div class="m-setrow-s">没有地址栏，但保留后退键；任务栏里可固定，可和浏览器并存</div>
+              </div>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">手机上的这条提示里<b>不放桌面平台</b> —— 手机用户装不了桌面端，写进去只会让人以为这里能装。</div>
+
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 B · 更新浮条 + 断网条 ───────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 更新与断网 · <b>左</b>：更新只做浮条 <span class="m-mono">.m-update</span>，正在输入的草稿一个字都不丢，「稍后」开的是<b>什么时候再提醒</b>｜<b>右</b>：断网条 <span class="m-mono">.m-offline</span> 写清代价，发送进队列而不是报错</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- B-1 · 更新浮条 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="zap" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-sheet" id="sheet-later">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">什么时候再提醒</div>
+          <div class="m-sheet-body">
+            <div class="m-pop-foot">「稍后」不是「关掉」。关掉是另一件事，得让用户单独选。</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">下次进入应用时</span>
+                  <span class="m-sheet-row-desc">最省心，也最容易一直忘</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="timer" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">今晚 22:00 之后</span>
+                  <span class="m-sheet-row-desc">推荐：这时通常不在跑长任务</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">明早 08:30</span>
+                  <span class="m-sheet-row-desc">装完不影响今天的进度</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="calendar" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">下一个空闲时段</span>
+                  <span class="m-sheet-row-desc">等当前回合跑完、且没有待办队列时</span>
+                </span>
+              </button>
+            </div>
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">推迟到下次空闲时，浮条会自己回来 —— 它不消失，只是换了个时候。</div>
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag is-on" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-later">选一下「稍后」提醒时间</button>
+          </div>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">手机端顶栏瘦身收尾</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">别用弹窗拦我，我正在打字。</div>
+          <div class="m-msg-ai">
+            <div class="m-msg-ai-head">
+              <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+              <span class="m-t-b">PI NEXT</span>
+              <span class="m-badge mute">claude-opus-4-6</span>
+            </div>
+            <div class="m-md">
+              <p>所以更新是<b>浮条</b>：贴在输入卡上方，不遮键盘、不动焦点、不清草稿。它该出现的时机是「这一轮跑完了、输入框空着」—— 用户手上没活的时候才提示。</p>
+              <h2>不打断比提醒更重要</h2>
+              <p>浮条只有两条路：<b>现在就装</b>（先重载，正在跑的这一轮会先跑完）或<b>稍后</b>（选什么时候再提醒）。没有第三条「取消」—— 取消是一个会永久生效的决定，不该和「稍后」并排。</p>
+            </div>
+            <div class="m-run"><i data-ico="loader-circle" data-size="14"></i>正在跑第 2 / 4 步 · 3 分 12 秒</div>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-update" id="update-b">
+          <i data-ico="download" data-size="16"></i>
+          <span class="m-setrow-body">
+            <span class="m-setrow-t">v0.1.9 已就绪</span>
+            <span class="m-setrow-s">2.4MB · 装完自动重载 · 不丢草稿</span>
+          </span>
+          <button class="m-branch" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-later">稍后</button>
+        </div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="把这三条写进 notes">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send stop" title="停止这一轮"><i data-ico="square" data-size="16"></i></button>
+      </div>
+    </div>
+        </div>
+         <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- B-2 · 断网条 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-offline">
+          <div>已断网 · 只读本地</div>
+          <div>发送会排队，联网后自动续跑</div>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">地铁里断网了，现在还能干什么？</div>
+          <div class="m-msg-ai">
+            <div class="m-msg-ai-head">
+              <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+              <span class="m-t-b">PI NEXT</span>
+              <span class="m-badge mute">claude-opus-4-6</span>
+            </div>
+            <div class="m-md">
+              <p>断网条只写两行：第一行说<b>现在是什么状态</b>，第二行说<b>代价是什么</b>。「已断网」这三个字谁都知道，「发送会排队、联网后自动续跑」才是用户真正需要的信息。</p>
+              <h2>能做什么，不能做什么</h2>
+              <p>能：读已同步的会话、看已下载的文件、翻历史、草稿照写。<br>不能：起新回合、联网取文档、装更新、开子代理。<br><b>不假装</b>：起新回合不是报错，是进队列并在输入卡上显示排队条。</p>
+            </div>
+            <div class="m-tool">
+              <div class="m-tool-head">
+                <i data-ico="triangle-alert" data-size="14"></i>
+                <span class="m-grow">排队中 · 2 条</span>
+                <span class="m-badge warn">等联网</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="把错峰窗口排一遍">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 C · 目录信任 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 目录信任 · <b>左</b>：<span class="m-mono">.m-trust</span> <b>常驻在顶上直到处理为止</b>，不是一次性的弹窗｜<b>右</b>：三个选项 信任一次 / 本次会话 / 永不，并且写清哪三类动作永远不放行</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- C-1 · 信任横幅常驻 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-trust">
+          <i data-ico="shield-alert" data-size="14"></i>
+          <span class="m-setrow-body m-grow">
+            <span class="m-setrow-t">未信任目录 · ~/Projects/pi-next</span>
+            <span class="m-setrow-s">命令与文件写入会被拦下，直到你处理它</span>
+          </span>
+          <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-trust-c" title="处理目录信任"><i data-ico="chevron-right" data-size="15"></i></button>
+        </div>
+
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-sheet" id="sheet-trust-c">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">这个目录</div>
+          <div class="m-sheet-body">
+            <div class="m-searchfield" style="margin:0 0 var(--nx-sp-2)">
+              <i data-ico="folder-open" data-size="14"></i>
+              <input value="~/Projects/pi-next" readonly>
+            </div>
+            <div class="m-banner">
+              <i data-ico="info" data-size="14"></i>
+              <span class="m-grow">信任是<b>对这个目录</b>说的，不是对这台设备。它只放行「在这个目录里读写与执行」，不涉及你的凭据。</span>
+            </div>
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">认出来自路径，不来自网址；换一台设备要重新信任一次。</div>
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag is-on" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-trust-c">去处理这个目录</button>
+          </div>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">帮我把那个测试文件补上。</div>
+
+          <div class="m-msg-ai">
+            <div class="m-msg-ai-head">
+              <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+              <span class="m-t-b">PI NEXT</span>
+              <span class="m-badge mute">claude-opus-4-6</span>
+            </div>
+
+            <div class="m-md">
+              <p>写文件这一步被拦下来了 —— 不是失败，是<b>等一个决定</b>。所以这里必须是<b>就地询问</b>，同时顶上那条横幅一直留着：横幅管全局（这个目录还没信任），就地询问管这一次（现在要不要做）。</p>
+            </div>
+
+            <div class="m-perm">
+              <div class="m-setrow-body">
+                <span class="m-setrow-t">要在 <span class="m-mono">~/Projects/pi-next</span> 里写入 1 个文件</span>
+                <span class="m-setrow-s">app/api/sessions/__tests__/route.test.ts · 新建 · 2.1KB</span>
+              </div>
+              <div class="m-pickbar" style="padding:0">
+                <button class="m-picktag">拒绝</button>
+                <button class="m-picktag is-on">信任一次并写入</button>
+              </div>
+            </div>
+
+            <div class="m-md">
+              <p>横幅不消失的原因很简单：<b>它标记的是目录状态，不是这一次操作</b>。用户拒绝这一次之后，横幅还在，因为目录依然没被信任；用户信任之后，横幅才走 —— 这中间任何时候切走再回来，看到的都是同一句「未信任」。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="等信任：能读，不能写">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- C-2 · 三个选项 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-sheet is-open" id="sheet-trust">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">信任 ~/Projects/pi-next</div>
+          <div class="m-sheet-body">
+
+            <div class="m-banner">
+              <i data-ico="shield-alert" data-size="14"></i>
+              <span class="m-grow">信任之后，这个目录里的<b>读写与执行</b>不再逐条问你。别的目录不受影响。</span>
+            </div>
+
+            <div class="m-rowlabel">三个选项，从窄到宽</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="shield-check" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">信任一次</span>
+                  <span class="m-sheet-row-desc">只放行这一次操作，横幅还在，下次写文件还会问</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="clock" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">本次会话内信任</span>
+                  <span class="m-sheet-row-desc">这一整轮会话不再问；关掉应用或换会话即失效</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="ban" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">永不信任这个目录</span>
+                  <span class="m-sheet-row-desc">只读模式：能读能看，不写不执行，横幅变成常驻说明条</span>
+                </span>
+              </button>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-rowlabel">哪三类动作永远不放行</div>
+            <div class="m-cardgroup">
+              <div class="m-setrow">
+                <i data-ico="trash-2" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">删除文件与目录</span>
+                  <span class="m-setrow-s">永久性最高，每一次都要单独确认，没有「信任一次」这个选项</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="upload" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">推送到远端</span>
+                  <span class="m-setrow-s">git push、发布、发包 —— 影响的是别人的机器</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="message-square" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">向外发消息</span>
+                  <span class="m-setrow-s">IM 机器人、邮件、Webhook —— 一次信任不该变成长期的对外发言权</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="m-sep"></div>
+            <div class="m-t-xs m-t-faint">这一条不改用户能做的事，只改<b>要不要问</b>。把「要不要问」和「能不能做」混成一条开关，是这类界面最常见的越权来源。</div>
+
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag">取消</button>
+            <button class="m-picktag is-on">就这么定</button>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 D · standalone 首启 ─────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · standalone 首启 · 从主屏图标第一次打开：<b>三步、三步各带开关</b>，说完就动手；首启不许把人挡在一屏说明前面</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <span class="m-top-title m-grow m-t-xs m-t-faint">首次启动 · 已安装</span>
+      </div>
+
+      <div class="m-onboard">
+        <div class="m-hero">
+          <div class="m-onboard-t">手机是遥控器，命令在你的机器上跑</div>
+          <div class="m-onboard-s">三件事定完就能用。任何一步都可以先关掉，以后在设置里补 —— <b>这里不强制</b>。</div>
+        </div>
+
+        <div class="m-step-card">
+          <div class="m-step-dot-lg">1</div>
+          <div class="m-grow m-step-row-2">
+            <div class="m-setrow-t">连上你的电脑</div>
+            <div class="m-setrow-s">同一个局域网内扫码，或手输地址。不连上也能用，只是只能读不能改。</div>
+            <div class="m-tray">
+              <button class="m-tray-chip"><i data-ico="scan-search" data-size="12"></i>扫码配对</button>
+              <button class="m-tray-chip"><i data-ico="link" data-size="12"></i>手输地址</button>
+              <button class="m-tray-chip is-on"><i data-ico="unplug" data-size="12"></i>先不连</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-step-card">
+          <div class="m-step-dot-lg">2</div>
+          <div class="m-grow m-step-row-2">
+            <div class="m-setrow-t">跑完一轮之后通知我</div>
+            <div class="m-setrow-s">长任务跑完、要你确认、或者失败时推一条。关掉的话你只能主动回来看。</div>
+            <div class="m-pickbar" style="padding:0">
+              <button class="m-switch on" data-demo-switch aria-checked="true"></button>
+              <span class="m-t-xs m-t-dim m-grow">只在长任务与失败时推</span>
+              <span class="m-badge ok">已允许</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-step-card">
+          <div class="m-step-dot-lg">3</div>
+          <div class="m-grow m-step-row-2">
+            <div class="m-setrow-t">这台设备可以自己动</div>
+            <div class="m-setrow-s">目录一旦被信任，写文件与跑命令就不再逐条问。<b>关掉就是永远逐条确认。</b></div>
+            <div class="m-pickbar" style="padding:0">
+              <button class="m-switch" data-demo-switch aria-checked="false"></button>
+              <span class="m-t-xs m-t-dim m-grow">需要时再在信任横幅里开</span>
+              <span class="m-badge mute">默认关</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-sep"></div>
+
+        <div class="m-banner">
+          <i data-ico="info" data-size="14"></i>
+          <span class="m-grow">下一步：<b>连上电脑并信任一个目录</b>，否则你只能读。跳过这三步也能直接进应用，只是里面大半是空的。</span>
+        </div>
+
+        <div class="m-pickbar" style="padding:0">
+          <button class="m-picktag">跳过</button>
+          <button class="m-picktag is-on">开始用</button>
+        </div>
+
+        <div class="m-t-xs m-t-faint" style="text-align:center">PI NEXT v0.1.9 · 独立窗口运行 · 离线可用</div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>安装提示分平台，而且三份长得不一样。</b>iOS Safari 没有一键安装，唯一诚实的写法就是三步（<span class="m-mono">.m-step-card</span> + <span class="m-mono">.m-step-dot-lg</span>），并把「分享」按钮的图标直接点出来 —— 这是最容易漏的一步；Android Chrome 握住了 <span class="m-mono">beforeinstallprompt</span>，所以是一条主按钮 + 条件自检；桌面 Chrome 的入口本来就在工具栏，<b>不另造横幅</b>。<b>装完永久不再出现</b>。</li>
+    <li><b>更新只做浮条，不做打断式弹窗。</b><span class="m-mono">.m-update</span> 贴在输入卡上方，<b>正在输入的草稿一个字都不丢</b>，也不抢焦点。时机是「这一轮跑完、输入框空着」。「立即更新」才开面板看步骤，<b>「稍后」开的是「什么时候再提醒」而不是「关掉」</b> —— 推迟是有选项的，关掉是另一个决定。</li>
+    <li><b>断网只留一条顶条。</b><span class="m-mono">.m-offline</span> 写两行：第一行是状态，第二行是<b>代价</b>（能读什么 / 不能做什么 / 发送会不会排队）。不做弹窗、不阻断滚动；发送按钮进队列而不是报错，托盘上用 <span class="m-mono">.m-tray-chip.is-on</span> 把「排入队列」写成常驻状态。</li>
+    <li><b>目录信任钉在顶上，直到处理为止。</b><span class="m-mono">.m-trust</span> 不是一次性弹窗，它标记的是<b>目录状态</b>而不是某一次操作 —— 用户拒绝这一次之后横幅还在，信任之后才走。就地询问（<span class="m-mono">.m-perm</span>）管「现在要不要做」，横幅管「这个目录还没被信任」，两件事必须分开，否则用户会以为拒绝一次等于拒绝了整个目录。</li>
+    <li><b>信任的三个选项从窄到宽：信任一次 / 本次会话 / 永不。</b>并且必须写清<b>哪三类动作永远不放行</b>（删除 · 推送 · 向外发消息）。这一条不改用户「能不能做」，只改「要不要问」—— 把两者混成一条开关，是这类界面最常见的越权来源。</li>
+    <li><b>standalone 首启只讲一件事。</b><span class="m-mono">.m-onboard</span> 三步：连上电脑 / 长任务通知 / 允许自动执行。三步各带一个开关且<b>可以先关掉继续用</b> —— 首启不许把人挡在一屏说明前面；跳过之后里面大半是空的，所以最后一条 <span class="m-mono">.m-banner</span> 要把「不连上会怎样」说清楚。</li>
+    <li><b>提示不叠提示，也不与顶栏抢位置。</b>更新浮条在下、离线条在上、信任横幅贴顶，三者同屏出现也不会打架：它们占的是三条不同的边，横幅之间靠<b>底色与徽章</b>区分，不靠竖线（全表零 <code>border-left</code>、零 <code>inset</code> 阴影）。Toast 只用来确认已经发生的事，不用来做提问。</li>
+    <li><b>横幅在场时，渐隐顶栏让位。</b><span class="m-mono">.m-offline</span> 与 <span class="m-mono">.m-trust</span> 都是 <span class="m-mono">position:absolute; top:0</span>，与 <span class="m-mono">.m-top</span> 同高同 z-index —— 同屏会叠在一起。所以<b>有横幅的那一帧不放 .m-top</b>，横幅就是这一帧的顶栏；<span class="m-mono">.m-scroll</span> 自带的 108px 顶部留白已经容得下它。</li>
+    <li><b>本张发现的两个类缺口（落地时要补）：</b>① <span class="m-mono">.m-composer-wrap .m-input</span> 继承了 <span class="m-mono">.m-input</span> 的 <span class="m-mono">height: var(--nx-ctl-md)</span>（44px），<code>rows="2"</code> 的草稿<b>第二行会被裁掉</b>，与「草稿一个字都不丢」直接冲突 —— 需要在 <span class="m-mono">.m-composer-wrap .m-input</span> 里补 <span class="m-mono">height: auto</span>；② 离线条与信任横幅都缺一条「离屏时把下方内容往下让位」的修饰（类似 <span class="m-mono">.m-trust.has-offline</span>），目前靠「有横幅就不放 .m-top」绕开，落地时要正式处理两者同时出现的情况。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

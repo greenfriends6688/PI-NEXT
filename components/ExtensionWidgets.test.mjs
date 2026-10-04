@@ -36,7 +36,7 @@ test("renders short extension widgets without a truncation marker", () => {
   assert.match(html, /first\nsecond/);
   assert.doesNotMatch(html, /widget truncated/);
   assert.match(html, /aria-expanded="true"/);
-  assert.match(html, /class="extension-widget-placement pw-ico pw-dim"[^>]*><i data-ico="chevron-up"/);
+  assert.match(html, /class="extension-widget-placement"[^>]*><i data-ico="chevron-up"/);
   assert.doesNotMatch(html, /[\u2191\u2193]/);
 });
 
@@ -51,7 +51,7 @@ test("collapses long widgets by default", () => {
 
   assert.ok(lines.length > DEFAULT_EXPANDED_WIDGET_LINES);
   assert.match(html, /aria-expanded="false"/);
-  assert.match(html, /class="extension-widget-placement pw-ico pw-dim"[^>]*><i data-ico="chevron-down"/);
+  assert.match(html, /class="extension-widget-placement"[^>]*><i data-ico="chevron-down"/);
   assert.doesNotMatch(html, /<pre/);
   assert.doesNotMatch(html, /line-1/);
   assert.doesNotMatch(html, /line-10/);
@@ -80,10 +80,10 @@ test("keeps compact widgets expanded by default", () => {
   });
 
   assert.match(html, /aria-expanded="true"/);
-  // 展开面板 = 画板 54 帧 B 的 .pw-card + .pw-card-head + .pw-code-body。
-  assert.match(html, /class="extension-widget-panel pw-card"/);
-  assert.match(html, /class="pw-card-head"/);
-  assert.match(html, /<pre class="pw-code-body/);
+  // 展开面板 = v5 画板 D-02b 插件浮窗里的扩展 widget 卡：.d-card + .d-card-head + .d-card-body。
+  assert.match(html, /class="extension-widget-panel d-card"/);
+  assert.match(html, /class="d-card-head"/);
+  assert.match(html, /<pre class="d-card-body/);
 });
 
 test("expands at most one compact widget", () => {
@@ -137,7 +137,7 @@ test("keeps one-line widgets compact but expandable", () => {
   assert.match(html, /extension-widget-triggers/);
   // fork:design-components —— 方位指示改画板图标槽（下方 = chevron-down），
   // 不再是手绘的 8×6 三角 svg，也不许退回 ↑ ↓ 符号字形。
-  assert.match(html, /class="extension-widget-placement pw-ico pw-dim"[^>]*><i data-ico="chevron-down"/);
+  assert.match(html, /class="extension-widget-placement"[^>]*><i data-ico="chevron-down"/);
   assert.doesNotMatch(html, /<svg/);
   assert.doesNotMatch(html, /[\u2191\u2193]/);
   assert.match(html, /Below editor widget/);

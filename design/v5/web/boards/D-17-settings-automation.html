@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-17 · 设置弹窗 · 定时任务 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-17 · 设置弹窗 · 定时任务</h1>
+  <p>
+    定时任务是这一节里唯一<b>「用户不在场也会发生」</b>的东西，所以列表上每一行要同时说清四件事：
+    <b>会不会跑、下一次什么时候、上一次结果如何、结果归谁</b>。
+    这一板最要紧的一条口径是<b>把「已延后 / 已跳过」和「失败」分开</b>：前两个是调度的决定，执行本身没出错，
+    混进失败率里会让人以为任务坏了，进而把好的任务删掉。所以它们各有自己的徽章与自己的说明位。
+    编辑器里最容易被写漏的是<b>子会话归属</b>与<b>失败后自动暂停</b> —— 前者决定这条任务读得到哪些文件，后者决定它会不会在你睡觉时连着失败八次。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 定时任务 · 列表 · 编辑器 · 运行历史 · 单次详情</span>
+    <span class="d-tag">组件：AutomationList · AutomationEditor · SchedulePicker · RunHistory · RunDetail</span>
+    <span class="d-tag">状态：已启用 / 已延后 / 已跳过 / 失败自动暂停 · 一次 · 每天 · 每周 · 间隔</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 任务列表 · 开关 / 调度徽章 / 下次运行 / 上次结果（延后·跳过 与 失败 分开）<span class="d-grow"></span>开关可点 · 行菜单可点 · 「连续失败已暂停」徽章是自动加的</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">每周一的依赖升级包我需要知道结果。</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 定时任务">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · 定时任务</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem is-on"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-row">
+                          <div class="d-t-xs d-t-faint d-grow">6 个任务 · 4 个启用 · 今天已跑 3 次 · 全部跑在子会话里</div>
+                          <button class="d-btn sm" data-demo-open="m19-new"><i data-ico="plus" data-size="14"></i>新建</button>
+                        </div>
+
+                        <div class="d-cats">
+                          <span class="d-t-xs d-t-faint">筛</span>
+                          <button class="d-cat">全部</button>
+                          <button class="d-cat">已启用</button>
+                          <button class="d-cat">已延后 / 已跳过</button>
+                          <button class="d-cat">失败 / 暂停</button>
+                        </div>
+
+                        <div class="d-col" style="gap:var(--nx-sp-2)">
+
+                          <div class="d-cron-row">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 依赖升级巡检"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-cron-t">依赖升级巡检</span>
+                                <span class="d-badge mute">每周一 09:00</span>
+                                <span class="d-badge ok">昨天成功</span>
+                              </div>
+                              <span class="d-set-row-s">「pi-Desktop-main」· gpt-5.1-codex · 上次 41s · 无通知</span>
+                            </div>
+                            <div class="d-cron-when">
+                              <span class="d-t-xs d-t-faint">下次运行</span>
+                              <span class="d-t-sm">10-12（周一）09:00</span>
+                              <span class="d-t-xs d-t-faint">6 天后</span>
+                            </div>
+                            <button class="d-iconbtn" data-demo-open="m19-row-1" aria-label="依赖升级巡检的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-cron-row">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 每晚构建日报"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-cron-t">每晚构建日报</span>
+                                <span class="d-badge mute">每天 22:30</span>
+                                <span class="d-badge info">已延后 2h14m</span>
+                              </div>
+                              <span class="d-set-row-s">「web-console」· claude-sonnet-4-6 · <b>22:30 在配额高峰，已挪进错峰窗口 00:30–04:30，实际 00:44 跑完</b></span>
+                            </div>
+                            <div class="d-cron-when">
+                              <span class="d-t-xs d-t-faint">下次运行</span>
+                              <span class="d-t-sm">今天 00:44 前后</span>
+                              <span class="d-t-xs d-t-faint">窗口内，具体时间可能被推后</span>
+                            </div>
+                            <button class="d-iconbtn" data-demo-open="m19-row-2" aria-label="每晚构建日报的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-cron-row">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 证书到期检查"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-cron-t">证书到期检查</span>
+                                <span class="d-badge mute">每 6 小时</span>
+                                <span class="d-badge ok">6 小时前成功</span>
+                              </div>
+                              <span class="d-set-row-s">「pi-web-design」· gpt-5.1-codex · 连续成功 41 次 · 从上次跑完起算</span>
+                            </div>
+                            <div class="d-cron-when">
+                              <span class="d-t-xs d-t-faint">下次运行</span>
+                              <span class="d-t-sm">今天 14:00</span>
+                            </div>
+                            <button class="d-iconbtn" data-demo-open="m19-row-3" aria-label="证书到期检查的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-cron-row">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 依赖安装回填"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-cron-t">依赖安装回填</span>
+                                <span class="d-badge mute">每天 03:00</span>
+                                <span class="d-badge bad">已暂停 · 连续失败 3 次</span>
+                              </div>
+                              <span class="d-set-row-s">「pi-web-design」· qwen3-coder-30b · <b>最近三次都是包管理器退出码 1，03:04 自动暂停</b>；配置一条没删</span>
+                            </div>
+                            <div class="d-cron-when">
+                              <span class="d-t-xs d-t-faint">下次运行</span>
+                              <span class="d-t-sm">已暂停</span>
+                              <span class="d-t-xs d-t-faint">修好后手动恢复</span>
+                            </div>
+                            <button class="d-iconbtn" data-demo-open="m19-row-4" aria-label="依赖安装回填的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-cron-row">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 迁移草稿同步"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-cron-t">迁移草稿同步</span>
+                                <span class="d-badge mute">每天 09:00</span>
+                                <span class="d-badge mute">已跳过 · 机器在睡眠</span>
+                              </div>
+                              <span class="d-set-row-s">「web-console」· claude-sonnet-4-6 · <b>跳过不是失败：合盖休眠时错过的整点不补跑</b></span>
+                            </div>
+                            <div class="d-cron-when">
+                              <span class="d-t-xs d-t-faint">下次运行</span>
+                              <span class="d-t-sm">今天 09:00</span>
+                              <span class="d-t-xs d-t-faint">错过不补跑</span>
+                            </div>
+                            <button class="d-iconbtn" data-demo-open="m19-row-5" aria-label="迁移草稿同步的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-cron-row">
+                            <button class="d-switch" data-demo-switch aria-checked="false" aria-label="启用 一次性：导出用量快照"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-cron-t">导出用量快照</span>
+                                <span class="d-badge mute">一次 · 10-03 23:50</span>
+                                <span class="d-badge mute">已完成</span>
+                              </div>
+                              <span class="d-set-row-s">跑完即禁用（一次性任务的默认收尾）；结果留在运行记录里</span>
+                            </div>
+                            <div class="d-cron-when">
+                              <span class="d-t-xs d-t-faint">下次运行</span>
+                              <span class="d-t-sm">无</span>
+                              <span class="d-t-xs d-t-faint">已结束</span>
+                            </div>
+                            <button class="d-iconbtn" data-demo-open="m19-row-6" aria-label="导出用量快照的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span>
+                            <b>三种「没跑成」是三件事</b>：<span class="d-badge info">已延后</span> 是调度把它挪进了错峰窗口（还会跑），
+                            <span class="d-badge mute">已跳过</span> 是错过且不补跑（不会跑），
+                            <span class="d-badge bad">失败</span> 是跑了但没跑完。三者都不进失败率。
+                          </span>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 开关即时生效 · 下次运行时间按本机时区</span>
+                <button class="d-btn ghost">全部暂停</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-row-1" hidden style="right:24px;bottom:88px;min-width:290px">
+                <div class="d-pop-title">依赖升级巡检</div>
+                <div class="d-pop-body d-t-xs">指令固定 3 步：读 lockfile、跑一次 dry-run、把 diff 写成一条结论。失败只记录，不自动改代码。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="play" data-size="14"></i>现在跑一次</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>编辑</button>
+                <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制成新任务</button>
+                <button class="d-menu-row"><i data-ico="file-diff" data-size="14"></i>看 12 次运行记录</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除（运行记录保留）</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-row-2" hidden style="right:24px;bottom:88px;min-width:310px">
+                <div class="d-pop-title">每晚构建日报 · 已延后</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">22:30 落在配额高峰，任务按错峰策略挪到 00:30–04:30 内；<b>实际 00:44 起跑</b>。</div>
+                  <div class="d-t-xs d-t-faint">延后不是失败，不计失败率、不触发重试、不暂停任务；错峰参数在「错峰执行」那一节改。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="clock" data-size="14"></i>这次不挪，22:30 准点跑</button>
+                <button class="d-menu-row"><i data-ico="play" data-size="14"></i>现在跑一次</button>
+                <button class="d-menu-row"><i data-ico="calendar-clock" data-size="14"></i>把时间直接改成 01:00</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-row-3" hidden style="right:24px;bottom:88px;min-width:290px">
+                <div class="d-pop-title">证书到期检查 · 每 6 小时</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-row"><span class="d-t-xs d-t-dim">调度</span><span class="d-t-xs">从上次跑完起算，不是整点对齐</span></div>
+                  <div class="d-row"><span class="d-t-xs d-t-dim">错峰</span><span class="d-t-xs">不参与（间隔任务太短，挪动没有意义）</span></div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>改成每天 09:00</button>
+                <button class="d-menu-row"><i data-ico="bell" data-size="14"></i>到期时才推送通知</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-row-4" hidden style="right:24px;bottom:88px;min-width:330px">
+                <div class="d-pop-title">依赖安装回填 · 已自动暂停</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-err d-t-xs">10-04 03:00 / 10-05 03:00 / 10-06 03:00 三次均失败：npm 退出码 1，锁文件冲突</div>
+                  <div class="d-t-xs">达到「连续失败 3 次」后自动暂停，<b>保留配置与全部运行记录</b>，并推了一条通知。</div>
+                  <div class="d-t-xs d-t-faint">自动暂停不重试、不改指令：同一条错三次就该停手。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="play" data-size="14"></i>修好后恢复并立即跑一次</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>改指令（推荐先修锁文件）</button>
+                <button class="d-menu-row"><i data-ico="file-diff" data-size="14"></i>看三次的完整输出</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除任务</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-row-5" hidden style="right:24px;bottom:88px;min-width:310px">
+                <div class="d-pop-title">迁移草稿同步 · 已跳过</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">10-05 09:00 时机器在合盖休眠，任务醒来后没有补跑，只记了一条跳过。</div>
+                  <div class="d-t-xs d-t-faint">错过不补跑是默认：补跑意味着合盖一整天后一开机连着跑几十次。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="clock" data-size="14"></i>醒来后 30 分钟内补跑一次</button>
+                <button class="d-menu-row"><i data-ico="play" data-size="14"></i>现在跑一次</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-row-6" hidden style="right:24px;bottom:88px;min-width:290px">
+                <div class="d-pop-title">导出用量快照 · 一次性</div>
+                <div class="d-pop-body d-t-xs">10-03 23:50 跑完，用时 12s，结果 <span class="d-mono">usage-2026-10-03.csv</span>。一次性任务跑完自动禁用，不删配置。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制成每日任务</button>
+                <button class="d-menu-row"><i data-ico="play" data-size="14"></i>再跑一次</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-new" hidden style="right:120px;bottom:88px;min-width:320px">
+                <div class="d-pop-title">新建定时任务</div>
+                <div class="d-pop-body d-t-xs">三种起手：空白任务、从当前会话存一条、从模板目录挑一条（模板见「模板与错峰」那张）。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="plus" data-size="14"></i>空白任务，自己写指令</button>
+                <button class="d-menu-row"><i data-ico="copy-check" data-size="14"></i>把这条会话的指令存成任务</button>
+                <button class="d-menu-row"><i data-ico="layout-template" data-size="14"></i>从模板目录挑</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 编辑器 · 调度四选一（一次 / 每天 / 每周 / 间隔）+ 子会话归属 + 失败重试与自动暂停<span class="d-grow"></span>四档调度切了才换字段 · 暂停阈值滑杆真能拖</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">每天晚上十点半跑一次日报吧，别的时候别占我配额。</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 编辑定时任务">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">编辑定时任务 · 每晚构建日报</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem is-on"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner" style="gap:var(--nx-sp-4)">
+
+                      <div class="d-set-sec">
+                        <div class="d-field">
+                          <span class="d-field-t">名称</span>
+                          <input class="d-input" value="每晚构建日报">
+                        </div>
+
+                        <div class="d-field">
+                          <span class="d-field-t">指令 <span class="d-t-xs d-t-faint">原样进子会话；带 @ 的引用按当次运行时的目录解析</span></span>
+                          <div class="d-textarea">跑今天的构建，把失败的用例按文件归类，写成一段不超过 200 字的中文摘要，末尾给出是否需要人工介入的结论。不要改任何源码。</div>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec" data-demo-scope>
+                        <div class="d-set-sec-t">调度</div>
+                        <div class="d-seg" data-demo-tabs>
+                          <button data-demo-tab="once">一次</button>
+                          <button class="is-on" data-demo-tab="daily">每天</button>
+                          <button data-demo-tab="weekly">每周</button>
+                          <button data-demo-tab="interval">间隔</button>
+                        </div>
+
+                        <section data-demo-pane="once" hidden>
+                          <div class="d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-row">
+                              <input class="d-input" value="2026-10-12" style="max-width:160px">
+                              <input class="d-input" value="23:50" style="max-width:120px">
+                              <button class="d-select">本机时区<i data-ico="chevron-down" data-size="12"></i></button>
+                            </div>
+                            <div class="d-t-xs d-t-faint">一次性的任务跑完自动禁用（不删）；时间过了不补跑，只记一条跳过。</div>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="daily">
+                          <div class="d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-row">
+                              <input class="d-input" value="22:30" style="max-width:120px">
+                              <button class="d-select">本机时区<i data-ico="chevron-down" data-size="12"></i></button>
+                              <span class="d-grow"></span>
+                              <span class="d-t-xs d-t-faint">该时点落在配额高峰 21:00–23:30，已纳入错峰执行</span>
+                            </div>
+                            <div class="d-row">
+                              <span class="d-t-xs d-t-faint">错开后</span>
+                              <span class="d-badge info">实际约 00:30–04:30 之间</span>
+                              <button class="d-btn sm ghost" data-demo-open="m19-offpeak">调错峰参数</button>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="weekly" hidden>
+                          <div class="d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-row">
+                              <div class="d-cats">
+                                <button class="d-cat">周一</button>
+                                <button class="d-cat is-on">周二</button>
+                                <button class="d-cat">周三</button>
+                                <button class="d-cat">周四</button>
+                                <button class="d-cat">周五</button>
+                                <button class="d-cat">周六</button>
+                                <button class="d-cat">周日</button>
+                              </div>
+                              <input class="d-input" value="09:00" style="max-width:100px">
+                            </div>
+                            <div class="d-t-xs d-t-faint">多选周几 = 每天各跑一次；跨时区不换算，用本机时区解释。</div>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="interval" hidden>
+                          <div class="d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-row">
+                              <input class="d-input" value="6" style="max-width:90px">
+                              <button class="d-select">小时<i data-ico="chevron-down" data-size="12"></i></button>
+                              <span class="d-t-xs d-t-faint">从<b>上次跑完</b>起算，不是整点对齐</span>
+                            </div>
+                            <div class="d-t-xs d-t-faint">间隔小于 15 分钟不参与错峰；单次运行超过间隔时不会并发 —— 上一轮没结束就跳过这一轮并记一条跳过。</div>
+                          </div>
+                        </section>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">子会话归属</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">工作目录与模型</div>
+                            <div class="d-set-row-s">目录写错的表现是「指令照跑，但什么都没找到」；模型不选就跟全局默认。</div>
+                          </div>
+                          <span class="d-grow-last" style="display:flex;gap:var(--nx-sp-2)">
+                            <button class="d-select">~/code/web-console<i data-ico="chevron-down" data-size="12"></i></button>
+                            <button class="d-select">claude-sonnet-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                          </span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">结果与权限</div>
+                            <div class="d-set-row-s">每次运行开一个子会话（主会话不插消息）；无人值守时不能弹权限询问，写操作按这一档直接拒绝。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">只读 · 写操作直接拒绝</span></span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">失败怎么办</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">失败后重试</div>
+                            <div class="d-set-row-s">只在<b>瞬时错误</b>（超时、5xx、连接重置）上重试；退出码 1 这类确定性失败不重试。</div>
+                          </div>
+                          <input class="d-slider" type="range" min="0" max="3" value="2" aria-label="失败重试次数">
+                          <span class="d-t-xs d-t-dim">2 次 · 间隔 5 分钟</span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">连续失败自动暂停</div>
+                            <div class="d-set-row-s">暂停后保留配置与全部记录，推一条通知；<b>不会自动恢复</b>。</div>
+                          </div>
+                          <input class="d-slider" type="range" min="1" max="10" value="3" aria-label="连续失败几次后自动暂停">
+                          <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="开启连续失败自动暂停"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">通知</div>
+                            <div class="d-set-row-s">默认只在「失败 / 暂停 / 需人工介入」时推；每次都推会训练用户无视通知。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">仅异常时<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">保存后按新调度计算下次运行 · 已错过的时点不补跑</span>
+                <button class="d-btn ghost">取消</button>
+                <button class="d-btn"><i data-ico="play" data-size="14"></i>先跑一次看看</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>保存</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-offpeak" hidden style="right:120px;bottom:88px;min-width:330px">
+                <div class="d-pop-title">错峰参数在这一节</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">22:30 在高峰 21:00–23:30 内，所以这条任务<b>保留 22:30 的语义</b>，实际起跑时间被挪到错峰窗口。</div>
+                  <div class="d-t-xs d-t-faint">不想被挪有两条路：把时间改到窗口外，或在错峰执行里把本条任务标成「不参与」。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="clock" data-size="14"></i>把时间改成 01:00</button>
+                <button class="d-menu-row"><i data-ico="circle-slash" data-size="14"></i>这条不参与错峰</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 运行历史 · 状态筛选 + 每页 20 条 + 一眼看懂四种结局<span class="d-grow"></span>筛选真能切 · 「失败」与「已延后/已跳过」在筛选里也分开</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">这周定时任务跑得怎么样？</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 运行历史">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · 运行历史</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem is-on"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-statgrid">
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="circle-check" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">成功</span><span class="d-badge ok">近 7 天</span></div>
+                            <div class="d-t-title d-num">18</div>
+                            <div class="d-t-xs d-t-faint">中位耗时 46s</div>
+                          </div>
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="triangle-alert" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">失败</span><span class="d-badge bad">3</span></div>
+                            <div class="d-t-title d-num">3</div>
+                            <div class="d-t-xs d-t-faint">全部来自「依赖安装回填」</div>
+                          </div>
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="clock" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">已延后</span><span class="d-badge info">5</span></div>
+                            <div class="d-t-title d-num">5</div>
+                            <div class="d-t-xs d-t-faint">都被错峰窗口接住，仍成功</div>
+                          </div>
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="circle-slash" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">已跳过</span><span class="d-badge mute">2</span></div>
+                            <div class="d-t-title d-num">2</div>
+                            <div class="d-t-xs d-t-faint">机器睡眠 / 上一轮未结束</div>
+                          </div>
+                        </div>
+
+                        <div class="d-set-sec" data-demo-scope>
+                          <div class="d-row">
+                            <span class="d-t-xs d-t-faint">状态</span>
+                            <div class="d-cats" data-demo-tabs>
+                              <button class="d-cat" data-demo-tab="h-fail">失败 3</button>
+                              <button class="d-cat" data-demo-tab="h-skip">已跳过 2</button>
+                              <button class="d-cat" data-demo-tab="h-delay">已延后 5</button>
+                              <button class="d-cat is-on" data-demo-tab="h-all">全部 28</button>
+                            </div>
+                            <span class="d-grow"></span>
+                            <span class="d-t-xs d-t-faint">默认看全部；四种结局在筛选里也分开，没有「其它」这一档</span>
+                          </div>
+
+                          <section data-demo-pane="h-all">
+                            <div class="d-card">
+                              <div class="d-card-body" style="padding:var(--nx-sp-2)">
+                                <div class="d-hist-row">
+                                  <span class="d-badge ok">成功</span>
+                                  <span class="d-hist-t">今天 08:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">证书到期检查</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">6s</span>
+                                  <span class="d-hist-cost">¥0.11</span>
+                                  <span class="d-t-xs d-t-faint">3 个域名，60 天内无到期</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge ok">成功</span>
+                                  <span class="d-hist-t">今天 00:44</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">每晚构建日报</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">3m12s</span>
+                                  <span class="d-hist-cost">¥2.86</span>
+                                  <span class="d-t-xs d-t-faint">原定 22:30，错峰延后 2h14m 后成功</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge info">已延后</span>
+                                  <span class="d-hist-t">昨天 22:30 → 00:31</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">每晚构建日报</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">2m58s</span>
+                                  <span class="d-hist-cost">¥2.74</span>
+                                  <span class="d-t-xs d-t-faint">挪进错峰窗口，任务本身成功</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge mute">已跳过</span>
+                                  <span class="d-hist-t">昨天 09:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">迁移草稿同步</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">—</span>
+                                  <span class="d-hist-cost">—</span>
+                                  <span class="d-t-xs d-t-faint">机器合盖休眠，错过且不补跑</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge bad">失败</span>
+                                  <span class="d-hist-t">昨天 03:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">依赖安装回填</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">11s</span>
+                                  <span class="d-hist-cost">¥0.09</span>
+                                  <span class="d-t-xs d-t-faint">npm 退出码 1 · 连败 3 次后自动暂停</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge ok">成功</span>
+                                  <span class="d-hist-t">10-05 09:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">依赖升级巡检</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">41s</span>
+                                  <span class="d-hist-cost">¥0.94</span>
+                                  <span class="d-t-xs d-t-faint">3 个包可升，无破坏性变更</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+
+                          <section data-demo-pane="h-fail" hidden>
+                            <div class="d-card">
+                              <div class="d-card-body" style="padding:var(--nx-sp-2)">
+                                <div class="d-hist-row">
+                                  <span class="d-badge bad">失败</span>
+                                  <span class="d-hist-t">昨天 03:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">依赖安装回填 · 第 3 次</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">11s</span>
+                                  <span class="d-t-xs d-t-faint">npm 退出码 1 · EUSAGE 锁文件冲突</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm primary">从失败处重试</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge bad">失败</span>
+                                  <span class="d-hist-t">前天 03:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">依赖安装回填 · 第 2 次</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">10s</span>
+                                  <span class="d-t-xs d-t-faint">同上，未触发重试（确定性失败）</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm primary">从失败处重试</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge bad">失败</span>
+                                  <span class="d-hist-t">10-04 03:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">依赖安装回填 · 第 1 次</span>
+                                  <span class="d-t-xs d-t-faint" style="min-width:56px">12s</span>
+                                  <span class="d-t-xs d-t-faint">同上；三次之后任务自动暂停</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm primary">从失败处重试</button></span>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+
+                          <section data-demo-pane="h-skip" hidden>
+                            <div class="d-card">
+                              <div class="d-card-body" style="padding:var(--nx-sp-2)">
+                                <div class="d-hist-row">
+                                  <span class="d-badge mute">已跳过</span>
+                                  <span class="d-hist-t">昨天 09:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">迁移草稿同步</span>
+                                  <span class="d-t-xs d-t-faint">机器合盖休眠（检测到 07:41 唤醒）</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge mute">已跳过</span>
+                                  <span class="d-hist-t">10-04 14:00</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">证书到期检查</span>
+                                  <span class="d-t-xs d-t-faint">上一轮还在跑（超时未结束）</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+
+                          <section data-demo-pane="h-delay" hidden>
+                            <div class="d-card">
+                              <div class="d-card-body" style="padding:var(--nx-sp-2)">
+                                <div class="d-hist-row">
+                                  <span class="d-badge info">已延后</span>
+                                  <span class="d-hist-t">今天 22:30 → 00:44</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">每晚构建日报</span>
+                                  <span class="d-t-xs d-t-faint">延后 2h14m · 结果成功</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge info">已延后</span>
+                                  <span class="d-hist-t">昨天 22:30 → 00:31</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">每晚构建日报</span>
+                                  <span class="d-t-xs d-t-faint">延后 2h01m · 结果成功</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge info">已延后</span>
+                                  <span class="d-hist-t">10-05 09:00 → 09:40</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">迁移草稿同步</span>
+                                  <span class="d-t-xs d-t-faint">延后 40m · 结果成功</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                                <div class="d-hist-row">
+                                  <span class="d-badge mute">延后上限</span>
+                                  <span class="d-hist-t">10-03 22:30 → 次日 02:10</span>
+                                  <span class="d-grow d-t-xs" style="min-width:104px">每晚构建日报</span>
+                                  <span class="d-t-xs d-t-faint">延后 3h40m 触顶，结果成功</span>
+                                  <span style="flex:0 0 auto"><button class="d-btn sm">看详情</button></span>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+                        </div>
+
+                        <div class="d-row">
+                          <span class="d-t-xs d-t-faint">记录保留 90 天；删除任务不会删记录，但会从任务名聚合里去掉</span>
+                          <span class="d-grow"></span>
+                          <button class="d-btn sm ghost"><i data-ico="download" data-size="13"></i>导出 CSV</button>
+                          <div class="d-pagebar">
+                            <button class="d-page" disabled><i data-ico="chevron-left" data-size="12"></i></button>
+                            <button class="d-page is-on">1</button>
+                            <button class="d-page">2</button>
+                            <button class="d-page"><i data-ico="chevron-right" data-size="12"></i></button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">每页 20 条 · 共 28 条 · 耗时与费用取自该次运行的真实回执</span>
+                <button class="d-btn primary">完成</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 单次运行详情 · 指令快照 / 步骤耗时 / 失败判据 / 三种重跑入口<span class="d-grow"></span>失败详情默认展开 · 「为什么判失败」写在输出旁边</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">昨晚日报那条具体卡在哪一步了？</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="运行详情">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">运行详情 · 依赖安装回填 · 10-06 03:00</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem is-on"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-row">
+                          <span class="d-badge bad">失败</span>
+                          <span class="d-badge mute">已触发自动暂停</span>
+                          <span class="d-grow"></span>
+                          <span class="d-t-xs d-t-faint">11.4s · ¥0.09 · 6.2k token · 子会话已留在「定时任务 / 依赖安装回填」下</span>
+                        </div>
+
+                        <div class="d-code">
+                          <div class="d-code-head"><i data-ico="file-code" data-size="12"></i>本次运行的指令快照（不是当前配置，改过任务也不影响这份）
+                            <span class="d-grow"></span>
+                            <span class="d-badge mute">gpt-5.1-codex</span>
+                          </div>
+                          <div class="d-code-body">在 <span class="tok-s">~/code/pi-web-design</span> 里执行依赖回填：
+1. 先跑 <span class="tok-k">npm ci --dry-run</span>，把冲突列出来
+2. 有冲突就<b>不要</b>改 lockfile，停下来把冲突写清楚
+3. 无冲突才允许跑一次 <span class="tok-k">npm ci</span>
+<span class="tok-c">// 权限：只读档 —— 第 3 步会被直接拒绝并记为失败（这是预期行为，不是 bug）</span></div>
+                        </div>
+
+                        <div class="d-steps">
+                          <div class="d-step done">
+                            <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                            <span class="d-step-meta">0.0s</span>
+                            <span class="d-step-body">解析指令与目录 · <span class="d-mono">~/code/pi-web-design</span> 已存在</span>
+                          </div>
+                          <div class="d-step done">
+                            <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                            <span class="d-step-meta">3.8s</span>
+                            <span class="d-step-body">读 lockfile · 812 个包 · 3 处版本冲突</span>
+                          </div>
+                          <div class="d-step done">
+                            <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                            <span class="d-step-meta">9.1s</span>
+                            <span class="d-step-body">npm ci --dry-run · 退出码 1 · EUSAGE</span>
+                          </div>
+                          <div class="d-step fail">
+                            <span class="d-step-ico"><i data-ico="x" data-size="11"></i></span>
+                            <span class="d-step-meta">11.4s</span>
+                            <span class="d-step-body">判为失败并暂停任务 · 未执行第 3 步</span>
+                          </div>
+                        </div>
+
+                        <div class="d-banner err">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span>
+                            <b>为什么判失败</b>：指令要求「有冲突就停下并写清楚」，但本任务的权限档是<b>只读</b>，
+                            写结论这一步需要落盘，被权限层直接拒绝 —— 于是这次运行以退出码 1 收尾。
+                            <b>这是配置冲突，不是模型出错，也不是网络问题</b>，所以不重试。
+                          </span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">怎么重跑</div>
+                            <div class="d-set-row-s">三种口径的差别写在按钮上，不靠记忆：接着失败点 / 整轮重来 / 改完配置再跑。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>从失败处重试</button>
+                          </span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">这次运行没有发任何通知（默认只在异常时推，而它确实异常了 —— 已推送）</span>
+                <button class="d-btn ghost">在子会话里打开</button>
+                <button class="d-btn" data-demo-open="m19-rerun"><i data-ico="redo-2" data-size="14"></i>重跑</button>
+                <button class="d-btn primary">知道了</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m19-rerun" hidden style="right:120px;bottom:88px;min-width:340px">
+                <div class="d-pop-title">重跑这一次</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">直接重跑会用<b>同一份指令快照</b>，因此还会以同样的方式失败 —— 除非先改权限档或改指令。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="play" data-size="14"></i>照原样再跑一次（验证是否已修好）</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>先改权限档再跑</button>
+                <button class="d-menu-row"><i data-ico="wand-sparkles" data-size="14"></i>按这次的失败写一条新指令</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="circle-x" data-size="14"></i>记为「已知问题」，不再计入失败</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>「已延后 / 已跳过 / 失败」是三件事，各有徽章、各有说明位。</b>延后是调度把它挪进错峰窗口（还会跑），
+        跳过是错过且不补跑（不会跑），失败是跑了没跑完。三者都不进失败率 —— 混在一起会让人以为好任务坏了，然后把它删掉。</li>
+    <li><b>列表行必须同时给四件事</b>：会不会跑（开关）、下一次什么时候（绝对时间 + 相对「几天后」）、
+        上一次结果（结局徽章）、结果归谁（工作目录 + 模型）。缺「归谁」这一项，用户到夜里才发现任务跑在错的目录里。</li>
+    <li><b>调度四选一切了才换字段</b>（一次 / 每天 / 每周 / 间隔）：间隔任务<b>从上次跑完起算</b>而不是整点对齐，
+        并且上一轮没结束就跳过而不是并发 —— 无人值守场景下并发两次写同一个目录比漏跑一次危险得多。</li>
+    <li><b>失败重试只对瞬时错误</b>（超时、5xx、连接重置）；退出码 1 这类确定性失败不重试。
+        连续失败 3 次自动暂停，<b>保留配置与全部记录，不自动恢复</b>：同一条错三次就该停手，而不是在半夜连试八次。</li>
+    <li><b>运行详情默认展开失败判据</b>（帧 D）：「为什么判失败」写在输出旁边，因为最常见的失败根本不是模型出错，
+        而是权限档与指令互相矛盾 —— 不写出来，用户会一遍遍重跑同一个必然失败的配置。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

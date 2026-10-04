@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-06 · 文件查看器多模式 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-06 · 文件查看器多模式（源码 / diff / 预览）</h1>
+  <p>
+    同一个文件可以有四种看法，用一条 <b>.d-seg</b> 切换，<b>位置永远不动</b> ——
+    面包屑、滚动位置、上一行选中行都留在原地。源码给行号与四种语法色；
+    diff 给逐行增删；预览按类型分流（Markdown 渲染 / 图片看图 / CSV 成表）；
+    打不开的类型<b>不装死</b>：写清楚现在能做什么，并给一条真能走的替代路径。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 / 文件查看器</span>
+    <span class="d-tag">组件：FileViewer · ViewerBar · CodeFileEditor · DiffView · PreviewRouter</span>
+    <span class="d-tag">状态：源码 / diff / 预览 / 不支持类型</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 源码模式：面包屑 + 模式切换 + 行号 + 四种语法色<span class="d-grow"></span>点已选中的「源码」= 打开这个文件的动作菜单</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack"><span class="d-tb-title">定住令牌与类名</span><span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span></div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md">你在右栏点开 <span class="d-mono">check-v5.mjs</span>。查看器只读 —— <b>改文件走输入框，让我改</b>，这样每一步都有 diff 与可回滚的提交。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <aside class="d-panel">
+          <div class="d-viewer" data-demo-scope>
+            <div class="d-viewer-bar">
+              <div class="d-crumb">
+                <button>scripts</button><i data-ico="chevron-right" data-size="11"></i>
+                <button class="is-on">check-v5.mjs</button>
+              </div>
+              <span class="d-grow"></span>
+              <div class="d-seg" data-demo-tabs>
+                <button class="is-on" data-demo-tab="code" data-demo-open="fv-file-a" title="点已选中的模式 = 打开文件动作菜单">源码</button>
+                <button data-demo-tab="diff">差异</button>
+                <button data-demo-tab="preview">预览</button>
+              </div>
+            </div>
+
+            <!-- 源码 -->
+            <div class="d-viewer-scroll d-col" style="gap:var(--nx-sp-2);padding:var(--nx-sp-2)" data-demo-pane="code">
+              <div class="d-code">
+                <div class="d-code-head">
+                  <i data-ico="file-code" data-size="13"></i>
+                  <span class="d-grow">check-v5.mjs · 246 行</span>
+                  <span class="d-badge ok">只读</span>
+                </div>
+                <div class="d-code-body"><span class="d-ln">58</span><span class="tok-c">// 角色令牌：两套形态必须定义同一批名字，否则就是漂移</span><br>
+<span class="d-ln">59</span><span class="tok-k">const</span> ROLES = [<br>
+<span class="d-ln">60</span>  <span class="tok-s">"--nx-ui"</span>, <span class="tok-s">"--nx-r-xs"</span>, <span class="tok-s">"--nx-r-sm"</span>,<br>
+<span class="d-ln">61</span>  <span class="tok-s">"--nx-sh-2"</span>, <span class="tok-s">"--nx-glass"</span>,<br>
+<span class="d-ln">62</span>];<br>
+<span class="d-ln">63</span><br>
+<span class="d-ln">64</span><span class="tok-k">for</span> (<span class="tok-k">const</span> role <span class="tok-k">of</span> ROLES) {<br>
+<span class="d-ln">65</span>  <span class="tok-k">if</span> (!T_WEB_ONLY.has(role)) <span class="tok-c">/* 缺角色令牌 */</span><br>
+<span class="d-ln">66</span>    errors.<span class="tok-k">push</span>(<span class="tok-s">`web/tokens.css 缺 ${role}`</span>);<br>
+<span class="d-ln">67</span>  <span class="tok-k">if</span> (!T_PWA_ONLY.has(role))<br>
+<span class="d-ln">68</span>    errors.<span class="tok-k">push</span>(<span class="tok-s">`pwa/tokens.css 缺 ${role}`</span>);<br>
+<span class="d-ln">69</span>}<br>
+<span class="d-ln">70</span><br>
+<span class="d-ln">71</span><span class="tok-c">// 比例令牌不能带单位：calc(14px * 4px) 会整条失效</span><br>
+<span class="d-ln">72</span><span class="tok-k">const</span> badRatio = <span class="tok-s">"--nx-f-"</span>.<span class="tok-k">test</span>(name);<br>
+<span class="d-ln">73</span><span class="tok-k">const</span> limit = <span class="tok-n">100</span> * boardCount;</div>
+              </div>
+              <div class="d-row d-t-xs d-t-faint">
+                <span class="d-dot ok"></span><span class="d-grow">UTF-8 · LF · 已随 fork/v5-boards 的最后一次提交</span>
+                <span>Ln 58, Col 1</span>
+              </div>
+              <div class="d-pop-foot">窄栏里长行会折行（<code>.d-code-body</code> 没有 <code>white-space:pre</code>，所以行号与代码会错开）；宽栏与「用外部编辑器打开」里不会。补 <code>white-space:pre</code> 即可解决。</div>
+            </div>
+
+            <!-- 差异 -->
+            <div class="d-viewer-scroll d-col" style="gap:var(--nx-sp-2);padding:var(--nx-sp-2)" data-demo-pane="diff" hidden>
+              <div class="d-row">
+                <span class="d-badge warn">+18</span><span class="d-badge bad">-6</span>
+                <span class="d-grow d-t-xs d-t-faint">对比上一次提交 a3f21c8</span>
+              </div>
+              <div class="d-code">
+                <div class="d-code-head"><i data-ico="file-diff" data-size="13"></i><span class="d-grow">scripts/check-v5.mjs · 未提交的改动</span></div>
+                <div class="d-code-body" style="padding:var(--nx-sp-2) 0">
+                  <div class="d-diff">
+<span class="d-diff-line"><span class="tok-c">// 2026-10-04</span></span>
+<span class="d-diff-line">  <span class="tok-k">for</span> (<span class="tok-k">const</span> f <span class="tok-k">of</span> boards(<span class="tok-s">"web"</span>)) checkBoard(f, <span class="tok-s">"web"</span>);</span>
+<span class="d-diff-line add">+ // 页签的「当前项」不挂 data-demo-tab：挂了就点自己没反应</span>
+<span class="d-diff-line add">+ const tabs = has(/data-demo-tab=&quot;([^&quot;]+)&quot;/g);</span>
+<span class="d-diff-line add">+ if (tabs.length &amp;&amp; !/data-demo-scope/.test(html)) {</span>
+<span class="d-diff-line add">+   errors.push(`${name}: 有 data-demo-tabs 但全页没有 data-demo-scope`);</span>
+<span class="d-diff-line add">+ }</span>
+<span class="d-diff-line del">- const tabs = has(/data-demo-tab=&quot;([^&quot;]+)&quot;/g);   // 旧：只有一页签</span>
+<span class="d-diff-line del">- if (tabs.length) warn(`${name}: 页签没有 scope`);</span>
+<span class="d-diff-line">  report(errors);</span>
+                  </div>
+                </div>
+              </div>
+              <div class="d-row d-t-xs d-t-faint"><span class="d-grow">改动来自本轮会话「定住令牌与类名」</span><span>3 小时前</span></div>
+            </div>
+
+            <!-- 预览（本文件是脚本：预览 = 快速读，不渲染） -->
+            <div class="d-viewer-scroll" data-demo-pane="preview" hidden>
+              <div class="d-empty">
+                <div class="d-empty-ico"><i data-ico="file-code" data-size="20"></i></div>
+                <div class="d-empty-t">这个文件没有预览</div>
+                <div class="d-empty-s"><span class="d-mono">.mjs</span> 属于脚本，预览只会把源码再显示一遍 —— 这里保留模式位置，切回源码即可。</div>
+                <div class="d-row">
+                  <button class="d-btn sm"><i data-ico="square-terminal" data-size="13"></i>在终端里跑</button>
+                  <button class="d-btn sm ghost"><i data-ico="external-link" data-size="13"></i>用外部编辑器打开</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="fv-file-a" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:290px">
+            <div class="d-pop-title">这个文件的动作</div>
+            <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制相对路径</button>
+            <button class="d-menu-row"><i data-ico="at-sign" data-size="14"></i>引用到输入框</button>
+            <button class="d-menu-row"><i data-ico="search" data-size="14"></i>在 ⌘K 里搜这个文件</button>
+            <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i>用外部编辑器打开</button>
+            <div class="d-sep"></div>
+            <div class="d-pop-foot">查看器只读。改文件有两种：让我改（有 diff 与提交）或用外部编辑器（保存后右栏自动提示「磁盘上有新版本」）。</div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 差异模式：逐行增删 + 本轮归属<span class="d-grow"></span>删除行划掉且只给状态色，不用整块红底</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack"><span class="d-tb-title">release 0.1.8 收尾</span><span class="d-tb-sub">~/Desktop/PI NEXT · main</span></div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="file-diff" data-size="14"></i>2 个文件有未提交改动</button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-tool">
+                  <div class="d-tool-head"><i data-ico="pencil-line" data-size="14"></i><span class="d-grow">编辑 web/system.css</span><span class="d-t-xs">+18 −6</span></div>
+                  <div class="d-tool-body d-t-xs d-t-dim">补了一条页签接线规则：初始选中项不参与互斥，否则点自己等于没点。</div>
+                </div>
+                <div class="d-md">右栏切到<b>差异</b>模式能逐行看；同一份改动在转录区里也有，两边数字永远一致。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer d-loader">
+              <div class="d-composer-top"><span class="d-t-dim">运行中可以排队下一条</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send stop" title="停止这一轮"><i data-ico="square" data-size="14"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <aside class="d-panel">
+          <div class="d-viewer" data-demo-scope>
+            <div class="d-viewer-bar">
+              <div class="d-crumb">
+                <button>web</button><i data-ico="chevron-right" data-size="11"></i>
+                <button class="is-on">system.css</button>
+              </div>
+              <span class="d-grow"></span>
+              <div class="d-seg" data-demo-tabs>
+                <button data-demo-tab="code">源码</button>
+                <button class="is-on" data-demo-tab="diff" data-demo-open="fv-diff-b">差异</button>
+                <button data-demo-tab="preview">预览</button>
+              </div>
+            </div>
+
+            <div class="d-viewer-scroll d-col" style="gap:var(--nx-sp-2);padding:var(--nx-sp-2)" data-demo-pane="diff">
+              <div class="d-row">
+                <span class="d-badge info">未提交</span>
+                <span class="d-grow d-t-xs d-t-faint">工作区 ↔ a3f21c8 · 上一轮会话产生</span>
+                <button class="d-iconbtn" title="只看我的改动"><i data-ico="eye" data-size="14"></i></button>
+              </div>
+              <div class="d-code">
+                <div class="d-code-head"><i data-ico="file-diff" data-size="13"></i><span class="d-grow">web/system.css · 约第 700 行</span><span class="d-badge warn">+18</span><span class="d-badge bad">−6</span></div>
+                <div class="d-code-body" style="padding:var(--nx-sp-2) 0">
+                  <div class="d-diff">
+<span class="d-diff-line"><span class="tok-c">/* 页签与页签条的宿主。 */</span></span>
+<span class="d-diff-line">.d-tabbar { display: flex; gap: <span class="tok-n">2</span>px; }</span>
+<span class="d-diff-line del">.d-tabbar .d-tab.is-on::after { left: <span class="tok-n">0</span>; }</span>
+<span class="d-diff-line add">.d-tab.is-on::after { left: <span class="tok-n">10</span>px; right: <span class="tok-n">10</span>px; }</span>
+<span class="d-diff-line del">.d-tabbar .d-tab { height: <span class="tok-n">34</span>px; }</span>
+<span class="d-diff-line add">.d-tabbar .d-tab { height: <span class="tok-n">32</span>px; font-size: var(--nx-fs-sm); }</span>
+<span class="d-diff-line"><span class="tok-c">/* 单例页签：轨迹不按面板复制 */</span></span>
+<span class="d-diff-line add">.d-tab[data-trace][hidden] { display: none; }</span>
+<span class="d-diff-line">.d-panel-body { flex: <span class="tok-n">1</span> <span class="tok-n">1</span> auto; min-height: <span class="tok-n">0</span>; }</span>
+                  </div>
+                </div>
+              </div>
+              <div class="d-banner">
+                <i data-ico="info" data-size="14"></i>
+                <span class="d-grow">改动只在你点头后才会写进磁盘</span>
+                <button class="d-btn sm ghost d-banner-btn">看这轮 diff</button>
+              </div>
+            </div>
+
+            <div class="d-viewer-scroll d-col" style="gap:var(--nx-sp-2);padding:var(--nx-sp-2)" data-demo-pane="code" hidden>
+              <div class="d-code">
+                <div class="d-code-head"><i data-ico="file-code" data-size="13"></i><span class="d-grow">system.css · 849 行</span></div>
+                <div class="d-code-body"><span class="d-ln">696</span><span class="tok-c">/* ── 11 · 右栏：文件 / 终端 / Git / 浏览器 ── */</span><br>
+<span class="d-ln">697</span>.d-panel-head { height: <span class="tok-n">40</span>px; display: flex; gap: var(--nx-sp-1); }<br>
+<span class="d-ln">698</span>.d-tabbar { display: flex; gap: <span class="tok-n">2</span>px; padding: <span class="tok-n">0</span> var(--nx-sp-1); }</div>
+              </div>
+            </div>
+
+            <div class="d-viewer-scroll" data-demo-pane="preview" hidden>
+              <div class="d-empty">
+                <div class="d-empty-ico"><i data-ico="file-code" data-size="20"></i></div>
+                <div class="d-empty-t">样式文件没有预览</div>
+                <div class="d-empty-s">CSS 的预览就是它自己 —— 预览位留给 Markdown、图片与表格。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="fv-diff-b" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:290px">
+            <div class="d-pop-title">差异对比谁</div>
+            <button class="d-menu-row"><i data-ico="git-commit-horizontal" data-size="14"></i>对比上一次提交 a3f21c8</button>
+            <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i>对比 main</button>
+            <button class="d-menu-row"><i data-ico="git-fork" data-size="14"></i>对比选中分支的共同祖先</button>
+            <button class="d-menu-row"><i data-ico="history" data-size="14"></i>对比某个历史版本…</button>
+            <div class="d-sep"></div>
+            <div class="d-pop-foot">默认对比「上一次提交」而不是 main：agent 改动的量小、看得完；要看全量时再切 main。</div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 预览路由：Markdown 渲染 · 图片看图 · CSV 成表<span class="d-grow"></span>同一套外壳，三种内容</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-cardgrid">
+
+                <!-- Markdown -->
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="file-text" data-size="15"></i><span class="d-grow">README.md</span><span class="d-badge mute">Markdown</span></div>
+                  <div class="d-card-body">
+                    <div class="d-md">
+                      <h2>设计体系 V5</h2>
+                      <p>一份真值 · 两套形态 · 一个落地口。<code class="d-math">base.css</code> 是唯一的角色令牌出处。</p>
+                      <p>落地的全部规矩在 <b>LANDING.md</b>，偏离登记在 DIVERGENCE.md。</p>
+                      <ul>
+                        <li>画板 DOM 即产品 DOM</li>
+                        <li>机器判，不靠人记</li>
+                      </ul>
+                      <div class="d-code">
+                        <div class="d-code-head"><span class="d-grow">命令</span></div>
+                        <div class="d-code-body">npm run design:v5</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-pop-foot">Markdown 走渲染，但表格与代码块仍用同一套组件 —— 预览不自带一套新样式。</div>
+                </div>
+
+                <!-- 图片 -->
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="image" data-size="15"></i><span class="d-grow">design/preview/22-top-panels.png</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-fileimg d-placeholder">
+                      <i data-ico="image" data-size="20"></i>
+                      <span>1440 × 900 · 218 KB · 板上只占位</span>
+                    </div>
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="缩小"><i data-ico="zoom-out" data-size="14"></i></button>
+                      <span class="d-grow d-t-xs d-t-faint">100%</span>
+                      <button class="d-iconbtn" title="放大"><i data-ico="zoom-in" data-size="14"></i></button>
+                      <button class="d-iconbtn" title="适应宽度"><i data-ico="maximize-2" data-size="14"></i></button>
+                      <button class="d-iconbtn" title="用系统应用打开"><i data-ico="external-link" data-size="14"></i></button>
+                    </div>
+                    <div class="d-t-xs d-t-dim">默认适应宽度、点击原图；超过 4000px 的长图自动降采样，缩放值写在右下角而不是盖一层浮层。</div>
+                  </div>
+                </div>
+
+                <!-- CSV -->
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="table" data-size="15"></i><span class="d-grow">design/v5/index.csv</span><span class="d-badge mute">CSV</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-tbl-wrap">
+                      <table class="d-table">
+                        <thead>
+                          <tr><th>画板</th><th>定什么</th><th>状态</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr class="is-on"><td class="d-mono">D-05</td><td>右栏四面板</td><td><span class="d-badge ok">已定稿</span></td></tr>
+                          <tr><td class="d-mono">D-06</td><td>查看器多模式</td><td><span class="d-badge warn">在改</span></td></tr>
+                          <tr><td class="d-mono">D-18</td><td>对话框与系统态</td><td><span class="d-badge mute">待写</span></td></tr>
+                          <tr><td class="d-mono">M-07</td><td>浏览器手机态</td><td><span class="d-badge mute">待写</span></td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="d-t-xs d-t-dim">前 200 行直接进表；超过就出分页条并给出行号列。在 320px 的右栏里它<b>横滚而不是压字</b>（<code>.d-tbl-wrap</code> 自带 overflow-x）。</div>
+                    <div class="d-row">
+                      <span class="d-t-xs d-t-faint d-grow">第 1–4 行 / 共 21 行</span>
+                      <button class="d-btn sm ghost"><i data-ico="download" data-size="13"></i>导出</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 打不开的类型 · 超大文件 · 编码不对：三种「不能看」都带替代路径<span class="d-grow"></span>不装死，也不丢原文</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-empty">
+                <div class="d-empty-ico"><i data-ico="file-archive" data-size="20"></i></div>
+                <div class="d-empty-t">这个类型现在打不开：<span class="d-mono">.psd</span></div>
+                <div class="d-empty-s">不是坏文件，是没有内置渲染器。三条路仍然可用：用系统默认应用打开、让 agent 按文本读一遍（多数二进制会被拒绝并说明原因）、或者把它当附件引用到输入框。</div>
+                <div class="d-row">
+                  <button class="d-btn sm"><i data-ico="external-link" data-size="13"></i>用系统应用打开</button>
+                  <button class="d-btn sm"><i data-ico="bot" data-size="13"></i>让 agent 读一下</button>
+                  <button class="d-btn sm ghost"><i data-ico="paperclip" data-size="13"></i>引用到输入框</button>
+                </div>
+              </div>
+
+              <div class="d-grid3">
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="package" data-size="15"></i><span class="d-grow">ZIP 目录</span><span class="d-badge mute">.zip</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-placeholder">解压后自动展开为文件树</div>
+                    <div class="d-t-xs d-t-dim">点这个占位即在临时目录解压：条目超过 500 或总体积超过 200MB 时不自动解，只列清单。</div>
+                    <div class="d-row"><button class="d-btn sm"><i data-ico="download" data-size="13"></i>解压查看</button><button class="d-btn sm ghost">只列清单</button></div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="triangle-alert" data-size="15"></i><span class="d-grow">超大文件</span><span class="d-badge warn">412 MB</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-skel-list">
+                      <div class="d-skel d-skel-40"></div>
+                      <div class="d-skel d-skel-40"></div>
+                      <div class="d-skel d-skel-40"></div>
+                    </div>
+                    <div class="d-t-xs d-t-dim">超过 5MB 一律降级：只渲染前 200 行 + 首尾各 50 行，中间用一行说明代替；不假装「在加载」。</div>
+                    <div class="d-row"><button class="d-btn sm">仍然全部打开</button><button class="d-btn sm ghost">只看类型分布</button></div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="type" data-size="15"></i><span class="d-grow">编码不对</span><span class="d-badge bad">GBK</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-code">
+                      <div class="d-code-head"><span class="d-grow">data.csv · GBK 编码</span></div>
+                      <div class="d-code-body"><span class="d-t-xs" style="color:var(--nx-warning)">锟斤拷烫烫烫 · 按 GBK 猜测失败</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-dim">不偷偷转码。猜不出编码时给出三个候选（GBK / Big5 / Shift-JIS）与原字节，切对了会记住这个文件的编码。</div>
+                    <div class="d-row">
+                      <button class="d-chipbtn is-on">GBK</button>
+                      <button class="d-chipbtn">Big5</button>
+                      <button class="d-chipbtn">Shift-JIS</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>模式切换只换内容，不换位置。</b>面包屑、滚动位置、上一行选中行留在原地；没有预览的模式也在模式位上给一句解释，而不是把预览键藏起来。</li>
+    <li><b>源码 = 行号 + 四种语法色</b>（<code>.d-ln</code> 与 <code>tok-k/s/n/c</code>），行号区不参与复制；顶栏写清行数与「只读」。</li>
+    <li><b>差异默认对比上一次提交</b>而不是 main：agent 的改动量小、看得完，要看全量再切。删除行划掉且只给状态色，不用整块红底 —— 整块底色会让长 diff 里找不到该看的那几行。</li>
+    <li><b>预览按类型分流</b>：Markdown 渲染（表格与代码块仍用同一套组件，不自带新样式）、图片看图（板上占位）、CSV 成表并在窄栏里横滚而不是压字。</li>
+    <li><b>「打不开」永远带替代路径。</b>不支持类型、超大文件、编码不对是三种不同的失败，各给各的下一步：换应用打开 / 按文本读 / 降级只读首尾 / 手工选编码 —— 绝不白屏，也绝不假装在加载。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

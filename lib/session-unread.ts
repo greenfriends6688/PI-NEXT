@@ -92,8 +92,12 @@ export function pruneSessionUnread(eligibleIds: ReadonlySet<string>): void {
   });
 }
 
+/** fork:react-18-snapshot —— 同一个引用：内联 `new Set()` 每次都是新对象，
+ * React 会认为快照一直在变（见 hooks/useUiFont.ts 同一条）。 */
+const EMPTY_UNREAD: ReadonlySet<string> = new Set<string>();
+
 export function useUnreadSessions(): ReadonlySet<string> {
-  return useSyncExternalStore(subscribe, getUnreadSessionIds, () => new Set<string>());
+  return useSyncExternalStore(subscribe, getUnreadSessionIds, () => EMPTY_UNREAD);
 }
 
 export function useUnreadActions(): {

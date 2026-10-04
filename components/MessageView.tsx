@@ -6,10 +6,9 @@ import { MarkdownBody } from "./MarkdownBody";
 import { useFileIndex, useSkillInfo } from "@/hooks/useProjectContext";
 import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import type { MentionValidators } from "@/lib/mention-tokens";
-import { CopyStateIcon } from "./fork/CopyStateIcon";
+import { copyText } from "@/lib/clipboard";
 import { ImagePreview } from "./ImagePreview";
 import { ThinkingIcon } from "./ThinkingIcon";
-import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/hooks/useI18n";
 import { parseCompactionSummary } from "@/lib/compaction-summary";
 import { getAssistantErrorMessage, getThinkingPreview, isEmptyThinkingBlock } from "@/lib/message-display";
@@ -19,7 +18,7 @@ import { buildIntralineSegments, diffIntraline, type IntralineSpan } from "@/lib
 import { applyPatchPreviewToFiles, extractApplyPatchPaths, getApplyPatchInputText, parseApplyPatchInput } from "@/lib/apply-patch";
 import { mcpToolLabel } from "@/lib/mcp-tool-display";
 // fork:codemode-view —— codemode 调用的显示助手（脚本 / 调用列表 / 折叠头预览）。
-import { CODEMODE_TOOL_NAME, codemodeCalls, codemodeScript, codemodeScriptPreview, stripCodemodeHeader } from "@/lib/codemode-view";
+import { CODEMODE_TOOL_NAME, codemodeCalls, codemodeScript, codemodeScriptPreview } from "@/lib/codemode-view";
 import { CodemodeCallList } from "./CodemodeToolView";
 import { isApplyPatchToolName, isEditToolName } from "@/lib/tool-names";
 import { isThinkingExpandedByDefault, THINKING_EXPANDED_EVENT } from "@/lib/thinking-expansion-preference";
@@ -50,6 +49,8 @@ import type {
   ThinkingContent,
 } from "@/lib/types";
 import { TEXT } from "@/lib/typography";
+// fork:v5-wave-b —— PWA 形态（≤640px）转录区：桌面走 d-*，窄屏走画板 M-02 的 m-*。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 // CJK chars ~1 token each (GLM/DeepSeek/GPT-o200k); other chars ~4 chars/token.
 const CJK_PATTERN = /[\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff\u{20000}-\u{2fa1f}\uac00-\ud7af]/u;
@@ -135,30 +136,44 @@ export function splitErrorLinks(text: string): { text: string; link: boolean }[]
 
 function SafeMarkdownBody({ children, className, ...props }: React.ComponentProps<typeof MarkdownBody>) {
   const { t } = useI18n();
+  const isPwa = usePwaSkin();
   const [showRaw, setShowRaw] = useState(false);
 
   if (children.length <= MAX_MARKDOWN_CHARS) {
     return <MarkdownBody className={className} {...props}>{children}</MarkdownBody>;
   }
   if (!showRaw) {
-    /* fork:design-components —— 超长消息折叠用画板 12 的 `.pw-alert`（info 态）：
-       整条是一个按钮，`pw-ico` 起首 + `pw-grow` 承载文案（board 10/12 同款结构）。
-       `button.pw-alert` 的 UA 归零见 app/fork-ui.css（本次报告第 2 节）。
-       展开后是画板 12 E 的「内嵌文本」形态：`pw-term` 一块。 */
+    /* fork:v5-landing —— 超长消息折叠用画板 D-03e 帧 D 的 `.d-banner.info`：
+       整条是一个按钮，图标起首 + `.d-grow` 承载文案。展开后是画板 D-03d 的
+       「内嵌文本」形态：`.d-term.plain` 一块（等宽 pre-wrap）。
+       fork:v5-wave-b —— 窄屏抄画板 M-11 帧 D：同一条提醒变成 `.m-banner`，
+       展开后是 M-02 帧 A 那块不带头的 `.m-code`（横滚由 m-code-scroll 承担）。 */
     return (
       <button
         type="button"
-        className="pw-alert info"
+        className={isPwa ? "m-banner" : "d-banner info"}
+        style={{ width: "100%", font: "inherit", textAlign: "left", cursor: "pointer" }}
         onClick={() => setShowRaw(true)}
       >
-        <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-        <span className="pw-grow">{t("i18n.largeMessageReveal", { size: formatMessageBytes(children.length) })}</span>
+        <i data-ico="info" data-size="14"></i>
+        <span className={isPwa ? "m-grow" : "d-grow"}>{t("i18n.largeMessageReveal", { size: formatMessageBytes(children.length) })}</span>
       </button>
+    );
+  }
+  if (isPwa) {
+    return (
+      <div className="m-code">
+        <div className="m-code-scroll">
+          <div className="m-code-body" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {children}
+          </div>
+        </div>
+      </div>
     );
   }
   return (
     <div className={className} style={{ maxHeight: 420, overflow: "auto" }}>
-      <div className="pw-term" style={{ fontSize: "calc(12.5px + var(--chat-font-size-offset, 0px))" }}>
+      <div className="d-term plain" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
         {children}
       </div>
     </div>
@@ -317,20 +332,22 @@ function useMessageCopy() {
 
 /*
  * fork:fix-clipboard —— 失败提示挂在**消息列**里，不挂在动作行里。
- * `.pw-msg-acts` 在 `@media (hover: hover)` 下是 `opacity:0`（app/fork-ui.css），
- * 失败徽标放进去等于没提示：鼠标一移开就消失，读屏用户也拿不到位置。
+ * `.d-msg-acts` 默认 `opacity:0`（system.css），失败徽标放进去等于没提示：
+ * 鼠标一移开就消失，读屏用户也拿不到位置。
  *
- * 形态复用本文件**已有**的失败态 —— provider 错误框那条 `.pw-alert`（error 底 +
- * `circle-x` 图标槽 + `.pw-grow` 正文，components/MessageView.tsx:800）：
+ * 形态复用本文件**已有**的失败态 —— provider 错误框那条 `.d-banner.err`（error 底 +
+ * `circle-x` 图标槽 + `.d-grow` 正文）：
  * 不另造提示系统。文案用仓库里已存在、此前无人引用的 `chat.todosCopyFailed`
  * （三语齐全，与 MermaidBlock 同一枚键）。
  */
 function CopyFailedNotice({ style }: { style?: React.CSSProperties }) {
   const { t } = useI18n();
+  // fork:v5-wave-b —— 窄屏抄 M-02 帧 C 的失败块：`.m-banner.err`（同一套语义档）。
+  const isPwa = usePwaSkin();
   return (
-    <div role="status" className="pw-alert" style={style}>
-      <span className="pw-ico"><i data-ico="circle-x" data-size="14"></i></span>
-      <span className="pw-grow">{t("chat.todosCopyFailed")}</span>
+    <div role="status" className={isPwa ? "m-banner err" : "d-banner err"} style={style}>
+      <i data-ico="circle-x" data-size="14"></i>
+      <span className={isPwa ? "m-grow" : "d-grow"}>{t("chat.todosCopyFailed")}</span>
     </div>
   );
 }
@@ -435,6 +452,11 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   // fork:fix-clipboard —— 三态而不是 `copied: boolean`：复制**可能失败**。
   const { copied, failed, copy } = useMessageCopy();
   const [expanded, setExpanded] = useState(false);
+  // fork:v5-landing —— 动作行的显隐：用户消息的动作行是气泡的**兄弟**，
+  // system.css 的 `.d-msg-user:hover .d-msg-acts` 在产品结构上不成立，
+  // 所以像 ChatWorkspaceRow / SessionSidebar 一样由 React 管 hover/focus，
+  // 命中时挂 `.is-on`（.d-msg-acts 默认 opacity:0）。
+  const [actionsVisible, setActionsVisible] = useState(false);
   // fork:zm-01 — 折叠正文的两段式存在性：grid wrapper 常驻负责行高动画，正文在
   // 收起过渡结束后才卸载（见 hooks/useCollapsePresence.ts）。
   const collapseRef = useRef<HTMLDivElement>(null);
@@ -489,6 +511,12 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   const copyTarget = commandText ?? content;
   const editTarget = commandText ? replaceUserMessageText(message, commandText) : message;
 
+  // fork:v5-wave-b —— 窄屏（画板 M-02）：用户气泡 = `.m-msg-user`（贴右、强调底、
+  // 右下小圆角），动作行 = `.m-msg-acts` + 一枚枚 `.m-iconbtn`（图标钮 + title，
+  // 画板里那一行就是复制 / 重新生成 / 从这里分支 / 引用四枚纯图标）。
+  // 桌面继续是 D-03 的 `.d-msg-user` + `.d-msg-acts` + `.d-btn.sm`。
+  const isPwa = usePwaSkin();
+
   const imageBlocksNode = imageBlocks.length > 0 && (
     <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginBottom: content ? "var(--s2)" : 0 }}>
       {imageBlocks.map((img, i) => {
@@ -496,9 +524,9 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
         // pi-ai on-disk format uses flat {data, mimeType} — handle both
         const src = imageSource(img);
         return (
-          /* fork:design-components —— 图片内容块 = 画板 12 A 的 `.pw-img`
-             （发丝框 / radius-6 / overflow hidden），真实图片取代画板的斜纹占位。 */
-          <div className="pw-img" key={i}>
+          /* fork:v5-landing —— 图片内容块 = 画板 D-03b 帧 B 的 `.d-placeholder` 内嵌帧，
+             真实图片取代画板的斜纹占位；点图仍由 ImagePreview 放大。 */
+          <div className={isPwa ? "m-placeholder" : "d-placeholder"} key={i} style={{ padding: 0, display: "block" }}>
             <ImagePreview src={src}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -519,22 +547,36 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   return (
     <div
       data-message-role="user"
-      style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "flex-end" }}
+      onMouseEnter={() => setActionsVisible(true)}
+      onMouseLeave={() => setActionsVisible(false)}
+      onFocus={() => setActionsVisible(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) setActionsVisible(false);
+      }}
+      /* fork:v5-landing —— 消息根用内联 flex column；行间距不再自带 marginBottom。 */
+      style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: "var(--space-row)", width: "100%", maxWidth: "100%" }}>
         <div
-          /* fork:design-components —— 用户气泡直接用画板 10 的 .pw-msg-user
-             （右对齐 78% / 发丝边框 / 面板底 / radius-6，board.css 承担全部视觉）。 */
-          className="pw-msg-user"
-          style={{
-            minWidth: 0,
-            fontSize: "calc(13px + var(--chat-font-size-offset, 0px))",
-            lineHeight: 1.65,
-            color: "var(--text)",
-            wordBreak: "break-word",
-            maxHeight: USER_BUBBLE_MAX_HEIGHT,
-            overflowY: "auto",
-          }}
+          /* fork:v5-landing —— 用户气泡直接用画板 D-03 A 的 `.d-msg-user`
+             （右对齐 78% / 强调底 / 右下小圆角，system.css 承担全部视觉）。
+             fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-msg-user`（右对齐 82%），
+             并且**不再写内联字号/行高/字色**：这三格在 PWA 形态由 `.m-msg-user`
+             与 `.m-md` 自己给（基准 17px + --nx-lh-body），内联覆盖等于把
+             桌面端的字号带进手机。留下的只有 maxHeight / overflowY ——
+             那是滚动容器语义，与形态无关（超长消息不许把会话顶出屏）。 */
+          className={isPwa ? "m-msg-user" : "d-msg-user"}
+          style={isPwa
+            ? { wordBreak: "break-word", maxHeight: USER_BUBBLE_MAX_HEIGHT, overflowY: "auto" }
+            : {
+              minWidth: 0,
+              fontSize: "calc(13px + var(--chat-font-size-offset, 0px))",
+              lineHeight: 1.65,
+              color: "var(--text)",
+              wordBreak: "break-word",
+              maxHeight: USER_BUBBLE_MAX_HEIGHT,
+              overflowY: "auto",
+            }}
         >
           {commandText ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-row)", minWidth: 0 }}>
@@ -562,9 +604,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {commandName}
                   </span>
-                  <span className="pw-ico" style={{ flexShrink: 0, opacity: 0.75, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                    <i data-ico="chevron-down" data-size="11"></i>
-                  </span>
+                  <i data-ico="chevron-down" data-size="11" style={{ flexShrink: 0, opacity: 0.75, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}></i>
                 </button>
                 {commandArgs && (
                   <span style={{
@@ -615,23 +655,30 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
         onOpenFile={onOpenFile ? (filePath) => onOpenFile(filePath) : undefined}
       />
 
-      {/* fork:design-components —— 消息动作行换成画板 10 B 的 `.pw-msg-acts`：
-          整行右对齐，成员一律 `.pw-btn sm` + `.pw-ico` + `i[data-ico]`。
-          hover/焦点显隐仍由 app/fork-ui.css 承担（画板的 `.pw-msg-user:hover` 规则
-          在产品里不成立 —— 动作行是消息列的兄弟节点，不在气泡内；需要的片段见报告）。 */}
+      {/* fork:v5-landing —— 消息动作行 = 画板 D-03b 帧 A2 的 `.d-msg-acts`：
+          整行右对齐，成员一律 `.d-btn.sm` + `i[data-ico]`，时间戳 `.d-t-xs.d-t-faint`。
+          hover/焦点显隐仍由 app/fork-ui.css 承担（画板的 `.d-msg-user:hover` 规则
+          在产品里不成立 —— 动作行是消息列的兄弟节点，不在气泡内）。
+          fork:v5-wave-b —— 窄屏抄 M-02 帧 A2 的 `.m-msg-acts`：同一组动作，
+          成员换成画板那枚 `.m-iconbtn`（纯图标 + title/aria-label；画板那一行
+          就是复制 / 重新生成 / 从这里分支 / 引用）。显隐仍由 React 挂 `.is-on`
+          （画板的 `.m-msg-acts` 同样默认 opacity:0）。 */}
       {/* fork:fix-clipboard —— 失败提示在**动作行外面**（见 CopyFailedNotice 的
           注释）：动作行 hover 才显形，提示放里面等于没提示。按钮本身照旧只说
-          「复制 / 已复制」，失败档走 `.pw-btn.sm.danger` + title，另由那枚
+          「复制 / 已复制」，失败档走 `.d-btn.sm.danger` + title，另由那枚
           role=status 提示条承担文案。 */}
-      <div className="pw-msg-acts">
+      <div className={isPwa
+        ? `m-msg-acts${actionsVisible ? " is-on" : ""}`
+        : `d-msg-acts${actionsVisible ? " is-on" : ""}`}>
         <button
           type="button"
           onClick={copyContent}
           title={failed ? t("chat.todosCopyFailed") : t("i18n.copyMessage")}
-          className={failed ? "pw-btn sm danger" : "pw-btn sm"}
+          aria-label={copied ? t("i18n.copied") : t("i18n.copy")}
+          className={isPwa ? "m-iconbtn" : (failed ? "d-btn sm danger" : "d-btn sm")}
         >
-          <span className="pw-ico">{CopyStateIcon({ copied })}</span>
-          {copied ? t("i18n.copied") : t("i18n.copy")}
+          <i data-ico={copied ? "check" : "copy"} data-size="13"></i>
+          {!isPwa && (copied ? t("i18n.copied") : t("i18n.copy"))}
         </button>
         {canNavigate && (
           <button
@@ -640,10 +687,11 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
               if (navigated) onEditContent?.(editTarget);
             })}
             title={t("i18n.editFromHereTitle")}
-            className="pw-btn sm"
+            aria-label={t("i18n.editFromHere")}
+            className={isPwa ? "m-iconbtn" : "d-btn sm"}
           >
-            <span className="pw-ico"><i data-ico="pencil-line" data-size="13"></i></span>
-            {t("i18n.editFromHere")}
+            <i data-ico="pencil-line" data-size="13"></i>
+            {!isPwa && t("i18n.editFromHere")}
           </button>
         )}
         {canFork && (
@@ -652,10 +700,11 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
             onClick={() => { onFork!(entryId!); }}
             disabled={forking}
             title={forking ? t("i18n.creatingSession") : t("i18n.newSessionTitle")}
-            className={forking ? "pw-btn sm pw-dim" : "pw-btn sm"}
+            aria-label={forking ? t("i18n.creating") : t("i18n.newSession")}
+            className={isPwa ? "m-iconbtn" : "d-btn sm"}
           >
-            <span className="pw-ico"><i data-ico="git-branch" data-size="13"></i></span>
-            {forking ? t("i18n.creating") : t("i18n.newSession")}
+            <i data-ico="git-branch" data-size="13"></i>
+            {!isPwa && (forking ? t("i18n.creating") : t("i18n.newSession"))}
           </button>
         )}
         {/* fork:proma-04-rewind — 回退到此处（放在 fork 旁：两者都是「从这条消息出发」的会话级操作） */}
@@ -665,13 +714,14 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
             onClick={() => { onRewind!(entryId!); }}
             disabled={rewinding}
             title={t("rewind.actionTitle")}
-            className={rewinding ? "pw-btn sm pw-dim" : "pw-btn sm"}
+            aria-label={t("rewind.action")}
+            className={isPwa ? "m-iconbtn" : "d-btn sm"}
           >
-            <span className="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>
-            {t("rewind.action")}
+            <i data-ico="undo-2" data-size="13"></i>
+            {!isPwa && t("rewind.action")}
           </button>
         )}
-        {time && <span className="pw-dim">{time}</span>}
+        {time && <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"} style={{ alignSelf: "center" }}>{time}</span>}
       </div>
       {failed && <CopyFailedNotice style={{ marginTop: "var(--s1)" }} />}
     </div>
@@ -719,6 +769,8 @@ function AssistantMessageView({
 }) {
   const { t } = useI18n();
   const time = showTimestamp ? formatTime(message.timestamp) : null;
+  // fork:v5-wave-b —— 窄屏（画板 M-02）渲染 m-* DOM；桌面继续 d-*。
+  const isPwa = usePwaSkin();
   const blockItems = useMemo(() => (message.content ?? [])
     .map((block, originalIndex) => ({ block, originalIndex }))
     .filter(({ block }) => !isEmptyThinkingBlock(block, { isStreaming })), [message.content, isStreaming]);
@@ -730,6 +782,9 @@ function AssistantMessageView({
   const { copied, failed, copy } = useMessageCopy();
   const streamStartRef = useRef<number | null>(null);
   const [tps, setTps] = useState<number | null>(null);
+  // fork:v5-landing —— 助手动作行的 hover 由 system.css 的 `.d-msg-ai:hover .d-msg-acts`
+  // 承担；这里只补键盘焦点一档（:focus-within 无 v5 规则），命中时挂 `.is-on`。
+  const [actionsFocused, setActionsFocused] = useState(false);
   const blockItemsRef = useRef(blockItems);
   blockItemsRef.current = blockItems;
   const tokenEstimateCacheRef = useRef<Map<number, TokenEstimateCacheEntry>>(new Map());
@@ -854,16 +909,44 @@ function AssistantMessageView({
     <div
       data-message-role="assistant"
       data-entry-id={entryId}
-      style={{ marginBottom: 20 }}
+      onFocus={() => setActionsFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) setActionsFocused(false);
+      }}
+      /* fork:v5-landing —— 一条助手消息 = 画板 D-03 A 的 `.d-msg-ai`
+         （flex column + gap：元信息行 / 正文 / 动作行之间的间距由 system.css 给）。
+         流式元信息行同样用它里面的排版基元。
+         fork:v5-wave-b —— 窄屏换成画板 M-02 的 `.m-msg-ai`（同义：flex column +
+         gap，只有一处差别是每条助手消息顶部**必须**有身份行 `.m-msg-ai-head` ——
+         system.css 里写明「转录区里它是『谁在说』的唯一来源」）。 */
+      className={isPwa ? "m-msg-ai" : "d-msg-ai"}
     >
-      {/* fork:design-components —— 流式元信息行用画板的排版基元：
-          `.pw-muted`（次要文字）+ `.pw-mono`（数字等宽）+ `.pw-badge.count`（t/s 计数）。
-          图标换成 `i[data-ico="arrow-down"]`（lucide 单线 1.5px），不再手绘。 */}
+      {/* fork:v5-wave-b —— 身份行（画板 M-02 帧 A/B/C 每一帧的第一块，逐字）：
+          `.m-ava.brand` 品牌头像 + `.m-t-b` 产品名 + `.m-badge.mute` 模型名。
+          桌面不加这行 —— D-03 的身份信息本来就散在消息头与回合结束行里。 */}
+      {isPwa && (
+        <div className="m-msg-ai-head">
+          <span className="m-ava brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pi-next-logo.png" alt="" draggable={false} />
+          </span>
+          <span className="m-t-b">PI NEXT</span>
+          {message.provider && (
+            <span className="m-badge mute">{getModelDisplayName(message.provider, message.model, modelNames)}</span>
+          )}
+        </div>
+      )}
+      {/* fork:v5-landing —— 流式元信息行用画板排版基元：
+          `.d-t-xs.d-t-faint`（次要文字）+ `.d-mono`（数字等宽）+ `.d-badge`（t/s 计数）。
+          图标换成 `i[data-ico="arrow-down"]`（lucide 单线 1.5px），不再手绘。
+          fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-msg-ai-head.m-t-xs.m-t-faint` + `.m-mono`
+          + `.m-badge`。m-badge 只有 ok/warn/bad/mute 四档，PWA 语义色少了 info，
+          所以 `info` 档落 `.m-badge.mute`（中性），不改读法。 */}
       {isStreaming && (
         <div
-          className="pw-muted"
+          className={isPwa ? "m-msg-ai-head m-t-xs m-t-faint" : "d-msg-ai-head d-t-xs d-t-faint"}
           style={{
-            fontSize: TEXT.xs,
+            fontSize: isPwa ? undefined : TEXT.xs,
             marginBottom: "var(--s1)",
             display: "flex",
             alignItems: "center",
@@ -879,15 +962,15 @@ function AssistantMessageView({
               <>
                 {est > 0 && (
                   <span style={{ display: "flex", alignItems: "center", gap: "var(--s1)" }} title={t("i18n.estimatedTokens")}>
-                    <span className="pw-mono" style={{ display: "flex", alignItems: "center", gap: "var(--space-tight)" }}>
-                      <span className="pw-ico"><i data-ico="arrow-down" data-size="10"></i></span>
+                    <span className={isPwa ? "m-mono" : "d-mono"} style={{ display: "flex", alignItems: "center", gap: "var(--space-tight)" }}>
+                      <i data-ico="arrow-down" data-size="10"></i>
                       {est}
                     </span>
                     {tps !== null && (() => {
                       // fork:design-system —— 只用四个语义色，不再自造青/黄绿/琥珀/洋红四个色相。
-                      const tone = tps >= 50 ? "ok" : tps >= 30 ? "accent" : tps >= 15 ? "warn" : "bad";
+                      const tone = tps >= 50 ? "ok" : tps >= 30 ? "info" : tps >= 15 ? "warn" : "bad";
                       return (
-                        <span className={`pw-badge count ${tone}`}>
+                        <span className={`${isPwa ? "m" : "d"}-badge ${isPwa && tone === "info" ? "mute" : tone}`}>
                           {tps.toFixed(1)} t/s
                         </span>
                       );
@@ -906,37 +989,59 @@ function AssistantMessageView({
         ))}
       </div>
 
-      {/* fork:design-components —— provider 错误框换成画板的 `.pw-alert`（error 态：
-          容器自带 error-soft 底 / error 文字 / radius-4；首列 `.pw-ico` + `circle-x`，
-          正文 `.pw-grow` 里放 `.pw-term`（等宽 + pre-wrap，错误原文的换行语义由它承担）。
-          `role="alert"` 与链接拆分照旧。`/ 报告见第 2 节。 */}
+      {/* fork:v5-landing —— provider 错误框 = 画板 D-03e 帧 D 的 `.d-banner.err`：
+          容器自带 error 底 / error 文字；首列 `triangle-alert` 图标，正文 `.d-grow`
+          里放 `.d-term.plain`（等宽 + pre-wrap，错误原文的换行语义由它承担）。
+          `role="alert"` 与链接拆分照旧。 */}
       {providerError && (
         <div
           role="alert"
-          className="pw-alert"
-          style={{ marginTop: blocks.length > 0 ? 8 : 0 }}
+          className={isPwa ? "m-banner err" : "d-banner err"}
+          style={{ marginTop: blocks.length > 0 ? 8 : 0, alignItems: "flex-start" }}
         >
-          <span className="pw-ico"><i data-ico="circle-x" data-size="14"></i></span>
-          <span className="pw-grow">
-            <span className="pw-term">Error: {splitErrorLinks(providerError).map((part, index) => part.link ? (
-              <a
-                key={index}
-                href={part.text}
-                target="_blank"
-                rel="noreferrer noopener"
-                style={{ color: "inherit", textDecoration: "underline", overflowWrap: "anywhere" }}
-              >
-                {part.text}
-              </a>
-            ) : part.text)}</span>
-          </span>
+          <i data-ico="circle-x" data-size="14"></i>
+          {isPwa ? (
+            /* fork:v5-wave-b —— 窄屏：M-02 的失败块只有图标 + 正文，而正文里那段
+               错误原文必须能横滚 —— 所以直接给一块 `.m-code`（`.m-code-scroll`
+               横滚 + `.m-code-body` 等宽）。不另写一句标题：文案只能在
+               lib/i18n/messages/* 里加（不在本波的文件名单里），这里复用原文。 */
+            <div className="m-code" style={{ flexBasis: "100%", minWidth: 0 }}>
+              <div className="m-code-scroll">
+                <div className="m-code-body">Error: {splitErrorLinks(providerError).map((part, index) => part.link ? (
+                  <a
+                    key={index}
+                    href={part.text}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    style={{ color: "inherit", textDecoration: "underline", overflowWrap: "anywhere" }}
+                  >
+                    {part.text}
+                  </a>
+                ) : part.text)}</div>
+              </div>
+            </div>
+          ) : (
+            <span className="d-grow">
+              <span className="d-term plain">Error: {splitErrorLinks(providerError).map((part, index) => part.link ? (
+                <a
+                  key={index}
+                  href={part.text}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  style={{ color: "inherit", textDecoration: "underline", overflowWrap: "anywhere" }}
+                >
+                  {part.text}
+                </a>
+              ) : part.text)}</span>
+            </span>
+          )}
         </div>
       )}
 
       {/* fork:proma-32-skill-usage —— 「本轮用到的 skill」与「改动过的文件」同一行 chips
           （同一个 wrap 行，不另起区块）：外层这一行 flex 让两组 chips 先横向排列，
           放不下才各自换行。间距/几何全走 token，样式在 app/fork-ui.css 的
-          `.fork-turn-summary`；chip 本身是画板既有的 `.pw-wrap` + `.pw-chip`。 */}
+          `.fork-turn-summary`；chip 现在是画板 D-03e 的 `.d-chips` + `.d-cite`。 */}
       {((writtenFiles && writtenFiles.length > 0) || (skillUsage && skillUsage.length > 0)) && (
         <div className="fork-turn-summary">
           {writtenFiles && writtenFiles.length > 0 && (
@@ -948,10 +1053,10 @@ function AssistantMessageView({
         </div>
       )}
 
-      {/* fork:design-components PR-11 —— 回合结束行直接使用画板 12 的组件：
-          样式全部来自 design/pi-web-design/assets/board.css 的
-          .pw-turn-end / .pw-badge(.ok/.warn/.bad/.accent) / .pw-mono / .rule，
-          图标走 <i data-ico>（icons.js hydrate），本组件不再写一行视觉样式。 */}
+      {/* fork:v5-landing —— 回合结束行 = 画板 D-03c 的 `.d-turn-end`：
+          状态图标 + `.d-grow` 说明 + `.d-t-xs` 的耗时 / 用量 / 金额格。
+          fork:v5-wave-b —— 窄屏换成 M-02 帧 B 的 `.m-turn-end`（同一行；画板那一行
+          把状态写进 `.m-badge` 里，图标单独一枚）。 */}
       {!isStreaming && (() => {
         const stopReason = message.stopReason ?? "stop";
         // fix:turn-stats —— 这一格原来是 `message.timestamp - 上一条消息.timestamp`，
@@ -960,11 +1065,6 @@ function AssistantMessageView({
         // 升级为**本轮**口径：“从每轮思考一直到本轮结束”，与输入 / 输出 / 费用同口径
         // （见 lib/turn-stats.ts）。缺本轮快照时退回单步值。
         const durationSec = turnStats?.elapsedSec ?? stepDurationSec;
-        const badgeClass = stopReason === "stop" ? "ok"
-          : stopReason === "length" ? "warn"
-            : stopReason === "error" ? "bad"
-              : stopReason === "toolUse" ? "accent"
-                : "";
         const icon = stopReason === "stop" ? "check"
           : stopReason === "toolUse" ? "wrench"
             : stopReason === "length" ? "triangle-alert"
@@ -983,71 +1083,69 @@ function AssistantMessageView({
               : stopReason === "aborted" ? t("chat.turnEnd.aborted")
                 : stopReason === "error" ? t("chat.turnEnd.error")
                   : null;
+        // fork:v5-wave-b —— 画板 M-02 的结束行：状态**在徽标里**（`<i check> stop`），
+        // 旁边一句人话，再往右是耗时 / token / 金额。与桌面「裸 stopReason 文案 +
+        // 单独一枚状态图标」是同一份数据、两种画法。
         return (
-          <div className="pw-turn-end" style={{ marginTop: "var(--space-row)" }}>
-            <span className={`pw-badge ${badgeClass}`}>
-              <span className="pw-ico"><i data-ico={icon} data-size="12"></i></span>
-              {stopReason}
+          <div className={isPwa ? "m-turn-end" : "d-turn-end"} style={{ marginTop: "var(--space-row)" }}>
+            {isPwa ? (
+              <span className={`m-badge ${stopReason === "error" ? "bad" : "ok"}`}>
+                <i data-ico={icon} data-size="12"></i>
+                {stopReason}
+              </span>
+            ) : (
+              <i data-ico={icon} data-size="13"></i>
+            )}
+            <span className={isPwa ? "m-grow" : "d-grow"}>
+              {isPwa ? (note ?? "") : stopReason}{!isPwa && note ? ` · ${note}` : ""}
             </span>
             {durationSec !== null && (
-              <>
-                <span
-                  className="pw-mono"
-                  title={turnStats && turnStats.steps > 1 && stepDurationSec !== null
-                    ? t("chat.turnEnd.durationHintTurnSteps", {
-                      turn: formatDuration(durationSec),
-                      step: formatDuration(stepDurationSec),
-                      steps: turnStats.steps,
-                    })
-                    : t("chat.turnEnd.durationHintTurn", { turn: formatDuration(durationSec) })}
-                >
-                  {formatDuration(durationSec)}
-                </span>
-                <span>·</span>
-              </>
+              <span
+                className={isPwa ? "m-t-xs m-mono" : "d-t-xs"}
+                title={turnStats && turnStats.steps > 1 && stepDurationSec !== null
+                  ? t("chat.turnEnd.durationHintTurnSteps", {
+                    turn: formatDuration(durationSec),
+                    step: formatDuration(stepDurationSec),
+                    steps: turnStats.steps,
+                  })
+                  : t("chat.turnEnd.durationHintTurn", { turn: formatDuration(durationSec) })}
+              >
+                {formatDuration(durationSec)}
+              </span>
             )}
             {usageText && rowUsage && (
-              <>
-                <span className="pw-mono" title={usageTitle(rowUsage, t)}>{usageText}</span>
-                <span>·</span>
-              </>
+              <span className={isPwa ? "m-t-xs m-mono" : "d-t-xs"} title={usageTitle(rowUsage, t)}>{usageText}</span>
             )}
-            {/* 金额只在真的有费用时出现（画板 12 的 `$0.021`）。`$0.000` 不画 ——
+            {/* 金额只在真的有费用时出现（画板 D-03c 的 `¥0.42`）。`$0.000` 不画 ——
                 用户裁定 2026-10-01「那就把这个金额去掉吧」：免费 / 不上报价格的模型
                 （单价为 0）常年显示一格 0 纯属噪声，还让人以为漏算了。 */}
-            {costText && (
-              <>
-                <span className="pw-mono">{costText}</span>
-                <span>·</span>
-              </>
-            )}
-            {note && <span className="pw-muted">{note}</span>}
-            <span className="rule"></span>
+            {costText && <span className={isPwa ? "m-t-xs m-mono" : "d-t-xs"}>{costText}</span>}
           </div>
         );
       })()}
 
-      {/* fork:design-components —— 助手消息的动作行同样换成画板 10 的 `.pw-msg-acts`：
-          复制按钮 = `.pw-btn sm` + `.pw-ico`（CopyStateIcon 保留形变）+ 文字；
-          时间戳用 `.pw-grow` 顶到行尾（与原 `margin-left:auto` 等价）。
-          fork:fix-clipboard —— 失败提示条挂在这一行**外面**（见 CopyFailedNotice）。 */}
-      <div className="pw-msg-acts">
+      {/* fork:v5-landing —— 助手消息的动作行 = 画板 D-03 A 的 `.d-msg-acts`：
+          复制钮是 `.d-iconbtn`（图标 + title），时间戳用 `.d-grow` 顶到行尾。
+          fork:fix-clipboard —— 失败提示条挂在这一行**外面**（见 CopyFailedNotice）。
+          fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-msg-acts` + `.m-iconbtn`（同名同义）。 */}
+      <div className={isPwa
+        ? `m-msg-acts${actionsFocused ? " is-on" : ""}`
+        : `d-msg-acts${actionsFocused ? " is-on" : ""}`}>
         {textContent && !isStreaming && (
           <button
             type="button"
             onClick={copyContent}
             title={failed ? t("chat.todosCopyFailed") : t("i18n.copyMessage")}
-            className={failed ? "pw-btn sm danger" : "pw-btn sm"}
+            className={isPwa ? "m-iconbtn" : (failed ? "d-iconbtn danger" : "d-iconbtn")}
           >
-            <span className="pw-ico">{CopyStateIcon({ copied })}</span>
-            {copied ? t("i18n.copied") : t("i18n.copy")}
+            <i data-ico={copied ? "check" : "copy"} data-size="13"></i>
           </button>
         )}
         {time && !isStreaming && (
-          <span className="pw-grow" />
+          <span className={isPwa ? "m-grow" : "d-grow"} />
         )}
         {time && !isStreaming && (
-          <span className="pw-dim">{time}</span>
+          <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{time}</span>
         )}
       </div>
       {failed && <CopyFailedNotice style={{ marginTop: "var(--s1)" }} />}
@@ -1197,16 +1295,9 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
   }, [expandedView, block.deferred, content, sessionId, entryId, blockIndex]);
 
   return (
-    <div style={{
-      display: "flex", alignItems: "flex-start", gap: "var(--space-row)", minWidth: 0,
-      border: "none",
-      borderRadius: "0",
-      padding: "var(--space-tight) 0",
-      background: "transparent",
-      fontFamily: "var(--font-mono)",
-      fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
-      lineHeight: 1.45,
-    }}>
+    /* fork:v5-landing —— 思考块 = 画板 D-03d 帧 A 的 `.d-think`：surface 底 + 圆角，
+       summary 行挂图标与预览，正文挂 `.d-think-body`，时长走 `.d-think-timer`。 */
+    <div className="d-think">
       <button
         type="button"
         aria-expanded={expandedView}
@@ -1219,27 +1310,29 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
         onPointerEnter={prefetch}
         onFocus={prefetch}
         style={{
-          display: "inline-flex",
+          display: "flex",
           alignItems: "center",
-          gap: "var(--space-row)",
-          width: expandedView ? 14 : "100%",
-          flexShrink: expandedView ? 0 : 1,
+          gap: "var(--nx-sp-2)",
+          width: "100%",
           minWidth: 0,
-          minHeight: "1.5em",
           padding: 0,
           background: "transparent",
           border: "none",
-          color: "var(--text-muted)",
+          color: "inherit",
           cursor: "pointer",
           font: "inherit",
           textAlign: "left",
         }}
       >
-        <ThinkingIcon active={expandedView} />
+        <ThinkingIcon active={expandedView} size={12} />
         {!expandedView && (
-          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {preview ? <ReactMarkdown allowedElements={[]} unwrapDisallowed skipHtml>{preview}</ReactMarkdown> : "..."}
           </span>
+        )}
+        {expandedView && <span className="d-grow" />}
+        {duration !== undefined && (
+          <span className="d-think-timer">{formatDuration(duration)}</span>
         )}
       </button>
       {/* fork:zm-01 — 常驻 grid wrapper；正文在收起过渡结束后卸载。展开时正文与
@@ -1248,28 +1341,23 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
         ref={collapseRef}
         className="fork-collapse"
         data-fork-collapse={expandedView ? "open" : "closed"}
-        style={{ flex: 1, minWidth: 0 }}
       >
         {bodyMounted && (
-          /* fork:design-components —— 思考正文 = 画板 10 的 `.pw-think`（推理体的
-             muted 底色与排版由 board.css 承担）；`.pw-muted` 保留在 class 里，
-             错误态仍按原样转 `--error`。时长在下面一行，已经挂 `.pw-dim`。 */
+          /* fork:v5-landing —— 思考正文 = 画板 D-03d 的 `.d-think-body`（muted 色阶与
+             排版由 system.css 的 `.d-think` 承担），错误态挂 `.d-err`。 */
           <div
-            className="fork-collapse-body pw-muted pw-think"
-            style={error ? { color: "var(--error)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" } : { whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+            className={`fork-collapse-body d-think-body${error ? " d-err" : ""}`}
+            style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
           >
             {loading ? (
-              <span style={{ display: "flex", flexDirection: "column", gap: "var(--space-row)", padding: "var(--space-tight) 0" }} aria-hidden="true">
-                <span className="skeleton-line" style={{ height: 10, width: "92%" }} />
-                <span className="skeleton-line" style={{ height: 10, width: "78%" }} />
+              <span className="d-skel-list" aria-hidden="true" style={{ padding: "var(--nx-sp-1) 0" }}>
+                <span className="d-skel" style={{ height: 10, width: "92%" }} />
+                <span className="d-skel" style={{ height: 10, width: "78%" }} />
               </span>
             ) : error ?? (block.deferred ? content : block.thinking)}
           </div>
         )}
       </div>
-      {duration !== undefined && (
-        <span className="pw-dim" style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
-      )}
     </div>
   );
 }
@@ -1339,52 +1427,42 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
   // fork:pr52-plan-tools —— 计划文档卡常驻在工具卡头下面（收起态也在）：计划落盘之后，
   // 那个路径必须一眼就能点开，而不是等人展开卡去找一行输出。失败的那次不画卡。
   const plan = !result?.isError && isPlanToolDetails(result?.details) ? result.details : null;
-  const showExpandedSurface = expanded || isError;
+  // fork:v5-wave-b —— 窄屏（画板 M-02 帧 B）：工具卡 = `.m-tool` + `.m-tool-head`，
+  // 输出在下面一块 `.m-code`（横滚）。桌面继续 D-03d 的 `.d-tool` / `.d-tool-head`。
+  const isPwa = usePwaSkin();
 
   return (
-    /* fork:design-components —— 工具卡直接用画板 11 的 .pw-card（展开/错误时上卡，
-       收起态保持时间轴行的透明形态，与画板「过程时间轴是收起形态」一致）。
-       fork:design-components —— 失败态**不再整卡描红**：画板 11 帧 B 只换两处
-       （卡头状态图标 + 输出区底色），卡体自己保持发丝边框 + 画布底。 */
-    <div
-      className={showExpandedSurface ? "pw-card" : undefined}
-      style={showExpandedSurface
-        ? { fontSize: TEXT.sm }
-        : { fontSize: TEXT.sm, border: "none", background: "transparent", borderRadius: "var(--radius-lg)", overflow: "visible" }}
-    >
+    /* fork:v5-landing —— 工具卡 = 画板 D-03d 帧 B 的 `.d-tool`：头 `.d-tool-head`
+       （chevron + 状态图标 + 名称 + grow 参数 + 徽章 / 耗时），体 `.d-tool-body`。
+       失败态只换两处（状态图标 + 输出底色），卡体保持发丝边框。
+       fork:v5-wave-b —— 窄屏换成 M-02 帧 B 的 `.m-tool` / `.m-tool-head`（同义，
+       头一样是「图标 + 名称 + grow 参数 + 徽章」），输出改走 `.m-code`。 */
+    <div className={isPwa ? "m-tool" : "d-tool"}>
       {/* ── Tool call header ── */}
       <div style={{ display: "flex", alignItems: "stretch", minWidth: 0 }}>
         <button
+          type="button"
           onClick={handleToggle}
-          className="pw-card-head"
+          className={isPwa ? "m-tool-head" : "d-tool-head"}
           style={{
-            // fork:board-diff-2026-10-01 —— 头行的几何（gap / padding / 圆角）全部
-            // 由 board.css 的 `.pw-card-head` 承担（gap var(--s2) / padding 7px var(--s3) / 无圆角），
-            // 这里只留交互态与「展开时多一行内容」要的内收。原先的 gap:7 / 7px 10px /
-            // borderRadius var(--radius-md) 是内联压过画板，`12-transcript-interactive`
-            // 的 spec 把它报成了漂移（radius 0→4 / padding 12→10 / gap 8→7）。
             display: "flex",
             alignItems: "center",
             flex: 1,
             minWidth: 0,
-            padding: expanded ? undefined : "5px 8px",
             background: "none",
             border: "none",
-            color: "var(--text-muted)",
+            color: "var(--nx-text-2)",
             cursor: "pointer",
-            fontSize: TEXT.sm,
+            font: "inherit",
             textAlign: "left",
           }}
-          onMouseEnter={(e) => {
-            if (!expanded) e.currentTarget.style.background = "var(--bg-hover)";
-          }}
-          onMouseLeave={(e) => {
-            if (!expanded) e.currentTarget.style.background = "none";
-          }}
         >
-          <span className="pw-ico" style={{ color: isError ? "var(--error)" : undefined, flexShrink: 0 }}>
-            <ToolCallIcon toolName={block.toolName} />
-          </span>
+          <i
+            data-ico="chevron-down"
+            data-size="13"
+            style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--nx-dur-1) var(--nx-ease)" }}
+          ></i>
+          <ToolCallIcon toolName={block.toolName} />
           {/* fork:mcp-tool-label —— MCP 工具按上游 0.10 的读法显示 `server/tool`：
               pi 注册的名字是 `mcp__<server>__<tool>`（还可能带哈希后缀），无法反解，
               真名只在结果的 details 里；没有结果时保留注册名（那也是 codemode 脚本调用的
@@ -1392,9 +1470,9 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
           {(() => {
             // 真名在**结果**的 details 里（`{server, tool}`），不在 toolCall 块上。
             const label = mcpToolLabel(block.toolName, result?.details);
-            if (!label) return <span className="pw-tool" style={{ flexShrink: 0 }}>{block.toolName}</span>;
+            if (!label) return <span className={isPwa ? "m-mono" : "d-mono d-t-sm"} style={{ flexShrink: 0 }}>{block.toolName}</span>;
             return (
-              <span className="pw-tool" style={{ flexShrink: 0 }} title={block.toolName}>
+              <span className={isPwa ? "m-mono" : "d-mono d-t-sm"} style={{ flexShrink: 0 }} title={block.toolName}>
                 <span style={{ opacity: 0.6 }}>{label.server}</span>
                 <span style={{ opacity: 0.6 }}>/</span>
                 {label.tool}
@@ -1402,51 +1480,44 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
             );
           })()}
           {subagent?.pendingSubagentCount ? (
-            /* PR-36 · 消息流里的收敛状态点：同会话还有子代理在跑时，人也能一眼看到。
-               复用画板已有的 .pw-badge/.pw-ico/.pw-anim-spin，不新造类名。 */
+            /* PR-36 · 消息流里的收敛状态点：同会话还有子代理在跑时，人也能一眼看到。 */
             <span
-              className="pw-badge accent count"
+              className={isPwa ? "m-badge" : "d-badge info"}
               title={t("subagent.pendingCount", { count: subagent.pendingSubagentCount })}
             >
-              <span className="pw-ico">
-                <i data-ico="loader-circle" data-size="11" className="pw-anim-spin" aria-hidden="true"></i>
-              </span>
+              <i data-ico="loader-circle" data-size="11" aria-hidden="true"></i>
               {t("subagent.pendingCount", { count: subagent.pendingSubagentCount })}
             </span>
           ) : null}
-          <span className="pw-path" style={{ flex: 1 }}>
+          <span className={isPwa ? "m-grow m-mono m-t-xs" : "d-grow d-mono d-t-xs"}>
             {isStreamingInput
               ? t("chat.generatingToolInput")
               : (patchLabel ?? (codemode ? codemodeScriptPreview(codemode.code) : getToolPreview(block)))}
           </span>
           {/* fork:codemode-view —— 脚本调了几次，一眼可见（omitted 也算进去）。 */}
           {codemodeCallCount > 0 && (
-            <span className="pw-dim" style={{ flexShrink: 0 }}>
+            <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"} style={{ flexShrink: 0 }}>
               {codemodeCallCount === 1
                 ? t("codemode.callCountOne")
                 : t("codemode.callCount", { count: codemodeCallCount })}
             </span>
           )}
           {duration !== undefined && (
-            <span className="pw-dim" style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
+            <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"} style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
           )}
-          <span className="pw-ico" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--motion-fast)" }}>
-            <i data-ico="chevron-down" data-size="11"></i>
-          </span>
         </button>
         {subagent && onOpenSession && (
-          /* fork:design-components —— 子代理「打开会话」钮 = 画板 11 卡头的 `.pw-iconbtn`
-             （24px 方钮 / radius-4 / hover 出容器）。子代理卡本体仍按 DIVERGENCE 登记
-             「呈现形态等价」，本轮不改（只多这一个跳转钮）。 */
+          /* fork:v5-landing —— 子代理「打开会话」钮 = 画板 D-03d 卡头的 `.d-iconbtn`。
+             fork:v5-wave-b —— 窄屏同名换成 M-02 的 `.m-iconbtn`。 */
           <button
             type="button"
-            className="pw-iconbtn"
+            className={isPwa ? "m-iconbtn" : "d-iconbtn"}
             onClick={() => onOpenSession(subagent.sessionId)}
             title={t("subagent.open")}
             aria-label={t("subagent.open")}
-            style={{ borderLeft: "1px solid var(--n-border-subtle)", alignSelf: "stretch" }}
+            style={{ alignSelf: "stretch" }}
           >
-            <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
+            <i data-ico="external-link" data-size="14"></i>
           </button>
         )}
       </div>
@@ -1477,23 +1548,46 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
       >
         {argsMounted && !isEditTool && !patchFiles && codemode && (
           <div className="fork-collapse-body">
-            <div className="pw-card-body">
-              <div className="pw-term" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                {codemode.code.replace(/\r/g, "").trimEnd()}
+            {isPwa ? (
+              /* fork:v5-wave-b —— M-02 帧 A：卡体里那块等宽文本就是 `.m-code`。 */
+              <div className="m-code">
+                <div className="m-code-scroll">
+                  <div className="m-code-body" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                    {codemode.code.replace(/\r/g, "").trimEnd()}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="d-tool-body">
+                <div className="d-term plain" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                  {codemode.code.replace(/\r/g, "").trimEnd()}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {argsMounted && !isEditTool && !patchFiles && !codemode && (
           <div className="fork-collapse-body">
-            {/* fork:design-components —— 工具入参 = 画板 11 的 `.pw-card-body` + `.pw-term`
-                （顶部发丝线 + 面板底 + 等宽 pre-wrap 全部由 board.css 承担）。
-                产品保留 `word-break: break-all`（入参是 JSON，长串不折行会溢出）。 */}
-            <div className="pw-card-body">
-              <div className="pw-term" style={{ wordBreak: "break-all", overflow: "auto" }}>
-                {inputStr}
+            {/* fork:v5-landing —— 工具入参 = 画板 D-03d 的 `.d-tool-body` + `.d-term.plain`
+                （顶部发丝线 + 面板底 + 等宽 pre-wrap 全部由 system.css 承担）。
+                产品保留 `word-break: break-all`（入参是 JSON，长串不折行会溢出）。
+                fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-code`（自带横滚，
+                长 JSON 不再把整条消息撑宽）。 */}
+            {isPwa ? (
+              <div className="m-code">
+                <div className="m-code-scroll">
+                  <div className="m-code-body" style={{ wordBreak: "break-all" }}>
+                    {inputStr}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="d-tool-body">
+                <div className="d-term plain" style={{ wordBreak: "break-all", overflow: "auto" }}>
+                  {inputStr}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1514,9 +1608,9 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
       >
         {resultMounted && (
           <div className="fork-collapse-body">
-            {/* ── Applied-patch split diff（画板 11：`.pw-card-body` 里直接放 diff 体） ── */}
+            {/* ── Applied-patch split diff（画板 D-03d：`.d-tool-body` 里直接放 diff 体） ── */}
             {patchFiles && (
-              <div className="pw-card-body">
+              <div className="d-tool-body">
                 <SplitFilesView files={patchFiles} />
               </div>
             )}
@@ -1553,13 +1647,25 @@ interface ResultDiff {
   text: string;
 }
 
-/* fork:design-components —— 工具结果里的 diff 外面挂画板 11 的 `.pw-card-body`
-   （顶部发丝线 + 面板底），里面的 diff 体由 SplitFilesView / PatchTextView 承担。 */
+/* fork:v5-landing —— 工具结果里的 diff 外面挂画板 D-03d 的 `.d-tool-body`
+   （顶部发丝线 + 面板底），里面的 diff 体由 SplitFilesView / PatchTextView 承担。
+   fork:v5-wave-b —— 窄屏外面那层换成 M-02 的 `.m-code`；并排 diff 体本身**不动**
+   （PWA 库里没有两栏 diff 的类，属设计侧缺件，见汇报）。 */
 function PairedDiffResult({ diff }: {
   diff: ResultDiff;
 }) {
+  const isPwa = usePwaSkin();
+  if (isPwa) {
+    return (
+      <div className="m-code">
+        <div className="m-code-scroll">
+          <SplitPatchView text={diff.text} />
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className="pw-card-body">
+    <div className="d-tool-body">
       <SplitPatchView text={diff.text} />
     </div>
   );
@@ -1571,9 +1677,8 @@ function SplitPatchView({ text }: { text: string }) {
   return <SplitFilesView files={files} />;
 }
 
-/* fork:design-components —— diff 换成画板 11 B「分栏视图」的三件套：
-   `.pw-diff-head`（文件头）/ `.pw-diff-body`（等宽正文）/ `.pw-diff-line(.add/.del)`
-   + 行内 `.no`（行号）/ `.sign`（±）。
+/* fork:v5-landing —— diff 用画板 D-03d 帧 C 的三件套：
+   `.d-diff-head`（文件头）/ `.d-diff`（等宽正文）/ `.d-diff-line(.add/.del)`。
    **词级高亮不动**：fork:zc-07 的 `buildIntralineSegments` + `--diff-*` 配色保持自有实现
    （DIVERGENCE 已登记等价）。左右两栏的行对结构（left/right cell）是产品语义，也保持不变。 */
 function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
@@ -1587,7 +1692,7 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
   })), [files]);
 
   return (
-    <div className="pw-diff-body" style={{ maxHeight: "var(--content-cap-lg)", overflowY: "auto", overflowX: "hidden" }}>
+    <div className="d-diff" style={{ maxHeight: "var(--content-cap-lg)", overflowY: "auto", overflowX: "hidden" }}>
       {files.map((file, fileIndex) => (
         <div
           key={fileIndex}
@@ -1595,7 +1700,7 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
         >
           {showFileHeaders && (
             <div
-              className="pw-diff-head"
+              className="d-diff-head"
               style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--surface-panel)" }}
             >
               <SplitDiffHeader title={file.oldPath || t("i18n.before")} side="left" />
@@ -1627,11 +1732,11 @@ function SplitFilesView({ files }: { files: SplitDiffFile[] }) {
 function SplitDiffHeader({ title, side }: { title: string; side: "left" | "right" }) {
   return (
     <span
-      className="pw-path"
+      className="d-grow"
       title={title}
       style={side === "left"
-        ? { flex: "1 1 0", borderRight: "1px solid var(--n-border-subtle)", paddingRight: "var(--s2)" }
-        : { flex: "1 1 0", paddingLeft: "var(--s2)" }}
+        ? { borderRight: "1px solid var(--n-border-subtle)", paddingRight: "var(--s2)" }
+        : { paddingLeft: "var(--s2)" }}
     >
       {title}
     </span>
@@ -1653,13 +1758,13 @@ function SplitDiffCellView({ cell, side, intraline }: {
 
   return (
     <div
-      className={`pw-diff-line${cell.type === "added" ? " add" : cell.type === "removed" ? " del" : ""}`}
+      className={`d-diff-line${cell.type === "added" ? " add" : cell.type === "removed" ? " del" : ""}`}
       style={side === "left" ? { borderRight: "1px solid var(--n-border-subtle)" } : undefined}
     >
       <span className="no">{cell.lineNo ?? ""}</span>
       <span className="sign">{cell.type === "added" ? "+" : cell.type === "removed" ? "−" : ""}</span>
       <span
-        className={cell.type === "empty" ? "pw-dim" : undefined}
+        className={cell.type === "empty" ? "d-t-faint" : undefined}
         style={{ flex: 1, minWidth: 0, paddingRight: "var(--s2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
       >
         {segments && hasVisibleSegments
@@ -1677,14 +1782,13 @@ function SplitDiffCellView({ cell, side, intraline }: {
   );
 }
 
-/* fork:design-components —— 未解析的统一 patch 文本（parseUnifiedPatch 失败时的兜底）
-   同样挂画板 11 的 `.pw-diff-body` + `.pw-diff-line(.add/.del)`，hunk 行走 `.pw-term`
-   的强调色（`--accent-text`）。行号列用 `.no`，± 走 `.sign`。 */
+/* fork:v5-landing —— 未解析的统一 patch 文本（parseUnifiedPatch 失败时的兜底）
+   同样挂画板 D-03d 的 `.d-diff` + `.d-diff-line(.add/.del)`，hunk 行走 `.d-t-faint`。 */
 function PatchTextView({ text }: { text: string }) {
   const lines = text.split(/\r?\n/);
 
   return (
-    <div className="pw-diff-body" style={{ maxHeight: 520, overflowY: "auto", overflowX: "hidden", minWidth: 0 }}>
+    <div className="d-diff" style={{ maxHeight: 520, overflowY: "auto", overflowX: "hidden", minWidth: 0 }}>
       {lines.map((line, i) => {
         const kind =
           line.startsWith("@@") ? "hunk" :
@@ -1695,12 +1799,12 @@ function PatchTextView({ text }: { text: string }) {
         return (
           <div
             key={i}
-            className={`pw-diff-line${kind === "added" ? " add" : kind === "removed" ? " del" : ""}`}
+            className={`d-diff-line${kind === "added" ? " add" : kind === "removed" ? " del" : ""}`}
           >
             <span className="no">{i + 1}</span>
             <span className="sign" />
             <span
-              className={kind === "hunk" ? "pw-muted" : undefined}
+              className={kind === "hunk" ? "d-t-faint" : undefined}
               style={{ flex: 1, minWidth: 0, paddingRight: "var(--s2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
             >
               {line || " "}
@@ -1760,22 +1864,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/* fork:design-components —— 内容块按画板 12「非文本内容块」给形状：
-   - 图片 → `.pw-img`（1px 发丝框 / radius-6 / overflow hidden / max-width 420），
-     真实图片取代画板的斜纹占位（DIVERGENCE §B 8 已登记）；点图仍由 ImagePreview 放大。
-   - 工具输出（paired result）→ 画板 11 的 `.pw-card-body` + `.pw-term`：
-     成功走面板底、失败走 `.pw-term .err`（画板 11 B 的失败态写法）。 */
+/* fork:v5-landing —— 内容块按画板 D-03b 帧 B「非文本内容块」给形状：
+   - 图片 → `.d-placeholder`（内嵌预览帧），真实图片取代画板的斜纹占位；
+     点图仍由 ImagePreview 放大。
+   - 工具输出（paired result）→ 画板 D-03d 的 `.d-tool-body` + `.d-term.plain`：
+     成功走面板底、失败走 `.d-err`（画板帧 B 的失败态写法）。 */
 function ResultImages({ images }: { images: ImageContent[] }) {
+  const isPwa = usePwaSkin();
+  // fork:v5-wave-b —— 图集里那一块只换占位框（`.m-placeholder`，画板 M-07）；
+  // 外层「卡体」PWA 库没有对应类（m-tool 只有 head + 代码体），缺件已登记。
   return (
     <div
-      className="pw-card-body"
-      style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", padding: "var(--s3)" }}
+      className="d-tool-body"
+      style={{ display: "flex", gap: "var(--nx-sp-2)", flexWrap: "wrap" }}
     >
       {images.map((image, index) => {
         const src = imageSource(image);
         if (!src) return null;
         return (
-          <div className="pw-img" key={`${src}-${index}`}>
+          <div className={isPwa ? "m-placeholder" : "d-placeholder"} key={`${src}-${index}`} style={{ padding: 0, display: "block" }}>
             <ImagePreview
               src={src}
               style={{ maxWidth: "100%" }}
@@ -1806,16 +1913,32 @@ function PairedResult({ text, isEmpty, isError }: {
   isError: boolean;
 }) {
   const { t } = useI18n();
+  // fork:v5-wave-b —— 窄屏：M-02 帧 B 的工具输出 = `.m-code`（头 + 横滚体），
+  // 失败档按画板 M-02 帧 C 只给正文上 `.m-err`，不给整卡着色。
+  const isPwa = usePwaSkin();
+  if (isPwa) {
+    return (
+      /* M-02 帧 A 里那块 bash 输出就是不带头的 `.m-code`：标题行在 `.m-tool-head`
+         上（永远可见），输出在下面横滚。 */
+      <div className="m-code">
+        <div className="m-code-scroll">
+          <div className="m-code-body">
+            {isError ? <span className="m-err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
-    /* fork:design-components —— 失败**只**由两处表达：卡头状态图标转 error，
-       输出区底色转 `error.soft`（画板 11 工具卡帧 B：「不给整卡着色」——
+    /* fork:v5-landing —— 失败**只**由两处表达：卡头状态图标转 error，
+       输出文字转 `.d-err`（画板 D-03d 帧 B：「不给整卡着色」——
        卡边框仍是发丝线、不加左侧彩条、不加整卡描红）。 */
-    <div className="pw-card-body" style={isError ? { background: "var(--error-soft)" } : undefined}>
+    <div className="d-tool-body">
       <div
-        className="pw-term"
-        style={{ maxHeight: "var(--content-cap-md)", overflow: "auto", color: isEmpty ? "var(--n-placeholder)" : undefined }}
+        className={isEmpty ? "d-term plain d-t-faint" : "d-term plain"}
+        style={{ maxHeight: "var(--content-cap-md)", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
       >
-        {isError ? <span className="err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
+        {isError ? <span className="d-err">{isEmpty ? t("i18n.noOutput") : text}</span> : (isEmpty ? t("i18n.noOutput") : text)}
       </div>
     </div>
   );
@@ -1836,26 +1959,27 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
 
   return (
     <div style={{ marginBottom: "var(--s4)" }}>
-      {/* fork:design-components —— 压缩卡直接用画板 12 的 .pw-compact（发丝边框 / 面板底）。 */}
-      <div className="pw-compact" style={{ flexDirection: "column", alignItems: "stretch", padding: 0, overflow: "hidden" }}>
-        {/* fork:design-components —— 卡头用画板 11 的 `.pw-card-head`（flex / gap / 字号 /
-            padding 全部由 board.css 承担），展开区用 `.pw-card-body`（顶部发丝线 + 面板底）。
-            `.pw-compact` 外壳与折叠行为不变。 */}
+      {/* fork:v5-landing —— 压缩卡用画板 D-03c 的 `.d-card`（发丝边框 / 面板底）。 */}
+      <div className="d-card" style={{ overflow: "hidden" }}>
+        {/* fork:v5-landing —— 卡头用 `.d-card-head`，展开区用 `.d-card-body`。 */}
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
           aria-expanded={expanded}
-          className="pw-card-head"
+          className="d-card-head"
+          style={{ width: "100%", border: 0, background: "none", font: "inherit", textAlign: "left", cursor: "pointer" }}
         >
-          <span className="pw-ico" style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--motion-fast)" }}>
-            <i data-ico="chevron-right" data-size="13"></i>
-          </span>
-          <span className="pw-tool">compaction</span>
+          <i
+            data-ico="chevron-right"
+            data-size="13"
+            style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--nx-dur-1) var(--nx-ease)" }}
+          ></i>
+          <span className="d-mono">compaction</span>
           <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t("i18n.conversationCompacted")}
           </span>
-          <span className="grow" />
-          {time && <span className="pw-dim">{time}</span>}
+          <span className="d-grow" />
+          {time && <span className="d-t-faint">{time}</span>}
         </button>
 
         {/* fork:zm-01 — 常驻 grid wrapper（0fr↔1fr）；正文在收起过渡结束后卸载。 */}
@@ -1866,8 +1990,8 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
         >
           {bodyMounted && (
             <div className="fork-collapse-body">
-              <div className="pw-card-body" style={{ maxHeight: 280, overflowY: "auto", padding: "var(--s3) var(--s4)" }}>
-                <div className="pw-strong" style={{ fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", fontWeight: 500, lineHeight: 1.35 }}>
+              <div className="d-card-body" style={{ maxHeight: 280, overflowY: "auto" }}>
+                <div className="d-t-b" style={{ fontSize: "calc(15px + var(--chat-font-size-offset, 0px))", lineHeight: 1.35 }}>
                    {t("i18n.conversationCompacted")}
                 </div>
                 <div style={{ marginBottom: "var(--s2)", fontSize: "calc(13px + var(--chat-font-size-offset, 0px))", lineHeight: 1.5 }}>
@@ -1876,7 +2000,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
                 {parsedSummary.body ? (
                   <MarkdownBody className="markdown-compaction-message">{parsedSummary.body}</MarkdownBody>
                 ) : (
-                   <span className="pw-dim">{t("i18n.noSummary")}</span>
+                   <span className="d-t-faint">{t("i18n.noSummary")}</span>
                 )}
                 <CompactionFileMetadata readFiles={parsedSummary.readFiles} modifiedFiles={parsedSummary.modifiedFiles} />
               </div>
@@ -1907,9 +2031,9 @@ function CompactionFileMetadata({ readFiles, modifiedFiles }: { readFiles: strin
 }
 
 /**
- * fork:design-components —— 文件/资源卡 = 画板 12 的 `.pw-filecard`（发丝框 / radius-6 /
- * 名称 `.pw-fname` + 右侧 `.pw-meta`）。产品没有 mime/大小可用，右槽放文件后缀
- * （`.pw-meta` 本来就是等宽小字）；点开动作仍不在这里（压缩卡是只读摘要）。
+ * fork:v5-landing —— 文件/资源行 = 画板 D-03 帧 C 的 `.d-row.d-mono.d-t-xs`：
+ * 图标 + 全路径（`.d-grow`）+ 右侧后缀（`.d-t-xs.d-t-faint`）。
+ * 点开动作仍不在这里（压缩卡是只读摘要）。
  */
 function fileExtension(file: string): string {
   const name = file.slice(file.lastIndexOf("/") + 1);
@@ -1921,12 +2045,12 @@ function CompactionFileList({ title, files }: { title: string; files: string[] }
   return (
     <div className="compaction-file-section">
       <div className="compaction-file-title">{title}</div>
-      <ul className="pw-list" style={{ maxHeight: 180, overflow: "auto" }}>
+      <ul className="d-col" style={{ maxHeight: 180, overflow: "auto", listStyle: "none", margin: 0, padding: 0, gap: "var(--nx-sp-1)" }}>
         {files.map((file) => (
-          <li key={file} className="pw-filecard">
-            <span className="pw-ico"><i data-ico="file" data-size="14" aria-hidden="true"></i></span>
-            <span className="pw-fname">{file}</span>
-            {fileExtension(file) && <span className="pw-meta">{fileExtension(file)}</span>}
+          <li key={file} className="d-row d-mono d-t-xs">
+            <i data-ico="file" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{file}</span>
+            {fileExtension(file) && <span className="d-t-xs d-t-faint">{fileExtension(file)}</span>}
           </li>
         ))}
       </ul>
@@ -1958,18 +2082,17 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
   const copyContent = () => copy(text || detailsText);
 
   return (
-    /* fork:design-components —— 扩展自定义消息卡换成画板 11 的通用卡三段：
-       `.pw-card`（发丝框 / radius-6 / overflow hidden）+ `.pw-card-head` +
-       `.pw-card-body`（正文与图片）+ `.pw-card-foot`（复制 / 展开）。
-       隐藏消息的「点标题看内容」预览行 = 画板 12 C 压缩卡的「看摘要」按钮形态
-       （`.pw-btn sm` + `chevron-down`）。details JSON 走 `.pw-card-body` + `.pw-term`。 */
+    /* fork:v5-landing —— 扩展自定义消息卡 = 画板 D-03c 的通用卡三段：
+       `.d-card` + `.d-card-head` + `.d-card-body`（正文与图片）+ 底部操作行。
+       隐藏消息的「点标题看内容」预览行 = 画板 D-03b C 的 `.d-btn.sm` + chevron。
+       details JSON 走 `.d-card-body` + `.d-term.plain`。 */
     <div style={{ marginBottom: "var(--s4)" }}>
-      <div className="pw-card">
-        <div className="pw-card-head">
-          <span className="pw-mono">{title}</span>
-          {isHiddenDisplay && <span className="pw-dim">{t("i18n.hiddenExtensionMessage")}</span>}
-          <span className="grow" />
-          {time && <span className="pw-dim">{time}</span>}
+      <div className="d-card">
+        <div className="d-card-head">
+          <span className="d-mono">{title}</span>
+          {isHiddenDisplay && <span className="d-t-faint">{t("i18n.hiddenExtensionMessage")}</span>}
+          <span className="d-grow" />
+          {time && <span className="d-t-faint">{time}</span>}
         </div>
 
         {/* fork:zm-01 — 正文区的常驻 grid；折叠态由下面的预览按钮承担，正文在收起
@@ -1981,14 +2104,14 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
         >
           {contentMounted && (
             <div className="fork-collapse-body">
-              <div className="pw-card-body" style={{ padding: "var(--s2) var(--s3)" }}>
+              <div className="d-card-body">
                 {images.length > 0 && (
-                  <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginBottom: text ? "var(--s2)" : 0 }}>
+                  <div style={{ display: "flex", gap: "var(--nx-sp-2)", flexWrap: "wrap", marginBottom: text ? "var(--nx-sp-2)" : 0 }}>
                     {images.map((img, i) => {
                       const src = imageSource(img);
                       if (!src) return null;
                       return (
-                        <div className="pw-img" key={i}>
+                        <div className="d-placeholder" key={i} style={{ padding: 0, display: "block" }}>
                           <ImagePreview src={src}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -2004,36 +2127,35 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
                 )}
                 {text
                   ? <MarkdownBody className="markdown-custom-message" cwd={cwd} onOpenFile={onOpenFile}>{text}</MarkdownBody>
-                  : <span className="pw-dim">{t("i18n.noMessage")}</span>}
+                  : <span className="d-t-faint">{t("i18n.noMessage")}</span>}
               </div>
             </div>
           )}
         </div>
         {!contentExpanded && !contentMounted && (
-          <div className="pw-card-body">
-            <button type="button" onClick={() => setContentExpanded(true)} className="pw-btn sm">
-              <span className="pw-ico"><i data-ico="chevron-down" data-size="13"></i></span>
+          <div className="d-card-body">
+            <button type="button" onClick={() => setContentExpanded(true)} className="d-btn sm">
+              <i data-ico="chevron-down" data-size="13"></i>
               {text ? previewText(text) : t("i18n.showExtensionMessage")}
             </button>
           </div>
         )}
 
-        <div className="pw-card-foot">
+        <div className="d-card-body" style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
           {text || detailsText ? (
-            /* fork:fix-clipboard —— 失败档：按钮挂 `.pw-btn.sm.danger`，文案由下面
-               那条 role=status 提示条承担（卡脚是常驻的，不像 `.pw-msg-acts`
-               那样 hover 才显形，所以失败提示直接接在脚下面这一段里）。 */
+            /* fork:fix-clipboard —— 失败档：按钮挂 `.d-btn.sm.danger`，文案由下面
+               那条 role=status 提示条承担。 */
             <button
               type="button"
               onClick={copyContent}
               title={failed ? t("chat.todosCopyFailed") : undefined}
-              className={failed ? "pw-btn sm danger" : "pw-btn sm"}
+              className={failed ? "d-btn sm danger" : "d-btn sm"}
             >
-              <span className="pw-ico">{CopyStateIcon({ copied })}</span>
+              <i data-ico={copied ? "check" : "copy"} data-size="13"></i>
               {copied ? t("i18n.copied") : t("i18n.copy")}
             </button>
           ) : null}
-          <span className="grow" />
+          <span className="d-grow" />
           {(hasDetails || isHiddenDisplay) && (
             <button
               type="button"
@@ -2041,7 +2163,7 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
                 if (isHiddenDisplay) setContentExpanded((v) => !v);
                 else setDetailsExpanded((v) => !v);
               }}
-              className="pw-btn sm"
+              className="d-btn sm"
             >
               {isHiddenDisplay
                  ? (contentExpanded ? t("i18n.collapse") : t("i18n.expand"))
@@ -2050,10 +2172,9 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
           )}
         </div>
 
-        {/* fork:fix-clipboard —— 复制失败的提示条：挂在卡脚正下方的一段 `.pw-card-body`
-            （本卡正文区已经这么分段，padding 也取同一档），失败时多出一行。 */}
+        {/* fork:fix-clipboard —— 复制失败的提示条：挂在卡脚正下方的一段 `.d-card-body`。 */}
         {failed && (
-          <div className="pw-card-body" style={{ padding: "var(--s2) var(--s3)" }}>
+          <div className="d-card-body">
             <CopyFailedNotice />
           </div>
         )}
@@ -2066,8 +2187,8 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
         >
           {detailsMounted && (
             <div className="fork-collapse-body">
-              <div className="pw-card-body">
-                <div className="pw-term" style={{ maxHeight: 360, overflow: "auto" }}>
+              <div className="d-card-body">
+                <div className="d-term plain" style={{ maxHeight: 360, overflow: "auto" }}>
                   {detailsText}
                 </div>
               </div>
@@ -2242,6 +2363,7 @@ export function formatDuration(seconds: number): string {
 }
 
 function BashExecutionView({ message, sessionId }: { message: BashExecutionMessage; sessionId?: string }) {
+  const isPwa = usePwaSkin();
   const [fullOutput, setFullOutput] = useState<string | null>(null);
   const [loadingFull, setLoadingFull] = useState(false);
   const [fullError, setFullError] = useState<string | null>(null);
@@ -2297,24 +2419,25 @@ function BashExecutionView({ message, sessionId }: { message: BashExecutionMessa
   return (
     <div style={{ margin: "var(--space-row) 0" }}>
       <ToolCallBlock block={block} result={result} />
-      {/* fork:design-components —— 截断提示行用画板的 `.pw-btn sm`（复制 / 下载这类
-          小动作的统一形态）+ `.pw-dim` 报错文案。i18n 文案与行为照旧。 */}
+      {/* fork:v5-landing —— 截断提示行用画板的 `.d-btn.sm`（复制 / 下载这类
+          小动作的统一形态）+ `.d-t-faint` 报错文案。i18n 文案与行为照旧。
+          fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-btn sm` + `.m-t-xs.m-t-faint`。 */}
       {message.truncated && fullOutputUrl && (
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
           {showFullButton && (
             <button
               type="button"
               onClick={loadFullOutput}
               disabled={loadingFull}
-              className="pw-btn sm"
+              className={isPwa ? "m-btn sm" : "d-btn sm"}
             >
               {loadingFull ? "loading…" : "view full output"}
             </button>
           )}
-          <a href={`${fullOutputUrl}&download=1`} className="pw-btn sm">
+          <a href={`${fullOutputUrl}&download=1`} className={isPwa ? "m-btn sm" : "d-btn sm"}>
             download full output
           </a>
-          {fullError && <span className="pw-dim">({fullError})</span>}
+          {fullError && <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-faint"}>({fullError})</span>}
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { useTheme } from "@/hooks/useTheme";
 import { THEME_OPTIONS } from "@/lib/theme";
@@ -68,6 +69,14 @@ import { ProjectArchivePanel } from "./ProjectArchivePanel";
 import { ImportPanel } from "./ImportPanel";
 import { useBorderDepth } from "@/hooks/useBorderDepth";
 import { useUiDensity } from "@/hooks/useUiDensity";
+// fork:v5-landing Wave B · M-05 —— 手机端设置的两层导航：hub 卡片表（分组、副行、
+// 「需项目」徽章）。窄屏才渲染，桌面那条左导航一个字不动。
+import {
+  SETTINGS_HUB_GROUPS,
+  settingsHubHeroCopy,
+  settingsHubNeedsProjectCopy,
+  settingsHubSectionHint,
+} from "./pwa/settingsHub";
 // fork:zn-15 — 外观页的四项（Zeno appearance）。
 import { useRailTranslucent } from "@/hooks/useRailTranslucent";
 import { useNotificationPrefs } from "@/hooks/useNotificationPrefs";
@@ -129,6 +138,9 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   usage: "chart-column",
   archived: "archive",
   import: "import",
+  // fork:phone-push —— 原来这一节没有图标映射，左导航博回 `settings`（齿轮）：
+  // 「手机与推送」挂齿轮既读不出意思，也和 V5 画板（smartphone）对不上。
+  phonePush: "smartphone",
 };
 
 /** fork:design-system SW-07 — 画板 40「主题」三档的芯片图标（sun / moon / monitor）。
@@ -164,6 +176,16 @@ const CHAT_WIDTH_ALREADY_DEFAULT: LocalCopy = {
 export function SettingsSectionIcon({ section, size = 16 }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
   return <i data-ico={SECTION_ICON_BY_ID[section] ?? "settings"} data-size={size} aria-hidden="true" />;
 }
+
+/** fork:v5-landing Wave B · M-05 —— 窄屏分节二级页左上角那枚返回箭头的无障碍名。
+ *  语言包里没有单独的「返回」键（`settings.backToWorkspace` 已被 2026-10-03 裁定删掉用法），
+ *  复述按钮自己的名字比留一个 `aria-label=""` 好。与 `pwa/settingsHub.ts` 同一口径：
+ *  这一轮不允许改 `lib/i18n/messages/**`。 */
+const PHONE_BACK_LABEL: LocalCopy = {
+  en: "Back to settings",
+  "zh-CN": "返回设置",
+  "zh-TW": "返回設定",
+};
 
 /**
  * D2-PR-22：会话自动命名设置（开关 + 命名模型）。
@@ -286,10 +308,10 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
       {/* fork:disabled-reasons —— 一句话讲清「为什么下拉里只有『使用会话模型』」。
           文案与 AgentsConfig 的空模型列表提示同源。 */}
       {titleModelList.state === "empty" && (
-        <p className="pw-hint">{localCopy(NO_MODEL_PROVIDERS_HINT, locale)}</p>
+        <p className="d-t-xs d-t-faint">{localCopy(NO_MODEL_PROVIDERS_HINT, locale)}</p>
       )}
       {titleModelList.state === "error" && (
-        <p className="pw-hint">
+        <p className="d-t-xs d-t-faint">
           {localCopy(TITLE_MODEL_LIST_FAILED, locale, { error: titleModelList.error })}
         </p>
       )}
@@ -454,7 +476,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
 
   return (
     <>
-      <SettingsPage title={t("settings.general")} sub={t("settings.generalSub")}>
         {/* fork:settings-frame（画板 62 帧 C，用户拍板）—— 常规页 = 两栏块流，每栏 570，
             字段行「标签—控件」跨度从 1160 收到 570。块的排列：
               左 = 外观 → 主题皮肤 →（2026-10-03 用户裁定）默认外观壁纸 → 侧栏 → 界面字体
@@ -462,7 +483,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
                     壁纸，紧挨着才看得见「谁在管」）
               右 = 聊天 → 通知 →（产品实有、画板 40 续帧的两块）Shell 工具（仅 Windows）
                     → 后台推送 */}
-        <div className="pw-grid2">
+        <div className="d-set-inner">
           <div>
       {/* fork:design-system SW-07 —— 画板 40 第一块「外观」：主题是 `.pw-radio` 三档
           （图标 sun / moon / monitor 与画板同源），边框深度是 `.pw-ctl`（滑块 +
@@ -501,7 +522,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               />
               <button
                 type="button"
-                className="pw-btn sm"
+                className="d-btn sm"
                 title={t("settings.borderDepthTheme")}
                 onClick={() => setBorderDepth(50)}
               >
@@ -711,10 +732,10 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           hint={t("settings.stepExpandHint")}
           control={
             <PwCtl>
-              <span className="pw-radio">
+              <div className="d-cats">
                 {([
                   ["reasoning", "settings.stepExpandReasoning", "brain"],
-                  ["command", "settings.stepExpandCommand", "terminal"],
+                  ["command", "settings.stepExpandCommand", "square-terminal"],
                   ["tool", "settings.stepExpandTool", "wrench"],
                 ] as const).map(([category, labelKey, icon]) => {
                   const on = stepExpansion[category];
@@ -723,15 +744,15 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
                       key={category}
                       type="button"
                       aria-pressed={on}
-                      className={on ? "is-on" : undefined}
+                      className={`d-cat${on ? " is-on" : ""}`}
                       onClick={() => setStepExpansion(setStepCategoryExpanded(category, !on))}
                     >
-                      <span className="pw-ico"><i data-ico={icon} data-size="12" aria-hidden="true" /></span>
+                      <i data-ico={icon} data-size="12" aria-hidden="true" />
                       {t(labelKey)}
                     </button>
                   );
                 })}
-              </span>
+              </div>
             </PwCtl>
           }
         />
@@ -752,7 +773,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               />
               <button
                 type="button"
-                className="pw-btn sm"
+                className="d-btn sm"
                 /* fork:disabled-reasons —— title 原来写的是功能名（不可点时等于
                    什么都没说）。不可点时改成写清「为什么」：已经是默认值。 */
                 title={chatWidthAtDefault ? localCopy(CHAT_WIDTH_ALREADY_DEFAULT, locale) : t("settings.resetChatContentWidth")}
@@ -883,7 +904,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             <PwCtl>
               <button
                 type="button"
-                className="pw-btn outline sm"
+                className="d-btn sm"
                 disabled={!notificationPrefs.enabled}
                 title={notificationPrefs.enabled ? undefined : localCopy(NOTIFY_TEST_NEEDS_MASTER, locale)}
                 onClick={() => void sendTestNotification()}
@@ -892,7 +913,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               </button>
               <button
                 type="button"
-                className="pw-btn sm"
+                className="d-btn sm"
                 onClick={() => void openSystemNotificationSettings()}
               >
                 {t("settings.notifyOpenSystem")}
@@ -901,9 +922,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }
         />
         {notificationNote ? (
-          <div role="status" className="pw-alert info">
-            <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
-            <span className="pw-grow">{notificationNote}</span>
+          <div role="status" className="d-banner info">
+            <i data-ico="info" data-size="14" aria-hidden="true" />
+            <span className="d-grow">{notificationNote}</span>
           </div>
         ) : null}
       </PwBlock>
@@ -923,9 +944,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             }
           />
           {shellError ? (
-            <div role="alert" className="pw-alert">
-              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-              <span className="pw-grow">{shellError}</span>
+            <div role="alert" className="d-banner err">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+              <span className="d-grow">{shellError}</span>
             </div>
           ) : null}
         </PwBlock>
@@ -938,7 +959,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           control={
             <button
               type="button"
-              className="pw-btn outline sm"
+              className="d-btn sm"
               disabled={pushRegistering}
               onClick={() => void registerPush()}
             >
@@ -947,9 +968,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }
         />
         {pushStatus ? (
-          <div role="status" className={pushStatus.kind === "ok" ? "pw-alert info" : "pw-alert"}>
-            <span className="pw-ico"><i data-ico={pushStatus.kind === "ok" ? "info" : "triangle-alert"} data-size="14" aria-hidden="true" /></span>
-            <span className="pw-grow">{pushStatus.message}</span>
+          <div role="status" className={pushStatus.kind === "ok" ? "d-banner info" : "d-banner err"}>
+            <i data-ico={pushStatus.kind === "ok" ? "info" : "triangle-alert"} data-size="14" aria-hidden="true" />
+            <span className="d-grow">{pushStatus.message}</span>
           </div>
         ) : null}
       </PwBlock>
@@ -994,13 +1015,12 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           }}
         />
       ) : null}
-      </SettingsPage>
     </>
   );
 }
 // fork:zc-15 — the section keyword table moved into `lib/settings-navigation.ts`
 export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, onClose, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, onOpenSession, sidebarWidth, onSidebarWidthChange, soundEnabled, onSoundToggle }: Props) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const [mountedSections, setMountedSections] = useState<ReadonlySet<SettingsSection>>(
     () => new Set([section]),
@@ -1039,22 +1059,43 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
     setLastSettingsSection(nextSection);
   };
 
+  /* fork:v5-landing Wave B · M-05 —— 手机端设置是**两层**：hub（按「什么时候来改它」
+   * 分组的卡片）→ 分节二级页。桌面上那一层就是左导航列，所以桌面不需要第二份状态；
+   * 窄屏进入设置先落在 hub（对应 M-05 帧 A），点一行才进二级页（帧 B / C）。
+   * 惰挂载 / 常驻 / `hidden` 切换这套机制两端完全一样，只多了一个「当前看 hub 还是
+   * 看某一节」的指针。 */
+  const isMobile = useIsMobile();
+  const [phoneSection, setPhoneSection] = useState<SettingsSection | null>(null);
+
+  const openPhoneSection = (nextSection: SettingsSection) => {
+    setPhoneSection(nextSection);
+    activateSection(nextSection);
+  };
+
+  const backToPhoneHub = () => setPhoneSection(null);
+
+  /** 当前**可见**的分节：桌面永远是 `section`；手机在 hub 上时是 `null`。 */
+  const activeSection: SettingsSection | null = isMobile ? phoneSection : section;
+
   const sectionHost = (id: SettingsSection, content: ReactNode) => mountedSections.has(id) ? (
     <div
       key={id}
       /* fork:settings-modal-layout —— 分节 id 也落在内容宿主上：弹窗形态下有些分节的
          内列布局要按可用宽度降档（常规页的两栏块流），CSS 得有稳定的钩子，
-         不能按 `.pw-grid2` 一把梭（用量页的统计卡两栏是好的）。 */
+         不能按 `.d-grid2` 一把梭（用量页的统计卡两栏是好的）。 */
       data-section={id}
-      hidden={section !== id}
-      /* fork:design-system SW-07 — 每个分节的内容栏就是画板 40 的 `.pw-sbody`
-         （页边距 24/40/32、`> h2` / `> p.sub` 的页头规格全在 board.css）。
+      hidden={activeSection !== id}
+      /* fork:design-system SW-07 —— 桌面：分节内容栏就是画板 D-07 的 `.d-set-main`。
          fork:motion-2026-10-01 —— 分节是懒挂载 + 常驻（切走只加 hidden），所以给
          **当前分节**挂 `fork-turn-enter`：分节刚被激活时重放一次整块替换
-         （200ms + 8px）。此前切换分节是 `getAnimations() === []` 的硬切。 */
-      className={`settings-section-host pw-sbody${section === id ? " fork-turn-enter" : ""}`}
+         （200ms + 8px）。此前切换分节是 `getAnimations() === []` 的硬切。
+         fork:v5-landing Wave B —— 窄屏（M-05）：宿主保持无 display 的块（`hidden`
+         才有效），真正的设置流是里层那个 `.m-settings`（灰底白卡 + 108px 顶栏让位）。
+         `[hidden]` 的 UA 规则是作者层 `display` 的下位，所以外层绝不能挂任何
+         带 `display` 的类 —— 这是本行两套类名分开写的硬理由。 */
+      className={`settings-section-host${section === id ? " fork-turn-enter" : ""}`}
     >
-      {content}
+      {isMobile ? <div className="m-settings">{content}</div> : <div className="d-set-main">{content}</div>}
     </div>
   ) : null;
 
@@ -1083,11 +1124,54 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
           页头在宽屏是 `display:none`（画板 40/45 没有页头，返回入口在左导航底部），
           原来关闭钮就藏在它里面，弹窗化后那样会没有可见的关闭口。 */}
       <div className="settings-dialog-surface anim-dialog">
-        <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close pw-iconbtn">
-          <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+        {/* fork:v5-landing Wave B · M-05 —— 窄屏顶栏（帧 B / 帧 C 的 `.m-top`）：
+            hub 上只有标题 + 关闭；进了分节二级页，左上角**永远**是返回箭头
+            （手机横向空间不够摆导航树，一次返回直接回 hub，不做迷宫）。
+            `.m-top` 是 `position:absolute`，定位祖先就是 `.settings-dialog-surface`
+            （app/settings.css 给它写了 `position: relative`），内容流靠
+            `.m-settings` 的 108px 顶部内缩让它出来。 */}
+        {isMobile ? (
+          <>
+            <div className="m-fade" aria-hidden="true" />
+            <div className="m-top">
+              {phoneSection ? (
+                <button
+                  type="button"
+                  className="m-top-btn"
+                  onClick={backToPhoneHub}
+                  title={localCopy(PHONE_BACK_LABEL, locale)}
+                  aria-label={localCopy(PHONE_BACK_LABEL, locale)}
+                >
+                  <i data-ico="chevron-left" data-size="16" aria-hidden="true" />
+                </button>
+              ) : null}
+              <span className="m-top-title m-grow">
+                {phoneSection
+                  ? (sections.find((item) => item.id === phoneSection)?.label ?? t("settings.title"))
+                  : t("settings.title")}
+              </span>
+              <button
+                type="button"
+                className="m-top-btn"
+                onClick={onClose}
+                title={t("i18n.close")}
+                aria-label={t("i18n.close")}
+              >
+                <i data-ico="x" data-size="16" aria-hidden="true" />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+        <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close d-iconbtn">
+          <i data-ico="x" data-size="14" aria-hidden="true"></i>
         </button>
-        <div className="settings-dialog-header pw-modal-head">
+        <div className="settings-dialog-header d-modal-head">
           <strong className="settings-dialog-title">{t("settings.title")}</strong>
+          {/* fork:v5-landing Wave B —— 窄屏不再用这个下拉（那是本轮之前唯一的窄屏分节
+              入口）：M-05 的两层导航取代了它，但 `settings-mobile-section-picker` 类与
+              `app/settings.css` / `app/pwa-settings.css` 里的规则按纪律保留，
+              收尾波再清。 */}
           <select
             aria-label={t("settings.title")}
             value={section}
@@ -1101,19 +1185,23 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
             ))}
           </select>
 
-          <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close-mobile pw-iconbtn">
-            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+          <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close-mobile d-iconbtn">
+            <i data-ico="x" data-size="14" aria-hidden="true"></i>
           </button>
         </div>
+          </>
+        )}
 
         {/* fork:ui-08 — sections are a left column now (upstream 0.14.6 uses
             `grid-template-columns: 184px minmax(0,1fr)`); the phone keeps the
             select picker above and hides this column in CSS. */}
-        <div className="settings-dialog-body pw-settings">
-          {/* fork:design-system SW-07 — 画板 40 的左导航：`.pw-snav` + `.pw-row` 行
-              （图标 + `.pw-name`），选中态是 `.is-on`。行在画板里是 div，产品是
-              button，UA 归零在 fork-ui.css 的接线块（`button.pw-row`）。 */}
-          <nav aria-label={t("settings.title")} className="settings-section-tabs pw-snav">
+        <div className="settings-dialog-body d-set">
+          {/* fork:design-system SW-07 — 画板 D-07 的左导航：`.d-set-nav` + `.d-set-navitem`
+              （图标 + 文案），选中态是 `.is-on`。行在画板里是 div，产品是 button。
+              fork:v5-landing Wave B —— 窄屏不摆这一列（M-05：「手机上没有空间摆导航树」，
+              左导航在 `app/settings.css` 的 ≤640px 档里 `display:none`）。 */}
+          {isMobile ? null : (
+          <nav aria-label={t("settings.title")} className="settings-section-tabs d-set-nav">
             {sections.map((item) => {
               const selected = section === item.id;
               const disabled = item.requiresProject && !cwd;
@@ -1121,29 +1209,78 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
                 <button
                   key={item.id}
                   type="button"
-                  className={`pw-row${selected ? " is-on" : ""}`}
+                  className={`d-set-navitem${selected ? " is-on" : ""}`}
                   disabled={disabled}
                   /* fork:settings-frame（画板 62）—— 分节 id 落在 DOM 上。
                      没有它，脚本 / 测试只能按**本地化后的中文标签**找分节行
                      （`board-diff.mjs` 的 `settings:skills` 因此一直是空转的：
-                     它按英文 label 找 `.pw-row`，永远找不到 → 设置面板根本没打开
-                     → 所有 `.pw-*` 选择器都报「产品里没有」）。 */
+                     它按英文 label 找 `.d-set-navitem`，永远找不到 → 设置面板根本没打开
+                     → 所有选择器都报「产品里没有」）。 */
                   data-section={item.id}
                   title={disabled ? t("settings.projectRequired") : item.label}
                   aria-current={selected ? "page" : undefined}
                   onClick={() => activateSection(item.id)}
                 >
-                  <span className="pw-ico"><SettingsSectionIcon section={item.id} /></span>
-                  <span className="pw-name">{item.label}</span>
+                  <SettingsSectionIcon section={item.id} size={14} />
+                  {item.label}
                 </button>
               );
             })}
             {/* 2026-10-03 用户裁定 —— 左导航底部的「返回工作区」撤掉（画板 62 帧 C 那一行
                 与 `.pw-snav-close` 一同退出产品）：弹窗右上角的 `.settings-dialog-close`
-                就是唯一的关闭口，窄屏页头那枚 X 仍在，所以手机也没少出口。 */}
+                就是唯一的关闭口，窄屏页头那枚 X 仍在，所以手机也没少出口。
+                fork:v5-landing Wave B —— 窄屏**不渲染这一列**（M-05：「手机上没有空间摆
+                导航树」，那一层换成分组卡片 hub）。CSS 侧 `app/settings.css` 的
+                `≤640px 隐藏 .settings-section-tabs.pw-snav` 那条已经跟着换皮失效
+                （组件现在发 `d-set-nav`），所以窄屏的「不摆导航树」必须由这里保证，
+                否则两栏会同时出现在手机上。CSS 那条的改指归产品样式收尾波。 */}
           </nav>
+          )}
 
           <main className="settings-dialog-main">
+            {/* fork:v5-landing Wave B · M-05 帧 A —— 手机 hub：按「什么时候来改它」
+                分成四组卡片，只列那十一个分节；行尾的「需项目」徽章与左导航同一判据。
+                外层宿主不带任何 `display`（`hidden` 要生效），设置流在里层 `.m-settings`。 */}
+            {isMobile ? (
+              <div className="settings-section-host" data-settings-hub hidden={phoneSection !== null}>
+                <div className="m-settings">
+                  <div className="m-hero">
+                    <span className="m-t-title">{t("settings.title")}</span>
+                    <span className="m-t-cap m-t-dim">{settingsHubHeroCopy(locale)}</span>
+                  </div>
+                  {SETTINGS_HUB_GROUPS.map((group) => (
+                    <div className="m-cardgroup" key={group.id}>
+                      {group.sections.map((id) => {
+                        const item = sections.find((entry) => entry.id === id);
+                        if (!item) return null;
+                        const disabled = item.requiresProject && !cwd;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className="m-setrow"
+                            disabled={disabled}
+                            data-section={item.id}
+                            title={disabled ? t("settings.projectRequired") : item.label}
+                            onClick={() => openPhoneSection(item.id)}
+                          >
+                            <SettingsSectionIcon section={item.id} size={16} />
+                            <span className="m-setrow-body">
+                              <span className="m-setrow-t">{item.label}</span>
+                              <span className="m-setrow-s">{settingsHubSectionHint(item.id, locale)}</span>
+                            </span>
+                            {disabled ? (
+                              <span className="m-badge mute">{settingsHubNeedsProjectCopy(locale)}</span>
+                            ) : null}
+                            <i data-ico="chevron-right" data-size="15" aria-hidden="true" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {sectionHost("general", <GeneralSettings cwd={cwd} sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} sidebarWidth={sidebarWidth} onSidebarWidthChange={onSidebarWidthChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} />)}
             {sectionHost("models", <ModelsConfig embedded cwd={cwd} onClose={onClose} />)}
             {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}

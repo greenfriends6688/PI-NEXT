@@ -193,9 +193,9 @@
   /* ---- 6. 右列（详情卡堆）：内栅格、kv、长文本、行内按钮组 -----------------
      `.pw-cols > :last-child` 就是详情列（模型页直接是 `ConfigDetailStack`，
      技能页是 `ConfigDetail` 包一层）。下面每条只作用于它内部的元素。 */
+  /* fork:v5-old-layer（2026-10-04）—— 摘掉 `.pw-grid4`（零引用）。 */
   .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid2,
-  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid3,
-  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid4 {
+  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-grid3 {
     grid-template-columns: minmax(0, 1fr);
   }
   /* 用量四张小卡（`.pw-stats-grid` 桌面 4 列）：手机上 2×2，比 1×4 少一半滚动。 */
@@ -220,10 +220,10 @@
   }
   /* 字段行：标签整行、控件整行（`fork-ui.css` 的 `.pw-field` 手机档已经把标签
      推到整行，这里补的是「控件吃掉整行宽度」，输入框才是整行的可点区）。 */
+  /* fork:v5-old-layer（2026-10-04）—— 摘掉 `.pw-textarea` / `.pw-rowgap`（都零引用：
+     多行输入已走 `.d-textarea`，行间距是行自身的 margin）。 */
   .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-input,
   .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-selectbox,
-  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-textarea,
-  .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-rowgap,
   .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent > .pw-cols > :last-child .pw-field > .pw-ctl {
     flex: 1 1 100%;
     max-width: 100%;

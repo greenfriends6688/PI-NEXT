@@ -14,13 +14,13 @@ test("session destruction lives with the session rows, not in the project index"
   assert.match(sessionsPanel, /pendingDelete/);
 });
 
-test("the session group keeps board 46's labeled form", () => {
-  // 画板 62 落位表「无标签眼睛图标 → 带标签形态」：组标题是文字标签 + 计数徽章，
-  // 「显示文件已消失」开关挂在组标题行（画板 46 的 sec-title 位置）。
-  assert.match(sessionsPanel, /<ConfigSidebarGroupLabel>/);
+test("the session group keeps board D-21's labeled form", () => {
+  // 画板 D-21 帧 A「无标签眼睛图标 → 带标签形态」：组标题是 `.d-group-toggle`
+  // （D-21 todo 类）+ 文字标签 + 计数徽章，「显示文件已消失」开关挂在组标题行。
+  assert.match(sessionsPanel, /className="d-group-toggle d-group-title"/);
   assert.match(sessionsPanel, /settings\.archivedSessionsLabel/);
   assert.match(sessionsPanel, /settings\.archivedShowMissing/);
-  assert.match(sessionsPanel, /<ConfigBadge tone="count">/);
+  assert.match(sessionsPanel, /className="d-badge count"/);
   // 文件已消失的行：triangle-alert + 0.6 透明度（画板 46 原样），默认隐藏。
   assert.match(sessionsPanel, /triangle-alert/);
   assert.match(sessionsPanel, /opacity: 0\.6/);
@@ -34,7 +34,7 @@ test("the group's empty states each have a landing, and neither says 'nothing ar
     sessionsPanel.indexOf("export function ArchivedSessionsGroup"),
     sessionsPanel.indexOf("export function ArchivedSessionDetail"),
   );
-  assert.match(group, /<ConfigEmptyState>/);
+  assert.match(group, /className="d-empty/);
   assert.match(group, /rows\.length > 0 \? t\("settings\.archivedMissingProject"\) : t\("settings\.archivedEmpty"\)/);
   // fix:archive-local-only —— 归档只在本机 localStorage，代价写在空态里（不是飘到别处）。
   assert.match(group, /settings\.archiveStoredLocally/);
@@ -43,14 +43,13 @@ test("the group's empty states each have a landing, and neither says 'nothing ar
 });
 
 test("the session detail keeps restore and delete at the detail header", () => {
-  // 画板 62 动作层级 ③ 条目级 · 详情头右端；名字用画板的 h3（ConfigDetailTitle），
-  // 不是行内加粗的 <b>。
+  // 画板 D-21 动作层级 ③ 条目级 · 详情头右端；名字用画板的 h3（本地 `Title`，`h3.d-t-title`）。
   const detail = sessionsPanel.slice(sessionsPanel.indexOf("export function ArchivedSessionDetail"));
-  assert.match(detail, /<ConfigDetailHeader>/);
-  assert.match(detail, /<ConfigDetailTitle>/);
+  assert.match(detail, /className="d-row"/);
+  assert.match(detail, /<Title>/);
   assert.match(detail, /settings\.archivedRestore/);
   assert.match(detail, /data-ico="trash-2"/);
-  assert.match(detail, /className="pw-kv"/);
+  assert.match(detail, /className="d-set-row"/);
 });
 
 test("the legacy two-section entry point is gone", () => {

@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
+import { PwaSheet } from "@/components/pwa/PwaSheet";
 import { CHANNELS, type ChatChannelId } from "@/lib/chat-channel-shared";
-import { ConfigButton } from "../SettingsUi";
 import { ImBridgeBody } from "./ImBridgePanel";
 import { ChannelIcon } from "./ChannelIcon";
 import { QrCanvas } from "./QrCanvas";
@@ -20,8 +22,8 @@ import { QrCanvas } from "./QrCanvas";
  * 都在这层弹窗里。左侧列表是全部六个渠道 + 一条「推送到聊天应用」；右侧详情按渠道
  * 渲染：扫码（微信 iLink / 飞书 device-flow）+ 凭证表单 + 投递设置。
  *
- * 弹窗壳走 `.pw-modal` + `.fork-bot-dialog*`（fork-ui.css，覆盖层值与插件页的导入
- * 弹层同构）；焦点/Esc/背景 inert 由共享的 `useDialogA11y` 管。
+ * 弹窗壳走 `.d-modal-box` + `.fork-bot-dialog*`（fork-ui.css）；焦点/Esc/背景 inert 由
+ * 共享的 `useDialogA11y` 管。窄屏走 `.m-sheet`（见函数体内注释）。
  */
 
 interface ChannelView {
@@ -66,6 +68,7 @@ export function BotChannelsDialog({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const { dialogRef, dialogProps } = useDialogA11y({ open, onClose });
   const [channels, setChannels] = useState<ChannelView[]>([]);
   const [selected, setSelected] = useState<BotDialogSelection | null>(null);
@@ -253,6 +256,195 @@ export function BotChannelsDialog({
       ? t("botChannel.ready")
       : t("botChannel.needsSetup", { count: channel.missing.length });
 
+  // fork:v5-landing Wave B · M-10 · 窄屏：桌面那个「左列表 + 右详情」二级弹窗在手机上
+  // 变成一张底部面板（列表在上、详情在下，面板体自己滚）。扫码轮询、白名单、启停、
+  // 投递设置与凭证掩码全部是同一份 state 与同一条 API 线。
+  if (mobile) {
+    return (
+      <PwaSheet
+        open
+        title={t("botChannel.dialogTitle")}
+        label={t("botChannel.dialogTitle")}
+        onClose={onClose}
+      >
+        {error && <PwaBanner icon="circle-x" tone="err" role="alert">{error}</PwaBanner>}
+        {status && !error && <PwaBanner icon="circle-check" role="status">{status}</PwaBanner>}
+
+        <div className="m-list">
+          {channels.map((channel) => (
+            <button
+              key={channel.id}
+              type="button"
+              className={`m-row${selected === channel.id ? " is-on" : ""}`}
+              onClick={() => select(channel.id)}
+            >
+              <span className="m-row-body m-row-m">
+                <ChannelIcon id={channel.id} icon={channel.icon} size={20} />
+                <span className="m-row-t">{channel.label}</span>
+                {channel.id === "feishu" && <span className="m-badge mute">{t("botChannel.regionCN")}</span>}
+                {channel.id === "lark" && <span className="m-badge mute">{t("botChannel.regionGlobal")}</span>}
+                <span className={`m-dot${channel.running ? " run" : channel.ready ? " ok" : ""}`} aria-hidden="true" />
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className={`m-row${selected === "push" ? " is-on" : ""}`}
+            onClick={() => select("push")}
+          >
+            <span className="m-row-body m-row-m">
+              <i data-ico="send" data-size="15" aria-hidden="true" />
+              <span className="m-row-t">{t("phonePush.imTitle")}</span>
+            </span>
+          </button>
+        </div>
+
+        {selected === "push" && <ImBridgeBody />}
+
+        {selectedChannel && (
+          <>
+            <div className="m-cardgroup">
+              <PwaSetRow
+                label={selectedChannel.label}
+                sub={statusLine(selectedChannel)}
+                trailing={
+                  <button
+                    type="button"
+                    className="m-btn sm"
+                    disabled={busy !== null || (!selectedChannel.running && !selectedChannel.ready)}
+                    onClick={() => void act(selectedChannel, selectedChannel.running ? "stop" : "start")}
+                  >
+                    <i data-ico={selectedChannel.running ? "square" : "play"} data-size="13" aria-hidden="true" />
+                    {selectedChannel.running ? t("botChannel.stop") : t("botChannel.start")}
+                  </button>
+                }
+              />
+              <PwaSetRow label={t("botChannel.dialogTitle")} sub={t(`botChannel.desc.${selectedChannel.id}`)} />
+            </div>
+
+            {SCANNABLE.includes(selectedChannel.id) && (
+              <div className="m-cardgroup">
+                <PwaSetRow
+                  icon="smartphone"
+                  label={t("botChannel.scanConnect")}
+                  trailing={
+                    <button type="button" className="m-btn sm" onClick={() => void beginScan(selectedChannel)}>
+                      {scan?.id === selectedChannel.id ? t("botChannel.scanAgain") : t("botChannel.scanConnect")}
+                    </button>
+                  }
+                />
+                {scan?.id === selectedChannel.id && scan.qr && (
+                  <div className="m-placeholder">
+                    <QrCanvas content={scan.qr} label={t("botChannel.scanQrLabel")} />
+                  </div>
+                )}
+                {scan?.id === selectedChannel.id && (
+                  <PwaSetRow
+                    icon={scan.status === "error" || scan.status === "expired" ? "triangle-alert" : "scan-search"}
+                    label={scan.status === "scanned"
+                      ? t("botChannel.scanScanned")
+                      : scan.status === "expired"
+                        ? t("botChannel.scanExpired")
+                        : scan.status === "error"
+                          ? t("botChannel.scanFailed", { message: scan.error ?? "" })
+                          : t("botChannel.scanWaiting")}
+                  />
+                )}
+              </div>
+            )}
+
+            <div className="m-cardgroup">
+              <div className="m-group-title">{t("botChannel.sectionCredentials")}</div>
+              <PwaSetRow label={t("botChannel.token")} sub={selectedChannel.requires.join(" · ")} />
+              <div className="m-doc-body">
+                <input
+                  className="m-input m-mono"
+                  style={{ width: "100%" }}
+                  type="password"
+                  autoComplete="off"
+                  value={draft.token}
+                  placeholder={selectedChannel.configured ? "••••（已保存）" : "…"}
+                  onChange={(event) => setDraft((current) => ({ ...current, token: event.target.value }))}
+                />
+              </div>
+              {(selectedChannel.id === "feishu" || selectedChannel.id === "lark") && (
+                <>
+                  <PwaSetRow label={t("botChannel.appId")} />
+                  <div className="m-doc-body">
+                    <input
+                      className="m-input m-mono"
+                      style={{ width: "100%" }}
+                      value={draft.appId}
+                      placeholder={selectedChannel.hasAppId ? "cli_••••（已保存）" : "cli_…"}
+                      onChange={(event) => setDraft((current) => ({ ...current, appId: event.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
+              {selectedChannel.id === "telegram" && (
+                <>
+                  <PwaSetRow label={t("botChannel.chatId")} />
+                  <div className="m-doc-body">
+                    <input
+                      className="m-input m-mono"
+                      style={{ width: "100%" }}
+                      value={draft.chatId}
+                      placeholder={selectedChannel.hasChatId ? "••••（已保存）" : "-100…"}
+                      onChange={(event) => setDraft((current) => ({ ...current, chatId: event.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="m-cardgroup">
+              <div className="m-group-title">{t("botChannel.sectionDelivery")}</div>
+              <PwaSetRow label={t("botChannel.allowFrom")} sub={t("botChannel.allowFromHint")} />
+              <div className="m-doc-body">
+                <input
+                  className="m-input m-mono"
+                  style={{ width: "100%" }}
+                  value={draft.allowFrom}
+                  placeholder="-100123, myname"
+                  onChange={(event) => setDraft((current) => ({ ...current, allowFrom: event.target.value }))}
+                />
+              </div>
+              <PwaSetRow label={t("botChannel.sessionId")} sub={t("botChannel.sessionHint")} />
+              <div className="m-doc-body">
+                <input
+                  className="m-input m-mono"
+                  style={{ width: "100%" }}
+                  value={draft.sessionId}
+                  placeholder="01a0fcaf-…"
+                  onChange={(event) => setDraft((current) => ({ ...current, sessionId: event.target.value }))}
+                />
+              </div>
+              <div className="m-pickbar">
+                <button
+                  type="button"
+                  className="m-picktag is-on"
+                  disabled={busy !== null}
+                  onClick={() => {
+                    void act(selectedChannel, "configure", {
+                      ...(draft.token ? { token: draft.token } : {}),
+                      ...(draft.appId ? { appId: draft.appId } : {}),
+                      ...(draft.chatId ? { chatId: draft.chatId } : {}),
+                      sessionId: draft.sessionId,
+                      allowFrom: draft.allowFrom.split(",").map((item) => item.trim()).filter(Boolean),
+                    });
+                  }}
+                >
+                  <i data-ico="check" data-size="13" aria-hidden="true" />
+                  {t("botChannel.save")}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </PwaSheet>
+    );
+  }
+
   return (
     <div
       ref={dialogRef}
@@ -261,69 +453,65 @@ export function BotChannelsDialog({
       className="fork-bot-dialog-scrim"
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
-      <div className="fork-bot-dialog pw-modal">
-        <div className="pw-modal-head">
-          <span className="pw-ico"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
+      <div className="fork-bot-dialog d-modal-box">
+        <div className="d-modal-head d-row">
+          <i data-ico="bot" data-size="16" aria-hidden="true" />
           {t("botChannel.dialogTitle")}
-          <span className="grow" />
+          <span className="d-grow" />
           <button
             type="button"
-            className="pw-iconbtn"
+            className="d-iconbtn"
             aria-label={t("i18n.close")}
             title={t("i18n.close")}
             onClick={onClose}
           >
-            <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true" /></span>
+            <i data-ico="x" data-size="14" aria-hidden="true" />
           </button>
         </div>
         <div className="fork-bot-dialog-body">
           <div className="fork-bot-dialog-list">
-            <div className="pw-list">
+            <div className="d-col">
               {channels.map((channel) => (
                 <button
                   key={channel.id}
                   type="button"
-                  className={`pw-litem${selected === channel.id ? " is-on" : ""}`}
-                  style={{ cursor: "pointer", textAlign: "left" }}
+                  className={`d-set-navitem${selected === channel.id ? " is-on" : ""}`}
                   onClick={() => select(channel.id)}
                 >
                   <ChannelIcon id={channel.id} icon={channel.icon} size={20} />
-                  <span className="pw-lname grow" style={{ display: "grid", gap: "var(--space-tight)" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--s1)" }}>
-                      {channel.label}
-                      {channel.id === "feishu" && <span className="pw-chip">{t("botChannel.regionCN")}</span>}
-                      {channel.id === "lark" && <span className="pw-chip">{t("botChannel.regionGlobal")}</span>}
-                    </span>
+                  <span className="d-grow">
+                    {channel.label}
+                    {channel.id === "feishu" && <span className="d-badge mute">{t("botChannel.regionCN")}</span>}
+                    {channel.id === "lark" && <span className="d-badge mute">{t("botChannel.regionGlobal")}</span>}
                   </span>
                   <span
                     aria-hidden="true"
-                    className={`pw-dot${channel.running ? " unread" : channel.ready ? " await" : ""}`}
+                    className={`d-dot${channel.running ? " run" : channel.ready ? " ok" : ""}`}
                   />
                 </button>
               ))}
             </div>
-            <div className="pw-sep" />
+            <div className="d-sep" />
             <button
               type="button"
-              className={`pw-litem${selected === "push" ? " is-on" : ""}`}
-              style={{ cursor: "pointer", textAlign: "left" }}
+              className={`d-set-navitem${selected === "push" ? " is-on" : ""}`}
               onClick={() => select("push")}
             >
-              <span className="pw-ico"><i data-ico="send" data-size="15" aria-hidden="true" /></span>
-              <span className="pw-lname grow">{t("phonePush.imTitle")}</span>
+              <i data-ico="send" data-size="15" aria-hidden="true" />
+              <span className="d-grow">{t("phonePush.imTitle")}</span>
             </button>
           </div>
 
           <div className="fork-bot-dialog-detail">
             {error && (
-              <div className="pw-alert" role="alert" style={{ margin: 0 }}>
-                <span className="pw-ico"><i data-ico="circle-x" data-size="14" aria-hidden="true" /></span>
+              <div className="d-banner err" role="alert">
+                <i data-ico="circle-x" data-size="14" aria-hidden="true" />
                 <span>{error}</span>
               </div>
             )}
             {status && !error && (
-              <div className="pw-alert info" role="status" style={{ margin: 0 }}>
-                <span className="pw-ico"><i data-ico="circle-check" data-size="14" aria-hidden="true" /></span>
+              <div className="d-banner info" role="status">
+                <i data-ico="circle-check" data-size="14" aria-hidden="true" />
                 <span>{status}</span>
               </div>
             )}
@@ -332,39 +520,41 @@ export function BotChannelsDialog({
 
             {selectedChannel && (
               <>
-                <div className="pw-plan-head" style={{ padding: 0 }}>
+                <div className="d-row">
                   <ChannelIcon id={selectedChannel.id} icon={selectedChannel.icon} size={24} />
-                  <span>{selectedChannel.label}</span>
-                  <span className="pw-count">{statusLine(selectedChannel)}</span>
-                  <span className="grow" />
-                  <ConfigButton
-                    size="small"
+                  <span className="d-t-title">{selectedChannel.label}</span>
+                  <span className="d-badge mute">{statusLine(selectedChannel)}</span>
+                  <span className="d-grow" />
+                  <button
+                    type="button"
+                    className="d-btn sm"
                     disabled={busy !== null || (!selectedChannel.running && !selectedChannel.ready)}
                     onClick={() => void act(selectedChannel, selectedChannel.running ? "stop" : "start")}
                   >
-                    <span className="pw-ico"><i data-ico={selectedChannel.running ? "square" : "play"} data-size="13" aria-hidden="true" /></span>
+                    <i data-ico={selectedChannel.running ? "square" : "play"} data-size="13" aria-hidden="true" />
                     {selectedChannel.running ? t("botChannel.stop") : t("botChannel.start")}
-                  </ConfigButton>
+                  </button>
                 </div>
-                <p className="sub" style={{ margin: 0 }}>{t(`botChannel.desc.${selectedChannel.id}`)}</p>
+                <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>{t(`botChannel.desc.${selectedChannel.id}`)}</p>
 
                 {SCANNABLE.includes(selectedChannel.id) && (
-                  <div className="pw-plan" style={{ gap: "var(--s2)" }}>
-                    <div className="pw-plan-head" style={{ padding: 0 }}>
-                      {t("botChannel.scanConnect")}
-                      <span className="grow" />
-                      <ConfigButton size="small" onClick={() => void beginScan(selectedChannel)}>
-                        <span className="pw-ico"><i data-ico="smartphone" data-size="13" aria-hidden="true" /></span>
+                  <div className="d-card">
+                    <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                    <div className="d-row">
+                      <span className="d-set-row-t">{t("botChannel.scanConnect")}</span>
+                      <span className="d-grow" />
+                      <button type="button" className="d-btn sm" onClick={() => void beginScan(selectedChannel)}>
+                        <i data-ico="smartphone" data-size="13" aria-hidden="true" />
                         {scan?.id === selectedChannel.id ? t("botChannel.scanAgain") : t("botChannel.scanConnect")}
-                      </ConfigButton>
+                      </button>
                     </div>
                     {scan?.id === selectedChannel.id && scan.qr && (
-                      <div style={{ display: "grid", justifyItems: "center", padding: "var(--s3)", border: "1px dashed var(--n-border-subtle)", borderRadius: "var(--radius-6)" }}>
+                      <div className="d-placeholder" style={{ display: "grid", justifyContent: "center", padding: "var(--nx-sp-3)" }}>
                         <QrCanvas content={scan.qr} label={t("botChannel.scanQrLabel")} />
                       </div>
                     )}
                     {scan?.id === selectedChannel.id && (
-                      <p className="sub" style={{ margin: 0 }}>
+                      <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>
                         {scan.status === "scanned"
                           ? t("botChannel.scanScanned")
                           : scan.status === "expired"
@@ -374,89 +564,77 @@ export function BotChannelsDialog({
                               : t("botChannel.scanWaiting")}
                       </p>
                     )}
+                    </div>
                   </div>
                 )}
 
-                <div className="pw-plan" style={{ gap: "var(--s2)" }}>
-                  <div className="pw-plan-head" style={{ padding: 0 }}>{t("botChannel.sectionCredentials")}</div>
-                  <div className="pw-field">
-                    <span className="pw-label">
-                      {t("botChannel.token")}
-                      <small>{selectedChannel.requires.join(" · ")}</small>
-                    </span>
-                    <span className="pw-ctl">
-                      <input
-                        className="pw-input pw-mono"
-                        type="password"
-                        autoComplete="off"
-                        value={draft.token}
-                        placeholder={selectedChannel.configured ? "••••（已保存）" : "…"}
-                        onChange={(event) => setDraft((current) => ({ ...current, token: event.target.value }))}
-                      />
-                    </span>
+                <div className="d-card">
+                  <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                  <div className="d-set-row-t">{t("botChannel.sectionCredentials")}</div>
+                  <div className="d-field">
+                    <span className="d-field-t">{t("botChannel.token")}</span>
+                    <input
+                      className="d-input d-mono"
+                      type="password"
+                      autoComplete="off"
+                      value={draft.token}
+                      placeholder={selectedChannel.configured ? "••••（已保存）" : "…"}
+                      onChange={(event) => setDraft((current) => ({ ...current, token: event.target.value }))}
+                    />
+                    <span className="d-t-xs d-t-faint">{selectedChannel.requires.join(" · ")}</span>
                   </div>
                   {(selectedChannel.id === "feishu" || selectedChannel.id === "lark") && (
-                    <div className="pw-field">
-                      <span className="pw-label">{t("botChannel.appId")}</span>
-                      <span className="pw-ctl">
-                        <input
-                          className="pw-input pw-mono"
-                          value={draft.appId}
-                          placeholder={selectedChannel.hasAppId ? "cli_••••（已保存）" : "cli_…"}
-                          onChange={(event) => setDraft((current) => ({ ...current, appId: event.target.value }))}
-                        />
-                      </span>
+                    <div className="d-field">
+                      <span className="d-field-t">{t("botChannel.appId")}</span>
+                      <input
+                        className="d-input d-mono"
+                        value={draft.appId}
+                        placeholder={selectedChannel.hasAppId ? "cli_••••（已保存）" : "cli_…"}
+                        onChange={(event) => setDraft((current) => ({ ...current, appId: event.target.value }))}
+                      />
                     </div>
                   )}
                   {selectedChannel.id === "telegram" && (
-                    <div className="pw-field">
-                      <span className="pw-label">{t("botChannel.chatId")}</span>
-                      <span className="pw-ctl">
-                        <input
-                          className="pw-input pw-mono"
-                          value={draft.chatId}
-                          placeholder={selectedChannel.hasChatId ? "••••（已保存）" : "-100…"}
-                          onChange={(event) => setDraft((current) => ({ ...current, chatId: event.target.value }))}
-                        />
-                      </span>
+                    <div className="d-field">
+                      <span className="d-field-t">{t("botChannel.chatId")}</span>
+                      <input
+                        className="d-input d-mono"
+                        value={draft.chatId}
+                        placeholder={selectedChannel.hasChatId ? "••••（已保存）" : "-100…"}
+                        onChange={(event) => setDraft((current) => ({ ...current, chatId: event.target.value }))}
+                      />
                     </div>
                   )}
+                  </div>
                 </div>
 
-                <div className="pw-plan" style={{ gap: "var(--s2)" }}>
-                  <div className="pw-plan-head" style={{ padding: 0 }}>{t("botChannel.sectionDelivery")}</div>
-                  <div className="pw-field">
-                    <span className="pw-label">
-                      {t("botChannel.allowFrom")}
-                      <small>{t("botChannel.allowFromHint")}</small>
-                    </span>
-                    <span className="pw-ctl">
-                      <input
-                        className="pw-input pw-mono"
-                        value={draft.allowFrom}
-                        placeholder="-100123, myname"
-                        onChange={(event) => setDraft((current) => ({ ...current, allowFrom: event.target.value }))}
-                      />
-                    </span>
+                <div className="d-card">
+                  <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                  <div className="d-set-row-t">{t("botChannel.sectionDelivery")}</div>
+                  <div className="d-field">
+                    <span className="d-field-t">{t("botChannel.allowFrom")}</span>
+                    <input
+                      className="d-input d-mono"
+                      value={draft.allowFrom}
+                      placeholder="-100123, myname"
+                      onChange={(event) => setDraft((current) => ({ ...current, allowFrom: event.target.value }))}
+                    />
+                    <span className="d-t-xs d-t-faint">{t("botChannel.allowFromHint")}</span>
                   </div>
-                  <div className="pw-field">
-                    <span className="pw-label">
-                      {t("botChannel.sessionId")}
-                      <small>{t("botChannel.sessionHint")}</small>
-                    </span>
-                    <span className="pw-ctl">
-                      <input
-                        className="pw-input pw-mono"
-                        value={draft.sessionId}
-                        placeholder="01a0fcaf-…"
-                        onChange={(event) => setDraft((current) => ({ ...current, sessionId: event.target.value }))}
-                      />
-                    </span>
+                  <div className="d-field">
+                    <span className="d-field-t">{t("botChannel.sessionId")}</span>
+                    <input
+                      className="d-input d-mono"
+                      value={draft.sessionId}
+                      placeholder="01a0fcaf-…"
+                      onChange={(event) => setDraft((current) => ({ ...current, sessionId: event.target.value }))}
+                    />
+                    <span className="d-t-xs d-t-faint">{t("botChannel.sessionHint")}</span>
                   </div>
-                  <div className="pw-row" style={{ gap: "var(--s2)", cursor: "default" }}>
-                    <span className="grow" />
-                    <ConfigButton
-                      size="small"
+                  <div className="d-row" style={{ justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="d-btn sm"
                       disabled={busy !== null}
                       onClick={() => {
                         void act(selectedChannel, "configure", {
@@ -468,9 +646,10 @@ export function BotChannelsDialog({
                         });
                       }}
                     >
-                      <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true" /></span>
+                      <i data-ico="check" data-size="13" aria-hidden="true" />
                       {t("botChannel.save")}
-                    </ConfigButton>
+                    </button>
+                  </div>
                   </div>
                 </div>
               </>

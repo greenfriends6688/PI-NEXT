@@ -52,12 +52,14 @@ export default {
     [CELL(1, 2) + " .pw-badge.accent", ".pw-badge.accent"],
     [CELL(1, 4) + " .pw-badge.bad", ".pw-badge.bad"],
     // ---- 第二节第二格：技能列表项（产品里唯一有真数据的列表）----
-    [CELL(2, 2) + " .pw-list", ".pw-list"],
-    [CELL(2, 2) + " .pw-litem", ".pw-litem"],
-    [CELL(2, 2) + " .pw-litem.is-on", ".pw-litem.is-on"],
-    [CELL(2, 2) + " .pw-litem.is-on .pw-lname", ".pw-litem.is-on .pw-lname"],
+    // fork:v5-old-layer（2026-10-04）—— 技能列表已换画板 D-11 的 v5：SkillsConfig.tsx:66
+    // 的 Stack 是 `.d-col`，列表项是 `.d-row`（:359），行内名字那格是 `.d-grow`。
+    [CELL(2, 2) + " .pw-list", ".d-col"],
+    [CELL(2, 2) + " .pw-litem", ".d-row"],
+    [CELL(2, 2) + " .pw-litem.is-on", ".d-row.is-on"],
+    [CELL(2, 2) + " .pw-litem.is-on .pw-lname", ".d-row.is-on .d-grow"],
     // 第二节第二格行尾那枚 ↑ 更新指示器：画板有，产品的渲染条件是「真的查到了新版本」。
-    [CELL(2, 2) + " .pw-litem.is-on > .pw-ico:last-child", ".pw-litem.is-on > .pw-ico:last-child"],
+    [CELL(2, 2) + " .pw-litem.is-on > .pw-ico:last-child", ".d-row.is-on > i[data-ico]:last-child"],
     // ---- 第二节第一格：插件列表项的四种标记 ----
     [CELL(2, 1) + " .pw-badge.ok", ".pw-badge.ok"],
     [CELL(2, 1) + " .pw-badge.warn", ".pw-badge.warn"],
@@ -83,7 +85,7 @@ export default {
       reason: "**数据依赖**：同上，「可更新」列表项徽章需要真实插件 + 一次真实的更新检查。",
     },
     {
-      sel: ".pw-litem.is-on > .pw-ico:last-child",
+      sel: ".d-row.is-on > i[data-ico]:last-child",
       reason: "**数据依赖**：技能更新指示器（`.pw-ico` + `arrow-up`，title「有可用更新」）只在"
         + "`updateStatuses[key].state === \"update-available\"` 时渲染；种子技能没有 install "
         + "来源记录（`updateKey()` 返回 null），永远查不到更新。",

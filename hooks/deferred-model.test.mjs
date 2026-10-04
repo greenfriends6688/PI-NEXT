@@ -85,5 +85,9 @@ test("换会话清队列，且用纯函数保住 promoteNewSession（null → �
 
 test("模型选择器不再因运行中而置灰", () => {
   assert.doesNotMatch(chatInputSource, /<ModelSelector[\s\S]{0,320}?disabled=\{isStreaming\}/);
-  assert.match(chatInputSource, /pendingModel && \([\s\S]{0,600}?className="pw-chip accent"/);
+  /* fork:v5-landing —— 换皮后「下轮生效」芯片按形态各发一套类：桌面 D-04 的
+     `.d-chipbtn is-on`、窄屏 M-03 的 `.m-tray-chip is-on`。断言跟着改成「两形态
+     都要有一枚处于 is-on 的芯片」，而不是钉死 v1 的 `pw-chip accent`。 */
+  assert.match(chatInputSource, /pendingModel && \([\s\S]{0,900}?className="d-chipbtn is-on"/);
+  assert.match(chatInputSource, /pendingModel && \([\s\S]{0,900}?className="m-tray-chip is-on"/);
 });

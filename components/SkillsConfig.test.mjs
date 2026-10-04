@@ -7,15 +7,16 @@ import test from "node:test";
 
 const source = await readFile(new URL("./SkillsConfig.tsx", import.meta.url), "utf8");
 
-test("detail column is header + kv + body, not bare field listing (board 62 frame B)", () => {
-  // 详情头：pw-inline（h3 + 作用域徽标 + 条目级动作）
-  assert.match(source, /<ConfigDetailTitle>/);
+test("detail column is header + rows + SKILL.md card (board D-11 frame C)", () => {
+  // 详情头：d-row（h3 + 作用域徽标 + 条目级动作）
+  assert.match(source, /<Title>/);
   assert.match(source, /data-ico="external-link"/);
-  // 元信息是 `.pw-kv` 属性表（来源 / 路径 / 允许自动调用开关）
-  assert.match(source, /<ConfigKv>/);
+  // 元信息是画板 D-11 的行式 `.d-set-row`（来源 / 路径 / 允许自动调用）
+  assert.match(source, /className="d-set-sec"/);
+  assert.match(source, /className="d-set-row"/);
   assert.match(source, /skills\.fieldSource/);
-  // SKILL.md 是 sec-title 行：标题 + grow + square-pen 编辑钮
-  assert.match(source, /className="pw-sec-title"/);
+  // SKILL.md 是一张 `.d-card`：`.d-card-head` + grow + square-pen 编辑钮
+  assert.match(source, /className="d-card-head"/);
   assert.match(source, /data-ico="square-pen"/);
 });
 
@@ -27,14 +28,14 @@ test("SKILL.md editing does not embed a second scroll container (board 62 hard r
   // 元素，不属于这条硬规则。所以只截 <textarea ... /> 那一段来判。
   const textareaStart = source.indexOf("<textarea");
   const textarea = source.slice(textareaStart, source.indexOf("/>", textareaStart));
-  assert.match(textarea, /className="pw-textarea"/);
+  assert.match(textarea, /className="d-textarea"/);
   assert.doesNotMatch(textarea, /maxHeight/);
   assert.doesNotMatch(textarea, /minHeight/);
 });
 
-test("list column renders scope groups with name-only rows (board 62 frame B)", () => {
-  // 作用域分组标题（项目 / 全局 / 路径）+ 行（pw-lname）
-  assert.match(source, /ConfigSidebarGroupLabel/);
+test("list column renders scope groups with name-only rows (board D-11 frame A)", () => {
+  // 作用域分组标题（项目 / 全局 / 路径）是画板的 `.d-group-title`
+  assert.match(source, /className="d-group-title"/);
   // fork:skills-row-name-only（2026-10-02）—— 列表行只保留名称：`.pw-lsub` 副标题
   // 撤掉（board.css:860 只给了 color/font-size，没有钳位，真实描述铺 5~19 行）。
   // 断言只对 **JSX** 生效：取 renderSkillRow 那一段源码，别让解释性注释里的
@@ -43,11 +44,11 @@ test("list column renders scope groups with name-only rows (board 62 frame B)", 
     source.indexOf("const renderSkillRow"),
     source.indexOf("<ConfigPanelShell"),
   );
-  assert.match(row, /pw-lname/);
+  assert.match(row, /d-sess-t/);
   assert.doesNotMatch(row, /pw-lsub/);
-  // 描述没丢：进详情列的 kv 首行（详情头正下方）。
-  assert.match(source, /<dt>\{t\("i18n\.description"\)\}<\/dt>/);
-  assert.match(source, /<dd>\{skill\.description\}<\/dd>/);
+  // 描述没丢：进详情列的 `.d-set-row`（详情头正下方）。
+  assert.match(source, /t\("i18n\.description"\)/);
+  assert.match(source, /\{skill\.description\}/);
   assert.match(source, /data-ico=\{rowScope === "path" \? "folder-cog" : "box"\}/);
   // 沉睡排序保持在组内生效（dormancy 断言的调用形态不变）
   assert.match(source, /orderSkillsByDormancy\(grpSkills\)\.map\(renderSkillRow\)/);
@@ -64,21 +65,23 @@ test("install dialog has one real scroll container (fork:skills-modal-scroll)", 
     /<div\s*\n\s*className="pw-modal-body"\s*\n\s*style=\{\{\s*\n\s*flex: "1 1 0%",\s*\n\s*minHeight: 0,\s*\n\s*overflowY: "auto",\s*\n\s*gridTemplateColumns: "minmax\(0, 1fr\)",\s*\n\s*\}\}\s*>/,
   );
   // 横滚动条不许出现：长 token（安装路径 / 技能名 / repo）就地折行
-  assert.match(source, /className="pw-mono pw-dim" style=\{\{ overflowWrap: "anywhere" \}\}>/);
+  assert.match(source, /overflowWrap: "anywhere"/);
+  // 结果改成画板 D-11 帧 B 的商店卡片网格
+  assert.match(source, /className="d-store-grid"/);
 });
 
 test("install skills opens a board 42 dialog, not an inline detail view", () => {
   assert.match(source, /InstallSkillsModal/);
   assert.match(source, /pw-modal-head/);
   assert.match(source, /pw-modal-foot/);
-  assert.match(source, /pw-iconbtn sm/);
+  assert.match(source, /d-iconbtn sm/);
   // 内联视图（AddSkillPanel）已随画板裁定退役
   assert.doesNotMatch(source, /AddSkillPanel/);
 });
 
 test("toolbar carries search, scope filter, merged count badge and update-all", () => {
   assert.match(source, /<PwSearch/);
-  assert.match(source, /className="pw-sep"/);
+  assert.match(source, /className="d-sep-v"/);
   assert.match(source, /scopeFilter/);
   // 画板：`17 个 · 4 个可更新` 合并成一枚 count 徽章
   assert.match(source, /tone="count"/);

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-12 · 手机右栏六面板 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-12 · 手机右栏六面板</h1>
+  <p>
+    桌面右栏的六个页签 —— 轨迹 / 文件 / 终端 / 浏览器 / Git / 审查 —— 在手机上<b>不常驻</b>：
+    会话页顶栏右侧留一枚「右栏面板」钮，点开是<b>六项底部列表</b>，每行写清这一路的现状；
+    选完进入<b>同一个全屏层</b>，顶部横向切换条在六块之间换内容，右侧 x 关掉整层回会话。
+    关键约定：<b>切块不换页面</b>。正文不在这一张重复 —— 各面板的移动形态见 M-06 / M-07，
+    这里只定「从哪儿进、怎么切、怎么退」。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：会话页入口 / 右栏六面板全屏层 / 审查 · 轨迹 · Git 形态</span>
+    <span class="m-doc-tag">组件：m-top-btn · m-sheet · m-sheet-row · m-cats · m-cat · m-panel-scroll · m-steps · m-tbl</span>
+    <span class="m-doc-tag">状态：按需拉起 / 六项列表 / 切换条互斥 / 只读</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 入口 ──────────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 入口 · 会话页顶栏右侧「右栏面板」钮（与桌面同义）；点开是六项底部列表，每行一句现状</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        <button class="m-top-btn" data-demo-open="m12-entry" title="右栏面板"><i data-ico="panel-right" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">桌面右栏那六块（轨迹 / 文件 / 终端 / 浏览器 / Git / 审查）在手机上放哪儿？</div>
+        <div class="m-md">
+          <p>不常驻。底部要留给输入卡与 home 手势，常驻六格会把正文挤掉；入口按需开，选完就进同一个全屏层，层内顶部切换条横滚换内容。</p>
+        </div>
+      </div>
+
+      <div class="m-sheet is-open" data-demo-pop="m12-entry" id="m12-entry">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">右栏面板</div>
+        <div class="m-sheet-body">
+          <div class="m-group-title">选一块进入 · 六块共用一层切换条</div>
+          <button class="m-sheet-row">
+            <i data-ico="history" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">轨迹</span>
+              <span class="m-sheet-row-desc">本轮 12 步 · 运行中，时刻在更新</span>
+            </span>
+            <span class="m-dot run"></span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="folder" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">文件</span>
+              <span class="m-sheet-row-desc">1,284 个文件 · 3 个有未提交改动</span>
+            </span>
+            <span class="m-badge mute">树 + 查看器</span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="square-terminal" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">终端</span>
+              <span class="m-sheet-row-desc">dev · 1 个会话 · 输出在滚</span>
+            </span>
+            <span class="m-dot run"></span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="globe" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">浏览器</span>
+              <span class="m-sheet-row-desc">127.0.0.1:5174 · 本地白名单来源</span>
+            </span>
+            <span class="m-badge mute">只读</span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="git-branch" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">Git</span>
+              <span class="m-sheet-row-desc">fork/v5-boards · 领先 main 3 个提交</span>
+            </span>
+            <span class="m-badge warn">3 改动</span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="file-diff" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">审查</span>
+              <span class="m-sheet-row-desc">3 个文件待看 · 工作区 + 本轮写入</span>
+            </span>
+            <span class="m-badge warn">3</span>
+          </button>
+        </div>
+        <div class="m-sheet-foot">不做常驻页签：手机底部要留给输入卡与 home 手势，六格横排既够不着也挤正文。按需开、选完即走，是这一层唯一的入口。</div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 切换条 ────────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 切换条 · 进入后的全屏层：顶部六项横滚（停在「审查」），右侧 x 关掉回会话；审查只给移动形态，完整正文见 M-06 帧 E</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-viewer is-open" id="m12-panel-b" data-demo-scope>
+        <div class="m-viewer-bar">
+          <div class="m-cats compact m-grow" data-demo-tabs>
+            <button class="m-cat" data-demo-tab="b-trace" title="轨迹" aria-label="轨迹"><i data-ico="history" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="b-files" title="文件" aria-label="文件"><i data-ico="folder" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="b-term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="b-web" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="b-git" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="15"></i></button>
+            <button class="m-cat is-on" data-demo-tab="b-review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="15"></i></button>
+          </div>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#m12-panel-b" title="关闭面板 · 回会话"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <section class="m-panel-scroll" data-demo-pane="b-review">
+          <div class="m-banner">
+            <i data-ico="file-diff" data-size="14"></i>
+            <span class="m-grow">工作区改动 · 3 个文件 · 新增 18 行 · 删除 4 行</span>
+            <span class="m-badge warn">3</span>
+          </div>
+
+          <div class="m-cardgroup">
+            <div class="m-group-title">工作区改动 · git diff（磁盘上的事实）</div>
+            <button class="m-setrow is-on">
+              <i data-ico="file-code" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">design/v5/pwa/system.css</span>
+                <span class="m-setrow-s">已修改 · 点一行看与 HEAD 的逐行差异</span>
+              </span>
+              <span class="m-badge ok">+12 −2</span>
+            </button>
+            <button class="m-setrow">
+              <i data-ico="file-code" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">design/v5/pwa/tokens.css</span>
+                <span class="m-setrow-s">已修改</span>
+              </span>
+              <span class="m-badge ok">+6 −2</span>
+            </button>
+            <button class="m-setrow">
+              <i data-ico="file-text" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">design/v5/README.md</span>
+                <span class="m-setrow-s">未跟踪 · 新文件</span>
+              </span>
+              <span class="m-badge mute">未跟踪</span>
+            </button>
+          </div>
+
+          <div class="m-cardgroup">
+            <div class="m-group-title">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+            <div class="m-setrow">
+              <i data-ico="file-code" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">design/v5/pwa/boards/M-12-right-panels.html</span>
+                <span class="m-setrow-s">刚写入</span>
+              </span>
+              <span class="m-badge mute">1 步之前</span>
+            </div>
+          </div>
+
+          <div class="m-ctx">
+            <i data-ico="info" data-size="14"></i>
+            <span>审查只读，不做 Keep / Reject。两栏的完整正文在 M-06 帧 E —— 这一张只画它从切换条进来的样子。</span>
+          </div>
+        </section>
+
+        <section class="m-panel-scroll" data-demo-pane="b-trace" hidden>
+          <div class="m-ctx"><i data-ico="history" data-size="14"></i><span>轨迹正文见 M-06 帧 D：一条合并时间线，工具调用 / 命令 / 写文件都在里面。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="b-files" hidden>
+          <div class="m-ctx"><i data-ico="folder" data-size="14"></i><span>文件树与查看器正文见 M-06 帧 A / 帧 B。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="b-term" hidden>
+          <div class="m-ctx"><i data-ico="square-terminal" data-size="14"></i><span>终端正文见 M-06 帧 C：输出区自滚，底部键排常驻。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="b-web" hidden>
+          <div class="m-ctx"><i data-ico="globe" data-size="14"></i><span>浏览器正文见 M-07 帧 A / 帧 B：地址栏 + 设备视口条，跨站与失败各占一行。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="b-git" hidden>
+          <div class="m-ctx"><i data-ico="git-branch" data-size="14"></i><span>Git 图谱正文见 M-07 帧 D：只做「看」，提交 / 推送一个按钮都不给。</span></div>
+        </section>
+
+        <div class="m-vbar">
+          <span class="m-grow m-t-xs m-t-faint">切到任何一块都不换页面，只换这一层内容</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 轨迹面板 ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 轨迹面板 · 切换条停在「轨迹」；本轮工具调用 / 命令 / 写文件合成一条时间线，done / run / fail 三态，结构与 M-06 帧 D 同</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-viewer is-open" id="m12-panel-c" data-demo-scope>
+        <div class="m-viewer-bar">
+          <div class="m-cats compact m-grow" data-demo-tabs>
+            <button class="m-cat is-on" data-demo-tab="c-trace" title="轨迹" aria-label="轨迹"><i data-ico="history" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="c-files" title="文件" aria-label="文件"><i data-ico="folder" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="c-term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="c-web" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="c-git" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="c-review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="15"></i></button>
+          </div>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#m12-panel-c" title="关闭面板 · 回会话"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <section class="m-panel-scroll" data-demo-pane="c-trace">
+          <div class="m-banner">
+            <i data-ico="info" data-size="14"></i>
+            <span class="m-grow m-t-xs">运行中 · 12 步 · 2 分 06 秒 · 只记这一轮，不做历史回放</span>
+          </div>
+
+          <div class="m-steps">
+            <div class="m-step-row done">
+              <span class="m-step-dot"></span>
+              <span class="m-grow">读 design/v5/pwa/system.css</span>
+              <span class="m-step-n">0:04</span>
+            </div>
+            <div class="m-step-row done">
+              <span class="m-step-dot"></span>
+              <span class="m-grow">运行 node design/v5/scripts/check-v5.mjs → 0 错误</span>
+              <span class="m-step-n">0:21</span>
+            </div>
+            <div class="m-step-row done">
+              <span class="m-step-dot"></span>
+              <span class="m-grow">打开查看器指向 tokens.css · 源码模式</span>
+              <span class="m-step-n">0:35</span>
+            </div>
+            <div class="m-step-row run">
+              <span class="m-step-dot"></span>
+              <span class="m-grow">写 boards/M-12-right-panels.html</span>
+              <span class="m-step-n">0:38</span>
+            </div>
+            <div class="m-step-row fail">
+              <span class="m-step-dot"></span>
+              <span class="m-grow">pnpm check 2&gt;&amp;1 | tail -3 · 退出码 1，保留在终端页签</span>
+              <span class="m-step-n">0:41</span>
+            </div>
+          </div>
+
+          <div class="m-ctx">
+            <i data-ico="info" data-size="14"></i>
+            <span>从切换条进来也是同一条线：文件 / 终端 / 浏览器 / Git 的动作都汇到轨迹，不按面板各开一份（正文同 M-06 帧 D）。</span>
+          </div>
+        </section>
+
+        <section class="m-panel-scroll" data-demo-pane="c-files" hidden>
+          <div class="m-ctx"><i data-ico="folder" data-size="14"></i><span>文件树与查看器正文见 M-06 帧 A / 帧 B。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="c-term" hidden>
+          <div class="m-ctx"><i data-ico="square-terminal" data-size="14"></i><span>终端正文见 M-06 帧 C。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="c-web" hidden>
+          <div class="m-ctx"><i data-ico="globe" data-size="14"></i><span>浏览器正文见 M-07 帧 A / 帧 B。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="c-git" hidden>
+          <div class="m-ctx"><i data-ico="git-branch" data-size="14"></i><span>Git 图谱正文见 M-07 帧 D。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="c-review" hidden>
+          <div class="m-ctx"><i data-ico="file-diff" data-size="14"></i><span>审查正文见 M-06 帧 E。</span></div>
+        </section>
+
+        <div class="m-vbar">
+          <span class="m-grow m-t-xs m-t-faint">切到任何一块都不换页面，只换这一层内容</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · Git 与六块对照表 ──────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · Git 与六块对照表 · 切换条停在「Git」，泳道 + 未提交改动 + 分支关系（只读）；下半部分给一张六块对照表，把形态与正文位置排开</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-viewer is-open" id="m12-panel-d" data-demo-scope>
+        <div class="m-viewer-bar">
+          <div class="m-cats compact m-grow" data-demo-tabs>
+            <button class="m-cat" data-demo-tab="d-trace" title="轨迹" aria-label="轨迹"><i data-ico="history" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="d-files" title="文件" aria-label="文件"><i data-ico="folder" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="d-term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="d-web" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="15"></i></button>
+            <button class="m-cat is-on" data-demo-tab="d-git" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="15"></i></button>
+            <button class="m-cat" data-demo-tab="d-review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="15"></i></button>
+          </div>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#m12-panel-d" title="关闭面板 · 回会话"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <section class="m-panel-scroll" data-demo-pane="d-git">
+          <div class="m-banner">
+            <i data-ico="git-branch" data-size="14"></i>
+            <span class="m-grow">领先 main 3 个提交 · 3 个未提交改动 · 上次 fetch 4 分钟前</span>
+          </div>
+
+          <div class="m-cardgroup">
+            <div class="m-group-title">图谱 · 从上到下从新到旧</div>
+            <button class="m-setrow is-on">
+              <i data-ico="circle-dot" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">a3f21c8</span>
+                <span class="m-setrow-s">fix: 右栏页签与当前项接线</span>
+              </span>
+              <span class="m-badge ok">HEAD</span>
+            </button>
+            <button class="m-setrow">
+              <i data-ico="git-commit-horizontal" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">7b2d0e5</span>
+                <span class="m-setrow-s">feat: 浏览器面板三态文案</span>
+              </span>
+            </button>
+            <div class="m-setrow">
+              <i data-ico="git-branch" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">91f4a02</span>
+                <span class="m-setrow-s">feat: PWA 画板 · 与 main 分叉于此</span>
+              </span>
+              <span class="m-badge mute">本轮</span>
+            </div>
+          </div>
+
+          <div class="m-cardgroup">
+            <div class="m-group-title">未提交改动 · 3</div>
+            <button class="m-setrow">
+              <i data-ico="file-code" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">pwa/system.css</span>
+                <span class="m-setrow-s">已修改</span>
+              </span>
+              <span class="m-badge warn">+12 −4</span>
+            </button>
+            <button class="m-setrow">
+              <i data-ico="file-code" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t m-mono">boards/M-12-right-panels.html</span>
+                <span class="m-setrow-s">新文件</span>
+              </span>
+              <span class="m-badge mute">未跟踪</span>
+            </button>
+          </div>
+
+          <div class="m-ctx">
+            <i data-ico="info" data-size="14"></i>
+            <span>只读：图谱、改动、远端状态；提交、推送与 rebase 都不下放到手机（完整正文见 M-07 帧 D）。</span>
+          </div>
+        </section>
+
+        <section class="m-panel-scroll" data-demo-pane="d-trace" hidden>
+          <div class="m-ctx"><i data-ico="history" data-size="14"></i><span>轨迹正文见 M-06 帧 D。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="d-files" hidden>
+          <div class="m-ctx"><i data-ico="folder" data-size="14"></i><span>文件树与查看器正文见 M-06 帧 A / 帧 B。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="d-term" hidden>
+          <div class="m-ctx"><i data-ico="square-terminal" data-size="14"></i><span>终端正文见 M-06 帧 C。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="d-web" hidden>
+          <div class="m-ctx"><i data-ico="globe" data-size="14"></i><span>浏览器正文见 M-07 帧 A / 帧 B。</span></div>
+        </section>
+        <section class="m-panel-scroll" data-demo-pane="d-review" hidden>
+          <div class="m-ctx"><i data-ico="file-diff" data-size="14"></i><span>审查正文见 M-06 帧 E。</span></div>
+        </section>
+
+        <div class="m-vbar">
+          <span class="m-grow m-t-xs m-t-faint">切到任何一块都不换页面，只换这一层内容</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+
+  <div class="m-doc-frame">
+    <div class="m-doc-head">
+      <i data-ico="layers" data-size="14"></i>
+      <span class="m-grow">六块对照 · 手机上打开后的形态</span>
+    </div>
+    <div class="m-doc-body">
+      <div class="m-tbl-scroll nx-shrink-0">
+        <table class="m-tbl">
+          <thead>
+            <tr><th>面板</th><th>打开后的形态</th><th>正文</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><i data-ico="history" data-size="13"></i> 轨迹</td><td>全屏页 · 单例</td><td>M-06 帧 D</td></tr>
+            <tr><td><i data-ico="folder" data-size="13"></i> 文件</td><td>全屏页 · 一屏一层</td><td>M-06 帧 A / B</td></tr>
+            <tr><td><i data-ico="square-terminal" data-size="13"></i> 终端</td><td>全屏页 · 底部键排</td><td>M-06 帧 C</td></tr>
+            <tr><td><i data-ico="globe" data-size="13"></i> 浏览器</td><td>全屏页 · 地址栏 + 视口条</td><td>M-07 帧 A / B</td></tr>
+            <tr><td><i data-ico="git-branch" data-size="13"></i> Git</td><td>全屏页 · 只读泳道</td><td>M-07 帧 D</td></tr>
+            <tr><td><i data-ico="file-diff" data-size="13"></i> 审查</td><td>全屏页 · 两份来源</td><td>M-06 帧 E</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="m-sep"></div>
+      <div class="m-ctx">
+        <i data-ico="info" data-size="14"></i>
+        <span>入口一律是帧 A 的底部面板；打开后六块都是全屏页 —— 底部面板只用来选，不用来装正文。</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>入口只留一枚，不做六个常驻页签</b>：手机底部的中线要留给输入卡与 home 手势，六格横排既是「最远的一排」也把正文挤掉一半。所以会话页顶栏右侧只放一枚 <span class="m-mono">panel-right</span>（title「右栏面板」，与桌面 D-05 / D-01 那枚同义），点开是 <span class="m-mono">.m-sheet</span> 六项列表，每行写一句现状（如「审查 · 3 个文件待看」）—— 按需开、选完即走。</li>
+    <li><b>六块共用一层，切块不换页面</b>：选完进入 <span class="m-mono">.m-viewer</span> 全屏层，顶部 <span class="m-mono">.m-cats</span> 横滚六项（当前项 <span class="m-mono">.is-on</span>），右侧 <span class="m-mono">.m-top-btn</span> 是 x 关闭。切换条真接线：<span class="m-mono">data-demo-tabs</span> + <span class="m-mono">data-demo-tab</span> / <span class="m-mono">data-demo-pane</span>，只在层内换内容 —— 页面、滚动位置、会话上下文都不动。六项在 390 宽上按默认间距放不下，切换条走紧凑档 <span class="m-mono">.m-cats.compact</span> 把六项收进同屏：当前项永远看得见，不依赖「自动滚到当前项」；屏再窄时仍可横滚。</li>
+    <li><b>层内滚动区与紧凑切换条是本张新增的两个选择器</b>：六个 pane 用 <span class="m-mono">.m-panel-scroll</span>（已写进 <span class="m-mono">pwa/system.css</span>，等价于 <span class="m-mono">.m-settings</span> 去掉顶栏占位）：唯一纵向滚动区 + 卡片 12px 节奏；切换条用 <span class="m-mono">.m-cats.compact</span>（只收横距，不动高度与描边）。底部 <span class="m-mono">.m-vbar</span> 常驻一句「切到任何一块都不换页面，只换这一层内容」。</li>
+    <li><b>图标沿用桌面同一批名字</b>：轨迹 <span class="m-mono">history</span>、文件 <span class="m-mono">folder</span>、终端 <span class="m-mono">square-terminal</span>、浏览器 <span class="m-mono">globe</span>、Git <span class="m-mono">git-branch</span>、审查 <span class="m-mono">file-diff</span>。图标库只有 <span class="m-mono">icons.js</span> 一份，板上不画 SVG、不用 emoji。</li>
+    <li><b>正文不在这里重复</b>：审查的完整形态在 M-06 帧 E、轨迹在 M-06 帧 D、文件树 / 查看器在 M-06 帧 A / B、终端在 M-06 帧 C、浏览器在 M-07 帧 A / B、Git 在 M-07 帧 D。帧 B / C / D 只画「从切换条进来」的这一层，帧 D 的对照表把六块的形态与正文位置一次排开。</li>
+    <li><b>一致性约束不新写</b>：轨迹仍是单例（六个面板的动作汇成一条时间线）；审查仍是两份来源（git diff + 会话自述），只读；Git 仍只做「看」，提交 / 推送 / rebase 一个按钮都不给手机。这些规矩在 M-06 / M-07 已经立过，这张只保证切换条进来的形态与它们一致。</li>
+    <li><b>触控下限</b>：切换条用 <span class="m-mono">.m-cats.compact</span>，库里给到 <span class="m-mono">--nx-touch-min</span>（44px）的**高与最小宽** —— 六格同屏仍放得下（6×44 + 间隙 ≈ 280 < 318），所以不需要「先记需求、落地再补」。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

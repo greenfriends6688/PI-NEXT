@@ -3,11 +3,18 @@
 import { useI18n } from "@/hooks/useI18n";
 
 /*
- * fork:design-components —— 新会话空态首屏**直接使用画板 01 的组件**：
- * 结构 = design/pi-web-design/01-workbench.html 的 .pw-empty 段
- *   （.pw-empty-inner > .mark + h2 + p + .pw-starters > .pw-starter），
- * 样式全部来自 assets/board.css，图标走 <i data-ico>（icons.js hydrate）。
- * 本文件不写一行视觉样式（入场错开除外——那是画板 05 的动效 token）。
+ * fork:v5-landing —— 新会话空态首屏照 v5 画板 **D-01 帧 A** 抄 DOM：
+ * 结构 = .d-empty（.d-empty-ico + .d-empty-t.d-t-display + .d-empty-s）
+ *        + .d-grid2 > .d-store-card（.d-store-cover + .d-store-card-t + .d-t-xs + .d-store-foot）。
+ * 样式全部来自 design/v5/web/system.css（d-* 唯一出处），图标走 <i data-ico>（icons.js hydrate）。
+ * 四张起步卡 = STARTERS（scan-search / git-compare / square-check / book-open），
+ * 点卡只把完整指令填进输入框、不发送。
+ *
+ * fork:v5-wave-b —— **这一件有意不加 m-* 分支**：`design/v5/pwa/boards/` 里
+ * 没有「新会话首屏」这张 PWA 画板（M-01 只管会话页与抽屉），库里的 `.m-empty` /
+ * `.m-onboard` 是另一档形态（安装引导 / 系统态）。PWA 库无对应件时不自造，
+ * 所以窄屏仍走这套 d-* DOM（≥641 才生效的类，窄屏上是继承旧样式）—— 登记为缺件，
+ * 等设计侧补板后再换。
  */
 
 function cwdBasename(cwd: string | null | undefined): string | null {
@@ -34,69 +41,56 @@ export function NewSessionHome({
 }) {
   const { t } = useI18n();
   const label = cwdBasename(cwd);
-  // 提示行里 @ 与 / 用画板的 .pw-kbd 标出（01 画板原文如此）。
   const hint = t("chat.homeHint");
-  const [hintBeforeAt, hintAfterAt = ""] = hint.split("@");
-  const [hintMid, hintAfterSlash = ""] = hintAfterAt.split("/");
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <div className="pw-empty" style={{ padding: "32px 16px", overflowY: "auto" }}>
-        <div className="pw-empty-inner">
-          <span
-            className="mark fork-row-enter"
+    <div className="d-col d-grow" style={{ minHeight: 0, overflowY: "auto", padding: "0 var(--nx-sp-8)" }}>
+      <div className="d-chat-inner">
+        <div className="d-empty" style={{ padding: "var(--nx-sp-8) 0 var(--nx-sp-6)" }}>
+          <div
+            className="d-empty-ico fork-row-enter"
             aria-hidden="true"
             style={{ animationDelay: "0ms" }}
           >
-            <i data-ico="pi" data-size="20"></i>
-          </span>
-          <h2
-            className="fork-row-enter"
+            {/* fork:brand-mark-2026-10-04 —— 主品牌图形（public/pi-next-logo.png），
+                不是 pi 的 π 字形；盒子是画板 D-01 的 `.d-empty-ico`。 */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+            <img src="/pi-next-logo.png" alt="" draggable={false} />
+          </div>
+          <div
+            className="d-empty-t d-t-display fork-row-enter"
             style={{ animationDelay: "calc(var(--motion-stagger) * 1)" }}
           >
             {label ? t("chat.homeTitle", { cwd: label }) : t("chat.homeTitleGeneric")}
-          </h2>
-          <p
-            className="fork-row-enter"
+          </div>
+          <div
+            className="d-empty-s fork-row-enter"
             style={{ animationDelay: "calc(var(--motion-stagger) * 2)" }}
           >
-            {hintAfterAt ? (
-              <>
-                {hintBeforeAt}
-                <span className="pw-kbd">@</span>
-                {hintMid}
-                <span className="pw-kbd">/</span>
-                {hintAfterSlash}
-              </>
-            ) : (
-              hint
-            )}
-          </p>
-          <div
-            className="pw-starters fork-row-enter"
-            style={{
-              // 画板 60：移动端单列堆叠（同构约定：放不下就折成一列）。
-              gridTemplateColumns: isMobile ? "1fr" : undefined,
-              // 成组错开封顶 3 项：起始卡整体跟随提示行，不再逐张延后。
-              animationDelay: "calc(var(--motion-stagger) * 2)",
-            }}
-          >
-            {STARTERS.map(({ key, desc, prompt, icon }) => (
-              <button
-                key={key}
-                type="button"
-                className="pw-starter"
-                style={{ cursor: "pointer", font: "inherit" }}
-                onClick={() => onInsertPrompt(t(prompt))}
-              >
-                <b>
-                  <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>
-                  {t(key)}
-                </b>
-                <span>{t(desc)}</span>
-              </button>
-            ))}
+            {hint}
           </div>
+        </div>
+        <div
+          className="d-grid2 fork-row-enter"
+          style={{
+            // 画板 60：移动端单列堆叠（同构约定：放不下就折成一列）。
+            gridTemplateColumns: isMobile ? "1fr" : undefined,
+            animationDelay: "calc(var(--motion-stagger) * 2)",
+          }}
+        >
+          {STARTERS.map(({ key, desc, prompt, icon }) => (
+            <button
+              key={key}
+              type="button"
+              className="d-store-card"
+              onClick={() => onInsertPrompt(t(prompt))}
+            >
+              <div className="d-store-cover"><i data-ico={icon} data-size="20"></i></div>
+              <div className="d-store-card-t">{t(key)}</div>
+              <div className="d-t-xs d-t-faint">{t(desc)}</div>
+              <div className="d-store-foot"><i data-ico="zap" data-size="12"></i>{t("chat.homeOneClick")}</div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

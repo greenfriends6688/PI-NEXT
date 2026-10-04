@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-02d · 侧栏细节补齐 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-02d · 侧栏细节补齐</h1>
+  <p>
+    D-02 画的是侧栏的<b>骨架与叙事</b>，这一张补骨架上<b>真正会发生的细节</b>：双 pane 两层结构
+    （项目 / 聊天工作区）、pane 内的搜索与刷新、用户自定义分组的四态与移出落点、项目行动作、
+    worktree 切换器、会话行五态互斥表，以及会话动作菜单的完整 12 行。
+    侧栏是<b>纯展示层的偏好容器</b>：分组、排序、置顶、归档都存在本地，不动磁盘上的任何一个
+    <span class="d-mono">.jsonl</span>。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 · 侧栏细节</span>
+    <span class="d-tag">组件：SessionSidebar · GroupedProjectList · ChatWorkspaceRow · ProjectRow · BranchChip</span>
+    <span class="d-tag">状态：项目 pane / 聊天 pane / 搜索中 / 刷新中 / 分组四态 / 五态互斥 / worktree 确认</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 A · 双 pane 骨架 + pane 内搜索与刷新 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 双 pane 两层骨架 · 默认态（不画搜索格）/ 下拉刷新 / 全部展开折叠<span class="d-grow"></span>搜索态见帧 E</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell" data-demo-scope>
+
+        <!-- 项目 pane -->
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+
+                    <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="false">项目</button>
+            <button role="tab" aria-selected="true" class="is-on">聊天</button>
+          </div>
+
+          <div class="d-side-scroll">
+            <div data-demo-pane="pane-proj">
+              <div class="d-group-title" role="button" tabindex="0" title="全部展开 / 收起">
+                <i data-ico="chevrons-up-down" data-size="12"></i><span class="d-grow">项目</span>
+              </div>
+
+              <div class="d-group-title">
+                <i data-ico="chevron-down" data-size="12"></i>
+                <span class="d-grow">PI NEXT</span>
+                <span class="d-t-xs">14</span>
+              </div>
+              <button class="d-sess is-on">
+                <span class="d-sess-t">设计体系 V5 画板</span>
+                <span class="d-sess-m"><span>刚刚</span><span>·</span><span>14 条消息</span></span>
+              </button>
+              <button class="d-sess">
+                <span class="d-sess-t">令牌只写一次：base.css</span>
+                <span class="d-sess-m"><span>2 小时前</span><span>·</span><span>41 条消息</span><span class="d-dot ok"></span></span>
+              </button>
+              <button class="d-sess">
+                <span class="d-sess-t">check-v5 少拦了哪一类</span>
+                <span class="d-sess-m"><span>前天</span><span>·</span><span>18 条消息</span></span>
+              </button>
+
+              <div class="d-group-title">
+                <i data-ico="chevron-right" data-size="12"></i>
+                <span class="d-grow">pi-web-design</span>
+                <span class="d-t-xs">4</span>
+              </div>
+              <div class="d-group-title">
+                <i data-ico="chevron-down" data-size="12"></i>
+                <span class="d-grow">zhaobiao-extract</span>
+                <span class="d-dot ok"></span>
+              </div>
+            </div>
+
+            <div data-demo-pane="pane-chat" hidden>
+              <div class="d-group-title"><i data-ico="message-square" data-size="12"></i><span class="d-grow">聊天</span></div>
+              <div class="d-group-title">
+                <i data-ico="chevron-down" data-size="12"></i>
+                <span class="d-grow">随手问</span>
+                <span class="d-t-xs">4</span>
+                <button class="d-iconbtn" title="新建聊天"><i data-ico="plus" data-size="13"></i></button>
+                <button class="d-iconbtn" title="设置聊天目录"><i data-ico="folder-cog" data-size="13"></i></button>
+              </div>
+              <button class="d-sess">
+                <span class="d-sess-t">React 19 的 use() 到底怎么用</span>
+                <span class="d-sess-m"><span>2 小时前</span><span>·</span><span>8 条消息</span></span>
+              </button>
+              <button class="d-sess">
+                <span class="d-sess-t">帮我算一下这个月开销</span>
+                <span class="d-sess-m"><span>昨天</span><span>·</span><span>5 条消息</span><span class="d-dot ok"></span></span>
+              </button>
+              <div class="d-empty compact">
+                <div class="d-empty-ico"><i data-ico="messages-square" data-size="16"></i></div>
+                <div class="d-empty-t">聊天工作区不属于任何项目</div>
+                <div class="d-empty-s">新建任务时选「不在项目中（聊天）」，对话就会落到这里。适合随手问一句。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <!-- 细节说明 -->
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">侧栏 · 两层骨架</span>
+              <span class="d-tb-sub">外层分段（项目 / 聊天）→ 内层分组（用户自定义分组 / 项目）→ 行</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- ① 双 pane -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="columns-2" data-size="15"></i>
+                  <span>① 双 pane · 「项目 / 聊天工作区」</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">切 pane 即切工作区</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-kv-row"><span>项目 pane</span><span>按项目分组 · 组内按最近活跃倒序</span></div>
+                    <div class="d-kv-row"><span>聊天 pane</span><span>聊天工作区（<span class="d-mono">/api/chat-workspace</span>）· 与项目互斥</span></div>
+                    <div class="d-kv-row"><span>切换代价</span><span>文件树、标签、会话记忆一起跟着换</span></div>
+                    <div class="d-kv-row"><span>两段的关系</span><span>不是过滤，是两个不同的项目键</span></div>
+                    <div class="d-t-xs d-t-faint">聊天工作区在项目列表里<b>只出现一次</b>：它在聊天 pane 当自己的分区头，不再重复出现在项目 pane。识别靠服务端算出的项目键，浏览器从不比路径。</div>
+                    <div class="d-t-xs d-t-faint">两段互斥渲染 —— 不是一块 hidden 一块 visible，而是只挂当前这段的 DOM：加起来能上百行，留一半在 DOM 里只为了切快 20ms 不值得。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ② pane 内搜索 / 刷新 / 展开折叠 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="search" data-size="15"></i>
+                  <span>② 搜索只在搜索态出现 · 下拉刷新 · 全部展开 / 折叠</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">三件事各归其位</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+
+                    <div>
+                      <div class="d-t-sm d-t-b">搜索格只在搜索态出现（默认态侧栏里没有它，完整搜索态见帧 E）</div>
+                      <div class="d-row" style="padding:var(--nx-sp-2) 0">
+                        <button class="d-iconbtn" title="搜索对话"><i data-ico="search" data-size="15"></i></button>
+                        <span class="d-t-xs d-t-dim">默认态：点这枚放大镜才展开并聚焦</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint" style="padding:var(--nx-sp-1) 0 0">搜索态：点搜索钮后，搜索格才占这一行</div>
+                      <div class="d-searchfield">
+                        <i data-ico="search" data-size="13"></i>
+                        <input value="令牌" placeholder="搜索所有对话…" aria-label="搜索所有对话">
+                        <button class="d-iconbtn" title="清除搜索"><i data-ico="x" data-size="13"></i></button>
+                      </div>
+                      <div class="d-t-xs d-t-faint">placeholder 固定「搜索所有对话…」，只在搜索态出现；清空钮 = 关闭搜索，不只是清文字，Esc 同义。常显的搜索格会让「默认」和「搜索中」在界面上不可分，还白占一行高度。</div>
+                    </div>
+
+                    <div class="d-sep"></div>
+
+                    <div>
+                      <div class="d-t-sm d-t-b">下拉刷新 · 指示器在列表<b>上面</b>，在滚动容器<b>里面</b></div>
+                      <div class="d-row" style="padding:var(--nx-sp-2) 0">
+                        <i data-ico="chevron-down" data-size="14"></i>
+                        <span class="d-t-xs">下拉刷新</span>
+                      </div>
+                      <div class="d-row" style="padding:var(--nx-sp-2) 0">
+                        <span class="d-run"><i data-ico="loader-circle" data-size="13"></i></span>
+                        <span class="d-t-xs">刷新中…</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">高度跟着手指走，松手才定到「刷新中」。指示器压在列表内容上，不把列表往下推 —— 推了等于告诉用户「你看到的内容变了」。</div>
+                    </div>
+
+                    <div class="d-sep"></div>
+
+                    <div>
+                      <div class="d-t-sm d-t-b">全部展开 / 折叠 · 挂在分区标题行上</div>
+                      <div class="d-group-title" role="button" tabindex="0" title="全部展开 / 收起">
+                        <i data-ico="chevrons-up-down" data-size="12"></i><span class="d-grow">项目</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">整行是一个可点可键盘触发的按钮（Tab 到它按 Enter / 空格同样生效）。标题行右端<b>只</b>放这一个动作：「添加项目」按用户要求移走，改挂到每个项目自己的菜单里。</div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 B · 用户分组四态 + 项目行动作 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 用户自定义分组四态 + 移出落点 · 项目行动作两态<span class="d-grow"></span>空分组也保留，它是拖拽落点</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">侧栏 · 分组与项目动作</span>
+              <span class="d-tb-sub">分组 / 排序 / 置顶 / 归档只存在本地，不动磁盘上的会话文件</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- ③ 分组四态 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="layers" data-size="15"></i>
+                  <span>③ 用户自定义分组 · 四态 ＋ 移出落点</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">没有第五种</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-grid2">
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">展开态</span></div>
+                      <div class="d-card-body">
+                        <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i><i data-ico="circle" data-size="8"></i><span class="d-grow">线上问题</span><span class="d-t-xs">3</span></div>
+                        <button class="d-sess"><span class="d-sess-t">PI NEXT</span><span class="d-sess-m"><span>12 条消息</span></span></button>
+                        <button class="d-sess"><span class="d-sess-t">招标改</span><span class="d-sess-m"><span>6 条消息</span></span></button>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">折叠态</span></div>
+                      <div class="d-card-body">
+                        <div class="d-group-title"><i data-ico="chevron-right" data-size="12"></i><i data-ico="circle" data-size="8"></i><span class="d-grow">调研</span><span class="d-t-xs">7</span></div>
+                        <div class="d-t-xs d-t-faint">折叠后<b>只留头</b>，数量照给 —— 否则用户不知道里面还有东西。色点一直画：折叠时名字藏起来了，色点是唯一的身份线索。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">拖放落点</span></div>
+                      <div class="d-card-body">
+                        <div class="d-group-title is-on"><i data-ico="chevron-down" data-size="12"></i><i data-ico="circle" data-size="8"></i><span class="d-grow">本周跟进</span><span class="d-t-xs">2</span></div>
+                        <button class="d-sess"><span class="d-sess-t">pi-web-design</span><span class="d-sess-m"><span>20 条消息</span></span></button>
+                        <div class="d-t-xs d-t-faint">拖过分组头即高亮，与会话选中态同一个底色 —— 「松手会发生什么」和「现在选中的是谁」是同一件事。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">就地改名</span></div>
+                      <div class="d-card-body">
+                        <div class="d-group-title"><input class="d-input" value="线上问题" aria-label="重命名分组"></div>
+                        <div class="d-t-xs d-t-faint">分组头<b>本身就是</b>一个输入框：Enter 提交、Esc 取消、点外面提交。不弹对话框。空名不落盘 —— 没有名字的分组等于没有分组。</div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div class="d-sep"></div>
+
+                  <div class="d-t-sm d-t-b" style="padding:var(--nx-sp-2) 0">「拖到这里移出分组」· 只在拖一个已在组里的项目时出现</div>
+                  <div class="d-drop">
+                    <i data-ico="inbox" data-size="16"></i>
+                    <span class="d-t-sm">拖到这里移出分组</span>
+                  </div>
+                  <div class="d-drop over">
+                    <i data-ico="inbox" data-size="16"></i>
+                    <span class="d-t-sm d-t-b">拖到这里移出分组</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint">它是<b>常驻落点</b>不是菜单项，挂在分组列表末尾。没有它，用户想撤销一次误拖就只能再拖回去。</div>
+                </div>
+              </div>
+
+              <!-- ④ 项目行动作 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="folder-cog" data-size="15"></i>
+                  <span>④ 项目行动作 · 未归档 / 已归档</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">挂在每个项目行上</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+
+                    <div class="d-anchor d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-row">
+                        <button class="d-iconbtn" title="项目选项" data-demo-open="proj-b"><i data-ico="ellipsis" data-size="14"></i></button>
+                        <span class="d-t-xs d-t-dim">未归档的项目</span>
+                      </div>
+                      <div class="d-pop-float is-open" data-demo-pop="proj-b" style="position:relative;min-width:260px">
+                        <div class="d-pop-title">PI NEXT · ~/Desktop/PI NEXT</div>
+                        <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">打开文件夹</span></button>
+                        <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">重命名</span></button>
+                        <button class="d-menu-row"><i data-ico="archive" data-size="14"></i><span class="d-grow">归档</span></button>
+                        <div class="d-sep"></div>
+                        <button class="d-menu-row danger"><i data-ico="minus" data-size="14"></i><span class="d-grow">从列表中移除</span></button>
+                        <div class="d-pop-foot">移除的是<b>列表条目</b>，不是磁盘目录：只把它从侧栏藏起来，随时能再添加回来。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-anchor d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-row">
+                        <button class="d-iconbtn" title="项目选项" data-demo-open="proj-b2"><i data-ico="ellipsis" data-size="14"></i></button>
+                        <span class="d-t-xs d-t-dim">已归档的项目 · 文案跟着状态翻</span>
+                      </div>
+                      <div class="d-pop-float is-open" data-demo-pop="proj-b2" style="position:relative;min-width:260px">
+                        <div class="d-pop-title">旧版官网 · 已归档</div>
+                        <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">打开文件夹</span></button>
+                        <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">重命名</span></button>
+                        <button class="d-menu-row"><i data-ico="archive-restore" data-size="14"></i><span class="d-grow">恢复</span></button>
+                        <div class="d-sep"></div>
+                        <button class="d-menu-row danger"><i data-ico="minus" data-size="14"></i><span class="d-grow">从列表中移除</span></button>
+                        <div class="d-pop-foot">归档把项目连同它下面的会话一起收走，统一去「设置 · 归档历史」里找。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-sep"></div>
+
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>动作</th><th>动的是什么</th><th>能不能回来</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>打开文件夹</td><td>叫系统访达打开这个目录</td><td>不需要</td></tr>
+                        <tr><td>重命名</td><td>只改侧栏里的别名</td><td>随时</td></tr>
+                        <tr><td>归档 / 恢复</td><td>项目连同会话一起收走</td><td>设置 · 归档历史</td></tr>
+                        <tr><td>从列表中移除</td><td>只藏列表条目</td><td>再添加回来</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="d-t-xs d-t-faint">这一组动作原来挂在分区标题右端的「⋯」上，移到了每个项目行自己身上 —— 标题行只留「全部展开 / 收起」一个动作。</div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 C · worktree 切换器 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · worktree 切换器 · 顶栏 BranchChip + 侧栏项目行下的 worktree 行<span class="d-grow"></span>两处是同一个动作、不同的高度</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">worktree · 一个项目下多份检出</span>
+              <span class="d-tb-sub">顶栏芯片与侧栏行指向同一份列表；worktree 与主仓共享同一个项目标识</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-chipbtn" data-demo-open="wt-c"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="12"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- 顶栏 BranchChip -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="git-branch" data-size="15"></i>
+                  <span>顶栏 · BranchChip（260 宽）</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">芯片带下拉箭头</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-chipbtn" data-demo-open="wt-c"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-dim">它是一个可点按钮，不是标签 —— 点不动是 bug</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="wt-c" style="position:relative;min-width:260px">
+                      <div class="d-pop-title">工作区</div>
+                      <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow d-mono">main</span><span class="d-badge mute">主分支</span></button>
+                      <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i><span class="d-grow d-mono">fork/v5-boards</span></button>
+                      <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i><span class="d-grow d-mono">fork/v5-boards-fix</span></button>
+                      <div class="d-pop-foot">按需拉：点开才发一次请求。没打开过时只显示分支名。</div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:260px">
+                      <div class="d-pop-title">工作区 · 两种非正常态</div>
+                      <div class="d-menu-row"><span class="d-t-faint">正在检查此目录的 worktree…</span></div>
+                      <div class="d-menu-row"><span class="d-t-faint">仅 Git 仓库根目录</span></div>
+                      <div class="d-pop-foot">仓库子目录有自己的项目标识，从那里切 worktree 会跳项目 —— 所以这两句话直接说清「为什么这里不能切」。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点芯片；消失：选中一条 / 点外面 / Esc。选中另一个检出 = 切换项目目录，侧栏、文件树、标签一起跟着走。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 侧栏 worktree 行 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="folder-tree" data-size="15"></i>
+                  <span>侧栏 · 项目行下的 worktree 行</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge warn">含破坏性动作</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+
+                    <div class="d-card">
+                      <div class="d-card-body">
+                        <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i><span class="d-grow">PI NEXT</span><span class="d-t-xs">14</span></div>
+                        <div class="d-group-title" style="padding-left:var(--nx-sp-6)">
+                          <i data-ico="git-branch" data-size="12"></i>
+                          <span class="d-grow d-mono d-t-xs">fork/v5-boards</span>
+                          <span class="d-badge mute">3</span>
+                          <i data-ico="chevron-down" data-size="12"></i>
+                        </div>
+                        <div class="d-t-xs d-t-faint">worktree 行是<b>选中项目行的子行</b>，不是滚动区顶部的孤立一行。只在选中项目展开时出现。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:300px">
+                      <div class="d-searchfield" style="margin:0 var(--nx-sp-1) var(--nx-sp-1)">
+                        <i data-ico="search" data-size="13"></i>
+                        <input placeholder="筛选 worktree" aria-label="筛选 worktree">
+                      </div>
+                      <div class="d-pop-title">这个项目的检出 · 3</div>
+                      <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow d-mono">main</span><span class="d-badge mute">主分支</span></button>
+                      <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i><span class="d-grow d-mono">fork/v5-boards</span><span class="d-iconbtn" title="移除这个检出（保留分支）"><i data-ico="trash-2" data-size="12"></i></span></button>
+                      <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i><span class="d-grow d-mono">upstream-v094</span><span class="d-badge warn">有未提交改动</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="plus" data-size="14"></i><span class="d-grow">新建 worktree</span></button>
+                      <div class="d-pop-foot">筛选框只在检出 ≥ 8 个时出现 —— 三个的时候给一个永远用不上的输入框是噪音。主分支那一行没有移除钮。</div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:300px">
+                      <div class="d-pop-title">新建 worktree · 就地编辑</div>
+                      <div style="padding:0 var(--nx-sp-1) var(--nx-sp-1)">
+                        <input class="d-input d-grow" value="fork/v5-boards-fix" aria-label="分支名称">
+                        <div class="d-row" style="padding:var(--nx-sp-1) 0 0">
+                          <button class="d-btn sm primary d-grow">创建</button>
+                          <button class="d-btn sm ghost d-grow">取消</button>
+                        </div>
+                      </div>
+                      <div class="d-pop-foot">「新建 worktree」这一行点开后<b>就地变成输入框</b>，不跳走、不弹对话框：Enter 创建、Esc 收起。</div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:300px">
+                      <div class="d-pop-title"><span class="d-err">强制移除前的确认</span></div>
+                      <div style="padding:0 var(--nx-sp-1) var(--nx-sp-1)">
+                        <div class="d-banner err">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span class="d-grow">存在未提交的更改。强制移除 checkout？</span>
+                        </div>
+                        <div class="d-row" style="padding:var(--nx-sp-1) 0 0">
+                          <button class="d-btn sm ghost d-grow">取消</button>
+                          <button class="d-btn sm danger d-grow">强制移除</button>
+                        </div>
+                      </div>
+                      <div class="d-pop-foot">有未提交改动时移除会丢文件，所以确认行就<b>插在那一条检出下面</b>，按 Esc 或点取消即消失。主分支永远不给移除钮。</div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 D · 会话行五态 + 会话动作菜单 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 会话行五态互斥表 · 会话动作菜单 12 行<span class="d-grow"></span>⋯ 菜单真能开合，复制项有反馈态</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">侧栏 · 行与菜单</span>
+              <span class="d-tb-sub">状态标记一律在右侧；同一行任何时刻只出现一种</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="会话动作" data-demo-open="sess-d"><i data-ico="ellipsis" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- ⑥ 五态 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="list-todo" data-size="15"></i>
+                  <span>⑥ 会话行五态 · 互斥</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">取消与失败不在这张表里</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">运行中</span><span class="d-grow"></span><span class="d-badge info">行高 58</span></div>
+                      <div class="d-card-body">
+                        <button class="d-sess running">
+                          <span class="d-sess-t">排查最新 Release 与本地待上传改动</span>
+                          <span class="d-sess-m">
+                            <span class="d-run"><i data-ico="loader-circle" data-size="11"></i></span>
+                            <span>刚刚</span><span>·</span><span>19 条消息</span>
+                          </span>
+                        </button>
+                        <div class="d-t-xs d-t-faint">行内转圈（与未读点、等你处理同一位）＋ 底边扫掠线：轨道 1px 常亮、焦点 96px 匀速掠过、周期 1400ms linear —— 全系统唯一允许 linear 的地方。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">完成 · 未读</span><span class="d-grow"></span><span class="d-badge ok">行高 48</span></div>
+                      <div class="d-card-body">
+                        <button class="d-sess">
+                          <span class="d-sess-t">AcpAgentClient 对比与借鉴清单</span>
+                          <span class="d-sess-m"><span>1 小时前</span><span>·</span><span>24 条消息</span><span class="d-dot ok"></span></span>
+                        </button>
+                        <div class="d-t-xs d-t-faint">6px 圆点、success 色，与消息计数基线居中。出现只做淡入，不位移不缩放；会话被查看后<b>从布局里移除</b>，不留占位。「24 条消息」文字本身不变色不加粗。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">等你处理</span><span class="d-grow"></span><span class="d-badge warn">行高 58</span></div>
+                      <div class="d-card-body">
+                        <button class="d-sess">
+                          <span class="d-sess-t">窗口切在回合中间时的渲染修复</span>
+                          <span class="d-sess-m">
+                            <span>12 分钟前</span><span>·</span><span>6 条消息</span>
+                            <span class="d-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待授权</span>
+                          </span>
+                        </button>
+                        <button class="d-sess">
+                          <span class="d-sess-t">这个目录要不要建</span>
+                          <span class="d-sess-m">
+                            <span>12 分钟前</span><span>·</span><span>3 条消息</span>
+                            <span class="d-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待输入</span>
+                          </span>
+                        </button>
+                        <div class="d-t-xs d-t-faint">同一位置一枚<b>文字</b>标记，不是一个点：等你授权 / 等你输入 —— 用户要知道自己要做什么，点才知道去点哪。</div>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-head"><span class="d-t-sm">已读 · 空闲</span><span class="d-grow"></span><span class="d-badge mute">行高 48</span></div>
+                      <div class="d-card-body">
+                        <button class="d-sess">
+                          <span class="d-sess-t">Codex 皮肤 token 台账</span>
+                          <span class="d-sess-m"><span>昨天</span><span>·</span><span>41 条消息</span></span>
+                        </button>
+                        <div class="d-t-xs d-t-faint">什么都不显示。取消与失败<b>在侧栏一律不表达</b> —— 那是转录里的结束行该说的话；侧栏只回答「在跑 / 有结果没看 / 等你」三个问题。</div>
+                      </div>
+                    </div>
+
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>状态</th><th>标题</th><th>右侧标记</th><th>行高</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>运行中</td><td class="d-t-faint">无（扫掠线在行底边）</td><td>行内转圈</td><td class="d-mono">58</td></tr>
+                        <tr><td>等你处理</td><td class="d-t-faint">撤掉</td><td><span class="d-badge warn">待授权 / 待输入</span></td><td class="d-mono">58</td></tr>
+                        <tr><td>完成 · 未读</td><td class="d-t-faint">无</td><td><span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-dot ok"></span><span class="d-t-xs d-t-faint">绿点 · 无数字</span></span></td><td class="d-mono">48</td></tr>
+                        <tr><td>已读 · 空闲</td><td class="d-t-faint">无</td><td class="d-t-faint">无</td><td class="d-mono">48</td></tr>
+                        <tr><td>已归档</td><td class="d-t-faint">无</td><td class="d-t-faint">整行移出列表</td><td class="d-mono">—</td></tr>
+                        <tr><td>已取消 / 已失败</td><td class="d-t-faint">无</td><td class="d-t-faint">无</td><td class="d-mono">48</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="d-banner warn">
+                      <i data-ico="info" data-size="14"></i>
+                      <span class="d-grow">互斥规则就一条代码：<b>等你处理优先于未读</b>，运行中与等你处理互斥。行高只有 48 / 58 两档，且<b>不做过渡</b> —— 过渡会在长列表里读成「抖动」。</span>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              <!-- ⑦ 会话动作菜单 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="ellipsis" data-size="15"></i>
+                  <span>⑦ 会话动作菜单 · 12 行 / 3 段分隔</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">⋯ 唯一入口</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="会话动作" data-demo-open="sess-d"><i data-ico="ellipsis" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">点这枚 ⋯ 开合 · 真机里它在顶栏右端</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">菜单本体 portal 到 body，顶栏裁不到</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="sess-d" style="position:relative;min-width:300px">
+                      <div class="d-pop-title">会话动作 · 设计体系 V5 画板</div>
+
+                      <button class="d-menu-row"><i data-ico="pin" data-size="14"></i><span class="d-grow">置顶</span></button>
+                      <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">重命名会话</span></button>
+                      <button class="d-menu-row"><i data-ico="archive" data-size="14"></i><span class="d-grow">归档</span></button>
+                      <button class="d-menu-row"><i data-ico="message-circle" data-size="14"></i><span class="d-grow">标记为未读</span></button>
+
+                      <div class="d-sep"></div>
+
+                      <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">在访达中打开</span></button>
+                      <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">复制路径</span></button>
+                      <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow">复制会话文件路径</span></button>
+                      <button class="d-menu-row"><i data-ico="hash" data-size="14"></i><span class="d-grow">复制会话 ID</span></button>
+
+                      <div class="d-sep"></div>
+
+                      <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow">系统提示词</span></button>
+                      <button class="d-menu-row"><i data-ico="wrench" data-size="14"></i><span class="d-grow">工具定义</span></button>
+
+                      <div class="d-sep"></div>
+
+                      <button class="d-menu-row"><i data-ico="download" data-size="14"></i><span class="d-grow">导出为 HTML</span></button>
+                      <button class="d-menu-row"><i data-ico="download" data-size="14"></i><span class="d-grow">导出 Markdown</span></button>
+
+                      <div class="d-pop-foot">复制三行点完<b>就地</b>翻成「已复制」（见右边那一格）约 1.2 秒才关 —— 菜单自己吞掉结果，不弹提示条。</div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:260px">
+                      <div class="d-pop-title">复制类三行的反馈态</div>
+                      <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">复制路径</span></button>
+                      <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow d-t-b">已复制</span></button>
+                      <div class="d-pop-foot">只有被点到的那一行翻图标与文字，邻居不动；约 1.2 秒后菜单自己关掉。</div>
+                    </div>
+
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-t-sm d-t-b">开关态的两对文案</div>
+                      <div class="d-row">
+                        <span class="d-badge mute">置顶 ↔ 取消置顶</span>
+                        <span class="d-badge mute">归档 ↔ 取消归档</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">同一个组件按当前 flags 翻文案与图标（<span class="d-mono">pin</span> ↔ <span class="d-mono">pin-off</span>、<span class="d-mono">archive</span> ↔ <span class="d-mono">archive-restore</span>），所以菜单里不出现第二份「取消置顶」。</div>
+                    </div>
+
+                    <div class="d-sep"></div>
+
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>分组</th><th>行</th><th>为什么在这</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>一</td><td>置顶 / 重命名 / 归档 / 标记未读</td><td>改这条会话本身</td></tr>
+                        <tr><td>二</td><td>访达 / 复制路径 / 复制文件路径 / 复制 ID</td><td>关于「它在哪」的四个问题</td></tr>
+                        <tr><td>三</td><td>系统提示词 / 工具定义</td><td>低频只读诊断，从顶栏收进来的</td></tr>
+                        <tr><td>四</td><td>导出 HTML / 导出 Markdown</td><td>往外带走</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="d-t-xs d-t-faint">菜单里<b>只放当场生效的动作</b>。破坏性的（删会话）在侧栏行内，且必须确认；分享链接这种我们根本没做的动作不占位置。</div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 E · 搜索态：搜索格只在搜索态出现（默认态见帧 A） -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 侧栏搜索态 · 搜索格只在搜索态出现<span class="d-grow"></span>默认态侧栏里没有搜索格</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+          <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+
+          <!-- 搜索态：这一格只在搜索态出现；默认态（帧 A）没有它 -->
+          <div class="d-side-nav">
+            <div class="d-searchfield">
+              <i data-ico="search" data-size="13"></i>
+              <input value="令牌" placeholder="搜索所有对话…" aria-label="搜索所有对话">
+              <button class="d-iconbtn" title="清除搜索"><i data-ico="x" data-size="13"></i></button>
+            </div>
+          </div>
+
+          <div class="d-side-scroll">
+            <div class="d-group-title"><i data-ico="search" data-size="12"></i><span class="d-grow">搜索结果 · 3</span></div>
+            <button class="d-sess is-on"><span class="d-sess-t">令牌只写一次：base.css</span>
+              <span class="d-sess-m"><span>2 小时前</span><span>·</span><span>41 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">深色为什么还是同一套类</span>
+              <span class="d-sess-m"><span>4 天前</span><span>·</span><span>7 条消息</span><span class="d-dot ok"></span></span></button>
+            <button class="d-sess"><span class="d-sess-t">check-v5 少拦了哪一类</span>
+              <span class="d-sess-m"><span>前天</span><span>·</span><span>18 条消息</span></span></button>
+            <div class="d-empty compact">
+              <div class="d-empty-ico"><i data-ico="search" data-size="16"></i></div>
+              <div class="d-empty-t">清空 = 回到默认态</div>
+              <div class="d-empty-s">清空钮或 Esc 都会关掉搜索格、回到默认态；「搜索所有对话…」只在搜索态出现。</div>
+            </div>
+          </div>
+
+          <div class="d-side-foot">
+            <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+            <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+            <span class="d-badge mute">v0.1.8</span>
+          </div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">搜索态</span>
+              <span class="d-tb-sub">搜索格只在搜索态出现；清空钮 = 关闭搜索，不只是清文字</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="search" data-size="15"></i>
+                  <span>进入与退出</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">一条口径</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-kv-row"><span>进入</span><span>点品牌行那枚放大镜；默认态侧栏里不画搜索格</span></div>
+                  <div class="d-kv-row"><span>placeholder</span><span class="d-mono">搜索所有对话…</span></div>
+                  <div class="d-kv-row"><span>退出</span><span>清空钮 / Esc / 再点放大镜 —— 三者都是「关闭搜索」</span></div>
+                  <div class="d-t-xs d-t-faint">常显的搜索格会让「默认」和「搜索中」在界面上不可分，还白占一行高度。</div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="x" data-size="15"></i>
+                  <span>清空 vs 关闭</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">不是同一件事</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-kv-row"><span>清空文字</span><span>结果回到全部会话，搜索格留在原地并保持聚焦</span></div>
+                  <div class="d-kv-row"><span>关闭搜索</span><span>搜索格整格消失，侧栏回到默认态（帧 A）</span></div>
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span class="d-grow">一个钮只表达一件事：叉号 = 关闭搜索，所以不叫「清空」。Esc 与它同义。</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>侧栏是两层，不是一层</b>：外层分段（项目 / 聊天工作区）决定「我在哪个工作区」，内层分组（用户自定义分组 → 项目 → 会话行）决定「这一堆里有什么」。切外层会带走文件树、标签与会话记忆 —— 那不是过滤，是换项目。</li>
+    <li><b>聊天工作区只出现一次</b>：它在聊天 pane 当自己的分区头，就不再重复出现在项目 pane 里；识别靠服务端算出的项目键，浏览器从不比路径。</li>
+    <li><b>搜索格只在搜索态出现</b>：默认态侧栏里没有搜索格（帧 A 是默认态）；点品牌行那枚放大镜才展开并聚焦（帧 E 是搜索态），placeholder 固定「搜索所有对话…」。清空钮 = 关闭搜索，不只是清文字，Esc 同义 —— 常显的搜索格会让「默认」和「搜索中」在界面上不可分，还白占一行高度。</li>
+    <li><b>下拉刷新的指示器压在列表上面</b>，在滚动容器里面、高度跟着手指走；它不把列表往下推 —— 推了等于告诉用户「你看到的内容变了」。</li>
+    <li><b>用户自定义分组只有四态</b>：展开 / 折叠 / 拖放高亮 / 就地改名，没有第五种。改名不弹对话框 —— 分组头本身就是输入框，Enter 提交、Esc 取消、失焦提交；空名不落盘。</li>
+    <li><b>「拖到这里移出分组」是常驻落点不是菜单项</b>，只在拖一个已在组里的项目时出现，挂在分组列表末尾。空分组同样保留 —— 它是拖拽落点。</li>
+    <li><b>项目行动作分两档</b>：归档把项目连同会话一起收走（去「设置 · 归档历史」找回），移除只藏列表条目（随时能添加回来）。同一个菜单里文案跟着状态翻。</li>
+    <li><b>worktree 有两个入口、一个动作</b>：顶栏 BranchChip 与侧栏项目行下的 worktree 行指向同一份列表。检出 ≥ 8 个才给筛选框；主分支永远没有移除钮；有未提交改动时确认行插在那一条检出下面，按 Esc 即消失。</li>
+    <li><b>会话行五态互斥</b>：运行中（扫掠线 + 行内转圈）/ 等你处理（文字标记，优先于未读）/ 完成未读（绿点）/ 已读空闲（什么都不显示）/ 已归档（整行移出列表）。行高只有 48 / 58 两档且不做过渡。取消与失败在侧栏一律不表达。</li>
+    <li><b>会话动作菜单 12 行、三段分隔</b>：改这条会话 / 它在哪 / 低频诊断 / 往外带走。复制三行点完原地翻「已复制」，不弹提示条；置顶与归档是开关态，同一个组件翻文案，不出现第二份「取消置顶」。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

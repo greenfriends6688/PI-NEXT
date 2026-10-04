@@ -23,6 +23,7 @@ import {
 } from "@/lib/file-browser-roots";
 import { DismissButton } from "./DismissButton";
 import { isArchivePath } from "@/lib/archive-names";
+import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/hooks/useI18n";
 import { TEXT } from "@/lib/typography";
 type Translate = ReturnType<typeof useI18n>["t"];
@@ -65,6 +66,13 @@ interface Props {
   onChangesCountChange?: (count: number) => void;
   fileSearchOpen?: boolean;
   onFileSearchOpenChange?: (open: boolean) => void;
+  /**
+   * M-06 · 手机档：`.m-top` 顶栏右侧那一小段动作（搜索 / 终端 / 更多 …）。
+   * 手机上「层级由顶栏路径承担」，所以顶栏归这棵树自己画，而宿主（`ExplorerPanel`）
+   * 把自己原有的那一排动作原样递进来 —— 动作还是同一批、处理器还是同一批，
+   * 只是从 `.d-panel-head` 挪到了 `.m-top` 里。
+   */
+  mobileTopBar?: React.ReactNode;
 }
 
 export interface FileExplorerHandle {
@@ -210,12 +218,12 @@ const GIT_STATUS_KEYS: Record<GitFileStatusKind, string> = {
 };
 
 const GIT_STATUS_COLORS: Record<GitFileStatusKind, string> = {
-  modified: "var(--warning)",
-  added: "var(--success)",
-  deleted: "var(--danger)",
-  renamed: "var(--accent)",
-  untracked: "var(--success)",
-  conflict: "var(--danger)",
+  modified: "var(--nx-warning)",
+  added: "var(--nx-success)",
+  deleted: "var(--nx-danger)",
+  renamed: "var(--nx-accent)",
+  untracked: "var(--nx-success)",
+  conflict: "var(--nx-danger)",
 };
 
 function GitStatusBadge({ status, t }: { status: GitFileStatus; t: Translate }) {
@@ -276,13 +284,21 @@ function uploadFiles(
   });
 }
 
-/** 「插入为引用」的 @ 字形 = 画板 30 右键菜单里的 `at-sign`（行 306/324）。 */
+/** 「插入为引用」的 @ 字形 = 画板右键菜单里的 `at-sign`。 */
 function MentionIcon({ size = 11 }: { size?: number }) {
-  return (
-    <span className="pw-ico">
-      <i data-ico="at-sign" data-size={size} aria-hidden="true"></i>
-    </span>
-  );
+  return <i data-ico="at-sign" data-size={size} aria-hidden="true"></i>;
+}
+
+/**
+ * M-06 帧 A —— 行尾那一小段读数。桌面树行右边是 git 徽标，手机上没有那一列，
+ * 空出来的位置写文件大小（目录写它含未提交改动时的提示点）。
+ * 单位与 `FileViewer` 的 `formatSize` 同一套（KB / MB 一位小数）。
+ */
+function mobileSizeLabel(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 
@@ -307,7 +323,7 @@ function CreateEntryInput({
 }) {
   return (
     <div
-      /* fork:pwa-sb —— 手机档这一行比别处高：`.pw-trow` 的 --tree-row 收到
+      /* fork:pwa-sb —— 手机档这一行比别处高：.d-trow 的 --tree-row 收到
          --control-touch，这一格跟着抬（内联 height 24 要用 !important 压，
          同 globals.css 皮肤层的做法）。否则输入框上下各剩 2px，手指点不中。 */
       className="fork-pwa-sb-edit-row"
@@ -546,11 +562,9 @@ export function TreeNode({
       <div
         ref={rowRef}
         role="treeitem"
-        /* fork:design-components —— 文件树行直接用画板 30 的 .pw-trow（24px /
-            radius-4 / hover 叠色，来自 board.css）。`fork-pwa-sb-tree-row` 是本文件
-            私有的手机档钩子：≤640px 把行高抬到 --control-touch，并给行内的「插入
-            路径 / 下载」两枚补命中区（它们是内联定位的绝对元素，类改不动）。 */
-        className={`pw-trow fork-pwa-sb-tree-row${showDownload && !node.isDir ? " fork-pwa-sb-tree-row-acts" : ""}`}
+        /* fork:v5-skin D-05 帧 A —— 文件行 = 画板 .d-trow（26px / hover 叠色 / l1-l3 缩进），
+           `fork-pwa-sb-tree-row` 是本文件私有的手机档钩子（≤640px 抬行高 + 补命中区）。 */
+        className={`d-trow fork-pwa-sb-tree-row${depth >= 1 ? ` l${Math.min(depth, 3)}` : ""}${showDownload && !node.isDir ? " fork-pwa-sb-tree-row-acts" : ""}`}
         aria-expanded={node.isDir ? open : undefined}
         aria-selected={false}
         tabIndex={0}
@@ -588,25 +602,18 @@ export function TreeNode({
                 background: "var(--bg-panel)",
               }
             : { position: "relative" as const }),
-          // fork:design-components —— 行高 / 圆角 / hover 叠色全部交给画板 .pw-trow，
-          // 这里只留树特有的缩进与避让（inline 会压过类，重复属性必须删干净）。
-          // fork:board-diff-2026-10-01 —— 缩进基线对齐画板：board.css 的
-          // `.pw-trow` 是 `padding: 0 6px`，`.indent-1` 左内缩 20、`.indent-2` 34
-          // （即 depth 1 → 20 / depth 2 → 34，每级 +14）。原来的 8 + depth*14
-          // 整体大2px（实测 8/22/36 vs 画板 6/20/34），基线交给 board.css。
-          paddingLeft: depth === 0 ? undefined : 6 + depth * 14,
-          paddingRight: depth === 0 ? undefined : "var(--s2)",
+          // 缩进交给画板 .l1 / .l2 / .l3，这里只留粘顶与可点性。
           cursor: "pointer",
           userSelect: "none",
         }}
       >
         {node.isDir && (
-          <span
-            className="pw-ico"
-            style={{ flexShrink: 0, color: "var(--text-dim)", transform: open ? "rotate(90deg)" : "none", transition: "transform var(--motion-fast)" }}
-          >
-            <i data-ico="chevron-right" data-size="12"></i>
-          </span>
+          <i
+            data-ico="chevron-right"
+            data-size="12"
+            aria-hidden="true"
+            style={{ flexShrink: 0, color: "var(--nx-text-3)", transform: open ? "rotate(90deg)" : "none", transition: "transform var(--nx-dur-1)" }}
+          ></i>
         )}
         {!node.isDir && <span style={{ width: 10, flexShrink: 0 }} />}
         <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
@@ -646,13 +653,11 @@ export function TreeNode({
           />
         ) : (
       <span
+        className="d-grow"
         style={{
-          fontSize: TEXT.sm,
-          color: "var(--text)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          flex: 1,
         }}
         title={node.fullPath}
       >
@@ -670,14 +675,15 @@ export function TreeNode({
         )}
         {/* fork:linked-directory — 行上的「通向项目外」标记（不占 hover 位置）。 */}
         {!showRowActions && pendingLinkTarget && (
-          <span
+          <i
+            data-ico="external-link"
+            data-size="11"
+            aria-hidden="true"
             title={t("files.outsideLink", { target: pendingLinkTarget })}
             aria-label={t("files.outsideLink", { target: pendingLinkTarget })}
-            className="pw-ico pw-dim"
+            className="d-t-faint"
             style={{ flexShrink: 0 }}
-          >
-            <i data-ico="external-link" data-size="11" aria-hidden="true"></i>
-          </span>
+          ></i>
         )}
         {!showRowActions && !node.isDir && gitStatus && (
           <GitStatusBadge status={gitStatus} t={t} />
@@ -695,13 +701,11 @@ export function TreeNode({
               justifyContent: "center",
             }}
           >
-            <span style={{ width: "var(--dot-sm)", height: "var(--dot-sm)", borderRadius: "50%", background: "var(--warning)" }} />
+            <span className="d-dot warn" />
           </span>
         )}
         {loading && (
-          <span className="pw-ico pw-dim">
-            <i data-ico="loader-circle" data-size="10" className="animate-spin" aria-hidden="true"></i>
-          </span>
+          <i data-ico="loader-circle" data-size="10" className="d-t-faint animate-spin" aria-hidden="true"></i>
         )}
         {onAtMention && showRowActions && (
           <button
@@ -763,56 +767,51 @@ export function TreeNode({
               textDecoration: "none",
             }}
           >
-            <span className="pw-ico">
-              <i data-ico="download" data-size="11" aria-hidden="true"></i>
-            </span>
+            <i data-ico="download" data-size="11" aria-hidden="true"></i>
           </a>
         )}
       </div>
-      {/* fork:linked-directory —— 展开一条待放行的链接时，用画板已有的权限卡
-          （.pw-perm / .pw-perm-title / .pw-perm-body / .pw-perm-acts + .pw-btn）
-          把「目标在哪 / 会打开多大范围 / 放行哪一条」讲清楚，再给一个按钮。
-          不新增 .pw-* 类：这几条已经登记在 board.css 并出现在画板 01 / 12 / 60。 */}
+      {/* fork:v5-skin D-05 —— 待放行的链用画板的权限卡 .d-perm / .d-perm-body
+          把「目标在哪 / 会打开多大范围 / 放行哪一条」讲清楚。 */}
       {node.isDir && open && pendingLinkTarget && (
-        <div className="pw-perm" style={{ margin: "0 var(--s1) var(--s1)", gap: "var(--s2)" }}>
-          <div className="pw-perm-title">
-            <span className="pw-ico">
+        <div className="d-perm" style={{ margin: "0 var(--nx-sp-2) var(--nx-sp-2)" }}>
+          <div className="d-perm-body">
+            <div className="d-row">
               <i data-ico="external-link" data-size="12" aria-hidden="true"></i>
-            </span>
-            {t("files.outsideLink", { target: pendingLinkTarget })}
-          </div>
-          {node.outsideLinkEncloses && (
-            <div role="note" className="pw-alert">
-              <span className="pw-ico">
-                <i data-ico="triangle-alert" data-size="12" aria-hidden="true"></i>
-              </span>
-              {t("files.outsideLinkEncloses")}
+              <span className="d-t-b d-grow">{t("files.outsideLink", { target: pendingLinkTarget })}</span>
             </div>
-          )}
-          <div className="pw-perm-body" style={{ wordBreak: "break-all" }}>{pendingLinkTarget}</div>
-          <div className="pw-perm-acts">
-            <button
-              type="button"
-              className="pw-btn primary sm"
-              onClick={handleAllowLink}
-              disabled={allowingLink}
-              title={t("files.allowOutsideLinkTitle", { target: pendingLinkTarget })}
-            >
-              {t("files.allowOutsideLink")}
-            </button>
-            {allowLinkError && (
-              <span role="alert" className="pw-dim">{allowLinkError}</span>
+            {node.outsideLinkEncloses && (
+              <div role="note" className="d-banner err">
+                <i data-ico="triangle-alert" data-size="12" aria-hidden="true"></i>
+                <span className="d-grow">{t("files.outsideLinkEncloses")}</span>
+              </div>
             )}
+            <div className="d-mono d-t-xs" style={{ wordBreak: "break-all" }}>{pendingLinkTarget}</div>
+            <div className="d-row">
+              <button
+                type="button"
+                className="d-btn sm primary"
+                onClick={handleAllowLink}
+                disabled={allowingLink}
+                title={t("files.allowOutsideLinkTitle", { target: pendingLinkTarget })}
+              >
+                {t("files.allowOutsideLink")}
+              </button>
+              {allowLinkError && (
+                <span role="alert" className="d-t-faint d-t-xs">{allowLinkError}</span>
+              )}
+            </div>
           </div>
         </div>
       )}
       {node.isDir && open && !pendingLinkTarget && loadError && (
         <div
           role="alert"
-          className="pw-alert"
-          style={{ margin: "0 var(--s1) var(--s1)", wordBreak: "break-word" }}
+          className="d-banner err"
+          style={{ margin: "0 var(--nx-sp-2) var(--nx-sp-2)", wordBreak: "break-word" }}
         >
-          {loadError}
+          <i data-ico="circle-alert" data-size="13" aria-hidden="true"></i>
+          <span className="d-grow">{loadError}</span>
         </div>
       )}
       {node.isDir && open && !pendingLinkTarget && (
@@ -912,15 +911,13 @@ function RootSection({
 
   return (
     <div style={{ padding: "var(--space-tight) 4px" }}>
-      {/* fork:design-components —— 分区头 = 画板 30 树里那条 `.pw-inline`
-          （行 131-136 的骨架：徽章 + 弱化文字 + grow），只把「7 个改动」换成
-          「作用域 + 根目录名」。 */}
-      <div className="pw-inline" style={{ padding: "0 4px var(--s1)", gap: "var(--s1)" }}>
-        <span className="pw-badge">
+      {/* fork:v5-skin D-05 —— 分区头 = 画板 .d-row（作用域 .d-badge + 根目录名 .d-viewer-path）。 */}
+      <div className="d-row" style={{ padding: "0 var(--nx-sp-1) var(--nx-sp-1)" }}>
+        <span className="d-badge mute">
           {t(root.scope === "project" ? "files.scopeProject" : "files.scopeSession")}
         </span>
         <span
-          className="pw-mono pw-dim pw-grow"
+          className="d-viewer-path d-grow"
           title={root.path}
           style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         >
@@ -999,19 +996,8 @@ function ChangeRow({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={status.filePath}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-row)",
-        paddingLeft: "var(--space-loose)",
-        paddingRight: "var(--s2)",
-        height: "var(--control-xs)",
-        cursor: "pointer",
-        background: hovered ? "var(--bg-hover)" : "transparent",
-        borderRadius: "var(--radius-xs)",
-        userSelect: "none",
-        position: "relative",
-      }}
+      className="d-trow"
+      style={{ cursor: "pointer", userSelect: "none", position: "relative" }}
     >
       <GitStatusBadge status={status} t={t} />
       <span style={{ flexShrink: 0, display: "flex", alignItems: "center", opacity: 0.85 }}>
@@ -1019,24 +1005,22 @@ function ChangeRow({
       </span>
       <span
         title={status.filePath}
+        className="d-grow"
         style={{
-          fontSize: TEXT.sm,
-          color: "var(--text)",
           display: "flex",
           alignItems: "center",
           minWidth: 0,
-          flex: 1,
         }}
       >
         {dirPart && (
           <span
+            className="d-t-faint"
             style={{
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               flex: "0 1 auto",
               minWidth: 0,
-              color: "var(--text-dim)",
             }}
           >
             {dirPart}
@@ -1128,6 +1112,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   onChangesCountChange,
   fileSearchOpen = false,
   onFileSearchOpenChange,
+  mobileTopBar,
 }, ref) {
   const { t } = useI18n();
   // fork:pwa-sb —— 一处读断点，往下传给每一棵树行（手机上没有 hover，行尾那两枚
@@ -1189,9 +1174,6 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   const uploadBusy = uploadPhase !== "idle";
   const hasSearchQuery = searchQuery.trim().length > 0;
 
-  useEffect(() => {
-    if (creating && creating.parentDir === cwd) rootCreateInputRef.current?.focus();
-  }, [creating, cwd]);
 
   const handleNodeContextMenu = useCallback((node: FileNode, x: number, y: number) => {
     setRenaming(null);
@@ -1199,6 +1181,82 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   }, []);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  /* ── M-06 帧 A · 手机档：文件树一次只显示一层 ──────────────────────────────
+     画板原话（页脚第一条）：「一屏一层，不做多级展开树」—— 手机上点文件夹「进去」
+     比点展开三角准，缩进还会挤掉右侧的条数与操作；层级改由顶栏路径 + 返回箭头承担。
+     所以手机档不是「把桌面那棵树缩小」，而是**换一台机器**：同一个列表接口
+     （`fetchEntries`）、同一套 git 徽标 / 上传 / 重命名 / 新建 / 删除 / 右键菜单，
+     只是把 `expandedPaths` 换成了 `mobileDir` 这一个游标。
+     桌面分支（`isMobile === false`）一个字都没动。 */
+  const [mobileDir, setMobileDir] = useState(cwd);
+  const [mobileEntries, setMobileEntries] = useState<FileNode[]>([]);
+  const [mobileLoading, setMobileLoading] = useState(true);
+  const [mobileError, setMobileError] = useState<string | null>(null);
+  const [mobileSelected, setMobileSelected] = useState<string | null>(null);
+  const [mobileNewMenuOpen, setMobileNewMenuOpen] = useState(false);
+  const mobileCreateInputRef = useRef<HTMLInputElement>(null);
+  /** 底部动作条的「更多」要在**选中行**的位置开菜单，所以留着那一行的节点。 */
+  const mobileRowAnchors = useRef(new Map<string, HTMLButtonElement>());
+  const mobileParent = mobileDir === cwd ? null : getFileDirectory(mobileDir);
+  // 顶栏路径：根那层只写目录名（单行省略），深一层写相对 cwd 的整条路径。
+  const mobileDirTitle = mobileDir === cwd
+    ? (cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? cwd)
+    : getRelativeFilePath(mobileDir, cwd);
+
+  useEffect(() => {
+    if (creating && creating.parentDir === cwd) rootCreateInputRef.current?.focus();
+  }, [creating, cwd]);
+
+  // 手机档的新建输入框挂在 `.m-list` 上方（这一层没有子节点可插进去），单独聚焦。
+  useEffect(() => {
+    if (creating && creating.parentDir === mobileDir) mobileCreateInputRef.current?.focus();
+  }, [creating, mobileDir]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    let cancelled = false;
+    setMobileLoading(true);
+    setMobileError(null);
+    fetchEntries(mobileDir)
+      .then((entries) => { if (!cancelled) setMobileEntries(entries); })
+      .catch((error) => {
+        if (cancelled) return;
+        setMobileEntries([]);
+        setMobileError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => { if (!cancelled) setMobileLoading(false); });
+    return () => { cancelled = true; };
+  }, [isMobile, mobileDir, gitPulse, refreshKey, treeRefreshKey]);
+
+  const enterMobileDir = useCallback((node: FileNode) => {
+    setMobileDir(node.fullPath);
+    setMobileSelected(node.fullPath);
+    setSearchQuery("");
+  }, []);
+
+  const leaveMobileDir = useCallback(() => {
+    if (!mobileParent) return;
+    setMobileDir(mobileParent);
+    setMobileSelected(mobileParent);
+  }, [mobileParent]);
+
+  // 桌面那份右键菜单在手机上按不出来（没有右键），所以底部动作条三项直接复用
+  // **同一个 `handleNodeContextMenu`** —— 菜单内容、分组、危险项、以及每个动作的
+  // 实现全是桌面那份，一处都没另写。
+  const openMobileMenu = useCallback((entry: FileNode, anchor: HTMLElement) => {
+    const rect = anchor.getBoundingClientRect();
+    handleNodeContextMenu(entry, rect.left, rect.bottom);
+  }, [handleNodeContextMenu]);
+
+  const copyMobilePath = useCallback((fullPath: string) => {
+    // `copyText` 永不 reject：失败只是一个明确结果，桌面树没有失败提示位，
+    // 手机档也不新造一个（复制失败在系统层面本来就有回执）。
+    void copyText(fullPath);
+  }, []);
+
+  const mobileDirs = useMemo(() => mobileEntries.filter((entry) => entry.isDir), [mobileEntries]);
+  const mobileFiles = useMemo(() => mobileEntries.filter((entry) => !entry.isDir), [mobileEntries]);
 
   const refreshTree = useCallback(() => {
     setTreeRefreshKey((key) => key + 1);
@@ -1369,7 +1427,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       label: string;
       icon: ContextMenuIconName;
       danger?: boolean;
-      /** 画板 `.pw-sep`：这一项之前插一条分组线。 */
+      /** 画板 .d-sep：这一项之前插一条分组线。 */
       sepBefore?: boolean;
       action: () => void;
     }> = [];
@@ -1662,6 +1720,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
     // Reset expanded state only when cwd changes, not on refreshKey bumps
     if (cwdChanged) {
       setExpandedPaths(new Set());
+      // M-06 —— 手机档的游标也回根，否则换项目后还停在上一个项目的子目录里。
+      setMobileDir(cwd);
+      setMobileSelected(null);
       setHighlightedPaths(new Set());
       setUploadSummary(null);
       setPendingConflict(null);
@@ -1756,36 +1817,448 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
     );
   }, [cwd, onAtMentions, uploadSummary]);
 
+  /* ══ M-06 帧 A · 手机档整页 ═══════════════════════════════════════════════
+     DOM 抄自 `design/v5/pwa/boards/M-06-files-terminal.html` 帧 A：
+       `.m-fade` → `.m-top`（返回 / 路径 / 筛选 / 新建）→ `.m-list`
+       （`.m-group-title` + `.m-trow`，选中挂 `.is-on`）→ `.m-vbar`（三项等分）。
+     底部动作条三项 = 重命名 / 复制路径 / 更多：前两项是桌面右键菜单里的同名动作，
+     第三项**直接打开同一份菜单**（`handleNodeContextMenu`），所以删除 / 解压 /
+     压缩 / 新建子项 / @ 插入在手机上一样在，一处实现都没另写。
+     下面 desktop 分支保持原样，`.d-trow` / `.d-tree` / `.d-tinybar` 一个不动。 */
+  if (isMobile) {
+    const selectedEntry = mobileEntries.find((entry) => entry.fullPath === mobileSelected) ?? null;
+    const renderMobileRow = (entry: FileNode) => {
+      const selected = entry.fullPath === mobileSelected;
+      const gitStatus = gitStatusByPath.get(normalizeFilePathSlashes(entry.fullPath));
+      const dirChanged = entry.isDir && changedDirectoryPaths.has(normalizeFilePathSlashes(entry.fullPath));
+      const highlighted = highlightedPaths.has(entry.fullPath);
+      return (
+        <button
+          key={entry.fullPath}
+          type="button"
+          className={`m-trow${selected ? " is-on" : ""}`}
+          aria-current={selected}
+          title={entry.fullPath}
+          ref={(node) => {
+            if (!node || !selected) return;
+            mobileRowAnchors.current.set(entry.fullPath, node);
+          }}
+          onClick={() => {
+            setMobileSelected(entry.fullPath);
+            if (entry.isDir) enterMobileDir(entry);
+            else onOpenFile(entry.fullPath, entry.name);
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setMobileSelected(entry.fullPath);
+            openMobileMenu(entry, event.currentTarget);
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            {entry.isDir
+              ? <FolderIcon size={15} />
+              : getFileIcon(entry.name, 15)}
+          </span>
+          {renaming?.fullPath === entry.fullPath ? (
+            <input
+              value={renaming.value}
+              onChange={(event) => handleRenameValueChange(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") { event.preventDefault(); void submitRename(); }
+                else if (event.key === "Escape") { event.preventDefault(); cancelRename(); }
+              }}
+              onBlur={cancelRename}
+              aria-label={t("files.renameEntry")}
+              style={{
+                minWidth: 0,
+                flex: "0 1 auto",
+                height: "var(--control-xs)",
+                border: 0,
+                borderRadius: "var(--radius-xs)",
+                outline: "none",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontFamily: "var(--font-mono)",
+                fontSize: TEXT.sm,
+              }}
+            />
+          ) : (
+            <>
+              <span className="m-grow">{entry.name}</span>
+              {dirChanged && <span className="m-dot warn" aria-label={t("files.containsChangedFiles")} />}
+              {highlighted && <span className="m-badge ok">{t("files.newlyUploaded")}</span>}
+              {!dirChanged && !entry.isDir && gitStatus && <GitStatusBadge status={gitStatus} t={t} />}
+              {!entry.isDir && mobileSizeLabel(entry.size) && (
+                <span className="m-t-xs m-t-faint">{mobileSizeLabel(entry.size)}</span>
+              )}
+            </>
+          )}
+        </button>
+      );
+    };
+
+    return (
+      <div
+        /* 只承担与设计无关的定位 / 伸缩：`.m-top` 与 `.m-fade` 是绝对定位的，
+           需要一层 `position: relative` 当参照，否则会贴到整个右栏宿主顶上。 */
+        style={{ position: "relative", display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 }}
+      >
+        <input ref={uploadInputRef} type="file" multiple hidden onChange={handleUploadInput} />
+        <div className="m-fade" aria-hidden="true" />
+
+        <div className="m-top">
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("directoryPicker.goToParent")}
+            aria-label={t("directoryPicker.goToParent")}
+            disabled={!mobileParent}
+            onClick={leaveMobileDir}
+          >
+            <i data-ico="chevron-left" data-size="16" aria-hidden="true"></i>
+          </button>
+          <span className="m-top-title m-grow" title={mobileDir}>{mobileDirTitle}</span>
+          {mobileTopBar}
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("sidebar.searchFiles")}
+            aria-label={t("sidebar.searchFiles")}
+            aria-pressed={fileSearchOpen}
+            onClick={() => onFileSearchOpenChange?.(!fileSearchOpen)}
+          >
+            <i data-ico="list-filter" data-size="16" aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("files.newFile")}
+            aria-label={t("files.newFile")}
+            aria-expanded={mobileNewMenuOpen}
+            onClick={() => setMobileNewMenuOpen((open) => !open)}
+          >
+            <i data-ico="plus" data-size="16" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        {mobileNewMenuOpen && (
+          // 非主题值：top 抄画板帧 A 的 `style="top:52px"`（菜单落在顶栏之下）。
+          <div className="m-pop-float is-open" style={{ top: 52 }}>
+            <div className="m-doc-label">{mobileDirTitle}</div>
+            <button
+              type="button"
+              className="m-menu-row"
+              onClick={() => { setMobileNewMenuOpen(false); setRenaming(null); startCreate(mobileDir, "file"); }}
+            >
+              <i data-ico="file-plus" data-size="15" aria-hidden="true"></i>{t("files.menuNewFile")}
+            </button>
+            <button
+              type="button"
+              className="m-menu-row"
+              onClick={() => { setMobileNewMenuOpen(false); setRenaming(null); startCreate(mobileDir, "dir"); }}
+            >
+              <i data-ico="folder-plus" data-size="15" aria-hidden="true"></i>{t("files.menuNewFolder")}
+            </button>
+          </div>
+        )}
+
+        {fileSearchOpen && (
+          <div className="m-searchfield" style={{ margin: "0 12px" }}>
+            <i data-ico="search" data-size="14" aria-hidden="true"></i>
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Escape") onFileSearchOpenChange?.(false); }}
+              placeholder={t("sidebar.searchFilesPlaceholder")}
+              aria-label={t("sidebar.searchFiles")}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="m-iconbtn"
+                onClick={() => setSearchQuery("")}
+                title={t("sidebar.clearSearch")}
+                aria-label={t("sidebar.clearSearch")}
+              >
+                <i data-ico="x" data-size="11" aria-hidden="true"></i>
+              </button>
+            )}
+          </div>
+        )}
+
+        {fileSearchOpen && hasSearchQuery && (
+          <div className="m-panel-scroll" style={{ padding: "0 0 8px" }}>
+            {searchLoading && <div className="m-t-xs m-t-faint">{t("sidebar.searchingFiles")}</div>}
+            {!searchLoading && searchError && (
+              <div className="m-t-xs" style={{ color: "var(--nx-danger)" }}>{t("i18n.networkError")}</div>
+            )}
+            {!searchLoading && !searchError && searchPaths.length === 0 && (
+              <div className="m-group-title">{t("sidebar.noMatchingFiles")}</div>
+            )}
+            {!searchLoading && !searchError && searchPaths.length > 0 && searchRoots.map((node) => (
+              <button
+                key={`${searchQuery}:${node.fullPath}`}
+                type="button"
+                className="m-trow"
+                onClick={() => {
+                  setScrollToPath(node.fullPath);
+                  onOpenFile(node.fullPath, node.name);
+                }}
+              >
+                <span className="m-grow">{getRelativeFilePath(node.fullPath, cwd)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showUploadFeedback && (
+          <div style={{ padding: "8px 12px" }}>
+            {uploadBusy && (
+              <div role="status" className="m-banner">
+                <i data-ico="upload" data-size="13" aria-hidden="true"></i>
+                <span className="m-grow">
+                  {uploadPhase === "checking" ? t("files.checking") : t("files.uploading", { progress: uploadProgress })}
+                </span>
+              </div>
+            )}
+            {pendingConflict && (
+              <div role="alert" className="m-banner warn">
+                <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                <span className="m-grow">
+                  {t("files.conflictSummary", {
+                    count: pendingConflict.conflicts.length,
+                    countSuffix: pendingConflict.conflicts.length === 1 ? "" : "s",
+                    files: pendingConflict.conflicts.join(", "),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  className="m-picktag"
+                  onClick={() => void performUpload(pendingConflict.files, "overwrite")}
+                >
+                  {t("files.replace")}
+                </button>
+                <button
+                  type="button"
+                  className="m-picktag"
+                  onClick={() => void performUpload(pendingConflict.files, "skip")}
+                >
+                  {t("files.skipExisting")}
+                </button>
+              </div>
+            )}
+            {uploadError && (
+              <div role="alert" className="m-banner err">
+                <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+                <span className="m-grow">{uploadError}</span>
+              </div>
+            )}
+            {uploadSummary && (
+              <div aria-live="polite" className="m-banner">
+                <span className="m-grow">
+                  {uploadSummary.uploaded.length > 0 && `${uploadSummary.uploaded.length} · `}
+                  {uploadSummary.skipped.length > 0 && `${uploadSummary.skipped.length} · `}
+                  {uploadSummary.errors.length > 0 && `${uploadSummary.errors.length}`}
+                </span>
+                {uploadSummary.uploaded.length > 0 && onAtMentions && (
+                  <button
+                    type="button"
+                    className="m-picktag is-on"
+                    onClick={addUploadedFilesToChat}
+                    title={t("files.addUploadedFile")}
+                  >
+                    {t("files.mention")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="m-iconbtn"
+                  onClick={() => setUploadSummary(null)}
+                  title={t("files.dismissUploadResults")}
+                  aria-label={t("files.dismissUploadResults")}
+                >
+                  <i data-ico="x" data-size="11" aria-hidden="true"></i>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {creating && creating.parentDir === mobileDir && (
+          <div style={{ padding: "4px 12px" }}>
+            <div className="m-trow" style={{ cursor: "default" }}>
+              {creating.type === "dir"
+                ? <FolderIcon size={15} />
+                : <i data-ico="file" data-size="15" aria-hidden="true"></i>}
+              <input
+                ref={mobileCreateInputRef}
+                value={creating.value}
+                onChange={(event) => handleCreateValueChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") { event.preventDefault(); void submitCreate(); }
+                  else if (event.key === "Escape") { event.preventDefault(); cancelCreate(); }
+                }}
+                onBlur={cancelCreate}
+                placeholder={creating.type === "dir" ? t("files.newFolderName") : t("files.newFileName")}
+                aria-label={creating.type === "dir" ? t("files.newFolderName") : t("files.newFileName")}
+                style={{
+                  minWidth: 0,
+                  flex: "0 1 auto",
+                  height: "var(--control-xs)",
+                  border: 0,
+                  borderRadius: "var(--radius-xs)",
+                  outline: "none",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: TEXT.sm,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="m-list">
+          {mobileLoading && <div className="m-t-xs m-t-faint" style={{ padding: "4px 12px" }}>{t("i18n.loading")}</div>}
+          {mobileError && <div className="m-t-xs" style={{ padding: "4px 12px", color: "var(--nx-danger)" }}>{mobileError}</div>}
+          {mobileDirs.map(renderMobileRow)}
+          {mobileFiles.map(renderMobileRow)}
+
+          {!mobileLoading && !mobileError && mobileEntries.length === 0 && (
+            <div className="m-empty">
+              <div className="m-empty-ico"><i data-ico="folder-search" data-size="20" aria-hidden="true"></i></div>
+              <div className="m-empty-s">{t("files.emptyDirectory")}</div>
+            </div>
+          )}
+
+          {gitFiles.length > 0 && (
+            <>
+              <div className="m-group-title">
+                {t("files.changeStats", {
+                  count: gitFiles.length,
+                  additions: gitLineStats.additions,
+                  deletions: gitLineStats.deletions,
+                })}
+              </div>
+              {gitFiles.map((status) => (
+                <button
+                  key={status.filePath}
+                  type="button"
+                  className={`m-trow${status.filePath === mobileSelected ? " is-on" : ""}`}
+                  title={status.filePath}
+                  onClick={() => {
+                    setMobileSelected(status.filePath);
+                    onOpenFile(status.filePath, getFileName(status.filePath), { modeHint: "diff" });
+                  }}
+                >
+                  <GitStatusBadge status={status} t={t} />
+                  <span className="m-grow m-mono">{getRelativeFilePath(status.filePath, cwd)}</span>
+                  <span className="m-badge warn">
+                    {status.additions != null && status.additions > 0 ? `+${status.additions} ` : ""}
+                    {status.deletions != null && status.deletions > 0 ? `−${status.deletions}` : ""}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* M-06 帧 A · 底部动作条三项等分。 */}
+        <div className="m-vbar">
+          <button
+            type="button"
+            className="m-menu-row"
+            disabled={!selectedEntry}
+            onClick={() => {
+              if (!selectedEntry) return;
+              setRenaming({ fullPath: selectedEntry.fullPath, isDir: selectedEntry.isDir, name: selectedEntry.name, value: selectedEntry.name });
+            }}
+          >
+            <i data-ico="pencil" data-size="15" aria-hidden="true"></i>{t("files.menuRename")}
+          </button>
+          <button
+            type="button"
+            className="m-menu-row"
+            disabled={!selectedEntry}
+            onClick={() => selectedEntry && copyMobilePath(selectedEntry.fullPath)}
+          >
+            <i data-ico="copy" data-size="15" aria-hidden="true"></i>{t("files.copyPath")}
+          </button>
+          <button
+            type="button"
+            className="m-menu-row"
+            disabled={!selectedEntry}
+            onClick={() => {
+              const anchor = selectedEntry ? mobileRowAnchors.current.get(selectedEntry.fullPath) : null;
+              if (selectedEntry && anchor) openMobileMenu(selectedEntry, anchor);
+            }}
+          >
+            <i data-ico="ellipsis" data-size="15" aria-hidden="true"></i>{t("chat.moreControls")}
+          </button>
+        </div>
+
+        {contextMenu && createPortal(
+          <>
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 1200 }}
+              onClick={closeContextMenu}
+              onContextMenu={(event) => { event.preventDefault(); closeContextMenu(); }}
+            />
+            <div
+              role="menu"
+              /* 与桌面同一份菜单壳：框 / 圆角 / 阴影 / 行全部来自 system.css。 */
+              className="m-menu-sheet is-open"
+              style={{ zIndex: 1201 }}
+            >
+              <div className="m-menu-sheet-title">{contextMenu.name}</div>
+              {contextMenuItems.map((item) => (
+                <Fragment key={item.key}>
+                  {item.sepBefore && <div className="m-sep" />}
+                  <button type="button" role="menuitem" className="m-menu-row" onClick={item.action}>
+                    <i data-ico={item.icon} data-size="15" aria-hidden="true"></i>
+                    {item.label}
+                  </button>
+                </Fragment>
+              ))}
+            </div>
+          </>,
+          document.body,
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100%" }}>
       <input ref={uploadInputRef} type="file" multiple hidden onChange={handleUploadInput} />
-      {/* fork:design-components —— 树内动作条 = 画板 30 的 `.pw-inline` + 一排
-          `.pw-iconbtn.sm`（头行那七个动作的同款按钮；新建文件 / 新建文件夹的
-          字形取右键菜单里的 `file-plus` / `folder-plus`）。hover / disabled
-          归 board.css，UA 归零归 `button.pw-iconbtn`。 */}
-      <div className="pw-inline fork-pwa-sb-tree-tools" style={{ padding: "var(--space-icon) 6px", gap: "var(--space-tight)", borderBottom: "1px solid var(--border)" }}>
+      {/* fork:v5-skin D-05 帧 A —— 树内动作条 = 画板 .d-tinybar + 两枚 .d-btn.sm.ghost
+          （file-plus / folder-plus + 文字）。 */}
+      <div className="d-tinybar fork-pwa-sb-tree-tools">
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className="d-btn sm ghost"
           onClick={() => { setRenaming(null); startCreate(cwd, "file"); }}
           disabled={mutating || creating !== null}
           title={t("files.newFile")}
           aria-label={t("files.newFile")}
         >
-          <span className="pw-ico"><i data-ico="file-plus" data-size="13" aria-hidden="true"></i></span>
+          <i data-ico="file-plus" data-size="13" aria-hidden="true"></i>
+          {t("files.newFile")}
         </button>
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className="d-btn sm ghost"
           onClick={() => { setRenaming(null); startCreate(cwd, "dir"); }}
           disabled={mutating || creating !== null}
           title={t("files.newFolder")}
           aria-label={t("files.newFolder")}
         >
-          <span className="pw-ico"><i data-ico="folder-plus" data-size="13" aria-hidden="true"></i></span>
+          <i data-ico="folder-plus" data-size="13" aria-hidden="true"></i>
+          {t("files.newFolder")}
         </button>
         {actionError && (
-          <span role="alert" className="pw-grow pw-dim" style={{ minWidth: 0, fontSize: "var(--text-meta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>
+          <span role="alert" className="d-grow d-t-xs d-t-faint" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>
             {actionError}
           </span>
         )}
@@ -1808,7 +2281,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         </div>
       )}
       {watchDegraded && (
-        <div role="status" className="pw-dim" style={{ padding: "4px 8px", fontSize: "var(--text-meta)" }}>
+        <div role="status" className="d-t-xs d-t-faint" style={{ padding: "4px 8px" }}>
           {t("files.watchDegraded")}
         </div>
       )}
@@ -1818,15 +2291,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           <div role="status" aria-live="polite" aria-label={uploadPhase === "checking" ? t("files.checking") : t("files.uploading", { progress: uploadProgress })}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)", minHeight: "var(--icon-sm)", color: "var(--text-muted)" }}>
               {uploadPhase === "checking" ? (
-                <span className="pw-ico">
-                  <i data-ico="loader-circle" data-size="13" className="animate-spin" aria-hidden="true"></i>
-                </span>
+                <i data-ico="loader-circle" data-size="13" className="d-t-faint animate-spin" aria-hidden="true"></i>
               ) : (
-                <span className="pw-ico">
-                  <i data-ico="upload" data-size="13" aria-hidden="true"></i>
-                </span>
+                <i data-ico="upload" data-size="13" className="d-t-faint" aria-hidden="true"></i>
               )}
-              {uploadPhase === "uploading" && <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>{uploadProgress}%</span>}
+              {uploadPhase === "uploading" && <span className="d-mono d-t-faint">{uploadProgress}%</span>}
             </div>
             {uploadPhase === "uploading" && (
               <div style={{ height: 3, marginTop: "var(--s1)", overflow: "hidden", borderRadius: "var(--radius-xs)", background: "var(--border)" }}>
@@ -1837,23 +2306,23 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         )}
 
         {pendingConflict && (
-          <div role="alert" style={{ padding: 7, border: "1px solid color-mix(in srgb, var(--warning) 55%, var(--border))", borderRadius: "var(--radius-xs)", background: "color-mix(in srgb, var(--warning) 9%, var(--bg-panel))" }}>
-            <div style={{ fontSize: TEXT.xs, color: "var(--text)", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+          <div role="alert" className="d-card" style={{ padding: 7, borderColor: "color-mix(in srgb, var(--nx-warning) 55%, var(--nx-line))", background: "color-mix(in srgb, var(--nx-warning) 9%, var(--nx-panel))" }}>
+            <div className="d-t-xs" style={{ color: "var(--nx-text)", lineHeight: 1.35, overflowWrap: "anywhere" }}>
               {t("files.conflictSummary", { count: pendingConflict.conflicts.length, countSuffix: pendingConflict.conflicts.length === 1 ? "" : "s", files: pendingConflict.conflicts.join(", ") })}
             </div>
             {pendingConflict.nonReplaceable.length > 0 && (
-              <div style={{ marginTop: "var(--space-icon)", fontSize: TEXT["2xs"], color: "var(--warning)", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+              <div className="d-t-xs" style={{ marginTop: "var(--nx-sp-1)", color: "var(--nx-warning)", lineHeight: 1.35, overflowWrap: "anywhere" }}>
                 {t("files.cannotReplace", { files: pendingConflict.nonReplaceable.join(", ") })}
               </div>
             )}
-            <div style={{ display: "flex", gap: "var(--space-ctrl)", marginTop: 7 }}>
-              <button type="button" onClick={() => void performUpload(pendingConflict.files, "overwrite")} style={{ height: "var(--control-2xs)", padding: "0 7px", border: "1px solid var(--danger)", borderRadius: "var(--radius-xs)", background: "transparent", color: "var(--danger)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
+            <div className="d-row" style={{ marginTop: "var(--nx-sp-1)" }}>
+              <button type="button" className="d-btn sm danger" onClick={() => void performUpload(pendingConflict.files, "overwrite")}>
                 {t("files.replace")}
               </button>
-              <button type="button" onClick={() => void performUpload(pendingConflict.files, "skip")} style={{ height: "var(--control-2xs)", padding: "0 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
+              <button type="button" className="d-btn sm" onClick={() => void performUpload(pendingConflict.files, "skip")}>
                 {t("files.skipExisting")}
               </button>
-              <button type="button" onClick={() => setPendingConflict(null)} style={{ height: "var(--control-2xs)", padding: "0 7px", border: "none", borderRadius: "var(--radius-xs)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT["2xs"] }}>
+              <button type="button" className="d-btn sm ghost" onClick={() => setPendingConflict(null)}>
                 {t("files.cancel")}
               </button>
             </div>
@@ -1861,8 +2330,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         )}
 
         {uploadError && (
-          <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-row)", fontSize: TEXT.xs, lineHeight: 1.35, color: "var(--danger)" }}>
-            <span style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}>{uploadError}</span>
+          <div role="alert" className="d-banner err">
+            <i data-ico="circle-alert" data-size="13" aria-hidden="true"></i>
+            <span className="d-grow" style={{ overflowWrap: "anywhere" }}>{uploadError}</span>
             <DismissButton onClick={() => setUploadError(null)} title={t("files.dismissError")} />
           </div>
         )}
@@ -1872,20 +2342,20 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minHeight: 22, fontSize: TEXT.xs }}>
               <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: "var(--s2)" }}>
                 {uploadSummary.uploaded.length > 0 && (
-                  <span className="pw-inline" style={{ gap: "var(--space-icon)", color: "var(--success)" }} title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`}>
-                    <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true"></i></span>
+                  <span className="d-row d-t-xs" style={{ color: "var(--nx-success)" }} title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`}>
+                    <i data-ico="check" data-size="13" aria-hidden="true"></i>
                     <span>{uploadSummary.uploaded.length}</span>
                   </span>
                 )}
                 {uploadSummary.skipped.length > 0 && (
-                  <span className="pw-inline pw-dim" style={{ gap: "var(--space-icon)" }} title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`}>
-                    <span className="pw-ico"><i data-ico="circle-minus" data-size="13" aria-hidden="true"></i></span>
+                  <span className="d-row d-t-xs d-t-faint" title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`}>
+                    <i data-ico="circle-minus" data-size="13" aria-hidden="true"></i>
                     <span>{uploadSummary.skipped.length}</span>
                   </span>
                 )}
                 {uploadSummary.errors.length > 0 && (
-                  <span className="pw-inline" style={{ gap: "var(--space-icon)", color: "var(--danger)" }} title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`}>
-                    <span className="pw-ico"><i data-ico="triangle-alert" data-size="13" aria-hidden="true"></i></span>
+                  <span className="d-row d-t-xs" style={{ color: "var(--nx-danger)" }} title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`}>
+                    <i data-ico="triangle-alert" data-size="13" aria-hidden="true"></i>
                     <span>{uploadSummary.errors.length}</span>
                   </span>
                 )}
@@ -1905,8 +2375,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               <DismissButton onClick={() => setUploadSummary(null)} title={t("files.dismissUploadResults")} />
             </div>
             {uploadSummary.errors.map((item) => (
-              <div key={item.name} title={item.error} className="pw-inline" style={{ gap: "var(--s1)", marginTop: "var(--space-icon)", minWidth: 0, fontSize: "var(--text-meta)", color: "var(--danger)" }}>
-                <span className="pw-ico"><i data-ico="circle-alert" data-size="11" aria-hidden="true"></i></span>
+              <div key={item.name} title={item.error} className="d-row d-t-xs" style={{ color: "var(--nx-danger)", minWidth: 0, marginTop: "var(--nx-sp-1)" }}>
+                <i data-ico="circle-alert" data-size="11" aria-hidden="true"></i>
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
               </div>
             ))}
@@ -1916,11 +2386,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       )}
 
       {fileSearchOpen && (
-      <div style={{ padding: "var(--space-row) 8px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ position: "relative" }}>
-          <span className="pw-ico pw-dim" style={{ position: "absolute", left: "var(--s2)", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-            <i data-ico="search" data-size="12" aria-hidden="true"></i>
-          </span>
+      <div style={{ padding: "var(--nx-sp-2)" }}>
+        {/* fork:v5-skin D-05 帧 A —— 搜索框 = 画板 .d-searchfield（左 search 图标 + input）。 */}
+        <div className="d-searchfield">
+          <i data-ico="search" data-size="12" aria-hidden="true"></i>
           <input
             ref={searchInputRef}
             value={searchQuery}
@@ -1928,40 +2397,32 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             onKeyDown={(event) => { if (event.key === "Escape") onFileSearchOpenChange?.(false); }}
             placeholder={t("sidebar.searchFilesPlaceholder")}
             aria-label={t("sidebar.searchFiles")}
-            style={{ width: "100%", boxSizing: "border-box", padding: "6px 24px", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", outline: "none", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
           />
           {searchQuery && (
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className="d-iconbtn"
               onClick={() => setSearchQuery("")}
               title={t("sidebar.clearSearch")}
               aria-label={t("sidebar.clearSearch")}
-              style={{ position: "absolute", right: "var(--s1)", top: "50%", transform: "translateY(-50%)" }}
             >
-              <span className="pw-ico"><i data-ico="x" data-size="11" aria-hidden="true"></i></span>
+              <i data-ico="x" data-size="11" aria-hidden="true"></i>
             </button>
           )}
         </div>
         {hasSearchQuery && (
-          <div style={{ paddingTop: "var(--space-icon)" }}>
-            {searchLoading && <div role="status" style={{ padding: "var(--space-row) 2px", fontSize: TEXT["2xs"], color: "var(--text-dim)" }}>{t("sidebar.searchingFiles")}</div>}
-            {!searchLoading && searchError && <div role="alert" style={{ padding: "var(--space-row) 2px", fontSize: TEXT["2xs"], color: "var(--danger)" }}>{t("i18n.networkError")}</div>}
+          <div style={{ paddingTop: "var(--nx-sp-1)" }}>
+            {searchLoading && <div role="status" className="d-t-xs d-t-faint" style={{ padding: "var(--nx-sp-2) 2px" }}>{t("sidebar.searchingFiles")}</div>}
+            {!searchLoading && searchError && <div role="alert" className="d-t-xs" style={{ padding: "var(--nx-sp-2) 2px", color: "var(--nx-danger)" }}>{t("i18n.networkError")}</div>}
             {!searchLoading && !searchError && searchPaths.length === 0 && (
-              /* 同画板 30 行 266-272 的「过滤无结果」那一格。 */
-              <div className="pw-empty">
-                <div className="pw-empty-inner" style={{ gap: "var(--s2)" }}>
-                  <span className="mark" style={{ width: "var(--control-md)", height: "var(--control-md)" }}>
-                    <span className="pw-ico">
-                      <i data-ico="folder-search" data-size="16" aria-hidden="true"></i>
-                    </span>
-                  </span>
-                  <p style={{ fontSize: "var(--text-secondary)" }}>{t("sidebar.noMatchingFiles")}</p>
-                </div>
+              /* 同画板的「过滤无结果」那一格。 */
+              <div className="d-empty compact">
+                <div className="d-empty-ico"><i data-ico="folder-search" data-size="16" aria-hidden="true"></i></div>
+                <p className="d-empty-s">{t("sidebar.noMatchingFiles")}</p>
               </div>
             )}
             {!searchLoading && !searchError && searchPaths.length > 0 && (
-              <div>
+              <div className="d-tree">
                 {searchRoots.map((node) => (
                   <TreeNode
                     key={`${searchQuery}:${node.fullPath}`}
@@ -2007,32 +2468,27 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       )}
 
       {!changesCollapsed && gitFiles.length > 0 && (
-        <div style={{ padding: "0 4px 2px" }}>
-          {/* fork:design-components —— 改动分组头 = 画板 30 行 131-136：
-              `.pw-inline` 一行 = `.pw-badge.count`（git-commit-horizontal + 数量）
-              + `.pw-dim` 说明文字 + 右侧弱化的展开箭头。增删行数沿用
-              GIT_STATUS_COLORS（success / danger 语义色，与画板一致）。 */}
+        <div className="d-tree" style={{ padding: "0 4px 2px" }}>
+          {/* fork:v5-skin D-05 帧 D/A —— 改动分组头 = 画板 .d-row（.d-badge + 弱化说明 + 增删行数）。 */}
           <div
-            className="pw-inline"
+            className="d-row"
             aria-label={t("files.changeStats", {
               count: gitFiles.length,
               additions: gitLineStats.additions,
               deletions: gitLineStats.deletions,
             })}
-            style={{ padding: "0 4px var(--s1)", gap: "var(--s1)" }}
+            style={{ padding: "0 var(--nx-sp-1) var(--nx-sp-1)" }}
           >
-            <span className="pw-badge count">
-              <span className="pw-ico">
-                <i data-ico="git-commit-horizontal" data-size="11" aria-hidden="true"></i>
-              </span>
+            <span className="d-badge mute">
+              <i data-ico="git-commit-horizontal" data-size="11" aria-hidden="true"></i>
               {gitFiles.length}
             </span>
-            <span className="pw-dim" style={{ fontSize: "var(--text-meta)" }}>
+            <span className="d-t-xs d-t-faint">
               {t("files.changedCount", { count: gitFiles.length })}
             </span>
-            <span className="pw-grow" />
-            <span className="pw-mono" style={{ color: GIT_STATUS_COLORS.added }}>+{gitLineStats.additions}</span>
-            <span className="pw-mono" style={{ color: GIT_STATUS_COLORS.deleted }}>-{gitLineStats.deletions}</span>
+            <span className="d-grow" />
+            <span className="d-mono" style={{ color: GIT_STATUS_COLORS.added }}>+{gitLineStats.additions}</span>
+            <span className="d-mono" style={{ color: GIT_STATUS_COLORS.deleted }}>-{gitLineStats.deletions}</span>
           </div>
           {gitFiles.map((status) => (
             <ChangeRow
@@ -2048,11 +2504,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       )}
 
       {(changesCollapsed || gitFiles.length === 0) && (!fileSearchOpen || !hasSearchQuery) && (
-        <div style={{ padding: "var(--space-tight) 4px" }}>
+        <div className="d-tree" style={{ padding: "var(--space-tight) 4px" }}>
           {loading ? (
-            <div style={{ padding: "8px 12px", fontSize: TEXT.xs, color: "var(--text-dim)" }}>Loading files...</div>
+            <div className="d-t-xs d-t-faint" style={{ padding: "8px 12px" }}>Loading files...</div>
           ) : error ? (
-            <div style={{ padding: "8px 12px", fontSize: TEXT.xs, color: "var(--danger)" }}>{error}</div>
+            <div className="d-t-xs" style={{ padding: "8px 12px", color: "var(--nx-danger)" }}>{error}</div>
           ) : (
             roots.map((node) => (
               <TreeNode
@@ -2094,17 +2550,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             />
           ))}
           {!loading && !error && roots.length === 0 && (
-            /* fork:design-components —— 空态 = 画板 30 行 267-272 的「文件树空态 /
-               过滤无结果」：`.pw-empty` > `.pw-empty-inner` > mark + 一句话。 */
-            <div className="pw-empty">
-              <div className="pw-empty-inner" style={{ gap: "var(--s2)" }}>
-                <span className="mark" style={{ width: "var(--control-md)", height: "var(--control-md)" }}>
-                  <span className="pw-ico">
-                    <i data-ico="folder-search" data-size="16" aria-hidden="true"></i>
-                  </span>
-                </span>
-                <p style={{ fontSize: "var(--text-secondary)" }}>{t("files.noFiles")}</p>
-              </div>
+            /* fork:v5-skin D-05 —— 文件树空态 = 画板 .d-empty。 */
+            <div className="d-empty compact">
+              <div className="d-empty-ico"><i data-ico="folder-search" data-size="16" aria-hidden="true"></i></div>
+              <p className="d-empty-s">{t("files.noFiles")}</p>
             </div>
           )}
         </div>
@@ -2119,12 +2568,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           />
           <div
             role="menu"
-            /* fork:design-components —— 菜单壳 = 画板 30 行 304-313 / 318-329 的
-               `.pw-pop`（框、圆角、阴影、底色、padding 全来自 board.css）；
-               行 = `.pw-prow`（图标槽 + 文字），分组之间是 `.pw-sep`。
+            /* fork:v5-skin D-05 —— 菜单壳 = 画板 .d-pop（框、圆角、阴影、底色全来自 system.css）；
+               行 = .d-menu-row（图标 + 文字），分组之间是 .d-sep。
                定位值（fixed / left / top / z-index）仍是产品自己的：
                菜单挂在 document.body 上，祖先没有 overflow 裁切问题。 */
-            className="pw-pop fork-pwa-sb-menu"
+            className="d-pop fork-pwa-sb-menu"
             style={{
               position: "fixed",
               left: Math.min(contextMenu.x, (typeof window !== "undefined" ? window.innerWidth : 0) - 230),
@@ -2135,17 +2583,14 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           >
             {contextMenuItems.map((item) => (
               <Fragment key={item.key}>
-                {item.sepBefore && <div className="pw-sep" />}
+                {item.sepBefore && <div className="d-sep" />}
                 <button
                   type="button"
                   role="menuitem"
                   onClick={item.action}
-                  className="pw-prow"
-                  style={item.danger ? { color: "var(--error)" } : undefined}
+                  className={`d-menu-row${item.danger ? " danger" : ""}`}
                 >
-                  <span className="pw-ico" style={item.danger ? { color: "var(--error)" } : undefined}>
-                    <i data-ico={item.icon} data-size="14" aria-hidden="true"></i>
-                  </span>
+                  <i data-ico={item.icon} data-size="14" aria-hidden="true"></i>
                   {item.label}
                 </button>
               </Fragment>

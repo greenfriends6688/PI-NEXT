@@ -3,14 +3,19 @@
 import { useState } from "react";
 import type { SelectionContext, SessionReference } from "@/lib/composer-context";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /*
- * fork:design-components —— 引用芯片条钉在画板件上。
- *
- * 迁移前这一段是整段自绘：外层 flex + 每枚芯片一套 26px 高 / accent 描边 / 绝对定位的
- * 圆形移除钮 + 两枚手绘 SVG。现在结构就是画板 20 的 `.pw-chips` + `.pw-chip`
- * （+ `.accent` 状态），移除钮是画板的 `.pw-iconbtn.sm`，图标一律 `<i data-ico>`。
+ * fork:v5-skin D-04 —— 引用芯片条换画板 DOM：
+ *   · 容器 = .d-chips（画板 20「附件与引用」的同一条芯片行）；
+ *   · 每枚 = .d-chipbtn（图标 + 文案，选中挂 .is-on）；
+ *   · 移除钮 = .d-iconbtn，图标一律 <i data-ico="x">，不再手绘 SVG。
  * 交互契约（定位、打开引用、移除、清选区）原样保留。
+ *
+ * fork:v5-wave-b —— 窄屏（PWA 形态）换成 M-03 的 `.m-tray` + `.m-tray-chip`
+ * （「能力一律收成同一种 chip」那条纪律）：桌面那一套 DOM 一字不动，
+ * 手机那一套照画板另写一份 —— 两套基件同名同义不同形，混用反而会漂。
+ * 行为（定位 / 打开引用 / 移除 / 清选区）两边完全一致。
  */
 
 interface Props {
@@ -68,7 +73,6 @@ function ContextChip({
 }: ChipProps) {
   return (
     <span
-      className="pw-inline"
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
       onFocusCapture={onFocusCapture}
@@ -80,10 +84,10 @@ function ContextChip({
         onPointerDown={() => window.getSelection()?.removeAllRanges()}
         onClick={onOpen}
         title={title}
-        className={`pw-chip${active ? " accent" : ""}`}
+        className={`d-chipbtn${active ? " is-on" : ""}`}
       >
-        <span className="pw-ico"><i data-ico={icon} data-size="12"></i></span>
-        <span className="pw-mono">{label}</span>
+        <i data-ico={icon} data-size="12"></i>
+        {label}
       </button>
       <button
         type="button"
@@ -92,9 +96,48 @@ function ContextChip({
         title={removeLabel}
         aria-label={removeLabel}
         style={{ opacity: active ? 1 : 0, pointerEvents: active ? "auto" : "none" }}
-        className="pw-iconbtn sm"
+        className="d-iconbtn"
       >
-        <span className="pw-ico"><i data-ico="x" data-size="11"></i></span>
+        <i data-ico="x" data-size="11"></i>
+      </button>
+    </span>
+  );
+}
+
+/** fork:v5-wave-b —— 同上，M-03 的 `.m-tray-chip` 一行。悬停语义在触屏上没有，
+    所以「当前这枚」一律看得见移除钮 —— 那是 M-03 的 `.m-touch-44` 档要求。 */
+function PwaContextChip({
+  icon,
+  title,
+  label,
+  removeLabel,
+  active,
+  disabled,
+  onOpen,
+  onRemove,
+}: Omit<ChipProps, "onHoverStart" | "onHoverEnd" | "onFocusCapture" | "onBlurCapture">) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", minWidth: 0 }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onPointerDown={() => window.getSelection()?.removeAllRanges()}
+        onClick={onOpen}
+        title={title}
+        className={`m-tray-chip${active ? " is-on" : ""}`}
+      >
+        <i data-ico={icon} data-size="14"></i>
+        {label}
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onRemove}
+        title={removeLabel}
+        aria-label={removeLabel}
+        className="m-iconbtn"
+      >
+        <i data-ico="x" data-size="12"></i>
       </button>
     </span>
   );
@@ -110,6 +153,7 @@ export function ComposerContextStrip({
   onRemoveSessionReference,
 }: Props) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const [activeContextId, setActiveContextId] = useState<string | null>(null);
 
   if (contexts.length === 0 && sessionReferences.length === 0) return null;
@@ -132,8 +176,41 @@ export function ComposerContextStrip({
     },
   });
 
+  if (isMobile) {
+    return (
+      <div role="group" aria-label={t("chat.quotedContext")} className="m-tray">
+        {contexts.map((context, index) => (
+          <PwaContextChip
+            key={`selection:${context.id}`}
+            icon="quote"
+            title={`${t("chat.quotedContext")}: ${contextSummary(context.text)}`}
+            label={t("chat.quotedContextLabel", { count: index + 1 })}
+            removeLabel={t("chat.removeQuotedContext")}
+            active={false}
+            disabled={disabled}
+            onOpen={() => handleContextClick(context)}
+            onRemove={() => onRemove(context.id)}
+          />
+        ))}
+        {sessionReferences.map((reference, index) => (
+          <PwaContextChip
+            key={`session:${reference.id}`}
+            icon="message-square"
+            title={sessionSummary(reference)}
+            label={t("chat.sessionReferenceLabel", { count: index + 1 })}
+            removeLabel={t("chat.removeSessionReference")}
+            active={false}
+            disabled={disabled}
+            onOpen={() => onOpenSessionReference?.(reference)}
+            onRemove={() => onRemoveSessionReference?.(reference.id)}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div role="group" aria-label={t("chat.quotedContext")} className="pw-chips">
+    <div role="group" aria-label={t("chat.quotedContext")} className="d-chips">
       {contexts.map((context, index) => {
         const itemId = `selection:${context.id}`;
         return (

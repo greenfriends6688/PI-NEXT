@@ -12,13 +12,13 @@
 //   · 帧 F 的「与 HEAD 对比」覆盖层要工作区是个 git 仓库。
 // 这些缺口与本 spec 无关，已在报告里逐条列了实测证据。
 //
-// 关键接线：产品上 `.pw-viewer-head` / `.pw-code-body` / `.pw-card-foot` 都挂在
-// **CodeMirror 编辑器那一支**（CodeFileEditor.tsx 的根就是 `.pw-viewer`），
+// 关键接线：产品上 `.d-viewer-bar` / `.d-code-body` / `.d-code-head` 都挂在
+// **CodeMirror 编辑器那一支**（CodeFileEditor.tsx:381 的根就是 `.d-viewer`），
 // 所以必须先点开一个**能进编辑器**的源码文件；只读那一支走的是
 // `.file-source-view`（react-syntax-highlighter），**一个 pw-* 类都没有**。
 const OPEN_PANEL = `
   const toggle = document.querySelector(".desktop-secondary-workspace-toggle");
-  const panel = document.querySelector(".pw-panel");
+  const panel = document.querySelector(".right-panel-container");
   if (toggle && panel && !panel.className.includes("right-panel-open")) {
     toggle.click();
     await new Promise((r) => setTimeout(r, 1100));
@@ -26,7 +26,7 @@ const OPEN_PANEL = `
 `;
 
 const OPEN_AN_EDITABLE_FILE = `
-  const rows = [...document.querySelectorAll(".file-explorer-section .pw-trow")];
+  const rows = [...document.querySelectorAll(".file-explorer-section .d-trow")];
   const isDir = (r) => !!r.querySelector('[data-ico="chevron-right"]');
   // 只认能进 CodeMirror 的后缀：html / csv / 图片走的是另外几条分支，
   // 挂不上 .pw-viewer 壳，量到的就不是这一帧的东西了。
@@ -34,17 +34,17 @@ const OPEN_AN_EDITABLE_FILE = `
   const row = rows.find((r) => !isDir(r) && EDITABLE.test(r.textContent.trim()))
     ?? rows.find((r) => !isDir(r));
   if (!row) {
-    const cwd = document.querySelector(".file-explorer-title-label.pw-mono");
+    const cwd = document.querySelector(".file-explorer-title-label.d-mono");
     throw new Error("工作区 "
       + (cwd ? cwd.getAttribute("title") : "?")
       + " 里没有文件 —— 板 52 帧 A 量的是可编辑源码，得有一个能进编辑器的文件");
   }
   row.click();
   await new Promise((r) => setTimeout(r, 2000));
-  if (!document.querySelector(".pw-viewer .cm-content")) {
+  if (!document.querySelector(".d-viewer .cm-content")) {
     throw new Error("点开 " + row.textContent.trim()
-      + " 之后没挂上编辑器（.pw-viewer .cm-content 缺失）——"
-      + "这一帧要的是 CodeMirror 那一支，只读的 .file-source-view 不带 pw-* 类");
+      + " 之后没挂上编辑器（.d-viewer .cm-content 缺失）——"
+      + "这一帧要的是 CodeMirror 那一支，只读那一支不带 v5 壳类");
   }
 `;
 
@@ -53,19 +53,26 @@ export default {
   board: "52-file-viewer-modes.html",
   boardFrame: 0,
   app: { script: `${OPEN_PANEL}${OPEN_AN_EDITABLE_FILE}`, settle: 2000 },
+  // fork:v5-old-layer（2026-10-04）—— 查看器已换画板 D-06/D-06b 的 v5 类：
+  //   壳   → CodeFileEditor.tsx:381  `.d-viewer`
+  //   头   → :385 `.d-viewer-bar`（图标 `<i data-ico>` + `.d-viewer-path` 文件名 +
+  //         `.d-badge.mute` 格式徽章 + `.d-btn.sm` 两枚动作钮）
+  //   正文 → :390 `.d-code-body`（挂在 `.d-code` 里）
+  //   底栏 → `.d-code-head`（行·列 + 语言·行尾·编码，行尾那枚是 `<i data-ico>`）
+  // 画板侧仍取 v1 的 pw-*。
   pairs: [
     // 头：图标槽 / 等宽文件名 / 格式徽章 / 两个动作钮
-    [".pw-viewer-head", ".pw-viewer .pw-viewer-head"],
-    [".pw-viewer-head .pw-ico", ".pw-viewer .pw-viewer-head .pw-ico"],
-    [".pw-viewer-head .pw-mono", ".pw-viewer .pw-viewer-head .pw-mono"],
-    [".pw-viewer-head .pw-badge", ".pw-viewer .pw-viewer-head .pw-badge"],
-    [".pw-viewer-head .pw-btn", ".pw-viewer .pw-viewer-head .pw-btn"],
-    [".pw-viewer-head .pw-btn.primary", ".pw-viewer .pw-viewer-head .pw-btn.primary"],
+    [".pw-viewer-head", ".d-viewer .d-viewer-bar"],
+    [".pw-viewer-head .pw-ico", ".d-viewer .d-viewer-bar > i[data-ico]"],
+    [".pw-viewer-head .pw-mono", ".d-viewer .d-viewer-path"],
+    [".pw-viewer-head .pw-badge", ".d-viewer .d-viewer-bar .d-badge"],
+    [".pw-viewer-head .pw-btn", ".d-viewer .d-viewer-bar .d-btn"],
+    [".pw-viewer-head .pw-btn.primary", ".d-viewer .d-viewer-bar .d-btn.sm"],
     // 正文
-    [".pw-code-body", ".pw-viewer .pw-code-body"],
+    [".pw-code-body", ".d-viewer .d-code-body"],
     // 底栏：行·列 + 语言·行尾·编码
-    [".pw-card-foot", ".pw-viewer .pw-card-foot"],
-    [".pw-card-foot .pw-ico", ".pw-viewer .pw-card-foot .pw-ico"],
+    [".pw-card-foot", ".d-viewer .d-code-head"],
+    [".pw-card-foot .pw-ico", ".d-viewer .d-code-head i[data-ico]"],
   ],
   tolerance: { box: 2, fontSize: 0 },
 };

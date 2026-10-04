@@ -71,8 +71,10 @@ test("a filtered package is never disabled in bulk: disabling it drops its resou
 
 test("both sections wire the switch into the group heading and report under it", () => {
   for (const source of [skillsSource, pluginsSource]) {
-    assert.match(source, /<ConfigSidebarGroupSwitch/);
-    assert.match(source, /<ConfigSidebarGroupStatus/);
+    // fork:v5-landing —— 技能页已按画板 D-11 改成本地 `GroupSwitch` / `GroupStatus`（直接发 `.d-switch`），
+    // 插件页仍走共享基件；两者都算「分组标题里有整组开关 + 状态行」。
+    assert.match(source, /<ConfigSidebarGroupSwitch|function GroupSwitch\(/);
+    assert.match(source, /<ConfigSidebarGroupStatus|function GroupStatus\(/);
   }
   // 计数与「全开才算开」都交给共享基件，分节只传数。
   assert.match(skillsSource, /enabled=\{visibleCount\}/);

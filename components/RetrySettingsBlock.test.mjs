@@ -51,23 +51,26 @@ test("the PUT body carries cwd only when there is one", () => {
   assert.deepEqual(retryRequestBody({ maxRetries: 5 }, null), { maxRetries: 5 });
 });
 
-test("the block is board DOM: .pw-block + .pw-switch + .pw-ctl > .pw-input.pw-numin", () => {
+test("the block is board DOM: .d-set-sec + .d-switch + .d-input.d-mono", () => {
   assert.match(code, /<PwBlock icon="refresh-cw"/, "块标题图标走画板注册的 refresh-cw");
-  assert.match(code, /<PwSwitch/, "开关走画板的 .pw-switch（SettingsUi 的 PwSwitch）");
-  assert.match(code, /className="pw-input pw-numin"/, "数值框走 .pw-input + 画板 44 收编来的 .pw-numin");
-  assert.match(code, /<PwCtl>/, "数值框放在画板的 .pw-ctl 槽里");
-  assert.match(code, /<PwField/, "三行都是画板的 .pw-field");
+  assert.match(code, /<PwSwitch/, "开关走画板的 .d-switch（SettingsUi 的 PwSwitch）");
+  assert.match(code, /className="d-input d-mono"/, "数值框走画板的 .d-input + .d-mono");
+  assert.match(code, /<PwCtl>/, "数值框放在画板的 .d-row 槽里");
+  assert.match(code, /<PwField/, "三行都是画板的 .d-set-row");
 });
 
-test("判据⑦：.pw-numin 在 board.css 里，且出现在至少一张画板上", async () => {
+test("判据⑦：.d-input / .d-switch / .d-set-row 都是 v5 画板已有的类", async () => {
   const boardCss = await readFile(
-    new URL("../design/pi-web-design/assets/board.css", import.meta.url),
+    new URL("../design/v5/web/system.css", import.meta.url),
     "utf8",
   );
-  assert.match(boardCss, /\.pw-numin\s*\{/, "新类必须先进 board.css");
-  for (const board of ["40-settings-general.html", "62-settings-layout.html"]) {
-    const html = await readFile(new URL(`../design/pi-web-design/${board}`, import.meta.url), "utf8");
-    assert.match(html, /pw-input pw-numin/, `${board} 应当画出这一行`);
+  for (const name of ["d-input", "d-switch", "d-set-row", "d-set-sec"]) {
+    assert.match(boardCss, new RegExp(`\\.${name}\\s*\\{`), `${name} 必须在 v5 system.css 里`);
+  }
+  for (const board of ["D-07-settings-general.html", "D-07b-settings-general-detail.html"]) {
+    const html = await readFile(new URL(`../design/v5/web/boards/${board}`, import.meta.url), "utf8");
+    assert.match(html, /d-set-row/, `${board} 应当画出设置行`);
+    assert.match(html, /d-switch/, `${board} 应当画出开关`);
   }
 });
 
@@ -83,7 +86,7 @@ test("首帧（读盘未回来）三个控件都是禁用的 —— 读不出来
     React.createElement(I18nProvider, null, React.createElement(RetrySettingsBlock, { cwd: "/tmp" })),
   );
   // 画板 40 帧 1 那一块的三行都在，且在拿到真值之前不可点。
-  assert.match(html, /pw-input pw-numin/, "两个窄数值框");
+  assert.match(html, /d-input d-mono/, "两个窄数值框");
   assert.equal((html.match(/type="number"/g) ?? []).length, 2);
   assert.equal((html.match(/role="switch"/g) ?? []).length, 1);
   assert.equal((html.match(/disabled/g) ?? []).length, 3);

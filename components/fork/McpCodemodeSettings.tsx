@@ -19,9 +19,10 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
 import type { ToolSettingsResponse } from "@/lib/api-types";
-import { ConfigField } from "../SettingsUi";
 
 interface Props {
   cwd: string | null;
@@ -31,6 +32,7 @@ const INLINE_BUDGET_MAX = 1_000_000;
 
 export function McpCodemodeSettings({ cwd }: Props) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const [data, setData] = useState<ToolSettingsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -92,20 +94,89 @@ export function McpCodemodeSettings({ cwd }: Props) {
     void save({ codemodeInlineBudget: value });
   }, [budgetText, save]);
 
-  if (!data) {
-    return error ? (
-      <div className="pw-alert bad">
-        <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-        <span className="pw-grow">{error}</span>
-      </div>
-    ) : null;
+  // fork:v5-landing Wave B · M-09 帧 B 表格行的同构：三项各一行 `.m-setrow`
+  // （名字 + 说明 + 右侧控件），开关类用 `.m-pickbar` / `.m-picktag` 互斥。
+  // 三项的写盘口径（一次只改一个键）与桌面完全相同。
+  if (mobile && data) {
+    return (
+      <>
+        <div className="m-cardgroup">
+          <PwaSetRow label={t("mcp.codemode.title")} sub={t("mcp.codemode.automaticDescription")} />
+          <div className="m-pickbar">
+            <button
+              type="button"
+              className={`m-picktag${data.codemode === "automatic" ? " is-on" : ""}`}
+              disabled={saving}
+              onClick={() => void save({ codemode: "automatic" })}
+            >
+              {t("mcp.codemode.automatic")}
+            </button>
+            <button
+              type="button"
+              className={`m-picktag${data.codemode === "always" ? " is-on" : ""}`}
+              disabled={saving}
+              onClick={() => void save({ codemode: "always" })}
+            >
+              {t("mcp.codemode.always")}
+            </button>
+          </div>
+
+          <PwaSetRow label={t("mcp.codemode.mode")} sub={t("mcp.codemode.toolMode.onDescription")} />
+          <div className="m-pickbar">
+            <button
+              type="button"
+              className={`m-picktag${data.codemodeMode.value === "on" ? " is-on" : ""}`}
+              disabled={saving}
+              onClick={() => void save({ codemodeMode: "on" })}
+            >
+              {t("mcp.codemode.toolMode.on")}
+            </button>
+            <button
+              type="button"
+              className={`m-picktag${data.codemodeMode.value === "only" ? " is-on" : ""}`}
+              disabled={saving}
+              onClick={() => void save({ codemodeMode: "only" })}
+            >
+              {t("mcp.codemode.toolMode.only")}
+            </button>
+          </div>
+
+          <PwaSetRow
+            label={t("mcp.codemode.inlineBudget")}
+            sub={data.codemodeInlineBudget.invalid
+              ? t("mcp.codemode.inlineBudget.invalid", { value: data.codemodeInlineBudget.invalid })
+              : t("mcp.codemode.inlineBudget.description")}
+          />
+          <div className="m-doc-body">
+            <input
+              className="m-input"
+              style={{ width: "100%" }}
+              inputMode="numeric"
+              value={budgetText}
+              placeholder={t("mcp.codemode.inlineBudget.unit")}
+              disabled={saving}
+              onChange={(event) => setBudgetText(event.target.value)}
+              onBlur={commitBudget}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") { event.preventDefault(); commitBudget(); }
+              }}
+            />
+          </div>
+        </div>
+        {error && <PwaBanner icon="triangle-alert" tone="err" role="alert">{error}</PwaBanner>}
+      </>
+    );
   }
 
+  // fork:v5-landing D-15 帧 B「基础配置」—— 标签在上、控件在下的 `.d-field` 组。
+  // 画板没有单独的 codemode 设置帧，这三项与服务器表单同属「设置里的一段表单」。
+  if (!data) return null;
   return (
-    <div>
-      <ConfigField label={t("mcp.codemode.title")}>
+    <div className="d-col" style={{ gap: "var(--nx-sp-3)" }}>
+      <div className="d-field">
+        <span className="d-field-t">{t("mcp.codemode.title")}</span>
         <select
-          className="pw-select"
+          className="d-select"
           value={data.codemode}
           disabled={saving}
           onChange={(event) => void save({ codemode: event.target.value })}
@@ -114,11 +185,12 @@ export function McpCodemodeSettings({ cwd }: Props) {
           <option value="automatic">{t("mcp.codemode.automatic")}</option>
           <option value="always">{t("mcp.codemode.always")}</option>
         </select>
-      </ConfigField>
+      </div>
 
-      <ConfigField label={t("mcp.codemode.mode")}>
+      <div className="d-field">
+        <span className="d-field-t">{t("mcp.codemode.mode")}</span>
         <select
-          className="pw-select"
+          className="d-select"
           value={data.codemodeMode.value}
           disabled={saving}
           onChange={(event) => void save({ codemodeMode: event.target.value })}
@@ -129,11 +201,12 @@ export function McpCodemodeSettings({ cwd }: Props) {
           <option value="on">{t("mcp.codemode.toolMode.on")}</option>
           <option value="only">{t("mcp.codemode.toolMode.only")}</option>
         </select>
-      </ConfigField>
+      </div>
 
-      <ConfigField label={t("mcp.codemode.inlineBudget")}>
+      <div className="d-field">
+        <span className="d-field-t">{t("mcp.codemode.inlineBudget")}</span>
         <input
-          className="pw-input"
+          className="d-input"
           inputMode="numeric"
           value={budgetText}
           placeholder={t("mcp.codemode.inlineBudget.unit")}
@@ -146,16 +219,30 @@ export function McpCodemodeSettings({ cwd }: Props) {
           onKeyDown={(event) => {
             if (event.key === "Enter") { event.preventDefault(); commitBudget(); }
           }}
-          style={{ width: "calc(var(--s6) * 4)" }}
+          style={{ width: "calc(var(--nx-sp-6) * 5)" }}
         />
-      </ConfigField>
+      </div>
 
       {error && (
-        <div className="pw-alert bad">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{error}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{error}</span>
         </div>
       )}
     </div>
   );
+  // 还没拿到设置（首帧 / 读失败）：错误态也分形态，两边说的是同一个 error。
+  // fork:v5-landing Wave B —— 这段排在桌面 return 之后，窄屏那一段整体在前面。
+  if (!data) {
+    if (!error) return null;
+    if (mobile) {
+      return <PwaBanner icon="triangle-alert" tone="err" role="alert">{error}</PwaBanner>;
+    }
+    return (
+      <div className="d-banner err">
+        <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+        <span className="d-grow">{error}</span>
+      </div>
+    );
+  }
 }

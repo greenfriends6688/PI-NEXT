@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-22 · 全局搜索 ⌘K · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-22 · 全局搜索 ⌘K（命令中心）</h1>
+  <p>
+    V5 里优先级最高的新增页面：<b>一个入口同时回答「我要跑命令 / 我要翻旧会话 / 我要提一个文件」</b>。
+    语法不另设菜单 —— <code>&gt;</code> 命令、<code>#</code> 会话、<code>@</code> 文件，
+    <b>前缀即过滤</b>；空查询不空场，给的是最近打开与快捷入口。
+    命中片段用 <code>.d-cmd-hit</code> 加重（不是整行高亮），底部永远写着键位。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：命令中心 / 全局搜索</span>
+    <span class="d-tag">组件：CommandCenter · ScopeTabs · CmdRow · CmdFoot</span>
+    <span class="d-tag">状态：默认 / 输入中 / 空态与历史</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 默认（空查询）· 全部范围：快捷入口在前，历史在后<span class="d-grow"></span>页签可点，命令面板真能开</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">定时任务错峰执行</span><span class="d-sess-m"><span>3 天前</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">定住令牌与类名</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">claude-opus-4-6</span>
+                </div>
+                <div class="d-steps">
+                  <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">读完 design/v5/base.css 的令牌清单</span><span class="d-step-meta">0:04</span></div>
+                  <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">对 system.css 里的类逐个核</span><span class="d-step-meta">0:21</span></div>
+                </div>
+                <div class="d-md">后台在扫画板，<b>⌘K</b> 可以随时打断我去看别的东西。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer d-loader">
+              <div class="d-composer-top"><span class="d-t-dim">运行中可以排队下一条</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send stop" title="停止这一轮"><i data-ico="square" data-size="14"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <!-- ⌘K 命令中心：演示态就是「已打开」 -->
+        <div class="d-cmd is-open">
+          <div class="d-cmd-input" data-demo-scope>
+            <input placeholder="搜索会话、文件、命令 —— 或直接输入 &gt; # @">
+
+            <div class="d-cmd-tabs" data-demo-tabs>
+              <button class="d-cat is-on" data-cmd-all>全部</button>
+              <button class="d-cat" data-demo-tab="cmd">命令</button>
+              <button class="d-cat" data-demo-tab="sess">会话</button>
+              <button class="d-cat" data-demo-tab="file">文件</button>
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" data-demo-open="cmd-syntax-a" title="前缀语法"><i data-ico="keyboard" data-size="14"></i></button>
+            </div>
+
+            <div class="d-cmd-results" data-demo-list>
+
+              <!-- 默认范围 -->
+              <div data-demo-pane="all">
+                <div class="d-cmd-group">最近打开</div>
+                <div class="d-cmd-row is-on">
+                  <i data-ico="message-square" data-size="14"></i>
+                  <span class="d-grow">定住令牌与类名</span>
+                  <span class="d-cmd-kind">会话 · 18 分钟前</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="message-square" data-size="14"></i>
+                  <span class="d-grow">release 0.1.8 收尾</span>
+                  <span class="d-cmd-kind">会话 · 昨天</span>
+                </div>
+
+                <div class="d-cmd-group">快捷入口</div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="square-pen" data-size="14"></i>
+                  <span class="d-grow">新建任务</span>
+                  <span class="d-cmd-kind">命令 · ⌘N</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="calendar-clock" data-size="14"></i>
+                  <span class="d-grow">打开定时任务</span>
+                  <span class="d-cmd-kind">命令</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="folder-tree" data-size="14"></i>
+                  <span class="d-grow">切换项目</span>
+                  <span class="d-cmd-kind">命令</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="refresh-cw" data-size="14"></i>
+                  <span class="d-grow">重新连接手机</span>
+                  <span class="d-cmd-kind">命令</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="smartphone" data-size="14"></i>
+                  <span class="d-grow">手机与推送</span>
+                  <span class="d-cmd-kind">命令</span>
+                </div>
+
+                <div class="d-cmd-group">保存的工作流</div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="layout-template" data-size="14"></i>
+                  <span class="d-grow">发版前跑一遍回归清单</span>
+                  <span class="d-cmd-kind">工作流 · 上次 3 天前</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="layout-template" data-size="14"></i>
+                  <span class="d-grow">给这段代码补测试</span>
+                  <span class="d-cmd-kind">工作流 · 上次 2 小时前</span>
+                </div>
+              </div>
+
+              <!-- 范围：命令 -->
+              <div data-demo-pane="cmd" hidden>
+                <div class="d-cmd-group">命令 · 18 条</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-cmd-kind">⌘N</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">新建任务并绑定目录</span><span class="d-cmd-kind">⌘⇧N</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">切换模型</span><span class="d-cmd-kind">⌘P</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">切换主题</span><span class="d-cmd-kind">⌘⇧L</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">跑一次目录信任检查</span><span class="d-cmd-kind">内部</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">导出本次会话为 Markdown</span><span class="d-cmd-kind">内部</span></div>
+              </div>
+
+              <!-- 范围：会话 -->
+              <div data-demo-pane="sess" hidden>
+                <div class="d-cmd-group">会话 · 14 条</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="message-square" data-size="14"></i><span class="d-grow">定住令牌与类名</span><span class="d-cmd-kind">PI NEXT</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="message-square" data-size="14"></i><span class="d-grow">release 0.1.8 收尾</span><span class="d-cmd-kind">PI NEXT</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="message-square" data-size="14"></i><span class="d-grow">定时任务错峰执行</span><span class="d-cmd-kind">PI NEXT</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="message-square" data-size="14"></i><span class="d-grow">查清楚全局 CSS 为什么两份</span><span class="d-cmd-kind">zhaobiao-extract</span></div>
+              </div>
+
+              <!-- 范围：文件 -->
+              <div data-demo-pane="file" hidden>
+                <div class="d-cmd-group">文件 · 1,284 个已索引</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/base.css</span><span class="d-cmd-kind">2 天前</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-cmd-kind">今天</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/scripts/check-v5.mjs</span><span class="d-cmd-kind">今天</span></div>
+              </div>
+
+            </div>
+
+            <div class="d-cmd-foot">
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">↑</span><span class="d-kbd">↓</span><span>移动</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">↵</span><span>打开</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">⌘</span><span class="d-kbd">↵</span><span>在新会话里跑</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">esc</span><span>关闭</span></span>
+              <span class="d-grow"></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span>前缀即语法</span><span class="d-kbd">&gt;</span><span class="d-kbd">#</span><span class="d-kbd">@</span></span>
+            </div>
+          </div>
+
+          <!-- 前缀语法说明（可点开） -->
+          <div class="d-pop" data-demo-pop="cmd-syntax-a" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:280px">
+            <div class="d-pop-title">前缀即语法</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-row"><span class="d-kbd">&gt;</span><span class="d-t-sm">命令：新建、切换、运行</span></div>
+              <div class="d-row"><span class="d-kbd">#</span><span class="d-t-sm">会话：按标题与内容搜旧对话</span></div>
+              <div class="d-row"><span class="d-kbd">@</span><span class="d-t-sm">文件：按路径与符号搜代码</span></div>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-pop-foot">前缀可以直接粘进来（例如从 issue 里复制 <code>#4231</code>），面板会自动认出来。</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 输入中：<code>@base</code> 已把范围收到文件 · 命中片段加重<span class="d-grow"></span>不打整行底色，只打命中那几个字</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+            <button class="d-sess unread"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">release 0.1.8 收尾</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · main</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="search" data-size="14"></i>搜索<span class="d-kbd">⌘K</span></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">claude-opus-4-6</span>
+                </div>
+                <div class="d-md">在跑 1 条任务。你按 <b>⌘K</b> 会把它挂到后台，不会打断。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <div class="d-cmd is-open">
+          <div class="d-cmd-input" data-demo-scope>
+            <input value="@base">
+
+            <div class="d-cmd-tabs" data-demo-tabs>
+              <button class="d-cat" data-cmd-all>全部</button>
+              <button class="d-cat" data-demo-tab="cmd">命令</button>
+              <button class="d-cat" data-demo-tab="sess">会话</button>
+              <button class="d-cat is-on" data-demo-tab="file">文件</button>
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" data-demo-open="cmd-syntax-b" title="前缀语法"><i data-ico="keyboard" data-size="14"></i></button>
+            </div>
+
+            <div class="d-cmd-results" data-demo-list>
+
+              <div data-demo-pane="all" hidden>
+                <div class="d-cmd-group">全部范围 · 9 条命中</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">design/v5/<span class="d-cmd-hit">base</span>.css</span><span class="d-cmd-kind">文件</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">重跑 <span class="d-cmd-hit">base</span> 门禁</span><span class="d-cmd-kind">命令</span></div>
+              </div>
+
+              <div data-demo-pane="cmd" hidden>
+                <div class="d-cmd-group">命令 · 2 条</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">检查令牌是否有第二个来源</span><span class="d-cmd-kind">内部</span></div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">在 <span class="d-cmd-hit">base</span>.css 里跳转到令牌</span><span class="d-cmd-kind">内部</span></div>
+              </div>
+
+              <div data-demo-pane="sess" hidden>
+                <div class="d-cmd-group">会话 · 1 条</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="message-square" data-size="14"></i><span class="d-grow">定住令牌与类名</span><span class="d-cmd-kind">PI NEXT</span></div>
+              </div>
+
+              <!-- 范围：文件（当前） -->
+              <div data-demo-pane="file">
+                <div class="d-cmd-group">文件 · 6 条命中 · 在 4 个工作区里搜</div>
+                <div class="d-cmd-row is-on">
+                  <i data-ico="file-code" data-size="14"></i>
+                  <span class="d-grow d-mono">design/v5/<span class="d-cmd-hit">base</span>.css</span>
+                  <span class="d-cmd-kind">L84 · 令牌角色表</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="file-code" data-size="14"></i>
+                  <span class="d-grow d-mono">design/v5/web/<span class="d-cmd-hit">base</span>-board.css</span>
+                  <span class="d-cmd-kind">L12</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="file-code" data-size="14"></i>
+                  <span class="d-grow d-mono">scripts/check-<span class="d-cmd-hit">base</span>.mjs</span>
+                  <span class="d-cmd-kind">L96</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="book-open" data-size="14"></i>
+                  <span class="d-grow">README · <span class="d-cmd-hit">base</span>.css 是唯一真值</span>
+                  <span class="d-cmd-kind">文档</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="file-text" data-size="14"></i>
+                  <span class="d-grow d-mono">fork/NextBaseTokens.ts</span>
+                  <span class="d-cmd-kind">L31 · 待迁移</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="file-text" data-size="14"></i>
+                  <span class="d-grow d-mono">fork/next-<span class="d-cmd-hit">base</span>-css-compat.css</span>
+                  <span class="d-cmd-kind">L1 · 与 V5 重复</span>
+                </div>
+                <div class="d-cmd-group">提到 @base 的会话</div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="message-square" data-size="14"></i>
+                  <span class="d-grow">定住令牌与类名</span>
+                  <span class="d-cmd-kind">3 处</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="d-cmd-foot">
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">↑</span><span class="d-kbd">↓</span><span>移动</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">↵</span><span>打开</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">⌘</span><span class="d-kbd">↵</span><span>引用到输入框</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">⌫</span><span>退回全部范围</span></span>
+              <span class="d-grow"></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">@</span><span>已切到文件范围</span><span class="d-dot run"></span><span>索引中 1,284</span></span>
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="cmd-syntax-b" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:280px">
+            <div class="d-pop-title">为什么只加重命中片段</div>
+            <div class="d-pop-body d-t-xs d-t-dim">
+              整行打底色会把「哪几个字匹配了」这件事藏起来；只加重片段，用户扫一眼就知道值不值得打开这一行。
+              命中数超过 200 条时自动降级成只显示前 50 条 + 一句「还有 N 条」。
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 空态：没命中也给台阶 —— 空态 + 最近搜索 + 加载态可重播<span class="d-grow"></span>「没找到」永远带着下一步</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设置</span>
+              <span class="d-tb-sub">⌘K 在任何页面都开，包括设置与空态页</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="search" data-size="14"></i>搜索<span class="d-kbd">⌘K</span></button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-card">
+                <div class="d-card-body d-t-sm d-t-dim">设置页被面板盖住时，背后的滚动位置不动 —— 面板是浮层，不是页面。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap"></div>
+        </main>
+
+        <div class="d-cmd is-open">
+          <div class="d-cmd-input" data-demo-scope>
+            <input value="模型路由">
+
+            <div class="d-cmd-tabs" data-demo-tabs>
+              <button class="d-cat is-on" data-cmd-all>全部</button>
+              <button class="d-cat" data-demo-tab="cmd">命令</button>
+              <button class="d-cat" data-demo-tab="sess">会话</button>
+              <button class="d-cat" data-demo-tab="file">文件</button>
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" data-demo-open="cmd-syntax-c" title="前缀语法"><i data-ico="keyboard" data-size="14"></i></button>
+            </div>
+
+            <div class="d-cmd-results" data-demo-list>
+
+              <div data-demo-pane="all">
+                <!-- 空态 -->
+                <div class="d-empty" id="cmd-empty">
+                  <div class="d-empty-ico"><i data-ico="search" data-size="20"></i></div>
+                  <div class="d-empty-t">没有匹配「模型路由」的结果</div>
+                  <div class="d-empty-s">索引里没有这段字。可以换个说法，或用前缀直接找：命令用 <span class="d-kbd">&gt;</span>、会话用 <span class="d-kbd">#</span>、文件用 <span class="d-kbd">@</span>。</div>
+                  <div class="d-row" style="gap:var(--nx-sp-2)">
+                    <button class="d-btn sm" data-demo-open="cmd-syntax-c"><i data-ico="keyboard" data-size="13"></i>看前缀语法</button>
+                    <button class="d-btn sm ghost" id="cmd-skel-btn" data-demo-motion="#cmd-skel"><i data-ico="loader-circle" data-size="13"></i>看搜索中的样子</button>
+                  </div>
+                </div>
+
+                <!-- 加载态（默认隐藏，点上面那颗按钮才出现。
+                     .d-skel-list 自带 display:flex，会盖掉 [hidden]，所以用行内 display 收） -->
+                <div class="d-skel-list" id="cmd-skel" style="display:none;padding:var(--nx-sp-2)">
+                  <div class="d-skel d-skel-40"></div>
+                  <div class="d-skel d-skel-40"></div>
+                  <div class="d-skel d-skel-40"></div>
+                  <div class="d-t-xs d-t-faint d-row" style="gap:var(--nx-sp-2)">
+                    <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span>正在扫 4 个工作区 · 1,284 个文件</span>
+                  </div>
+                </div>
+
+                <div class="d-cmd-group">最近搜索</div>
+                <div class="d-cmd-row is-on">
+                  <i data-ico="history" data-size="14"></i>
+                  <span class="d-grow">令牌</span>
+                  <span class="d-cmd-kind">2 小时前 · 6 条结果</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="history" data-size="14"></i>
+                  <span class="d-grow">@fork/NextBaseTokens.ts</span>
+                  <span class="d-cmd-kind">昨天 · 1 条结果</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="history" data-size="14"></i>
+                  <span class="d-grow">发了什么版</span>
+                  <span class="d-cmd-kind">3 天前 · 4 条结果</span>
+                </div>
+
+                <div class="d-cmd-group">没找到时的下一步</div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="message-square" data-size="14"></i>
+                  <span class="d-grow">新建会话并带上「模型路由」这个词</span>
+                  <span class="d-cmd-kind">命令 · ⌘↵</span>
+                </div>
+                <div class="d-cmd-row" data-demo-select>
+                  <i data-ico="clock" data-size="14"></i>
+                  <span class="d-grow">去掉时间限制再搜一次</span>
+                  <span class="d-cmd-kind">回车</span>
+                </div>
+              </div>
+
+              <div data-demo-pane="cmd" hidden>
+                <div class="d-cmd-group">命令里没有「模型路由」</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">清掉本次搜索历史</span><span class="d-cmd-kind">命令</span></div>
+              </div>
+              <div data-demo-pane="sess" hidden>
+                <div class="d-cmd-group">会话里没有「模型路由」</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">回到全部范围重搜</span><span class="d-cmd-kind">命令</span></div>
+              </div>
+              <div data-demo-pane="file" hidden>
+                <div class="d-cmd-group">文件里没有「模型路由」</div>
+                <div class="d-cmd-row" data-demo-select><i data-ico="command" data-size="14"></i><span class="d-grow">重建文件索引</span><span class="d-cmd-kind">命令</span></div>
+              </div>
+
+            </div>
+
+            <div class="d-cmd-foot">
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">↑</span><span class="d-kbd">↓</span><span>移动</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">↵</span><span>再搜一次</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">⌫</span><span>清空查询</span></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">esc</span><span>关闭</span></span>
+              <span class="d-grow"></span>
+              <span class="d-row" style="gap:var(--nx-sp-1)"><span class="d-kbd">esc</span><span>连按两次回到工作台</span></span>
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="cmd-syntax-c" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:300px">
+            <div class="d-pop-title">搜索历史怎么用</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-t-xs d-t-dim">最多留 20 条，只存查询词，不存结果 —— 换台机器结果会不一样，但「我刚找过什么」能带过去。</div>
+              <div class="d-row"><i data-ico="trash-2" data-size="13"></i><span class="d-t-sm">删除单条：行尾的垃圾桶</span></div>
+              <div class="d-row"><i data-ico="eraser" data-size="13"></i><span class="d-t-sm">全清：设置 · 搜索</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>一个入口，三件事</b>：命令 / 会话 / 文件都在同一块面板里，靠前缀分流（<code>&gt;</code> <code>#</code> <code>@</code>），不再给搜索配二级菜单。</li>
+    <li><b>空查询不空场</b>：默认帧给的是「最近打开 + 快捷入口 + 保存的工作流」，用户按 ⌘K 的下一秒就能动手，不用先想搜索词。</li>
+    <li><b>只加重命中片段</b>（<code>.d-cmd-hit</code>）：整行打底色会盖住「哪几个字匹配了」，一行里三处命中也要一眼分得清。</li>
+    <li><b>空态必须带下一步</b>：没命中不是终点 —— 给最近搜索、给前缀说明、给「带着这个词新建会话」，并把索引进度说清楚。</li>
+    <li><b>底部键位永远在</b>（<code>.d-cmd-foot</code>）：↑↓ / ↵ / ⌘↵ / ⌫ / esc 各写一句人话，不放图标让人猜。</li>
+    <li><b>面板是浮层不是页面</b>：背后页面不重排、不滚走；范围页签只改结果区，标题栏与底部键位条始终不动。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本板专属接线（3 条，都写在本板里 —— 只有命令面板需要）：
+   ① 「当前范围」那颗页签：它已经是这个状态了，再声明一次触发属性只会得到一个「点了没反应」的
+      死件，所以由这里接管：点它 = 回到「全部」；别人被选中时它自动让位。
+   ② 结果行光标：同样只在这里接管整组互斥，data-demo-select 声明的是其余各行。
+   ③ 「看搜索中的样子」：空态 ⇄ 骨架态，同时重播扫掠。 */
+(function () {
+  /* ① 当前范围页签 ⇄ 全部 */
+  document.querySelectorAll(".d-cmd-tabs").forEach(function (group) {
+    var all = group.querySelector("[data-cmd-all]");
+    var scope = group.closest("[data-demo-scope]");
+    if (!all || !scope) return;
+    group.addEventListener("click", function (e) {
+      if (e.target.closest("[data-demo-tab]")) all.classList.remove("is-on");
+    });
+    all.addEventListener("click", function () {
+      group.querySelectorAll("[data-demo-tab]").forEach(function (b) { b.classList.remove("is-on"); });
+      all.classList.add("is-on");
+      scope.querySelectorAll("[data-demo-pane]").forEach(function (p) {
+        p.hidden = p.getAttribute("data-demo-pane") !== "all";
+      });
+    });
+  });
+
+  /* ② 结果行光标：整组互斥，命中整行（光标行本身不带声明属性，由这里统一接管） */
+  document.querySelectorAll(".d-cmd-results").forEach(function (box) {
+    box.addEventListener("click", function (e) {
+      var row = e.target.closest(".d-cmd-row");
+      if (!row || !box.contains(row)) return;
+      box.querySelectorAll(".d-cmd-row").forEach(function (r) { r.classList.toggle("is-on", r === row); });
+    });
+  });
+
+  /* ③ 空态 ⇄ 搜索中（两块的类都自带 display，用行内 display 收放，藏的是「机械显示」不是设计值） */
+  var btn = document.getElementById("cmd-skel-btn");
+  var empty = document.getElementById("cmd-empty");
+  var skel = document.getElementById("cmd-skel");
+  if (btn && empty && skel) {
+    var show = function (el, on) { el.style.display = on ? "" : "none"; };
+    btn.addEventListener("click", function () {
+      show(empty, false);
+      show(skel, true);
+      btn.classList.add("is-on");           /* 「搜索中」在按钮上留痕：门禁的冒烟要能看见状态迁移 */
+      btn.disabled = true;
+      setTimeout(function () {
+        show(skel, false); show(empty, true);
+        btn.classList.remove("is-on"); btn.disabled = false;
+      }, 1400);
+    });
+  }
+})();
+</script>
+</body>
+</html>

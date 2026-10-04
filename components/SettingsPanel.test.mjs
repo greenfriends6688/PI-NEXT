@@ -56,7 +56,10 @@ test("restores the settings section and each list detail selection", async () =>
 test("keeps visited settings sections mounted and contains nested Escape handling", async () => {
   const modelsSource = await readFile(new URL("./ModelsConfig.tsx", import.meta.url), "utf8");
   assert.match(panelSource, /mountedSections\.has\(id\)/);
-  assert.match(panelSource, /hidden=\{section !== id\}/);
+  // fork:v5-landing Wave B（M-05）—— 桌面上「当前分节」永远是 `section`；手机上多一层
+  // hub，所以可见分节由 `activeSection` 决定（hub 上时它是 null，全部 hidden）。
+  assert.match(panelSource, /hidden=\{activeSection !== id\}/);
+  assert.match(panelSource, /const activeSection: SettingsSection \| null = isMobile \? phoneSection : section;/);
   assert.match(panelSource, /event\.defaultPrevented/);
   assert.match(modelsSource, /e\.preventDefault\(\);\s*e\.stopPropagation\(\);\s*onClose\(\);/);
 });
@@ -130,10 +133,10 @@ test("keeps General free of divider rows", () => {
   // fork:design-system SW-07 —— 设置是**整屏**（画板 40/45 的 `.pw-settings` 就是整个
   // 窗口）：桌面没有页头（画板没画）；窄屏才恢复页头（那一列被隐藏，分节下拉与关闭都在
   // 页头上）。
-  assert.match(panelSource, /className="settings-dialog-header pw-modal-head"/);
+  assert.match(panelSource, /className="settings-dialog-header d-modal-head"/);
   // 2026-10-03 用户裁定 —— 左导航底部那枚「返回工作区」撤了，关闭口只剩弹窗右上角的
   // 那一枚 X（宽屏也可见）。`.pw-snav-close` 是画板 62 的那一行，产品不再渲染。
-  assert.match(panelSource, /className="config-close-button settings-dialog-close pw-iconbtn"/);
+  assert.match(panelSource, /className="config-close-button settings-dialog-close d-iconbtn"/);
   assert.doesNotMatch(panelSource, /className="pw-row pw-snav-close"/);
   assert.doesNotMatch(panelSource, /t\("settings\.backToWorkspace"\)/);
   assert.match(cssSource, /\.settings-dialog-header\.pw-modal-head \{[\s\S]*?display: none/);
@@ -147,15 +150,15 @@ test("keeps General free of divider rows", () => {
 
 test("uses a left section column on desktop and one compact picker on mobile", () => {
   assert.match(panelSource, /className="settings-mobile-section-picker"/);
-  // fork:design-system SW-07 —— 左导航 = 画板 40 的 `.pw-snav` + `.pw-row`/`.pw-name`，
-  // 选中态是 `.is-on`。旧的 `settings-section-tab` 与它那套自绘下划线已退役。
-  assert.match(panelSource, /className="settings-section-tabs pw-snav"/);
-  assert.match(panelSource, /className=\{`pw-row\$\{selected \? " is-on" : ""\}`\}/);
-  assert.match(panelSource, /className="pw-name"/);
+  // fork:design-system SW-07 —— 左导航 = 画板 D-07 的 `.d-set-nav` + `.d-set-navitem`
+  // （图标 + 文案），选中态是 `.is-on`。旧的 pw-snav / pw-row / pw-name 已随换皮移除。
+  assert.match(panelSource, /className="settings-section-tabs d-set-nav"/);
+  assert.match(panelSource, /className=\{`d-set-navitem\$\{selected \? " is-on" : ""\}`\}/);
+  assert.match(panelSource, /<SettingsSectionIcon section=\{item\.id\} size=\{14\} \/>/);
   assert.doesNotMatch(panelSource, /settings-section-tab(?!s)/);
   // fork:ui-08 — a vertical column (upstream 0.14.6 layout) instead of a row of
   // fixed 96px cells. 宽度 / 内边距 / 底色现在只有一个来源：board.css 的 `.pw-snav`。
-  assert.match(panelSource, /className="settings-dialog-body pw-settings"/);
+  assert.match(panelSource, /className="settings-dialog-body d-set"/);
   assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?flex-shrink: 0/);
   assert.doesNotMatch(cssSource, /\.settings-section-tabs \{[\s\S]{0,400}?width: 184px/);
   // 焦点环仍由 globals.css 的皮肤覆盖层统一提供；导航行只内缩 offset，
@@ -214,6 +217,51 @@ test("uses the board 40 icon set for every settings section", () => {
   // 会话行里的子代理标记仍是画板 02 的 corner-down-right。
   assert.match(sidebarSource, /data-ico=\{collapsed \? "chevron-right" : "chevron-down"\}/);
   assert.match(sidebarSource, /data-ico="corner-down-right"/);
+});
+
+/**
+ * fork:v5-landing Wave B（M-05）—— 手机端设置是**两层**：hub → 分节二级页。
+ *
+ * 三条硬要求（画板 M-05 帧 A / B / C + `lib/settings-navigation.ts`）：
+ *   · hub 只列那**十一个**分节，按「什么时候来改它」分四组卡片；
+ *   · 二级页左上角**永远**是返回箭头，不摆左导航；
+ *   · 分节内容还是同一份（惰挂载 + `hidden` 切换），桌面那条路径一个字没改。
+ */
+test("窄屏设置是 hub → 分节二级页两层（M-05），且不摆左导航", async () => {
+  // 1. 形态分流：`useIsMobile()` 决定发 `m-*` 还是 `d-*`。
+  assert.match(panelSource, /const isMobile = useIsMobile\(\);/);
+  // 2. 两层指针：null = hub。
+  assert.match(panelSource, /const \[phoneSection, setPhoneSection\] = useState<SettingsSection \| null>\(null\);/);
+  assert.match(panelSource, /const backToPhoneHub = \(\) => setPhoneSection\(null\);/);
+  // 3. 渐隐顶栏 + 永远在左上角的返回箭头（M-05 帧 B）。
+  assert.match(panelSource, /className="m-fade"/);
+  assert.match(panelSource, /className="m-top"/);
+  assert.match(panelSource, /data-ico="chevron-left"/);
+  assert.match(panelSource, /onClick=\{backToPhoneHub\}/);
+  // 4. hub 本体：hero + 四组 `.m-cardgroup`，每行一个分节（图标 / 标题 / 副行 / 徽章 / 箭头）。
+  assert.match(panelSource, /data-settings-hub/);
+  assert.match(panelSource, /className="m-hero"/);
+  assert.match(panelSource, /className="m-cardgroup" key=\{group\.id\}/);
+  assert.match(panelSource, /className="m-setrow-body"/);
+  assert.match(panelSource, /className="m-badge mute"/);
+  assert.match(panelSource, /data-ico="chevron-right"/);
+  // 5. 分节流：窄屏是 `.m-settings`（灰底白卡、108px 顶栏让位），桌面是 `.d-set-main`。
+  assert.match(panelSource, /isMobile \? <div className="m-settings">\{content\}<\/div> : <div className="d-set-main">\{content\}<\/div>/);
+  // 6. 窄屏不渲染左导航（CSS 侧的隐藏规则跟着换皮失效了，得由组件保证）。
+  assert.match(panelSource, /\{isMobile \? null : \(/);
+  assert.match(panelSource, /<nav aria-label=\{t\("settings\.title"\)\} className="settings-section-tabs d-set-nav">/);
+  // 7. 分节清单没被改动：hub 的分组必须盖满同一份十一个分节，一个不多一个不少。
+  const hubSource = await readFile(new URL("./pwa/settingsHub.ts", import.meta.url), "utf8");
+  const groups = hubSource.slice(hubSource.indexOf("SETTINGS_HUB_GROUPS"), hubSource.indexOf("type HubCopy"));
+  const groupIds = new Set([...groups.matchAll(/id: "([a-zA-Z]+)", sections/g)].map((m) => m[1]));
+  const listed = [...groups.matchAll(/"([a-zA-Z]+)"/g)].map((m) => m[1]).filter((id) => !groupIds.has(id));
+  const navIds = [...navSource.matchAll(/id: "([a-zA-Z]+)"/g)].map((m) => m[1]);
+  assert.equal(listed.length, 11, "hub 必须正好列十一个分节");
+  assert.deepEqual(
+    [...listed].sort(),
+    [...navIds].sort(),
+    "hub 与 lib/settings-navigation.ts 必须是同一份分节清单",
+  );
 });
 
 test("the product has no login surface at all", async () => {

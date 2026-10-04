@@ -6,6 +6,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
 import { copyText } from "@/lib/clipboard";
 import { HIGHLIGHT_SKIPPED_I18N_KEY, highlightBudgetMs, shouldHighlightCode } from "@/lib/code-highlight-schedule";
+// fork:v5-wave-b —— PWA 形态：代码块 / Mermaid 卡换成画板 M-02 的 `.m-code` 系。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 interface MermaidBlockProps {
   code: string;
@@ -36,6 +38,9 @@ type RenderState =
 export function MermaidBlock({ code, isStreaming, defaultPreview = false }: MermaidBlockProps) {
   const { isDark } = useTheme();
   const { t } = useI18n();
+  // fork:v5-wave-b —— 窄屏（画板 M-02 帧 C）错误块、画布占位与卡片壳都换成 m-* 对应件。
+  // 放在任何提前 return 之前（下面 `!previewVisible` 会先返回 CodeBlock）。
+  const isPwa = usePwaSkin();
   const [showPreview, setShowPreview] = useState(defaultPreview);
   const [renderState, setRenderState] = useState<RenderState | null>(null);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -88,9 +93,9 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
       onClick={() => setShowPreview((v) => !v)}
       disabled={isStreaming}
       title={isStreaming ? t("i18n.previewAfterStreaming") : (previewVisible ? t("i18n.showMermaidSource") : t("i18n.previewMermaid"))}
-      className="pw-btn sm"
+      className="d-btn sm"
     >
-      <span className="pw-ico"><i data-ico="code" data-size="13"></i></span>
+      <i data-ico="code" data-size="13"></i>
       {previewVisible ? t("i18n.source") : t("i18n.preview")}
     </button>
   ), [isStreaming, previewVisible, t]);
@@ -100,16 +105,35 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
   }
 
   const body = renderState?.key === currentKey && renderState.status === "error" ? (
-      <div className="mermaid-block mermaid-block-error">{t("i18n.invalidMermaid")}</div>
+      <>
+        {isPwa ? (
+          <>
+            <div className="m-code-scroll"><div className="m-code-body"><span className="m-err">{t("i18n.invalidMermaid")}</span></div></div>
+            <div className="m-banner warn" style={{ margin: "var(--nx-sp-2) var(--nx-sp-3)" }}>
+              <i data-ico="triangle-alert" data-size="14"></i>
+              <span className="m-grow">{t("i18n.invalidMermaid")}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="d-code-body"><span className="d-term-warn">{t("i18n.invalidMermaid")}</span></div>
+            <div className="d-banner warn" style={{ margin: "var(--nx-sp-2) var(--nx-sp-3)" }}>
+              <i data-ico="triangle-alert" data-size="14"></i>
+              <span className="d-grow">{t("i18n.invalidMermaid")}</span>
+            </div>
+          </>
+        )}
+      </>
     ) : renderState?.key !== currentKey || renderState.status !== "ready" ? (
-      <div className="mermaid-block mermaid-block-loading" aria-label={t("i18n.renderingMermaid")} />
+      <div className={isPwa ? "m-placeholder" : "d-placeholder"} style={{ border: 0, borderRadius: 0 /* 非主题值：画板 D-03b 的 Mermaid 画布常量 */, minHeight: 220 /* 非主题值 */ }} aria-label={t("i18n.renderingMermaid")} />
     ) : (
       <>
         {!zoomOpen && (
           <button
             ref={previewRef}
             type="button"
-            className="mermaid-block mermaid-preview-button"
+            className={isPwa ? "m-placeholder" : "d-placeholder"}
+            style={{ border: 0, borderRadius: 0 /* 非主题值：同上 */, minHeight: 220 /* 非主题值 */, width: "100%", cursor: "pointer" }}
             title={t("i18n.openMermaidViewer")}
             aria-label={t("i18n.openMermaidViewer")}
             onClick={() => setZoomOpen(true)}
@@ -123,15 +147,17 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
   // fork:design-components —— 图形态的 Mermaid 卡片外壳与代码块同一套（画板 10:222-238）：
   // `.pw-code` > `.pw-code-head`（git-fork 图标 + `mermaid` 标签 + grow + `.pw-btn.sm`）。
   return (
-    <div className="pw-code">
-      <div className="pw-code-head">
-        <span className="pw-ico"><i data-ico="git-fork" data-size="13"></i></span>
-        <span className="pw-mono">mermaid</span>
-        <span className="grow"></span>
+    // fork:v5-wave-b —— 窄屏：画板 M-02 的 `.m-code` + `.m-code-head`（同义：图标 +
+    // 语言 + grow + 动作钮）。
+    <div className={isPwa ? "m-code" : "d-code"}>
+      <div className={isPwa ? "m-code-head" : "d-code-head"}>
+        <i data-ico="git-fork" data-size="13"></i>
+        <span>mermaid</span>
+        <span className={isPwa ? "m-grow" : "d-grow"}></span>
         {renderState?.key === currentKey && renderState.status === "ready" && (
           <button
             type="button"
-            className="pw-btn sm"
+            className="d-btn sm"
             title={`${t("i18n.downloadFile")} (SVG)`}
             aria-label={`${t("i18n.downloadFile")} (SVG)`}
             onClick={() => {
@@ -139,7 +165,7 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
               if (svg) downloadMermaidSvg(svg);
             }}
           >
-            <span className="pw-ico"><i data-ico="download" data-size="13"></i></span>
+            <i data-ico="download" data-size="13"></i>
             SVG
           </button>
         )}
@@ -184,70 +210,68 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
         onClose();
       }}
     >
-      {/* fork:design-components —— 画板 10 帧 C 的全屏缩放查看器：`.pw-modal`（760 宽）
-          三段 = `.pw-modal-head`（git-fork 图标 + 标题 + grow + 缩放器（minus/数值/plus
-          一格包住）+ 适配宽度 + 关闭）/ 可滚动画布 / `.pw-card-foot` 脚注。
+      {/* fork:v5-landing —— 画板 D-03b 帧 E 的全屏缩放查看器：`.d-modal-box wide`
+          三段 = `.d-modal-head`（git-fork 图标 + 标题 + d-grow + 缩放器（minus/数值/plus）
+          + 适配宽度 + 关闭）/ `.d-modal-body` 可滚动画布 / `.d-modal-foot` 脚注。
           Esc / 点遮罩 / × 三种关法，与图片灯箱一致。 */}
       <div
-        className="pw-modal"
-        style={{ width: "100%", maxWidth: "var(--modal-w-lg)", display: "flex", flexDirection: "column" }}
+        className="d-modal-box wide"
+        style={{ display: "flex", flexDirection: "column", maxHeight: "100%" }}
       >
-        <div className="pw-modal-head" style={{ padding: "var(--space-row) var(--s3)", background: "var(--surface-panel)" }}>
-          <span className="pw-ico pw-dim"><i data-ico="git-fork" data-size="14"></i></span>
-          <span style={{ fontSize: "var(--text-secondary)", fontWeight: 500 }}>{t("i18n.mermaidDiagram")}</span>
-          <span className="pw-grow"></span>
-          <span
-            className="pw-inline"
-            style={{ gap: 0, border: "1px solid var(--n-border)", borderRadius: "var(--radius-4)", height: "var(--control-sm)", overflow: "hidden" }}
-          >
+        <div className="d-modal-head">
+          <div className="d-row">
+            <i data-ico="git-fork" data-size="15"></i>
+            <span className="d-grow d-t-b">{t("i18n.mermaidDiagram")}</span>
+            <div className="d-row" style={{ gap: 0 }}>
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className="d-iconbtn"
               onClick={() => setZoom((value) => Math.max(ZOOM_MIN, value - ZOOM_STEP))}
               disabled={zoom <= ZOOM_MIN}
               title={t("i18n.zoomOut")}
               aria-label={t("i18n.zoomOut")}
             >
-              <span className="pw-ico"><i data-ico="minus" data-size="13"></i></span>
+              <i data-ico="minus" data-size="13"></i>
             </button>
             <span
-              className="pw-mono"
-              style={{ minWidth: 52, textAlign: "center", fontVariantNumeric: "tabular-nums" }}
+              className="d-mono d-t-sm"
+              style={{ minWidth: 52 /* 非主题值：画板 D-03b 的缩放百分比定宽 */, textAlign: "center", fontVariantNumeric: "tabular-nums" }}
             >
               {Math.round(zoom * 100)}%
             </span>
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className="d-iconbtn"
               onClick={() => setZoom((value) => Math.min(ZOOM_MAX, value + ZOOM_STEP))}
               disabled={zoom >= ZOOM_MAX}
               title={t("i18n.zoomIn")}
               aria-label={t("i18n.zoomIn")}
             >
-              <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
+              <i data-ico="plus" data-size="13"></i>
             </button>
-          </span>
-          <button
-            type="button"
-            className="pw-iconbtn sm"
-            onClick={() => setZoom(1)}
-            title={t("i18n.fitToWidth")}
-            aria-label={t("i18n.fitToWidth")}
-          >
-            <span className="pw-ico"><i data-ico="maximize-2" data-size="14"></i></span>
-          </button>
-          <button
-            type="button"
-            className="pw-iconbtn sm"
-            onClick={onClose}
-            title={t("i18n.close")}
-            aria-label={t("i18n.close")}
-          >
-            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
-          </button>
+            </div>
+            <button
+              type="button"
+              className="d-iconbtn"
+              onClick={() => setZoom(1)}
+              title={t("i18n.fitToWidth")}
+              aria-label={t("i18n.fitToWidth")}
+            >
+              <i data-ico="maximize-2" data-size="14"></i>
+            </button>
+            <button
+              type="button"
+              className="d-iconbtn"
+              onClick={onClose}
+              title={t("i18n.close")}
+              aria-label={t("i18n.close")}
+            >
+              <i data-ico="x" data-size="14"></i>
+            </button>
+          </div>
         </div>
         <div
-          className="mermaid-zoom-viewport"
+          className="mermaid-zoom-viewport d-modal-body"
           onClick={(event) => {
             if (event.target === event.currentTarget) onClose();
           }}
@@ -258,9 +282,9 @@ function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void 
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         </div>
-        <div className="pw-card-foot">
-          <span className="pw-ico pw-dim"><i data-ico="info" data-size="13"></i></span>
-          <span>{t("i18n.mermaidZoomHint")}</span>
+        <div className="d-modal-foot" style={{ alignItems: "center" }}>
+          <i data-ico="info" data-size="13"></i>
+          <span className="d-t-xs d-t-faint d-grow" style={{ textAlign: "left" }}>{t("i18n.mermaidZoomHint")}</span>
         </div>
       </div>
     </dialog>
@@ -284,19 +308,35 @@ interface CodeBlockProps {
  * monospace text — highlighting a growing block re-tokenizes all of it on
  * every chunk, which is the single most expensive part of streamed rendering.
  */
-// fork:design-components —— 流式期间（以及超大块被跳过时）的纯文本态。
-// 画板 10:152 的 `.pw-code-body` 已经给了等宽字号/行高/内边距/横滚/底色，
-// 所以这里不再写任何内联视觉值；提示行用画板 10:211 的 `.pw-card-foot`（带图标）。
+// fork:v5-landing —— 流式期间（以及超大块被跳过时）的纯文本态。
+// 画板 D-03b 帧 C 的 `.d-code-body` 已经给了等宽字号/行高/内边距/横滚/底色，
+// 所以这里不再写任何内联视觉值；提示行是一行 `.d-t-xs.d-t-faint`（带图标）。
 function PlainCode({ code, note }: { code: string; note?: string }) {
+  // fork:v5-wave-b —— 窄屏抄 M-02 帧 A：提示行 + `.m-code-scroll > .m-code-body`
+  // （长行横滚，不折行）。桌面仍是 D-03b 的 `.d-code-body`。
+  const isPwa = usePwaSkin();
+  if (isPwa) {
+    return (
+      <>
+        {note && (
+          <div className="m-t-xs m-t-faint" role="note" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3) 0" }}>
+            <i data-ico="info" data-size="13"></i> {note}
+          </div>
+        )}
+        <div className="m-code-scroll">
+          <div className="m-code-body">{code}</div>
+        </div>
+      </>
+    );
+  }
   return (
     <>
       {note && (
-        <div className="pw-card-foot" role="note">
-          <span className="pw-ico"><i data-ico="info" data-size="13"></i></span>
-          <span>{note}</span>
+        <div className="d-t-xs d-t-faint" role="note" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3) 0" }}>
+          <i data-ico="info" data-size="13"></i> {note}
         </div>
       )}
-      <pre className="pw-code-body">{code}</pre>
+      <div className="d-code-body">{code}</div>
     </>
   );
 }
@@ -348,6 +388,7 @@ type CopyState = "idle" | "copied" | "failed";
 
 export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isStreaming }: CodeBlockProps) {
   const { t } = useI18n();
+  const isPwa = usePwaSkin();
   const highlighterReady = useHighlighterReady();
   // fork:fix-clipboard — 三态而不是 `copied: boolean`：复制**可能失败**，而失败必须看得见。
   // 之前 `copyText(code).then(...)` 没有 `.catch`，writeText 被拒时既不报错也不提示，
@@ -371,31 +412,32 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
     });
   };
 
-  // fork:design-components —— 代码块卡片 = 画板 10:145-160 那一段：
-  // `.pw-code` > `.pw-code-head`（file-code 图标 + `pw-mono` 语言 + `.grow` + `.pw-btn.sm` 复制钮）
-  // > `.pw-code-body`（由 PlainCode 或 AsyncCodeHighlighter 提供）。
+  // fork:v5-landing —— 代码块卡片 = 画板 D-03b 帧 C 那一段：
+  // `.d-code` > `.d-code-head`（file-code 图标 + 语言 + `.d-grow` + `.d-btn.sm` 复制钮）
+  // > `.d-code-body`（由 PlainCode 或 AsyncCodeHighlighter 提供）。
   return (
-    <div className="pw-code">
-      <div className="pw-code-head">
-        <span className="pw-ico"><i data-ico="file-code" data-size="13"></i></span>
-        <span className="pw-mono">{lang || "text"}</span>
-        <span className="grow"></span>
+    // fork:v5-wave-b —— 窄屏抄 M-02 帧 A 的代码块：`.m-code` > `.m-code-head`
+    // （file-code 图标 + 语言 + grow + 动作钮）> `.m-code-scroll > .m-code-body`。
+    // 头行**永远可见**，输出横滚 —— 画板 M-02 的第三条硬纪律。
+    <div className={isPwa ? "m-code" : "d-code"}>
+      <div className={isPwa ? "m-code-head" : "d-code-head"}>
+        <i data-ico="file-code" data-size="13"></i>
+        <span>{lang || "text"}</span>
+        <span className={isPwa ? "m-grow" : "d-grow"}></span>
         {headerAction}
-        {/* fork:fix-clipboard — 失败态复用画板既有的 `.pw-btn.danger` + `.pw-badge.bad`
-            （components/fork/PathActions.tsx 的复制失败就是这套），没有另造提示系统 ——
-            通知条 NoticeShelf 挂在 ChatWindow 的会话态上，代码块拿不到。按钮保持
-            「复制/已复制」文案不变（画板 10 的形态），失败信息由旁边那枚
-            role=status 徽标承担，键盘/读屏用户也能听到。 */}
+        {/* fork:fix-clipboard — 失败态用画板既有的 `.d-btn.sm.danger` + `.d-badge.bad`，
+            没有另造提示系统。按钮保持「复制/已复制」文案不变（画板 D-03b 的形态），
+            失败信息由旁边那枚 role=status 徽标承担，键盘/读屏用户也能听到。 */}
         <button
           type="button"
           onClick={copy}
-          className={failed ? "pw-btn sm danger" : "pw-btn sm"}
+          className={failed ? "d-btn sm danger" : "d-btn sm"}
           title={failed ? t("chat.todosCopyFailed") : undefined}
         >
-          <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13"></i></span>
+          <i data-ico={copied ? "check" : "copy"} data-size="13"></i>
           {copied ? t("i18n.copied") : t("i18n.copy")}
         </button>
-        {failed && <span role="status" className="pw-badge bad">{t("chat.todosCopyFailed")}</span>}
+        {failed && <span role="status" className="d-badge bad">{t("chat.todosCopyFailed")}</span>}
       </div>
       {showHighlight ? (
         <LazyCodeHighlighter language={lang || "text"} showLineNumbers>

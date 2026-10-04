@@ -12,6 +12,12 @@ import type { GitRefTag, GitRefTagKind } from "@/lib/git-graph-refs";
 // `.pw-badge count` 给（画板 31：`<span class="pw-badge count"><span class="pw-ico">
 // <i data-ico="git-branch"></i></span>main</span>`）。这里只剩设计系统不管的两件事：
 // 泳道色，和「这条 ref 是哪一类」的那枚画板图标。
+//
+// fork:v5-wave-b —— **这一对 `pw-*` 保留**：`components/GitRefChips.ui.test.mjs`
+// 把「两枚芯片都挂 pw-badge + count」当源码守卫断言（逐字符串匹配），改掉它等于删测试；
+// 泳道图（画板 31）在 PWA 侧**没有对应画板**（M-01~M-12 里没有 git 泳道），
+// 所以这里不给窄屏加 m-* 分支 —— 没有可抄的画板就不抄（缺件已登记）。
+// 窄屏上泳道整块由右栏/查看器的宿主决定去留，本组件不参与。
 const REF_ICON: Record<GitRefTagKind, "git-branch" | "tag"> = {
   head: "git-branch",
   branch: "git-branch",

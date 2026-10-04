@@ -12,8 +12,8 @@ const actionsMenu = await readFile(new URL("./fork/SessionActionsMenu.tsx", impo
 
 test("reports the session message count alongside tokens and context", () => {
   assert.match(stats, /const totalMessages = sessionStats\?\.totalMessages \?\? 0;/);
-  // 消息计数在浮窗明细里，且带着「会话文件过大」的配色提醒。
-  assert.match(stats, /t\("session\.messages"\), messageRows, messageCountColor\)/);
+  // 消息计数在浮窗明细里，且带着「会话文件过大」的徽章提醒。
+  assert.match(stats, /t\("session\.messages"\), messageRows, messageCountBadge\)/);
   // 明细里的数字统一走 toLocaleString(locale)（formatNumber）。
   assert.match(stats, /const formatNumber = \(value: number\) => value\.toLocaleString\(locale\)/);
   assert.match(stats, /t\("session\.cacheHitRate"\)/);
@@ -67,9 +67,10 @@ test("the session action menu keeps the path copies the ring popover dropped", (
 
 test("warns before a session grows large enough to slow switching", () => {
   // Skin tokenisation: the upstream literals are replaced by semantic tokens.
-  // fork:design-components —— 设计系统里错误色叫 --error（不再用 Zeno 的 --danger）。
-  assert.match(stats, /totalMessages > 5000\s*\?\s*"var\(--danger\)"/);
-  assert.match(stats, /totalMessages > 2000\s*\?\s*"var\(--warning\)"/);
+  // fork:v5-skin D-04 —— 「会话文件过大」不再染标题色，改成消息小节标题旁的一枚
+  // 语义徽章（`.d-badge.bad` >5000 / `.d-badge.warn` >2000）。
+  assert.match(stats, /totalMessages > 5000 \? \([\s\S]*?className="d-badge bad"/);
+  assert.match(stats, /totalMessages > 2000 \? \([\s\S]*?className="d-badge warn"/);
 });
 
 test("feeds the ring popover from ChatWindow instead of a bottom strip", () => {

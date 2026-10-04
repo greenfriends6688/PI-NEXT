@@ -34,6 +34,9 @@ import {
   streamEnterDelay,
   streamEnterMemory,
 } from "@/lib/stream-enter-memory";
+// fork:v5-wave-b —— PWA 形态（≤640px）的时间轴：桌面走 d-*，窄屏抄画板
+// M-02 帧 C / M-06 帧 B 的 m-steps 段。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 /**
  * Grouped "process" renderer.
@@ -134,7 +137,9 @@ const STEP_ICON: Record<IconName, string> = {
   warning: "triangle-alert", // 失败行（画板 11 帧 A）
 };
 
-/** 步骤行图标：`.pw-step-ico` 是 14px 方框（board.css），里面一枚 12px lucide。 */
+/** 步骤行图标：`.d-step-ico` 是 17px 方框（system.css），里面一枚 12px lucide。
+ *  fork:v5-wave-b —— 窄屏那枚图标**不画**：画板 M-02 帧 C / M-06 帧 B 的步骤行用
+ * 的是一枚 8px 圆点 `.m-step-dot`（只换颜色表达 done/run/fail），不是图标。 */
 function StepIcon({ name }: { name: IconName }) {
   return <i data-ico={STEP_ICON[name]} data-size="12" />;
 }
@@ -436,6 +441,11 @@ function FileChips({
   onOpenFile?: (filePath: string) => void;
   compact?: boolean;
 }) {
+  // fork:v5-wave-b —— 窄屏**不换**文件 chip 的类：PWA 库里没有 `m-cite` 对应件
+  // （`.m-tray-chip` 是托盘动作芯片：强调色底 + 胶囊，给一个文件名上它是错的读法），
+  // 缺件已登记在汇报里。过渡口径下 `d-*` 规则在 ≤640px 仍然生效（见
+  // app/design/v5-forms.css），所以这里不是裸的。桌面分支只带 `d-*`。
+  const isPwa = usePwaSkin();
   if (targets.length === 0) return null;
   // Beyond the cap the row would wrap, so the remainder becomes a `+N` hint —
   // the same shape the reference transcript uses.
@@ -448,8 +458,8 @@ function FileChips({
         const name = basenameResourcePath(target);
         const inner = (
           <>
-            <span className="process-chip-icon" aria-hidden="true">{getFileIcon(name, 12)}</span>
-            <span className="process-chip-name">{name}</span>
+            {getFileIcon(name, 12)}
+            <span>{name}</span>
           </>
         );
         // fork:fix-nested-button — 这里**不能**用真 `<button>`：`FileChips` 的两个调用点
@@ -461,7 +471,7 @@ function FileChips({
             key={target}
             role="button"
             tabIndex={0}
-            className="process-file-chip"
+            className="d-cite"
             title={target}
             onClick={(event) => {
               event.stopPropagation();
@@ -477,10 +487,10 @@ function FileChips({
             {inner}
           </span>
         ) : (
-          <span key={target} className="process-file-chip" title={target}>{inner}</span>
+          <span key={target} className="d-cite" title={target}>{inner}</span>
         );
       })}
-      {rest > 0 && <span className="process-file-more">+{rest}</span>}
+      {rest > 0 && <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>+{rest}</span>}
     </>
   );
 }
@@ -504,9 +514,12 @@ function StepCollapse({ open, children }: { open: boolean; children: ReactNode }
   );
 }
 
+/** fork:v5-wave-b —— 窄屏（画板 M-02 帧 C / M-06 帧 B）每行末尾那一格是 `.m-step-n`
+ *  （等宽数字：token 或耗时）；桌面仍是 `.d-step-meta`。 */
 function Duration({ seconds }: { seconds?: number }) {
+  const isPwa = usePwaSkin();
   if (!seconds || seconds <= 0) return null;
-  return <span className="pw-dur">{seconds}s</span>;
+  return <span className={isPwa ? "m-step-n" : "d-step-meta"}>{seconds}s</span>;
 }
 
 function ReasoningBody({ blocks }: { blocks: ProcessContentBlock[] }) {
@@ -538,14 +551,16 @@ function ReasoningBody({ blocks }: { blocks: ProcessContentBlock[] }) {
  */
 function ProcessImage({ src }: { src: string }) {
   return (
-    <ImagePreview src={src}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        style={{ maxWidth: "var(--img-max)", maxHeight: "var(--img-max)", borderRadius: "var(--radius-sm)", objectFit: "contain", display: "block", border: "1px solid var(--border)" }}
-      />
-    </ImagePreview>
+    <div className="d-placeholder" style={{ padding: 0, display: "block" }}>
+      <ImagePreview src={src}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          style={{ maxWidth: "var(--img-max)", maxHeight: "var(--img-max)", objectFit: "contain", display: "block" }}
+        />
+      </ImagePreview>
+    </div>
   );
 }
 
@@ -768,6 +783,12 @@ export function ProcessGroup({
   className,
 }: ProcessGroupProps) {
   const { t } = useI18n();
+  // fork:v5-wave-b —— 手机上的过程时间轴抄画板 M-02 帧 C / M-06 帧 B 那一段：
+  // `.m-steps` 一列 `.m-step-row`，圆点 `.m-step-dot` 只换颜色（done/run/fail），
+  // 行末 `.m-step-n` 放等宽数字。**默认折叠**由外层 ProcessDetailsGroup 承担
+  // （它本来就 defaultExpanded=false，收起态只剩一行 `.m-tool` 摘要 —— M-02 帧 A）。
+  // 必须在下面 `steps.length === 0` 的提前 return 之前调用。
+  const isPwa = usePwaSkin();
   const steps = useMemo(() => buildProcessSteps(blocks, t), [blocks, t]);
 
   // fork:zm-02 — new steps fade in one after another while the turn streams.
@@ -895,14 +916,15 @@ export function ProcessGroup({
 
   return (
     <section
-      // fork:design-components —— 步骤流本体 = 画板 11 的 .pw-proc-body：
-      // 一条竖线串起的步骤行（.pw-step / .pw-step-ico / .pw-verb / .pw-arg / .pw-dur），
-      // 外层 .pw-proc 与汇总行由 ProcessDetailsGroup 提供。
+      // fork:v5-landing —— 步骤流本体 = 画板 D-03d 帧 A 的 `.d-steps`：
+      // 一条竖线串起的步骤行（`.d-step` / `.d-step-ico` / `.d-step-body` / `.d-step-meta`），
+      // 外层 `.d-tool` 与汇总行由 ProcessDetailsGroup 提供。
+      // fork:v5-wave-b —— 窄屏换成 M-02 帧 C 的 `.m-steps` + `.m-step-row`。
       className={`process-group${className ? ` ${className}` : ""}`}
       aria-label={t("process.groupLabel")}
       data-step-count={steps.length}
     >
-        <ol className="process-steps pw-proc-body" data-fork-stream-animate={streamAnimate ? "true" : undefined}>
+        <ol className={isPwa ? "m-steps" : "d-steps"} data-fork-stream-animate={streamAnimate ? "true" : undefined}>
           {steps.map((step, index) => {
             const id = step.id;
             const isOpen = isStepOpen(id);
@@ -910,11 +932,10 @@ export function ProcessGroup({
             const entering = enteringIds.has(id);
             return (
               <Fragment key={id}>
-                {/* fork:design-components —— 步骤行**就是**画板 11 的 .pw-step：
-                    icon / verb / arg / grow / dur 是它的直接子元素（board.css 的
-                    竖线与图标位靠这套结构定位），行本身可点即展开。
-                    展开的正文是 .pw-step 的**兄弟**，不塞进行里 —— 塞进去会把
-                    行的 flex 布局挤成两列，画板里正文从来不进行。 */}
+                {/* fork:v5-landing —— 步骤行**就是**画板 D-03d 的 .d-step：
+                    icon / body / meta 是它的直接子元素（system.css 的竖线与图标位靠这套
+                    结构定位），行本身可点即展开。展开的正文是 .d-step 的**兄弟**，
+                    不塞进行里 —— 塞进去会把行的 flex 布局挤成两列。 */}
                 <button
                   type="button"
                   data-live={streamingOpen === id || undefined}
@@ -925,35 +946,39 @@ export function ProcessGroup({
                   aria-expanded={isOpen}
                   onClick={() => toggle(id)}
                   className={[
-                    "pw-step",
-                    isOpen ? " is-open" : "",
-                    last ? " is-last" : "",
-                    step.failed ? " failed" : "",
-                    step.thinking ? " thinking" : "",
-                    step.reasoning ? " reasoning" : "",
+                    isPwa ? "m-step-row" : "d-step",
+                    isPwa
+                      // 画板 M-02 帧 C：失败只染**那一步**的圆点（.done/.run/.fail），
+                      // 整屏不变红；桌面沿用 D-03d 的 .fail / .running / .done。
+                      ? (step.failed ? "fail" : (streamingOpen === id ? "run" : "done"))
+                      : (step.failed ? " fail" : (streamingOpen === id ? " running" : " done")),
                   ].filter(Boolean).join(" ")}
                 >
-                  <span className="pw-step-ico" aria-hidden="true">
-                    <StepIcon name={step.icon} />
-                  </span>
-                  <span className="pw-verb">{step.label}</span>
-                  {step.count !== undefined && step.count > 1 && (
-                    <span className="pw-badge count">×{step.count}</span>
-                  )}
-                  <FileChips targets={step.targets} onOpenFile={onOpenFile} />
-                  {/* fork:process-dedupe — 推理行展开后正文就是这段文字，行上再挂一份
-                      截断版等于同一句话说两遍（闭合时仍保留，避免只剩一个「推理」）。 */}
-                  {/* fork:design-components —— 画板 11 的推理行把摘要挂成 `.pw-think`
-                      （正文色阶、非等宽，与内文同族），命令 / 工具行才是 `.pw-arg`
-                      （等宽的命令或参数）。两者共用产品类 `.process-step-detail` 做单行截断。 */}
-                  {step.detail && !isOpen && (
-                    <span className={step.reasoning ? "pw-think process-step-detail" : "pw-arg process-step-detail"}>
-                      {step.detail}
+                  {isPwa ? (
+                    <span className="m-step-dot" aria-hidden="true" />
+                  ) : (
+                    <span className="d-step-ico" aria-hidden="true">
+                      <StepIcon name={step.icon} />
                     </span>
                   )}
-                  <span className="grow" />
+                  <span className={isPwa ? "m-grow" : "d-step-body"}>
+                    <span className={isPwa ? "m-t-b" : "d-t-b"}>{step.label}</span>
+                    {step.count !== undefined && step.count > 1 && (
+                      <span className={isPwa ? "m-badge" : "d-badge"}>×{step.count}</span>
+                    )}
+                    <FileChips targets={step.targets} onOpenFile={onOpenFile} />
+                    {/* fork:process-dedupe — 推理行展开后正文就是这段文字，行上再挂一份
+                        截断版等于同一句话说两遍（闭合时仍保留）。 */}
+                    {step.detail && !isOpen && (
+                      <span className={isPwa
+                        ? `m-t-xs m-t-faint process-step-detail`
+                        : step.reasoning ? "d-t-faint process-step-detail" : "d-mono process-step-detail"}>
+                        {step.detail}
+                      </span>
+                    )}
+                  </span>
                   <Duration seconds={step.duration} />
-                  {step.failed && <span className="pw-badge bad">{t("process.failed")}</span>}
+                  {step.failed && <span className={isPwa ? "m-badge bad" : "d-badge bad"}>{t("process.failed")}</span>}
                 </button>
                 <StepCollapse open={isOpen}>
                   <div className="process-step-body-wrap">
@@ -979,7 +1004,7 @@ export function ProcessGroup({
                           height: "var(--control-xs)",
                           zIndex: 10,
                           pointerEvents: "none",
-                          background: "linear-gradient(to bottom, var(--bg), transparent)",
+                          background: "linear-gradient(to bottom, var(--nx-canvas), transparent)",
                         }}
                       />
                     )}
@@ -994,7 +1019,7 @@ export function ProcessGroup({
                           height: "var(--control-xs)",
                           zIndex: 10,
                           pointerEvents: "none",
-                          background: "linear-gradient(to top, var(--bg), transparent)",
+                          background: "linear-gradient(to top, var(--nx-canvas), transparent)",
                         }}
                       />
                     )}

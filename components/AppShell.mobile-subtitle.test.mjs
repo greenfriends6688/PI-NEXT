@@ -13,8 +13,7 @@ import test from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const appShell = readFileSync(join(ROOT, "components/AppShell.tsx"), "utf8");
-const boardCss = readFileSync(join(ROOT, "design/pi-web-design/assets/board.css"), "utf8");
-const board60 = readFileSync(join(ROOT, "design/pi-web-design/60-mobile-pwa.html"), "utf8");
+const systemCss = readFileSync(join(ROOT, "design/v5/web/system.css"), "utf8");
 
 /** 副行那一段源码（到下一个顶层注释块为止），免得扫到别处的 cwd / model。 */
 function subtitleSource() {
@@ -27,7 +26,8 @@ function subtitleSource() {
 test("the subtitle only renders on mobile and never on the desktop top bar", () => {
   // 这一行在 renderSessionTitle 里（不在 topBarSubtitle 那一段），所以查整个文件。
   assert.match(appShell, /const subtitle = isMobile \? topBarSubtitle : null;/);
-  assert.match(appShell, /className=\{`pw-tb-title\$\{subtitle \? " is-stacked" : ""\}`\}/);
+  // fork:v5-landing —— 标题两行 = 画板 D-01/D-02 的 `.d-tb-stack`。
+  assert.match(appShell, /className="d-tb-stack"/);
 });
 
 test("the subtitle carries only the two readings that exist nowhere else", () => {
@@ -42,21 +42,16 @@ test("the subtitle carries only the two readings that exist nowhere else", () =>
 
 test("an empty reading list means no subtitle element at all", () => {
   assert.match(subtitleSource(), /return parts\.length > 0 \? parts\.join\(" · "\) : null;/);
-  assert.match(appShell, /\{subtitle && <span className="pw-tb-title-sub">\{subtitle\}<\/span>\}/);
+  assert.match(appShell, /\{subtitle && <span className="d-tb-sub">\{subtitle\}<\/span>\}/);
 });
 
 test("a long title still ellipsises inside the stacked header", () => {
-  // 列向 flex 里 `align-items: flex-start` 会让子项缩到内容宽，省略号就失效了。
-  assert.match(boardCss, /\.pw-topbar \.pw-tb-title\.is-stacked \{ flex-direction: column; align-items: stretch;/);
-  assert.match(boardCss, /\.pw-topbar \.pw-tb-title\.is-stacked > span \{ min-width: 0; \}/);
-  assert.match(boardCss, /\.pw-topbar \.pw-tb-title span \{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; \}/);
+  // 列向 flex 里 `align-items: flex-start` 会让子项缩到内容宽，省略号就失效了；
+  // `.d-tb-title` 自带 nowrap + ellipsis + min-width:0，`.d-tb-stack` 是列向容器。
+  assert.match(systemCss, /\.d-tb-stack \{ display: flex; flex-direction: column; min-width: 0; \}/);
+  assert.match(systemCss, /\.d-tb-title \{[^}]*white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; \}/);
 });
 
-test("the board draws it, and its phone header carries the product's class pair", () => {
-  assert.match(board60, /pw-tb-title is-stacked/);
-  assert.match(board60, /pw-tb-title-sub/);
-  // 产品那边手机页头是 `main-workspace-header pw-topbar`；画板少了 pw-topbar 就套不上
-  // `.pw-topbar .pw-*` 那一族规则，副行在画板上也不会真的换行。
-  assert.match(board60, /<div class="pw-mobile-top pw-topbar">/);
-  assert.match(appShell, /className="main-workspace-header pw-topbar"/);
+test("the phone header carries the board class pair", () => {
+  assert.match(appShell, /className="main-workspace-header d-topbar"/);
 });

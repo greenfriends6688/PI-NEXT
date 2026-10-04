@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-25 · 计划时间线、队列两态与扩展插槽 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-25 · 计划时间线、队列两态与扩展插槽</h1>
+  <p>
+    这张板定的是<b>会话内三处最容易含糊的东西</b>：<b>计划</b>到底给看进度还是看过程（给两者，但同一时刻只给一个，
+    任何一步超过 2 分钟或失败才自动切到时间线）；<b>队列</b>只有两态 —— 自动接续与已暂停 ——
+    而且两态都能恢复，恢复方式一次写在浮层里，不靠记忆；<b>扩展插槽</b>是位置不是样式，
+    8 个注入点每行说清由谁渲染、能否被用户关掉、撞车怎么办。<br>
+    有一处专门立规矩：<b>「提升为 steer」不用竖线表达</b>。这个系统里层级一律靠<b>底色 + 徽章 + 圆点 + 图标</b>，
+    steer 行用一块极浅的暖底加一枚 <code>warn</code> 徽章说事，拖拽把手另给图标 —— 竖线在这套体系里已经整体废止。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：会话内计划卡 · 队列 · 设置 / 扩展插槽</span>
+    <span class="d-tag">组件：PlanDocumentCard · QueueBar · ResumePopover · ExtensionSlots</span>
+    <span class="d-tag">状态：轨道 / 时间线 · 自动接续 / 已暂停 · steer · 8 个插槽</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 计划卡 · 轨道与时间线两个视角，失败那一步自动展开详情<span class="d-grow"></span>视角能切 · 耗时与错误详情挂在时间线这一侧</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">给设计体系 V5 补画板</span>
+              <span class="d-tb-sub">PI-Desktop-main · 第 3 步失败</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-run"><i data-ico="loader-circle" data-size="13"></i>正在重试第 3 步</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+
+              <div class="d-msg-user">把 D-01 到 D-29 的画板全补齐，缺类不许自己加。</div>
+
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+
+                <div class="d-col" style="gap:var(--nx-sp-3)" data-demo-scope>
+
+                  <div class="d-plan">
+                    <div class="d-plan-head">
+                      <i data-ico="list-checks" data-size="15"></i>
+                      <span class="d-grow">补齐 29 张画板</span>
+                      <span class="d-badge warn">3 / 7 步</span>
+                    </div>
+                    <div class="d-plan-body">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>核对 BOARDS.md 清单与磁盘</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>读 base.css 与 system.css，列出可用的 d- 类</div>
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>画 D-01 ~ D-10（进行中，2 / 10）</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>画 D-11 ~ D-20</div>
+                        <div class="d-plan-step fail"><span class="d-plan-dot"></span>画 D-21 ~ D-29</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>跑 check-v5 与 shoot，逐条改到 0 错</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>把缺失的类列进回复，不私自加类</div>
+                      </div>
+                    </div>
+                    <div class="d-plan-foot">
+                      <span class="d-plan-meta">已用 41 分钟</span>
+                      <span class="d-plan-meta">工具调用 128 次</span>
+                      <span class="d-plan-meta">失败 1 次（第 3 步缺 base.css 权限）</span>
+                      <span class="d-grow"></span>
+                      <div class="d-seg" data-demo-tabs>
+                        <button data-demo-tab="rail">轨道</button>
+                        <button class="is-on" data-demo-tab="timeline">时间线</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 轨道视角 -->
+                  <section data-demo-pane="rail" hidden>
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span>轨道只回答「还剩几步、卡在哪」。任何一步超过 2 分钟或失败，卡片会自动切到时间线；你也可以手动切回来。</span>
+                    </div>
+                  </section>
+
+                  <!-- 时间线视角 -->
+                  <section data-demo-pane="timeline">
+                    <div class="d-steps">
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                        <span class="d-step-meta">0.4s</span>
+                        <span class="d-step-body">读 BOARDS.md（70 行清单）· 抽出 D-17~D-20 与 D-29</span>
+                      </div>
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                        <span class="d-step-meta">2.1s</span>
+                        <span class="d-step-body">扫描 system.css，取出 316 个 d- 类与 44 个 web 令牌</span>
+                      </div>
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                        <span class="d-step-meta">18s</span>
+                        <span class="d-step-body">写出 D-17 弹窗 4 帧 · 门禁 0 错</span>
+                      </div>
+                      <div class="d-step fail">
+                        <span class="d-step-ico"><i data-ico="x" data-size="11"></i></span>
+                        <span class="d-step-meta">6m 12s</span>
+                        <span class="d-step-body">写 D-18 时误读 base.css（无读权限）· 重试后成功</span>
+                      </div>
+                      <div class="d-step running">
+                        <span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span>
+                        <span class="d-step-meta">14m 02s</span>
+                        <span class="d-step-body">重写 D-18 四帧 · 第 3 帧诊断表待补</span>
+                      </div>
+                      <div class="d-step">
+                        <span class="d-step-ico"><i data-ico="circle" data-size="11"></i></span>
+                        <span class="d-step-meta">—</span>
+                        <span class="d-step-body">D-19 定时任务（4 帧）</span>
+                      </div>
+                      <div class="d-step">
+                        <span class="d-step-ico"><i data-ico="circle" data-size="11"></i></span>
+                        <span class="d-step-meta">—</span>
+                        <span class="d-step-body">D-20 模板与错峰（4 帧）</span>
+                      </div>
+                    </div>
+
+                    <div class="d-code">
+                      <div class="d-code-head">
+                        <i data-ico="bug" data-size="12"></i>第 4 步失败详情 · 06:31:12
+                        <span class="d-grow"></span>
+                        <span class="d-badge bad">ENOENT</span>
+                      </div>
+                      <div class="d-code-body"><span class="tok-c">// read design/v5/base.css</span>
+EACCES: permission denied, open <span class="tok-s">'design/v5/base.css'</span>
+    at <span class="tok-k">open</span> (node:internal/fs/promises:459:11)
+<span class="tok-c">// 判据：这一类错重试两次仍失败 → 停下来问，而不是换路径硬闯</span>
+重试 1/2 … 失败
+重试 2/2 … 失败
+<span class="tok-c">// 结论：改用已读入内存的那份副本，不再触碰磁盘</span></div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">
+                      失败详情默认展开，因为它<b>不在计划卡里</b> —— 轨道是给人看状态的，三行堆栈塞进去就把状态盖没了。
+                      「失败了还要再点一次才看到为什么」会被当成卡片没做完。
+                    </div>
+                  </section>
+
+                </div>
+
+                <div class="d-md">
+                  <p>D-18 的四帧我按「四档解释 / 逐工具表 / 批量与诊断」分开写了，诊断那一帧只解释 <span class="d-mono">frame-ancestors</span> 挡了什么，没有给绕过开关。</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 队列两态 · 自动接续 / 已暂停，暂停态旁边就是恢复方式浮层<span class="d-grow"></span>两态能切 · 拖拽把手在行首 · steer 靠底色 + 徽章表达（没有竖线）</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">给设计体系 V5 补画板</span>
+              <span class="d-tb-sub">PI-Desktop-main · 队列 3 条</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute"><i data-ico="list-checks" data-size="12"></i>计划 3 / 7</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">先别停，D-19 也一起补了。哦对，D-18 的诊断那帧用 tab 也行。</div>
+
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+                <div class="d-md">
+                  <p>D-18 改用页签。剩下两件我排成三条：</p>
+                  <p>D-19 定时任务那一张已经开了，权限那里读 <span class="d-mono">base.css</span> 又失败了一次 —— 同一条错第三次我就停下来了，不再换路径硬闯。</p>
+                </div>
+                <div class="d-msg-acts is-on">
+                  <button class="d-iconbtn" title="重试"><i data-ico="rotate-cw" data-size="14"></i></button>
+                  <button class="d-iconbtn" title="编辑"><i data-ico="pencil" data-size="14"></i></button>
+                </div>
+              </div>
+
+              <div class="d-queue" data-demo-scope>
+                <div class="d-queue-head">
+                  <i data-ico="list-todo" data-size="14"></i>
+                  <span class="d-grow">队列 · 3 条</span>
+
+                  <div class="d-seg" data-demo-tabs>
+                    <button data-demo-tab="q-auto">自动接续</button>
+                    <button class="is-on" data-demo-tab="q-pause">已暂停</button>
+                  </div>
+
+                  <button class="d-iconbtn" data-demo-open="q29-how" aria-label="队列怎么恢复"><i data-ico="circle-help" data-size="15"></i></button>
+                </div>
+
+                <!-- 自动接续 -->
+                <div class="d-queue-body" data-demo-pane="q-auto" hidden>
+                  <div class="d-queue-row d-row-in">
+                    <i class="d-grip" data-ico="grip-vertical" data-size="14"></i>
+                    <div class="d-queue-t">
+                      <div class="d-row">
+                        <span class="d-t-xs d-t-b">D-19 定时任务：4 帧</span>
+                        <span class="d-badge mute">第 2 位</span>
+                      </div>
+                      <span class="d-t-xs d-t-faint">下一轮回合一结束就自动发出，不用再点一次发送</span>
+                    </div>
+                    <button class="d-iconbtn" data-demo-open="q29-row-1" aria-label="这一条的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                  </div>
+                  <div class="d-queue-row steer">
+                    <i class="d-grip" data-ico="grip-vertical" data-size="14"></i>
+                    <div class="d-queue-t">
+                      <div class="d-row">
+                        <span class="d-t-xs d-t-b">D-18 诊断那帧改用页签</span>
+                        <span class="d-badge warn">steer · 打断当前回合并插到最前</span>
+                        <span class="d-badge mute">已提到第 1 位</span>
+                      </div>
+                      <span class="d-t-xs d-t-faint">底色 + 徽章说清它是 steer；这套体系里层级不靠竖线表达</span>
+                    </div>
+                    <button class="d-iconbtn" data-demo-open="q29-row-2" aria-label="这一条的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                  </div>
+                  <div class="d-queue-row">
+                    <i class="d-grip" data-ico="grip-vertical" data-size="14"></i>
+                    <div class="d-queue-t">
+                      <div class="d-row">
+                        <span class="d-t-xs d-t-b">D-20 模板与错峰：4 帧</span>
+                        <span class="d-badge mute">第 3 位</span>
+                      </div>
+                      <span class="d-t-xs d-t-faint">拖把手可以改顺序，改完顺序立即生效，不用保存</span>
+                    </div>
+                    <button class="d-iconbtn" data-demo-open="q29-row-3" aria-label="这一条的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                  </div>
+                </div>
+
+                <!-- 已暂停 -->
+                <div class="d-queue-body" data-demo-pane="q-pause">
+                  <div class="d-row" style="padding:var(--nx-sp-2)">
+                    <span class="d-badge warn"><i data-ico="pause" data-size="12"></i>已暂停</span>
+                    <span class="d-t-xs d-t-dim d-grow">第 2 步重试两次仍失败，队列停下等你决定 —— 不会自己接着试</span>
+                    <button class="d-btn sm primary" data-demo-open="q29-resume"><i data-ico="play" data-size="13"></i>怎么继续</button>
+                  </div>
+                  <div class="d-queue-row">
+                    <i class="d-grip" data-ico="grip-vertical" data-size="14"></i>
+                    <div class="d-queue-t">
+                      <div class="d-row">
+                        <span class="d-t-xs d-t-b">D-18 诊断那帧改用页签</span>
+                        <span class="d-badge warn">steer</span>
+                      </div>
+                      <span class="d-t-xs d-t-faint">排在最前：恢复时它第一个发</span>
+                    </div>
+                    <button class="d-iconbtn" data-demo-open="q29-row-1" aria-label="这一条的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                  </div>
+                  <div class="d-queue-row">
+                    <i class="d-grip" data-ico="grip-vertical" data-size="14"></i>
+                    <div class="d-queue-t">
+                      <div class="d-row">
+                        <span class="d-t-xs d-t-b">D-19 定时任务：4 帧</span>
+                        <span class="d-badge bad">源头失败</span>
+                      </div>
+                      <span class="d-t-xs d-t-faint">失败点是第 3 帧的权限，改法有两种：换判据 / 换路径</span>
+                    </div>
+                    <button class="d-iconbtn" data-demo-open="q29-row-3" aria-label="这一条的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                  </div>
+                  <div class="d-queue-row">
+                    <i class="d-grip" data-ico="grip-vertical" data-size="14"></i>
+                    <div class="d-queue-t">
+                      <div class="d-row">
+                        <span class="d-t-xs d-t-b">D-20 模板与错峰：4 帧</span>
+                        <span class="d-badge mute">未开始</span>
+                      </div>
+                      <span class="d-t-xs d-t-faint">这一条本身没失败，只是被前面的失败挡住了</span>
+                    </div>
+                    <button class="d-iconbtn" data-demo-open="q29-row-4" aria-label="这一条的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="">继续排队，或改成 steer 打断当前回合</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- 恢复方式浮层：两态共用的唯一恢复入口，预开在暂停态旁边 -->
+  <div class="d-pop is-open" data-demo-pop="q29-resume" style="left:24px;bottom:130px;min-width:380px">
+    <div class="d-pop-title">队列已暂停 · 三种继续方式</div>
+    <div class="d-pop-body d-col">
+      <div class="d-t-xs">三种方式的差别只在<b>从哪里开始</b>，输出都是按队列顺序往下发，所以先想清楚再点。</div>
+      <div class="d-t-xs d-t-faint">恢复后会自动切回「自动接续」；想留着暂停就按 Esc 走人。</div>
+    </div>
+    <div class="d-sep"></div>
+    <button class="d-menu-row">
+      <i data-ico="rotate-cw" data-size="14"></i>
+      <span class="d-grow">从失败处重试</span>
+      <span class="d-badge mute">丢掉第 2 步的两次重试，从第 3 帧权限那一步再来</span>
+    </button>
+    <button class="d-menu-row">
+      <i data-ico="play" data-size="14"></i>
+      <span class="d-grow">从这条继续</span>
+      <span class="d-badge mute">跳过失败的那条，从 D-20 开始</span>
+    </button>
+    <button class="d-menu-row">
+      <i data-ico="trash-2" data-size="14"></i>
+      <span class="d-grow">丢弃并重来</span>
+      <span class="d-badge mute">清空队列，把第 1 位那句话重新发一遍</span>
+    </button>
+    <div class="d-sep"></div>
+    <button class="d-menu-row danger"><i data-ico="ban" data-size="14"></i>全部丢弃，结束这一轮</button>
+  </div>
+
+  <div class="d-pop is-open" data-demo-pop="q29-how" hidden style="right:24px;top:56px;min-width:330px">
+    <div class="d-pop-title">队列只有两态</div>
+    <div class="d-pop-body d-col">
+      <div class="d-row"><span class="d-badge ok">自动接续</span><span class="d-t-xs">回合一结束就发下一条</span></div>
+      <div class="d-row"><span class="d-badge warn">已暂停</span><span class="d-t-xs">原样留着，不自动发</span></div>
+      <div class="d-t-xs d-t-faint">没有第三态：「半自动」「等确认」这类中间态在实现里会带来两套顺序来源，交付就会发错消息。</div>
+    </div>
+    <div class="d-sep"></div>
+    <button class="d-menu-row"><i data-ico="play" data-size="14"></i>恢复方式只有那一处入口</button>
+  </div>
+
+  <div class="d-pop is-open" data-demo-pop="q29-row-1" hidden style="right:24px;top:120px;min-width:300px">
+    <div class="d-pop-title">D-18 诊断那帧改用页签</div>
+    <div class="d-pop-body d-t-xs">已是 steer：发出时会打断当前回合并插到最前。撤掉 steer 后它回到普通排队。</div>
+    <div class="d-sep"></div>
+    <button class="d-menu-row"><i data-ico="arrow-up" data-size="14"></i>提到最前</button>
+    <button class="d-menu-row"><i data-ico="corner-down-right" data-size="14"></i>降回普通排队</button>
+    <div class="d-sep"></div>
+    <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>从队列里拿掉</button>
+  </div>
+
+  <div class="d-pop is-open" data-demo-pop="q29-row-2" hidden style="right:24px;top:120px;min-width:300px">
+    <div class="d-pop-title">D-18 诊断那帧改用页签</div>
+    <div class="d-pop-body d-col">
+      <div class="d-t-xs"><b>steer</b> = 插到最前并打断当前回合，用于「先别做那个，改做这个」。</div>
+      <div class="d-t-xs d-t-faint">代价是当前回合会被中断，已经发了的那几个工具调用不回滚 —— 所以 steer 只对「方向错了」用，不用来做微调。</div>
+    </div>
+    <div class="d-sep"></div>
+    <button class="d-menu-row"><i data-ico="corner-down-right" data-size="14"></i>降回普通排队</button>
+    <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>从队列里拿掉</button>
+  </div>
+
+  <div class="d-pop is-open" data-demo-pop="q29-row-3" hidden style="right:24px;top:120px;min-width:320px">
+    <div class="d-pop-title">D-19 定时任务：4 帧</div>
+    <div class="d-pop-body d-col">
+      <div class="d-err d-t-xs">失败：第 3 帧读 base.css 遇 EACCES，重试 2 次仍失败</div>
+      <div class="d-t-xs">队列在这里停下，就是为了让「同一条错三次」不再继续消耗 —— 停在这里比自动跳过更好。</div>
+    </div>
+    <div class="d-sep"></div>
+    <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i>只重试这一条</button>
+    <button class="d-menu-row"><i data-ico="play" data-size="14"></i>跳过它，从下一条继续</button>
+    <div class="d-sep"></div>
+    <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>从队列里拿掉</button>
+  </div>
+
+  <div class="d-pop is-open" data-demo-pop="q29-row-4" hidden style="right:24px;top:120px;min-width:300px">
+    <div class="d-pop-title">D-20 模板与错峰：4 帧</div>
+    <div class="d-pop-body d-t-xs">这条自己没失败，被前面的挡住了。「未开始」与「失败」在行上是两个徽章，不靠一条竖线区分。</div>
+    <div class="d-sep"></div>
+    <button class="d-menu-row"><i data-ico="arrow-up" data-size="14"></i>提到最前</button>
+    <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>从队列里拿掉</button>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 扩展插槽声明表 · 8 个注入点 × 谁渲染 / 能否被用户关掉 / 撞车怎么办<span class="d-grow"></span>设置类内容一律走弹窗 · 「可关」那一列是真开关</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">我写的插件能在哪儿挂东西？</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 扩展插槽">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · 扩展插槽</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-row">
+                          <div class="d-t-xs d-t-dim d-grow">
+                            插槽是<b>位置</b>不是样式：扩展只声明「我要挂在 <span class="d-mono">chat.top</span>」，拿不到宿主的类名与内部状态。
+                            因此产品改内部命名时，扩展不必跟着改 —— 这是这套表存在的唯一理由。
+                          </div>
+                          <button class="d-btn sm ghost" data-demo-open="q29-slot-rule"><i data-ico="circle-help" data-size="13"></i>撞车怎么办</button>
+                        </div>
+
+                        <div class="d-slottable">
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">app.overlay</span>
+                            <div class="d-col d-grow">
+                              <span>全局浮层 · 扩展渲染，宿主只给一个 portal 容器</span>
+                              <span class="d-set-row-s">同一时刻只允许一个；后来的排队，不覆盖 —— 两个全屏浮层叠着，用户关不掉</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="app.overlay 允许用户关闭"></button></span>
+                            <span class="d-slotmark">排队</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">chat.top</span>
+                            <div class="d-col d-grow">
+                              <span>会话顶部横条 · 宿主排版，扩展只填内容</span>
+                              <span class="d-set-row-s">高度自适应；内容超 128px 时宿主折叠成一行并给「展开」</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="chat.top 允许用户关闭"></button></span>
+                            <span class="d-slotmark">先到先得</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">chat.composer.top</span>
+                            <div class="d-col d-grow">
+                              <span>输入框正上方 · <b>唯一允许整块替换</b>的插槽</span>
+                              <span class="d-set-row-s">替换整块要用户确认一次，之后记住选择；替换掉之后原来的快捷键一律失效并在原地说明</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="chat.composer.top 允许用户关闭"></button></span>
+                            <span class="d-slotmark">确认后替换</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">chat.list.start</span>
+                            <div class="d-col d-grow">
+                              <span>转录最上方 · 插在第一条用户消息之前</span>
+                              <span class="d-set-row-s">同一位置只放一个块；第二个扩展直接被拒，不排队（排在这里会让人以为是正文）</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="chat.list.start 允许用户关闭"></button></span>
+                            <span class="d-slotmark">后者拒绝</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">chat.list.end</span>
+                            <div class="d-col d-grow">
+                              <span>转录最下方 · 紧贴输入框上方</span>
+                              <span class="d-set-row-s">新消息会把这一块顶上去；因此不建议放需要一直可见的东西</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="chat.list.end 允许用户关闭"></button></span>
+                            <span class="d-slotmark">先到先得</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">drawer.header</span>
+                            <div class="d-col d-grow">
+                              <span>抽屉标题栏 · 与标题并排</span>
+                              <span class="d-set-row-s">窄于 320px 时自动收起成图标；与宿主自己的按钮冲突时后者保留</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="drawer.header 允许用户关闭"></button></span>
+                            <span class="d-slotmark">宿主优先</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">drawer.footer</span>
+                            <div class="d-col d-grow">
+                              <span>抽屉底部 · 固定条</span>
+                              <span class="d-set-row-s">关掉滑动手势时也会跟着隐藏，避免手指够不到</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch" data-demo-switch aria-checked="false" aria-label="drawer.footer 允许用户关闭"></button></span>
+                            <span class="d-slotmark">宿主优先</span>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <span class="d-slotname">settings.hub</span>
+                            <div class="d-col d-grow">
+                              <span>设置首页的卡片网格 · 整张卡</span>
+                              <span class="d-set-row-s">卡片只能跳转到自己的二级页，不能在卡片里直接改配置</span>
+                            </div>
+                            <span class="d-slotact"><button class="d-switch on" data-demo-switch aria-checked="true" aria-label="settings.hub 允许用户关闭"></button></span>
+                            <span class="d-slotmark">先到先得</span>
+                          </div>
+
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">用户可以关掉扩展挂上来的东西</div>
+                            <div class="d-set-row-s">每一行那个开关就是「关掉这一个扩展在这一个插槽的内容」，不是禁用扩展 —— 扩展本身仍在运行。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">7 / 8 可关</span></span>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span>
+                            <b>「能否被用户关掉」是一列，不是一段说明。</b>它决定了这套插槽体系是不是把用户当成人：
+                            扩展可以请求挂载，但<b>每一块都得有一个能立刻关掉它的开关</b>，而且开关的位置固定在设置里，不藏在扩展自己的面板里。
+                          </span>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">3 个扩展声明了 11 个插槽 · 其中 2 块被用户关掉了</span>
+                <button class="d-btn ghost">看每个扩展实际挂了什么</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="q29-slot-rule" hidden style="right:120px;bottom:88px;min-width:340px">
+                <div class="d-pop-title">撞车的三条通用规则</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs"><b>先到先得</b>：同一插槽已有块就不再接，扩展收到一个明确的「已被占用」，不静默丢弃。</div>
+                  <div class="d-t-xs"><b>排队</b>：只给 <span class="d-mono">app.overlay</span>，因为全屏浮层叠在一起用户没法关。</div>
+                  <div class="d-t-xs"><b>确认后替换</b>：只给 <span class="d-mono">chat.composer.top</span>，且确认一次后记住。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="ban" data-size="14"></i>这些规则不许被扩展覆写</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 挂载示意 · 8 个插槽在真实界面上的位置（虚线框即 <span class="d-t-dim">.d-slotoverlay</span>）<span class="d-grow"></span>虚线框是画板家具，产品里没有；标签写插槽名与挂载的扩展</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">给设计体系 V5 补画板</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn"><i data-ico="command" data-size="15"></i></button>
+
+            <div class="d-slotoverlay" style="position:absolute;right:56px;bottom:2px;padding:var(--nx-sp-1) var(--nx-sp-2)">
+              <span class="d-slotname">chat.top</span>
+              <span class="d-t-xs d-t-faint">cost-guard · 本轮 ¥0.42 · 预算 62%</span>
+            </div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner" style="position:relative">
+
+              <div class="d-slotoverlay" style="position:relative;margin-bottom:var(--nx-sp-4);padding:var(--nx-sp-2)">
+                <span class="d-slotname">chat.list.start</span>
+                <span class="d-t-xs d-t-faint">周报扩展 · 本周 3 个未处理提醒</span>
+              </div>
+
+              <div class="d-msg-user">把 D-01 到 D-29 的画板全补齐。</div>
+
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+                <div class="d-md"><p>先核对清单与已有画板，再逐张补。</p></div>
+              </div>
+
+              <div class="d-slotoverlay" style="position:relative;margin-top:var(--nx-sp-4);padding:var(--nx-sp-2)">
+                <span class="d-slotname">chat.list.end</span>
+                <span class="d-t-xs d-t-faint">review-bot · 「本轮改动还没人看过」</span>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="">说点什么</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+          <div class="d-slotoverlay" style="position:absolute;left:var(--nx-sp-8);right:var(--nx-sp-8);bottom:100%;margin-bottom:var(--nx-sp-1);padding:var(--nx-sp-1) var(--nx-sp-2)">
+              <span class="d-slotname">chat.composer.top</span>
+              <span class="d-t-xs d-t-faint">voice-input · 整块替换需确认（已确认过一次）</span>
+            </div>
+        </div>
+
+          <!-- app.overlay：全局浮层，宿主只给一个 portal 容器 -->
+          <div class="d-slotoverlay" style="position:absolute;right:344px;bottom:150px;padding:var(--nx-sp-2)">
+            <span class="d-slotname">app.overlay</span>
+            <span class="d-t-xs d-t-faint">impostor · 全局提醒（第二个请求正在排队）</span>
+          </div>
+
+          <div class="d-slotcard" style="position:absolute;left:var(--nx-sp-8);bottom:150px;min-width:400px">
+            <span class="d-slotname">settings.hub</span> · 设置首页卡片网格，不在本帧（它在设置弹窗里，见帧 C）
+          </div>
+
+        </main>
+
+        <aside class="d-panel" style="position:relative">
+          <div class="d-panel-head">
+            <span class="d-t-sm d-t-b d-grow">会话抽屉</span>
+            <div class="d-slotoverlay" style="position:absolute;right:8px;top:6px;padding:0 var(--nx-sp-1)">
+              <span class="d-slotname">drawer.header</span>
+              <span class="d-t-xs d-t-faint">stats · 今日 3h</span>
+            </div>
+          </div>
+          <div class="d-panel-body">
+            <div class="d-trow is-on">给设计体系 V5 补画板</div>
+            <div class="d-trow">审查 v4 的漂移事故</div>
+            <div class="d-trow">PWA 设置 hub 形态</div>
+          </div>
+          <div class="d-slotoverlay" style="position:absolute;left:8px;right:8px;bottom:8px;padding:var(--nx-sp-1)">
+            <span class="d-slotname">drawer.footer</span>
+            <span class="d-t-xs d-t-faint">usage-guard · 已关</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>轨道与时间线不同时常驻。</b>轨道回答「还剩几步、卡在哪」，时间线回答「这一步慢在哪、错在哪」；
+        任何一步超过 2 分钟或失败，卡片自动切到时间线。两套同屏会让人开始改错那一份。</li>
+    <li><b>失败详情挂在时间线上，默认展开。</b>轨道是给人看状态的，三行堆栈塞进去就把状态盖没了；
+        而「失败了还要再点一次才看到为什么」会被当成卡片没做完。</li>
+    <li><b>队列只有两态，两态都能恢复。</b>自动接续＝回合一结束就发下一条；已暂停＝原样留着不自动发。
+        恢复方式一次写在浮层里：<b>从失败处重试 / 从这条继续 / 丢弃并重来</b>，外加一条红色的「全部丢弃」。
+        出了这个浮层没有别的入口 —— 恢复方式不能靠记忆。</li>
+    <li><b>steer 靠底色 + 徽章表达，不用竖线。</b><code>.d-queue-row.steer</code> 给一块极浅的暖底，行内再给一枚
+        <code>warn</code> 徽章写清「打断当前回合并插到最前」，行首是 <code>.d-grip</code> 图标。
+        层级在这套体系里一律靠底色 / 徽章 / 圆点 / 图标，竖线已整体废止。</li>
+    <li><b>插槽是位置不是样式。</b>8 个 slot 每行写清三件事：由谁渲染（扩展渲染 / 宿主排版）、能否被用户关掉（一列真开关）、
+        撞车怎么办（先到先得 / 排队 / 拒绝 / 确认后替换）。扩展拿不到宿主类名与内部状态，产品改命名时扩展不必跟着改。</li>
+    <li><b>只有 <span class="d-mono">chat.composer.top</span> 能整块替换</b>且须用户确认；
+        <span class="d-mono">app.overlay</span> 同一时刻只允许一个，后来者排队不覆盖 —— 两个全屏浮层叠着，用户关不掉。</li>
+    <li><b>帧 D 的虚线框是画板家具</b>（<code>.d-slotoverlay</code>），产品里没有这圈虚线；它的作用是让人一眼看到插槽落在哪，而不是加一个装饰。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

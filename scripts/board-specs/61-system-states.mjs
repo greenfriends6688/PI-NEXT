@@ -29,13 +29,13 @@ export default {
       const byIco = (root, name) => [...root.querySelectorAll('[data-ico="' + name + '"]')][0];
 
       // 项目组默认收起，先展开再点第一条会话（有消息的会话才有转录区）。
-      if (!document.querySelector(".pw-session")) {
-        const toggle = byIco(document.querySelector(".pw-side-scroll") ?? document, "chevron-right")
+      if (!document.querySelector(".d-sess")) {
+        const toggle = byIco(document.querySelector(".d-side-scroll") ?? document, "chevron-right")
           ?.closest("[role=button]");
         if (toggle) { toggle.click(); await wait(800); }
       }
-      const row = document.querySelector(".pw-session");
-      if (!row) throw new Error("侧栏里没有 .pw-session（会话没被列出来？）");
+      const row = document.querySelector(".d-sess");
+      if (!row) throw new Error("侧栏里没有 .d-sess（会话没被列出来？）");
       row.click();
       await wait(2500);
 
@@ -51,23 +51,27 @@ export default {
         }));
       }
       await wait(900);
-      if (!document.querySelector(".pw-drop")) throw new Error("拖放落区没有出现（isDragOver 没置上）");
+      if (!document.querySelector(".d-drop")) throw new Error("拖放落区没有出现（isDragOver 没置上）");
     `,
     settle: 800,
   },
+  // fork:v5-old-layer（2026-10-04）—— 拖放落区已换画板 D-26d 的 `.d-drop`
+  // （ChatWindow.tsx:2105，纸夹图标是 `<i data-ico="paperclip">` 裸元素，**没有**
+  // v1 那个 `.mark` 包装盒），输入框三段换 `.d-composer-bar` / `.d-iconbtn` / `.d-send`。
+  // 画板侧仍取 v1 的 pw-*。
   pairs: [
     // A 段：可接受落区（纸夹 mark + 主文案 + 涟漪）
-    [".pw-drop", ".pw-drop"],
-    [".pw-drop .mark", ".pw-drop .mark"],
-    [".pw-drop .pw-ico", ".pw-drop .pw-ico"],
+    [".pw-drop", ".d-drop"],
+    [".pw-drop .mark", ".d-drop i[data-ico]"],
+    [".pw-drop .pw-ico", ".d-drop i[data-ico]"],
     // C 段：落点更精确那一态的输入框三段（工具条 / 纸夹钮 / 发送钮在这个状态下同时在场）
-    [".pw-composer-bar", ".pw-composer-bar"],
-    [".pw-iconbtn", ".pw-composer-bar .pw-iconbtn"],
-    [".pw-send", ".pw-send"],
+    [".pw-composer-bar", ".chat-input-toolbar.d-composer-bar"],
+    [".pw-iconbtn", ".chat-input-toolbar .d-iconbtn"],
+    [".pw-send", ".d-send"],
   ],
   knownDiffs: [
     {
-      sel: ".pw-drop",
+      sel: ".d-drop",
       reason: "**取景差异**：画板 A 段画的是 280px 高的**示意框**（框内还有一行「转录区」标签），"
         + "落区本身 688×229.5；产品的落区是 `.chat-content > .pw-drop` 上的 `absolute inset-3`，"
         + "按真实转录区铺开，量到 1140.5×844.5（宽窄差是同一件事的两面）。"

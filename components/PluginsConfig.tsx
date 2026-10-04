@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { McpReloadReport, McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
@@ -18,33 +18,161 @@ import {
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
 import {
-  ConfigBadge,
-  ConfigButton,
-  ConfigControl,
-  ConfigDetail,
-  ConfigDetailActions,
-  ConfigKv,
-  ConfigDetailHeader,
-  ConfigDetailHeaderInfo,
-  ConfigDetailStack,
-  ConfigDetailTitle,
-  ConfigEmptyState,
-  ConfigField,
   ConfigPanelShell,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
-  ConfigSidebarGroupStatus,
-  ConfigSidebarGroupSwitch,
   ConfigSidebarItem,
   ConfigSidebarList,
   ConfigSidebarText,
-  ConfigSectionTitle,
   ConfigSplitView,
-  ConfigStatusDot,
-  ConfigSwitch,
   SettingsPage,
   itemsToSwitch,
 } from "./SettingsUi";
+
+/* fork:v5-skin-d-only —— 本地内容基件只吐 d-*（同 SkillsConfig 的同名块）。
+ * 页壳 / 列表基件（SettingsPage / ConfigPanelShell / ConfigSplitView / ConfigSidebar /
+ * ConfigSidebarList / ConfigSidebarItem / ConfigSidebarText / ConfigSidebarGroupLabel）
+ * 仍走 SettingsUi；其余内容控件在本文件用画板类落地。 */
+function Btn({
+  variant = "secondary",
+  size = "default",
+  className,
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "small" | "default";
+}) {
+  const variantClass = variant === "primary" ? "primary"
+    : variant === "secondary" ? "outline"
+    : variant === "danger" ? "danger"
+    : "";
+  return (
+    <button
+      type="button"
+      {...props}
+      className={["d-btn", variantClass, size === "small" ? "sm" : "", className].filter(Boolean).join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+function Badge({ tone, className, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
+  return <span {...props} className={["d-badge", tone ?? "", className].filter(Boolean).join(" ")} />;
+}
+function Switch({ checked, disabled = false, loading = false, label, onChange }: { checked: boolean; disabled?: boolean; loading?: boolean; label: string; onChange: (checked: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-busy={loading || undefined}
+      aria-label={label}
+      title={label}
+      disabled={disabled || loading}
+      className={`d-switch${checked ? " on" : ""}`}
+      onClick={() => onChange(!checked)}
+    />
+  );
+}
+function Stack({ className, style, children }: { className?: string; style?: CSSProperties; children: ReactNode }) {
+  return (
+    <div className={["d-col", className].filter(Boolean).join(" ")} style={{ gap: "var(--nx-sp-3)", ...style }}>
+      {children}
+    </div>
+  );
+}
+function Title({ children }: { children: ReactNode }) {
+  return <h3 className="d-t-title" style={{ margin: 0 }}>{children}</h3>;
+}
+function Row({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...props} className={["d-row", className].filter(Boolean).join(" ")}>{children}</div>;
+}
+function RowGrow({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...props} className={["d-row", "d-grow", className].filter(Boolean).join(" ")}>{children}</div>;
+}
+function Field({ label, hint, children, style }: { label: ReactNode; hint?: string; children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div className="d-set-row" style={style}>
+      <div className="d-set-row-box">
+        <div className="d-set-row-t">{label}</div>
+        {hint ? <div className="d-set-row-s">{hint}</div> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+function StatusDot({ active, color }: { active?: boolean; color?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`d-dot${active ? " run" : active === false ? " pending" : ""}`}
+      style={color ? { backgroundColor: color } : undefined}
+    />
+  );
+}
+function EmptyState({ children }: { children: ReactNode }) {
+  return <div className="d-empty compact">{children}</div>;
+}
+function GroupSwitch({
+  enabled,
+  total,
+  label,
+  disabled = false,
+  loading = false,
+  onChange,
+}: {
+  enabled: number;
+  total: number;
+  label: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
+  return (
+    <>
+      <span className="d-grow" aria-hidden="true" />
+      <span className="d-mono d-t-faint">{`${enabled}/${total}`}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={total > 0 && enabled === total}
+        aria-busy={loading || undefined}
+        aria-label={label}
+        title={label}
+        disabled={disabled || loading}
+        className={`d-switch${total > 0 && enabled === total ? " on" : ""}`}
+        onClick={() => onChange(!(total > 0 && enabled === total))}
+      />
+    </>
+  );
+}
+function GroupStatus({ note, errorLines }: { note?: ReactNode; errorLines?: readonly string[] }) {
+  if (!note && !errorLines?.length) return null;
+  return (
+    <>
+      {note ? (
+        <div role="status" className="d-banner info">
+          <i data-ico="info" data-size="13" aria-hidden="true"></i>
+          <span className="d-grow">{note}</span>
+        </div>
+      ) : null}
+      {errorLines && errorLines.length > 0 ? (
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="13" aria-hidden="true"></i>
+          <span className="d-grow">
+            {errorLines.map((line, index) => (
+              <Fragment key={`${index}:${line}`}>
+                {index > 0 ? <br /> : null}
+                {line}
+              </Fragment>
+            ))}
+          </span>
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 type PluginScope = PluginPackageInfo["scope"];
 type PluginAction = "install" | "remove" | "update" | "disable" | "enable";
@@ -167,30 +295,30 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
 
   if (groups.length === 0) {
     return (
-      <div className="pw-alert info">
-        <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-        <span className="pw-grow">
+      <div className="d-banner info">
+        <i data-ico="info" data-size="14" aria-hidden="true"></i>
+        <span className="d-grow">
           {pkg.disabled ? t("i18n.packageDisabled") : t("i18n.noResolvedResources")}
         </span>
       </div>
     );
   }
 
-  // fork:design-system SW-14 —— 画板 43 的「已解析资源」：每个分组一个 `.pw-sec-title`，
-  // 分组下是 `.pw-list` + `.pw-litem`（名称 + 等宽相对路径副标题）。
+  // 画板 D-13 帧 C：每组资源一张 `.d-card`（`.d-card-head` 图标 + 标题，
+  // `.d-card-body` 里逐行名称 + 相对路径），不再用 v1 的 pw-sec-title/pw-list。
   return (
-    <div className="pw-rowgap">
+    <div className="d-col">
       {groups.map((group) => (
-        <div key={group.kind}>
-          <ConfigSectionTitle>{group.label}</ConfigSectionTitle>
-          <div className="pw-list">
+        <div key={group.kind} className="d-card">
+          <div className="d-card-head">
+            <i data-ico={RESOURCE_ICONS[group.kind] ?? "blocks"} data-size="15" aria-hidden="true"></i>
+            {group.label}
+          </div>
+          <div className="d-card-body d-col">
             {group.resources.map((resource) => (
-              <div key={`${resource.kind}:${resource.path}`} className="pw-litem" title={resource.path}>
-                <span className="pw-ico"><i data-ico={RESOURCE_ICONS[group.kind] ?? "blocks"} data-size="14"></i></span>
-                <span className="grow">
-                  <span className="pw-lname">{resource.name}</span>
-                  <span className="pw-lsub">{resource.relativePath}</span>
-                </span>
+              <div key={`${resource.kind}:${resource.path}`} className="d-row" title={resource.path}>
+                <span className="d-mono d-grow">{resource.name}</span>
+                <span className="d-t-xs d-t-faint">{resource.relativePath}</span>
               </div>
             ))}
           </div>
@@ -203,9 +331,9 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
 /** fork:design-system SW-14 —— 作用域是状态徽章：项目级 `.pw-badge accent`，其余 `.pw-badge`。 */
 function ScopeTag({ scope }: { scope: PluginScope }) {
   return (
-    <ConfigBadge tone={scope === "project" ? "accent" : undefined}>
+    <Badge tone={scope === "project" ? "accent" : undefined}>
       {scope}
-    </ConfigBadge>
+    </Badge>
   );
 }
 
@@ -221,7 +349,7 @@ function SegmentedScope({
 }) {
   const { t } = useI18n();
   return (
-    <span className="pw-radio" role="radiogroup" aria-label={t("i18n.scope")}>
+    <div className="d-seg" role="radiogroup" aria-label={t("i18n.scope")}>
       {(["global", "project"] as PluginScope[]).map((scope) => {
         const active = value === scope;
         const disabled = scope === "project" && !projectResourcesLoaded;
@@ -242,7 +370,7 @@ function SegmentedScope({
           </button>
         );
       })}
-    </span>
+    </div>
   );
 }
 
@@ -276,30 +404,29 @@ function AddPluginPanel({
   }, []);
 
   return (
-    <ConfigDetailStack className="fork-pwa-detail">
-      <div className="pw-rowgap">
-        <div className="pw-inline">
-          <ConfigDetailTitle>{t("i18n.addPlugin")}</ConfigDetailTitle>
-          <span className="pw-grow" />
-          {/* fork:design-system（2026-10-01）—— 这里原来是一枚手绘的 npm logo SVG
-              （28px + `fill="#000"` 字面色）；设计系统只认 sprite 的 lucide 图标
-              （`<i data-ico>`，禁手绘 SVG），换成同一语境的 package 图标。 */}
+    <Stack className="fork-pwa-detail">
+      <div className="d-set-sec">
+        <div className="d-row">
+          <Title>{t("i18n.addPlugin")}</Title>
+          <span className="d-grow" />
+          {/* 设计系统只认 sprite 的 lucide 图标（`<i data-ico>`，禁手绘 SVG）。 */}
           <a
             href="https://pi.dev/packages"
             target="_blank"
             rel="noopener noreferrer"
-            className="pw-mono pw-dim"
+            className="d-mono d-t-faint"
           >
-            <span className="pw-ico"><i data-ico="package" data-size="14"></i></span>
+            <i data-ico="package" data-size="14" aria-hidden="true"></i>
             pi.dev/packages
           </a>
         </div>
-        <span className="pw-mono pw-dim">
+        <span className="d-mono d-t-faint">
           {installLocation(scope, cwd)}
         </span>
       </div>
 
-      <ConfigField label={t("plugins.sourceLabel")}>
+      <div className="d-field">
+        <span className="d-field-t">{t("plugins.sourceLabel")}</span>
         <input
           id="plugin-source"
           ref={inputRef}
@@ -314,57 +441,55 @@ function AddPluginPanel({
           }}
           onBlur={(e) => onSourceChange(normalizePluginSourceInput(e.currentTarget.value))}
           placeholder="npm:@scope/package"
-          className="pw-input pw-mono"
+          className="d-input d-mono"
           onKeyDown={(e) => {
             if (e.key === "Enter" && source.trim() && !busy) onInstall();
           }}
         />
-      </ConfigField>
+      </div>
 
-      <div className="pw-inline fork-pwa-acts">
+      <div className="d-row fork-pwa-acts">
         <SegmentedScope
           value={scope}
           projectResourcesLoaded={projectResourcesLoaded}
           onChange={onScopeChange}
         />
-        <ConfigButton
+        <Btn
           variant="primary"
           onClick={onInstall}
           disabled={busy || !source.trim()}
           // fork:fix-disabled-title（2026-10-01）—— 禁用原因写 title。
-          // 对照正例：MCP 导入条目 title="已被同名条目遮蔽"、插件页「重新加载会话」
-          // title="打开会话后才能重新加载"。
           title={!source.trim() ? t("i18n.installNeedsSource") : undefined}
           className="is-pushed-right"
         >
           {busy ? t("i18n.installing") : t("i18n.install")}
-        </ConfigButton>
+        </Btn>
       </div>
 
-      <div>
-        <ConfigSectionTitle>{t("plugins.examples")}</ConfigSectionTitle>
-        <div className="pw-list">
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("plugins.examples")}</div>
+        <div className="d-chips">
           {examples.map((example) => (
             <button
               key={example}
               type="button"
-              className="pw-litem"
+              className="d-chipbtn"
               onClick={() => onSourceChange(example)}
             >
-              <span className="pw-ico"><i data-ico="package" data-size="14"></i></span>
-              <span className="pw-lname pw-mono">{example}</span>
+              <i data-ico="package" data-size="12" aria-hidden="true"></i>
+              <span className="d-mono">{example}</span>
             </button>
           ))}
         </div>
       </div>
 
       {actionError && (
-        <div className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{actionError}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+          <span className="d-grow">{actionError}</span>
         </div>
       )}
-    </ConfigDetailStack>
+    </Stack>
   );
 }
 
@@ -405,23 +530,23 @@ function PackageDetail({
   const updateAvailable = updateStatus?.state === "update-available";
 
   return (
-    <ConfigDetailStack className="fork-pwa-detail">
-      <ConfigDetailHeader className="fork-pwa-head">
-        <ConfigDetailHeaderInfo>
+    <Stack className="fork-pwa-detail">
+      <Row className="fork-pwa-head">
+        <RowGrow>
           <ScopeTag scope={pkg.scope} />
-          {/* fork:design-system SW-14 —— 画板 43 的详情头：状态徽章 + 包名等宽串。 */}
+          {/* 画板 D-13 帧 A/C 的详情头：状态徽章 + 包名等宽串。 */}
           {pkg.disabled ? (
-            <ConfigBadge>{t("i18n.disabled")}</ConfigBadge>
+            <Badge>{t("i18n.disabled")}</Badge>
           ) : pkg.filtered && (
-            <ConfigBadge tone="warn">{t("i18n.filtered")}</ConfigBadge>
+            <Badge tone="warn">{t("i18n.filtered")}</Badge>
           )}
-          <span className="pw-mono pw-grow">
+          <span className="d-mono d-grow">
             {pkg.source}
           </span>
-        </ConfigDetailHeaderInfo>
+        </RowGrow>
 
-        <ConfigDetailActions>
-          <ConfigButton
+        <Row>
+          <Btn
             size="small"
             variant={updateAvailable ? "primary" : undefined}
             onClick={updateAvailable || !canCheckForUpdates
@@ -437,53 +562,66 @@ function PackageDetail({
                  : updateAvailable || !canCheckForUpdates
                    ? t("i18n.update")
                    : t("i18n.check")}
-          </ConfigButton>
-          <ConfigButton
+          </Btn>
+          <Btn
             size="small"
             onClick={onReloadSession}
             disabled={!sessionId || reloadBusy || busy}
              title={sessionId ? t("i18n.reloadSession") : t("i18n.openSessionToReload")}
           >
              {reloadBusy ? t("i18n.reloading") : t("i18n.reloadSession")}
-          </ConfigButton>
-          <ConfigButton
+          </Btn>
+          <Btn
             variant="danger"
             size="small"
             onClick={() => onAction("remove", pkg)}
             disabled={busy || reloadBusy}
           >
              {busyKey === `remove:${key}` ? t("i18n.removing") : t("i18n.remove")}
-          </ConfigButton>
-          <ConfigSwitch
-            checked={enabled}
-            loading={busy || reloadBusy}
-            onChange={() => onAction(pkg.disabled ? "enable" : "disable", pkg)}
-            label={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+          </Btn>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-busy={busy || reloadBusy || undefined}
+            aria-label={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+            title={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+            disabled={busy || reloadBusy}
+            className={`d-switch${enabled ? " on" : ""}`}
+            onClick={() => onAction(pkg.disabled ? "enable" : "disable", pkg)}
           />
-        </ConfigDetailActions>
-      </ConfigDetailHeader>
+        </Row>
+      </Row>
 
-      {/* fork:design-system SW-14 —— 画板 43 的属性表是 `.pw-kv`（dt 键 / dd 值）。 */}
-      <ConfigKv>
+      {/* 画板 D-13：详情属性用 `.d-set-row`（左标签 / 右徽章或值）。 */}
+      <div className="d-set-sec">
         {description && (
-          <>
-            <dt>{t("i18n.description")}</dt>
-            <dd>{description}</dd>
-          </>
+          <div className="d-set-row">
+            <div className="d-set-row-box">
+              <div className="d-set-row-t">{t("i18n.description")}</div>
+              <div className="d-set-row-s">{description}</div>
+            </div>
+          </div>
         )}
-        <dt>{t("i18n.status")}</dt>
-        <dd><ConfigBadge>{pkg.status}</ConfigBadge></dd>
-        <dt>{t("i18n.version")}</dt>
-        <dd>
-          <ConfigControl>
-            <span className="pw-mono">{versionSummary(pkg, t)}</span>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.status")}</div>
+          </div>
+          <span className="d-grow-last"><Badge>{pkg.status}</Badge></span>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.version")}</div>
+            <div className="d-set-row-s d-mono">{versionSummary(pkg, t)}</div>
+          </div>
+          <span className="d-grow-last">
             {updateAvailable && (
-              <ConfigBadge tone="warn" title={updateStatus.displayName}>
+              <Badge tone="warn" title={updateStatus.displayName}>
                 {t("i18n.updateAvailable")}
-              </ConfigBadge>
+              </Badge>
             )}
             {canCheckForUpdates && (checkingUpdate || (updateStatus && !updateAvailable)) && (
-              <ConfigBadge
+              <Badge
                 tone={checkingUpdate
                   ? undefined
                   : updateStatus?.state === "up-to-date"
@@ -499,39 +637,55 @@ function PackageDetail({
                     : updateStatus?.state === "unsupported"
                       ? t("i18n.automaticChecksUnavailable")
                       : updateStatus?.message || t("i18n.checkFailed")}
-              </ConfigBadge>
+              </Badge>
             )}
-          </ConfigControl>
-          {updateError && <ConfigBadge tone="bad">{updateError}</ConfigBadge>}
-        </dd>
-        <dt>{t("i18n.package")}</dt>
-        <dd className="pw-mono">{pkg.packageName ?? t("i18n.unknown")}</dd>
-        <dt>{t("i18n.resources")}</dt>
-        <dd>{resourceSummary(pkg, t)}</dd>
-        <dt>{t("i18n.installedPath")}</dt>
-        <dd className="pw-mono">{pkg.installedPath ? shortenPath(pkg.installedPath) : t("i18n.notFound")}</dd>
-        <dt>{t("i18n.cwd")}</dt>
-        <dd className="pw-mono">{shortenPath(cwd)}</dd>
-      </ConfigKv>
+            {updateError && <Badge tone="bad">{updateError}</Badge>}
+          </span>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.package")}</div>
+            <div className="d-set-row-s d-mono">{pkg.packageName ?? t("i18n.unknown")}</div>
+          </div>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.resources")}</div>
+            <div className="d-set-row-s">{resourceSummary(pkg, t)}</div>
+          </div>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.installedPath")}</div>
+            <div className="d-set-row-s d-mono">{pkg.installedPath ? shortenPath(pkg.installedPath) : t("i18n.notFound")}</div>
+          </div>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.cwd")}</div>
+            <div className="d-set-row-s d-mono">{shortenPath(cwd)}</div>
+          </div>
+        </div>
+      </div>
 
-      <div>
-        <ConfigSectionTitle>{t("i18n.resolvedResources")}</ConfigSectionTitle>
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("i18n.resolvedResources")}</div>
         <ResourceList pkg={pkg} />
       </div>
 
       {actionMessage && (
-        <div className="pw-alert info">
-          <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
-          <span className="pw-grow">{actionMessage}</span>
+        <div className="d-banner info">
+          <i data-ico="check" data-size="14" aria-hidden="true"></i>
+          <span className="d-grow">{actionMessage}</span>
         </div>
       )}
       {actionError && (
-        <div className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{actionError}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+          <span className="d-grow">{actionError}</span>
         </div>
       )}
-    </ConfigDetailStack>
+    </Stack>
   );
 }
 
@@ -540,20 +694,28 @@ function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneE
   const status = extension.enabled ? "loaded" : "disabled";
 
   return (
-    <ConfigDetailStack className="fork-pwa-detail">
-      <ConfigDetailHeader className="fork-pwa-head">
-        <ConfigDetailHeaderInfo>
+    <Stack className="fork-pwa-detail">
+      <Row className="fork-pwa-head">
+        <RowGrow>
           <ScopeTag scope={extension.scope} />
-          <ConfigDetailTitle>{extension.name}</ConfigDetailTitle>
-        </ConfigDetailHeaderInfo>
-      </ConfigDetailHeader>
-      <ConfigKv>
-        <dt>{t("i18n.status")}</dt>
-        <dd><ConfigBadge>{status}</ConfigBadge></dd>
-        <dt>{t("i18n.installedPath")}</dt>
-        <dd className="pw-mono">{shortenPath(extension.path)}</dd>
-      </ConfigKv>
-    </ConfigDetailStack>
+          <Title>{extension.name}</Title>
+        </RowGrow>
+      </Row>
+      <div className="d-set-sec">
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.status")}</div>
+          </div>
+          <span className="d-grow-last"><Badge>{status}</Badge></span>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("i18n.installedPath")}</div>
+            <div className="d-set-row-s d-mono">{shortenPath(extension.path)}</div>
+          </div>
+        </div>
+      </div>
+    </Stack>
   );
 }
 
@@ -564,11 +726,11 @@ function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneE
  *  不是画板外观。 */
 function McpReadonlyField({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <ConfigField label={label}>
-      <span className="pw-mono" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+    <Field label={label}>
+      <span className="d-mono" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
         {value}
       </span>
-    </ConfigField>
+    </Field>
   );
 }
 
@@ -595,9 +757,9 @@ function McpExposureField({
 }) {
   const { t } = useI18n();
   return (
-    <ConfigField label={t("mcp.fieldExposure")}>
+    <Field label={t("mcp.fieldExposure")}>
       <select
-        className="pw-select"
+        className="d-select"
         value={value}
         disabled={disabled}
         title={t(`mcp.exposureHint.${value}`)}
@@ -608,7 +770,7 @@ function McpExposureField({
           <option key={option} value={option}>{t(`mcp.exposure.${option}`)}</option>
         ))}
       </select>
-    </ConfigField>
+    </Field>
   );
 }
 
@@ -648,45 +810,45 @@ function McpServerDetail({
     server.kind === "url" ? server.url : server.kind === "socket" ? server.socket : server.command;
 
   return (
-    <ConfigDetailStack className="fork-pwa-detail">
-      <ConfigDetailHeader className="fork-pwa-head">
-        <ConfigDetailHeaderInfo>
+    <Stack className="fork-pwa-detail">
+      <Row className="fork-pwa-head">
+        <RowGrow>
           <ScopeTag scope={server.scope} />
           {/* fork:design-system SW-14 —— 画板 43 的 MCP 详情头：作用域 / 禁用徽章 / 等宽名。 */}
           {server.disabled && (
-            <ConfigBadge>{t("mcp.disabledBadge")}</ConfigBadge>
+            <Badge>{t("mcp.disabledBadge")}</Badge>
           )}
-          <span className="pw-mono pw-grow">
+          <span className="d-mono d-grow">
             {server.name}
           </span>
-        </ConfigDetailHeaderInfo>
+        </RowGrow>
 
-        <ConfigDetailActions>
-          <ConfigButton size="small" onClick={onTest} disabled={busy}>
+        <Row>
+          <Btn size="small" onClick={onTest} disabled={busy}>
             {busy ? t("mcp.testing") : t("mcp.test")}
-          </ConfigButton>
-          <ConfigButton size="small" onClick={onEdit} disabled={busy}>
+          </Btn>
+          <Btn size="small" onClick={onEdit} disabled={busy}>
             {t("mcp.edit")}
-          </ConfigButton>
-          <ConfigButton size="small" onClick={onMove} disabled={busy}>
+          </Btn>
+          <Btn size="small" onClick={onMove} disabled={busy}>
             {otherScope === "project" ? t("mcp.moveToProject") : t("mcp.moveToGlobal")}
-          </ConfigButton>
-          <ConfigButton variant="danger" size="small" onClick={onRemove} disabled={busy}>
+          </Btn>
+          <Btn variant="danger" size="small" onClick={onRemove} disabled={busy}>
             {t("mcp.delete")}
-          </ConfigButton>
-          <ConfigSwitch
+          </Btn>
+          <Switch
             checked={enabled}
             loading={busy}
             onChange={() => onToggle()}
             label={enabled ? t("mcp.disable") : t("mcp.enable")}
           />
-        </ConfigDetailActions>
-      </ConfigDetailHeader>
+        </Row>
+      </Row>
 
       {/* fork:design-system（画板 62 落位表）—— MCP 详情的属性表从 `.pw-kv` 的
           dt/dd 改成画板 43 的 `.pw-field` 行式字段（标签左 / 值右）。整组包一层
           普通块：`.pw-field + .pw-field` 的发丝线要靠相邻兄弟连续，拆散进
-          ConfigDetailStack 的网格会把行距撑成 s3。 */}
+          Stack 的网格会把行距撑成 s3。 */}
       <div>
         <McpReadonlyField label={t("mcp.fieldType")} value={server.kind} />
         {/* fork:mcp-native-exposure —— 这一行决定模型怎么用到工具；未声明按 pi 默认
@@ -727,18 +889,18 @@ function McpServerDetail({
       {authActions}
 
       {actionMessage && (
-        <div className="pw-alert info">
-          <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
-          <span className="pw-grow">{actionMessage}</span>
+        <div className="d-banner info">
+          <i data-ico="check" data-size="14"></i>
+          <span className="d-grow">{actionMessage}</span>
         </div>
       )}
       {actionError && (
-        <div className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{actionError}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14"></i>
+          <span className="d-grow">{actionError}</span>
         </div>
       )}
-    </ConfigDetailStack>
+    </Stack>
   );
 }
 
@@ -855,19 +1017,19 @@ function AddMcpServer({
   );
 
   return (
-    <ConfigDetailStack className="fork-pwa-detail">
+    <Stack className="fork-pwa-detail">
       <div>
-        <ConfigDetailTitle>
+        <Title>
           {isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}
-        </ConfigDetailTitle>
-        <span className="pw-mono pw-dim">
+        </Title>
+        <span className="d-mono d-t-faint">
           {scope === "project" ? `${shortenPath(cwd)}/.pi/mcp.json` : "~/.pi/agent/mcp.json"}
         </span>
       </div>
 
       {/* fork:design-system SW-14 —— 画板 43 的 Basic / JSON 切换是 `.pw-radio` 芯片组。 */}
-      <div className="pw-inline">
-        <span className="pw-radio" role="radiogroup" aria-label={t("mcp.sectionTitle")}>
+      <div className="d-row">
+        <span className="d-seg" role="radiogroup" aria-label={t("mcp.sectionTitle")}>
           {(["basic", "json"] as const).map((m) => (
             <button
               key={m}
@@ -883,21 +1045,21 @@ function AddMcpServer({
         </span>
       </div>
 
-      <ConfigField label={t("mcp.nameLabel")}>
+      <Field label={t("mcp.nameLabel")}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("mcp.namePlaceholder")}
-          className="pw-input pw-mono"
+          className="d-input d-mono"
         />
-      </ConfigField>
+      </Field>
 
       {mode === "json" ? (
-        <ConfigField label={t("mcp.jsonLabel")}>
+        <Field label={t("mcp.jsonLabel")}>
           {loadingJson ? (
-            <div className="pw-alert info">
-              <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-              <span className="pw-grow">{t("mcp.loadingDef")}</span>
+            <div className="d-banner info">
+              <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true"></i></span>
+              <span className="d-grow">{t("mcp.loadingDef")}</span>
             </div>
           ) : (
             <textarea
@@ -907,55 +1069,55 @@ function AddMcpServer({
               placeholder={
                 '{\n  "command": "npx",\n  "args": ["-y", "@modelcontextprotocol/server-github"],\n  "env": {}\n}'
               }
-              className="pw-textarea pw-mono"
+              className="d-textarea d-mono"
             />
           )}
-        </ConfigField>
+        </Field>
       ) : (
         <>
-          <ConfigField label={t("mcp.specLabel")}>
+          <Field label={t("mcp.specLabel")}>
             <input
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
               placeholder={t("mcp.specPlaceholder")}
-              className="pw-input pw-mono"
+              className="d-input d-mono"
             />
-          </ConfigField>
+          </Field>
 
           {!isUrl && (
-            <ConfigField label={t("mcp.argsLabel")}>
-              <input value={argsText} onChange={(e) => setArgsText(e.target.value)} className="pw-input pw-mono" />
-            </ConfigField>
+            <Field label={t("mcp.argsLabel")}>
+              <input value={argsText} onChange={(e) => setArgsText(e.target.value)} className="d-input d-mono" />
+            </Field>
           )}
         </>
       )}
 
       {jsonError && (
-        <div className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{jsonError}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14"></i>
+          <span className="d-grow">{jsonError}</span>
         </div>
       )}
 
-      <div className="pw-inline fork-pwa-acts">
+      <div className="d-row fork-pwa-acts">
         <SegmentedScope
           value={scope}
           projectResourcesLoaded={projectResourcesLoaded}
           onChange={onScopeChange}
         />
-        <ConfigButton variant="primary" onClick={handleSave} disabled={busy || !canSave}>
+        <Btn variant="primary" onClick={handleSave} disabled={busy || !canSave}>
           {busy ? t("mcp.saving") : isEdit ? t("mcp.saveEdit") : t("mcp.save")}
-        </ConfigButton>
-        <ConfigButton onClick={onCancel}>{t("mcp.cancel")}</ConfigButton>
+        </Btn>
+        <Btn onClick={onCancel}>{t("mcp.cancel")}</Btn>
       </div>
 
       {actionError && (
-        <div className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{actionError}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14"></i>
+          <span className="d-grow">{actionError}</span>
         </div>
       )}
-    </ConfigDetailStack>
+    </Stack>
   );
 }
 
@@ -1034,20 +1196,24 @@ function McpImportModal({
            可视高度可滚。`- 32px` 是视口边距（沿用 ChatWindow / FileViewer 的
            `calc(var(--app-viewport-height, 100dvh) - 16px)` 写法，留两倍呼吸）。
            maxWidth 同理：560 是画板给桌面确认框的定宽，窄视口下壳不该顶出屏幕。
-           fork:pwa-plugins-agents —— 同样搬进 `.fork-pwa-import`（桌面值不变）。 */
+           fork:pwa-plugins-agents —— 同样搬进 `.fork-pwa-import`（桌面值不变）。
+           fork:v5-skin-pw-modal-keep —— `pw-modal` / `pw-modal-head` /
+           `pw-modal-body` / `pw-modal-foot` 有意保留：`app/pwa-plugins-agents.css`
+           的 `.fork-pwa-import-scrim .pw-modal-foot` 仍以它为选择器；收尾波与那段
+           移动 CSS 一并换 `d-modal`。其余 v1 类已全部换成 d-*。 */
       >
         <div className="pw-modal-head">
-          <span className="pw-ico"><i data-ico="import" data-size="16"></i></span>
+          <i data-ico="import" data-size="16"></i>
           {t("mcp.importTitle")}
-          <span className="pw-grow" aria-hidden="true" />
+          <span className="d-grow" aria-hidden="true" />
           <button
             type="button"
-            className="pw-iconbtn"
+            className="d-iconbtn"
             onClick={onDismiss}
             title={t("i18n.close")}
             aria-label={t("i18n.close")}
           >
-            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+            <i data-ico="x" data-size="14"></i>
           </button>
         </div>
 
@@ -1056,54 +1222,54 @@ function McpImportModal({
             `overflow-y:auto`）；`minmax(0,1fr)` 把网格列从 min-content 收成壳宽，
             长命令行在行内单行省略而不是把壳顶宽。 */}
         <div className="pw-modal-body" style={{ flex: "1 1 0%", minHeight: 0, gridTemplateColumns: "minmax(0, 1fr)" }}>
-          <p className="pw-hint">{t("mcp.importHint")}</p>
+          <p className="d-t-xs d-t-faint">{t("mcp.importHint")}</p>
           {sourceCounts.size > 0 && (
             <>
-              <div className="pw-wrap">
+              <div className="d-chips">
                 {[...sourceCounts.entries()].map(([tool, count]) => (
-                  <span key={tool} className="pw-chip">
-                    <span className="pw-ico"><i data-ico="check" data-size="12"></i></span>
+                  <span key={tool} className="d-badge mute">
+                    <i data-ico="check" data-size="12"></i>
                     {tool} · {count}
                   </span>
                 ))}
               </div>
-              <div className="pw-sep" aria-hidden="true" />
+              <div className="d-sep-v" aria-hidden="true" />
             </>
           )}
           {discovering ? (
-            <div className="pw-alert info">
-              <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-              <span className="pw-grow">{t("i18n.loading")}</span>
+            <div className="d-banner info">
+              <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true"></i></span>
+              <span className="d-grow">{t("i18n.loading")}</span>
             </div>
           ) : discovered.length === 0 ? (
-            <div className="pw-alert info">
-              <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-              <span className="pw-grow">{t("mcp.importEmpty")}</span>
+            <div className="d-banner info">
+              <i data-ico="info" data-size="14"></i>
+              <span className="d-grow">{t("mcp.importEmpty")}</span>
             </div>
           ) : (
             discovered.map((server) => (
               <div
                 key={`${server.path}:${server.name}`}
-                className="pw-prow"
+                className="d-menu-row"
                 /* 画板 43 弱化行（已禁用 / 被同名条目遮蔽）的 `opacity:.55`
                    原样 inline —— 画板自身就是这个写法。 */
                 style={server.shadowed || server.disabled ? { opacity: 0.55 } : undefined}
               >
-                <span className="pw-ico"><i data-ico="server" data-size="14"></i></span>
+                <i data-ico="server" data-size="14"></i>
                 {/* grow 允许收缩（flex 子项默认 min-width:auto），下面命令行的
                     单行省略才接得住长值；0 是门禁放行值。 */}
                 <span className="grow" style={{ minWidth: 0 }}>
                   {/* 画板 43 导入行的名字就是 `<b style="font-weight:500">`
                       原样 inline（b 默认 700，画板要 500）。 */}
                   <b style={{ fontWeight: 500 }}>{server.name}</b>
-                  <div className="pw-desc">
+                  <div className="d-t-xs d-t-faint">
                     {server.tool} · {server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}
                   </div>
                   {/* 命令行可能很长：单行省略是行为语义（board.css 只在
                       .pw-litem 这类具体语境里给 ellipsis），没有可用的 pw 基件，
                       保留最小 inline。 */}
                   <div
-                    className="pw-mono pw-dim"
+                    className="d-mono d-t-faint"
                     title={server.path}
                     style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                   >
@@ -1114,10 +1280,10 @@ function McpImportModal({
                 </span>
                 {/* 画板 43：同名冲突给 warning 徽章而不是阻止；已禁用给中性徽章。 */}
                 {server.shadowed && (
-                  <ConfigBadge tone="warn">{t("mcp.importShadowed")}</ConfigBadge>
+                  <Badge tone="warn">{t("mcp.importShadowed")}</Badge>
                 )}
-                {server.disabled && <ConfigBadge>{t("mcp.itemDisabled")}</ConfigBadge>}
-                <ConfigButton
+                {server.disabled && <Badge>{t("mcp.itemDisabled")}</Badge>}
+                <Btn
                   variant="secondary"
                   size="small"
                   disabled={importing === server.name || server.shadowed}
@@ -1125,28 +1291,28 @@ function McpImportModal({
                   onClick={() => onImport(server)}
                 >
                   {importing === server.name ? t("mcp.saving") : t("mcp.importOne")}
-                </ConfigButton>
+                </Btn>
               </div>
             ))
           )}
           {actionMessage && (
-            <div className="pw-alert info">
-              <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
-              <span className="pw-grow">{actionMessage}</span>
+            <div className="d-banner info">
+              <i data-ico="check" data-size="14"></i>
+              <span className="d-grow">{actionMessage}</span>
             </div>
           )}
           {actionError && (
-            <div className="pw-alert">
-              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-              <span className="pw-grow">{actionError}</span>
+            <div className="d-banner err">
+              <i data-ico="triangle-alert" data-size="14"></i>
+              <span className="d-grow">{actionError}</span>
             </div>
           )}
         </div>
 
         <div className="pw-modal-foot">
-          <span className="pw-hint">{t("mcp.count", { count: String(discovered.length) })}</span>
-          <span className="pw-grow" aria-hidden="true" />
-          <ConfigButton onClick={onDismiss}>{t("mcp.cancel")}</ConfigButton>
+          <span className="d-t-xs d-t-faint">{t("mcp.count", { count: String(discovered.length) })}</span>
+          <span className="d-grow" aria-hidden="true" />
+          <Btn onClick={onDismiss}>{t("mcp.cancel")}</Btn>
         </div>
       </div>
     </div>
@@ -1923,36 +2089,36 @@ export function PluginsConfig({
             <>
               {/* 画板 43:147 —— 计数徽章是 `.pw-shead-acts` 的第一枚，不是页头文案：
                   「这页是干嘛的」归 p.sub，数据归徽章（SettingsUi 的 actions 契约）。 */}
-              <ConfigBadge tone="count">{t("mcp.count", { count: String(mcpData?.servers.length ?? 0) })}</ConfigBadge>
+              <Badge tone="count">{t("mcp.count", { count: String(mcpData?.servers.length ?? 0) })}</Badge>
               {/* fork:proma-46-mcp-catalog —— 目录入口由 fork/McpConfig.tsx 提供；
                   配置完回调 reload()，列表与徽章立即跟着更新。 */}
               {renderMcpCatalogEntry?.({ reload: () => void loadMcp() })}
               {/* fork:mcp-native-exposure —— 看日志：server 连不上时，浏览器只有一句
                   「MCP failed to load」，真正的第一手材料（哪个 server、握手到哪一步）
                   在 agent 目录的 mcp.log 里，此前对用户完全不可见。 */}
-              <ConfigButton
+              <Btn
                 variant="secondary"
                 size="small"
                 onClick={() => setMcpLogOpen(true)}
                 title={t("mcp.logTitle")}
               >
-                <span className="pw-ico"><i data-ico="file-text" data-size="13" aria-hidden="true" /></span>
+                <i data-ico="file-text" data-size="13" aria-hidden="true" />
                 {t("mcp.logButton")}
-              </ConfigButton>
+              </Btn>
               {/* fix:mcp-refresh-target —— 位置从工具栏搬进页头动作，行为不变：
                   它原来调 loadPlugins()（只打 /api/plugins、写插件页状态，于是列表、
                   徽章、错误态都不动），MCP 模式调 loadMcp()，置灰跟 MCP 自己的状态
                   （加载中 / MCP 动作在飞），不被插件页的 loading 牵连。 */}
-              <ConfigButton
+              <Btn
                 variant="secondary"
                 size="small"
                 onClick={() => void loadMcp()}
                 disabled={mcpLoading || mcpBusy}
               >
-                <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+                <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
                 {t("i18n.refresh")}
-              </ConfigButton>
-              <ConfigButton
+              </Btn>
+              <Btn
                 variant="secondary"
                 size="small"
                 onClick={() => {
@@ -1963,12 +2129,12 @@ export function PluginsConfig({
                   void loadDiscovered();
                 }}
               >
-                <span className="pw-ico"><i data-ico="import" data-size="13" aria-hidden="true" /></span>
+                <i data-ico="import" data-size="13" aria-hidden="true" />
                 {t("mcp.importButton")}
-              </ConfigButton>
+              </Btn>
               {/* fork:mcp-paste —— 粘贴添加（安装命令 / JSON / 安装链接），与下面的
                   手填表单并列；两者共用同一套解析与预检。 */}
-              <ConfigButton
+              <Btn
                 variant="secondary"
                 size="small"
                 onClick={() => {
@@ -1980,10 +2146,10 @@ export function PluginsConfig({
                   setMcpActionMessage(null);
                 }}
               >
-                <span className="pw-ico"><i data-ico="clipboard-list" data-size="13" aria-hidden="true" /></span>
+                <i data-ico="clipboard-list" data-size="13" aria-hidden="true" />
                 {t("mcp.add.pasteButton")}
-              </ConfigButton>
-              <ConfigButton
+              </Btn>
+              <Btn
                 variant="primary"
                 size="small"
                 onClick={() => {
@@ -1995,14 +2161,14 @@ export function PluginsConfig({
                   setMcpActionMessage(null);
                 }}
               >
-                <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+                <i data-ico="plus" data-size="13" aria-hidden="true" />
                 {t("mcp.addButton")}
-              </ConfigButton>
+              </Btn>
             </>
           ) : (
             <>
               {hasCheckablePackages && (
-                <ConfigButton
+                <Btn
                   /* fork:settings-frame（画板 62 帧 D）—— 页级动作只有「1 主 + 1 次」：
                      添加插件是 primary，检查更新恒为 outline。有可用更新时也不抢主色
                      —— 数量进按钮文案，行内还有箭头徽标提醒。 */
@@ -2012,7 +2178,7 @@ export function PluginsConfig({
                   disabled={footerBusy}
                   title={availableUpdateCount > 0 ? t("i18n.updateAllPluginsHint") : undefined}
                 >
-                  <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+                  <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
                   {updatingAll
                     ? t("i18n.updating")
                     : checkingAll
@@ -2020,9 +2186,9 @@ export function PluginsConfig({
                       : availableUpdateCount > 0
                         ? `${t("i18n.updateAllPlugins")} (${availableUpdateCount})`
                         : t("i18n.checkUpdates")}
-                </ConfigButton>
+                </Btn>
               )}
-              <ConfigButton
+              <Btn
                 variant="primary"
                 size="small"
                 onClick={() => {
@@ -2032,9 +2198,9 @@ export function PluginsConfig({
                   setActionMessage(null);
                 }}
               >
-                <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+                <i data-ico="plus" data-size="13" aria-hidden="true" />
                 {t("i18n.addPlugin")}
-              </ConfigButton>
+              </Btn>
             </>
           )
         }
@@ -2044,42 +2210,42 @@ export function PluginsConfig({
            loadPlugins()、置灰跟 footerBusy —— 与 MCP 那枚是两回事。 */
         toolbar={mcpOnly ? undefined : (
           <>
-            <span className="pw-grow" aria-hidden="true" />
+            <span className="d-grow" aria-hidden="true" />
             {data?.diagnostics.length ? (
-              <ConfigBadge
+              <Badge
                 tone={data.diagnostics.some((d) => d.type === "error") ? "bad" : "warn"}
                 title={data.diagnostics.map((d) => `${d.type}: ${d.source ? `${d.source}: ` : ""}${d.message}`).join("\n")}
               >
                 {t("plugins.diagnostics", { count: data.diagnostics.length })}
-              </ConfigBadge>
+              </Badge>
             ) : null}
-            <ConfigBadge tone="count">
+            <Badge tone="count">
               {data ? `${data.totals.extensions} ext · ${data.totals.skills} skills` : ""}
-            </ConfigBadge>
-            <ConfigButton size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
+            </Badge>
+            <Btn size="small" onClick={() => void loadPlugins()} disabled={footerBusy}>
               {t("i18n.refresh")}
-            </ConfigButton>
+            </Btn>
           </>
         )}
         fill
       >
-        {/* fork:design-system SW-14 —— 画板 42 / 43 的信任提示是 `.pw-alert info` 一行。 */}
+        {/* 画板 D-13：信任提示是 `.d-banner warn` 一行。 */}
         {!projectResourcesLoaded && (
-          <div role="status" className="pw-alert info">
-            <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-            <span className="pw-grow">{t("trust.pluginsNotLoaded")}</span>
+          <div role="status" className="d-banner warn">
+            <i data-ico="info" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{t("trust.pluginsNotLoaded")}</span>
           </div>
         )}
 
         {/* fork:mcp-undo —— 删除后的撤销通知：服务端只给了 token，条目原文在它那边。
             60 秒后自动消失；410（过期/已撤销）就不给了，失败可再试。 */}
         {mcpOnly && mcpUndo && (
-          <div role="status" className="pw-alert info">
-            <span className="pw-ico"><i data-ico="undo-2" data-size="14"></i></span>
-            <span className="pw-grow">{t("mcp.undoNotice", { name: mcpUndo.name })}</span>
+          <div role="status" className="d-banner info">
+            <i data-ico="undo-2" data-size="14"></i>
+            <span className="d-grow">{t("mcp.undoNotice", { name: mcpUndo.name })}</span>
             <button
               type="button"
-              className="pw-btn sm"
+              className="d-btn sm"
               onClick={() => void undoMcpRemoval()}
               disabled={mcpUndo.undoing}
             >
@@ -2093,36 +2259,37 @@ export function PluginsConfig({
             <ConfigSidebarList>
               {mcpOnly ? null : (<>
               {loading ? (
-                <div className="pw-alert info">
-                  <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+                <div className="d-banner info">
+                  <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true"></i></span>
                   {/* 这里原来是硬编码的 "Loading..."；i18n.loading 三语值就是它。 */}
-                  <span className="pw-grow">{t("i18n.loading")}</span>
+                  <span className="d-grow">{t("i18n.loading")}</span>
                 </div>
               ) : error ? (
-                <div className="pw-alert">
-                  <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-                  <span className="pw-grow">{error}</span>
+                <div className="d-banner err">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span className="d-grow">{error}</span>
                 </div>
               ) : packages.length === 0 && standaloneExtensions.length === 0 ? (
                 /* fork:settings-frame（画板 62 帧 D）—— 列表空态落在列表列内：
                    记号图标 + 一句，不再是一行 pw-alert 飘字。 */
-                <ConfigEmptyState>
-                  <span className="mark"><i data-ico="blocks" data-size="16" aria-hidden="true" /></span>
-                  <p>No plugins configured</p>
-                </ConfigEmptyState>
+                <EmptyState>
+                  <span className="d-empty-ico"><i data-ico="blocks" data-size="16" aria-hidden="true" /></span>
+                  <p className="d-empty-t">No plugins configured</p>
+                </EmptyState>
               ) : (
                 <>
                   {standaloneExtensions.length > 0 && (
-                    // fork:design-system —— 画板 42/43 的分组标题就是 `.pw-list` 的直接
-                    // 子元素（pw-group-title），不再包自绘的 config-sidebar-group 层。
                     <>
-                      <ConfigSidebarGroupLabel>{t("i18n.extensions")}</ConfigSidebarGroupLabel>
+                      <div className="d-group-title">{t("i18n.extensions")}</div>
                       {standaloneExtensions.map((extension) => {
                         const key = extensionKey(extension);
+                        const isActive = !addMode && selected === key;
                         return (
-                          <ConfigSidebarItem
+                          <button
                             key={key}
-                            active={!addMode && selected === key}
+                            type="button"
+                            aria-current={isActive ? "page" : undefined}
+                            className={`d-sess${isActive ? " is-on" : ""}`}
                             title={extension.path}
                             onClick={() => {
                               setSelected(key);
@@ -2131,16 +2298,13 @@ export function PluginsConfig({
                               setActionMessage(null);
                             }}
                           >
-                            <ConfigStatusDot active={extension.enabled} />
-                            {/* fork:design-system —— 行文本包进画板 `.pw-litem .grow`
-                                （flex:1 + 省略号生效的前提）；停用走 `.pw-dim`
-                                （AgentsConfig 同款），is-grow/is-muted 已随旧族退役。 */}
-                            <span className="grow">
-                              <ConfigSidebarText className={extension.enabled ? undefined : "pw-dim"}>
+                            <span className="d-row">
+                              <StatusDot active={extension.enabled} />
+                              <span className={`d-sess-t d-grow${extension.enabled ? "" : " d-t-faint"}`}>
                                 {extension.name}
-                              </ConfigSidebarText>
+                              </span>
                             </span>
-                          </ConfigSidebarItem>
+                          </button>
                         );
                       })}
                     </>
@@ -2152,30 +2316,29 @@ export function PluginsConfig({
                     const allEnabled = enabledCount === group.packages.length;
                     return (
                       <Fragment key={group.scope}>
-                        <ConfigSidebarGroupLabel
-                          aside={
-                            <ConfigSidebarGroupSwitch
-                              enabled={enabledCount}
-                              total={group.packages.length}
-                              disabled={footerBusy}
-                              loading={busyKey === `group:${group.scope}`}
-                              label={t(allEnabled ? "plugins.groupSwitchDisable" : "plugins.groupSwitchEnable", { group: group.scope })}
-                              onChange={(enabled) => void setGroupPackages(group.scope, group.packages, enabled)}
-                            />
-                          }
-                        >
+                        <div className="d-group-title">
                           {group.scope}
-                        </ConfigSidebarGroupLabel>
+                          <GroupSwitch
+                            enabled={enabledCount}
+                            total={group.packages.length}
+                            disabled={footerBusy}
+                            loading={busyKey === `group:${group.scope}`}
+                            label={t(allEnabled ? "plugins.groupSwitchDisable" : "plugins.groupSwitchEnable", { group: group.scope })}
+                            onChange={(enabled) => void setGroupPackages(group.scope, group.packages, enabled)}
+                          />
+                        </div>
                         {groupStatus?.scope === group.scope && (
-                          <ConfigSidebarGroupStatus note={groupStatus.note} errorLines={groupStatus.lines} />
+                          <GroupStatus note={groupStatus.note} errorLines={groupStatus.lines} />
                         )}
                         {group.packages.map((pkg) => {
                           const key = packageKey(pkg);
                           const isSelected = !addMode && selected === key;
                           return (
-                            <ConfigSidebarItem
+                            <button
                               key={key}
-                              active={isSelected}
+                              type="button"
+                              aria-current={isSelected ? "page" : undefined}
+                              className={`d-sess${isSelected ? " is-on" : ""}`}
                               title={pkg.description ?? pkg.source}
                               onClick={() => {
                                 setView("plugins");
@@ -2185,18 +2348,16 @@ export function PluginsConfig({
                                 setActionMessage(null);
                               }}
                             >
-                              <ConfigStatusDot active={!pkg.disabled} color={statusColor(pkg.status)} />
-                              <span className="grow">
-                                <ConfigSidebarText className={pkg.disabled ? "pw-dim" : undefined}>
+                              <span className="d-row">
+                                <StatusDot active={!pkg.disabled} color={statusColor(pkg.status)} />
+                                <span className={`d-sess-t d-grow${pkg.disabled ? " d-t-faint" : ""}`}>
                                   {pkg.source}
-                                </ConfigSidebarText>
-                              </span>
-                              {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
-                                <span title={t("i18n.updateAvailable")} className="pw-ico">
-                                  <i data-ico="arrow-up" data-size="12"></i>
                                 </span>
-                              )}
-                            </ConfigSidebarItem>
+                                {updateStatuses[packageKey(pkg)]?.state === "update-available" && (
+                                  <i data-ico="arrow-up" data-size="12" title={t("i18n.updateAvailable")} aria-hidden="true" />
+                                )}
+                              </span>
+                            </button>
                           );
                         })}
                       </Fragment>
@@ -2210,21 +2371,21 @@ export function PluginsConfig({
                       {t("mcp.sectionTitle")}
                     </ConfigSidebarGroupLabel>
                     {mcpLoading ? (
-                      <div className="pw-alert info">
-                        <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-                        <span className="pw-grow">{t("i18n.loading")}</span>
+                      <div className="d-banner info">
+                        <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true"></i></span>
+                        <span className="d-grow">{t("i18n.loading")}</span>
                       </div>
                     ) : !mcpData && mcpActionError ? (
-                      <div className="pw-alert">
-                        <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-                        <span className="pw-grow">{mcpActionError}</span>
+                      <div className="d-banner err">
+                        <i data-ico="triangle-alert" data-size="14"></i>
+                        <span className="d-grow">{mcpActionError}</span>
                       </div>
                     ) : (mcpData?.servers.length ?? 0) === 0 ? (
                       /* fork:settings-frame（画板 62 帧 D）—— 列表空态落在列表列内。 */
-                      <ConfigEmptyState>
-                        <span className="mark"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
-                        <p>{t("mcp.emptyList")}</p>
-                      </ConfigEmptyState>
+                      <EmptyState>
+                        <span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
+                        <p className="d-empty-t">{t("mcp.emptyList")}</p>
+                      </EmptyState>
                     ) : (
                       <>
                         {groupedMcp.map((group) => (
@@ -2247,12 +2408,12 @@ export function PluginsConfig({
                                     setMcpActionMessage(null);
                                   }}
                                 >
-                                  <ConfigStatusDot
+                                  <StatusDot
                                     active={!server.disabled}
                                     color={server.disabled ? undefined : "var(--accent)"}
                                   />
                                   <span className="grow">
-                                    <ConfigSidebarText className={server.disabled ? "pw-dim" : undefined}>
+                                    <ConfigSidebarText className={server.disabled ? "d-t-faint" : undefined}>
                                       {server.name}
                                     </ConfigSidebarText>
                                   </span>
@@ -2267,7 +2428,7 @@ export function PluginsConfig({
             </ConfigSidebarList>
           </ConfigSidebar>
 
-          <ConfigDetail>
+          <div className="d-set-inner">
             {/* fork:pwa-plugins-agents（手机档）—— `fork-pwa-detail` 是这台面板的
                 作用域钩子：把产品侧接线里那条只在并排两列成立的 `height: 100%`
                 在手机档还给内容，滚动仍然只有内容区一个（规则见
@@ -2280,7 +2441,7 @@ export function PluginsConfig({
                 <McpCodemodeSettings cwd={cwd || null} />
               </div>
             )}
-            <ConfigDetailStack className="fork-pwa-detail">
+            <Stack className="fork-pwa-detail">
               {/* fork:design-system（画板 62 上轮裁定）—— 「从其它 agent 导入」是
                   pw-modal 弹层（见下方 McpImportModal），不再占详情列；导入弹层开着
                   时详情列保持原内容。 */}
@@ -2341,10 +2502,10 @@ export function PluginsConfig({
                 ) : (
                   /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框记号 +
                      一句引导，居中（mark 的 40px 几何在 board.css）。 */
-                  <ConfigEmptyState>
-                    <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                    <p>{t("mcp.emptyDetail")}</p>
-                  </ConfigEmptyState>
+                  <EmptyState>
+                    <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                    <p className="d-empty-t">{t("mcp.emptyDetail")}</p>
+                  </EmptyState>
                 )
               ) : addMode ? (
               <AddPluginPanel
@@ -2379,13 +2540,13 @@ export function PluginsConfig({
               ) : (
                 /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框记号 +
                    一句引导，居中。 */
-                <ConfigEmptyState>
-                  <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                  <p>{t("i18n.selectPackage")}</p>
-                </ConfigEmptyState>
+                <EmptyState>
+                  <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                  <p className="d-empty-t">{t("i18n.selectPackage")}</p>
+                </EmptyState>
               )}
-            </ConfigDetailStack>
-          </ConfigDetail>
+            </Stack>
+          </div>
         </ConfigSplitView>
       </SettingsPage>
 

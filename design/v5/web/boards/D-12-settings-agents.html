@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-12 · 设置 · 子代理 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-12 · 设置 · 子代理（总开关 · profile · 工具白名单 · ext:）</h1>
+  <p>
+    子代理是「另起一个模型，让它自己跑完一件事再回来」。它贵、它会自己拿工具，所以这一节的核心不是功能而是
+    <b>边界</b>：什么时候开、开哪些工具、一次最多几轮、名字怎么解析。
+    <b>内置子代理总开关默认关</b>，而且<b>切换后必须重载会话才生效</b> —— 系统提示已经在会话开头发出去了，
+    中途改总开关只会造成「配置说开了、这一轮却没有子代理可用」的错觉，所以开关旁直接写明这一条。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 子代理</span>
+    <span class="d-tag">组件：AgentsConfig · MasterSwitch · ProfileList · ToolWhitelist · ExtResolver</span>
+    <span class="d-tag">状态：总开关关（需重载）· profile 4 个 · 白名单 12 项已开 6 · ext: 3 个中 1 个未解析</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 总开关：默认关 + 明确写出「切换后需重载会话」+ 三种运行形态<span class="d-grow"></span>三种形态分段与总开关都能点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 子代理</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute"><i data-ico="circle-slash" data-size="12"></i>本轮未启用</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                </div>
+                <div class="d-md">
+                  <p>子代理总开关是关的，所以这一轮 <code>@</code> 补全里不会出现子代理入口 —— 系统提示在会话开头就定好了，中途改不会追溯。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 子代理">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 子代理</div>
+              <div class="d-modal-body">
+                <div class="d-set" data-demo-scope>
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem is-on"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">内置子代理</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">启用内置子代理</div>
+                            <div class="d-set-row-s">开启后模型可以在自己判断合适时派一个子代理出去做子任务（查资料、跑长测试、批量改文案）。<b>它会多花一份 token，也可能拿到你没想到的权限</b>。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute"><i data-ico="lock" data-size="12"></i>需重载会话</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="启用内置子代理"></button>
+                        </div>
+
+                        <div class="d-banner warn">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span><b>这一项切换后需要重载会话才生效。</b>系统提示在会话开头一次性发出，中途改开关只影响下一轮会话 ——
+                          所以面板不会假装它立刻生效，而是把「需重载会话」标在开关旁边。</span>
+                          <button class="d-btn sm d-banner-btn"><i data-ico="rotate-cw" data-size="13"></i>重载会话</button>
+                        </div>
+
+                        <div class="d-field">
+                          <span class="d-field-t">允许的运行形态</span>
+                          <div class="d-seg" data-demo-tabs>
+                            <button data-demo-tab="a-manual">仅手动指派</button>
+                            <button data-demo-tab="a-auto" class="is-on">模型自动决定</button>
+                            <button data-demo-tab="a-parallel">可并行最多 3 个</button>
+                          </div>
+                          <span class="d-t-xs d-t-faint">形态决定模型能不能自己派、以及一次能派几个；<b>并行会明显抬高单轮费用上限</b>，所以单列一档而不是藏在高级里。</span>
+                        </div>
+
+                        <section data-demo-pane="a-manual">
+                          <div class="d-banner"><i data-ico="user" data-size="14"></i><span>只有你在输入里写 <code>@reviewer</code> 才会有子代理。模型自己不会派 —— 好处是每次派出去你都看得见。</span></div>
+                        </section>
+                        <section data-demo-pane="a-auto">
+                          <div class="d-banner warn"><i data-ico="brain" data-size="14"></i><span>模型可自行判断要不要派。派出去的那次调用<b>在用量里单列一条</b>，不会混进主会话的账单行。</span></div>
+                        </section>
+                        <section data-demo-pane="a-parallel" hidden>
+                          <div class="d-banner err"><i data-ico="layers" data-size="14"></i><span>一次最多 3 个并行子代理，单轮费用上限约为手动模式的 3 倍。超时会按先发起的先收，不排队。</span></div>
+                        </section>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">共同上限</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">单轮最多派几次</div>
+                            <div class="d-set-row-s">防止模型「派一个子代理再让它派一个」无限套娃。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:90px" value="4"></span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">子代理能读主会话的多少历史</div>
+                            <div class="d-set-row-s">给 0 就是完全独立：子代理只看到你派它时写的那段话。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">最近 3 轮<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">结果回传方式</div>
+                            <div class="d-set-row-s">全量回传在长输出时会占掉主会话的上下文预算；只回摘要更省但偶尔会丢关键行。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">摘要 + 原文可展开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="摘要回传"></button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">标了「需重载会话」的项：本轮不生效</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · profile 列表：名称 / 描述 / 模型 / 思考 / max turns 一行看清<span class="d-grow"></span>点行选中 profile，「新建 profile」能打开模板菜单</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 子代理 / profile</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute">4 个 profile</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>profile 就是子代理的「岗位说明书」：派出去的时候只写名字，模型自己去查这个名字对应哪套模型与工具。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="子代理 profile">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 子代理 profile</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem is-on"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">profile</div>
+                            <div class="d-set-row-s">写 <code>@名字</code> 指派。名字解析不到就<b>报错并列出可用名字</b>，不会退化成「随便找个子代理」。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-btn sm primary" data-demo-open="p15-new"><i data-ico="plus" data-size="13"></i>新建 profile</button></span>
+                        </div>
+
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th>名称</th><th>描述</th><th>模型</th><th>思考</th><th>max turns</th><th>状态</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td class="d-mono d-t-b">reviewer</td>
+                                <td class="d-t-xs">只读审阅改动，不写盘</td>
+                                <td class="d-mono d-t-xs">claude-sonnet-4-6</td>
+                                <td><span class="d-badge warn">高</span></td>
+                                <td class="d-mono">12</td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>可用</span></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono d-t-b">explorer</td>
+                                <td class="d-t-xs">查资料、读代码，不改文件</td>
+                                <td class="d-mono d-t-xs">claude-haiku-4-6</td>
+                                <td><span class="d-badge ok">低</span></td>
+                                <td class="d-mono">20</td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>可用</span></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono d-t-b">implementer</td>
+                                <td class="d-t-xs">按明确指令改代码并跑测试</td>
+                                <td class="d-mono d-t-xs">claude-opus-4-6</td>
+                                <td><span class="d-badge warn">高</span></td>
+                                <td class="d-mono">40</td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>可用</span></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono d-t-b">ui-shots</td>
+                                <td class="d-t-xs">跑无头浏览器截图</td>
+                                <td class="d-mono d-t-xs">—</td>
+                                <td><span class="d-t-xs d-t-faint">—</span></td>
+                                <td class="d-mono">10</td>
+                                <td><span class="d-badge bad"><i data-ico="plug" data-size="12"></i>ext: 未解析</span></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-banner err">
+                          <i data-ico="circle-alert" data-size="14"></i>
+                          <span><code>@ui-shots</code> 现在指派会直接失败：它依赖的 <code>ext:browser-shots</code> 没解析到（插件没装或没启用）。
+                          <b>面板不把它降级成「没截图也能干」</b> —— 报错才是对的。</span>
+                          <button class="d-btn sm d-banner-btn" data-demo-open="p15-fix">看怎么修</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">单个 profile 的细节</div>
+                        <div class="d-grid2">
+                          <div class="d-field">
+                            <span class="d-field-t">名称</span>
+                            <input class="d-input d-mono" value="reviewer">
+                            <span class="d-t-xs d-t-faint">只允许字母、数字与连字符；<b>改名要同步改脚本里的 <code>@reviewer</code></b>，面板会在重名时拦住。</span>
+                          </div>
+                          <div class="d-field">
+                            <span class="d-field-t">模型</span>
+                            <button class="d-select">claude-sonnet-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                            <span class="d-t-xs d-t-faint">只列启用模型；供应商未登录的在这里看不到。</span>
+                          </div>
+                        </div>
+                        <div class="d-field">
+                          <span class="d-field-t">描述（模型靠它判断该不该派这个）</span>
+                          <textarea class="d-textarea" rows="3">只读审阅当前改动，输出可勾选的问题清单。不修改任何文件；不确定的地方标「待确认」而不是猜。</textarea>
+                          <span class="d-t-xs d-t-faint">这段会进子代理的系统提示。<b>写得含糊，模型就会在不该派的时候派它</b> —— 所以示例里写清了「不修改」。</span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">max turns</div>
+                            <div class="d-set-row-s">子代理自己来回的轮数上限。到达上限就带着已有结果回来，不会静默丢弃。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:90px" value="12"></span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">删 profile 不影响历史里已经跑完的子代理记录</span>
+                <button class="d-btn ghost">删除该 profile</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p15-new" hidden style="left:24px;bottom:64px;min-width:380px">
+                <div class="d-pop-title">新建 profile</div>
+                <div class="d-pop-body d-t-xs d-t-dim">从模板起步比自己填省事；模板只是预填，改完仍然是一份普通 profile。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="eye" data-size="14"></i><span class="d-grow">只读审阅</span><span class="d-t-xs d-t-faint">不能写盘</span></button>
+                <button class="d-menu-row"><i data-ico="search" data-size="14"></i><span class="d-grow">查资料</span><span class="d-t-xs d-t-faint">便宜模型 · 多轮</span></button>
+                <button class="d-menu-row"><i data-ico="pencil-line" data-size="14"></i><span class="d-grow">按指令改代码</span><span class="d-t-xs d-t-faint">贵模型 · 少轮</span></button>
+                <button class="d-menu-row"><i data-ico="monitor" data-size="14"></i><span class="d-grow">浏览器截图</span><span class="d-t-xs d-t-faint">依赖 ext:</span></button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="plus" data-size="14"></i><span class="d-grow">空白 profile</span></button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p15-fix" hidden style="left:24px;bottom:64px;min-width:380px">
+                <div class="d-pop-title">ext:browser-shots 没解析到</div>
+                <div class="d-pop-body d-t-xs d-t-dim">解析按顺序试三处，<b>都找不到就报错</b>，不猜名字也不静默跳过。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">① 已启用的插件</span><span class="d-badge bad">未找到</span></div>
+                <div class="d-menu-row"><span class="d-grow">② ~/.pi/agents/browser-shots/</span><span class="d-badge bad">目录不存在</span></div>
+                <div class="d-menu-row"><span class="d-grow">③ 项目 .pi/agents/browser-shots/</span><span class="d-badge bad">目录不存在</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="search" data-size="14"></i><span class="d-grow">在商店里找这个扩展</span></button>
+                <button class="d-menu-row"><i data-ico="folder-plus" data-size="14"></i><span class="d-grow">建目录并写一个最小实现</span></button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 工具白名单：内外置工具用两种底色分开，点芯片即切换<span class="d-grow"></span>芯片组真能点，选中态是底色不是竖线</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 子代理 / 工具白名单</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="shield-check" data-size="12"></i>只读 profile</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>白名单是<b>默认拒绝</b>的：没勾上的工具子代理根本看不到 —— 它不是「被拦住」，是压根不在提示词里。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="子代理工具白名单">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">子代理 · 工具白名单（reviewer）</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem is-on"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">工具白名单</div>
+                        <div class="d-t-xs d-t-faint">白名单是<b>默认拒绝</b>：没勾上的工具不在子代理的提示词里 —— 不是「调用了被拦住」，是它压根不知道有这个工具。</div>
+
+                        <div class="d-field">
+                          <span class="d-field-t">内置工具</span>
+                          <div class="d-chips" data-demo-list>
+                            <button class="d-chipbtn" data-demo-select><i data-ico="circle-slash" data-size="12"></i>shell</button>
+                            <button class="d-chipbtn" data-demo-select><i data-ico="circle-slash" data-size="12"></i>web</button>
+                            <button class="d-chipbtn" data-demo-select><i data-ico="circle-slash" data-size="12"></i>write</button>
+                            <button class="d-chipbtn" data-demo-select><i data-ico="circle-slash" data-size="12"></i>edit</button>
+                            <button class="d-chipbtn is-on" data-demo-select><i data-ico="check" data-size="12"></i>read</button>
+                            <button class="d-chipbtn is-on" data-demo-select><i data-ico="check" data-size="12"></i>glob</button>
+                            <button class="d-chipbtn is-on" data-demo-select><i data-ico="check" data-size="12"></i>grep</button>
+                            <button class="d-chipbtn is-on" data-demo-select><i data-ico="check" data-size="12"></i>git-diff</button>
+                          </div>
+                          <span class="d-t-xs d-t-faint"><b>能改东西的工具排在前面且默认不勾</b>。一行芯片从左到右读下来，「能写」的那几个在最左边且是灰的 —— 不用逐个点开才知道哪个危险。</span>
+                        </div>
+
+                        <div class="d-field">
+                          <span class="d-field-t">外置工具（来自插件与 MCP）</span>
+                          <div class="d-chips" data-demo-list>
+                            <button class="d-chipbtn" data-demo-select><i data-ico="circle-slash" data-size="12"></i>mcp:github.create_issue</button>
+                            <button class="d-chipbtn" data-demo-select><i data-ico="circle-slash" data-size="12"></i>mcp:linear.create_comment</button>
+                            <button class="d-chipbtn is-on" data-demo-select><i data-ico="check" data-size="12"></i>mcp:github.search_issues</button>
+                            <button class="d-chipbtn is-on" data-demo-select><i data-ico="check" data-size="12"></i>ext:browser-shots.capture</button>
+                          </div>
+                          <span class="d-t-xs d-t-faint">外置工具带来源前缀，一眼能看出<b>它是哪个插件给的</b>；插件被卸载时这里的芯片会变成「来源缺失」并被自动取消勾选。</span>
+                        </div>
+
+                        <div class="d-row">
+                          <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已开 6 个 · 只读</span>
+                          <span class="d-badge mute">写盘 0 个</span>
+                          <span class="d-grow"></span>
+                          <span class="d-t-xs d-t-faint">白名单为空的子代理只能回答，不能动手</span>
+                        </div>
+
+                        <div class="d-banner warn">
+                          <i data-ico="shield-alert" data-size="14"></i>
+                          <span><code>shell</code> 一旦勾上，子代理就能执行任意命令 —— 面板在它旁边单独提示，不混在「工具」这一堆里当第 7 个芯片。</span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">越权时怎么办</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">工具不在白名单里</div>
+                            <div class="d-set-row-s">默认<b>报错并中止子代理</b>，把缺哪个工具、可用的是哪几个写清楚。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">中止</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="越权即中止"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">批准后转交主会话</div>
+                            <div class="d-set-row-s">开的话子代理会返回「需要 X」，由主会话向你确认后再执行。<b>批准框里写的是子代理的意图，不是原始参数</b>。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="批准转交主会话"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">子代理能再派子代理</div>
+                            <div class="d-set-row-s">关掉时套娃最多一层；开着的话费用上限变得难估，所以单独一档。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="允许嵌套"></button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">白名单按 profile 存；改动下次派发时生效</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · ext:&lt;name&gt; 扩展开关：三处解析顺序全写出来，解析不到就报错<span class="d-grow"></span>解析顺序分段与每条 ext 的开关都能点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 子代理 / ext</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i>1 个 ext 未解析</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p><code>ext:</code> 是留给自己写的工具的命名空间。名字怎么解析必须写死，否则同一个 <code>ext:browser-shots</code> 在两台机器上会指向两个东西。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="ext 扩展">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">子代理 · ext: 扩展</div>
+              <div class="d-modal-body">
+                <div class="d-set" data-demo-scope>
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem is-on"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">名字怎么解析</div>
+                        <div class="d-t-xs d-t-faint"><code>ext:&lt;name&gt;</code> 按下面三处依次找，<b>找到就停</b>；三处都没有就报错并列出实际找到的名字。</div>
+                        <div class="d-seg" data-demo-tabs>
+                          <button data-demo-tab="x-plugin">① 已启用的插件</button>
+                          <button data-demo-tab="x-user" class="is-on">② 用户目录</button>
+                          <button data-demo-tab="x-project">③ 项目目录</button>
+                        </div>
+
+                        <section data-demo-pane="x-plugin">
+                          <div class="d-banner"><i data-ico="blocks" data-size="14"></i><span>先看插件声明的 <code>extensions</code>。插件被禁用时这条不算 —— <b>插件关了，它带来的 ext 也一并消失</b>。</span></div>
+                        </section>
+                        <section data-demo-pane="x-user">
+                          <div class="d-banner"><i data-ico="folder-open" data-size="14"></i><span><code>~/.pi/agents/&lt;name&gt;/</code>，跨项目可见。这是最常用的位置 —— 一个扩展写一次，所有项目都能用。</span></div>
+                        </section>
+                        <section data-demo-pane="x-project" hidden>
+                          <div class="d-banner"><i data-ico="folder" data-size="14"></i><span><code>&lt;项目&gt;/.pi/agents/&lt;name&gt;/</code>，只在本项目可见，且<b>需要单独信任</b>（与技能目录同一套信任规则）。</span></div>
+                        </section>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">同名时怎么办</div>
+                            <div class="d-set-row-s">按上面顺序取第一个，并<b>在面板里标出实际用的是哪一处</b> —— 不静默覆盖，也不让用户猜。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">取第一个并标注</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="取第一个"></button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">已引用的 ext</div>
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th style="width:30%">名字</th><th>解析到</th><th>被谁用</th><th>状态</th><th>启用</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td class="d-mono">ext:browser-shots</td>
+                                <td class="d-mono d-t-xs">~/.pi/agents/browser-shots</td>
+                                <td class="d-t-xs">ui-shots · reviewer</td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>已解析</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 browser-shots"></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">ext:repo-notes</td>
+                                <td class="d-mono d-t-xs">插件 pi-notes · extensions</td>
+                                <td class="d-t-xs">explorer</td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>已解析</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 repo-notes"></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">ext:sandbox-exec</td>
+                                <td class="d-mono d-t-xs">三处都没有</td>
+                                <td class="d-t-xs">implementer</td>
+                                <td><span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i>未解析</span></td>
+                                <td><button class="d-switch" data-demo-switch aria-checked="false" title="启用 sandbox-exec"></button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-banner err">
+                          <i data-ico="circle-alert" data-size="14"></i>
+                          <span><code>ext:sandbox-exec</code> 三处都找不到，而 <code>implementer</code> 引用了它。
+                          <b>派发 implementer 时会直接报错并停住</b>，不会退回「没有沙箱也照跑」—— 那等于把用户的机器敞开。</span>
+                          <button class="d-btn sm d-banner-btn" data-demo-open="p15-newdir">创建最小扩展</button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">新增扩展目录</div>
+                            <div class="d-set-row-s">写入 <code>~/.pi/agents/&lt;name&gt;/agent.json</code>；<b>不会自动生成可执行代码</b>，只建目录与一份声明模板。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:160px" placeholder="name"></span>
+                          <button class="d-btn sm" style="min-width:74px"><i data-ico="folder-plus" data-size="13"></i>创建</button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">解析在派发时实时做一次，不缓存</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p15-newdir" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">创建最小扩展</div>
+                <div class="d-pop-body d-t-xs d-t-dim">只建目录与 <code>agent.json</code> 声明骨架，不写可执行逻辑 —— 一个「名字先占住」的扩展比一个跑不通的扩展安全。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow d-mono">~/.pi/agents/sandbox-exec/</span><span class="d-badge ok">将创建</span></div>
+                <div class="d-menu-row"><span class="d-grow d-mono">agent.json</span><span class="d-badge mute">模板</span></div>
+                <div class="d-menu-row"><span class="d-grow">可执行文件</span><span class="d-badge mute">不生成</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="folder-plus" data-size="14"></i><span class="d-grow">创建并打开目录</span></button>
+                <button class="d-menu-row"><i data-ico="x" data-size="14"></i><span class="d-grow">取消</span></button>
+                <div class="d-pop-foot">创建后 ext 能被解析到，但工具列表是空的 —— profile 引用它之前不会调得到任何东西。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>总开关默认关，且切换后必须重载会话。</b>系统提示在会话开头一次性发出，中途改只对下一轮生效 ——
+        面板把「需重载会话」标在开关旁边，而不是让用户以为已经生效了。</li>
+    <li><b>白名单是默认拒绝，不是默认放行后拦截。</b>没勾的工具不在子代理的提示词里；越权默认<b>报错并中止</b>，可改成「转交主会话批准」，
+        但批准框里写的是子代理的意图，不是原始参数。</li>
+    <li><b><code>shell</code> 单独提示。</b>它和 <code>read</code> 并列在一堆芯片里会被当成「又一个开关」勾掉，所以它在芯片区外单独一条警告。</li>
+    <li><b>profile 一行给全五项。</b>名称 / 描述 / 模型 / 思考 / max turns 挤成一列就要横向滚；派出去之前想「它会用什么模型、能不能写盘」的人不会去点开。</li>
+    <li><b><code>ext:</code> 的解析顺序写死并逐条展示结果。</b>插件 → 用户目录 → 项目目录，命中即停、同名标注实际用的是哪一处；
+        <b>三处都没有就报错并中止</b>，不猜名字、不静默降级 —— 降级等于把机器敞开而用户毫不知情。</li>
+    <li><b>新建扩展只建目录与声明，不生成可执行代码。</b>「名字先占住」比「跑不通的扩展」安全。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

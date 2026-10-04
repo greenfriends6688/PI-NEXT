@@ -30,10 +30,11 @@
 const F = (n) => `.pw-frame:nth-of-type(${n})`;
 const CELL = (n, c) => `${F(n)} .pw-cell:nth-of-type(${c})`;
 
-// 产品侧：视口清单浮层（PortalDropdown 挂到 body，没有 data-tab-overview）vs
-// 标签概览浮层（TabOverview，带 data-tab-overview），两个 `.pw-pop` 必须分开点。
-const VIEWPORT_POP = ".pw-pop:not([data-tab-overview])";
-const OVERVIEW_POP = ".pw-pop[data-tab-overview]";
+// fork:v5-old-layer（2026-10-04）—— 浮层壳已换 v5：视口清单是 BrowserPanel.tsx:943 的
+// `.d-pop`，标签概览是 fork/TabOverview.tsx:144 的 `.d-pop-float`（旧的
+// `.pw-pop[data-tab-overview]` 已不存在，两扇浮层靠**类**分开，不再靠属性）。
+const VIEWPORT_POP = ".d-pop";
+const OVERVIEW_POP = ".d-pop-float";
 
 export default {
   name: "终端 / 浏览器 / Git 右栏（画板 31）",
@@ -46,13 +47,13 @@ export default {
       .find((x) => (x.getAttribute("title") || x.getAttribute("aria-label")) === t);
     const byIco = (root, name) => [...root.querySelectorAll('[data-ico="' + name + '"]')][0];
     // 项目组默认收起，先展开再点会话行。
-    if (!document.querySelector(".pw-session")) {
-      const chev = byIco(document.querySelector(".pw-side-scroll") ?? document, "chevron-right");
+    if (!document.querySelector(".d-sess")) {
+      const chev = byIco(document.querySelector(".d-side-scroll") ?? document, "chevron-right");
       chev?.closest("[role=button]")?.click();
       await sleep(800);
     }
-    const row = document.querySelector(".pw-session");
-    if (!row) throw new Error("侧栏里没有 .pw-session（种子没被列出来？）");
+    const row = document.querySelector(".d-sess");
+    if (!row) throw new Error("侧栏里没有 .d-sess（种子没被列出来？）");
     row.click();
     await sleep(2600);
     const term = byTitle("打开工作区终端");
@@ -65,74 +66,76 @@ export default {
     await sleep(2600);
     document.querySelector("[data-tab-overview-trigger]")?.click();
     await sleep(900);
-    const chip = document.querySelector(".pw-browser-bar .pw-chipbtn");
+    const chip = document.querySelector(".d-urlbar .d-chipbtn");
     if (!chip) throw new Error("浏览器地址栏里没有视口预设芯片");
     chip.click();
     await sleep(900);`,
   },
   pairs: [
     // ---- 第一节/第三节共享：标签条 ----
-    [CELL(1, 1) + " .pw-tabs", ".pw-tabs"],
-    [CELL(1, 1) + " .pw-tab", ".pw-tab"],
-    [CELL(1, 1) + " .pw-tab.is-on", ".pw-tab.is-on"],
-    [CELL(1, 1) + " .pw-tab .x", ".pw-tab .x"],
+    // 产品侧类名（TabBar.tsx:449/503、BrowserPanel.tsx:715/736/824/951/1116、
+    // fork/TabOverview.tsx:156/169/231/239/253）
+    [CELL(1, 1) + " .pw-tabs", ".fork-tabbar.d-tabbar"],
+    [CELL(1, 1) + " .pw-tab", ".fork-tab.d-tab"],
+    [CELL(1, 1) + " .pw-tab.is-on", ".fork-tab.d-tab.is-on"],
+    [CELL(1, 1) + " .pw-tab .x", ".fork-tab.d-tab .x"],
     // 终端输出面：keep-alive 挂着但被 [hidden] 挂起，取不到 —— 见 knownDiffs。
-    [CELL(1, 1) + " .pw-term", ".pw-term"],
+    [CELL(1, 1) + " .pw-term", ".terminal-xterm"],
     // ---- 第二节左样张：浏览器已加载 ----
-    [CELL(2, 1) + " .pw-browser", ".pw-browser"],
-    [CELL(2, 1) + " .pw-browser-bar", ".pw-browser-bar"],
-    [CELL(2, 1) + " .pw-chipbtn", ".pw-chipbtn"],
-    [CELL(2, 1) + " .pw-browser-bar .pw-iconbtn.sm", ".pw-browser-bar .pw-iconbtn.sm"],
+    [CELL(2, 1) + " .pw-browser", ".d-viewer"],
+    [CELL(2, 1) + " .pw-browser-bar", ".d-urlbar"],
+    [CELL(2, 1) + " .pw-chipbtn", ".d-urlbar .d-chipbtn"],
+    [CELL(2, 1) + " .pw-browser-bar .pw-iconbtn.sm", ".d-urlbar .d-iconbtn.sm"],
     // ---- 第二节右样张：空态 + 视口预设展开 ----
-    [CELL(2, 2) + " .pw-empty-inner", ".pw-empty-inner"],
+    [CELL(2, 2) + " .pw-empty-inner", ".d-empty-s"],
     [CELL(2, 2) + " .pw-pop", VIEWPORT_POP],
-    [CELL(2, 2) + " .pw-prow", VIEWPORT_POP + " .pw-prow"],
+    [CELL(2, 2) + " .pw-prow", VIEWPORT_POP + " .d-menu-row"],
     // ---- 第三节右样张：标签概览浮层 ----
     [CELL(3, 2) + " .pw-pop", OVERVIEW_POP],
-    [CELL(3, 2) + " .pw-pop-search", OVERVIEW_POP + " .pw-pop-search"],
-    [CELL(3, 2) + " .pw-pop-title", OVERVIEW_POP + " .pw-pop-title"],
-    [CELL(3, 2) + " .pw-prow", OVERVIEW_POP + " .pw-prow"],
-    [CELL(3, 2) + " .pw-prow.is-on", OVERVIEW_POP + " .pw-prow.is-on"],
+    [CELL(3, 2) + " .pw-pop-search", OVERVIEW_POP + " .d-searchfield"],
+    [CELL(3, 2) + " .pw-pop-title", OVERVIEW_POP + " .d-pop-title"],
+    [CELL(3, 2) + " .pw-prow", OVERVIEW_POP + " .d-menu-row"],
+    [CELL(3, 2) + " .pw-prow.is-on", OVERVIEW_POP + " .d-menu-row.is-on"],
     // 「最近关闭」行里的恢复钮：没有关过标签就不渲染 —— 见 knownDiffs。
-    [CELL(3, 2) + " .pw-btn.sm", OVERVIEW_POP + " .pw-btn.sm"],
+    [CELL(3, 2) + " .pw-btn.sm", OVERVIEW_POP + " .d-btn.sm"],
   ],
   knownDiffs: [
     {
-      sel: ".pw-tabs",
+      sel: ".fork-tabbar.d-tabbar",
       reason: "**取景差异**：`.pw-tabs` 在 board.css 里没有自己的 font-size，量到的是祖先的值。"
         + "画板样张直接摆在 `.pw-cell` 里 → 继承 body 的 13px；产品里它挂在 `.pw-panel-head` 下 → "
         + "12px（= --text-secondary）。两侧 `.pw-panel-head` 的字号实测同为 12px，画板标签条换到面板头里也是 12px；"
         + "padding（4px 8px 0）、gap 2px、高 36（--control-lg）、发丝下边框逐项一致。",
     },
     {
-      sel: ".pw-empty-inner",
+      sel: ".d-empty-s",
       reason: "**画板样张自身不一致 + 取景差异**：① 画板两处空态样张都 inline 把 gap 从 board.css 的默认值 "
         + "--s3(12px) 收到 --s2(8px)，产品的浏览器空态没有这层覆盖，走默认值 12px；"
         + "② fontSize 13↔12 同样是取景差异（样张在 `.pw-cell` 里继承 body 13px，产品在 `.pw-browser-body` 内 = 12px）。"
         + "display grid / justify-items center / text-align center / max-width 560 逐项一致。",
     },
     {
-      sel: ".pw-pop[data-tab-overview]",
+      sel: ".d-pop-float",
       reason: "**接线 + 取景差异**：TabOverview 的浮层里塞了一个独立的滚动区（`overflowY:auto` 的列表壳，"
         + "AppShell 的 `TabOverview.tsx`），所以外层必须是 flex 列（display block → flex）；"
         + "fontSize 13↔12 是取景差异（画板样张在 `.pw-cell` 里，产品在 `.pw-panel-head` 下）。"
         + "画板.css 给的 radius-6 / padding --s1 / border / box-shadow 逐项一致。",
     },
     {
-      sel: ".pw-pop[data-tab-overview] .pw-pop-title",
+      sel: ".d-pop-float .d-pop-title",
       reason: "**接线**：产品的标题行右边挂了一枚 `.pw-badge count`（标签计数），于是那行必须是 "
         + "flex + align-items center + gap --s2（画板样张是纯文本块）。"
         + "board.css 给的 padding（--s2 --s2 --s1）、font-size --text-meta、letter-spacing .04em 逐项一致。",
     },
     {
-      sel: ".pw-term",
+      sel: ".terminal-xterm",
       reason: "**状态依赖**：终端面板是 keep-alive 的（`AppShell.tsx` 的 `mountedFileTabs`），"
         + "切到别的标签只加 `hidden` 属性（`<div hidden={tab.id !== activeFileTabId}>`），"
         + "board-diff 取样时跳过藏在 `[hidden]` 里的节点，于是报「产品里没有」。"
         + "把终端标签切回激活态（点 .pw-tab 那一枚）就能量到 —— 换句话说这是一条覆盖缺口，不是换肤漂移。",
     },
     {
-      sel: ".pw-pop[data-tab-overview] .pw-btn.sm",
+      sel: ".d-pop-float .d-btn.sm",
       reason: "**数据依赖**：「最近关闭」列表为空时那一段不渲染，`.pw-btn.sm`（恢复）跟着消失。"
         + "本次运行没有关过任何标签；关掉一个再打开概览即出现。",
     },

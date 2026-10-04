@@ -25,12 +25,9 @@ const BRAND_ICONS: Partial<Record<ChatChannelId, string>> = {
 
 export function ChannelIcon({ id, icon, size = 20 }: { id: ChatChannelId; icon: string; size?: number }) {
   const src = BRAND_ICONS[id];
+  // v5：图标直接落 `<i data-ico>`，外层 `.pw-ico` 只是旧设计的包裹壳，已无规则依赖。
   if (!src) {
-    return (
-      <span className="pw-ico" style={{ display: "inline-flex" }}>
-        <i data-ico={icon} data-size={String(size)} aria-hidden="true" />
-      </span>
-    );
+    return <i data-ico={icon} data-size={String(size)} aria-hidden="true" />;
   }
   return (
     <img
@@ -38,7 +35,7 @@ export function ChannelIcon({ id, icon, size = 20 }: { id: ChatChannelId; icon: 
       alt=""
       width={size}
       height={size}
-      style={{ flex: "none", borderRadius: "var(--radius-3)" }}
+      style={{ flex: "none", borderRadius: "var(--nx-r-sm)" }}
     />
   );
 }

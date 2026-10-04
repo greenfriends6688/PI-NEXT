@@ -5,7 +5,6 @@ import { useI18n } from "@/hooks/useI18n";
 import type { SessionInfo, SubagentSessionStatus } from "@/lib/types";
 // fork:proma-06-delegation — 展示层用有效状态（重启后不再假装在跑）
 import { effectiveSubagentStatus } from "@/lib/subagent-status";
-import { TEXT } from "@/lib/typography";
 
 interface Props {
   rootSession: SessionInfo;
@@ -40,22 +39,27 @@ function formatRelativeTime(value: string, locale: string): string {
 type StatusIconName = { ico: string; color?: string; spin?: boolean };
 
 const STATUS_ICON: Record<SubagentSessionStatus, StatusIconName> = {
-  starting: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
-  running: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
-  queued: { ico: "clock", color: "var(--warning)" },
-  completed: { ico: "check", color: "var(--success)" },
-  failed: { ico: "circle-x", color: "var(--error)" },
+  starting: { ico: "loader-circle", color: "var(--nx-accent)", spin: true },
+  running: { ico: "loader-circle", color: "var(--nx-accent)", spin: true },
+  queued: { ico: "clock", color: "var(--nx-warning)" },
+  completed: { ico: "check", color: "var(--nx-success)" },
+  failed: { ico: "circle-x", color: "var(--nx-danger)" },
   aborted: { ico: "circle-stop" },
   interrupted: { ico: "ban" },
 };
 
 function StatusIcon({ status }: { status: SubagentSessionStatus }) {
   const { ico, color, spin } = STATUS_ICON[status];
-  return (
-    <span className={`pw-ico${color ? "" : " pw-dim"}`} style={color ? { color } : undefined}>
-      <i data-ico={ico} data-size="14" className={spin ? "pw-anim-spin" : undefined} aria-hidden="true"></i>
-    </span>
+  const icon = (
+    <i
+      data-ico={ico}
+      data-size="14"
+      aria-hidden="true"
+      style={{ flexShrink: 0, color: color ?? "var(--nx-text-3)" }}
+    ></i>
   );
+  // fork:v5-landing —— 转圈用画板 `.d-run`（首枚 `<i>` 自带 nx-spin），不再用旧 `.pw-anim-spin`。
+  return spin ? <span className="d-run" style={{ gap: 0 }}>{icon}</span> : icon;
 }
 
 function AgentRow({
@@ -80,48 +84,44 @@ function AgentRow({
     : `${relation?.profile ?? t("agentSwitcher.subagent")} · ${formatRelativeTime(session.modified, locale)}`;
 
   return (
-    /* fork:design-components —— 整块换成画板 22 的 `.pw-pop` + `.pw-pop-title` +
-       `.pw-prow(.is-on)` + `.pw-pop-search`：行是「图标槽 + 主副标题（grow）+ 状态短标签
-       （pw-desc）」，悬停/选中由 board.css 给，不再手写 onMouseEnter 改背景。 */
+    /* fork:v5-landing —— 行原子 = 画板 D-02b 帧 B ③ 的 `.d-pop-row`（浮层两行行：
+       `d-pop-row-t` 主标题 + `d-pop-row-s` 副行，当前项挂 `is-on`）。悬停/选中由
+       system.css 给，不再手写 onMouseEnter 改背景。 */
     <button
       type="button"
       role="option"
       aria-selected={selected}
       onClick={onSelect}
-      className={`pw-prow${selected ? " is-on" : ""}`}
-      /* fork-reset 已给 button.pw-prow 归零（width 100% / text-align left / 无边框底色）；
-         这里只留产品这一行特有的两行高度。 */
-      style={{ minHeight: 56 }}
+      className={`d-pop-row${selected ? " is-on" : ""}`}
+      style={{ alignItems: "flex-start" }}
     >
-      <span className="pw-ico" style={main ? undefined : { color: "var(--accent-text)" }}>
-        <i data-ico={main ? "user" : "bot"} data-size="14" aria-hidden="true"></i>
-      </span>
-      <span className="grow" style={{ minWidth: 0 }}>
-        <span
-          className={selected ? "pw-strong" : undefined}
-          style={{
-            display: "block",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            fontSize: TEXT.sm,
-            fontWeight: selected ? 600 : 500,
-          }}
-          title={primary}
-        >
-          {primary}
-        </span>
-        <span
-          className="pw-desc"
-          style={{ display: "block", marginTop: "var(--space-tight)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          title={secondary}
-        >
-          {secondary}
+      <span className="d-pop-row-t d-row d-grow" style={{ gap: "var(--nx-sp-1)", minWidth: 0, alignItems: "flex-start" }}>
+        <i
+          data-ico={main ? "user" : "bot"}
+          data-size="14"
+          aria-hidden="true"
+          style={{ flexShrink: 0, marginTop: 2, color: main ? "var(--nx-text-3)" : "var(--nx-accent)" }}
+        ></i>
+        <span className="d-col d-grow" style={{ gap: 2, minWidth: 0 }}>
+          <span
+            className={selected ? "d-t-b" : undefined}
+            style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            title={primary}
+          >
+            {primary}
+          </span>
+          <span
+            className="d-pop-row-s"
+            style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            title={secondary}
+          >
+            {secondary}
+          </span>
         </span>
       </span>
-      <span className="pw-desc" style={{ display: "flex", alignItems: "center", gap: "var(--space-row)", whiteSpace: "nowrap" }}>
+      <span className="d-pop-row-s d-row" style={{ flexShrink: 0, gap: "var(--nx-sp-1)", whiteSpace: "nowrap", marginTop: 2 }}>
         {main && !running ? (
-          selected ? t("agentSwitcher.current") : null
+          selected ? <span className="d-badge mute">{t("agentSwitcher.current")}</span> : null
         ) : (
           <>
             <StatusIcon status={status} />
@@ -153,40 +153,40 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
   const runningCount = subagents.filter((session) => runningSessionIds.has(session.id)).length;
 
   return (
-    /* fork:design-components —— 面板本体 = 画板 22 的 `.pw-pop`（320 宽 / radius-6 /
-       单一阴影 / padding-s1 / overflow hidden）。左侧贴边、下圆角的旧形态由
-       fork-ui.css 的 `.agent-session-panel` 覆盖（见本轮交接说明），这里不再内联边框。 */
+    /* fork:v5-landing —— 面板本体不再自带 `pw-pop` 壳：浮窗壳 `.d-pop-float` 由
+       AppShell 的顶栏浮窗定位容器承担（它本来就是 fixed 定位）。这里只排内容：
+       `d-pop-title`（标题 + 两枚徽章）› `d-searchfield` › `d-sep` › `d-pop-row` 列表
+       › `d-pop-foot`。 */
     <div
       role="listbox"
       aria-label={t("agentSwitcher.title")}
-      className="pw-pop agent-session-panel"
-      style={{ width: "auto", minWidth: "var(--pop-w)", maxWidth: "100%" }}
+      className="agent-session-panel d-col"
+      style={{ maxWidth: "100%", gap: 0 }}
     >
-      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
-        <span>{t("agentSwitcher.title")}</span>
-        <span className="pw-badge count">{t("agentSwitcher.count", { count: subagents.length })}</span>
-        <span className="grow" />
-        {runningCount > 0 && (
-          <span className="pw-badge accent count">{t("agentSwitcher.runningCount", { count: runningCount })}</span>
-        )}
+      <div className="d-pop-title">
+        <span className="d-row">
+          <span>{t("agentSwitcher.title")}</span>
+          <span className="d-badge mute">{t("agentSwitcher.count", { count: subagents.length })}</span>
+          <span className="d-grow" />
+          {runningCount > 0 && (
+            <span className="d-badge info">{t("agentSwitcher.runningCount", { count: runningCount })}</span>
+          )}
+        </span>
       </div>
       {subagents.length > 8 && (
-        /* 画板 22 的 `.pw-pop-search`（slash/search 图标槽 + `.pw-input`），钉在列表上方。 */
-        <div className="pw-pop-search" style={{ margin: "0 0 var(--s1)" }}>
-          <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true"></i></span>
+        <div className="d-searchfield" style={{ margin: "0 var(--nx-sp-1) var(--nx-sp-1)" }}>
+          <i data-ico="search" data-size="13" aria-hidden="true"></i>
           <input
-            className="pw-input"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("agentSwitcher.search")}
             aria-label={t("agentSwitcher.search")}
-            style={{ minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent" }}
           />
         </div>
       )}
-      <div className="pw-sep" />
-      <div style={{ maxHeight: "min(58dvh, 480px)", overflowY: "auto" }}>
+      <div className="d-sep" />
+      <div className="d-scroll" style={{ maxHeight: "min(58dvh, 480px)" }}>
         <AgentRow
           session={rootSession}
           main
@@ -204,7 +204,7 @@ export function AgentSessionPanel({ rootSession, subagents, selectedSessionId, r
           />
         ))}
         {visibleSubagents.length === 0 && (
-          <div className="pw-prow"><span className="pw-desc">{t("agentSwitcher.noMatches")}</span></div>
+          <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{t("agentSwitcher.noMatches")}</span></div>
         )}
       </div>
     </div>

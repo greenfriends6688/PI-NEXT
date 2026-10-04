@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-07 · 浏览器与命令中心 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-07 · 浏览器与命令中心</h1>
+  <p>
+    手机上的浏览器不是「嵌个 webview」，是<b>调试台</b>：地址栏 + 设备视口预设 + 缩放条 + 元素拾取，
+    四个控制件常驻，因为手机上唯一能看清问题的方式就是<b>把它缩到你手指的那个视口里</b>。
+    但它必须克制 —— 跨站与失败只给<b>一条横幅 + 一块空态</b>，不接管整屏。
+    命令中心是同一套「前缀即语法」：<span class="m-mono">&gt;</span> 命令、<span class="m-mono">#</span> 会话、
+    <span class="m-mono">@</span> 文件，分段永远是<b>全部 / 命令 / 会话 / 文件</b>（「全部」在最前），三类结果在<b>一个底部面板</b>里排，不开三个页面。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：浏览器 / 设备模拟 / 命令中心 / Git 图谱</span>
+    <span class="m-doc-tag">组件：m-urlbar · m-viewbox-sel · m-viewportbar · m-vp · m-zoombar · m-vbar · m-banner · m-sheet · m-searchfield · m-sheet-row</span>
+    <span class="m-doc-tag">状态：常态 / 元素拾取 / 跨站提示 / 加载失败 / 命令中心 / Git 只读</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 浏览器常态 + 设备视口 ─────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 浏览器 · 地址栏 + 页面 + 设备视口条 + 缩放条；点「拾取」升起拾取面板，点遮罩即收</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim" data-demo-scrim></div>
+
+      <div class="m-urlbar">
+        <button class="m-top-btn" title="后退"><i data-ico="arrow-left" data-size="16"></i></button>
+        <span class="m-urlbox" style="justify-content:flex-start">
+          <i data-ico="lock" data-size="12"></i>
+          <span class="m-grow">pi-next.dev/v5/pwa</span>
+          <i data-ico="star" data-size="13"></i>
+        </span>
+        <button class="m-top-btn" title="刷新"><i data-ico="rotate-cw" data-size="16"></i></button>
+        <button class="m-top-btn" title="分享"><i data-ico="share-2" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll-y">
+        <div class="m-placeholder">这一格是页面区：加载中放骨架，失败放解释，空白是最差的一种</div>
+        <div class="m-viewbox">
+          <div class="m-doc-head">
+            <i data-ico="globe" data-size="14"></i>
+            <span class="m-grow">PWA 形态值</span>
+            <span class="m-badge mute">文档</span>
+          </div>
+          <div class="m-doc-body">
+            <div class="m-md">
+              <h2>基准 17px，圆角 8–28</h2>
+              <p>手机端的差异<b>不在尺寸，在手感</b>：渐隐顶栏、光晕立体、44px 触控下限。强调色与桌面完全同一个。</p>
+            </div>
+            <button class="m-setrow m-viewbox-sel">
+              <i data-ico="book-open" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t">查看完整规范</span>
+                <span class="m-setrow-s">design/v5/LANDING.md</span>
+              </span>
+              <i data-ico="chevron-right" data-size="15"></i>
+            </button>
+            <div class="m-doc-label">↑ 元素拾取命中：按钮「查看完整规范」· 322×44 · pwa/doc-body</div>
+          </div>
+        </div>
+        <div class="m-ctx">
+          <i data-ico="image" data-size="14"></i>
+          <span>拾取只读，不改页面；命中后可以直接问「这一行为什么这么写」。</span>
+        </div>
+      </div>
+
+      <div class="m-viewportbar" data-demo-list>
+        <button class="m-vp is-on" data-demo-select>填满</button>
+        <button class="m-vp" data-demo-select>手机 390</button>
+        <button class="m-vp" data-demo-select>平板 768</button>
+        <button class="m-vp" data-demo-select>笔记本 1024</button>
+        <button class="m-vp" data-demo-select>桌面 1280</button>
+        <div class="m-sizebox">
+          <span>视口 390×844 · 填满屏幕</span>
+          <span>缩放 100% · DPR 3</span>
+        </div>
+      </div>
+
+      <div class="m-zoombar">
+        <button class="m-top-btn" title="缩小"><i data-ico="zoom-out" data-size="16"></i></button>
+        <input class="m-slider" type="range" min="50" max="200" step="5" value="100" aria-label="页面缩放">
+        <button class="m-top-btn" title="放大"><i data-ico="zoom-in" data-size="16"></i></button>
+        <span class="m-badge mute">100%</span>
+      </div>
+
+      <div class="m-vbar">
+        <button class="m-menu-row" data-demo-drawer="toggle" data-demo-drawer-target="#pick-a" title="元素拾取"><i data-ico="square-mouse-pointer" data-size="15"></i>拾取</button>
+        <button class="m-menu-row" title="截屏"><i data-ico="image" data-size="15"></i>截屏</button>
+        <button class="m-menu-row" title="外部打开"><i data-ico="external-link" data-size="15"></i>外开</button>
+      </div>
+
+      <div class="m-menu-sheet" id="pick-a">
+        <div class="m-menu-sheet-title">已拾取 1 个元素 · pwa/doc-body</div>
+        <button class="m-menu-row"><i data-ico="copy" data-size="15"></i>复制选择器</button>
+        <button class="m-menu-row" data-demo-drawer="close" data-demo-drawer-target="#pick-a" title="把选中元素送进会话"><i data-ico="message-square" data-size="15"></i>问「这一行为为什么这么写」</button>
+        <button class="m-menu-row"><i data-ico="square-pen" data-size="15"></i>在会话里改这段样式</button>
+        <div class="m-sep"></div>
+        <div class="m-ctx"><i data-ico="info" data-size="13"></i><span>点遮罩收起拾取；再点「拾取」重新开始。</span></div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 跨站提示与加载失败 ─────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 跨站与失败 · 横幅只占一行，空态只给一个动作：重试（点它追加骨架屏）</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim is-open" data-demo-scrim></div>
+
+      <div class="m-urlbar">
+        <button class="m-top-btn" title="后退"><i data-ico="arrow-left" data-size="16"></i></button>
+        <button class="m-urlbox" data-demo-drawer="toggle" data-demo-drawer-target="#site-b" title="站点信息" style="justify-content:flex-start">
+          <i data-ico="triangle-alert" data-size="12"></i>
+          <span class="m-grow">pi-next.dev/docs/mobile</span>
+          <i data-ico="chevron-down" data-size="13"></i>
+        </button>
+        <button class="m-top-btn" title="刷新"><i data-ico="rotate-cw" data-size="16"></i></button>
+        <button class="m-top-btn" title="分享"><i data-ico="share-2" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll-y">
+        <div class="m-banner warn">
+          <i data-ico="triangle-alert" data-size="15"></i>
+          <span class="m-grow">跨站提示：pi-next.dev 不是当前工作区，页面脚本可以读取剪贴板。</span>
+        </div>
+
+        <div id="b-page">
+          <div class="m-empty">
+            <div class="m-empty-ico"><i data-ico="circle-alert" data-size="20"></i></div>
+            <div class="m-empty-t">页面加载失败</div>
+            <div class="m-empty-s">pi-next.dev 拒绝了连接（ERR_CONNECTION_REFUSED）。已重试 1 次。</div>
+            <div class="m-pickbar">
+              <button class="m-picktag" data-demo-append="#b-page" data-demo-append-from="#tpl-load">重试</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="m-vbar">
+        <button class="m-menu-row" title="在系统浏览器打开"><i data-ico="external-link" data-size="15"></i>外开</button>
+        <button class="m-menu-row" title="复制地址"><i data-ico="copy" data-size="15"></i>复制地址</button>
+        <button class="m-menu-row" title="更多"><i data-ico="ellipsis" data-size="15"></i>更多</button>
+      </div>
+
+      <div class="m-menu-sheet is-open" id="site-b">
+        <div class="m-menu-sheet-title">要前往 pi-next.dev 吗</div>
+        <div class="m-banner warn">
+          <i data-ico="shield-alert" data-size="15"></i>
+          <span>这不是你的工作区，登录与提交都会发到站外。</span>
+        </div>
+        <button class="m-menu-row"><i data-ico="clock" data-size="15"></i>仅本次会话允许</button>
+        <button class="m-menu-row"><i data-ico="ban" data-size="15"></i>回到上一页</button>
+        <div class="m-sep"></div>
+        <button class="m-menu-row danger"><i data-ico="triangle-alert" data-size="15"></i>仍要前往</button>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 手机命令中心 ───────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 命令中心 · 分段 全部 / 命令 / 会话 / 文件；一个底部面板装下 &gt; 命令、# 会话、@ 文件三类结果</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim is-open" data-demo-scrim></div>
+
+      <div class="m-sheet is-open" id="cc-c">
+        <div class="m-sheet-grab"></div>
+
+        <div class="m-sheet-title">
+          <div class="nx-row">
+            <span class="m-grow m-t-b">命令中心</span>
+            <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#cc-c" title="收起"><i data-ico="x" data-size="15"></i></button>
+          </div>
+        </div>
+
+        <div class="m-searchfield">
+          <i data-ico="search" data-size="14"></i>
+          <input value="&gt;模" aria-label="搜命令、会话、文件">
+        </div>
+
+        <div data-demo-scope>
+          <div class="m-seg" data-demo-tabs>
+            <button class="is-on" data-demo-tab="c-all">全部</button>
+            <button data-demo-tab="c-cmd">命令</button>
+            <button data-demo-tab="c-sess">会话</button>
+            <button data-demo-tab="c-file">文件</button>
+          </div>
+
+          <div class="m-sheet-body">
+
+            <div data-demo-pane="c-all">
+              <div class="m-group-title">命令 · 改这一轮的行为</div>
+              <button class="m-sheet-row">
+                <i data-ico="cpu" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; model</span>
+                  <span class="m-sheet-row-desc">切换本轮模型与思考预算</span>
+                </span>
+                <span class="m-kbd">&gt;</span>
+              </button>
+              <div class="m-group-title">快捷入口</div>
+              <div class="m-grid2">
+                <button class="m-btn sm"><i data-ico="square-pen" data-size="13"></i>新建任务</button>
+                <button class="m-btn sm"><i data-ico="calendar-clock" data-size="13"></i>打开定时任务</button>
+                <button class="m-btn sm"><i data-ico="folder-tree" data-size="13"></i>切换项目</button>
+                <button class="m-btn sm"><i data-ico="refresh-cw" data-size="13"></i>重新连接手机</button>
+                <button class="m-btn sm"><i data-ico="smartphone" data-size="13"></i>手机与推送</button>
+              </div>
+              <div class="m-group-title">会话 · 接回刚才的活</div>
+              <button class="m-sheet-row">
+                <i data-ico="hash" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">设计体系 V5 · PWA 画板</span>
+                  <span class="m-sheet-row-desc">2 分钟前 · 14 条 · 正在跑</span>
+                </span>
+                <span class="m-dot run"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="hash" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">定时任务错峰执行</span>
+                  <span class="m-sheet-row-desc">昨天 14:20 · 6 条 · 等你处理</span>
+                </span>
+                <span class="m-badge warn">等你处理</span>
+              </button>
+              <div class="m-group-title">文件 · 把它拖进上下文</div>
+              <button class="m-sheet-row">
+                <i data-ico="at-sign" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">design/v5/pwa/tokens.css</span>
+                  <span class="m-sheet-row-desc">形态值 · 刚改过</span>
+                </span>
+              </button>
+            </div>
+
+            <div data-demo-pane="c-cmd" hidden>
+              <button class="m-sheet-row">
+                <i data-ico="cpu" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; model</span>
+                  <span class="m-sheet-row-desc">切换本轮模型与思考预算</span>
+                </span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="eraser" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; clear</span>
+                  <span class="m-sheet-row-desc">清空上下文，重新开一轮</span>
+                </span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="git-compare" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; diff</span>
+                  <span class="m-sheet-row-desc">看工作区里还没提交的改动</span>
+                </span>
+                <span class="m-badge warn">12</span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="minimize-2" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">&gt; compact</span>
+                  <span class="m-sheet-row-desc">把长会话压成摘要，继续省配额</span>
+                </span>
+              </button>
+            </div>
+
+            <div data-demo-pane="c-sess" hidden>
+              <button class="m-sheet-row">
+                <i data-ico="hash" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">设计体系 V5 · PWA 画板</span>
+                  <span class="m-sheet-row-desc">2 分钟前 · 14 条</span>
+                </span>
+                <span class="m-dot run"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="hash" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">定时任务错峰执行</span>
+                  <span class="m-sheet-row-desc">昨天 14:20 · 6 条</span>
+                </span>
+                <span class="m-dot ok"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="hash" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">release 0.1.8 收尾</span>
+                  <span class="m-sheet-row-desc">周一 · 62 条</span>
+                </span>
+              </button>
+            </div>
+
+            <div data-demo-pane="c-file" hidden>
+              <button class="m-sheet-row">
+                <i data-ico="at-sign" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">design/v5/pwa/tokens.css</span>
+                  <span class="m-sheet-row-desc">形态值 · 刚改过</span>
+                </span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="at-sign" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">design/v5/README.md</span>
+                  <span class="m-sheet-row-desc">画板清单</span>
+                </span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="at-sign" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t m-mono">design/v5/pwa/boards/M-06-files-terminal.html</span>
+                  <span class="m-sheet-row-desc">未提交</span>
+                </span>
+                <span class="m-badge warn">改过</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#cc-c" title="命令中心"><i data-ico="search" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">手机上把命令、会话、文件做成三个页面太重了。</div>
+        <div class="m-md">
+          <p>合成一个面板：<span class="m-mono">&gt;</span> 命令、<span class="m-mono">#</span> 会话、<span class="m-mono">@</span> 文件。前缀既是筛选，也是「插入什么」的声明 —— 打 <span class="m-mono">@</span> 后面跟的全是文件，不需要再切模式。</p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="&gt; 命令 · # 会话 · @ 文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+       <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · Git 图谱 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · Git 图谱 · 泳道 + 未提交改动 + 分支关系；手机上只做「看」，提交 / 推送 / rebase 不出现按钮</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回会话"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">Git · fork/v5-boards</span>
+        <button class="m-top-btn" title="拉取远端状态"><i data-ico="download" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+        <div class="m-banner"><i data-ico="git-branch" data-size="14"></i><span class="m-grow">领先 main 3 个提交 · 3 个未提交改动 · 上次 fetch 4 分钟前</span></div>
+
+        <div class="m-cardgroup">
+          <div class="m-group-title">图谱 · 从上到下从新到旧</div>
+          <button class="m-setrow is-on">
+            <i data-ico="circle-dot" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">a3f21c8</span>
+              <span class="m-setrow-s">fix: 右栏页签与当前项接线</span>
+            </span>
+            <span class="m-badge ok">HEAD</span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="git-commit-horizontal" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">7b2d0e5</span>
+              <span class="m-setrow-s">feat: 浏览器面板三态文案</span>
+            </span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="git-branch" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">91f4a02</span>
+              <span class="m-setrow-s">feat: PWA 画板 · 与 main 分叉于此</span>
+            </span>
+            <span class="m-badge mute">本轮</span>
+          </button>
+          <div class="m-setrow">
+            <i data-ico="git-merge" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">c0d8b77</span>
+              <span class="m-setrow-s">merge: PWA 两张并回 main</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-group-title">未提交改动 · 3</div>
+          <button class="m-setrow">
+            <i data-ico="file-code" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">pwa/system.css</span>
+              <span class="m-setrow-s">已修改</span>
+            </span>
+            <span class="m-badge warn">+12 −4</span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="file-text" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">README.md</span>
+              <span class="m-setrow-s">已修改</span>
+            </span>
+            <span class="m-badge warn">+6 −2</span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="file-code" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">boards/M-07-browser-cc.html</span>
+              <span class="m-setrow-s">新文件</span>
+            </span>
+            <span class="m-badge mute">未跟踪</span>
+          </button>
+        </div>
+
+        <div class="m-ctx">
+          <i data-ico="info" data-size="14"></i>
+          <span>这一页只读：图谱、改动、远端状态；提交与推送回桌面，会改写历史的操作（rebase / cherry-pick / reset --hard）一个按钮都不给。</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>地址栏是控制件，不是网页标签</b>：<span class="m-mono">.m-urlbar</span> 顶距 52px 让开状态栏；<span class="m-mono">.m-urlbox</span> 是可点的一整条（点它出站点信息与跨站确认），不是只显示文字的输入框 —— 手机上没有「点标签页」这一步。</li>
+    <li><b>设备视口条</b>：<span class="m-mono">.m-viewportbar</span> 一排 <span class="m-mono">.m-vp</span>，五档与 Web 完全对齐：<b>填满 / 手机 390 / 平板 768 / 笔记本 1024 / 桌面 1280</b>；<span class="m-mono">.m-sizebox</span> 是实时读数。互斥高亮接 <span class="m-mono">data-demo-list</span> + <span class="m-mono">data-demo-select</span>（<span class="m-mono">.m-vp.is-on</span>）。预设默认落在「填满」—— 手机上这是唯一不用横滚的实际用法，别的四档是手动切过去的对照位。</li>
+    <li><b>缩放条</b>：<span class="m-mono">.m-zoombar</span> = 缩放钮 + <span class="m-mono">.m-slider</span> + 缩放钮 + 百分比徽章，滑杆拇指 26px，两颗缩放钮各 44px —— 三件事都不靠捏合手势（捏合会和页面滚动打架）。</li>
+    <li><b>元素拾取只读</b>：命中元素套 <span class="m-mono">.m-viewbox-sel</span>（2px 强调色描边 + 1px 偏移），下面一行小字写清「命中了什么 · 多大 · 选择器」；面板从底部升起（<span class="m-mono">.m-menu-sheet</span>），三个动作：复制选择器 / 就地问「为什么这么写」/ 在会话里改这段样式 —— <b>不改页面，只改我们的代码</b>。</li>
+    <li><b>跨站与失败各只占一行</b>：<span class="m-mono">.m-banner.warn</span> 是常驻横幅（不接管整屏、点它出确认面板），加载失败走 <span class="m-mono">.m-empty</span> + 唯一一个动作「重试」。重试在板上用 <span class="m-mono">data-demo-append</span> 追加一块骨架屏来演示 —— 真机是整块替换，<span class="m-mono">data-demo-append</span> 只会追加，这是画板引擎的能力上限，写在这里提醒落地。</li>
+    <li><b>命令中心是一个面板</b>：<span class="m-mono">.m-sheet</span>（底部，max-height 78%）里依次是 <span class="m-mono">.m-sheet-grab</span> → 标题行 → <span class="m-mono">.m-searchfield</span> → 前缀分段 → <span class="m-mono">.m-sheet-body</span> 结果区 → <span class="m-mono">.m-pickbar</span> 确认条。结果行用 <span class="m-mono">.m-sheet-row</span> + <span class="m-mono">.m-sheet-row-desc</span>，副行写「什么时候 · 几条 · 什么状态」。</li>
+    <li><b>前缀即语法</b>：<span class="m-mono">&gt;</span> 命令（改这一轮行为）、<span class="m-mono">#</span> 会话（接回刚才的活）、<span class="m-mono">@</span> 文件（拖进上下文）。分段固定为<b>全部 / 命令 / 会话 / 文件</b>（「全部」在最前），三类结果在「全部」里按前缀分组；同一条结果在两种视图里长得一样 —— 用户不需要学第二套列表样式。</li>
+    <li><b>Git 图谱只做「看」</b>（帧 D）：泳道顺序 + 未提交改动 + 分支关系，提交 / 推送 / rebase 一个按钮都不下放到手机；会改写历史的操作必须回桌面敲命令。泳道用现成图标与底色表达，不画 SVG。</li>
+  </ul>
+</div>
+
+<template id="tpl-load">
+  <div class="m-group-title">重试中 · 正在重新连接 pi-next.dev</div>
+  <div class="m-skel-list">
+    <div class="m-skel m-skel-50"></div>
+    <div class="m-skel m-skel-50"></div>
+    <div class="m-skel m-skel-block"></div>
+  </div>
+</template>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

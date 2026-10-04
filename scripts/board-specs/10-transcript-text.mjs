@@ -7,17 +7,22 @@
 // `.pw-quote`（board.css:271，padding-left 8）与 `.pw-md blockquote`（board.css:298，
 // padding 2/0/2/10）。画板的用户气泡样张走前者，产品的引用块只从 markdown 出来、
 // 走后者。两边都照画板做了，硬比就是拿两种上下文当同一种。
-const SAME = [".pw-msg-user", ".pw-msg-acts"];
+// fork:v5-old-layer（2026-10-04）—— 用户气泡与动作行已换 v5（MessageView.tsx:517）：
+// `.d-msg-user` / `.d-msg-acts` + `.d-btn.sm`。画板侧仍取 v1 的 pw-*。
+const SAME = [
+  [".pw-msg-user", ".d-msg-user"],
+  [".pw-msg-acts", ".d-msg-acts"],
+];
 
 export default {
   name: "转录正文（画板 10 · 帧 A 用户气泡）",
   board: "10-transcript-text.html",
   boardFrame: 0,
   app: { open: "session:first" },
-  pairs: SAME.map((s) => [s, s]),
+  pairs: SAME,
   knownDiffs: [
     {
-      sel: ".pw-msg-user",
+      sel: ".d-msg-user",
       reason: "**产品有意为之**：聊天正文基准字号是 14px（globals.css 的 `--chat-content-font-size`，"
         + "注释写明「Zeno 的转录是正文尺寸，聊天是唯一值得多一个像素的地方」），画板样张是 13px 的 "
         + "`--text-body`；行高跟着字号走（1.65 → 23.1px）。盒子（78% / padding 8-12 / "

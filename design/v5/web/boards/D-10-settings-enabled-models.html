@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-10 · 设置 · 启用模型 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-10 · 设置 · 启用模型（白名单 pattern + thinking 钉 + 失配诊断）</h1>
+  <p>
+    这里存的是 pi 的 <code>--models</code> 白名单，<b>它不是过滤器，是白名单</b>：写得越宽，选择器里出现的模型越多；
+    <b>一条都不写等于全开</b>。每条 pattern 后面可以跟 <code>:level</code> 把推理档位钉死。
+    写错的后果是「模型消失了」而不是「多了一个」，所以这一节把<b>匹配结果</b>与<b>失配原因</b>都摆在台面上 ——
+    工具上叫诊断，用户这边叫「这三条一条都没匹配上，删不删」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 启用模型</span>
+    <span class="d-tag">组件：EnabledModelsSection · PatternRow · ThinkingPin · MatchPreview · MismatchDiagnostics</span>
+    <span class="d-tag">状态：4 条 pattern · 命中 6 个 · 失配 1 条 · 钉档 2 条</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 白名单全貌：pattern · 命中数 · thinking 钉 · 匹配结果预览<span class="d-grow"></span>点行会选中 pattern，「语法」按钮能打开匹配规则说明</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 启用模型</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="triangle-alert" data-size="12"></i>2 条失配</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                </div>
+                <div class="d-md">
+                  <p>启用模型这一节只干一件事：把 <code>--models</code> 的写法翻译成人话，并当场告诉你每条命中了几个。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 启用模型">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 启用模型</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">白名单 pattern</div>
+                        <div class="d-row">
+                          <span class="d-t-xs d-t-faint d-grow">语法与 pi 的 <code>--models</code> 一致：<code>供应商/模型</code>、<code>*</code> 单段通配、<code>**</code> 跨段通配、不写斜杠则全名模糊匹配。<b>钉档按从上到下第一次命中算</b>，所以宽 pattern 排在前面会把窄 pattern 的 <code>:level</code> 盖掉。</span>
+                          <button class="d-btn sm ghost" style="min-width:72px" data-demo-open="p13-syntax"><i data-ico="circle-help" data-size="13"></i>语法</button>
+                        </div>
+
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th style="width:36%">Pattern</th><th>命中</th><th>thinking 钉</th><th>状态</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td class="d-mono">anthropic/*</td>
+                                <td class="d-mono">3 个</td>
+                                <td><span class="d-t-xs d-t-faint">未钉</span></td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>有效</span></td>
+                                <td><button class="d-iconbtn" title="删除这条"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">openai/gpt-5*</td>
+                                <td class="d-mono">2 个</td>
+                                <td><span class="d-mono d-t-xs">:high</span></td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>有效</span></td>
+                                <td><button class="d-iconbtn" title="删除这条"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">ollama/qwen3*</td>
+                                <td class="d-mono">1 个</td>
+                                <td><span class="d-mono d-t-xs">:low</span></td>
+                                <td><span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>有效</span></td>
+                                <td><button class="d-iconbtn" title="删除这条"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">zai/glm-4.6</td>
+                                <td class="d-mono">0 个</td>
+                                <td><span class="d-t-xs d-t-faint">—</span></td>
+                                <td><span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i>失配</span></td>
+                                <td><button class="d-iconbtn" title="删除这条"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-t-xs d-t-faint">「加一条 pattern」在<b>编辑单条</b>那一帧里 —— 添一条和改一条是同一个动作的两面，不用为此多切一帧；失配条目在下一帧逐条诊断。</div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">匹配结果预览</div>
+                        <div class="d-row">
+                          <span class="d-badge mute"><i data-ico="list-checks" data-size="12"></i>并集 6 个模型</span>
+                          <span class="d-t-xs d-t-faint">来自 3 条有效 pattern · 重叠的 <code>qwen3-coder-30b</code> 只算一次 · 下表列前 4 条</span>
+                          <span class="d-grow"></span>
+                          <span class="d-badge info">写进 settings.json 的 enabledModels</span>
+                        </div>
+                        <div class="d-card">
+                          <table class="d-table">
+                            <thead>
+                              <tr><th>命中模型</th><th>供应商</th><th>生效的钉档</th><th>来自</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr><td class="d-mono">claude-opus-4-6</td><td>anthropic</td><td><span class="d-t-xs d-t-faint">未钉</span></td><td class="d-mono d-t-xs">anthropic/*</td></tr>
+                              <tr><td class="d-mono">claude-sonnet-4-6</td><td>anthropic</td><td><span class="d-mono d-t-xs">:high</span></td><td class="d-mono d-t-xs">openai/gpt-5*</td></tr>
+                              <tr><td class="d-mono">gpt-5.1-codex</td><td>openai</td><td><span class="d-mono d-t-xs">:high</span></td><td class="d-mono d-t-xs">openai/gpt-5*</td></tr>
+                              <tr><td class="d-mono">qwen3-coder-30b</td><td>本机 · ollama</td><td><span class="d-mono d-t-xs">:low</span></td><td class="d-mono d-t-xs">ollama/qwen3*</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div class="d-banner warn">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span><code>claude-sonnet-4-6</code> 同时被两条 pattern 命中，但 <code>anthropic/*</code> 没有钉档。<b>预览表照实写出了这个矛盾</b>，不替用户选一个。</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 与 pi 的 Ctrl+S 读写同一份 settings.json</span>
+                <button class="d-btn ghost" data-demo-open="p13-export">复制为命令行参数</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p13-syntax" hidden style="left:24px;bottom:64px;min-width:380px">
+                <div class="d-pop-title">pattern 语法</div>
+                <div class="d-pop-body d-t-xs d-t-dim">和 <code>pi --models</code> 完全同一套解析器 —— 面板不发明第二套写法。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><span class="d-grow d-mono">anthropic/claude-opus-4-6</span><span class="d-t-xs d-t-faint">精确</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">anthropic/*</span><span class="d-t-xs d-t-faint">该供应商全部</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">*/claude-*</span><span class="d-t-xs d-t-faint">任意供应商</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">**codex**</span><span class="d-t-xs d-t-faint">跨段模糊</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">qwen3</span><span class="d-t-xs d-t-faint">不含斜杠 → 全名模糊</span></button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><span class="d-grow d-mono">openai/gpt-5*:high</span><span class="d-t-xs d-t-faint">钉推理档</span></button>
+                <div class="d-pop-foot">匹配不分大小写；<code>*</code> 不跨斜杠，要跨段用 <code>**</code>。</div>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p13-export" hidden style="left:24px;bottom:64px;min-width:380px">
+                <div class="d-pop-title">复制为命令行参数</div>
+                <div class="d-pop-body d-t-xs d-t-dim">带引号整段复制，可以直接粘到启动命令里；失配条目不导出（导出去 pi 会报同样的错）。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row d-mono">--models 'anthropic/*' 'openai/gpt-5*:high'</div>
+                <div class="d-menu-row d-mono">--models 'ollama/qwen3*:low'</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="copy" data-size="14"></i><span class="d-grow">复制全部</span></button>
+                <button class="d-menu-row"><i data-ico="terminal" data-size="14"></i><span class="d-grow">写进 shell 别名</span></button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 失配诊断：逐条说明「为什么 0 命中」，并给出改还是删两个动作<span class="d-grow"></span>每条失配都有独立原因，不合并成一句「有 2 条无效」</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 启用模型 / 诊断</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge bad"><i data-ico="circle-alert" data-size="12"></i>需要处理</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>失配只有三种成因：模型不存在、供应商没登录、pattern 写错。三种对应三种修法，所以不能合并成一句「无效条目」。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="启用模型 · 诊断">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">启用模型 · 失配诊断</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-banner warn">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span><b>2 条 pattern 匹配不到任何模型。</b>白名单写错的后果是「模型从选择器里消失」，不是「多出一个」，
+                          所以这一节把每条落空的原因逐条写出来 —— 三种成因对应三种修法，合并成一句「有无效条目」等于把人推回 settings.json 手改。</span>
+                          <button class="d-btn sm d-banner-btn" data-demo-open="p13-prune">一键清理</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">逐条诊断</div>
+
+                        <div class="d-card">
+                          <div class="d-card-head">
+                            <i data-ico="circle-x" data-size="15"></i>
+                            <span class="d-grow">zai/glm-4.6</span>
+                            <span class="d-badge bad">模型不存在</span>
+                          </div>
+                          <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-t-sm d-t-dim">已登录的供应商里没有 ID 精确等于 <code>glm-4.6</code> 的模型。相近的有 <code>zai/glm-4.5-air</code> 与 <code>zai/glm-4.6-flash</code>。</div>
+                            <div class="d-row">
+                              <button class="d-btn sm primary"><i data-ico="rotate-cw" data-size="13"></i>改成 zai/glm-4.6-flash</button>
+                              <button class="d-btn sm">用通配符 zai/glm-4*</button>
+                              <span class="d-grow"></span>
+                              <button class="d-btn sm ghost">删除这条</button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="d-card">
+                          <div class="d-card-head">
+                            <i data-ico="lock" data-size="15"></i>
+                            <span class="d-grow">internal/*</span>
+                            <span class="d-badge bad">供应商未登录</span>
+                          </div>
+                          <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-t-sm d-t-dim">供应商 <code>内网网关</code> 在名单里，但<b>没有可用凭证</b> —— 凭证缺失的模型不是「灰的」，是调不动，所以它连命中都算不上。</div>
+                            <div class="d-row">
+                              <button class="d-btn sm primary"><i data-ico="log-in" data-size="13"></i>登录内网网关</button>
+                              <button class="d-btn sm">临时移除这条</button>
+                              <span class="d-grow"></span>
+                              <span class="d-badge mute">登录后会自动恢复命中 7 个</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">不是失配，但值得看一眼</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t"><code>qwen3</code> 被 <code>ollama/qwen3*</code> 完全覆盖</div>
+                            <div class="d-set-row-s">命中结果一样，<b>钉档也一样</b>（都落到 <code>:low</code>），所以删掉它不改变任何行为。面板不自动删 —— 也许它是为了让某个脚本好找。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge warn">冗余</span></span>
+                          <button class="d-btn sm ghost" style="min-width:64px">删除</button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">当前项目的 <code>.pi/settings.json</code> 覆盖了全局这一份</div>
+                            <div class="d-set-row-s">这里改的是项目级，全局那份不动；想改全局要回到全局作用域。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge info">项目级生效中</span></span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">诊断每次改动后重算，不缓存</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p13-prune" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">一键清理</div>
+                <div class="d-pop-body d-t-xs d-t-dim">只删「当前一条都匹配不上」的 pattern；<b>已经变窄但仍然有效的条目一条都不动</b>，不重排、不合并、不顺手改顺序。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow d-mono">zai/glm-4.6</span><span class="d-badge bad">删除</span></div>
+                <div class="d-menu-row"><span class="d-grow d-mono">internal/*</span><span class="d-badge bad">删除</span></div>
+                <div class="d-menu-row"><span class="d-grow d-mono">qwen3</span><span class="d-badge warn">保留 · 冗余但不失效</span></div>
+                <div class="d-menu-row"><span class="d-grow d-mono">anthropic/*</span><span class="d-badge ok">保留</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i><span class="d-grow">删除这 2 条</span></button>
+                <div class="d-pop-foot">删除只影响 enabledModels，不动模型定义、不动历史会话。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 单条 pattern 编辑：钉档分段 + 命中预览 + 与其它条目的覆盖关系<span class="d-grow"></span>钉档六段能切，切完预览里的「生效档」跟着变</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 启用模型 / openai/gpt-5*</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>命中 2 个</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>钉档写进 pattern 里（<code>:high</code>），等价于 <code>settings.json</code> 的 <code>enabledModels</code> 带后缀 —— 这份文件由面板与 pi 的 Ctrl+S 共用。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="编辑 pattern">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">编辑 pattern · openai/gpt-5*</div>
+              <div class="d-modal-body">
+                <div class="d-set" data-demo-scope>
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">pattern</div>
+                        <div class="d-field">
+                          <span class="d-field-t">Pattern</span>
+                          <input class="d-input d-mono" value="openai/gpt-5*">
+                          <span class="d-t-xs d-t-faint"><code>*</code> 不跨斜杠。这里写 <code>openai/gpt-5*</code> 只会在 openai 下匹配；要连供应商一起通配请写 <code>*/gpt-5*</code>。</span>
+                        </div>
+                        <div class="d-row">
+                          <span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i>命中 2 个</span>
+                          <span class="d-t-xs d-t-faint">gpt-5.1-codex · gpt-5.1-mini</span>
+                          <span class="d-grow"></span>
+                          <button class="d-btn sm ghost">移到最前</button>
+                          <button class="d-btn sm ghost danger"><i data-ico="trash-2" data-size="13"></i>删除</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">加一条 pattern</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">新 pattern</div>
+                            <div class="d-set-row-s">边打边给预览；<b>写具体模型名最安全</b>，通配符会让「本机临时起的模型」也一并露面。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:210px" placeholder="anthropic/claude-sonnet-*"></span>
+                          <button class="d-btn sm primary" style="min-width:74px"><i data-ico="plus" data-size="13"></i>添加</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">钉 thinking 档</div>
+                        <div class="d-t-xs d-t-faint">钉上之后，<b>这条 pattern 命中的所有模型都用这一档</b>，用户在输入框里改不动 —— 面板会把那里的控件变成只读并标「被覆盖」。</div>
+                        <div class="d-seg" data-demo-tabs>
+                          <button data-demo-tab="l-none">不钉</button>
+                          <button data-demo-tab="l-off">关闭</button>
+                          <button data-demo-tab="l-low">低</button>
+                          <button data-demo-tab="l-mid">中</button>
+                          <button data-demo-tab="l-high" class="is-on">高</button>
+                          <button data-demo-tab="l-max">最高</button>
+                        </div>
+
+                        <section data-demo-pane="l-none">
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span>写成 <code>openai/gpt-5*</code>，不带后缀。用户可以按会话自由调档。</span></div>
+                        </section>
+                        <section data-demo-pane="l-off" hidden>
+                          <div class="d-banner"><i data-ico="x" data-size="14"></i><span>写成 <code>openai/gpt-5*:none</code>。写代码时最省，但复杂改动更容易漏。</span></div>
+                        </section>
+                        <section data-demo-pane="l-low" hidden>
+                          <div class="d-banner"><i data-ico="zap" data-size="14"></i><span>写成 <code>openai/gpt-5*:low</code>。适合批量改文案、补测试这类不用绕路的活。</span></div>
+                        </section>
+                        <section data-demo-pane="l-mid" hidden>
+                          <div class="d-banner"><i data-ico="zap" data-size="14"></i><span>写成 <code>openai/gpt-5*:medium</code>。多数任务的性价比拐点。</span></div>
+                        </section>
+                        <section data-demo-pane="l-high">
+                          <div class="d-banner"><i data-ico="brain" data-size="14"></i><span>写成 <code>openai/gpt-5*:high</code>。当前设置：跨文件改动走这一档。</span></div>
+                        </section>
+                        <section data-demo-pane="l-max" hidden>
+                          <div class="d-banner warn"><i data-ico="triangle-alert" data-size="14"></i><span>写成 <code>openai/gpt-5*:max</code>。思考 token 计入输出上限，约慢 3 倍、贵 2.4 倍 —— 钉在 pattern 上意味着每次都用。</span></div>
+                        </section>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">与其它条目的关系</div>
+                        <div class="d-card">
+                          <table class="d-table">
+                            <thead>
+                              <tr><th>其它 pattern</th><th>交集</th><th>谁的钉档生效</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr><td class="d-mono">anthropic/*</td><td><span class="d-badge mute">无交集</span></td><td><span class="d-t-xs d-t-faint">—</span></td></tr>
+                              <tr><td class="d-mono">**gpt-5.1-mini</td><td><span class="d-badge warn">gpt-5.1-mini</span></td><td><span class="d-badge info">本条（靠前）</span></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div class="d-banner warn">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span>与 <code>**gpt-5.1-mini</code> 有交集，<b>两条钉的档位不一样</b>（<code>:high</code> vs 未钉）。面板不替你合并，但把它摆出来。</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 预览随改动实时重算</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>保存这条</button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>白名单不是过滤器。</b>一条都不写等于全开；写窄的后果是「模型消失」而不是「多一个」，所以这一节必须自带命中数与失配诊断，
+        否则用户只能回 settings.json 手改才能知道哪条写错了。</li>
+    <li><b>语法必须是 pi 的那一套，不许发明第二套。</b>所以「语法」浮层里每条示例都是 <code>pi --models</code> 能直接吃的写法，面板与命令行共用同一个解析器。</li>
+    <li><b>失配只有三种成因，三种修法。</b>模型不存在（改 pattern）、供应商未登录（去登录）、pattern 写错（改写法）——
+        合并成一句「有 2 条无效」等于把人推回去手改，所以逐条写清。</li>
+    <li><b>一键清理只删「匹配不上的」。</b>冗余但仍生效的条目（<code>qwen3</code> 被 <code>ollama/qwen3*</code> 覆盖）一律保留，也不重排、不合并 ——
+        清理工具最怕顺手做了别的事。</li>
+    <li><b>钉档的冲突要摆出来，不替你选。</b>两条 pattern 命中同一个模型但钉了不同档时，预览表照实写矛盾，并指出哪条靠前生效。</li>
+    <li><b>钉上去的档位在输入框里是只读的。</b>面板把那里的控件标成「被覆盖」，而不是让用户改一个改完没反应的值。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

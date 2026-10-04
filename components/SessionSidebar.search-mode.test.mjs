@@ -14,7 +14,10 @@ const css = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8
 test("搜索框默认收起：只在 sessionSearchOpen 时渲染，点头部搜索钮才展开并聚焦", () => {
   // 台账 DIVERGENCE 38：画板 02 帧 A（项目 pane）没有搜索格，只出现在帧 C（搜索态）。
   assert.match(code, /const \[sessionSearchOpen, setSessionSearchOpen\] = useState\(false\)/);
-  assert.match(code, /\{sessionSearchOpen && \(\s*<label className="pw-side-search">/);
+  // fork:v5-wave-b —— 搜索格只在 `sessionSearchOpen` 时渲染这条不变；类名变成形态分支
+  // （≤640 走画板 M-04 的 `.m-searchfield`，≥641 走 `.d-searchfield`），
+  // 所以这里钉的是「同一个 label + 两个形态类」这条等价约束。
+  assert.match(code, /\{sessionSearchOpen && \(\s*<label className=\{isMobile \? "m-searchfield" : "d-searchfield"\}/);
   assert.match(code, /setSessionSearchOpen\(true\)/);
   assert.match(code, /requestAnimationFrame\(\(\) => searchInputRef\.current\?\.focus\(\)\)/);
   assert.match(code, /aria-expanded=\{sessionSearchOpen\}/);

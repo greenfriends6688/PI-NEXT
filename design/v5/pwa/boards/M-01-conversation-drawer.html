@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-01 · 会话页与抽屉 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-01 · 会话页与抽屉</h1>
+  <p>
+    手机端只有三层：<b>渐隐顶栏</b>（永远浮在内容上）、<b>消息流</b>、<b>输入卡</b>。
+    抽屉与底部面板都不是新页面，而是从这三层里「借」位置 —— 所以两者共用同一张遮罩、同一条推拉曲线
+    （<code>--nx-dur-4</code> 320ms）。这一张把<b>推拉定成规范</b>：
+    顶栏左钮拉出会话抽屉，输入卡那枚「能力」钮拉起能力浮层，遮罩点一下即收；面板里的分段切换与列表选中都是真接线。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：会话流 / 会话抽屉 / 模型选择</span>
+    <span class="m-doc-tag">组件：m-top · m-composer · m-drawer · m-sheet · m-scrim</span>
+    <span class="m-doc-tag">状态：常态 / 抽屉拉出（项目分组 · worktree） / 底部面板 / Plus 分离</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 会话常态 ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 会话常态 · 顶栏只有抽屉钮 + 标题 + ⋯，消息从渐隐区下方穿过</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-workspace">
+      <div class="m-scroll">
+        <div class="m-msg-user">手机端的会话页先搭骨架：渐隐顶栏、输入卡、底部面板。别的先不管。</div>
+
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+
+        <div class="m-tool nx-shrink-0">
+          <div class="m-tool-head">
+            <i data-ico="list-checks" data-size="14"></i>
+            <span class="m-grow">已执行 4 步 · 11.2s</span>
+            <i data-ico="chevron-right" data-size="14"></i>
+          </div>
+        </div>
+
+        <div class="m-md">
+          <p>先按 PWA 形态值把三层骨架搭起来。顶栏绝对定位、内容从下方穿过；输入卡浮在底部，玻璃底 + 光晕，圆角走 <span class="m-math">--nx-r-xl</span>。</p>
+          <h2>两处还没定</h2>
+          <p>顶栏中间不挂模型 —— 模型只在输入卡那枚「能力」钮的浮层里，顶栏让给会话标题。抽屉和底部面板共用一张遮罩，不新开页面。</p>
+        </div>
+
+        <div class="m-run"><i data-ico="loader-circle" data-size="14"></i>正在写 M-01 画板</div>
+
+        <div class="m-md">
+          <p>抽屉宽度取 <span class="m-math">min(84%, 320px)</span>：390 宽的机型上正好留出一条能点得到的遮罩<span class="m-caret"></span></p>
+        </div>
+      </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="继续说，或 @ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+       <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 抽屉拉出 ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 抽屉拉出 · 遮罩点一下即收；抽屉里只有「找得到」，设置不留在这儿</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <!-- 遮罩与抽屉放在顶栏之前：抽屉在 z-250，顶栏在 z-40，所以顶栏被遮罩压住（真实观感） -->
+      <div class="m-scrim is-open" data-demo-scrim></div>
+      <aside class="m-drawer is-open" id="drawer-b">
+        <div class="m-drawer-head">
+          <span class="m-top-title">会话</span>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#drawer-b" title="收起抽屉"><i data-ico="x" data-size="15"></i></button>
+        </div>
+        <div class="m-searchfield">
+          <i data-ico="search" data-size="14"></i>
+          <input placeholder="搜索所有对话…">
+        </div>
+
+        <div data-demo-scope>
+          <!-- 抽屉 = 手机的侧栏，分节与桌面**同一份**（项目 / 聊天），不是另一套过滤器：
+               分段只有这两个；未读与运行中不是分类，而是会话行上的状态。 -->
+          <button class="m-setrow">
+            <i data-ico="square-pen" data-size="14"></i>
+            <span class="m-grow">新建任务</span>
+            <span class="m-badge mute">⌘N</span>
+          </button>
+          <div class="m-seg" data-demo-tabs>
+            <button class="is-on" data-demo-tab="d-proj">项目</button>
+            <button data-demo-tab="d-chat">聊天</button>
+          </div>
+
+          <div data-demo-pane="d-proj">
+            <div class="m-group-title">PI NEXT</div>
+            <div class="m-rowlabel" style="padding:0 var(--nx-sp-3)"><i data-ico="git-branch" data-size="12"></i> fork/v5-boards · worktree</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">手机端顶栏瘦身收尾</span>
+                <span class="m-row-m"><i data-ico="loader-circle" data-size="12"></i><span>运行中 · 6 分</span><span>·</span><span>12 条消息</span></span>
+              </button>
+              <button class="m-row is-on" data-demo-select>
+                <span class="m-row-t">设计体系 V5 · PWA 画板</span>
+                <span class="m-row-m"><span>18:04</span><span>·</span><span>14 条消息</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">定时任务错峰执行</span>
+                <span class="m-row-m"><span class="m-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待授权</span><span>1 时前</span><span>·</span><span>6 条消息</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">把 423KB 全局 CSS 减重</span>
+                <span class="m-row-m"><span class="m-dot ok"></span><span>16:02</span><span>·</span><span>27 条消息</span></span>
+              </button>
+            </div>
+            <div class="m-group-title">pi-web</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">release 0.1.8 收尾</span>
+                <span class="m-row-m"><i data-ico="pin" data-size="12"></i><span>21:40</span><span>·</span><span>62 条消息</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">给这段代码补测试</span>
+                <span class="m-row-m"><span class="m-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待输入</span><span>14:20</span><span>·</span><span>6 条消息</span></span>
+              </button>
+            </div>
+          </div>
+
+          <div data-demo-pane="d-chat" hidden>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">随手问</span>
+                <span class="m-row-m"><span>不在项目中 · 4 条会话</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">临时讨论</span>
+                <span class="m-row-m"><span>不在项目中 · 1 条会话</span></span>
+              </button>
+            </div>
+            <div class="m-group-title">聊天工作区不在项目里：会话文件落在 ~/pi-cwd-* 下，不进项目树</div>
+          </div>
+        </div>
+
+        <div class="m-drawer-foot">
+  <button class="m-row m-grow" title="设置"><i data-ico="settings" data-size="15"></i><span>设置</span></button>
+  <button class="m-top-btn" title="手机与推送"><i data-ico="smartphone" data-size="15"></i></button>
+  <span class="m-badge mute">v0.1.8</span>
+</div>
+      </aside>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#drawer-b" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-workspace">
+      <div class="m-scroll">
+        <div class="m-msg-user">抽屉里先别放设置，先把人找回来。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>同意。手机上的抽屉只有两件事：<b>搜索</b>和<b>切换</b>。设置、模型、权限都在顶栏与输入卡上，不在这里再开一层。</p>
+          <p>分段只留两个：项目 / 聊天 —— 与桌面同一份。项目分组写项目名，会话行之前先摆一行 worktree；未读绿点、等你处理文字徽章、运行中行内转圈，扫一眼就知道先点哪条。</p>
+        </div>
+        <div class="m-md">
+          <p>抽屉底部只留两个图标钮与版本号，点空白即收<span class="m-caret"></span></p>
+        </div>
+      </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="继续说，或 @ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 底部面板（模型选择） ───────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 底部面板 · 模型（从能力浮层的「模型」一行进来）；分段可切，取消在底部一排等宽钮</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim is-open" data-demo-scrim></div>
+      <div class="m-sheet is-open" id="sheet-c">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">模型</div>
+
+        <div data-demo-scope>
+          <div class="m-seg" data-demo-tabs>
+            <button data-demo-tab="c-cap">能力</button>
+            <button class="is-on" data-demo-tab="c-model">模型</button>
+          </div>
+
+          <div class="m-sheet-body">
+            <div data-demo-pane="c-cap" hidden>
+              <div class="m-group-title">这一轮允许什么</div>
+              <button class="m-sheet-row">
+                <i data-ico="terminal" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">跑命令</span>
+                  <span class="m-setrow-s">git / pnpm / node —— 只在已信任目录</span>
+                </span>
+                <span class="m-radio on"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="globe" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">联网取文档</span>
+                  <span class="m-setrow-s">只读 fetch，不带任何凭据</span>
+                </span>
+                <span class="m-radio on"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="bot" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">起子代理并行</span>
+                  <span class="m-setrow-s">最多 2 个 · 每个独立上下文</span>
+                </span>
+                <span class="m-radio"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="trash-2" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">写文件与删除</span>
+                  <span class="m-setrow-s">关闭后每一条都要单独确认</span>
+                </span>
+                <span class="m-radio"></span>
+              </button>
+            </div>
+
+            <div data-demo-pane="c-model">
+              <div class="m-group-title">按分工挑，不按热度排</div>
+              <button class="m-sheet-row">
+                <i data-ico="cpu" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">claude-opus-4-6</span>
+                  <span class="m-setrow-s">最强推理 · 改版、评审、疑难 bug</span>
+                </span>
+                <span class="m-badge ok">本轮</span>
+                <span class="m-radio on"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="cpu" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">claude-sonnet-4-6</span>
+                  <span class="m-setrow-s">日常改代码与跑测试</span>
+                </span>
+                <span class="m-badge mute">省钱</span>
+                <span class="m-radio"></span>
+              </button>
+              <button class="m-sheet-row">
+                <i data-ico="cpu" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">gpt-5-codex</span>
+                  <span class="m-setrow-s">长上下文批量重构</span>
+                </span>
+                <span class="m-badge mute">长文</span>
+                <span class="m-radio"></span>
+              </button>
+              <div class="m-sep"></div>
+              <div class="m-ctx">
+                <span class="m-ring" style="--p:34"></span>
+                <span>上下文 200k · 本轮已用 34%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-pickbar">
+          <button class="m-picktag" data-demo-drawer="close" data-demo-drawer-target="#sheet-c">取消</button>
+          <button class="m-picktag is-on">用这个模型</button>
+        </div>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-workspace">
+      <div class="m-scroll">
+        <div class="m-msg-user">模型这一屏，按分工排，别按热度。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>同意。手机上横着排不下三张卡，所以用底部面板：一行一个模型，副行写「什么时候用它是划算的」。</p>
+          <p>右上角保留默认标记，切换只对<b>本轮</b>生效；下一轮回到会话默认，避免用户不知道自己跑在谁身上。</p>
+        </div>
+      </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="继续说，或 @ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · Plus 分离形变 ──────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 输入卡 Plus 分离 · 点加号浮起「附件来源」，圆钮脱离卡片带光晕</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-workspace">
+      <div class="m-scroll">
+        <div class="m-msg-user">附件直接从手机上拿，别让我回电脑再拖一次。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>于是加号承担三件事：拍照 / 选图、从工作区挑文件、粘贴剪贴板。三者都在同一个浮层里，不做二级页。</p>
+          <h2>一行结束</h2>
+          <p>输入卡就是<b>一行</b>：<span class="m-mono">+</span> · 输入 · <b>能力</b>（一枚图标，模型 / 思考强度 / 权限 / 工具与上下文 / 上下文占用全在它后面的浮层里）· 声音 · 发送。没有第二行，也没有脱离卡片的加号。</p>
+        </div>
+      </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="描述任务…">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+
+        <!-- 附件来源：顶部下拉浮层，靠 .is-open 显形 -->
+        <div class="m-pop-float" id="pf-attach" style="bottom:100%">
+          <button class="m-menu-row"><i data-ico="image" data-size="14"></i>拍照 / 从相册选</button>
+          <button class="m-menu-row"><i data-ico="folder-open" data-size="14"></i>从工作区挑文件</button>
+          <button class="m-menu-row"><i data-ico="clipboard-list" data-size="14"></i>粘贴剪贴板内容</button>
+          <div class="m-sep"></div>
+          <div class="m-ctx"><span>选中的项会变成输入卡上方的缩略条</span></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>顶栏永远压在内容上</b>：<span class="m-mono">.m-top</span> 是绝对定位 + 渐隐底，消息从下方穿过；<span class="m-mono">.m-fade</span> / <span class="m-mono">.m-fade-tail</span> 给上下两端各一段 96px / 72px 的软过渡，滚动到顶也不出现硬边。</li>
+    <li><b>顶栏不挂模型</b>：手机顶栏只有「抽屉钮 + 标题 + ⋯」，模型只从输入卡的「能力」钮进（同一件事一个出口）。</li>
+    <li><b>抽屉与面板同一套推拉</b>：<span class="m-mono">data-demo-drawer</span> + <span class="m-mono">data-demo-drawer-target</span> + <span class="m-mono">data-demo-scrim</span>。抽屉走 <span class="m-mono">translateX</span>、面板走 <span class="m-mono">translateY</span>，时长都取 <span class="m-mono">--nx-dur-4</span>；遮罩点一下即收，收起时走 <span class="m-mono">--nx-ease</span>（退出类动效不要用 enter 曲线）。</li>
+    <li><b>抽屉只做「找得到」</b>：搜索 + 分段（项目 / 聊天）+ 项目分组 + 会话行；项目组头写项目名，会话行之前先给一行 worktree 子行。设置、模型、权限一律不上抽屉 —— 手机上抽屉的价值是切换，不是再开一层设置。行状态只有三种：未读绿点（不带数字）、等你处理文字徽章（待授权 / 待输入）、运行中行内转圈；条数一律写「N 条消息」。</li>
+    <li><b>模型不在顶上也不在卡面上</b>：手机顶栏没有模型 pill（产品手机顶栏也没有），模型只在输入卡那枚<b>能力</b>按钮的浮层里 —— 同一件事只留一个出口，顶栏中间让给会话标题。</li>
+    <li><b>输入卡只有一行</b>：<span class="m-mono">+ · 输入 · 能力 · 声音 · 发送</span>。早期那套「Plus 分离」（<span class="m-mono">.m-composer-wrap.separated</span>，圆钮脱离卡片 + 行内留 44px 空位）<b>已废止</b>（2026-10-04 用户裁定）：加号常驻行内，不留白，也不换行。</li>
+    <li><b>DOM 顺序即阅读顺序</b>：遮罩与抽屉/面板写在顶栏之前 —— 视觉层级由 z-index 决定（抽屉 250 &gt; 顶栏 40，顶栏被遮罩压住，与真机一致），但 DOM 顺序决定键盘与读屏顺序。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

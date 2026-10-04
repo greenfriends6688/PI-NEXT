@@ -40,6 +40,56 @@ export interface ViewportSize {
  */
 export const DEFAULT_FREE_VIEWPORT_SIZE: ViewportSize = { width: 1280, height: 720 };
 
+/**
+ * 机型预设（v5 画板 **D-23 帧 A** 的五档机型）。
+ *
+ * 为什么加：面板原先的「视口预设」是四个**宽度**（390/768/1024/1280），
+ * 答的是「这条断点生不生效」；画板上的机型预设答的是另一件事 ——
+ * 「这块内容在**某一台设备**的逻辑视口里长什么样」：宽高 + DPR 一起给，
+ * 横竖可旋转，所以它必须是宽高对而不是单宽。
+ *
+ * 数字全是**设备逻辑视口**（CSS px），不是设计令牌，也不参与取景缩放 ——
+ * 取景（把这一块画小到面板里放得下）是既有 `zoom` 档那一段语义，两者是两回事。
+ * DPR 只用于底栏那行说明（面板里的 iframe 不做像素比仿真，那是真模拟器的事，
+ * 见 D-23 帧 C：本页不含模拟器）。
+ */
+export interface BrowserDevicePreset {
+  id: string;
+  /** 机型名（产品名，语言无关，不进 i18n）。 */
+  label: string;
+  width: number;
+  height: number;
+  dpr: number;
+}
+
+export const BROWSER_DEVICE_PRESETS: readonly BrowserDevicePreset[] = [
+  { id: "iphone-15", label: "iPhone 15", width: 393, height: 852, dpr: 3 },
+  { id: "iphone-16-pro-max", label: "16 Pro Max", width: 430, height: 932, dpr: 3 },
+  { id: "iphone-se", label: "iPhone SE", width: 375, height: 667, dpr: 2 },
+  { id: "pixel-9", label: "Pixel 9", width: 412, height: 915, dpr: 2.6 },
+  { id: "galaxy-tab", label: "Galaxy Tab", width: 800, height: 1280, dpr: 2 },
+];
+
+export function findBrowserDevicePreset(id: string | null): BrowserDevicePreset | null {
+  if (!id) return null;
+  return BROWSER_DEVICE_PRESETS.find((device) => device.id === id) ?? null;
+}
+
+/**
+ * 旋转 90°：逻辑视口的宽高对调（画板 D-23 帧 B 的「旋转 90°」）。
+ *
+ * 只对调**逻辑**尺寸，不动呈现尺寸 —— 旋转后仍然是同一块内容，
+ * 缩放档继续按容器算（取景缩放是 CSS 缩放，不触发断点重排，见板上的说明）。
+ */
+export function rotateViewportSize(size: ViewportSize): ViewportSize {
+  return clampViewportSize({ width: size.height, height: size.width });
+}
+
+/** 选中某个机型时的逻辑视口（预设值原样给，不夹 —— 机型宽高是它自己的定义）。 */
+export function resolveDeviceViewport(device: BrowserDevicePreset): ViewportSize {
+  return { width: device.width, height: device.height };
+}
+
 /** 面板可用区（减去视口框自身的外边距）。宽或高拿不到时给一个保守的下限。 */
 export function resolveViewportFitScale(container: ViewportSize): number {
   if (container.width <= 0 || container.height <= 0) return 1;

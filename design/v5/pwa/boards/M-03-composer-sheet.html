@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-03 · 手机输入卡与面板 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-03 · 手机输入卡与面板</h1>
+  <p>
+    手机的输入卡是密度最高的一块，也是唯一一块<b>永远在手边</b>的界面：模型、思考强度、权限、工具与上下文、
+    <code>@</code> 提文件、<code>/</code> 提命令、附件、队列、上下文占用全挤在这一个容器里。这张定四条：
+    ① <b>能力一律收成同一种 chip</b>（Aether 的做法），不再各造一种控件；
+    ② <b>浮层从输入卡上方落下</b>，不是系统级下拉 —— 拇指不需要离开卡片去找菜单；
+    ③ <b>有草稿或有托盘时加号浮起</b>，一个布尔量同时驱动五处；
+    ④ <b>队列与暂停是一等公民</b>，能排序、能插队、能删，不是设置里的一个开关。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：输入卡 / 能力浮层 / 补全面板 / 队列面板</span>
+    <span class="m-doc-tag">组件：m-composer-wrap · m-tray · m-pop-float · m-queue · m-attachbar · m-send</span>
+    <span class="m-doc-tag">状态：静息 / Plus 分离 / 浮层开合 / 补全 / 自动接续与已暂停 / 发送与停止</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 静息 ─────────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 静息 · 文字行（上下文环 · 完成提示音）→ 能力入口；空输入时发送钮是灰的</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">手机端输入卡</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">手机上这套输入卡，按能力收成同一种 chip，别再各造控件。</div>
+
+        <div class="m-md">
+          <h2>一张卡装下所有旋钮</h2>
+          <p>桌面是横排，手机只能竖着叠：<b>文字行（含上下文环与完成提示音）/ 能力入口</b>。入口允许换行，换行也不许把卡片撑出屏幕 —— 超过四档就该让用户进面板。</p>
+          <p>chip 上的字要短到不用读：模型名留在顶栏 pill 上，托盘里只写「模型」；权限档写「问」而不是「每次问」—— 竖屏里每多两个字就多一行。</p>
+          <p>空输入时发送钮是<b>禁用</b>的。禁用的灰和「点得着但会失败」的红必须分开：灰 = 现在还不能发，红 = 你可以发但系统会停下来问你。</p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="说点什么，或 @ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+       <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · Plus 分离形变 ─────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · Plus 分离形变 · <b>左：收拢</b>（空、无托盘，加号贴在玻璃卡上）｜<b>右：分离</b>（有草稿或托盘，加号脱离卡片并抬起阴影）</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- 左：收拢 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">Plus 分离 · 收拢</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">加号什么时候浮起来？</div>
+          <div class="m-md">
+            <p>收拢态：加号就是卡片上的一个小灰钮，和输入框、发送钮排成一行。它不抢注意力，用户想不起来它是干什么的才对 —— 想起来了才点。</p>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="还没写">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- 右：分离 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">Plus 分离 · 分离</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">加了草稿或者托盘之后呢。</div>
+          <div class="m-md">
+            <p>有草稿<b>或</b>有托盘就进分离态 —— 两个条件是<b>或</b>不是「且」：只挂了托盘、还没打字，加号一样要浮起来，因为托盘本身就是一份已选内容。</p>
+            <p>加号脱手：底色从卡片玻璃换成面板白，加一层阴影，于是它在视觉上不属于输入行，而属于整张卡。手指落点没变，层级变了。</p>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <!-- 草稿卡：点托盘上的「草稿」chip 开合（从输入卡上方落下） -->
+          <div class="m-doc-frame" data-demo-pop="draft" hidden
+               style="position:absolute;left:0;right:0;bottom:calc(100% + 8px)">
+            <div class="m-doc-head">
+              <i data-ico="save" data-size="14"></i>
+              <span class="m-grow">草稿已自动保存</span>
+              <span class="m-t-xs m-t-faint">2 分钟前</span>
+            </div>
+            <div class="m-doc-body">
+              <div class="m-t-xs m-t-dim">「把剩下两个分节也补完，然后跑一遍门禁」—— 发送成功后草稿保留到本轮结束。</div>
+              <div class="m-pickbar" data-demo-list>
+                <button class="m-picktag" data-demo-select>丢弃</button>
+                <button class="m-picktag is-on" data-demo-select>恢复草稿</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="描述任务…">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 C · 能力浮层（从输入卡上方落下）────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 顶部下拉形态的浮层 · 模型 / 思考强度 / 工具与上下文 / 权限四个 chip 各开一块，浮层从输入卡<b>上方</b>落下（不是系统级下拉，也不推走消息流）</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">能力浮层</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">四个 chip 改成从卡片上方落下来的浮层，别用系统那套下拉。</div>
+
+        <div class="m-md">
+          <p>系统下拉会把整屏的层级拉平：菜单浮在最上面，用户不知道它属于谁。改成<b>从输入卡上方落下</b>，浮层与卡片之间保持 8px 的呼吸，位置本身就说明了归属。</p>
+          <h2>四块浮层各管一件事</h2>
+          <p>模型说<b>换谁跑</b>，思考说<b>多想多久</b>，工具说<b>能碰什么</b>，权限说<b>碰了要不要问</b>。四块内容互不重叠，所以它们可以是四个平级 chip，而不是一个塞满的设置面板。</p>
+        </div>
+
+        <div class="m-md">
+          <p>切换模型不打断正在跑的回合，浮层底部要明写这一句 —— 不写，用户会以为切了就生效，然后看着模型没变。<span class="m-caret"></span></p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="先挑能力，再写字">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 补全面板与队列 ────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 补全 / 队列 / 运行态 · <b>左</b>：最近 / <code>@</code> 提文件 / <code>/</code> 提命令共用一块补全区（分段切换）｜<b>中</b>：队列自动接续 + 附件托盘 + 发送｜<b>右</b>：队列已暂停 + 停止钮</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- D-1 · @ 与 / -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">补全面板</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">补全不要另开页面，就在卡片上方换一块内容。</div>
+          <div class="m-md">
+            <p>真实产品里这块由打字触发（<code>@</code> 与 <code>/</code> 各唤起自己的那一块），这里做成可点的三态：<b>前缀即语法</b>，切段等于切前缀。手机默认先给「最近」—— 一个文件要先翻三层目录才能找到，等于没有这个功能。</p>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="描述任务…">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+
+          <div data-demo-scope>
+            <div class="m-pop-float" data-demo-pop="c-perm" hidden style="bottom:calc(100% + 8px)">
+
+              <div class="m-seg" data-demo-tabs>
+                <button data-demo-tab="d-recent">最近</button>
+                <button class="is-on" data-demo-tab="d-at">提文件</button>
+                <button data-demo-tab="d-slash">提命令</button>
+              </div>
+
+              <div data-demo-pane="d-recent" hidden>
+                <div class="m-searchfield">
+                  <i data-ico="clock" data-size="14"></i>
+                  <input value="@design" readonly>
+                </div>
+                <button class="m-sheet-row">
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">pwa/system.css</span>
+                    <span class="m-sheet-row-desc">文件 · 上一轮读过</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">base.css</span>
+                    <span class="m-sheet-row-desc">文件 · 上一轮读过</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="command" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">/rewind</span>
+                    <span class="m-sheet-row-desc">命令 · 用过 3 次</span>
+                  </span>
+                </button>
+                <div class="m-sep"></div>
+                <div class="m-t-xs m-t-faint">手机上先给「最近」：一个文件要先在手机上翻三层目录才能找到，等于没有这个功能。</div>
+              </div>
+
+              <div data-demo-pane="d-at">
+                <div class="m-searchfield">
+                  <i data-ico="search" data-size="14"></i>
+                  <input value="@design/v5/pwa" readonly>
+                </div>
+                <button class="m-sheet-row">
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">system.css</span>
+                    <span class="m-sheet-row-desc">pwa · 第 4 节 浮层与面板</span>
+                  </span>
+                  <i data-ico="check" data-size="16"></i>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="file-code" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">tokens.css</span>
+                    <span class="m-sheet-row-desc">pwa · 基准 17px · 圆角 8–28</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="layers" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">../base.css</span>
+                    <span class="m-sheet-row-desc">两端共用 · 间距字阶动效</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="braces" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t m-mono">.m-composer-wrap</span>
+                    <span class="m-sheet-row-desc">符号 · 浮层 · z-100</span>
+                  </span>
+                </button>
+              </div>
+
+              <div data-demo-pane="d-slash" hidden>
+                <div class="m-searchfield">
+                  <i data-ico="command" data-size="14"></i>
+                  <input value="/rew" readonly>
+                </div>
+                <button class="m-sheet-row">
+                  <i data-ico="undo-2" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">/rewind 回退到上一轮</span>
+                    <span class="m-sheet-row-desc">内置 · 回退会保留分支</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="git-commit-horizontal" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">/commit 提交当前改动</span>
+                    <span class="m-sheet-row-desc">扩展来源 · 会先跑门禁</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="list-checks" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">/todo 列待办</span>
+                    <span class="m-sheet-row-desc">内置 · 只读，不改文件</span>
+                  </span>
+                </button>
+                <button class="m-sheet-row">
+                  <i data-ico="minimize-2" data-size="16"></i>
+                  <span class="m-setrow-body">
+                    <span class="m-setrow-t">/compact 压缩上下文</span>
+                    <span class="m-sheet-row-desc">内置 · 压缩前会先列清单让你确认</span>
+                  </span>
+                </button>
+              </div>
+
+              <div class="m-sep"></div>
+              <div class="m-t-xs m-t-faint">点一项即插入并收起：文件落成引用，命令落成这一行输入。</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- D-2 · 队列（自动接续）+ 附件托盘 + 发送 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+        <i data-ico="zap" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <!-- 队列全量面板：点队列头右钮拉起，点遮罩即收 -->
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-sheet" id="queue-sheet">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">队列 · 全部 6 条</div>
+          <div class="m-sheet-body">
+            <div class="m-group-title">排队中 · 6 条（含 1 条已提升为 steer）</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">M-04 会话抽屉整页</span>
+                <span class="m-row-m"><span class="m-dot warn"></span><span>等前一条</span><span>·</span><span>刚刚排入</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">README 清单同步 land-status</span>
+                <span class="m-row-m"><span class="m-dot warn"></span><span>排队中</span><span>·</span><span>1 小时前</span></span>
+              </button>
+            </div>
+            <div class="m-sep"></div>
+            <div class="m-ctx">
+              <span class="m-grow">队列随会话保存</span>
+              <span>关掉页面也在</span>
+            </div>
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag">暂停接续</button>
+            <button class="m-picktag is-on">全部清空</button>
+          </div>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">队列 · 自动接续</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">运行中再发两条，别打断它。</div>
+
+          <div class="m-md">
+            <p>运行中的回合<b>不被打断</b>：新消息一律进队列。队列面板就贴在输入卡正上方，因为它决定「我这句话什么时候算数」。</p>
+          </div>
+
+          <div class="m-md">
+            <p>每条都能<b>提升为 steer</b>（插进当前回合的下一个打断处）或直接删掉。拖把手留着，排序用长按。</p>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-queue">
+            <div class="m-queue-row">
+              <i data-ico="layers" data-size="14"></i>
+              <span class="m-grow m-t-b">排队中 · 3 条</span>
+              <span class="m-badge mute">自动接续</span>
+              <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#queue-sheet" title="全部 6 条"><i data-ico="list-todo" data-size="15"></i></button>
+            </div>
+
+            <div class="m-queue-row">
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+              <span class="m-grow m-setrow-body">
+                <span class="m-setrow-t">把 M-04 会话抽屉整页画完，缺的搜索态用空态卡补</span>
+                <span class="m-setrow-s">上一轮跑完就接</span>
+              </span>
+              <button class="m-top-btn" title="提升为 steer"><i data-ico="arrow-up-right" data-size="15"></i></button>
+              <button class="m-top-btn" title="删除"><i data-ico="x" data-size="15"></i></button>
+            </div>
+
+            <div class="m-queue-row">
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+              <span class="m-grow m-setrow-body">
+                <span class="m-setrow-t">README 的落地清单同步 land-status --batch 的输出</span>
+                <span class="m-setrow-s">等前一条</span>
+              </span>
+              <button class="m-top-btn" title="提升为 steer"><i data-ico="arrow-up-right" data-size="15"></i></button>
+              <button class="m-top-btn" title="删除"><i data-ico="x" data-size="15"></i></button>
+            </div>
+
+            <div class="m-queue-row">
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+              <span class="m-grow m-setrow-body">
+                <span class="m-setrow-t">顺便把 stop 两态也补进 D-03</span>
+                <span class="m-setrow-s">已插到本轮的打断处</span>
+              </span>
+              <span class="m-badge warn">steer</span>
+              <button class="m-top-btn" title="删除"><i data-ico="x" data-size="15"></i></button>
+            </div>
+          </div>
+
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="运行中：这条会排到队尾">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- D-3 · 队列（已暂停）+ 停止 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+        <i data-ico="zap" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">队列 · 已暂停</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">先别自动接了，我看看这几条对不对。</div>
+
+          <div class="m-md">
+            <p>暂停只停「自动接续」，<b>不打断已经在跑的这一轮</b>。按钮从「暂停」变「继续」，徽标从安静变琥珀 —— 状态写在队列头上，不写在设置里。</p>
+          </div>
+
+          <div class="m-run"><i data-ico="loader-circle" data-size="14"></i>正在跑第 2 / 4 步 · 3 分 12 秒</div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-queue">
+            <div class="m-queue-row">
+              <i data-ico="pause" data-size="14"></i>
+              <span class="m-grow m-t-b">已暂停 · 2 条</span>
+              <span class="m-badge warn">已暂停</span>
+              <button class="m-top-btn" title="继续接续"><i data-ico="play" data-size="15"></i></button>
+            </div>
+
+            <div class="m-queue-row">
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+              <span class="m-grow m-setrow-body">
+                <span class="m-setrow-t">等 M-03 出图之后再决定这条要不要拆成两张</span>
+                <span class="m-setrow-s">暂停期间不会自动取用</span>
+              </span>
+              <button class="m-top-btn" title="提升为 steer"><i data-ico="arrow-up-right" data-size="15"></i></button>
+              <button class="m-top-btn" title="删除"><i data-ico="x" data-size="15"></i></button>
+            </div>
+
+            <div class="m-queue-row">
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+              <span class="m-grow m-setrow-body">
+                <span class="m-setrow-t">token 用量按周重置的提醒每周一早上发</span>
+                <span class="m-setrow-s">排在最后</span>
+              </span>
+              <button class="m-top-btn" title="提升为 steer"><i data-ico="arrow-up-right" data-size="15"></i></button>
+              <button class="m-top-btn" title="删除"><i data-ico="x" data-size="15"></i></button>
+            </div>
+          </div>
+
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="停止会结束这一轮，队列保留">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send stop" title="停止这一轮"><i data-ico="square" data-size="16"></i></button>
+      </div>
+    </div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>能力一律同一种 chip</b>：模型 / 思考强度 / 工具与上下文 / 权限长得一样，只有图标与文字不同 —— 扫一行的成本从「逐个辨认控件」降到「读图标」。托盘里只写档位，模型名留在顶栏 pill。</li>
+    <li><b>浮层从输入卡上方落下</b>：<span class="m-mono">.m-pop-float</span> 绝对定位在 <span class="m-mono">bottom: calc(100% + 8px)</span>，与卡片留 8px 呼吸，<b>不推走消息流、不做系统级下拉</b>。位置本身说明归属，拇指不用离开卡片去找菜单；点空白或 Esc 即收。</li>
+    <li><b>输入卡一行结束</b>：<span class="m-mono">+ · 输入 · 能力 · 声音 · 发送</span>，不换行、不留白。「Plus 分离」那套（<span class="m-mono">.separated</span> 让圆钮脱离卡片、行内补 44px 空位）<b>已废止</b>（2026-10-04 用户裁定）—— 它会让加号前面白空一块。</li>
+    <li><b>补全区只有一块，段内再分前缀</b>：<span class="m-mono">.m-seg</span> 三段（最近 / <code>@</code> 提文件 / <code>/</code> 提命令）共用同一个 <span class="m-mono">.m-pop-float</span>，切段等于切前缀。<span class="m-mono">.m-searchfield</span> 回显前缀与已输入的名字，<span class="m-mono">.m-sheet-row</span> 一行一个候选并带副行（文件所在节 / 命令来源）；点一项即插入并收起 —— 文件落成引用，命令落成输入行。<b>手机上默认段是「最近」</b>：翻目录找文件等于没有这个功能。</li>
+    <li><b>队列是一等公民</b>：<span class="m-mono">.m-queue</span> 贴在输入卡正上方，每条能<b>提升为 steer</b>（插到当前回合的下一个打断处，带琥珀徽标）或删除；<b>自动接续 / 已暂停</b> 两态写在队列头上 —— 暂停只停自动接续，不打断已经在跑的这一轮。</li>
+    <li><b>发送与停止是同一个钮的两种含义</b>：<span class="m-mono">.m-send</span> 是「把这条排进队列」，<span class="m-mono">.m-send.stop</span> 是「结束这一轮，队列保留」。空输入时是灰的禁用态 —— 灰（不能发）与红（发了会被拦）必须分开。</li>
+    <li><b>附件托盘横滚</b>：<span class="m-mono">.m-attachbar</span> + <span class="m-mono">.m-attachbtn</span> 在卡片内横滚，不换行也不撑高卡片；已选数量回写成托盘上的一个 chip，让「带了多少东西」在发送前就看得见。</li>
+    <li><b>四个「本来缺、现已补进 pwa/system.css」的类</b>：
+    <span class="m-mono">.m-tray-chip.is-on</span>（开着浮层的那个 chip 要看得出来）、
+    <span class="m-mono">.m-sheet-row.is-on</span>（补全行的选中态）、
+    <span class="m-mono">.m-pop-title</span> / <span class="m-mono">.m-pop-foot</span>（浮层的标题行与脚注行）、
+    以及 <span class="m-mono">.m-composer-wrap.separated</span> 的<b>全部五个属性</b>（原先只有阴影与底色，
+    五个不同步就是漂移）。看到别处写着「这些类缺失」那是过期信息。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

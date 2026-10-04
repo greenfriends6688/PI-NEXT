@@ -18,18 +18,20 @@
  * fork:settings-frame（画板 62，2026-10-01）—— 页面改**骨架 B（列表 300 + 详情 760）**，
  * 三件套各就各位：
  *   - 「扫描」是页级动作 → 页头右端（画板 46 页头同款 scan-search outline 按钮）；
- *   - 工具栏 = 四类资产 `.pw-radio`（带计数）+ 搜索 + 按来源/按项目 + grow + **选择摘要**
+ *   - 工具栏 = 四类资产 `PwRadio`（带计数）+ 搜索 + 按来源/按项目 + grow + **选择摘要**
  *     （`已选 n / m` 徽章 + 清空选择 + 导入所选）——「本次选择」摘要卡从右侧浮列收进
  *     工具栏右端（落位表：「浮卡与搜索框不对齐 → 选择摘要进工具栏右端」），清空/导入
  *     是列表级动作，按 62 的动作层级就位；
- *   - 列表列 = 扫描空态（62 帧 D：图标 + 一句 + 说明）/ 按来源分组的 `.pw-sec-title` +
- *     `.pw-list` 行（行首 `.pw-switch` 即选中态，画板 46 原样）；
+ *   - 列表列 = 扫描空态（62 帧 D：图标 + 一句 + 说明）/ 按来源分组的 `.d-set-sec-t` +
+ *     `.d-sess` 行（行首 `.d-switch` 即选中态，画板 46 原样）；
  *   - 详情列 = 扫描来源说明 +「上次导入结果」卡（三色行，画板 46 注记）或「未选」空态。
  */
 
 import { useCallback, useState } from "react";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaPage, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 import {
   groupCandidates,
   groupsForKind,
@@ -122,6 +124,7 @@ const NOTHING_SELECTED: LocalCopy = {
 
 export function ImportPanel() {
   const { locale, t } = useI18n();
+  const mobile = useIsMobile();
   const { flags: projectFlags, restore: restoreProject } = useProjectFlags();
   const [active, setActive] = useState<ImportKind>("sessions");
   const [query, setQuery] = useState("");
@@ -244,7 +247,7 @@ export function ImportPanel() {
     const groups = filtered ? groupCandidates(filtered, state.groupBy) : [];
 
     if (state.scanning) {
-      return <p role="status" className="sub">{t("i18n.loading")}</p>;
+      return <p role="status" className="d-t-xs d-t-faint">{t("i18n.loading")}</p>;
     }
     // 画板 62 帧 D 的列表空态：图标 + 一句 + 一句说明，落在列表列内。
     if (candidates === null) {
@@ -272,9 +275,9 @@ export function ImportPanel() {
             : t("import.noProject");
           return (
             <div key={group.key || "__none"}>
-              <div className="pw-sec-title">
+              <div className="d-set-sec-t d-row">
                 {label} · {group.items.length}
-                <span className="pw-grow" aria-hidden="true" />
+                <span className="d-grow" aria-hidden="true" />
                 <ConfigButton
                   variant="ghost"
                   size="small"
@@ -285,7 +288,7 @@ export function ImportPanel() {
               </div>
               <ConfigSidebarList>
                 {group.items.slice(0, 60).map((item) => (
-                  <div key={item.id} className="pw-litem">
+                  <div key={item.id} className="d-set-row">
                     <ConfigSwitch
                       checked={state.selected.has(item.id)}
                       label={describeCandidate(item)}
@@ -296,22 +299,22 @@ export function ImportPanel() {
                         setKind(kind, { selected: next });
                       }}
                     />
-                    <span className="grow" title={describeCandidate(item)}>
-                      <span className="pw-lname">{describeCandidate(item)}</span>
-                      <span className="pw-lsub" title={itemModel(item, t)}>{itemModel(item, t)}</span>
+                    <span className="d-grow" title={describeCandidate(item)}>
+                      <span className="d-set-row-t">{describeCandidate(item)}</span>
+                      <span className="d-set-row-s" title={itemModel(item, t)}>{itemModel(item, t)}</span>
                     </span>
                   </div>
                 ))}
               </ConfigSidebarList>
               {group.items.length > 60 && (
-                <p className="sub">{t("import.moreInGroup", { count: group.items.length - 60 })}</p>
+                <p className="d-t-xs d-t-faint">{t("import.moreInGroup", { count: group.items.length - 60 })}</p>
               )}
             </div>
           );
         })}
         {/* 关键词把当前类过滤光时列表不能静默变白板，给一句落点。 */}
         {groups.length === 0 && candidates !== null && (
-          <p role="status" className="sub">{t("import.empty")}</p>
+          <p role="status" className="d-t-xs d-t-faint">{t("import.empty")}</p>
         )}
       </>
     );
@@ -324,7 +327,7 @@ export function ImportPanel() {
         {/* What was looked at, including the sources that were not there. A missing
             source is normal and has to be visible, or an empty list looks broken. */}
         {state.sources.length > 0 && (
-          <p className="sub">
+          <p className="d-t-xs d-t-faint">
             {state.sources.map((source) => {
               const label = SOURCE_LABEL_KEY[source.source]
                 ? t(SOURCE_LABEL_KEY[source.source])
@@ -344,28 +347,22 @@ export function ImportPanel() {
             <ConfigDetailStack>
               <ConfigDetailTitle>{t("import.lastResultTitle")}</ConfigDetailTitle>
               <ConfigSidebarList>
-                <div className="pw-litem">
-                  <span className="pw-ico" style={{ color: "var(--success)" }}>
-                    <i data-ico="circle-check" data-size="14" aria-hidden="true" />
-                  </span>
-                  <span className="grow">
-                    <span className="pw-lname">{t("import.resultImported", { count: state.lastSummary.imported })}</span>
+                <div className="d-set-row">
+                  <i data-ico="circle-check" data-size="14" style={{ color: "var(--nx-success)" }} aria-hidden="true" />
+                  <span className="d-grow">
+                    <span className="d-set-row-t">{t("import.resultImported", { count: state.lastSummary.imported })}</span>
                   </span>
                 </div>
-                <div className="pw-litem">
-                  <span className="pw-ico" style={{ color: "var(--warning)" }}>
-                    <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
-                  </span>
-                  <span className="grow">
-                    <span className="pw-lname">{t("import.resultSkipped", { count: state.lastSummary.skipped })}</span>
+                <div className="d-set-row">
+                  <i data-ico="triangle-alert" data-size="14" style={{ color: "var(--nx-warning)" }} aria-hidden="true" />
+                  <span className="d-grow">
+                    <span className="d-set-row-t">{t("import.resultSkipped", { count: state.lastSummary.skipped })}</span>
                   </span>
                 </div>
-                <div className="pw-litem">
-                  <span className="pw-ico" style={{ color: "var(--error)" }}>
-                    <i data-ico="circle-x" data-size="14" aria-hidden="true" />
-                  </span>
-                  <span className="grow">
-                    <span className="pw-lname">{t("import.resultFailed", { count: state.lastSummary.failed })}</span>
+                <div className="d-set-row">
+                  <i data-ico="circle-x" data-size="14" style={{ color: "var(--nx-danger)" }} aria-hidden="true" />
+                  <span className="d-grow">
+                    <span className="d-set-row-t">{t("import.resultFailed", { count: state.lastSummary.failed })}</span>
                   </span>
                 </div>
               </ConfigSidebarList>
@@ -381,6 +378,194 @@ export function ImportPanel() {
     );
   };
 
+  // fork:v5-landing Wave B · M-05 · 窄屏：两段式不变成新页面 —— **扫描**仍是页头右端那枚
+  // `scan-search`，第二段（挑 + 导入）直接跟在下面：四类页签 `.m-cats`、搜索 `.m-searchfield`、
+  // 分组口径 `.m-pickbar`、选择摘要与两个动作 `.m-pickbar`、列表 `.m-cardgroup` + `.m-setrow`
+  // （行首 `.m-switch` 即选中态）。
+  // 「不点扫描不读文件、不点导入不写文件」与「四个面板同时挂载只切 hidden」两条纪律不动。
+  if (mobile) {
+    const keyword = query.trim().toLowerCase();
+    const candidates = activeState.candidates;
+    const filtered = candidates && keyword
+      ? candidates.filter((item) => describeCandidate(item).toLowerCase().includes(keyword)
+        || itemModel(item, t).toLowerCase().includes(keyword))
+      : candidates;
+    const mobileGroups = filtered ? groupCandidates(filtered, activeState.groupBy) : [];
+    return (
+      <PwaPage
+        title={t("import.title")}
+        actions={
+          <button
+            type="button"
+            className="m-top-btn"
+            title={activeState.scanning ? t("i18n.loading") : t("import.scan")}
+            aria-label={activeState.scanning ? t("i18n.loading") : t("import.scan")}
+            disabled={activeState.scanning}
+            onClick={() => void scan(active)}
+          >
+            <i data-ico="scan-search" data-size="16" aria-hidden="true" />
+          </button>
+        }
+      >
+        <div className="m-cats">
+          {IMPORT_KINDS.map((kind) => {
+            const count = states[kind].candidates;
+            return (
+              <button
+                key={kind}
+                type="button"
+                className={`m-cat${kind === active ? " is-on" : ""}`}
+                aria-pressed={kind === active}
+                onClick={() => setActive(kind)}
+              >
+                {count !== null ? `${t(KIND_LABEL_KEY[kind])} ${count.length}` : t(KIND_LABEL_KEY[kind])}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="m-searchfield" style={{ margin: 0 }}>
+          <i data-ico="search" data-size="14" aria-hidden="true" />
+          <input
+            value={query}
+            placeholder={t("import.searchPlaceholder")}
+            aria-label={t("import.searchPlaceholder")}
+            maxLength={60}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+
+        {activeState.candidates !== null && activeGroupBys.length > 1 && (
+          <div className="m-pickbar">
+            {activeGroupBys.map((by) => (
+              <button
+                key={by}
+                type="button"
+                className={`m-picktag${by === activeState.groupBy ? " is-on" : ""}`}
+                aria-pressed={by === activeState.groupBy}
+                onClick={() => setKind(active, { groupBy: by })}
+              >
+                {by === "source" ? t("import.groupBySource") : t("import.groupByProject")}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="m-pickbar">
+          <span className="m-t-xs m-t-dim m-grow">
+            {t("import.selectedOf", { selected: activeState.selected.size, total: activeState.candidates?.length ?? 0 })}
+          </span>
+          <button
+            type="button"
+            className="m-picktag"
+            title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
+            disabled={activeState.selected.size === 0}
+            onClick={() => setKind(active, { selected: new Set() })}
+          >
+            {t("import.clearSelection")}
+          </button>
+          <button
+            type="button"
+            className="m-picktag is-on"
+            title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
+            disabled={activeState.selected.size === 0 || activeState.applying}
+            onClick={() => void apply(active)}
+          >
+            {activeState.applying ? t("i18n.loading") : t("import.applySelected")}
+          </button>
+        </div>
+
+        {activeState.error && (
+          <PwaBanner icon="triangle-alert" tone="err" role="alert">{activeState.error}</PwaBanner>
+        )}
+
+        {activeState.sources.length > 0 && (
+          <PwaSetRow
+            label={t("import.title")}
+            sub={activeState.sources.map((source) => {
+              const label = SOURCE_LABEL_KEY[source.source]
+                ? t(SOURCE_LABEL_KEY[source.source])
+                : source.source;
+              if (!source.exists) return `${label}: ${t("import.sourceMissing")}`;
+              if (source.error === "destination") return `${label}: ${t("import.sourceDestination")}`;
+              const count = `${label}: ${source.count}${source.truncated ? "+" : ""}`;
+              return source.error ? `${count} (${source.error})` : count;
+            }).join("  ·  ")}
+          />
+        )}
+
+        {activeState.scanning ? (
+          <p role="status" className="m-t-xs m-t-faint">{t("i18n.loading")}</p>
+        ) : candidates === null ? (
+          <div className="m-empty">
+            <span className="m-empty-ico"><i data-ico="scan-search" data-size="20" aria-hidden="true" /></span>
+            <span className="m-empty-s">{t("import.idleHint")}</span>
+          </div>
+        ) : candidates.length === 0 ? (
+          <div className="m-empty">
+            <span className="m-empty-ico"><i data-ico="inbox" data-size="20" aria-hidden="true" /></span>
+            <span className="m-empty-s">{t("import.empty")}</span>
+          </div>
+        ) : (
+          <>
+            {mobileGroups.map((group) => {
+              const label = group.key
+                ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
+                : t("import.noProject");
+              return (
+                <div className="m-cardgroup" key={group.key || "__none"}>
+                  <div className="m-group-title">
+                    {label} · {group.items.length}
+                  </div>
+                  {group.items.slice(0, 60).map((item) => (
+                    <PwaSwitchRow
+                      key={item.id}
+                      icon={KIND_ICON[item.kind]}
+                      label={describeCandidate(item)}
+                      sub={itemModel(item, t)}
+                      checked={activeState.selected.has(item.id)}
+                      switchLabel={describeCandidate(item)}
+                      onChange={() => {
+                        const next = new Set(activeState.selected);
+                        if (next.has(item.id)) next.delete(item.id);
+                        else next.add(item.id);
+                        setKind(active, { selected: next });
+                      }}
+                    />
+                  ))}
+                  <div className="m-pickbar">
+                    <button
+                      type="button"
+                      className="m-picktag"
+                      onClick={() => setKind(active, { selected: toggleGroupSelection(activeState.selected, group.items) })}
+                    >
+                      {t("import.selectAll")}
+                    </button>
+                  </div>
+                  {group.items.length > 60 && (
+                    <PwaSetRow label={t("import.moreInGroup", { count: group.items.length - 60 })} />
+                  )}
+                </div>
+              );
+            })}
+            {mobileGroups.length === 0 && (
+              <p role="status" className="m-t-xs m-t-faint">{t("import.empty")}</p>
+            )}
+          </>
+        )}
+
+        {activeState.lastSummary && (
+          <div className="m-cardgroup">
+            <div className="m-group-title">{t("import.lastResultTitle")}</div>
+            <PwaSetRow icon="circle-check" label={t("import.resultImported", { count: activeState.lastSummary.imported })} />
+            <PwaSetRow icon="triangle-alert" label={t("import.resultSkipped", { count: activeState.lastSummary.skipped })} />
+            <PwaSetRow icon="circle-x" label={t("import.resultFailed", { count: activeState.lastSummary.failed })} />
+          </div>
+        )}
+      </PwaPage>
+    );
+  }
+
   return (
     <SettingsPage
       title={t("import.title")}
@@ -392,13 +577,13 @@ export function ImportPanel() {
           disabled={activeState.scanning}
           onClick={() => void scan(active)}
         >
-          <span className="pw-ico"><i data-ico="scan-search" data-size="13" aria-hidden="true" /></span>
+          <i data-ico="scan-search" data-size="13" aria-hidden="true" />
           {activeState.scanning ? t("i18n.loading") : t("import.scan")}
         </ConfigButton>
       }
       toolbar={
         <>
-          {/* 四类资产页签：`.pw-radio` + 每类计数（扫过的才显示数字）。 */}
+          {/* 四类资产页签：`.d-seg` + 每类计数（扫过的才显示数字）。 */}
           <PwRadio
             value={active}
             ariaLabel={t("import.title")}
@@ -430,7 +615,7 @@ export function ImportPanel() {
               onChange={(by) => setKind(active, { groupBy: by })}
             />
           )}
-          <span className="pw-grow" aria-hidden="true" />
+          <span className="d-grow" aria-hidden="true" />
           {/* 「本次选择」摘要收进工具栏右端（画板 62 落位表）。 */}
           <ConfigBadge tone="count">
             {t("import.selectedOf", { selected: activeState.selected.size, total: activeState.candidates?.length ?? 0 })}
@@ -460,9 +645,9 @@ export function ImportPanel() {
       fill
     >
       {activeState.error && (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{activeState.error}</span>
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{activeState.error}</span>
         </div>
       )}
 
@@ -473,7 +658,7 @@ export function ImportPanel() {
             <div key={kind} hidden={kind !== active}>{renderList(kind)}</div>
           ))}
         </ConfigSidebar>
-        {/* 画板 46 导入帧的右列：一列独立的 `.pw-detail` 卡（`ConfigDetailStack`）。 */}
+        {/* 画板 46 导入帧的右列：一列独立的详情卡（`ConfigDetailStack`）。 */}
         <ConfigDetailStack>
           {IMPORT_KINDS.map((kind) => (
             <div key={kind} hidden={kind !== active}>{renderDetail(kind)}</div>

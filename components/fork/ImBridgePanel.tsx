@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 // fork:client-graph-purity —— 只能 import `-shared` 那半边：实现留服务端
 // （`lib/im-bridge.ts` 要 node:fs / pi SDK，拖进客户端图会让 build 红）。
 import {
@@ -12,13 +14,13 @@ import {
   needsImSecret,
   type ImProvider,
 } from "@/lib/im-bridge-shared";
-import { ConfigButton, ConfigListAction, ConfigSwitch } from "../SettingsUi";
+import { PwSwitch } from "../SettingsUi";
 
 /**
  * fork:im-bridge —— IM 群机器人目标的管理页。
  *
- * 全部用画板已有原子（`.pw-list` / `.pw-litem` / `.pw-field` / `.pw-input` /
- * `.pw-select` / `.pw-alert` / `ConfigSwitch` / `ConfigButton`），不新增 `pw-*` 类。
+ * 全部用 v5 画板已有原子（`.d-card` / `.d-field` / `.d-input` / `.d-select` /
+ * `.d-banner` / `.d-set-row`），不新增 `d-*` 类；窄屏另取 `.m-*`（见函数体内注释）。
  *
  * **两条不能省的 UX**：
  * · **测试发送**是这类配置唯一的验收方式 —— 粘贴来的 webhook 对不对、平台认不认、
@@ -63,6 +65,7 @@ function emptyRow(): TargetRow {
 
 export function ImBridgeBody() {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const [rows, setRows] = useState<TargetRow[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,157 +145,290 @@ export function ImBridgeBody() {
     setStatus(null);
   };
 
-  return (
-    <div style={{ display: "grid", gap: "var(--s3)" }}>
-      {error && (
-        <div className="pw-alert" role="alert" style={{ margin: 0 }}>
-          <span className="pw-ico"><i data-ico="circle-x" data-size="14" aria-hidden="true" /></span>
-          <span>{error}</span>
-        </div>
-      )}
-      {status && !error && (
-        <div className="pw-alert info" role="status" style={{ margin: 0 }}>
-          <span className="pw-ico"><i data-ico="circle-check" data-size="14" aria-hidden="true" /></span>
-          <span>{status}</span>
-        </div>
-      )}
+  // fork:v5-landing Wave B · M-10 · 窄屏：一条目标 = 一张 `.m-cardgroup`
+  // （标签行 + `.m-doc-body` 控件槽 + 末尾开关行 + 动作 pickbar）。
+  // **掩码口径一字不改**：URL / secret 仍是 `type="password"`，
+  // 服务器回传仍然只给 host，已保存的那条仍然显示「已保存」。
+  if (mobile) {
+    return (
+      <>
+        {error && <PwaBanner icon="circle-x" tone="err" role="alert">{error}</PwaBanner>}
+        {status && !error && <PwaBanner icon="circle-check" role="status">{status}</PwaBanner>}
 
-      <div className="pw-list">
         {rows.map((row) => (
-          <div key={row.id} className="pw-litem" style={{ display: "grid", gap: "var(--s2)" }}>
-            <div className="pw-field">
-              <span className="pw-label">{t("imBridge.name")}</span>
-              <span className="pw-ctl">
-                <input
-                  className="pw-input"
-                  value={row.label}
-                  placeholder={PROVIDER_LABELS[row.provider]}
-                  onChange={(event) => patch(row.id, { label: event.target.value })}
-                />
-              </span>
+          <div className="m-cardgroup" key={row.id}>
+            <PwaSetRow label={t("imBridge.name")} />
+            <div className="m-doc-body">
+              <input
+                className="m-input"
+                style={{ width: "100%" }}
+                value={row.label}
+                placeholder={PROVIDER_LABELS[row.provider]}
+                onChange={(event) => patch(row.id, { label: event.target.value })}
+              />
             </div>
-            <div className="pw-field">
-              <span className="pw-label">
-                {t("imBridge.webhook")}
-                <small>{PROVIDER_HINTS[row.provider]}</small>
-              </span>
-              <span className="pw-ctl">
-                <select
-                  className="pw-select"
-                  value={row.provider}
-                  aria-label={t("imBridge.platform")}
-                  onChange={(event) => patch(row.id, { provider: event.target.value as ImProvider })}
-                >
-                  {IM_PROVIDER_IDS.map((provider) => (
-                    <option key={provider} value={provider}>{PROVIDER_LABELS[provider]}</option>
-                  ))}
-                </select>
-              </span>
+
+            <PwaSetRow label={t("imBridge.platform")} sub={PROVIDER_HINTS[row.provider]} />
+            <div className="m-doc-body">
+              <select
+                className="m-input"
+                style={{ width: "100%" }}
+                value={row.provider}
+                aria-label={t("imBridge.platform")}
+                onChange={(event) => patch(row.id, { provider: event.target.value as ImProvider })}
+              >
+                {IM_PROVIDER_IDS.map((provider) => (
+                  <option key={provider} value={provider}>{PROVIDER_LABELS[provider]}</option>
+                ))}
+              </select>
             </div>
-            <div className="pw-field">
-              <span className="pw-label">{t("imBridge.url")}</span>
-              <span className="pw-ctl">
-                <input
-                  className="pw-input pw-mono"
-                  type="password"
-                  autoComplete="off"
-                  value={row.url}
-                  placeholder={row.url ? "••••••（已保存）" : "https://…"}
-                  onChange={(event) => {
-                    const url = event.target.value;
-                    // 粘进来的 URL 能认出平台就自动切，省一次手动选择；认不出保留手选的。
-                    patch(row.id, { url, provider: detectImProvider(url) });
-                  }}
-                />
-              </span>
+
+            <PwaSetRow label={t("imBridge.url")} />
+            <div className="m-doc-body">
+              <input
+                className="m-input m-mono"
+                style={{ width: "100%" }}
+                type="password"
+                autoComplete="off"
+                value={row.url}
+                placeholder={row.url ? "••••••（已保存）" : "https://…"}
+                onChange={(event) => {
+                  const url = event.target.value;
+                  patch(row.id, { url, provider: detectImProvider(url) });
+                }}
+              />
             </div>
+
             {needsImSecret(row.provider) && (
-              <div className="pw-field">
-                <span className="pw-label">
-                  {t("imBridge.secret")}
-                  <small>{t("imBridge.secretHint")}</small>
-                </span>
-                <span className="pw-ctl">
+              <Fragment>
+                <PwaSetRow label={t("imBridge.secret")} sub={t("imBridge.secretHint")} />
+                <div className="m-doc-body">
                   <input
-                    className="pw-input pw-mono"
+                    className="m-input m-mono"
+                    style={{ width: "100%" }}
                     type="password"
                     autoComplete="off"
                     value={row.secret}
                     placeholder="SEC…"
                     onChange={(event) => patch(row.id, { secret: event.target.value })}
                   />
-                </span>
-              </div>
+                </div>
+              </Fragment>
             )}
             {needsImChatId(row.provider) && (
-              <div className="pw-field">
-                <span className="pw-label">{t("imBridge.chatId")}</span>
-                <span className="pw-ctl">
+              <Fragment>
+                <PwaSetRow label={t("imBridge.chatId")} />
+                <div className="m-doc-body">
                   <input
-                    className="pw-input pw-mono"
+                    className="m-input m-mono"
+                    style={{ width: "100%" }}
                     value={row.chatId}
                     placeholder="-100…"
                     onChange={(event) => patch(row.id, { chatId: event.target.value })}
                   />
-                </span>
+                </div>
+              </Fragment>
+            )}
+
+            <PwaSwitchRow
+              label={t("imBridge.enabled")}
+              sub={row.label || PROVIDER_LABELS[row.provider]}
+              checked={row.enabled}
+              switchLabel={row.label || PROVIDER_LABELS[row.provider]}
+              onChange={(checked) => patch(row.id, { enabled: checked })}
+            />
+
+            <div className="m-pickbar">
+              <button type="button" className="m-picktag" disabled={busy !== null} onClick={() => void test(row)}>
+                <i data-ico="send" data-size="13" aria-hidden="true" />
+                {t("imBridge.test")}
+              </button>
+              <button
+                type="button"
+                className="m-picktag danger"
+                disabled={busy !== null}
+                onClick={() => {
+                  const next = rows.filter((entry) => entry.id !== row.id);
+                  setRows(next);
+                  void save(next);
+                }}
+              >
+                <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+                {t("imBridge.remove")}
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          className="m-btn"
+          onClick={() => setRows((current) => [...current, emptyRow()])}
+        >
+          <i data-ico="plus" data-size="13" aria-hidden="true" />
+          {t("imBridge.add")}
+        </button>
+
+        <div className="m-pickbar">
+          <button
+            type="button"
+            className="m-picktag is-on"
+            disabled={busy !== null || !loaded}
+            onClick={() => void save(rows)}
+          >
+            <i data-ico="check" data-size="13" aria-hidden="true" />
+            {t("imBridge.save")}
+          </button>
+        </div>
+        <p className="m-t-xs m-t-faint">{t("imBridge.outboundOnly")}</p>
+      </>
+    );
+  }
+
+  return (
+    <div className="d-col" style={{ gap: "var(--nx-sp-3)" }}>
+      {error && (
+        <div className="d-banner err" role="alert">
+          <i data-ico="circle-x" data-size="14" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      )}
+      {status && !error && (
+        <div className="d-banner info" role="status">
+          <i data-ico="circle-check" data-size="14" aria-hidden="true" />
+          <span>{status}</span>
+        </div>
+      )}
+
+      <div className="d-col" style={{ gap: "var(--nx-sp-2)" }}>
+        {rows.map((row) => (
+          <div key={row.id} className="d-card">
+            <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+            <div className="d-field">
+              <span className="d-field-t">{t("imBridge.name")}</span>
+              <input
+                className="d-input"
+                value={row.label}
+                placeholder={PROVIDER_LABELS[row.provider]}
+                onChange={(event) => patch(row.id, { label: event.target.value })}
+              />
+            </div>
+            <div className="d-field">
+              <span className="d-field-t">{t("imBridge.webhook")}</span>
+              <select
+                className="d-select"
+                value={row.provider}
+                aria-label={t("imBridge.platform")}
+                onChange={(event) => patch(row.id, { provider: event.target.value as ImProvider })}
+              >
+                {IM_PROVIDER_IDS.map((provider) => (
+                  <option key={provider} value={provider}>{PROVIDER_LABELS[provider]}</option>
+                ))}
+              </select>
+              <span className="d-t-xs d-t-faint">{PROVIDER_HINTS[row.provider]}</span>
+            </div>
+            <div className="d-field">
+              <span className="d-field-t">{t("imBridge.url")}</span>
+              <input
+                className="d-input d-mono"
+                type="password"
+                autoComplete="off"
+                value={row.url}
+                placeholder={row.url ? "••••••（已保存）" : "https://…"}
+                onChange={(event) => {
+                  const url = event.target.value;
+                  // 粘进来的 URL 能认出平台就自动切，省一次手动选择；认不出保留手选的。
+                  patch(row.id, { url, provider: detectImProvider(url) });
+                }}
+              />
+            </div>
+            {needsImSecret(row.provider) && (
+              <div className="d-field">
+                <span className="d-field-t">{t("imBridge.secret")}</span>
+                <input
+                  className="d-input d-mono"
+                  type="password"
+                  autoComplete="off"
+                  value={row.secret}
+                  placeholder="SEC…"
+                  onChange={(event) => patch(row.id, { secret: event.target.value })}
+                />
+                <span className="d-t-xs d-t-faint">{t("imBridge.secretHint")}</span>
               </div>
             )}
-            <div className="pw-field">
-              <span className="pw-label">{t("imBridge.enabled")}</span>
-              <span className="pw-ctl">
-                <ConfigSwitch
+            {needsImChatId(row.provider) && (
+              <div className="d-field">
+                <span className="d-field-t">{t("imBridge.chatId")}</span>
+                <input
+                  className="d-input d-mono"
+                  value={row.chatId}
+                  placeholder="-100…"
+                  onChange={(event) => patch(row.id, { chatId: event.target.value })}
+                />
+              </div>
+            )}
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("imBridge.enabled")}</div>
+              </div>
+              <span className="d-grow-last">
+                <PwSwitch
                   checked={row.enabled}
                   label={row.label || PROVIDER_LABELS[row.provider]}
                   onChange={(checked) => patch(row.id, { enabled: checked })}
                 />
               </span>
             </div>
-            <div className="pw-field">
-              <span className="pw-label">{t("imBridge.actions")}</span>
-              <span className="pw-ctl">
-                <ConfigButton
-                  size="small"
-                  disabled={busy !== null}
-                  onClick={() => void test(row)}
-                >
-                  <span className="pw-ico"><i data-ico="send" data-size="13" aria-hidden="true" /></span>
-                  {t("imBridge.test")}
-                </ConfigButton>
-                <ConfigButton
-                  variant="danger"
-                  size="small"
-                  disabled={busy !== null}
-                  onClick={() => {
-                    const next = rows.filter((entry) => entry.id !== row.id);
-                    setRows(next);
-                    void save(next);
-                  }}
-                >
-                  <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
-                  {t("imBridge.remove")}
-                </ConfigButton>
-              </span>
+            <div className="d-row" style={{ justifyContent: "flex-end", gap: "var(--nx-sp-2)" }}>
+              <button
+                type="button"
+                className="d-btn sm"
+                disabled={busy !== null}
+                onClick={() => void test(row)}
+              >
+                <i data-ico="send" data-size="13" aria-hidden="true" />
+                {t("imBridge.test")}
+              </button>
+              <button
+                type="button"
+                className="d-btn sm danger ghost"
+                disabled={busy !== null}
+                onClick={() => {
+                  const next = rows.filter((entry) => entry.id !== row.id);
+                  setRows(next);
+                  void save(next);
+                }}
+              >
+                <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+                {t("imBridge.remove")}
+              </button>
+            </div>
             </div>
           </div>
         ))}
-        <ConfigListAction onClick={() => setRows((current) => [...current, emptyRow()])}>
+        <button
+          type="button"
+          className="d-btn ghost"
+          onClick={() => setRows((current) => [...current, emptyRow()])}
+        >
+          <i data-ico="plus" data-size="13" aria-hidden="true" />
           {t("imBridge.add")}
-        </ConfigListAction>
+        </button>
       </div>
 
-      <div className="pw-row" style={{ gap: "var(--s2)", cursor: "default" }}>
-        <span className="grow" />
-        <ConfigButton
-          size="small"
+      <div className="d-row" style={{ justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          className="d-btn sm"
           disabled={busy !== null || !loaded}
           onClick={() => void save(rows)}
         >
-          <span className="pw-ico"><i data-ico="check" data-size="13" aria-hidden="true" /></span>
+          <i data-ico="check" data-size="13" aria-hidden="true" />
           {t("imBridge.save")}
-        </ConfigButton>
+        </button>
       </div>
 
-      <p className="sub">{t("imBridge.outboundOnly")}</p>
+      <p className="d-t-xs d-t-faint">{t("imBridge.outboundOnly")}</p>
     </div>
   );
 }

@@ -16,6 +16,14 @@
 // 附件（手机上最高频的动作），面板另给一枚钮，也不做「占满键盘高度」那套
 // visualViewport 高度数学 —— 浮层锚在输入卡上方，键盘弹起时它就在键盘上方。
 // 登记见 design/pi-web-design/DIVERGENCE.md AJ 节。
+//
+// fork:v5-wave-b —— 这里**故意保留 `pw-*`**（Wave B 的“顺手清掉 pw-*”不适用于本组件）：
+//   1. design/v5/pwa/system.css 里**没有**对应的 m- 类（手机动作宫格在 PWA 组件库里
+//      是一处真缺口，见汇报）；不许自造、不许改 design/**；
+//   2. components/fork/MobileActionPanel.test.mjs 与画板 60 帧 E 都拿
+//      .pw-actgrid / .pw-actcell / .pw-ico / .pw-anim-spin 当选择器
+//      （“类名必须在画板上画着”那条判据），删掉就是删测试。
+//   设计侧补上对应件后，再由收尾波统一换。
 
 export interface ActionCell {
   /** 稳定标识，只用于 React key 与测试选择器。 */

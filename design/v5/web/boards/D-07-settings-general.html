@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-07 · 设置壳与通用 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-07 · 设置壳与通用</h1>
+  <p>
+    设置是一个<b>壳</b>不是一个页面：左边 11 个分节永远在同一个位置，右边只换内容。
+    「通用」这一节只回答<b>跟这台机器有关的问题</b> —— 我看着顺不顺眼、手怎么发出去、出错了等不等、回来时落在哪。
+    所有改动落在 <code>~/.pi/agent/settings.json</code>；<b>标了「新会话生效」的就真的不给当场生效</b>，
+    不做那种「界面变了、行为没变」的假开关。宿主<b>一律是弹窗</b>
+    （<code>d-modal is-open › d-modal-box wide › d-modal-head › d-modal-body › d-set</code>），背后是会话：会话顶栏 + 一段助手消息。
+    整页宿主已废止，只在帧 A 留一帧「产品早期形态」作对照 —— 不画两遍设置。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 通用</span>
+    <span class="d-tag">组件：SettingsPanel · ThemeSkinStrip · RetrySettingsBlock · ContextBudgetSettingsBlock</span>
+    <span class="d-tag">宿主：弹窗（唯一）· 整页宿主（已废止，仅帧 A 对照）</span>
+    <span class="d-tag">状态：跟随系统 · 已保存 / 待重载 · 需重载会话</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · <b>整页宿主 · 已废止</b> · 产品早期形态：设置曾作为独立页面 · 通用：外观 · 输入与发送 · 声音与通知<span class="d-grow"></span>只作对照，不要再按它实现</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-banner err"><i data-ico="triangle-alert" data-size="14"></i><span><b>已废止。</b>设置一律以弹窗出现（见帧 B / C / D）：背后的会话不动，关掉就回到原地。这一帧只作产品早期形态对照，不要按它实现。</span></div>
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设置</span>
+              <span class="d-tb-sub">通用 · 外观、输入与容错</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已保存</span>
+            <button class="d-btn sm ghost">重置本节</button>
+          </header>
+
+          <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <!-- 外观 -->
+                <div class="d-set-sec" data-demo-scope>
+                  <div class="d-set-sec-t">外观</div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">主题</div>
+                      <div class="d-set-row-s">同一套类名，只翻转变量板；深色下没有一条组件单独改规则。</div>
+                    </div>
+                    <span class="d-grow-last">
+                      <div class="d-seg" data-demo-tabs>
+                        <button data-demo-tab="t-light"><i data-ico="sun" data-size="12"></i>浅色</button>
+                        <button data-demo-tab="t-dark"><i data-ico="moon" data-size="12"></i>深色</button>
+                        <button data-demo-tab="t-sys" class="is-on"><i data-ico="monitor" data-size="12"></i>跟随系统</button>
+                      </div>
+                    </span>
+                  </div>
+
+                  <section data-demo-pane="t-light" hidden>
+                    <div class="d-card">
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row"><span class="d-badge mute">固定浅色</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">系统切到夜间时界面不变</span></div>
+                        <div class="d-row d-t-xs d-t-dim"><i data-ico="check" data-size="13"></i><span class="d-grow">录屏、投屏、教学演示最稳；代价是夜里要顶灯</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="t-dark" hidden>
+                    <div class="d-card">
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row"><span class="d-badge mute">固定深色</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">系统切到日间时界面不变</span></div>
+                        <div class="d-row d-t-xs d-t-dim"><i data-ico="check" data-size="13"></i><span class="d-grow">长时间读长回复不刺眼；截图给别人时对方可能要翻一下</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="t-sys">
+                    <div class="d-card">
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row"><span class="d-badge ok">跟随系统</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">当前系统外观：浅色 · 19:20 自动翻面</span></div>
+                        <div class="d-row d-t-xs d-t-dim"><i data-ico="info" data-size="13"></i><span class="d-grow">开会投屏时先钉成浅色，投完再改回来</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div class="d-anchor">
+                    <button class="d-setcard" data-demo-open="p07-skin">
+                      <i data-ico="palette" data-size="20"></i>
+                      <span class="d-col d-grow">
+                        <span class="d-set-row-t">皮肤工作室</span>
+                        <span class="d-set-row-s">改四色、几何、不透明度与壁纸，改完当场预览，能导成 JSON 带走。</span>                      </span>
+                      <i data-ico="chevron-right" data-size="16"></i>
+                    </button>
+                    <div class="d-pop is-open up" data-demo-pop="p07-skin" hidden style="right:0;min-width:320px">
+                      <div class="d-pop-title">主题皮肤</div>
+                      <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row"><i data-ico="palette" data-size="14"></i><span class="d-t-xs d-t-dim">当前</span><span class="d-grow"></span><span class="d-badge info">Mac 拟物</span></div>
+                        <div class="d-row"><i data-ico="wallpaper" data-size="14"></i><span class="d-t-xs d-t-dim">壁纸</span><span class="d-grow"></span><span class="d-t-xs">内置 · 章若楠</span></div>
+                        <div class="d-row"><i data-ico="paintbrush" data-size="14"></i><span class="d-t-xs d-t-dim">可导出</span><span class="d-grow"></span><span class="d-t-xs">皮肤 JSON</span></div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="wand-sparkles" data-size="14"></i>打开工作室</button>
+                      <button class="d-menu-row"><i data-ico="download" data-size="14"></i>导出成 JSON</button>
+                      <button class="d-menu-row"><i data-ico="upload" data-size="14"></i>从文件导入</button>
+                    </div>
+                  </div>
+
+                  <div class="d-t-xs d-t-faint">内置的「默认」外观不是皮肤文件：既导不出去也进不了工作室 —— 要改就先导入或新建一份（见帧 C）。</div>
+                </div>
+
+                <!-- 输入与发送 -->
+                <div class="d-set-sec" data-demo-scope>
+                  <div class="d-set-sec-t">输入与发送</div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">发送键</div>
+                      <div class="d-set-row-s">改成 Ctrl+Enter 后，回车用来换行（含续 Markdown 列表），Shift+Enter 仍是换行。</div>
+                    </div>
+                    <span class="d-grow-last">
+                      <div class="d-seg" data-demo-tabs>
+                        <button data-demo-tab="k-ctrl"><i data-ico="keyboard" data-size="12"></i>Ctrl+Enter</button>
+                        <button data-demo-tab="k-enter" class="is-on"><i data-ico="corner-down-right" data-size="12"></i>Enter</button>
+                      </div>
+                    </span>
+                  </div>
+
+                  <section data-demo-pane="k-ctrl" hidden>
+                    <div class="d-card">
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row"><span class="d-badge mute">Ctrl+Enter 发送</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">回车永远是换行</span></div>
+                        <div class="d-row d-t-xs d-t-dim"><i data-ico="check" data-size="13"></i><span class="d-grow">写到一半的 Markdown 列表不会被自己发出去</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="k-enter">
+                    <div class="d-card">
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row"><span class="d-badge ok">Enter 发送</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">默认；换行用 Shift+Enter</span></div>
+                        <div class="d-row d-t-xs d-t-dim"><i data-ico="info" data-size="13"></i><span class="d-grow">Ctrl+Enter 临时插一段时也换行，两种习惯都能接住</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">默认工具档</div>
+                      <div class="d-set-row-s">取自 settings.json 的 <code>defaultTools</code>；输入框上的工具档按钮照旧能临时切。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-select">仅聊天（只读）<i data-ico="chevron-down" data-size="12"></i></button></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">声音与通知</div>
+                  <div class="d-t-xs d-t-faint">声音在本机响，通知可能落到手机 —— 分开开关，否则想静音手机的人只能把电脑也静音。</div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">完成声音</div>
+                      <div class="d-set-row-s">任务跑完时响一声；与输入框的声音按钮是同一个开关。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-select">清脆<i data-ico="chevron-down" data-size="12"></i></button></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="完成声音"></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">任务失败时通知</div>
+                      <div class="d-set-row-s">出错比完成更需要知道；默认只推失败，跑定时任务时手机不会一直亮。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">已开</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="失败通知"></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">发送测试通知</div>
+                      <div class="d-set-row-s">真发一条出去，标题固定「PI NEXT 测试」，手机上一眼认得出。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-btn sm" data-demo-open="p07-notify"><i data-ico="bell" data-size="13"></i>发一条</button></span>
+                  </div>
+
+                  <div class="d-pop is-open up" data-demo-pop="p07-notify" hidden style="right:0;min-width:320px">
+                    <div class="d-pop-title">测试通知</div>
+                    <div class="d-pop-body d-t-xs d-t-dim">如果你看到这条，通知已经配好了。失败的那一条会原样带原因，不弹一句「发送成功」。</div>
+                    <div class="d-sep"></div>
+                    <div class="d-menu-row"><i data-ico="smartphone" data-size="14"></i><span class="d-grow">本机窗口</span><span class="d-badge mute">未授权</span></div>
+                    <div class="d-menu-row"><i data-ico="bell" data-size="14"></i><span class="d-grow">飞书 · PI NEXT 助手</span><span class="d-badge ok">已送达</span></div>
+                    <div class="d-menu-row"><i data-ico="send" data-size="14"></i><span class="d-grow">自定义 webhook</span><span class="d-badge bad">连接超时</span></div>
+                    <div class="d-pop-foot">重发只补失败的那一条，不重复推已经送达的。</div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 模态宿主（唯一）· 通用（续）：上下文预算 · 容错与重试 · 声音与通知 · 进入方式与地址<span class="d-grow"></span>重试触发条件是真能选的</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 通用（续）</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已保存</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">通用 · 容错</span>
+                </div>
+                <div class="d-md">
+                  <p>设置是弹窗：背后的会话不动，关掉就回到原处。整页宿主已废止。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 通用">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 通用</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">上下文预算</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">自动压缩</div>
+                      <div class="d-set-row-s">上下文快满时自动压缩对话，<b>新会话生效</b>。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">开 · 阈值 80%</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="自动压缩"></button>
+                  </div>
+                  <div class="d-grid3">
+                    <div class="d-field">
+                      <span class="d-field-t">摘要预留（tokens）</span>
+                      <span class="d-t-xs d-t-faint">留给摘要本身的空间</span>
+                      <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="42"><span class="d-t-xs d-mono">24 576</span></div>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">保留最近（tokens）</span>
+                      <span class="d-t-xs d-t-faint">逐字保留的最近上下文</span>
+                      <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="28"><span class="d-t-xs d-mono">16 384</span></div>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">分支摘要预留（tokens）</span>
+                      <span class="d-t-xs d-t-faint">会话树跳转时预留</span>
+                      <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="16"><span class="d-t-xs d-mono">8 192</span></div>
+                    </div>
+                  </div>
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span>三个值加起来已占窗口的 12%：剩下的 88% 才是真正能用来干活的上下文。压得太狠，模型会「记不住你刚说过的话」。</span>
+                    <button class="d-btn sm ghost d-banner-btn">按模型覆盖</button>
+                  </div>
+                  <div class="d-t-xs d-t-faint">滑块只是快速调整，面板里存的是绝对 token 数；「按模型覆盖」里键是 pi 的「供应商/模型」，留空表示跟随全局值。</div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">容错与重试</div>
+                  <div class="d-t-xs d-t-faint">重试是给「等一下就好」的失败准备的。哪些失败值得等，必须写清 —— 不然用户只会看到同一个错误重复三遍。</div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">自动重试</div>
+                      <div class="d-set-row-s">请求失败后按退避重试，<b>新会话生效</b>。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">开 · 最多 3 次</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="自动重试"></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">重试触发条件</div>
+                      <div class="d-set-row-s">上下文超限、鉴权失败、参数错误不重试 —— 重试一百次也是同一个结果。</div>
+                    </div>
+                    <span class="d-grow-last">
+                      <div class="d-cats" data-demo-list>
+                        <button class="d-cat" data-demo-select>仅网络失败</button>
+                        <button class="d-cat" data-demo-select>网络失败 + 限流</button>
+                        <button class="d-cat is-on" data-demo-select>网络失败 + 限流 + 5xx</button>
+                      </div>
+                    </span>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">基础延迟</div>
+                      <div class="d-set-row-s">首次重试的等待时间，之后按次数指数退避（1s → 2s → 4s）。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">1 000 ms</span></span>
+                    <input type="range" class="d-slider" min="0" max="100" value="22">
+                  </div>
+
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span>当前默认模型的供应商把「连续 3 次 429」算作账号级限流，重试只会更快撞墙 —— 面板会在这种组合出现时先提示限流，而不是默默重试。</span>
+                    <button class="d-btn sm ghost d-banner-btn">看怎么改</button>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">进入方式与地址</div>
+                  <div class="d-t-xs d-t-faint">「回来时落在哪」是每天都要经历一次的摩擦，所以它值得一个选项，而不是每次都停在空工作台。</div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">打开这个地址时</div>
+                      <div class="d-set-row-s">只影响浏览器打开本机地址；手机端有自己的一套。</div>
+                    </div>
+                  </div>
+<div class="d-col" data-demo-list>
+                  <button class="d-radiorow" data-demo-select>
+                    <span class="d-radio"></span>
+                    <span class="d-col">
+                      <span class="d-radiorow-t">恢复上次页面</span>
+                      <span class="d-radiorow-s">每次都从「今天做什么」开始，适合每天开新活</span>
+                    </span>
+                  </button>
+                  <button class="d-radiorow on" data-demo-select>
+                    <span class="d-radio on"></span>
+                    <span class="d-col">
+                      <span class="d-radiorow-t">进入工作台</span>
+                      <span class="d-radiorow-s">接着上次那条继续写，不重新选项目</span>
+                    </span>
+                  </button>
+                  <button class="d-radiorow" data-demo-select>
+                    <span class="d-radio"></span>
+                    <span class="d-col">
+                      <span class="d-radiorow-t">直接打开上次会话</span>
+                      <span class="d-radiorow-s">什么都不恢复，直接空着等你选</span>
+                    </span>
+                  </button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">本机地址</div>
+                      <div class="d-set-row-s">绑定回环地址，别的机器访问不到。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-urlbox" style="max-width:280px">http://127.0.0.1:39411</span></span>
+                    <button class="d-btn sm ghost"><i data-ico="copy" data-size="13"></i>复制</button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">局域网只读链接</div>
+                      <div class="d-set-row-s">带访问令牌，30 天后失效；只能看，不能改设置。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge warn"><i data-ico="lock" data-size="12"></i>令牌 10 月 06 日到期</span></span>
+                    <button class="d-btn sm">查看</button>
+                  </div>
+
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>「只读链接」不是权限小一点的完整版：它连这张设置页都不渲染。要在手机上改设置，得在「手机与推送」里单独授权。</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+                </div>
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 标「新会话生效」的项真的不假装即时</span>
+                <button class="d-btn ghost">重置本节</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 模态宿主（唯一）· 皮肤工作室是「通用」分节里的第二屏：四色与几何 · 实时预览 · 自定义 CSS<span class="d-grow"></span>选皮肤与重播预览都是真能点的</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 通用 › 皮肤工作室</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已保存</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">通用 · 皮肤工作室</span>
+                </div>
+                <div class="d-md">
+                  <p>皮肤工作室是「通用」里的第二屏，也在同一个弹窗里：改的是皮肤文件，不是全局主题。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 通用 · 皮肤工作室">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head"><span class="d-grow">设置 · 通用 · 皮肤工作室</span><span class="d-badge info">Mac 拟物</span></div>
+              <div class="d-modal-body">
+                <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">四色（留空表示继承默认皮肤）</div>
+                  <div class="d-grid2">
+                    <div class="d-field">
+                      <span class="d-field-t">背景色</span>
+                      <div class="d-row"><span class="d-swatch" style="background:var(--nx-canvas)"></span><input class="d-input d-mono" value="#f7f7f8"></div>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">面板色</span>
+                      <div class="d-row"><span class="d-swatch" style="background:var(--nx-panel)"></span><input class="d-input d-mono" value="#ffffff"></div>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">强调色</span>
+                      <div class="d-row"><span class="d-swatch" style="background:var(--nx-accent)"></span><input class="d-input d-mono" value="#007aff"></div>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">文字色</span>
+                      <div class="d-row"><span class="d-swatch" style="background:var(--nx-text)"></span><input class="d-input d-mono" value="#17171a"></div>
+                    </div>
+                  </div>
+                  <div class="d-t-xs d-t-faint">画板上只写十六进制字符串占位；真值由 tokens.css 的角色令牌给出，皮肤只覆盖这四个变量。</div>
+                </div>
+
+                <div class="d-set-sec" id="p07-studio-preview">
+                  <div class="d-set-sec-t">实时预览</div>
+                  <div class="d-row">
+                    <div class="d-seg">
+                      <button class="is-on">浅色</button>
+                      <button>深色</button>
+                    </div>
+                    <span class="d-grow"></span>
+                    <span class="d-t-xs d-t-faint">预览只画界面，不跑真实会话</span>
+                    <button class="d-btn sm" data-demo-motion="#p07-studio-preview .d-cell-pop"><i data-ico="rotate-cw" data-size="13"></i>重播入场</button>
+                  </div>
+
+                  <div class="d-grid3">
+                    <div class="d-card d-cell-pop" style="animation-delay:0ms">
+                      <div class="d-card-head"><i data-ico="message-square" data-size="14"></i>面板色</div>
+                      <div class="d-card-body d-col">
+                        <div class="d-t-xs">发白的面板</div>
+                        <div class="d-bar"><i style="width:72%"></i></div>
+                      </div>
+                    </div>
+                    <div class="d-card d-cell-pop" style="animation-delay:80ms">
+                      <div class="d-card-head"><i data-ico="zap" data-size="14"></i>强调色</div>
+                      <div class="d-card-body d-col">
+                        <div class="d-badge info">强调色只出现一处</div>
+                        <div class="d-bar"><i style="width:54%"></i></div>
+                      </div>
+                    </div>
+                    <div class="d-card d-cell-pop" style="animation-delay:160ms">
+                      <div class="d-card-head"><i data-ico="type" data-size="14"></i>文字色</div>
+                      <div class="d-card-body d-col">
+                        <div class="d-t-xs">正文、次要、三级</div>
+                        <div class="d-bar"><i style="width:38%"></i></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">几何与不透明度</div>
+                  <div class="d-field">
+                    <span class="d-field-t">组件圆角</span>
+                    <span class="d-t-xs d-t-faint">一个值改所有圆角角色（xs / sm / md / lg / xl），不是逐个控件调。</span>
+                    <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="64"><span class="d-t-xs d-mono">12 px</span></div>
+                  </div>
+                  <div class="d-field">
+                    <span class="d-field-t">玻璃模糊</span>
+                    <span class="d-t-xs d-t-faint">顶栏与浮层用同一档；调到 0 会退回实色，这时顶栏会「变重」。</span>
+                    <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="50"><span class="d-t-xs d-mono">20 px</span></div>
+                  </div>
+                  <div class="d-field">
+                    <span class="d-field-t">侧栏透明度</span>
+                    <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="82"><span class="d-t-xs d-mono">92%</span></div>
+                  </div>
+                  <div class="d-field">
+                    <span class="d-field-t">边框强度</span>
+                    <div class="d-row"><input type="range" class="d-slider" min="0" max="100" value="50"><span class="d-t-xs d-mono">主题原值</span></div>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">壁纸</div>
+                      <div class="d-set-row-s">超过 3 MB 会被拒 —— 皮肤要整份导出成 JSON，图片一并进去。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-select">填充（裁切）<i data-ico="chevron-down" data-size="12"></i></button></span>
+                    <button class="d-btn sm"><i data-ico="image" data-size="13"></i>换一张</button>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">自定义 CSS</div>
+                  <div class="d-field">
+                    <span class="d-field-t">追加到样式表末尾</span>
+                    <textarea class="d-textarea" rows="6">/* 覆盖任何规则；仅作用于本机这套皮肤 */
+.d-topbar { backdrop-filter: blur(28px) saturate(1.6); }
+.d-set-navitem.is-on { font-weight: 600; }</textarea>
+                    <span class="d-t-xs d-t-faint">能覆盖任何规则，也包括我自己 —— 所以写错时面板不会报错，只会「看起来不对」，这里给一个还原按钮。</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+                </div>
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 撤销只回退这一屏的改动</span>
+                <button class="d-btn ghost"><i data-ico="undo-2" data-size="13"></i>撤销</button>
+                <button class="d-btn primary"><i data-ico="save" data-size="13"></i>保存皮肤</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 模态宿主（唯一）· 设置作为弹窗（⌘K → 设置）：同一份内容，外面是遮罩与关闭条<span class="d-grow"></span>内容不多也要能改，不能退化成只读预览</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑 · 3 个会话在排队</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="命令面板"><i data-ico="command" data-size="15"></i></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+                <div class="d-md">
+                  <p>先把设置页的分节数定下来，再回头改组件 —— 顺序反了就会多出两个没人认领的分节。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 模态宿主：产品里从 ⌘K 唤起，这里只演示外壳，内容与帧 A / B 同一份 -->
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 通用</div>
+              <div class="d-modal-body">
+                <div class="d-set" style="height:auto">
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+                  </nav>
+                  <div class="d-set-main" style="padding:var(--nx-sp-1) 0">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec" data-demo-scope>
+                        <div class="d-set-sec-t">外观</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">主题</div>
+                            <div class="d-set-row-s">模态里也要能改主题，否则就得先关掉设置再翻面。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <div class="d-seg" data-demo-tabs>
+                              <button data-demo-tab="m-light"><i data-ico="sun" data-size="12"></i>浅色</button>
+                              <button data-demo-tab="m-dark"><i data-ico="moon" data-size="12"></i>深色</button>
+                              <button data-demo-tab="m-sys" class="is-on"><i data-ico="monitor" data-size="12"></i>跟随系统</button>
+                            </div>
+                          </span>
+                        </div>
+                        <section data-demo-pane="m-light" hidden>
+                          <div class="d-banner"><i data-ico="sun" data-size="14"></i><span>模态内已切到浅色；背后的会话跟着一起变，不重开窗口。</span></div>
+                        </section>
+                        <section data-demo-pane="m-dark" hidden>
+                          <div class="d-banner"><i data-ico="moon" data-size="14"></i><span>模态内已切到深色；正在跑的任务不中断，只换变量板。</span></div>
+                        </section>
+                        <section data-demo-pane="m-sys">
+                          <div class="d-banner"><i data-ico="monitor" data-size="14"></i><span>跟随系统：系统外观变化时立即生效。改动落在 <code>~/.pi/agent/settings.json</code>。</span></div>
+                        </section>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">模态里能改什么</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">完成声音</div>
+                            <div class="d-set-row-s">最常被临时关掉的一项，够得着就不用退出。</div>
+                          </div>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="完成声音"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">上下文预算</div>
+                            <div class="d-set-row-s">摘要预留 24 576 · 保留最近 16 384（<b>新会话生效</b>）</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">压缩阈值 80%<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">子代理</div>
+                            <div class="d-set-row-s">需要重载会话的那类设置，模态里只读并说明原因。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute"><i data-ico="lock" data-size="12"></i>需重载会话</span></span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 改动即时保存，不需要「应用」</span>
+                <button class="d-btn ghost" data-demo-open="p07-reset">重置本节</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <div class="d-pop is-open up" data-demo-pop="p07-reset" hidden style="left:24px;bottom:72px;min-width:300px">
+                <div class="d-pop-title">重置「通用」这一节</div>
+                <div class="d-pop-body d-t-xs d-t-dim">只动这一节的键，不碰模型、技能与插件。其它分节保存的值原样保留。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="undo-2" data-size="14"></i>重置主题与皮肤选择</button>
+                <button class="d-menu-row"><i data-ico="refresh-cw" data-size="14"></i>重置重试与上下文预算</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="ban" data-size="14"></i>全部重置</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>设置是壳，不是页面。</b>左边 11 个分节（通用 / 模型 / 技能 / 子代理 / 插件 / MCP / 定时任务 / 用量 / 归档 / 导入 / 手机与推送）
+        永远在同一个位置，宿主只有一种：<b>弹窗</b>（<code>d-modal is-open › d-modal-box wide › d-modal-head › d-modal-body › d-set</code>，⌘K 或设置入口唤起），
+        背后是会话（会话顶栏 + 一段助手消息）。<b>整页宿主已废止</b>，帧 A 只留一帧产品早期形态作对照；
+        帧 B / C / D 的分节、行、文案必须一致，弹窗里也不能退化成只读预览。</li>
+    <li><b>主题只有三档：浅色 / 深色 / 跟随系统。</b>深色不是另一套组件，是同一批 <code>d-</code> 类下的变量覆盖；
+        画板右上角的「深色」按钮可以当场验证这一点（<code>data-demo-theme</code>，翻的是 <code>html[data-theme]</code>）。</li>
+    <li><b>「新会话生效」写在行里，而不是写完再弹提示。</b>自动重试、上下文预算、工具档都属于这一类：
+        当场改了就真的下个会话生效，面板不假装即时。模态里那行「需重载会话」也是同一个纪律的另一种表达。</li>
+    <li><b>上下文预算画成滑块 + 精确数字</b>：面板里存的是绝对 token 数（摘要预留 / 保留最近 / 分支摘要预留），
+        滑块只是快速调整。之所以要标出「三个值都在窗口的 12% 以内」，是因为这三个值一旦填太满，
+        压缩本身就没有空间写摘要 —— 面板必须让人看见这件事，而不是等压缩失败。</li>
+    <li><b>重试要写清「哪些失败不重试」。</b>上下文超限、鉴权失败、参数错误重试一百次也是同一个结果；
+        只对网络失败 / 限流 / 5xx 退避重试，并且在「连续 429 会被算成账号级限流」的组合下先提示，而不是默默重试。</li>
+    <li><b>声音与通知分开。</b>完成声音在本机响，桌面通知可能落到手机；两者默认不同步，
+        否则想静音手机的人只能把电脑也静音。</li>
+    <li><b>「回来时落在哪」给选项而不是给默认行为。</b>恢复上次页面 / 进入工作台 / 直接打开上次会话，
+        三种人的日常完全不同 —— 而这一项每天都要遇到一次。</li>
+    <li><b>皮肤工作室是第二屏，不是弹层里的一个输入框。</b>它有自己的顶栏与四色 / 几何 / 不透明度 / 壁纸 / 自定义 CSS，
+        能导成 JSON；而内置的「默认」外观<b>不是皮肤文件</b>，所以那一格是只读的，这条限制写在格子里而不是藏起来。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

@@ -1,19 +1,21 @@
 "use client";
 
 /**
- * fork:design-system SW-07 — 壁纸设置改用画板 40 的 `.pw-block` 行规格。
+ * fork:design-system SW-07 — 壁纸设置改用画板 D-07b「默认外观壁纸」块的行规格。
  *
- * 画板 40「默认外观壁纸」块画了四行：启用壁纸（`.pw-switch`）、当前壁纸
- * （`.pw-ctl` + 缩略图 + 更换 / 移除）、适配方式（`.pw-selectbox`）、遮罩浓度
- * （等宽读数）。产品把「适配方式」换成三行真实存在的作用域选择（消息区 / 侧栏面板 /
- * 输入框），遮罩浓度给的是真滑块 —— 行形态与控件种类都照画板，只换数据。
+ * 画板 D-07b「默认外观壁纸」块画了几行：显示壁纸（`.d-switch`）、当前壁纸
+ * （缩略图 + 更换 / 移除）、遮罩浓度（`.d-slider` + 等宽读数）、各面适配
+ * （三面并排 + 每面一排芯片）。产品把「适配方式」拆成三个真实存在的作用域
+ * （消息区 / 侧栏面板 / 输入框），遮罩浓度给的是真滑块 —— 行形态与控件种类都照画板，
+ * 只换数据。
  *
- * fix:board47-area-chips（2026-09-30）—— 三个作用域从 `.pw-selectbox` 下拉换成
- * 画板 47 帧 3「各面适配」的 `.pw-radio` 芯片排。理由不是好看：三档只有
- * 「不透明 / 半透明 / 毛玻璃」，下拉把另外两档折进一个箭头里，用户得点开才知道
- * 这个面能选什么；芯片一排摊开，三面并排一眼可比（原来三行下拉，读者要在脑子里
- * 做三次数组查询才能比）。`.pw-radio` 是画板自带的原子（board.css），产品走
+ * fix:board47-area-chips（2026-09-30）—— 三个作用域从下拉换成「各面适配」的芯片排。
+ * 理由不是好看：三档只有「不透明 / 半透明 / 毛玻璃」，下拉把另外两档折进一个箭头里，
+ * 用户得点开才知道这个面能选什么；芯片一排摊开，三面并排一眼可比。产品走
  * `SettingsUi` 的 `PwRadio`（键盘可达 + `role="radiogroup"`），不新造控件。
+ *
+ * fork:v5-landing Wave B（M-05）—— 窄屏：这三块换 M-05 的 `m-*`：
+ * 横幅 `m-banner`、按钮 `m-btn`、三面网格 `m-grid2`、芯片排 `m-cats` / `m-cat`。
  *
  * 与画板的**数量**差异保持登记：画板画的是四个面（侧栏 / 主区 / 右栏 / 输入框），
  * 产品是三个（消息区 / 侧栏面板 / 输入框）。补第四个面要动 `lib/wallpaper.ts`
@@ -24,13 +26,14 @@
  * 一排按钮 + 复选开关，已退役。
  *
  * 图片是用户数据（data URL），缩略图的 `background-image` 只能内联；
- * 几何与边框来自 `app/fork-ui.css` 的 `.pw-wallpaper-thumb`（值照抄画板那一帧）。
+ * 几何与边框来自形态表的 `.d-thumb`。
  */
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useWallpaper } from "@/hooks/useWallpaper";
-import { PwCtl, PwField, PwRadio, PwRange, PwSwitch } from "./SettingsUi";
+import { PwField, PwRange, PwSwitch } from "./SettingsUi";
 import {
   WALLPAPER_SCRIM_MAX,
   WALLPAPER_SCRIM_MIN,
@@ -65,6 +68,10 @@ export function WallpaperSettings({
   onEditSkin?: () => void;
 } = {}) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
+  const bannerClass = isMobile ? "m-banner" : "d-banner info";
+  const errBannerClass = isMobile ? "m-banner" : "d-banner err";
+  const btnClass = isMobile ? "m-btn" : "d-btn sm";
   const {
     enabled,
     url,
@@ -112,38 +119,48 @@ export function WallpaperSettings({
     }
   };
 
-  const areaRow = (
+  const areaField = (
     labelKey: string,
     value: WallpaperAreaMode,
     onChange: (mode: WallpaperAreaMode) => void,
   ) => (
-    <PwField
-      label={t(labelKey)}
-      control={
-        <PwRadio
-          value={value}
-          ariaLabel={t(labelKey)}
-          options={AREA_MODES.map((mode) => ({
-            value: mode,
-            label: t(
-              mode === "none" ? "settings.wallpaperModeNone"
-                : mode === "trans" ? "settings.wallpaperModeTrans"
-                  : "settings.wallpaperModeBlur",
-            ),
-          }))}
-          onChange={onChange}
-        />
-      }
-    />
+    <div className="d-col" key={labelKey}>
+      <span className={isMobile ? "m-t-sm" : "d-t-sm"}>{t(labelKey)}</span>
+      <div
+        className={isMobile ? "m-cats" : "d-cats"}
+        role="radiogroup"
+        aria-label={t(labelKey)}
+      >
+        {AREA_MODES.map((mode) => {
+          const on = value === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              className={`${isMobile ? "m-cat" : "d-cat"}${on ? " is-on" : ""}`}
+              onClick={() => onChange(mode)}
+            >
+              {t(
+                mode === "none" ? "settings.wallpaperModeNone"
+                  : mode === "trans" ? "settings.wallpaperModeTrans"
+                    : "settings.wallpaperModeBlur",
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 
   if (skinActive) {
     return (
-      <div className="pw-alert info">
-        <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
-        <span className="pw-grow">{t("settings.wallpaperSkinOwned")}</span>
+      <div className={bannerClass}>
+        <i data-ico="info" data-size="14" aria-hidden="true" />
+        <span className={isMobile ? "m-grow" : "d-grow"}>{t("settings.wallpaperSkinOwned")}</span>
         {onEditSkin ? (
-          <button type="button" className="pw-btn outline sm" onClick={onEditSkin}>
+          <button type="button" className={btnClass} onClick={onEditSkin}>
             {t("settings.wallpaperSkinOwnedEdit")}
           </button>
         ) : null}
@@ -174,13 +191,13 @@ export function WallpaperSettings({
         }
       />
 
-      {/* 画板 40 的「当前壁纸」行：缩略图 + 更换 / 移除。没选图时只剩「选择图片」。 */}
+      {/* 画板 D-07b 的「当前壁纸」行：缩略图 + 更换 / 移除。没选图时只剩「选择图片」。 */}
       <PwField
         label={t("settings.wallpaperCurrent")}
         control={
-          <PwCtl>
-            {url ? <span className="pw-wallpaper-thumb" style={{ backgroundImage: `url(${url})` }} /> : null}
-            <button type="button" className="pw-btn outline sm" disabled={busy} onClick={onPick}>
+          <span className="d-row">
+            {url ? <span className="d-thumb" style={{ backgroundImage: `url(${url})` }} /> : null}
+            <button type="button" className={btnClass} disabled={busy} onClick={onPick}>
               {busy
                 ? t("settings.wallpaperBusy")
                 : url
@@ -188,31 +205,30 @@ export function WallpaperSettings({
                   : t("settings.wallpaperChoose")}
             </button>
             {url ? (
-              <button type="button" className="pw-btn sm" onClick={remove}>
+              <button type="button" className={btnClass} onClick={remove}>
                 {t("settings.wallpaperRemove")}
               </button>
             ) : null}
-          </PwCtl>
+          </span>
         }
       />
 
-      {/* 画板没有「说明句」这一行；画板 47 的提示一律是 `.pw-alert`（提示蓝 / 报错红）。 */}
       {enabled && !url ? (
-        <div className="pw-alert info">
-          <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
-          <span className="pw-grow">{t("settings.wallpaperBuiltinNote")}</span>
+        <div className={bannerClass}>
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className={isMobile ? "m-grow" : "d-grow"}>{t("settings.wallpaperBuiltinNote")}</span>
         </div>
       ) : null}
       {enabled && usingBuiltin ? (
-        <div className="pw-alert info">
-          <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true" /></span>
-          <span className="pw-grow">{t("settings.wallpaperBuiltinActive")}</span>
+        <div className={bannerClass}>
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className={isMobile ? "m-grow" : "d-grow"}>{t("settings.wallpaperBuiltinActive")}</span>
         </div>
       ) : null}
       {error ? (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="pw-grow">{error}</span>
+        <div role="alert" className={errBannerClass}>
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className={isMobile ? "m-grow" : "d-grow"}>{error}</span>
         </div>
       ) : null}
 
@@ -225,22 +241,26 @@ export function WallpaperSettings({
             hint={t("settings.wallpaperScrimDescription")}
             htmlFor="settings-wallpaper-scrim"
             control={
-              <PwCtl>
-                <PwRange
-                  id="settings-wallpaper-scrim"
-                  value={scrim}
-                  displayValue={`${scrim}%`}
-                  min={WALLPAPER_SCRIM_MIN}
-                  max={WALLPAPER_SCRIM_MAX}
-                  ariaLabel={t("settings.wallpaperScrim")}
-                  onChange={setScrim}
-                />
-              </PwCtl>
+              <PwRange
+                id="settings-wallpaper-scrim"
+                value={scrim}
+                displayValue={`${scrim}%`}
+                min={WALLPAPER_SCRIM_MIN}
+                max={WALLPAPER_SCRIM_MAX}
+                ariaLabel={t("settings.wallpaperScrim")}
+                onChange={setScrim}
+              />
             }
           />
-          {areaRow("settings.wallpaperAreaMessage", messageMode, setMessageMode)}
-          {areaRow("settings.wallpaperAreaPanel", panelMode, setPanelMode)}
-          {areaRow("settings.wallpaperAreaInput", inputMode, setInputMode)}
+          {/* 画板 D-07b「各面适配」：三面并排（桌面 `.d-grid3` / 窄屏 M-05 `.m-grid2`），
+              每面一组芯片排（`.d-cats` / `.m-cats`）。 */}
+          <div className={isMobile ? "m-fieldrow" : "d-field"}>
+            <div className={isMobile ? "m-grid2" : "d-grid3"}>
+              {areaField("settings.wallpaperAreaMessage", messageMode, setMessageMode)}
+              {areaField("settings.wallpaperAreaPanel", panelMode, setPanelMode)}
+              {areaField("settings.wallpaperAreaInput", inputMode, setInputMode)}
+            </div>
+          </div>
         </>
       ) : null}
     </>

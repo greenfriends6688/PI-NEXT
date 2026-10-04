@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-11 · 设置 · 技能 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-11 · 设置 · 技能（已加载 · 开关 · 搜索安装 · 内容查看）</h1>
+  <p>
+    技能是「装在机器上、按名字被模型调用」的说明书包。三个动作要分清：
+    <b>开 / 关</b>（这一轮会话还用不用）、<b>安装 / 卸载</b>（文件还在不在）、
+    <b>信任</b>（这个来源的代码能不能跑）。把它们挤成一个「启用」开关是这一节最容易出的错 ——
+    <b>关掉 ≠ 卸载</b>：关掉只是不加载，文件、依赖、版本都原样留着，下次开还是这一份。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 技能</span>
+    <span class="d-tag">组件：SkillsConfig · SkillRow · SkillStore · SkillReader · SkillDirs</span>
+    <span class="d-tag">状态：已装 5 · 启用 3 · 关掉 1 · 待更新 1 · 未信任目录 1</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 已加载列表：来源徽标 + 开关 + 「关掉 ≠ 卸载」的明说<span class="d-grow"></span>点行选中技能，行尾开关只切启用、旁边按钮才管卸载</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 技能</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="download" data-size="12"></i>1 个可更新</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">技能 · commit-msg</span>
+                </div>
+                <div class="d-md">
+                  <p>技能 <code>commit-msg</code> 读完了。来源是内置目录，版本 0.4.2。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 技能">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 技能</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem is-on"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">已加载</div>
+                        <div class="d-row">
+                          <span class="d-t-xs d-t-faint d-grow">共 5 个 · 启用 3 · 关掉 1 · 目录未信任 1。<b>技能名同名时按目录优先级取一个</b>，不合并。</span>
+                          <button class="d-btn sm"><i data-ico="search" data-size="13"></i>搜索与安装</button>
+                        </div>
+
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th style="width:30%">技能</th><th>来源</th><th>版本</th><th>状态</th><th>启用</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">commit-msg</span><span class="d-t-xs d-t-faint">按仓库约定写提交信息</span></div></td>
+                                <td><span class="d-badge mute"><i data-ico="folder" data-size="12"></i>内置</span></td>
+                                <td class="d-mono">0.4.2</td>
+                                <td><span class="d-badge ok">最新</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 commit-msg"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">pdf-reader</span><span class="d-t-xs d-t-faint">解析 PDF 文本与表格</span></div></td>
+                                <td><span class="d-badge info"><i data-ico="download" data-size="12"></i>商店</span></td>
+                                <td class="d-mono">1.2.0</td>
+                                <td><span class="d-badge warn"><i data-ico="arrow-up" data-size="12"></i>可更新到 1.3.0</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 pdf-reader"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">ui-screenshot</span><span class="d-t-xs d-t-faint">跑无头浏览器截图</span></div></td>
+                                <td><span class="d-badge warn"><i data-ico="folder-open" data-size="12"></i>~/work/skills</span></td>
+                                <td class="d-mono">—</td>
+                                <td><span class="d-badge bad"><i data-ico="shield-alert" data-size="12"></i>目录未信任</span></td>
+                                <td><button class="d-switch" data-demo-switch aria-checked="false" title="启用 ui-screenshot"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">sql-helper</span><span class="d-t-xs d-t-faint">写 SQL 并解释执行计划</span></div></td>
+                                <td><span class="d-badge mute"><i data-ico="folder" data-size="12"></i>内置</span></td>
+                                <td class="d-mono">0.3.0</td>
+                                <td><span class="d-badge mute">已关掉</span></td>
+                                <td><button class="d-switch" data-demo-switch aria-checked="false" title="启用 sql-helper"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-banner warn">
+                          <i data-ico="circle-help" data-size="14"></i>
+                          <span><b>关掉 ≠ 卸载。</b>关掉只是这一轮不加载，文件、依赖与版本都还在原地，下次打开还是这一份；
+                          <b>卸载才会删目录</b>，删之前会明确告诉你「技能目录下用户自建的文件不会被删」还是「整个目录都会被删」。</span>
+                          <button class="d-btn sm d-banner-btn" data-demo-open="p14-uninstall">看卸载到底删什么</button>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="shield-question" data-size="14"></i>
+                          <span><code>~/work/skills</code> 里的技能<b>在信任之前不会被加载</b>：它们的说明书会进系统提示，脚本会在本机执行。
+                          信任是对目录的，一次授权覆盖该目录下全部技能与以后新增的。</span>
+                          <button class="d-btn sm d-banner-btn">信任该目录</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">加载策略</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">把启用的技能说明书按需注入</div>
+                            <div class="d-set-row-s">只在模型真的要调用某个技能时才注入那一份，其余留在磁盘上 —— 否则 5 个技能的说明书会一直占着上下文预算。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">按需注入</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="按需注入"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">自动更新商店技能</div>
+                            <div class="d-set-row-s">关掉后更新要手动点。<b>自动更新不会静默改动已启用技能的行为</b>，有破坏性变更时要求确认。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">每次启动检查</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="自动更新"></button>
+                        </div>
+                        <div class="d-t-xs d-t-faint">还可以在项目里写一个 <code>.pi/skills.json</code>，让这台机器只认清单里的那几份；清单不随项目走，只在本机生效。</div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 改动下次会话生效</span>
+                <button class="d-btn ghost" data-demo-open="p14-reload"><i data-ico="rotate-cw" data-size="14"></i>重载技能</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p14-uninstall" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">卸载到底删什么</div>
+                <div class="d-pop-body d-t-xs d-t-dim">两种技能的卸载范围不一样，卸载确认里必须逐字写出来，不能只写一个「确认卸载」。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">商店技能</span><span class="d-badge bad">删整个目录</span></div>
+                <div class="d-menu-row"><span class="d-grow">内置技能</span><span class="d-badge mute">不可卸载 · 可屏蔽</span></div>
+                <div class="d-menu-row"><span class="d-grow">自建目录</span><span class="d-badge warn">只删技能子目录</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="copy" data-size="14"></i><span class="d-grow">卸载前先复制一份到别处</span></button>
+                <div class="d-pop-foot">卸载不动历史会话：当时的转录里不会因为技能没了而变样。</div>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p14-reload" hidden style="left:24px;bottom:64px;min-width:340px">
+                <div class="d-pop-title">重载技能</div>
+                <div class="d-pop-body d-t-xs d-t-dim">重新扫描目录并重建清单。正在跑的技能调用不中断，本轮之后才用新的一份。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i><span class="d-grow">立即重载</span></button>
+                <button class="d-menu-row"><i data-ico="eye" data-size="14"></i><span class="d-grow">先看会重载到什么</span></button>
+                <div class="d-pop-foot">重载不重载会话：系统提示已经发出去的那部分不会补回来。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 搜索与安装商店：分类过滤 + 卡片网格，点卡片看详情<span class="d-grow"></span>点商店卡片会选中，分类与安装按钮都能点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 技能 / 商店</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute"><i data-ico="download" data-size="12"></i>本地镜像索引</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>商店索引是一份本地镜像 —— 断网也能列出清单，只是装不上新的。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="技能商店">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">搜索与安装技能</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem is-on"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-searchfield">
+                          <i data-ico="search" data-size="14"></i>
+                          <input placeholder="搜技能名、说明、或它会读的文件">
+                          <span class="d-t-xs d-t-faint">本地索引 · 214 条</span>
+                        </div>
+                        <div class="d-cats">
+                          <span class="d-cat is-on">全部</span>
+                          <span class="d-cat">代码评审</span>
+                          <span class="d-cat">文档</span>
+                          <span class="d-cat">测试</span>
+                          <span class="d-cat">浏览器</span>
+                          <span class="d-cat">数据</span>
+                          <span class="d-cat">本地优先</span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">目录</div>
+                        <div class="d-store-grid" data-demo-list>
+                          <div class="d-store-card" data-demo-select>
+                            <div class="d-store-cover"><i data-ico="git-pull-request" data-size="22"></i></div>
+                            <div class="d-store-card-t">diff-review</div>
+                            <div class="d-t-xs d-t-faint">按仓库的评审约定逐条检查当前改动，含测试缺口。</div>
+                            <div class="d-store-foot"><span class="d-badge ok">已装 0.9.1</span><span class="d-grow"></span><span>3.1k 下载</span></div>
+                          </div>
+                          <div class="d-store-card" data-demo-select>
+                            <div class="d-store-cover"><i data-ico="file-text" data-size="22"></i></div>
+                            <div class="d-store-card-t">changelog-writer</div>
+                            <div class="d-t-xs d-t-faint">把本次提交整理成面向用户的更新说明。</div>
+                            <div class="d-store-foot"><span class="d-badge warn">可更新 1.3.0</span><span class="d-grow"></span><span>1.8k 下载</span></div>
+                          </div>
+                          <div class="d-store-card" data-demo-select>
+                            <div class="d-store-cover"><i data-ico="terminal" data-size="22"></i></div>
+                            <div class="d-store-card-t">test-runner</div>
+                            <div class="d-t-xs d-t-faint">识别仓库的测试命令并跑，失败时保留原始输出。</div>
+                            <div class="d-store-foot"><span class="d-badge mute">未安装</span><span class="d-grow"></span><span>6.4k 下载</span></div>
+                          </div>
+                          <div class="d-store-card" data-demo-select>
+                            <div class="d-store-cover"><i data-ico="database" data-size="22"></i></div>
+                            <div class="d-store-card-t">schema-drift</div>
+                            <div class="d-t-xs d-t-faint">比对迁移文件与实际库结构，只读不改。</div>
+                            <div class="d-store-foot"><span class="d-badge mute">未安装</span><span class="d-grow"></span><span>940 下载</span></div>
+                          </div>
+                          <div class="d-store-card" data-demo-select>
+                            <div class="d-store-cover"><i data-ico="bot" data-size="22"></i></div>
+                            <div class="d-store-card-t">issue-triage</div>
+                            <div class="d-t-xs d-t-faint">给 issue 打标签与复现步骤草稿，不发评论。</div>
+                            <div class="d-store-foot"><span class="d-badge mute">未安装</span><span class="d-grow"></span><span>2.2k 下载</span></div>
+                          </div>
+                          <div class="d-store-card" data-demo-select>
+                            <div class="d-store-cover"><i data-ico="hard-drive" data-size="22"></i></div>
+                            <div class="d-store-card-t">local-notes</div>
+                            <div class="d-t-xs d-t-faint">把笔记目录接进会话，纯本地、不出网。</div>
+                            <div class="d-store-foot"><span class="d-badge info">本地优先</span><span class="d-grow"></span><span>5.0k 下载</span></div>
+                          </div>
+                        </div>
+                        <div class="d-t-xs d-t-faint">索引是本机镜像（最近一次同步 3 天前）；断网时仍可浏览，装新技能需要联网。</div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">安装</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">装完自动启用</div>
+                            <div class="d-set-row-s">关掉的话装完是「关着」的状态，得再点一次开关才生效 —— 很多人会漏这一步然后以为技能坏了。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="装完自动启用"></button>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-btn primary" data-demo-open="p14-install"><i data-ico="download" data-size="14"></i>安装选中的技能</button>
+                          <span class="d-t-xs d-t-faint">安装前会先列它要读写的路径与要执行的脚本</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">安装 = 下载到目录；启用是另一件事</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p14-install" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">安装前先看一眼它要干什么</div>
+                <div class="d-pop-body d-t-xs d-t-dim">技能 = 一份说明书 + 若干脚本。说明书进系统提示，脚本在本机跑，所以这两件事分开列。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow">说明书</span><span class="d-badge mute">约 2.4k token</span></div>
+                <div class="d-menu-row"><i data-ico="terminal" data-size="14"></i><span class="d-grow">脚本</span><span class="d-badge warn">2 个 · 会执行</span></div>
+                <div class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">读</span><span class="d-t-xs d-t-faint">仓库内任意路径</span></div>
+                <div class="d-menu-row"><i data-ico="pencil-line" data-size="14"></i><span class="d-grow">写</span><span class="d-t-xs d-t-faint">仅 <code>git diff --name-only</code> 里列出的文件</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow">确认安装并启用</span></button>
+                <button class="d-menu-row"><i data-ico="eye" data-size="14"></i><span class="d-grow">先看完整说明书</span></button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 技能内容查看：文件清单 → 渲染正文 → 原文与 frontmatter<span class="d-grow"></span>三段能切，「原文」段有 frontmatter 开关</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 技能 / diff-review</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute">0.9.1 · 商店</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>正文按 Markdown 渲染；需要核对 frontmatter 里的声明时切到原文 —— 渲染视图里看不到的字段，正是声明与实际不符的地方。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="技能内容">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">diff-review</div>
+              <div class="d-modal-body">
+                <div class="d-set" data-demo-scope>
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem is-on"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-row">
+                          <div class="d-seg" data-demo-tabs>
+                            <button data-demo-tab="v-files">文件</button>
+                            <button data-demo-tab="v-render" class="is-on">渲染</button>
+                            <button data-demo-tab="v-raw">原文</button>
+                          </div>
+                          <span class="d-grow"></span>
+                          <span class="d-t-xs d-t-faint">~/.pi/skills/diff-review/</span>
+                        </div>
+
+                        <section data-demo-pane="v-render">
+                          <div class="d-card">
+                            <div class="d-card-head"><i data-ico="file-text" data-size="15"></i>SKILL.md · 约 2.4k token</div>
+                            <div class="d-card-body d-md">
+                              <h2>diff-review</h2>
+                              <p>对当前分支相对主干的改动做一次自查，输出可勾选的问题清单。默认只读不改 —— 要不要真的落盘由调用它的任务决定。</p>
+                              <h2>什么时候用</h2>
+                              <ul>
+                                <li>改动超过 3 个文件，或改动里有删除行</li>
+                                <li>提交前最后一次检查</li>
+                                <li>不适用：单文件改文案、加一条日志</li>
+                              </ul>
+                              <h2>它会读什么</h2>
+                              <p><code>git diff --name-only</code> 的输出与每个文件的 diff；不读整个仓库，不读仓库外路径。</p>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="v-raw" hidden>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">frontmatter</div>
+                              <div class="d-set-row-s">声明与正文可能不一致 —— <b>面板把声明里声称的范围与正文实际提到的范围并排列出来</b>。</div>
+                            </div>
+                            <span class="d-grow-last"><span class="d-badge ok">一致</span></span>
+                            <button class="d-switch on" data-demo-switch aria-checked="true" title="显示 frontmatter"></button>
+                          </div>
+                          <div class="d-code">
+                            <div class="d-code-head">
+                              <i data-ico="braces" data-size="13"></i>
+                              <span>SKILL.md</span>
+                              <span class="d-grow"></span>
+                              <span>1–18</span>
+                            </div>
+                            <div class="d-code-body"><span class="d-ln">1</span><span class="tok-k">---</span>
+<span class="d-ln">2</span><span class="tok-k">name:</span> diff-review
+<span class="d-ln">3</span><span class="tok-k">description:</span> 评审当前 diff，输出可勾选的问题清单
+<span class="d-ln">4</span><span class="tok-k">version:</span> <span class="tok-n">0.9.1</span>
+<span class="d-ln">5</span><span class="tok-k">tools:</span> <span class="tok-s">[read, git, shell]</span>
+<span class="d-ln">6</span><span class="tok-k">writes:</span> <span class="tok-s">none</span>
+<span class="d-ln">7</span><span class="tok-k">---</span>
+<span class="d-ln">8</span>
+<span class="d-ln">9</span><span class="tok-c"># diff-review</span>
+<span class="d-ln">10</span>
+<span class="d-ln">11</span>对当前分支相对主干的改动做一次自查…</div>
+                          </div>
+                          <div class="d-banner">
+                            <i data-ico="info" data-size="14"></i>
+                            <span><code>tools</code> 里声明了 <code>shell</code>：安装确认页会把「会执行脚本」列出来，而不是让它藏在 frontmatter 里没人看。</span>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="v-files" hidden>
+                          <div class="d-card">
+                            <table class="d-table">
+                              <thead>
+                                <tr><th>文件</th><th>作用</th><th>随安装下载</th></tr>
+                              </thead>
+                              <tbody>
+                                <tr><td class="d-mono">SKILL.md</td><td>说明书，进系统提示</td><td><span class="d-badge ok">是</span></td></tr>
+                                <tr><td class="d-mono">checklist.md</td><td>清单正文，被 SKILL.md 引用</td><td><span class="d-badge ok">是</span></td></tr>
+                                <tr><td class="d-mono">scripts/diff-stat.ts</td><td>跑 <code>git diff --stat</code></td><td><span class="d-badge warn">是 · 会执行</span></td></tr>
+                                <tr><td class="d-mono">assets/report.tmpl</td><td>输出模板</td><td><span class="d-badge ok">是</span></td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="d-banner warn">
+                            <i data-ico="triangle-alert" data-size="14"></i>
+                            <span>更新到 1.0.0 时会新增 <code>scripts/policy-check.ts</code>。<b>有破坏性变更时更新不会静默进行</b>，要求确认后再装。</span>
+                          </div>
+                        </section>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">这个技能的能力面</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">允许的工具</div>
+                            <div class="d-set-row-s">技能声明要用的工具；被收紧时模型改用别的路径，不会静默越权。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">read</span><span class="d-badge mute">git</span><span class="d-badge mute">shell</span></span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">可写路径</div>
+                            <div class="d-set-row-s">写成 <code>none</code> 就是只读；这条是技能自己声明的，面板允许再收紧不允许放宽。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">只读</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="只读模式"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">总是优先使用</div>
+                            <div class="d-set-row-s">开的话模型遇到对应任务会先读它，而不是自己临时发挥一套做法。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="总是优先使用"></button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">在编辑器里改会提示「已脱离本面板管理」</span>
+                <button class="d-btn ghost">在编辑器中打开</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 默认技能目录：目录优先级、信任粒度、发现顺序<span class="d-grow"></span>目录行可点、信任开关可点，优先级不是一个笼统的「顺序」下拉</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 技能 / 目录</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="shield-alert" data-size="12"></i>1 个目录未信任</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>默认目录改的只是「去哪找技能」，<b>不搬家</b>：改完之后原来的目录不再被扫到，里面的技能会从列表里消失（文件仍在）。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="技能目录">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 技能目录</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem is-on"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">默认技能目录</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">新装技能装到哪</div>
+                            <div class="d-set-row-s">只决定<b>以后</b>装到哪，不搬家。改成别的目录后，原目录里的技能不再出现在列表里（文件仍在原地）。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:270px" value="~/.pi/skills"></span>
+                          <button class="d-btn sm" style="min-width:72px">选择…</button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">也扫描项目里的技能</div>
+                            <div class="d-set-row-s">开时按 <code>&lt;项目&gt;/.pi/skills</code> 找；<b>项目级技能只在那个项目里出现</b>，不会带到别的项目。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">1 个项目有</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="扫描项目技能"></button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">扫描顺序与信任</div>
+                        <div class="d-t-xs d-t-faint">同名技能<b>按目录顺序取第一个</b>，不合并、不提示。所以顺序是有语义的，不是一个可以随手拖的装饰。</div>
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th style="width:44%">目录</th><th>来源</th><th>技能数</th><th>信任</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td class="d-mono">~/.pi/skills</td>
+                                <td><span class="d-badge mute">默认目录</span></td>
+                                <td class="d-mono">4</td>
+                                <td><span class="d-badge ok"><i data-ico="shield-check" data-size="12"></i>本机自建</span></td>
+                                <td><span class="d-grip"><i data-ico="grip-vertical" data-size="14"></i></span></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">~/work/pi-skills</td>
+                                <td><span class="d-badge info">手动添加</span></td>
+                                <td class="d-mono">2</td>
+                                <td><span class="d-badge ok"><i data-ico="shield-check" data-size="12"></i>已信任</span></td>
+                                <td><span class="d-grip"><i data-ico="grip-vertical" data-size="14"></i></span></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">fork/.pi/skills</td>
+                                <td><span class="d-badge info">项目级</span></td>
+                                <td class="d-mono">1</td>
+                                <td><span class="d-badge ok"><i data-ico="shield-check" data-size="12"></i>项目自带</span></td>
+                                <td><span class="d-t-xs d-t-faint">固定最后</span></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">~/Downloads/skill-dump</td>
+                                <td><span class="d-badge mute">手动添加</span></td>
+                                <td class="d-mono">3</td>
+                                <td><span class="d-badge bad"><i data-ico="shield-alert" data-size="12"></i>未信任</span></td>
+                                <td><button class="d-btn sm">信任</button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div class="d-banner warn">
+                          <i data-ico="shield-alert" data-size="14"></i>
+                          <span><code>~/Downloads/skill-dump</code> 是从压缩包解出来的目录。<b>未信任的目录里的技能不加载，但会被列出来</b> —— 让你看得见有什么在那儿，而不是静默忽略。</span>
+                          <button class="d-btn sm d-banner-btn" data-demo-open="p14-trust">信任意味着什么</button>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-btn sm"><i data-ico="folder-plus" data-size="13"></i>添加目录</button>
+                          <span class="d-t-xs d-t-faint">目录不存在时不会自动创建 —— 建目录要用户明确点头</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">目录改动下次重载技能时生效</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p14-trust" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">信任一个目录意味着什么</div>
+                <div class="d-pop-body d-t-xs d-t-dim">信任是对目录的授权，一次覆盖该目录下<b>现在和以后新增</b>的全部技能。撤销信任等于让它们退回「列出来但不加载」。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">说明书进系统提示</span><span class="d-badge info">会</span></div>
+                <div class="d-menu-row"><span class="d-grow">脚本在本机执行</span><span class="d-badge bad">会</span></div>
+                <div class="d-menu-row"><span class="d-grow">能读写仓库内文件</span><span class="d-badge warn">按技能声明</span></div>
+                <div class="d-menu-row"><span class="d-grow">能出网</span><span class="d-badge mute">否 · 走工具白名单</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="shield-check" data-size="14"></i><span class="d-grow">信任并加载</span></button>
+                <button class="d-menu-row"><i data-ico="eye" data-size="14"></i><span class="d-grow">先逐个看内容</span></button>
+                <div class="d-pop-foot">信任记录存在本机，不随项目走；换机器要重新授权。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>三个动作分开：开 / 关 · 安装 / 卸载 · 信任。</b>把它们挤成一个「启用」开关，用户就没法回答「这个技能还在不在」，
+        也就没法回答「它到底占不占磁盘」。<b>关掉 ≠ 卸载</b>：关只影响加载，文件与版本原样留着。</li>
+    <li><b>卸载确认必须逐字写出删什么。</b>商店技能删整个目录、内置技能只能屏蔽、自建目录只删技能子目录 ——
+        一个笼统的「确认卸载」逼着用户去猜，也逼着他去开 Finder。</li>
+    <li><b>来源徽标是三态而不是两态。</b>内置 / 商店 / 手动目录的更新方式、可卸载性、信任要求都不同，来源徽标承担了这件事。</li>
+    <li><b>目录优先级是有语义的。</b>同名技能按目录顺序取第一个、不合并不提示，所以顺序可拖但要写清后果；项目级目录固定排在最后。</li>
+    <li><b>未信任的目录：列出来但不加载。</b>静默忽略会让用户以为技能不存在；列出来并写清「为什么没加载」才是在帮忙。</li>
+    <li><b>说明书与脚本分开说。</b>技能 = 说明书（进系统提示，占 token）+ 脚本（本机执行）。安装确认页把两件事分行，
+        否则用户对「装个说明书」这件事的风险判断是错的。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

@@ -174,7 +174,9 @@ export function RollingNumber({
       role="text"
       aria-label={text}
       title={text}
-      className={className}
+      /* fork:v5-skin D-28 —— 同位数换值的规范类 .d-num（数字淡入）；
+         产品自带的逐位 WAAPI 翻滚仍保留，两者不冲突（d-num 只管容器淡入）。 */
+      className={className ? `${className} d-num` : "d-num"}
       style={{
         display: "inline-flex",
         alignItems: "center",

@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-06b · 查看器其余形态（可编辑 / 对比覆盖层 / 表格 / 沙箱 / PDF / 降级） · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-06b · 查看器其余形态（可编辑 / 对比覆盖层 / 表格 / 沙箱 / PDF / 降级）</h1>
+  <p>
+    D-06 定了查看器的四种看法（源码 / 差异 / 预览 / 不支持）。这一张补上<b>同一个查看器还没被画过的那些形态</b>：
+    <b>可编辑源码</b>（未保存 / 保存失败 / 保存冲突）、<b>「与 HEAD 对比」覆盖层</b>（它是一个动作，不是一个模式）、
+    <b>Markdown frontmatter 卡</b>、<b>CSV / TSV 表格</b>、<b>图片缩放与长列表滚动淡出</b>、<b>音视频</b>、
+    <b>HTML 沙箱 iframe</b>、<b>PDF 缩放与 #page=N</b>、<b>docx 同源 iframe</b>、<b>不可预览的降级卡</b>、<b>文件动作菜单四态</b>。
+    两条纪律贯穿全板：<b>外壳永远不变</b>（面包屑 + 动作行在原位），<b>打不开就降级并给替代路径，不给空白面板</b>。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 / 文件查看器</span>
+    <span class="d-tag">组件：CodeFileEditor · DiffOverlay · FrontmatterCard · CsvPreview · ImagePreview · DocumentViewer</span>
+    <span class="d-tag">状态：未保存 / 冲突 / 已删除 / 对比覆盖层 / 沙箱预览 / 不支持类型</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 可编辑源码：未保存 / 保存失败 / 保存冲突 · 文件已从磁盘删除<span class="d-grow"></span>编辑态与只读态只差头部三样东西：徽章、撤销、保存</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-col" style="gap:var(--nx-sp-5);padding:var(--nx-sp-5)">
+            <div class="d-grid2" style="align-items:start" data-demo-scope>
+
+              <!-- 三态 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="file-code" data-size="15"></i>
+                  <span class="d-grow">可编辑源码 · 三态</span>
+                  <span class="d-grow"></span>
+                  <div class="d-seg" data-demo-tabs>
+                    <button class="is-on" data-demo-tab="ed-dirty">未保存</button>
+                    <button data-demo-tab="ed-fail">保存失败</button>
+                    <button data-demo-tab="ed-conflict">冲突</button>
+                  </div>
+                </div>
+
+                <!-- 未保存 -->
+                <section data-demo-pane="ed-dirty">
+                  <div class="d-viewer-bar">
+                    <i data-ico="file-code" data-size="13"></i>
+                    <span class="d-viewer-path">components/ChatInput.tsx</span>
+                    <span class="d-badge mute">TSX</span>
+                    <span class="d-badge warn">有未保存的修改</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm"><i data-ico="undo-2" data-size="13"></i>撤销</button>
+                    <button class="d-btn sm primary"><i data-ico="save" data-size="13"></i>保存<span class="d-kbd">⌘S</span></button>
+                  </div>
+                  <div class="d-code" style="border:0;border-radius:0">
+                    <div class="d-code-body">
+<span class="d-ln">290</span><span class="tok-c">// 队列召回：把排队的消息放回输入框继续改</span>
+<span class="d-ln">291</span><span class="tok-k">const</span> recall = <span class="tok-k">useCallback</span>((id: <span class="tok-k">string</span>) =&gt; {
+<span class="d-ln">292</span>  <span class="tok-k">setDraft</span>(<span class="tok-k">take</span>(pending, id));<span class="d-caret"></span>
+<span class="d-ln">293</span>}, [pending]);
+                    </div>
+                  </div>
+                  <div class="d-code-head" style="border-top:1px solid var(--nx-code-line)">
+                    <i data-ico="circle" data-size="12"></i>
+                    <span class="d-grow">Ln 292 · Col 38</span>
+                    <span>TSX · LF · UTF-8</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint">正文区与只读源码<b>完全一样</b>；差异只在头部两枚按钮与一枚徽章 —— 编辑态不是另一个查看器。</div>
+                </section>
+
+                <!-- 保存失败 -->
+                <section data-demo-pane="ed-fail" hidden>
+                  <div class="d-viewer-bar">
+                    <i data-ico="file-code" data-size="13"></i>
+                    <span class="d-viewer-path">components/ChatInput.tsx</span>
+                    <span class="d-badge mute">TSX</span>
+                    <span class="d-badge warn">有未保存的修改</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm"><i data-ico="undo-2" data-size="13"></i>撤销</button>
+                    <button class="d-btn sm primary"><i data-ico="loader-circle" data-size="13"></i>保存中…</button>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-banner err">
+                      <i data-ico="circle-alert" data-size="14"></i>
+                      <span class="d-grow">保存失败：<span class="d-mono">EACCES: permission denied, open 'components/ChatInput.tsx'</span></span>
+                      <button class="d-btn sm d-banner-btn">重试</button>
+                    </div>
+                    <div class="d-t-xs d-t-dim">保存失败时<b>编辑内容仍在编辑器里</b>，不会被清空也不会回滚 —— 失败要保留你写的东西，并在原地给一次重试。</div>
+                    <div class="d-code">
+                      <div class="d-code-head"><span class="d-grow">可执行的检查</span></div>
+                      <div class="d-code-body"><span class="tok-c">$</span> ls -l components/ChatInput.tsx
+<span class="tok-c">-rw-r--r--</span>  1 yingjing  staff  18244 Oct  4 11:02 components/ChatInput.tsx</div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- 冲突 -->
+                <section data-demo-pane="ed-conflict" hidden>
+                  <div class="d-viewer-bar">
+                    <i data-ico="triangle-alert" data-size="13" style="color:var(--nx-warning)"></i>
+                    <span class="d-viewer-path">README.md</span>
+                    <span class="d-badge warn">冲突</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm">撤销</button>
+                    <button class="d-btn sm primary" disabled>保存</button>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-t-sm">保存时发现磁盘上的版本已经变了。<b>不做自动合并</b> —— 合并结果无法预期。两块并排，各自一个动作：</div>
+                    <div class="d-grid2">
+                      <div class="d-card">
+                        <div class="d-card-head"><i data-ico="pencil-line" data-size="14"></i><span class="d-grow">我的这段</span><span class="d-badge info">编辑器里</span></div>
+                        <div class="d-code">
+                          <div class="d-code-body" style="padding:var(--nx-sp-2)">- pi 0.1.8 · main<br>- pi 0.1.9 · fork/v5-boards</div>
+                        </div>
+                        <div class="d-pop-foot">保留我的这段</div>
+                        <div class="d-card-body"><button class="d-btn sm primary"><i data-ico="save" data-size="13"></i>保留我的这段</button></div>
+                      </div>
+                      <div class="d-card">
+                        <div class="d-card-head"><i data-ico="download" data-size="14"></i><span class="d-grow">外部这段</span><span class="d-badge mute">磁盘上 · 12 秒前</span></div>
+                        <div class="d-code">
+                          <div class="d-code-body" style="padding:var(--nx-sp-2)">- pi 0.1.8 · main<br>- pi 0.1.9 · main<br>- pi 0.2.0 · main</div>
+                        </div>
+                        <div class="d-pop-foot">采用外部这段</div>
+                        <div class="d-card-body"><button class="d-btn sm"><i data-ico="refresh-cw" data-size="13"></i>采用外部这段</button></div>
+                      </div>
+                    </div>
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span class="d-grow">两块<b>各自带自己的动作</b>，不设一个全局「选择」——用户已经用鼠标指着那一块了，多一次点击就是多一次犹豫。</span>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <!-- 已删除 + 说明 -->
+              <div class="d-col" style="gap:var(--nx-sp-4)">
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="file-clock" data-size="15"></i><span class="d-grow">文件已从磁盘删除</span><span class="d-badge bad">已删除</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span class="d-grow">文件已从磁盘删除，只能看它与 HEAD 的差异。</span>
+                    </div>
+                    <div class="d-code">
+                      <div class="d-code-head"><i data-ico="file-diff" data-size="13"></i><span class="d-grow">lib/legacy-shim.ts · 与 HEAD 的差异</span><button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button></div>
+                      <div class="d-code-body" style="padding:var(--nx-sp-2) 0">
+                        <div class="d-diff">
+<span class="d-diff-line del">- export * from "./legacy-shim";</span>
+<span class="d-diff-line del">- // TODO: 待清理</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">对比关掉、又没有内容可渲染时，<b>给一条 role="status" 的说明</b>，不留给空白面板。删除的文件只剩这一个可用视图，所以头部仍然保留「与 HEAD 对比」。</div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="activity" data-size="15"></i><span class="d-grow">实时同步 · 两态</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-row">
+                      <span class="d-dot ok"></span>
+                      <span class="d-t-sm">live</span>
+                      <span class="d-grow d-t-xs d-t-faint">磁盘一变就重新载入 · 外部编辑器改完不用手动刷新</span>
+                    </div>
+                    <div class="d-row">
+                      <span class="d-dot"></span>
+                      <span class="d-t-sm d-t-dim">static</span>
+                      <span class="d-grow d-t-xs d-t-faint">连接断了就停在这里，不假装还在听</span>
+                    </div>
+                    <div class="d-banner warn">
+                      <i data-ico="triangle-alert" data-size="14"></i>
+                      <span class="d-grow">正在编辑（有未保存）时，外部改动<b>不直接覆盖编辑器</b> —— 它变成冲突，走上一帧的两块并排。</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="list-checks" data-size="15"></i><span class="d-grow">可编辑这件事的三条边界</span></div>
+              <div class="d-card-body d-grid3">
+                <div class="d-notice">
+                  <span class="d-notice-ico"><i data-ico="pencil-line" data-size="13"></i></span>
+                  <span class="d-col d-grow"><span class="d-set-row-t">只有文本类可编辑</span><span class="d-set-row-s">二进制 / 字体 / 数据库同一份编辑黑名单，判定与预览分类同源</span></span>
+                </div>
+                <div class="d-notice">
+                  <span class="d-notice-ico"><i data-ico="git-branch" data-size="13"></i></span>
+                  <span class="d-col d-grow"><span class="d-set-row-t">改的是工作区，不是提交</span><span class="d-set-row-s">保存只写磁盘；要不要提交、提交信息写什么，是转录区里的另一件事</span></span>
+                </div>
+                <div class="d-notice">
+                  <span class="d-notice-ico"><i data-ico="keyboard" data-size="13"></i></span>
+                  <span class="d-col d-grow"><span class="d-set-row-t">保存键是全局的</span><span class="d-set-row-s">⌘S 只在有未保存时生效；没有改动时那颗钮是禁用的，不假装可点</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 「与 HEAD 对比」是覆盖层不是模式 · Markdown frontmatter 卡 · CSV / TSV 表格<span class="d-grow"></span>关掉对比要回到原视图，不丢滚动位置、不重开标签</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-col" style="gap:var(--nx-sp-5);padding:var(--nx-sp-5)" data-demo-scope>
+
+            <div class="d-card">
+              <div class="d-card-head">
+                <i data-ico="git-compare" data-size="15"></i>
+                <span class="d-grow">对比覆盖层 · 开 / 关</span>
+                <span class="d-grow"></span>
+                <div class="d-seg" data-demo-tabs>
+                  <button class="is-on" data-demo-tab="ov-off">关</button>
+                  <button data-demo-tab="ov-on">开</button>
+                </div>
+              </div>
+
+              <section data-demo-pane="ov-off">
+                <div class="d-viewer-bar">
+                  <i data-ico="file-code" data-size="13"></i>
+                  <span class="d-viewer-path">components/SessionSidebar.tsx</span>
+                  <span class="d-badge mute">TSX</span>
+                  <span class="d-dot ok"></span>
+                  <span class="d-grow"></span>
+                  <div class="d-seg"><button class="is-on">源码</button><button>预览</button></div>
+                  <button class="d-btn sm"><i data-ico="git-compare" data-size="13"></i>与 HEAD 对比</button>
+                </div>
+                <div class="d-code" style="border:0;border-radius:0">
+                  <div class="d-code-body">
+<span class="d-ln">41</span><span class="tok-k">const</span> rows = <span class="tok-k">useMemo</span>(() =&gt; sessions.<span class="tok-k">filter</span>(isVisible), [sessions]);
+<span class="d-ln">42</span><span class="tok-k">const</span> grouped = <span class="tok-k">groupByProject</span>(rows);
+<span class="d-ln">43</span>
+                  </div>
+                </div>
+                <div class="d-code-head" style="border-top:1px solid var(--nx-code-line)">
+                  <i data-ico="circle" data-size="12"></i><span class="d-grow">Ln 41 · Col 1</span><span>TSX · LF · UTF-8</span>
+                </div>
+                <div class="d-t-xs d-t-faint">对比按钮是<b>排在模式切换旁边的动作</b>，不是第三个页签 —— 放进模式组就等于宣称「diff 是一种看法」，而它其实是「盖在看法上面的一层」。</div>
+              </section>
+
+              <section data-demo-pane="ov-on" hidden>
+                <div class="d-viewer-bar">
+                  <i data-ico="file-code" data-size="13"></i>
+                  <span class="d-viewer-path">components/SessionSidebar.tsx</span>
+                  <span class="d-badge mute">TSX</span>
+                  <span class="d-grow"></span>
+                  <div class="d-seg"><button class="is-on">源码</button><button>预览</button></div>
+                  <button class="d-btn sm is-on" style="background:var(--nx-accent-soft);border-color:var(--nx-accent);color:var(--nx-accent)"><i data-ico="git-compare" data-size="13"></i>与 HEAD 对比</button>
+                </div>
+                <div class="d-banner">
+                  <i data-ico="file-diff" data-size="14"></i>
+                  <span class="d-grow">与 HEAD 的差异（只读）· 工作区 ↔ <span class="d-mono">a3f21c8</span></span>
+                  <button class="d-btn sm ghost d-banner-btn">返回源码</button>
+                </div>
+                <div class="d-code" style="border:0;border-radius:0">
+                  <div class="d-code-body" style="padding:var(--nx-sp-2) 0">
+                    <div class="d-diff" id="fv-diff">
+<span class="d-diff-line del"><span class="d-ln">41</span>  <span class="tok-k">const</span> rows = <span class="tok-k">useMemo</span>(() =&gt; sessions.<span class="tok-k">filter</span>(isVisible), [sessions]);</span>
+<span class="d-diff-line add"><span class="d-ln">41</span>  <span class="tok-k">const</span> rows = <span class="tok-k">useMemo</span>(() =&gt; sessions.<span class="tok-k">filter</span>(isVisible), [sessions, query]);</span>
+<span class="d-diff-line"><span class="d-ln">42</span>    <span class="tok-k">const</span> grouped = <span class="tok-k">groupByProject</span>(rows);</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-card-body d-row">
+                  <span class="d-badge info">+18</span><span class="d-badge bad">−6</span>
+                  <span class="d-grow d-t-xs d-t-faint">本轮会话「定住令牌与类名」产生</span>
+                  <span class="d-badge mute">只读 · 改不了</span>
+                </div>
+                <div class="d-t-xs d-t-faint">覆盖层不抢滚动位置、不重开标签：关掉就回到刚才那一行。反过来做，用户会「对比了一下就找不到自己刚才看到哪了」。</div>
+              </section>
+            </div>
+
+            <div class="d-grid2" style="align-items:start">
+
+              <!-- frontmatter -->
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="file-text" data-size="15"></i><span class="d-grow">SKILL.md</span><span class="d-badge mute">MD</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="braces" data-size="14"></i><span class="d-grow d-mono d-t-sm">frontmatter</span><button class="d-btn sm">复制</button></div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-t-b">招标改 · 批量结构化抽取</div>
+                      <div class="d-tags">
+                        <span class="d-badge mute">招投标</span>
+                        <span class="d-badge mute">Excel</span>
+                        <span class="d-badge mute">本地确定性后处理</span>
+                      </div>
+                      <div class="d-kv-row"><span>name</span><span class="d-mono">zhaobiao-extract</span></div>
+                      <div class="d-kv-row"><span>description</span><span>把招投标 Excel 逐条抽取 15 个字段…</span></div>
+                      <div class="d-kv-row"><span>agent_created</span><span><span class="d-badge mute">false</span></span></div>
+                      <div class="d-kv-row"><span>source</span><span>https://example.com/skill.md</span></div>
+                    </div>
+                  </div>
+                  <div class="d-md">
+                    <h2>招标改 · 批量结构化抽取</h2>
+                    <p>把招投标 Excel（列：序号 / 标题 / 地区 / 正文）逐条抽取 15 个字段，经本地确定性后处理输出新工作簿。</p>
+                  </div>
+                  <div class="d-t-xs d-t-faint">YAML 头<b>单独成卡</b>：标题行与标签行有语义（给人看的），键值表是原样回显。改的是呈现，不是文件 —— 保存时写回的还是你原来那份 YAML。</div>
+                </div>
+              </div>
+
+              <!-- CSV -->
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="table" data-size="15"></i><span class="d-grow">data/招标清单.csv</span><span class="d-badge mute">CSV</span><span class="d-badge info">1,284 行 × 9 列</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-tbl-wrap">
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>#</th><th>标题</th><th>地区</th><th>项目总投资</th><th>进展阶段</th><th>建设单位</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td class="d-mono">1</td><td>某某市污水处理厂扩建工程</td><td>江苏省南京市</td><td class="d-mono">12,400 万</td><td>设计</td><td>某某水务集团</td></tr>
+                        <tr><td class="d-mono">2</td><td>开发区智慧园区一期</td><td>浙江省杭州市</td><td class="d-mono">8,600 万</td><td>招标</td><td>某某建设投资</td></tr>
+                        <tr><td class="d-mono">3</td><td>高速公路改扩建</td><td>广东省广州市</td><td class="d-mono">36,000 万</td><td>施工</td><td>某某交通集团</td></tr>
+                        <tr><td class="d-mono">4</td><td>水厂取水口迁建</td><td>四川省成都市</td><td class="d-mono">3,150 万</td><td>设计</td><td>某某环境工程</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="d-row d-t-xs d-t-faint">
+                    <span class="d-grow">只读预览 · 首列行号 · 数字列等宽右对齐 · 宽表横向滚动</span>
+                    <span>第 1–4 行 / 共 21 行</span>
+                  </div>
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span class="d-grow">CSV / TSV 走表格而不是逐行文本：分隔符嗅探在解析层做，<b>行数超窗口就出分页条</b>，不把整份塞进 DOM。</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 图片缩放 · 长列表滚动淡出 · 音视频<span class="d-grow"></span>缩放值写在工具栏而不是盖一层浮层；滚动淡出是指示不是装饰</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-col" style="gap:var(--nx-sp-5);padding:var(--nx-sp-5)" data-demo-scope>
+
+            <div class="d-card">
+              <div class="d-card-head">
+                <i data-ico="image" data-size="15"></i>
+                <span class="d-grow">媒体三分支 · 同一套外壳</span>
+                <span class="d-grow"></span>
+                <div class="d-seg" data-demo-tabs>
+                  <button class="is-on" data-demo-tab="md-image">图片</button>
+                  <button data-demo-tab="md-audio">音频</button>
+                  <button data-demo-tab="md-video">视频</button>
+                </div>
+              </div>
+
+              <section data-demo-pane="md-image">
+                <div class="d-viewer-bar">
+                  <i data-ico="image" data-size="13"></i>
+                  <span class="d-viewer-path">design/preview/22-top-panels.png</span>
+                  <span class="d-badge mute">1440 × 900</span>
+                  <span class="d-dot ok"></span><span class="d-t-xs d-t-faint">live</span>
+                  <span class="d-grow"></span>
+                  <span class="d-row">
+                    <button class="d-iconbtn" title="缩小"><i data-ico="zoom-out" data-size="14"></i></button>
+                    <span class="d-badge mute">180%</span>
+                    <button class="d-iconbtn" title="放大"><i data-ico="zoom-in" data-size="14"></i></button>
+                    <button class="d-btn sm">适应窗口</button>
+                    <button class="d-btn sm">1:1</button>
+                  </span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-fileimg d-placeholder" style="width:42%;aspect-ratio:16/9">
+                    <i data-ico="image" data-size="22"></i>
+                    <span>图片本体 · contain 不裁切 · 板上占位 · 点它进灯箱（见 D-26b 帧 D）</span>
+                  </div>
+                  <div class="d-code-head" style="border-top:1px solid var(--nx-code-line)">
+                    <i data-ico="move" data-size="12"></i>
+                    <span class="d-grow">拖拽平移 · 滚轮缩放</span>
+                    <span>218 KB</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint">图片是唯一带缩放工具栏的媒体分支；音频与视频那两栏在它们自己的头部里<b>不出现</b>。</div>
+                </div>
+              </section>
+
+              <section data-demo-pane="md-audio" hidden>
+                <div class="d-viewer-bar">
+                  <i data-ico="music" data-size="13"></i>
+                  <span class="d-viewer-path">docs/发布会片段.m4a</span>
+                  <span class="d-badge mute">音频</span>
+                  <span class="d-dot ok"></span><span class="d-t-xs d-t-faint">live</span>
+                  <span class="d-grow"></span>
+                  <span class="d-row"><span class="d-t-xs d-t-faint">03:42</span><button class="d-btn sm"><i data-ico="download" data-size="13"></i>下载</button></span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-placeholder" style="width:42%;aspect-ratio:16/5">
+                    <i data-ico="audio-lines" data-size="22"></i>
+                    <span>波形占位 · 板上不画真波形</span>
+                  </div>
+                  <div class="d-row">
+                    <button class="d-send"><i data-ico="play" data-size="14"></i></button>
+                    <div class="d-bar d-grow"><i style="width:38%"></i></div>
+                    <span class="d-t-xs d-mono">01:24 / 03:42</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint">音频<b>没有缩放、没有 1:1、没有「返回源码」</b>：能做的动作只有播放 / 定位 / 下载。工具栏里多放一颗不适用的按钮，比不放更糟。</div>
+                </div>
+              </section>
+
+              <section data-demo-pane="md-video" hidden>
+                <div class="d-viewer-bar">
+                  <i data-ico="circle-play" data-size="13"></i>
+                  <span class="d-viewer-path">docs/走查录屏.mp4</span>
+                  <span class="d-badge mute">视频</span>
+                  <span class="d-dot"></span><span class="d-t-xs d-t-faint">static</span>
+                  <span class="d-grow"></span>
+                  <span class="d-row"><span class="d-t-xs d-t-faint">1920 × 1080 · 12:05</span><button class="d-btn sm"><i data-ico="download" data-size="13"></i>下载</button></span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-placeholder" style="width:42%;aspect-ratio:16/9">
+                    <i data-ico="circle-play" data-size="22"></i>
+                    <span>播放器占位 · 板上不嵌真实 video</span>
+                  </div>
+                  <div class="d-row">
+                    <button class="d-send"><i data-ico="play" data-size="14"></i></button>
+                    <div class="d-bar d-grow"><i style="width:12%"></i></div>
+                    <span class="d-t-xs d-mono">01:29 / 12:05</span>
+                    <span class="d-sep-v"></span>
+                    <button class="d-iconbtn" title="音量"><i data-ico="volume-2" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="全屏"><i data-ico="maximize-2" data-size="14"></i></button>
+                  </div>
+                  <div class="d-t-xs d-t-faint">音视频共用一条规律：<b>播放控件自己就是全部</b>。面包屑、下载与 live / static 圆点仍然照常，它们与播放无关。</div>
+                </div>
+              </section>
+            </div>
+
+            <div class="d-grid2" style="align-items:start">
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="chevrons-up-down" data-size="15"></i><span class="d-grow">长列表 · 滚动淡出</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-anchor" style="height:220px;overflow:hidden">
+                    <div class="d-viewer-scroll d-row-in" id="fv-list" style="height:100%;padding:var(--nx-sp-2)">
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-10-04-设计侧收尾.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-10-03-画板落地清单.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-10-02-主题皮肤合并.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-10-01-设置弹窗化.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-09-30-令牌收敛.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-09-29-错误边界补齐.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-09-28-取消登录.md</span></div>
+                      <div class="d-trow"><i data-ico="file-text" data-size="14"></i><span class="d-grow">2026-09-27-查看器只读化.md</span></div>
+                    </div>
+                    <div class="d-fade" style="height:26px"></div>
+                    <div class="d-fade-tail" style="height:26px"></div>
+                  </div>
+                  <div class="d-pop-foot" style="border-top:1px solid var(--nx-line)"><span class="d-grow">上下两条渐隐只提示「上面还有 / 下面还有」，<span class="d-badge mute">pointer-events: none</span> 不吃点击；滚到顶或到底自动消失，也不占布局。</span><button class="d-btn sm" data-demo-motion="#fv-list"><i data-ico="rotate-cw" data-size="13"></i>重播入场</button></div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="image" data-size="15"></i><span class="d-grow">图片预览的四件工具</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="percent" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">缩放百分比（可点回 100%）</span><span class="d-set-row-s">写在一行工具栏上，不盖一层浮层 —— 浮层会在用户比对两张图时挡住其中一张</span></span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="maximize-2" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">放大 / 缩小 / 适应窗口 / 1:1</span><span class="d-set-row-s">档位 25% – 500%；滚轮缩放与按钮走同一套步进，不各算各的</span></span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="move" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">拖拽平移不给按钮</span><span class="d-set-row-s">放大之后拖动是唯一自然的平移方式；给它一排方向钮反而占地方</span></span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="triangle-alert" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">超长图自动降采样</span><span class="d-set-row-s">超过 4000px 的一边先降一档再显示，缩放值仍然照实显示 —— 不假装原生分辨率</span></span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · HTML 沙箱 iframe · PDF 预览（缩放 + #page=N）· docx 同源 iframe<span class="d-grow"></span>三种 iframe 三种权限，写在板面上，不靠记忆</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-col" style="gap:var(--nx-sp-5);padding:var(--nx-sp-5)">
+
+            <div class="d-grid3" style="align-items:start">
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="code" data-size="15"></i><span class="d-grow">HTML · 沙箱 iframe</span></div>
+                <div class="d-viewer-bar">
+                  <span class="d-viewer-path">design/v5/web/boards/D-06b.html</span>
+                  <span class="d-badge mute">HTML</span>
+                  <span class="d-grow"></span>
+                  <button class="d-iconbtn" title="新标签打开"><i data-ico="external-link" data-size="13"></i></button>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-placeholder" style="aspect-ratio:16/10">
+                    <i data-ico="code" data-size="22"></i>
+                    <span>沙箱 iframe 占位 · 板上不渲染真实页面</span>
+                  </div>
+                  <div class="d-kv-row"><span>sandbox</span><span class="d-mono">allow-scripts</span></div>
+                  <div class="d-kv-row"><span>src</span><span class="d-mono">srcDoc（文件内容）</span></div>
+                  <div class="d-kv-row"><span>能做的</span><span>跑脚本，但不碰同源</span></div>
+                  <div class="d-kv-row"><span>不能做的</span><span>读父页面 / 发请求带凭据</span></div>
+                  <div class="d-t-xs d-t-faint">刻意<b>不给</b> <span class="d-mono">allow-same-origin</span>：给了它，一个脚本就能顺着 document 摸到整个应用。</div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="file-text" data-size="15"></i><span class="d-grow">PDF · 内置阅读器</span></div>
+                <div class="d-viewer-bar">
+                  <span class="d-viewer-path">docs/2026-Q1-规范.pdf</span>
+                  <span class="d-badge mute">PDF</span>
+                  <span class="d-badge mute">12 页 · 3.4 MB</span>
+                  <span class="d-grow"></span>
+                  <span class="d-row">
+                    <button class="d-iconbtn" title="缩小"><i data-ico="zoom-out" data-size="13"></i></button>
+                    <span class="d-badge mute">100%</span>
+                    <button class="d-iconbtn" title="放大"><i data-ico="zoom-in" data-size="13"></i></button>
+                  </span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-placeholder" style="width:58%;aspect-ratio:3/4;margin:0 auto">
+                    <i data-ico="file-text" data-size="22"></i>
+                    <span>PDF 页占位 · 板上不画真实页面</span>
+                  </div>
+                  <div class="d-code">
+                    <div class="d-code-head"><i data-ico="hash" data-size="13"></i><span class="d-grow">从转录跳转时带页码</span></div>
+                    <div class="d-code-body">/api/files/read?path=…#page=<span class="tok-n">3</span></div>
+                  </div>
+                  <div class="d-kv-row"><span>页码</span><span>只靠 <span class="d-mono">#page=N</span> fragment</span></div>
+                  <div class="d-kv-row"><span>缩放</span><span><span class="d-mono">#zoom=</span> 写进同一个 URL</span></div>
+                  <div class="d-t-xs d-t-faint">引言里说「第 3 页」时，跳转要落到第 3 页 —— 页码是 URL 的一部分，所以它能分享、能后退。<b>缩放步进走按钮不走滚轮</b>：每滚一格都重载整份文档。</div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="file-text" data-size="15"></i><span class="d-grow">docx · 同源 iframe</span></div>
+                <div class="d-viewer-bar">
+                  <span class="d-viewer-path">docs/合同模板.docx</span>
+                  <span class="d-badge mute">DOCX</span>
+                  <span class="d-badge warn">已排版，非原始 XML</span>
+                  <span class="d-grow"></span>
+                  <span class="d-dot ok"></span><span class="d-t-xs d-t-faint">live</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-placeholder" style="width:58%;aspect-ratio:3/4;margin:0 auto">
+                    <i data-ico="file-text" data-size="22"></i>
+                    <span>排版后的 docx 占位</span>
+                  </div>
+                  <div class="d-kv-row"><span>sandbox</span><span class="d-mono">allow-same-origin</span></div>
+                  <div class="d-kv-row"><span>为什么同源</span><span>要读 iframe 里的选区</span></div>
+                  <div class="d-kv-row"><span>代价</span><span>选区对父页面不可见</span></div>
+                  <div class="d-banner">
+                    <i data-ico="quote" data-size="14"></i>
+                    <span class="d-grow">所以提问浮窗要<b>从 frame 内部读 <span class="d-mono">getSelection()</span></b>，并按 frame 自己的坐标定位；渲染出的文档没有行号，引用只记路径快照。</span>
+                  </div>
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span class="d-grow">超过 10 MB 的 docx 直接说「太大，不能预览」，不半途加载。</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="d-card">
+              <div class="d-card-head"><i data-ico="shield" data-size="15"></i><span class="d-grow">三种 iframe 的权限表</span></div>
+              <div class="d-card-body">
+                <div class="d-tbl-wrap">
+                  <table class="d-table">
+                    <thead><tr><th>形态</th><th>来源</th><th>沙箱</th><th>为什么要这一档</th></tr></thead>
+                    <tbody>
+                      <tr><td>HTML 预览</td><td class="d-mono">srcDoc</td><td class="d-mono">allow-scripts</td><td>能跑作者写的脚本，但拿不到应用的同源上下文</td></tr>
+                      <tr class="is-on"><td>PDF</td><td class="d-mono">浏览器内置阅读器</td><td>不加沙箱</td><td>不执行页面脚本，加了反而可能打不开</td></tr>
+                      <tr><td>docx 排版</td><td class="d-mono">preview 接口</td><td class="d-mono">allow-same-origin</td><td>唯一能读 iframe 内选区的一档，代价是引用退回路径快照</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="d-pop-foot">外壳三处相同：一条显示相对路径的标题行、一个「下载」、一个 live / static 圆点。<b>只有沙箱与缩放控件按类型不同。</b></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 不可预览的降级卡 · 文件动作菜单四态<span class="d-grow"></span>菜单项随文件状态变，但菜单壳永远一样</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-col" style="gap:var(--nx-sp-5);padding:var(--nx-sp-5)" data-demo-scope>
+
+            <div class="d-card">
+              <div class="d-card-head">
+                <i data-ico="file-archive" data-size="15"></i>
+                <span class="d-grow">打不开的类型 · 降级卡</span>
+                <span class="d-grow"></span>
+                <div class="d-seg" data-demo-tabs>
+                  <button class="is-on" data-demo-tab="ug-binary">二进制</button>
+                  <button data-demo-tab="ug-unknown">未知类型</button>
+                </div>
+              </div>
+
+              <section data-demo-pane="ug-binary">
+                <div class="d-card-body">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="file" data-size="14"></i>
+                      <span class="d-grow d-mono">design/brand/logo.psd</span>
+                      <span class="d-badge mute">不支持的类型 PSD</span>
+                      <span class="d-badge mute">42.1 MB</span>
+                    </div>
+                    <div class="d-card-body d-t-xs">
+                      <div>这是一个二进制文件，应用里没有内置渲染器 —— 直接按 UTF-8 渲染只会得到一片乱码。</div>
+                      <div class="d-t-faint">/Users/yingjing/Desktop/PI NEXT/design/brand</div>
+                    </div>
+                    <div class="d-pop-foot" style="border-top:1px solid var(--nx-line)">
+                      <span class="d-mono">design/brand/logo.psd</span>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm"><i data-ico="folder-open" data-size="13"></i>在文件管理器中显示</button>
+                      <button class="d-btn sm primary"><i data-ico="external-link" data-size="13"></i>用默认应用打开</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section data-demo-pane="ug-unknown" hidden>
+                <div class="d-card-body">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="file" data-size="14"></i>
+                      <span class="d-grow d-mono">scripts/deploy.chart</span>
+                      <span class="d-badge mute">不支持的类型 CHART</span>
+                      <span class="d-badge mute">8 KB</span>
+                    </div>
+                    <div class="d-card-body d-t-xs">
+                      <div>扩展名不在已知清单里。可能是文本，也可能是我们还没见过的二进制 —— <b>按文本读给你看</b>总比直接说「打不开」有用。</div>
+                      <div class="d-t-faint">/Users/yingjing/Desktop/PI NEXT/scripts</div>
+                    </div>
+                    <div class="d-pop-foot" style="border-top:1px solid var(--nx-line)">
+                      <span class="d-mono">scripts/deploy.chart</span>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm"><i data-ico="file-code" data-size="13"></i>按文本试读</button>
+                      <button class="d-btn sm primary"><i data-ico="external-link" data-size="13"></i>用默认应用打开</button>
+                    </div>
+                  </div>
+                  <div class="d-pop-foot">两种原因、两句文案、两组按钮：<b>二进制说清「没有渲染器」</b>，未知类型<b>先给一次按文本读的机会</b>。判定表是纯逻辑 + 单测（哪些扩展名算二进制），不靠肉眼看扩展名。</div>
+                </div>
+              </section>
+            </div>
+
+            <div class="d-grid2" style="align-items:start">
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="menu" data-size="15"></i><span class="d-grow">动作菜单四态</span><span class="d-t-xs d-t-faint">壳一样，项不一样</span></div>
+                <div class="d-card-body d-grid2">
+
+                  <div class="d-card">
+                    <div class="d-pop-title">① 普通文本文件</div>
+                    <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制路径</button>
+                    <button class="d-menu-row"><i data-ico="at-sign" data-size="14"></i>引用到输入框</button>
+                    <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i>在文件管理器中显示</button>
+                    <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i>用默认应用打开</button>
+                    <div class="d-sep"></div>
+                    <button class="d-menu-row"><i data-ico="git-compare" data-size="14"></i>与 HEAD 对比</button>
+                    <button class="d-menu-row"><i data-ico="maximize-2" data-size="14"></i>铺满窗口</button>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-pop-title">② 二进制 / 不支持类型</div>
+                    <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制路径</button>
+                    <button class="d-menu-row"><i data-ico="at-sign" data-size="14"></i>引用到输入框</button>
+                    <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i>在文件管理器中显示</button>
+                    <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i>用默认应用打开</button>
+                    <div class="d-pop-foot">没有「与 HEAD 对比」：一个二进制和 HEAD 比出来的是二进制。</div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-pop-title">③ 文件已从磁盘删除</div>
+                    <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制路径</button>
+                    <button class="d-menu-row"><i data-ico="git-compare" data-size="14"></i>与 HEAD 对比</button>
+                    <button class="d-menu-row"><i data-ico="refresh-cw" data-size="14"></i>重新载入</button>
+                    <div class="d-pop-foot">「在文件管理器中显示」这一项<b>仍然有用</b>：它指向的是目录，文件没了目录还在。</div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-pop-title">④ 有未保存的修改</div>
+                    <button class="d-menu-row"><i data-ico="save" data-size="14"></i>保存</button>
+                    <button class="d-menu-row"><i data-ico="undo-2" data-size="14"></i>撤销全部</button>
+                    <div class="d-sep"></div>
+                    <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制路径</button>
+                    <button class="d-menu-row" style="opacity:var(--nx-a-disabled)"><i data-ico="external-link" data-size="14"></i>用默认应用打开</button>
+                    <div class="d-pop-foot">编辑中不给「用默认应用打开」：外部应用读到的是磁盘上的旧版，用户会以为自己的改动丢了。</div>
+                  </div>
+
+                </div>
+                <div class="d-card-body">
+                  <button class="d-btn sm" data-demo-open="fv-menu"><i data-ico="circle-help" data-size="13"></i>为什么菜单要分四态</button>
+                </div>
+              </div>
+
+              <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="list-checks" data-size="15"></i><span class="d-grow">查看器的全部分支</span></div>
+                  <div class="d-card-body d-tbl-wrap">
+                    <table class="d-table">
+                      <thead><tr><th>类型</th><th>落到的形态</th></tr></thead>
+                      <tbody>
+                        <tr><td>代码 / 文本</td><td>源码（行号 · 四色）· 可编辑</td></tr>
+                        <tr><td>Markdown</td><td>渲染预览 + frontmatter 卡</td></tr>
+                        <tr><td>CSV / TSV</td><td>表格（行号 · 横滚 · 分页条）</td></tr>
+                        <tr><td>图片</td><td>看图 + 缩放 + 灯箱</td></tr>
+                        <tr><td>音 / 视频</td><td>播放器</td></tr>
+                        <tr><td>HTML</td><td>沙箱 iframe</td></tr>
+                        <tr><td>PDF / docx</td><td>iframe（缩放 / 选区提问）</td></tr>
+                        <tr><td>ZIP</td><td>目录清单，可解压到临时目录</td></tr>
+                        <tr><td>二进制 / 未知</td><td>降级卡 + 外部应用</td></tr>
+                        <tr><td>已删除</td><td>与 HEAD 对比（唯一可用视图）</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="d-banner">
+                  <i data-ico="info" data-size="14"></i>
+                  <span class="d-grow">十个分支、<b>一个外壳</b>：面包屑与动作行永远在原位，分支之间切换不换位置。</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="fv-menu" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:340px">
+            <div class="d-pop-title">菜单为什么随状态变</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-t-xs d-t-dim">因为<b>每个动作的前置条件不同</b>。与其给一颗点不动的按钮加一句「暂不可用」，不如在不该出现的时候不出现；真被问到了，再在提示里说清为什么。</div>
+              <div class="d-menu-row"><i data-ico="git-compare" data-size="14"></i><span class="d-grow">没有版本可比时</span><span class="d-badge mute">不渲染</span></div>
+              <div class="d-menu-row"><i data-ico="save" data-size="14"></i><span class="d-grow">没有未保存时</span><span class="d-badge mute">不渲染</span></div>
+              <div class="d-menu-row"><i data-ico="external-link" data-size="14"></i><span class="d-grow">编辑中</span><span class="d-badge warn">禁用 + 说清</span></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>可编辑源码的三态</b>：未保存（头部多一枚徽章 + 撤销 + 带 <span class="d-kbd">⌘S</span> 的保存）、保存失败（<b>内容保留在编辑器里</b>，原地给一次重试）、冲突（<b>不做自动合并</b>，两块并排各带各的动作）。
+        正文区与只读源码完全一样 —— 编辑态不是另一个查看器。</li>
+    <li><b>「与 HEAD 对比」是一个覆盖层，不是一个模式。</b>它排在模式切换<b>旁边</b>；开起来整个内容区换成只读 diff，顶部一条横幅写明在看什么并给「返回源码」；关掉回到原视图，<b>不丢滚动位置、不重开标签</b>。</li>
+    <li><b>文件已从磁盘删除不能给空白面板。</b>对比开着就给删除说明 + 与 HEAD 的差异；对比关掉给一条 <span class="d-mono">role="status"</span> 的说明，头部仍保留对比入口 —— 那是删除后唯一可用的视图。</li>
+    <li><b>frontmatter 单独成卡。</b>标题与标签有语义（给人看的），键值表原样回显；布尔值给徽章。改的是呈现不是文件，保存时写回的还是原来那份 YAML。正文照常 Markdown 渲染。</li>
+    <li><b>CSV / TSV 走真表格</b>：首列行号、数字列等宽右对齐、宽表横向滚动（不压字）、超窗口出行数条。分隔符嗅探在解析层，不在视图层。</li>
+    <li><b>图片的工具栏只有四样</b>：缩放百分比（点回 100%）/ 放大 / 缩小 / 适应窗口与 1:1。拖拽平移不给按钮；缩放值写在工具栏上而不是盖一层浮层。</li>
+    <li><b>滚动淡出用上下两条渐隐</b>，<span class="d-mono">pointer-events: none</span>，只在真能滚时出现 —— 它是指示不是装饰。</li>
+    <li><b>音视频共用一条规律：播放控件自己就是全部。</b>没有缩放、没有行号、没有「返回源码」；面包屑、下载与 live / static 圆点照常，因为它们与播放无关。</li>
+    <li><b>三种 iframe 三种权限，写在板面上：</b>HTML 沙箱 <span class="d-mono">allow-scripts</span>（刻意不给 <span class="d-mono">allow-same-origin</span>）· PDF 不加沙箱 · docx <span class="d-mono">allow-same-origin</span>（为了读 iframe 内的选区，代价是引用退回路径快照）。
+        PDF 的页码与缩放都走 URL fragment（<span class="d-mono">#page=3</span>），所以能分享、能后退；缩放步进走按钮不走滚轮。</li>
+    <li><b>打不开永远带替代路径。</b>二进制说清「没有内置渲染器」，未知扩展名<b>先给一次按文本读的机会</b>；两者都给「在文件管理器中显示」与「用默认应用打开」，并且保留一条可复制路径。</li>
+    <li><b>动作菜单四态，壳一样项不一样。</b>普通文本 / 二进制 / 已删除 / 有未保存 —— 动作的前置条件不同，所以不该出现的时候就不出现；真要保留（比如编辑中禁用外部打开），就在提示里说清为什么。</li>
+    <li><b>十个分支，一个外壳。</b>面包屑与动作行永远在原位，切换分支不换位置。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

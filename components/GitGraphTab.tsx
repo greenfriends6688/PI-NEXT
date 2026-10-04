@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 import { TEXT } from "@/lib/typography";
 import { getFileName, getRelativeFilePath } from "@/lib/file-paths";
@@ -25,37 +26,11 @@ interface Props {
 
 /* fork:git-graph-tab — 右栏 Git 图谱。数据层见 lib/git-graph*（纯函数 + 自带测试），
    这里只负责画：泳道由 buildGitGraphLayout 算，几何由 gitGraphEdgePath 算，
-   颜色由 deriveLanePalette 从主题 accent 派生后以 CSS 变量下发。 */
+   颜色由 deriveLanePalette 从主题 accent 派生后以 CSS 变量下发。
 
-/** 刷新图标（替代 phosphor 的 ArrowClockwise，仓库不引图标依赖）。 */
-function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={spinning ? "animate-spin" : undefined}
-      aria-hidden="true"
-    >
-      <path d="M21 12a9 9 0 1 1-2.6-6.4" />
-      <polyline points="21 3 21 9 15 9" />
-    </svg>
-  );
-}
+   fork:v5-skin D-05 帧 D —— 面板头照画板 .d-panel-head / .d-iconbtn，提交明细
+   走 .d-git-row / .d-git-lane / .d-subhead；**泳道自绘 SVG 是登记例外**，保留。 */
 
-/** 关闭图标（替代 phosphor 的 X）。 */
-function CloseIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
-      <path d="m6 6 12 12M18 6 6 18" />
-    </svg>
-  );
-}
 
 const DEFAULT_LIMIT = 400;
 const LIMIT_STEP = 400;
@@ -136,13 +111,13 @@ function storeGraphColWidth(value: number): void {
 
 // Commit file status letters → the git status colors the rest of the UI uses.
 const COMMIT_CODE_COLORS: Record<string, string> = {
-  M: "var(--warning)",
-  R: "var(--warning)",
-  T: "var(--warning)",
-  A: "var(--success)",
-  C: "var(--success)",
-  D: "var(--danger)",
-  U: "var(--danger)",
+  M: "var(--nx-warning)",
+  R: "var(--nx-warning)",
+  T: "var(--nx-warning)",
+  A: "var(--nx-success)",
+  C: "var(--nx-success)",
+  D: "var(--nx-danger)",
+  U: "var(--nx-danger)",
 };
 
 function CommitFileRow({ file, cwd, onOpenFile }: {
@@ -150,29 +125,29 @@ function CommitFileRow({ file, cwd, onOpenFile }: {
   cwd: string;
   onOpenFile: Props["onOpenFile"];
 }) {
-  const [hovered, setHovered] = useState(false);
   const relativePath = getRelativeFilePath(file.filePath, cwd);
   const fileName = getFileName(file.filePath);
   const trailingDirectory = relativePath.endsWith(fileName)
     ? relativePath.slice(0, relativePath.length - fileName.length)
     : null;
   const directoryText = trailingDirectory !== null ? trailingDirectory : relativePath;
-  const color = COMMIT_CODE_COLORS[file.code] ?? "var(--warning)";
+  const color = COMMIT_CODE_COLORS[file.code] ?? "var(--nx-warning)";
 
   return (
     <button
       type="button"
       onClick={() => onOpenFile(file.filePath, fileName)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       title={file.filePath}
-      style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--s1)", padding: "0 5px", height: "var(--control-xs)", border: "none", borderRadius: "var(--radius-sm)", background: hovered ? "var(--bg-hover)" : "transparent", color: "var(--text)", cursor: "pointer", textAlign: "left", fontSize: TEXT.sm }}
+      /* fork:v5-skin D-05 帧 D —— 提交文件行 = 画板 .d-git-row（26px 行高 + hover 叠色）。
+         button 的 UA 归零在 fork:design-components 的按钮归零层做。 */
+      className="d-git-row"
+      style={{ width: "100%", border: 0, background: "none", font: "inherit", textAlign: "left", cursor: "pointer" }}
     >
-      <span style={{ width: "var(--icon-sm)", flexShrink: 0, color, fontFamily: "var(--font-mono)", fontSize: TEXT.xs, fontWeight: 600, textAlign: "center" }}>{file.code}</span>
-      <span style={{ minWidth: 0, overflow: "hidden", display: "flex", alignItems: "baseline", flex: 1, whiteSpace: "nowrap" }}>
+      <span className="d-mono" style={{ width: "var(--icon-sm)", flexShrink: 0, color, fontWeight: 600, textAlign: "center" }}>{file.code}</span>
+      <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", display: "flex", alignItems: "baseline", whiteSpace: "nowrap" }}>
         <span style={{ flexShrink: 0 }}>{fileName}</span>
         {directoryText && directoryText !== fileName && (
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", color: "var(--text-muted)", marginLeft: "var(--space-row)" }}>{directoryText}</span>
+          <span className="d-t-faint" style={{ overflow: "hidden", textOverflow: "ellipsis", marginLeft: "var(--nx-sp-1)" }}>{directoryText}</span>
         )}
       </span>
     </button>
@@ -181,6 +156,8 @@ function CommitFileRow({ file, cwd, onOpenFile }: {
 
 export function GitGraphTab({ cwd, onOpenFile }: Props) {
   const { t, locale } = useI18n();
+  // M-07 帧 D —— 手机档：只读泳道清单（`.m-cardgroup` + `.m-setrow`）。
+  const isMobile = useIsMobile();
   const { theme, isDark } = useTheme();
   // accent 是 BoardUI 桥接后的 CSS 变量；主题切换会换 <html> 上的类，所以以
   // theme/isDark 作为重算信号即可（不必再订阅一份 token 表）。
@@ -367,27 +344,171 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
   // the pointer leaves the whole body, so crossing the 5px divider does not
   // blink the band off.
   const rowBackground = (hash: string) =>
-    hash === selectedHash ? "var(--bg-selected)" : hash === hoveredHash ? "var(--bg-hover)" : "transparent";
+    hash === selectedHash ? "var(--nx-selected)" : hash === hoveredHash ? "var(--nx-surface)" : "transparent";
   const rowHitProps = (hash: string) => ({
     onClick: () => void selectCommit(hash),
     onMouseEnter: () => setHoveredHash(hash),
   });
 
+
+  /* ── M-07 帧 D · 手机档 ────────────────────────────────────────────────────
+     画板原话：「泳道顺序 + 未提交改动 + 分支关系，提交 / 推送 / rebase 一个按钮都
+     不下放到手机」。桌面那一版的泳道是自绘 SVG（**登记例外**，保留），手机上没有
+     第二套绘制：改成画板画的那张清单 —— `.m-cardgroup` 里一行一个提交，
+     `.m-setrow` + `.m-setrow-t`（等宽短 hash）+ `.m-setrow-s`（标题），
+     HEAD / 本轮 用 `.m-badge`。
+     行为一字未变：还是同一个 `selectCommit`（含按 hash 缓存）、同一个
+     `CommitFileRow` → `onOpenFile`、同一个 `load` 与「加载更多」。
+     泳道列宽拖拽（桌面）这一档在手机上不画 —— 画板手机形态没有分隔条，
+     它属于桌面那份分栏几何，报给父会话。 */
+  if (isMobile) {
+    const commits = data?.commits ?? [];
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", position: "relative", flex: "1 1 auto", minHeight: 0 }}
+      >
+        <div className="m-fade" aria-hidden="true" />
+        <div className="m-top">
+          <span className="m-top-title m-grow" title={cwd}>Git · {getFileName(cwd)}</span>
+          <button
+            type="button"
+            className="m-top-btn"
+            onClick={() => void load(limit)}
+            disabled={loading}
+            title={t("git.refresh")}
+            aria-label={t("git.refresh")}
+          >
+            <i data-ico="refresh-cw" data-size="16" className={loading ? "animate-spin" : undefined} aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div className="m-settings">
+          {data && data.isGitRepository && (
+            <div className="m-banner">
+              <i data-ico="git-branch" data-size="14" aria-hidden="true"></i>
+              <span className="m-grow m-t-xs">{t("git.graph")}</span>
+              <span className="m-badge mute">{commits.length}</span>
+            </div>
+          )}
+
+          {data === null ? null : !data.isGitRepository ? (
+            <div className="m-empty">
+              <div className="m-empty-ico"><i data-ico="git-branch" data-size="20" aria-hidden="true"></i></div>
+              <div className="m-empty-s">{t("git.notRepository")}</div>
+            </div>
+          ) : commits.length === 0 ? (
+            <div className="m-empty">
+              <div className="m-empty-ico"><i data-ico="git-commit-horizontal" data-size="20" aria-hidden="true"></i></div>
+              <div className="m-empty-s">{t("git.empty")}</div>
+            </div>
+          ) : (
+            <>
+              <div className="m-cardgroup">
+                <div className="m-group-title">{t("git.graph")}</div>
+                {commits.map((commit, row) => {
+                  const selected = commit.hash === selectedHash;
+                  return (
+                    <button
+                      key={commit.hash}
+                      type="button"
+                      className={`m-setrow${selected ? " is-on" : ""}`}
+                      aria-pressed={selected}
+                      title={commit.subject}
+                      onClick={() => void selectCommit(commit.hash)}
+                    >
+                      <i data-ico={row === 0 ? "circle-dot" : "git-commit-horizontal"} data-size="16" aria-hidden="true"></i>
+                      <span className="m-setrow-body">
+                        <span className="m-setrow-t m-mono">{commit.hash.slice(0, 10)}</span>
+                        <span className="m-setrow-s">{commit.subject}</span>
+                      </span>
+                      {/* HEAD 是 git 自己的术语，两端语言都不翻译（同画板帧 D 的写法）。 */}
+                      {row === 0 && <span className="m-badge ok">HEAD</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedCommit && (
+                <div className="m-cardgroup">
+                  <div className="m-group-title">{t("git.commitFiles")}</div>
+                  <div className="m-setrow">
+                    <i data-ico="git-commit-horizontal" data-size="16" aria-hidden="true"></i>
+                    <span className="m-setrow-body">
+                      <span className="m-setrow-t">{selectedCommit.subject}</span>
+                      <span className="m-setrow-s">
+                        {`${selectedCommit.author} · ${timeFormat.format(new Date(selectedCommit.timestamp * 1000))} · ${selectedCommit.hash.slice(0, 10)}`}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="m-iconbtn m-touch-44"
+                      onClick={closeDetail}
+                      title={t("i18n.close")}
+                      aria-label={t("i18n.close")}
+                    >
+                      <i data-ico="x" data-size="14" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  {commitLoading ? (
+                    <div className="m-setrow"><span className="m-grow m-t-faint">{t("i18n.loading")}</span></div>
+                  ) : commitFiles && commitFiles.length > 0 ? (
+                    commitFiles.map((file) => {
+                      const fileName = getFileName(file.filePath);
+                      return (
+                        <button
+                          key={`${file.code}:${file.filePath}`}
+                          type="button"
+                          className="m-setrow"
+                          title={file.filePath}
+                          onClick={() => onOpenFile(file.filePath, fileName)}
+                        >
+                          <i data-ico="file-code" data-size="16" aria-hidden="true"></i>
+                          <span className="m-setrow-body">
+                            <span className="m-setrow-t m-mono">{getRelativeFilePath(file.filePath, cwd)}</span>
+                            <span className="m-setrow-s">{file.code}</span>
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="m-setrow"><span className="m-grow m-t-faint">-</span></div>
+                  )}
+                </div>
+              )}
+
+              {data.truncated && (
+                <div className="m-pickbar">
+                  <button
+                    type="button"
+                    className="m-picktag"
+                    disabled={loading}
+                    onClick={() => setLimit((current) => Math.min(current + LIMIT_STEP, MAX_LIMIT))}
+                  >
+                    {t("git.loadMore")}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ ...laneVars, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", userSelect: isResizing ? "none" : undefined }}>
-      <div style={{ display: "flex", alignItems: "center", flexShrink: 0, padding: "var(--space-row) 10px", borderBottom: "1px solid var(--border)" }}>
-        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.xs, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-muted)", textAlign: "left" }}>
-          {t("git.graph")}
-        </span>
+      <div className="d-panel-head">
+        <i data-ico="git-branch" data-size="14" aria-hidden="true"></i>
+        <span className="d-grow d-viewer-path" title={cwd}>{cwd}</span>
         <button
           type="button"
+          className="d-iconbtn"
           onClick={() => void load(limit)}
           disabled={loading}
           title={t("git.refresh")}
           aria-label={t("git.refresh")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, padding: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: loading ? "wait" : "pointer", opacity: loading ? 0.55 : 1 }}
         >
-          <RefreshIcon spinning={loading} />
+          <i data-ico="refresh-cw" data-size="14" className={loading ? "animate-spin" : undefined} aria-hidden="true"></i>
         </button>
       </div>
 
@@ -397,12 +518,12 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
         style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
       >
         {data === null ? null : !data.isGitRepository ? (
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: TEXT.sm }}>
-            {t("git.notRepository")}
+          <div className="d-empty compact" style={{ height: "100%" }}>
+            <div className="d-empty-s">{t("git.notRepository")}</div>
           </div>
         ) : data.commits.length === 0 ? (
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: TEXT.sm }}>
-            {t("git.empty")}
+          <div className="d-empty compact" style={{ height: "100%" }}>
+            <div className="d-empty-s">{t("git.empty")}</div>
           </div>
         ) : layout && (
           <div
@@ -454,8 +575,8 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
                         cx={laneX(node.lane)}
                         cy={rowTops[node.row] + rowHeightOf(node.row) / 2}
                         r={isHeadRow ? HEAD_NODE_R : NODE_R}
-                        fill={isHeadRow ? "var(--bg)" : laneVar(node.colorIndex)}
-                        stroke={isHeadRow ? laneVar(node.colorIndex) : "var(--bg)"}
+                        fill={isHeadRow ? "var(--nx-panel)" : laneVar(node.colorIndex)}
+                        stroke={isHeadRow ? laneVar(node.colorIndex) : "var(--nx-panel)"}
                         strokeWidth={isHeadRow ? 2 : 1.5}
                       />
                     );
@@ -492,7 +613,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
               }}
               style={{ flexShrink: 0, width: DIVIDER_W, display: "flex", justifyContent: "center", cursor: "col-resize", touchAction: "none" }}
             >
-              <div style={{ width: 1, height: "100%", background: "color-mix(in srgb, var(--border) 55%, transparent)" }} />
+              <div style={{ width: 1, height: "100%", background: "color-mix(in srgb, var(--nx-line) 55%, transparent)" }} />
             </div>
 
             {/* Text column: takes whatever width the divider leaves. */}
@@ -510,12 +631,12 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
                     <div style={{ flex: 1, minWidth: 0, paddingLeft: TEXT_GAP, paddingRight: 10, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-ctrl)", minWidth: 0 }}>
                         <RefTagList tags={parseGitRefTags(commit.refs)} laneColor={laneVar(node.colorIndex)} />
-                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.md, fontWeight: 500, color: "var(--text)" }}>
+                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.md, fontWeight: 500, color: "var(--nx-text)" }}>
                           {commit.subject}
                         </span>
                       </div>
                       {isHeadRow && (
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"], color: "var(--text-muted)" }}>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--nx-font-mono)", fontSize: TEXT["2xs"], color: "var(--nx-text-2)" }}>
                           {commit.author} · {timeFormat.format(new Date(commit.timestamp * 1000))} · {commit.hash.slice(0, 10)}
                         </div>
                       )}
@@ -537,7 +658,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
               justifyContent: "center",
               padding: "var(--space-row) 0 8px",
               // Opaque backing so pinned graph rows/text don't show through.
-              background: "var(--bg)",
+              background: "var(--nx-panel)",
               pointerEvents: atListBottom ? "auto" : "none",
               opacity: atListBottom ? 1 : 0,
               visibility: atListBottom ? "visible" : "hidden",
@@ -546,9 +667,9 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
           >
             <button
               type="button"
+              className="d-btn sm"
               onClick={() => setLimit((current) => Math.min(current + LIMIT_STEP, MAX_LIMIT))}
               disabled={loading}
-              style={{ padding: "4px 14px", fontSize: TEXT.sm, border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "var(--bg)", color: "var(--text)", cursor: loading ? "wait" : "pointer" }}
             >
               {t("git.loadMore")}
             </button>
@@ -557,9 +678,9 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
       </div>
 
       {selectedCommit && (
-        <div style={{ flexShrink: 0, maxHeight: "45%", overflowY: "auto", overflowX: "hidden", borderTop: "1px solid var(--border)", padding: "8px 10px" }}>
+        <div style={{ flexShrink: 0, maxHeight: "45%", overflowY: "auto", overflowX: "hidden", borderTop: "1px solid var(--nx-line)", padding: "8px 10px" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-row)" }}>
-            <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.md, fontWeight: 500, color: "var(--text)", wordBreak: "break-word" }}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.md, fontWeight: 500, color: "var(--nx-text)", wordBreak: "break-word" }}>
               {selectedCommit.subject}
               {selectedCommit.refs.length > 0 && selectedNode && (
                 <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "var(--s1)", marginLeft: "var(--space-row)", verticalAlign: "middle" }}>
@@ -569,33 +690,31 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
             </span>
             <button
               type="button"
+              className="d-iconbtn"
               onClick={closeDetail}
               title={t("i18n.close")}
               aria-label={t("i18n.close")}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "var(--control-2xs)", height: "var(--control-2xs)", padding: 0, flexShrink: 0, border: "none", borderRadius: "var(--radius-sm)", background: "none", color: "var(--text-dim)", cursor: "pointer" }}
             >
-              <CloseIcon />
+              <i data-ico="x" data-size="14" aria-hidden="true"></i>
             </button>
           </div>
-          <div style={{ marginTop: "var(--space-tight)", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: TEXT["2xs"] }}>
+          <div className="d-mono d-t-faint" style={{ marginTop: "var(--nx-sp-1)" }}>
             {selectedCommit.author} · {timeFormat.format(new Date(selectedCommit.timestamp * 1000))} · {selectedCommit.hash.slice(0, 10)}
           </div>
-          <div style={{ marginTop: "var(--space-row)", fontSize: TEXT.xs, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+          <div className="d-subhead" style={{ marginTop: "var(--nx-sp-1)" }}>
             {t("git.commitFiles")}
           </div>
           <div style={{ marginTop: "var(--space-tight)" }}>
             {commitLoading ? (
-              <div style={{ padding: "4px 5px", color: "var(--text-dim)", fontSize: TEXT.sm }}>
-                <RefreshIcon spinning />
+              <div className="d-t-dim d-t-sm" style={{ padding: "2px 5px" }}>
+                <i data-ico="refresh-cw" data-size="13" className="animate-spin" aria-hidden="true"></i>
               </div>
             ) : commitFiles && commitFiles.length > 0 ? (
               commitFiles.map((file) => (
                 <CommitFileRow key={`${file.code}:${file.filePath}`} file={file} cwd={cwd} onOpenFile={onOpenFile} />
               ))
             ) : (
-              <div style={{ padding: "4px 5px", color: "var(--text-dim)", fontSize: TEXT.sm }}>-</div>
+              <div className="d-t-dim d-t-sm" style={{ padding: "2px 5px" }}>-</div>
             )}
           </div>
         </div>

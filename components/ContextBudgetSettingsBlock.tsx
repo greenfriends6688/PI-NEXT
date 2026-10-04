@@ -241,7 +241,7 @@ export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
               <PwCtl>
                 <input
                   id={inputId}
-                  className="pw-input pw-numin"
+                  className="d-input d-mono"
                   type="number"
                   min={0}
                   max={CONTEXT_BUDGET_MAX_TOKENS}
@@ -266,7 +266,7 @@ export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
         return (
           <PwField
             key={modelRef}
-            label={<span className="pw-mono">{modelRef}</span>}
+            label={<span className="d-mono">{modelRef}</span>}
             control={
               <PwCtl>
                 {(["reserveTokens", "keepRecentTokens"] as const).map((field) => {
@@ -276,7 +276,7 @@ export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
                   return (
                     <input
                       key={field}
-                      className="pw-input pw-numin"
+                      className="d-input d-mono"
                       type="number"
                       min={0}
                       max={CONTEXT_BUDGET_MAX_TOKENS}
@@ -298,13 +298,13 @@ export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
                 })}
                 <button
                   type="button"
-                  className="pw-iconbtn sm"
+                  className="d-iconbtn sm"
                   disabled={locked || saving}
                   aria-label={removeLabel}
                   title={removeLabel}
                   onClick={() => removeOverride(modelRef)}
                 >
-                  <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
+                  <i data-ico="trash-2" data-size="13" aria-hidden="true" />
                 </button>
               </PwCtl>
             }
@@ -325,9 +325,9 @@ export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
         }
       />
       {error ? (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="pw-grow">{error}</span>
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{error}</span>
         </div>
       ) : null}
     </PwBlock>

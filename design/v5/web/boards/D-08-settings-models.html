@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-08 · 模型与供应商 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-08 · 模型与供应商</h1>
+  <p>
+    这一页管三件事，混在一起才是完整的模型体系：<b>谁能被调用</b>（供应商与认证）、
+    <b>被调用时怎么发</b>（单个模型的上下文 / 输出 / 推理 / Header / 兼容开关）、
+    <b>谁负责哪种活</b>（默认模型、命名模型、压缩模型分工）。
+    所有改动写进 <code>~/.pi/agent/models.json</code>；<b>认证状态永远如实显示</b> ——
+    令牌过期就写「3 天后过期」，不写「已连接」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 模型与供应商</span>
+    <span class="d-tag">组件：ModelsConfig · ModelLimitsFields · EnabledModelsSection · ModelSelector</span>
+    <span class="d-tag">状态：已登录 / 令牌将过期 / 未登录 / 本机 · 配额充足 / 吃紧</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 供应商与认证：谁在名单里 · 凭证状态 · 配额芯片 · 收藏模型<span class="d-grow"></span>点行会选中供应商，刷新浮层能点开</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">模型与供应商</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型与供应商">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 模型与供应商</span>
+
+      <span class="d-badge warn"><i data-ico="triangle-alert" data-size="12"></i>1 个令牌将过期</span>
+      <button class="d-btn sm primary"><i data-ico="plus" data-size="14"></i>添加供应商</button>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">供应商</div>
+                  <div class="d-t-xs d-t-faint">一个模型能被选中，前提是<b>它所属的供应商有可用凭证</b>。凭证缺失的供应商整组灰着，不假装可选。</div>
+
+                  <div class="d-card">
+                    <table class="d-table" data-demo-list>
+                      <thead>
+                        <tr><th>供应商</th><th>认证</th><th>接口地址</th><th>模型</th><th>上次同步</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr data-demo-select>
+                          <td><div class="d-row"><span class="d-ava">A</span><span class="d-t-b">anthropic</span></div></td>
+                          <td><span class="d-badge ok">已登录</span></td>
+                          <td class="d-mono">api.anthropic.com</td>
+                          <td class="d-mono">3</td>
+                          <td class="d-t-xs">2 分钟前</td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td><div class="d-row"><span class="d-ava">O</span><span class="d-t-b">openai</span></div></td>
+                          <td><span class="d-badge ok">已登录</span></td>
+                          <td class="d-mono">api.openai.com</td>
+                          <td class="d-mono">2</td>
+                          <td class="d-t-xs">2 分钟前</td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td><div class="d-row"><span class="d-ava">G</span><span class="d-t-b">google</span></div></td>
+                          <td><span class="d-badge warn"><i data-ico="clock" data-size="12"></i>3 天后过期</span></td>
+                          <td class="d-mono">generativelanguage…</td>
+                          <td class="d-mono">2</td>
+                          <td class="d-t-xs">2 分钟前</td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td><div class="d-row"><span class="d-ava">本</span><span class="d-t-b">本机 · ollama</span></div></td>
+                          <td><span class="d-badge info">无需凭证</span></td>
+                          <td class="d-mono">127.0.0.1:11434</td>
+                          <td class="d-mono">1</td>
+                          <td class="d-t-xs">刚刚</td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td><div class="d-row"><span class="d-ava">网</span><span class="d-t-b">内网网关</span></div></td>
+                          <td><span class="d-badge bad">未登录</span></td>
+                          <td class="d-mono">gw.corp:8080/v1</td>
+                          <td class="d-mono">0</td>
+                          <td class="d-t-xs">从未同步</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span>google 的访问令牌 10 月 09 日到期。到期后这两个模型会从选择器里消失（不是变成灰的），因为它们已经调不动了。</span>
+                    <button class="d-btn sm d-banner-btn">续期</button>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">配额</div>
+                  <div class="d-t-xs d-t-faint">查询的是供应商侧的用量摘要（近 30 天），本机模型不参与 —— 它没有账单。</div>
+
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-row d-t-xs">
+                        <span class="d-ava">A</span><span class="d-grow">anthropic · Opus 档</span>
+                        <span class="d-badge ok">¥412 / ¥600</span><span class="d-t-xs d-t-faint">69%</span>
+                      </div>
+                      <div class="d-bar"><i style="width:69%"></i></div>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-row d-t-xs">
+                        <span class="d-ava">O</span><span class="d-grow">openai · Codex 档</span>
+                        <span class="d-badge warn">¥1 806 / ¥2 000</span><span class="d-t-xs d-t-faint">90%</span>
+                      </div>
+                      <div class="d-bar"><i style="width:90%"></i></div>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-row d-t-xs">
+                        <span class="d-ava">本</span><span class="d-grow">本机 · ollama</span>
+                        <span class="d-badge mute">不计入配额</span><span class="d-t-xs d-t-faint">本机</span>
+                      </div>
+                      <div class="d-bar"><i style="width:12%"></i></div>
+                    </div>
+                  </div>
+
+                  <div class="d-row">
+                    <span class="d-t-xs d-t-faint">数据来自供应商回执，与「用量」页的本地日志口径不同：这里是供应商认的账。</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm" data-demo-open="p08-quota"><i data-ico="refresh-cw" data-size="13"></i>刷新用量</button>
+                  </div>
+
+                  <div class="d-pop is-open up" data-demo-pop="p08-quota" hidden style="right:0;min-width:320px">
+                    <div class="d-pop-title">用量摘要 · 近 30 天</div>
+                    <div class="d-pop-body d-t-xs d-t-dim">查询按供应商逐个发，失败的那一个单独标出来，不用一个「刷新失败」盖掉全部。</div>
+                    <div class="d-sep"></div>
+                    <div class="d-menu-row"><span class="d-grow">anthropic</span><span class="d-badge ok">¥412.08</span></div>
+                    <div class="d-menu-row"><span class="d-grow">openai</span><span class="d-badge ok">¥1 806.44</span></div>
+                    <div class="d-menu-row"><span class="d-grow">google</span><span class="d-badge bad">查询失败 · 401</span></div>
+                    <div class="d-menu-row"><span class="d-grow">本机 · ollama</span><span class="d-badge mute">不适用</span></div>
+                    <div class="d-pop-foot">只重查失败的那一个。</div>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">收藏模型</div>
+                  <div class="d-t-xs d-t-faint">收藏只是「选模型时排前面」，不改变任何调用行为；被停用的模型会留在收藏里但标灰。</div>
+                  <div class="d-tags">
+                    <span class="d-tag"><i data-ico="star" data-size="12"></i>claude-opus-4-6</span>
+                    <span class="d-tag"><i data-ico="star" data-size="12"></i>claude-sonnet-4-6</span>
+                    <span class="d-tag"><i data-ico="star" data-size="12"></i>gpt-5.1-codex</span>
+                    <span class="d-tag"><i data-ico="star" data-size="12"></i>qwen3-coder-30b</span>
+                    <span class="d-tag"><i data-ico="star" data-size="12"></i>gemini-2.5-flash</span>
+                    <span class="d-tag"><i data-ico="circle-slash" data-size="12"></i>claude-3-haiku（已停用）</span>
+                  </div>
+                  <div class="d-row">
+                    <span class="d-t-xs d-t-faint">6 个收藏 · 1 个因供应商未登录而不可选</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm ghost">管理收藏</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 模型编辑（整页高度）：上下文与输出上限 · 模态 · 推理档位 · Header / UA · 兼容开关<span class="d-grow"></span>推理档位分段与兼容开关都能点</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">模型与供应商</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型与供应商">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 模型与供应商</span>
+
+      <span class="d-badge warn"><i data-ico="pencil-line" data-size="12"></i>已覆盖 3 项目录值</span>
+      <button class="d-btn sm primary"><i data-ico="save" data-size="13"></i>保存</button>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner" data-demo-scope>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">模型规格</div>
+                  <div class="d-grid2">
+                    <div class="d-field">
+                      <span class="d-field-t">名称</span>
+                      <input class="d-input d-mono" value="claude-opus-4-6">
+                      <span class="d-t-xs d-t-faint">列表与选择器里显示的名字，改了不影响调用（调用认供应商/模型 ID）。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">模型 ID</span>
+                      <input class="d-input d-mono" value="claude-opus-4-6" readonly>
+                      <span class="d-t-xs d-t-faint">只读：请求里用的就是它，所以做成可聚焦可复制、而不是 disabled。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">上下文窗口（tokens）</span>
+                      <input class="d-input d-mono" value="200000">
+                      <span class="d-t-xs d-t-faint">含输入与输出；上下文预算按它算。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">最大输出 tokens</span>
+                      <input class="d-input d-mono" value="64000">
+                      <span class="d-t-xs d-t-faint">填得比上下文还大时，供应商会拒掉或砍掉超出的部分。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">模态</span>
+                      <button class="d-select">文本 + 图片<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-faint">只有文本时，输入框里的图片按钮会灰掉并说明原因。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">成本档</span>
+                      <button class="d-select">高（¥ · 每百万）<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-faint">只影响选模型时的提示与用量估算，不改变供应商结算价。</span>
+                    </div>
+                  </div>
+
+                  <div class="d-banner err">
+                    <i data-ico="circle-alert" data-size="14"></i>
+                    <span>最大输出 64 000 与上下文 200 000 不冲突，但这家供应商对单次输出另有 32 000 的硬上限 —— 超出的部分会被截断，面板会提前标出来而不是让你发一次才发现。</span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">推理 / 思考</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">档位</div>
+                      <div class="d-set-row-s">决定每轮请求里带不带 <code>reasoning_effort</code>，以及带成什么值。</div>
+                    </div>
+                    <span class="d-grow-last">
+                      <div class="d-seg" data-demo-tabs>
+                        <button data-demo-tab="r-follow">跟随模型</button>
+                        <button data-demo-tab="r-off">关闭</button>
+                        <button data-demo-tab="r-low">低</button>
+                        <button data-demo-tab="r-mid">中</button>
+                        <button data-demo-tab="r-high" class="is-on">高</button>
+                        <button data-demo-tab="r-max">最高</button>
+                      </div>
+                    </span>
+                  </div>
+
+                  <section data-demo-pane="r-follow" hidden>
+                    <div class="d-banner"><i data-ico="info" data-size="14"></i><span>不写 <code>reasoning_effort</code>：由供应商按这条消息的难度自己决定。延迟不可预测，但最省。</span></div>
+                  </section>
+                  <section data-demo-pane="r-off" hidden>
+                    <div class="d-banner"><i data-ico="x" data-size="14"></i><span>每轮带 <code>reasoning_effort: none</code>（本供应商的兼容开关已打开）。快，但复杂改动更容易漏。</span></div>
+                  </section>
+                  <section data-demo-pane="r-low" hidden>
+                    <div class="d-banner"><i data-ico="zap" data-size="14"></i><span>每轮带 <code>low</code>。适合查资料、改文案这类不太需要绕路的活。</span></div>
+                  </section>
+                  <section data-demo-pane="r-mid" hidden>
+                    <div class="d-banner"><i data-ico="zap" data-size="14"></i><span>每轮带 <code>medium</code>。默认档，多数任务在这一档的性价比最好。</span></div>
+                  </section>
+                  <section data-demo-pane="r-high">
+                    <div class="d-banner"><i data-ico="brain" data-size="14"></i><span>每轮带 <code>high</code>。当前默认：跨文件改动、查一个说不清的 bug 都走这一档。</span></div>
+                  </section>
+                  <section data-demo-pane="r-max" hidden>
+                    <div class="d-banner"><i data-ico="triangle-alert" data-size="14"></i><span>每轮带 <code>max</code>：思考 token 也计入输出上限，慢了 3 倍，费用约为「高」的 2.4 倍。</span></div>
+                  </section>
+
+                  <div class="d-t-xs d-t-faint">被 <code>enabledModels</code> 里的 <code>:level</code> 钉死的档位在这一栏是只读的，面板会标「被覆盖」而不是让你改一个不生效的值。</div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">请求头与标识</div>
+                  <div class="d-grid2">
+                    <div class="d-field">
+                      <span class="d-field-t">自定义 Headers</span>
+                      <textarea class="d-textarea" rows="4">{
+  "anthropic-beta": "context-1m-2025-08-07"
+}</textarea>
+                      <span class="d-t-xs d-t-faint">仅添加到该模型的请求中，并覆盖 Provider 的同名 Header。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">采样参数（JSON）</span>
+                      <textarea class="d-textarea" rows="4">{ "temperature": 0.7 }</textarea>
+                      <span class="d-t-xs d-t-faint">会并入发给供应商的请求；留空表示用供应商默认值。</span>
+                    </div>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">User-Agent</div>
+                      <div class="d-set-row-s">自建网关按 UA 做限流；默认带版本号方便对方排查。</div>
+                    </div>
+                    <span class="d-grow-last"><input class="d-input d-mono" style="width:260px" value="pi-web/0.1.8 (macOS 15.1)"></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">兼容性</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">默认行为</div>
+                      <div class="d-set-row-s">对这个供应商下的每个模型生效；单个模型仍可逐项覆盖。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-select">默认：按 base URL 自动探测<i data-ico="chevron-down" data-size="12"></i></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">接受 reasoning_effort</div>
+                      <div class="d-set-row-s">关掉的话，帧 B 里那六档会退化成「只改本地显示」。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="接受 reasoning_effort"></button>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">严格工具 schema</div>
+                      <div class="d-set-row-s">工具入参多一层校验；老网关报参数错时先关它。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="严格工具 schema"></button>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">把 thinking 块转成带 &lt;thinking&gt; 标签的文本</div>
+                      <div class="d-set-row-s">只对不认原生 thinking 的网关开。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                    <button class="d-switch" data-demo-switch aria-checked="false" title="thinking 转文本"></button>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">流式响应返回 finish_reason</div>
+                      <div class="d-set-row-s">关掉时，「为什么停」只能靠猜，用量统计也会少一段。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="finish_reason"></button>
+                  </div>
+                  <div class="d-t-xs d-t-faint">models.json 里还有 7 个这里没有开关的兼容项（枚举或对象值）—— 它们不常改，所以不做成一排开关。</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 默认模型分工：默认模型 / 命名模型 / 压缩模型 + 成本档<span class="d-grow"></span>三张卡各自能点开选型器</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">模型与供应商</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型与供应商">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 模型与供应商</span>
+
+      <span class="d-badge mute">3 个角色</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">默认模型分工</div>
+                  <div class="d-t-xs d-t-faint">三个角色互相独立。摘要比对话便宜一个量级、标题只需要一句话 —— 用同一个模型干这三件事，钱是白扔的。</div>
+
+                  <div class="d-anchor">
+                    <button class="d-setcard" data-demo-open="p08-default">
+                      <i data-ico="square-pen" data-size="18"></i>
+                      <span class="d-col d-grow">
+                        <span class="d-set-row-t">默认模型</span>
+                        <span class="d-set-row-s">新建会话从这里起步；不选就用 pi 的内置默认。</span>
+                      </span>
+                      <span class="d-col" style="text-align:right">
+                        <span class="d-mono d-t-xs">anthropic / claude-opus-4-6</span>
+                        <span class="d-badge ok">最近 7 天 71% 的会话</span>
+                      </span>
+                    </button>
+                    <div class="d-pop is-open up" data-demo-pop="p08-default" hidden style="right:0;min-width:340px">
+                      <div class="d-pop-title">选默认模型</div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><span class="d-grow">anthropic / claude-opus-4-6</span><span class="d-badge ok">当前</span></button>
+                      <button class="d-menu-row"><span class="d-grow">anthropic / claude-sonnet-4-6</span><span class="d-t-xs d-t-faint">省 5 倍</span></button>
+                      <button class="d-menu-row"><span class="d-grow">openai / gpt-5.1-codex</span></button>
+                      <button class="d-menu-row"><span class="d-grow">本机 / qwen3-coder-30b</span><span class="d-badge mute">离线可用</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i>用 pi 的内置默认</button>
+                      <div class="d-pop-foot">只列「已启用」的模型；被供应商停用的不会出现在这里。</div>
+                    </div>
+                  </div>
+
+                  <div class="d-anchor">
+                    <button class="d-setcard" data-demo-open="p08-title">
+                      <i data-ico="text-cursor" data-size="18"></i>
+                      <span class="d-col d-grow">
+                        <span class="d-set-row-t">命名模型</span>
+                        <span class="d-set-row-s">首个回复结束后用它给会话起名；未选择时使用会话自身的模型。</span>
+                      </span>
+                      <span class="d-col" style="text-align:right">
+                        <span class="d-mono d-t-xs">本机 / qwen3-coder-30b</span>
+                        <span class="d-badge mute">每会话一次 · 约 0.4k token</span>
+                      </span>
+                    </button>
+                    <div class="d-pop is-open up" data-demo-pop="p08-title" hidden style="right:0;min-width:340px">
+                      <div class="d-pop-title">选命名模型</div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><span class="d-grow">本机 / qwen3-coder-30b</span><span class="d-badge ok">当前</span></button>
+                      <button class="d-menu-row"><span class="d-grow">openai / gpt-5.1-mini</span><span class="d-t-xs d-t-faint">¥0.03 / 次</span></button>
+                      <button class="d-menu-row"><span class="d-grow">anthropic / claude-haiku-4-6</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="square-slash" data-size="14"></i>使用会话模型</button>
+                    </div>
+                  </div>
+
+                  <div class="d-anchor">
+                    <button class="d-setcard" data-demo-open="p08-compact">
+                      <i data-ico="scan-text" data-size="18"></i>
+                      <span class="d-col d-grow">
+                        <span class="d-set-row-t">压缩模型</span>
+                        <span class="d-set-row-s">上下文快满时用它写摘要；摘要写坏了，整段历史就找不回来了。</span>
+                      </span>
+                      <span class="d-col" style="text-align:right">
+                        <span class="d-mono d-t-xs">anthropic / claude-sonnet-4-6</span>
+                        <span class="d-badge info">近 30 天压缩 412 次</span>
+                      </span>
+                    </button>
+                    <div class="d-pop is-open up" data-demo-pop="p08-compact" hidden style="right:0;min-width:340px">
+                      <div class="d-pop-title">选压缩模型</div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><span class="d-grow">anthropic / claude-sonnet-4-6</span><span class="d-badge ok">当前</span></button>
+                      <button class="d-menu-row"><span class="d-grow">本机 / qwen3-coder-30b</span><span class="d-badge mute">不花钱</span></button>
+                      <button class="d-menu-row"><span class="d-grow">openai / gpt-5.1-mini</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="shield-alert" data-size="14"></i>沿用默认模型</button>
+                      <div class="d-pop-foot">换压缩模型不会丢历史；旧的摘要保持原样，不会用新模型重写一遍。</div>
+                    </div>
+                  </div>
+
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>三个角色都可以指向本机模型：断网或欠费时，至少摘要与命名还能继续跑。</span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">成本档</div>
+                  <div class="d-t-xs d-t-faint">每百万 tokens 的价格，用来在选模型时提前看见量级；<b>不改变供应商的结算价</b>，账单以供应商回执为准。</div>
+
+                  <div class="d-card">
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>模型</th><th>输入</th><th>输出</th><th>缓存读取</th><th>缓存写入</th><th>档</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td class="d-mono">claude-opus-4-6</td><td class="d-mono">¥75.00</td><td class="d-mono">¥375.00</td><td class="d-mono">¥7.50</td><td class="d-mono">¥18.75</td><td><span class="d-badge warn">高</span></td></tr>
+                        <tr><td class="d-mono">claude-sonnet-4-6</td><td class="d-mono">¥22.50</td><td class="d-mono">¥112.50</td><td class="d-mono">¥2.25</td><td class="d-mono">¥5.63</td><td><span class="d-badge ok">中</span></td></tr>
+                        <tr><td class="d-mono">gpt-5.1-codex</td><td class="d-mono">¥18.00</td><td class="d-mono">¥72.00</td><td class="d-mono">¥1.80</td><td class="d-mono">td class="d-mono">¥4.50</td><td><span class="d-badge ok">中</span></td></tr>
+                        <tr><td class="d-mono">qwen3-coder-30b · 本机</td><td class="d-mono">¥0.00</td><td class="d-mono">¥0.00</td><td class="d-mono">—</td><td class="d-mono">—</td><td><span class="d-badge mute">本机</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">长上下文阶梯</div>
+                      <div class="d-set-row-s">输入总量超过 200k 时整笔按高价档计；命中多档时取最高阈值。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge info">1 档 · 200k → ¥150 / 百万</span></span>
+                    <button class="d-btn sm ghost">编辑价格</button>
+                  </div>
+                  <div class="d-row">
+                    <span class="d-badge mute">来源：models.dev · 价格得到 3/3 条记录支持</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm ghost" data-demo-open="p08-price"><i data-ico="external-link" data-size="13"></i>核对价格</button>
+                  </div>
+
+                  <div class="d-pop is-open up" data-demo-pop="p08-price" hidden style="right:0;min-width:320px">
+                    <div class="d-pop-title">价格是怎么来的</div>
+                    <div class="d-pop-body d-t-xs d-t-dim">models.dev 上同一家供应商的价格有三条记录，两个一致、一个偏高，取多数。支持数低于 2 就标「未找到可靠价格」，不猜。</div>
+                    <div class="d-sep"></div>
+                    <div class="d-menu-row"><span class="d-grow">供应商页面价</span><span class="d-badge ok">一致</span></div>
+                    <div class="d-menu-row"><span class="d-grow">社区目录 A</span><span class="d-badge ok">一致</span></div>
+                    <div class="d-menu-row"><span class="d-grow">社区目录 B</span><span class="d-badge warn">偏高 12%</span></div>
+                    <div class="d-pop-foot">价格改动只影响估算与提示，不会回写账单。</div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 启用模型 scope：pattern 白名单 · 思考档位钉 · 失配诊断<span class="d-grow"></span>点行会选中条目，pattern 就是 pi 的 --models 写法</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">模型与供应商</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型与供应商">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 模型与供应商</span>
+
+      <span class="d-badge warn"><i data-ico="triangle-alert" data-size="12"></i>2 条失配</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">可用模型</div>
+                  <div class="d-t-xs d-t-faint">这里存的是 pi 的 <code>--models</code> pattern 白名单：<b>它不是过滤器，是白名单</b>。写得越宽，选择器里出现的模型越多；一条都不写等于全开。</div>
+
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span><b>2 条 pattern 匹配不到任何模型。</b>模型可用的前提是它所属的 provider 有可用凭证 —— 凭证缺失、模型被改名，或这份配置是给别的机器写的，都会让条目落空。</span>
+                    <button class="d-btn sm d-banner-btn" data-demo-open="p08-prune">清理无效条目</button>
+                  </div>
+
+                  <div class="d-pop is-open up" data-demo-pop="p08-prune" hidden style="right:0;min-width:340px">
+                    <div class="d-pop-title">清理无效条目</div>
+                    <div class="d-pop-body d-t-xs d-t-dim">只删「当前一条都匹配不上」的 pattern；<b>已经变窄但仍然有效的 pattern 一条都不动</b>，不重排、不合并。</div>
+                    <div class="d-sep"></div>
+                    <div class="d-menu-row"><span class="d-grow d-mono">zai/glm-4.6</span><span class="d-badge bad">删除</span></div>
+                    <div class="d-menu-row"><span class="d-grow d-mono">internal/*</span><span class="d-badge bad">删除</span></div>
+                    <div class="d-menu-row"><span class="d-grow d-mono">anthropic/*</span><span class="d-badge ok">保留</span></div>
+                    <div class="d-menu-row"><span class="d-grow d-mono">openai/gpt-5*</span><span class="d-badge ok">保留</span></div>
+                  </div>
+
+                  <div class="d-card">
+                    <table class="d-table" data-demo-list>
+                      <thead>
+                        <tr><th>Pattern</th><th>命中</th><th>思考档位钉</th><th>状态</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr data-demo-select>
+                          <td class="d-mono">anthropic/*</td>
+                          <td class="d-mono">3 个</td>
+                          <td><span class="d-t-xs d-t-faint">未钉</span></td>
+                          <td><span class="d-badge ok">有效</span></td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td class="d-mono">openai/gpt-5*</td>
+                          <td class="d-mono">2 个</td>
+                          <td><span class="d-mono d-t-xs">:high</span></td>
+                          <td><span class="d-badge warn"><i data-ico="lock" data-size="12"></i>档位只读</span></td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td class="d-mono">openai/gpt-5.1-mini</td>
+                          <td class="d-mono">1 个</td>
+                          <td><span class="d-mono d-t-xs">:low</span></td>
+                          <td><span class="d-badge warn"><i data-ico="lock" data-size="12"></i>档位只读</span></td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td class="d-mono">ollama/qwen3*</td>
+                          <td class="d-mono">1 个</td>
+                          <td><span class="d-t-xs d-t-faint">未钉</span></td>
+                          <td><span class="d-badge ok">有效</span></td>
+                        </tr>
+                        <tr data-demo-select>
+                          <td class="d-mono">zai/glm-4.6</td>
+                          <td class="d-mono">0 个</td>
+                          <td><span class="d-t-xs d-t-faint">—</span></td>
+                          <td><span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i>失配</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">加一条 pattern</div>
+                      <div class="d-set-row-s">支持 <code>*</code> 与 <code>**</code>；写具体模型名最安全，通配符会让「本机临时加的模型」也一并露面。</div>
+                    </div>
+                    <span class="d-grow-last"><input class="d-input d-mono" style="width:260px" placeholder="anthropic/claude-sonnet-*"></span>
+                    <button class="d-btn sm primary"><i data-ico="plus" data-size="13"></i>添加</button>
+                  </div>
+
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>由 <code>enabledModels</code> 固定的思考等级，需要在 settings.json 里改：它和 pi 自己的 <code>Ctrl+S</code> 读写的是同一份文件，面板不抢。</span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">在模型选择器里显示</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">把已启用的模型都放进去</div>
+                      <div class="d-set-row-s">关掉后选择器只剩「当前会话 + 收藏」；被隐藏的仍可用 <code>/model</code> 手动指定。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">6 个可见</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true" title="全部显示"></button>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">对模型隐藏，仍可手动调用</div>
+                      <div class="d-set-row-s">休眠的模型不占提示词预算，也不会出现在会话头的模型名里。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">2 个休眠</span></span>
+                    <button class="d-switch" data-demo-switch aria-checked="false" title="休眠模型"></button>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">至少保留一个启用的模型</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">当前 6 个</span></span>
+                    <button class="d-btn sm ghost" disabled>删掉最后一个</button>
+                  </div>
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span>当前项目的 <code>.pi/settings.json</code> 覆盖了全局的 enabledModels：这里改的是项目级，全局那份不动。</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>模型体系是三件事，不是一张模型表。</b>谁能被调用（供应商 + 认证）、被调用时怎么发（规格 / 推理 / Header / 兼容）、
+        谁负责哪种活（默认 / 命名 / 压缩）。三者混成一块列表，就没人能回答「为什么这个月花了这么多」。</li>
+    <li><b>认证状态如实写。</b>已登录 / 3 天后过期 / 未登录是三种不同的事实；
+        <b>凭证缺失的模型不是「灰的」，而是调不动</b>，所以提示写成「登录后即可选择」而不是画一个禁用样式。</li>
+    <li><b>配额看供应商的账，用量看本机的账。</b>前者是供应商认的钱（按回执），后者是本地日志的累加；
+        两个数字对不上是常态，面板不把它们合成一个。</li>
+    <li><b>推理档位写清「每轮请求里多了什么」。</b>跟随模型 = 不写 <code>reasoning_effort</code>；关 = 写 <code>none</code>；
+        高/最高 = 写对应值并标出延迟与倍数。<b>被 <code>enabledModels</code> 的 <code>:level</code> 钉死的档位是只读的</b> ——
+        面板宁可标「被覆盖」，也不给一个改了不生效的下拉框。</li>
+    <li><b>enabledModels 是白名单，不是过滤器。</b>一条都不写等于全开；写错的后果是「模型消失了」而不是「多了一个」，
+        所以失配条目会被诊断出来并可以一键清理，而<b>清理只删匹配不上的那几条，不重排、不合并</b>。</li>
+    <li><b>思考档位的钉在 settings.json 里。</b>面板与 pi 的 <code>Ctrl+S</code> 读写同一份文件，面板不抢这个位置；
+        项目级 <code>.pi/settings.json</code> 覆盖全局时，行里直接写明。</li>
+    <li><b>Header 只加到这个模型的请求里，并覆盖 Provider 的同名 Header。</b>写全屏所有请求的 Header 会让
+        「为什么这个模型调不通」变成一个查两天的问题。</li>
+    <li><b>成本档只做预估。</b>价格来自 models.dev 的多数记录，支持数不够就标「未找到可靠价格」，不猜；账单永远以供应商回执为准。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

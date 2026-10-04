@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect, useLayoutEffect, useImperativeHandle, forwardRef, KeyboardEvent, useSyncExternalStore } from "react";
+import React, { useRef, useState, useCallback, useEffect, useLayoutEffect, useImperativeHandle, forwardRef, KeyboardEvent, useSyncExternalStore, type CSSProperties } from "react";
 import type { BuiltinSlashCommandResult, CompactResultInfo, QueuedMessages, SlashCommandInfo } from "@/hooks/useAgentSession";
 import type { SkillsResponse } from "@/lib/api-types";
 import type { TextContent, UserMessage } from "@/lib/types";
@@ -52,6 +52,8 @@ import {
   toggleFavoriteModelKey,
 } from "@/lib/favorite-models";
 import { ComposerContextStrip } from "./ComposerContextStrip";
+// fork:v5-wave-b —— 窄屏（PWA 形态）输入卡那条线上的底部面板宿主（能力面板 / 模型面板）。
+import { PwaComposerSheet, PwaComposerSheetRow } from "./pwa/PwaComposerSheet";
 // fork:element-picker —— 浏览器面板「拾取元素」的交接口。
 import { clearBrowserPick, subscribeBrowserPick, takeBrowserPick } from "@/lib/browser-element-pick";
 import { TodoChip } from "./fork/TodoChip";
@@ -144,7 +146,7 @@ interface Props {
   onModelChange?: (provider: string, modelId: string) => void;
   modelSwitching?: boolean;
   /** fork:proma-37-deferred-model —— 运行中选中的模型，已排队、下一轮生效。
-   *  非空时选择器旁边挂一枚「下轮生效」芯片（.pw-chip accent）。 */
+   *  非空时选择器旁边挂一枚「下轮生效」芯片（.d-chipbtn accent）。 */
   pendingModel?: { provider: string; modelId: string; name: string } | null;
   /** fork:proma-37-deferred-model —— 撤销排队（纯客户端，无需通知服务端）。 */
   onCancelPendingModel?: () => void;
@@ -186,7 +188,7 @@ interface Props {
   onBuiltinCommand?: (message: string) => Promise<BuiltinSlashCommandResult>;
   soundEnabled?: boolean;
   onSoundToggle?: () => void;
-  /** fork:design-components — 画板 20 的上下文环（.pw-ring）及其浮窗的数据源。 */
+  /** fork:design-components — 画板 20 的上下文环（.d-ring）及其浮窗的数据源。 */
   contextUsage?: { percent: number | null; contextWindow: number; tokens: number | null } | null;
   sessionStats?: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }; cost: number; totalMessages: number } | null;
   /** fork:ui-stats-ring — 环浮窗里的完整会话明细（原 composer 下方的统计长条内容）。 */
@@ -262,7 +264,7 @@ const ANCHORED_MENU_GAP = 8;
 // 自动增高的 200px 上限是内容驱动的轴；手动高度是用户接管的另一条轴，因此下限/
 // 上限单独定义。最小高度保底让工具栏在一行文本时仍然能完整放下。
 const MIN_MANUAL_HEIGHT_DESKTOP = 104;
-// fork:mobile-action-panel —— 宫格浮层的宽度：`.pw-pop` 本身就是 320，
+// fork:mobile-action-panel —— 宫格浮层的宽度：`.d-pop` 本身就是 320，
 // 这里显式传给 PortalDropdown（它不传就跟随触发点宽度，而触发钮只有 24）。
 const ACTION_PANEL_WIDTH = 320;
 
@@ -430,7 +432,7 @@ function formatTokenCount(tokens: number): string {
 
 /**
  * fork:design-components —— 附件芯片的图标名 = 画板 20「附件与引用」用的那组 lucide
- * （image / file-text / file / music / play）。芯片是 .pw-chip，图标走 <i data-ico>，
+ * （image / file-text / file / music / play）。芯片是 .d-chipbtn，图标走 <i data-ico>，
  * 不再按扩展名去调 getFileIcon 的 catppuccin 图标集 —— 画板里没有第二套图标。
  */
 function attachmentChipIcon(kind: AttachmentPreviewKind): string {
@@ -665,8 +667,8 @@ function revokeImagePreview(image: AttachedImage): void {
 /**
  * fork:gap04-queue — 队列里的一行：可拖拽排序，带「立即发送」（仅 follow-up）与「移除」。
  *
- * fork:design-components —— 整行直接是画板 20「流式排队」那一行：`.pw-prow`（行盒）
- * + `.pw-badge count`（序号）+ `.pw-btn sm`（两个动作）。动作常驻而不是 hover 才现，
+ * fork:design-components —— 整行直接是画板 20「流式排队」那一行：`.d-menu-row`（行盒）
+ * + `.d-badge mute`（序号）+ `.d-btn sm`（两个动作）。动作常驻而不是 hover 才现，
  * 因为画板就是这么画的，键盘用户也不再需要先 hover 才看得见可点的钮。
  */
 function QueuedMessageRow({
@@ -705,81 +707,182 @@ function QueuedMessageRow({
       onDragStart={onDragStart}
       onDragOver={(event) => { if (onDropOn) event.preventDefault(); }}
       onDrop={(event) => { if (onDropOn) { event.preventDefault(); onDropOn(); } }}
-      className="pw-prow"
-      // 拖动中的那一行压暗（运行时状态，不进 board.css）。
+      className={`d-queue-row${kind === "steer" ? " steer" : ""}`}
+      // 拖动中的那一行压暗（运行时状态，不进 system.css）。
       style={{ opacity: dragging ? 0.4 : 1, cursor: onDragStart ? "grab" : "default" }}
     >
-      <span className="pw-badge count">{index + 1}</span>
+      <span className="d-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
       {/* 两个队列是两块平铺的列表、没有分组标题，这一枚徽章是**唯一**能分辨
           steer / follow-up 的地方，所以走 i18n（此前直接渲染英文 kind）。 */}
-      <span className="pw-badge">{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
-      <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
+      <span className="d-badge mute">{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
+      <span className="d-queue-t">{text}</span>
       {/* fork:queue-edit（用户 2026-10-02）—— 「移至输入框」：用户说排好队的消息
           没法再编辑。放在「立即发送」之前，两者语义不同：一个是拿回来改，一个是
           提前发。 */}
       {onEdit && (
         <button
           type="button"
-          className="pw-btn sm"
+          className="d-iconbtn"
           onClick={onEdit}
           title={editTitle}
           aria-label={`${editTitle} #${index + 1}`}
         >
-          <span className="pw-ico"><i data-ico="undo-2" data-size="13" aria-hidden="true"></i></span>
+          <i data-ico="text-cursor" data-size="13" aria-hidden="true"></i>
         </button>
       )}
       {onPromote && (
         <button
           type="button"
-          className="pw-btn sm"
+          className="d-iconbtn"
           onClick={onPromote}
           title={promoteTitle}
           aria-label={promoteTitle}
         >
-          <span className="pw-ico"><i data-ico="send" data-size="13"></i></span>
+          <i data-ico="send" data-size="13"></i>
         </button>
       )}
       <button
         type="button"
-        className="pw-btn sm"
+        className="d-iconbtn"
         onClick={onRemove}
         title={removeTitle}
         aria-label={`${removeTitle} #${index + 1}`}
       >
-        <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+        <i data-ico="x" data-size="13"></i>
       </button>
     </div>
   );
 }
 
+/**
+ * fork:v5-wave-b —— 队列行（M-03 帧 D-2 / D-3 的 `.m-queue-row`）。
+ *
+ * 与桌面的 `QueuedMessageRow` 同名不同形：形状换成手机那一行（抓手 + 文案 +
+ * 三个动作钮，命中区走 `.m-top-btn` 的 44px）。**动作与回调完全一样**
+ * —— 移至输入框 / 立即发送（提升为 steer）/ 删除，外加同一套拖放排序
+ * （`onDragStart` / `onDropOn` 原样接上，手机上不另造一套排序手势）。
+ * 画板上那两枚状态徽标（自动接续 / 已暂停）在本仓没有对应功能，不画。
+ */
+function PwaQueueRow({
+  kind,
+  text,
+  index,
+  onRemove,
+  onPromote,
+  onEdit,
+  onDragStart,
+  onDropOn,
+  dragging,
+}: {
+  kind: "steer" | "follow-up";
+  text: string;
+  index: number;
+  onRemove: () => void;
+  onPromote?: () => void;
+  onEdit?: () => void;
+  onDragStart?: () => void;
+  onDropOn?: () => void;
+  dragging?: boolean;
+}) {
+  const { t } = useI18n();
+  const promoteTitle = t("chat.queueSendNow");
+  const removeTitle = t("chat.queueRemove");
+  const editTitle = t("chat.queueEditToInput");
+  return (
+    <div
+      title={text}
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
+      onDragOver={(event) => { if (onDropOn) event.preventDefault(); }}
+      onDrop={(event) => { if (onDropOn) { event.preventDefault(); onDropOn(); } }}
+      className="m-queue-row"
+      // 拖动中的那一行压暗（运行时状态，不进 system.css）。
+      style={{ opacity: dragging ? 0.4 : 1, cursor: onDragStart ? "grab" : "default" }}
+    >
+      <span className="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+      <span className="m-grow m-setrow-body">
+        <span className="m-setrow-t">{text}</span>
+        <span className="m-setrow-s">{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
+      </span>
+      {onEdit && (
+        <button type="button" className="m-top-btn" onClick={onEdit} title={editTitle} aria-label={`${editTitle} #${index + 1}`}>
+          <i data-ico="text-cursor" data-size="15" aria-hidden="true"></i>
+        </button>
+      )}
+      {onPromote && (
+        <button type="button" className="m-top-btn" onClick={onPromote} title={promoteTitle} aria-label={promoteTitle}>
+          <i data-ico="arrow-up-right" data-size="15" aria-hidden="true"></i>
+        </button>
+      )}
+      <button type="button" className="m-top-btn" onClick={onRemove} title={removeTitle} aria-label={`${removeTitle} #${index + 1}`}>
+        <i data-ico="x" data-size="15" aria-hidden="true"></i>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * fork:v5-wave-b —— 浮层「从输入卡上方落下」的定位壳（M-03 帧 C / 帧 D-1 原话：
+ * `bottom: calc(100% + 8px)`，与卡片留 8px 呼吸，不推走消息流）。
+ * 铁律四允许内联几何定位；其余一律由 `.m-pop-float` 自己给。
+ */
+const PWA_POP_SHELL: CSSProperties = { bottom: "calc(100% + 8px)" };
+
 function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "warning"; title: string; body: string; onClose?: () => void }) {
-  // fork:design-components —— 通知条 = 画板 50 的 .pw-alert：error 是基态（软红底），
+  // fork:v5-wave-b —— 窄屏走 PWA 形态的通知条（画板 M-03 的 `.m-banner`，只有
+  // `.warn` / `.err` 两档）：形状与桌面那条是同一件事，**内容与回调一字未改**。
+  if (useIsMobile()) {
+    return (
+      <div
+        role="alert"
+        className={`m-banner ${tone === "error" ? "err" : "warn"}`}
+        style={{
+          // 几何定位（铁律四）：长错误正文自己滚动，不把整张卡顶出屏。
+          maxHeight: 120,
+          marginBottom: "var(--nx-sp-2)",
+          overflowY: "auto",
+        }}
+      >
+        <i data-ico={tone === "error" ? "circle-alert" : "triangle-alert"} data-size="14"></i>
+        <div className="m-grow" style={{ minWidth: 0 }}>
+          <b style={{ fontWeight: 500 }}>{title}</b>
+          <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{body}</div>
+        </div>
+        {onClose && (
+          <button type="button" className="m-iconbtn" onClick={onClose} aria-label="Dismiss" title="Dismiss">
+            <i data-ico="x" data-size="13"></i>
+          </button>
+        )}
+      </div>
+    );
+  }
+  // fork:design-components —— 通知条 = 画板 50 的 .d-banner：error 是基态（软红底），
   // warning 走 .warn 变体。颜色不再在组件里拼三元组，语义色由 board.css 一处给出。
   return (
     <div
       role="alert"
-      className={`pw-alert${tone === "error" ? "" : " warn"}`}
+      className={`d-banner${tone === "error" ? " err" : " warn"}`}
       style={{
         maxHeight: 120,
-        marginBottom: "var(--s2)",
+        marginBottom: "var(--nx-sp-2)",
         overflowY: "auto",
       }}
     >
-      <span className="pw-ico"><i data-ico={tone === "error" ? "circle-alert" : "triangle-alert"} data-size="14"></i></span>
-      <div className="grow" style={{ minWidth: 0 }}>
+      <i data-ico={tone === "error" ? "circle-alert" : "triangle-alert"} data-size="14"></i>
+      <div className="d-grow" style={{ minWidth: 0 }}>
         <b style={{ fontWeight: 500 }}>{title}</b>
         <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{body}</div>
       </div>
       {onClose && (
-        /* 关闭 = 画板 20/50 的 .pw-iconbtn（22px 方钮 / hover 叠色），不是符号字形。 */
+        /* 关闭 = 画板 20/50 的 .d-iconbtn，不是符号字形。 */
         <button
           type="button"
-          className="pw-iconbtn"
+          className="d-iconbtn"
           onClick={onClose}
           aria-label="Dismiss"
           title="Dismiss"
         >
-          <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
+          <i data-ico="x" data-size="13"></i>
         </button>
       )}
     </div>
@@ -819,9 +922,7 @@ export function ModelScopeWarningBanner({ warnings }: { warnings?: string[] }) {
 /** 星标图标；已收藏填星、未收藏画星划（画板图标集是 lucide 描边，没有填充变体）。 */
 function FavoriteStarIcon({ filled }: { filled: boolean }) {
   return (
-    <span className="pw-ico" aria-hidden="true">
-      <i data-ico={filled ? "star" : "star-off"} data-size="14"></i>
-    </span>
+    <i data-ico={filled ? "star" : "star-off"} data-size="14"></i>
   );
 }
 
@@ -867,7 +968,7 @@ function FavoriteModelMenu({
 
   return (
     <div ref={rootRef} style={{ position: "relative", flexShrink: 0 }}>
-      {/* fork:design-components —— 触发器 = 画板 20/50 的 .pw-iconbtn（22px 方钮 / hover 叠色 /
+      {/* fork:design-components —— 触发器 = 画板 20/50 的 .d-iconbtn（22px 方钮 / hover 叠色 /
           is-on 选中），星标色继续由「已收藏」决定。 */}
       <button
         type="button"
@@ -876,7 +977,7 @@ function FavoriteModelMenu({
         aria-label={t("models.favorites")}
         title={t("models.favorites")}
         onClick={() => setOpen((current) => !current)}
-        className={`pw-iconbtn${open ? " is-on" : ""}`}
+        className={`d-iconbtn${open ? " is-on" : ""}`}
         style={{
           width: "var(--spacing-token-button-composer, 28px)",
           height: "var(--spacing-token-button-composer, 28px)",
@@ -890,7 +991,7 @@ function FavoriteModelMenu({
         <div
           role="menu"
           aria-label={t("models.favorites")}
-          className="pw-pop anim-popover"
+          className="d-pop is-open anim-popover"
           style={{
             position: "absolute",
             bottom: "calc(100% + 6px)",
@@ -901,7 +1002,7 @@ function FavoriteModelMenu({
             overflowY: "auto",
           }}
         >
-          <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)" }}>
+          <div className="d-pop-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--s2)" }}>
             <span>{t("models.favorites")}</span>
             {currentKey && (
               <button
@@ -911,7 +1012,7 @@ function FavoriteModelMenu({
                 aria-label={currentFavorited ? t("models.unfavoriteModel") : t("models.favoriteCurrent")}
                 title={currentFavorited ? t("models.unfavoriteModel") : t("models.favoriteCurrent")}
                 onClick={() => toggleFavoriteModelKey(currentKey)}
-                className="pw-iconbtn sm"
+                className="d-iconbtn sm"
                 style={{ color: currentFavorited ? "var(--accent)" : "var(--n-placeholder)", cursor: "pointer" }}
               >
                 <FavoriteStarIcon filled={currentFavorited} />
@@ -919,12 +1020,12 @@ function FavoriteModelMenu({
             )}
           </div>
           {entries.length === 0 ? (
-            /* 空态与 / 菜单、@ 菜单同一条：.pw-prow + .pw-desc。 */
-            <div className="pw-prow pw-desc">{t("models.noFavorites")}</div>
+            /* 空态与 / 菜单、@ 菜单同一条：.d-menu-row + .d-t-xs d-t-faint。 */
+            <div className="d-menu-row d-t-xs d-t-faint">{t("models.noFavorites")}</div>
           ) : entries.map(({ key, option }) => (
-            /* fork:design-components —— 行 = 画板 21 的 .pw-prow：可用模型挂 sparkles 图标、
+            /* fork:design-components —— 行 = 画板 21 的 .d-menu-row：可用模型挂 sparkles 图标、
                下线模型按画板同一行（circle-off + 压暗）保留但不可点。 */
-            <div key={key} className="pw-inline" style={{ opacity: option ? 1 : 0.45 }}>
+            <div key={key} className="d-row" style={{ opacity: option ? 1 : 0.45 }}>
               <button
                 type="button"
                 role="menuitem"
@@ -935,17 +1036,17 @@ function FavoriteModelMenu({
                   onSelect(option.provider, option.modelId);
                 }}
                 title={option ? `${option.name} · ${option.provider}` : `${key} · ${t("models.unavailableModel")}`}
-                className="pw-prow"
+                className="d-menu-row"
                 style={{ flex: 1, minWidth: 0, cursor: option ? "pointer" : "not-allowed" }}
               >
-                <span className="pw-ico"><i data-ico={option ? "sparkles" : "circle-off"} data-size="14"></i></span>
-                <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                <i data-ico={option ? "sparkles" : "circle-off"} data-size="14"></i>
+                <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {option?.name || option?.modelId || key.slice(key.indexOf(":") + 1)}
                 </span>
               </button>
               <button
                 type="button"
-                className="pw-iconbtn sm"
+                className="d-iconbtn sm"
                 aria-label={t("models.unfavoriteModel")}
                 title={t("models.unfavoriteModel")}
                 onClick={() => toggleFavoriteModelKey(key)}
@@ -1166,6 +1267,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const actionPanelAnchorRef = useRef<HTMLButtonElement>(null);
   const actionPanelPopRef = useRef<HTMLDivElement>(null);
+  /* fork:v5-wave-b —— 窄屏的能力面板（M-03 帧 A 的 `.m-sheet`，M-01 帧 C 的第二屏）。
+     手机输入卡只有一行，五项能力全部收在 `.m-cap-btn` 后面这一块面板里：
+     `null` = 收着；`"root"` = 五行目录；其余四档是**目录里点进去的那一块**
+     （思考 / 权限 / 工具 / 上下文占用）。模型那一行是 `<ModelSelector>` 自己
+     渲染的 `.m-sheet-row`，点开是它自己的面板，所以不进这个状态。
+     这里只管「现在显示哪一块」，回调仍是桌面那几个（行为零变化）。 */
+  const [capSheet, setCapSheet] = useState<null | "root" | "thinking" | "permission" | "tools" | "context">(null);
+  const closeCapSheet = useCallback(() => setCapSheet(null), []);
   const historyMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // fork:mobile-action-panel —— 只收图片的那个入口（见 ChatInputHandle.openImagePicker）。
@@ -1237,7 +1346,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // fix:ring-pop-compact —— 680px 是**三栏并排**时代的宽度（信息区最小 168px × 3
   // + 间距才装得下）。默认状态下它读起来就是「一大块」：一屏宽的浮窗里三列数字
   // 铺开，而用户点环想看的往往只是「用了多少 / 花了多少」。默认收成画板 22 的
-  // `.pw-pop` 宽度（320），完整三节明细挂到「显示详情」后面按需展开。
+  // `.d-pop` 宽度（320），完整三节明细挂到「显示详情」后面按需展开。
   const [ringPopWidth, setRingPopWidth] = useState(RING_POP_DETAILS_WIDTH);
   useEffect(() => {
     // fix:ring-pop-always-details —— 明细常显，所以宽度恒取「三节并排」那一档（620），
@@ -2988,11 +3097,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const toolPresetLabel = t(`chat.toolPreset.${rawToolPresetLabel}`);
   // 上下文环的三档配色与文字（画板 20：>70% warning / >90% error）。
   const ringPercent = Math.max(0, Math.min(100, Math.round(contextUsage?.percent ?? 0)));
-  const ringTier = ringPercent > 90 ? "bad" : ringPercent > 70 ? "warn" : "";
+  // fork:v5-skin D-04 —— system.css 的 .d-ring 只有 .warn 一档（>90% 的 .bad 是缺件，
+  // 已登记在汇报里）；两档都先落到 .warn，至少不误报成正常的强调色。
+  const ringTier = ringPercent > 70 ? "warn" : "";
   const contextText = contextUsage?.contextWindow
     ? `${contextUsage.tokens != null ? formatTokenCount(contextUsage.tokens) : "?"} / ${formatTokenCount(contextUsage.contextWindow)}`
     : null;
-  // fork:design-components —— 发送 / 停止直接使用画板 20 的 .pw-send 组件
+  // fork:design-components —— 发送 / 停止直接使用画板 20 的 .d-send 组件
   //（board.css：28px / radius-4 / accent 底 / .stop 变 error 底 / .disabled 变中性底），
   // 结构与 20-composer.html 一字不差：<i data-ico="arrow-up|square">。
   const sendButton = (
@@ -3006,10 +3117,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       disabled={!value.trim() && !attachedImages.length}
       aria-label={isStreaming && onFollowUp ? t("chat.queuePlaceholder") : t("chat.send")}
       title={isStreaming && onFollowUp ? t("chat.queuePlaceholder") : t("chat.send")}
-      className={`pw-send${(value.trim() || attachedImages.length) ? "" : " disabled"}`}
+      className={`d-send${(value.trim() || attachedImages.length) ? "" : " disabled"}`}
       style={{ cursor: (value.trim() || attachedImages.length) ? "pointer" : "not-allowed" }}
     >
-      <span className="pw-ico"><i data-ico="arrow-up" data-size="14"></i></span>
+      <i data-ico="arrow-up" data-size="14"></i>
     </button>
   );
   // fork:zc-queue-2026-10-04 —— 运行中的那一枚（⏸）。
@@ -3019,13 +3130,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       onClick={onAbort}
       title={t("chat.stopAgent")}
       aria-label={t("chat.stopAgent")}
-      className="pw-send stop"
+      className="d-send stop"
       style={{ cursor: "pointer" }}
     >
       {/* fork:stop-pause-2026-10-02 —— 图标从实心方块（square）改成 ⏸：
           运行中这枚按钮的动作是「停下当前生成、对话可接着发」，方块读成「录屏停止 /
           终止会话」。用户裁定要暂停形。画板 01/20 用的是 square —— 记为分叉。 */}
-      <span className="pw-ico"><i data-ico="pause" data-size="13"></i></span>
+      <i data-ico="pause" data-size="13"></i>
     </button>
   );
   // fork:send-stop-one-slot（用户 2026-10-05 裁定）—— **一格，不并排**。
@@ -3053,11 +3164,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   );
   const composerSendCluster = isStreaming && !hasDraftToSubmit ? stopButton : sendButton;
   // fork:design-components —— 上下文环 + 浮窗 = 画板 01 帧 C / 画板 20 的
-  // .pw-ring（三档配色）与 .pw-pop + .pw-prow 明细行。
+  // .d-ring（三档配色）与 .d-pop + .d-menu-row 明细行。
   // 悬浮（鼠标 / 键盘焦点）才展开，不在输入框下面再放第二条横条。
   // fork:ui-stats-ring —— 浮窗内容升级为完整会话明细（原 composer 下方的
   // 统计长条已按用户裁定删除）。
-  /* fork:context-pop-portal —— 环浮窗原来挂在 `.chat-input-shell.pw-composer` 里，
+  /* fork:context-pop-portal —— 环浮窗原来挂在 `.chat-input-shell.d-composer` 里，
      而 composer 有 `overflow-x: clip`（为了让工具条芯片不横着溢出卡片）。
      浮窗宽 680px、又是右对齐，环的右边还跟着声音与发送两枚按钮，于是它的左缘
      必然越过 composer 左边界，被 `overflow-x: clip` 齐根切掉一长条。
@@ -3074,33 +3185,43 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     >
       <button
         type="button"
-        className={`pw-ring${ringTier ? ` ${ringTier}` : ""}`}
-        style={{ "--p": `${ringPercent}%`, border: 0, padding: 0, cursor: "pointer" } as React.CSSProperties}
+        className={`d-ring${ringTier ? ` ${ringTier}` : ""}`}
+        style={{ "--p": `${ringPercent}`, border: 0, padding: 0, cursor: "pointer" } as React.CSSProperties}
         aria-label={t("session.context")}
         title={t("session.context")}
         aria-expanded={ringPinned}
         onClick={() => setRingPinned((v) => !v)}
       >
-        <span className="sr-only" />
+        <span className="nx-sr" />
       </button>
-      <PortalDropdown open={contextRingOpen} anchorRef={ringRef} align="right" width={ringPopWidth} panelRef={ringPopRef}>
-        <div className="pw-pop composer-ring-pop">
-          <div className="pw-inline" style={{ padding: "var(--s2) var(--s2) var(--s1)", gap: "var(--s2)" }}>
-            <span className={`pw-ring${ringTier ? ` ${ringTier}` : ""}`} style={{ "--p": `${ringPercent}%`, width: 18, height: 18 } as React.CSSProperties} />
+      <PortalDropdown
+        open={contextRingOpen}
+        anchorRef={ringRef}
+        align="right"
+        width={ringPopWidth}
+        panelRef={ringPopRef}
+        /* fork:v5-landing —— 面板类必须给 **PortalDropdown 自己**：它才是拿得到
+           `position:fixed` + 上/下锚点的那一层；之前 d-pop 挂在里面的 div 上，
+           于是内层按 .d-pop 的 `position:absolute` 相对 portal 壳定位，整块掉到
+           视口下沿之外（实测 316px 高的浮窗有 233px 在屏幕外 = “点不出浮窗”）。 */
+        className="d-pop is-open composer-ring-pop"
+      >
+          <div className="d-row" style={{ padding: "var(--s2) var(--s2) var(--s1)", gap: "var(--s2)" }}>
+            <span className={`d-ring${ringTier ? ` ${ringTier}` : ""}`} style={{ "--p": `${ringPercent}`, width: 18, height: 18 } as React.CSSProperties} />
             <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)", color: "var(--n-strong)" }}>
               {t("session.context")} {ringPercent}%
             </b>
-            <span className="grow" />
-            {contextText && <span className="pw-mono pw-dim" style={{ fontSize: "var(--text-meta)" }}>{contextText}</span>}
+            <span className="d-grow" />
+            {contextText && <span className="d-mono d-t-dim" style={{ fontSize: "var(--text-meta)" }}>{contextText}</span>}
           </div>
           {/* fix:ring-pop-always-details —— 只保留「本轮 ↑ / ↓」这一行：它是**本轮**用量，
               明细里的 Token 小节给的是会话累计（输入/输出/缓存/总计/花费/上下文），
               两者不重复。原来另外那三行（上下文 / 上下文已用 / 本会话花费）与明细重复，
               用户说的「为啥多一块」就是它们。 */}
           {sessionStats && (
-            <div className="pw-prow">
-              <span className="grow">{t("chat.turnTokens")}</span>
-              <span className="pw-mono">{sessionStats.tokens.input.toLocaleString()} / {sessionStats.tokens.output.toLocaleString()}</span>
+            <div className="d-menu-row">
+              <span className="d-grow">{t("chat.turnTokens")}</span>
+              <span className="d-mono">{sessionStats.tokens.input.toLocaleString()} / {sessionStats.tokens.output.toLocaleString()}</span>
             </div>
           )}
           {statsDetails && (
@@ -3110,19 +3231,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           )}
           {onCompact && (
             <>
-              <div className="pw-sep" />
+              <div className="d-sep" />
               <button
                 type="button"
                 onClick={isCompacting ? onAbortCompaction : onCompact}
-                className="pw-prow"
+                className="d-menu-row"
                 style={{ width: "100%", color: isCompacting ? "var(--error)" : "var(--accent-text)" }}
               >
-                <span className="pw-ico"><i data-ico={isCompacting ? "loader-circle" : "package"} data-size="14"></i></span>
+                <i data-ico={isCompacting ? "loader-circle" : "package"} data-size="14"></i>
                 {isCompacting ? t("chat.compacting") : t("chat.compactContext")}
               </button>
             </>
           )}
-        </div>
       </PortalDropdown>
     </span>
   ) : null;
@@ -3163,7 +3283,776 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     if (!narrowControls) setActionPanelOpen(false);
   }, [narrowControls]);
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * fork:v5-wave-b —— 窄屏（PWA 形态）输入卡。
+   *
+   * DOM 原样取自 `design/v5/pwa/boards/M-03-composer-sheet.html` 与
+   * `M-08-search-completion.html`：
+   *   · `.m-composer-wrap` › `.m-composer` › `.m-composer-row`
+   *     —— 一行结束：`+ · 输入 · 能力 · 声音 · 发送`（M-03 帧 A）；
+   *   · 浮层一律 `.m-pop-float` 绝对定位在卡片**上方**（`bottom: calc(100% + 8px)`，
+   *     M-03 帧 C「不是系统级下拉」）；
+   *   · 队列 `.m-queue` / 附件 `.m-attachbar` 与 `.m-tray` / 能力面板 `.m-sheet`
+   *     （M-03 帧 D-2 / M-01 帧 C）。
+   *
+   * 行为零变化：补全、队列、附件、`@` / `/` / `&#~` 菜单、键盘、模型 / 思考 /
+   * 权限 / 工具浮层全部接回上面那些 state 与 handler，没有一个新状态管业务。
+   * ═══════════════════════════════════════════════════════════════════════════ */
 
+  /* 窄屏那一块整体是个函数而不是一个提前建好的元素：桌面每次渲染都去建一整棵
+     `m-*` 树是白做的功，这段只在 `isMobile && !compact` 时才被调用。
+     下面三组选项是能力面板要用的清单 —— 与桌面那一侧同源同算法，面板只负责摆
+     `.m-sheet-row`，不碰任何业务判断。 */
+  const renderPwaComposer = () => {
+    const pwaThinkingLevels = THINKING_LEVELS.filter((lvl) => {
+      if (!availableThinkingLevels) return true;
+      if (lvl === "auto") return true;
+      return availableThinkingLevels.includes(lvl);
+    }).map((lvl) => {
+      const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
+      const showOriginal = mappedVal != null && mappedVal !== lvl;
+      return {
+        value: lvl,
+        label: showOriginal ? `${mappedVal} (${lvl})` : (mappedVal ?? lvl),
+        desc: t(THINKING_LEVEL_DESC_KEYS[lvl]),
+        on: (thinkingLevel ?? "auto") === lvl,
+      };
+    });
+    const pwaPermissionModes = PERMISSION_MODES.map((mode) => ({
+      value: mode,
+      label: t(PERMISSION_MODE_LABEL_KEYS[mode]),
+      desc: t(PERMISSION_MODE_HINT_KEYS[mode]),
+      on: mode === permissionMode,
+    }));
+    const pwaToolPresets = TOOL_PRESETS.map((lvl) => {
+      const preset = TOOL_PRESET_MAP[lvl];
+      let desc: string;
+      if (lvl === "configured") desc = t("chat.configuredTools");
+      else if (lvl === "chat-only") desc = t("chat.chatOnly");
+      else if (lvl === "read-only") desc = t("chat.readOnlyTools", { count: 4 });
+      else if (lvl === "default") desc = t("chat.builtInTools", { count: 4 });
+      else desc = t("chat.allBuiltInTools");
+      return { value: preset, label: t(`chat.toolPreset.${lvl}`), desc, on: (toolPreset ?? "configured") === preset };
+    });
+    const pwaQueueCount = (queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0);
+    const pwaInputPlaceholder = isStreaming && onFollowUp
+      ? t("chat.queuePlaceholder")
+      : isStreaming ? t("chat.agentPlaceholder")
+      : t("chat.messagePlaceholder");
+
+    return (
+      <div
+        /* `.m-composer-wrap` 在画板里是取景框内的绝对定位层（手机输入卡浮在消息流之上）；
+           产品的输入卡是聊天列正常流里的最后一块，所以这里只改**定位**一项
+           （铁律四：几何定位可以内联），其余（间距 / 玻璃 / 圆角 / 层级）全由类给。
+           改成 relative 之后，`.m-pop-float` 的 `bottom: calc(100% + 8px)` 正好落在
+           输入卡正上方 —— 「浮层从输入卡上方落下」这条纪律由这层定位兑现。 */
+        className="m-composer-wrap"
+        style={{ position: "relative" }}
+      >
+        {/* 队列 = M-03 帧 D-2：头一行写排了几条 + 召回，下面每条一行。
+            动作（移至输入框 / 立即发送 / 删除 / 拖放排序）与桌面同一个回调。 */}
+        {pwaQueueCount > 0 && (
+          <div className="m-queue">
+            <div className="m-queue-row">
+              <i data-ico="layers" data-size="14"></i>
+              <span className="m-grow m-t-b">{t("chat.queued", { count: pwaQueueCount })}</span>
+              {onRecallQueue && (
+                <button
+                  type="button"
+                  className="m-top-btn"
+                  onClick={onRecallQueue}
+                  title={t("chat.recallTitle")}
+                  aria-label={t("chat.recallTitle")}
+                >
+                  <i data-ico="undo-2" data-size="15" aria-hidden="true"></i>
+                </button>
+              )}
+            </div>
+            {(queuedMessages?.steering ?? []).map((text, i) => (
+              <PwaQueueRow
+                key={`steer-${i}`}
+                kind="steer"
+                text={text}
+                index={i}
+                dragging={draggingQueue?.kind === "steer" && draggingQueue.index === i}
+                onRemove={() => onQueueRemove?.("steer", i, text)}
+                onEdit={onQueueEdit ? () => onQueueEdit("steer", i, text) : undefined}
+                onDragStart={onQueueMove ? () => beginQueueDrag("steer", i) : undefined}
+                onDropOn={onQueueMove ? () => {
+                  const drag = draggingQueueRef.current;
+                  if (!drag || drag.kind !== "steer" || drag.index === i) { endQueueDrag(); return; }
+                  onQueueMove("steer", drag.index, queueDropTarget(drag.index, i), queuedMessages?.steering[drag.index] ?? "");
+                  endQueueDrag();
+                } : undefined}
+              />
+            ))}
+            {(queuedMessages?.followUp ?? []).map((text, i) => (
+              <PwaQueueRow
+                key={`followup-${i}`}
+                kind="follow-up"
+                text={text}
+                index={i}
+                dragging={draggingQueue?.kind === "followUp" && draggingQueue.index === i}
+                onRemove={() => onQueueRemove?.("followUp", i, text)}
+                onEdit={onQueueEdit ? () => onQueueEdit("followUp", i, text) : undefined}
+                onPromote={onQueuePromote ? () => onQueuePromote(i, text) : undefined}
+                onDragStart={onQueueMove ? () => beginQueueDrag("followUp", i) : undefined}
+                onDropOn={onQueueMove ? () => {
+                  const drag = draggingQueueRef.current;
+                  if (!drag || drag.kind !== "followUp" || drag.index === i) { endQueueDrag(); return; }
+                  onQueueMove("followUp", drag.index, queueDropTarget(drag.index, i), queuedMessages?.followUp[drag.index] ?? "");
+                  endQueueDrag();
+                } : undefined}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* 新会话的上下文条与待办芯片（桌面走卡外的 `.d-ctxbar`，见下方桌面分支）。
+            手机上没有 `.d-ctxbar` 的对应件，就落在一行 `.m-tray` 芯片里 —— 同一种 chip。 */}
+        {(protrusion || (todoSummary && todoSummary.total > 0)) && (
+          <div className="m-tray" style={{ marginBottom: "var(--nx-sp-2)" }}>
+            {protrusion}
+            {todoSummary && todoSummary.total > 0 && <TodoChip summary={todoSummary} />}
+          </div>
+        )}
+
+        {/* ── 浮层：从输入卡上方落下（M-03 帧 C / 帧 D-1） ─────────────────── */}
+
+        {/* 输入历史（↑ 召回上一条） */}
+        {historyMenuOpen && inputHistory.length > 0 && (
+          <div
+            ref={historyMenuRef}
+            className="m-pop-float is-open"
+            style={{ ...PWA_POP_SHELL, maxHeight: "min(56vh, 420px)", display: "flex", flexDirection: "column" }}
+          >
+            <div className="m-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-1)" }}>
+              <i data-ico="history" data-size="14"></i>
+              <span className="m-grow">{t("chat.inputHistory")}</span>
+            </div>
+            <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+              {inputHistory.map((item, index) => {
+                const active = index === historyActiveIndex;
+                return (
+                  <button
+                    key={`${index}:${item}`}
+                    ref={(node) => { historyItemRefs.current[index] = node; }}
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyHistoryInput(item); }}
+                    onMouseEnter={() => setHistoryActiveIndex(index)}
+                    className={`m-sheet-row${active ? " is-on" : ""}`}
+                  >
+                    <span className="m-setrow-body">
+                      <span className="m-setrow-t">{item}</span>
+                      <span className="m-sheet-row-desc">#{index + 1}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* `/` 命令（M-03 帧 D-1 的「提命令」段；分组标题走 `.m-rowlabel`） */}
+        {slashMenuOpen && slashQuery !== null && (
+          <div
+            ref={slashMenuRef}
+            className="m-pop-float is-open"
+            style={{
+              ...PWA_POP_SHELL,
+              maxHeight: slashMenuMaxHeight === null ? "min(62vh, 520px)" : `min(62vh, 520px, ${slashMenuMaxHeight}px)`,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* 搜索头回显前缀与已输入的名字（M-08 帧 B「前缀即分类」的同一形状）。 */}
+            <div className="m-searchfield" style={{ margin: "0 0 var(--nx-sp-1)" }}>
+              <i data-ico="slash" data-size="14"></i>
+              <span className="m-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {slashCommandsLoading ? t("chat.loadingCommands") : `/${slashQuery}`}
+              </span>
+            </div>
+            <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+              {!slashCommandsLoading && filteredSlashCommands.length === 0 ? (
+                <div className="m-sheet-row m-t-xs m-t-faint">{t("chat.noCommands")}</div>
+              ) : (
+                groupedSlashCommands.map((group) => (
+                  <section key={group.source}>
+                    <div className="m-rowlabel">{t(SLASH_SOURCE_GROUP_LABEL_KEYS[group.source])}</div>
+                    {group.items.map(({ command, index }) => {
+                      const active = index === slashActiveIndex;
+                      const dormant = isDormantSkillCommand(command, skillDormancy);
+                      return (
+                        <button
+                          key={`${command.source}:${command.name}`}
+                          ref={(node) => { slashItemRefs.current[index] = node; }}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); applySlashCommand(command); }}
+                          onMouseEnter={() => setSlashActiveIndex(index)}
+                          className={`m-sheet-row${active ? " is-on" : ""}`}
+                          title={command.description ? getSlashDescription(command, t) : undefined}
+                        >
+                          <i
+                            data-ico={command.source === "skill" ? "box" : command.source === "prompt" ? "square-function" : "slash"}
+                            data-size="16"
+                            style={{ opacity: dormant ? 0.5 : 1 }}
+                          ></i>
+                          <span className="m-setrow-body">
+                            <span className="m-setrow-t m-mono" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              /{command.name}
+                            </span>
+                            <span className="m-sheet-row-desc">
+                              {command.description ? getSlashDescription(command, t) : ""}
+                              {dormant ? ` · ${t("chat.dormant")}` : ""}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </section>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* `&` 会话 / `#` MCP / `~` 待办 —— 外壳在 `ComposerReferenceMenu` 里，
+            它自己按窄屏渲染 `.m-pop-float`。 */}
+        {referenceMenuOpen && referenceQuery !== null && (
+          <ComposerReferenceMenu
+            kind={referenceQuery.kind}
+            items={referenceItems}
+            activeIndex={referenceActiveIndex}
+            loading={referenceLoading && referenceItems.length === 0}
+            maxHeight={referenceMenuMaxHeight}
+            menuRef={referenceMenuRef}
+            itemRefs={referenceItemRefs}
+            onHover={setReferenceActiveIndex}
+            onPick={applyReferenceCompletion}
+          />
+        )}
+
+        {/* `@` 文件（M-03 帧 D-1 的「提文件」段） */}
+        {atMenuOpen && atQuery !== null && (() => {
+          const indexLoading = fileIndexLoading && (!fileIndex || fileIndex.cwd !== cwd);
+          const matchCountLabel = atMatches.length === 1 ? t("chat.match") : t("chat.matches", { count: atMatches.length });
+          const truncatedHint = fileIndex?.truncated && !serverResultInUse
+            ? (atQuery.query ? t("chat.searchingAll") : t("chat.indexTruncated"))
+            : "";
+          return (
+            <div
+              ref={atMenuRef}
+              className="m-pop-float is-open"
+              style={{
+                ...PWA_POP_SHELL,
+                // 高度上限与桌面那一块**同一个实测契约**（`subscribeUpwardMenuMaxHeight`
+                // 量的是触发点到上方可用空间）：换皮不改测量口径。
+                maxHeight: atMenuMaxHeight === null
+                  ? "min(48vh, 400px)"
+                  : `min(48vh, 400px, ${atMenuMaxHeight}px)`,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div className="m-searchfield" style={{ margin: "0 0 var(--nx-sp-1)" }}>
+                <i data-ico="search" data-size="14"></i>
+                <span className="m-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {indexLoading ? t("chat.loadingFiles") : `@${atQuery.query}`}
+                </span>
+              </div>
+              <div className="m-pop-title">
+                {indexLoading ? t("chat.loadingFiles") : t("chat.files", { label: matchCountLabel, hint: truncatedHint })}
+              </div>
+              <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+                {!indexLoading && atMatches.length === 0 ? (
+                  <div className="m-sheet-row m-t-xs m-t-faint">
+                    {needsServerSearch && !serverResultInUse ? t("chat.searching") : t("chat.noMatchingFiles")}
+                  </div>
+                ) : (
+                  atMatches.map((entry, index) => {
+                    const active = index === atActiveIndex;
+                    const name = entry.path.split("/").pop() ?? entry.path;
+                    const dirPrefix = entry.path.slice(0, entry.path.length - name.length);
+                    return (
+                      <button
+                        key={`${entry.isDir ? "d" : "f"}:${entry.path}`}
+                        ref={(node) => { atItemRefs.current[index] = node; }}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); applyAtCompletion(entry); }}
+                        onMouseEnter={() => setAtActiveIndex(index)}
+                        className={`m-sheet-row${active ? " is-on" : ""}`}
+                      >
+                        <i data-ico={entry.isDir ? "folder" : "file-code"} data-size="16"></i>
+                        <span className="m-setrow-body">
+                          <span className="m-setrow-t m-mono" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {dirPrefix && <span className="m-t-xs m-t-faint">{dirPrefix}</span>}
+                            {name}
+                            {entry.isDir ? "/" : ""}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 附件来源（M-01 帧 D：加号点开一块浮层，拍照 / 选图 · 从工作区挑文件）。
+            产品里这两个入口是两个隐藏 input，浮层只是把它们摆出来 —— 回调没变。 */}
+        {actionPanelOpen && (
+          <div
+                ref={actionPanelPopRef}
+                className="m-pop-float is-open"
+                /* 高度上限：宫格最多九格再加两条来源行，窄屏要能滚。 */
+                style={{ ...PWA_POP_SHELL, maxHeight: "min(60vh, 420px)", overflowY: "auto" }}
+              >
+            <button
+              type="button"
+              className="m-menu-row"
+              onClick={() => { setActionPanelOpen(false); imageInputRef.current?.click(); }}
+            >
+              <i data-ico="image" data-size="16"></i>
+              {t("chat.sendImage")}
+            </button>
+            <button
+              type="button"
+              className="m-menu-row"
+              onClick={() => { setActionPanelOpen(false); fileInputRef.current?.click(); }}
+            >
+              <i data-ico="folder-open" data-size="16"></i>
+              {t("chat.attachFile")}
+            </button>
+            {actionPanel && <div className="m-sep" />}
+            {actionPanel}
+          </div>
+        )}
+
+        {/* 附件落盘结果：每次拖入都有可见交代（与桌面同一个数据源）。 */}
+        {attachmentNotice && (
+          <div role="status" aria-live="polite" className="m-banner" style={{ marginBottom: "var(--nx-sp-2)" }}>
+            <i data-ico="info" data-size="14"></i>
+            <div className="m-grow" style={{ display: "grid", gap: "var(--nx-sp-1)", minWidth: 0 }}>
+              {attachmentNotice.added.length > 0 && (
+                <span>{t("chat.attachmentAdded", { names: attachmentNotice.added.join("、") })}</span>
+              )}
+              {attachmentNotice.skipped.length > 0 && (
+                <span style={{ color: "var(--nx-warning)" }}>
+                  {t("chat.attachmentSkipped", {
+                    limit: Math.round(MAX_ATTACHED_FILE_BYTES / (1024 * 1024)),
+                    names: attachmentNotice.skipped.map((entry) => entry.name).join("、"),
+                  })}
+                </span>
+              )}
+              {attachmentNotice.failed.length > 0 && (
+                <span style={{ color: "var(--nx-danger)" }}>
+                  {t("chat.attachmentFailed", { names: attachmentNotice.failed.join("、") })}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="m-iconbtn"
+              onClick={() => setAttachmentNotice(null)}
+              aria-label={t("chat.close")}
+              title={t("chat.close")}
+              style={{ alignSelf: "flex-start" }}
+            >
+              <i data-ico="x" data-size="12"></i>
+            </button>
+          </div>
+        )}
+
+        {/* ── 输入卡本体（M-03 帧 A：一行结束） ─────────────────────────────── */}
+        <div className="m-composer">
+          {/* 附件托盘（M-03 帧 D-2）：图片走 `.m-attachbar` 横滚，
+              非图片附件走同一条 `.m-tray` 芯片行 —— 都是「卡片内横滚、不撑高卡片」。 */}
+          {attachedImages.length > 0 && (
+            <div className="m-attachbar">
+              {attachedImages.map((img, i) => (
+                <span key={i} className="m-attachbtn" style={{ position: "relative" }}>
+                  <ImagePreview key={img.previewUrl} src={img.previewUrl}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.previewUrl}
+                      alt=""
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "var(--nx-r-sm)", display: "block" }}
+                    />
+                  </ImagePreview>
+                  <button
+                    type="button"
+                    className="m-iconbtn"
+                    onClick={() => removeImage(i)}
+                    title={t("chat.removeAttachment")}
+                    aria-label={t("chat.removeAttachment")}
+                    style={{ position: "absolute", top: -8, right: -8 }}
+                  >
+                    <i data-ico="x" data-size="12"></i>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {referenceAttachments.length > 0 && (
+            <div className="m-tray">
+              {referenceAttachments.map((chip) => (
+                <span
+                  key={chip.path}
+                  className="m-tray-chip"
+                  data-mention-previewable={chip.kind === "image" ? "true" : undefined}
+                  style={{ paddingRight: 4 }}
+                >
+                  <AttachmentPreview
+                    name={chip.name}
+                    kind={chip.kind}
+                    src={attachmentPreviewUrl(chip.path)}
+                    previewSrc={chip.kind === "docx" ? attachmentPreviewUrl(chip.path, "preview") : undefined}
+                    style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}
+                  >
+                    <i data-ico={attachmentChipIcon(chip.kind)} data-size="14"></i>
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chip.name}</span>
+                  </AttachmentPreview>
+                  <button
+                    type="button"
+                    className="m-iconbtn"
+                    onClick={() => removeReferenceAttachment(chip.path)}
+                    title={t("chat.removeAttachment")}
+                    aria-label={t("chat.removeAttachment")}
+                  >
+                    <i data-ico="x" data-size="12"></i>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {/* 引用芯片（选区 / 会话）：`ComposerContextStrip` 自己按窄屏渲染 `.m-tray` 芯片。 */}
+          <ComposerContextStrip
+            contexts={selectionContexts}
+            sessionReferences={sessionReferences}
+            disabled={builtinCommandPending || isStreaming}
+            onLocate={onLocateSelectionContext}
+            onOpenSessionReference={onOpenSessionReference}
+            onRemove={(id) => {
+              setSelectionContexts((current) => {
+                const next = current.filter((context) => context.id !== id);
+                selectionContextsRef.current = next;
+                return next;
+              });
+              requestAnimationFrame(() => textareaRef.current?.focus());
+            }}
+            onRemoveSessionReference={(id) => {
+              setSessionReferences((current) => {
+                const next = current.filter((reference) => reference.id !== id);
+                sessionReferencesRef.current = next;
+                return next;
+              });
+              requestAnimationFrame(() => textareaRef.current?.focus());
+            }}
+          />
+
+          <div className="m-composer-row">
+            {/* 附件来源（M-01 帧 D）：加号点开上面那块浮层，锚点就是它自己。 */}
+            <button
+              ref={actionPanelAnchorRef}
+              type="button"
+              className="m-composer-plus"
+              onClick={() => setActionPanelOpen((open) => !open)}
+              aria-expanded={actionPanelOpen}
+              title={t("chat.attachFile")}
+              aria-label={t("chat.attachFile")}
+            >
+              <i data-ico="plus" data-size="19"></i>
+            </button>
+
+            {/* 输入区：M-03 帧 A 的 `.m-input`。高亮 overlay（D2-PR-12）与透明
+                textarea 共用一个内容盒，所以这一层包裹与桌面完全一致 —— 那是行为，
+                不是形态。 */}
+            <div className="chat-input-highlight-wrap" style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
+              <div ref={highlightViewportRef} className="chat-input-highlight-viewport" aria-hidden="true">
+                <div ref={highlightLayerRef} className="chat-input-highlight">
+                  {highlightSegments.map((segment, i) =>
+                    segment.type === "text" || !segment.token.valid ? (
+                      segment.text
+                    ) : (
+                      <span key={i} className="d-mention">{segment.text}</span>
+                    )
+                  )}
+                </div>
+              </div>
+              <textarea
+                ref={textareaRef}
+                className="chat-input-textarea m-input"
+                value={value}
+                onChange={(e) => {
+                  valueRef.current = e.target.value;
+                  setValue(e.target.value);
+                  setHistoryMenuOpen(false);
+                  updateAtQuery(e.target.value, e.target.selectionStart);
+                }}
+                onSelect={(e) => {
+                  const el = e.currentTarget;
+                  updateAtQuery(el.value, el.selectionStart);
+                }}
+                onScroll={syncHighlightScroll}
+                onKeyDown={handleKeyDown}
+                onCompositionStart={() => {
+                  isComposingRef.current = true;
+                }}
+                onCompositionEnd={(e) => {
+                  isComposingRef.current = false;
+                  lastCompositionEndAtRef.current = Date.now();
+                  const el = e.currentTarget;
+                  updateAtQuery(el.value, el.selectionStart);
+                }}
+                onInput={handleInput}
+                onPaste={handlePaste}
+                placeholder={pwaInputPlaceholder}
+                rows={1}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  width: "100%",
+                  background: "none",
+                  border: "none",
+                  outline: "none",
+                  resize: "none",
+                  color: "transparent",
+                  caretColor: "var(--text)",
+                  position: "relative",
+                  padding: 0,
+                  fontSize: "var(--chat-content-font-size, 13px)",
+                  lineHeight: 1.6,
+                  fontFamily: "inherit",
+                  // 高度**不**在这里定：`.m-composer-wrap .m-input` 给的是 M-03 那一档
+                  // （最小 44px 触控行 / 上限 110px）。桌面那一行的 24/200 是
+                  // `.d-composer-top` 的内边距配出来的，搬过来会把输入行压扁。
+                  overflow: "auto",
+                }}
+              />
+            </div>
+
+            {/* 能力入口（M-03 帧 A 的 `.m-cap-btn`）：模型 / 思考强度 / 权限 /
+                工具与上下文 / 上下文占用全在它后面那块面板里。 */}
+            <button
+              type="button"
+              className="m-cap-btn"
+              onClick={() => setCapSheet((current) => (current === null ? "root" : null))}
+              aria-expanded={capSheet !== null}
+              /* 文案走 `common.settings`：那条已拆掉的「⋯ 覆盖式工具条」的标题键
+                 （AppShell.mobile-toolbar 的守卫盯着它不许回来）。 */
+              title={t("common.settings")}
+              aria-label={t("common.settings")}
+            >
+              <i data-ico="sliders-horizontal" data-size="17"></i>
+            </button>
+
+            {/* 完成提示音（M-03 帧 A 的 `.m-iconbtn`） */}
+            {onSoundToggle !== undefined && (
+              <button
+                type="button"
+                onClick={onSoundToggle}
+                title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
+                aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
+                className="m-iconbtn"
+              >
+                <i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="17"></i>
+              </button>
+            )}
+
+            {/* 发送 / 停止：同一个钮的两种含义（M-03 帧 D-3）。判据与桌面同一个
+                `hasDraftToSubmit`：跑着 + 空草稿 = ⏸，跑着 + 有可发内容 = ↑（点了排队）。 */}
+            {isStreaming && !hasDraftToSubmit ? (
+              <button
+                type="button"
+                onClick={onAbort}
+                title={t("chat.stopAgent")}
+                aria-label={t("chat.stopAgent")}
+                className="m-send stop"
+              >
+                <i data-ico="pause" data-size="16"></i>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={isStreaming && onFollowUp ? sendQueued : handleSend}
+                disabled={!value.trim() && !attachedImages.length}
+                aria-label={isStreaming && onFollowUp ? t("chat.queuePlaceholder") : t("chat.send")}
+                title={isStreaming && onFollowUp ? t("chat.queuePlaceholder") : t("chat.send")}
+                className="m-send"
+              >
+                <i data-ico="arrow-up" data-size="18"></i>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── 能力面板（M-01 帧 C / M-03 帧 A）：五项能力一块面板 ───────────── */}
+        <PwaComposerSheet
+          open={capSheet !== null}
+          title={capSheet === "thinking"
+            ? t("chat.thinkingTitle")
+            : capSheet === "permission"
+              ? t("chat.permissionTitle")
+              : capSheet === "tools"
+                ? t("tools.label")
+                : capSheet === "context"
+                  ? t("session.context")
+                  : t("common.settings")}
+          onClose={closeCapSheet}
+        >
+          {capSheet === "root" && (
+            <>
+              {/* 模型那一行就是桌面工具条里的同一个 `<ModelSelector>`：窄屏时它自己
+                  渲染成 `.m-sheet-row`，点开是 M-01 帧 C 的模型面板。
+                  点这一行时先把能力面板收掉：两块面板都是 portal 的底部面板，
+                  同时开着会让一次 Esc 把两层一起关掉（两层各自一份捕获阶段的
+                  监听，stopPropagation 拦不住同一个 document 上的另一份）。 */}
+              {(modelOptions.length > 0 || model || modelError) && onModelChange && (
+                <span onClick={() => setCapSheet(null)}>
+                  <ModelSelector
+                    options={modelOptions}
+                    value={model}
+                    onChange={onModelChange}
+                    busy={modelSwitching}
+                    isAutoSelection={isAutoModelSelection}
+                  />
+                </span>
+              )}
+              {/* 「已排队，下轮生效」：与桌面同一枚提示，同一个撤销回调。 */}
+              {pendingModel && (
+                <button
+                  type="button"
+                  className="m-tray-chip is-on"
+                  style={{ margin: "0 6px 8px" }}
+                  title={`${t("chat.modelQueuedNextTurnTitle", { model: pendingModel.name })} — ${t("chat.modelQueuedNextTurnCancel")}`}
+                  onClick={onCancelPendingModel}
+                >
+                  <i data-ico="clock" data-size="12"></i>
+                  {t("chat.modelQueuedNextTurn", { model: pendingModel.name })}
+                </button>
+              )}
+              {onThinkingLevelChange && (
+                <PwaComposerSheetRow
+                  icon="brain"
+                  title={t("chat.thinkingTitle")}
+                  desc={thinkingDisplayLabel}
+                  trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
+                  onClick={() => setCapSheet("thinking")}
+                />
+              )}
+              {onPermissionModeChange && permissionMode && toolPreset !== "none" && (
+                <PwaComposerSheetRow
+                  icon={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
+                  title={t("chat.permissionTitle")}
+                  desc={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
+                  trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
+                  onClick={() => setCapSheet("permission")}
+                />
+              )}
+              {!isStreaming && onToolPresetChange && (
+                <PwaComposerSheetRow
+                  icon="wrench"
+                  title={t("tools.label")}
+                  desc={toolPresetLabel}
+                  trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
+                  onClick={() => setCapSheet("tools")}
+                />
+              )}
+              {(contextUsage || sessionStats) && (
+                <PwaComposerSheetRow
+                  title={t("session.context")}
+                  desc={contextText ?? `${ringPercent}%`}
+                  trailing={
+                    <>
+                      <span className="m-ring" style={{ "--p": `${ringPercent}` } as React.CSSProperties} />
+                      <i data-ico="chevron-right" data-size="14" aria-hidden="true" />
+                    </>
+                  }
+                  onClick={() => setCapSheet("context")}
+                />
+              )}
+            </>
+          )}
+
+          {/* 三档清单：选中态交给 `.m-sheet-row.is-on`（它自带 ✓），不再另挂一枚
+              check 图标 —— 同一件事只由一个来源说。 */}
+          {capSheet === "thinking" && pwaThinkingLevels.map((level) => (
+            <PwaComposerSheetRow
+              key={level.value}
+              title={level.label}
+              desc={level.desc}
+              on={level.on}
+              onClick={() => {
+                if (!level.on) onThinkingLevelChange?.(level.value);
+                closeCapSheet();
+              }}
+            />
+          ))}
+
+          {capSheet === "permission" && pwaPermissionModes.map((mode) => (
+            <PwaComposerSheetRow
+              key={mode.value}
+                title={mode.label}
+              desc={mode.desc}
+              on={mode.on}
+              onClick={() => {
+                if (!mode.on) onPermissionModeChange?.(mode.value);
+                closeCapSheet();
+              }}
+            />
+          ))}
+
+          {capSheet === "tools" && pwaToolPresets.map((preset) => (
+            <PwaComposerSheetRow
+              key={preset.value}
+                title={preset.label}
+              desc={preset.desc}
+              on={preset.on}
+              onClick={() => {
+                if (!preset.on) onToolPresetChange?.(preset.value);
+                closeCapSheet();
+              }}
+            />
+          ))}
+
+          {/* 上下文占用：桌面是环 + portal 浮窗，手机上这块面板本身就在卡片上方，
+              于是明细直接铺在面板里（`.m-setrow` 行），不再套一层浮窗。 */}
+          {capSheet === "context" && (
+            <>
+              <div className="m-ctx" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3)" }}>
+                <span className="m-ring" style={{ "--p": `${ringPercent}` } as React.CSSProperties} />
+                <span className="m-grow">{t("session.context")} {ringPercent}%</span>
+                {contextText && <span>{contextText}</span>}
+              </div>
+              {sessionStats && (
+                <div className="m-sheet-row">
+                  <span className="m-grow">{t("chat.turnTokens")}</span>
+                  <span className="m-mono">{sessionStats.tokens.input.toLocaleString()} / {sessionStats.tokens.output.toLocaleString()}</span>
+                </div>
+              )}
+              {statsDetails && <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} />}
+              {onCompact && (
+                <>
+                  <div className="m-sep" />
+                  <button
+                    type="button"
+                    onClick={isCompacting ? onAbortCompaction : onCompact}
+                    className="m-menu-row"
+                    style={{ color: isCompacting ? "var(--nx-danger)" : "var(--nx-accent)" }}
+                  >
+                    <i data-ico={isCompacting ? "loader-circle" : "package"} data-size="16"></i>
+                    <span className="m-grow">{isCompacting ? t("chat.compacting") : t("chat.compactContext")}</span>
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </PwaComposerSheet>
+      </div>
+    );
+  };
 
   return (
     <fieldset
@@ -3227,29 +4116,74 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             />
           );
         })()}
+        {/* fork:v5-wave-b —— 窄屏走 PWA 形态（`design/v5/pwa/system.css`）：通知条、队列、
+            补全面板、附件托盘、能力面板与输入卡全部是 `pwaComposer` 那一块 `m-*` DOM。
+            桌面那一整段原样保留在 `: (` 分支里，一个类名都没改。
+            **例外**：`compact`（在当前会话里就选中的文字提问）那一小格输入框不在
+            M-03 / M-08 任何一帧里，它只有一行 + 一枚发送钮，所以窄屏也继续走桌面
+            那一段 —— 换皮不许顺手改形态。 */}
+        {isMobile && !compact ? (
+          <>
+            {/* 瞬时提示 = `.m-banner`（画板 M-03 的窄屏通知条；只有 `.warn` / `.err` 两档，
+                所以「压缩成功」落基态）。数据源与桌面那三行完全相同。 */}
+            {retryInfo && (
+              <div className="m-banner warn" style={{ marginBottom: "var(--nx-sp-2)" }}>
+                <i data-ico="refresh-cw" data-size="14"></i>
+                <span className="m-grow">
+                  {t("chat.retrying", { attempt: retryInfo.attempt, maxAttempts: retryInfo.maxAttempts })}
+                  {retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: "var(--nx-sp-1)" }}>— {retryInfo.errorMessage}</span>}
+                </span>
+              </div>
+            )}
+            {compactResultText && (
+              <div className="m-banner" style={{ marginBottom: "var(--nx-sp-2)" }}>
+                <i data-ico="circle-check" data-size="14"></i>
+                <span className="m-grow">{compactResultText}</span>
+              </div>
+            )}
+            {compactError && (
+              <div
+                role="alert"
+                className="m-banner err"
+                style={{
+                  marginBottom: "var(--nx-sp-2)",
+                  // 错误正文原样换行不断词（服务端可能回 HTML 片段），这两条不能交给组件类。
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                <i data-ico="circle-alert" data-size="14"></i>
+                <span className="m-grow">{compactError}</span>
+              </div>
+            )}
+            {renderPwaComposer()}
+          </>
+        ) : (
+        <>
         {/* Queued steering / follow-up messages (delivered by pi on upcoming turns) */}
-        {/* fork:design-components —— 队列 = 画板 20「流式排队」那一段：一行 .pw-badge count
-            说明排了几条（+ 召回钮），下面每条消息一行 .pw-prow。画板里没有外层盒子，
+        {/* fork:design-components —— 队列 = 画板 20「流式排队」那一段：一行 .d-badge mute
+            说明排了几条（+ 召回钮），下面每条消息一行 .d-menu-row。画板里没有外层盒子，
             所以这里也不再有自绘的描边 + 底色盒。 */}
         {((queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0)) > 0 && (
-          <div className="anim-popover-down pw-rowgap" style={{ marginBottom: "var(--s2)" }}>
-            <div className="pw-inline">
-              <span className="pw-badge count">
+          <div className="d-queue">
+            <div className="d-queue-head">
+              <i data-ico="layers" data-size="14"></i>
+              <span className="d-grow">
                 {t("chat.queued", { count: (queuedMessages?.steering.length ?? 0) + (queuedMessages?.followUp.length ?? 0) })}
               </span>
-              <span className="pw-grow" />
               {onRecallQueue && (
                 <button
                   type="button"
-                  className="pw-btn sm"
+                  className="d-btn sm ghost"
                   onClick={onRecallQueue}
                   title={t("chat.recallTitle")}
                 >
-                  <span className="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>
+                  <i data-ico="undo-2" data-size="13"></i>
                   {t("chat.recall")}
                 </button>
               )}
             </div>
+            <div className="d-queue-body">
             {queuedMessages?.steering.map((text, i) => (
               <QueuedMessageRow
                 key={`steer-${i}`}
@@ -3293,38 +4227,39 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 } : undefined}
               />
             ))}
+            </div>
           </div>
         )}
-        {/* fork:design-components —— 三条瞬时提示 = 画板 50 的 .pw-alert 四态：
+        {/* fork:design-components —— 三条瞬时提示 = 画板 50 的 .d-banner 四态：
             重试 warn / 压缩成功 ok / 压缩失败 error（基态）。底色与文字色都由 board.css 给。 */}
         {retryInfo && (
-          <div className="pw-alert warn" style={{ marginBottom: "var(--s2)" }}>
-            <span className="pw-ico"><i data-ico="refresh-cw" data-size="14"></i></span>
-            <span className="grow">
+          <div className="d-banner warn" style={{ marginBottom: "var(--nx-sp-2)" }}>
+            <i data-ico="refresh-cw" data-size="14"></i>
+            <span className="d-grow">
               {t("chat.retrying", { attempt: retryInfo.attempt, max: retryInfo.maxAttempts })}
               {retryInfo.errorMessage && <span style={{ opacity: 0.7, marginLeft: "var(--s1)" }}>— {retryInfo.errorMessage}</span>}
             </span>
           </div>
         )}
         {compactResultText && (
-          <div className="pw-alert ok" style={{ marginBottom: "var(--s2)" }}>
-            <span className="pw-ico"><i data-ico="circle-check" data-size="14"></i></span>
-            <span className="grow">{compactResultText}</span>
+          <div className="d-banner ok" style={{ marginBottom: "var(--nx-sp-2)" }}>
+            <i data-ico="circle-check" data-size="14"></i>
+            <span className="d-grow">{compactResultText}</span>
           </div>
         )}
         {compactError && (
           <div
             role="alert"
-            className="pw-alert"
+            className="d-banner err"
             style={{
-              marginBottom: "var(--s2)",
+              marginBottom: "var(--nx-sp-2)",
               // 错误正文原样换行不断词（服务端可能回 HTML 片段），这两条不能交给组件类。
               whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
             }}
           >
-            <span className="pw-ico"><i data-ico="circle-alert" data-size="14"></i></span>
-            <span className="grow">{compactError}</span>
+            <i data-ico="circle-alert" data-size="14"></i>
+            <span className="d-grow">{compactError}</span>
           </div>
         )}
         <ComposerContextStrip
@@ -3350,22 +4285,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             requestAnimationFrame(() => textareaRef.current?.focus());
           }}
         />
-        {/* fork:ui-todo —— 会话待办芯片，在输入框**左上角**（附件区上方）。
-            2026-10-02 用户裁定：待办界面就这一个。中间那个吸底进度浮层
-            （`TaskProgressOverlay` / `lib/task-progress.ts`）已删除 —— 它和这枚芯片
-            读同一份 `extractTodoState`，屏幕上是两遍，而且浮层点不动。
-            **不要再加第二个待办入口。** */}
-        {todoSummary && todoSummary.total > 0 && (
-          <div className="pw-rowgap" style={{ marginBottom: "var(--space-row)" }}>
-            <TodoChip summary={todoSummary} />
-          </div>
-        )}
-        {/* fork:design-components —— 附件区 = 画板 20「附件与引用」A 帧：一条 .pw-chips，
-            文件是 .pw-chip（类型图标 + 文件名 + 芯片内 data-ico="x" 移除钮）。
+        {/* fork:ui-todo —— 待办芯片不再挂在卡内：阅读态塌陷时输入卡 `padding:0` 且
+            去掉边框与圆角，卡内芯片会与下方那个可见的输入框错开一条边（实测左缘差
+            16px，看起来像飞出卡片外）。现在它走**卡外**的 .d-ctxbar（见下方），
+            与 .d-composer 同宽同居中，左缘必然对齐。 */}
+        {/* 附件区 = 画板 20「附件与引用」A 帧：一条 .d-chips，
+            文件是 .d-chipbtn（类型图标 + 文件名 + 芯片内 data-ico="x" 移除钮）。
             图片保留 56px 缩略图（画板没画缩略图形态，而 ChatInput 的既有测试要求
             草稿图片必须渲染出 <img>），但它的行与移除钮同样由画板基件承载。 */}
         {attachedImages.length > 0 && (
-          <div className="pw-chips">
+          <div className="d-chips">
             {attachedImages.map((img, i) => (
               <div key={i} style={{ position: "relative", flexShrink: 0 }}>
                 <ImagePreview key={img.previewUrl} src={img.previewUrl}>
@@ -3378,13 +4307,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 </ImagePreview>
                 <button
                   type="button"
-                  className="pw-iconbtn sm composer-thumb-remove"
+                  className="d-iconbtn sm composer-thumb-remove"
                   onClick={() => removeImage(i)}
                   title={t("chat.removeAttachment")}
                   aria-label={t("chat.removeAttachment")}
                   style={{ position: "absolute", top: -6, right: -6 }}
                 >
-                  <span className="pw-ico"><i data-ico="x" data-size="12"></i></span>
+                  <i data-ico="x" data-size="12"></i>
                 </button>
               </div>
             ))}
@@ -3394,11 +4323,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         {/* fork:zc-08 — 非图片附件的 chips：点开按类型预览（PDF/DOCX/音视频/文本），
             X 移除时同步清掉输入框里的 `@文件名`。 */}
         {referenceAttachments.length > 0 && (
-          <div className="pw-chips">
+          <div className="d-chips">
             {referenceAttachments.map((chip) => (
-              /* 芯片本身是静态盒（画板 20 的 .pw-chip 就是 span）：里面的预览触发器是
-                 AttachmentPreview 自己渲染的 button，移除钮是芯片末尾的 .pw-ico 按钮。 */
-              <span key={chip.path} className="pw-chip" data-mention-previewable={chip.kind === "image" ? "true" : undefined} style={{ maxWidth: 220 }}>
+              /* 芯片本身是静态盒（画板 20 的 .d-chipbtn 就是 span）：里面的预览触发器是
+                 AttachmentPreview 自己渲染的 button，移除钮是芯片末尾的 .d-iconbtn。 */
+              <span key={chip.path} className="d-chipbtn" data-mention-previewable={chip.kind === "image" ? "true" : undefined} style={{ maxWidth: 220 }}>
                 <AttachmentPreview
                   name={chip.name}
                   kind={chip.kind}
@@ -3406,12 +4335,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   previewSrc={chip.kind === "docx" ? attachmentPreviewUrl(chip.path, "preview") : undefined}
                   style={{ flex: 1, minWidth: 0, overflow: "hidden", textAlign: "left" }}
                 >
-                  <span className="pw-ico"><i data-ico={attachmentChipIcon(chip.kind)} data-size="12"></i></span>
-                  <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chip.name}</span>
+                  <i data-ico={attachmentChipIcon(chip.kind)} data-size="12"></i>
+                  <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chip.name}</span>
                 </AttachmentPreview>
                 <button
                   type="button"
-                  className="pw-ico"
+                  className="d-iconbtn"
                   onClick={() => removeReferenceAttachment(chip.path)}
                   title={t("chat.removeAttachment")}
                   aria-label={t("chat.removeAttachment")}
@@ -3424,11 +4353,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         )}
 
         {/* Main input */}
-        <div style={{ position: "relative", minWidth: 0 }}>
+        <div className="d-composer-wrap" style={{ minWidth: 0 }}>
           {historyMenuOpen && inputHistory.length > 0 && (
             <div
               ref={historyMenuRef}
-              className="pw-pop anim-popover"
+              className="d-pop is-open anim-popover"
               style={{
                 position: "absolute",
                 left: 0,
@@ -3441,12 +4370,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 maxHeight: "min(44vh, 360px)",
               }}
             >
-              {/* fork:design-components —— 浮窗 = 画板 21：.pw-pop 壳 + .pw-pop-title 头
-                  （history 图标 + 标题）+ .pw-prow 行（当前项 is-on）。滚动区改成
+              {/* fork:design-components —— 浮窗 = 画板 21：.d-pop 壳 + .d-pop-title 头
+                  （history 图标 + 标题）+ .d-menu-row 行（当前项 is-on）。滚动区改成
                   「flex 1 + overflow」的列，不再靠减一个魔数高度。 */}
-              <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
-                <span className="pw-ico"><i data-ico="history" data-size="14"></i></span>
-                <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div className="d-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
+                <i data-ico="history" data-size="14"></i>
+                <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t("chat.inputHistory")}
                 </span>
               </div>
@@ -3465,11 +4394,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         applyHistoryInput(item);
                       }}
                       onMouseEnter={() => setHistoryActiveIndex(index)}
-                      className={`pw-prow${active ? " is-on" : ""}`}
+                      className={`d-menu-row${active ? " is-on" : ""}`}
                       style={{ alignItems: "flex-start", cursor: "pointer" }}
                     >
-                      <span className="pw-badge count">{index + 1}</span>
-                      <span className="grow" style={{ minWidth: 0, display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden", overflowWrap: "anywhere" }}>
+                      <span className="d-badge mute">{index + 1}</span>
+                      <span className="d-grow" style={{ minWidth: 0, display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden", overflowWrap: "anywhere" }}>
                         {item}
                       </span>
                     </button>
@@ -3481,7 +4410,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           {slashMenuOpen && slashQuery !== null && (
             <div
               ref={slashMenuRef}
-              className="pw-pop anim-popover"
+              className="d-pop is-open anim-popover"
               style={{
                 position: "absolute",
                 left: 0,
@@ -3491,7 +4420,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 boxSizing: "border-box",
                 display: "flex",
                 flexDirection: "column",
-                // fork:ui-slash-pop —— .pw-pop 在 board.css 里写死了 width:320px，
+                // fork:ui-slash-pop —— .d-pop 在 board.css 里写死了 width:320px，
                 // 但斜杠弹窗是 composer 内部的辅助面板，应当按卡片宽定上限，
                 // 否则左下角命令列就被挤成单列、描述直接裁掉。
                 // fix:slash-menu-wide —— 680 宽 × minmax(220px) 会排成 3 列、每列
@@ -3505,32 +4434,32 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   : `min(72.8vh, 598px, ${slashMenuMaxHeight}px)`,
               }}
             >
-              {/* fork:design-components —— 搜索头 = 画板 21「/ 命令」那一行（.pw-pop-search：
+              {/* fork:design-components —— 搜索头 = 画板 21「/ 命令」那一行（.d-searchfield：
                   slash 图标 + 当前查询 + 分隔线）；右侧补计数徽标与 Tab/Enter 提示。 */}
               <div
-                className="pw-pop-search"
+                className="d-searchfield"
                 style={{ borderBottom: "1px solid var(--n-border-subtle)", margin: "0 0 var(--s1)", flexShrink: 0 }}
               >
-                <span className="pw-ico"><i data-ico="slash" data-size="14"></i></span>
-                <span className="pw-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--n-text)" }}>
+                <i data-ico="slash" data-size="14"></i>
+                <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--n-text)" }}>
                   {slashCommandsLoading ? t("chat.loadingCommands") : `/${slashQuery}`}
                 </span>
                 {!slashCommandsLoading && (
-                  <span className="pw-badge count" style={{ flexShrink: 0 }}>{slashCommandCountLabel}</span>
+                  <span className="d-badge mute" style={{ flexShrink: 0 }}>{slashCommandCountLabel}</span>
                 )}
-                <span className="pw-kbd" style={{ flexShrink: 0 }}>{t("chat.tabEnter")}</span>
+                <span className="d-kbd" style={{ flexShrink: 0 }}>{t("chat.tabEnter")}</span>
               </div>
               <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                 {!slashCommandsLoading && filteredSlashCommands.length === 0 ? (
-                  <div className="pw-prow pw-desc">
+                  <div className="d-menu-row d-t-xs d-t-faint">
                      {t("chat.noCommands")}
                   </div>
                 ) : (
                   groupedSlashCommands.map((group) => (
                     <section key={group.source} style={{ marginBottom: "var(--s3)" }}>
-                      {/* fork:design-system SW-02 —— 分组标题 = pw-pop-title（sticky 钉顶）。 */}
+                      {/* fork:design-system SW-02 —— 分组标题 = d-pop-title（sticky 钉顶）。 */}
                       <div
-                        className="pw-pop-title"
+                        className="d-pop-title"
                         style={{
                           position: "sticky",
                           top: -4,
@@ -3545,7 +4474,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         }}
                       >
                            <span>{t(SLASH_SOURCE_GROUP_LABEL_KEYS[group.source])}</span>
-                        <span className="pw-badge count">{group.items.length}</span>
+                        <span className="d-badge mute">{group.items.length}</span>
                       </div>
                       <div
                         style={{
@@ -3569,15 +4498,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 applySlashCommand(command);
                               }}
                               onMouseEnter={() => setSlashActiveIndex(index)}
-                              className={`pw-prow${active ? " is-on" : ""}`}
+                              className={`d-menu-row${active ? " is-on" : ""}`}
                               style={{ width: "100%", minWidth: 0, height: "auto", minHeight: 0 }}
                               title={command.description ? getSlashDescription(command, t) : undefined}
                             >
-                              <span className="pw-ico" style={{ flexShrink: 0, color: dormant ? "var(--n-placeholder)" : undefined }}>
-                                <i data-ico={command.source === "skill" ? "box" : command.source === "prompt" ? "square-function" : "slash"} data-size="14"></i>
-                              </span>
+                              <i
+                                data-ico={command.source === "skill" ? "box" : command.source === "prompt" ? "square-function" : "slash"}
+                                data-size="14"
+                                style={{ flexShrink: 0, color: dormant ? "var(--n-placeholder)" : undefined }}
+                              ></i>
                               <span
-                                className="grow"
+                                className="d-grow"
                                 style={{
                                   minWidth: 0,
                                   fontFamily: "var(--font-mono)",
@@ -3595,13 +4526,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                               </span>
                               {command.description && (
                                 <span
-                                  className="pw-desc"
+                                  className="d-t-xs d-t-faint"
                                   style={{ flexShrink: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "50%" }}
                                 >
                                    {getSlashDescription(command, t)}
                                 </span>
                               )}
-                              {dormant && <span className="pw-desc" style={{ flexShrink: 0 }}>{t("chat.dormant")}</span>}
+                              {dormant && <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>{t("chat.dormant")}</span>}
                             </button>
                           );
                         })}
@@ -3636,7 +4567,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             return (
               <div
                 ref={atMenuRef}
-                className="pw-pop anim-popover"
+                className="d-pop is-open anim-popover"
                 style={{
                   position: "absolute",
                   left: 0,
@@ -3651,19 +4582,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     : `min(48vh, 400px, ${atMenuMaxHeight}px)`,
                 }}
               >
-                {/* fork:design-system SW-02 —— 头行 = 画板 21 的 pw-pop-title（标题 + grow + kbd）。 */}
-                <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
+                {/* fork:design-system SW-02 —— 头行 = 画板 21 的 d-pop-title（标题 + grow + kbd）。 */}
+                <div className="d-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {indexLoading
                        ? t("chat.loadingFiles")
                        : t("chat.files", { label: matchCountLabel, hint: truncatedHint })}
                   </span>
-                  <span className="grow" />
-                  <span className="pw-kbd">{t("chat.tabEnter")}</span>
+                  <span className="d-grow" />
+                  <span className="d-kbd">{t("chat.tabEnter")}</span>
                 </div>
                 <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                   {!indexLoading && atMatches.length === 0 ? (
-                    <div className="pw-prow pw-desc">
+                    <div className="d-menu-row d-t-xs d-t-faint">
                        {needsServerSearch && !serverResultInUse ? t("chat.searching") : t("chat.noMatchingFiles")}
                     </div>
                   ) : (
@@ -3683,16 +4614,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                             applyAtCompletion(entry);
                           }}
                           onMouseEnter={() => setAtActiveIndex(index)}
-                          className={`pw-prow${active ? " is-on" : ""}`}
+                          className={`d-menu-row${active ? " is-on" : ""}`}
                           style={{ width: "100%", fontFamily: "var(--font-mono)" }}
                         >
-                          <span className="pw-ico" style={{ flexShrink: 0 }}>
+                          <span style={{ flexShrink: 0, display: "inline-flex" }}>
                             {entry.isDir ? <FolderIcon size={14} /> : getFileIcon(name, 14)}
                           </span>
-                          <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {dirPrefix && <span className="pw-desc">{dirPrefix}</span>}
+                          <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {dirPrefix && <span className="d-t-xs d-t-faint">{dirPrefix}</span>}
                             {name}
-                            {entry.isDir && <span className="pw-desc">/</span>}
+                            {entry.isDir && <span className="d-t-xs d-t-faint">/</span>}
                           </span>
                         </button>
                       );
@@ -3707,18 +4638,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             <div
               role="status"
               aria-live="polite"
-              // fork:design-components —— 落盘结果 = 画板 50 的 .pw-alert info（中性底 +
+              // fork:design-components —— 落盘结果 = 画板 50 的 .d-banner info（中性底 +
               // info 字色）；行内的 warning / danger 语义色仍按结果逐行给。
-              className="pw-alert info"
+              className="d-banner info"
               style={{
                 // 宽度由外层 composer 容器（`--composer-max-width`）统一约束，
                 // 这里不再声明自己的 maxWidth —— 上层的 ChatAppearance 测试
                 // 就要求这个变量在文件里只出现一次。
-                margin: "0 0 6px",
+                margin: "0 0 var(--nx-sp-2)",
               }}
             >
-              <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-              <div className="grow" style={{ display: "grid", gap: "var(--space-tight)", minWidth: 0 }}>
+              <i data-ico="info" data-size="14"></i>
+              <div className="d-grow" style={{ display: "grid", gap: "var(--space-tight)", minWidth: 0 }}>
                 {attachmentNotice.added.length > 0 && (
                   <span>{t("chat.attachmentAdded", { names: attachmentNotice.added.join("、") })}</span>
                 )}
@@ -3738,28 +4669,36 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </div>
               <button
                 type="button"
-                className="pw-iconbtn sm"
+                className="d-iconbtn sm"
                 onClick={() => setAttachmentNotice(null)}
                 aria-label={t("chat.close")}
                 title={t("chat.close")}
                 style={{ flexShrink: 0, alignSelf: "flex-start" }}
               >
-                <span className="pw-ico"><i data-ico="x" data-size="12"></i></span>
+                <i data-ico="x" data-size="12"></i>
               </button>
             </div>
           )}
           {/* fork:ui-ctxbar —— 新会话的上下文条（项目 / 分支）在输入卡**上方**：
-              Codex 式的一条无铬信息条（.pw-ctxbar，画板 20「新会话 · 上下文条」），
-              不再是卡内顶行的一枚芯片行（.pw-chips 的地盘是附件芯片）。
+              Codex 式的一条无铬信息条（.d-ctxbar，画板 20「新会话 · 上下文条」），
+              不再是卡内顶行的一枚芯片行（.d-chips 的地盘是附件芯片）。
               阅读态塌陷（.is-compact 只剩一行）时整条不渲染：那时输入卡自己都收成
               一行了，上面再挂一条 24px 的信息行只会把「收起」这件事说反。 */}
-          {protrusion && !compact && <div className="pw-ctxbar">{protrusion}</div>}
+          {protrusion && !compact && <div className="d-ctxbar">{protrusion}</div>}
+          {/* fork:ui-todo —— 待办芯片与上下文条同行（同一张 .d-ctxbar）：它在卡外、与
+              .d-composer 同宽（max-width 800 / margin 0 auto），所以左缘必然与输入框
+              对齐（2026-10-04 用户裁定）。塌陷态不挂 —— 那时输入卡只收成一行，
+              上面再挂一条信息行会把「收起」说反（同上下文条口径）。 */}
+          {todoSummary && todoSummary.total > 0 && !compact && (
+            <div className="d-ctxbar">
+              <TodoChip summary={todoSummary} />
+            </div>
+          )}
           <div
             ref={inputShellRef}
-            /* fork:design-components —— 输入框外壳直接用画板 20 的 .pw-composer
-               （面板底 / 发丝边框 / radius-6 / 弹层阴影来自 board.css）；
-               compact 阅读态与 bash/流式边框色作为状态覆盖保留。 */
-            className={`chat-input-shell pw-composer${manualMode ? " is-manual-height" : ""}${readingCompact ? " is-compact" : ""}`}
+            /* fork:v5-skin D-04 帧 C / D-27 帧 B —— 运行中给输入卡挂 .d-loader
+               （边缘环绕光带，.d-loader-glow + .d-loader-svg）。 */
+            className={`chat-input-shell d-composer${isStreaming ? " d-loader" : ""}${manualMode ? " is-manual-height" : ""}${readingCompact ? " is-compact" : ""}`}
             // fork:pr14-compact — focus 一定展开（状态机 kind: "focus"），
             // 焦点在 composer 内时也不允许塌陷。
             onFocus={() => {
@@ -3785,6 +4724,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               height: manualMode ? `${manualHeight}px` : undefined,
             } as React.CSSProperties}
           >
+          {/* fork:v5-skin D-04 帧 C —— agent 在跑时输入框边缘亮起来。svg path 用
+              pathLength=100，dash 走 -100 绕行一圈；这是画板点名的例外（图标仍走
+              data-ico，只有这条光带是需要 pathLength 的原生 svg）。 */}
+          {isStreaming && (
+            <>
+              <div className="d-loader-glow"></div>
+              <svg className="d-loader-svg" viewBox="0 0 760 56" preserveAspectRatio="none" aria-hidden="true">
+                <path pathLength="100" d="M16,2 H744 A14,14 0 0 1 758,16 V40 A14,14 0 0 1 744,54 H16 A14,14 0 0 1 2,40 V16 A14,14 0 0 1 16,2 Z" />
+              </svg>
+            </>
+          )}
           {/* fork:pr23-resize — 手柄骑在卡片上边缘（向上拖变大）。移动端与引用回答
               形态不渲染；阅读态塌陷（.is-compact）时由 CSS 隐藏。 */}
           {!compact && !isMobile && (
@@ -3794,9 +4744,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             />
           )}
           <div
-            // fork:design-components —— 输入区 = 画板 01/20 的 .pw-composer-top：
+            // fork:design-components —— 输入区 = 画板 01/20 的 .d-composer-top：
             // 同一套内边距（12px 12px 6px）与最小高度（46px），文字起点与画板一致。
-            className="chat-input-editor-row pw-composer-top"
+            className="chat-input-editor-row d-composer-top"
             style={{
               minWidth: 0,
               display: "flex",
@@ -3826,11 +4776,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               aria-hidden="true"
             >
               <div ref={highlightLayerRef} className="chat-input-highlight">
+                {/* `.d-mention` 在 `pwa/system.css` 里没有对应件（M-02 也没画这个芯片）。
+                    高亮是**行为**（D2-PR-12 与正文共用一套切词），所以这里保留它；
+                    已登记为缺件，等设计侧补 `m-mention`。 */}
                 {highlightSegments.map((segment, i) =>
                   segment.type === "text" || !segment.token.valid ? (
                     segment.text
                   ) : (
-                    <span key={i} className="pw-tok-ref">{segment.text}</span>
+                    <span key={i} className="d-mention">{segment.text}</span>
                   )
                 )}
               </div>
@@ -3917,7 +4870,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           </div>
         )}
 
-        {/* fork:design-components —— 工具栏 = 画板 20 的 .pw-composer-bar：
+        {/* fork:design-components —— 工具栏 = 画板 20 的 .d-composer-bar：
             一行内是 附件 · 模型 · 思考 · 权限 · 工具档 ｜ 上下文环 · 声音 · 发送，
             与画板 20 A 的控件顺序一致（压缩已并入上下文环，见下面那处注释）。 */}
         {/* fork:pwa-wb-composer —— 窄屏（narrowControls，≤1024）把工具条收成**两行**：
@@ -3928,7 +4881,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             其中大半是空档。行高交给 grid 的显式行轨（`--control-touch`），不再由
             内容撑出来；`display: contents` 让**桌面（≥1025）的 DOM 保持一条平铺的
             flex 行**（两个分组盒都不生成，盒模型一个像素不变）。 */}
-        {!compact && <div className="chat-input-toolbar pw-composer-bar" style={{
+        {!compact && <div className="chat-input-toolbar d-composer-bar" style={{
           display: narrowControls ? "grid" : "flex",
           gridTemplateColumns: narrowControls ? "minmax(0, 1fr) auto auto" : undefined,
           gridTemplateRows: narrowControls ? "var(--control-touch) var(--control-touch)" : undefined,
@@ -3946,16 +4899,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               className="fork-pwa-wb-models"
               style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "calc(var(--s1) / 2)", minWidth: 0, gridArea: narrowControls ? "models" : undefined }}
             >
-            {/* 附件 +：直接使用画板 20 的 .pw-iconbtn 组件（board.css：无边框 / hover 叠色 / is-on 选中），
+            {/* 附件 +：直接使用画板 20 的 .d-iconbtn 组件（board.css：无边框 / hover 叠色 / is-on 选中），
                 有附件时挂 is-on（画板的选中态），图标与 20-composer.html 同款 plus。 */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title={t("chat.attachFile")}
-              className={`pw-iconbtn fork-pwa-wb-act${attachedImages.length ? " is-on" : ""}`}
+              className={`d-iconbtn fork-pwa-wb-act${attachedImages.length ? " is-on" : ""}`}
               style={{ cursor: "pointer" }}
             >
-              <span className="pw-ico"><i data-ico="plus" data-size="16"></i></span>
+              <i data-ico="plus" data-size="16"></i>
             </button>
             {/* fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」：
                 带文字的宫格浮层（内容由 AppShell 组装，这里只给触发钮 + 壳）。
@@ -3972,10 +4925,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   title={t("chat.moreActions")}
                   aria-label={t("chat.moreActions")}
                   aria-expanded={actionPanelOpen}
-                  className={`pw-iconbtn fork-pwa-wb-act${actionPanelOpen ? " is-on" : ""}`}
+                  className={`d-iconbtn fork-pwa-wb-act${actionPanelOpen ? " is-on" : ""}`}
                   style={{ cursor: "pointer" }}
                 >
-                  <span className="pw-ico"><i data-ico="grid-2x2" data-size="15"></i></span>
+                  <i data-ico="grid-2x2" data-size="15"></i>
                 </button>
                 <PortalDropdown
                   open={actionPanelOpen}
@@ -3984,7 +4937,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   align="left"
                   width={ACTION_PANEL_WIDTH}
                 >
-                  <div className="pw-pop fork-actpanel" onClick={() => setActionPanelOpen(false)}>
+                  {/* fork:pwa-action-panel —— 手机专属宫格浮层的壳；DOM 只带 d-*，
+                      行为钩子 fork-actpanel 保留（fork-ui.css 只给它定宽）。 */}
+                  <div className="d-pop is-open fork-actpanel" onClick={() => setActionPanelOpen(false)}>
                     {actionPanel}
                   </div>
                 </PortalDropdown>
@@ -4006,17 +4961,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               />
             )}
             {/* fork:proma-37-deferred-model —— 「已排队，下轮生效」提示。挂在选择器
-                紧右侧，用画板既有的 .pw-chip accent（不新增 .pw-* 类），图标走 lucide
+                紧右侧，用画板既有的 .d-chipbtn is-on（不新增其它类），图标走 lucide
                 的 clock。点一下撤销排队：纯客户端操作，本轮仍在用原来的模型。 */}
             {pendingModel && (
               <button
                 type="button"
-                className="pw-chip accent"
+                className="d-chipbtn is-on"
                 style={{ cursor: onCancelPendingModel ? "pointer" : "default", maxWidth: "calc(var(--s5) * 6)", minWidth: 0 }}
                 title={`${t("chat.modelQueuedNextTurnTitle", { model: pendingModel.name })} — ${t("chat.modelQueuedNextTurnCancel")}`}
                 onClick={onCancelPendingModel}
               >
-                <span className="pw-ico"><i data-ico="clock" data-size="12"></i></span>
+                <i data-ico="clock" data-size="12"></i>
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {t("chat.modelQueuedNextTurn", { model: pendingModel.name })}
                 </span>
@@ -4044,7 +4999,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 pi 的 set_thinking_level 在 turn 中途生效于后续请求，这一轮的预算不变。 */}
             {onThinkingLevelChange && (
               <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
-                {/* fork:design-components —— 思考档直接用画板 20/21 的 .pw-select + .pw-pop/.pw-prow。 */}
+                {/* fork:design-components —— 思考档直接用画板 20/21 的 .d-select + .d-pop/.d-menu-row。 */}
                 <button
                   type="button"
                   onClick={() => setThinkingDropdownOpen((v) => !v)}
@@ -4052,28 +5007,28 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     ? t("chat.currentReasoning", { level: thinkingDisplayLabel })
                     : t("chat.changeReasoning", { level: thinkingDisplayLabel })}
                    aria-label={t("chat.changeReasoningLabel")}
-                  className="pw-select"
+                  className="d-select"
                   style={{
                     cursor: "pointer",
                     background: thinkingDropdownOpen ? "var(--overlay-hover)" : undefined,
                     // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
                     // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
-                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 把 `button.d-select` 列入 `width: 100%` 的行式拉满清单，
                     // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
                     // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
                     // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
                     width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                 >
-                  <span className="pw-ico"><i data-ico="brain" data-size="13"></i></span>
+                  <i data-ico="brain" data-size="13"></i>
                   {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
                   {/* 2026-10-03 用户裁定 —— 有选项的芯片一律带向下箭头（与模型选择器同款
                       chevron-down），不然分不清「可点开」与「只是读数」。 */}
-                  <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+                  <i data-ico="chevron-down" data-size="12"></i>
                 </button>
                 {thinkingDropdownOpen && (
                   <div
-                    className="anim-popover pw-pop"
+                    className="anim-popover d-pop is-open"
                     style={{
                       position: "absolute", bottom: "calc(100% + 6px)",
                       // fork:ui-composer-pop —— 左侧组的下拉一律左缘锚定：右缘锚定会把
@@ -4083,10 +5038,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     }}
                   >
                     {/* fork:design-components —— 画板 21 的弹层有**标题行**：
-                        `<div class="pw-pop-title">思考强度</div>`（board.css:622 一行纯文本，
+                        `<div class="d-pop-title">思考强度</div>`（board.css:622 一行纯文本，
                         meta 字号 / placeholder 色 / padding s2 s2 s1）。样式全部来自 board.css，
                         这里不加内联。 */}
-                    <div className="pw-pop-title">{t("chat.thinkingTitle")}</div>
+                    <div className="d-pop-title">{t("chat.thinkingTitle")}</div>
                     {THINKING_LEVELS.filter((lvl) => {
                       if (!availableThinkingLevels) return true;
                       if (lvl === "auto") return true;
@@ -4102,17 +5057,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                           key={lvl}
                           type="button"
                           onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
-                          className={`pw-prow${isActive ? " is-on" : ""}`}
+                          className={`d-menu-row${isActive ? " is-on" : ""}`}
                           style={{ cursor: "pointer" }}
                         >
                           {isActive
-                            ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
+                            ? <i data-ico="check" data-size="12"></i>
                             : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
-                          <span className="grow">
+                          <span className="d-grow">
                             {displayLabel}
-                            {showOriginal && <span className="pw-mono" style={{ fontSize: TEXT["2xs"], marginLeft: "var(--space-ctrl)" }}>({lvl})</span>}
+                            {showOriginal && <span className="d-mono" style={{ fontSize: TEXT["2xs"], marginLeft: "var(--space-ctrl)" }}>({lvl})</span>}
                           </span>
-                          <span className="pw-desc">{desc}</span>
+                          <span className="d-t-xs d-t-faint">{desc}</span>
                         </button>
                       );
                     })}
@@ -4122,7 +5077,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
                 2026-10-03 用户裁定 —— 从「点一下循环」改成下拉：三个档并列在浮窗里，
-                与思考档 / 工具档同一形态（`.pw-select` + `.pw-pop` / `.pw-prow`），
+                与思考档 / 工具档同一形态（`.d-select` + `.d-pop` / `.d-menu-row`），
                 三档不用轮着点才知道现在在哪。循环切换的 `nextPermissionMode` 已退役。 */}
             {onPermissionModeChange && permissionMode && toolPreset !== "none" && (
               <div ref={permissionDropdownRef} style={{ position: "relative" }}>
@@ -4132,7 +5087,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   title={`${t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}：${t(PERMISSION_MODE_HINT_KEYS[permissionMode])}`}
                   aria-label={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
                   aria-expanded={permissionDropdownOpen}
-                  className="pw-select"
+                  className="d-select"
                   style={{
                     cursor: "pointer",
                     // 非默认档位用强调色，因为「当前不全自动」是需要一眼看出来的状态
@@ -4140,27 +5095,25 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     background: permissionDropdownOpen ? "var(--overlay-hover)" : undefined,
                     // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
                     // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
-                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 把 `button.d-select` 列入 `width: 100%` 的行式拉满清单，
                     // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
                     // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
                     // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
                     width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                 >
-                  <span className="pw-ico">
-                    <i
+                  <i
                       data-ico={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
                       data-size="13"
                     ></i>
-                  </span>
                   {!narrowControls && (
                     <span style={{ whiteSpace: "nowrap" }}>{t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}</span>
                   )}
-                  <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+                  <i data-ico="chevron-down" data-size="12"></i>
                 </button>
                 {permissionDropdownOpen && (
                   <div
-                    className="anim-popover pw-pop"
+                    className="anim-popover d-pop is-open"
                     style={{
                       position: "absolute",
                       bottom: "calc(100% + 6px)",
@@ -4171,7 +5124,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       // 弹层按内容收口；写死宽度只会多一条内联几何字面量。
                     }}
                   >
-                    <div className="pw-pop-title">{t("chat.permissionTitle")}</div>
+                    <div className="d-pop-title">{t("chat.permissionTitle")}</div>
                     {PERMISSION_MODES.map((mode) => {
                       const isActive = mode === permissionMode;
                       return (
@@ -4179,14 +5132,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                           key={mode}
                           type="button"
                           onClick={() => { setPermissionDropdownOpen(false); if (!isActive) onPermissionModeChange(mode); }}
-                          className={`pw-prow${isActive ? " is-on" : ""}`}
+                          className={`d-menu-row${isActive ? " is-on" : ""}`}
                           style={{ cursor: "pointer" }}
                         >
                           {isActive
-                            ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
+                            ? <i data-ico="check" data-size="12"></i>
                             : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
-                          <span className="grow">{t(PERMISSION_MODE_LABEL_KEYS[mode])}</span>
-                          <span className="pw-desc">{t(PERMISSION_MODE_HINT_KEYS[mode])}</span>
+                          <span className="d-grow">{t(PERMISSION_MODE_LABEL_KEYS[mode])}</span>
+                          <span className="d-t-xs d-t-faint">{t(PERMISSION_MODE_HINT_KEYS[mode])}</span>
                         </button>
                       );
                     })}
@@ -4202,28 +5155,28 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   disabled={isStreaming}
                   title={t("chat.changeToolPreset") + `: ${toolPresetLabel}`}
                   aria-label={t("chat.changeToolPreset")}
-                  className="pw-select"
+                  className="d-select"
                   style={{
                     cursor: isStreaming ? "not-allowed" : "pointer",
                     opacity: isStreaming ? 0.5 : 1,
                     background: toolDropdownOpen ? "var(--overlay-hover)" : undefined,
                     // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
                     // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
-                    // 把 `button.pw-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 把 `button.d-select` 列入 `width: 100%` 的行式拉满清单，
                     // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
                     // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
                     // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
                     width: isMobile || viewportCompact ? "auto" : undefined,
                   }}
                 >
-                  <span className="pw-ico"><i data-ico="wrench" data-size="13"></i></span>
+                  <i data-ico="wrench" data-size="13"></i>
                   {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
                   {/* 2026-10-03 用户裁定 —— 同思考档：有选项就带箭头。 */}
-                  <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+                  <i data-ico="chevron-down" data-size="12"></i>
                 </button>
                 {toolDropdownOpen && (
                   <div
-                    className="anim-popover pw-pop"
+                    className="anim-popover d-pop is-open"
                     style={{
                       position: "absolute",
                       bottom: "calc(100% + 6px)",
@@ -4234,7 +5187,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     }}
                   >
                     {/* fork:design-components —— 同思考档：标题行照画板 21。 */}
-                    <div className="pw-pop-title">{t("tools.label")}</div>
+                    <div className="d-pop-title">{t("tools.label")}</div>
                     {TOOL_PRESETS.map((lvl) => {
                       const preset = TOOL_PRESET_MAP[lvl];
                       const isActive = (toolPreset ?? "configured") === preset;
@@ -4249,14 +5202,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                           key={lvl}
                           type="button"
                           onClick={() => { setToolDropdownOpen(false); if (!isActive) onToolPresetChange(preset); }}
-                          className={`pw-prow${isActive ? " is-on" : ""}`}
+                          className={`d-menu-row${isActive ? " is-on" : ""}`}
                           style={{ cursor: "pointer" }}
                         >
                           {isActive
-                            ? <span className="pw-ico" style={{ color: "var(--accent)" }}><i data-ico="check" data-size="12"></i></span>
+                            ? <i data-ico="check" data-size="12"></i>
                             : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
-                          <span className="grow">{t(`chat.toolPreset.${lvl}`)}</span>
-                          <span className="pw-desc">{desc}</span>
+                          <span className="d-grow">{t(`chat.toolPreset.${lvl}`)}</span>
+                          <span className="d-t-xs d-t-faint">{desc}</span>
                         </button>
                       );
                     })}
@@ -4266,23 +5219,23 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
 
             {/* fork:upstream-2e66e40（#1008 移植）—— 压缩入口原在这行；2026-10-03 用户裁定
-                **删除**：上下文环的浮窗底部已经有同一动作（`.pw-prow` + `package` 字形，
+                **删除**：上下文环的浮窗底部已经有同一动作（`.d-menu-row` + `package` 字形，
                 同一个 `onCompact` / `onAbortCompaction`，压缩中也翻成「停止压缩」——
                 手工压缩与轮间自动压缩都够得着，见上面 `contextRing` 那段）。
                 同一个动作在一块屏上摆两枚，压缩中那枚还得单独变红，一眼看去像两件事。
-                真要挪回工具条，就把 contextRing 里那个 `pw-prow` 搬过来，别再新增第三处。 */}
+                真要挪回工具条，就把 contextRing 里那个 `d-menu-row` 搬过来，别再新增第三处。 */}
             </div>
 
           </div>
 
-          {/* 画板 20 的 .pw-composer-bar 用 .grow 顶开左右两组。 */}
+          {/* 画板 20 的 .d-composer-bar 用 .grow 顶开左右两组。 */}
           {/* fork:pwa-wb-composer —— 窄屏下 `.grow` 会占掉 grid 的一个自动列，
               改由 `grid-template-areas` 定位左右两组，所以这一格在窄屏不生成盒子。 */}
-          <span className="grow" style={{ display: narrowControls ? "none" : undefined }} />
+          <span className="d-grow" style={{ display: narrowControls ? "none" : undefined }} />
 
           {/* fork:pwa-wb-composer —— 窄屏：发送 / 停止作为工具条的第三个 grid 区
               （`send`，行二最右），和桌面同一个「控件行右端」的位置语义。
-              改前它在 `.pw-composer-top` 里（编辑行右上），两套形态不一致；
+              改前它在 `.d-composer-top` 里（编辑行右上），两套形态不一致；
               改后它还在这一格之外 —— 桌面完全不受影响（`narrowControls` 为 false
               时不渲染，下方右组里的那一枚才是桌面的）。 */}
           {narrowControls && (
@@ -4315,24 +5268,24 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               gap: narrowControls ? 1 : 2,
             }}>
             {streamSpeed != null && streamSpeed > 0 && (
-              <span className="pw-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
-                <span className="pw-ico"><i data-ico="gauge" data-size="11"></i></span>
+              <span className="d-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
+                <i data-ico="gauge" data-size="11"></i>
                 {streamSpeed} t/s
               </span>
             )}
             {contextRing}
 
             {onSoundToggle !== undefined && (
-              /* fork:design-components —— 声音开关 = 画板 20 的 .pw-iconbtn（volume-2 / volume-x）。 */
+              /* fork:design-components —— 声音开关 = 画板 20 的 .d-iconbtn（volume-2 / volume-x）。 */
               <button
                 type="button"
                 onClick={onSoundToggle}
                  title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
                  aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                className={`pw-iconbtn fork-pwa-wb-act${soundEnabled ? "" : " is-on"}`}
+                className={`d-iconbtn fork-pwa-wb-act${soundEnabled ? "" : " is-on"}`}
                 style={{ width: "var(--control-md)", height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
               >
-                <span className="pw-ico"><i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i></span>
+                <i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i>
               </button>
             )}
             {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；
@@ -4346,6 +5299,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         </div>
         {/* Close main-input relative wrapper (anchors history / @-mention menus) */}
         </div>
+        </>
+        )}
       </div>
     </fieldset>
   );

@@ -4,13 +4,13 @@
  * 原来这里是一整套 catppuccin 彩色素材（`/icons/catppuccin/{latte,mocha}/*.svg`，
  * 靠 CSS mask 上色），与「视觉唯一来源是 board.css」冲突：图标是唯一还从外部
  * 图片素材取形的东西。现在改走画板 30 的**单色 lucide** 图标集——
- * 结构与 `30-files-panel.html` 的树行一字不差：
+ * 结构与 `D-05-right-panels.html` 的树行一字不差：
  *
- *     <span class="pw-ico"><i data-ico="file-code" data-size="14"></i></span>
+ *     <i data-ico="file-code" data-size="14"></i>
  *
  * `components/PwIcons.tsx` 把 `<i data-ico>` 水合成 lucide 内联 SVG
  * （`design/pi-web-design/assets/icons.js` + `hydrate()`），本文件不写死任何
- * SVG 路径、不写死任何颜色 —— 颜色由 `.pw-trow .pw-ico`（--n-muted）给。
+ * SVG 路径、不写死任何颜色 —— 颜色由 `.d-trow` / `.d-code-head` 的文字色给。
  *
  * 画板 30 树行只用三种字形（行 144-149）：`file-code`（代码）/ `braces`（数据与
  * 配置）/ `file-text`（文档）。下表把 catppuccin 的 30 个词表按**语义**并进这
@@ -41,15 +41,12 @@ type LucideIconName =
   | "table";
 
 /**
- * 画板唯一的图标壳：`.pw-ico` 负责 line-height 归零与图标文字的垂直居中，
- * `<i data-ico>` 由 PwIcons 水合。与画板写法一致，产品侧不写 SVG。
+ * v5 画板树行把图标直接写成 `<i data-ico>`（D-05 的 `.d-trow` / D-06 的 `.d-code-head`），
+ * 不再另套 `.pw-ico` 壳：`design/v5/base.css` 的 `i[data-ico] > svg { display:block }`
+ * 已经解决了行内 svg 的基线间隙，外层 flex 容器负责垂直居中。
  */
 function Icon({ name, size = 14 }: IconProps & { name: LucideIconName }) {
-  return (
-    <span className="pw-ico">
-      <i data-ico={name} data-size={size} aria-hidden="true"></i>
-    </span>
-  );
+  return <i data-ico={name} data-size={size} aria-hidden="true"></i>;
 }
 
 export function FolderIcon({ size = 14, open = false }: IconProps & { open?: boolean }) {

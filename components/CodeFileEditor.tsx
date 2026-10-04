@@ -29,6 +29,7 @@ import {
 import { getFileExt } from "@/lib/file-types";
 import { getFileName } from "@/lib/file-paths";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTextFile } from "@/hooks/useMarkdownFile";
 import { LOCATION_HIGHLIGHT_CLASS } from "@/lib/location-highlight";
 import type {
@@ -116,14 +117,14 @@ function languageExtension(filePath: string): Extension {
   }
 }
 
-// fork:design-components —— 编辑器配色不再读产品自己的色槽，全部取画板 token
-// （画板 52 的 `.pw-code-body` / `.pw-diff-body` 就是这一组）。
+// fork:v5-landing —— 编辑器配色不再读产品自己的色槽，全部取 v5 画板 token
+// （D-06b 帧 A 的 `.d-code-body` 就是这一组）。
 const editorTheme = EditorView.theme({
   "&": {
     height: "100%",
     minHeight: "100%",
-    color: "var(--n-text)",
-    backgroundColor: "var(--surface-canvas)",
+    color: "var(--nx-text)",
+    backgroundColor: "var(--nx-code-bg)",
     fontSize: "var(--text-mono)",
   },
   ".cm-scroller": {
@@ -139,18 +140,18 @@ const editorTheme = EditorView.theme({
     padding: "0 16px",
   },
   ".cm-gutters": {
-    color: "var(--n-placeholder)",
-    backgroundColor: "var(--surface-panel)",
-    borderRight: "1px solid var(--n-border-subtle)",
+    color: "var(--nx-text-3)",
+    backgroundColor: "var(--nx-panel)",
+    borderRight: "1px solid var(--nx-line)",
   },
   ".cm-activeLineGutter": {
-    backgroundColor: "var(--overlay-selected)",
+    backgroundColor: "var(--nx-selected)",
   },
   ".cm-activeLine": {
-    backgroundColor: "var(--overlay-selected)",
+    backgroundColor: "var(--nx-selected)",
   },
   ".cm-selectionBackground, ::selection": {
-    backgroundColor: "color-mix(in srgb, var(--accent) 30%, transparent) !important",
+    backgroundColor: "color-mix(in srgb, var(--nx-accent) 30%, transparent) !important",
   },
 });
 
@@ -169,8 +170,11 @@ export default function CodeFileEditor({
   onContentSaved,
 }: Props) {
   const { t } = useI18n();
+  // M-06 · 手机档：D-06b 帧 A 在 PWA 形态下换成 `.m-viewer` / `.m-viewer-bar` /
+  // `.m-code` / `.m-code-head`，同一个编辑器、同一个 `sync`、同一批保存/撤销动作。
+  const isMobile = useIsMobile();
   const { sync, state } = useTextFile(filePath, content, sourceSessionId, watchEnabled);
-  // 画板 52 帧 A 的 `.pw-card-foot` 读数：行列来自编辑器自己的 update，不另开数据流。
+  // D-06b 帧 A 的 `.d-code-head` 读数：行列来自编辑器自己的 update，不另开数据流。
   const [cursor, setCursor] = useState<readonly [number, number]>([1, 1]);
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -364,93 +368,127 @@ export default function CodeFileEditor({
     });
   }, [state.content]);
 
-  // fork:design-components —— 画板 52 帧 A（编辑中）/ 帧 B（保存冲突）：
-  // 外壳 `.pw-viewer`，头是 `.pw-viewer-head`（路径 + 类型徽章 + 一个状态徽章 + 撤销/保存），
-  // 冲突片段是 `.pw-detail` + `.pw-litem`，保存失败是 `.pw-alert`，
-  // 底是 `.pw-card-foot`（行列 · 类型 · EOL · 编码）。尺寸/字号/圆角只有一个来源。
+  // fork:v5-landing —— D-06b 帧 A（编辑中）/ 帧 B（保存冲突）：
+  // 外壳 `.d-viewer`，头是 `.d-viewer-bar`（路径 + 类型徽章 + 一个状态徽章 + 撤销/保存），
+  // 正文是 `.d-code` / `.d-code-body`，保存失败是 `.d-banner.err`，
+  // 冲突是两张 `.d-card`（各带各的动作），底是 `.d-code-head`（行列 · 类型 · EOL · 编码）。
   const typeLabel = getFileExt(filePath).replace(/^\./, "").toUpperCase();
   const hasConflicts = state.conflicts.length > 0;
   const unsaved = sync?.dirty ?? false;
 
+  /* 手机档只换形态类名：`.m-viewer` 是 `inset:0` 全屏覆盖（画板帧 B），这里显式
+     提到 `fixed` 是因为右栏宿主的中间层带 `overflow:hidden`（几何定位，铁律四）。 */
+  const shellClass = isMobile ? "m-viewer is-open" : "d-viewer";
+  const shellStyle = isMobile
+    ? { position: "fixed", inset: 0, zIndex: "var(--nx-z-panel)" } as React.CSSProperties
+    : { height: "100%" } as React.CSSProperties;
+  const barClass = isMobile ? "m-viewer-bar" : "d-viewer-bar";
+  const badge = (tone: string) => (isMobile ? `m-badge ${tone}` : `d-badge ${tone}`);
+  const button = (extra?: string) => (isMobile ? `m-btn sm${extra ? ` ${extra}` : ""}` : `d-btn sm${extra ? ` ${extra}` : ""}`);
+  const codeClass = isMobile ? "m-code" : "d-code";
+  const codeBodyClass = isMobile ? "m-code-body" : "d-code-body";
+  const codeHeadClass = isMobile ? "m-code-head" : "d-code-head";
+
   return (
-    <div className="pw-viewer" style={{ height: "100%" }}>
-      <div className="pw-viewer-head">
-        <span className="pw-ico"><i data-ico={hasConflicts ? "triangle-alert" : "file-code"} data-size="13"></i></span>
-        <span className="pw-mono">{getFileName(filePath)}</span>
-        {typeLabel && <span className="pw-badge">{typeLabel}</span>}
-        {hasConflicts && <span className="pw-badge warn">{t("files.conflict")}</span>}
-        {!hasConflicts && unsaved && <span className="pw-badge warn">{t("files.unsavedChanges")}</span>}
-        <span className="grow" />
+    <div className={shellClass} style={shellStyle}>
+      <div className={barClass}>
+        <i data-ico={hasConflicts ? "triangle-alert" : "file-code"} data-size="13"></i>
+        <span className={isMobile ? "m-viewer-path" : "d-viewer-path"} title={getFileName(filePath)}>{getFileName(filePath)}</span>
+        {typeLabel && <span className={badge("mute")}>{typeLabel}</span>}
+        {hasConflicts && <span className={badge("warn")}>{t("files.conflict")}</span>}
+        {!hasConflicts && unsaved && <span className={badge("warn")}>{t("files.unsavedChanges")}</span>}
+        <span className={isMobile ? "m-grow" : "d-grow"} />
         <button
           type="button"
-          className="pw-btn sm"
+          className={button()}
           title={t("models.catalogUndo")}
           aria-label={t("models.catalogUndo")}
           onClick={() => { const view = viewRef.current; if (view) undo(view); }}
         >
-          <span className="pw-ico"><i data-ico="undo-2" data-size="13"></i></span>
+          <i data-ico="undo-2" data-size="13"></i>
         </button>
         <button
           type="button"
-          className="pw-btn primary sm" onClick={() => void sync?.save()}
+          className={button("primary")} onClick={() => void sync?.save()}
           disabled={state.saving || !unsaved}
         >
-          <span className="pw-ico"><i data-ico="save" data-size="13"></i></span>
+          <i data-ico="save" data-size="13"></i>
           {t("files.saveFile")}
+          <span className={isMobile ? "m-kbd" : "d-kbd"}>⌘S</span>
         </button>
       </div>
 
       {state.error && (
-        <div className="pw-alert" role="alert">
-          <span>{t("files.textSaveFailed")} {state.error}</span>
-          <span className="grow" />
-          <button type="button" className="pw-btn sm" onClick={() => sync?.retry()}>{t("files.textRetry")}</button>
+        <div className={isMobile ? "m-banner err" : "d-banner err"} role="alert">
+          <i data-ico="circle-alert" data-size="14"></i>
+          <span className={isMobile ? "m-grow" : "d-grow"}>{t("files.textSaveFailed")} {state.error}</span>
+          <button type="button" className={button()} onClick={() => sync?.retry()}>{t("files.textRetry")}</button>
         </div>
       )}
 
       {hasConflicts && (
-        <div className="pw-detail">
-          <h3>{t("files.textConflict")}</h3>
+        <div className={isMobile ? "m-doc-frame" : "d-card-body d-col"}>
+          <div className={isMobile ? "m-doc-head" : "d-t-sm"}>{t("files.textConflict")}</div>
           {state.conflicts.map((conflict) => (
-            <div key={conflict.key} style={{ display: "grid", gap: "var(--s2)", marginTop: "var(--s2)" }}>
-              <pre className="pw-code-body grow" style={{ maxHeight: "var(--content-cap-xs)", overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.local}</pre>
-              <button
-                type="button"
-                className="pw-btn sm"
-                onClick={() => sync?.resolve(conflict.key, "local")}
-              >
-                {t("files.textKeepLocal")}
-              </button>
-              <pre className="pw-code-body grow" style={{ maxHeight: "var(--content-cap-xs)", overflow: "auto", whiteSpace: "pre-wrap", margin: 0 }}>{conflict.external}</pre>
-              <button
-                type="button"
-                className="pw-btn sm"
-                onClick={() => sync?.resolve(conflict.key, "external")}
-              >
-                {t("files.textUseExternal")}
-              </button>
+            <div key={conflict.key} className={isMobile ? "m-cardgroup" : "d-grid2"}>
+              <div className={isMobile ? "m-cardgroup" : "d-card"}>
+                <div className={isMobile ? "m-doc-head" : "d-card-head"}>
+                  <i data-ico="pencil-line" data-size="14"></i>
+                  <span className={isMobile ? "m-grow" : "d-grow"}>{t("files.textKeepLocal")}</span>
+                </div>
+                <div className={codeClass}>
+                  <div className={codeBodyClass} style={{ padding: "var(--nx-sp-2)", maxHeight: "var(--content-cap-xs)", overflow: "auto", whiteSpace: "pre-wrap" }}>{conflict.local}</div>
+                </div>
+                <div className={isMobile ? "m-doc-body" : "d-card-body"}>
+                  <button
+                    type="button"
+                    className={button("primary")}
+                    onClick={() => sync?.resolve(conflict.key, "local")}
+                  >
+                    <i data-ico="save" data-size="13"></i>
+                    {t("files.textKeepLocal")}
+                  </button>
+                </div>
+              </div>
+              <div className="d-card">
+                <div className="d-card-head">
+                  <i data-ico="download" data-size="14"></i>
+                  <span className={isMobile ? "m-grow" : "d-grow"}>{t("files.textUseExternal")}</span>
+                </div>
+                <div className="d-code">
+                  <div className="d-code-body" style={{ padding: "var(--nx-sp-2)", maxHeight: "var(--content-cap-xs)", overflow: "auto", whiteSpace: "pre-wrap" }}>{conflict.external}</div>
+                </div>
+                <div className="d-card-body">
+                  <button
+                    type="button"
+                    className={button()}
+                    onClick={() => sync?.resolve(conflict.key, "external")}
+                  >
+                    <i data-ico="refresh-cw" data-size="13"></i>
+                    {t("files.textUseExternal")}
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      <div
-        ref={host}
-        className="pw-code-body grow"
-        /* fork:board-diff-2026-10-01 —— `padding: 0` 把 board.css 的
-           `padding: var(--s2) var(--s3)`（8/12）顶掉了 —— 编辑器正文比画板内缩少一截
-           （`52-file-viewer-modes` 的 spec 实测 padding 0 vs 8px 12px）。
-           只读那一支（.file-source-view）本来就零 pw-* 类，暂不在本轮范围。
-           这里删掉 padding 让画板给；CodeMirror 自身的行内边距由它自己的主题管。 */
-        style={{ minHeight: 0, overflow: "hidden" }}
-        aria-label={getFileName(filePath)}
-        data-saving={state.saving ? "true" : "false"}
-      />
+      <div className={codeClass} style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", border: 0, borderRadius: 0 }}>
+        <div
+          ref={host}
+          className={`${codeBodyClass} ${isMobile ? "m-grow" : "d-grow"}`}
+          /* fork:board-diff-2026-10-01 —— 编辑器的行内边距由 CodeMirror 自己的主题管；
+             `.d-code-body` 的 padding / overflow-x 在这里让位，只留 `.d-code` 的壳。 */
+          style={{ minHeight: 0, overflow: "hidden", padding: 0 }}
+          aria-label={getFileName(filePath)}
+          data-saving={state.saving ? "true" : "false"}
+        />
+      </div>
 
-      <div className="pw-card-foot">
-        <span className="pw-ico pw-dim"><i data-ico="circle" data-size="12"></i></span>
-        <span>Ln {cursor[0]} · Col {cursor[1]}</span>
-        <span className="grow" />
+      <div className={codeHeadClass} style={{ borderTop: "1px solid var(--nx-code-line)" }}>
+        <i data-ico="circle" data-size="12"></i>
+        <span className={isMobile ? "m-grow" : "d-grow"}>Ln {cursor[0]} · Col {cursor[1]}</span>
         <span>{[typeLabel, state.content.includes("\r\n") ? "CRLF" : "LF", "UTF-8"].join(" · ")}</span>
       </div>
     </div>

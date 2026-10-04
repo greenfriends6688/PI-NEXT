@@ -48,60 +48,69 @@ export default {
     script: `
   const byIco = (root, name) => [...root.querySelectorAll('[data-ico="' + name + '"]')][0];
   // 项目组默认收着：先点箭头展开，再点第一条会话。
-  if (!document.querySelector(".pw-session")) {
-    const chev = byIco(document.querySelector(".pw-side-scroll") ?? document, "chevron-right");
+  if (!document.querySelector(".d-sess")) {
+    const chev = byIco(document.querySelector(".d-side-scroll") ?? document, "chevron-right");
     const toggle = chev?.closest("[role=button]");
     if (toggle) { toggle.click(); await new Promise((r) => setTimeout(r, 700)); }
   }
-  const row = document.querySelector(".pw-session");
+  const row = document.querySelector(".d-sess");
   if (row) { row.click(); await new Promise((r) => setTimeout(r, 2600)); }
 
   // 回合结束后过程时间轴是折起的（画板 08 的折叠规则）。
-  const head = document.querySelector(".pw-proc-head");
+  const head = document.querySelector(".d-card-head");
   if (head && head.getAttribute("aria-expanded") === "false") {
     head.click(); await new Promise((r) => setTimeout(r, 1200));
   }
   // 工具卡只有「展开 / 报错」时才上卡（MessageView.tsx: showExpandedSurface）。
-  const steps = [...document.querySelectorAll(".pw-step")];
+  const steps = [...document.querySelectorAll(".d-step")];
   const step = steps.find((s) => /read|读取/i.test(s.textContent || "")) ?? steps[steps.length - 1];
   if (step) { step.click(); await new Promise((r) => setTimeout(r, 1200)); }
   const cardHead = document.querySelector(".pw-card-head");
   if (cardHead) { cardHead.click(); await new Promise((r) => setTimeout(r, 1200)); }
 
   // 画板帧 0 B 的「范围下拉」那族浮窗原子：产品里由顶栏会话切换器出同样的 DOM。
-  const title = document.querySelector(".pw-tb-title");
+  const title = document.querySelector(".d-tb-title");
   if (title) { title.click(); await new Promise((r) => setTimeout(r, 1200)); }
 `,
   },
+  // fork:v5-old-layer（2026-10-04）—— 产品侧全部换成画板 D-03c/D-03d 的 v5 类；
+  // 画板侧仍取 v1 的 pw-*。逐条依据：
+  //   .pw-turn-end   → MessageView.tsx:1090 d-turn-end（行内三格是 .d-mono.d-t-xs）
+  //   .pw-card/-head/-body → ChatWindow.tsx:587 d-card + d-card-head、d-card-body
+  //   .pw-pop/-title/-prow/-sep → d-pop / d-pop-title / d-menu-row / d-sep
+  //   .pw-badge.ok / .pw-btn.sm → d-badge.ok / d-btn.sm（画板帧 3 的「已完成」）
+  //   .pw-todo        → TodoChip.tsx:102 d-card（条目本体是 .d-row）
+  //   .pw-img         → MessageView.tsx:1878 d-placeholder（图片块）
+  //   .pw-filecard    → TurnWrittenFiles.tsx:30/37 d-chips + d-cite
   pairs: [
     // 帧 3 回合结束行：行本身 / 行内徽章 / 行内发丝线
-    [".pw-turn-end", ".pw-turn-end"],
-    [".pw-turn-end .pw-badge", ".pw-turn-end .pw-badge"],
-    [".pw-turn-end .rule", ".pw-turn-end .rule"],
+    [".pw-turn-end", ".d-turn-end"],
+    [".pw-turn-end .pw-badge", ".d-turn-end .d-badge"],
+    [".pw-turn-end .rule", ".d-turn-end .d-grow"],
     // 帧 1 B / 帧 2 E / 帧 4 A 共用的工具卡三件（`.pw-card` 壳 + 头 + 体）
-    [".pw-card", ".pw-card"],
-    [".pw-card-head", ".pw-card-head"],
-    [".pw-card-body", ".pw-card-body"],
+    [".pw-card", ".d-card"],
+    [".pw-card-head", ".d-card-head"],
+    [".pw-card-body", ".d-card-body"],
     // 帧 3 的 success 徽章（产品侧对应过程头行的「已完成」）
-    [".pw-badge.ok", ".pw-badge.ok"],
+    [".pw-badge.ok", ".d-badge.ok"],
     // 帧 0 A/B 的小按钮与浮窗行族
-    [".pw-btn.sm", ".pw-btn.sm"],
-    [".pw-pop", ".pw-pop"],
-    [".pw-pop-title", ".pw-pop-title"],
-    [".pw-prow", ".pw-prow"],
-    [".pw-sep", ".pw-sep"],
+    [".pw-btn.sm", ".d-btn.sm"],
+    [".pw-pop", ".d-pop"],
+    [".pw-pop-title", ".d-pop-title"],
+    [".pw-prow", ".d-menu-row"],
+    [".pw-sep", ".d-sep"],
     // 下面这些是**内容决定**的：种子会话里没有对应内容，产品就整个不渲染。
-    [".pw-compact", ".pw-compact"],
-    [".pw-toast", ".pw-toast"],
-    [".pw-plan", ".pw-plan"],
-    [".pw-todo", ".pw-todo"],
-    [".pw-img", ".pw-img"],
-    [".pw-filecard", ".pw-filecard"],
-    [".pw-turn-end .pw-mono", ".pw-turn-end .pw-mono"],
+    [".pw-compact", ".d-card:has(.d-card-head .d-mono)"],
+    [".pw-toast", ".d-toast"],
+    [".pw-plan", ".d-plan"],
+    [".pw-todo", ".d-card:has(.fork-todo-title)"],
+    [".pw-img", ".d-tool-body .d-placeholder"],
+    [".pw-filecard", ".d-chips"],
+    [".pw-turn-end .pw-mono", ".d-turn-end .d-mono"],
   ],
   knownDiffs: [
     {
-      sel: ".pw-card",
+      sel: ".d-card",
       reason:
         "**取景差异（比到的是继承字号）**：`board.css` 的 `.pw-card` 没写 font-size，"
         + "所以这一条量到的是**宿主继承来的值**。画板帧 1 B / 帧 4 A 那两张卡的可见文字"
@@ -114,7 +123,7 @@ export default {
         + "往卡体里直接放裸文本时能看到它。",
     },
     {
-      sel: ".pw-card-body",
+      sel: ".d-card-body",
       reason:
         "**取景差异（比到的是继承字号）**：同 `.pw-card`。`.pw-card-body` 在 board.css 里"
         + "只声明 `border-top` 与背景，没有字号，比到的是继承值（画板 13px/19.5，"
@@ -123,58 +132,58 @@ export default {
         + "`.pw-term`（board.css 原值 12.5px）接管；盒模型与发丝线两边逐项一致。",
     },
     {
-      sel: ".pw-turn-end .rule",
+      sel: ".d-turn-end .d-grow",
       reason:
         "**取景差异**：`.rule` 是 `flex: 1`，宽度完全由所在行宽决定。画板整页帧宽 1440"
         + "→ 回合结束行 1440、`.rule` 1115.7；产品转录列 800 → 回合结束行 800、"
         + "`.rule` 721.3。差 394.4px 是列宽差不是组件差（板面自身的取景）。",
     },
     {
-      sel: ".pw-sep",
+      sel: ".d-sep",
       reason:
         "**取景差异**：`.pw-sep` 没有自己的宽度，撑满所在浮窗。画板帧 0 B 的浮窗样张"
         + "内联 `width:280px` → 分隔线 258；产品顶栏会话切换器浮窗 320 → 分隔线 298。"
         + "高 1px、底色、圆角两边一致。",
     },
     {
-      sel: ".pw-compact",
+      sel: ".d-card:has(.d-card-head .d-mono)",
       reason:
         "**数据依赖**：压缩卡只在会话里出现过 compaction 消息时才有（MessageView.tsx:1618 "
         + "的 `CompactionMessageView`）。种子会话没有压缩事件，产品整个节点不存在。",
     },
     {
-      sel: ".pw-toast",
+      sel: ".d-toast",
       reason:
         "**状态依赖**：通知条由运行时 notice 队列驱动（ChatWindow.tsx `NoticeShelf`），"
         + "只出现在失败 / 警告 / 成功事件之后，且 6 秒自收。静态会话打开后没有 notice，"
         + "不渲染 `.pw-toast`。",
     },
     {
-      sel: ".pw-plan",
+      sel: ".d-plan",
       reason:
         "**数据依赖**：计划卡由 `todo` 工具的 tool-result `details`（`kind: pi-web-todo`）"
         + "驱动（components/fork/TodoChip.tsx + lib/todo-state.ts）。种子会话里没有 "
         + "todo 工具结果 → `summary.total === 0` → 组件 return null，连 chip 都不渲染。",
     },
     {
-      sel: ".pw-todo",
+      sel: ".d-card:has(.fork-todo-title)",
       reason:
         "**数据依赖**：同 `.pw-plan` —— 条目本体只在计划卡展开面板里，展开的前提是有 todo 数据。",
     },
     {
-      sel: ".pw-img",
+      sel: ".d-tool-body .d-placeholder",
       reason:
         "**数据依赖**：内嵌图片预览要有消息 / 工具结果里的 image 块（MessageView.tsx:1556 "
         + "的 `ResultImages`）。种子会话是纯文本 + 一个 read 工具结果，没有图片。",
     },
     {
-      sel: ".pw-filecard",
+      sel: ".d-chips",
       reason:
         "**数据依赖**：文件卡由「本轮写入的文件」或附件条目驱动（TurnWrittenFiles / "
         + "MessageView.tsx:1704）。种子会话的 read 是只读工具，不产生写入文件，也没有附件。",
     },
     {
-      sel: ".pw-turn-end .pw-mono",
+      sel: ".d-turn-end .d-mono",
       reason:
         "**数据依赖**：回合结束行里的耗时 / token / 成本三格都来自 `message.usage` 与"
         + "「与上一条消息的时间差」（MessageView.tsx:839-850）。种子会话的 assistant "

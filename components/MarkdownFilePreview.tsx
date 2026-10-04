@@ -9,6 +9,9 @@ import { parseFrontmatter } from "@/lib/frontmatter";
 import { markdownPreviewRehypePlugins, markdownPreviewRemarkPlugins, markdownUrlTransform, normalizeDisplayMath } from "@/lib/markdown";
 import { CodeBlock, MermaidBlock } from "./MermaidBlock";
 import { FrontmatterCard } from "./FrontmatterCard";
+// fork:v5-wave-b —— PWA 形态：正文容器与表格换成画板 M-02 的 `.m-md` /
+// `.m-tbl-scroll` + `.m-tbl`（手机上的第二条硬纪律：表格自带横滚）。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 export interface MarkdownFileContext {
   filePath: string;
@@ -110,6 +113,7 @@ function sourceLineAttributes(node: unknown): Record<string, number> {
 
 /** Shared by the read-only preview and editor's complex blocks. */
 export function MarkdownFilePreview({ content, filePath, cwd, sourceSessionId, onOpenFile, sourceLines = true }: MarkdownFileContext & { content: string; sourceLines?: boolean }) {
+  const isPwa = usePwaSkin();
   const directory = getFileDirectory(filePath);
   const frontmatter = useMemo(() => parseFrontmatter(content), [content]);
   const normalized = useMemo(() => normalizeDisplayMath(content), [content]);
@@ -121,9 +125,24 @@ export function MarkdownFilePreview({ content, filePath, cwd, sourceSessionId, o
     h5({ node, ...props }) { return <h5 {...props} {...sourceLineAttributes(node)} />; },
     h6({ node, ...props }) { return <h6 {...props} {...sourceLineAttributes(node)} />; },
     p({ node, ...props }) { return <p {...props} {...sourceLineAttributes(node)} />; },
-    blockquote({ node, ...props }) { return <blockquote {...props} {...sourceLineAttributes(node)} />; },
+    blockquote({ node, ...props }) { return <blockquote {...props} className="d-quote" {...sourceLineAttributes(node)} />; },
     li({ node, ...props }) { return <li {...props} {...sourceLineAttributes(node)} />; },
-    table({ node, ...props }) { return <table {...props} {...sourceLineAttributes(node)} />; },
+    table({ node, ...props }) {
+      if (isPwa) {
+        // fork:v5-wave-b —— 窄屏抄 M-02 帧 B 的横滚表格。
+        return (
+          <div className="m-tbl-scroll">
+            <table {...props} className="m-tbl" {...sourceLineAttributes(node)} />
+          </div>
+        );
+      }
+      return (
+        // fork:v5-landing —— GFM 表格用画板 D-03b/D-06b 的 .d-tbl-wrap + .d-table。
+        <div className="d-tbl-wrap">
+          <table {...props} className="d-table" {...sourceLineAttributes(node)} />
+        </div>
+      );
+    },
     code({ className, children, node, ...props }) {
       const lang = className?.replace("language-", "").toLowerCase() ?? "";
       const raw = String(children);
@@ -153,7 +172,7 @@ export function MarkdownFilePreview({ content, filePath, cwd, sourceSessionId, o
       // eslint-disable-next-line @next/next/no-img-element
       return <img src={imageSrc} alt={alt ?? ""} loading="lazy" {...props} />;
     },
-  }), [directory, cwd, sourceSessionId, onOpenFile]);
+  }), [directory, cwd, sourceSessionId, onOpenFile, isPwa]);
   // fork:fix-md-preview — 行号 spans 现在是可选的（默认仍开启，见下方权衡）。
   //
   // `rehypeSourceLineSpans` 会逐个 text 节点按换行切分并给每一行注上 `data-source-line`，
@@ -167,11 +186,12 @@ export function MarkdownFilePreview({ content, filePath, cwd, sourceSessionId, o
   const rehypePlugins = useMemo(() => sourceLines
     ? [...(markdownPreviewRehypePlugins ?? []), rehypeSourceLineSpans]
     : (markdownPreviewRehypePlugins ?? []), [sourceLines]);
-  // fork:design-system —— 正文容器挂画板 10 的 .pw-md（段落 / 标题 / 列表 / 行内代码 /
-  // 引用 / 链接 / 分割线的排版全归它），frontmatter 卡仍在卡外单独成卡（画板 52 B 段）。
+  // fork:v5-landing —— 正文容器挂画板 D-06b 帧 B 的 `.d-md`（段落 / 标题 / 列表 / 行内代码 /
+  // 引用 / 链接 / 分割线的排版全归它），frontmatter 卡仍在卡外单独成卡。
+  // fork:v5-wave-b —— 窄屏 = M-02 的 `.m-md`。
   return <>
     {frontmatter.data && <FrontmatterCard data={frontmatter.data} />}
-    <div className="pw-md">
+    <div className={isPwa ? "m-md" : "d-md"}>
       <ReactMarkdown remarkPlugins={markdownPreviewRemarkPlugins} rehypePlugins={rehypePlugins}
         urlTransform={onOpenFile ? markdownUrlTransform : undefined} components={components}>{normalized}</ReactMarkdown>
     </div>

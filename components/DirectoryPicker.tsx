@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { PwaDirectoryPicker } from "./pwa/PwaDirectoryPicker";
 
 interface DirectoryEntry {
   name: string;
@@ -30,12 +32,9 @@ async function loadDirectories(directory?: string): Promise<BrowseResponse> {
   return data;
 }
 
-/* fork:design-system —— 图标改画板图标集（`data-ico` + icons.js 水合），手绘 SVG 全部退役。
- * 实名与画板 50 的 D 段一致：目录列表 folder / 盘符 hard-drive、上一级 arrow-up、
- * 新建 folder-plus、重命名 square-pen、删除 trash-2、关闭 x。 */
-function Icon({ name, size = 14 }: { name: string; size?: number }) {
-  return <span className="pw-ico"><i data-ico={name} data-size={size}></i></span>;
-}
+/* fork:design-components —— 图标改画板图标集（`data-ico` + icons.js 水合），手绘 SVG 全部退役。
+ * 实名与画板 D-26b 帧 A / 50 的 D 段一致：目录列表 folder / 盘符 hard-drive、
+ * 上一级 arrow-up、新建 folder-plus、重命名 square-pen、删除 trash-2、关闭 x。 */
 
 function isWindowsDriveRoot(directory: string): boolean {
   return /^[a-zA-Z]:[\\/]?$/.test(directory);
@@ -51,6 +50,7 @@ interface Props {
 
 export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false, error }: Props) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const [currentPath, setCurrentPath] = useState("");
   const [parentDirectory, setParentDirectory] = useState<string | null>(null);
@@ -206,11 +206,105 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
 
   if (!portalTarget) return null;
 
+  /* fork:v5-wave-b-sysstate —— 窄屏 = M-10 帧 C-1 的 `.m-scrim` + `.m-sheet`
+     （DOM 在 `components/pwa/PwaDirectoryPicker.tsx`）。系统原生选框那条主路径
+     （/api/cwd/pick）不受影响，仍然在桌面分派；本文件两个分支共享同一份状态
+     与回调，接口调用与快捷键零变化。 */
+  if (isMobile) {
+    return createPortal(
+      <div
+        ref={dialogRef}
+        {...dialogProps}
+        className="directory-picker-backdrop"
+        aria-labelledby="directory-picker-title"
+        style={{ position: "fixed", inset: 0, zIndex: "var(--nx-z-modal)" }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !pickerBusy) onCancel();
+        }}
+      >
+        <PwaDirectoryPicker
+          currentPath={currentPath}
+          pathInput={pathInput}
+          onPathInputChange={(value) => {
+            setPathInput(value);
+            setLoadError(null);
+          }}
+          onPathSubmit={handlePathSubmit}
+          parentPath={parentDirectory}
+          canNavigateUp={canNavigateUp}
+          onNavigate={(path) => void navigateTo(path)}
+          loading={loading}
+          drives={drives}
+          directories={directories}
+          hasUncommittedPath={hasUncommittedPath}
+          pickerBusy={pickerBusy}
+          busy={busy}
+          canSelect={canSelect}
+          operation={operation}
+          operationBusy={operationBusy}
+          onOperationNameChange={(name) => {
+            setOperation((current) => (current ? { ...current, name } : current));
+            setOperationError(null);
+          }}
+          onOperationSubmit={handleOperationSubmit}
+          onOperationCancel={() => {
+            setOperation(null);
+            setOperationError(null);
+          }}
+          renameInputRef={renameInputRef}
+          onRenameNameChange={(name) => {
+            setOperation((current) => (current?.kind === "rename" ? { ...current, name } : current));
+            setOperationError(null);
+          }}
+          onRenameBlur={() => {
+            if (skipRenameBlurRef.current) {
+              skipRenameBlurRef.current = false;
+              return;
+            }
+            const activeOperation = operation;
+            if (activeOperation?.kind === "rename" && activeOperation.path === renamingPath) {
+              void submitOperation(activeOperation);
+            }
+          }}
+          onRenameKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              const activeOperation = operation;
+              if (activeOperation?.kind === "rename" && activeOperation.path === renamingPath) {
+                void submitOperation(activeOperation);
+              }
+            }
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              skipRenameBlurRef.current = true;
+              setOperation(null);
+              setOperationError(null);
+            }
+          }}
+          confirmDeletePath={confirmDeletePath}
+          deleteBusy={deleteBusy}
+          onDeleteCancel={() => {
+            setConfirmDeletePath(null);
+            setDeleteError(null);
+          }}
+          onDeleteConfirm={(entry) => void performDelete(entry)}
+          onRenameStart={beginRename}
+          onDeleteStart={beginDelete}
+          onCreateStart={beginCreate}
+          errorText={loadError ?? error ?? operationError ?? deleteError}
+          onCancel={onCancel}
+          onSelect={() => onSelect(currentPath)}
+        />
+      </div>,
+      portalTarget,
+    );
+  }
+
   return createPortal(
     <div
       ref={dialogRef}
       {...dialogProps}
-      className="directory-picker-backdrop"
+      className="directory-picker-backdrop d-modal is-open"
       aria-label={t("directoryPicker.selectDirectory")}
       onClick={(event) => {
         if (event.target === event.currentTarget && !pickerBusy) onCancel();
@@ -218,27 +312,30 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
       onKeyDown={(event) => {
         if (event.key === "Escape" && !pickerBusy) onCancel();
       }}
-      style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--scrim)" }}
     >
-      {/* fork:design-system —— 自绘降级态 = 画板 50 的 D 段「目录选择 · 回退：自绘浏览器」：
-        * pw-modal 壳 › pw-modal-head（folder-open 图标 + 标题 + grow + 「上一级」pw-btn.sm +
-        * pw-iconbtn.sm 关闭）› pw-modal-body（路径行 / 目录列表 pw-list + pw-litem /
-        * 错误 pw-alert）› pw-modal-foot（取消 pw-btn + 选中 pw-btn.primary）。
-        * 系统原生选择器那条主路径（/api/cwd/pick）不在本文件，不受本段影响。 */}
-      <div className="directory-picker-panel pw-modal" style={{ width: 520, maxWidth: "calc(100vw - 16px)", height: "min(620px, calc(100dvh - 16px))", maxHeight: "calc(100dvh - 16px)", display: "flex", flexDirection: "column" }}>
-        <div className="pw-modal-head">
-          <span className="pw-ico"><i data-ico="folder-open" data-size="16"></i></span>
-          <span className="grow">{t("directoryPicker.selectDirectory")}</span>
+      {/* fork:design-components —— 自绘降级态 = 画板 D-26b 帧 A「回退 · 自绘浏览器」：
+        * `.d-modal.is-open` › `.d-modal-box` › `.d-modal-head`（folder-open 图标 + 标题 +
+        * grow + 「转到上级目录」`.d-btn.sm` + `.d-iconbtn` 关闭）› `.d-modal-body`
+        * （路径行 `.d-searchfield` / 目录树 `.d-tree` + `.d-trow.l1` / 错误 `.d-banner.err`）
+        * › `.d-modal-foot`（取消 `.d-btn` + 选中 `.d-btn.primary`）。
+        * 系统原生选择器那条主路径（/api/cwd/pick）不在本文件，不受本段影响。
+        * directory-picker-* 仍是产品侧钩子（app/fork-ui.css 窄屏底部抽屉、board-specs 选择器）。 */}
+      <div
+        className="directory-picker-panel d-modal-box"
+        style={{ width: 520, maxWidth: "calc(100vw - 16px)", height: "min(620px, calc(100dvh - 16px))", maxHeight: "calc(100dvh - 16px)" }}
+      >
+        <div className="d-modal-head d-row">
+          <i data-ico="folder-open" data-size="16" aria-hidden="true" />
+          <span className="d-grow">{t("directoryPicker.selectDirectory")}</span>
           <button
-            className="directory-picker-back pw-btn sm"
+            className="directory-picker-back d-btn sm"
             type="button"
             onClick={() => void navigateTo(parentDirectory ?? undefined)}
             disabled={loading || pickerBusy || !canNavigateUp}
             title={t("directoryPicker.goToParent")}
             aria-label={t("directoryPicker.goToParent")}
-            style={canNavigateUp && !pickerBusy ? undefined : { opacity: 0.45 }}
           >
-            <span className="pw-ico"><i data-ico="arrow-up" data-size="13"></i></span>
+            <i data-ico="arrow-up" data-size="13" aria-hidden="true" />
             {t("directoryPicker.goToParent")}
           </button>
           <button
@@ -247,21 +344,21 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
             disabled={pickerBusy}
             title={t("i18n.close")}
             aria-label={t("i18n.close")}
-            className="pw-iconbtn sm"
+            className="d-iconbtn"
             style={pickerBusy ? { opacity: 0.5 } : undefined}
           >
-            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+            <i data-ico="x" data-size="14" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="pw-modal-body" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
-          <form onSubmit={handlePathSubmit} className="pw-inline">
-            <span className="pw-ico pw-dim"><i data-ico="folder" data-size="13"></i></span>
+        <div className="d-modal-body" style={{ flex: "1 1 auto" }}>
+          <form onSubmit={handlePathSubmit} className="d-searchfield">
+            <i data-ico="folder" data-size="13" aria-hidden="true" />
             <label htmlFor="directory-path" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
               {t("directoryPicker.directoryPath")}
             </label>
             <input
-              className="directory-picker-path pw-input"
+              className="directory-picker-path d-mono"
               id="directory-path"
               type="text"
               value={pathInput}
@@ -273,22 +370,20 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
                 setPathInput(event.target.value);
                 setLoadError(null);
               }}
-              style={{ minWidth: 0, flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
             />
             <button
-              className="directory-picker-new pw-btn sm"
+              className="directory-picker-new d-btn sm"
               type="button"
               onClick={beginCreate}
               disabled={loading || pickerBusy || !currentPath}
               title={t("directoryPicker.newFolder")}
               aria-label={t("directoryPicker.newFolder")}
-              style={loading || pickerBusy || !currentPath ? { opacity: 0.45 } : undefined}
             >
-              <span className="pw-ico"><i data-ico="folder-plus" data-size="13"></i></span>
+              <i data-ico="folder-plus" data-size="13" aria-hidden="true" />
               {t("directoryPicker.newFolder")}
             </button>
             <button
-              className="directory-picker-action pw-btn sm"
+              className="directory-picker-action d-btn sm"
               type="submit"
               disabled={loading || pickerBusy || !pathInput.trim()}
               title={t("directoryPicker.goToDirectory")}
@@ -298,11 +393,11 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
           </form>
 
           {operation?.kind === "create" && (
-            <form onSubmit={handleOperationSubmit} className="pw-inline">
-              <span className="pw-ico pw-dim"><i data-ico="folder-plus" data-size="13"></i></span>
+            <form onSubmit={handleOperationSubmit} className="d-searchfield">
+              <i data-ico="folder-plus" data-size="13" aria-hidden="true" />
               <input
                 id="directory-operation-name"
-                className="pw-input"
+                className="d-mono"
                 type="text"
                 value={operation.name}
                 autoFocus
@@ -312,182 +407,180 @@ export function DirectoryPicker({ onCancel, onSelect, initialPath, busy = false,
                   setOperation((current) => current ? { ...current, name: event.target.value } : current);
                   setOperationError(null);
                 }}
-                style={{ minWidth: 0, flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
               />
-              <button className="directory-picker-action pw-btn sm" type="button" onClick={() => { setOperation(null); setOperationError(null); }} disabled={operationBusy}>
+              <button className="directory-picker-action d-btn sm ghost" type="button" onClick={() => { setOperation(null); setOperationError(null); }} disabled={operationBusy}>
                 {t("i18n.cancel")}
               </button>
-              <button className="directory-picker-action pw-btn sm primary" type="submit" disabled={operationBusy || !operation.name.trim()}>
+              <button className="directory-picker-action d-btn sm primary" type="submit" disabled={operationBusy || !operation.name.trim()}>
+                <i data-ico="check" data-size="13" aria-hidden="true" />
                 {operationBusy ? t("i18n.saving") : t("directoryPicker.create")}
               </button>
             </form>
           )}
 
-          <div className="directory-picker-list pw-list" style={{ flex: 1, minHeight: 0, overflow: "auto", alignContent: "start" }}>
+          {hasUncommittedPath && (
+            <div className="d-banner warn">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+              <span className="d-grow">{t("directoryPicker.openBeforeSelecting")}</span>
+            </div>
+          )}
+
+          <div className="directory-picker-list d-tree" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             {loading ? (
-              <div className="pw-litem pw-dim" role="status">{t("directoryPicker.loadingDirectories")}</div>
+              <div className="d-trow l1 d-t-dim" role="status">{t("directoryPicker.loadingDirectories")}</div>
             ) : drives !== null ? (
               <>
                 {drives.length > 0 ? (
                   drives.map((drive) => (
                     <button
                       key={drive.path}
-                      className="directory-picker-entry pw-litem"
+                      className="directory-picker-entry d-trow l1"
                       type="button"
                       onClick={() => void navigateTo(drive.path)}
                       disabled={pickerBusy}
                       title={drive.path}
                     >
-                      <Icon name="hard-drive" />
-                      <span className="grow"><span className="pw-lname">{drive.name}</span></span>
+                      <i data-ico="hard-drive" data-size="14" aria-hidden="true" />
+                      <span className="d-grow">{drive.name}</span>
                     </button>
                   ))
                 ) : (
-                  <div className="pw-litem pw-dim" role="status">{t("directoryPicker.noDrives")}</div>
+                  <div className="d-trow l1 d-t-dim" role="status">{t("directoryPicker.noDrives")}</div>
                 )}
               </>
             ) : directories.length > 0 ? (
-              directories.map((entry) => (
-                (() => {
-                  const isRenaming = operation?.kind === "rename" && operation.path === entry.path;
-                  const isConfirmingDelete = confirmDeletePath === entry.path;
-                  const isHovered = hoveredDirectoryPath === entry.path;
-                  return (
-                    <div
-                      key={entry.path}
-                      className="directory-picker-row pw-litem"
-                      onMouseEnter={() => setHoveredDirectoryPath(entry.path)}
-                      onMouseLeave={() => setHoveredDirectoryPath(null)}
-                      style={isConfirmingDelete ? { boxShadow: "inset 2px 0 0 var(--error)" } : undefined}
-                    >
-                      {isConfirmingDelete ? (
-                        <>
-                          <span className="pw-ico" style={{ color: "var(--error)" }}>
-                            <i data-ico="trash-2" data-size="14"></i>
-                          </span>
-                          <span className="grow">
-                            <span className="pw-lname">
-                              {t("directoryPicker.confirmDeleteFolder", { name: entry.name.slice(0, 22) + (entry.name.length > 22 ? "…" : "") })}
-                            </span>
-                          </span>
-                          <button
-                            className="pw-btn sm"
-                            type="button"
-                            onClick={() => void performDelete(entry)}
-                            disabled={deleteBusy}
-                            title={t("directoryPicker.deleteFolder")}
-                            style={{ background: "var(--error)", color: "var(--accent-on)" }}
-                          >
-                            <span className="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>
-                            {t("sidebar.delete")}
-                          </button>
-                          <button
-                            className="pw-btn sm outline"
-                            type="button"
-                            onClick={() => { setConfirmDeletePath(null); setDeleteError(null); }}
-                            disabled={deleteBusy}
-                          >
-                            {t("sidebar.cancel")}
-                          </button>
-                        </>
-                      ) : isRenaming ? (
-                        <input
-                          ref={renameInputRef}
-                          className="pw-input"
-                          value={operation.name}
-                          onChange={(event) => {
-                            setOperation((current) => current?.kind === "rename" ? { ...current, name: event.target.value } : current);
-                            setOperationError(null);
-                          }}
-                          onBlur={() => {
-                            if (skipRenameBlurRef.current) {
-                              skipRenameBlurRef.current = false;
-                              return;
-                            }
+              directories.map((entry) => {
+                const isRenaming = operation?.kind === "rename" && operation.path === entry.path;
+                const isConfirmingDelete = confirmDeletePath === entry.path;
+                const isHovered = hoveredDirectoryPath === entry.path;
+                return (
+                  <div
+                    key={entry.path}
+                    className="directory-picker-row d-trow l1"
+                    onMouseEnter={() => setHoveredDirectoryPath(entry.path)}
+                    onMouseLeave={() => setHoveredDirectoryPath(null)}
+                    style={isConfirmingDelete ? { background: "color-mix(in srgb, var(--nx-danger) 7%, transparent)" } : undefined}
+                  >
+                    {isConfirmingDelete ? (
+                      <>
+                        <i data-ico="trash-2" data-size="14" aria-hidden="true" style={{ color: "var(--nx-danger)", flexShrink: 0 }} />
+                        <span className="d-grow">{t("directoryPicker.confirmDeleteFolder", { name: entry.name.slice(0, 22) + (entry.name.length > 22 ? "…" : "") })}</span>
+                        <button
+                          className="directory-picker-action d-btn sm ghost"
+                          type="button"
+                          onClick={() => { setConfirmDeletePath(null); setDeleteError(null); }}
+                          disabled={deleteBusy}
+                        >
+                          {t("sidebar.cancel")}
+                        </button>
+                        <button
+                          className="directory-picker-delete d-btn sm danger"
+                          type="button"
+                          onClick={() => void performDelete(entry)}
+                          disabled={deleteBusy}
+                          title={t("directoryPicker.deleteFolder")}
+                        >
+                          <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+                          {t("sidebar.delete")}
+                        </button>
+                      </>
+                    ) : isRenaming ? (
+                      <input
+                        ref={renameInputRef}
+                        className="directory-picker-rename-input d-input d-mono"
+                        value={operation.name}
+                        onChange={(event) => {
+                          setOperation((current) => current?.kind === "rename" ? { ...current, name: event.target.value } : current);
+                          setOperationError(null);
+                        }}
+                        onBlur={() => {
+                          if (skipRenameBlurRef.current) {
+                            skipRenameBlurRef.current = false;
+                            return;
+                          }
+                          const activeOperation = operation;
+                          if (activeOperation?.kind === "rename" && activeOperation.path === entry.path) void submitOperation(activeOperation);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
                             const activeOperation = operation;
                             if (activeOperation?.kind === "rename" && activeOperation.path === entry.path) void submitOperation(activeOperation);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              const activeOperation = operation;
-                              if (activeOperation?.kind === "rename" && activeOperation.path === entry.path) void submitOperation(activeOperation);
-                            }
-                            if (event.key === "Escape") {
-                              event.stopPropagation();
-                              skipRenameBlurRef.current = true;
-                              setOperation(null);
-                              setOperationError(null);
-                            }
-                          }}
-                          autoFocus
-                          aria-label={`${t("i18n.rename")}: ${entry.name}`}
-                          style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
-                        />
-                      ) : (
-                        <>
-                          <button
-                            className="directory-picker-entry pw-litem"
-                            type="button"
-                            onClick={() => void navigateTo(entry.path)}
-                            disabled={pickerBusy}
-                            title={entry.path}
-                            style={{ flex: 1, minWidth: 0, margin: 0, padding: 0 }}
-                          >
-                            <Icon name="folder" />
-                            <span className="grow"><span className="pw-lname">{entry.name}</span></span>
-                          </button>
-                          {isHovered && !pickerBusy && (
-                            <div style={{ display: "flex", gap: "var(--s1)", flexShrink: 0 }}>
-                              <button
-                                className="directory-picker-rename pw-iconbtn sm"
-                                type="button"
-                                onClick={() => beginRename(entry)}
-                                title={`${t("i18n.rename")}: ${entry.name}`}
-                                aria-label={`${t("i18n.rename")}: ${entry.name}`}
-                              >
-                                <span className="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>
-                              </button>
-                              <button
-                                className="pw-iconbtn sm"
-                                type="button"
-                                onClick={() => beginDelete(entry)}
-                                title={t("directoryPicker.deleteFolder")}
-                                aria-label={`${t("directoryPicker.deleteFolder")}: ${entry.name}`}
-                              >
-                                <span className="pw-ico"><i data-ico="trash-2" data-size="13"></i></span>
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })()
-              ))
+                          }
+                          if (event.key === "Escape") {
+                            event.stopPropagation();
+                            skipRenameBlurRef.current = true;
+                            setOperation(null);
+                            setOperationError(null);
+                          }
+                        }}
+                        autoFocus
+                        aria-label={`${t("i18n.rename")}: ${entry.name}`}
+                        style={{ flex: 1, minWidth: 0, height: "var(--nx-ctl-sm)" }}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          className="directory-picker-entry d-trow l1"
+                          type="button"
+                          onClick={() => void navigateTo(entry.path)}
+                          disabled={pickerBusy}
+                          title={entry.path}
+                          style={{ flex: 1, width: "auto", minWidth: 0, paddingLeft: 0 }}
+                        >
+                          <i data-ico="folder" data-size="14" aria-hidden="true" />
+                          <span className="d-grow">{entry.name}</span>
+                        </button>
+                        {isHovered && !pickerBusy && (
+                          <div className="directory-picker-actions d-row" style={{ flexShrink: 0 }}>
+                            <button
+                              className="directory-picker-rename d-iconbtn"
+                              type="button"
+                              onClick={() => beginRename(entry)}
+                              title={`${t("i18n.rename")}: ${entry.name}`}
+                              aria-label={`${t("i18n.rename")}: ${entry.name}`}
+                            >
+                              <i data-ico="square-pen" data-size="13" aria-hidden="true" />
+                            </button>
+                            <button
+                              className="directory-picker-delete d-iconbtn"
+                              type="button"
+                              onClick={() => beginDelete(entry)}
+                              title={t("directoryPicker.deleteFolder")}
+                              aria-label={`${t("directoryPicker.deleteFolder")}: ${entry.name}`}
+                            >
+                              <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })
             ) : (
-              <div className="pw-litem pw-dim" role="status">{t("directoryPicker.noSubdirectories")}</div>
+              <div className="d-trow l1 d-t-dim" role="status">{t("directoryPicker.noSubdirectories")}</div>
             )}
             {(loadError || error || operationError || deleteError) && (
-              <div className="pw-alert" role="alert">
-                <span className="pw-ico"><i data-ico="circle-alert" data-size="14"></i></span>
-                <span className="grow">{loadError ?? error ?? operationError ?? deleteError}</span>
+              <div className="d-banner err" role="alert">
+                <i data-ico="circle-alert" data-size="14" aria-hidden="true" />
+                <span className="d-grow">{loadError ?? error ?? operationError ?? deleteError}</span>
               </div>
             )}
           </div>
         </div>
  
-        <div className="directory-picker-footer pw-modal-foot">
-          <button className="directory-picker-action pw-btn" type="button" onClick={onCancel} disabled={pickerBusy}>
+        <div className="directory-picker-footer d-modal-foot">
+          <button className="directory-picker-action d-btn" type="button" onClick={onCancel} disabled={pickerBusy}>
             {t("i18n.cancel")}
           </button>
+          <span className="d-grow" />
           <button
-            className="directory-picker-action pw-btn primary"
+            className="directory-picker-action d-btn primary"
             type="button"
             onClick={() => onSelect(currentPath)}
             disabled={!canSelect}
             title={hasUncommittedPath ? t("directoryPicker.openBeforeSelecting") : t("directoryPicker.selectCurrentDirectory")}
-            style={canSelect ? undefined : { opacity: 0.6 }}
           >
             {busy ? t("i18n.checking") : t("directoryPicker.selectThisFolder")}
           </button>

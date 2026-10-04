@@ -60,24 +60,31 @@ export default {
   if (pluginBtn) { pluginBtn.click(); await new Promise((r) => setTimeout(r, 1400)); }
 `,
   },
+  // fork:v5-old-layer（2026-10-04）—— 产品侧已换 v5：
+  //   浮窗壳/行/副文案/分隔 → `.d-pop` / `.d-menu-row` / `.d-menu-row .d-t-xs` / `.d-sep`
+  //   右栏三件 → AppShell.tsx:3432 `.right-panel-container.d-panel` /
+  //              ExplorerPanel.tsx:321 `.file-explorer-header.d-panel-head` /
+  //              AppShell.tsx:3534 `.file-panel-body.d-panel-body`
+  //   标签条 → TabBar.tsx:449/503 `.fork-tabbar.d-tabbar` / `.fork-tab.d-tab`
+  // 画板侧仍取 v1 的 pw-*。
   pairs: [
     // 帧 0 B：插件浮窗本体 + 它的行族
-    [".pw-pop", ".pw-pop"],
-    [".pw-prow", ".pw-prow"],
-    [".pw-prow.pw-desc", ".pw-prow.pw-desc"],
-    [".pw-sep", ".pw-sep"],
+    [".pw-pop", ".d-pop"],
+    [".pw-prow", ".d-menu-row"],
+    [".pw-prow.pw-desc", ".d-menu-row .d-t-xs"],
+    [".pw-sep", ".d-sep"],
     // 帧 0 B widget 头 / 帧 2 面板头的「只读」徽章 / 帧 1 B 的版本徽章
     [".pw-badge", ".pw-badge"],
     [".pw-badge.count", ".pw-badge.count"],
     // 帧 2：右栏只读并排面板的外壳三件
-    [".pw-panel", ".pw-panel"],
+    [".pw-panel", ".right-panel-container.d-panel"],
     // 画板帧 2 量的是「探索面板」的头；产品的探索面板要分支会话才挂得上，
     // 所以拿同一个 board.css 原子在产品里唯一稳定的位置量（右栏面板头）。
-    [".pw-panel-head", ".pw-panel .file-explorer-header"],
-    [".pw-panel-body", ".pw-panel-body"],
+    [".pw-panel-head", ".right-panel-container .file-explorer-header.d-panel-head"],
+    [".pw-panel-body", ".file-panel-body.d-panel-body"],
     // 帧 2 的标签行 / 面板体内容 / 帧 1 B 的附件卡 —— 数据或状态依赖
-    [".pw-tabs", ".pw-tabs"],
-    [".pw-tab", ".pw-tab"],
+    [".pw-tabs", ".fork-tabbar.d-tabbar"],
+    [".pw-tab", ".fork-tab.d-tab"],
     [".pw-list", ".pw-list"],
     [".pw-litem", ".pw-litem"],
     [".pw-alert.info", ".pw-alert.info"],
@@ -89,7 +96,7 @@ export default {
   ],
   knownDiffs: [
     {
-      sel: ".pw-sep",
+      sel: ".d-sep",
       reason:
         "**数据依赖**：画板帧 0 B 的插件浮窗里，`.pw-sep` 分隔「插件包列表」与「widget 卡」。"
         + "产品的顶栏插件浮窗在本工作区查到 0 个扩展包 / 0 个独立扩展"
@@ -98,7 +105,7 @@ export default {
         + "能报出包）后这一条就能量。",
     },
     {
-      sel: ".pw-tab",
+      sel: ".fork-tab.d-tab",
       reason:
         "**数据依赖**：右栏标签条 `.pw-tabs` 渲染出来了但里面 0 个标签 —— 种子工作区 "
         + "`…/pi-web-board-fixtures-*/workspace` 是空目录，没有文件可开；该目录也不是 git "
@@ -106,7 +113,7 @@ export default {
         + "`TabBar.tsx` 的 `tabs.map` 为空 → 没有 `.pw-tab`。",
     },
     {
-      sel: ".pw-tabs",
+      sel: ".fork-tabbar.d-tabbar",
       reason:
         "**取景差异**（已登记形态偏差 DIVERGENCE §49「文件头行 + 标签行 vs 标签行即头行」）："
         + "画板帧 2 的 `.pw-tabs` 是**独立于** `.pw-panel-head` 的一行（高 31，字号从 `.pw-panel` "

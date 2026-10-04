@@ -9,7 +9,6 @@ import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { PortalDropdown, useDismissMenu } from "./PortalDropdown";
 // fork:pwa-sb — 触摸安全的浮层关闭（见那里的注释）：PortalDropdown 自带的
 // useDismissOnOutside 在 mousedown 上同步卸载，触摸时会把菜单项的 click 吞掉。
-import { TEXT } from "@/lib/typography";
 
 interface FileManagerAvailability {
   supported: boolean;
@@ -23,12 +22,6 @@ const FILE_MANAGER_ERROR_KEYS: Record<string, string> = {
   "unsupported-platform": "sidebar.openInExplorerUnsupported",
 };
 
-/**
- * fork:design-components —— 面板头的动作钮 = 画板 30 头行右端那一排
- * `<button class="pw-iconbtn sm">`（行 113-119）：22 见方、无边框、默认弱化色、
- * hover 出深色容器、选中态 `.is-on`。视觉全部来自 board.css，本组件不写颜色、
- * 不写背景、不写尺寸 —— 调用方只给「这一瞬间是不是按下的」。
- */
 function ToolbarIconButton({
   onClick,
   title,
@@ -54,7 +47,39 @@ function ToolbarIconButton({
       title={title}
       aria-label={title}
       aria-pressed={ariaPressed}
-      className={`pw-iconbtn sm${active ? " is-on" : ""}`}
+      className={`d-iconbtn${active ? " is-on" : ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * M-06 帧 A · 手机档顶栏钮（`.m-top-btn`）—— 与桌面的 `.d-iconbtn` 同一个语义
+ * （一枚动作钮），只是形态换成手机顶栏那一颗 44px 圆钮。
+ */
+function MobileTopBarButton({
+  onClick,
+  title,
+  disabled,
+  pressed,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  disabled?: boolean;
+  pressed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      aria-pressed={pressed}
+      className="m-top-btn"
     >
       {children}
     </button>
@@ -178,8 +203,7 @@ export function ExplorerPanel({
 
   /* fork:pwa-sb —— 手机档收进「更多」的那几项。与桌面那一排同源（同一批动作、
      同一批文案），只是换一个容器；顺序照桌面从左到右：文件管理器 / 变更 /
-     上传 / 刷新。搜索与终端留在头行（高频，且 `fileSearchOpen` 是搜索框开关）。 */
-  const overflowTools = useMemo(() => {
+     上传 / 刷新。搜索与终端留在头行（高频，且 `fileSearchOpen` 是搜索框开关）。 */  const overflowTools = useMemo(() => {
     const tools: {
       key: string;
       icon: string;
@@ -220,38 +244,95 @@ export function ExplorerPanel({
     fileManagerLabel, onOpenTerminal, openInFileManager, refreshExplorer, t,
   ]);
 
+  /* M-06 帧 A —— 手机档顶栏右侧那一小段动作。**与桌面头行是同一批 state / 同一批
+     handler**，只是容器从 `.d-panel-head` 换成 `.m-top`：手机上「层级由顶栏路径承担」，
+     顶栏归 `FileExplorer` 自己画（它才知道当前在哪一层），所以这里把动作原样递下去，
+     不在手机档另写一套（原来那套 `.d-iconbtn` 手机分支已删）。 */
+  const mobileTopBar = (
+    <>
+      <MobileTopBarButton
+        onClick={() => setFileSearchOpen((open) => !open)}
+        title={t("sidebar.searchFiles")}
+        pressed={fileSearchOpen}
+      >
+        <i data-ico="search" data-size="16" aria-hidden="true"></i>
+      </MobileTopBarButton>
+      {onOpenTerminal && (
+        <MobileTopBarButton onClick={() => onOpenTerminal(cwd)} title={t("terminal.open")}>
+          <i data-ico="square-terminal" data-size="16" aria-hidden="true"></i>
+        </MobileTopBarButton>
+      )}
+      <div ref={moreRef} className="fork-pwa-sb-tools-more">
+        <MobileTopBarButton
+          onClick={() => setMoreOpen((open) => !open)}
+          title={t("chat.moreControls")}
+          pressed={moreOpen}
+        >
+          <i data-ico="ellipsis" data-size="16" aria-hidden="true"></i>
+        </MobileTopBarButton>
+        <PortalDropdown
+          open={moreOpen}
+          anchorRef={moreRef}
+          panelRef={morePanelRef}
+          className="d-pop fork-pwa-sb-menu"
+          width={210}
+          align="right"
+        >
+          <div role="menu" aria-label={t("chat.moreControls")}>
+            {overflowTools.map((tool) => (
+              <button
+                key={tool.key}
+                type="button"
+                role="menuitem"
+                className="d-menu-row"
+                style={{ width: "100%" }}
+                onClick={() => { closeMore(); if (tool.disabled) return; tool.onSelect(); }}
+                disabled={tool.disabled}
+              >
+                <i data-ico={tool.icon} data-size="14" aria-hidden="true"></i>
+                {tool.label}
+              </button>
+            ))}
+          </div>
+        </PortalDropdown>
+      </div>
+    </>
+  );
+
   return (
+    /* fork:v5-skin D-05 帧 A —— 文件面板：头行照画板 .d-panel-head（folder + .d-viewer-path
+       + 右端 .d-iconbtn），树本体由 FileExplorer 渲染 .d-tree / .d-trow。
+       `file-explorer-section` / `file-explorer-header` 保留：globals.css 的容器查询（窄栏收起
+       标题、换成徽标）与 min-width/overflow 都挂在它们上面，是功能钩子不是视觉来源。 */
     <div
-      className="file-explorer-section"
+      className="file-explorer-section d-col"
       style={{
         height: "100%",
         minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
+        gap: 0,
         overflow: "hidden",
-        background: "var(--bg)",
       }}
     >
-      {/* fork:design-components —— 面板头 = 画板 30 的 `.pw-panel-head`（行 110-120）：
-          `<b>文件</b>` + `grow` 把右端一排 `.pw-iconbtn.sm` 顶到最右；高度取
-          --topbar-height（36）。`file-explorer-header` 保留：globals.css 的
-          min-width/overflow 与容器查询（窄栏收起标签）都挂在它上面。 */}
-      <div className="file-explorer-header pw-panel-head" style={{ borderBottom: explorerOpen ? "1px solid var(--n-border-subtle)" : "none" }}>
+      {/* M-06 帧 A —— 手机档不画这一行：`.m-top`（返回 / 路径 / 筛选 / 新建）由
+          `FileExplorer` 自己画，它才知道当前在哪一层；宿主只把动作递进去。
+          头行的折叠开关在手机上也没有落点（整块面板由 AppShell 的面板钮开关），
+          所以 `isMobile` 时树**始终**展开，不再受持久化的折叠态影响。 */}
+      {!isMobile && (
+      <div className="file-explorer-header d-panel-head" style={{ borderBottom: explorerOpen ? "1px solid var(--nx-line)" : "none" }}>
         <button
           type="button"
-          className="file-explorer-toggle pw-grow"
+          className="file-explorer-toggle d-grow"
           onClick={() => setExplorerOpen((open) => {
             const next = !open;
             saveExplorerOpen(next);
             return next;
           })}
-          /* 折叠 / 展开的触发器：画板 30 的头行没有这一枚（那里是纯 <b>），
-             产品要可点，所以是 button —— UA 归零（描边/底/字体/居中）保留在
-             行内，报告第 2 节给了可归并到 fork-ui.css 的写法。 */
+          /* 折叠 / 展开的触发器：画板的头行没有这一枚（那里是纯路径 + 动作钮），
+             产品要可点，所以是 button —— UA 归零保留在行内。 */
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--space-ctrl)",
+            gap: "var(--nx-sp-1)",
             minWidth: 0,
             background: "none",
             border: "none",
@@ -259,25 +340,16 @@ export function ExplorerPanel({
             cursor: "pointer",
             font: "inherit",
             textAlign: "left",
+            padding: 0,
           }}
         >
-          <span className="pw-ico">
-            <i data-ico={explorerOpen ? "chevron-down" : "chevron-right"} data-size="12"></i>
-          </span>
-          {/* Shown instead of the label once the panel is too narrow for it
-              (@container query in globals.css). Ported from upstream PR #838.
-              The class stays on the outer span because the container query
-              toggles its display; the icon slot itself is the board's .pw-ico. */}
+          <i data-ico={explorerOpen ? "chevron-down" : "chevron-right"} data-size="12" aria-hidden="true"></i>
           <span className="file-explorer-compact-icon">
-            <span className="pw-ico">
-              <i data-ico="folder" data-size="15" aria-hidden="true"></i>
-            </span>
+            <i data-ico="folder" data-size="14" aria-hidden="true"></i>
           </span>
           <b className="file-explorer-title-label">{t("files.explorer")}</b>
-          {/* Which directory this tree is listing: without it an empty tree is
-              indistinguishable from a wrong cwd. `grow` + ellipsis = the board's
-              head-row layout (label left, secondary pushed right). */}
-          <span className="file-explorer-title-label pw-mono pw-dim pw-grow" title={cwd}>
+          {/* 这棵树列的是哪个目录：没有它，空树与错的 cwd 看起来一样。 */}
+          <span className="file-explorer-title-label d-viewer-path d-grow" title={cwd}>
             {cwd.split(/[\/]/).filter(Boolean).at(-1) ?? cwd}
           </span>
         </button>
@@ -285,68 +357,17 @@ export function ExplorerPanel({
             桌面端是七枚一字排开（画板 30 头行那一排），但 390 宽下每枚 22px、
             中心距只有 26px：按到 40px 命中区必须每侧外扩 9px，相邻两枚就会重叠
             14px —— 手指按哪一枚全看绘制顺序。与其抢命中，不如收进「更多」：
-            菜单项是 `.pw-prow`（手机 44px 高），标题也多出 130px。
+            菜单项是 `.d-menu-row`（手机 44px 高），标题也多出 130px。
             留在行内的是两个高频动作（搜索 / 终端）；其余五枚（文件管理器 / 变更 /
             上传 / 刷新 + 头行那枚新建标签由 AppShell 递进来）走「更多」，
             新建标签是 trailingActions，两档都渲染。
-            桌面端不渲染 ⋯，那一排一字未动（画板 30 的对位不受影响）。 */}
-        {isMobile ? (
+            桌面端不渲染 ⋯，那一排一字未动（画板 30 的对位不受影响）。
+            —— 2026-10-04（Wave B / M-06）：手机档这一行整体移入 `.m-top`，
+               桌面那一排 `.d-iconbtn` 原样保留，两处是同一批动作的两个容器。 */}
+        {(
           <>
-            <ToolbarIconButton
-              onClick={() => setFileSearchOpen((open) => !open)}
-              title={t("sidebar.searchFiles")}
-              active={fileSearchOpen}
-              ariaPressed={fileSearchOpen}
-            >
-              <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true"></i></span>
-            </ToolbarIconButton>
-            {onOpenTerminal && (
-              <ToolbarIconButton onClick={() => onOpenTerminal(cwd)} title={t("terminal.open")}>
-                <span className="pw-ico"><i data-ico="square-terminal" data-size="14" aria-hidden="true"></i></span>
-              </ToolbarIconButton>
-            )}
-            <div ref={moreRef} className="fork-pwa-sb-tools-more">
-              <ToolbarIconButton
-                onClick={() => setMoreOpen((open) => !open)}
-                title={t("chat.moreControls")}
-                active={moreOpen}
-                ariaPressed={moreOpen}
-              >
-                <span className="pw-ico"><i data-ico="ellipsis" data-size="14" aria-hidden="true"></i></span>
-              </ToolbarIconButton>
-              <PortalDropdown
-                open={moreOpen}
-                anchorRef={moreRef}
-                panelRef={morePanelRef}
-                className="pw-pop fork-pwa-sb-menu"
-                width={210}
-                align="right"
-              >
-                <div role="menu" aria-label={t("chat.moreControls")}>
-                  {overflowTools.map((tool) => (
-                    <button
-                      key={tool.key}
-                      type="button"
-                      role="menuitem"
-                      className="pw-prow"
-                      style={{ width: "100%" }}
-                      onClick={() => { closeMore(); if (tool.disabled) return; tool.onSelect(); }}
-                      disabled={tool.disabled}
-                    >
-                      <span className="pw-ico">
-                        <i data-ico={tool.icon} data-size="14" aria-hidden="true"></i>
-                      </span>
-                      {tool.label}
-                    </button>
-                  ))}
-                </div>
-              </PortalDropdown>
-            </div>
-          </>
-        ) : (
-          <>
-        {/* PR #907 — 在系统文件管理器里打开当前工作区（终端按钮左侧）。字形取画板 30
-            头行那一枚（行 114 `folder-open`）；平台差异由 title 文案承担
+        {/* PR #907 — 在系统文件管理器里打开当前工作区（终端按钮左侧）。字形取画板
+            头行那一枚（`folder-open`）；平台差异由 title 文案承担
             （Finder / 资源管理器 / 通用），不再另画一套平台图标。 */}
         <ToolbarIconButton
           onClick={() => { void openInFileManager(); }}
@@ -355,14 +376,14 @@ export function ExplorerPanel({
             ? t(fileManager?.reason === "remote" ? "sidebar.openInExplorerRemoteOnly" : "sidebar.openInExplorerUnsupported")
             : fileManagerLabel}
         >
-          <span className="pw-ico"><i data-ico="folder-open" data-size="14" aria-hidden="true"></i></span>
+          <i data-ico="folder-open" data-size="14" aria-hidden="true"></i>
         </ToolbarIconButton>
         {onOpenTerminal && (
           <ToolbarIconButton
             onClick={() => onOpenTerminal(cwd)}
             title={t("terminal.open")}
           >
-            <span className="pw-ico"><i data-ico="square-terminal" data-size="14" aria-hidden="true"></i></span>
+            <i data-ico="square-terminal" data-size="14" aria-hidden="true"></i>
           </ToolbarIconButton>
         )}
         {/* fork:ui-review-button — the changed-files switch was hidden entirely
@@ -379,7 +400,7 @@ export function ExplorerPanel({
             active={changesCount > 0 && !changesCollapsed}
             ariaPressed={changesCount > 0 && !changesCollapsed}
           >
-            <span className="pw-ico"><i data-ico="file-diff" data-size="14" aria-hidden="true"></i></span>
+            <i data-ico="file-diff" data-size="14" aria-hidden="true"></i>
           </ToolbarIconButton>
         )}
         {explorerOpen && (
@@ -391,7 +412,7 @@ export function ExplorerPanel({
             active={fileSearchOpen}
             ariaPressed={fileSearchOpen}
           >
-            <span className="pw-ico"><i data-ico="search" data-size="14" aria-hidden="true"></i></span>
+            <i data-ico="search" data-size="14" aria-hidden="true"></i>
           </ToolbarIconButton>
         )}
         {explorerOpen && (
@@ -400,7 +421,7 @@ export function ExplorerPanel({
             disabled={explorerUploadBusy}
             title={t("sidebar.uploadFilesTitle")}
           >
-            <span className="pw-ico"><i data-ico="upload" data-size="14" aria-hidden="true"></i></span>
+            <i data-ico="upload" data-size="14" aria-hidden="true"></i>
           </ToolbarIconButton>
         )}
         <ToolbarIconButton
@@ -408,9 +429,7 @@ export function ExplorerPanel({
           title={t("sidebar.refreshExplorer")}
           active={explorerRefreshDone}
         >
-          <span className="pw-ico">
-            <i data-ico={explorerRefreshDone ? "check" : "refresh-cw"} data-size="14" aria-hidden="true"></i>
-          </span>
+          <i data-ico={explorerRefreshDone ? "check" : "refresh-cw"} data-size="14" aria-hidden="true"></i>
         </ToolbarIconButton>
           </>
         )}
@@ -419,14 +438,48 @@ export function ExplorerPanel({
             间距由 `fork:pwa-sb-hit-pitch` 兜住。 */}
         {trailingActions}
       </div>
-      {fileManagerErrorMessage && (
-        <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-row)", padding: "0 10px 6px", fontSize: TEXT["2xs"], lineHeight: 1.35, color: "var(--danger)" }}>
-          <span style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}>{fileManagerErrorMessage}</span>
-          <DismissButton onClick={() => setFileManagerError(null)} title={t("files.dismissError")} />
-        </div>
       )}
-      {explorerOpen && (
-        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+      {fileManagerErrorMessage && (
+        /* M-06 —— 手机档同一条横幅换成 `.m-banner.err`（视觉同源，语义一样）。 */
+        isMobile ? (
+          <div role="alert" className="m-banner err" style={{ margin: "8px 12px" }}>
+            <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+            <span className="m-grow" style={{ overflowWrap: "anywhere" }}>{fileManagerErrorMessage}</span>
+            <DismissButton onClick={() => setFileManagerError(null)} title={t("files.dismissError")} />
+          </div>
+        ) : (
+          <div role="alert" className="d-banner err" style={{ margin: "var(--nx-sp-1)" }}>
+            <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow" style={{ overflowWrap: "anywhere" }}>{fileManagerErrorMessage}</span>
+            <DismissButton onClick={() => setFileManagerError(null)} title={t("files.dismissError")} />
+          </div>
+        )
+      )}
+      {/* 手机档不受持久化的折叠态影响：那一行的折叠开关在 `.m-top` 上没有落点，
+          整块面板由 AppShell 的面板钮开关，所以这里始终展开。 */}
+      {(explorerOpen || isMobile) && (
+        isMobile ? (
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+            <FileExplorer
+              ref={fileExplorerRef}
+              cwd={cwd}
+              projectRoot={projectRoot}
+              onOpenFile={onOpenFile}
+              refreshKey={explorerKey}
+              onAtMention={onAtMention}
+              onAtMentions={onAtMentions}
+              onUploadBusyChange={setExplorerUploadBusy}
+              onFileMutated={onExplorerRefresh}
+              changesCollapsed={changesCollapsed}
+              onChangesCountChange={setChangesCount}
+              fileSearchOpen={fileSearchOpen}
+              onFileSearchOpenChange={setFileSearchOpen}
+              /* 宿主那一排动作原样递进 `.m-top`（见上面 `mobileTopBar` 的注释）。 */
+              mobileTopBar={mobileTopBar}
+            />
+          </div>
+        ) : (
+        <div className="d-panel-body" style={{ flex: 1, minHeight: 0, padding: 0 }}>
           <FileExplorer
             ref={fileExplorerRef}
             cwd={cwd}
@@ -445,6 +498,7 @@ export function ExplorerPanel({
             onFileSearchOpenChange={setFileSearchOpen}
           />
         </div>
+        )
       )}
     </div>
   );

@@ -1092,6 +1092,8 @@ export const enLocale: LocalePlugin = {
     "chat.homeReviewDesc": "Check the uncommitted changes in the workspace",
     "chat.homeTestDesc": "Add regression tests for the files you just changed",
     "chat.homeExplainDesc": "Walk through this file from top to bottom",
+    // fork:v5-landing D-01 frame A — starter-card footer hint (fills the prompt, does not send).
+    "chat.homeOneClick": "Fill in one click",
     "chat.running": "Running",
     "chat.runningTool": "Running tool...",
     "chat.truncatedByOutputLimit": "This response was cut off after reaching the model’s output limit. Send a follow-up to continue.",

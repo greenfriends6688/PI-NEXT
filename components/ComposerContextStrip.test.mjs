@@ -1,9 +1,6 @@
-// fork:design-components —— 引用芯片条钉在画板件上。
-//
-// 迁移前这一段是整段自绘：外层 flex + 每枚芯片一套 26px 高 / accent 描边 / 绝对定位的
-// 圆形移除钮 + 两枚手绘 SVG。这条测试把「视觉只有一个来源（board.css）」钉住：
-// 结构必须是画板 20 / 53 的 `.pw-chips` + `.pw-chip`（+ `.accent` 状态），
-// 组件里不许再出现自己的颜色 / 边框 / 阴影 / 字号，也不许再手绘 SVG。
+// fork:v5-skin D-04 —— 引用芯片条换画板 DOM 后，守的等价约束：
+// 容器 .d-chips、芯片 .d-chipbtn（选中 .is-on）、移除钮 .d-iconbtn，
+// 图标一律 <i data-ico>，不再有自有颜色/边框/字号，也不再有手绘 SVG。
 // 交互契约（定位、打开引用、移除、清选区）不许跟着视觉一起被删掉。
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -13,15 +10,14 @@ const source = await readFile(new URL("./ComposerContextStrip.tsx", import.meta.
 // 注释里会写到类名和 SVG 说法，断言前先剥掉。
 const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-test("芯片条挂在画板 20 的 .pw-chips 上，每枚是 .pw-chip", () => {
-  assert.match(code, /className="pw-chips"/, "容器应当是 .pw-chips");
-  assert.match(code, /`pw-chip\$\{active \? " accent" : ""\}`/, "芯片本体应当是 .pw-chip，高亮那枚挂 .accent");
-  assert.match(code, /className="pw-iconbtn sm"/, "移除钮应当是 .pw-iconbtn.sm");
+test("芯片条挂在画板 D-04 的 .d-chips 上，每枚是 .d-chipbtn", () => {
+  assert.match(code, /className="d-chips"/, "容器应当是 .d-chips");
+  assert.match(code, /`d-chipbtn\$\{active \? " is-on" : ""\}`/, "芯片本体应当是 .d-chipbtn，高亮那枚挂 .is-on");
+  assert.match(code, /className="d-iconbtn"/, "移除钮应当是 .d-iconbtn");
 });
 
-test("芯片内容是画板写法：图标槽 + 等宽名称 + data-ico 的 x", () => {
-  assert.match(code, /<span className="pw-ico"><i data-ico=\{icon\} data-size="12"/, "图标要走画板的 .pw-ico + <i data-ico>");
-  assert.match(code, /<span className="pw-mono"/, "名称要走 .pw-mono（画板 53 的路径芯片同款）");
+test("芯片内容是画板写法：data-ico 图标 + 文案", () => {
+  assert.match(code, /<i data-ico=\{icon\} data-size="12">/, "图标要走画板的 <i data-ico>");
   assert.match(code, /data-ico="x" data-size="11"/, "移除钮的图标取画板的 x");
   assert.match(code, /icon="quote"/, "选区引用用 quote 图标");
   assert.match(code, /icon="message-square"/, "会话引用用 message-square 图标");
@@ -37,7 +33,7 @@ test("零手绘 SVG、零自有视觉类", () => {
     [/fontSize/, "fontSize"],
     [/"color:/, "color"],
   ]) {
-    assert.doesNotMatch(code, literal, `组件里不该再出现 ${name}（视觉归 board.css）`);
+    assert.doesNotMatch(code, literal, `组件里不该再出现 ${name}（视觉归 system.css）`);
   }
 });
 

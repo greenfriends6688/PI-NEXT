@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { AnsiText } from "@/components/AnsiText";
 import type { ExtensionWidgetItem } from "@/lib/types";
@@ -48,6 +49,7 @@ export function getNextExpandedWidgetKey(
 
 export function ExtensionWidgets({ widgets }: { widgets: ExtensionWidgetItem[] }) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const idPrefix = useId();
   const previousContentsRef = useRef<Map<string, string[]> | null>(null);
   const updateClearTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -122,34 +124,66 @@ export function ExtensionWidgets({ widgets }: { widgets: ExtensionWidgetItem[] }
             const index = widgets.indexOf(widget);
             const triggerId = `${idPrefix}-trigger-${index}`;
             const panelId = `${idPrefix}-panel-${index}`;
+            // fork:v5-landing Wave B · M-11：窄屏的展开面板 = `.m-collapse`
+            // （`.m-collapse-head` 头行 + `.m-code-body` 等宽正文）。
+            // `.extension-widget-content` 仍挂着 —— 它带用户的「扩展 widget 字号」设置。
+            if (mobile) {
+              return (
+                <section
+                  key={widget.key}
+                  id={panelId}
+                  className="extension-widget-panel m-collapse"
+                  aria-labelledby={triggerId}
+                >
+                  <div className="m-collapse-head">
+                    <i data-ico="blocks" data-size="14" aria-hidden="true"></i>
+                    <span className="m-mono m-grow">{widget.key}</span>
+                    <span className="m-badge mute">{widget.lines.length}</span>
+                    <button
+                      type="button"
+                      className="m-top-btn"
+                      onClick={() => toggleWidget(widget)}
+                      title={t("i18n.collapse")}
+                      aria-label={t("i18n.collapse")}
+                    >
+                      <i data-ico="chevron-up" data-size="15" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <pre className="m-code-body extension-widget-content">
+                    <AnsiText text={formatExtensionWidgetContent(widget.lines)} />
+                  </pre>
+                </section>
+              );
+            }
             return (
-              /* fork:design-components —— 画板 54 帧 B 的展开面板：`.pw-card` 外壳 +
-                 `.pw-card-head`（blocks 图标 + 等宽键名 + 行数徽章 + chevron 收起钮）
-                 + `.pw-code-body`（等宽正文可横向滚动）。`.extension-widget-content`
-                 仍挂着 —— 它带用户的「扩展 widget 字号」设置（--extension-widget-font-size），
-                 视觉并轨的写法见本轮交接里给 fork-ui.css 的片段。 */
+              /* fork:v5-landing —— 展开面板 = v5 画板 D-02b 帧 C「插件状态浮窗」里那张真实的
+                 扩展 widget 卡（BOARDS.md 把 ExtensionWidgets 归到 D-25 的「扩展小部件」，
+                 但 D-25 只声明插槽、不画运行时 widget；真正渲染 widget 的 DOM 在 D-02b）：
+                 `.d-card` > `.d-card-head`（blocks 图标 + 等宽键名 + 行数徽章 + chevron 收起钮）
+                 + `.d-card-body`（等宽正文）。`.extension-widget-content` 仍挂着 —— 它带用户的
+                 「扩展 widget 字号」设置（--extension-widget-font-size）。 */
               <section
                 key={widget.key}
                 id={panelId}
-                className="extension-widget-panel pw-card"
+                className="extension-widget-panel d-card"
                 aria-labelledby={triggerId}
               >
-                <div className="pw-card-head">
-                  <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="blocks" data-size="13" aria-hidden="true"></i></span>
-                  <span className="pw-mono">{widget.key}</span>
-                  <span className="grow" />
-                  <span className="pw-badge count">{widget.lines.length}</span>
+                <div className="d-card-head">
+                  <i data-ico="blocks" data-size="14" aria-hidden="true"></i>
+                  <span className="d-mono d-t-xs">{widget.key}</span>
+                  <span className="d-grow" />
+                  <span className="d-badge mute">{widget.lines.length}</span>
                   <button
                     type="button"
-                    className="pw-iconbtn sm"
+                    className="d-iconbtn"
                     onClick={() => toggleWidget(widget)}
                     title={t("i18n.collapse")}
                     aria-label={t("i18n.collapse")}
                   >
-                    <span className="pw-ico"><i data-ico="chevron-up" data-size="13" aria-hidden="true"></i></span>
+                    <i data-ico="chevron-up" data-size="14" aria-hidden="true"></i>
                   </button>
                 </div>
-                <pre className="pw-code-body extension-widget-content">
+                <pre className="d-card-body d-mono extension-widget-content">
                   <AnsiText text={formatExtensionWidgetContent(widget.lines)} />
                 </pre>
               </section>
@@ -176,11 +210,11 @@ export function ExtensionWidgets({ widgets }: { widgets: ExtensionWidgetItem[] }
           const content = (
             <>
               <span className="extension-widget-update-pulse" aria-hidden="true" />
-              {/* fork:design-components —— 方位三角改画板图标槽：编辑器下方 = chevron-down、
+              {/* fork:v5-landing —— 方位三角保留画板图标槽：编辑器下方 = chevron-down、
                   上方 = chevron-up（画板图标集里没有实心三角，`triangle-alert` 是警告语义，
                   不能借用）。外层 `.extension-widget-placement` 仍是产品为 108px 固定格做的
-                  定位槽，只是不再自己画 svg。 */}
-              <span className="extension-widget-placement pw-ico pw-dim" aria-hidden="true">
+                  定位槽，只去掉旧库的 `pw-ico pw-dim`，图形走 `i[data-ico]`。 */}
+              <span className="extension-widget-placement" aria-hidden="true">
                 <i data-ico={widget.placement === "belowEditor" ? "chevron-down" : "chevron-up"} data-size="12"></i>
               </span>
               <span className="extension-widget-key">{widget.key}</span>

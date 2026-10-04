@@ -57,7 +57,7 @@ function render(platform = "win") {
 test("fork:proma-33-shortcut-guide —— 未接入的键位（⌘F）必须带状态标记，不能只列键帽", () => {
   const html = render("mac");
   // 键位本身在（地图是「现在有什么」，不是「我能改什么」）。
-  assert.match(html, /<span class="pw-kbd">⌘<\/span><span class="pw-kbd">F<\/span>/);
+  assert.match(html, /<span class="d-kbd">⌘<\/span><span class="d-kbd">F<\/span>/);
   // 但它被标成「未接入」，且这条文案只出现在 ⌘F 那一行上。
   assert.match(html, /Not wired up — its own feature handles it/);
   assert.equal((html.match(/Not wired up/g) ?? []).length, 1, "只有 ⌘F 一行带这条标记");
@@ -105,13 +105,13 @@ test("fork:proma-33-shortcut-guide —— 生效值来自 overrides，不是表�
 
 test("无 override 时地图显示的是本平台默认键帽", () => {
   const mac = render("mac");
-  assert.match(mac, /<span class="pw-kbd">⌘<\/span><span class="pw-kbd">B<\/span>/, "mac 侧栏开关是 ⌘B");
-  assert.match(mac, /<span class="pw-kbd">⇧<\/span><span class="pw-kbd">⌘<\/span><span class="pw-kbd">L<\/span>/, "mac 主题切换是 ⇧⌘L");
+  assert.match(mac, /<span class="d-kbd">⌘<\/span><span class="d-kbd">B<\/span>/, "mac 侧栏开关是 ⌘B");
+  assert.match(mac, /<span class="d-kbd">⇧<\/span><span class="d-kbd">⌘<\/span><span class="d-kbd">L<\/span>/, "mac 主题切换是 ⇧⌘L");
   assert.match(mac, /The keys that work on this Mac right now/);
 
   const win = render("win");
-  assert.match(win, /<span class="pw-kbd">Ctrl<\/span><span class="pw-kbd">B<\/span>/, "非 mac 侧栏开关是 Ctrl+B");
-  assert.match(win, /<span class="pw-kbd">Ctrl<\/span><span class="pw-kbd">Shift<\/span><span class="pw-kbd">L<\/span>/, "非 mac 主题切换是 Ctrl+Shift+L");
+  assert.match(win, /<span class="d-kbd">Ctrl<\/span><span class="d-kbd">B<\/span>/, "非 mac 侧栏开关是 Ctrl+B");
+  assert.match(win, /<span class="d-kbd">Ctrl<\/span><span class="d-kbd">Shift<\/span><span class="d-kbd">L<\/span>/, "非 mac 主题切换是 Ctrl+Shift+L");
   assert.match(win, /The keys that work on this device right now/);
   assert.equal(win.includes("⌘"), false, "非 mac 不出现 ⌘");
 });
@@ -122,14 +122,14 @@ test("无 override 时地图显示的是本平台默认键帽", () => {
 
 test("弹层用画板 50 的壳 + 画板 45 的行，无障碍走 useDialogA11y", () => {
   assert.match(source, /useDialogA11y\(\{ open: true, onClose \}\)/, "不手搓焦点陷阱 / Esc");
-  assert.match(source, /className="pw-scrim fork-shortcut-guide-scrim"/);
-  assert.match(source, /className="pw-modal fork-shortcut-guide-modal"/);
-  assert.match(source, /className="pw-modal-head"/);
-  assert.match(source, /className="pw-modal-body fork-shortcut-guide-body"/, "内容行可滚动");
-  assert.match(source, /className="pw-modal-foot"/);
-  assert.match(source, /className="pw-field"/);
-  assert.match(source, /className="pw-sec-title"/);
-  assert.match(source, /<span className="pw-kbd"/, "键帽是画板的 .pw-kbd");
+  assert.match(source, /className="d-modal is-open fork-shortcut-guide-scrim"/);
+  assert.match(source, /className="d-modal-box fork-shortcut-guide-modal"/);
+  assert.match(source, /className="d-modal-head d-row"/);
+  assert.match(source, /className="d-modal-body fork-shortcut-guide-body"/, "内容行可滚动");
+  assert.match(source, /className="d-modal-foot"/);
+  assert.match(source, /className="d-set-row"/);
+  assert.match(source, /className="d-set-sec-t"/);
+  assert.match(source, /<span className="d-kbd"/, "键帽是画板的 .d-kbd");
   // role/aria 由 hook 的 dialogProps 展开，组件不许自己再写一份。
   assert.match(source, /\{\.\.\.dialogProps\}/);
   assert.doesNotMatch(source, /role="dialog"/);
@@ -137,18 +137,9 @@ test("弹层用画板 50 的壳 + 画板 45 的行，无障碍走 useDialogA11y"
   assert.match(source, /<i data-ico="keyboard"/);
   assert.match(source, /<i data-ico="x"/);
   assert.doesNotMatch(source, /<svg/);
-  // 零新 `.pw-*` 类：所有 pw- 类都来自 board.css。
+  // v5 迁移后 JSX 里零 `pw-*` 类：视觉全部走 `.d-*`（旧 CSS 文件保留不动）。
   for (const used of source.match(/className="([^"]*pw-[^"]*)"/g) ?? []) {
-    for (const name of used.match(/pw-[a-z0-9-]+/g) ?? []) {
-      assert.ok(
-        [
-          "pw-scrim", "pw-modal", "pw-modal-head", "pw-modal-body", "pw-modal-foot",
-          "pw-ico", "pw-grow", "pw-iconbtn", "pw-hint", "pw-sec-title", "pw-field",
-          "pw-label", "pw-ctl", "pw-kbd", "pw-btn",
-        ].includes(name),
-        `${name} 不在 board.css 的既有类清单里`,
-      );
-    }
+    assert.fail(`换皮后的 DOM 不许带旧类：${used}`);
   }
   // 分组标题的 id 与 aria-labelledby 配对（单实例，id 不会撞）。
   const rendered = render("mac");

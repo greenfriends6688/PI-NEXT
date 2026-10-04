@@ -3,11 +3,12 @@
 /**
  * fork:pr40-split —— 右栏的双 Pane 壳（两个 Pane + 一条可拖分隔条 + 拖出落点）。
  *
- * 结构直接复用画板的 `.pw-split`（board.css 的 grid 右栏结构），
- * 列宽用 CSS 变量按比例算，**不写死像素**：
+ * fork:v5-skin D-05 —— 分屏外壳沿用接线层已有的 `.split-pane-grid`（fork-ui.css 的
+ * grid 几何）；v5 没有 split 专属类，grid/flex 基座由行内布局值承担，不再借 v1 的
+ * `.pw-split`。列宽用 CSS 变量按比例算，**不写死像素**：
  *   `--split-pane-columns = minmax(0, (100% - 分隔条) × 比例) 分隔条 minmax(0, 余下)`
  * 分隔条宽度取 `--s2`（8px，与 `lib/right-panel-split.ts` 的 `SPLIT_DIVIDER_WIDTH` 同值）。
- * 落点提示复用画板 30 的 `.pw-drop`（虚线强调色落区），不加新 `.pw-*`。
+ * 落点提示用画板的 `.d-drop`（虚线落区，system.css），不加新 `.pw-*`。
  */
 
 import type { ReactNode } from "react";
@@ -43,10 +44,22 @@ export function SplitPaneHost({
   children,
 }: SplitPaneHostProps) {
   const leftShare = Math.max(0, Math.min(1, ratio));
+  const dropZone = (pane: RightPanelPane) => (
+    dropTargetPane === pane ? (
+      <div className="d-drop split-pane-drop" role="presentation" style={{ justifyContent: "center" }}>
+        <i data-ico="columns-2" data-size={18} aria-hidden="true"></i>
+        <span className="d-t-sm">{dropHint}</span>
+      </div>
+    ) : null
+  );
   return (
     <div
-      className="pw-split split-pane-grid"
+      className="split-pane-grid"
       style={{
+        /* v5 没有 split 类：grid/flex 基座放在行内（非设计的布局值）。 */
+        display: "grid",
+        flex: "1 1 auto",
+        minHeight: 0,
         "--split-pane-columns":
           `minmax(0, calc((100% - var(--split-gutter)) * ${leftShare.toFixed(4)}))`
           + " var(--split-gutter)"
@@ -59,12 +72,7 @@ export function SplitPaneHost({
         aria-label={paneLabels.left || undefined}
       >
         {children("left", leftTabId)}
-        {dropTargetPane === "left" ? (
-          <div className="pw-drop split-pane-drop" role="presentation">
-            <span className="mark"><i data-ico="columns-2" data-size={18}></i></span>
-            <span className="pw-dim">{dropHint}</span>
-          </div>
-        ) : null}
+        {dropZone("left")}
       </section>
       <div
         {...dividerProps}
@@ -77,12 +85,7 @@ export function SplitPaneHost({
         aria-label={paneLabels.right || undefined}
       >
         {children("right", rightTabId)}
-        {dropTargetPane === "right" ? (
-          <div className="pw-drop split-pane-drop" role="presentation">
-            <span className="mark"><i data-ico="columns-2" data-size={18}></i></span>
-            <span className="pw-dim">{dropHint}</span>
-          </div>
-        ) : null}
+        {dropZone("right")}
       </section>
     </div>
   );

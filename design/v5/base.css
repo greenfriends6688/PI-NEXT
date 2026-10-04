@@ -1,0 +1,276 @@
+/* ===========================================================================
+ * PI NEXT · 设计体系 v5 · base.css（唯一真值） —— 唯一真值（两套形态共用）
+ *
+ * 这份文件是「为什么这次不会重蹈覆辙」的答案。
+ *
+ * 历史教训（务必先读）：
+ *   上一轮翻车的根因不是「画板长得不对」，是**同一个值有多个来源**：
+ *   产品同时 import 了 `design/pi-web-design/assets/tokens.css`（无前缀 --n-*）
+ *   和 `app/design/tokens.css`（--ds-*），两份都进运行时、无人校验同值 ——
+ *   于是「改一处只对一半」。画板 DOM 与产品 DOM 又是两套类名，靠桥接层映射，
+ *   追不上就漂移（活 bug：`.fork-msg-actions` vs `.pw-msg-acts`）。
+ *
+ * 本文件的分工（结构上让错误不可能发生）：
+ *   · base.css   —— 间距刻度 / 字阶比例 / 行高 / 动效曲线与时长 / 层级 / 透明度 /
+ *                    焦点宽度 / 图标描边。**这些值两端绝对相同，只在这里出现一次。**
+ *   · web/tokens.css —— Web 形态的「形态值」：基准字号、色板、圆角、控件高度、立体模型。
+ *   · pwa/tokens.css —— PWA 形态的「形态值」：同上，另一套。
+ *   · 产品运行时 **只加载 base.css + 其中一套形态**，绝不同时加载两套形态
+ *     （`LANDING.md` 铁律四）。因此同名 token 永远只有一个来源。
+ *
+ * 两套形态「不同」的部分是被允许的（那是设计意图），但必须是**同一角色、不同值**：
+ *   例如 base 定义 `--nx-r-md` 这个「角色」（中号圆角），Web 给 12px、PWA 给 16px。
+ *   角色名（语义）是真值，值是形态。这样两端不可能出现「同一个 class 两个来源」。
+ * =========================================================================== */
+
+/* box-sizing 必须是全局的：**content-box 下 `width:100% + padding` 的行会横向溢出**，
+   一旦父级是 overflow:hidden 的卡片，末列的数值/开关就被裁掉一截（实测 28px）。
+   这类缺陷在画板上表现为「右边少了一块」，很容易被当成设计稿画错了。
+   放在 :root 之前声明，两端形态与产品运行时都一致。 */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* [hidden] 必须压得住组件自带的 display。
+   UA 样式表里的 [hidden] { display: none } 特异性极低，而 .d-panel-head / .d-viewer /
+   .d-card / .d-skel-list 这些类本身是 flex/grid —— 于是 React 里写 hidden={切走}
+   **不会真的藏起来**，切走的页签面板会叠在可见面板上面（2026-10-04 在 D-05 实测）。
+   这一条是全局兜底，normalize.css 也是这么做的；产品侧同样受益。 */
+[hidden] { display: none !important; }
+
+:root {
+  /* ── 1 · 间距：4px 网格，8 档。两端共用（PWA 在 tokens 里覆写个别档）───── */
+  --nx-sp-0:  0px;
+  --nx-sp-1:  4px;   /* 图标与文字、行内间距 */
+  --nx-sp-2:  8px;   /* 控件内边距、列表行 padding */
+  --nx-sp-3:  12px;  /* 面板内边距、卡片间距 */
+  --nx-sp-4:  16px;  /* 区块间距、卡片 padding */
+  --nx-sp-5:  20px;  /* 大区块 */
+  --nx-sp-6:  24px;  /* 分节间距 */
+  --nx-sp-8:  32px;  /* 一级分节 / 空态 */
+  --nx-sp-10: 40px;  /* 空态巨距 */
+
+  /* ── 2 · 字阶比例：一条比例阶，两端各自乘自己的基准字号 ──────────────────
+     这是「一套字阶、两端不同绝对字号」的实现：改基准 --nx-ui 就整体缩放，
+     两端的**档数、档间关系**永远一致。 */
+  --nx-f-xs:      0.79;   /* 11 / 13   图轴、kbd */
+  --nx-f-sm:      0.86;   /* 12 / 15   元信息、分组标题、徽章 */
+  --nx-f-cap:     0.93;   /* 13 / 16   次要说明 */
+  --nx-f-body:    1.00;   /* 14 / 17   正文与控件（基准） */
+  --nx-f-lg:      1.14;   /* 16 / 19   区块标题 */
+  --nx-f-title:   1.43;   /* 20 / 24   页面标题 */
+  --nx-f-display: 2.07;   /* 29 / 35   空态大标题 */
+
+  --nx-lh-tight: 1.25;
+  --nx-lh-ctrl:  1.35;
+  --nx-lh-body:  1.60;
+
+  --nx-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+                "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --nx-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+                  "PingFang SC", "Noto Sans CJK SC", monospace;
+
+  /* ── 3 · 圆角「角色」：xs 徽章 / sm 控件小件 / md 控件与行 / lg 卡片与面板 /
+     xl 浮层与模态 / 2xl 主行动 / pill。
+     角色（语义）是真值，**值是形态** —— 两套 tokens 各写一份。这里给中性默认，
+     保证「只加载 base 也能渲染」。 */
+  --nx-r-xs:  4px;
+  --nx-r-sm:  6px;
+  --nx-r-md:  8px;
+  --nx-r-lg: 12px;
+  --nx-r-xl: 16px;
+  --nx-r-2xl: 20px;
+  --nx-r-pill: 999px;
+
+  /* ── 4 · 控件高度「角色」：xs 徽章 / sm 行内钮 / md 默认 / lg 主行动 ────── */
+  --nx-ctl-xs: 20px;
+  --nx-ctl-sm: 24px;
+  --nx-ctl-md: 28px;
+  --nx-ctl-lg: 32px;
+  --nx-touch-min: 28px;   /* 触控目标下限；PWA 覆写为 44 */
+
+  /* ── 4b · 基准字号 + 派生字阶：改 --nx-ui 即两端整体缩放 ───────────────── */
+  --nx-ui: 14px;
+  --nx-fs-display: calc(var(--nx-ui) * var(--nx-f-display));
+  --nx-fs-title:   calc(var(--nx-ui) * var(--nx-f-title));
+  --nx-fs-lg:      calc(var(--nx-ui) * var(--nx-f-lg));
+  --nx-fs-body:    var(--nx-ui);
+  --nx-fs-cap:     calc(var(--nx-ui) * var(--nx-f-cap));
+  --nx-fs-sm:      calc(var(--nx-ui) * var(--nx-f-sm));
+  --nx-fs-xs:      calc(var(--nx-ui) * var(--nx-f-xs));
+
+  /* ── 4c · 中性色 / 语义色的「角色」：值为形态，这里给中性浅色默认 ────────
+     两套形态各自覆写同一批名字 —— 因此「同一个角色」在全工程只有一个来源。 */
+  --nx-canvas:    #f7f7f8;
+  --nx-panel:     #ffffff;
+  --nx-sidebar:   #f2f2f3;
+  --nx-surface:   #f4f4f5;
+  --nx-surface-hi:#ebebed;
+  --nx-selected:  #e4e4e7;
+  --nx-line:      rgba(9, 9, 11, .10);
+  --nx-line-hi:   rgba(9, 9, 11, .16);
+  --nx-text:      #17171a;
+  --nx-text-2:    #6b6b73;
+  --nx-text-3:    #9a9aa2;
+  --nx-accent:    #17171a;
+  --nx-accent-fg: #ffffff;
+  --nx-ring:      rgba(9, 9, 11, .55);
+  --nx-success:   #1a7f37;
+  --nx-warning:   #a16207;
+  --nx-danger:    #c4331f;
+  --nx-info:      #0b6bcb;
+  --nx-diff-add:  #1a7f37;
+  --nx-diff-del:  #c4331f;
+
+  /* ── 5 · 动效：唯一曲线 + 5 档时长 + 一处扫掠（全系统唯一 linear）───────── */
+  --nx-ease:       cubic-bezier(.22, .61, .36, 1);
+  --nx-ease-out:   cubic-bezier(.16, .84, .28, 1);   /* 只用于「进入」类 */
+  --nx-ease-in:    cubic-bezier(.55, 0, .9, .35);    /* 只用于「退出/收起」类 */
+  --nx-dur-1:      100ms;  /* 颜色 / 悬浮 / 焦点 */
+  --nx-dur-2:      160ms;  /* 展开折叠 / 弹层出现 / 行入场 */
+  --nx-dur-3:      240ms;  /* 整块替换（切会话 / 切标签） */
+  --nx-dur-4:      320ms;  /* 布局尺寸（侧栏 / 抽屉 / 面板宽度） */
+  --nx-dur-5:      480ms;  /* 大块位移（弹层翻转 / 页面切换） */
+  --nx-dur-sweep:  1400ms; /* 运行中扫掠 —— **全系统唯一允许 linear 的地方** */
+  --nx-dur-stagger: 40ms;  /* 成组错开，最多 3 项 */
+
+  /* ── 6 · 层级：所有 z-index 必须取这里的档，不许出现裸数字 ──────────────── */
+  --nx-z-base:    0;
+  --nx-z-raised:  10;
+  --nx-z-sticky:  40;
+  --nx-z-panel:  100;
+  --nx-z-drawer: 250;
+  --nx-z-pop:    500;    /* 浮层 / 下拉 / portal 容器 */
+  --nx-z-modal: 1000;
+  --nx-z-toast: 1100;
+
+  /* ── 7 · 透明度：hover / 选中 / 禁用 / 水位 ─────────────────────────────── */
+  --nx-a-hover:   .06;
+  --nx-a-active:  .10;
+  --nx-a-disabled: .40;
+  --nx-a-ghost:   .06;
+
+  /* ── 8 · 焦点与描边 ──────────────────────────────────────────────────────── */
+  --nx-focus-w:    1.5px;   /* 焦点环宽度（只画在可点元素上）*/
+  --nx-ico-stroke: 1.5;     /* lucide 描边 */
+
+  /* ── 9 · 语义色的「语义」（值由形态给，语义在这里被锁死）─────────────────
+     success 成功/已完成 · warning 待处理/需注意 · danger 失败/危险操作
+     info 纯信息 · diff-add 新增行 · diff-del 删除行
+     任何新颜色必须先归入上面之一，否则不许出现（色相总数 ≤ 5）。 */
+
+  /* ── 10 · 断点（口径写死，代码里不许另起一套）──────────────────────────── */
+  /* M0 手机 <640 · M1 平板 640–1023 · M2 桌面 ≥1024（工作台三栏自 1180 起） */
+
+  /* ── 11 · 排版纪律 ──────────────────────────────────────────────────────── */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── 共享结构原子：两端都用，定义一次 ─────────────────────────────────────── */
+.nx-grow  { flex: 1 1 auto; min-width: 0; }
+.nx-shrink-0 { flex: 0 0 auto; }
+.nx-row   { display: flex; align-items: center; }
+.nx-stack { display: flex; flex-direction: column; }
+.nx-scroll { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+
+/* 图标槽：清掉行高 strut，保证图标与文字垂直居中（历史上的 ±2px 错位） */
+.nx-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+.nx-ico > svg { display: block; }
+
+/* 同一约定必须也挂在**元素选择器**上。
+   画板里写的是裸 `<i data-ico="name">`（没有 .nx-ico 包装层），而 icons.js 会往它
+   里面塞一个 inline `<svg>` —— inline 元素会在基线上留一行 strut，于是图标盒比图标本
+   身高出一截、图标被顶到盒子上半部，与相邻文字并排时就读成「图标比文字高 / 顶部对齐」。
+   v1 的 board.css 有这一条（那儿的注释把坑写得很清楚），v5 只写了 `.nx-ico` —— 于是
+   这套本来无处不在的错位在 v5 又长回来了。任何 icon+文字 / 文字+icon 的组合都靠它居中，
+   不要在个别位置用 margin / translateY 硬凑。 */
+i[data-ico] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 0;
+  font-style: normal;
+  vertical-align: middle;
+}
+i[data-ico] > svg { display: block; }
+
+/* 隐藏但保留可访问性 */
+.nx-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── 铁律：减少动画一律停终态（两端共用）──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 共享动效原子（两端共用 · 关键帧只在这里出现一次）
+ *
+ * 来源与取舍：BoardUI（MIT）的动效手艺值得抄的是**规格**，不是实现 ——
+ * 它是 Tailwind v4 + React Aria，把它的类搬进来等于给本仓再造一套样式来源
+ * （本仓 2026-09-30 删过 BoardUI 那层，原因就是这个）。所以只取三样东西：
+ *   ① 关键帧与时长/曲线；② 「reduced-motion 一律停终态」的纪律（本文件末尾已有）；
+ *   ③ 三个交互形态：输入框环绕光带、四态思考指示器、行展开/收起的 grid 轨道动画。
+ *
+ * 全部用 transform / opacity / clip-path / stroke-dashoffset —— 不用 @property
+ * （Safari 16.4 才有，本仓地板是 16.2），所以环绕光带走 SVG pathLength 归一化。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/* 文字流光：等待中的文案扫过一道高光。颜色透明 + background-clip:text */
+@keyframes nx-shimmer { to { background-position: -200% center; } }
+
+/* 数字变化：值一变就淡一下（计数器、余额、token 数） */
+@keyframes nx-num { from { opacity: .35; } to { opacity: 1; } }
+
+/* 翻卡：0 → -90 落下，90 → -9 → 4 → 0 弹回（末尾的过冲是「机械感」的来源） */
+@keyframes nx-flap-fall { to { transform: rotateX(-90deg); filter: brightness(.86); } }
+@keyframes nx-flap-rise {
+  0%   { transform: rotateX(90deg); filter: brightness(.86); }
+  70%  { transform: rotateX(-9deg); }
+  86%  { transform: rotateX(4deg); }
+  100% { transform: rotateX(0deg); filter: brightness(1); }
+}
+
+/* 行展开/收起：grid-template-rows 0fr↔1fr，后面的行跟着连续上移。
+   位移 400ms、淡入 240ms —— 淡入走更短的钟，所以行先可见再落定。 */
+@keyframes nx-row-grow-in  { from { grid-template-rows: 0fr; } to { grid-template-rows: 1fr; } }
+@keyframes nx-row-grow-out { from { grid-template-rows: 1fr; } to { grid-template-rows: 0fr; } }
+@keyframes nx-row-slide-out { to { translate: 0 -100%; } }
+@keyframes nx-row-fade { from { opacity: 0; filter: blur(2px); } }
+
+/* 标签交换：旧值上浮 5px 淡出，新值从下方 5px 淡入（滚动计数器 / 档位名换字） */
+@keyframes nx-label-out { to { transform: translateY(-5px); opacity: 0; } }
+@keyframes nx-label-in  { from { transform: translateY(5px); opacity: 0; } }
+
+/* 对勾描边：pathLength=1 → dashoffset 与分辨率无关 */
+@keyframes nx-check-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* 图表入场：格子弹入、柱条自基线长起、折线自左向右揭开 */
+@keyframes nx-cell-pop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: scale(1); } }
+@keyframes nx-bar-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes nx-chart-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* 底部面板上滑：从 30% 处带半透明升起（原来只写在 pwa，Web 的底部面板也要用） */
+@keyframes nx-sheet-up { from { transform: translateY(30%); opacity: .5; } }
+
+/* 列表新增一行：从上方 6px 淡入（与 .d-cell-pop 的「弹入」不同语义，后者用于格子） */
+@keyframes nx-list-in { from { opacity: 0; transform: translateY(-6px); } }
+
+/* 思考指示器：星（缩放淡入后消失）与彗星（8 字轨道的 dash 绕行） */
+@keyframes nx-star { 0%,100% { transform: scale(0); opacity: 0; } 40% { transform: scale(1); opacity: 1; } 60% { transform: scale(.8); opacity: .9; } }
+@keyframes nx-dash { to { stroke-dashoffset: -100; } }
+

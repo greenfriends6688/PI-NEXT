@@ -18,6 +18,12 @@ import type { RestorableTab } from "@/lib/recent-closed-tabs";
  *
  * 为什么覆盖全部 tab 而不是只列被折叠的：概览的用途是「找」与「批量关」，
  * 只列折叠项时用户还得先判断某个 tab 在不在被折叠的那部分里。
+ *
+ * fork:v5-landing —— 外观照 `design/v5/web/boards/D-02c-menus-atlas.html` 帧 C
+ * 「标签页总览浮层」原样落地：`d-pop-float` 壳 › `d-searchfield` 搜索头 ›
+ * `d-pop-title`「全部标签」› `d-col` 里的 `d-row`（`d-trow` 行 + `d-iconbtn` 关闭钮）
+ * › `d-sep` ›「最近关闭」`d-row`（`d-menu-row` + `d-btn.sm` 恢复）› `d-sep` ›
+ * 三个 `d-menu-row`（清空最近关闭是 `danger`）。定位仍是 fixed（宿主横向裁切）。
  */
 
 export interface TabOverviewEntry {
@@ -43,9 +49,8 @@ interface Props {
   onClearRecent: () => void;
 }
 
-/* fork:board-diff-2026-10-01 —— 画板 31 第三节的「标签概览」样张是 340px 宽
-   （board.css 的 `.pw-pop` 默认 320）。300 是拍脑袋值，实测比画板窄 40px，
-   导致 `.pw-sep` 等子件跟着窄（318 vs 278）。按画板对齐。 */
+/* fork:board-diff-2026-10-01 —— 画板「标签概览」样张是 340px 宽（旧壳默认 320）。
+   300 是拍脑袋值，实测比画板窄 40px，导致分隔线等子件跟着窄（318 vs 278）。按画板对齐。 */
 const PANEL_WIDTH = 340;
 
 /* fork:design-system —— 标签字形改画板 31 的图标实名：终端 `terminal`、浏览器
@@ -64,9 +69,9 @@ const TAB_KIND_ICON: Record<string, string> = {
 function TabGlyph({ tab }: { tab: TabOverviewEntry }) {
   const icon = tab.kind ? TAB_KIND_ICON[tab.kind] : undefined;
   if (icon) {
-    return <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>;
+    return <i data-ico={icon} data-size="14"></i>;
   }
-  return <span className="pw-ico">{getFileIcon(tab.label, 12)}</span>;
+  return getFileIcon(tab.label, 14);
 }
 
 export function TabOverview({
@@ -131,20 +136,13 @@ export function TabOverview({
   if (!open || !anchor) return null;
 
   return (
-    // fork:design-system SW-02 —— 整个浮层就是画板 31-B 的那一个长菜单：
-    // pw-pop 壳 › pw-pop-search（search 图标 + 过滤输入）› pw-pop-title「全部标签」
-    // › pw-prow 行（当前项 is-on，末位一枚 pw-iconbtn.sm 关闭）› pw-sep ›
-    // pw-pop-title「最近关闭」› pw-prow 行（history 图标 + pw-btn.sm 恢复）›
-    // pw-sep › 三个 pw-prow 动作行（关闭其他 / 关闭全部 / 清空最近关闭）。
-    // 定位仍然是 fixed：宿主 tab 栏 overflow-x:hidden，任何 in-flow 下拉都会被裁掉。
     <div
       ref={panelRef}
       data-tab-overview="true"
       role="dialog"
       aria-label={t("tabs.overview")}
-      className="pw-pop"
+      className="d-pop-float"
       style={{
-        position: "fixed",
         top: anchor.top,
         left: anchor.left,
         zIndex: 400,
@@ -155,8 +153,8 @@ export function TabOverview({
         overflow: "hidden",
       }}
     >
-      <div className="pw-pop-search" style={{ flexShrink: 0 }}>
-        <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
+      <div className="d-searchfield" style={{ margin: "0 var(--nx-sp-1)", flexShrink: 0 }}>
+        <i data-ico="search" data-size="13"></i>
         <input
           ref={inputRef}
           type="search"
@@ -164,104 +162,115 @@ export function TabOverview({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("tabs.overviewSearch")}
           aria-label={t("tabs.overviewSearch")}
-          style={{
-            minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent",
-            font: "inherit", color: "inherit",
-          }}
         />
       </div>
 
       <div style={{ overflowY: "auto", minHeight: 0, flex: 1 }}>
-        <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
-          <span>{t("tabs.overview")}</span>
-          <span className="grow" />
-          <span className="pw-badge count">{visibleTabs.length}</span>
+        <div className="d-pop-title">
+          <span className="d-row">
+            <span>{t("tabs.overview")}</span>
+            <span className="d-grow" />
+            <span className="d-badge mute">{visibleTabs.length}</span>
+          </span>
         </div>
         {visibleTabs.length === 0 && (
-          <div className="pw-prow pw-desc" role="status">
+          <div className="d-pop-foot" role="status">
             {t("tabs.overviewEmpty")}
           </div>
         )}
-        {visibleTabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          return (
-            <div key={tab.id} style={{ display: "flex", alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={() => { onSelectTab(tab.id); onClose(); }}
-                title={tab.filePath}
-                aria-current={isActive ? "true" : undefined}
-                className={`pw-prow${isActive ? " is-on" : ""}`}
-                style={{ flex: 1, minWidth: 0 }}
-              >
-                <TabGlyph tab={tab} />
-                <span className="grow">{tab.label}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onCloseTab(tab.id)}
-                title={t("i18n.close")}
-                aria-label={`${t("i18n.close")} ${tab.label}`}
-                className="pw-iconbtn sm"
-              >
-                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
-              </button>
-            </div>
-          );
-        })}
+        <div className="d-col" style={{ padding: "0 var(--nx-sp-1)" }}>
+          {visibleTabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            // 单例标签（Git 图谱 / 调用轨迹）不挂关闭钮 —— 它们不是「开着的标签」，
+            // 是面板本身（画板 D-02c 帧 C 的注释口径）。
+            const singleton = tab.kind === "git-graph" || tab.kind === "trace";
+            return (
+              <div key={tab.id} className="d-row">
+                <button
+                  type="button"
+                  onClick={() => { onSelectTab(tab.id); onClose(); }}
+                  title={tab.filePath}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`d-trow d-grow${isActive ? " is-on" : ""}`}
+                >
+                  <TabGlyph tab={tab} />
+                  <span className="d-grow">{tab.label}</span>
+                  {isActive && <span className="d-t-xs d-t-faint">{t("agentSwitcher.current")}</span>}
+                </button>
+                {singleton ? (
+                  <span className="d-iconbtn" aria-hidden="true" />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onCloseTab(tab.id)}
+                    title={t("i18n.close")}
+                    aria-label={`${t("i18n.close")} ${tab.label}`}
+                    className="d-iconbtn"
+                  >
+                    <i data-ico="x" data-size="13"></i>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-        <div className="pw-sep" />
-        <div className="pw-pop-title">{t("tabs.recentlyClosed")}</div>
+        <div className="d-sep" />
+        <div className="d-pop-title">{t("tabs.recentlyClosed")}</div>
         {recentClosed.length === 0 ? (
-          <div className="pw-prow pw-desc" role="status">
+          <div className="d-pop-foot" role="status">
             {t("tabs.recentlyClosedEmpty")}
           </div>
         ) : (
           recentClosed.map((tab) => (
-            <button
-              key={`recent:${tab.id}`}
-              type="button"
-              onClick={() => { onRestore(tab); onClose(); }}
-              title={tab.filePath}
-              className="pw-prow"
-            >
-              <span className="pw-ico pw-dim"><i data-ico="history" data-size="14"></i></span>
-              <span className="grow">{tab.label}</span>
-              <span className="pw-btn sm">{t("tabs.restore")}</span>
-            </button>
+            <div key={`recent:${tab.id}`} className="d-row" style={{ padding: "0 var(--nx-sp-1)" }}>
+              <button
+                type="button"
+                onClick={() => { onRestore(tab); onClose(); }}
+                title={tab.filePath}
+                className="d-menu-row d-grow"
+              >
+                <i data-ico="history" data-size="14"></i>
+                <span className="d-grow">{tab.label}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { onRestore(tab); onClose(); }}
+                className="d-btn sm"
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {t("tabs.restore")}
+              </button>
+            </div>
           ))
         )}
 
-        <div className="pw-sep" />
+        <div className="d-sep" />
         <button
           type="button"
           onClick={onCloseOthers}
           disabled={tabs.length < 2}
-          className="pw-prow"
-          style={tabs.length < 2 ? { opacity: 0.45 } : undefined}
+          className="d-menu-row"
         >
-          <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
-          <span className="grow">{t("tabs.closeOthers")}</span>
+          <i data-ico="x" data-size="14"></i>
+          <span className="d-grow">{t("tabs.closeOthers")}</span>
         </button>
         <button
           type="button"
           onClick={onCloseAll}
-          className="pw-prow"
+          className="d-menu-row"
         >
-          <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
-          <span className="grow">{t("tabs.closeAll")}</span>
+          <i data-ico="x" data-size="14"></i>
+          <span className="d-grow">{t("tabs.closeAll")}</span>
         </button>
         {recentClosed.length > 0 && (
           <button
             type="button"
             onClick={onClearRecent}
-            className="pw-prow"
-            style={{ color: "var(--error)" }}
+            className="d-menu-row danger"
           >
-            <span className="pw-ico" style={{ color: "var(--error)" }}>
-              <i data-ico="eraser" data-size="14"></i>
-            </span>
-            <span className="grow">{t("tabs.clearRecent")}</span>
+            <i data-ico="eraser" data-size="14"></i>
+            <span className="d-grow">{t("tabs.clearRecent")}</span>
           </button>
         )}
       </div>

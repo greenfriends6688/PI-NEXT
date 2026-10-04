@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-24 · 首启引导与保存的工作流 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-24 · 提案 · 首启引导与保存的工作流</h1>
+  <p>
+    左边是<b>第一次打开</b>：6 步，每步只问一件事，随时能跳；进度写在一根轨上，
+    用户随时知道「还剩几步、我卡在哪」。
+    右边是<b>第一次把活儿存下来</b>（参照 ZCode 的 <code>saved-workflows/</code>）：
+    带参数的启动表单 + 运行历史 + <b>提升为全局</b>，并按项目分组 ——
+    同一个工作流在 A 项目是私货，在 B 项目能直接调用。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：首启引导 / 保存的工作流</span>
+    <span class="d-tag">组件：OnboardingRail · StepCard · WorkflowForm · WorkflowHistory</span>
+    <span class="d-tag">状态：六步 / 带参表单 / 历史与全局化</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 引导第 1–2 步：欢迎 → 选工作区<span class="d-grow"></span>左轨写全程 6 步，右卡只问这一件事</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">首次启动 · PI NEXT</span>
+              <span class="d-tb-sub">6 步，约 3 分钟 · 每步都能跳过，跳过的那步在设置里随时补</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost" data-demo-open="skip-pop"><i data-ico="x" data-size="13"></i>跳过引导</button>
+            <span class="d-badge info">第 1 步 / 共 6 步</span>
+
+            <div class="d-pop" data-demo-pop="skip-pop" hidden style="right:var(--nx-sp-4);top:var(--nx-sp-4);min-width:300px">
+              <div class="d-pop-title">跳过之后</div>
+              <div class="d-pop-body d-t-xs d-t-dim">
+                引导可以随时回来：设置 · 首次启动 · 重跑引导。跳过的三步（模型与 Key、默认工具档、手机扫码）
+                会变成工作台上的一行提示，<b>不拦你干活</b>。
+              </div>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="play" data-size="14"></i>现在就走完 6 步</button>
+              <button class="d-menu-row"><i data-ico="settings" data-size="14"></i>先跳过，以后再补</button>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">数据不会被清掉：工作区、模型、Key 都已经落盘。</div>
+            </div>
+          </header>
+
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tabs" data-demo-tabs>
+              <button class="d-tab is-on" data-now><span class="d-step-ico" style="width:16px;height:16px">1</span>1 · 欢迎</button>
+              <button class="d-tab" data-demo-tab="step2">2 · 选工作区</button>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">页签可点：两帧之间切的是「这一步问什么」</span>
+            </div>
+
+            <div class="d-grow d-scroll" style="padding:var(--nx-sp-4)">
+
+              <!-- 步骤 1 -->
+              <div data-demo-pane="step1">
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-grid2" style="align-items:start">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-todo" data-size="14"></i>全程 6 步</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>1 · 欢迎</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>2 · 选工作区</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>3 · 配模型与 API Key</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>4 · 选默认工具档</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>5 · 手机扫码连接</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>6 · 完成</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-1)">
+                        <span>前 4 步决定「能不能开工」，第 5 步决定「手机能不能接上」，第 6 步只是确认。</span>
+                        <span>任何一步都能跳过，跳过的会留在工作台上做提示。</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="sparkles" data-size="14"></i>1 · 欢迎</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-4)">
+                      <div class="d-t-title">一句话开始一个任务</div>
+                      <div class="d-t-cap d-t-dim">
+                        pi 跑在你自己的机器上：写代码、跑命令、装依赖都不出本机。要接手机、要发通知，
+                        才需要你主动开那两个开关。
+                      </div>
+                      <div class="d-grid3">
+                        <div class="d-store-card">
+                          <div class="d-store-cover"><i data-ico="terminal" data-size="18"></i></div>
+                          <div class="d-store-card-t d-t-sm">在哪儿跑</div>
+                          <div class="d-store-foot">本地 shell，工作区就是目录</div>
+                        </div>
+                        <div class="d-store-card">
+                          <div class="d-store-cover"><i data-ico="smartphone" data-size="18"></i></div>
+                          <div class="d-store-card-t d-t-sm">谁能看</div>
+                          <div class="d-store-foot">只有你；配对后才加手机</div>
+                        </div>
+                        <div class="d-store-card">
+                          <div class="d-store-cover"><i data-ico="layout-template" data-size="18"></i></div>
+                          <div class="d-store-card-t d-t-sm">怎么复用</div>
+                          <div class="d-store-foot">活儿存成带参工作流</div>
+                        </div>
+                      </div>
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">下一步会问工作区目录 —— 可以先跳过，回来再选。</span>
+                        <button class="d-btn sm ghost">跳过</button>
+                        <button class="d-btn primary">下一步：选工作区<i data-ico="arrow-right" data-size="14"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="shield-check" data-size="14"></i>引导这 6 步都在本机做完，不上传任何东西</div>
+                  <div class="d-card-body d-grid3">
+                    <div class="d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-xs">不发出去的</span>
+                      <span>目录里有哪些文件、读了哪些代码片段、命令历史 —— 全部留在本机。</span>
+                    </div>
+                    <div class="d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-xs">唯一出去的</span>
+                      <span>你自己配的 Key 对应的那一次请求；内容是你在输入框里写的任务。</span>
+                    </div>
+                    <div class="d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-xs">能随时撤的</span>
+                      <span>清 Key、删索引、重建目录信任，都是设置里的一行，不留暗门。</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="layout-dashboard" data-size="14"></i>走完引导之后，工作台首屏长这样</div>
+                  <div class="d-card-body d-grid3">
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-sm">左边 · 你的上下文</span>
+                      <span class="d-t-xs d-t-dim">项目、会话与版本都按「最近」排；回来时自动落在上次那条上。</span>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-sm">中间 · 一句话开始</span>
+                      <span class="d-t-xs d-t-dim">空输入框时给起步卡，点一下就把完整指令填进去，不是分类入口。</span>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-sm">右边 · 需要时才开</span>
+                      <span class="d-t-xs d-t-dim">文件、终端、浏览器、Git 图谱；不用就一直收着，不抢注意力。</span>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              <!-- 步骤 2 -->
+              <div data-demo-pane="step2" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-grid2" style="align-items:start">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-todo" data-size="14"></i>全程 6 步</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>1 · 欢迎</div>
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>2 · 选工作区</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>3 · 配模型与 API Key</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>4 · 选默认工具档</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>5 · 手机扫码连接</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>6 · 完成</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-1)">
+                        <span>工作区 = 一个目录。选错了能改，改完会让索引重建一次。</span>
+                        <span>目录信任只问一次，之后按目录记住。</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="folder-open" data-size="14"></i>2 · 选工作区</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-tree">
+                        <button class="d-trow is-on"><i data-ico="folder-open" data-size="13"></i>~/Desktop/PI NEXT<span class="d-grow"></span><span class="d-badge mute">上次用</span></button>
+                        <button class="d-trow l1"><i data-ico="folder" data-size="13"></i>~/Desktop/pi-codex</button>
+                        <button class="d-trow l1"><i data-ico="folder" data-size="13"></i>~/projects/atlas-api</button>
+                      </div>
+                      <div class="d-field">
+                        <span class="d-field-t">或者输入一个目录</span>
+                        <div class="d-row" style="gap:var(--nx-sp-2)">
+                          <input class="d-input" value="~/Desktop/PI NEXT" aria-label="工作区目录">
+                          <button class="d-btn sm"><i data-ico="search" data-size="13"></i>浏览</button>
+                        </div>
+                      </div>
+                      <div class="d-cites">
+                        <span class="d-cite is-on"><i data-ico="shield-check" data-size="12"></i>已信任此目录</span>
+                        <span class="d-cite"><i data-ico="file-code" data-size="12"></i>1,284 个文件将建索引</span>
+                        <span class="d-cite"><i data-ico="lock" data-size="12"></i>只在本机存路径</span>
+                      </div>
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">没选目录也能继续 —— 发消息时再选目录。</span>
+                        <button class="d-btn sm ghost">跳过</button>
+                        <button class="d-btn primary">下一步：配模型与 Key<i data-ico="arrow-right" data-size="14"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="list-checks" data-size="14"></i>选完目录之后，系统替你做这三件事</div>
+                  <div class="d-card-body">
+                    <div class="d-steps">
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="loader-circle" data-size="10"></i></span><span class="d-step-body">建文件索引（1,284 个文件，约 2 秒）</span><span class="d-step-meta">后台跑</span></div>
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="shield-check" data-size="10"></i></span><span class="d-step-body">记一次目录信任：以后这个目录不再问你</span><span class="d-step-meta">一次</span></div>
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="play" data-size="10"></i></span><span class="d-step-body">试跑一次最小任务，确认真能读到文件再进下一步</span><span class="d-step-meta">10s</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">想换目录：工作台 · 换工作区。索引会重建，历史会话留在原处，不会跟过去。</div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="history" data-size="14"></i>最近打开过的目录（按索引新鲜度排）</div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-1)">
+                    <button class="d-sess"><span class="d-row" style="gap:var(--nx-sp-2)"><span class="d-t-b d-grow" style="text-align:left">~/Desktop/PI NEXT</span><span class="d-badge ok">已索引</span><span class="d-t-xs d-t-faint">2 分钟前</span></span></button>
+                    <button class="d-sess"><span class="d-row" style="gap:var(--nx-sp-2)"><span class="d-t-b d-grow" style="text-align:left">~/Desktop/pi-codex</span><span class="d-badge ok">已索引</span><span class="d-t-xs d-t-faint">昨天</span></span></button>
+                    <button class="d-sess"><span class="d-row" style="gap:var(--nx-sp-2)"><span class="d-t-b d-grow" style="text-align:left">~/projects/atlas-api</span><span class="d-badge warn">需重建索引</span><span class="d-t-xs d-t-faint">4 天前</span></span></button>
+                    <div class="d-t-xs d-t-dim" style="margin-top:var(--nx-sp-1)">列表只读本机的索引元数据；删目录不会删索引，下次打开自动重建。</div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 引导第 3–4 步：配模型与 API Key → 选默认工具档<span class="d-grow"></span>Key 只落本机；工具档先给安全的那一档</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">首次启动 · PI NEXT</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · 已信任</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost" data-demo-open="key-pop"><i data-ico="circle-help" data-size="13"></i>Key 存哪儿</button>
+            <span class="d-badge info">第 3 步 / 共 6 步</span>
+
+            <div class="d-pop" data-demo-pop="key-pop" hidden style="right:var(--nx-sp-4);top:var(--nx-sp-4);min-width:320px">
+              <div class="d-pop-title">API Key 的存放口径</div>
+              <div class="d-pop-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row"><span class="d-dot ok"></span>只写本机钥匙串，不进会话记录、不进 git</div>
+                <div class="d-row"><span class="d-dot ok"></span>发请求时代填，不落日志（<code>Authorization</code> 在工具输出里脱敏成 <code>sk-…9f3a</code>）</div>
+                <div class="d-row"><span class="d-dot warn"></span>用 <code>PI_KEY=…</code> 环境变量可完全绕开钥匙串</div>
+              </div>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">导出工作区配置时，Key 一律替换成占位符 —— 这是导出前唯一会拦你的一步。</div>
+            </div>
+          </header>
+
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tabs" data-demo-tabs>
+              <button class="d-tab is-on" data-now><span class="d-step-ico" style="width:16px;height:16px">3</span>3 · 配模型与 API Key</button>
+              <button class="d-tab" data-demo-tab="step4">4 · 选默认工具档</button>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">页签可点</span>
+            </div>
+
+            <div class="d-grow d-scroll" style="padding:var(--nx-sp-4)">
+
+              <!-- 步骤 3 -->
+              <div data-demo-pane="step3">
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-grid2" style="align-items:start">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-todo" data-size="14"></i>全程 6 步</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>1 · 欢迎</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>2 · 选工作区</div>
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>3 · 配模型与 API Key</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>4 · 选默认工具档</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>5 · 手机扫码连接</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>6 · 完成</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-1)">
+                        <span>Key 可以现在配，也可以等第一次发消息时按需弹。</span>
+                        <span>没配 Key 也能进工作台：所有需要模型的入口都会变成一条提示。</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="key-round" data-size="14"></i>3 · 配模型与 API Key</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-set-row">
+                        <div class="d-set-row-box">
+                          <div class="d-set-row-t">Anthropic</div>
+                          <div class="d-set-row-s">已连通 · 默认 claude-opus-4-6</div>
+                        </div>
+                        <span class="d-badge ok">可用</span>
+                        <button class="d-iconbtn"><i data-ico="pencil" data-size="14"></i></button>
+                      </div>
+                      <div class="d-set-row">
+                        <div class="d-set-row-box">
+                          <div class="d-set-row-t">OpenAI 兼容端点</div>
+                          <div class="d-set-row-s">走自建网关 / one-api 之类</div>
+                        </div>
+                        <span class="d-badge warn">未配 Key</span>
+                        <button class="d-iconbtn"><i data-ico="plus" data-size="14"></i></button>
+                      </div>
+
+                      <div class="d-grid2" style="align-items:end">
+                        <div class="d-field">
+                          <span class="d-field-t">API Key</span>
+                          <div class="d-row" style="gap:var(--nx-sp-2)">
+                            <input class="d-input" value="sk-ant-••••••••9f3a" aria-label="API Key">
+                            <button class="d-btn sm"><i data-ico="eye" data-size="13"></i></button>
+                          </div>
+                        </div>
+                        <div class="d-field">
+                          <span class="d-field-t">默认模型</span>
+                          <button class="d-select" style="width:100%"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i class="d-grow"></i><i data-ico="chevron-down" data-size="11"></i></button>
+                        </div>
+                      </div>
+
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-run"><i data-ico="loader-circle" data-size="12"></i>测试连通中</span>
+                        <span class="d-t-xs d-t-faint">已发一次最小请求，只验鉴权不记 token</span>
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm ghost" data-demo-open="conn-pop"><i data-ico="plug" data-size="13"></i>试试连接</button>
+                      </div>
+
+                      <div class="d-pop up" data-demo-pop="conn-pop" hidden style="min-width:300px">
+                        <div class="d-pop-title">连通用例</div>
+                        <div class="d-pop-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                          <div class="d-row"><span class="d-dot ok"></span>只发一次最小请求验鉴权，不记 token</div>
+                          <div class="d-row"><span class="d-dot ok"></span>失败只提示「Key 无效 / 余额不足 / 网关不通」，不弹错页</div>
+                          <div class="d-row"><span class="d-dot warn"></span>走自建网关时，顺手验一下模型名有没有被网关改过</div>
+                        </div>
+                        <div class="d-sep"></div>
+                        <div class="d-pop-foot">这一步默认在引导里跑；之后每次换 Key 也会自动再跑一次。</div>
+                      </div>
+
+                      <div class="d-banner warn">
+                        <i data-ico="triangle-alert" data-size="14"></i>
+                        <span class="d-grow">Key 存本机钥匙串，不进会话记录、不进 git；导出工作区配置时会替换成占位符。</span>
+                      </div>
+
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">测试通过后再往下走，避免第 4 步配完了才发现没模型可用。</span>
+                        <button class="d-btn sm ghost">跳过</button>
+                        <button class="d-btn primary">下一步：选工具档<i data-ico="arrow-right" data-size="14"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="circle-help" data-size="14"></i>没配 Key 也能往下走，但要知道差别</div>
+                  <div class="d-card-body d-grid2" style="align-items:start">
+                    <div class="d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-xs">配了 Key</span>
+                      <span>模型、思考档、工具档都可用；右上角费用实时可查。</span>
+                    </div>
+                    <div class="d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-b d-t-xs">没配 Key</span>
+                      <span>所有需要模型的入口变成一条提示，点一下就回到这一步；本地能做的事（看文件、跑命令）仍然可用。</span>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              <!-- 步骤 4 -->
+              <div data-demo-pane="step4" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-grid2" style="align-items:start">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-todo" data-size="14"></i>全程 6 步</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>1 · 欢迎</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>2 · 选工作区</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>3 · 配模型与 API Key</div>
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>4 · 选默认工具档</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>5 · 手机扫码连接</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>6 · 完成</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-1)">
+                        <span>默认给的是「标准」：能读能写，装包与外发要问。</span>
+                        <span>之后每条会话都能在输入框里单独改档，不受这里限制。</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="wrench" data-size="14"></i>4 · 选默认工具档</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-cats" data-demo-list>
+                        <span class="d-t-sm d-t-b">档位</span>
+                        <button class="d-cat" data-demo-select>谨慎</button>
+                        <button class="d-cat is-on" data-now>标准</button>
+                        <button class="d-cat" data-demo-select>全开</button>
+                      </div>
+                      <div class="d-t-xs d-t-dim">选中的那档会写进<b>默认权限</b>；每次发消息前输入框里仍能临时改。</div>
+
+                      <div class="d-card">
+                        <div class="d-card-body d-col" style="gap:var(--nx-sp-1)">
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">读写工作区文件</div>
+                              <div class="d-set-row-s">受信任目录内直接读写，越界才问</div>
+                            </div>
+                            <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">装依赖 / 跑构建</div>
+                              <div class="d-set-row-s">会写 lockfile、会跑项目脚本 —— 每次问一次</div>
+                            </div>
+                            <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">外发（curl / git push / 发消息）</div>
+                              <div class="d-set-row-s">默认关；开了也只对已信任的目标生效</div>
+                            </div>
+                            <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">「外发」关着不是缺陷：它就是默认该有的样子。</span>
+                        <button class="d-btn sm ghost">跳过</button>
+                        <button class="d-btn primary">下一步：手机扫码<i data-ico="arrow-right" data-size="14"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="shield" data-size="14"></i>三档到底差在哪（对照表）</div>
+                  <div class="d-card-body">
+                    <table class="d-table">
+                      <thead><tr><th>能力</th><th>谨慎</th><th>标准</th><th>全开</th></tr></thead>
+                      <tbody>
+                        <tr><td>读工作区文件</td><td><span class="d-badge ok">允许</span></td><td><span class="d-badge ok">允许</span></td><td><span class="d-badge ok">允许</span></td></tr>
+                        <tr><td>写工作区文件</td><td><span class="d-badge warn">每次问</span></td><td><span class="d-badge ok">允许</span></td><td><span class="d-badge ok">允许</span></td></tr>
+                        <tr><td>装依赖 / 跑构建</td><td><span class="d-badge warn">每次问</span></td><td><span class="d-badge warn">每次问</span></td><td><span class="d-badge ok">允许</span></td></tr>
+                        <tr><td>外发（curl / push）</td><td><span class="d-badge bad">禁止</span></td><td><span class="d-badge bad">禁止</span></td><td><span class="d-badge warn">每次问</span></td></tr>
+                        <tr><td>删除与 Git 改写</td><td><span class="d-badge bad">禁止</span></td><td><span class="d-badge bad">禁止</span></td><td><span class="d-badge warn">每次问</span></td></tr>
+                      </tbody>
+                    </table>
+                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">「禁止」是真禁止：这类工具在标准档下不进可用集，输入框里也选不出来。</div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 引导第 5–6 步：手机扫码连接 → 完成<span class="d-grow"></span>第 5 步失败不拦人；第 6 步只做确认</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">首次启动 · PI NEXT</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · claude-opus-4-6 · 标准档</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge info">第 5 步 / 共 6 步</span>
+          </header>
+
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tabs" data-demo-tabs>
+              <button class="d-tab is-on" data-now><span class="d-step-ico" style="width:16px;height:16px">5</span>5 · 手机扫码连接</button>
+              <button class="d-tab" data-demo-tab="step6">6 · 完成</button>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">页签可点</span>
+            </div>
+
+            <div class="d-grow d-scroll" style="padding:var(--nx-sp-4)">
+
+              <!-- 步骤 5 -->
+              <div data-demo-pane="step5">
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-grid2" style="align-items:start">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-todo" data-size="14"></i>全程 6 步</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>1 · 欢迎</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>2 · 选工作区</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>3 · 配模型与 API Key</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>4 · 选默认工具档</div>
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>5 · 手机扫码连接</div>
+                        <div class="d-plan-step"><span class="d-plan-dot"></span>6 · 完成</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-1)">
+                        <span>这一步<b>可跳过</b>：手机端本来就是可选入口，不是前置条件。</span>
+                        <span>扫不上还有手输配对码 —— 摄像头不给力时也能连。</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="smartphone" data-size="14"></i>5 · 手机扫码连接</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-grid2" style="align-items:center">
+                        <div class="d-col" style="gap:var(--nx-sp-2)">
+                          <div class="d-placeholder" style="aspect-ratio:1"><i data-ico="grid-2x2" data-size="28"></i></div>
+                          <div class="d-t-xs d-t-faint d-row" style="justify-content:center;gap:var(--nx-sp-1)">
+                            <i data-ico="refresh-cw" data-size="11"></i>二维码 30 秒后自动换一张
+                          </div>
+                        </div>
+                        <div class="d-col" style="gap:var(--nx-sp-3)">
+                          <div class="d-col" style="gap:var(--nx-sp-1)">
+                            <span class="d-field-t">或者手输配对码</span>
+                            <span class="d-t-title d-mono">7F4C-9A21</span>
+                          </div>
+                          <div class="d-row" style="gap:var(--nx-sp-2)">
+                            <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制</button>
+                            <span class="d-t-xs d-t-faint">30 分钟内有效 · 只能用一次</span>
+                          </div>
+                          <div class="d-cites">
+                            <span class="d-cite"><i data-ico="globe" data-size="12"></i>同一局域网，无需公网</span>
+                            <span class="d-cite"><i data-ico="lock" data-size="12"></i>手机端也要输一次配对码</span>
+                            <span class="d-cite"><i data-ico="bell" data-size="12"></i>推送在手机端单独授权</span>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">连上后自动重连</div>
+                              <div class="d-set-row-s">电脑休眠或换网络时，手机会主动探一次</div>
+                            </div>
+                            <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-banner">
+                        <i data-ico="info" data-size="14"></i>
+                        <span class="d-grow">扫不上、或这台机器没有局域网：直接跳过。手机端随时能在设置里连。</span>
+                      </div>
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">下一步只是确认，不会再有任何强制项。</span>
+                        <button class="d-btn sm ghost">跳过</button>
+                        <button class="d-btn primary">下一步：完成<i data-ico="arrow-right" data-size="14"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="triangle-alert" data-size="14"></i>连不上时的三条兜底（都不是死路）</div>
+                  <div class="d-card-body">
+                    <div class="d-steps">
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="smartphone" data-size="10"></i></span><span class="d-step-body">换一台手机：同一个局域网，扫一次即可，旧的不用先删</span><span class="d-step-meta">30 秒</span></div>
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="keyboard" data-size="10"></i></span><span class="d-step-body">手输配对码：摄像头不给力（无痕、权限被拒）时走这条路</span><span class="d-step-meta">30 分钟有效</span></div>
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="settings" data-size="10"></i></span><span class="d-step-body">完全跳过：手机端以后在设置 · 手机与推送里随时连，不影响桌面</span><span class="d-step-meta">随时</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">电脑关机或休眠后，手机端会显示「离线」，并在网络恢复时自动重连一次。</div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              <!-- 步骤 6 -->
+              <div data-demo-pane="step6" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-grid2" style="align-items:start">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-todo" data-size="14"></i>全程 6 步</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-plan-rail">
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>1 · 欢迎</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>2 · 选工作区</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>3 · 配模型与 API Key</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>4 · 选默认工具档</div>
+                        <div class="d-plan-step done"><span class="d-plan-dot"></span>5 · 手机扫码连接</div>
+                        <div class="d-plan-step run"><span class="d-plan-dot"></span>6 · 完成</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-1)">
+                        <span>跳过的步骤在第 6 步也要<b>点名</b>，不能悄悄消失。</span>
+                        <span>进工作台后，它们会变成顶栏的一行提示，点一下就能补。</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="rocket" data-size="14"></i>6 · 完成</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-t-title">配好了，去干活</div>
+                      <div class="d-steps">
+                        <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">工作区 ~/Desktop/PI NEXT 已建索引（1,284 个文件）</span><span class="d-step-meta">2.1s</span></div>
+                        <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">模型 claude-opus-4-6 连通测试通过</span><span class="d-step-meta">0.8s</span></div>
+                        <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">默认工具档：标准（外发关闭）</span><span class="d-step-meta">0:00</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="minus" data-size="11"></i></span><span class="d-step-body">手机扫码：已跳过，随时可在设置里连</span><span class="d-step-meta">跳过</span></div>
+                      </div>
+                      <div class="d-statgrid">
+                        <div class="d-stat"><span class="d-t-xs d-t-faint">工具档</span><div class="d-t-lg d-t-b">标准</div></div>
+                        <div class="d-stat"><span class="d-t-xs d-t-faint">默认模型</span><div class="d-t-lg d-t-b">opus-4-6</div></div>
+                        <div class="d-stat"><span class="d-t-xs d-t-faint">待补</span><div class="d-t-lg d-t-b">1 项</div></div>
+                        <div class="d-stat"><span class="d-t-xs d-t-faint">索引</span><div class="d-t-lg d-t-b">1,284</div></div>
+                      </div>
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">引导不可逆吗？可以。设置 · 首次启动 · 重跑引导。</span>
+                        <button class="d-btn sm ghost"><i data-ico="history" data-size="13"></i>看引导回放</button>
+                        <button class="d-btn primary"><i data-ico="arrow-right" data-size="14"></i>进入工作台</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="rocket" data-size="14"></i>接下来 5 分钟，建议做的三件事</div>
+                  <div class="d-card-body">
+                    <div class="d-steps">
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="square-pen" data-size="10"></i></span><span class="d-step-body">说一句真话：让 pi 读懂这个项目（它会先问，再动手）</span><span class="d-step-meta">1 分钟</span></div>
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="layout-template" data-size="10"></i></span><span class="d-step-body">把这次满意的活儿存成工作流，下次带参复用</span><span class="d-step-meta">1 分钟</span></div>
+                      <div class="d-step"><span class="d-step-ico"><i data-ico="smartphone" data-size="10"></i></span><span class="d-step-body">补上跳过的那一项：手机扫码（可选，但配过一次就回不去了）</span><span class="d-step-meta">30 秒</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">引导到此结束：之后所有入口都在工作台里，第一次引导不会再打扰你。</div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 保存的工作流：带参启动表单 ⇄ 运行历史 ⇄ 定义，按项目分组，可提升为全局<span class="d-grow"></span>页签可点，列表可点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll" data-demo-list>
+
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>本项目 · PI NEXT</div>
+            <button class="d-sess is-on" data-now>
+              <span class="d-sess-t">发版前跑一遍回归清单</span>
+              <span class="d-sess-m"><span>3 天前跑过</span><span>·</span><span>12 步</span></span>
+            </button>
+            <button class="d-sess" data-demo-select>
+              <span class="d-sess-t">给这段代码补测试</span>
+              <span class="d-sess-m"><span>2 小时前</span><span>·</span><span>6 步</span></span>
+            </button>
+            <button class="d-sess" data-demo-select>
+              <span class="d-sess-t">排查最新 Release</span>
+              <span class="d-sess-m"><span>昨天</span><span>·</span><span>8 步</span></span>
+            </button>
+
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>全局 · 所有工作区可见</div>
+            <button class="d-sess" data-demo-select>
+              <span class="d-sess-t">依赖升级评估</span>
+              <span class="d-sess-m"><span>上周</span><span>·</span><span>全局</span></span>
+            </button>
+            <button class="d-sess" data-demo-select>
+              <span class="d-sess-t">排查内存泄漏</span>
+              <span class="d-sess-m"><span>3 周前</span><span>·</span><span>全局</span></span>
+            </button>
+
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>zhaobiao-extract</div>
+            <button class="d-sess" data-demo-select>
+              <span class="d-sess-t">重跑一次抽取并比对</span>
+              <span class="d-sess-m"><span>5 天前</span><span>·</span><span>4 步</span></span>
+            </button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">发版前跑一遍回归清单</span>
+              <span class="d-tb-sub">PI NEXT · 本项目 · 12 步 · 上次 3 天前用 42 分钟跑完</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost" data-demo-open="wf-global"><i data-ico="arrow-up" data-size="13"></i>提升为全局</button>
+            <button class="d-btn sm ghost"><i data-ico="copy" data-size="13"></i>另存一份</button>
+            <button class="d-btn sm primary" data-demo-open="wf-run-pop"><i data-ico="play" data-size="13"></i>运行</button>
+
+            <div class="d-pop" data-demo-pop="wf-run-pop" hidden style="right:var(--nx-sp-4);top:var(--nx-sp-4);min-width:320px">
+              <div class="d-pop-title">运行前确认 · 发版前跑一遍回归清单</div>
+              <div class="d-pop-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row"><span class="d-grow">会在哪跑</span><span class="d-mono">~/Desktop/PI NEXT</span></div>
+                <div class="d-row"><span class="d-grow">分支 / 基准</span><span class="d-mono">fork/v5-boards → v0.1.7</span></div>
+                <div class="d-row"><span class="d-grow">步数</span><span>12 步 · 约 42 分钟</span></div>
+                <div class="d-row"><span class="d-grow">写权限</span><span>装依赖会写 lockfile（已配好档位）</span></div>
+              </div>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="play" data-size="14"></i>前台运行（能看着它跑）</button>
+              <button class="d-menu-row"><i data-ico="clock" data-size="14"></i>后台运行，做完推 IM 摘要</button>
+              <button class="d-menu-row"><i data-ico="calendar-clock" data-size="14"></i>排到今晚低负载时段</button>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">运行会把这次参数记进历史；跑完可在「运行历史」里一键用同样参数再跑。</div>
+            </div>
+
+            <div class="d-pop" data-demo-pop="wf-global" hidden style="right:var(--nx-sp-4);top:var(--nx-sp-4);min-width:320px">
+              <div class="d-pop-title">提升为全局</div>
+              <div class="d-pop-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                <div>全局工作流对<b>所有工作区可见</b>；运行时仍然在当前工作区的目录里跑 —— 全局的是「这套步骤」，不是「哪台机器」。</div>
+                <div class="d-row" style="gap:var(--nx-sp-2)">
+                  <span class="d-t-sm d-grow">同时设为全局默认</span>
+                  <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                </div>
+              </div>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="arrow-up" data-size="14"></i>提升，并记进全局目录</button>
+              <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i>提升到某个工作区</button>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">降级同理：全局工作流在列表里带一枚 <span class="d-badge mute">全局</span>，可以一键收成本项目私货。</div>
+            </div>
+          </header>
+
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tabs" data-demo-tabs>
+              <button class="d-tab is-on" data-now><i data-ico="sliders-horizontal" data-size="13"></i>启动表单</button>
+              <button class="d-tab" data-demo-tab="wf-hist"><i data-ico="history" data-size="13"></i>运行历史<span class="d-badge mute">14</span></button>
+              <button class="d-tab" data-demo-tab="wf-def"><i data-ico="file-code" data-size="13"></i>定义</button>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">页签可点 · 左侧列表可点</span>
+            </div>
+
+            <div class="d-grow d-scroll" style="padding:var(--nx-sp-4)">
+
+              <!-- 启动表单 -->
+              <div data-demo-pane="wf-form">
+                <div class="d-col" style="gap:var(--nx-sp-3);max-width:820px">
+
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="layout-template" data-size="14"></i>启动 · 发版前跑一遍回归清单
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">本项目</span>
+                    </div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-t-xs d-t-dim">
+                        参数是<b>工作流的一部分</b>，不是运行时的临时输入：填一次存下来，下次打开还是这几个值，
+                        改了会记进历史（谁改的、改成什么）。
+                      </div>
+                      <div class="d-grid2" style="align-items:end">
+                        <div class="d-field">
+                          <span class="d-field-t">目标分支</span>
+                          <button class="d-select" style="width:100%"><i data-ico="git-branch" data-size="13"></i>fork/v5-boards<i class="d-grow"></i><i data-ico="chevron-down" data-size="11"></i></button>
+                        </div>
+                        <div class="d-field">
+                          <span class="d-field-t">对比基准</span>
+                          <button class="d-select" style="width:100%"><i data-ico="git-merge" data-size="13"></i>v0.1.7<i class="d-grow"></i><i data-ico="chevron-down" data-size="11"></i></button>
+                        </div>
+                      </div>
+                      <div class="d-grid2" style="align-items:end">
+                        <div class="d-field">
+                          <span class="d-field-t">候选版本号</span>
+                          <input class="d-input" value="0.1.8-rc.2" aria-label="候选版本号">
+                        </div>
+                        <div class="d-field">
+                          <span class="d-field-t">并行度</span>
+                          <div class="d-row" style="gap:var(--nx-sp-2)">
+                            <input class="d-slider" type="range" min="1" max="8" value="4" aria-label="并行度">
+                            <span class="d-t-xs d-t-faint">4</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-card">
+                        <div class="d-card-body d-col" style="gap:var(--nx-sp-1)">
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">跑端到端用例</div>
+                              <div class="d-set-row-s">约多花 12 分钟；关掉只跑单元与门禁</div>
+                            </div>
+                            <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">失败即停</div>
+                              <div class="d-set-row-s">关掉则跑完 12 步再汇总</div>
+                            </div>
+                            <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">跑完推送 IM 摘要</div>
+                              <div class="d-set-row-s">推到默认渠道；需要先在手机与推送里配好</div>
+                            </div>
+                            <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <button class="d-btn sm ghost"><i data-ico="history" data-size="13"></i>用上次的参数</button>
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm">存为新工作流</button>
+                        <button class="d-btn primary"><i data-ico="play" data-size="13"></i>运行 12 步</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="file-code" data-size="14"></i>这一步会做什么（摘要）</div>
+                    <div class="d-card-body">
+                      <div class="d-steps">
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="list-checks" data-size="10"></i></span><span class="d-step-body">跑静态门禁 check-v5（令牌 / 类 / 图标 / 接线）</span><span class="d-step-meta">0:40</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="list-checks" data-size="10"></i></span><span class="d-step-body">出画板截图并逐张真点一遍交互件</span><span class="d-step-meta">6:12</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="list-checks" data-size="10"></i></span><span class="d-step-body">按候选版本号跑构建与产物清单</span><span class="d-step-meta">9:05</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="list-checks" data-size="10"></i></span><span class="d-step-body">端到端用例（受「跑端到端用例」开关控制）</span><span class="d-step-meta">12:00</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 运行历史 -->
+              <div data-demo-pane="wf-hist" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3);max-width:900px">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="history" data-size="14"></i>运行历史
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">最近 14 次 · 只存参数与结果，不存会话全文</span>
+                    </div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-1)">
+                      <div class="d-hist-row"><span class="d-dot ok"></span><span class="d-t-b">成功</span><span class="d-grow d-t-sm">fork/v5-boards → v0.1.7 · rc.2 · 并行 4 · 含 e2e</span><span>42:10</span><span class="d-t-xs d-t-faint">3 天前</span></div>
+                      <div class="d-hist-row"><span class="d-dot bad"></span><span class="d-t-b">失败</span><span class="d-grow d-t-sm">fork/v5-boards → v0.1.7 · rc.1 · 并行 8 · 含 e2e</span><span>11:47</span><span class="d-t-xs d-t-faint">3 天前</span></div>
+                      <div class="d-hist-row"><span class="d-dot ok"></span><span class="d-t-b">成功</span><span class="d-grow d-t-sm">main → v0.1.6 · rc.4 · 并行 4 · 不含 e2e</span><span>18:33</span><span class="d-t-xs d-t-faint">上周</span></div>
+                      <div class="d-hist-row"><span class="d-dot warn"></span><span class="d-t-b">中断</span><span class="d-grow d-t-sm">main → v0.1.6 · rc.3 · 我手动停了</span><span>03:02</span><span class="d-t-xs d-t-faint">上周</span></div>
+                      <div class="d-hist-row"><span class="d-dot ok"></span><span class="d-t-b">成功</span><span class="d-grow d-t-sm">main → v0.1.5 · rc.1 · 并行 4 · 不含 e2e</span><span>17:58</span><span class="d-t-xs d-t-faint">两周前</span></div>
+                      <div class="d-hist-row"><span class="d-dot ok"></span><span class="d-t-b">成功</span><span class="d-grow d-t-sm">release/0.1.5 → v0.1.4 · rc.1 · 并行 4 · 不含 e2e</span><span>16:44</span><span class="d-t-xs d-t-faint">三周前</span></div>
+                      <div class="d-hist-row"><span class="d-dot ok"></span><span class="d-t-b">成功</span><span class="d-grow d-t-sm">main → v0.1.3 · rc.2 · 并行 4 · 不含 e2e</span><span>15:09</span><span class="d-t-xs d-t-faint">三周前</span></div>
+                      <div class="d-hist-row"><span class="d-dot bad"></span><span class="d-t-b">失败</span><span class="d-grow d-t-sm">main → v0.1.3 · rc.1 · 并行 2 · 含 e2e</span><span>21:36</span><span class="d-t-xs d-t-faint">一个月前</span></div>
+                      <div class="d-hist-row"><span class="d-dot ok"></span><span class="d-t-b">成功</span><span class="d-grow d-t-sm">main → v0.1.2 · rc.3 · 并行 4 · 不含 e2e</span><span>14:52</span><span class="d-t-xs d-t-faint">一个月前</span></div>
+                    </div>
+                    <div class="d-card-body d-row" style="gap:var(--nx-sp-2)">
+                      <div class="d-pagebar" data-demo-list>
+                        <button class="d-page" disabled><i data-ico="chevron-left" data-size="12"></i></button>
+                        <button class="d-page is-on" data-now>1</button>
+                        <button class="d-page" data-demo-select>2</button>
+                        <button class="d-page" data-demo-select>3</button>
+                        <button class="d-page"><i data-ico="chevron-right" data-size="12"></i></button>
+                      </div>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm ghost" data-demo-open="wf-hist-note"><i data-ico="info" data-size="13"></i>为什么只留参数</button>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="git-pull-request-arrow" data-size="14"></i>从历史里学到的：参数怎么被改</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-row"><span class="d-t-xs d-t-faint">3 天前</span><span class="d-t-sm d-grow">并行度 4 → 8（跑得更快，但那次 e2e 挂了）</span><span class="d-badge mute">已采纳</span></div>
+                      <div class="d-row"><span class="d-t-xs d-t-faint">上周</span><span class="d-t-sm d-grow">跑端到端用例 关 → 开</span><span class="d-badge mute">已采纳</span></div>
+                      <div class="d-row"><span class="d-t-xs d-t-faint">上周</span><span class="d-t-sm d-grow">基准分支 v0.1.7 → v0.1.6</span><span class="d-badge info">一次性</span></div>
+                      <div class="d-t-xs d-t-dim">自动采纳的只有一类：同一参数在连续两次里表现一致地更好。其余一律留在历史里等人拍板。</div>
+                    </div>
+                  </div>
+
+                  <div class="d-pop" data-demo-pop="wf-hist-note" hiddendisplay:block">
+                    <div class="d-pop-title">历史里为什么不存会话全文</div>
+                    <div class="d-pop-body d-t-xs d-t-dim">
+                      全存会让工作流目录长到几千 MB，而且换台机器就对不上号。这里只存
+                      <b>参数 + 结果 + 耗时 + 结论</b>；要看某次的具体过程，从结论跳回那次会话。
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 定义 -->
+              <div data-demo-pane="wf-def" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3);max-width:820px">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="file-code" data-size="14"></i>saved-workflows/release-regression.yaml
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">可手改</span>
+                    </div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-code">
+                        <div class="d-code-head"><i data-ico="file-code" data-size="12"></i>yaml<i class="d-grow"></i><span>12 步</span></div>
+                        <div class="d-code-body">
+<span class="d-ln">1</span><span class="tok-k">name</span>: 发版前跑一遍回归清单
+<span class="d-ln">2</span><span class="tok-k">scope</span>: project        <span class="tok-c"># project | global</span>
+<span class="d-ln">3</span><span class="tok-k">params</span>:
+<span class="d-ln">4</span>  <span class="tok-k">branch</span>:     { <span class="tok-k">type</span>: branch, <span class="tok-k">default</span>: <span class="tok-s">fork/v5-boards</span> }
+<span class="d-ln">5</span>  <span class="tok-k">base</span>:       { <span class="tok-k">type</span>: tag,    <span class="tok-k">default</span>: <span class="tok-s">v0.1.7</span> }
+<span class="d-ln">6</span>  <span class="tok-k">version</span>:   { <span class="tok-k">type</span>: text,   <span class="tok-k">default</span>: <span class="tok-s">0.1.8-rc.2</span> }
+<span class="d-ln">7</span>  <span class="tok-k">parallel</span>:  { <span class="tok-k">type</span>: int,    <span class="tok-k">default</span>: <span class="tok-n">4</span>, <span class="tok-k">min</span>: <span class="tok-n">1</span>, <span class="tok-k">max</span>: <span class="tok-n">8</span> }
+<span class="d-ln">8</span>  <span class="tok-k">e2e</span>:        { <span class="tok-k">type</span>: bool,   <span class="tok-k">default</span>: <span class="tok-n">true</span> }
+<span class="d-ln">9</span>  <span class="tok-k">stopOnFail</span>: { <span class="tok-k">type</span>: bool,  <span class="tok-k">default</span>: <span class="tok-n">false</span> }
+<span class="d-ln">10</span><span class="tok-k">notify</span>:     { <span class="tok-k">type</span>: bool,   <span class="tok-k">default</span>: <span class="tok-n">false</span> }
+<span class="d-ln">11</span><span class="tok-k">steps</span>:
+<span class="d-ln">12</span>  - <span class="tok-k">id</span>: gate        <span class="tok-c"># 静态门禁：令牌 / 类 / 图标 / 接线</span>
+<span class="d-ln">13</span>  - <span class="tok-k">id</span>: shots       <span class="tok-c"># 画板截图 + 真点一遍交互件</span>
+<span class="d-ln">14</span>  - <span class="tok-k">id</span>: build       <span class="tok-c"># 用 version 构建并出产物清单</span>
+<span class="d-ln">15</span>  - <span class="tok-k">id</span>: e2e         <span class="tok-k">when</span>: <span class="tok-s">params.e2e</span>
+<span class="d-ln">16</span>  - <span class="tok-k">id</span>: summarize   <span class="tok-k">needs</span>: [build, e2e?]
+<span class="d-ln">17</span><span class="tok-k">history</span>: keep_params_and_result   <span class="tok-c"># 不存会话全文</span>
+                        </div>
+                      </div>
+                      <div class="d-cites">
+                        <span class="d-cite"><i data-ico="folder" data-size="12"></i>本项目：.pi/workflows/</span>
+                        <span class="d-cite"><i data-ico="globe" data-size="12"></i>全局：~/.pi/workflows/</span>
+                        <span class="d-cite"><i data-ico="git-branch" data-size="12"></i>跟着 git 走的是项目里的那份</span>
+                      </div>
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-t-xs d-t-faint d-grow">格式是给人看的：参数与步骤都用最少的行，谁改了什么一眼能 diff。</span>
+                        <button class="d-btn sm"><i data-ico="pencil" data-size="13"></i>手改这份文件</button>
+                        <button class="d-btn sm ghost"><i data-ico="share-2" data-size="13"></i>导出</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="list-checks" data-size="14"></i>改这份文件会发生什么</div>
+                    <div class="d-card-body">
+                      <div class="d-steps">
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">语法先过一遍：参数缺 type 或步骤缺 id，直接报行号不落盘</span><span class="d-step-meta">即时</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">改参数不动历史：历史是既成事实，只记不改</span><span class="d-step-meta">不追溯</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">改步骤按前缀匹配：id 变了才重跑，没变的步骤直接复用上次结果</span><span class="d-step-meta">下次运行生效</span></div>
+                        <div class="d-step"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">删掉一个步骤：在下一次运行前的确认里点名，不静默消失</span><span class="d-step-meta">运行前确认</span></div>
+                      </div>
+                      <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">项目里的那份跟着 git 走：谁改了它，diff 里一眼能看出来；全局那份只在本机，不进任何仓库。</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>引导 6 步，每步只问一件事</b>：欢迎 → 选工作区 → 配模型与 API Key → 选默认工具档 → 手机扫码 → 完成。前 4 步决定「能不能开工」，第 5 步是可选入口，第 6 步只做确认。</li>
+    <li><b>进度写在一根轨上</b>（<code>.d-plan-rail</code> + <code>.d-plan-dot</code>）：完成是划线灰、当前是高亮点、没走到是空点 —— 用户随时知道「还剩几步、我卡在哪」。</li>
+    <li><b>跳过的步骤必须被点名</b>，不能悄悄消失：第 6 步把「手机扫码：已跳过」列出来，它随后变成顶栏的一行提示，点一下就能补。</li>
+    <li><b>Key 与权限这两步要敢写清边界</b>：Key 只落本机钥匙串、发请求时代填、导出时替换成占位符；工具档默认「外发关闭」，并写明「关着不是缺陷」。</li>
+    <li><b>工作流的参数是它的一部分</b>（<code>.d-field</code> / <code>.d-select</code> / <code>.d-switch</code>）：填一次存下来，「用上次的参数」一键回填；历史只留参数与结果，不存会话全文，否则换台机器就对不上号。</li>
+    <li><b>提升为全局 = 步骤全局，不是机器全局</b>：全局工作流在所有工作区可见，但运行时仍在当前目录里跑；列表按项目分组，跨项目的那两份带「全局」标记，一键能收回成本项目私货。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本板专属接线（1 条，写在本板里）：
+   demo.js 的互斥处理器只在声明了 data-demo-tab / data-demo-select 的那些件之间切 is-on；
+   「当前那一项」按 D-16 的做法不带触发属性（否则它点了没反应却仍是当前态），
+   所以别人被选中时，要由这里把它的 is-on 摘掉。外观全部来自 system.css，这里只动一个类名。 */
+(function () {
+  function demote(list) {
+    var now = list.querySelector("[data-now]");
+    if (!now) return;
+    list.addEventListener("click", function (e) {
+      if (e.target.closest("[data-demo-tab],[data-demo-select]")) now.classList.remove("is-on");
+    });
+  }
+  document.querySelectorAll("[data-demo-tabs],[data-demo-list]").forEach(demote);
+})();
+</script>
+</body>
+</html>

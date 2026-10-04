@@ -53,9 +53,9 @@ test("does not wrap fenced code text with source-line spans", () => {
   // fork:perf-highlighter — the source-line wrapper belongs on the block, not on the
   // code text. The token spans only appear once the lazily imported highlighter has
   // loaded (see MermaidBlock.test.mjs), so the static render checks the wrapper only.
-  // fork:design-components — 围栏代码块是画板 10 的 .pw-code 卡片。
-  assert.match(html, /class="pw-code"/);
-  assert.match(html, /class="pw-code-head"/);
+  // fork:v5-landing — 围栏代码块是画板 D-03b 的 .d-code 卡片。
+  assert.match(html, /class="d-code"/);
+  assert.match(html, /class="d-code-head"/);
   assert.doesNotMatch(html, /markdown-code-/);
   assert.doesNotMatch(html, /class="token"/);
 });
@@ -72,7 +72,7 @@ test("fork:fix-md-preview — sourceLines=false 时不注入行号 spans（阅�
   assert.match(html, /<p[^>]*data-source-start-line="3"[^>]*data-source-end-line="4"/);
 });
 
-test("fork:design-system —— 正文容器是画板 10 的 .pw-md，frontmatter 卡在卡外", () => {
+test("fork:v5-landing —— 正文容器是画板 D-06b 帧 B 的 .d-md，frontmatter 卡在卡外", () => {
   const html = renderToStaticMarkup(React.createElement(I18nProvider, null,
     React.createElement(MarkdownFilePreview, {
       content: "---\ntitle: 收尾\n---\n\n正文段落。\n",
@@ -80,8 +80,8 @@ test("fork:design-system —— 正文容器是画板 10 的 .pw-md，frontmatte
     }),
   ));
 
-  // 正文（ReactMarkdown 的输出）包在 .pw-md 里，frontmatter 卡仍是它前面的兄弟节点。
-  assert.match(html, /<div class="pw-md"><p[^>]*>[\s\S]*?正文段落。<\/span><\/p><\/div>$/);
-  assert.doesNotMatch(html, /<div class="pw-md"><div class="markdown-frontmatter/);
-  assert.match(html, /class="markdown-frontmatter pw-card"/);
+  // 正文（ReactMarkdown 的输出）包在 .d-md 里，frontmatter 卡仍是它前面的兄弟节点。
+  assert.match(html, /<div class="d-md"><p[^>]*>[\s\S]*?正文段落。<\/span><\/p><\/div>$/);
+  assert.doesNotMatch(html, /<div class="d-md"><div class="markdown-frontmatter/);
+  assert.match(html, /class="markdown-frontmatter d-card"/);
 });

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-03c · 转录 · 交互与壳级状态 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-03c · 转录 · 交互与壳级状态</h1>
+  <p>
+    这一张全是要用户<b>参与</b>或要他<b>知道发生了什么</b>的壳：权限授权、上下文压缩、回合结束、
+    加载与未读、会话内查找、通知架。三条纪律：
+    ① <b>需要决定的一律等权重</b> —— 审批的三个选项没有主次，因为它们是同一层的选择，不是一层「确认」加两层「放弃」；
+    ② <b>结束原因要带人话</b> —— <code>stopReason</code> 是机器词，每一行都补一句「发生了什么」；
+    ③ <b>不打断的提示不进模态</b> —— 未读、加载、通知都只是行，模态只留给「不回答就不能继续」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区</span>
+    <span class="d-tag">组件：MessageView · ChatWindow · ConversationFindBar · NoticeShelf · RetryNotice</span>
+    <span class="d-tag">状态：等你处理 / 已允许 / 已拒绝 / 压缩中·完成·失败 / 七种 stopReason / 加载·未读·截断</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 权限授权 ─────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 权限授权：待回答对话框 · 权限档范围下拉 · 原始入参 · 已回应的两种记录<span class="d-grow"></span>三档等权重，不设主按钮</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-row d-t-xs d-t-faint">
+                <i data-ico="shield-question" data-size="14"></i>
+                会话权限档：每次问。只有把权限档设成「每次问」时，非只读的工具调用才会问人；「全部自动允许」下这个扩展等于不存在。
+                <span class="d-grow"></span>
+                <button class="d-chipbtn" data-demo-open="perm-mode"><i data-ico="shield-question" data-size="12"></i>每次问<i data-ico="chevron-down" data-size="11"></i></button>
+              </div>
+
+              <!-- 权限档范围下拉 -->
+              <div class="d-pop" data-demo-pop="perm-mode" hidden style="min-width:300px">
+                <div class="d-pop-title">权限</div>
+                <button class="d-menu-row">
+                  <i data-ico="shield-question" data-size="14"></i>
+                  <span class="d-col d-grow" style="text-align:left">
+                    <span>每次问</span>
+                    <span class="d-t-xs d-t-faint">非只读的工具调用先弹审批卡，只读白名单永不问</span>
+                  </span>
+                  <i data-ico="check" data-size="14"></i>
+                </button>
+                <button class="d-menu-row">
+                  <i data-ico="shield-check" data-size="14"></i>
+                  <span class="d-col d-grow" style="text-align:left">
+                    <span>本会话内允许读与查</span>
+                    <span class="d-t-xs d-t-faint">读与查直接放行，写操作仍然逐次问</span>
+                  </span>
+                </button>
+                <button class="d-menu-row">
+                  <i data-ico="shield" data-size="14"></i>
+                  <span class="d-col d-grow" style="text-align:left">
+                    <span>全部自动允许</span>
+                    <span class="d-t-xs d-t-faint">工具调用一律直接执行，不询问</span>
+                  </span>
+                  <span class="d-badge bad">危险</span>
+                </button>
+                <button class="d-menu-row danger">
+                  <i data-ico="ban" data-size="14"></i>
+                  <span class="d-col d-grow" style="text-align:left">
+                    <span>拒绝本会话内一切写操作</span>
+                    <span class="d-t-xs d-t-faint">写操作全部拒绝；读与查照常</span>
+                  </span>
+                </button>
+                <div class="d-sep"></div>
+                <div class="d-pop-foot">读文件、grep、git status 这类只读命令永不问 —— 白名单在 <span class="d-mono">lib/approval-policy.ts</span>，不在界面上。</div>
+              </div>
+
+              <!-- 待回答对话框（真模态） -->
+              <div class="d-modal is-open"" aria-label="工具审批">
+                <div class="d-modal-box">
+                  <div class="d-modal-head">
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <div class="d-row">
+                        <i data-ico="blocks" data-size="15"></i>
+                        <span class="d-grow">需要确认这笔操作（不在只读白名单里）</span>
+                      </div>
+                      <div class="d-row d-t-xs d-t-faint" style="gap:var(--nx-sp-2)">
+                        <span>扩展请求</span>
+                        <span class="d-badge warn">120 秒后过期</span>
+                      </div>
+                    </div>
+                    <div class="d-bar" style="margin-top:var(--nx-sp-3)"><i style="width:64%"></i></div>
+                  </div>
+                  <div class="d-modal-body">
+                    <div>命令：rm -rf build/cache &amp;&amp; npm run dev:clean</div>
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <button class="d-btn" style="width:100%;justify-content:flex-start">允许一次</button>
+                      <button class="d-btn" style="width:100%;justify-content:flex-start">本会话允许</button>
+                      <button class="d-btn" style="width:100%;justify-content:flex-start">永远拒绝</button>
+                    </div>
+                    <div class="d-t-xs d-t-faint">超时、点停止、关掉对话框 —— 一律按拒绝处理，绝不放行一个没被回答的危险调用。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 原始入参：摘要 / 完整 JSON -->
+              <div class="d-tool" data-demo-scope>
+                <div class="d-tool-head">
+                  <i data-ico="square-terminal" data-size="13"></i>
+                  <span class="d-mono d-grow">bash</span>
+                  <span class="d-t-xs d-t-faint">待回答</span>
+                </div>
+                <div class="d-tool-body">
+                  <div class="d-tabbar" data-demo-tabs>
+                    <button class="d-tab is-on" data-demo-tab="p1">参数摘要</button>
+                    <button class="d-tab" data-demo-tab="p2">原始入参</button>
+                    <span class="d-grow"></span>
+                    <span class="d-t-xs d-t-faint">摘要按 secret 键脱敏，最多取两个参数</span>
+                  </div>
+                  <div data-demo-pane="p1">
+                    <div class="d-mono d-t-xs" style="white-space:pre-wrap"><span class="d-term-warn">command=</span>rm -rf build/cache &amp;&amp; npm run dev:clean</div>
+                  </div>
+                  <div data-demo-pane="p2" hidden>
+                    <div class="d-mono d-t-xs" style="white-space:pre-wrap">{
+  <span class="tok-k">"command"</span>: <span class="tok-s">"rm -rf build/cache &amp;&amp; npm run dev:clean"</span>,
+  <span class="tok-k">"cwd"</span>: <span class="tok-s">"/Users/yingjing/Desktop/PI NEXT"</span>,
+  <span class="tok-k">"timeout"</span>: <span class="tok-n">120000</span>
+}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 已回应的两种记录 -->
+              <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-t-xs d-t-b">已回应 · 允许之后</div>
+                <div class="d-tool">
+                  <div class="d-tool-head">
+                    <i data-ico="check" data-size="13"></i>
+                    <span class="d-mono d-grow">rm -rf build/cache &amp;&amp; npm run dev:clean</span>
+                    <span class="d-badge ok">0.4s</span>
+                  </div>
+                  <div class="d-tool-body">
+                    <div class="d-mono d-t-xs d-term-ok">已清理 build/cache，dev:clean 完成</div>
+                  </div>
+                </div>
+                <div class="d-row d-t-xs d-t-faint"><i data-ico="book-marked" data-size="13"></i>「本会话允许」会写进 <span class="d-mono">pi-web:tool-grants</span>，随分支回退一起回退；「允许一次」什么都不写。</div>
+
+                <div class="d-t-xs d-t-b">已回应 · 拒绝之后</div>
+                <div class="d-tool">
+                  <div class="d-tool-head">
+                    <i data-ico="circle-x" data-size="13"></i>
+                    <span class="d-mono d-grow">rm -rf build/cache &amp;&amp; npm run dev:clean</span>
+                    <span class="d-badge bad">已拒绝</span>
+                  </div>
+                  <div class="d-tool-body">
+                    <div class="d-mono d-t-xs d-term-warn">用户拒绝了这次工具调用</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 上下文压缩三态 ───────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 上下文压缩：进行中 / 完成 / 失败<span class="d-grow"></span>压缩是单行提示，做完才在转录里留一条 compaction 记录</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-banner">
+                <span class="d-run"><i data-ico="loader-circle" data-size="14"></i>正在压缩…</span>
+                <span class="d-grow d-t-xs d-t-faint">自动压缩触发时会压过「等模型」那一相位文案 —— 否则它读起来像挂死</span>
+                <button class="d-btn sm ghost d-banner-btn">停止压缩</button>
+              </div>
+
+              <div class="d-banner">
+                <span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i></span>
+                <span class="d-grow">已压缩 138.2k → 96.4k tokens（节省 41.8k）</span>
+                <span class="d-t-xs d-t-faint">自动 · 阈值触发</span>
+              </div>
+
+              <div class="d-banner err" role="alert">
+                <i data-ico="circle-alert" data-size="14"></i>
+                <span class="d-grow d-mono d-t-xs">compact failed: upstream returned 529 (overloaded)</span>
+                <button class="d-btn sm d-banner-btn"><i data-ico="refresh-cw" data-size="13"></i>重试</button>
+              </div>
+
+              <!-- 压缩完成后的转录记录 -->
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-mono d-t-sm">compaction</span>
+                  <span class="d-grow"></span>
+                  <span class="d-t-xs d-t-faint">14:22</span>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="chevron-right" data-size="14"></i>
+                    <span class="d-grow">会话已压缩</span>
+                    <span class="d-badge mute">96.4k</span>
+                  </div>
+                  <div class="d-card-body" data-demo-scope>
+                    <div class="d-t-cap">此处之前的会话历史已压缩为以下摘要：</div>
+                    <div class="d-md d-t-cap">
+                      <p>右栏宽度逻辑已抽成 <code>useResizablePanel</code>，三处调用点改读返回值；窄屏走抽屉不 clamp。剩两条待办：窄屏与宽屏的单测。</p>
+                    </div>
+                    <div class="d-tabbar" data-demo-tabs style="margin-top:var(--nx-sp-3)">
+                      <button class="d-tab is-on" data-demo-tab="c1"><i data-ico="file-text" data-size="12"></i>文件上下文：12 read, 3 modified</button>
+                      <button class="d-tab" data-demo-tab="c2"><i data-ico="list" data-size="12"></i>读取的文件</button>
+                      <button class="d-tab" data-demo-tab="c3"><i data-ico="pencil-line" data-size="12"></i>修改的文件</button>
+                    </div>
+                    <div class="d-tbl-wrap" data-demo-pane="c1" style="margin-top:var(--nx-sp-2)">
+                      <table class="d-table">
+                        <thead><tr><th>修改的文件</th><th>读取的文件（前 4）</th></tr></thead>
+                        <tbody>
+                          <tr><td class="d-mono">hooks/useResizablePanel.ts</td><td class="d-mono">components/AppShell.tsx</td></tr>
+                          <tr><td class="d-mono">components/AppShell.tsx</td><td class="d-mono">hooks/useResizablePanel.ts</td></tr>
+                          <tr><td class="d-mono">app/globals.css</td><td class="d-mono">package.json</td></tr>
+                          <tr><td class="d-mono">hooks/useResizablePanel.test.mjs</td><td class="d-mono">design/README.md</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="d-col" data-demo-pane="c2" hidden style="gap:var(--nx-sp-1);margin-top:var(--nx-sp-2)">
+                      <div class="d-row d-mono d-t-xs"><i data-ico="file-text" data-size="12"></i>components/AppShell.tsx</div>
+                      <div class="d-row d-mono d-t-xs"><i data-ico="file-text" data-size="12"></i>hooks/useResizablePanel.ts</div>
+                      <div class="d-row d-mono d-t-xs"><i data-ico="file-text" data-size="12"></i>package.json</div>
+                      <div class="d-row d-mono d-t-xs d-t-faint">…其余 9 个</div>
+                    </div>
+                    <div class="d-col" data-demo-pane="c3" hidden style="gap:var(--nx-sp-1);margin-top:var(--nx-sp-2)">
+                      <div class="d-row d-mono d-t-xs"><i data-ico="pencil-line" data-size="12"></i>hooks/useResizablePanel.ts</div>
+                      <div class="d-row d-mono d-t-xs"><i data-ico="pencil-line" data-size="12"></i>components/AppShell.tsx</div>
+                      <div class="d-row d-mono d-t-xs"><i data-ico="pencil-line" data-size="12"></i>app/globals.css</div>
+                      <div class="d-row d-mono d-t-xs"><i data-ico="file-plus" data-size="12"></i>hooks/useResizablePanel.test.mjs</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 回合结束行 + 等你处理停靠条 ───────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 回合结束行：七种 stopReason 全列 · 用量与成本 · 「等你处理」停靠条<span class="d-grow"></span>机器词一律配一句人话</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4)">
+
+              <div class="d-t-xs d-t-b">回合结束行 · <span class="d-mono">stopReason</span> 的真实取值就这七个（<span class="d-mono">@earendil-works/pi-ai</span> 的 StopReason）</div>
+
+              <div class="d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row d-t-xs">
+                  <span class="d-badge ok"><i data-ico="check" data-size="12"></i>stop</span>
+                  <span class="d-mono d-t-sm">4.2s</span><span>·</span>
+                  <span class="d-mono d-t-sm">↑ 8,912 · ↓ 1,328 tok</span><span>·</span>
+                  <span class="d-mono d-t-sm d-num" id="c-cost">$0.021</span>
+                  <span class="d-grow"></span>
+                  <button class="d-btn sm ghost" data-demo-motion="#c-cost"><i data-ico="rotate-cw" data-size="12"></i>重播</button>
+                </div>
+                <div class="d-row d-t-xs">
+                  <span class="d-badge"><i data-ico="wrench" data-size="12"></i>toolUse</span>
+                  <span class="d-mono d-t-sm">2.4s</span><span>·</span>
+                  <span class="d-t-dim">模型要求调工具，下一段接着跑</span>
+                </div>
+                <div class="d-row d-t-xs">
+                  <span class="d-badge warn"><i data-ico="triangle-alert" data-size="12"></i>length</span>
+                  <span class="d-mono d-t-sm">12.6s</span><span>·</span>
+                  <span class="d-mono d-t-sm">↑ 14,002 · ↓ 8,192 tok</span><span>·</span>
+                  <span class="d-t-dim">这条回复在达到模型输出上限后被截断，发一条追问可以继续。</span>
+                </div>
+                <div class="d-row d-t-xs">
+                  <span class="d-badge mute"><i data-ico="clock" data-size="12"></i>deferred</span>
+                  <span class="d-mono d-t-sm">3m40s</span><span>·</span>
+                  <span class="d-t-dim">已交给后台继续跑，完成后回来</span>
+                </div>
+                <div class="d-row d-t-xs">
+                  <span class="d-badge mute"><i data-ico="circle-stop" data-size="12"></i>aborted</span>
+                  <span class="d-mono d-t-sm">0.8s</span><span>·</span>
+                  <span class="d-t-dim">你点了停止</span>
+                </div>
+                <div class="d-row d-t-xs">
+                  <span class="d-badge mute"><i data-ico="ellipsis" data-size="12"></i>pending</span>
+                  <span class="d-mono d-t-sm">—</span><span>·</span>
+                  <span class="d-t-dim">还在跑，还没落定（流式中不画这一行）</span>
+                </div>
+                <div class="d-row d-t-xs">
+                  <span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i>error</span>
+                  <span class="d-mono d-t-sm">2.1s</span><span>·</span>
+                  <span class="d-mono d-t-xs d-t-dim">upstream connection reset by peer</span>
+                </div>
+              </div>
+
+              <div class="d-t-xs d-t-faint">成本只在真的有费用时画：单价为 0 的模型不画这一格（常年一个 0 是噪声，还让人以为漏算了）。耗时是<b>本轮</b>口径 —— 从你发出消息到这一轮结束，与输入 / 输出 / 费用同口径。</div>
+
+              <div class="d-msg-acts is-on">
+                <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制</button>
+                <span class="d-grow"></span>
+                <span class="d-t-xs d-t-faint">14:22</span>
+              </div>
+
+              <div class="d-sep"></div>
+
+              <!-- 等你处理停靠条 -->
+              <div class="d-t-xs d-t-b">「等你处理」停靠条 · 会话挂起时停在输入框上方，收起态就是它自己</div>
+              <div data-demo-scope>
+                <div class="d-tabbar" data-demo-tabs style="max-width:520px">
+                  <button class="d-tab is-on" data-demo-tab="w1"><i data-ico="shield-check" data-size="13"></i>等你授权</button>
+                  <button class="d-tab" data-demo-tab="w2"><i data-ico="circle-help" data-size="13"></i>等你输入</button>
+                </div>
+
+                <div data-demo-pane="w1">
+                  <div class="d-card" style="margin-top:var(--nx-sp-2)">
+                    <div class="d-card-head">
+                      <span class="d-badge warn">待回答</span>
+                      <span class="d-grow d-t-sm">需要确认这笔操作（不在只读白名单里）</span>
+                      <span class="d-t-xs d-t-faint">命令：rm -rf build/cache</span>
+                      <span class="d-badge mute">120 秒后过期</span>
+                      <span class="d-t-xs d-t-faint">展开</span>
+                    </div>
+                    <div class="d-bar" style="border-radius:0"><i style="width:64%"></i></div>
+                  </div>
+                </div>
+
+                <div data-demo-pane="w2" hidden>
+                  <div class="d-card" style="margin-top:var(--nx-sp-2)">
+                    <div class="d-card-head">
+                      <span class="d-badge warn">待回答</span>
+                      <span class="d-grow d-t-sm">dsh-acp-interactive 请求表单填写</span>
+                      <span class="d-t-xs d-t-faint">3 个字段 · 1 个必填</span>
+                      <span class="d-badge mute">60 秒后过期</span>
+                      <span class="d-t-xs d-t-faint">展开</span>
+                    </div>
+                    <div class="d-bar" style="border-radius:0"><i style="width:88%"></i></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-t-xs d-t-faint">它不计时、不能关，只是停靠：会话挂起就在，不挂起就不在。侧栏里同一条会话还会挂一枚「待授权 / 待输入」标记，所以人不用滚回转录才知道有事在等他。</div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 加载 / 未读 / 查找 / 通知架 ──────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 壳级：加载骨架 · 回到最新与未读徽章 · 会话内查找（三态）· 通知架三色<span class="d-grow"></span>这一张全是「不打断」的提示</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-grid2" style="align-items:start">
+
+              <!-- 左：加载骨架 + 未读 -->
+              <div class="d-col" style="gap:var(--nx-sp-4)">
+                <div class="d-t-xs d-t-b">会话正在加载</div>
+                <div class="d-banner">
+                  <span class="d-run"><i data-ico="loader-circle" data-size="14"></i>正在加载会话...</span>
+                </div>
+                <div class="d-skel-list" style="opacity:.7">
+                  <div class="d-skel d-skel-40" style="width:78%"></div>
+                  <div class="d-skel d-skel-block"></div>
+                  <div class="d-skel d-skel-70" style="width:64%"></div>
+                  <div class="d-skel d-skel-40" style="width:86%"></div>
+                </div>
+                <div class="d-t-xs d-t-faint">骨架上方永远有一句「正在读什么」—— 只放一堆灰条，用户分不清是加载还是卡死。</div>
+
+                <div class="d-sep"></div>
+
+                <div class="d-t-xs d-t-b">往上翻的时候「回到最新消息」才出现</div>
+                <div class="d-row" style="justify-content:flex-end">
+                  <span class="d-badge info">2 条新消息</span>
+                  <button class="d-btn" title="回到最新消息"><i data-ico="arrow-down" data-size="15"></i></button>
+                </div>
+                <div class="d-t-xs d-t-faint">已经在底部就整个隐藏（不置灰）；未读计数只在离开底部期间存在。</div>
+
+                <div class="d-sep"></div>
+
+                <div class="d-t-xs d-t-b">通知架 · 三色，右缘对齐，宽度向左长</div>
+                <div class="d-col" style="align-items:flex-end;gap:var(--nx-sp-2)">
+                  <div class="d-toast" style="widthauto">
+                    <span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i></span>
+                    <span>载入会话失败：ENOENT .jsonl（文件已被移走）</span>
+                    <span class="d-grow"></span>
+                    <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button>
+                  </div>
+                  <div class="d-toast" style="widthauto">
+                    <span class="d-badge warn"><i data-ico="triangle-alert" data-size="12"></i></span>
+                    <span>附件超过 20 MB，已跳过 screenshot-4k.png</span>
+                    <span class="d-grow"></span>
+                    <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button>
+                  </div>
+                  <div class="d-toast" style="widthauto">
+                    <span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i></span>
+                    <span>会话已归档</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm ghost">撤销</button>
+                    <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button>
+                  </div>
+                </div>
+                <div class="d-t-xs d-t-faint">通知只报<b>已经发生</b>的事，不预告也不追问；唯一允许的动作是撤销 / 重试 / 跳转。要用户决定的，去模态或横幅。</div>
+              </div>
+
+              <!-- 右：会话内查找三态 -->
+              <div data-demo-scope>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">会话内查找条（⌘F）· 浮在转录顶部居中</div>
+                <div class="d-tabbar" data-demo-tabs>
+                  <button class="d-tab is-on" data-demo-tab="f1">有命中</button>
+                  <button class="d-tab" data-demo-tab="f2">无匹配</button>
+                  <button class="d-tab" data-demo-tab="f3">部分结果</button>
+                </div>
+
+                <div data-demo-pane="f1" style="padding-top:var(--nx-sp-2)">
+                  <div class="d-pop-float" style="width:430px">
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <div class="d-searchfield d-grow"><i data-ico="search" data-size="13"></i><input value="resize"></div>
+                      <span class="d-mono d-t-xs d-t-faint">3/18</span>
+                      <button class="d-iconbtn" title="上一个匹配"><i data-ico="chevron-up" data-size="13"></i></button>
+                      <button class="d-iconbtn" title="下一个匹配"><i data-ico="chevron-down" data-size="13"></i></button>
+                      <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button>
+                    </div>
+                  </div>
+                </div>
+
+                <div data-demo-pane="f2" hidden style="padding-top:var(--nx-sp-2)">
+                  <div class="d-pop-float" style="width430px;border-color:var(--nx-warning)">
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <div class="d-searchfield d-grow"><i data-ico="search" data-size="13"></i><input value="minimap"></div>
+                      <span class="d-mono d-t-xs d-t-faint">无匹配</span>
+                      <button class="d-iconbtn" title="上一个匹配"><i data-ico="chevron-up" data-size="13"></i></button>
+                      <button class="d-iconbtn" title="下一个匹配"><i data-ico="chevron-down" data-size="13"></i></button>
+                      <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button>
+                    </div>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">无结果时整条转警告色 —— 「没找到」必须比「找到 0 处」更响。</div>
+                </div>
+
+                <div data-demo-pane="f3" hidden style="padding-top:var(--nx-sp-2)">
+                  <div class="d-pop-float" style="width:430px">
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <div class="d-searchfield d-grow"><i data-ico="search" data-size="13"></i><input value="design"></div>
+                      <span class="d-badge warn">部分结果</span>
+                      <span class="d-mono d-t-xs d-t-faint">12/200</span>
+                      <button class="d-iconbtn" title="上一个匹配"><i data-ico="chevron-up" data-size="13"></i></button>
+                      <button class="d-iconbtn" title="下一个匹配"><i data-ico="chevron-down" data-size="13"></i></button>
+                      <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="13"></i></button>
+                    </div>
+                    <div class="d-t-xs" style="color:var(--nx-warning);padding:var(--nx-sp-2) var(--nx-sp-3) 0">部分匹配位于未加载的历史中，或超出了结果上限。</div>
+                  </div>
+                </div>
+
+                <div class="d-turn-end">
+                  <i data-ico="circle-check" data-size="13"></i>
+                  <span class="d-grow">正常结束 · 这一轮没有再调用工具</span>
+                  <span class="d-t-xs">12.4s</span>
+                  <span class="d-t-xs">18.4k token</span>
+                  <span class="d-t-xs">¥0.42</span>
+                  <button class="d-iconbtn" title="复制本轮统计"><i data-ico="copy" data-size="12"></i></button>
+                </div>
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                  为什么不用浏览器原生查找：它数不到分页窗口之外的命中、走不到「加载更早」那段历史，
+                  而且每条消息都做了记忆化，原生的选中模型会和它打架。Enter 下一个 · Shift+Enter 上一个 · Esc 关闭（且不打断正在跑的回合）。
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>审批的三档是等权重的</b>：「允许一次 / 本会话允许 / 永远拒绝」是同一层的三个选择，所以没有主按钮、没有危险色 —— 一旦把「允许一次」做成实心主按钮，用户会把它当成「确认」顺手点掉，那正是最不该被顺手点掉的一档。</li>
+    <li><b>只有「本会话允许」会写会话</b>：授权存进 <code>pi-web:tool-grants</code> custom entry，随分支回退一起回退；「允许一次」什么都不写，避免会话文件堆噪音。超时不答、点停止、关对话框一律按拒绝处理。</li>
+    <li><b>压缩是单行提示 + 事后一条记录</b>：进行中只在输入框那一行给「正在压缩…」并把相位文案从「等模型」压过去（不压的话它读起来像挂死）；完成后转录里才出现一条 <code>compaction</code> 记录，带摘要与文件上下文。失败态给的是服务端原文加一个重试。</li>
+    <li><b>七个 stopReason 一个都不能少，也一个都不能只写机器词</b>：<code>stop</code> 正常、<code>toolUse</code> 表示还没结束、<code>length</code> 是被输出上限截断（要提示「发追问可以继续」）、<code>deferred</code> 交给后台、<code>aborted</code> 是你点的停止、<code>pending</code> 还在跑（流式中不画这一行）、<code>error</code> 是失败。</li>
+    <li><b>「等你处理」有两个位置</b>：转录里那条待回答对话框（收起态就是停在输入框上方的一行，带倒计时条），以及侧栏会话行上的「待授权 / 待输入」标记。两者都只在会话挂起时出现，都不弹模态。</li>
+    <li><b>不打断的提示一律不做成模态</b>：加载骨架、未读计数、通知三色都只是行。通知只报已经发生的事，唯一允许的动作是撤销 / 重试 / 跳转 —— 要用户做决定的，去模态。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

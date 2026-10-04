@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-16 · 设置弹窗 · MCP 工具曝光 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-16 · 设置弹窗 · MCP 工具曝光</h1>
+  <p>
+    接一个带 31 个工具的服务器，产品不会替用户决定哪些进工具表 —— 它只把这件事摊开：
+    <b>四档曝光</b>差的不是「能不能调」，而是<b>模型怎么拿到它</b>（系统提示里直接写名字 · 在代码模式脚本里现查 ·
+    需要时再拉 schema · 根本不告知），以及<b>为此要花多少上下文</b>。所以这一板每一档都写这三行，
+    外加一句「什么时候该用哪档」；下面配一张逐工具的曝光表和一次批量改。
+    最后一块是<b>诊断</b>：像 <span class="d-mono">x-frame-options</span>、<span class="d-mono">frame-ancestors</span>
+    这种网页工具的策略头，<b>只解释它挡住了什么、我们因此怎么做，不给绕过的开关</b>。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / MCP 工具曝光 · 四档 · 逐工具表 · 诊断</span>
+    <span class="d-tag">组件：McpCodemodeSettings · ExposureTable · ExposureBulk · ExposureDiagnostics</span>
+    <span class="d-tag">状态：direct / codemode / deferred / hidden · 批量改 · 策略头拒收</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 四档曝光 · 每档都写「模型怎么拿到 / 上下文开销 / 什么时候用」<span class="d-grow"></span>下方症状表把「该调哪一档」直接对上号</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">cloudflare 那个接上了，31 个工具，是不是有点多？</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · MCP 工具曝光">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · MCP 工具曝光</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner" style="gap:var(--nx-sp-4)">
+
+                      <div class="d-set-sec">
+                        <div class="d-t-xs d-t-faint">
+                          四档是同一根轴上的四档 · 工具表占系统提示 6.0k / 16k token。
+                        </div>
+
+                        <div class="d-grid2">
+
+                          <div class="d-card">
+                            <div class="d-card-head">
+                              <i data-ico="zap" data-size="15"></i>
+                              <span class="d-grow">direct · 直接调用</span>
+                              <span class="d-badge ok">每工具约 +240 token</span>
+                            </div>
+                            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                              <div>
+                                <div class="d-t-xs d-t-b">模型怎么拿到它</div>
+                                <div class="d-t-xs d-t-dim">工具名、用途描述、参数 schema 整段写进每轮系统提示，模型像调内置工具那样直接发起调用。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">上下文开销</div>
+                                <div class="d-t-xs d-t-dim">每轮都带一遍；12 个 direct 工具约合 3k token，随对话变长反复计费。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">什么时候该用</div>
+                                <div class="d-t-xs d-t-dim">高频、名字一说就懂的（create_issue），十几个以内。</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="d-card">
+                            <div class="d-card-head">
+                              <i data-ico="terminal" data-size="15"></i>
+                              <span class="d-grow">codemode · 代码模式（默认）</span>
+                              <span class="d-badge info">每工具约 +12 token</span>
+                            </div>
+                            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                              <div>
+                                <div class="d-t-xs d-t-b">模型怎么拿到它</div>
+                                <div class="d-t-xs d-t-dim">只给一行签名，模型在脚本里调；要完整 schema 时用 <span class="d-mono">searchTools()</span> 现查。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">上下文开销</div>
+                                <div class="d-t-xs d-t-dim">27 个工具合成约 3.2k；超出内联预算的自动降级为一次性检索。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">什么时候该用</div>
+                                <div class="d-t-xs d-t-dim">工具多而杂、调用有批量与条件判断的场景。</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="d-card">
+                            <div class="d-card-head">
+                              <i data-ico="search" data-size="15"></i>
+                              <span class="d-grow">deferred · 按需发现</span>
+                              <span class="d-badge mute">进表时 0 token</span>
+                            </div>
+                            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                              <div>
+                                <div class="d-t-xs d-t-b">模型怎么拿到它</div>
+                                <div class="d-t-xs d-t-dim">系统提示里只有一句「这个服务器还有更多工具」，想用时先发一次发现请求取 schema。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">上下文开销</div>
+                                <div class="d-t-xs d-t-dim">平时 0，用到时一次付清；发现结果不进历史，所以不会重复付费。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">什么时候该用</div>
+                                <div class="d-t-xs d-t-dim">工具多（20+）且名字不好猜：按需拉 schema。</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="d-card">
+                            <div class="d-card-head">
+                              <i data-ico="circle-slash" data-size="15"></i>
+                              <span class="d-grow">hidden · 完全不暴露</span>
+                              <span class="d-badge mute">0 token</span>
+                            </div>
+                            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                              <div>
+                                <div class="d-t-xs d-t-b">模型怎么拿到它</div>
+                                <div class="d-t-xs d-t-dim">拿不到：提示里没有、脚本里搜不到。配置留着，只能手动调一次做体检。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">上下文开销</div>
+                                <div class="d-t-xs d-t-dim">0。hidden 是唯一能把工具从成本里彻底删掉的档位，服务器仍照常启动。</div>
+                              </div>
+                              <div>
+                                <div class="d-t-xs d-t-b">什么时候该用</div>
+                                <div class="d-t-xs d-t-dim">写操作、会产生费用的操作。</div>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">按症状对号入座 · 改曝光不改连接，下一轮生效</div>
+                        <div class="d-tbl-wrap">
+                          <table class="d-table">
+                            <thead>
+                              <tr><th>你看到的症状</th><th>该调哪一档</th><th>为什么</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>模型说「找不到工具」</td>
+                                <td><span class="d-badge info">hidden → codemode</span></td>
+                                <td>hidden 下模型连名字都没见过</td>
+                              </tr>
+                              <tr>
+                                <td>脚本里要连调十几次同类工具</td>
+                                <td><span class="d-badge info">codemode → direct</span></td>
+                                <td>本来就在脚本里，直连省一层搜索</td>
+                              </tr>
+                              <tr>
+                                <td>31 个工具时挑错名字</td>
+                                <td><span class="d-badge info">codemode → deferred</span></td>
+                                <td>名字一多就幻觉，先按需拉真 schema</td>
+                              </tr>
+                              <tr>
+                                <td>担心误删、误发、误花钱</td>
+                                <td><span class="d-badge info">任意 → hidden</span></td>
+                                <td>「不告知」比「告知再确认」更省也更难绕</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 逐工具改在下一张 · 批量改与诊断在后面两帧</span>
+                <button class="d-btn ghost">全部恢复默认</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 逐 server 逐工具曝光表 · 按服务器分组 / 按档位汇总 两个视角<span class="d-grow"></span>视角切换可切 · 每组「批量改」浮层预开 · 调用次数是真实记账</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">哪些工具其实这周一次都没被调过？</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 逐工具曝光表">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · 逐工具曝光</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec" data-demo-scope>
+                        <div class="d-row">
+                          <div class="d-searchfield d-grow"><i data-ico="search" data-size="14"></i><input placeholder="搜工具名或服务器名"></div>
+                          <div class="d-seg" data-demo-tabs>
+                            <button data-demo-tab="by-mode">汇总</button>
+                            <button class="is-on" data-demo-tab="by-server">逐条</button>
+                          </div>
+                        </div>
+
+                        <!-- 逐条 -->
+                        <section data-demo-pane="by-server">
+                          <div class="d-col" style="gap:var(--nx-sp-3)">
+
+                            <div class="d-card">
+                              <div class="d-card-head">
+                                <i data-ico="server" data-size="15"></i>
+                                <span class="d-grow">github</span>
+                                <span class="d-badge mute">stdio</span>
+                                <span class="d-t-xs d-t-faint">18 个工具 · 近 7 天调用 41 次</span>
+                                <button class="d-btn sm" data-demo-open="m18-bulk-github">批量改</button>
+                              </div>
+                              <div class="d-tbl-wrap">
+                                <table class="d-table">
+                                  <thead>
+                                    <tr><th>工具</th><th>做什么</th><th>曝光</th><th>近 7 天</th><th>备注</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td class="d-mono">get_file_contents</td><td>读仓库里的一个文件</td><td><span class="d-badge ok">direct</span></td><td>23</td><td>建 PR 时必用</td></tr>
+                                    <tr><td class="d-mono">create_issue</td><td>建 Issue</td><td><span class="d-badge ok">direct</span></td><td>7</td><td>写操作，调用前会弹确认</td></tr>
+                                    <tr><td class="d-mono">search_code</td><td>跨仓库代码搜索</td><td><span class="d-badge info">codemode</span></td><td>11</td><td>常在脚本里循环调</td></tr>
+                                    <tr><td class="d-mono">list_pull_requests</td><td>列 PR</td><td><span class="d-badge info">codemode</span></td><td>0</td><td class="d-t-faint">7 天没被叫过</td></tr>
+                                    <tr><td class="d-mono">merge_pull_request</td><td>合并 PR</td><td><span class="d-badge mute">hidden</span></td><td>—</td><td>我自己点，不给模型</td></tr>
+                                    <tr><td class="d-mono">delete_branch</td><td>删分支</td><td><span class="d-badge mute">hidden</span></td><td>—</td><td>同上，误删不可逆</td></tr>
+                                    <tr><td class="d-mono">get_issue_comments</td><td>读 Issue 评论</td><td><span class="d-badge info">codemode</span></td><td>0</td><td class="d-t-faint">默认档，没单独配</td></tr>
+                                    <tr><td class="d-mono">其余 11 个</td><td>标签、分支、成员等</td><td><span class="d-badge info">codemode</span></td><td>0</td><td>点行尾的「展开」看全部</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            <div class="d-card">
+                              <div class="d-card-head">
+                                <i data-ico="server" data-size="15"></i>
+                                <span class="d-grow">cloudflare</span>
+                                <span class="d-badge mute">HTTP</span>
+                                <span class="d-t-xs d-t-faint">31 个工具 · 近 7 天调用 3 次</span>
+                                <button class="d-btn sm" data-demo-open="m18-bulk-cf">批量改</button>
+                              </div>
+                              <div class="d-tbl-wrap">
+                                <table class="d-table">
+                                  <thead>
+                                    <tr><th>工具</th><th>做什么</th><th>曝光</th><th>近 7 天</th><th>备注</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td class="d-mono">dns_records_list</td><td>列某区域的解析记录</td><td><span class="d-badge info">codemode</span></td><td>3</td><td>唯一被用过的</td></tr>
+                                    <tr><td class="d-mono">purge_cache</td><td>清 CDN 缓存</td><td><span class="d-badge mute">hidden</span></td><td>—</td><td>会产生费用，hidden</td></tr>
+                                    <tr><td class="d-mono">deploy_worker</td><td>发布 Worker</td><td><span class="d-badge mute">hidden</span></td><td>—</td><td>生产发布不交给模型</td></tr>
+                                    <tr><td class="d-mono">kv_namespace_keys</td><td>读 KV 的键列表</td><td><span class="d-badge warn">deferred</span></td><td>0</td><td>按需发现：名字长、调用少</td></tr>
+                                    <tr><td class="d-mono">其余 27 个</td><td>日志、规则、证书等</td><td><span class="d-badge warn">deferred</span></td><td>0</td><td>默认 deferred，避免 31 条描述挤爆工具表</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                          </div>
+                        </section>
+
+                        <!-- 汇总 -->
+                        <section data-demo-pane="by-mode" hidden>
+                          <div class="d-tbl-wrap">
+                            <table class="d-table">
+                              <thead>
+                                <tr><th>档位</th><th>工具数</th><th>工具表占用</th><th>含哪几个</th><th style="width:76px">批量</th></tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td><span class="d-badge ok">direct</span></td>
+                                  <td>18</td>
+                                  <td>约 4.3k token</td>
+                                  <td class="d-t-xs">github 的 <span class="d-mono">get_file_contents</span> / <span class="d-mono">create_issue</span>，linear 的 12 个读写</td>
+                                  <td><span class="d-btn sm ghost">改档</span></td>
+                                </tr>
+                                <tr>
+                                  <td><span class="d-badge info">codemode</span></td>
+                                  <td>27</td>
+                                  <td>约 1.7k token</td>
+                                  <td class="d-t-xs">github 其余、cloudflare 的 dns 与日志类</td>
+                                  <td><span class="d-btn sm ghost">改档</span></td>
+                                </tr>
+                                <tr>
+                                  <td><span class="d-badge warn">deferred</span></td>
+                                  <td>5</td>
+                                  <td>0（用时现付）</td>
+                                  <td class="d-t-xs">cloudflare 的 kv / rules / certificate 类</td>
+                                  <td><span class="d-btn sm ghost">改档</span></td>
+                                </tr>
+                                <tr>
+                                  <td><span class="d-badge mute">hidden</span></td>
+                                  <td>6</td>
+                                  <td>0</td>
+                                  <td class="d-t-xs">merge_pull_request、delete_branch、purge_cache、deploy_worker 等写操作</td>
+                                  <td><span class="d-btn sm ghost">改档</span></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="d-t-xs d-t-faint">两个视角是同一份数据：逐条看便于「这个 server 我要不要留」，汇总看便于「工具表还挤不挤」。切换不改任何配置。</div>
+                        </section>
+
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">调用次数来自本地会话日志 · 只统计真正发出去过的调用，模型幻觉的名字不计</span>
+                <button class="d-btn">按「7 天 0 次」筛出候选</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m18-bulk-github" hidden style="right:120px;bottom:88px;min-width:340px">
+                <div class="d-pop-title">批量改 github 的 18 个工具</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">会覆盖逐个设过的 2 个（<span class="d-mono">get_file_contents</span>、<span class="d-mono">create_issue</span>）。</div>
+                  <div class="d-code">
+                    <div class="d-code-body" style="padding:var(--nx-sp-2)"><span class="tok-c">// 改完长这样</span>
+<span class="tok-k">"toolExposure"</span>: {
+  <span class="tok-k">"*"</span>: <span class="tok-s">"codemode"</span>
+}</div>
+                  </div>
+                  <div class="d-t-xs d-t-faint">下一轮生效；当前这轮的提示不变。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="zap" data-size="14"></i>全部 direct（含 merge 与 delete）</button>
+                <button class="d-menu-row"><i data-ico="terminal" data-size="14"></i>全部 codemode</button>
+                <button class="d-menu-row"><i data-ico="search" data-size="14"></i>全部 deferred</button>
+                <button class="d-menu-row"><i data-ico="circle-slash" data-size="14"></i>全部 hidden</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="ban" data-size="14"></i>从本表移除 github 的全部工具</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m18-bulk-cf" hidden style="right:120px;bottom:88px;min-width:340px">
+                <div class="d-pop-title">批量改 cloudflare 的 31 个工具</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">这批默认就是 deferred，所以「全部改成 codemode」会把工具表推高约 7.4k token。</div>
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span>改完工具表会从 6.0k 涨到约 13.4k（预算上限 16k）。涨过 70% 会开始挤压长对话。</span>
+                  </div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="zap" data-size="14"></i>全部 direct（会超预算，先想清楚）</button>
+                <button class="d-menu-row"><i data-ico="terminal" data-size="14"></i>全部 codemode</button>
+                <button class="d-menu-row"><i data-ico="circle-slash" data-size="14"></i>只留 6 个常用，其余 hidden</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>停用整个服务器</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 诊断 · 工具表为空 / 策略头拒收 两类问题，只解释不绕<span class="d-grow"></span>下面明确写「为什么不提供绕过开关」—— 这一句是这块的设计决定</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+                <div class="d-md">
+                  <p>playwright 说「页面打不开：被 X-Frame-Options 拒绝」。这个头是它自己站点下的，我这边没什么能改的。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 曝光诊断">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · 曝光诊断</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">为什么连上了却调不到</div>
+                        <div class="d-tbl-wrap">
+                          <table class="d-table">
+                            <thead>
+                              <tr><th>现象</th><th>真正的原因</th><th>在哪儿改</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>工具列表空，服务器显示「已连接」</td>
+                                <td>服务器级曝光是 hidden，或逐工具全被设成了 hidden</td>
+                                <td>本分节的服务器级默认值 · 上一行的徽章</td>
+                              </tr>
+                              <tr>
+                                <td>模型反复说「没有这个工具」</td>
+                                <td>工具在 deferred，但模型没先做发现请求就被要求直接调</td>
+                                <td>把常用那几个提为 codemode</td>
+                              </tr>
+                              <tr>
+                                <td>工具能列出，一调就 401 / 403</td>
+                                <td>认证态问题，与曝光无关（凭据缺失或权限不足）</td>
+                                <td>MCP 服务器 &gt; 登录态</td>
+                              </tr>
+                              <tr>
+                                <td>改完不生效</td>
+                                <td>曝光在<b>下一轮</b>才换，当前轮的提示里还是旧的</td>
+                                <td>不用改，发一条消息即可</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">网页类工具的策略头</div>
+                        <div class="d-tbl-wrap">
+                          <table class="d-table">
+                            <thead>
+                              <tr><th>响应头</th><th>它在声明什么</th><th>我们因此怎么做</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td class="d-mono">x-frame-options: DENY</td>
+                                <td>这个响应不许被任何页面放进 iframe（点击劫持防护）</td>
+                                <td>内嵌预览直接判「不可嵌入」，改在它自己的浏览器标签里打开</td>
+                              </tr>
+                              <tr>
+                                <td class="d-mono">content-security-policy: frame-ancestors 'none'</td>
+                                <td>CSP 版本的同一件事，优先级高于 <span class="d-mono">X-Frame-Options</span></td>
+                                <td>同上；两者同时存在时以 CSP 为准</td>
+                              </tr>
+                              <tr>
+                                <td class="d-mono">x-frame-options: SAMEORIGIN</td>
+                                <td>只允许同源页面嵌入</td>
+                                <td>不是我们自己的源 → 同样不可嵌入，提示里说清原因</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-code">
+                          <div class="d-code-head">
+                            <i data-ico="file-diff" data-size="12"></i>playwright 拉取 https://app.acme.com/console 的响应头（照抄原始响应，不改写）
+                            <span class="d-grow"></span>
+                            <span class="d-badge warn">不可嵌入</span>
+                          </div>
+                          <div class="d-code-body">HTTP/1.1 <span class="tok-n">200</span> OK
+content-type: text/html; charset=utf-8
+<span class="tok-k">x-frame-options</span>: <span class="tok-s">DENY</span>
+<span class="tok-k">content-security-policy</span>: <span class="tok-s">frame-ancestors 'none'</span>
+
+<span class="tok-c">→ 右栏「浏览器」面板判定：不可内嵌
+→ 动作：在系统浏览器新标签打开（保留登录态），模型继续读页面文本</span>
+                          </div>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="shield-check" data-size="14"></i>
+                          <span>
+                            <b>这里不提供绕过开关，也不打算加。</b>这两个头是站点所有者明确表达的「我的页面不许被套进别人的框里」，
+                            那是防点击劫持的策略，不是配置错误。客户端能做的只有两条：说明原因，或者退到不嵌入的方式 ——
+                            <b>没有第三条</b>。要嵌入，就在对方站点那边改策略。
+                          </span>
+                        </div>
+
+                        <div class="d-row">
+                          <button class="d-btn sm"><i data-ico="external-link" data-size="14"></i>在系统浏览器打开这个页面</button>
+                          <button class="d-btn sm ghost" data-demo-open="m18-csp-help"><i data-ico="circle-help" data-size="14"></i>这两个头有什么区别</button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">诊断只读产品自己看得见的证据（响应头原文、会话日志、配置）</span>
+                <button class="d-btn ghost">复制这份诊断</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m18-csp-help" hidden style="right:120px;bottom:88px;min-width:380px">
+                <div class="d-pop-title">X-Frame-Options 与 frame-ancestors</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs"><b>X-Frame-Options</b>（1999 年的头）只有一个取值来源，能写 DENY 或 SAMEORIGIN，不能列域名白名单。</div>
+                  <div class="d-t-xs"><b>frame-ancestors</b> 是 CSP 里的指令，可以写具体域名列表，粒度更细；两个都在时按 CSP 走。</div>
+                  <div class="d-t-xs d-t-faint">对我们的区别只有一条：都判「不可内嵌」。差别只在对方站点能不能用域名白名单单独放行 Pi。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="file-diff" data-size="14"></i>把这两个头的原文附到诊断里</button>
+                <button class="d-menu-row"><i data-ico="file-code" data-size="14"></i>看 CSP 的完整语法说明</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>四档是同一根轴，不是四个开关。</b>区别在「模型怎么拿到」：系统提示里整段写（direct）· 只给一行签名、脚本里现查
+        （codemode）· 用时才拉 schema（deferred）· 根本不告知（hidden）。所以每张卡都必须同时给
+        <b>怎么拿 / 花多少 / 什么时候用</b>三行，少一行就还是四个英文词。</li>
+    <li><b>成本要写成 token 数</b>（direct 约 240/工具、codemode 约 12/工具、deferred 与 hidden 进表时 0）。
+        「会不会占上下文」这种话用户没法据此做决定；给数字他就能算出该不该动。</li>
+    <li><b>改曝光不改连接。</b>服务器照常握手、凭据照常有效，只是下一轮工具表里换一批名字；当前轮已经拿到的提示不变 ——
+        这一句必须写在界面上，否则用户会以为设置没生效又去改一遍。</li>
+    <li><b>「调用次数」只统计真发出去的调用</b>，模型幻觉出来的工具名不进账。否则这一列会反过来教用户「这个工具很有用」，
+        而它其实一次都没被真正调过。</li>
+    <li><b>策略头只解释不绕。</b><span class="d-mono">x-frame-options</span> 与 <span class="d-mono">frame-ancestors</span> 是站点所有者
+        表达的防点击劫持策略，客户端能做的只有「说明原因」或「退到不嵌入的方式」，<b>不提供任何绕过开关</b>。
+        这条写在横幅里而不是藏在文档里：它是设计决定，不是暂缺功能。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

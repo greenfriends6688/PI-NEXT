@@ -57,14 +57,14 @@ test("the panel keeps its live-progress affordances", () => {
 });
 
 test("the panel takes its type and metrics from the board, never from inline literals", () => {
-  // fork:design-components —— 字号/控件高改由 board.css 的 `.pw-plan*` / `.pw-card-head` /
-  // `.pw-card-foot` 承担，组件里不再引 TEXT / CONTROL，也不再有内联 px 字号。
+  // fork:v5-landing —— DOM 抄自画板 D-03e 帧 C：字号/控件高由 system.css 的
+  // `.d-card` / `.d-tool-head` / `.d-bar` / `.d-pop*` 承担，组件里不再引 TEXT / CONTROL。
   assert.doesNotMatch(source, /import \{ TEXT \} from "@\/lib\/typography"/);
   assert.doesNotMatch(source, /import \{ CONTROL \} from "@\/lib\/control-size"/);
   assert.doesNotMatch(source, /fontSize: [0-9]/, "inline px font sizes must come from the board");
-  assert.match(source, /className="pw-plan fork-todo-panel"/);
-  assert.match(source, /className="pw-plan-head"/);
-  assert.match(source, /className="pw-card-foot"/);
+  assert.match(source, /className="d-pop is-open fork-todo-panel"/);
+  assert.match(source, /className="d-pop-title"/);
+  assert.match(source, /className="d-pop-foot"/);
   // 勾选标记走画板图标，不是手绘 polyline。
   assert.match(source, /<i data-ico="check" data-size="10"><\/i>/);
   assert.doesNotMatch(source, /<svg/);

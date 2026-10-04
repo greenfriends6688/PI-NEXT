@@ -3,19 +3,30 @@
 
 import { useMemo, useEffect, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
+// fork:v5-wave-b —— 窄屏（≤640px，与 pwa/system.css 的 @import 媒体条件同一个断点）
+// 换成 M-04 的抽屉内命中列表：`.m-list` / `.m-group-title` / `.m-row`（`.m-row-t` + `.m-row-m`）。
+// 判据用 `useIsMobile()` 而不是组件里那个触控档判据：d-* 规则只在 ≥641 生效，
+// 641–1024 的平板档仍然是 d-* DOM，写窄一点就会在平板上挂到不生效的类。
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import type { SessionInfo } from "@/lib/types";
 import type { SessionSearchResponse, SessionSearchResult } from "@/lib/session-search";
 
 /**
- * fork:design-system SW-02 / fix:search-grouping —— 结果区 = 画板 02 帧 C：
- * `.pw-search-results` 容器 + 计数行 + **按项目分组**（组头 `.pw-row`：folder 图标 +
- * 项目名 + 数量徽章），组内每条命中一行（会话标题 + accent 淡底的高亮片段）。
+ * fork:v5-landing —— 结果区照画板 **D-02d 帧 E（搜索态）** 抄：
+ * `.d-group-title`（`search` 图标 + 计数）作分区头；项目组头用 `.d-group-title`
+ * （folder + 组名 + `.d-t-xs` 数量）；每条命中用画板的会话行 `.d-sess`
+ * （`.d-sess-t` 标题 + `.d-sess-m` 相对时间 · 命中片段），命中片段用 `.d-cmd-hit`。
+ * 结果直接落在侧栏的滚动容器（`listScrollRef`）里，与画板一致，不再自建内层滚动。
  *
- * 迁移前这里把每条命中渲染成一整行 `.pw-session.child`（标题 / 项目路径 / 相对时间 /
- * 命中片段四层挤在 26px 高的一格里），还要在每个项目下重复打印一遍同样的 cwd ——
- * 结果就是「乱」：行高不够、路径重复、命中片段被压成一条缝。
- * 画板给的是**分组**形态，所以这里按 `session.cwd` 归组，分组头只出现一次。
+ * 迁移前这里把每条命中渲染成一整行 `.pw-session.child`（四层挤在 26px 里、还要在每个
+ * 项目下重复打印 cwd）。画板给的是**分组**形态，所以仍按 `session.cwd` 归组，组头只出现一次。
+ *
+ * fork:v5-wave-b —— 窄屏分支照画板 **M-04 帧 B（搜索命中与分段）** 抄 DOM：
+ *   `.m-list` > `.m-group-title`（分区 / 项目组头）+ `.m-row`（`.m-row-t` 标题 +
+ *   `.m-row-m` 相对时间 · 命中片段）。数据、分组、i18n、fetch 与桌面分支逐字相同。
+ *   命中高亮仍是 `.d-cmd-hit`：**PWA 组件库里没有对应的 m-* 类**（见汇报的缺件一节），
+ *   且它是 ≥641 才生效的规则，所以窄屏上落回 `<mark>` 的 UA 表现 —— 与今天一致。
  */
 
 interface SearchGroup {
@@ -72,6 +83,7 @@ export function SessionSearch({ open, query, children, selectedSessionId, onSele
   onSelectSession: (session: SessionInfo, entryId?: string, blockIndex?: number) => void;
 }) {
   const { t, locale } = useI18n();
+  const isPhone = useIsMobile();
   const [state, setState] = useState<{ query: string; response?: SessionSearchResponse; failed?: boolean }>({ query: "" });
   const search = query.trim();
   const response = state.query === search ? state.response : undefined;
@@ -111,16 +123,18 @@ export function SessionSearch({ open, query, children, selectedSessionId, onSele
         : t("sidebar.sessionSearchCount", { count: response.results.length });
 
   return (
-    <div className="pw-search-results" aria-busy={!response && !failed}>
-      <div role="status" className="pw-group-title" style={{ paddingTop: "var(--s1)" }}>{statusLine}</div>
+    <div className={isPhone ? "m-list" : "d-col"} aria-busy={!response && !failed}>
+      <div role="status" className={isPhone ? "m-group-title" : "d-group-title"}>
+        <i data-ico="search" data-size="12"></i>
+        <span className="d-grow">{statusLine}</span>
+      </div>
 
       {groups.map((group) => (
-        <section key={group.key} className="pw-search-group">
-          <div className="pw-row" title={group.fullPath}>
-            <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
-            <span className="pw-search-project">{group.label}</span>
-            <span className="grow" />
-            <span className="pw-badge count">{group.results.length}</span>
+        <section key={group.key} className="d-col">
+          <div className={isPhone ? "m-group-title" : "d-group-title"} title={group.fullPath}>
+            <i data-ico="folder" data-size="12"></i>
+            <span className={isPhone ? "m-grow" : "d-grow"}>{group.label}</span>
+            <span className={isPhone ? "m-t-xs" : "d-t-xs"}>{group.results.length}</span>
           </div>
           {group.results.map((result) => {
             const title = result.session.name?.trim() || result.session.firstMessage?.trim();
@@ -132,16 +146,17 @@ export function SessionSearch({ open, query, children, selectedSessionId, onSele
                 onClick={() => onSelectSession(result.session, result.entryId, result.blockIndex)}
                 aria-current={isCurrent ? "true" : undefined}
                 title={title || result.session.cwd}
-                className={`pw-search-result${isCurrent ? " is-on" : ""}`}
+                className={isPhone ? `m-row${isCurrent ? " is-on" : ""}` : `d-sess${isCurrent ? " is-on" : ""}`}
               >
-                <span className="pw-search-result-head">
-                  <span className="pw-t">{title || t("i18n.newSession")}</span>
-                  <span className="pw-dim">{formatRelativeTime(result.session.modified, locale)}</span>
-                </span>
-                <span className="pw-search-hit">
-                  {result.before}
-                  <mark className="pw-mark">{result.match}</mark>
-                  {result.after}
+                <span className={isPhone ? "m-row-t" : "d-sess-t"} style={isPhone ? undefined : { display: "block" }}>{title || t("i18n.newSession")}</span>
+                <span className={isPhone ? "m-row-m" : "d-sess-m"}>
+                  <span style={{ flex: "0 0 auto", whiteSpace: "nowrap" }}>{formatRelativeTime(result.session.modified, locale)}</span>
+                  <span aria-hidden="true" style={{ flex: "0 0 auto" }}>·</span>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {result.before}
+                    <mark className="d-cmd-hit">{result.match}</mark>
+                    {result.after}
+                  </span>
                 </span>
               </button>
             );
@@ -150,8 +165,8 @@ export function SessionSearch({ open, query, children, selectedSessionId, onSele
       ))}
 
       {response?.truncated && (
-        <div role="status" className="pw-row muted" style={{ justifyContent: "center", marginTop: "var(--s2)" }}>
-          <span style={{ fontSize: "var(--text-meta)" }}>{t("sidebar.sessionSearchPartial")}</span>
+        <div role="status" className={isPhone ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"} style={{ textAlign: "center", padding: "var(--nx-sp-2)" }}>
+          {t("sidebar.sessionSearchPartial")}
         </div>
       )}
     </div>

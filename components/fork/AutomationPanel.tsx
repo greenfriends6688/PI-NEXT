@@ -27,7 +27,10 @@ import {
   ConfigStatusDot,
   ConfigSwitch,
 } from "../SettingsUi";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaPage, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
+import { PwaSheet } from "@/components/pwa/PwaSheet";
 import { AutomationEditor } from "./AutomationEditor";
 import { describeSchedule, listUpcomingRuns } from "@/lib/automation-schedule";
 import {
@@ -99,6 +102,7 @@ function toDraft(automation: Automation): AutomationDraft {
 
 export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps): ReactNode {
   const { t, locale } = useI18n();
+  const mobile = useIsMobile();
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [scheduler, setScheduler] = useState<SchedulerStatus>({ started: false, activeRunIds: [] });
   const [modelOptions, setModelOptions] = useState<Array<{ value: string; label: string }>>([]);
@@ -214,6 +218,261 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
     [locale],
   );
 
+  // fork:v5-landing Wave B · M-09 帧 B · 定时任务 ——
+  // 手机上这是一个**独立一级页**，不是 hub 卡片：每张卡只回答两件事
+  // （`.m-croncard-head` 末位的调度徽章 + 开关，`.m-cronhist` 的上次成没成 / 下次什么时候），
+  // 新建与详情一律走 `.m-sheet` 底部面板，不新开页面。
+  // 数据、调度口径、开关语义（直接生效、关闭后历史留着）与桌面**完全同一份**。
+  if (mobile) {
+    const runDot = (status: string): string =>
+      status === "success" ? "ok" : status === "error" ? "bad" : "warn";
+    const badgeTone = (type: Automation["scheduleType"]): string =>
+      type === "daily" ? "ok" : type === "interval" ? "warn" : "mute";
+    const totalRuns = automations.reduce((sum, item) => sum + item.runHistory.length, 0);
+    const failedRuns = automations.reduce(
+      (sum, item) => sum + item.runHistory.filter((run) => run.status === "error").length,
+      0,
+    );
+    const nextAnywhere = automations
+      .flatMap((item) => listUpcomingRuns(item, now, 1))
+      .sort((a, b) => a - b)[0];
+    const sheetOpen = creating || Boolean(selected);
+
+    return (
+      <PwaPage
+        title={t("automation.title")}
+        actions={
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("automation.new")}
+            onClick={startCreate}
+          >
+            <i data-ico="plus" data-size="16" aria-hidden="true" />
+          </button>
+        }
+      >
+        {!scheduler.started && (
+          <PwaBanner icon="triangle-alert" tone="warn">{t("automation.schedulerStopped")}</PwaBanner>
+        )}
+        {error && (
+          <PwaBanner icon="triangle-alert" tone="err" role="alert">{error}</PwaBanner>
+        )}
+
+        <div className="m-cardgroup">
+          <PwaSetRow
+            icon="list-checks"
+            label={`${t("automation.history")} ${totalRuns}`}
+            sub={`${t("automation.runStatus.success")} ${totalRuns - failedRuns} · ${t("automation.runStatus.error")} ${failedRuns}`}
+          />
+          <PwaSetRow
+            icon="calendar-clock"
+            label={`${t("automation.nextRuns")}: ${nextAnywhere ? formatter.format(new Date(nextAnywhere)) : t("automation.never")}`}
+            sub={`${t("automation.title")} ${automations.length} · ${t("automation.runStatus.skipped")} ${automations.filter((item) => !item.active).length}`}
+          />
+        </div>
+
+        {automations.length === 0 && (
+          <div className="m-empty">
+            <span className="m-empty-ico"><i data-ico="timer" data-size="20" aria-hidden="true" /></span>
+            <span className="m-empty-t">{t("automation.empty")}</span>
+            <span className="m-empty-s">{t("automation.emptyHint")}</span>
+          </div>
+        )}
+
+        {automations.map((automation) => {
+          const isRunning = scheduler.activeRunIds.includes(automation.id);
+          const recent = [...automation.runHistory].reverse().slice(0, 2);
+          const next = listUpcomingRuns(automation, now, 1)[0];
+          return (
+            <div className="m-croncard" key={automation.id}>
+              {/* `.m-croncard-head` = 图标 + 名字/目录 + 调度徽章 + 开关。
+                  中间那段在画板里是 `<span>`，这里换成 `<button>`（类名不变），
+                  因为手机上「点卡进详情」是唯一入口 —— 不新开页面，只开面板。 */}
+              <div className="m-croncard-head">
+                <i data-ico={isRunning ? "loader-circle" : "timer"} data-size="16" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="m-setrow-body m-grow"
+                  style={{ textAlign: "left", border: 0, background: "none", padding: 0, font: "inherit", color: "inherit" }}
+                  onClick={() => startEdit(automation)}
+                >
+                  <span className="m-setrow-t">{automation.name}</span>
+                  <span className="m-setrow-s">
+                    {[automation.cwd, describeSchedule(automation, t, locale)].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+                <span className={`m-badge ${isRunning ? "ok" : badgeTone(automation.scheduleType)}`}>
+                  {isRunning ? t("automation.running") : t(`automation.scheduleType.${automation.scheduleType}`)}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={automation.active}
+                  aria-label={automation.active ? t("automation.pausedManual") : t("automation.reopen")}
+                  className={`m-switch${automation.active ? " on" : ""}`}
+                  disabled={readOnly || busy}
+                  onClick={() => void post({
+                    action: "update",
+                    id: automation.id,
+                    automation: { ...toDraft(automation), active: !automation.active },
+                  })}
+                />
+              </div>
+              <div className="m-cronhist">
+                {recent.map((run, index) => (
+                  <div className="m-hist-row" key={`${automation.id}-${run.runAt}-${index}`}>
+                    <span className={`m-dot ${runDot(run.status)}`} />
+                    <span>{formatter.format(new Date(run.runAt))}</span>
+                    <span className="m-grow" />
+                    <span className={run.status === "error" ? "m-err" : undefined}>
+                      {run.status === "error" && run.error
+                        ? run.error
+                        : t(`automation.runStatus.${run.status}`)}
+                    </span>
+                  </div>
+                ))}
+                <div className="m-hist-row">
+                  <span className="m-grow" />
+                  <span>
+                    {automation.active
+                      ? `${t("automation.nextRun")}: ${next ? formatter.format(new Date(next)) : t("automation.never")}`
+                      : t("automation.pausedManual")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        <PwaSheet
+          open={sheetOpen}
+          title={creating ? t("automation.new") : selected?.name ?? t("automation.title")}
+          label={creating ? t("automation.new") : selected?.name}
+          onClose={() => { setCreating(false); setSelectedId(null); }}
+          footer={
+            <>
+              <button
+                type="button"
+                className="m-picktag"
+                onClick={() => { setCreating(false); setSelectedId(null); }}
+                disabled={busy}
+              >
+                {t("i18n.cancel")}
+              </button>
+              {!creating && selectedId && (
+                <>
+                  <button
+                    type="button"
+                    className="m-picktag danger"
+                    disabled={readOnly || busy}
+                    onClick={() => {
+                      if (window.confirm(t("automation.deleteConfirm"))) {
+                        void post({ action: "delete", id: selectedId }).then(() => {
+                          setSelectedId(null);
+                          setCreating(false);
+                        });
+                      }
+                    }}
+                  >
+                    {t("automation.delete")}
+                  </button>
+                  <button
+                    type="button"
+                    className="m-picktag"
+                    disabled={readOnly || busy || scheduler.activeRunIds.includes(selectedId)}
+                    onClick={() => void post({ action: "run-now", id: selectedId })}
+                  >
+                    {t("automation.runNow")}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="m-picktag is-on"
+                disabled={readOnly || busy}
+                onClick={() => void save()}
+              >
+                {t("automation.save")}
+              </button>
+            </>
+          }
+        >
+          {selected && !creating && (
+            <div className="m-cardgroup">
+              <PwaSwitchRow
+                icon="power"
+                label={t("automation.schedule")}
+                sub={describeSchedule(selected, t, locale)}
+                checked={draft.active}
+                switchLabel={draft.active ? t("automation.pausedManual") : t("automation.reopen")}
+                disabled={readOnly || busy}
+                onChange={(next) => setDraft({ ...draft, active: next })}
+              />
+              <PwaSetRow
+                icon="calendar-clock"
+                label={t("automation.nextRuns")}
+                sub={upcoming.length > 0
+                  ? upcoming.map((timestamp) => formatter.format(new Date(timestamp))).join(" · ")
+                  : t("automation.never")}
+              />
+              <PwaSetRow
+                icon="history"
+                label={t("automation.lastRun")}
+                sub={selected.lastRunAt ? formatter.format(new Date(selected.lastRunAt)) : t("automation.never")}
+              />
+              {selected.pausedReason === "consecutive-failures" && (
+                <PwaSetRow
+                  icon="triangle-alert"
+                  label={t("automation.pausedBackoff")}
+                  sub={selected.consecutiveFailures
+                    ? t("automation.consecutiveFailures", { count: selected.consecutiveFailures })
+                    : undefined}
+                />
+              )}
+              {selected.pausedReason === "completed" && (
+                <PwaSetRow icon="circle-check" label={t("automation.completed")} />
+              )}
+              <div className="m-setrow">
+                <i data-ico="history" data-size="16" aria-hidden="true" />
+                <span className="m-setrow-body">
+                  <span className="m-setrow-t">{t("automation.history")}</span>
+                </span>
+              </div>
+              <div className="m-cronhist">
+                {selected.runHistory.length === 0 ? (
+                  <div className="m-hist-row"><span className="m-grow" /><span>{t("automation.noRuns")}</span></div>
+                ) : (
+                  [...selected.runHistory].reverse().map((run, index) => (
+                    <div className="m-hist-row" key={`${run.runAt}-${index}`}>
+                      <span className={`m-dot ${runDot(run.status)}`} />
+                      <span className="m-mono">{formatter.format(new Date(run.runAt))}</span>
+                      <span className="m-grow" />
+                      <span className={run.status === "error" ? "m-err" : undefined}>
+                        {run.status === "skipped" && run.skipReason
+                          ? t(`automation.skipReason.${run.skipReason === "source-busy" ? "source-busy" : "previous-run-active"}`)
+                          : run.status === "error" && run.error
+                            ? run.error
+                            : t(`automation.runStatus.${run.status}`)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          <AutomationEditor
+            variant="mobile"
+            draft={draft}
+            onChange={setDraft}
+            disabled={readOnly || busy}
+            modelOptions={modelOptions}
+          />
+        </PwaSheet>
+      </PwaPage>
+    );
+  }
+
   return (
     <ConfigPanelShell
       embedded
@@ -231,13 +490,13 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
                   key={automation.id}
                   type="button"
                   aria-current={automation.id === selectedId ? "true" : undefined}
-                  className={`pw-litem${automation.id === selectedId ? " is-on" : ""}`}
+                  className={`d-sess${automation.id === selectedId ? " is-on" : ""}`}
                   onClick={() => startEdit(automation)}
                 >
-                  <span className="pw-ico"><i data-ico={isRunning ? "loader-circle" : "timer"} data-size="14"></i></span>
-                  <span className="grow">
-                    <span className="pw-lname">{automation.name}</span>
-                    <span className="pw-lsub">{describeSchedule(automation, t, locale)}</span>
+                  <i data-ico={isRunning ? "loader-circle" : "timer"} data-size="14" aria-hidden="true" />
+                  <span className="d-grow">
+                    <span className="d-sess-t">{automation.name}</span>
+                    <span className="d-sess-m">{describeSchedule(automation, t, locale)}</span>
                   </span>
                   <ConfigStatusDot active={isRunning} />
                 </button>
@@ -251,9 +510,9 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
           <ConfigSectionTitle>{creating ? t("automation.new") : selected?.name ?? t("automation.title")}</ConfigSectionTitle>
 
           {!scheduler.started && (
-            <p className="pw-alert">{t("automation.schedulerStopped")}</p>
+            <p className="d-banner warn">{t("automation.schedulerStopped")}</p>
           )}
-          {error && <p className="pw-alert" role="alert">{error}</p>}
+          {error && <p className="d-banner err" role="alert">{error}</p>}
 
           {(creating || selected) && (
             <ConfigField label={t("automation.schedule")}>
@@ -276,25 +535,25 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
           {selected && !creating && (
             <>
               <ConfigSectionTitle>{t("automation.nextRuns")}</ConfigSectionTitle>
-              <p className="pw-hint">
+              <p className="d-t-xs d-t-faint">
                 {upcoming.length > 0
                   ? upcoming.map((timestamp) => formatter.format(new Date(timestamp))).join(" · ")
                   : t("automation.never")}
               </p>
-              <p className="pw-hint">
+              <p className="d-t-xs d-t-faint">
                 {t("automation.lastRun")}: {selected.lastRunAt ? formatter.format(new Date(selected.lastRunAt)) : t("automation.never")}
                 {selected.lastContextUsage !== undefined && (
                   <> · {(selected.lastContextUsage * 100).toFixed(0)}% / {Math.round(AUTOMATION_DAILY_CONTEXT_ROLLOVER_THRESHOLD * 100)}%</>
                 )}
               </p>
               {selected.pausedReason === "consecutive-failures" && (
-                <p className="pw-alert" role="status">
+                <p className="d-banner warn" role="status">
                   {t("automation.pausedBackoff")}
                   {selected.consecutiveFailures ? ` · ${t("automation.consecutiveFailures", { count: selected.consecutiveFailures })}` : ""}
                 </p>
               )}
               {selected.pausedReason === "completed" && (
-                <p className="pw-alert" role="status">{t("automation.completed")}</p>
+                <p className="d-banner info" role="status">{t("automation.completed")}</p>
               )}
 
               <ConfigSectionTitle>{t("automation.history")}</ConfigSectionTitle>
@@ -307,13 +566,13 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
                       <ConfigBadge tone={run.status === "success" ? "ok" : run.status === "error" ? "bad" : undefined}>
                         {t(`automation.runStatus.${run.status}`)}
                       </ConfigBadge>
-                      <span className="pw-mono pw-dim">{formatter.format(new Date(run.runAt))}</span>
+                      <span className="d-mono d-t-faint">{formatter.format(new Date(run.runAt))}</span>
                       {run.status === "skipped" && run.skipReason && (
-                        <span className="pw-hint">
+                        <span className="d-t-xs d-t-faint">
                           {t(`automation.skipReason.${run.skipReason === "source-busy" ? "source-busy" : "previous-run-active"}`)}
                         </span>
                       )}
-                      {run.status === "error" && run.error && <span className="pw-hint">{run.error}</span>}
+                      {run.status === "error" && run.error && <span className="d-t-xs d-t-faint">{run.error}</span>}
                     </li>
                   ))}
                 </ul>

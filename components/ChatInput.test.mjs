@@ -250,8 +250,8 @@ test("流式中这一格随草稿在 ⏸ 与 ↑ 之间切换（fork:send-stop-o
   // 「同一格」是硬要求：⏸ 与 ↑ 永不同时出现（用户 2026-10-05 裁定，
   // 否决了 fork:zc-queue-2026-10-04 那个并排两枚的实验）。
   const empty = shell({});
-  assert.match(empty, /class="pw-send stop"/);
-  assert.doesNotMatch(empty, /class="pw-send"/);
+  assert.match(empty, /class="d-send stop"/);
+  assert.doesNotMatch(empty, /class="d-send"/);
 
   // 有草稿 → ⏸ 让位给 ↑，点了就是排队（不是静默无反应）。
   // 草稿从 `lib/draft-store` 按 draftKey 读（不是 initialDraft prop），所以要先写再渲染。
@@ -264,8 +264,8 @@ test("流式中这一格随草稿在 ⏸ 与 ↑ 之间切换（fork:send-stop-o
     })),
   );
   clearDraft(draftKey);
-  assert.match(draft, /class="pw-send"/);
-  assert.doesNotMatch(draft, /class="pw-send stop"/);
+  assert.match(draft, /class="d-send"/);
+  assert.doesNotMatch(draft, /class="d-send stop"/);
 
   const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
   assert.match(source, /isStreaming && !hasDraftToSubmit \? stopButton : sendButton/);
@@ -848,9 +848,9 @@ test("the context detail popover is portaled out of the clipped composer subtree
   const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
   const forkCss = readFileSync(new URL("../app/fork-ui.css", import.meta.url), "utf8");
 
-  assert.match(source, /<PortalDropdown[\s\S]*?className="pw-pop composer-ring-pop"/);
+  assert.match(source, /<PortalDropdown[\s\S]*?className="d-pop is-open composer-ring-pop"/);
   // 环本身只留圆环按钮，明细不再作为它的子节点。
-  assert.doesNotMatch(source, /className="pw-pop composer-ring-pop"[^>]*style=/);
+  assert.doesNotMatch(source, /className="d-pop is-open composer-ring-pop"[^>]*style=/);
   // 可见性由状态驱动（portal 之后 CSS 的 :hover 够不着 panel）。
   assert.match(source, /onMouseEnter=\{\(\) => setRingHovered\(true\)\}/);
   assert.match(source, /onMouseLeave=\{\(\) => setRingHovered\(false\)\}/);
@@ -900,53 +900,54 @@ test("the process head button fills its card so the expand toggle sits at the ri
 test("the composer's notices, chips and popover headers ride on the board components", () => {
   const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
 
-  // 通知条：error 基态 + warn / ok / info 三个变体。
-  assert.match(source, /className=\{`pw-alert\$\{tone === "error" \? "" : " warn"\}`\}/);
-  assert.match(source, /className="pw-alert warn"/);
-  assert.match(source, /className="pw-alert ok"/);
-  assert.match(source, /className="pw-alert info"/);
-  assert.match(source, /className="pw-alert"\n\s+style=\{\{\n\s+marginBottom: "var\(--s2\)",\n\s+\/\/ 错误正文原样换行不断词/);
+  // 通知条：error 基态 + warn / ok / info 三个变体（画板 50 的 .d-banner 四态）。
+  assert.match(source, /className=\{`d-banner\$\{tone === "error" \? " err" : " warn"\}`\}/);
+  assert.match(source, /className="d-banner warn"/);
+  assert.match(source, /className="d-banner ok"/);
+  assert.match(source, /className="d-banner info"/);
+  assert.match(source, /className="d-banner err"\n\s+style=\{\{\n\s+marginBottom: "var\(--nx-sp-2\)",\n\s+\/\/ 错误正文原样换行不断词/);
 
-  // 附件芯片：容器 .pw-chips，非图片附件是 .pw-chip，芯片末尾的移除钮是 data-ico="x"。
-  assert.equal((source.match(/<div className="pw-chips">/g) ?? []).length, 2);
-  assert.match(source, /<span key=\{chip\.path\} className="pw-chip"/);
-  assert.match(source, /<span className="pw-ico"><i data-ico=\{attachmentChipIcon\(chip\.kind\)\} data-size="12"><\/i><\/span>/);
-  assert.match(source, /className="pw-ico"\n\s+onClick=\{\(\) => removeReferenceAttachment\(chip\.path\)\}/);
+  // 附件芯片：容器 .d-chips，非图片附件是 .d-chipbtn，芯片末尾的移除钮是 data-ico="x"。
+  assert.equal((source.match(/<div className="d-chips">/g) ?? []).length, 2);
+  assert.match(source, /<span key=\{chip\.path\} className="d-chipbtn"/);
+  assert.match(source, /<i data-ico=\{attachmentChipIcon\(chip\.kind\)\} data-size="12"><\/i>/);
+  assert.match(source, /className="d-iconbtn"\n\s+onClick=\{\(\) => removeReferenceAttachment\(chip\.path\)\}/);
 
-  // 队列行：画板 20 的 .pw-prow。（原先还有「引导 / 后续消息」两枚 .pw-btn，
-  // 2026-10-02 用户裁定删除 —— 流式中发送一律排队，不再二选一。）
-  assert.match(source, /className="pw-prow"\n\s+\/\/ 拖动中的那一行压暗/);
-  assert.match(source, /<span className="pw-badge count">\{index \+ 1\}<\/span>/);
+  // 队列：画板 20 的 .d-queue / .d-queue-head / .d-queue-body，行是 .d-queue-row。
+  // （原先还有「引导 / 后续消息」两枚按钮，2026-10-02 用户裁定删除 —— 流式中发送一律排队。）
+  assert.match(source, /<div className="d-queue">/);
+  assert.match(source, /<div className="d-queue-head">/);
+  assert.match(source, /<div className="d-queue-body">/);
+  assert.match(source, /className=\{`d-queue-row\$\{kind === "steer" \? " steer" : ""\}`\}/);
   assert.doesNotMatch(source, /sendQueued\("steer"\)/);
   assert.doesNotMatch(source, /sendQueued\("followup"\)/);
 
-  // 输入历史浮窗：头是 .pw-pop-title，行是 .pw-prow（当前项 is-on）。
-  assert.match(source, /<div className="pw-pop-title" style=\{\{ display: "flex", alignItems: "center", gap: "var\(--s2\)", flexShrink: 0 \}\}>\s*<span className="pw-ico"><i data-ico="history"/);
-  assert.match(source, /className=\{`pw-prow\$\{active \? " is-on" : ""\}`\}/);
+  // 输入历史浮窗：头是 .d-pop-title，行是 .d-menu-row（当前项 is-on）。
+  assert.match(source, /<div className="d-pop-title" style=\{\{ display: "flex", alignItems: "center", gap: "var\(--s2\)", flexShrink: 0 \}\}>\s*<i data-ico="history"/);
+  assert.match(source, /className=\{`d-menu-row\$\{active \? " is-on" : ""\}`\}/);
 
-  // / 命令菜单补画板 21 的搜索头（slash 图标 + 查询），分组小标题仍是 .pw-pop-title。
-  assert.match(source, /className="pw-pop-search"/);
+  // / 命令菜单补画板 21 的搜索头（slash 图标 + 查询），分组小标题仍是 .d-pop-title。
+  assert.match(source, /className="d-searchfield"/);
   assert.match(source, /<i data-ico="slash" data-size="14"><\/i>/);
-  // 七个弹层头都挂画板 21 的 .pw-pop-title：输入历史 / 收藏 / @ 文件 / / 命令分组 /
-  // 思考档 / 工具档（后两个是 2026-09-30 按画板 21 补的：此前它们没有标题行，
-  // `21-menus` 的 spec 直接把「.pw-pop-title 不存在」报了出来）/
-  // 权限档（2026-10-03 由「点一下循环」改成下拉时补的）。
-  assert.equal((source.match(/className="pw-pop-title"/g) ?? []).length, 7);
-  assert.match(source, /<div className="pw-pop-title">\{t\("chat\.permissionTitle"\)\}<\/div>/);
-  assert.match(source, /className="pw-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
+  // 七个弹层头都挂画板 21 的 .d-pop-title：输入历史 / 收藏 / @ 文件 / / 命令分组 /
+  // 思考档 / 工具档 / 权限档。
+  assert.equal((source.match(/className="d-pop-title"/g) ?? []).length, 7);
+  assert.match(source, /<div className="d-pop-title">\{t\("chat\.permissionTitle"\)\}<\/div>/);
+  assert.match(source, /className="d-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
 
-  // 13 处手绘内联 svg 清零：图标只走 <i data-ico>。
-  assert.doesNotMatch(source, /<svg/);
+  // 图标仍零手绘：唯一保留的 <svg> 是画板点名的 .d-loader-svg（需要 pathLength 的环绕光带）。
+  assert.equal((source.match(/<svg/g) ?? []).length, 1);
+  assert.match(source, /className="d-loader-svg"/);
 });
 
 test("the model notices render as board alerts with a leading icon", () => {
   const error = renderToStaticMarkup(
     React.createElement(I18nProvider, null, React.createElement(ModelErrorBanner, { error: "boom" })),
   );
-  assert.match(error, /class="pw-alert"/);
+  assert.match(error, /class="d-banner err"/);
   assert.match(error, /data-ico="circle-alert"/);
   assert.match(error, /role="alert"/);
-  assert.doesNotMatch(error, /class="pw-alert warn"/);
+  assert.doesNotMatch(error, /class="d-banner warn"/);
 
   const warning = renderToStaticMarkup(
     React.createElement(
@@ -955,7 +956,7 @@ test("the model notices render as board alerts with a leading icon", () => {
       React.createElement(ModelScopeWarningBanner, { warnings: ['No models match pattern "ghost/*"'] }),
     ),
   );
-  assert.match(warning, /class="pw-alert warn"/);
+  assert.match(warning, /class="d-banner warn"/);
   assert.match(warning, /data-ico="triangle-alert"/);
   assert.match(warning, /role="alert"/);
 });
@@ -975,9 +976,9 @@ test("a finished compaction reports through the ok alert", () => {
     ),
   );
 
-  assert.match(html, /class="pw-alert ok"/);
+  assert.match(html, /class="d-banner ok"/);
   assert.match(html, /data-ico="circle-check"/);
-  assert.ok(html.indexOf('class="pw-alert ok"') < html.indexOf("<textarea"));
+  assert.ok(html.indexOf('class="d-banner ok"') < html.indexOf("<textarea"));
 });
 
 test("queued rows offer 移至输入框 (move back to the input box)", () => {

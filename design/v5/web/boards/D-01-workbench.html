@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-01 · 工作台与新会话 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-01 · 工作台与新会话</h1>
+  <p>
+    第一屏要回答一个问题：<b>现在做什么</b>。左边是「我有哪些上下文」（产品结构：项目组头 + 项目分组），
+    中间是「我能一句话开始什么」。标题是「在 {cwd} 里做点什么？」（未选项目时「做点什么？」），
+    四张起步卡<b>点一下就把完整指令填进输入框、不发送</b>——标题 / 描述 / 图标逐字来自产品的四张真卡，
+    空态的转化率差别全在「省掉用户组织语言」这一步。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 / 新会话</span>
+    <span class="d-tag">组件：NewSessionHome · ProjectChip · BranchChip · Composer</span>
+    <span class="d-tag">状态：未选项目 / 已填指令 / 有最近项目</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 未选项目（默认首屏）<span class="d-grow"></span>1440 × 900</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <!-- 侧栏 -->
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title" role="button" tabindex="0" title="全部展开 / 收起"><i data-ico="chevrons-up-down" data-size="12"></i>项目</div>
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT<span class="d-grow"></span><span class="d-t-xs">4</span></div>
+            <button class="d-sess"><span class="d-sess-t">设计体系 V5 画板</span>
+              <span class="d-sess-m"><span>刚刚</span><span>·</span><span>14 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span>
+              <span class="d-sess-m"><span>18 分钟前</span><span>·</span><span>14 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span>
+              <span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">画板对位脚本跑不通</span>
+              <span class="d-sess-m"><span>3 天前</span><span>·</span><span>9 条消息</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <!-- 主区 -->
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">新建任务</span>
+              <span class="d-tb-sub">未绑定工作区 · 在输入框上方选目录</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-empty" style="padding:var(--nx-sp-8) 0 var(--nx-sp-6)">
+                <div class="d-empty-ico"><img src="../../assets/brand/logo.png" alt=""></div>
+                <div class="d-empty-t d-t-display">做点什么？</div>
+                <div class="d-empty-s">在下面输入第一条消息开始会话；@ 引用上下文，/ 调命令。点一张起步卡就把完整指令填进输入框，不自动发送。</div>
+              </div>
+
+              <div class="d-grid2">
+                <button class="d-store-card">
+                  <div class="d-store-cover"><i data-ico="scan-search" data-size="20"></i></div>
+                  <div class="d-store-card-t">了解这个项目</div>
+                  <div class="d-t-xs d-t-faint">这个项目的入口在哪，模块怎么分</div>
+                  <div class="d-store-foot"><i data-ico="zap" data-size="12"></i>一键填入</div>
+                </button>
+                <button class="d-store-card">
+                  <div class="d-store-cover"><i data-ico="git-compare" data-size="20"></i></div>
+                  <div class="d-store-card-t">审查当前改动</div>
+                  <div class="d-t-xs d-t-faint">看看工作区里未提交的改动有没有问题</div>
+                  <div class="d-store-foot"><i data-ico="zap" data-size="12"></i>一键填入</div>
+                </button>
+                <button class="d-store-card">
+                  <div class="d-store-cover"><i data-ico="square-check" data-size="20"></i></div>
+                  <div class="d-store-card-t">补测试覆盖</div>
+                  <div class="d-t-xs d-t-faint">给刚才改的那几个文件补上回归用例</div>
+                  <div class="d-store-foot"><i data-ico="zap" data-size="12"></i>一键填入</div>
+                </button>
+                <button class="d-store-card">
+                  <div class="d-store-cover"><i data-ico="book-open" data-size="20"></i></div>
+                  <div class="d-store-card-t">讲清核心流程</div>
+                  <div class="d-t-xs d-t-faint">把这个文件从头到尾讲一遍</div>
+                  <div class="d-store-foot"><i data-ico="zap" data-size="12"></i>一键填入</div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn is-on"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">选择工作区</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务，或点上面的起步卡</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 点过起步卡 · 指令已落进输入框<span class="d-grow"></span>完整指令可编辑</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title" role="button" tabindex="0" title="全部展开 / 收起"><i data-ico="chevrons-up-down" data-size="12"></i>项目</div>
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span>
+              <span class="d-sess-m"><span>18 分钟前</span><span>·</span><span>14 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span>
+              <span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条消息</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">新建任务</span>
+              <span class="d-tb-sub">工作区：~/Desktop/PI NEXT</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-banner">
+                <i data-ico="zap" data-size="14"></i>
+                <span>已按起步卡「审查当前改动」填入指令，可直接改，不自动发送。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" data-demo-open="ctx-pop" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+          <!-- 上下文环浮层 -->
+            <div class="d-pop up" data-demo-pop="ctx-pop" hidden style="min-width:220px;right:var(--nx-sp-8);left:auto">
+              <div class="d-pop-title">上下文占用</div>
+              <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">已用</span><span class="d-t-xs">18.4k / 200k</span></div>
+                <div class="d-bar"><i style="width:12%"></i></div>
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">缓存命中</span><span class="d-t-xs">71%</span></div>
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">本轮费用</span><span class="d-t-xs">¥0.42</span></div>
+              </div>
+            </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 有最近项目 · 工作台承担「回来继续」<span class="d-grow"></span>两段式信息密度</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title" role="button" tabindex="0" title="全部展开 / 收起"><i data-ico="chevrons-up-down" data-size="12"></i>项目</div>
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess is-on running"><span class="d-sess-t">定住令牌与类名</span>
+              <span class="d-sess-m"><span class="d-run"><i data-ico="loader-circle" data-size="11"></i></span><span>刚刚</span><span>·</span><span>14 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span>
+              <span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条消息</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">新建任务</span>
+              <span class="d-tb-sub">未绑定工作区 · 在输入框上方选目录</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="右栏面板"><i data-ico="panel-right" data-size="15"></i></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <!-- 零会话 = 产品的 EmptyStateGuide：一个标题 + 三张引导卡；
+                   「最近项目」不是一排卡片，而是第二张卡点开后的一块浮层（.d-pop + .d-menu-row 行）。 -->
+              <div class="d-empty" style="padding:var(--nx-sp-6) 0 0; align-items:flex-start">
+                <div class="d-empty-t">先选一个地方开始</div>
+                <div class="d-starters">
+                  <button class="d-starter">
+                    <b><i data-ico="folder" data-size="14"></i>选目录</b>
+                    <span>用系统选框挑一个文件夹，或直接填路径</span>
+                  </button>
+                  <button class="d-starter">
+                    <b><i data-ico="clock" data-size="14"></i>用最近项目</b>
+                    <span>从最近开过的项目里挑一个接着干</span>
+                  </button>
+                  <button class="d-starter">
+                    <b><i data-ico="import" data-size="14"></i>导入</b>
+                    <span>把别处的会话 / 模型 / 技能 / MCP 搬过来</span>
+                  </button>
+                </div>
+
+                <div class="d-pop is-open" style="position:static;width:100%;max-width:420px">
+                  <div class="d-pop-title">最近项目</div>
+                  <button class="d-menu-row" title="~/Desktop/PI NEXT">
+                    <i data-ico="folder" data-size="14"></i>
+                    <span class="d-col d-grow">
+                      <span class="d-set-row-t">PI NEXT</span>
+                      <span class="d-set-row-s d-mono">~/Desktop/PI NEXT</span>
+                    </span>
+                    <span class="d-badge info">运行中</span>
+                  </button>
+                  <button class="d-menu-row" title="~/Desktop/pi-codex">
+                    <i data-ico="folder" data-size="14"></i>
+                    <span class="d-col d-grow">
+                      <span class="d-set-row-t">zhaobiao-extract</span>
+                      <span class="d-set-row-s d-mono">~/Desktop/pi-codex</span>
+                    </span>
+                  </button>
+                  <div class="d-pop-foot">只读列表，来自 <span class="d-mono">/api/recent-projects</span>；点一行直接拿它当新会话的工作区。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-chips">
+                <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i>PI NEXT<i data-ico="chevron-down" data-size="11"></i></button>
+              </div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 选好工作区后 · 上下文条 + 建议任务<span class="d-grow"></span>发送前能看清「会在哪跑」</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title" role="button" tabindex="0" title="全部展开 / 收起"><i data-ico="chevrons-up-down" data-size="12"></i>项目</div>
+            <div class="d-group-title"><i data-ico="chevron-down" data-size="12"></i>PI NEXT</div>
+            <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span><span>·</span><span>14 条消息</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条消息</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">新建任务 · PI NEXT</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards · 14 条会话</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+              <div class="d-set-sec">
+                <div class="d-set-sec-t">起步卡 · 点一下把完整指令填进输入框</div>
+                <div class="d-cardgrid">
+                  <button class="d-setcard">
+                    <div class="d-col d-grow">
+                      <span class="d-set-row-t"><i data-ico="scan-search" data-size="14"></i> 了解这个项目</span>
+                      <span class="d-set-row-s">这个项目的入口在哪，模块怎么分</span>
+                    </div>
+                    <i data-ico="zap" data-size="14"></i>
+                  </button>
+                  <button class="d-setcard">
+                    <div class="d-col d-grow">
+                      <span class="d-set-row-t"><i data-ico="git-compare" data-size="14"></i> 审查当前改动</span>
+                      <span class="d-set-row-s">看看工作区里未提交的改动有没有问题</span>
+                    </div>
+                    <i data-ico="zap" data-size="14"></i>
+                  </button>
+                  <button class="d-setcard">
+                    <div class="d-col d-grow">
+                      <span class="d-set-row-t"><i data-ico="square-check" data-size="14"></i> 补测试覆盖</span>
+                      <span class="d-set-row-s">给刚才改的那几个文件补上回归用例</span>
+                    </div>
+                    <i data-ico="zap" data-size="14"></i>
+                  </button>
+                  <button class="d-setcard">
+                    <div class="d-col d-grow">
+                      <span class="d-set-row-t"><i data-ico="book-open" data-size="14"></i> 讲清核心流程</span>
+                      <span class="d-set-row-s">把这个文件从头到尾讲一遍</span>
+                    </div>
+                    <i data-ico="zap" data-size="14"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" data-demo-open="attach-pop" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+          <div class="d-pop up" data-demo-pop="attach-pop" hidden style="min-width:300px">
+              <div class="d-pop-title">附件来源</div>
+              <button class="d-menu-row"><i data-ico="file" data-size="14"></i>从工作区选文件</button>
+              <button class="d-menu-row"><i data-ico="image" data-size="14"></i>图片（可多选）</button>
+              <button class="d-menu-row"><i data-ico="clipboard-list" data-size="14"></i>粘贴剪贴板内容</button>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">选中的文件会变成输入框上方的引用芯片，可点开预览。</div>
+            </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>首屏只有一件事</b>：把「现在做什么」摆在正中。侧栏是上下文（「项目」组头 + 项目分组 + 会话两行行），不是导航迷宫；侧栏没有时间分组，也没有过滤页签。</li>
+    <li><b>起步卡 = 可执行指令，且只有产品那四张</b>：了解这个项目 / 审查当前改动 / 补测试覆盖 / 讲清核心流程（标题、描述、图标逐字来自 <span class="d-mono">zh-CN.ts</span> 的 NewSessionHome）。点一下落进输入框，用户可改；不自动发送（自动发送会把用户还没看的内容跑出去）。</li>
+    <li><b>「会在哪跑」永远可见</b>：工作区选择只住在输入框上方的 ctxbar（ProjectChip + BranchChip），顶栏不再放第二份「选工作区」。</li>
+    <li><b>上下文占用藏在环里</b>，输入框下方不再挂第二条常驻横条（读数与动作分开）。</li>
+    <li><b>底栏三件</b>：手机与推送、版本徽章、设置——没有「外观」钮（主题在设置里）。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

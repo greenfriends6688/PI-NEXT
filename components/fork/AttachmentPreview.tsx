@@ -29,6 +29,9 @@ import {
   firstPreviewLines,
   type AttachmentPreviewKind,
 } from "@/lib/composer-attachments";
+// fork:v5-wave-b —— PWA 形态：弹窗换成画板 M-11 的 `.m-modal-box` / `.m-modal-head`
+// / `.m-modal-body` / `.m-modal-foot`，文本预览换成 M-06 的 `.m-code` 系。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 export interface AttachmentPreviewProps {
   /** 展示名（文件名，不含目录）。 */
@@ -59,6 +62,7 @@ export function AttachmentPreview({
   style,
 }: AttachmentPreviewProps) {
   const { t } = useI18n();
+  const isPwa = usePwaSkin();
   const previewLabel = t("chat.previewAttachment");
   const [open, setOpen] = useState(false);
   const [text, setText] = useState<TextState>({ status: "idle" });
@@ -170,12 +174,60 @@ export function AttachmentPreview({
             if (event.target === event.currentTarget) closePreview();
           }}
         >
-          {/* fork:design-components —— 弹窗由画板 50 的对话框基元拼成：
-              `.pw-modal` + `.pw-modal-head/-body/-foot`，关闭钮是画板头部的
-              `.pw-iconbtn.sm`。`<dialog>` 的壳（.image-preview-dialog）留着 ——
-              它是原生 dialog 的全屏定位与遮罩，焦点陷阱 / Esc / 遮罩点击都靠它。 */}
+          {/* fork:v5-landing —— 弹窗由画板 D-03b 帧 E 的对话框基元拼成：
+              `.d-modal-box` + `.d-modal-head/-body/-foot`，关闭钮是画板头部的
+              `.d-iconbtn`。`<dialog>` 的壳（.image-preview-dialog）留着 ——
+              它是原生 dialog 的全屏定位与遮罩，焦点陷阱 / Esc / 遮罩点击都靠它。
+              fork:v5-wave-b —— 窄屏换成 M-11 的 `.m-modal-box` 四件套（同构）。 */}
+          {/* fork:v5-wave-b —— 窄屏抄画板 M-11 的 `.m-modal-box` 四件套
+              （头 = 文件图标 + grow 标题 + `.m-iconbtn` 关闭；脚 = 说明 + `.m-grow`
+              + `.m-btn sm`）。与桌面分支**并排写出**：两个形态的对话框结构不同，
+              只换类名就是「只加类不换 DOM」。原生 `<dialog>` 壳与全部关闭行为共用。 */}
+          {isPwa ? (
+            <div
+              className="m-modal-box"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                width: kind === "pdf" || kind === "docx" ? 1000 : 760,
+                maxWidth: "100%",
+                maxHeight: "100%",
+              }}
+            >
+              <div className="m-modal-head" style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
+                <i data-ico="file" data-size="14"></i>
+                <span
+                  className="m-grow m-t-b"
+                  title={name}
+                  style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {name}
+                </span>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  className="m-iconbtn"
+                  onClick={closePreview}
+                  aria-label={t("chat.close")}
+                  title={t("chat.close")}
+                >
+                  <i data-ico="x" data-size="14"></i>
+                </button>
+              </div>
+              <div className="m-modal-body" style={{ overflow: "auto", flex: "1 1 auto" }}>
+                {renderPreviewBody(kind, { name, src, previewSrc, text, t, isPwa })}
+              </div>
+              <div className="m-modal-foot">
+                <span className="m-t-faint">{t("chat.previewAttachment")}</span>
+                <span className="m-grow" />
+                <button type="button" className="m-btn sm" onClick={closePreview}>
+                  {t("chat.close")}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div
-            className="pw-modal"
+            className="d-modal-box"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -184,10 +236,10 @@ export function AttachmentPreview({
               maxHeight: "100%",
             }}
           >
-            <div className="pw-modal-head">
-              <span className="pw-ico"><i data-ico="file" data-size="14"></i></span>
+            <div className="d-modal-head" style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
+              <i data-ico="file" data-size="14"></i>
               <span
-                className="pw-grow"
+                className="d-grow d-t-b"
                 title={name}
                 style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
@@ -196,25 +248,26 @@ export function AttachmentPreview({
               <button
                 ref={closeButtonRef}
                 type="button"
-                className="pw-iconbtn sm"
+                className="d-iconbtn"
                 onClick={closePreview}
                 aria-label={t("chat.close")}
                 title={t("chat.close")}
               >
-                <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+                <i data-ico="x" data-size="14"></i>
               </button>
             </div>
-            <div className="pw-modal-body" style={{ overflow: "auto" }}>
-              {renderPreviewBody(kind, { name, src, previewSrc, text, t })}
+            <div className="d-modal-body" style={{ overflow: "auto", flex: "1 1 auto" }}>
+              {renderPreviewBody(kind, { name, src, previewSrc, text, t, isPwa })}
             </div>
-            <div className="pw-modal-foot">
-              <span className="pw-dim">{t("chat.previewAttachment")}</span>
-              <span className="pw-grow" />
-              <button type="button" className="pw-btn sm" onClick={closePreview}>
+            <div className="d-modal-foot">
+              <span className="d-t-faint">{t("chat.previewAttachment")}</span>
+              <span className="d-grow" />
+              <button type="button" className="d-btn sm" onClick={closePreview}>
                 {t("chat.close")}
               </button>
             </div>
           </div>
+          )}
         </dialog>
       )}
     </>
@@ -229,9 +282,11 @@ function renderPreviewBody(
     previewSrc?: string;
     text: TextState;
     t: (key: string, params?: Record<string, string | number>) => string;
+    /** fork:v5-wave-b —— 窄屏走画板 M-06 的 `.m-code` / `.m-banner`。 */
+    isPwa: boolean;
   },
 ): React.ReactNode {
-  const { name, src, previewSrc, text, t } = context;
+  const { name, src, previewSrc, text, t, isPwa } = context;
   switch (kind) {
     case "pdf":
       // 浏览器内置 PDF 阅读器需要同源文档本身（不能加 sandbox），与 FileViewer 一致。
@@ -271,26 +326,58 @@ function renderPreviewBody(
       );
     case "text": {
       if (text.status === "loading" || text.status === "idle") {
+        if (isPwa) {
+          return (
+            <div className="m-banner">
+              <i data-ico="loader-circle" data-size="14"></i>
+              <span className="m-grow">{t("chat.previewLoading")}</span>
+            </div>
+          );
+        }
         return (
-          <div className="pw-alert info">
-            <span className="pw-ico"><i data-ico="loader-circle" data-size="14"></i></span>
-            {t("chat.previewLoading")}
+          <div className="d-banner">
+            <i data-ico="loader-circle" data-size="14"></i>
+            <span className="d-grow">{t("chat.previewLoading")}</span>
           </div>
         );
       }
       if (text.status === "error") {
+        if (isPwa) {
+          return (
+            <div className="m-banner err">
+              <i data-ico="triangle-alert" data-size="14"></i>
+              <span className="m-grow">{t("chat.previewTextFailed")}</span>
+            </div>
+          );
+        }
         return (
-          <div className="pw-alert">
-            <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-            {t("chat.previewTextFailed")}
+          <div className="d-banner err">
+            <i data-ico="triangle-alert" data-size="14"></i>
+            <span className="d-grow">{t("chat.previewTextFailed")}</span>
+          </div>
+        );
+      }
+      // fork:v5-wave-b —— 窄屏抄 M-06 的 `.m-code`：正文横滚（`.m-code-scroll`
+      // > `.m-code-body`），截断提示在下面一行。
+      if (isPwa) {
+        return (
+          <div className="m-code" style={{ width: "100%" }}>
+            <div className="m-code-scroll">
+              <div className="m-code-body">{text.lines.join("\n")}</div>
+            </div>
+            {text.truncated && (
+              <div className="m-t-xs m-t-faint" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3)" }}>
+                {t("chat.previewTextTruncated", { count: TEXT_PREVIEW_MAX_LINES })}
+              </div>
+            )}
           </div>
         );
       }
       return (
-        <div className="pw-code" style={{ width: "100%" }}>
-          <div className="pw-code-body">{text.lines.join("\n")}</div>
+        <div className="d-code" style={{ width: "100%" }}>
+          <div className="d-code-body">{text.lines.join("\n")}</div>
           {text.truncated && (
-            <div className="pw-card-foot">
+            <div className="d-t-xs d-t-faint" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3)" }}>
               {t("chat.previewTextTruncated", { count: TEXT_PREVIEW_MAX_LINES })}
             </div>
           )}
@@ -298,10 +385,18 @@ function renderPreviewBody(
       );
     }
     default:
+      if (isPwa) {
+        return (
+          <div className="m-banner">
+            <i data-ico="circle-help" data-size="14"></i>
+            <span className="m-grow">{t("chat.previewUnsupported")}</span>
+          </div>
+        );
+      }
       return (
-        <div className="pw-alert info">
-          <span className="pw-ico"><i data-ico="circle-help" data-size="14"></i></span>
-          {t("chat.previewUnsupported")}
+        <div className="d-banner info">
+          <i data-ico="circle-help" data-size="14"></i>
+          <span className="d-grow">{t("chat.previewUnsupported")}</span>
         </div>
       );
   }

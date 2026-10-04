@@ -1,6 +1,6 @@
 // fork:pr52-plan-tools —— 计划文档卡片的形状门禁。
 //
-// 三条纪律都在这里：DOM 取自画板 54 B 的 `.pw-filecard`（不自造类名、不写内联几何）、
+// 三条纪律都在这里：DOM 取自 v5 画板 D-25 帧 A 的计划卡 `.d-plan`（不自造类名、不写内联几何）、
 // 图标走 lucide `<i data-ico>`（零手绘 SVG）、预览**复用宿主既有的打开回调**（不自写预览器）。
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -34,14 +34,15 @@ test("卡片显示文件名与相对路径，点预览钮把绝对路径交给�
   const html = render({ onOpenFile: (filePath, fileName) => opened.push([filePath, fileName]) });
   assert.match(html, /2026-10-02-login-flow\.md/);
   assert.match(html, /\.pi\/plans\/2026-10-02-login-flow\.md/);
-  // 结构就是画板 54 B 那一行：图标 / 文件名 / meta / grow / 预览钮
-  assert.match(html, /class="pw-filecard"/);
-  assert.match(html, /class="pw-fname"/);
-  assert.match(html, /class="pw-meta"/);
-  assert.match(html, /class="grow"/);
-  assert.match(html, /class="pw-btn sm"/);
+  // 结构就是 v5 画板 D-25 帧 A 的计划卡：.d-plan 外壳 + head（图标 / 标题 / 徽章）+ foot（路径 / 预览）
+  assert.match(html, /class="d-plan"/);
+  assert.match(html, /class="d-plan-head"/);
+  assert.match(html, /class="d-plan-foot"/);
+  assert.match(html, /class="d-plan-meta d-mono"/);
+  assert.match(html, /class="d-grow"/);
+  assert.match(html, /class="d-btn sm"/);
 
-  const button = /<button[^>]*class="pw-btn sm"[^>]*>([\s\S]*?)<\/button>/.exec(html);
+  const button = /<button[^>]*class="d-btn sm"[^>]*>([\s\S]*?)<\/button>/.exec(html);
   assert.ok(button, "预览钮必须是真按钮");
   assert.equal(opened.length, 0, "服务端渲染阶段不点");
   assert.match(button[1], /data-ico="eye"/);
@@ -49,7 +50,7 @@ test("卡片显示文件名与相对路径，点预览钮把绝对路径交给�
 
 test("没有打开回调时按钮禁用，不给一个点了没反应的死按钮", () => {
   const html = render();
-  assert.match(html, /<button[^>]*disabled[^>]*class="pw-btn sm"|class="pw-btn sm"[^>]*disabled/);
+  assert.match(html, /<button[^>]*disabled[^>]*class="d-btn sm"|class="d-btn sm"[^>]*disabled/);
 });
 
 test("接线：工具卡把计划 details 交给卡片，并把宿主的 onOpenFile 透下去", async () => {
@@ -68,8 +69,8 @@ test("接线：工具卡把计划 details 交给卡片，并把宿主的 onOpenF
 test("组件不预览、不编辑、也不引入新的类名与手绘图形", () => {
   assert.doesNotMatch(source, /<svg/, "图标一律走 <i data-ico>");
   assert.doesNotMatch(source, /fork-plan/, "不许新造钩子类（判据⑦：pw-* 之外的视觉类同样不进产品）");
-  assert.match(source, /<i data-ico="file-text" data-size="14"/, "画板 54 B 的文件图标");
-  assert.match(source, /<i data-ico="eye" data-size="13"/, "画板 54 B 的预览钮图标");
+  assert.match(source, /<i data-ico="file-text" data-size="15"/, "画板 D-25 计划卡的文件图标");
+  assert.match(source, /<i data-ico="eye" data-size="13"/, "画板 D-25 计划卡的预览图标");
   // 零内联几何：只有颜色（来自 token）走内联，间距全在 board.css
   for (const literal of [/padding:\s*[0-9]/, /gap:\s*[0-9]/, /height:\s*[0-9]/, /width:\s*[0-9]/, /fontSize:\s*[0-9]/, /borderRadius/]) {
     assert.doesNotMatch(source, literal, `不该出现内联几何 ${literal}`);
@@ -88,4 +89,15 @@ test("卡片用的 i18n key 在三语里都存在（locale 形状由 lib/i18n/re
   assert.match(source, /t\("chat\.planOpen"\)/);
   assert.match(source, /t\("chat\.planPreview"\)/);
   assert.match(source, /aria-label=\{label\}/);
+});
+// fork:v5-boards D-25 —— 计划卡底栏除路径外还写一行元信息（画板帧 A 的 `.d-plan-foot`
+// 上那三行 `.d-plan-meta`）。产品能如实给的只有落盘日期：步进轨道 / 时间线要计划**步骤**
+// 数据，那条在产品里是 todo 扩展（`lib/plan-documents.ts` 头注明确不合并），不凭空造。
+test("fork:v5-boards D-25 —— 底栏把宿主递进来的落盘日期也写出来（没有就不写）", () => {
+  const dated = render({
+    plan: { ...PLAN, updatedAt: "2026-10-02T09:31:12.000Z" },
+  });
+  assert.match(dated, /class="d-plan-meta d-mono">2026-10-02</, "日期用 ISO 头一段：三语同一个串，不造本地化词汇");
+  const undated = render();
+  assert.equal((undated.match(/class="d-plan-meta d-mono"/g) ?? []).length, 1, "没有 updatedAt 就只有路径那一行");
 });

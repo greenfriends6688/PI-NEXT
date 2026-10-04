@@ -61,31 +61,31 @@ test("the PUT body carries cwd only when there is one", () => {
   assert.deepEqual(contextBudgetRequestBody({ reserveTokens: 5 }, null), { reserveTokens: 5 });
 });
 
-test("the block is board DOM: .pw-block + .pw-switch + .pw-ctl > .pw-input.pw-numin", () => {
+test("the block is board DOM: .d-set-sec + .d-switch + .d-input.d-mono", () => {
   assert.match(code, /<PwBlock icon="scan-text"/, "块标题图标走画板注册的 scan-text");
-  assert.match(code, /<PwSwitch/, "开关走画板的 .pw-switch（SettingsUi 的 PwSwitch）");
-  assert.match(code, /className="pw-input pw-numin"/, "数值框走 .pw-input + 画板 44 收编来的 .pw-numin");
-  assert.match(code, /<PwCtl>/, "数值框放在画板的 .pw-ctl 槽里");
-  assert.match(code, /<PwField/, "每一行都是画板的 .pw-field");
-  assert.match(code, /<PwSelectBox/, "新增模型覆盖走 .pw-selectbox（值是一串要背下来的标识）");
-  assert.match(code, /className="pw-iconbtn sm"/, "移除一枚覆盖走画板的 .pw-iconbtn.sm");
+  assert.match(code, /<PwSwitch/, "开关走画板的 .d-switch（SettingsUi 的 PwSwitch）");
+  assert.match(code, /className="d-input d-mono"/, "数值框走画板的 .d-input + .d-mono");
+  assert.match(code, /<PwCtl>/, "数值框放在画板的 .d-row 槽里");
+  assert.match(code, /<PwField/, "每一行都是画板的 .d-set-row");
+  assert.match(code, /<PwSelectBox/, "新增模型覆盖走 .d-select（值是一串要背下来的标识）");
+  assert.match(code, /className="d-iconbtn sm"/, "移除一枚覆盖走画板的 .d-iconbtn");
 });
 
-test("判据⑦：这一块没有引入任何新的 .pw-* 类（board.css 不动）", async () => {
-  // 把组件里出现的每一个 pw- 串都拿去 board.css 里找，必须全部命中。
+test("判据⑦：这一块只用 v5 画板已有的 d-* 类", async () => {
+  // 把组件里出现的每一个 d- 串都拿去 v5 system.css 里找，必须全部命中。
   const boardCss = await readFile(
-    new URL("../design/pi-web-design/assets/board.css", import.meta.url),
+    new URL("../design/v5/web/system.css", import.meta.url),
     "utf8",
   );
-  const classes = [...new Set([...code.matchAll(/pw-[a-z0-9-]+/g)].map((match) => match[0]))];
-  assert.ok(classes.length > 0, "组件里应当确实用到了一些 pw-* 类");
+  const classes = [...new Set([...code.matchAll(/\bd-[a-z0-9-]+/g)].map((match) => match[0].replace(/^d-/, "d-")))];
+  assert.ok(classes.length > 0, "组件里应当确实用到了一些 d-* 类");
   for (const name of classes) {
-    assert.match(boardCss, new RegExp(`\\.${name}[\\s,{:.]`), `${name} 必须在 board.css 里已经存在`);
+    assert.match(boardCss, new RegExp(`\\.${name}[\\s,{:.]`), `${name} 必须在 v5 system.css 里已经存在`);
   }
-  for (const board of ["40-settings-general.html", "62-settings-layout.html"]) {
-    const html = await readFile(new URL(`../design/pi-web-design/${board}`, import.meta.url), "utf8");
-    assert.match(html, /pw-input pw-numin/, `${board} 应当画出这块的窄数值框`);
-    assert.match(html, /pw-iconbtn/, `${board} 应当画出模型覆盖行的移除钮`);
+  for (const board of ["D-07-settings-general.html", "D-07b-settings-general-detail.html"]) {
+    const html = await readFile(new URL(`../design/v5/web/boards/${board}`, import.meta.url), "utf8");
+    assert.match(html, /d-set-row/, `${board} 应当画出设置行`);
+    assert.match(html, /d-slider/, `${board} 应当画出滑块`);
   }
 });
 

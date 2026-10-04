@@ -238,16 +238,16 @@ test("model specs keep catalog-filled prices visible outside advanced settings",
 });
 
 // fork:cost-tiers (B3) —— 阶梯定价编辑器接在基础价之后（同一个 cost 对象），
-// 且只用画板已有的类：`.pw-field` 行 + `.pw-numin` 窄数值框。
+// 且只用画板已有的类：`.d-set-row` 行 + `.d-input.d-mono` 窄数值框（v5 D-08/09）。
 test("tiered pricing has an editor wired into the model cost object", () => {
   const editor = source.slice(
     source.indexOf("function CostTiersEditor"),
     source.indexOf("function fillEmptyModelFields"),
   );
   assert.match(editor, /parseModelCostTiers\(next\)/);
-  // 控件全是画板已固化的基件：`.pw-field` 行 + `.pw-numin` 窄数值框（画板 40）。
-  assert.match(editor, /className="pw-field"/);
-  assert.match(editor, /className="pw-input pw-numin pw-mono"/);
+  // 控件全是画板已固化的基件：`.d-set-row` 行 + `.d-input.d-mono` 窄数值框。
+  assert.match(editor, /className="d-set-row"/);
+  assert.match(editor, /className="d-input d-mono"/);
 
   const modelDetail = source.slice(
     source.indexOf("function ModelDetail"),
@@ -267,9 +267,9 @@ test("the three model-detail cards separate sections instead of drawing dividers
     source.indexOf("// ── OAuth detail"),
   );
 
-  // 画板 41：高级与测试连接各自成卡，段与段之间由 `.pw-detail` 的描边分隔，
-  // 组件里不再手写 `borderTop`（原先那一条就是「弹窗影子」的一部分）。
-  assert.equal((modelDetail.match(/<ConfigDetail>/g) ?? []).length, 3);
+  // v5 D-08/09：三个 `.d-set-sec` 分节（身份/规格/成本 → 高级 → 测试连接），
+  // 段与段之间由分节间距分隔，组件里不再手写 `borderTop`。
+  assert.equal((modelDetail.match(/<div className="d-set-sec">/g) ?? []).length, 3);
   assert.doesNotMatch(modelDetail, /borderTop: "1px solid var\(--border\)"/);
   assert.doesNotMatch(modelDetail, /borderBottom: "1px solid var\(--border\)"/);
 });
@@ -280,8 +280,8 @@ test("the models page is a page frame plus a two-column split, not one giant car
   assert.match(modelsConfig, /<ConfigSplitView>/);
   // 骨架 B（画板 62）：内容区拿 is-fixed，不滚，两列各自滚。
   assert.match(modelsConfig, /\bfill\s*>/);
-  // 右列是 `ConfigDetailStack`（一列独立的卡），不再包一层撑满高度的 `ConfigDetail`。
-  assert.doesNotMatch(modelsConfig, /<ConfigDetail>\s*<ConfigDetailStack/);
+  // 右列是 `.d-set-inner`（一列独立的 `.d-set-sec`），不再包一层撑满高度的卡。
+  assert.doesNotMatch(modelsConfig, /<div className="d-set-sec">\s*<div className="d-set-inner">/);
   assert.match(cssSource, /\.config-panel-surface > \.pw-scontent \{\s*flex: 1;/);
 });
 
@@ -295,21 +295,21 @@ test("empty states land in their own columns per board 62 frame D", () => {
     modelsConfig.indexOf("<ConfigSidebar>"),
     modelsConfig.indexOf("</ConfigSidebar>"),
   );
-  // 列表列先分「加载中 / 空 / 有行」三态；空态是 ConfigEmptyState（pw-empty）。
+  // 列表列先分「加载中 / 空 / 有行」三态；空态是画板 D-24 的 `.d-empty.compact`。
   assert.match(listColumn, /loading \? \(/);
   assert.match(listColumn, /!hasVisibleRows \? \(/);
-  assert.match(listColumn, /className="mark"><i data-ico="server" data-size="16" aria-hidden="true" \/>/);
+  assert.match(listColumn, /<span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" \/>/);
   // 有过滤词沿用选择器的「没有匹配的 Provider」；空库用 models.listEmpty + 第二句
   // listEmptyHint（帧 D 的「一句 + 一句说明」，键已补进三语包）。
   assert.match(listColumn, /needle \? t\("i18n\.noProviders"\) : t\("models\.listEmpty"\)/);
-  assert.match(listColumn, /!needle && <p className="pw-hint">\{t\("models\.listEmptyHint"\)\}<\/p>/);
+  assert.match(listColumn, /!needle && <p className="d-empty-s">\{t\("models\.listEmptyHint"\)\}<\/p>/);
 
   const detailColumn = modelsConfig.slice(
-    modelsConfig.indexOf("<ConfigDetailStack>"),
-    modelsConfig.indexOf("</ConfigDetailStack>"),
+    modelsConfig.indexOf('<div className="d-set-inner">'),
+    modelsConfig.indexOf("</ConfigSplitView>"),
   );
-  assert.match(detailColumn, /className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" \/>/);
-  assert.match(detailColumn, /<p>\{t\("models\.detailEmpty"\)\}<\/p>/);
+  assert.match(detailColumn, /<span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" \/>/);
+  assert.match(detailColumn, /<p className="d-empty-t">\{t\("models\.detailEmpty"\)\}<\/p>/);
 });
 
 // fork:settings-frame（画板 62 帧 D「动作层级」）—— 页级动作只有页头右端两个
@@ -337,7 +337,7 @@ test("thinking level overrides keep explicit default, disabled, and custom contr
   assert.match(editor, /THINKING_LEVELS\.map/);
   // 三态分段从自绘 inline 换成了画板的 `.pw-radio`（SettingsUi 的 PwRadio 基件），
   // 但三个状态仍然是显式的：omit（Default）/ null（Disabled）/ string（Custom+值）。
-  assert.match(editor, /<PwRadio/);
+  assert.match(editor, /<DSeg/);
   assert.match(editor, /value: "omit", label: "Default"/);
   assert.match(editor, /value: "null", label: "Disabled"/);
   assert.match(editor, /value: "string", label: "Custom"/);

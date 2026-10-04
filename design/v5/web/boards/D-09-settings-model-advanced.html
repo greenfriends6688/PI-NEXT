@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-09 · 设置 · 模型高级 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-09 · 设置 · 模型高级（Header / UA / 兼容模式 / 上下文上限）</h1>
+  <p>
+    「模型」分节管名单，这一节管<b>被选中模型怎么发请求</b> —— 粒度是<b>单个模型</b>，不是供应商。
+    所有值只在<b>该模型的请求</b>里生效，且<b>覆盖 Provider 级同名值</b>；不写就用供应商的默认。
+    这类设置最怕「改了没生效但看不出原因」，所以每一项都写清它多写了什么、少掉了什么。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 模型 / 高级</span>
+    <span class="d-tag">组件：ModelHeaders · UserAgentField · CompatSwitches · ContextLimits · ModalityPicker</span>
+    <span class="d-tag">状态：3 条自定义 Header · 覆盖同名 · 兼容预设「旧网关」 · 推理档高</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 请求头与标识：键值对逐行增删 · 每行标来源 · User-Agent 只对这一个模型<span class="d-grow"></span>点行选中，底部「加一行」能打开预设菜单</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 模型 / 模型高级</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="pencil-line" data-size="12"></i>已覆盖 3 项</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                </div>
+                <div class="d-md">
+                  <p>Header 这块最容易出「为什么这个模型调不通」的问题，所以表里给每行标了来源：是覆盖了 Provider 的，还是这行新加的。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型高级">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">模型高级 · anthropic / claude-opus-4-6</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">模型高级</div>
+                            <div class="d-set-row-s">当前编辑 <code>anthropic / claude-opus-4-6</code> · 改动即时保存</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-btn sm ghost"><i data-ico="undo-2" data-size="13"></i>撤销覆盖</button></span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">自定义 Headers</div>
+                        <div class="d-t-xs d-t-faint">键值对逐行增删，不用 JSON 文本框 —— <b>整块 JSON 粘贴进表单后没法逐行看、没法逐行删</b>。一行 Header 只加到这个模型的请求里。</div>
+
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th style="width:32%">Header</th><th>值</th><th>来源</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td class="d-mono">anthropic-beta</td>
+                                <td class="d-mono">context-1m-2025-08-07</td>
+                                <td><span class="d-badge warn"><i data-ico="rotate-cw" data-size="12"></i>覆盖 Provider</span></td>
+                                <td><button class="d-iconbtn" title="删除这行"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">x-pi-client</td>
+                                <td class="d-mono">web-0.1.8 (darwin 24.3)</td>
+                                <td><span class="d-badge warn"><i data-ico="rotate-cw" data-size="12"></i>覆盖 Provider</span></td>
+                                <td><button class="d-iconbtn" title="删除这行"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">x-tenant</td>
+                                <td class="d-mono">team-platform</td>
+                                <td><span class="d-badge info"><i data-ico="plus" data-size="12"></i>本行新增</span></td>
+                                <td><button class="d-iconbtn" title="删除这行"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td class="d-mono">x-request-source</td>
+                                <td class="d-mono" style="color:var(--nx-text-3)">（空值：这一行等于不发）</td>
+                                <td><span class="d-badge mute">未启用</span></td>
+                                <td><button class="d-iconbtn" title="删除这行"><i data-ico="trash-2" data-size="14"></i></button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-row">
+                          <button class="d-btn sm primary" data-demo-open="p12-addhdr"><i data-ico="plus" data-size="13"></i>加一行</button>
+                          <button class="d-btn sm ghost" data-demo-open="p12-jsonhdr"><i data-ico="braces" data-size="13"></i>粘贴 JSON</button>
+                          <span class="d-grow"></span>
+                          <span class="d-t-xs d-t-faint">4 行 · 其中 3 行生效</span>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span>空值行会被<b>整条丢掉而不是发成空串</b>；Header 名不区分大小写，与 Provider 撞名时后者被覆盖，右侧「来源」列写的就是这件事。</span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">User-Agent</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">覆盖 User-Agent</div>
+                            <div class="d-set-row-s">自建网关按 UA 做限流与灰度；带版本号方便对方排查是哪个客户端。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">已覆盖</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="覆盖 User-Agent"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">User-Agent</div>
+                            <div class="d-set-row-s">关掉时用 <code>pi-web/&lt;version&gt;</code>，不告诉网关本机是 macOS。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:260px" value="pi-web/0.1.8 (darwin 24.3)"></span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 改动即时写入 models.json</span>
+                <button class="d-btn ghost">恢复供应商默认</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p12-addhdr" hidden style="left:24px;bottom:64px;min-width:360px">
+                <div class="d-pop-title">加一行 Header</div>
+                <div class="d-pop-body d-t-xs d-t-dim">下面是这台机器上常用、且供应商不一定会自己带的几项。选中后仍可在表里改键与值。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><span class="d-grow d-mono">x-request-source</span><span class="d-t-xs d-t-faint">路由 / 灰度</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">x-tenant</span><span class="d-t-xs d-t-faint">多租户网关</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">x-pi-trace</span><span class="d-t-xs d-t-faint">链路追踪</span></button>
+                <button class="d-menu-row"><span class="d-grow d-mono">anthropic-version</span><span class="d-t-xs d-t-faint">版本钉死</span></button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="pencil-line" data-size="14"></i><span class="d-grow">空白行</span></button>
+                <div class="d-pop-foot">键留空时整行不保存，不会发出一个空的 Header 名。</div>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p12-jsonhdr" hidden style="left:24px;bottom:64px;min-width:360px">
+                <div class="d-pop-title">从 JSON 批量导入</div>
+                <div class="d-pop-body d-t-xs d-t-dim">解析成功才写入：<b>解析失败一行都不改</b>，并把出错的那一行连同行号指出来，而不是静默吞掉半个对象。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="clipboard-check" data-size="14"></i><span class="d-grow">从剪贴板读</span></button>
+                <button class="d-menu-row"><i data-ico="file-code" data-size="14"></i><span class="d-grow">从文件读</span></button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i><span class="d-grow">替换全部现有行</span></button>
+                <button class="d-menu-row"><i data-ico="plus" data-size="14"></i><span class="d-grow">合并（同名覆盖）</span></button>
+                <div class="d-pop-foot">两种写法都要求值是字符串；数字与布尔会先转成字符串再导入。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 兼容模式：三档预设 + 五个逐项开关，每个开关都写清「关掉会少什么」<span class="d-grow"></span>预设分段与五个开关都能点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 模型高级 / 兼容</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="wrench" data-size="12"></i>预设：旧网关</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>兼容开关做成「预设 + 逐项」两层：预设一次性改五个开关，逐项开关让老网关的问题能只关一个，不必退回标准档。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型高级 · 兼容">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">模型高级 · 兼容性</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner" data-demo-scope>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">兼容预设</div>
+                        <div class="d-field">
+                          <div class="d-seg" data-demo-tabs>
+                            <button data-demo-tab="c-std">标准</button>
+                            <button data-demo-tab="c-old" class="is-on">旧网关</button>
+                            <button data-demo-tab="c-noTool">无工具</button>
+                          </div>
+                          <span class="d-t-xs d-t-faint">预设一次性改下面五个开关；改完预设再逐项微调不会互相覆盖。</span>
+                        </div>
+
+                        <section data-demo-pane="c-std">
+                          <div class="d-banner"><i data-ico="circle-check" data-size="14"></i><span>标准档：五个开关全开。适用于官方端点与大多数自建网关；不确定时选它。</span></div>
+                        </section>
+                        <section data-demo-pane="c-old">
+                          <div class="d-banner warn"><i data-ico="wrench" data-size="14"></i><span>旧网关档：关掉严格工具 schema 与 <code>finish_reason</code>，thinking 转文本 —— 老实现常在这三处解析失败。当前正用这一档。</span></div>
+                        </section>
+                        <section data-demo-pane="c-noTool" hidden>
+                          <div class="d-banner err"><i data-ico="ban" data-size="14"></i><span>无工具档：完全不发送工具定义，模型只能用纯文本回答。子代理与任何需要改文件的工作流在这一档下不可用。</span></div>
+                        </section>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">逐项开关</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">接受 reasoning_effort</div>
+                            <div class="d-set-row-s">关掉后推理档位退化成「只改本地显示」—— 请求里根本不带这个字段。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="接受 reasoning_effort"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">严格工具 schema</div>
+                            <div class="d-set-row-s">入参多一层校验。关掉后老网关报参数错时通常就是这一条 —— 但少了这层校验，本地也就拦不住漏字段的工具入参。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="严格工具 schema"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">thinking 块转成 &lt;thinking&gt; 文本</div>
+                            <div class="d-set-row-s">只对不认原生 thinking 的网关开。开了之后思考内容变成正文，会被算进输出 token。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge warn">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="thinking 转文本"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">流式返回 finish_reason</div>
+                            <div class="d-set-row-s">关掉时「为什么停」只能靠猜，<b>用量统计也会少一段</b>（截断的那部分不会被计进输出）。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="finish_reason"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">把 system 提示并进首条 user 消息</div>
+                            <div class="d-set-row-s">部分中转会拒收多段 system。开了之后提示词合并成一条，角色边界变弱。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="system 并入 user"></button>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span><code>models.json</code> 里还有 7 个不常改的兼容项（枚举或对象值），不做成一排开关 —— 一排开关里塞枚举值，用户只会照抄第一个。</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">兼容开关只对这个模型生效；同供应商其它模型各有一份</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 上限与形态：上下文 / 最大输出 / 模态 / API 覆盖地址 + 推理档位<span class="d-grow"></span>推理档位六段真的能切，每档写出请求里多了什么</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 模型高级 / 上限</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge bad"><i data-ico="triangle-alert" data-size="12"></i>上限冲突 1 处</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>上限这类字段不能只留一个输入框 —— 填得比供应商硬上限还大时，面板要提前说清会被截断，而不是让你发一次才发现。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 模型高级 · 上限">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">模型高级 · claude-opus-4-6</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem is-on"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner" data-demo-scope>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">上限</div>
+                        <div class="d-grid2">
+                          <div class="d-field">
+                            <span class="d-field-t">上下文窗口（tokens）</span>
+                            <input class="d-input d-mono" value="1000000">
+                            <span class="d-t-xs d-t-faint">含输入与输出。<b>填大了不会让模型记住更多</b>，只会让上下文环提前变满、摘要更频繁。</span>
+                          </div>
+                          <div class="d-field">
+                            <span class="d-field-t">最大输出（tokens）</span>
+                            <input class="d-input d-mono" value="64000">
+                            <span class="d-t-xs d-t-faint">供应商硬上限 32 000，超出部分被静默截断。</span>
+                          </div>
+                        </div>
+
+                        <div class="d-banner err">
+                          <i data-ico="circle-alert" data-size="14"></i>
+                          <span><b>已填 64 000，供应商只给 32 000。</b>超出的部分不报错，会在流结束时被砍掉一半内容，看起来像「模型自己停了」。</span>
+                          <button class="d-btn sm d-banner-btn">改成 32 000</button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">上下文预算占用比例</div>
+                            <div class="d-set-row-s">超过这个比例就触发压缩；压缩用「压缩模型」分节里选的那个。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">80%</span></span>
+                          <input class="d-slider" type="range" min="50" max="95" value="80">
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">模态</div>
+                        <div class="d-t-xs d-t-faint">决定输入框里哪些附件按钮可用，以及文件查看器能不能直接把图贴进来。<b>关掉后按钮会灰着并说明原因</b>；已有的图片附件不会被删，只是这个模型发不出去。</div>
+                        <div class="d-chips">
+                          <span class="d-chipbtn is-on"><i data-ico="check" data-size="12"></i>文本</span>
+                          <span class="d-chipbtn is-on"><i data-ico="check" data-size="12"></i>图片</span>
+                          <span class="d-chipbtn"><i data-ico="circle-slash" data-size="12"></i>音频</span>
+                          <span class="d-chipbtn"><i data-ico="circle-slash" data-size="12"></i>视频</span>
+                          <span class="d-chipbtn"><i data-ico="circle-slash" data-size="12"></i>PDF 直读</span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">推理 / 思考档位</div>
+                        <div class="d-field">
+                          <div class="d-seg" data-demo-tabs>
+                            <button data-demo-tab="k-follow">跟随模型</button>
+                            <button data-demo-tab="k-off">关闭</button>
+                            <button data-demo-tab="k-low">低</button>
+                            <button data-demo-tab="k-mid">中</button>
+                            <button data-demo-tab="k-high" class="is-on">高</button>
+                            <button data-demo-tab="k-max">最高</button>
+                          </div>
+                        </div>
+                        <section data-demo-pane="k-follow" hidden>
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span>请求里<b>不写</b> <code>reasoning_effort</code>，由供应商按这条消息的难度自己决定。延迟不可预测，但最省。</span></div>
+                        </section>
+                        <section data-demo-pane="k-off" hidden>
+                          <div class="d-banner"><i data-ico="x" data-size="14"></i><span>每轮带 <code>reasoning_effort: none</code>（本模型的兼容开关已开）。快，复杂改动更容易漏。</span></div>
+                        </section>
+                        <section data-demo-pane="k-low" hidden>
+                          <div class="d-banner"><i data-ico="zap" data-size="14"></i><span>每轮带 <code>low</code>。适合查资料、改文案这类不太需要绕路的活。</span></div>
+                        </section>
+                        <section data-demo-pane="k-mid" hidden>
+                          <div class="d-banner"><i data-ico="zap" data-size="14"></i><span>每轮带 <code>medium</code>。多数任务在这一档性价比最好。</span></div>
+                        </section>
+                        <section data-demo-pane="k-high">
+                          <div class="d-banner"><i data-ico="brain" data-size="14"></i><span>每轮带 <code>high</code>。当前默认：跨文件改动、查一个说不清的 bug 都走这一档。</span></div>
+                        </section>
+                        <section data-demo-pane="k-max" hidden>
+                          <div class="d-banner warn"><i data-ico="triangle-alert" data-size="14"></i><span>每轮带 <code>max</code>：思考 token 也计入输出上限，慢了约 3 倍，费用约为「高」的 2.4 倍。</span></div>
+                        </section>
+                        <div class="d-t-xs d-t-faint">被 <code>enabledModels</code> 的 <code>:level</code> 钉死的档位在这一栏是只读的，面板标「被覆盖」。</div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">API 覆盖地址</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">Base URL 覆盖</div>
+                            <div class="d-set-row-s">只对这个模型改接口地址，用于「同一家、另一个端点」。</div>
+                          </div>
+                          <span class="d-grow-last"><input class="d-input d-mono" style="width:280px" value="https://api.anthropic.com"></span>
+                          <button class="d-btn sm ghost" disabled style="min-width:100px">用供应商默认</button>
+                        </div>
+                        <div class="d-banner warn">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span>这个模型已开 <b>1M 上下文 beta</b>。改地址等于换端点，beta 能力不一定在另一个端点上；地址一改，面板会顺手把 beta Header 一并清掉并说明。代理留空时跟随系统设置（<code>http_proxy</code>）。</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">上限与地址会立刻影响下一次请求，不等重载</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>高级项的粒度是「单个模型」，不是供应商。</b>同一家供应商下三个模型可以有三套不同上限 —— 因为「能不能用 1M 上下文」是按模型 + 端点分的，不是按供应商分。</li>
+    <li><b>Header 逐行增删，不给 JSON 文本框。</b>整块 JSON 一旦填进去就没法逐行看、没法逐行删；每行标「来源」（覆盖 Provider / 本行新增 / 未启用），
+        <b>空值行整条丢掉而不是发成空串</b>。</li>
+    <li><b>冲突提前标，不靠报错发现。</b>输出上限填得比供应商硬上限大时，面板在输入框下面就写清「超出部分被静默截断」，并给一个改对的按钮 ——
+        否则症状是「模型自己停了」，用户会去查提示词。</li>
+    <li><b>兼容开关两层：预设 + 逐项。</b>预设一次性改五个开关；逐项让老网关只关掉出问题的那一个。开关旁边永远有一句「关掉会少什么」，
+        <b>没有解释的开关会被当成可有可无的装饰</b>。</li>
+    <li><b>被钉死的值不假装可改。</b><code>enabledModels</code> 的 <code>:level</code> 钉死推理档位时，这一栏标「被覆盖」而不是给一个不生效的下拉框。</li>
+    <li><b>改地址是换端点，不是换个域名。</b>所以地址一改，面板会提醒 beta 能力（Header）可能不随之而来，并把相关 Header 一并清掉说明原因。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

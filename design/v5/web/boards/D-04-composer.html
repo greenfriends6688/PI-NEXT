@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-04 · 输入框与浮层 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-04 · 输入框与浮层</h1>
+  <p>
+    输入框是密度最高的一块：模型、思考强度、权限、工具与上下文、<code>@</code> 提及、<code>/</code> 命令、
+    引用芯片、附件、队列、上下文环全挤在这一个容器里。两条纪律：
+    ① <b>能力一律收成同一种 chip</b>（Aether 的做法），不再各造一种控件；
+    ② <b>浮层永远贴着触发它的那个 chip 开</b>，不靠猜位置。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：输入框</span>
+    <span class="d-tag">组件：Composer · ModelSelect · ThinkingCycle · QueuePanel · ContextRing</span>
+    <span class="d-tag">状态：静息 / 运行中 / 有队列 / 有附件</span>
+  </div>
+</header>
+
+<!-- ── A · 静息态与四个能力浮层 ────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 静息态 + 模型选择浮层<span class="d-grow"></span>浮层左缘锚在 chip 上，不越出输入框</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">给 423KB 全局 CSS 减重</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+            </div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">把这几条 import 的依赖关系写成可校验的，而不是靠记忆。</div>
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md"><p>十一条里只有三条是「样式」，其余是覆盖或变量。先把覆盖关系画成图再动顺序。</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+          <!-- 模型选择 -->
+            <div class="d-pop" data-demo-pop="m-model" hidden style="min-width:300px">
+              <div class="d-searchfield"><i data-ico="search" data-size="13"></i><input placeholder="搜模型…"></div>
+              <div class="d-pop-body d-t-xs d-t-faint">当前工作区可用 14 个模型 · 按用途默认分工：默认 · 命名 · 压缩</div>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="star" data-size="14"></i><span class="d-grow">claude-opus-4-6</span><span class="d-badge info">默认</span></button>
+              <button class="d-menu-row"><i data-ico="star" data-size="14"></i><span class="d-grow">claude-sonnet-4-6</span><span class="d-badge mute">收藏</span></button>
+              <button class="d-menu-row"><i data-ico="star" data-size="14"></i><span class="d-grow">gpt-5.1-codex</span><span class="d-badge warn">额度将尽</span></button>
+              <button class="d-menu-row"><i data-ico="star" data-size="14"></i><span class="d-grow">qwen3-coder-30b</span><span class="d-t-xs d-t-faint">本地</span></button>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="plus" data-size="14"></i>去配置里加模型</button>
+              <div class="d-pop-foot">运行中切换模型不会打断当前回合 —— 切换会排队到这一轮结束再应用。</div>
+            </div>
+
+            <!-- 思考强度：循环按钮的浮层形态 -->
+            <div class="d-pop" data-demo-pop="m-think" hidden style="min-width:220px">
+              <div class="d-pop-title">思考强度</div>
+              <div class="d-pop-body d-col" style="gap:var(--nx-sp-1)">
+                <div class="d-seg" data-demo-scope data-demo-tabs>
+                  <button data-demo-tab="off">关</button>
+                  <button data-demo-tab="low">低</button>
+                  <button data-demo-tab="mid" class="is-on">中</button>
+                  <button data-demo-tab="high">高</button>
+                  <button data-demo-tab="max">最大</button>
+                </div>
+                <div class="d-t-xs d-t-faint">中档在本模型上约多花 18% token，换取更少的返工。改了会记进这个会话。</div>
+              </div>
+            </div>
+
+            <!-- 工具与上下文 -->
+            <div class="d-pop" data-demo-pop="m-tools" hidden style="min-width:280px">
+              <div class="d-pop-title">工具与上下文</div>
+              <button class="d-menu-row"><span class="d-grow d-t-b">完整</span><i data-ico="check" data-size="14"></i></button>
+              <button class="d-menu-row"><span class="d-grow">默认（不含电脑控制）</span></button>
+              <button class="d-menu-row"><span class="d-grow">只读</span><span class="d-badge mute">不出网</span></button>
+              <button class="d-menu-row"><span class="d-grow">仅聊天</span><span class="d-badge mute">无工具</span></button>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">跨档会重建会话上下文，所以这层选择会记进会话，不影响已跑的回合。</div>
+            </div>
+
+            <!-- 权限档 -->
+            <div class="d-pop" data-demo-pop="m-perm" hidden style="min-width:280px">
+              <div class="d-pop-title">权限</div>
+              <button class="d-menu-row"><span class="d-grow d-t-b">每次问</span><i data-ico="check" data-size="14"></i></button>
+              <button class="d-menu-row"><span class="d-grow">本会话内允许读与查</span></button>
+              <button class="d-menu-row"><span class="d-grow">全部自动允许</span><span class="d-badge bad">危险</span></button>
+              <div class="d-sep"></div>
+              <button class="d-menu-row danger"><i data-ico="ban" data-size="14"></i>拒绝本会话内一切写操作</button>
+              <div class="d-pop-foot">危险档会给输入框加一条红色发丝边 —— 状态要能从框本身看出来。</div>
+            </div>
+
+            <!-- 附件 -->
+            <div class="d-pop" data-demo-pop="m-attach" hidden style="min-width:280px">
+              <div class="d-pop-title">附件</div>
+              <button class="d-menu-row"><i data-ico="file" data-size="14"></i>从工作区选</button>
+              <button class="d-menu-row"><i data-ico="image" data-size="14"></i>图片（可多选）</button>
+              <button class="d-menu-row"><i data-ico="clipboard-list" data-size="14"></i>粘贴剪贴板</button>
+              <div class="d-sep"></div>
+              <div class="d-drop" style="padding:var(--nx-sp-4)">
+                <i data-ico="upload" data-size="16"></i>
+                <span>把文件拖到这里</span>
+              </div>
+            </div>
+
+            <!-- 上下文环 -->
+            <div class="d-pop up" data-demo-pop="m-ctx" hidden style="min-width:260px;right:var(--nx-sp-8);left:auto">
+              <div class="d-pop-title">上下文占用</div>
+              <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">已用</span><span class="d-t-xs d-num">18.4k / 200k</span></div>
+                <div class="d-bar"><i style="width:18%"></i></div>
+                <div class="d-sep"></div>
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">缓存命中率</span><span class="d-t-xs">71%</span></div>
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">本轮费用</span><span class="d-t-xs d-num">¥0.42</span></div>
+                <div class="d-row"><span class="d-grow d-t-xs d-t-dim">本轮耗时</span><span class="d-t-xs">3 分 12 秒</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="minimize-2" data-size="14"></i>压缩上下文</button>
+                <button class="d-menu-row"><i data-ico="sigma" data-size="14"></i>预算设置…</button>
+              </div>
+            </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── B · @ 提及与 / 命令 ─────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · <code>@</code> 提文件 · <code>/</code> 提命令 · 行内引用<span class="d-grow"></span>打字即补全，前缀即语法</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">@ 与 /</span>
+              <span class="d-tb-sub">补全面板贴着光标，不贴着输入框</span>
+            </div>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md"><p>底部那张是没做完的，你要接着做的话直接说「继续」。</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" data-demo-open="m-mention" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+          <!-- @ 提及补全：贴着输入框顶部 -->
+            <div class="d-pop-float up" data-demo-pop="m-mention" hidden style="width:420px;left:var(--nx-sp-8);right:auto;bottom:100%">
+              <div class="d-searchfield"><i data-ico="search" data-size="13"></i><span class="d-placeholder" style="border:0;padding:0">system</span></div>
+              <div class="d-pop-body d-t-xs d-t-faint">文件 3 · 符号 1 · 会话 1</div>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="file-code" data-size="14"></i>
+                <span class="d-grow"><span class="d-mono">design/v5/web/system.css</span>
+                <span class="d-t-xs d-t-faint"> · 第 6 节 浮层</span></span></button>
+              <button class="d-menu-row"><i data-ico="file-code" data-size="14"></i>
+                <span class="d-grow"><span class="d-mono">design/v5/base.css</span>
+                <span class="d-t-xs d-t-faint"> · 动效原子</span></span></button>
+              <button class="d-menu-row"><i data-ico="braces" data-size="14"></i>
+                <span class="d-grow"><span class="d-mono">.d-pop</span>
+                <span class="d-t-xs d-t-faint"> · 类 · 浮层容器</span></span>
+                <span class="d-kbd">符号</span></button>
+              <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i>
+                <span class="d-grow">会话：令牌只有一个来源</span><span class="d-kbd">#</span></button>
+              <div class="d-pop-foot">↑↓ 选择 · ↵ 插入 · Esc 关闭。插入后落成输入框上方的引用芯片，可点开预览。</div>
+            </div>
+
+            <!-- / 命令面板 -->
+            <div class="d-pop up" data-demo-pop="m-slash" hidden style="min-width:360px">
+              <div class="d-pop-title">命令</div>
+              <div class="d-pop-body d-t-xs d-t-faint">内置 8 条 · 来自扩展 3 条 · 来自技能 12 条</div>
+              <button class="d-menu-row"><i data-ico="minimize-2" data-size="14"></i><span class="d-grow">/compact 压缩上下文</span><span class="d-t-xs d-t-faint">/compact</span></button>
+              <button class="d-menu-row"><i data-ico="undo-2" data-size="14"></i><span class="d-grow">/rewind 回退到上一轮</span><span class="d-t-xs d-t-faint">/rewind</span></button>
+              <button class="d-menu-row"><i data-ico="panel-right" data-size="14"></i><span class="d-grow">/panel 切换右栏</span><span class="d-t-xs d-t-faint">/panel</span></button>
+              <button class="d-menu-row"><i data-ico="list-todo" data-size="14"></i><span class="d-grow">/todo 列待办</span><span class="d-t-xs d-t-faint">/todo</span></button>
+              <button class="d-menu-row"><i data-ico="git-commit-horizontal" data-size="14"></i><span class="d-grow">/commit 提交当前改动</span><span class="d-badge mute">扩展</span></button>
+              <div class="d-pop-foot">斜杠后面跟名字可过滤；同名命令按来源分组，扩展的排在内置之后。</div>
+            </div>
+
+            <!-- 触发器：把两块补全面板都挂上（真实产品里是打字自动触发，这里做成可点的开关） -->
+            <div class="d-row" style="justify-content:center;margin-top:var(--nx-sp-3)">
+              <button class="d-btn sm" data-demo-open="m-mention">看 @ 提及面板</button>
+              <button class="d-btn sm" data-demo-open="m-slash">看 / 命令面板</button>
+            </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── C · 运行中 · 队列两态 ─────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 运行中 + 队列面板（自动接续 / 已暂停）<span class="d-grow"></span>暂停是一等公民，不是隐藏功能</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">画板落地清单</span>
+              <span class="d-tb-sub">运行中 · 已排 2 条</span>
+            </div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-steps">
+                <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="10"></i></span>
+                  <span class="d-step-body d-mono">land-status.mjs --batch</span><span class="d-step-meta">22 张板</span></div>
+                <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="10"></i></span>
+                  <span class="d-step-body d-mono">refactor(skin): D-13-settings-usage</span><span class="d-step-meta">…</span></div>
+              </div>
+              <div class="d-md"><p class="d-stream">已落地 41 个类，剩 3 个；下一张是<span class="pending">用量</span>。<span class="d-caret"></span></p></div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer d-loader">
+            <div class="d-loader-glow"></div>
+            <svg class="d-loader-svg" viewBox="0 0 760 56" preserveAspectRatio="none" aria-hidden="true">
+                <path pathLength="100" d="M16,2 H744 A14,14 0 0 1 758,16 V40 A14,14 0 0 1 744,54 H16 A14,14 0 0 1 2,40 V16 A14,14 0 0 1 16,2 Z"/>
+              </svg>
+              <div class="d-composer-top"><span class="">运行中：这条会排到队尾</span></div>
+              <div class="d-chips">
+                <button class="d-chipbtn is-on"><i data-ico="pause" data-size="12"></i>已暂停</button>
+              </div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send stop" title="停止这一轮"><i data-ico="square" data-size="14"></i></button>
+              </div>
+          </div>
+          <!-- 队列面板 -->
+            <div class="d-queue">
+              <div class="d-queue-head">
+                <i data-ico="layers" data-size="14"></i>
+                <span class="d-grow">排队中 · 2 条</span>
+                <span class="d-badge mute">自动接续</span>
+                <button class="d-btn sm ghost" data-demo-toggle-queue-state>暂停</button>
+                <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button>
+              </div>
+              <div class="d-queue-body" data-demo-list>
+                <div class="d-queue-row">
+                  <span class="d-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+                  <span class="d-queue-t">把 D-14 的推送面板也画完，缺的状态用告警条补</span>
+                  <button class="d-iconbtn" title="提升为 steer"><i data-ico="arrow-up-right" data-size="13"></i></button>
+                  <button class="d-iconbtn" title="移回输入框"><i data-ico="text-cursor" data-size="13"></i></button>
+                  <button class="d-iconbtn" title="立即发送"><i data-ico="send" data-size="13"></i></button>
+                  <button class="d-iconbtn" title="删除"><i data-ico="x" data-size="13"></i></button>
+                </div>
+                <div class="d-queue-row steer">
+                  <span class="d-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+                  <span class="d-queue-t">顺便把 stop 加进 D-03 的失败态</span>
+                  <span class="d-badge warn">steer</span>
+                  <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button>
+                </div>
+              </div>
+              <div class="d-pop-foot">拖把手能排序；「提升为 steer」让这一条插到当前回合里打断处，steer 行左侧有琥珀色发丝边。</div>
+            </div>
+        </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>能力一律同一种 chip</b>（`.d-chipbtn`）：模型 / 思考强度 / 权限 / 工具与上下文 / 附件长得一样，只有图标与文字不同 —— 扫一行的成本从「逐个辨认控件」降到「读图标」。</li>
+    <li><b>补全面板走 portal（.d-pop-float）</b>：composer 是滚动容器宿主，浮窗挂在里面必然被裁；portal 到 body 上用 fixed 定位才是正解（这也是文档里点名的那个陷阱）。</li>
+    <li><b>浮层左缘锚在触发 chip 上</b>，右缘对齐输入框内侧；贴左缘的浮窗探出卡片会被 <code>overflow-x: clip</code> 裁掉，这是本仓翻过的车。</li>
+    <li><b>切换模型不打断运行中的回合</b>：浮层里明写「会排队到这一轮结束再应用」—— 不写这一句，用户会以为切了就生效，然后看到模型没变。</li>
+    <li><b>危险档要能从框本身看出来</b>：全部自动允许时输入框加红色发丝边，而不是只在菜单里留个红字。</li>
+    <li><b><code>@</code> 与 <code>/</code> 共用一块补全区</b>：前缀即语法，文件 / 符号 / 会话 / 命令混排，按类型分组；键盘 ↑↓ ⎋ Esc 全覆盖。</li>
+    <li><b>队列是一等公民</b>：能排序、能「提升为 steer」插队、能移回输入框、能立即发送；<b>暂停</b>是显式按钮，不是藏在设置里的开关。</li>
+    <li><b>上下文占用只在环里</b>，点开才给明细；输入框下方不再挂第二条常驻横条。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 队列暂停态：改徽标文案 + chip 态 + 按钮文案三处，演示「一个状态要同时改三个地方」。 */
+(function () {
+  var btn = document.querySelector("[data-demo-toggle-queue-state]");
+  if (!btn) return;
+  btn.addEventListener("click", function () {
+    var paused = btn.textContent.trim() === "暂停";
+    btn.textContent = paused ? "继续" : "暂停";
+    var badge = btn.parentElement.querySelector(".d-badge");
+    if (badge) { badge.textContent = paused ? "已暂停" : "自动接续";
+      badge.className = "d-badge " + (paused ? "warn" : "mute"); }
+  });
+})();
+</script>
+</body>
+</html>

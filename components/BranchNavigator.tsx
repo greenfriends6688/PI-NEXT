@@ -120,80 +120,51 @@ interface TreeNodeProps {
   node: SessionTreeNode;
   activePathIds: Set<string>;
   depth: number;
-  isLast: boolean;
-  parentLines: boolean[]; // whether ancestor at each depth has more siblings after
   onSelect: (id: string) => void;
 }
 
-/** 缩进一格 16px；树线固定在这一格的左 7px 处。 */
-const BRANCH_GUIDE_WIDTH = 16;
-/** fix:branch-popover —— 浮层宽度取画板 22 的 `.pw-pop`（320），不再跟随触发点。 */
+/** 缩进一格 18px（画板 D-02b 帧 C 的树用 `.d-trow.l1` 那套缩进，不用导线）。 */
+const BRANCH_INDENT = 18;
+/** fix:branch-popover —— 浮层宽度取画板 D-02b 帧 C 的 `.d-pop-float`（320），不再跟随触发点。 */
 const BRANCH_MENU_WIDTH = 320;
 
-function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelect }: TreeNodeProps) {
+/* fork:v5-landing —— 行原子 = 画板 D-02b 帧 C 的 `.d-trow`：图标按角色给
+   （用户 message-circle / 助手 sparkles / 续接 corner-down-right），标签 `d-grow`，
+   角色徽章与「+N」压平徽章都是 `d-badge mute`。缩进用内联 padding-left（几何值）。
+   旧的导线 / 节点圆点 / 自绘 `pw-branch-*` 家族随换皮退场。 */
+function TreeNodeView({ node, activePathIds, depth, onSelect }: TreeNodeProps) {
   const { node: rep, skipped, branchPreview, labelEntry } = compressChain(node);
   const isActive = activePathIds.has(rep.entry.id);
-  const isOnPath = activePathIds.has(node.entry.id) || activePathIds.has(rep.entry.id);
   const label = branchPreview?.text ?? getLabel(labelEntry);
   const role = branchPreview
     ? branchPreview.role ?? null
     : isMessageEntry(labelEntry)
       ? (labelEntry as { message: { role: string } }).message.role
       : null;
+  const roleIcon = role === "user" ? "message-circle" : role === "assistant" ? "sparkles" : "corner-down-right";
 
   return (
     <div>
-      {/* fork:design-system —— 行本体是画板的 `.pw-row` 语义（26px / radius-4 /
-          hover 6% / 选中 accent 淡底）。原来这一行是**不可聚焦的 div**、没有 hover
-          底、颜色走的是旧 token（`--border` / `--bg-hover`），点起来既没反馈也够
-          不到键盘。这里换成 button，视觉与 hover / 选中态全部来自 fork-ui.css 的
-          `.pw-branch-row`（值仍然只有一个来源：board.css 的 `.pw-row` / `.pw-prow`）。 */}
       <button
         type="button"
         onClick={() => onSelect(rep.entry.id)}
         aria-current={isActive ? "true" : undefined}
         title={label}
-        className={`pw-branch-row${isActive ? " is-on" : ""}`}
+        className={`d-trow${isActive ? " is-on" : ""}`}
+        style={{ paddingLeft: 8 + depth * BRANCH_INDENT }}
       >
-        {/* Indent guide lines */}
-        {parentLines.map((hasLine, i) => (
-          <span key={i} className="pw-branch-guide" style={{ width: BRANCH_GUIDE_WIDTH }} data-line={hasLine ? "" : undefined} />
-        ))}
-
-        {/* Branch connector */}
-        <span
-          className="pw-branch-guide"
-          style={{ width: BRANCH_GUIDE_WIDTH }}
-          data-line=""
-          data-elbow={isLast ? "last" : "mid"}
-        />
-
-        {/* Node dot */}
-        <span className="pw-branch-dot" data-state={isActive ? "on" : isOnPath ? "path" : "off"} />
-
-        {/* Role badge */}
-        {role && (
-          <span className="pw-branch-role" data-role={role}>
-            {role === "user" ? "U" : "A"}
-          </span>
-        )}
-
-        {/* Skipped indicator */}
-        {skipped > 0 && <span className="pw-branch-skip">+{skipped}</span>}
-
-        {/* Label */}
-        <span className="pw-branch-label">{label}</span>
+        <i data-ico={roleIcon} data-size="13" aria-hidden="true"></i>
+        <span className="d-grow">{label}</span>
+        {role && <span className="d-badge mute">{role === "user" ? "U" : "A"}</span>}
+        {skipped > 0 && <span className="d-badge mute">+{skipped}</span>}
       </button>
 
-      {/* Children */}
-      {rep.children.map((child, idx) => (
+      {rep.children.map((child) => (
         <TreeNodeView
           key={child.entry.id}
           node={child}
           activePathIds={activePathIds}
           depth={depth + 1}
-          isLast={idx === rep.children.length - 1}
-          parentLines={[...parentLines, !isLast]}
           onSelect={onSelect}
         />
       ))}
@@ -208,7 +179,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   const btnRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
-  // fix:branch-popover —— 浮层定位：宽度取画板 22 的 320（**不再**取触发点宽度，
+  // fix:branch-popover —— 浮层定位：宽度取画板 D-02b 帧 C 的 320（**不再**取触发点宽度，
   // 芯片只有 ~90px 宽，跟随之浮窗被压成一条缝还溢出横向滚动条）；上缘贴触发点下沿
   // +6，右缘越界时把左缘收回来；高度按剩余视口给，长树自滚。
   useEffect(() => {
@@ -257,41 +228,37 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   // fork:design-components —— 会话分支 ≠ Git 分支：图标换皮肤 lucide 的 git-fork
   //（分叉形态），与顶栏左侧 git-branch 的「main」芯片在视觉上区分开。
   const branchIcon = (
-    <span
-      className="pw-ico"
-      style={{ color: hasContent ? "var(--accent)" : "var(--text-dim)", display: "inline-flex", flexShrink: 0 }}
-    >
-      <i data-ico="git-fork" data-size="14"></i>
-    </span>
+    <i
+      data-ico="git-fork"
+      data-size="14"
+      aria-hidden="true"
+      style={{ color: hasContent ? "var(--nx-accent)" : "var(--nx-text-3)", flexShrink: 0 }}
+    ></i>
   );
 
   // fork:design-components —— 手绘 chevron 换皮肤 lucide（图标纪律：手绘 SVG 清零）。
   const chevron = (
-    <span
-      className="pw-ico"
+    <i
+      data-ico="chevron-down"
+      data-size="10"
+      aria-hidden="true"
       style={{
-        marginLeft: "var(--space-tight)",
-        color: "var(--text-dim)",
+        color: "var(--nx-text-3)",
         transform: open ? "rotate(180deg)" : "none",
         transition: "transform 0.15s",
       }}
-    >
-      <i data-ico="chevron-down" data-size="10"></i>
-    </span>
+    ></i>
   );
-
 
   if (inline) {
     return (
-      <div style={{ display: "flex", alignItems: "center" }}>
-        {/* fork:design-system —— 触发点是画板 02 帧 B 的 `.pw-chipbtn`（24px /
-            radius-4 / muted，hover 抬色）；激活档挂 `is-on`。原来是自己写的一套
-            28px 高、`--bg-selected` 底的盒子，与同一行其它图标按钮不是同一个高度，
-            看起来「间距不齐」。 */}
+      <div className="d-row">
+        {/* fork:design-system —— 触发点是画板 02 帧 B 的 `.d-chipbtn`（24px /
+            radius-4 / muted，hover 抬色）；激活档挂 `is-on`。compact 时退成 `.d-iconbtn`。 */}
         <button
           ref={btnRef}
           onClick={() => onToggle ? onToggle() : setOpenInternal((v) => !v)}
-          className={`${compact ? "pw-iconbtn" : "pw-chipbtn"}${open ? " is-on" : ""}`}
+          className={`${compact ? "d-iconbtn" : "d-chipbtn"}${open ? " is-on" : ""}`}
           style={{ display: hideInlineButton ? "none" : undefined }}
           title={t("i18n.branches")}
           aria-label={t("i18n.branches")}
@@ -303,10 +270,10 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           {!compact && chevron}
         </button>
         {open && dropdownPos && (
-          // fix:branch-popover —— 浮窗 = 画板 22 的 `.pw-pop`（320 宽 / 圆角 6 /
-          // 唯一一种阴影 / 1px 描边）。面板自己成列：标题行固定，树体自滚。
+          // fix:branch-popover —— 浮窗 = 画板 D-02b 帧 C 的 `.d-pop-float`
+          //（320 宽 / 圆角 / 唯一一种阴影 / 1px 描边）。面板自己成列：标题行固定，树体自滚。
           <div
-            className="anim-popover-down"
+            className="anim-popover-down d-pop-float"
             style={{
               position: "fixed",
               top: dropdownPos.top,
@@ -317,24 +284,22 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
               display: "flex",
             }}
           >
-            <div className="pw-pop" style={{ display: "flex", flexDirection: "column", width: "100%", maxHeight: "100%", padding: "var(--s1)" }}>
-              <div className="pw-pop-title">{t("i18n.branches")}</div>
+            <div className="d-col" style={{ display: "flex", flexDirection: "column", width: "100%", maxHeight: "100%", gap: 0 }}>
+              <div className="d-pop-title">{t("i18n.branches")}</div>
               {hasContent ? (
-                <div style={{ minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", padding: "0 var(--s1) var(--s1)" }}>
-                  {topLevel.map((child, idx) => (
+                <div className="d-scroll" style={{ minHeight: 0, overscrollBehavior: "contain", padding: "0 var(--nx-sp-1) var(--nx-sp-1)" }}>
+                  {topLevel.map((child) => (
                     <TreeNodeView
                       key={child.entry.id}
                       node={child}
                       activePathIds={activePathIds}
                       depth={0}
-                      isLast={idx === topLevel.length - 1}
-                      parentLines={[]}
                       onSelect={handleSelect}
                     />
                   ))}
                 </div>
               ) : (
-                <div className="pw-prow"><span className="pw-desc">{noBranchReason}</span></div>
+                <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{noBranchReason}</span></div>
               )}
             </div>
           </div>
@@ -344,12 +309,12 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   }
 
   return (
-    <div style={{ borderBottom: "1px solid var(--n-border-subtle)", background: "var(--surface-canvas)", flexShrink: 0, position: "relative" }}>
+    <div className="d-col" style={{ flexShrink: 0, position: "relative", gap: 0 }}>
       {/* Header toggle */}
       <button
         onClick={() => setOpenInternal((v) => !v)}
-        className="pw-chipbtn"
-        style={{ width: "100%", justifyContent: "flex-start", color: "var(--n-muted)" }}
+        className="d-chipbtn"
+        style={{ width: "100%", justifyContent: "flex-start" }}
       >
         {branchIcon}
         <span>{t("i18n.branches")}</span>
@@ -358,32 +323,30 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
 
       {/* Tree panel - overlay */}
       {open && (
-        <div style={{
-          position: "absolute",
-          top: "100%",
-          left: 0,
-          right: 0,
-          background: "var(--surface-canvas)",
-          borderBottom: "1px solid var(--n-border-subtle)",
-          boxShadow: "var(--shadow-popover)",
-          zIndex: 100,
-        }}>
+        <div
+          className="d-pop is-open"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            zIndex: 100,
+          }}
+        >
           {hasContent ? (
-            <div style={{ padding: "0 var(--s1) var(--s1)", maxHeight: 260, overflowY: "auto" }}>
-              {topLevel.map((child, idx) => (
+            <div className="d-scroll" style={{ padding: "0 var(--nx-sp-1) var(--nx-sp-1)", maxHeight: 260 }}>
+              {topLevel.map((child) => (
                 <TreeNodeView
                   key={child.entry.id}
                   node={child}
                   activePathIds={activePathIds}
                   depth={0}
-                  isLast={idx === topLevel.length - 1}
-                  parentLines={[]}
                   onSelect={handleSelect}
                 />
               ))}
             </div>
           ) : (
-            <div className="pw-prow"><span className="pw-desc">{noBranchReason ?? t("i18n.noBranches")}</span></div>
+            <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{noBranchReason ?? t("i18n.noBranches")}</span></div>
           )}
         </div>
       )}

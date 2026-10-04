@@ -48,8 +48,8 @@ export function QrCanvas({ content, label, scale = 6 }: { content: string; label
         maxWidth: "100%",
         height: "auto",
         imageRendering: "pixelated",
-        background: "var(--surface-canvas)",
-        borderRadius: "var(--radius-4)",
+        background: "var(--nx-surface)",
+        borderRadius: "var(--nx-r-md)",
       }}
     />
   );

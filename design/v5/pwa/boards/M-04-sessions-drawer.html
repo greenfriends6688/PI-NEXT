@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-04 · 会话抽屉整页 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-04 · 会话抽屉整页</h1>
+  <p>
+    手机上的抽屉不是「桌面的侧栏缩窄」，它是<b>一整页</b>：占 <span class="m-mono">min(84%, 320px)</span>，
+    剩下的窄条全让给遮罩。所以它只配三样东西 —— <b>搜索</b>、<b>分段</b>、<b>会话行</b>。
+    会话行永远两行字：标题写「在讲什么」，副行只放<b>什么时候 + 几条 + 状态</b>，第三行一律不给；
+    未读是<b>绿点</b>、等你处理是<b>文字徽章</b>（待授权 / 待输入）、运行中是<b>行内转圈</b>，形状与文字各管一段。
+    长按不是长出另一层界面，是从<b>这一行就地升起</b>一条 12 项菜单；删除不在菜单里，必须走确认。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：会话抽屉整页 / 长按菜单</span>
+    <span class="m-doc-tag">组件：m-drawer-head · m-searchfield · m-seg · m-list · m-row · m-group-title · m-menu-sheet · m-drawer-foot</span>
+    <span class="m-doc-tag">状态：常态 / 搜索命中 / 未读与等你处理 / 长按菜单 / 删除确认</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 抽屉常态 ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 抽屉常态 · 抽屉头只留标题与一个关闭钮，搜索常驻，分段贴着搜索</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <!-- 遮罩与抽屉写在顶栏之前：视觉层级看 z-index，交互顺序看 DOM -->
+      <div class="m-scrim is-open" data-demo-scrim></div>
+      <aside class="m-drawer is-open" id="drawer-a">
+        <div class="m-drawer-head">
+          <span class="m-top-title">会话</span>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#drawer-a" title="收起抽屉"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <div class="m-searchfield">
+          <i data-ico="search" data-size="14"></i>
+          <input placeholder="搜索所有对话…">
+        </div>
+
+        <button class="m-setrow">
+          <i data-ico="square-pen" data-size="14"></i>
+          <span class="m-grow">新建任务</span>
+          <span class="m-badge mute">⌘N</span>
+        </button>
+
+        <div class="m-seg" data-demo-tabs>
+          <button class="is-on" data-demo-tab="f-proj">项目</button>
+          <button data-demo-tab="f-chat">聊天</button>
+        </div>
+        <!-- 未读、等你处理、运行中是**会话行上的状态**，不是并列的分类：
+             把它们做成分类会把「跑着的」从它所属的项目里抽走。 -->
+        <div data-demo-scope>
+          <div data-demo-pane="f-proj"></div>
+          <div data-demo-pane="f-chat" hidden></div>
+        </div>
+
+        <div data-demo-scope>
+          <div class="m-drawer-body">
+            <div class="m-group-title">PI NEXT</div>
+            <div class="m-rowlabel" style="padding:0 var(--nx-sp-3)"><i data-ico="git-branch" data-size="12"></i> fork/v5-boards · worktree</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">手机端顶栏瘦身收尾</span>
+                <span class="m-row-m"><i data-ico="loader-circle" data-size="12"></i><span>运行中 · 6 分</span><span>·</span><span>12 条消息</span></span>
+              </button>
+              <button class="m-row is-on" data-demo-select>
+                <span class="m-row-t">设计体系 V5 · PWA 画板</span>
+                <span class="m-row-m"><span>18:04</span><span>·</span><span>14 条消息</span></span>
+              </button>
+            </div>
+            <div class="m-group-title">pi-web</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">release 0.1.8 收尾</span>
+                <span class="m-row-m"><span class="m-dot ok"></span><span>周三</span><span>·</span><span>62 条消息</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">给这段代码补测试</span>
+                <span class="m-row-m"><span class="m-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待输入</span><span>周三 16:20</span><span>·</span><span>6 条消息</span></span>
+              </button>
+            </div>
+            <div class="m-group-title">北岸 · 客户门户</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">首页改版验收清单</span>
+                <span class="m-row-m"><span>周二</span><span>·</span><span>11 条消息</span></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-drawer-foot">
+  <button class="m-row m-grow" title="设置"><i data-ico="settings" data-size="15"></i><span>设置</span></button>
+  <button class="m-top-btn" title="手机与推送"><i data-ico="smartphone" data-size="15"></i></button>
+  <span class="m-badge mute">v0.1.8</span>
+</div>
+      </aside>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#drawer-a" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">抽屉整页重画一遍，别再拿侧栏缩窄凑合。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>同意。手机抽屉只有「找得到」和「切得走」两件事，所以搜索常驻、分段贴着搜索、会话行只有两行字。</p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="继续说，或 @ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+       <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 搜索与分段 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 搜索命中与分段 · 分段只有 项目 / 聊天；未读绿点、等你处理文字徽章</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim is-open" data-demo-scrim></div>
+      <aside class="m-drawer is-open" id="drawer-b">
+        <div class="m-drawer-head">
+          <span class="m-top-title">会话</span>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#drawer-b" title="收起抽屉"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <div class="m-searchfield">
+          <i data-ico="search" data-size="14"></i>
+          <input value="定时" placeholder="搜索所有对话…" aria-label="搜索所有对话">
+          <span class="m-badge mute">3</span>
+        </div>
+
+        <button class="m-setrow">
+          <i data-ico="square-pen" data-size="14"></i>
+          <span class="m-grow">新建任务</span>
+          <span class="m-badge mute">⌘N</span>
+        </button>
+
+        <div data-demo-scope>
+          <div class="m-seg" data-demo-tabs>
+            <button class="is-on" data-demo-tab="b-proj">项目</button>
+            <button data-demo-tab="b-chat">聊天</button>
+          </div>
+
+          <div data-demo-pane="b-proj">
+            <div class="m-group-title">PI NEXT</div>
+            <div class="m-rowlabel" style="padding:0 var(--nx-sp-3)"><i data-ico="git-branch" data-size="12"></i> fork/v5-boards · worktree</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">定时任务错峰执行</span>
+                <span class="m-row-m"><span class="m-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待授权</span><span>昨天 14:20</span><span>·</span><span>6 条消息</span></span>
+              </button>
+              <button class="m-row is-on" data-demo-select>
+                <span class="m-row-t">定时任务跑完的通知去哪了</span>
+                <span class="m-row-m"><span class="m-dot ok"></span><span>周一</span><span>·</span><span>9 条消息</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">把定时挪到凌晨 3 点</span>
+                <span class="m-row-m"><span>7 月 28 日</span><span>·</span><span>3 条消息</span></span>
+              </button>
+            </div>
+            <div class="m-group-title">命中 3 条 · 按项目分组，不按时间倒序</div>
+          </div>
+
+          <div data-demo-pane="b-chat" hidden>
+            <div class="m-list" data-demo-list>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">随手问</span>
+                <span class="m-row-m"><span class="m-dot ok"></span><span>昨天</span><span>·</span><span>4 条消息</span></span>
+              </button>
+              <button class="m-row" data-demo-select>
+                <span class="m-row-t">临时讨论</span>
+                <span class="m-row-m"><span>周一</span><span>·</span><span>1 条消息</span></span>
+              </button>
+            </div>
+            <div class="m-group-title">聊天工作区不在项目里：会话文件落在 ~/pi-cwd-* 下，不进项目树</div>
+          </div>
+        </div>
+
+        <div class="m-drawer-foot">
+  <button class="m-row m-grow" title="设置"><i data-ico="settings" data-size="15"></i><span>设置</span></button>
+  <button class="m-top-btn" title="手机与推送"><i data-ico="smartphone" data-size="15"></i></button>
+  <span class="m-badge mute">v0.1.8</span>
+</div>
+      </aside>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#drawer-b" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">定时任务错峰执行</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">搜「定时」，再切到聊天工作区看不在项目里的那几条。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>两个 pane 共用一组 <span class="m-mono">data-demo-scope</span>：段位换的是<b>范围</b>（项目 / 聊天），不是<b>页面</b>，所以不推路由、不留返回栈。搜索命中同样按项目分组，未读与等你处理是行上的状态。</p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="继续说，或 @ 提文件">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 长按菜单 ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 长按菜单 · 12 项 3 段，从「就地升起」；删除不在菜单里，走帧 D 的确认</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <!-- 长按菜单是就地升起的浮层，不铺遮罩：抽屉本身就是上下文；两个入口（长按行 / 顶栏 ⋯）开合同一张菜单 -->
+
+      <aside class="m-drawer is-open" id="drawer-c">
+        <div class="m-drawer-head">
+          <span class="m-top-title">会话</span>
+          <button class="m-top-btn" title="收起抽屉"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <div class="m-searchfield">
+          <i data-ico="search" data-size="14"></i>
+          <input placeholder="搜索所有对话…">
+        </div>
+
+        <button class="m-setrow">
+          <i data-ico="square-pen" data-size="14"></i>
+          <span class="m-grow">新建任务</span>
+          <span class="m-badge mute">⌘N</span>
+        </button>
+
+        <div class="m-seg" data-demo-tabs>
+          <button class="is-on" data-demo-tab="f-proj">项目</button>
+          <button data-demo-tab="f-chat">聊天</button>
+        </div>
+
+        <div class="m-drawer-body">
+          <div class="m-group-title">PI NEXT</div>
+          <div class="m-rowlabel" style="padding:0 var(--nx-sp-3)"><i data-ico="git-branch" data-size="12"></i> fork/v5-boards · worktree</div>
+          <div class="m-list" data-demo-list>
+            <button class="m-row" data-demo-select>
+              <span class="m-row-t">设计体系 V5 · PWA 画板</span>
+              <span class="m-row-m"><i data-ico="loader-circle" data-size="12"></i><span>运行中 · 2 分</span><span>·</span><span>14 条消息</span></span>
+            </button>
+            <!-- 被长按的那一行：画板上以「这一行本身就是触发钮」代替长按手势 -->
+            <button class="m-row is-on" data-demo-drawer="toggle" data-demo-drawer-target="#menu-c">
+              <span class="m-row-t">定时任务错峰执行</span>
+              <span class="m-row-m"><span class="m-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待授权</span><span>昨天 14:20</span><span>·</span><span>6 条消息</span></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="m-drawer-foot">
+  <button class="m-row m-grow" title="设置"><i data-ico="settings" data-size="15"></i><span>设置</span></button>
+  <button class="m-top-btn" title="手机与推送"><i data-ico="smartphone" data-size="15"></i></button>
+  <span class="m-badge mute">v0.1.8</span>
+</div>
+      </aside>
+
+      <div class="m-menu-sheet is-open" id="menu-c">
+        <div class="m-menu-sheet-title">定时任务错峰执行 · 昨天 14:20</div>
+        <button class="m-menu-row"><i data-ico="pin" data-size="15"></i><span class="m-grow">置顶</span></button>
+        <button class="m-menu-row"><i data-ico="square-pen" data-size="15"></i><span class="m-grow">重命名会话</span></button>
+        <button class="m-menu-row"><i data-ico="archive" data-size="15"></i><span class="m-grow">归档</span></button>
+        <button class="m-menu-row"><i data-ico="message-circle" data-size="15"></i><span class="m-grow">标记为未读</span></button>
+        <div class="m-sep"></div>
+        <button class="m-menu-row"><i data-ico="folder-open" data-size="15"></i><span class="m-grow">在访达中打开</span></button>
+        <button class="m-menu-row"><i data-ico="folder" data-size="15"></i><span class="m-grow">复制路径</span></button>
+        <button class="m-menu-row"><i data-ico="file-text" data-size="15"></i><span class="m-grow">复制会话文件路径</span></button>
+        <button class="m-menu-row"><i data-ico="hash" data-size="15"></i><span class="m-grow">复制会话 ID</span></button>
+        <div class="m-sep"></div>
+        <button class="m-menu-row"><i data-ico="file-text" data-size="15"></i><span class="m-grow">系统提示词</span></button>
+        <button class="m-menu-row"><i data-ico="wrench" data-size="15"></i><span class="m-grow">工具定义</span></button>
+        <div class="m-sep"></div>
+        <button class="m-menu-row"><i data-ico="download" data-size="15"></i><span class="m-grow">导出为 HTML</span></button>
+        <button class="m-menu-row"><i data-ico="download" data-size="15"></i><span class="m-grow">导出 Markdown</span></button>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">定时任务错峰执行</span>
+        <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#menu-c" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">长按一条会话就行，别让我回桌面右键。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>菜单从触着的那一行<b>就地升起</b>（<span class="m-mono">.m-menu-sheet</span>，底部起、320ms 推入），标题行写清「这条是谁」。12 项按三段分隔 —— 改这条会话 / 它在哪 / 低频诊断与往外带走；复制分享链接这种没做的动作不占位置，删除也不在这里，破坏性动作走确认。</p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 删除确认 ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 删除确认 · 删除不在长按菜单里：先弹确认，标题写清删的是哪条会话</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim is-open" data-demo-scrim></div>
+      <aside class="m-drawer is-open" id="drawer-d">
+        <div class="m-drawer-head">
+          <span class="m-top-title">会话</span>
+          <button class="m-top-btn" data-demo-drawer="close" data-demo-drawer-target="#drawer-d" title="收起抽屉"><i data-ico="x" data-size="15"></i></button>
+        </div>
+
+        <div class="m-searchfield">
+          <i data-ico="search" data-size="14"></i>
+          <input placeholder="搜索所有对话…">
+        </div>
+
+        <button class="m-setrow">
+          <i data-ico="square-pen" data-size="14"></i>
+          <span class="m-grow">新建任务</span>
+          <span class="m-badge mute">⌘N</span>
+        </button>
+
+        <div class="m-seg" data-demo-tabs>
+          <button class="is-on" data-demo-tab="g-proj">项目</button>
+          <button data-demo-tab="g-chat">聊天</button>
+        </div>
+
+        <div data-demo-scope>
+          <div data-demo-pane="g-proj">
+            <div class="m-group-title">PI NEXT</div>
+            <div class="m-list" data-demo-list>
+              <button class="m-row is-on" data-demo-select>
+                <span class="m-row-t">定时任务错峰执行</span>
+                <span class="m-row-m"><span class="m-badge warn"><i data-ico="triangle-alert" data-size="11"></i>待授权</span><span>昨天 14:20</span><span>·</span><span>6 条消息</span></span>
+              </button>
+            </div>
+          </div>
+          <div data-demo-pane="g-chat" hidden></div>
+        </div>
+
+        <div class="m-drawer-foot">
+  <button class="m-row m-grow" title="设置"><i data-ico="settings" data-size="15"></i><span>设置</span></button>
+  <button class="m-top-btn" title="手机与推送"><i data-ico="smartphone" data-size="15"></i></button>
+  <span class="m-badge mute">v0.1.8</span>
+</div>
+      </aside>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">定时任务错峰执行</span>
+        <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">这条会话不要了，但删之前得让我看清删的是哪条。</div>
+        <div class="nx-row m-t-sm" style="gap:var(--nx-sp-2)">
+          <img class="m-brand" src="../../assets/brand/logo.png" alt="PI NEXT">
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+        <div class="m-md">
+          <p>删除不在长按菜单里：从菜单外单独走一步。确认层写清会话名与代价，两个按钮等宽，取消在左 —— 破坏性动作没有默认选中的那一个。</p>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-sheet is-open" id="del-confirm">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">删除「定时任务错峰执行」？</div>
+        <div class="m-sheet-body">
+          <div class="m-md"><p>这条会话的聊天记录、附件与产物都会从本机移除，不能撤销。</p></div>
+        </div>
+        <div class="m-pickbar">
+          <button class="m-picktag">取消</button>
+          <button class="m-picktag danger is-on">删除</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>抽屉是整页，不是窄侧栏</b>：<span class="m-mono">.m-drawer</span> 固定 <span class="m-mono">width: min(84%, 320px)</span>，剩下的窄条全部是遮罩 —— 390 宽的机型上这条窄条约 70px，足够点得中，也足够把「抽屉之外的世界」表达清楚。</li>
+    <li><b>头只留两样</b>：<span class="m-mono">.m-drawer-head</span>（54px 顶距让开状态栏）里一个 <span class="m-mono">.m-top-title</span> + 一个关闭钮。不塞新建、不塞排序、不塞项目切换器 —— 项目切换已经用<b>分组标题</b>表达了。</li>
+    <li><b>会话行两行封顶</b>：<span class="m-mono">.m-row-t</span> 单行省略，副行 <span class="m-mono">.m-row-m</span> 只放「时间 · 几条 · 状态」，条数一律写「N 条消息」。未读用 <span class="m-mono">.m-dot.ok</span> 绿点（不带数字），等你处理用 <span class="m-mono">.m-badge.warn</span> 文字徽章（待授权 / 待输入），运行中用行内 <span class="m-mono">loader-circle</span> —— 形状与文字各管一段，等你处理优先于未读。</li>
+    <li><b>分段只有两档</b>：项目 / 聊天，用 <span class="m-mono">data-demo-scope</span> + <span class="m-mono">data-demo-tabs</span> + <span class="m-mono">data-demo-pane</span> 接线。未读 / 运行中 / 归档都不是分类，而是行上的状态；组头写项目名，会话行之前先给一行 <span class="m-mono">.m-rowlabel</span> 的 worktree 子行。切段只换范围，不推路由、不留返回栈 —— 手机上「退出去再退回来」的成本太高。</li>
+    <li><b>长按菜单就地升起</b>：<span class="m-mono">.m-menu-sheet</span> 走 <span class="m-mono">translateY</span> + <span class="m-mono">--nx-dur-4</span>，与抽屉/底部面板同一条曲线；<span class="m-mono">.m-menu-sheet-title</span> 写清「这条是谁」。12 项按「改这条会话 / 它在哪 / 低频诊断 / 往外带走」隔三条 <span class="m-mono">.m-sep</span>；复制分享链接这种没做的动作不占位置，破坏性的删除不进菜单 —— 走帧 D 的确认对话框（标题带会话名，取消 / 删除两个等宽钮）。画板上把「被长按的那一行」直接做成触发钮，长按手势与点击共用同一个目标。</li>
+    <li><b>底栏固定三件</b>：<b>手机与推送</b>（<span class="m-mono">smartphone</span>）· 版本徽章（<span class="m-mono">.m-badge.mute</span>）· <b>设置</b>（<span class="m-mono">settings</span>），外观不在底栏。新建任务挪到列表第一行：<span class="m-mono">square-pen</span> + <span class="m-mono">⌘N</span>。设置不放分组里 —— 它不属于任何项目，且手机上最容易被当成「应用设置」而不是「这个项目的事」。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

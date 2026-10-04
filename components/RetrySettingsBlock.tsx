@@ -160,7 +160,7 @@ export function RetrySettingsBlock({ cwd }: { cwd: string | null }) {
               <PwCtl>
                 <input
                   id={inputId}
-                  className="pw-input pw-numin"
+                  className="d-input d-mono"
                   type="number"
                   min={field.min}
                   max={field.max}
@@ -179,9 +179,9 @@ export function RetrySettingsBlock({ cwd }: { cwd: string | null }) {
         );
       })}
       {error ? (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="pw-grow">{error}</span>
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{error}</span>
         </div>
       ) : null}
     </PwBlock>

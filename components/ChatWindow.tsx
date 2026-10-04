@@ -46,6 +46,9 @@ import { messageToProcessContentBlocks, type ProcessContentBlock } from "@/lib/p
 import { useAgentSession, type NoticeItem } from "@/hooks/useAgentSession";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
+// fork:v5-wave-b —— PWA 形态（≤640px）转录壳：过程摘要那一行走画板 M-02 的
+// `.m-tool` / `.m-tool-head`（手机上「过程默认折叠成一行摘要」）。
+import { usePwaSkin } from "@/components/pwa/skin";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import type { AppUpdateResponse } from "@/lib/api-types";
 import type { ToolEntry } from "@/lib/tool-presets";
@@ -394,7 +397,7 @@ const CONVERSATION_FIND_MAX_SEARCH_MESSAGES = 2000;
 const CONVERSATION_FIND_REVEAL_MARGIN = 8;
 
 const CHAT_MINIMAP_WIDTH = 36;
-const CHAT_COLUMN_PADDING = 12;
+const CHAT_COLUMN_PADDING = 16;
 // fork:ui-22 — density scales the column gutter too; the value stays a CSS calc so
 // the density hook only has to write one variable.
 const CHAT_COLUMN_PADDING_CSS = `calc(${CHAT_COLUMN_PADDING}px * var(--fork-density, 1))`;
@@ -495,7 +498,7 @@ function NewSessionUpdateLink({
       }}
     >
       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>v{update.latestVersion}</span>
-      <span className="pw-ico"><i data-ico="arrow-up-right" data-size="12"></i></span>
+      <i data-ico="arrow-up-right" data-size="12" aria-hidden="true"></i>
     </a>
   );
 }
@@ -543,6 +546,11 @@ function withAssistantBlocks(
 
 function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done"; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  // fork:v5-wave-b —— 手机上「过程默认**折叠成一行摘要**」（画板 M-02 帧 A 原话）：
+  // 收起态就是一块 `.m-tool` 的 `.m-tool-head` —— 图标 + 摘要 + grow + chevron。
+  // 桌面继续 D-03d 的 `.d-card` + `.d-card-head`。默认收起这件事本身两形态一致
+  // （defaultExpanded=false），这里只换形状。
+  const isPwa = usePwaSkin();
   useLayoutEffect(() => {
     if (reveal) setExpanded(true);
   }, [reveal]);
@@ -558,56 +566,52 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   // 外层 grid 壳常驻、行高 0fr↔1fr，正文在收起过渡结束后才卸载。
   const collapseRef = useRef<HTMLDivElement>(null);
   const bodyMounted = useCollapsePresence(open, undefined, collapseRef);
-  // fork:design-components —— 状态徽标（画板 11：进行中 accent / 已完成 ok）。
-  // 没有「失败」档：一轮里有工具报错是**过程中**的事实，不是这一轮的终态 ——
-  // 抬头挂「失败」会把「跑完了、但有两条命令没跑通」直接读成「这一轮失败了」。
-  // 画板 11 的抬头也只画 进行中 / 已完成 两档，失败信息本来就在计数里（`N 次失败`）。
+  // fork:design-components —— 状态徽标（画板 D-03d 帧 A：进行中为无修饰 `.d-badge` +
+  // 旋转 loader，已完成为 `.d-badge.ok`）。没有「失败」档：一轮里有工具报错是**过程中**的
+  // 事实，不是这一轮的终态 —— 抬头挂「失败」会把「跑完了、但有两条命令没跑通」直接读成
+  // 「这一轮失败了」。画板也只画 进行中 / 已完成 两档，失败信息本来就在计数里。
   const badge = status === "running"
-    ? { cls: "accent", icon: "loader-circle", text: t("process.running") }
+    ? { cls: "", icon: "loader-circle", text: t("process.running") }
     : { cls: "ok", icon: "check", text: t("process.done") };
 
   return (
-    // fork:design-components —— 过程时间轴外壳 = 画板 01/11 的 .pw-proc：
-    // 头行（chevron + 计数汇总 + 状态徽标）与 .pw-proc-body 都来自 board.css。
-    // fork:transcript-proc-head —— 头行**整行**是折叠开关：
-    //   ① 原来只有一枚 16px 的 chevron 图标可点，热区小到一个像素级目标，
-    //      「点这一行没反应」是实测反馈；
-    //   ② 头上没有「展开 / 收起」的文字，收起来之后看不出这一行还能点开；
-    //   ③ 箭头改成同一枚 chevron-down 旋转（`--motion-base`），不再换图标。
-    // 折叠态仍是 `borderBottom: 0`（board.css 的 `.pw-proc-head` 有下边线，
-    // 收起时那条线会像一条悬空的分隔）。
-    <div className="pw-proc" style={{ marginBottom: 14 }}>
+    // fork:design-components —— 过程时间轴外壳 = 画板 D-03d 帧 A 的 `.d-card`：
+    // 头行（chevron + 计数汇总 + 状态徽标 + 展开/收起）与 `.d-card-body` 都来自 system.css。
+    // 折叠态把 `.d-card-head` 的下边线收掉（否则收起时像一条悬空分隔）。
+    // fork:v5-wave-b —— 窄屏换成 M-02 帧 A 的 `.m-tool` + `.m-tool-head`：
+    // 收起态那一行是「图标 + 过程摘要 + 徽章 + chevron」，没有展开/收起文字提示
+    // （手机上那一句会把它顶成两行）。展开态的正文是 `.m-doc-body`。
+    <div className={isPwa ? "m-tool" : "d-card"} style={{ marginBottom: isPwa ? 0 : 14 }}>
       <button
         type="button"
-        className="pw-proc-head"
+        className={isPwa ? "m-tool-head" : "d-card-head"}
         aria-expanded={open}
         onClick={() => setExpanded((v) => !v)}
         title={open ? t("chat.collapseProcess") : t("chat.expandProcess")}
-        style={open ? undefined : { borderBottom: 0 }}
+        style={{ width: "100%", cursor: "pointer", textAlign: "left", borderBottom: !isPwa && !open ? "none" : undefined }}
       >
-        <span
-          className="pw-ico pw-dim"
-          style={{
-            transform: open ? "none" : "rotate(-90deg)",
-            transition: "transform var(--motion-base) var(--ease)",
-          }}
-        >
-          <i data-ico="chevron-down" data-size="14"></i>
-        </span>
-        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {isPwa && <i data-ico="list-checks" data-size="14" aria-hidden="true"></i>}
+        <i
+          data-ico="chevron-down"
+          data-size="14"
+          aria-hidden="true"
+          style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform var(--nx-dur-2) var(--nx-ease)" }}
+        ></i>
+        <span className={isPwa ? "m-grow" : "d-grow"} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label}
         </span>
-        <span className="grow" />
-        {/* fork:design-components —— 画板 11 的头行右侧顺序是**先徽标、后「展开 / 收起」**
-            （帧 B：`✓ 已完成` 在 `展开` 之前），原来是反的。 */}
-        <span className={`pw-badge ${badge.cls}`}>
-          <span className="pw-ico"><i data-ico={badge.icon} data-size="12" className={status === "running" ? "pw-anim-spin" : undefined}></i></span>
+        <span className={`${isPwa ? "m" : "d"}-badge${badge.cls ? ` ${badge.cls}` : ""}`}>
+          {status === "running" ? (
+            <span className={`${isPwa ? "m" : "d"}-run`}><i data-ico={badge.icon} data-size="11" aria-hidden="true"></i></span>
+          ) : (
+            <i data-ico={badge.icon} data-size="11" aria-hidden="true"></i>
+          )}
           {badge.text}
         </span>
-        <span className="pw-desc">{open ? t("i18n.collapse") : t("i18n.expand")}</span>
+        {!isPwa && <span className="d-t-xs d-t-faint">{open ? t("i18n.collapse") : t("i18n.expand")}</span>}
       </button>
       <div ref={collapseRef} className="fork-collapse" data-fork-collapse={open ? "open" : "closed"}>
-        {bodyMounted && <div className="fork-collapse-body">{children}</div>}
+        {bodyMounted && <div className={`fork-collapse-body ${isPwa ? "m-doc-body" : "d-card-body"}`}>{children}</div>}
       </div>
     </div>
   );
@@ -1956,7 +1960,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         />
       )}
       {newSessionTargets.error && (
-        <span role="alert" className="pw-chip" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
+        <span role="alert" className="d-banner err" style={{ flex: "0 0 auto" }}>
           {newSessionTargets.error}
         </span>
       )}
@@ -2038,17 +2042,22 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   if (loading && !refreshing) {
     return (
-      // fork:design-components —— 骨架 = 画板 01「会话正在加载 · 骨架」那一格：
-      // 微光循环由 board.css 的 .pw-anim-shimmer（@keyframes pw-shimmer）承担，
-      // reduced-motion 时由 board.css 的 motion 折叠块统一关掉。
+      // fork:design-components —— 骨架 = 画板 D-03c 帧 D「会话正在加载」那一格：
+      // 上方一句「正在加载会话...」（`.d-banner` + `.d-run`），下方 `.d-skel-list` 灰条。
+      // reduced-motion 由 system.css 统一关掉扫掠。
       <div className="flex h-full flex-col items-center justify-center gap-3 px-8" role="status" aria-live="polite" aria-label={t("chat.loadingSession")}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 7, width: "min(100%, 480px)" }} aria-hidden="true">
-          <div className="pw-anim-shimmer" style={{ height: "var(--icon-sm)", width: "38%" }} />
-          <div className="pw-anim-shimmer" style={{ height: 56, width: "100%" }} />
-          <div className="pw-anim-shimmer" style={{ height: 56, width: "92%", alignSelf: "flex-end" }} />
-          <div className="pw-anim-shimmer" style={{ height: "var(--icon-sm)", width: "24%" }} />
+        <div className="d-banner" style={{ width: "min(100%, 480px)" }}>
+          <span className="d-run">
+            <i data-ico="loader-circle" data-size="14" aria-hidden="true"></i>
+            {t("chat.loadingSession")}
+          </span>
         </div>
-        <div className="text-xs" style={{ color: "var(--text-muted)" }}>{t("chat.loadingSession")}</div>
+        <div className="d-skel-list" style={{ width: "min(100%, 480px)", opacity: 0.7 }} aria-hidden="true">
+          <div className="d-skel d-skel-40" style={{ width: "78%" }} />
+          <div className="d-skel d-skel-block" />
+          <div className="d-skel d-skel-70" style={{ width: "64%" }} />
+          <div className="d-skel d-skel-40" style={{ width: "86%" }} />
+        </div>
       </div>
     );
   }
@@ -2083,21 +2092,20 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         <div
           role="status"
           aria-live="polite"
-          className="pw-drop reject anim-popover-down pointer-events-none absolute inset-3 z-50"
+          className="d-drop reject anim-popover-down pointer-events-none absolute inset-3 z-50"
         >
-          <span className="mark"><span className="pw-ico"><i data-ico="ban" data-size="20"></i></span></span>
-          <div className="pw-strong" style={{ fontSize: "var(--text-body)" }}>{t("chat.dropFilesOnly")}</div>
+          <i data-ico="ban" data-size="20" aria-hidden="true"></i>
+          <div className="d-t-b">{t("chat.dropFilesOnly")}</div>
         </div>
       )}
       {isDragOver && (
         <div
           role="status"
           aria-live="polite"
-          className="pw-drop pw-anim-drop pointer-events-none absolute inset-3 z-50"
+          className="d-drop over anim-popover-down pointer-events-none absolute inset-3 z-50"
         >
-          <span className="mark"><span className="pw-ico"><i data-ico="paperclip" data-size="20"></i></span></span>
-          <div className="pw-strong" style={{ fontSize: "var(--text-body)" }}>{t("chat.attachFile")}</div>
-          <span className="ripple" />
+          <i data-ico="paperclip" data-size="20" aria-hidden="true"></i>
+          <div className="d-t-b">{t("chat.attachFile")}</div>
         </div>
       )}
 
@@ -2123,7 +2131,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           悬停或点击出画板 22 的浮窗）。这里不再有常驻浮标，转录区右上角让给通知条。 */}
 
       <div
-        className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"
+        /* fork:design-components —— 转录区宿主：内部滚动容器用画板 D-03 的 `.d-chat`
+           （见下方 ScrollFadeViewport），这层只保留定位与列向布局。 */
+        className="relative min-w-0 flex-1 min-h-0 overflow-hidden flex flex-col"
         style={hasChatMinimap ? { gridColumn: "1", gridRow: "1" } : undefined}
       >
         {/* fork:zc-02 — in-conversation find bar (⌘F); state/effects live above. */}
@@ -2182,12 +2192,22 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           // fork:upstream-0.9.2-scrollbar — 消息列是唯一必须用长输出拖动的位置，
           // 所以显示自己的滚动条而不是藏起来（minimap 只标回合）；
           // stable gutter 让短会话长出屏幕时居中列不会横向跳动。
-          className={`min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-gutter:stable]${refreshing ? " fork-pending" : ""}`}
+          className={`d-chat min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]${refreshing ? " fork-pending" : ""}`}
           aria-busy={refreshing || undefined}
-          style={{ visibility: pendingScrollRestore ? "hidden" : undefined }}
+          // 横向内距由内层 `.d-chat-inner` 按用户密度给；这里清掉画板的 sp-8，避免双内距。
+          style={{ visibility: pendingScrollRestore ? "hidden" : undefined, paddingLeft: 0, paddingRight: 0 }}
         >
-          <div style={{ minWidth: 0, padding: `0 ${CHAT_COLUMN_PADDING_CSS}` }}>
-            <div ref={messageContentRef} onPointerUp={captureQuotedSelection} className={turnSwapping ? "fork-turn-enter" : undefined} style={{ width: "100%", minWidth: 0, maxWidth: "var(--chat-content-max-width, 800px)", margin: "0 auto" }}>
+          {/* fork:design-components —— 消息列 = 画板 D-03 的 .d-chat-inner
+              （居中定宽 + flex 列 + gap sp-6）。原先这里是两层 div：
+              外层只写 padding、内层写 maxWidth/margin，各自复刻了画板的一半；
+              合成一层后行间距交给画板的 gap，消息根上那两处 marginBottom:20 随之删除。
+              --chat-content-max-width 是产品设置项（画板写死 760），仍内联覆盖。 */}
+          <div
+            ref={messageContentRef}
+            onPointerUp={captureQuotedSelection}
+            className={`d-chat-inner${turnSwapping ? " fork-turn-enter" : ""}`}
+            style={{ maxWidth: "var(--chat-content-max-width, 800px)", padding: `0 ${CHAT_COLUMN_PADDING_CSS}` }}
+          >
             {/* fork:proma-05-explore — 从主线某条消息 fork 出来的分支：显示来源 + 把结论带回父会话草稿 */}
             {session && session.parentSessionId && (
               <ExplorationBanner
@@ -2421,7 +2441,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 // Keep the original prefix so deferred thinking retains its stored block indices.
                 const finalProcessBlocks = finalAssistant.content.slice(0, finalProcessEnd < 0 ? undefined : finalProcessEnd);
 
-                const processViews: ReactNode[] = [];
                 const groupedProcessBlocks: ProcessContentBlock[] = [];
                 let processToolCount = 0;
                 let processRefIdx: number | undefined;
@@ -2652,7 +2671,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             <RetryNotice notices={retryNotices} />
 
             <div ref={promptAnchorSpacerRef} aria-hidden="true" />
-            </div>
           </div>
         </ScrollFadeViewport>
         </>}
@@ -2667,7 +2685,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           ref={quotePopoverRef}
           role={quoteInputOpen ? "dialog" : "toolbar"}
           aria-label={t(quoteInputOpen ? "chat.newQuoteChat" : "chat.askSelection")}
-          className="pw-pop anim-popover-down"
+          className="d-pop-float anim-popover-down"
           style={{
             position: "fixed",
             top: quotedSelection.top,
@@ -2675,11 +2693,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             zIndex: 260,
             display: "flex",
             // fix:sel-pop-nowrap —— 收起态是**两枚带文案的动作钮**：恒定同一行、宽度
-            // 交给内容（`.pw-pop` 自带的 320 只是给列表型弹层的定宽）。展开态是 420 宽的
+            // 交给内容（`.d-pop-float` 自带的 padding 只适合列表型弹层）。展开态是 420 宽的
             // 小编辑器，内部的 ChatInput 需要自己换行，所以 nowrap 只作用在收起态。
             flexWrap: quoteInputOpen ? "wrap" : "nowrap",
             whiteSpace: quoteInputOpen ? undefined : "nowrap",
-            gap: "var(--space-icon)",
+            gap: "var(--nx-sp-2)",
             width: quoteInputOpen ? "min(420px, calc(100vw - 16px))" : "max-content",
             maxWidth: "calc(100vw - 16px)",
             maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
@@ -2693,10 +2711,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               aria-busy={quoteSubmitting}
               style={{ width: "100%", minWidth: 0, margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 10 }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
-                <span className="pw-strong" style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm }}>{t("chat.askInNewChat")}</span>
-                <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={quoteSubmitting} onClick={closeQuotedSelection}>
-                  <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+              <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
+                <span className="d-grow d-t-b" style={{ minWidth: 0, fontSize: TEXT.sm }}>{t("chat.askInNewChat")}</span>
+                <button type="button" className="d-iconbtn" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={quoteSubmitting} onClick={closeQuotedSelection}>
+                  <i data-ico="x" data-size="14" aria-hidden="true"></i>
                 </button>
               </div>
               <ChatInput
@@ -2706,32 +2724,32 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 onAbort={closeQuotedSelection}
                 isStreaming={false}
               />
-              {quoteError && <div role="alert" className="pw-alert" style={{ fontSize: TEXT.sm, overflowWrap: "anywhere" }}><span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span><span className="pw-grow">{quoteError}</span></div>}
+              {quoteError && <div role="alert" className="d-banner err" style={{ fontSize: TEXT.sm, overflowWrap: "anywhere" }}><i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i><span className="d-grow">{quoteError}</span></div>}
             </fieldset>
           ) : <>
           <button
             type="button"
-            className="pw-btn sm"
+            className="d-btn sm"
             title={t("chat.askInCurrent")}
             aria-label={t("chat.askInCurrent")}
             onPointerDown={(event) => event.preventDefault()}
             onClick={askSelectionHere}
             style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
           >
-            <span className="pw-ico"><i data-ico="at-sign" data-size="14"></i></span>
+            <i data-ico="at-sign" data-size="14" aria-hidden="true"></i>
             <span>{t("chat.askInCurrent")}</span>
           </button>
           {onAskInNewChat && quotedSelection.sourceEntryId && !sessionBusy && (
             <button
               type="button"
-              className="pw-btn sm"
+              className="d-btn sm"
               title={t("chat.askInNewChat")}
               aria-label={t("chat.askInNewChat")}
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => { setQuoteInputOpen(true); window.getSelection()?.removeAllRanges(); }}
               style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
             >
-              <span className="pw-ico"><i data-ico="git-fork" data-size="14"></i></span>
+              <i data-ico="git-fork" data-size="14" aria-hidden="true"></i>
               <span>{t("chat.askInNewChat")}</span>
             </button>
           )}
@@ -2741,7 +2759,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       )}
 
       <div
-        className="relative shrink-0"
+        /* fork:design-components —— composer 行 = 画板 D-03/D-04 的 .d-composer-wrap
+           （flex:none / padding 0 sp-8 sp-4）。原先只内联了 paddingBottom，
+           上方与两侧的呼吸位靠一条 max-width 层去猜；换成画板类后卡片自身的
+           width: min(--composer-max,100%) 也不再需要外层重复写一遍。 */
+        className="d-composer-wrap relative shrink-0"
         style={{
           gridColumn: "1",
           gridRow: "2",
@@ -2749,8 +2771,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           // or intercept the composer at the bottom of the chat.
           zIndex: 2,
           background: "var(--bg)",
-          // fork:ui-ext-float — 统计长条移走后，composer 底部留画板 --s4 的呼吸空隙。
-          paddingBottom: "var(--s4, 16px)",
         }}
       >
         {!isEmptyNew && (
@@ -2784,7 +2804,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               }}
               onClick={() => scrollToBottom("smooth")}
             >
-              <span className="pw-ico"><i data-ico="arrow-down" data-size="16"></i></span>
+              <i data-ico="arrow-down" data-size="16" aria-hidden="true"></i>
             </button>
           </div>
         )}
@@ -2835,8 +2855,8 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
       }}
     >
       {notices.map((notice, index) => {
-        // fork:design-components —— 通知条直接使用画板 50 的 .pw-toast 组件：
-        // 边框 / 弹层底 / 阴影 / 图标首行对齐 / .bad·.warn·.ok 三色全部来自 board.css，
+        // fork:design-components —— 通知条直接使用画板 D-03c 帧 D 的 .d-toast 组件：
+        // 边框 / 弹层底 / 阴影 / 图标首行对齐 / .bad·.warn·.ok 三色全部来自 system.css，
         // 这里只保留产品的动画类（notice-shelf-*）与 hover 暂停关闭逻辑。
         const toastClass = notice.type === "error" ? "bad"
           : notice.type === "warning" ? "warn"
@@ -2849,7 +2869,7 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
         return (
           <div
             key={notice.id}
-            className={`notice-shelf-item pw-toast ${toastClass}`}
+            className={`notice-shelf-item d-toast ${toastClass}`}
             onMouseEnter={() => onPauseChange?.(notice.id)}
             onMouseLeave={(event) => {
               if (!event.currentTarget.contains(document.activeElement)) onPauseChange?.(null);
@@ -2859,11 +2879,15 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
               if (!event.currentTarget.matches(":hover")) onPauseChange?.(null);
             }}
             style={{
+              // `.d-toast` 默认是底部居中的 fixed 浮条；通知架是右上角的一列，
+              // 所以把定位拆回文档流（纯几何覆盖，颜色/字号/边距仍走类）。
+              position: "relative",
+              left: "auto",
+              bottom: "auto",
+              transform: "none",
               // The floating wrapper is pointerEvents:"none" (click-through by design),
               // so the toast itself must opt back into interactivity or hover events never reach it
               pointerEvents: "auto",
-              // 画板 50：通知条 380px 宽由 board.css 的 `.pw-toast` 承担
-              // （audit-2026-10-01：内联的 380 与画板同值，删掉即可，像素不变）
               maxWidth: "100%",
               marginBottom: index === notices.length - 1 ? 0 : 6,
               overflow: "hidden",
@@ -2877,7 +2901,9 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
                 : "notice-shelf-in var(--motion-base) var(--ease) backwards",
             }}
           >
-            <span className="pw-ico"><i data-ico={typeIcon} data-size="14"></i></span>
+            <span className={`d-badge ${notice.type === "error" ? "bad" : notice.type === "warning" ? "warn" : notice.type === "success" ? "ok" : "info"}`}>
+              <i data-ico={typeIcon} data-size="12" aria-hidden="true"></i>
+            </span>
             {/* Full text by default: pre-line preserves \n and long lines wrap instead of
                 truncating; content taller than the cap scrolls inside the text area */}
             <span
@@ -2978,8 +3004,8 @@ function ExtensionCountdownText({ expiresAt, className }: { expiresAt: number; c
   return (
     <span
       ref={ref}
-      className={className}
-      style={className ? undefined : { fontSize: TEXT.xs, color: "var(--text-dim)", whiteSpace: "nowrap", flexShrink: 0 }}
+      className={className ?? "d-t-xs d-t-faint"}
+      style={{ whiteSpace: "nowrap", flexShrink: 0 }}
     >
       {t("chat.extensionExpiresIn", { seconds: initialSeconds })}
     </span>
@@ -2987,24 +3013,18 @@ function ExtensionCountdownText({ expiresAt, className }: { expiresAt: number; c
 }
 
 /**
- * fork:zm-04 —— 进度条高度（px）。画板 50 的倒计时条是 3px 强调色填充。
- */
-const COUNTDOWN_BAR_HEIGHT_PX = 3;
-
-/**
  * fork:zm-04 —— 审批倒计时进度条（WAAPI，零每秒渲染）。
  *
  * `scaleX(1) → scaleX(0)` 的线性动画，duration = 剩余毫秒，`fill: forwards`。
- * 只在显式 `no-preference` 时播放；reduced-motion / SSR / jsdom 直接隐藏
+ * 只在显式 `no-preference` 时播放；reduced-motion / SSR / jsdom 直接隐藏填充
  * （静态满格条会让人误以为时间还在多，不如只留秒数文本）。
  *
- * fork:design-components —— 画板 50 的写法是「头部正下方一条 3px 轨道，轨道底是
- * --n-surface，填充是 --accent」。这里保留 WAAPI 的 scaleX（等价于 width 从 100% 走到 0），
- * 用外层轨道 span 承担底色，内层填充 span 承担动画。
+ * fork:design-components —— 壳走画板 D-26b 帧 D 的 `.d-bar`（头部正下方一条强调色
+ * 进度条，`.d-bar > i` 自带 3px 填充与强调色），动画仍落在内层 `<i>` 上（scaleX）。
  */
 function ExtensionCountdownBar({ expiresAt }: { expiresAt: number }) {
   const motion = useMotionPreference();
-  const ref = useRef<HTMLSpanElement | null>(null);
+  const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const node = ref.current;
@@ -3022,27 +3042,13 @@ function ExtensionCountdownBar({ expiresAt }: { expiresAt: number }) {
   }, [expiresAt, motion]);
 
   return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "block",
-        flexShrink: 0,
-        height: COUNTDOWN_BAR_HEIGHT_PX,
-        background: "var(--n-surface)",
-      }}
-    >
-      <span
+    <div className="d-bar" aria-hidden="true" style={{ borderRadius: 0, flexShrink: 0 }}>
+      <i
         ref={ref}
         data-fork-countdown-bar
-        style={{
-          display: "block",
-          height: "100%",
-          background: "var(--accent)",
-          transformOrigin: "left center",
-          pointerEvents: "none",
-        }}
+        style={{ width: "100%", transformOrigin: "left center", pointerEvents: "none" }}
       />
-    </span>
+    </div>
   );
 }
 
@@ -3091,39 +3097,24 @@ function ExtensionDialog({
       {collapsed ? (
         <button
           type="button"
+          className="d-banner"
           onClick={() => setCollapsed(false)}
           aria-expanded={false}
-          style={{
-            pointerEvents: "auto",
-            position: "relative",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-loose)",
-            width: "100%",
-            padding: "var(--space-loose) 12px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg)",
-            boxShadow: "var(--shadow-modal)",
-            color: "var(--text)",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
+          style={{ pointerEvents: "auto", position: "relative", overflow: "hidden", width: "100%", font: "inherit", cursor: "pointer", textAlign: "left" }}
         >
-          <span style={{ fontSize: TEXT.xs, fontWeight: 650, color: "var(--accent)", flexShrink: 0 }}>
+          <span className="d-badge warn" style={{ flexShrink: 0 }}>
             {t("chat.extensionPending")}
           </span>
-          <span style={{ fontSize: TEXT.md, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+          <span className="d-grow d-t-b" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {titleHead}
           </span>
           {summary && (
-            <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "34%", flexShrink: 1 }}>
+            <span className="d-t-xs d-t-faint" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "34%", flexShrink: 1 }}>
               {summary}
             </span>
           )}
           {request.expiresAt !== undefined && <ExtensionCountdownText expiresAt={request.expiresAt} />}
-          <span style={{ fontSize: TEXT.sm, color: "var(--text-muted)", flexShrink: 0 }}>
+          <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>
             {t("chat.extensionExpand")}
           </span>
           {/* fork:zm-04 — WAAPI 进度条；倒计时不产生任何 React 渲染。
@@ -3139,7 +3130,7 @@ function ExtensionDialog({
         role="dialog"
         aria-label={request.title}
         aria-modal="true"
-        className="anim-dialog pw-modal"
+        className="anim-dialog d-modal-box"
         style={{
           pointerEvents: "auto",
           position: "relative",
@@ -3147,65 +3138,65 @@ function ExtensionDialog({
           flex: "1 1 auto",
           minHeight: 0,
           width: "100%",
+          maxHeight: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
         }}
       >
-        {/* fork:design-components —— 扩展请求对话框用画板 50 的 .pw-modal（发丝边框 /
-            弹层底 / modal 阴影 / radius-6 由类承担）。头部走 .pw-modal-head：
-            blocks 图标 + 标题 + .pw-badge.count 倒计时秒数 + 收起按钮 .pw-iconbtn.sm。
-            倒计时条按画板 50 的写法贴在头部正下方（3px 轨道，轨道底 --n-surface，填充 --accent）。
+        {/* fork:design-components —— 扩展请求对话框 = 画板 D-26b 帧 D「来自扩展的请求」：
+            `.d-modal-box` › `.d-modal-head`（blocks 图标 + 标题 + 收起 `.d-iconbtn`）›
+            `.d-bar` 倒计时条 › `.d-modal-body`（选择 / 确认 / 输入 / 编辑器四态共用）›
+            `.d-modal-foot`（取消 `.d-btn.ghost` + 提交 `.d-btn.primary`）。
             fork:extension-dialog-title（上游 #961 / #890 移植）—— 两个 fork-* 钩子把
-            「标题过长时收缩」交给 app/fork-ui.css（board.css 的 .pw-modal-head 不能改）：
-            头部可收缩 + 限高可滚（选项列表与取消键不再被顶出对话框），标题本体钳成
-            省略号。`whiteSpace: "pre-wrap"` 原样留着 —— splitDialogTitle 给出的
-            head 仍按扩展给的换行分行，一个换行都不吞；完整标题另有 title / aria-label。 */}
+            「标题过长时收缩」交给 app/fork-ui.css：头部可收缩 + 限高可滚（选项列表与
+            取消键不再被顶出对话框），标题本体钳成省略号。`whiteSpace: "pre-wrap"`
+            原样留着 —— splitDialogTitle 给出的 head 仍按扩展给的换行分行，一个换行都
+            不吞；完整标题另有 title / aria-label。 */}
         <div
-          className="pw-modal-head fork-ext-dialog-head"
-          style={{ alignItems: "flex-start", padding: "12px 14px" }}
+          className="d-modal-head d-row fork-ext-dialog-head"
+          style={{ alignItems: "flex-start" }}
         >
-          <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0, marginTop: "var(--space-tight)" }}>
-            <i data-ico="blocks" data-size="16"></i>
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              className="pw-strong fork-ext-dialog-title"
-              title={titleHead}
-              style={{ fontSize: TEXT.lg, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-            >
-              {titleHead}
+          <div className="d-col d-grow" style={{ gap: "var(--nx-sp-1)" }}>
+            <div className="d-row">
+              <i data-ico="blocks" data-size="15" aria-hidden="true" style={{ color: "var(--nx-accent)", flexShrink: 0 }} />
+              <span
+                className="d-grow d-t-b fork-ext-dialog-title"
+                title={titleHead}
+                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+              >
+                {titleHead}
+              </span>
             </div>
-            <div className="pw-mono pw-dim" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", marginTop: "var(--space-icon)", fontSize: "var(--text-meta)" }}>
+            <div className="d-row d-t-xs d-t-faint" style={{ gap: "var(--nx-sp-2)" }}>
               <span>{t("chat.extensionRequest")}</span>
+              {request.expiresAt !== undefined && <ExtensionCountdownText className="d-badge warn" expiresAt={request.expiresAt} />}
             </div>
           </div>
-          {request.expiresAt !== undefined && <ExtensionCountdownText className="pw-badge count" expiresAt={request.expiresAt} />}
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className="d-iconbtn"
             onClick={() => setCollapsed(true)}
             aria-expanded={true}
             title={t("chat.extensionCollapse")}
             aria-label={t("chat.extensionCollapse")}
-            style={{ flexShrink: 0, marginTop: "var(--space-tight)" }}
+            style={{ flexShrink: 0 }}
           >
-            <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+            <i data-ico="chevron-down" data-size="14" aria-hidden="true" />
           </button>
         </div>
         {request.expiresAt !== undefined && <ExtensionCountdownBar expiresAt={request.expiresAt} />}
 
-        {/* fork:design-components —— 正文区 = 画板 50 的 .pw-modal-body
-            （padding-s3/s4 · grid gap-s2 · --text-secondary）；滚动容器需要的
+        {/* fork:design-components —— 正文区 = 画板 D-26b 帧 D 的 `.d-modal-body`：
+            选择态走 `.d-tree` + `.d-menu-row`，确认态直接 Markdown，输入态 `.d-input`，
+            编辑器态 `.d-textarea`；四态共用同一个壳。滚动容器需要的
             flex/minHeight/overflowY 仍是内联，滚动行为照旧。 */}
         <div
-          className="pw-modal-body"
-          style={{
-            flex: "1 1 auto", minHeight: 0, overflowY: "auto",
-          }}
+          className="d-modal-body"
+          style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}
         >
           {titleRest && (
-            <div style={{ marginBottom: "var(--s3)", color: "var(--text-muted)", fontSize: TEXT.md, lineHeight: 1.55 }}>
+            <div className="d-t-cap d-t-dim" style={{ lineHeight: 1.55 }}>
               {renderDialogTitle(titleRest)}
             </div>
           )}
@@ -3226,7 +3217,8 @@ function ExtensionDialog({
                 buttons[next].focus({ preventScroll: true });
                 buttons[next].scrollIntoView({ block: "nearest" });
               }}
-              style={{ display: "grid", gap: "var(--s2)" }}
+              className="d-tree"
+              style={{ gap: "var(--nx-sp-1)" }}
             >
               {request.options.map((option, index) => (
                 <div
@@ -3235,9 +3227,9 @@ function ExtensionDialog({
                   tabIndex={0}
                   data-extension-option
                   aria-label={option}
-                  /* fork:design-components —— 选项按钮挂画板 .pw-btn.outline（confirm 选项），
-                     尺寸细节由 inline 保留（内含 MarkdownBody 需要更大的触达面）。 */
-                  className="pw-btn outline"
+                  /* fork:design-components —— 选项行挂画板 `.d-menu-row`（文本行，
+                     不裁切 Markdown；内含 MarkdownBody 需要更大的触达面）。 */
+                  className="d-menu-row"
                   ref={index === 0 ? focusFirstOption : undefined}
                   onClick={() => onRespond(request, { value: option })}
                   onKeyDown={(event) => {
@@ -3246,10 +3238,6 @@ function ExtensionDialog({
                     onRespond(request, { value: option });
                   }}
                   style={{
-                    width: "100%",
-                    justifyContent: "flex-start",
-                    textAlign: "left",
-                    fontSize: TEXT.md,
                     overflowWrap: "anywhere",
                     // fork:upstream-0.9.2-ext-select — 等于滚动容器的内边距，
                     // 键盘选中项就不会被吸附到边缘而截掉 focus ring。
@@ -3264,10 +3252,9 @@ function ExtensionDialog({
             </div>
           )}
           {request.method === "input" && (
-            /* fork:design-components —— 输入框 = 画板 50「输入」那一件的 .pw-input，
-               宽度按画板写法给 width:100% + min-width:0（盖掉 .pw-input 的 min-width:200px）。 */
+            /* fork:design-components —— 输入框 = 画板 D-26b 帧 D「输入」那一件的 `.d-input`。 */
             <input
-              className="pw-input"
+              className="d-input"
               autoFocus
               value={value}
               placeholder={request.placeholder}
@@ -3275,64 +3262,54 @@ function ExtensionDialog({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submitValue();
               }}
-              style={{ width: "100%", minWidth: 0, fontSize: TEXT.md }}
+              style={{ width: "100%", flex: "0 0 auto" }}
             />
           )}
           {request.method === "editor" && (
-            /* fork:design-components —— 编辑器 = 画板 50「编辑器」那一件的 .pw-code-body
-               （等宽 · --text-mono · 1.7 行高）；画板本人也是在 .pw-code-body 上补
-               border/radius/padding/panel 底，这里照抄那一行内联，只留布局。 */
+            /* fork:design-components —— 编辑器 = 画板 D-26b 帧 D「编辑器」那一件的
+               `.d-textarea`（等宽 · 可纵向拉伸）；只留布局需要的内联。 */
             <textarea
-              className="pw-code-body"
+              className="d-textarea d-mono"
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !e.nativeEvent.isComposing) submitValue();
               }}
-              style={{
-                width: "100%",
-                minHeight: 220,
-                maxHeight: "100%",
-                padding: "var(--s2)",
-                border: "1px solid var(--n-border-subtle)",
-                borderRadius: "var(--radius-4)",
-                background: "var(--surface-panel)",
-                color: "var(--n-text)",
-                outline: "none",
-                resize: "vertical",
-                fontSize: TEXT.md,
-              }}
+              style={{ width: "100%", minHeight: 220, maxHeight: "100%", flex: "0 0 auto" }}
             />
           )}
         </div>
 
-        {/* fork:design-components —— 动作行 = 画板 50 的 .pw-modal-foot（上边框 + 右对齐 +
-            gap-s2）。取消 = .pw-btn（ghost），确认/提交 = .pw-btn.primary（强调填充）。
-            画板 50 把「danger 文字 / error 填充」留给不可逆动作（彻底删除一类），
-            扩展请求的取消只是收起这次请求，所以仍是普通 ghost —— 与画板一致。
-            倒计时条已移到头部下方（画板 50 的位置），此处不再重复渲染。 */}
-        <div className="pw-modal-foot">
+        {/* fork:design-components —— 动作行 = 画板 D-26b 帧 D 的 `.d-modal-foot`（上边框 +
+            右对齐 + gap）。取消 = `.d-btn.ghost`，确认/提交 = `.d-btn.primary`（强调填充）。
+            danger 留给不可逆动作，扩展请求的取消只是收起这次请求，所以仍是普通 ghost。
+            倒计时条已移到头部下方，此处不再重复渲染。 */}
+        <div className="d-modal-foot">
           <button
-            className="pw-btn"
+            type="button"
+            className="d-btn ghost"
             autoFocus={request.method === "confirm" || (request.method === "select" && request.options.length === 0)}
             onClick={() => onRespond(request, { cancelled: true })}
           >
-             {t("chat.cancel")}
+            {t("chat.cancel")}
           </button>
+          <span className="d-grow" />
           {request.method === "confirm" ? (
             <button
-              className="pw-btn primary"
+              type="button"
+              className="d-btn primary"
               onClick={submitValue}
             >
-               {t("chat.confirm")}
+              {t("chat.confirm")}
             </button>
           ) : request.method !== "select" ? (
             <button
-              className="pw-btn primary"
+              type="button"
+              className="d-btn primary"
               onClick={submitValue}
             >
-               {t("chat.submit")}
+              {t("chat.submit")}
             </button>
           ) : null}
         </div>
@@ -3377,36 +3354,23 @@ function ExtensionCustomPanel({
       {collapsed ? (
         <button
           type="button"
+          className="d-banner"
           onClick={() => setCollapsed(false)}
           aria-expanded={false}
-          style={{
-            pointerEvents: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-loose)",
-            width: "100%",
-            padding: "var(--space-loose) 12px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg)",
-            boxShadow: "var(--shadow-modal)",
-            color: "var(--text)",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
+          style={{ pointerEvents: "auto", width: "100%", font: "inherit", cursor: "pointer", textAlign: "left" }}
         >
-          <span style={{ fontSize: TEXT.xs, fontWeight: 650, color: "var(--accent)", flexShrink: 0 }}>
+          <span className="d-badge warn" style={{ flexShrink: 0 }}>
             {t("chat.extensionPending")}
           </span>
-          <span style={{ fontSize: TEXT.md, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+          <span className="d-grow d-t-b" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t("chat.extensionPanel")}
           </span>
           {summary && (
-            <span style={{ fontSize: TEXT.sm, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "34%", flexShrink: 1 }}>
+            <span className="d-t-xs d-t-faint" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "34%", flexShrink: 1 }}>
               {summary}
             </span>
           )}
-          <span style={{ fontSize: TEXT.sm, color: "var(--text-muted)", flexShrink: 0 }}>
+          <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>
             {t("chat.extensionExpand")}
           </span>
         </button>
@@ -3416,13 +3380,14 @@ function ExtensionCustomPanel({
         onClick={(event) => {
           if (!(event.target as HTMLElement).closest("button")) inputRef.current?.focus();
         }}
-        className="anim-dialog pw-modal"
+        className="anim-dialog d-modal-box"
         style={{
           pointerEvents: "auto",
           position: "relative",
           flex: "1 1 auto",
           minHeight: 0,
           width: "100%",
+          maxHeight: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -3478,39 +3443,39 @@ function ExtensionCustomPanel({
           }}
         />
         {/* fork:design-components —— 终端面板头与扩展请求对话框同一个壳
-            （画板 50 的 .pw-modal-head）：下边框 + gap，动作走 .pw-iconbtn.sm / .pw-btn.sm。 */}
-        <div className="pw-modal-head">
-          <span className="pw-ico" style={{ color: "var(--accent-text)", flexShrink: 0 }}>
-            <i data-ico="terminal" data-size="16"></i>
-          </span>
-          <div className="pw-strong" style={{ flex: 1, minWidth: 0, fontSize: TEXT.md }}>{t("chat.extensionPanel")}</div>
+            （画板 D-26b 帧 D 的 `.d-modal-head`）：下边框 + gap，动作走 `.d-iconbtn` / `.d-btn.sm`。 */}
+        <div className="d-modal-head d-row">
+          <i data-ico="terminal" data-size="16" aria-hidden="true" style={{ color: "var(--nx-accent)", flexShrink: 0 }} />
+          <span className="d-grow d-t-b">{t("chat.extensionPanel")}</span>
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className="d-iconbtn"
             onClick={() => setCollapsed(true)}
             aria-expanded={true}
             title={t("chat.extensionCollapse")}
             aria-label={t("chat.extensionCollapse")}
           >
-            <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+            <i data-ico="chevron-down" data-size="14" aria-hidden="true" />
           </button>
           <button
-            className="pw-btn sm"
+            type="button"
+            className="d-btn sm"
             onClick={() => onInput(request, "\x03")}
           >
-               {t("chat.close")}
+            {t("chat.close")}
           </button>
         </div>
-        {/* fork:design-components —— 正文是 ANSI 终端输出，交给画板 11 的 .pw-term
-            （等宽 · --text-mono · panel 底 · 1.7 行高）；只留滚动与不换行两处内联。 */}
+        {/* fork:design-components —— 正文是 ANSI 终端输出，交给画板 D-05 的 `.d-term`
+            （等宽 · --nx-code-bg · 圆角）；只留滚动与不换行两处内联。 */}
         <pre
-          className="pw-term"
+          className="d-term"
           style={{
             margin: 0,
             flex: "1 1 auto",
             minHeight: 0,
             overflow: "auto",
             whiteSpace: "pre",
+            borderRadius: 0,
           }}
         >
           <AnsiText text={displayLines.join("\n")} />

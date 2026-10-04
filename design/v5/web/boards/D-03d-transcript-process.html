@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-03d · 转录 · 过程与工具全集 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-03d · 转录 · 过程与工具全集</h1>
+  <p>
+    一轮里「做了什么事」的全部形态：思考折叠块、过程时间轴、工具卡的四个状态、diff 的三种视图、
+    嵌入式终端、子代理、codemode。四条纪律：
+    ① <b>过程只有一条时间轴</b>，工具调用不逐条平铺 —— 平铺之后，五分钟的跑动会变成四十行，回答被淹没；
+    ② <b>失败不整卡描红</b>，只换状态图标与输出底色，边框永远是发丝线；
+    ③ <b>diff 只读</b>，本应用没有 Keep / Reject 审阅条，改动由 agent 自己落盘；
+    ④ <b>子代理的嵌套工具行是行不是卡</b>，缩进一级，复用同一套步骤语法。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区</span>
+    <span class="d-tag">组件：ProcessGroup · ToolCallBlock · CodemodeToolView · BashExecutionView</span>
+    <span class="d-tag">状态：流式中 / 折叠 / 含失败 / 取消 / 生成中 / 运行中 / 已退出</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 思考块 + 过程时间轴 ──────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 思考折叠块四态 · 过程时间轴三态<span class="d-grow"></span>时间轴是唯一的过程形态，页签切三态</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-msg-ai" data-demo-scope>
+              <div class="d-msg-ai-head">
+                <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                <span class="d-t-b">PI NEXT</span>
+                <span class="d-badge mute">claude-opus-4-6</span>
+              </div>
+
+              <!-- 思考折叠块四态 -->
+              <div class="d-grid2">
+                <details class="d-think" open>
+                  <summary><i data-ico="brain" data-size="12"></i>思考 · 流式中<span class="d-grow"></span><span class="d-badge"><i data-ico="loader-circle" data-size="11"></i>流式</span></summary>
+                  <div class="d-think-body">
+                    <p>先确认右栏宽度的三个来源：初始值在 AppShell，clamp 在 useResizablePanel，窄屏兜底在 getResponsiveRightPanelMaxWidth。三处各写了一份 220 与 480，改一处漏两处…</p>
+                    <div class="d-think-row">
+                      <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                      <span class="d-think-timer d-num" id="d-run-time">4.2s</span>
+                    </div>
+                  </div>
+                </details>
+
+                <details class="d-think">
+                  <summary><i data-ico="brain" data-size="12"></i>思考 · 结束折叠<span class="d-grow"></span><span class="d-think-timer">4.2s</span></summary>
+                  <div class="d-think-body">
+                    <p>收起来时留的是模型自己的第一句，不是「推理」两个字 —— 一行什么都不说的行会让整条时间轴像目录。</p>
+                  </div>
+                </details>
+
+                <details class="d-think" open>
+                  <summary><i data-ico="brain" data-size="12"></i>思考 · 展开<span class="d-grow"></span><span class="d-think-timer">4.2s</span></summary>
+                  <div class="d-think-body">
+                    <p>三处硬编码的根因是 hook 没把 clamp 的上下界收进去。</p>
+                    <p>方案：hook 持有 min / max，返回 reclampWidth()；调用点不再各写一份。</p>
+                    <p>窄屏（≤1024）不 clamp，直接走抽屉 —— 这一条要单独确认，因为抽屉宽度是 CSS 控制的。</p>
+                  </div>
+                </details>
+
+                <details class="d-think" open>
+                  <summary><i data-ico="brain" data-size="12"></i>思考 · 惰性加载中<span class="d-grow"></span><span class="d-think-timer">…</span></summary>
+                  <div class="d-think-body">
+                    <div class="d-skel-list">
+                      <div class="d-skel" style="height:10px;width:92%"></div>
+                      <div class="d-skel" style="height:10px;width:78%"></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">思考正文是惰性加载的：点开或被查找命中才去取，取之前给骨架不给空白</div>
+                  </div>
+                </details>
+              </div>
+
+              <div class="d-row d-t-xs d-t-faint">
+                <span>计时器这类数字变化时淡入一次（220ms）</span>
+                <button class="d-btn sm ghost" data-demo-motion="#d-run-time"><i data-ico="rotate-cw" data-size="12"></i>重播计时数字</button>
+              </div>
+
+              <!-- 过程时间轴三态 -->
+              <div class="d-tabbar" data-demo-tabs style="align-self:flex-start">
+                <button class="d-tab is-on" data-demo-tab="p-run"><i data-ico="loader-circle" data-size="13"></i>进行中</button>
+                <button class="d-tab" data-demo-tab="p-fail"><i data-ico="triangle-alert" data-size="13"></i>含 1 次失败</button>
+                <button class="d-tab" data-demo-tab="p-done"><i data-ico="check" data-size="13"></i>已完成（默认折叠）</button>
+              </div>
+
+              <section data-demo-pane="p-run">
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="chevron-down" data-size="14"></i>
+                    <span class="d-grow"><b>2 个文件</b> · 5 条命令 · 7 次工具调用 · 2 段思考</span>
+                    <span class="d-badge"><i data-ico="loader-circle" data-size="11"></i>进行中</span>
+                  </div>
+                  <div class="d-card-body">
+                    <div class="d-steps">
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                        <span class="d-step-body">先看三个调用点的实际取值，再决定 hook 的签名…</span>
+                        <span class="d-step-meta">2.1s</span>
+                      </div>
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="file-search" data-size="10"></i></span>
+                        <span class="d-step-body d-mono">search("RIGHT_PANEL_FALLBACK_WIDTH")</span>
+                        <span class="d-step-meta">0.6s</span>
+                      </div>
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                        <span class="d-step-body d-mono">hooks/useResizablePanel.ts</span>
+                        <span class="d-badge mute">×3</span>
+                        <span class="d-step-meta">6s</span>
+                      </div>
+                      <div class="d-step running">
+                        <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                        <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
+                        <span class="d-run"><i data-ico="loader-circle" data-size="11"></i></span>
+                        <span class="d-step-meta">3.1s</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section data-demo-pane="p-fail" hidden>
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="chevron-down" data-size="14"></i>
+                    <span class="d-grow"><b>2 个文件</b> · 5 条命令 · 7 次工具调用 · <span class="d-err">1 次失败</span> · 2 段思考</span>
+                    <span class="d-badge bad">失败</span>
+                  </div>
+                  <div class="d-card-body">
+                    <div class="d-steps">
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                        <span class="d-step-body d-mono">hooks/useResizablePanel.ts</span>
+                        <span class="d-step-meta">0.2s</span>
+                      </div>
+                      <div class="d-step fail">
+                        <span class="d-step-ico"><i data-ico="triangle-alert" data-size="10"></i></span>
+                        <span class="d-step-body d-mono">npm run test:panel</span>
+                        <span class="d-step-meta">3s</span>
+                        <span class="d-badge bad">失败</span>
+                      </div>
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                        <span class="d-step-body">测试文件没跟上新签名，先补断言…</span>
+                        <span class="d-step-meta">1.4s</span>
+                      </div>
+                      <div class="d-step done">
+                        <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                        <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
+                        <span class="d-step-meta">3.0s</span>
+                      </div>
+                    </div>
+                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">失败就地标红：图标与动词进 error，右侧挂一枚「失败」徽标。要看详情才展开成工具卡 —— 不为一次失败另开一张卡。</div>
+                  </div>
+                </div>
+              </section>
+
+              <section data-demo-pane="p-done" hidden>
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="chevron-right" data-size="14"></i>
+                    <span class="d-grow"><b>2 个文件</b> · 5 条命令 · 7 次工具调用 · 2 段思考</span>
+                    <span class="d-badge ok"><i data-ico="check" data-size="11"></i>已完成</span>
+                    <span class="d-t-xs d-t-faint">展开</span>
+                  </div>
+                </div>
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">一步不折（直接显示）；多步完成后折成一行；进行中默认展开最新一步。只有一行内容的时间轴永远不折。</div>
+              </section>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 工具卡四态 ───────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 工具卡：完成（展开输出 + 底部收起条）· 失败 · 取消 · 原始入参<span class="d-grow"></span>失败只换图标与输出底色，卡框不动</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <!-- 完成 -->
+              <div class="d-tool">
+                <div class="d-tool-head">
+                  <i data-ico="chevron-down" data-size="13"></i>
+                  <i data-ico="square-terminal" data-size="13"></i>
+                  <span class="d-mono d-t-sm">bash</span>
+                  <span class="d-grow d-mono d-t-xs">node --test hooks/useResizablePanel.test.mjs</span>
+                  <span class="d-badge ok">完成 · 3s</span>
+                </div>
+                <div class="d-tool-body">
+                  <div class="d-tabbar" data-demo-tabs style="margin-bottom:var(--nx-sp-2)">
+                    <button class="d-tab is-on" data-demo-tab="t1">输出</button>
+                    <button class="d-tab" data-demo-tab="t2">原始入参</button>
+                  </div>
+                  <div data-demo-pane="t1">
+                    <div class="d-mono d-t-xs" style="white-space:pre-wrap"><span class="d-term-prompt">$</span> node --test hooks/useResizablePanel.test.mjs
+<span class="d-term-ok">通过</span> clamps to min and max on resize <span class="d-term-prompt">(1.8ms)</span>
+<span class="d-term-ok">通过</span> reclampWidth keeps the ref and state in sync <span class="d-term-prompt">(0.9ms)</span>
+<span class="d-term-ok">通过</span> double click resets to the fallback width <span class="d-term-prompt">(1.1ms)</span>
+<span class="d-t-faint"># pass 3  # fail 0</span></div>
+                  </div>
+                  <div data-demo-pane="t2" hidden>
+                    <div class="d-mono d-t-xs" style="white-space:pre-wrap">{
+  <span class="tok-k">"command"</span>: <span class="tok-s">"node --test hooks/useResizablePanel.test.mjs"</span>
+}</div>
+                  </div>
+                  <div class="d-row d-t-xs" style="margin-top:var(--nx-sp-3)">
+                    <i data-ico="braces" data-size="13"></i>原始入参
+                    <span class="d-grow"></span>
+                    <i data-ico="copy" data-size="13"></i>复制
+                  </div>
+                </div>
+                <div class="d-tool-body" style="text-align:center;color:var(--nx-text-3)">
+                  <i data-ico="chevron-up" data-size="12"></i> 收起
+                </div>
+              </div>
+
+              <!-- 失败 -->
+              <div class="d-tool">
+                <div class="d-tool-head">
+                  <i data-ico="chevron-down" data-size="13"></i>
+                  <i data-ico="circle-x" data-size="13"></i>
+                  <span class="d-mono d-t-sm">bash</span>
+                  <span class="d-grow d-mono d-t-xs">npm run test:panel</span>
+                  <span class="d-badge bad">失败 · 3s</span>
+                </div>
+                <div class="d-tool-body">
+                  <div class="d-mono d-t-xs" style="white-space:pre-wrap"><span class="d-term-warn">Error: Cannot find module 'hooks/useResizablePanel.test.mjs'</span>
+<span class="d-t-faint">Require stack:</span>
+<span class="d-t-faint">- /Users/yingjing/Desktop/PI NEXT/node_modules/.bin/mocha</span>
+<span class="d-term-warn">…还有 12 行，展开看全部</span></div>
+                  <div class="d-row" style="margin-top:var(--nx-sp-3)">
+                    <button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试这一步</button>
+                    <button class="d-btn sm ghost">改参数再试</button>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm ghost">跳过</button>
+                  </div>
+                </div>
+              </div>
+              <div class="d-t-xs d-t-faint">卡框仍是发丝线：没有左侧彩条、没有整卡描红。失败只由状态图标与输出底色两处表达。</div>
+
+              <!-- 取消 -->
+              <div class="d-tool">
+                <div class="d-tool-head">
+                  <i data-ico="chevron-right" data-size="13"></i>
+                  <i data-ico="circle-slash" data-size="13"></i>
+                  <span class="d-mono d-t-sm">bash</span>
+                  <span class="d-grow d-mono d-t-xs">npm run prod</span>
+                  <span class="d-badge mute">已取消</span>
+                </div>
+              </div>
+
+              <!-- 参数生成中 -->
+              <div class="d-tool">
+                <div class="d-tool-head">
+                  <i data-ico="chevron-right" data-size="13"></i>
+                  <i data-ico="pencil-line" data-size="13"></i>
+                  <span class="d-mono d-t-sm">write</span>
+                  <span class="d-grow d-t-xs d-t-faint">生成参数中…</span>
+                  <span class="d-badge"><i data-ico="loader-circle" data-size="11"></i>准备中</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · diff 三视图 ──────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · diff：行内 / 分栏 / 只读对比上一次提交<span class="d-grow"></span>三视图共用一套词级高亮，只有排布不同</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-tool" data-demo-scope>
+              <div class="d-tool-head">
+                <i data-ico="file-diff" data-size="13"></i>
+                <span class="d-mono d-grow d-t-xs">hooks/useResizablePanel.ts</span>
+                <span class="d-badge info">+3 −2</span>
+                <button class="d-btn sm"><i data-ico="external-link" data-size="13"></i>在文件面板定位</button>
+              </div>
+
+              <div class="d-tabbar" data-demo-tabs style="padding:0 var(--nx-sp-2)">
+                <button class="d-tab is-on" data-demo-tab="d1"><i data-ico="rows-3" data-size="13"></i>行内</button>
+                <button class="d-tab" data-demo-tab="d2"><i data-ico="columns-2" data-size="13"></i>分栏</button>
+                <button class="d-tab" data-demo-tab="d3"><i data-ico="git-commit-horizontal" data-size="13"></i>对比上一次提交</button>
+              </div>
+
+              <!-- 行内 -->
+              <section data-demo-pane="d1">
+                <div class="d-tool-body">
+                  <div class="d-diff">
+<span class="d-diff-line">  38   const [width, setWidth] = useState(opts.initialWidth);</span>
+<span class="d-diff-line">  39 </span>
+<span class="d-diff-line del">- 40   const clamp = (v) =&gt; Math.min(Math.max(v, 220), 480);</span>
+<span class="d-diff-line del">- 41   const reclampWidth = () =&gt; setWidth(clamp(widthRef.current));</span>
+<span class="d-diff-line add">+ 40   const reclampWidth = useCallback(() =&gt; {</span>
+<span class="d-diff-line add">+ 41     const next = Math.min(Math.max(widthRef.current, opts.min), opts.max);</span>
+<span class="d-diff-line add">+ 42     widthRef.current = next; setWidth(next);</span>
+<span class="d-diff-line">  43   }, [opts.min, opts.max]);</span>
+                  </div>
+                  <div class="d-row d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                    <i data-ico="info" data-size="13"></i>
+                    只读 —— 本应用不做 Keep / Reject 审阅条，改动由 agent 自己落盘
+                  </div>
+                </div>
+              </section>
+
+              <!-- 分栏 -->
+              <section data-demo-pane="d2" hidden>
+                <div class="d-tool-body">
+                  <div class="d-diff-split">
+                    <div>
+                      <div class="d-diff-head"><span><i data-ico="chevron-left" data-size="12"></i>hooks/useResizablePanel.ts（改前）</span></div>
+                      <div class="d-diff">
+<span class="d-diff-line">  38   const [width, setWidth] = useState(opts.initialWidth);</span>
+<span class="d-diff-line">  39 </span>
+<span class="d-diff-line del">- 40   const clamp = (v) =&gt; Math.min(Math.max(v, 220), 480);</span>
+<span class="d-diff-line del">- 41   const reclampWidth = () =&gt; setWidth(clamp(widthRef.current));</span>
+                      </div>
+                    </div>
+                    <div class="d-sep-v" style="margin:0"></div>
+                    <div>
+                      <div class="d-diff-head"><span><i data-ico="chevron-right" data-size="12"></i>hooks/useResizablePanel.ts（改后）</span></div>
+                      <div class="d-diff">
+<span class="d-diff-line">  38   const [width, setWidth] = useState(opts.initialWidth);</span>
+<span class="d-diff-line add">+ 40   const reclampWidth = useCallback(() =&gt; {</span>
+<span class="d-diff-line add">+ 41     const next = Math.min(Math.max(widthRef.current, opts.min), opts.max);</span>
+<span class="d-diff-line add">+ 42     widthRef.current = next; setWidth(next);</span>
+<span class="d-diff-line">  43   }, [opts.min, opts.max]);</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 对比上一次提交 -->
+              <section data-demo-pane="d3" hidden>
+                <div class="d-tool-body">
+                  <div class="d-row d-t-xs" style="margin-bottom:var(--nx-sp-2)">
+                    <i data-ico="git-commit-horizontal" data-size="13"></i>
+                    <span class="d-mono">a1f9c2e</span>
+                    <span class="d-grow d-t-faint">design: 新增画板集 · 与上一次提交对比（只读）</span>
+                    <span class="d-badge mute">−2 +3</span>
+                  </div>
+                  <div class="d-diff">
+<span class="d-diff-line d-t-faint">@@ -40,7 +40,9 @@ export function useResizablePanel(opts: PanelOptions) {</span>
+<span class="d-diff-line del">-  const clamp = (v) =&gt; Math.min(Math.max(v, 220), 480);</span>
+<span class="d-diff-line del">-  const reclampWidth = () =&gt; setWidth(clamp(widthRef.current));</span>
+<span class="d-diff-line add">+  const reclampWidth = useCallback(() =&gt; {</span>
+<span class="d-diff-line add">+    const next = Math.min(Math.max(widthRef.current, opts.min), opts.max);</span>
+<span class="d-diff-line add">+    widthRef.current = next; setWidth(next);</span>
+<span class="d-diff-line add">+  }, [opts.min, opts.max]);</span>
+                  </div>
+                  <div class="d-row d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                    <i data-ico="info" data-size="13"></i>
+                    对比视图一律只读：不提供「保留这一段 / 丢掉这一段」，要改就再跑一轮。
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 终端 / 子代理 / codemode ─────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 嵌入式终端 · 子代理卡 · codemode 工具视图<span class="d-grow"></span>三种「不是普通工具调用」的形态</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-grid2" style="align-items:start">
+
+              <!-- 左：终端 + codemode -->
+              <div class="d-col" style="gap:var(--nx-sp-4)">
+                <div data-demo-scope>
+                  <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">嵌入式终端卡 · 你自己敲的命令也走同一张工具卡</div>
+                  <div class="d-tabbar" data-demo-tabs>
+                    <button class="d-tab is-on" data-demo-tab="s1"><i data-ico="loader-circle" data-size="13"></i>运行中</button>
+                    <button class="d-tab" data-demo-tab="s2"><i data-ico="check" data-size="13"></i>已退出</button>
+                    <button class="d-tab" data-demo-tab="s3"><i data-ico="circle-x" data-size="13"></i>已退出（非零）</button>
+                  </div>
+
+                  <section data-demo-pane="s1">
+                    <div class="d-tool">
+                      <div class="d-tool-head">
+                        <i data-ico="square-terminal" data-size="13"></i>
+                        <span class="d-mono d-t-sm">bash</span>
+                        <span class="d-grow d-mono d-t-xs">~/Desktop/PI NEXT</span>
+                        <span class="d-badge"><i data-ico="loader-circle" data-size="11"></i>运行中 12s</span>
+                        <button class="d-btn sm ghost"><i data-ico="square" data-size="12"></i>停止</button>
+                      </div>
+                      <div class="d-tool-body">
+                        <div class="d-term" style="min-height:0">
+                          <div><span class="d-term-prompt">$</span> npm run prod</div>
+                          <div class="d-t-faint">&gt; pi-web@0.1.8 prod</div>
+                          <div class="d-t-faint">&gt; node scripts/next-mode.mjs prod &amp;&amp; next build</div>
+                          <div class="d-term-warn">Collecting page data ...</div>
+                        </div>
+                        <div class="d-terminfo"><span>12s</span><span>仍在输出</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="s2" hidden>
+                    <div class="d-tool">
+                      <div class="d-tool-head">
+                        <i data-ico="square-terminal" data-size="13"></i>
+                        <span class="d-mono d-t-sm">bash (local)</span>
+                        <span class="d-grow d-mono d-t-xs">node_modules/.bin/eslint . --ignore-pattern 'release/**'</span>
+                        <span class="d-badge ok">退出码 0</span>
+                        <button class="d-btn sm ghost"><i data-ico="rotate-cw" data-size="12"></i>重启</button>
+                      </div>
+                      <div class="d-tool-body">
+                        <div class="d-term" style="min-height:0">
+                          <div class="d-term-ok">0 errors, 0 warnings</div>
+                          <div class="d-t-faint">进程已退出 · 输出仍保留在此卡中</div>
+                        </div>
+                        <div class="d-terminfo"><span>退出码 0</span><span>1.8s</span><span>1 行</span></div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="s3" hidden>
+                    <div class="d-tool">
+                      <div class="d-tool-head">
+                        <i data-ico="square-terminal" data-size="13"></i>
+                        <span class="d-mono d-t-sm">bash</span>
+                        <span class="d-grow d-mono d-t-xs">npm run check-v5</span>
+                        <span class="d-badge bad">退出码 1</span>
+                        <button class="d-btn sm ghost"><i data-ico="rotate-cw" data-size="12"></i>重启</button>
+                      </div>
+                      <div class="d-tool-body">
+                        <div class="d-mono d-t-xs d-term-warn" style="white-space:pre-wrap">错误 2 条：D-03e 用了一个未定义的类「.d-minimap」
+D-03e 出现 m-* 类（两套形态不许混用）</div>
+                        <div class="d-row" style="margin-top:var(--nx-sp-2)">
+                          <button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重跑</button>
+                          <span class="d-grow"></span>
+                          <button class="d-btn sm ghost">查看完整输出</button>
+                          <button class="d-btn sm ghost">下载完整输出</button>
+                        </div>
+                      </div>
+                      <div class="d-terminfo"><span>退出码 1</span><span>2.1s</span><span>输出已截断</span></div>
+                    </div>
+                  </section>
+                </div>
+
+                <!-- codemode -->
+                <div class="d-tool">
+                  <div class="d-tool-head">
+                    <i data-ico="code" data-size="13"></i>
+                    <span class="d-mono d-t-sm">codemode</span>
+                    <span class="d-grow d-mono d-t-xs">const [a, b] = await Promise.all([read("a.ts"), read("b.ts")])</span>
+                    <span class="d-t-xs d-t-faint">4 次调用</span>
+                  </div>
+                  <div class="d-tool-body">
+                    <div class="d-mono d-t-xs" style="white-space:pre-wrap"><span class="tok-k">const</span> files = <span class="tok-k">await</span> searchTools(<span class="tok-s">"read"</span>);
+<span class="tok-k">const</span> [a, b] = <span class="tok-k">await</span> Promise.<span class="tok-k">all</span>([
+  read(<span class="tok-s">"a.ts"</span>), read(<span class="tok-s">"b.ts"</span>)
+]);
+<span class="tok-k">return</span> diff(a, b);</div>
+                    <div class="d-col" style="gap:var(--nx-sp-1);margin-top:var(--nx-sp-3)">
+                      <div class="d-row d-mono d-t-xs"><span style="width:var(--nx-sp-3)"><i data-ico="check" data-size="11"></i></span><span class="d-t-b">searchTools</span><span class="d-grow d-t-faint">"read"</span><span class="d-t-faint">0.4s</span></div>
+                      <div class="d-row d-mono d-t-xs"><span style="width:var(--nx-sp-3)"><i data-ico="check" data-size="11"></i></span><span class="d-t-b">read</span><span class="d-grow d-t-faint">a.ts</span><span class="d-t-faint">0.2s</span></div>
+                      <div class="d-row d-mono d-t-xs"><span style="width:var(--nx-sp-3)"><i data-ico="circle-x" data-size="11"></i></span><span class="d-t-b">read</span><span class="d-grow d-t-faint">b.ts</span><span class="d-err">ENOENT</span><span class="d-t-faint">0.1s</span></div>
+                      <div class="d-row d-mono d-t-xs"><span style="width:var(--nx-sp-3)"><i data-ico="circle-slash" data-size="11"></i></span><span class="d-t-b">diff</span><span class="d-grow d-t-faint">—</span><span class="d-t-faint">已取消</span></div>
+                    </div>
+                    <div class="d-row d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                      <span>更早的 17 次调用未显示</span>
+                      <span class="d-grow"></span>
+                      <span class="d-mono">模型调用：$0.031</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-t-xs d-t-faint">codemode 脚本调过的工具是<b>这张卡里的行</b>，不是各自的卡 —— 它们从来没有作为独立工具调用回到模型面前。</div>
+              </div>
+
+              <!-- 右：子代理 -->
+              <div data-demo-scope>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">子代理卡 · 嵌套工具行缩进一级</div>
+                <div class="d-tabbar" data-demo-tabs>
+                  <button class="d-tab is-on" data-demo-tab="sa1"><i data-ico="loader-circle" data-size="13"></i>运行中</button>
+                  <button class="d-tab" data-demo-tab="sa2"><i data-ico="check" data-size="13"></i>完成</button>
+                </div>
+
+                <section data-demo-pane="sa1">
+                  <div class="d-tool">
+                    <div class="d-tool-head">
+                      <i data-ico="bot" data-size="13"></i>
+                      <span class="d-mono d-t-sm">子代理 · Explore</span>
+                      <span class="d-grow d-t-xs">梳理参考项目功能面</span>
+                      <span class="d-badge"><i data-ico="loader-circle" data-size="11"></i>运行中 1m12s</span>
+                      <span class="d-badge">同会话还有 2 个在跑</span>
+                      <button class="d-iconbtn" title="打开子代理会话"><i data-ico="external-link" data-size="13"></i></button>
+                    </div>
+                    <div class="d-tool-body">
+                      <div class="d-steps">
+                        <div class="d-step done">
+                          <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                          <span class="d-step-body d-mono">design/README.md</span>
+                          <span class="d-step-meta">0.3s</span>
+                        </div>
+                        <div class="d-step running">
+                          <span class="d-step-ico"><i data-ico="file-search" data-size="10"></i></span>
+                          <span class="d-step-body d-mono">search("data-screen-label")</span>
+                          <span class="d-step-meta">…</span>
+                        </div>
+                      </div>
+                      <div class="d-row d-t-xs" style="margin-top:var(--nx-sp-2)">
+                        <i data-ico="corner-down-right" data-size="12"></i>
+                        <span class="d-t-faint">已产出 4 条结论，正在核对画板覆盖</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section data-demo-pane="sa2" hidden>
+                  <div class="d-tool">
+                    <div class="d-tool-head">
+                      <i data-ico="bot" data-size="13"></i>
+                      <span class="d-mono d-t-sm">子代理 · Explore</span>
+                      <span class="d-grow d-t-xs">梳理参考项目功能面</span>
+                      <span class="d-badge ok">完成 · 2m04s</span>
+                      <button class="d-iconbtn" title="打开子代理会话"><i data-ico="external-link" data-size="13"></i></button>
+                    </div>
+                    <div class="d-tool-body">
+                      <div class="d-steps">
+                        <div class="d-step done">
+                          <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                          <span class="d-step-body d-mono">design/README.md</span>
+                          <span class="d-step-meta">0.3s</span>
+                        </div>
+                        <div class="d-step done">
+                          <span class="d-step-ico"><i data-ico="file-search" data-size="10"></i></span>
+                          <span class="d-step-body d-mono">search("data-screen-label")</span>
+                          <span class="d-step-meta">1.1s</span>
+                        </div>
+                        <div class="d-step done">
+                          <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                          <span class="d-step-body d-mono">wc -l design/boards/*.html</span>
+                          <span class="d-step-meta">0.2s</span>
+                        </div>
+                      </div>
+                      <div class="d-row d-t-xs" style="margin-top:var(--nx-sp-3)">
+                        <i data-ico="corner-down-right" data-size="12"></i>
+                        <span>↳ Subagent Output</span>
+                        <span class="d-grow"></span>
+                        <span class="d-mono d-t-faint">4 段结论 · 12 次工具调用 · 0 失败</span>
+                      </div>
+                      <div class="d-row" style="margin-top:var(--nx-sp-2)">
+                        <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制结论</button>
+                        <span class="d-grow"></span>
+                        <span class="d-t-xs d-t-faint">这条结论有用吗</span>
+                        <button class="d-iconbtn" title="有用"><i data-ico="thumbs-up" data-size="13"></i></button>
+                        <button class="d-iconbtn" title="没用"><i data-ico="thumbs-down" data-size="13"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                  父子层级靠<b>缩进与图标</b>表达，不用左侧竖线：子代理的卡本身就是工具卡的一种，
+                  它的工具调用在父卡内部再排一层步骤流，读者一眼能分清「它做的」和「这条回合做的」。
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>过程只有一条时间轴</b>。一轮内的工具调用收成一条竖线串起的步骤流，汇总行给「N 个文件 · M 条命令 · K 次工具调用 · J 次失败 · L 段思考」。竖线在首行从图标中心起画、末行到中心收笔 —— 中间连、两头断，这是竖线唯一合理的收法。</li>
+    <li><b>失败就地标红，不另开卡</b>：图标与动词进 error、右侧挂一枚「失败」徽标，语义动词与目标文件全部保留（否则整行读作「bash 39s 失败」，既不知道跑了什么也不知道动了哪个文件）。要看详情才展开成工具卡。</li>
+    <li><b>失败不整卡着色</b>：只换两处 —— 状态图标转 error、输出底色转 error 底。边框永远是发丝线，不加左侧彩条。整卡描红会让「哪一步失败」淹没在一片红里。</li>
+    <li><b>diff 三视图只有排布不同</b>：行内、分栏、对比上一次提交共用同一份词级高亮。全部只读 —— 本应用没有 Keep / Reject 审阅条，改动由 agent 自己落盘，所以任何「保留这一段」的按钮都是假的。</li>
+    <li><b>三种「不是普通工具调用」的形态各有宿主页</b>：嵌入式终端卡复用工具卡（所以你自己敲的命令和 agent 敲的长得一样）、codemode 的脚本调用是卡内的行、 子代理的工具行缩进一级并配一枚「打开子代理会话」。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

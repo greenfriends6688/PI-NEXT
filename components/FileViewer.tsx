@@ -16,6 +16,7 @@ import {
   isVideoPath,
 } from "@/lib/file-types";
 import { encodeFilePathForApi, getFileName, getRelativeFilePath, sameFilePath } from "@/lib/file-paths";
+import { copyText } from "@/lib/clipboard";
 import { buildAtMentionText, buildFileLineMentionText } from "@/lib/file-fuzzy";
 import { clearLocationTextHighlight, LOCATION_HIGHLIGHT_CLASS } from "@/lib/location-highlight";
 import { clampZoom, formatZoomPercent, isZoomed, stepZoom, wheelZoom, withPdfZoom, ZOOM_MAX, ZOOM_MIN } from "@/lib/viewer-zoom";
@@ -94,11 +95,50 @@ interface FileData {
 }
 
 const SOURCE_HIGHLIGHT_MAX_LINES = 1_000;
-// Matches the write endpoint's content cap in lib/file-mutations.ts.
-const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
-  source: "Source",
-  preview: "Preview",
+
+/* ── M-06 · 手机档类名对照 ──────────────────────────────────────────────────
+   画板 M-06 帧 B / 帧 F：查看器是 `inset:0` 的**全屏覆盖**，顶栏 `.m-viewer-bar`
+   写完整路径、模式是三等宽 `.m-seg`、正文 `.m-viewer-scroll`、底部 `.m-vbar`。
+   桌面那份 `.d-viewer / .d-viewer-bar / .d-viewer-scroll / .d-seg` 原样保留，
+   窄屏只换形态，不换语义（同一个 state、同一批 handler、同一份内容组件）。
+
+   为什么这一处要显式写 `position: fixed`：`.m-viewer` 自己是 `position:absolute;
+   inset:0`，而右栏宿主（`.secondary-workspace`）在手机上是 fixed 全屏、其下的
+   `.file-panel-main` 带 `overflow:hidden` —— 绝对定位会被那一层裁掉。
+   `position/inset/z-index` 属于铁律四允许的行内值（层级摆放与几何定位），颜色、
+   字号、间距、圆角一律仍来自 system.css。 */
+const MOBILE_VIEWER_STYLE: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: "var(--nx-z-panel)",
 };
+
+/**
+ * M-06 · 一处取全套类名。桌面档与手机档是**同一块 DOM 的两个形态**，所以这里只做
+ * 「类名随断点换」，语义、层级、状态类（`.is-on`）与数据流完全一致。
+ */
+function viewerSkin(isMobile: boolean) {
+  return {
+    shellClass: isMobile ? "m-viewer is-open" : "d-viewer",
+    shellStyle: isMobile ? MOBILE_VIEWER_STYLE : { height: "100%" } as React.CSSProperties,
+    barClass: isMobile ? "m-viewer-bar" : "d-viewer-bar",
+    pathClass: isMobile ? "m-viewer-path" : "d-viewer-path",
+    scrollClass: isMobile ? "m-viewer-scroll" : "d-viewer-scroll",
+    badge: (tone: string) => (isMobile ? `m-badge ${tone}` : `d-badge ${tone}`),
+    dot: isMobile ? "m-dot" : "d-dot",
+    grow: isMobile ? "m-grow" : "d-grow",
+    tinyFaint: isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint",
+    // 触控下限：`.m-iconbtn` 的键帽是 36px，命中区由 `.m-touch-44` 抬到 44px
+    // （库里现成的三档触控类，与画板 `.m-touch-44` 同一份规格）。
+    iconBtn: isMobile ? "m-iconbtn m-touch-44" : "d-iconbtn",
+    emptyClass: isMobile ? "m-empty" : "d-empty",
+    emptyIco: isMobile ? "m-empty-ico" : "d-empty-ico",
+    emptyTitle: isMobile ? "m-empty-t" : "d-empty-t",
+    emptySub: isMobile ? "m-empty-s" : "d-empty-s",
+  };
+}
+// Matches the write endpoint's content cap in lib/file-mutations.ts.
+// Display mode labels come from i18n now (`i18n.source` / `i18n.preview`).
 
 
 interface SelectedLineRange {
@@ -120,15 +160,6 @@ export interface FileSelectionContext {
   startLine: number;
   endLine: number;
   language?: string;
-}
-
-function MentionIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
-    </svg>
-  );
 }
 
 function closestSourceLine(node: Node): HTMLElement | null {
@@ -320,7 +351,7 @@ function getFileApiBaseUrl(filePath: string): string {
   return `/api/files/${encodeFilePathForApi(filePath)}`;
 }
 
-function DownloadLink({ filePath, sourceSessionId }: { filePath: string; sourceSessionId?: string | null }) {
+function DownloadLink({ filePath, sourceSessionId, mobile = false }: { filePath: string; sourceSessionId?: string | null; mobile?: boolean }) {
   const { t } = useI18n();
   return (
     <a
@@ -328,13 +359,9 @@ function DownloadLink({ filePath, sourceSessionId }: { filePath: string; sourceS
       download={getFileName(filePath)}
       title={t("i18n.downloadFile")}
       aria-label={t("i18n.downloadFile")}
-      className="pw-iconbtn sm"
+      className={mobile ? "m-iconbtn m-touch-44" : "d-iconbtn"}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7 10 12 15 17 10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
+      <i data-ico="download" data-size="14"></i>
     </a>
   );
 }
@@ -433,7 +460,7 @@ function DiffView({ patch }: { patch: string }) {
 
   if (!hasChanges) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: TEXT.sm, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+      <div className="d-t-xs d-t-faint" style={{ padding: "12px 16px", fontFamily: "var(--font-mono)" }}>
         {t("i18n.noChanges")}
       </div>
     );
@@ -441,68 +468,47 @@ function DiffView({ patch }: { patch: string }) {
 
   return (
     <div
-      className="file-diff-view"
+      className="d-diff"
       style={{
         width: "max-content",
         minWidth: "100%",
-        ...FILE_CODE_STYLE,
       }}
     >
       {segments.map((seg, si) => {
         if (seg.hidden) {
-          const result = (
+          return (
             <div
               key={si}
+              className="d-t-xs d-t-faint"
               style={{
-                padding: "var(--space-tight) 16px",
-                color: "var(--text-dim)",
-                background: "var(--bg-panel)",
-                fontSize: TEXT.xs,
-                borderTop: "1px solid var(--border)",
-                borderBottom: "1px solid var(--border)",
+                padding: "var(--nx-sp-1) 16px",
+                background: "var(--nx-panel)",
+                borderTop: "1px solid var(--nx-line)",
+                borderBottom: "1px solid var(--nx-line)",
               }}
             >
               ... {seg.count} unchanged lines ...
             </div>
           );
-          return result;
         }
         const lines = seg.lines.map((line, li) => {
-          const bg =
-            line.type === "added"
-              ? "var(--diff-added)"
-              : line.type === "removed"
-              ? "var(--diff-removed)"
-              : "transparent";
           const prefix =
             line.type === "added" ? "+" : line.type === "removed" ? "-" : " ";
           const prefixColor =
-            line.type === "added" ? "var(--success)" : line.type === "removed" ? "var(--danger)" : "var(--text-dim)";
+            line.type === "added" ? "var(--nx-success)" : line.type === "removed" ? "var(--nx-danger)" : "var(--nx-text-3)";
           // fork:zc-07 — 行内差异段；空行（或无可显示字符）仍用 nbsp 占位。
           const segments = line.intraline === undefined ? null : buildIntralineSegments(line.text, line.intraline);
           const hasVisibleSegments = segments?.some((segment) => segment.text.length > 0) ?? false;
           const changedBackground = line.type === "added"
-            ? "color-mix(in srgb, var(--success) 30%, transparent)"
-            : "color-mix(in srgb, var(--danger) 30%, transparent)";
+            ? "color-mix(in srgb, var(--nx-success) 30%, transparent)"
+            : "color-mix(in srgb, var(--nx-danger) 30%, transparent)";
 
           return (
             <div
               key={li}
-              className="file-diff-line"
-              style={{
-                display: "flex",
-                minWidth: "100%",
-                background: bg,
-                borderLeft: line.type === "added"
-                  ? "3px solid var(--success)"
-                  : line.type === "removed"
-                  ? "3px solid var(--danger)"
-                  : "3px solid transparent",
-              }}
+              className={`d-diff-line${line.type === "added" ? " add" : line.type === "removed" ? " del" : ""}`}
             >
-              <span
-                style={FILE_LINE_NUMBER_STYLE}
-              >
+              <span className="d-ln">
                 {line.type === "removed" ? line.oldLineNo : line.newLineNo}
               </span>
               <span
@@ -511,7 +517,6 @@ function DiffView({ patch }: { patch: string }) {
                   padding: "0 6px",
                   color: prefixColor,
                   userSelect: "none",
-                  flexShrink: 0,
                   fontWeight: 600,
                 }}
               >
@@ -520,17 +525,16 @@ function DiffView({ patch }: { patch: string }) {
               <span
                 className="file-diff-line-content"
                 style={{
-                  flexShrink: 0,
                   padding: "0 8px 0 0",
                   whiteSpace: "pre",
-                  color: "var(--text)",
+                  color: "inherit",
                 }}
               >
                 {segments && hasVisibleSegments
                   ? segments.map((segment, index) => (
                       <span
                         key={index}
-                        style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-xs)" } : undefined}
+                        style={segment.changed ? { background: changedBackground, borderRadius: "var(--nx-r-xs)" } : undefined}
                       >
                         {segment.text}
                       </span>
@@ -548,6 +552,9 @@ function DiffView({ patch }: { patch: string }) {
 
 function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Props) {
   const { t } = useI18n();
+  // M-06 —— 手机档同一个查看器换 m-* 形态（帧 B 的全屏覆盖 + 帧 F 的降级卡壳）。
+  const isMobile = useIsMobile();
+  const skin = viewerSkin(isMobile);
   const [watching, setWatching] = useState(false);
   const [bust, setBust] = useState(0);
   const [size, setSize] = useState<number | null>(null);
@@ -640,78 +647,60 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
   const formatSizeStr = size != null ? formatSize(size) : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s3)",
-          padding: "4px 16px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: TEXT.xs,
-          color: "var(--text-dim)",
-          background: "var(--bg)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontFamily: "var(--font-mono)" }} title={filePath}>
+    <div className={skin.shellClass} style={skin.shellStyle}>
+      <div className={skin.barClass}>
+        <i data-ico="image" data-size="13"></i>
+        <span className={skin.pathClass} title={filePath}>
           {getRelativeFilePath(filePath, cwd)}
         </span>
-        <span style={{ marginLeft: "auto" }}>{ext || "image"}</span>
-        {naturalSize && <span>{naturalSize.w} × {naturalSize.h}</span>}
-        {formatSizeStr && <span>{formatSizeStr}</span>}
+        <span className={skin.badge("mute")}>{ext || "image"}</span>
+        {naturalSize && <span className={skin.badge("mute")}>{naturalSize.w} × {naturalSize.h}</span>}
+        {formatSizeStr && <span className={skin.badge("mute")}>{formatSizeStr}</span>}
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "var(--nx-sp-1)" }}
         >
-          <span
-            style={{
-              width: "var(--dot-md)",
-              height: "var(--dot-md)",
-              borderRadius: "50%",
-              background: watching ? "var(--success)" : "var(--border)",
-              display: "inline-block",
-              boxShadow: watching ? "0 0 4px var(--success)" : "none",
-            }}
-          />
-          {watching ? "live" : "static"}
+          <span className={`${skin.dot}${watching ? " ok" : ""}`} />
+          <span className={skin.tinyFaint}>{watching ? "live" : "static"}</span>
         </span>
+        <span className={skin.grow} />
         {/* fork:gap-viewer-zoom — 缩放控件（键盘可达，带 aria-label）。 */}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-tight)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-1)" }}>
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className={skin.iconBtn}
             onClick={() => setZoom((value) => stepZoom(value, -1))}
             disabled={zoom <= ZOOM_MIN}
             aria-label={t("i18n.zoomOut")}
             title={t("i18n.zoomOut")}
           >
-            <span className="pw-ico"><i data-ico="zoom-out" data-size="13"></i></span>
+            <i data-ico="zoom-out" data-size="14"></i>
           </button>
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className={skin.badge("mute")}
             onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }}
             aria-label={t("i18n.zoomReset")}
             title={t("i18n.zoomReset")}
-            style={{ fontVariantNumeric: "tabular-nums", minWidth: 44 }}
+            style={{ fontVariantNumeric: "tabular-nums", minWidth: 44, cursor: "pointer" }}
           >
             {formatZoomPercent(zoom)}
           </button>
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className={skin.iconBtn}
             onClick={() => setZoom((value) => stepZoom(value, 1))}
             disabled={zoom >= ZOOM_MAX}
             aria-label={t("i18n.zoomIn")}
             title={t("i18n.zoomIn")}
           >
-            <span className="pw-ico"><i data-ico="zoom-in" data-size="13"></i></span>
+            <i data-ico="zoom-in" data-size="14"></i>
           </button>
         </span>
-        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
+        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} mobile={isMobile} />
       </div>
       <div
+        className={skin.scrollClass}
         onWheel={(event) => {
           // 只有 Ctrl/⌘ + 滚轮才缩放，否则交给容器滚动（触控板用户不该被劫持）。
           if (!event.ctrlKey && !event.metaKey) return;
@@ -719,22 +708,20 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
           setZoom((value) => wheelZoom(value, event.deltaY));
         }}
         style={{
-          flex: 1,
-          overflow: "auto",
-          background: "var(--bg)",
+          background: "var(--nx-canvas)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "var(--s4)",
+          padding: "var(--nx-sp-4)",
           cursor: isZoomed(zoom) ? "grab" : "default",
           backgroundImage:
-            "linear-gradient(45deg, var(--bg) 25%, transparent 25%), linear-gradient(-45deg, var(--bg) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--bg) 75%), linear-gradient(-45deg, transparent 75%, var(--bg) 75%)",
+            "linear-gradient(45deg, var(--nx-canvas) 25%, transparent 25%), linear-gradient(-45deg, var(--nx-canvas) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--nx-canvas) 75%), linear-gradient(-45deg, transparent 75%, var(--nx-canvas) 75%)",
           backgroundSize: "16px 16px",
           backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
         }}
       >
         {error ? (
-          <div style={{ color: "var(--danger)", fontSize: TEXT.md }}>{error}</div>
+          <div style={{ color: "var(--nx-danger)", fontSize: TEXT.md }}>{error}</div>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -770,7 +757,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
               transform: `translate(${offset.x}px, ${offset.y}px) scale(${clampZoom(zoom)})`,
               transformOrigin: "center",
               transition: panRef.current ? "none" : "transform 120ms ease-out",
-              boxShadow: "var(--shadow-popover)",
+              boxShadow: "var(--nx-sh-2)",
               userSelect: "none",
               touchAction: "none",
             }}
@@ -791,6 +778,8 @@ function formatDuration(seconds: number): string {
 
 function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Props) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
+  const skin = viewerSkin(isMobile);
   const [watching, setWatching] = useState(false);
   const [bust, setBust] = useState(0);
   const [size, setSize] = useState<number | null>(null);
@@ -873,57 +862,37 @@ function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
   const src = getFileApiUrl(filePath, "read", sourceSessionId, bust ? { v: bust } : undefined);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s3)",
-          padding: "4px 16px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: TEXT.xs,
-          color: "var(--text-dim)",
-          background: "var(--bg)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontFamily: "var(--font-mono)" }} title={filePath}>
+    <div className={skin.shellClass} style={skin.shellStyle}>
+      <div className={skin.barClass}>
+        <i data-ico="music" data-size="13"></i>
+        <span className={skin.pathClass} title={filePath}>
           {getRelativeFilePath(filePath, cwd)}
         </span>
-        <span style={{ marginLeft: "auto" }}>{ext || "audio"}</span>
-        {duration != null && <span>{formatDuration(duration)}</span>}
-        {size != null && <span>{formatSize(size)}</span>}
+        <span className={skin.badge("mute")}>{ext || "audio"}</span>
+        {duration != null && <span className={skin.badge("mute")}>{formatDuration(duration)}</span>}
+        {size != null && <span className={skin.badge("mute")}>{formatSize(size)}</span>}
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "var(--nx-sp-1)" }}
         >
-          <span
-            style={{
-              width: "var(--dot-md)",
-              height: "var(--dot-md)",
-              borderRadius: "50%",
-              background: watching ? "var(--success)" : "var(--border)",
-              display: "inline-block",
-              boxShadow: watching ? "0 0 4px var(--success)" : "none",
-            }}
-          />
-          {watching ? "live" : "static"}
+          <span className={`${skin.dot}${watching ? " ok" : ""}`} />
+          <span className={skin.tinyFaint}>{watching ? "live" : "static"}</span>
         </span>
-        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
+        <span className={skin.grow} />
+        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} mobile={isMobile} />
       </div>
       <div
+        className={skin.scrollClass}
         style={{
-          flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "var(--s5)",
-          background: "var(--bg)",
+          padding: "var(--nx-sp-5)",
         }}
       >
         <div style={{ width: "min(680px, 100%)" }}>
           {error && (
-            <div style={{ color: "var(--danger)", fontSize: TEXT.md, marginBottom: "var(--s3)", textAlign: "center" }}>
+            <div style={{ color: "var(--nx-danger)", fontSize: TEXT.md, marginBottom: "var(--nx-sp-3)", textAlign: "center" }}>
               {error}
             </div>
           )}
@@ -944,6 +913,8 @@ function AudioViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
 
 function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Props) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
+  const skin = viewerSkin(isMobile);
   const [watching, setWatching] = useState(false);
   const [bust, setBust] = useState(0);
   const [size, setSize] = useState<number | null>(null);
@@ -1026,58 +997,38 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
   const src = getFileApiUrl(filePath, "read", sourceSessionId, bust ? { v: bust } : undefined);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s3)",
-          padding: "4px 16px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: TEXT.xs,
-          color: "var(--text-dim)",
-          background: "var(--bg)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontFamily: "var(--font-mono)" }} title={filePath}>
+    <div className={skin.shellClass} style={skin.shellStyle}>
+      <div className={skin.barClass}>
+        <i data-ico="circle-play" data-size="13"></i>
+        <span className={skin.pathClass} title={filePath}>
           {getRelativeFilePath(filePath, cwd)}
         </span>
-        <span style={{ marginLeft: "auto" }}>{ext || "video"}</span>
-        {duration != null && <span>{formatDuration(duration)}</span>}
-        {size != null && <span>{formatSize(size)}</span>}
+        <span className={skin.badge("mute")}>{ext || "video"}</span>
+        {duration != null && <span className={skin.badge("mute")}>{formatDuration(duration)}</span>}
+        {size != null && <span className={skin.badge("mute")}>{formatSize(size)}</span>}
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "var(--nx-sp-1)" }}
         >
-          <span
-            style={{
-              width: "var(--dot-md)",
-              height: "var(--dot-md)",
-              borderRadius: "50%",
-              background: watching ? "var(--success)" : "var(--border)",
-              display: "inline-block",
-              boxShadow: watching ? "0 0 4px var(--success)" : "none",
-            }}
-          />
-          {watching ? "live" : "static"}
+          <span className={`${skin.dot}${watching ? " ok" : ""}`} />
+          <span className={skin.tinyFaint}>{watching ? "live" : "static"}</span>
         </span>
-        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
+        <span className={skin.grow} />
+        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} mobile={isMobile} />
       </div>
       <div
+        className={skin.scrollClass}
         style={{
-          flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "var(--s5)",
-          background: "var(--bg-panel)",
+          padding: "var(--nx-sp-5)",
           minHeight: 0,
         }}
       >
         <div style={{ width: "min(960px, 100%)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
           {error && (
-            <div style={{ color: "var(--danger)", fontSize: TEXT.md, marginBottom: "var(--s3)", textAlign: "center" }}>
+            <div style={{ color: "var(--nx-danger)", fontSize: TEXT.md, marginBottom: "var(--nx-sp-3)", textAlign: "center" }}>
               {error}
             </div>
           )}
@@ -1194,14 +1145,11 @@ function FileSelectionQuotePopover({
       ref={popoverRef}
       role={inputOpen ? "dialog" : "toolbar"}
       aria-label={t(inputOpen ? "chat.newQuoteChat" : "chat.askSelection")}
-      // fix:sel-pop-grid —— 壳与两个动作钮改用画板原件（与转录里那份选区浮窗同一套）：
-      //   壳 = `.pw-pop`（发丝边框 / radius-6 / surface-popover / shadow-popover / padding-s1），
-      //   动作钮 = `.pw-btn`（inline-flex + align-items:center）。
-      // 原来壳是手绘的四行内联（`--bg` + `--radius-lg`），动作钮用的是 **`.pw-iconbtn`** ——
-      // 那是「方形图标钮」：`display:grid; place-items:center`，两个子节点（图标 + 文案）
-      // 被**各放一格**（自动换行成两行），于是「@」和「在当前对话询问」上下摞起来、
-      // 按钮高过 35px 溢出、浮窗变成两行高还多一条竖向滚动条（用户截图实测）。
-      className="pw-pop anim-popover-down"
+      // fork:v5-landing —— 壳与两个动作钮改用 D-06 查看器的原件：
+      //   壳 = `.d-pop`（发丝边框 / surface / `.is-open` 带 board 入场动效），
+      //   动作钮 = `.d-btn`（inline-flex + align-items:center）。
+      // 原来壳是手绘的四行内联，动作钮用方形图标钮会把图标 + 文案各放一格。
+      className="d-pop is-open"
       style={{
         position: "fixed",
         top,
@@ -1214,7 +1162,7 @@ function FileSelectionQuotePopover({
         // 「这俩按钮显示还换行呢」）。宽度改成 max-content，两个按钮恒在同一行。
         flexWrap: inputOpen ? "wrap" : "nowrap",
         whiteSpace: inputOpen ? undefined : "nowrap",
-        gap: "var(--space-icon)",
+        gap: "var(--nx-sp-1)",
         width: inputOpen ? "min(420px, calc(100vw - 16px))" : "max-content",
         maxWidth: "calc(100vw - 16px)",
         maxHeight: "calc(var(--app-viewport-height, 100dvh) - 16px)",
@@ -1224,39 +1172,37 @@ function FileSelectionQuotePopover({
     >
       {inputOpen ? (
         <fieldset disabled={submitting} aria-busy={submitting} style={{ width: "100%", minWidth: 0, margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)" }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: TEXT.sm, fontWeight: 600 }}>{t("chat.askInNewChat")}</span>
-            <button type="button" className="pw-iconbtn sm" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={submitting} onClick={closeInput} style={{ border: "none" }}>
-              <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+            <button type="button" className="d-iconbtn" title={t("i18n.close")} aria-label={t("i18n.close")} disabled={submitting} onClick={closeInput}>
+              <i data-ico="x" data-size="14"></i>
             </button>
           </div>
           <ChatInput ref={chatInputRef} compact onSend={askInNewChat} onAbort={closeInput} isStreaming={false} />
-          {error && <div role="alert" style={{ color: "var(--danger)", fontSize: TEXT.sm, overflowWrap: "anywhere" }}>{error}</div>}
+          {error && <div role="alert" style={{ color: "var(--nx-danger)", fontSize: TEXT.sm, overflowWrap: "anywhere" }}>{error}</div>}
         </fieldset>
       ) : <>
         <button
           type="button"
-          className="pw-btn sm"
+          className="d-btn sm"
           title={t("chat.askInCurrent")}
           aria-label={t("chat.askInCurrent")}
           onPointerDown={(event) => event.preventDefault()}
           onClick={onAskInCurrent}
-          style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
         >
-          <span className="pw-ico"><i data-ico="at-sign" data-size="14"></i></span>
+          <i data-ico="at-sign" data-size="14"></i>
           <span>{t("chat.askInCurrent")}</span>
         </button>
         {onAskInNewChat && (
           <button
             type="button"
-            className="pw-btn sm"
+            className="d-btn sm"
             title={t("chat.askInNewChat")}
             aria-label={t("chat.askInNewChat")}
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => toggleInput(true)}
-            style={{ height: 35, flex: "0 0 auto", padding: "0 10px", fontSize: TEXT.sm, fontWeight: 500 }}
           >
-            <span className="pw-ico"><i data-ico="git-fork" data-size="14"></i></span>
+            <i data-ico="git-fork" data-size="14"></i>
             <span>{t("chat.askInNewChat")}</span>
           </button>
         )}
@@ -1268,6 +1214,9 @@ function FileSelectionQuotePopover({
 
 function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMentionLines, onAskInNewChat, watchEnabled = true }: Props) {
   const { t } = useI18n();
+  // M-06 —— 手机档同一个查看器换 m-* 形态。
+  const isMobile = useIsMobile();
+  const skin = viewerSkin(isMobile);
   const [watching, setWatching] = useState(false);
   const [bust, setBust] = useState(0);
   const [size, setSize] = useState<number | null>(null);
@@ -1499,83 +1448,65 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
   }, [clearFrameSelection, cwd, filePath, frameSelection, onMentionLines, sourceSessionId]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--s3)",
-          padding: "4px 16px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: TEXT.xs,
-          color: "var(--text-dim)",
-          background: "var(--bg)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={filePath}>
+    <div className={skin.shellClass} style={skin.shellStyle}>
+      <div className={skin.barClass}>
+        <i data-ico="file-text" data-size="13"></i>
+        <span className={skin.pathClass} title={filePath}>
           {getRelativeFilePath(filePath, cwd)}
         </span>
-        <span style={{ marginLeft: "auto" }}>{ext === "docx" ? "docx preview" : "pdf"}</span>
-        {size != null && <span>{formatSize(size)}</span>}
+        <span className={skin.badge("mute")}>{ext === "docx" ? "docx preview" : "pdf"}</span>
+        {size != null && <span className={skin.badge("mute")}>{formatSize(size)}</span>}
+        <span className={skin.grow} />
         {/* fork:gap-viewer-zoom — 只给 PDF 加缩放：DOCX 走的是自己排版的 HTML，不需要。
             通过 fragment 驱动内置阅读器，按钮步进避免每次滚轮都重载文档。 */}
         {isPdf && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-tight)" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-1)" }}>
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className={skin.iconBtn}
               onClick={() => setPdfZoom((value) => stepZoom(value, -1))}
               disabled={pdfZoom <= ZOOM_MIN}
               aria-label={t("i18n.zoomOut")}
               title={t("i18n.zoomOut")}
             >
-              −
+              <i data-ico="zoom-out" data-size="13"></i>
             </button>
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className={skin.badge("mute")}
               onClick={() => setPdfZoom(1)}
               aria-label={t("i18n.zoomReset")}
               title={t("i18n.zoomReset")}
-              style={{ fontVariantNumeric: "tabular-nums", minWidth: 44 }}
+              style={{ fontVariantNumeric: "tabular-nums", minWidth: 44, cursor: "pointer" }}
             >
               {formatZoomPercent(pdfZoom)}
             </button>
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className={skin.iconBtn}
               onClick={() => setPdfZoom((value) => stepZoom(value, 1))}
               disabled={pdfZoom >= ZOOM_MAX}
               aria-label={t("i18n.zoomIn")}
               title={t("i18n.zoomIn")}
             >
-              +
+              <i data-ico="zoom-in" data-size="13"></i>
             </button>
           </span>
         )}
-        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
+        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} mobile={isMobile} />
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: watching ? "var(--success)" : "var(--text-dim)", flexShrink: 0 }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "var(--nx-sp-1)", flexShrink: 0 }}
         >
-          <span
-            style={{
-              width: "var(--dot-md)",
-              height: "var(--dot-md)",
-              borderRadius: "50%",
-              background: watching ? "var(--success)" : "var(--border)",
-              display: "inline-block",
-              boxShadow: watching ? "0 0 4px var(--success)" : "none",
-            }}
-          />
-          {watching ? "live" : "static"}
+          <span className={`${skin.dot}${watching ? " ok" : ""}`} />
+          <span className={skin.tinyFaint}>{watching ? "live" : "static"}</span>
         </span>
       </div>
-      <div style={{ flex: 1, minHeight: 0, background: "var(--bg-panel)" }}>
+      <div className={skin.scrollClass} style={{ background: "var(--nx-panel)" }}>
         {error ? (
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--s5)", color: "var(--danger)", fontSize: TEXT.md, textAlign: "center" }}>
-            {error}
+          <div className={skin.emptyClass} style={{ height: "100%" }}>
+            <div className={skin.emptyIco}><i data-ico="triangle-alert" data-size="20"></i></div>
+            <div className={skin.emptyTitle}>{error}</div>
           </div>
         ) : (
           <iframe
@@ -1585,7 +1516,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             sandbox={isPdf ? undefined : "allow-same-origin"}
             title={t("i18n.previewFile", { file: getFileName(filePath) })}
             onLoad={isPdf ? undefined : attachFrameSelection}
-            style={{ width: "100%", height: "100%", border: "none", background: isPdf ? "var(--bg)" : "var(--n-surface)" }}
+            style={{ width: "100%", height: "100%", border: "none", background: isPdf ? "var(--nx-canvas)" : "var(--n-surface)" }}
           />
         )}
       </div>
@@ -1688,6 +1619,8 @@ function TextFileViewer({
   const { isDark } = useTheme();
   const isMobile = useIsMobile();
   const { t } = useI18n();
+  // D-06 帧 A：模式文案走 i18n（源码 / 预览），不再是硬编码英文。
+  const displayModeLabel = (mode: DisplayMode) => (mode === "source" ? t("i18n.source") : t("i18n.preview"));
   const [data, setData] = useState<FileData | null>(null);
   const [gitDiff, setGitDiff] = useState<GitFileDiffResponse | null>(null);
   const [gitDiffLoading, setGitDiffLoading] = useState(false);
@@ -2432,18 +2365,36 @@ function TextFileViewer({
     loading,
   ]);
 
+  const skin = viewerSkin(isMobile);
+
   if ((loading && !data) || (diffOpen && gitDiffLoading && !data)) {
     return (
-      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: TEXT.md }}>
-        {t("i18n.loading")}
+      <div className={skin.shellClass} style={skin.shellStyle}>
+        <div className={skin.barClass}>
+          <span className={skin.pathClass} title={filePath}>{getRelativeFilePath(filePath, cwd)}</span>
+        </div>
+        <div className={skin.scrollClass} style={{ padding: "var(--nx-sp-2)" }}>
+          <div className={isMobile ? "m-skel-list" : "d-skel-list"}>
+            <div className={isMobile ? "m-skel m-skel-50" : "d-skel d-skel-40"} />
+            <div className={isMobile ? "m-skel m-skel-50" : "d-skel d-skel-40"} />
+            <div className={isMobile ? "m-skel m-skel-block" : "d-skel d-skel-40"} />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error && !isDeletedDiff) {
     return (
-      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--danger)", fontSize: TEXT.md }}>
-        {error}
+      <div className={skin.shellClass} style={skin.shellStyle}>
+        <div className={skin.barClass}>
+          <i data-ico="triangle-alert" data-size="13" style={{ color: "var(--nx-danger)" }}></i>
+          <span className={skin.pathClass} title={filePath}>{getRelativeFilePath(filePath, cwd)}</span>
+        </div>
+        <div className={skin.emptyClass} style={{ flex: 1 }}>
+          <div className={skin.emptyIco}><i data-ico="triangle-alert" data-size="20"></i></div>
+          <div className={skin.emptyTitle}>{error}</div>
+        </div>
       </div>
     );
   }
@@ -2462,45 +2413,121 @@ function TextFileViewer({
     ? t("files.deleted")
     : `${language} · ${lines.length} lines · ${formatSize(data.size)}`;
 
+  /* M-06 帧 B · 手机档的分段：源码 / 差异 / 预览，三等宽，默认落在第一格「源码」。
+     与 Web 的顺序一致（画板页脚第三条）。差异在手机上**只读**——它就是桌面那份
+     `diffOpen` 覆盖层，同一个 state、同一份 patch 解析，所以行为完全一致，
+     只是从「头行里的一枚钮」升成「分段里的第三格」。 */
+  const mobileSegments: Array<{ key: string; label: string; active: boolean; onSelect: () => void }> = [
+    {
+      key: "source",
+      label: displayModeLabel("source"),
+      active: !diffOpen && effectiveDisplayMode === "source",
+      onSelect: () => { updateDisplayMode("source"); if (diffOpen) updateDiffOpen(false); },
+    },
+    ...(hasGitDiff || isDeletedDiff
+      ? [{
+          key: "diff",
+          label: t("files.compareHead"),
+          active: diffOpen,
+          onSelect: () => updateDiffOpen(!diffOpen),
+        }]
+      : []),
+    ...(hasPreview || isDelimitedText
+      ? [{
+          key: "preview",
+          label: displayModeLabel("preview"),
+          active: !diffOpen && effectiveDisplayMode === "preview",
+          onSelect: () => { updateDisplayMode("preview"); if (diffOpen) updateDiffOpen(false); },
+        }]
+      : []),
+  ];
+
   return (
-    <div data-expanded={isExpanded || undefined} className="file-viewer-shell" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {/* fork:design-system SW-04 —— 头行 = 画板 30/52 的 pw-viewer-head：
-          pw-ico + pw-mono 路径 + pw-badge 元信息 + 6px 同步点 + grow + 动作区。 */}
-      <div className="pw-viewer-head" style={{ flexShrink: 0 }}>
-        <span className="file-viewer-path pw-mono" title={filePath}>
+    <div
+      data-expanded={isExpanded || undefined}
+      /* M-06 —— 手机档是 `inset:0` 全屏覆盖（帧 B 第一条）；`.file-viewer-shell`
+         保留：globals.css 的 `[data-expanded]` 全屏规则与 e2e 选择器都挂在它上面。 */
+      className={`file-viewer-shell ${isMobile ? "m-viewer is-open" : "d-viewer"}`}
+      style={isMobile ? MOBILE_VIEWER_STYLE : undefined}
+    >
+      {/* M-06 帧 B —— 手机档顶栏：完整路径（等宽、单行省略）+ 复制路径 + 下载。
+          桌面那条 `.d-viewer-bar`（元信息徽章 / 同步点 / 模式组 / 动作簇）在
+          手机上换成 `.m-viewer-bar` + 下面的 `.m-seg` + 底部 `.m-vbar`。 */}
+      {isMobile ? (
+        <>
+          <div className="m-viewer-bar">
+            <span className="file-viewer-path m-viewer-path" title={filePath}>
+              {getRelativeFilePath(filePath, cwd)}
+            </span>
+            <button
+              type="button"
+              className="m-top-btn"
+              title={t("files.copyPath")}
+              aria-label={t("files.copyPath")}
+              onClick={() => { void copyText(filePath); }}
+            >
+              <i data-ico="link" data-size="15" aria-hidden="true"></i>
+            </button>
+            {!isDeletedDiff && (
+              <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} mobile />
+            )}
+          </div>
+          {mobileSegments.length > 1 && (
+            <div className="m-seg" style={{ margin: "0 12px" }} aria-label={t("i18n.fileViewMode")}>
+              {mobileSegments.map((segment) => (
+                <button
+                  key={segment.key}
+                  type="button"
+                  className={segment.active ? "is-on" : undefined}
+                  aria-pressed={segment.active}
+                  onClick={segment.onSelect}
+                >
+                  {segment.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+      <>
+      {/* fork:v5-landing —— 头行 = D-06 帧 A 的 `.d-viewer-bar`：
+          路径 + 元信息徽章 + 同步点 + 动作区 + 模式 `.d-seg`。 */}
+      <div className="d-viewer-bar">
+        <span className="file-viewer-path d-viewer-path" title={filePath}>
           {getRelativeFilePath(filePath, cwd)}
         </span>
 
-        <span className="file-viewer-meta pw-badge" title={metadata}>{metadata}</span>
+        <span className="file-viewer-meta d-badge mute" title={metadata}>{metadata}</span>
         {!isDeletedDiff && (
           <span
             title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
             aria-label={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
-            className={`pw-live${watching ? " on" : ""}`}
+            className={`d-dot${watching ? " ok" : ""}`}
           />
         )}
 
-        <div className="file-viewer-controls">
+        <div className="file-viewer-controls d-row">
           {/* fork:ui-20 — copy path / reveal in the file manager / open with the default app. */}
           <PathActions path={filePath} compact />
           {displayModes.length > 1 && (
-            <div className="file-viewer-mode-switch" aria-label={t("i18n.fileViewMode")}>
+            /* e2e/file-viewer-modes.mjs 用 `.file-viewer-mode-switch` /
+               `.file-viewer-mode-button` 定位模式组；旧视觉由 `.d-seg` 覆盖，
+               只有它没声明的 border 需要归零。 */
+            <div className="d-seg file-viewer-mode-switch" style={{ border: 0 }} aria-label={t("i18n.fileViewMode")}>
               {displayModes.map((mode) => {
                 const active = !diffOpen && effectiveDisplayMode === mode;
-                // 画板 52 帧 D：当前模式是 accent 徽章，其余模式才是可点按钮。
-                return active ? (
-                  <span key={mode} className="pw-badge accent">{DISPLAY_MODE_LABELS[mode]}</span>
-                ) : (
+                // D-06 帧 A：模式组里当前项带 `.is-on`；点自己等价于重选。
+                return (
                   <button
                     key={mode}
                     type="button"
+                    className={`file-viewer-mode-button${active ? " is-on" : ""}`}
                     onClick={() => {
                       updateDisplayMode(mode);
                       if (diffOpen) updateDiffOpen(false);
                     }}
-                    className="pw-btn sm"
                   >
-                    {DISPLAY_MODE_LABELS[mode]}
+                    {displayModeLabel(mode)}
                   </button>
                 );
               })}
@@ -2516,15 +2543,15 @@ function TextFileViewer({
               title={t("files.compareHead")}
               aria-label={t("files.compareHead")}
               aria-pressed={diffOpen}
-              className="pw-btn sm"
-              style={diffOpen ? { background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent-text)" } : undefined}
+              className={`d-btn sm file-viewer-diff-toggle${diffOpen ? " is-on" : ""}`}
+              style={diffOpen ? { background: "var(--nx-accent-soft)", borderColor: "var(--nx-accent)", color: "var(--nx-accent)" } : undefined}
             >
-              <span className="pw-ico"><i data-ico="git-compare" data-size="13"></i></span>
+              <i data-ico="git-compare" data-size="13"></i>
               {t("files.compareHead")}
             </button>
           )}
 
-          <div className="file-viewer-actions">
+          <div className="file-viewer-actions d-row">
             {(onAtMention || onMentionLines) && (
               <button
                 type="button"
@@ -2546,21 +2573,21 @@ function TextFileViewer({
                 }
                 aria-label={t("files.mention")}
                 disabled={!onAtMention && !onMentionLines}
-                className="pw-iconbtn sm"
+                className="d-iconbtn"
               >
-                <MentionIcon />
+                <i data-ico="at-sign" data-size="14"></i>
               </button>
             )}
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className="d-iconbtn"
               title={t(isExpanded ? "files.collapse" : "files.expand")}
               aria-label={t(isExpanded ? "files.collapse" : "files.expand")}
               aria-pressed={isExpanded}
               onClick={() => setIsExpanded((value) => !value)}
             >
               {/* fork:ui-expand — ⤢ 把文档铺满整个应用窗口（原来的 Fullscreen API 按钮已并入这里）。 */}
-              <span className="pw-ico"><i data-ico={isExpanded ? "minimize-2" : "maximize-2"} data-size="14"></i></span>
+              <i data-ico={isExpanded ? "minimize-2" : "maximize-2"} data-size="14"></i>
             </button>
             {!liveEditing && !diffOpen && effectiveDisplayMode === "source" && (
               <>
@@ -2570,10 +2597,10 @@ function TextFileViewer({
                   title={wrapLines ? t("i18n.disableWrap") : t("i18n.enableWrap")}
                   aria-label={wrapLines ? t("i18n.disableWrap") : t("i18n.enableWrap")}
                   aria-pressed={wrapLines}
-                  className="pw-iconbtn sm"
+                  className="d-iconbtn"
                   style={{
-                    background: wrapLines ? "var(--bg-selected)" : "transparent",
-                    color: wrapLines ? "var(--text)" : "var(--text-muted)",
+                    background: wrapLines ? "var(--nx-selected)" : "transparent",
+                    color: wrapLines ? "var(--nx-text)" : "var(--nx-text-3)",
                   }}
                 >
                   {/* icons.js 未注册 wrap-text（lucide 官名 text-wrap），此处保留内联 lucide 路径 —— 登记图标集缺口 */}
@@ -2591,26 +2618,33 @@ function TextFileViewer({
           {!isDeletedDiff && <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />}
         </div>
       </div>
+      </>
+      )}
 
       {data?.truncated && (
-        <div
-          className="file-viewer-load-more"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "var(--space-loose)",
-            padding: "var(--space-ctrl) 8px",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            color: "var(--text-dim)",
-            fontSize: TEXT.xs,
-          }}
-        >
-          <span>{formatSize(data.nextOffset)} / {formatSize(data.size)}</span>
+        isMobile ? (
+          <div className="m-banner" style={{ margin: "8px 12px 0" }}>
+            <span className="m-t-xs m-t-faint">{formatSize(data.nextOffset)} / {formatSize(data.size)}</span>
+            <span className="m-grow" />
+            <button
+              type="button"
+              className="m-picktag"
+              disabled={loadingMore}
+              onClick={() => {
+                setLoadingMore(true);
+                void fetchContent(filePath, data.nextOffset).finally(() => setLoadingMore(false));
+              }}
+            >
+              {loadingMore ? t("i18n.loading") : t("i18n.loadMore")}
+            </button>
+          </div>
+        ) : (
+        <div className="d-banner">
+          <span className="d-t-xs d-t-faint">{formatSize(data.nextOffset)} / {formatSize(data.size)}</span>
+          <span className="d-grow" />
           <button
             type="button"
-            className="file-viewer-mode-button"
+            className="d-btn sm"
             disabled={loadingMore}
             onClick={() => {
               setLoadingMore(true);
@@ -2620,17 +2654,20 @@ function TextFileViewer({
             {loadingMore ? t("i18n.loading") : t("i18n.loadMore")}
           </button>
         </div>
+        )
       )}
 
       {/* Content area */}
       <div
         ref={contentRef}
-        className="file-viewer-content"
+        /* `file-viewer-content` 是 e2e / 脚本的选择器（`file-viewer-content` 非 pw 钩子），
+           两种形态都保留；视觉壳按断点在 `.d-viewer-scroll` / `.m-viewer-scroll` 之间换。 */
+        className={`file-viewer-content ${isMobile ? "m-viewer-scroll" : "d-viewer-scroll"}`}
         onScroll={(event) => {
           viewerStateRef.current.scrollTop = event.currentTarget.scrollTop;
           viewerStateRef.current.scrollLeft = event.currentTarget.scrollLeft;
         }}
-        style={{ flex: 1, overflow: "auto", background: "var(--bg)", paddingBottom: data?.truncated ? 48 : undefined }}
+        style={{ background: "var(--nx-canvas)", paddingBottom: data?.truncated ? 48 : undefined }}
       >
         {shouldShowUnsupportedCard(filePath) ? (
           // fork:gap-unsupported-preview — 二进制/未知类型不再以文本呈现（那是乱码），
@@ -2653,7 +2690,7 @@ function TextFileViewer({
             {data !== null && mountedStages.includes("source") && (
               <div data-file-stage="source" hidden={diffOpen || effectiveDisplayMode !== "source"} style={{ height: "100%", minHeight: 0 }}>
                 {/* fix:viewer-stage-fill —— 这一层必须**自己给高度**。`CodeFileEditor` 的根是
-                    `.pw-viewer`（flex 列 + `height: 100%`），而本层原来是 auto 高度，
+                    `.d-viewer`（flex 列 + `height: 100%`），而本层原来是 auto 高度，
                     于是 100% 落回 auto：编辑器只剩内容高，底栏（Ln/Col · EOL · UTF-8）
                     浮在面板中间，下面留一大片空白（用户实测：「编辑页面为啥下面空白那么多」）。
                     只给 source 层高度：preview 层里的 markdown 是**随内容长**的，
@@ -2684,7 +2721,7 @@ function TextFileViewer({
                       width: wrapLines ? "100%" : "max-content",
                       minWidth: "100%",
                       minHeight: "100%",
-                      background: "var(--bg)",
+                      background: "var(--nx-canvas)",
                       ...FILE_CODE_STYLE,
                     }}
                   >
@@ -2701,7 +2738,7 @@ function TextFileViewer({
                   <iframe
                     srcDoc={content}
                     sandbox="allow-scripts"
-                    style={{ width: "100%", height: "100%", border: "none", background: "var(--bg)" }}
+                    style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-canvas)" }}
                     title={t("i18n.htmlPreview")}
                   />
                 ) : isMarkdown ? (
@@ -2719,31 +2756,88 @@ function TextFileViewer({
             {/* A deleted file has no content to render behind the overlay, so say what
                 happened instead of leaving an empty pane when the comparison is closed. */}
             {data === null && isDeletedDiff && !diffOpen && (
-              <div className="file-viewer-deleted-notice pw-prow pw-desc" role="status">{t("files.deletedNotice")}</div>
+              <div className="d-empty" role="status">
+                <div className="d-empty-ico"><i data-ico="file-clock" data-size="20"></i></div>
+                <div className="d-empty-t">{t("files.deletedNotice")}</div>
+              </div>
             )}
             {diffOpen && (
               <div className="file-viewer-diff-overlay">
-                {/* fork:design-system SW-05 —— 覆盖层横幅 = pw-viewer-head 变体（ico + 文案 + grow + pw-btn sm）。 */}
-                <div className="file-viewer-diff-banner pw-viewer-head" role="status">
-                  <span className="pw-ico"><i data-ico={isDeletedDiff ? "file-diff" : "git-compare"} data-size="14"></i></span>
-                  <span>{isDeletedDiff ? t("files.deletedNotice") : t("files.compareHead")}</span>
-                  <span className="grow" />
+                {/* fork:v5-landing —— 覆盖层横幅 = D-06b 帧 B 的 `.d-banner`（ico + 文案 + grow + `.d-btn`）。 */}
+                <div className="file-viewer-diff-banner d-banner" role="status">
+                  <i data-ico={isDeletedDiff ? "file-diff" : "git-compare"} data-size="14"></i>
+                  <span className="d-grow">{isDeletedDiff ? t("files.deletedNotice") : t("files.compareHead")}</span>
                   <button
                     type="button"
                     onClick={() => updateDiffOpen(false)}
-                    className="pw-btn sm"
+                    className="d-btn sm d-banner-btn"
                   >
                     {t("files.backToSource")}
                   </button>
                 </div>
-                {hasGitDiff
-                  ? <DiffView patch={gitDiff.patch!} />
-                  : <div style={{ padding: "12px 16px", fontSize: TEXT.sm, color: "var(--text-dim)" }}>{t("i18n.loading")}</div>}
+                <div className="d-code" style={{ border: 0, borderRadius: 0 }}>
+                  <div className="d-code-body" style={{ padding: "var(--nx-sp-2) 0" }}>
+                    {hasGitDiff
+                      ? <DiffView patch={gitDiff.patch!} />
+                      : <div className="d-t-xs d-t-faint" style={{ padding: "12px 16px" }}>{t("i18n.loading")}</div>}
+                  </div>
+                </div>
               </div>
             )}
           </>
         )}
       </div>
+      {/* M-06 帧 B · 底部动作条三项等分。桌面上这些动作挤在 `.d-viewer-bar` 的
+          动作簇里（44px 命中区在 390 宽上不够），手机上搬到常驻底条：
+            复制路径 = 顶栏那枚 link 的同一个动作；
+            交给会话 = 头行那枚 `at-sign` 的同一个 handler（有选区就提选区，
+              否则提整个文件 —— 与桌面逐字一致）；
+            折行 = 头行那枚折行开关的同一个 toggle。
+          画板第三格写的是「分享」，本产品没有分享动作（那是新行为），换成已存在的
+          「折行」—— 折行的代码没法复制，所以它在手机上比分享更该在这一排里。
+          `file-viewer-shell` 保留：globals.css 的 `[data-expanded]` 全屏规则挂在它上面。 */}
+      {isMobile && (
+        <div className="m-vbar">
+          <button
+            type="button"
+            className="m-menu-row"
+            onClick={() => { void copyText(filePath); }}
+          >
+            <i data-ico="copy" data-size="15" aria-hidden="true"></i>{t("files.copyPath")}
+          </button>
+          <button
+            type="button"
+            className="m-menu-row"
+            disabled={!onAtMention && !onMentionLines}
+            onClick={() => {
+              if (selectedLineRange && onMentionLines) mentionLineRange(selectedLineRange);
+              else onAtMention?.(getRelativeFilePath(filePath, cwd), false);
+            }}
+          >
+            <i data-ico="square-pen" data-size="15" aria-hidden="true"></i>{t("files.mention")}
+          </button>
+          {!liveEditing && effectiveDisplayMode === "source" && (
+            <button
+              type="button"
+              className={`m-menu-row${wrapLines ? " is-on" : ""}`}
+              aria-pressed={wrapLines}
+              title={wrapLines ? t("i18n.disableWrap") : t("i18n.enableWrap")}
+              onClick={toggleWrapLines}
+            >
+              {/* icons.js 未注册 wrap-text（lucide 官名 text-wrap），与头行那枚
+                  同款登记缺口：这里复用同一段内联 lucide 路径。 */}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M3 12h15a3 3 0 1 1 0 6h-4" />
+                <path d="m16 16-2 2 2 2" />
+                <path d="M3 18h7" />
+              </svg>
+              {wrapLines ? t("i18n.disableWrap") : t("i18n.enableWrap")}
+            </button>
+          )}
+        </div>
+      )}
+
       {selectionAction && !locationTarget && onMentionLines && (
         <FileSelectionQuotePopover
           top={selectionAction.top}

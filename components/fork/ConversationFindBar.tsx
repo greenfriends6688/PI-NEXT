@@ -34,10 +34,9 @@ export interface ConversationFindBarProps {
 }
 
 /**
- * fork:design-components —— 三个步进/关闭钮 = 画板 22 查找条的 `.pw-iconbtn.sm`
- * （22px 方钮 / radius-4 / hover 出容器），图标走 `<i data-ico>`，零手绘 svg。
- * 画板里是 `<span>`（静态件），产品要键盘可达，所以换成 `button`；UA 归零由
- * fork-ui.css 的 `@layer fork-reset`（`button.pw-iconbtn`）承担。
+ * fork:design-components —— 三个步进/关闭钮 = 画板 D-03c 帧 D 查找条的 `.d-iconbtn`
+ * （28px 方钮 / 图标走 `<i data-ico>`，零手绘 svg）。
+ * 画板里是 `<button>`（浮层里的图标钮本来就是 button）。
  */
 function FindIcon({ ico, label, disabled, onClick }: {
   ico: string;
@@ -48,13 +47,13 @@ function FindIcon({ ico, label, disabled, onClick }: {
   return (
     <button
       type="button"
-      className="pw-iconbtn sm"
+      className="d-iconbtn"
       title={label}
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
     >
-      <span className="pw-ico"><i data-ico={ico} data-size="13" aria-hidden="true"></i></span>
+      <i data-ico={ico} data-size="13" aria-hidden="true"></i>
     </button>
   );
 }
@@ -110,17 +109,17 @@ export function ConversationFindBar({
     }
   }, [onClose, onNext, onPrevious]);
 
-  /* fork:design-components —— 画板 22「会话内查找条」：外壳 `.pw-pop`（padding 0），
-     内层一行 `.pw-inline`，输入框 `.pw-input`，三个步进/关闭钮 `.pw-iconbtn.sm`，
-     命中计数 `.pw-mono`（等宽 + tabular-nums）。无结果时整条转 warning 色
-     （画板 22 第二帧的 border-color: var(--warning) + 警告色图标/文案）。
-     只有「悬浮在转录右上」的定位留内联 —— 它是挂点行为，不是视觉。 */
+  /* fork:design-components —— 画板 D-03c 帧 D「会话内查找条」：外壳 `.d-pop-float`，
+     内层一行 `.d-row`，搜索框 `.d-searchfield`，三个步进/关闭钮 `.d-iconbtn`，命中计数
+     `.d-mono.d-t-xs.d-t-faint`。无结果时整条转 warning 色（画板第二帧的
+     border-color: var(--nx-warning) + 警告色文案）。partial 态给 `.d-badge.warn` 与一条
+     警告色说明。只有「悬浮在转录顶部居中」的定位留内联 —— 它是挂点行为，不是视觉。 */
   const noResults = hasQuery && !hasHits;
   return (
     <div
       role="search"
       aria-label={t("chat.findLabel")}
-      className={`pw-pop conversation-find-bar${noResults ? " is-empty" : ""}`}
+      className={`d-pop-float conversation-find-bar${noResults ? " is-empty" : ""}`}
       style={{
         position: "absolute",
         top: 10,
@@ -128,31 +127,27 @@ export function ConversationFindBar({
         transform: "translateX(-50%)",
         zIndex: 60,
         width: "min(430px, calc(100% - 20px))",
-        padding: 0,
-        borderColor: noResults ? "var(--warning)" : undefined,
+        borderColor: noResults ? "var(--nx-warning)" : undefined,
       }}
     >
-      <div className="pw-inline" style={{ padding: "var(--s1) var(--s2)" }}>
-        <span className="pw-ico" style={noResults ? { color: "var(--warning)" } : undefined}>
-          <i data-ico="search" data-size="14" aria-hidden="true"></i>
-        </span>
-
-        <input
-          ref={inputRef}
-          className="pw-input"
-          type="text"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t("chat.findPlaceholder")}
-          aria-label={t("chat.findLabel")}
-          spellCheck={false}
-          autoComplete="off"
-          style={{ minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent" }}
-        />
+      <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
+        <div className="d-searchfield d-grow">
+          <i data-ico="search" data-size="13" aria-hidden="true"></i>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t("chat.findPlaceholder")}
+            aria-label={t("chat.findLabel")}
+            spellCheck={false}
+            autoComplete="off"
+          />
+        </div>
 
         {truncated && hasQuery && (
-          <span className="pw-mono" title={t("chat.findTruncatedHint")} style={{ flexShrink: 0, color: "var(--warning)", fontSize: "var(--text-meta)" }}>
+          <span className="d-badge warn" title={t("chat.findTruncatedHint")}>
             {t("chat.findTruncated")}
           </span>
         )}
@@ -161,8 +156,8 @@ export function ConversationFindBar({
           <span
             role="status"
             aria-live="polite"
-            className="pw-mono"
-            style={{ flexShrink: 0, color: "var(--warning)", fontSize: "var(--text-meta)", whiteSpace: "nowrap" }}
+            className="d-mono d-t-xs"
+            style={{ flexShrink: 0, color: "var(--nx-warning)", whiteSpace: "nowrap" }}
           >
             {t("chat.findNoResults")}
           </span>
@@ -170,8 +165,8 @@ export function ConversationFindBar({
           <span
             role="status"
             aria-live="polite"
-            className="pw-mono pw-dim"
-            style={{ flexShrink: 0, minWidth: 48, textAlign: "center", fontSize: "var(--text-meta)" }}
+            className="d-mono d-t-xs d-t-faint"
+            style={{ flexShrink: 0, minWidth: 48, textAlign: "center" }}
           >
             {countText}
           </span>
@@ -181,6 +176,12 @@ export function ConversationFindBar({
         <FindIcon ico="chevron-down" label={t("chat.findNext")} disabled={!hasHits} onClick={onNext} />
         <FindIcon ico="x" label={t("chat.findClose")} onClick={onClose} />
       </div>
+
+      {truncated && hasQuery && (
+        <div className="d-t-xs" style={{ color: "var(--nx-warning)", padding: "var(--nx-sp-2) var(--nx-sp-3) 0" }}>
+          {t("chat.findTruncatedHint")}
+        </div>
+      )}
     </div>
   );
 }

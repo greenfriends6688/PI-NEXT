@@ -24,11 +24,12 @@ test("shows the project name and one card per starter", () => {
   assert.match(html, /pi-web/);
   assert.doesNotMatch(html, /\/Users\/me\/projects\/pi-web\?/);
   assert.equal((html.match(/<button/g) ?? []).length, 4);
-  // fork:design-components —— 起始卡直接用画板 01 的 .pw-starters/.pw-starter 组件，
-  // 桌面端 2×2 列布局由 board.css 的类规则承担（不再是内联 style）。
-  assert.match(html, /pw-starters/);
-  // 注意 .pw-starters 容器名也含 pw-starter 子串，用引号边界只数按钮本身。
-  assert.equal((html.match(/pw-starter"/g) ?? []).length, 4);
+  // fork:v5-landing —— 起始卡直接用画板 **D-01 帧 A** 的 .d-grid2 > .d-store-card 组件：
+  // 封面图标 + 标题 + 描述 + 「一键填入」页脚，桌面端 2×2 列由 system.css 承担。
+  assert.match(html, /d-grid2/);
+  assert.equal((html.match(/d-store-card"/g) ?? []).length, 4);
+  assert.equal((html.match(/d-store-cover/g) ?? []).length, 4);
+  assert.equal((html.match(/d-store-foot/g) ?? []).length, 4);
 });
 
 test("falls back to the generic title without a cwd and stacks cards on mobile", () => {

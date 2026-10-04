@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-26b · 系统态补全（目录选择 / 错误页 / 拖放 / 扩展请求 / worktree） · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-26b · 系统态补全（目录选择 · 应用级错误页 · 拖放落区 · 扩展请求 · worktree）</h1>
+  <p>
+    D-26 定的是「用户看得见的模态与提示」，这一张补的是<b>产品里真实存在、但没人画过的四类系统界面</b>：
+    <b>目录选择器</b>（主路径根本不是自家弹窗）、<b>两级应用错误页</b>（一层有主题一层没有）、
+    <b>拖放落区</b>（三态 + 四条判定规则）、<b>扩展请求四态</b>（带倒计时），
+    外加 <b>worktree 切换器</b>与项目信任对话框的三态。
+    共同纪律只有一条：<b>系统替我们做的事，不许我们重画</b>；<b>我们替系统画的每一处失败，都必须给出下一步</b>。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：全局 / 系统态</span>
+    <span class="d-tag">组件：DirectoryPicker · app/error · global-error · useDragDrop · ProjectTrustDialog · worktree 切换器</span>
+    <span class="d-tag">状态：原生选框 / 自绘回退 / 根级崩溃 / 拖放拒绝 / 请求超时 / 未提交强制确认</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 目录选择器两态：主路径 = 系统原生选框（不画系统对话框）· 回退 = 自绘浏览器的五种行内状态<span class="d-grow"></span>五种状态都是行内切换，不换弹窗、不丢已输入的路径</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)" data-demo-scope>
+
+              <!-- 主路径 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="monitor" data-size="15"></i>
+                  <span class="d-grow">主路径 · 交给系统</span>
+                  <span class="d-badge ok">本机首选</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span class="d-grow">本机跑的时候<b>根本不弹自家窗口</b>：点「选择目录」直接拉起操作系统的文件夹选框（macOS choose folder · Windows FolderBrowserDialog · Linux zenity / kdialog）。<b>系统对话框本身不画</b> —— 那是操作系统的东西，不归我们设计。</span>
+                    <button class="d-btn sm ghost d-banner-btn" data-demo-open="b-native">为什么这样排</button>
+                  </div>
+                  <div class="d-tbl-wrap">
+                    <table class="d-table">
+                      <thead><tr><th>步</th><th>做什么</th><th>结果</th></tr></thead>
+                      <tbody>
+                        <tr><td class="d-mono">1</td><td class="d-mono">POST /api/cwd/pick</td><td>拉起系统原生选框</td></tr>
+                        <tr><td class="d-mono">2</td><td>返回 <span class="d-mono">cwd</span></td><td>直接采用，<b>不弹任何自家 UI</b></td></tr>
+                        <tr><td class="d-mono">3</td><td>返回 <span class="d-mono">cancelled</span></td><td>什么也不做（用户自己取消的，不追问）</td></tr>
+                        <tr class="is-on"><td class="d-mono">4</td><td>返回 <span class="d-mono">501 fallback</span> 或请求失败</td><td>退到右边的自绘浏览器</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="d-t-xs d-t-faint">触发回退的三种真实情况：浏览器直连本机地址（远程访问）、服务器上没有显示器、Linux 机器上没装 zenity / kdialog。</div>
+                  <div class="d-banner err">
+                    <i data-ico="circle-alert" data-size="14"></i>
+                    <span class="d-grow">系统选框回来之后 —— <span class="d-mono">~/Desktop/PI NEXT</span> <span class="d-badge ok">已选定</span>　它直接进工作区，中间没有任何过渡弹窗。</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 回退 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="folder-open" data-size="15"></i>
+                  <span class="d-grow">回退 · 自绘浏览器</span>
+                  <span class="d-badge warn">系统选框不可用</span>
+                  <span class="d-grow"></span>
+                  <div class="d-seg" data-demo-tabs>
+                    <button class="is-on" data-demo-tab="dp-open">浏览中</button>
+                    <button data-demo-tab="dp-create">新建</button>
+                    <button data-demo-tab="dp-drive">盘符</button>
+                    <button data-demo-tab="dp-del">删除</button>
+                    <button data-demo-tab="dp-dirty">未提交</button>
+                  </div>
+                </div>
+
+                <div class="d-modal-box" style="width:100%">
+                  <div class="d-modal-head">
+                    <i data-ico="folder-open" data-size="16"></i>
+                    <span class="d-grow">选择目录</span>
+                    <button class="d-btn sm"><i data-ico="arrow-up" data-size="13"></i>转到上级目录</button>
+                    <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="14"></i></button>
+                  </div>
+
+                  <div class="d-modal-body">
+                    <div class="d-searchfield">
+                      <i data-ico="folder" data-size="13"></i>
+                      <input class="d-mono" value="/Users/yingjing/Desktop/PI NEXT">
+                      <button class="d-btn sm"><i data-ico="folder-plus" data-size="13"></i>新建文件夹</button>
+                      <button class="d-btn sm">转到</button>
+                    </div>
+
+                    <!-- 浏览中 -->
+                    <section data-demo-pane="dp-open">
+                      <div class="d-tree" data-demo-list>
+                        <button class="d-trow l1" data-demo-select><i data-ico="folder" data-size="14"></i><span class="d-grow">app</span></button>
+                        <button class="d-trow l1 is-on" data-demo-select><i data-ico="folder" data-size="14"></i><span class="d-grow">components</span><span class="d-badge mute">62 项</span></button>
+                        <button class="d-trow l1" data-demo-select><i data-ico="folder" data-size="14"></i><span class="d-grow">design</span></button>
+                        <button class="d-trow l1" data-demo-select><i data-ico="folder" data-size="14"></i><span class="d-grow">lib</span></button>
+                        <button class="d-trow l1" data-demo-select><i data-ico="lock" data-size="14"></i><span class="d-grow d-t-dim">node_modules</span><span class="d-badge mute">无权限</span></button>
+                        <button class="d-trow l1" data-demo-select><i data-ico="folder" data-size="14"></i><span class="d-grow">scripts</span></button>
+                      </div>
+                      <div class="d-row d-t-xs d-t-faint">
+                        <span class="d-dot ok"></span><span class="d-grow">双击进入 · 悬停出「重命名 / 删除」两枚按钮</span>
+                        <span>7 个子目录</span>
+                      </div>
+                    </section>
+
+                    <!-- 新建文件夹 -->
+                    <section data-demo-pane="dp-create" hidden>
+                      <div class="d-searchfield">
+                        <i data-ico="folder-plus" data-size="13"></i>
+                        <input class="d-mono" value="fork/v5-boards" placeholder="文件夹名称">
+                        <button class="d-btn sm ghost">取消</button>
+                        <button class="d-btn sm primary"><i data-ico="check" data-size="13"></i>创建</button>
+                      </div>
+                      <div class="d-tree">
+                        <button class="d-trow l1"><i data-ico="folder" data-size="14"></i><span class="d-grow">app</span></button>
+                        <button class="d-trow l1"><i data-ico="folder" data-size="14"></i><span class="d-grow">components</span></button>
+                        <button class="d-trow l1 is-on"><i data-ico="folder-plus" data-size="14"></i><span class="d-grow d-t-b">fork/v5-boards</span><span class="d-badge mute">待创建</span></button>
+                      </div>
+                      <div class="d-banner warn">
+                        <i data-ico="info" data-size="14"></i>
+                        <span class="d-grow">名称为空时「创建」不可点，并在行内给原因（<span class="d-mono">请输入文件夹名称</span>），不弹一句「操作失败」。创建完就地刷新列表，光标停在刚才那一项上。</span>
+                      </div>
+                    </section>
+
+                    <!-- Windows 盘符 -->
+                    <section data-demo-pane="dp-drive" hidden>
+                      <div class="d-row d-t-xs d-t-faint"><span class="d-badge mute">Windows</span><span class="d-grow">同一个列表组件的第二态：根位置不再是文件夹，而是驱动器</span></div>
+                      <div class="d-tree">
+                        <button class="d-trow l1 is-on"><i data-ico="hard-drive" data-size="14"></i><span class="d-grow">系统盘 (C:)</span><span class="d-badge mute">92 GB 可用</span></button>
+                        <button class="d-trow l1"><i data-ico="hard-drive" data-size="14"></i><span class="d-grow">资料盘 (D:)</span><span class="d-badge mute">1.2 TB 可用</span></button>
+                        <button class="d-trow l1"><i data-ico="hard-drive" data-size="14"></i><span class="d-grow">移动硬盘 (E:)</span><span class="d-badge warn">未挂载时不可选</span></button>
+                        <button class="d-trow l1"><i data-ico="globe" data-size="14"></i><span class="d-grow">网络位置</span></button>
+                      </div>
+                      <div class="d-banner">
+                        <i data-ico="info" data-size="14"></i>
+                        <span class="d-grow">在盘符根上，「转到上级目录」<b>仍然可点</b>（回到盘符列表）而不是禁用 —— 一个把用户关在列表里的按钮是没用的。</span>
+                      </div>
+                    </section>
+
+                    <!-- 删除确认 -->
+                    <section data-demo-pane="dp-del" hidden>
+                      <div class="d-tree">
+                        <button class="d-trow l1"><i data-ico="folder" data-size="14"></i><span class="d-grow">app</span></button>
+                        <button class="d-trow l1 is-on" style="background:color-mix(in srgb, var(--nx-danger) 7%, transparent)">
+                          <i data-ico="trash-2" data-size="14" style="color:var(--nx-danger)"></i>
+                          <span class="d-grow">确定删除“legacy-shim”？</span>
+                          <button class="d-btn sm ghost">取消</button>
+                          <button class="d-btn sm danger">删除</button>
+                        </button>
+                        <button class="d-trow l1"><i data-ico="folder" data-size="14"></i><span class="d-grow">lib</span></button>
+                      </div>
+                      <div class="d-banner err">
+                        <i data-ico="triangle-alert" data-size="14"></i>
+                        <span class="d-grow">删除确认<b>长在那一行上</b>，不弹第二个模态：用户还看得见删的是哪一个文件夹。删除失败（目录非空、无权限）时这一行不消失，把原因留在原位。</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">层级靠底色与图标表达，不用左侧彩色竖线 —— 整张板与门禁都是这条纪律。</div>
+                    </section>
+
+                    <!-- 未提交提示 -->
+                    <section data-demo-pane="dp-dirty" hidden>
+                      <div class="d-searchfield">
+                        <i data-ico="folder" data-size="13"></i>
+                        <input class="d-mono" value="/Users/yingjing/Desktop/PI NEXT/fork/v5-boards">
+                        <button class="d-btn sm">转到</button>
+                      </div>
+                      <div class="d-banner warn">
+                        <i data-ico="triangle-alert" data-size="14"></i>
+                        <span class="d-grow">输入框里的路径和当前所在目录不是同一个，<b>还没回车</b>。此时「选择此文件夹」不可点。</span>
+                      </div>
+                      <div class="d-empty compact">
+                        <div class="d-empty-ico"><i data-ico="folder-search" data-size="20"></i></div>
+                        <div class="d-empty-t">选择前请先打开此路径</div>
+                        <div class="d-empty-s">按钮的 <code>title</code> 写的是这句话本身，而不是「选择当前目录」这种功能名 —— 不可点的按钮必须说清为什么。</div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div class="d-modal-foot">
+                    <button class="d-btn">取消</button>
+                    <span class="d-grow"></span>
+                    <button class="d-btn primary">选择此文件夹</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-pop-foot">
+                自绘浏览器的壳与产品里的 <span class="d-mono">DirectoryPicker.tsx</span> 一一对应：头部（图标 + 标题 + 上一级 + 关闭）·
+                路径行（可输入的路径 + 新建文件夹 + 转到）· 列表（目录 / 盘符两种内容，同一个组件）· 底部（取消 + 选择此文件夹）。
+                <b>键盘与无障碍</b>也在这一层：Esc 关闭、背景 inert、焦点锁在盒子里。
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- 「为什么这样排」 -->
+      <div class="d-pop" data-demo-pop="b-native" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:320px">
+        <div class="d-pop-title">为什么主路径是系统选框</div>
+        <div class="d-pop-body d-t-xs d-t-dim">
+          自绘浏览器能做到系统选框做不到的事：输入路径、新建文件夹、重命名、删除。所以它<b>不是替代品，是补充</b> ——
+          能用系统能力时用系统能力（它有系统级的权限申请、iCloud 位置、最近使用与拖放），拿不到时才自绘。
+          反过来做，用户会先在你的列表里被授权一次、再被系统问一次。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 应用级错误页两级：段级带主题 token · 根级只剩系统色<span class="d-grow"></span>两级都必须给「重试」，差别在样式来源与谁能救它</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-grid2">
+
+                <!-- 段级 -->
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="triangle-alert" data-size="15"></i>
+                    <span class="d-grow">段级 · app/error.tsx</span>
+                    <span class="d-badge info">带主题 token</span>
+                  </div>
+                  <div class="d-card-body">
+                    <div class="d-empty">
+                      <div class="d-empty-ico" style="color:var(--nx-danger)"><i data-ico="triangle-alert" data-size="20"></i></div>
+                      <div class="d-empty-t">界面出错了</div>
+                      <div class="d-empty-s">界面遇到了意外错误。可以先重试；重新加载页面通常也能恢复。</div>
+                      <div class="d-code">
+                        <div class="d-code-head"><span class="d-grow">参考代码</span><button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button></div>
+                        <div class="d-code-body">8f3c1a92e04b7d6c</div>
+                      </div>
+                      <div class="d-row">
+                        <button class="d-btn sm primary"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+                        <button class="d-btn sm"><i data-ico="refresh-cw" data-size="13"></i>重新加载</button>
+                        <button class="d-btn sm ghost"><i data-ico="bug" data-size="13"></i>看控制台</button>
+                      </div>
+                    </div>
+                    <div class="d-pop-foot">生产环境里的 message 被脱敏，只有 <span class="d-mono">digest</span> 能对照服务端日志；完整堆栈留在浏览器控制台 —— 所以「看控制台」这一颗必须一直在。</div>
+                  </div>
+                </div>
+
+                <!-- 根级 -->
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="circle-alert" data-size="15"></i>
+                    <span class="d-grow">根级 · app/global-error.tsx</span>
+                    <span class="d-badge mute">无主题</span>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-card-body" style="background:Canvas;color:CanvasText;padding:var(--nx-sp-4)">
+                      <div class="d-t-title" style="opacity:.92">应用启动失败 / Failed to start</div>
+                      <div class="d-t-cap" style="opacity:.8">根布局渲染时出现异常。请先重试；若持续失败，打开开发者工具查看控制台堆栈。</div>
+                      <div class="d-mono d-t-xs" style="opacity:.7">digest 8f3c1a92e04b7d6c</div>
+                      <div class="d-row">
+                        <button class="d-btn sm">重试</button>
+                        <button class="d-btn sm">重新加载</button>
+                      </div>
+                    </div>
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span class="d-grow">这一层必须<b>自己渲染 html/body</b>，全局样式与 <span class="d-mono">data-theme</span> 都没接上。所以它只用系统色 <span class="d-mono">Canvas / CanvasText</span>：在这一屏上用主题 token，等于用一份可能正是出问题的东西去渲染错误页。</span>
+                    </div>
+                    <div class="d-t-xs d-t-faint">产品里这一屏会顶掉整个文档；画板只能把它嵌在卡片里示意，嵌着的时候右上角的「深色」对它无效 —— 这正是要点。</div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="d-tbl-wrap">
+                <table class="d-table">
+                  <thead><tr><th>维度</th><th>段级 app/error.tsx</th><th>根级 app/global-error.tsx</th></tr></thead>
+                  <tbody>
+                    <tr><td>触发者</td><td>某一段渲染抛异常（转录区、右栏、设置弹窗…）</td><td>根 <span class="d-mono">layout.tsx</span> 本身没能渲染</td></tr>
+                    <tr class="is-on"><td>样式来源</td><td>完整主题 token，深浅色都成立</td><td>只有系统色，主题切换在这里失效</td></tr>
+                    <tr><td>能显示什么</td><td>标题 + 说明 + <span class="d-mono">digest</span></td><td>标题 + 中英双语说明 + <span class="d-mono">digest</span></td></tr>
+                    <tr><td>恢复动作</td><td>重试（render 边界）/ 重新加载 / 看控制台</td><td>重试 / 重新加载（这一屏还没有别的可救）</td></tr>
+                    <tr><td>不许做的事</td><td colspan="2">白屏、只给「确定」、把堆栈直接铺在页面上</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 拖放落区三态 + 四条规则<span class="d-grow"></span>规则先于动效：不写清「什么算文件」，用户永远不知道自己为什么被拒</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)" data-demo-scope>
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="import" data-size="15"></i>
+                  <span class="d-grow">拖放落区 · 三态</span>
+                  <span class="d-grow"></span>
+                  <div class="d-seg" data-demo-tabs>
+                    <button class="is-on" data-demo-tab="dd-ok">可接受</button>
+                    <button data-demo-tab="dd-no">拒绝</button>
+                    <button data-demo-tab="dd-input">拖到输入框</button>
+                  </div>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+
+                  <section data-demo-pane="dd-ok">
+                    <div class="d-drop reject">
+                      <i data-ico="paperclip" data-size="20"></i>
+                      <div class="d-t-b">松手加入附件</div>
+                      <div class="d-t-xs">图片会内嵌预览，其它文件按路径引用</div>
+                    </div>
+                    <div class="d-t-xs d-t-dim">整窗进入文件拖放时，转录区先亮成这个形态；判定只看 <span class="d-mono">dataTransfer.items[i].kind === "file"</span>，不看扩展名。</div>
+                  </section>
+
+                  <section data-demo-pane="dd-no" hidden>
+                    <div class="d-drop">
+                      <i data-ico="circle-x" data-size="20" style="color:var(--nx-danger)"></i>
+                      <div class="d-t-b">这里放不了</div>
+                      <div class="d-t-xs">拖动的是页面里的文字或元素，不是文件</div>
+                      <div class="d-row"><span class="d-badge bad">拒绝</span><span class="d-t-xs d-t-faint">1.2 秒后自动退回常态</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-dim">拒绝态<b>不换布局、只换语义</b>：图标换成禁止、说明写清原因、停 1.2 秒退回。给一个持续的红色落区是在指责用户，而不是告诉他发生了什么。</div>
+                  </section>
+
+                  <section data-demo-pane="dd-input" hidden>
+                    <div class="d-composer" style="border-style:dashed">
+                      <div class="d-composer-top">
+                        <span class="d-chipbtn is-on"><i data-ico="paperclip" data-size="12"></i>松手把文件加进这条消息</span>
+                        <span class="d-chipbtn"><i data-ico="at-sign" data-size="12"></i>demo/拖放落区.png</span>
+                      </div>
+                                                  <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+                    </div>
+                    <div class="d-t-xs d-t-dim">落在输入框上时<b>只有输入框变</b>，整窗不亮：落点更精确，也顺带说明了附件会挂在哪一条消息上。</div>
+                  </section>
+
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="list-checks" data-size="15"></i><span class="d-grow">四条判定规则（写死在产品里，也写死在这一块）</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                    <span class="d-col d-grow">
+                      <span class="d-set-row-t">图片文件</span>
+                      <span class="d-set-row-s">走附件芯片，并内嵌预览</span>
+                    </span>
+                    <span class="d-badge ok">可接受</span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                    <span class="d-col d-grow">
+                      <span class="d-set-row-t">其它文件与目录</span>
+                      <span class="d-set-row-s">默认按路径加成 <span class="d-mono">@</span> 引用，不复制内容</span>
+                    </span>
+                    <span class="d-badge ok">可接受</span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="triangle-alert" data-size="13"></i></span>
+                    <span class="d-col d-grow">
+                      <span class="d-set-row-t">超过 20 MB 的图片</span>
+                      <span class="d-set-row-s">退回路径引用，<b>不报错</b>：降级是可接受的结果</span>
+                    </span>
+                    <span class="d-badge warn">降级</span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="circle-x" data-size="13"></i></span>
+                    <span class="d-col d-grow">
+                      <span class="d-set-row-t">非文件内容（选中的文字、页面里的元素）</span>
+                      <span class="d-set-row-s">落区转拒绝态，松手无效，并且说明理由</span>
+                    </span>
+                    <span class="d-badge bad">拒绝</span>
+                  </div>
+                  <div class="d-pop-foot">层级靠徽章与图标，不靠左边一条彩线 —— 这三条规则在四种落区形态里都一样，门禁也是按这条拦的。</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 扩展请求四态（选择 / 确认 / 输入 / 编辑器）+ 倒计时条 · 附件预览灯箱<span class="d-grow"></span>四种类型共用同一个壳，只换正文区</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)" data-demo-scope>
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="blocks" data-size="15"></i>
+                  <span class="d-grow">来自扩展的请求</span>
+                  <span class="d-badge mute">deploy-helper</span>
+                  <span class="d-grow"></span>
+                  <div class="d-seg" data-demo-tabs>
+                    <button class="is-on" data-demo-tab="er-pick">选择</button>
+                    <button data-demo-tab="er-confirm">确认</button>
+                    <button data-demo-tab="er-input">输入</button>
+                    <button data-demo-tab="er-edit">编辑器</button>
+                  </div>
+                </div>
+
+                <div class="d-modal-box" style="width:100%">
+                  <div class="d-modal-head">
+                    <i data-ico="blocks" data-size="16"></i>
+                    <span class="d-grow">来自扩展的请求</span>
+                    <span class="d-badge warn">12s</span>
+                  </div>
+                  <div class="d-bar" style="border-radius:0"><i style="width:62%"></i></div>
+
+                  <div class="d-modal-body">
+                    <section data-demo-pane="er-pick">
+                      <div>要发布到哪个环境？</div>
+                      <div class="d-tree" data-demo-list>
+                        <button class="d-trow l1 is-on" data-demo-select><i data-ico="circle-dot" data-size="14"></i><span class="d-grow">staging</span><span class="d-t-xs d-t-faint">预发环境，可回滚</span><span class="d-badge ok">推荐</span></button>
+                        <button class="d-trow l1" data-demo-select><i data-ico="circle" data-size="14"></i><span class="d-grow">production</span><span class="d-t-xs d-t-faint">正式环境，需二次确认</span></button>
+                      </div>
+                    </section>
+
+                    <section data-demo-pane="er-confirm" hidden>
+                      <div>这次会重写 <span class="d-mono">docs/delta.md</span> 的「版本与分支表」一节，覆盖你手写的两行。继续吗？</div>
+                      <div class="d-code">
+                        <div class="d-code-head"><span class="d-grow">会被覆盖的两行</span><span class="d-badge bad">不可撤销</span></div>
+                        <div class="d-code-body">- pi 0.1.8 · main · 2026-10-02<br>- pi 0.1.9 · fork/v5-boards</div>
+                      </div>
+                    </section>
+
+                    <section data-demo-pane="er-input" hidden>
+                      <div>给这个新皮肤起个名字：</div>
+                      <input class="d-input" placeholder="例如：纸感">
+                      <div class="d-t-xs d-t-faint">输入型请求不给倒计时：让人凭空起名字再倒计时逼他点「取消」，是本末倒置。</div>
+                    </section>
+
+                    <section data-demo-pane="er-edit" hidden>
+                      <div class="d-code">
+                        <div class="d-code-head"><i data-ico="pencil-line" data-size="13"></i><span class="d-grow">编辑器 · 已响应</span><span class="d-badge mute">只读回显</span></div>
+                        <div class="d-code-body">## 必须记住的两个硬约束
+
+1. <span class="tok-s">--primary-bg</span> 是本 fork 自造的 token，上游没有。
+2. 每个主题选择器必须恰好出现 1 次。</div>
+                      </div>
+                      <div class="d-row"><span class="d-grow d-t-xs d-t-faint">2 分钟前 · pi-draft-skin</span><span class="d-badge ok"><i data-ico="check" data-size="11"></i>已提交</span></div>
+                    </section>
+                  </div>
+
+                  <div class="d-modal-foot">
+                    <button class="d-btn ghost">取消</button>
+                    <span class="d-grow"></span>
+                    <button class="d-btn primary" data-demo-open="er-timeout">提交</button>
+                  </div>
+                </div>
+
+                <div class="d-pop" data-demo-pop="er-timeout" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:320px">
+                  <div class="d-pop-title">倒计时条在倒什么</div>
+                  <div class="d-pop-body d-t-xs d-t-dim">
+                    倒计时是<b>扩展自己的等待窗口</b>：归零后扩展按默认值继续跑，不阻塞会话。条走满 = 这次请求的时限到了，不是「你必须现在回答」。
+                    所以它给的是<b>强调色的进度条 + 标题右端的秒数</b>，而不是一个必须你去点的倒计时弹窗。
+                  </div>
+                  <div class="d-sep"></div>
+                  <div class="d-menu-row"><i data-ico="timer" data-size="14"></i><span class="d-grow">超时会怎样</span><span class="d-badge mute">按默认值继续</span></div>
+                  <div class="d-menu-row"><i data-ico="circle-slash" data-size="14"></i><span class="d-grow">不回答也不阻塞</span><span class="d-badge ok">不打断会话</span></div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="layers" data-size="15"></i><span class="d-grow">附件预览灯箱</span><span class="d-t-xs d-t-faint">壳只有一个，图片是它的满宽变体</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-grid2">
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-t-xs d-t-b">图片 · 满宽壳（不套边框）</div>
+                      <div class="d-placeholder" style="aspect-ratio:3/2">
+                        <i data-ico="image" data-size="20"></i>
+                        <span>图片本体 · contain 不裁切 · 板上占位</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">加一圈边框会让图看起来像被框住，所以图片这一变体<b>不加卡片壳</b>：只有标题条与关闭钮。</div>
+                    </div>
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-t-xs d-t-b">多类型 · 卡片壳（PDF / DOCX 1000 宽，其余 760）</div>
+                      <div class="d-card">
+                        <div class="d-card-head"><i data-ico="file-text" data-size="15"></i><span class="d-grow d-mono">2026-10-04-设计侧收尾.md</span><button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="14"></i></button></div>
+                        <div class="d-card-body d-t-xs">
+                          <div># 画板补画清单</div>
+                          <div style="color:var(--nx-text-2)">54 扩展浮窗 · 61 系统态 · 52 查看器形态</div>
+                        </div>
+                        <div class="d-pop-foot">文件名在标题栏（等宽、溢出省略）；底部那行只在文本类出现。</div>
+                      </div>
+                      <div class="d-banner err">
+                        <i data-ico="circle-alert" data-size="14"></i>
+                        <span class="d-grow">预览失败<b>不换成通知条</b>：通知条会自己消失，用户改完再点开就看不到上次为什么失败。</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-tbl-wrap">
+                    <table class="d-table">
+                      <thead><tr><th>壳的约定</th><th>怎么定</th></tr></thead>
+                      <tbody>
+                        <tr class="is-on"><td>关闭的三路等价</td><td>右上关闭钮 / 点遮罩空白 / Esc；关闭时焦点<b>回到触发它的那张缩略图</b></td></tr>
+                        <tr><td>打开期间</td><td>锁滚动；窄屏四边留安全区，不铺到刘海下面</td></tr>
+                        <tr><td>三种壳内状态</td><td>加载中 / 失败 / 不支持 —— 全部就地显示</td></tr>
+                        <tr><td>选中文字</td><td>docx 同源 iframe 里的选区也能提到输入框，见 D-06b 帧 D</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 项目信任三态 + worktree 切换器（切换 / 过滤 / 新建 / 移除确认）<span class="d-grow"></span>有未提交的检出，移除必须先说清会丢什么</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-col" style="gap:var(--nx-sp-5);padding:var(--nx-sp-5)">
+            <div class="d-grid2" style="align-items:start">
+
+              <div class="d-col" style="gap:var(--nx-sp-4)">
+                <div class="d-t-xs d-t-faint">项目信任对话框 · 三个状态是同一个模态的三种头部图标，不是三个组件</div>
+
+                <div class="d-modal-box">
+                  <div class="d-modal-head"><i data-ico="shield-question" data-size="16" style="color:var(--nx-warning)"></i>信任此项目？</div>
+                  <div class="d-modal-body">
+                    <div>项目资源可以运行本地代码。请仅信任你了解其内容的项目。</div>
+                    <div class="d-code">
+                      <div class="d-code-head"><i data-ico="folder" data-size="13"></i><span class="d-grow d-mono">~/Desktop/PI NEXT</span></div>
+                      <div class="d-code-body">18 个可执行脚本 · 1 个 .env（只读不外传）</div>
+                    </div>
+                  </div>
+                  <div class="d-modal-foot">
+                    <button class="d-btn ghost">永不信任</button>
+                    <span class="d-grow"></span>
+                    <button class="d-btn">信任一次</button>
+                    <button class="d-btn primary">本次会话信任</button>
+                  </div>
+                </div>
+
+                <div class="d-modal-box">
+                  <div class="d-modal-head"><i data-ico="loader-circle" data-size="16" style="color:var(--nx-accent)"></i>正在信任…</div>
+                  <div class="d-modal-body">
+                    <div>正在写入项目信任记录。</div>
+                    <div class="d-bar"><i style="width:46%"></i></div>
+                    <div class="d-t-xs d-t-faint">进行中不给「取消」：写一半的信任记录比没有更糟。</div>
+                  </div>
+                  <div class="d-modal-foot">
+                    <span class="d-grow"></span>
+                    <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="d-think-timer d-t-xs">46%</span>
+                  </div>
+                </div>
+
+                <div class="d-modal-box">
+                  <div class="d-modal-head"><i data-ico="circle-x" data-size="16" style="color:var(--nx-danger)"></i>写入失败</div>
+                  <div class="d-modal-body">
+                    <div class="d-mono d-t-xs" style="color:var(--nx-danger)">EACCES: permission denied, mkdir ~/Library/Application Support/PI NEXT</div>
+                    <div>目录不可写时给出可执行的下一步，不让用户猜权限该给谁。</div>
+                  </div>
+                  <div class="d-modal-foot">
+                    <span class="d-grow"></span>
+                    <button class="d-btn">换成本机可信目录</button>
+                    <button class="d-btn primary"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- worktree -->
+              <div class="d-col" style="gap:var(--nx-sp-4)">
+                <div class="d-t-xs d-t-faint">worktree 切换器 · 一个项目下多份检出</div>
+                <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="git-fork" data-size="15"></i>
+                  <span class="d-grow">worktree 切换器</span>
+                  <span class="d-badge mute">pi-codex · 3 份检出</span>
+                  <span class="d-grow"></span>
+                  <button class="d-btn sm" data-demo-drawer="toggle" data-demo-drawer-target="#wt-drawer">
+                    <i data-ico="panel-right" data-size="13"></i>打开切换器
+                  </button>
+                </div>
+
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-row">
+                    <span class="d-t-xs d-t-faint">侧栏 · 项目行之下、会话行之上的窄行：</span>
+                    <span class="d-grow"></span>
+                    <span class="d-t-xs d-t-faint">点它打开右边的抽屉</span>
+                  </div>
+                  <div class="d-tree">
+                    <div class="d-trow l1"><i data-ico="folder" data-size="14"></i><span class="d-grow d-t-b">pi-codex</span><span class="d-badge mute">90</span></div>
+                    <button class="d-trow l2" data-demo-drawer="toggle" data-demo-drawer-target="#wt-drawer"><i data-ico="git-branch" data-size="13"></i><span class="d-grow d-mono">main</span><span class="d-badge mute">88</span></button>
+                    <button class="d-trow l2 is-on"><i data-ico="git-fork" data-size="13"></i><span class="d-grow d-mono">skin/codex</span><span class="d-badge warn">有未提交</span></button>
+                    <button class="d-trow l2" data-demo-drawer="toggle" data-demo-drawer-target="#wt-drawer"><i data-ico="git-fork" data-size="13"></i><span class="d-grow d-mono">upstream-v094</span><span class="d-badge warn">12 个文件未提交</span></button>
+                  </div>
+
+                  <div class="d-anchor" style="height:262px;overflow:hidden">
+                    <div class="d-card" style="height:100%">
+                      <div class="d-card-head"><i data-ico="info" data-size="15"></i><span class="d-grow">抽屉里是什么</span></div>
+                      <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-t-xs d-t-dim">右边的抽屉是「切换器」本体：<b>过滤框 + 检出列表 + 新建 / 移除两枚动作</b>。</div>
+                        <div class="d-notice">
+                          <span class="d-notice-ico"><i data-ico="layout-dashboard" data-size="13"></i></span>
+                          <span class="d-col d-grow"><span class="d-set-row-t">它是抽屉，不是新页面</span><span class="d-set-row-s">切检出是一次原地换上下文，遮罩之外的工作区仍然在</span></span>
+                        </div>
+                        <div class="d-notice">
+                          <span class="d-notice-ico"><i data-ico="triangle-alert" data-size="13"></i></span>
+                          <span class="d-col d-grow"><span class="d-set-row-t">未提交的那一份带 warning 徽章</span><span class="d-set-row-s">点「移除」先走强制确认，并报出会丢几个文件</span></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="d-scrim" data-demo-scrim></div>
+                    <div class="d-drawer" id="wt-drawer">
+                      <div class="d-panel-head">
+                        <i data-ico="git-fork" data-size="14"></i>
+                        <span class="d-grow d-t-b">这个项目的检出</span>
+                        <span class="d-badge mute">3</span>
+                        <button class="d-iconbtn" data-demo-drawer="close" data-demo-drawer-target="#wt-drawer" title="关闭"><i data-ico="x" data-size="14"></i></button>
+                      </div>
+                      <div class="d-tinybar">
+                        <div class="d-searchfield d-grow"><i data-ico="search" data-size="14"></i><input placeholder="过滤 worktree"></div>
+                      </div>
+                      <div class="d-drawer-body" style="padding:var(--nx-sp-2)">
+                        <div class="d-tree" data-demo-list>
+                          <div class="d-trow"><i data-ico="git-branch" data-size="14"></i><span class="d-col d-grow"><span class="d-mono">main</span><span class="d-t-xs d-t-faint">~/Desktop/pi-codex · 88 个会话</span></span></div>
+                          <button class="d-trow is-on" data-demo-select><i data-ico="git-fork" data-size="14"></i><span class="d-col d-grow"><span class="d-mono">skin/codex</span><span class="d-t-xs d-t-faint">../pi-web-skin · 2 个会话 · 当前</span></span><i data-ico="check" data-size="14"></i></button>
+                          <button class="d-trow" data-demo-select><i data-ico="git-fork" data-size="14"></i><span class="d-col d-grow"><span class="d-mono">upstream-v094</span><span class="d-t-xs d-t-faint">../pi-web-upstream · 0 个会话</span></span><span class="d-badge warn">有未提交改动</span></button>
+                        </div>
+                        <div class="d-sep"></div>
+                        <button class="d-menu-row" data-demo-open="wt-new"><i data-ico="plus" data-size="14"></i>新建 worktree…</button>
+                        <button class="d-menu-row danger" data-demo-open="wt-rm"><i data-ico="minus" data-size="14"></i>移除当前检出…</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              <div class="d-t-xs d-t-faint">新建与移除都走模态；移除有未提交时先报数量再强制</div>
+              <div class="d-grid2" style="align-items:start">
+                <div class="d-modal-box">
+                      <div class="d-modal-head"><i data-ico="git-fork" data-size="16"></i>新建 worktree</div>
+                      <div class="d-modal-body">
+                        <div class="d-field"><span class="d-field-t">分支名</span><input class="d-input d-mono" value="skin/codex"></div>
+                        <div class="d-field"><span class="d-field-t">起点</span><button class="d-select">main<i data-ico="chevron-down" data-size="12"></i></button></div>
+                        <div class="d-field"><span class="d-field-t">路径</span><input class="d-input d-mono" value="../pi-web-skin"></div>
+                      </div>
+                      <div class="d-modal-foot">
+                        <button class="d-btn ghost">取消</button>
+                        <span class="d-grow"></span>
+                        <button class="d-btn primary">创建</button>
+                      </div>
+                    </div>
+
+                    <div class="d-modal-box">
+                      <div class="d-modal-head"><i data-ico="triangle-alert" data-size="16" style="color:var(--nx-danger)"></i>删除 worktree「upstream-v094」？</div>
+                      <div class="d-modal-body">
+                        <div><span class="d-mono">upstream-v094</span> 里还有 <b>12 个文件</b>没提交。删除后这些改动会丢。</div>
+                        <div class="d-banner err">
+                          <i data-ico="info" data-size="14"></i>
+                          <span class="d-grow">先切到别的 worktree 提交一次，或者直接删除这个检出。<b>没有第三条路</b>，所以按钮就两个：取消 / 删除。</span>
+                        </div>
+                        <div class="d-code">
+                          <div class="d-code-head"><span class="d-grow">会丢掉的改动</span><span class="d-badge bad">12 个文件</span></div>
+                          <div class="d-code-body">M design/v5/web/system.css<br>M lib/theme-skins.ts<br>?? design/v5/web/boards/D-06b-file-viewer-modes.html</div>
+                        </div>
+                      </div>
+                      <div class="d-modal-foot">
+                        <button class="d-btn ghost">取消</button>
+                        <span class="d-grow"></span>
+                        <button class="d-btn danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+                      </div>
+                    </div>
+                  </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <div class="d-pop" data-demo-pop="wt-new" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:320px">
+        <div class="d-pop-title">新建 worktree = 三件事一次做完</div>
+        <div class="d-pop-body d-t-xs d-t-dim">
+          建分支、检出到新目录、把新检出挂到这个项目下。三件事一起失败会留半个目录，所以<b>路径已存在时先报错</b>，
+          分支已存在时给出「切过去而不是再建一个」的选项 —— 而不是默默覆盖。
+        </div>
+      </div>
+
+      <div class="d-pop" data-demo-pop="wt-rm" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:320px">
+        <div class="d-pop-title">移除检出的三态</div>
+        <div class="d-pop-body d-t-xs d-t-dim">
+          干净的检出：一句确认即可。有未提交：先报数量再给删除（见右下的模态）。
+          当前正在用的检出：不给移除，只提示先切走 —— 把人正在看的目录从脚下抽走，是最难解释的一种失败。
+        </div>
+        <div class="d-sep"></div>
+        <div class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow">干净</span><span class="d-badge ok">一句确认</span></div>
+        <div class="d-menu-row"><i data-ico="triangle-alert" data-size="14"></i><span class="d-grow">有未提交</span><span class="d-badge warn">强制确认</span></div>
+        <div class="d-menu-row"><i data-ico="ban" data-size="14"></i><span class="d-grow">正在使用</span><span class="d-badge bad">不可移除</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>目录选择的主路径是系统原生选框，自绘浏览器只是回退。</b>决策链固定四步：<span class="d-mono">POST /api/cwd/pick</span> → 返回 <span class="d-mono">cwd</span> 直接采用 → 返回 <span class="d-mono">cancelled</span> 什么也不做 → <span class="d-mono">501 fallback</span> 或请求失败才退到自绘。<b>系统对话框本身不画。</b></li>
+    <li><b>自绘浏览器的五种状态都是行内切换。</b>浏览中 / 新建文件夹 / 盘符（Windows 驱动器列表）/ 删除确认（长在那一行上，不弹第二个模态）/ 路径已改未提交。
+        最后一种的纪律是：<b>不可点的按钮必须在 <span class="d-mono">title</span> 里说清为什么</b>（「选择前请先打开此路径」），不能写功能名。</li>
+    <li><b>应用级错误页分两级，样式来源不同。</b>段级（<span class="d-mono">app/error.tsx</span>）走完整主题 token，可重试并暴露 <span class="d-mono">digest</span>；根级（<span class="d-mono">app/global-error.tsx</span>）必须自己渲染 <span class="d-mono">html/body</span>，没有 <span class="d-mono">data-theme</span>，只用系统色 <span class="d-mono">Canvas / CanvasText</span>。
+        两级都给「重试」，因为用户此刻唯一能做的事就是再试一次。</li>
+    <li><b>拖放只有三态，规则先于视觉。</b>可接受（强调虚线 + 强调淡底）、拒绝（换禁止图标并写明原因，1.2 秒自动退回）、拖到输入框（<b>只有输入框变</b>，落点更精确）。
+        四条规则写死：图片→附件芯片；其它文件与目录→<span class="d-mono">@</span> 路径引用；超 20 MB 图片→<b>降级不报错</b>；非文件内容→拒绝。</li>
+    <li><b>扩展请求四种类型共用一个壳。</b>选择 / 确认 / 输入 / 编辑器（已响应时收成只读回显，不再给按钮）。倒计时条是<b>扩展自己的等待窗口</b>，归零后按默认值继续，不阻塞会话 ——
+        所以它给的是进度条加秒数，而不是一个逼你点掉的弹窗。输入型请求不给倒计时。</li>
+    <li><b>附件预览只有一个壳</b>，图片是它的满宽变体（不加边框，加了就像被框住）；加载 / 失败 / 不支持三种都在壳内就地显示，<b>不换通知条</b> —— 通知条会自己消失。</li>
+    <li><b>项目信任三态是同一个模态的三种头部图标</b>（盾牌问号 / 转圈 / 叉），不是三个组件；三个选项从窄到宽：<b>信任一次 / 本次会话信任 / 永不信任</b>；失败态必须给可执行的下一步（换目录或重试），不给「确定」。</li>
+    <li><b>worktree 行在项目行之下、会话行之上</b>，切换器是抽屉不是新页面（切检出是原地换上下文）。移除检出的三态：干净→一句确认；<b>有未提交→先报数量，再走危险确认（标题写清 worktree 名，按钮 = 取消 / 删除）</b>；正在使用→不给移除。</li>
+    <li><b>这一整张板没有一条左边线。</b>层级一律靠底色、徽章、圆点与图标表达 —— 这也是门禁 <span class="d-mono">check-v5</span> 逐张板强制的那条。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

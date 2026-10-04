@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type ConfigButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ConfigButtonSize = "small" | "default";
@@ -78,41 +79,51 @@ export function ConfigPanelShell({
 }
 
 /* ---------------------------------------------------------------------------
- * fork:design-system SW-08~13 —— 列表 / 详情的结构基件换成画板类。
+ * fork:design-system SW-08~13 —— 列表 / 详情的结构基件。
  *
- * 画板（41/42/43/44/46）的两栏结构是：
- *   .pw-cols            grid 260px + 1fr，gap s4
- *     > div             左列：.pw-inline（搜索行）+ .pw-list
- *         .pw-list      grid gap 2px
- *           .pw-litem   行（.is-on 选中）> .pw-ico + .grow(.pw-lname/.pw-lsub) + .pw-badge
- *     > div             右列：display:grid; gap s3
- *         .pw-detail    发丝边框卡 > h3 + .pw-kv / .pw-field / .pw-stats-grid
+ * fork:v5-landing Wave B（M-05）—— **这一组基件现在按形态发两套类**：
+ *   ≥641px 走 D-07 / D-07b 的 `d-*`，≤640px 走 M-05 的 `m-*`（`useIsMobile()`
+ *   判定，与 `app/design/v5-forms.css` 的媒体条件是同一个 640px 断点）。
+ * 旧的 `pw-*` 骨架（pw-cols / pw-list / pw-litem / pw-detail / pw-shead …）在本文件
+ * 里**已清零**：它们是 `design/pi-web-design/assets/board.css`（v1 画板）的类，
+ * 与 v5 两张形态表都不是同一来源，留着就是第二次「同一个视觉两个类名」。
+ * board.css 里那些规则随之成为 stale，由 Wave Z 随旧样式统一清扫（§7.1 / §7.2）。
  *
- * 这里只换类名，不改结构；产品专属的语义（列不参与收缩、窄屏叠成一列）在
- * fork-ui.css 的接线块里，不重复画板已有的任何颜色/尺寸/间距。
+ * 桌面（d-*）列位沿用 D-07 的设置壳解剖，两栏就是它：
+ *   .d-set            flex 两列（d-modal-box > .d-set 弹窗里两列各自滚）
+ *     .d-set-nav      左列 220px、发丝右边界、overflow-y:auto、gap 2px
+ *     .d-set-main     右列 flex:1、overflow-y:auto
+ * 手机（m-*）按 M-05 帧 B「一行一个控件」：左列塌成 `m-list`（唯一滚动列），
+ * 行是 `m-trow`，详情塌成 `m-cardgroup`。
+ *
+ * 这里只发类名，不写任何颜色 / 尺寸 / 间距 / 圆角 —— 规格全部来自
+ * `design/v5/web/system.css`（d-*）与 `design/v5/pwa/system.css`（m-*）。
  * ------------------------------------------------------------------------- */
 
 export function ConfigSplitView({ children }: { children: ReactNode }) {
-  return <div className="pw-cols">{children}</div>;
+  const isMobile = useIsMobile();
+  return <div className={isMobile ? "m-list" : "d-set"}>{children}</div>;
 }
 
-/** 左列：画板里就是一个裸 `<div>`（列宽由 `.pw-cols` 的 grid 决定，自己不带类）。
- *  产品要按结构选中它，走 `.pw-cols > :first-child`（见 fork-ui.css 接线块）。 */
+/** 左列。桌面 = D-07 的 `.d-set-nav`（220px 定宽 + 自身滚动）；手机 = 一个列容器，
+ *  真正的行在 `ConfigSidebarList`（`m-cardgroup`）里。 */
 export function ConfigSidebar({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
+  const isMobile = useIsMobile();
+  return <div className={isMobile ? "d-col" : "d-set-nav"}>{children}</div>;
 }
 
 export function ConfigSidebarList({ children }: { children: ReactNode }) {
-  return <div className="pw-list">{children}</div>;
+  const isMobile = useIsMobile();
+  return <div className={isMobile ? "m-cardgroup" : "d-col"}>{children}</div>;
 }
 
 /**
  * fork:group-switch（G4 · 上游 `b9622a1` #1021）—— 分组标题升级成**整组开关**的宿主。
  *
- * `aside` 是右端那一格。**右对齐的空格由调用方自己带**（画板里的 `pw-grow`，
+ * `aside` 是右端那一格。**右对齐的空格由调用方自己带**（画板里的 `d-grow`，
  * 归档面板与项目归档两处已经这么写）：标签本体的子节点一个字不动，所以既有
  * 调用点的排版与改前逐像素一致。技能页与插件页把
- * `n/m` + 开关交给 `ConfigSidebarGroupSwitch`（它自带右对齐用的 `pw-grow`）。
+ * `n/m` + 开关交给 `ConfigSidebarGroupSwitch`（它自带右对齐用的 `d-grow`）。
  */
 export function ConfigSidebarGroupLabel({
   children,
@@ -121,8 +132,9 @@ export function ConfigSidebarGroupLabel({
   children: ReactNode;
   aside?: ReactNode;
 }) {
+  const isMobile = useIsMobile();
   return (
-    <div className="pw-group-title">
+    <div className={isMobile ? "m-group-title" : "d-group-title"}>
       {children}
       {aside}
     </div>
@@ -153,10 +165,10 @@ export function itemsToSwitch<T>(
 /**
  * 一组开关：`n/m` 计数 + 开关。**只有全开才算开** —— 部分开的组读起来是「关」，
  * 点一下补齐（与模型页的供应商开关同一条口径，上游同款）。
- * 计数用画板已有的 `.pw-mono` + `.pw-dim`，开关是画板 `.pw-switch`：
- * **不新造类**（判据⑦），也不缩到 `.pw-litem` 行尾那种 0.8 倍的小尺寸
- * （上游 `4de9f77` 的结论：分组标题里的开关要画板原尺寸，30×17 才点得中）。
- * 开头的 `pw-grow` 是标题与右端这一格之间的弹性空档（与归档面板里的写法同款）。
+ * 计数用画板已有的 `.d-mono` + `.d-t-faint`，开关是画板 `.d-switch`：
+ * **不新造类**（判据⑦），也不缩到 `.d-trow` 行尾那种 0.8 倍的小尺寸
+ * （上游 `4de9f77` 的结论：分组标题里的开关要画板原尺寸，才点得中）。
+ * 开头的 `d-grow` 是标题与右端这一格之间的弹性空档（与归档面板里的写法同款）。
  */
 export function ConfigSidebarGroupSwitch({
   enabled,
@@ -173,10 +185,11 @@ export function ConfigSidebarGroupSwitch({
   loading?: boolean;
   onChange: (enabled: boolean) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
     <>
-      <span className="pw-grow" aria-hidden="true" />
-      <span className="pw-mono pw-dim">{`${enabled}/${total}`}</span>
+      <span className={isMobile ? "m-grow" : "d-grow"} aria-hidden="true" />
+      <span className={isMobile ? "m-t-xs m-mono m-t-faint" : "d-t-xs d-mono d-t-faint"}>{`${enabled}/${total}`}</span>
       <ConfigSwitch
         checked={total > 0 && enabled === total}
         disabled={disabled}
@@ -190,9 +203,9 @@ export function ConfigSidebarGroupSwitch({
 
 /**
  * 一次分组开关**没做完的部分**，落在刚跑过的那一组标题下面：提示一行
- * （`.pw-alert info`，如「带资源过滤的包保持启用」），被拒的行逐行列出
- * （`.pw-alert`，`role="alert"`）。两行都是画板已有的样式类。
- * `errorLines` 用数组而不是一整段文本：`.pw-alert` 没有 `white-space` 规则，
+ * （`.d-banner info` / M-05 的 `.m-banner`，如「带资源过滤的包保持启用」），
+ * 被拒的行逐行列出（`.d-banner err`，`role="alert"`）。两行都是画板已有的样式类。
+ * `errorLines` 用数组而不是一整段文本：提示条没有 `white-space` 规则，
  * 一整段里的换行会被折叠成一行。
  */
 export function ConfigSidebarGroupStatus({
@@ -202,19 +215,22 @@ export function ConfigSidebarGroupStatus({
   note?: ReactNode;
   errorLines?: readonly string[];
 }) {
+  // fork:react-hooks —— 早退必须在所有 hook 之后，否则同一组件在两次渲染里调用的
+  // hook 数量不同（这行注释就是那条例外的登记处）。
+  const isMobile = useIsMobile();
   if (!note && !errorLines?.length) return null;
   return (
     <>
       {note ? (
-        <div role="status" className="pw-alert info">
-          <span className="pw-ico"><i data-ico="info" data-size="13" aria-hidden="true" /></span>
-          <span className="pw-grow">{note}</span>
+        <div role="status" className={isMobile ? "m-banner" : "d-banner info"}>
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className={isMobile ? "m-grow" : "d-grow"}>{note}</span>
         </div>
       ) : null}
       {errorLines && errorLines.length > 0 ? (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="13" aria-hidden="true" /></span>
-          <span className="pw-grow">
+        <div role="alert" className={isMobile ? "m-banner" : "d-banner err"}>
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className={isMobile ? "m-grow" : "d-grow"}>
             {errorLines.map((line, index) => (
               <Fragment key={`${index}:${line}`}>
                 {index > 0 ? <br /> : null}
@@ -234,12 +250,17 @@ export function ConfigSidebarItem({
   children,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+  const isMobile = useIsMobile();
   return (
     <button
       type="button"
       {...props}
       aria-current={active ? "page" : undefined}
-      className={["pw-litem", active ? "is-on" : "", className].filter(Boolean).join(" ")}
+      className={[
+        isMobile ? "m-trow" : "d-trow",
+        active ? "is-on" : "",
+        className,
+      ].filter(Boolean).join(" ")}
     >
       {children}
     </button>
@@ -247,80 +268,72 @@ export function ConfigSidebarItem({
 }
 
 export function ConfigSidebarText({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
+  const isMobile = useIsMobile();
   return (
     <span
       {...props}
-      className={["pw-lname", className].filter(Boolean).join(" ")}
+      className={[isMobile ? "m-setrow-t" : "d-t-sm d-t-b", className].filter(Boolean).join(" ")}
     />
   );
 }
-/** 列表行的副标题（画板 `.pw-litem` 里的 `.pw-lsub`：模型数、接口地址…）。 */
+/** 列表行的副标题（画板 `.d-trow` 行里的次级一行：模型数、接口地址…）。 */
 export function ConfigSidebarSub({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
-  return <span {...props} className={["pw-lsub", className].filter(Boolean).join(" ")} />;
-}
-
-/** 画板 `.pw-badge`：`tone` 对应 `.ok` / `.warn` / `.bad` / `.accent` / `.count` / `.solid`。 */
-export function ConfigBadge({ tone, className, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
-  return <span {...props} className={["pw-badge", tone ?? "", className ?? ""].filter(Boolean).join(" ")} />;
-}
-
-/** 画板 `.pw-kv`：140px 定宽的「标签 / 值」表（供应商详情的接口地址、认证方式…）。 */
-export function ConfigKv({ children, className, ...props }: HTMLAttributes<HTMLDListElement>) {
-  return <dl {...props} className={["pw-kv", className ?? ""].filter(Boolean).join(" ")}>{children}</dl>;
-}
-
-/** 画板 `.pw-ctl`：字段右侧的控件槽（自带 `flex: none`，标签左、控件右）。 */
-export function ConfigControl({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
-  return <span {...props} className={["pw-ctl", className ?? ""].filter(Boolean).join(" ")} />;
-}
-
-/** 画板 `.pw-stats-grid`：用量摘要四张小卡的网格。 */
-export function ConfigStatGrid({ children, className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={["pw-stats-grid", className ?? ""].filter(Boolean).join(" ")}>{children}</div>;
-}
-
-/** 画板 `.pw-stat`：一张用量小卡（`.k` 标签 / `.v` 数值 / `.s` 一行补充）。 */
-export function ConfigStat({ label, value, hint }: { label: string; value: string; hint?: ReactNode }) {
+  const isMobile = useIsMobile();
   return (
-    <div className="pw-stat">
-      <span className="k">{label}</span>
-      <span className="v">{value}</span>
-      {hint ? <span className="s">{hint}</span> : null}
+    <span
+      {...props}
+      className={[isMobile ? "m-setrow-s" : "d-t-xs d-t-faint", className].filter(Boolean).join(" ")}
+    />
+  );
+}
+
+/** `.d-badge` / M-05 的 `.m-badge`：`tone` 对应 `.ok` / `.warn` / `.bad` / `.info` / `.mute`。 */
+export function ConfigBadge({ tone, className, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
+  const isMobile = useIsMobile();
+  return <span {...props} className={[isMobile ? "m-badge" : "d-badge", tone ?? "", className ?? ""].filter(Boolean).join(" ")} />;
+}
+
+/** 画板 `.d-kv-row` 的纵向容器（v1 是 `.pw-kv`：140px 定宽的「标签 / 值」表）。 */
+export function ConfigKv({ children, className, ...props }: HTMLAttributes<HTMLDListElement>) {
+  return <dl {...props} className={["d-col", className ?? ""].filter(Boolean).join(" ")}>{children}</dl>;
+}
+
+/** 字段右侧的控件槽（桌面是 `.d-grow-last`，手机是 M-05 的 `.m-row-body` 行体）。 */
+export function ConfigControl({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
+  const isMobile = useIsMobile();
+  return <span {...props} className={[isMobile ? "m-row-body" : "d-grow-last", className ?? ""].filter(Boolean).join(" ")} />;
+}
+
+/** 画板 `.d-statgrid`：用量摘要四张小卡的网格（手机是 M-05 的 `.m-grid2`）。 */
+export function ConfigStatGrid({ children, className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  const isMobile = useIsMobile();
+  return <div {...props} className={[isMobile ? "m-grid2" : "d-statgrid", className ?? ""].filter(Boolean).join(" ")}>{children}</div>;
+}
+
+/** 画板 `.d-stat`：一张用量小卡（`.d-t-xs` 标签 / `.d-t-lg` 数值 / 一行补充）。 */
+export function ConfigStat({ label, value, hint }: { label: string; value: string; hint?: ReactNode }) {
+  const isMobile = useIsMobile();
+  return (
+    <div className={isMobile ? "m-cardgroup" : "d-stat"}>
+      <span className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs"}>{label}</span>
+      <span className={isMobile ? "m-t-lg m-t-b" : "d-t-lg"}>{value}</span>
+      {hint ? <span className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{hint}</span> : null}
     </div>
   );
 }
 
-/** 右列：画板是 `style="display:grid;gap:var(--s3)"` 的容器（不是卡）。
- *  原样照抄那行 inline —— 它就是画板 DOM 的一部分，不是产品自创的样式。
- *  fork:settings-frame（画板 62）—— 补一个 `.pw-detail-stack` 钩子类：
- *  详情卡改成 flex 列后，这一层要 `flex:1` 才能把高度传给空态（见 board.css）。
- *  fork:stack-rows（2026-10-01）—— 这一层拿到的是**确定高度**（board.css:874 的
- *  `flex:1` 让空态能垂直居中）。grid 的行默认 `auto`= 按内容分配比例，于是有实内容时
- *  行会被拉伸：归档项目详情里「标题行」被撑到 78px、「会话列表」被撑到 754px（里面只有
- *  2 行），会话行被推到卡片底部 —— 用户实测「右侧空白太多」。
- *  行改 `min-content`：实内容按内容高排列、贴顶；空态那一层自己 `height:100%`
- *  （board.css:876）继续在整卡高度里居中 —— 两种形态各归其位。 */
+/** 右列内容栈：桌面 = `.d-col`，手机同构。上一版的 inline `gap: var(--s3)` 已撤 ——
+ *  间距是**角色值**，归 `system.css` 独占（铁律三 / 四）；空态居中改由
+ *  `ConfigEmptyState` 自己的 `d-empty` / `m-empty` 负责（都是居中容器）。 */
 export function ConfigDetailStack({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    // fork:stack-rows（2026-10-01）—— display 与行高策略都交给 board.css
-    // （`.pw-detail > .pw-detail-stack` 及它的 `:has(> .pw-empty:only-child)` 变体：
-    // 有内容时 grid + `min-content` + `align-content:start` 让行贴顶；
-    // 只有空态时那层变 flex、空态 `flex:1` 居中）。
-    // 这里**不写内联 display/grid-***：内联优先级高于类规则，会把 `:has` 那条变体顶掉
-    // （实测 `display` 仍是 grid、`flex:1` 生效但父不是 flex 列 → 空态仍 180px）。
-    <div
-      {...props}
-      style={{ gap: "var(--s3)", ...props.style }}
-      className={["pw-detail-stack", className].filter(Boolean).join(" ")}
-    />
-  );
+  return <div {...props} className={["d-col", className].filter(Boolean).join(" ")} />;
 }
 
 export function ConfigDetailHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       {...props}
-      className={["pw-inline", className].filter(Boolean).join(" ")}
+      className={["d-row", className].filter(Boolean).join(" ")}
     />
   );
 }
@@ -329,7 +342,7 @@ export function ConfigDetailHeaderInfo({ className, ...props }: HTMLAttributes<H
   return (
     <div
       {...props}
-      className={["pw-inline", "pw-grow", className].filter(Boolean).join(" ")}
+      className={["d-col", "d-grow", className].filter(Boolean).join(" ")}
     />
   );
 }
@@ -338,35 +351,50 @@ export function ConfigDetailActions({ className, ...props }: HTMLAttributes<HTML
   return (
     <div
       {...props}
-      className={["pw-inline", className].filter(Boolean).join(" ")}
+      className={["d-row", className].filter(Boolean).join(" ")}
     />
   );
 }
 
 export function ConfigDetailTitle({ children }: { children: ReactNode }) {
-  return <h3 style={{ margin: 0 }}>{children}</h3>;
+  return <h3 className="d-set-row-t" style={{ margin: 0 }}>{children}</h3>;
 }
 
 export function ConfigSectionTitle({ children }: { children: ReactNode }) {
+  const isMobile = useIsMobile();
   return (
-    <div className="pw-sec-title">
+    <div className={isMobile ? "m-group-title" : "d-set-sec-t"}>
       {children}
-      <span className="pw-grow" aria-hidden="true" />
+      <span className={isMobile ? "m-grow" : "d-grow"} aria-hidden="true" />
     </div>
   );
 }
 
-/** 画板 `.pw-field`：左「标签（+ `<small>` 一句说明）」、右控件。
- *  `hint` 走画板的 `.pw-label small`（弱化说明），不是右边的 `.pw-hint`。 */
+/** 字段行：桌面 = D-07 的 `.d-field`（`.d-field-t` 标题 + 控件），
+ *  手机 = M-05 的 `div.m-setrow`（标题 + 副行 + 控件，44px 触控行）。
+ *  画板纪律：带控件的行写成 `div` 而不是 `button`，避免 button 套 button。
+ *  `hint` 走次级一行，不是右边的提示位。 */
 export function ConfigField({ label, hint, children, style }: {
   label: ReactNode;
   hint?: string;
   children: ReactNode;
   style?: CSSProperties;
 }) {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <div className="m-setrow">
+        <span className="m-setrow-body">
+          <span className="m-setrow-t">{label}</span>
+          {hint ? <span className="m-setrow-s">{hint}</span> : null}
+        </span>
+        {children}
+      </div>
+    );
+  }
   return (
-    <div className="pw-field" style={style}>
-      <span className="pw-label">
+    <div className="d-field" style={style}>
+      <span className="d-field-t">
         {label}
         {hint ? <small>{hint}</small> : null}
       </span>
@@ -376,48 +404,40 @@ export function ConfigField({ label, hint, children, style }: {
 }
 
 export function ConfigEmptyState({ children }: { children: ReactNode }) {
-  return (
-    // fork:stack-rows（2026-10-01）—— 画板 62 帧 D「整页空」写明：**内容区居中**（40px 方框
-    // 图标 + 一句引导居中，判据原话「说明写在空态里，不要飘到别处」）。
-    //
-    // 居中不再靠 `height:100%` 撑父行 —— 「父行被拉满」与「有内容的行贴顶」是互斥的
-    // （board.css 的 `.pw-detail > .pw-detail-stack:has(> .pw-empty:only-child)` 用
-    // `:has` 把这两种形态分开：空态时那层变 flex、空态 `flex:1`；有内容时保持 grid 贴顶）。
-    // 颜色/内距/字号全由 board.css 的 `.pw-empty` / `.pw-empty-inner` 给，这里不写内联。
-    <div className="pw-empty">
-      <div className="pw-empty-inner">{children}</div>
-    </div>
-  );
+  const isMobile = useIsMobile();
+  // D-07b / M-05 的空态：内容区居中（图标 + 一句引导），颜色 / 内距 / 字号全部
+  // 来自 `d-empty` / `m-empty`，这里不写内联。
+  return <div className={isMobile ? "m-empty" : "d-empty"}>{children}</div>;
 }
 
 export function ConfigDetail({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  const isMobile = useIsMobile();
   return (
-    <div className="pw-detail" style={style}>
+    <div className={isMobile ? "m-cardgroup" : "d-card"} style={style}>
       {children}
     </div>
   );
 }
 
 export function ConfigFooter({ status, children }: { status?: ReactNode; children?: ReactNode }) {
+  const isMobile = useIsMobile();
   return (
-    <footer className="pw-modal-foot">
-      <span className="pw-mono pw-dim">{status}</span>
-      <span className="pw-grow" aria-hidden="true" />
-      <span className="pw-inline">{children}</span>
+    <footer className={isMobile ? "m-sheet-foot" : "d-modal-foot"}>
+      <span className={isMobile ? "m-t-xs m-mono m-t-faint" : "d-t-xs d-mono d-t-faint"}>{status}</span>
+      <span className={isMobile ? "m-grow" : "d-grow"} aria-hidden="true" />
+      <span className="d-row">{children}</span>
     </footer>
   );
 }
 
 /**
- * fork:design-system SW-08~13 —— 按钮换成画板 00 的 `.pw-btn` 四态。
+ * fork:design-system SW-08~13 —— 按钮：D-07 的 `.d-btn` 四态，M-05 的 `.m-btn`。
  *
- * 画板只有三种形态：默认（ghost，悬浮出 6% 底）、`.primary`（强调色填充）、
- * `.outline`（发丝边框 + 画布底）、`.danger`（error 文字），外加 `.sm` 一档尺寸。
- * 产品的四个变体照此映射：
- *   primary   → pw-btn primary
- *   secondary → pw-btn outline      （有边界的次要动作）
- *   ghost     → pw-btn              （无边界）
- *   danger    → pw-btn danger
+ *   primary   → d-btn primary / m-btn（手机上 `.m-btn` 就是强调档）
+ *   secondary → d-btn（发丝边框）/ m-btn
+ *   ghost     → d-btn ghost / m-btn ghost
+ *   danger    → d-btn danger / m-btn（手机上危险档用 `.m-picktag.danger`，
+ *               见 M-04 删除确认；这里保持与桌面同一语义，只是没画 danger 变体）
  */
 export function ConfigButton({
   variant = "secondary",
@@ -426,23 +446,34 @@ export function ConfigButton({
   children,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ConfigButtonVariant; size?: ConfigButtonSize }) {
+  const isMobile = useIsMobile();
+  // 桌面 `.d-btn` 的次要档本来就是「发丝边框」本体，所以 secondary → 空类名；
+  // `.m-btn` 同款（它也有 `.primary` / `.danger` / `.ghost`）。
   const variantClass = variant === "primary" ? "primary"
-    : variant === "secondary" ? "outline"
+    : variant === "secondary" ? ""
     : variant === "danger" ? "danger"
-    : "";
+    : "ghost";
   return (
     <button
       type="button"
       {...props}
-      className={["pw-btn", variantClass, size === "small" ? "sm" : "", className].filter(Boolean).join(" ")}
+      className={[
+        isMobile ? "m-btn" : "d-btn",
+        variantClass,
+        size === "small" ? "sm" : "",
+        className,
+      ].filter(Boolean).join(" ")}
     >
       {children}
     </button>
   );
 }
 
-/** fork:design-system SW-08~13 —— 开关 = 画板 00 的 `.pw-switch`（`<i>` 是圆钮）。 */
+/** 开关：D-07 的 `<button class="d-switch on">`（34×20）/ M-05 的 `.m-switch`（48×29）。
+ *  产品必须是可聚焦按钮，所以画板里那个静态 `<span>` 换成 `<button role="switch">`，
+ *  类名与状态类一字不动。 */
 export function ConfigSwitch({ checked, disabled = false, loading = false, label, onChange }: { checked: boolean; disabled?: boolean; loading?: boolean; label: string; onChange: (checked: boolean) => void }) {
+  const isMobile = useIsMobile();
   const inactive = disabled || loading;
   return (
     <button
@@ -453,34 +484,36 @@ export function ConfigSwitch({ checked, disabled = false, loading = false, label
       aria-label={label}
       title={label}
       disabled={inactive}
-      className={`pw-switch${checked ? " on" : ""}${loading ? " is-loading" : ""}`}
+      className={`${isMobile ? "m-switch" : "d-switch"}${checked ? " on" : ""}${!isMobile && loading ? " is-loading" : ""}`}
       onClick={() => onChange(!checked)}
-    >
-      <i aria-hidden="true" />
-    </button>
+    />
   );
 }
 
-/** 列表底部的「新增一行」：画板是 `.pw-list` 里的一条 `.pw-litem` + 前置 plus 图标。 */
+/** 列表底部的「新增一行」：列里的一条 `.d-trow` / `.m-trow` + 前置 plus 图标。 */
 export function ConfigListAction({ active = false, children, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+  const isMobile = useIsMobile();
   return (
     <button
       type="button"
       {...props}
       aria-current={active ? "page" : undefined}
-      className={["pw-litem", "pw-litem-add", className].filter(Boolean).join(" ")}
+      className={[isMobile ? "m-trow" : "d-trow", className].filter(Boolean).join(" ")}
     >
-      <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
-      <span className="grow">{children}</span>
+      <i data-ico="plus" data-size="14" aria-hidden="true"></i>
+      <span className={isMobile ? "m-grow" : "d-grow"}>{children}</span>
     </button>
   );
 }
 
 export function ConfigStatusDot({ active, color }: { active?: boolean; color?: string }) {
+  const isMobile = useIsMobile();
+  // v1 的 `.pw-dot.pending` 在 v5 表里叫 `.warn`（画板 `.d-dot` / `.m-dot` 都有）。
+  const state = active ? " run" : active === false ? " warn" : "";
   return (
     <span
       aria-hidden="true"
-      className={`pw-dot${active ? " run" : active === false ? " pending" : ""}`}
+      className={`${isMobile ? "m-dot" : "d-dot"}${state}`}
       style={color ? { backgroundColor: color } : undefined}
     />
   );
@@ -489,47 +522,47 @@ export function ConfigStatusDot({ active, color }: { active?: boolean; color?: s
 /* ---------------------------------------------------------------------------
  * fork:zn-15 退役（2026-10-01 孤儿清理）—— Zeno 形态的 `SettingsBlock` /
  * `SettingsRow` / `SettingsSlider` 三个基件及其 `.fork-settings-*` 样式已删除：
- * 全仓零引用，分节已全部迁到画板 40/62 的 `.pw-block` / `.pw-field` 行规格
- * （下面那组 pw-* 基件）。「标题在上、控件在右上」的行形态在画板里没有对应物，
- * 不再保留第二套设置行。
+ * 全仓零引用，分节已全部迁到下面的设置行基件。「标题在上、控件在右上」的行形态
+ * 在画板里没有对应物，不再保留第二套设置行。
  * ------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------
- * fork:design-system SW-07 — 画板 40 的设置控件基件（pw-* 版）。
+ * fork:design-system SW-07 / fork:v5-landing Wave B —— 设置控件基件。
  *
- * 画板 40 把设置页定成「pw-snav 左导航 + pw-sbody 右内容」两栏，内容由
- * `pw-block`（发丝边框卡片，标题带 14px 图标）与 `pw-field`（标签可带一句小字 +
- * 右侧控件，行高 34、行间发丝线）拼成。这一组基件只做结构，规格全部来自
- * `design/pi-web-design/assets/board.css` —— 这里不写任何颜色 / 尺寸 / 间距。
+ * 桌面：D-07 把设置页定成「`.d-set-nav` 左导航 + `.d-set-main` 右内容」两栏，
+ * 内容由 `.d-set-sec`（分组，标题带 14px 图标）与 `.d-set-row`（左标签 + 一句
+ * 小字说明 + 右控件）拼成。
+ * 手机：M-05 把设置页定成两层（hub 卡片 → 分节二级页），内容由 `.m-cardgroup`
+ * （白卡）+ `div.m-setrow`（44px 触控行）拼成。
+ *
+ * 这一组基件只发类名，规格全部来自 `design/v5/web/system.css` 与
+ * `design/v5/pwa/system.css` —— 这里不写任何颜色 / 尺寸 / 间距 / 圆角。
  * （fork:zn-15 的 Zeno 形态行已退役，见上方退役说明：这是唯一的设置行形态。）
  * ------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------
- * fork:settings-frame（画板 62）—— 设置页三件套。
+ * fork:settings-frame —— 设置页三件套。
  *
- * 12 个分节原来有 4 种骨架（单列块流 / 列表+详情 / 顶部整宽条+两栏 /
- * 块流+底部两栏），页头只有 5 页有、4 页的 h2 还被包在 wrapper 里够不到
- * `board.css` 的 `> h2`。现在统一成：
+ * 分节原来有 4 种骨架（单列块流 / 列表+详情 / 顶部整宽条+两栏 /
+ * 块流+底部两栏），现在统一成：
  *
- *   页头（h2 + sub + 页级动作）  ── 恒在
+ *   页头（标题 + sub + 页级动作）  ── 恒在
  *   工具栏（搜索 + 筛选 + 计数 + 列表级动作）── 有列表才有
  *   内容区 ── 唯一滚动容器
  *
  * 三个块是**分节宿主的直接子元素**，不另包一层：宿主本身已经是 flex column
- * （块流页是 `.settings-section-host`，列表页是 `.config-panel-surface`）。
- * 所以这里返回 Fragment，而不是一个 wrapper —— 多一层会让 `height:100%`
- * 的传递断掉。
+ * （`.settings-section-host` 或 `.config-panel-surface`）。所以这里返回 Fragment，
+ * 而不是一层 wrapper —— 多一层会让 `height:100%` 的传递断掉。
  *
- * `fill` 给列表页用：内容区不滚，交给 `.pw-cols` 的两列各自滚
- * （画板 62 帧 B「唯一滚动在内容区」的列表页形态）。
+ * `fill` 给列表页用：内容区不滚，交给两列各自滚（`.d-set-nav` 自带
+ * `overflow-y: auto`）。手机端（M-05 帧 B）不分这两层 —— 二级页只有一块内容流。
  * ------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------
- * `.pw-shead-acts` 的契约（画板 62「动作四级归位」①：页级 · 页头右端）
+ * 页级动作的契约（画板 62「动作四级归位」①：页级 · 页头右端）
  *
- * 页级动作**只走 `actions` 这一个口**，类名照画板 62 帧 B（board.css:696：
- * `flex: none` + `gap: var(--s2)`）。右对齐不另加 margin —— 是
- * `.pw-shead-copy { flex: 1; min-width: 0 }` 把右槽顶出去的。层级不许混：
+ * 页级动作**只走 `actions` 这一个口**。右对齐不另加 margin —— 是标题那格的
+ * `.d-grow` 把右槽顶出去的。层级不许混：
  *   ① 页级   → actions（页头右端，最多 2 个：1 主 1 次）
  *   ② 列表级 → toolbar（与计数徽章同排）
  *   ③ 条目级 → ConfigDetailActions（详情头右端）
@@ -537,13 +570,8 @@ export function ConfigStatusDot({ active, color }: { active?: boolean; color?: s
  *   页脚     → 只放只读状态，且必须是本页自己的（画板 62 帧 D）
  *
  * **`actions` 省略时这个槽整个不出现在 DOM 里，这是对的。** 不要为了「让某一帧
- * 量得到」而渲染一个空的 `.pw-shead-acts`：画板 62 帧 E 的 12 分节落位表把
- * **常规 / 归档历史**（模型页按画板 41 的 DOM 裁定另算）的「页级动作」一栏写成
- * 「—」；帧 2 之所以在 `.pw-shead-acts` 里塞一枚 `无页级动作 · 即时生效` 徽章，
- * 是样张为了把页头三段式（copy + 右槽）画全而**自己加的批注**，不是产品要出的
- * 东西 —— 「改动即时生效、不需要保存」这句话产品的页头 sub 已经说了
- * （`settings.generalSub`）。`scripts/board-specs/62-frame2.mjs` 该把
- * `.pw-shead-acts` 登记成已知分歧，而不是让产品去补一枚空槽。
+ * 量得到」而渲染一个空的右槽：「改动即时生效、不需要保存」这句话产品的页头 sub
+ * 已经说了（`settings.generalSub`）。
  * ------------------------------------------------------------------------- */
 
 export function SettingsPage({
@@ -558,32 +586,52 @@ export function SettingsPage({
   /** 一句「这页是干嘛的」。**不写数据** —— 计数进工具栏的等宽徽章。 */
   sub?: string;
   /** 页级动作，最多 2 个（1 primary + 1 outline），永远在页头右端。
-   *  省略即**不渲染** `.pw-shead-acts` —— 画板 62 帧 E 的落位表把常规 / 归档历史
-   *  这一栏写成「—」，空槽不是缺陷（见上方契约说明）。 */
+   *  省略即**不渲染**右槽 —— 空槽不是缺陷（见上方契约说明）。 */
   actions?: ReactNode;
   /** 列表级动作与搜索行；省略即不出工具栏。 */
   toolbar?: ReactNode;
   fill?: boolean;
   children: ReactNode;
 }) {
+  const isMobile = useIsMobile();
+  // 手机（M-05 帧 B）：分节二级页的页头就是 `.m-hero`（标题 + 一句说明），
+  // 动作与工具栏各自落进一张 `.m-cardgroup` / 一行 `.m-fieldrow`，
+  // 绝不另起一块左导航 —— 二级页左上角永远能直接回 hub。
+  if (isMobile) {
+    return (
+      <>
+        <div className="m-hero">
+          <span className="m-t-lg m-t-b">{title}</span>
+          {sub ? <span className="m-t-cap m-t-dim">{sub}</span> : null}
+        </div>
+        {toolbar ? <div className="m-cardgroup m-fieldrow">{toolbar}</div> : null}
+        {actions ? <div className="m-cardgroup m-fieldrow">{actions}</div> : null}
+        {children}
+      </>
+    );
+  }
+  // 桌面（D-07 / D-07b）：设置壳里没有独立页头类 —— 分节标题就是一块
+  // `.d-set-sec`，标题 `.d-set-sec-t`、副标题一行弱化说明、动作在标题行右端。
+  // `fill` 给列表 + 详情那几节：内容区就是 D-07 的两栏壳（`.d-set`），左列
+  // `.d-set-nav` 自带 `overflow-y: auto`；其余分节是单列块流（`.d-col`）。
+  // 手机（M-05 帧 B）只有一块内容流，两栏在 `ConfigSplitView` 里自己塌成一列。
   return (
     <>
-      <header className="pw-shead">
-        <div className="pw-shead-copy">
-          <h2>{title}</h2>
-          {sub ? <p className="sub">{sub}</p> : null}
+      <div className="d-set-sec">
+        <div className="d-row">
+          <span className="d-t-lg d-t-b d-grow">{title}</span>
+          {/* ① 页级动作（动作四级归位 ①）：右端对齐由 `.d-grow` 顶出，不另加 margin。 */}
+          {actions ? <div className="d-row">{actions}</div> : null}
         </div>
-        {/* ① 页级动作（动作四级归位 ①）：画板 62 帧 B 的类，右对齐由
-            `.pw-shead-copy{flex:1}` 顶出，不另加 margin。见上方契约。 */}
-        {actions ? <div className="pw-shead-acts">{actions}</div> : null}
-      </header>
-      {toolbar ? <div className="pw-stools">{toolbar}</div> : null}
-      <div className={fill ? "pw-scontent is-fixed" : "pw-scontent"}>{children}</div>
+        {sub ? <div className="d-t-xs d-t-faint">{sub}</div> : null}
+      </div>
+      {toolbar ? <div className="d-row">{toolbar}</div> : null}
+      <div className={fill ? "d-set" : "d-col"}>{children}</div>
     </>
   );
 }
 
-/** 工具栏里的搜索框（画板 62 帧 B 的 ②）：240 宽、24 高、带前置放大镜。 */
+/** 工具栏里的搜索框：D-07 的 `.d-searchfield` / M-05 的 `.m-searchfield`。 */
 export function PwSearch({
   value,
   placeholder,
@@ -595,9 +643,10 @@ export function PwSearch({
   ariaLabel: string;
   onChange: (next: string) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
-    <span className="pw-search">
-      <span className="pw-ico pw-dim"><i data-ico="search" data-size="14" aria-hidden="true" /></span>
+    <span className={isMobile ? "m-searchfield m-grow" : "d-searchfield"}>
+      <i data-ico="search" data-size="14" aria-hidden="true" />
       <input
         type="search"
         value={value}
@@ -611,21 +660,38 @@ export function PwSearch({
 }
 
 
-/** 分组卡：`pw-block` + 带图标的 `h3`。 */
+/** 分组块：桌面 = 画板 D-07 的 `.d-set-sec` + `.d-set-sec-t`（图标进标题行）；
+ *  手机 = M-05 帧 C 的 `.m-cardgroup`（白卡）+ 卡内 `.m-group-title`。
+ *  两边都是「一块标题 + 若干行」，行的形态由 `PwField` 按形态发 `d-set-row` /
+ *  `m-setrow`。 */
 export function PwBlock({ icon, title, children }: { icon: string; title: string; children: ReactNode }) {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <div className="m-cardgroup">
+        <div className="m-group-title">
+          <i data-ico={icon} data-size="14" aria-hidden="true" />
+          {title}
+        </div>
+        {children}
+      </div>
+    );
+  }
   return (
-    <div className="pw-block">
-      <h3>
-        <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">
+        <i data-ico={icon} data-size="14" aria-hidden="true" />
         {title}
-      </h3>
+      </div>
       {children}
     </div>
   );
 }
 
 /**
- * 设置行：`pw-field` = 左「标签（+ 小字说明）」、右「控件」。
+ * 设置行：桌面 = D-07 的 `.d-set-row`（左「标题 + 小字说明」、右控件）；
+ * 手机 = M-05 帧 B 的 `div.m-setrow`（`.m-setrow-body` 里标题在上、说明在下，
+ * 控件在同一行右端 —— 44px 触控行）。
  *
  * `htmlFor` 给了就把标签包成真 `<label>`（点标签能聚焦到控件）；没给就只是文本。
  */
@@ -640,32 +706,50 @@ export function PwField({
   htmlFor?: string;
   control: ReactNode;
 }) {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <div className="m-setrow">
+        <span className="m-setrow-body">
+          <span className="m-setrow-t">
+            {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+          </span>
+          {hint ? <span className="m-setrow-s">{hint}</span> : null}
+        </span>
+        {control}
+      </div>
+    );
+  }
   return (
-    <div className="pw-field">
-      <span className="pw-label">
-        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
-        {hint ? <small>{hint}</small> : null}
-      </span>
-      {control}
+    <div className="d-set-row">
+      <div className="d-set-row-box">
+        <div className="d-set-row-t">
+          {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+        </div>
+        {hint ? <div className="d-set-row-s">{hint}</div> : null}
+      </div>
+      <span className="d-grow-last">{control}</span>
     </div>
   );
 }
 
-/** 行内控件组：`pw-ctl`（右对齐、flex、gap s2）。 */
+/** 行内控件组：桌面 = D-07 的 `.d-row`（flex、gap s2）；手机 = M-05 的 `.m-row-body`
+ *  （flex:1 + min-width:0，让 44px 控件组在 44 高的触控行里自己占满右半格）。 */
 export function PwCtl({ children }: { children: ReactNode }) {
-  return <span className="pw-ctl">{children}</span>;
+  const isMobile = useIsMobile();
+  return <span className={isMobile ? "m-row-body" : "d-row"}>{children}</span>;
 }
 
-/** 等宽数字读数（画板 40 里宽度 / 字号 / 浓度都是这个形态）。
- *  画板这两处是一次性 inline `font-size:var(--text-meta)`；`.pw-mono`（board.css:65）
- *  本身就是 `var(--text-meta)`，`.pw-dim` 把它压到 placeholder 色 —— 不需要 inline。 */
+/** 等宽数字读数：D-07 的 `.d-t-xs.d-mono` / M-05 的 `.m-t-xs.m-mono`。 */
 export function PwValue({ children }: { children: ReactNode }) {
-  return <span className="pw-mono pw-dim">{children}</span>;
+  const isMobile = useIsMobile();
+  return <span className={isMobile ? "m-t-xs m-mono" : "d-t-xs d-mono"}>{children}</span>;
 }
 
 /**
- * 开关：画板是 `<span class="pw-switch on"><i></i></span>`，产品必须是可聚焦按钮，
- * 所以换成 `<button role="switch">` 并保留同一组类；UA 归零在 fork-ui.css 的接线块。
+ * 开关：D-07 是 `<button class="d-switch on">`（34×20），M-05 是 `.m-switch`（48×29）。
+ * 产品必须是可聚焦按钮，所以画板里那个静态元素换成 `<button role="switch">`，
+ * 类名与状态类一字不动。
  */
 export function PwSwitch({
   checked,
@@ -680,6 +764,7 @@ export function PwSwitch({
   label: string;
   onChange: (checked: boolean) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
     <button
       type="button"
@@ -689,11 +774,9 @@ export function PwSwitch({
       aria-label={label}
       title={label}
       disabled={disabled || loading}
-      className={`pw-switch${checked ? " on" : ""}`}
+      className={`${isMobile ? "m-switch" : "d-switch"}${checked ? " on" : ""}`}
       onClick={() => onChange(!checked)}
-    >
-      <i aria-hidden="true" />
-    </button>
+    />
   );
 }
 
@@ -702,8 +785,8 @@ export interface PwRadioOption<T extends string> {
   label: string;
   /** data-ico 图标名（画板 sprite）。 */
   icon?: string;
-  /** 画板的 radio 芯片可带前置 `pw-ico`；产品的芯片还要放**非 sprite 名**的图案
-   *  （画板 41 · 模型设置的图标模式选择放的是品牌 ProviderIcon），所以允许直接传
+  /** 画板的 radio 芯片可带前置图标；产品的芯片还要放**非 sprite 名**的图案
+   *  （画板 D-08 · 模型设置的图标模式选择放的是品牌 ProviderIcon），所以允许直接传
    *  节点；与 `icon` 同时给时 `node` 优先。 */
   node?: ReactNode;
   /** 原生 title 提示（如 LimitChips 芯片上的原始数值）。 */
@@ -711,26 +794,23 @@ export interface PwRadioOption<T extends string> {
 }
 
 /**
- * 单选芯片组：画板是 `.pw-radio > span`，产品换成 `<button role="radio">`
- * （键盘可切换），键名与状态类（`.is-on`）照抄。
+ * 单选芯片组：桌面 = D-07 的 `.d-seg > button`（内嵌分段，选中 `.is-on`）；
+ * 手机 = M-05 帧 B 的 `div.m-pickbar > button.m-picktag`（等宽三档、44 高、
+ * 选中即染色）。产品用 `<button role="radio">`（键盘可切换），状态类照抄。
  *
- * **什么时候是 `PwRadio`、什么时候是 `PwSelectBox`**（判据见下；画板 62 帧 B / 帧 C
- * 逐行清点，2026-10-01 复核）：
- *   - `.pw-radio`：**少量互斥、且要一眼看全**的档位。常规页四组 —— 主题
+ * **什么时候是 `PwRadio`、什么时候是 `PwSelectBox`**（判据见下）：
+ *   - `PwRadio`：**少量互斥、且要一眼看全**的档位。常规页四组 —— 主题
  *     （浅色 / 深色 / 跟随系统，带 sun / moon / monitor 图标）、界面语言
  *     （简体中文 / 繁體中文 / English，与 `lib/i18n/registry.ts` 的三个 locale
  *     一一对应）、界面密度（紧凑 / 标准 / 宽松）、过程步骤默认展开
  *     （推理 / 命令 / 工具 —— 产品语义是三个**独立**开关，所以那一组是
- *     `aria-pressed` 的 `.pw-radio` 而不是 role=radio）。列表页一组 —— 技能页
- *     工具栏的作用域筛选（全部 / 项目 / 全局 / 路径，画板 62 帧 B）。
- *   - `.pw-selectbox`：**值本身是一串要背下来的标识、或选项多到芯片排不下**的字段
+ *     `aria-pressed` 而不是 role=radio）。列表页一组 —— 技能页
+ *     工具栏的作用域筛选（全部 / 项目 / 全局 / 路径）。
+ *   - `PwSelectBox`：**值本身是一串要背下来的标识、或选项多到芯片排不下**的字段
  *     —— UI 字体（字体栈）、UI 字号 / 聊天字号 / 扩展字号、会话命名用的模型、
  *     子代理的保存作用域与思考强度、MCP 的传输方式与来源、壁纸的适配方式与遮罩。
- *   - 画板 43 / 44 / 45 / 46 同族：插件与 MCP 的作用域及 Basic / JSON、定时任务的
- *     频率与复用策略、用量的时间范围、导入的四类资产与「按来源 / 按项目」。
- *   - 判据不是「几个选项」而是「值的性质」：`.pw-radio` 的芯片宽度跟着文案走，
- *     选项一多就把字段行那 16px gap 顶破；`.pw-selectbox` 是定宽盒（board.css:830，
- *     `min-width: 150px`），值再长也不变形。**新加字段先按这条判，别一律下拉。**
+ *   - 判据不是「几个选项」而是「值的性质」：芯片宽度跟着文案走，选项一多就把
+ *     字段行顶破；下拉是定宽盒，值再长也不变形。**新加字段先按这条判，别一律下拉。**
  */
 export function PwRadio<T extends string>({
   value,
@@ -745,8 +825,13 @@ export function PwRadio<T extends string>({
   disabled?: boolean;
   onChange: (next: T) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
-    <span className="pw-radio" role="radiogroup" aria-label={ariaLabel}>
+    <span
+      className={isMobile ? "m-pickbar" : "d-seg"}
+      role="radiogroup"
+      aria-label={ariaLabel}
+    >
       {options.map((option) => {
         const on = option.value === value;
         return (
@@ -757,13 +842,15 @@ export function PwRadio<T extends string>({
             aria-checked={on}
             title={option.title}
             disabled={disabled}
-            className={on ? "is-on" : undefined}
+            className={isMobile
+              ? `m-picktag${on ? " is-on" : ""}`
+              : on ? "is-on" : undefined}
             onClick={() => onChange(option.value)}
           >
             {option.node
               ? option.node
               : option.icon
-                ? <span className="pw-ico"><i data-ico={option.icon} data-size="12"></i></span>
+                ? <i data-ico={option.icon} data-size="12" aria-hidden="true" />
                 : null}
             {option.label}
           </button>
@@ -774,8 +861,9 @@ export function PwRadio<T extends string>({
 }
 
 /**
- * 下拉：画板是「静态盒 + chevron」，产品是原生 `<select>` 塞进同一个盒，
- * 原生外观由接线块 `appearance: none` 归零，chevron 仍用画板那枚图标。
+ * 下拉：D-07 的 `.d-select` 与 M-05 的 `.m-select` 都是「静态盒 + chevron」，
+ * 产品是原生 `<select>` 挂同一个类（原生外观由接线层 `appearance: none` 归零，
+ * 登记为设计侧缺口）。
  */
 export function PwSelectBox({
   value,
@@ -790,22 +878,19 @@ export function PwSelectBox({
   disabled?: boolean;
   onChange: (next: string) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
-    <span className="pw-selectbox">
-      <select value={value} aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-      <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
-    </span>
+    <select className={isMobile ? "m-select" : "d-select"} value={value} aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>{option.label}</option>
+      ))}
+    </select>
   );
 }
 
 /**
- * 数值滑块：画板 40 画的是**静态**轨道（180×4、圆角 2、12px 圆钮 + 等宽读数），
- * board.css 里没有对应的类，所以这里用真 `<input type="range">` 并自带 `.pw-range`
- * 骨架（几何照抄画板那一帧，色值走 token）。
+ * 数值滑块：桌面 = D-07 的 `.d-slider` + `.d-t-xs.d-mono` 读数；
+ * 手机 = M-05 帧 B 的 `.m-slider`（拇指 26px）+ `.m-t-xs.m-mono` 读数。
  */
 export function PwRange({
   id,
@@ -828,11 +913,12 @@ export function PwRange({
   disabled?: boolean;
   onChange: (next: number) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
     <>
       <input
         id={id}
-        className="pw-range"
+        className={isMobile ? "m-slider m-grow" : "d-slider"}
         type="range"
         min={min}
         max={max}

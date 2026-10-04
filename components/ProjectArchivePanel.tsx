@@ -10,11 +10,11 @@
  * fork:settings-frame（画板 62，2026-10-01）—— 归档历史从「ProjectArchivePanel +
  * ArchivedSessionsPanel 上下两块」改成**骨架 B（列表 300 + 详情 760）**：
  *
- *   列表列（300，`.pw-cols > :first-child` 自己滚）
+ *   列表列（300，`ConfigSplitView` 的第一列自己滚）
  *     「项目」分组   —— 已归档项目行：folder + 名称 + 会话数（会话数**只在这里**出现）
  *     「会话」分组   —— 组标题带「显示文件已消失」开关（画板 46 的带标签形态）
  *                       + 计数徽章；行 = 会话名 + 归档时间
- *   详情列（760，`.pw-detail` 自己滚）
+ *   详情列（760，`ConfigDetail` 自己滚）
  *     选中项目 → 画板 46 项目卡的详情形态：头行（folder + 项目名 + 归档时间 + 恢复项目）
  *                 + 画板 46 原样的会话子列表（缩进 + 点行打开会话）
  *     选中会话 → <ArchivedSessionDetail>
@@ -39,7 +39,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
+import { PwaSheet } from "@/components/pwa/PwaSheet";
 import type { Locale } from "@/lib/i18n/types";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { getRecentProjects, sessionsForProject, withoutChatProject, type RecentProject } from "@/lib/project-groups";
@@ -76,6 +79,7 @@ export function ProjectArchivePanel({
   onCloseRequest?: () => void;
 }) {
   const { t, locale } = useI18n();
+  const mobile = useIsMobile();
   // 项目归档在项目表，会话归档在会话表。列表列的两组分别读自己那张。
   const { flags: projectFlags, archive, restore } = useProjectFlags();
   const { flags: sessionFlags } = useSessionFlags();
@@ -141,44 +145,194 @@ export function ProjectArchivePanel({
   // 整页空（画板 62 帧 D）：两个分组都没有任何条目 —— 项目组与会话组各查各的表。
   const pageEmpty = sessions !== null && archivedProjects.length === 0 && sessionFlags.archived.length === 0;
 
+  // fork:v5-landing Wave B · M-05 · 窄屏：两列骨架（列表 300 + 详情 760）塌成
+  // **一列列表 + 底部面板**：列表里两张卡（已归档项目 / 已归档会话），点哪条就在
+  // `.m-sheet` 里看详情。两张归档表（projectKey / session id）仍然是各读各的，
+  // 本页仍然**永不删东西**（删除只住 ArchivedSessionsPanel 的详情面板）。
+  if (mobile) {
+    return (
+      <>
+        {error && <PwaBanner icon="triangle-alert" tone="err" role="alert">{error}</PwaBanner>}
+        {pageEmpty ? (
+          <div className="m-empty">
+            <span className="m-empty-ico"><i data-ico="archive" data-size="20" aria-hidden="true" /></span>
+            <span className="m-empty-t">{t("settings.archivedEmptyTitle")}</span>
+            <span className="m-empty-s">{t("settings.projectsNoneArchived")}</span>
+            {onCloseRequest && (
+              <button type="button" className="m-btn" onClick={onCloseRequest}>
+                <i data-ico="arrow-left" data-size="13" aria-hidden="true" />
+                {t("settings.backToWorkspace")}
+              </button>
+            )}
+            <span className="m-t-xs m-t-faint">{t("settings.archiveStoredLocally")}</span>
+          </div>
+        ) : (
+          <>
+            <div className="m-cardgroup">
+              <div className="m-setrow">
+                <i data-ico="folder" data-size="16" aria-hidden="true" />
+                <span className="m-setrow-body">
+                  <span className="m-setrow-t">{t("settings.projectsActive")}</span>
+                </span>
+                <span className="m-badge mute">{archivedProjects.length}</span>
+              </div>
+              {archivedProjects.length === 0 ? (
+                <PwaSetRow label={t("settings.projectsNoneArchived")} />
+              ) : (
+                archivedProjects.map((project) => (
+                  <button
+                    key={project.key}
+                    type="button"
+                    className="m-setrow"
+                    aria-current={selectedProject?.key === project.key ? "page" : undefined}
+                    onClick={() => setSelected({ kind: "project", key: project.key })}
+                  >
+                    <i data-ico="folder" data-size="16" aria-hidden="true" />
+                    <span className="m-setrow-body">
+                      <span className="m-setrow-t">
+                        {project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}
+                      </span>
+                      <span className="m-setrow-s">
+                        {t("settings.projectsSessionCount", {
+                          count: sessionsForProject(allSessions, project.key).length,
+                        })}
+                      </span>
+                    </span>
+                    <i data-ico="chevron-right" data-size="15" aria-hidden="true" />
+                  </button>
+                ))
+              )}
+            </div>
+
+            {sessions === null ? (
+              <div role="status" className="m-run">
+                <i data-ico="loader-circle" data-size="14" aria-hidden="true" />
+                <span className="m-grow">{t("i18n.loading")}</span>
+              </div>
+            ) : (
+              <ArchivedSessionsGroup
+                sessions={allSessions}
+                selectedId={selectedSessionId}
+                onSelect={(id) => setSelected({ kind: "session", id })}
+              />
+            )}
+
+            <PwaSheet
+              open={Boolean(selectedProject || selectedSessionId)}
+              title={selectedProject
+                ? (selectedProject.root.split(/[/\\]/).filter(Boolean).pop() || selectedProject.root)
+                : t("settings.archivedSessionsLabel")}
+              onClose={() => setSelected(null)}
+              footer={
+                <>
+                  <button type="button" className="m-picktag" onClick={() => setSelected(null)}>
+                    {t("i18n.close")}
+                  </button>
+                  {selectedProject && (
+                    <button
+                      type="button"
+                      className="m-picktag is-on"
+                      disabled={busyKey === selectedProject.key}
+                      onClick={() => void setArchived(selectedProject.key, false)}
+                    >
+                      <i data-ico="archive-restore" data-size="13" aria-hidden="true" />
+                      {t("settings.projectsRestore")}
+                    </button>
+                  )}
+                </>
+              }
+            >
+              {selectedProject && (
+                <>
+                  <div className="m-cardgroup">
+                    <PwaSetRow
+                      icon="folder"
+                      label={selectedProject.root.split(/[/\\]/).filter(Boolean).pop() || selectedProject.root}
+                      sub={projectFlags.archivedAt[selectedProject.key]
+                        ? t("settings.archivedAt", {
+                          time: formatRelativeTime(new Date(projectFlags.archivedAt[selectedProject.key]!), locale),
+                        })
+                        : undefined}
+                    />
+                  </div>
+                  <div className="m-cardgroup">
+                    {sessionsForProject(allSessions, selectedProject.key)
+                      .slice()
+                      .sort((a, b) => b.modified.localeCompare(a.modified))
+                      .slice(0, 20)
+                      .map((session) => (
+                        <button
+                          key={session.id}
+                          type="button"
+                          className="m-setrow"
+                          disabled={!onOpenSession}
+                          onClick={() => onOpenSession?.(session.id)}
+                        >
+                          <i data-ico="message-square" data-size="16" aria-hidden="true" />
+                          <span className="m-setrow-body">
+                            <span className="m-setrow-t">
+                              {session.name || session.firstMessage || session.id.slice(0, 8)}
+                            </span>
+                            <span className="m-setrow-s">{formatRelativeTime(new Date(session.modified), locale)}</span>
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                </>
+              )}
+              {selectedSessionId && (
+                <ArchivedSessionDetail
+                  sessions={allSessions}
+                  sessionId={selectedSessionId}
+                  onSessionsChanged={onSessionsChanged}
+                  onReload={() => void load()}
+                />
+              )}
+            </PwaSheet>
+          </>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       {error && (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{error}</span>
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{error}</span>
         </div>
       )}
       {pageEmpty ? (
         <ConfigEmptyState>
           <span className="mark"><i data-ico="archive" data-size="16" aria-hidden="true" /></span>
-          {/* 画板 62 帧 D「整页空」：20px 标题（`.pw-empty-inner h2`）+ 说明 + 一个出口动作。
+          {/* 画板 62 帧 D「整页空」：标题 + 说明 + 一个出口动作。
               标题用 archivedEmptyTitle（画板 62:411 的「还没有归档」），说明落在正文行。 */}
           <h2>{t("settings.archivedEmptyTitle")}</h2>
           <p>{t("settings.projectsNoneArchived")}</p>
           {onCloseRequest && (
             <ConfigButton variant="secondary" size="small" onClick={onCloseRequest}>
-              <span className="pw-ico"><i data-ico="arrow-left" data-size="13" aria-hidden="true" /></span>
+              <i data-ico="arrow-left" data-size="13" aria-hidden="true" />
               {t("settings.backToWorkspace")}
             </ConfigButton>
           )}
           {/* fix:archive-local-only —— 标志只在本机 localStorage（不动 `.jsonl` 是硬规矩）。
               「我明明归档过」的第一嫌疑就是这里，所以代价写在空态本体里，不飘到别处。 */}
-          <p className="pw-hint">{t("settings.archiveStoredLocally")}</p>
+          <p className="d-t-xs d-t-faint">{t("settings.archiveStoredLocally")}</p>
         </ConfigEmptyState>
       ) : (
         <ConfigSplitView>
           <ConfigSidebar>
             {sessions === null ? (
-              <div role="status" className="pw-inline">
-                <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin" aria-hidden="true" /></span>
-                <span className="grow">{t("i18n.loading")}</span>
+              <div role="status" className="d-run">
+                <i data-ico="loader-circle" data-size="14" aria-hidden="true" />
+                <span className="d-grow">{t("i18n.loading")}</span>
               </div>
             ) : (
               <>
                 <ConfigSidebarGroupLabel>
                   {t("settings.projectsActive")}
-                  <span className="pw-grow" aria-hidden="true" />
+                  <span className="d-grow" aria-hidden="true" />
                   <ConfigBadge tone="count">{archivedProjects.length}</ConfigBadge>
                 </ConfigSidebarGroupLabel>
                 {archivedProjects.length === 0 ? (
@@ -196,13 +350,13 @@ export function ProjectArchivePanel({
                         title={project.root}
                         onClick={() => setSelected({ kind: "project", key: project.key })}
                       >
-                        <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true" /></span>
+                        <i data-ico="folder" data-size="14" aria-hidden="true" />
                         <span className="grow">
-                          <span className="pw-lname">
+                          <span className="d-t-sm">
                             {project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}
                           </span>
                           {/* 会话数只在这里出现一次 —— 详情列不再复述（画板 62 骨架 B）。 */}
-                          <span className="pw-lsub">{t("settings.projectsSessionCount", {
+                          <span className="d-t-xs d-t-faint">{t("settings.projectsSessionCount", {
                             count: sessionsForProject(allSessions, project.key).length,
                           })}</span>
                         </span>
@@ -288,41 +442,41 @@ function ProjectArchiveDetail({
   return (
     <>
       <ConfigDetailHeader>
-        <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true" /></span>
+        <i data-ico="folder" data-size="14" aria-hidden="true" />
         <ConfigDetailTitle>{project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}</ConfigDetailTitle>
-        <span className="pw-grow" aria-hidden="true" />
+        <span className="d-grow" aria-hidden="true" />
         {archivedAt && (
-          <span className="pw-mono pw-dim">
+          <span className="d-mono d-t-faint">
             {t("settings.archivedAt", { time: formatRelativeTime(new Date(archivedAt), locale) })}
           </span>
         )}
         <ConfigButton variant="secondary" size="small" disabled={busy} onClick={onRestore}>
-          <span className="pw-ico"><i data-ico="archive-restore" data-size="13" aria-hidden="true" /></span>
+          <i data-ico="archive-restore" data-size="13" aria-hidden="true" />
           {t("settings.projectsRestore")}
         </ConfigButton>
       </ConfigDetailHeader>
       {/* 画板 46 的项目卡：子列表缩进一级（`margin-top`/`padding-left` 两个 token，
           照抄画板那一行，不新增几何值）。 */}
-      <div className="pw-list" style={{ marginTop: "var(--s2)", paddingLeft: "var(--s4)" }}>
-        {own.length === 0 && <p role="status" className="sub">{t("settings.projectsNoSessions")}</p>}
+      <div className="d-col" style={{ marginTop: "var(--nx-sp-2)", paddingLeft: "var(--nx-sp-4)" }}>
+        {own.length === 0 && <p role="status" className="d-t-xs d-t-faint">{t("settings.projectsNoSessions")}</p>}
         {recent.map((session) => (
           <button
             key={session.id}
             type="button"
-            className="pw-litem"
+            className="d-sess"
             title={session.id}
             disabled={!onOpenSession}
             onClick={() => onOpenSession?.(session.id)}
           >
-            <span className="pw-ico pw-dim"><i data-ico="message-square" data-size="13" aria-hidden="true" /></span>
-            <span className="grow">
-              <span className="pw-lname">{session.name || session.firstMessage || session.id.slice(0, 8)}</span>
+            <span className="d-row">
+              <i data-ico="message-square" data-size="13" aria-hidden="true" />
+              <span className="d-sess-t d-grow">{session.name || session.firstMessage || session.id.slice(0, 8)}</span>
+              <span className="d-sess-m">{formatRelativeTime(new Date(session.modified), locale)}</span>
             </span>
-            <span className="pw-lsub">{formatRelativeTime(new Date(session.modified), locale)}</span>
           </button>
         ))}
         {own.length > 20 && (
-          <p role="status" className="sub">{t("settings.projectsMoreSessions", { count: own.length - 20 })}</p>
+          <p role="status" className="d-t-xs d-t-faint">{t("settings.projectsMoreSessions", { count: own.length - 20 })}</p>
         )}
       </div>
     </>

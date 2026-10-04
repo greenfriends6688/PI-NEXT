@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-15 · 设置弹窗 · MCP · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-15 · 设置弹窗 · MCP</h1>
+  <p>
+    MCP 这一节要回答的是「<b>它连上了什么、怎么连的、连上之后模型到底能调到什么</b>」。
+    三件事各有一个容易翻车的地方，所以这一板把它们拆成四帧：<b>列表</b>里混着启用态、传输方式与认证态三种不同性质的徽章，
+    必须一眼分得清哪条是「连不上」哪条是「不用连」；<b>表单</b>是别人给你一段配置时的落点，所以入口有三条（粘贴 / 基础 / JSON）；
+    <b>粘贴解析面板</b>逐条交代「翻译了什么、丢了什么、为什么不接受」，<b>一处理解就静默处理一处</b>；
+    <b>登录与日志</b>分开，OAuth 过期不该藏在日志第 400 行里。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / MCP 服务器 · 编辑器 · 粘贴解析 · 登录 · 日志</span>
+    <span class="d-tag">组件：McpServerList · McpServerForm · McpPasteParser · McpOAuthList · McpLog</span>
+    <span class="d-tag">状态：stdio / HTTP · 已登录 / 令牌过期 / 需 API Key · 握手 401</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 服务器列表 · 启用开关 / 传输方式 / 认证态 三种徽章分列<span class="d-grow"></span>开关可点 · 行菜单可点 · 顶部「粘贴添加」浮层预开</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute"><i data-ico="lock" data-size="12"></i>凭据只进系统钥匙串</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+                <div class="d-md">
+                  <p>已经把 <span class="d-mono">linear</span> 的 12 个工具挂上了。接下来要不要把 <span class="d-mono">notion</span> 的令牌续一下？它现在 0 个工具可用。</p>
+                </div>
+              </div>
+              <div class="d-msg-user">先放着，我一会儿再授权。你先说说 notion 现在是什么状态。</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · MCP 服务器">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · MCP 服务器</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-row">
+                          <div class="d-t-xs d-t-faint d-grow">5 个服务器 · 4 个启用 · 45 个工具 · 配置文件 <span class="d-mono">~/.pi/agent/mcp.json</span> 与项目 <span class="d-mono">.pi/mcp.json</span></div>
+                          <div class="d-row" style="flex:0 0 auto">
+                            <button class="d-btn sm" data-demo-open="m17-paste"><i data-ico="clipboard-list" data-size="14"></i>粘贴添加</button>
+                            <button class="d-btn sm primary"><i data-ico="plus" data-size="14"></i>添加服务器</button>
+                          </div>
+                        </div>
+
+                        <div class="d-cats">
+                          <span class="d-t-xs d-t-faint">筛</span>
+                          <button class="d-cat">全部</button>
+                          <button class="d-cat">握手失败</button>
+                          <button class="d-cat">认证态异常</button>
+                          <button class="d-cat">stdio</button>
+                          <button class="d-cat">HTTP</button>
+                        </div>
+
+                        <div class="d-slottable">
+
+                          <div class="d-slotrow">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 github"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">github</span>
+                                <span class="d-badge info">codemode</span>
+                                <span class="d-t-xs d-t-faint">18 个工具 · 探测于 2 分钟前</span>
+                              </div>
+                              <span class="d-set-row-s d-mono">npx -y @modelcontextprotocol/server-github · 全局</span>
+                            </div>
+                            <span class="d-badge mute">stdio</span>
+                            <span class="d-badge ok">令牌从宿主环境读</span>
+                            <button class="d-iconbtn" data-demo-open="m17-row-github" aria-label="github 的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 linear"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">linear</span>
+                                <span class="d-badge ok">direct</span>
+                                <span class="d-t-xs d-t-faint">12 个工具 · 探测于 6 分钟前</span>
+                              </div>
+                              <span class="d-set-row-s d-mono">https://mcp.linear.app/mcp · 项目</span>
+                            </div>
+                            <span class="d-badge mute">HTTP</span>
+                            <span class="d-badge ok">OAuth 已登录</span>
+                            <button class="d-iconbtn" data-demo-open="m17-row-linear" aria-label="linear 的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 notion"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">notion</span>
+                                <span class="d-badge warn">deferred</span>
+                                <span class="d-t-xs d-t-faint">0 个工具</span>
+                              </div>
+                              <span class="d-set-row-s d-mono">https://mcp.notion.com/mcp · 全局</span>
+                            </div>
+                            <span class="d-badge mute">HTTP</span>
+                            <span class="d-badge bad">令牌过期</span>
+                            <button class="d-iconbtn" data-demo-open="m17-row-notion" aria-label="notion 的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用 sentry"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">sentry</span>
+                                <span class="d-badge warn">deferred</span>
+                                <span class="d-t-xs d-t-faint">9 个工具 · 探测于 40 秒前</span>
+                              </div>
+                              <span class="d-set-row-s d-mono">https://mcp.sentry.dev/mcp · 项目</span>
+                            </div>
+                            <span class="d-badge mute">HTTP</span>
+                            <span class="d-badge warn">需 API Key</span>
+                            <button class="d-iconbtn" data-demo-open="m17-row-sentry" aria-label="sentry 的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <button class="d-switch" data-demo-switch aria-checked="false" aria-label="启用 playwright"></button>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">playwright</span>
+                                <span class="d-badge mute">hidden</span>
+                                <span class="d-t-xs d-t-faint">6 个工具 · 本次会话未加载</span>
+                              </div>
+                              <span class="d-set-row-s d-mono">npx -y @playwright/mcp@latest · 全局</span>
+                            </div>
+                            <span class="d-badge mute">stdio</span>
+                            <span class="d-badge mute">不走 OAuth</span>
+                            <button class="d-iconbtn" data-demo-open="m17-row-playwright" aria-label="playwright 的操作"><i data-ico="ellipsis-vertical" data-size="15"></i></button>
+                          </div>
+
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">握手失败的服务器保持启用</div>
+                            <div class="d-set-row-s">凭据修好之后不用再回来开一次开关；未握手的工具不写进工具表，但配置一条不删。</div>
+                          </div>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="握手失败时保持启用"></button>
+                        </div>
+
+                        <div class="d-t-xs d-t-faint">
+                          两种徽章是不同维度，不许合并成一列：<b>传输方式</b>（stdio / HTTP）决定这一行怎么被拉起来，
+                          <b>认证态</b>决定它能不能拉到工具 —— 一个走 stdio 的服务器照样可能需要 <span class="d-mono">GITHUB_TOKEN</span>。
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 开关即时生效 · 新工具在下一轮对话可用，当前轮不变</span>
+                <button class="d-btn ghost">从磁盘重新读取</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <!-- 预开的浮层：截图里能看见内容，触发钮仍是成对声明式接线 -->
+              <div class="d-pop is-open" data-demo-pop="m17-paste" hidden style="right:120px;bottom:88px;min-width:420px">
+                <div class="d-pop-title">粘贴添加</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">把 <span class="d-mono">claude_desktop_config.json</span>、<span class="d-mono">mcp.json</span> 或任意一段 MCP 配置整段粘进来。</div>
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>读完先给一份逐条对照：<b>翻译了什么 / 丢了什么 / 为什么不接受</b>，确认后才写盘。</span>
+                  </div>
+                  <div class="d-code">
+                    <div class="d-code-body" style="padding:var(--nx-sp-2)">{ "mcpServers": { … } }</div>
+                  </div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="clipboard-list" data-size="14"></i>打开粘贴面板</button>
+                <button class="d-menu-row"><i data-ico="file-plus" data-size="14"></i>从本地文件读 server.json</button>
+                <button class="d-menu-row"><i data-ico="circle-help" data-size="14"></i>我这段不是 MCP 配置</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-row-github" hidden style="right:24px;bottom:88px;min-width:280px">
+                <div class="d-pop-title">github · stdio</div>
+                <div class="d-pop-body d-t-xs">令牌读自宿主环境 <span class="d-mono">PI_GITHUB_TOKEN</span>，本机不落盘明文。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="plug" data-size="14"></i>测试连接</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>编辑配置</button>
+                <button class="d-menu-row"><i data-ico="eye" data-size="14"></i>看 18 个工具与各自曝光</button>
+                <button class="d-menu-row"><i data-ico="move-diagonal" data-size="14"></i>移动到项目配置</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除（60 秒内可撤销）</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-row-linear" hidden style="right:24px;bottom:88px;min-width:280px">
+                <div class="d-pop-title">linear · Streamable HTTP</div>
+                <div class="d-pop-body d-t-xs">账号 you@company.com · 凭据在系统钥匙串 · 11-08 自动续期。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="plug" data-size="14"></i>测试连接</button>
+                <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i>重新授权</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>编辑配置</button>
+                <button class="d-menu-row"><i data-ico="file-diff" data-size="14"></i>看连接日志</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-row-notion" hidden style="right:24px;bottom:88px;min-width:300px">
+                <div class="d-pop-title">notion · 握手失败</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-err d-t-xs">401 unauthorized · 刷新令牌已被撤销（18 分钟前）</div>
+                  <div class="d-t-xs">工具被跳过，服务器保持启用：修好凭据后它自己会回到 12 个工具。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="log-in" data-size="14"></i>重新授权</button>
+                <button class="d-menu-row"><i data-ico="plug" data-size="14"></i>重试握手</button>
+                <button class="d-menu-row"><i data-ico="file-diff" data-size="14"></i>看失败详情</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-row-sentry" hidden style="right:24px;bottom:88px;min-width:300px">
+                <div class="d-pop-title">sentry · 认证态异常</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">工具能列出来，但一调就 <span class="d-mono">403</span>：静态令牌只给了读事件的权限，缺 <span class="d-mono">project:read</span>。</div>
+                  <div class="d-t-xs d-t-faint">这种「能列不能调」最容易误判成模型乱调，所以徽章直接写「需 API Key」。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="key-round" data-size="14"></i>换个权限更大的令牌</button>
+                <button class="d-menu-row"><i data-ico="eye-off" data-size="14"></i>暂时把这 9 个工具设为 hidden</button>
+                <button class="d-menu-row"><i data-ico="file-diff" data-size="14"></i>看 403 原文</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-row-playwright" hidden style="right:24px;bottom:88px;min-width:300px">
+                <div class="d-pop-title">playwright · 已停用</div>
+                <div class="d-pop-body d-t-xs">配置留着，曝光是 <span class="d-mono">hidden</span>：即使打开开关，模型也调不到它的 6 个工具。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="eye" data-size="14"></i>改成 codemode 并启用</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>编辑配置</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 新增 / 编辑 · 三个入口（粘贴 · 基础配置 · JSON 高级）+ 作用域三选一<span class="d-grow"></span>页签与分段真的能切 · 「保存并启用」不写死传输方式</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">加一个 GitHub 的 MCP。</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 添加 MCP 服务器">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">添加 MCP 服务器</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-crumb">
+                        <button>MCP 服务器</button><i data-ico="chevron-right" data-size="12"></i>
+                        <button class="is-on">添加</button>
+                      </div>
+
+                      <div class="d-set-sec" data-demo-scope>
+                        <div class="d-tabs" data-demo-tabs>
+                          <button class="d-tab" data-demo-tab="paste"><i data-ico="clipboard-list" data-size="14"></i>粘贴添加</button>
+                          <button class="d-tab is-on" data-demo-tab="basic"><i data-ico="sliders-horizontal" data-size="14"></i>基础配置</button>
+                          <button class="d-tab" data-demo-tab="json"><i data-ico="braces" data-size="14"></i>JSON 高级</button>
+                        </div>
+
+                        <!-- 基础配置 -->
+                        <section data-demo-pane="basic">
+                          <div class="d-col" style="gap:var(--nx-sp-3)">
+
+                            <div class="d-field">
+                              <span class="d-field-t">写到哪一份配置</span>
+                              <div class="d-row">
+                                <div class="d-seg">
+                                  <button>全局 <span class="d-mono">~/.pi/agent/mcp.json</span></button>
+                                  <button class="is-on">项目 <span class="d-mono">.pi/mcp.json</span></button>
+                                  <button>只在本次会话</button>
+                                </div>
+                              </div>
+                              <span class="d-t-xs d-t-faint">含明文密钥的服务器只能写进全局：项目那份会被提交进版本库。</span>
+                            </div>
+
+                            <div class="d-field">
+                              <span class="d-field-t">名称</span>
+                              <input class="d-input" value="github" placeholder="字母、数字、下划线、连字符">
+                              <span class="d-t-xs d-t-faint">重名会自动加后缀（<span class="d-mono">github-2</span>），工具名以它为准 —— 所以别拿短名糊弄。</span>
+                            </div>
+
+                            <div class="d-field">
+                              <span class="d-field-t">命令 或 URL</span>
+                              <input class="d-input" value="npx" placeholder="npx -y @modelcontextprotocol/server-github　或　https://example.com/mcp">
+                              <div class="d-row">
+                                <span class="d-badge info">已识别为 stdio</span>
+                                <span class="d-t-xs d-t-faint">以 <span class="d-mono">http://</span> / <span class="d-mono">https://</span> 开头按 Streamable HTTP 读；老式 <span class="d-mono">sse://</span> 不接受，理由写在粘贴面板里。</span>
+                              </div>
+                            </div>
+
+                            <div class="d-field">
+                              <span class="d-field-t">附加参数</span>
+                              <input class="d-input" value="-y @modelcontextprotocol/server-github">
+                              <span class="d-t-xs d-t-faint">参数按空格切分；要带空格的值写进 JSON 页签的 <span class="d-mono">args</span> 数组。</span>
+                            </div>
+
+                            <div class="d-field">
+                              <span class="d-field-t">环境变量</span>
+                              <div class="d-col" style="gap:var(--nx-sp-2)">
+                                <div class="d-row">
+                                  <input class="d-input" value="GITHUB_TOKEN" style="max-width:180px">
+                                  <span class="d-t-xs d-t-faint">=</span>
+                                  <input class="d-input d-grow" value="$PI_GITHUB_TOKEN">
+                                  <i data-ico="eye-off" data-size="14"></i>
+                                </div>
+                                <div class="d-row">
+                                  <input class="d-input" value="GITHUB_READONLY" style="max-width:180px">
+                                  <span class="d-t-xs d-t-faint">=</span>
+                                  <input class="d-input d-grow" value="1">
+                                  <i data-ico="eye-off" data-size="14"></i>
+                                </div>
+                              </div>
+                              <span class="d-t-xs d-t-faint"><span class="d-mono">$NAME</span> = 从运行 Pi Web 的那台计算机的环境里读，配置文件里不落盘；直接写字面量就会明文存进 json。</span>
+                            </div>
+
+                            <div class="d-field">
+                              <span class="d-field-t">请求头</span>
+                              <div class="d-row">
+                                <input class="d-input d-grow" value="Authorization" disabled>
+                                <span class="d-t-xs d-t-faint">=</span>
+                                <input class="d-input d-grow" value="Bearer $GITHUB_MCP_TOKEN" disabled>
+                              </div>
+                              <span class="d-t-xs d-t-faint">stdio 没有请求头这一层：改成 URL 端点后这一组才解锁（禁用态的边框是虚线，一眼能看出「不是没填错」）。</span>
+                            </div>
+
+                            <div class="d-banner">
+                              <i data-ico="circle-check" data-size="14"></i>
+                              <span>配置校验通过 · 试握手 812ms · 发现 <b>18</b> 个工具 · 缺 <span class="d-mono">GITHUB_TOKEN</span> 时工具仍能列出，调用会 401</span>
+                            </div>
+
+                          </div>
+                        </section>
+
+                        <!-- 粘贴 -->
+                        <section data-demo-pane="paste" hidden>
+                          <div class="d-col" style="gap:var(--nx-sp-3)">
+                            <div class="d-field">
+                              <span class="d-field-t">粘贴一整段配置</span>
+                              <div class="d-textarea" style="font-family:var(--nx-font-mono);min-height:150px">{ "mcpServers": { "github": { "command": "npx", … } } }</div>
+                              <div class="d-row">
+                                <button class="d-btn sm"><i data-ico="clipboard-check" data-size="14"></i>解析这段</button>
+                                <button class="d-btn sm ghost"><i data-ico="file-plus" data-size="14"></i>从文件读</button>
+                                <span class="d-grow"></span>
+                                <span class="d-t-xs d-t-faint">解析结果先给逐条对照，确认后才写盘 —— 详见帧 C</span>
+                              </div>
+                            </div>
+                            <div class="d-banner">
+                              <i data-ico="info" data-size="14"></i>
+                              <span>只接受带 <span class="d-mono">mcpServers</span> 或单个服务器对象的 JSON；带注释（<span class="d-mono">//</span>）的一律按语法错误拒收，不做「尽力而为」的猜测。</span>
+                            </div>
+                          </div>
+                        </section>
+
+                        <!-- JSON 高级 -->
+                        <section data-demo-pane="json" hidden>
+                          <div class="d-col" style="gap:var(--nx-sp-3)">
+                            <div class="d-field">
+                              <span class="d-field-t">服务器定义</span>
+                              <div class="d-code">
+                                <div class="d-code-head">
+                                  <i data-ico="file-code" data-size="12"></i>project:.pi/mcp.json · github
+                                  <span class="d-grow"></span>
+                                  <span class="d-badge ok">解析通过</span>
+                                </div>
+                                <div class="d-code-body">
+{
+  <span class="tok-k">"name"</span>: <span class="tok-s">"github"</span>,
+  <span class="tok-k">"command"</span>: <span class="tok-s">"npx"</span>,
+  <span class="tok-k">"args"</span>: [<span class="tok-s">"-y"</span>, <span class="tok-s">"@modelcontextprotocol/server-github"</span>],
+  <span class="tok-k">"env"</span>: {
+    <span class="tok-k">"GITHUB_TOKEN"</span>: <span class="tok-s">"$PI_GITHUB_TOKEN"</span>,
+    <span class="tok-k">"GITHUB_READONLY"</span>: <span class="tok-s">"1"</span>
+  },
+  <span class="tok-k">"timeout"</span>: <span class="tok-n">30000</span>,
+  <span class="tok-k">"lifecycle"</span>: { <span class="tok-k">"onSessionStart"</span>: <span class="tok-s">"keep-alive"</span> },
+  <span class="tok-k">"toolExposure"</span>: { <span class="tok-k">"create_issue"</span>: <span class="tok-s">"direct"</span> }
+}
+                                </div>
+                              </div>
+                              <span class="d-t-xs d-t-faint">
+                                认的键：<span class="d-mono">command / url / socket</span>（三选一必填）、<span class="d-mono">args</span>、<span class="d-mono">env</span>、<span class="d-mono">headers</span>、<span class="d-mono">lifecycle</span>、<span class="d-mono">toolExposure</span>、<span class="d-mono">timeout</span>。认不出的键原样保留在文件里，但不会被读取 —— 面板上会逐条列出来。
+                              </span>
+                            </div>
+                            <div class="d-banner warn">
+                              <i data-ico="triangle-alert" data-size="14"></i>
+                              <span><span class="d-mono">toolExposure</span> 只写了这一个工具，其余 17 个按服务器默认档（codemode）走；没写的不会被猜成 direct。</span>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">保存后立即握手 · 失败不写盘 · 作用域与默认曝光可稍后改</span>
+                <button class="d-btn ghost">取消</button>
+                <button class="d-btn"><i data-ico="plug" data-size="14"></i>测试连接</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>保存并启用</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 粘贴 JSON 解析面板 · 逐条写清「翻译了什么 / 丢了什么 / 为什么不接受」<span class="d-grow"></span>三档筛选能切 · 每一行都能指回原文</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-user">我这儿有一段以前机器人的配置，你看看能不能搬过来。</div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="粘贴添加 · 解析结果">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">粘贴添加 · 解析结果</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-t-xs d-t-faint">来源：<span class="d-mono">~/.cursor/mcp.json</span> · 418 字节 · 4 个服务器 · 解析于 3 秒前</div>
+
+                        <div class="d-statgrid">
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="server" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">读到</span><span class="d-badge ok">可用</span></div>
+                            <div class="d-t-title d-num">4</div>
+                            <div class="d-t-xs d-t-faint">个服务器 · 45 个工具</div>
+                          </div>
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="arrow-right-left" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">翻译</span><span class="d-badge info">已改写</span></div>
+                            <div class="d-t-title d-num">3</div>
+                            <div class="d-t-xs d-t-faint">处 · 逐条列在下面</div>
+                          </div>
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="file-diff" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">丢弃</span><span class="d-badge warn">有意不读</span></div>
+                            <div class="d-t-title d-num">2</div>
+                            <div class="d-t-xs d-t-faint">处 · 原样留在源文件里</div>
+                          </div>
+                          <div class="d-stat">
+                            <div class="d-row"><i data-ico="circle-slash" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">不接受</span><span class="d-badge bad">拒收</span></div>
+                            <div class="d-t-title d-num">1</div>
+                            <div class="d-t-xs d-t-faint">处 · 不写盘</div>
+                          </div>
+                        </div>
+
+                        <div class="d-set-sec" data-demo-scope>
+                          <div class="d-row">
+                            <span class="d-t-xs d-t-faint">只看</span>
+                            <div class="d-cats" data-demo-tabs>
+                              <button class="d-cat" data-demo-tab="drop">丢弃 2</button>
+                              <button class="d-cat" data-demo-tab="deny">不接受 1</button>
+                              <button class="d-cat is-on" data-demo-tab="all">全部 6</button>
+                            </div>
+                            <span class="d-grow"></span>
+                            <span class="d-t-xs d-t-faint">默认落在「全部」：先看全貌，再按类收窄</span>
+                          </div>
+
+                          <!-- 丢弃 -->
+                          <section data-demo-pane="drop" hidden>
+                            <div class="d-tbl-wrap">
+                              <table class="d-table">
+                                <thead>
+                                  <tr><th>在哪</th><th>原文</th><th>为什么不读</th><th>原文文件里</th></tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td class="d-mono">github.disabled</td>
+                                    <td class="d-mono">true</td>
+                                    <td>Pi 没有「禁用」这个键；关一个服务器用的是设置里的开关。</td>
+                                    <td><span class="d-badge mute">保留</span> <span class="d-t-xs d-t-faint">添加后默认启用</span></td>
+                                  </tr>
+                                  <tr>
+                                    <td class="d-mono">figma.exposure</td>
+                                    <td class="d-mono">"always"</td>
+                                    <td>不是 Pi 的曝光档（四档：direct / codemode / deferred / hidden），照抄会让这 6 个工具的行为无人负责。</td>
+                                    <td><span class="d-badge mute">保留</span> <span class="d-t-xs d-t-faint">按默认 codemode</span></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </section>
+
+                          <!-- 不接受 -->
+                          <section data-demo-pane="deny" hidden>
+                            <div class="d-tbl-wrap">
+                              <table class="d-table">
+                                <thead>
+                                  <tr><th>服务器</th><th>原文</th><th>为什么不接受</th><th>怎么办</th></tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td><span class="d-t-b">old-bridge</span></td>
+                                    <td class="d-mono">"type": "sse", "url": "sse://127.0.0.1:8931/sse"</td>
+                                    <td>老式 SSE 传输，Pi 只认 stdio 与 Streamable HTTP；写进来只会得到一个永远握不上手的服务器。</td>
+                                    <td><button class="d-btn sm">改成 HTTP 端点</button></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </section>
+
+                          <!-- 全部 -->
+                          <section data-demo-pane="all">
+                            <div class="d-tbl-wrap">
+                              <table class="d-table">
+                                <thead>
+                                  <tr><th>服务器 · 字段</th><th>原文</th><th>翻译成</th><th>结果</th></tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td><span class="d-t-b">github</span> <span class="d-mono d-t-xs">.env.GITHUB_TOKEN</span></td>
+                                    <td class="d-mono">"ghp_****************"</td>
+                                    <td class="d-mono">"$PI_GITHUB_TOKEN"（从宿主环境读）</td>
+                                    <td><span class="d-badge info">翻译</span> <span class="d-t-xs d-t-faint">明文令牌不落盘</span></td>
+                                  </tr>
+                                  <tr>
+                                    <td><span class="d-t-b">github</span> <span class="d-mono d-t-xs">.env.GITHUB_READONLY</span></td>
+                                    <td class="d-mono">"1"</td>
+                                    <td>原样保留，类型从数字补成字符串</td>
+                                    <td><span class="d-badge info">翻译</span> <span class="d-t-xs d-t-faint">env 只吃字符串</span></td>
+                                  </tr>
+                                  <tr>
+                                    <td><span class="d-t-b">linear</span> <span class="d-mono d-t-xs">.command</span></td>
+                                    <td class="d-mono">"node /opt/mcp/linear.js"</td>
+                                    <td class="d-mono">"command": "node", "args": ["/opt/mcp/linear.js"]</td>
+                                    <td><span class="d-badge info">翻译</span> <span class="d-t-xs d-t-faint">整条命令拆成 command + args</span></td>
+                                  </tr>
+                                  <tr>
+                                    <td><span class="d-t-b">notion</span> <span class="d-mono d-t-xs">.auth</span></td>
+                                    <td class="d-mono">{ "type": "bearer", "token": "secret_…" }</td>
+                                    <td class="d-mono">headers.Authorization = "Bearer $NOTION_TOKEN"</td>
+                                    <td><span class="d-badge info">翻译</span> <span class="d-t-xs d-t-faint">auth 结构降成请求头</span></td>
+                                  </tr>
+                                  <tr>
+                                    <td><span class="d-t-b">playwright</span> <span class="d-mono d-t-xs">.disabled</span></td>
+                                    <td class="d-mono">true</td>
+                                    <td>没有对应键，忽略</td>
+                                    <td><span class="d-badge warn">丢弃</span> <span class="d-t-xs d-t-faint">添加后仍可一键关</span></td>
+                                  </tr>
+                                  <tr>
+                                    <td><span class="d-t-b">old-bridge</span></td>
+                                    <td class="d-mono">"sse://127.0.0.1:8931/sse"</td>
+                                    <td>—</td>
+                                    <td><span class="d-badge bad">不接受</span> <span class="d-t-xs d-t-faint">整条不写盘</span></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </section>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span>「翻译」只做<b>等价改写</b>（拆命令、降 auth 结构、补字符串），凡是需要猜的都进「丢弃」或「不接受」；
+                          源文件一个字节都不改，写盘只写 Pi 这一侧。</span>
+                        </div>
+
+                        <div class="d-row">
+                          <span class="d-t-xs d-t-faint d-grow">将写入 3 个服务器到 <span class="d-mono">~/.pi/agent/mcp.json</span> · 1 个不写</span>
+                          <div class="d-row" style="flex:0 0 auto">
+                            <button class="d-btn ghost">取消</button>
+                            <button class="d-btn"><i data-ico="eye-off" data-size="14"></i>只写可用项</button>
+                            <button class="d-btn primary"><i data-ico="check" data-size="14"></i>确认写入并握手</button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">先看解析、再写盘 —— 这一步的顺序不能倒过来</span>
+                <button class="d-btn ghost">取消</button>
+                <button class="d-btn primary">确认写入并握手</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · OAuth 登录态 + MCP 日志（三档筛选 + 每页 50 行）<span class="d-grow"></span>筛选能切 · 授权浮层预开 · 分页器真实存在</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">PI NEXT</span>
+              <span class="d-tb-sub">PI-Desktop-main · 正在跑</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">本地模型</span>
+                </div>
+                <div class="d-md">
+                  <p>notion 还是 401。要我把刷新令牌重新走一遍吗？走的话需要你在浏览器里点一次确认。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · MCP 登录与日志">
+            <div class="d-modal-box wide d-anchor" style="min-width:1020px">
+              <div class="d-modal-head">设置 · MCP 登录与日志</div>
+              <div class="d-modal-body" style="padding-bottom:var(--nx-sp-3)">
+                <div class="d-set" style="height:auto">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem is-on"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">登录态</div>
+                        <div class="d-slottable">
+
+                          <div class="d-slotrow">
+                            <div class="d-ava"><i data-ico="globe" data-size="14"></i></div>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">linear</span>
+                                <span class="d-badge ok">已授权</span>
+                                <span class="d-t-xs d-t-faint">11-08 自动续期</span>
+                              </div>
+                              <span class="d-set-row-s">you@company.com · 作用域 read:issues · write:issues · 凭据在系统钥匙串</span>
+                            </div>
+                            <button class="d-btn sm" data-demo-open="m17-oauth-linear">管理</button>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <div class="d-ava"><i data-ico="globe" data-size="14"></i></div>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">notion</span>
+                                <span class="d-badge bad">待重新授权</span>
+                                <span class="d-t-xs d-t-faint">18 分钟前 401</span>
+                              </div>
+                              <span class="d-set-row-s">刷新令牌已被撤销 · 服务器保持启用，授权完成后无需再开一次</span>
+                            </div>
+                            <button class="d-btn sm primary" data-demo-open="m17-oauth-notion">授权</button>
+                          </div>
+
+                          <div class="d-slotrow">
+                            <div class="d-ava"><i data-ico="key-round" data-size="14"></i></div>
+                            <div class="d-col d-grow">
+                              <div class="d-row">
+                                <span class="d-t-b">github</span>
+                                <span class="d-badge mute">不参与 OAuth</span>
+                              </div>
+                              <span class="d-set-row-s d-mono">GITHUB_TOKEN = $PI_GITHUB_TOKEN · 由宿主环境提供，没有到期与刷新这一说</span>
+                            </div>
+                            <button class="d-btn sm" data-demo-open="m17-oauth-github">看读的是哪个环境</button>
+                          </div>
+
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec" data-demo-scope>
+                        <div class="d-code">
+                          <div class="d-code-head">
+                            <i data-ico="file-diff" data-size="12"></i>notion · 握手日志
+                            <span class="d-grow"></span>
+                            <div class="d-seg" data-demo-tabs>
+                              <button data-demo-tab="log-all">全部</button>
+                              <button class="is-on" data-demo-tab="log-err">错误</button>
+                              <button data-demo-tab="log-hs">握手</button>
+                            </div>
+                            <button class="d-btn sm"><i data-ico="download" data-size="13"></i>导出</button>
+                          </div>
+
+                          <section data-demo-pane="log-all" hidden>
+                            <div class="d-code-body">10:22:04.113  <span class="tok-k">connect</span>  POST https://mcp.notion.com/mcp · transport=streamable-http
+10:22:04.402  <span class="tok-k">handshake</span> protocol 2025-06-18 ok · client=pi/1.4 · scopes=read_content
+10:22:04.556  <span class="tok-k">tools</span>   listed 12 · exposure=hidden (settings > MCP 工具曝光)
+10:22:19.556  <span class="tok-c">tool</span>     search_pages → 401 unauthorized · refresh attempted, rejected
+10:22:41.220  <span class="tok-k">sched</span>   next probe in 10m · server stays enabled
+                            </div>
+                          </section>
+
+                          <section data-demo-pane="log-err">
+                            <div class="d-code-body">10:22:19.556  <span class="tok-n">401</span>   POST /v1/search  unauthorized
+    <span class="tok-c">access_token 已过期（11-08 前有效）· 刷新被拒：refresh_token revoked</span>
+10:22:19.601  <span class="tok-n">401</span>   POST /v1/blocks/:id/children  unauthorized
+    <span class="tok-c">同一原因；这一轮里 notion 的 12 个工具全部不可用，已从工具表撤下</span>
+10:22:22.108  <span class="tok-c">hint</span>   设置 &gt; MCP &gt; 登录态 &gt; notion &gt; 授权
+    <span class="tok-c">或在本会话执行 /mcp login notion</span>
+                            </div>
+                          </section>
+
+                          <section data-demo-pane="log-hs" hidden>
+                            <div class="d-code-body">10:22:04.113  <span class="tok-k">connect</span>  POST https://mcp.notion.com/mcp · transport=streamable-http
+10:22:04.402  <span class="tok-k">handshake</span> protocol 2025-06-18 ok · client=pi/1.4 · scopes=read_content
+10:22:04.556  <span class="tok-k">cap</span>     tools.list 12 · resources.list 0 · prompts.list 0
+10:22:04.601  <span class="tok-k">exposure</span> server-level=hidden · toolExposure overrides: 0
+                            </div>
+                          </section>
+                        </div>
+
+                        <div class="d-row">
+                          <span class="d-t-xs d-t-faint d-grow">日志只留 7 天 · 每页 50 行 · 授权动作在这里当场刷新状态</span>
+                          <div class="d-pagebar">
+                            <button class="d-page" disabled><i data-ico="chevron-left" data-size="12"></i></button>
+                            <button class="d-page is-on">1</button>
+                            <button class="d-page">2</button>
+                            <button class="d-page">3</button>
+                            <button class="d-page"><i data-ico="chevron-right" data-size="12"></i></button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">粘贴来的大段响应体只留前 2KB · 记录共 214 行</span>
+                <button class="d-btn ghost">清空这个 server 的日志</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-oauth-notion" hidden style="right:120px;bottom:88px;min-width:360px">
+                <div class="d-pop-title">授权 notion</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-t-xs">走 OAuth 2.1（PKCE）· 凭据存系统钥匙串，配置文件里只留一个服务器条目。</div>
+                  <div class="d-code">
+                    <div class="d-code-body" style="padding:var(--nx-sp-2)"><span class="tok-k">/mcp login</span> <span class="tok-s">notion</span></div>
+                  </div>
+                  <div class="d-t-xs d-t-faint">浏览器回不了本机回调地址也没关系：Pi 会弹一个输入框，把地址栏整段粘回去即可。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="log-in" data-size="14"></i>复制命令并打开浏览器</button>
+                <button class="d-menu-row"><i data-ico="keyboard" data-size="14"></i>我自己在会话里跑这条</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="log-out" data-size="14"></i>清除凭据并停用服务器</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-oauth-linear" hidden style="right:120px;bottom:88px;min-width:320px">
+                <div class="d-pop-title">linear · OAuth</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-row"><span class="d-t-xs d-t-dim">账号</span><span class="d-t-xs">you@company.com</span></div>
+                  <div class="d-row"><span class="d-t-xs d-t-dim">作用域</span><span class="d-t-xs">read:issues · write:issues</span></div>
+                  <div class="d-row"><span class="d-t-xs d-t-dim">到期</span><span class="d-t-xs">2026-11-08（自动续期）</span></div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i>重新授权</button>
+                <button class="d-menu-row"><i data-ico="eye-off" data-size="14"></i>缩小作用域到只读</button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger"><i data-ico="log-out" data-size="14"></i>清除凭据</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="m17-oauth-github" hidden style="right:120px;bottom:88px;min-width:320px">
+                <div class="d-pop-title">github · 环境变量来源</div>
+                <div class="d-pop-body d-col">
+                  <div class="d-code">
+                    <div class="d-code-body" style="padding:var(--nx-sp-2)"><span class="tok-c">$</span>GITHUB_TOKEN<span class="tok-c"> ← 启动 Pi 的那个 shell 的环境</span></div>
+                  </div>
+                  <div class="d-t-xs d-t-faint">从另一个终端启动 Pi Web，读到的就不是这份环境 —— 这是「令牌明明配了却 401」最常见的原因。</div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制环境检查命令</button>
+                <button class="d-menu-row"><i data-ico="pencil" data-size="14"></i>改成写进配置文件</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>三种徽章是三个维度，不许合并。</b>启用开关是<b>要不要拉起来</b>，传输方式（stdio / HTTP）是<b>怎么拉</b>，
+        认证态（OAuth 已登录 / 令牌过期 / 需 API Key / 不参与 OAuth）是<b>拉起来之后能不能拿到工具</b>。
+        一个 stdio 服务器照样可能要 <span class="d-mono">GITHUB_TOKEN</span>，所以「认证」不能塞进「传输」那一列。</li>
+    <li><b>握手失败 ≠ 禁用。</b>失败时服务器保持启用、工具从工具表撤下、配置一条不删；修好凭据后自己回到 12 个工具，
+        不用让用户回来再开一次开关。日志里也会明写这一点。</li>
+    <li><b>表单三个入口不是冗余</b>：粘贴（拿别人给的整段配置）、基础配置（不知道 JSON 的人）、
+        JSON 高级（<span class="d-mono">args</span> 带空格、<span class="d-mono">lifecycle</span>、<span class="d-mono">toolExposure</span> 这类键只在 JSON 里能写）。
+        三个入口写进<b>同一份配置</b>，不存在「两种形态两套解析」。</li>
+    <li><b>粘贴解析逐条交代三类结果，不静默处理</b>：翻译（等价改写：拆命令、降 <span class="d-mono">auth</span> 结构、
+        数字补成字符串）、丢弃（Pi 不读这个键，原样留在源文件里）、不接受（老式 <span class="d-mono">sse://</span> 传输，整条不写盘）。
+        凡是需要猜的都进后两类。</li>
+    <li><b>日志筛选三档而不是一个搜索框</b>：全部 / 错误 / 握手。排查「工具能不能调」时 99% 的人要的是「错误」，
+        让他们先在 214 行里翻。分页固定 50 行，超期按 server 轮转，粘贴来的大响应体只留前 2KB。</li>
+    <li><b>凭据一律不落盘</b>：<span class="d-mono">$NAME</span> 从宿主环境读，OAuth 走系统钥匙串，面板里连「明文存进去」都做成需要解释的次要选项。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

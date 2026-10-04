@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-02 · 手机转录 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-02 · 手机转录</h1>
+  <p>
+    转录是这个产品真正的界面。手机上比桌面更依赖三件事：
+    ① <b>用户说的话永远在右边</b>，形状与颜色和助手消息彻底不同，扫一眼就知道谁说的；
+    ② <b>过程是时间轴不是日志</b>，而且<b>默认折叠成一行摘要</b> —— 竖屏没有横向空间同时展示过程与结论；
+    ③ <b>能展开的默认收起，标题行永远可见</b>：代码、表格、附件都自带滚动，不许把整屏撑开。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：会话转录</span>
+    <span class="m-doc-tag">组件：m-msg-user · m-steps · m-tool · m-code · m-tbl · m-attach · m-perm · m-branch</span>
+    <span class="m-doc-tag">状态：折叠 / 展开 / 流式 / 失败重试 / 分支切换</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 一条完整回合 ──────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 一条完整回合：折叠的过程摘要 → 根因正文 → 横滚代码 → 流式光标</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">令牌只有一个来源</span>
+        <button class="m-branch"><i data-ico="git-branch" data-size="12"></i>2 / 3<i data-ico="chevron-right" data-size="12"></i></button>
+        <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">查一下设计体系里为什么字阶改一处只对一半。</div>
+
+        <div class="m-msg-ai">
+        <div class="m-msg-ai-head">
+          <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+
+        <!-- 折叠态：过程只剩一行摘要 -->
+        <div class="m-tool nx-shrink-0">
+          <div class="m-tool-head">
+            <i data-ico="list-checks" data-size="14"></i>
+            <span class="m-grow">过程 · 4 步</span>
+            <span class="m-t-xs m-t-faint">11.2s</span>
+            <i data-ico="chevron-down" data-size="14"></i>
+          </div>
+        </div>
+
+        <div class="m-md">
+          <h2>根因：同一个名字既是比例又是长度</h2>
+          <p><span class="m-mono">base.css</span> 里七档字阶比例写成了 <span class="m-math">--nx-r-xs: 0.79</span>，圆角又写了 <span class="m-math">--nx-r-xs: 4px</span>。后者赢，于是 ——</p>
+        </div>
+
+        <div class="m-collapse">
+          <div class="m-collapse-head">
+            <i data-ico="chevron-down" data-size="13"></i>
+            <span class="m-grow">bash · 跑门禁</span>
+            <span class="m-badge ok">通过</span>
+          </div>
+          <div class="m-code">
+            <div class="m-code-head"><span class="m-grow">npm run check:design</span><span>2.4s</span></div>
+            <div class="m-code-scroll">
+<span class="m-ln">1</span>$ npm run check:design
+<span class="m-ln">2</span>style-literals   0 违规
+<span class="m-ln">3</span>motion-tokens    0 违规
+<span class="m-ln">4</span>icons            0 违规
+            </div>
+          </div>
+        </div>
+        <div class="m-code nx-shrink-0">
+          <div class="m-code-head">
+            <i data-ico="file-code" data-size="12"></i>
+            <span class="m-grow">design/v5/base.css</span>
+            <i data-ico="move-diagonal" data-size="12"></i>
+          </div>
+          <div class="m-code-scroll">
+            <div class="m-code-body"><span class="m-math">--nx-f-xs</span>: 0.79;   /* 字阶比例 */
+<span class="m-math">--nx-r-xs</span>: 4px;    /* 圆角 —— 后者赢 */
+<span class="m-math">--nx-fs-xs</span>: calc(var(--nx-ui) * var(--nx-r-xs));
+   /* → calc(14px * 4px) 整条失效，六档字阶退回继承值 */</div>
+          </div>
+        </div>
+
+        <div class="m-md">
+          <p>门禁只查「有没有被定义」，不查「算不算得出来」，所以一路绿灯。</p>
+          <p class="m-stream">两条路我都堵上了：比例令牌改名之后，门禁再加一条「乘号右侧的比例必须无单位」；顺手把 v4 基座里<span class="pending">另外两个被覆盖的档</span>也清掉<span class="m-caret"></span></p>
+        </div>
+
+        <div class="m-run"><i data-ico="loader-circle" data-size="14"></i><span class="m-text-live">正在流式输出</span></div>
+
+        <div class="m-msg-acts is-on">
+          <button class="m-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button>
+          <button class="m-iconbtn" title="重新生成"><i data-ico="redo-2" data-size="13"></i></button>
+          <button class="m-iconbtn" title="从这里分支"><i data-ico="git-fork" data-size="13"></i></button>
+          <button class="m-iconbtn" title="引用"><i data-ico="quote" data-size="13"></i></button>
+        </div>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="接着说…">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+       <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 长内容：工具卡 / 表格 / 附件 / 权限 ─────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 长内容：权限卡置顶，工具输出、横滚表格、附件网格各就各位</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <!-- 遮罩与面板写在顶栏之前：视觉层级看 z-index，交互顺序看 DOM -->
+      <div class="m-scrim is-open" data-demo-scrim></div>
+      <div class="m-sheet is-open" id="sheet-b">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">要执行什么</div>
+        <div class="m-sheet-body">
+          <div class="m-code nx-shrink-0">
+            <div class="m-code-head">
+              <i data-ico="terminal" data-size="12"></i>
+              <span class="m-grow">build/cache · 412MB</span>
+            </div>
+            <div class="m-code-scroll">
+              <div class="m-code-body">rm -rf build/cache
+git clean -fd .next/cache</div>
+            </div>
+          </div>
+          <div class="m-sheet-row">
+            <i data-ico="shield-question" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">两个路径都在本工作区内</span>
+              <span class="m-setrow-s">但删除不可撤销 —— 这是本会话第一次问</span>
+            </span>
+          </div>
+        </div>
+        <div class="m-pickbar">
+          <button class="m-picktag" data-demo-drawer="close" data-demo-drawer-target="#sheet-b">取消</button>
+          <button class="m-picktag is-on">允许一次</button>
+        </div>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">令牌只有一个来源</span>
+        <button class="m-branch"><i data-ico="git-branch" data-size="12"></i>2 / 3<i data-ico="chevron-right" data-size="12"></i></button>
+        <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">把剩下两个分节也补完，然后跑一遍门禁。</div>
+
+        <div class="m-msg-ai">
+        <div class="m-msg-ai-head">
+          <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+
+        <!-- 权限请求：手机端最容易漏掉的一块，所以置顶 -->
+        <div class="m-perm">
+          <div class="m-sheet-row">
+            <i data-ico="shield-question" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">要删除 build/cache</span>
+              <span class="m-setrow-s">412MB · 不可撤销 · 本会话第一次</span>
+            </span>
+          </div>
+          <div class="m-pickbar" data-demo-list>
+            <button class="m-picktag" data-demo-select>允许一次</button>
+            <button class="m-picktag" data-demo-select>本会话允许</button>
+            <button class="m-picktag" data-demo-select>永远拒绝</button>
+          </div>
+          <div class="m-sheet-row">
+            <i data-ico="lock" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">记住这个决定</span>
+              <span class="m-setrow-s">写进目录信任，不再每次问</span>
+            </span>
+            <button class="m-switch" data-demo-switch aria-checked="false"></button>
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag" data-demo-drawer="open" data-demo-drawer-target="#sheet-b">看完整命令</button>
+          </div>
+        </div>
+
+        <!-- 工具卡：标题行永远可见，输出在下面 -->
+        <div class="m-tool nx-shrink-0">
+          <div class="m-tool-head">
+            <i data-ico="terminal" data-size="14"></i>
+            <span class="m-grow m-mono">npm test -- lib/qrcode.test.mjs</span>
+            <span class="m-badge ok">通过</span>
+          </div>
+          <div class="m-code nx-shrink-0" style="border:0;border-radius:0">
+            <div class="m-code-head">
+              <span class="m-grow">测试输出</span>
+              <span class="m-term-ok">42 / 42</span>
+            </div>
+            <div class="m-code-scroll">
+              <div class="m-code-body"><span class="m-term-ok"># tests 42</span>
+<span class="m-term-ok"># pass 42</span>
+<span class="m-term-prompt"># fail 0</span>
+<span class="m-term-ok"># duration_ms 3140.118</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 横滚表格：列多就横滚，不许把正文挤成一条 -->
+        <div class="m-tbl-scroll nx-shrink-0">
+          <table class="m-tbl">
+            <thead>
+              <tr><th>档</th><th>角色令牌</th><th>应该是</th><th>实际</th><th>影响</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="m-mono">xs</span></td><td><span class="m-mono">--nx-f-xs</span></td><td>11px</td><td>继承 14px</td><td>图轴、kbd</td></tr>
+              <tr><td><span class="m-mono">sm</span></td><td><span class="m-mono">--nx-f-sm</span></td><td>12px</td><td>继承 14px</td><td>元信息</td></tr>
+              <tr><td><span class="m-mono">title</span></td><td><span class="m-mono">--nx-f-title</span></td><td>20px</td><td>继承 14px</td><td>页面标题</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 附件网格：末格永远是「加」 -->
+        <div class="m-attach-grid">
+          <div class="m-attach"><i data-ico="image" data-size="18"></i><span>m01-a.png</span></div>
+          <div class="m-attach"><i data-ico="file-code" data-size="18"></i><span>base.css</span></div>
+          <div class="m-attach"><i data-ico="git-compare" data-size="18"></i><span>v5.patch</span></div>
+          <button class="m-attach add"><i data-ico="plus" data-size="18"></i><span>再加</span></button>
+        </div>
+
+        <div class="m-turn-end">
+          <span class="m-badge ok"><i data-ico="check" data-size="12"></i>stop</span>
+          <span>这一轮正常跑完</span>
+          <span class="m-grow"></span>
+          <span class="m-mono">12.4s</span>
+          <span class="m-mono">↑ 9,208 · ↓ 2,144 tok</span>
+          <span class="m-mono">¥0.18</span>
+        </div>
+        <div class="m-msg-acts is-on">
+          <button class="m-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button>
+          <button class="m-iconbtn" title="重新生成"><i data-ico="redo-2" data-size="13"></i></button>
+          <button class="m-iconbtn" title="从这里分支"><i data-ico="git-fork" data-size="13"></i></button>
+          <button class="m-iconbtn" title="引用"><i data-ico="quote" data-size="13"></i></button>
+        </div>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="运行中：发送会排队">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send stop" title="停止这一轮"><i data-ico="square" data-size="16"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 失败、重试与分支 ──────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 失败与分支：失败的那一步永远看得见，分支切换在输入卡正上方</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">令牌只有一个来源</span>
+        <button class="m-branch"><i data-ico="git-branch" data-size="12"></i>2 / 3<i data-ico="chevron-right" data-size="12"></i></button>
+        <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-ai">
+        <div class="m-msg-ai-head">
+          <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+          <span class="m-t-b">PI NEXT</span>
+          <span class="m-badge mute">claude-opus-4-6</span>
+        </div>
+
+        <div class="m-md">
+          <p>第 3 步失败了。手机上<b>不做整块红</b>：只有那一步变红，上下文照常往下走，用户能直接点「重试这一步」。</p>
+        </div>
+
+        <div data-demo-scope>
+          <div class="m-seg" data-demo-tabs>
+            <button data-demo-tab="t-raw">原始输出</button>
+            <button class="is-on" data-demo-tab="t-steps">执行步骤</button>
+          </div>
+
+          <div data-demo-pane="t-raw" hidden>
+            <div class="m-code nx-shrink-0">
+              <div class="m-code-head">
+                <i data-ico="terminal" data-size="12"></i>
+                <span class="m-grow">exit 1 · 1.9s · 第 31 行</span>
+              </div>
+              <div class="m-code-scroll">
+                <div class="m-code-body">$ node --test lib/mcp-transport.test.mjs
+not ok 31 - 引用 PI_WEB_PASSWORD 的条目必须被拒
+  ---
+  expected: 'rejected'
+  actual:   'accepted'
+  at test/lib/mcp-transport.test.mjs:31:22</div>
+              </div>
+            </div>
+          </div>
+
+          <div data-demo-pane="t-steps">
+            <div class="m-steps">
+              <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">read(base.css)</span><span class="m-step-n">1.2k</span></div>
+              <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">grep(--nx-r- · 14 处)</span><span class="m-step-n">0.4s</span></div>
+              <div class="m-step-row fail"><span class="m-step-dot"></span><span class="m-grow m-t-b">node --test lib/mcp-transport.test.mjs</span><span class="m-step-n">1.9s</span></div>
+              <div class="m-step-row"><span class="m-step-dot"></span><span class="m-grow m-t-faint">write(base.css) —— 等你决定</span><span class="m-step-n">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-tool nx-shrink-0">
+          <div class="m-tool-head">
+            <i data-ico="circle-alert" data-size="14"></i>
+            <span class="m-grow">这一轮在第 3 步停下</span>
+            <span class="m-badge bad">失败</span>
+          </div>
+          <div class="m-doc-body">
+            <div class="m-err">AssertionError: 引用 PI_WEB_PASSWORD 的条目必须被拒 —— 实际放行了 1 条</div>
+            <div class="m-t-xs m-t-faint">已保留前两步的上下文，重试不会从头再读一遍文件。</div>
+            <div class="nx-row" style="gap:var(--nx-sp-2);flex-wrap:wrap;padding-top:var(--nx-sp-2)">
+              <button class="m-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试这一步</button>
+              <button class="m-btn sm ghost">改参数再试</button>
+              <span class="m-grow"></span>
+              <button class="m-btn sm ghost">跳过</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-md">
+          <p>三条分支并存：默认那条、保守那条（不加新门禁）、顺手清掉另外两个被覆盖的档那条。手机上不写「你走错路了」，只给一条路加一个角标。</p>
+        </div>
+
+        <div class="m-turn-end">
+          <span class="m-badge bad"><i data-ico="circle-x" data-size="12"></i>error</span>
+          <span>工具报错，这一轮中断</span>
+          <span class="m-grow"></span>
+          <span class="m-mono">2.1s</span>
+          <span class="m-mono">↑ 6,412 · ↓ 918 tok</span>
+          <span class="m-mono">¥0.09</span>
+        </div>
+        <div class="m-msg-acts is-on">
+          <button class="m-iconbtn" title="复制"><i data-ico="copy" data-size="13"></i></button>
+          <button class="m-iconbtn" title="重新生成"><i data-ico="redo-2" data-size="13"></i></button>
+          <button class="m-iconbtn" title="从这里分支"><i data-ico="git-fork" data-size="13"></i></button>
+          <button class="m-iconbtn" title="引用"><i data-ico="quote" data-size="13"></i></button>
+        </div>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-composer-wrap">
+        <div class="m-pickbar" data-demo-list>
+          <button class="m-picktag" data-demo-select>分支 1 · 原始</button>
+          <button class="m-picktag is-on" data-demo-select>分支 2 · 改名</button>
+          <button class="m-picktag" data-demo-select>分支 3 · 连带清档</button>
+        </div>
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="接着说，或从分支重开…">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>折叠是默认态，不是降级态</b>：过程默认收成一行 <span class="m-mono">.m-tool</span> 摘要（几步 · 多少秒 · 箭头）；展开后是一列 <span class="m-mono">.m-step-row</span>，每行末尾一个等宽数字（token 或耗时），用户扫一眼就知道贵在哪。</li>
+    <li><b>失败只染那一步</b>：<span class="m-mono">.done / .run / .fail</span> 只换圆点颜色，整屏不变红 —— 手机上「一屏红」等于「这条不能用」，会把还能用的上下文一起否掉。</li>
+    <li><b>长内容一律自带滚动</b>：代码走 <span class="m-mono">.m-code-scroll &gt; .m-code-body</span>，表格走 <span class="m-mono">.m-tbl-scroll &gt; .m-tbl</span>，都是横滚；竖屏绝不允许把正文挤成一列窄字。</li>
+    <li><b>附件末格永远是「加」</b>：<span class="m-mono">.m-attach.add</span> 用虚线占位，占位本身就是一个动作，不另放一个加号钮。</li>
+    <li><b>权限卡置顶且给三种回法</b>：允许一次 / 本会话允许 / 永远拒绝，再加一个「记住这个决定」开关写进目录信任 —— 手机上少一次点击就少一次放弃。</li>
+    <li><b>分支切换贴在输入卡上方</b>：切换分支等于换一整段上下文，必须离「发送」一步之内，所以用 <span class="m-mono">.m-pickbar</span> 而不是顶栏里的下拉。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

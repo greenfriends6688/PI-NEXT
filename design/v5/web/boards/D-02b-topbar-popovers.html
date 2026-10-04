@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-02b · 顶栏浮窗合集 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-02b · 顶栏浮窗合集（九枚）</h1>
+  <p>
+    D-02 画的是顶栏<b>长什么样</b>，这一张画它<b>按下之后挂出来的东西</b>：九枚浮窗，按帧铺开。
+    它们绝大多数是<b>信息型</b>的 —— 看一眼就跑，不在里面填表；同一条顶栏上
+    <b>同时只开一块</b>（agents / branches / system / tools 四选一，互斥）。
+    每格都写清两件事：<b>从哪枚钮进来</b>、<b>什么条件下消失</b>。
+    MCP 与插件是顶栏两枚图标（悬停出窗、点击钉住），其余都挂在动作区或 ⋯ 菜单里。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 · 顶栏浮窗</span>
+    <span class="d-tag">组件：TopBarPopovers · SystemPromptPanel · ToolDefinitionsPanel · AgentSessionPanel · BranchNavigator · ConversationFindBar</span>
+    <span class="d-tag">状态：默认开 / 无结果 / 未配置 / 已禁用 / 空闲 / 生成中 / 已更新 / 失败</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 A · 只读诊断两块：系统提示词 / 工具定义 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 只读诊断：系统提示词 · 工具定义<span class="d-grow"></span>卡片里那枚钮是真触发钮，点一下开合</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">顶栏动作全景</span>
+              <span class="d-tb-sub">静态示意 · 九枚浮窗的真触发钮在下面各卡片里 · 同一时刻只开一块</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="完整历史"><i data-ico="history" data-size="15"></i></button>
+            <button class="d-iconbtn" title="生成标题"><i data-ico="wand-sparkles" data-size="15"></i></button>
+            <button class="d-iconbtn" title="子代理"><i data-ico="bot" data-size="15"></i><span class="d-badge mute">3</span></button>
+            <button class="d-iconbtn" title="分支导航"><i data-ico="git-fork" data-size="15"></i></button>
+            <div class="d-sep-v"></div>
+            <button class="d-iconbtn" title="MCP"><i data-ico="server" data-size="15"></i></button>
+            <button class="d-iconbtn" title="插件"><i data-ico="blocks" data-size="15"></i></button>
+            <button class="d-iconbtn" title="导出 Markdown"><i data-ico="download" data-size="15"></i></button>
+            <button class="d-iconbtn" title="会话动作"><i data-ico="ellipsis" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-col" style="gap:var(--nx-sp-3)">
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="book-marked" data-size="15"></i>
+                  <span>① 系统提示词 · 只读，不给编辑</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">token 数按字符 ÷ 4 估算</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="会话动作" data-demo-open="sys-a"><i data-ico="ellipsis" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">顶栏「会话动作 ⋯」→ 系统提示词</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">浮层按被点的那枚钮定位</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="sys-a" style="position:relative;min-width:380px">
+                      <div class="d-row" style="padding:var(--nx-sp-2) var(--nx-sp-3)">
+                        <i data-ico="book-marked" data-size="14"></i>
+                        <span class="d-t-b d-t-sm">系统提示词</span>
+                        <span class="d-badge mute">≈ 4,182 tok</span>
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm ghost"><i data-ico="copy" data-size="13"></i>复制</button>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-code">
+                        <div class="d-code-body" style="white-space:pre-wrap">You are PI NEXT, a coding agent that runs
+inside the user's project.
+
+<span class="tok-c">## Environment</span>
+- cwd: /Users/yingjing/Desktop/PI NEXT
+- shell: /bin/zsh
+- platform: darwin
+
+<span class="tok-c">## Conventions</span>
+- 优先绝对路径，别猜相对路径。
+- 长命令放后台跑，别占住主线程。
+- 不许跳 git hooks。</div>
+                      </div>
+                      <div class="d-pop-foot">来自 agent 的 initialize 响应 · 只读 · 改提示词属于 agent 配置，在设置里</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点 ⋯ 的那一刻才开始拉数据（关着不发请求）；消失：点浮层外 / Esc / 再点 ⋯。正文可滚，标题与脚注不滚。</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="wrench" data-size="15"></i>
+                  <span>② 工具定义 · 左列表（已启用 N / 未启用 N）＋ 右详情（参数块 + 使用指南）</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">两列同一块浮层 860 宽</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="会话动作" data-demo-open="tools-a"><i data-ico="ellipsis" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">顶栏「会话动作 ⋯」→ 工具定义</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">未启用行只弱化、不给点击</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="tools-a" style="position:relative;min-width:620px">
+                      <div class="d-row" style="align-items:flex-start;padding:var(--nx-sp-2) var(--nx-sp-3) var(--nx-sp-3)">
+                        <!-- 左：工具列表 -->
+                        <div class="d-col" style="min-width:200px">
+                          <div class="d-searchfield">
+                            <i data-ico="search" data-size="13"></i>
+                            <input placeholder="搜索工具" aria-label="搜索工具">
+                          </div>
+                          <div class="d-pop-title">已启用 · 12</div>
+                          <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow d-mono">read</span><span class="d-t-xs d-t-faint">读文件</span></button>
+                          <button class="d-menu-row"><i data-ico="pencil-line" data-size="14"></i><span class="d-grow d-mono">write</span><span class="d-t-xs d-t-faint">写文件</span></button>
+                          <button class="d-menu-row"><i data-ico="terminal" data-size="14"></i><span class="d-grow d-mono">bash</span><span class="d-t-xs d-t-faint">执行命令</span></button>
+                          <button class="d-menu-row"><i data-ico="file-search" data-size="14"></i><span class="d-grow d-mono">grep</span><span class="d-t-xs d-t-faint">内容搜索</span></button>
+                          <button class="d-menu-row"><i data-ico="bot" data-size="14"></i><span class="d-grow d-mono">task</span><span class="d-t-xs d-t-faint">派子代理</span></button>
+                          <div class="d-pop-title">未启用 · 6</div>
+                          <button class="d-menu-row"><span class="d-grow d-mono d-t-faint">fetch</span><span class="d-t-xs d-t-faint">抓网页</span></button>
+                          <button class="d-menu-row"><span class="d-grow d-mono d-t-faint">todo_write</span><span class="d-t-xs d-t-faint">写待办</span></button>
+                        </div>
+
+                        <div class="d-sep-v"></div>
+
+                        <!-- 右：选中工具的详情 -->
+                        <div class="d-col d-grow" style="gap:var(--nx-sp-2)">
+                          <div class="d-row">
+                            <i data-ico="terminal" data-size="16"></i>
+                            <span class="d-t-b">bash</span>
+                            <span class="d-badge mute">执行 shell 命令</span>
+                            <span class="d-grow"></span>
+                            <span class="d-badge ok">已启用</span>
+                          </div>
+                          <div class="d-t-cap d-t-dim">在项目工作目录下执行一条 shell 命令并返回标准输出与退出码；长输出会被截断。</div>
+                          <div class="d-t-xs d-t-faint">参数 · 4 个</div>
+                          <table class="d-table">
+                            <thead>
+                              <tr><th>参数</th><th>类型</th><th>必填</th><th>允许值 / 默认</th></tr>
+                            </thead>
+                            <tbody>
+                              <tr><td class="d-mono">command</td><td class="d-mono">string</td><td><span class="d-badge bad">必填</span></td><td class="d-t-faint">—</td></tr>
+                              <tr><td class="d-mono">cwd</td><td class="d-mono">string</td><td class="d-t-faint">可选</td><td class="d-mono">默认项目根</td></tr>
+                              <tr><td class="d-mono">timeout</td><td class="d-mono">number</td><td class="d-t-faint">可选</td><td class="d-mono">60000 ms</td></tr>
+                              <tr><td class="d-mono">background</td><td class="d-mono">boolean</td><td class="d-t-faint">可选</td><td class="d-mono">false</td></tr>
+                            </tbody>
+                          </table>
+                          <div class="d-t-xs d-t-faint">使用指南</div>
+                          <div class="d-t-cap d-t-dim">优先用 <span class="d-mono">rg</span> 而不是 <span class="d-mono">grep -r</span>；需要长时间运行的命令加 <span class="d-mono">background</span>。</div>
+                        </div>
+                      </div>
+                      <div class="d-pop-foot">只读诊断：启用与禁用到「设置 · 工具」里改，这里只回答「这一轮 agent 拿到了什么」。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：⋯ → 工具定义，同样按需拉；消失：点浮层外 / Esc / 点别的动作。左列选中行用对勾 + 底色，右列永远跟着左列的选中项走。</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 B · 切换器与回跳列表 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 会话内切换：子代理切换器 · 最近会话<span class="d-grow"></span>代理列表可点选，选中行不是第一行</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">顶栏动作全景</span>
+              <span class="d-tb-sub">静态示意 · 浮窗互斥：四块里同时只开一块</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn is-on" title="子代理"><i data-ico="bot" data-size="15"></i><span class="d-badge mute">6</span></button>
+            <button class="d-iconbtn" title="分支导航"><i data-ico="git-fork" data-size="15"></i></button>
+            <button class="d-iconbtn" title="会话动作"><i data-ico="ellipsis" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- ③ 子代理切换器 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="bot" data-size="15"></i>
+                  <span>③ 子代理切换器 · 七种状态</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">420 宽</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="子代理" data-demo-open="agents-b"><i data-ico="bot" data-size="15"></i><span class="d-badge mute">6</span></button>
+                      <span class="d-t-xs d-t-dim">顶栏「bot + 数量徽标」· 只有存在子代理时才出现</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">点行切到那条子代理的转录</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="agents-b" style="position:relative;min-width:340px">
+                      <div class="d-pop-title">
+                        <span class="d-row">
+                          <span>Agents</span>
+                          <span class="d-badge mute">6 个子 Agent</span>
+                          <span class="d-grow"></span>
+                          <span class="d-badge info">2 个运行中</span>
+                        </span>
+                      </div>
+                      <div class="d-searchfield" style="margin:0 var(--nx-sp-1) var(--nx-sp-1)">
+                        <i data-ico="search" data-size="13"></i>
+                        <input placeholder="搜索 Agents" aria-label="搜索 Agents">
+                      </div>
+                      <div class="d-sep"></div>
+
+                      <div class="d-col" data-demo-list style="padding:0 var(--nx-sp-1)">
+                        <button class="d-pop-row" data-demo-select>
+                          <span class="d-pop-row-t"><i data-ico="user" data-size="14"></i> 主 Agent</span>
+                          <span class="d-pop-row-s">设计体系 V5 画板</span>
+                        </button>
+                        <button class="d-pop-row is-on" data-demo-select>
+                          <span class="d-pop-row-t"><i data-ico="bot" data-size="14"></i> Explore · 读 docs</span>
+                          <span class="d-sess-m">
+                            <span class="d-dot ok"></span><span>已完成</span><span>·</span><span>2 分钟前</span>
+                            <span class="d-grow"></span><span class="d-badge mute">当前</span>
+                          </span>
+                        </button>
+                        <button class="d-sess" data-demo-select>
+                          <span class="d-sess-t"><i data-ico="loader-circle" data-size="14"></i> Explore · 梳理参考项目</span>
+                          <span class="d-sess-m">
+                            <span class="d-dot run"></span><span>运行中</span><span>·</span><span>4 分钟前</span>
+                          </span>
+                        </button>
+                        <button class="d-sess" data-demo-select>
+                          <span class="d-sess-t"><i data-ico="circle-dashed" data-size="14"></i> Explore · 预热上下文</span>
+                          <span class="d-sess-m">
+                            <span class="d-dot"></span><span>正在启动</span><span>·</span><span>刚刚</span>
+                          </span>
+                        </button>
+                        <button class="d-sess" data-demo-select>
+                          <span class="d-sess-t"><i data-ico="clock" data-size="14"></i> Explore · 核对画板覆盖</span>
+                          <span class="d-sess-m">
+                            <span class="d-dot warn"></span><span>排队中</span><span>·</span><span>5 分钟前</span>
+                          </span>
+                        </button>
+                        <button class="d-sess" data-demo-select>
+                          <span class="d-sess-t"><i data-ico="circle-x" data-size="14"></i> Explore · 跑 e2e</span>
+                          <span class="d-sess-m">
+                            <span class="d-dot bad"></span><span>失败</span><span>·</span><span>6 分钟前</span>
+                          </span>
+                        </button>
+                        <button class="d-sess" data-demo-select>
+                          <span class="d-sess-t"><i data-ico="circle-stop" data-size="14"></i> Explore · 全量 tsc</span>
+                          <span class="d-sess-m"><span class="d-dot"></span><span>已中止</span><span>·</span><span>7 分钟前</span></span>
+                        </button>
+                        <button class="d-sess" data-demo-select>
+                          <span class="d-sess-t"><i data-ico="ban" data-size="14"></i> Explore · 生成 changelog</span>
+                          <span class="d-sess-m"><span class="d-dot"></span><span>已中断</span><span>·</span><span>8 分钟前</span></span>
+                        </button>
+                      </div>
+                      <div class="d-pop-foot">状态图标 + 文字双通道：图标给颜色，文字给名字，七态互斥（正在启动 / 排队中 / 运行中 / 已完成 / 失败 / 已中止 / 已中断，来自 <span class="d-mono">lib/subagent-runtime.ts</span>）。产品里运行中的排最前，这一格把七种都摆出来。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点 bot 图标；消失：选中一条即关、点浮层外、Esc，或切到别的动作区浮窗。子代理数归零时这枚钮整个不出现。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ④ 最近会话 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="message-square" data-size="15"></i>
+                  <span>④ 最近会话 · 留档：顶栏那一档已撤除</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge warn">已撤除</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="最近会话（已撤除）" data-demo-open="recent-b"><i data-ico="panel-left" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">原触发钮：顶栏标题（曾经是 button，现在是纯文本）</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">留档是为了说明「为什么顶栏没有它」</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="recent-b" style="position:relative;min-width:300px">
+                      <div class="d-pop-title">最近会话</div>
+                      <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow">设计体系 V5 画板</span><span class="d-t-xs d-t-faint">当前</span></button>
+                      <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i><span class="d-grow">顶栏九个浮窗逐个落地</span><span class="d-t-xs d-t-faint">12 分</span></button>
+                      <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i><span class="d-grow">令牌只写一次：base.css</span><span class="d-t-xs d-t-faint">1 小时</span></button>
+                      <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i><span class="d-grow">check-v5 少拦了哪一类</span><span class="d-t-xs d-t-faint">昨天</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="search" data-size="14"></i><span class="d-grow">在全部 14 条里搜</span><span class="d-kbd">⌘K</span></button>
+                      <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+                      <div class="d-pop-foot">撤除口径（用户 2026-10-01）：切会话是侧栏的活，顶栏再放一份等于同一个地方两处入口。内容没丢，落到了 ⌘K 的 <span class="d-mono">#</span> 与侧栏。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：标题可点时；消失：选中一条 / 点浮层外 / Esc。<b>这一格现在标为「已撤除」</b> —— 真机顶栏标题是纯文本，点它没反应，这正是设计要达到的状态。</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 C · 只读状态三枚 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 只读状态：已有分支 · MCP · 插件<span class="d-grow"></span>分支列表可点选，选中行不是第一行</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">顶栏动作全景</span>
+              <span class="d-tb-sub">MCP / 插件两枚：悬停出窗、点击钉住；其余点一下开、点外面关</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn is-on" title="分支导航"><i data-ico="git-fork" data-size="15"></i></button>
+            <button class="d-iconbtn" title="MCP"><i data-ico="server" data-size="15"></i><span class="d-badge info">2</span></button>
+            <button class="d-iconbtn" title="插件"><i data-ico="blocks" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-col" style="gap:var(--nx-sp-3)">
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="git-fork" data-size="15"></i>
+                  <span>⑤ 已有分支 · 会话内分支树（不是 Git 分支）· 只切换，不新建</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">320 宽 · 长树自滚</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="分支导航" data-demo-open="branch-c"><i data-ico="git-fork" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">顶栏 git-fork 芯片 · 只有真的分过叉才出现</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">浮层按芯片位置定位，右缘越界自动收回</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="branch-c" style="position:relative;min-width:320px">
+                      <div class="d-pop-title">分支</div>
+                      <div class="d-tree" data-demo-list style="padding:var(--nx-sp-1)">
+                        <button class="d-trow" data-demo-select>
+                          <i data-ico="message-circle" data-size="13"></i>
+                          <span class="d-grow">手机端顶栏又挤了</span>
+                          <span class="d-badge mute">U</span>
+                          <span class="d-t-xs d-t-faint">19 条</span>
+                        </button>
+                        <button class="d-trow is-on" data-demo-select>
+                          <i data-ico="sparkles" data-size="13"></i>
+                          <span class="d-grow">把令牌写进 base.css</span>
+                          <span class="d-badge mute">A</span>
+                          <span class="d-t-xs d-t-faint">7 条</span>
+                        </button>
+                        <button class="d-trow" data-demo-select>
+                          <i data-ico="sparkles" data-size="13"></i>
+                          <span class="d-grow">先改深色还是先改浅色</span>
+                          <span class="d-badge mute">A</span>
+                          <span class="d-t-xs d-t-faint">3 条</span>
+                        </button>
+                        <button class="d-trow l1" data-demo-select>
+                          <i data-ico="corner-down-right" data-size="13"></i>
+                          <span class="d-grow">重画命令面板</span>
+                          <span class="d-badge mute">+3</span>
+                        </button>
+                      </div>
+                      <div class="d-pop-foot">当前路径上的节点 = 实心点；路径之外的 = 空心点；<span class="d-mono">+N</span> 是被压平的线性链。选中一条即跳转并关闭。这里没有搜索框、没有「新建分支」——分支是在转录里「编辑消息 / 从此处重跑」长出来的，切换器只负责在已有的树里挪位置。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点 git-fork；消失：选中一条 / 点浮层外 / Esc。</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-grid2">
+
+                <!-- ⑥ MCP -->
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="server" data-size="15"></i>
+                    <span>⑥ MCP 状态浮窗 · 已连 / 已禁用 / 首条诊断 / 空态</span>
+                    <span class="d-grow"></span>
+                    <span class="d-badge info">角标 2</span>
+                  </div>
+                  <div class="d-card-body">
+                    <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-row">
+                        <button class="d-iconbtn" title="MCP" data-demo-open="mcp-c"><i data-ico="server" data-size="15"></i><span class="d-badge info">2</span></button>
+                        <span class="d-t-xs d-t-dim">顶栏 server 图标 · 悬停出窗，点击钉住</span>
+                        <span class="d-grow"></span>
+                        <span class="d-t-xs d-t-faint">悬停延迟 160ms 收</span>
+                      </div>
+
+                      <div class="d-pop-float is-open" data-demo-pop="mcp-c" style="position:relative;min-width:300px">
+                        <div class="d-pop-title">MCP 服务器</div>
+                        <div class="d-menu-row"><span class="d-mono d-t-xs">MCP: 2 servers enabled</span></div>
+                        <div class="d-menu-row"><i data-ico="plug" data-size="14"></i><span class="d-grow">filesystem</span><span class="d-badge mute">项目</span></div>
+                        <div class="d-menu-row"><i data-ico="plug" data-size="14"></i><span class="d-grow">github</span><span class="d-badge mute">用户</span></div>
+                        <div class="d-menu-row"><i data-ico="unplug" data-size="14"></i><span class="d-grow d-t-faint">playwright</span><span class="d-badge mute">项目</span><span class="d-badge warn">已禁用</span></div>
+                        <div class="d-pop-foot">playwright：未配置 API Token，已跳过本次启动。诊断只取第一条，多了会把浮窗撑成一屏日志。</div>
+                      </div>
+
+                      <div class="d-pop-float" style="position:relative;min-width:300px">
+                        <div class="d-pop-title">MCP 服务器 · 空态</div>
+                        <div class="d-menu-row"><span class="d-mono d-t-xs">MCP: 0 servers enabled</span></div>
+                        <div class="d-menu-row"><span class="d-t-faint">未配置 MCP 服务器</span></div>
+                        <div class="d-pop-foot">浮窗内一律只读：启停与作用域去「设置 · MCP」改。空态不给按钮 —— 这里没有任何东西可操作。</div>
+                      </div>
+
+                      <div class="d-t-xs d-t-faint">出现：指针移上去 / 点一下；消失：移开（160ms 宽限）/ 再点一下 / 点浮层外。角标数字取自扩展状态文本里的第一个数字，取不到就整个不显示。</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ⑦ 插件 -->
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="blocks" data-size="15"></i>
+                    <span>⑦ 插件状态浮窗 · 扩展状态 / widget / 包列表 / 合计</span>
+                    <span class="d-grow"></span>
+                    <span class="d-badge mute">数据懒加载</span>
+                  </div>
+                  <div class="d-card-body">
+                    <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-row">
+                        <button class="d-iconbtn is-on" title="插件" data-demo-open="plug-c"><i data-ico="blocks" data-size="15"></i></button>
+                        <span class="d-t-xs d-t-dim">顶栏 blocks 图标 · 与 MCP 同一套悬停 + 钉住</span>
+                        <span class="d-grow"></span>
+                        <span class="d-t-xs d-t-faint">widget 一次只展开一个</span>
+                      </div>
+
+                      <div class="d-pop-float is-open" data-demo-pop="plug-c" style="position:relative;min-width:300px">
+                        <div class="d-pop-title">扩展状态</div>
+                        <div class="d-menu-row"><span class="d-mono d-t-xs">ponytail: 2 tools ready</span></div>
+                        <div class="d-sep"></div>
+                        <div class="d-card">
+                          <div class="d-card-head">
+                            <i data-ico="blocks" data-size="14"></i>
+                            <span class="d-mono d-t-xs">@pi/plugin-git</span>
+                            <span class="d-grow"></span>
+                            <span class="d-badge mute">3</span>
+                            <button class="d-iconbtn" title="折叠"><i data-ico="chevron-up" data-size="14"></i></button>
+                          </div>
+                          <div class="d-card-body d-mono d-t-xs">
+                            main · 2 个未提交改动 · 领先 origin/main 3<br>
+                            <span class="tok-s">+</span> design/pi-web-design/README.md<br>
+                            <span class="tok-c">-</span> docs/old-spec.md
+                          </div>
+                        </div>
+                        <div class="d-pop-title">插件包</div>
+                        <div class="d-menu-row"><i data-ico="package" data-size="14"></i><span class="d-grow">pi-plugin-git</span><span class="d-badge mute">0.4.2</span></div>
+                        <div class="d-menu-row"><i data-ico="package" data-size="14"></i><span class="d-grow">pi-plugin-ponytail</span><span class="d-badge mute">0.1.0</span></div>
+                        <div class="d-menu-row"><i data-ico="square-function" data-size="14"></i><span class="d-grow">nano-context</span></div>
+                        <div class="d-pop-foot">3 扩展 · 2 技能 · 1 命令 · 0 主题</div>
+                      </div>
+
+                      <div class="d-t-xs d-t-faint">出现 / 消失与 MCP 完全一致。数据是懒的：没打开过只读扩展上报的状态文本（零请求），打开过一次才以真实配置为准。</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 D · 就地动作三枚 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 就地动作：会话内查找条 · 自动命名三态 · 导出 Markdown<span class="d-grow"></span>查找条不占布局，自动命名能重播</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">顶栏动作全景</span>
+              <span class="d-tb-sub">这三枚不弹浮层：查找条悬浮、自动命名原地换图标、导出两档出口（新窗口看 / 下载带走）</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="生成标题"><i data-ico="wand-sparkles" data-size="15"></i></button>
+            <button class="d-iconbtn" title="导出 Markdown"><i data-ico="download" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid3">
+
+              <!-- ⑧ 查找条 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="text-search" data-size="15"></i>
+                  <span>⑧ 会话内查找条</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">⌘F</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-btn sm" data-demo-open="find-d"><i data-ico="text-search" data-size="14"></i>在会话中查找</button>
+                      <span class="d-t-xs d-t-dim">触发：⌘F，或转录右键</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="find-d" style="position:relative;min-width:340px">
+                      <div class="d-row" style="padding:var(--nx-sp-2) var(--nx-sp-3)">
+                        <i data-ico="search" data-size="14"></i>
+                        <input class="d-input d-grow" value="resize" aria-label="在会话中查找">
+                        <span class="d-mono d-t-xs d-t-faint">3 / 7</span>
+                        <button class="d-iconbtn" title="上一个匹配（Shift+Enter）"><i data-ico="chevron-up" data-size="13"></i></button>
+                        <button class="d-iconbtn" title="下一个匹配（Enter）"><i data-ico="chevron-down" data-size="13"></i></button>
+                        <button class="d-iconbtn" title="关闭查找（Esc）"><i data-ico="x" data-size="13"></i></button>
+                      </div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:340px">
+                      <div class="d-row" style="padding:var(--nx-sp-2) var(--nx-sp-3)">
+                        <i data-ico="search" data-size="14"></i>
+                        <input class="d-input d-grow" value="量子纠缠" aria-label="在会话中查找">
+                        <span class="d-badge warn">无匹配</span>
+                        <button class="d-iconbtn" title="关闭查找（Esc）"><i data-ico="x" data-size="13"></i></button>
+                      </div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：⌘F；消失：Esc / 关闭钮。它悬浮在转录上方居中，<b>不占布局</b>；无结果时整条转警告色（V5 目前用徽章表达，缺 `.d-pop.is-warn` 修饰类）。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ⑨ 自动命名 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="wand-sparkles" data-size="15"></i>
+                  <span>⑨ 自动命名钮 · 三态 ＋ 禁用</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">原地换图标</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <span class="d-t-xs d-t-faint">触发：顶栏 wand-sparkles；消失：没有浮层，只有图标与提示文字的切换</span>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm ghost" data-demo-motion="#name-run">重播</button>
+                    </div>
+
+                    <div class="d-set-row">
+                      <button class="d-iconbtn" title="生成会话标题"><i data-ico="wand-sparkles" data-size="15"></i></button>
+                      <div class="d-col d-grow">
+                        <span class="d-t-sm d-t-b">空闲 · 可点</span>
+                        <span class="d-t-xs d-t-faint">会话已落盘且有消息，图标 wand-sparkles</span>
+                      </div>
+                    </div>
+
+                    <div class="d-set-row">
+                      <span class="d-run" id="name-run"><i data-ico="loader-circle" data-size="15"></i></span>
+                      <div class="d-col d-grow">
+                        <span class="d-t-sm d-t-b d-shimmer">生成中…</span>
+                        <span class="d-t-xs d-t-faint">loader-circle 转圈，同时禁用，点了不排队</span>
+                      </div>
+                    </div>
+
+                    <div class="d-set-row">
+                      <button class="d-iconbtn is-on" title="标题已更新"><i data-ico="check" data-size="15"></i></button>
+                      <div class="d-col d-grow">
+                        <span class="d-t-sm d-t-b">已更新</span>
+                        <span class="d-t-xs d-t-faint">换 check，title 变「标题已更新」；不弹任何提示条</span>
+                      </div>
+                    </div>
+
+                    <div class="d-set-row">
+                      <span class="d-err"><i data-ico="wand-sparkles" data-size="15"></i></span>
+                      <div class="d-col d-grow">
+                        <span class="d-t-sm d-t-b d-err">生成失败</span>
+                        <span class="d-t-xs d-t-faint">图标转警告色，失败原因写进 title，不抢一条提示条</span>
+                      </div>
+                    </div>
+
+                    <div class="d-set-row">
+                      <button class="d-iconbtn" disabled title="请先发送消息，再为会话命名"><i data-ico="wand-sparkles" data-size="15"></i></button>
+                      <div class="d-col d-grow">
+                        <span class="d-t-sm d-t-b d-t-faint">禁用</span>
+                        <span class="d-t-xs d-t-faint">会话还没落盘 / 还没有消息 / 正在生成 —— 三种原因共用一档禁用</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ⑩ 导出 Markdown -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="download" data-size="15"></i>
+                  <span>⑩ 导出 Markdown · 顶栏动作，不弹浮层</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">两档出口</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="导出 Markdown"><i data-ico="download" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">顶栏 download 图标 = Markdown；「导出为 HTML」在 ⋯ 菜单里</span>
+                    </div>
+
+                    <div class="d-kv-row"><span>导出 Markdown</span><span>新窗口打开 <span class="d-mono">?format=md</span>，浏览器直接渲染，方便复制片段</span></div>
+                    <div class="d-kv-row"><span>导出为 HTML</span><span>⋯ 菜单里，同源 <span class="d-mono">&lt;a download&gt;</span> 下载整页（含侧栏树 / 搜索 / 过滤）</span></div>
+
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span class="d-grow">两条路都是刻意的：顶栏用 <span class="d-mono">window.open</span> 是因为要「看」，⋯ 菜单用 <span class="d-mono">&lt;a download&gt;</span> 是因为要「带走」—— 桌面端把 <span class="d-mono">window.open</span> 交给系统浏览器，所以「下载」绝不走它。</span>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现 / 消失：没有浮层、没有格式表单。没有会话或会话还没落盘时这枚钮禁用。</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>九枚浮层分三类</b>：只读诊断（系统提示词 / 工具定义，入口都收在 ⋯ 菜单里，不再占顶栏图标位）、会话内切换（子代理 / 分支）、只读状态（MCP / 插件）。三类的共同点是<b>看一眼就跑</b> —— 一枚浮层里不放需要填表的表单。</li>
+    <li><b>同一时刻只开一块</b>：agents / branches / system / tools 四块共用一个「当前开着的顶栏浮窗」状态，点谁开谁、开新的关旧的。MCP 与插件走另一套（悬停出窗 + 点击钉住），所以它们不和前四块抢。</li>
+    <li><b>每枚浮层都写清两件事</b>：从哪枚钮进来、什么条件下消失。「消失条件」不许只写「点外面」—— 分支树要写「选中一条即关」，MCP 要写「移开 160ms 宽限后再关」，自动命名则根本<b>没有浮层</b>，它只有图标与提示文字的切换。</li>
+    <li><b>数据一律懒加载</b>：打开才开始拉，关掉不卸载；没打开过时 MCP / 插件只读扩展上报的状态文本，零请求。角标数字取不到就不显示，宁可没有也不要一个过期的台数。</li>
+    <li><b>查找条不占布局</b>：它悬浮在转录上方居中，有结果给 <span class="d-mono">3 / 7</span>，无结果整条转警告色；关闭时把焦点还给打开它的那个元素。</li>
+    <li><b>最近会话这一格标了「已撤除」</b>：用户 2026-10-01 裁定顶栏标题不再当下拉触发钮（切会话是侧栏的活）。画板留这一格是为了把「为什么顶栏没有它」写在纸上，而不是等下一个人再画一遍。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

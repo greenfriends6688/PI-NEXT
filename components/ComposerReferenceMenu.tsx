@@ -2,22 +2,18 @@
 
 import type { CSSProperties, MutableRefObject, RefObject } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { ComposerReferenceItem, ComposerReferenceKind } from "@/lib/composer-references";
 
 /*
  * fork:gap06-references — `&` 会话 / `#` MCP / `~` 待办 的建议浮层。
  *
- * 与 `@` 文件菜单（`ChatInput.tsx` 内联的那段 JSX）是**同一个视觉外壳**：
- * 位置、圆角、阴影、头部提示行都对齐，因为它们会出现在同一个位置、被同一组按键驱动。
- * 区别只在行内容 —— 文件菜单是「路径 + 文件图标」，这里是三类各不相同的行。
+ * fork:v5-skin D-04 帧 B —— 外壳与行换画板 DOM：.d-pop-float（浮层容器）
+ *   + .d-pop-title（标题行）+ .d-kbd（Tab/Enter 提示）+ .d-menu-row(.is-on)；
+ *   图标一律 <i data-ico>（会话 message-square / MCP plug / 待办 list-todo），
+ *   不再手绘 SVG。定位仍由 SHELL 给（贴 composer 上沿、同宽）。
  *
- * 抽成独立组件（而不是继续往 ChatInput 里塞第四段内联 JSX）是本仓补丁约定的第 2 条：
- * 新能力放进新文件，上游文件只留接线。ChatInput 因此只多了些状态和一次渲染。
- *
- * fork:proma-34-mention —— 本组件不自己判断触发合法性：`extractReferenceQuery`
- * 在源头就拦掉了 URL / 色值 `#fff` / HTML 实体 `&amp;` / Markdown 标题 `# 标题`
- * 这类误触发（规则在 lib/mention-trigger-guard.ts），所以这里拿到的 items 一定
- * 是用户真的想引用的候选。
+ * 与 `@` 文件菜单（`ChatInput.tsx` 内联的那段 JSX）是**同一个视觉外壳**。
  */
 
 interface Props {
@@ -33,9 +29,6 @@ interface Props {
   onPick: (item: ComposerReferenceItem) => void;
 }
 
-/* fork:design-system SW-02 —— 外壳与行换画板 21 的 pw-pop / pw-pop-title /
-   pw-prow(.is-on) / pw-desc：定位仍由 SHELL 给（贴 composer 上沿、同宽），
-   视觉全部来自 board.css。 */
 const SHELL: CSSProperties = {
   position: "absolute",
   left: 0,
@@ -47,43 +40,11 @@ const SHELL: CSSProperties = {
   flexDirection: "column",
 };
 
-
-
-
-/** 三类行的前置图标，沿用应用内手写 SVG 的既有词汇（不引图标依赖）。 */
-function ReferenceIcon({ item }: { item: ComposerReferenceItem }) {
-  const common = {
-    width: "var(--icon-sm)",
-    height: "var(--icon-sm)",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-  if (item.kind === "session") {
-    return (
-      <svg {...common}>
-        <path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
-      </svg>
-    );
-  }
-  if (item.kind === "mcp") {
-    return (
-      <svg {...common}>
-        <rect x="3" y="4" width="18" height="7" rx="2" />
-        <rect x="3" y="13" width="18" height="7" rx="2" />
-        <path d="M7 7.5h.01M7 16.5h.01" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <path d="m4 6 2 2 3-4M13 7h7M4 17l2 2 3-4M13 18h7" />
-    </svg>
-  );
+/** 三类行对应的画板图标（lucide，走 data-ico）。 */
+function referenceIcon(kind: ComposerReferenceKind): string {
+  if (kind === "session") return "message-square";
+  if (kind === "mcp") return "plug";
+  return "list-todo";
 }
 
 /** 行的第二段（副标题）：会话给 cwd，MCP 给作用域+传输方式，待办给 id。 */
@@ -91,6 +52,50 @@ function itemDetail(item: ComposerReferenceItem): string | undefined {
   if (item.kind === "session") return item.cwd;
   if (item.kind === "mcp") return [item.scope, item.transport].filter(Boolean).join(" · ") || undefined;
   return `#${item.id}`;
+}
+
+/** 一行的图标 + 标题 + 副行，桌面是 `.d-menu-row` 的一段、窄屏是 `.m-sheet-row` 的一段。
+    同一份内容（标题 / 副行 / 两个状态标记），两种基件。 */
+function rowBody(item: ComposerReferenceItem, isMobile: boolean, t: (key: string) => string) {
+  const detail = itemDetail(item);
+  const title = item.kind === "todo" ? item.text : item.kind === "mcp" ? item.name : item.title;
+  // 判据先落到局部量上，顺带把联合类型收窄（disabled 只在 mcp 上、done 只在 todo 上）。
+  const disabled = item.kind === "mcp" && item.disabled;
+  const done = item.kind === "todo" && item.done;
+  if (isMobile) {
+    const note = [
+      detail,
+      disabled ? t("chat.referenceDisabled") : "",
+      done ? t("chat.referenceTodoDone") : "",
+    ].filter(Boolean).join(" · ");
+    return (
+      <>
+        <i data-ico={referenceIcon(item.kind)} data-size="16"></i>
+        <span className="m-setrow-body">
+          <span className="m-setrow-t">{title}</span>
+          {note && <span className="m-sheet-row-desc">{note}</span>}
+        </span>
+      </>
+    );
+  }
+  return (
+    <>
+      <i data-ico={referenceIcon(item.kind)} data-size="14"></i>
+      <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {title}
+      </span>
+      {detail && (
+        <span
+          className="d-t-xs d-t-faint"
+          style={{ flexShrink: 0, maxWidth: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
+          {detail}
+        </span>
+      )}
+      {disabled && <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>{t("chat.referenceDisabled")}</span>}
+      {done && <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>{t("chat.referenceTodoDone")}</span>}
+    </>
+  );
 }
 
 export function ComposerReferenceMenu({
@@ -105,6 +110,7 @@ export function ComposerReferenceMenu({
   onPick,
 }: Props) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const countLabel = items.length === 1 ? t("chat.match") : t("chat.matches", { count: items.length });
   const titleKey = kind === "session"
     ? "chat.referenceSessions"
@@ -112,10 +118,65 @@ export function ComposerReferenceMenu({
       ? "chat.referenceMcp"
       : "chat.referenceTodos";
 
+  /* fork:v5-wave-b —— 窄屏（PWA 形态）换 M-03 帧 D-1 的那一块：
+     外壳 `.m-pop-float is-open`（从输入卡上方落下，定位壳与桌面同一套），
+     标题 `.m-pop-title`，一行一个候选用 `.m-sheet-row`（`.is-on` 是选中态），
+     空态与「未连接 / 已完成」的处理与桌面逐字一致。 */
+  if (isMobile) {
+    return (
+      <div
+        ref={menuRef}
+        className="m-pop-float is-open"
+        role="listbox"
+        aria-label={t(titleKey, { label: countLabel })}
+        style={{
+          ...SHELL,
+          maxHeight: maxHeight === null
+            ? "min(56vh, 420px)"
+            : `min(56vh, 420px, ${maxHeight}px)`,
+        }}
+      >
+        <div className="m-pop-title">
+          {loading ? t("chat.referenceLoading") : t(titleKey, { label: countLabel })}
+        </div>
+        <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+          {!loading && items.length === 0 ? (
+            <div className="m-sheet-row m-t-xs m-t-faint">{t("chat.referenceEmpty")}</div>
+          ) : (
+            items.map((item, index) => {
+              const active = index === activeIndex;
+              const disabled = item.kind === "mcp" && item.disabled;
+              return (
+                <button
+                  key={item.kind === "session" ? `s:${item.id}` : item.kind === "mcp" ? `m:${item.name}` : `t:${item.id}`}
+                  ref={(node) => {
+                    itemRefs.current[index] = node;
+                  }}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    onPick(item);
+                  }}
+                  onMouseEnter={() => onHover(index)}
+                  className={`m-sheet-row${active ? " is-on" : ""}`}
+                  style={{ opacity: disabled ? 0.5 : 1 }}
+                >
+                  {rowBody(item, true, t)}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={menuRef}
-      className="pw-pop anim-popover"
+      className="d-pop-float"
       role="listbox"
       aria-label={t(titleKey, { label: countLabel })}
       style={{
@@ -125,22 +186,20 @@ export function ComposerReferenceMenu({
           : `min(48vh, 400px, ${maxHeight}px)`,
       }}
     >
-      <div className="pw-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
+      <div className="d-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-2)", flexShrink: 0 }}>
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
           {loading ? t("chat.referenceLoading") : t(titleKey, { label: countLabel })}
         </span>
-        <span className="grow" />
-        <span className="pw-kbd">{t("chat.tabEnter")}</span>
+        <span className="d-grow" />
+        <span className="d-kbd">{t("chat.tabEnter")}</span>
       </div>
-      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
+      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 var(--nx-sp-1) var(--nx-sp-1)" }}>
         {!loading && items.length === 0 ? (
-          <div className="pw-prow pw-desc">{t("chat.referenceEmpty")}</div>
+          <div className="d-pop-body d-t-xs d-t-faint">{t("chat.referenceEmpty")}</div>
         ) : (
           items.map((item, index) => {
             const active = index === activeIndex;
-            const detail = itemDetail(item);
             const disabled = item.kind === "mcp" && item.disabled;
-            const done = item.kind === "todo" && item.done;
             return (
               <button
                 key={item.kind === "session" ? `s:${item.id}` : item.kind === "mcp" ? `m:${item.name}` : `t:${item.id}`}
@@ -155,35 +214,14 @@ export function ComposerReferenceMenu({
                   onPick(item);
                 }}
                 onMouseEnter={() => onHover(index)}
-                className={`pw-prow${active ? " is-on" : ""}`}
+                className={`d-menu-row${active ? " is-on" : ""}`}
                 style={{
                   width: "100%",
                   // 画板 21 的「未连接」行：整行弱化。
                   opacity: disabled ? 0.5 : 1,
                 }}
               >
-                <span className="pw-ico" style={{ flexShrink: 0 }}>
-                  <ReferenceIcon item={item} />
-                </span>
-                <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.kind === "todo" ? item.text : item.kind === "mcp" ? item.name : item.title}
-                </span>
-                {detail && (
-                  <span
-                    className="pw-desc"
-                    style={{
-                      flexShrink: 0,
-                      maxWidth: "45%",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {detail}
-                  </span>
-                )}
-                {disabled && <span className="pw-desc" style={{ flexShrink: 0 }}>{t("chat.referenceDisabled")}</span>}
-                {done && <span className="pw-desc" style={{ flexShrink: 0 }}>{t("chat.referenceTodoDone")}</span>}
+                {rowBody(item, false, t)}
               </button>
             );
           })

@@ -21,6 +21,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { useMotionPreference } from "./RollingNumber";
 // 类型导入，编译后消失（PhaseRoll 不能在 node 里把整个 hook 拉进来）。
 import type { AgentPhase } from "@/hooks/useAgentSession";
+// fork:v5-wave-b —— PWA 形态：状态行换成画板 M-02 帧 A 的 `.m-run`（转圈 +
+// 一句话），`.m-run > i:first-child` 自带 1400ms linear 的 nx-spin，桌面由
+// system.css 的 `.d-run` 承担同一档动效。滚动机制（两层 translateY）一字未动。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 export const PHASE_ROLL_TRANSITION_MS = 300;
 export const PHASE_ROLL_HOLD_MS = 500;
@@ -175,6 +179,7 @@ export function PhaseRoll({
 }): ReactNode {
   const preference = useMotionPreference();
   const animate = reducedMotion === true ? false : preference === "no-preference";
+  const isPwa = usePwaSkin();
   const [displayed, setDisplayed] = useState<PhaseSnapshot | null>(() => (text ? { key: phaseKey, text } : null));
   const [exiting, setExiting] = useState<PhaseSnapshot | null>(null);
   const displayedRef = useRef<PhaseSnapshot | null>(displayed);
@@ -297,11 +302,13 @@ export function PhaseRoll({
 
   const icon = phaseIcon(displayed?.key ?? exiting?.key ?? "");
   return (
-    /* fork:design-components —— 画板 53 帧 A 的 `.pw-step`：图标槽 `.pw-step-ico`
-       （绝对定位在左侧轨上，board.css 画竖线）+ `.pw-verb` 文案 + `.grow` 轨。
-       轨就是原来那两层 translateY 动画的宿主（LAYER_STYLE 仍是 inset:0 的绝对层），
-       滚动机制一行没动；根节点继续自带 8px 上下间距（挂载方的 wrapper 不带 padding，
-       否则本组件返回 null 时会留下一条空行）。 */
+    /* fork:v5-landing —— 画板 D-03e 帧 B 的 `.d-step`：图标槽 `.d-step-ico` +
+       `.d-step-body` 文案。轨就是原来那两层 translateY 动画的宿主（LAYER_STYLE 仍是
+       inset:0 的绝对层），滚动机制一行没动；运行相位挂 `.running` 让图标转强调色。
+       根节点继续自带 8px 上下间距（挂载方的 wrapper 不带 padding，否则本组件返回
+       null 时会留下一条空行）。
+       fork:v5-wave-b —— 窄屏换成 M-02 帧 A 的 `.m-run`；两层 translateY 的轨
+       （LAYER_STYLE）与排队/错峰逻辑一个字没动。 */
     <span
       role="status"
       aria-live="polite"
@@ -309,19 +316,19 @@ export function PhaseRoll({
       data-fork-phase-roll={displayed?.key ?? ""}
       style={{ display: "block", padding: "8px 0", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
     >
-      <span className="pw-step">
-        {/* 缩进（22）与图标横位（3）由 board.css 的 `.pw-step`（padding 2 6 2 22）
-            与 `.pw-step-ico`（left 3）承担，与画板同值（audit-2026-10-01）。 */}
-        <span className="pw-step-ico">
-          <span
-            className={`pw-ico${icon.color ? "" : " pw-dim"}`}
-            style={icon.color ? { color: icon.color } : undefined}
-          >
-            <i data-ico={icon.ico} data-size="12" className={icon.spin ? "pw-anim-spin" : undefined} aria-hidden="true"></i>
-          </span>
-        </span>
+      {/* fork:v5-wave-b —— 窄屏抄 M-02 帧 A 的 `.m-run`（转圈图标 + 一句话）。
+          图标不再套 `.d-step-ico` 方框：画板里 `i[data-ico]` 直接是 `.m-run` 的
+          第一个子元素（`.m-run > i:first-child` 才是那条 1400ms linear 旋转规则）。 */}
+      <span className={isPwa ? "m-run" : `d-step${icon.spin ? " running" : ""}`}>
+        {isPwa
+          ? <i data-ico={icon.ico} data-size="10" aria-hidden="true"></i>
+          : (
+            <span className="d-step-ico">
+              <i data-ico={icon.ico} data-size="10" aria-hidden="true"></i>
+            </span>
+          )}
         <span
-          className="pw-verb grow"
+          className={isPwa ? "m-t-xs" : "d-step-body"}
           style={{ position: "relative", height: `${lineHeightEm}em`, overflow: "hidden" }}
         >
           {exiting && displayed && (

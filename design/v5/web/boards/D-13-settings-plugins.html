@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-13 · 设置 · 插件 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-13 · 设置 · 插件（已装 · 启用 · 检查更新 · 禁用 · 卸载）</h1>
+  <p>
+    插件是<b>往运行时里插代码</b>的：工具、钩子、面板插槽。四个动作要分清 ——
+    <b>禁用</b>（不加载，文件留着）、<b>卸载</b>（删目录，会牵动依赖它的别的插件）、
+    <b>更新</b>（可能带来破坏性变更）、<b>重载</b>（让上面三件事真的生效）。
+    这一节的重量全在<b>卸载确认</b>与<b>重载提示</b>上：这两处如果写糊了，用户会在一次点击里丢掉别人的配置。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 插件</span>
+    <span class="d-tag">组件：PluginsConfig · PluginRow · UpdateCheck · UninstallConfirm · ReloadBanner · PluginDetail</span>
+    <span class="d-tag">状态：已装 5 · 启用 4 · 禁用 1 · 可更新 2 · 有 1 个依赖别人的被禁用插件</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 已装列表：来源 / 版本 / 启用 / 更新，行尾「更多」能点开含卸载确认的菜单<span class="d-grow"></span>禁用别人的插件时，依赖它的那行会立刻标出后果</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 插件</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="download" data-size="12"></i>2 个可更新</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">插件 · git-context</span>
+                </div>
+                <div class="d-md">
+                  <p>右栏的分支信息是 <code>git-context</code> 提供的。它现在是禁用的，所以右栏空着 —— 插件禁用不是「功能变灰」，是功能不在了。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 插件">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 插件</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem is-on"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">已装</div>
+                        <div class="d-row">
+                          <span class="d-t-xs d-t-faint d-grow">共 5 个 · 启用 4 · 禁用 1。<b>禁用 ≠ 卸载</b>：禁用只是不加载，文件与配置原样留在磁盘上。</span>
+                          <button class="d-btn sm" data-demo-open="p16-check"><i data-ico="refresh-cw" data-size="13"></i>检查更新</button>
+                          <button class="d-btn sm ghost"><i data-ico="package" data-size="13"></i>安装本地包</button>
+                        </div>
+
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th style="width:26%">插件</th><th>来源</th><th>版本</th><th>状态</th><th>启用</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">git-context</span><span class="d-t-xs d-t-faint">分支、脏文件、调用轨迹</span></div></td>
+                                <td><span class="d-badge info"><i data-ico="git-branch" data-size="12"></i>官方</span></td>
+                                <td class="d-mono">1.4.0</td>
+                                <td><span class="d-badge warn"><i data-ico="arrow-up" data-size="12"></i>可更新 1.6.0</span></td>
+                                <td><button class="d-switch" data-demo-switch aria-checked="false" title="启用 git-context"></button></td>
+                                <td><button class="d-iconbtn" title="更多" data-demo-open="p16-menu1"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">usage-panel</span><span class="d-t-xs d-t-faint">把用量页做成面板插槽</span></div></td>
+                                <td><span class="d-badge info"><i data-ico="git-branch" data-size="12"></i>官方</span></td>
+                                <td class="d-mono">0.6.2</td>
+                                <td><span class="d-badge ok">最新</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 usage-panel"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">pi-notes</span><span class="d-t-xs d-t-faint">给会话挂笔记文件</span></div></td>
+                                <td><span class="d-badge mute"><i data-ico="folder" data-size="12"></i>本地 ~/.pi/plugins</span></td>
+                                <td class="d-mono">0.2.0</td>
+                                <td><span class="d-badge mute">自装 · 不检查更新</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 pi-notes"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">theme-drift</span><span class="d-t-xs d-t-faint">第三方配色皮肤</span></div></td>
+                                <td><span class="d-badge warn"><i data-ico="globe" data-size="12"></i>社区</span></td>
+                                <td class="d-mono">0.9.0</td>
+                                <td><span class="d-badge warn"><i data-ico="arrow-up" data-size="12"></i>可更新 1.0.0 · 有破坏性变更</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 theme-drift"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><div class="d-col"><span class="d-t-b">session-recap</span><span class="d-t-xs d-t-faint">给会话生成一段回顾</span></div></td>
+                                <td><span class="d-badge mute"><i data-ico="folder" data-size="12"></i>本地 ~/.pi/plugins</span></td>
+                                <td class="d-mono">0.1.3</td>
+                                <td><span class="d-badge info">依赖被禁用的 git-context</span></td>
+                                <td><button class="d-switch on" data-demo-switch aria-checked="true" title="启用 session-recap"></button></td>
+                                <td><button class="d-iconbtn" title="更多"><i data-ico="ellipsis" data-size="14"></i></button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="d-banner err">
+                          <i data-ico="circle-alert" data-size="14"></i>
+                          <span><code>session-recap</code> 依赖被禁用的 <code>git-context</code>，<b>它现在是空转</b>：插件加载了，但每次读到的分支信息都是空。
+                          面板在<b>禁用那一行上</b>就把后果标出来，而不是等它静默失效三天后才有人发现。</span>
+                          <button class="d-btn sm d-banner-btn">启用 git-context</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">更新</div>
+                        <div class="d-t-xs d-t-faint">每 6 小时自动检查一次，只查官方与已装来源，<b>不自动安装</b>；社区源要显式勾了才查，本地安装的包不检查。</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">自动安装无破坏性变更的更新</div>
+                            <div class="d-set-row-s">面板解析更新说明里有没有 <code>BREAKING</code> 标记；<b>有标记的更新一律要人工确认</b>，不会被静默装上。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="自动安装安全更新"></button>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">theme-drift 1.0.0 变更了皮肤变量的名字</div>
+                            <div class="d-set-row-s">旧变量会变成无效值 → 界面退回默认配色。这是破坏性变更，所以这次更新停在这一步等你确认。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge bad">需人工确认</span></span>
+                          <button class="d-btn sm">看变更</button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">启用 / 禁用要重载才生效 · 见下一帧</span>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p16-menu1" hidden style="left:24px;bottom:64px;min-width:340px">
+                <div class="d-pop-title">git-context · 1.4.0</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">插件详情</span></button>
+                <button class="d-menu-row"><i data-ico="download" data-size="14"></i><span class="d-grow">更新到 1.6.0</span></button>
+                <button class="d-menu-row"><i data-ico="power" data-size="14"></i><span class="d-grow">启用</span></button>
+                <div class="d-sep"></div>
+                <button class="d-menu-row danger" data-demo-open="p16-uninstall"><i data-ico="trash-2" data-size="14"></i><span class="d-grow">卸载…</span></button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p16-check" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">检查更新</div>
+                <div class="d-pop-body d-t-xs d-t-dim">逐个来源查，失败的那个单独标出来 —— 不用一个「检查失败」盖掉全部。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">官方源</span><span class="d-badge ok">2 个可更新</span></div>
+                <div class="d-menu-row"><span class="d-grow">社区源</span><span class="d-badge warn">1 个 · 未勾选已跳过</span></div>
+                <div class="d-menu-row"><span class="d-grow">本地安装</span><span class="d-badge mute">不检查</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="refresh-cw" data-size="14"></i><span class="d-grow">连社区源一起查</span></button>
+                <div class="d-pop-foot">本地安装的插件没有「版本可升」的概念，只能换包。</div>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p16-uninstall" hidden style="left:24px;bottom:64px;min-width:440px">
+                <div class="d-pop-title">卸载 git-context</div>
+                <div class="d-pop-body d-t-xs d-t-dim">卸载会删目录，并影响<b>依赖它的插件</b>。确认框里逐条写出后果，不只写一个「确认卸载」。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">删除目录</span><span class="d-badge bad">~/.pi/plugins/git-context</span></div>
+                <div class="d-menu-row"><span class="d-grow">依赖它的插件</span><span class="d-badge bad">session-recap 将失效</span></div>
+                <div class="d-menu-row"><span class="d-grow">它注册的插槽</span><span class="d-badge warn">右栏 · Git 页签会消失</span></div>
+                <div class="d-menu-row"><span class="d-grow">历史会话</span><span class="d-badge ok">不受影响</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="power" data-size="14"></i><span class="d-grow">先禁用，效果一样</span></button>
+                <button class="d-menu-row"><i data-ico="copy" data-size="14"></i><span class="d-grow">导出配置再卸载</span></button>
+                <div class="d-pop-foot">「先禁用」是可逆的；卸载不是。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 重载提示：待生效的改动逐条列出，重载按钮写清「重载什么、不重载什么」<span class="d-grow"></span>待生效列表里的每一项都能单独撤掉</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 插件 / 待重载</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge warn"><i data-ico="rotate-cw" data-size="12"></i>3 项待生效</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge warn">有工具卡显示「工具不可用」</span>
+                </div>
+                <div class="d-md">
+                  <p>工具定义在会话开头已经发给模型了，所以插件的启用状态要重载才对得上 —— 中途改只改文件，不改这一轮已经发出的提示。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="待重载">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">设置 · 插件 · 待重载</div>
+              <div class="d-modal-body">
+                <div class="d-set">
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem is-on"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-banner warn">
+                          <i data-ico="triangle-alert" data-size="14"></i>
+                          <span><b>3 项改动还没生效。</b>插件的启用、更新与卸载都要重载才生效 —— 工具清单在会话开头已经发给模型了，
+                          这一轮里它看到的还是旧的。<b>不重载的后果不是「慢一点」，而是模型调了一个它以为不存在的工具。</b></span>
+                          <button class="d-btn sm d-banner-btn" data-demo-open="p16-reload">现在重载</button>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">待生效</div>
+                        <div class="d-card">
+                          <table class="d-table" data-demo-list>
+                            <thead>
+                              <tr><th>改动</th><th>对象</th><th>对当前会话的影响</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                              <tr data-demo-select>
+                                <td><span class="d-badge ok">启用</span></td>
+                                <td class="d-mono">git-context</td>
+                                <td class="d-t-xs">右栏 Git 页签会出现在本轮之后</td>
+                                <td><button class="d-btn sm ghost">撤掉</button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><span class="d-badge warn">更新</span></td>
+                                <td class="d-mono">theme-drift → 1.0.0</td>
+                                <td class="d-t-xs">皮肤变量改名，界面会在重载瞬间换配色</td>
+                                <td><button class="d-btn sm ghost">撤掉</button></td>
+                              </tr>
+                              <tr data-demo-select>
+                                <td><span class="d-badge bad">卸载</span></td>
+                                <td class="d-mono">legacy-hook</td>
+                                <td class="d-t-xs">重载后它的工具从清单里消失；本轮已经发过的调用不再补</td>
+                                <td><button class="d-btn sm ghost">撤掉</button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-btn primary" data-demo-open="p16-reload"><i data-ico="rotate-cw" data-size="14"></i>重载插件</button>
+                          <button class="d-btn ghost">全部撤掉</button>
+                          <span class="d-grow"></span>
+                          <span class="d-t-xs d-t-faint">离开设置弹窗不会自动重载 —— 免得关个窗就打断手上的活</span>
+                        </div>
+                      </div>
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">重载会影响什么</div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">会重来一遍</div>
+                            <div class="d-set-row-s">插件加载、工具注册、面板插槽挂载、钩子订阅；耗时 0.4–1.2 秒。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">重载</span></span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">不会重来</div>
+                            <div class="d-set-row-s">已发出的消息、正在跑的模型调用、终端与浏览器面板的现场。<b>正在跑的那一轮不会被打断</b>，它用的是旧清单，跑完才换。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">保留</span></span>
+                        </div>
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">正在执行的插件钩子</div>
+                            <div class="d-set-row-s">重载会等它们跑完再卸，避免半路卸掉代码；<b>超过 5 秒的钩子会被标记并下次不再等它</b>。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge warn">等待中 1 个</span></span>
+                        </div>
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span>插件里的配置写在 <code>plugins/&lt;name&gt;.config.json</code>，<b>重载不丢配置</b>；只有卸载才删 —— 所以「禁用 / 重载」是可逆的那条路。</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">关掉弹窗不重载 —— 重载由你决定什么时候发生</span>
+                <button class="d-btn primary" data-demo-open="p16-reload"><i data-ico="rotate-cw" data-size="14"></i>重载并关闭</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p16-reload" hidden style="left:24px;bottom:64px;min-width:400px">
+                <div class="d-pop-title">现在重载？</div>
+                <div class="d-pop-body d-t-xs d-t-dim">工具清单会在<b>下一轮</b>请求里换新；正在跑的这一轮仍用旧清单跑完。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">要重载的插件</span><span class="d-badge ok">3 个</span></div>
+                <div class="d-menu-row"><span class="d-grow">预计耗时</span><span class="d-badge mute">0.4–1.2 秒</span></div>
+                <div class="d-menu-row"><span class="d-grow">正在跑的钩子</span><span class="d-badge warn">等 1 个</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i><span class="d-grow">立即重载</span></button>
+                <button class="d-menu-row"><i data-ico="clock" data-size="14"></i><span class="d-grow">等本轮跑完再重载</span></button>
+                <div class="d-pop-foot">失败会整体回滚到重载前的状态，不会停在半加载。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 插件详情：它要什么权限 · 它带来什么 · 它依赖谁 / 谁依赖它 · 兼不兼容<span class="d-grow"></span>四段能切，兼容段按不兼容直接标红</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 插件 / git-context 详情</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge bad"><i data-ico="triangle-alert" data-size="12"></i>与 2.0 运行时不兼容</span>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-md">
+                  <p>插件详情要能回答三件事：它给我加了什么、它要什么、它会不会把别的搞坏。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="插件详情">
+            <div class="d-modal-box wide" style="width:72%">
+              <div class="d-modal-head">插件详情 · git-context</div>
+              <div class="d-modal-body">
+                <div class="d-set" data-demo-scope>
+
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem is-on"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-row">
+                          <div class="d-seg" data-demo-tabs>
+                            <button data-demo-tab="d-perm">权限</button>
+                            <button data-demo-tab="d-overview" class="is-on">概览</button>
+                            <button data-demo-tab="d-deps">依赖</button>
+                            <button data-demo-tab="d-compat">兼容</button>
+                          </div>
+                          <span class="d-grow"></span>
+                          <span class="d-badge info"><i data-ico="git-branch" data-size="12"></i>官方</span>
+                          <span class="d-mono d-t-xs">1.4.0 → 1.6.0 可用</span>
+                        </div>
+
+                        <section data-demo-pane="d-perm" hidden>
+                          <div class="d-set-sec-t">它要什么权限</div>
+                          <div class="d-card">
+                            <table class="d-table">
+                              <thead><tr><th>权限</th><th>做什么</th><th>能不能收紧</th></tr></thead>
+                              <tbody>
+                                <tr><td><span class="d-badge mute">读仓库文件</span></td><td class="d-t-xs">看 diff、看分支、看状态</td><td><span class="d-badge ok">不可（必需）</span></td></tr>
+                                <tr><td><span class="d-badge warn">执行 git 只读子命令</span></td><td class="d-t-xs"><code>status</code> / <code>diff</code> / <code>log</code></td><td><span class="d-badge ok">可收紧到白名单</span></td></tr>
+                                <tr><td><span class="d-badge mute">出网</span></td><td class="d-t-xs">不请求（只读本地仓库）</td><td><span class="d-badge ok">已经是关</span></td></tr>
+                                <tr><td><span class="d-badge mute">写文件</span></td><td class="d-t-xs">不写</td><td><span class="d-badge ok">已经是关</span></td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="d-banner warn">
+                            <i data-ico="shield-alert" data-size="14"></i>
+                            <span>权限清单来自插件的声明，<b>面板不允许放宽</b>；收紧后若插件调不到，它会返回「需要 X」而不是自己找别的路。</span>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="d-overview">
+                          <div class="d-set-sec-t">它带来什么</div>
+                          <div class="d-card">
+                            <div class="d-card-head"><i data-ico="wrench" data-size="15"></i>新增工具</div>
+                            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                              <div class="d-row"><span class="d-mono d-grow">git.branch</span><span class="d-t-xs d-t-faint">读当前分支名与上游，不写</span></div>
+                              <div class="d-row"><span class="d-mono d-grow">git.status</span><span class="d-t-xs d-t-faint">读脏文件列表，不写</span></div>
+                              <div class="d-row"><span class="d-mono d-grow">git.recent_trace</span><span class="d-t-xs d-t-faint">读本会话调用轨迹，不写</span></div>
+                            </div>
+                          </div>
+                          <div class="d-card">
+                            <div class="d-card-head"><i data-ico="layout-grid" data-size="15"></i>面板插槽</div>
+                            <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                              <div class="d-row"><span class="d-mono d-grow">right-panel · Git 页签</span><span class="d-badge ok">已挂载</span></div>
+                              <div class="d-row"><span class="d-mono d-grow">composer · 上下文角标</span><span class="d-badge mute">未挂载 · 需启用该插槽</span></div>
+                            </div>
+                          </div>
+                          <div class="d-card">
+                            <div class="d-card-head"><i data-ico="zap" data-size="15"></i>钩子</div>
+                            <div class="d-card-body d-t-sm d-t-dim">在每轮请求发出前追加一段仓库状态摘要（只读，约 180 token）。关掉后模型看不到分支信息 —— 它的判断依据里就没有这一项。</div>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="d-deps" hidden>
+                          <div class="d-set-sec-t">它依赖谁</div>
+                          <div class="d-card">
+                            <table class="d-table">
+                              <thead><tr><th>依赖</th><th>要求</th><th>本机</th><th></th></tr></thead>
+                              <tbody>
+                                <tr><td class="d-mono">pi 运行时</td><td class="d-mono">&gt;= 1.8</td><td class="d-mono">1.9.2</td><td><span class="d-badge ok">满足</span></td></tr>
+                                <tr><td class="d-mono">git</td><td class="d-mono">&gt;= 2.34</td><td class="d-mono">2.46.0</td><td><span class="d-badge ok">满足</span></td></tr>
+                                <tr><td class="d-mono">ext:repo-notes</td><td class="d-mono">可选</td><td class="d-mono">已解析</td><td><span class="d-badge info">装了就多一份笔记</span></td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="d-set-sec-t" style="padding-top:var(--nx-sp-4)">谁依赖它</div>
+                          <div class="d-card">
+                            <table class="d-table">
+                              <thead><tr><th>插件</th><th>用它做什么</th><th>现在</th></tr></thead>
+                              <tbody>
+                                <tr><td class="d-mono">session-recap</td><td class="d-t-xs">回顾时按分支归纳改动</td><td><span class="d-badge bad">失效 · 它被禁用了</span></td></tr>
+                                <tr><td class="d-mono">usage-panel</td><td class="d-t-xs">按分支给用量分组</td><td><span class="d-badge ok">正常</span></td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="d-banner warn">
+                            <i data-ico="triangle-alert" data-size="14"></i>
+                            <span>卸载它会让 <code>session-recap</code> 失效。<b>面板在卸载确认里逐条列出这一串</b>，而不是让用户在装完之后才发现某个插件不干活了。</span>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="d-compat" hidden>
+                          <div class="d-set-sec-t">与本机的兼容性</div>
+                          <div class="d-card">
+                            <table class="d-table">
+                              <thead><tr><th>检查项</th><th>要求</th><th>本机</th><th></th></tr></thead>
+                              <tbody>
+                                <tr><td>运行时 API 版本</td><td class="d-mono">1.6 – 1.9</td><td class="d-mono">1.9.2</td><td><span class="d-badge ok">在范围内</span></td></tr>
+                                <tr><td>1.4.0 用的旧 API</td><td class="d-mono">—</td><td class="d-mono">2.0 已移除</td><td><span class="d-badge bad"><i data-ico="circle-x" data-size="12"></i>不兼容</span></td></tr>
+                                <tr><td>面板插槽契约</td><td class="d-mono">v2</td><td class="d-mono">v2</td><td><span class="d-badge ok">匹配</span></td></tr>
+                                <tr><td>深色主题变量</td><td class="d-mono">全部定义</td><td class="d-mono">缺 3 个</td><td><span class="d-badge warn">深色下回落</span></td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="d-banner err">
+                            <i data-ico="circle-alert" data-size="14"></i>
+                            <span><b>1.4.0 用了一个 2.0 里已移除的 API。</b>现在跑着的这一轮没事（清单已发出），但<b>下一次运行时升级之后这个插件会直接加载失败</b> ——
+                            所以兼容性写在详情里，而不是等它炸。</span>
+                            <button class="d-btn sm d-banner-btn">更新到 1.6.0</button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">深色主题下缺 3 个变量</div>
+                              <div class="d-set-row-s">插件自己声明的变量在本机深色板上没值 → 回落到默认色，不会变白，但会有一处对比度偏低。</div>
+                            </div>
+                            <span class="d-grow-last"><span class="d-badge warn">可接受</span></span>
+                          </div>
+                        </section>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">插件配置在 plugins/git-context.config.json，卸载才删</span>
+                <button class="d-btn ghost" data-demo-open="p16-uninstall2"><i data-ico="trash-2" data-size="14"></i>卸载…</button>
+                <button class="d-btn primary"><i data-ico="check" data-size="14"></i>完成</button>
+              </div>
+
+              <div class="d-pop is-open" data-demo-pop="p16-uninstall2" hidden style="left:24px;bottom:64px;min-width:440px">
+                <div class="d-pop-title">卸载 git-context</div>
+                <div class="d-pop-body d-t-xs d-t-dim">逐条写出后果，并给一条可逆的路。</div>
+                <div class="d-sep"></div>
+                <div class="d-menu-row"><span class="d-grow">删除目录</span><span class="d-badge bad">~/.pi/plugins/git-context</span></div>
+                <div class="d-menu-row"><span class="d-grow">session-recap</span><span class="d-badge bad">将失效</span></div>
+                <div class="d-menu-row"><span class="d-grow">右栏 Git 页签</span><span class="d-badge warn">将消失</span></div>
+                <div class="d-menu-row"><span class="d-grow">配置文件</span><span class="d-badge bad">一并删除</span></div>
+                <div class="d-menu-row"><span class="d-grow">历史会话</span><span class="d-badge ok">不受影响</span></div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="power" data-size="14"></i><span class="d-grow">改成禁用（可逆）</span></button>
+                <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i><span class="d-grow">确认卸载</span></button>
+                <div class="d-pop-foot">删目录前会留一份到回收站目录，7 天内可手动取回。</div>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>禁用 / 卸载 / 更新 / 重载是四件事。</b>禁用可逆且留配置；卸载删目录与配置、牵动依赖方；更新可能破坏；重载才让前面三件生效。
+        面板从头到尾不让它们共用一个开关。</li>
+    <li><b>卸载确认逐条写后果。</b>删哪个目录、哪个插件会失效、哪个面板插槽会消失、历史会话不受影响 —— 五行写完，比一个「确认卸载」按钮有用得多。
+        并在确认里给出「改成禁用」这条可逆的路。</li>
+    <li><b>禁用别人的插件时，后果标在被影响的那一行。</b><code>session-recap</code> 依赖被禁用的 <code>git-context</code>，
+        它加载了但读到空值 —— 这种「空转」比直接报错更难发现，所以必须在列表里当场写明。</li>
+    <li><b>重载横幅说清「会重来什么、不会重来什么」。</b>工具清单在会话开头已发出，重载只影响下一轮；正在跑的那一轮不被打断。
+        离开弹窗<b>不</b>自动重载 —— 免得关个窗就打断手上的活。</li>
+    <li><b>兼容性是详情页的一部分，不是安装时的一句话。</b>「用了 2.0 已移除的 API」这种事现在不炸、下次升级才炸，所以要提前写在「兼容」段里。</li>
+    <li><b>更新分自动与人工两档。</b>只有不带 <code>BREAKING</code> 标记的更新能自动装；带标记的一律要人工确认，因为插件作者自己都说不清破坏在哪。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

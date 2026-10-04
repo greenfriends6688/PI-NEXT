@@ -39,9 +39,10 @@
    * 所以把 row-gap 也定到 --s4：栈内（块自身 margin-top --s4）与栈间
    * （row-gap --s4）从此同档，全页节奏一致，首块仍不带顶距。
    * ---------------------------------------------------------------------- */
+  /* fork:v5-old-layer（2026-10-04）—— 从这张列表里摘掉 `.pw-grid4`：全仓零引用
+     （设置壳已改 `.d-grid2` / `.d-grid3`），留着只会让人以为还有四栏档。 */
   .settings-dialog-surface .pw-grid2,
-  .settings-dialog-surface .pw-grid3,
-  .settings-dialog-surface .pw-grid4 {
+  .settings-dialog-surface .pw-grid3 {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--s4);
   }

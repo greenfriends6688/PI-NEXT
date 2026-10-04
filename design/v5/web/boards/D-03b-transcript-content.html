@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-03b · 转录 · 内容块全集 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-03b · 转录 · 内容块全集</h1>
+  <p>
+    D-03 画的是「一轮长什么样」，这一张只管<b>块本身</b>：用户消息的三个形态、Markdown 正文能渲染出的
+    全部块、代码块的两态与横滚、行内/块级公式、Mermaid 的三态与全屏查看器。
+    三条纪律：① <b>附件按类型分渲染分支</b>（图片 / PDF / DOCX / 音频 / 视频 / 文本 / 其余），分支选择是一个纯函数，
+    组件只负责画；② <b>渲染失败不吞内容</b> —— 退化成源码加一行原因，并给重试；
+    ③ <b>用户消息的编辑与回退是两件事</b>：编辑开分支（原文不动），回退才删后面的轮次，所以警告只挂在回退上。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区</span>
+    <span class="d-tag">组件：MessageView · MarkdownBody · AsyncCodeHighlighter · MermaidBlock</span>
+    <span class="d-tag">状态：@ 引用 / 悬浮动作 / 编辑中 / 已复制 / 跳过高亮 / 渲染失败 / 全屏缩放</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 用户消息三态 ─────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 用户消息三态：默认（@ 引用芯片）· 悬浮动作 · 编辑中<span class="d-grow"></span>三态用页签切，点一下就换</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" data-demo-scope>
+
+              <div class="d-tabs" data-demo-tabs style="align-self:flex-start">
+                <button class="d-tab is-on" data-demo-tab="u1"><i data-ico="message-square" data-size="13"></i>默认</button>
+                <button class="d-tab" data-demo-tab="u2"><i data-ico="history" data-size="13"></i>悬浮动作</button>
+                <button class="d-tab" data-demo-tab="u3"><i data-ico="pencil-line" data-size="13"></i>编辑中 / 回退</button>
+              </div>
+
+              <!-- A1 · 默认：@ 文件芯片 + 引用上下文 -->
+              <section data-demo-pane="u1">
+                <div class="d-col" style="align-items:flex-end;gap:var(--nx-sp-2)">
+                  <div class="d-msg-user" style="align-self:flex-end">
+                    <div class="d-md">
+                      <p>把 <span class="d-cite"><i data-ico="file-code" data-size="11"></i>@AppShell.tsx</span> 里那段右栏宽度的逻辑抽出来，顺便看看 <span class="d-cite"><i data-ico="file-code" data-size="11"></i>@useResizablePanel.ts</span></p>
+                    </div>
+                    <div class="d-row d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                      <i data-ico="quote" data-size="12"></i>
+                      引用了会话「窗口切在回合中间时的渲染修复」的第 4 轮
+                    </div>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="align-self:flex-end">动作行默认隐藏，鼠标停在气泡或它上方时才出现</div>
+                </div>
+              </section>
+
+              <!-- A2 · 悬浮动作 -->
+              <section data-demo-pane="u2" hidden>
+                <div class="d-col" style="align-items:flex-end;gap:var(--nx-sp-2)">
+                  <div class="d-msg-user" style="align-self:flex-end">
+                    <div class="d-md">
+                      <p>这段抽出来之后记得把单测补上，覆盖窄屏和宽屏两种情形</p>
+                    </div>
+                  </div>
+                  <div class="d-msg-acts is-on">
+                    <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制</button>
+                    <button class="d-btn sm"><i data-ico="pencil-line" data-size="13"></i>从此处编辑</button>
+                    <button class="d-btn sm"><i data-ico="git-fork" data-size="13"></i>新会话</button>
+                    <button class="d-btn sm"><i data-ico="undo-2" data-size="13"></i>回退到此处</button>
+                    <span class="d-t-xs d-t-faint" style="align-self:center">14:22</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="align-self:flex-end">「从此处编辑」与「新会话」不动原文，只开分支；只有「回退到此处」会删掉这条之后的对话</div>
+                </div>
+              </section>
+
+              <!-- A3 · 编辑中 + 回退警告 -->
+              <section data-demo-pane="u3" hidden>
+                <div class="d-col" style="align-items:flex-end;gap:var(--nx-sp-2)">
+                  <div class="d-msg-user" style="align-self:flex-end;min-width:520px;max-width:520px">
+                    <div class="d-col" style="gap:var(--nx-sp-2)">
+                      <textarea class="d-textarea" rows="3">这段抽出来之后记得把单测补上，覆盖窄屏和宽屏两种情形</textarea>
+                      <div class="d-row" style="justify-content:flex-end">
+                        <button class="d-btn sm ghost">取消</button>
+                        <button class="d-btn sm primary"><i data-ico="check" data-size="13"></i>保存并重新生成</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-banner warn" style="max-width:520px">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span class="d-grow">回退到此处？这条消息之后的对话会从会话文件里删除。已经写到磁盘的文件<b>不会</b>被回退。此操作不可撤销。</span>
+                    <span class="d-banner-btn d-t-xs">本轮之后还有 6 轮</span>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="align-self:flex-end">保存并重新生成走的是新分支：原对话一字不改，所以它不需要警告</div>
+                </div>
+              </section>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 正文全集 + 附件渲染分支 ──────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · Markdown 正文全集（左）· 附件按类型分七条渲染分支（右）<span class="d-grow"></span>右栏页签是真的分支选择器</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-grid2" style="align-items:start">
+
+              <!-- 正文 -->
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">claude-opus-4-6</span>
+                </div>
+
+                <div class="d-md">
+                  <h1>右栏宽度逻辑的抽取方案</h1>
+                  <p>现在右栏宽度被三处硬编码：<code>AppShell</code> 的初始值、resize 的 clamp、以及窄屏的兜底。<b>建议合成一个 <code>useResizablePanel</code> 的返回值</b>，让三处都读同一个 <code>width</code>。</p>
+
+                  <h2>要做的三件事</h2>
+                  <div class="d-plan-rail">
+                    <div class="d-plan-step"><span class="d-plan-dot"></span>把 clamp 的上下界抽成常量，交给 hook 持有</div>
+                    <div class="d-plan-step"><span class="d-plan-dot"></span>窄屏（≤1024）时不再 clamp，直接走抽屉</div>
+                    <div class="d-plan-step"><span class="d-plan-dot"></span>双击分栏把手复位到默认宽度</div>
+                  </div>
+
+                  <h2>检查清单</h2>
+                  <div class="d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-row"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span>抽出 <code>useResizablePanel</code></span></div>
+                    <div class="d-row"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span>三处调用点改读返回值</span></div>
+                    <div class="d-row"><span class="d-checkbox"></span><span>补窄屏与宽屏两条单测</span></div>
+                  </div>
+
+                  <div class="d-banner" style="margin:var(--nx-sp-3) 0">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>注：<code>lib/atomic-file.test.mjs</code> 那批 fs 测试在本机会报 <code>CODEBUDDY_BROKER_DENY</code>，是环境性的，不用管。</span>
+                  </div>
+
+                  <p>相关文件：</p>
+                  <div class="d-chips">
+                    <button class="d-chipbtn"><i data-ico="file-code" data-size="12"></i>components/AppShell.tsx</button>
+                    <button class="d-chipbtn"><i data-ico="file-code" data-size="12"></i>hooks/useResizablePanel.ts</button>
+                    <button class="d-chipbtn"><i data-ico="file-text" data-size="12"></i>app/globals.css</button>
+                    <span class="d-cite"><i data-ico="ellipsis" data-size="12"></i>路径动作</span>
+                  </div>
+
+                  <div class="d-sep" style="margin:var(--nx-sp-3) 0"></div>
+
+                  <p>如果同意这个方向，我直接开工。</p>
+                  <p class="d-stream" id="b-stream">这一句还在流式里<span class="pending">，后面两段还没到</span><span class="d-caret"></span></p>
+                  <div class="d-row" style="margin-top:var(--nx-sp-2)">
+                    <button class="d-btn sm ghost" data-demo-motion="#b-stream"><i data-ico="rotate-cw" data-size="13"></i>重播流式光标</button>
+                  </div>
+                </div>
+
+                <div class="d-tbl-wrap">
+                  <table class="d-table">
+                    <thead>
+                      <tr><th>供应商</th><th>模型</th><th>上下文</th><th>输入 / 1M</th><th>输出 / 1M</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>deepseek</td><td>V4.1 Flash</td><td>128K</td><td>$0.14</td><td>$0.28</td></tr>
+                      <tr><td>anthropic</td><td>Claude Sonnet 4.6</td><td>200K</td><td>$3.00</td><td>$15.00</td></tr>
+                      <tr><td>openai</td><td>GPT-5.1 Codex</td><td>400K</td><td>$1.25</td><td>$10.00</td></tr>
+                      <tr><td>google</td><td>Gemini 3 Pro</td><td>1M</td><td>$1.25</td><td>$10.00</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="d-t-xs d-t-b" style="margin-top:var(--nx-sp-4)">数学公式 · 行内与块级（KaTeX）</div>
+                <div class="d-md d-t-cap">
+                  <p>上下文占用率按 <span class="d-math">ρ = u / C</span> 计算，其中 <span class="d-math">u</span> 是当前会话已用 token、<span class="d-math">C</span> 是模型上下文窗口。压缩的触发阈值取：</p>
+                  <div class="d-row" style="justify-content:center;margin:var(--nx-sp-4) 0">
+                    <span class="d-math" style="font-size:var(--nx-fs-lg)">ρ<sub>trigger</sub> = 1 − ( r<sub>reserve</sub> / C ) ，r<sub>reserve</sub> = 16 384</span>
+                  </div>
+                  <p>也就是给最后一轮留出 <span class="d-math">r<sub>reserve</sub></span> 的余量；<span class="d-math">C = 1M</span> 时阈值约 <b>98.4%</b>。</p>
+                </div>
+              </div>
+
+              <!-- 附件渲染分支 -->
+              <div data-demo-scope>
+                <div class="d-card-head" style="border:0;padding:0 0 var(--nx-sp-2)">
+                  <i data-ico="paperclip" data-size="15"></i>
+                  <span class="d-grow">附件预览 · 按类型分七条渲染分支</span>
+                  <span class="d-t-xs d-t-faint">分支选择是一个纯函数</span>
+                </div>
+
+                <div class="d-tabbar" data-demo-tabs>
+                  <button class="d-tab is-on" data-demo-tab="a-img">图片</button>
+                  <button class="d-tab" data-demo-tab="a-pdf">PDF</button>
+                  <button class="d-tab" data-demo-tab="a-docx">DOCX</button>
+                  <button class="d-tab" data-demo-tab="a-audio">音频</button>
+                  <button class="d-tab" data-demo-tab="a-video">视频</button>
+                  <button class="d-tab" data-demo-tab="a-text">文本</button>
+                  <button class="d-tab" data-demo-tab="a-raw">其余</button>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-img" style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="image" data-size="14"></i>
+                      <span class="d-mono d-t-sm">screenshot-2026-10-08.png</span>
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">1440 × 900</span>
+                    </div>
+                    <div class="d-card-body">
+                      <div class="d-placeholder" style="min-height:150px">
+                        <div class="d-col" style="align-items:center;gap:var(--nx-sp-2)">
+                          <i data-ico="image" data-size="24"></i>
+                          <span>内嵌预览 · 点图进灯箱</span>
+                          <span class="d-mono">218 KB · image/png</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-pdf" hidden style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="file-text" data-size="14"></i>
+                      <span class="d-mono d-t-sm">spec.pdf</span>
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">第 3 / 24 页</span>
+                    </div>
+                    <div class="d-card-body">
+                      <div class="d-placeholder" style="min-height:150px">
+                        <div class="d-col" style="align-items:center;gap:var(--nx-sp-2)">
+                          <i data-ico="file-text" data-size="24"></i>
+                          <span>内置阅读器 · 正文里的 <code>#page=3</code> 会带页码打开</span>
+                          <span class="d-mono">1.2 MB · application/pdf</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-docx" hidden style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="file-text" data-size="14"></i>
+                      <span class="d-mono d-t-sm">合同.docx</span>
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">转文本</span>
+                    </div>
+                    <div class="d-card-body">
+                      <div class="d-mono d-t-xs d-t-dim" style="white-space:pre-wrap">甲方：____________
+乙方：____________
+第 3 条 · 交付物以附件二为准。</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-audio" hidden style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="audio-lines" data-size="14"></i>
+                      <span class="d-mono d-t-sm">meeting.mp3</span>
+                      <span class="d-grow"></span>
+                      <span class="d-mono d-t-xs d-t-faint">0:42</span>
+                    </div>
+                    <div class="d-card-body">
+                      <div class="d-row" style="gap:var(--nx-sp-3)">
+                        <i data-ico="circle-play" data-size="18"></i>
+                        <span class="d-mono d-t-xs">0:00</span>
+                        <div class="d-bars" style="flex:1 1 auto;height:20px">
+                          <i style="height:6px"></i><i style="height:12px"></i><i style="height:18px"></i>
+                          <i style="height:9px"></i><i style="height:15px"></i><i style="height:5px"></i>
+                          <i style="height:13px"></i><i style="height:20px"></i><i style="height:8px"></i>
+                          <i style="height:16px"></i><i style="height:11px"></i><i style="height:6px"></i>
+                          <i style="height:14px"></i><i style="height:9px"></i><i style="height:17px"></i>
+                          <i style="height:7px"></i><i style="height:12px"></i><i style="height:5px"></i>
+                          <i style="height:15px"></i><i style="height:10px"></i>
+                        </div>
+                        <span class="d-mono d-t-xs d-t-faint">audio/mpeg · 664 KB</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-video" hidden style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="circle-play" data-size="14"></i>
+                      <span class="d-mono d-t-sm">demo.mp4</span>
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">内置播放器</span>
+                    </div>
+                    <div class="d-card-body">
+                      <div class="d-placeholder" style="min-height:110px">
+                        <div class="d-col" style="align-items:center;gap:var(--nx-sp-2)">
+                          <i data-ico="circle-play" data-size="24"></i>
+                          <span>video/mp4 · 12.4 MB</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-text" hidden style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="code" data-size="14"></i>
+                      <span class="d-mono d-t-sm">config.yaml</span>
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">等宽只读</span>
+                    </div>
+                    <div class="d-card-body">
+                      <div class="d-mono d-t-xs" style="white-space:pre-wrap"><span class="tok-k">skills</span>: []
+<span class="tok-k">defaultSkills</span>:
+  - <span class="tok-s">design-review</span>
+<span class="tok-k">autoCompact</span>: <span class="tok-n">true</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-panel-body" data-demo-pane="a-raw" hidden style="padding:var(--nx-sp-3) 0 0">
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="file" data-size="14"></i>
+                      <span class="d-mono d-t-sm">archive.tar.zst</span>
+                      <span class="d-grow"></span>
+                      <span class="d-badge mute">无法预览</span>
+                    </div>
+                    <div class="d-card-body d-row">
+                      <span class="d-grow d-t-sm d-t-dim">没有任何渲染分支能处理它，就明说不能预览，只给下载 —— 不要留一块空白让用户猜。</span>
+                      <button class="d-btn sm"><i data-ico="download" data-size="13"></i>下载</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 代码块 ───────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 代码块：语言标签 + 复制（→ 已复制）· 行号 · 长行横滚 · 超大块跳过高亮<span class="d-grow"></span>头只有两件东西：语言与复制</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-code">
+                <div class="d-code-head">
+                  <i data-ico="file-code" data-size="13"></i>
+                  <span>ts</span>
+                  <span class="d-grow"></span>
+                  <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制</button>
+                </div>
+                <div class="d-code-body"><span class="d-ln">1</span><span class="tok-k">export function</span> useResizablePanel(opts: PanelOptions) {
+<span class="d-ln">2</span>  <span class="tok-k">const</span> widthRef = useRef(opts.initialWidth);
+<span class="d-ln">3</span>  <span class="tok-k">const</span> [width, setWidth] = useState(opts.initialWidth);
+<span class="d-ln">4</span>
+<span class="d-ln">5</span>  <span class="tok-c">// clamp 的上下界交给 hook 持有，调用点不再各写一份</span>
+<span class="d-ln">6</span>  <span class="tok-k">const</span> reclampWidth = useCallback(() =&gt; {
+<span class="d-ln">7</span>    <span class="tok-k">const</span> next = Math.min(Math.max(widthRef.current, opts.min), opts.max);
+<span class="d-ln">8</span>    widthRef.current = next; setWidth(next);
+<span class="d-ln">9</span>  }, [opts.min, opts.max]);
+<span class="d-ln">10</span>  <span class="tok-k">return</span> { width, setWidth, reclampWidth };
+<span class="d-ln">11</span>}</div>
+              </div>
+
+              <div class="d-code">
+                <div class="d-code-head">
+                  <i data-ico="file-code" data-size="13"></i>
+                  <span>bash</span>
+                  <span class="d-grow"></span>
+                  <button class="d-btn sm"><i data-ico="check" data-size="13"></i>已复制</button>
+                </div>
+                <div class="d-code-body"><span class="tok-c"># 长行横向滚动，不折行 —— 白空间是 pre，滚动条在块内</span>
+node_modules/.bin/eslint . --ignore-pattern 'release/**' --ignore-pattern 'design/**' --max-warnings 0</div>
+              </div>
+
+              <div class="d-code">
+                <div class="d-code-head">
+                  <i data-ico="file-code" data-size="13"></i>
+                  <span>text</span>
+                  <span class="d-grow"></span>
+                  <span class="d-t-xs">代码块过大，未做语法高亮</span>
+                  <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制</button>
+                </div>
+                <div class="d-code-body"><span class="tok-c"># 跳过高亮时仍然铺开代码本身，只是不带 token 颜色；</span>
+<span class="tok-c"># 大块在流式结束后走错峰预算，不会和别的块挤在同一帧上色。</span></div>
+              </div>
+
+              <div class="d-t-xs d-t-faint">复制可能失败，所以复制是三态：复制 / 已复制（1.5 秒后复位）/ 复制失败（按钮转红 + 一枚 bad 徽标说明，2.6 秒后复位）—— 失败不能静默。</div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · Mermaid 三态 ──────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · Mermaid：图形态 / 源码态 / 渲染失败退源码<span class="d-grow"></span>失败不吞内容：退化成源码 + 一行原因 + 重试</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" data-demo-scope>
+
+              <div class="d-tabs" data-demo-tabs style="align-self:flex-start">
+                <button class="d-tab is-on" data-demo-tab="m1"><i data-ico="git-fork" data-size="13"></i>图形态（默认）</button>
+                <button class="d-tab" data-demo-tab="m2"><i data-ico="code" data-size="13"></i>源码态</button>
+                <button class="d-tab" data-demo-tab="m3"><i data-ico="triangle-alert" data-size="13"></i>渲染失败</button>
+              </div>
+
+              <!-- M1 · 图形态 -->
+              <section data-demo-pane="m1">
+                <div class="d-code">
+                  <div class="d-code-head">
+                    <i data-ico="git-fork" data-size="13"></i>
+                    <span>mermaid</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm"><i data-ico="download" data-size="13"></i>SVG</button>
+                    <button class="d-btn sm"><i data-ico="code" data-size="13"></i>源代码</button>
+                  </div>
+                  <div class="d-placeholder" style="border:0;border-radius:0;min-height:220px">
+                    <div class="d-col" style="align-items:center;gap:var(--nx-sp-3)">
+                      <div class="d-row" style="gap:var(--nx-sp-3)">
+                        <span class="d-cite">用户消息</span>
+                        <i data-ico="arrow-right" data-size="14"></i>
+                        <span class="d-cite is-on">startRpcSession()</span>
+                      </div>
+                      <i data-ico="arrow-down" data-size="14"></i>
+                      <div class="d-row" style="gap:var(--nx-sp-3)">
+                        <span class="d-cite">AgentSession</span>
+                        <i data-ico="arrow-right" data-size="14"></i>
+                        <span class="d-cite">SSE 事件流</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">点图本身打开全屏查看器</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-row d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                  <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                  <span>「流式输出完成后可预览」：流式期间预览钮是禁用的，图也还没渲染</span>
+                </div>
+              </section>
+
+              <!-- M2 · 源码态 -->
+              <section data-demo-pane="m2" hidden>
+                <div class="d-code">
+                  <div class="d-code-head">
+                    <i data-ico="git-fork" data-size="13"></i>
+                    <span>mermaid</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制</button>
+                    <button class="d-btn sm"><i data-ico="eye" data-size="13"></i>预览</button>
+                  </div>
+                  <div class="d-code-body"><span class="tok-k">sequenceDiagram</span>
+  participant U as 用户
+  participant S as 服务端
+  U-&gt;&gt;S: POST /api/agent/[id]
+  S--&gt;&gt;U: SSE 事件流
+  U-&gt;&gt;S: toolCall</div>
+                </div>
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">源码态与普通代码块同一张卡，只多了「预览 / 源代码」这一枚切换钮</div>
+              </section>
+
+              <!-- M3 · 渲染失败 -->
+              <section data-demo-pane="m3" hidden>
+                <div class="d-code">
+                  <div class="d-code-head">
+                    <i data-ico="triangle-alert" data-size="13"></i>
+                    <span>mermaid</span>
+                    <span class="d-grow"></span>
+                    <span class="d-badge warn">Mermaid 图表无效</span>
+                    <button class="d-btn sm"><i data-ico="refresh-cw" data-size="13"></i>重试</button>
+                  </div>
+                  <div class="d-code-body"><span class="tok-k">sequenceDiagram</span>
+  participant U as 用户
+  participant S as 服务端
+  U-&gt;&gt;S: POST /api/agent/[id]
+  <span class="tok-c">%% 少了 end，解析在这一行就断了</span></div>
+                </div>
+                <div class="d-banner warn" style="margin-top:var(--nx-sp-2)">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span>已按源码显示 —— 内容一个字没吞，改完点重试。</span>
+                </div>
+              </section>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 E · 全屏缩放查看器 ───────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · Mermaid 全屏查看器（<code>&lt;dialog&gt;</code>）：步进器 · 百分比 · 适应宽度 · 关闭<span class="d-grow"></span>Esc / 点遮罩 / × 三种关法，与图片灯箱一致</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">Mermaid 图表查看器</span>
+              <span class="d-tb-sub">点图本身打开 · 50% – 300%，步进 25%</span>
+            </div>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-t-xs d-t-faint">转录区在底下（灰着），查看器是真模态</div>
+            </div>
+          </div>
+        </main>
+
+        <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="Mermaid 图表查看器">
+          <div class="d-modal-box wide">
+            <div class="d-modal-head">
+              <div class="d-row">
+                <i data-ico="git-fork" data-size="15"></i>
+                <span class="d-grow">Mermaid 图表</span>
+                <div class="d-row" style="gap:0">
+                  <button class="d-iconbtn" title="缩小"><i data-ico="minus" data-size="13"></i></button>
+                  <span class="d-mono d-t-sm" style="min-width:52px;text-align:center">125%</span>
+                  <button class="d-iconbtn" title="放大"><i data-ico="plus" data-size="13"></i></button>
+                </div>
+                <button class="d-iconbtn" title="适应宽度"><i data-ico="maximize-2" data-size="14"></i></button>
+                <button class="d-iconbtn" title="关闭"><i data-ico="x" data-size="14"></i></button>
+              </div>
+            </div>
+            <div class="d-modal-body">
+              <div class="d-placeholder" style="min-height:300px;border:0">
+                <div class="d-col" style="align-items:center;gap:var(--nx-sp-3)">
+                  <div class="d-row" style="gap:var(--nx-sp-3)">
+                    <span class="d-cite">用户消息</span>
+                    <i data-ico="arrow-right" data-size="14"></i>
+                    <span class="d-cite is-on">startRpcSession()</span>
+                  </div>
+                  <i data-ico="arrow-down" data-size="14"></i>
+                  <div class="d-row" style="gap:var(--nx-sp-3)">
+                    <span class="d-cite">AgentSession</span>
+                    <i data-ico="arrow-right" data-size="14"></i>
+                    <span class="d-cite">SSE 事件流</span>
+                  </div>
+                  <span class="d-t-xs d-t-faint">画布可滚，图自身不缩放外框</span>
+                </div>
+              </div>
+            </div>
+            <div class="d-modal-foot" style="align-items:center">
+              <div class="d-chips d-grow" data-demo-list>
+                <button class="d-chipbtn" data-demo-select>50%</button>
+                <button class="d-chipbtn" data-demo-select>100%</button>
+                <button class="d-chipbtn is-on" data-demo-select>125%</button>
+                <button class="d-chipbtn" data-demo-select>150%</button>
+                <button class="d-chipbtn" data-demo-select>200%</button>
+                <button class="d-chipbtn" data-demo-select>300%</button>
+              </div>
+              <span class="d-t-xs d-t-faint">步进 25%；「适应宽度」一键回 100%。Esc / 点遮罩 / × 关闭。</span>
+              <button class="d-btn sm ghost">下载 SVG</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── 帧 F · Markdown 排版全集（列表 / 任务清单 / 引用 / 行内提及）───────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 F</b> · Markdown 排版：有序 / 无序 / 任务清单 / 引用 / 行内提及<span class="d-grow"></span>这四类此前一个样式都没有</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="max-width:720px">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="type" data-size="15"></i>助手正文里天天出现、此前毫无样式的四类</div>
+                <div class="d-card-body">
+                  <div class="d-md">
+                    <h2>有序与无序</h2>
+                    <ol>
+                      <li>先画依赖图</li>
+                      <li>再按「谁覆盖谁」排序</li>
+                      <li>最后把顺序写成一条命令，让它可校验</li>
+                    </ol>
+                    <ul>
+                      <li>画板 DOM 即产品 DOM，不许照着截图做一个差不多的</li>
+                      <li>值必须能被算出来：内联只写与设计无关的东西</li>
+                    </ul>
+                    <h2>任务清单</h2>
+                    <ul class="d-tasklist">
+                      <li><span class="d-checkbox on" role="checkbox" aria-checked="true"><i data-ico="check" data-size="11"></i></span>冻结令牌与类名</li>
+                      <li><span class="d-checkbox" role="checkbox" aria-checked="false"></span>画板全集</li>
+                      <li><span class="d-checkbox" role="checkbox" aria-checked="false"></span>逐批落地并验收</li>
+                    </ul>
+                    <h2>引用</h2>
+                    <blockquote class="d-quote">
+                      <p>fallback 是原子的两套机制，就是这类坑的根源 —— 要么全用一套，要么让两套互不打架。</p>
+                    </blockquote>
+                    <h2>行内提及</h2>
+                    <p>把 <span class="d-mention"><i data-ico="file-code" data-size="10"></i>design/v5/base.css</span>
+                    里的比例令牌改名，再在
+                    <span class="d-mention"><i data-ico="command" data-size="10"></i>check-v5</span>
+                    里加一条门禁。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>用户消息的两个危险动作必须分色</b>：「从此处编辑 / 新会话」不动原文（开分支），所以它们是普通按钮；「回退到此处」会删掉后面的轮次，所以警告条只挂在它下面，文字用产品里那句确认原文（「已经写到磁盘的文件不会被回退」）。把两者都写成「编辑」是最容易出事的一种含糊。</li>
+    <li><b>代码块的头只有两件东西</b>：语言标签与复制。复制是三态而不是两态 —— 剪贴板可能被拒，失败必须看得见（按钮转红 + 一枚 bad 徽标），否则用户拿着空剪贴板以为复制成功了。超大块跳过高亮时仍然铺开代码本身，只在头里多一句原因。</li>
+    <li><b>附件不给统一预览器</b>：图片走灯箱、PDF 走内置阅读器（正文里的 <code>#page=</code> 带页码）、DOCX 转文本、音频给波形条、视频给内置播放器、文本等宽只读，其余一律「无法预览 + 下载」。留一块空白让人猜是最差的一种处理。</li>
+    <li><b>Mermaid 的三态是一条降级链</b>：图形态（默认）→ 源码态（点「源代码」）→ 渲染失败（退化成源码 + 一行原因 + 重试）。失败态绝不吞内容，也不给一块空白画布。全屏查看器是 <code>&lt;dialog&gt;</code> 真模态，Esc / 点遮罩 / × 三种关法，与图片灯箱一致。</li>
+    <li><b>公式的类名必须留</b>：<code>.d-math</code> 只是外框（等宽 + 代码底色），KaTeX 的 <code>katex</code> / <code>katex-display</code> 一个都不能去掉 —— 它的 CSS 里有几百条后代选择器靠这两个根类名。去掉的后果不是「丑一点」，是整套数学排版散架。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

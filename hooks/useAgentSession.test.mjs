@@ -735,7 +735,9 @@ test("keeps prompt anchor measurement outside the React update cycle", () => {
   assert.match(anchorLifecycleEffectSource, /promptAnchorMeasureFrameRef\.current = requestAnimationFrame\(\(\) => \{\s*promptAnchorMeasureFrameRef\.current = null;\s*updatePromptAnchorSpacer\(\)/);
   assert.match(anchorLifecycleEffectSource, /disposed = true;[\s\S]*?promptAnchorUpdateRef\.current === updatePromptAnchorSpacer[\s\S]*?cancelAnimationFrame\(promptAnchorMeasureFrameRef\.current\)/);
   assert.match(anchorSyncEffectSource, /promptAnchorUpdateRef\.current\?\.\(\);\s*\}, \[streamState\.streamingMessage\]\)/);
-  assert.match(chatWindowSource, /<div ref=\{messageContentRef\}[^>]*style=\{\{/);
+  // fork:design-components —— 消息列挂 .pw-col 后属性分行写，断言同步跟上：
+  // 要守的是「被测量的那个元素就是带内联 style 的消息列本体」。
+  assert.match(chatWindowSource, /<div\s+ref=\{messageContentRef\}[\s\S]*?style=\{\{/);
 });
 
 test("uses the prompt anchor as the only trailing message spacer", () => {

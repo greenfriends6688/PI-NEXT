@@ -483,78 +483,11 @@ body {
   background: var(--terminal-surface);
 }
 
-.terminal-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  padding: 0 10px 0 13px;
-  border-bottom: 1px solid var(--terminal-border);
-  background: var(--terminal-chrome);
-  color: var(--terminal-text-dim);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
-
-.terminal-panel-path {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: 8px;
-}
-
-.terminal-panel-path span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.terminal-status-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  border-radius: 50%;
-  background: var(--warning);
-}
-
-.terminal-status-dot.is-ready { background: var(--success); }
-.terminal-status-dot.is-exited,
-.terminal-status-dot.is-error { background: var(--danger); }
-
-.terminal-panel-header button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--control-sm);
-  flex-shrink: 0;
-  border: 1px solid var(--terminal-border);
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--terminal-text-dim);
-  cursor: pointer;
-  font: inherit;
-}
-
-.terminal-panel-exit {
-  padding: 7px 12px;
-  color: var(--terminal-text-dim);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
-
-.terminal-panel-header button:hover {
-  background: var(--terminal-hover);
-  color: var(--terminal-text);
-}
-
-.terminal-panel-error {
-  padding: 7px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--danger) 40%, var(--terminal-border));
-  background: color-mix(in srgb, var(--danger) 18%, var(--terminal-surface));
-  color: color-mix(in srgb, var(--danger) 55%, #ffffff);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
+/* fork:v5-old-layer（2026-10-04）—— 删掉一整组零引用的终端头规则
+   （`terminal-panel-header` / `-path` / `terminal-status-dot` / `-exit` / `-error`）：
+   TerminalPanel.tsx 现在只有 `.terminal-panel d-col`，头部是画板的
+   `.d-panel-head` + `.d-dot` + `.d-iconbtn`。
+   **`.terminal-panel` 本体（`:root` 的终端深色槽 + grid）保留** —— 恒定深色是用户裁定。 */
 
 .terminal-xterm {
   grid-row: -2 / -1;
@@ -1066,40 +999,14 @@ pre, code {
   margin: 3px 0;
   padding: 4px 8px;
 }
-.markdown-custom-message .markdown-table-wrap,
-.markdown-custom-message .mermaid-block {
+/* fork:v5-old-layer（2026-10-04）—— `.mermaid-block*` / `.mermaid-preview-button` 零引用：
+   MermaidBlock.tsx 已换成 `.d-code` / `.d-code-head` / `.d-code-body` / `.d-placeholder`
+   （放大灯箱仍是原生 `<dialog class="mermaid-zoom-dialog">`，那组规则保留）。
+   `.markdown-table-wrap` 仍活着，只从这张列表里摘掉 mermaid 那一项。 */
+.markdown-custom-message .markdown-table-wrap {
   padding: 14px;
   overflow-x: auto;
   background: var(--code-bg);
-}
-.mermaid-block svg {
-  display: block;
-  max-width: none;
-}
-.mermaid-block-loading {
-  min-height: 120px;
-}
-.mermaid-block-error {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
-
-.mermaid-preview-button {
-  width: 100%;
-  max-height: min(600px, 60dvh);
-  overflow: auto;
-  border: 0;
-  color: inherit;
-  cursor: zoom-in;
-  text-align: left;
-}
-.mermaid-preview-button:hover {
-  opacity: 0.85;
-}
-.mermaid-preview-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 
 .image-preview-dialog {
@@ -1117,7 +1024,9 @@ pre, code {
   overflow: hidden;
   border: 0;
   background: transparent;
-  color: var(--text);
+  /* fork:v5-old-layer（2026-10-04）—— 壳内是 d-modal 家族（ImagePreview.tsx:74），
+     前景色跟 v5 令牌走；`--text` 是 v1 令牌，与 d-modal-body 的 `--nx-text-2` 不同源。 */
+  color: var(--nx-text);
 }
 
 .image-preview-dialog[open] {
@@ -1126,56 +1035,17 @@ pre, code {
   justify-content: center;
 }
 
+/* 遮罩跟画板 D-26b 的 `.d-scrim` 同一配方（`--nx-text` 掺 28%），
+   旧值是写死的 rgba(0,0,0,.72)：浅色主题下比画板重、深色下又比画板轻。 */
 .image-preview-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: color-mix(in srgb, var(--nx-text) 28%, transparent);
 }
 
-.image-preview-image {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-}
-
-.image-preview-close {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  right: max(12px, env(safe-area-inset-right));
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-elev);
-  color: var(--text-muted);
-  box-shadow: var(--shadow-md);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: background-color var(--motion-fast), color var(--motion-fast);
-}
-
-.image-preview-close:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.image-preview-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (pointer: coarse) {
-  .image-preview-close {
-    width: 44px;
-    height: 44px;
-  }
-}
+/* fork:v5-old-layer（2026-10-04）—— 删两条死规则（`components/ app/ hooks/` 零引用）：
+   `.image-preview-image`：图片本体已经是 `.d-modal-body` 里的裸 `<img>`，
+     尺寸/contain 由 ImagePreview.tsx 的行内 style 给（ImagePreview.test.mjs:88 起断言新壳）；
+   `.image-preview-close`：绝对定位的关闭钮已退役，关闭钮是壳头里的 `.d-iconbtn`
+     （ImagePreview.test.mjs:70 与 fork/AttachmentPreview.test.mjs:35 断言它不再出现）。 */
 
 /* fork:design-components —— 画板 10 帧 C 的缩放查看器。壳是原生 `<dialog>`
    （全屏定位 / ::backdrop / 焦点陷阱 / Esc 全靠它，同 .image-preview-dialog）；
@@ -1226,12 +1096,8 @@ pre, code {
   max-width: none !important;
 }
 
-/* File viewer toolbar */
-.file-viewer-toolbar {
-  min-width: 0;
-  min-height: 35px;
-}
-
+/* fork:v5-old-layer（2026-10-04）—— 删 `.file-viewer-toolbar`：查看器头已是
+   画板 D-06 的 `.d-viewer-bar`（FileViewer.tsx:2365），工具条这个壳没人挂。 */
 .file-viewer-path {
   flex: 1 1 auto;
   min-width: 48px;
@@ -1248,14 +1114,8 @@ pre, code {
   white-space: nowrap;
 }
 
-.file-viewer-live-indicator {
-  /* 设计 30 号画板：文件头实时同步点 6px（两态由 background / boxShadow 表达）。 */
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex: 0 0 6px;
-}
-
+/* fork:v5-old-layer（2026-10-04）—— 删 `.file-viewer-live-indicator`：
+   同步点是画板的 `.d-dot` / `.d-dot.ok`（FileViewer.tsx:2376）。 */
 .file-viewer-controls {
   display: flex;
   align-items: center;
@@ -1263,13 +1123,16 @@ pre, code {
   flex-shrink: 0;
 }
 
+/* fork:v5-old-layer（2026-10-04）—— 删 `order: -1`：它把动作区顶到头行最左，
+   与画板 D-06 帧 A「路径 · 元信息 · 同步点 · 动作区 · 模式组，模式组在最右」相反。
+   FileViewer.tsx:2424 的源码顺序（path / meta / dot / controls / actions）本身就是画板顺序，
+   `order` 一去就位。 */
 .file-viewer-actions {
   display: flex;
   align-items: center;
   height: 24px;
   gap: 4px;
   flex-shrink: 0;
-  order: -1;
 }
 
 .file-viewer-mode-switch {
@@ -1336,23 +1199,9 @@ pre, code {
   color: var(--text-muted);
 }
 
-.file-viewer-deleted-notice {
-  padding: 12px 16px;
-  font-size: var(--text-sm);
-  color: var(--text-dim);
-}
-
-.file-viewer-load-more {
-  position: absolute;
-  z-index: 2;
-  right: 12px;
-  bottom: 12px;
-  max-width: calc(100% - 24px);
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-lg);
-  pointer-events: auto;
-}
-
+/* fork:v5-old-layer（2026-10-04）—— 删 `.file-viewer-deleted-notice` /
+   `.file-viewer-load-more`（两个都零引用）：删除态提示已走 `.d-notice`，
+   「加载更多」那条路随 CodeFileEditor 的虚拟列表一起退场。 */
 .chat-scroll-to-bottom {
   display: inline-flex;
   align-items: center;
@@ -1563,8 +1412,7 @@ pre, code {
   padding: 0;
 }
 
-.location-highlight,
-.file-location-highlight {
+.location-highlight {
   background: color-mix(in srgb, var(--accent) 12%, var(--bg)) !important;
   outline: 1px solid color-mix(in srgb, var(--accent) 58%, var(--border));
   outline-offset: 3px;
@@ -1593,27 +1441,9 @@ pre, code {
   border-radius: var(--radius-xl);
   background: var(--bg-elev);
 }
-.markdown-frontmatter-title {
-  font-size: 1.3em;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--text);
-}
-.markdown-frontmatter-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-.markdown-frontmatter-tag {
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  color: var(--text-muted);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0 10px;
-}
+/* fork:v5-old-layer（2026-10-04）—— 删 `.markdown-frontmatter-title` /
+   `.markdown-frontmatter-tags` / `.markdown-frontmatter-tag`：FrontmatterCard 已改
+   画板件（`pw-kv` / `pw-badge`），标题走 `.d-t-title`、标签行走 `.d-tags`。 */
 .markdown-frontmatter-rows {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1683,10 +1513,8 @@ textarea,
 }
 
 /* Static loading placeholder —no shimmer (see delta.md, motion layer removed). */
-.skeleton-line {
-  border-radius: var(--radius-sm);
-  background: var(--bg-hover);
-}
+/* fork:v5-old-layer（2026-10-04）—— 删 `.skeleton-line`：加载占位已是
+   画板的 `.d-skel` / `.d-skel-block` / `.d-skel-list` / `.d-skel-40` / `.d-skel-70`。 */
 
 /* Global reduced-motion safety net: decorative motion collapses to instant
    state changes while content (text, layout) still updates.
@@ -1853,16 +1681,13 @@ textarea,
     width: var(--sidebar-width, 260px);
     min-width: var(--sidebar-width, 260px);
   }
-  /* fork:design-system 判据⑦ —— 画板 01/02 的 `.pw-seg` / `.pw-side-search` 靠**自己的
+  /* fork:design-system 判据⑦ —— 画板 01/02 的 seg / 搜索框靠**自己的
      左右外边距**内缩 8px（board.css `margin: var(--s1) var(--s2) var(--s2)`）。上面那条
      固定宽度会连外边距一起顶出去：实测 seg `x=8 / width=280`，右缘 288 > 容器 280（溢出
      16px，画板同项是 263）。这两个块交还给拉伸宽度（279 - 8×2 = 263，与画板逐像素一致），
-     其余块保留固定宽度。 */
-  .sidebar-container > .pw-seg,
-  .sidebar-container > .pw-side-search {
-    width: auto;
-    min-width: 0;
-  }
+     其余块保留固定宽度。
+     fork:v5-old-layer（2026-10-04）—— 旧写法按 `.pw-seg` / `.pw-side-search` 指，
+     两个类都已从 DOM 退场（`.d-seg` / `.d-searchfield`），规则变死代码，已删。 */
   .sidebar-container.sidebar-resizing,
   .sidebar-container.sidebar-resizing > * {
     transition: none !important;
@@ -2070,9 +1895,6 @@ textarea,
 
 /* Mobile sidebar: slide in/out as overlay */
 @media (max-width: 640px) {
-  .chat-stats-center {
-    display: none !important;
-  }
   .sidebar-container {
     position: fixed !important;
     top: 0;
@@ -2408,7 +2230,9 @@ html[data-focus-modality="pointer"] :where(input, select, textarea):focus-visibl
   position: fixed;
   inset: 0;
   z-index: 400;
-  background: var(--bg);
+  /* fork:v5-old-layer（2026-10-04）—— 全屏铺的是 v5 的画布底色（`--nx-canvas`），
+     `--bg` 是 v1 令牌：铺开时与 `.d-viewer` 的 `--nx-panel` 不是同一族，两层底色会分层。 */
+  background: var(--nx-canvas);
 }
 
 /* Expanded document: the tree column yields its room to the viewer (PiDeck's 猡?   behaviour). True fullscreen stays on its own button. */
@@ -2459,16 +2283,9 @@ html[data-focus-modality="pointer"] :where(input, select, textarea):focus-visibl
 
 /* --- Timeline ------------------------------------------------------------- */
 
-/* fork:design-components —— 步骤流已改用画板 11 的 .pw-step / .pw-proc-body
-   （竖线 / 图标位 / 缩进 / 行高全部来自 board.css）。这里只做三件 board.css
-   不管的事：列表语义归零、行内按钮的 UA 归零、展开正文的缩进。 */
-.process-steps {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+/* fork:design-components —— 步骤流已改用画板 11 的 `.d-steps` / `.d-step` / `.d-step-body`
+   （竖线 / 图标位 / 缩进 / 行高全部来自 system.css）。列表语义归零、UA 归零、
+   展开正文的缩进都归画板，这里曾写的 `.process-steps` 壳已零引用，随之删除。 */
 .process-step-row {
   display: flex;
   align-items: center;
@@ -2522,13 +2339,6 @@ html[data-focus-modality="pointer"] :where(input, select, textarea):focus-visibl
   text-overflow: ellipsis;
 }
 
-.process-chip-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 button.process-file-chip {
   cursor: pointer;
 }
@@ -2537,13 +2347,6 @@ button.process-file-chip:hover {
   border-color: var(--accent-border);
   background: var(--accent-soft);
   color: var(--text);
-}
-
-.process-file-more {
-  flex-shrink: 0;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
 }
 
 /* --- Step body ------------------------------------------------------------
@@ -2570,13 +2373,10 @@ button.process-file-chip:hover {
 }
 
 /* fork:design-motion —— 折叠壳必须常驻才能从 0fr 过渡到 1fr（点开那一刻才挂载的话，
-   `1fr` 就是初始值，根本没有可过渡的起点）。代价：它是 `.pw-proc-body` 的第二个
-   grid 子项，收起时自身还占 1px（board.css 的 `gap:1px` 不再作用在「行 → 正文」上，
-   而是作用在「行 → 折叠壳」上）。`margin-top:-1px` 把这一格压回 0px，
-   剩下的差异只有容器 gap 的那 1px —— 在 `check:align` 的 1px 容差内。 */
-.process-steps > .fork-collapse[data-fork-collapse="closed"] {
-  margin-top: -1px;
-}
+   `1fr` 就是初始值，根本没有可过渡的起点）。它曾是 `.process-steps` 的第二个
+   grid 子项，收起时自身还占 1px；`margin-top:-1px` 把这一格压回 0px。
+   fork:v5-old-layer（2026-10-04）—— 容器换成 `.d-steps`、折叠壳不在这条选择器下了，
+   旧规则零引用，已删。 */
 
 .process-step-body {
   display: flex;

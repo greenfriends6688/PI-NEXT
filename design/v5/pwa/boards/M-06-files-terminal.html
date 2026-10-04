@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-06 · 文件与终端 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-06 · 文件与终端</h1>
+  <p>
+    手机上文件与终端是<b>两个全屏页</b>，不是桌面右栏的两块下沿。
+    文件树<b>一次只显示一层</b>：手指点文件夹比点展开三角准，缩进也会挤掉右侧的条数与操作；
+    层级信息改由<b>顶栏路径 + 返回箭头</b>承担。查看器是 <span class="m-mono">inset:0</span> 的全屏覆盖，
+    顶栏写完整路径（可横滚），正文自带横滚，屏幕再窄也不折行。
+    终端的关键是<b>工具条</b>：软键盘把 Esc / Ctrl-C / Tab / 方向键全吃掉，
+    所以底部必须有一条触控够得着的物理键排 —— 这是桌面版完全没有、手机版不能省的一行。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：文件树 / 查看器 / 终端 / 调用轨迹 / 审查 / 降级卡</span>
+    <span class="m-doc-tag">组件：m-trow · m-viewer · m-viewer-scroll · m-viewbox · m-code · m-keybar · m-key · m-term-mobile · m-steps · m-step-row</span>
+    <span class="m-doc-tag">状态：文件树 / 源码·差异·预览 / 终端键排 / 调用轨迹 / 审查 / 不支持类型</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 文件树整页 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 文件树整页 · 一屏一层；顶栏写路径，选中行有底色，底部动作条三项等分</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-pop-float is-open" data-demo-pop="f-new" style="top:52px">
+        <div class="m-doc-label">在这个目录里</div>
+        <button class="m-menu-row"><i data-ico="file-plus" data-size="15"></i>新建文件</button>
+        <button class="m-menu-row"><i data-ico="folder-plus" data-size="15"></i>新建文件夹</button>
+        <button class="m-menu-row"><i data-ico="clipboard-list" data-size="15"></i>从模板新建</button>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回上一层"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">PI NEXT / design / v5 / pwa</span>
+        <button class="m-top-btn" title="筛选类型"><i data-ico="list-filter" data-size="16"></i></button>
+        <button class="m-top-btn" data-demo-open="f-new" title="新建"><i data-ico="plus" data-size="16"></i></button>
+      </div>
+
+      <div class="m-list" data-demo-list>
+        <div class="m-group-title">目录</div>
+        <button class="m-trow" data-demo-select>
+          <i data-ico="folder" data-size="15"></i>
+          <span class="m-grow">boards</span>
+          <span class="m-badge mute">6</span>
+        </button>
+        <button class="m-trow" data-demo-select>
+          <i data-ico="folder" data-size="15"></i>
+          <span class="m-grow">assets</span>
+          <span class="m-badge mute">1</span>
+        </button>
+        <button class="m-trow" data-demo-select>
+          <i data-ico="folder" data-size="15"></i>
+          <span class="m-grow">scripts</span>
+          <span class="m-badge mute">3</span>
+        </button>
+
+        <div class="m-group-title">文件</div>
+        <button class="m-trow" data-demo-select>
+          <i data-ico="braces" data-size="15"></i>
+          <span class="m-grow">system.css</span>
+          <span class="m-t-xs m-t-faint">21KB</span>
+        </button>
+        <button class="m-trow is-on" data-demo-select>
+          <i data-ico="droplet" data-size="15"></i>
+          <span class="m-grow">tokens.css</span>
+          <span class="m-t-xs m-t-faint">4.1KB</span>
+        </button>
+        <button class="m-trow" data-demo-select>
+          <i data-ico="file-text" data-size="15"></i>
+          <span class="m-grow">README.md</span>
+          <span class="m-t-xs m-t-faint">9.6KB</span>
+        </button>
+
+        <div class="m-group-title">最近改动</div>
+        <button class="m-trow" data-demo-select>
+          <i data-ico="file-code" data-size="15"></i>
+          <span class="m-grow">boards / M-06-files-terminal.html</span>
+          <span class="m-badge ok">刚改</span>
+        </button>
+      </div>
+
+      <div class="m-vbar">
+        <button class="m-menu-row"><i data-ico="pencil" data-size="15"></i>重命名</button>
+        <button class="m-menu-row"><i data-ico="copy" data-size="15"></i>复制路径</button>
+        <button class="m-menu-row"><i data-ico="ellipsis" data-size="15"></i>更多</button>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 查看器覆盖层 ──────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 查看器 · 全屏覆盖；模式固定为 源码 / 差异 / 预览，默认落在第一格「源码」</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-viewer is-open" data-demo-scope>
+        <div class="m-viewer-bar">
+          <button class="m-top-btn" title="返回文件树"><i data-ico="chevron-left" data-size="16"></i></button>
+          <span class="m-viewer-path">design/v5/pwa/system.css</span>
+          <button class="m-top-btn" title="复制完整路径"><i data-ico="link" data-size="15"></i></button>
+          <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="15"></i></button>
+        </div>
+
+        <div class="m-seg" data-demo-tabs>
+          <button class="is-on" data-demo-tab="v-src">源码</button>
+          <button data-demo-tab="v-diff">差异</button>
+          <button data-demo-tab="v-prev">预览</button>
+        </div>
+
+        <!-- 每个 pane 自己就是滚动区：viewer 是 flex 列，pane 拿到 flex:1 -->
+        <section class="m-viewer-scroll" data-demo-pane="v-src">
+          <div class="m-code">
+            <div class="m-code-head">
+              <i data-ico="droplet" data-size="12"></i>
+              <span class="m-grow">tokens.css</span>
+              <span>第 14 / 62 行</span>
+            </div>
+            <div class="m-code-scroll">
+<span class="m-code-del">-  padding: 0 14px 0 12px;</span>
+<span class="m-code-add">+  padding: 0 var(--nx-sp-3);</span>
+              <div class="m-code-body"><span class="m-term-prompt">:root</span> {
+  <span class="m-term-prompt">--nx-ui</span>: 17px;
+  <span class="m-term-prompt">--nx-r-xs</span>:  8px;
+  <span class="m-term-prompt">--nx-r-sm</span>:  12px;
+  <span class="m-term-prompt">--nx-r-md</span>:  16px;
+  <span class="m-term-prompt">--nx-r-lg</span>:  20px;
+  <span class="m-term-prompt">--nx-r-xl</span>:  24px;
+  <span class="m-term-prompt">--nx-ctl-xs</span>: 28px;
+  <span class="m-term-prompt">--nx-ctl-sm</span>: 36px;
+  <span class="m-term-prompt">--nx-ctl-md</span>: 44px;
+  <span class="m-term-prompt">--nx-touch-min</span>: 44px;
+}</div>
+            </div>
+          </div>
+          <div class="m-group-title">横着滚，不折行 —— 折行的代码没法复制</div>
+          <div class="m-code">
+            <div class="m-code-head">
+              <i data-ico="boxes" data-size="12"></i>
+              <span class="m-grow">tokens.css · 角色值全部来自形态层</span>
+            </div>
+            <div class="m-code-scroll">
+              <div class="m-code-body"><span class="m-term-prompt">--nx-canvas</span>: #f4f4f6;  <span class="m-term-prompt">--nx-panel</span>: #ffffff;  <span class="m-term-prompt">--nx-surface</span>: #efeff2;
+<span class="m-term-prompt">--nx-accent</span>: #007aff;  <span class="m-term-prompt">--nx-success</span>: #238551;  <span class="m-term-prompt">--nx-danger</span>: #cf3f43;</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="m-viewer-scroll" data-demo-pane="v-prev" hidden>
+          <div class="m-viewbox">
+            <div class="m-doc-head"><i data-ico="droplet" data-size="14"></i>tokens.css · 预览</div>
+            <div class="m-doc-body">
+              <div class="m-md">
+                <h2>PWA 形态值</h2>
+                <p>与 Web 的差别<b>不在尺寸，在手感</b>：基准字号 17、圆角 8–28、触控下限 44px、渐隐顶栏、光晕立体。强调色与 Web 完全同一个 —— 一套真值的体现。</p>
+              </div>
+            </div>
+          </div>
+          <div class="m-group-title">预览只给能安全渲染的类型，Office 与 ZIP 一律回落到「下载 / 用桌面打开」</div>
+        </section>
+
+        <section class="m-viewer-scroll" data-demo-pane="v-diff" hidden>
+          <div class="m-code">
+            <div class="m-code-head">
+              <i data-ico="file-diff" data-size="12"></i>
+              <span class="m-grow">未提交的改动</span>
+              <span>+12 −3</span>
+            </div>
+            <div class="m-code-scroll">
+              <div class="m-code-body">  <span class="m-term-prompt">--nx-ctl-md</span>: 44px;
++ <span class="m-term-prompt">--nx-touch-min</span>: 44px;   <span class="m-term-prompt">/* 触控下限独立成一档</span>
+- <span class="m-term-prompt">--nx-r-md</span>: 12px;
++ <span class="m-term-prompt">--nx-r-md</span>: 16px;    <span class="m-term-prompt">/* 手机更圆</span>
+  <span class="m-term-prompt">--nx-glass</span>: rgba(255, 255, 255, .78);</div>
+            </div>
+          </div>
+          <div class="m-group-title">差异不在手机上编辑，只读；改动由会话写入后自动刷新</div>
+        </section>
+
+        <div class="m-vbar">
+          <button class="m-menu-row"><i data-ico="copy" data-size="15"></i>复制</button>
+          <button class="m-menu-row"><i data-ico="share-2" data-size="15"></i>分享</button>
+          <button class="m-menu-row"><i data-ico="square-pen" data-size="15"></i>交给会话</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 终端与键排 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 终端 · 输出区自己滚，底部键排常驻；键帽 36px 但命中区必须 44px（见页脚）</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回文件"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">终端 · pi-web</span>
+        <button class="m-top-btn" title="清屏"><i data-ico="eraser" data-size="16"></i></button>
+        <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-doc-body">
+        <div class="m-perm">
+          <div class="nx-row">
+            <i data-ico="shield-check" data-size="17"></i>
+            <span class="m-grow m-t-cap">已信任本目录 · 命令可直接执行</span>
+            <span class="m-switch on" data-demo-switch role="switch" aria-checked="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="m-term-mobile">
+        <div><span class="m-term-prompt">$</span> pnpm check</div>
+        <div>v5 校验：web 9 张 / pwa 6 张</div>
+        <div>令牌：base 85 · web 44 · pwa 45</div>
+        <div>图标库：256 个（唯一真值 icons.js）</div>
+        <div><i data-ico="circle-check" data-size="13"></i> <span class="m-term-ok">0 个错误</span></div>
+        <div><span class="m-term-prompt">$</span> git status --short</div>
+        <div> M design/v5/pwa/boards/M-06-files-terminal.html</div>
+        <div> M design/v5/pwa/boards/M-07-browser-cc.html</div>
+        <div><span class="m-term-prompt">$</span> pnpm check 2&gt;&amp;1 | tail -3</div>
+        <div class="m-err">Command failed: pipeline exited 1</div>
+        <div><span class="m-term-prompt">$</span> pnpm check<span class="m-caret"></span></div>
+      </div>
+
+      <div class="m-keybar">
+        <button class="m-key" title="中断">Ctrl-C</button>
+        <button class="m-key" title="退出全屏 / 取消">Esc</button>
+        <button class="m-key" title="补全路径">Tab</button>
+        <button class="m-key" title="上一条历史">↑</button>
+        <button class="m-key" title="下一条历史">↓</button>
+        <button class="m-key" title="行首">←</button>
+        <button class="m-key" title="行尾">→</button>
+        <button class="m-key" title="管道">|</button>
+        <button class="m-key" title="上一目录">Ctrl-P</button>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 调用轨迹 ─────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 调用轨迹 · 本轮工具调用 / 命令 / 写文件合并成一条时间线；轨迹全局只有一颗，文件、终端、浏览器的动作都汇到这里</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回会话"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">调用轨迹</span>
+        <button class="m-top-btn" title="停止本轮并收起"><i data-ico="circle-stop" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-banner"><i data-ico="info" data-size="14"></i><span class="m-grow m-t-xs">运行中 · 12 步 · 2 分 06 秒 · 只记这一轮，不做历史回放</span></div>
+
+        <div class="m-steps">
+          <div class="m-step-row done">
+            <span class="m-step-dot"></span>
+            <span class="m-grow">读 design/v5/pwa/system.css</span>
+            <span class="m-step-n">0:04</span>
+          </div>
+          <div class="m-step-row done">
+            <span class="m-step-dot"></span>
+            <span class="m-grow">运行 node design/v5/scripts/check-v5.mjs → 0 错误</span>
+            <span class="m-step-n">0:21</span>
+          </div>
+          <div class="m-step-row done">
+            <span class="m-step-dot"></span>
+            <span class="m-grow">打开查看器指向 tokens.css · 源码模式</span>
+            <span class="m-step-n">0:35</span>
+          </div>
+          <div class="m-step-row run">
+            <span class="m-step-dot"></span>
+            <span class="m-grow">写 boards/M-06-files-terminal.html</span>
+            <span class="m-step-n">0:38</span>
+          </div>
+          <div class="m-step-row fail">
+            <span class="m-step-dot"></span>
+            <span class="m-grow">pnpm check 2&gt;&amp;1 | tail -3 · 退出码 1，保留在终端页签</span>
+            <span class="m-step-n">0:41</span>
+          </div>
+        </div>
+
+        <div class="m-ctx">
+          <i data-ico="info" data-size="14"></i>
+          <span>读了什么、跑了什么、写了什么只有这一条线；终端里被权限拦下的命令也会回到这里并标红，不静默消失。</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 E · 审查 ─────────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 E</b> · 审查 · 工作区改动清单 + 本轮 agent 写过的文件；两份来源分开列，只读，不做 Keep / Reject</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回会话"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">审查改动</span>
+        <button class="m-top-btn" title="刷新"><i data-ico="refresh-cw" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+        <div class="m-banner">
+          <i data-ico="file-diff" data-size="14"></i>
+          <span class="m-grow">3 个文件 · 新增 18 行 · 删除 4 行 · 与工作区对比</span>
+          <span class="m-badge warn">3</span>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-group-title">工作区改动 · git diff</div>
+          <button class="m-setrow is-on">
+            <i data-ico="file-code" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">design/v5/pwa/system.css</span>
+              <span class="m-setrow-s">已修改 · 点一行看与 HEAD 的逐行差异</span>
+            </span>
+            <span class="m-badge ok">+12 −2</span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="file-code" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">design/v5/pwa/tokens.css</span>
+              <span class="m-setrow-s">已修改</span>
+            </span>
+            <span class="m-badge ok">+6 −2</span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="file-text" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">design/v5/README.md</span>
+              <span class="m-setrow-s">未跟踪 · 新文件</span>
+            </span>
+            <span class="m-badge mute">未跟踪</span>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-group-title">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+          <div class="m-setrow">
+            <i data-ico="file-code" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">design/v5/pwa/boards/M-06-files-terminal.html</span>
+              <span class="m-setrow-s">刚写入</span>
+            </span>
+            <span class="m-badge mute">1 步之前</span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="file-code" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t m-mono">design/v5/scripts/check-v5.mjs</span>
+              <span class="m-setrow-s">跑过门禁，未改内容</span>
+            </span>
+            <span class="m-badge mute">只读</span>
+          </div>
+        </div>
+
+        <div class="m-ctx">
+          <i data-ico="info" data-size="14"></i>
+          <span>上面是磁盘上的事实，下面是 agent 的自述；审查只读，提交与丢弃都不下放到手机。</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 F · 不支持类型 · 降级卡 ──────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 F</b> · 不支持的类型 · 降级卡 · 二进制说清「没有渲染器」，未知类型先给一次按文本读；两种都给替代路径，不白屏</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-viewer is-open" data-demo-scope>
+        <div class="m-viewer-bar">
+          <button class="m-top-btn" title="返回文件树"><i data-ico="chevron-left" data-size="16"></i></button>
+          <span class="m-viewer-path">design/brand/logo.psd</span>
+          <button class="m-top-btn" title="复制完整路径"><i data-ico="link" data-size="15"></i></button>
+          <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="15"></i></button>
+        </div>
+
+        <div class="m-viewer-scroll">
+          <div class="m-viewbox">
+            <div class="m-doc-head">
+              <i data-ico="file" data-size="14"></i>
+              <span class="m-grow">logo.psd</span>
+              <span class="m-badge mute">不支持的类型 PSD</span>
+              <span class="m-badge mute">42.1 MB</span>
+            </div>
+            <div class="m-doc-body">
+              <div class="m-md">
+                <p>这是一个二进制文件，应用里没有内置渲染器 —— 直接按 UTF-8 渲染只会得到一片乱码，不如把话说清楚。</p>
+              </div>
+              <div class="m-t-xs m-t-faint">/Users/yingjing/Desktop/PI NEXT/design/brand</div>
+            </div>
+          </div>
+
+          <div class="m-group-title">降级不是白屏：至少给两条替代路径</div>
+          <div class="m-pickbar" data-demo-list>
+            <button class="m-picktag" data-demo-select>在文件管理器中显示</button>
+            <button class="m-picktag is-on" data-demo-select>用默认应用打开</button>
+          </div>
+
+          <div class="m-banner">
+            <i data-ico="circle-help" data-size="14"></i>
+            <span class="m-grow">扩展名不在已知清单里时，先给一次「按文本试读」；判定表是纯逻辑 + 单测，不靠肉眼看扩展名。</span>
+          </div>
+        </div>
+
+        <div class="m-vbar">
+          <button class="m-menu-row"><i data-ico="folder-open" data-size="15"></i>在文件管理器中显示</button>
+          <button class="m-menu-row"><i data-ico="external-link" data-size="15"></i>用默认应用打开</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>一屏一层，不做多级展开树</b>：手机上点文件夹「进去」比点展开三角准，缩进还会挤掉右侧的条数与操作。层级改由顶栏路径（<span class="m-mono">.m-top-title</span>，单行省略）加返回箭头承担。文件页的滚动区就是 <span class="m-mono">.m-list</span> 本身（flex 列里的 <span class="m-mono">flex:1 1 auto + min-height:0</span>），所以它一定滚得动；分组标题 <span class="m-mono">.m-group-title</span> 直接排在列表里。</li>
+    <li><b>选中要看得见</b>：<span class="m-mono">.m-trow.is-on</span> 用 <span class="m-mono">--nx-selected</span> 底色 + 正文色，不用描边 —— 描边在 390 宽上会和分隔线打架。选中即进入查看器。</li>
+    <li><b>查看器是全屏覆盖</b>：<span class="m-mono">.m-viewer</span> 直接 <span class="m-mono">inset:0</span> 压住整页；<span class="m-mono">.m-viewer-bar</span> 顶距 50px 让开状态栏，路径用等宽小字、单行省略、超长时横向可读（完整路径在「复制」里）；<span class="m-mono">.m-viewer-scroll</span> 是唯一滚动区，代码用 <span class="m-mono">.m-code</span> + <span class="m-mono">.m-code-scroll</span> <b>横滚不折行</b> —— 折行的代码没法复制。</li>
+    <li><b>三种看法做成三等宽分段</b>：源码 / 差异 / 预览，默认落在第一格「源码」—— 与 Web 的顺序一致。切段只换内容区（每个 pane 自带 <span class="m-mono">.m-viewer-scroll</span>，天然各自滚动），顶栏路径与底部动作条不动。<b>差异在手机上只读</b>，且增删靠 <span class="m-mono">.m-code-body</span> 里的 <span class="m-mono">+ / −</span> 前缀表达；不支持的二进制走帧 F 的降级卡，不拿空白面板顶替。</li>
+    <li><b>轨迹只有一条线</b>（帧 D）：本轮读了什么、跑了什么、写了什么全合并进 <span class="m-mono">.m-steps</span>，文件 / 终端 / 浏览器任何面板的动作都汇到这一处，不再按面板各开一份。失败步骤就地标红并保留退出码，被权限拦下的命令不静默消失。</li>
+    <li><b>审查分两份来源</b>（帧 E）：上面是 <span class="m-mono">git diff</span>（磁盘上的事实），下面是本轮 agent 写过的文件（会话自述）；两边都有才敢说「这一轮改了什么」。审查只读，不做 Keep / Reject，提交与丢弃留在桌面端。</li>
+    <li><b>终端输出区自己滚</b>：<span class="m-mono">.m-term-mobile</span> 取 <span class="m-mono">flex:1 1 auto</span>，提示符走 <span class="m-mono">.m-term-prompt</span>、成功走 <span class="m-mono">.m-term-ok</span>、失败走 <span class="m-mono">.m-err</span>；命令与输出不混排 —— 输出整体缩进一格，肉眼才能分清「敲的」和「回的」。</li>
+    <li><b>触控下限 44px（关键约束）</b>：<span class="m-mono">.m-keybar</span> 常驻底部，行高由 <span class="m-mono">.m-key</span> 的 <span class="m-mono">min-width: 44px</span> + 左右 10px padding 决定，但<b>键帽高度是 <span class="m-mono">--nx-ctl-sm</span>（36px），低于 <span class="m-mono">--nx-touch-min</span>（44px）</b>。也就是说：宽度够、纵向不够。真机落地方案必须给 <span class="m-mono">.m-key</span> 补 <span class="m-mono">min-height: var(--nx-touch-min)</span>，或把键排改成两行 —— 两者都动到 <span class="m-mono">system.css</span>，本张画板只记录需求，不自己加规则。键排横向可滚（<span class="m-mono">overflow-x:auto</span>），9 键在 390 宽上必然要滑，这是可接受的：常用四件（Ctrl-C / Esc / Tab / ↑）永远排在最左。</li>
+    <li><b>信任也是一行开关</b>：终端页顶部保留「已信任本目录」与开关（<span class="m-mono">.m-perm</span> + <span class="m-mono">.m-switch</span>），随手就能把目录降级回「每次问」，不必回设置。卡片在整页里需要 14px 内缩，system.css 没有「页面级带内缩容器」这类类，这里借 <span class="m-mono">.m-doc-body</span> 顶一下。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

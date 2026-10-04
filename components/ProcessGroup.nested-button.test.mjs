@@ -20,10 +20,10 @@ const code = source.replace(/^\s*\/\/.*$/gm, "");
 test("文件 chip 是 span[role=button]，不是 <button>", () => {
   assert.doesNotMatch(
     code,
-    /<button[^>]*className="process-file-chip"/,
-    "process-file-chip 不能是 <button>：它的调用点都在按钮内部",
+    /<button[^>]*className="d-cite"/,
+    "d-cite chip 不能是 <button>：它的调用点都在按钮内部",
   );
-  assert.match(code, /<span[^>]*role="button"[\s\S]{0,200}?className="process-file-chip"/, "chip 应当是 span[role=button]");
+  assert.match(code, /<span[^>]*role="button"[\s\S]{0,200}?className="d-cite"/, "chip 应当是 span[role=button]");
 });
 
 test("chip 的键盘可达性没丢（Enter / 空格同样打开文件）", () => {

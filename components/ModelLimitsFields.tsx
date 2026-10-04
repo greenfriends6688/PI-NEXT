@@ -26,7 +26,9 @@
  */
 import type { ModelImageInputLimits, ModelImageResizeOptions, ModelInputLimits, ModelPromptCache } from "@earendil-works/pi-ai";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigField, ConfigSectionTitle } from "./SettingsUi";
+// fork:v5-landing Wave B（M-05）—— 窄屏这一组字段换 M-05 的卡片行与单列网格
+// （`.m-cardgroup` + `.m-fieldrow` + `.m-input`）。数字框与桌面同款，只是形态不同。
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /** 输入框里的字符串 → 合法值。清空 / 非数字 / 越界 → undefined（= 删掉这个键）。 */
 export function parseLimitInput(raw: string, bounds: { min: number; max?: number }): number | undefined {
@@ -107,7 +109,7 @@ export function writePromptCacheSeconds(
   return Object.keys(next).length === 0 ? undefined : next;
 }
 
-/** 复用 ModelsConfig 那一档数字输入框（画板 41 的规格行输入：`.pw-input` + `type=number`）。 */
+/** v5 D-09「上限」字段里的数字输入框：画板的 `.d-input.d-mono` + `type=number`。 */
 function LimitNumInput({ id, value, placeholder, min, max, onChange }: {
   id: string;
   value: string;
@@ -120,7 +122,7 @@ function LimitNumInput({ id, value, placeholder, min, max, onChange }: {
     <input
       id={id}
       type="number"
-      className="pw-input"
+      className={useIsMobile() ? "m-input m-mono" : "d-input d-mono"}
       value={value}
       min={min}
       max={max}
@@ -144,14 +146,17 @@ export function ModelInputLimitsFields({
   onPromptCacheChange: (next: ModelPromptCache | undefined) => void;
 }) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const cacheValue = (tier: keyof ModelPromptCache) => limitText(promptCache?.[tier]);
   /** 输入框的值：undefined 渲染成空串（= 「没设」，不是 0）。 */
   const limitText = (value: number | undefined) => value === undefined ? "" : String(value);
   return (
     <>
-      <ConfigSectionTitle>{t("models.inputLimitsTitle")}</ConfigSectionTitle>
-      <div className="pw-grid2">
-        <ConfigField label={t("models.limitMaxRequestBytes")}>
+      <div className={isMobile ? "m-cardgroup" : undefined}>
+        <div className={isMobile ? "m-group-title" : "d-set-sec-t"}>{t("models.inputLimitsTitle")}</div>
+        <div className={isMobile ? "d-col" : "d-grid2"}>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitMaxRequestBytes")}</span>
           <LimitNumInput
             id="models-limit-max-request-bytes"
             value={limitText(readInputLimit(inputLimits, "maxRequestBytes"))}
@@ -159,8 +164,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "maxRequestBytes", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.limitImagesPerMessage")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitImagesPerMessage")}</span>
           <LimitNumInput
             id="models-limit-images-per-message"
             value={limitText(readInputLimit(inputLimits, "images.maxPerMessage"))}
@@ -168,8 +174,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "images.maxPerMessage", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.limitImagesPerRequest")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitImagesPerRequest")}</span>
           <LimitNumInput
             id="models-limit-images-per-request"
             value={limitText(readInputLimit(inputLimits, "images.maxPerRequest"))}
@@ -177,8 +184,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "images.maxPerRequest", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.limitResizeWidth")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitResizeWidth")}</span>
           <LimitNumInput
             id="models-limit-resize-width"
             value={limitText(readInputLimit(inputLimits, "images.resize.maxWidth"))}
@@ -186,8 +194,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "images.resize.maxWidth", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.limitResizeHeight")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitResizeHeight")}</span>
           <LimitNumInput
             id="models-limit-resize-height"
             value={limitText(readInputLimit(inputLimits, "images.resize.maxHeight"))}
@@ -195,8 +204,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "images.resize.maxHeight", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.limitResizeBytes")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitResizeBytes")}</span>
           <LimitNumInput
             id="models-limit-resize-bytes"
             value={limitText(readInputLimit(inputLimits, "images.resize.maxBytes"))}
@@ -204,8 +214,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "images.resize.maxBytes", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.limitJpegQuality")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.limitJpegQuality")}</span>
           <LimitNumInput
             id="models-limit-jpeg-quality"
             value={limitText(readInputLimit(inputLimits, "images.resize.jpegQuality"))}
@@ -214,8 +225,9 @@ export function ModelInputLimitsFields({
             max={100}
             onChange={(raw) => onInputLimitsChange(writeInputLimit(inputLimits, "images.resize.jpegQuality", parseLimitInput(raw, { min: 1, max: 100 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.promptCacheShort")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.promptCacheShort")}</span>
           <LimitNumInput
             id="models-prompt-cache-short"
             value={cacheValue("short")}
@@ -223,8 +235,9 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onPromptCacheChange(writePromptCacheSeconds(promptCache, "short", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
-        <ConfigField label={t("models.promptCacheLong")}>
+        </div>
+        <div className={isMobile ? "m-fieldrow" : "d-field"}>
+          <span className={isMobile ? "m-t-sm" : "d-field-t"}>{t("models.promptCacheLong")}</span>
           <LimitNumInput
             id="models-prompt-cache-long"
             value={cacheValue("long")}
@@ -232,9 +245,10 @@ export function ModelInputLimitsFields({
             min={1}
             onChange={(raw) => onPromptCacheChange(writePromptCacheSeconds(promptCache, "long", parseLimitInput(raw, { min: 1 })))}
           />
-        </ConfigField>
+        </div>
+        </div>
       </div>
-      <p className="pw-hint">{t("models.inputLimitsHint")}</p>
+      <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{t("models.inputLimitsHint")}</div>
     </>
   );
 }

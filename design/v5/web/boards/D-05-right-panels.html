@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-05 · 右栏四面板 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-05 · 右栏六面板（文件 / 终端 / 浏览器 / Git / 审查）</h1>
+  <p>
+    右栏只回答一个问题：<b>它刚才动了我的什么</b>。五个常驻页签各管一件事，互不嵌套；
+    第六个 <b>「调用轨迹」是单例页签</b> —— 只有本轮有工具调用时才出现，永远排最左，
+    把五个面板的动作合成一条线，不按文件或终端各开一份。
+    审查页签把<b>工作区改动（git diff）与本轮 agent 写过的文件</b>分成两份来源并排，
+    只读，不做 Keep / Reject。
+    浏览器面板补了本仓此前缺失的<b>三态</b>：跨站提示、加载失败、以及被
+    CSP / X-Frame-Options 拦截时的解释文案（不是报错，是把「为什么看不到 + 现在能做什么」写清楚）。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 / 右栏</span>
+    <span class="d-tag">组件：ExplorerPanel · TerminalPanel · BrowserPanel · GitPanel · ReviewPanel · TraceTab</span>
+    <span class="d-tag">状态：默认 / 跨站 / 加载失败 / 被站点策略拦截 / 工作区改动 · 会话自述</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 文件面板：页签条 + 面板头 + 筛选条 + 树<span class="d-grow"></span>点已选中的「文件」页签 = 打开页签总览</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">定住令牌与类名</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-steps">
+                  <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">读完 design/v5/base.css 的令牌角色表</span><span class="d-step-meta">0:04</span></div>
+                  <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">在右栏补文件面板的改动标记</span><span class="d-step-meta">0:38</span></div>
+                </div>
+                <div class="d-md">右栏现在是<b>单例轨迹页签</b>：我在终端跑的每条命令、写的每个文件，都会汇进最左边那颗页签。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <!-- 右栏：页签条（六个页签，轨迹是单例） -->
+        <aside class="d-panel" data-demo-scope>
+          <div class="d-tabbar" data-demo-tabs>
+            <button class="d-tab" data-demo-tab="trace" title="轨迹" aria-label="轨迹"><span class="d-dot run"></span><i data-ico="history" data-size="14"></i></button>
+            <button class="d-tab is-on" data-demo-tab="files" data-demo-open="rp-overview-a" title="文件" aria-label="文件"><i data-ico="folder" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="web" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="git" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="14"></i></button>
+          </div>
+
+          <!-- ① 文件树：头行动作对齐产品 ExplorerPanel，树内动作条管新建文件 / 文件夹 -->
+          <div class="d-panel-head" data-demo-pane="files">
+            <i data-ico="folder" data-size="14"></i>
+            <span class="d-grow d-viewer-path">~/Desktop/PI NEXT</span>
+            <button class="d-iconbtn" title="在访达中打开"><i data-ico="folder-open" data-size="14"></i></button>
+            <button class="d-iconbtn" title="在此处打开终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-iconbtn" title="审查改动"><i data-ico="file-diff" data-size="14"></i></button>
+            <button class="d-iconbtn" title="上传文件"><i data-ico="upload" data-size="14"></i></button>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="files">
+            <div class="d-tinybar">
+              <div class="d-searchfield d-grow"><i data-ico="search" data-size="12"></i><input placeholder="按文件名筛选"></div>
+              <button class="d-iconbtn" title="只看改动"><i data-ico="git-commit-horizontal" data-size="14"></i></button>
+            </div>
+            <div class="d-subhead">1,284 个文件 · 索引于 2 分钟前 · 已忽略 .git / node_modules</div>
+            <div class="d-tinybar">
+              <button class="d-btn sm ghost" title="新建文件"><i data-ico="file-plus" data-size="13"></i>新建文件</button>
+              <button class="d-btn sm ghost" title="新建文件夹"><i data-ico="folder-plus" data-size="13"></i>新建文件夹</button>
+            </div>
+            <div class="d-t-xs d-t-faint" style="padding:0 var(--nx-sp-1) var(--nx-sp-2)">新建后就地改名：Enter 提交 · Esc 取消；空名不落盘。</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow"><i data-ico="chevron-down" data-size="13"></i><i data-ico="folder-open" data-size="14"></i><span class="d-grow">design</span></button>
+              <button class="d-trow l1"><i data-ico="chevron-down" data-size="13"></i><i data-ico="folder-open" data-size="14"></i><span class="d-grow">v5</span><span class="d-dot warn"></span></button>
+              <button class="d-trow l2 is-on"><i data-ico="file-code" data-size="14"></i><span class="d-grow">base.css</span><span class="d-badge mute">打开中</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">web/system.css</span><span class="d-dot warn"></span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow">scripts/check-v5.mjs</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow">scripts/shoot.mjs</span></button>
+              <button class="d-trow l1"><i data-ico="chevron-right" data-size="13"></i><i data-ico="folder" data-size="14"></i><span class="d-grow">pwa</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="folder" data-size="14"></i><span class="d-grow">boards</span><span class="d-badge mute">2</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">system.css</span></button>
+              <button class="d-trow l1"><i data-ico="chevron-right" data-size="13"></i><i data-ico="folder" data-size="14"></i><span class="d-grow">assets</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">demo.js</span></button>
+              <button class="d-trow l1" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow">index.html</span></button>
+              <button class="d-trow l1" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow">README.md</span></button>
+              <button class="d-trow l1" data-demo-select><i data-ico="package" data-size="14"></i><span class="d-grow">package.json</span></button>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-pop-foot">3 个文件有未提交改动；点文件名右侧的圆点可单独忽略，不影响 agent 读取。</div>
+          </div>
+
+          <!-- ② 终端 -->
+          <div class="d-panel-head" data-demo-pane="term" hidden>
+            <i data-ico="square-terminal" data-size="14"></i>
+            <span class="d-grow d-viewer-path">本地 shell · zsh</span>
+            <button class="d-iconbtn" title="清屏"><i data-ico="eraser" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="term" hidden>
+            <div class="d-term-tabs" data-demo-list>
+              <button class="d-chipbtn is-on"><i data-ico="square-terminal" data-size="12"></i>dev</button>
+              <button class="d-chipbtn" data-demo-select><i data-ico="square-terminal" data-size="12"></i>门禁</button>
+              <button class="d-chipbtn" data-demo-select><i data-ico="square-terminal" data-size="12"></i>watch</button>
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" title="新建终端"><i data-ico="plus" data-size="14"></i></button>
+            </div>
+            <div class="d-term">
+              <span class="d-term-prompt">$</span> node design/v5/scripts/check-v5.mjs<br>
+              v5 校验：web 11 张 / pwa 2 张<br>
+              令牌：base 85 · web 44 · pwa 45<br>
+              <span class="d-term-ok">0 个错误。</span><br>
+              <span class="d-term-prompt">$</span> pnpm dev --port 5173<br>
+              PI NEXT v0.1.8 · http://127.0.0.1:5173 就绪（1.2s）<br>
+              <span class="d-term-prompt">$</span> pnpm dev --port 5173<br>
+              <span class="d-term-warn">端口 5173 已被占用（上一个 dev），已改用 5174</span><br>
+              <span class="d-term-prompt">$</span> <span class="d-text-live"></span>
+            </div>
+            <div class="d-terminfo">
+              <span>fork/v5-boards</span><span>PID 48213</span><span>已用 6 分 12 秒</span><span>UTF-8</span>
+            </div>
+            <div class="d-pop-foot">agent 跑过的命令都会留在这里，可以点行复跑；被权限拦下的命令写在顶部并标红，不会静默消失。</div>
+          </div>
+
+          <!-- ③ 浏览器 -->
+          <div class="d-viewer" data-demo-pane="web" hidden>
+            <div class="d-urlbar">
+              <button class="d-iconbtn" title="后退"><i data-ico="chevron-left" data-size="14"></i></button>
+              <button class="d-iconbtn" title="前进"><i data-ico="chevron-right" data-size="14"></i></button>
+              <button class="d-iconbtn" title="重载"><i data-ico="rotate-cw" data-size="14"></i></button>
+              <div class="d-urlbox"><i data-ico="globe" data-size="12"></i><span class="d-grow">127.0.0.1:5174</span><i data-ico="lock" data-size="11"></i></div>
+              <button class="d-iconbtn" title="用系统浏览器打开"><i data-ico="external-link" data-size="13"></i></button>
+            </div>
+            <div class="d-panel-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-banner warn">
+                <i data-ico="triangle-alert" data-size="14"></i>
+                <span class="d-grow">已跳到 docs.example.com，不再是本地地址</span>
+                <button class="d-btn sm ghost d-banner-btn">回到本地</button>
+              </div>
+              <div class="d-card"><div class="d-card-body d-t-xs d-t-dim">页面已加载。跨站后只读：这里的链接、表单、脚本都不在工作区里，写文件仍要你在输入框里点头。</div></div>
+              <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row"><span class="d-badge bad">加载失败</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">已重试 2 次</span></div>
+                <div class="d-err">ERR_CONNECTION_REFUSED · 127.0.0.1:5173</div>
+                <div class="d-t-xs d-t-dim">本地开发服务器没在跑。先起服务再回来：<span class="d-mono">pnpm dev</span></div>
+                <div class="d-row"><button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试</button><button class="d-btn sm ghost">复制诊断</button></div>
+              </div></div>
+            </div>
+          </div>
+
+          <!-- ④ Git -->
+          <div class="d-panel-head" data-demo-pane="git" hidden>
+            <i data-ico="git-branch" data-size="14"></i>
+            <span class="d-grow d-viewer-path">fork/v5-boards</span>
+            <button class="d-iconbtn" title="拉取远端"><i data-ico="download" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="git" hidden>
+            <div class="d-subhead">领先 main 3 个提交 · 3 个未提交改动 · 上次 fetch 4 分钟前</div>
+            <div class="d-tree" data-demo-list>
+              <div class="d-git-row is-on">
+                <span class="d-git-lane"><i data-ico="circle-dot" data-size="14"></i></span>
+                <span class="d-mono">a3f21c8</span>
+                <span class="d-grow">fix: 右栏页签与当前项接线</span>
+                <span class="d-badge ok">HEAD</span>
+              </div>
+              <div class="d-git-row">
+                <span class="d-git-lane"><i data-ico="chevron-down" data-size="14"></i></span>
+                <span class="d-grow d-t-xs d-t-faint">未提交：web/system.css、README.md</span>
+                <span class="d-badge warn">3</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span>
+                <span class="d-mono">7b2d0e5</span>
+                <span class="d-grow">feat: 浏览器面板三态文案</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-branch" data-size="14"></i></span>
+                <span class="d-mono">91f4a02</span>
+                <span class="d-grow">feat: D-05 画板（侧栏）</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-merge" data-size="14"></i></span>
+                <span class="d-mono">c0d8b77</span>
+                <span class="d-grow">merge: 把 PWA 两张并回 main</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="chevron-down" data-size="14"></i></span>
+                <span class="d-grow d-t-xs d-t-faint">main 落后 3 个提交</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span>
+                <span class="d-mono">5e2a910</span>
+                <span class="d-grow">base: 令牌与类名单一来源</span>
+              </div>
+            </div>
+            <div class="d-row" style="gap:var(--nx-sp-2)">
+              <button class="d-btn sm primary"><i data-ico="check" data-size="13"></i>提交 3 个改动</button>
+              <button class="d-btn sm" data-demo-open="rp-git-a">面板能做什么</button>
+            </div>
+            <div class="d-pop" data-demo-pop="rp-git-a" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:280px">
+              <div class="d-pop-title">Git 面板只做三件事</div>
+              <div class="d-pop-body d-t-xs d-t-dim">看图谱（谁在哪条线上）、看改动（与工作区的 diff）、看远端（fetch / push 状态）。<b>不代替命令行</b>：rebase、cherry-pick 这类会改写历史的操作必须你自己敲。</div>
+            </div>
+          </div>
+
+          <!-- 审查：工作区改动 + 本轮 agent 写过的文件，两份来源，只读 -->
+          <div class="d-panel-head" data-demo-pane="review" hidden>
+            <i data-ico="file-diff" data-size="14"></i>
+            <span class="d-grow">审查改动</span>
+            <span class="d-badge warn">3 个文件</span>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="review" hidden>
+            <div class="d-subhead">工作区改动 · git diff（磁盘上的事实）</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge warn">已修改</span><span class="d-badge mute">+12 −4</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow d-mono">design/v5/README.md</span><span class="d-badge info">未添加</span><span class="d-badge mute">+6 −2</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge mute">未跟踪</span><span class="d-badge mute">+312 −0</span></button>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-subhead">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge info">刚写入</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge mute">3 步之前</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-03-transcript.html</span><span class="d-badge mute">7 步之前</span></button>
+            </div>
+            <div class="d-pop-foot">上面是磁盘上的事实，下面是 agent 的自述 —— 两边都有才敢说「这一轮改了什么」。审查只读：<b>不做 Keep / Reject</b>，提交与丢弃留在 Git 页签与命令行。</div>
+          </div>
+
+          <!-- 单例页签：调用轨迹 -->
+          <div class="d-panel-body" data-demo-pane="trace" hidden>
+            <div class="d-tinybar">
+              <span class="d-badge info">运行中</span>
+              <span class="d-grow d-t-xs d-t-faint">12 步 · 2 分 06 秒</span>
+              <button class="d-iconbtn" title="停止并收起"><i data-ico="circle-stop" data-size="14"></i></button>
+            </div>
+            <div class="d-steps">
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">读 design/v5/web/system.css</span><span class="d-step-meta">0:04</span></div>
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">运行 check-v5.mjs → 0 错误</span><span class="d-step-meta">0:21</span></div>
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">打开浏览器面板指向 127.0.0.1:5174</span><span class="d-step-meta">0:35</span></div>
+              <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">写 boards/D-05-right-panels.html</span><span class="d-step-meta">0:38</span></div>
+            </div>
+            <div class="d-pop-foot">这一页签<b>全局只有一颗</b>：文件、终端、浏览器、Git、审查五处的动作都汇到这一条线上，不按面板各开一份。本轮没有工具调用时它自动消失，下次运行再出现。</div>
+          </div>
+
+          <!-- 页签总览（点已选中的页签打开） -->
+          <div class="d-pop" data-demo-pop="rp-overview-a" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:300px">
+            <div class="d-pop-title">右栏页签 · 总览</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-1)">
+              <div class="d-row"><i data-ico="folder-tree" data-size="13"></i><span class="d-t-sm d-grow">文件</span><span class="d-t-xs d-t-faint">树 · 点文件即打开</span></div>
+              <div class="d-row"><i data-ico="square-terminal" data-size="13"></i><span class="d-t-sm d-grow">终端</span><span class="d-t-xs d-t-faint">多会话 · 可复跑</span></div>
+              <div class="d-row"><i data-ico="globe" data-size="13"></i><span class="d-t-sm d-grow">浏览器</span><span class="d-t-xs d-t-faint">白名单来源</span></div>
+              <div class="d-row"><i data-ico="git-branch" data-size="13"></i><span class="d-t-sm d-grow">Git</span><span class="d-t-xs d-t-faint">图谱 · 改动 · 远端</span></div>
+              <div class="d-row"><i data-ico="file-diff" data-size="13"></i><span class="d-t-sm d-grow">审查</span><span class="d-t-xs d-t-faint">工作区改动 + 会话自述 · 只读</span></div>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-pop-title">「调用轨迹」是单例页签</div>
+            <div class="d-pop-body d-t-xs d-t-dim">
+              它<b>永远排在最左</b>，且<b>全局只有一颗</b>：不在文件里再开一份轨迹，也不在终端里再开一份。
+              什么时候出现由「本轮有没有工具调用」决定 —— 有就出现、跑完可以收起、下一轮再出现；
+              没有就不占位。这样「agent 刚才动了什么」永远只有一个地方看。
+            </div>
+            <div class="d-sep"></div>
+            <button class="d-menu-row"><i data-ico="pin" data-size="14"></i>把这一栏拉宽（⌘⌥→）</button>
+            <button class="d-menu-row"><i data-ico="panel-right" data-size="14"></i>收成导轨</button>
+            <button class="d-menu-row danger"><i data-ico="x" data-size="14"></i>关掉右栏</button>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 终端面板：多会话页签 + 命令来源可追<span class="d-grow"></span>面板头写清「谁的 shell」，页脚写清「跑多久、在哪个分支」</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack"><span class="d-tb-title">定住令牌与类名</span><span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span></div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-perm">
+                  <div class="d-perm-body">
+                    <div class="d-row"><i data-ico="shield-alert" data-size="14"></i><span class="d-t-b d-grow">这条命令要写工作区外的文件</span><span class="d-kbd danger">待你点头</span></div>
+                    <div class="d-mono d-t-xs">cp ~/Desktop/notes.md ~/Desktop/PI NEXT/design/v5/notes.md</div>
+                  </div>
+                </div>
+                <div class="d-md">批准后我会在终端里跑它，输出留在<b>右栏终端</b>，不混进对话。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer d-loader">
+              <div class="d-composer-top"><span class="d-t-dim">运行中可以排队下一条</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-chipbtn is-on" title="已排队"><i data-ico="clock" data-size="12"></i>排队 1 条</span>
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send stop" title="停止这一轮"><i data-ico="square" data-size="14"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <aside class="d-panel" data-demo-scope>
+          <div class="d-tabbar" data-demo-tabs>
+            <button class="d-tab" data-demo-tab="trace" title="轨迹" aria-label="轨迹"><span class="d-dot run"></span><i data-ico="history" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="files" title="文件" aria-label="文件"><i data-ico="folder" data-size="14"></i></button>
+            <button class="d-tab is-on" data-demo-tab="term" data-demo-open="rp-term-b" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="web" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="git" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="14"></i></button>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="term">
+            <i data-ico="square-terminal" data-size="14"></i>
+            <span class="d-grow d-viewer-path">本地 shell · zsh · ~/Desktop/PI NEXT</span>
+            <button class="d-iconbtn" title="清屏"><i data-ico="eraser" data-size="14"></i></button>
+            <button class="d-iconbtn" title="拆成独立窗口"><i data-ico="external-link" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="term">
+            <div class="d-term-tabs" data-demo-list>
+              <button class="d-chipbtn is-on"><i data-ico="square-terminal" data-size="12"></i>dev<span class="d-dot run"></span></button>
+              <button class="d-chipbtn" data-demo-select><i data-ico="square-terminal" data-size="12"></i>门禁</button>
+              <button class="d-chipbtn" data-demo-select><i data-ico="square-terminal" data-size="12"></i>watch</button>
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" title="新建终端"><i data-ico="plus" data-size="14"></i></button>
+            </div>
+
+            <div class="d-banner warn">
+              <i data-ico="shield-alert" data-size="14"></i>
+              <span class="d-grow">你刚才拒绝了 1 条命令，它没有被执行</span>
+              <button class="d-btn sm ghost d-banner-btn">看为什么</button>
+            </div>
+
+            <div class="d-term">
+              <span class="d-term-prompt">$</span> pnpm dev --port 5173<br>
+              PI NEXT v0.1.8 · http://127.0.0.1:5174 就绪（1.2s）<br>
+              <span class="d-term-prompt">$</span> cp ~/Desktop/notes.md design/v5/notes.md<br>
+              <span class="d-term-warn">已拒绝：目标在工作区外，需要你在权限卡里点头</span><br>
+              <span class="d-term-prompt">$</span> node design/v5/scripts/check-v5.mjs<br>
+              v5 校验：web 11 张 / pwa 2 张<br>
+              <span class="d-term-ok">0 个错误。</span><br>
+              <span class="d-term-prompt">$</span> <span class="d-text-live"></span>
+            </div>
+
+            <div class="d-terminfo">
+              <span>fork/v5-boards</span><span>PID 48213</span><span>已用 6 分 12 秒</span><span>UTF-8</span>
+            </div>
+            <div class="d-pop-foot">每行命令前面都有一个来源标记：<b>你敲的</b> 与 <b>agent 跑的</b> 排在一起，但拒绝过的会留在原地 —— 终端不吞掉失败。</div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="files" hidden>
+            <i data-ico="folder" data-size="14"></i><span class="d-grow d-viewer-path">~/Desktop/PI NEXT</span>
+            <button class="d-iconbtn" title="在访达中打开"><i data-ico="folder-open" data-size="14"></i></button>
+            <button class="d-iconbtn" title="在此处打开终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-iconbtn" title="审查改动"><i data-ico="file-diff" data-size="14"></i></button>
+            <button class="d-iconbtn" title="上传文件"><i data-ico="upload" data-size="14"></i></button>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="files" hidden>
+            <div class="d-subhead">1,284 个文件 · 索引于 2 分钟前</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow"><i data-ico="chevron-down" data-size="13"></i><i data-ico="folder-open" data-size="14"></i><span class="d-grow">design</span></button>
+              <button class="d-trow l1 is-on"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">v5</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">base.css</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">web/system.css</span><span class="d-dot warn"></span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow">scripts/check-v5.mjs</span></button>
+            </div>
+          </div>
+
+          <div class="d-viewer" data-demo-pane="web" hidden>
+            <div class="d-urlbar">
+              <button class="d-iconbtn" title="后退"><i data-ico="chevron-left" data-size="14"></i></button>
+              <button class="d-iconbtn" title="重载"><i data-ico="rotate-cw" data-size="14"></i></button>
+              <div class="d-urlbox"><i data-ico="globe" data-size="12"></i><span class="d-grow">127.0.0.1:5174</span></div>
+              <button class="d-iconbtn" title="用系统浏览器打开"><i data-ico="external-link" data-size="13"></i></button>
+            </div>
+            <div class="d-panel-body"><div class="d-card"><div class="d-card-body d-t-xs d-t-dim">开发服务器首页 · vite 正在监听 5174。</div></div></div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="git" hidden>
+            <i data-ico="git-branch" data-size="14"></i><span class="d-grow d-viewer-path">fork/v5-boards</span>
+          </div>
+          <div class="d-panel-body" data-demo-pane="git" hidden>
+            <div class="d-subhead">领先 main 3 个提交 · 3 个未提交改动</div>
+            <div class="d-tree" data-demo-list>
+              <div class="d-git-row is-on"><span class="d-git-lane"><i data-ico="circle-dot" data-size="14"></i></span><span class="d-mono">a3f21c8</span><span class="d-grow">fix: 右栏页签与当前项接线</span><span class="d-badge ok">HEAD</span></div>
+              <div class="d-git-row" data-demo-select><span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span><span class="d-mono">7b2d0e5</span><span class="d-grow">feat: 浏览器面板三态文案</span></div>
+              <div class="d-git-row" data-demo-select><span class="d-git-lane"><i data-ico="git-merge" data-size="14"></i></span><span class="d-mono">c0d8b77</span><span class="d-grow">merge: PWA 两张并回 main</span></div>
+            </div>
+          </div>
+
+          <!-- 审查：工作区改动 + 本轮 agent 写过的文件，两份来源，只读 -->
+          <div class="d-panel-head" data-demo-pane="review" hidden>
+            <i data-ico="file-diff" data-size="14"></i>
+            <span class="d-grow">审查改动</span>
+            <span class="d-badge warn">3 个文件</span>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="review" hidden>
+            <div class="d-subhead">工作区改动 · git diff（磁盘上的事实）</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge warn">已修改</span><span class="d-badge mute">+12 −4</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow d-mono">design/v5/README.md</span><span class="d-badge info">未添加</span><span class="d-badge mute">+6 −2</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge mute">未跟踪</span><span class="d-badge mute">+312 −0</span></button>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-subhead">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge info">刚写入</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge mute">3 步之前</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-03-transcript.html</span><span class="d-badge mute">7 步之前</span></button>
+            </div>
+            <div class="d-pop-foot">上面是磁盘上的事实，下面是 agent 的自述 —— 两边都有才敢说「这一轮改了什么」。审查只读：<b>不做 Keep / Reject</b>，提交与丢弃留在 Git 页签与命令行。</div>
+          </div>
+
+          <div class="d-panel-body" data-demo-pane="trace" hidden>
+            <div class="d-tinybar"><span class="d-badge info">运行中</span><span class="d-grow d-t-xs d-t-faint">12 步 · 2 分 06 秒</span></div>
+            <div class="d-steps">
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">读 design/v5/web/system.css</span><span class="d-step-meta">0:04</span></div>
+              <div class="d-step fail"><span class="d-step-ico"><i data-ico="x" data-size="11"></i></span><span class="d-step-body">cp notes.md → 工作区外，被权限拦下</span><span class="d-step-meta">0:31</span></div>
+              <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">重跑 check-v5.mjs</span><span class="d-step-meta">0:38</span></div>
+            </div>
+            <div class="d-pop-foot">被拦下的那一步在这里也是一等公民：轨迹页签不只记成功。</div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="rp-term-b" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:300px">
+            <div class="d-pop-title">终端面板的三条规矩</div>
+            <div class="d-pop-body d-t-xs d-t-dim">
+              ① <b>只跑能跑的东西</b>：交互式程序（vim、top）自动降级为一次性执行并把输出留下；<br>
+              ② <b>失败不隐藏</b>：非零退出码留在原地，配色只改到状态词的 token，不给整行刷红；<br>
+              ③ <b>可复跑</b>：点历史行直接再跑一次，命令里带 <code>$(日期)</code> 这类占位的会先问你。
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 浏览器三态：跨站提示 · 加载失败 · 被站点策略拦截<span class="d-grow"></span>三态都写「为什么」与「现在能做什么」</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack"><span class="d-tb-title">定住令牌与类名</span><span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span></div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="globe" data-size="14"></i>浏览器面板<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md">我把页脚那个站点也放进来看了一眼 —— 它<b>拒绝被嵌入</b>，所以右栏给的是解释，不是转圈。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <aside class="d-panel" data-demo-scope>
+          <div class="d-tabbar" data-demo-tabs>
+            <button class="d-tab" data-demo-tab="trace" title="轨迹" aria-label="轨迹"><span class="d-dot run"></span><i data-ico="history" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="files" title="文件" aria-label="文件"><i data-ico="folder" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-tab is-on" data-demo-tab="web" data-demo-open="rp-web-c" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="git" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="14"></i></button>
+          </div>
+
+          <div class="d-viewer" data-demo-pane="web">
+            <div class="d-urlbar">
+              <button class="d-iconbtn" title="后退"><i data-ico="chevron-left" data-size="14"></i></button>
+              <button class="d-iconbtn" title="前进"><i data-ico="chevron-right" data-size="14"></i></button>
+              <button class="d-iconbtn" title="重载"><i data-ico="rotate-cw" data-size="14"></i></button>
+              <div class="d-urlbox"><i data-ico="globe" data-size="12"></i><span class="d-grow">docs.example.com</span><i data-ico="lock" data-size="11"></i></div>
+              <button class="d-iconbtn" title="用系统浏览器打开"><i data-ico="external-link" data-size="13"></i></button>
+            </div>
+
+            <div class="d-panel-body d-col" style="gap:var(--nx-sp-2)">
+
+              <!-- 三态 ① 跨站 -->
+              <div class="d-banner warn">
+                <i data-ico="triangle-alert" data-size="14"></i>
+                <span class="d-grow">已跨到 docs.example.com</span>
+                <button class="d-btn sm ghost d-banner-btn">回到本地</button>
+              </div>
+              <div class="d-t-xs d-t-dim">从 <span class="d-mono">127.0.0.1:5174</span> 跟链到了外站。跨站之后这里<b>只读</b>：页面里的链接、表单与脚本都不属于工作区，agent 也不会把它当成本地页面来写。</div>
+
+              <!-- 三态 ② 加载失败 -->
+              <div class="d-card">
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-row"><span class="d-badge bad">加载失败</span><span class="d-grow"></span><span class="d-t-xs d-t-faint">自动重试 2 次 · 12 秒前</span></div>
+                  <div class="d-err">ERR_CONNECTION_REFUSED</div>
+                  <div class="d-t-xs d-t-dim">本地开发服务器没有在监听这个端口。先起服务，再回来重载：</div>
+                  <div class="d-mono d-t-xs d-col" style="gap:var(--nx-sp-1)">
+                    <span><span class="d-term-prompt">$</span> pnpm dev --port 5173</span>
+                    <span class="d-t-faint">（若端口被占用，会自动改到 5174 并在这里更新地址）</span>
+                  </div>
+                  <div class="d-row">
+                    <button class="d-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+                    <button class="d-btn sm ghost">复制诊断</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 三态 ③ 被 CSP / X-Frame-Options 拦截 -->
+              <div class="d-card">
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-banner err">
+                    <i data-ico="ban" data-size="14"></i>
+                    <span class="d-grow">这个页面拒绝被嵌入</span>
+                  </div>
+                  <div class="d-mono d-t-xs d-col" style="gap:var(--nx-sp-1)">
+                    <span class="d-err">X-Frame-Options: DENY</span>
+                    <span class="d-err">Content-Security-Policy: frame-ancestors 'none'</span>
+                    <span class="d-err">Content-Security-Policy: script-src 'self'</span>
+                  </div>
+                  <div class="d-t-xs d-t-dim">
+                    这是<b>站点自己下的指令</b>，不是 PI NEXT 出错：前两条禁止任何页面把这个地址放进
+                    <code>&lt;iframe&gt;</code>，第三条禁止注入取色、截图一类的脚本。浏览器直接掐断，
+                    我们无法绕过 —— 所以这里不转圈、不重试，只把原因写清楚。
+                  </div>
+                  <div class="d-t-xs d-t-dim">
+                    <b>现在能做的：</b>用系统浏览器打开这一页（我们把地址带上）；或者让对方在响应头里去掉
+                    <code>X-Frame-Options</code> / <code>frame-ancestors</code>。本地 <code>127.0.0.1</code> 与
+                    <code>vite</code> 预览页默认允许嵌入，不受这条影响。
+                  </div>
+                  <div class="d-row">
+                    <button class="d-btn sm"><i data-ico="external-link" data-size="13"></i>用系统浏览器打开</button>
+                    <button class="d-btn sm ghost">复制响应头</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="files" hidden>
+            <i data-ico="folder" data-size="14"></i><span class="d-grow d-viewer-path">~/Desktop/PI NEXT</span>
+            <button class="d-iconbtn" title="在访达中打开"><i data-ico="folder-open" data-size="14"></i></button>
+            <button class="d-iconbtn" title="在此处打开终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-iconbtn" title="审查改动"><i data-ico="file-diff" data-size="14"></i></button>
+            <button class="d-iconbtn" title="上传文件"><i data-ico="upload" data-size="14"></i></button>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="files" hidden>
+            <div class="d-subhead">1,284 个文件 · 索引于 2 分钟前</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow"><i data-ico="chevron-down" data-size="13"></i><i data-ico="folder-open" data-size="14"></i><span class="d-grow">design</span></button>
+              <button class="d-trow l1 is-on"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">v5</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">base.css</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">web/system.css</span><span class="d-dot warn"></span></button>
+            </div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="term" hidden>
+            <i data-ico="square-terminal" data-size="14"></i><span class="d-grow d-viewer-path">本地 shell · zsh</span>
+          </div>
+          <div class="d-panel-body" data-demo-pane="term" hidden>
+            <div class="d-term">
+              <span class="d-term-prompt">$</span> curl -I http://docs.example.com/v5<br>
+              HTTP/2 200<br>
+              <span class="d-term-warn">x-frame-options: DENY</span><br>
+              <span class="d-term-ok">content-security-policy: frame-ancestors 'none'</span>
+            </div>
+            <div class="d-terminfo"><span>fork/v5-boards</span><span>PID 48213</span><span>已用 6 分 12 秒</span><span>UTF-8</span></div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="git" hidden>
+            <i data-ico="git-branch" data-size="14"></i><span class="d-grow d-viewer-path">fork/v5-boards</span>
+          </div>
+          <div class="d-panel-body" data-demo-pane="git" hidden>
+            <div class="d-subhead">领先 main 3 个提交 · 3 个未提交改动</div>
+            <div class="d-tree" data-demo-list>
+              <div class="d-git-row is-on"><span class="d-git-lane"><i data-ico="circle-dot" data-size="14"></i></span><span class="d-mono">a3f21c8</span><span class="d-grow">fix: 右栏页签与当前项接线</span><span class="d-badge ok">HEAD</span></div>
+              <div class="d-git-row" data-demo-select><span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span><span class="d-mono">7b2d0e5</span><span class="d-grow">feat: 浏览器面板三态文案</span></div>          </div>
+          </div>
+
+          <!-- 审查：工作区改动 + 本轮 agent 写过的文件，两份来源，只读 -->
+          <div class="d-panel-head" data-demo-pane="review" hidden>
+            <i data-ico="file-diff" data-size="14"></i>
+            <span class="d-grow">审查改动</span>
+            <span class="d-badge warn">3 个文件</span>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="review" hidden>
+            <div class="d-subhead">工作区改动 · git diff（磁盘上的事实）</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge warn">已修改</span><span class="d-badge mute">+12 −4</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow d-mono">design/v5/README.md</span><span class="d-badge info">未添加</span><span class="d-badge mute">+6 −2</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge mute">未跟踪</span><span class="d-badge mute">+312 −0</span></button>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-subhead">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge info">刚写入</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge mute">3 步之前</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-03-transcript.html</span><span class="d-badge mute">7 步之前</span></button>
+            </div>
+            <div class="d-pop-foot">上面是磁盘上的事实，下面是 agent 的自述 —— 两边都有才敢说「这一轮改了什么」。审查只读：<b>不做 Keep / Reject</b>，提交与丢弃留在 Git 页签与命令行。</div>
+          </div>
+
+          <div class="d-panel-body" data-demo-pane="trace" hidden>
+            <div class="d-tinybar"><span class="d-badge info">运行中</span><span class="d-grow d-t-xs d-t-faint">12 步 · 2 分 06 秒</span></div>
+            <div class="d-steps">
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">打开 docs.example.com/v5</span><span class="d-step-meta">0:35</span></div>
+              <div class="d-step fail"><span class="d-step-ico"><i data-ico="x" data-size="11"></i></span><span class="d-step-body">嵌入被站点策略拒绝，改走系统浏览器</span><span class="d-step-meta">0:52</span></div>
+            </div>
+            <div class="d-pop-foot">失败也进轨迹：用户回头查「刚才为什么没成」时，只有这一处要看。</div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="rp-web-c" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:300px">
+            <div class="d-pop-title">浏览器面板的三条边界</div>
+            <div class="d-pop-body d-t-xs d-t-dim">
+              ① <b>只渲染白名单类型</b>：HTML / CSS / JS / 图片 / 纯文本直接看，其余一律落到「用系统浏览器打开」；<br>
+              ② <b>跨站要出声</b>：地址从本地跳到外站时给一条常驻提示，直到用户点「回到本地」；<br>
+              ③ <b>被策略拦截只给解释</b>：CSP 与 X-Frame-Options 是站点的选择，我们不绕、不重试刷。
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C2</b> · 浏览器工具条：地址行 · 视口预设五档 · 自由尺寸 · 缩放七档 · 拾取元素<span class="d-grow"></span>工具条是这一帧的**唯一主角**，所以只画右栏</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack"><span class="d-tb-title">定住令牌与类名</span><span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span></div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="globe" data-size="14"></i>浏览器面板<i data-ico="chevron-down" data-size="11"></i></button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md">把那一页按平板宽度开一下，然后<b>拾取页脚那一块</b>告诉我类名。</div>
+              </div>
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-md">已切到<b>平板 768</b>；拾取到的节点已作为 <span class="d-mono">@</span> 引用填进输入框（箭头指的那一枚）。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="">问一问这个节点怎么改： @footer.site-foot</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <aside class="d-panel" data-demo-scope>
+          <div class="d-tabbar" data-demo-tabs>
+            <button class="d-tab" data-demo-tab="trace" title="轨迹" aria-label="轨迹"><span class="d-dot run"></span><i data-ico="history" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="files" title="文件" aria-label="文件"><i data-ico="folder" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-tab is-on" data-demo-tab="web2" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="git2" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="14"></i></button>
+          </div>
+
+          <!-- ① 地址行 · 自由尺寸态（宽高框只在自由尺寸模式下出现，默认是「填满」） -->
+          <div class="d-viewer" data-demo-pane="web2">
+            <div class="d-urlbar">
+              <button class="d-iconbtn" title="后退"><i data-ico="chevron-left" data-size="14"></i></button>
+              <button class="d-iconbtn" title="前进"><i data-ico="chevron-right" data-size="14"></i></button>
+              <button class="d-iconbtn" title="重载"><i data-ico="rotate-cw" data-size="14"></i></button>
+              <div class="d-urlbox"><i data-ico="lock" data-size="11"></i><span class="d-grow">127.0.0.1:5174/docs</span><i data-ico="globe" data-size="12"></i></div>
+              <a class="d-iconbtn" title="用系统浏览器打开"><i data-ico="external-link" data-size="14"></i></a>
+              <button class="d-iconbtn is-on" title="取消拾取" aria-pressed="true"><i data-ico="x" data-size="14"></i></button>
+            </div>
+
+            <!-- ② 工具条：预设 + 自由尺寸 + 缩放档 -->
+            <div class="d-row" style="flex-wrap:wrap;gap:var(--nx-sp-1);padding:var(--nx-sp-2)">
+              <button class="d-chipbtn"><i data-ico="smartphone" data-size="13"></i>768<i data-ico="chevron-down" data-size="11"></i></button>
+              <span class="d-chipbtn" role="group" title="视口尺寸">
+                <input class="d-input d-mono" value="768" style="width:52px">
+                <span aria-hidden="true">x</span>
+                <input class="d-input d-mono" value="1024" style="width:56px">
+              </span>
+              <button class="d-iconbtn sm" title="重置视口"><i data-ico="x" data-size="14"></i></button>
+              <button class="d-chipbtn sm" title="缩放 适应">适应</button>
+              <button class="d-chipbtn sm is-on" aria-pressed="true" title="缩放 100%">100%</button>
+              <button class="d-chipbtn sm" title="缩放 150%">150%</button>
+              <span class="d-grow"></span>
+              <span class="d-badge warn"><i data-ico="square-mouse-pointer" data-size="11"></i>正在拾取</span>
+            </div>
+
+            <div class="d-panel-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-t-xs d-t-b">预设五档（点开同一枚芯片）</div>
+              <div class="d-pop" style="position:static;min-width:220px">
+                <button class="d-menu-row"><i data-ico="maximize-2" data-size="14"></i>填满</button>
+                <button class="d-menu-row"><i data-ico="smartphone" data-size="14"></i>手机 390</button>
+                <button class="d-menu-row is-on"><i data-ico="tablet" data-size="14"></i>平板 768<i data-ico="check" data-size="14" class="d-grow" style="text-align:right"></i></button>
+                <button class="d-menu-row"><i data-ico="monitor" data-size="14"></i>笔记本 1024</button>
+                <button class="d-menu-row"><i data-ico="monitor" data-size="14"></i>桌面 1280</button>
+              </div>
+
+              <div class="d-sep"></div>
+              <div class="d-t-xs d-t-b">两次「看起来一样」的区别</div>
+              <div class="d-t-xs d-t-dim">
+                <b>视口预设</b>改的是视口的 CSS 尺寸（页面真的按 768 排版）；
+                <b>缩放档</b>只改页面自己的渲染比例，视口宽度不变 —— 所以「填满 / 适应」与「50%…200%」是两段语义，不合并成一个菜单。
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-row"><i data-ico="square-mouse-pointer" data-size="13"></i><span class="d-grow">拾取元素只能用在 <b>managed</b> 面</span><span class="d-badge mute">其余面不画这枚钮</span></div>
+                  <div class="d-t-xs d-t-dim">Web / iframe 面拿不到页面内部几何 —— 与其点了才报错，不如<b>根本不出现</b>。拾取中点 <span class="d-mono">x</span> 取消；页面里没有可拾取元素时给一句「这个页面上没有可拾取的元素。」</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-viewer" data-demo-pane="git2" hidden><div class="d-empty"><div class="d-empty-s">Git 面板见帧 D</div></div></div>
+
+          <!-- 审查：工作区改动 + 本轮 agent 写过的文件，两份来源，只读 -->
+          <div class="d-panel-head" data-demo-pane="review" hidden>
+            <i data-ico="file-diff" data-size="14"></i>
+            <span class="d-grow">审查改动</span>
+            <span class="d-badge warn">3 个文件</span>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="review" hidden>
+            <div class="d-subhead">工作区改动 · git diff（磁盘上的事实）</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge warn">已修改</span><span class="d-badge mute">+12 −4</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow d-mono">design/v5/README.md</span><span class="d-badge info">未添加</span><span class="d-badge mute">+6 −2</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge mute">未跟踪</span><span class="d-badge mute">+312 −0</span></button>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-subhead">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge info">刚写入</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge mute">3 步之前</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-03-transcript.html</span><span class="d-badge mute">7 步之前</span></button>
+            </div>
+            <div class="d-pop-foot">上面是磁盘上的事实，下面是 agent 的自述 —— 两边都有才敢说「这一轮改了什么」。审查只读：<b>不做 Keep / Reject</b>，提交与丢弃留在 Git 页签与命令行。</div>
+          </div>
+        </aside>
+
+      </div>
+      <div class="d-notes">
+        ① <b>顺序是产品真实顺序</b>：地址行 → 系统浏览器 → 拾取 → <b>视口预设</b>（第一枚 chipbtn）→ 自由宽高 → 重置 → 缩放档；<br>
+        ② <b>自由宽高只在自由尺寸模式出现</b>，默认「填满」时这一格不渲染（否则它会把这行顶高）；<br>
+        ③ <b>拾取钮按面决定存在</b>：managed 有、Web/iframe 没有 —— 不做「点了才知道不行」的钮。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · Git 面板：图谱 + 未提交改动 + 分支关系（只做「看」）<span class="d-grow"></span>点已选中的「Git」页签 = 打开面板边界；泳道用现成类，不画 SVG</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">PI NEXT</div>
+            <button class="d-sess is-on"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+            <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span><span>·</span><span>62 条</span></span></button>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack"><span class="d-tb-title">定住令牌与类名</span><span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards · 3 个未提交</span></div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm"><i data-ico="upload" data-size="14"></i>推送 fork/v5-boards</button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-b">PI NEXT</span><span class="d-badge mute">claude-opus-4-6</span></div>
+                <div class="d-tool">
+                  <div class="d-tool-head"><i data-ico="file-diff" data-size="14"></i><span class="d-grow">本轮改了 3 个文件</span><span class="d-t-xs">+18 −6</span></div>
+                  <div class="d-tool-body d-t-xs d-t-dim">web/system.css · README.md · boards/D-05-right-panels.html</div>
+                </div>
+                <div class="d-md">改动都在右栏 <b>Git</b> 页签里列着。我不自己提交 —— 提交信息由你定，或者从 diff 里拟一条你改。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-composer-wrap">
+          <div class="d-ctxbar">
+            <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">~/Desktop/PI NEXT</span><i data-ico="chevron-down" data-size="11"></i></button>
+            <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i><span class="d-ctx-name">fork/v5-boards</span><i data-ico="chevron-down" data-size="11"></i></button>
+          </div>
+          <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="工具与上下文"><i data-ico="wrench" data-size="13"></i>工具与上下文：默认<i data-ico="chevron-down" data-size="12"></i></button>
+                
+                <span class="d-grow"></span>
+                <span class="d-ring" style="--p:18"></span>
+                <button class="d-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="14"></i></button>
+                <button class="d-send" disabled title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+          </div>
+        </div>
+        </main>
+
+        <aside class="d-panel" data-demo-scope>
+          <div class="d-tabbar" data-demo-tabs>
+            <button class="d-tab" data-demo-tab="trace" title="轨迹" aria-label="轨迹"><span class="d-dot run"></span><i data-ico="history" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="files" title="文件" aria-label="文件"><i data-ico="folder" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="term" title="终端" aria-label="终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="web" title="浏览器" aria-label="浏览器"><i data-ico="globe" data-size="14"></i></button>
+            <button class="d-tab is-on" data-demo-tab="git" data-demo-open="rp-git-d" title="Git" aria-label="Git"><i data-ico="git-branch" data-size="14"></i></button>
+            <button class="d-tab" data-demo-tab="review" title="审查" aria-label="审查"><i data-ico="file-diff" data-size="14"></i></button>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="git">
+            <i data-ico="git-branch" data-size="14"></i>
+            <span class="d-grow d-viewer-path">fork/v5-boards</span>
+            <button class="d-iconbtn" title="拉取远端"><i data-ico="download" data-size="14"></i></button>
+            <button class="d-iconbtn" title="推送到远端"><i data-ico="upload" data-size="14"></i></button>
+          </div>
+
+          <div class="d-panel-body" data-demo-pane="git">
+            <div class="d-subhead">领先 main 3 个提交 · main 落后 3 · 上次 fetch 4 分钟前</div>
+
+            <div class="d-tree" data-demo-list>
+              <div class="d-git-row is-on">
+                <span class="d-git-lane"><i data-ico="circle-dot" data-size="14"></i></span>
+                <span class="d-mono">a3f21c8</span>
+                <span class="d-grow">fix: 右栏页签与当前项接线</span>
+                <span class="d-badge ok">HEAD</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span>
+                <span class="d-mono">7b2d0e5</span>
+                <span class="d-grow">feat: 浏览器面板三态文案</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-branch" data-size="14"></i></span>
+                <span class="d-mono">91f4a02</span>
+                <span class="d-grow">feat: D-05 画板</span>
+                <span class="d-badge info">本轮</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="chevron-down" data-size="14"></i></span>
+                <span class="d-grow d-t-xs d-t-faint">与 main 分叉于 c0d8b77</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-merge" data-size="14"></i></span>
+                <span class="d-mono">c0d8b77</span>
+                <span class="d-grow">merge: PWA 两张并回 main</span>
+              </div>
+              <div class="d-git-row" data-demo-select>
+                <span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span>
+                <span class="d-mono">5e2a910</span>
+                <span class="d-grow">base: 令牌与类名单一来源</span>
+              </div>
+            </div>
+
+            <div class="d-sep"></div>
+
+            <div class="d-subhead">未提交改动 · 3</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">web/system.css</span><span class="d-badge warn">+12 −4</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow">README.md</span><span class="d-badge mute">+6 −2</span></button>
+              <button class="d-trow is-on"><i data-ico="file-code" data-size="14"></i><span class="d-grow">boards/D-05-…html</span><span class="d-badge mute">新文件</span></button>
+            </div>
+
+            <div class="d-row" style="gap:var(--nx-sp-2)">
+              <button class="d-btn sm primary"><i data-ico="check" data-size="13"></i>提交 3 个改动</button>
+              <button class="d-btn sm">看 diff</button>
+              <button class="d-iconbtn" title="丢弃改动"><i data-ico="trash-2" data-size="14"></i></button>
+            </div>
+            <div class="d-pop-foot">面板只做<b>看</b>：图谱、改动、远端状态。会改写历史的操作（rebase、cherry-pick、reset --hard）不给按钮 —— 必须你自己敲。</div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="files" hidden>
+            <i data-ico="folder" data-size="14"></i><span class="d-grow d-viewer-path">~/Desktop/PI NEXT</span>
+            <button class="d-iconbtn" title="在访达中打开"><i data-ico="folder-open" data-size="14"></i></button>
+            <button class="d-iconbtn" title="在此处打开终端"><i data-ico="square-terminal" data-size="14"></i></button>
+            <button class="d-iconbtn" title="审查改动"><i data-ico="file-diff" data-size="14"></i></button>
+            <button class="d-iconbtn" title="上传文件"><i data-ico="upload" data-size="14"></i></button>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="files" hidden>
+            <div class="d-subhead">1,284 个文件 · 索引于 2 分钟前</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow"><i data-ico="chevron-down" data-size="13"></i><i data-ico="folder-open" data-size="14"></i><span class="d-grow">design</span></button>
+              <button class="d-trow l1 is-on"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">v5</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">base.css</span></button>
+              <button class="d-trow l2" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">web/system.css</span><span class="d-dot warn"></span></button>
+            </div>
+          </div>
+
+          <div class="d-panel-head" data-demo-pane="term" hidden>
+            <i data-ico="square-terminal" data-size="14"></i><span class="d-grow d-viewer-path">本地 shell · zsh</span>
+          </div>
+          <div class="d-panel-body" data-demo-pane="term" hidden>
+            <div class="d-term">
+              <span class="d-term-prompt">$</span> node design/v5/scripts/check-v5.mjs<br>
+              v5 校验：web 11 张 / pwa 2 张<br>
+              <span class="d-term-ok">0 个错误。</span>
+            </div>
+            <div class="d-terminfo"><span>fork/v5-boards</span><span>PID 48213</span><span>已用 6 分 12 秒</span><span>UTF-8</span></div>
+          </div>
+
+          <div class="d-viewer" data-demo-pane="web" hidden>
+            <div class="d-urlbar">
+              <button class="d-iconbtn" title="后退"><i data-ico="chevron-left" data-size="14"></i></button>
+              <button class="d-iconbtn" title="重载"><i data-ico="rotate-cw" data-size="14"></i></button>
+              <div class="d-urlbox"><i data-ico="globe" data-size="12"></i><span class="d-grow">127.0.0.1:5174</span><i data-ico="lock" data-size="11"></i></div>
+              <button class="d-iconbtn" title="用系统浏览器打开"><i data-ico="external-link" data-size="13"></i></button>
+            </div>
+            <div class="d-panel-body"><div class="d-card"><div class="d-card-body d-t-xs d-t-dim">开发服务器首页 · vite 正在监听 5174。</div></div></div>
+          </div>
+
+          <!-- 审查：工作区改动 + 本轮 agent 写过的文件，两份来源，只读 -->
+          <div class="d-panel-head" data-demo-pane="review" hidden>
+            <i data-ico="file-diff" data-size="14"></i>
+            <span class="d-grow">审查改动</span>
+            <span class="d-badge warn">3 个文件</span>
+            <button class="d-iconbtn" title="刷新"><i data-ico="refresh-cw" data-size="14"></i></button>
+          </div>
+          <div class="d-panel-body" data-demo-pane="review" hidden>
+            <div class="d-subhead">工作区改动 · git diff（磁盘上的事实）</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge warn">已修改</span><span class="d-badge mute">+12 −4</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-text" data-size="14"></i><span class="d-grow d-mono">design/v5/README.md</span><span class="d-badge info">未添加</span><span class="d-badge mute">+6 −2</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge mute">未跟踪</span><span class="d-badge mute">+312 −0</span></button>
+            </div>
+            <div class="d-sep"></div>
+            <div class="d-subhead">本轮 agent 写过的文件 · 来自会话，不是 git</div>
+            <div class="d-tree" data-demo-list>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-05-right-panels.html</span><span class="d-badge info">刚写入</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/system.css</span><span class="d-badge mute">3 步之前</span></button>
+              <button class="d-trow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">design/v5/web/boards/D-03-transcript.html</span><span class="d-badge mute">7 步之前</span></button>
+            </div>
+            <div class="d-pop-foot">上面是磁盘上的事实，下面是 agent 的自述 —— 两边都有才敢说「这一轮改了什么」。审查只读：<b>不做 Keep / Reject</b>，提交与丢弃留在 Git 页签与命令行。</div>
+          </div>
+
+          <div class="d-panel-body" data-demo-pane="trace" hidden>
+            <div class="d-tinybar"><span class="d-badge info">运行中</span><span class="d-grow d-t-xs d-t-faint">12 步 · 2 分 06 秒</span></div>
+            <div class="d-steps">
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">读 design/v5/web/system.css</span><span class="d-step-meta">0:04</span></div>
+              <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">运行 check-v5.mjs → 0 错误</span><span class="d-step-meta">0:21</span></div>
+              <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">写 boards/D-05-right-panels.html</span><span class="d-step-meta">0:38</span></div>
+            </div>
+            <div class="d-pop-foot">轨迹页签记的就是这一串：读了什么、跑了什么、写了什么 —— Git 面板只是它的一个视图。</div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="rp-git-d" hidden style="right:var(--nx-sp-3);top:var(--nx-sp-10);min-width:290px">
+            <div class="d-pop-title">Git 面板只做三件事</div>
+            <div class="d-pop-body d-t-xs d-t-dim">看图谱（谁在哪条线上）、看改动（与工作区的 diff）、看远端（fetch / push 状态）。<b>不代替命令行</b>。</div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>五个常驻页签 + 一颗单例轨迹页签。</b>轨迹排在最左、只出现一颗：文件、终端、浏览器、Git、审查的动作全部汇进同一条线，不按面板各开一份。「agent 刚才动了什么」永远只有一个地方看。</li>
+    <li><b>审查只读，两份来源分开列。</b>上面是工作区改动（<code>git diff</code> 的逐文件清单：<b>已修改 / 未添加 / 未跟踪</b> + 增删行数），下面是本轮 agent 写过的文件（来自会话：<b>刚写入 / N 步之前</b>）。口径不同所以不合并成一张表；也<b>不给 Keep / Reject</b> —— 处置改动留在 Git 页签与命令行。</li>
+    <li><b>点已选中的页签 = 打开这一栏的总览。</b>再点一次不会切走、也不会没反应，而是把页签清单、面板动作、关闭入口摊开（所以每个演示帧的当前页签都挂了一个真能点开的浮层）。</li>
+    <li><b>浏览器三态是本仓此前的缺口。</b>跨站：常驻提示条说清「已经离开本地」并给一个回到本地的动作；加载失败：给错误码 + 怎么把它变成命令，而不是干等；被 CSP / X-Frame-Options 拦截：明确写出<b>这是站点自己的策略、我们无法绕过</b>，然后给两条能走的路。三态都不做无意义的自动重试。</li>
+    <li><b>终端不吞失败。</b>被权限拦下的命令留在原地并说明原因；页脚永远写清「在哪个分支、跑了多久、什么编码」，让人敢把 agent 的命令当成自己的命令看待。</li>
+    <li><b>Git 面板克制。</b>只做「看图谱 / 看改动 / 看远端」三件事；会改写历史的操作（rebase、cherry-pick）不提供按钮，必须自己敲。泳道用 <code>.d-git-lane</code> + lucide 图标，不画一根自己的 SVG 线。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

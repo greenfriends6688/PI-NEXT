@@ -1,12 +1,18 @@
 "use client";
 
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { PwaTrustSheet } from "./pwa/PwaTrustSheet";
 
 /**
- * fork:design-system SW-03 —— 项目信任对话框 = 画板 50 的 pw-modal 三态
- * （确认 / 信任中 / 失败）：head 图标随状态换（shield-question / loader-circle /
- * circle-x），正文说明「读写文件、执行命令」，cwd 走 pw-inline 面板 + mono。
- * 画板 foot 的「不信任」danger ghost 对应本产品的取消钮。
+ * fork:design-components —— 项目信任对话框 = 画板 D-26b 帧 E「项目信任对话框」：
+ * 三个状态是**同一个模态的三种头部图标**（shield-question / loader-circle / circle-x），
+ * 壳是 `.d-modal.is-open` › `.d-modal-box` › `.d-modal-head` + `.d-modal-body` +
+ * `.d-modal-foot`；正文里的 cwd 走 `.d-code`（图标 + mono path）。
+ *
+ * fork:v5-wave-b-sysstate —— 窄屏（`useIsMobile()`）走 M-10 帧 C-2 的
+ * `.m-scrim.is-open` + `.m-sheet.is-open` 底部 sheet，DOM 在
+ * `components/pwa/PwaTrustSheet.tsx`。三态与两枚动作的 props 不变。
  */
 export function ProjectTrustDialog({
   cwd,
@@ -22,28 +28,24 @@ export function ProjectTrustDialog({
   onConfirm: () => void;
 }) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return <PwaTrustSheet cwd={cwd} busy={busy} error={error} onCancel={onCancel} onConfirm={onConfirm} />;
+  }
 
   const headIcon = error
-    ? { ico: "circle-x", color: "var(--error)" }
+    ? { ico: "circle-x", color: "var(--nx-danger)" }
     : busy
-      ? { ico: "loader-circle", color: "var(--accent)" }
-      : { ico: "shield-question", color: "var(--warning)" };
+      ? { ico: "loader-circle", color: "var(--nx-accent)" }
+      : { ico: "shield-question", color: "var(--nx-warning)" };
 
   return (
     <div
       role="presentation"
       // fork:ui-10 — hook for the phone bottom-sheet geometry in app/fork-ui.css
       data-fork-dialog="trust"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "var(--s4)",
-        background: "var(--scrim)",
-      }}
+      className="d-modal is-open"
       onClick={(event) => {
         if (!busy && event.target === event.currentTarget) onCancel();
       }}
@@ -52,50 +54,34 @@ export function ProjectTrustDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="project-trust-title"
-        className="pw-modal"
+        className="d-modal-box"
         style={{ width: 440, maxWidth: "100%" }}
       >
-        <div className="pw-modal-head">
-          <span className="pw-ico" style={{ color: headIcon.color, display: "inline-flex" }}>
-            <i data-ico={headIcon.ico} data-size="16"></i>
-          </span>
-          <span id="project-trust-title">{t("trust.dialogTitle")}</span>
+        <div className="d-modal-head d-row" style={{ alignItems: "flex-start" }}>
+          <i data-ico={headIcon.ico} data-size="16" aria-hidden="true" style={{ color: headIcon.color, flexShrink: 0, marginTop: 2 }} />
+          <span id="project-trust-title" className="d-grow">{t("trust.dialogTitle")}</span>
         </div>
-        <div className="pw-modal-body">
-          <p style={{ margin: 0 }}>{t("trust.dialogBody")}</p>
-          <div
-            className="pw-inline"
-            style={{
-              padding: "var(--s2)",
-              border: "1px solid var(--n-border-subtle)",
-              borderRadius: "var(--radius-4)",
-              background: "var(--surface-panel)",
-            }}
-          >
-            <span className="pw-ico pw-dim"><i data-ico="folder" data-size="14"></i></span>
-            <span className="pw-mono" style={{ fontSize: "var(--text-meta)", minWidth: 0, overflowWrap: "anywhere" }}>{cwd}</span>
+        <div className="d-modal-body">
+          <div>{t("trust.dialogBody")}</div>
+          <div className="d-code">
+            <div className="d-code-head">
+              <i data-ico="folder" data-size="13" aria-hidden="true" />
+              <span className="d-grow d-mono">{cwd}</span>
+            </div>
           </div>
           {error && (
-            <div role="alert" style={{ margin: 0, color: "var(--error)", fontSize: "var(--text-meta)", lineHeight: 1.5 }}>
-              <span className="pw-mono">{error}</span>
+            <div className="d-err" role="alert">
+              <span className="d-mono">{error}</span>
             </div>
           )}
         </div>
-        <div className="pw-modal-foot">
-          {/* fork:board-diff-2026-10-01 —— 画板 50 帧 0/1/2 的 modal foot 一律用
-              **md** 档（60×28 / 12px / padding 0 12），产品挑了 sm（40×24 / 11px / 0 8），
-              `50-dialogs` 的 spec 量到 40×24 vs 60×28。md 档原子本身与画板逐项一致。 */}
-          <button type="button" className="pw-btn outline" onClick={onCancel} disabled={busy}>
+        <div className="d-modal-foot">
+          <button type="button" className="d-btn ghost" onClick={onCancel} disabled={busy}>
             {t("trust.cancel")}
           </button>
-          <span className="grow" />
-          <button
-            type="button"
-            className="pw-btn primary"
-            onClick={onConfirm}
-            disabled={busy}
-            style={busy ? { opacity: 0.7, cursor: "wait" } : undefined}
-          >
+          <span className="d-grow" />
+          <button type="button" className="d-btn primary" onClick={onConfirm} disabled={busy}>
+            <i data-ico="shield-check" data-size="14" aria-hidden="true" />
             {busy ? t("trust.trusting") : t("trust.trustProject")}
           </button>
         </div>

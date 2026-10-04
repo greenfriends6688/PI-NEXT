@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-02c · 菜单合集 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-02c · 菜单合集</h1>
+  <p>
+    全应用的菜单只由<b>一套原子</b>拼成：行、分组标题、发丝分隔线、搜索头、脚注。
+    这一张先给原子表与尺寸口径，再给四个真实菜单（顶栏溢出、会话行右键、文件树右键的文件与目录两套），
+    最后给选择器与动作簇（新建任务选择器、工作区切换器、路径动作簇四态、标签页总览）。
+    统一的是<b>行的密度与配色</b>，不是宽度 —— 行内菜单 230、带副标题的 300–340，宽度按内容收。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：全局 · 菜单</span>
+    <span class="d-tag">组件：ContextMenu · SessionActionsMenu · FileExplorer 右键 · ProjectChip · TabOverview</span>
+    <span class="d-tag">状态：行八态 / 分隔 / 禁用 / 危险 / 选中 / 已复制 / 失败</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 A · 原子表 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 菜单原子表 · 行八态 / 结构件 / 尺寸口径<span class="d-grow"></span>后面的每个菜单都是这三块的拼装</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">菜单原子表</span>
+              <span class="d-tb-sub">一行 = 图标槽 14 + 文字 + 右侧槽；三样都能空，但行高不变</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid3">
+
+              <!-- 行八态 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="rows-3" data-size="15"></i>
+                  <span>行 · 八种</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">同一种行</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-pop-float" style="position:relative;min-width:280px">
+                    <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow">普通行 · 图标 + 文字</span></button>
+                    <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow">选中行 · 图标位换成对勾</span></button>
+                    <button class="d-menu-row"><span class="d-grow">无图标行 · 文字直接贴左</span><i data-ico="check" data-size="14"></i></button>
+                    <button class="d-menu-row"><i data-ico="search" data-size="14"></i><span class="d-grow">带快捷键</span><span class="d-kbd">⌘K</span></button>
+                    <button class="d-menu-row"><i data-ico="tag" data-size="14"></i><span class="d-grow">带子菜单（一级）</span><i data-ico="chevron-right" data-size="14"></i></button>
+                    <button class="d-menu-row"><i data-ico="hash" data-size="14"></i><span class="d-grow">带反馈标签 · 复制会话 ID</span><span class="d-badge ok">已复制</span></button>
+                    <button class="d-menu-row" disabled><i data-ico="circle-off" data-size="14"></i><span class="d-t-faint">禁用行 · 点不动</span></button>
+                    <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i><span class="d-grow">危险行 · 文字转红</span></button>
+                  </div>
+                  <div class="d-t-xs d-t-faint">禁用用「点不动 + 字弱化」两档表达，不只靠透明度；危险用文字色不用红底 —— 红底会把它抬成主行动。反馈标签是产品真实的那一种：复制类条目点完原地翻「已复制」（<span class="d-mono">feedbackLabel</span>）。</div>
+                </div>
+              </div>
+
+              <!-- 结构件 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="list-tree" data-size="15"></i>
+                  <span>结构件 · 标题 / 分隔 / 搜索头 / 脚注</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">四件</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-pop-float" style="position:relative;min-width:280px">
+                    <div class="d-pop-title">分组标题</div>
+                    <button class="d-menu-row">分组第一项</button>
+                    <button class="d-menu-row">分组第二项</button>
+                    <div class="d-sep"></div>
+                    <button class="d-menu-row">分隔线之下第一项</button>
+                    <div class="d-searchfield" style="margin:var(--nx-sp-1)">
+                      <i data-ico="search" data-size="13"></i>
+                      <input placeholder="搜索…（钉顶不随内容滚）" aria-label="搜索">
+                      <span class="d-kbd">Esc</span>
+                    </div>
+                    <button class="d-menu-row">内容区 · 封顶后内部滚动</button>
+                    <div class="d-pop-foot">脚注只写一句「这个菜单为什么这么收着」，不写操作说明。</div>
+                  </div>
+                  <div class="d-t-xs d-t-faint">分隔线是「换了一组事」的信号：同组内不插线，跨组必插线。子菜单<b>只做一级</b>，右侧一枚 chevron，不做第二级。</div>
+                </div>
+              </div>
+
+              <!-- 尺寸口径 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="maximize-2" data-size="15"></i>
+                  <span>尺寸口径 · 唯一真值</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">不抄数</span>
+                </div>
+                <div class="d-card-body">
+                  <table class="d-table">
+                    <thead>
+                      <tr><th>部位</th><th>口径</th><th>来源</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>行内边距</td><td class="d-mono">7px / 10px</td><td class="d-t-xs">行高约 33px</td></tr>
+                      <tr><td>行圆角</td><td class="d-mono">--nx-r-sm</td><td class="d-t-xs">悬浮底色跟着它裁</td></tr>
+                      <tr><td>图标槽</td><td class="d-mono">14px</td><td class="d-t-xs">与文字间距 8px</td></tr>
+                      <tr><td>浮层内边距</td><td class="d-mono">--nx-sp-1</td><td class="d-t-xs">4px，四周一样</td></tr>
+                      <tr><td>浮层圆角</td><td class="d-mono">--nx-r-lg</td><td class="d-t-xs">卡片同级</td></tr>
+                      <tr><td>浮层最小宽</td><td class="d-mono">200px</td><td class="d-t-xs">行内菜单 230</td></tr>
+                      <tr><td>带副标题宽</td><td class="d-mono">300–340px</td><td class="d-t-xs">标签概览 340</td></tr>
+                      <tr><td>描边 / 阴影</td><td class="d-mono">line / sh-2</td><td class="d-t-xs">全应用唯一一种</td></tr>
+                      <tr><td>悬浮底色</td><td class="d-mono">--nx-surface</td><td class="d-t-xs">不是 selected</td></tr>
+                      <tr><td>列表封顶</td><td class="d-mono">内容自滚</td><td class="d-t-xs">搜索头不滚</td></tr>
+                    </tbody>
+                  </table>
+                  <div class="d-t-xs d-t-faint">这一列全部来自令牌，<b>任何一块板都不许抄成字面量</b> —— 抄了就变成第二份真值。</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 B · 四个真实菜单 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 四个真实菜单 · 顶栏溢出 / 会话行右键 / 文件树右键（文件） / 文件树右键（目录）<span class="d-grow"></span>危险项永远沉底并单独成组</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">四个真实菜单</span>
+              <span class="d-tb-sub">⋯ 菜单与标签概览可点开合；两个右键菜单挂在它们各自的宿主行下面</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="会话动作" data-demo-open="menu-b1"><i data-ico="ellipsis" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- 顶栏溢出 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="ellipsis" data-size="15"></i>
+                  <span>顶栏溢出菜单 · 外壳与状态档</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">⋯ 菜单</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-iconbtn" title="会话动作" data-demo-open="menu-b1"><i data-ico="ellipsis" data-size="15"></i></button>
+                      <span class="d-t-xs d-t-dim">点这枚 ⋯ 开合 · 真机里它在顶栏右端</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">共 12 行，完整清单见 D-02d 帧 D</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="menu-b1" style="position:relative;min-width:280px">
+                      <div class="d-pop-title">会话动作 · 设计体系 V5 画板</div>
+                      <button class="d-menu-row"><i data-ico="pin" data-size="14"></i><span class="d-grow">置顶</span></button>
+                      <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">重命名会话</span></button>
+                      <button class="d-menu-row"><i data-ico="archive" data-size="14"></i><span class="d-grow">归档</span></button>
+                      <button class="d-menu-row"><i data-ico="message-circle" data-size="14"></i><span class="d-grow">标记为未读</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row" disabled><i data-ico="folder-open" data-size="14"></i><span class="d-t-faint">在访达中打开</span></button>
+                      <button class="d-menu-row" disabled><i data-ico="folder" data-size="14"></i><span class="d-t-faint">复制路径</span></button>
+                      <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow">复制会话文件路径</span></button>
+                      <button class="d-menu-row"><i data-ico="hash" data-size="14"></i><span class="d-grow">复制会话 ID</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i><span class="d-grow">系统提示词</span></button>
+                      <button class="d-menu-row"><i data-ico="wrench" data-size="14"></i><span class="d-grow">工具定义</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="download" data-size="14"></i><span class="d-grow">导出为 HTML</span></button>
+                      <button class="d-menu-row"><i data-ico="download" data-size="14"></i><span class="d-grow">导出 Markdown</span></button>
+                      <div class="d-pop-foot">两行置灰是因为这条会话还没落盘项目目录；置顶与归档是开关态，文案跟着状态翻。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点 ⋯；消失：选中一条 / 点浮层外 / Esc。菜单本体 portal 到 body，所以顶栏的 overflow 裁不到它。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 会话行右键 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="message-square" data-size="15"></i>
+                  <span>会话行右键菜单</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">右键那一行</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-sess">
+                      <span class="d-sess-t">令牌只写一次：base.css</span>
+                      <span class="d-sess-m"><span>2 小时前</span><span>·</span><span>41 条消息</span><span class="d-grow"></span><span class="d-badge mute">右键这一行</span></span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="menu-b2" style="position:relative;min-width:240px">
+                      <button class="d-menu-row"><i data-ico="pin" data-size="14"></i><span class="d-grow">置顶</span></button>
+                      <button class="d-menu-row"><i data-ico="archive" data-size="14"></i><span class="d-grow">归档</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i><span class="d-grow">导出为 HTML</span></button>
+                      <button class="d-menu-row"><i data-ico="copy" data-size="14"></i><span class="d-grow">复制会话引用</span></button>
+                      <div class="d-pop-foot">「复制会话引用」点完原地翻成「已复制」约 1.2 秒才关 —— 菜单不给它弹提示条。</div>
+                    </div>
+
+                    <div class="d-row">
+                      <span class="d-t-xs d-t-dim">这一份比 ⋯ 菜单短得多：右键是「就近动手」，四行够用。</span>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm ghost" data-demo-open="menu-b2">开合这份菜单</button>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：右键会话行（子代理行给同一份）；消失：点外面 / Esc / 滚轮真滚动。视口边缘自动翻转，不会跑出屏幕。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 文件树右键 · 文件 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="file-code" data-size="15"></i>
+                  <span>文件树右键 · 文件</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">七行 + 解压</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-card" style="padding:var(--nx-sp-1)">
+                      <div class="d-tree">
+                        <div class="d-trow l1"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">design</span></div>
+                        <div class="d-trow l2 is-on"><i data-ico="file-code" data-size="14"></i><span class="d-grow">board.css</span></div>
+                        <div class="d-trow l2"><i data-ico="file-archive" data-size="14"></i><span class="d-grow">v5-boards.zip</span><span class="d-badge mute">右键这一行</span></div>
+                      </div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:240px">
+                      <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i><span class="d-grow">打开</span></button>
+                      <button class="d-menu-row"><i data-ico="download" data-size="14"></i><span class="d-grow">下载到本地</span></button>
+                      <button class="d-menu-row"><i data-ico="file-plus" data-size="14"></i><span class="d-grow">新建文件</span></button>
+                      <button class="d-menu-row"><i data-ico="folder-plus" data-size="14"></i><span class="d-grow">新建文件夹</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">重命名</span></button>
+                      <button class="d-menu-row"><i data-ico="file-archive" data-size="14"></i><span class="d-grow">解压到此处</span></button>
+                      <button class="d-menu-row"><i data-ico="scissors" data-size="14"></i><span class="d-grow">压缩为 ZIP</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i><span class="d-grow">删除</span></button>
+                      <div class="d-pop-foot">「解压到此处」只在文件名是压缩包时出现（样张正是压缩包，所以八行）；其余七行对任何文件都一样。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">前两行（打开 / 下载）是「对这个文件」，中间两行（新建）其实作用在<b>它所在的目录</b>上，最后一行是破坏性的 —— 所以三段各自分隔，危险项沉底。「@ 引用 / 复制路径」不是菜单行：它们是树行的<b>行内动作</b>（hover 芯片，手机档收进长按菜单）。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 文件树右键 · 目录 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="folder-open" data-size="15"></i>
+                  <span>文件树右键 · 目录</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">五行</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-card" style="padding:var(--nx-sp-1)">
+                      <div class="d-tree">
+                        <div class="d-trow l1 is-on"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">design/pi-web-design</span><span class="d-badge mute">右键这一行</span></div>
+                      </div>
+                    </div>
+
+                    <div class="d-pop-float" style="position:relative;min-width:240px">
+                      <button class="d-menu-row"><i data-ico="file-plus" data-size="14"></i><span class="d-grow">新建文件</span></button>
+                      <button class="d-menu-row"><i data-ico="folder-plus" data-size="14"></i><span class="d-grow">新建文件夹</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">重命名</span></button>
+                      <button class="d-menu-row"><i data-ico="scissors" data-size="14"></i><span class="d-grow">压缩为 ZIP</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i><span class="d-grow">删除</span></button>
+                      <div class="d-pop-foot">目录没有「打开 / 下载 / 解压」三行 —— 展开是单击的事，不需要菜单。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">删目录会连内容一起走，所以它必须走确认弹窗而不是菜单里的第二下点击；菜单只负责「你点了要删」。</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<!-- 帧 C · 选择器与动作簇 -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 选择器与动作簇 · 新建任务 / 工作区切换器 / 路径动作簇四态 / 标签页总览<span class="d-grow"></span>长菜单都带搜索头，搜索框钉顶不滚</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">选择器与动作簇</span>
+              <span class="d-tb-sub">选择器回答「去哪」，动作簇回答「对这条路径做什么」</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-iconbtn" title="标签页总览" data-demo-open="tabs-c"><i data-ico="rows-3" data-size="15"></i></button>
+          </header>
+
+          <div class="d-panel-body" style="padding:var(--nx-sp-4)">
+            <div class="d-grid2">
+
+              <!-- 新建任务选择器 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="square-pen" data-size="15"></i>
+                  <span>新建任务选择器 · 当前项打勾且禁用</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">长菜单</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-btn sm" data-demo-open="newtask-c"><i data-ico="square-pen" data-size="14"></i>新建任务<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-dim">侧栏「新建任务」与输入框里的工作区芯片，同一份菜单</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="newtask-c" style="position:relative;min-width:300px">
+                      <div class="d-searchfield" style="margin:0 var(--nx-sp-1) var(--nx-sp-1)">
+                        <i data-ico="search" data-size="13"></i>
+                        <input placeholder="搜索项目" aria-label="搜索项目">
+                      </div>
+                      <div class="d-pop-title">项目</div>
+                      <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow">PI NEXT</span><span class="d-t-xs d-t-faint">当前 · 不可点</span></button>
+                      <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">pi-web-design</span><span class="d-t-xs d-t-faint">4 个会话</span></button>
+                      <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">zhaobiao-extract</span><span class="d-t-xs d-t-faint">6 个会话</span></button>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">打开文件夹</span></button>
+                      <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i><span class="d-grow">不在项目中（聊天）</span></button>
+                      <div class="d-pop-foot">当前项<b>留在原位打勾</b>，不抽到顶上：抽走之后用户点了哪一行就看不见了。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点新建任务 / 点工作区芯片；消失：选中一条 / 点外面 / Esc。选完立刻起新会话，菜单不留在屏幕上。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 工作区切换器 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="folder-tree" data-size="15"></i>
+                  <span>工作区切换器 · 顶栏 BranchChip（worktree 列表）</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">与侧栏同一份列表</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-chipbtn" data-demo-open="ws-c"><i data-ico="git-branch" data-size="13"></i>fork/v5-boards<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-dim">顶栏分支芯片 · 侧栏选中项目下的 worktree 行点开同一份列表</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="ws-c" style="position:relative;min-width:260px">
+                      <div class="d-pop-title">工作区</div>
+                      <button class="d-menu-row"><i data-ico="check" data-size="14"></i><span class="d-grow d-mono">main</span><span class="d-badge mute">主分支</span></button>
+                      <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i><span class="d-grow d-mono">fork/v5-boards</span></button>
+                      <button class="d-menu-row"><i data-ico="git-branch" data-size="14"></i><span class="d-grow d-mono">fork/v5-boards-fix</span><span class="d-iconbtn" title="移除这个检出（保留分支）"><i data-ico="trash-2" data-size="12"></i></span></button>
+                      <div class="d-pop-foot">按需拉：点开才发一次请求，没打开过时只显示分支名。主分支永远没有移除钮；列表只含<b>这个项目</b>的检出 —— worktree 与主仓共享同一个项目标识。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点芯片；消失：选中一条 / 点外面 / Esc。选中另一个检出 = 切换项目目录，侧栏、文件树、标签一起跟着走。没有「最近打开」「打开本地目录」这些行 —— 新目录从「新建任务 → 打开文件夹」进。筛选框只在检出 ≥ 8 个时出现（见 D-02d 帧 C）。</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 路径动作簇四态 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="folder-open" data-size="15"></i>
+                  <span>路径动作簇 · 四态</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">不是菜单，是行内按钮</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-col" style="gap:var(--nx-sp-3)">
+                    <div>
+                      <div class="d-t-sm d-t-b">默认 · 三个动作并排</div>
+                      <div class="d-row" style="padding:var(--nx-sp-2) 0">
+                        <button class="d-btn sm"><i data-ico="copy" data-size="12"></i>复制路径</button>
+                        <button class="d-btn sm"><i data-ico="folder-open" data-size="12"></i>在文件管理器中显示</button>
+                        <button class="d-btn sm"><i data-ico="external-link" data-size="12"></i>用默认应用打开</button>
+                      </div>
+                      <div class="d-t-xs d-t-faint">图标 + 文字，一行放不下就换行，绝不换成三枚纯图标 —— 「在文件管理器中显示」和「用默认应用打开」是两件事。</div>
+                    </div>
+
+                    <div>
+                      <div class="d-t-sm d-t-b">已复制 · 只翻第一枚的图标</div>
+                      <div class="d-row" style="padding:var(--nx-sp-2) 0">
+                        <button class="d-chipbtn is-on"><i data-ico="check" data-size="12"></i>已复制</button>
+                        <button class="d-btn sm"><i data-ico="folder-open" data-size="12"></i>在文件管理器中显示</button>
+                        <button class="d-btn sm"><i data-ico="external-link" data-size="12"></i>用默认应用打开</button>
+                      </div>
+                      <div class="d-t-xs d-t-faint">另外两个不跟着变色 —— 它们没被触发。约 1.4 秒后自己回去。</div>
+                    </div>
+
+                    <div>
+                      <div class="d-t-sm d-t-b">失败 · 多出一枚错误徽章</div>
+                      <div class="d-row" style="padding:var(--nx-sp-2) 0">
+                        <button class="d-btn sm"><i data-ico="copy" data-size="12"></i>复制路径</button>
+                        <button class="d-btn sm"><i data-ico="folder-open" data-size="12"></i>在文件管理器中显示</button>
+                        <button class="d-btn sm"><i data-ico="external-link" data-size="12"></i>用默认应用打开</button>
+                        <span class="d-badge bad">没能打开这个目录</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">只有失败才说话：系统动作成功时结果发生在应用之外，再弹一次通知条是噪音。</div>
+                    </div>
+
+                    <div>
+                      <div class="d-t-sm d-t-b">紧凑变体 · 文件树行尾只有三枚图标钮</div>
+                      <div class="d-card" style="padding:var(--nx-sp-1)">
+                        <div class="d-tree">
+                          <div class="d-trow"><i data-ico="file-code" data-size="14"></i><span class="d-grow">components/fork/PathActions.tsx</span>
+                            <button class="d-iconbtn" title="复制路径"><i data-ico="copy" data-size="12"></i></button>
+                            <button class="d-iconbtn" title="在文件管理器中显示"><i data-ico="folder-open" data-size="12"></i></button>
+                            <button class="d-iconbtn" title="用默认应用打开"><i data-ico="external-link" data-size="12"></i></button>
+                          </div>
+                          <div class="d-trow"><i data-ico="file-code" data-size="14"></i><span class="d-grow">components/ChatInput.tsx</span>
+                            <button class="d-iconbtn" title="复制路径"><i data-ico="copy" data-size="12"></i></button>
+                            <button class="d-iconbtn" title="在文件管理器中显示"><i data-ico="folder-open" data-size="12"></i></button>
+                            <button class="d-iconbtn" title="用默认应用打开"><i data-ico="external-link" data-size="12"></i></button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-t-xs d-t-faint">紧凑档只有 title 没有文字，所以行尾必须留够三枚的宽度，否则第三枚被省略吞掉。</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 标签页总览 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="rows-3" data-size="15"></i>
+                  <span>标签页总览浮层 · 全部标签 + 最近关闭</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge mute">340 宽</span>
+                </div>
+                <div class="d-card-body">
+                  <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <button class="d-btn sm" data-demo-open="tabs-c"><i data-ico="rows-3" data-size="14"></i>全部标签</button>
+                      <span class="d-t-xs d-t-dim">标签放不下时才出现的那枚「⋯」；它列<b>全部</b>标签，不只列被折叠的</span>
+                    </div>
+
+                    <div class="d-pop-float is-open" data-demo-pop="tabs-c" style="position:relative;min-width:340px">
+                      <div class="d-searchfield" style="margin:0 var(--nx-sp-1)">
+                        <i data-ico="search" data-size="13"></i>
+                        <input placeholder="筛选标签" aria-label="筛选标签">
+                      </div>
+                      <div class="d-pop-title">
+                        <span class="d-row">
+                          <span>全部标签</span>
+                          <span class="d-grow"></span>
+                          <span class="d-badge mute">6</span>
+                        </span>
+                      </div>
+                      <div class="d-col" data-demo-list style="padding:0 var(--nx-sp-1)">
+                        <div class="d-row">
+                          <button class="d-trow d-grow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">board.css</span></button>
+                          <button class="d-iconbtn" title="关闭 board.css"><i data-ico="x" data-size="13"></i></button>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-trow is-on d-grow" data-demo-select><i data-ico="file-code" data-size="14"></i><span class="d-grow">system.css</span><span class="d-t-xs d-t-faint">当前</span></button>
+                          <button class="d-iconbtn" title="关闭 system.css"><i data-ico="x" data-size="13"></i></button>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-trow d-grow" data-demo-select><i data-ico="terminal" data-size="14"></i><span class="d-grow">zsh</span></button>
+                          <button class="d-iconbtn" title="关闭 zsh"><i data-ico="x" data-size="13"></i></button>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-trow d-grow" data-demo-select><i data-ico="globe" data-size="14"></i><span class="d-grow">localhost:39411</span></button>
+                          <button class="d-iconbtn" title="关闭 localhost:39411"><i data-ico="x" data-size="13"></i></button>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-trow d-grow" data-demo-select><i data-ico="git-branch" data-size="14"></i><span class="d-grow">Git 图谱</span><span class="d-badge mute">单例</span></button>
+                          <span class="d-iconbtn"></span>
+                        </div>
+                        <div class="d-row">
+                          <button class="d-trow d-grow" data-demo-select><i data-ico="activity" data-size="14"></i><span class="d-grow">调用轨迹</span><span class="d-badge mute">单例</span></button>
+                          <span class="d-iconbtn"></span>
+                        </div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <div class="d-pop-title">最近关闭</div>
+                      <div class="d-row" style="padding:0 var(--nx-sp-1)">
+                        <button class="d-menu-row d-grow"><i data-ico="history" data-size="14"></i><span class="d-grow">DESIGN-SPEC.md</span></button>
+                        <button class="d-btn sm" style="white-space:nowrap">恢复</button>
+                      </div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="x" data-size="14"></i><span class="d-grow">关闭其他</span></button>
+                      <button class="d-menu-row"><i data-ico="x" data-size="14"></i><span class="d-grow">全部关闭</span></button>
+                      <button class="d-menu-row danger"><i data-ico="eraser" data-size="14"></i><span class="d-grow">清空最近关闭</span></button>
+                      <div class="d-pop-foot">单例标签（Git 图谱 / 调用轨迹）不挂关闭钮 —— 它们不是「开着的标签」，是面板本身。</div>
+                    </div>
+
+                    <div class="d-t-xs d-t-faint">出现：点标签栏的「⋯」；消失：选中标签 / 点外面 / Esc。每次打开都清空上一次的查询词，别让人以为列表被过滤坏了。</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── 帧 E · 产品真实菜单逐条（落地照抄这张，不许自造） ───────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 产品真实菜单逐条清单<span class="d-grow"></span>项与文案都来自源码，不多不少</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="max-width:840px">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="list-tree" data-size="15"></i>四套真实菜单<span class="d-grow"></span>
+                  <span class="d-t-xs d-t-faint">来源：SessionRowContextMenuBridge · SessionActionsMenu · FileExplorer · ExplorerPanel</span></div>
+                <div class="d-card-body d-grid2" style="gap:var(--nx-sp-4)">
+                  <div class="d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-subhead">会话行右键</div>
+                    <div class="d-pop-row"><span class="d-pop-row-t">置顶 / 取消置顶</span><span class="d-pop-row-s">互斥，看当前态</span></div>
+                    <div class="d-pop-row"><span class="d-pop-row-t">归档 / 取消归档</span><span class="d-pop-row-s">互斥</span></div>
+                    <div class="d-pop-row"><span class="d-pop-row-t">导出为 HTML</span><span class="d-pop-row-s">新窗口打开 inline 导出页</span></div>
+                    <div class="d-pop-row"><span class="d-pop-row-t">复制会话引用</span><span class="d-pop-row-s">复制一条 @ 引用 · 点完原地翻「已复制」</span></div>
+                  </div>
+                  <div class="d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-subhead">会话动作菜单（⋯，12 项 / 3 段分隔）</div>
+                    <div class="d-t-xs d-t-faint">置顶 · 重命名会话 · 归档 · 标记为未读 ── 在访达中打开 · 复制路径 · 复制会话文件路径 · 复制会话 ID ── 系统提示词 · 工具定义 ── 导出为 HTML · 导出 Markdown（不含「复制分享链接」）</div>
+                    <div class="d-pop-row"><span class="d-pop-row-t">「系统提示词」「工具定义」</span>
+                      <span class="d-pop-row-s">这两项是顶栏同名浮窗的入口，不是新窗口</span></div>
+                    <div class="d-pop-row"><span class="d-pop-row-t">「删除」不在这份菜单里</span>
+                      <span class="d-pop-row-s">删除在侧栏会话行的 hover 钮上，且必须确认</span></div>
+                  </div>
+                  <div class="d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-subhead">文件树右键 · 文件</div>
+                    <div class="d-t-xs d-t-faint">打开 · 下载到本地 · 新建文件 · 新建文件夹 · 重命名 · 解压到此处（仅压缩包）· 压缩为 ZIP · 删除（危险项在末尾）</div>
+                    <div class="d-subhead">树行的行内动作（不是菜单行）</div>
+                    <div class="d-t-xs d-t-faint">将路径插入聊天（@ 引用）· 下载 · 复制路径</div>
+                  </div>
+                  <div class="d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-subhead">文件树右键 · 目录</div>
+                    <div class="d-t-xs d-t-faint">新建文件 · 新建文件夹 · 重命名 · 压缩为 ZIP · 删除（没有「打开 / 下载 / 解压」三行）</div>
+                    <div class="d-subhead">文件面板 · 头行动作（不是右键）</div>
+                    <div class="d-t-xs d-t-faint">在访达中打开 · 变更 · 上传 · 刷新 · 搜索文件 · 终端</div>
+                  </div>
+                </div>
+                <div class="d-pop-foot">
+                  <b>不许自造菜单项</b>：这一页列的是产品里真实存在的全部右键/动作菜单与面板动作，项与文案都来自源码。
+                  设计画板可以讨论某一项**要不要加**，但那是改产品范围 —— 要改先改产品，
+                  画板跟着改，不能反过来在画板上先长出一项。
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>一套原子拼出全部菜单</b>：行（8 种）、分组标题、发丝分隔线、搜索头、脚注。任何一块板要加菜单，只能从这里取件，不许现搓。</li>
+    <li><b>八种行</b>：普通 / 选中（图标位换对勾）/ 无图标 / 带快捷键 / 带子菜单 / 带反馈标签 / 禁用 / 危险。<b>禁用</b>是「点不动 + 字弱化」两档，<b>危险</b>是文字转红不是红底 —— 红底会把它抬成主行动。</li>
+    <li><b>子菜单只做一级</b>：右侧一枚 chevron，不做嵌套第二级（类型上就禁掉了）。</li>
+    <li><b>长菜单必须带搜索头</b>：新建任务、标签概览都带；worktree 列表的筛选框只在检出 ≥ 8 个时出现（小列表给常驻输入框是噪音）。内容区封顶后内部滚动，<b>搜索框不随内容滚</b>。</li>
+    <li><b>当前项留在原位打勾</b>，不抽到菜单顶上：抽走之后用户点了哪一行反而看不见了。置顶 / 归档这类开关态，文案跟着状态翻（置顶 ↔ 取消置顶）。</li>
+    <li><b>危险项永远沉底并单独成组</b>：文件树右键的最后一行、标签总览的最后一行，都是分隔线之下的单独一段。</li>
+    <li><b>路径动作簇不是菜单</b>：三个动作永远并排成行内按钮，不收进「⋯」—— 它挂的地方（文件树行尾、工具卡页脚）本来就是「用户已经看到路径了」，收进菜单等于把答案藏起来。四态：默认 / 已复制 / 失败多一枚徽章 / 紧凑变体三枚图标钮。</li>
+    <li><b>三种反馈各只说一次</b>：复制成功翻图标约 1.4 秒；系统动作成功不弹任何东西（结果在应用之外）；只有失败才多出一枚错误徽章。</li>
+    <li><b>宽度按内容收</b>：行内菜单 230、带副标题的 300–340。统一的是行的密度与配色，不是宽度。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

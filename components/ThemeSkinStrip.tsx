@@ -96,6 +96,10 @@ export function ThemeSkinStrip({
 
   return (
     <>
+      {/* fork:v5-landing 口径 —— `pw-skin-strip` / `pw-skin` 暂时保留：v5 全库没有
+          皮肤条的画板（D-07 帧 A 把皮肤入口画成一张 `.d-setcard` 弹层，改成那个
+          会删掉行内换肤行为），且 `board-specs/4x-47-frame*.mjs` 仍把它们当选择器。
+          条外的动作行与文案已换 `d-*`。 */}
       <div className="pw-skin-strip" role="radiogroup" aria-label={t("settings.skinLibrary")}>
         {[null, ...skins].map((skin) => {
           const id = skin?.id ?? THEME_SKIN_DEFAULT_ID;
@@ -118,7 +122,7 @@ export function ThemeSkinStrip({
               <SkinCardArt skin={skin} />
               <span className="cap">
                 {selected ? (
-                  <span className="pw-ico"><i data-ico="check" data-size="12" aria-hidden="true" /></span>
+                  <i data-ico="check" data-size="12" aria-hidden="true" />
                 ) : null}
                 {label}
               </span>
@@ -127,42 +131,42 @@ export function ThemeSkinStrip({
         })}
 
         <button type="button" className="pw-skin is-new" disabled={busy} onClick={onCreate}>
-          <span className="pw-btn sm">
-            <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+          <span className="d-btn sm">
+            <i data-ico="plus" data-size="13" aria-hidden="true" />
             {t("settings.skinNew")}
           </span>
         </button>
       </div>
 
-      <div className="pw-inline pw-skin-actions">
-        <button type="button" className="pw-btn outline sm" onClick={() => fileInputRef.current?.click()}>
-          <span className="pw-ico"><i data-ico="upload" data-size="13" aria-hidden="true" /></span>
+      <div className="d-row">
+        <button type="button" className="d-btn sm" onClick={() => fileInputRef.current?.click()}>
+          <i data-ico="upload" data-size="13" aria-hidden="true" />
           {t("settings.skinImport")}
         </button>
         <button
           type="button"
-          className="pw-btn outline sm"
+          className="d-btn sm"
           disabled={activeSkin === null}
           // fork:fix-disabled-title（2026-10-01）—— 禁用原因写 title（不写功能名）。
           // 默认外观下 activeSkin 为 null：它不是一份皮肤文件，既导不出也进不了工作室。
           title={activeSkin === null ? t("settings.skinActionsNeedCustom") : t("settings.skinExport")}
           onClick={() => activeSkin && onExport(activeSkin)}
         >
-          <span className="pw-ico"><i data-ico="download" data-size="13" aria-hidden="true" /></span>
+          <i data-ico="download" data-size="13" aria-hidden="true" />
           {t("settings.skinExport")}
         </button>
         <button
           type="button"
-          className="pw-btn outline sm"
+          className="d-btn sm"
           disabled={activeSkin === null}
           title={activeSkin === null ? t("settings.skinActionsNeedCustom") : t("settings.skinStudio")}
           onClick={() => activeSkin && onEdit(activeSkin.id)}
         >
-          <span className="pw-ico"><i data-ico="paintbrush" data-size="13" aria-hidden="true" /></span>
+          <i data-ico="paintbrush" data-size="13" aria-hidden="true" />
           {t("settings.skinStudio")}
         </button>
-        <span className="pw-grow" />
-        <span className="pw-mono pw-dim">{t("settings.skinNote")}</span>
+        <span className="d-grow" />
+        <span className="d-t-xs d-t-faint">{t("settings.skinNote")}</span>
         <input
           ref={fileInputRef}
           type="file"

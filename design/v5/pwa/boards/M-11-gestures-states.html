@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-11 · 手势与系统态 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-11 · 手势与系统态</h1>
+  <p>
+    手机上有一半的「操作」根本不是控件：下拉、侧滑、长按。用户看不见它们，只能靠一次成功或失败来学会。
+    所以这一张把它们<b>写死成规则而不是留给感觉</b>：下拉刷新<b>一句话说完</b>、侧滑返回<b>只占左缘 28px</b>、
+    长按菜单<b>永远是底部面板</b>、触控目标<b>44 是硬下限</b>而不是建议值。
+    后几帧是规格：<b>触控目标三档表</b>、<b>系统态清单（九宫格 + 3）</b>与<b>应用级错误页两级</b>，
+    再加一帧把四种反馈钉死 —— <b>已发生 / 要选择 / 正在做 / 4 秒确认</b>，
+    这四者用错一个，用户就会把「进行中」当成「卡住了」。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：手势规格 / 系统态清单 / 反馈四型</span>
+    <span class="m-doc-tag">组件：m-pull · m-swipe · m-menu-sheet · m-modal · m-sizebox · m-skel · m-toast</span>
+    <span class="m-doc-tag">状态：下拉 / 侧滑 / 长按 / 空载错 / 反馈四态</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 下拉刷新 + 侧滑返回 ──────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 拉与滑 · <b>左</b>：下拉刷新 <span class="m-mono">.m-pull</span>，一句话规则写在面板里｜<b>右</b>：侧滑返回 <span class="m-mono">.m-swipe</span> 只占左缘 28px，竖条与提示胶囊按压才出现</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- A-1 · 下拉刷新 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-sheet" id="sheet-pull">
+          <div class="m-sheet-grab"></div>
+          <div class="m-sheet-title">下拉刷新</div>
+          <div class="m-sheet-body">
+            <div class="m-banner">
+              <i data-ico="info" data-size="14"></i>
+              <span class="m-grow"><b>一句话规则：已经在顶才拉，拉过 64px 松手刷新，不够就弹回去 —— 刷新永远不动你正在写的草稿。</b></span>
+            </div>
+            <div class="m-sep"></div>
+            <div class="m-rowlabel">三档，间距就是全部反馈</div>
+            <div data-demo-list>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="arrow-down" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">0 – 24px · 提示</span>
+                  <span class="m-sheet-row-desc">跟着手指走，箭头朝下：你在拉，但还没到</span>
+                </span>
+              </button>
+              <button class="m-sheet-row is-on" data-demo-select>
+                <i data-ico="refresh-cw" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">24 – 64px · 到位</span>
+                  <span class="m-sheet-row-desc">圆点转一圈、字换成「松手刷新」—— 到这里就够了，不要再给第二段动画</span>
+                </span>
+              </button>
+              <button class="m-sheet-row" data-demo-select>
+                <i data-ico="loader-circle" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">过 64px 松手 · 执行</span>
+                  <span class="m-sheet-row-desc">内容整体下沉 64px 让位，刷新完成后原地复位，不跳回顶部</span>
+                </span>
+              </button>
+            </div>
+            <div class="m-sep"></div>
+            <div class="m-rowlabel">三条不许</div>
+            <div class="m-cardgroup">
+              <div class="m-setrow">
+                <i data-ico="circle-x" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">不在顶部也能拉</span>
+                  <span class="m-setrow-s">列表在中间时下拉是滚动手势，抢过来只会让人以为卡住</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="circle-x" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">刷新时清空草稿或收键盘</span>
+                  <span class="m-setrow-s">刷新与输入无关，草稿必须原样留着</span>
+                </span>
+              </div>
+              <div class="m-setrow">
+                <i data-ico="circle-x" data-size="16"></i>
+                <span class="m-setrow-body">
+                  <span class="m-setrow-t">松手后跳回列表顶部</span>
+                  <span class="m-setrow-s">用户的位置是他自己的，不该被一次刷新拿走</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="m-pickbar">
+            <button class="m-picktag is-on" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-pull">收起 / 再打开</button>
+          </div>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+          <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-pull" title="下拉刷新规则"><i data-ico="circle-help" data-size="16"></i></button>
+        </div>
+
+        <!-- 下拉指示器：位置即状态，不是一个按钮 -->
+        <div class="m-pull" id="pull-a">
+          <span class="m-badge mute"><i data-ico="refresh-cw" data-size="12"></i>松手刷新</span>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-msg-user">下拉刷新到底拉多少？</div>
+          <div class="m-md">
+            <p>就一句话：<b>已经在顶才拉，拉过 64px 松手刷新，不够就弹回去，刷新不动你正在写的草稿。</b></p>
+            <p>指示器住在顶栏之下、消息之上，跟着手指走；到位之前它只换图标不换位置，因为<b>位置本身就在讲「你在拉动这一屏」</b>，不需要再加一层动画。</p>
+            <p>触发时整屏内容下沉 64px 让出指示器的位置，刷新完原地复位 —— 用户的滚动位置是他的，不该被一次刷新拿走。</p>
+          </div>
+        </div>
+
+        <div class="m-fade-tail"></div>
+
+        <div class="m-composer-wrap">
+          <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="刷新时这句还在">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+        </div>
+         <div class="m-sheet is-open" data-demo-pop="cap-sheet" id="cap-sheet">
+      <div class="m-sheet-grab"></div>
+      <div class="m-sheet-title">能力</div>
+      <div class="m-sheet-body">
+        <div class="m-group-title">这一轮怎么跑</div>
+        <button class="m-sheet-row"><i data-ico="cpu" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">模型</span><span class="m-setrow-s">claude-opus-4-6 · 200k 上下文</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="brain" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">思考强度</span><span class="m-setrow-s">中 · 4,096 token 预算</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="shield-check" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">权限</span><span class="m-setrow-s">需审批 · 非只读调用先弹审批卡</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><i data-ico="wrench" data-size="16"></i><span class="m-setrow-body"><span class="m-setrow-t">工具与上下文</span><span class="m-setrow-s">默认集 · 已引用 2 个文件</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <button class="m-sheet-row"><span class="m-ring" style="--p:18"></span><span class="m-setrow-body"><span class="m-setrow-t">上下文占用</span><span class="m-setrow-s">18.4k / 200k · 缓存命中 71%</span></span><i data-ico="chevron-right" data-size="14"></i></button>
+        <div class="m-sheet-foot">五项都只影响**这一轮**：会话级的默认值在设置里，这里改完不写盘。</div>
+      </div>
+    </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- A-2 · 侧滑返回 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="返回上一页"><i data-ico="arrow-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">设置 · 输入与发送</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-swipe">
+          <div class="m-swipe-edge"></div>
+        </div>
+
+        <div class="m-scroll" style="padding-left:var(--nx-sp-8)">
+          <div class="m-msg-user">二级页能不能往右滑回去？</div>
+          <div class="m-md">
+            <p>能，但<b>只有左缘 28px 能触发</b>：横向滑动是「这一页的历史」，纵向滑动是「滚内容」，两者分开。<span class="m-mono">.m-swipe</span> 就是这 28px 的命中带，按下去才出现竖条与提示胶囊。</p>
+            <p>松手后压入下面的是<b>上一页（整页推入）</b>，不是弹层 —— 手机的分节二级页本来就是整页，导航范式与桌面同构。</p>
+          </div>
+
+          <div class="m-doc-frame">
+            <div class="m-doc-head"><i data-ico="arrow-left" data-size="14"></i><span>松手后压入的那一页（示意）</span></div>
+            <div class="m-doc-body">
+              <div class="m-setrow-t m-t-b">设置</div>
+              <div class="m-row-m m-t-xs"><i data-ico="chevron-left" data-size="12"></i><span>hub · 卡片分组</span><span>·</span><span>第 2 层</span></div>
+              <div class="m-sep"></div>
+              <div class="m-t-xs m-t-faint">整页推入，右侧边缘留一条能点得到的返回带；顶栏左钮与这条带指同一个动作。</div>
+            </div>
+          </div>
+
+          <div class="m-sep"></div>
+          <button class="m-btn sm" data-demo-motion="#swipe-hint-a2">重播提示胶囊</button>
+          <div class="m-t-xs m-t-faint">提示胶囊只说<b>松手会发生什么</b>，不教用户怎么用 —— 手势不可发现，所以要给一个常驻的等价入口（顶栏左钮）。</div>
+        </div>
+
+        <!-- 松手提示胶囊：按压才出现 -->
+        <div class="m-swipe-hint is-open" id="swipe-hint-a2">
+          <i data-ico="arrow-left" data-size="13"></i>
+          <span class="m-grow">松手返回「设置」</span>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 B · 长按菜单 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 长按菜单 · <b>左</b>：会话行长按 → 底部菜单 <span class="m-mono">.m-menu-sheet</span>（12 项 / 3 段，与 Web 逐字一致）｜<b>中</b>：文件行长按 → 同一形态、不同条目 —— 长按的形态永远一样，内容才不一样｜<b>右</b>：删除会话 → 危险确认 <span class="m-mono">.m-modal</span>（标题写清会话名，按钮 = 取消 / 删除）</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- B-1 · 会话行长按 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-menu-sheet" id="menu-session">
+          <div class="m-menu-sheet-title">「手机端顶栏瘦身收尾」· 会话</div>
+          <button class="m-menu-row"><i data-ico="pin" data-size="15"></i><span class="m-grow">置顶</span></button>
+          <button class="m-menu-row"><i data-ico="square-pen" data-size="15"></i><span class="m-grow">重命名会话</span></button>
+          <button class="m-menu-row"><i data-ico="archive" data-size="15"></i><span class="m-grow">归档</span></button>
+          <button class="m-menu-row"><i data-ico="message-circle" data-size="15"></i><span class="m-grow">标记为未读</span></button>
+          <div class="m-sep"></div>
+          <button class="m-menu-row"><i data-ico="folder-open" data-size="15"></i><span class="m-grow">在访达中打开</span></button>
+          <button class="m-menu-row"><i data-ico="folder" data-size="15"></i><span class="m-grow">复制路径</span></button>
+          <button class="m-menu-row"><i data-ico="file-text" data-size="15"></i><span class="m-grow">复制会话文件路径</span></button>
+          <button class="m-menu-row"><i data-ico="hash" data-size="15"></i><span class="m-grow">复制会话 ID</span></button>
+          <div class="m-sep"></div>
+          <button class="m-menu-row"><i data-ico="file-text" data-size="15"></i><span class="m-grow">系统提示词</span></button>
+          <button class="m-menu-row"><i data-ico="wrench" data-size="15"></i><span class="m-grow">工具定义</span></button>
+          <div class="m-sep"></div>
+          <button class="m-menu-row"><i data-ico="download" data-size="15"></i><span class="m-grow">导出为 HTML</span></button>
+          <button class="m-menu-row"><i data-ico="download" data-size="15"></i><span class="m-grow">导出 Markdown</span></button>
+          <div class="m-sheet-foot">删除不在菜单里 —— 会丢数据的动作一律走确认模态，不放长按菜单。</div>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">会话</span>
+          <button class="m-top-btn" title="命令中心"><i data-ico="search" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-group-title">今天</div>
+          <div class="m-list" data-demo-list>
+            <button class="m-row" data-demo-select>
+              <span class="m-row-t">设计体系 V5 · PWA 画板</span>
+              <span class="m-row-m"><span class="m-run"><i data-ico="loader-circle" data-size="12"></i>运行中</span><span>·</span><span>14 条</span></span>
+            </button>
+            <button class="m-row" data-demo-drawer="toggle" data-demo-drawer-target="#menu-session" title="长按这一行（示例：直接点）">
+              <span class="m-row-t">手机端顶栏瘦身收尾</span>
+              <span class="m-row-m"><span class="m-badge warn">等你处理</span><span>·</span><span>22 条</span></span>
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+            </button>
+            <button class="m-row" data-demo-select>
+              <span class="m-row-t">定时任务错峰执行</span>
+              <span class="m-row-m"><span>14:20</span><span>·</span><span>9 条</span><span class="m-dot ok"></span></span>
+            </button>
+          </div>
+          <div class="m-group-title">长按列表行 → 底部菜单，不弹出上下文气泡</div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- B-2 · 文件行长按 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim" data-demo-scrim></div>
+        <div class="m-menu-sheet" id="menu-file">
+          <div class="m-menu-sheet-title">system.css · design/v5/pwa</div>
+          <button class="m-menu-row"><i data-ico="copy" data-size="15"></i><span class="m-grow">复制路径</span></button>
+          <button class="m-menu-row"><i data-ico="at-sign" data-size="15"></i><span class="m-grow">加入输入引用</span></button>
+          <button class="m-menu-row"><i data-ico="eye" data-size="15"></i><span class="m-grow">在查看器打开</span></button>
+          <button class="m-menu-row"><i data-ico="file-diff" data-size="15"></i><span class="m-grow">看改动</span></button>
+          <div class="m-sep"></div>
+          <button class="m-menu-row"><i data-ico="share-2" data-size="15"></i><span class="m-grow">发给桌面端</span></button>
+          <button class="m-menu-row"><i data-ico="copy" data-size="15"></i><span class="m-grow">复制内容</span></button>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="返回"><i data-ico="arrow-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">design/v5/pwa</span>
+          <button class="m-top-btn" title="搜索"><i data-ico="search" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-group-title">pwa/</div>
+          <div class="m-list" data-demo-list>
+            <button class="m-row" data-demo-select>
+              <span class="m-row-t m-mono">tokens.css</span>
+              <span class="m-row-m"><span>形态值</span><span>·</span><span>2.1KB</span></span>
+            </button>
+            <button class="m-row" data-demo-drawer="toggle" data-demo-drawer-target="#menu-file" title="长按这一行（示例：直接点）">
+              <span class="m-row-t m-mono">system.css</span>
+              <span class="m-row-m"><span>组件库</span><span>·</span><span>18KB</span></span>
+              <span class="m-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
+            </button>
+            <button class="m-row" data-demo-select>
+              <span class="m-row-t m-mono">boards/</span>
+              <span class="m-row-m"><i data-ico="folder" data-size="12"></i><span>12 张画板</span></span>
+            </button>
+          </div>
+          <div class="m-group-title">长按 = 底部面板，永远不是右上角的小气泡</div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- B-3 · 删除会话 · 危险确认 -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-scrim is-open" data-demo-scrim></div>
+        <div class="m-modal is-open">
+          <div class="m-modal-box">
+            <div class="m-modal-head">删除会话「手机端顶栏瘦身收尾」？</div>
+            <div class="m-modal-body">
+              <div>这条会话的 22 条消息、3 个检查点与 2 个附件会一起删除，<b>删除后无法撤销</b>。</div>
+              <div class="m-code">
+                <div class="m-code-head"><i data-ico="trash-2" data-size="13"></i><span class="m-grow">会被删除的内容</span><span class="m-badge bad">不可逆</span></div>
+                <div class="m-code-body">22 条消息<br>3 个检查点<br>2 个附件</div>
+              </div>
+              <div>想留一份就先取消，用会话动作菜单里的「导出为 HTML」带走再删。</div>
+            </div>
+            <div class="m-modal-foot">
+              <button class="m-btn ghost">取消</button>
+              <button class="m-btn danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">会话</span>
+          <button class="m-top-btn" title="命令中心"><i data-ico="search" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-group-title">今天</div>
+          <div class="m-list" data-demo-list>
+            <button class="m-row" data-demo-select>
+              <span class="m-row-t">手机端顶栏瘦身收尾</span>
+              <span class="m-row-m"><span class="m-badge warn">等你处理</span><span>·</span><span>22 条</span></span>
+            </button>
+          </div>
+          <div class="m-group-title">删除的唯一入口不在长按菜单里 —— 走「会话信息 / 侧滑动作 → 删除」，然后必须在这里点头</div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 C · 触控目标规格表 ──────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 触控目标规格表 · 三档 44 / 48 / 56，<b>44 是硬下限不是建议值</b>；方块按<b>真实像素</b>画 —— 规格表本身必须是真的，否则等于没写</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回"><i data-ico="arrow-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">触控目标规格</span>
+        <button class="m-top-btn" title="更多"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+
+        <div class="m-banner">
+          <i data-ico="square-mouse-pointer" data-size="14"></i>
+          <span class="m-grow"><b>44px 是命中区，不是视觉高度。</b>一个 28px 的小钮可以四周补 padding 凑到 44，但它<b>自己</b>永远不许小于 44。</span>
+        </div>
+
+        <!-- 44 档 -->
+        <div class="m-cardgroup">
+          <div class="m-doc-body">
+            <div class="nx-row" style="gap:var(--nx-sp-3)">
+              <div class="m-touch-44" style="border:1px dashed var(--nx-line-hi);border-radius:var(--nx-r-pill);display:flex;align-items:center;justify-content:center;background:var(--nx-panel);flex:0 0 auto">
+                <i data-ico="check" data-size="16"></i>
+              </div>
+              <div class="m-grow">
+                <div class="m-setrow-t m-t-b">44 · 硬下限</div>
+                <div class="m-setrow-s">列表行 · 顶栏钮 · chip · 分段钮 · 菜单行 · 开关（29 高但命中 44）</div>
+                <div class="m-row-m m-t-xs"><span class="m-dot ok"></span><span>出现的频率最高，所以是下限</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="chevron-right" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">密集相邻时还要再加 8px 间距</span>
+              <span class="m-setrow-s">托盘 chip 一排挤在一起时，命中区之间必须留出 <span class="m-math">--nx-sp-2</span>，否则误触率比尺寸问题更致命</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- 48 档 -->
+        <div class="m-cardgroup">
+          <div class="m-doc-body">
+            <div class="nx-row" style="gap:var(--nx-sp-3)">
+              <div class="m-touch-48" style="border:1px dashed var(--nx-line-hi);border-radius:var(--nx-r-pill);display:flex;align-items:center;justify-content:center;background:var(--nx-accent-soft);color:var(--nx-accent);flex:0 0 auto">
+                <i data-ico="arrow-up" data-size="18"></i>
+              </div>
+              <div class="m-grow">
+                <div class="m-setrow-t m-t-b">48 · 跨屏高频</div>
+                <div class="m-setrow-s">发送钮 · 停止钮 · 顶栏抽屉钮 · 遮罩返回 · 一级行动钮</div>
+                <div class="m-row-m m-t-xs"><span class="m-dot run"></span><span>拇指移动最远、最容易落空的那几个</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 56 档 -->
+        <div class="m-cardgroup">
+          <div class="m-doc-body">
+            <div class="nx-row" style="gap:var(--nx-sp-3)">
+              <div class="m-touch-56" style="border:1px dashed var(--nx-line-hi);border-radius:var(--nx-r-md);display:flex;align-items:center;justify-content:center;background:var(--nx-surface);color:var(--nx-text-2);flex:0 0 auto">
+                <i data-ico="paperclip" data-size="18"></i>
+              </div>
+              <div class="m-grow">
+                <div class="m-setrow-t m-t-b">56 · 主力与长按</div>
+                <div class="m-setrow-s">附件钮 · 输入卡加号 · 长按目标 · 图标网格单元 · 浏览器页签</div>
+                <div class="m-row-m m-t-xs"><span class="m-dot warn"></span><span>手指粗、握持偏、单手持机时给这一档</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <i data-ico="circle-x" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">不许出现的三种控件</span>
+              <span class="m-setrow-s">小于 44 的图标裸钮 · 一行里挤三个以上等宽钮 · 靠长按才能完成的唯一入口</span>
+            </span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="circle-check" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">长按只能是加速，不是唯一路</span>
+              <span class="m-setrow-s">帧 B 里长按菜单的每一条，都必须能在别处找到同款入口；桌面有右键，手机有长按，键盘有菜单键</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="m-t-xs m-t-faint" style="text-align:center">本页三档与 <span class="m-mono">--nx-touch-min</span> / <span class="m-mono">--nx-ctl-md</span> / <span class="m-mono">--nx-ctl-lg</span> 一一对应，改令牌就改规格，不用改这里</div>
+
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 系统态清单（九宫格 + 3）─────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 系统态清单（九宫格 + 3） · 与 Web D-26 / D-26b 对齐：补上「确认对话」「错误页」；断网 / 通知 / PWA 安装 标为 PWA 特有（登记豁免）。每一格写清<b>它是什么 / 现在能干什么 / 什么时候会消失</b></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--nx-sp-3);width:1140px">
+
+    <!-- ① 空态 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="inbox" data-size="14"></i><span>① 空态</span><span class="m-grow"></span><span class="m-badge mute">不是错误</span></div>
+      <div class="m-doc-body">
+        <div class="m-empty" style="padding:var(--nx-sp-2) 0">
+          <div class="m-empty-ico"><i data-ico="message-circle" data-size="18"></i></div>
+          <div class="m-empty-t m-t-cap">还没有消息</div>
+          <div class="m-empty-s m-t-xs">说一句就开始，或 <span class="m-kbd">@</span> 提一个文件</div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：用户做的动作成功了，只是结果集为空。必须给一个可点的下一步，且<b>不许用问号图标</b>（那是求助，不是空）。</div>
+      </div>
+    </div>
+
+    <!-- ② 骨架 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="rows-3" data-size="14"></i><span>② 骨架</span><span class="m-grow"></span><span class="m-badge mute">等 &lt; 400ms 别画</span></div>
+      <div class="m-doc-body">
+        <div class="m-skel-list">
+          <div class="m-skel m-skel-50"></div>
+          <div class="m-skel m-skel-50"></div>
+          <div class="m-skel m-skel-50"></div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：<b>形状要等于将来的内容</b>，不能画成一片灰。超过 400ms 还没回来，就必须换成「还在加载 + 已用 1.2s」而不是继续闪。</div>
+      </div>
+    </div>
+
+    <!-- ③ 错误 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="triangle-alert" data-size="14"></i><span>③ 错误</span><span class="m-grow"></span><span class="m-badge bad">可重试</span></div>
+      <div class="m-doc-body">
+        <div class="m-tool">
+          <div class="m-tool-head">
+            <i data-ico="circle-x" data-size="14"></i>
+            <span class="m-grow">这一轮没跑完</span>
+            <span class="m-badge bad">退出 1</span>
+          </div>
+          <div class="m-code-body m-t-xs">
+            <span class="m-term-prompt">$</span> node check-v5.mjs<br>
+            <span class="m-err">TypeError: icons.js 没 hydrate</span>
+          </div>
+        </div>
+        <div class="m-pickbar" style="padding:var(--nx-sp-2) 0 0">
+          <button class="m-btn sm">看日志</button>
+          <button class="m-btn sm primary">重试这一步</button>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：写清<b>哪一步</b>失败与<b>原因</b>，并保住已完成的部分 —— 重试从失败那一步接，不从头再来。</div>
+      </div>
+    </div>
+
+    <!-- ④ 断网 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="unplug" data-size="14"></i><span>④ 断网</span><span class="m-grow"></span><span class="m-badge warn">代价要写清</span><span class="m-badge mute">PWA 特有 · 豁免</span></div>
+      <div class="m-doc-body">
+        <div class="m-banner">
+          <i data-ico="unplug" data-size="14"></i>
+          <span class="m-grow">已断网 · 只读本地。发送会排队，联网后自动续跑。</span>
+        </div>
+        <div class="m-pickbar" style="padding:var(--nx-sp-2) 0 0">
+          <button class="m-btn sm">仍要写</button>
+          <button class="m-btn sm">排队</button>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：断网<b>不阻断滚动也不阻断阅读</b>；条上必须写代价，不能只写「网络错误」。「仍要写」= 排队，「排队」= 立刻提交 —— 两件事说清区别。</div>
+      </div>
+    </div>
+
+    <!-- ⑤ 权限请求 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="shield-alert" data-size="14"></i><span>⑤ 权限请求</span><span class="m-grow"></span><span class="m-badge warn">要用户选</span></div>
+      <div class="m-doc-body">
+        <div class="m-perm">
+          <div class="m-setrow-body">
+            <span class="m-setrow-t m-t-xs">要跑 <span class="m-mono">git status</span></span>
+            <span class="m-setrow-s m-t-xs">当前目录尚未信任</span>
+          </div>
+          <div class="m-pickbar" style="padding:0">
+            <button class="m-picktag">拒绝</button>
+            <button class="m-picktag is-on">信任一次</button>
+          </div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：就地出现、<b>说清要做什么、在哪个目录做</b>，两个按钮（允许 / 拒绝）都要能一直按着。拒绝不是死路 —— 拒绝后给一句「那你想怎么做」。</div>
+      </div>
+    </div>
+
+    <!-- ⑥ 通知 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="bell" data-size="14"></i><span>⑥ 通知</span><span class="m-grow"></span><span class="m-badge ok">已推送</span><span class="m-badge mute">PWA 特有 · 豁免</span></div>
+      <div class="m-doc-body">
+        <div class="m-banner">
+          <i data-ico="circle-check" data-size="14"></i>
+          <span class="m-grow"><b>PI NEXT</b> · 手机端顶栏瘦身收尾跑完了 · 4 分 12 秒</span>
+          <button class="m-branch">打开</button>
+        </div>
+        <div class="m-pickbar" style="padding:var(--nx-sp-2) 0 0">
+          <button class="m-btn sm">这条类型默认开</button>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：通知只在<b>人不在屏前</b>时推；三条规矩 —— 只推结束与失败、标题写结果不写「有新消息」、进应用后同一件事<b>不再用横幅重复一遍</b>。</div>
+      </div>
+    </div>
+
+    <!-- ⑦ Toast -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="message-circle-question" data-size="14"></i><span>⑦ Toast</span><span class="m-grow"></span><span class="m-badge mute">4 秒自退</span></div>
+      <div class="m-doc-body">
+        <div style="position:relative;min-height:72px;display:flex;align-items:flex-end">
+          <div class="m-toast" style="left:var(--nx-sp-2);bottom:0;transform:none">
+            <i data-ico="copy" data-size="14"></i>
+            <span>已复制路径</span>
+          </div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：只确认<b>已经发生</b>的事，固定 4 秒自退（与 Web 同一个值），不放按钮，不放提问。上面有更新浮条时用 <span class="m-mono">.m-toast.above</span> 抬上去，否则两者一定叠。</div>
+      </div>
+    </div>
+
+    <!-- ⑧ 运行中 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="loader-circle" data-size="14"></i><span>⑧ 运行中</span><span class="m-grow"></span><span class="m-badge ok">可打断</span></div>
+      <div class="m-doc-body">
+        <div class="m-tool">
+          <div class="m-tool-head">
+            <i data-ico="terminal" data-size="14"></i>
+            <span class="m-grow">正在跑门禁 · 第 2 / 4 步</span>
+            <span class="m-badge warn">3 分 12 秒</span>
+          </div>
+          <div class="m-steps">
+            <div class="m-step-row done"><span class="m-step-dot"></span><span>读 12 个画板</span><span class="m-step-n">1.2s</span></div>
+            <div class="m-step-row run"><span class="m-step-dot"></span><span>校验令牌与类</span><span class="m-step-n">3.1s</span></div>
+            <div class="m-step-row"><span class="m-step-dot"></span><span>渲染截图</span><span class="m-step-n">—</span></div>
+          </div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：进度条旁边必须有<b>秒数</b>；超过 30 秒才显示「仍在运行，已用 2 分」。用户看着转圈却不知道过了多久，就会以为卡死了。</div>
+      </div>
+    </div>
+
+    <!-- ⑨ 流式 -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="wand-sparkles" data-size="14"></i><span>⑨ 流式</span><span class="m-grow"></span><span class="m-badge mute">按语义断句</span></div>
+      <div class="m-doc-body">
+        <div class="m-md m-t-sm">
+          <p class="m-text-live" id="stream-d">这一段的最后一行还在流式输出<span class="m-caret"></span></p>
+        </div>
+        <div class="m-stream m-t-xs m-t-faint" id="stream-p">
+          <p>已经落定的段落<span class="pending"> · 还没到的下一段</span></p>
+        </div>
+        <div class="m-pickbar" style="padding:var(--nx-sp-2) 0 0">
+          <button class="m-btn sm" data-demo-stream="#stream-d">重播这一段</button>
+          <button class="m-btn sm" data-demo-stream="#stream-p" data-demo-stream-mode="char">逐字重播</button>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：中文按<b>标点</b>成段（一次吐一句），不是逐字 —— 逐字会让中文读者读到一半的词。没到的段落用 <span class="m-mono">.pending</span> 压暗，不用删除占位。</div>
+      </div>
+    </div>
+
+    <!-- ⑩ 确认对话（与 Web D-26 帧 A 同一盒） -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="shield-alert" data-size="14"></i><span>⑩ 确认对话</span><span class="m-grow"></span><span class="m-badge bad">不可逆才弹</span></div>
+      <div class="m-doc-body">
+        <div class="m-modal inline">
+          <div class="m-modal-box">
+            <div class="m-modal-head m-t-cap">删除会话「手机端顶栏瘦身收尾」？</div>
+            <div class="m-modal-body m-t-xs">22 条消息、3 个检查点与 2 个附件会一并删除，无法撤销。</div>
+            <div class="m-modal-foot">
+              <button class="m-btn sm ghost">取消</button>
+              <button class="m-btn sm danger">删除</button>
+            </div>
+          </div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：只有<b>不可逆或会离开当前上下文</b>的动作才弹；标题写清作用对象，按钮两个 = <b>取消 / 删除</b>（危险色）。删除会话、回滚、移除 worktree 都走这一屏；长按菜单里不放删除。</div>
+      </div>
+    </div>
+
+    <!-- ⑪ 错误页（应用级两级） -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="triangle-alert" data-size="14"></i><span>⑪ 错误页</span><span class="m-grow"></span><span class="m-badge bad">两级都要重试</span></div>
+      <div class="m-doc-body">
+        <div class="m-empty" style="padding:var(--nx-sp-2) 0">
+          <div class="m-empty-ico" style="width:32px;height:32px;color:var(--nx-danger)"><i data-ico="triangle-alert" data-size="16"></i></div>
+          <div class="m-empty-t m-t-cap">界面出错了</div>
+          <div class="m-empty-s m-t-xs">段级 · app/error.tsx · 带主题 token · digest 8f3c1a92</div>
+          <button class="m-btn sm"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+        </div>
+        <div class="m-sep"></div>
+        <div style="background:Canvas;color:CanvasText;border-radius:var(--nx-r-sm);padding:var(--nx-sp-3);display:flex;flex-direction:column;gap:var(--nx-sp-2)">
+          <div class="m-t-xs m-t-b">应用启动失败 / Failed to start</div>
+          <div class="m-t-xs">根级 · app/global-error.tsx · 无主题 token · 跟系统色 Canvas / CanvasText</div>
+          <div class="m-pickbar" style="padding:0">
+            <button class="m-btn sm"><i data-ico="rotate-cw" data-size="12"></i>重试</button>
+            <button class="m-btn sm"><i data-ico="refresh-cw" data-size="12"></i>重新加载</button>
+          </div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：段级带主题色，根级只剩系统色；两级都<b>必须给「重试」</b> —— 错误页不给第三颗按钮，白屏与只给「确定」都不许出现。</div>
+      </div>
+    </div>
+
+    <!-- ⑫ PWA 安装（平台特有，登记豁免） -->
+    <div class="m-doc-frame">
+      <div class="m-doc-head"><i data-ico="smartphone" data-size="14"></i><span>⑫ PWA 安装</span><span class="m-grow"></span><span class="m-badge mute">PWA 特有 · 豁免</span></div>
+      <div class="m-doc-body">
+        <div class="m-step-card">
+          <span class="m-step-dot-lg">1</span>
+          <div class="m-step-row-2">
+            <span class="m-setrow-t m-t-xs">加到主屏幕</span>
+            <span class="m-setrow-s">装完的 standalone 首启分三步（连电脑 → 信任目录 → 完成），三步各带开关，跳过也能进应用。</span>
+          </div>
+        </div>
+        <div class="m-sep"></div>
+        <div class="m-t-xs m-t-faint"><b>判据</b>：<b>PWA 特有，桌面没有这一屏</b>；完整规格见 M-10。不为了对齐 Web 硬造一个等价物，登记为平台豁免。</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── 帧 E · 四种反馈 ────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 E</b> · 四种反馈 · <span class="m-mono">.m-banner</span> <b>已经发生</b>｜<span class="m-mono">.m-perm</span> <b>要你选</b>｜<span class="m-mono">.m-run</span> <b>正在做</b>｜<span class="m-mono">.m-toast</span> <b>4 秒确认</b> —— 用错一个，用户就会把「进行中」读成「卡住了」</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">四种反馈各归各位</span>
+        <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+
+        <div class="m-msg-user">这四种提示分别什么时候用？</div>
+
+        <div class="m-md">
+          <h2>一 · 已经发生 → 横幅</h2>
+          <p><span class="m-mono">.m-banner</span> 贴在内容里，说一件<b>不需要回答</b>的事。它可以一直留着，因为信息不会过期。</p>
+        </div>
+
+        <div class="m-banner">
+          <i data-ico="circle-check" data-size="14"></i>
+          <span class="m-grow">已同步 2 个会话，索引会在 30 秒内跟上。</span>
+          <button class="m-branch">查看</button>
+        </div>
+
+        <div class="m-md">
+          <h2>二 · 要你选 → 就地询问</h2>
+          <p><span class="m-mono">.m-perm</span> 出现在动作发生的地方，<b>不做成横幅、不飘过屏幕</b>。它必须一直待着，直到用户回答 —— 飘过去的提示等于没有。</p>
+        </div>
+
+        <div class="m-perm">
+          <div class="m-setrow-body">
+            <span class="m-setrow-t">要在这个目录里执行 <span class="m-mono">pnpm test</span></span>
+            <span class="m-setrow-s">~/Projects/pi-next · 可能改写 1 个快照文件</span>
+          </div>
+          <div class="m-pickbar" style="padding:0">
+            <button class="m-picktag">拒绝</button>
+            <button class="m-picktag">改一次再跑</button>
+            <button class="m-picktag is-on">信任一次并运行</button>
+          </div>
+        </div>
+
+        <div class="m-md">
+          <h2>三 · 正在做 → 一行进度</h2>
+          <p><span class="m-mono">.m-run</span> 就写在消息流里，<b>和它描述的事情待在同一个位置</b>。它必须带秒数与「第几步」，否则转圈只是装饰。</p>
+        </div>
+
+        <div class="m-run"><i data-ico="loader-circle" data-size="14"></i>正在跑第 3 / 4 步 · 1 分 04 秒</div>
+
+        <div class="m-md">
+          <h2>四 · 4 秒确认 → Toast</h2>
+          <p><span class="m-mono">.m-toast</span> 只确认<b>轻量的、已经做完的</b>操作：复制了、存了、开了。它<b>没有按钮，也不提问</b> —— 需要回答的事就该待在原地等你。</p>
+        </div>
+
+        <div class="m-sep"></div>
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <i data-ico="circle-x" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">不许做的三件事</span>
+              <span class="m-setrow-s">用 Toast 提问 · 用横幅要求确认 · 让「正在做」只显示一个转圈</span>
+            </span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="circle-check" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">同屏只允许一个 Toast、一个问题</span>
+              <span class="m-setrow-s">第二个问题到了，第一个还在等 —— 那就让第二个排进队列，不要叠两块卡片</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="m-t-xs m-t-faint">本帧底部那条 <span class="m-mono">.m-toast</span> 就是第四种，它 4 秒后会自己退（与 Web 同一个值）；上面有更新浮条时它会抬到浮条之上。</div>
+
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-toast">
+        <i data-ico="copy" data-size="14"></i>
+        <span>已复制路径</span>
+      </div>
+
+      <div class="m-composer-wrap">
+        <div class="m-composer">
+      <div class="m-composer-row">
+        <button class="m-composer-plus"><i data-ico="plus" data-size="19"></i></button>
+        <input class="m-input" placeholder="发出去会排在运行中这一轮之后">
+        <button class="m-cap-btn" data-demo-open="cap-sheet" title="能力 · 模型 / 思考强度 / 权限 / 工具与上下文" aria-label="能力设置"><i data-ico="sliders-horizontal" data-size="17"></i></button>
+        <button class="m-iconbtn" title="完成提示音"><i data-ico="volume-2" data-size="17"></i></button>
+        <button class="m-send" title="发送"><i data-ico="arrow-up" data-size="18"></i></button>
+      </div>
+    </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 F · 应用级错误页两级 ────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 F</b> · 应用级错误页两级 · <b>左</b>：段级 <span class="m-mono">app/error.tsx</span> 带主题 token｜<b>右</b>：根级 <span class="m-mono">app/global-error.tsx</span> 无 token、跟系统色 —— 两级都必须给「重试」</div>
+  <div class="nx-row" style="gap:var(--nx-sp-4)">
+
+    <!-- F-1 · 段级（有主题） -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner">
+
+        <div class="m-fade"></div>
+
+        <div class="m-top">
+          <button class="m-top-btn" title="返回"><i data-ico="arrow-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">界面出错了</span>
+          <button class="m-top-btn" title="会话信息"><i data-ico="ellipsis" data-size="16"></i></button>
+        </div>
+
+        <div class="m-scroll">
+          <div class="m-empty">
+            <div class="m-empty-ico" style="color:var(--nx-danger)"><i data-ico="triangle-alert" data-size="22"></i></div>
+            <div class="m-empty-t">界面出错了</div>
+            <div class="m-empty-s">界面遇到了意外错误。可以先重试；重新加载页面通常也能恢复。</div>
+            <div class="m-code" style="width:100%">
+              <div class="m-code-head"><span class="m-grow">参考代码</span><span class="m-mono">digest</span></div>
+              <div class="m-code-body">8f3c1a92e04b7d6c</div>
+            </div>
+            <div class="m-pickbar" style="padding:0">
+              <button class="m-btn primary"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+              <button class="m-btn"><i data-ico="refresh-cw" data-size="13"></i>重新加载</button>
+            </div>
+            <button class="m-btn ghost"><i data-ico="bug" data-size="13"></i>看控制台</button>
+          </div>
+          <div class="m-t-xs m-t-faint" style="text-align:center">段级走完整主题 token，深浅色都成立；message 已脱敏，只有 digest 能对照服务端日志，所以「看控制台」一直在。</div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+    <!-- F-2 · 根级（无主题，跟系统色） -->
+    <div class="m-phone">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="m-grow"></span>
+        <i data-ico="lock" data-size="11"></i>
+      </div>
+      <div class="m-phone-inner" style="background:Canvas;color:CanvasText">
+
+        <div class="m-top" style="background:Canvas">
+          <button class="m-top-btn" style="background:Canvas;color:CanvasText" title="返回"><i data-ico="arrow-left" data-size="16"></i></button>
+          <span class="m-top-title m-grow">应用启动失败</span>
+        </div>
+
+        <div class="m-scroll" style="background:Canvas;color:CanvasText">
+          <div class="m-empty">
+            <div class="m-empty-ico" style="background:Canvas;color:CanvasText;border:1px solid CanvasText"><i data-ico="circle-alert" data-size="22"></i></div>
+            <div class="m-empty-t">应用启动失败 / Failed to start</div>
+            <div class="m-empty-s" style="color:CanvasText;opacity:.8">根布局渲染时出现异常。请先重试；若持续失败，打开开发者工具查看控制台堆栈。</div>
+            <div class="m-mono m-t-xs" style="opacity:.7">digest 8f3c1a92e04b7d6c</div>
+            <div class="m-pickbar" style="padding:0">
+              <button class="m-btn" style="background:Canvas;color:CanvasText;border-color:CanvasText"><i data-ico="rotate-cw" data-size="13"></i>重试</button>
+              <button class="m-btn" style="background:Canvas;color:CanvasText;border-color:CanvasText"><i data-ico="refresh-cw" data-size="13"></i>重新加载</button>
+            </div>
+          </div>
+          <div class="m-t-xs" style="color:CanvasText;opacity:.7;text-align:center">根级必须自己渲染 html/body，全局样式与 data-theme 都没接上，所以只用系统色 <span class="m-mono">Canvas / CanvasText</span> —— 在这一屏上用主题 token，等于用可能正是出问题的那套东西去渲染错误页。两级都给「重试」。</div>
+        </div>
+
+      </div>
+      <div class="m-homebar"></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>下拉刷新一句话说完。</b><span class="m-mono">.m-pull</span> 活在顶栏之下、消息之上，跟着手指走。三档（提示 / 到位 / 执行）只换图标不换位置 —— <b>位置本身就在讲「我在拉动这一屏」</b>，不需要第二段动画。三条不许：不在顶部也能拉、刷新时清草稿或收键盘、松手后跳回顶部。</li>
+    <li><b>侧滑返回只占左缘 28px。</b><span class="m-mono">.m-swipe</span> 是命中带，里面的 <span class="m-mono">.m-swipe-edge</span> 竖条与 <span class="m-mono">.m-swipe-hint</span> 提示胶囊<b>按压才出现</b>（本帧按 <span class="m-mono">data-demo-motion-class</span> 驱动）。横向是「这一页的历史」，纵向是「滚内容」，两者分开。松手后压入的是<b>整页</b> —— 手机的分节二级页本来就整页推入，导航范式与桌面同构。</li>
+    <li><b>长按的形态永远一样，内容才不一样。</b>会话行长按与文件行长按都走 <span class="m-mono">.m-menu-sheet</span>（底部菜单），<b>不做右上角的小气泡</b> —— 气泡在 390 宽上会挡住被长按的那一行，而那正是用户正在看的内容。菜单首行用 <span class="m-mono">.m-menu-sheet-title</span> 写清「对谁长按的」，否则用户不知道自己在操作谁。会话菜单与 Web 逐字一致：<b>12 项 / 3 段</b>（置顶 · 重命名会话 · 归档 · 标记为未读 ｜ 在访达中打开 · 复制路径 · 复制会话文件路径 · 复制会话 ID ｜ 系统提示词 · 工具定义 ｜ 导出为 HTML · 导出 Markdown），不含「复制分享链接」；<b>删除不在菜单里</b>，走帧 B 第三屏的危险确认（标题写清会话名，按钮 = 取消 / 删除）。</li>
+    <li><b>触控目标三档：44 / 48 / 56，44 是硬下限。</b>44 = 出现频率最高的东西（列表行 / chip / 菜单行）；48 = 拇指移动最远、最容易落空的（发送 / 顶栏 / 一级行动）；56 = 主力与长按（附件 / 加号 / 图标网格）。<b>44 是命中区不是视觉高度</b> —— 小钮可以靠四周 padding 补命中，但它自己不许小于 44；密集相邻时还要再加 8px 间距。本帧的方块按真实像素画，否则规格表本身就不可信。</li>
+    <li><b>系统态清单与 Web D-26 / D-26b 对齐，每格写三条判据。</b>空态 / 骨架 / 错误 / 断网 / 权限请求 / 通知 / Toast / 运行中 / 流式 / 确认对话 / 错误页 / PWA 安装 —— 共同结构是「<b>它是什么 · 现在能干什么 · 什么时候会消失</b>」。其中<b>断网 / 通知 / PWA 安装</b>是 PWA 特有，保留但<b>登记豁免</b>，不为对齐 Web 硬造等价物；<b>确认对话</b>固定「标题写清作用对象 + 取消 / 删除」，<b>错误页</b>分两级且两级都必须给「重试」。最容易做错的三格：<b>骨架</b>的形状必须等于将来的内容；<b>运行中</b>必须带秒数与步数；<b>流式</b>中文按标点成段、不是逐字（逐字会让读者读到半个词）。</li>
+    <li><b>四种反馈各归各位，不能互相顶替。</b><span class="m-mono">.m-banner</span> 已经发生（可以一直留着）· <span class="m-mono">.m-perm</span> 要你选（就地出现、一直待到你回答）· <span class="m-mono">.m-run</span> 正在做（和它描述的事情在同一个位置）· <span class="m-mono">.m-toast</span> 4 秒确认（没有按钮也不提问）。用错一个，用户就会把「进行中」读成「卡住了」。</li>
+    <li><b>Toast 与更新浮条的堆叠。</b><span class="m-mono">.m-toast</span> 底边 108px、<span class="m-mono">.m-update</span> 底边 96px，只差 12px，同屏必叠 —— 所以有 <span class="m-mono">.m-toast.above</span> 把它抬到更新条之上。本张三处用到：帧 E 的确认、帧 D ⑦ 的系统态对照、以及 M-10 的更新浮条。</li>
+    <li><b>这一张暴露的一个类缺口：</b><span class="m-mono">.m-nx-row</span> 不存在（base.css 里只有 <span class="m-mono">.nx-row</span>），本帧的规格行直接用 <span class="m-mono">.nx-row</span>；而触控目标方块的 44/48/56 三档<b>没有现成类</b>，本帧用令牌内联（<span class="m-mono">--nx-touch-min</span> / <span class="m-mono">--nx-ctl-lg</span> / <span class="m-mono">calc(--nx-ctl-lg + --nx-sp-2)</span>）画出，落地时建议补成 <span class="m-mono">.m-touch-44 / .m-touch-48 / .m-touch-56</span> 三个类，让规格与实现同源。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

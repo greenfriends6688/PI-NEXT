@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-03e · 转录 · 回合导航 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-03e · 转录 · 回合导航</h1>
+  <p>
+    转录区周围一圈「找得到 / 知道进度」的件：迷你地图、等待首 token 的阶段行、这一轮写过的文件与用到的技能、
+    项目与待办芯片、路径动作、Git ref 芯片、重试提示条、探索分支。
+    三条纪律：
+    ① <b>导航靠编号，不靠色块</b>：迷你地图是 36px 导轨加 320px 时间线浮层，当前轮用底色与编号徽章区分（不画左边线）；
+    ② <b>阶段行只占一行</b>：四个相位串行滚进来，不让人盯一个不动的转圈；
+    ③ <b>探索分支的右栏是只读并排</b>：不重搭一套聊天面板，看完把结论带回主线。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区 · 右栏</span>
+    <span class="d-tag">组件：ChatMinimap · PhaseRoll · TurnWrittenFiles · TodoChip · ProjectChip · PathActions · GitRefChips · RetryNotice · ExplorationPane</span>
+    <span class="d-tag">状态：已固定 / 定位中 / 四相位 / 无结论可带回 / 第 N 次重试 / 只读并排</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 迷你地图 ─────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 转录迷你地图：36px 导轨（<b>横条组上下居中</b>）+ 320px <b>固定导航面板</b><span class="d-grow"></span>编号列 34px，工具数徽章挂在编号下面</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat" style="padding:0">
+            <div style="display:flex;min-height:640px;height:100%">
+
+              <!-- 转录正文 -->
+              <div class="d-chat" style="flex:1 1 auto">
+                <div class="d-chat-inner">
+                  <div class="d-msg-user">把 release 里那份和本地待上传的改动对一下。</div>
+                  <div class="d-msg-ai">
+                    <div class="d-tool">
+                      <div class="d-tool-head">
+                        <i data-ico="chevron-right" data-size="13"></i>
+                        <span class="d-grow"><b>2 个文件</b> · 4 条命令</span>
+                        <span class="d-badge ok"><i data-ico="check" data-size="11"></i>已完成</span>
+                      </div>
+                    </div>
+                    <div class="d-md"><p>两边差 <b>7 个文件</b>，其中 3 个是本次设计体系的文档。</p></div>
+                  </div>
+                  <div class="d-msg-user">那 3 个文档先别提交。</div>
+                  <div class="d-msg-ai"><div class="d-md"><p>好，我先只提交皮肤那 4 个文件。</p></div></div>
+                  <div class="d-msg-user">顺便把 delta.md 的台账更新一下。</div>
+                </div>
+              </div>
+
+              <!-- 320px 时间线浮层（锚在导轨左侧）= 产品的 `.pw-minimap-pop`：
+                   固定态的标题就是「固定导航面板」，不是自造的一句话；
+                   图钉开/关两态（pin / pin-off）各画一帧，因为它是这个面板唯一的模式开关。 -->
+              <div class="d-minimap-pop">
+                <div class="d-row" style="padding:var(--nx-sp-2) var(--nx-sp-3);border-bottom:1px solid var(--nx-line)">
+                  <button class="d-iconbtn is-on" title="取消固定导航面板" data-demo-switch style="width:22px;height:22px"><i data-ico="pin" data-size="13"></i></button>
+                  <span class="d-t-xs d-grow">取消固定导航面板</span>
+                  <button class="d-iconbtn" style="width:22px;height:22px"><i data-ico="x" data-size="13"></i></button>
+                </div>
+                <div class="d-t-xs d-t-faint" style="padding:0 var(--nx-sp-3) var(--nx-sp-2)">固定后面板不跟鼠标收回去；点图钉取消，点 × 关掉。</div>
+
+                <div class="d-trow" style="grid-template-columns:34px minmax(0,1fr);border-bottom:1px solid var(--nx-line);border-radius:0">
+                  <span style="text-align:center"><i data-ico="arrow-up" data-size="13"></i></span>
+                  <span>加载更早记录</span>
+                </div>
+
+                <div class="d-tree" data-demo-list style="gap:0">
+                  <div class="d-trow" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-mono d-t-xs d-t-faint" style="text-align:center">01</span>
+                    <span class="d-t-xs">@参考项目 你好好看看这个项目吧，然后帮我看看这个项目</span>
+                  </div>
+                  <div class="d-trow" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-mono d-t-xs d-t-faint" style="text-align:center">02</span>
+                    <span class="d-t-xs">我觉得它的规范啥的，特别好，我这都不统一</span>
+                  </div>
+                  <div class="d-trow" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-mono d-t-xs d-t-faint" style="text-align:center">03</span>
+                    <span class="d-t-xs">你继续啊，咋暂停了</span>
+                  </div>
+                  <div class="d-trow" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-mono d-t-xs d-t-faint" style="text-align:center">04</span>
+                    <span class="d-t-xs">所有 icon 都不要用 emoji 表示，都要用正规的 icon</span>
+                  </div>
+                  <div class="d-trow is-on" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-col" style="align-items:center;gap:var(--nx-sp-1)">
+                      <span class="d-mono d-t-xs" style="color:var(--nx-accent)">05</span>
+                      <span class="d-badge mute" title="3 次工具调用"><i data-ico="wrench" data-size="10"></i>3</span>
+                    </span>
+                    <span class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-xs d-t-b">继续</span>
+                      <span class="d-row d-t-xs d-t-faint"><i data-ico="bot" data-size="11"></i>回答首行 · A 是「跳到这条回答」的锚点</span>
+                    </span>
+                  </div>
+                  <div class="d-trow" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-col" style="align-items:center;gap:var(--nx-sp-1)">
+                      <span class="d-mono d-t-xs d-t-faint">06</span>
+                      <span class="d-badge mute"><i data-ico="wrench" data-size="10"></i>12</span>
+                    </span>
+                    <span class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-xs">把 release 收尾清单也过一遍</span>
+                      <span class="d-row d-t-xs d-t-faint"><i data-ico="user" data-size="11"></i>用户消息</span>
+                    </span>
+                  </div>
+                  <div class="d-trow" data-demo-select style="grid-template-columns:34px minmax(0,1fr);height:auto;padding:var(--nx-sp-2) var(--nx-sp-2);align-items:flex-start">
+                    <span class="d-col" style="align-items:center;gap:var(--nx-sp-1)">
+                      <span class="d-mono d-t-xs d-t-faint">07</span>
+                    </span>
+                    <span class="d-col" style="gap:var(--nx-sp-1)">
+                      <span class="d-t-xs">好，我先只提交皮肤那 4 个文件</span>
+                      <span class="d-row d-t-xs d-t-faint"><i data-ico="bot" data-size="11"></i>助手回复 · 本回合工具调用：4</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 36px 导轨（产品 ChatMinimap 的常驻形态）+ 它左侧的**悬停小卡**：
+                   小卡锚在指针那一轮上并上下居中（产品 `.pw-card` + `top:<轮>% + translateY(-50%)`），
+                   并**让开 320px 面板**（产品算的是 `100% + 面板宽 + 8`）—— 这一帧把两种形态并排画在一张里，
+                   真机上两者互斥：悬停出小卡，点图钉才升级成面板，
+                   鼠标移出即消失，`pointer-events:none` 免得进卡就触发 mouseleave。 -->
+              <div class="d-minimap">
+                  <div class="d-mm-node done"></div>
+                  <div class="d-mm-node done"></div>
+                  <div class="d-mm-node now"></div>
+                  <div class="d-mm-pin"></div>
+                  <div class="d-mm-node"></div>
+                  <div class="d-mm-node"></div>
+                  <div class="d-mm-turn d-mono">#12</div>
+                </div>
+
+            </div>
+          </div>
+          <div class="d-t-xs d-t-faint" style="padding:var(--nx-sp-2) var(--nx-sp-4)">
+            导轨 · 36px 宽，节点 6px 圆点、间隔上限 50px，当前轮 8px 转强调色，标题轮走次要色；导轨与转录区等高、**横条组居中**；<b>点图钉</b>才展开 320px 固定导航面板（贴顶、高度按内容、上限是转录区高度），面板就是悬停预览的唯一形态 —— 不再另开一张小卡。
+            当前轮靠底色 + 编号转强调色区分，<b>不画左侧竖线</b>。转录没超出视口时整条导轨隐藏，不给一个空轨道。
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 阶段行 + 已写文件 + 技能用量 ─────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 阶段行四相位 · 这一轮改了哪些文件 · 用到的技能<span class="d-grow"></span>阶段行只占一行，高度永远不变</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-grid2" style="align-items:start">
+
+              <!-- 阶段行 -->
+              <div data-demo-scope>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">等待首 token · 一行固定高度，相位串行滚进来</div>
+                <div class="d-tabbar" data-demo-tabs>
+                  <button class="d-tab is-on" data-demo-tab="ph1"><i data-ico="loader-circle" data-size="13"></i>等模型</button>
+                  <button class="d-tab" data-demo-tab="ph2"><i data-ico="wrench" data-size="13"></i>运行工具</button>
+                  <button class="d-tab" data-demo-tab="ph3"><i data-ico="terminal" data-size="13"></i>执行命令</button>
+                  <button class="d-tab" data-demo-tab="ph4"><i data-ico="clock" data-size="13"></i>压缩中</button>
+                </div>
+
+                <div class="d-card" style="margin-top:var(--nx-sp-2)" data-demo-pane="ph1">
+                  <div class="d-card-body">
+                    <div class="d-step">
+                      <span class="d-step-ico"><i data-ico="loader-circle" data-size="10"></i></span>
+                      <span class="d-step-body">正在等待模型...</span>
+                      <span class="d-run"><i data-ico="loader-circle" data-size="12"></i>1.2s</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card" data-demo-pane="ph2" hidden>
+                  <div class="d-card-body">
+                    <div class="d-step">
+                      <span class="d-step-ico"><i data-ico="wrench" data-size="10"></i></span>
+                      <span class="d-step-body">正在运行 read...</span>
+                      <span class="d-step-meta">3 个文件</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card" data-demo-pane="ph3" hidden>
+                  <div class="d-card-body">
+                    <div class="d-step">
+                      <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                      <span class="d-step-body">正在运行命令...</span>
+                      <span class="d-step-meta">npm run check-v5</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card" data-demo-pane="ph4" hidden>
+                  <div class="d-card-body">
+                    <div class="d-step">
+                      <span class="d-step-ico"><i data-ico="loader-circle" data-size="10"></i></span>
+                      <span class="d-step-body">正在压缩…</span>
+                      <span class="d-step-meta">这轮会卡一会儿</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                  相位切换时旧句上移淡出、新句下移淡入（300ms 过渡 + 500ms 停留）；同一个工具的进度数字原地替换，不重播滚动。
+                  <b>压缩会压过「等模型」</b> —— 自动压缩可能卡几十秒才出下一个 token，文案停在「等模型」读起来像挂死。
+                </div>
+              </div>
+
+              <!-- 已写文件 + 技能 -->
+              <div class="d-col" style="gap:var(--nx-sp-4)">
+                <div>
+                  <div class="d-row" style="margin-bottom:var(--nx-sp-2)">
+                    <i data-ico="pencil-line" data-size="14"></i>
+                    <span class="d-t-sm d-grow">这一轮写了 4 个文件</span>
+                    <button class="d-btn sm ghost" data-demo-open="files-pop"><i data-ico="list" data-size="13"></i>全部</button>
+                  </div>
+                  <div class="d-chips">
+                    <button class="d-cite"><i data-ico="file-code" data-size="12"></i>system.css</button>
+                    <button class="d-cite"><i data-ico="file-code" data-size="12"></i>ChatInput.tsx</button>
+                    <button class="d-cite"><i data-ico="file-plus" data-size="12"></i>README.md<span class="d-badge ok">新增</span></button>
+                    <button class="d-cite"><i data-ico="file-plus" data-size="12"></i>DESIGN-SPEC.md<span class="d-badge ok">新增</span></button>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                    数据只来自这一轮<b>成功的</b> write / edit 调用，不去正文里扫路径（扫会误报）；文件名与相对路径来自写入记录本身。
+                  </div>
+
+                  <div class="d-pop" data-demo-pop="files-pop" hidden style="left:var(--nx-sp-4);top:100%;min-width:320px">
+                    <div class="d-pop-title">这一轮改了这些文件</div>
+                    <button class="d-menu-row"><i data-ico="file-code" data-size="14"></i><span class="d-mono d-grow d-t-xs">design/v5/web/system.css</span><i data-ico="eye" data-size="13"></i></button>
+                    <button class="d-menu-row"><i data-ico="file-code" data-size="14"></i><span class="d-mono d-grow d-t-xs">components/ChatInput.tsx</span><i data-ico="eye" data-size="13"></i></button>
+                    <button class="d-menu-row"><i data-ico="file-plus" data-size="14"></i><span class="d-mono d-grow d-t-xs">design/v5/README.md</span><span class="d-badge ok">新增</span></button>
+                    <button class="d-menu-row"><i data-ico="file-plus" data-size="14"></i><span class="d-mono d-grow d-t-xs">design/v5/DESIGN-SPEC.md</span><span class="d-badge ok">新增</span></button>
+                    <div class="d-sep"></div>
+                    <div class="d-pop-foot">点任一行在文件面板打开；相对路径只到工作区根，绝对路径不进模型上下文。</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="d-row" style="margin-bottom:var(--nx-sp-2)">
+                    <i data-ico="sparkles" data-size="14"></i>
+                    <span class="d-t-sm d-grow">本轮用到的 Skill</span>
+                  </div>
+                  <div class="d-chips">
+                    <button class="d-chipbtn is-on"><i data-ico="sparkles" data-size="12"></i>design-review</button>
+                    <button class="d-chipbtn"><i data-ico="sparkles" data-size="12"></i>release-notes</button>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">
+                    与「改了哪些文件」同一行 chips，不另起一块；<b>流式期间不渲染</b> —— 每读到一份 SKILL.md 就多一枚，闪烁比没有这行更伤。
+                    点一枚在 Skills 设置里选中它。
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 芯片 · 路径动作 · Git ref ────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 项目芯片 · 待办芯片（只读）· 路径动作 · Git ref 芯片<span class="d-grow"></span>三枚浮层都是真的，点开钮就开</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-grid3" style="align-items:start">
+
+              <!-- 待办芯片 -->
+              <div>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">待办芯片 · 写在输入框上方</div>
+                <div class="d-card">
+                  <button class="d-tool-head" style="width:100%;border:0;background:none;font:inherit;cursor:pointer;text-align:left" data-demo-open="todo-pop">
+                    <i data-ico="list-checks" data-size="14"></i>
+                    <span class="d-t-sm d-grow">写设计规范 + 静态画板</span>
+                    <span class="d-badge">2/4</span>
+                    <i data-ico="chevron-down" data-size="13"></i>
+                  </button>
+                  <div class="d-bar" style="border-radius:0"><i style="width:50%"></i></div>
+                </div>
+
+                <div class="d-pop" data-demo-pop="todo-pop" hidden style="left:0;top:100%;min-width:280px">
+                  <div class="d-pop-title">待办（只读）</div>
+                  <div class="d-row d-t-xs"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-grow d-t-faint" style="text-decoration:line-through">读完参考项目 design/ 五件套</span></div>
+                  <div class="d-row d-t-xs"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-grow d-t-faint" style="text-decoration:line-through">产出借鉴清单与画板拆分表</span></div>
+                  <div class="d-row d-t-xs"><span class="d-badge info">进行中</span><span class="d-grow">写设计规范 + 静态画板</span></div>
+                  <div class="d-row d-t-xs"><span class="d-checkbox"></span><span class="d-grow">跑一遍渲染核对与对比度门禁</span></div>
+                  <div class="d-sep"></div>
+                  <div class="d-row">
+                    <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制清单</button>
+                    <span class="d-grow"></span>
+                    <span class="d-t-xs d-t-faint">由 todo 工具写入</span>
+                  </div>
+                  <div class="d-pop-foot">清单只读：勾这一格等于改写一条已经落进会话历史的工具结果，那是会话格式不允许的事。要改就发一句话回去。</div>
+                </div>
+              </div>
+
+              <!-- 项目芯片 -->
+              <div>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">项目芯片 · 这条消息发给哪个工作区</div>
+                <div class="d-row">
+                  <button class="d-chipbtn" data-demo-open="proj-pop"><i data-ico="folder" data-size="12"></i>PI NEXT<i data-ico="chevron-down" data-size="11"></i></button>
+                  <button class="d-chipbtn is-on"><i data-ico="git-branch" data-size="12"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+                </div>
+
+                <div class="d-pop" data-demo-pop="proj-pop" hidden style="left:0;top:100%;min-width:240px">
+                  <div class="d-pop-title">项目</div>
+                  <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">PI NEXT</span><i data-ico="check" data-size="14"></i></button>
+                  <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">探项前端页面</span></button>
+                  <button class="d-menu-row"><i data-ico="folder" data-size="14"></i><span class="d-grow">招标改</span></button>
+                  <div class="d-sep"></div>
+                  <button class="d-menu-row"><i data-ico="messages-square" data-size="14"></i><span class="d-grow">不在项目中</span></button>
+                  <button class="d-menu-row"><i data-ico="folder-plus" data-size="14"></i><span class="d-grow">添加项目…</span></button>
+                </div>
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">写第一句话的时候目标就该看得见、也改得动；放在侧栏那一行的人找不到。</div>
+              </div>
+
+              <!-- 路径动作 -->
+              <div>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">路径动作 · 文件树 / 查看器 / 转录共用</div>
+                <div class="d-row d-mono d-t-xs">
+                  <span class="d-grow">design/v5/README.md</span>
+                  <button class="d-iconbtn" title="路径动作" data-demo-open="path-pop"><i data-ico="ellipsis" data-size="14"></i></button>
+                </div>
+
+                <div class="d-pop" data-demo-pop="path-pop" hidden style="left:0;top:100%;min-width:260px">
+                  <div class="d-pop-title">design/v5/README.md</div>
+                  <button class="d-menu-row"><i data-ico="copy" data-size="14"></i><span class="d-grow">复制路径</span></button>
+                  <button class="d-menu-row"><i data-ico="copy" data-size="14"></i><span class="d-grow">复制相对路径</span></button>
+                  <div class="d-sep"></div>
+                  <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i><span class="d-grow">在文件管理器中显示</span></button>
+                  <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i><span class="d-grow">用默认应用打开</span></button>
+                  <button class="d-menu-row"><i data-ico="at-sign" data-size="14"></i><span class="d-grow">插入为引用</span><span class="d-kbd">@</span></button>
+                </div>
+              </div>
+
+              <!-- Git ref -->
+              <div>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">Git ref 芯片 · 与它所在泳道同色</div>
+                <div class="d-git-row">
+                  <span class="d-git-lane"><i data-ico="git-commit-horizontal" data-size="14"></i></span>
+                  <span class="d-mono d-t-xs">a1f9c2e</span>
+                  <span class="d-grow d-t-xs">design: 新增画板集</span>
+                  <span class="d-badge mute">+412 −38</span>
+                </div>
+                <div class="d-chips" style="margin-top:var(--nx-sp-2)">
+                  <span class="d-cite is-on"><i data-ico="git-branch" data-size="11"></i>HEAD → main</span>
+                  <span class="d-cite"><i data-ico="git-branch" data-size="11"></i>fork/v5-boards</span>
+                  <span class="d-cite"><i data-ico="tag" data-size="11"></i>v0.1.8</span>
+                  <span class="d-cite"><i data-ico="git-branch" data-size="11"></i>origin/main</span>
+                </div>
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">HEAD 用实心强调底；本地标签与远端分支用描边，色相跟它所在的那条泳道走 —— 标签看上去就坐在自己的分支线上。</div>
+              </div>
+
+              <!-- 合并说明 -->
+              <div>
+                <div class="d-t-xs d-t-b" style="margin-bottom:var(--nx-sp-2)">三枚芯片的共同点</div>
+                <div class="d-t-xs d-t-dim">
+                  它们都长在<b>输入框上方那一行</b>，回答三个「我现在在什么状态」的问题：这条消息发给谁（项目）、
+                  这一轮做到哪了（待办）、上下文还剩多少（上下文环，见 D-04）。
+                  状态不能只存在于会话内部 —— 人是隔一天回来接着看的人。
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 重试提示条 + 探索分支 ─────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 重试提示条 · 探索分支（抬头条 + 右栏只读并排 + 带回结论）<span class="d-grow"></span>右栏刻意不做第二个可交互聊天面板</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <!-- 主线 -->
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title"><i data-ico="git-fork" data-size="13"></i> 分支 · 看看用 worktree 隔离</span>
+              <span class="d-tb-sub">从「排查最新 Release 与本地待上传改动」第 7 轮分出</span>
+            </div>
+          </header>
+
+          <div class="d-row" style="flex:0 0 auto">
+            <div class="d-announce d-grow">
+              <i data-ico="git-fork" data-size="14"></i>
+              <span class="d-grow">探索分支</span>
+              <span class="d-t-xs d-t-faint">从「排查最新 Release 与本地待上传改动」开始</span>
+              <button class="d-btn sm" data-demo-drawer="toggle" data-demo-drawer-target="#exo-panel">并排查看</button>
+              <button class="d-btn sm">打开父会话</button>
+              <button class="d-btn sm primary"><i data-ico="inbox" data-size="13"></i>带回结论</button>
+            </div>
+            <div style="width:320px;flex:0 0 auto;background:var(--nx-canvas)"></div>
+          </div>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-t-xs d-t-b">重试提示条 · 把「卡住了」变成「正在第几次恢复」</div>
+                <div class="d-banner warn">
+                  <span class="d-run"><i data-ico="refresh-cw" data-size="14"></i></span>
+                  <span class="d-grow">正在第 <b>3</b>/5 次继续当前回答…</span>
+                  <span class="d-t-xs d-t-faint">overloaded_error</span>
+                </div>
+                <div class="d-banner">
+                  <span class="d-badge ok"><i data-ico="circle-check" data-size="12"></i></span>
+                  <span class="d-grow">已恢复，第 <b>3</b>/5 次继续当前回答成功</span>
+                </div>
+                <div class="d-banner err">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span class="d-grow">自动恢复已耗尽（5/5），以下错误为最终结果</span>
+                </div>
+                <div class="d-t-xs d-t-faint">前五次抖动不上屏（降噪），同一第 N 次只留一行；数字用等宽，第 3 次变第 10 次时整行宽度不跳。</div>
+
+                <div class="d-sep"></div>
+
+                <div class="d-msg-user">如果改用 worktree 隔离，会不会更干净？</div>
+                <div class="d-msg-ai">
+                  <div class="d-msg-ai-head">
+                    <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                    <span class="d-t-b">PI NEXT</span>
+                  </div>
+                  <div class="d-md">
+                    <p>会更干净。worktree 各自有一份 <code>node_modules</code> 与 <code>.next</code>，互不污染；代价是磁盘多一份依赖。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右栏探索视图（抽屉形态：真能从右缘滑进滑出） -->
+          <div class="d-drawer is-open" id="exo-panel" style="width:320px">
+            <div class="d-panel-head">
+              <i data-ico="git-fork" data-size="14"></i>
+              <span class="d-t-b">探索分支</span>
+              <span class="d-badge mute">只读</span>
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" title="收起并排视图"><i data-ico="x" data-size="14"></i></button>
+            </div>
+            <div class="d-tabbar" data-demo-tabs>
+              <button class="d-tab is-on" data-demo-tab="e1">worktree 隔离</button>
+              <button class="d-tab" data-demo-tab="e2">直接切分支</button>
+            </div>
+            <div class="d-drawer-body" style="padding:var(--nx-sp-3)" data-demo-scope>
+              <div data-demo-pane="e1" class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-banner">
+                  <i data-ico="info" data-size="14"></i>
+                  <span class="d-grow">只读并排视图 · 这里不能发消息，看完把结论带回主线</span>
+                </div>
+                <div class="d-md d-t-sm">
+                  <p><b>结论</b>：worktree 隔离更干净，但要多占一份依赖；适合并行两条改动线时用。</p>
+                  <p>代价：磁盘 +约 800 MB；切换时要重新跑一次 dev 编译。</p>
+                </div>
+                <div class="d-sep"></div>
+                <div class="d-t-xs d-t-b">这条分支的转录</div>
+                <div class="d-row d-t-xs"><i data-ico="message-square" data-size="12"></i><span class="d-grow">如果改用 worktree 隔离，会不会更干净？</span></div>
+                <div class="d-row d-t-xs"><i data-ico="bot" data-size="12"></i><span class="d-grow">会更干净。worktree 各自有一份依赖…</span></div>
+                <div class="d-t-xs d-t-faint">还没有可带回的结论 —— 按钮保持描边态且禁用，不给一个点不动的实心钮。</div>
+              </div>
+              <div data-demo-pane="e2" class="d-col" hidden style="gap:var(--nx-sp-3)">
+                <div class="d-banner warn">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span class="d-grow">这条分支没有产出，仍在跑。</span>
+                </div>
+                <div class="d-md d-t-sm">
+                  <p><b>结论</b>：直接切分支会把未提交的改动带过去，两个方向同时改同一批文件时很容易互相覆盖。</p>
+                </div>
+                <div class="d-sep"></div>
+                <div class="d-row">
+                  <button class="d-btn sm primary"><i data-ico="inbox" data-size="13"></i>带回结论</button>
+                  <button class="d-btn sm">打开为独立会话</button>
+                </div>
+              </div>
+              <div class="d-col" style="gap:var(--nx-sp-2);margin-top:var(--nx-sp-3)">
+                <button class="d-btn"><i data-ico="inbox" data-size="13"></i>带回结论</button>
+                <button class="d-btn"><i data-ico="arrow-up-right" data-size="13"></i>在主线打开</button>
+                <div class="d-t-xs d-t-faint">右栏刻意不做第二个可交互聊天面板 —— 那要把 SSE、composer、模型选择整套在右栏再搭一遍，容易和主线状态打架。</div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>迷你地图是两件东西</b>：右缘 36px 导轨（节点 6px 圆点、间隔上限 50px、当前轮 8px 转强调色、标题轮走次要色）＋ 悬浮时在它左侧展开的 320px 时间线浮层。浮层高度按内容、上限是转录区高度 —— 通高在短会话里会在下方留六成空白，读起来像面板坏了。</li>
+    <li><b>当前轮靠底色与编号徽章区分，不画左侧竖线</b>（那条 2px 强调条在旧设计里已经废止）。编号一律对齐内容首行，否则单行轮与两行轮的编号会上下跳动，扫读时眼睛没有锚点；工具数徽章挂在编号下面，有工具调用才出现；<code>A</code> 只在编号列出现一次，它是「跳到这条回答」的锚点。</li>
+    <li><b>阶段行只占一行高度</b>：四个相位（等模型 / 运行工具 / 执行命令 / 压缩中）串行滚进来，旧句上移淡出。这样做是为了不让人盯一个不动的转圈；压缩期间必须压过「等模型」的文案，否则几十秒的等待读起来像挂死。</li>
+    <li><b>「改了哪些文件」只认成功的写调用</b>，不去正文扫路径；数据模型里没有增删行数，所以画板上也不写「+42 −8」这种数字 —— 画一个数据里没有的数，比不画更糟。技能用量与它同一行 chips，且流式期间不渲染。</li>
+    <li><b>待办芯片是只读的</b>：勾选会改写一条已经落进会话历史的工具结果，那是会话格式不允许的事。要改就把清单复制成一句话发回去。项目芯片让「这条消息发给哪个工作区」在写的时候就可见可改。</li>
+    <li><b>探索分支：抬头条 + 只读并排 + 带回结论</b>。带回结论<b>只写草稿不自动发送</b> —— 它把分支的结论追加到父会话草稿并带上一条 <code>&amp;session:</code> 引用，然后切到父会话让人自己决定。拉不到父会话时整条抬头条不显示：宁可不显示，也不要给一个假来源。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

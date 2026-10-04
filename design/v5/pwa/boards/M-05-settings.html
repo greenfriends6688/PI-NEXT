@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-05 · 设置 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-05 · 设置</h1>
+  <p>
+    手机上的设置是<b>两层</b>：一层 hub（按「你什么时候来改它」分组），一层分节页（进去只讲这一件事）。
+    两层都不用侧栏导航 —— 手机上横向空间不够摆导航树，改用<b>返回箭头</b>：左上角永远能回去，且不需要菜单键。
+    控件按手指重做：开关 48×29、滑杆拇指 26px、分段高度 44、输入框高 44，
+    凡是桌面上「点一下就够」的地方，手机上都要<b>有一个真开关</b>，不能只靠文字描述。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：设置 hub / 通用二级页 / 弹窗宿主</span>
+    <span class="m-doc-tag">组件：m-settings · m-cardgroup · m-setrow · m-hero · m-switch · m-select · m-slider · m-input · m-pickbar · m-radio · m-badge · m-sheet</span>
+    <span class="m-doc-tag">状态：分组 hub / 通用二级页 / 权限档位 / 弹窗宿主 / 深色</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 设置 hub ──────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 设置 hub · 灰底白卡，按「来改它的时机」分组，不按功能树分组</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-pop-float is-open" data-demo-pop="set-find" style="top:52px">
+        <div class="m-doc-label">搜设置项</div>
+        <button class="m-menu-row"><i data-ico="search" data-size="15"></i>默认模型<span class="m-grow"></span><span class="m-badge mute">模型</span></button>
+        <button class="m-menu-row"><i data-ico="shield" data-size="15"></i>权限档位<span class="m-grow"></span><span class="m-badge mute">通用 › 权限与信任</span></button>
+        <button class="m-menu-row"><i data-ico="type" data-size="15"></i>正文字号<span class="m-grow"></span><span class="m-badge mute">通用 › 外观与输入</span></button>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <span class="m-top-title m-grow">设置</span>
+        <button class="m-top-btn" data-demo-open="set-find" title="搜索设置项"><i data-ico="search" data-size="16"></i></button>
+        <button class="m-top-btn" title="重置本机"><i data-ico="rotate-cw" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+
+        <div class="m-hero">
+          <span class="m-t-title">设置</span>
+          <span class="m-t-cap m-t-dim">与桌面完全同构：同一份十一个分节（lib/settings-navigation.ts），这里只是把左导航换成分组卡片。「外观与输入」「权限与信任」是「通用」里的二级页，不是第 12、13 个分节。</span>
+        </div>
+
+        <div class="m-cardgroup">
+          <button class="m-setrow">
+            <i data-ico="sliders-horizontal" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">通用</span>
+              <span class="m-setrow-s">主题 · 壁纸 · 通知 · 字体 · 聊天 · 压缩 · 后台推送</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="cpu" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">模型</span>
+              <span class="m-setrow-s">供应商与认证 · 启用模型 · 思考钉 · 成本档</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <button class="m-setrow">
+            <i data-ico="box" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">技能</span>
+              <span class="m-setrow-s">已加载 · 禁用模型调用 · 市场安装</span>
+            </span>
+              <span class="m-badge mute">需项目</span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="bot" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">子代理</span>
+              <span class="m-setrow-s">内置开关 · 并发上限 · profile 与工具白名单</span>
+            </span>
+              <span class="m-badge mute">需项目</span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="blocks" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">插件</span>
+              <span class="m-setrow-s">全局 / 项目包 · 更新 · 移除</span>
+            </span>
+              <span class="m-badge mute">需项目</span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="server" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">MCP</span>
+              <span class="m-setrow-s">服务器 · 传输 · OAuth · 从其它 agent 导入</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <button class="m-setrow">
+            <i data-ico="calendar-clock" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">定时任务</span>
+              <span class="m-setrow-s">任务列表 · 运行历史 · 频率与通知策略</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="chart-column" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">用量</span>
+              <span class="m-setrow-s">本月用量 · 缓存命中 · 会话统计</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <button class="m-setrow">
+            <i data-ico="archive" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">归档</span>
+              <span class="m-setrow-s">已归档会话 · 恢复 · 删除</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="import" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">导入</span>
+              <span class="m-setrow-s">从其它 agent 导入会话 / 模型 / 技能 / MCP</span>
+            </span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="smartphone" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">手机与推送</span>
+              <span class="m-setrow-s">配对码 · 扫码连接 · 机器人渠道 · 推送目标</span>
+            </span>
+              <span class="m-badge ok">已就绪</span>
+            <i data-ico="chevron-right" data-size="15"></i>
+          </button>
+        </div>
+
+        <div class="m-ctx">
+          <span class="m-ring" style="--p:72"></span>
+          <span>本月预算已用 72%</span>
+          <span class="m-grow"></span>
+          <span>11 月 3 日重置</span>
+        </div>
+
+      </div>
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 分节二级页 · 外观与输入 ───────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 通用 › 二级页 · 外观与输入 · 左上角永远是返回箭头；一行一个控件，标签在上、值在下</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回 hub"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">通用 › 外观与输入</span>
+        <button class="m-top-btn" title="恢复默认"><i data-ico="rotate-cw" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+
+        <div class="m-hero">
+          <span class="m-t-lg m-t-b">主题</span>
+          <span class="m-t-cap m-t-dim">跟随系统 = 日落自动切深色，正在跑的会话不闪屏。</span>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-pickbar" data-demo-list>
+            <button class="m-picktag" data-demo-select>跟随系统</button>
+            <button class="m-picktag" data-demo-select>浅色</button>
+            <button class="m-picktag is-on" data-demo-select>深色</button>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">正文字号</span>
+              <span class="m-setrow-s">基准 17px · 整条字阶按比例缩放，不单档拉大</span>
+            </span>
+            <span class="m-badge mute">17</span>
+          </div>
+          <div class="m-fieldrow">
+            <span class="m-fieldrow-s m-grow">15 – 19px，整条字阶跟着缩放</span>
+            <input class="m-slider" type="range" min="15" max="19" step="1" value="17" aria-label="正文字号">
+          </div>
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">界面密度</span>
+              <span class="m-setrow-s">紧凑 = 行高收到 1.45，列表一屏多两条</span>
+            </span>
+            <span class="m-badge mute">标准</span>
+          </div>
+          <div class="m-fieldrow">
+            <span class="m-fieldrow-s m-grow">紧凑 = 行高收到 1.45，列表一屏多两条</span>
+            <input class="m-slider" type="range" min="0" max="2" step="1" value="1" aria-label="界面密度">
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <button class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">回车发送</span>
+              <span class="m-setrow-s">关掉后回车换行，长文本用右下角发送</span>
+            </span>
+            <span class="m-switch on" data-demo-switch role="switch" aria-checked="true"></span>
+          </button>
+          <button class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">字号随系统</span>
+              <span class="m-setrow-s">系统放大到 130% 时正文同步放大</span>
+            </span>
+            <span class="m-switch on" data-demo-switch role="switch" aria-checked="true"></span>
+          </button>
+          <button class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">跟随系统深色</span>
+              <span class="m-setrow-s">仅在「跟随系统」主题下生效</span>
+            </span>
+            <span class="m-switch" data-demo-switch role="switch" aria-checked="false"></span>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">回车键行为</span>
+              <span class="m-setrow-s">选了「换行」的话，输入卡右下角始终显示发送钮</span>
+            </span>
+          </div>
+          <button class="m-select">
+            <span>发送（推荐）</span>
+            <i data-ico="chevron-down" data-size="15"></i>
+          </button>
+        </div>
+
+        <div class="m-ctx">
+          <i data-ico="info" data-size="14"></i>
+          <span>这一节改的是本机外观与输入手感，不影响正在跑的会话；恢复默认可一键回到出厂值。</span>
+        </div>
+
+      </div>
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 权限与信任 ───────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 通用 › 二级页 · 权限与信任 · 信任是一张卡不是一行字；档位用三等宽 tag，选中即染色</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回 hub"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">通用 › 权限与信任</span>
+        <button class="m-top-btn" title="权限说明"><i data-ico="circle-help" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+
+        <div class="m-perm">
+          <div class="nx-row">
+            <i data-ico="shield-check" data-size="18"></i>
+            <span class="m-grow m-t-b">本目录已信任</span>
+            <span class="m-badge ok">PI NEXT</span>
+          </div>
+          <span class="m-t-cap m-t-dim">在这个目录里可以执行命令、写文件、跑门禁。信任只存在本机，换设备要重新确认。</span>
+          <div class="m-pickbar" data-demo-list>
+            <button class="m-picktag" data-demo-select>每次问</button>
+            <button class="m-picktag is-on" data-demo-select>本会话允许</button>
+            <button class="m-picktag" data-demo-select>本目录永久</button>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-group-title">这一轮允许什么</div>
+          <button class="m-setrow">
+            <i data-ico="terminal" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">跑命令</span>
+              <span class="m-setrow-s">git / pnpm / node · 只在已信任目录</span>
+            </span>
+            <span class="m-switch on" data-demo-switch role="switch" aria-checked="true"></span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="globe" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">联网取文档</span>
+              <span class="m-setrow-s">只读请求，不带任何凭据</span>
+            </span>
+            <span class="m-switch on" data-demo-switch role="switch" aria-checked="true"></span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="file-plus" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">写文件</span>
+              <span class="m-setrow-s">关掉后每一条都要单独确认</span>
+            </span>
+            <span class="m-switch" data-demo-switch role="switch" aria-checked="false"></span>
+          </button>
+          <button class="m-setrow">
+            <i data-ico="trash-2" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">删除文件</span>
+              <span class="m-setrow-s">每次确认都要显示完整路径</span>
+            </span>
+            <span class="m-switch" data-demo-switch role="switch" aria-checked="false"></span>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">已信任目录</span>
+              <span class="m-setrow-s">在文件浏览器里选目录，或直接填路径</span>
+            </span>
+          </div>
+          <div class="m-doc-body">
+            <input class="m-input" size="36" value="/Users/yingjing/Desktop/PI NEXT" aria-label="已信任目录">
+          </div>
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">新增目录时</span>
+              <span class="m-setrow-s">子目录默认继承当前档位</span>
+            </span>
+          </div>
+          <button class="m-select">
+            <span>每次问</span>
+            <i data-ico="chevron-down" data-size="15"></i>
+          </button>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">严格档</span>
+              <span class="m-setrow-s">所有写操作都要逐条确认，适合公共目录</span>
+            </span>
+            <span class="m-radio on"></span>
+          </div>
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">标准档</span>
+              <span class="m-setrow-s">同一轮内同意过的命令不再重复问</span>
+            </span>
+            <span class="m-radio on"></span>
+          </div>
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">放手档</span>
+              <span class="m-setrow-s">本机全权限，仅对已信任目录开放</span>
+            </span>
+            <span class="m-radio"></span>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <button class="m-setrow">
+            <i data-ico="triangle-alert" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">撤销本机全部信任</span>
+              <span class="m-setrow-s">之后每条命令都要重新确认，会话不会被删</span>
+            </span>
+            <span class="m-badge bad">危险</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 弹窗宿主 · 从会话页打开设置（对应 web D-07 帧 D）───────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 D</b> · 弹窗宿主 · 会话页上把「设置 › 通用」以底部面板打开：同一份内容，改完合上回原位置，不退化成只读预览</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <span class="m-t-xs m-t-faint">PI NEXT</span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim is-open" data-demo-scrim></div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="会话抽屉"><i data-ico="panel-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>
+        <button class="m-top-btn" title="命令中心"><i data-ico="search" data-size="16"></i></button>
+      </div>
+
+      <div class="m-scroll">
+        <div class="m-msg-user">长任务还在跑，我把设置弹出来改完接着看。</div>
+        <div class="m-msg-ai">
+          <div class="m-msg-ai-head">
+            <span class="m-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+            <span class="m-t-b">PI NEXT</span>
+            <span class="m-badge mute">claude-opus-4-6</span>
+          </div>
+          <div class="m-md">
+            <p>弹窗用的是同一份内容：主题、完成声音、上下文预算都能就地改，不需要先退出设置再翻回来。面板不盖住整屏，会话还留在底下。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="m-fade-tail"></div>
+
+      <div class="m-sheet is-open" id="set-modal">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">
+          <div class="nx-row">
+            <span class="m-grow m-t-b">设置 · 通用</span>
+            <button class="m-top-btn" data-demo-drawer="toggle" data-demo-drawer-target="#set-modal" title="合上设置"><i data-ico="x" data-size="15"></i></button>
+          </div>
+        </div>
+        <div class="m-sheet-body">
+          <div class="m-banner"><i data-ico="info" data-size="14"></i><span class="m-grow">Esc 或合上就回会话；改动即时保存，不需要「应用」。要重载会话的项在这里只读并说明原因。</span></div>
+
+          <div class="m-cardgroup">
+            <div class="m-setrow">
+              <span class="m-setrow-body">
+                <span class="m-setrow-t">主题</span>
+                <span class="m-setrow-s">跟随系统 · 会话不重开，只换变量板</span>
+              </span>
+              <span class="m-badge mute">跟随系统</span>
+            </div>
+            <div class="m-setrow">
+              <span class="m-setrow-body">
+                <span class="m-setrow-t">完成声音</span>
+                <span class="m-setrow-s">长任务跑完时响一声，弹窗里够得着就不用退出</span>
+              </span>
+              <span class="m-switch on" data-demo-switch role="switch" aria-checked="true"></span>
+            </div>
+            <div class="m-setrow">
+              <span class="m-setrow-body">
+                <span class="m-setrow-t">压缩阈值</span>
+                <span class="m-setrow-s">上下文到 80% 时自动压缩 · 新会话生效</span>
+              </span>
+              <span class="m-badge mute">80%</span>
+            </div>
+            <div class="m-setrow">
+              <i data-ico="lock" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t">子代理并发</span>
+                <span class="m-setrow-s">需要重载会话的那类设置，弹窗里只读并说明原因</span>
+              </span>
+              <span class="m-badge mute">需重载会话</span>
+            </div>
+          </div>
+
+          <div class="m-pickbar">
+            <button class="m-picktag">先不改</button>
+            <button class="m-picktag is-on">完成</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>两层，不是三层</b>：hub（<span class="m-mono">.m-settings</span> + <span class="m-mono">.m-cardgroup</span>）→ 分节页。手机上没有空间摆导航树，所以二级页的左上角<b>永远是返回箭头</b>，不藏进 ⋯ 菜单；一次返回直接回到 hub，不做「返回上一级设置」的迷宫。</li>
+    <li><b>hub 只列 11 个分节</b>：通用 / 模型 / 技能 / 子代理 / 插件 / MCP / 定时任务 / 用量 / 归档 / 导入 / 手机与推送。「外观与输入」「权限与信任」是<b>「通用」里的二级页</b>，从通用进、左上角返回；它们不是第 12、13 个分节。行内副行必须写<b>当前值</b>（「本月 72%」「3 个任务」），不写「查看用量」这种废话。</li>
+    <li><b>灰底白卡</b>：<span class="m-mono">.m-settings</span> 是画布灰，<span class="m-mono">.m-cardgroup</span> 是白卡 + 发丝边；卡片之间靠间距分组，不靠标题线。组内最后一行去掉分隔线（<span class="m-mono">.m-setrow:last-child</span>）。</li>
+    <li><b>控件按手指重做</b>：<span class="m-mono">.m-switch</span> 48×29、<span class="m-mono">.m-slider</span> 拇指 26px、<span class="m-mono">.m-input</span>/<span class="m-mono">.m-select</span>/<span class="m-mono">.m-picktag</span> 高度取 <span class="m-mono">--nx-ctl-md</span>（44px）。滑杆与输入框在卡内要有 14px 内缩，system.css 只给了 <span class="m-mono">.m-doc-body</span> 可借，缺一个语义化的表单行类。</li>
+    <li><b>一行一个控件</b>：带控件的行写成 <span class="m-mono">div.m-setrow</span> 再把控件放进去，避免 button 套 button；纯导航行才写 <span class="m-mono">button.m-setrow</span>。开关全部接 <span class="m-mono">data-demo-switch</span>，主题三档与权限三档接 <span class="m-mono">data-demo-list</span> + <span class="m-mono">data-demo-select</span>（互斥高亮真实迁移）。</li>
+    <li><b>信任是一张卡</b>：<span class="m-mono">.m-perm</span>（暖色边框 + 淡底）单独占位，因为它是这套产品里唯一「默认拒绝」的反面 —— 说不清就等于默认允许。撤销信任染红并带「危险」徽章，但不放在 hub 上。</li>
+    <li><b>深色不是另一个页面</b>：主题换的是 <span class="m-mono">data-theme</span> 变量板，所有 <span class="m-mono">m-</span> 类一行不改 —— 所以主题档位是 <span class="m-mono">.m-picktag.is-on</span>，不是三套样式。</li>
+    <li><b>弹窗宿主不是第二套设置</b>：从会话页可以把「设置 › 通用」以底部面板打开（帧 D），内容与整页宿主同一份，改完合上就回会话原位置；需要重载会话的项在弹窗里只读并说明原因，不退化成只读预览，也不另写一份弹窗专用文案。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

@@ -17,6 +17,10 @@
  *     出现时收掉 composer 上方那一份，避免同一句提示出现两次。
  *
  * 有意保持小巧：只有一个组件、一次懒请求、不引入任何新状态存储。
+ *
+ * fork:v5-wave-b —— **有意不加 m-* 分支**：这一块对应的是 v5 画板 D-01 帧 C
+ * （零会话起步路径），PWA 侧没有对应画板，库里也没有可用的 m-* 件（`.m-empty`
+ * 是安装引导的空态，语义不同）。不自造类，窄屏仍走 d-* DOM。登记为缺件。
  */
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -114,82 +118,84 @@ export function EmptyStateGuide({
 
   const recentCandidates = (recent ?? []).slice(0, 5);
 
-  // fork:design-components —— 直接照画板 01 的空态：`.pw-empty` 撑满并居中，
-  // `.pw-empty-inner` 收拢一条 `.pw-empty-inner h2` + 三张 `.pw-starter`。
-  // 展开出来的两块同样只用画板件：最近项目 = `.pw-pop` + `.pw-litem`，
-  // 导入 = `.pw-rowgap` + `.pw-input` + `.pw-btn primary sm`，出错是 `.pw-alert`。
-  // 三枚图标（folder / clock / import）走 `i[data-ico]`，不再手绘内联 svg；
-  // 卡片 hover 由 board.css 的 `.pw-starter:hover` 给，组件里不再改内联底色。
+  // fork:v5-landing —— 照 v5 画板 **D-01 帧 C**（有最近项目 ·「先选一个地方开始」）抄 DOM：
+  //   .d-empty（.d-empty-t + .d-starters > .d-starter ×3）
+  //   + 最近项目浮层 .d-pop.is-open（.d-pop-title + .d-menu-row + .d-col.d-grow
+  //     + .d-set-row-t / .d-set-row-s.d-mono）。
+  // 导入那一路画板帧 C 只给了起步卡、没有展开态，所以复用同一套浮层件（.d-pop + .d-field
+  // + .d-input + .d-btn.sm.primary），不自造类。两张卡点开才挂载，未挂载即不渲染。
   return (
     <section
-      className="pw-empty"
+      className="d-empty"
       aria-label={t("home.guideTitle")}
-      style={{ padding: "24px 16px 0", overflowY: "auto" }}
+      style={{ padding: "var(--nx-sp-6) 0 0", alignItems: "flex-start", overflowY: "auto" }}
     >
-      <div className="pw-empty-inner">
-        <h2>{t("home.guideTitle")}</h2>
-        <div className="pw-starters">
-          <button
-            type="button"
-            className="pw-starter"
-            onClick={() => targets.onOpenFolder()}
-          >
-            <b><span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>{t("home.guidePickFolder")}</b>
-            <span>{t("home.guidePickFolderHint")}</span>
-          </button>
+      <div className="d-empty-t">{t("home.guideTitle")}</div>
+      <div className="d-starters">
+        <button
+          type="button"
+          className="d-starter"
+          onClick={() => targets.onOpenFolder()}
+        >
+          <b><i data-ico="folder" data-size="14" aria-hidden="true"></i>{t("home.guidePickFolder")}</b>
+          <span>{t("home.guidePickFolderHint")}</span>
+        </button>
 
-          <button
-            type="button"
-            className="pw-starter"
-            onClick={() => setRecentOpen((open) => !open)}
-            aria-expanded={recentOpen}
-          >
-            <b><span className="pw-ico"><i data-ico="clock" data-size="14"></i></span>{t("home.guideRecent")}</b>
-            <span>{t("home.guideRecentHint")}</span>
-          </button>
+        <button
+          type="button"
+          className="d-starter"
+          onClick={() => setRecentOpen((open) => !open)}
+          aria-expanded={recentOpen}
+        >
+          <b><i data-ico="clock" data-size="14" aria-hidden="true"></i>{t("home.guideRecent")}</b>
+          <span>{t("home.guideRecentHint")}</span>
+        </button>
 
-          <button
-            type="button"
-            className="pw-starter"
-            onClick={() => setImportOpen((open) => !open)}
-            aria-expanded={importOpen}
-          >
-            <b><span className="pw-ico"><i data-ico="import" data-size="14"></i></span>{t("home.guideImport")}</b>
-            <span>{t("home.guideImportHint")}</span>
-          </button>
+        <button
+          type="button"
+          className="d-starter"
+          onClick={() => setImportOpen((open) => !open)}
+          aria-expanded={importOpen}
+        >
+          <b><i data-ico="import" data-size="14" aria-hidden="true"></i>{t("home.guideImport")}</b>
+          <span>{t("home.guideImportHint")}</span>
+        </button>
+      </div>
+
+      {recentOpen && (
+        <div className="d-pop is-open" style={{ position: "static", width: "100%" }}>
+          <div className="d-pop-title">{t("home.guideRecent")}</div>
+          {recentLoading && (
+            <div className="d-menu-row" style={{ cursor: "default" }}>{t("home.guideRecentLoading")}</div>
+          )}
+          {!recentLoading && recentCandidates.length === 0 && (
+            <div className="d-menu-row" style={{ cursor: "default" }}>{t("home.guideRecentEmpty")}</div>
+          )}
+          {recentCandidates.map((project) => (
+            <button
+              key={project.path}
+              type="button"
+              title={project.path}
+              onClick={() => pickFromPath(project.path)}
+              className="d-menu-row"
+            >
+              <i data-ico="folder" data-size="14" aria-hidden="true"></i>
+              <span className="d-col d-grow">
+                <span className="d-set-row-t">{baseName(project.path)}</span>
+                <span className="d-set-row-s d-mono">{project.path}</span>
+              </span>
+            </button>
+          ))}
         </div>
+      )}
 
-        {recentOpen && (
-          <div className="pw-pop">
-            {recentLoading && <span className="pw-pop-title">{t("home.guideRecentLoading")}</span>}
-            {!recentLoading && recentCandidates.length === 0 && (
-              <span className="pw-pop-title">{t("home.guideRecentEmpty")}</span>
-            )}
-            {recentCandidates.map((project) => (
-              <button
-                key={project.path}
-                type="button"
-                title={project.path}
-                onClick={() => pickFromPath(project.path)}
-                className="pw-litem"
-                style={{ width: "100%" }}
-              >
-                <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
-                <span className="grow">
-                  <span className="pw-lname">{baseName(project.path)}</span>
-                  <span className="pw-lsub">{project.source}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {importOpen && (
-          <div className="pw-rowgap" style={{ width: "100%" }}>
-            <div className="pw-wrap">
+      {importOpen && (
+        <div className="d-pop is-open" style={{ position: "static", width: "100%" }}>
+          <div className="d-field">
+            <span className="d-field-t">{t("home.guideImport")}</span>
+            <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
               <input
-                className="pw-input"
-                style={{ flex: 1, minWidth: 180 }}
+                className="d-input"
                 value={importValue}
                 onChange={(event) => { setImportValue(event.target.value); setImportError(null); }}
                 onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) submitImport(); }}
@@ -199,18 +205,18 @@ export function EmptyStateGuide({
               />
               <button
                 type="button"
-                className="pw-btn primary sm"
+                className="d-btn sm primary"
                 onClick={submitImport}
               >
                 {t("home.guideImportAction")}
               </button>
             </div>
-            {importError && (
-              <span role="alert" className="pw-alert">{importError}</span>
-            )}
           </div>
-        )}
-      </div>
+          {importError && (
+            <div role="alert" className="d-err">{importError}</div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

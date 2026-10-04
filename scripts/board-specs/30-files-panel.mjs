@@ -21,7 +21,7 @@
 // 由运行实例决定，写死就成了一份只在某台机器上绿的规格。
 const OPEN_PANEL = `
   const toggle = document.querySelector(".desktop-secondary-workspace-toggle");
-  const panel = document.querySelector(".pw-panel");
+  const panel = document.querySelector(".right-panel-container");
   if (toggle && panel && !panel.className.includes("right-panel-open")) {
     toggle.click();
     await new Promise((r) => setTimeout(r, 1100));
@@ -29,11 +29,11 @@ const OPEN_PANEL = `
 `;
 
 const OPEN_A_SOURCE_FILE = `
-  const rows = [...document.querySelectorAll(".file-explorer-section .pw-trow")];
+  const rows = [...document.querySelectorAll(".file-explorer-section .d-trow")];
   const isDir = (r) => !!r.querySelector('[data-ico="chevron-right"]');
   const row = rows.find((r) => !isDir(r));
   if (!row) {
-    const cwd = document.querySelector(".file-explorer-title-label.pw-mono");
+    const cwd = document.querySelector(".file-explorer-title-label.d-mono");
     throw new Error("文件树里没有可打开的文件（工作区 "
       + (cwd ? cwd.getAttribute("title") : "?") + " 是空的）——板 30 这一帧量的是树+查看器并排态");
   }
@@ -45,27 +45,36 @@ export default {
   board: "30-files-panel.html",
   boardFrame: 0,
   app: { script: `${OPEN_PANEL}${OPEN_A_SOURCE_FILE}`, settle: 2600 },
+  // fork:v5-old-layer（2026-10-04）—— 产品侧已换画板 D-05/D-06 的 v5 类：
+  //   .pw-panel        → AppShell.tsx:3432 .right-panel-container.d-panel
+  //   .pw-panel-head   → ExplorerPanel.tsx:321 .file-explorer-header.d-panel-head
+  //   .pw-tabs/.pw-tab → TabBar.tsx:449/503 .fork-tabbar.d-tabbar / .fork-tab.d-tab
+  //   .pw-panel-body   → AppShell.tsx:3534 .file-panel-body.d-panel-body
+  //   .pw-trow         → FileExplorer.tsx:567/999 .d-trow
+  //   .pw-viewer*      → FileViewer.tsx:2362 .file-viewer-shell.d-viewer +
+  //                      CodeFileEditor.tsx:381/385 .d-viewer / .d-viewer-bar
+  // 画板侧仍取 v1 的 pw-*。
   pairs: [
     // 外壳三层
-    [".pw-panel", ".pw-panel"],
+    [".pw-panel", ".right-panel-container.d-panel"],
     // 面板头：产品上「文件」那一行是 .file-explorer-header（见文件头第 1 条）
-    [".pw-panel-head", ".file-explorer-header.pw-panel-head"],
-    [".pw-panel-head .pw-iconbtn", ".file-explorer-header .pw-iconbtn"],
+    [".pw-panel-head", ".file-explorer-header.d-panel-head"],
+    [".pw-panel-head .pw-iconbtn", ".file-explorer-header .d-iconbtn"],
     [".pw-panel-head b", ".file-explorer-header b"],
     // 标签条
-    [".pw-tabs", ".fork-tabbar.pw-tabs"],
-    [".pw-tab", ".pw-tab"],
-    [".pw-tab .x", ".pw-tab .x"],
+    [".pw-tabs", ".fork-tabbar.d-tabbar"],
+    [".pw-tab", ".fork-tab.d-tab"],
+    [".pw-tab .x", ".fork-tab.d-tab .x"],   // 关 tab 那枚钮的类就叫 .x（TabBar.tsx:606）
     // 面板体
-    [".pw-panel-body", ".pw-panel-body"],
+    [".pw-panel-body", ".file-panel-body.d-panel-body"],
     // 文件树
-    [".pw-trow", ".file-explorer-section .pw-trow"],
+    [".pw-trow", ".file-explorer-section .d-trow"],
     // 查看器（内层那一枚头，见文件头第 2 条）
-    [".pw-viewer", ".pw-viewer"],
-    [".pw-viewer-head", ".pw-viewer .pw-viewer-head"],
-    [".pw-viewer-head .pw-ico", ".pw-viewer .pw-viewer-head .pw-ico"],
-    [".pw-viewer-head .pw-mono", ".pw-viewer .pw-viewer-head .pw-mono"],
-    [".pw-viewer-head .pw-badge", ".pw-viewer .pw-viewer-head .pw-badge"],
+    [".pw-viewer", ".file-viewer-shell.d-viewer"],
+    [".pw-viewer-head", ".d-viewer .d-viewer-bar"],
+    [".pw-viewer-head .pw-ico", ".d-viewer .d-viewer-bar > i[data-ico]"],
+    [".pw-viewer-head .pw-mono", ".d-viewer .d-viewer-path"],
+    [".pw-viewer-head .pw-badge", ".d-viewer .d-viewer-bar .d-badge"],
   ],
   knownDiffs: [
     {
@@ -80,11 +89,11 @@ export default {
       //     标签条继承了它；画板里它挂在 `.pw-panel` 下，继承 body 的 13px。
       // 标签**原子**本身仍然逐项对得上（`.pw-tab` 26 高、`.pw-tab .x` 11 见方都在下面的 pairs 里），
       // 这里只登记容器层的形态差异。
-      sel: ".fork-tabbar.pw-tabs",
+      sel: ".fork-tabbar.d-tabbar",
       reason: "**形态差异（已在 DIVERGENCE.md:49 登记）**：画板是「标题行 + 标签行」两行，"
         + "产品并成一行（TabBar.tsx:213 height=var(--control-lg)=36）。"
-        + "fontSize 13→12 / lineHeight 19.5→18 不是独立取值，是 `.pw-tabs` 被并进 "
-        + "`.pw-panel-head`（board.css:561-565 font-size:var(--text-secondary)=12px）之后的继承结果；"
+        + "fontSize 13→12 / lineHeight 19.5→18 不是独立取值，是 `.d-tabbar` 被并进 "
+        + "`.d-panel-head`（board.css:561-565 font-size:var(--text-secondary)=12px）之后的继承结果；"
         + "行高 31→36 同理。标签原子（.pw-tab / .pw-tab .x）仍在本 spec 里逐项对位。",
     },
     {

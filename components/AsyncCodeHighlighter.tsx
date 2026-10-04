@@ -18,10 +18,18 @@
  * that chunk ever shows up in a real performance profile.
  *
  * fork:design-components —— 两条渲染路径，视觉来源不同：
- *   - 默认导出（转录代码块）走画板 10 的 `.pw-code-body` + `.ln` + `.pw-tok-*`，
- *     不再注入任何内联色，board.css 是唯一着色来源；
+ *   - 默认导出（转录代码块）走画板 10 的 `.d-code-body` + `.d-ln` + `.tok-*`，
+ *     不再注入任何内联色，system.css 是唯一着色来源；
  *   - `AsyncFileSourceView`（右栏文件查看器）是另一张画板的产品自有外观，保持原样。
+ *
+ * fork:v5-wave-b —— PWA 形态（≤640px）：`isPwa` 时容器换成画板 M-02 的
+ * `.m-code-scroll > .m-code-body`，行号列换成 `.m-ln`。
+ * `tok-*` 四个类**照旧发出**：PWA 库目前没有 `m-tok-*`（缺件已登记），
+ * 所以窄屏的代码暂时是单色的 —— 保留类名是为了设计侧补齐 m-tok-* 后零改动接上。
+ * 这里只读一个布尔，不参与任何渲染逻辑；高亮与否仍是 `shouldHighlightCode`。
  */
+
+import { usePwaSkin } from "@/components/pwa/skin";
 
 import {
   Prism as SyntaxHighlighter,
@@ -131,58 +139,62 @@ export function AsyncFileSourceView({ code, language, isDark, wrapLines }: FileS
 type BoardRendererNode = Parameters<NonNullable<SyntaxHighlighterProps["renderer"]>>[0]["rows"][number];
 
 /**
- * fork:design-components —— 画板 10:317-321 的 token 着色分层：`.pw-code-body` 里的
- * `.pw-tok-key / -str / -num / -fn / -com`。画板那几行是**类名**而不是内联色，
+ * fork:v5-landing —— 画板 D-03b 帧 C 的 token 着色分层：`.d-code-body` 里的
+ * `.tok-k / -s / -n / -c`。画板那几行是**类名**而不是内联色，
  * 所以这里关掉 RSH 的内联样式（`useInlineStyles: false` + 自带 renderer），
- * board.css 成为唯一着色来源，深浅色随 `--n-*` / `--success` / `--warning` 走。
+ * system.css 成为唯一着色来源，深浅色随 `--nx-code-*` 走。
  *
- * `.pw-tok-ref` / `.pw-tok-cmd`（board.css:769）属于 composer 输入框的 @ 引用与 / 命令，
- * 不是代码 token，因此不参与映射。
  * 未列出的 Prism token（operator / punctuation / variable / property / tag …）刻意留空：
- * 画板只定义了上面五档，再多就是自行发明配色。它们继承 `.pw-code-body` 的 `--n-text`。
+ * 画板只定义了上面四档，再多就是自行发明配色。它们继承 `.d-code-body` 的 `--nx-text`。
  */
 const BOARD_TOKEN_CLASS: Record<string, string> = {
-  comment: "pw-tok-com", prolog: "pw-tok-com", doctype: "pw-tok-com", cdata: "pw-tok-com",
-  keyword: "pw-tok-key", boolean: "pw-tok-key", atrule: "pw-tok-key", important: "pw-tok-key",
-  string: "pw-tok-str", char: "pw-tok-str", "template-string": "pw-tok-str", "attr-value": "pw-tok-str",
-  number: "pw-tok-num",
-  function: "pw-tok-fn", "class-name": "pw-tok-fn", "function-variable": "pw-tok-fn",
+  comment: "tok-c", prolog: "tok-c", doctype: "tok-c", cdata: "tok-c",
+  keyword: "tok-k", boolean: "tok-k", atrule: "tok-k", important: "tok-k",
+  string: "tok-s", char: "tok-s", "template-string": "tok-s", "attr-value": "tok-s",
+  number: "tok-n",
 };
 
-function renderBoardNode(node: BoardRendererNode, key: string): ReactNode {
+function renderBoardNode(node: BoardRendererNode, key: string, isPwa: boolean): ReactNode {
   if (node.type === "text") return node.value;
   const classNames = Array.isArray(node.properties?.className) ? node.properties.className.map(String) : [];
-  const children = node.children?.map((child, index) => renderBoardNode(child, `${key}-${index}`));
-  // 画板 10:152 的行号列 `<span class="ln">1</span>`。RSH 原本输出的是
+  const children = node.children?.map((child, index) => renderBoardNode(child, `${key}-${index}`, isPwa));
+  // 画板 D-03b 帧 C 的行号列 `<span class="d-ln">1</span>`。RSH 原本输出的是
   // `react-syntax-highlighter-line-number` 外加一串内联 minWidth / paddingRight / textAlign，
-  // 这里换成 board.css:316 的 `.ln`（定宽 22px + `--n-placeholder` + 禁选）。
+  // 这里换成 system.css 的 `.d-ln`（定宽 + `--nx-text-3` + 禁选）。
+  // fork:v5-wave-b —— 窄屏是 M-02 帧 A 的 `<span class="m-ln">1</span>`（同构）。
   if (classNames.includes("react-syntax-highlighter-line-number")) {
-    return <span key={key} className="ln">{children}</span>;
+    return <span key={key} className={isPwa ? "m-ln" : "d-ln"}>{children}</span>;
   }
   const tokenClass = classNames.map((name) => BOARD_TOKEN_CLASS[name]).find(Boolean);
   return <span key={key} className={tokenClass}>{children}</span>;
 }
 
-const boardTokenRenderer: NonNullable<SyntaxHighlighterProps["renderer"]> = ({ rows }) =>
-  rows.map((row, index) => renderBoardNode(row, `code-segment-${index}`));
-
-/** 画板 10:152 的 `.pw-code-body` 容器：替掉 RSH 塞进来的 `prismjs` 类与整串内联样式。 */
-function BoardCodeBody({ children }: { children?: ReactNode }) {
-  return <pre className="pw-code-body">{children}</pre>;
+/** 画板 D-03b 帧 C 的 `.d-code-body` 容器：替掉 RSH 塞进来的 `prismjs` 类与整串内联样式。
+ *  fork:v5-wave-b —— 窄屏是 M-02 帧 A 的 `.m-code-scroll` 横滚层 + `.m-code-body`。 */
+function BoardCodeBody({ children, isPwa = false }: { children?: ReactNode; isPwa?: boolean }) {
+  if (isPwa) {
+    return (
+      <div className="m-code-scroll">
+        <div className="m-code-body">{children}</div>
+      </div>
+    );
+  }
+  return <div className="d-code-body">{children}</div>;
 }
 
-/** `.pw-code-body` 自带 `white-space: pre`（board.css:314），RSH 的 `<code>` 包裹层是多余的。 */
+/** `.d-code-body` 自带 `white-space: pre`，RSH 的 `<code>` 包裹层是多余的。 */
 function BoardCodeInner({ children }: { children?: ReactNode }) {
   return <>{children}</>;
 }
 
 /**
  * 转录代码块（MermaidBlock 的 `CodeBlock` 用的就是它）。
- * 容器 `.pw-code-body`、行号 `.ln`、token `.pw-tok-*` —— 全部落在 board.css 上，
+ * 容器 `.d-code-body`、行号 `.d-ln`、token `.tok-*` —— 全部落在 system.css 上，
  * 组件里不再出现任何颜色 / 尺寸字面量。`wrapLines={false}` 让行号与 token 同处一行，
- * 与画板 10:152 的写法一致（长行由 `.pw-code-body` 的 `overflow-x: auto` 横滚，不折行）。
+ * 与画板 D-03b 的写法一致（长行由 `.d-code-body` 的 `overflow-x: auto` 横滚，不折行）。
  */
 export default function AsyncCodeHighlighter({ children, language, showLineNumbers = true }: HighlighterProps) {
+  const isPwa = usePwaSkin();
   return (
     <SyntaxHighlighter
       language={language}
@@ -190,11 +202,24 @@ export default function AsyncCodeHighlighter({ children, language, showLineNumbe
       showInlineLineNumbers
       wrapLines={false}
       useInlineStyles={false}
-      PreTag={BoardCodeBody}
+      // fork:v5-wave-b —— `PreTag` 是 RSH 允许换的标签组件（不是标签**字符串**），
+      // 所以这里传的是同一个组件的两个形态实例，输出结构完全由 PWA 画板决定。
+      PreTag={isPwa ? BoardCodeBodyPwa : BoardCodeBody}
       CodeTag={BoardCodeInner}
-      renderer={boardTokenRenderer}
+      renderer={isPwa ? boardTokenRendererPwa : boardTokenRenderer}
     >
       {children}
     </SyntaxHighlighter>
   );
 }
+
+/** fork:v5-wave-b —— PWA 形态的两个 renderer（与桌面同一份实现，只是绑定 isPwa）。 */
+function BoardCodeBodyPwa(props: { children?: ReactNode }) {
+  return <BoardCodeBody isPwa {...props} />;
+}
+
+const boardTokenRendererPwa: NonNullable<SyntaxHighlighterProps["renderer"]> = ({ rows }) =>
+  rows.map((row, index) => renderBoardNode(row, `code-segment-${index}`, true));
+
+const boardTokenRenderer: NonNullable<SyntaxHighlighterProps["renderer"]> = ({ rows }) =>
+  rows.map((row, index) => renderBoardNode(row, `code-segment-${index}`, false));

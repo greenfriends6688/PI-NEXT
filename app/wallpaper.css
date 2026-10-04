@@ -160,8 +160,9 @@ html[data-wallpaper="on"]:is([data-wallpaper-message="trans"], [data-wallpaper-m
    inline box shares its line box with neighbouring words, so `backdrop-filter`
    on it would frost whatever sits behind that line — including the words. */
 
-html[data-wallpaper="on"][data-wallpaper-message="blur"] .process-step-body,
-html[data-wallpaper="on"][data-wallpaper-message="blur"] .process-tabstrip {
+/* fork:v5-old-layer（2026-10-04）—— 摘掉 `.process-tabstrip`（零引用，
+     标签行已是画板的 `.d-tabbar`）。 */
+html[data-wallpaper="on"][data-wallpaper-message="blur"] .process-step-body {
   backdrop-filter: blur(var(--wp-blur-message));
 }
 
@@ -234,7 +235,6 @@ html[data-wallpaper="on"]:not([data-theme-skin="true"])[data-wallpaper-panel="bl
 
 html[data-wallpaper="on"]:not([data-theme-skin="true"]):is([data-wallpaper-panel="trans"], [data-wallpaper-panel="blur"]) :is(
   .file-explorer-section,
-  .file-explorer-body,
   .file-panel-main,
   .file-panel-body,
   .explorer-column,

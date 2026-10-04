@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { formatUpdatedTime } from "@/lib/i18n/format";
@@ -42,19 +43,7 @@ import {
 // fork:input-limits —— 多模态上限 / 图片 resize / 提示词缓存时长的输入区。
 import { ModelInputLimitsFields } from "./ModelLimitsFields";
 import {
-  ConfigBadge,
-  ConfigButton,
-  ConfigDetail,
-  ConfigDetailActions,
-  ConfigDetailHeader,
-  ConfigDetailHeaderInfo,
-  ConfigDetailStack,
-  ConfigDetailTitle,
-  ConfigEmptyState,
-  ConfigField,
-  ConfigKv,
   ConfigPanelShell,
-  ConfigSectionTitle,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
   ConfigSidebarItem,
@@ -62,14 +51,7 @@ import {
   ConfigSidebarSub,
   ConfigSidebarText,
   ConfigSplitView,
-  ConfigStat,
-  ConfigStatGrid,
-  ConfigStatusDot,
-  ConfigSwitch,
-  PwCtl,
-  PwRadio,
   PwSelectBox,
-  type PwRadioOption,
 } from "./SettingsUi";
 import { PwSearch, SettingsPage } from "./SettingsUi";
 import {
@@ -104,6 +86,84 @@ import {
 import { describeThinkingRequestFromFields, type ThinkingModelFields } from "@/lib/thinking-request-core";
 import type { ThinkingProfileInputs } from "@/lib/models-cache";
 import { formatThinkingRequestParams } from "./models-config-helpers";
+
+// ── v5 基件（画板 D-08/09/10 的 d-* DOM）──────────────────────────────────────
+/* fork:v5-landing —— 模型页内容层直接抄画板 DOM：小节用 `.d-set-sec`、行用
+   `.d-set-row`、字段用 `.d-field`/`.d-grid2`、表用 `.d-card > .d-table`、
+   开关用 `.d-switch`、分段用 `.d-seg`。壳（SettingsPage / ConfigSplitView /
+   侧栏）仍是共享基件，由设置壳那一波统一换。 */
+function DBadge({ tone, title, className, children }: {
+  tone?: "ok" | "warn" | "bad" | "info" | "mute" | "count";
+  title?: string; className?: string; children: ReactNode;
+}) {
+  const cls = ["d-badge", tone === "count" ? "mute" : tone, className].filter(Boolean).join(" ");
+  return <span className={cls} title={title}>{children}</span>;
+}
+
+/** v5 D-08/09 的字段块：`.d-field` + `.d-field-t`，hint 是字段下方的小字。 */
+function DField({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="d-field">
+      <span className="d-field-t">{label}</span>
+      {children}
+      {hint ? <div className="d-t-xs d-t-faint">{hint}</div> : null}
+    </div>
+  );
+}
+
+function DButton({ variant, size, className, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "secondary" | "primary" | "danger" | "ghost"; size?: "small";
+}) {
+  const cls = ["d-btn",
+    variant === "primary" ? "primary" : variant === "danger" ? "danger" : variant === "ghost" ? "ghost" : "",
+    size === "small" ? "sm" : "", className].filter(Boolean).join(" ");
+  return <button type="button" className={cls} {...rest}>{children}</button>;
+}
+
+function DSwitch({ checked, disabled = false, label, onChange }: {
+  checked: boolean; disabled?: boolean; label: string; onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      className={`d-switch${checked ? " on" : ""}`}
+      onClick={() => onChange(!checked)}
+    />
+  );
+}
+
+function DSeg({ value, options, ariaLabel, disabled = false, onChange }: {
+  value: string; options: readonly { value: string; label: string; title?: string; node?: ReactNode }[];
+  ariaLabel: string; disabled?: boolean; onChange: (next: string) => void;
+}) {
+  return (
+    <span className="d-seg" role="radiogroup" aria-label={ariaLabel}>
+      {options.map((option) => {
+        const on = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            title={option.title}
+            disabled={disabled}
+            className={on ? "is-on" : undefined}
+            onClick={() => onChange(option.value)}
+          >
+            {option.node}
+            {option.label}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -289,10 +349,10 @@ const API_OPTIONS = modelApiChoices();
 
 /* fork:design-system —— 表单控件全部换成画板的 `.pw-input` / `.pw-selectbox`
    （视觉全在 board.css）。三个只存在于画板 DOM / 产品行为里的行内值集中在这里：
-   · FILL_ROW_INPUT = 画板 41 搜索行的 `style="flex:1;min-width:0"` —— pw-input
+   · FILL_ROW_INPUT = 画板搜索行的 `style="flex:1;min-width:0"` —— d-input
      （或包着它的行）在 flex 行里要吃掉剩余宽度、并盖掉 min-width:200px
      （ChatWindow 同款先例）。
-   · DISCOVERY_CHECKBOX —— 画板没有复选框基件（.pw-switch 是开关不是多选）：
+   · DISCOVERY_CHECKBOX —— 画板没有复选框基件（.d-switch 是开关不是多选）：
      上游导入清单勾选框的几何与 accentColor 只能留在行内。
    · BREAKABLE_LINK —— 画板没有链接基件；颜色走 token，授权 URL 很长必须可断行。 */
 const FILL_ROW_INPUT = { flex: 1, minWidth: 0 } as const;
@@ -302,7 +362,7 @@ const BREAKABLE_LINK = { color: "var(--accent)", wordBreak: "break-all" } as con
 function TextInput({ value, onChange, placeholder, mono }: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean }) {
   return (
     <input
-      className={mono ? "pw-input pw-mono" : "pw-input"}
+      className={mono ? "d-input d-mono" : "d-input"}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -336,13 +396,12 @@ function SecretTextInput({
     if (!value) setVisible(false);
   }, [value]);
 
-  /* 显隐切换从「盖在输入框上的浮动按钮」改成画板 41 搜索行的形态：
-     pw-inline 行 + pw-input + 行尾 pw-iconbtn，浮动定位不再需要自绘。 */
+  /* 显隐切换用画板 D-08 搜索行的形态：`.d-row` + `.d-input` + 行尾 `.d-iconbtn`。 */
   return (
-    <div className="pw-inline" style={style}>
+    <div className="d-row" style={style}>
       <input
         type={visible ? "text" : "password"}
-        className={mono ? "pw-input pw-mono" : "pw-input"}
+        className={mono ? "d-input d-mono" : "d-input"}
         style={FILL_ROW_INPUT}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -353,12 +412,12 @@ function SecretTextInput({
       />
       <button
         type="button"
-        className="pw-iconbtn sm"
+        className="d-iconbtn"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
         title={visible ? t("i18n.hideDetails") : t("i18n.showDetails")}
       >
-        <span className="pw-ico"><i data-ico={visible ? "eye-off" : "eye"} data-size="13"></i></span>
+        <i data-ico={visible ? "eye-off" : "eye"} data-size="14" aria-hidden="true" />
       </button>
     </div>
   );
@@ -368,7 +427,7 @@ function NumInput({ value, onChange, placeholder }: { value: string; onChange: (
   return (
     <input
       type="number"
-      className="pw-input"
+      className="d-input d-mono"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -419,42 +478,44 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
     setProviderEmoji(providerId, value || null);
   };
 
-  /* fork:design-system —— 四段模式就是画板的 radio 芯片（`.pw-radio > button`，
-     SettingsUi 的 PwRadio 基件）：选中态 accent 由画板给；芯片前置的图案是品牌
-     ProviderIcon（非 sprite 名），走 PwRadioOption.node。 */
+  /* fork:design-system —— 四段模式就是画板 D-08 的 `.d-seg` 分段；芯片前置的
+     图案是品牌 ProviderIcon（非 sprite 名），走 DSeg option.node。 */
   return (
-    <div className="pw-rowgap">
-      <PwRadio
+    <div className="d-col">
+      {/* fork:v5-landing —— 四段模式就是画板 D-08 的 `.d-seg` 分段。 */}
+      <DSeg
         value={current}
         options={PROVIDER_ICON_MODES.map((modeOption) => ({
           value: modeOption,
           label: t(ICON_MODE_LABEL_KEYS[modeOption]),
+          title: t(ICON_MODE_LABEL_KEYS[modeOption]),
           node: <ProviderIcon id={providerId} api={api} size={12} mode={modeOption} />,
         }))}
         ariaLabel={t("models.providerIcon")}
-        onChange={chooseMode}
+        onChange={(next) => chooseMode(next as ProviderIconMode)}
       />
       {current === "emoji" && (
-        <div className="pw-inline">
+        <div className="d-row">
           <input
-            className="pw-input pw-mono"
+            className="d-input d-mono"
+            style={{ width: "12ch" }}
             value={emojiDraft}
             onChange={(event) => updateEmoji(event.target.value)}
             placeholder={t("models.providerIconEmojiPlaceholder")}
             aria-label={t("models.providerIconEmoji")}
             maxLength={16}
           />
-          <ConfigButton
+          <DButton
             variant="ghost"
             size="small"
             disabled={!emojiDraft && !getProviderEmoji(providerId)}
             onClick={() => updateEmoji("")}
           >
             {t("models.providerIconEmojiClear")}
-          </ConfigButton>
+          </DButton>
         </div>
       )}
-      <div className="pw-mono pw-dim">{t("models.providerIconModeDescription")}</div>
+      <div className="d-mono d-t-faint">{t("models.providerIconModeDescription")}</div>
     </div>
   );
 }
@@ -574,8 +635,8 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
     setSelectedModelIds([]);
   };
 
-  /* fork:models-board —— 画板 41 的「可用模型」是**按名字过滤的开关行**，
-     头卡里那三行 `.pw-kv`（接口地址 / 认证方式 / 上次同步）也在这算。
+  /* fork:models-board —— 画板 D-08 帧 A 的「可用模型」是**按名字过滤的开关行**，
+     头卡里那两组 `.d-grid2 > .d-field`（接口地址 / 认证方式 / 上次同步）也在这算。
      「上次同步」是本次打开面板后真的成功导入过一次才有的事实，没有就明说没有。 */
   const [lastSync, setLastSync] = useState<{ at: number; count: number } | null>(null);
   const [modelFilter, setModelFilter] = useState("");
@@ -618,208 +679,200 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
     return context ?? "";
   };
 
-  /* fork:models-board —— 画板 41 的右列是**三张独立的 `.pw-detail` 卡**
-     （供应商头卡 / 用量摘要 / 可用模型），不是一个撑满高度的巨卡。
-     可调参数全部保留，但归到第四张「连接与请求」卡里：头卡只回答
-     「它是谁、连到哪、上次什么时候同步的」。 */
+  /* fork:v5-landing —— 画板 D-08 帧 A：供应商头卡 / 用量 / 可用模型 / 导入 / 连接
+     都是 `.d-set-inner` 里的 `.d-set-sec`；配置字段走 `.d-grid2 > .d-field`。 */
   return (
-    <ConfigDetailStack>
-      <ConfigDetail>
-        <ConfigDetailHeader>
-          <ConfigDetailHeaderInfo>
-            <ProviderIcon id={name} size={22} />
-            <ConfigDetailTitle>{name}</ConfigDetailTitle>
-            <span className="pw-grow" aria-hidden="true" />
-            <EnabledModelsProviderSwitch providerId={name} controller={enabledModels} />
-            <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("i18n.delete")}</ConfigButton>
-          </ConfigDetailHeaderInfo>
-        </ConfigDetailHeader>
-        {/* fork:provider-inline-fields —— 地址 / 协议 / 密钥**就地可改**，不再只能看。
-            以前这三个值印在只读的 `.pw-kv` 表里（改它们要去下面第四张「连接与请求」
-            卡），于是「这家到底打哪个端点、用哪个协议」与「去改它」被拆成两个地方。
-            这里是**移动**而不是复制：「连接与请求」卡里那三行同时删掉了，
-            同一个值不留两个输入框。
-            顺序照 ZCode 的供应商卡（Base URL → API 格式 → API Key）。 */}
-        <ConfigField label={t("models.kvBaseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
+    <div className="d-set-inner">
+      <div className="d-set-sec">
+        <div className="d-row">
+          <ProviderIcon id={name} size={22} />
+          <div className="d-set-sec-t">{name}</div>
+          <span className="d-grow" aria-hidden="true" />
+          <EnabledModelsProviderSwitch providerId={name} controller={enabledModels} />
+          <DButton variant="danger" size="small" onClick={onDelete}>{t("i18n.delete")}</DButton>
+        </div>
+        {/* fork:provider-inline-fields —— 地址 / 协议 / 密钥就地可改（顺序：
+            Base URL → API 格式 → API Key），同一个值不留两个输入框。 */}
+        <DField label={t("models.kvBaseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
           <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
             placeholder="https://api.example.com/v1" mono />
-        </ConfigField>
+        </DField>
 
-        <ConfigField label={t("models.apiLabel")}>
+        <DField label={t("models.apiLabel")}>
           <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required ariaLabel={t("models.apiLabel")} />
-        </ConfigField>
+        </DField>
 
-        <ConfigField label={t("models.apiKeyLabel")} hint={t("models.apiKeyHint")}>
+        <DField label={t("models.apiKeyLabel")} hint={t("models.apiKeyHint")}>
           <SecretTextInput value={provider.apiKey ?? ""} onChange={(v) => set("apiKey", v || undefined)}
             placeholder="ENV_VAR_NAME, !shell-command, or literal key" mono />
-        </ConfigField>
+        </DField>
 
-        <ConfigKv>
-          <dt>{t("models.kvAuth")}</dt>
-          <dd>{authSummary}</dd>
-          <dt>{t("models.kvLastSync")}</dt>
-          <dd className="pw-mono">
-            {lastSync
-              ? `${formatUpdatedTime(lastSync.at, locale)} · ${t("models.discoveryFetched", { count: lastSync.count })}`
-              : t("models.neverSynced")}
-          </dd>
-        </ConfigKv>
-      </ConfigDetail>
+        <div className="d-grid2">
+          <div className="d-field">
+            <span className="d-field-t">{t("models.kvAuth")}</span>
+            <span>{authSummary}</span>
+          </div>
+          <div className="d-field">
+            <span className="d-field-t">{t("models.kvLastSync")}</span>
+            <span className="d-mono">
+              {lastSync
+                ? `${formatUpdatedTime(lastSync.at, locale)} · ${t("models.discoveryFetched", { count: lastSync.count })}`
+                : t("models.neverSynced")}
+            </span>
+          </div>
+        </div>
+      </div>
 
-      <ConfigDetail>
-        <h3>{t("models.usageTitle")}</h3>
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("models.usageTitle")}</div>
         <ProviderUsageCards providerId={name} />
-      </ConfigDetail>
+      </div>
 
-      <ConfigDetail>
-        <ConfigDetailHeader>
-          <ConfigDetailTitle>{t("models.availableModels")}</ConfigDetailTitle>
-          <ConfigBadge tone="count">
+      <div className="d-set-sec">
+        <div className="d-row">
+          <div className="d-set-sec-t">{t("models.availableModels")}</div>
+          <DBadge tone="count">
             {t("models.modelsCount", { count: provider.models?.length ?? 0, enabled: enabledCount })}
-          </ConfigBadge>
-          <span className="pw-grow" aria-hidden="true" />
+          </DBadge>
+          <span className="d-grow" aria-hidden="true" />
           <input
-            className="pw-input"
-            /* 画板 41 的过滤框自带 inline（height:24px;min-width:120px）；
-               flex 基准是本产品行内的收放。 */
-            style={{ height: "var(--control-xs)", minWidth: 120, flex: "0 1 160px" }}
+            className="d-input d-mono"
+            style={{ maxWidth: 200 }}
             value={modelFilter}
             onChange={(event) => setModelFilter(event.target.value)}
             placeholder={t("models.filterModels")}
             aria-label={t("models.filterModels")}
           />
-          <ConfigButton
-            variant="secondary"
+          <DButton
             size="small"
             disabled={discoveryState.phase === "loading"}
             onClick={handleDiscoverModels}
           >
-            <span className="pw-ico"><i data-ico="download" data-size="13"></i></span>
+            <i data-ico="download" data-size="13" aria-hidden="true" />
             {discoveryState.phase === "loading" ? t("models.discoveryFetching") : t("models.importFromUpstream")}
-          </ConfigButton>
-        </ConfigDetailHeader>
+          </DButton>
+        </div>
 
-        {configuredModels.length === 0 ? (
-          <p className="pw-hint">{provider.models?.length ? t("models.enabledNoMatches") : t("models.noModels")}</p>
-        ) : (
-          <div className="pw-list">
-            {configuredModels.map((model, index) => {
-              const subtitle = modelSubtitle(model);
-              /* fork:model-row-inline —— 右侧三枚行内控件。形状照 ZCode 的模型行
-                 （名称 / 上下文徽标 / 视觉徽标 / 🔌 测试 / ✏️ 编辑 / 开关）。
-                 底座全是现成的：测试走 `postModelTest`（与编辑器同一个函数），
-                 编辑走 `onOpenModel`，开关走 `enabledModels.setModels`（与
-                 `.enabled-models-row` 同一个 controller）。不新增任何样式类。 */
-              const rowTest = rowTests[index];
-              const testing = rowTest?.phase === "testing";
-              const view = providerView?.models.find((entry) => entry.id === model.id);
-              const window_ = formatContextWindowBadge(model.contextWindow);
-              const vision = (model.input ?? []).some((modality) => modality === "image" || modality === "pdf");
-              const testTitle = !model.id.trim()
-                ? t("models.testModelNeedsId")
-                : rowTest && rowTest.phase !== "idle" && rowTest.phase !== "testing"
-                  ? rowTest.phase === "success"
-                    ? [t("i18n.connected"), rowTest.latencyMs !== undefined ? `${rowTest.latencyMs}ms` : null]
-                      .filter(Boolean).join(" · ")
-                    : [t("i18n.failed"), rowTest.message].filter(Boolean).join(" · ")
-                  : testing ? t("i18n.testingModel") : t("models.testModel");
-              return (
-                <div key={index} className="pw-litem models-provider-model-row">
-                  {/* 行**不再**是 button：它现在装着两个 button 和一个 switch，
-                      `role="button"` + 整行 onClick 会让行内控件既不可聚焦语义
-                      又抢不过冒泡（点开关等于点整行 = 误开编辑器）。 */}
-                  <span className="grow">
-                    <ConfigSidebarText>{model.name || model.id || t("i18n.newModel")}</ConfigSidebarText>
-                    {subtitle ? <ConfigSidebarSub>{subtitle}</ConfigSidebarSub> : null}
-                  </span>
-                  {window_ ? <ConfigBadge tone="count">{window_}</ConfigBadge> : null}
-                  {vision ? <ConfigBadge tone="count">{t("models.badgeVision")}</ConfigBadge> : null}
-                  {model.reasoning ? <ConfigBadge tone="accent">{t("models.badgePinnable")}</ConfigBadge> : null}
-                  {rowTest && rowTest.phase === "error" ? <ConfigBadge tone="bad">{t("i18n.failed")}</ConfigBadge> : null}
-                  <button
-                    type="button"
-                    className="pw-iconbtn models-provider-model-action"
-                    disabled={!model.id.trim() || testing}
-                    title={testTitle}
-                    aria-label={testTitle}
-                    onClick={() => void testRowModel(index, model)}
-                  >
-                    <span className="pw-ico">
-                      <i data-ico={testing ? "loader-circle" : "zap"} data-size="13"></i>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="pw-iconbtn models-provider-model-action"
-                    title={t("models.editModel")}
-                    aria-label={t("models.editModel")}
-                    onClick={() => onOpenModel(index)}
-                  >
-                    <span className="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>
-                  </button>
-                  <ConfigSwitch
-                    checked={view?.enabled ?? true}
-                    loading={enabledModels.pending === view?.ref}
-                    disabled={!view || !enabledModels.view?.editable}
-                    label={view
-                      ? t("models.enabledToggle", { model: model.name || model.id })
-                      : t("models.enabledUnavailable")}
-                    onChange={(checked) => view && enabledModels.setModels(view.ref, [view.ref], checked)}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="d-card">
+          <table className="d-table">
+            <tbody>
+              {configuredModels.length === 0 ? (
+                <tr>
+                  <td><span className="d-t-xs d-t-faint">{provider.models?.length ? t("models.enabledNoMatches") : t("models.noModels")}</span></td>
+                </tr>
+              ) : configuredModels.map((model, index) => {
+                const subtitle = modelSubtitle(model);
+                const rowTest = rowTests[index];
+                const testing = rowTest?.phase === "testing";
+                const view = providerView?.models.find((entry) => entry.id === model.id);
+                const window_ = formatContextWindowBadge(model.contextWindow);
+                const vision = (model.input ?? []).some((modality) => modality === "image" || modality === "pdf");
+                const testTitle = !model.id.trim()
+                  ? t("models.testModelNeedsId")
+                  : rowTest && rowTest.phase !== "idle" && rowTest.phase !== "testing"
+                    ? rowTest.phase === "success"
+                      ? [t("i18n.connected"), rowTest.latencyMs !== undefined ? `${rowTest.latencyMs}ms` : null]
+                        .filter(Boolean).join(" · ")
+                      : [t("i18n.failed"), rowTest.message].filter(Boolean).join(" · ")
+                    : testing ? t("i18n.testingModel") : t("models.testModel");
+                return (
+                  <tr key={index} className="models-provider-model-row">
+                    <td>
+                      <div className="d-col">
+                        <span className="d-t-b">{model.name || model.id || t("i18n.newModel")}</span>
+                        {subtitle ? <span className="d-t-xs d-t-faint">{subtitle}</span> : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="d-row">
+                        {window_ ? <DBadge tone="count">{window_}</DBadge> : null}
+                        {vision ? <DBadge tone="count">{t("models.badgeVision")}</DBadge> : null}
+                        {model.reasoning ? <DBadge tone="info">{t("models.badgePinnable")}</DBadge> : null}
+                        {rowTest && rowTest.phase === "error" ? <DBadge tone="bad">{t("i18n.failed")}</DBadge> : null}
+                        <button
+                          type="button"
+                          className="d-iconbtn models-provider-model-action"
+                          disabled={!model.id.trim() || testing}
+                          title={testTitle}
+                          aria-label={testTitle}
+                          onClick={() => void testRowModel(index, model)}
+                        >
+                          <i data-ico={testing ? "loader-circle" : "zap"} data-size="13" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="d-iconbtn models-provider-model-action"
+                          title={t("models.editModel")}
+                          aria-label={t("models.editModel")}
+                          onClick={() => onOpenModel(index)}
+                        >
+                          <i data-ico="square-pen" data-size="13" aria-hidden="true" />
+                        </button>
+                        <DSwitch
+                          checked={view?.enabled ?? true}
+                          disabled={!view || !enabledModels.view?.editable}
+                          label={view
+                            ? t("models.enabledToggle", { model: model.name || model.id })
+                            : t("models.enabledUnavailable")}
+                          onChange={(checked) => view && enabledModels.setModels(view.ref, [view.ref], checked)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
-        <ConfigDetailHeader>
-          {/* `.pw-mono` 本身就是 var(--text-meta)，不需要再补字号。 */}
-          <span className="pw-mono pw-dim">
+        <div className="d-row">
+          <span className="d-mono d-t-faint">
             {t("models.enabledProjectScope")}
           </span>
-          <span className="pw-grow" aria-hidden="true" />
-          <ConfigButton
+          <span className="d-grow" aria-hidden="true" />
+          <DButton
             size="small"
             disabled={stalePatternCount === 0}
             title={stalePatternCount === 0 ? undefined : t("models.pruneHint", { count: stalePatternCount })}
             onClick={onPrune}
           >
             {t("models.pruneUnmatched")}
-          </ConfigButton>
-          <ConfigButton size="small" variant="ghost" onClick={onAddModel}>{t("i18n.addModel")}</ConfigButton>
-        </ConfigDetailHeader>
-      </ConfigDetail>
+          </DButton>
+          <DButton size="small" variant="ghost" onClick={onAddModel}>{t("i18n.addModel")}</DButton>
+        </div>
+      </div>
 
       {discoveryState.phase !== "idle" && (
-        <ConfigDetail>
-        <ConfigDetailHeader>
-          <ConfigDetailTitle>{t("models.importFromUpstream")}</ConfigDetailTitle>
-          <span className="pw-grow" aria-hidden="true" />
+        <div className="d-set-sec">
+          <div className="d-row">
+            <div className="d-set-sec-t">{t("models.importFromUpstream")}</div>
+            <span className="d-grow" aria-hidden="true" />
             {discoveryState.phase === "success" && (
-              <ConfigButton size="small" variant="ghost" onClick={() => setDiscoveryState({ phase: "idle" })}>
+              <DButton size="small" variant="ghost" onClick={() => setDiscoveryState({ phase: "idle" })}>
                 {t("i18n.close")}
-              </ConfigButton>
+              </DButton>
             )}
-          </ConfigDetailHeader>
+          </div>
 
           {discoveryState.phase === "error" && (
-            <div className="pw-alert">{discoveryState.message}</div>
+            <div className="d-banner err">{discoveryState.message}</div>
           )}
 
           {discoveryState.phase === "success" && (
             <>
-              <ConfigField label={t("models.discoveryFilter")}>
+              <div className="d-field">
+                <span className="d-field-t">{t("models.discoveryFilter")}</span>
                 <input
-                  className="pw-input"
+                  className="d-input d-mono"
                   value={discoveryQuery}
                   onChange={(event) => setDiscoveryQuery(event.target.value)}
                   placeholder={t("models.discoveryFilterPlaceholder", { count: discoveryState.models.length })}
                   aria-label={t("models.discoveryFilter")}
                 />
-              </ConfigField>
+              </div>
 
-              <div className="pw-list models-discovery-list">
-                <label className="pw-litem models-discovery-row models-discovery-head">
+              <div className="d-card">
+                <label className="d-row models-discovery-row models-discovery-head" style={{ padding: "6px 12px" }}>
                   <input
                     ref={selectShownRef}
                     type="checkbox"
@@ -828,18 +881,18 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
                     onChange={toggleShownModels}
                     style={DISCOVERY_CHECKBOX}
                   />
-                  <ConfigSidebarText>{t("models.discoverySelectShown")}</ConfigSidebarText>
+                  <span className="d-t-b">{t("models.discoverySelectShown")}</span>
                 </label>
                 {shownDiscoveredModels.length === 0 ? (
-                  <p className="pw-hint">{t("models.discoveryNoMatches")}</p>
+                  <div className="d-t-xs d-t-faint" style={{ padding: "6px 12px" }}>{t("models.discoveryNoMatches")}</div>
                 ) : shownDiscoveredModels.map((model) => {
                   const alreadyAdded = existingModelIds.has(model.id);
-                  // fork:model-discovery-specs —— 勾之前就告知这行会带哪些规格进来。
                   const specs = discoveredModelSpecs(model);
                   return (
                     <label
                       key={model.id}
-                      className={`pw-litem models-discovery-row${alreadyAdded ? " is-added" : ""}`}
+                      className={`d-row models-discovery-row${alreadyAdded ? " is-added" : ""}`}
+                      style={{ padding: "6px 12px" }}
                     >
                       <input
                         type="checkbox"
@@ -848,29 +901,27 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
                         onChange={() => toggleDiscoveredModel(model.id)}
                         style={DISCOVERY_CHECKBOX}
                       />
-                      <span className="grow">
-                        <ConfigSidebarText>{model.name ?? model.id}</ConfigSidebarText>
-                        <ConfigSidebarSub>{model.id}{specs ? ` · ${specs}` : ""}</ConfigSidebarSub>
+                      <span className="d-col d-grow">
+                        <span className="d-t-b">{model.name ?? model.id}</span>
+                        <span className="d-t-xs d-t-faint">{model.id}{specs ? ` · ${specs}` : ""}</span>
                       </span>
-                      {alreadyAdded && <ConfigBadge>{t("models.discoveryAdded")}</ConfigBadge>}
+                      {alreadyAdded && <DBadge tone="mute">{t("models.discoveryAdded")}</DBadge>}
                     </label>
                   );
                 })}
               </div>
 
-              <ConfigDetailHeader>
-                {/* `.catalog-status-text`（settings.css）就是「X / Y」状态行的截断语义；
-                    `.pw-mono` 自带 meta 字号。 */}
+              <div className="d-row">
                 <span
                   title={discoveryState.endpoint}
-                  className="pw-mono pw-dim catalog-status-text"
+                  className="d-mono d-t-faint catalog-status-text"
                 >
                   {filteredDiscoveredModels.length > shownDiscoveredModels.length
                     ? t("models.discoveryShowing", { shown: shownDiscoveredModels.length, total: filteredDiscoveredModels.length })
                     : t("models.discoveryFetched", { count: discoveryState.models.length })}
                 </span>
-                <span className="pw-grow" aria-hidden="true" />
-                <ConfigButton
+                <span className="d-grow" aria-hidden="true" />
+                <DButton
                   variant="primary"
                   size="small"
                   disabled={selectedCount === 0}
@@ -879,50 +930,45 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
                   {selectedCount
                     ? t("models.discoveryAddSelectedCount", { count: selectedCount })
                     : t("models.discoveryAddSelected")}
-                </ConfigButton>
-              </ConfigDetailHeader>
+                </DButton>
+              </div>
             </>
           )}
-        </ConfigDetail>
+        </div>
       )}
 
-      <ConfigDetail>
-        <h3>{t("models.connectionTitle")}</h3>
-        <ConfigField label={t("i18n.providerName")}>
-          <PwCtl>
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("models.connectionTitle")}</div>
+        <div className="d-field">
+          <span className="d-field-t">{t("i18n.providerName")}</span>
+          <div className="d-row">
             <TextInput value={editingName} onChange={onEditingNameChange} placeholder="provider-name" mono />
             {editingName !== name && editingName.trim() && (
-              <ConfigButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
+              <DButton size="small" variant="primary" onClick={() => onRename(editingName.trim())}>
                 {t("i18n.rename")}
-              </ConfigButton>
+              </DButton>
             )}
-          </PwCtl>
-        </ConfigField>
+          </div>
+        </div>
 
-        {/* D2-PR-20：provider 图标模式（auto/api/letter/emoji）。 */}
-        <ConfigField label={t("models.providerIcon")}>
+        <div className="d-field">
+          <span className="d-field-t">{t("models.providerIcon")}</span>
           <ProviderIconModePicker providerId={name} api={provider.api} />
-        </ConfigField>
+        </div>
 
-        {/* fork:provider-inline-fields —— Base URL / API 格式 / API Key 已移到
-            上面的供应商头卡（同屏可改），这里只留其余的：重命名、图标、请求头、
-            兼容开关。三行真的删掉了，不是复制。 */}
-        <ConfigField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
+        <DField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
           <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
-        </ConfigField>
+        </DField>
 
-        {/* fork:compat-flags (B5) —— provider 级 compat 是整个网关的默认，pi 在运行时
-            把它合进每个模型（`applyModelsJson` 的 `mergeCompat(providerConfig.compat,
-            definition.compat)`），所以它以前同样只能手改 models.json。 */}
-        <ConfigField label={t("models.compatibility")} hint={t("models.compatProviderHint")}>
+        <DField label={t("models.compatibility")} hint={t("models.compatProviderHint")}>
           <CompatFlagsEditor
             compat={provider.compat}
             api={provider.api}
             onChange={(key, state) => onChange(setCompatFlag(provider, key, state))}
           />
-        </ConfigField>
-      </ConfigDetail>
-    </ConfigDetailStack>
+        </DField>
+      </div>
+    </div>
   );
 }
 
@@ -944,9 +990,9 @@ const LEVEL_COLORS: Record<ThinkingLevel, string> = {
   max:     "var(--danger)",
 };
 
-/* 画板 41「能力」区的三态没有开关二值那么简单：每档是
+/* 画板 D-08「能力」区的三态没有开关二值那么简单：每档是
    omit（跟随默认）/ null（Disabled）/ string（Custom + 值），画成分段芯片就是
-   `.pw-radio`（PwRadio 基件，键盘可切换）。 */
+   `.d-seg`（DSeg，键盘可切换）。 */
 const LEVEL_STATE_OPTIONS = [
   { value: "omit", label: "Default" },
   { value: "null", label: "Disabled" },
@@ -978,12 +1024,11 @@ function ThinkingLevelMapEditor({
     onChange(Object.keys(next).length ? next : undefined);
   };
 
-  /* fork:design-system —— 行结构换成画板 41「规格」区的 pw-field 形态：
-     左侧「档名 + 该档实际请求的小字说明」、右侧 pw-ctl 三态芯片；
-     行间发丝线来自画板的 `.pw-field + .pw-field`。档位色点沿用七档语义色
-     （LEVEL_COLORS，运行时色值），Disabled 档做淡出。 */
+  /* fork:design-system —— 行结构用画板 D-08 的 `d-set-row` 形态：
+     左侧「档名 + 该档实际请求的小字说明」、右侧 `d-grow-last` 里的 `d-seg` 三态芯片。
+     档位色点沿用七档语义色（LEVEL_COLORS，运行时色值），Disabled 档做淡出。 */
   return (
-    <div className="pw-rowgap">
+    <div className="d-col">
       {THINKING_LEVELS.map((level) => {
         const raw = map[level];
         const state: ThinkingLevelState =
@@ -996,26 +1041,29 @@ function ThinkingLevelMapEditor({
           : LEVEL_COLORS[level];
 
         return (
-          <div key={level} className="pw-field">
-            <span className="pw-label">
-              <ConfigStatusDot color={dotColor} />
-              <span
-                className={state === "null" ? "pw-mono pw-dim" : "pw-mono"}
-                style={state === "null" ? { textDecoration: "line-through" } : undefined}
-              >
-                {level}
-              </span>
+          <div key={level} className="d-set-row">
+            <div className="d-set-row-box">
+              <div className="d-set-row-t d-row">
+                <span className="d-dot" style={{ background: dotColor }} />
+                <span
+                  className={state === "null" ? "d-mono d-t-faint" : "d-mono"}
+                  style={state === "null" ? { textDecoration: "line-through" } : undefined}
+                >
+                  {level}
+                </span>
+              </div>
               {described ? (
-                <small
+                <div
+                  className="d-set-row-s"
                   title={invalid ? described.invalid : described.text ?? undefined}
-                  style={invalid ? { color: "var(--danger)" } : undefined}
+                  style={invalid ? { color: "var(--nx-danger)" } : undefined}
                 >
                   {invalid ? described.invalid : described.text ?? t("models.thinkingSendsNothing")}
-                </small>
+                </div>
               ) : null}
-            </span>
-            <PwCtl>
-              <PwRadio
+            </div>
+            <span className="d-grow-last d-row">
+              <DSeg
                 value={state}
                 options={LEVEL_STATE_OPTIONS}
                 ariaLabel={level}
@@ -1023,16 +1071,15 @@ function ThinkingLevelMapEditor({
               />
               {state === "string" && (
                 <input
-                  className="pw-input pw-mono"
+                  className="d-input d-mono"
                   value={strVal}
                   onChange={(e) => setLevel(level, e.target.value)}
                   placeholder={level}
                   maxLength={10}
-                  /* `.pw-input` 的 min-width:200px 会把 pw-ctl 撑爆；自定义映射值很短（≤10 字符）。 */
-                  style={{ width: "12ch", minWidth: 0 }}
+                  style={{ width: "12ch" }}
                 />
               )}
-            </PwCtl>
+            </span>
           </div>
         );
       })}
@@ -1098,40 +1145,40 @@ function CompatFlagsEditor({ compat, api, onChange }: {
 
   if (specs.length === 0) {
     return (
-      <p className="pw-hint">
+      <div className="d-t-xs d-t-faint">
         {api ? t("models.compatNoneForApi", { api }) : t("models.compatNeedApi")}
-      </p>
+      </div>
     );
   }
 
   return (
-    <div className="pw-rowgap">
+    <div className="d-col">
       {specs.map((spec) => {
         const state = compatFlagState(compat, spec);
         return (
-          <div key={spec.key} className="pw-field">
-            <span className="pw-label">
-              {t(spec.labelKey)}
-              <small>{spec.defaultValue === null
+          <div key={spec.key} className="d-set-row">
+            <div className="d-set-row-box">
+              <div className="d-set-row-t">{t(spec.labelKey)}</div>
+              <div className="d-set-row-s">{spec.defaultValue === null
                 ? t("models.compatDefaultAuto")
-                : t("models.compatDefaultValue", { value: String(spec.defaultValue) })}</small>
-            </span>
-            <PwCtl>
-              <PwRadio
+                : t("models.compatDefaultValue", { value: String(spec.defaultValue) })}</div>
+            </div>
+            <span className="d-grow-last">
+              <DSeg
                 value={state}
                 options={COMPAT_FLAG_STATE_OPTIONS}
                 ariaLabel={t(spec.labelKey)}
                 onChange={(next) => onChange(spec.key, next as CompatFlagState)}
               />
-            </PwCtl>
+            </span>
           </div>
         );
       })}
       {countUnknownCompatKeys(compat, specs) > 0 && (
         /* 枚举 / 对象 / 手改 JSON 写进来的键：报个数，不假装能编辑。 */
-        <p className="pw-hint">
+        <div className="d-t-xs d-t-faint">
           {t("models.compatOtherKeys", { count: countUnknownCompatKeys(compat, specs) })}
-        </p>
+        </div>
       )}
     </div>
   );
@@ -1163,10 +1210,10 @@ function LimitChips({ value, ladder, catalogValue, ariaLabel, onChange }: {
 }) {
   const { t } = useI18n();
   const followsCatalog = catalogValue !== undefined && value === catalogValue;
-  /* fork:design-system —— 快捷档位就是画板的 radio 芯片（`.pw-radio > button`）：
+  /* fork:design-system —— 快捷档位是画板 D-08 的 `.d-seg` 分段：
      单选、选中态 accent，自绘 chip 的边框/圆角/字号全部退役。
-     原始数值留在芯片的 title 上（PwRadioOption.title）。 */
-  const options: PwRadioOption<string>[] = ladder.map((preset) => ({
+     原始数值留在芯片的 title 上（DSeg option.title）。 */
+  const options: { value: string; label: string; title?: string }[] = ladder.map((preset) => ({
     value: String(preset),
     label: formatTokenLimit(preset),
     title: String(preset),
@@ -1180,14 +1227,14 @@ function LimitChips({ value, ladder, catalogValue, ariaLabel, onChange }: {
   }
   return (
     <>
-      <PwRadio
+      <DSeg
         value={value !== undefined ? String(value) : ""}
         options={options}
         ariaLabel={ariaLabel}
         onChange={(next) => onChange(Number(next))}
       />
       {catalogValue !== undefined && value !== undefined && !followsCatalog && (
-        <span className="pw-mono pw-dim">{t("models.overridden")}</span>
+        <span className="d-mono d-t-faint">{t("models.overridden")}</span>
       )}
     </>
   );
@@ -1229,9 +1276,8 @@ function SamplingParamsEditor({ value, onChange }: {
   };
 
   return (
-    /* `.pw-textarea` 是画板的系统提示级 textarea（min-height 120）；这里是两行的
-       JSON 参数编辑器，按内容收高，缩进需要 pre。 */
-    <div className="pw-rowgap">
+    /* `.d-textarea` 是画板的系统提示级 textarea；这里按内容收高，缩进需要 pre。 */
+    <div className="d-col">
       <textarea
         value={editing ? draft : serialized}
         onFocus={() => { setDraft(serialized); setEditing(true); }}
@@ -1241,10 +1287,10 @@ function SamplingParamsEditor({ value, onChange }: {
         spellCheck={false}
         placeholder={'{ "temperature": 0.7 }'}
         aria-invalid={error !== null}
-        className="pw-textarea"
+        className="d-textarea"
         style={{ minHeight: 0, whiteSpace: "pre" }}
       />
-      {error && <div role="alert" className="pw-alert">{error}</div>}
+      {error && <div role="alert" className="d-err">{error}</div>}
     </div>
   );
 }
@@ -1270,29 +1316,68 @@ function HeaderListEditor({ headers, onChange }: {
   };
   const { t } = useI18n();
   return (
-    <div className="pw-rowgap">
-      {rows.map((row) => (
-        <div key={row.id} className="pw-inline">
-          <input value={row.name} onChange={(e) => setEntry(row.id, { name: e.target.value })}
-            placeholder="Header-Name" className="pw-input pw-mono" style={FILL_ROW_INPUT} />
-          <input value={row.value} onChange={(e) => setEntry(row.id, { value: e.target.value })}
-            placeholder="value" className="pw-input pw-mono" style={FILL_ROW_INPUT} />
-          <ConfigButton variant="danger" size="small" onClick={() => removeEntry(row.id)} aria-label={t("i18n.delete")}>
-            <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
-          </ConfigButton>
-        </div>
-      ))}
-      <ConfigButton
-        variant="ghost"
-        size="small"
-        onClick={() => setRows((current) => [
-          ...current,
-          { id: nextRowIdRef.current++, name: "", value: "" },
-        ])}
-      >
-        <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
-        Add header
-      </ConfigButton>
+    <div className="d-col">
+      {/* fork:v5-landing —— 画板 D-09 帧 A：Header 逐行进 `.d-card > .d-table`，
+          每行一个删除图标钮，不在用 JSON 文本框。 */}
+      <div className="d-card">
+        <table className="d-table">
+          <thead>
+            <tr>
+              <th>Header</th>
+              <th>value</th>
+              <th aria-hidden="true"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                <td>
+                  <input
+                    value={row.name}
+                    onChange={(e) => setEntry(row.id, { name: e.target.value })}
+                    placeholder="Header-Name"
+                    className="d-input d-mono"
+                    style={{ width: "100%" }}
+                  />
+                </td>
+                <td>
+                  <input
+                    value={row.value}
+                    onChange={(e) => setEntry(row.id, { value: e.target.value })}
+                    placeholder="value"
+                    className="d-input d-mono"
+                    style={{ width: "100%" }}
+                  />
+                </td>
+                <td>
+                  <DButton
+                    variant="ghost"
+                    size="small"
+                    onClick={() => removeEntry(row.id)}
+                    aria-label={t("i18n.delete")}
+                    title={t("i18n.delete")}
+                  >
+                    <i data-ico="trash-2" data-size="14" aria-hidden="true" />
+                  </DButton>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="d-row">
+        <DButton
+          variant="primary"
+          size="small"
+          onClick={() => setRows((current) => [
+            ...current,
+            { id: nextRowIdRef.current++, name: "", value: "" },
+          ])}
+        >
+          <i data-ico="plus" data-size="13" aria-hidden="true" />
+          Add header
+        </DButton>
+      </div>
     </div>
   );
 }
@@ -1302,8 +1387,8 @@ function HeaderListEditor({ headers, onChange }: {
  * 是一组「输入 tokens 超过阈值后整笔改用这组价格」，`calculateCost()` 取最高匹配的
  * 阈值 —— 没有编辑器就只能手改 JSON，于是显示用的基础价与实际扣费对不上。
  *
- * 每一档是一组 `.pw-field` 行（画板 41 规格行已经在用的形态）：左阈值 + 右边四个
- * `.pw-numin` 窄数值框。行内不加自造类。
+ * 每一档是一组 `.d-set-row` 行（画板 D-08/09 已经用的形态）：左阈值 + 右边四个
+ * `.d-input.d-mono` 窄数值框。行内不加自造类。
  */
 const COST_TIER_RATE_FIELDS: readonly { key: ModelCostKey; label: string }[] = [
   { key: "input", label: "in" },
@@ -1335,27 +1420,28 @@ function CostTiersEditor({ tiers, onChange }: {
   };
 
   return (
-    <div className="pw-rowgap">
+    <div className="d-col">
       {drafts.map((draft, index) => {
         return (
-          <div key={index} className="pw-field">
-            <span className="pw-label">
-              {t("models.costTierAbove")}
-              <small>{t("models.costTierAboveHint", { value: formatTokenLimit(Number(draft.inputTokensAbove) || 0) })}</small>
-            </span>
-            <PwCtl>
+          <div key={index} className="d-set-row">
+            <div className="d-set-row-box">
+              <div className="d-set-row-t">{t("models.costTierAbove")}</div>
+              <div className="d-set-row-s">{t("models.costTierAboveHint", { value: formatTokenLimit(Number(draft.inputTokensAbove) || 0) })}</div>
+            </div>
+            <span className="d-grow-last d-row">
               <input
-                className="pw-input pw-numin pw-mono"
+                className="d-input d-mono"
                 type="number"
                 min={1}
                 value={draft.inputTokensAbove}
                 onChange={(event) => setDraft(index, { inputTokensAbove: event.target.value })}
                 aria-label={t("models.costTierAbove")}
+                style={{ width: "9ch" }}
               />
               {COST_TIER_RATE_FIELDS.map(({ key, label }) => (
                 <input
                   key={key}
-                  className="pw-input pw-numin"
+                  className="d-input d-mono"
                   type="number"
                   min={0}
                   step="any"
@@ -1363,39 +1449,43 @@ function CostTiersEditor({ tiers, onChange }: {
                   onChange={(event) => setDraft(index, { [key]: event.target.value })}
                   aria-label={`${t("models.costTierPrice")}: ${label}`}
                   placeholder={label}
+                  style={{ width: "8ch" }}
                 />
               ))}
-              <ConfigButton
+              <DButton
                 variant="danger"
                 size="small"
                 aria-label={t("i18n.delete")}
+                title={t("i18n.delete")}
                 onClick={() => apply(drafts.filter((_, i) => i !== index))}
               >
-                <span className="pw-ico"><i data-ico="x" data-size="13"></i></span>
-              </ConfigButton>
-            </PwCtl>
+                <i data-ico="trash-2" data-size="14" aria-hidden="true" />
+              </DButton>
+            </span>
           </div>
         );
       })}
       {drafts.some((draft) => hasModelCostTierDraftValue(draft) && !parseModelCostTier(draft)) && (
-        <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>
+        <div aria-live="polite" className="d-mono d-t-faint" style={{ color: "var(--nx-warning)" }}>
           {t("models.costTierInvalid")}
         </div>
       )}
-      <ConfigButton
-        variant="ghost"
-        size="small"
-        onClick={() => apply([...drafts, {
-          inputTokensAbove: "",
-          input: "",
-          output: "",
-          cacheRead: "",
-          cacheWrite: "",
-        }])}
-      >
-        <span className="pw-ico"><i data-ico="plus" data-size="13"></i></span>
-        {t("models.costTierAdd")}
-      </ConfigButton>
+      <div className="d-row">
+        <DButton
+          variant="ghost"
+          size="small"
+          onClick={() => apply([...drafts, {
+            inputTokensAbove: "",
+            input: "",
+            output: "",
+            cacheRead: "",
+            cacheWrite: "",
+          }])}
+        >
+          <i data-ico="plus" data-size="13" aria-hidden="true" />
+          {t("models.costTierAdd")}
+        </DButton>
+      </div>
     </div>
   );
 }
@@ -1445,7 +1535,7 @@ function fillEmptyModelFields(
   return { model: next, appliedCount };
 }
 
-/** 收藏星标改用画板 41 的 `pw-ico` + star（见侧栏模型行）；这里不再自绘 SVG。 */
+/** 收藏星标用画板 `<i data-ico="star">` + `.d-iconbtn`（见侧栏模型行）；这里不再自绘 SVG。 */
 
 function ModelDetail({
   providerName,
@@ -1716,52 +1806,51 @@ function ModelDetail({
     ? advancedSummaryParts.join(" · ")
     : t("models.providerDefaults");
 
-  /* fork:models-board —— 画板 41 的模型详情是三张 `.pw-detail`：
-     ① 能力 / 规格 / 成本（可调参数）② 高级 ③ 测试连接。
-     画板把规格画成只读等宽数字，这里保留真输入框 + 快捷档位 —— 参数要能改才是设置页。 */
+  /* fork:v5-landing —— 画板 D-08 帧 B / D-09：模型详情拆成三个 `.d-set-sec`
+     ① 身份 / 能力 / 规格 / 成本 ② 高级（Header / 兼容 / 上限 / 思考）③ 测试连接。
+     控件全部换成画板的 d-* DOM（`.d-grid2` / `.d-field` / `.d-set-row` / `.d-seg`）；
+     数据绑定与状态机不变。 */
   return (
-    <ConfigDetailStack>
-      <ConfigDetail>
-        <ConfigDetailHeader>
-          <ConfigDetailHeaderInfo>
-            <ConfigDetailTitle>{model.name || model.id || t("i18n.newModel")}</ConfigDetailTitle>
-            <ConfigBadge>{providerName}</ConfigBadge>
-            {model.reasoning ? <ConfigBadge tone="accent">{t("models.badgePinnable")}</ConfigBadge> : null}
-          </ConfigDetailHeaderInfo>
-        </ConfigDetailHeader>
-
-        <ConfigSectionTitle>{t("models.identity")}</ConfigSectionTitle>
-        <div className="pw-grid2">
-          <ConfigField label="ID *">
-            <TextInput value={model.id} onChange={(v) => set("id", v)} placeholder="model-id" mono />
-          </ConfigField>
-          <ConfigField label="Name">
-            <TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" />
-          </ConfigField>
+    <div className="d-set-inner">
+      <div className="d-set-sec">
+        <div className="d-row">
+          <div className="d-set-sec-t">{model.name || model.id || t("i18n.newModel")}</div>
+          <DBadge tone="mute">{providerName}</DBadge>
+          {model.reasoning ? <DBadge tone="info">{t("models.badgePinnable")}</DBadge> : null}
         </div>
-        <ConfigDetailHeader>
-          <ConfigButton
+
+        <div className="d-grid2">
+          <div className="d-field">
+            <span className="d-field-t">ID *</span>
+            <TextInput value={model.id} onChange={(v) => set("id", v)} placeholder="model-id" mono />
+          </div>
+          <div className="d-field">
+            <span className="d-field-t">Name</span>
+            <TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" />
+          </div>
+        </div>
+        <div className="d-row">
+          <DButton
             size="small"
-            variant="secondary"
             disabled={!model.id.trim() || catalogState.phase === "loading"}
             onClick={() => void handleCatalogFill()}
           >
             {catalogState.phase === "loading" ? t("models.catalogFilling") : t("models.catalogFill")}
-          </ConfigButton>
-          <span className="pw-grow" aria-hidden="true" />
+          </DButton>
+          <span className="d-grow" aria-hidden="true" />
           <a
             href="https://github.com/anomalyco/models.dev"
             target="_blank"
             rel="noreferrer"
-            className="pw-hint"
+            className="d-t-xs d-t-faint"
           >
             {t("models.catalogSource")}
           </a>
-        </ConfigDetailHeader>
+        </div>
         {catalogStatusText && (
-          /* 状态色是运行时按「成功 / 不可靠 / 出错」算出来的。 */
-          <div className="catalog-status" aria-live="polite" style={{ color: catalogStatusColor }}>
-            <span title={catalogStatusText} className="catalog-status-text">{catalogStatusText}</span>
+          /* 状态色是运行时按「成功 / 不可靠 / 出错」算出来的 —— 几何无关，内联允许。 */
+          <div className="catalog-status d-row" aria-live="polite" style={{ color: catalogStatusColor }}>
+            <span title={catalogStatusText} className="catalog-status-text d-t-xs">{catalogStatusText}</span>
             {catalogUndoRef.current && (
               <button type="button" className="catalog-undo" onClick={undoCatalogFill}>
                 {t("models.catalogUndo")}
@@ -1770,25 +1859,36 @@ function ModelDetail({
           </div>
         )}
 
-        <ConfigSectionTitle>{t("models.capabilities")}</ConfigSectionTitle>
-        <ConfigField label={t("models.reasoning")}>
-          <ConfigSwitch
-            checked={model.reasoning ?? false}
-            label={t("models.reasoning")}
-            onChange={(v) => set("reasoning", v || undefined)}
-          />
-        </ConfigField>
-        <ConfigField label={t("models.imageInput")}>
-          <ConfigSwitch
-            checked={model.input?.includes("image") ?? false}
-            label={t("models.imageInput")}
-            onChange={(v) => set("input", v ? ["text", "image"] : undefined)}
-          />
-        </ConfigField>
+        <div className="d-set-sec-t">{t("models.capabilities")}</div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("models.reasoning")}</div>
+          </div>
+          <span className="d-grow-last">
+            <DSwitch
+              checked={model.reasoning ?? false}
+              label={t("models.reasoning")}
+              onChange={(v) => set("reasoning", v || undefined)}
+            />
+          </span>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("models.imageInput")}</div>
+          </div>
+          <span className="d-grow-last">
+            <DSwitch
+              checked={model.input?.includes("image") ?? false}
+              label={t("models.imageInput")}
+              onChange={(v) => set("input", v ? ["text", "image"] : undefined)}
+            />
+          </span>
+        </div>
 
-        <ConfigSectionTitle>{t("models.specs")}</ConfigSectionTitle>
-        <ConfigField label={t("models.contextWindow")}>
-          <div className="pw-rowgap">
+        <div className="d-set-sec-t">{t("models.specs")}</div>
+        <div className="d-grid2">
+          <div className="d-field">
+            <span className="d-field-t">{t("models.contextWindow")}</span>
             <NumInput value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
               onChange={(v) => set("contextWindow", v ? parseInt(v) : undefined)} placeholder="128000" />
             <LimitChips
@@ -1799,9 +1899,8 @@ function ModelDetail({
               onChange={(next) => set("contextWindow", next)}
             />
           </div>
-        </ConfigField>
-        <ConfigField label={t("models.maxOutputTokens")}>
-          <div className="pw-rowgap">
+          <div className="d-field">
+            <span className="d-field-t">{t("models.maxOutputTokens")}</span>
             <NumInput value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
               onChange={(v) => set("maxTokens", v ? parseInt(v) : undefined)} placeholder="16384" />
             <LimitChips
@@ -1812,118 +1911,116 @@ function ModelDetail({
               onChange={(next) => set("maxTokens", next)}
             />
           </div>
-        </ConfigField>
+        </div>
         {model.contextWindow !== undefined && model.maxTokens !== undefined && model.maxTokens > model.contextWindow && (
-          <div role="alert" className="pw-alert">{t("models.maxTokensExceedsContext")}</div>
+          <div role="alert" className="d-banner err">{t("models.maxTokensExceedsContext")}</div>
         )}
 
-        <ConfigField label={t("models.samplingParams")} hint={t("models.samplingParamsHint")}>
+        <div className="d-field">
+          <span className="d-field-t">{t("models.samplingParams")}</span>
+          <div className="d-t-xs d-t-faint">{t("models.samplingParamsHint")}</div>
           <SamplingParamsEditor value={model.samplingParams} onChange={(next) => set("samplingParams", next)} />
-        </ConfigField>
+        </div>
 
-        <ConfigSectionTitle>{t("models.costPerMillion")}</ConfigSectionTitle>
+        <div className="d-set-sec-t">{t("models.costPerMillion")}</div>
         {costEditing ? (
-          <div className="pw-grid4">
+          <div className="d-grid2">
             {costFields.map(({ key, label }) => (
-              <ConfigField key={key} label={label}>
+              <div key={key} className="d-field">
+                <span className="d-field-t">{label}</span>
                 <NumInput value={costDraft[key]} onChange={(v) => setCost(key, v)} placeholder="0" />
-              </ConfigField>
+              </div>
             ))}
           </div>
         ) : (
-          <ConfigStatGrid>
+          <div className="d-grid2">
             {costFields.map(({ key, label }) => (
-              <ConfigStat
-                key={key}
-                label={label}
-                value={formatCost(key)}
-                /* 没填的这一格：值本身就是「未提供」，再补一句一样的只会重复。 */
-                hint={model.cost?.[key] === undefined ? null : t("models.costEditableHint")}
-              />
+              <div key={key} className="d-field">
+                <span className="d-field-t">{label}</span>
+                <span className="d-mono">{formatCost(key)}</span>
+                {/* 没填的这一格：值本身就是「未提供」，再补一句一样的只会重复。 */}
+                {model.cost?.[key] === undefined ? null : <div className="d-t-xs d-t-faint">{t("models.costEditableHint")}</div>}
+              </div>
             ))}
-          </ConfigStatGrid>
+          </div>
         )}
         {costEditing && hasModelCostDraftValue(costDraft) && !parseCompleteModelCost(costDraft) && (
-          /* 画板的状态文案只有 pw-dim 一档；这里是「填了一半」的警告语义色。 */
-          <div aria-live="polite" className="pw-mono pw-dim" style={{ color: "var(--warning)" }}>{t("models.costAllRequired")}</div>
+          /* 这里是「填了一半」的警告语义色，颜色是运行时算出来的。 */
+          <div aria-live="polite" className="d-mono d-t-faint" style={{ color: "var(--nx-warning)" }}>{t("models.costAllRequired")}</div>
         )}
 
-        {/* fork:cost-tiers (B3) —— 阶梯定价是基础价之外的第二层：基础价那四个格子是
-            “每百万 tokens”，阶梯是“输入超过某个阈值后整笔改用另一组”。同一分节里，
-            阈值行用画板已有的 `.pw-numin` 窄数值框；没配时编辑器就是空的（只有
-            「+ 加一档」），不是假装有一档。 */}
-        <ConfigDetailHeader>
-          <ConfigDetailTitle>{t("models.costTiers")}</ConfigDetailTitle>
-          {costTiers.length > 0 && <ConfigBadge tone="count">{costTiers.length}</ConfigBadge>}
-        </ConfigDetailHeader>
-        <p className="pw-hint">{t("models.costTiersHint")}</p>
-        <CostTiersEditor tiers={costTiers} onChange={setCostTiers} />
-        <ConfigDetailHeader>
-          <span className="pw-grow" aria-hidden="true" />
-          <ConfigButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>
+        <div className="d-row">
+          <div className="d-set-sec-t">{t("models.costTiers")}</div>
+          {costTiers.length > 0 && <DBadge tone="count">{costTiers.length}</DBadge>}
+          <span className="d-grow" aria-hidden="true" />
+          <DButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>
             {costEditing ? t("models.finishEditingCosts") : t("models.editCosts")}
-          </ConfigButton>
-        </ConfigDetailHeader>
-      </ConfigDetail>
+          </DButton>
+        </div>
+        <div className="d-t-xs d-t-faint">{t("models.costTiersHint")}</div>
+        <CostTiersEditor tiers={costTiers} onChange={setCostTiers} />
+      </div>
 
-      <ConfigDetail>
-        <ConfigDetailHeader>
-          <ConfigDetailTitle>{t("models.advancedTitle")}</ConfigDetailTitle>
-          <span className="pw-grow" aria-hidden="true" />
-          <ConfigButton
+      <div className="d-set-sec">
+        <div className="d-row">
+          <div className="d-set-sec-t">{t("models.advancedTitle")}</div>
+          <span className="d-grow" aria-hidden="true" />
+          <DButton
             size="small"
             onClick={() => setAdvancedOpen((open) => !open)}
             aria-expanded={advancedOpen}
             aria-controls="model-advanced-settings"
           >
             {advancedOpen ? t("i18n.collapse") : t("i18n.expand")}
-          </ConfigButton>
-        </ConfigDetailHeader>
-        <p className="pw-hint">{advancedSummary}</p>
+          </DButton>
+        </div>
+        <div className="d-t-xs d-t-faint">{advancedSummary}</div>
 
         {advancedOpen && (
-          <div id="model-advanced-settings">
-            <ConfigField label={t("models.apiOverride")}>
+          <div id="model-advanced-settings" className="d-col">
+            <div className="d-field">
+              <span className="d-field-t">{t("models.apiOverride")}</span>
               <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} ariaLabel={t("models.apiOverride")} />
-            </ConfigField>
+            </div>
 
-            <ConfigField label={t("models.headers")} hint={t("models.headersHelp")}>
+            <div className="d-field">
+              <span className="d-field-t">{t("models.headers")}</span>
+              <div className="d-t-xs d-t-faint">{t("models.headersHelp")}</div>
               <HeaderListEditor headers={model.headers} onChange={(headers) => set("headers", headers)} />
-            </ConfigField>
+            </div>
 
-            <ConfigSectionTitle>{t("models.compatibility")}</ConfigSectionTitle>
-            <ConfigField label={t("models.deepSeekThinkingCompat")}>
-              <ConfigSwitch
-                checked={hasDeepseekCompat(model)}
-                label={t("models.deepSeekThinkingCompat")}
-                onChange={(v) => onChange(setDeepseekCompat(model, v))}
-              />
-            </ConfigField>
-            <ConfigField label={t("models.developerRole")}>
-              <ConfigSwitch
-                checked={effectiveCompat(provider, model)["supportsDeveloperRole"] !== false}
-                label={t("models.developerRole")}
-                onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
-              />
-            </ConfigField>
+            <div className="d-set-sec-t">{t("models.compatibility")}</div>
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("models.deepSeekThinkingCompat")}</div>
+              </div>
+              <span className="d-grow-last">
+                <DSwitch
+                  checked={hasDeepseekCompat(model)}
+                  label={t("models.deepSeekThinkingCompat")}
+                  onChange={(v) => onChange(setDeepseekCompat(model, v))}
+                />
+              </span>
+            </div>
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("models.developerRole")}</div>
+              </div>
+              <span className="d-grow-last">
+                <DSwitch
+                  checked={effectiveCompat(provider, model)["supportsDeveloperRole"] !== false}
+                  label={t("models.developerRole")}
+                  onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
+                />
+              </span>
+            </div>
 
-            {/* fork:compat-flags (B5) —— 剩下那些只能手改 models.json 的 compat 子键。
-                行结构沿用同文件里 ThinkingLevelMapEditor 的三态 `.pw-field`：
-                Default（不写键，跟随 pi 的默认或按 baseUrl 自动探测）/ On / Off。
-                行集合由 `compatFlagsForApi()` 按**本行的协议**给（pi-ai 的 compat
-                是按 api 分支的条件类型，google-* / pi-messages 那一支是 `never`，
-                配了也没人读），所以每行只出现该协议真的认的开关。 */}
             <CompatFlagsEditor
               compat={effectiveCompat(provider, model)}
               api={model.api ?? provider.api}
               onChange={(key, state) => onChange(setCompatFlag(model, key, state))}
             />
 
-            {/* fork:input-limits —— pi-ai 原生的 `inputLimits` / `promptCache`（多模态上限、
-                图片 resize 策略、提示词缓存时长）。放在高级分节里：这三类只在自建网关 /
-                显式开 1h 缓存时才要动，与 apiOverride / headers / compat 是同一档。
-                控件是画板 41 规格行已经在用的 `.pw-input` + `type=number`（`.pw-grid2` 两列），
-                不新造控件。 */}
             <ModelInputLimitsFields
               inputLimits={model.inputLimits}
               promptCache={model.promptCache}
@@ -1933,74 +2030,73 @@ function ModelDetail({
 
             {model.reasoning && (
               <>
-                <ConfigSectionTitle>{t("models.thinkingLevelMap")}</ConfigSectionTitle>
-                {model.thinkingLevelMap && (
-                  <ConfigDetailHeader>
-                    <span className="pw-grow" aria-hidden="true" />
-                    <ConfigButton size="small" variant="ghost" onClick={() => set("thinkingLevelMap", undefined)}>
+                <div className="d-row">
+                  <div className="d-set-sec-t">{t("models.thinkingLevelMap")}</div>
+                  <span className="d-grow" aria-hidden="true" />
+                  {model.thinkingLevelMap && (
+                    <DButton size="small" variant="ghost" onClick={() => set("thinkingLevelMap", undefined)}>
                       {t("models.clearAll")}
-                    </ConfigButton>
-                  </ConfigDetailHeader>
-                )}
+                    </DButton>
+                  )}
+                </div>
                 <ThinkingLevelMapEditor
                   value={model.thinkingLevelMap}
                   onChange={(v) => set("thinkingLevelMap", v)}
                   describeLevel={describeThinkingLevel}
                 />
-                <p className="pw-hint">{t("models.thinkingLevelMapHint")}</p>
+                <div className="d-t-xs d-t-faint">{t("models.thinkingLevelMapHint")}</div>
                 {rememberedThinking && (
-                  <div className="models-thinking-memory">
+                  <div className="models-thinking-memory d-row">
                     <span>{t("models.lastUsedThinking")}: <strong>{rememberedThinking}</strong></span>
-                    <ConfigButton size="small" variant="ghost" onClick={() => { void forgetRememberedThinking(); }}>
+                    <DButton size="small" variant="ghost" onClick={() => { void forgetRememberedThinking(); }}>
                       {t("models.forgetThinking")}
-                    </ConfigButton>
+                    </DButton>
                   </div>
                 )}
               </>
             )}
           </div>
         )}
-      </ConfigDetail>
+      </div>
 
-      <ConfigDetail>
-        <h3>{t("models.testConnection")}</h3>
-        <ConfigDetailHeader>
-          <ConfigButton
+      <div className="d-set-sec">
+        <div className="d-row">
+          <div className="d-set-sec-t">{t("models.testConnection")}</div>
+          <span className="d-grow" aria-hidden="true" />
+          {testState.phase !== "idle" && (
+            <DBadge tone={testState.phase === "error" ? "bad" : testState.phase === "success" ? "ok" : undefined}>
+              {testSummary}
+            </DBadge>
+          )}
+        </div>
+        <div className="d-row">
+          <DButton
             variant="primary"
             size="small"
             onClick={handleTest}
             disabled={!model.id.trim() || testState.phase === "testing"}
           >
-            <span className="pw-ico"><i data-ico="circle-play" data-size="13"></i></span>
+            <i data-ico="circle-play" data-size="13" aria-hidden="true" />
             {testState.phase === "testing" ? t("i18n.checking") : t("models.sendTestRequest")}
-          </ConfigButton>
-          <span className="pw-grow" aria-hidden="true" />
-          {testState.phase !== "idle" && (
-            <ConfigBadge tone={testState.phase === "error" ? "bad" : testState.phase === "success" ? "ok" : undefined}>
-              {testSummary}
-            </ConfigBadge>
-          )}
-        </ConfigDetailHeader>
+          </DButton>
+          <span className="d-grow" aria-hidden="true" />
+          <DButton size="small" variant="ghost" disabled={testState.phase === "idle"} onClick={() => setTestState({ phase: "idle" })}>
+            {t("models.clearTestResult")}
+          </DButton>
+          <DButton variant="danger" size="small" onClick={onDelete}>{t("models.deleteModel")}</DButton>
+        </div>
 
         {testState.phase === "success" && testState.responseText && (
-          <pre className="models-test-echo">
-            <span className="pw-tok-com">{t("i18n.connected")}</span>
+          <pre className="d-term plain models-test-echo">
+            <span className="d-term-ok">{t("i18n.connected")}</span>
             {`\n${testState.responseText}`}
           </pre>
         )}
         {testState.phase === "error" && (
-          <div className="pw-alert">{testState.message}</div>
+          <div className="d-banner err">{testState.message}</div>
         )}
-
-        <ConfigDetailHeader>
-          <ConfigButton size="small" variant="ghost" disabled={testState.phase === "idle"} onClick={() => setTestState({ phase: "idle" })}>
-            {t("models.clearTestResult")}
-          </ConfigButton>
-          <span className="pw-grow" aria-hidden="true" />
-          <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("models.deleteModel")}</ConfigButton>
-        </ConfigDetailHeader>
-      </ConfigDetail>
-    </ConfigDetailStack>
+      </div>
+    </div>
   );
 }
 
@@ -2132,174 +2228,145 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
     loginState.phase === "auth" || loginState.phase === "device_code" ||
     loginState.phase === "prompt" || loginState.phase === "select";
 
-  /* fork:models-board —— 与画板 41 一致：右列是一列独立的 `.pw-detail` 卡
-     （登录 / 用量 / 可用模型），不是一张撑满高度的巨卡。 */
+  /* fork:v5-landing —— 画板 D-08 帧 A：登录 / 用量 / 可用模型都是 `.d-set-inner`
+     里的 `.d-set-sec`；状态行用画板的弱化等宽行，错误走 `.d-banner.err`。 */
   return (
-    <ConfigDetailStack>
-      <ConfigDetail>
-      <ConfigDetailHeader>
-        <ConfigDetailHeaderInfo>
+    <div className="d-set-inner">
+      <div className="d-set-sec">
+        <div className="d-row">
           <ProviderIcon id={provider.id} size={22} />
-          <ConfigDetailTitle>{provider.name}</ConfigDetailTitle>
-          <ConfigBadge tone={provider.loggedIn ? "ok" : undefined}>
+          <div className="d-set-sec-t">{provider.name}</div>
+          <DBadge tone={provider.loggedIn ? "ok" : "mute"}>
             {provider.loggedIn ? t("models.badgeLoggedIn") : t("models.badgeNotLoggedIn")}
-          </ConfigBadge>
-        </ConfigDetailHeaderInfo>
-        <ConfigDetailActions>
-          {/* 登录态就是画板 41 头部的徽章（头卡左侧那枚 pw-badge ok 已给出），
-              不再重复一个「圆点 + 文案」的自绘状态。 */}
+          </DBadge>
+          <span className="d-grow" aria-hidden="true" />
           {isWorking ? (
-            <ConfigButton
+            <DButton
               size="small"
               onClick={() => { eventSourceRef.current?.close(); setLoginState({ phase: "idle" }); }}
             >
               {t("i18n.cancel")}
-            </ConfigButton>
+            </DButton>
           ) : (
             <>
-              <ConfigButton
-                variant="primary"
-                size="small"
-                onClick={handleLogin}
-              >
-                 {provider.loggedIn ? t("i18n.relogin") : t("i18n.login")}
-              </ConfigButton>
+              <DButton variant="primary" size="small" onClick={handleLogin}>
+                {provider.loggedIn ? t("i18n.relogin") : t("i18n.login")}
+              </DButton>
               {provider.loggedIn && (
-                <ConfigButton
-                  variant="danger"
-                  size="small"
-                  onClick={handleLogout}
-                >
-                   {t("i18n.disconnect")}
-                </ConfigButton>
+                <DButton variant="danger" size="small" onClick={handleLogout}>
+                  {t("i18n.disconnect")}
+                </DButton>
               )}
             </>
           )}
-        </ConfigDetailActions>
-      </ConfigDetailHeader>
+        </div>
 
-      {/* Status */}
-      {/* 运行时才确定的高度：已登录且空闲时不占位，其余流程给足一行。 */}
-      <div style={{ minHeight: provider.loggedIn && loginState.phase === "idle" ? 0 : 48 }}>
-        {loginState.phase === "idle" && (
-          !provider.loggedIn && (
-            /* 登录引导文案按画板的弱化等宽信息行（`pw-mono pw-dim`，画板 41 的
-               「项目级只读…」同款）；p 的 UA 边距用 div 规避。 */
-            <div className="pw-mono pw-dim">
-              Connect your {provider.name} account.
-            </div>
-          )
-        )}
-        {loginState.phase === "connecting" && (
-            <div className="pw-mono pw-dim">{t("i18n.openingBrowser")}</div>
-        )}
-        {loginState.phase === "select" && (
-          <div className="pw-rowgap">
-            <div className="pw-mono pw-dim">
-              {loginState.message}
-            </div>
-            <div className="pw-list">
-              {loginState.options.map((option) => (
-                <ConfigSidebarItem
-                  key={option.id}
-                  onClick={() => submitSelection(loginState.token, option.id)}
-                >
-                  <span className="grow">
-                    <ConfigSidebarText>{option.label}</ConfigSidebarText>
-                  </span>
-                </ConfigSidebarItem>
-              ))}
-            </div>
-          </div>
-        )}
-        {(loginState.phase === "auth" || loginState.phase === "prompt") && (
-          <div className="pw-rowgap">
-            <div className="pw-mono pw-dim">
-              {loginState.phase === "auth"
-                ? "Complete sign-in in the browser, then copy the redirect URL from the address bar and paste it below."
-                : loginState.message}
-            </div>
-            {loginState.phase === "auth" && (
-              <div className="pw-mono pw-dim">
-                If the browser window did not open,{" "}
-                <a href={loginState.url} target="_blank" rel="noopener noreferrer" style={BREAKABLE_LINK}>
-                  click here to open the login page
-                </a>
-                .
+        {/* 运行时才确定的高度：已登录且空闲时不占位，其余流程给足一行。 */}
+        <div style={{ minHeight: provider.loggedIn && loginState.phase === "idle" ? 0 : 48 }}>
+          {loginState.phase === "idle" && (
+            !provider.loggedIn && (
+              <div className="d-mono d-t-faint">
+                Connect your {provider.name} account.
               </div>
-            )}
-            <div className="pw-inline">
-              <input
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") submitCode(loginState.token, inputValue); }}
-                placeholder={loginState.phase === "auth" ? "http://localhost:1455/auth/callback?code=…" : (loginState.placeholder ?? "Enter value…")}
-                className="pw-input pw-mono"
-                style={FILL_ROW_INPUT}
-              />
-              <ConfigButton
-                variant="primary"
-                onClick={() => submitCode(loginState.token, inputValue)}
-                disabled={!inputValue.trim()}
-              >
-                 {t("i18n.submit")}
-              </ConfigButton>
+            )
+          )}
+          {loginState.phase === "connecting" && (
+            <div className="d-mono d-t-faint">{t("i18n.openingBrowser")}</div>
+          )}
+          {loginState.phase === "select" && (
+            <div className="d-col">
+              <div className="d-mono d-t-faint">
+                {loginState.message}
+              </div>
+              <div className="d-col">
+                {loginState.options.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className="d-menu-row"
+                    onClick={() => submitSelection(loginState.token, option.id)}
+                  >
+                    <span className="d-grow">{option.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        {loginState.phase === "device_code" && (
-          <div className="pw-rowgap">
-            <div className="pw-mono pw-dim">
-              Open the verification page and enter this code:
+          )}
+          {(loginState.phase === "auth" || loginState.phase === "prompt") && (
+            <div className="d-col">
+              <div className="d-mono d-t-faint">
+                {loginState.phase === "auth"
+                  ? "Complete sign-in in the browser, then copy the redirect URL from the address bar and paste it below."
+                  : loginState.message}
+              </div>
+              {loginState.phase === "auth" && (
+                <div className="d-mono d-t-faint">
+                  If the browser window did not open,{" "}
+                  <a href={loginState.url} target="_blank" rel="noopener noreferrer" style={BREAKABLE_LINK}>
+                    click here to open the login page
+                  </a>
+                  .
+                </div>
+              )}
+              <div className="d-row">
+                <input
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") submitCode(loginState.token, inputValue); }}
+                  placeholder={loginState.phase === "auth" ? "http://localhost:1455/auth/callback?code=…" : (loginState.placeholder ?? "Enter value…")}
+                  className="d-input d-mono"
+                  style={FILL_ROW_INPUT}
+                />
+                <DButton
+                  variant="primary"
+                  onClick={() => submitCode(loginState.token, inputValue)}
+                  disabled={!inputValue.trim()}
+                >
+                  {t("i18n.submit")}
+                </DButton>
+              </div>
             </div>
-            {/* 设备码 = 画板的等宽小件（`.pw-kbd`，画板 41 的 ⌘K 同款）。 */}
-            <div><span className="pw-kbd">{loginState.userCode}</span></div>
-            <div className="pw-mono pw-dim">
-              <a href={loginState.verificationUri} target="_blank" rel="noopener noreferrer" style={BREAKABLE_LINK}>
-                {loginState.verificationUri}
-              </a>
-              {loginState.expiresInSeconds ? ` Expires in ${Math.ceil(loginState.expiresInSeconds / 60)} minutes.` : ""}
+          )}
+          {loginState.phase === "device_code" && (
+            <div className="d-col">
+              <div className="d-mono d-t-faint">
+                Open the verification page and enter this code:
+              </div>
+              <div><span className="d-kbd">{loginState.userCode}</span></div>
+              <div className="d-mono d-t-faint">
+                <a href={loginState.verificationUri} target="_blank" rel="noopener noreferrer" style={BREAKABLE_LINK}>
+                  {loginState.verificationUri}
+                </a>
+                {loginState.expiresInSeconds ? ` Expires in ${Math.ceil(loginState.expiresInSeconds / 60)} minutes.` : ""}
+              </div>
             </div>
-          </div>
-        )}
-        {loginState.phase === "progress" && (
-          <div className="pw-mono pw-dim">{loginState.message}</div>
-        )}
-        {loginState.phase === "success" && (
-          /* 画板 41 的成功徽章（check 图标 + ok 色）。 */
-          <ConfigBadge tone="ok">
-            <span className="pw-ico"><i data-ico="check" data-size="11"></i></span>
-            {t("i18n.connectedSuccessfully")}
-          </ConfigBadge>
-        )}
-        {loginState.phase === "error" && (
-          /* 错误走画板的 `.pw-alert`。 */
-          <div className="pw-alert">{loginState.message}</div>
-        )}
+          )}
+          {loginState.phase === "progress" && (
+            <div className="d-mono d-t-faint">{loginState.message}</div>
+          )}
+          {loginState.phase === "success" && (
+            <DBadge tone="ok">
+              <i data-ico="check" data-size="11" aria-hidden="true" />
+              {t("i18n.connectedSuccessfully")}
+            </DBadge>
+          )}
+          {loginState.phase === "error" && (
+            <div className="d-banner err">{loginState.message}</div>
+          )}
+        </div>
       </div>
-      </ConfigDetail>
 
-    {/* fork:models-board —— 画板 41:101-109：「用量摘要」是**自己一张 `.pw-detail` 卡**
-        （标题行 + 四张小卡），不是登录卡里的一段。原先它紧跟在登录表单后面，
-        根节点 `<section class="pw-rowgap">` 顶着上一行、卡片 padding 也被它和
-        stat 卡分成两组，看着像贴上去的药膏；成卡之后与「登录 / 可用模型」三张卡
-        同底、同边线、同一组内距。
-        行尾的「更新于 …」是元信息档（`.pw-mono pw-dim`，即 var(--text-meta)），
-        由 `ProviderUsageSummary` 自己出（那个文件不在本次改动范围内）。
-        没有用量能力的 provider 由 `isProviderUsageId` 挡掉，不发一张空卡。 */}
     {isProviderUsageId(provider.id) && (
-      <ConfigDetail>
-        <ProviderUsageSummary providerId={provider.id} enabled={provider.loggedIn} />
-      </ConfigDetail>
+      <ProviderUsageSummary providerId={provider.id} enabled={provider.loggedIn} />
     )}
 
-    <ConfigDetail>
+    <div className="d-set-sec">
       {provider.loggedIn
         ? <EnabledModelsSection providerId={provider.id} controller={enabledModels} />
-        : <p className="pw-hint">{t("models.signInToListModels")}</p>}
-    </ConfigDetail>
-    </ConfigDetailStack>
+        : <div className="d-t-xs d-t-faint">{t("models.signInToListModels")}</div>}
+    </div>
+    </div>
   );
 }
 
@@ -2364,75 +2431,65 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
     }
   }, [provider.id, onRefresh]);
 
-  /* fork:models-board —— 与画板 41 一样，托管供应商的详情也是一列独立的
-     `.pw-detail` 卡（登录 / 用量 / 可用模型），不再是一张撑满高度的巨卡。 */
+  /* fork:v5-landing —— 画板 D-08 帧 A：API Key 头卡 / 用量 / 可用模型都是
+     `.d-set-inner` 里的 `.d-set-sec`。 */
   return (
-    <ConfigDetailStack>
-      <ConfigDetail>
-      <ConfigDetailHeader>
-        <ConfigDetailHeaderInfo>
-          <ConfigDetailTitle>API Key</ConfigDetailTitle>
-          <ConfigBadge tone={provider.configured ? "ok" : undefined}>
+    <div className="d-set-inner">
+      <div className="d-set-sec">
+        <div className="d-row">
+          <div className="d-set-sec-t">API Key</div>
+          <DBadge tone={provider.configured ? "ok" : "mute"}>
             {provider.configured ? t("i18n.configured") : t("i18n.notConfigured")}
-          </ConfigBadge>
-        </ConfigDetailHeaderInfo>
-        <ConfigDetailActions>
+          </DBadge>
+          <span className="d-grow" aria-hidden="true" />
           {provider.configured && (
-            <ConfigButton
+            <DButton
               variant="danger"
               size="small"
               onClick={handleRemove}
               disabled={removing}
             >
-               {removing ? t("i18n.removing") : t("i18n.disconnect")}
-            </ConfigButton>
+              {removing ? t("i18n.removing") : t("i18n.disconnect")}
+            </DButton>
           )}
-        </ConfigDetailActions>
-      </ConfigDetailHeader>
+        </div>
 
-      {!provider.configured && (
-        <p className="pw-hint">
-          {t("models.apiKeyPrompt", { name: provider.displayName, count: provider.modelCount })}
-        </p>
-      )}
-      <ConfigDetailHeader>
-        {/* 行内填充（flex:1）走画板 41 搜索行的同款 inline 常量。 */}
-        <SecretTextInput
-          value={apiKey}
-          onChange={setApiKey}
-          onKeyDown={(e) => { if (e.key === "Enter" && apiKey.trim()) handleSave(); }}
-          placeholder={provider.configured ? "Enter new key to replace…" : "sk-…"}
-          style={FILL_ROW_INPUT}
-          autoComplete="off"
-          spellCheck={false}
-          mono
-        />
-        <ConfigButton
-          variant="primary"
-          onClick={handleSave}
-          disabled={saving || !apiKey.trim() || savedOk}
-        >
-          {savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}
-        </ConfigButton>
-      </ConfigDetailHeader>
+        {!provider.configured && (
+          <div className="d-t-xs d-t-faint">
+            {t("models.apiKeyPrompt", { name: provider.displayName, count: provider.modelCount })}
+          </div>
+        )}
+        <div className="d-row">
+          <SecretTextInput
+            value={apiKey}
+            onChange={setApiKey}
+            onKeyDown={(e) => { if (e.key === "Enter" && apiKey.trim()) handleSave(); }}
+            placeholder={provider.configured ? "Enter new key to replace…" : "sk-…"}
+            style={FILL_ROW_INPUT}
+            autoComplete="off"
+            spellCheck={false}
+            mono
+          />
+          <DButton
+            variant="primary"
+            onClick={handleSave}
+            disabled={saving || !apiKey.trim() || savedOk}
+          >
+            {savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}
+          </DButton>
+        </div>
 
-      {error ? <div className="pw-alert">{error}</div> : null}
-    </ConfigDetail>
+        {error ? <div className="d-banner err">{error}</div> : null}
+      </div>
 
-    {/* 画板 41:101 —— 与 OAuthDetail 同理：用量摘要是自己一张 `.pw-detail` 卡，
-        不挂在登录卡的末尾当一段（原因见上面那条注释）。 */}
     {isProviderUsageId(provider.id) && (
-      <ConfigDetail>
-        <ProviderUsageSummary providerId={provider.id} enabled={provider.configured} />
-      </ConfigDetail>
+      <ProviderUsageSummary providerId={provider.id} enabled={provider.configured} />
     )}
 
-    <ConfigDetail>
-      {/* 标题行由 EnabledModelsSection 自己给（画板 41 的「可用模型」头），
-          这里不要再补一个同名 h3，否则一块卡上会出现两遍同一个标题。 */}
+    <div className="d-set-sec">
       <EnabledModelsSection providerId={provider.id} controller={enabledModels} />
-    </ConfigDetail>
-    </ConfigDetailStack>
+    </div>
+    </div>
   );
 }
 
@@ -2471,10 +2528,10 @@ function AddProviderPicker({
   // 关闭后把焦点还给触发元素。外层的 onKeyDown 保留作为兜底。
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose, initialFocusRef: inputRef });
 
-  /* fork:design-system —— 弹层换画板 50 的 `.pw-scrim` + `.pw-modal`，供应商列表
-     换画板 41 的 `.pw-list` 行（pw-ico 图标 + pw-lname/pw-lsub），自绘卡片、
-     hover JS、搜索图标 SVG 全部退役。覆盖层的 fixed/层级画板没有产品等价物
-     （fork-ui 只给皮肤工作室接了线，z 顺序不能共用），保留这组行为 inline。 */
+  /* fork:design-system —— 弹层列表换 `.d-col` + `d-menu-row` 行（图标 + 名称/副行），
+     自绘卡片、hover JS、搜索图标 SVG 全部退役。覆盖层的 fixed/层级画板没有产品等价物
+     （fork-ui 只给皮肤工作室接了线，z 顺序不能共用），保留这组行为 inline。
+     壳 `.pw-modal` 见下方注释（移动 sheet 的 CSS 选择器依赖）。 */
   return (
     /* fork:pwa-models-skills —— `fork-pwa-ms-sheet` 是**本文件私有的**手机档钩子
        （app/pwa-models-skills.css）：≤640px 时这个选择器从 560px 的居中对话框变成
@@ -2496,16 +2553,20 @@ function AddProviderPicker({
         onClose();
       }}
     >
+      {/* `pw-modal` 外壳保留（脚本侧依赖）：app/pwa-models-skills.css 的窄屏 sheet
+          以 `.fork-pwa-ms-sheet > .pw-modal` / `> .pw-modal-body` 为选择器，
+          删了会静默打断手机端 sheet；收尾波与那段移动 CSS 一并换 `d-modal`。
+          壳内其余类已全部走 `d-*`。 */}
       <div className="pw-modal">
-        {/* Search —— 画板 41 搜索行的形态（pw-ico + pw-input 吃掉剩余宽度）。 */}
+        {/* Search —— 画板 D-08 搜索行：图标 + 吃掉剩余宽度的输入框。 */}
         <div className="pw-modal-head">
-          <span className="pw-ico pw-dim"><i data-ico="search" data-size="14"></i></span>
+          <i data-ico="search" data-size="14" aria-hidden="true" />
           <input
             ref={inputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
              placeholder={t("i18n.searchProviders")}
-            className="pw-input"
+            className="d-input"
             style={FILL_ROW_INPUT}
           />
         </div>
@@ -2517,15 +2578,17 @@ function AddProviderPicker({
             理由见该文件「sheet 一节」）。 */}
         <div className="pw-modal-body" style={{ overflowY: "auto", maxHeight: "min(72vh, calc(100vh - 32px))" }}>
           {totalCount === 0 ? (
-            <ConfigEmptyState>{t("i18n.noProviders")}</ConfigEmptyState>
+            <div className="d-empty compact">
+              <p className="d-empty-s">{t("i18n.noProviders")}</p>
+            </div>
           ) : (
-            <div className="pw-list">
+            <div className="d-col">
               {showCustom && <ConfigSidebarGroupLabel>{t("i18n.custom")}</ConfigSidebarGroupLabel>}
               {showCustom && (
                 <ConfigSidebarItem
                   onClick={() => { onAddCustom(); onClose(); }}
                 >
-                  <span className="pw-ico"><i data-ico="plus" data-size="14"></i></span>
+                  <i data-ico="plus" data-size="14" aria-hidden="true" />
                   <span className="grow">
                     <ConfigSidebarText>OpenAI / Anthropic compatible</ConfigSidebarText>
                     <ConfigSidebarSub>{t("i18n.customEndpoint")}</ConfigSidebarSub>
@@ -2910,16 +2973,16 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
              只改模型页而不波及插件 / 子代理分节。全仓只有本页与 SkillsConfig 发这个类。
              `fork-pwa-ms-models` 是同页专属的细分钩子（技能页是 fork-pwa-ms-skills）。 */
           <>
-            <ConfigButton
+            <DButton
               variant="secondary"
               size="small"
               className="fork-pwa-ms-page fork-pwa-ms-models"
               onClick={() => setPickerOpen(true)}
             >
-              <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+              <i data-ico="plus" data-size="13" aria-hidden="true" />
               {t("models.addProvider")}
-            </ConfigButton>
-            <ConfigButton
+            </DButton>
+            <DButton
               variant="primary"
               size="small"
               onClick={handleSave}
@@ -2927,14 +2990,14 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               className={savedOk ? "is-success" : undefined}
             >
               {savedOk && (
-                /* 保存成功的对勾收编为画板图标（`pw-ico` + data-ico=check）；
-                   settings.css 的 .config-button-success-icon 继续提供描画动画。 */
-                <span className="config-button-success-icon pw-ico">
-                  <i data-ico="check" data-size="14"></i>
+                /* 保存成功的对勾：画板 `<i data-ico>`；settings.css 的
+                   .config-button-success-icon 继续提供描画动画（行为钩子，保留）。 */
+                <span className="config-button-success-icon">
+                  <i data-ico="check" data-size="14" aria-hidden="true"></i>
                 </span>
               )}
               <span>{savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}</span>
-            </ConfigButton>
+            </DButton>
           </>
         }
         toolbar={
@@ -2945,7 +3008,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
               ariaLabel={t("models.searchProviders")}
               onChange={setProviderFilter}
             />
-            <span className="pw-grow" aria-hidden="true" />
+          <span className="d-grow" aria-hidden="true" />
             {loadError || saveError || saveWarnings.length > 0 ? (
               <span style={{ color: loadError || saveError ? "var(--error)" : "var(--warning)" }}>
                 {loadError
@@ -2953,7 +3016,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                   : saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
               </span>
             ) : null}
-            <ConfigBadge tone="count">{t("models.providerCount", { count: String(visibleOAuth.length + visibleApiKey.length + visibleProviders.length) })}</ConfigBadge>
+            <DBadge tone="count">{t("models.providerCount", { count: String(visibleOAuth.length + visibleApiKey.length + visibleProviders.length) })}</DBadge>
           </>
         }
         fill
@@ -2968,22 +3031,22 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           <ConfigSidebar>
             <ConfigSidebarList>
               {loading ? (
-                <p className="pw-hint">{t("i18n.loading")}</p>
+                <p className="d-t-xs d-t-faint">{t("i18n.loading")}</p>
               ) : loadError ? (
                 /* 读不出 models.json ≠ 库是空的：空态那句「还没有供应商」会把用户
                    引去「添加供应商」，而保存已被禁用（见页头）。只报现状。 */
-                <p className="pw-hint">{t("models.listUnreadable")}</p>
+                <p className="d-t-xs d-t-faint">{t("models.listUnreadable")}</p>
               ) : !hasVisibleRows ? (
                 /* fork:settings-frame（画板 62 帧 D）—— 「列表空」落在**列表列内**：
                    方框图标 + 一句，不折行；过滤无结果与「一个供应商都没有」都不再
                    静默留白。「先加供应商」的入口常驻页头右端（画板 41 的页级动作），
                    空态本体只负责点名现状：有过滤词是选择器同款「没有匹配的
                    Provider」；空库用 models.listEmpty + listEmptyHint 第二句。 */
-                <ConfigEmptyState>
-                  <span className="mark"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
-                  <p>{needle ? t("i18n.noProviders") : t("models.listEmpty")}</p>
-                  {!needle && <p className="pw-hint">{t("models.listEmptyHint")}</p>}
-                </ConfigEmptyState>
+                <div className="d-empty compact">
+                  <span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
+                  <p className="d-empty-t">{needle ? t("i18n.noProviders") : t("models.listEmpty")}</p>
+                  {!needle && <p className="d-empty-s">{t("models.listEmptyHint")}</p>}
+                </div>
               ) : (
                 <>
               {managedProviders.length > 0 && (
@@ -3006,7 +3069,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                         enabled: findProviderView(enabledModels.view, p.id)?.enabledCount ?? 0,
                       })}</ConfigSidebarSub>
                     </span>
-                    <ConfigBadge tone="ok">{t("models.badgeLoggedIn")}</ConfigBadge>
+                    <DBadge tone="ok">{t("models.badgeLoggedIn")}</DBadge>
                   </ConfigSidebarItem>
                 );
               })}
@@ -3028,7 +3091,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                         enabled: findProviderView(enabledModels.view, p.id)?.enabledCount ?? 0,
                       })}</ConfigSidebarSub>
                     </span>
-                    <ConfigBadge tone="ok">{t("models.badgeLoggedIn")}</ConfigBadge>
+                    <DBadge tone="ok">{t("models.badgeLoggedIn")}</DBadge>
                   </ConfigSidebarItem>
                 );
               })}
@@ -3080,16 +3143,16 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                               少了这层 `.grow`，星标会紧贴模型 id 顶在左边、右侧空一大片 ——
                               与上面那一行供应商、以及右列「可用模型」卡都不齐。 */}
                           <span className="grow">
-                            <ConfigSidebarText className={m.id ? undefined : "pw-dim"}>
+                            <ConfigSidebarText className={m.id ? undefined : "d-t-faint"}>
                                {m.id || t("i18n.newModel")}
                             </ConfigSidebarText>
                           </span>
                           {m.reasoning && (
-                            <ConfigBadge tone="accent">T</ConfigBadge>
+                            <DBadge tone="info">T</DBadge>
                           )}
                           {/* fork:fix-nested-button — 收藏星**不能**是真 `<button>`：行本体
-                              `ConfigSidebarItem` 渲染的就是 `<button class="pw-litem">`
-                              （components/SettingsUi.tsx，那个文件不能动），而 HTML 解析器
+                              `ConfigSidebarItem` 渲染的就是 `<button class="d-trow">`（窄屏是 `m-trow`，
+                              见 components/SettingsUi.tsx），而 HTML 解析器
                               遇到嵌套 `<button>` 会把里层的**提前闭合并提到外面** ——
                               SSR 出来的树和客户端渲染的树对不上，于是控制台常驻
                               `In HTML, <button> cannot be a descendant of <button>`、
@@ -3101,7 +3164,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                               `[role=button]` 命中 app/globals.css 的全局 focus-visible 描边。 */}
                           <span
                             role="button"
-                            className="pw-iconbtn sm"
+                            className="d-iconbtn"
                             tabIndex={favoriteKey ? 0 : -1}
                             aria-disabled={!favoriteKey}
                             aria-pressed={isFavorite}
@@ -3120,12 +3183,12 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                               if (favoriteKey) toggleFavoriteModelKey(favoriteKey);
                             }}
                           >
-                            <span
-                              className="pw-ico"
-                              style={{ color: isFavorite ? "var(--accent)" : "var(--text-dim)", opacity: favoriteKey ? 1 : 0.35 }}
-                            >
-                              <i data-ico="star" data-size="13" aria-hidden="true"></i>
-                            </span>
+                            <i
+                              data-ico="star"
+                              data-size="13"
+                              aria-hidden="true"
+                              style={{ color: isFavorite ? "var(--nx-accent)" : "var(--nx-text-3)", opacity: favoriteKey ? 1 : 0.35 }}
+                            ></i>
                           </span>
                         </ConfigSidebarItem>
                       );
@@ -3147,19 +3210,17 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
 
           </ConfigSidebar>
 
-          {/* Right: 画板 41 的右列是**一列独立的 `.pw-detail` 卡**（`ConfigDetailStack`），
+          {/* Right: v5 D-08 的内容列是 `.d-set-inner`（一列 `.d-set-sec` 分节），
               不再套一张撑满高度的巨卡 —— 那是「弹窗影子」的来源。 */}
-          <ConfigDetailStack>
+          <div className="d-set-inner">
             {loading ? null : detailContent ?? (
-              /* fork:settings-frame（画板 62 帧 D）—— 「详情未选」：40px 方框图标
-                 （square-mouse-pointer）+ 一句引导，居中。替换旧版那句孤悬在详情列
-                 宽度正中的裸文本「选择 Provider 或模型」。 */
-              <ConfigEmptyState>
-                <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                <p>{t("models.detailEmpty")}</p>
-              </ConfigEmptyState>
+              /* fork:settings-frame（画板 62 帧 D）—— 「详情未选」：方框图标 + 一句引导。 */
+              <div className="d-empty compact">
+                <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                <p className="d-empty-t">{t("models.detailEmpty")}</p>
+              </div>
             )}
-          </ConfigDetailStack>
+          </div>
         </ConfigSplitView>
       </SettingsPage>
     </ConfigPanelShell>

@@ -19,7 +19,10 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { Fragment } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
 import { parseMcpImport, type McpImportServer } from "@/lib/mcp-import";
 import {
   EMPTY_MCP_ADD_DRAFT,
@@ -34,7 +37,6 @@ import {
   MCP_IMPORT_SOURCE_KEYS,
   type McpAddDraft,
 } from "../mcp-add-helpers";
-import { ConfigField, ConfigSwitch } from "../SettingsUi";
 import type { McpResponse, McpScope } from "@/lib/api-types";
 
 interface Props {
@@ -59,6 +61,7 @@ export function McpPastePanel({
   onCancel,
 }: Props) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const [draft, setDraft] = useState<McpAddDraft>(EMPTY_MCP_ADD_DRAFT);
   const [showExamples, setShowExamples] = useState(true);
 
@@ -92,11 +95,172 @@ export function McpPastePanel({
     return null;
   })();
 
+  // fork:v5-landing Wave B · M-09 帧 B 表单形态 ——
+  // 窄屏上这一段整体落在底部面板里：分节 `.m-cardgroup` + `.m-group-title`，
+  // 字段行 `.m-setrow` / 控件槽 `.m-doc-body`，示例 chip 走 `.m-chips` / `.m-chipbtn`
+  // （与 M-05 帧 B 的同一组）。解析、预检、提交口径与桌面**完全相同**。
+  if (mobile) {
+    return (
+      <Fragment>
+        <div className="m-cardgroup">
+          <div className="m-group-title">{t("mcp.add.pasteLabel")}</div>
+          <div className="m-doc-body">
+            <textarea
+              className="m-input"
+              /* `.m-input` 的高度锁在 44px，粘贴框需要多行。 */
+              style={{ width: "100%", height: "auto", fontFamily: "var(--nx-font-mono)" }}
+              rows={5}
+              spellCheck={false}
+              value={draft.text}
+              placeholder={t("mcp.add.pastePlaceholder")}
+              onChange={(event) => {
+                update({ text: event.target.value });
+                setShowExamples(false);
+              }}
+              onPaste={() => setShowExamples(false)}
+            />
+          </div>
+          {showExamples && !draft.text.trim() && (
+            <Fragment>
+              <PwaSetRow label={t("mcp.add.pasteExamples")} />
+              <div className="m-doc-body">
+                <div className="m-chips">
+                  {MCP_ADD_EXAMPLES.map((example) => (
+                    <button
+                      key={`${example.source}-${example.text}`}
+                      type="button"
+                      className="m-chipbtn"
+                      onClick={() => { update({ text: example.text }); setShowExamples(false); }}
+                    >
+                      {t(MCP_IMPORT_SOURCE_KEYS[example.source])}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Fragment>
+          )}
+          {parsed && "servers" in parsed && parsed.ok && parsed.servers.length > 1 && (
+            <Fragment>
+              <PwaSetRow label={t("mcp.add.serverCount", { count: parsed.servers.length })} />
+              <div className="m-doc-body">
+                <select
+                  className="m-input"
+                  style={{ width: "100%" }}
+                  value={draft.server}
+                  onChange={(event) => update({ server: Number(event.target.value) })}
+                >
+                  {parsed.servers.map((entry, index) => (
+                    <option key={`${entry.name}-${index}`} value={index}>{entry.name}</option>
+                  ))}
+                </select>
+              </div>
+            </Fragment>
+          )}
+          {parsed && !parsed.ok && (
+            <PwaBanner icon="triangle-alert" tone="warn">{t("mcp.add.pasteUnreadable")}</PwaBanner>
+          )}
+          {parsed && "notes" in parsed && parsed.notes.length > 0 && (
+            <PwaBanner icon="info">
+              {parsed.notes.map((note) => (
+                <span key={note.code}>
+                  {mcpImportNoteSeverity(note) === "error"
+                    ? t(mcpImportProblemKey(note as unknown as Record<string, string | number>))
+                    : note.code}
+                </span>
+              ))}
+            </PwaBanner>
+          )}
+        </div>
+
+        {preview && (
+          <div className="m-cardgroup">
+            <div className="m-group-title">{t("mcp.add.previewTarget")}</div>
+            <PwaSetRow label={t("mcp.fieldType")} sub={preview.transport === "http" ? "http" : "stdio"} />
+            {preview.target && <PwaSetRow label={t("mcp.add.previewTarget")} sub={preview.target} />}
+            {preview.cwd && <PwaSetRow label={t("mcp.fieldCwd")} sub={preview.cwd} />}
+            {/* env / header 只给名字，不给值（值可能是密钥）。 */}
+            {(preview.envNames.length > 0 || preview.headerNames.length > 0) && (
+              <PwaSetRow
+                label={t("mcp.fieldEnv")}
+                sub={[...preview.envNames, ...preview.headerNames].join(", ")}
+              />
+            )}
+            {preview.variableReferences.length > 0 && (
+              <PwaSetRow
+                label={t("mcp.add.previewVariables")}
+                sub={preview.variableReferences
+                  .map((entry) => `${entry.name ?? entry.kind}: ${entry.variables.join(",")}`)
+                  .join("  ")}
+              />
+            )}
+            {preview.commandFields.length > 0 && (
+              <PwaSetRow
+                label={t("mcp.add.previewCommands")}
+                sub={preview.commandFields.map((entry) => entry.name ?? entry.kind).join(", ")}
+              />
+            )}
+            {preview.unfilled && <PwaBanner icon="info">{t("mcp.add.previewUnfilled")}</PwaBanner>}
+            <PwaSetRow label={t("mcp.fieldName")} />
+            <div className="m-doc-body">
+              <input
+                className="m-input"
+                style={{ width: "100%" }}
+                value={draft.name ?? server?.name ?? ""}
+                onChange={(event) => update({ name: event.target.value })}
+              />
+            </div>
+            <PwaSetRow label={t("mcp.fieldScope")} />
+            <div className="m-doc-body">
+              <select
+                className="m-input"
+                style={{ width: "100%" }}
+                value={scope}
+                onChange={(event) => onScopeChange(event.target.value as McpScope)}
+              >
+                <option value="global">{t("mcp.scope.global")}</option>
+                <option value="project" disabled={!cwd}>{t("mcp.scope.project")}</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={preview.enabled}
+              aria-label={preview.enabled ? t("mcp.enable") : t("mcp.disable")}
+              className={`m-switch${preview.enabled ? " on" : ""}`}
+              onClick={() => update({ enabled: !preview.enabled } as Partial<McpAddDraft>)}
+            />
+          </div>
+        )}
+
+        {actionError && <PwaBanner icon="triangle-alert" tone="err" role="alert">{actionError}</PwaBanner>}
+        {submitBlock && <PwaBanner icon="info" tone="warn">{submitBlock}</PwaBanner>}
+
+        <div className="m-pickbar">
+          <button type="button" className="m-picktag" onClick={onCancel} disabled={busy}>
+            {t("i18n.cancel")}
+          </button>
+          <button
+            type="button"
+            className="m-picktag is-on"
+            disabled={busy || Boolean(submitBlock)}
+            onClick={() => onSubmit({ ...draft, scope })}
+          >
+            {busy ? t("mcp.add.pasting") : t("mcp.add.pasteSubmit")}
+          </button>
+        </div>
+      </Fragment>
+    );
+  }
+
+  // fork:v5-landing D-15 帧 B「粘贴添加」/ 帧 C「解析结果」——
+  // 表单字段走 `.d-field` + `.d-input`/`.d-textarea`/`.d-select`，状态条走 `.d-banner`，
+  // 示例与页脚动作走 `.d-chips`/`.d-chipbtn` 与 `.d-btn`。行为与文案一律不动。
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--s3)", minWidth: 0 }}>
-      <ConfigField label={t("mcp.add.pasteLabel")}>
+    <div className="d-col" style={{ gap: "var(--nx-sp-3)" }}>
+      <div className="d-field">
+        <span className="d-field-t">{t("mcp.add.pasteLabel")}</span>
         <textarea
-          className="pw-input"
+          className="d-textarea"
           rows={5}
           spellCheck={false}
           value={draft.text}
@@ -106,20 +270,20 @@ export function McpPastePanel({
             setShowExamples(false);
           }}
           onPaste={() => setShowExamples(false)}
-          style={{ minHeight: "calc(var(--s6) * 3)", resize: "vertical", fontFamily: "var(--font-mono)", fontSize: "var(--text-meta)" }}
+          style={{ minHeight: "calc(var(--nx-sp-6) * 6)", resize: "vertical", fontFamily: "var(--nx-font-mono)" }}
         />
-      </ConfigField>
+      </div>
 
       {/* 上游同款：空框时列出每种格式一个示例，点一下就填进来。 */}
       {showExamples && !draft.text.trim() && (
-        <div className="pw-hint">
-          <div style={{ marginBottom: "var(--s2)" }}>{t("mcp.add.pasteExamples")}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)", marginBottom: "var(--s1)" }}>
+        <div className="d-col" style={{ gap: "var(--nx-sp-2)" }}>
+          <div className="d-t-xs d-t-faint">{t("mcp.add.pasteExamples")}</div>
+          <div className="d-chips">
             {MCP_ADD_EXAMPLES.map((example) => (
               <button
                 key={`${example.source}-${example.text}`}
                 type="button"
-                className="pw-btn sm"
+                className="d-chipbtn"
                 onClick={() => { update({ text: example.text }); setShowExamples(false); }}
               >
                 {t(MCP_IMPORT_SOURCE_KEYS[example.source])}
@@ -131,9 +295,10 @@ export function McpPastePanel({
 
       {/* 一段粘贴里读出多个 server 时让用户挑。 */}
       {parsed && "servers" in parsed && parsed.ok && parsed.servers.length > 1 && (
-        <ConfigField label={t("mcp.add.serverCount", { count: parsed.servers.length })}>
+        <div className="d-field">
+          <span className="d-field-t">{t("mcp.add.serverCount", { count: parsed.servers.length })}</span>
           <select
-            className="pw-select"
+            className="d-select"
             value={draft.server}
             onChange={(event) => update({ server: Number(event.target.value) })}
           >
@@ -141,20 +306,20 @@ export function McpPastePanel({
               <option key={`${entry.name}-${index}`} value={index}>{entry.name}</option>
             ))}
           </select>
-        </ConfigField>
+        </div>
       )}
 
       {parsed && !parsed.ok && (
-        <div className="pw-alert warn">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{t("mcp.add.pasteUnreadable")}</span>
+        <div className="d-banner warn">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{t("mcp.add.pasteUnreadable")}</span>
         </div>
       )}
 
       {parsed && "notes" in parsed && parsed.notes.length > 0 && (
-        <div className="pw-alert info">
-          <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-          <span className="pw-grow">
+        <div className="d-banner info">
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className="d-grow">
             {parsed.notes.map((note) => (
               <span key={note.code} style={{ display: "block" }}>
                 {mcpImportNoteSeverity(note) === "error"
@@ -168,97 +333,109 @@ export function McpPastePanel({
 
       {preview && (
         <>
-          <ConfigField label={t("mcp.fieldType")}>
-            <span className="pw-mono">{preview.transport === "http" ? "http" : "stdio"}</span>
-          </ConfigField>
+          <div className="d-field">
+            <span className="d-field-t">{t("mcp.fieldType")}</span>
+            <span className="d-mono">{preview.transport === "http" ? "http" : "stdio"}</span>
+          </div>
           {preview.target && (
-            <ConfigField label={t("mcp.add.previewTarget")}>
-              <span className="pw-mono" style={{ overflowWrap: "anywhere" }}>{preview.target}</span>
-            </ConfigField>
+            <div className="d-field">
+              <span className="d-field-t">{t("mcp.add.previewTarget")}</span>
+              <span className="d-mono" style={{ overflowWrap: "anywhere" }}>{preview.target}</span>
+            </div>
           )}
           {preview.cwd && (
-            <ConfigField label={t("mcp.fieldCwd")}>
-              <span className="pw-mono" style={{ overflowWrap: "anywhere" }}>{preview.cwd}</span>
-            </ConfigField>
+            <div className="d-field">
+              <span className="d-field-t">{t("mcp.fieldCwd")}</span>
+              <span className="d-mono" style={{ overflowWrap: "anywhere" }}>{preview.cwd}</span>
+            </div>
           )}
           {/* env / header 只给**名字**，不给值（值可能是密钥）。 */}
           {/* env / header 只给**名字**（值可能是密钥，预览里也已掩码）。 */}
           {(preview.envNames.length > 0 || preview.headerNames.length > 0) && (
-            <ConfigField label={t("mcp.fieldEnv")}>
-              <span className="pw-mono">
+            <div className="d-field">
+              <span className="d-field-t">{t("mcp.fieldEnv")}</span>
+              <span className="d-mono">
                 {[...preview.envNames, ...preview.headerNames].join(", ")}
               </span>
-            </ConfigField>
-          )}
-          {preview.variableReferences.length > 0 && (
-            <ConfigField label={t("mcp.add.previewVariables")}>
-              <span className="pw-mono">
-                {preview.variableReferences.map((entry) => `${entry.name ?? entry.kind}: ${entry.variables.join(",")}`).join("  ")}
-              </span>
-            </ConfigField>
-          )}
-          {preview.commandFields.length > 0 && (
-            <ConfigField label={t("mcp.add.previewCommands")}>
-              <span className="pw-mono" style={{ overflowWrap: "anywhere" }}>
-                {preview.commandFields.map((entry) => entry.name ?? entry.kind).join(", ")}
-              </span>
-            </ConfigField>
-          )}
-          {preview.unfilled && (
-            <div className="pw-alert info">
-              <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-              <span className="pw-grow">{t("mcp.add.previewUnfilled")}</span>
             </div>
           )}
-          <ConfigField label={t("mcp.fieldName")}>
+          {preview.variableReferences.length > 0 && (
+            <div className="d-field">
+              <span className="d-field-t">{t("mcp.add.previewVariables")}</span>
+              <span className="d-mono">
+                {preview.variableReferences.map((entry) => `${entry.name ?? entry.kind}: ${entry.variables.join(",")}`).join("  ")}
+              </span>
+            </div>
+          )}
+          {preview.commandFields.length > 0 && (
+            <div className="d-field">
+              <span className="d-field-t">{t("mcp.add.previewCommands")}</span>
+              <span className="d-mono" style={{ overflowWrap: "anywhere" }}>
+                {preview.commandFields.map((entry) => entry.name ?? entry.kind).join(", ")}
+              </span>
+            </div>
+          )}
+          {preview.unfilled && (
+            <div className="d-banner info">
+              <i data-ico="info" data-size="14" aria-hidden="true" />
+              <span className="d-grow">{t("mcp.add.previewUnfilled")}</span>
+            </div>
+          )}
+          <div className="d-field">
+            <span className="d-field-t">{t("mcp.fieldName")}</span>
             <input
-              className="pw-input"
+              className="d-input"
               value={draft.name ?? server?.name ?? ""}
               onChange={(event) => update({ name: event.target.value })}
-              style={{ maxWidth: "calc(var(--s6) * 8)" }}
+              style={{ maxWidth: "calc(var(--nx-sp-8) * 8)" }}
             />
-          </ConfigField>
-          <ConfigField label={t("mcp.fieldScope")}>
+          </div>
+          <div className="d-field">
+            <span className="d-field-t">{t("mcp.fieldScope")}</span>
             <select
-              className="pw-select"
+              className="d-select"
               value={scope}
               onChange={(event) => onScopeChange(event.target.value as McpScope)}
             >
               <option value="global">{t("mcp.scope.global")}</option>
               <option value="project" disabled={!cwd}>{t("mcp.scope.project")}</option>
             </select>
-          </ConfigField>
-          <ConfigField label={t("mcp.fieldEnabled")}>
-            <ConfigSwitch
-              checked={preview.enabled}
-              onChange={() => update({ enabled: !preview.enabled } as Partial<McpAddDraft>)}
-              label={preview.enabled ? t("mcp.enable") : t("mcp.disable")}
+          </div>
+          <div className="d-field">
+            <span className="d-field-t">{t("mcp.fieldEnabled")}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={preview.enabled}
+              aria-label={preview.enabled ? t("mcp.enable") : t("mcp.disable")}
+              className={`d-switch${preview.enabled ? " on" : ""}`}
+              onClick={() => update({ enabled: !preview.enabled } as Partial<McpAddDraft>)}
             />
-          </ConfigField>
+          </div>
         </>
       )}
 
       {actionError && (
-        <div className="pw-alert bad">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{actionError}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{actionError}</span>
         </div>
       )}
 
       {submitBlock && (
-        <div className="pw-alert warn">
-          <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-          <span className="pw-grow">{submitBlock}</span>
+        <div className="d-banner warn">
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{submitBlock}</span>
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "var(--s2)", justifyContent: "flex-end" }}>
-        <button type="button" className="pw-btn" onClick={onCancel} disabled={busy}>
+      <div className="d-row" style={{ justifyContent: "flex-end" }}>
+        <button type="button" className="d-btn sm" onClick={onCancel} disabled={busy}>
           {t("i18n.cancel")}
         </button>
         <button
           type="button"
-          className="pw-btn primary"
+          className="d-btn sm primary"
           disabled={busy || Boolean(submitBlock)}
           onClick={() => onSubmit({ ...draft, scope })}
         >

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-19 · 用量与统计 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-19 · 用量与统计</h1>
+  <p>
+    这一页只回答一个问题：<b>钱花在哪、token 花在哪、哪段时间最费</b>。
+    口径先写死：数据来自本机 <code>.jsonl</code> 会话日志与供应商回执，跨会话累计，删会话不减历史。
+    <b>本页刻意没有「首 token 延迟」和「输出速度」</b> —— 仓库里没有任何一处记录这两个值，
+    采集代码旁就写着「故意不做，不造假」，所以画板里也不出现它们：宁可少两个指标，也不摆一条编出来的曲线。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 用量</span>
+    <span class="d-tag">组件：UsageStatsPanel · RangeSeg · StatGrid · Heatmap · ModelShare · DailyTokens</span>
+    <span class="d-tag">状态：近 7 天 / 30 天 / 1 年 / 全部 · 有数据</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 设置壳 · 用量首页：四档范围 + 四张统计卡 + 模型占比<span class="d-grow"></span>范围分段是真的能切的</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">用量</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 用量">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 用量</span>
+
+      <span class="d-badge mute"><i data-ico="database" data-size="12"></i>本地统计</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem is-on"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">用量</div>
+                  <div class="d-t-xs d-t-faint">口径：本地日志逐条累加，供应商回执用于计价；时区按本机。</div>
+
+                  <div class="d-col" style="gap:var(--nx-sp-3)" data-demo-scope>
+                    <div class="d-seg" data-demo-tabs>
+                      <button data-demo-tab="d7">7 天</button>
+                      <button data-demo-tab="d30" class="is-on">30 天</button>
+                      <button data-demo-tab="y1">1 年</button>
+                      <button data-demo-tab="all">全部</button>
+                    </div>
+
+                    <!-- 30 天（默认） -->
+                    <section data-demo-pane="d30">
+                      <div class="d-statgrid">
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="sigma" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总 token</span><span class="d-badge mute">30 天</span></div>
+                          <div class="d-t-title d-num">12.43M</div>
+                          <div class="d-t-xs d-t-faint">输入 8.21M · 输出 4.22M</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="percent" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总费用</span><span class="d-badge mute">按回执</span></div>
+                          <div class="d-t-title d-num">¥386.42</div>
+                          <div class="d-t-xs d-t-faint">日均 ¥12.88</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="activity" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">请求数</span><span class="d-badge mute">18.6k</span></div>
+                          <div class="d-t-title d-num">18,642</div>
+                          <div class="d-t-xs d-t-faint">均 667 token / 请求</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="triangle-alert" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">错误率</span><span class="d-badge ok">健康</span></div>
+                          <div class="d-t-title d-num">0.71%</div>
+                          <div class="d-t-xs d-t-faint">132 次失败 · 多数为超时</div>
+                        </div>
+                      </div>
+                    </section>
+
+                    <!-- 7 天 -->
+                    <section data-demo-pane="d7" hidden>
+                      <div class="d-statgrid">
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="sigma" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总 token</span><span class="d-badge mute">7 天</span></div>
+                          <div class="d-t-title d-num">2.86M</div>
+                          <div class="d-t-xs d-t-faint">输入 1.94M · 输出 0.92M</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="percent" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总费用</span><span class="d-badge mute">按回执</span></div>
+                          <div class="d-t-title d-num">¥91.06</div>
+                          <div class="d-t-xs d-t-faint">日均 ¥13.01</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="activity" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">请求数</span><span class="d-badge mute">4.1k</span></div>
+                          <div class="d-t-title d-num">4,109</div>
+                          <div class="d-t-xs d-t-faint">均 696 token / 请求</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="triangle-alert" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">错误率</span><span class="d-badge ok">健康</span></div>
+                          <div class="d-t-title d-num">0.39%</div>
+                          <div class="d-t-xs d-t-faint">16 次失败</div>
+                        </div>
+                      </div>
+                    </section>
+
+                    <!-- 1 年 -->
+                    <section data-demo-pane="y1" hidden>
+                      <div class="d-statgrid">
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="sigma" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总 token</span><span class="d-badge mute">1 年</span></div>
+                          <div class="d-t-title d-num">96.7M</div>
+                          <div class="d-t-xs d-t-faint">输入 61.4M · 输出 35.3M</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="percent" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总费用</span><span class="d-badge mute">按回执</span></div>
+                          <div class="d-t-title d-num">¥2,941.18</div>
+                          <div class="d-t-xs d-t-faint">日均 ¥8.06</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="activity" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">请求数</span><span class="d-badge mute">142k</span></div>
+                          <div class="d-t-title d-num">142,806</div>
+                          <div class="d-t-xs d-t-faint">均 677 token / 请求</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="triangle-alert" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">错误率</span><span class="d-badge warn">需注意</span></div>
+                          <div class="d-t-title d-num">1.24%</div>
+                          <div class="d-t-xs d-t-faint">1,772 次失败 · 集中在 3 月</div>
+                        </div>
+                      </div>
+                    </section>
+
+                    <!-- 全部 -->
+                    <section data-demo-pane="all" hidden>
+                      <div class="d-statgrid">
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="sigma" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总 token</span><span class="d-badge mute">全部</span></div>
+                          <div class="d-t-title d-num">204.5M</div>
+                          <div class="d-t-xs d-t-faint">最早一条：2024-11-02</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="percent" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">总费用</span><span class="d-badge mute">按回执</span></div>
+                          <div class="d-t-title d-num">¥6,208.55</div>
+                          <div class="d-t-xs d-t-faint">含已删除会话的历史</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="activity" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">请求数</span><span class="d-badge mute">301k</span></div>
+                          <div class="d-t-title d-num">301,442</div>
+                          <div class="d-t-xs d-t-faint">均 678 token / 请求</div>
+                        </div>
+                        <div class="d-stat">
+                          <div class="d-row"><i data-ico="triangle-alert" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">错误率</span><span class="d-badge warn">需注意</span></div>
+                          <div class="d-t-title d-num">1.11%</div>
+                          <div class="d-t-xs d-t-faint">3,346 次失败</div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">模型占比</div>
+                  <div class="d-card">
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row d-t-xs"><span class="d-grow d-mono">claude-opus-4-6</span><span class="d-t-dim">6.12M</span><span class="d-t-faint">¥214.80</span></div>
+                        <div class="d-bar"><i style="width:49%"></i></div>
+                      </div>
+                      <div class="d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row d-t-xs"><span class="d-grow d-mono">claude-sonnet-4-6</span><span class="d-t-dim">3.84M</span><span class="d-t-faint">¥96.12</span></div>
+                        <div class="d-bar"><i style="width:31%"></i></div>
+                      </div>
+                      <div class="d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row d-t-xs"><span class="d-grow d-mono">gpt-5.1-codex</span><span class="d-t-dim">1.66M</span><span class="d-t-faint">¥58.30</span></div>
+                        <div class="d-bar"><i style="width:13%"></i></div>
+                      </div>
+                      <div class="d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-row d-t-xs"><span class="d-grow d-mono">qwen3-coder-30b · 本机</span><span class="d-t-dim">0.81M</span><span class="d-t-faint">¥17.20</span></div>
+                        <div class="d-bar"><i style="width:7%"></i></div>
+                      </div>
+                      <div class="d-t-xs d-t-faint">条形按 token 占比，不是按费用 —— 两者排序不一样时才需要两张图，这里一张就够。</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">口径说明</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">缓存命中不计费，但计入 token</div>
+                      <div class="d-set-row-s">命中部分单列，不摊进费用；否则本地模型的账会虚高。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">命中 71%</span></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">失败请求按已用 token 计费</div>
+                      <div class="d-set-row-s">供应商侧已经扣的部分不退回，所以错误率图里每一条都有真实费用。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">132 条</span></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">只读链接访问不计入费用</div>
+                      <div class="d-set-row-s">手机端通过局域网令牌打开的页面只读，不产生新的请求。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge info">不计入</span></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 年度活跃热力图：364 天，每格 1 天，按 26 天一行折叠<span class="d-grow"></span>格子弹入带错峰，点「重播」能再看一次</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner">
+
+              <div class="d-chart">
+                <div class="d-chart-head">
+                  <i data-ico="calendar-days" data-size="15"></i>
+                  <span class="d-grow">年度活跃热力图</span>
+                  <span class="d-t-xs d-t-faint">近 364 天 · 每格 1 天 · 最旧的一行在上</span>
+                  <button class="d-btn sm" data-demo-motion=".d-heat .d-cell-pop"><i data-ico="rotate-cw" data-size="13"></i>重播入场</button>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-heat">
+        <!-- 第 1 行 · 1 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:0ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:1ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:3ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:4ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:6ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:7ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:8ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:10ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:11ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:13ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:14ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:15ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:17ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:18ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:20ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:21ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:22ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:24ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:25ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:27ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:28ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:29ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:31ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:32ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:34ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:35ms"></div>
+        <!-- 第 2 行 · 27 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:36ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:38ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:39ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:41ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:42ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:43ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:45ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:46ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:48ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:49ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:50ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:52ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:53ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:55ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:56ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:57ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:59ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:60ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:62ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:63ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:64ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:66ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:67ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:69ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:70ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:71ms"></div>
+        <!-- 第 3 行 · 53 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:73ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:74ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:76ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:77ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:78ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:80ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:81ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:83ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:84ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:85ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:87ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:88ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:90ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:91ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:92ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:94ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:95ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:97ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:98ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:99ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:101ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:102ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:104ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:105ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:106ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:108ms"></div>
+        <!-- 第 4 行 · 79 天前起 -->
+        <div class="d-heat-grid l1 d-cell-pop" style="animation-delay:109ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:111ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:112ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:113ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:115ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:116ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:118ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:119ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:120ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:122ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:123ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:125ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:126ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:127ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:129ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:130ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:132ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:133ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:134ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:136ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:137ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:139ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:140ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:141ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:143ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:144ms"></div>
+        <!-- 第 5 行 · 105 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:146ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:147ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:148ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:150ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:151ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:153ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:154ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:155ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:157ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:158ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:160ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:161ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:162ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:164ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:165ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:167ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:168ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:169ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:171ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:172ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:174ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:175ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:176ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:178ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:179ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:181ms"></div>
+        <!-- 第 6 行 · 131 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:182ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:183ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:185ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:186ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:188ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:189ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:190ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:192ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:193ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:195ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:196ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:197ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:199ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:200ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:202ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:203ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:204ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:206ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:207ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:209ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:210ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:211ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:213ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:214ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:216ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:217ms"></div>
+        <!-- 第 7 行 · 157 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:218ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:220ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:221ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:223ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:224ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:225ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:227ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:228ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:230ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:231ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:232ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:234ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:235ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:237ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:238ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:239ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:241ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:242ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:244ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:245ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:246ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:248ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:249ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:251ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:252ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:253ms"></div>
+        <!-- 第 8 行 · 183 天前起 -->
+        <div class="d-heat-grid l2 d-cell-pop" style="animation-delay:255ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:256ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:258ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:259ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:260ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:262ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:263ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:265ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:266ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:267ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:269ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:270ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:272ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:273ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:274ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:276ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:277ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:279ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:280ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:281ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:283ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:284ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:286ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:287ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:288ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:290ms"></div>
+        <!-- 第 9 行 · 209 天前起 -->
+        <div class="d-heat-grid l1 d-cell-pop" style="animation-delay:291ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:293ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:294ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:295ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:297ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:298ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:300ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:301ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:302ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:304ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:305ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:307ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:308ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:309ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:311ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:312ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:314ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:315ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:316ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:318ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:319ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:321ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:322ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:323ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:325ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:326ms"></div>
+        <!-- 第 10 行 · 235 天前起 -->
+        <div class="d-heat-grid l1 d-cell-pop" style="animation-delay:328ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:329ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:330ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:332ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:333ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:335ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:336ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:337ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:339ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:340ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:342ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:343ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:344ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:346ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:347ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:349ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:350ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:351ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:353ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:354ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:356ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:357ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:358ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:360ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:361ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:363ms"></div>
+        <!-- 第 11 行 · 261 天前起 -->
+        <div class="d-heat-grid l1 d-cell-pop" style="animation-delay:364ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:365ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:367ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:368ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:370ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:371ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:372ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:374ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:375ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:377ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:378ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:379ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:381ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:382ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:384ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:385ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:386ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:388ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:389ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:391ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:392ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:393ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:395ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:396ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:398ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:399ms"></div>
+        <!-- 第 12 行 · 287 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:400ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:402ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:403ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:405ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:406ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:407ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:409ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:410ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:412ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:413ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:414ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:416ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:417ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:419ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:420ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:421ms"></div><div class="d-heat-grid l3 d-cell-pop" style="animation-delay:423ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:424ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:426ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:427ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:428ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:430ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:431ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:433ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:434ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:435ms"></div>
+        <!-- 第 13 行 · 313 天前起 -->
+        <div class="d-heat-grid d-cell-pop" style="animation-delay:437ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:438ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:440ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:441ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:442ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:444ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:445ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:447ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:448ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:449ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:451ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:452ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:454ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:455ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:456ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:458ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:459ms"></div><div class="d-heat-grid l3 d-cell-pop" style="animation-delay:461ms"></div><div class="d-heat-grid l3 d-cell-pop" style="animation-delay:462ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:463ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:465ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:466ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:468ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:469ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:470ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:472ms"></div>
+        <!-- 第 14 行 · 339 天前起 -->
+        <div class="d-heat-grid l2 d-cell-pop" style="animation-delay:473ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:475ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:476ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:477ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:479ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:480ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:482ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:483ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:484ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:486ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:487ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:489ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:490ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:491ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:493ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:494ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:496ms"></div><div class="d-heat-grid l1 d-cell-pop" style="animation-delay:497ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:498ms"></div><div class="d-heat-grid l3 d-cell-pop" style="animation-delay:500ms"></div><div class="d-heat-grid l3 d-cell-pop" style="animation-delay:501ms"></div><div class="d-heat-grid l3 d-cell-pop" style="animation-delay:503ms"></div><div class="d-heat-grid d-cell-pop" style="animation-delay:504ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:505ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:507ms"></div><div class="d-heat-grid l2 d-cell-pop" style="animation-delay:508ms"></div>
+                  </div>
+                  <div class="d-row d-t-xs d-t-faint">
+                    <span>少</span>
+                    <div class="d-heat-grid"></div>
+                    <div class="d-heat-grid l1"></div>
+                    <div class="d-heat-grid l2"></div>
+                    <div class="d-heat-grid l3"></div>
+                    <div class="d-heat-grid l4"></div>
+                    <span>多</span>
+                    <span class="d-grow"></span>
+                    <span>五档按当日 token 量切分：0 / &lt;20k / &lt;60k / &lt;140k / ≥140k</span>
+                  </div>
+                  <div class="d-heat-t">空白格 = 当天没有会话落盘（周末与休假段连片），不是采集失败 —— 采集失败会写成一行错误而不是留空。</div>
+                </div>
+              </div>
+
+              <div class="d-chart">
+                <div class="d-chart-head">
+                  <i data-ico="flame" data-size="15"></i>
+                  <span class="d-grow">最费的四段</span>
+                  <span class="d-t-xs d-t-faint">按 token 排序，与热力图同源</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-row d-t-sm">
+                    <span class="d-t-faint" style="min-width:96px">2025-03-14</span>
+                    <span class="d-bar d-grow"><i style="width:100%"></i></span>
+                    <span class="d-mono" style="min-width:72px;text-align:right">418k</span>
+                  </div>
+                  <div class="d-row d-t-sm">
+                    <span class="d-t-faint" style="min-width:96px">2025-06-02</span>
+                    <span class="d-bar d-grow"><i style="width:86%"></i></span>
+                    <span class="d-mono" style="min-width:72px;text-align:right">360k</span>
+                  </div>
+                  <div class="d-row d-t-sm">
+                    <span class="d-t-faint" style="min-width:96px">2025-09-21</span>
+                    <span class="d-bar d-grow"><i style="width:74%"></i></span>
+                    <span class="d-mono" style="min-width:72px;text-align:right">308k</span>
+                  </div>
+                  <div class="d-row d-t-sm">
+                    <span class="d-t-faint" style="min-width:96px">2025-11-08</span>
+                    <span class="d-bar d-grow"><i style="width:61%"></i></span>
+                    <span class="d-mono" style="min-width:72px;text-align:right">254k</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 每日 token 与每日费用：柱条自基线长起，30 根逐根错峰<span class="d-grow"></span>图上不放延迟与速度，只放真实记录的量</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-chart">
+                <div class="d-chart-head">
+                  <i data-ico="chart-column-increasing" data-size="15"></i>
+                  <span class="d-grow">每日 token · 最近 30 天</span>
+                  <span class="d-t-xs d-t-faint">输入 + 输出，缓存命中段已扣</span>
+                  <button class="d-btn sm" data-demo-motion=".d-bars .d-bar-rise"><i data-ico="rotate-cw" data-size="13"></i>重播入场</button>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-bars" style="height:180px">
+<i class="d-bar-rise" style="height:38%;animation-delay:0ms" title="第 1 天 · 11.8k token"></i>
+          <i class="d-bar-rise" style="height:52%;animation-delay:45ms" title="第 2 天 · 16.1k token"></i>
+          <i class="d-bar-rise" style="height:44%;animation-delay:90ms" title="第 3 天 · 13.6k token"></i>
+          <i class="d-bar-rise" style="height:61%;animation-delay:135ms" title="第 4 天 · 18.9k token"></i>
+          <i class="d-bar-rise" style="height:73%;animation-delay:180ms" title="第 5 天 · 22.6k token"></i>
+          <i class="d-bar-rise" style="height:29%;animation-delay:225ms" title="第 6 天 · 9.0k token"></i>
+          <i class="d-bar-rise" style="height:18%;animation-delay:270ms" title="第 7 天 · 5.6k token"></i>
+          <i class="d-bar-rise" style="height:47%;animation-delay:315ms" title="第 8 天 · 14.6k token"></i>
+          <i class="d-bar-rise" style="height:66%;animation-delay:360ms" title="第 9 天 · 20.5k token"></i>
+          <i class="d-bar-rise" style="height:81%;animation-delay:405ms" title="第 10 天 · 25.1k token"></i>
+          <i class="d-bar-rise" style="height:58%;animation-delay:450ms" title="第 11 天 · 18.0k token"></i>
+          <i class="d-bar-rise" style="height:72%;animation-delay:495ms" title="第 12 天 · 22.3k token"></i>
+          <i class="d-bar-rise" style="height:35%;animation-delay:540ms" title="第 13 天 · 10.8k token"></i>
+          <i class="d-bar-rise" style="height:49%;animation-delay:585ms" title="第 14 天 · 15.2k token"></i>
+          <i class="d-bar-rise" style="height:63%;animation-delay:630ms" title="第 15 天 · 19.5k token"></i>
+          <i class="d-bar-rise" style="height:77%;animation-delay:675ms" title="第 16 天 · 23.9k token"></i>
+          <i class="d-bar-rise" style="height:90%;animation-delay:720ms" title="第 17 天 · 27.9k token"></i>
+          <i class="d-bar-rise" style="height:64%;animation-delay:765ms" title="第 18 天 · 19.8k token"></i>
+          <i class="d-bar-rise" style="height:41%;animation-delay:810ms" title="第 19 天 · 12.7k token"></i>
+          <i class="d-bar-rise" style="height:26%;animation-delay:855ms" title="第 20 天 · 8.1k token"></i>
+          <i class="d-bar-rise" style="height:55%;animation-delay:900ms" title="第 21 天 · 17.1k token"></i>
+          <i class="d-bar-rise" style="height:68%;animation-delay:945ms" title="第 22 天 · 21.1k token"></i>
+          <i class="d-bar-rise" style="height:83%;animation-delay:990ms" title="第 23 天 · 25.7k token"></i>
+          <i class="d-bar-rise" style="height:96%;animation-delay:1035ms" title="第 24 天 · 29.8k token"></i>
+          <i class="d-bar-rise" style="height:74%;animation-delay:1080ms" title="第 25 天 · 22.9k token"></i>
+          <i class="d-bar-rise" style="height:59%;animation-delay:1125ms" title="第 26 天 · 18.3k token"></i>
+          <i class="d-bar-rise" style="height:43%;animation-delay:1170ms" title="第 27 天 · 13.3k token"></i>
+          <i class="d-bar-rise" style="height:28%;animation-delay:1215ms" title="第 28 天 · 8.7k token"></i>
+          <i class="d-bar-rise" style="height:62%;animation-delay:1260ms" title="第 29 天 · 19.2k token"></i>
+          <i class="d-bar-rise" style="height:71%;animation-delay:1305ms" title="第 30 天 · 22.0k token"></i>
+                  </div>
+                  <div class="d-row d-t-xs d-t-faint">
+                    <span>09-01</span>
+                    <span class="d-grow"></span>
+                    <span>09-15</span>
+                    <span class="d-grow"></span>
+                    <span>09-30</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-grid2">
+                <div class="d-chart">
+                  <div class="d-chart-head">
+                    <i data-ico="sigma" data-size="15"></i>
+                    <span class="d-grow">输入 / 输出拆分</span>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-row"><span class="d-grow d-t-sm d-t-dim">输入 token</span><span class="d-t-sm d-num">8,214,306</span></div>
+                    <div class="d-bar"><i style="width:66%"></i></div>
+                    <div class="d-row"><span class="d-grow d-t-sm d-t-dim">输出 token</span><span class="d-t-sm d-num">4,221,744</span></div>
+                    <div class="d-bar"><i style="width:34%"></i></div>
+                    <div class="d-row"><span class="d-grow d-t-sm d-t-dim">其中缓存命中</span><span class="d-t-sm d-num">5,831,209</span></div>
+                    <div class="d-bar"><i style="width:47%"></i></div>
+                    <div class="d-t-xs d-t-faint">缓存命中算在输入里，单列出来是因为它决定费用 —— 命中率掉了，token 涨而费用不涨。</div>
+                  </div>
+                </div>
+
+                <div class="d-chart">
+                  <div class="d-chart-head">
+                    <i data-ico="percent" data-size="15"></i>
+                    <span class="d-grow">每日费用</span>
+                    <span class="d-t-xs d-t-faint">同一条时间轴，与左图对齐</span>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">最高一天</div><div class="d-set-row-s">09-21 · gpt-5.1-codex 占比高</div></div>
+                      <span class="d-grow-last d-t-b d-num">¥31.06</span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">最低一天</div><div class="d-set-row-s">09-07 · 只有两条问答</div></div>
+                      <span class="d-grow-last d-t-b d-num">¥0.41</span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">本地模型占比</div><div class="d-set-row-s">qwen3-coder-30b · 走本机不计费</div></div>
+                      <span class="d-grow-last d-t-b d-num">6.5%</span>
+                    </div>
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span>预算上限设在「模型与供应商」里；本页只报数，不自动断连。</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 请求与错误明细 · 按项目聚合：两张表，点行能选中<span class="d-grow"></span>失败的请求也留在这里，不另开一页</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-grid2">
+
+                <div class="d-chart">
+                  <div class="d-chart-head">
+                    <i data-ico="list-checks" data-size="15"></i>
+                    <span class="d-grow">请求与错误</span>
+                    <span class="d-t-xs d-t-faint">最近 20 条 · 点行看明细</span>
+                  </div>
+                  <div class="d-card-body">
+                    <table class="d-table" data-demo-list>
+                      <thead>
+                        <tr><th>时间</th><th>模型</th><th>token</th><th>费用</th><th>结果</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr data-demo-select><td class="d-mono">09-30 21:14</td><td class="d-mono">opus-4-6</td><td class="d-mono">18.2k</td><td class="d-mono">¥0.63</td><td><span class="d-badge ok">成功</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 21:06</td><td class="d-mono">opus-4-6</td><td class="d-mono">6.4k</td><td class="d-mono">¥0.21</td><td><span class="d-badge ok">成功</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 20:51</td><td class="d-mono">sonnet-4-6</td><td class="d-mono">2.1k</td><td class="d-mono">¥0.05</td><td><span class="d-badge bad">超时</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 20:33</td><td class="d-mono">codex-5.1</td><td class="d-mono">31.7k</td><td class="d-mono">¥1.12</td><td><span class="d-badge ok">成功</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 19:48</td><td class="d-mono">qwen3-coder</td><td class="d-mono">4.8k</td><td class="d-mono">¥0.00</td><td><span class="d-badge ok">本机</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 19:20</td><td class="d-mono">opus-4-6</td><td class="d-mono">0.4k</td><td class="d-mono">¥0.01</td><td><span class="d-badge warn">被拒</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 18:57</td><td class="d-mono">sonnet-4-6</td><td class="d-mono">12.9k</td><td class="d-mono">¥0.34</td><td><span class="d-badge ok">成功</span></td></tr>
+                        <tr data-demo-select><td class="d-mono">09-30 18:02</td><td class="d-mono">codex-5.1</td><td class="d-mono">1.1k</td><td class="d-mono">¥0.04</td><td><span class="d-badge bad">限流</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="d-chart">
+                  <div class="d-chart-head">
+                    <i data-ico="folder-tree" data-size="15"></i>
+                    <span class="d-grow">按项目</span>
+                    <span class="d-t-xs d-t-faint">会话归属到工作区根目录</span>
+                  </div>
+                  <div class="d-card-body">
+                    <table class="d-table" data-demo-list>
+                      <thead>
+                        <tr><th>项目</th><th>会话</th><th>token</th><th>费用</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr data-demo-select><td class="d-mono">PI NEXT</td><td class="d-mono">48</td><td class="d-mono">5.41M</td><td class="d-mono">¥168.20</td></tr>
+                        <tr data-demo-select><td class="d-mono">zhaobiao-extract</td><td class="d-mono">21</td><td class="d-mono">2.88M</td><td class="d-mono">¥92.41</td></tr>
+                        <tr data-demo-select><td class="d-mono">invoice-render</td><td class="d-mono">17</td><td class="d-mono">2.06M</td><td class="d-mono">¥61.05</td></tr>
+                        <tr data-demo-select><td class="d-mono">scratch</td><td class="d-mono">12</td><td class="d-mono">1.34M</td><td class="d-mono">¥40.66</td></tr>
+                        <tr data-demo-select><td class="d-mono">（未绑定工作区）</td><td class="d-mono">9</td><td class="d-mono">0.74M</td><td class="d-mono">¥24.10</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="d-banner warn">
+                <i data-ico="triangle-alert" data-size="14"></i>
+                <span>「未绑定工作区」这一行是真实存在的坑：会话没选目录时费用算不出来归属，只能单列，不能摊到别的项目上。</span>
+                <button class="d-btn sm ghost d-banner-btn">筛选该类</button>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>本页不画不存在的指标。</b>「首 token 延迟 / 输出速度」在本仓没有任何采集点，代码里明写「故意不做，不造假」——
+        所以这一页只有<b>数量与金额</b>两类量（token、费用、请求数、错误率），没有一条延迟曲线。
+        补一条编出来的曲线，比少一个指标危险得多：它会让用户照着不存在的口径做决策。</li>
+    <li><b>范围切换是同一套结构换数字</b>，不是四张不同的图：四档（7 天 / 30 天 / 1 年 / 全部）走同一个
+        <code>data-demo-scope</code>，统计卡结构不变，只有数值与趋势标签变。</li>
+    <li><b>热力图 26 天一行</b>（<code>.d-heat</code> 固定 26 列），364 天折成 14 行；空白格表示当天没有会话落盘，
+        与「采集失败」在图上长得不一样 —— 失败会是一条 <code>.d-badge bad</code>，不是一格空白。</li>
+    <li><b>柱条逐根错峰</b>（<code>.d-bar-rise</code> + <code>animation-delay</code>）：30 根同时弹出来像一次整体刷新，
+        错开 45ms 才读得出「这是时间序列」。重播按钮是真接线，点一下强制回流重启动画。</li>
+    <li><b>失败请求留在明细里</b>，带真实的已用 token 与费用（供应商侧已扣的部分不退回）；错误率因此有账可查，不是另一个比例分子。</li>
+    <li><b>按项目聚合不摊账</b>：没绑定工作区的会话单列成「未绑定工作区」一行，不按比例摊给其它项目。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

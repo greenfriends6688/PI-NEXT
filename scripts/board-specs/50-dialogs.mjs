@@ -111,16 +111,20 @@ export default {
     [".pw-modal-foot", ".pw-modal-foot"],
     [".pw-modal-body p", ".pw-modal-body p"],
     [".pw-modal-body .pw-inline", ".pw-modal-body .pw-inline"],
-    [".pw-modal-body .pw-mono", ".pw-modal-body .pw-mono"],
+    [".pw-modal-body .pw-mono", ".pw-modal-body .d-mono"],   // fork:v5-old-layer：等宽件已换 .d-mono
     [".pw-modal-foot .pw-btn", ".pw-modal-foot .pw-btn"],
     [".pw-modal-foot .pw-btn.primary", ".pw-modal-foot .pw-btn.primary"],
     // C2 的「已选定」徽章 —— 同一个 .pw-badge 原子在产品里落在侧栏底栏那枚版本徽章上
     [".pw-badge", ".pw-badge"],
     // D 段：自绘目录选择器（画板 col D ↔ .directory-picker-panel）
-    [".pw-list", ".pw-list"],
-    [".pw-litem", ".pw-litem"],
-    [".pw-lname", ".pw-lname"],
-    [".pw-iconbtn", ".directory-picker-panel .pw-iconbtn"],
+    // fork:v5-old-layer（2026-10-04）—— 目录选择器已换画板 D-26 的 `.d-tree`
+    // （DirectoryPicker.tsx 的 `.directory-picker-list d-tree`）：列表壳 / 行 / 行内文字
+    // 分别是 `.d-tree` / `.d-trow` / `.d-grow`。旧的 `.pw-list` / `.pw-litem` /
+    // `.pw-lname` 在产品里只剩注释。
+    [".pw-list", ".directory-picker-list.d-tree"],
+    [".pw-litem", ".directory-picker-list .d-trow"],
+    [".pw-lname", ".directory-picker-list .d-trow .d-grow"],
+    [".pw-iconbtn", ".directory-picker-panel .d-iconbtn"],
     // .pw-btn.sm 原子：画板这一帧的第一枚是 B 段失败态的「重试」，产品侧落在信任框的
     // 「取消」上 —— 用来证明 sm 档本身逐项相同（对话框只是挑错了档位，见下面两项 FAIL）。
     // fork:board-diff-2026-10-01 —— 收窄到 .pw-modal-body 里的 sm 钮（双方都是普通 ghost 档）。
@@ -133,7 +137,7 @@ export default {
 // 台面上，理由就在 spec 里写着。真漂移（少一行开关、按钮档位）不登记在这里，见文件头。
 knownDiffs: [
   {
-    sel: ".pw-list",
+    sel: ".directory-picker-list.d-tree",
     reason: "**取景差异**：画板 D 段是内容定高的样张（6 行目录 = 202px 高），"
       + "产品的自绘选择器把面板钉在 min(620px, calc(100dvh − 16px))（DirectoryPicker.tsx:228），"
       + "列表又是 flex:1 的滚动容器，于是列表量到 456px。列表本身的每一项都对得上："

@@ -367,26 +367,9 @@ html[data-theme-skin-id="builtin-mac-skeuo"] :is(a, button, input, textarea, sel
 /* ---------------------------------------------------------------------------
  * 5. 外壳：机身 + chrome + 选中
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-app {
-  font-family: var(--mac-font);
-  background-color: #eceef1;
-  background-image: var(--mac-pin), linear-gradient(180deg, #dfe2e6 0%, #cfd2d7 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    0 0 0 1px rgba(40, 45, 55, 0.32),
-    0 18px 40px rgba(30, 40, 60, 0.28);
-}
-
-html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-app {
-  background-color: var(--mac-cell-base);
-  background-image: var(--mac-cell);
-  border-color: rgb(92, 92, 92);
-  box-shadow: var(--mac-panel-shadow);
-  text-shadow: var(--mac-text-shadow);
-}
 
 /* chrome：侧栏头与顶栏是同一条，两边同高同渐变才读成一条完整的窗口标题栏 */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-side-head, .pw-topbar, .pw-panel-head) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-topbar) {
   /* 交通灯是 `position: absolute` 的子层，**必须**让这一层成为定位上下文，
      否则它会飞到最近的已定位祖先（实测落到侧栏底部左角，压在项目行上）。 */
   position: relative;
@@ -430,7 +413,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-row.is-on, .pw-session.is-o
   text-shadow: var(--mac-gel-fg-shadow);
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-row.is-on, .pw-session.is-on, .pw-session.running) :is(.pw-t, .pw-m, .pw-name, .pw-count, .pw-dim) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-row.is-on, .pw-session.is-on, .pw-session.running) :is(.pw-t, .pw-m, .pw-name, .pw-dim) {
   color: var(--mac-selected-fg);
 }
 
@@ -440,17 +423,6 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-session.awaiting {
 }
 
 /* 分段控件 = aqua tabs 的未选中态外壳 + 选中态 gel */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg {
-  background: linear-gradient(180deg, #c4c7cc, #d6d9dd);
-  border: 1px solid #a2a6ad;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
-}
-
-html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-seg {
-  background: linear-gradient(180deg, #08090b, #131417);
-  border-color: #000;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.12);
-}
 
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg > .is-on,
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg > span.is-on {
@@ -463,7 +435,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-seg > span.is-on {
 /* ---------------------------------------------------------------------------
  * 6. 凹陷井：输入框 / 搜索 / 文本域 / 代码块 / 输入卡 / 权限卡正文
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-input, .pw-textarea, .pw-side-search, .pw-pop-search, .pw-code-body, .pw-term, .pw-perm-body) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-input, .pw-pop-search, .pw-code-body, .pw-term) {
   background: var(--mac-well);
   border: 1px solid var(--mac-well-line);
   box-shadow: var(--mac-well-shadow);
@@ -478,14 +450,14 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-term {
 /* ---------------------------------------------------------------------------
  * 7. 浮凸面：图标钮 / 芯片 / 徽章 / kbd / 树钮
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-iconbtn, .pw-chipbtn, .pw-chip, .pw-kbd, .pw-trow, .pw-litem) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-iconbtn, .pw-chip, .pw-kbd, .pw-litem) {
   background: var(--mac-face);
   border: 1px solid var(--mac-face-line);
   box-shadow: var(--mac-face-shadow);
   border-radius: var(--mac-radius);
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-iconbtn, .pw-chipbtn, .pw-chip):hover {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-iconbtn, .pw-chip):hover {
   filter: brightness(1.04);
 }
 
@@ -606,19 +578,19 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-sep {
 /* ---------------------------------------------------------------------------
  * 10. Tier 3 面板：卡片 / 弹窗 / 右栏
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-card, .pw-modal, .pw-panel, .pw-sheet) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-card, .pw-modal, .pw-sheet) {
   background: var(--mac-panel);
   border: 1px solid var(--mac-panel-line);
   box-shadow: var(--mac-panel-shadow);
   border-radius: var(--mac-radius);
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] :is(.pw-card, .pw-modal, .pw-panel, .pw-sheet) {
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] :is(.pw-card, .pw-modal, .pw-sheet) {
   background-color: var(--mac-cell-base);
   background-image: var(--mac-cell);
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-card-head, .pw-modal-head, .pw-panel-head, .pw-sub-head) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-modal-head) {
   border-bottom: 1px solid var(--mac-panel-line);
 }
 
@@ -647,18 +619,22 @@ html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-kv
 /* ---------------------------------------------------------------------------
  * 11. 输入卡 —— aqua 的一只大白输入框，工具条压在上面
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer {
+/* fork:v5-old-layer（2026-10-04）—— 输入卡 DOM 已换画板件：`.d-composer`
+   （ChatInput.tsx:3777）/ `.d-composer-top`（3825）/ `.d-composer-bar`（3957），
+   `.pw-composer*` 在 components/ app/ hooks/ 零引用，这组主题覆盖曾经整个落空
+   （皮肤选中时输入卡退回画板默认面）。改指新类后 aqua 的拟物井 / 工具条重新生效。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-composer {
   background: var(--mac-well);
   border: 1px solid var(--mac-well-line);
   border-radius: var(--mac-radius);
   box-shadow: var(--mac-well-shadow), 0 6px 16px rgba(20, 40, 80, 0.14);
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-composer {
+html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .d-composer {
   box-shadow: var(--mac-well-shadow), 0 3px 0 var(--border-deep, #0d0c0a);
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-top {
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-composer-top {
   background: var(--mac-chrome);
   border-bottom: 1px solid var(--mac-panel-line);
   color: var(--mac-chrome-fg);
@@ -666,17 +642,31 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-top {
   border-radius: var(--mac-radius) var(--mac-radius) 0 0;
 }
 
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-bar {
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-composer-bar {
   border-top: 1px solid var(--mac-panel-line);
 }
 
-/* 发送 / 停止钮：gel 圆钮 */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-send {
+/* 发送 / 停止钮：gel 圆钮（同样是 v5 类，`.pw-send` 已退场） */
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-send {
   color: var(--mac-gel-fg);
   background: var(--mac-gel);
   border: 1px solid var(--aqua-edge);
   box-shadow: var(--mac-gel-shadow);
   text-shadow: var(--mac-gel-fg-shadow);
+}
+/* fork:v5-old-layer（2026-10-04）—— 这两条状态件一并改指 `.d-send`：
+   ChatInput.tsx:3120 / 3133 挂的是 `d-send disabled` 与 `d-send stop`。 */
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-send.stop {
+  background: var(--mac-danger);
+  border-color: color-mix(in srgb, var(--mac-danger) 60%, black);
+}
+
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-send.disabled {
+  color: #9aa0aa;
+  background: linear-gradient(180deg, #eceef1, #d2d5da);
+  border-color: #b9bcc2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  text-shadow: none;
 }
 
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-send.stop {
@@ -709,38 +699,10 @@ html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-ri
  * 值得注意：aqua 的「我」是**浅蓝**（#e4f1fd→#8dbdf0）而不是饱和蓝，
  * 2009 年 iChat 就是这个饱和度。之前 mockup 里用饱和蓝是偏了，这里照抄。
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-msg-user {
-  background: linear-gradient(180deg, #e4f1fd 0%, #b8d8f7 55%, #8dbdf0 100%);
-  color: #1a2a44;
-  border: 1px solid #7fb0e2;
-  border-radius: 18px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(30, 60, 110, 0.18);
-  text-shadow: none;
-}
-
-html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-msg-user {
-  background: linear-gradient(180deg, #6ba7e8 0%, #3d7fd0 46%, #2b64a8 52%, #3d7fd0 100%);
-  color: #ffffff;
-  border-color: #14375e;
-  border-radius: var(--mac-radius);
-  box-shadow: var(--mac-selected-shadow);
-  text-shadow: var(--mac-gel-fg-shadow);
-}
 
 /* ---------------------------------------------------------------------------
  * 13. 权限卡：白板 + 强调色左轨 + gel 主键
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-perm {
-  background: var(--mac-panel);
-  border: 1px solid var(--mac-panel-line);
-  border-left: 4px solid var(--mac-accent);
-  border-radius: var(--mac-radius);
-  box-shadow: var(--mac-panel-shadow);
-}
-
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-perm-title {
-  color: var(--mac-panel-fg);
-}
 
 /* ---------------------------------------------------------------------------
  * 14. 过程面板 / 徽章 / 提示条
@@ -847,7 +809,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-ring::after {
 /* ---------------------------------------------------------------------------
  * 16. 提示条 / 浮层小圆角统一
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-toast, .pw-minimap-pop, .pw-drop) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-toast, .pw-drop) {
   background: var(--mac-panel);
   border: 1px solid var(--mac-panel-line);
   box-shadow: var(--mac-panel-shadow);
@@ -865,7 +827,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-scrim {
  * 只给「本皮肤自己的」元素换栈，不动 `--font-ui` 那个全局变量：改了会让转录正文
  * （大量中文）跟着换字体，行高与断行全变，属于另一件事（字体设置面板管）。
  * ------------------------------------------------------------------------ */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-app, .pw-btn, .pw-select, .pw-input, .pw-chip, .pw-badge, .pw-kbd, .pw-seg) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-btn, .pw-select, .pw-input, .pw-chip, .pw-badge, .pw-kbd) {
   font-family: var(--mac-font);
 }
 
@@ -1022,23 +984,6 @@ html[data-theme-skin-id="builtin-mac-skeuo"][data-theme-skin-mode="dark"] .pw-ra
    aqua progress-indicator 上还有一层 135° 斜纹动画（`0.8s linear infinite`），
    本仓**不做**那条动画：`--motion-*` 里没有对应的档，为一个皮肤加第 13 个动效
    token 不值（见 DIVERGENCE AF-7）。 */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-range {
-  background: var(--mac-track);
-  border-radius: 999px;
-  box-shadow: var(--mac-track-shadow);
-}
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-range > i,
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-range > span:first-child {
-  background: linear-gradient(
-    180deg,
-    var(--aqua-gel-hi) 0%,
-    var(--aqua-gel-mid) 50%,
-    var(--mac-accent) 55%,
-    var(--aqua-gel-light) 100%
-  );
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
-  border-radius: 999px;
-}
 
 /* ---- 18.4 徽章四档：aqua badge.tsx 的四个 variant 渐变 ---- */
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-badge {
@@ -1116,7 +1061,6 @@ html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-modal, .settings-dialog-sur
     var(--mac-shadow-lg);
   border-radius: var(--mac-radius);
 }
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-scrim-layer,
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-scrim {
   background: var(--mac-scrim);
 }
@@ -1166,8 +1110,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-pop .pw-sep {
 /* ---- 18.8 工具提示：浅色端是经典 Mac 黄底，夜间端是 SkeuoCord 的灰玻璃格 ----
    本仓产品目前只用原生 `title`，没有自定义气泡组件，所以这份样式先按通用
    契约写好（`[role="tooltip"]` + aqua 的尺寸档），接上组件即生效。 */
-html[data-theme-skin-id="builtin-mac-skeuo"] [role="tooltip"],
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-minimap-pop {
+html[data-theme-skin-id="builtin-mac-skeuo"] [role="tooltip"] {
   background: var(--mac-tip);
   border: 1px solid var(--mac-tip-line);
   color: var(--mac-tip-fg);
@@ -1211,32 +1154,18 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-code-head {
 }
 
 /* ---- 18.11 头像：aqua avatar.tsx —— gel 底 + 白字 + 深色描边 ---- */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-icon-cell,
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-avatar {
-  background: var(--mac-gel);
-  border: 1px solid #7d828c;
-  color: #ffffff;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(20, 30, 50, 0.3);
-  text-shadow: 0 -1px 1px rgba(10, 30, 70, 0.35);
-}
 
 /* ---- 18.12 头像框 / 用户泡的拟物描边 ----
    SkeuoCord 的用户头像是「浮凸框」：`0 0 0 2px <浅色> , 0 0 4px 4px rgba(0,0,0,.5)`。 */
-html[data-theme-skin-id="builtin-mac-skeuo"] .msg-avatar,
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-msg-avatar {
-  border: 2px solid rgba(230, 230, 230, 0.6);
-  box-shadow: 0 0 4px 4px rgba(0, 0, 0, 0.5);
-  border-radius: var(--mac-radius);
-}
 
 /* ---- 18.13 文件树 / 搜索结果：每一行都是浮凸面，命中项上 gel ---- */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-trow, .pw-tree .pw-row, .pw-search-result) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-tree .pw-row, .pw-search-result) {
   background: transparent;
   border: 1px solid transparent;
   box-shadow: none;
   border-radius: var(--mac-radius);
 }
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-trow, .pw-search-result):hover {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.pw-search-result):hover {
   background: var(--mac-hover);
 }
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-search-result.is-on,
@@ -1247,8 +1176,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-trow.is-on {
   color: var(--mac-gel-fg);
   text-shadow: var(--mac-gel-fg-shadow);
 }
-html[data-theme-skin-id="builtin-mac-skeuo"] mark,
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-search-hit {
+html[data-theme-skin-id="builtin-mac-skeuo"] mark {
   background: var(--mac-warn-soft);
   color: var(--mac-warn-soft-fg);
   border-radius: 2px;
@@ -1256,7 +1184,6 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-search-hit {
 }
 
 /* ---- 18.14 表格 / 引文 / 分隔：Tier 3 面板语汇 ---- */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-table,
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md table {
   border: 1px solid var(--mac-panel-line);
   border-radius: var(--mac-radius);
@@ -1273,7 +1200,6 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md td,
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md th {
   border-color: var(--mac-panel-line);
 }
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-quote,
 html[data-theme-skin-id="builtin-mac-skeuo"] .pw-md blockquote {
   background: var(--mac-cell);
   border-left: 4px solid var(--mac-accent);
@@ -1298,7 +1224,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] ::selection {
   color: inherit;
 }
 html[data-theme-skin-id="builtin-mac-skeuo"] textarea,
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer [contenteditable] {
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-composer [contenteditable] {
   caret-color: var(--mac-accent);
 }
 
@@ -1312,7 +1238,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] [aria-disabled="true"] {
 }
 
 /* ---- 18.18 输入卡内的小控件：把整条工具条读成「一排旋钮」---- */
-html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-bar {
+html[data-theme-skin-id="builtin-mac-skeuo"] .d-composer-bar {
   background: linear-gradient(180deg, var(--mac-cell), transparent 60%);
   padding-top: 6px;
   padding-bottom: 6px;
@@ -1330,15 +1256,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] .pw-composer-bar {
  * （它们是 `!important` 引用，只能改令牌）。这一节补**底色与描边**。
  * ========================================================================= */
 
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(
-  .ext-float-panel,
-  .config-panel-surface,
-  .anim-popover,
-  .anim-popover-down,
-  .anim-popover-up,
-  .anim-dialog,
-  .fork-pwa-ms-sheet
-) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.config-panel-surface, .anim-popover, .anim-popover-down, .anim-dialog, .fork-pwa-ms-sheet) {
   background: var(--mac-panel);
   border: 1px solid var(--mac-panel-line);
   border-radius: var(--mac-radius);
@@ -1348,31 +1266,27 @@ html[data-theme-skin-id="builtin-mac-skeuo"] :is(
 /* 模型选择器等用**内联** `background: var(--bg-elev)` 的浮窗：内联只能被
    `!important` 赢，而 `--bg-elev` 是皮肤自己写的（含 95% 透明度），所以这里
    必须把 alpha 补回来 —— 否则浮窗底下 5% 是转录正文，字会透上来。 */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(
-  .anim-popover,
-  .anim-popover-down,
-  .anim-popover-up
-) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.anim-popover, .anim-popover-down) {
   background: var(--mac-panel) !important;
   background-image: none !important;
 }
 
 /* 浮窗内的行 / 选中态：与右键菜单同一套 gel 高亮 */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-prow, .pw-litem) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.config-panel-surface, .d-pop-float) :is(.pw-prow, .pw-litem, .d-menu-row) {
   background: transparent;
   border: 1px solid transparent;
   box-shadow: none;
   border-radius: calc(var(--mac-radius) - 1px);
   color: var(--mac-panel-fg);
 }
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-prow, .pw-litem):hover {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.config-panel-surface, .d-pop-float) :is(.pw-prow, .pw-litem, .d-menu-row):hover {
   background: var(--mac-gel);
   border-color: var(--aqua-edge);
   box-shadow: var(--mac-gel-shadow);
   color: var(--mac-gel-fg);
   text-shadow: var(--mac-gel-fg-shadow);
 }
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-prow, .pw-litem).is-on {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.config-panel-surface, .d-pop-float) :is(.pw-prow, .pw-litem, .d-menu-row).is-on {
   background: var(--mac-selected);
   border-color: var(--aqua-edge);
   box-shadow: var(--mac-selected-shadow);
@@ -1380,7 +1294,7 @@ html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel
 }
 
 /* 浮窗顶部的搜索 / 标题条 */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel-surface) :is(.pw-pop-search, .pw-pop-title) {
+html[data-theme-skin-id="builtin-mac-skeuo"] :is(.config-panel-surface, .d-pop-float) :is(.pw-pop-search, .pw-pop-title, .d-pop-title) {
   background: var(--mac-chrome);
   border-bottom: 1px solid var(--mac-panel-line);
   color: var(--mac-chrome-fg);
@@ -1388,6 +1302,4 @@ html[data-theme-skin-id="builtin-mac-skeuo"] :is(.ext-float-panel, .config-panel
 }
 
 /* 蒙层：弹窗背后的压暗，拟物端也要有（不然浮窗像贴在墙上而不是浮在前面） */
-html[data-theme-skin-id="builtin-mac-skeuo"] :is(.anim-scrim, [data-radix-dialog-overlay], .fork-scrim) {
-  background: var(--mac-scrim);
-}
+

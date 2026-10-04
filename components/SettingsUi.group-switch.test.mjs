@@ -44,22 +44,24 @@ test("switching a group off leaves keepOn rows alone (a filtered package would l
 test("a group switch renders the board's own classes and reads as off unless every row is on", () => {
   assert.match(templateSource, /export function ConfigSidebarGroupSwitch/);
   // `n/m` 计数 + 画板开关，没有新类。
-  assert.match(templateSource, /export function ConfigSidebarGroupSwitch[\s\S]*?"pw-mono pw-dim"/);
+  assert.match(templateSource, /export function ConfigSidebarGroupSwitch[\s\S]*?"d-t-xs d-mono d-t-faint"/);
   assert.match(templateSource, /export function ConfigSidebarGroupSwitch[\s\S]*?checked=\{total > 0 && enabled === total\}/);
-  // 4de9f77：分组标题里的开关用画板原尺寸，不缩到 .pw-litem 行尾那种 0.8 倍。
+  // 4de9f77：分组标题里的开关用画板原尺寸，不缩到列表行行尾那种小尺寸。
   assert.doesNotMatch(templateSource, /ConfigSidebarGroupSwitch[\s\S]{0,600}is-small/);
-  // 右对齐的空档由开关自带（pw-grow），标签本体的子节点一个字不动：
+  // 右对齐的空档由开关自带（d-grow / m-grow），标签本体的子节点一个字不动：
   // 归档面板 / 项目归档两处已经在标题里自带给空格，不能被再包一层。
-  assert.match(templateSource, /export function ConfigSidebarGroupSwitch[\s\S]*?className="pw-grow"/);
-  assert.match(templateSource, /export function ConfigSidebarGroupLabel[\s\S]*?className="pw-group-title"\s*>\s*\{children\}\s*\{aside\}/);
-  assert.doesNotMatch(templateSource, /export function ConfigSidebarGroupLabel[\s\S]*?className="pw-group-title"\s*>\s*<span/);
+  assert.match(templateSource, /export function ConfigSidebarGroupSwitch[\s\S]*?className=\{isMobile \? "m-grow" : "d-grow"\}/);
+  assert.match(templateSource, /export function ConfigSidebarGroupLabel[\s\S]*?className=\{isMobile \? "m-group-title" : "d-group-title"\}\s*>\s*\{children\}\s*\{aside\}/);
+  assert.doesNotMatch(templateSource, /export function ConfigSidebarGroupLabel[\s\S]*?"d-group-title"\s*>\s*<span/);
 });
 
 test("group status renders the board alert pair and keeps refused rows on separate lines", () => {
   assert.match(templateSource, /export function ConfigSidebarGroupStatus/);
-  assert.match(templateSource, /role="status" className="pw-alert info"/);
-  assert.match(templateSource, /role="alert" className="pw-alert"/);
-  // `.pw-alert` 没有 white-space 规则，多行必须逐行渲染。
+  // fork:v5-landing Wave B —— 提示条从 v1 的 `.pw-alert` 换成形态表的
+  // `.d-banner info` / `.d-banner err`（窄屏是 M-05 的 `.m-banner`）。
+  assert.match(templateSource, /role="status" className=\{isMobile \? "m-banner" : "d-banner info"\}/);
+  assert.match(templateSource, /role="alert" className=\{isMobile \? "m-banner" : "d-banner err"\}/);
+  // 提示条没有 white-space 规则，多行必须逐行渲染。
   assert.match(templateSource, /errorLines\.map\(/);
   assert.match(templateSource, /index > 0 \? <br \/> : null/);
 });
@@ -67,7 +69,6 @@ test("group status renders the board alert pair and keeps refused rows on separa
 // app/fork-ui.css：board.css 与 app/settings.css 都不归这条线管。
 const forkCss = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
 const settingsCss = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
-const pwaCss = await readFile(new URL("../app/pwa-models-skills.css", import.meta.url), "utf8");
 
 function block(css, selector) {
   // 嵌套在 @media 里的规则会带缩进，匹配时不看行首空白。
@@ -87,13 +88,9 @@ test("the status bar under a group title gets the block rhythm margin settings.c
 });
 
 test("the phone tier widens the group-title switch hit area without touching its size", () => {
-  // pwa-models-skills.css 只管 `.pw-litem > .pw-switch`；分组标题里的开关不在
-  // `.pw-litem` 里，仍是 board.css 的 30×17。
-  assert.match(pwaCss, /\.pw-litem > \.pw-switch::after/);
-  assert.doesNotMatch(pwaCss, /\.pw-group-title [^{]*\.pw-switch/);
-
-  // fork-ui.css 里有多个同名 @media 块（不同功能各占一个），不能用 lastIndexOf 假定
-  // 这条规则在最后一个块里 —— 那个假定会在后来有人再添一个块时静默失效（已经发生过）。
+  // pwa-models-skills.css 只管 `.pw-litem > .pw-switch`（v1 形态，已成 stale）；
+  // 分组标题里的开关现在跟 `ConfigSidebarGroupSwitch` 同走 `.d-switch` /
+  // `.m-switch`，命中区外扩仍在 fork-ui.css（产品 CSS，本轮一行未改）。
   const hit = block(forkCss, ".pw-group-title .pw-switch::after");
   assert.match(hit, /content: ""/);
   assert.match(hit, /position: absolute/);

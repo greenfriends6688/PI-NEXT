@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
-import { ConfigButton, SettingsPage } from "../SettingsUi";
+import { PwaBanner, PwaPage, PwaPickBar, PwaSetRow } from "@/components/pwa/PwaPage";
+import { SettingsPage } from "../SettingsUi";
 import {
   UsageDailyBars,
   UsageHeatmap,
@@ -53,28 +55,28 @@ function projectName(cwd: string): string {
   return parts[parts.length - 1] ?? cwd;
 }
 
-/** 画板 45 §用量统计 的 `.pw-stat`：标签在上、等宽数值居中、一行补充。
+/** 画板 D-19 帧 A 的 `.d-stat`：图标行 + 标签 + 徽章，等宽数值，一行补充。
  *  fork:settings-frame（画板 62）—— `wide` 让一张卡横跨整行（两列栅格下 9 张卡
  *  会剩最后一张孤零零占半行；把「Token」这张最长的撑满，2×4 + 1 就齐了）。 */
 function StatCard({ label, value, hint, wide = false }: { label: string; value: string; hint?: ReactNode; wide?: boolean }): ReactNode {
   return (
-    <div className={`pw-stat${wide ? " is-wide" : ""}`}>
-      <span className="k">{label}</span>
-      <span className="v">{value}</span>
-      {hint ? <span className="s">{hint}</span> : null}
+    <div className="d-stat" style={wide ? { gridColumn: "1 / -1" } : undefined}>
+      <span className="d-t-xs d-t-faint d-grow">{label}</span>
+      <span className="d-t-title d-num">{value}</span>
+      {hint ? <span className="d-t-xs d-t-faint">{hint}</span> : null}
     </div>
   );
 }
 
-/** 画板 45 §用量统计 的 `.pw-stats-grid`：默认四列栅格。
- *  fork:settings-frame（画板 62）—— 两栏块流里一栏只有 570，四列会挤成 130px 一卡，
- *  这时改用 `.is-2col`（两列）。 */
+/** 画板 D-19 帧 A 的 `.d-statgrid`：默认四列；两栏块流里一栏只有 570，
+ *  四列会挤成 130px 一卡，这时改用 `.d-grid2`（两列）。 */
 function StatGrid({ columns = 4, children }: { columns?: 2 | 4; children: ReactNode }): ReactNode {
-  return <div className={`pw-stats-grid${columns === 2 ? " is-2col" : ""}`}>{children}</div>;
+  return <div className={columns === 2 ? "d-grid2" : "d-statgrid"}>{children}</div>;
 }
 
 export function UsageStatsPanel(): ReactNode {
   const { t, locale } = useI18n();
+  const mobile = useIsMobile();
   const [range, setRange] = useState<UsageRange>("30d");
   const [metric, setMetric] = useState<"sessions" | "tokens">("sessions");
   const [summary, setSummary] = useState<UsageStatsSummary | null>(null);
@@ -178,6 +180,171 @@ export function UsageStatsPanel(): ReactNode {
     ? summary.days
     : (yearSummary?.days ?? summary?.days ?? []);
 
+  // fork:v5-landing Wave B · M-09 帧 C · 用量 ——
+  // 手机上这是一个**独立一级页**，只回答「这个月烧了多少」：口径与数字在同一屏，
+  // 三块图（每日柱 / 活跃热力 / 模型占比）读的还是同一份会话文件，**没有任何一项
+  // 是编的**（不造 TTFT、不造输出速度 —— 会话文件里根本没有这两个样本）。
+  if (mobile) {
+    return (
+      <PwaPage
+        title={t("usage.title")}
+        actions={
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("usage.refresh")}
+            aria-label={t("usage.refresh")}
+            disabled={loading}
+            onClick={() => void load(range)}
+          >
+            <i data-ico="refresh-cw" data-size="16" aria-hidden="true" />
+          </button>
+        }
+      >
+        <div className="m-cardgroup">
+          <PwaPickBar
+            options={RANGE_ORDER.map((option) => ({ value: option, label: t(RANGE_KEYS[option]) }))}
+            value={range}
+            onChange={(next) => setRange(next as UsageRange)}
+          />
+          <PwaSetRow
+            icon="sigma"
+            label={t("usage.tokens")}
+            sub={tokenKinds.map((kind) => `${kind.label} ${formatCompact(kind.value, locale)}`).join(" · ")}
+            trailing={<span className="m-t-lg m-t-b">{formatCompact(totals?.tokens ?? 0, locale)}</span>}
+          />
+          <PwaSetRow
+            icon="percent"
+            label={t("usage.cost")}
+            sub={summary ? t("usage.scannedHint", { files: summary.scanned.files, parsed: summary.scanned.parsed }) : undefined}
+            trailing={<span className="m-t-lg m-t-b">{formatCost(totals?.cost ?? 0, locale)}</span>}
+          />
+          <PwaSetRow
+            icon="activity"
+            label={t("usage.messages")}
+            sub={t("usage.sessionsCount", { count: totals?.sessions ?? 0 })}
+            trailing={<span className="m-t-lg m-t-b">{formatCompact(totals?.messages ?? 0, locale)}</span>}
+          />
+          <PwaSetRow
+            icon="triangle-alert"
+            label={t("usage.successRate")}
+            sub={derived ? t("usage.failures", { count: derived.errors }) : undefined}
+            trailing={
+              <span className="m-badge ok">
+                {derived ? `${(derived.successRate * 100).toFixed(0)}%` : "—"}
+              </span>
+            }
+          />
+          {derived && (
+            <PwaSetRow
+              icon="calendar-days"
+              label={t("usage.activeDays")}
+              sub={`${t("usage.streak")} ${formatCompact(derived.streak, locale)} · ${t("usage.cacheTokens")} ${formatCompact(totals?.tokensByKind.cacheRead ?? 0, locale)}`}
+            />
+          )}
+        </div>
+
+        {loading && !summary && <p role="status" className="m-t-xs m-t-faint">{t("usage.loading")}</p>}
+        {error && <PwaBanner icon="triangle-alert" tone="err" role="alert">{`${t("usage.error")} ${error}`}</PwaBanner>}
+        {summary && !hasActivity && <PwaBanner icon="info">{t("usage.empty")}</PwaBanner>}
+
+        {summary && derived && hasActivity && (
+          <>
+            <div className="m-cardgroup">
+              <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
+            </div>
+
+            <div className="m-cardgroup">
+              <PwaSetRow
+                label={t("usage.metricTokens")}
+                sub={t("usage.subtitle")}
+                trailing={
+                  <span className="m-hist-row">
+                    <button
+                      type="button"
+                      className={`m-picktag${metric === "sessions" ? " is-on" : ""}`}
+                      aria-pressed={metric === "sessions"}
+                      onClick={() => setMetric("sessions")}
+                    >
+                      {t("usage.metricSessions")}
+                    </button>
+                    <button
+                      type="button"
+                      className={`m-picktag${metric === "tokens" ? " is-on" : ""}`}
+                      aria-pressed={metric === "tokens"}
+                      onClick={() => setMetric("tokens")}
+                    >
+                      {t("usage.metricTokens")}
+                    </button>
+                  </span>
+                }
+              />
+              <UsageHeatmap
+                days={heatmapDays}
+                metric={metric}
+                label={t("usage.heatmap")}
+                metricLabel={metric === "sessions" ? t("usage.metricSessions") : t("usage.metricTokens")}
+                lessLabel={t("usage.less")}
+                moreLabel={t("usage.more")}
+              />
+            </div>
+
+            <div className="m-cardgroup">
+              <UsageRequestsErrors
+                days={summary.days}
+                label={t("usage.requestsErrors")}
+                requestsLabel={t("usage.requestsLegend")}
+                errorsLabel={t("usage.errorsLegend")}
+              />
+            </div>
+
+            {summary.models.length > 0 && (
+              <div className="m-cardgroup">
+                <PwaSetRow
+                  icon="chart-pie"
+                  label={t("usage.byModel")}
+                  sub={derived.topModel ? t("usage.topModel") : undefined}
+                />
+                <UsageShareBar
+                  slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
+                  label={t("usage.modelShare")}
+                />
+                {summary.models.slice(0, 8).map((model) => (
+                  <UsageListRow
+                    key={model.model}
+                    accent
+                    title={model.model}
+                    meta={`${t("usage.requests", { count: model.messages })} · ${formatCompact(model.tokens, locale)} tok · ${formatCost(model.cost, locale)}`}
+                    trailing={`${(model.share * 100).toFixed(1)}%`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {projects.length > 0 && (
+              <div className="m-cardgroup">
+                <PwaSetRow icon="folder" label={t("usage.byProject")} />
+                {projects.slice(0, 8).map((project) => (
+                  <UsageListRow
+                    key={project.project || "unknown"}
+                    title={projectName(project.project)}
+                    meta={`${t("usage.sessionsCount", { count: project.sessions })} · ${t("usage.requests", { count: project.messages })} · ${formatCost(project.cost, locale)}`}
+                    trailing={`${formatCompact(project.tokens, locale)} tok`}
+                  />
+                ))}
+                {projects.length > 8 && (
+                  <PwaSetRow
+                    label={t("usage.moreProjects", { count: projects.length - 8 })}
+                  />
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </PwaPage>
+    );
+  }
+
   return (
     /* fork:settings-frame（画板 62）—— 用量页的三件套。
        「刷新」按 62 落位表是**页级动作**（页头右端；DOM 抄画板 45 §用量的页头动作
@@ -187,14 +354,19 @@ export function UsageStatsPanel(): ReactNode {
       title={t("usage.title")}
       sub={t("usage.subtitle")}
       actions={
-        <ConfigButton variant="secondary" size="small" disabled={loading} onClick={() => void load(range)}>
-          <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true" /></span>
+        <button
+          type="button"
+          className="d-btn ghost sm"
+          disabled={loading}
+          onClick={() => void load(range)}
+        >
+          <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
           {t("usage.refresh")}
-        </ConfigButton>
+        </button>
       }
       toolbar={
         <>
-          <span className="pw-radio">
+          <span className="d-seg">
             {RANGE_ORDER.map((option) => (
               <button
                 key={option}
@@ -207,9 +379,9 @@ export function UsageStatsPanel(): ReactNode {
               </button>
             ))}
           </span>
-          <span className="pw-grow" aria-hidden="true" />
+          <span className="d-grow" aria-hidden="true" />
           {summary && (
-            <span className="pw-mono pw-dim">
+            <span className="d-mono d-t-faint">
               {t("usage.scannedHint", { files: summary.scanned.files, parsed: summary.scanned.parsed })}
             </span>
           )}
@@ -217,9 +389,9 @@ export function UsageStatsPanel(): ReactNode {
       }
     >
       {loading && !summary && (
-        <p role="status" className="pw-hint">{t("usage.loading")}</p>
+        <p role="status" className="d-t-xs d-t-faint">{t("usage.loading")}</p>
       )}
-      {error && <p role="alert" className="pw-alert">{t("usage.error")} {error}</p>}
+      {error && <p role="alert" className="d-banner err">{t("usage.error")} {error}</p>}
 
       {summary && derived && (
         <>
@@ -227,7 +399,7 @@ export function UsageStatsPanel(): ReactNode {
               右 = 按模型 / 请求与错误。图表容器是画板 45 的 `.pw-cell` + `h4`，
               不再套产品自绘的 `.settings-general-section`（那层 --border/--radius-lg
               壳与 `.pw-cell` 的画板边框叠成双框，DIVERGENCE 145 的登记残留）。 */}
-          <div className="pw-grid2">
+          <div className="d-grid2">
           <div>
             <StatGrid columns={2}>
               <StatCard
@@ -255,7 +427,7 @@ export function UsageStatsPanel(): ReactNode {
             </StatGrid>
 
             {!hasActivity && (
-              <p role="status" className="pw-hint">{t("usage.empty")}</p>
+              <p role="status" className="d-t-xs d-t-faint">{t("usage.empty")}</p>
             )}
           </div>
 
@@ -263,17 +435,17 @@ export function UsageStatsPanel(): ReactNode {
             {hasActivity && (
             <>
               {summary.models.length > 0 && (
-                <div className="pw-cell">
-                  <h4>
-                    <span className="pw-ico"><i data-ico="chart-pie" data-size="14"></i></span>
+                <div className="d-chart">
+                  <div className="d-chart-head">
+                    <i data-ico="chart-pie" data-size="14" aria-hidden="true" />
                     {t("usage.byModel")}
-                  </h4>
+                  </div>
+                  <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
                   <UsageShareBar
                     slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
                     label={t("usage.modelShare")}
                   />
-                  {/* 画板 45 §按项目 的列表挂在 h4 下时自带 `margin-top:var(--s2)` 的 inline。 */}
-                  <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                  <div className="d-col">
                     {summary.models.slice(0, 8).map((model) => (
                       <UsageListRow
                         key={model.model}
@@ -284,20 +456,23 @@ export function UsageStatsPanel(): ReactNode {
                       />
                     ))}
                   </div>
+                  </div>
                 </div>
               )}
 
-              <div className="pw-cell" style={summary.models.length > 0 ? { marginTop: "var(--s3)" } : undefined}>
-                <h4>
-                  <span className="pw-ico"><i data-ico="activity" data-size="14"></i></span>
+              <div className="d-chart" style={summary.models.length > 0 ? { marginTop: "var(--nx-sp-3)" } : undefined}>
+                <div className="d-chart-head">
+                  <i data-ico="activity" data-size="14" aria-hidden="true" />
                   {t("usage.requestsErrors")}
-                </h4>
+                </div>
+                <div className="d-card-body">
                 <UsageRequestsErrors
                   days={summary.days}
                   label={t("usage.requestsErrors")}
                   requestsLabel={t("usage.requestsLegend")}
                   errorsLabel={t("usage.errorsLegend")}
                 />
+                </div>
               </div>
             </>
             )}
@@ -310,29 +485,32 @@ export function UsageStatsPanel(): ReactNode {
               空白灰格子，第一反应是「这页是假数据吧」。整行放得下，12 个月标签也齐。
               整行块的 `margin-top:var(--s3)` 抄画板 45 §按项目 的整行 `.pw-cell`。 */}
           {hasActivity && (
-            <div className="pw-cell" style={{ marginTop: "var(--s3)" }}>
-              <h4>
-                <span className="pw-ico"><i data-ico="calendar-days" data-size="14"></i></span>
+            <div className="d-chart" style={{ marginTop: "var(--nx-sp-3)" }}>
+              <div className="d-chart-head">
+                <i data-ico="calendar-days" data-size="14" aria-hidden="true" />
                 {t("usage.heatmap")}
-              </h4>
-              <div className="pw-inline" style={{ marginTop: "var(--s2)" }}>
-                <ConfigButton
-                  variant={metric === "sessions" ? "primary" : "ghost"}
-                  size="small"
-                  aria-pressed={metric === "sessions"}
-                  onClick={() => setMetric("sessions")}
-                >
-                  {t("usage.metricSessions")}
-                </ConfigButton>
-                <ConfigButton
-                  variant={metric === "tokens" ? "primary" : "ghost"}
-                  size="small"
-                  aria-pressed={metric === "tokens"}
-                  onClick={() => setMetric("tokens")}
-                >
-                  {t("usage.metricTokens")}
-                </ConfigButton>
-                <span className="pw-grow" />
+              </div>
+              <div className="d-card-body">
+              <div className="d-row" style={{ marginTop: "var(--nx-sp-2)" }}>
+                <span className="d-seg">
+                  <button
+                    type="button"
+                    className={metric === "sessions" ? "is-on" : undefined}
+                    aria-pressed={metric === "sessions"}
+                    onClick={() => setMetric("sessions")}
+                  >
+                    {t("usage.metricSessions")}
+                  </button>
+                  <button
+                    type="button"
+                    className={metric === "tokens" ? "is-on" : undefined}
+                    aria-pressed={metric === "tokens"}
+                    onClick={() => setMetric("tokens")}
+                  >
+                    {t("usage.metricTokens")}
+                  </button>
+                </span>
+                <span className="d-grow" />
               </div>
               <UsageHeatmap
                 days={heatmapDays}
@@ -341,29 +519,33 @@ export function UsageStatsPanel(): ReactNode {
                 lessLabel={t("usage.less")}
                 moreLabel={t("usage.more")}
               />
+              </div>
             </div>
           )}
 
           {hasActivity && (
-          <div className="pw-grid2" style={{ marginTop: "var(--s3)" }}>
+          <div className="d-grid2" style={{ marginTop: "var(--nx-sp-3)" }}>
           <div>
-              <div className="pw-cell">
-                <h4>
-                  <span className="pw-ico"><i data-ico="chart-column" data-size="14"></i></span>
+              <div className="d-chart">
+                <div className="d-chart-head">
+                  <i data-ico="chart-column" data-size="14" aria-hidden="true" />
                   {t("usage.dailyTokens")}
-                </h4>
+                </div>
+                <div className="d-card-body">
                 <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
+                </div>
               </div>
           </div>
 
           <div>
               {projects.length > 0 && (
-                <div className="pw-cell">
-                  <h4>
-                    <span className="pw-ico"><i data-ico="folder" data-size="14"></i></span>
+                <div className="d-chart">
+                  <div className="d-chart-head">
+                    <i data-ico="folder" data-size="14" aria-hidden="true" />
                     {t("usage.byProject")}
-                  </h4>
-                  <div className="pw-list" style={{ marginTop: "var(--s2)" }}>
+                  </div>
+                  <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                  <div className="d-col">
                     {projects.slice(0, 8).map((project) => (
                       <UsageListRow
                         key={project.project || "unknown"}
@@ -374,8 +556,9 @@ export function UsageStatsPanel(): ReactNode {
                     ))}
                   </div>
                   {projects.length > 8 && (
-                    <p className="pw-hint">{t("usage.moreProjects", { count: projects.length - 8 })}</p>
+                    <p className="d-t-xs d-t-faint">{t("usage.moreProjects", { count: projects.length - 8 })}</p>
                   )}
+                  </div>
                 </div>
               )}
           </div>

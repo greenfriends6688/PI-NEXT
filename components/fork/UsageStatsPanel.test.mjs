@@ -41,21 +41,21 @@ const render = (node) => renderToStaticMarkup(node);
 
 test("the stat cards and every chart card ride the board 45 primitives", () => {
   // fork:settings-frame（画板 62）—— 两栏块流里一栏只有 570，统计卡改两列。
-  assert.match(panelSource, /<div className=\{`pw-stats-grid\$\{columns === 2 \? " is-2col" : ""\}`\}>/);
+  assert.match(panelSource, /className=\{columns === 2 \? "d-grid2" : "d-statgrid"\}/);
   assert.match(panelSource, /<StatGrid columns=\{2\}>/);
-  assert.match(panelSource, /<div className=\{`pw-stat\$\{wide \? " is-wide" : ""\}`\}>/);
+  assert.match(panelSource, /<div className="d-stat"/);
   // 画板的顺序是「标签在上、数值在下」，不是产品原先的「大数在上」。
-  assert.match(panelSource, /<span className="k">\{label\}<\/span>\s*<span className="v">\{value\}<\/span>/);
-  assert.match(panelSource, /<span className="s">\{hint\}<\/span>/);
-  // 五个图表卡（按模型 / 请求与错误 / 热力图 / 每日 token / 按项目）都是画板 45 的
-  // `.pw-cell`（整行的热力图带 margin inline，所以按前缀匹配而不是整串）。
-  assert.equal(panelSource.match(/<div className="pw-cell"/g).length, 5);
-  assert.match(panelSource, /<div className="pw-list"/);
+  assert.match(panelSource, /<span className="d-t-xs d-t-faint d-grow">\{label\}<\/span>\s*<span className="d-t-title d-num">\{value\}<\/span>/);
+  assert.match(panelSource, /<span className="d-t-xs d-t-faint">\{hint\}<\/span>/);
+  // 五个图表卡（按模型 / 请求与错误 / 热力图 / 每日 token / 按项目）都是画板 D-19
+  // 的 `.d-chart`（整行的热力图带 margin inline，所以按前缀匹配而不是整串）。
+  assert.equal(panelSource.match(/<div className="d-chart"/g).length, 5);
+  assert.match(panelSource, /<div className="d-col">/);
   // 三件套：页头 + 工具栏（周期芯片）+ 内容区。
   assert.match(panelSource, /<SettingsPage[\s\S]*?sub=\{t\("usage\.subtitle"\)\}/);
-  assert.match(panelSource, /className="pw-grid2"/);
+  assert.match(panelSource, /className="d-grid2"/);
 
-  for (const cls of ["pw-bars", "pw-legend", "pw-litem", "pw-lname", "pw-lsub", "pw-mono", "pw-ico"]) {
+  for (const cls of ["d-bars", "d-bar-rise", "d-heat-grid", "d-mono", "d-grow", "d-t-faint"]) {
     assert.ok(chartsSource.includes(cls), `usage-charts must use .${cls}`);
   }
 });
@@ -70,7 +70,7 @@ test("「刷新」是页级动作（页头右端），不再留在工具栏", ()
   assert.ok(refreshAt > actionsAt && refreshAt < toolbarAt, "刷新按钮必须挂在页头 actions 里");
   assert.match(panelSource, /data-ico="refresh-cw" data-size="13"/, "动作形态抄画板 45 页头：图标 + sm 按钮");
   // 62 的页头规则：计数进工具栏的等宽读数，不进 sub、也不再用旧 hint 类。
-  assert.match(panelSource, /className="pw-mono pw-dim">\s*\{t\("usage\.scannedHint"/);
+  assert.match(panelSource, /className="d-mono d-t-faint">\s*\{t\("usage\.scannedHint"/);
 });
 
 test("用量页不再套产品自绘的旧壳类（DIVERGENCE 145 登记残留清掉）", () => {
@@ -78,7 +78,7 @@ test("用量页不再套产品自绘的旧壳类（DIVERGENCE 145 登记残留�
   // 与画板 `.pw-cell` 的边框叠成双框；空态提示行同理换画板的 `.pw-hint`。
   assert.doesNotMatch(panelSource, /className="settings-general-section"/);
   assert.doesNotMatch(panelSource, /className="settings-chat-range-hint"/);
-  assert.match(panelSource, /className="pw-hint">\{t\("usage\.empty"\)\}/);
+  assert.match(panelSource, /className="d-t-xs d-t-faint">\{t\("usage\.empty"\)\}/);
 });
 
 /**
@@ -91,9 +91,15 @@ test("用量页不再套产品自绘的旧壳类（DIVERGENCE 145 登记残留�
  * 布局是「两栏 → 整行热力图 → 两栏」。
  */
 test("年度热力图占一整行，不塞进 570 的一栏", () => {
-  const grids = [...panelSource.matchAll(/className="pw-grid2"/g)].map((m) => m.index);
+  // fork:v5-landing Wave B：面板现在有**两个调用点**（`.m-*` 窄屏页 + `.d-*` 桌面页），
+  // 而这条约束说的是桌面骨架。断言必须钉在桌面那一段上，否则会被窄屏的调用点顶掉。
+  const desktopAt = panelSource.indexOf("<SettingsPage");
+  assert.ok(desktopAt > 0, "桌面分支仍以 SettingsPage 三件套开头");
+  const grids = [...panelSource.matchAll(/className="d-grid2"/g)]
+    .map((m) => m.index)
+    .filter((index) => index > desktopAt);
   assert.equal(grids.length, 2, "用量页的骨架是「两栏 → 整行 → 两栏」");
-  const heatAt = panelSource.indexOf("<UsageHeatmap");
+  const heatAt = panelSource.indexOf("<UsageHeatmap", desktopAt);
   assert.ok(heatAt > 0, "热力图必须在用量页里");
   assert.ok(
     grids[0] < heatAt && heatAt < grids[1],
@@ -144,15 +150,12 @@ test("the heatmap keeps its 5-step level scale and the per-cell title", () => {
 
   assert.match(html, /role="img"/);
   assert.match(html, /aria-label="活跃热力图"/);
-  // levels(): 0 → 1 档底色，五档透明度阶梯 1 / .38 / .58 / .78 / .98 一个都不能少。
-  assert.match(html, /opacity:1/);
-  assert.match(html, /opacity:0\.38/);
-  assert.match(html, /opacity:0\.58/);
-  assert.match(html, /opacity:0\.78/);
-  assert.match(html, /opacity:0\.98/);
-  // 0 档是 --bg-hover，其余是 --accent。
-  assert.match(html, /background:var\(--bg-hover\)/);
-  assert.match(html, /background:var\(--accent\)/);
+  // levels(): 0 档不打 level 类（默认灰格），1-4 档分别是 `.l1`~`.l4`。
+  assert.match(html, /class="d-heat-grid l1"/);
+  assert.match(html, /class="d-heat-grid l2"/);
+  assert.match(html, /class="d-heat-grid l3"/);
+  assert.match(html, /class="d-heat-grid l4"/);
+  assert.match(html, /class="d-heat-grid d-cell-pop"/);
   // 每格都带 title。
   assert.match(html, /title="2026-01-01 · 0"/);
   assert.match(html, /title="2026-01-05 · 40"/);
@@ -168,7 +171,7 @@ test("an empty range still renders the placeholder, not a broken grid", () => {
       days: [], metric: "sessions", label: "活跃热力图", lessLabel: "少", moreLabel: "多",
     }),
   );
-  assert.equal(html, "<p class=\"pw-muted\">—</p>");
+  assert.equal(html, "<p class=\"d-t-xs d-t-faint\">—</p>");
   assert.doesNotMatch(html, /<svg/);
 });
 
@@ -182,9 +185,9 @@ test("daily bars are max-normalised, mark the peak, and sample the x axis", () =
 
   assert.match(html, /role="img"/);
   assert.match(html, /aria-label="每日 Token 趋势"/);
-  assert.match(html, /<div class="pw-bars">/);
-  assert.match(html, /title="2026-03-01 · 0"[^>]*style="height:2%"/);
-  assert.match(html, /title="2026-03-02 · 50"[^>]*style="height:50%"/);
+  assert.match(html, /<div class="d-bars"/);
+  assert.match(html, /title="2026-03-01 · 0"[^>]*style="height:2%/);
+  assert.match(html, /title="2026-03-02 · 50"[^>]*style="height:50%/);
   // xLabelEvery = ceil(3 / 6) = 1 → 三天全标。
   assert.match(html, />03-01</);
   assert.match(html, />03-02</);
@@ -213,31 +216,31 @@ test("requests and errors share one max, keep both series' titles and the legend
 
   assert.match(html, /role="img"/);
   assert.match(html, /aria-label="请求与错误"/);
-  assert.equal(html.match(/class="pw-bars"/g).length, 2);
-  assert.equal(html.match(/class="pw-legend"/g).length, 1);
+  assert.equal(html.match(/class="d-bars"/g).length, 2);
+  assert.match(html, /<div class="d-row d-t-xs"/);
   // 两条序列共用 max=20：请求 0/10/20 → 2%/50%/100%，错误 0/0/5 → 2%/2%/25%。
-  assert.match(html, /title="2026-05-01 · 请求 0"[^>]*style="height:2%"/);
-  assert.match(html, /title="2026-05-02 · 请求 10"[^>]*style="height:50%"/);
-  assert.match(html, /class="hot"[^>]*title="2026-05-03 · 请求 20"[^>]*style="height:100%"/);
-  assert.match(html, /title="2026-05-03 · 错误 5"[^>]*style="height:25%;background:var\(--border\)"/);
+  assert.match(html, /title="2026-05-01 · 请求 0"[^>]*style="height:2%/);
+  assert.match(html, /title="2026-05-02 · 请求 10"[^>]*style="height:50%/);
+  assert.match(html, /class="d-bar-rise" title="2026-05-03 · 请求 20"[^>]*style="height:100%/);
+  assert.match(html, /title="2026-05-03 · 错误 5"[^>]*style="height:25%;background:var\(--nx-surface-hi\)/);
   // 零错误的格子不挂 title（与旧实现一致：只有真的有失败才提示）。
   assert.doesNotMatch(html, /title="2026-05-01 · 错误/);
   // 图例仍然可读，且在 role="img" 之外。
-  assert.match(html, /<div class="pw-legend">[\s\S]*?请求[\s\S]*?错误/);
+  assert.match(html, /<div class="d-row d-t-xs"[\s\S]*?请求[\s\S]*?错误/);
 });
 
 test("charts only use the board's three colours (画板 45：accent 主 / n-border 次 / n-hover 底)", () => {
-  // 画板 45 §用量统计 注记：「图表只用三种色……不引入新色相」。失败序列原来是
-  // error 红 —— 画板里没有的新色相，换成次要色（产品的 Zeno 槽位 --border）。
+  // 画板 D-19 注记：「图表只用三种色……不引入新色相」。失败序列原来是
+  // error 红 —— 画板里没有的新色相，换成次要灰（v5 `--nx-surface-hi`）。
   assert.doesNotMatch(chartsSource, /var\(--error\)/, "图表不许引入 error 红这类新色相");
   assert.doesNotMatch(chartsSource, /var\(--warning\)/, "图表不许引入 warning 黄这类新色相");
-  assert.match(chartsSource, /background: "var\(--border\)"/, "失败序列走次要色");
-  // 另外两色：主序列 / 热柱走 accent，空档与轨道走 n-hover（--bg-hover）。
-  assert.match(chartsSource, /var\(--accent\)/);
-  assert.match(chartsSource, /var\(--bg-hover\)/);
-  // 进度条圆角是画板的三档之一（--radius-3 = 3px），不是产品旧别名 --radius-sm。
-  assert.match(chartsSource, /borderRadius: "var\(--radius-3\)"/);
-  assert.doesNotMatch(chartsSource, /var\(--radius-sm\)/);
+  assert.match(chartsSource, /background: "var\(--nx-surface-hi\)"/, "失败序列走次要灰");
+  // 另外两色：主序列 / 热柱走 accent，空档与轨道走 n-surface-hi。
+  assert.match(chartsSource, /var\(--nx-accent\)/);
+  assert.match(chartsSource, /var\(--nx-surface-hi\)/);
+  // 进度条圆角是 v5 的三档之一。
+  assert.match(chartsSource, /borderRadius: "var\(--nx-r-xs\)"/);
+  assert.doesNotMatch(chartsSource, /var\(--radius-/);
 });
 
 test("the model share bar keeps its per-slice widths, titles and accessible name", () => {
@@ -262,11 +265,11 @@ test("a list row is name + sub + trailing, with the accent icon only when asked"
     React.createElement(UsageListRow, { accent: true, title: "V4.1 Flash", meta: "请求 12 · 3.7M tok · $1.20", trailing: "62.0%" }),
   );
 
-  assert.match(html, /<div class="pw-litem">/);
-  assert.match(html, /<i data-ico="chart-pie" data-size="14"><\/i>/);
-  assert.match(html, /<span class="pw-lname" title="V4\.1 Flash">V4\.1 Flash<\/span>/);
-  assert.match(html, /<span class="pw-lsub pw-mono">请求 12 · 3\.7M tok · \$1\.20<\/span>/);
-  assert.match(html, /<span class="pw-mono">62\.0%<\/span>/);
+  assert.match(html, /<div class="d-row d-t-xs"/);
+  assert.match(html, /<i data-ico="chart-pie" data-size="14" aria-hidden="true"><\/i>/);
+  assert.match(html, /<span class="d-grow d-mono" title="V4\.1 Flash">V4\.1 Flash<\/span>/);
+  assert.match(html, /<span class="d-t-dim">请求 12 · 3\.7M tok · \$1\.20<\/span>/);
+  assert.match(html, /<span class="d-t-faint">62\.0%<\/span>/);
   assert.doesNotMatch(
     render(React.createElement(UsageListRow, { title: "pi-codex", meta: "4 会话", trailing: "1.2M tok" })),
     /data-ico/,

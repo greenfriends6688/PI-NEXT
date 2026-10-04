@@ -21,7 +21,10 @@ test("fixed controls target roles instead of moving with chat or editor content"
   // Zeno shell: the sidebar toggle lives in the header lane (leading inset
   // below), so it no longer rides `var(--sidebar-width)`; the secondary
   // workspace control still tracks the live right-panel CSS variable.
-  assert.match(source, /className=\{mobile \? undefined : "desktop-secondary-workspace-toggle"\}/);
+  // fork:v5-wave-b —— 手机档这一枚换成画板 M-12 帧 A 的 `.m-top-btn`（面板开关由盒子
+  // 自身给尺寸，不再挂内联几何），桌面仍是 `desktop-secondary-workspace-toggle`。
+  assert.match(source, /className=\{mobile \? "m-top-btn" : "desktop-secondary-workspace-toggle"\}/);
+  assert.match(source, /style=\{mobile \? undefined : \{/);
   assert.match(source, /aria-controls=\{mobile \? "file-panel" : secondaryWorkspaceId\}/);
   assert.match(source, /rightPanelOpen[\s\S]*?\? "var\(--right-panel-width\)"[\s\S]*?: "0px"/);
   assert.match(source, /className="desktop-workspace-role-toggle"/);
@@ -53,9 +56,9 @@ test("the main workspace header reserves the independent sidebar control lane", 
   );
   assert.doesNotMatch(source, /--main-workspace-header-leading-inset"?:[\s\S]{0,80}?"92px"/);
   assert.match(source, /"--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,/);
-  // fork:design-components —— 两处头行现在同时挂画板类（主区 .pw-topbar / 右栏 .pw-panel-head），
+  // fork:design-components —— 两处头行现在同时挂画板类（主区 .d-topbar / 右栏 .d-panel-head），
   // 断言的是「恰好两处」这条结构约束，与挂哪个画板类无关。
-  assert.equal(source.match(/className="main-workspace-header pw-/g)?.length, 2);
+  assert.equal(source.match(/className="main-workspace-header d-/g)?.length, 2);
   assert.match(css, /\.main-panels > \.main-workspace \.main-workspace-header[\s\S]*?padding-inline-start: var\(--main-workspace-header-leading-inset, 36px\)/);
   assert.match(css, /\.main-panels \.main-workspace-header[\s\S]*?padding-inline-end: var\(--main-workspace-header-trailing-inset, 36px\)/);
 });

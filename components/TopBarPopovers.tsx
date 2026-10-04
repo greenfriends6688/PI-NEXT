@@ -13,7 +13,7 @@ import { PortalDropdown, useDismissOnOutside } from "./PortalDropdown";
  * fork:ui-topbar-popovers（用户裁定 2026-09-29）—— 顶栏右侧的两件事：
  *
  *   1. **「分支」芯片可点**：画板 `02-sidebar-topbar.html` 帧 B 给的是
- *      `<span class="pw-chipbtn"><git-branch>main<chevron-down></span>` ——
+ *      `<button class="d-chipbtn"><git-branch>main<chevron-down></button>` ——
  *      带下拉箭头的芯片，也就是工作区（worktree）切换器。产品里它原本是个
  *      **没有 onClick 的 span**（用户实测「这个 main 点不了」）。
  *
@@ -23,6 +23,10 @@ import { PortalDropdown, useDismissOnOutside } from "./PortalDropdown";
  *
  * 浮窗一律走 `PortalDropdown`（body + fixed），顶栏本身有 `overflow` 与 z 叠层，
  * 绝对定位的浮窗会被裁。
+ *
+ * fork:v5-landing —— 外观照 `design/v5/web/boards/D-02b-topbar-popovers.html`
+ * 逐枚落地：浮窗壳 `d-pop-float`、分组标题 `d-pop-title`、行 `d-menu-row`、
+ * 脚注 `d-pop-foot`、徽标 `d-badge`、触发钮 `d-iconbtn` / `d-chipbtn`。
  */
 
 const POPOVER_WIDTH = 300;
@@ -34,7 +38,6 @@ function HoverPopover({
   title,
   badge,
   width = POPOVER_WIDTH,
-  className,
   style,
   onOpenChange,
   children,
@@ -44,7 +47,6 @@ function HoverPopover({
   title: string;
   badge?: ReactNode;
   width?: number;
-  className?: string;
   style?: React.CSSProperties;
   /** 浮窗开合状态外传：内容需要「打开时才拉数据」时用（不要在每次悬停都发请求）。 */
   onOpenChange?: (open: boolean) => void;
@@ -89,16 +91,18 @@ function HoverPopover({
         aria-label={label}
         aria-expanded={open}
         title={title}
-        className={className ?? "pw-iconbtn"}
-        style={{ ...style, background: open ? "var(--overlay-selected)" : undefined, color: open ? "var(--text)" : undefined }}
+        /* fork:v5-landing —— 触发钮 = 画板 D-02b 帧 C 的 `.d-iconbtn`（28px / 发丝
+           hover）；开合态用 `.is-on`（强调淡底）而不是内联色值。 */
+        className={`d-iconbtn${open ? " is-on" : ""}`}
+        style={style}
         onClick={() => setPinned((v) => !v)}
         onMouseEnter={holdOpen}
         onMouseLeave={scheduleClose}
       >
-        <span className="pw-ico"><i data-ico={icon} data-size="14"></i></span>
+        <i data-ico={icon} data-size="14" aria-hidden="true"></i>
         {badge}
       </button>
-      <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="pw-pop" width={width} align="right">
+      <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="d-pop-float" width={width} align="right">
         <div role="menu" onMouseEnter={holdOpen} onMouseLeave={scheduleClose}>
           {children(close)}
         </div>
@@ -141,8 +145,9 @@ function StatusRows({ statuses }: { statuses: ExtensionStatusItem[] }) {
   return (
     <>
       {statuses.map((status) => (
-        <div key={status.key} className="pw-prow">
-          <span className="pw-grow" style={{ flex: 1, minWidth: 0 }}>
+        /* fork:v5-landing —— 状态原文是扩展自己打的行，照画板 D-02b 用等宽小字直排。 */
+        <div key={status.key} className="d-menu-row" style={{ cursor: "default" }}>
+          <span className="d-mono d-t-xs" style={{ minWidth: 0 }}>
             <AnsiText text={status.text} />
           </span>
         </div>
@@ -189,22 +194,22 @@ export function BranchChip({
       <button
         ref={anchorRef}
         type="button"
-        className="pw-chipbtn"
+        className="d-chipbtn"
         title={cwd}
         aria-label={t("sidebar.worktrees")}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="pw-ico"><i data-ico="git-branch" data-size="14"></i></span>
+        <i data-ico="git-branch" data-size="13" aria-hidden="true"></i>
         {branch}
-        <span className="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span>
+        <i data-ico="chevron-down" data-size="12" aria-hidden="true"></i>
       </button>
-      <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="pw-pop" width={260} align="left">
+      <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="d-pop-float" width={260} align="left">
         <div role="menu">
-          <div className="pw-prow pw-desc" style={{ cursor: "default" }}>{t("sidebar.worktrees")}</div>
-          {failed && <div className="pw-prow pw-desc">{t("sidebar.checkingWorktrees")}</div>}
+          <div className="d-pop-title">{t("sidebar.worktrees")}</div>
+          {failed && <div className="d-menu-row" style={{ cursor: "default" }}>{t("sidebar.checkingWorktrees")}</div>}
           {!failed && data && worktrees.length === 0 && (
-            <div className="pw-prow pw-desc">{t("sidebar.gitRepoRootOnly")}</div>
+            <div className="d-menu-row" style={{ cursor: "default" }}>{t("sidebar.gitRepoRootOnly")}</div>
           )}
           {worktrees.map((wt) => {
             const isCurrent = wt.path === cwd;
@@ -214,17 +219,15 @@ export function BranchChip({
                 type="button"
                 role="menuitem"
                 title={wt.path}
-                className={`pw-prow${isCurrent ? " is-on" : ""}`}
+                className="d-menu-row"
                 style={{ width: "100%" }}
                 onClick={() => { close(); if (!isCurrent) onSelectWorkspace(wt.path, data?.projectRoot ?? null); }}
               >
-                <span className="pw-ico">
-                  <i data-ico={isCurrent ? "check" : "git-branch"} data-size="12"></i>
-                </span>
-                <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <i data-ico={isCurrent ? "check" : "git-branch"} data-size="14" aria-hidden="true"></i>
+                <span className="d-grow d-mono">
                   {wt.branch ?? wt.path}
                 </span>
-                {wt.isMain && <span className="pw-badge">{t("sidebar.main")}</span>}
+                {wt.isMain && <span className="d-badge mute">{t("sidebar.main")}</span>}
               </button>
             );
           })}
@@ -278,34 +281,36 @@ export function McpStatusButton({ cwd, statuses }: { cwd: string | null; statuse
       title={title}
       onOpenChange={setOpen}
       badge={enabled > 0 ? (
-        <span className="pw-badge accent count" style={{ position: "absolute", top: 1, right: 1, minWidth: 13, height: 13, padding: "0 3px", display: "grid", placeItems: "center", fontSize: "var(--text-meta)", lineHeight: 1 }}>
+        <span className="d-badge info" style={{ position: "absolute", top: 1, right: 1, minWidth: 13, height: 13, padding: "0 3px" }}>
           {enabled}
         </span>
       ) : undefined}
-      style={{ position: "relative", width: "var(--control-sm)", height: "var(--control-sm)" }}
-      className="pw-iconbtn"
+      style={{ position: "relative" }}
     >
       {() => (
         <>
-          <div className="pw-prow pw-desc" style={{ cursor: "default" }}>{t("topbar.mcpServers")}</div>
+          <div className="d-pop-title">{t("topbar.mcpServers")}</div>
           <StatusRows statuses={statuses} />
-          {failed && <div className="pw-prow pw-desc">{t("topbar.mcpLoadFailed")}</div>}
-          {!failed && !data && <div className="pw-prow pw-desc">{t("sidebar.loading")}</div>}
-          {!failed && data && servers.length === 0 && <div className="pw-prow pw-desc">{t("topbar.mcpNone")}</div>}
+          {failed && <div className="d-menu-row" style={{ cursor: "default" }}>{t("topbar.mcpLoadFailed")}</div>}
+          {!failed && !data && <div className="d-menu-row" style={{ cursor: "default" }}>{t("sidebar.loading")}</div>}
+          {!failed && data && servers.length === 0 && <div className="d-menu-row" style={{ cursor: "default" }}>{t("topbar.mcpNone")}</div>}
           {servers.map((server) => (
-            <div key={`${server.scope}:${server.name}`} className="pw-prow" title={serverDetail(server)} style={{ cursor: "default" }}>
-              <span className="pw-ico" style={{ color: server.disabled ? "var(--n-placeholder)" : "var(--success)" }}>
-                <i data-ico={server.disabled ? "unplug" : "plug"} data-size="12"></i>
-              </span>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div key={`${server.scope}:${server.name}`} className="d-menu-row" title={serverDetail(server)} style={{ cursor: "default" }}>
+              <i
+                data-ico={server.disabled ? "unplug" : "plug"}
+                data-size="14"
+                aria-hidden="true"
+                style={{ color: server.disabled ? "var(--nx-text-3)" : "var(--nx-success)" }}
+              ></i>
+              <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {server.name}
               </span>
-              <span className="pw-badge">{server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}</span>
-              {server.disabled && <span className="pw-badge warn">{t("mcp.itemDisabled")}</span>}
+              <span className="d-badge mute">{server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}</span>
+              {server.disabled && <span className="d-badge warn">{t("mcp.itemDisabled")}</span>}
             </div>
           ))}
           {data && data.diagnostics.length > 0 && (
-            <div className="pw-prow pw-desc" style={{ cursor: "default" }}>{data.diagnostics[0]}</div>
+            <div className="d-pop-foot">{data.diagnostics[0]}</div>
           )}
         </>
       )}
@@ -342,47 +347,53 @@ export function PluginStatusButton({
       icon="blocks"
       title={title}
       onOpenChange={setOpen}
-      style={{ position: "relative", width: "var(--control-sm)", height: "var(--control-sm)" }}
-      className="pw-iconbtn"
+      style={{ position: "relative" }}
     >
       {() => (
         <>
           {statuses.length > 0 && (
             <>
-              <div className="pw-prow pw-desc" style={{ cursor: "default" }}>{t("topbar.extensionStatus")}</div>
+              <div className="d-pop-title">{t("topbar.extensionStatus")}</div>
               <StatusRows statuses={statuses} />
+              <div className="d-sep" />
             </>
           )}
           {widgets.length > 0 && <ExtensionWidgets widgets={widgets} />}
-          <div className="pw-prow pw-desc" style={{ cursor: "default" }}>{t("topbar.pluginPackages")}</div>
-          {failed && <div className="pw-prow pw-desc">{t("topbar.pluginLoadFailed")}</div>}
-          {!failed && !data && <div className="pw-prow pw-desc">{t("sidebar.loading")}</div>}
+          <div className="d-pop-title">{t("topbar.pluginPackages")}</div>
+          {failed && <div className="d-menu-row" style={{ cursor: "default" }}>{t("topbar.pluginLoadFailed")}</div>}
+          {!failed && !data && <div className="d-menu-row" style={{ cursor: "default" }}>{t("sidebar.loading")}</div>}
           {!failed && data && packages.length === 0 && standalone.length === 0 && (
-            <div className="pw-prow pw-desc">{t("topbar.pluginNone")}</div>
+            <div className="d-menu-row" style={{ cursor: "default" }}>{t("topbar.pluginNone")}</div>
           )}
           {packages.map((pkg) => (
-            <div key={`${pkg.scope}:${pkg.source}`} className="pw-prow" title={pkg.installedPath ?? pkg.source} style={{ cursor: "default" }}>
-              <span className="pw-ico" style={{ color: pkg.status === "loaded" ? "var(--success)" : "var(--n-placeholder)" }}>
-                <i data-ico="package" data-size="12"></i>
-              </span>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div key={`${pkg.scope}:${pkg.source}`} className="d-menu-row" title={pkg.installedPath ?? pkg.source} style={{ cursor: "default" }}>
+              <i
+                data-ico="package"
+                data-size="14"
+                aria-hidden="true"
+                style={{ color: pkg.status === "loaded" ? "var(--nx-success)" : "var(--nx-text-3)" }}
+              ></i>
+              <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {pkg.packageName ?? pkg.source}
               </span>
-              {pkg.version && <span className="pw-badge count">{pkg.version}</span>}
+              {pkg.version && <span className="d-badge mute">{pkg.version}</span>}
             </div>
           ))}
           {standalone.map((ext) => (
-            <div key={ext.path} className="pw-prow" title={ext.path} style={{ cursor: "default" }}>
-              <span className="pw-ico" style={{ color: ext.enabled ? "var(--success)" : "var(--n-placeholder)" }}>
-                <i data-ico="square-function" data-size="12"></i>
-              </span>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div key={ext.path} className="d-menu-row" title={ext.path} style={{ cursor: "default" }}>
+              <i
+                data-ico="square-function"
+                data-size="14"
+                aria-hidden="true"
+                style={{ color: ext.enabled ? "var(--nx-success)" : "var(--nx-text-3)" }}
+              ></i>
+              <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {ext.name}
               </span>
             </div>
           ))}
           {data && (
-            <div className="pw-prow pw-desc" style={{ cursor: "default" }}>
+            <div className="d-pop-foot">
               {t("topbar.pluginTotals", {
                 extensions: data.totals.extensions,
                 skills: data.totals.skills,

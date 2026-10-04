@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import {
   favoriteModelKey,
@@ -12,6 +12,9 @@ import {
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ModelIcon } from "./ProviderIcon";
 import { TEXT } from "@/lib/typography";
+// fork:v5-wave-b —— 窄屏（PWA 形态）的模型选择：画板 M-01 帧 C 的底部面板
+// （`.m-sheet` + `.m-group-title` 分节 + `.m-sheet-row` 一行一个模型 + `.m-pickbar` 动作行）。
+import { PwaComposerSheet, PwaComposerSheetRow } from "./pwa/PwaComposerSheet";
 
 export interface ModelSelectorOption {
   provider: string;
@@ -147,16 +150,14 @@ export function ModelSelector({
         textAlign: "left",
       }
     : {
-        // fork:design-components —— 工具栏形态的尺寸 / 颜色 / 圆角 / 间隙全部来自画板
-        // 的 .pw-select（board.css：height/padding/gap 4），这里只留三态与可点性；
-        // 之前这里写的 height/padding/radius/gap 是 inline 声明，会把 .pw-select 压掉。
+        // fork:v5-skin D-04 —— 工具栏形态的尺寸 / 颜色 / 圆角 / 间隙全部来自
+        // 画板的 .d-select（system.css），这里只留布局与禁用态。
         display: "flex",
         alignItems: "center",
         justifyContent: isMobile ? "flex-start" : undefined,
         width: isMobile ? "100%" : undefined,
         maxWidth: isMobile ? "100%" : 220,
         overflow: "hidden",
-        background: open ? "var(--overlay-hover)" : "none",
         cursor: locked ? "not-allowed" : "pointer",
         opacity: locked ? 0.5 : 1,
       };
@@ -167,6 +168,129 @@ export function ModelSelector({
     setFilter("");
     if (!active || isAutoSelection) onChange(option.provider, option.modelId);
   };
+
+  /* fork:v5-wave-b —— 窄屏分支（M-01 帧 C）。
+   *
+   * 窄屏不在工具条上摆一枚 `.d-select`：模型只从输入卡那枚「能力」钮的面板里进来
+   * （M-01 注：「模型不在顶上也不在卡面上」，同一件事只留一个出口），所以触发器是
+   * 面板里的一行 `.m-sheet-row`，展开是一整块 `.m-sheet` 底部面板。
+   * 行为一行没改：同一个 `choose`、同一个收藏 store、同一个过滤阈值与 onClear。
+   */
+  if (isMobile && variant === "toolbar") {
+    return (
+      <>
+        <button
+          type="button"
+          className="m-sheet-row"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={ariaLabel}
+          disabled={locked}
+          title={currentName}
+          onClick={() => setOpen((current) => { if (current) setFilter(""); return !current; })}
+        >
+          <ModelIcon
+            provider={value?.provider ?? ""}
+            modelId={value?.modelId ?? ""}
+            modelName={currentOption?.name}
+            size={16}
+          />
+          <span className="m-setrow-body">
+            <span className="m-setrow-t">{t("common.models")}</span>
+            <span className="m-sheet-row-desc">{currentName}</span>
+          </span>
+          {busy ? (
+            <i data-ico="loader-circle" data-size="16" aria-hidden="true" style={{ animation: "spin var(--motion-spin) linear infinite" }} />
+          ) : null}
+          <i data-ico="chevron-right" data-size="14" aria-hidden="true" />
+        </button>
+        <PwaComposerSheet
+          open={open}
+          title={t("common.models")}
+          label={ariaLabel}
+          onClose={() => { setOpen(false); setFilter(""); }}
+          footer={(
+            <>
+              <button
+                type="button"
+                className="m-picktag"
+                onClick={() => { setOpen(false); setFilter(""); }}
+              >
+                {t("chat.cancel")}
+              </button>
+              <button
+                type="button"
+                className="m-picktag is-on"
+                onClick={() => { setOpen(false); setFilter(""); }}
+              >
+                {t("chat.confirm")}
+              </button>
+            </>
+          )}
+        >
+          {showFilter && (
+            <div className="m-searchfield" style={{ margin: "0 0 var(--nx-sp-2)" }}>
+              <i data-ico="search" data-size="14"></i>
+              <input
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                placeholder={t("chat.filterModels")}
+                aria-label={t("chat.filterModels")}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          )}
+          {onClear && !filter.trim() && (
+            <PwaComposerSheetRow
+              title={emptyLabel ?? "Default"}
+              on={!value}
+              onClick={() => {
+                setOpen(false);
+                setFilter("");
+                onClear();
+              }}
+            />
+          )}
+          {favoriteOptions.length > 0 && (
+            <>
+              <div className="m-group-title">{t("models.favorites")}</div>
+              {favoriteOptions.map((option) => (
+                <ModelSheetRow
+                  key={`fav:${option.provider}:${option.modelId}`}
+                  option={option}
+                  active={option.modelId === value?.modelId && option.provider === value?.provider}
+                  favorite
+                  onToggleFavorite={() => toggleFavoriteModel(option.provider, option.modelId)}
+                  onPick={() => choose(option)}
+                />
+              ))}
+            </>
+          )}
+          {modelsByProvider.length === 0 && favoriteOptions.length === 0 ? (
+            <div className="m-sheet-row m-t-xs m-t-faint">
+              {filter.trim() ? t("chat.noMatchingModels") : "No available models"}
+            </div>
+          ) : modelsByProvider.map((group) => (
+            <Fragment key={group.provider}>
+              {modelsByProvider.length > 1 && <div className="m-group-title">{group.provider}</div>}
+              {group.options.map((option) => (
+                <ModelSheetRow
+                  key={`${option.provider}:${option.modelId}`}
+                  option={option}
+                  active={option.modelId === value?.modelId && option.provider === value?.provider}
+                  favorite={favorites.has(favoriteModelKey(option.provider, option.modelId))}
+                  onToggleFavorite={() => toggleFavoriteModel(option.provider, option.modelId)}
+                  onPick={() => choose(option)}
+                />
+              ))}
+            </Fragment>
+          ))}
+        </PwaComposerSheet>
+      </>
+    );
+  }
 
   return (
     <div
@@ -184,9 +308,9 @@ export function ModelSelector({
       <button
         type="button"
         aria-label={ariaLabel}
-        /* fork:design-components —— 触发钮挂画板 .pw-select；variant 状态分支仍由
-           buttonStyle/JS hover 管理（locked/busy/open 三态切换无法纯类表达）。 */
-        className="pw-select"
+        /* fork:v5-skin D-04 —— 触发钮挂画板 .d-select（system.css）：图标 + 名称 +
+           chevron；hover 由 CSS 给，不再用 onMouseEnter 写内联底色。 */
+        className="d-select"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-busy={busy || undefined}
@@ -200,20 +324,6 @@ export function ModelSelector({
             if (current) setFilter("");
             return !current;
           });
-        }}
-        onMouseEnter={(event) => {
-          if (locked) return;
-          event.currentTarget.style.background = "var(--overlay-hover)";
-          event.currentTarget.style.color = "var(--n-text)";
-        }}
-        onMouseLeave={(event) => {
-          if (locked) {
-            event.currentTarget.style.background = variant === "field" ? "var(--bg-panel)" : "none";
-            event.currentTarget.style.color = variant === "field" ? "var(--text-dim)" : "var(--n-text)";
-            return;
-          }
-          event.currentTarget.style.background = open ? "var(--overlay-hover)" : variant === "field" ? "var(--bg)" : "none";
-          event.currentTarget.style.color = variant === "field" ? "var(--text)" : "var(--n-text)";
         }}
       >
         {busy ? (
@@ -230,7 +340,7 @@ export function ModelSelector({
         )}
         <span style={{ flex: variant === "field" ? 1 : "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</span>
         {variant !== "field" && (
-          <span className="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span>
+          <i data-ico="chevron-down" data-size="14"></i>
         )}
       </button>
 
@@ -265,7 +375,7 @@ export function ModelSelector({
             ref={panelRef}
             role="listbox"
             aria-label={ariaLabel}
-            className={openAbove ? "anim-popover-down" : "anim-popover"}
+            className={`d-pop is-open${openAbove ? " up" : ""}`}
             style={{
               position: "fixed",
               ...verticalPosition,
@@ -275,15 +385,12 @@ export function ModelSelector({
               flexDirection: "column",
               maxHeight,
               overflow: "hidden",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-lg)",
-              background: "var(--bg-elev)",
-              boxShadow: "var(--shadow-md)",
               transformOrigin: openAbove ? "bottom center" : "top center",
             }}
           >
             {showFilter && (
-              <div style={{ flexShrink: 0, padding: "var(--space-row) 8px", borderBottom: "1px solid var(--border)" }}>
+              <div className="d-searchfield" style={{ margin: "var(--nx-sp-1)", flexShrink: 0 }}>
+                <i data-ico="search" data-size="13"></i>
                 <input
                   value={filter}
                   onChange={(event) => setFilter(event.target.value)}
@@ -292,23 +399,10 @@ export function ModelSelector({
                   autoFocus
                   autoComplete="off"
                   spellCheck={false}
-                  style={{
-                    boxSizing: "border-box",
-                    width: "100%",
-                    minWidth: isMobile ? 0 : 220,
-                    padding: "var(--space-ctrl) 8px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-xs)",
-                    outline: "none",
-                    background: "var(--bg)",
-                    color: "var(--text)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: TEXT.xs,
-                  }}
                 />
               </div>
             )}
-            <div style={{ minHeight: 0, overflowY: "auto" }}>
+            <div style={{ minHeight: 0, overflowY: "auto", padding: "var(--nx-sp-1)" }}>
               {onClear && !filter.trim() && (
                 <ModelOptionButton active={!value} label={emptyLabel ?? "Default"} onClick={() => {
                   setOpen(false);
@@ -319,7 +413,7 @@ export function ModelSelector({
               {/* fork:ui — 收藏的模型置顶成组（用户要求「收藏的排序往前排」）。 */}
               {favoriteOptions.length > 0 && (
                 <div>
-                  <div style={{ padding: "var(--space-row) 12px 4px", borderTop: onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
+                  <div className="d-pop-title">
                     {t("models.favorites")}
                   </div>
                   {favoriteOptions.map((option) => (
@@ -338,13 +432,13 @@ export function ModelSelector({
               )}
               {/* 注意：收藏的已从 modelsByProvider 里排除，所以「无结果」要两边都看。 */}
               {modelsByProvider.length === 0 && favoriteOptions.length === 0 ? (
-                <div style={{ padding: "8px 12px", color: "var(--text-dim)", fontSize: TEXT.sm, whiteSpace: "nowrap" }}>
+                <div className="d-pop-body d-t-xs d-t-faint" style={{ whiteSpace: "nowrap" }}>
                   {filter.trim() ? t("chat.noMatchingModels") : "No available models"}
                 </div>
-              ) : modelsByProvider.map((group, index) => (
+              ) : modelsByProvider.map((group) => (
                 <div key={group.provider}>
                   {modelsByProvider.length > 1 && (
-                    <div style={{ padding: "var(--space-row) 12px 4px", borderTop: index > 0 || onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: TEXT["2xs"], fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
+                    <div className="d-pop-title">
                       {group.provider}
                     </div>
                   )}
@@ -373,6 +467,60 @@ export function ModelSelector({
   );
 }
 
+/**
+ * fork:v5-wave-b —— 窄屏面板里的一行模型（M-01 帧 C）：
+ * `<i data-ico>` 换成 `<ModelIcon>` 的供应商字形 + `.m-setrow-body`（模型名 + 副行）
+ * + 收藏星标 + 选中对勾。副行写的是「模型 id · 供应商」—— 画板那行写的是「什么时候用
+ * 它划算」，本仓没有这份文案数据源，所以给真实可得的区分信息，不编。
+ */
+function ModelSheetRow({
+  option,
+  active,
+  favorite,
+  onToggleFavorite,
+  onPick,
+}: {
+  option: ModelSelectorOption;
+  active: boolean;
+  favorite: boolean;
+  onToggleFavorite: () => void;
+  onPick: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <PwaComposerSheetRow
+      title={(
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--nx-sp-1)", minWidth: 0 }}>
+          <ModelIcon provider={option.provider} modelId={option.modelId} modelName={option.name} size={16} />
+          <span className="m-setrow-t">{option.name}</span>
+        </span>
+      )}
+      desc={`${option.modelId} · ${option.provider}`}
+      on={active}
+      onClick={onPick}
+      trailing={(
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={favorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
+          title={favorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
+          onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleFavorite();
+            }
+          }}
+          className="m-iconbtn"
+        >
+          <i data-ico={favorite ? "star" : "star-off"} data-size="16" aria-hidden="true"></i>
+        </span>
+      )}
+    />
+  );
+}
+
 function ModelOptionButton({ active, label, provider, modelId, isFavorite, onToggleFavorite, onClick }: { active: boolean; label: string; provider?: string; modelId?: string; isFavorite?: boolean; onToggleFavorite?: () => void; onClick: () => void }) {
   const { t } = useI18n();
   return (
@@ -381,15 +529,11 @@ function ModelOptionButton({ active, label, provider, modelId, isFavorite, onTog
       role="option"
       aria-selected={active}
       onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: "var(--s2)", width: "100%", padding: "7px 8px 7px 12px", border: "none", background: active ? "var(--bg-selected)" : "none", color: active ? "var(--text)" : "var(--text-muted)", cursor: "pointer", fontSize: TEXT.sm, fontWeight: active ? 600 : 400, textAlign: "left", whiteSpace: "nowrap" }}
-      onMouseEnter={(event) => { if (!active) event.currentTarget.style.background = "var(--bg-hover)"; }}
-      onMouseLeave={(event) => { if (!active) event.currentTarget.style.background = "none"; }}
+      className="d-menu-row"
     >
-      {active
-        ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true"><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
-        : <span style={{ width: 10, flexShrink: 0 }} />}
       <ModelIcon provider={provider ?? ""} modelId={modelId ?? ""} modelName={label} size={14} />
-      <span title={label} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      <span title={label} className={`d-grow${active ? " d-t-b" : ""}`} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      {active && <i data-ico="check" data-size="14"></i>}
       {/* fork:ui — 行内星标（收藏）。用 <span role="button"> 而不是 <button>：
           嵌套 button 是非法 HTML，会触发 hydration 报错（本仓补丁 0019 修过一次）。 */}
       {onToggleFavorite && (
@@ -406,17 +550,10 @@ function ModelOptionButton({ active, label, provider, modelId, isFavorite, onTog
               onToggleFavorite();
             }
           }}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            width: "var(--control-2xs)", height: "var(--control-2xs)", flexShrink: 0,
-            borderRadius: "var(--radius-sm)",
-            color: isFavorite ? "var(--accent)" : "var(--text-dim)",
-            cursor: "pointer",
-          }}
+          className={`d-iconbtn${isFavorite ? " is-on" : ""}`}
+          style={{ cursor: "pointer" }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 3.2l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8-5.4 2.8 1-6L3.3 9.6l6-.9z" />
-          </svg>
+          <i data-ico={isFavorite ? "star" : "star-off"} data-size="14"></i>
         </span>
       )}
     </button>

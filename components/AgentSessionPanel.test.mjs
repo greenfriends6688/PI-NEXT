@@ -23,25 +23,25 @@ test("sorts running subagents first and enables search only for larger families"
 });
 
 test("the panel is the board's popover, not a hand-drawn dropdown box", () => {
-  // fork:design-components —— 画板 22 的 `.pw-pop` + `.pw-pop-title` + `.pw-sep`。
-  assert.match(source, /className="pw-pop agent-session-panel"/);
-  assert.match(source, /className="pw-pop-title"/);
-  assert.match(source, /className="pw-sep"/);
+  // fork:v5-landing —— 浮窗壳 `.d-pop-float` 由 AppShell 的顶栏浮窗定位容器承担；
+  // 面板本体只排内容：`d-pop-title` + `d-sep` + `d-pop-row`。
+  assert.match(source, /className="agent-session-panel d-col"/);
+  assert.match(source, /className="d-pop-title"/);
+  assert.match(source, /className="d-sep"/);
   // 旧的左侧贴边 + 下圆角 + 三面边框内联样式全部退场。
   assert.doesNotMatch(source, /borderLeft: "1px solid var\(--border\)"/);
   assert.doesNotMatch(source, /borderRadius: "0 0 var\(--radius-md\) var\(--radius-md\)"/);
   assert.doesNotMatch(source, /boxShadow: "var\(--shadow-md\)"/);
 });
 
-test("rows are the board's prow, with the search header wired as pop-search", () => {
-  // 行 = .pw-prow（当前项 is-on），副标题与状态短标签 = .pw-desc。
-  assert.match(source, /className=\{`pw-prow\$\{selected \? " is-on" : ""\}`\}/);
-  assert.equal((source.match(/className="pw-desc"/g) ?? []).length, 3);
-  // 搜索头 = .pw-pop-search（search 图标槽 + .pw-input）。
-  assert.match(source, /className="pw-pop-search"/);
-  assert.match(source, /className="pw-input"/);
-  // 空结果也是一行 .pw-prow（画板 22 的「没有匹配」写法），不再是居中 div。
-  assert.match(source, /<div className="pw-prow"><span className="pw-desc">\{t\("agentSwitcher\.noMatches"\)\}/);
+test("rows are the board's pop-row, with the search header wired as searchfield", () => {
+  // 行 = .d-pop-row（当前项 is-on），主/副行 = .d-pop-row-t / .d-pop-row-s。
+  assert.match(source, /className=\{`d-pop-row\$\{selected \? " is-on" : ""\}`\}/);
+  assert.ok((source.match(/d-pop-row-s/g) ?? []).length >= 2);
+  // 搜索头 = .d-searchfield（search 图标槽 + 内联 input）。
+  assert.match(source, /className="d-searchfield"/);
+  // 空结果也是一行 .d-menu-row（画板 22 的「没有匹配」写法），不再是居中 div。
+  assert.match(source, /<div className="d-menu-row" style=\{\{ cursor: "default" \}\}><span className="d-t-faint">\{t\("agentSwitcher\.noMatches"\)\}/);
 });
 
 test("hover is owned by board.css, not by hand-written mouse handlers", () => {
@@ -72,13 +72,13 @@ test("shows persisted completion states while live running state takes precedenc
   assert.doesNotMatch(source, /running \? "running" : relation\?\.status/);
   assert.match(source, /t\(`agentSwitcher\.status\.\$\{status\}`\)/);
   // 每个持久化状态都有确定的图标分支（failed / aborted / interrupted 不再挤在一个分支里）。
-  assert.match(source, /failed: \{ ico: "circle-x", color: "var\(--error\)" \}/);
+  assert.match(source, /failed: \{ ico: "circle-x", color: "var\(--nx-danger\)" \}/);
   assert.match(source, /aborted: \{ ico: "circle-stop" \}/);
   assert.match(source, /interrupted: \{ ico: "ban" \}/);
-  assert.match(source, /completed: \{ ico: "check", color: "var\(--success\)" \}/);
-  assert.match(source, /queued: \{ ico: "clock", color: "var\(--warning\)" \}/);
-  assert.match(source, /starting: \{ ico: "loader-circle", color: "var\(--accent-text\)", spin: true \}/);
-  assert.match(source, /running: \{ ico: "loader-circle", color: "var\(--accent-text\)", spin: true \}/);
+  assert.match(source, /completed: \{ ico: "check", color: "var\(--nx-success\)" \}/);
+  assert.match(source, /queued: \{ ico: "clock", color: "var\(--nx-warning\)" \}/);
+  assert.match(source, /starting: \{ ico: "loader-circle", color: "var\(--nx-accent\)", spin: true \}/);
+  assert.match(source, /running: \{ ico: "loader-circle", color: "var\(--nx-accent\)", spin: true \}/);
   // 中止/中断两态走 .pw-dim（画板 22 的 41/42 行），不再自造中性色变量。
   assert.doesNotMatch(source, /statusColor/);
 });

@@ -27,7 +27,7 @@ test("消息里提到计划文件 → 渲染成可点的卡片", () => {
     onOpenFile: () => {},
   });
   assert.match(html, /2026-10-02-login-flow\.md/);
-  assert.match(html, /class="pw-filecard"/);
+  assert.match(html, /class="d-plan"/);
   assert.match(html, /role="group"/);
 });
 
@@ -48,7 +48,7 @@ test("跟计划无关的消息渲染出空（不多画一个空壳）", () => {
 test("同一份计划提到两次只出一张卡", () => {
   const once = "/repo/pi-web/.pi/plans/2026-10-02-a.md";
   const html = render({ text: `${once} 与 ${once}`, cwd: CWD });
-  assert.equal(html.match(/class="pw-filecard"/g)?.length, 1);
+  assert.equal(html.match(/class="d-plan"/g)?.length, 1);
 });
 
 test("多份计划都列出来（按消息里出现的先后）", () => {
@@ -56,7 +56,7 @@ test("多份计划都列出来（按消息里出现的先后）", () => {
     text: "先看 /repo/pi-web/.pi/plans/2026-10-02-a.md，再看 /repo/pi-web/.pi/plans/2026-10-02-b.md",
     cwd: CWD,
   });
-  const names = [...html.matchAll(/class="pw-fname">([^<]+)</g)].map((match) => match[1]);
+  const names = [...html.matchAll(/class="d-badge mute">([^<]+)</g)].map((match) => match[1]);
   assert.deepEqual(names, ["2026-10-02-a.md", "2026-10-02-b.md"]);
 });
 

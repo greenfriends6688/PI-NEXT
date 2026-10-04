@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { copyText } from "@/lib/clipboard";
 import { normalizeBrowserUrl, type BrowserTab } from "./browser-tab-state";
 import { PortalDropdown } from "./PortalDropdown";
 import {
@@ -16,9 +18,13 @@ import {
   DEFAULT_FREE_VIEWPORT_SIZE,
   BROWSER_VIEWPORT_ZOOM_OPTIONS,
   DEFAULT_BROWSER_VIEWPORT_ZOOM,
+  BROWSER_DEVICE_PRESETS,
+  findBrowserDevicePreset,
   isValidViewportDimension,
   resizeViewportFromDrag,
+  resolveDeviceViewport,
   resolveViewportRender,
+  rotateViewportSize,
   type BrowserViewportZoom,
 } from "@/lib/browser-viewport";
 import {
@@ -65,6 +71,9 @@ interface Props {
  */
 export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
   const { t } = useI18n();
+  // M-07 —— 手机档：地址栏 + 设备视口条 + 缩放档 + 元素拾取，四个控制件常驻。
+  // 桌面分支（下面那个 return）一个字都没动。
+  const isMobile = useIsMobile();
   const [draft, setDraft] = useState(tab.url);
   const [history, setHistory] = useState<string[]>(() => (tab.url ? [tab.url] : []));
   const [historyIndex, setHistoryIndex] = useState(() => (tab.url ? 0 : -1));
@@ -79,13 +88,38 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
      自身的缩放；两者是独立两段语义，算法在 `lib/browser-viewport.ts` 里。 */
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState<BrowserViewportZoom>(DEFAULT_BROWSER_VIEWPORT_ZOOM);
+  /* fork:v5-boards D-23 帧 A —— 机型预设（宽高 + DPR 的**一对**，可旋转）。
+     与上面那两段语义的关系写死在这里，免得下次又混：
+       · `viewport`      宽度预设（断点用），单宽；
+       · `deviceId`      机型预设（逻辑视口用），宽高对；
+       · `viewportSize`  自由尺寸（含机型的当前值），拖把手改的就是它。
+     三者互斥：选宽度预设、拖把手、关掉自由尺寸都会把机型选择摘掉。 */
+  const [deviceId, setDeviceId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ x: "left" | "right" | "none"; y: "top" | "bottom" | "none" } | null>(null);
+  const device = findBrowserDevicePreset(deviceId);
+
+  /** 选一个机型：视口 = 该机型的逻辑宽高，取景回到 fit（先装下，再谈缩放）。 */
+  const selectDevice = useCallback((id: string) => {
+    const preset = findBrowserDevicePreset(id);
+    if (!preset) return;
+    setDeviceId(preset.id);
+    setViewport(null);
+    setViewportSize(resolveDeviceViewport(preset));
+    setZoom(DEFAULT_BROWSER_VIEWPORT_ZOOM);
+  }, []);
+
+  /** 旋转 90°：只对调逻辑宽高，呈现尺寸仍由 `resolveViewportRender` 按缩放档算。 */
+  const rotateDevice = useCallback(() => {
+    setViewportSize((current) => (current ? rotateViewportSize(current) : current));
+  }, []);
 
   // fork:browser-viewport —— 拖拽把手。指针坐标相对**容器**（面板本体），
   // 容器尺寸就是前面 `reportLayout` 存下来的那个 slot 矩形 —— 面板的可用区
   // 与 slot 同宽同高（slot 在面板里居中）。
   const beginResize = useCallback((edges: { x: "left" | "right" | "none"; y: "top" | "bottom" | "none" }) => {
     setViewportSize((current) => current ?? DEFAULT_FREE_VIEWPORT_SIZE);
+    // 拖把手 = 用户自己改尺寸，不再是机型的尺寸。
+    setDeviceId(null);
     setResizing(edges);
   }, []);
 
@@ -108,8 +142,8 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
       window.removeEventListener("pointercancel", stop);
     };
   }, [resizing]);
-  // fork:design-system SW-06 — 视口预设按画板 31 是一枚 `.pw-chipbtn`，点开是
-  // `.pw-pop` 列表（不是原生 <select>）。
+  // fork:v5-skin D-05 帧 C2 — 视口预设按画板是一枚 `.d-chipbtn`，点开是
+  // `.d-pop` 列表（不是原生 <select>）。
   const [viewportOpen, setViewportOpen] = useState(false);
   const viewportAnchorRef = useRef<HTMLButtonElement | null>(null);
   const viewportPanelRef = useRef<HTMLDivElement | null>(null);
@@ -325,16 +359,365 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
     { value: 1280, icon: "monitor", label: t("browser.viewportDesktop") },
   ] as const;
 
+  /* 自由尺寸宽/高输入框的固定宽 = 画板 D-05 帧 C2 的 `style="width:52px/56px"`。 */
+  const FREE_SIZE_INPUT_WIDTH = 52;
+  const FREE_SIZE_INPUT_HEIGHT_WIDTH = 56;
+
+
+  /* ── M-07 帧 A · 手机档 ────────────────────────────────────────────────────
+     手机上的浏览器不是「嵌个 webview」，是**调试台**：地址栏 + 设备视口预设 +
+     缩放 + 元素拾取四个控制件常驻。DOM 抄画板帧 A（`.m-urlbar` / `.m-urlbox` /
+     `.m-viewportbar` + `.m-vp` / `.m-sizebox` / `.m-zoombar` / `.m-vbar`），
+     数据与交互全部是同一份：`history` / `navigate` / `go` / `viewport` /
+     `viewportSize` / `zoom` / `deviceId` / `picking` / `startPicking` /
+     `choosePick` / `beginResize` 一个都没有另开。
+
+     两处与画板不同、且是刻意保留产品行为的，写在这里备案：
+       ① 缩放画板是连续滑杆，本产品是**离散档位**（`BROWSER_VIEWPORT_ZOOM_OPTIONS`），
+          所以 `.m-zoombar` 那一排是档位钮 + 百分比徽章，不是 range；
+       ② 画板 `.m-sizebox` 是只读读数，本产品的宽高是**可编辑输入**（D-23 帧 B），
+          手机上把那两个 input 放进同一个 `.m-sizebox` 里，读数与编辑同位。 */
+  if (isMobile) {
+    const zoomLabel = (value: BrowserViewportZoom) =>
+      (value === "fit" ? t("browser.viewportFit") : `${value}%`);
+    const viewportReadout = viewportSize
+      ? `${viewportSize.width} × ${viewportSize.height}${device ? ` · DPR ${device.dpr}` : ""}`
+      : (viewport === null ? t("browser.viewportFill") : `${viewport}`);
+
+    return (
+      <div
+        className="m-viewer is-open"
+        style={{ position: "fixed", inset: 0, zIndex: "var(--nx-z-panel)" }}
+      >
+        {pageInfo.title && (
+          <div className="m-doc-head">
+            {pageInfo.favicon
+              /* eslint-disable-next-line @next/next/no-img-element -- 见桌面分支的同一条注释 */
+              ? <img className="fork-browser-favicon" src={pageInfo.favicon} alt="" aria-hidden="true" />
+              : null}
+            <span className="m-grow">{pageInfo.title}</span>
+          </div>
+        )}
+
+        <div className="m-urlbar">
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("browser.back")}
+            aria-label={t("browser.back")}
+            disabled={historyIndex <= 0}
+            onClick={() => go(-1)}
+          >
+            <i data-ico="arrow-left" data-size="16" aria-hidden="true"></i>
+          </button>
+          <div className="m-urlbox" style={{ justifyContent: "flex-start" }}>
+            <i data-ico="lock" data-size="12" aria-hidden="true"></i>
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                navigate(draft);
+              }}
+              placeholder={t("browser.addressPlaceholder")}
+              aria-label={t("browser.address")}
+              spellCheck={false}
+              autoComplete="off"
+              className="m-grow"
+              /* input 的 UA 归零：字号与等宽字体继承 `.m-urlbox`。 */
+              style={{ minWidth: 0, border: 0, background: "none", color: "inherit", font: "inherit", outline: "none" }}
+            />
+          </div>
+          <button
+            type="button"
+            className="m-top-btn"
+            title={t("browser.reload")}
+            aria-label={t("browser.reload")}
+            disabled={!currentUrl}
+            onClick={() => setReloadKey((key) => key + 1)}
+          >
+            <i data-ico="rotate-cw" data-size="16" aria-hidden="true"></i>
+          </button>
+          <a
+            href={currentUrl || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t("browser.openExternal")}
+            aria-label={t("browser.openExternal")}
+            className="m-top-btn"
+            aria-disabled={!currentUrl}
+            style={{ opacity: currentUrl ? 1 : 0.45, pointerEvents: currentUrl ? "auto" : "none", textDecoration: "none" }}
+          >
+            <i data-ico="share-2" data-size="16" aria-hidden="true"></i>
+          </a>
+        </div>
+
+        {/* 设备视口条：五档宽度与桌面那份 `VIEWPORT_PRESETS` 逐字一致，互斥高亮走 `.is-on`。 */}
+        <div className="m-viewportbar">
+          {VIEWPORT_PRESETS.map((preset) => (
+            <button
+              key={preset.value ?? "fill"}
+              type="button"
+              className={`m-vp${viewport === preset.value ? " is-on" : ""}`}
+              aria-pressed={viewport === preset.value}
+              onClick={() => { setViewport(preset.value); setDeviceId(null); }}
+            >
+              {preset.label}
+            </button>
+          ))}
+          <div className="m-sizebox">
+            <span>{viewportReadout}</span>
+            <span>{`${t("browser.viewportZoom")} ${zoomLabel(zoom)}`}</span>
+          </div>
+        </div>
+
+        {/* 机型预设（D-23 帧 A）：与宽度预设是两段语义，同一批 `BROWSER_DEVICE_PRESETS`。 */}
+        <div className="m-viewportbar">
+          {BROWSER_DEVICE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className={`m-vp${device?.id === preset.id ? " is-on" : ""}`}
+              aria-pressed={device?.id === preset.id}
+              onClick={() => selectDevice(preset.id)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {viewportSize && (
+          <div className="m-pickbar">
+            <input
+              className="m-input m-mono"
+              style={{ width: FREE_SIZE_INPUT_WIDTH }}
+              value={viewportSize.width}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                if (!isValidViewportDimension(value, "width")) return;
+                setViewportSize({ ...viewportSize, width: value });
+              }}
+              aria-label={t("browser.viewportWidth")}
+            />
+            <input
+              className="m-input m-mono"
+              style={{ width: FREE_SIZE_INPUT_HEIGHT_WIDTH }}
+              value={viewportSize.height}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                if (!isValidViewportDimension(value, "height")) return;
+                setViewportSize({ ...viewportSize, height: value });
+              }}
+              aria-label={t("browser.viewportHeight")}
+            />
+            <button type="button" className="m-picktag" onClick={rotateDevice} title={`${t("browser.viewportWidth")} ⇄ ${t("browser.viewportHeight")}`}>
+              <i data-ico="arrow-right-left" data-size="15" aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              className="m-picktag"
+              onClick={() => { setViewportSize(null); setZoom(DEFAULT_BROWSER_VIEWPORT_ZOOM); setDeviceId(null); }}
+              title={t("browser.viewportReset")}
+            >
+              <i data-ico="x" data-size="15" aria-hidden="true"></i>
+            </button>
+          </div>
+        )}
+
+        <div className="m-zoombar">
+          {BROWSER_VIEWPORT_ZOOM_OPTIONS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={`m-vp${zoom === option ? " is-on" : ""}`}
+              aria-pressed={zoom === option}
+              title={`${t("browser.viewportZoom")} ${zoomLabel(option)}`}
+              onClick={() => setZoom(option)}
+            >
+              {zoomLabel(option)}
+            </button>
+          ))}
+          <span className="m-grow" />
+          <span className="m-badge mute">{zoomLabel(zoom)}</span>
+        </div>
+
+        {currentUrl ? (
+          <div
+            className="m-scroll-y"
+            style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", position: "relative" }}
+          >
+            {loadFailed && (
+              <div className="m-empty">
+                <div className="m-empty-ico"><i data-ico="circle-alert" data-size="20" aria-hidden="true"></i></div>
+                <div className="m-empty-t">{t("browser.loadFailed")}</div>
+                <div className="m-pickbar">
+                  <button type="button" className="m-picktag" onClick={() => setReloadKey((key) => key + 1)}>
+                    {t("files.textRetry")}
+                  </button>
+                </div>
+              </div>
+            )}
+            {!loadFailed && surface === "managed" ? (
+              <div
+                ref={slotRef}
+                className={`fork-browser-slot${viewport === null ? "" : ` fork-browser-slot--${viewport}`}`}
+                style={{ flex: "1 1 auto", minHeight: 0 }}
+                data-session={hostSessionId}
+                aria-label={tab.url}
+                role="img"
+              >
+                {picking && (
+                  <div className="fork-browser-pick" role="presentation">
+                    {pickBoxes.map((raw) => {
+                      const box = scalePickBox(raw, pickViewport, slotRect);
+                      const active = pickHover === box.index;
+                      const label = box.name || box.role || box.tag;
+                      return (
+                        <button
+                          key={box.index}
+                          type="button"
+                          /* `.m-viewbox-sel` = M-07 帧 A 的命中描边（2px 强调色 + 1px 偏移），
+                             与桌面那份 `fork-browser-pick-box is-active` 是同一个语义。 */
+                          className={`fork-browser-pick-box${active ? " is-active m-viewbox-sel" : ""}`}
+                          style={{
+                            left: box.bounds.x,
+                            top: box.bounds.y,
+                            width: box.bounds.width,
+                            height: box.bounds.height,
+                          }}
+                          title={label}
+                          aria-label={label}
+                          onMouseEnter={() => setPickHover(box.index)}
+                          onFocus={() => setPickHover(box.index)}
+                          onClick={() => choosePick(raw)}
+                        >
+                          {active && box.bounds.height >= 18 && box.bounds.width >= 60 ? (
+                            <span className="fork-browser-pick-tag">{label}</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : !loadFailed ? (
+              viewportSize ? (
+                <div
+                  className="fork-browser-size-frame"
+                  style={{ width: renderSize.renderWidth, height: renderSize.renderHeight }}
+                >
+                  <iframe
+                    ref={iframeRef}
+                    key={`${currentUrl}#${reloadKey}`}
+                    src={currentUrl}
+                    title={tab.url}
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
+                    referrerPolicy="no-referrer"
+                    style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-panel)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
+                  />
+                  {(["left", "right"] as const).map((side) => (
+                    <div
+                      key={side}
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={t("browser.viewportResize")}
+                      className={`fork-browser-size-handle fork-browser-size-handle--${side}`}
+                      onPointerDown={() => beginResize({ x: side, y: "none" })}
+                    />
+                  ))}
+                  {(["top", "bottom"] as const).map((side) => (
+                    <div
+                      key={side}
+                      role="separator"
+                      aria-orientation="horizontal"
+                      aria-label={t("browser.viewportResize")}
+                      className={`fork-browser-size-handle fork-browser-size-handle--${side}`}
+                      onPointerDown={() => beginResize({ x: "none", y: side })}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <iframe
+                  ref={iframeRef}
+                  key={`${currentUrl}#${reloadKey}`}
+                  src={currentUrl}
+                  title={tab.url}
+                  /* 沙箱属性与桌面逐字一致（见桌面分支的注释）。 */
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
+                  referrerPolicy="no-referrer"
+                  style={{
+                    flex: viewport === null ? 1 : "0 0 auto",
+                    minHeight: 0,
+                    width: viewport === null ? "100%" : viewport,
+                    maxWidth: "100%",
+                    border: "none",
+                    background: "var(--nx-panel)",
+                    ...(viewport === null ? {} : { boxShadow: "var(--nx-sh-1)", borderLeft: "1px solid var(--nx-line)", borderRight: "1px solid var(--nx-line)" }),
+                  }}
+                />
+              )
+            ) : null}
+            <p className="fork-browser-surface-note">{browserSurfaceHint(surface, t)}</p>
+            {pickError && <p className="fork-browser-surface-note">{pickError}</p>}
+            {!loadFailed && pageInfo.readyState === "loading" && (
+              <p className="fork-browser-surface-note" role="status">{t("browser.loading")}</p>
+            )}
+          </div>
+        ) : (
+          <div className="m-scroll-y" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column" }}>
+            <div className="m-empty">
+              <div className="m-empty-ico"><i data-ico="globe" data-size="20" aria-hidden="true"></i></div>
+              <div className="m-empty-t">{t("browser.emptyTitle")}</div>
+              <div className="m-empty-s">{t("browser.emptyHint")}</div>
+            </div>
+          </div>
+        )}
+
+        <div className="m-vbar">
+          {surface === "managed" && (
+            <button
+              type="button"
+              className={`m-menu-row${picking ? " is-on" : ""}`}
+              title={picking ? t("browser.pickCancel") : t("browser.pickStart")}
+              aria-pressed={picking}
+              onClick={() => (picking ? setPicking(false) : void startPicking())}
+            >
+              <i data-ico="square-mouse-pointer" data-size="15" aria-hidden="true"></i>
+              {picking ? t("browser.pickCancel") : t("browser.pickStart")}
+            </button>
+          )}
+          <button
+            type="button"
+            className="m-menu-row"
+            disabled={!currentUrl}
+            onClick={() => { if (currentUrl) void copyText(currentUrl); }}
+          >
+            <i data-ico="copy" data-size="15" aria-hidden="true"></i>{t("files.copyPath")}
+          </button>
+          <a
+            href={currentUrl || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="m-menu-row"
+            aria-disabled={!currentUrl}
+            style={{ opacity: currentUrl ? 1 : 0.45, pointerEvents: currentUrl ? "auto" : "none", textDecoration: "none" }}
+            title={t("browser.openExternal")}
+          >
+            <i data-ico="external-link" data-size="15" aria-hidden="true"></i>{t("browser.openExternal")}
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pw-browser">
-      {/* fork:browser-page-info —— 标题 + favicon 一行（画板 31 头行下方）。
+    <div className="d-viewer">
+      {/* fork:browser-page-info —— 标题 + favicon 一行（画板头行下方）。
           读不到（iframe 面）时不占位、不画坏图，只留标题回退到主机名。
 
           **这一行只在 managed 面可能出现**（`refreshPageInfo` 对 iframe 直接 return，
-          所以 `title` 恒为空、整行不渲染）—— 而 `verify:boards` 跑的是 Web/生产服务，
-          永远看不到它。也就是说画板 31 不需要为它补一帧；反过来，如果哪天有人把
-          `title &&` 的守卫去掉，`.pw-browser` 的高度会多出 20px + 一条发丝边，
-          那时 31 号 spec 会立刻报漂移 —— 这行注释就是留给那时的提示。 */}
+          所以 `title` 恒为空、整行不渲染）。 */}
       {pageInfo.title && (
         <div className="fork-browser-pageinfo">
           {pageInfo.favicon
@@ -348,70 +731,72 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           <span className="fork-browser-title">{pageInfo.title}</span>
         </div>
       )}
-      {/* fork:design-system SW-06 —— 头行 = pw-viewer-head（画板 31：地址栏 + 视口预设）。 */}
-      <div className="pw-browser-bar">
+      {/* fork:v5-skin D-05 帧 C/C2 —— 地址行照画板 .d-urlbar（后退 / 前进 / 重载 + .d-urlbox
+          + 系统浏览器 + 拾取）。图标改用画板的 lucide 字形（chevron-left / chevron-right）。 */}
+      <div className="d-urlbar">
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className="d-iconbtn"
           title={t("browser.back")}
           aria-label={t("browser.back")}
           disabled={historyIndex <= 0}
           onClick={() => go(-1)}
         >
-          <span className="pw-ico"><i data-ico="arrow-left" data-size="14"></i></span>
+          <i data-ico="chevron-left" data-size="14" aria-hidden="true"></i>
         </button>
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className="d-iconbtn"
           title={t("browser.forward")}
           aria-label={t("browser.forward")}
           disabled={historyIndex >= history.length - 1}
           onClick={() => go(1)}
         >
-          <span className="pw-ico"><i data-ico="arrow-right" data-size="14"></i></span>
+          <i data-ico="chevron-right" data-size="14" aria-hidden="true"></i>
         </button>
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className="d-iconbtn"
           title={t("browser.reload")}
           aria-label={t("browser.reload")}
           disabled={!currentUrl}
           onClick={() => setReloadKey((key) => key + 1)}
         >
-          <span className="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span>
+          <i data-ico="rotate-cw" data-size="14" aria-hidden="true"></i>
         </button>
-        {/* fork:design-system SW-06 —— 地址栏 = 画板 31 的 .pw-url（等宽、面板底、细边框）。
-           .pw-url 在画板里是 span，这里是真实 input：只补上边框/底色归零之外的行为样式。 */}
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-            event.preventDefault();
-            navigate(draft);
-          }}
-          placeholder={t("browser.addressPlaceholder")}
-          aria-label={t("browser.address")}
-          spellCheck={false}
-          autoComplete="off"
-          className="pw-url"
-          /* fork:board-diff-2026-10-01 —— 地址栏的等宽字体/字号由 board.css 的
-             `.pw-url`（font-family var(--font-mono) / font-size var(--text-meta)）承担，
-             这里只留布局所需的 min-width。原来的 `font: "inherit"` 把等宽 11px 顶成了
-             UI 无衬线 13px —— `31-terminal-browser-git` 的 spec 把它报成了漂移。 */
-          style={{ minWidth: 0 }}
-        />
+        {/* fork:v5-skin D-05 帧 C2 —— 地址栏 = 画板 .d-urlbox（左 lock / 右 globe + 等宽路径）。
+           .d-urlbox 的 > span 才是 span；产品这里是真实 input，只补 UA 归零。 */}
+        <div className="d-urlbox">
+          <i data-ico="lock" data-size="11" aria-hidden="true"></i>
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              navigate(draft);
+            }}
+            placeholder={t("browser.addressPlaceholder")}
+            aria-label={t("browser.address")}
+            spellCheck={false}
+            autoComplete="off"
+            className="d-grow"
+            /* input 的 UA 归零（描边 / 底色 / 字体）：字号与等宽字体继承 .d-urlbox。 */
+            style={{ minWidth: 0, border: 0, background: "none", color: "inherit", font: "inherit", outline: "none" }}
+          />
+          <i data-ico="globe" data-size="12" aria-hidden="true"></i>
+        </div>
         <a
           href={currentUrl || undefined}
           target="_blank"
           rel="noopener noreferrer"
           title={t("browser.openExternal")}
           aria-label={t("browser.openExternal")}
-          className="pw-iconbtn sm"
+          className="d-iconbtn"
           aria-disabled={!currentUrl}
           style={{ opacity: currentUrl ? 1 : 0.45, pointerEvents: currentUrl ? "auto" : "none" }}
         >
-          <span className="pw-ico"><i data-ico="external-link" data-size="14"></i></span>
+          <i data-ico="external-link" data-size="14" aria-hidden="true"></i>
         </a>
         {/* fork:element-picker —— 「拾取元素」：拿一批带坐标的盒子盖在原生视图上，
             点一个就变成输入框里的一条 `@` 引用。只有 managed 面拿得到页面内部
@@ -420,49 +805,55 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
         {surface === "managed" && (
           <button
             type="button"
-            className={`pw-iconbtn sm${picking ? " is-on" : ""}`}
+            className={`d-iconbtn${picking ? " is-on" : ""}`}
             title={picking ? t("browser.pickCancel") : t("browser.pickStart")}
             aria-label={picking ? t("browser.pickCancel") : t("browser.pickStart")}
             aria-pressed={picking}
             onClick={() => (picking ? setPicking(false) : void startPicking())}
           >
-            <span className="pw-ico">
-              <i data-ico={picking ? "x" : "crosshair"} data-size="14"></i>
-            </span>
+            <i data-ico={picking ? "x" : "square-mouse-pointer"} data-size="14" aria-hidden="true"></i>
           </button>
         )}
-        {/* fork:ui-30 + fork:design-system SW-06 —— 视口预设：画板 31 是一枚
-            `.pw-chipbtn`，点开是 `.pw-pop` 列表；portal 到 body 免得被右栏裁掉。 */}
+      </div>
+      {/* fork:v5-skin D-05 帧 C2 —— 工具条：视口预设 + 自由尺寸 + 缩放档，排成画板的
+          .d-row（flex-wrap）。视口预设仍是第一枚 .d-chipbtn（缩放档是 .d-chipbtn.sm）。 */}
+      <div className="d-row" style={{ flexWrap: "wrap", gap: "var(--nx-sp-1)", padding: "var(--nx-sp-2)" }}>
         <button
           ref={viewportAnchorRef}
           type="button"
-          className="pw-chipbtn"
+          className="d-chipbtn"
           aria-haspopup="menu"
           aria-expanded={viewportOpen}
           title={t("browser.viewport")}
           aria-label={t("browser.viewport")}
           onClick={() => setViewportOpen((open) => !open)}
         >
-          <span className="pw-ico"><i data-ico={viewport === null ? "maximize-2" : "smartphone"} data-size="13"></i></span>
+          <i data-ico={viewport === null ? "maximize-2" : "smartphone"} data-size="13" aria-hidden="true"></i>
           <span>{viewport === null ? t("browser.viewportFill") : `${viewport}`}</span>
-          <span className="pw-ico"><i data-ico="chevron-down" data-size="11"></i></span>
+          <i data-ico="chevron-down" data-size="11" aria-hidden="true"></i>
         </button>
-        {/* fork:browser-viewport —— **位置有讲究**：缩放档与自由尺寸框排在视口预设**之后**。
-            画板 31 那一帧里 `.pw-chipbtn` 只有一枚（视口预设），而
-            `scripts/board-specs/31-terminal-browser-git.mjs` 是按「第一个 `.pw-chipbtn`」
-            配对量几何的 —— 把缩放芯片插在它前面，那条 spec 就变成拿缩放芯片去对视口预设，
-            量出来「巧合相近」也说明不了任何东西。视口预设保持在第一位。 */}
-        {/* fork:browser-viewport —— 自由尺寸 + 缩放档。与视口预设是**两段**语义：
-            这几档缩的是页面自身，宽高那个框管的是视口的 CSS 尺寸。
-            壳沿用现成的 `.pw-chipbtn`（画板 31 的视口预设已经在用），零新类。
-
-            宽高框只在**自由尺寸模式**下渲染（默认关），所以它那个 `.pw-input`
-            不会把头行顶高 —— 画板 31 量到的仍是单枚视口预设那一档的高度。 */}
+        {/* fork:v5-boards D-23 帧 B —— 旋转 90°。只在自由尺寸/机型下出现（宽度预设是
+            单宽，转了也说不清是什么转了）。无障碍名用既有的两个 i18n key 拼成
+            「宽 ⇄ 高」，不硬编码中文。 */}
+        {viewportSize && (
+          <button
+            type="button"
+            className="d-iconbtn sm"
+            onClick={rotateDevice}
+            title={`${t("browser.viewportWidth")} ⇄ ${t("browser.viewportHeight")}`}
+            aria-label={`${t("browser.viewportWidth")} ⇄ ${t("browser.viewportHeight")}`}
+          >
+            <i data-ico="arrow-right-left" data-size="14" aria-hidden="true"></i>
+          </button>
+        )}
+        {/* fork:browser-viewport —— 自由尺寸框只在自由尺寸模式下渲染（同画板 C2），它的
+            .d-input 不会把工具条顶高；预设与自由尺寸是两段语义。 */}
         {viewportSize && (
           <>
-            <span className="pw-chipbtn fork-browser-size" role="group" aria-label={t("browser.viewportSize")}>
+            <span className="d-chipbtn fork-browser-size" role="group" aria-label={t("browser.viewportSize")}>
               <input
-                className="pw-input pw-mono"
+                className="d-input d-mono"
+                style={{ width: FREE_SIZE_INPUT_WIDTH }}
                 value={viewportSize.width}
                 onChange={(event) => {
                   const value = Number(event.target.value);
@@ -474,7 +865,8 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
               />
               <span aria-hidden="true">x</span>
               <input
-                className="pw-input pw-mono"
+                className="d-input d-mono"
+                style={{ width: FREE_SIZE_INPUT_HEIGHT_WIDTH }}
                 value={viewportSize.height}
                 onChange={(event) => {
                   const value = Number(event.target.value);
@@ -487,12 +879,12 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
             </span>
             <button
               type="button"
-              className="pw-iconbtn sm"
-              onClick={() => { setViewportSize(null); setZoom(DEFAULT_BROWSER_VIEWPORT_ZOOM); }}
+              className="d-iconbtn sm"
+              onClick={() => { setViewportSize(null); setZoom(DEFAULT_BROWSER_VIEWPORT_ZOOM); setDeviceId(null); }}
               title={t("browser.viewportReset")}
               aria-label={t("browser.viewportReset")}
             >
-              <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+              <i data-ico="x" data-size="14" aria-hidden="true"></i>
             </button>
           </>
         )}
@@ -500,7 +892,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           <button
             key={option}
             type="button"
-            className={`pw-chipbtn sm${zoom === option ? " is-on" : ""}`}
+            className={`d-chipbtn sm${zoom === option ? " is-on" : ""}`}
             aria-pressed={zoom === option}
             title={`${t("browser.viewportZoom")} ${option === "fit" ? t("browser.viewportFit") : `${option}%`}`}
             onClick={() => setZoom(option)}
@@ -508,13 +900,47 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
             {option === "fit" ? t("browser.viewportFit") : `${option}%`}
           </button>
         ))}
+        <span className="d-grow" />
+        {picking && (
+          <span className="d-badge warn">
+            <i data-ico="square-mouse-pointer" data-size="11" aria-hidden="true"></i>
+            {t("browser.pickStart")}
+          </span>
+        )}
+      </div>
+
+      {/* fork:v5-boards D-23 帧 A —— 机型预设行 = `.d-tinybar` > `.d-device-presets` >
+          `.d-device-preset`。与上面那排宽度预设是**两段语义**：宽度答「这条断点生不生效」，
+          机型答「这一台设备的逻辑视口长什么样」（宽高对 + DPR，可旋转）。
+          右侧那行数字始终是**逻辑视口** —— 取景缩放是 CSS 缩放，不触发断点重排。 */}
+      <div className="d-tinybar">
+        <i data-ico="smartphone" data-size="13" aria-hidden="true"></i>
+        <div className="d-device-presets">
+          {BROWSER_DEVICE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className={`d-device-preset${device?.id === preset.id ? " is-on" : ""}`}
+              aria-pressed={device?.id === preset.id}
+              onClick={() => selectDevice(preset.id)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <span className="d-grow" />
+        {device && viewportSize && (
+          <span className="d-t-xs d-t-faint d-mono">
+            {`${viewportSize.width} × ${viewportSize.height} · DPR ${device.dpr}`}
+          </span>
+        )}
       </div>
 
       <PortalDropdown
         open={viewportOpen}
         anchorRef={viewportAnchorRef}
         panelRef={viewportPanelRef}
-        className="pw-pop"
+        className="d-pop"
         width={200}
         align="right"
       >
@@ -522,21 +948,23 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           <button
             key={preset.value ?? "fill"}
             type="button"
-            className={`pw-prow${viewport === preset.value ? " is-on" : ""}`}
+            className={`d-menu-row${viewport === preset.value ? " is-on" : ""}`}
             onClick={() => {
               setViewport(preset.value);
+              // 宽度预设与机型预设互斥：选了宽度就不再是「某一台设备」。
+              setDeviceId(null);
               setViewportOpen(false);
             }}
           >
-            <span className="pw-ico"><i data-ico={preset.icon} data-size="14"></i></span>
-            <span className="grow">{preset.label}</span>
-            {viewport === preset.value && <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>}
+            <i data-ico={preset.icon} data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{preset.label}</span>
+            {viewport === preset.value && <i data-ico="check" data-size="14" aria-hidden="true"></i>}
           </button>
         ))}
       </PortalDropdown>
 
       {currentUrl ? (
-        <div className="pw-browser-body">
+        <div className="d-panel-body" style={{ padding: 0, position: "relative", display: "flex", flexDirection: "column" }}>
         {surface === "managed" ? (
           /* fork:proma-42-browser · 受管路径：这一格只是占位，真正的页面是主进程里的
              WebContentsView，由上面的 effect 把这个盒子的屏幕坐标报过去。占位自身
@@ -544,6 +972,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           <div
             ref={slotRef}
             className={`fork-browser-slot${viewport === null ? "" : ` fork-browser-slot--${viewport}`}`}
+            style={{ flex: "1 1 auto", minHeight: 0 }}
             data-session={hostSessionId}
             aria-label={tab.url}
             role="img"
@@ -604,7 +1033,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
               title={tab.url}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
               referrerPolicy="no-referrer"
-              style={{ width: "100%", height: "100%", border: "none", background: "var(--bg)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
+              style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-panel)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
             />
             {(["left", "right"] as const).map((side) => (
               <div
@@ -643,11 +1072,28 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
             width: viewport === null ? "100%" : viewport,
             maxWidth: "100%",
             border: "none",
-            background: "var(--bg)",
-            ...(viewport === null ? {} : { boxShadow: "var(--shadow-sm)", borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)" }),
+            background: "var(--nx-panel)",
+            ...(viewport === null ? {} : { boxShadow: "var(--nx-sh-1)", borderLeft: "1px solid var(--nx-line)", borderRight: "1px solid var(--nx-line)" }),
           }}
         />
         ))}
+          {/* fork:v5-boards D-23 帧 A —— 设备底栏 `.d-device-bar`：左边写**逻辑视口 + DPR**
+              （板上的「393 × 852 · DPR 3」），右边写**取景缩放**（当前那一档）。
+              两件事分两处写，是这张板反复强调的：取景缩放是 CSS 缩放，不改逻辑视口，
+              所以「手机断点生不生效」只看左边那行数字。只在选了机型时画。 */}
+          {device && viewportSize && (
+            <div className="d-device-bar">
+              <span className="d-mono d-t-xs d-grow">
+                {`${viewportSize.width} × ${viewportSize.height} · DPR ${device.dpr}`}
+              </span>
+              <span
+                className="d-badge mute"
+                title={`${t("browser.viewportZoom")} ${zoom === "fit" ? t("browser.viewportFit") : `${zoom}%`}`}
+              >
+                {zoom === "fit" ? t("browser.viewportFit") : `${zoom}%`}
+              </span>
+            </div>
+          )}
           {/* fork:proma-42-browser · 一行说明当前宿主能力：桌面端 agent 可驱动，
               Web 端 agent 工具不可用（iframe 跨站策略拦死）。 */}
           <p className="fork-browser-surface-note">{browserSurfaceHint(surface, t)}</p>
@@ -662,12 +1108,12 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           )}
         </div>
       ) : (
-        /* 画板 31 帧 B 的空态：`.pw-empty-inner` + 记号 + 两句说明 */
-        <div className="pw-browser-body">
-          <div className="pw-empty-inner">
-            <span className="mark"><span className="pw-ico"><i data-ico="globe" data-size="16"></i></span></span>
-            <p>{t("browser.emptyTitle")}</p>
-            <p className="pw-dim">{t("browser.emptyHint")}</p>
+        /* fork:v5-skin D-05 —— 空态用画板的 .d-empty（记号 + 标题 + 说明）。 */
+        <div className="d-panel-body" style={{ padding: 0 }}>
+          <div className="d-empty" style={{ height: "100%" }}>
+            <div className="d-empty-ico"><i data-ico="globe" data-size="16" aria-hidden="true"></i></div>
+            <p className="d-empty-t">{t("browser.emptyTitle")}</p>
+            <p className="d-empty-s">{t("browser.emptyHint")}</p>
           </div>
         </div>
       )}

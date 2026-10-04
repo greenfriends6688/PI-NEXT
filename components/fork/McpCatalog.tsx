@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ConfigBadge, ConfigButton, ConfigSectionTitle } from "../SettingsUi";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
+import { PwaSheet } from "@/components/pwa/PwaSheet";
 import type { McpScope } from "@/lib/api-types";
 import {
   groupCatalogEntries,
@@ -14,7 +16,7 @@ import {
  * fork:proma-46-mcp-catalog — 「连接目录」的 UI。
  *
  * 数据与规则全在 lib/mcp-catalog.ts（纯函数，可单测）；这里只负责：
- *   - 按类展示目录卡片（`.pw-prow` 行，无新 `pw-*` 类）；
+ *   - 按类展示目录卡片（`.d-slottable` / `.d-slotrow` 行，零新 `d-*` 类）；
  *   - OAuth 条目：先写配置，再开 `/api/mcp/catalog/oauth` 的 SSE（pi 的
  *     signInMcpServer），loopback 不可达时给一个粘贴 callback URL 的输入框；
  *   - credential 条目：一个 API Key 输入框，交给 `/api/mcp/catalog` 落盘
@@ -37,6 +39,7 @@ type OAuthPhase =
 
 export function McpCatalogDialog({ open, cwd, scope, onClose, onConfigured }: CatalogDialogProps): ReactNode {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const { dialogRef, dialogProps } = useDialogA11y({ open, onClose });
   const groups = useMemo(() => groupCatalogEntries(), []);
   const [installed, setInstalled] = useState<Set<string>>(new Set());
@@ -46,6 +49,8 @@ export function McpCatalogDialog({ open, cwd, scope, onClose, onConfigured }: Ca
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [oauth, setOauth] = useState<OAuthPhase>({ phase: "idle" });
+  // fork:v5-landing Wave B：手机档的分类 chip 选中项（横滚互斥，见 M-09 帧 A）。
+  const [shownCategory, setShownCategory] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const closeEventSource = useCallback(() => {
@@ -165,158 +170,330 @@ export function McpCatalogDialog({ open, cwd, scope, onClose, onConfigured }: Ca
 
   if (!open) return null;
 
+  // fork:v5-landing Wave B · M-09 帧 A「插件商店」——
+  // 手机上「连接目录」就是那张商店页的骨架：分类 chip 横滚互斥（`.m-cats` / `.m-cat`），
+  // 分类标题 `.m-group-title`，条目 `.m-cardgroup` › `.m-setrow`。
+  // **没有做的东西**：画板那张详情面板要逐条列权限（`.m-radio` 那一段），
+  // 而目录条目本身没有权限数据 —— 不造，所以不画（缺件记在 Wave B 汇报里）。
+  if (mobile) {
+    const category = shownCategory ?? groups[0]?.category ?? "";
+    const shown = groups.filter((group) => group.category === category);
+    return (
+      <PwaSheet
+        open
+        title={t("mcp.catalog.title")}
+        label={t("mcp.catalog.title")}
+        onClose={onClose}
+        footer={
+          <button type="button" className="m-picktag" onClick={onClose}>
+            {t("mcp.catalog.close")}
+          </button>
+        }
+      >
+        <PwaBanner icon="info">{t("mcp.catalog.subtitle")}</PwaBanner>
+        {message && <PwaBanner icon="circle-check">{message}</PwaBanner>}
+        {error && <PwaBanner icon="triangle-alert" tone="err" role="alert">{error}</PwaBanner>}
+
+        <div className="m-cats">
+          {groups.map((group) => (
+            <button
+              key={group.category}
+              type="button"
+              className={`m-cat${group.category === category ? " is-on" : ""}`}
+              aria-pressed={group.category === category}
+              onClick={() => setShownCategory(group.category)}
+            >
+              {t(`mcp.catalog.category.${group.category}`)}
+            </button>
+          ))}
+        </div>
+
+        {shown.map((group) => (
+          <Fragment key={group.category}>
+            <div className="m-group-title">{t(`mcp.catalog.category.${group.category}`)}</div>
+            <div className="m-cardgroup">
+              {group.entries.map((entry) => (
+                <PwaSetRow
+                  key={entry.id}
+                  icon={entry.category === "cli" ? "terminal" : entry.requiresCredential ? "key-round" : "server"}
+                  label={entry.name}
+                  sub={t(entry.descriptionKey)}
+                  trailing={
+                    <>
+                      {installed.has(entry.serverName) && (
+                        <span className="m-badge ok">{t("mcp.catalog.installed")}</span>
+                      )}
+                      {entry.category === "cli" ? (
+                        <button
+                          type="button"
+                          className="m-btn sm"
+                          onClick={() => window.open(entry.setupUrl, "_blank", "noopener,noreferrer")}
+                        >
+                          <i data-ico="external-link" data-size="14" aria-hidden="true" />
+                          {t("mcp.catalog.openSetup")}
+                        </button>
+                      ) : entry.oauth ? (
+                        <button
+                          type="button"
+                          className="m-btn sm"
+                          disabled={busy || oauth.phase === "waiting"}
+                          onClick={() => void startOAuth(entry)}
+                        >
+                          <i data-ico="key-round" data-size="14" aria-hidden="true" />
+                          {oauth.phase === "waiting" && oauth.name === entry.name
+                            ? t("mcp.catalog.oauthWaiting", { name: entry.name })
+                            : t("mcp.catalog.authorize")}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="m-btn sm"
+                          disabled={busy}
+                          onClick={() => { setActive(entry); setCredential(""); setError(null); setMessage(null); }}
+                        >
+                          <i data-ico="wrench" data-size="14" aria-hidden="true" />
+                          {t("mcp.catalog.configure")}
+                        </button>
+                      )}
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          </Fragment>
+        ))}
+
+        {active && (
+          <Fragment>
+            <div className="m-group-title">{t("mcp.catalog.keyLabel", { name: active.name })}</div>
+            <div className="m-cardgroup">
+              <PwaSetRow
+                label={active.credential?.headerName ?? active.credential?.envName ?? ""}
+              />
+              <div className="m-doc-body">
+                <input
+                  className="m-input"
+                  style={{ width: "100%" }}
+                  value={credential}
+                  onChange={(event) => setCredential(event.target.value)}
+                  placeholder={t("mcp.catalog.keyPlaceholder")}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="m-pickbar">
+                <button type="button" className="m-picktag" onClick={() => setActive(null)}>
+                  {t("i18n.cancel")}
+                </button>
+                <button
+                  type="button"
+                  className="m-picktag is-on"
+                  disabled={busy || !credential.trim()}
+                  onClick={() => void configure(active, credential)}
+                >
+                  {busy ? t("mcp.catalog.saving") : t("mcp.catalog.save")}
+                </button>
+              </div>
+              <PwaSetRow label={t("mcp.catalog.keyHint")} />
+            </div>
+          </Fragment>
+        )}
+
+        {oauth.phase === "prompt" && (
+          <Fragment>
+            <div className="m-group-title">{t("mcp.catalog.oauthPaste")}</div>
+            <div className="m-cardgroup">
+              <PwaSetRow label={t("mcp.catalog.oauthPasteLabel")} />
+              <div className="m-doc-body">
+                <input
+                  className="m-input"
+                  style={{ width: "100%" }}
+                  value={credential}
+                  onChange={(event) => setCredential(event.target.value)}
+                  placeholder={t("mcp.catalog.oauthPastePlaceholder")}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="m-pickbar">
+                <button
+                  type="button"
+                  className="m-picktag is-on"
+                  disabled={busy || !credential.trim()}
+                  onClick={() => void submitRedirect(oauth.token)}
+                >
+                  {t("mcp.catalog.oauthPasteSubmit")}
+                </button>
+              </div>
+            </div>
+          </Fragment>
+        )}
+      </PwaSheet>
+    );
+  }
+
+  // fork:v5-landing D-15 帧 A/F「连接目录」—— 壳走 `.d-modal` / `.d-modal-box`，
+  // 条目列表走 `.d-slottable` / `.d-slotrow`（与画板 D-15 帧 D 的登录态同一组），
+  // 类别标题是 `.d-set-sec-t`，凭据输入走 `.d-card` + `.d-field`。
+  // `fork-pwa-import-scrim` / `fork-pwa-import` 是 app/pwa-plugins-agents.css 仍在用的
+  // 手机档选择器，保留并注释。
   return (
     <div
       ref={dialogRef}
       {...dialogProps}
       aria-label={t("mcp.catalog.title")}
-      className="fork-pwa-import-scrim"
+      className="d-modal is-open fork-pwa-import-scrim"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="pw-modal fork-pwa-import">
-        <div className="pw-modal-head">
-          <span className="pw-ico"><i data-ico="plug" data-size="16"></i></span>
-          {t("mcp.catalog.title")}
-          <span className="pw-grow" aria-hidden="true" />
-          <button type="button" className="pw-iconbtn" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")}>
-            <span className="pw-ico"><i data-ico="x" data-size="14"></i></span>
+      <div className="d-modal-box wide fork-pwa-import">
+        <div className="d-modal-head d-row">
+          <i data-ico="plug" data-size="16" aria-hidden="true" />
+          <span className="d-grow">{t("mcp.catalog.title")}</span>
+          <button type="button" className="d-iconbtn" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")}>
+            <i data-ico="x" data-size="14" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="pw-modal-body" style={{ flex: "1 1 0%", minHeight: 0, gridTemplateColumns: "minmax(0, 1fr)" }}>
-          <p className="pw-hint">{t("mcp.catalog.subtitle")}</p>
+        <div className="d-modal-body" style={{ flex: "1 1 0%", minHeight: 0 }}>
+          <p className="d-t-xs d-t-faint">{t("mcp.catalog.subtitle")}</p>
           {message && (
-            <div className="pw-alert info">
-              <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
-              <span className="pw-grow">{message}</span>
+            <div className="d-banner ok">
+              <i data-ico="circle-check" data-size="14" aria-hidden="true" />
+              <span className="d-grow">{message}</span>
             </div>
           )}
           {error && (
-            <div className="pw-alert">
-              <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-              <span className="pw-grow">{error}</span>
+            <div className="d-banner err">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+              <span className="d-grow">{error}</span>
             </div>
           )}
 
           {groups.map((group) => (
-            <div key={group.category}>
-              <ConfigSectionTitle>{t(`mcp.catalog.category.${group.category}`)}</ConfigSectionTitle>
-              {group.entries.map((entry) => (
-                <div key={entry.id} className="pw-prow">
-                  <span className="pw-ico">
-                    <i data-ico={entry.category === "cli" ? "terminal" : entry.requiresCredential ? "key-round" : "server"} data-size="14"></i>
-                  </span>
-                  <span className="grow">
-                    <b>{entry.name}</b>
-                    <div className="pw-desc">{t(entry.descriptionKey)}</div>
-                  </span>
-                  {installed.has(entry.serverName) && <ConfigBadge tone="ok">{t("mcp.catalog.installed")}</ConfigBadge>}
-                  {entry.category === "cli" ? (
-                    <ConfigButton
-                      variant="secondary"
-                      size="small"
-                      onClick={() => window.open(entry.setupUrl, "_blank", "noopener,noreferrer")}
-                    >
-                      <span className="pw-ico"><i data-ico="external-link" data-size="13"></i></span>
-                      {t("mcp.catalog.openSetup")}
-                    </ConfigButton>
-                  ) : entry.oauth ? (
-                    <ConfigButton
-                      variant="secondary"
-                      size="small"
-                      disabled={busy || oauth.phase === "waiting"}
-                      onClick={() => void startOAuth(entry)}
-                    >
-                      <span className="pw-ico"><i data-ico="key-round" data-size="13"></i></span>
-                      {oauth.phase === "waiting" && oauth.name === entry.name ? t("mcp.catalog.oauthWaiting", { name: entry.name }) : t("mcp.catalog.authorize")}
-                    </ConfigButton>
-                  ) : (
-                    <ConfigButton
-                      variant="secondary"
-                      size="small"
-                      disabled={busy}
-                      onClick={() => { setActive(entry); setCredential(""); setError(null); setMessage(null); }}
-                    >
-                      <span className="pw-ico"><i data-ico="wrench" data-size="13"></i></span>
-                      {t("mcp.catalog.configure")}
-                    </ConfigButton>
-                  )}
-                </div>
-              ))}
+            <div className="d-set-sec" key={group.category}>
+              <div className="d-set-sec-t">{t(`mcp.catalog.category.${group.category}`)}</div>
+              <div className="d-slottable">
+                {group.entries.map((entry) => (
+                  <div key={entry.id} className="d-slotrow">
+                    <div className="d-ava">
+                      <i
+                        data-ico={entry.category === "cli" ? "terminal" : entry.requiresCredential ? "key-round" : "server"}
+                        data-size="14"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div className="d-col d-grow">
+                      <div className="d-row">
+                        <span className="d-t-b">{entry.name}</span>
+                        {installed.has(entry.serverName) && <span className="d-badge ok">{t("mcp.catalog.installed")}</span>}
+                      </div>
+                      <span className="d-set-row-s">{t(entry.descriptionKey)}</span>
+                    </div>
+                    {entry.category === "cli" ? (
+                      <button
+                        type="button"
+                        className="d-btn sm"
+                        onClick={() => window.open(entry.setupUrl, "_blank", "noopener,noreferrer")}
+                      >
+                        <i data-ico="external-link" data-size="14" aria-hidden="true" />
+                        {t("mcp.catalog.openSetup")}
+                      </button>
+                    ) : entry.oauth ? (
+                      <button
+                        type="button"
+                        className="d-btn sm"
+                        disabled={busy || oauth.phase === "waiting"}
+                        onClick={() => void startOAuth(entry)}
+                      >
+                        <i data-ico="key-round" data-size="14" aria-hidden="true" />
+                        {oauth.phase === "waiting" && oauth.name === entry.name ? t("mcp.catalog.oauthWaiting", { name: entry.name }) : t("mcp.catalog.authorize")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="d-btn sm"
+                        disabled={busy}
+                        onClick={() => { setActive(entry); setCredential(""); setError(null); setMessage(null); }}
+                      >
+                        <i data-ico="wrench" data-size="14" aria-hidden="true" />
+                        {t("mcp.catalog.configure")}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
 
           {active && (
-            <div className="pw-card">
-              <div className="pw-card-head">
-                <span className="pw-ico"><i data-ico="key-round" data-size="14"></i></span>
-                <span className="pw-tool">{t("mcp.catalog.keyLabel", { name: active.name })}</span>
+            <div className="d-card">
+              <div className="d-card-head">
+                <i data-ico="key-round" data-size="15" aria-hidden="true" />
+                <span className="d-grow">{t("mcp.catalog.keyLabel", { name: active.name })}</span>
               </div>
-              <div className="pw-card-body">
-                <div className="pw-field">
-                  <span className="pw-label">{active.credential?.headerName ?? active.credential?.envName ?? ""}</span>
-                  <span className="pw-ctl">
+              <div className="d-card-body">
+                <div className="d-field">
+                  <span className="d-field-t">{active.credential?.headerName ?? active.credential?.envName ?? ""}</span>
+                  <div className="d-row">
                     <input
-                      className="pw-input"
+                      className="d-input"
                       value={credential}
                       onChange={(event) => setCredential(event.target.value)}
                       placeholder={t("mcp.catalog.keyPlaceholder")}
                       autoComplete="off"
                     />
-                    <ConfigButton
-                      variant="primary"
-                      size="small"
+                    <button
+                      type="button"
+                      className="d-btn sm primary"
                       disabled={busy || !credential.trim()}
                       onClick={() => void configure(active, credential)}
                     >
                       {busy ? t("mcp.catalog.saving") : t("mcp.catalog.save")}
-                    </ConfigButton>
-                  </span>
+                    </button>
+                  </div>
                 </div>
-                <p className="pw-hint">{t("mcp.catalog.keyHint")}</p>
+                <p className="d-t-xs d-t-faint">{t("mcp.catalog.keyHint")}</p>
               </div>
             </div>
           )}
 
           {oauth.phase === "prompt" && (
-            <div className="pw-card">
-              <div className="pw-card-head">
-                <span className="pw-ico"><i data-ico="key-round" data-size="14"></i></span>
-                <span className="pw-tool">{t("mcp.catalog.oauthPaste")}</span>
+            <div className="d-card">
+              <div className="d-card-head">
+                <i data-ico="key-round" data-size="15" aria-hidden="true" />
+                <span className="d-grow">{t("mcp.catalog.oauthPaste")}</span>
               </div>
-              <div className="pw-card-body">
-                <div className="pw-field">
-                  <span className="pw-label">{t("mcp.catalog.oauthPasteLabel")}</span>
-                  <span className="pw-ctl">
+              <div className="d-card-body">
+                <div className="d-field">
+                  <span className="d-field-t">{t("mcp.catalog.oauthPasteLabel")}</span>
+                  <div className="d-row">
                     <input
-                      className="pw-input"
+                      className="d-input"
                       value={credential}
                       onChange={(event) => setCredential(event.target.value)}
                       placeholder={t("mcp.catalog.oauthPastePlaceholder")}
                       autoComplete="off"
                     />
-                    <ConfigButton
-                      variant="primary"
-                      size="small"
+                    <button
+                      type="button"
+                      className="d-btn sm primary"
                       disabled={busy || !credential.trim()}
                       onClick={() => void submitRedirect(oauth.token)}
                     >
                       {t("mcp.catalog.oauthPasteSubmit")}
-                    </ConfigButton>
-                  </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="pw-modal-foot">
-          <span className="grow" aria-hidden="true" />
-          <ConfigButton variant="secondary" size="small" onClick={onClose}>
+        <div className="d-modal-foot">
+          <span className="d-grow" />
+          <button type="button" className="d-btn sm" onClick={onClose}>
             {t("mcp.catalog.close")}
-          </ConfigButton>
+          </button>
         </div>
       </div>
     </div>
@@ -332,18 +509,19 @@ export function McpCatalogEntry({ cwd, scope, onReloaded }: {
   onReloaded?: () => void;
 }): ReactNode {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const [open, setOpen] = useState(false);
   return (
     <>
-      <ConfigButton
-        variant="secondary"
-        size="small"
+      <button
+        type="button"
+        className={mobile ? "m-btn sm" : "d-btn sm"}
         onClick={() => setOpen(true)}
         disabled={!cwd}
       >
-        <span className="pw-ico"><i data-ico="plug" data-size="13" aria-hidden="true" /></span>
+        <i data-ico="plug" data-size="14" aria-hidden="true" />
         {t("mcp.catalog.open")}
-      </ConfigButton>
+      </button>
       <McpCatalogDialog
         open={open}
         cwd={cwd ?? ""}

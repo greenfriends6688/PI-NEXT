@@ -35,7 +35,7 @@ test("the selection summary lives in the toolbar, not a floating right card", ()
   assert.match(toolbar, /import\.selectedOf/);
   assert.match(toolbar, /import\.clearSelection/);
   assert.match(toolbar, /import\.applySelected/);
-  assert.match(toolbar, /<span className="pw-grow"/);
+  assert.match(toolbar, /<span className="d-grow"/);
   // 旧的右列浮卡（pw-kv 摘要 + inline 按钮行）不再出现。
   assert.doesNotMatch(panel, /import\.selectionTitle/);
 });
@@ -49,7 +49,7 @@ test("the page uses skeleton B primitives", () => {
   // 页级动作「扫描」在页头（SettingsPage actions），不在内容区。
   const head = panel.slice(panel.indexOf("<SettingsPage"), panel.indexOf("toolbar={"));
   assert.match(head, /import\.scan/);
-  // 分组标题带「全选」（画板 46 的 .pw-sec-title 形态）。
-  assert.match(panel, /className="pw-sec-title"/);
+  // 分组标题带「全选」（画板 D-21 的分组标题形态）。
+  assert.match(panel, /className="d-set-sec-t d-row"/);
   assert.match(panel, /import\.selectAll/);
 });

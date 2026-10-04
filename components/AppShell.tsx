@@ -2136,7 +2136,7 @@ export function AppShell() {
       || selectedSession.firstMessage?.trim().replace(/\s+/g, " ").slice(0, 80)
       || translate("i18n.newSession"))
     : translate("i18n.newSession");
-  // fork:design-components —— 画板 01/02 顶栏的 .pw-chipbtn：有会话时给分支（工作区列表
+  // fork:design-components —— 画板 01/02 顶栏的 .d-chipbtn：有会话时给分支（工作区列表
   // 的触发钮）。新会话那枚工作区芯片已按用户要求撤掉 —— 它的两个职责都有更好的去处：
   // 换工作区/目录在输入框上方的 `.pw-ctxbar`（ProjectChip + 分支芯片），
   // 标题旁不再重复一枚可点的项目名。
@@ -2172,40 +2172,37 @@ export function AppShell() {
         onToggleSidebar={handleSidebarToggle}
         searchRequestId={searchRequestId}
       />
-      {/* fork:phone-push —— 底栏拆成「设置行 + 手机钮 + 版本徽章」三件，但**版面一动不动**：
-          `button.pw-side-foot` 仍是那一行（5 份画板 spec 与 `scripts/board-diff.mjs`
-          都靠 `button.pw-side-foot` 找它并点开设置，`pwa-audit.mjs` 也按它选行），
-          徽章只是从它**里面**挪到同排的**外面**，自己的几何（`.pw-badge count`）没变。
-          手机钮只能做兄弟、不能塞进按钮里（按钮套按钮既非法也过不了无障碍），
-          所以它是 `button.pw-iconbtn sm`，恰好在徽章左边 —— 用户 2026-10-03 指的位置。
-
-          为什么不加一整行：侧栏任何新增行都会改 `.pw-side-scroll` 的高度，而那是画板 01
-          登记过的对位项；把它记进 knownDiffs 是拿「接线」当设计变更糊弄过去。
-          这一版是零几何代价的做法。 */}
-      <div style={{ position: "relative", marginTop: "auto", display: "flex", alignItems: "center" }}>
+      {/* fork:phone-push —— 底栏 = 画板 D-02 的 `.d-side-foot`：设置行（`d-row d-grow`）
+          + 手机钮（`d-iconbtn`）+ 版本徽章（`d-badge mute`）三件同排。
+          手机钮只能做兄弟、不能塞进按钮里（按钮套按钮既非法也过不了无障碍）。
+          fork:v5-landing —— 旧 `pw-side-foot` / `pw-side-scroll` 已从 DOM 退场
+          （旧 CSS 保留待收尾波清）；board-specs / e2e 里按 `button.pw-side-foot`
+          选行的脚本需在收尾波改到 `.d-side-foot`。
+          fork:v5-wave-b —— 手机上换成画板 M-04 的 `.m-drawer-foot`（设置行
+          `.m-row.m-grow` + 手机钮 `.m-iconbtn` + 版本 `.m-badge.mute`，同一顺序、
+          同一组回调与 data-fork-quick）。 */}
+      <div className={isMobile ? "m-drawer-foot" : "d-side-foot"} style={isMobile ? undefined : { marginTop: "auto" }}>
         <button
           type="button"
           onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
           title={translate("common.settings")}
           aria-label={translate("common.settings")}
-          className="pw-side-foot"
-          style={{ flex: 1, minWidth: 0, marginTop: 0 }}
+          className={isMobile ? "m-row m-grow" : "d-row d-grow"}
         >
-          <span className="pw-ico"><i data-ico="settings" data-size="14"></i></span>
-          {translate("common.settings")}
-          <span className="grow" />
+          <i data-ico="settings" data-size="14" aria-hidden="true"></i>
+          <span>{translate("common.settings")}</span>
         </button>
         <button
           type="button"
           onClick={() => setSettingsSection("phonePush")}
           title={translate("phonePush.quickOpen")}
           aria-label={translate("phonePush.quickOpen")}
-          className="pw-iconbtn sm"
+          className={isMobile ? "m-iconbtn" : "d-iconbtn"}
           data-fork-quick="phone-push"
         >
-          <span className="pw-ico"><i data-ico="smartphone" data-size="14" aria-hidden="true"></i></span>
+          <i data-ico="smartphone" data-size="14" aria-hidden="true"></i>
         </button>
-        <span className="pw-badge count" style={{ marginRight: "var(--s3)" }}>
+        <span className={isMobile ? "m-badge mute" : "d-badge mute"}>
           v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}
         </span>
       </div>
@@ -2220,21 +2217,19 @@ export function AppShell() {
     if (mobileBanner) {
       return (
         <div
-          className="pw-banner"
+          className={mobileBanner ? "m-banner warn" : "d-banner warn"}
           data-mobile-trust-banner="true"
           role={projectTrustError ? "alert" : "status"}
           style={{ flexShrink: 0 }}
         >
-          <span className="pw-ico" style={{ color: "var(--warning)" }}>
-            <i data-ico="shield-question" data-size="16" aria-hidden="true"></i>
-          </span>
-          <span className="grow" style={{ fontSize: "var(--text-secondary)" }}>
+          <i data-ico="shield-question" data-size="16" aria-hidden="true"></i>
+          <span className={mobileBanner ? "m-grow" : "d-grow"}>
             {translate("trust.mobileBannerBody")}
-            {projectTrustError ? <span className="pw-dim"> · {projectTrustError}</span> : null}
+            {projectTrustError ? <span className={mobileBanner ? "m-t-faint" : "d-t-faint"}> · {projectTrustError}</span> : null}
           </span>
           <button
             type="button"
-            className="pw-btn primary sm"
+            className={mobileBanner ? "m-btn primary sm" : "d-btn primary sm"}
             disabled={projectTrustBusy}
             onClick={() => void handleTrustProject()}
           >
@@ -2252,23 +2247,21 @@ export function AppShell() {
         }}
         title={translate("trust.resourcesNotLoaded")}
         aria-label={translate("trust.resourcesNotLoaded")}
-        /* fork:design-components —— 桌面是画板的一条 `.pw-alert`（错误底 + 红色）；
-           底色 / 圆角 / 字号全部来自 board.css，组件里只剩 UA 归零这一档。
-           fork:board-diff-2026-10-01 —— `font: "inherit"` 与上一行注释矛盾：
-           它把 board.css:872 的 `font-size: var(--text-secondary)`（12px）顶成了
-           继承正文 13px（`50-dialogs` 的 spec 报出 fs 13 ≠ 12 / lh 19.5 ≠ 18）。
-           只归零 UA 的话删掉 font 即可，字号由类给。 */
+        /* fork:v5-landing —— 桌面信任提示 = 画板 D-26 的 `.d-banner.err`（错误底 + 描边）。
+           组件里只做 UA 归零（margin / text-align / cursor / font-family），
+           底色 / 圆角 / 字号 / 描边全部由类给。 */
         style={{
           alignSelf: "center",
           margin: 0,
-          border: 0,
           textAlign: "left",
           cursor: "pointer",
           flexShrink: 0,
+          width: "auto",
+          fontFamily: "inherit",
         }}
-        className="pw-alert"
+        className="d-banner err"
       >
-        <span className="pw-ico"><i data-ico="shield-question" data-size="13"></i></span>
+        <i data-ico="shield-question" data-size="13" aria-hidden="true"></i>
         <span>{translate("trust.resourcesNotLoaded")}</span>
       </button>
     );
@@ -2335,7 +2328,7 @@ export function AppShell() {
           disabled={!selectedSession}
           title={selectedSession ? translate("history.full") : translate("history.unsaved")}
           aria-label={translate("history.full")}
-          /* fork:design-components —— 顶栏动作钮 = 画板 .pw-iconbtn（桌面 28px）
+          /* fork:design-components —— 顶栏动作钮 = 画板 .d-iconbtn（桌面 28px）
              / 画板 60 的 .pw-touch（手机 36px 触控靶）；盒子由这两个类给，
              组件里不再重复 width/height。 */
           style={{
@@ -2345,9 +2338,9 @@ export function AppShell() {
             cursor: selectedSession ? "pointer" : "not-allowed",
             opacity: selectedSession ? 1 : 0.45,
           }}
-          className={mobile ? "pw-touch" : "pw-iconbtn"}
+          className="d-iconbtn"
         >
-          <span className="pw-ico"><i data-ico="history" data-size="14"></i></span>
+          <span><i data-ico="history" data-size="14"></i></span>
 
         </button>
         {(() => {
@@ -2383,7 +2376,7 @@ export function AppShell() {
               disabled={disabled}
               title={title}
               aria-label={label}
-              /* fork:design-components —— 画板 .pw-iconbtn / .pw-touch；
+              /* fork:design-components —— 画板 .d-iconbtn / .pw-touch；
                  naming=loader-circle / success=check / 默认=wand-sparkles。 */
               style={{
                 margin: 0,
@@ -2392,14 +2385,14 @@ export function AppShell() {
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled && autoNameStatus.kind !== "naming" ? 0.45 : 1,
               }}
-              className={mobile ? "pw-touch" : "pw-iconbtn"}
+              className="d-iconbtn"
             >
               {autoNameStatus.kind === "naming" ? (
-                <span className="pw-ico" style={{ animation: "spin var(--motion-spin) linear infinite" }}><i data-ico="loader-circle" data-size="14"></i></span>
+                <span style={{ animation: "spin var(--motion-spin) linear infinite" }}><i data-ico="loader-circle" data-size="14"></i></span>
               ) : isSuccess ? (
-                <span className="pw-ico"><i data-ico="check" data-size="14"></i></span>
+                <span><i data-ico="check" data-size="14"></i></span>
               ) : (
-                <span className="pw-ico"><i data-ico="wand-sparkles" data-size="14"></i></span>
+                <span><i data-ico="wand-sparkles" data-size="14"></i></span>
               )}
 
             </button>
@@ -2412,7 +2405,7 @@ export function AppShell() {
             title={translate("agentSwitcher.title")}
             aria-label={translate("agentSwitcher.title")}
             aria-pressed={activeTopPanel === "agents"}
-            /* fork:design-components —— 图标 + 数量徽标这一档用画板的 `.pw-iconbtn sm`
+            /* fork:design-components —— 图标 + 数量徽标这一档用画板的 `.d-iconbtn`
                再按内容放宽（`width: auto` 是按钮 UA 的收缩宽度，画板静态件是 div，
                所以这一条必须由产品侧给）；data-ico=bot。 */
             style={{
@@ -2425,9 +2418,9 @@ export function AppShell() {
               background: activeTopPanel === "agents" ? "var(--bg-selected)" : undefined,
               color: activeTopPanel === "agents" ? "var(--text)" : undefined,
             }}
-            className="pw-iconbtn sm"
+            className="d-iconbtn"
           >
-            <span className="pw-ico" style={{ flexShrink: 0 }}><i data-ico="bot" data-size="14"></i></span>
+            <span style={{ flexShrink: 0 }}><i data-ico="bot" data-size="14"></i></span>
 
             <span
               aria-hidden="true"
@@ -2449,15 +2442,15 @@ export function AppShell() {
             title={translate("i18n.branches")}
             aria-label={translate("i18n.branches")}
             aria-pressed={activeTopPanel === "branches"}
-            /* fork:design-components —— 画板 .pw-iconbtn / .pw-touch；会话分支用 git-fork，
+            /* fork:design-components —— 画板 .d-iconbtn / .pw-touch；会话分支用 git-fork，
                与左侧 git-branch 的 main 芯片区分。 */
             style={{
               background: activeTopPanel === "branches" ? "var(--bg-selected)" : undefined,
               color: activeTopPanel === "branches" ? "var(--text)" : undefined,
             }}
-            className={mobile ? "pw-touch" : "pw-iconbtn"}
+            className="d-iconbtn"
           >
-            <span className="pw-ico" style={{ color: branchTree.length > 0 ? "var(--accent)" : undefined }}><i data-ico="git-fork" data-size="14"></i></span>
+            <span style={{ color: branchTree.length > 0 ? "var(--accent)" : undefined }}><i data-ico="git-fork" data-size="14"></i></span>
           </button>
         ) : (
           <BranchNavigator
@@ -2485,16 +2478,16 @@ export function AppShell() {
           disabled={!selectedSession}
           title={translate("session.exportMarkdown")}
           aria-label={translate("session.exportMarkdown")}
-          /* fork:design-components —— 画板 .pw-iconbtn / .pw-touch；data-ico=download。 */
+          /* fork:design-components —— 画板 .d-iconbtn / .pw-touch；data-ico=download。 */
           style={{
             alignSelf: "center", margin: 0,
             color: selectedSession ? undefined : "var(--text-dim)",
             cursor: selectedSession ? "pointer" : "not-allowed",
             opacity: selectedSession ? 1 : 0.45,
           }}
-          className={mobile ? "pw-touch" : "pw-iconbtn"}
+          className="d-iconbtn"
         >
-          <span className="pw-ico"><i data-ico="download" data-size="14"></i></span>
+          <span><i data-ico="download" data-size="14"></i></span>
         </button>
         {/* fork:trace-menu-2026-10-04 —— 桌面这条工具条末尾**一直缺着**会话动作 ⋯：
             `renderSessionActionsMenu` 只有 `if (mobile)` 那一处调用，所以桌面上
@@ -2505,12 +2498,11 @@ export function AppShell() {
     );
   };
 
-  /* fork:design-components —— 顶栏标题 = 画板 01/02 的 `.pw-tb-title`：一枚淡色
-     panel-left + 标题文本，省略号由 `.pw-topbar .pw-tb-title span` 给（board.css
-     line 224-225），所以这里不再自绘盒子。它曾经是「最近会话」下拉的触发钮
-     （fork:ui-18），那一档已按用户要求撤掉（fork:no-recent-sessions），所以现在是
-     纯文本而不是 `<button>`。手机上表头左侧已经有自己的
-     panel-left / menu 钮，所以这里不再重复一枚图标。 */
+  /* fork:design-components —— 顶栏标题 = 画板 D-01/D-02 的 `.d-tb-stack`：
+     `d-tb-title`（一枚淡色 panel-left + 标题文本）+ `d-tb-sub`（手机副行）。
+     它曾经是「最近会话」下拉的触发钮（fork:ui-18），那一档已按用户要求撤掉
+     （fork:no-recent-sessions），所以现在是纯文本而不是 `<button>`。手机上表头左侧
+     已经有自己的 panel-left / menu 钮，所以这里不再重复一枚图标。 */
   /* fork:mobile-tb-subtitle（2026-10-03）—— 手机顶栏的**会话身份副行**。
 
      窄屏看不到这个会话在哪个目录里 —— 桌面靠侧栏项目树与输入框上方的 `.pw-ctxbar`，
@@ -2536,11 +2528,13 @@ export function AppShell() {
     return (
 <div
   title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
-  className={`pw-tb-title${subtitle ? " is-stacked" : ""}`}
+  className="d-tb-stack"
 >
-  {!isMobile && <span className="pw-ico pw-dim"><i data-ico="panel-left" data-size="14"></i></span>}
-  <span>{topBarSessionTitle}</span>
-  {subtitle && <span className="pw-tb-title-sub">{subtitle}</span>}
+  <span className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
+    {!isMobile && <i data-ico="panel-left" data-size="14" className="d-t-faint" aria-hidden="true"></i>}
+    <span className="d-tb-title">{topBarSessionTitle}</span>
+  </span>
+  {subtitle && <span className="d-tb-sub">{subtitle}</span>}
 </div>
     );
   };
@@ -2623,14 +2617,14 @@ export function AppShell() {
     );
   };
 
-  /* fork:trace-menu —— 重命名态：同一个位置换成输入框（画板 02 那一行的 `.pw-input`）。
+  /* fork:trace-menu —— 重命名态：同一个位置换成输入框（画板 02 那一行的 `.d-input`）。
      回车提交、Esc 取消、失焦提交；提交后 bump refreshKey 让侧栏立刻跟上。 */
   const renderSessionRename = () => {
     const sessionId = renamingSessionId && selectedSession?.id === renamingSessionId ? renamingSessionId : null;
     if (!sessionId || !selectedSession) return renderSessionTitle();
     return (
       <input
-        className="pw-input"
+        className="d-input"
         defaultValue={selectedSession.name ?? ""}
         placeholder={selectedSession.firstMessage?.slice(0, 50) ?? ""}
         autoFocus
@@ -2660,15 +2654,15 @@ export function AppShell() {
      不写进内联（`[data-desktop-platform="darwin"] .pw-rail`）。 */
   const renderCollapsedRail = () => (
     <div
-      className="pw-rail"
+      className="d-rail"
       style={{
         flexShrink: 0,
         zIndex: 200,
       }}
     >
       {/* 画板 02 的导轨顶端是应用标记（口径 24×24 + canvas 底 + 发丝边，
-          board.css 的 `.pw-rail .pw-logo` 承担全部视觉）。 */}
-      <span className="pw-logo" aria-hidden="true">
+          board.css 的 `.pw-rail .d-logo` 承担全部视觉）。 */}
+      <span className="d-logo" aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
         <img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: "var(--icon-md)", height: "auto" }} />
       </span>
@@ -2679,10 +2673,10 @@ export function AppShell() {
         aria-expanded={false}
         title={translate("sidebar.show")}
         aria-label={translate("sidebar.show")}
-        className="pw-iconbtn"
+        className="d-iconbtn"
       >
         {/* 画板 02 的导轨第一枚是 panel-right（把侧栏拉回来）。 */}
-        <span className="pw-ico"><i data-ico="panel-right" data-size="16"></i></span>
+        <span><i data-ico="panel-right" data-size="16"></i></span>
       </button>
       <button
         type="button"
@@ -2692,9 +2686,9 @@ export function AppShell() {
         }}
         title={translate("sidebar.toggleSessionSearch")}
         aria-label={translate("sidebar.toggleSessionSearch")}
-        className="pw-iconbtn"
+        className="d-iconbtn"
       >
-        <span className="pw-ico"><i data-ico="search" data-size="16"></i></span>
+        <span><i data-ico="search" data-size="16"></i></span>
       </button>
       <button
         type="button"
@@ -2707,9 +2701,9 @@ export function AppShell() {
         }}
         title={translate("sidebar.newTask")}
         aria-label={translate("sidebar.newTask")}
-        className={`pw-iconbtn${selectedSession ? "" : " is-on"}`}
+        className={`d-iconbtn${selectedSession ? "" : " is-on"}`}
       >
-        <span className="pw-ico"><i data-ico="square-pen" data-size="16"></i></span>
+        <span><i data-ico="square-pen" data-size="16"></i></span>
       </button>
       <span className="grow" />
       {/* 画板 02 的导轨贴底是设置入口（侧栏展开时它在 .pw-side-foot）。 */}
@@ -2721,9 +2715,9 @@ export function AppShell() {
         onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
         title={translate("common.settings")}
         aria-label={translate("common.settings")}
-        className="pw-iconbtn"
+        className="d-iconbtn"
       >
-        <span className="pw-ico"><i data-ico="settings" data-size="16"></i></span>
+        <span><i data-ico="settings" data-size="16"></i></span>
       </button>
     </div>
   );
@@ -2747,7 +2741,7 @@ export function AppShell() {
       onMouseEnter={(event) => { event.currentTarget.style.color = "var(--text)"; }}
       onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text-muted)"; }}
     >
-      <span className="pw-ico"><i data-ico="menu" data-size="18"></i></span>
+      <span><i data-ico="menu" data-size="18"></i></span>
     </button>
   );
 
@@ -2762,25 +2756,29 @@ export function AppShell() {
       <button
         type="button"
         onClick={handleRightPanelToggle}
-        className={mobile ? undefined : "desktop-secondary-workspace-toggle"}
+        /* fork:v5-wave-b —— 手机上这一枚是画板 **M-12 帧 A** 的入口钮：`.m-top-btn`
+           （玻璃圆钮 / 44px 触控靶 / panel-right）。框由 m-top-btn 给，所以窄屏那条
+           不再挂内联几何；handler / aria-controls / aria-expanded / title / 两条
+           data-* 全部不变，桌面那一支一个字也没改。 */
+        className={mobile ? "m-top-btn" : "desktop-secondary-workspace-toggle"}
         aria-controls={mobile ? "file-panel" : secondaryWorkspaceId}
         aria-expanded={rightPanelOpen}
         title={label}
         aria-label={label}
         data-mobile-toolbar-file={mobile ? "true" : undefined}
-        style={{
+        style={mobile ? undefined : {
           // fork:ui-topbar-align — see the sidebar toggle: same 9px offset.
-          position: mobile ? "relative" : "absolute",
-          top: mobile ? undefined : "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
           // The resizer writes this CSS variable on every pointer move, while
           // React state is intentionally committed only when dragging ends.
           // Reading the variable here keeps the divider control in lockstep.
           // When the secondary region is collapsed, the role-switch control
           // is absent, so this is the only remaining desktop control.
-          right: mobile ? undefined : rightPanelOpen
+          right: rightPanelOpen
             ? "var(--right-panel-width)"
             : "0px",
-          zIndex: mobile ? undefined : 260,
+          zIndex: 260,
           marginLeft: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0, borderRadius: "var(--radius-md)",
@@ -2799,9 +2797,13 @@ export function AppShell() {
             placeholder) at 16px in a 44px bar. The skin's lucide panel-right keeps the
             "page with a side panel" reading and stays inside the icon system. */}
         {/* fork:design-components —— 皮肤 lucide 图标：panel-right。 */}
-        <span className="pw-ico">
+        {mobile ? (
+          <i data-ico="panel-right" data-size="16"></i>
+        ) : (
+        <span>
           <i data-ico="panel-right" data-size="16"></i>
         </span>
+        )}
       </button>
     );
   };
@@ -2831,7 +2833,7 @@ export function AppShell() {
       onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text)"; }}
     >
       {/* fork:design-components —— 皮肤 lucide 图标：columns-2（工作区对调）。 */}
-      <span className="pw-ico">
+      <span>
         <i data-ico="columns-2" data-size="16"></i>
       </span>
     </button>
@@ -2851,17 +2853,17 @@ export function AppShell() {
   );
 
   const browserTabButton = (
-    /* fork:design-components —— 面板头行的动作钮一律是画板 30/01 的 `.pw-iconbtn.sm`
+    /* fork:design-components —— 面板头行的动作钮一律是画板 30/01 的 `.d-iconbtn.sm`
        （22px / 发丝 hover 叠色），原来挂的是自绘的 `file-viewer-icon-button`
        （26px / 自己的颜色与 hover），比同排其余钮大一圈、颜色也对不上。 */
     <button
       type="button"
-      className="pw-iconbtn sm"
+      className="d-iconbtn"
       title={translate("browser.newTab")}
       aria-label={translate("browser.newTab")}
       onClick={() => handleOpenBrowser()}
     >
-      <span className="pw-ico"><i data-ico="globe" data-size="14"></i></span>
+      <span><i data-ico="globe" data-size="14"></i></span>
     </button>
   );
 
@@ -3032,7 +3034,7 @@ export function AppShell() {
         is open, and as a right-hand column beside the active viewer. One node
         keeps the two spots from drifting apart. */}
     {(() => {})()}
-    <div ref={appShellRef} className="app-shell-layout pw-app" style={{
+    <div ref={appShellRef} className="app-shell-layout d-shell" style={{
       position: "relative",
       display: "flex",
       width: "100%",
@@ -3049,8 +3051,12 @@ export function AppShell() {
           app/wallpaper.css. */}
       <WallpaperLayer />
       {/* Mobile overlay backdrop */}
+      {/* fork:v5-wave-b —— 遮罩用画板 M-04 的 `.m-scrim`（≤640 生效），≥641 仍是
+          `.d-scrim`。两套类名在**不同媒体条件**里（d-* 只在 min-width:641px、m-* 只在
+          max-width:640px），所以同一个节点挂两个类不冲突，也不会互相覆盖 —— 这是
+          Wave B 过渡口径下唯一允许的“双类”（故在此注释说明为什么）。 */}
       <div
-        className={`sidebar-overlay-backdrop pw-scrim-layer${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
+        className={`sidebar-overlay-backdrop d-scrim${isMobile ? ` m-scrim${sidebarOpen ? " is-open" : ""}` : ""}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
         onClick={() => setSidebarOpen(false)}
         style={{
           position: "fixed",
@@ -3067,7 +3073,11 @@ export function AppShell() {
       <div
         ref={sidebarResizer.panelRef}
         id="session-sidebar"
-        className={`sidebar-container pw-side${isMobile ? " pw-drawer" : ""}${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
+        /* fork:v5-wave-b —— 抽屉本体 = 画板 M-04 的 `.m-drawer`（≤640 生效）：
+           `width: min(84%, 320px)` / 右侧大圆角 / translateX 推拉 320ms，开合由
+           `.is-open` 表达（与 `sidebar-open` 同一个 state，不新增状态）。≥641 仍是
+           `.d-side` + globals.css 的停靠宽度。两套形态类各在自己的媒体条件里生效。 */
+        className={`sidebar-container d-side${isMobile ? " m-drawer" : ""}${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${sidebarOpen && isMobile ? " is-open" : ""}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
         style={{
           "--sidebar-width": `${sidebarResizer.width}px`,
           flexShrink: 0,
@@ -3120,8 +3130,13 @@ export function AppShell() {
         id={workspaceSwapped ? "chat-secondary-workspace" : undefined}
         aria-hidden={workspaceSwapped && !rightPanelOpen ? true : undefined}
         inert={workspaceSwapped && !rightPanelOpen ? true : undefined}
-        className={`chat-slot${workspaceSwapped ? ` secondary-workspace${rightPanelOpen ? " secondary-workspace-open" : " secondary-workspace-closed"}` : " main-workspace"}`}
-        style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}
+        /* fork:design-components —— 主区壳 = 画板 01 的 .pw-main
+           （flex 列 / min-width:0 / min-height:0 / canvas 底色，board.css 承担）。
+           flex:1 与 overflow:hidden 画板没写，仍内联；底色由 board.css 的
+           var(--surface-canvas) 接管（globals.css 的 .chat-slot var(--bg) 同权重、
+           在它之前，故画板值取胜）。 */
+        className={`chat-slot d-main${workspaceSwapped ? ` secondary-workspace${rightPanelOpen ? " secondary-workspace-open" : " secondary-workspace-closed"}` : " main-workspace"}`}
+        style={{ flex: 1, overflow: "hidden" }}
        >
         {/* Top bar with sidebar toggle */}
         {/* fork:zn-03 — no bar over an empty chat (desktop only): display:none
@@ -3130,7 +3145,7 @@ export function AppShell() {
             accessibility tree. Mobile keeps the bar (drawer toggle). */}
         <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg)", display: hideTopBar ? "none" : undefined }}>
         {/* fork:design-components —— 顶栏挂画板 .pw-topbar（36px / 发丝底线 / 间距节奏）。 */}
-        <div className="main-workspace-header pw-topbar" style={{ position: "relative", height: "calc(var(--height-toolbar, 36px) + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="main-workspace-header d-topbar" style={{ position: "relative", height: "calc(var(--height-toolbar, 36px) + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
           {/* fork:desktop-shell — the drag handle is a real element, not the header box:
               it is inset past the boundary toggles so the drag region never covers them.
               `no-drag` alone only helps elements the region rule can reach, and those two
@@ -3140,17 +3155,16 @@ export function AppShell() {
             onClick={handleSidebarToggle}
              title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
              aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
-            /* fork:design-components —— 手机上是画板 60 的 `.pw-touch`（36px 触控靶）；
-               皮肤 lucide 图标：展开态 panel-left，收起态 menu。 */
-            style={{
-              margin: 0, padding: 0,
-              color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
-            }}
-            className="pw-touch"
+            /* fork:design-components —— 皮肤 lucide 图标：展开态 panel-left，收起态 menu。
+               fork:v5-wave-b —— 这一枚**只在手机渲染**（外层就是 `{isMobile && …}`），
+               所以直接换成画板 M-01/M-04 的抽屉入口钮 `.m-top-btn`（玻璃圆钮 / 44px
+               触控靶）：框与配色由 PWA 组件库给，内联几何撤掉；handler / title /
+               aria-label / 图标切换一字未动。桌面分支根本不渲染这一枚。 */
+            className="m-top-btn"
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
           >
-            <span className="pw-ico">
+            <span>
               <i data-ico={sidebarOpen ? "panel-left" : "menu"} data-size={sidebarOpen ? 16 : 17}></i>
             </span>
           </button>}
@@ -3161,19 +3175,19 @@ export function AppShell() {
           {!isMobile && renderSessionRename()}
           {!isMobile && selectedSession && runningSessionIds.has(selectedSession.id) && (
             // 画板 01 帧 B：运行中在标题右侧给一枚状态芯片。
-            <span className="pw-chipbtn">
-              {/* fork:motion-spin-2026-10-02 —— 画板 01 帧 B 这枚芯片的 loader-circle
-                  此前**不带动画类**，是一枚静止的弧：会话在跑、图标不动，整枚芯片读成
-                  「卡住」。板上其它 loader-circle（PluginsConfig / SkillsConfig …）
-                  都挂 `.pw-anim-spin`，这里补同一枚。 */}
-              <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
+            <span className="d-chipbtn">
+              {/* fork:v5-landing —— 运行中 spinner = 画板 `.d-run`（首枚 `<i>` 自带 nx-spin），
+                  不再用旧 `.pw-anim-spin`。 */}
+              <span className="d-run" style={{ gap: 0 }}>
+                <i data-ico="loader-circle" data-size="14" aria-hidden="true"></i>
+              </span>
               {translate("chat.running")}
             </span>
           )}
           {!isMobile && topBarBranch && (
             /* fix:branch-chip-clickable —— 画板 01 帧 A/B / 02 帧 B：分支芯片是**可点
                的下拉触发钮**（git-branch + 分支名 + chevron-down），点开是工作区
-               （worktree）列表。原来这里是个没有 onClick 的 `<span class="pw-chipbtn">`
+               （worktree）列表。原来这里是个没有 onClick 的 `<span class="d-chipbtn">`
                —— 用户实测「这个 main 点不了」。改用 TopBarPopovers 的 BranchChip
                （它本来就是照画板写的，只是没接线）。选中另一个工作区 = 切目录并在
                那里开一个新 composer，与侧栏 worktree 切换同一动作。 */
@@ -3193,6 +3207,18 @@ export function AppShell() {
             </>
           )}
           {isMobile && (
+            /* fork:v5-wave-b —— 手机顶栏与画板 **M-01 帧 A** 的三处对照（都记在这里，
+               避免下次看代码的人以为是漏抄）：
+               ① 两枚端钮（抽屉 / 右栏面板）已经换成 `.m-top-btn`（`SessionActionsMenu`
+                  里的 ⋯ 同理），逐字对应画板的 `m-top` 里那两枚；
+               ② **没有**给这一行挂 `.m-top` / `.m-fade`：那两个类是绝对定位 + 渐隐，
+                  画板靠 `.m-scroll` 的 `padding-top: 108px` 让消息从下方穿过，而那段
+                  内边距在 ChatWindow / MessageView 那边（不是本波的文件）—— 只挂类
+                  不改那一侧的留白，结果就是渐隐盖住第一屏消息。需要 ChatInput /
+                  ChatWindow 那一波一起落；
+               ③ 中间那一格仍渲染 `.d-tb-stack`（标题 + 副行）。副行是 fork:mobile-tb-subtitle
+                  的既有行为（cwd + 上下文占用），而 PWA 库没有副行类（`.m-top-title`
+                  是单行件）。删副行就是删功能，所以保留 d-* 件并登记为需设计侧裁定。 */
             <div
               ref={mobileToolbarRef}
               data-mobile-toolbar="true"
@@ -3205,16 +3231,18 @@ export function AppShell() {
                 height: "100%",
               }}
             >
-              {renderChatToolbarActions(true)}
               {/* fork:pwa-tablet-tier — the phone bar used to show three icons and no
                   session identity at all; which conversation you are in is the one thing
                   it has to answer. Same session-switcher popover as the desktop header,
-                  ellipsised into whatever space the icons leave. */}
+                  ellipsised into whatever space the icons leave.
+                  fork:v5-wave-b —— 自左向右的次序按画板 M-01 帧 A：中间让给会话标题，
+                  「⋯」与右栏面板钮排在标题之后（旧 DOM 是 ⋯ 在前，窄屏上就变成
+                  「第一个动作 + 标题 + 末位入口」）。只动次序，不动任何一个回调。 */}
               <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, padding: "0 2px" }}>
                 {renderSessionRename()}
               </div>
-              {renderMainFileToggle(true)}
-            </div>
+              {renderChatToolbarActions(true)}
+              {renderMainFileToggle(true)}            </div>
           )}
           {!isMobile && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s1)", paddingRight: "var(--s1)", marginLeft: "auto", minWidth: 0 }}>
@@ -3240,7 +3268,12 @@ export function AppShell() {
           )}
           {/* Top panel dropdown — shared, only one active at a time */}
           {activeTopPanel && topPanelPos && (
-            <div className="anim-popover-down" style={{
+            /* fork:v5-landing —— 顶栏浮窗壳 = 画板 D-02b 的 `.d-pop-float`（浮窗的
+               唯一一种描边/圆角/阴影/内边距）。它本来就是 fixed 定位，所以把壳放在这层
+               定位容器上，里面的 SystemPromptPanel / ToolDefinitionsPanel /
+               AgentSessionPanel 只负责内容（`d-pop-title` / `d-code` / `d-table` 等），
+               不再各自套一层 `pw-pop`。 */
+            <div className="anim-popover-down d-pop-float" style={{
               position: "fixed",
               top: topPanelPos.top,
               left: topPanelPos.left,
@@ -3362,23 +3395,20 @@ export function AppShell() {
                  {translate("workspace.selectSession")}
               </div>
             ) : (
-              /* fork:design-components —— 画板 01 的空态：`.pw-empty` 撑满并居中，
-                 `.pw-empty-inner` 收拢 logo 标记 + 标题 + 两步说明；原来是绝对定位
-                 贴在左上角的一枚 44px 手绘箭头 + 一段自绘字号。 */
-              <div className="pw-empty" style={{ height: "100%" }}>
-                <div className="pw-empty-inner">
-                  <span className="mark">
-                    {/* fork:brand-mark-2026-10-04 —— 这里是**主品牌图形**
-                        （public/pi-next-logo.png），不是 pi 的 π 字形：品牌只此一处，
-                        盒子仍是画板 01 的 `.pw-empty-inner .mark`（40×40 / radius-6）。 */}
-                    <span className="pw-logo" aria-hidden="true"><img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: "var(--icon-md)", height: "auto" }} /></span>
-                  </span>
-                  <h2>{translate("workspace.getStarted")}</h2>
-                  <p>
-                    <span className="pw-dim">1.</span> {translate("workspace.selectProject")}<br />
-                    <span className="pw-dim">2.</span> {translate("workspace.addModels")}
-                  </p>
+              /* fork:v5-landing —— 画板 D-01 的空态：`.d-empty` 撑满并居中，
+                 `.d-empty-ico` + `.d-empty-t` + `.d-empty-s`。 */
+              <div className="d-empty" style={{ height: "100%" }}>
+                <div className="d-empty-ico">
+                  {/* fork:brand-mark-2026-10-04 —— 这里是**主品牌图形**
+                      （public/pi-next-logo.png），不是 pi 的 π 字形：品牌只此一处。 */}
+                  {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+                  <img src="/pi-next-logo.png" alt="" draggable={false} />
                 </div>
+                <div className="d-empty-t">{translate("workspace.getStarted")}</div>
+                <p className="d-empty-s">
+                  <span className="d-t-faint">1.</span> {translate("workspace.selectProject")}<br />
+                  <span className="d-t-faint">2.</span> {translate("workspace.addModels")}
+                </p>
               </div>
             )
           ) : null}
@@ -3405,14 +3435,20 @@ export function AppShell() {
         id="file-panel"
         aria-hidden={!workspaceSwapped && !rightPanelOpen ? true : undefined}
         inert={!workspaceSwapped && !rightPanelOpen ? true : undefined}
-        className={`right-panel-container workspace-slot pw-panel${workspaceSwapped ? " main-workspace" : ` secondary-workspace${rightPanelOpen ? " secondary-workspace-open" : " secondary-workspace-closed"}`}${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}${rightPanelResizer.isResizing ? " right-panel-resizing" : ""}`}
+        /* fork:v5-landing —— 右栏宿主 = 画板 D-05 的 `.d-panel`。
+           ⚠ 冲突（待收尾波裁定）：`.d-panel` 自带 `width:320px`，在 641–959 的紧凑
+           浮层里会压掉 `.secondary-workspace { width: min(560px, calc(100vw - 48px)) }`
+           （两者同为 0-1-0，system.css 在后）。宽屏网格有 `width:100% !important`、
+           移动态有 `.secondary-workspace-open { width:auto }`（0-2-0），均不受影响。
+           建议收尾波加一条 `.right-panel-container.d-panel` 的宽度守卫。 */
+        className={`right-panel-container workspace-slot d-panel${workspaceSwapped ? " main-workspace" : ` secondary-workspace${rightPanelOpen ? " secondary-workspace-open" : " secondary-workspace-closed"}`}${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}${rightPanelResizer.isResizing ? " right-panel-resizing" : ""}`}
         style={{
           display: "flex",
           flexDirection: "column",
         } as React.CSSProperties}
       >
         {/* Right panel tab bar */}
-        <div className="main-workspace-header pw-panel-head" style={{
+        <div className="main-workspace-header d-panel-head" style={{
           height: "calc(var(--topbar-height, 36px) + env(safe-area-inset-top))",
           paddingTop: "env(safe-area-inset-top)",
           position: "relative",
@@ -3473,7 +3509,7 @@ export function AppShell() {
               onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
               onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text-muted)"; }}
             >
-              <span className="pw-ico"><i data-ico="git-branch" data-size="15"></i></span>
+              <span><i data-ico="git-branch" data-size="15"></i></span>
             </button>
           )}
           {/* 2026-10-03 用户裁定 —— 这里原有的第二枚「改动」（git 图谱钮右侧、标题栏里那枚
@@ -3500,14 +3536,14 @@ export function AppShell() {
               onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
               onMouseLeave={(event) => { event.currentTarget.style.color = "var(--text)"; }}
             >
-              <span className="pw-ico"><i data-ico="panel-right" data-size="16"></i></span>
+              <span><i data-ico="panel-right" data-size="16"></i></span>
             </button>
           )}
         </div>
 
         {/* Body: the active viewer plus an optional tree column. Both live in the
             same container so the tree no longer replaces the document. */}
-        <div className="file-panel-body pw-panel-body">
+        <div className="file-panel-body d-panel-body flush">
         <div className="file-panel-main">
           {/* fork:pr40-split —— 分屏时两个 Pane 各挂**一个** tab（见 renderTabContent）。
               窄栏 / 手机下 `isSplitActive` 为假，这里自动退回单列的全量常驻渲染，
@@ -3564,7 +3600,7 @@ export function AppShell() {
              「比会话行密一倍」的设计意图没了）、没有发丝右边线，
              `30-files-panel` 的 spec 把它报成了漂移（fs 12≠13 / lh 18≠19.5）。
              `explorer-column` 保留（宽度档位在 fork-ui.css:449）。 */
-          <div className="explorer-column pw-tree">{explorerPanel}</div>
+          <div className="explorer-column">{explorerPanel}</div>
         ) : null}
         </div>
       </div>
@@ -3621,7 +3657,7 @@ export function AppShell() {
     {toast ? (
       <div
         role="status"
-        className="pw-toast bad"
+        className={isMobile ? "m-toast" : "d-toast bad"}
         style={{
           position: "fixed",
           /* fork:pwa-hit-slop-2 —— 原来只给 `var(--s5)`，standalone 下正好压在

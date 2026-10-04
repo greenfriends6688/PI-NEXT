@@ -72,72 +72,72 @@ export function SessionActionsMenu({
     const entries: ContextMenuEntry[] = [
       {
         label: t(isPinned ? "session.unpin" : "session.pin"),
-        icon: <span className="pw-ico"><i data-ico={isPinned ? "pin-off" : "pin"} data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico={isPinned ? "pin-off" : "pin"} data-size="14" aria-hidden="true"></i>,
         onSelect: () => pin(session.id),
       },
       {
         label: t("session.rename"),
-        icon: <span className="pw-ico"><i data-ico="square-pen" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="square-pen" data-size="14" aria-hidden="true"></i>,
         onSelect: onRename,
       },
       {
         label: t(isArchived ? "session.unarchive" : "session.archive"),
-        icon: <span className="pw-ico"><i data-ico={isArchived ? "archive-restore" : "archive"} data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico={isArchived ? "archive-restore" : "archive"} data-size="14" aria-hidden="true"></i>,
         onSelect: () => archive(session.id),
       },
       {
         label: t("session.markUnread"),
-        icon: <span className="pw-ico"><i data-ico="message-circle" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="message-circle" data-size="14" aria-hidden="true"></i>,
         onSelect: onMarkUnread,
       },
       { type: "separator" },
       {
         label: t("session.openInFileManager"),
         disabled: !projectDir,
-        icon: <span className="pw-ico"><i data-ico="folder-open" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="folder-open" data-size="14" aria-hidden="true"></i>,
         onSelect: onReveal,
       },
       {
         label: t("session.copyPath"),
         disabled: !projectDir,
         feedbackLabel: t("session.copied"),
-        icon: <span className="pw-ico"><i data-ico="folder" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="folder" data-size="14" aria-hidden="true"></i>,
         onSelect: () => { onCopyProjectPath(); },
       },
       {
         label: t("session.copyTaskPath"),
         disabled: !session.path,
         feedbackLabel: t("session.copied"),
-        icon: <span className="pw-ico"><i data-ico="file-text" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="file-text" data-size="14" aria-hidden="true"></i>,
         onSelect: () => { onCopySessionFilePath(); },
       },
       {
         label: t("session.copyId"),
         feedbackLabel: t("session.copied"),
-        icon: <span className="pw-ico"><i data-ico="hash" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="hash" data-size="14" aria-hidden="true"></i>,
         onSelect: () => { onCopySessionId(); },
       },
       { type: "separator" },
       {
         // fork:trace-menu-2026-10-02 —— 这两枚原来常驻顶栏，现在从 ⋯ 进（低频只读诊断）。
         label: t("system.prompt"),
-        icon: <span className="pw-ico"><i data-ico="file-text" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="file-text" data-size="14" aria-hidden="true"></i>,
         onSelect: () => { if (buttonRef.current) onViewSystemPrompt(buttonRef.current); },
       },
       {
         label: t("tools.title"),
-        icon: <span className="pw-ico"><i data-ico="wrench" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="wrench" data-size="14" aria-hidden="true"></i>,
         onSelect: () => { if (buttonRef.current) onViewTools(buttonRef.current); },
       },
       { type: "separator" },
       {
         label: t("session.exportHtml"),
-        icon: <span className="pw-ico"><i data-ico="download" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="download" data-size="14" aria-hidden="true"></i>,
         onSelect: onExportHtml,
       },
       {
         label: t("session.exportMarkdown"),
-        icon: <span className="pw-ico"><i data-ico="download" data-size="14" aria-hidden="true"></i></span>,
+        icon: <i data-ico="download" data-size="14" aria-hidden="true"></i>,
         onSelect: onExportMarkdown,
       },
     ];
@@ -154,11 +154,16 @@ export function SessionActionsMenu({
       onClick={handleOpen}
       title={t("session.actions")}
       aria-label={t("session.actions")}
-      /* fork:design-components —— 画板 .pw-iconbtn / .pw-touch；data-ico=ellipsis。 */
-      style={{ alignSelf: "center", margin: 0, color: "var(--text-muted)" }}
-      className={mobile ? "pw-touch" : "pw-iconbtn"}
+      /* fork:v5-landing —— 画板 D-02c/D-02d 的会话动作触发钮：.d-iconbtn + ellipsis。
+         `mobile` 保留为触控档标记，不再切旧 `.pw-touch`。
+         fork:v5-wave-b —— 手机上这一枚是会话页顶栏的「⋯」，照画板 **M-01 帧 A/B**
+         抄成 `.m-top-btn`（玻璃圆钮 + 44px 触控靶）；菜单本体仍是共享的
+         ContextMenu（M-04 帧 C 那个「就地升起的 `.m-menu-sheet`」不在本组件名下，
+         见汇报的需配合点）。菜单条目 / 键盘导航 / 视口翻转 / 反馈文案一字不动。 */
+      data-fork-compact={mobile ? "true" : undefined}
+      className={mobile ? "m-top-btn" : "d-iconbtn"}
     >
-      <span className="pw-ico"><i data-ico="ellipsis" data-size="14" aria-hidden="true"></i></span>
+      <i data-ico="ellipsis" data-size={mobile ? 16 : 15} aria-hidden="true"></i>
     </button>
   );
 }

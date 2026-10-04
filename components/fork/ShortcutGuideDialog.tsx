@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useShortcutBindings } from "@/hooks/useShortcutBindings";
+import { PwaSetRow } from "@/components/pwa/PwaPage";
+import { PwaSheet } from "@/components/pwa/PwaSheet";
 import {
   buildShortcutGuide,
   isApplePlatform,
@@ -29,20 +32,20 @@ import {
  * 不在这里手搓第二套。
  */
 
-/** 键帽组：一枚 `.pw-kbd` 一段，多个绑定之间用 `/` 分组（别与 mac 的无分隔符混淆）。 */
+/** 键帽组：一枚 `.d-kbd` 一段，多个绑定之间用 `/` 分组（别与 mac 的无分隔符混淆）。 */
 function Keycaps({ row, unassigned }: { row: ShortcutGuideRow; unassigned: string }) {
   if (row.bindings.length === 0) {
-    return <span className="pw-hint">{unassigned}</span>;
+    return <span className="d-t-xs d-t-faint">{unassigned}</span>;
   }
   // 不用 `aria-label`：它挂在无 role 的 `<span>` 上并非所有读屏都认，
-  // 而每枚 `.pw-kbd` 的文本本身就是要读的。`title` 负责给鼠标用户看整串和弦。
+  // 而每枚 `.d-kbd` 的文本本身就是要读的。`title` 负责给鼠标用户看整串和弦。
   return (
     <span className="fork-shortcut-guide-caps" title={row.displayText}>
       {row.capGroups.map((caps, index) => (
         <span className="fork-shortcut-guide-chord" key={`${row.id}-${index}`}>
           {index > 0 ? <span className="fork-shortcut-guide-or" aria-hidden="true">/</span> : null}
           {caps.map((cap, capIndex) => (
-            <span className="pw-kbd" key={`${row.id}-${index}-${capIndex}`}>{cap}</span>
+            <span className="d-kbd" key={`${row.id}-${index}-${capIndex}`}>{cap}</span>
           ))}
         </span>
       ))}
@@ -52,6 +55,7 @@ function Keycaps({ row, unassigned }: { row: ShortcutGuideRow; unassigned: strin
 
 export function ShortcutGuideDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const { overrides } = useShortcutBindings();
 
   // fork:proma-33-shortcut-guide —— 平台要在客户端判定：SSR 那一刻读不到
@@ -69,62 +73,124 @@ export function ShortcutGuideDialog({ onClose }: { onClose: () => void }) {
 
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
 
+  // fork:v5-landing Wave B · M-11 · 窄屏：弹窗 → `.m-sheet` 底部面板，
+  // 行 = `.m-setrow`，键帽 = `.m-kbd`，分组标题 = `.m-group-title`。
+  // 它仍然**只读**：数据源仍是 `useShortcutBindings()` 的实际生效绑定，
+  // `managed: false` 的行依旧标注状态。
+  if (mobile) {
+    return (
+      <PwaSheet
+        open
+        title={t("settings.shortcuts.guideTitle")}
+        label={t("settings.shortcuts.guideTitle")}
+        onClose={onClose}
+        footer={
+          <>
+            <span className="m-t-xs m-t-faint m-grow">{t("settings.shortcuts.guideFoot")}</span>
+            <button type="button" className="m-picktag is-on" onClick={onClose}>
+              {t("i18n.close")}
+            </button>
+          </>
+        }
+      >
+        <PwaSetRow label={isApple ? t("settings.shortcuts.guideSubApple") : t("settings.shortcuts.guideSubOther")} />
+        {groups.map((group) => (
+          <div className="m-cardgroup" key={group.group}>
+            <div className="m-group-title">{t(group.labelKey)}</div>
+            {group.rows.map((row) => (
+              <PwaSetRow
+                key={row.id}
+                label={
+                  <>
+                    {t(row.labelKey)}
+                    {!row.managed && (
+                      <span className="m-badge warn">{t("settings.shortcuts.guideNotWired")}</span>
+                    )}
+                    {row.customized && (
+                      <span className="m-badge mute">{t("settings.shortcuts.guideCustomized")}</span>
+                    )}
+                  </>
+                }
+                trailing={
+                  row.bindings.length === 0 ? (
+                    <span className="m-t-xs m-t-faint">{t("settings.shortcuts.unassigned")}</span>
+                  ) : (
+                    <span className="m-hist-row" title={row.displayText}>
+                      {row.capGroups.map((caps, index) => (
+                        <span key={`${row.id}-${index}`}>
+                          {index > 0 ? <span aria-hidden="true">/</span> : null}
+                          {caps.map((cap, capIndex) => (
+                            <span className="m-kbd" key={`${row.id}-${index}-${capIndex}`}>{cap}</span>
+                          ))}
+                        </span>
+                      ))}
+                    </span>
+                  )
+                }
+              />
+            ))}
+          </div>
+        ))}
+      </PwaSheet>
+    );
+  }
+
   return (
     <div
       ref={dialogRef}
       {...dialogProps}
-      className="pw-scrim fork-shortcut-guide-scrim"
+      className="d-modal is-open fork-shortcut-guide-scrim"
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
-      {/* fork:design-system —— 壳逐层照画板 50 的对话框（`.pw-scrim` › `.pw-modal` ›
-          `.pw-modal-head` 标题 + grow + `.pw-iconbtn.sm` 关闭 › `.pw-modal-body`
-          可滚动内容 › `.pw-modal-foot` 动作行）；行本身是画板 45 快捷键表的
-          `.pw-field` + `.pw-ctl` + `.pw-kbd`，分组标题是 `.pw-sec-title`。
+      {/* fork:design-system —— 壳逐层照画板 D-21 帧 C（`.d-modal-box` › `.d-modal-head`
+          标题 + grow + `.d-iconbtn` 关闭 › `.d-modal-body` 可滚动内容 › `.d-modal-foot`
+          动作行）；行是 `.d-set-row` + `.d-kbd`，分组标题是 `.d-set-sec-t`。
           零新 `.pw-*` 类，产品接线在 app/fork-ui.css 的 `.fork-shortcut-guide-*`。 */}
-      <div className="pw-modal fork-shortcut-guide-modal" aria-label={t("settings.shortcuts.guideTitle")}>
-        <div className="pw-modal-head">
-          <span className="pw-ico"><i data-ico="keyboard" data-size="16" aria-hidden="true"></i></span>
-          <span className="pw-grow">{t("settings.shortcuts.guideTitle")}</span>
+      <div className="d-modal-box fork-shortcut-guide-modal" aria-label={t("settings.shortcuts.guideTitle")}>
+        <div className="d-modal-head d-row">
+          <i data-ico="keyboard" data-size="16" aria-hidden="true" />
+          <span className="d-grow">{t("settings.shortcuts.guideTitle")}</span>
           <button
             type="button"
-            className="pw-iconbtn sm"
+            className="d-iconbtn"
             onClick={onClose}
             title={t("i18n.close")}
             aria-label={t("i18n.close")}
           >
-            <span className="pw-ico"><i data-ico="x" data-size="14" aria-hidden="true"></i></span>
+            <i data-ico="x" data-size="14" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="pw-modal-body fork-shortcut-guide-body">
-          <p className="pw-hint fork-shortcut-guide-sub">
+        <div className="d-modal-body fork-shortcut-guide-body">
+          <p className="d-t-xs d-t-faint fork-shortcut-guide-sub">
             {isApple ? t("settings.shortcuts.guideSubApple") : t("settings.shortcuts.guideSubOther")}
           </p>
           {groups.map((group) => (
             <section
-              className="fork-shortcut-guide-group"
+              className="d-set-sec fork-shortcut-guide-group"
               key={group.group}
               // 指向可见的分组标题，而不是另写一份 aria-label（重复文本）。
               aria-labelledby={`fork-shortcut-guide-group-${group.group}`}
             >
-              <div className="pw-sec-title" id={`fork-shortcut-guide-group-${group.group}`}>
+              <div className="d-set-sec-t" id={`fork-shortcut-guide-group-${group.group}`}>
                 {t(group.labelKey)}
-                <span className="grow" />
               </div>
               {group.rows.map((row) => (
-                <div className="pw-field" key={row.id}>
-                  <span className="pw-label">
-                    {t(row.labelKey)}
-                    {/* 状态必须写出来：`managed: false` 的行不在内核分发里，
-                        改了设置里的绑定也还是它自己的功能在响应。 */}
-                    {!row.managed ? (
-                      <small className="fork-shortcut-guide-flag">{t("settings.shortcuts.guideNotWired")}</small>
-                    ) : null}
-                    {row.customized ? (
-                      <small className="fork-shortcut-guide-flag custom">{t("settings.shortcuts.guideCustomized")}</small>
-                    ) : null}
-                  </span>
-                  <span className="pw-ctl">
+                <div className="d-set-row" key={row.id}>
+                  <div className="d-set-row-box">
+                    <div className="d-set-row-t">
+                      {t(row.labelKey)}
+                      {/* 状态必须写出来：`managed: false` 的行不在内核分发里，
+                          改了设置里的绑定也还是它自己的功能在响应。 */}
+                      {!row.managed ? (
+                        <small className="fork-shortcut-guide-flag">{t("settings.shortcuts.guideNotWired")}</small>
+                      ) : null}
+                      {row.customized ? (
+                        <small className="fork-shortcut-guide-flag custom">{t("settings.shortcuts.guideCustomized")}</small>
+                      ) : null}
+                    </div>
+                  </div>
+                  <span className="d-grow-last">
                     <Keycaps row={row} unassigned={t("settings.shortcuts.unassigned")} />
                   </span>
                 </div>
@@ -133,10 +199,10 @@ export function ShortcutGuideDialog({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="pw-modal-foot">
-          <span className="pw-hint fork-shortcut-guide-foot">{t("settings.shortcuts.guideFoot")}</span>
-          <span className="pw-grow" />
-          <button type="button" className="pw-btn sm" onClick={onClose}>
+        <div className="d-modal-foot">
+          <span className="d-t-xs d-t-faint fork-shortcut-guide-foot">{t("settings.shortcuts.guideFoot")}</span>
+          <span className="d-grow" />
+          <button type="button" className="d-btn sm" onClick={onClose}>
             {t("i18n.close")}
           </button>
         </div>

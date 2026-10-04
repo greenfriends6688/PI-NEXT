@@ -32,14 +32,14 @@ test("MermaidBlock renders source by default", () => {
 
   assert.match(html, />Preview</);
   assert.match(html, /Alice/);
-  assert.doesNotMatch(html, /mermaid-block-loading/);
+  assert.doesNotMatch(html, /d-placeholder/);
 });
 
 test("MermaidBlock can render preview by default", () => {
   const html = renderMermaid({ code: mermaidSrc, defaultPreview: true });
 
   assert.match(html, />Source</);
-  assert.match(html, /mermaid-block-loading/);
+  assert.match(html, /d-placeholder/);
   assert.doesNotMatch(html, /Alice/);
 });
 
@@ -55,8 +55,8 @@ test("MermaidBlock with isStreaming falls back to source view", () => {
 test("MermaidBlock renders empty graph without error", () => {
   const html = renderMermaid({ code: "graph TD", defaultPreview: true });
 
-  assert.doesNotMatch(html, /mermaid-block-error/);
-  assert.match(html, /mermaid-block-loading/);
+  assert.doesNotMatch(html, /d-banner warn/);
+  assert.match(html, /d-placeholder/);
 });
 
 function renderCode(props) {
@@ -100,16 +100,16 @@ test("CodeBlock renders plain text without tokenization while streaming", () => 
   assert.match(html, /const x = 1;/);
 });
 
-test("fork:design-components — CodeBlock 是画板 10 的 .pw-code 卡片", () => {
+test("fork:v5-landing — CodeBlock 是画板 D-03b 的 .d-code 卡片", () => {
   const html = renderCode({ code: "const x = 1;", lang: "ts" });
 
-  assert.match(html, /<div class="pw-code">/);
-  assert.match(html, /<div class="pw-code-head">/);
+  assert.match(html, /<div class="d-code">/);
+  assert.match(html, /<div class="d-code-head">/);
   assert.match(html, /<i data-ico="file-code" data-size="13">/);
-  assert.match(html, /<span class="pw-mono">ts<\/span>/);
-  assert.match(html, /<span class="grow"><\/span>/);
-  assert.match(html, /<button type="button" class="pw-btn sm">/);
-  assert.match(html, /<pre class="pw-code-body">/);
+  assert.match(html, /<span>ts<\/span>/);
+  assert.match(html, /<span class="d-grow"><\/span>/);
+  assert.match(html, /<button type="button" class="d-btn sm">/);
+  assert.match(html, /<div class="d-code-body">/);
   // 卡片上不许再留 markdown-* 自有类，也不许有内联视觉值。
   assert.doesNotMatch(html, /markdown-/);
   assert.doesNotMatch(html, /style="/);
@@ -122,13 +122,13 @@ test("fork:design-components — 复制钮在成功后换成 check 图标（与�
   assert.match(source, /copied \? t\("i18n\.copied"\) : t\("i18n\.copy"\)/);
 });
 
-test("fork:design-components — Mermaid 图形态的头也是 .pw-code-head", () => {
+test("fork:v5-landing — Mermaid 图形态的头也是 .d-code-head", () => {
   const html = renderMermaid({ code: mermaidSrc, defaultPreview: true });
 
-  assert.match(html, /<div class="pw-code">/);
-  assert.match(html, /<div class="pw-code-head">/);
+  assert.match(html, /<div class="d-code">/);
+  assert.match(html, /<div class="d-code-head">/);
   assert.match(html, /<i data-ico="git-fork" data-size="13">/);
-  assert.match(html, /<span class="pw-mono">mermaid<\/span>/);
+  assert.match(html, /<span>mermaid<\/span>/);
   assert.match(html, /<i data-ico="code" data-size="13">/);
   assert.doesNotMatch(html, /markdown-/);
 });
@@ -144,21 +144,21 @@ test("fork:design-components — 缩放器工具条用 lucide data-ico，不再�
   for (const name of ["maximize-2", "x"]) {
     assert.match(source, new RegExp(`<i data-ico="${name}" data-size="14">`));
   }
-  assert.match(source, /className="pw-modal"/, "缩放查看器挂画板 .pw-modal 壳");
-  assert.match(source, /className="pw-card-foot"/, "脚注是画板 .pw-card-foot");
+  assert.match(source, /className="d-modal-box wide"/, "缩放查看器挂画板 .d-modal-box 壳");
+  assert.match(source, /className="d-modal-foot"/, "脚注是画板 .d-modal-foot");
 });
 
-test("fork:design-components — 高亮 token 映射到画板 10 的 .pw-tok-* 分层", async () => {
+test("fork:v5-landing — 高亮 token 映射到画板 D-03b 的 .tok-* 分层", async () => {
   const { default: AsyncCodeHighlighter } = await jiti.import("./AsyncCodeHighlighter.tsx");
   const html = renderToStaticMarkup(
     React.createElement(AsyncCodeHighlighter, { language: "javascript" }, "const x = 1;\n// note"),
   );
 
-  assert.match(html, /<pre class="pw-code-body">/);
-  assert.match(html, /<span class="ln">1<\/span>/);
-  assert.match(html, new RegExp('class="pw-tok-key">const<'));
-  assert.match(html, new RegExp('class="pw-tok-num">1<'));
-  assert.match(html, new RegExp('class="pw-tok-com">// note<'));
+  assert.match(html, /<div class="d-code-body">/);
+  assert.match(html, /<span class="d-ln">1<\/span>/);
+  assert.match(html, new RegExp('class="tok-k">const<'));
+  assert.match(html, new RegExp('class="tok-n">1<'));
+  assert.match(html, new RegExp('class="tok-c">// note<'));
   // 不许残留 RSH 的 prismjs 类、内联色或 token 类。
   assert.doesNotMatch(html, /prismjs/);
   assert.doesNotMatch(html, /class="token/);
@@ -172,8 +172,8 @@ test("MermaidBlock handles Chinese characters in diagram", () => {
 
   const html = renderMermaid({ code: chineseMermaid, defaultPreview: true });
 
-  assert.doesNotMatch(html, /mermaid-block-error/);
-  assert.match(html, /mermaid-block/);
+  assert.doesNotMatch(html, /d-banner warn/);
+  assert.match(html, /d-code/);
 });
 
 test("downloadMermaidSvg downloads XML-serialized SVG and releases its URL", async () => {

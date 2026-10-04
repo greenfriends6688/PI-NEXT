@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-23 · 设备预览（模拟器的 Web 降级） · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-23 · 提案 · 设备预览（模拟器的 Web 降级形态）</h1>
+  <p>
+    这一层<b>不是模拟器</b>，是一个<b>零依赖的视口外壳</b>：按机型开一块视口，把 PWA 画板或产品页塞进去，
+    再给旋转、缩放、截图。
+    ZCode 里的 <code>ios-simulator</code> / <code>android-emulator</code> 才是走
+    <code>xcrun simctl</code> / <code>adb</code> 的真原生模拟器 —— 插件本体不在本仓，还要求本机装了
+    Xcode / Android SDK。本仓桌面形态有 <code>electron/</code> 壳与 bash 工具，技术上足够接一个
+    <b>可选技能</b>，纯浏览器形态拿不到子进程，所以<b>纯浏览器只到视口为止</b>。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设备预览 / 视口外壳</span>
+    <span class="d-tag">组件：DeviceStage · PresetChip · ViewportBar · ShapeMatrix</span>
+    <span class="d-tag">状态：五档机型 / 横竖与缩放 / 形态不可用与升级路径</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 默认：iPhone 15 竖屏 · 机型预设真换机（页签可点）<span class="d-grow"></span>刷新重播顶栏动效，截图浮层可开</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">这层是什么</div>
+            <div class="d-card">
+              <div class="d-card-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                <div><b>视口外壳</b>：只做「按机型开一块视口 + 把一块内容放进去 + 旋转/缩放/截图」，纯浏览器即可跑，不碰系统。</div>
+                <div><b>真模拟器不在这一层</b>：<code>ios-simulator</code> / <code>android-emulator</code> 走 <code>xcrun simctl</code> 与 <code>adb</code>，插件本体不在本仓，且依赖本机 Xcode / Android SDK。</div>
+              </div>
+            </div>
+            <div class="d-group-title">形态能力</div>
+            <div class="d-card">
+              <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-kv-row"><span>桌面（electron 壳）</span><span>可装技能</span></div>
+                <div class="d-kv-row"><span>纯浏览器</span><span>只到视口为止</span></div>
+                <div class="d-kv-row"><span>原生模拟器</span><span>需 Xcode / Android SDK</span></div>
+              </div>
+            </div>
+            <div class="d-group-title">壳能给什么</div>
+            <div class="d-card">
+              <div class="d-card-body d-col" style="gap:var(--nx-sp-1)">
+                <div class="d-t-xs d-t-dim">机型预设 · 横竖旋转 · 取景缩放 · PWA 画板 / 产品页同源切换 · 视口截图</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设备预览 · 视口外壳</span>
+              <span class="d-tb-sub">纯 Web 形态 · 不依赖 Xcode / Android SDK</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-think-row" id="dev-refresh">
+              <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span>视口就绪 · 刷新可重载</span>
+            </span>
+            <button class="d-btn sm" data-demo-motion="#dev-refresh"><i data-ico="refresh-cw" data-size="13"></i>刷新</button>
+            <button class="d-btn sm" data-demo-open="shot-pop"><i data-ico="maximize-2" data-size="13"></i>截图</button>
+            <span class="d-badge mute">零依赖</span>
+
+            <div class="d-pop" data-demo-pop="shot-pop" hidden style="right:var(--nx-sp-4);top:var(--nx-sp-4);min-width:300px">
+              <div class="d-pop-title">截图 · 纯 Web 只能截视口</div>
+              <div class="d-pop-body d-t-xs d-t-dim">
+                抓的是这一块视口 DOM，<b>抓不到</b>系统状态栏、灵动岛、控制中心与应用切换器 —— 那三样只有真模拟器或真机给得了。
+              </div>
+              <div class="d-sep"></div>
+              <button class="d-menu-row"><i data-ico="download" data-size="14"></i>存到下载目录</button>
+              <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制到剪贴板</button>
+              <button class="d-menu-row"><i data-ico="folder-open" data-size="14"></i>存进工作区 docs/shots/</button>
+              <div class="d-sep"></div>
+              <div class="d-pop-foot">命名规则 <code>pi-{机型}-{横竖}-{时刻}.png</code>；连续截图按机型分文件夹，不覆盖。</div>
+            </div>
+          </header>
+
+          <!-- 机型预设：唯一的那组页签就在取景台上方，点一下真换一台设备 -->
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tinybar">
+              <i data-ico="smartphone" data-size="13"></i>
+              <span class="d-t-sm d-t-b">机型</span>
+              <div class="d-device-presets" data-demo-tabs>
+                <button class="d-device-preset is-on" data-now>iPhone 15</button>
+                <button class="d-device-preset" data-demo-tab="promax">16 Pro Max</button>
+                <button class="d-device-preset" data-demo-tab="se">iPhone SE</button>
+                <button class="d-device-preset" data-demo-tab="pixel">Pixel 9</button>
+                <button class="d-device-preset" data-demo-tab="tablet">Galaxy Tab</button>
+              </div>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">按机型给一个取景缩放，逻辑视口写在每台设备的底栏</span>
+            </div>
+
+            <div class="d-device-stage">
+
+              <!-- iPhone 15 · 393×852 · 取景 70% -->
+              <div data-demo-pane="iphone15" style="width:275px">
+                <div class="d-device" style="width:275px;height:596px">
+                  <div class="d-device-screen d-col" style="width:393px;height:852px;transform:scale(.7)">
+                    <div class="d-device-notch"></div>
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="refresh-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">今天</div>
+                      <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+                      <button class="d-sess"><span class="d-sess-t">手机端顶栏又挤了</span><span class="d-sess-m"><span class="d-dot warn"></span><span>等你处理</span></span></button>
+                      <div class="d-msg-ai">
+                        <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                        <div class="d-md d-t-xs">这一屏只看宽度：安全区、横竖与断点都不变。</div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <input class="d-input" placeholder="发消息">
+                      <button class="d-send"><i data-ico="arrow-up" data-size="14"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">393 × 852 · DPR 3</span>
+                  <span class="d-badge mute">取景 70%</span>
+                </div>
+              </div>
+
+              <!-- 16 Pro Max · 430×932 · 取景 70% -->
+              <div data-demo-pane="promax" hidden style="width:301px">
+                <div class="d-device" style="width:301px;height:652px">
+                  <div class="d-device-screen d-col" style="width:430px;height:932px;transform:scale(.7)">
+                    <div class="d-device-notch"></div>
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="refresh-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">今天</div>
+                      <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>62 条</span></span></button>
+                      <button class="d-sess"><span class="d-sess-t">定时任务错峰执行</span><span class="d-sess-m"><span class="d-dot run"></span><span>运行中</span></span></button>
+                      <div class="d-msg-ai">
+                        <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                        <div class="d-md d-t-xs">Pro Max 只多了 37pt 宽，但动态岛那一行会重排。</div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <input class="d-input" placeholder="发消息">
+                      <button class="d-send"><i data-ico="arrow-up" data-size="14"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">430 × 932 · DPR 3</span>
+                  <span class="d-badge mute">取景 70%</span>
+                </div>
+              </div>
+
+              <!-- iPhone SE · 375×667 · 取景 70%（无刘海，最窄的一档） -->
+              <div data-demo-pane="se" hidden style="width:263px">
+                <div class="d-device" style="width:263px;height:467px">
+                  <div class="d-device-screen d-col" style="width:375px;height:667px;transform:scale(.7)">
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="refresh-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">今天</div>
+                      <button class="d-sess"><span class="d-sess-t">给 423KB 全局 CSS 减重</span><span class="d-sess-m"><span>2 小时前</span></span></button>
+                      <button class="d-sess"><span class="d-sess-t">令牌有没有第二个来源</span><span class="d-sess-m"><span>昨天</span></span></button>
+                      <div class="d-msg-ai">
+                        <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                        <div class="d-md d-t-xs">无刘海：顶栏高度少 44pt，所有安全区补偿都要单独看这一档。</div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <input class="d-input" placeholder="发消息">
+                      <button class="d-send"><i data-ico="arrow-up" data-size="14"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">375 × 667 · DPR 2</span>
+                  <span class="d-badge mute">取景 70%</span>
+                </div>
+              </div>
+
+              <!-- Pixel 9 · 412×915 · 取景 70%（安卓档，看系统栏差异） -->
+              <div data-demo-pane="pixel" hidden style="width:288px">
+                <div class="d-device" style="width:288px;height:641px">
+                  <div class="d-device-screen d-col" style="width:412px;height:915px;transform:scale(.7)">
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="refresh-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">今天</div>
+                      <button class="d-sess"><span class="d-sess-t">手机与推送面板</span><span class="d-sess-m"><span>3 小时前</span></span></button>
+                      <button class="d-sess"><span class="d-sess-t">输入卡 Plus 分离形变</span><span class="d-sess-m"><span>昨天</span></span></button>
+                      <div class="d-msg-ai">
+                        <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                        <div class="d-md d-t-xs">安卓档共用同一套 <code>m-</code> 类，只换系统栏那几行的高度。</div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <input class="d-input" placeholder="发消息">
+                      <button class="d-send"><i data-ico="arrow-up" data-size="14"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">412 × 915 · DPR 2.6</span>
+                  <span class="d-badge mute">取景 70%</span>
+                </div>
+              </div>
+
+              <!-- Galaxy Tab · 800×1280 · 取景 50%（平板档，M1 断点那一侧） -->
+              <div data-demo-pane="tablet" hidden style="width:400px">
+                <div class="d-device" style="width:400px;height:640px">
+                  <div class="d-device-screen d-col" style="width:800px;height:1280px;transform:scale(.5)">
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="rotate-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-2);gap:var(--nx-sp-2)">
+                      <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">平板 · 两栏</div>
+                      <div class="d-grid2" style="align-items:start">
+                        <div class="d-col" style="gap:var(--nx-sp-1)">
+                          <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+                          <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>昨天</span></span></button>
+                          <button class="d-sess"><span class="d-sess-t">定时任务错峰</span><span class="d-sess-m"><span>3 天前</span></span></button>
+                        </div>
+                        <div class="d-col" style="gap:var(--nx-sp-1)">
+                          <div class="d-msg-ai">
+                            <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                            <div class="d-md d-t-xs">过了 M1 就该出两栏：会话在左，转录在右，命中区也一起放大。</div>
+                          </div>
+                          <span class="d-badge info">M1 · 640–1023</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <input class="d-input" placeholder="发消息">
+                      <button class="d-send"><i data-ico="arrow-up" data-size="14"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">800 × 1280 · DPR 2</span>
+                  <span class="d-badge info">取景 50%</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 横竖、缩放与内容同源切换：PWA 画板 ⇄ 产品页，一组页签四个视口<span class="d-grow"></span>取景缩放是 CSS 缩放，不改断点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">视口规格台</div>
+            <div class="d-card">
+              <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                <div class="d-row"><span class="d-t-sm d-grow">竖屏 iPhone</span><span class="d-mono d-t-xs">393 × 852</span></div>
+                <div class="d-row"><span class="d-t-sm d-grow">横屏 iPhone</span><span class="d-mono d-t-xs">852 × 393</span></div>
+                <div class="d-row"><span class="d-t-sm d-grow">断点</span><span class="d-mono d-t-xs">M0 / M1 / M2</span></div>
+              </div>
+            </div>
+            <div class="d-group-title">这条规则的边界</div>
+            <div class="d-card">
+              <div class="d-card-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                <div><b>取景缩放 ≠ 布局缩放。</b>取景只是把这一块视口按比例画小，方便在桌面同屏对比；CSS 缩放不触发断点重排。</div>
+                <div>所以「手机断点是否生效」要看逻辑视口（底栏那行数字），不看设备壳画出来多大。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设备预览 · 横竖与缩放</span>
+              <span class="d-tb-sub">同一块内容：PWA 画板（<code>m-</code>）与产品页（<code>d-</code>）各投一块视口</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm ghost"><i data-ico="arrow-right-left" data-size="13"></i>旋转 90°</button>
+            <button class="d-btn sm ghost"><i data-ico="square-arrow-out-up-right" data-size="13"></i>独立窗口</button>
+          </header>
+
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tinybar">
+              <i data-ico="smartphone" data-size="13"></i>
+              <span class="d-t-sm d-t-b">视口</span>
+              <div class="d-device-presets" data-demo-tabs>
+                <button class="d-device-preset is-on" data-now>PWA 画板 · 竖</button>
+                <button class="d-device-preset" data-demo-tab="pwa-l">PWA 画板 · 横</button>
+                <button class="d-device-preset" data-demo-tab="web-p">产品页 · 竖</button>
+                <button class="d-device-preset" data-demo-tab="web-l">产品页 · 横 85%</button>
+              </div>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">旋转与缩放只改这一块视口：逻辑宽高决定断点，缩放只决定画多大</span>
+            </div>
+
+            <div class="d-device-stage">
+
+              <!-- PWA 画板 · 竖 · 取景 70% -->
+              <div data-demo-pane="pwa-p" style="width:275px">
+                <div class="d-device" style="width:275px;height:596px">
+                  <div class="d-device-screen d-col" style="width:393px;height:852px;transform:scale(.7)">
+                    <div class="d-device-notch"></div>
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="refresh-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">今天</div>
+                      <button class="d-sess"><span class="d-sess-t">定住令牌与类名</span><span class="d-sess-m"><span>18 分钟前</span></span></button>
+                      <button class="d-sess"><span class="d-sess-t">手机端顶栏又挤了</span><span class="d-sess-m"><span class="d-dot warn"></span><span>等你处理</span></span></button>
+                      <div class="d-msg-ai">
+                        <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                        <div class="d-md d-t-xs">竖屏是 PWA 的常态；触控下限在手机形态抬到 44pt。</div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="padding:var(--nx-sp-2);gap:var(--nx-sp-1)">
+                      <input class="d-input" placeholder="发消息">
+                      <button class="d-send"><i data-ico="arrow-up" data-size="14"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">393 × 852</span>
+                  <span class="d-badge mute">取景 70%</span>
+                </div>
+              </div>
+
+              <!-- PWA 画板 · 横 · 取景 70% -->
+              <div data-demo-pane="pwa-l" hidden style="width:596px">
+                <div class="d-device" style="width:596px;height:275px">
+                  <div class="d-device-screen d-col" style="width:852px;height:393px;transform:scale(.7)">
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>127.0.0.1:39411/pwa</span>
+                      <i data-ico="rotate-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll" style="padding:var(--nx-sp-2)">
+                      <div class="d-grid2" style="align-items:start">
+                        <div class="d-col" style="gap:var(--nx-sp-1)">
+                          <div class="d-group-title" style="padding:var(--nx-sp-1) var(--nx-sp-1) 0">今天</div>
+                          <button class="d-sess"><span class="d-sess-t">release 0.1.8 收尾</span><span class="d-sess-m"><span>62 条</span></span></button>
+                          <button class="d-sess"><span class="d-sess-t">定时任务错峰执行</span><span class="d-sess-m"><span>3 天前</span></span></button>
+                        </div>
+                        <div class="d-msg-ai">
+                          <div class="d-msg-ai-head"><div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div><span class="d-t-xs d-t-b">PI NEXT</span></div>
+                          <div class="d-md d-t-xs">横屏一超过 852pt 就该换成桌面壳那套三栏：抽屉改成常驻侧栏。</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">852 × 393</span>
+                  <span class="d-badge mute">取景 70%</span>
+                </div>
+              </div>
+
+              <!-- 产品页 · 竖 · 取景 70% -->
+              <div data-demo-pane="web-p" hidden style="width:275px">
+                <div class="d-device" style="width:275px;height:596px">
+                  <div class="d-device-screen d-col" style="width:393px;height:852px;transform:scale(.7)">
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>pi-next.app/</span>
+                      <i data-ico="refresh-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-3);gap:var(--nx-sp-3)">
+                      <div class="d-t-lg d-t-b">一句话开始一个任务</div>
+                      <div class="d-t-xs d-t-dim">桌面与手机同一套底座，换的是形态值，不是两套产品。</div>
+                      <div class="d-store-card">
+                        <div class="d-store-cover"><i data-ico="smartphone" data-size="18"></i></div>
+                        <div class="d-store-card-t d-t-sm">手机扫码就接上</div>
+                        <div class="d-store-foot">扫码不装 App</div>
+                      </div>
+                      <div class="d-store-card">
+                        <div class="d-store-cover"><i data-ico="list-todo" data-size="18"></i></div>
+                        <div class="d-store-card-t d-t-sm">工作流带参复用</div>
+                        <div class="d-store-foot">填一次，跑多次</div>
+                      </div>
+                      <div class="d-grow"></div>
+                      <button class="d-btn primary" style="width:100%"><i data-ico="play" data-size="14"></i>装到桌面</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">393 × 852</span>
+                  <span class="d-badge info">产品页</span>
+                </div>
+              </div>
+
+              <!-- 产品页 · 横 · 取景 85% -->
+              <div data-demo-pane="web-l" hidden style="width:724px">
+                <div class="d-device" style="width:724px;height:334px">
+                  <div class="d-device-screen d-col" style="width:852px;height:393px;transform:scale(.85)">
+                    <div class="d-tinybar">
+                      <i data-ico="chevron-left" data-size="12"></i>
+                      <span class="d-urlbox"><i data-ico="lock" data-size="10"></i>pi-next.app/</span>
+                      <i data-ico="rotate-cw" data-size="12"></i>
+                    </div>
+                    <div class="d-grow d-scroll d-col" style="padding:var(--nx-sp-4);gap:var(--nx-sp-3)">
+                      <div class="d-grid2" style="align-items:center">
+                        <div class="d-col" style="gap:var(--nx-sp-2)">
+                          <div class="d-t-lg d-t-b">一句话开始一个任务</div>
+                          <div class="d-t-xs d-t-dim">产品页与工作台共用令牌：同一个强调色、同一套圆角角色，只是底色反过来。</div>
+                          <div class="d-row" style="gap:var(--nx-sp-2)">
+                            <button class="d-btn sm primary">装到桌面</button>
+                            <button class="d-btn sm ghost">看画板</button>
+                          </div>
+                        </div>
+                        <div class="d-grid2">
+                          <div class="d-stat"><span class="d-t-xs d-t-faint">形态</span><div class="d-t-lg d-t-b">2 套</div></div>
+                          <div class="d-stat"><span class="d-t-xs d-t-faint">类名前缀</span><div class="d-t-lg d-t-b">d- / m-</div></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-device-bar">
+                  <span class="d-mono d-t-xs d-grow">852 × 393</span>
+                  <span class="d-badge info">产品页 · 取景 85%</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 形态与升级路径：这一层在哪、纯浏览器到哪为止、要接真模拟器还差什么<span class="d-grow"></span>页签可点</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+
+        <aside class="d-side">
+                    <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <img class="d-wordmark" src="../../assets/brand/wordmark.png" alt="PI NEXT"><span class="d-grow"></span>
+            <button class="d-iconbtn" title="搜索会话"><i data-ico="search" data-size="15"></i></button>
+            <button class="d-iconbtn" title="收起侧栏"><i data-ico="panel-left" data-size="15"></i></button>
+          </div>
+                    <div class="d-side-nav">
+            <button class="d-row"><i data-ico="square-pen" data-size="14"></i><span class="d-grow">新建任务</span><span class="d-kbd">⌘N</span></button>
+          </div>
+          <div class="d-seg" role="tablist" aria-label="项目 / 聊天">
+            <button role="tab" aria-selected="true" class="is-on">项目</button>
+            <button role="tab" aria-selected="false">聊天</button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-group-title">结论先说</div>
+            <div class="d-card">
+              <div class="d-card-body d-t-xs d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                <div><b>视口外壳</b>留在本仓：纯浏览器可跑，是本页三帧画的全部内容。</div>
+                <div><b>原生模拟器</b>留给可选技能：桌面形态才装得上，纯浏览器不提供。</div>
+              </div>
+            </div>
+          </div>
+          <div class="d-side-foot">
+  <button class="d-row d-grow" title="设置"><i data-ico="settings" data-size="14"></i><span>设置</span></button>
+  <button class="d-iconbtn" title="手机与推送"><i data-ico="smartphone" data-size="14"></i></button>
+  <span class="d-badge mute">v0.1.8</span>
+</div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设备预览 · 形态与升级路径</span>
+              <span class="d-tb-sub">视口外壳（已定） · 可选技能（桌面） · 原生模拟器（依赖 SDK）</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge mute">本页不含模拟器</span>
+          </header>
+
+          <div class="d-col d-grow" data-demo-scope style="min-height:0">
+            <div class="d-tinybar">
+              <i data-ico="package" data-size="13"></i>
+              <span class="d-t-sm d-t-b">运行形态</span>
+              <div class="d-device-presets" data-demo-tabs>
+                <button class="d-device-preset is-on" data-now>纯浏览器</button>
+                <button class="d-device-preset" data-demo-tab="electron">桌面壳</button>
+                <button class="d-device-preset" data-demo-tab="native">接原生模拟器</button>
+              </div>
+              <span class="d-grow"></span>
+              <span class="d-t-xs d-t-faint">同一块板，三种形态各自能做什么</span>
+            </div>
+
+            <div class="d-scroll d-col d-grow" style="padding:var(--nx-sp-4);gap:var(--nx-sp-3)">
+
+              <!-- 形态一：纯浏览器 -->
+              <div data-demo-pane="browser">
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-banner err">
+                  <i data-ico="circle-alert" data-size="14"></i>
+                  <span class="d-grow">纯浏览器形态<b>到视口为止</b>：没有子进程，<code>xcrun</code> 与 <code>adb</code> 都调不起来，真机与模拟器一律不可用。</span>
+                  <span class="d-badge bad">不可用</span>
+                </div>
+                <div class="d-grid2">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="square-check" data-size="14"></i>这一形态能做</div>
+                    <div class="d-card-body d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-2)">
+                      <div class="d-row"><span class="d-dot ok"></span>按机型开一块逻辑视口（宽高 + DPR + 安全区）</div>
+                      <div class="d-row"><span class="d-dot ok"></span>横竖旋转与取景缩放（CSS 缩放，不改断点）</div>
+                      <div class="d-row"><span class="d-dot ok"></span>同一块内容投两块视口：PWA 画板 ⇄ 产品页</div>
+                      <div class="d-row"><span class="d-dot ok"></span>视口截图（PNG / 剪贴板 / 工作区目录）</div>
+                      <div class="d-row"><span class="d-dot ok"></span>断点断言：把 M0/M1/M2 各跑一遍并出图</div>
+                    </div>
+                  </div>
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="square-slash" data-size="14"></i>这一形态做不到</div>
+                    <div class="d-card-body d-col d-t-sm d-t-dim" style="gap:var(--nx-sp-2)">
+                      <div class="d-row"><span class="d-dot bad"></span>启动 / 操作真模拟器（<code>simctl</code> / <code>adb</code>）</div>
+                      <div class="d-row"><span class="d-dot bad"></span>连真机、装 PWA 到真机、推 IM 通知</div>
+                      <div class="d-row"><span class="d-dot bad"></span>抓系统层画面：状态栏、灵动岛、控制中心</div>
+                      <div class="d-row"><span class="d-dot bad"></span>装机专属能力：通知权限、原生键盘、后台唤醒</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="git-pull-request-arrow" data-size="14"></i>为什么定位成「降级形态」</div>
+                  <div class="d-card-body d-t-cap d-t-dim d-col" style="gap:var(--nx-sp-2)">
+                    <div>模拟器的价值在<b>行为</b>（真渲染管线、真权限、真生命周期），视口外壳的价值在<b>布局</b>（断点、栅格、安全区、横向溢出）。两者不能互相顶替，所以这一层不假装自己是模拟器：它只承诺布局层面的确定结果。</div>
+                    <div>页面里所有模拟器相关入口在纯浏览器形态下<b>隐藏而不是报错</b> —— 降级要安静。</div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              <!-- 形态二：桌面壳 -->
+              <div data-demo-pane="electron" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-banner">
+                  <i data-ico="circle-check" data-size="14"></i>
+                  <span class="d-grow">桌面形态有 <code>electron/</code> 壳与 bash 工具：能起子进程，因此<b>技术上可以挂一个可选技能</b>。</span>
+                  <span class="d-badge ok">可装技能</span>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="list-checks" data-size="14"></i>装之前先探（探测不通过就不装，不弹错）</div>
+                  <div class="d-card-body">
+                    <div class="d-steps">
+                      <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">检查 shell：是否存在 <code>xcode-select -p</code> 可执行</span><span class="d-step-meta">0:00</span></div>
+                      <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body"><code>xcrun simctl list devices</code> 能列出至少一台 iOS 设备</span><span class="d-step-meta">0:02</span></div>
+                      <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body"><code>adb devices</code> 有已授权设备（安卓档）</span><span class="d-step-meta">0:01</span></div>
+                      <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">拉起目标设备并等待 boot 完成</span><span class="d-step-meta">0:06</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="plug" data-size="14"></i>技能开关</div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-1)">
+                    <div class="d-set-row">
+                      <div class="d-set-row-box">
+                        <div class="d-set-row-t">ios-simulator（ZCode 提供）</div>
+                        <div class="d-set-row-s">截图、安装、启停、清数据；本仓只消费它的命令输出</div>
+                      </div>
+                      <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box">
+                        <div class="d-set-row-t">android-emulator（ZCode 提供）</div>
+                        <div class="d-set-row-s">与上面同一套协议，只是换成 <code>adb</code> 命令面</div>
+                      </div>
+                      <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box">
+                        <div class="d-set-row-t">把模拟器画面并回视口外壳</div>
+                        <div class="d-set-row-s">关掉时只剩本页这三帧的零依赖视口</div>
+                      </div>
+                      <button class="d-switch" data-demo-switch aria-checked="false"></button>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              <!-- 形态三：接原生模拟器 -->
+              <div data-demo-pane="native" hidden>
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                <div class="d-banner warn">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span class="d-grow">插件本体<b>不在本仓</b>：<code>ios-simulator</code> / <code>android-emulator</code> 由 ZCode 侧提供，装在本机后才有这一层。</span>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="table" data-size="14"></i>能力对照：视口外壳 vs 真模拟器</div>
+                  <div class="d-card-body">
+                    <table class="d-table">
+                      <thead><tr><th>能力</th><th>视口外壳</th><th>真模拟器</th></tr></thead>
+                      <tbody>
+                        <tr><td>断点 / 栅格 / 安全区</td><td><span class="d-badge ok">准</span></td><td><span class="d-badge ok">准</span></td></tr>
+                        <tr><td>横向溢出与滚动</td><td><span class="d-badge ok">准</span></td><td><span class="d-badge ok">准</span></td></tr>
+                        <tr><td>字体渲染差异</td><td><span class="d-badge warn">近似</span></td><td><span class="d-badge ok">准</span></td></tr>
+                        <tr><td>通知 / 权限弹窗</td><td><span class="d-badge bad">无</span></td><td><span class="d-badge ok">准</span></td></tr>
+                        <tr><td>后台 / 杀进程 / 冷启动</td><td><span class="d-badge bad">无</span></td><td><span class="d-badge ok">准</span></td></tr>
+                        <tr><td>安装包</td><td><span class="d-badge bad">无</span></td><td><span class="d-badge ok">准</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="git-branch" data-size="14"></i>升级路径（按这个顺序做，每步都能单独上线）</div>
+                  <div class="d-card-body">
+                    <div class="d-plan-rail">
+                      <div class="d-plan-step done"><span class="d-plan-dot"></span>视口外壳进产品：机型预设 + 横竖 + 取景缩放 + 截图</div>
+                      <div class="d-plan-step run"><span class="d-plan-dot"></span>桌面形态探测 SDK：有 Xcode / adb 才亮出「接模拟器」入口</div>
+                      <div class="d-plan-step"><span class="d-plan-dot"></span>挂 ZCode 模拟器技能：截图与安装走命令面，失败只提示不打断</div>
+                      <div class="d-plan-step"><span class="d-plan-dot"></span>并排对照：左边视口、右边模拟器画面，同步一次旋转与滚动</div>
+                      <div class="d-plan-step"><span class="d-plan-dot"></span>进 CI：无 SDK 的机器只跑视口那一档，作为布局回归</div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>先把定位钉死</b>：这一层是<b>视口外壳</b>，不是模拟器。ZCode 的 <code>ios-simulator</code> / <code>android-emulator</code> 走 <code>xcrun simctl</code> 与 <code>adb</code>，插件本体不在本仓，依赖本机装了 Xcode / Android SDK。</li>
+    <li><b>本仓的现状决定了形态</b>：桌面形态有 <code>electron/</code> 壳与 bash 工具，能起子进程 → 技术上可做<b>可选技能</b>；纯浏览器形态没有子进程 → 这一形态只画到视口为止，入口<b>隐藏而不是报错</b>。</li>
+    <li><b>机型预设真换机</b>：五档预设换的是逻辑视口（宽 / 高 / DPR / 安全区），不是换一张图；取景缩放只是把它画小，<b>CSS 缩放不触发断点重排</b>，所以「手机断点生不生效」只看底栏那行数字。</li>
+    <li><b>一块内容两块视口</b>：PWA 画板与产品页是同一套产物的两个入口，预览器负责切换，不给两套配置项。</li>
+    <li><b>截图的边界要写明</b>：纯 Web 只能截视口 DOM，截不到状态栏、灵动岛与控制中心 —— 那三样只有真模拟器或真机给得了。</li>
+    <li><b>升级路径分五步</b>：视口外壳 → 桌面探测 SDK → 挂模拟器技能 → 并排对照 → 进 CI 做布局回归。每步都能单独上线，卡住也不影响前面。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本板专属接线（1 条，写在本板里 —— 预设行需要）：
+   demo.js 的页签处理器只在 [data-demo-tab] 之间互斥 is-on；「当前这一档」那颗按钮
+   按 D-16 的做法不带 data-demo-tab（否则它点了没反应却仍是当前态），所以点别档时
+   要由这里把它的 is-on 摘掉。外观全部来自 system.css，这里只动一个类名。 */
+(function () {
+  document.querySelectorAll("[data-demo-tabs]").forEach(function (group) {
+    var now = group.querySelector("[data-now]");
+    if (!now) return;
+    group.addEventListener("click", function (e) {
+      if (e.target.closest("[data-demo-tab]")) now.classList.remove("is-on");
+    });
+  });
+})();
+</script>
+</body>
+</html>

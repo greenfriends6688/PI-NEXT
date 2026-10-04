@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { CHANNELS, type ChatChannelId } from "@/lib/chat-channel-shared";
 import { ChannelIcon } from "./ChannelIcon";
@@ -21,24 +22,59 @@ const ENTRY_CHANNELS: readonly ChatChannelId[] = ["wechat", "feishu", "lark", "t
 
 export function BotChannelBody({ onOpen }: { onOpen: (channel: ChatChannelId) => void }) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
 
+  // fork:v5-landing Wave B · M-10 · 窄屏：渠道行 = `.m-setrow`（品牌 logo + 名字 +
+  // 地区徽章 + 一句说明 + 右箭头），点整行进二级面板。
+  // **ChannelIcon 仍是那张品牌 PNG**（DIVERGENCE 已登记的例外），两端一致。
+  if (mobile) {
+    return (
+      <div className="m-cardgroup">
+        {ENTRY_CHANNELS.map((id) => {
+          const spec = CHANNELS.find((channel) => channel.id === id);
+          if (!spec) return null;
+          return (
+            <button
+              key={id}
+              type="button"
+              className="m-setrow"
+              onClick={() => onOpen(spec.id)}
+            >
+              <ChannelIcon id={spec.id} icon={spec.icon} size={22} />
+              <span className="m-setrow-body">
+                <span className="m-setrow-t">{spec.label}</span>
+                <span className="m-setrow-s">{t(`botChannel.desc.${spec.id}`)}</span>
+              </span>
+              {spec.id === "feishu" && <span className="m-badge mute">{t("botChannel.regionCN")}</span>}
+              {spec.id === "lark" && <span className="m-badge mute">{t("botChannel.regionGlobal")}</span>}
+              <i data-ico="chevron-right" data-size="15" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // v5 · D-20 帧 D：渠道行 = `.d-set-row`（品牌 logo + 标题 + 地区徽章 + 说明 + 下一步按钮）。
   return (
-    <div style={{ display: "grid", gap: "var(--s2)" }}>
+    <div className="d-col" style={{ gap: "var(--nx-sp-2)" }}>
       {ENTRY_CHANNELS.map((id) => {
         const spec = CHANNELS.find((channel) => channel.id === id);
         if (!spec) return null;
         return (
-          <div key={id} className="pw-plan" style={{ gap: "var(--s2)" }}>
-            <div className="pw-plan-head" style={{ padding: 0 }}>
-              <ChannelIcon id={spec.id} icon={spec.icon} size={22} />
-              <span>{spec.label}</span>
-              {spec.id === "feishu" && <span className="pw-chip">{t("botChannel.regionCN")}</span>}
-              {spec.id === "lark" && <span className="pw-chip">{t("botChannel.regionGlobal")}</span>}
+          <div key={id} className="d-set-row" style={{ paddingTop: 0 }}>
+            <ChannelIcon id={spec.id} icon={spec.icon} size={22} />
+            <div className="d-set-row-box">
+              <div className="d-row">
+                <span className="d-set-row-t">{spec.label}</span>
+                {spec.id === "feishu" && <span className="d-badge mute">{t("botChannel.regionCN")}</span>}
+                {spec.id === "lark" && <span className="d-badge mute">{t("botChannel.regionGlobal")}</span>}
+              </div>
+              <div className="d-set-row-s">{t(`botChannel.desc.${spec.id}`)}</div>
             </div>
-            <p className="sub" style={{ margin: 0 }}>{t(`botChannel.desc.${spec.id}`)}</p>
             <button
               type="button"
-              className="fork-linkbtn"
+              className="d-btn sm ghost"
               onClick={() => onOpen(spec.id)}
             >
               {t("botChannel.goConfigure")}

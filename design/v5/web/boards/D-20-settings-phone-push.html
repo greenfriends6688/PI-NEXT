@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-20 · 手机与推送 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-20 · 手机与推送</h1>
+  <p>
+    手机端不是「网页版缩小」，是<b>把电脑上正在跑的那件事搬过去看</b>。所以这一页的核心不是扫码，是
+    <b>信任链</b>：局域网开关 → 访问令牌 → 配对码 → 二维码，每一步都写清楚「这一级能做什么、什么时候失效」。
+    推送同理：目标是掩码存的，测试是真的发一条出去，而不是弹个「发送成功」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 手机与推送</span>
+    <span class="d-tag">组件：PhoneAndPushPanel · QrCard · PairCode · ImTargets · BotChannelsDialog</span>
+    <span class="d-tag">状态：就绪 / 未开 / 令牌失效 / 未连 / 扫码中 / 测试通过</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 设置壳 · 手机与推送：LAN 开关与状态徽章 · 访问令牌 · 6 位配对码<span class="d-grow"></span>开关是真的能点的</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">手机与推送</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 手机与推送">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 手机与推送</span>
+
+      <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已就绪</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem is-on"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">局域网访问</div>
+                  <div class="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14"></i>
+                    <span>macOS 防火墙尚未放行 39411 端口：同一 Wi-Fi 下打不开。放行后这里会变成「已就绪」。</span>
+                    <button class="d-btn sm ghost d-banner-btn">怎么放行</button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">允许同一局域网内的设备访问</div>
+                      <div class="d-set-row-s">关掉后手机端立刻断开，不影响本机使用。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">未开</span></span>
+                    <button class="d-switch" data-demo-switch aria-checked="false" title="局域网访问开关"></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">监听地址</div>
+                      <div class="d-set-row-s">只绑局域网网卡，不绑公网。</div>
+                    </div>
+                    <span class="d-grow-last d-mono d-t-dim">0.0.0.0:39411</span>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">访问令牌</div>
+                      <div class="d-set-row-s d-mono">K3f9x2Lm••••••••qZ</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge warn">今日 12:40 换过</span></span>
+                    <button class="d-btn sm" data-demo-open="p14-token"><i data-ico="refresh-cw" data-size="13"></i>换令牌</button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">已配对的设备</div>
+                      <div class="d-set-row-s">3 台 · 掉线的保留 7 天，方便手机重连不用重新配对。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-btn sm ghost">管理</button></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">配对码</div>
+                  <div class="d-card">
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-row" style="gap:var(--nx-sp-2)">
+                        <span class="d-kbd" style="height:var(--nx-ctl-lg);padding:0 var(--nx-sp-3);font-size:var(--nx-fs-lg)">4</span>
+                        <span class="d-kbd" style="height:var(--nx-ctl-lg);padding:0 var(--nx-sp-3);font-size:var(--nx-fs-lg)">8</span>
+                        <span class="d-kbd" style="height:var(--nx-ctl-lg);padding:0 var(--nx-sp-3);font-size:var(--nx-fs-lg)">2</span>
+                        <span class="d-kbd" style="height:var(--nx-ctl-lg);padding:0 var(--nx-sp-3);font-size:var(--nx-fs-lg)">1</span>
+                        <span class="d-kbd" style="height:var(--nx-ctl-lg);padding:0 var(--nx-sp-3);font-size:var(--nx-fs-lg)">7</span>
+                        <span class="d-kbd" style="height:var(--nx-ctl-lg);padding:0 var(--nx-sp-3);font-size:var(--nx-fs-lg)">7</span>
+                        <span class="d-grow"></span>
+                        <span class="d-col" style="gap:var(--nx-sp-1)">
+                          <span class="d-t-xs d-t-faint">手机端「连电脑」页输入，或直接扫二维码</span>
+                          <span class="d-t-xs d-t-faint">输错 3 次本轮作废，重新生成</span>
+                        </span>
+                      </div>
+                      <div class="d-row">
+                        <span class="d-badge warn"><i data-ico="clock" data-size="12"></i>09:42 后失效</span>
+                        <span class="d-t-xs d-t-faint">配对码只认一次，成功后换成长期设备令牌。</span>
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm" data-demo-open="p14-regen"><i data-ico="rotate-cw" data-size="13"></i>重新生成</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">消息推送</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">回合结束与需要确认时推送到手机</div>
+                      <div class="d-set-row-s">只推三类：跑完、要权限、失败；流式过程不推。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">已开</span></span>
+                    <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">推送目标</div>
+                      <div class="d-set-row-s">飞书 · 企业微信 · Telegram · 自定义 webhook 共 4 个</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-btn sm" data-demo-open="p14-test"><i data-ico="send" data-size="13"></i>测试发送</button></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+
+          <!-- 换令牌浮层 -->
+          <div class="d-pop up" data-demo-pop="p14-token" hidden style="min-width:340px">
+            <div class="d-pop-title">换访问令牌</div>
+            <div class="d-pop-body d-t-xs d-t-dim">
+              换完当前 <b>3 台已配对设备</b>的链接会立刻失效，需要重新扫码或输配对码。
+              本机不受影响。
+            </div>
+            <div class="d-sep"></div>
+            <button class="d-menu-row"><i data-ico="smartphone" data-size="14"></i>只换「只读链接」的令牌</button>
+            <button class="d-menu-row"><i data-ico="key-round" data-size="14"></i>全部换掉（含配对设备）</button>
+            <div class="d-sep"></div>
+            <button class="d-menu-row danger"><i data-ico="ban" data-size="14"></i>取消</button>
+          </div>
+
+          <!-- 重新生成配对码浮层 -->
+          <div class="d-pop up" data-demo-pop="p14-regen" hidden style="min-width:320px">
+            <div class="d-pop-title">重新生成配对码</div>
+            <div class="d-pop-body d-t-xs d-t-dim">旧码立即作废，新码 10 分钟内有效；已配对设备不受影响。</div>
+            <div class="d-sep"></div>
+            <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i>生成新的 6 位码</button>
+            <button class="d-menu-row"><i data-ico="timer" data-size="14"></i>延长到 30 分钟</button>
+          </div>
+
+          <!-- 测试发送浮层 -->
+          <div class="d-pop up" data-demo-pop="p14-test" hidden style="min-width:360px">
+            <div class="d-pop-title">测试发送结果</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-row d-t-xs"><span class="d-grow">飞书 · PI NEXT 助手</span><span class="d-badge ok">已送达</span></div>
+              <div class="d-row d-t-xs"><span class="d-grow">企业微信 · 研发群</span><span class="d-badge ok">已送达</span></div>
+              <div class="d-row d-t-xs"><span class="d-grow">Telegram · @yingjing</span><span class="d-badge warn">Bot 被拉出群</span></div>
+              <div class="d-row d-t-xs"><span class="d-grow">自定义 webhook</span><span class="d-badge bad">连接超时</span></div>
+            </div>
+            <div class="d-sep"></div>
+            <button class="d-menu-row"><i data-ico="send" data-size="14"></i>只重发失败的两个</button>
+            <div class="d-pop-foot">测试消息标题固定为「PI NEXT 测试」，方便在群里认出来、也方便事后删。</div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 二维码卡片：二维码本体 + 旁边必须写清的地址 / 只读链接 / 有效期<span class="d-grow"></span>二维码是 lib/qrcode.ts 真实编码出来的，板上只占位</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-grid2">
+
+                <div class="d-chart">
+                  <div class="d-chart-head">
+                    <i data-ico="smartphone" data-size="15"></i>
+                    <span class="d-grow">扫码打开 PI NEXT</span>
+                    <span class="d-badge ok">令牌有效</span>
+                  </div>
+                  <div class="d-card-body d-row" style="gap:var(--nx-sp-4);align-items:flex-start">
+                    <div class="d-col" style="gap:var(--nx-sp-2);flex:0 0 auto">
+                      <div class="d-placeholder" style="width:240px;height:240px">
+                        <div class="d-col" style="gap:var(--nx-sp-1)">
+                          <i data-ico="square-dashed" data-size="22"></i>
+                          <span class="d-t-b">二维码 240 × 240</span>
+                          <span class="d-t-xs">运行时由 lib/qrcode.ts 就地编码</span>
+                        </div>
+                      </div>
+                      <span class="d-t-xs d-t-faint">纠错级别 M · 版本随地址长度自动选 · 不走任何外部图表服务</span>
+                    </div>
+
+                    <div class="d-col d-grow" style="gap:var(--nx-sp-3)">
+                      <div class="d-col" style="gap:var(--nx-sp-1)">
+                        <span class="d-t-xs d-t-faint">完整地址 · 可读可写（会话、终端、设置全都在）</span>
+                        <div class="d-urlbox"><i data-ico="globe" data-size="12"></i>http://192.168.1.24:39411</div>
+                      </div>
+                      <div class="d-col" style="gap:var(--nx-sp-1)">
+                        <span class="d-t-xs d-t-faint">只读链接 · 只能看转录与用量，不能发消息</span>
+                        <div class="d-urlbox"><i data-ico="eye" data-size="12"></i>http://192.168.1.24:39411/r/K3f9…qZ</div>
+                      </div>
+                      <div class="d-col" style="gap:var(--nx-sp-1)">
+                        <span class="d-t-xs d-t-faint">有效期</span>
+                        <div class="d-row">
+                          <span class="d-badge warn"><i data-ico="clock" data-size="12"></i>09:42 后失效</span>
+                          <span class="d-badge mute">换令牌即刻作废</span>
+                        </div>
+                      </div>
+                      <div class="d-col" style="gap:var(--nx-sp-1)">
+                        <span class="d-t-xs d-t-faint">旁边必须写清的三件事：地址能不能写、只读链接差在哪、什么时候失效</span>
+                        <div class="d-row" style="gap:var(--nx-sp-2)">
+                          <button class="d-btn sm"><i data-ico="copy" data-size="13"></i>复制地址</button>
+                          <button class="d-btn sm" data-demo-open="p14-qr-refresh"><i data-ico="rotate-cw" data-size="13"></i>换一张</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="shield-check" data-size="15"></i>这条链接是什么等级</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-set-row">
+                        <div class="d-set-row-box"><div class="d-set-row-t">局域网内任何设备</div><div class="d-set-row-s">凭令牌访问，令 scope 就是 URL 里那段</div></div>
+                        <span class="d-grow-last"><span class="d-badge warn">需令牌</span></span>
+                      </div>
+                      <div class="d-set-row">
+                        <div class="d-set-row-box"><div class="d-set-row-t">公网</div><div class="d-set-row-s">本产品不提供公网入口，扫码只解决同网段</div></div>
+                        <span class="d-grow-last"><span class="d-badge mute">不支持</span></span>
+                      </div>
+                      <div class="d-set-row">
+                        <div class="d-set-row-box"><div class="d-set-row-t">别人截走二维码</div><div class="d-set-row-s">只读链接泄露没有代价；可写链接泄露要靠「已配对设备」里踢掉</div></div>
+                        <span class="d-grow-last"><span class="d-badge info">可踢</span></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="triangle-alert" data-size="15"></i>扫不开的两种情况</div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                      <div class="d-banner err">
+                        <i data-ico="triangle-alert" data-size="14"></i>
+                        <span>令牌已失效：页面会跳到「重新配对」，并把上一次用的配对码作废。</span>
+                      </div>
+                      <div class="d-banner warn">
+                        <i data-ico="globe" data-size="14"></i>
+                        <span>不在同一网段：二维码里带的是内网地址，蜂窝网络下必然打不开 —— 这不是 bug，文案要说清。</span>
+                      </div>
+                      <div class="d-t-xs d-t-faint">这两种错法长得完全不一样，所以分别用两条横幅而不是一条「打不开」。</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="d-pop" data-demo-pop="p14-qr-refresh" hidden style="min-width:340px">
+                <div class="d-pop-title">换一张二维码</div>
+                <div class="d-pop-body d-t-xs d-t-dim">地址没变、令牌没变，只是重新编码 —— 用于上次那张被拍糊了或贴到别处。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="download" data-size="14"></i>存成 PNG（4 倍密度）</button>
+                <button class="d-menu-row"><i data-ico="monitor" data-size="14"></i>打印贴在工位</button>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · IM 推送目标：六个渠道，全部掩码显示；加目标与测试都是真接线<span class="d-grow"></span>掩码两端可见，中间恒定长度</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-chart">
+                <div class="d-chart-head">
+                  <i data-ico="send" data-size="15"></i>
+                  <span class="d-grow">推送目标</span>
+                  <span class="d-t-xs d-t-faint">密钥掩码显示 · 明文只在写入时经过一次内存</span>
+                  <button class="d-btn sm" data-demo-open="p14-add"><i data-ico="plus" data-size="13"></i>添加目标</button>
+                  <button class="d-btn sm ghost" data-demo-open="p14-test2"><i data-ico="zap" data-size="13"></i>全部测试</button>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">飞书 · 自定义机器人</span><span class="d-badge ok">已验证</span></div>
+                      <div class="d-set-row-s d-mono">https://open.feishu.cn/open-apis/bot/v2/hook/••••••••a91c</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">推 3 类事件</span>
+                    <button class="d-iconbtn" title="测试"><i data-ico="zap" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">企业微信 · 群机器人</span><span class="d-badge ok">已验证</span></div>
+                      <div class="d-set-row-s d-mono">https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=••••••7f2e</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">只推回合结束</span>
+                    <button class="d-iconbtn" title="测试"><i data-ico="zap" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">钉钉 · 加签机器人</span><span class="d-badge warn">待重验</span></div>
+                      <div class="d-set-row-s d-mono">https://oapi.dingtalk.com/robot/send?access_token=••••••3b85</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">密钥含时间戳，08-14 后要重签</span>
+                    <button class="d-iconbtn" title="测试"><i data-ico="zap" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">Slack · Incoming Webhook</span><span class="d-badge mute">未启用</span></div>
+                      <div class="d-set-row-s d-mono">https://hooks.slack.com/services/T0••••/B0••••/••••••</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">默认关闭</span>
+                    <button class="d-iconbtn" title="测试"><i data-ico="zap" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">Telegram · Bot API</span><span class="d-badge bad">已失效</span></div>
+                      <div class="d-set-row-s d-mono">8•••:AAH••••••••••••••••••</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">Bot 被移出群聊，需重新授权</span>
+                    <button class="d-iconbtn" title="测试"><i data-ico="zap" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">自定义 webhook</span><span class="d-badge bad">超时</span></div>
+                      <div class="d-set-row-s d-mono">https://pi-next.internal/hooks/notify</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">POST JSON · 自签证书未放行</span>
+                    <button class="d-iconbtn" title="测试"><i data-ico="zap" data-size="14"></i></button>
+                    <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="filter" data-size="15"></i>推到手机的通知里写什么</div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-set-row">
+                    <div class="d-set-row-box"><div class="d-set-row-t">回合跑完</div><div class="d-set-row-s">标题＝会话名，正文＝最后一句摘要；超过 3 分钟才推</div></div>
+                    <span class="d-grow-last"><button class="d-switch on" data-demo-switch aria-checked="true"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box"><div class="d-set-row-t">需要授权</div><div class="d-set-row-s">权限请求挂起时立刻推，带「去允许」按钮</div></div>
+                    <span class="d-grow-last"><button class="d-switch on" data-demo-switch aria-checked="true"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box"><div class="d-set-row-t">失败与中断</div><div class="d-set-row-s">含错误类型与已重试次数</div></div>
+                    <span class="d-grow-last"><button class="d-switch on" data-demo-switch aria-checked="true"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box"><div class="d-set-row-t">流式过程</div><div class="d-set-row-s">一条都不推 —— 每 200ms 推一次等于把通知变成噪音</div></div>
+                    <span class="d-grow-last"><button class="d-switch" data-demo-switch aria-checked="false"></button></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-pop" data-demo-pop="p14-add" hidden style="min-width:320px">
+                <div class="d-pop-title">添加推送目标</div>
+                <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i>飞书机器人<i data-ico="arrow-up-right" data-size="13"></i></button>
+                <button class="d-menu-row"><i data-ico="users" data-size="14"></i>企业微信群机器人<i data-ico="arrow-up-right" data-size="13"></i></button>
+                <button class="d-menu-row"><i data-ico="message-circle" data-size="14"></i>钉钉机器人<i data-ico="arrow-up-right" data-size="13"></i></button>
+                <button class="d-menu-row"><i data-ico="hash" data-size="14"></i>Slack Webhook<i data-ico="arrow-up-right" data-size="13"></i></button>
+                <button class="d-menu-row"><i data-ico="send" data-size="14"></i>Telegram Bot<i data-ico="arrow-up-right" data-size="13"></i></button>
+                <button class="d-menu-row"><i data-ico="plug" data-size="14"></i>自定义 webhook<i data-ico="arrow-up-right" data-size="13"></i></button>
+                <div class="d-pop-foot">每个渠道的密钥字段名与签名算法不同，所以是「按渠道一份表单」，不是一张通用表单。</div>
+              </div>
+
+              <div class="d-pop" data-demo-pop="p14-test2" hidden style="min-width:360px">
+                <div class="d-pop-title">全部测试 · 刚发出</div>
+                <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-row d-t-xs"><span class="d-grow">飞书</span><span class="d-badge ok">已送达 21:14</span></div>
+                  <div class="d-row d-t-xs"><span class="d-grow">企业微信</span><span class="d-badge ok">已送达 21:14</span></div>
+                  <div class="d-row d-t-xs"><span class="d-grow">钉钉</span><span class="d-badge warn">签名过期</span></div>
+                  <div class="d-row d-t-xs"><span class="d-grow">Slack</span><span class="d-badge mute">已跳过（未启用）</span></div>
+                  <div class="d-row d-t-xs"><span class="d-grow">Telegram</span><span class="d-badge bad">403 bot_blocked</span></div>
+                  <div class="d-row d-t-xs"><span class="d-grow">自定义</span><span class="d-badge bad">超时 10s</span></div>
+                </div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i>看最近 7 天投递日志</button>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 机器人渠道：Telegram / 微信 / 飞书 —— 已连 · 未连 · 扫码中<span class="d-grow"></span>三态各自的「下一步动作」写在行里</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-chart">
+                <div class="d-chart-head">
+                  <i data-ico="bot" data-size="15"></i>
+                  <span class="d-grow">机器人渠道</span>
+                  <span class="d-t-xs d-t-faint">双向：手机端能发消息进来，会话里以 steer 插入</span>
+                  <button class="d-btn sm" data-demo-open="p14-bot-add"><i data-ico="plus" data-size="13"></i>接一个渠道</button>
+                </div>
+                <div class="d-card-body" data-demo-list>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">Telegram</span><span class="d-badge ok">已连</span><span class="d-t-xs d-t-faint">@yingjing · 私聊</span></div>
+                      <div class="d-set-row-s">上次消息 21:02 · 「定时任务错峰要不要做」→ 已插成 steer</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">收 2 类</span>
+                    <button class="d-btn sm ghost">断连</button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">微信</span><span class="d-badge mute">未连</span></div>
+                      <div class="d-set-row-s">需要扫码登录个人号，本产品不做代登录，只做官方号 / 企业微信。</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">0 条</span>
+                    <button class="d-btn sm">扫码连接</button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">飞书</span><span class="d-badge warn">扫码中</span><span class="d-t-xs d-t-faint">等手机确认 · 已等 42 秒</span></div>
+                      <div class="d-set-row-s d-mono">二维码 21:13 过期，仍在等待；超时后自动换一张。</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">—</span>
+                    <button class="d-btn sm ghost">取消</button>
+                    <button class="d-btn sm" data-demo-open="p14-bot-rescan">刷新二维码</button>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-row"><span class="d-set-row-t">自定义 webhook</span><span class="d-badge mute">未连</span></div>
+                      <div class="d-set-row-s">只收不发：POST 一个 JSON 就能把外部系统的事件插进会话。</div>
+                    </div>
+                    <span class="d-grow-last d-t-xs d-t-faint">0 条</span>
+                    <button class="d-btn sm">配置地址</button>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="d-grid2">
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="key-round" data-size="15"></i>凭据怎么存</div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-banner">
+                      <i data-ico="lock" data-size="14"></i>
+                      <span>走系统钥匙串，不写进项目目录、不进 git、不进同步盘。</span>
+                    </div>
+                    <div class="d-t-xs d-t-faint">换机器时按渠道重新授权一次 —— 这是刻意的：宁可重登，也不同步一份能用你账号的密钥。</div>
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <button class="d-btn sm"><i data-ico="download" data-size="13"></i>导出渠道配置（不含密钥）</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="table" data-size="15"></i>最近投递</div>
+                  <div class="d-card-body">
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>时间</th><th>渠道</th><th>事件</th><th>结果</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td class="d-mono">21:14</td><td>飞书</td><td>回合结束</td><td><span class="d-badge ok">已送达</span></td></tr>
+                        <tr><td class="d-mono">21:13</td><td>Telegram</td><td>入站消息</td><td><span class="d-badge ok">已插入</span></td></tr>
+                        <tr><td class="d-mono">20:52</td><td>企业微信</td><td>需要授权</td><td><span class="d-badge ok">已送达</span></td></tr>
+                        <tr><td class="d-mono">20:31</td><td>钉钉</td><td>回合结束</td><td><span class="d-badge warn">签名过期</span></td></tr>
+                        <tr><td class="d-mono">19:08</td><td>自定义</td><td>失败</td><td><span class="d-badge bad">超时</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-pop" data-demo-pop="p14-bot-add" hidden style="min-width:300px">
+                <div class="d-pop-title">接一个双向渠道</div>
+                <button class="d-menu-row"><i data-ico="send" data-size="14"></i>Telegram Bot</button>
+                <button class="d-menu-row"><i data-ico="message-circle" data-size="14"></i>飞书应用</button>
+                <button class="d-menu-row"><i data-ico="users" data-size="14"></i>企业微信应用</button>
+                <button class="d-menu-row"><i data-ico="message-square" data-size="14"></i>Slack App</button>
+                <div class="d-pop-foot">双向渠道会把入站消息当 steer 插进当前回合，需要显式开「允许外部打断」。</div>
+              </div>
+
+              <div class="d-pop" data-demo-pop="p14-bot-rescan" hidden style="min-width:300px">
+                <div class="d-pop-title">飞书 · 重新出示二维码</div>
+                <div class="d-pop-body d-t-xs d-t-dim">旧的等待会被取消，避免两个二维码同时有效导致连错账号。</div>
+                <div class="d-sep"></div>
+                <button class="d-menu-row"><i data-ico="rotate-cw" data-size="14"></i>换一张继续等</button>
+                <button class="d-menu-row"><i data-ico="link-2" data-size="14"></i>改用回调地址授权</button>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>信任链分四级，每级都写清边界</b>：局域网开关（开/未开）→ 访问令牌（可踢）→ 配对码（一次性）→ 二维码（限时限范围）。
+        只给一个开关而不说「关掉之后手机端会怎样」，用户就永远不敢关。</li>
+    <li><b>二维码旁边必须有三行</b>：完整地址（能做什么）、只读链接（差在哪）、有效期（什么时候作废）。
+        少了第三行，用户截了图贴在工位上，一个月后还以为是永久入口。</li>
+    <li><b>二维码是本仓 <code>lib/qrcode.ts</code> 真实编码的</b>（纠错级别 M、不走外部图表服务），
+        画板上 240×240 的占位框就是最终尺寸 —— 所以这里不画假图，也不引第三方二维码图片。</li>
+    <li><b>6 位配对码用 <code>.d-kbd</code> 大号呈现</b>：键帽形态是「照着输」的暗示，
+        逗号分组（482 177）在手机输入页才是 3+3，画板上按 6 个独立键帽更贴近输入框本身。</li>
+    <li><b>密钥一律掩码</b>，两端可见、中间恒定长度：掩码长度不泄露长度信息，而「有几位明文」经常就是泄露本身。</li>
+    <li><b>渠道三态各自的「下一步」写在行里</b>：已连 → 断连；未连 → 扫码连接；扫码中 → 取消 / 刷新二维码。
+        扫码中必须能取消，也必须在二维码过期时自动换一张 —— 否则用户只能刷新整页。</li>
+    <li><b>「测试发送」真的发一条</b>，并把每个渠道的失败原因原样带回（403 bot_blocked / 签名过期 / 超时 10s），
+        而不是弹一句「发送成功」让用户自己猜哪条没到。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-21 · 归档 / 导入 / 快捷键地图（只读）/ 记忆与知识（提案 · 产品已下线） · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-21 · 归档 · 导入 · 快捷键地图（只读）· 记忆与知识（提案 · 产品已下线）</h1>
+  <p>
+    四块东西放在同一页，是因为它们问的是同一件事：<b>你留下的东西去哪了，还能不能拿回来</b>。
+    归档是「先收起来」（标志位在本机，文件没动）；导入是「把别处的搬进来」（两段式，渲染端从不送路径）；
+    快捷键是「此刻按什么会怎样」（可编辑键位表已下线，只留只读的快捷键地图）；记忆与知识是「每次都要重复交代的那几句话」（提案，产品已下线）。
+    这一页刻意把<b>四种「丢东西」的口径</b>分开写清：归档不等于删除，导入不等于合并，键位只读不等于没生效，记忆为空不等于模型失忆。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 归档 · 导入（数据四块）</span>
+    <span class="d-tag">组件：ArchivePanel · ImportPanel · ShortcutGuideDialog（只读）· MemoryPanel（提案 · 产品已下线）</span>
+    <span class="d-tag">状态：128 条归档 · 扫描完成 · 快捷键只读地图 · 命中预览 / 空态</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 设置弹窗 · 归档分节 · 归档会话：批量操作条 + 会话行；下面并排两种空态<span class="d-grow"></span>点会话行可多选，开关与按钮都是真的</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">归档</span>
+        </div>
+        <div class="d-md"><p>设置是<b>弹窗</b>：背后的会话不动，关掉就回到原地。整页宿主已废止。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 归档">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 归档</span>
+
+      <span class="d-badge mute"><i data-ico="hard-drive" data-size="12"></i>本地存储</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem is-on"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-banner">
+                  <i data-ico="info" data-size="14"></i>
+                  <span><b>归档不是删除。</b>归档只往本地存储里写一个标志位（<span class="d-mono">archived / archivedAt</span>），会话的
+                    <span class="d-mono">.jsonl</span> 还在原处。恢复＝取消归档；彻底删除＝删文件，要二次确认。</span>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">归档会话</div>
+
+                  <div class="d-card">
+                    <div class="d-card-head">
+                      <i data-ico="archive" data-size="15"></i>
+                      <span>归档历史</span>
+                      <span class="d-badge mute">128 条</span>
+                      <span class="d-grow"></span>
+                      <span class="d-t-xs d-t-faint">显示已消失的 6 条</span>
+                      <button class="d-switch" data-demo-switch aria-checked="false" aria-label="显示文件已消失的归档"></button>
+                      <button class="d-btn sm ghost"><i data-ico="archive-restore" data-size="13"></i>全部恢复</button>
+                    </div>
+
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+
+                      <!-- 批量操作条：只在有选中时出现，且只作用于选中的会话 -->
+                      <div class="d-banner">
+                        <i data-ico="check-check" data-size="14"></i>
+                        <span>已选 <b>1</b> / 128 条</span>
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm ghost">全选本页</button>
+                        <button class="d-btn sm ghost">清空选择</button>
+                        <button class="d-btn sm"><i data-ico="archive-restore" data-size="13"></i>恢复</button>
+                        <div class="d-anchor">
+                          <button class="d-btn sm danger" data-demo-open="p15-bulk-del"><i data-ico="trash-2" data-size="13"></i>永久删除</button>
+                          <div class="d-pop is-open" data-demo-pop="p15-bulk-del" hidden style="right:0;min-width:340px">
+                            <div class="d-pop-title">永久删除选中的 1 条归档会话？</div>
+                            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                              <div class="d-t-xs">这一步删的是选中的这些 <span class="d-mono">.jsonl</span> 文件本身，不是归档标志位。</div>
+                              <div class="d-banner err">
+                                <i data-ico="triangle-alert" data-size="14"></i>
+                                <span>删掉的会话不进回收站，也不出现在「用量」以外的任何地方 —— 用量里的历史 token 数仍会保留。</span>
+                              </div>
+                            </div>
+                            <div class="d-sep"></div>
+                            <div class="d-row" style="padding:0 var(--nx-sp-3) var(--nx-sp-2)">
+                              <span class="d-grow"></span>
+                              <button class="d-btn ghost"><i data-ico="x" data-size="13"></i>取消</button>
+                              <button class="d-btn danger"><i data-ico="trash-2" data-size="13"></i>删除</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 归档行：点行即选中（同一列表内互斥），与侧栏的会话行同构 -->
+                      <div class="d-group-toggle">
+                        <span class="d-checkbox half" role="checkbox" aria-checked="mixed"><i data-ico="minus" data-size="11"></i></span>
+                        <span class="d-t-sm d-t-b">PI NEXT</span>
+                        <span class="d-badge mute">半选 · 8 条里勾了 3 条</span>
+                      </div>
+                      <div class="d-col">
+                        <button class="d-sess">
+                          <span class="d-checkbox" data-demo-switch role="checkbox" aria-checked="false"><i data-ico="check" data-size="11"></i></span>
+                          <span class="d-sess-t">把设计体系 V5 的落地纪律写成一份</span>
+                          <span class="d-sess-m"><i data-ico="message-square" data-size="12"></i>PI NEXT · 2 小时前归档 · 34 条消息 · 引用 3</span>
+                        </button>
+                        <button class="d-sess">
+                          <span class="d-checkbox on" data-demo-switch role="checkbox" aria-checked="true"><i data-ico="check" data-size="11"></i></span>
+                          <span class="d-sess-t">发票批量导入：字段映射与异常行怎么处理</span>
+                          <span class="d-sess-m"><i data-ico="message-square" data-size="12"></i>invoice-render · 3 天前归档 · 128 条消息</span>
+                        </button>
+                        <button class="d-sess">
+                          <span class="d-checkbox" data-demo-switch role="checkbox" aria-checked="false"><i data-ico="check" data-size="11"></i></span>
+                          <span class="d-sess-t">老版本 pi 桌面端迁移踩坑清单</span>
+                          <span class="d-sess-m"><i data-ico="message-square" data-size="12"></i>scratch · 2 周前归档 · 61 条消息 · 附件 4</span>
+                        </button>
+                        <button class="d-sess">
+                          <span class="d-checkbox" data-demo-switch role="checkbox" aria-checked="false"><i data-ico="check" data-size="11"></i></span>
+                          <span class="d-sess-t">短链服务压测：QPS 与缓存命中率</span>
+                          <span class="d-sess-m"><i data-ico="message-square" data-size="12"></i>zhaobiao-extract · 1 个月前归档 · 412 条消息</span>
+                        </button>
+                        <button class="d-sess">
+                          <span class="d-sess-t">浏览器自动化：截图取证的四种做法</span>
+                          <span class="d-sess-m"><i data-ico="message-square" data-size="12"></i>PI NEXT · 3 个月前归档 · 18 条消息</span>
+                        </button>
+                      </div>
+
+                      <div class="d-t-xs d-t-faint">
+                        批量动作只作用于选中的会话；一条都没选时，这整条批量条<b>不出现</b>（而不是灰着摆在那儿）。
+                        归档标志写在浏览器本地存储里并跨标签页同步，会话文件仍留在项目目录 ——
+                        所以「恢复」永远不依赖这个页面还能不能打开。另有 <b>6 条</b>记录对应的文件已经不在（被手动删过或目录挪走了），
+                        默认不列；打开上面的开关才出现，而它们<b>只有「清理标记」没有「恢复」</b>。
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-body d-col" style="gap:0">
+                      <div class="d-set-row">
+                        <div class="d-set-row-box">
+                          <div class="d-set-row-t">运行中的会话不允许归档</div>
+                          <div class="d-set-row-s">否则它会从侧栏消失却还在写文件，用户以为停了，其实后台还在烧 token。</div>
+                        </div>
+                        <span class="d-grow-last"><button class="d-switch on" data-demo-switch aria-checked="true"></button></span>
+                      </div>
+                      <div class="d-set-row">
+                        <div class="d-set-row-box">
+                          <div class="d-set-row-t">超过多久没打开就自动归档</div>
+                          <div class="d-set-row-s">只动侧栏的可见性，不动文件；归档时会在会话里插一条「已自动归档」。</div>
+                        </div>
+                        <span class="d-grow-last">
+                          <button class="d-select">30 天<i data-ico="chevron-down" data-size="12"></i></button>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">两种「列不出来」要分开说</div>
+                  <div class="d-grid2">
+
+                    <div class="d-card">
+                      <div class="d-card-body">
+                        <div class="d-empty">
+                          <div class="d-empty-ico"><i data-ico="archive" data-size="20"></i></div>
+                          <div class="d-empty-t">还没有归档过任何会话</div>
+                          <div class="d-empty-s">归档是本机的一个标志位，不上传任何内容。要归档就在侧栏的会话上点「⋯ → 归档」。</div>
+                          <button class="d-btn sm">去侧栏看看</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="d-card">
+                      <div class="d-card-body">
+                        <div class="d-empty">
+                          <div class="d-empty-ico"><i data-ico="triangle-alert" data-size="20"></i></div>
+                          <div class="d-empty-t">归档过，但文件已经不在</div>
+                          <div class="d-empty-s">6 条记录对应的 <span class="d-mono">.jsonl</span> 被手动删了或换了目录。它们只剩一个标志位，恢复不回来，只能清理掉这个标记。</div>
+                          <button class="d-btn sm"><i data-ico="eye" data-size="13"></i>显示这 6 条</button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                  <div class="d-t-xs d-t-faint">两种空态的出口不一样：一种教你去归档，一种给你一个开关。合成一句「暂无数据」的话，两边用户都无处可去。</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 导入 · 两段式：<span class="d-mono">/api/import/scan</span> 扫描 → 勾选 → 试运行 → <span class="d-mono">/api/import/apply</span> 落盘<span class="d-grow"></span>冲突策略分段能切，表行能选</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="scan-search" data-size="15"></i>
+                  <span>第一步 · 扫描（只读）</span>
+                  <span class="d-badge info">POST /api/import/scan</span>
+                  <span class="d-grow"></span>
+                  <div class="d-anchor">
+                    <button class="d-btn sm ghost" data-demo-open="p15-src"><i data-ico="folder-search" data-size="13"></i>来源是怎么定的</button>
+                    <div class="d-pop is-open" data-demo-pop="p15-src" hidden style="right:0;min-width:340px">
+                      <div class="d-pop-title">扫描读哪里，由服务端说了算</div>
+                      <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-t-xs">扫描路由<b>不接受来自客户端的路径</b>：读哪几个目录写死在服务端扫描器里，界面只能选「扫哪一类」。</div>
+                        <div class="d-t-xs d-t-faint">这是有意的：路径一旦能从界面传进去，一次注入就能把机上的任意文件读出来再导出去。</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="list-checks" data-size="14"></i>看这次扫到的完整清单</button>
+                      <button class="d-menu-row"><i data-ico="timer" data-size="14"></i>上次扫描 21:02（4 分 12 秒）</button>
+                    </div>
+                  </div>
+                  <button class="d-btn sm"><i data-ico="refresh-cw" data-size="13"></i>重新扫描</button>
+                </div>
+
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">四类来源同时挂载，切 tab 不丢结果</div>
+                      <div class="d-set-row-s">扫描是显式动作，页面加载不自动扫；每类各自独立、各自有上限。</div>
+                    </div>
+                    <span class="d-grow-last d-row" style="gap:var(--nx-sp-1)">
+                      <span class="d-cite is-on"><i data-ico="circle-dot" data-size="12"></i>会话 450</span>
+                      <span class="d-cite"><i data-ico="circle" data-size="12"></i>模型 4</span>
+                      <span class="d-cite"><i data-ico="circle" data-size="12"></i>技能 38</span>
+                      <span class="d-cite"><i data-ico="circle" data-size="12"></i>MCP 6</span>
+                    </span>
+                  </div>
+
+                  <table class="d-table" data-demo-list>
+                    <thead>
+                      <tr><th>候选</th><th>来源位置</th><th>条目数</th><th>冲突</th><th>最近写入</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr data-demo-select>
+                        <td>Claude Code 会话 · 3 个项目</td>
+                        <td class="d-mono">~/.claude/projects</td>
+                        <td class="d-mono">412</td>
+                        <td><span class="d-badge warn">12 条同名</span></td>
+                        <td class="d-mono">2 分钟前</td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>Codex 会话</td>
+                        <td class="d-mono">~/.codex/sessions</td>
+                        <td class="d-mono">38</td>
+                        <td><span class="d-badge ok">无</span></td>
+                        <td class="d-mono">11 天前</td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>Cursor 规则</td>
+                        <td class="d-mono">.cursor/rules</td>
+                        <td class="d-mono">12</td>
+                        <td><span class="d-badge warn">3 条同名</span></td>
+                        <td class="d-mono">1 个月前</td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>Codex 模型配置</td>
+                        <td class="d-mono">~/.codex/config.toml</td>
+                        <td class="d-mono">4</td>
+                        <td><span class="d-badge bad">覆盖本机 1 项</span></td>
+                        <td class="d-mono">3 个月前</td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>MCP：pi 官方文档站</td>
+                        <td class="d-mono">stdio · 有凭据</td>
+                        <td class="d-mono">1</td>
+                        <td><span class="d-badge info">凭据已存在</span></td>
+                        <td class="d-mono">—</td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>技能目录</td>
+                        <td class="d-mono">~/.agents/skills</td>
+                        <td class="d-mono">26</td>
+                        <td><span class="d-badge ok">无</span></td>
+                        <td class="d-mono">今天</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div class="d-t-xs d-t-faint">
+                    点行＝勾选这一行要导入的内容。表里出现的是<b>候选</b>，不是结果 —— 落盘数量由下面第二步的试运行给出。
+                    凭据那一行只显示「凭据已存在」，不显示任何明文。
+                  </div>
+                </div>
+              </div>
+
+              <!-- 冲突策略：分段真能切，默认是「跳过」 -->
+              <div class="d-card" data-demo-scope>
+                <div class="d-card-head">
+                  <i data-ico="git-merge" data-size="15"></i>
+                  <span>同名条目冲突时怎么办</span>
+                  <span class="d-grow"></span>
+                  <span class="d-t-xs d-t-faint">默认「跳过」：导入永远不毁掉本机已有的东西</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-row">
+                    <span class="d-t-sm d-t-dim">策略</span>
+                    <span class="d-grow"></span>
+                    <div class="d-seg" data-demo-tabs>
+                      <button data-demo-tab="over">覆盖</button>
+                      <button data-demo-tab="skip" class="is-on">跳过</button>
+                      <button data-demo-tab="both">保留两份</button>
+                    </div>
+                  </div>
+
+                  <section data-demo-pane="over" hidden>
+                    <div class="d-banner err">
+                      <i data-ico="triangle-alert" data-size="14"></i>
+                      <span><b>覆盖</b>：本机同名的 16 条会被来源里的版本改写，会话正文一并替换，且不可撤销。旧版本只在落盘前留一份
+                        <span class="d-mono">.bak</span>，30 天后清理。</span>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="skip">
+                    <div class="d-banner">
+                      <i data-ico="shield-check" data-size="14"></i>
+                      <span><b>跳过</b>：16 条冲突项原样留在来源里，本机一个字不动；它们计入结果里的 <span class="d-mono">skipped</span>，
+                        不计入失败，也不假装成功。</span>
+                    </div>
+                  </section>
+
+                  <section data-demo-pane="both" hidden>
+                    <div class="d-banner">
+                      <i data-ico="copy" data-size="14"></i>
+                      <span><b>保留两份</b>：本机那条改名成「标题 · 导入 10-08」，两份都在。列表会多出 16 条同名会话，
+                        归档页可用来一次性收掉。</span>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <!-- 试运行 → 确认：确认按钮默认是灰的，这是两段式的意义 -->
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="circle-play" data-size="15"></i>
+                  <span>第二步 · 试运行 → 确认落盘</span>
+                  <span class="d-badge mute">POST /api/import/apply</span>
+                  <span class="d-grow"></span>
+                  <span class="d-t-xs d-t-faint">试运行不发请求、不落盘，只在本地把三段数算出来</span>
+                </div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+
+                  <div class="d-statgrid">
+                    <div class="d-stat">
+                      <div class="d-row"><i data-ico="download" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">将导入</span><span class="d-badge info">预计</span></div>
+                      <div class="d-t-title d-num">471</div>
+                      <div class="d-t-xs d-t-faint">会话 431 · 技能 26 · 模型 3 · MCP 11</div>
+                    </div>
+                    <div class="d-stat">
+                      <div class="d-row"><i data-ico="circle-slash" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">将跳过</span><span class="d-badge mute">按「跳过」策略</span></div>
+                      <div class="d-t-title d-num">16</div>
+                      <div class="d-t-xs d-t-faint">同名 16 + 重复导入 0</div>
+                    </div>
+                    <div class="d-stat">
+                      <div class="d-row"><i data-ico="triangle-alert" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">将失败</span><span class="d-badge warn">试运行只能预估</span></div>
+                      <div class="d-t-title d-num">1</div>
+                      <div class="d-t-xs d-t-faint">1 个技能的 frontmatter 解析失败</div>
+                    </div>
+                    <div class="d-stat">
+                      <div class="d-row"><i data-ico="sigma" data-size="13"></i><span class="d-t-xs d-t-faint d-grow">落盘体积</span><span class="d-badge mute">估算</span></div>
+                      <div class="d-t-title d-num">412 MB</div>
+                      <div class="d-t-xs d-t-faint">会话正文占 96%</div>
+                    </div>
+                  </div>
+
+                  <div class="d-row" style="gap:var(--nx-sp-2)">
+                    <button class="d-btn"><i data-ico="rotate-cw" data-size="13"></i>试运行（不落盘）</button>
+                    <button class="d-btn primary" disabled><i data-ico="check" data-size="13"></i>确认导入 471 条</button>
+                    <span class="d-t-xs d-t-faint">「确认导入」在试运行之前是灰的 —— 跳过试运行也允许，但那就不再是两段式了。</span>
+                    <span class="d-grow"></span>
+                    <button class="d-switch" data-demo-switch aria-checked="false" aria-label="以后自动试运行"></button>
+                    <span class="d-t-xs d-t-dim">以后每次勾选都自动试运行</span>
+                  </div>
+
+                  <div class="d-banner warn">
+                    <i data-ico="shield-alert" data-size="14"></i>
+                    <span>界面上送出去的只有<b>候选 id</b>：<span class="d-mono">apply</span> 收到 id 后会重新扫一遍再反查真实路径，
+                      所以从界面改不出任何要读要写的路径。</span>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="d-grid3">
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="key-round" data-size="15"></i>凭据</div>
+                  <div class="d-card-body d-t-cap d-t-dim">只出 <span class="d-mono">hasSecret: true/false</span>。密钥值、env、凭据头都不出服务端，界面上永远只看到「已存在 / 未配置」。</div>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="layers" data-size="15"></i>结果分三段</div>
+                  <div class="d-card-body d-t-cap d-t-dim">按 <span class="d-mono">imported / skipped / failed</span> 分别报，一项失败不中断整批 —— 绝不用一个「全部成功」盖过去。</div>
+                </div>
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="repeat" data-size="15"></i>重复导入</div>
+                  <div class="d-card-body d-t-cap d-t-dim">id 固定为 <span class="d-mono">import-&lt;来源&gt;-&lt;外部 id&gt;</span>，所以重复导入是幂等的：第二次全部计入 skipped，不会生成两份。</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 快捷键地图（<b>只读</b>）：产品已下线可编辑键位表，只留仍在的 <code>fork/ShortcutGuideDialog</code> · 4 组 7 条命令 · 平台键帽<span class="d-grow"></span>地图只展示、改不了；未接入的行显式标注状态</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="keyboard" data-size="15"></i>
+                  <span>快捷键地图</span>
+                  <span class="d-badge mute">macOS · ⌘ 记法</span>
+                  <span class="d-grow"></span>
+                  <span class="d-badge info"><i data-ico="eye" data-size="12"></i>只读</span>
+                </div>
+
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+
+                  <div class="d-banner">
+                    <i data-ico="lock" data-size="14"></i>
+                    <span><b>只读地图：可编辑键位表已下线。</b>这里列出此刻真正生效的键位（历史改过的标「你改过」），
+                      以及由功能自行注册、内核不分发的行 —— 地图只展示，改不了。</span>
+                  </div>
+
+                  <div class="d-set-sec">
+                    <div class="d-set-sec-t">常用</div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">停止正在运行的 Agent</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">Esc</span></span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">在当前项目新建会话</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">Ctrl</span><span class="d-kbd">Alt</span><span class="d-kbd">N</span></span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">命令面板</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">⌘</span><span class="d-kbd">K</span><span class="d-t-xs d-t-faint">/</span><span class="d-kbd">⌘</span><span class="d-kbd">⇧</span><span class="d-kbd">P</span></span>
+                    </div>
+                  </div>
+
+                  <div class="d-set-sec">
+                    <div class="d-set-sec-t">布局</div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">显示/隐藏侧栏</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">⌘</span><span class="d-kbd">B</span></span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">显示/隐藏右栏</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">⌥</span><span class="d-kbd">⌘</span><span class="d-kbd">B</span></span>
+                    </div>
+                  </div>
+
+                  <div class="d-set-sec">
+                    <div class="d-set-sec-t">外观</div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">切换明暗主题</div></div>
+                      <span class="d-grow-last"><span class="d-badge info">你改过</span><span class="d-kbd">⇧</span><span class="d-kbd">⌘</span><span class="d-kbd">L</span></span>
+                    </div>
+                  </div>
+
+                  <div class="d-set-sec">
+                    <div class="d-set-sec-t">其他功能注册</div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box">
+                        <div class="d-set-row-t">在会话中查找</div>
+                        <div class="d-set-row-s">未接入——由它自己的功能响应；不在内核分发里。</div>
+                      </div>
+                      <span class="d-grow-last"><span class="d-badge mute">未接入</span><span class="d-kbd">⌘</span><span class="d-kbd">F</span></span>
+                    </div>
+                  </div>
+
+                  <div class="d-t-xs d-t-faint">
+                    地图上列出键帽就是在承诺「按了有用」：由功能自行注册的行必须显式标「未接入」，
+                    历史改过的绑定标「你改过」—— 但不给任何录制入口，可编辑键位表已随产品下线。
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-grid2">
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="type" data-size="15"></i>键帽按平台渲染</div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">macOS</div><div class="d-set-row-s">显示顺序 ⌃⌥⇧⌘，按键帽渲染</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">⇧</span><span class="d-kbd">⌘</span><span class="d-kbd">L</span></span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">Windows / Linux</div><div class="d-set-row-s">同一份绑定写成 Ctrl+Shift+L</div></div>
+                      <span class="d-grow-last"><span class="d-kbd">Ctrl</span><span class="d-kbd">Shift</span><span class="d-kbd">L</span></span>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box">
+                        <div class="d-set-row-t">「新建会话」在 mac 上也是 Ctrl</div>
+                        <div class="d-set-row-s">这一条是显式 Ctrl，不是 ⌘ —— 保持各平台一致，不要「顺手改成 ⌘」</div>
+                      </div>
+                      <span class="d-grow-last"><span class="d-badge info">刻意如此</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="lock" data-size="15"></i>地图只读，不给录制</div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-notice">
+                      <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                      <span class="d-col d-grow"><span class="d-set-row-t">录制与冲突处理已下线</span><span class="d-set-row-s">旧版那张可编辑键位表连同「重录 / 恢复默认 / 启用自定义键位」一起移除了，这里只回答「现在按什么会怎样」。</span></span>
+                    </div>
+                    <div class="d-notice">
+                      <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                      <span class="d-col d-grow"><span class="d-set-row-t">生效值仍然可取</span><span class="d-set-row-s">地图读的是实际生效的绑定（override 优先于默认），所以历史改过的行仍标「你改过」——只是不能再从界面改回去。</span></span>
+                    </div>
+                    <div class="d-notice">
+                      <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                      <span class="d-col d-grow"><span class="d-set-row-t">Esc 永远是「取消 / 停止回合」</span><span class="d-set-row-s">这是唯一的例外，不随键位表变化。</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · <b>提案（产品已下线）</b> · 记忆与知识（产品已删除 `lib/knowledge-*` 与 `/api/knowledge-maintenance`）—— 若恢复则按此画<span class="d-grow"></span>条目能选，开机能点，预览写清「下一轮会带什么」</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-col" style="gap:var(--nx-sp-4)">
+
+              <div class="d-card">
+                <div class="d-card-head">
+                  <i data-ico="brain" data-size="15"></i>
+                  <span>记忆与知识</span>
+                  <span class="d-badge mute">4 条 · 命中 54 次</span>
+                  <span class="d-grow"></span>
+                  <div class="d-anchor">
+                    <button class="d-btn sm" data-demo-open="p15-mem-new"><i data-ico="plus" data-size="13"></i>新建条目</button>
+                    <div class="d-pop is-open" data-demo-pop="p15-mem-new" hidden style="right:0;min-width:320px">
+                      <div class="d-pop-title">新建条目</div>
+                      <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                        <div class="d-field">
+                          <span class="d-field-t">标题</span>
+                          <input class="d-input" placeholder="例如：本仓的验收命令是哪几条">
+                        </div>
+                        <div class="d-field">
+                          <span class="d-field-t">来源</span>
+                          <button class="d-select">手写<i data-ico="chevron-down" data-size="12"></i></button>
+                        </div>
+                        <div class="d-t-xs d-t-faint">写「每次都要重复交代的那几句话」，不要写会话摘要 —— 摘要会被原文覆盖，记忆不会。</div>
+                      </div>
+                      <div class="d-sep"></div>
+                      <button class="d-menu-row"><i data-ico="pen-line" data-size="14"></i>手写一条</button>
+                      <button class="d-menu-row"><i data-ico="file-text" data-size="14"></i>从计划文档摘一段</button>
+                      <button class="d-menu-row"><i data-ico="import" data-size="14"></i>从一条会话摘录</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">把命中的条目注入每一轮</div>
+                      <div class="d-set-row-s">注入的是条目正文，不是摘要；一条都没命中时什么都不注入，不会拿占位的空段去占上下文。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" data-demo-switch aria-checked="true"></button></span>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">每轮最多注入</div>
+                      <div class="d-set-row-s">超预算时按「命中强度」从低到高砍，砍掉的部分在预览里写明。</div>
+                    </div>
+                    <span class="d-grow-last d-row" style="gap:var(--nx-sp-2)">
+                      <span class="d-ring" style="--p:22" title="占本轮上下文 22%"></span>
+                      <span class="d-t-xs d-t-dim">1.2k token</span>
+                      <input class="d-slider" type="range" min="0" max="100" value="22" aria-label="每轮最多注入的比例">
+                    </span>
+                  </div>
+
+                  <table class="d-table" data-demo-list>
+                    <thead>
+                      <tr><th>条目</th><th>范围</th><th>来源</th><th>体积</th><th>命中</th><th>为什么命中 / 不命中</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      <tr data-demo-select>
+                        <td>令牌只有一个来源</td>
+                        <td><span class="d-badge info">全局</span></td>
+                        <td>手写</td>
+                        <td class="d-mono">412 字 · 312 tok</td>
+                        <td class="d-mono">38 次</td>
+                        <td>项目匹配 + 关键词「令牌」</td>
+                        <td>
+                          <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用「令牌只有一个来源」"></button>
+                        </td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>本仓的六条验收命令</td>
+                        <td><span class="d-badge info">全局</span></td>
+                        <td>手写</td>
+                        <td class="d-mono">208 字 · 168 tok</td>
+                        <td class="d-mono">12 次</td>
+                        <td>关键词「验收 / 门禁」</td>
+                        <td>
+                          <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用「本仓的六条验收命令」"></button>
+                        </td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>PI NEXT 的画板清单与状态</td>
+                        <td><span class="d-badge mute">仅本项目</span></td>
+                        <td>从计划文档摘出</td>
+                        <td class="d-mono">1.1k 字 · 806 tok</td>
+                        <td class="d-mono">4 次</td>
+                        <td>项目匹配 · 10-06 更新过</td>
+                        <td>
+                          <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" aria-label="启用「画板清单」"></button>
+                        </td>
+                      </tr>
+                      <tr data-demo-select>
+                        <td>发票字段映射（9 列）</td>
+                        <td><span class="d-badge mute">仅 invoice-render</span></td>
+                        <td>从会话摘出</td>
+                        <td class="d-mono">356 字 · 264 tok</td>
+                        <td class="d-mono">0 次</td>
+                        <td><span class="d-badge warn">当前项目不匹配</span></td>
+                        <td>
+                          <button class="d-iconbtn" title="编辑"><i data-ico="pencil-line" data-size="14"></i></button>
+                          <button class="d-switch" data-demo-switch aria-checked="false" aria-label="启用「发票字段映射」"></button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div class="d-t-xs d-t-faint">
+                    关掉的条目<b>不删除</b>，只是不参与注入：面板上仍然列着，写「为什么不命中」而不是把它藏起来 ——
+                    一条半年没用过的记忆，用户需要知道它还在，才能决定删还是留。
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-grid2">
+
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="pencil-line" data-size="15"></i>
+                    编辑条目
+                    <span class="d-grow"></span>
+                    <span class="d-badge mute">草稿未保存</span>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-field">
+                      <span class="d-field-t">令牌只有一个来源</span>
+                      <textarea class="d-textarea" rows="7">本仓的设计值只有一个出处：design/v5/base.css 定义角色，两套形态各自只覆写「形态值」。
+同一个值不许在两处各写一遍 —— 上一轮翻车就是因为 tokens.css 与 app/design/tokens.css 同时加载、改一处只对一半。
+新增任何令牌，先在 base.css 定角色，再问自己它属于 Web 还是 PWA 的形态值。</textarea>
+                    </div>
+                    <div class="d-row d-t-xs">
+                      <span class="d-grow d-t-faint">412 字 · 估算 312 token · 占本轮预算 6%</span>
+                      <button class="d-btn sm ghost">取消</button>
+                      <button class="d-btn sm primary"><i data-ico="check" data-size="13"></i>保存</button>
+                    </div>
+                    <div class="d-t-xs d-t-faint">保存只改这一条；「从计划文档摘出」的那条会被下一次摘录覆盖，所以正文里不要加计划里没有的推断。</div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head">
+                    <i data-ico="eye" data-size="15"></i>
+                    命中预览 · 下一轮会带上什么
+                    <span class="d-grow"></span>
+                    <span class="d-badge ok">3 / 4 条命中</span>
+                  </div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+
+                    <div class="d-code">
+                      <div class="d-code-head"><i data-ico="terminal" data-size="12"></i>注入块 · 排在第一条用户消息之前</div>
+                      <div class="d-code-body">
+                        <div><span class="tok-c"># 记忆（命中 3 条，806 token）</span></div>
+                        <div><span class="tok-k">-</span> 令牌只有一个来源 —— design/v5/base.css 是唯一出处</div>
+                        <div><span class="tok-k">-</span> 本仓验收命令：npm test / node check-v5 / shoot.mjs</div>
+                        <div><span class="tok-k">-</span> PI NEXT 画板清单：D-13 已落，D-15 / D-20 补齐中</div>
+                      </div>
+                    </div>
+
+                    <div class="d-cites">
+                      <span class="d-cite is-on"><i data-ico="target" data-size="12"></i>项目匹配 · PI NEXT</span>
+                      <span class="d-cite is-on"><i data-ico="hash" data-size="12"></i>关键词「令牌 / 验收」</span>
+                      <span class="d-cite is-on"><i data-ico="book-marked" data-size="12"></i>手动置顶</span>
+                      <span class="d-cite"><i data-ico="circle-slash" data-size="12"></i>超预算未注入 · 发票字段映射</span>
+                    </div>
+
+                    <div class="d-col" style="gap:var(--nx-sp-1)">
+                      <div class="d-row d-t-xs">
+                        <span class="d-grow d-t-dim">本轮上下文占用</span>
+                        <span class="d-mono">1.2k / 5.6k</span>
+                      </div>
+                      <div class="d-bar"><i style="width:22%"></i></div>
+                    </div>
+
+                    <div class="d-banner">
+                      <i data-ico="info" data-size="14"></i>
+                      <span>注入块固定放在系统提示之后、第一条用户消息之前；预览与实际发出去的<b>逐字一致</b>，
+                        没有「大概会这样」。</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-body">
+                  <div class="d-empty">
+                    <div class="d-empty-ico"><i data-ico="brain" data-size="20"></i></div>
+                    <div class="d-empty-t">还没有任何条目</div>
+                    <div class="d-empty-s">
+                      记忆为空时，模型只能看见当前会话的几屏内容 —— 你每次都要重复交代的「验收命令是哪几条」「别动哪几个文件」，
+                      就得再说一遍。先写一条最常重复的。
+                    </div>
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <button class="d-btn sm"><i data-ico="pen-line" data-size="13"></i>手写第一条</button>
+                      <button class="d-btn sm ghost"><i data-ico="file-text" data-size="13"></i>从计划文档摘一条</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>四种「东西不见了」的口径必须分开写。</b>
+        归档＝标志位（<span class="d-mono">archived / archivedAt</span>，本机、跨标签页同步），恢复＝取消归档，永远不依赖页面还能不能打开；
+        彻底删除才删 <span class="d-mono">.jsonl</span>，要二次确认。导入＝两段式（<span class="d-mono">/api/import/scan</span> 只读扫描 →
+        勾选候选 → 试运行 → <span class="d-mono">/api/import/apply</span> 落盘），界面只送候选 id，服务端重扫反查，注入不出路径；
+        快捷键只读地图＝只展示此刻真正生效的键位（可编辑键位表已下线）；记忆为空＝什么都不注入，绝不塞占位空段。</li>
+    <li><b>危险动作的默认值要替用户踩刹车。</b>批量条<b>只在有选中时出现</b>（一条都没选时整条不出现，而不是灰着摆在那儿），
+        「永久删除」永远二次确认：标题写清对象（选中的 N 条归档会话），两个按钮是取消 / 删除（危险色），正文写清删的是文件本身；
+        「确认导入」在没试运行之前是 <code>disabled</code>。归档页最容易出的事不是删错一条，是手滑删一片。</li>
+    <li><b>试运行不发请求。</b>三段数（将导入 / 将跳过 / 将失败）在本地算出来给你看，代价是「预估」两个字必须写在数字旁边；
+        真正落盘之后仍然是 <span class="d-mono">imported / skipped / failed</span> 三段报，不假装全部成功。</li>
+    <li><b>冲突策略默认「跳过」。</b>三档里只有「跳过」是无损的，所以它是默认；「覆盖」那一档用红色横幅写清「不可撤销」，不是一句提示。</li>
+    <li><b>快捷键只读地图，不给任何录制入口。</b>可编辑键位表已随产品下线（本轮用户裁定），地图只列出此刻真正生效的绑定：
+        「命令面板 / 会话内查找」这类由功能自行注册的行显式标「未接入」，历史改过的绑定标「你改过」——
+        地图上列出键帽就是在承诺「按了有用」，不标就等于骗人。</li>
+    <li><b>两种空态要分开给出口。</b>「还没归档过」教你去归档，「归档过但文件没了」给一个开关；
+        「记忆为空」给两个动作（手写 / 从计划文档摘）。合成一句「暂无数据」的话，两边用户都无处可去。</li>
+    <li><b>命中预览逐字等于实际注入。</b>预览块与真实发送的文本同一份来源（含「超预算未注入」的说明），
+        否则用户会以为被砍掉的那条还在生效 —— 那才是真的丢东西。</li>
+    <li><b>浮层按 D-10 的做法预开</b>（<code>class="d-pop is-open"</code> + <code>hidden</code>）：截图里能看见菜单内容，
+        触发钮仍是成对的声明式接线，点一下 <code>hidden</code> 真翻转。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

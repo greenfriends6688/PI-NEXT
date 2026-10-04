@@ -6,7 +6,13 @@
 // （top 12/12/6、bar grid）—— 那是 20-composer 的状态，两者不可在同一帧对位。
 // 手机阅读态要流式折叠才能造出来，属于数据/状态依赖，登记在 DIVERGENCE。
 // 断点由 board-diff 的 viewport 固定（390×800），不在产品里手动缩放。
-const SHELL = [".pw-touch", ".pw-drawer"];
+// fork:v5-old-layer（2026-10-04）—— 手机壳已换 v5：`m-drawer`（AppShell.tsx:3080，
+// 抽屉本体）与抽屉里的触控钮 `m-drawer-foot`（:2184）。旧名 `.pw-drawer` / `.pw-touch`
+// 在产品里已不存在（只剩注释）。
+const SHELL = [
+  [".pw-touch", ".m-drawer-foot button"],
+  [".pw-drawer", ".sidebar-container.m-drawer"],
+];
 
 export default {
   name: "手机壳（画板 60 · 帧 A）",
@@ -14,7 +20,7 @@ export default {
   boardFrame: 0,
   viewport: { width: 390, height: 800 },
   app: { open: "new-session" },
-  selectors: SHELL,
+  pairs: SHELL,
   knownDiffs: [],
   tolerance: { box: 2, fontSize: 0 },
 };

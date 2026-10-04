@@ -60,20 +60,20 @@ export function ExplorationPane({
   }, [context]);
 
   return (
-    /* fork:design-components —— 右栏探索视图 = 画板 54 的只读并排面板：
-       `.pw-panel`（列向 + 左边线）+ `.pw-panel-head`（git-fork + 标题 + `.pw-badge` 只读 +
-       `.pw-btn.outline.sm` 在主线打开）+ `.pw-panel-body`（滚动正文）。
-       加载/错误态分别是 `.pw-alert.info` / `.pw-alert`，转录容器是 `.pw-list`。 */
-    <div className="pw-panel" style={{ height: "100%", minWidth: 0 }}>
-      <div className="pw-panel-head">
-        <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="git-fork" data-size="14" aria-hidden="true"></i></span>
-        <b>{t("explore.title")}</b>
-        <span className="pw-badge">{t("chat.toolPreset.read-only")}</span>
-        <span className="grow" />
+    /* fork:design-components —— 右栏探索视图 = 画板 D-03e 帧 D 的只读并排面板：
+       `.d-panel`（列向 + 左边线）+ `.d-panel-head`（git-fork + 标题 + `.d-badge.mute` 只读 +
+       `.d-btn.sm` 在主线打开）+ `.d-panel-body`（滚动正文）。
+       加载/错误态分别是 `.d-banner.info` / `.d-banner.err`，转录容器是 `.d-col`。 */
+    <div className="d-panel" style={{ height: "100%", minWidth: 0, width: "100%", flex: "1 1 auto" }}>
+      <div className="d-panel-head">
+        <i data-ico="git-fork" data-size="14" aria-hidden="true"></i>
+        <span className="d-t-b">{t("explore.title")}</span>
+        <span className="d-badge mute">{t("chat.toolPreset.read-only")}</span>
+        <span className="d-grow" />
         {onOpenAsMain && (
           <button
             type="button"
-            className="pw-btn outline sm"
+            className="d-btn sm"
             onClick={() => onOpenAsMain(sessionId)}
             title={t("explore.openInMain")}
           >
@@ -82,22 +82,22 @@ export function ExplorationPane({
         )}
       </div>
 
-      <div className="pw-panel-body" style={{ padding: "var(--s3)", overflowY: "auto" }}>
+      <div className="d-panel-body" style={{ padding: "var(--nx-sp-3)", overflowY: "auto" }}>
         {error && (
-          <div role="alert" className="pw-alert">
-            <span className="pw-ico"><i data-ico="circle-alert" data-size="14" aria-hidden="true"></i></span>
-            <span className="pw-grow">{t("explore.paneFailed")}：{error}</span>
+          <div role="alert" className="d-banner err">
+            <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{t("explore.paneFailed")}：{error}</span>
           </div>
         )}
         {!error && context === null && (
-          <div className="pw-alert info">
-            <span className="pw-ico"><i data-ico="info" data-size="14" aria-hidden="true"></i></span>
-            <span className="pw-grow">{t("i18n.loading")}</span>
+          <div className="d-banner info">
+            <i data-ico="info" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{t("i18n.loading")}</span>
           </div>
         )}
 
         {context && (
-          <>
+          <div className="d-col" style={{ gap: "var(--nx-sp-3)", minWidth: 0 }}>
             {parentSessionId && (
               <ExplorationBanner
                 branchSessionId={sessionId}
@@ -107,7 +107,7 @@ export function ExplorationPane({
                 onOpenParent={onOpenAsMain}
               />
             )}
-            <div className="pw-list" style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0 }}>
               {context.messages.map((message, index) => (
                 <MessageView
                   key={context.entryIds[index] ?? index}
@@ -116,7 +116,7 @@ export function ExplorationPane({
                 />
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

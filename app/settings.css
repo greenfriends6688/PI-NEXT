@@ -250,14 +250,9 @@
   min-width: var(--control-xs);
 }
 
-.models-discovery-list {
-  max-height: 260px;
-  overflow-y: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-6);
-  padding: 4px;
-}
-
+/* fork:v5-old-layer（2026-10-04）—— 删 `.models-discovery-list`：全仓零引用。
+   ModelsConfig.tsx 的发现列表现在是 `.d-row` 行组（875/894 行），不再有那个独立
+   的内滚盒子；`.models-discovery-head` / `-row` 仍活着（行本身），保留。 */
 .models-discovery-head {
   position: sticky;
   top: 0;

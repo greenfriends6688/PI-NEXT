@@ -2,6 +2,8 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { PwaTabErrorState } from "./pwa/ErrorStates";
 
 /*
  * fork:proma-38-tab-boundary — **每个 tab 的内容各包一层**错误边界。
@@ -15,8 +17,13 @@ import { useI18n } from "@/hooks/useI18n";
  *   · 边界是类组件，渲染失败时**不产生任何额外 DOM** —— 也就是不改变
  *     `.file-panel-main` 的 flex 子项结构（tab 容器仍是它唯一的直接子元素）。
  *
- * 形态照抄画板 61「应用级错误页」A 段的 DOM：`.pw-empty` / `.pw-empty-inner` /
- * `.pw-btn`，图标 `triangle-alert` 走 data-ico。**不新增任何 `.pw-*` 类**。
+ * 形态照抄 v5 画板 D-26b 帧 B「段级 · app/error.tsx」的 DOM：
+ * `.d-empty` / `.d-empty-ico` / `.d-empty-t` / `.d-empty-s` / `.d-row` +
+ * `.d-btn`，图标 `triangle-alert` 走 data-ico。
+ *
+ * fork:v5-wave-b-sysstate —— 窄屏走 M-11 帧 D ⑪ 的 `.m-empty` 四件 +
+ * `.m-btn.sm .m-touch-44`（见 `components/pwa/ErrorStates.tsx`）。
+ * 边界本体仍是类组件、不产生额外 DOM；只有错误态那个函数组件分叉。
  */
 
 export interface TabErrorBoundaryProps {
@@ -73,28 +80,47 @@ export class TabErrorBoundary extends Component<TabErrorBoundaryProps, TabErrorB
  */
 function TabErrorState({ label, onRetry, onClose }: { label: string; onRetry: () => void; onClose?: () => void }) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    /* M-11 帧 D ⑪「错误页」：`.m-empty` / `.m-empty-ico`（danger）/
+       `.m-empty-t` / `.m-empty-s` + 两枚 `.m-btn.sm`（重试 / 关闭）。
+       两级错误页都必须给「重试」——所以关闭是可选的第二颗，不是唯一一颗。 */
+    return (
+      <PwaTabErrorState
+        title={t("tabs.errorTitle")}
+        hint={t("tabs.errorHint", { name: label })}
+        style={{ height: "100%" }}
+        actions={[
+          { key: "retry", label: t("tabs.errorRetry"), icon: "rotate-cw", variant: "primary", onClick: onRetry },
+          ...(onClose
+            ? [{ key: "close", label: t("tabs.errorClose"), icon: "x", onClick: onClose } as const]
+            : []),
+        ]}
+      />
+    );
+  }
+
   return (
-    /* `.pw-empty` 是画板 31/30 的空态容器（flex:1 + place-items:center），
-       `height: 100%` 让它在 tab 容器（height 100% 的普通块）里也撑满。 */
-    <div className="pw-empty" role="alert" style={{ height: "100%" }}>
-      <div className="pw-empty-inner">
-        <span className="mark" style={{ color: "var(--error)" }}>
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="20" aria-hidden="true"></i></span>
-        </span>
-        <h2>{t("tabs.errorTitle")}</h2>
-        <p>{t("tabs.errorHint", { name: label })}</p>
-        <div className="pw-inline">
-          <button type="button" className="pw-btn primary" onClick={onRetry}>
-            <span className="pw-ico"><i data-ico="rotate-cw" data-size="13" aria-hidden="true"></i></span>
-            {t("tabs.errorRetry")}
+    /* 画板 D-26b 帧 B「段级 · app/error.tsx」的 `.d-empty` 形态（图标 / 标题 /
+       说明 / 动作行）；`height: 100%` 让它在 tab 容器里也撑满。 */
+    <div className="d-empty" role="alert" style={{ height: "100%" }}>
+      <div className="d-empty-ico" style={{ color: "var(--nx-danger)" }}>
+        <i data-ico="triangle-alert" data-size="20" aria-hidden="true" />
+      </div>
+      <div className="d-empty-t">{t("tabs.errorTitle")}</div>
+      <div className="d-empty-s">{t("tabs.errorHint", { name: label })}</div>
+      <div className="d-row">
+        <button type="button" className="d-btn sm primary" onClick={onRetry}>
+          <i data-ico="rotate-cw" data-size="13" aria-hidden="true" />
+          {t("tabs.errorRetry")}
+        </button>
+        {onClose && (
+          <button type="button" className="d-btn sm" onClick={onClose}>
+            <i data-ico="x" data-size="13" aria-hidden="true" />
+            {t("tabs.errorClose")}
           </button>
-          {onClose && (
-            <button type="button" className="pw-btn outline" onClick={onClose}>
-              <span className="pw-ico"><i data-ico="x" data-size="13" aria-hidden="true"></i></span>
-              {t("tabs.errorClose")}
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

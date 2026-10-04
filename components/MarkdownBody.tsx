@@ -11,6 +11,9 @@ import { useThrottledText } from "@/hooks/useThrottledText";
 import { ImagePreview } from "./ImagePreview";
 import { useOpenLink } from "./LinkOpenContext";
 import { MermaidBlock, CodeBlock } from "./MermaidBlock";
+// fork:v5-wave-b —— PWA 形态：正文容器与表格换成画板 M-02 的 `.m-md` /
+// `.m-tbl-scroll` + `.m-tbl`（手机上的第二条硬纪律：表格自带横滚）。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 const MarkdownLinkContext = createContext(false);
 
@@ -19,23 +22,7 @@ function hastClassNames(node: ExtraProps["node"]): string[] {
   return Array.isArray(className) ? className.map(String) : [];
 }
 
-/**
- * GFM 的勾选框在紧凑项里是 <li> 的首个元素子节点，在松散项里则包在首个 <p> 内
- * （且前面还有一个换行文本节点）—— 两种位置都要找到，否则松散项拿不到 `checked`，
- * 也就挂不上画板的 `.box.done`。
- */
-function taskItemChecked(node: ExtraProps["node"]): boolean {
-  const first = node?.children?.find((child) => child.type !== "text" || child.value.trim() !== "");
-  if (!first || first.type !== "element") return false;
-  const box = first.tagName === "input"
-    ? first
-    : first.tagName === "p"
-      ? first.children?.find((child) => child.type === "element" && child.tagName === "input")
-      : undefined;
-  return Boolean(box?.type === "element" && box.properties?.checked);
-}
-
-/** 松散任务列表项的正文是块级（<p> / <ul> …），不能塞进画板那个 <span> 里。 */
+/** 松散任务列表项的正文是块级（<p> / <ul> …），不能塞进那个包裹用的 <span> 里。 */
 function hasBlockLevelChild(node: ExtraProps["node"]): boolean {
   return (node?.children ?? []).some((child) => {
     if (child.type !== "element") return false;
@@ -115,10 +102,21 @@ function MarkdownImage({
  * 那一刻（`streamingRef`），因此 `isStreaming` 翻转不会重建整棵 `components`、
  * 触发全量 reconcile（本仓库刻意的修复）；分块路径则各自闭包自己的分块标记。
  */
+/**
+ * fork:v5-wave-b —— `isPwa` 只是把**表格那一个渲染器**换成手机形态
+ * （`.m-tbl-scroll > .m-tbl`，横滚由 m-tbl-scroll 承担）。它进入 `components`
+ * 的依赖是安全的：这个布尔只在跨越 640px 断点时翻转一次，不会像 `isStreaming`
+ * 那样每个 delta 都换一次渲染器身份。
+ *
+ * 其余渲染器（行内 code / 任务清单 / 引用 / katex / mention）在 PWA 库里**没有**
+ * 对应件（缺件已登记），继续带 `d-*`：过渡口径下 d-* 规则在 ≤640px 仍然生效
+ * （见 app/design/v5-forms.css），不是裸的。
+ */
 function buildMarkdownComponents(
   readStreaming: () => boolean,
   cwd: string | undefined,
   onOpenFile: ((filePath: string, page?: number) => void) | undefined,
+  isPwa: boolean,
 ): Components {
   return {
     code({ className, children, node, ...props }) {
@@ -146,80 +144,101 @@ function buildMarkdownComponents(
     pre({ children }) {
       return <>{children}</>;
     },
-    // fork:design-components —— GFM 任务清单换成画板 10:130-134 的
-    // `<ul class="pw-tasklist">` + `<li class="done">` + `<span class="box done">`。
-    // GFM 给的是 `<ul.contains-task-list>` + `<li.task-list-item>` + 原生 checkbox。
+    // fork:v5-landing —— GFM 任务清单换成画板 D-03b 帧 F 的
+    // `<ul class="d-tasklist">` + `<span class="d-checkbox on">`。
+    // GFM 给的是 `<ul class="contains-task-list">` + `<li class="task-list-item">` + 原生 checkbox。
     ul({ node, children, ...props }) {
       const isTaskList = hastClassNames(node).includes("contains-task-list");
-      return <ul {...props} className={isTaskList ? "pw-tasklist" : undefined}>{children}</ul>;
+      return <ul {...props} className={isTaskList ? "d-tasklist" : undefined}>{children}</ul>;
     },
     li({ node, children, ...props }) {
       if (!hastClassNames(node).includes("task-list-item")) {
         return <li {...props}>{children}</li>;
       }
-      // 画板 10:130-133 的行内结构：`<li class="done"><span class="box done">…</span><span>…</span></li>`。
-      // 勾选态取自 GFM 塞在 <li> 首位的那个 `<input checked>`，由下面的 `input` 渲染成 `.box`。
-      // 松散列表项里 children 可能是块级（<p>/<ul>），塞进 <span> 会让 HTML 解析器拆标签，
-      // 那种情况保持原样交给 `.pw-md .pw-tasklist li` 的 flex 布局。
-      const done = taskItemChecked(node);
+      // 画板 D-03b 帧 F 的行内结构：`<li><span class="d-checkbox on">…</span>text</li>`。
+      // 勾选态由上面的 `input` 渲染器写成 `.d-checkbox`；松散列表项里 children
+      // 可能是块级（<p>/<ul>），塞进 <span> 会让 HTML 解析器拆标签，那种情况保持原样
+      // 交给 `.d-md .d-tasklist li` 的 flex 布局。
       const [box, ...rest] = Children.toArray(children);
       const body = hasBlockLevelChild(node)
         ? rest
-        : [<span key="pw-tasklist-text">{rest}</span>];
+        : [<span key="tasklist-text">{rest}</span>];
       return (
-        <li {...props} className={done ? "done" : undefined}>
+        <li>
           {box}
           {body}
         </li>
       );
     },
-    // fork:design-components —— GFM 的原生 checkbox 换成画板 10:130-133 的
-    // `<span class="box done"><i data-ico="check" data-size="10"></i></span>`（纯展示，不可点，
-    // 与画板一致）。board.css:295-301 给 `.box` 定 14px 方框、`.box.done` 上强调色底。
+    // fork:v5-landing —— GFM 的原生 checkbox 换成画板 D-03b 帧 F 的
+    // `<span class="d-checkbox on"><i data-ico="check" data-size="11"></i></span>`（纯展示，不可点）。
     input({ node, type, checked, ...props }: ComponentProps<"input"> & ExtraProps) {
       void node;
       if (type !== "checkbox") return <input type={type} checked={checked} {...props} />;
       return (
-        <span className={checked ? "box done" : "box"}>
-          {checked && <i data-ico="check" data-size="10" />}
+        <span
+          className={checked ? "d-checkbox on" : "d-checkbox"}
+          role="checkbox"
+          aria-checked={checked === true ? "true" : "false"}
+        >
+          {checked && <i data-ico="check" data-size="11" />}
         </span>
       );
     },
-    // fork:design-components —— 引用块 = 画板 10:135 的 `.pw-quote`（左 2px 竖线 + 弱化色）。
+    // fork:v5-landing —— 引用块 = 画板 D-03b 帧 F 的 `.d-quote`。
     blockquote({ node, children, ...props }) {
       void node;
-      return <blockquote {...props} className="pw-quote">{children}</blockquote>;
+      return <blockquote {...props} className="d-quote">{children}</blockquote>;
     },
-    // fork:design-components —— rehype-katex 的两个根节点挂画板 10:177-179 的
-    // `.pw-math`（行内）/ `.pw-math.block`（块级）。
+    // fork:v5-landing —— rehype-katex 的两个根节点挂画板 D-03b 的 `.d-math`。
     //
     // 关键：`katex` / `katex-display` **必须保留**。katex.min.css 里有 370 条
     // `.katex .xxx` 后代选择器（`.katex .base`、`.katex .mord` …），去掉根类名整套
     // 数学排版就散架；`.katex-display > .katex` 也依赖这两个类同时存在。
-    // 所以这里只在原类名后面**追加** pw-math，不替换。
-    span({ node, className, ...props }) {
-      if (className === "katex-display") return <span {...props} className="katex-display pw-math block" />;
-      if (className === "katex") return <span {...props} className="katex pw-math" />;
-      // fork:proma-34-mention —— 图片文件的 mention 芯片可点开预览。`data-mention-previewable`
-      // 由 lib/mention-tokens.ts 的 rehype 插件打在 span 上；这里只负责接 ImagePreview。
-      const previewable = node?.properties?.dataMentionPreviewable === true;
-      const mentionValue = node?.properties?.dataMentionValue;
-      if (previewable && typeof mentionValue === "string") {
-        const filePath = resolveLocalFileHref(mentionValue, cwd);
-        if (filePath) {
-          return (
-            <ImagePreview
-              src={`/api/files/${encodeFilePathForApi(filePath)}?type=read`}
-              alt={mentionValue}
-              // 内联 chip 不能撑成整行：ImagePreview 的触发钮默认 block。
-              style={{ display: "inline" }}
-            >
-              <span {...props} className={className} />
-            </ImagePreview>
-          );
+    // 所以这里只在原类名后面**追加** d-math，不替换。
+    span({ node, className, children, ...props }) {
+      if (className === "katex-display") return <span {...props} className="katex-display d-math">{children}</span>;
+      if (className === "katex") return <span {...props} className="katex d-math">{children}</span>;
+      // fork:proma-34-mention —— mention 芯片 = 画板 D-03b 帧 F 的 `.d-mention`
+      // （图标 + 等宽 token）。`data-mention-kind` 决定首枚图标。
+      const mentionKind = node?.properties?.dataMentionKind;
+      if (typeof mentionKind === "string") {
+        const icon = mentionKind === "skill" ? "sparkles"
+          : mentionKind === "mcp" ? "plug"
+            : mentionKind === "session" ? "message-square"
+              : mentionKind === "comment" ? "git-commit-horizontal"
+                : "file-code";
+        const mentionValue = node?.properties?.dataMentionValue;
+        const previewable = node?.properties?.dataMentionPreviewable === true;
+        const chip = (
+          <span
+            className="d-mention"
+            data-mention-kind={mentionKind}
+            data-mention-value={mentionValue}
+            data-mention-previewable={previewable ? "true" : undefined}
+          >
+            <i data-ico={icon} data-size="10" />
+            {children}
+          </span>
+        );
+        if (previewable && typeof mentionValue === "string") {
+          const filePath = resolveLocalFileHref(mentionValue, cwd);
+          if (filePath) {
+            return (
+              <ImagePreview
+                src={`/api/files/${encodeFilePathForApi(filePath)}?type=read`}
+                alt={mentionValue}
+                // 内联 chip 不能撑成整行：ImagePreview 的触发钮默认 block。
+                style={{ display: "inline" }}
+              >
+                {chip}
+              </ImagePreview>
+            );
+          }
         }
+        return chip;
       }
-      return <span {...props} className={className} />;
+      return <span {...props} className={className}>{children}</span>;
     },
     a({ href, children, ...props }) {
       // `node` is react-markdown metadata, not a DOM attribute.
@@ -258,10 +277,19 @@ function buildMarkdownComponents(
       return <MarkdownImage cwd={cwd} {...props} />;
     },
     table({ children }) {
+      if (isPwa) {
+        // fork:v5-wave-b —— 窄屏抄 M-02 帧 B 的横滚表格：`.m-tbl-scroll` 横滚，
+        // 表体是 `.m-tbl`（`.m-tbl th/td` 自带 `white-space: nowrap`）。
+        return (
+          <div className="m-tbl-scroll">
+            <table className="m-tbl">{children}</table>
+          </div>
+        );
+      }
       return (
-        // fork:design-components —— GFM 表格直接用画板 10 的 .pw-table 组件。
-        <div className="markdown-table-wrap">
-          <table className="pw-table">{children}</table>
+        // fork:v5-landing —— GFM 表格直接用画板 D-03b 帧 B 的 .d-tbl-wrap + .d-table。
+        <div className="d-tbl-wrap">
+          <table className="d-table">{children}</table>
         </div>
       );
     },
@@ -285,6 +313,7 @@ const MarkdownPart = memo(function MarkdownPart({
   rehypePlugins,
   cwd,
   onOpenFile,
+  isPwa,
 }: {
   text: string;
   partStreaming: boolean;
@@ -292,10 +321,11 @@ const MarkdownPart = memo(function MarkdownPart({
   rehypePlugins: ComponentProps<typeof ReactMarkdown>["rehypePlugins"];
   cwd?: string;
   onOpenFile?: (filePath: string, page?: number) => void;
+  isPwa: boolean;
 }) {
   const components = useMemo(
-    () => buildMarkdownComponents(() => partStreaming, cwd, onOpenFile),
-    [partStreaming, cwd, onOpenFile],
+    () => buildMarkdownComponents(() => partStreaming, cwd, onOpenFile, isPwa),
+    [partStreaming, cwd, onOpenFile, isPwa],
   );
   return (
     <ReactMarkdown
@@ -310,6 +340,8 @@ const MarkdownPart = memo(function MarkdownPart({
 });
 
 export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile, highlightMentions, mentionValidators, keepLineBreaks }: MarkdownBodyProps) {
+  // fork:v5-wave-b —— 窄屏走画板 M-02 的 `.m-md`（同义：正文排版 + p/h1/h2 的间距）。
+  const isPwa = usePwaSkin();
   // fork:fix-markdown-stream — 节流后的可见文本。
   //
   // 原先这里直接 `useMemo(normalizeDisplayMath, [children])`：`children` 是流式增长的
@@ -346,8 +378,8 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
   streamingRef.current = Boolean(isStreaming);
   // Stable renderer identities keep stateful blocks mounted across message hover updates.
   const components = useMemo<Components>(
-    () => buildMarkdownComponents(() => streamingRef.current, cwd, onOpenFile),
-    [cwd, onOpenFile],
+    () => buildMarkdownComponents(() => streamingRef.current, cwd, onOpenFile, isPwa),
+    [cwd, onOpenFile, isPwa],
   );
 
   // fork:markdown-incremental — 稳定前缀块与增长的 tail 分开。
@@ -364,10 +396,11 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
   // 流式）回到原来的单棵 ReactMarkdown，保证结束态与一次性渲染结果完全一致。
   const streamingSplit = Boolean(isStreaming) && parts.length > 1;
 
-  // fork:design-components —— 助手正文容器 = 画板 10:105-140 的 `.pw-md`。
-  // 调用方传的 className（markdown-user-message / markdown-compaction-message 等）原样保留。
+  // fork:v5-landing —— 助手正文容器 = 画板 D-03b 的 `.d-md`。
+  // fork:v5-wave-b —— 窄屏 = M-02 的 `.m-md`。调用方传的 className
+  // （markdown-user-message / markdown-compaction-message 等）原样保留。
   return (
-    <div className={["pw-md", className].filter(Boolean).join(" ")}>
+    <div className={[isPwa ? "m-md" : "d-md", className].filter(Boolean).join(" ")}>
       {streamingSplit ? (
         parts.map((part, index) => (
           <MarkdownPart
@@ -378,6 +411,7 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
             rehypePlugins={rehypePlugins}
             cwd={cwd}
             onOpenFile={onOpenFile}
+            isPwa={isPwa}
           />
         ))
       ) : (

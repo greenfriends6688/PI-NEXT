@@ -31,6 +31,8 @@ import {
   type ReactNode,
 } from "react";
 import { useI18n } from "@/hooks/useI18n";
+// fork:v5-wave-b —— 窄屏（≤640）用 PWA 形态的类；d-* 只在 ≥641 生效。
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { animateFlip, diffFlip, type ElementRect, type FlipSnapshot } from "@/lib/flip-animate";
 import {
   groupProjects,
@@ -93,6 +95,8 @@ export function GroupedProjectList<T extends { key: string }>({
 }: GroupedProjectListProps<T>) {
   const { t } = useI18n();
   const sections = useMemo(() => groupProjects(projects, store.state), [projects, store.state]);
+  // fork:v5-wave-b —— 窄屏形态判据（≤640，与 pwa/system.css 的 @import 媒体条件同断点）。
+  const isPhone = useIsMobile();
 
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropKey, setDropKey] = useState<string | null>(null);
@@ -223,7 +227,7 @@ export function GroupedProjectList<T extends { key: string }>({
         overProject(project.key);
       }}
       onDrop={(event) => dropOnProject(event, project.key)}
-      style={{ borderRadius: "var(--zn-radius-row)" }}
+      style={{ borderRadius: "var(--nx-r-md)" }}
     >
       {renderProject(project)}
     </div>
@@ -273,24 +277,24 @@ export function GroupedProjectList<T extends { key: string }>({
 
         {/* fork:zc-11 — 拖拽中的已分组项目需要一个「回到未分组」的落点；
             没有它，用户只能先拖出组再拖回来。
-            fork:design-components —— 落区直接用画板 61 的 `.pw-drop`（虚线 / 强调底 /
-            居中全在 board.css），组件里只留「挤成侧栏一行」这一档排版；`data-active`
-            与分组头用同一个状态属性。 */}
+            fork:v5-landing —— 落区用画板 D-02d 的 `.d-drop`（虚线 / 强调底 / 居中在
+            system.css），行内只留「挤成侧栏一行」这一档几何。
+            fork:v5-wave-b —— 窄屏换成 PWA 库里的同义件 `.m-placeholder`（虚线落区）；
+            拖放 handler 与状态与桌面一字不差。 */}
         {draggingGrouped && (
           <div
             data-fork-ungroup-drop=""
-            data-active={ungroupDropActive ? "true" : undefined}
             onDragOver={(event) => {
               event.preventDefault();
               if (!ungroupDropActive) setUngroupDropActive(true);
             }}
             onDragLeave={() => setUngroupDropActive(false)}
             onDrop={dropOnUngrouped}
-            className="pw-drop"
-            style={{ minHeight: ROW_HEIGHT, padding: "var(--space-tight) 8px", gridAutoFlow: "column", gap: "var(--space-row)" }}
+            className={isPhone ? "m-placeholder" : `d-drop${ungroupDropActive ? " over" : ""}`}
+            style={isPhone ? undefined : { minHeight: ROW_HEIGHT, padding: "var(--nx-sp-2)", flexDirection: "row", gap: "var(--nx-sp-1)" }}
           >
-            <span className="pw-ico"><i data-ico="inbox" data-size="12"></i></span>
-            <span>{t("sidebar.ungroupHint")}</span>
+            <i data-ico="inbox" data-size="14"></i>
+            <span className={isPhone ? "m-t-sm" : "d-t-sm"}>{t("sidebar.ungroupHint")}</span>
           </div>
         )}
 
@@ -334,25 +338,50 @@ function GroupHeader({
 }) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
+  // fork:v5-wave-b —— 窄屏形态判据（≤640，与 pwa/system.css 的 @import 媒体条件同断点）。
+  const isPhone = useIsMobile();
 
-  // fork:design-components —— 分组头照画板 02：`.pw-group-title` 给行规格，
-  // 折叠箭头用行内箭头的 `.pw-ico .pw-row-toggle`（随折叠态换 chevron，不再自绘旋转），
-  // 改名 / 删除是 `.pw-iconbtn sm` + 画板图标；hover 与拖放落点两档底色由
-  // fork-ui.css 的 `.pw-group-title[data-fork-group-header]` 承担。
+  // fork:v5-landing —— 分组头照画板 D-02d 帧 B：`.d-group-title` 给行规格，
+  // 折叠箭头用直接子 `<i data-ico>`（随折叠态换 chevron），色点是数据驱动的
+  // `fork-group-dot--*`（颜色不能内联，见汇报），改名 / 删除是 `.d-iconbtn`。
   if (renaming) {
+    // fork:v5-wave-b —— 窄屏改名态 = `.m-group-title` + `.m-input`（同一形状的换皮，
+    // 改名 / 提交 / 取消 / 失焦提交四个 handler 不变）。
+    if (isPhone) {
+      return (
+        <div
+          ref={registerFlipNode(`group:${group.id}`)}
+          data-fork-group-header={group.id}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          className="m-group-title"
+        >
+          <input
+            autoFocus
+            className="m-input m-grow"
+            value={renameValue}
+            onChange={(event) => onRenameValue(event.target.value)}
+            onBlur={onCommitRename}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onCommitRename();
+              if (event.key === "Escape") onCancelRename();
+            }}
+            aria-label={t("sidebar.renameGroup")}
+          />
+        </div>
+      );
+    }
     return (
       <div
         ref={registerFlipNode(`group:${group.id}`)}
         data-fork-group-header={group.id}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        className="pw-group-title"
-        style={{ padding: "0 var(--s2) var(--s1)" }}
+        className="d-group-title"
       >
         <input
           autoFocus
-          className="pw-input"
-          style={{ flex: 1, minWidth: 0 }}
+          className="d-input d-grow"
           value={renameValue}
           onChange={(event) => onRenameValue(event.target.value)}
           onBlur={onCommitRename}
@@ -366,6 +395,50 @@ function GroupHeader({
     );
   }
 
+  // fork:v5-wave-b —— 窄屏分支照画板 **M-04 帧 A/B** 的分组标题抄 DOM：
+  // `.m-group-title` > `.m-row-t`（chevron + 组名 + 数量）+ 行内动作（`.m-row-m` +
+  // `.m-iconbtn`）。折叠 / 改名 / 删除 / 拖放 / FLIP 全部原样接回。
+  if (isPhone) {
+    return (
+      <div
+        ref={registerFlipNode(`group:${group.id}`)}
+        data-fork-group-header={group.id}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        className="m-group-title"
+      >
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            onToggle();
+          }}
+          aria-expanded={!group.collapsed}
+          title={t(group.collapsed ? "session.expandGroup" : "session.collapseGroup")}
+          className="m-row-t"
+          style={{ cursor: "pointer" }}
+        >
+          <i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
+          {/* fork:task-groups —— 组色点（数据驱动的 `fork-group-dot--*`），折叠时仍画。 */}
+          <span className={`fork-group-dot fork-group-dot--${group.color}`} aria-hidden="true" />
+          {group.name}
+          <span className="m-row-m">{count}</span>
+        </span>
+        <span className="m-row-m">
+          <button type="button" className="m-iconbtn" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
+            <i data-ico="pencil" data-size="12"></i>
+          </button>
+          <button type="button" className="m-iconbtn" onClick={onDelete} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")}>
+            <i data-ico="trash-2" data-size="12"></i>
+          </button>
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={registerFlipNode(`group:${group.id}`)}
@@ -375,30 +448,32 @@ function GroupHeader({
       onDrop={onDrop}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="pw-group-title"
-      style={{ borderRadius: "var(--radius-md)", padding: "var(--space-tight) var(--s2)", gap: "var(--s1)" }}
+      className={`d-group-title${dropActive ? " is-on" : ""}`}
     >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!group.collapsed}
         title={t(group.collapsed ? "session.expandGroup" : "session.collapseGroup")}
+        className="d-row d-grow"
       >
-        <span className="pw-ico pw-row-toggle"><i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i></span>
+        <i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
         {/* fork:task-groups —— 组色点。折叠状态下名字藏起来了，色点是唯一的身份线索，
-            所以它一直画。尺寸跟 `.pw-ico` 的行内节奏一致，不另立几何。 */}
+            所以它一直画。尺寸跟行内节奏一致，不另立几何。 */}
         <span className={`fork-group-dot fork-group-dot--${group.color}`} aria-hidden="true" />
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {group.name}
         </span>
       </button>
-      <span style={{ flexShrink: 0, minWidth: "var(--icon-sm)", textAlign: "right" }}>{count}</span>
-      <span className="pw-acts" style={{ opacity: hovered || dropActive ? 1 : 0 }}>
-        <button type="button" className="pw-iconbtn sm" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
-          <span className="pw-ico"><i data-ico="pencil" data-size="12"></i></span>
+      <span className="d-t-xs" style={{ flexShrink: 0, minWidth: "var(--icon-sm)", textAlign: "right" }}>{count}</span>
+      {/* 行内动作：复用系统里现成的悬停动作组（与消息动作同一件），
+          没有独立的 `.d-acts` 类，见汇报。 */}
+      <span className={`d-msg-acts${hovered || dropActive ? " is-on" : ""}`}>
+        <button type="button" className="d-iconbtn" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
+          <i data-ico="pencil" data-size="12"></i>
         </button>
-        <button type="button" className="pw-iconbtn sm" onClick={onDelete} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")}>
-          <span className="pw-ico"><i data-ico="trash-2" data-size="12"></i></span>
+        <button type="button" className="d-iconbtn" onClick={onDelete} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")}>
+          <i data-ico="trash-2" data-size="12"></i>
         </button>
       </span>
     </div>

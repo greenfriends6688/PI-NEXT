@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-29 · 动效规格台 B · 容器与转场 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-29 · 动效规格台 B · 容器与转场</h1>
+  <p>
+    D-31 管「一个元素自己变了」，这一张管<b>「一块地方进来了 / 换掉了 / 走了」</b>：浮层、抽屉、
+    底部面板、页签下划线、骨架、错峰、列表增删。判定口径只有一条 ——
+    <b>凡是动了布局尺寸的用 <code>--nx-dur-4</code>，凡是整块替换的用 <code>--nx-dur-3</code>，
+    进出场用 <code>--nx-dur-2</code></b>，不许因为「想要更炫」就往后借一档。
+    能真点的都真点，库内没有的（抽屉 / 底部面板 / 遮罩 / 页签下划线）直接把要补的 CSS 写在帧里，
+    并把重播按钮置灰 —— 规格台不用别的动效冒充缺口。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">类型：规格台</span>
+    <span class="d-tag">组件：d-pop · d-modal-box · d-tabs · d-skel · d-row-x · d-queue</span>
+    <span class="d-tag">状态：10 条全部已落库并可点（含抽屉 / 底部面板 / 遮罩 / 页签下划线）</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 台账 ──────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 容器类台账<span class="d-grow"></span>「帧」一列是索引：B/C/D/E 里都能点到同一条</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="list-checks" data-size="15"></i>容器与转场 · 台账<span class="d-grow"></span><span class="d-badge mute">时长只取五档，曲线只取三条</span></div>
+                <div class="d-card-body">
+                  <table class="d-table">
+                    <thead>
+                      <tr><th>类 / 关键帧</th><th>时长</th><th>曲线</th><th>触发</th><th>静止终态</th><th>状态</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td class="d-mono">.d-pop.is-open / nx-pop-in</td><td>160ms（--nx-dur-2）</td><td>ease-out</td><td>下拉、菜单、选择器出现</td><td>停在原位，完全不透明</td><td><span class="d-badge ok">帧 B</span></td></tr>
+                      <tr><td class="d-mono">.d-modal-box / nx-pop-in</td><td>160ms</td><td>ease-out</td><td>模态盒子入场</td><td>原尺寸、无位移</td><td><span class="d-badge ok">帧 B</span></td></tr>
+                      <tr><td class="d-mono">.d-tab.is-on::after</td><td>无过渡</td><td>—</td><td>页签选中</td><td>选中页签下有线</td><td><span class="d-badge warn">帧 B · 线不移动</span></td></tr>
+                      <tr><td class="d-mono">.d-drawer</td><td>320ms（--nx-dur-4）</td><td>ease</td><td>抽屉推拉</td><td>开 = 宽 264 / 关 = 宽 0</td><td><span class="d-badge warn">帧 C · 缺口</span></td></tr>
+                      <tr><td class="d-mono">.d-sheet / nx-sheet-up</td><td>240ms（--nx-dur-3）</td><td>ease-out</td><td>底部面板上滑</td><td>贴底、盖住内容</td><td><span class="d-badge warn">帧 C · 缺口</span></td></tr>
+                      <tr><td class="d-mono">.d-scrim</td><td>160ms</td><td>ease</td><td>遮罩淡入淡出</td><td>透明度 0 / 1</td><td><span class="d-badge warn">帧 C · 缺口</span></td></tr>
+                      <tr><td class="d-mono">.d-skel::after / nx-sweep</td><td>1400ms · 无限</td><td>linear</td><td>骨架屏扫掠</td><td>静止的浅灰块</td><td><span class="d-badge ok">帧 D</span></td></tr>
+                      <tr><td class="d-mono">骨架 → 内容</td><td>换 key 重挂</td><td>—</td><td>数据到齐</td><td>内容原地出现</td><td><span class="d-badge ok">帧 D</span></td></tr>
+                      <tr><td class="d-mono">--nx-dur-stagger</td><td>40ms · 最多 3 项</td><td>—</td><td>成组入场错峰</td><td>全部到齐</td><td><span class="d-badge ok">帧 E</span></td></tr>
+                      <tr><td class="d-mono">列表进（申请中）</td><td>160ms</td><td>ease-out</td><td>新增一行</td><td>与相邻行同高同色</td><td><span class="d-badge warn">帧 E · 用 .d-cell-pop 顶替</span></td></tr>
+                      <tr><td class="d-mono">.d-row-x.is-closing / nx-row-slide-out</td><td>225ms</td><td>ease-in</td><td>移除一行</td><td>节点已卸载</td><td><span class="d-badge ok">帧 E</span></td></tr>
+                    </tbody>
+                  </table>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                    <b>进场用 ease-out、退场用 ease-in</b>：进场要「先快后慢」把东西送到位，退场要「先慢后快」走得干脆。
+                    唯一不遵守的是 <b>--nx-dur-sweep</b>（骨架扫掠）—— 扫掠是循环，不是一次性的位移，linear 才能匀速。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 浮层 / 模态 / 页签 ────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 浮层出现 · 模态盒子 · 页签下划线<span class="d-grow"></span>前两个真能重播；页签能真切，但下划线现在只「换」不「移」</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">容器 · 进</span>
+              <span class="d-tb-sub">点浮层触发钮开合，点空白或按 Esc 关</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <!-- 浮层出现 -->
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="chevrons-up-down" data-size="15"></i>浮层出现<span class="d-grow"></span><span class="d-badge mute">.d-pop.is-open / nx-pop-in</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div style="position:relative;height:150px">
+                      <button class="d-chipbtn" data-demo-open="f32-model"><i data-ico="cpu" data-size="12"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="11"></i></button>
+                      <div class="d-pop is-open" data-demo-pop="f32-model" hidden style="min-width:300px;left:0;top:36px">
+                        <div class="d-pop-title">模型 · 3 个可用</div>
+                        <div class="d-menu-row is-on"><i data-ico="check" data-size="13"></i>claude-opus-4-6<span class="d-grow"></span><span class="d-badge mute">默认</span></div>
+                        <div class="d-menu-row">gpt-5.2-codex<span class="d-grow"></span><span class="d-badge info">coding</span></div>
+                        <div class="d-menu-row">qwen3-max<span class="d-grow"></span><span class="d-badge mute">便宜</span></div>
+                        <div class="d-sep"></div>
+                        <div class="d-menu-row"><i data-ico="settings" data-size="13"></i>模型设置…</div>
+                      </div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">160ms · --nx-dur-2</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease-out · 4px + scale(.98)</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">下拉 / 菜单 / 选择器 / 轻提示</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      位移只给 4px、缩放只给 2%：浮层是<b>从触发点长出来</b>的，不是从屏幕中间飞过来的。
+                      关的时候不做反向动画（<code>hidden</code> 直接切），因为「已经选完了，再看一遍关的过程」是噪音。
+                    </div>
+                    <div class="d-row">
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm" id="f32-pop-replay"><i data-ico="rotate-cw" data-size="13"></i>关掉再重播</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模态盒子 -->
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="app-window" data-size="15"></i>模态缩放入场<span class="d-grow"></span><span class="d-badge mute">.d-modal-box</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div id="f32-modal" class="d-modal-box narrow">
+                      <div class="d-modal-head">要把这次改动提交吗</div>
+                      <div class="d-modal-body">
+                        <div>3 个文件已改，其中 1 个是 <code>system.css</code>。</div>
+                        <div class="d-mono d-t-xs">M design/v5/web/system.css</div>
+                      </div>
+                      <div class="d-modal-foot">
+                        <button class="d-btn ghost">再想想</button>
+                        <button class="d-btn primary">提交</button>
+                      </div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">160ms · --nx-dur-2</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease-out · 与浮层同一条</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">模态 / 命令面板（.d-cmd-input 同款）</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      模态<b>没有</b>比浮层更重的入场：层级靠遮罩与 z-index 表达，不靠动效。
+                      这里只画盒子本身，遮罩与焦点锁见 <b>D-18</b>（<code>.d-modal</code> 是 fixed 全屏层，不适合摆进帧里）。
+                    </div>
+                    <div class="d-row">
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm" data-demo-motion="#f32-modal"><i data-ico="rotate-cw" data-size="13"></i>重播缩放入场</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- 页签 -->
+              <div class="d-card" data-demo-scope>
+                <div class="d-card-head"><i data-ico="panels-top-left" data-size="15"></i>页签切换与下划线<span class="d-grow"></span><span class="d-badge warn">下划线不移动 · 缺口</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-tabs" data-demo-tabs>
+                    <button class="d-tab" data-demo-tab="f32-p-tree" >文件</button>
+                    <button class="d-tab is-on" data-demo-tab="f32-p-trace">调用轨迹</button>
+                    <button class="d-tab" data-demo-tab="f32-p-log">日志</button>
+                  </div>
+                  <section data-demo-pane="f32-p-tree" hidden>
+                    <div class="d-t-sm d-t-dim">文件树：一次列出目录与文件，选中才进右栏。切回来时树保持原来的展开状态（不进 Tab 序，只用方向键）。</div>
+                  </section>
+                  <section data-demo-pane="f32-p-trace">
+                    <div class="d-steps">
+                      <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">readFile · design/v5/base.css</span><span class="d-step-meta">1.2s</span></div>
+                      <div class="d-step done"><span class="d-step-ico"><i data-ico="check" data-size="11"></i></span><span class="d-step-body">grep · --nx-dur-</span><span class="d-step-meta">0.4s</span></div>
+                      <div class="d-step running"><span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-step-body">readFile · design/v5/web/system.css</span><span class="d-step-meta">进行中</span></div>
+                    </div>
+                  </section>
+                  <section data-demo-pane="f32-p-log" hidden>
+                    <div class="d-t-sm d-t-dim">日志：只追加不重排。切页签不改滚动位置，回来还在原处。</div>
+                  </section>
+                  <div class="d-grid3">
+                    <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">现状 0ms · 应为 240ms（--nx-dur-3）</span></div>
+                    <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">应为 ease（整块替换档）</span></div>
+                    <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">右栏页签、设置分节、查看器模式</span></div>
+                  </div>
+                  <div class="d-t-xs d-t-faint">
+                    面板内容整块换用 <code>--nx-dur-3</code>，<b>下划线是同一条线在位移</b>，所以它的
+                    <code>transform</code> 与宽度一起过渡才不会出现「线先跳过去、内容再淡入」的错位感。
+                    现在 .d-tab 的 <code>::after</code> 绑在各自页签上、只切 <code>color</code>，所以线是「换」的不是「移」的。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 容器三件的静止终态与缺口 ──────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 抽屉 / 底部面板 / 遮罩：静止终态已摆好，类还没进库<span class="d-grow"></span>重播按钮一律置灰，并附上要补的 CSS</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="panel-left" data-size="15"></i>抽屉推拉<span class="d-grow"></span><span class="d-badge warn">库内缺口</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-side" style="width:100%">
+                      <div class="d-side-head">
+                        <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+                        <span class="d-t-b d-grow">会话抽屉</span>
+                        <button class="d-iconbtn"><i data-ico="panel-left-close" data-size="14"></i></button>
+                      </div>
+                      <div class="d-side-scroll">
+                        <div class="d-group-title">今天</div>
+                        <button class="d-sess is-on"><span class="d-sess-t">动效规格台 B 的取景</span><span class="d-sess-m"><i class="d-dot run"></i>运行中</span></button>
+                        <button class="d-sess"><span class="d-sess-t">MCP 曝光面板</span><span class="d-sess-m">12 分钟前</span></button>
+                        <div class="d-group-title">昨天</div>
+                        <button class="d-sess"><span class="d-sess-t">check-v5 的第六条门禁</span><span class="d-sess-m">昨天 22:41</span></button>
+                      </div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">320ms · --nx-dur-4</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease · 进出同一条</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">侧栏收合 / 抽屉推拉 / 右栏折叠</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      动了<b>布局尺寸</b>的用 --nx-dur-4 而不是 5：侧栏推开时后面的内容要跟着重排，
+                      给到 480ms 会让人觉得「电脑卡了」。
+                    </div>
+                    <div class="d-row">
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm" disabled>待补类 · 暂不可重播</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-col" style="gap:var(--nx-sp-4)">
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="panel-bottom" data-size="15"></i>底部面板上滑<span class="d-grow"></span><span class="d-badge warn">库内缺口</span></div>
+                    <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                      <div class="d-queue">
+                        <div class="d-row" style="justify-content:center"><i class="d-dot"></i></div>
+                        <div class="d-queue-head"><i data-ico="text" data-size="13"></i>选一段文本</div>
+                        <div class="d-queue-body">
+                          <div class="d-queue-row"><i data-ico="highlighter" data-size="13"></i><span class="d-queue-t">解释这段代码</span></div>
+                          <div class="d-queue-row"><i data-ico="pen-line" data-size="13"></i><span class="d-queue-t">改写成中文注释</span></div>
+                          <div class="d-queue-row"><i data-ico="terminal" data-size="13"></i><span class="d-queue-t">存成命令</span></div>
+                        </div>
+                      </div>
+                      <div class="d-grid3">
+                        <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">240ms · --nx-dur-3</span></div>
+                        <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease-out · 30% + 淡入</span></div>
+                        <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">选中文本 / 长按 / 底部动作面板</span></div>
+                      </div>
+                      <div class="d-row">
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm" disabled>待补类 · 暂不可重播</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-card">
+                    <div class="d-card-head"><i data-ico="circle-dashed" data-size="15"></i>遮罩淡入淡出<span class="d-grow"></span><span class="d-badge warn">库内缺口</span></div>
+                    <div class="d-card-body d-t-sm d-t-dim">
+                      Web 形态目前<b>没有</b>遮罩类：.d-modal 自带一层色，.d-pop 没有。所以「抽屉开着但旁边还能点」
+                      这种状态在 Web 上做不出来。遮罩只该淡入淡出（--nx-dur-2），<b>不许跟着抽屉一起横移</b> ——
+                      跟着移的遮罩会让整块背景看起来在跑。
+                      <div class="d-row" style="margin-top:var(--nx-sp-3)">
+                        <span class="d-grow"></span>
+                        <button class="d-btn sm" disabled>待补类 · 暂不可重播</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- 要补的 CSS -->
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="file-code" data-size="15"></i>本帧要补进 web/system.css 的四条<span class="d-grow"></span>写出来是为了「补齐时不留第二处解释」</div>
+                <div class="d-card-body">
+                  <div class="d-code">
+                    <div class="d-code-head"><i data-ico="plus" data-size="12"></i>容器四件 · 提案<span class="d-grow"></span><span class="d-t-xs">曲线与时长全部取自 base.css</span></div>
+                    <div class="d-code-body">/* ① 抽屉：动的是布局尺寸，所以用 --nx-dur-4 */
+.d-drawer { width: 0; overflow: hidden; transition: width var(--nx-dur-4) var(--nx-ease); }
+.d-drawer.is-open { width: 264px; }
+
+/* ② 遮罩：只淡入淡出，不跟着抽屉横移 */
+.d-scrim { position: absolute; inset: 0; z-index: var(--nx-z-drawer); opacity: 0;
+  pointer-events: none; background: color-mix(in srgb, var(--nx-text) 24%, transparent);
+  transition: opacity var(--nx-dur-2) var(--nx-ease); }
+.d-scrim.is-open { opacity: 1; pointer-events: auto; }
+
+/* ③ 底部面板：translateY 而不是 hidden，动画才生效 */
+.d-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--nx-z-modal);
+  background: var(--nx-panel); border-radius: var(--nx-r-xl) var(--nx-r-xl) 0 0;
+  box-shadow: var(--nx-sh-2); transform: translateY(100%); }
+.d-sheet.is-open { animation: nx-sheet-up var(--nx-dur-3) var(--nx-ease-out); }
+
+/* ④ 页签下划线：一条线在位移，不是每页签各有一条 */
+.d-tabbar { position: relative; }
+.d-tabink { position: absolute; bottom: -1px; left: 0; height: 2px; border-radius: var(--nx-r-pill);
+  background: var(--nx-accent); transition: transform var(--nx-dur-3) var(--nx-ease),
+    width var(--nx-dur-3) var(--nx-ease); }
+
+/* nx-sheet-up 现在只写在 pwa/system.css，要提到 base.css 两端共用 */
+@keyframes nx-sheet-up { from { transform: translateY(30%); opacity: .5; } }</div>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                    ③ 用 <code>translateY(100%)</code> 而不是 <code>hidden</code>：display 切走的元素没有过渡，
+                    面板会「啪」地出现。④ 需要一个 JS 把选中页签的 offsetLeft/offsetWidth 写进 style ——
+                    这段是几何计算，属产品代码，不进类。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 骨架 → 内容 ──────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 骨架扫掠与「骨架 → 内容」的替换<span class="d-grow"></span>扫掠画在伪元素上，重播靠「重新挂载」而不是 data-demo-motion</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">载入 · 骨架与内容</span>
+              <span class="d-tb-sub">骨架不是「没画好」，是「正在做什么」</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="loader-circle" data-size="15"></i>骨架扫掠<span class="d-grow"></span><span class="d-badge mute">.d-skel::after / nx-sweep</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-skel-list" id="f32-skel">
+                      <div class="d-skel d-skel-70"></div>
+                      <div class="d-skel d-skel-40"></div>
+                      <div class="d-skel d-skel-40"></div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">1400ms · 无限</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">linear · 全系统唯一</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">列表 / 卡片 / 会话流首屏</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      扫掠画在 <code>::after</code> 上，<code>data-demo-motion</code> 重启的是元素自身的 inline animation，
+                      够不到伪元素 —— 所以这一条的重播是「把骨架节点重新挂一次」（产品里等价于换 key 重试）。
+                    </div>
+                    <div class="d-row">
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm" id="f32-skel-replay"><i data-ico="rotate-cw" data-size="13"></i>重新挂载骨架</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="arrow-right-left" data-size="15"></i>骨架 → 内容<span class="d-grow"></span><span class="d-badge mute">换 key 重挂</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row">
+                      <span class="d-t-sm d-t-b">重新拉一次</span>
+                      <button class="d-switch" id="f32-load-switch" data-demo-switch aria-checked="false"></button>
+                      <span class="d-grow"></span>
+                      <span class="d-badge ok" id="f32-load-phase">内容已到</span>
+                    </div>
+                    <div id="f32-skel-stage">
+                      <div class="d-skel-list" id="f32-skel-2" hidden>
+                        <div class="d-skel d-skel-40"></div>
+                        <div class="d-skel d-skel-40"></div>
+                      </div>
+                      <div class="d-skel-list" id="f32-loaded">
+                        <div class="d-queue-row d-cell-pop"><i data-ico="check" data-size="13"></i><span class="d-queue-t">会话树已就绪 · 218 项</span><span class="d-badge ok">0.4s</span></div>
+                        <div class="d-queue-row d-cell-pop"><i data-ico="check" data-size="13"></i><span class="d-queue-t">最近 30 个会话已索引</span><span class="d-badge ok">0.2s</span></div>
+                        <div class="d-queue-row d-cell-pop"><i data-ico="check" data-size="13"></i><span class="d-queue-t">分支图已就绪</span><span class="d-badge ok">0.1s</span></div>
+                      </div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">不设过渡 · 整块替换</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">内容行各自 380ms 弹入</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">列表首屏 / 切会话 / 换目录</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      骨架与内容<b>不做交叉淡入</b>：两套同时在场会看见两层文字叠着抖。骨架整块卸掉，
+                      内容整块挂上，内容自己的入场（.d-cell-pop）负责过渡感。
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 E · 错峰与列表增删 ──────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 错峰入场与列表增删<span class="d-grow"></span>错峰是节奏不是颜色：最多 3 项、每档 40ms；退场必须比进场快</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="rows-3" data-size="15"></i>错峰入场<span class="d-grow"></span><span class="d-badge mute">--nx-dur-stagger</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-skel-list" id="f32-stagger">
+                      <div class="d-queue-row d-cell-pop"><i data-ico="git-commit-horizontal" data-size="13"></i><span class="d-queue-t">a3f21c8 · 令牌只有一个来源</span></div>
+                      <div class="d-queue-row d-cell-pop" style="animation-delay:40ms"><i data-ico="git-commit-horizontal" data-size="13"></i><span class="d-queue-t">7b2d0e5 · 两套形态各写一份形态值</span></div>
+                      <div class="d-queue-row d-cell-pop" style="animation-delay:80ms"><i data-ico="git-commit-horizontal" data-size="13"></i><span class="d-queue-t">2f8a914 · 关键帧只写一次</span></div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">每项 380ms · 错峰 40ms × ≤3</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease-out（错峰不换曲线）</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">成组出现的行 / 卡片 / 图表格</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      错峰写内联 <code>animation-delay</code>，不许写成新类 —— 它是这一次这一组的节奏，不是组件的属性。
+                      超过 3 项就别错了：第四项开始人眼已经跟丢了，只会觉得慢。
+                    </div>
+                    <div class="d-row">
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm" data-demo-motion="#f32-stagger"><i data-ico="rotate-cw" data-size="13"></i>重播错峰</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="list-restart" data-size="15"></i>列表增删（进 / 出）<span class="d-grow"></span><span class="d-badge mute">.d-row-x.is-closing</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-queue">
+                      <div class="d-queue-head"><i data-ico="layers" data-size="13"></i>队列<span class="d-grow"></span><span class="d-t-xs d-t-faint">3 条</span></div>
+                      <div class="d-queue-body" id="f32-list">
+                        <div class="d-queue-row"><i class="d-grip" data-ico="grip-vertical" data-size="12"></i><span class="d-queue-t">补齐 README 的落地清单</span></div>
+                        <div class="d-queue-row"><i class="d-grip" data-ico="grip-vertical" data-size="12"></i><span class="d-queue-t">给抽屉补一条 --nx-dur-4 过渡</span></div>
+                        <div class="d-row-x" id="f32-row-out">
+                          <div class="d-row-x-track">
+                            <div>
+                              <div class="d-queue-row"><i class="d-grip" data-ico="grip-vertical" data-size="12"></i><span class="d-queue-t">把 check-v5 的第七条门禁也补上</span><span class="d-badge warn">待删</span></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <template id="f32-tpl">
+                      <div class="d-row-x">
+                        <div class="d-row-x-track">
+                          <div>
+                            <div class="d-queue-row d-cell-pop"><i class="d-grip" data-ico="grip-vertical" data-size="12"></i><span class="d-queue-t">新加的一条</span><span class="d-badge mute">刚加</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">进 160ms · 出 225ms</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">进 ease-out · 出 ease-in</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">队列加一条 / 删一条 / 撤销</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      <b>退场必须比进场快</b>（225 &lt; 160+错峰）：人点「删」是在乎结果，不是在乎过程。
+                      出场用 <code>nx-row-slide-out</code> 往上走 —— 队列里上下相邻的行才不会被下面那行穿过去。
+                    </div>
+                    <div class="d-row">
+                      <button class="d-btn sm" data-demo-append="#f32-list" data-demo-append-from="#f32-tpl"><i data-ico="plus" data-size="13"></i>加一条</button>
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm danger ghost" id="f32-del" data-demo-motion="#f32-row-out" data-demo-motion-class="is-closing"><i data-ico="trash-2" data-size="13"></i>删掉最后一条</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── 帧 F · 抽屉 · 遮罩 · 底部面板 · 页签下划线（已落库） ───────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 F</b> · 四个容器原子的真演示：抽屉推拉 / 遮罩淡入 / 底部面板升起 / 页签下划线「移」<span class="d-grow"></span>四条都已进 system.css</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-scrim" id="f6-scrim" data-demo-drawer="toggle" data-demo-drawer-target="#f6-drawer"></div>
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="layers" data-size="15"></i>容器四件 · 与抽屉/面板同一套开关</div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                  <div class="d-tabs" style="position:relative">
+                    <button class="d-tab is-on">概览</button>
+                    <button class="d-tab">依赖</button>
+                    <button class="d-tab">兼容</button>
+                    <span class="d-tabink" style="left:10px;width:52px"></span>
+                  </div>
+                  <div class="d-t-xs d-t-faint">
+                    页签下划线是一个**绝对定位的 ink**，选中项变化时它 move 而不是换
+                    （原实现是 <code>::after</code> 随 <code>is-on</code> 出现/消失，看起来是「换」不是「移」）。
+                  </div>
+                  <div class="d-row" style="gap:var(--nx-sp-2)">
+                    <button class="d-btn sm" data-demo-drawer="toggle" data-demo-drawer-target="#f6-drawer">开合抽屉</button>
+                    <button class="d-btn sm ghost" data-demo-drawer="toggle" data-demo-drawer-target="#f6-sheet">底部面板</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-drawer" id="f6-drawer">
+            <div class="d-panel-head"><i data-ico="panel-right" data-size="14"></i><span class="d-grow">抽屉 · 从右侧推入</span>
+              <button class="d-iconbtn"><i data-ico="x" data-size="13"></i></button></div>
+            <div class="d-drawer-body">
+              <div class="d-tinybar"><span class="d-t-xs d-t-faint">320ms（--nx-dur-4）· ease</span></div>
+              <div class="d-tree">
+                <div class="d-trow is-on"><i data-ico="folder-open" data-size="14"></i><span>design</span></div>
+                <div class="d-trow l1"><i data-ico="folder-open" data-size="14"></i><span>v5</span></div>
+                <div class="d-trow l2"><i data-ico="file-code" data-size="14"></i><span>system.css</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-sheet" id="f6-sheet">
+            <div class="d-sheet-title">底部面板</div>
+            <button class="d-menu-row"><i data-ico="copy" data-size="14"></i>复制</button>
+            <button class="d-menu-row"><i data-ico="external-link" data-size="14"></i>在新标签打开</button>
+            <button class="d-menu-row danger"><i data-ico="trash-2" data-size="14"></i>删除</button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>时长由「动了什么」决定，不由「好不好看」决定</b>：布局尺寸 --nx-dur-4 / 整块替换 --nx-dur-3 / 进出场 --nx-dur-2 / 颜色与焦点 --nx-dur-1。</li>
+    <li><b>进场 ease-out，退场 ease-in</b>；循环动效（扫掠）才允许 linear。这条来自 base.css 的注释，不许在组件里另写。</li>
+    <li><b>骨架 → 内容不做交叉淡入</b>：骨架整块卸、内容整块挂。交叉淡入会让两层文字叠着抖，而且永远停不下来。</li>
+    <li><b>错峰是节奏不是属性</b>：写内联 <code>animation-delay</code>，最多 3 项 × 40ms。</li>
+    <li><b>发现一个库内接线缺口</b>：<code>demo.js</code> 的浮层开关只切 <code>hidden</code>，而 <code>.d-pop</code> 的 <code>display:block</code> 只认 <code>.is-open</code> —— 所以本板的浮层在标签里自带 <code>is-open</code>（<code>hidden</code> 仍能强制关）。建议在 <code>demo.js</code> 里补一句 <code>pop.classList.toggle("is-open", willOpen)</code>，补完后板面可以删掉这个写法。</li>
+    <li><b>data-demo-motion 重启不了伪元素动画</b>：骨架扫掠在 <code>::after</code> 上，所以那一帧的重播走「重新挂载节点」。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本板专属的三条接线：
+   ① 浮层「关掉再重播」；② 骨架重新挂载（扫掠在伪元素上，重启不了）；
+   ③ 骨架 → 内容 的替换（由 data-demo-switch 驱动）。
+   都不进 demo.js：demo.js 只放跨板复用的能力，这三条是这一张板自己的时序。 */
+(function () {
+  /* ① 浮层重播：先关再开，等于把 display:none → block 走一遍，nx-pop-in 自然重跑 */
+  var popBtn = document.getElementById("f32-pop-replay");
+  var pop = document.querySelector('[data-demo-pop="f32-model"]');
+  var trigger = document.querySelector('[data-demo-open="f32-model"]');
+  if (popBtn && pop) {
+    popBtn.addEventListener("click", function (e) {
+      e.stopPropagation();          /* 不让 demo.js 的「点外部关浮层」顺手把它关了 */
+      if (pop.hidden) { trigger.click(); return; }
+      pop.hidden = true;
+      void pop.getBoundingClientRect().width;
+      pop.hidden = false;
+    });
+  }
+
+  /* ② 骨架重新挂载：新节点 = 新动画，这是伪元素动画唯一能真重播的办法 */
+  var skelBtn = document.getElementById("f32-skel-replay");
+  var skel = document.getElementById("f32-skel");
+  if (skelBtn && skel) {
+    skelBtn.addEventListener("click", function () {
+      var fresh = skel.cloneNode(true);
+      skel.parentNode.replaceChild(fresh, skel);
+    });
+  }
+
+  /* ③ 骨架 → 内容：开关一翻就重拉一遍，先骨架 700ms 再内容 */
+  var sw = document.getElementById("f32-load-switch");
+  var skelStage = document.getElementById("f32-skel-2");
+  var loaded = document.getElementById("f32-loaded");
+  var phase = document.getElementById("f32-load-phase");
+  if (sw && skelStage && loaded) {
+    sw.addEventListener("click", function () {
+      loaded.hidden = true;            /* 整块替换：内容先卸，不做交叉淡入 */
+      skelStage.hidden = false;
+      phase.textContent = "骨架中";
+      phase.className = "d-badge mute";
+      setTimeout(function () {
+        skelStage.hidden = true;
+        loaded.hidden = false;
+        phase.textContent = "内容已到";
+        phase.className = "d-badge ok";
+        /* 内容重新挂一次，行内的 .d-cell-pop 才会重跑 */
+        var fresh = loaded.cloneNode(true);
+        loaded.parentNode.replaceChild(fresh, loaded);
+        loaded = fresh;
+      }, 700);
+    });
+  }
+
+  /* ④ 列表删除：退场动画跑完再卸载节点（225ms） */
+  var del = document.getElementById("f32-del");
+  var row = document.getElementById("f32-row-out");
+  if (del && row) {
+    del.addEventListener("click", function () {
+      var node = row;
+      setTimeout(function () { if (node && node.parentNode) node.parentNode.removeChild(node); }, 260);
+    });
+  }
+})();
+</script>
+</body>
+</html>

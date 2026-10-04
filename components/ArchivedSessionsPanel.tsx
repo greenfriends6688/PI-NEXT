@@ -27,23 +27,49 @@
  * （那里的测试把这条焊死了）。
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 import { useSessionFlags } from "@/lib/session-flags";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import type { SessionInfo } from "@/lib/types";
-import {
-  ConfigBadge,
-  ConfigButton,
-  ConfigDetailHeader,
-  ConfigDetailStack,
-  ConfigDetailTitle,
-  ConfigEmptyState,
-  ConfigSidebarGroupLabel,
-  ConfigSidebarItem,
-  ConfigSidebarList,
-  ConfigSwitch,
-} from "./SettingsUi";
+
+/* fork:v5-skin-d-only —— 本地内容基件只吐 d-*（同 SkillsConfig 的同名块）。 */
+function Btn({
+  variant = "secondary",
+  size = "default",
+  className,
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "small" | "default";
+}) {
+  const variantClass = variant === "primary" ? "primary"
+    : variant === "secondary" ? "outline"
+    : variant === "danger" ? "danger"
+    : "";
+  return (
+    <button
+      type="button"
+      {...props}
+      className={["d-btn", variantClass, size === "small" ? "sm" : "", className].filter(Boolean).join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+function Stack({ className, style, children }: { className?: string; style?: CSSProperties; children: ReactNode }) {
+  return (
+    <div className={["d-col", className].filter(Boolean).join(" ")} style={{ gap: "var(--nx-sp-3)", ...style }}>
+      {children}
+    </div>
+  );
+}
+function Title({ children }: { children: ReactNode }) {
+  return <h3 className="d-t-title" style={{ margin: 0 }}>{children}</h3>;
+}
 
 export interface ArchivedRow {
   id: string;
@@ -99,6 +125,7 @@ export function ArchivedSessionsGroup({
   const { t, locale } = useI18n();
   const { flags } = useSessionFlags();
   const [showDeleted, setShowDeleted] = useState(false);
+  const mobile = useIsMobile();
 
   const rows = useMemo(
     () => deriveArchivedRows(flags.archived, flags.archivedAt, sessions, t("settings.archivedMissingProject")),
@@ -107,55 +134,113 @@ export function ArchivedSessionsGroup({
   const missing = rows.filter((row) => !row.live).length;
   const visibleRows = showDeleted ? rows : rows.filter((row) => row.live);
 
-  return (
-    <>
-      <ConfigSidebarGroupLabel>
-        {t("settings.archivedSessionsLabel")}
-        <span className="pw-grow" aria-hidden="true" />
-        {rows.length > 0 && (
-          <ConfigSwitch
-            checked={showDeleted}
-            label={t("settings.archivedShowMissing", { count: missing })}
-            onChange={setShowDeleted}
+  // fork:v5-landing Wave B · M-05 · 窄屏：分组变成一张 `.m-cardgroup`
+  // （组标题 + 「显示文件已消失」开关行 + 会话行）。**归档口径一字不改**
+  //（同一张 `session-flags` 表、同一个「文件已不在就藏起来」的开关）。
+  if (mobile) {
+    return (
+      <div className="m-cardgroup">
+        <PwaSwitchRow
+          icon="archive"
+          label={t("settings.archivedSessionsLabel")}
+          sub={rows.length > 0 ? t("settings.archivedShowMissing", { count: missing }) : undefined}
+          checked={showDeleted}
+          switchLabel={t("settings.archivedShowMissing", { count: missing })}
+          onChange={setShowDeleted}
+          disabled={rows.length === 0}
+          trailing={<span className="m-badge mute">{rows.length}</span>}
+        />
+        {visibleRows.length === 0 ? (
+          <PwaSetRow
+            label={rows.length > 0 ? t("settings.archivedMissingProject") : t("settings.archivedEmpty")}
+            sub={rows.length === 0 ? t("settings.archiveStoredLocally") : undefined}
           />
-        )}
-        <ConfigBadge tone="count">{rows.length}</ConfigBadge>
-      </ConfigSidebarGroupLabel>
-      {visibleRows.length === 0 ? (
-        /* 两种「列不出来」要分开说（画板 62 帧 D：空态必须有落点）：
-           一条都没归档过 → 空态 + 本机存储说明（fix:archive-local-only）；
-           归档过但文件都没了 → 「文件已不存在」，上面组标题的开关就是出口。 */
-        <ConfigEmptyState>
-          <span className="mark">
-            <i data-ico={rows.length > 0 ? "triangle-alert" : "archive"} data-size="16" aria-hidden="true" />
-          </span>
-          <p>{rows.length > 0 ? t("settings.archivedMissingProject") : t("settings.archivedEmpty")}</p>
-          {rows.length === 0 && <p className="pw-hint">{t("settings.archiveStoredLocally")}</p>}
-        </ConfigEmptyState>
-      ) : (
-        <ConfigSidebarList>
-          {visibleRows.map((row) => (
-            <ConfigSidebarItem
+        ) : (
+          visibleRows.map((row) => (
+            <button
               key={row.id}
-              active={row.id === selectedId}
-              title={row.id}
-              style={row.live ? undefined : { opacity: 0.6 }}
+              type="button"
+              className="m-setrow"
+              aria-current={row.id === selectedId ? "page" : undefined}
               onClick={() => onSelect(row.id)}
             >
-              <span className="pw-ico pw-dim">
-                <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="13" aria-hidden="true" />
-              </span>
-              <span className="grow">
-                <span className="pw-lname">{row.title}</span>
-                <span className="pw-lsub">
+              <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="16" aria-hidden="true" />
+              <span className="m-setrow-body">
+                <span className="m-setrow-t">{row.title}</span>
+                <span className="m-setrow-s">
                   {row.archivedAt
                     ? t("settings.archivedAt", { time: formatRelativeTime(new Date(row.archivedAt), locale) })
                     : t("settings.archivedAtUnknown")}
                 </span>
               </span>
-            </ConfigSidebarItem>
-          ))}
-        </ConfigSidebarList>
+              {row.id === selectedId && <span className="m-badge ok">{t("settings.archivedSessionsLabel")}</span>}
+            </button>
+          ))
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* 画板 D-21 帧 A 的组标题行（`.d-group-toggle`）+ 计数徽章 + 「显示已消失」开关。 */}
+      <div className="d-group-toggle d-group-title">
+        <i data-ico="archive" data-size="12" aria-hidden="true" />
+        <span className="d-t-sm d-t-b">{t("settings.archivedSessionsLabel")}</span>
+        <span className="d-grow" aria-hidden="true" />
+        {rows.length > 0 && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showDeleted}
+            aria-label={t("settings.archivedShowMissing", { count: missing })}
+            title={t("settings.archivedShowMissing", { count: missing })}
+            className={`d-switch${showDeleted ? " on" : ""}`}
+            onClick={() => setShowDeleted((current) => !current)}
+          />
+        )}
+        <span className="d-badge count">{rows.length}</span>
+      </div>
+      {visibleRows.length === 0 ? (
+        /* 两种「列不出来」要分开说（画板 D-21 帧 A：空态用 `.d-empty`）：
+           一条都没归档过 → 空态 + 本机存储说明（fix:archive-local-only）；
+           归档过但文件都没了 → 「文件已不存在」，上面组标题的开关就是出口。 */
+        <div className="d-empty compact">
+          <span className="d-empty-ico">
+            <i data-ico={rows.length > 0 ? "triangle-alert" : "archive"} data-size="20" aria-hidden="true" />
+          </span>
+          <span className="d-empty-t">{rows.length > 0 ? t("settings.archivedMissingProject") : t("settings.archivedEmpty")}</span>
+          {rows.length === 0 && <span className="d-empty-s">{t("settings.archiveStoredLocally")}</span>}
+        </div>
+      ) : (
+        <div className="d-col">
+          {visibleRows.map((row) => {
+            const isActive = row.id === selectedId;
+            return (
+              <button
+                key={row.id}
+                type="button"
+                aria-current={isActive ? "page" : undefined}
+                className={`d-sess${isActive ? " is-on" : ""}`}
+                title={row.id}
+                style={row.live ? undefined : { opacity: 0.6 }}
+                onClick={() => onSelect(row.id)}
+              >
+                <span className="d-row">
+                  <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="13" className="d-t-faint" aria-hidden="true" />
+                  <span className="d-grow">
+                    <span className="d-sess-t">{row.title}</span>
+                    <span className="d-sess-m">
+                      {row.archivedAt
+                        ? t("settings.archivedAt", { time: formatRelativeTime(new Date(row.archivedAt), locale) })
+                        : t("settings.archivedAtUnknown")}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </>
   );
@@ -179,6 +264,7 @@ export function ArchivedSessionDetail({
 }) {
   const { t, locale } = useI18n();
   const { flags, archive } = useSessionFlags();
+  const mobile = useIsMobile();
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,43 +299,96 @@ export function ArchivedSessionDetail({
     }
   };
 
+  // fork:v5-landing Wave B · M-05 · 窄屏详情 = 一张 `.m-cardgroup`（头行 / 项目行 /
+  // 动作 pickbar）。**删除仍是二次确认 + DELETE 同一路由**，本仓对用户数据只读那一条不变。
+  if (mobile) {
+    return (
+      <>
+        {error && (
+          <div className="m-banner err" role="alert">
+            <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+            <span className="m-grow">{error}</span>
+          </div>
+        )}
+        <div className="m-cardgroup">
+          <PwaSetRow
+            icon={row.live ? "message-square" : "triangle-alert"}
+            label={row.title}
+            sub={row.archivedAt
+              ? t("settings.archivedAt", { time: formatRelativeTime(new Date(row.archivedAt), locale) })
+              : t("settings.archivedAtUnknown")}
+          />
+          <PwaSetRow label={t("settings.projectsActive")} sub={row.projectLabel} />
+          <div className="m-pickbar">
+            {row.live && (pendingDelete ? (
+              <>
+                <button type="button" className="m-picktag danger" disabled={busy} onClick={() => void remove()}>
+                  {t("settings.archivedDeleteConfirm")}
+                </button>
+                <button type="button" className="m-picktag" onClick={() => setPendingDelete(false)}>
+                  {t("i18n.cancel")}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="m-picktag danger"
+                disabled={busy}
+                onClick={() => setPendingDelete(true)}
+                title={t("settings.archivedDelete")}
+                aria-label={t("settings.archivedDelete")}
+              >
+                <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+              </button>
+            ))}
+            <button type="button" className="m-picktag is-on" onClick={restore}>
+              {t("settings.archivedRestore")}
+            </button>
+          </div>
+        </div>
+        {!row.live && (
+          <div className="m-banner warn">
+            <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+            <span className="m-grow">{t("settings.archivedMissingProject")}</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     /* 宿主的详情栈只有一个子元素（就是本卡），行高会被拉满。卡里再套一层
-       `align-content: start` 的栈：几行内容收回顶部（实测否则是 373 + 367 两行、
-       kv 被擑到半空）。一个对齐关键字，不是新尺寸；满屏的项目详情不受影响。 */
-    <ConfigDetailStack style={{ alignContent: "start" }}>
+       `align-content: start` 的栈：几行内容收回顶部。一个对齐关键字，不是新尺寸。 */
+    <Stack style={{ alignContent: "start" }}>
       {error && (
-        <div role="alert" className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-          <span className="grow">{error}</span>
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+          <span className="d-grow">{error}</span>
         </div>
       )}
-      <ConfigDetailHeader>
-        <span className="pw-ico pw-dim">
-          <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="14" aria-hidden="true" />
-        </span>
-        {/* 画板 62 帧 B 的详情头第一项是**名字**（h3），不是行内加粗的 `<b>`。 */}
-        <ConfigDetailTitle>{row.title}</ConfigDetailTitle>
-        <span className="pw-grow" aria-hidden="true" />
+      <div className="d-row">
+        <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="14" className="d-t-faint" aria-hidden="true" />
+        <Title>{row.title}</Title>
+        <span className="d-grow" aria-hidden="true" />
         {row.archivedAt && (
-          <span className="pw-mono pw-dim">
+          <span className="d-mono d-t-faint">
             {t("settings.archivedAt", { time: formatRelativeTime(new Date(row.archivedAt), locale) })}
           </span>
         )}
-        <ConfigButton variant="secondary" size="small" onClick={restore}>
+        <Btn variant="secondary" size="small" onClick={restore}>
           {t("settings.archivedRestore")}
-        </ConfigButton>
+        </Btn>
         {row.live && (pendingDelete ? (
           <>
-            <ConfigButton variant="danger" size="small" disabled={busy} onClick={() => void remove()}>
+            <Btn variant="danger" size="small" disabled={busy} onClick={() => void remove()}>
               {t("settings.archivedDeleteConfirm")}
-            </ConfigButton>
-            <ConfigButton variant="ghost" size="small" onClick={() => setPendingDelete(false)}>
+            </Btn>
+            <Btn variant="ghost" size="small" onClick={() => setPendingDelete(false)}>
               {t("i18n.cancel")}
-            </ConfigButton>
+            </Btn>
           </>
         ) : (
-          <ConfigButton
+          <Btn
             variant="danger"
             size="small"
             disabled={busy}
@@ -257,20 +396,24 @@ export function ArchivedSessionDetail({
             title={t("settings.archivedDelete")}
             aria-label={t("settings.archivedDelete")}
           >
-            <span className="pw-ico"><i data-ico="trash-2" data-size="13" aria-hidden="true" /></span>
-          </ConfigButton>
+            <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+          </Btn>
         ))}
-      </ConfigDetailHeader>
-      <dl className="pw-kv">
-        <dt>{t("settings.projectsActive")}</dt>
-        <dd>{row.projectLabel}</dd>
-      </dl>
+      </div>
+      <div className="d-set-sec">
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("settings.projectsActive")}</div>
+            <div className="d-set-row-s">{row.projectLabel}</div>
+          </div>
+        </div>
+      </div>
       {!row.live && (
-        <p className="pw-hint">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="12" aria-hidden="true" /></span>
-          {t("settings.archivedMissingProject")}
-        </p>
+        <div className="d-banner warn">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+          <span className="d-grow">{t("settings.archivedMissingProject")}</span>
+        </div>
       )}
-    </ConfigDetailStack>
+    </Stack>
   );
 }

@@ -77,11 +77,11 @@ test("renders backslash-escaped backticks inside inline code", () => {
 test("renders LaTeX parenthesis delimiters as inline math", () => {
   const html = renderMarkdown(String.raw`射线为 \(r_c = K^{-1}p\)。`);
 
-  // fork:design-components —— 画板 10:177 的 `.pw-math` 行内公式容器。
+  // fork:v5-landing —— 画板 D-03b 的 `.d-math` 行内公式容器。
   // `katex` 必须同时留着：katex.min.css 的 370 条 `.katex .xxx` 规则靠它。
-  assert.match(html, /<span class="katex pw-math">/);
+  assert.match(html, /<span class="katex d-math">/);
   assert.match(html, /class="katex-mathml"/);
-  assert.doesNotMatch(html, /pw-math block/);
+  assert.doesNotMatch(html, /d-math block/);
   assert.match(html, /r_c/);
 });
 
@@ -91,10 +91,10 @@ P(\lambda)=o_b+\lambda r_b
 \]`);
   const oneLineHtml = renderMarkdown(String.raw`\[P(\lambda)=o_b+\lambda r_b\]`);
 
-  // fork:design-components —— 画板 10:179 的 `.pw-math block` 块级公式容器。
-  assert.match(html, /<span class="katex-display pw-math block">/);
+  // fork:v5-landing —— 画板 D-03b 的 `.d-math` 块级公式容器。
+  assert.match(html, /<span class="katex-display d-math">/);
   assert.match(html, /lambda/);
-  assert.match(oneLineHtml, /<span class="katex-display pw-math block">/);
+  assert.match(oneLineHtml, /<span class="katex-display d-math">/);
 });
 
 test("renders model-emitted bracket-only formula lines as display math", () => {
@@ -102,7 +102,7 @@ test("renders model-emitted bracket-only formula lines as display math", () => {
 
 [ C(x) = \frac{2}{T(T-1)} \sum_{i<j} S(\hat{y}^{(i)}, \hat{y}^{(j)}) ]`);
 
-  assert.match(html, /<span class="katex-display pw-math block">/);
+  assert.match(html, /<span class="katex-display d-math">/);
   assert.match(html, /\\sum/);
 });
 
@@ -138,7 +138,7 @@ test("does not normalize escaped delimiters or link destinations", () => {
 test("previews completed Mermaid diagrams by default", () => {
   const html = renderMarkdown("```mermaid\ngraph TD\n  A --> B\n```");
 
-  assert.match(html, /mermaid-block-loading/);
+  assert.match(html, /d-placeholder/);
   assert.match(html, />Source</);
   assert.doesNotMatch(html, /A --&gt; B/);
 });
@@ -146,7 +146,7 @@ test("previews completed Mermaid diagrams by default", () => {
 test("keeps Mermaid source visible while the response is streaming", () => {
   const html = renderMarkdown("```mermaid\ngraph TD\n  A --> B\n```", { isStreaming: true });
 
-  assert.doesNotMatch(html, /mermaid-block-loading/);
+  assert.doesNotMatch(html, /d-placeholder/);
   assert.match(html, />Preview</);
   assert.match(html, /A --&gt; B/);
 });
@@ -181,10 +181,10 @@ test("uses a generic preview label when a markdown image has no alt text", () =>
   assert.doesNotMatch(html, /Preview image:/);
 });
 
-test("fork:design-components — 助手正文容器是画板 10 的 .pw-md", () => {
+test("fork:v5-landing — 助手正文容器是画板 D-03b 的 .d-md", () => {
   const html = renderMarkdown("正文");
 
-  assert.match(html, /^<div class="pw-md">/);
+  assert.match(html, /^<div class="d-md">/);
   assert.doesNotMatch(html, /markdown-body/);
   assert.doesNotMatch(html, /\snode=/);
 });
@@ -197,60 +197,60 @@ test("fork:design-components — 行内代码是画板 10:110 的裸 <code>", ()
   assert.doesNotMatch(html, /\snode=/);
 });
 
-test("fork:design-components — 引用块用画板 10 的 .pw-quote", () => {
+test("fork:v5-landing — 引用块用画板 D-03b 的 .d-quote", () => {
   const html = renderMarkdown("> 注：这一行是引用");
 
-  assert.match(html, /<blockquote class="pw-quote">/);
+  assert.match(html, /<blockquote class="d-quote">/);
   assert.doesNotMatch(html, /\snode=/);
 });
 
-test("fork:design-components — 任务清单是画板 10 的 .pw-tasklist + .box.done", () => {
+test("fork:v5-landing — 任务清单是画板 D-03b 的 .d-tasklist + .d-checkbox.on", () => {
   const html = renderMarkdown("- [x] 已完成\n- [ ] 未完成");
 
-  assert.match(html, /<ul class="pw-tasklist">/);
-  assert.match(html, /<li class="done"><span class="box done">/);
-  assert.match(html, /<span class="box"><\/span>/);
+  assert.match(html, /<ul class="d-tasklist">/);
+  assert.match(html, /<span class="d-checkbox on" role="checkbox" aria-checked="true"><i data-ico="check" data-size="11"><\/i><\/span>/);
+  assert.match(html, /<span class="d-checkbox" role="checkbox" aria-checked="false"><\/span>/);
   assert.doesNotMatch(html, /contains-task-list|task-list-item/);
   assert.doesNotMatch(html, /<input/);
   assert.doesNotMatch(html, /\snode=/);
 });
 
-test("fork:design-components — 松散任务列表项也能挂上 .box.done", () => {
+test("fork:v5-landing — 松散任务列表项也能挂上 .d-checkbox.on", () => {
   // GFM 在松散项里把 checkbox 包进首个 <p>，且 <p> 前面还跟着一个换行文本节点。
   const html = renderMarkdown("- [x] done item\n\n  more text\n");
 
-  assert.match(html, /<ul class="pw-tasklist">/);
-  assert.match(html, /<li class="done">/);
-  assert.match(html, /<span class="box done">/);
+  assert.match(html, /<ul class="d-tasklist">/);
+  assert.match(html, /<span class="d-checkbox on"/);
   assert.doesNotMatch(html, /<input/);
 });
 
-test("fork:design-components — 代码围栏是画板 10 的 .pw-code 卡片", () => {
+test("fork:v5-landing — 代码围栏是画板 D-03b 的 .d-code 卡片", () => {
   const html = renderMarkdown("```ts\nconst x = 1;\n```");
 
-  assert.match(html, /<div class="pw-code">/);
-  assert.match(html, /<div class="pw-code-head">/);
+  assert.match(html, /<div class="d-code">/);
+  assert.match(html, /<div class="d-code-head">/);
   assert.match(html, /<i data-ico="file-code" data-size="13">/);
-  assert.match(html, /<span class="pw-mono">ts<\/span>/);
-  assert.match(html, /<button type="button" class="pw-btn sm">/);
+  assert.match(html, /<span>ts<\/span>/);
+  assert.match(html, /<button type="button" class="d-btn sm">/);
   assert.match(html, /<i data-ico="copy" data-size="13">/);
-  assert.match(html, /<pre class="pw-code-body">/);
+  assert.match(html, /<div class="d-code-body">/);
   assert.doesNotMatch(html, /markdown-code-/);
   assert.doesNotMatch(html, /style="/);
 });
 
-test("fork:design-components — 流式中的代码块同样是 .pw-code 卡片", () => {
+test("fork:v5-landing — 流式中的代码块同样是 .d-code 卡片", () => {
   const html = renderMarkdown("```ts\nconst x = 1;\n```", { isStreaming: true });
 
-  assert.match(html, /<div class="pw-code">/);
-  assert.match(html, /<pre class="pw-code-body">const x = 1;<\/pre>/);
+  assert.match(html, /<div class="d-code">/);
+  assert.match(html, /<div class="d-code-body">const x = 1;<\/div>/);
   assert.doesNotMatch(html, /markdown-code-/);
 });
 
-test("fork:design-components — GFM 表格仍是画板 10 的 .pw-table", () => {
+test("fork:v5-landing — GFM 表格是画板 D-03b 的 .d-tbl-wrap + .d-table", () => {
   const html = renderMarkdown("| a | b |\n| - | - |\n| 1 | 2 |");
 
-  assert.match(html, /<table class="pw-table">/);
+  assert.match(html, /<div class="d-tbl-wrap">/);
+  assert.match(html, /<table class="d-table">/);
 });
 
 test("fork:fix-user-line-breaks — 只有 keepLineBreaks 才把行尾变成 <br>（#680 / #1015）", () => {
@@ -361,7 +361,7 @@ test("fork:currency-math — 价格不会把同段里后面的公式吞掉（#97
 
   assert.match(html, /Pay \$20 for the/);
   assert.match(html, /or \$30 for/);
-  assert.equal((html.match(/class="katex pw-math"/g) ?? []).length, 2);
+  assert.equal((html.match(/class="katex d-math"/g) ?? []).length, 2);
   assert.match(html, /<annotation encoding="application\/x-tex">x \+ 1<\/annotation>/);
   assert.match(html, /<annotation encoding="application\/x-tex">2x \+ 3<\/annotation>/);
 });
@@ -413,11 +413,11 @@ test("image file mentions render as a preview chip; other mentions stay plain sp
   // SSR 里只看得到按钮与 aria-label）。
   assert.match(html, /data-mention-previewable="true"/);
   assert.match(html, /aria-label="Preview image: assets\/logo\.ico"/);
-  assert.match(html, /<button[^>]*><span[^>]*data-mention-previewable="true"[^>]*>@assets\/logo\.ico<\/span><\/button>/);
+  assert.match(html, /<button[^>]*><span[^>]*data-mention-previewable="true"[^>]*>.*@assets\/logo\.ico<\/span><\/button>/);
   // 非图片 mention 不挂预览属性，仍是裸 span。
   const nonPreviewable = html.split("data-mention-value=\"src/chat.tsx\"")[0];
   assert.ok(!/data-mention-value="src\/chat\.tsx"[^>]*data-mention-previewable/.test(html));
-  assert.match(nonPreviewable, /pw-tok-ref/);
+  assert.match(nonPreviewable, /d-mention/);
 });
 
 // fork:table-wrap-2026-10-02 —— 表格填满容器，不再按最长一格定宽（否则 CJK 长句把整张

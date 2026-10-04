@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-09 · 商店 / 定时 / 用量 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="m-board">
+
+
+<div class="m-theme-toggle">
+  <button class="m-btn sm ghost" data-demo-theme>深色</button>
+</div>
+<header class="m-board-head">
+  <h1>M-09 · 商店 · 定时任务 · 用量</h1>
+  <p>
+    这三块在桌面端是设置里的三个分节，在手机上是<b>三个等重的一级页</b> —— 它们都要「一眼看出状态」，
+    压进 hub 卡片就等于什么都看不见。所以每页只留一条主线：
+    <b>商店</b>只回答「能不能装、要动我什么」，<b>定时</b>只回答「下次什么时候跑、上次成没成」，
+    <b>用量</b>只回答「这个月烧了多少、值不值」。详情与新建一律走<b>底部面板</b>，
+    不新开页面 —— 手机上「再返回一次」比「上滑半屏」贵得多。
+  </p>
+  <div class="m-doc-tags" data-board-tags>
+    <span class="m-doc-tag">页面：插件商店 / 定时任务 / 用量</span>
+    <span class="m-doc-tag">组件：m-storecard · m-cat · m-croncard · m-hist-row · m-heat · m-bars · m-sheet</span>
+    <span class="m-doc-tag">状态：列表 / 分类 / 详情面板 / 开关 / 7 天 / 30 天</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 插件商店 ─────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 A</b> · 插件商店 · 分类横滚互斥；卡片右下角的箭头开同一张详情面板，点遮罩即收</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim" data-demo-scrim></div>
+
+      <!-- 详情面板：三张卡片共用一张，面板内容跟着点开的那张换 -->
+      <div class="m-sheet" id="sheet-store">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">SQL Pro · 连数据库跑查询</div>
+        <div class="m-sheet-body">
+          <div class="m-storecard">
+            <div class="m-store-cover"><i data-ico="database" data-size="20"></i></div>
+            <span class="m-t-xs m-t-dim">官方源 · 12.4k 安装 · v2.4.1。结果直接贴进对话，不用来回复制粘贴。</span>
+          </div>
+
+          <div class="m-group-title">它会要什么权限</div>
+          <button class="m-sheet-row">
+            <i data-ico="database" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">读数据库</span>
+              <span class="m-setrow-s">默认只读连接；写权限要单独勾，且每次执行仍会问</span>
+            </span>
+            <span class="m-radio on"></span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="terminal" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">启动子进程</span>
+              <span class="m-setrow-s">只跑它自带的驱动，不吃任意命令</span>
+            </span>
+            <span class="m-radio on"></span>
+          </button>
+          <button class="m-sheet-row">
+            <i data-ico="key-round" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">保存连接地址</span>
+              <span class="m-setrow-s">只存主机与库名，口令走系统钥匙串，不进配置文件</span>
+            </span>
+            <span class="m-badge mute">本机</span>
+          </button>
+
+          <div class="m-sep"></div>
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">这次更新改了什么</span>
+              <span class="m-setrow-s">结果集导出、多数据源切换、修了 3 个连接泄漏</span>
+            </span>
+            <span class="m-badge ok">2.5.0</span>
+          </div>
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">要求</span>
+              <span class="m-setrow-s">宿主 ≥ v0.2.0 · 你现在是 v0.1.8</span>
+            </span>
+            <span class="m-badge bad">先升级</span>
+          </div>
+
+          <div class="m-banner"><i data-ico="shield-check" data-size="14"></i>崩溃自动隔离：插件起不来只关它自己，不拖垮会话。</div>
+        </div>
+        <div class="m-pickbar" data-demo-list>
+          <button class="m-picktag" data-demo-select>先不装</button>
+          <button class="m-picktag is-on" data-demo-select>先升级宿主</button>
+        </div>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回设置"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">插件商店</span>
+        <button class="m-top-btn" title="搜索插件"><i data-ico="search" data-size="16"></i></button>
+      </div>
+
+      <div class="m-store-body">
+        <div class="m-cats" data-demo-list>
+          <button class="m-cat" data-demo-select>全部</button>
+          <button class="m-cat is-on" data-demo-select>最近更新</button>
+          <button class="m-cat" data-demo-select>开发工具</button>
+          <button class="m-cat" data-demo-select>数据库</button>
+          <button class="m-cat" data-demo-select>文档检索</button>
+          <button class="m-cat" data-demo-select>持续集成</button>
+          <button class="m-cat" data-demo-select>安全审计</button>
+        </div>
+
+        <div class="m-storecard">
+          <div class="m-store-cover"><i data-ico="database" data-size="20"></i></div>
+          <span class="m-t-lg m-t-b">SQL Pro</span>
+          <span class="m-t-xs m-t-dim">连数据库、跑查询，把结果贴进对话。默认只读连接。</span>
+          <div class="m-hist-row">
+            <span class="m-badge warn">可更新 2.5.0</span>
+            <span class="m-badge mute">官方源</span>
+            <span class="m-grow"></span>
+            <span class="m-t-xs m-t-faint">12.4k</span>
+            <button class="m-top-btn" title="查看 SQL Pro 的详情" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-store"><i data-ico="chevron-right" data-size="16"></i></button>
+          </div>
+        </div>
+
+        <div class="m-storecard">
+          <div class="m-store-cover"><i data-ico="git-compare" data-size="20"></i></div>
+          <span class="m-t-lg m-t-b">Git Lens</span>
+          <span class="m-t-xs m-t-dim">diff 行上直接看提交人与关联工单，装完要在会话里手动开一次。</span>
+          <div class="m-hist-row">
+            <span class="m-badge ok">已安装</span>
+            <span class="m-badge mute">v1.9.0</span>
+            <span class="m-grow"></span>
+            <span class="m-t-xs m-t-faint">8.1k</span>
+            <button class="m-top-btn" title="查看 Git Lens 的详情" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-store"><i data-ico="chevron-right" data-size="16"></i></button>
+          </div>
+        </div>
+
+        <div class="m-storecard">
+          <div class="m-store-cover"><i data-ico="rocket" data-size="20"></i></div>
+          <span class="m-t-lg m-t-b">部署助手</span>
+          <span class="m-t-xs m-t-dim">推预发并回写部署单。要读构建配置、起 docker、连部署平台 API。</span>
+          <div class="m-hist-row">
+            <span class="m-badge mute">未安装</span>
+            <span class="m-badge mute">团队源</span>
+            <span class="m-grow"></span>
+            <span class="m-t-xs m-t-faint">640</span>
+            <button class="m-top-btn" title="查看部署助手的详情" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-store"><i data-ico="chevron-right" data-size="16"></i></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 定时任务 ─────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 B</b> · 定时任务 · 每张卡只回答两件事：下一次什么时候跑、上次成没成；右上加号开新建面板</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-scrim" data-demo-scrim></div>
+
+      <div class="m-sheet" id="sheet-cron">
+        <div class="m-sheet-grab"></div>
+        <div class="m-sheet-title">新建定时任务</div>
+        <div class="m-sheet-body">
+          <div class="m-group-title">任务名</div>
+          <input class="m-input" style="width:100%" placeholder="例如：每晚清理构建缓存">
+
+          <div class="m-group-title">触发时机</div>
+          <div class="m-pickbar" data-demo-list>
+            <button class="m-picktag" data-demo-select>每 30 分</button>
+            <button class="m-picktag" data-demo-select>每天</button>
+            <button class="m-picktag is-on" data-demo-select>每晚</button>
+            <button class="m-picktag" data-demo-select>每周</button>
+          </div>
+
+          <div class="m-group-title">细节</div>
+          <div class="m-sheet-row">
+            <i data-ico="clock" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">时间</span>
+              <span class="m-setrow-s">按桌面所在时区算</span>
+            </span>
+            <span class="m-mono">02:30</span>
+          </div>
+          <div class="m-sheet-row">
+            <i data-ico="gauge" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">错峰窗</span>
+              <span class="m-setrow-s">电量低于 40% 或在会议时段就推迟，最多顺延 6 小时</span>
+            </span>
+            <button class="m-switch on" data-demo-switch aria-checked="true"></button>
+          </div>
+
+          <div class="m-perm">
+            <div class="m-sheet-row">
+              <i data-ico="trash-2" data-size="16"></i>
+              <span class="m-setrow-body">
+                <span class="m-setrow-t">它会删东西</span>
+                <span class="m-setrow-s">rm -rf build/cache · 只在工作目录内 · 不可撤销</span>
+              </span>
+              <span class="m-badge bad">要确认</span>
+            </div>
+          </div>
+
+          <div class="m-banner"><i data-ico="info" data-size="14"></i>任务由桌面端常驻进程执行；手机断开不影响已排的班。</div>
+        </div>
+        <div class="m-pickbar" data-demo-list>
+          <button class="m-picktag" data-demo-select>先存草稿</button>
+          <button class="m-picktag is-on" data-demo-select>创建并开启</button>
+        </div>
+      </div>
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回设置"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">定时任务</span>
+        <button class="m-top-btn" title="新建定时任务" data-demo-drawer="toggle" data-demo-drawer-target="#sheet-cron"><i data-ico="plus" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+        <div class="m-banner"><i data-ico="info" data-size="14"></i>手机上只管看与开关：调度在桌面端跑，手机连不连都不影响。</div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <i data-ico="list-checks" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">今天已跑 6 次</span>
+              <span class="m-setrow-s">平均 14.2s · 失败 1 次</span>
+            </span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="calendar-clock" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">下一次：明天 02:30</span>
+              <span class="m-setrow-s">在错峰窗内，预计提前不超过 5 分钟</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="m-croncard">
+          <div class="m-croncard-head">
+            <i data-ico="timer" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">每晚清理构建缓存</span>
+              <span class="m-setrow-s">~/code/pi-next · 每晚 02:30 跑</span>
+            </span>
+            <span class="m-badge ok">每天</span>
+            <button class="m-switch on" data-demo-switch aria-checked="true"></button>
+          </div>
+          <div class="m-cronhist">
+            <div class="m-hist-row"><span class="m-dot ok"></span><span>今天 02:31</span><span class="m-grow"></span><span>12.4s · 删 1.2GB</span></div>
+            <div class="m-hist-row"><span class="m-dot ok"></span><span>昨天 02:30</span><span class="m-grow"></span><span>13.1s · 删 1.1GB</span></div>
+            <div class="m-hist-row"><span class="m-grow"></span><span>下次 明天 02:30 · 错峰窗内</span></div>
+          </div>
+        </div>
+
+        <div class="m-croncard">
+          <div class="m-croncard-head">
+            <i data-ico="calendar" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">全量回归测试</span>
+              <span class="m-setrow-s">跑在另一台机器上</span>
+            </span>
+            <span class="m-badge mute">每周一</span>
+            <button class="m-switch" data-demo-switch aria-checked="false"></button>
+          </div>
+          <div class="m-cronhist">
+            <div class="m-hist-row"><span class="m-dot warn"></span><span>周一 09:00</span><span class="m-grow"></span><span>22 分（上限 20 分）</span></div>
+            <div class="m-hist-row"><span class="m-grow"></span><span class="m-t-faint">已关闭 · 下周一才跑</span></div>
+          </div>
+        </div>
+
+        <div class="m-croncard">
+          <div class="m-croncard-head">
+            <i data-ico="refresh-cw" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">盯 CI 是否跑完</span>
+              <span class="m-setrow-s">每 30 分钟查一次</span>
+            </span>
+            <span class="m-badge bad">半小时</span>
+            <button class="m-switch on" data-demo-switch aria-checked="true"></button>
+          </div>
+          <div class="m-cronhist">
+            <div class="m-hist-row"><span class="m-dot bad"></span><span>14:30</span><span class="m-grow"></span><span class="m-err">取令牌被拒</span></div>
+            <div class="m-hist-row"><span class="m-dot bad"></span><span>14:00</span><span class="m-grow"></span><span class="m-err">同样原因</span></div>
+            <div class="m-hist-row"><span class="m-grow"></span><span>下次 15:00 · 再失败 1 次就暂停</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 用量 ─────────────────────────────────────────────────────── -->
+<section class="m-scene">
+  <div class="m-frame-label"><b>帧 C</b> · 用量 · 口径与数字同一屏；热力图按周排、柱状按日排，两者同源</div>
+  <div class="m-phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="m-grow"></span>
+      <i data-ico="lock" data-size="11"></i>
+      <i data-ico="zap" data-size="11"></i>
+    </div>
+    <div class="m-phone-inner">
+
+      <div class="m-fade"></div>
+
+      <div class="m-top">
+        <button class="m-top-btn" title="返回设置"><i data-ico="chevron-left" data-size="16"></i></button>
+        <span class="m-top-title m-grow">用量与预算</span>
+        <button class="m-top-btn" title="导出报表"><i data-ico="download" data-size="16"></i></button>
+      </div>
+
+      <div class="m-settings">
+        <div class="m-cardgroup">
+          <div class="m-pickbar" data-demo-list>
+            <button class="m-picktag" data-demo-select>7 天</button>
+            <button class="m-picktag is-on" data-demo-select>30 天</button>
+            <button class="m-picktag" data-demo-select>全部</button>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="sigma" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">总 token</span>
+              <span class="m-setrow-s">输入 8.21M · 输出 4.22M</span>
+            </span>
+            <span class="m-t-lg m-t-b">12.43M</span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="percent" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">总费用</span>
+              <span class="m-setrow-s">日均 ¥12.88 · 按回执算</span>
+            </span>
+            <span class="m-t-lg m-t-b">¥386.42</span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="activity" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">请求数</span>
+              <span class="m-setrow-s">均 667 token / 请求</span>
+            </span>
+            <span class="m-t-lg m-t-b">18,642</span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="triangle-alert" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">错误率</span>
+              <span class="m-setrow-s">132 次失败 · 多数为超时</span>
+            </span>
+            <span class="m-badge ok">0.71%</span>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">每日 token · 本周</span>
+              <span class="m-setrow-s">输入 + 输出，缓存命中段已扣</span>
+              <span class="m-bars">
+                <i style="height:34%"></i>
+                <i style="height:52%"></i>
+                <i style="height:41%"></i>
+                <i style="height:78%"></i>
+                <i style="height:64%"></i>
+                <i style="height:96%"></i>
+                <i style="height:47%"></i>
+              </span>
+              <span class="m-hist-row" style="justify-content:space-between">
+                <span class="m-t-xs m-t-faint">一</span>
+                <span class="m-t-xs m-t-faint">二</span>
+                <span class="m-t-xs m-t-faint">三</span>
+                <span class="m-t-xs m-t-faint">四</span>
+                <span class="m-t-xs m-t-faint">五</span>
+                <span class="m-t-xs m-t-faint">六</span>
+                <span class="m-t-xs m-t-b">今</span>
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">活跃度 · 最近 18 周</span>
+              <span class="m-setrow-s">每格一天，颜色越深请求越多</span>
+              <span class="m-heat"><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l1"></i>
+                <i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l2"></i>
+                <i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i>
+                <i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i>
+                <i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i><i class="m-heat-grid l3"></i>
+                <i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l2"></i>
+                <i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l1"></i><i class="m-heat-grid l2"></i><i class="m-heat-grid"></i><i class="m-heat-grid l2"></i></span>
+              <span class="m-hist-row">
+                <span class="m-badge mute">0</span>
+                <span class="m-badge mute">1–5</span>
+                <span class="m-badge mute">6–20</span>
+                <span class="m-badge mute">20+</span>
+                <span class="m-grow"></span>
+                <span class="m-t-xs m-t-faint">周一在上 · 周日在下</span>
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <div class="m-cardgroup">
+          <div class="m-setrow">
+            <i data-ico="cpu" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">claude-opus-4-6</span>
+              <span class="m-setrow-s">6.12M token · ¥214.80</span>
+            </span>
+            <span class="m-ring" style="--p:49"></span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="cpu" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">claude-sonnet-4-6</span>
+              <span class="m-setrow-s">3.84M token · ¥96.12</span>
+            </span>
+            <span class="m-ring" style="--p:31"></span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="cpu" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">gpt-5.1-codex</span>
+              <span class="m-setrow-s">1.66M token · ¥58.30</span>
+            </span>
+            <span class="m-ring" style="--p:13"></span>
+          </div>
+          <div class="m-setrow">
+            <i data-ico="hard-drive" data-size="16"></i>
+            <span class="m-setrow-body">
+              <span class="m-setrow-t">qwen3-coder-30b · 本机</span>
+              <span class="m-setrow-s">0.81M token · 走本机不计费</span>
+            </span>
+            <span class="m-badge mute">本地</span>
+          </div>
+        </div>
+
+        <div class="m-banner"><i data-ico="info" data-size="14"></i>缓存命中不计费，但计入 token：命中 71% 的部分在柱状图里已经扣掉。</div>
+      </div>
+
+    </div>
+    <div class="m-homebar"></div>
+  </div>
+</section>
+
+<div class="m-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>三个一级页，不是一个 hub</b>：商店 / 定时 / 用量在桌面端是设置分节，在手机端各自成页 —— 它们都要「扫一眼出结论」，塞进卡片就只剩标题。</li>
+    <li><b>商店卡片只给一个动作</b>：右下角箭头开<b>同一张</b>详情面板（<span class="m-mono">data-demo-drawer="toggle"</span>），面板里先讲<b>它要动我什么</b>（权限逐条列出 + 单选钮），版本与要求压到最后 —— 手机上用户是「先看风险，再看功能」。</li>
+    <li><b>分类 chip 横滚、单选</b>：<span class="m-mono">.m-cats</span> 不换行，靠横向滚动消化分类数；选中态只有一个，别的立刻让位（<span class="m-mono">data-demo-list + data-demo-select</span>）。</li>
+    <li><b>定时卡只回答两件事</b>：<span class="m-mono">.m-croncard-head</span> 末位是调度徽章 + 开关，<span class="m-mono">.m-cronhist</span> 是「上次成没成」与「下次什么时候」；失败那一条用 <span class="m-mono">.m-err</span> 就地写原因，不跳详情。</li>
+    <li><b>开关就是开关</b>：手机上不用「编辑 → 保存」两步，<span class="m-mono">.m-switch</span> 直接生效，关闭后的历史留着（标明「已关闭 · 下周一才跑」）—— 用户要能确认「我确实关掉了」。</li>
+    <li><b>用量三块同源</b>：热力图（18 周 × 每天）、柱状（本周每日）、模型占比读的是同一份会话日志；图旁边永远有一行<b>口径</b>，否则数字会被当成账单。</li>
+    <li><b>时间范围用三选一，不用下拉</b>：<span class="m-mono">7 天 / 30 天 / 全部</span> 三个 <span class="m-mono">.m-picktag</span> 互斥 —— 手机上多一层下拉只为选三个值，是纯浪费。</li>
+    <li><b>两处「看起来被裁了」的坑，已在库里修根</b>：① <span class="m-mono">box-sizing</span> 现在是<b>全局</b>声明（<span class="m-mono">base.css</span> 最上面），所以 <span class="m-mono">width:100% + padding</span> 的行放进 <span class="m-mono">overflow:hidden</span> 的卡片不会再横向溢出 28px 把末列裁掉；② 滚动区 / 设置流 / 商店流这几处 flex 列容器的<b>直接子项一律 <span class="m-mono">flex: 0 0 auto</span></b>，带 overflow 与 aspect-ratio 的卡片与横滚条不再被压扁（热力图行曾被压到 4px）。<b>板面因此不再需要任何内联兜底</b> —— 如果你看到别处写着 <span class="m-mono">style="box-sizing:border-box"</span>，那是过期信息，删掉它。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

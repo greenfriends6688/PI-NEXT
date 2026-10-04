@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import type { SubagentProfilesResponse, SubagentSettingsResponse } from "@/lib/api-types";
 import { sendAgentCommand } from "@/lib/agent-client";
@@ -12,28 +12,10 @@ import {
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
 import {
-  ConfigBadge,
-  ConfigButton,
-  ConfigControl,
-  ConfigDetail,
-  ConfigDetailActions,
-  ConfigDetailHeader,
-  ConfigDetailHeaderInfo,
-  ConfigDetailStack,
-  ConfigEmptyState,
-  ConfigField,
   ConfigPanelShell,
   ConfigSidebar,
-  ConfigSidebarGroupLabel,
-  ConfigSidebarItem,
   ConfigSidebarList,
-  ConfigSidebarSub,
-  ConfigSidebarText,
   ConfigSplitView,
-  ConfigSectionTitle,
-  ConfigStatusDot,
-  ConfigSwitch,
-  ConfigDetailTitle,
   PwRadio,
   PwSearch,
   PwSelectBox,
@@ -41,6 +23,59 @@ import {
 } from "./SettingsUi";
 import { ModelSelector } from "./ModelSelector";
 import { localCopy, NO_MODEL_PROVIDERS_HINT, READONLY_PROFILE_HINT } from "./settings-disabled-reasons";
+
+/* fork:v5-skin-d-only —— 本地内容基件只吐 d-*（同 SkillsConfig 的同名块）。
+ * 页壳（SettingsPage / ConfigPanelShell / ConfigSplitView / ConfigSidebar /
+ * ConfigSidebarList / PwRadio / PwSearch / PwSelectBox）仍走 SettingsUi。 */
+function Btn({
+  variant = "secondary",
+  size = "default",
+  className,
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "small" | "default";
+}) {
+  const variantClass = variant === "primary" ? "primary"
+    : variant === "secondary" ? "outline"
+    : variant === "danger" ? "danger"
+    : "";
+  return (
+    <button
+      type="button"
+      {...props}
+      className={["d-btn", variantClass, size === "small" ? "sm" : "", className].filter(Boolean).join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+function Badge({ tone, className, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
+  return <span {...props} className={["d-badge", tone ?? "", className].filter(Boolean).join(" ")} />;
+}
+function Stack({ className, style, children }: { className?: string; style?: CSSProperties; children: ReactNode }) {
+  return (
+    <div className={["d-col", className].filter(Boolean).join(" ")} style={{ gap: "var(--nx-sp-3)", ...style }}>
+      {children}
+    </div>
+  );
+}
+function Title({ children }: { children: ReactNode }) {
+  return <h3 className="d-t-title" style={{ margin: 0 }}>{children}</h3>;
+}
+function StatusDot({ active, color }: { active?: boolean; color?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`d-dot${active ? " run" : active === false ? " pending" : ""}`}
+      style={color ? { backgroundColor: color } : undefined}
+    />
+  );
+}
+function EmptyState({ children }: { children: ReactNode }) {
+  return <div className="d-empty compact">{children}</div>;
+}
 
 
 const TOOL_OPTIONS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
@@ -61,14 +96,6 @@ const EMPTY_PROFILE: EditableProfile = {
   inheritContext: false,
   runInBackground: false,
   enabled: true,
-};
-
-/** pw-input 没有画板禁用态（画板没画 disabled 的输入框）：只读档
- *  （内置 / 工作区）的输入框要灰底示意「这里不可写」，所以保留这个
- *  运行时按 `disabled` 挂的条件 inline —— 全部走 token，没有字面值。 */
-const disabledInputStyle: CSSProperties = {
-  background: "var(--bg-panel)",
-  color: "var(--text-dim)",
 };
 
 function editableProfile(profile: SubagentProfile): EditableProfile {
@@ -130,8 +157,8 @@ function displayProfilePath(profile: SubagentProfile, cwd: string): string | nul
   return shortenPath(profile.filePath);
 }
 
-/** fork:design-system —— 画板 42 的「工具与资源」芯片：已选项是 `.pw-chip accent`，
- *  未选项带 plus 图标。芯片是可点按钮（Tailwind preflight 归零 UA，board.css 出形）。 */
+/** 画板 D-12 帧 C 的工具芯片：`.d-chips` 里的 `.d-chipbtn`，选中 `.is-on` + `check`，
+ *  未选 `circle-slash`（画板把「能改东西」的工具放前面且默认不勾）。 */
 function ToolChip({
   selected,
   disabled,
@@ -149,9 +176,9 @@ function ToolChip({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={selected ? "pw-chip accent fork-pwa-hit" : "pw-chip fork-pwa-hit"}
+      className={selected ? "d-chipbtn is-on fork-pwa-hit" : "d-chipbtn fork-pwa-hit"}
     >
-      {!selected && <span className="pw-ico"><i data-ico="plus" data-size="12"></i></span>}
+      <i data-ico={selected ? "check" : "circle-slash"} data-size="12" aria-hidden="true"></i>
       {children}
     </button>
   );
@@ -489,28 +516,34 @@ export function AgentsConfig({
   // 描述副标题 + 被覆盖徽标 / 状态点），列表与「内置」组的行共用同一渲染。
   const renderAgentRow = (profile: SubagentProfile) => {
     const overridden = isSubagentProfileOverridden(profile, profiles);
+    const isActive = selectedKey === profileKey(profile) && !creating;
     return (
-      <ConfigSidebarItem
+      <button
         key={profileKey(profile)}
-        active={selectedKey === profileKey(profile) && !creating}
+        type="button"
+        aria-current={isActive ? "page" : undefined}
+        className={`d-sess${isActive ? " is-on" : ""}`}
+        title={profile.displayName}
         onClick={() => selectProfile(profile)}
       >
-        {/* 画板 42：行首是**类型图标**（`.pw-ico` 的 bot），启用走 accent-text
-            （画板 42 行内 `style="color:var(--accent-text)"` 原样），停用/被覆盖走 pw-dim。 */}
-        <span className={`pw-ico${profile.enabled ? "" : " pw-dim"}`} style={profile.enabled ? { color: "var(--accent-text)" } : undefined}>
-          <i data-ico="bot" data-size="14" aria-hidden="true" />
+        <span className="d-row">
+          {/* 画板 D-12：行首是**类型图标**（bot），启用走 accent-text，停用/被覆盖走 `d-t-faint`。 */}
+          <i
+            data-ico="bot"
+            data-size="14"
+            className={profile.enabled ? undefined : "d-t-faint"}
+            style={profile.enabled ? { color: "var(--accent-text)" } : undefined}
+            aria-hidden="true"
+          />
+          <span className="d-grow">
+            <span className="d-sess-t">{profile.displayName}</span>
+            <span className="d-sess-m">{profile.description || profile.name}</span>
+          </span>
+          {/* 被覆盖项给一枚中性徽章（画板：不标红）。 */}
+          {overridden && <Badge>{t("agents.overridden")}</Badge>}
+          <StatusDot active={profile.enabled} />
         </span>
-        {/* 名字 + 一句说明（`.pw-lname` / `.pw-lsub`）。停用态不再给名字挂旧的
-            弱化类（settings.css 的 config-sidebar-text 族已退役）：画板 42 的
-            停用行只弱化图标与状态点，名字保持正文色。 */}
-        <span className="grow">
-          <ConfigSidebarText>{profile.displayName}</ConfigSidebarText>
-          <ConfigSidebarSub>{profile.description || profile.name}</ConfigSidebarSub>
-        </span>
-        {/* 被覆盖项给一枚中性徽章（画板 42：不标红）。 */}
-        {overridden && <ConfigBadge>{t("agents.overridden")}</ConfigBadge>}
-        <ConfigStatusDot active={profile.enabled} />
-      </ConfigSidebarItem>
+      </button>
     );
   };
 
@@ -520,10 +553,10 @@ export function AgentsConfig({
         title={t("common.agents")}
         sub={t("agents.pageSub")}
         actions={
-          <ConfigButton variant="primary" size="small" onClick={beginCreate}>
-            <span className="pw-ico"><i data-ico="plus" data-size="13" aria-hidden="true" /></span>
+          <Btn variant="primary" size="small" onClick={beginCreate}>
+            <i data-ico="plus" data-size="13" aria-hidden="true" />
             {t("agents.new")}
-          </ConfigButton>
+          </Btn>
         }
         toolbar={
           <>
@@ -533,8 +566,8 @@ export function AgentsConfig({
               ariaLabel={t("agents.searchPlaceholder")}
               onChange={setAgentQuery}
             />
-            <span className="pw-grow" aria-hidden="true" />
-            <ConfigBadge tone="count">{t("agents.count", { count: String(visibleProfileCount) })}</ConfigBadge>
+            <span className="d-grow" aria-hidden="true" />
+            <Badge tone="count">{t("agents.count", { count: String(visibleProfileCount) })}</Badge>
           </>
         }
         fill
@@ -542,74 +575,75 @@ export function AgentsConfig({
       <ConfigSplitView>
         <ConfigSidebar>
           <ConfigSidebarList>
-            {/* fork:settings-frame（画板 62 落位表）—— 「启用内置子代理」开关 +
-                「并发上限」从**顶部整宽的独立卡片**收成「内置」组顶部的一条紧凑
-                设置行（行 anatomy 照画板 42 的 pw-field：标签 + small 说明在左，
-                控件在右；两条整宽行 → 一行）。设置行不依赖列表加载结果，
-                任何时候都可操作，所以挂在 loading / 空态分支之外。 */}
-            <ConfigSidebarGroupLabel>{t("agents.scope.builtin")}</ConfigSidebarGroupLabel>
-            <ConfigField label={t("agents.builtInTitle")} hint={t("agents.builtInDescription")}>
-              <ConfigControl>
-                <ConfigSwitch
-                  checked={builtInEnabled}
-                  disabled={settingsLoading || reloading}
-                  loading={settingsSaving}
-                  label={t("agents.builtInTitle")}
-                  onChange={(enabled) => void toggleBuiltInSubagents(enabled)}
+            {/* 画板 D-12 帧 A：「内置子代理」组顶部的设置行 —— `.d-set-row`（左标签 + 说明，
+                右控件）。开关不依赖列表加载结果，挂在 loading / 空态分支之外。 */}
+            <div className="d-group-title">{t("agents.scope.builtin")}</div>
+            <div className="d-set-sec">
+              <div className="d-set-row">
+                <div className="d-set-row-box">
+                  <div className="d-set-row-t">{t("agents.builtInTitle")}</div>
+                  <div className="d-set-row-s">{t("agents.builtInDescription")}</div>
+                </div>
+                <span className="d-grow-last">
+                  <input
+                    aria-label={t("agents.maxConcurrent")}
+                    title={t("agents.maxConcurrentDescription")}
+                    type="number"
+                    min={1}
+                    max={32}
+                    value={maxConcurrent}
+                    disabled={settingsLoading || settingsSaving}
+                    onChange={(event) => setMaxConcurrent(Number(event.target.value))}
+                    onBlur={() => void updateMaxConcurrent(maxConcurrent)}
+                    className="d-input d-mono"
+                    style={{ width: 64, minWidth: 0, textAlign: "center" }}
+                  />
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={builtInEnabled}
+                  aria-busy={settingsSaving || undefined}
+                  aria-label={t("agents.builtInTitle")}
+                  title={t("agents.builtInTitle")}
+                  disabled={settingsLoading || settingsSaving || reloading}
+                  className={`d-switch${builtInEnabled ? " on" : ""}`}
+                  onClick={() => void toggleBuiltInSubagents(!builtInEnabled)}
                 />
-                {/* fix:agents-row-collapse —— 这条行在**列表列**（295px）里，不是整宽设置页。
-                    `.pw-input` 的 `min-width: 200px` 压过了内联的 `width: 64`（实测输入框
-                    200px、控件列 238px），把标签列挤到 53px —— 标题折三行、说明折成一根
-                    186px 高的条，整行 194px 高。`min-width` 归零后控件列 ≈100px，
-                    标签拿回 ~190px。 */}
-                <input
-                  aria-label={t("agents.maxConcurrent")}
-                  title={t("agents.maxConcurrentDescription")}
-                  type="number"
-                  min={1}
-                  max={32}
-                  value={maxConcurrent}
-                  disabled={settingsLoading || settingsSaving}
-                  onChange={(event) => setMaxConcurrent(Number(event.target.value))}
-                  onBlur={() => void updateMaxConcurrent(maxConcurrent)}
-                  className="pw-input"
-                  style={{ width: 64, minWidth: 0, textAlign: "center" }}
-                />
-              </ConfigControl>
-            </ConfigField>
-            {/* 画板 42 的第三行：空标签 + 右侧警示徽章（「改动需要重载会话才生效」）
-                与重载入口（会话在场时）。 */}
-            {reloadNeeded && (
-              <ConfigField label="">
-                <ConfigControl>
-                  {reloadNeeded && sessionId && (
-                    <ConfigButton size="small" onClick={() => void reloadSession()} disabled={reloading || settingsSaving}>
+              </div>
+              {/* 画板 D-12 帧 A：切换后需重载会话 —— `.d-banner warn` + 重载入口。 */}
+              {reloadNeeded && (
+                <div className="d-banner warn">
+                  <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                  <span className="d-grow">{t("agents.reloadRequired")}</span>
+                  {sessionId && (
+                    <button
+                      type="button"
+                      className="d-btn sm d-banner-btn"
+                      onClick={() => void reloadSession()}
+                      disabled={reloading || settingsSaving}
+                    >
                       {reloading ? t("agents.reloading") : t("agents.reloadSession")}
-                    </ConfigButton>
+                    </button>
                   )}
-                  <ConfigBadge tone="warn">
-                    <span className="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>
-                    {t("agents.reloadRequired")}
-                  </ConfigBadge>
-                </ConfigControl>
-              </ConfigField>
-            )}
+                </div>
+              )}
+            </div>
             {loading ? (
-              <div className="pw-alert info">
-                <span className="pw-ico"><i data-ico="loader-circle" data-size="14" className="pw-anim-spin"></i></span>
-                <span className="pw-grow">{t("agents.loading")}</span>
+              <div className="d-banner info">
+                <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" /></span>
+                <span className="d-grow">{t("agents.loading")}</span>
               </div>
             ) : visibleProfileCount === 0 ? (
-              /* fork:settings-frame（画板 62）—— 列表空态落在列表列内（32px 图标 + 一句），
-                 不再让「搜不到」静默留白。 */
-              <ConfigEmptyState>
-                <span className="mark"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
-                <p>{agentNeedle ? t("agents.noneFound") : t("agents.empty")}</p>
-              </ConfigEmptyState>
+              /* 画板 D-12 帧 D —— 列表空态落在列表列内（`.d-empty` 记号 + 一句）。 */
+              <EmptyState>
+                <span className="d-empty-ico"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
+                <p className="d-empty-t">{agentNeedle ? t("agents.noneFound") : t("agents.empty")}</p>
+              </EmptyState>
             ) : (
               <>
-                {/* fork:settings-frame（画板 62 落位表）—— 「内置」组紧随组顶部的
-                    设置行：先内置子代理行，再自定义组（项目 / 全局 / 工作区）。 */}
+                {/* 画板 D-12 帧 B —— 「内置」组紧随组顶部的设置行：先内置子代理行，
+                    再自定义组（项目 / 全局 / 工作区）。 */}
                 {profiles
                   .filter((profile) => profile.scope === "builtin" && matchesAgentQuery(profile))
                   .map(renderAgentRow)}
@@ -618,11 +652,9 @@ export function AgentsConfig({
                     (profile) => profile.scope === scope && matchesAgentQuery(profile),
                   );
                   if (scopedProfiles.length === 0) return null;
-                  // fork:design-system —— 画板 42 的分组标题就是 `.pw-list` 的直接子元素
-                  // （pw-group-title），不再包自绘的 config-sidebar-group 层。
                   return (
                     <Fragment key={scope}>
-                      <ConfigSidebarGroupLabel>{t(`agents.scope.${scope}`)}</ConfigSidebarGroupLabel>
+                      <div className="d-group-title">{t(`agents.scope.${scope}`)}</div>
                       {scopedProfiles.map(renderAgentRow)}
                     </Fragment>
                   );
@@ -632,55 +664,50 @@ export function AgentsConfig({
           </ConfigSidebarList>
         </ConfigSidebar>
 
-        {/* fork:settings-dialog-frame —— 画板 42 的右列只有一张 pw-detail 卡，
-            按内容收口。原先这层是 is-fill（min-height:100%），把卡拉成整页高，
-            底部留一大片空白、外圈看着像又套了一个弹窗。 */}
-        <ConfigDetail>
-          {/* fork:pwa-plugins-agents（手机档）—— `fork-pwa-detail` 是这台面板的作用域钩子：
-              把产品侧接线里那条只在并排两列成立的 `height: 100%` 在手机档还给内容，
-              滚动仍然只有内容区一个（规则见 app/pwa-plugins-agents.css 第 2 节）。
+        {/* fork:settings-dialog-frame —— 画板 D-12 的右列是 `.d-set-inner`（一列分节），
+            不再套一张撑满高度的巨卡。 `fork-pwa-detail` 是手机档作用域钩子。 */}
+        <div className="d-set-inner">
+          {/* fork:pwa-plugins-agents（手机档）—— `fork-pwa-detail` 是这台面板的作用域钩子。
               桌面端该类不参与任何布局。 */}
-          <ConfigDetailStack className="fork-pwa-detail">
+          <Stack className="fork-pwa-detail">
               {!selected && !creating ? (
-                /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框图标
-                   （`.mark`）+ 一句引导，居中。 */
-                <ConfigEmptyState>
-                  <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                  <p>{t("agents.empty")}</p>
-                </ConfigEmptyState>
+                /* 画板 D-12 帧 D —— 详情未选：`.d-empty` 记号 + 一句引导，居中。 */
+                <EmptyState>
+                  <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+                  <p className="d-empty-t">{t("agents.empty")}</p>
+                </EmptyState>
               ) : (
-                <ConfigDetailStack>
-                  <ConfigDetailHeader className="fork-pwa-head">
-                    <ConfigDetailHeaderInfo>
-                      {/* fix:agents-layout（画板 42）—— 详情头第一项是**名字**（h3），
-                          后面才是作用域徽章与等宽路径。原来这一行没有名字，只有
-                          「徽章 + 路径」，卡片没有标题。 */}
-                      <ConfigDetailTitle>{draft.displayName || draft.name || t("agents.new")}</ConfigDetailTitle>
-                      {/* fork:design-system SW-14 —— 画板 42 的详情头：作用域徽章 + 等宽路径。 */}
-                      {displayedScope && (
-                        <ConfigBadge tone={displayedScope === "project" ? "accent" : undefined}>
-                          {t(`agents.scope.${displayedScope}`)}
-                        </ConfigBadge>
-                      )}
-                      <span title={fullPath} className="pw-mono pw-dim pw-grow">
-                        {displayedPath}
-                      </span>
-                    </ConfigDetailHeaderInfo>
-                    <ConfigDetailActions>
-                      {selected && (mode === "view" || mode === "edit") && <ConfigButton size="small" onClick={beginDuplicate} disabled={saving || toggling}>{t("agents.duplicate")}</ConfigButton>}
-                      {selected && isWritableScope(selected.scope) && mode === "edit" && <ConfigButton variant="danger" size="small" onClick={() => void remove()} disabled={saving || toggling}>{t("agents.delete")}</ConfigButton>}
-                      <ConfigSwitch checked={draft.enabled} disabled={switchDisabled} label={draft.enabled ? t("agents.disable") : t("agents.enable")} onChange={(checked) => void toggleEnabled(checked)} />
-                    </ConfigDetailActions>
-                  </ConfigDetailHeader>
+                <Stack>
+                  {/* 画板 D-12 帧 B：详情头 = 名称（h3）+ 作用域徽标 + 等宽路径 + 条目动作。 */}
+                  <div className="d-row fork-pwa-head">
+                    <Title>{draft.displayName || draft.name || t("agents.new")}</Title>
+                    {displayedScope && (
+                      <Badge tone={displayedScope === "project" ? "accent" : undefined}>
+                        {t(`agents.scope.${displayedScope}`)}
+                      </Badge>
+                    )}
+                    <span title={fullPath} className="d-mono d-t-faint d-grow">
+                      {displayedPath}
+                    </span>
+                    {selected && (mode === "view" || mode === "edit") && <Btn size="small" onClick={beginDuplicate} disabled={saving || toggling}>{t("agents.duplicate")}</Btn>}
+                    {selected && isWritableScope(selected.scope) && mode === "edit" && <Btn variant="danger" size="small" onClick={() => void remove()} disabled={saving || toggling}>{t("agents.delete")}</Btn>}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={draft.enabled}
+                      aria-label={draft.enabled ? t("agents.disable") : t("agents.enable")}
+                      title={draft.enabled ? t("agents.disable") : t("agents.enable")}
+                      disabled={switchDisabled}
+                      className={`d-switch${draft.enabled ? " on" : ""}`}
+                      onClick={() => void toggleEnabled(!draft.enabled)}
+                    />
+                  </div>
 
-                  {/* fork:disabled-reasons —— 只读态原来只有一枚灰色的路径文字
-                      「内置配置」，17 个控件全灰却没有半句解释。说明 + 出口
-                      （右上角「创建副本」）走画板 42 已有的 `.pw-alert info` 一行，
-                      位置紧贴详情头，也就是那排全灰控件的正上方。 */}
+                  {/* 只读态说明：画板 `.d-banner info` 一行。 */}
                   {readonlyProfile && selected && (
-                    <div role="note" className="pw-alert info">
-                      <span className="pw-ico"><i data-ico="lock" data-size="14" aria-hidden="true" /></span>
-                      <span className="pw-grow">
+                    <div role="note" className="d-banner info">
+                      <i data-ico="lock" data-size="14" aria-hidden="true"></i>
+                      <span className="d-grow">
                         {localCopy(READONLY_PROFILE_HINT, locale, {
                           scope: t(`agents.scope.${selected.scope}`),
                         })}
@@ -689,8 +716,9 @@ export function AgentsConfig({
                   )}
 
                   {creating && (
-                    <ConfigField label={t("agents.saveScope")}>
-                      {/* 画板 42 编辑器的「保存作用域」是芯片单选组（PwRadio）。 */}
+                    <div className="d-field">
+                      <span className="d-field-t">{t("agents.saveScope")}</span>
+                      {/* 画板 D-12：保存作用域是 `PwRadio` 芯片单选组。 */}
                       <PwRadio
                         value={targetScope}
                         options={[
@@ -701,143 +729,167 @@ export function AgentsConfig({
                         disabled={saving}
                         onChange={setTargetScope}
                       />
-                    </ConfigField>
+                    </div>
                   )}
 
-                  {/* fork:settings-frame（画板 62 落位表）—— 详情字段一律 `.pw-field`
-                      行（标签左 / 控件右）：子代理 ID、显示名称、指定模型、描述。
-                      原来的两栏网格（标签在控件上方）退役；画板的 `.pw-field` 就是
-                      为这种「标签左、定宽控件右」的行设计的，字段跨度与左列协调。 */}
-                  <ConfigField label={t("agents.name")}>
-                    {creating ? (
-                      <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="pw-input pw-mono" style={disabled ? disabledInputStyle : undefined} />
-                    ) : (
-                      // 只读 ID 是等宽文本（画板 42 的 ID 字段形态）。
-                      <ConfigControl>
-                        <code className="pw-mono">{draft.name}</code>
-                      </ConfigControl>
-                    )}
-                  </ConfigField>
-                  <ConfigField label={t("agents.displayName")}>
-                    <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="pw-input" style={disabled ? disabledInputStyle : undefined} />
-                  </ConfigField>
-                  <ConfigField label={t("agents.model")}>
-                    <ModelSelector
-                      options={modelSelectorOptions}
-                      value={selectedModel}
-                      onChange={(provider, modelId) => update("model", `${provider}/${modelId}`)}
-                      onClear={() => update("model", undefined)}
-                      emptyLabel={modelsLoading ? t("agents.modelsLoading") : t("agents.inherit")}
-                      selectedLabel={draft.model && !selectedModelAvailable ? t("agents.modelUnavailable", { model: draft.model }) : undefined}
-                      disabled={disabled || modelsLoading || (modelOptions.length === 0 && !draft.model)}
-                      ariaLabel={t("agents.model")}
-                      variant="field"
-                      placement="auto"
-                    />
-                  </ConfigField>
-                  {/* 「没有模型可选」是一句可见的说明，不只是控件上的 title：
-                      整页就这一处能解释下拉为什么只剩「跟随父会话」。 */}
-                  {modelsError && <ConfigBadge tone="bad">{modelsError}</ConfigBadge>}
-                  {modelsUnavailable && <p className="pw-hint">{noModelsHint}</p>}
-                  <ConfigField label={t("agents.description")}>
-                    <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="pw-input" style={disabled ? disabledInputStyle : undefined} />
-                  </ConfigField>
-
-                  {/* 画板 42 的长文本段：`pw-sec-title` 小节标题 + 通栏控件。
-                      系统指令是整行宽控件，放 `.pw-detail` 直下、不塞进字段行 ——
-                      board.css 的 `.pw-field` 只为定宽小控件设计。 */}
-                  <ConfigSectionTitle>{t("agents.prompt")}</ConfigSectionTitle>
-                  {/* `.agents-system-prompt` 保留：只承担「全局滚动条在场时仍可拖拽
-                      右下角」的滚动条行为语义（settings.css，无画板对应物）。 */}
-                  <textarea
-                    className="pw-textarea agents-system-prompt"
-                    aria-label={t("agents.prompt")}
-                    value={draft.systemPrompt}
-                    disabled={disabled}
-                    onChange={(event) => update("systemPrompt", event.target.value)}
-                    style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
-                  />
-
-                  {/* fork:settings-frame —— 画板 42 的「工具与资源」是一个芯片区：
-                      已选工具 accent 芯片 + 「+ 加载技能 / + 加载扩展」入口芯片。
-                      原来「工具 / 资源」分两个小节，现照画板合并。芯片的两种状态
-                      原来没有任何文字说明，用户实测「按钮啥的看不懂」；两行
-                      `.pw-hint` 讲清点法与作用。 */}
-                  <ConfigSectionTitle>{t("agents.tools")}</ConfigSectionTitle>
-                  <div className="pw-wrap">
-                    {TOOL_OPTIONS.map((tool) => (
-                      <ToolChip
-                        key={tool}
-                        selected={draft.tools.includes(tool)}
-                        disabled={disabled}
-                        onClick={() => update("tools", draft.tools.includes(tool) ? draft.tools.filter((item) => item !== tool) : [...draft.tools, tool])}
-                      >
-                        {tool}
-                      </ToolChip>
-                    ))}
-                    <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
-                    <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
+                  {/* 画板 D-12 帧 B：`.d-grid2` 两列放名称与模型，其余 `.d-field` 竖排。 */}
+                  <div className="d-grid2">
+                    <div className="d-field">
+                      <span className="d-field-t">{t("agents.name")}</span>
+                      {creating ? (
+                        <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="d-input d-mono" />
+                      ) : (
+                        // 只读 ID 是等宽文本（画板 D-12 的 ID 字段形态）。
+                        <code className="d-mono">{draft.name}</code>
+                      )}
+                    </div>
+                    <div className="d-field">
+                      <span className="d-field-t">{t("agents.model")}</span>
+                      <ModelSelector
+                        options={modelSelectorOptions}
+                        value={selectedModel}
+                        onChange={(provider, modelId) => update("model", `${provider}/${modelId}`)}
+                        onClear={() => update("model", undefined)}
+                        emptyLabel={modelsLoading ? t("agents.modelsLoading") : t("agents.inherit")}
+                        selectedLabel={draft.model && !selectedModelAvailable ? t("agents.modelUnavailable", { model: draft.model }) : undefined}
+                        disabled={disabled || modelsLoading || (modelOptions.length === 0 && !draft.model)}
+                        ariaLabel={t("agents.model")}
+                        variant="field"
+                        placement="auto"
+                      />
+                    </div>
                   </div>
-                  <p className="pw-hint">{t("agents.toolsHint")}</p>
-                  <p className="pw-hint">{t("agents.resourcesHint")}</p>
+                  {/* 「没有模型可选」是一句可见的说明，不只是控件上的 title。 */}
+                  {modelsError && <Badge tone="bad">{modelsError}</Badge>}
+                  {modelsUnavailable && <p className="d-t-xs d-t-faint">{noModelsHint}</p>}
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.displayName")}</span>
+                    <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="d-input" />
+                  </div>
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.description")}</span>
+                    <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="d-input" />
+                  </div>
 
-                  {/* 画板 42 详情底部的一组 `pw-field` 行（标签左、控件右）。 */}
-                  <ConfigField label={t("agents.thinking")}>
-                    <PwSelectBox
-                      value={draft.thinking ?? ""}
-                      options={THINKING_OPTIONS.map((value) => ({ value, label: value || t("agents.inherit") }))}
-                      ariaLabel={t("agents.thinking")}
+                  {/* 画板 D-12：长文本段（系统指令）是一整行 `.d-field`。
+                      `.agents-system-prompt` 保留：只承担「全局滚动条在场时仍可拖拽
+                      右下角」的滚动条行为语义（settings.css，无画板对应物）。 */}
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.prompt")}</span>
+                    <textarea
+                      className="d-textarea agents-system-prompt"
+                      aria-label={t("agents.prompt")}
+                      value={draft.systemPrompt}
                       disabled={disabled}
-                      onChange={(value) => update("thinking", (value || undefined) as EditableProfile["thinking"])}
+                      onChange={(event) => update("systemPrompt", event.target.value)}
+                      style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
                     />
-                  </ConfigField>
-                  <ConfigField label={t("agents.maxTurns")}>
-                    <input
-                      aria-label={t("agents.maxTurns")}
-                      type="number"
-                      min={1}
-                      value={draft.maxTurns ?? ""}
-                      disabled={disabled}
-                      onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)}
-                      className="pw-input"
-                      style={{ width: 80, minWidth: 0, textAlign: "center" }}
-                    />
-                  </ConfigField>
-                  <ConfigField label={t("agents.inheritContext")}>
-                    <ConfigSwitch checked={draft.inheritContext} disabled={disabled} label={t("agents.inheritContext")} onChange={(checked) => update("inheritContext", checked)} />
-                  </ConfigField>
-                  <ConfigField label={t("agents.background")}>
-                    <ConfigSwitch checked={draft.runInBackground} disabled={disabled} label={t("agents.background")} onChange={(checked) => update("runInBackground", checked)} />
-                  </ConfigField>
+                  </div>
 
-                  {/* fork:settings-frame（画板 62）—— 表单级动作落在**表单块底部右对齐**，
-                      不再放页面页脚：页脚是视口级的，滚动时它会脱离它保存的那张卡。 */}
+                  {/* 画板 D-12 帧 C：工具白名单是一组 `.d-chips` / `.d-chipbtn`。 */}
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.tools")}</span>
+                    <div className="d-chips">
+                      {TOOL_OPTIONS.map((tool) => (
+                        <ToolChip
+                          key={tool}
+                          selected={draft.tools.includes(tool)}
+                          disabled={disabled}
+                          onClick={() => update("tools", draft.tools.includes(tool) ? draft.tools.filter((item) => item !== tool) : [...draft.tools, tool])}
+                        >
+                          {tool}
+                        </ToolChip>
+                      ))}
+                      <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
+                      <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
+                    </div>
+                    <span className="d-t-xs d-t-faint">{t("agents.toolsHint")}</span>
+                    <span className="d-t-xs d-t-faint">{t("agents.resourcesHint")}</span>
+                  </div>
+
+                  <div className="d-grid2">
+                    <div className="d-field">
+                      <span className="d-field-t">{t("agents.thinking")}</span>
+                      <PwSelectBox
+                        value={draft.thinking ?? ""}
+                        options={THINKING_OPTIONS.map((value) => ({ value, label: value || t("agents.inherit") }))}
+                        ariaLabel={t("agents.thinking")}
+                        disabled={disabled}
+                        onChange={(value) => update("thinking", (value || undefined) as EditableProfile["thinking"])}
+                      />
+                    </div>
+                    <div className="d-field">
+                      <span className="d-field-t">{t("agents.maxTurns")}</span>
+                      <input
+                        aria-label={t("agents.maxTurns")}
+                        type="number"
+                        min={1}
+                        value={draft.maxTurns ?? ""}
+                        disabled={disabled}
+                        onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)}
+                        className="d-input d-mono"
+                        style={{ width: 80, minWidth: 0, textAlign: "center" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="d-set-row">
+                    <div className="d-set-row-box">
+                      <div className="d-set-row-t">{t("agents.inheritContext")}</div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={draft.inheritContext}
+                      aria-label={t("agents.inheritContext")}
+                      title={t("agents.inheritContext")}
+                      disabled={disabled}
+                      className={`d-switch${draft.inheritContext ? " on" : ""}`}
+                      onClick={() => update("inheritContext", !draft.inheritContext)}
+                    />
+                  </div>
+                  <div className="d-set-row">
+                    <div className="d-set-row-box">
+                      <div className="d-set-row-t">{t("agents.background")}</div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={draft.runInBackground}
+                      aria-label={t("agents.background")}
+                      title={t("agents.background")}
+                      disabled={disabled}
+                      className={`d-switch${draft.runInBackground ? " on" : ""}`}
+                      onClick={() => update("runInBackground", !draft.runInBackground)}
+                    />
+                  </div>
+
+                  {/* fork:settings-frame（画板 62）—— 表单级动作落在**表单块底部右对齐**。 */}
                   {editing && (
-                    <div className="pw-inline fork-pwa-save">
-                      <span className="pw-grow" aria-hidden="true" />
-                      <ConfigButton
+                    <div className="d-row fork-pwa-save">
+                      <span className="d-grow" aria-hidden="true" />
+                      <Btn
                         variant="primary"
                         onClick={() => void save()}
                         disabled={saving || savedOk || toggling || !draft.name.trim()}
                         className={savedOk ? "is-success" : undefined}
                       >
                         {savedOk && (
-                          <span className="pw-ico"><i data-ico="check" data-size="13"></i></span>
+                          <i data-ico="check" data-size="13" aria-hidden="true"></i>
                         )}
                         <span>{savedOk ? t("i18n.saved") : saving ? t("agents.saving") : t("agents.save")}</span>
-                      </ConfigButton>
+                      </Btn>
                     </div>
                   )}
                   {(settingsError || error) && (
-                    <div role="alert" className="pw-alert">
-                      <span className="pw-ico"><i data-ico="triangle-alert" data-size="14" aria-hidden="true" /></span>
-                      <span className="pw-grow">{settingsError || error}</span>
+                    <div role="alert" className="d-banner err">
+                      <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                      <span className="d-grow">{settingsError || error}</span>
                     </div>
                   )}
-                </ConfigDetailStack>
+                </Stack>
               )}
-          </ConfigDetailStack>
-        </ConfigDetail>
+          </Stack>
+        </div>
       </ConfigSplitView>
       </SettingsPage>
     </ConfigPanelShell>

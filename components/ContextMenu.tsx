@@ -299,17 +299,14 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     if (!isSeparator(entry)) entryIndexByKey.set(`${(entry as ContextMenuItem).label}-${index}`, index);
   });
 
-  const renderEntryIcon = (entry: ContextMenuItem, danger?: boolean) => {
-    // 画板 51：选中行 = 图标位换 check + is-on 强调淡底；危险行 icon 继承 error 色。
+  const renderEntryIcon = (entry: ContextMenuItem) => {
+    // 画板 D-02c 帧 A：选中行 = 图标位换 check；危险行的颜色由 `.d-menu-row.danger`
+    // 给（文字色），lucide 图标用 currentColor 跟着继承，不需要再内联。
     if (entry.checked) {
-      return (
-        <span className="pw-ico" style={danger ? { color: "var(--error)" } : undefined}>
-          <i data-ico="check" data-size="14"></i>
-        </span>
-      );
+      return <i data-ico="check" data-size="14" aria-hidden="true"></i>;
     }
     if (entry.icon) {
-      return <span className="pw-ico" style={danger ? { color: "var(--error)" } : undefined}>{entry.icon}</span>;
+      return entry.icon;
     }
     return null;
   };
@@ -329,13 +326,13 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
         key={key}
         type="button"
         role="menuitem"
-        className={`pw-prow${opts.isActive ? " is-on" : ""}`}
-        style={{
-          width: "100%",
-          // 画板 51 的禁用行/危险行就是这两条行内覆盖，board.css 没有对应修饰类。
-          ...(entry.disabled ? { opacity: 0.45, cursor: "default" } : {}),
-          ...(danger ? { color: "var(--error)" } : {}),
-        }}
+        /* fork:v5-landing —— 行原子 = 画板 D-02c 帧 A 的 `.d-menu-row`：
+           禁用 = `disabled` + 字弱化（`.d-menu-row:disabled` + `d-t-faint`），
+           危险 = `.danger`（文字转红，不是红底）。键盘高亮沿用同族行惯用的 `is-on`
+           （system.css 暂无 `.d-menu-row.is-on`，与 ComposerReferenceMenu/ChatInput 一致；
+           选中项的「对勾」由 icon 槽给）。 */
+        className={`d-menu-row${opts.isActive ? " is-on" : ""}${danger ? " danger" : ""}`}
+        style={{ width: "100%" }}
         aria-haspopup={opts.hasSubmenu ? "menu" : undefined}
         aria-expanded={opts.hasSubmenu ? Boolean(opts.submenuOpen) : undefined}
         aria-disabled={entry.disabled || undefined}
@@ -344,21 +341,18 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
         onMouseEnter={opts.onActivate ? (event) => opts.onActivate!(event.currentTarget) : undefined}
         onClick={() => void runItem(entry, index)}
       >
-        {renderEntryIcon(entry, danger)}
-        {trailing
-          ? <span className="grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-              {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
-            </span>
-          : <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-              {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
-            </span>}
+        {renderEntryIcon(entry)}
+        <span
+          className={entry.disabled ? "d-t-faint" : undefined}
+          style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", ...(trailing ? { flex: "1 1 auto" } : {}) }}
+        >
+          {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
+        </span>
         {entry.hint !== undefined && (
-          <span className="pw-dim" style={{ fontSize: "var(--text-meta)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{entry.hint}</span>
+          <span className="d-t-xs d-t-faint" style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{entry.hint}</span>
         )}
         {opts.hasSubmenu && (
-          <span className="pw-ico pw-dim" style={{ flexShrink: 0 }}>
-            <i data-ico="chevron-right" data-size="14"></i>
-          </span>
+          <i data-ico="chevron-right" data-size="14" aria-hidden="true"></i>
         )}
       </button>
     );
@@ -373,14 +367,14 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
           role="menu"
           tabIndex={-1}
           aria-label="Context menu"
-          className={`pw-pop ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
+          className={`d-pop-float ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
           style={{ top: pos.y, left: pos.x, minWidth: MIN_WIDTH, maxWidth: "min(360px, calc(100vw - 12px))" }}
           onContextMenu={(event) => event.preventDefault()}
           onKeyDown={onMenuKeyDown}
         >
           {menu.entries.map((entry, index) => {
             if (isSeparator(entry)) {
-              return <div key={`sep-${index}`} role="separator" className="pw-sep" />;
+              return <div key={`sep-${index}`} role="separator" className="d-sep" />;
             }
             const item = entry as ContextMenuItem;
             const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
@@ -407,7 +401,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
                 {hasSubmenu && submenuIndex === index && submenuPos && (
                   <div
                     role="menu"
-                    className="pw-pop context-menu context-menu-submenu"
+                    className="d-pop-float context-menu context-menu-submenu"
                     style={{ top: submenuPos.y, left: submenuPos.x, minWidth: MIN_WIDTH - 24, maxWidth: "min(320px, calc(100vw - 12px))" }}
                     onMouseLeave={() => setSubmenuIndex(null)}
                   >

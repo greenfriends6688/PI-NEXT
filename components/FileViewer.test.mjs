@@ -136,8 +136,8 @@ test("the switch offers two modes and the HEAD comparison is an overlay", () => 
   // The overlay is its own layer, dismissed from its own banner.
   assert.match(source, /const updateDiffOpen = useCallback\(\(nextDiffOpen: boolean\) => \{/);
   assert.match(source, /\{diffOpen && \(/);
-  // fork:design-system SW-05 —— 横幅本体换成 pw-viewer-head 变体（类名跟随画板）。
-  assert.match(source, /className="file-viewer-diff-banner pw-viewer-head"/);
+  // fork:v5-landing —— 横幅本体换成 `.d-banner`（类名跟随画板 D-06b 帧 B）。
+  assert.match(source, /className="file-viewer-diff-banner d-banner"/);
   assert.match(source, /t\("files\.backToSource"\)/);
   // A deleted file has no content behind the overlay, so it needs a notice.
   assert.match(source, /data === null && isDeletedDiff && !diffOpen/);
@@ -171,10 +171,10 @@ test("keeps the selection popover on a single line", () => {
 test("the selection popover uses the board shell and labelled buttons, not icon buttons", () => {
   const start = source.indexOf("function FileSelectionQuotePopover");
   const popover = source.slice(start, source.indexOf("\nfunction ", start + 10));
-  assert.match(popover, /className="pw-pop anim-popover-down"/);
-  assert.doesNotMatch(popover, /boxShadow: "var\(--shadow-popover\)"/, "shell chrome comes from .pw-pop, not hand-written inline");
-  assert.equal((popover.match(/className="pw-btn sm"/g) ?? []).length, 2, "both toolbar actions are .pw-btn");
-  assert.equal((popover.match(/className="pw-iconbtn sm"/g) ?? []).length, 1, "only the close button stays an icon button");
+  assert.match(popover, /className="d-pop is-open"/);
+  assert.doesNotMatch(popover, /boxShadow: "var\(--shadow-popover\)"/, "shell chrome comes from .d-pop, not hand-written inline");
+  assert.equal((popover.match(/className="d-btn sm"/g) ?? []).length, 2, "both toolbar actions are .d-btn");
+  assert.equal((popover.match(/className="d-iconbtn"/g) ?? []).length, 1, "only the close button stays an icon button");
   assert.match(popover, /data-ico="at-sign"/);
   assert.match(popover, /data-ico="git-fork"/);
   assert.doesNotMatch(popover, /<svg/, "no hand-drawn icons in the popover");

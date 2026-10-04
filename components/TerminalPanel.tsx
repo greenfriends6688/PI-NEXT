@@ -8,6 +8,9 @@ import { createTerminalWriter, terminalRequest } from "@/lib/terminal-client";
 import type { TerminalEvent } from "@/lib/terminal-manager";
 import type { TerminalTab } from "./terminal-tab-state";
 import { TEXT_PX } from "@/lib/typography";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { getFileName } from "@/lib/file-paths";
+import { TerminalKeybarMobile } from "./pwa/TerminalKeybarMobile";
 
 interface Props {
   tab: TerminalTab;
@@ -53,6 +56,8 @@ function readTerminalTheme(element: HTMLElement): Record<string, string> {
 
 export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }: Props) {
   const { t } = useI18n();
+  // M-06 帧 C —— 手机档多一条常驻键排；桌面分支（下面那个 return）一个字都没动。
+  const isMobile = useIsMobile();
   const { id, cwd, restored } = tab;
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -232,29 +237,115 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
     return () => { cancelled = true; };
   }, [id, tab.closing]);
 
-  return (
-    /* fork:design-components —— 终端卡直接用画板 31 的 .pw-term（暗色常驻面板 +
-       头部路径行 / 状态点），终端主体仍由 xterm.js 渲染。 */
-    <section className="terminal-panel pw-term" aria-label={t("terminal.title")}>
-      <header className="terminal-panel-header pw-card-head">
-        <div className="terminal-panel-path">
-          <span className={`terminal-status-dot is-${status}`} title={t(`terminal.${status}`)} />
-          <span title={cwd}>{cwd}</span>
+  /* fork:v5-skin D-05 帧 B —— 终端面板头照画板 .d-panel-head（square-terminal +
+     .d-viewer-path + 右端 .d-iconbtn），状态点用 .d-dot 的语气档；终端主体仍是
+     xterm.js 渲染，xterm 的暗色岛槽位不变。 */
+  const statusDot = status === "ready" ? "ok" : status === "connecting" ? "run" : status === "exited" ? "warn" : "bad";
+  const statusLabel = t(`terminal.${status}`);
+
+  /* M-06 帧 C —— 手机档是**另一个形态**，不是缩小版：顶栏（返回 / 标题 / 清屏 /
+     更多）+ 常驻底部键排。xterm 自己仍然是输出区（它往 canvas 上画，`.m-term-mobile`
+     那套等宽文本行是给人读静态输出的，手机上这里没有静态输出来排），所以：
+       · 输出区 = 桌面同一块 `.terminal-xterm`（暗色岛是用户裁定，两档不变）；
+       · 键排 = 新增的 `TerminalKeybarMobile`，写进去的序列走同一条
+         `onData → writer.write(data)`，PTY / 尺寸 / 重连 / 关闭逻辑未动。
+     画板帧 C 顶栏的「清屏」「更多」在本产品没有对应动作（那是新行为，不在换皮
+     范围内），所以顶栏右侧放的是**已有的**重连 / 重启两枚，报给父会话。 */
+  if (isMobile) {
+    return (
+      <section
+        className="terminal-panel"
+        aria-label={t("terminal.title")}
+        style={{ display: "flex", flexDirection: "column", position: "relative", flex: "1 1 auto", minHeight: 0 }}
+      >
+        <div className="m-fade" aria-hidden="true" />
+        <div className="m-top">
+          <span className={`m-dot ${statusDot}`} title={statusLabel} aria-label={statusLabel} />
+          <span className="m-top-title m-grow" title={cwd}>
+            {t("terminal.title")} · {getFileName(cwd)}
+          </span>
+          {status === "error" && (
+            <button
+              type="button"
+              className="m-top-btn"
+              onClick={() => setReconnectKey((key) => key + 1)}
+              disabled={Boolean(tab.closing)}
+              title={t("terminal.reconnect")}
+              aria-label={t("terminal.reconnect")}
+            >
+              <i data-ico="link" data-size="16" aria-hidden="true"></i>
+            </button>
+          )}
+          <button
+            type="button"
+            className="m-top-btn"
+            onClick={onRestart}
+            disabled={Boolean(tab.closing)}
+            title={t("terminal.restart")}
+            aria-label={t("terminal.restart")}
+          >
+            <i data-ico="rotate-cw" data-size="16" aria-hidden="true"></i>
+          </button>
         </div>
+
+        {(error || status === "exited") && (
+          <div style={{ padding: "0 12px 8px" }}>
+            {error && (
+              <div role="alert" className="m-banner err">
+                <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+                <span className="m-grow">{error}</span>
+              </div>
+            )}
+            {status === "exited" && (
+              <div role="status" className="m-banner">
+                <i data-ico="info" data-size="14" aria-hidden="true"></i>
+                <span className="m-grow">
+                  {exitCode === null ? t("terminal.exited") : t("terminal.exitCode", { code: exitCode })}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="terminal-xterm" style={{ flex: "1 1 auto", minHeight: 0 }}>
+          <div ref={containerRef} className="terminal-xterm-host" />
+        </div>
+
+        <TerminalKeybarMobile onSequence={(sequence) => terminalRef.current?.paste(sequence)} />
+      </section>
+    );
+  }
+
+  return (
+    <section className="terminal-panel d-col" style={{ gap: 0, display: "flex", flexDirection: "column" }} aria-label={t("terminal.title")}>
+      <div className="d-panel-head">
+        <span className={`d-dot ${statusDot}`} title={t(`terminal.${status}`)} aria-label={t(`terminal.${status}`)} />
+        <i data-ico="square-terminal" data-size="14" aria-hidden="true"></i>
+        <span className="d-grow d-viewer-path" title={cwd}>{cwd}</span>
         {status === "error" && (
-          <button type="button" onClick={() => setReconnectKey((key) => key + 1)} disabled={Boolean(tab.closing)} title={t("terminal.reconnect")} aria-label={t("terminal.reconnect")}>
-            <span className="pw-ico"><i data-ico="link" data-size="14"></i></span>
+          <button type="button" className="d-iconbtn" onClick={() => setReconnectKey((key) => key + 1)} disabled={Boolean(tab.closing)} title={t("terminal.reconnect")} aria-label={t("terminal.reconnect")}>
+            <i data-ico="link" data-size="14" aria-hidden="true"></i>
           </button>
         )}
-        <button type="button" onClick={onRestart} disabled={Boolean(tab.closing)} title={t("terminal.restart")} aria-label={t("terminal.restart")}>
-          <span className="pw-ico"><i data-ico="rotate-cw" data-size="14"></i></span>
+        <button type="button" className="d-iconbtn" onClick={onRestart} disabled={Boolean(tab.closing)} title={t("terminal.restart")} aria-label={t("terminal.restart")}>
+          <i data-ico="rotate-cw" data-size="14" aria-hidden="true"></i>
         </button>
-      </header>
-      <div>
-        {error && <div className="terminal-panel-error" role="alert">{error}</div>}
-        {status === "exited" && <div className="terminal-panel-exit" role="status">{exitCode === null ? t("terminal.exited") : t("terminal.exitCode", { code: exitCode })}</div>}
       </div>
-      <div className="terminal-xterm"><div ref={containerRef} className="terminal-xterm-host" /></div>
+      <div className="d-col" style={{ gap: 0, flex: "0 0 auto" }}>
+        {error && (
+          <div className="d-banner err" role="alert">
+            <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{error}</span>
+          </div>
+        )}
+        {status === "exited" && (
+          <div className="d-banner info" role="status">
+            <i data-ico="info" data-size="14" aria-hidden="true"></i>
+            <span className="d-grow">{exitCode === null ? t("terminal.exited") : t("terminal.exitCode", { code: exitCode })}</span>
+          </div>
+        )}
+      </div>
+      <div className="terminal-xterm" style={{ flex: "1 1 auto", minHeight: 0 }}><div ref={containerRef} className="terminal-xterm-host" /></div>
     </section>
   );
 }

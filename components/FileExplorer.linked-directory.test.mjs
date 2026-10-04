@@ -55,7 +55,7 @@ const linkedNode = {
 test("展开一条待放行的链接：说清目标并给出放行按钮", () => {
   const html = renderNode(linkedNode);
   assert.match(html, /Links to \/elsewhere\/project, outside this project/);
-  assert.match(html, /<button[^>]*class="pw-btn primary sm"[^>]*title="Browse \/elsewhere\/project until Pi Web restarts[^"]*"[^>]*>Allow browsing<\/button>/);
+  assert.match(html, /<button[^>]*class="d-btn sm primary"[^>]*title="Browse \/elsewhere\/project until Pi Web restarts[^"]*"[^>]*>Allow browsing<\/button>/);
   // 待放行时绝不列子项（服务端只会 403）。
   assert.doesNotMatch(html, />empty</);
 });
@@ -98,8 +98,10 @@ test("包住项目或主目录的链接：先警告再确认", () => {
   assert.match(source, /node\.outsideLinkEncloses\s*\n?\s*&& !window\.confirm\(t\("files\.allowEnclosingLinkConfirm"/);
 });
 
-test("复用画板已有的权限卡骨架，不新增 .pw-* 类", () => {
-  for (const className of ["pw-perm", "pw-perm-title", "pw-perm-body", "pw-perm-acts"]) {
+test("复用画板的权限卡骨架，不再新增 pw-* 类", () => {
+  for (const className of ["d-perm", "d-perm-body"]) {
     assert.match(source, new RegExp(`className="${className}"`), className);
   }
+  assert.match(source, /className="d-btn sm primary"/);
+  assert.doesNotMatch(source, /className="pw-/);
 });

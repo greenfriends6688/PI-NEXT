@@ -2,8 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import { PluginsConfig } from "../PluginsConfig";
-import { ConfigButton, ConfigSectionTitle } from "../SettingsUi";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
 import type { McpServerInfo } from "@/lib/api-types";
 import { copyText } from "@/lib/clipboard";
 import {
@@ -40,6 +41,7 @@ type CopyKind = "auth" | "logout";
  */
 function McpAuthActions({ server }: { server: McpServerInfo }): ReactNode {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   // fork:fix-clipboard —— 成功/失败同一个 state：按钮文案仍然是「已复制」，
   // 失败挂画板的 .danger + 一枚 role=status 徽标（和 PathActions / TodoChip 同一套）。
   const [copyState, setCopyState] = useState<{ kind: CopyKind; status: "copied" | "failed" } | null>(null);
@@ -67,37 +69,78 @@ function McpAuthActions({ server }: { server: McpServerInfo }): ReactNode {
     });
   };
 
+  // fork:v5-landing Wave B · M-09 帧 B 表格行的同构 —— 窄屏上这一段是
+  // `.m-cardgroup` › `.m-setrow`（图标 + 名字 + 右侧按钮）+ 末尾一条 `.m-banner`。
+  // 两个命令与它们的剪贴板行为一字不变。
+  if (mobile) {
+    return (
+      <div className="m-cardgroup">
+        <div className="m-group-title">{t("mcp.authTitle")}</div>
+        <PwaSetRow
+          icon="key-round"
+          label={t("mcp.authAuthorize")}
+          trailing={
+            <button
+              type="button"
+              className={`m-btn sm${failed && copyState.kind === "auth" ? " danger" : ""}`}
+              onClick={() => copy("auth", authCommand)}
+              title={authCommand}
+            >
+              <i data-ico="key-round" data-size="14" aria-hidden="true" />
+              {copyState?.kind === "auth" && !failed ? t("mcp.authCopied") : t("mcp.authAuthorize")}
+            </button>
+          }
+        />
+        <PwaSetRow
+          icon="log-out"
+          label={t("mcp.authLogout")}
+          trailing={
+            <button
+              type="button"
+              className={`m-btn sm${failed && copyState.kind === "logout" ? " danger" : ""}`}
+              onClick={() => copy("logout", logoutCommand)}
+              title={logoutCommand}
+            >
+              <i data-ico="log-out" data-size="14" aria-hidden="true" />
+              {copyState?.kind === "logout" && !failed ? t("mcp.authCopied") : t("mcp.authLogout")}
+            </button>
+          }
+        />
+        {failed && <PwaSetRow icon="triangle-alert" label={t("chat.todosCopyFailed")} />}
+        <PwaBanner icon="info">{t("mcp.authHint", { name: server.name })}</PwaBanner>
+      </div>
+    );
+  }
+
+  // fork:v5-landing D-15 帧 D「登录态」—— 分节标题 + 一行动作 + 一条 info 横幅，
+  // 全部走 system.css 已有的 `.d-set-sec-t` / `.d-row` / `.d-btn` / `.d-banner`。
   return (
-    <div className="pw-rowgap">
-      <ConfigSectionTitle>{t("mcp.authTitle")}</ConfigSectionTitle>
-      <div className="pw-wrap">
-        <ConfigButton
-          size="small"
-          variant={failed && copyState.kind === "auth" ? "danger" : undefined}
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">{t("mcp.authTitle")}</div>
+      <div className="d-row">
+        <button
+          type="button"
+          className={`d-btn sm${failed && copyState.kind === "auth" ? " danger" : ""}`}
           onClick={() => copy("auth", authCommand)}
           title={authCommand}
         >
-          <span className="pw-ico"><i data-ico="key-round" data-size="13"></i></span>
+          <i data-ico="key-round" data-size="14" aria-hidden="true" />
           {copyState?.kind === "auth" && !failed ? t("mcp.authCopied") : t("mcp.authAuthorize")}
-        </ConfigButton>
-        <ConfigButton
-          size="small"
-          variant={failed && copyState.kind === "logout" ? "danger" : undefined}
+        </button>
+        <button
+          type="button"
+          className={`d-btn sm${failed && copyState.kind === "logout" ? " danger" : ""}`}
           onClick={() => copy("logout", logoutCommand)}
           title={logoutCommand}
         >
-          <span className="pw-ico"><i data-ico="log-out" data-size="13"></i></span>
+          <i data-ico="log-out" data-size="14" aria-hidden="true" />
           {copyState?.kind === "logout" && !failed ? t("mcp.authCopied") : t("mcp.authLogout")}
-        </ConfigButton>
-        {/* `.pw-wrap` 是 flex-wrap 的（和上面两枚钮同行，放不下就换行），
-            所以失败徽标不会去挤详情面板里的那一列；它落在面板中线上，
-            和 detail 自己的 .pw-alert 状态行是同一片语境。 */}
-        {failed && <span role="status" className="pw-badge bad">{t("chat.todosCopyFailed")}</span>}
+        </button>
+        {failed && <span role="status" className="d-badge bad">{t("chat.todosCopyFailed")}</span>}
       </div>
-      {/* fork:design-system SW-14 —— 画板 43 的 OAuth 提示是 `.pw-alert info` 一行。 */}
-      <div className="pw-alert info">
-        <span className="pw-ico"><i data-ico="info" data-size="14"></i></span>
-        <span className="pw-grow">{t("mcp.authHint", { name: server.name })}</span>
+      <div className="d-banner info">
+        <i data-ico="info" data-size="14" aria-hidden="true" />
+        <span className="d-grow">{t("mcp.authHint", { name: server.name })}</span>
       </div>
     </div>
   );

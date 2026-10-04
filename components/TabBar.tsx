@@ -439,14 +439,21 @@ export function TabBar({
 
   // 窄屏退化：标签行本身要能横向滑动，拖拽排序让位给滚动（键盘移动仍然可用）。
   const dragEnabled = Boolean(onMoveTab) && !isMobile && tabs.length > 1;
+  // fork:v5-wave-b —— 手机上这条标签栏就是画板 M-12 帧 B 的「六项切换条」：
+  // 容器 `.m-cats`、每个标签 `.m-cat`（选中态 `.is-on`）、关闭钮 `.m-iconbtn`。
+  // 折叠 / 拖出 / 概览 / 拖拽排序四套逻辑与键盘处理一行未动；容器仍然保持
+  // `overflow-x: hidden`（内联，折叠算法靠它），所以窄屏不是横滚而是照旧折叠进
+  // 「…」—— 那是行为，不是皮肤。
+  const isPhone = isMobile;
 
   return (
     <div
       ref={containerRef}
       role="tablist"
       /* fork:design-components —— 标签条直接用画板 31 的 .pw-tabs（2px 间距 / 发丝底线），
-         每个标签追加 .pw-tab（.is-on 选中态）；拖拽排序与溢出折叠逻辑不变。 */
-      className={`fork-tabbar pw-tabs${drag ? " is-reordering" : ""}`}
+         每个标签追加 .pw-tab（.is-on 选中态）；拖拽排序与溢出折叠逻辑不变。
+         fork:v5-wave-b —— ≤640 换成 PWA 的 `.m-cats` / `.m-cat`。 */
+      className={`${isPhone ? "m-cats" : "fork-tabbar d-tabbar"}${drag ? " is-reordering" : ""}`}
       title={dragEnabled ? t("tabs.reorder") : undefined}
       /* fork:proma-38-tab-reorder —— 拖动中禁掉默认的拖选（否则会选中一行标签文字），
          拖拽本身不阻止默认行为：点击仍然选中、关闭钮仍然可点。 */
@@ -500,7 +507,7 @@ export function TabBar({
             key={tab.id}
             ref={measureTab(tab.id)}
             role="tab"
-            className={`fork-tab pw-tab${isActive ? " is-on" : ""}`}
+            className={`${isPhone ? "m-cat" : "fork-tab d-tab"}${isActive ? " is-on" : ""}`}
             aria-label={tabAccessibleName(tab)}
             aria-selected={isActive}
             /* fork:proma-38-tab-reorder —— 拖拽的键盘等价物（窄屏也可用）。 */
@@ -554,7 +561,7 @@ export function TabBar({
               e.stopPropagation();
               if (!tab.closing) onCloseTab(tab.id);
             }}
-            style={{
+            style={isPhone ? undefined : {
               // fork:design-components —— 尺寸 / 内边距 / 圆角 / 间距 / 字号全部来自画板
               // 的 `.pw-tab`（board.css：26 高 / 0 8px / radius-4 4 0 0 / gap 5 / --text-meta）。
               // 这里只留折叠与拖拽需要的宽度约束、光标与主题色三态。
@@ -570,7 +577,7 @@ export function TabBar({
               transition: "color 0.1s, transform 120ms var(--ease-out)",
             }}
           >
-            <span className="pw-ico" style={{ opacity: isActive ? 1 : 0.7 }}>
+            <span style={{ opacity: isActive ? 1 : 0.7 }}>
               {tab.kind === "terminal" ? (
                 <i data-ico="terminal" data-size={13} aria-hidden="true"></i>
               ) : tab.kind === "browser" ? (
@@ -603,8 +610,8 @@ export function TabBar({
               /* fork:design-components —— 关闭钮 = 画板 31/30 的 `.pw-tab .x`：
                  `x` 字形走 data-ico（11px / --n-placeholder 来自 board.css），不再自绘 SVG。
                  画板里 `.x` 是静态 span，产品里是可点钮 —— UA 归零在 fork-ui.css 的接线块里。 */
-              className="x"
-              style={{
+              className={isPhone ? "m-iconbtn" : "x"}
+              style={isPhone ? undefined : {
                 cursor: "pointer",
                 color: hoveredClose === tab.id || focusedClose === tab.id ? "var(--n-muted)" : undefined,
               }}
@@ -650,7 +657,7 @@ export function TabBar({
         <button
           type="button"
           data-split-collapse="true"
-          className="fork-tab-collapse"
+          className="fork-tab-collapse d-iconbtn"
           onClick={() => {
             collapseSplit();
             endTabDrag?.();
@@ -658,13 +665,7 @@ export function TabBar({
           title={collapseSplitLabel}
           aria-label={collapseSplitLabel}
           aria-pressed={false}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            height: "var(--control-sm)", width: "var(--control-sm)", flexShrink: 0,
-            background: "transparent",
-            border: "none", borderRadius: "var(--radius-md)",
-            color: "var(--text-muted)", cursor: "pointer",
-          }}
+          style={{ flexShrink: 0 }}
         >
           <i data-ico="minimize-2" data-size={14} aria-hidden="true"></i>
         </button>
@@ -675,7 +676,7 @@ export function TabBar({
         <button
           type="button"
           data-tab-overview-trigger="true"
-          className="fork-tab-overview"
+          className={`fork-tab-overview d-iconbtn${overviewOpen ? " is-on" : ""}`}
           onClick={(event) => {
             const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
             setOverviewPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 300) });
@@ -684,13 +685,7 @@ export function TabBar({
           title={t("tabs.overview")}
           aria-label={t("tabs.overview")}
           aria-expanded={overviewOpen}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            height: "var(--control-sm)", width: "var(--control-sm)", flexShrink: 0,
-            background: overviewOpen ? "var(--bg-selected)" : "transparent",
-            border: "none", borderRadius: "var(--radius-md)",
-            color: overviewOpen ? "var(--text)" : "var(--text-muted)", cursor: "pointer",
-          }}
+          style={{ flexShrink: 0 }}
         >
           <i data-ico="rows-3" data-size={14} aria-hidden="true"></i>
         </button>
@@ -715,23 +710,18 @@ export function TabBar({
         <div
           data-tab-overflow-menu="true"
           role="menu"
+          className="d-pop-float"
           style={{
-            position: "fixed",
             top: overflowPos.top,
             left: overflowPos.left,
             zIndex: 400,
             width: "var(--pop-w-sm)",
             maxHeight: "min(60vh, 420px)",
             overflowY: "auto",
-            padding: "var(--s1)",
-            background: "var(--bg-elev)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-lg)",
           }}
         >
           {hiddenTabs.map((tab) => (
-            <div key={tab.id} style={{ display: "flex", alignItems: "center" }}>
+            <div key={tab.id} className="d-row">
               <button
                 type="button"
                 role="menuitem"
@@ -740,29 +730,16 @@ export function TabBar({
                   onSelectTab(tab.id);
                 }}
                 title={tab.filePath}
-                style={{
-                  display: "flex", alignItems: "center", gap: "var(--s2)", flex: 1, minWidth: 0, height: 30,
-                  padding: "0 8px", background: "none", border: "none",
-                  borderRadius: "var(--radius-md)", color: "var(--text)",
-                  cursor: "pointer", fontSize: TEXT.sm, textAlign: "left",
-                }}
-                onMouseEnter={(event) => { event.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(event) => { event.currentTarget.style.background = "none"; }}
+                className="d-menu-row d-grow"
               >
-                <span style={{ flexShrink: 0, opacity: 0.75, display: "flex", alignItems: "center" }}>
-                  {tab.kind === "terminal" ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-                    </svg>
-                  ) : tab.kind === "browser" ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" /><path d="M3 12h18" />
-                    </svg>
-                  ) : tab.kind === "trace" ? (
-                    <i data-ico="activity" data-size={12} aria-hidden="true"></i>
-                  ) : getFileIcon(tab.label, 12)}
-                </span>
-                <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tab.label}</span>
+                {tab.kind === "terminal" ? (
+                  <i data-ico="terminal" data-size={12} aria-hidden="true"></i>
+                ) : tab.kind === "browser" ? (
+                  <i data-ico="globe" data-size={12} aria-hidden="true"></i>
+                ) : tab.kind === "trace" ? (
+                  <i data-ico="activity" data-size={12} aria-hidden="true"></i>
+                ) : getFileIcon(tab.label, 12)}
+                <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tab.label}</span>
               </button>
               <button
                 type="button"
@@ -773,16 +750,9 @@ export function TabBar({
                 }}
                 title={t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")}
                 aria-label={`${t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")} ${tab.label}`}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: "var(--control-2xs)", height: "var(--control-2xs)", flexShrink: 0, background: "none",
-                  border: "none", borderRadius: "var(--radius-sm)",
-                  color: "var(--text-dim)", cursor: "pointer", padding: 0,
-                }}
+                className="d-iconbtn"
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-                  <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-                </svg>
+                <i data-ico="x" data-size={13} aria-hidden="true"></i>
               </button>
             </div>
           ))}

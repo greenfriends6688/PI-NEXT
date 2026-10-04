@@ -19,7 +19,7 @@
 //     tolerance: { box: 2, fontSize: 0 },   // 允许的像素/字号偏差
 //   }
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { launchChrome } from "./launch-chrome.mjs";
@@ -27,19 +27,30 @@ import { launchChrome } from "./launch-chrome.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const BOARD_DIR = join(ROOT, "design/pi-web-design");
+/* fork:v5-boards（2026-10-04）—— spec 的 board 字段带子目录时（例如
+ * "v5/web/boards/D-04-composer.html"）按 design/ 解析，这样新体系的画板也能
+ * 走同一条几何对数通道，而不是另开一个脚本。不带斜杠的仍旧指向上面那个目录，
+ * 于是已有的 40 多份 spec 一行都不用改。 */
+const DESIGN_DIR = join(ROOT, "design");
+const boardPath = (board) =>
+  board.includes("/") ? join(DESIGN_DIR, board) : join(BOARD_DIR, board);
+
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:30141";
 
 // 产品侧「打开某个面」的动作库。每个 preset 是一段在页面里跑的脚本。
+/* fork:v5-old-layer（2026-10-04）—— 会话行与滚动壳已换 v5：SessionSidebar.tsx:2891
+   的会话行是 `.d-sess`，列表壳是 `.d-side-scroll`（:1950）。旧名在产品里已不存在，
+   这一段过去只会抛「侧栏里没有 .pw-session」，于是所有 session:* 预设都停在首页。 */
 const OPEN_SESSION = `
   const byIco = (root, name) => [...root.querySelectorAll('[data-ico="' + name + '"]')][0];
   // 项目组默认是收起的（没有选中会话时），先点开箭头再点会话行。
-  if (!document.querySelector(".pw-session")) {
-    const chev = byIco(document.querySelector(".pw-side-scroll") ?? document, "chevron-right");
+  if (!document.querySelector(".d-sess")) {
+    const chev = byIco(document.querySelector(".d-side-scroll") ?? document, "chevron-right");
     const toggle = chev?.closest("[role=button]");
     if (toggle) { toggle.click(); await new Promise((r) => setTimeout(r, 700)); }
   }
-  const row = document.querySelector(".pw-session");
-  if (!row) throw new Error("侧栏里没有 .pw-session（种子没被列出来？）");
+  const row = document.querySelector(".d-sess");
+  if (!row) throw new Error("侧栏里没有 .d-sess（种子没被列出来？）");
   row.click();
   await new Promise((r) => setTimeout(r, 2200));`;
 
@@ -62,24 +73,26 @@ const PRESETS = {
   "session:first": OPEN_SESSION,
   // 回合结束后过程时间轴是**折起**的（画板 08 的折叠规则），`11-transcript-process`
   // 要量 `.pw-step` 那一排就得先把它展开。
+  // fork:v5-old-layer（2026-10-04）—— 过程卡头已换 `.d-card-head`（ChatWindow.tsx:587），
+  // `.pw-proc-head` 在产品里已不存在：这一步驱动过去永远点不到，步骤流一直量的是折起态。
   "session:first-expanded": `${OPEN_SESSION}
-    const head = document.querySelector(".pw-proc-head");
+    const head = document.querySelector(".d-card-head");
     if (head && head.getAttribute("aria-expanded") === "false") {
       head.click();
       await new Promise((r) => setTimeout(r, 900));
     }`,
-  // 点**思考档**那枚芯片，不点「第一个 .pw-select」——那是模型选择器，
-  // 它是自绘浮层（.anim-popover，不挂 .pw-pop），点它量不到画板 21 的弹层原子。
-  // 思考档的下拉才是画板 21 的那族：.pw-pop / .pw-pop-title / .pw-prow。
+  // 点**思考档**那枚芯片，不点「第一个 .d-select」——那是模型选择器。
+  // 思考档的下拉才是画板 21 的那族：v5 是 .d-pop / .d-pop-title / .d-menu-row
+  // （ChatInput.tsx:994 起），旧的 .pw-pop / .pw-prow 已退场。
   "composer:model-menu": `
-    const chips = [...document.querySelectorAll(".pw-select")];
+    const chips = [...document.querySelectorAll(".d-select")];
     const chip = chips.find((x) => /推理|Reasoning/.test(x.getAttribute("aria-label") ?? ""))
       ?? chips.find((x) => /工具|Tools/.test(x.getAttribute("aria-label") ?? ""));
     if (!chip) throw new Error("输入框工具条里没有思考档/工具档芯片");
     chip.click();
     await new Promise((r) => setTimeout(r, 900));`,
   "sidebar:collapsed": `
-    const b = document.querySelector('.pw-side-head button[aria-controls="session-sidebar"]');
+    const b = document.querySelector('.d-side-head button[aria-controls="session-sidebar"]');
     if (!b) throw new Error("侧栏头部找不到折叠按钮");
     b.click();
     await new Promise((r) => setTimeout(r, 700));`,
@@ -99,11 +112,12 @@ const PRESETS = {
  * 另外：分节是**懒挂载**的（`mountedSections`），点完要等它挂上再量。
  */
 const settingsSection = (target) => `
-  const opener = document.querySelector("button.pw-side-foot");
+  // fork:v5-old-layer（2026-10-04）—— 设置入口已换 `.d-side-foot`（AppShell.tsx:2181）。
+  const opener = document.querySelector("button.d-side-foot");
   if (opener) opener.click();
   await new Promise((r) => setTimeout(r, 1500));
-  const byId = document.querySelector('button.pw-row[data-section=${JSON.stringify(target)}]');
-  const byText = [...document.querySelectorAll("button.pw-row")].find((x) => x.textContent?.trim() === ${JSON.stringify(target)});
+  const byId = document.querySelector('button.d-set-navitem[data-section=${JSON.stringify(target)}]');
+  const byText = [...document.querySelectorAll("button.d-set-navitem")].find((x) => x.textContent?.trim() === ${JSON.stringify(target)});
   const row = byId ?? byText;
   if (!row) throw new Error("settings section not found: ${target}");
   row.click();
@@ -121,9 +135,9 @@ function presetScript(app) {
   return PRESETS[app.open] ?? "";
 }
 
-async function probe(page, selectors, frameIndex) {
+async function probe(page, selectors, frameIndex, frameSel) {
   return page.evaluate(
-    ({ sels, frameIndex }) => {
+    ({ sels, frameIndex, frameSel }) => {
       // 产品侧：设置分节是**懒挂载 + 常驻**的（`mountedSections`，切走只加 `hidden`）。
       // 直接 `document.querySelector(".pw-scontent")` 会命中**上一个分节**的节点
       // —— 实测：技能页被拿去和常规页的 `.pw-scontent` 比（padding 16 vs 0、block vs flex）。
@@ -131,7 +145,7 @@ async function probe(page, selectors, frameIndex) {
       // 壳级选择器（`.pw-settings` / `.pw-snav`）在分节宿主之外，照样能取到。
       const scope = frameIndex == null
         ? document
-        : document.querySelectorAll(".pw-frame")[frameIndex];
+        : document.querySelectorAll(frameSel)[frameIndex];
       const visibleOnly = frameIndex == null;
       const pick = (sel) => {
         for (const el of scope.querySelectorAll(sel)) {
@@ -181,7 +195,7 @@ async function probe(page, selectors, frameIndex) {
       }
       return out;
     },
-    { sels: selectors, frameIndex },
+    { sels: selectors, frameIndex, frameSel },
   );
 }
 
@@ -229,6 +243,12 @@ if (!specPath || !existsSync(specPath)) {
 }
 const spec = (await import(pathToFileURL(resolve(specPath)).href)).default;
 const tol = spec.tolerance ?? {};
+/* fork:v5-boards（2026-10-04）—— 取景外壳的类名按体系推导，不写死一套：
+ * 旧体系是 .pw-frame / .pw-head / .pw-notes，v5 是 .d-frame（Web）/ .m-phone（PWA）。
+ * 写成推导之后，同一个脚本三代画板都能用，不必为每代各养一份。 */
+const FORM = spec.board.includes("/pwa/") ? "m-" : (spec.board.startsWith("v5/") || spec.board.includes("/v5/")) ? "d-" : "pw-";
+const FRAME_SEL = FORM === "m-" ? ".m-phone" : `.${FORM}frame`;
+
 
 const selectors = spec.selectors ?? [];
 const pairs = spec.pairs ?? selectors.map((s) => [s, s]);
@@ -253,25 +273,26 @@ let skipped = 0;
 try {
   // 画板页
   const bp = await browser.newPage({ viewport: spec.viewport ?? { width: 1440, height: 900 } });
-  await goto(bp, pathToFileURL(join(BOARD_DIR, spec.board)).href);
+  await goto(bp, pathToFileURL(boardPath(spec.board)).href);
   // 画板页有自己的「取景外壳」：body 的 24px 外边距、.pw-frame 的 1px 边框与 1440 上限、
   // .pw-frame-body 的 pw-pad 内边距。它们不是被设计的组件的一部分，却会让每一层容器
   // 比产品窄 50px，逐项对数时整片飘红。剥掉外壳，让两边内容宽一致，剩下的差异才是真的。
   if (spec.frameChrome !== "keep") {
     await bp.addStyleTag({
       content: `
-        body.pw { padding: 0 !important; }
-        .pw-frame { max-width: none !important; margin: 0 !important; border: 0 !important;
+        body.${FORM}root, body.${FORM}board { padding: 0 !important; }
+        ${FRAME_SEL} { max-width: none !important; margin: 0 !important; border: 0 !important;
                     border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; }
-        .pw-frame-label { display: none !important; }
-        .pw-frame-body.pw-pad, .pw-frame-body[class*="pw-pad"] { padding: 0 !important; }
-        .pw-head { display: none !important; }
-        .pw-notes { display: none !important; }
+        .${FORM}frame-label { display: none !important; }
+        .${FORM}frame-body[class*="pad"], .pw-frame-body.pw-pad { padding: 0 !important; }
+        .${FORM}head, .${FORM}board-head { display: none !important; }
+        .${FORM}notes { display: none !important; }
+        .${FORM}scene { margin: 0 !important; }
       `,
     });
   }
   await bp.waitForTimeout(700);
-  const boardRes = await probe(bp, allBoard, spec.boardFrame);
+  const boardRes = await probe(bp, allBoard, spec.boardFrame, FRAME_SEL);
   await bp.close();
 
   // 产品页
@@ -310,7 +331,7 @@ try {
     console.log(JSON.stringify({ name: spec.name, fails, skipped, results, consoleErrors }, null, 2));
   } else {
     console.log(`\n═══ ${spec.name ?? spec.board} ═══`);
-    console.log(`画板：design/pi-web-design/${spec.board}${spec.boardFrame != null ? ` （第 ${spec.boardFrame} 帧）` : ""}`);
+    console.log(`画板：${relative(ROOT, boardPath(spec.board))}${spec.boardFrame != null ? ` （第 ${spec.boardFrame} 帧）` : ""}`);
     console.log(`产品：${APP_URL}  ·  open=${spec.app?.open ?? "none"}\n`);
     for (const r of results) {
       if (r.status === "OK") continue;

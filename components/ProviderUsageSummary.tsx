@@ -1,7 +1,6 @@
 // fork:usage-relative-time — upstream-port marker
 "use client";
 
-import { ConfigButton, ConfigDetailTitle, ConfigStat, ConfigStatGrid } from "./SettingsUi";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { formatUpdatedTime } from "@/lib/i18n/format";
@@ -89,71 +88,108 @@ function ProviderUsageContent({ providerId, enabled }: { providerId: string; ena
   }, [providerId, t]);
 
   const report = snapshot?.status === "ready" ? snapshot.report : undefined;
+
+  /* fork:v5-landing —— 画板 D-08 帧 A「配额」：`d-set-sec` 分节 + 逐条 `.d-bar` 进度行，
+     指标走 `.d-statgrid > .d-stat`，数值淡入用 `d-num`（命中时重挂载触发一次）。
+     数据 / 请求 / localStorage 缓存逻辑一概不动。
+     fork:v5-landing Wave B —— 本块**窄屏不发 `m-*`**：pwa/system.css 里没有
+     `m-bar` / `m-statgrid` 的等价物（进度条与四张小卡都没画手机形态），而这一轮
+     不许新造 `m-*` 类。与其自绘不如沿用 D-08 的 `d-*`（它是真实存在的一类，
+     在 `m-cardgroup` 里渲染也不破版）。缺口登记在交付报告里，等设计侧补帧。 */
   return (
-    <section className="pw-rowgap">
-      {/* fork:design-system SW-14 —— 画板 41 的「用量摘要」卡：小节标题 + 四列统计卡。
-          标题行右侧挂唯一的刷新动作（画板 41 的 `.pw-btn outline sm` + `refresh-cw`）。 */}
-      <div className="pw-inline">
-        {/* fork:usage-card-head（2026-10-01）—— 用量摘要现在自成一张卡（画板 41:101-109），
-            标题改用卡内标题基件 `ConfigDetailTitle`（`SettingsUi.tsx:215` 的 `<h3>`），
-            与自定义供应商那条路、以及 AgentsConfig / ImportPanel / 归档的卡内标题同规。
-            原先用分节专用的 `ConfigSectionTitle`：`.pw-sec-title` 是**大写 + 字距 .06em** 的
-            分段标记，还带 margin-bottom 与一个撑满的 `.pw-grow` —— 放在卡内 inline 头行里
-            既与按钮基线差一截，右侧还多一段空白。 */}
-        <ConfigDetailTitle>{t("providerUsage.usage")}</ConfigDetailTitle>
-        <ConfigButton
-          size="small"
-          onClick={query}
-          disabled={!enabled || querying}
-          title={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
-          aria-label={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
-        >
-          <span className="pw-ico">
-            {refreshDone
-              ? <i data-ico="check" data-size="13"></i>
-              : <i data-ico="refresh-cw" data-size="13" className={querying ? "pw-anim-spin" : undefined}></i>}
-          </span>
-          {t("i18n.refresh")}
-        </ConfigButton>
+    <section className="d-set-sec">
+      <div className="d-row">
+        <div className="d-set-sec-t">{t("providerUsage.usage")}</div>
+        <span className="d-grow" aria-hidden="true" />
         {report && (
           <span
             title={new Date(report.capturedAt).toLocaleString(locale)}
-            className="pw-mono pw-dim"
+            className="d-mono d-t-faint"
           >
             {t("providerUsage.updated", { time: formatUpdatedTime(report.capturedAt, locale) })}
           </span>
         )}
+        <button
+          type="button"
+          className="d-btn sm"
+          onClick={query}
+          disabled={!enabled || querying}
+          title={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
+          aria-label={t(querying ? "providerUsage.refreshing" : "providerUsage.refresh")}
+          aria-busy={querying || undefined}
+        >
+          {querying ? (
+            <span className="d-run" aria-hidden="true">
+              <i data-ico="refresh-cw" data-size="13"></i>
+            </span>
+          ) : (
+            <i data-ico={refreshDone ? "check" : "refresh-cw"} data-size="13" aria-hidden="true"></i>
+          )}
+          {t("i18n.refresh")}
+        </button>
       </div>
 
-      {!report && !error && <span className="pw-dim">{t("providerUsage.notQueried")}</span>}
+      {!report && !error && <span className="d-t-xs d-t-faint">{t("providerUsage.notQueried")}</span>}
       {error && (
-        <div className="pw-alert">
-          <span className="pw-ico"><i data-ico="triangle-alert" data-size="14"></i></span>
-          <span className="pw-grow">{error}</span>
+        <div className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+          <span className="d-grow">{error}</span>
         </div>
       )}
       {report && (
-        <ConfigStatGrid>
-          {report.buckets.map((bucket) => (
-            <ConfigStat
-              key={bucket.id}
-              label={bucket.groupLabel ? `${bucket.groupLabel} / ${bucket.label}` : bucket.label}
-              value={formatBucket(bucket, t("providerUsage.available"))}
-              hint={bucket.period ?? t("providerUsage.available")}
-            />
-          ))}
-          {report.metrics.map((metric) => (
-            <ConfigStat
-              key={metric.id}
-              label={metric.label}
-              value={formatMetric(metric)}
-              hint={metric.unit ?? "—"}
-            />
-          ))}
-        </ConfigStatGrid>
+        <>
+          {report.buckets.length > 0 && (
+            <div className="d-col">
+              {report.buckets.map((bucket) => {
+                const percent = bucketPercent(bucket);
+                const label = bucket.groupLabel ? `${bucket.groupLabel} / ${bucket.label}` : bucket.label;
+                return (
+                  <div key={bucket.id} className="d-col">
+                    <div className="d-row d-t-xs">
+                      <span className="d-grow">{label}</span>
+                      <span className={bucketTone(percent)}>{formatBucket(bucket, t("providerUsage.available"))}</span>
+                      {percent !== null && <span className="d-t-xs d-t-faint">{Math.round(percent)}%</span>}
+                    </div>
+                    {percent !== null && (
+                      <div className="d-bar">
+                        <i style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {report.metrics.length > 0 && (
+            <div className="d-statgrid">
+              {report.metrics.map((metric) => (
+                <div key={metric.id} className="d-stat">
+                  <span className="d-t-xs d-t-faint">{metric.label}</span>
+                  {/* `d-num` 的一次淡入靠重挂载触发，所以 key 跟着值走。 */}
+                  <span key={String(metric.value)} className="d-num d-t-lg d-t-b">{formatMetric(metric)}</span>
+                  <span className="d-t-xs d-t-faint">{metric.unit ?? "—"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </section>
   );
+}
+
+/** 进度条宽度：percent 档直接用 remaining，其余有 used/limit 或 remaining/limit 才算。 */
+function bucketPercent(bucket: UsageBucket): number | null {
+  if (bucket.unit === "percent" && bucket.remaining !== undefined) return bucket.remaining;
+  if (bucket.used !== undefined && bucket.limit) return (bucket.used / bucket.limit) * 100;
+  if (bucket.remaining !== undefined && bucket.limit) return (bucket.remaining / bucket.limit) * 100;
+  return null;
+}
+
+/** 画板 D-08 配额芯片的语气档：≥90% warn，否则 ok；算不出比例的走 mute。 */
+function bucketTone(percent: number | null): string {
+  if (percent === null) return "d-badge mute";
+  return percent >= 90 ? "d-badge warn" : "d-badge ok";
 }
 
 function formatBucket(bucket: UsageBucket, availableLabel: string): string {

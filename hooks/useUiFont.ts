@@ -61,11 +61,13 @@ export function applyStoredUiFont(): void {
   applyUiFont(ensureState());
 }
 
+/** fork:react-18-snapshot —— 服务端快照必须是**同一个引用**：内联箭头每次调用都
+ *  新建对象，React 会认为快照一直在变并反复重渲（控制台报 “getServerSnapshot should
+ *  be cached to avoid an infinite loop”）。空状态提到模块级。 */
+const UI_FONT_SERVER_SNAPSHOT = { stack: "", size: UI_FONT_SIZE_DEFAULT } as const;
+
 export function useUiFont() {
-  const current = useSyncExternalStore(subscribe, ensureState, () => ({
-    stack: "",
-    size: UI_FONT_SIZE_DEFAULT,
-  }));
+  const current = useSyncExternalStore(subscribe, ensureState, () => UI_FONT_SERVER_SNAPSHOT);
 
   const commit = useCallback((next: { stack: string; size: number }) => {
     state = next;

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-30 · 键盘与焦点 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-30 · 键盘与焦点</h1>
+  <p>
+    前两张规格台管「动得对不对」，这一张管<b>「不用鼠标能不能用」</b>。四条纪律：
+    <b>焦点环必须有</b>（<code>--nx-focus-w</code> / <code>--nx-ring</code>，现在只有输入框有）、<b>Tab 序就是阅读序</b>
+    （长列表与页签组走 roving tabindex，不许让 Tab 走到天亮）、<b>Esc 一次只关一层</b>
+    （浮层 → 抽屉 → 弹窗 → 退出输入态，顺序不能反）、<b>减弱动效停终态</b>（下面第四帧逐条写清停在哪一态）。
+    四帧都可以真按：Tab、方向键、Esc、开关都接着真行为。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">类型：规格台</span>
+    <span class="d-tag">组件：焦点环 · roving tabindex · Esc 层级 · .d-kbd 快捷键</span>
+    <span class="d-tag">状态：输入框焦点环已有 · 按钮/页签/行待补 · 减弱动效逐条终态</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 焦点环 ───────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 焦点环：环宽走 <code>--nx-focus-w</code>，颜色走 <code>--nx-ring</code><span class="d-grow"></span>输入框是真的（已自动聚焦），按钮 / 页签 / 行目前没有</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="focus" data-size="15"></i>输入框与文本域<span class="d-grow"></span><span class="d-badge ok">库内已有</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-field">
+                      <span class="d-field-t">项目路径（已自动聚焦）</span>
+                      <input class="d-input" autofocus value="design/v5/web/boards">
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">搜索（Tab 一下就能到）</span>
+                      <input class="d-input" placeholder="按 Tab 走到这里，看环是不是同一条">
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">快捷键说明</span>
+                      <textarea class="d-textarea" rows="2">全局：⌘K 命令中心 · ⌘J 会话切换</textarea>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">100ms · --nx-dur-1</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">:focus 与 :focus-visible</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      环画在 <code>outline</code> 上并用 <code>outline-offset:-1px</code> 收进边框里 ——
+                      所以它不占布局、不会被父级 <code>overflow:hidden</code> 裁掉，也不会在深色下变成「贴边的一圈白」。
+                      同时边框换成强调色，环是「第二层信号」而不是唯一的。
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="circle-dashed" data-size="15"></i>按钮 / 页签 / 行 / 浮层项<span class="d-grow"></span><span class="d-badge warn">库内缺口</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <button class="d-btn primary">按钮</button>
+                      <span class="d-tab is-on">页签</span>
+                      <button class="d-iconbtn"><i data-ico="ellipsis" data-size="14"></i></button>
+                      <button class="d-switch on" data-demo-switch aria-checked="true"></button>
+                    </div>
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <button class="d-sess" style="width:220px"><span class="d-sess-t">会话行</span></button>
+                      <div class="d-pop is-open">
+                        <div class="d-menu-row">浮层项 1</div>
+                        <div class="d-menu-row is-on">浮层项 2</div>
+                      </div>
+                    </div>
+                    <div class="d-grid3">
+                      <div class="d-col"><span class="d-t-xs d-t-faint">时长</span><span class="d-t-xs d-t-b">100ms · --nx-dur-1</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">曲线</span><span class="d-t-xs d-t-b">ease</span></div>
+                      <div class="d-col"><span class="d-t-xs d-t-faint">场景</span><span class="d-t-xs d-t-dim">所有可点件（含 :active 那批）</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      现在按 Tab 走过上面这一排，<b>一帧都看不出焦点在哪</b> —— 光标跳了，画面没变。
+                      这条不是「锦上添花」：本系统的所有操作都有键盘路径（见帧 B / C），看不见焦点就等于这条路径不存在。
+                    </div>
+                    <div class="d-row">
+                      <span class="d-grow"></span>
+                      <button class="d-btn sm" disabled>待补规则 · 暂不可重播</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="file-code" data-size="15"></i>本帧要补进 web/system.css 的一条<span class="d-grow"></span>一条全局规则解决四个宿主，不给每个组件各画一次</div>
+                <div class="d-card-body">
+                  <div class="d-code">
+                    <div class="d-code-head"><i data-ico="plus" data-size="12"></i>焦点环 · 提案<span class="d-grow"></span><span class="d-t-xs">用 :focus-visible，不用 :focus（点鼠标不该出环）</span></div>
+                    <div class="d-code-body">/* 环宽 1.5px（--nx-focus-w），颜色 --nx-ring；只在可点件上画。
+   outline 走 outline-offset:2px，不改布局，也不会被父级 overflow:hidden 裁掉。 */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: var(--nx-focus-w) solid var(--nx-ring);
+  outline-offset: 2px;
+}
+/* 深色下环已经换过变量（--nx-ring），这里只补 offset，不另写颜色 */
+[data-theme="dark"] :where(button, a, [tabindex]):focus-visible { outline-offset: 2px; }
+
+/* 减弱动效：环仍然必须出现（它是信息，不是动效） */
+@media (prefers-reduced-motion: reduce) {
+  :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: var(--nx-focus-w) solid var(--nx-ring);
+  }
+}</div>
+                  </div>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                    用 <code>:where()</code> 把优先级压到 0，所以 .d-input 现有的 <code>:focus</code> 规则仍然生效（输入框点击也要出环）。
+                    环的「出现」不许做成淡入动画 —— 减弱动效的用户必须在 1ms 内看见它（见帧 D）。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · Tab 序 ───────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · Tab 序：进 Tab 序的、跳过的、页签组的 roving<span class="d-grow"></span>真的按一下 Tab 或方向键试试</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">Tab 序与 roving tabindex</span>
+              <span class="d-tb-sub">Tab 进页签组只停一次，进去以后用方向键</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <div class="d-card" data-demo-scope>
+                  <div class="d-card-head"><i data-ico="keyboard" data-size="15"></i>一条真的 Tab 链<span class="d-grow"></span><span class="d-badge ok">可试</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-field">
+                      <span class="d-field-t">① 进 Tab 序 · 输入</span>
+                      <input class="d-input" placeholder="从这里开始按 Tab">
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">② 不进 Tab 序 · 纯说明（<code>tabindex="-1"</code>）</span>
+                      <span class="d-t-sm d-t-dim" tabindex="-1" style="border:1px dashed var(--nx-line-hi);border-radius:var(--nx-r-md)">
+                        这段说明程序可以聚焦（点它时不会），但按 Tab 会直接跳过 —— 说明文字不该占一个停靠点。
+                      </span>
+                    </div>
+                    <div class="d-tabs" id="f33-strip" data-demo-tabs>
+                      <button class="d-tab" data-demo-tab="f33-tree" tabindex="-1" >文件</button>
+                      <button class="d-tab is-on" data-demo-tab="f33-trace" tabindex="0">调用轨迹</button>
+                      <button class="d-tab" data-demo-tab="f33-log" tabindex="-1">日志</button>
+                    </div>
+                    <section data-demo-pane="f33-tree" hidden>
+                      <div class="d-t-sm d-t-dim">文件面板：Tab 只在「进面板」停一次，进面板后 ↑↓ 在文件树里走，Enter 打开。</div>
+                    </section>
+                    <section data-demo-pane="f33-trace">
+                      <div class="d-t-sm d-t-dim">调用轨迹：三个步骤，↑↓ 走步骤，Enter 展开这一步的调用详情。</div>
+                    </section>
+                    <section data-demo-pane="f33-log" hidden>
+                      <div class="d-t-sm d-t-dim">日志：只读，Tab 不进（用方向键滚动即可）。</div>
+                    </section>
+                    <div class="d-row" style="gap:var(--nx-sp-3)">
+                      <span class="d-t-xs d-t-faint">③ 进 Tab 序 · 三个动作</span>
+                      <button class="d-btn sm">重试</button>
+                      <button class="d-btn sm">查看差异</button>
+                      <button class="d-btn sm ghost">忽略</button>
+                    </div>
+                    <div class="d-row" style="gap:var(--nx-sp-3)">
+                      <span class="d-t-xs d-t-faint">④ 退 Tab 序 · 禁用件</span>
+                      <button class="d-btn sm" disabled>不可用</button>
+                      <span class="d-t-xs d-t-faint">disabled 不进 Tab，也不该用 aria-disabled 骗进去</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="list-todo" data-size="15"></i>谁进、谁不进<span class="d-grow"></span><span class="d-badge mute">判定口径</span></div>
+                  <div class="d-card-body">
+                    <table class="d-table">
+                      <thead><tr><th>元素</th><th>Tab</th><th>说明</th></tr></thead>
+                      <tbody>
+                        <tr><td>输入 / 文本域 / 滑杆 / 开关</td><td><span class="d-badge ok">进</span></td><td>一次操作 = 一次输入，必须有停靠点</td></tr>
+                        <tr><td>主行动按钮</td><td><span class="d-badge ok">进</span></td><td>按「危险 → 常用 → 兜底」排，不是按视觉左右</td></tr>
+                        <tr><td>页签组</td><td><span class="d-badge ok">进 1 次</span></td><td>roving：选中项 tabindex=0，其余 -1，组内用 ←→</td></tr>
+                        <tr><td>长列表（会话 / 文件树）</td><td><span class="d-badge info">容器进</span></td><td>只让容器进一次，行用 ↑↓；200 行会话不许占 200 个停靠点</td></tr>
+                        <tr><td>纯说明文字 / 分组标题</td><td><span class="d-badge mute">不进</span></td><td>需要时用 <code>tabindex="-1"</code> 让程序能聚焦它</td></tr>
+                        <tr><td>浮层里没被选中的项</td><td><span class="d-badge mute">不进</span></td><td>浮层是单焦点区：↑↓ 在项间走，Tab 直接出浮层</td></tr>
+                        <tr><td>disabled 控件</td><td><span class="d-badge mute">不进</span></td><td>不许用 aria-disabled 硬塞进 Tab 序</td></tr>
+                        <tr><td>纯装饰图标</td><td><span class="d-badge mute">不进</span></td><td>aria-hidden，且不许有 tabindex</td></tr>
+                      </tbody>
+                    </table>
+                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                      roving 的实现只有一句：<b>把 <code>tabindex="0"</code> 挪到当前项上</b>，其余给 <code>-1</code>。
+                      挪的是 tabindex，不是焦点 —— 焦点只在用户按方向键时移动。
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · Esc 层级 ─────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · Esc 层级：浮层 → 抽屉 → 弹窗 → 退出输入态<span class="d-grow"></span>按一次只关一层；顺序反了就等于「按两次才关得掉」</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">Esc 层级</span>
+              <span class="d-tb-sub">默认已经开着抽屉（第 2 层）；点「三层全开」再连按 Esc 看它一层层退</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <button class="d-btn sm primary" id="f33-open-all">三层全开</button>
+          </header>
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-grid2">
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="layers" data-size="15"></i>四层与三个触发钮<span class="d-grow"></span><span class="d-badge ok">Esc 真接线</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <button class="d-chipbtn" id="f33-open-pop" data-demo-open="f33-pop"><i data-ico="list-tree" data-size="12"></i>开浮层<i data-ico="chevron-down" data-size="11"></i></button>
+                      <div class="d-pop is-open" data-demo-pop="f33-pop" hidden style="min-width:240px;left:0;top:32px">
+                        <div class="d-pop-title">会话</div>
+                        <div class="d-menu-row is-on">动效规格台 B 的取景</div>
+                        <div class="d-menu-row">MCP 曝光面板</div>
+                        <div class="d-menu-row">check-v5 的第七条门禁</div>
+                      </div>
+                    </div>
+                    <div class="d-row" style="gap:var(--nx-sp-2)">
+                      <button class="d-chipbtn" id="f33-open-drawer"><i data-ico="panel-left" data-size="12"></i>开抽屉</button>
+                      <button class="d-chipbtn" id="f33-open-modal"><i data-ico="app-window" data-size="12"></i>开弹窗</button>
+                      <button class="d-chipbtn" id="f33-focus-input"><i data-ico="text-cursor" data-size="12"></i>进输入态</button>
+                    </div>
+                    <div id="f33-drawer">
+                      <div class="d-side" style="width:100%">
+                        <div class="d-side-head">
+                          <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+                          <span class="d-t-b d-grow">抽屉（第 2 层）</span>
+                          <button class="d-iconbtn" id="f33-close-drawer"><i data-ico="x" data-size="14"></i></button>
+                        </div>
+                        <div class="d-side-scroll">
+                          <button class="d-sess is-on"><span class="d-sess-t">Esc 一次只关一层</span></button>
+                          <button class="d-sess"><span class="d-sess-t">抽屉里的会话不进 Tab</span></button>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="f33-modal" hidden class="d-modal-box narrow">
+                      <div class="d-modal-head">弹窗（第 3 层）</div>
+                      <div class="d-modal-body"><div>Esc 关掉的是弹窗，抽屉必须还留着 —— 否则用户丢掉了上下文。</div></div>
+                      <div class="d-modal-foot">
+                        <button class="d-btn ghost">还不行</button>
+                        <button class="d-btn primary" id="f33-close-modal">确认</button>
+                      </div>
+                    </div>
+                    <input class="d-input" id="f33-input" placeholder="第 4 层：焦点在这时按 Esc = 退出输入态（失焦）">
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="list-restart" data-size="15"></i>当前最上层<span class="d-grow"></span><span class="d-badge info" id="f33-level">无 · 在底层</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-3)">
+                    <div class="d-steps">
+                      <div class="d-step" id="f33-l1"><span class="d-step-ico"><i data-ico="chevron-down" data-size="11"></i></span><span class="d-step-body">① 浮层（下拉 / 菜单 / 选择器）</span><span class="d-step-meta">demo.js 原生</span></div>
+                      <div class="d-step" id="f33-l2"><span class="d-step-ico"><i data-ico="panel-left" data-size="11"></i></span><span class="d-step-body">② 抽屉 / 底部面板</span><span class="d-step-meta">本板接线</span></div>
+                      <div class="d-step" id="f33-l3"><span class="d-step-ico"><i data-ico="app-window" data-size="11"></i></span><span class="d-step-body">③ 弹窗 / 确认框</span><span class="d-step-meta">本板接线</span></div>
+                      <div class="d-step" id="f33-l4"><span class="d-step-ico"><i data-ico="text-cursor" data-size="11"></i></span><span class="d-step-body">④ 退出输入态（失焦，不清空）</span><span class="d-step-meta">本板接线</span></div>
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      顺序是<b>后开的在上</b>：浮层永远压在抽屉上，弹窗压在浮层上。
+                      三条硬规矩：<b>① 一次只关一层</b>（连按会一层层退，不许「一下全关」）；
+                      <b>② 关掉后焦点要回去</b>（关浮层回触发钮，关弹窗回弹窗前的那个控件）；
+                      <b>③ 到底了要有反馈</b>（在底层按 Esc 不许什么都不发生，Toast 说一句「已是最上层」或者干脆不响应，但不许闪烁）。
+                    </div>
+                    <div class="d-t-xs d-t-faint">
+                      Esc <b>不</b>许用来「撤销上一步」：撤销是 <span class="d-kbd">⌘Z</span> 的活。
+                      Esc 是「退出当前上下文」，语义不同 —— 混用会让用户不敢按。
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 快捷键与减弱动效 ─────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 快捷键表（含冲突）与 <code>prefers-reduced-motion</code> 终态<span class="d-grow"></span>两条纪律：同一组键不许有两种意思；减弱动效停终态而不是停起点</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="command" data-size="15"></i>快捷键表<span class="d-grow"></span><span class="d-badge mute">分「全局 / 会话内 / 输入框内」三档，不混</span></div>
+                <div class="d-card-body">
+                  <table class="d-table">
+                    <thead><tr><th>键</th><th>全局</th><th>会话内</th><th>输入框内</th><th>备注</th></tr></thead>
+                    <tbody>
+                      <tr><td><span class="d-kbd">⌘K</span></td><td>命令中心</td><td>命令中心</td><td class="d-t-faint">同左（吃全局）</td><td>唯一一处例外，见下方冲突 ①</td></tr>
+                      <tr><td><span class="d-kbd">⌘J</span></td><td>会话切换</td><td>会话切换</td><td class="d-t-faint">—</td><td>不用 ⌘⇧K，避免与小写键区重叠</td></tr>
+                      <tr><td><span class="d-kbd">⌘B</span></td><td>侧栏收合</td><td>—</td><td class="d-t-faint">加粗</td><td>冲突 ②</td></tr>
+                      <tr><td><span class="d-kbd">⌘/</span></td><td>快捷键帮助</td><td>—</td><td class="d-t-faint">—</td><td>输入框内不劫持</td></tr>
+                      <tr><td><span class="d-kbd">⌘↵</span></td><td>强制发送</td><td>强制发送</td><td>换行后再发</td><td>回车模式由设置决定，见 D-09</td></tr>
+                      <tr><td><span class="d-kbd">⇧Tab</span></td><td>—</td><td>上一会话</td><td class="d-t-faint">缩进 / 反缩进</td><td>冲突 ③</td></tr>
+                      <tr><td><span class="d-kbd">⌘Z</span></td><td>撤销</td><td>撤销</td><td>撤销输入</td><td>撤销永远归「当前焦点所在的东西」</td></tr>
+                      <tr><td><span class="d-kbd">Esc</span></td><td>关最上层</td><td>关最上层</td><td>退出输入态</td><td>层级见帧 C，一次一层</td></tr>
+                      <tr><td><span class="d-kbd">↑</span> <span class="d-kbd">↓</span></td><td>—</td><td>走列表 / 页签组</td><td>移动光标</td><td>长列表必须能只用键盘走完</td></tr>
+                      <tr><td><span class="d-kbd">⌘.</span></td><td>停止当前运行</td><td>停止</td><td>停止</td><td>「停止」在任何层都必须在</td></tr>
+                    </tbody>
+                  </table>
+                  <div class="d-grid3" style="margin-top:var(--nx-sp-4)">
+                    <div class="d-col">
+                      <span class="d-t-xs d-t-faint">冲突 ① · ⌘K</span>
+                      <span class="d-t-xs">输入框里按 ⌘K 是「打开命令中心」，不是「插入关键字」。全局键在输入框里<b>不改义</b>，
+                        否则用户每按一次都要先想「我现在在输入框里吗」。</span>
+                    </div>
+                    <div class="d-col">
+                      <span class="d-t-xs d-t-faint">冲突 ② · ⌘B</span>
+                      <span class="d-t-xs">同一个键在两个上下文有两种意思（收合侧栏 / 加粗）。裁决：<b>就近原则</b> ——
+                        焦点在富文本里就加粗，在别处就收合侧栏，且帮助页必须把两行都写出来。</span>
+                    </div>
+                    <div class="d-col">
+                      <span class="d-t-xs d-t-faint">冲突 ③ · ⇧Tab</span>
+                      <span class="d-t-xs">输入框里 ⇧Tab 在缩进行之间移动，不切会话；会话内（不在输入里）⇧Tab 才是上一个会话。
+                        判定看的是「焦点在不在可编辑区」，不是「当前页是不是会话页」。</span>
+                    </div>
+                  </div>
+                  <div class="d-row" style="margin-top:var(--nx-sp-3)">
+                    <span class="d-t-xs d-t-faint">快捷键必须能改（设置 · 快捷键，D-15 / D-23），冲突要在改键时当场提示，不许等到按下去才发现。</span>
+                    <span class="d-grow"></span>
+                    <button class="d-btn sm"><i data-ico="settings" data-size="13"></i>改键</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="circle-dot" data-size="15"></i>减弱动效下每条停在哪一态<span class="d-grow"></span><span class="d-badge ok">停终态，不是停起点</span></div>
+                <div class="d-card-body">
+                  <table class="d-table">
+                    <thead><tr><th>动效</th><th>正常</th><th>减弱后停在哪一态</th><th>依据</th></tr></thead>
+                    <tbody>
+                      <tr><td class="d-mono">.d-shimmer</td><td>文字被高光扫过</td><td>静态 <code>--nx-text-2</code> 灰字，不扫</td><td>system.css reduce 块</td></tr>
+                      <tr><td class="d-mono">.d-num</td><td>淡入 220ms</td><td>直接是新值，不淡</td><td>animation:none</td></tr>
+                      <tr><td class="d-mono">.d-flap</td><td>翻下去再翻上来</td><td>直接换值，不翻</td><td>transform/filter 清零</td></tr>
+                      <tr><td class="d-mono">.d-label-out / .d-label-in</td><td>上浮淡出 / 下方淡入</td><td>旧标签立即消失，新标签立即在位</td><td>opacity:1; transform:none</td></tr>
+                      <tr><td class="d-mono">.d-check-draw</td><td>描边画出来</td><td>整条勾已经在</td><td>animation:none（dashoffset 保持 0）</td></tr>
+                      <tr><td class="d-mono">.d-cell-pop / .d-bar-rise</td><td>弹入 / 长起</td><td>格子与柱条直接是最终尺寸</td><td>animation:none（both 的终帧就是静止态）</td></tr>
+                      <tr><td class="d-mono">.d-chart-reveal</td><td>折线自左揭开</td><td>整条折线一次出现</td><td>clip-path 复位</td></tr>
+                      <tr><td class="d-mono">.d-row-x 展开 / 收起</td><td>轨道 0fr↔1fr</td><td>展开态 = <code>1fr</code> 直接展开；收起 = 直接消失</td><td>grid-template-rows:1fr</td></tr>
+                      <tr><td class="d-mono">.d-skel::after</td><td>1400ms 扫掠循环</td><td>静止浅灰块（只保留「在加载」这个信息）</td><td>base.css 全局兜底</td></tr>
+                      <tr><td class="d-mono">nx-spin / 转圈图标</td><td>一直转</td><td>停住不转；需要表达「还在动」时换成一句文案</td><td>base.css 全局兜底</td></tr>
+                      <tr><td class="d-mono">焦点环</td><td>淡入 100ms</td><td>立刻出现 —— 它是信息，不是动效</td><td>帧 A 的提案里单列了一条</td></tr>
+                    </tbody>
+                  </table>
+                  <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-3)">
+                    <b>判据只有一条：减弱之后信息还在吗？</b> 流光没了，但「在加载」这句话还在；
+                    骨架不扫了，但形状与位置还在；翻卡不翻了，但新值直接在了。
+                    凡是要靠动画结束才读得出来的信息，都是动画在替界面说话，必须补一条静态表达。
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>焦点环用 <code>:focus-visible</code>，不用 <code>:focus</code></b>：点鼠标不该冒环，Tab 走过去必须冒。环宽与颜色只取 <code>--nx-focus-w</code> / <code>--nx-ring</code>，不给组件各画一次。</li>
+    <li><b>Tab 序 = 阅读序</b>：页签组与长列表走 roving tabindex（组只占一个停靠点），纯说明文字用 <code>tabindex="-1"</code> 跳过，disabled 不进。</li>
+    <li><b>Esc 一次只关一层</b>（帧 C）：浮层 → 抽屉 → 弹窗 → 退出输入态；关掉后焦点必须回到触发它的那个控件。</li>
+    <li><b>同一组键不许有两种意思</b>（帧 D）：冲突按「就近原则」裁决，并在帮助页与改键处都写出来。</li>
+    <li><b>减弱动效一律停终态</b>：base.css 与 system.css 的 reduce 块已经兜住了时长，本帧逐条写清「停在哪一态」，判据是「停完之后信息还在吗」。</li>
+    <li><b>焦点环已落库</b>：按钮 / 页签 / 行 / 浮层项统一走一条 <code>:focus-visible</code> 规则（写成就用 <code>:where()</code> 把优先级压到 0，不与各控件自己的 <code>:focus</code> 打架）；之前**只有输入框与文本域有描边**，Tab 走过一帧看不出焦点在哪 —— 那是无障碍缺口，不是风格问题。</li>
+    <li><b>仍照实写的缺口</b>：</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<script>
+/* 本板专属的两条接线：
+   ① 页签组的 roving tabindex（← → Home End + 焦点只停一次）—— demo.js 只管点击，
+      方向键与 tabindex 的搬运属于「键盘规格」，各组件各写一遍必然写歪，所以放板里演示。
+   ② Esc 的四层阶梯（浮层交给 demo.js 原生，抽屉 / 弹窗 / 输入态本板自己接）。 */
+(function () {
+  /* ① roving tabindex：tabindex="0" 在当前项上，其余 -1；方向键移动焦点并选中 */
+  var strip = document.getElementById("f33-strip");
+  if (strip) {
+    var rove = function (next) {
+      var tabs = Array.prototype.slice.call(strip.querySelectorAll("[data-demo-tab]"));
+      tabs.forEach(function (t) { t.setAttribute("tabindex", t === next ? "0" : "-1"); });
+      next.focus();
+      next.click();               /* 点击走 demo.js 原生的页签接线：is-on + 面板切换 */
+    };
+    strip.addEventListener("keydown", function (e) {
+      var tabs = Array.prototype.slice.call(strip.querySelectorAll("[data-demo-tab]"));
+      var i = tabs.indexOf(document.activeElement);
+      if (i < 0) return;
+      var n = null;
+      if (e.key === "ArrowRight") n = tabs[(i + 1) % tabs.length];
+      else if (e.key === "ArrowLeft") n = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === "Home") n = tabs[0];
+      else if (e.key === "End") n = tabs[tabs.length - 1];
+      if (!n) return;
+      e.preventDefault();
+      rove(n);
+    });
+    strip.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-demo-tab]");
+      if (!btn) return;
+      Array.prototype.slice.call(strip.querySelectorAll("[data-demo-tab]"))
+        .forEach(function (t) { t.setAttribute("tabindex", t === btn ? "0" : "-1"); });
+    });
+  }
+
+  /* ② Esc 四层阶梯 */
+  var drawer = document.getElementById("f33-drawer");
+  var modal = document.getElementById("f33-modal");
+  var input = document.getElementById("f33-input");
+  var level = document.getElementById("f33-level");
+  var rows = [
+    document.getElementById("f33-l1"),
+    document.getElementById("f33-l2"),
+    document.getElementById("f33-l3"),
+    document.getElementById("f33-l4")
+  ];
+  var btnPop = document.getElementById("f33-open-pop");
+  var btnDrawer = document.getElementById("f33-open-drawer");
+  var btnModal = document.getElementById("f33-open-modal");
+  var btnInput = document.getElementById("f33-focus-input");
+  var pop = document.querySelector('[data-demo-pop="f33-pop"]');
+
+  /* 当前最上层：浮层 > 抽屉 > 弹窗 > 输入态。返回 0 表示在底层。 */
+  function top() {
+    if (pop && !pop.hidden) return 1;
+    if (drawer && !drawer.hidden) return 2;
+    if (modal && !modal.hidden) return 3;
+    if (input && document.activeElement === input) return 4;
+    return 0;
+  }
+  function paint() {
+    var t = top();
+    level.textContent = ["无 · 在底层", "浮层", "抽屉", "弹窗", "输入态"][t];
+    level.className = "d-badge " + (t ? "info" : "mute");
+    rows.forEach(function (r, i) {
+      /* 只有「当前最上层」高亮：下面的层是「没开」，不是「已完成」，给它们打勾会读成“关过了” */
+      r.classList.toggle("running", i + 1 === t);
+    });
+    if (btnPop) btnPop.classList.toggle("is-on", t === 1);
+    if (btnDrawer) btnDrawer.classList.toggle("is-on", t === 2);
+    if (btnModal) btnModal.classList.toggle("is-on", t === 3);
+  }
+  var set = function (el, on) { if (el) el.hidden = !on; };
+  /* 关掉一层之后焦点必须回到打开它的那个控件（帧 C 纪律 ②） */
+  var closeDrawer_ = function () { set(drawer, false); if (btnDrawer) btnDrawer.focus(); };
+  var closeModal_ = function () { set(modal, false); if (btnModal) btnModal.focus(); };
+
+  if (btnDrawer) btnDrawer.addEventListener("click", function () { set(drawer, true); paint(); });
+  if (btnModal) btnModal.addEventListener("click", function () { set(modal, true); paint(); });
+  if (btnPop) btnPop.addEventListener("click", paint);   /* demo.js 先跑（它先注册），这里读到的是开后的状态 */
+  if (btnInput) btnInput.addEventListener("click", function () { input.focus(); paint(); });
+  var closeDrawer = document.getElementById("f33-close-drawer");
+  if (closeDrawer) closeDrawer.addEventListener("click", function () { closeDrawer_(); paint(); });
+  var closeModal = document.getElementById("f33-close-modal");
+  if (closeModal) closeModal.addEventListener("click", function () { closeModal_(); paint(); });
+
+  document.addEventListener("click", paint);          /* 浮层是 demo.js 关的，靠冒泡回来重画 */
+  input && input.addEventListener("focus", paint);
+  input && input.addEventListener("blur", paint);
+
+  /* Esc：一次只关一层。
+     用**捕获**阶段才能排对顺序：捕获里看到浮层还开着，就把这一层让给 demo.js（原生的那个处理器
+     挂在冒泡上、注册更早，一定会跑）；不在捕获里判的话，等本处理器跑到时浮层已经被关掉了，
+     会连着把抽屉也关掉 —— 那就变成「按一次 Esc 关两层」，正是这张板要禁的行为。 */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (pop && !pop.hidden) { setTimeout(paint, 0); return; }   /* 第 1 层交给 demo.js */
+    if (drawer && !drawer.hidden) closeDrawer_();                /* 第 2 层 */
+    else if (modal && !modal.hidden) closeModal_();              /* 第 3 层 */
+    else if (input && document.activeElement === input) input.blur();  /* 第 4 层 */
+    else paint();                                                 /* 到底了：什么都不关，但状态要说清楚 */
+    setTimeout(paint, 0);
+  }, true);
+
+  document.getElementById("f33-open-all").addEventListener("click", function (e) {
+    e.stopPropagation();   /* 不让 demo.js 的「点外部关浮层」顺手把刚开的浮层关了 */
+    set(drawer, true);
+    set(modal, true);
+    if (btnPop) btnPop.click();          /* 走 demo.js 原生开浮层，保证它在最上层 */
+    paint();
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

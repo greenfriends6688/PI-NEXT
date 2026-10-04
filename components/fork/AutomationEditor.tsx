@@ -13,6 +13,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { ConfigField, ConfigSectionTitle } from "../SettingsUi";
 import { useI18n } from "@/hooks/useI18n";
+import { PwaPickBar, PwaSetRow } from "@/components/pwa/PwaPage";
 import {
   AUTOMATION_SCHEDULE_TYPES,
   AUTOMATION_WEEKDAYS,
@@ -26,6 +27,12 @@ export interface AutomationEditorProps {
   onChange: (next: AutomationDraft) => void;
   disabled?: boolean;
   modelOptions: Array<{ value: string; label: string }>;
+  /**
+   * fork:v5-landing Wave B —— 形态分支。`desktop` 走画板 D-17 的 `.d-*` 表单，
+   * `mobile` 走画板 M-09 帧 B「新建定时任务」的 `.m-*` 表单。默认值是 desktop，
+   * 所以其他调用方（含既有测试）不受影响。
+   */
+  variant?: "desktop" | "mobile";
 }
 
 /** `datetime-local` 要的是本地 `YYYY-MM-DDTHH:mm`，不是 ISO 字符串。 */
@@ -42,6 +49,7 @@ export function AutomationEditor({
   onChange,
   disabled = false,
   modelOptions,
+  variant = "desktop",
 }: AutomationEditorProps): ReactNode {
   const { t } = useI18n();
   // `datetime-local` 的初值要用「现在」兜底，但渲染期不许调 Date.now()（不纯），
@@ -64,7 +72,7 @@ export function AutomationEditor({
       return (
         <ConfigField label={t("automation.scheduledAt")} hint={t("automation.nextRun")}>
           <input
-            className="pw-input"
+            className="d-input"
             type="datetime-local"
             disabled={disabled}
             value={toLocalInputValue(draft.scheduledAt ?? fallbackNow)}
@@ -82,7 +90,7 @@ export function AutomationEditor({
         <Fragment>
           <ConfigField label={t("automation.interval")}>
             <input
-              className="pw-input pw-numin"
+              className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
               type="number"
               min={1}
               step={1}
@@ -101,7 +109,7 @@ export function AutomationEditor({
                     type="button"
                     disabled={disabled}
                     aria-pressed={on}
-                    className="pw-chipbtn fork-automation-day"
+                    className="d-chipbtn fork-automation-day"
                     onClick={() => toggleWeekday(day)}
                   >
                     {t(`automation.weekday.${day}`)}
@@ -111,26 +119,26 @@ export function AutomationEditor({
             </div>
           </ConfigField>
           <ConfigField label={t("automation.window")} hint={t("automation.windowHint")}>
-            <div className="pw-inline">
+            <div className="d-row">
               <input
-                className="pw-input pw-numin"
+                className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
                 type="time"
                 disabled={disabled}
                 value={draft.activeWindowStart ?? ""}
                 onChange={(event) => set(
                   "activeWindowStart",
-                  event.target.value || undefined,
+                  event.target.value || undefined
                 )}
               />
-              <span className="pw-dim">–</span>
+              <span className="d-t-faint">–</span>
               <input
-                className="pw-input pw-numin"
+                className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
                 type="time"
                 disabled={disabled}
                 value={draft.activeWindowEnd ?? ""}
                 onChange={(event) => set(
                   "activeWindowEnd",
-                  event.target.value || undefined,
+                  event.target.value || undefined
                 )}
               />
             </div>
@@ -144,7 +152,7 @@ export function AutomationEditor({
         {type === "weekly" && (
           <ConfigField label={t("automation.dayOfWeek")}>
             <select
-              className="pw-select"
+              className="d-select"
               disabled={disabled}
               value={draft.dayOfWeek ?? 1}
               onChange={(event) => set("dayOfWeek", Number(event.target.value))}
@@ -157,7 +165,7 @@ export function AutomationEditor({
         )}
         <ConfigField label={t("automation.timeOfDay")}>
           <input
-            className="pw-input pw-numin"
+            className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
             type="time"
             disabled={disabled}
             value={draft.timeOfDay ?? "09:00"}
@@ -168,12 +176,229 @@ export function AutomationEditor({
     );
   };
 
+  // fork:v5-landing Wave B · M-09 帧 B「新建定时任务」——
+  // 表单结构照画板：分节 = `.m-cardgroup`，标签行 = `.m-setrow`，控件槽 = `.m-doc-body`
+  // （M-05 帧 C 的那一行就是「标签行 + 控件行」两段，中间靠 `.m-doc-body` 收边）。
+  // 四种调度模式走 `.m-pickbar` / `.m-picktag`（画板里就是四个 tag 互斥，一个不多）。
+  // 字段、取值、校验口径与桌面**完全同一套**（`set()` / 服务端 normalize），
+  // 这里只换皮：没有新增字段、没有改默认值、没有绕过 `disabled`。
+  const mobileLabel = (label: string) => (
+    <PwaSetRow label={<span className="m-setrow-t">{label}</span>} />
+  );
+  const mobileSlot = (control: ReactNode) => <div className="m-doc-body">{control}</div>;
+
+  if (variant === "mobile") {
+    return (
+      <Fragment>
+        <div className="m-cardgroup">
+          <div className="m-group-title">{t("automation.scheduleType")}</div>
+          <PwaPickBar
+            options={AUTOMATION_SCHEDULE_TYPES.map((type) => ({
+              value: type,
+              label: t(`automation.scheduleType.${type}`),
+            }))}
+            value={draft.scheduleType}
+            onChange={(next) => set("scheduleType", next as AutomationScheduleType)}
+          />
+          {draft.scheduleType === "once" && (
+            <>
+              {mobileLabel(t("automation.scheduledAt"))}
+              {mobileSlot(
+                <input
+                  className="m-input"
+                  style={{ width: "100%" }}
+                  type="datetime-local"
+                  disabled={disabled}
+                  value={toLocalInputValue(draft.scheduledAt ?? fallbackNow)}
+                  onChange={(event) => {
+                    const parsed = Date.parse(event.target.value);
+                    if (Number.isFinite(parsed)) set("scheduledAt", parsed);
+                  }}
+                />
+              )}
+            </>
+          )}
+          {draft.scheduleType === "interval" && (
+            <>
+              {mobileLabel(t("automation.interval"))}
+              {mobileSlot(
+                <input
+                  className="m-input"
+                  style={{ width: "100%" }}
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  disabled={disabled}
+                  value={draft.intervalMinutes}
+                  onChange={(event) => set("intervalMinutes", Math.max(1, Number(event.target.value) || 1))}
+                />
+              )}
+              {mobileLabel(t("automation.activeDays"))}
+              <div className="m-doc-body">
+                <div className="m-chips">
+                  {AUTOMATION_WEEKDAYS.map((day) => {
+                    const on = (draft.activeWeekdays ?? []).includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        disabled={disabled}
+                        aria-pressed={on}
+                        className={`m-chipbtn${on ? " is-on" : ""}`}
+                        onClick={() => toggleWeekday(day)}
+                      >
+                        {t(`automation.weekday.${day}`)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {mobileLabel(t("automation.window"))}
+              {mobileSlot(
+                <div className="m-row-m">
+                  <input
+                    className="m-input"
+                    style={{ width: "100%" }}
+                    type="time"
+                    disabled={disabled}
+                    value={draft.activeWindowStart ?? ""}
+                    onChange={(event) => set("activeWindowStart", event.target.value || undefined)}
+                  />
+                  <span className="m-t-faint">–</span>
+                  <input
+                    className="m-input"
+                    style={{ width: "100%" }}
+                    type="time"
+                    disabled={disabled}
+                    value={draft.activeWindowEnd ?? ""}
+                    onChange={(event) => set("activeWindowEnd", event.target.value || undefined)}
+                  />
+                </div>)}
+            </>
+          )}
+          {(draft.scheduleType === "daily" || draft.scheduleType === "weekly") && (
+            <>
+              {draft.scheduleType === "weekly" && (
+                <>
+                  {mobileLabel(t("automation.dayOfWeek"))}
+                  {mobileSlot(
+                    <select
+                      className="m-input"
+                      style={{ width: "100%" }}
+                      disabled={disabled}
+                      value={draft.dayOfWeek ?? 1}
+                      onChange={(event) => set("dayOfWeek", Number(event.target.value))}
+                    >
+                      {AUTOMATION_WEEKDAYS.map((day) => (
+                        <option key={day} value={day}>{t(`automation.weekday.${day}`)}</option>
+                      ))}
+                    </select>)}
+                </>
+              )}
+              {mobileLabel(t("automation.timeOfDay"))}
+              {mobileSlot(
+                <input
+                  className="m-input"
+                  style={{ width: "100%" }}
+                  type="time"
+                  disabled={disabled}
+                  value={draft.timeOfDay ?? "09:00"}
+                  onChange={(event) => set("timeOfDay", event.target.value || "09:00")}
+                />)}
+            </>
+          )}
+        </div>
+
+        <div className="m-cardgroup">
+          <div className="m-group-title">{t("automation.content")}</div>
+          {mobileLabel(t("automation.name"))}
+          {mobileSlot(
+            <input
+              className="m-input"
+              style={{ width: "100%" }}
+              type="text"
+              disabled={disabled}
+              placeholder={t("automation.namePlaceholder")}
+              value={draft.name}
+              onChange={(event) => set("name", event.target.value)}
+            />)}
+          {mobileLabel(t("automation.prompt"))}
+          {mobileSlot(
+            <textarea
+              className="m-input"
+              /* `.m-input` 的高度锁在 `--nx-ctl-md`（44px），textarea 需要放开；
+                 高度是 UA 行为而不是设计值，故走内联（画板 M-10 自己在附录里记了同一个缺口）。 */
+              style={{ width: "100%", height: "auto" }}
+              rows={4}
+              disabled={disabled}
+              placeholder={t("automation.promptPlaceholder")}
+              value={draft.prompt}
+              onChange={(event) => set("prompt", event.target.value)}
+            />)}
+          {mobileLabel(t("automation.cwd"))}
+          {mobileSlot(
+            <input
+              className="m-input m-mono"
+              style={{ width: "100%" }}
+              type="text"
+              disabled={disabled}
+              value={draft.cwd ?? ""}
+              onChange={(event) => set("cwd", event.target.value)}
+            />)}
+          {mobileLabel(t("automation.model"))}
+          {mobileSlot(
+            <select
+              className="m-input"
+              style={{ width: "100%" }}
+              disabled={disabled}
+              value={draft.model ?? ""}
+              onChange={(event) => set("model", event.target.value || undefined)}
+            >
+              <option value="">{t("automation.modelDefault")}</option>
+              {modelOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>)}
+          {mobileLabel(t("automation.maxRuns"))}
+          {mobileSlot(
+            <input
+              className="m-input"
+              style={{ width: "100%" }}
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              disabled={disabled}
+              value={draft.maxRuns ?? ""}
+              onChange={(event) => set(
+                "maxRuns",
+                event.target.value === "" ? undefined : Math.max(1, Number(event.target.value) || 1)
+              )}
+            />)}
+          {mobileLabel(t("automation.sessionMode"))}
+          <div className="m-pickbar">
+            <PwaPickBar
+              className="m-grow"
+              options={[
+                { value: "daily", label: t("automation.sessionMode.daily") },
+                { value: "reuse", label: t("automation.sessionMode.reuse") },
+              ]}
+              value={draft.sessionMode}
+              onChange={(next) => set("sessionMode", next as AutomationSessionMode)}
+            />
+          </div>
+        </div>
+      </Fragment>
+    );
+  }
+
   return (
     <Fragment>
       <ConfigSectionTitle>{t("automation.schedule")}</ConfigSectionTitle>
       <ConfigField label={t("automation.scheduleType")}>
         <select
-          className="pw-select"
+          className="d-select"
           disabled={disabled}
           value={draft.scheduleType}
           onChange={(event) => set("scheduleType", event.target.value as AutomationScheduleType)}
@@ -188,7 +413,7 @@ export function AutomationEditor({
       <ConfigSectionTitle>{t("automation.content")}</ConfigSectionTitle>
       <ConfigField label={t("automation.name")}>
         <input
-          className="pw-input"
+          className="d-input"
           type="text"
           disabled={disabled}
           placeholder={t("automation.namePlaceholder")}
@@ -201,7 +426,7 @@ export function AutomationEditor({
           （`alignItems` 不在 check-style-literals 的几何槽位里，不需要 token）。 */}
       <ConfigField label={t("automation.prompt")} hint={t("automation.promptHint")} style={{ alignItems: "flex-start" }}>
         <textarea
-          className="pw-input fork-automation-prompt"
+          className="d-textarea fork-automation-prompt"
           rows={4}
           disabled={disabled}
           placeholder={t("automation.promptPlaceholder")}
@@ -211,7 +436,7 @@ export function AutomationEditor({
       </ConfigField>
       <ConfigField label={t("automation.cwd")}>
         <input
-          className="pw-input pw-mono"
+          className="d-input d-mono"
           type="text"
           disabled={disabled}
           value={draft.cwd ?? ""}
@@ -220,7 +445,7 @@ export function AutomationEditor({
       </ConfigField>
       <ConfigField label={t("automation.model")} hint={t("automation.modelHint")}>
         <select
-          className="pw-select"
+          className="d-select"
           disabled={disabled}
           value={draft.model ?? ""}
           onChange={(event) => set("model", event.target.value || undefined)}
@@ -235,7 +460,7 @@ export function AutomationEditor({
       </ConfigField>
       <ConfigField label={t("automation.maxRuns")} hint={t("automation.maxRunsHint")}>
         <input
-          className="pw-input pw-numin"
+          className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
           type="number"
           min={1}
           step={1}
@@ -253,7 +478,7 @@ export function AutomationEditor({
           字段标签已经说清了，标题删掉。 */}
       <ConfigField label={t("automation.sessionMode")} hint={t("automation.sessionModeHint")}>
         <select
-          className="pw-select"
+          className="d-select"
           disabled={disabled}
           value={draft.sessionMode}
           onChange={(event) => set("sessionMode", event.target.value as AutomationSessionMode)}

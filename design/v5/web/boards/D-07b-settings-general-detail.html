@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-07b · 通用分节补全（壁纸 / 侧栏 / 字体 / 聊天 / 通知 / Shell / 推送） · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-07b · 通用分节补全（壁纸 / 侧栏 / 界面字体 / 聊天 / 通知 / Shell / 推送）</h1>
+  <p>
+    D-07 画了设置壳与通用分节的骨架（主题、声音、回车、重试、预算），这一张补上<b>通用分节里真实存在、却一直没有画的那七块</b>：
+    默认外观壁纸 · 侧边栏 · 界面字体 · 聊天（11 行）· 通知（7 行）· Shell 工具（仅 Windows）· 后台推送注册。
+    宿主是<b>设置弹窗</b>（<code>⌘K → 设置</code>），与 D-07 的弹窗同一份内容（整页宿主已废止）——
+    纪律只有两条：<b>改动即时生效，不给「保存」</b>；<b>这一行在本机有没有可能被打开</b> ——
+    能的，禁用并保留值；不能的，整行不画。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 通用（弹窗宿主）</span>
+    <span class="d-tag">组件：WallpaperSettings · BuiltinWallpaperPicker · font-discovery · NotificationPrefs · ShellTool · PushPermission</span>
+    <span class="d-tag">状态：壁纸被皮肤接管 / 字体枚举中 / 总开关关 / 推送未注册</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 通用分节内的块 · 默认外观壁纸（启用 / 当前壁纸 / 选择·更换·移除 / 内置画廊）· 侧边栏 · 界面字体<span class="d-grow"></span>壁纸块紧跟在主题皮肤块正下方，因为两块在抢「谁管背景」</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">设计侧收尾</span>
+              <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已完成</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">通用 · 壁纸与字体</span>
+                </div>
+                <div class="d-md">
+                  <p>「通用」分节里还有壁纸、侧栏与界面字体这几块；它们与主题皮肤在抢同一件事。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:relative" aria-label="设置">
+            <div class="d-modal-box wide" style="min-width:1080px">
+              <div class="d-modal-head">设置 · 通用</div>
+              <div class="d-modal-body" style="padding:var(--nx-sp-2) var(--nx-sp-5)" data-demo-scope>
+                <div class="d-set" style="height:auto">
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <!-- 壁纸 -->
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">壁纸（默认外观）</div>
+                        <div class="d-t-xs d-t-faint">在工作区后面放一张图片。用主题自己的背景色做遮罩，保证明暗两种主题下的文字对比度都不受影响。</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">显示壁纸</div>
+                            <div class="d-set-row-s">关掉时下面两行（遮罩浓度 / 各面适配）整块消失 —— 它们驱动的是壁纸，没有壁纸就没有可调的东西。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="显示壁纸"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">当前壁纸</div>
+                            <div class="d-set-row-s">没选过图时这一行只有「选择图片」；选过之后才有「更换」与「移除」。图片超限会给出可执行的原因。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <span class="d-row" style="gap:var(--nx-sp-2)">
+                              <span class="d-thumb d-placeholder">
+                                <i data-ico="image" data-size="16"></i><span>壁纸占位</span>
+                              </span>
+                              <button class="d-btn sm">更换图片</button>
+                              <button class="d-btn sm">移除</button>
+                            </span>
+                          </span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">遮罩浓度</div>
+                            <div class="d-set-row-s">主题背景色覆盖在图片上的比例。数值越小，图片越清楚。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">36%</span></span>
+                          <input type="range" class="d-slider" min="0" max="100" value="36">
+                        </div>
+
+                        <div class="d-field">
+                          <span class="d-field-t">各面适配</span>
+                          <span class="d-t-xs d-t-faint">壁纸铺满一切会让输入框与代码块这类密排面读不清，所以<b>三个面各自选一档</b>；用芯片排而不用下拉，是因为下拉把另外两档折进了一个箭头里。</span>
+                          <div class="d-grid3">
+                            <div class="d-col" style="gap:var(--nx-sp-1)">
+                              <span class="d-t-sm">消息区</span>
+                              <div class="d-cats" data-demo-list>
+                                <button class="d-cat" data-demo-select>不透明</button>
+                                <button class="d-cat is-on" data-demo-select>半透明</button>
+                                <button class="d-cat" data-demo-select>毛玻璃</button>
+                              </div>
+                            </div>
+                            <div class="d-col" style="gap:var(--nx-sp-1)">
+                              <span class="d-t-sm">侧栏面板</span>
+                              <div class="d-cats" data-demo-list>
+                                <button class="d-cat is-on" data-demo-select>不透明</button>
+                                <button class="d-cat" data-demo-select>半透明</button>
+                                <button class="d-cat" data-demo-select>毛玻璃</button>
+                              </div>
+                            </div>
+                            <div class="d-col" style="gap:var(--nx-sp-1)">
+                              <span class="d-t-sm">输入框</span>
+                              <div class="d-cats" data-demo-list>
+                                <button class="d-cat" data-demo-select>不透明</button>
+                                <button class="d-cat" data-demo-select>半透明</button>
+                                <button class="d-cat is-on" data-demo-select>毛玻璃</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="d-field">
+                          <span class="d-field-t">内置壁纸</span>
+                          <span class="d-t-xs d-t-faint">与主题配套的两张画作，不用下载。工作室给皮肤配图时也是这同一份列表 —— 两个入口共用一份，不各挑一次。</span>
+                          <div class="d-store-grid" data-demo-list>
+                            <button class="d-store-card" data-demo-select>
+                              <div class="d-store-cover"><i data-ico="gallery-horizontal-end" data-size="20"></i></div>
+                              <div class="d-store-card-t">蔡徐坤</div>
+                              <div class="d-t-xs d-t-faint">冷调 · 亮部多，适合深色</div>
+                              <div class="d-grow"></div>
+                              <div class="d-store-foot"><span>未选用</span></div>
+                            </button>
+                            <button class="d-store-card is-on" data-demo-select>
+                              <div class="d-store-cover"><i data-ico="gallery-horizontal-end" data-size="20"></i></div>
+                              <div class="d-store-card-t">章若楠</div>
+                              <div class="d-t-xs d-t-faint">暖调 · 中间调，适合浅色</div>
+                              <div class="d-grow"></div>
+                              <div class="d-store-foot"><span class="d-badge ok">使用中</span></div>
+                            </button>
+                            <div class="d-store-card" style="border-style:dashed">
+                              <div class="d-store-cover"><i data-ico="upload" data-size="20"></i></div>
+                              <div class="d-store-card-t">自己带图</div>
+                              <div class="d-t-xs d-t-faint">JPEG / PNG / WebP</div>
+                              <div class="d-grow"></div>
+                              <div class="d-store-foot"><span class="d-badge mute">SVG 有意拒绝</span></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="d-banner warn">
+                          <i data-ico="info" data-size="14"></i>
+                          <span class="d-grow"><b>有皮肤生效时，这一整块收成一句话。</b>壁纸与各面透明度被皮肤接管，再摆一排滑块就是「看着能调、其实无效」的死控件 —— 那时只给一条说明与「编辑主题皮肤」。</span>
+                          <button class="d-btn sm ghost d-banner-btn" data-demo-open="b-skin">看接管态</button>
+                        </div>
+                      </div>
+
+                      <!-- 侧边栏 -->
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">侧边栏</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">半透明</div>
+                            <div class="d-set-row-s">侧栏底透出壁纸。与「壁纸」是同一件事的两个旋钮：先有图，才谈得上透。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="侧边栏半透明"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">宽度</div>
+                            <div class="d-set-row-s">拖动滑块调整轨道宽度。这是<b>唯一当场可见</b>的设置：左边那一栏就在旁边变。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">280 px</span></span>
+                          <input type="range" class="d-slider" min="0" max="100" value="42">
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span class="d-grow">宽度只改轨道，不改正文列的排版宽度 —— 侧栏变宽不会让聊天内容跟着变宽，两者各自有各的旋钮。</span>
+                        </div>
+                      </div>
+
+                      <!-- 界面字体 -->
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">界面字体</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">UI 字体</div>
+                            <div class="d-set-row-s">菜单、设置与界面控件使用的字体。清单是<b>本机枚举</b>出来的，不是写死的一份名单。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select" data-demo-open="b-font">PingFang SC, SF Pro Text, Segoe UI<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">UI 字号</div>
+                            <div class="d-set-row-s">界面控件与设置文字的大小。给的是<b>档位</b>不是连续滑块：连续值会停在规范里没有的那几档上。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">14 px<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">界面语言</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <div class="d-seg" data-demo-tabs>
+                              <button class="is-on" data-demo-tab="lang-zh">简体中文</button>
+                              <button data-demo-tab="lang-tw">繁體中文</button>
+                              <button data-demo-tab="lang-en">English</button>
+                            </div>
+                          </span>
+                        </div>
+
+                        <section data-demo-pane="lang-zh">
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">界面语言改的是<b>面板自身的文案</b>（分节名、行标签、按钮），不改你在输入框里打的字，也不改模型回复的语言。</span></div>
+                        </section>
+                        <section data-demo-pane="lang-tw" hidden>
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">繁體中文已加载：同一批键的另一份语言包。缺键回落简体中文并在 <span class="d-mono">DIVERGENCE.md</span> 登记，而不是留空。</span></div>
+                        </section>
+                        <section data-demo-pane="lang-en" hidden>
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">English：文案变，<b>单位与格式不跟着变</b> —— 数字仍用等宽对齐，日期仍按本机习惯。</span></div>
+                        </section>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 这一分节的改动即时生效，没有「应用」</span>
+                <button class="d-btn ghost">重置本节</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="b-font" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:340px">
+            <div class="d-pop-title">UI 字体是怎么枚举出来的</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-t-xs d-t-dim">浏览器出于隐私<b>不能列出系统字体</b>，所以走两条腿：</div>
+              <div class="d-notice">
+                <span class="d-notice-ico"><i data-ico="list-tree" data-size="13"></i></span>
+                <span class="d-col d-grow"><span class="d-set-row-t">1 · Local Font Access API</span><span class="d-set-row-s">Chromium 有，要用户授权且必须在手势里调用；拿到的是全量清单</span></span>
+              </div>
+              <div class="d-notice">
+                <span class="d-notice-ico"><i data-ico="gauge" data-size="13"></i></span>
+                <span class="d-col d-grow"><span class="d-set-row-t">2 · canvas 宽度探测</span><span class="d-set-row-s">零权限、全平台可用，只能探测候选表里的族名；先用它</span></span>
+              </div>
+              <div class="d-t-xs d-t-faint">等宽族（<span class="d-mono">mono / Consolas / Menlo / 更纱…</span>）被过滤掉 —— 那是另一个旋钮的事，混进来只会让人挑错。</div>
+            </div>
+          </div>
+
+          <div class="d-pop" data-demo-pop="b-skin" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:340px">
+            <div class="d-pop-title">壁纸被皮肤接管时</div>
+            <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+              <div class="d-banner warn"><i data-ico="info" data-size="14"></i><span class="d-grow">当前主题皮肤接管了壁纸与各面透明度，改这些请编辑皮肤。</span></div>
+              <div class="d-row"><button class="d-btn sm">编辑主题皮肤</button></div>
+              <div class="d-t-xs d-t-faint">一排滑块摆在那里却推不动，是最坏的一种控件：它让用户以为设置生效了。</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 通用分节内的块 · 聊天（11 行：自动命名 / 命名模型 / 思考 / 密度 / 步骤展开三类 / 宽度 / 字号 / 扩展字号 / 选中操作条 / 发送键）<span class="d-grow"></span>三枚「步骤展开」芯片是三个独立开关，不是一个单选组</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 通用分节内的块 · 聊天</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已保存</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">通用 · 聊天</span>
+                </div>
+                <div class="d-md">
+                  <p>聊天的十一行都在设置弹窗的「通用」分节里，改动即时生效。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:relative" aria-label="设置">
+            <div class="d-modal-box wide" style="min-width:1080px">
+              <div class="d-modal-head">设置 · 通用</div>
+              <div class="d-modal-body" style="padding:var(--nx-sp-2) var(--nx-sp-5)" data-demo-scope>
+                <div class="d-set" style="height:auto">
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">聊天</div>
+                        <div class="d-t-xs d-t-faint">这一块只回答「对话怎么呈现、手怎么发出去」；重试与上下文预算不在这里（它们是新会话生效的那类）。</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">自动命名新会话</div>
+                            <div class="d-set-row-s">首个回复结束后，使用指定模型根据首条消息自动生成会话标题。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="自动命名新会话"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">命名模型</div>
+                            <div class="d-set-row-s">用于生成会话标题的模型；未选择时使用会话自身的模型。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">使用会话模型<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">默认展开思考块</div>
+                            <div class="d-set-row-s">选择消息加载时模型思考块是否默认展开。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="默认展开思考块"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">界面密度</div>
+                            <div class="d-set-row-s">聊天与设置界面的间距。会话行高度固定，侧栏列表不随密度变化。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <div class="d-seg" data-demo-tabs>
+                              <button data-demo-tab="den-compact">紧凑</button>
+                              <button class="is-on" data-demo-tab="den-standard">标准</button>
+                              <button data-demo-tab="den-comfortable">宽松</button>
+                            </div>
+                          </span>
+                        </div>
+
+                        <section data-demo-pane="den-compact" hidden>
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">紧凑：一屏能看到更多轮次，代价是工具卡头与设置行挤在一起，长路径容易被省略号吃掉。</span></div>
+                        </section>
+                        <section data-demo-pane="den-standard">
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">标准：一行 12px 上下留白，长会话连读时最省力，也是默认值。</span></div>
+                        </section>
+                        <section data-demo-pane="den-comfortable" hidden>
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">宽松：给触摸屏与大字号留余地；鼠标用户常觉得「一屏没几行」。</span></div>
+                        </section>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">过程步骤默认展开</div>
+                            <div class="d-set-row-s">时间线里哪些步骤默认展开。单行仍然可以点开收起 —— 这里只决定<b>新加载</b>时的初始状态。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <div class="d-cats" data-demo-list>
+                              <button class="d-cat is-on" data-demo-select><i data-ico="brain" data-size="12"></i>推理</button>
+                              <button class="d-cat is-on" data-demo-select><i data-ico="square-terminal" data-size="12"></i>命令（bash）</button>
+                              <button class="d-cat" data-demo-select><i data-ico="wrench" data-size="12"></i>工具调用</button>
+                            </div>
+                          </span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">聊天内容宽度</div>
+                            <div class="d-set-row-s">设置消息内容和输入框的最大宽度。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">800 px</span></span>
+                          <input type="range" class="d-slider" min="0" max="100" value="50">
+                          <button class="d-btn sm ghost">重置</button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">聊天字体大小</div>
+                            <div class="d-set-row-s">与「UI 字号」同一批档位，不另起一套。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">15 px<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">扩展组件字体大小</div>
+                            <div class="d-set-row-s">技能 / 插件 / MCP 这些外来组件的字。给它们单独一档，才不会让第三方排版把整体压垮。</div>
+                          </div>
+                          <span class="d-grow-last"><button class="d-select">13 px<i data-ico="chevron-down" data-size="12"></i></button></span>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">选中文字时显示提问浮窗</div>
+                            <div class="d-set-row-s">选中转录里的一段文字就浮出「问在这里 / 开新会话」。关掉它，浮窗也不会在截图里突然冒出来。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                          <button class="d-switch on" data-demo-switch aria-checked="true" title="选中文字提问浮窗"></button>
+                        </div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">发送键</div>
+                            <div class="d-set-row-s">默认回车直接发送。改成 Ctrl+Enter 后，回车用来换行（含续 Markdown 列表），Shift+Enter 仍是换行。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <div class="d-seg" data-demo-tabs>
+                              <button class="is-on" data-demo-tab="sk-enter">Enter 发送</button>
+                              <button data-demo-tab="sk-ctrl">Ctrl+Enter 发送</button>
+                            </div>
+                          </span>
+                        </div>
+
+                        <section data-demo-pane="sk-enter">
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow">回车发送时 <span class="d-kbd">Shift</span><span class="d-kbd">Enter</span> 换行；连按两次回车也会换行 —— 写到一半的列表不会被自己发出去。</span></div>
+                        </section>
+                        <section data-demo-pane="sk-ctrl" hidden>
+                          <div class="d-banner"><i data-ico="info" data-size="14"></i><span class="d-grow"><span class="d-kbd">Ctrl</span><span class="d-kbd">Enter</span> 发送时，回车永远是换行，直接输入的 <span class="d-mono">!</span> 与 <span class="d-mono">!!</span> 命令仍走 Bash。</span></div>
+                        </section>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 即时生效</span>
+                <button class="d-btn ghost">重置本节</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 通用分节内的块 · 通知（7 行）· Shell 工具（仅 Windows）· 后台推送注册<span class="d-grow"></span>总开关关掉时，四个子项变禁用而不是各自清零</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <header class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">fork · v5 设计体系收口</span>
+              <span class="d-tb-sub">设置弹窗 · 通用分节内的块 · 通知与 Shell</span>
+            </div>
+            <div class="d-tb-spacer"></div>
+            <span class="d-badge ok"><i data-ico="check" data-size="12"></i>已保存</span>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-sm d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">通用 · 通知</span>
+                </div>
+                <div class="d-md">
+                  <p>通知、Shell 与后台推送也都在「通用」分节里：总开关关掉时子项禁用并保留值。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-modal is-open" style="position:relative" aria-label="设置">
+            <div class="d-modal-box wide" style="min-width:1080px">
+              <div class="d-modal-head">设置 · 通用</div>
+              <div class="d-modal-body" style="padding:var(--nx-sp-2) var(--nx-sp-5)" data-demo-scope>
+                <div class="d-set" style="height:auto">
+                  <nav class="d-set-nav">
+                    <div class="d-set-navsep">基础</div>
+                    <button class="d-set-navitem is-on"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+                    <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+                    <div class="d-set-navsep">能力</div>
+                    <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+                    <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+                    <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+                    <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+                    <div class="d-set-navsep">运行</div>
+                    <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+                    <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+                    <div class="d-set-navsep">数据与连接</div>
+                    <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+                    <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+                    <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+                  <div class="d-set-main">
+                    <div class="d-set-inner">
+
+                      <!-- 通知 -->
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">桌面通知</div>
+                        <div class="d-t-xs d-t-faint">系统通知会落到锁屏与手机；<b>通知声音</b>是另一回事，它与输入框的声音按钮是同一个开关。</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">桌面通知</div>
+                            <div class="d-set-row-s">允许发送系统通知。关掉它，下面四项一起失效 —— 但<b>各自记住自己原来的值</b>，重新打开时回到你上次的状态。</div>
+                          </div>
+                          <span class="d-grow-last">
+                            <div class="d-seg" data-demo-tabs>
+                              <button class="is-on" data-demo-tab="nt-on">总开关 开</button>
+                              <button data-demo-tab="nt-off">总开关 关</button>
+                            </div>
+                          </span>
+                        </div>
+
+                        <section data-demo-pane="nt-on">
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"><div class="d-set-row-t">任务完成时通知</div></div>
+                            <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                            <button class="d-switch on" data-demo-switch aria-checked="true" title="任务完成时通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"><div class="d-set-row-t">任务失败时通知</div></div>
+                            <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                            <button class="d-switch on" data-demo-switch aria-checked="true" title="任务失败时通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"><div class="d-set-row-t">仅在窗口未聚焦时通知</div></div>
+                            <span class="d-grow-last"><span class="d-badge mute">关</span></span>
+                            <button class="d-switch" data-demo-switch aria-checked="false" title="仅在窗口未聚焦时通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">通知声音</div>
+                              <div class="d-set-row-s">通知时播放提示音（与输入框的声音按钮同一个开关）。</div>
+                            </div>
+                            <span class="d-grow-last"><span class="d-badge ok">开</span></span>
+                            <button class="d-switch on" data-demo-switch aria-checked="true" title="通知声音"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"></div>
+                            <span class="d-grow-last">
+                              <button class="d-btn sm" data-demo-open="b-test">发送测试通知</button>
+                              <button class="d-btn sm">打开系统通知设置</button>
+                            </span>
+                          </div>
+                          <div class="d-banner">
+                            <i data-ico="info" data-size="14"></i>
+                            <span class="d-grow">测试通知发的就是真通知，标题固定「测试通知」，正文是「如果你看到这条，通知已经配置好了」—— 失败的那一条会原样带原因，不弹一句「发送成功」。</span>
+                          </div>
+                        </section>
+
+                        <section data-demo-pane="nt-off" hidden>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"><div class="d-set-row-t">任务完成时通知</div><div class="d-set-row-s">值仍是「开」，只是暂时不生效</div></div>
+                            <span class="d-grow-last"><span class="d-badge mute">已暂停</span></span>
+                            <button class="d-switch on" disabled aria-checked="true" title="需要先打开桌面通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"><div class="d-set-row-t">任务失败时通知</div></div>
+                            <span class="d-grow-last"><span class="d-badge mute">已暂停</span></span>
+                            <button class="d-switch on" disabled aria-checked="true" title="需要先打开桌面通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"><div class="d-set-row-t">仅在窗口未聚焦时通知</div></div>
+                            <span class="d-grow-last"><span class="d-badge mute">已暂停</span></span>
+                            <button class="d-switch" disabled aria-checked="false" title="需要先打开桌面通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box">
+                              <div class="d-set-row-t">通知声音</div>
+                              <div class="d-set-row-s">通知时播放提示音（与输入框的声音按钮同一个开关）。</div>
+                            </div>
+                            <span class="d-grow-last"><span class="d-badge mute">已暂停</span></span>
+                            <button class="d-switch on" disabled aria-checked="true" title="需要先打开桌面通知"></button>
+                          </div>
+                          <div class="d-set-row">
+                            <div class="d-set-row-box"></div>
+                            <span class="d-grow-last">
+                              <button class="d-btn sm" disabled title="需要先打开桌面通知">发送测试通知</button>
+                              <button class="d-btn sm">打开系统通知设置</button>
+                            </span>
+                          </div>
+                          <div class="d-banner warn">
+                            <i data-ico="triangle-alert" data-size="14"></i>
+                            <span class="d-grow">「通知声音」不受总开关管：它也控制输入框那一声，所以同样被暂停 —— <b>一个和别的开关绑在一起的开关必须说清自己被谁绑住</b>，而不是让人以为漏配了。</span>
+                          </div>
+                        </section>
+
+                        <div class="d-pop" data-demo-pop="b-test" hidden style="right:var(--nx-sp-6);top:var(--nx-sp-6);min-width:340px">
+                          <div class="d-pop-title">测试通知发给了谁</div>
+                          <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                            <div class="d-menu-row"><i data-ico="monitor" data-size="14"></i><span class="d-grow">本机窗口</span><span class="d-badge ok">已送达</span></div>
+                            <div class="d-menu-row"><i data-ico="smartphone" data-size="14"></i><span class="d-grow">iPhone 主屏应用</span><span class="d-badge warn">未注册推送</span></div>
+                            <div class="d-menu-row"><i data-ico="lock" data-size="14"></i><span class="d-grow">系统层通知（锁屏）</span><span class="d-badge mute">需授权</span></div>
+                            <div class="d-pop-foot">浏览器里没有系统通知设置页 —— 那一行会说明去哪调，而不是给一颗点了没反应的按钮。</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Shell -->
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">Shell 工具</div>
+                        <div class="d-t-xs d-t-faint">选择模型执行命令时使用的 Shell。直接输入的 <span class="d-mono">!</span> 和 <span class="d-mono">!!</span> 命令仍使用 Bash。</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">使用 PowerShell 替代 Bash</div>
+                            <div class="d-set-row-s">这一整块<b>只在 Windows 上渲染</b>；macOS 与 Linux 连标题都不出现。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge mute">关 · 用 Bash</span></span>
+                          <button class="d-switch" data-demo-switch aria-checked="false" title="PowerShell 替代 Bash"></button>
+                        </div>
+
+                        <div class="d-notice">
+                          <span class="d-notice-ico"><i data-ico="monitor" data-size="13"></i></span>
+                          <span class="d-col d-grow">
+                            <span class="d-set-row-t">当前平台：Windows 11 · PowerShell 5.1</span>
+                            <span class="d-set-row-s">改这一行会立刻改掉模型执行命令的解释器；已经在跑的那一轮不受影响。</span>
+                          </span>
+                        </div>
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span class="d-grow">「平台不渲染」与「被总开关暂停」是两回事：后者仍然显示自己的状态徽章与一个说清原因的 <span class="d-mono">title</span>（见帧 D）。</span>
+                        </div>
+                      </div>
+
+                      <!-- 推送 -->
+                      <div class="d-set-sec">
+                        <div class="d-set-sec-t">后台推送（iOS 主屏应用）</div>
+                        <div class="d-t-xs d-t-faint">将本站添加到主屏幕后（iPhone 需 iOS 16.4+），会话完成且页面不在前台时，可在锁屏收到系统通知。若通知不再送达，可回到这里重新注册。<b>注册必须由点击触发</b>，因此不会自动弹出授权。</div>
+
+                        <div class="d-set-row">
+                          <div class="d-set-row-box">
+                            <div class="d-set-row-t">注册推送</div>
+                            <div class="d-set-row-s">这不是开关而是一次<b>动作</b>：成功与否要有一句可读的结果，不留一颗「看起来常亮」的绿灯。</div>
+                          </div>
+                          <span class="d-grow-last"><span class="d-badge warn">未注册</span></span>
+                          <button class="d-btn sm">注册推送</button>
+                        </div>
+
+                        <div class="d-notice">
+                          <span class="d-notice-ico"><i data-ico="triangle-alert" data-size="13"></i></span>
+                          <span class="d-col d-grow">
+                            <span class="d-set-row-t">当前状态：上次注册失败 · 令牌已过期</span>
+                            <span class="d-set-row-s">注册失败：NotAllowedError — 站点通知权限被拒绝。重新注册前要先在浏览器站点设置里放行。</span>
+                          </span>
+                        </div>
+
+                        <div class="d-banner">
+                          <i data-ico="info" data-size="14"></i>
+                          <span class="d-grow">与手机推送分节的关系：本块只管「这个浏览器能不能被推」，管「推到哪台设备」的是<b>手机与推送</b>分节（扫码 / 配对码）。两块各说各的一半，不合并。</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="d-modal-foot">
+                <span class="d-t-xs d-t-faint d-grow" style="margin-right:auto">Esc 关闭 · 即时生效</span>
+                <button class="d-btn ghost">重置本节</button>
+                <button class="d-btn primary">完成</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 通用分节内的七块（壁纸 / 侧栏 / 界面字体 / 聊天 / 通知 / Shell / 后台推送）· 依赖关系与平台条件：一块消失的条件只有两种<span class="d-grow"></span>判据是「这一行在本机有没有可能被打开」</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-5)">
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="layers" data-size="15"></i><span class="d-grow">七块 · 依赖与条件</span></div>
+                <div class="d-card-body">
+                  <div class="d-tbl-wrap">
+                    <table class="d-table">
+                      <thead><tr><th>块</th><th>依赖</th><th>条件不满足时</th><th>值是否保留</th></tr></thead>
+                      <tbody>
+                        <tr class="is-on"><td>壁纸</td><td>无</td><td>开关关 → 遮罩浓度与各面适配整块消失</td><td>保留</td></tr>
+                        <tr><td>侧边栏</td><td>壁纸（半透明需要图）</td><td>没有壁纸时半透明那行仍在，但当场看不出效果</td><td>保留</td></tr>
+                        <tr><td>界面字体</td><td>本机字体枚举</td><td>枚举中 → 下拉禁用并写「正在读取本机字体…」</td><td>保留</td></tr>
+                        <tr><td>聊天</td><td>无</td><td>始终渲染</td><td>—</td></tr>
+                        <tr><td>桌面通知</td><td>总开关</td><td>关 → 四个子项<b>禁用</b>，各自的值保留</td><td>保留</td></tr>
+                        <tr><td>Shell 工具</td><td>平台</td><td>非 Windows → <b>整块不渲染</b>（不是灰掉的一行）</td><td>保留</td></tr>
+                        <tr><td>后台推送</td><td>浏览器能力 + 权限</td><td>不支持 → 说明去哪开；拒绝 → 报原始错误</td><td>—</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="d-pop-foot">「禁用」和「不渲染」是两种决定，判据只有一条：<b>这一行在本机有没有可能被打开</b>。可能的，禁用并保留值；不可能的，不画。</div>
+                </div>
+              </div>
+
+              <div class="d-grid2">
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="monitor" data-size="15"></i><span class="d-grow">平台不渲染 · Shell 工具</span><span class="d-badge mute">macOS</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-empty compact">
+                      <div class="d-empty-ico"><i data-ico="laptop" data-size="20"></i></div>
+                      <div class="d-empty-t">这一块在这台机器上不存在</div>
+                      <div class="d-empty-s">macOS 与 Linux 的默认 Shell 就是对的，没有第二个选项可切。一行永远为假的开关会让用户以为还有别的事没配好。</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-card">
+                  <div class="d-card-head"><i data-ico="bell-off" data-size="15"></i><span class="d-grow">被总开关暂停 · 通知子项</span><span class="d-badge mute">暂停</span></div>
+                  <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">任务失败时通知</div><div class="d-set-row-s">值仍是「开」，只是暂时不生效</div></div>
+                      <span class="d-grow-last"><span class="d-badge mute">已暂停</span></span>
+                      <button class="d-switch on" disabled aria-checked="true" title="需要先打开桌面通知"></button>
+                    </div>
+                    <div class="d-set-row">
+                      <div class="d-set-row-box"><div class="d-set-row-t">通知声音</div></div>
+                      <span class="d-grow-last"><span class="d-badge mute">已暂停</span></span>
+                      <button class="d-switch on" disabled aria-checked="true" title="需要先打开桌面通知"></button>
+                    </div>
+                    <div class="d-t-xs d-t-faint">禁用行仍显示自己的状态徽章 + 一个说清原因的 <span class="d-mono">title</span>；把整个块藏起来，用户会以为自己从没开过。</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="check-check" data-size="15"></i><span class="d-grow">即时生效的三条纪律</span></div>
+                <div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">不给「保存」</span><span class="d-set-row-s">这一分节的改动全部即时落盘，弹窗脚的说明写的是状态而不是按钮</span></span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">数值设置配「重置」</span><span class="d-set-row-s">已经是默认值时重置钮禁用，且 <span class="d-mono">title</span> 写「已经是默认值」而不是功能名</span></span>
+                  </div>
+                  <div class="d-notice">
+                    <span class="d-notice-ico"><i data-ico="circle-check" data-size="13"></i></span>
+                    <span class="d-col d-grow"><span class="d-set-row-t">关掉设置回到原处</span><span class="d-set-row-s">改完壁纸立刻回到转录，不把人留在设置里找「在哪保存」</span></span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>宿主是设置弹窗，不是整页。</b>三帧都是 <code>.d-modal.is-open</code> + <code>.d-modal-box.wide</code> + <code>.d-set</code>，内容与 D-07 的弹窗宿主<b>同一份</b>；弹窗限高、内容区内部滚动，所以长分节不会被视口裁掉。</li>
+    <li><b>壁纸块紧跟在主题皮肤块正下方。</b>两者在抢同一件事（谁管背景），分开放要来回扫视。块内四行：<b>显示壁纸</b>（关掉时遮罩浓度与各面适配整块消失）、<b>当前壁纸</b>（缩略图 + 选择/更换/移除，没图时只有「选择图片」）、<b>遮罩浓度</b>、<b>各面适配</b>（消息区 / 侧栏面板 / 输入框 × 不透明 / 半透明 / 毛玻璃）。</li>
+    <li><b>三个面用芯片排而不是下拉。</b>只有三档，下拉把另外两档折进一个箭头里，读者要在脑子里做三次数组查询才比得出。墙纸铺满一切会让输入框与代码块读不清 —— <b>每个面自己选一档</b>。</li>
+    <li><b>内置画廊是行内的一段，不叠模态。</b>每次选择都要立刻反映到左边的实时预览上；套一层带「应用」的模态会把这条例约反过来，还要处理焦点陷阱套焦点陷阱。画廊与皮肤工作室共用同一份列表。</li>
+    <li><b>有皮肤生效时整块收成一句话。</b>壁纸与各面透明度被皮肤接管，此时一排滑块就是「看着能调、其实无效」的死控件 —— 只给说明与「编辑主题皮肤」。</li>
+    <li><b>侧栏只有两行</b>：半透明（与壁纸是同一件事的两个旋钮）+ 宽度滑块。宽度只改轨道，不改正文列排版宽度。</li>
+    <li><b>界面字体三行：UI 字体 / UI 字号 / 界面语言。</b>UI 字体清单是<b>本机枚举</b>的：先试 Local Font Access API（Chromium，要授权且必须在手势里），空了再用 canvas 宽度探测；等宽族被过滤掉。字号给档位不给连续滑块 —— 连续值会停在规范里没有的那几档上。</li>
+    <li><b>聊天块 11 行</b>：自动命名 / 命名模型 / 默认展开思考块 / 界面密度 / <b>过程步骤默认展开（推理 / 命令 / 工具调用 = 三个独立开关，不是一个单选组）</b> / 聊天内容宽度（滑块 + 重置）/ 聊天字体大小 / 扩展组件字体大小 / 选中文字提问浮窗 / 发送键。最后三行是同一件事的三粒旋钮：正文、第三方组件、发送行为各管各的。</li>
+    <li><b>通知块 7 行</b>：桌面通知（总开关）/ 任务完成 / 任务失败 / 仅在窗口未聚焦 / 通知声音 / 两个动作钮（发送测试通知 · 打开系统通知设置）。<b>总开关关时四个子项是禁用态而不是各自清零</b>；测试通知发真的通知，失败那一条原样带原因。</li>
+    <li><b>Shell 工具整块只在 Windows 渲染。</b>macOS / Linux 连标题都不出现 —— 一行永远为假的开关是噪音。与「暂停」是两回事：暂停的行还显示自己的状态徽章与一个说清原因的 <span class="d-mono">title</span>。</li>
+    <li><b>后台推送是动作不是开关。</b>注册必须由点击触发，所以不会自动弹授权；失败时把原始错误（<span class="d-mono">NotAllowedError</span>）和「先去哪儿放行」一起给。本块只管「这个浏览器能不能被推」，推到哪台设备归手机与推送分节。</li>
+    <li><b>判据只有一条：这一行在本机有没有可能被打开。</b>可能的 → 禁用并保留值；不可能的 → 不画。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

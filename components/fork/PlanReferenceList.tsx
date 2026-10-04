@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { findPlanDocumentReferences, type PlanDocumentReference } from "@/lib/plan-documents";
 import { PlanDocumentCard, type PlanDocumentOpenHandler } from "./PlanDocumentCard";
@@ -19,7 +20,7 @@ import { PlanDocumentCard, type PlanDocumentOpenHandler } from "./PlanDocumentCa
  *
  * 宿主接线（本 PR 不动共享组件）：
  * · agent 写的计划 —— `MessageView` 的工具卡读 `result.details`（`isPlanToolDetails`），
- *   或在卡头加一个 `.pw-iconbtn` 跳转钮（与子代理卡的 `external-link` 同一位置）；
+ *   或在卡头加一个 `.d-iconbtn` 跳转钮（与子代理卡的 `external-link` 同一位置）；
  * · 任意消息正文 —— 在 `MessageView` / `MarkdownBody` 之下挂这个组件，
  *   `onOpenFile` 传宿主既有的打开回调（AppShell 的 `handleOpenFile(filePath, fileName)`）。
  */
@@ -34,6 +35,7 @@ export interface PlanReferenceListProps {
 
 export function PlanReferenceList({ text, cwd, onOpenFile }: PlanReferenceListProps) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   const references = useMemo<PlanDocumentReference[]>(
     () => findPlanDocumentReferences(text, cwd ? { cwd } : {}),
     [text, cwd],
@@ -41,8 +43,20 @@ export function PlanReferenceList({ text, cwd, onOpenFile }: PlanReferenceListPr
 
   if (references.length === 0) return null;
 
+  // fork:v5-landing Wave B · M-05：窄屏上那排卡片是 `.m-storecard` 纵列
+  // （一张卡 = 一份计划），语义（role="group" + aria-label）两端一致。
+  if (mobile) {
+    return (
+      <div role="group" aria-label={t("chat.planReferences")}>
+        {references.map((reference) => (
+          <PlanDocumentCard key={reference.filePath} plan={reference} onOpenFile={onOpenFile} />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div role="group" aria-label={t("chat.planReferences")} style={{ display: "grid", gap: "var(--s2)" }}>
+    <div role="group" aria-label={t("chat.planReferences")} className="d-col" style={{ gap: "var(--nx-sp-2)" }}>
       {references.map((reference) => (
         <PlanDocumentCard key={reference.filePath} plan={reference} onOpenFile={onOpenFile} />
       ))}

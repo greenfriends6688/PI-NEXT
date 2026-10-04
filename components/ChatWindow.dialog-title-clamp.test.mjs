@@ -16,7 +16,7 @@ const windowSource = await readFile(new URL("./ChatWindow.tsx", import.meta.url)
 const cssSource = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
 const dialogSource = windowSource.slice(windowSource.indexOf("function ExtensionDialog"));
 const head = dialogSource.slice(
-  dialogSource.indexOf('<div\n          className="pw-modal-head fork-ext-dialog-head"'),
+  dialogSource.indexOf('className="d-modal-head d-row fork-ext-dialog-head"'),
   dialogSource.indexOf("{request.expiresAt !== undefined && <ExtensionCountdownBar"),
 );
 
@@ -27,8 +27,8 @@ function ruleFor(selector) {
 }
 
 test("the extension dialog head carries the clamp hooks and keeps pre-wrap", () => {
-  assert.match(head, /className="pw-modal-head fork-ext-dialog-head"/);
-  assert.match(head, /className="pw-strong fork-ext-dialog-title"/);
+  assert.match(head, /className="d-modal-head d-row fork-ext-dialog-head"/);
+  assert.match(head, /className="d-grow d-t-b fork-ext-dialog-title"/);
   // 换行不能被吞：标题仍然 pre-wrap（不是 nowrap，也不是靠 CSS 补的）。
   assert.match(head, /whiteSpace: "pre-wrap"/);
   assert.doesNotMatch(head, /whiteSpace: "nowrap"/);

@@ -1088,6 +1088,8 @@ export const zhTWLocale: LocalePlugin = {
     "chat.homeReviewDesc": "看看工作區裡未提交的改動有沒有問題",
     "chat.homeTestDesc": "給剛剛改的檔案補上回歸用例",
     "chat.homeExplainDesc": "把這個檔案從頭到尾講一遍",
+    // fork:v5-landing D-01 幀 A —— 起步卡底部「一鍵填入」提示（點卡只填指令、不送出）。
+    "chat.homeOneClick": "一鍵填入",
     "chat.running": "執行中",
     "chat.runningTool": "正在執行工具...",
     "chat.truncatedByOutputLimit": "這則回覆在達到模型輸出上限後被截斷，再送一則追問即可繼續。",

@@ -11,7 +11,25 @@ import {
   findProviderView,
   isLastEnabledModel,
 } from "./enabled-models-helpers";
-import { ConfigBadge, ConfigButton, ConfigSidebarSub, ConfigSidebarText, ConfigSwitch } from "./SettingsUi";
+/** v5 D-10 的一枚小件：封装画板的 `.d-switch`（`on` 状态类 + aria 语义不变）。 */
+function EnabledSwitch({ checked, disabled = false, loading = false, label, onChange }: {
+  checked: boolean; disabled?: boolean; loading?: boolean; label: string; onChange: (checked: boolean) => void;
+}) {
+  const inactive = disabled || loading;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-busy={loading || undefined}
+      aria-label={label}
+      title={label}
+      disabled={inactive}
+      className={`d-switch${checked ? " on" : ""}`}
+      onClick={() => onChange(!checked)}
+    />
+  );
+}
 
 /**
  * Model switches backed by pi's `enabledModels` setting.
@@ -192,41 +210,37 @@ export function EnabledModelsBanner({ controller }: { controller: EnabledModelsC
   if (!scoped && stale === 0) return null;
 
   return (
-    <div className="enabled-models-banner">
-      <span
-        className="enabled-models-banner-text"
-        {...(stale > 0 ? { title: t("models.enabledStaleHint") } : {})}
-      >
-        {/* Name the setting and the file that holds it: the count alone left
-            the user guessing where the panel wrote, and both read the same in
-            every language. A long path is what gets cut, never the numbers. */}
-        <code className="enabled-models-banner-key" title={view.settingsPath}>
-          {view.settingsPath}
-        </code>
-        <code className="enabled-models-banner-facts">
-          {`· enabledModels ${view.enabledTotal}/${view.availableTotal}`}
-          {stale > 0 && ` · ${t("models.enabledStale", { count: stale })}`}
-        </code>
-      </span>
+    <div className="d-banner warn">
+      {/* v5 D-10 状态行：设置文件路径 + enabledModels 计数都摆在台面上，长路径优先截断。 */}
+      <code className="d-mono" title={view.settingsPath}>
+        {view.settingsPath}
+      </code>
+      <code className="d-mono">
+        {`· enabledModels ${view.enabledTotal}/${view.availableTotal}`}
+        {stale > 0 && ` · ${t("models.enabledStale", { count: stale })}`}
+      </code>
+      <span className="d-grow" aria-hidden="true" />
       {view.editable && stale > 0 && (
-        <ConfigButton
-          size="small"
+        <button
+          type="button"
+          className="d-btn sm"
           onClick={controller.pruneStale}
           disabled={pending !== null}
           title={t("models.enabledPruneHint")}
         >
           {t("models.enabledPrune")}
-        </ConfigButton>
+        </button>
       )}
       {view.editable && scoped && (
-        <ConfigButton
-          size="small"
+        <button
+          type="button"
+          className="d-btn sm ghost"
           onClick={controller.clearScope}
           disabled={pending !== null}
           title={t("models.enabledClearHint")}
         >
           {t("models.enabledClear")}
-        </ConfigButton>
+        </button>
       )}
     </div>
   );
@@ -257,7 +271,7 @@ export function EnabledModelsProviderSwitch({
   // does not work — never a sign-in, so do not send the user looking for one.
   if (!provider) {
     return (
-      <ConfigSwitch
+      <EnabledSwitch
         checked={false}
         disabled
         label={t("models.enabledCustomEmpty")}
@@ -269,8 +283,8 @@ export function EnabledModelsProviderSwitch({
   const toggle = enabledModelsProviderToggle(view, provider);
   return (
     <>
-      {message && <span className="enabled-models-switch-error">{message}</span>}
-      <ConfigSwitch
+      {message && <span className="d-err">{message}</span>}
+      <EnabledSwitch
         checked={toggle.checked}
         loading={pending === `provider:${provider.id}`}
         disabled={pending !== null || toggle.blocked}
@@ -347,12 +361,12 @@ export function EnabledModelsSection({
   useEffect(() => setQuery(""), [providerId]);
 
   if (loading && !view) {
-    return <div className="enabled-models-empty">{t("agents.modelsLoading")}</div>;
+    return <div className="d-t-xs d-t-faint">{t("agents.modelsLoading")}</div>;
   }
   if (!provider) {
     return failure?.message
-      ? <div className="enabled-models-error">{failure.message}</div>
-      : <div className="enabled-models-empty">{t("models.enabledUnavailable")}</div>;
+      ? <div className="d-err">{failure.message}</div>
+      : <div className="d-t-xs d-t-faint">{t("models.enabledUnavailable")}</div>;
   }
 
   const shown = filterEnabledModels(provider.models, query);
@@ -367,48 +381,50 @@ export function EnabledModelsSection({
     else controller.setProvider(provider.id, enabled);
   };
 
-  /* fork:models-board —— 画板 41 的「可用模型」：头部是标题 + 计数徽章 + grow + 动作，
-     下面一列 `.pw-litem` 开关行 —— 左边开关、中间「名字 / 等宽 id」两行、右侧思考档徽章。
-     行、徽章、输入框的视觉全部来自 board.css，这里只提供结构与开关语义；
-     原先那套 `.enabled-models-row*` 自绘样式已退役（见 app/settings.css）。 */
+  /* fork:v5-landing —— 换成画板 D-10 的「可用模型」DOM：`d-set-sec` 分节 +
+     `d-card > d-table` 数据表 + `d-switch` 行内开关；thinking 钉不再自绘徽章，
+     直接进表列（画板 D-10 帧 A 的「thinking 钉」列）。绑定与状态机一概不动。 */
   return (
-    <div className="enabled-models-section">
-      <div className="enabled-models-header pw-inline">
-        <span className="enabled-models-title">{t("models.enabledSection")}</span>
-        <ConfigBadge tone="count">
+    <div className="d-set-sec">
+      <div className="d-row">
+        <div className="d-set-sec-t">{t("models.enabledSection")}</div>
+        <span className="d-badge mute">
           {t("models.enabledCount", { enabled: provider.enabledCount, total: provider.models.length })}
-        </ConfigBadge>
-        <span className="pw-grow" aria-hidden="true" />
-        <ConfigButton
-          size="small"
+        </span>
+        <span className="d-grow" aria-hidden="true" />
+        <button
+          type="button"
+          className="d-btn sm"
           disabled={busy || !bulk.canEnable}
           onClick={() => runBulk(true, bulk.enableRefs)}
         >
           {filtered ? t("models.enableShown") : t("models.enableAll")}
-        </ConfigButton>
-        <ConfigButton
-          size="small"
+        </button>
+        <button
+          type="button"
+          className="d-btn sm"
           disabled={busy || !bulk.canDisable}
           title={!bulk.canDisable && bulk.disableRefs.length > 0 ? t("models.enabledLastModel") : undefined}
           onClick={() => runBulk(false, bulk.disableRefs)}
         >
           {filtered ? t("models.disableShown") : t("models.disableAll")}
-        </ConfigButton>
-        <ConfigButton
-          size="small"
+        </button>
+        <button
+          type="button"
+          className="d-btn sm ghost"
           disabled={busy || catalog.refreshing}
           title={t("models.refreshCatalogHint")}
           onClick={catalog.refresh}
         >
           {catalog.refreshing ? t("models.refreshingCatalog") : t("models.refreshCatalog")}
-        </ConfigButton>
+        </button>
       </div>
 
-      {catalog.note && <div className="enabled-models-note">{t(catalog.note)}</div>}
+      {catalog.note && <div className="d-banner">{t(catalog.note)}</div>}
 
-      {!view?.editable && <div className="enabled-models-note">{t("models.enabledProjectScope")}</div>}
+      {!view?.editable && <div className="d-banner warn">{t("models.enabledProjectScope")}</div>}
       {failure && (
-        <div className="enabled-models-error">
+        <div className="d-banner err">
           {failure.messageKey ? t(failure.messageKey) : failure.message}
         </div>
       )}
@@ -418,40 +434,53 @@ export function EnabledModelsSection({
         onChange={(event) => setQuery(event.target.value)}
         placeholder={t("models.enabledFilterPlaceholder", { count: provider.models.length })}
         aria-label={t("models.enabledFilter")}
-        className="pw-input enabled-models-filter"
+        className="d-input d-mono"
+        style={{ maxWidth: 260 }}
       />
-      <div className="pw-list enabled-models-list">
-        {shown.length === 0 ? (
-          <div className="enabled-models-empty">{t("models.enabledNoMatches")}</div>
-        ) : shown.map((model) => {
-          const lastOne = isLastEnabledModel(view, model);
-          return (
-            <div key={model.ref} className="pw-litem enabled-models-row">
-              {/* fork:row-alignment（2026-10-01）—— 开关从行首挪到行末，与侧栏 `.pw-row`
-                  的「图标 + 名称 + .grow + 右侧动作」同规（board.css:141-154 / 画板 02:68-71）。
-                  .pw-acts 的 hover 显隐（board.css:153-154）**不适用**：开关是常驻状态控件，
-                  不是 hover 才出现的行内动作，所以直接跟在徽章后面，不包 .pw-acts。 */}
-              <span className="grow enabled-models-row-text">
-                <ConfigSidebarText>{model.name}</ConfigSidebarText>
-                <ConfigSidebarSub>{model.id}</ConfigSidebarSub>
-              </span>
-              {model.thinkingPin && (
-                <ConfigBadge tone="accent" className="enabled-models-pin" title={t("models.enabledPinHint")}>
-                  {model.thinkingPin}
-                </ConfigBadge>
-              )}
-              <ConfigSwitch
-                checked={model.enabled}
-                loading={pending === model.ref}
-                disabled={busy || !view?.editable || lastOne}
-                label={lastOne
-                  ? t("models.enabledLastModel")
-                  : t("models.enabledToggle", { model: model.name })}
-                onChange={(checked) => controller.setModels(model.ref, [model.ref], checked)}
-              />
-            </div>
-          );
-        })}
+
+      <div className="d-card">
+        <table className="d-table">
+          <thead>
+            <tr>
+              <th>{t("models.availableModels")}</th>
+              <th>{t("models.thinkingLevelMap")}</th>
+              <th aria-hidden="true"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.length === 0 ? (
+              <tr><td colSpan={3}><span className="d-t-xs d-t-faint">{t("models.enabledNoMatches")}</span></td></tr>
+            ) : shown.map((model) => {
+              const lastOne = isLastEnabledModel(view, model);
+              return (
+                <tr key={model.ref}>
+                  <td>
+                    <div className="d-col">
+                      <span className="d-t-b">{model.name}</span>
+                      <span className="d-mono d-t-xs d-t-faint">{model.id}</span>
+                    </div>
+                  </td>
+                  <td>
+                    {model.thinkingPin
+                      ? <span className="d-mono d-t-xs" title={t("models.enabledPinHint")}>{model.thinkingPin}</span>
+                      : <span className="d-t-xs d-t-faint">—</span>}
+                  </td>
+                  <td>
+                    <EnabledSwitch
+                      checked={model.enabled}
+                      loading={pending === model.ref}
+                      disabled={busy || !view?.editable || lastOne}
+                      label={lastOne
+                        ? t("models.enabledLastModel")
+                        : t("models.enabledToggle", { model: model.name })}
+                      onChange={(checked) => controller.setModels(model.ref, [model.ref], checked)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
+// fork:v5-wave-b —— PWA 形态：右栏面板换成画板 M-12 的 `.m-viewer` +
+// `.m-viewer-bar` + `.m-viewer-scroll`（同义：一条页头 + 一块滚动体）。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 /**
  * fork:trace-frame —— 右栏「调用轨迹」= **完整历史那一页**，只是换了个位置。
@@ -17,6 +20,11 @@ import { useI18n } from "@/hooks/useI18n";
  *
  * 刷新：`nonce` 变一次就重载 iframe（新回合落盘后不会自己更新，与其它 iframe 一致）。
  * 全屏时按 Esc 退出，并把焦点还给触发钮。
+ *
+ * fork:v5-landing —— DOM 换成画板 D-03e 帧 D 的右栏面板：`.d-panel` / `.d-panel-head`
+ * （图标 + `.d-t-b` 标题 + `.d-grow` + `.d-iconbtn`）/ `.d-panel-body`。图标一律 `<i data-ico>`。
+ * fork:v5-wave-b —— 窄屏换成 M-12 的 `.m-viewer`（整层浮起）/ `.m-viewer-bar`
+ * （图标 + 标题 + grow + 图标钮）/ `.m-viewer-scroll`（滚动体）。
  */
 export function TraceFrame({
   sessionId,
@@ -30,6 +38,7 @@ export function TraceFrame({
   active?: boolean;
 }) {
   const { t } = useI18n();
+  const isPwa = usePwaSkin();
   const [nonce, setNonce] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -63,40 +72,38 @@ export function TraceFrame({
       key={src}
       src={src}
       title={title?.trim() || t("trace.title")}
-      style={{ width: "100%", height: "100%", border: 0, display: "block", background: "var(--bg)" }}
+      style={{ width: "100%", height: "100%", border: 0, display: "block", background: "var(--nx-canvas)" }}
     />
   );
 
   return (
-    <div className="pw-panel" style={{ height: "100%", minWidth: 0 }}>
-      <div className="pw-panel-head">
-        <span className="pw-ico" style={{ color: "var(--accent-text)" }}>
-          <i data-ico="history" data-size="14" aria-hidden="true"></i>
-        </span>
-        <b>{t("trace.title")}</b>
-        <span className="grow" />
+    <div className={isPwa ? "m-viewer is-open" : "d-panel"} style={{ height: "100%", minWidth: 0 }}>
+      <div className={isPwa ? "m-viewer-bar" : "d-panel-head"}>
+        <i data-ico="history" data-size="14" aria-hidden="true"></i>
+        <span className={isPwa ? "m-t-b" : "d-t-b"}>{t("trace.title")}</span>
+        <span className={isPwa ? "m-grow" : "d-grow"} />
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className={isPwa ? "m-iconbtn" : "d-iconbtn"}
           onClick={reload}
           title={t("trace.refresh")}
           aria-label={t("trace.refresh")}
         >
-          <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true"></i></span>
+          <i data-ico="refresh-cw" data-size="13" aria-hidden="true"></i>
         </button>
         <button
           type="button"
-          className="pw-iconbtn sm"
+          className={isPwa ? "m-iconbtn" : "d-iconbtn"}
           onClick={() => setFullscreen(true)}
           title={t("trace.fullscreen")}
           aria-label={t("trace.fullscreen")}
         >
-          <span className="pw-ico"><i data-ico="maximize-2" data-size="13" aria-hidden="true"></i></span>
+          <i data-ico="maximize-2" data-size="13" aria-hidden="true"></i>
         </button>
       </div>
-      {/* fork:design-components —— 面板头 + 面板体（画板 54 探索视图那一帧）；
-          嵌入的是 pi 自己导出的完整历史页，所以正文里没有本仓的类。 */}
-      <div className="pw-panel-body" style={{ minHeight: 0, padding: 0, overflow: "hidden" }}>
+      {/* fork:v5-landing —— 面板体（画板 D-03e 右栏）；嵌入的是 pi 自己导出的完整历史页，
+          所以正文里没有本仓的类。fork:v5-wave-b —— 窄屏是 M-12 的 `.m-viewer-scroll`。 */}
+      <div className={isPwa ? "m-viewer-scroll" : "d-panel-body"} style={{ minHeight: 0, padding: 0, overflow: "hidden" }}>
         {frame}
       </div>
 
@@ -111,33 +118,31 @@ export function TraceFrame({
             zIndex: 1000,
             display: "flex",
             flexDirection: "column",
-            background: "var(--bg)",
+            background: "var(--nx-canvas)",
           }}
         >
-          <div className="pw-panel-head" style={{ flexShrink: 0 }}>
-            <span className="pw-ico" style={{ color: "var(--accent-text)" }}>
-              <i data-ico="history" data-size="14" aria-hidden="true"></i>
-            </span>
-            <b>{title?.trim() || t("trace.title")}</b>
-            <span className="grow" />
+          <div className={isPwa ? "m-viewer-bar" : "d-panel-head"} style={{ flexShrink: 0 }}>
+            <i data-ico="history" data-size="14" aria-hidden="true"></i>
+            <span className={isPwa ? "m-t-b" : "d-t-b"}>{title?.trim() || t("trace.title")}</span>
+            <span className={isPwa ? "m-grow" : "d-grow"} />
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className={isPwa ? "m-iconbtn" : "d-iconbtn"}
               onClick={reload}
               title={t("trace.refresh")}
               aria-label={t("trace.refresh")}
             >
-              <span className="pw-ico"><i data-ico="refresh-cw" data-size="13" aria-hidden="true"></i></span>
+              <i data-ico="refresh-cw" data-size="13" aria-hidden="true"></i>
             </button>
             <button
               type="button"
-              className="pw-iconbtn sm"
+              className={isPwa ? "m-iconbtn" : "d-iconbtn"}
               onClick={() => setFullscreen(false)}
               title={t("trace.exitFullscreen")}
               aria-label={t("trace.exitFullscreen")}
               autoFocus
             >
-              <span className="pw-ico"><i data-ico="minimize-2" data-size="13" aria-hidden="true"></i></span>
+              <i data-ico="minimize-2" data-size="13" aria-hidden="true"></i>
             </button>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>{frame}</div>

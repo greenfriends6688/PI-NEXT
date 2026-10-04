@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { copyText } from "@/lib/clipboard";
 import type { TodoSummary } from "@/lib/todo-state";
+// fork:v5-wave-b —— PWA 形态：芯片换成画板 M-02 的 `.m-tool` + `.m-tool-head`
+// + `.m-badge`，只读清单行换成 M-02 帧 C 的 `.m-step-row` 家族。
+import { usePwaSkin } from "@/components/pwa/skin";
 
 /*
  * fork:ui-todo — the session's task list, next to the composer.
@@ -22,12 +25,21 @@ import type { TodoSummary } from "@/lib/todo-state";
  * once read as a summary written after the fact. The panel therefore names the
  * open item ("进行中"), carries a progress bar, and the chip title names that item
  * too, so a mid-run glance says what the agent is doing right now.
+ *
+ * fork:v5-landing —— DOM 抄自画板 D-03e 帧 C：收起的 chip = `.d-card` +
+ * `.d-tool-head` + `.d-bar`；展开面板 = `.d-pop` + `.d-pop-title` + 只读行
+ * （`.d-checkbox` / `.d-badge info`）+ `.d-pop-foot`。
+ * fork:v5-wave-b —— 窄屏：芯片 = M-02 的 `.m-tool` + `.m-tool-head`（同义），
+ * 徽标换 `.m-badge`。**面板本身仍是 `.d-pop`**：PWA 库里没有「贴着芯片浮起来的
+ * 小面板」这一件（`.m-pop-float` / `.m-sheet` 都是相对手机取景框定位的，
+ * 放进输入卡上方的 chip 会跑位），缺件已登记 —— 面板外壳留给设计侧补。
  */
 
 type CopyState = "idle" | "copied" | "failed";
 
 export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
   const { t } = useI18n();
+  const isPwa = usePwaSkin();
   const [open, setOpen] = useState(false);
   // fork:fix-clipboard —— 三态而不是 `copied: boolean`：复制**可能失败**，
   // 而失败必须看得见。之前是无条件 setCopied(true)：两条路都被拒时按钮纹丝不动，
@@ -64,6 +76,7 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
   // tick next, and naming it is what separates progress from a counter.
   const activeTodo = complete ? null : summary.todos.find((todo) => !todo.done) ?? null;
   const progressText = t("chat.todosProgress", { done: summary.done, total: summary.total });
+  const fillStyle = { width: `${Math.max(0, Math.min(100, percent))}%` };
 
   const copy = () => {
     const text = summary.todos
@@ -79,74 +92,66 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
   };
 
   return (
-    <div ref={rootRef} style={{ position: "relative", flexShrink: 0 }}>
-      {/* fork:design-components —— 收起的 chip = 画板 12 B 的 `.pw-card` + `.pw-card-head`
-          （list-checks 图标 + `.pw-tool` 当前项 + `.pw-path` 剩余数 + `.pw-badge.count`
-          进度 + 进度条 + chevron）。条目本体（展开面板）走 A 的 `.pw-plan`。 */}
+    /* fork:v5-landing —— 芯片在 .d-ctxbar（与输入卡同宽的行）里，长标题要能截断：
+       `max-width:280px` 与上下文条里的 .d-chipbtn 同一档（见 system.css 的
+       `.d-ctxbar .d-chipbtn`），内部 .d-t-sm 已能 ellipsis。 */
+    <div ref={rootRef} style={{ position: "relative", flexShrink: 0, minWidth: 0, maxWidth: 280 }}>
+      {/* 收起的 chip = 画板 D-03e 帧 C 的 `.d-card` + `.d-tool-head` + `.d-bar`。 */}
       <button
         type="button"
-        className="pw-card"
+        className={isPwa ? "m-tool" : "d-card"}
         onClick={() => setOpen((value) => !value)}
         title={activeTodo ? `${t("chat.todos")} · ${activeTodo.text}` : t("chat.todos")}
         aria-label={t("chat.todos")}
         aria-expanded={open}
-        style={{ display: "block", padding: 0, textAlign: "left" }}
+        style={{ display: "block", padding: 0, textAlign: "left", cursor: "pointer" }}
       >
-        <span className="pw-card-head">
-          <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="list-checks" data-size="14" aria-hidden="true"></i></span>
-          <span className="pw-tool fork-todo-title">
+        <span className={isPwa ? "m-tool-head" : "d-tool-head"} style={{ width: "100%", border: 0, background: "none", font: "inherit", textAlign: "left" }}>
+          <i data-ico="list-checks" data-size="14" aria-hidden="true"></i>
+          <span className={`${isPwa ? "m" : "d"}-t-sm ${isPwa ? "m" : "d"}-grow fork-todo-title`}>
             {activeTodo ? activeTodo.text : progressText}
           </span>
-          <span className="grow" />
-          <span className="pw-badge count" style={{ fontVariantNumeric: "tabular-nums" }} aria-live="polite">{progressText}</span>
-          <span className="fork-todo-rail" aria-hidden="true">
-            <span
-              className="fork-todo-rail-fill"
-              style={{
-                transform: `scaleX(${Math.max(0, Math.min(100, percent)) / 100})`,
-                background: complete ? "var(--text-muted)" : "var(--accent)",
-              }}
-            />
-          </span>
-          <span className="pw-ico pw-dim" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform var(--motion-fast)" }}>
-            <i data-ico="chevron-down" data-size="13" aria-hidden="true"></i>
-          </span>
+          <span className={isPwa ? "m-badge" : "d-badge"} style={{ fontVariantNumeric: "tabular-nums" }} aria-live="polite">{progressText}</span>
+          <i
+            data-ico="chevron-down"
+            data-size="13"
+            aria-hidden="true"
+            style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform var(--nx-dur-1) var(--nx-ease)" }}
+          ></i>
         </span>
+        <div className="d-bar" style={{ borderRadius: 0 /* 非主题值：画板 D-03e 芯片进度条无圆角 */ }}>
+          <i style={fillStyle} />
+        </div>
       </button>
 
       {open && (
-        /* fork:design-components —— 展开面板 = 画板 12 A 的 `.pw-plan`（发丝框 /
-           radius-6 / padding-s3 / grid gap）+ `.pw-plan-head`（list-checks 图标 + 标题 +
-           `.pw-badge.count` 进度 + grow + `.pw-btn sm` 复制）；条目仍是 `.pw-todo`；
-           底部提示行是画板的 `.pw-card-foot`。只有浮层的定位/尺寸留内联。 */
+        /* 展开面板 = 画板 D-03e 帧 C 的 `.d-pop`（标题 / 只读行 / 分隔线 / 脚注）。 */
         <div
           role="group"
           aria-label={t("chat.todos")}
-          className="pw-plan fork-todo-panel"
+          className="d-pop is-open fork-todo-panel"
         >
-          <div className="pw-plan-head">
-            <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico="list-checks" data-size="14" aria-hidden="true"></i></span>
-            {t("chat.todos")}
-            <span className="pw-badge count">{progressText}</span>
-            <span className="grow" />
+          <div className="d-pop-title">{t("chat.todos")}</div>
+
+          <div className="d-row" style={{ padding: "0 var(--nx-sp-3) var(--nx-sp-2)" }}>
+            <span className="d-badge mute">{progressText}</span>
+            <span className="d-grow" />
             <button
               type="button"
-              className={copyFailed ? "pw-btn sm danger" : "pw-btn sm"}
+              className={copyFailed ? "d-btn sm danger" : "d-btn sm"}
               onClick={copy}
               title={copyFailed ? t("chat.todosCopyFailed") : t("chat.copyTodos")}
             >
-              <span className="pw-ico"><i data-ico={copied ? "check" : "copy"} data-size="13" aria-hidden="true"></i></span>
+              <i data-ico={copied ? "check" : "copy"} data-size="13" aria-hidden="true"></i>
               {copied ? t("i18n.copied") : t("chat.copyTodos")}
             </button>
           </div>
 
-          {/* fork:fix-clipboard —— 失败徽标**另起一行**，不挂进 .pw-plan-head：
-              头里已经站着图标 + 标题 + 进度徽标 + 复制钮，英文 "Could not copy"
-              塞进去会把标题挤到换行（浮层只有 320px / 92vw），头就长高一截。
-              `.pw-plan` 自己是 grid + gap，插一行白拿间距，面板本来就能滚。 */}
+          {/* fork:fix-clipboard —— 失败徽标**另起一行**，不挂进头部那一行：
+              头里已经站着进度徽标 + 复制钮，英文 "Could not copy" 塞进去会把整行挤爆。 */}
           {copyFailed && (
-            <div>
-              <span role="status" className="pw-badge bad">{t("chat.todosCopyFailed")}</span>
+            <div className="d-row" style={{ padding: "0 var(--nx-sp-3) var(--nx-sp-2)" }}>
+              <span role="status" className="d-badge bad">{t("chat.todosCopyFailed")}</span>
             </div>
           )}
 
@@ -156,44 +161,37 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
             aria-valuemax={summary.total}
             aria-valuenow={summary.done}
             aria-label={t("chat.todos")}
-            className="fork-todo-rail-full"
+            className="d-bar"
+            style={{ margin: "0 var(--nx-sp-3) var(--nx-sp-2)" }}
           >
-            <span
-              className="fork-todo-rail-fill"
-              style={{
-                transform: `scaleX(${Math.max(0, Math.min(100, percent)) / 100})`,
-                background: complete ? "var(--text-muted)" : "var(--accent)",
-              }}
-            />
+            <i style={fillStyle} />
           </div>
 
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 5 }}>
-            {summary.todos.map((todo) => {
-              const active = activeTodo?.id === todo.id;
-              return (
-                /* fork:design-components —— 计划条目直接用画板 12 的 .pw-todo 组件
-                   （board.css：14px 方框 / .done 灰底删除线 / .now 强调底 / 徽章用 .pw-badge）。
-                   勾选标记从手绘 polyline 换成画板的 <i data-ico="check">（画板 12 A 的
-                   `.pw-todo.done .box` 里就是它），进行中的那条用 `play`（同板第 104 行）。 */
-                <li key={todo.id} className={`pw-todo${todo.done ? " done" : active ? " now" : ""}`}>
-                  <span className="box" aria-hidden="true">
-                    {todo.done ? <i data-ico="check" data-size="10"></i> : active ? <i data-ico="play" data-size="10"></i> : ""}
-                  </span>
-                  <span style={{ minWidth: 0 }}>
-                    {todo.text}
-                  </span>
-                  {active && (
-                    <span className="pw-badge accent" style={{ marginLeft: "auto" }}>
-                      {t("chat.todosActive")}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="pw-card-foot" style={{ margin: "0 calc(-1 * var(--s3)) calc(-1 * var(--s3))" }}>
-            {t("chat.todosHint")}
-          </div>
+          {summary.todos.map((todo) => {
+            const active = activeTodo?.id === todo.id;
+            return (
+              /* 只读行 = 画板 D-03e 帧 C：`.d-checkbox`（勾）或 `.d-badge info`（进行中）+
+                 `.d-grow` 文案。勾这一格等于改写已落盘的会话历史，所以不可点。 */
+              <div key={todo.id} className="d-row d-t-xs" style={{ padding: "3px var(--nx-sp-3)" }}>
+                {todo.done ? (
+                  <span className="d-checkbox on" aria-hidden="true"><i data-ico="check" data-size="10"></i></span>
+                ) : active ? (
+                  <span className="d-badge info">{t("chat.todosActive")}</span>
+                ) : (
+                  <span className="d-checkbox" aria-hidden="true" />
+                )}
+                <span
+                  className={todo.done ? "d-grow d-t-faint" : "d-grow"}
+                  style={todo.done ? { textDecoration: "line-through" } : undefined}
+                >
+                  {todo.text}
+                </span>
+              </div>
+            );
+          })}
+
+          <div className="d-sep"></div>
+          <div className="d-pop-foot">{t("chat.todosHint")}</div>
         </div>
       )}
     </div>

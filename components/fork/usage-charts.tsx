@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /*
  * fork:usage-dashboard — the usage panel's charts, drawn with the design board's
- * `.pw-bars` / `.pw-legend` / `.pw-list` primitives (画板 45 §用量统计) rather than
+ * `.d-bars` / `.d-row` / `.d-col` primitives (画板 D-19 §用量统计) rather than
  * hand-written inline SVG.
  *
  * Why no chart library: the plan is zero-new-dependency, and these charts are simple
@@ -57,17 +58,87 @@ function levels(value: number, max: number): number {
   return Math.min(4, Math.max(1, Math.ceil((value / max) * 4)));
 }
 
-function cellOpacity(level: number): number {
-  return level === 0 ? 1 : 0.18 + level * 0.2;
+function cellClass(level: number): string {
+  return level === 0 ? "d-heat-grid" : `d-heat-grid l${level}`;
 }
 
-function cellFill(level: number): string {
-  return level === 0 ? "var(--bg-hover)" : "var(--accent)";
+/*
+ * fork:v5-landing Wave B · M-09 帧 C · PWA 热力图。
+ *
+ * `.m-heat` 的库规则是 `grid-template-columns: repeat(18, 1fr)` —— **18 列 × 7 行**，
+ * 所以顺序必须按「行 = 星期、列 = 周」发：先发 18 个周一，再发 18 个周二……
+ * 那块图旁的「周一在上 · 周日在下」说的就是这件事。画板里那串 `<i>` 只是示意。
+ *
+ * 分级：库只有 `.m-heat-grid.l1 / l2 / l3`（+ 无类 = 空），比桌面的五档少一档。
+ * 桌面 `levels()` 的 0-4 映射成 0 / l1 / l2 / l2 / l3（顶部两档合并），
+ * **量纲与 max 归一完全不变**，只是颜色再分一档。缺的那一档记在 Wave B 汇报里
+ * （`.m-heat-grid.l4` 缺件，不许在产品里自造）。
+ */
+const MOBILE_HEAT_COLUMNS = 18;
+const MOBILE_HEAT_ROWS = 7;
+function mobileCellClass(level: number): string {
+  if (level <= 0) return "m-heat-grid";
+  return `m-heat-grid l${Math.min(3, level)}`;
+}
+
+function PwaHeatmap({
+  days,
+  metric,
+  label,
+  metricLabel,
+  lessLabel,
+  moreLabel,
+}: {
+  days: readonly UsageDayPointLike[];
+  metric: "sessions" | "tokens";
+  label: string;
+  /** 图旁那行口径（“按会话数 / 按 token”），由面板传进来。 */
+  metricLabel: string;
+  lessLabel: string;
+  moreLabel: string;
+}): ReactNode {
+  const values = days.map((day) => (metric === "sessions" ? day.sessions : day.tokens));
+  const max = Math.max(1, ...values);
+  // 取最后 18 周（126 天），多出来的旧数据在手机上没有位置 —— 口径写在图旁。
+  const lead = mondayIndex(days[0].day);
+  const window = days.slice(Math.max(0, days.length - MOBILE_HEAT_COLUMNS * MOBILE_HEAT_ROWS));
+  const windowLead = lead + (days.length - window.length);
+  const cells: ReactNode[] = [];
+  for (let row = 0; row < MOBILE_HEAT_ROWS; row += 1) {
+    for (let column = 0; column < MOBILE_HEAT_COLUMNS; column += 1) {
+      const index = column * MOBILE_HEAT_ROWS + row - windowLead;
+      const day = index >= 0 && index < window.length ? window[index] : null;
+      const value = day ? (metric === "sessions" ? day.sessions : day.tokens) : 0;
+      cells.push(
+        <i
+          key={`${row}-${column}`}
+          title={day ? `${day.day} · ${value}` : undefined}
+          className={day ? mobileCellClass(levels(value, max)) : "m-heat-grid"}
+        />,
+      );
+    }
+  }
+  return (
+    <div className="m-setrow">
+      <span className="m-setrow-body">
+        <span className="m-setrow-t">{label}</span>
+        <span className="m-setrow-s">{metricLabel}</span>
+        <span className="m-heat" role="img" aria-label={label}>{cells}</span>
+        <span className="m-hist-row">
+          <span className="m-badge mute">{lessLabel}</span>
+          {[1, 2, 3].map((level) => (
+            <i key={level} aria-hidden="true" className={`m-heat-grid l${level}`} />
+          ))}
+          <span className="m-grow" />
+          <span className="m-t-xs m-t-faint">{moreLabel}</span>
+        </span>
+      </span>
+    </div>
+  );
 }
 
 function EmptyChart({ label }: { label: string }): ReactNode {
-  // `.pw-cell > p` already carries the muted meta styling — no inline type here.
-  return <p className="pw-muted">{label}</p>;
+  return <p className="d-t-xs d-t-faint">{label}</p>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -77,16 +148,32 @@ export function UsageHeatmap({
   days,
   metric,
   label,
+  metricLabel,
   lessLabel,
   moreLabel,
 }: {
   days: readonly UsageDayPointLike[];
   metric: "sessions" | "tokens";
   label: string;
+  /** fork:v5-landing Wave B：手机端图旁那行口径。省略即不渲染该行。 */
+  metricLabel?: string;
   lessLabel: string;
   moreLabel: string;
 }): ReactNode {
+  const mobile = useIsMobile();
   if (days.length === 0) return <EmptyChart label="—" />;
+  if (mobile) {
+    return (
+      <PwaHeatmap
+        days={days}
+        metric={metric}
+        label={label}
+        metricLabel={metricLabel ?? lessLabel}
+        lessLabel={lessLabel}
+        moreLabel={moreLabel}
+      />
+    );
+  }
 
   const values = days.map((day) => (metric === "sessions" ? day.sessions : day.tokens));
   const max = Math.max(1, ...values);
@@ -122,14 +209,14 @@ export function UsageHeatmap({
       <div
         role="img"
         aria-label={label}
-        style={{ overflowX: "auto", marginTop: "var(--s2)" }}
+        style={{ overflowX: "auto", marginTop: "var(--nx-sp-2)" }}
       >
         {/* 月份横排：与下面那张格子网格共用同一套列轨，所以天然对齐。 */}
         <div style={{ display: "grid", gridTemplateColumns: tracks, gap: `${GAP}px` }}>
           {monthMarks.map((mark) => (
             <span
               key={`${mark.column}-${mark.label}`}
-              className="pw-mono pw-dim"
+              className="d-mono d-t-faint"
               style={{ gridColumn: mark.column + 2, gridRow: 1, whiteSpace: "nowrap" }}
             >
               {mark.label}
@@ -143,7 +230,7 @@ export function UsageHeatmap({
             {weekdayLabels.map((item) => (
               <span
                 key={item.text}
-                className="pw-mono pw-dim"
+                className="d-mono d-t-faint"
                 style={{ gridRow: item.row + 1, alignSelf: "center" }}
               >
                 {item.text}
@@ -158,13 +245,12 @@ export function UsageHeatmap({
               <span
                 key={day.day}
                 title={`${day.day} · ${value}`}
+                className={`${cellClass(level)} d-cell-pop`}
                 style={{
                   gridColumn: Math.floor(slot / 7) + 2,
                   gridRow: (slot % 7) + 1,
                   height: `${CELL}px`,
-                  borderRadius: "2px",
-                  background: cellFill(level),
-                  opacity: cellOpacity(level),
+                  animationDelay: `${Math.min(index * 3, 380)}ms`,
                 }}
               />
             );
@@ -172,16 +258,17 @@ export function UsageHeatmap({
         </div>
       </div>
       {/* 少 → 多 图例（画板 45 §每日活动 的那一行）。 */}
-      <div className="pw-inline" style={{ marginTop: "var(--s2)", justifyContent: "flex-end" }}>
-        <span className="pw-mono pw-dim">{lessLabel}</span>
+      <div className="d-row" style={{ marginTop: "var(--nx-sp-2)", justifyContent: "flex-end" }}>
+        <span className="d-mono d-t-faint">{lessLabel}</span>
         {[0, 1, 2, 3, 4].map((level) => (
           <span
             key={level}
             aria-hidden="true"
-            style={{ width: `${CELL}px`, height: `${CELL}px`, borderRadius: "2px", background: cellFill(level), opacity: cellOpacity(level) }}
+            className={cellClass(level)}
+            style={{ width: `${CELL}px`, height: `${CELL}px` }}
           />
         ))}
-        <span className="pw-mono pw-dim">{moreLabel}</span>
+        <span className="d-mono d-t-faint">{moreLabel}</span>
       </div>
     </>
   );
@@ -190,7 +277,7 @@ export function UsageHeatmap({
 /* ---------------------------------------------------------------------------
  * 按天 Token 趋势 — 柱状（参考图的形态；原先是一条折线）。
  * ------------------------------------------------------------------------- */
-/** Bar height as a percentage of the plot, floored at `.pw-bars i { min-height: 2px }`. */
+/** Bar height as a percentage of the plot, floored at `.d-bars i { min-height: 4px }`. */
 function barHeight(value: number, max: number): string {
   if (value <= 0) return "2%";
   return `${Math.max(2, Math.round((value / max) * 100))}%`;
@@ -208,11 +295,11 @@ function DayAxis({ days }: { days: readonly UsageDayPointLike[] }): ReactNode {
         gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
         gap: 3,
         justifyItems: "center",
-        marginTop: "var(--s1)",
+        marginTop: "var(--nx-sp-1)",
       }}
     >
       {days.map((day, index) => (
-        <span key={`x-${day.day}`} className="pw-mono pw-dim" style={{ whiteSpace: "nowrap" }}>
+        <span key={`x-${day.day}`} className="d-mono d-t-faint" style={{ whiteSpace: "nowrap" }}>
           {index % xLabelEvery === 0 || index === days.length - 1 ? shortDay(day.day) : null}
         </span>
       ))}
@@ -227,20 +314,53 @@ export function UsageDailyBars({
   days: readonly UsageDayPointLike[];
   label: string;
 }): ReactNode {
+  const mobile = useIsMobile();
   if (days.length === 0) return <EmptyChart label="—" />;
 
   const max = Math.max(1, ...days.map((day) => day.tokens));
+  // fork:v5-landing Wave B · M-09 帧 C：`.m-bars` + `.m-hist-row` 的星期标。
+  const mobileAxis = (source: readonly UsageDayPointLike[]) => {
+    const every = Math.max(1, Math.ceil(source.length / 7));
+    return (
+      <span className="m-hist-row">
+        {source.map((day, index) => (
+          <span
+            key={`x-${day.day}`}
+            className={index === source.length - 1 ? "m-t-xs m-t-b" : "m-t-xs m-t-faint"}
+          >
+            {index % every === 0 || index === source.length - 1 ? mondayIndex(day.day) + 1 : null}
+          </span>
+        ))}
+      </span>
+    );
+  };
+
+  if (mobile) {
+    return (
+      <div className="m-setrow">
+        <span className="m-setrow-body">
+          <span className="m-setrow-t">{label}</span>
+          <span className="m-bars" role="img" aria-label={label}>
+            {days.map((day) => (
+              <i key={day.day} title={`${day.day} · ${day.tokens.toLocaleString()}`} style={{ height: barHeight(day.tokens, max) }} />
+            ))}
+          </span>
+          {mobileAxis(days)}
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <div role="img" aria-label={label} style={{ marginTop: "var(--s2)" }}>
-      {/* `.pw-bars` 自带 64px 的画布高度（画板 45 §每日 Token 趋势 就是默认高度）。 */}
-      <div className="pw-bars">
-        {days.map((day) => (
+    <div role="img" aria-label={label} style={{ marginTop: "var(--nx-sp-2)" }}>
+      {/* 画板 D-19 帧 C：柱条自基线长起，逐根错峰（.d-bars + .d-bar-rise）。 */}
+      <div className="d-bars" style={{ height: 64 }}>
+        {days.map((day, index) => (
           <i
             key={day.day}
-            className={day.tokens >= max ? "hot" : undefined}
+            className="d-bar-rise"
             title={`${day.day} · ${day.tokens.toLocaleString()}`}
-            style={{ height: barHeight(day.tokens, max) }}
+            style={{ height: barHeight(day.tokens, max), animationDelay: `${Math.min(index * 20, 560)}ms` }}
           />
         ))}
       </div>
@@ -263,43 +383,75 @@ export function UsageRequestsErrors({
   requestsLabel: string;
   errorsLabel: string;
 }): ReactNode {
+  const mobile = useIsMobile();
   if (days.length === 0) return <EmptyChart label="—" />;
 
   // 两条序列共用同一个 max（请求与失败都按它归一），所以两行的高度可直接对比。
   const max = Math.max(1, ...days.map((day) => day.messages), ...days.map((day) => day.errors));
 
+  // fork:v5-landing Wave B · M-09 帧 C：手机上仍然是两条 `.m-bars`，
+  // 只是改成一列里的上下两行（图例在图上方），口径不变。
+  if (mobile) {
+    return (
+      <div className="m-setrow">
+        <span className="m-setrow-body">
+          <span className="m-setrow-t">{label}</span>
+          <span className="m-row-m">
+            <span className="m-dot run" />
+            <span>{requestsLabel}</span>
+            <span className="m-dot" />
+            <span>{errorsLabel}</span>
+          </span>
+          <span className="m-bars" role="img" aria-label={requestsLabel}>
+            {days.map((day) => (
+              <i key={`r-${day.day}`} title={`${day.day} · ${requestsLabel} ${day.messages}`} style={{ height: barHeight(day.messages, max) }} />
+            ))}
+          </span>
+          <span className="m-bars" role="img" aria-label={errorsLabel}>
+            {days.map((day) => (
+              <i
+                key={`e-${day.day}`}
+                title={day.errors > 0 ? `${day.day} · ${errorsLabel} ${day.errors}` : undefined}
+                style={{ height: barHeight(day.errors, max), background: "var(--nx-surface-hi)" }}
+              />
+            ))}
+          </span>
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div role="img" aria-label={label} style={{ marginTop: "var(--s2)" }}>
-      {/* 画板 45 §用量统计 注记：「图表只用三种色：accent（主）、n-border（次要）、
-          n-hover（其它）……不引入新色相」。请求是主序列走 accent，失败是次要序列
-          走 n-border（产品的 Zeno 槽位 `--border`）—— 不再用 error 红。 */}
-      <div className="pw-legend">
-        <div className="li">
-          <span className="sw" style={{ background: "var(--accent)" }} />
-          <span className="grow">{requestsLabel}</span>
-        </div>
-        <div className="li">
-          <span className="sw" style={{ background: "var(--border)" }} />
-          <span className="grow">{errorsLabel}</span>
-        </div>
+    <div role="img" aria-label={label} style={{ marginTop: "var(--nx-sp-2)" }}>
+      {/* 画板 D-19 帧 C：图例只两种色 —— accent（主序列）与次要灰。 */}
+      <div className="d-row d-t-xs" style={{ gap: "var(--nx-sp-3)" }}>
+        <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}>
+          <span className="d-dot" style={{ background: "var(--nx-accent)" }} />
+          {requestsLabel}
+        </span>
+        <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}>
+          <span className="d-dot" style={{ background: "var(--nx-surface-hi)" }} />
+          {errorsLabel}
+        </span>
       </div>
       {/* 上排 = 请求，下排 = 失败的工具调用；画布高度照画板 45 §请求与错误。 */}
-      <div className="pw-bars" style={{ height: "56px", marginTop: "var(--s2)" }}>
-        {days.map((day) => (
+      <div className="d-bars" style={{ height: "56px", marginTop: "var(--nx-sp-2)" }}>
+        {days.map((day, index) => (
           <i
             key={`r-${day.day}`}
-            className={day.messages >= max ? "hot" : undefined}
+            className="d-bar-rise"
             title={`${day.day} · ${requestsLabel} ${day.messages}`}
-            style={{ height: barHeight(day.messages, max) }}
+            style={{ height: barHeight(day.messages, max), animationDelay: `${Math.min(index * 20, 560)}ms` }}
           />
         ))}
       </div>
-      <div className="pw-bars" style={{ height: "56px" }}>
-        {days.map((day) => (
+      <div className="d-bars" style={{ height: "56px" }}>
+        {days.map((day, index) => (
           <i
             key={`e-${day.day}`}
+            className="d-bar-rise"
             title={day.errors > 0 ? `${day.day} · ${errorsLabel} ${day.errors}` : undefined}
-            style={{ height: barHeight(day.errors, max), background: "var(--border)" }}
+            style={{ height: barHeight(day.errors, max), background: "var(--nx-surface-hi)", animationDelay: `${Math.min(index * 20, 560)}ms` }}
           />
         ))}
       </div>
@@ -318,15 +470,38 @@ export interface UsageShareSlice {
 }
 
 export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSlice[]; label: string }): ReactNode {
+  const mobile = useIsMobile();
   const visible = slices.filter((slice) => slice.share > 0);
   if (visible.length === 0) return null;
-  // 画板 45 §按项目 列表里那根「轨道 + 填充」进度条：轨道 `--n-surface` 起步，
-  // 段与段之间不留缝，圆角是 3 那一档（`--radius-3`）。
+  if (mobile) {
+    // fork:v5-landing Wave B · M-09 帧 C：占比条在手机上是模型行上方那一根
+    // `.m-hist-row` 分段条（同一份数据，同一个 max 归一）。
+    return (
+      <div
+        className="m-hist-row"
+        role="img"
+        aria-label={label}
+        style={{ marginTop: "var(--nx-sp-2)" }}
+      >
+        {visible.map((slice, index) => (
+          <span
+            key={slice.key}
+            title={`${slice.key} · ${(slice.share * 100).toFixed(1)}%`}
+            style={{
+              width: `${Math.max(slice.share * 100, 0.5)}%`,
+              background: "var(--nx-accent)",
+              opacity: Math.max(0.3, 1 - index * 0.18),
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
   return (
     <div
       role="img"
       aria-label={label}
-      style={{ display: "flex", gap: 0, width: "100%", height: "var(--s2)", marginTop: "var(--s2)", borderRadius: "var(--radius-3)", overflow: "hidden", background: "var(--bg-hover)" }}
+      style={{ display: "flex", gap: 0, width: "100%", height: "var(--nx-sp-2)", marginTop: "var(--nx-sp-2)", borderRadius: "var(--nx-r-xs)", overflow: "hidden", background: "var(--nx-surface-hi)" }}
     >
       {visible.map((slice, index) => (
         <span
@@ -334,7 +509,7 @@ export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSl
           title={`${slice.key} · ${(slice.share * 100).toFixed(1)}%`}
           style={{
             width: `${Math.max(slice.share * 100, 0.5)}%`,
-            background: "var(--accent)",
+            background: "var(--nx-accent)",
             opacity: Math.max(0.3, 1 - index * 0.18),
           }}
         />
@@ -357,16 +532,27 @@ export function UsageListRow({
   trailing: string;
   accent?: boolean;
 }): ReactNode {
+  const mobile = useIsMobile();
+  // fork:v5-landing Wave B · M-09 帧 C：手机上的模型 / 项目行 = `.m-setrow`
+  // （图标 + 名字 + 口径副行 + 右侧数字），名字可长可短，不再挤成一行。
+  if (mobile) {
+    return (
+      <div className="m-setrow">
+        <i data-ico={accent ? "chart-pie" : "folder"} data-size="16" aria-hidden="true" />
+        <span className="m-setrow-body">
+          <span className="m-setrow-t m-mono" title={title}>{title}</span>
+          <span className="m-setrow-s">{meta}</span>
+        </span>
+        <span className="m-t-b">{trailing}</span>
+      </div>
+    );
+  }
   return (
-    <div className="pw-litem">
-      {accent && (
-        <span className="pw-ico"><i data-ico="chart-pie" data-size="14" /></span>
-      )}
-      <span className="grow">
-        <span className="pw-lname" title={title}>{title}</span>
-        <span className="pw-lsub pw-mono">{meta}</span>
-      </span>
-      <span className="pw-mono">{trailing}</span>
+    <div className="d-row d-t-xs" style={{ padding: "3px 0" }}>
+      {accent && <i data-ico="chart-pie" data-size="14" aria-hidden="true" />}
+      <span className="d-grow d-mono" title={title}>{title}</span>
+      <span className="d-t-dim">{meta}</span>
+      <span className="d-t-faint">{trailing}</span>
     </div>
   );
 }

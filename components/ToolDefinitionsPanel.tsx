@@ -83,7 +83,7 @@ function toolIcon(name: string): string {
 }
 
 /**
- * 画板 22 的列表行末尾有一枚 `.pw-desc` 短标签。真实描述是一整段，取第一句并截断，
+ * 画板 22 的列表行末尾有一枚短标签。真实描述是一整段，取第一句并截断，
  * 只当「一眼分类」用；完整描述仍在右侧详情里，所以这里丢了信息也不算丢信息。
  */
 function shortLabel(description: string): string | undefined {
@@ -128,27 +128,28 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
   const fields = selectedTool ? getToolParameterFields(selectedTool.parameters) : [];
   const selectedLabel = selectedTool ? shortLabel(selectedTool.description) : undefined;
 
+  /* fork:v5-landing —— 行原子 = 画板 D-02b 帧 A ② 的 `.d-menu-row`：选中行把图标位
+     换成对勾（画板「选中行」八态），名字 `d-grow d-mono`、短标签 `d-t-xs d-t-faint`。
+     未启用行是弱化的 `.d-menu-row`（`d-t-faint`），不做 disabled button（避免焦点陷阱）。
+     名字 `d-grow` 可收缩、短标签上限 96px 这两条是产品真值（fix:tools-panel-width），
+     画板没有，故以内联宽度保留。 */
   const row = (tool: ToolEntry, selectable: boolean) => {
     const selected = selectable && tool.name === selectedTool?.name;
     const label = shortLabel(tool.description);
-    const body = (
-      <>
-        <span className="pw-ico"><i data-ico={toolIcon(tool.name)} data-size="14"></i></span>
-        {/* fix:tools-panel-width —— 名字先拿空间、短标签后让位。原来是名字 `grow`
-            而短标签写死 `maxWidth: 45%`：左栏 112px 时 45% 只剩 50px，名字被压成
-            「I…」「b…」。现在名字 `flex: 1 1 auto`（可收缩、省略号），短标签
-            `flex: 0 1 auto` 且上限 96px，两条都是「谁多余谁先让」。 */}
-        <span className="pw-mono" style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-meta)" }}>{tool.name}</span>
-        {label ? (
-          <span className="pw-desc" style={{ flex: "0 1 auto", maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-        ) : null}
-      </>
-    );
+    const trailing = label ? (
+      <span
+        className="d-t-xs d-t-faint"
+        style={{ flex: "0 1 auto", maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      >
+        {label}
+      </span>
+    ) : null;
     if (!selectable) {
-      // 画板 22 的未启用行是 `.pw-prow` + `opacity:.5`（不是禁用态 button，避免焦点陷阱）。
       return (
-        <div key={tool.name} className="pw-prow" style={{ opacity: 0.5, width: "100%" }} title={tool.description || tool.name}>
-          {body}
+        <div key={tool.name} className="d-menu-row" style={{ cursor: "default" }} title={tool.description || tool.name}>
+          <i data-ico={toolIcon(tool.name)} data-size="14" aria-hidden="true" className="d-t-faint"></i>
+          <span className="d-grow d-mono d-t-faint">{tool.name}</span>
+          {trailing}
         </div>
       );
     }
@@ -156,21 +157,24 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
       <button
         key={tool.name}
         type="button"
-        className={`pw-prow${selected ? " is-on" : ""}`}
-        style={{ width: "100%" }}
+        className="d-menu-row"
         aria-pressed={selected}
         onClick={() => setSelectedToolName(tool.name)}
         title={tool.description || tool.name}
       >
-        {body}
+        {selected
+          ? <i data-ico="check" data-size="14" aria-hidden="true"></i>
+          : <i data-ico={toolIcon(tool.name)} data-size="14" aria-hidden="true"></i>}
+        <span className="d-grow d-mono">{tool.name}</span>
+        {trailing}
       </button>
     );
   };
 
   return (
     // fork:design-system SW-14 —— 左列表 + 右详情 = 画板 22：
-    // 左 pw-pop（pw-pop-search 头 + 已启用/未启用 pw-pop-title 分组 + pw-prow 行），
-    // 右 pw-pop 详情（accent 图标 + 工具名 + 短标签徽章 + 已启用徽章 + pw-sec-title + 参数）。
+    // 左 d-searchfield 头 + 已启用/未启用 d-pop-title 分组 + d-menu-row 行，
+    // 右详情（accent 图标 + 工具名 + 短标签徽章 + 已启用徽章 + 参数 d-table + 使用指南）。
     // 参数表维持两列（名字 + 类型/描述/允许值/默认）——⊘ DIVERGENCE 29 信息等价，不压四列。
     // 两列网格 clamp(240px, 30%, 300px)：左列表按画板 22 的 300px 量级给（工具名
     // 是 `get_subagent_result` 这种长度，112px 装不下就会全被截成一个字母），
@@ -180,99 +184,94 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
       style={{
         display: "grid",
         gridTemplateColumns: "clamp(240px, 30%, 300px) minmax(0, 1fr)",
-        gap: "var(--s3)",
+        gap: "var(--nx-sp-3)",
         height: "min(600px, 75dvh)",
         minHeight: 240,
-        padding: "var(--s3)",
         overflow: "hidden",
-        background: "var(--surface-canvas)",
       }}
     >
       <nav
-        className="tool-definitions-sidebar pw-pop"
+        className="tool-definitions-sidebar d-col"
         aria-label={translate("tools.title")}
-        style={{ display: "flex", flexDirection: "column", minHeight: 0, width: "auto", padding: 0, overflow: "hidden" }}
+        style={{ minHeight: 0 }}
       >
-        <div className="pw-pop-search" style={{ margin: "0 0 var(--s1)" }}>
-          <span className="pw-ico"><i data-ico="search" data-size="14"></i></span>
+        <div className="d-searchfield" style={{ margin: "0 0 var(--nx-sp-1)" }}>
+          <i data-ico="search" data-size="13" aria-hidden="true"></i>
           <input
-            className="pw-input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={translate("tools.searchPlaceholder")}
             aria-label={translate("tools.searchPlaceholder")}
-            style={{ minWidth: 0, flex: 1, height: "var(--control-xs)", border: 0, background: "transparent" }}
           />
         </div>
-        <div className="tool-definitions-list" style={{ minHeight: 0, flex: 1, overflowY: "auto", padding: "0 var(--s1) var(--s1)" }}>
+        <div className="tool-definitions-list d-scroll" style={{ minHeight: 0, flex: 1, padding: "0 var(--nx-sp-1) var(--nx-sp-1)" }}>
           {shownActive && shownActive.length > 0 ? (
             <>
-              <div className="pw-pop-title">{translate("tools.enabledGroup", { count: shownActive.length })}</div>
+              <div className="d-pop-title">{translate("tools.enabledGroup", { count: shownActive.length })}</div>
               {shownActive.map((tool) => row(tool, true))}
               {shownInactive && shownInactive.length > 0 && (
                 <>
-                  <div className="pw-pop-title">{translate("tools.disabledGroup", { count: shownInactive.length })}</div>
+                  <div className="d-pop-title">{translate("tools.disabledGroup", { count: shownInactive.length })}</div>
                   {shownInactive.map((tool) => row(tool, false))}
                 </>
               )}
             </>
           ) : activeTools && (shownActive?.length ?? 0) === 0 && needle ? (
-            <div className="pw-prow"><span className="pw-desc">{translate("tools.noMatches")}</span></div>
+            <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{translate("tools.noMatches")}</span></div>
           ) : activeTools ? (
-            <div className="pw-prow"><span className="pw-desc">{translate("tools.noTools")}</span></div>
+            <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{translate("tools.noTools")}</span></div>
           ) : (
-            <div className="pw-prow"><span className="pw-desc">{loading ? translate("tools.loading") : translate("tools.load")}</span></div>
+            <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{loading ? translate("tools.loading") : translate("tools.load")}</span></div>
           )}
         </div>
       </nav>
 
       <section
-        className="tool-definition-detail pw-pop"
+        className="tool-definition-detail d-col"
         aria-label={translate("tools.details")}
-        style={{ minWidth: 0, minHeight: 0, width: "auto", padding: "var(--s3) var(--s4)", overflowY: "auto" }}
+        style={{ minWidth: 0, minHeight: 0, overflowY: "auto", gap: "var(--nx-sp-2)" }}
       >
         {selectedTool ? (
           <>
-            <div className="pw-inline" style={{ marginBottom: "var(--s2)" }}>
-              <span className="pw-ico" style={{ color: "var(--accent-text)" }}><i data-ico={toolIcon(selectedTool.name)} data-size="16"></i></span>
-              <b className="pw-mono" style={{ fontWeight: 500, fontSize: "var(--text-title)", color: "var(--n-strong)", overflowWrap: "anywhere" }}>{selectedTool.name}</b>
-              {selectedLabel ? <span className="pw-badge">{selectedLabel}</span> : null}
-              <span className="grow" />
-              <span className="pw-badge ok">{translate("tools.enabledBadge")}</span>
+            <div className="d-row">
+              <i data-ico={toolIcon(selectedTool.name)} data-size="16" aria-hidden="true" style={{ color: "var(--nx-accent)" }}></i>
+              <span className="d-t-b d-mono" style={{ overflowWrap: "anywhere" }}>{selectedTool.name}</span>
+              {selectedLabel ? <span className="d-badge mute">{selectedLabel}</span> : null}
+              <span className="d-grow" />
+              <span className="d-badge ok">{translate("tools.enabledBadge")}</span>
             </div>
             {selectedTool.description && (
-              <p style={{ margin: "0 0 var(--s3)", color: "var(--n-muted)", fontSize: "var(--text-secondary)", lineHeight: 1.55, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>
+              <p className="d-t-cap d-t-dim" style={{ margin: 0, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>
                 {selectedTool.description}
               </p>
             )}
 
-            <div className="pw-sec-title">
-              <span>{translate("tools.parameters")}</span>
-              <span className="grow" />
-              <span className="pw-badge count">{translate("tools.parameterCount", { count: fields.length })}</span>
+            <div className="d-row">
+              <span className="d-t-xs d-t-faint">{translate("tools.parameters")}</span>
+              <span className="d-badge mute">{translate("tools.parameterCount", { count: fields.length })}</span>
             </div>
             {fields.length > 0 ? (
-              <table className="pw-table" style={{ fontSize: "var(--text-meta)" }}>
+              <table className="d-table">
                 <tbody>
                   {fields.map((field) => (
                     <tr key={field.name}>
                       <td style={{ whiteSpace: "nowrap" }}>
-                        <span className="pw-mono">{field.name}</span>
+                        <span className="d-mono">{field.name}</span>
                         {field.required && (
-                          <span className="pw-badge bad" style={{ marginLeft: "var(--space-row)" }}>{translate("tools.required")}</span>
+                          <span className="d-badge bad" style={{ marginLeft: "var(--nx-sp-2)" }}>{translate("tools.required")}</span>
                         )}
                       </td>
                       <td style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                        <span className="pw-mono">{field.type}</span>
-                        {field.description && <div style={{ color: "var(--n-muted)" }}>{field.description}</div>}
+                        <span className="d-mono">{field.type}</span>
+                        {field.description && <div className="d-t-faint">{field.description}</div>}
                         {field.allowedValues && (
-                          <div style={{ color: "var(--n-placeholder)" }}>
-                            {translate("tools.allowedValues")}: <span className="pw-mono">{field.allowedValues}</span>
+                          <div className="d-t-faint">
+                            {translate("tools.allowedValues")}: <span className="d-mono">{field.allowedValues}</span>
                           </div>
                         )}
                         {field.defaultValue !== undefined && (
-                          <div style={{ color: "var(--n-placeholder)" }}>
-                            {translate("tools.defaultValue")}: <span className="pw-mono">{field.defaultValue}</span>
+                          <div className="d-t-faint">
+                            {translate("tools.defaultValue")}: <span className="d-mono">{field.defaultValue}</span>
                           </div>
                         )}
                       </td>
@@ -281,13 +280,13 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
                 </tbody>
               </table>
             ) : (
-              <div className="pw-prow"><span className="pw-desc">{translate("tools.noParameters")}</span></div>
+              <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{translate("tools.noParameters")}</span></div>
             )}
 
             {selectedTool.promptGuidelines && selectedTool.promptGuidelines.length > 0 && (
               <>
-                <div className="pw-sec-title" style={{ marginTop: "var(--s3)" }}>{translate("tools.guidelines")}</div>
-                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--n-muted)", fontSize: "var(--text-secondary)", lineHeight: 1.55 }}>
+                <div className="d-t-xs d-t-faint" style={{ marginTop: "var(--nx-sp-2)" }}>{translate("tools.guidelines")}</div>
+                <ul className="d-t-cap d-t-dim" style={{ margin: 0, paddingLeft: 18 }}>
                   {selectedTool.promptGuidelines.map((guideline, index) => (
                     <li key={`${selectedTool.name}:${index}`}>{guideline}</li>
                   ))}
@@ -296,8 +295,8 @@ export function ToolDefinitionsPanel({ loading, tools, translate }: Props) {
             )}
           </>
         ) : (
-          <div className="pw-prow">
-            <span className="pw-desc">
+          <div className="d-menu-row" style={{ cursor: "default" }}>
+            <span className="d-t-faint">
               {activeTools
                 ? translate("tools.noTools")
                 : loading
