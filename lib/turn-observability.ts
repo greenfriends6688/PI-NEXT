@@ -28,7 +28,7 @@
  * 沿用 `lib/usage-stats.ts` 的 `(size, mtimeMs)` 缓存失效法即可。
  */
 
-import { mkdirSync, readFileSync, appendFileSync } from "node:fs";
+import { mkdirSync, appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 /** 一轮的观测记录。字段全可选 —— 缺就是「这次没上报」，不是「值为 0」。 */
@@ -101,36 +101,18 @@ export function parseTurnLogLine(raw: string): TurnLogRow | null {
   }
 }
 
-/** 默认落盘位置。与 usage 的缓存同一个 agent 目录树下，但**另一个文件**。 */
-export function turnLogPath(agentDir: string): string {
-  return join(agentDir, "pi-web", "turns.jsonl");
-}
-
-/**
- * 读回某一会话的全部观测（时间升序）。
+/*
+ * 这里**刻意只有写、没有读**。
  *
- * 上限是为了防「一个几千轮的长会话把内存吃光」—— 真要看全量的场合应该去 grep
- * 文件，这里给的是面板/诊断用的窗口。
+ * 读的那一半（按会话取回、按日聚合）目前没有任何调用方：写盘挂在
+ * `hooks/useAgentSession.ts` 的 `settleUiStage`（本轮结束的唯一出口），而读侧的
+ * 入口得先有一个真的展示它的地方才值得写 —— 诊断时直接 `grep turns.jsonl` 就够，
+ * 而提前写一个没人调用的查询 API 就是死代码。
+ *
+ * 落盘路径也一并去掉了：原本那个 `turnLogPath()` 只有写入路由该用，而路由走的是
+ * `getAgentDir() + "/pi-web/turns.jsonl"` 字面量（那里本来就有注释解释为什么不用
+ * 这个助手）。真要加读侧时，这里连同聚合一起补。
  */
-export function readTurnObservations(
-  path: string,
-  sessionId: string,
-  limit = 200,
-): TurnLogRow[] {
-  let raw: string;
-  try {
-    raw = readFileSync(path, "utf8");
-  } catch {
-    return [];
-  }
-  const out: TurnLogRow[] = [];
-  for (const line of raw.split("\n")) {
-    const row = parseTurnLogLine(line);
-    if (row && row.sessionId === sessionId) out.push(row);
-  }
-  out.sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0));
-  return limit > 0 && out.length > limit ? out.slice(out.length - limit) : out;
-}
 
 /** 追加一行。返回是否真的写进去了（不合格的观测返回 false，且不留半行）。 */
 export function appendTurnObservation(path: string, observation: TurnObservation): boolean {

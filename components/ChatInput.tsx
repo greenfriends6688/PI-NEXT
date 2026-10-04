@@ -53,7 +53,7 @@ import {
 } from "@/lib/favorite-models";
 import { ComposerContextStrip } from "./ComposerContextStrip";
 // fork:element-picker —— 浏览器面板「拾取元素」的交接口。
-import { subscribeBrowserPick, takeBrowserPick } from "@/lib/browser-element-pick";
+import { clearBrowserPick, subscribeBrowserPick, takeBrowserPick } from "@/lib/browser-element-pick";
 import { TodoChip } from "./fork/TodoChip";
 // fork:zc-08 — 附件 chip 的多类型预览（PDF / DOCX / 音视频 / 文本）。
 import { AttachmentPreview } from "./fork/AttachmentPreview";
@@ -1213,6 +1213,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     setSelectionContexts((current) =>
       current.some((item) => item.id === context.id) ? current : [...current, context]);
   }), []);
+
+  /*
+   * fork:element-picker —— 换会话就丢掉**还没被消费**的那一条。
+   *
+   * 投递是单次的：正常情况下 `takeBrowserPick()` 在上面的订阅回调里立刻被取走，
+   * 所以这里清的是**竞态** —— 用户在浏览器面板点了元素、还没切回输入框就切了会话。
+   * 不清的话，那条 `@` 引用会落进新会话，而它的 `id` 里带的是**上一个会话的页面**。
+   * 面板那一侧清不掉（它不知道会话变了），所以这一道必须在这儿。
+   */
+  useEffect(() => {
+    return () => { clearBrowserPick(); };
+  }, [currentSessionId]);
 
   // fork:ui-stats-ring —— 环浮窗支持点击圆环**钉住**（/session 命令与触屏也靠它打开）。
   const [ringPinned, setRingPinned] = useState(false);

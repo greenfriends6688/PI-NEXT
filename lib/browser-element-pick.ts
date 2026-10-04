@@ -220,11 +220,6 @@ export function takeBrowserPick(): BrowserPick | null {
   return pick;
 }
 
-/** 只读窥视，给测试与诊断用。 */
-export function peekBrowserPick(): BrowserPick | null {
-  return pendingPick;
-}
-
 export function subscribeBrowserPick(listener: PickListener): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
