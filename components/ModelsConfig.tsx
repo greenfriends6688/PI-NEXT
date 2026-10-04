@@ -19,7 +19,7 @@ import {
   countUnknownCompatKeys,
   hasModelCostDraftValue,
   hasModelCostTierDraftValue,
-  KNOWN_MODEL_APIS,
+  modelApiChoices,
   modelCostTierToDraft,
   modelCostToDraft,
   parseCompleteModelCost,
@@ -180,6 +180,53 @@ type ModelTestState =
   | { phase: "success"; latencyMs?: number; status?: number; responseText?: string }
   | { phase: "error"; message: string; latencyMs?: number; status?: number };
 
+/* fork:model-row-inline —— 模型行的 🔌「测试模型」与编辑器里的那枚是**同一次调用**。
+   两边各写一份 POST 的话，改了路由或错误处理只记得住一处；把网络那一段提出来，
+   状态机（testing / success / error）留在调用方，因为行内只关心「这一行正在测」。 */
+async function postModelTest(
+  body: { providerName: string; provider: ProviderEntry; model: ModelEntry },
+): Promise<ModelTestState> {
+  try {
+    const res = await fetch("/api/models-config/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json() as {
+      ok?: boolean;
+      error?: string;
+      latencyMs?: number;
+      status?: number;
+      responseText?: string;
+    };
+    if (!res.ok || !d.ok) {
+      return {
+        phase: "error",
+        message: d.error ?? `HTTP ${res.status}`,
+        latencyMs: d.latencyMs,
+        status: d.status,
+      };
+    }
+    return { phase: "success", latencyMs: d.latencyMs, status: d.status, responseText: d.responseText };
+  } catch (e) {
+    return { phase: "error", message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/* fork:model-row-badges —— 模型行的能力徽标（对齐 ZCode 的那三枚：名称 / 1M / 视觉）。
+   `contextWindow` 与 `input` 本来就写在 models.json 里，只是列表一直没读它们 ——
+   于是「这个模型多大、支不支持图」要去点进编辑器才看得见。 */
+function formatContextWindowBadge(contextWindow?: number): string | null {
+  if (!contextWindow || !Number.isFinite(contextWindow) || contextWindow <= 0) return null;
+  // 与 ZCode 一致：≥100 万走 M、≥1000 走 K，其余原数（1M / 262.1K）。
+  if (contextWindow >= 1_000_000) {
+    const m = contextWindow / 1_000_000;
+    return `${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
+  if (contextWindow >= 1000) return `${(contextWindow / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+  return String(contextWindow);
+}
+
 type ModelDiscoveryState =
   | { phase: "idle" }
   | { phase: "loading" }
@@ -232,11 +279,11 @@ function customSelectionExists(config: ModelsJson, selection: Selection): boolea
 }
 
 /**
- * fork:model-api-protocols (B4) —— 协议下拉与 `KNOWN_MODEL_APIS` 同源：
+ * fork:model-api-protocols (B4) —— 协议下拉与 `KNOWN_MODEL_APIS` 同源（经 `modelApiChoices`）：
  * 那份清单的来源与三条自证写在 components/models-config-helpers.ts 的定义处
  * （pi-ai `types.d.ts:15` 的 `KnownApi` 联合类型，不是印象）。
  */
-const API_OPTIONS = KNOWN_MODEL_APIS;
+const API_OPTIONS = modelApiChoices();
 
 // ── Form field helpers ────────────────────────────────────────────────────────
 
@@ -329,11 +376,13 @@ function NumInput({ value, onChange, placeholder }: { value: string; onChange: (
   );
 }
 
-function Select({ value, onChange, options, required, ariaLabel }: { value: string; onChange: (v: string) => void; options: readonly string[]; required?: boolean; ariaLabel: string }) {
+function Select({ value, onChange, options, required, ariaLabel }: { value: string; onChange: (v: string) => void; options: readonly (string | { value: string; label: string })[]; required?: boolean; ariaLabel: string }) {
   const { t } = useI18n();
+  // fork:api-labels —— 选项可以是纯字符串（label = value），也可以是
+  // `{value,label}`：协议下拉要显示人话，落盘仍是内部 id。
   const choices = [
     ...(required ? [] : [{ value: "", label: `— ${t("i18n.default")} / none —` }]),
-    ...options.map((o) => ({ value: o, label: o })),
+    ...options.map((o) => (typeof o === "string" ? { value: o, label: o } : o)),
   ];
   return <PwSelectBox value={value} options={choices} ariaLabel={ariaLabel} onChange={onChange} />;
 }
@@ -530,6 +579,17 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
      「上次同步」是本次打开面板后真的成功导入过一次才有的事实，没有就明说没有。 */
   const [lastSync, setLastSync] = useState<{ at: number; count: number } | null>(null);
   const [modelFilter, setModelFilter] = useState("");
+  /* fork:model-row-inline —— 行内 🔌 的结果，按行下标存。
+     一行一个 entry 而不是「一个全局 testState」，否则点第二行会把第一行的
+     结果冲掉。key 用下标而不是 model.id：同一 provider 里允许出现两条同 id
+     的草稿条目（下标唯一），而 id 在这种情况下不唯一。 */
+  const [rowTests, setRowTests] = useState<Record<number, ModelTestState>>({});
+  const testRowModel = useCallback(async (index: number, model: ModelEntry) => {
+    if (!model.id.trim()) return;
+    setRowTests((prev) => ({ ...prev, [index]: { phase: "testing" } }));
+    const result = await postModelTest({ providerName: name, provider, model });
+    setRowTests((prev) => ({ ...prev, [index]: result }));
+  }, [name, provider]);
   const authSummary = (() => {
     const key = provider.apiKey?.trim();
     if (!key) return t("models.kvAuthNotSet");
@@ -569,15 +629,32 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
           <ConfigDetailHeaderInfo>
             <ProviderIcon id={name} size={22} />
             <ConfigDetailTitle>{name}</ConfigDetailTitle>
-            <ConfigBadge tone="count">{provider.api ?? "openai-completions"}</ConfigBadge>
             <span className="pw-grow" aria-hidden="true" />
             <EnabledModelsProviderSwitch providerId={name} controller={enabledModels} />
             <ConfigButton variant="danger" size="small" onClick={onDelete}>{t("i18n.delete")}</ConfigButton>
           </ConfigDetailHeaderInfo>
         </ConfigDetailHeader>
+        {/* fork:provider-inline-fields —— 地址 / 协议 / 密钥**就地可改**，不再只能看。
+            以前这三个值印在只读的 `.pw-kv` 表里（改它们要去下面第四张「连接与请求」
+            卡），于是「这家到底打哪个端点、用哪个协议」与「去改它」被拆成两个地方。
+            这里是**移动**而不是复制：「连接与请求」卡里那三行同时删掉了，
+            同一个值不留两个输入框。
+            顺序照 ZCode 的供应商卡（Base URL → API 格式 → API Key）。 */}
+        <ConfigField label={t("models.kvBaseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
+          <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
+            placeholder="https://api.example.com/v1" mono />
+        </ConfigField>
+
+        <ConfigField label={t("models.apiLabel")}>
+          <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required ariaLabel={t("models.apiLabel")} />
+        </ConfigField>
+
+        <ConfigField label={t("models.apiKeyLabel")} hint={t("models.apiKeyHint")}>
+          <SecretTextInput value={provider.apiKey ?? ""} onChange={(v) => set("apiKey", v || undefined)}
+            placeholder="ENV_VAR_NAME, !shell-command, or literal key" mono />
+        </ConfigField>
+
         <ConfigKv>
-          <dt>{t("models.kvBaseUrl")}</dt>
-          <dd className="pw-mono">{provider.baseUrl || "—"}</dd>
           <dt>{t("models.kvAuth")}</dt>
           <dd>{authSummary}</dd>
           <dt>{t("models.kvLastSync")}</dt>
@@ -628,24 +705,67 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
           <div className="pw-list">
             {configuredModels.map((model, index) => {
               const subtitle = modelSubtitle(model);
+              /* fork:model-row-inline —— 右侧三枚行内控件。形状照 ZCode 的模型行
+                 （名称 / 上下文徽标 / 视觉徽标 / 🔌 测试 / ✏️ 编辑 / 开关）。
+                 底座全是现成的：测试走 `postModelTest`（与编辑器同一个函数），
+                 编辑走 `onOpenModel`，开关走 `enabledModels.setModels`（与
+                 `.enabled-models-row` 同一个 controller）。不新增任何样式类。 */
+              const rowTest = rowTests[index];
+              const testing = rowTest?.phase === "testing";
+              const view = providerView?.models.find((entry) => entry.id === model.id);
+              const window_ = formatContextWindowBadge(model.contextWindow);
+              const vision = (model.input ?? []).some((modality) => modality === "image" || modality === "pdf");
+              const testTitle = !model.id.trim()
+                ? t("models.testModelNeedsId")
+                : rowTest && rowTest.phase !== "idle" && rowTest.phase !== "testing"
+                  ? rowTest.phase === "success"
+                    ? [t("i18n.connected"), rowTest.latencyMs !== undefined ? `${rowTest.latencyMs}ms` : null]
+                      .filter(Boolean).join(" · ")
+                    : [t("i18n.failed"), rowTest.message].filter(Boolean).join(" · ")
+                  : testing ? t("i18n.testingModel") : t("models.testModel");
               return (
-                <div
-                  key={index}
-                  className="pw-litem models-provider-model-row"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onOpenModel(index)}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter" && event.key !== " ") return;
-                    event.preventDefault();
-                    onOpenModel(index);
-                  }}
-                >
+                <div key={index} className="pw-litem models-provider-model-row">
+                  {/* 行**不再**是 button：它现在装着两个 button 和一个 switch，
+                      `role="button"` + 整行 onClick 会让行内控件既不可聚焦语义
+                      又抢不过冒泡（点开关等于点整行 = 误开编辑器）。 */}
                   <span className="grow">
                     <ConfigSidebarText>{model.name || model.id || t("i18n.newModel")}</ConfigSidebarText>
                     {subtitle ? <ConfigSidebarSub>{subtitle}</ConfigSidebarSub> : null}
                   </span>
+                  {window_ ? <ConfigBadge tone="count">{window_}</ConfigBadge> : null}
+                  {vision ? <ConfigBadge tone="count">{t("models.badgeVision")}</ConfigBadge> : null}
                   {model.reasoning ? <ConfigBadge tone="accent">{t("models.badgePinnable")}</ConfigBadge> : null}
+                  {rowTest && rowTest.phase === "error" ? <ConfigBadge tone="bad">{t("i18n.failed")}</ConfigBadge> : null}
+                  <button
+                    type="button"
+                    className="pw-iconbtn models-provider-model-action"
+                    disabled={!model.id.trim() || testing}
+                    title={testTitle}
+                    aria-label={testTitle}
+                    onClick={() => void testRowModel(index, model)}
+                  >
+                    <span className="pw-ico">
+                      <i data-ico={testing ? "loader-circle" : "zap"} data-size="13"></i>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="pw-iconbtn models-provider-model-action"
+                    title={t("models.editModel")}
+                    aria-label={t("models.editModel")}
+                    onClick={() => onOpenModel(index)}
+                  >
+                    <span className="pw-ico"><i data-ico="square-pen" data-size="13"></i></span>
+                  </button>
+                  <ConfigSwitch
+                    checked={view?.enabled ?? true}
+                    loading={enabledModels.pending === view?.ref}
+                    disabled={!view || !enabledModels.view?.editable}
+                    label={view
+                      ? t("models.enabledToggle", { model: model.name || model.id })
+                      : t("models.enabledUnavailable")}
+                    onChange={(checked) => view && enabledModels.setModels(view.ref, [view.ref], checked)}
+                  />
                 </div>
               );
             })}
@@ -784,20 +904,9 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
           <ProviderIconModePicker providerId={name} api={provider.api} />
         </ConfigField>
 
-        <ConfigField label={t("models.kvBaseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
-          <TextInput value={provider.baseUrl ?? ""} onChange={(v) => set("baseUrl", v || undefined)}
-            placeholder="https://api.example.com/v1" mono />
-        </ConfigField>
-
-        <ConfigField label={t("models.apiKeyLabel")} hint={t("models.apiKeyHint")}>
-          <SecretTextInput value={provider.apiKey ?? ""} onChange={(v) => set("apiKey", v || undefined)}
-            placeholder="ENV_VAR_NAME, !shell-command, or literal key" mono />
-        </ConfigField>
-
-        <ConfigField label={t("models.apiLabel")}>
-          <Select value={provider.api ?? "openai-completions"} onChange={(v) => set("api", v)} options={API_OPTIONS} required ariaLabel={t("models.apiLabel")} />
-        </ConfigField>
-
+        {/* fork:provider-inline-fields —— Base URL / API 格式 / API Key 已移到
+            上面的供应商头卡（同屏可改），这里只留其余的：重命名、图标、请求头、
+            兼容开关。三行真的删掉了，不是复制。 */}
         <ConfigField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
           <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
         </ConfigField>
@@ -1494,37 +1603,7 @@ function ModelDetail({
   const handleTest = useCallback(async () => {
     if (!model.id.trim() || testState.phase === "testing") return;
     setTestState({ phase: "testing" });
-    try {
-      const res = await fetch("/api/models-config/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerName, provider, model }),
-      });
-      const d = await res.json() as {
-        ok?: boolean;
-        error?: string;
-        latencyMs?: number;
-        status?: number;
-        responseText?: string;
-      };
-      if (!res.ok || !d.ok) {
-        setTestState({
-          phase: "error",
-          message: d.error ?? `HTTP ${res.status}`,
-          latencyMs: d.latencyMs,
-          status: d.status,
-        });
-        return;
-      }
-      setTestState({
-        phase: "success",
-        latencyMs: d.latencyMs,
-        status: d.status,
-        responseText: d.responseText,
-      });
-    } catch (e) {
-      setTestState({ phase: "error", message: e instanceof Error ? e.message : String(e) });
-    }
+    setTestState(await postModelTest({ providerName, provider, model }));
   }, [model, provider, providerName, testState.phase]);
 
   const handleCatalogFill = useCallback(async () => {

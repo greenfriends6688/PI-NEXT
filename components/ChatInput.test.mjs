@@ -238,6 +238,51 @@ test("流式中不再渲染「引导 / 后续消息」按钮（2026-10-02 用户
   assert.doesNotMatch(html, /Interrupt the current run/);
 });
 
+test("流式中这一格随草稿在 ⏸ 与 ↑ 之间切换（fork:send-stop-one-slot）", () => {
+  const shell = (props) => renderToStaticMarkup(
+    React.createElement(I18nProvider, null, React.createElement(ChatInput, {
+      onSend() {}, onAbort() {}, onFollowUp() {}, isStreaming: true, ...props,
+    })),
+  );
+
+  // 判据抄 ZCode（ConversationComposer.tsx:1135）：
+  //   const showStopControl = canStop && !hasDraftToSubmit;
+  // 「同一格」是硬要求：⏸ 与 ↑ 永不同时出现（用户 2026-10-05 裁定，
+  // 否决了 fork:zc-queue-2026-10-04 那个并排两枚的实验）。
+  const empty = shell({});
+  assert.match(empty, /class="pw-send stop"/);
+  assert.doesNotMatch(empty, /class="pw-send"/);
+
+  // 有草稿 → ⏸ 让位给 ↑，点了就是排队（不是静默无反应）。
+  // 草稿从 `lib/draft-store` 按 draftKey 读（不是 initialDraft prop），所以要先写再渲染。
+  const draftKey = "session-send-stop-one-slot";
+  clearDraft(draftKey);
+  setDraft(draftKey, { value: "接着说", images: [] });
+  const draft = renderToStaticMarkup(
+    React.createElement(I18nProvider, null, React.createElement(ChatInput, {
+      onSend() {}, onAbort() {}, onFollowUp() {}, isStreaming: true, draftKey,
+    })),
+  );
+  clearDraft(draftKey);
+  assert.match(draft, /class="pw-send"/);
+  assert.doesNotMatch(draft, /class="pw-send stop"/);
+
+  const source = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+  assert.match(source, /isStreaming && !hasDraftToSubmit \? stopButton : sendButton/);
+  // 「有草稿」不能只看文本：只挂了引用、没打字的草稿同样能发，
+  // 只排文本会把那枚本该能点的 ↑ 错判掉。
+  assert.match(source, /selectionContexts\.length/);
+  assert.match(source, /sessionReferences\.length/);
+  assert.match(source, /onClick=\{isStreaming && onFollowUp \? sendQueued : handleSend\}/);
+  // 三个渲染位（compact / 窄屏 / 桌面）都走同一个量，不留旧的二选一写法。
+  // 先剥掉注释：ChatInput.tsx 的说明里**故意**引用了那个旧表达式作为对照，
+  // 直接全文匹配会被自己的文档判成「旧写法还在」。
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  assert.doesNotMatch(code, /isStreaming \? stopButton : sendButton/);
+  // 一处定义 + 三处渲染位（compact / 窄屏 / 桌面）= 4，且三个渲染位都只经由它。
+  assert.equal(code.match(/\bcomposerSendCluster\b/g)?.length, 4);
+});
+
 test("renders the upstream model error", () => {
   const html = renderToStaticMarkup(
     React.createElement(

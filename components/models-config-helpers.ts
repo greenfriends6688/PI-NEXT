@@ -53,6 +53,34 @@ export const KNOWN_MODEL_APIS = [
   "pi-messages",
 ] as const;
 
+/**
+ * fork:api-labels —— 协议下拉里的人话 + 端点路径（对齐 ZCode 那一列的
+ * 「Chat Completions (/chat/completions)」）。
+ *
+ * 以前选项直接把 `openai-completions` 这类**内部 id** 印在控件上：那是 pi-ai
+ * 的 `Api` 字面量，写进 models.json 用它没错，但让人去猜「anthropic-messages
+ * 打的是哪个端点」就得去翻文档。这里只改**显示**，落盘值一字不动。
+ *
+ * 路径只写有把握的那几个；拿不准的只给人话名，**不编端点**。
+ */
+export const MODEL_API_LABELS: Record<(typeof KNOWN_MODEL_APIS)[number], string> = {
+  "openai-completions": "Chat Completions (/chat/completions)",
+  "openai-responses": "Responses (/responses)",
+  "anthropic-messages": "Messages (/v1/messages)",
+  "google-generative-ai": "Generate Content",
+  "google-vertex": "Vertex AI",
+  "mistral-conversations": "Mistral Conversations",
+  "bedrock-converse-stream": "Bedrock Converse Stream",
+  "azure-openai-responses": "Azure Responses",
+  "openai-codex-responses": "OpenAI Codex Responses",
+  "pi-messages": "Pi Messages",
+};
+
+/** 下拉选项：落盘值仍是内部 id，显示走 `MODEL_API_LABELS`。 */
+export function modelApiChoices(): Array<{ value: string; label: string }> {
+  return KNOWN_MODEL_APIS.map((api) => ({ value: api, label: MODEL_API_LABELS[api] ?? api }));
+}
+
 export type ModelCostKey = (typeof MODEL_COST_KEYS)[number];
 
 export type ModelCostRates = Record<ModelCostKey, number>;

@@ -233,13 +233,21 @@
 }
 
 /* 模型设置页的三处小结构：模型行、上游导入清单、测试回显。 */
+/* fork:model-row-inline（2026-10-05）—— 模型行从「整行一个按钮」改成「装着两个
+   button + 一个 switch 的容器」。原来这两条规则是为了让整行可点；现在行本身
+   不再是 button（里面真有两个 button 和一个 role="switch"，`role="button"`
+   会既抢语义又抢冒泡 —— 点开关等于点整行 = 误开编辑器），所以两条都退役。
+   行内控件的几何全在 board.css（.pw-iconbtn / .pw-switch），这里不加新类，
+   只给两个图标钮一个统一的间距与方角。 */
 .models-provider-model-row {
-  cursor: pointer;
+  cursor: default;
 }
 
-.models-provider-model-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+.models-provider-model-action {
+  flex: none;
+  width: var(--control-xs);
+  height: var(--control-xs);
+  min-width: var(--control-xs);
 }
 
 .models-discovery-list {

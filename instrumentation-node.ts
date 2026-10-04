@@ -27,7 +27,10 @@ export async function registerNodeInstrumentation(): Promise<void> {
   // so a Servy stop left the process draining forever: not listening (502)
   // but never exiting, and every restart leaked one orphan. Closing the
   // streams here lets Next's drain finish and the process exit cleanly.
-  //（定时任务已下线：不再在这里启动任何后台调度器。）
+  //
+  // 这行括号注释（“定时任务已下线”）是 fork:proma-43-automation 把调度器接回来之前
+  // 留下的，位置又刚好贴在这段 shutdown 说明下面，读起来像是说上面那个
+  // `startAutomationScheduler()` 已经没了 —— 它就在 8 行之上活着。删掉，不修辞。
   const { closeAllAgentEventStreams } = await import("@/lib/agent-event-stream");
   const shutdownStreams = () => closeAllAgentEventStreams();
   process.on("SIGINT", shutdownStreams);

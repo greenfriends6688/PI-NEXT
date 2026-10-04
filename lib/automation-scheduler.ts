@@ -41,6 +41,8 @@ import {
   isSameLocalDay,
   rescheduleOverdueOnStart,
 } from "./automation-schedule";
+// fork:automation-lease —— 跨进程认领（可选，缺省退回进程内 runningIds）。
+import { claimAutomationLease, type AutomationLeaseIo } from "./automation-lease";
 
 /** 翻译函数。默认实现由运行时注入（`lib/automation-runtime.ts`），避免纯模块依赖 i18n 注册表。 */
 export type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
@@ -111,6 +113,16 @@ export interface AutomationSchedulerDeps {
   runner: AutomationRunPort;
   translate: AutomationTranslate;
   timer?: AutomationTimerPort;
+  /**
+   * fork:automation-lease · **跨进程**认领。缺省不装（退回进程内 `runningIds`，
+   * 也就是今天的行为）。装上之后两个进程不会对同一个任务各跑一轮。
+   *
+   * 为什么需要它：`runningIds` 只是进程内的 Set，而桌面壳已经是两个进程
+   * （Electron main + next start）。今天调度器只由 `instrumentation-node.ts`
+   * 起、所以碰巧不重复 —— 但那是靠「恰好只有一个进程 import 它」，不是靠机制。
+   * 这个口就是那道机制。
+   */
+  leaseIo?: AutomationLeaseIo;
   /** 任何一次落盘后回调（前端轮询 / 广播用）。 */
   onChanged?: (automations: Automation[]) => void;
   log?: (message: string) => void;
@@ -322,12 +334,27 @@ export async function withRunTimeout<T>(
     return await Promise.race([
       run(controller.signal),
       new Promise<never>((_resolve, reject) => {
+        /* 这个定时器**不能** `unref()`。
+         *
+         * 原本这里有一行 `.unref()`，理由写的是「Node 里 setTimeout 会吊住进程；
+         * 调度器必须能被正常关闭」。那个理由对**轮询**定时器成立（`automation-runtime`
+         * 里 tick 的 setInterval 确实 unref 了，那才是「不能被它吊住」的那个），
+         * 但对这个超时定时器是**反的**：unref 之后，只要被计时的那个 run 卡住、
+         * 而事件循环里恰好没有别的句柄，定时器就永远不会触发 —— 进程直接退出，
+         * **超时保护静默失效**。
+         *
+         * 症状先出现在 CI：Node 22 上（本地 Node 24 碰巧有别的句柄吊着，所以看不出来）
+         * `withRunTimeout 超时会 abort 底层信号并抛 AutomationTimeoutError` 报
+         * 「Promise resolution is still pending but the event loop has already resolved」。
+         * 而那个测试说的正是真实情形：一个既不 settle 也不理 abort 的 run。
+         *
+         * 不 unref 的代价是：有 run 在跑时进程会活到超时到点。但那时**本来就该活着**
+         * （有一轮正在执行），而且 `finally` 里的 clearTimeout 会让正常完成的 run
+         * 立即释掉它。 */
         timer = setTimeout(() => {
           controller.abort();
           reject(new AutomationTimeoutError(timeoutMs));
         }, timeoutMs);
-        // Node 里 setTimeout 会吊住进程；调度器必须能被正常关闭。
-        (timer as { unref?: () => void }).unref?.();
       }),
     ]);
   } finally {
@@ -359,6 +386,26 @@ const realTimer: AutomationTimerPort = {
 export function createAutomationScheduler(deps: AutomationSchedulerDeps): AutomationScheduler {
   const timer = deps.timer ?? realTimer;
   const runningIds = new Set<string>();
+  /**
+   * fork:automation-lease —— 认领：先问跨进程那道（装了才有），再问进程内那道。
+   * 两道都要过：`runningIds` 挡的是**本进程**内的重入（tick 重叠 / run-now 与
+   * tick 同时命中），租约挡的是**跨进程**。返回 null = 已被别人占着。
+   */
+  const claim = (automationId: string): (() => void) | null => {
+    if (runningIds.has(automationId)) return null;
+    const releaseLease = deps.leaseIo
+      ? claimAutomationLease(deps.leaseIo, automationId, deps.now())
+      : () => {};
+    if (!releaseLease) return null;
+    runningIds.add(automationId);
+    let released = false;
+    return () => {
+      runningIds.delete(automationId);
+      if (released) return;
+      released = true;
+      releaseLease();
+    };
+  };
   let tickTimer: unknown;
   /** 同一时刻只允许一个 tick 在跑，防止慢 tick 与定时 tick 叠加。 */
   let ticking = false;
@@ -467,15 +514,15 @@ export function createAutomationScheduler(deps: AutomationSchedulerDeps): Automa
   };
 
   const runTracked = async (automation: Automation): Promise<void> => {
-    if (runningIds.has(automation.id)) {
+    const release = claim(automation.id);
+    if (!release) {
       recordSkip(automation, SKIP_REASON_PREVIOUS_RUN, now());
       return;
     }
-    runningIds.add(automation.id);
     try {
       await execute(automation);
     } finally {
-      runningIds.delete(automation.id);
+      release();
     }
   };
 
@@ -549,15 +596,15 @@ export function createAutomationScheduler(deps: AutomationSchedulerDeps): Automa
       const automation = deps.store.get(id);
       if (!automation) throw new Error(`automation not found: ${id}`);
       if (!automation.cwd) throw new Error("automation has no cwd configured");
-      if (runningIds.has(id)) {
+      const release = claim(id);
+      if (!release) {
         recordSkip(automation, SKIP_REASON_PREVIOUS_RUN, now());
         return;
       }
-      runningIds.add(id);
       try {
         await execute(automation);
       } finally {
-        runningIds.delete(id);
+        release();
       }
     },
 

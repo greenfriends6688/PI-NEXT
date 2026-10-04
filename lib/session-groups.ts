@@ -32,10 +32,29 @@ export const MAX_GROUP_NAME_LENGTH = 60;
 /** 项目排序表长度上限；多出来的尾部条目在解析时被丢弃。 */
 export const MAX_PROJECT_ORDER_ENTRIES = 500;
 
+/**
+ * fork:task-groups —— 分组颜色。8 档，对齐 ZCode 那一档
+ * （`packages/services/src/session/zcodeTaskListTypes.ts:31-38` 的 8 色枚举）。
+ *
+ * 值是**语义色名**而不是 ZCode 的 Tailwind 类名：那是它自己那套样式层，直接搬
+ * 在本仓既不认，也过不了 `check:contrast`。渲染时映射到本仓的语义令牌
+ * （`app/fork-ui.css` 的 `.fork-group-dot--<color>`）。
+ *
+ * 解析时未知色落回 `slate`，缺字段也落回 —— 老数据（加这个字段之前写的）
+ * 不该因为少一个键就整条被丢。
+ */
+export const SESSION_GROUP_COLORS = [
+  "slate", "red", "amber", "green", "teal", "blue", "violet", "pink",
+] as const;
+export type SessionGroupColor = (typeof SESSION_GROUP_COLORS)[number];
+export const DEFAULT_SESSION_GROUP_COLOR: SessionGroupColor = "slate";
+
 export interface SessionGroup {
   id: string;
   name: string;
   collapsed: boolean;
+  /** 建组时按已有组数轮着挑一个，所以新组一般不会跟邻组撞色。 */
+  color: SessionGroupColor;
 }
 
 export interface SessionGroupsState {
@@ -85,7 +104,7 @@ function sanitizeGroups(value: unknown): SessionGroup[] {
     const name = sanitizeGroupName(record.name);
     if (!id || !name || seen.has(id)) continue;
     seen.add(id);
-    out.push({ id, name, collapsed: record.collapsed === true });
+    out.push({ id, name, collapsed: record.collapsed === true, color: readGroupColor(record.color) });
     if (out.length >= MAX_SESSION_GROUPS) break;
   }
   return out;
@@ -178,6 +197,27 @@ export function groupProjects<T extends { key: string }>(
   return sections;
 }
 
+/** 读一个可能是任意形状的颜色值；不认识的一律落回默认色。 */
+function readGroupColor(value: unknown): SessionGroupColor {
+  return typeof value === "string" && (SESSION_GROUP_COLORS as readonly string[]).includes(value)
+    ? value as SessionGroupColor
+    : DEFAULT_SESSION_GROUP_COLOR;
+}
+
+/** 改一组的颜色。色值不在 8 档之内、或 id 不存在时原样返回。 */
+export function recolorGroup(
+  state: SessionGroupsState,
+  id: string,
+  color: SessionGroupColor,
+): SessionGroupsState {
+  if (!(SESSION_GROUP_COLORS as readonly string[]).includes(color)) return state;
+  if (!state.groups.some((group) => group.id === id)) return state;
+  return {
+    ...state,
+    groups: state.groups.map((group) => (group.id === id ? { ...group, color } : group)),
+  };
+}
+
 /** 生成不会与已有 id 冲突的新分组 id（不依赖 crypto，jsdom/SSR 都能用）。 */
 let groupIdCounter = 0;
 export function makeGroupId(existing: Iterable<string> = []): string {
@@ -198,7 +238,9 @@ export function createGroup(
   const cleanName = sanitizeGroupName(name);
   if (!cleanName || !id || state.groups.length >= MAX_SESSION_GROUPS) return null;
   if (state.groups.some((group) => group.id === id)) return null;
-  return { ...state, groups: [...state.groups, { id, name: cleanName, collapsed: false }] };
+  // 没指定颜色就按已有组数轮着挑，避免新建的一串组全是同色（那等于没有颜色）。
+  const color = SESSION_GROUP_COLORS[state.groups.length % SESSION_GROUP_COLORS.length];
+  return { ...state, groups: [...state.groups, { id, name: cleanName, collapsed: false, color }] };
 }
 
 /** 重命名；名字清洗后为空时原样返回（不把空名写进存储）。 */

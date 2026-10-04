@@ -84,17 +84,19 @@ function buildZip() {
   return out;
 }
 
-/* 2. 正文：默认读 docs/release-notes-<version>.md；没有就退化成一行。 */
+/* 2. 正文：默认读 docs/release-notes-<version>.md；没有就退化成一行。
+      第二个返回值 `found` 用来决定能不能覆盖线上已有正文（见下面第 3 步）。 */
 function releaseNotes() {
   const file = args["notes-file"] ?? `docs/release-notes-${version}.md`;
-  if (existsSync(file)) return readFileSync(file, "utf8");
-  return `# PI NEXT ${tag}\n\n（没有 ${file}，这里是占位正文）`;
+  if (existsSync(file)) return { body: readFileSync(file, "utf8"), found: true };
+  return { body: `# PI NEXT ${tag}\n\n（没有 ${file}，这里是占位正文）`, found: false };
 }
 
 async function main() {
   console.log(`release ${tag} → ${repo}`);
   const zip = buildZip();
-  const body = releaseNotes();
+  const notes = releaseNotes();
+  const body = notes.body;
 
   if (dryRun) {
     console.log("--dry-run：到此为止，未发请求");
@@ -128,6 +130,22 @@ async function main() {
     }
     release = created.body;
     console.log(`  已建 release（id=${release.id}，prerelease=${release.prerelease}）`);
+  }
+
+  /* fork:release-update-body — 已存在的 release 原来**只复用**，正文一个字节都不改，
+     于是「改了 docs/release-notes-*.md 再跑一遍」线上毫无变化。改成幂等 PATCH。
+     只在 notes 文件真的存在时写，绝不用占位正文覆盖线上内容。 */
+  if (release?.id && notes.found) {
+    const patched = await api(`/repos/${repo}/releases/${release.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body, prerelease: version.includes("-") }),
+    });
+    if (!patched.ok) {
+      console.error(`  更新正文失败 ${patched.status}:`, patched.body);
+      process.exit(1);
+    }
+    console.log(`  已更新正文（${body.length} 字符）`);
   }
 
   // 4. 上传 asset（同名先删再传，避免 422）

@@ -7,6 +7,8 @@ const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const {
   hasModelCostDraftValue,
   KNOWN_MODEL_APIS,
+  MODEL_API_LABELS,
+  modelApiChoices,
   modelCostToDraft,
   parseCompleteModelCost,
   serializeHeaderRows,
@@ -50,7 +52,8 @@ test("the api protocol list is exactly pi-ai's KnownApi union", async () => {
   assert.ok(known.length > 4, `KnownApi union parsed only ${known.length} entries`);
   // 面板用的就是这一个清单（provider 下拉与 model 级覆写下拉共用）。
   assert.deepEqual([...KNOWN_MODEL_APIS].sort(), [...known].sort());
-  assert.match(source, /const API_OPTIONS = KNOWN_MODEL_APIS;/);
+  // fork:api-labels —— 清单经 `modelApiChoices()` 变成下拉选项（显示人话，落盘仍是 id）。
+  assert.match(source, /const API_OPTIONS = modelApiChoices\(\);/);
   // 少一个都不行：协议选不了 = 那个 provider 根本配不出来。
   for (const api of known) assert.ok(KNOWN_MODEL_APIS.includes(api), `api option missing: ${api}`);
 });
@@ -356,4 +359,92 @@ test("import models is not gated on a configured base URL", () => {
   assert.match(providerDetail, /disabled=\{discoveryState\.phase === "loading"\}/);
   assert.match(providerDetail, /if \(discoveryState\.phase === "loading"\) return;/);
   assert.match(source, /hint=\{t\("models\.baseUrlCatalogFallbackHint"\)\}/);
+});
+
+// fork:model-row-inline（用户 2026-10-05 裁定，对齐 ZCode 的模型行）——
+// 行内要同时有 🔌 测试 / ✏️ 编辑 / 启停开关，外加上下文窗口与视觉两枚徽标；
+// 且**行本身不再是 button**（里面真装了两个 button 和一个 role="switch"）。
+test("model row carries inline test / edit / enable controls, not a button row", () => {
+  const rowStart = source.indexOf("models-provider-model-row");
+  // 剥掉注释再查负面项：ModelsConfig.tsx 的说明里**故意**引用了旧写法
+  // （`role="button"` / `.focus-visible`）作为对照，直接全文匹配会判成「还在」。
+  const stripComments = (text) =>
+    text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  const row = stripComments(
+    source.slice(rowStart, source.indexOf("models.enabledProjectScope", rowStart)),
+  );
+
+  // 三个控件都在。
+  assert.match(row, /testRowModel\(index, model\)/, "inline test goes through the shared request");
+  assert.match(source, /postModelTest\(\{ providerName: name, provider, model \}\)/);
+  assert.match(source, /setTestState\(await postModelTest\(/, "editor reuses the same call");
+  assert.match(row, /onClick=\{\(\) => onOpenModel\(index\)\}/, "edit opens the model editor");
+  assert.match(row, /enabledModels\.setModels\(/, "row-level enable toggle");
+
+  // 行不再是 button：role="button" 会抢语义，且点击会冒泡成「误开编辑器」。
+  assert.doesNotMatch(row, /role="button"/);
+  assert.doesNotMatch(row, /tabIndex=\{0\}/);
+  // 之前那条规则就是为整行可点存在的，现在必须退役，否则行还顶着 pointer 光标。
+  assert.doesNotMatch(cssSource, /\.models-provider-model-row:focus-visible/);
+  assert.match(cssSource, /\.models-provider-model-action/);
+});
+
+test("model row badges read contextWindow and input modalities", () => {
+  // 徽标的数据源本来就写在 models.json 里，只是列表一直没读。
+  assert.match(source, /formatContextWindowBadge\(model\.contextWindow\)/);
+  assert.match(source, /model\.input \?\? \[\]\)\.some\(\(modality\) => modality === "image" \|\| modality === "pdf"\)/);
+  // 与 ZCode 一致：1M / 262.1K。
+  assert.match(source, /contextWindow >= 1_000_000/);
+  assert.match(source, /contextWindow >= 1000/);
+});
+
+// fork:api-labels —— 协议下拉显示人话 + 端点路径，落盘值仍是内部 id。
+// 这条是 DoD：pi-ai 以后新增一个 `Api` 而这里忘了配标签，测试就红
+// （与既有那条「下拉必须覆盖 KnownApi 全集」同一道门）。
+test("every protocol dropdown entry has a human label", () => {
+  const choices = modelApiChoices();
+
+  // 一个不多一个不少：清单与 KNOWN_MODEL_APIS 一一对应。
+  assert.equal(choices.length, KNOWN_MODEL_APIS.length);
+  assert.deepEqual(
+    choices.map((c) => c.value),
+    [...KNOWN_MODEL_APIS],
+  );
+  // value 仍是内部 id（models.json 靠它），label 不再是。
+  for (const choice of choices) {
+    assert.ok(MODEL_API_LABELS[choice.value], `${choice.value} 缺少 MODEL_API_LABELS`);
+    assert.notEqual(choice.label, choice.value, `${choice.value} 显示的还是内部 id`);
+  }
+  // 对齐 ZCode 那一列：Chat Completions 带端点路径。
+  assert.equal(
+    choices.find((c) => c.value === "openai-completions").label,
+    "Chat Completions (/chat/completions)",
+  );
+});
+
+// fork:provider-inline-fields —— 供应商头卡同屏可改 Base URL / API 格式 / API Key，
+// 不再只印一张只读的 `.pw-kv` 表。是**移动**不是复制：每个字段在文件里只能出现一次。
+test("provider header card edits base url / api / key in place", () => {
+  const strip = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  const code = strip(source);
+
+  // 三个字段各只出现一次（移动 = 文件里一次 + 头卡里一次）。
+  for (const marker of [
+    /set\("baseUrl", v \|\| undefined\)/,
+    /set\("api", v\)/,
+    /set\("apiKey", v \|\| undefined\)/,
+  ]) {
+    assert.equal(code.match(marker).length, 1, `${marker} 出现了不止一次`);
+  }
+
+  // 头卡里不再有只读的地址 / 协议行。
+  const headerStart = code.indexOf("models.providerIcon");
+  assert.ok(headerStart > 0);
+  const header = code.slice(0, code.indexOf("models.usageTitle"));
+  assert.match(header, /set\("baseUrl", v \|\| undefined\)/, "头卡没有 Base URL 输入框");
+  assert.match(header, /set\("api", v\)/, "头卡没有 API 格式下拉");
+  assert.match(header, /set\("apiKey", v \|\| undefined\)/, "头卡没有 API Key 输入框");
+  assert.doesNotMatch(header, /<dt>\$\{t\("models\.kvBaseUrl"\)\}<\/dt>/, "只读的地址行还在");
+  // 头卡里的协议徽标退役了 —— 下拉就在下面，再挂一枚静态徽标是同一信息两处。
+  assert.doesNotMatch(header, /<ConfigBadge tone="count">\{provider\.api/);
 });

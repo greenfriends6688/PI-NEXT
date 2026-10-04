@@ -674,8 +674,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // fork:ui-10 — list order + the "expand/collapse all" switch.
   // fork:ui — 排序开关已移除（用户要求）：会话固定按最后修改时间倒序，state 一并删掉。
   // fix:no-time-groups —— 时间分组头的折叠状态（今天/昨天/本周…）整块退役：
-  // 侧栏列表改成一行一个会话，不再分桶。`lib/time-group-state` 与其测试仍在
-  // （那是独立模块），侧栏不再读写它。
+  // 侧栏列表改成一行一个会话，不再分桶。
+  // `lib/time-group-state`（及其测试）随之删除：它只剩这里这句注释在提，
+  // 没有任何模块 import 它 —— 真正还在跑的置顶分区是 `applySessionFlags`
+  // （`lib/session-flags.ts`），那条路由 `lib/session-flags.test.mjs` 盖着。
   // 归档区默认折叠；每个项目独立记忆展开状态（取消归档的右键菜单入口）。
   // fork:zc-11 — 项目分组/顺序的 localStorage store（状态 + 纯操作封装）。
   const sessionGroups = useSessionGroups();

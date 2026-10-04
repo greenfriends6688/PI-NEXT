@@ -148,7 +148,9 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 import type { FileViewerState } from "@/lib/file-viewer-state";
 import type { ToolEntry } from "@/lib/tool-presets";
 import { getSessionFamily } from "@/lib/session-family";
-import { getLastSettingsSection, type SettingsSection } from "@/lib/settings-navigation";
+import { getLastSettingsSection, SETTINGS_SECTIONS, type SettingsSection } from "@/lib/settings-navigation";
+// fork:command-palette —— ⌘K / ⌘⇧P 的统一入口（命令 / 会话 / 文件）。
+import { CommandPalette, type PaletteCommand } from "./fork/CommandPalette";
 import { TEXT } from "@/lib/typography";
 
 type AutoNameStatus =
@@ -302,6 +304,10 @@ export function AppShell() {
   }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+  /* fork:command-palette —— 面板开关 + 命令清单。命令全部直接调既有 setState，
+     所以清单是纯数据、随渲染重建也无所谓（useMemo 只为不每帧新建数组）。 */
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
   // fork:trace-menu —— ⋯ 菜单「重命名会话」：标题原地变成输入框（ZCode 的任务标题
   // 也是这么改的），回车提交 / Esc 取消，失焦也提交。PATCH 之后 bump refreshKey
   // 让侧栏列表立刻重新读一次（不等它 2.5s 的轮询）。
@@ -389,6 +395,31 @@ export function AppShell() {
   const [projectTrustError, setProjectTrustError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => !initialNavigation.sidebarCollapsed);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+
+  /* fork:command-palette —— 命令清单。**只收本仓真实存在的开关**，不编：
+     设置分节直接用 `SETTINGS_SECTIONS`（单一真值，加一个分节面板里自动有），
+     其余只放确实存在的开关。命令直接调既有 setState，所以面板不必知道
+     「设置怎么开、会话怎么切」。 */
+  const paletteCommands = useMemo<PaletteCommand[]>(() => [
+    // fork:cmd-palette-clean —— 不写 `hint`。之前给每一行都挂了
+    // 「命令」两个字做右侧说明，十几行一模一样地重复 —— 那是**域**信息，
+    // 域已经写在顶部的「全部/命令/会话/文件」四个切换里了，每行再说一遍
+    // 就是噪音。右侧那个位置留给真正逐行不同的东西（路径、片段、快捷键）。
+    ...SETTINGS_SECTIONS.map((entry) => ({
+      id: `settings:${entry.id}`,
+      label: translate(entry.labelKey),
+      icon: "settings",
+      group: "settings",
+      run: () => setSettingsSection(entry.id),
+    })),
+    {
+      id: "panel:right",
+      label: translate(rightPanelOpen ? "palette.hideRightPanel" : "palette.showRightPanel"),
+      icon: "panel-right",
+      group: "panels",
+      run: () => setRightPanelOpen((open) => !open),
+    },
+  ], [translate, rightPanelOpen]);
   // The grid tracks never swap. This flag only changes which persistent
   // surface occupies the main region and the secondary workspace region.
   const [workspaceSwapped, setWorkspaceSwapped] = useState(false);
@@ -1290,6 +1321,8 @@ export function AppShell() {
     // fork:zc-04 — 直接给句柄，不再让快捷键层去 DOM 里找按钮点。
     onToggleSidebar: handleSidebarToggle,
     onToggleRightPanel: handleRightPanelToggle,
+    // fork:command-palette — ⌘K / ⌘⇧P。
+    onToggleCommandPalette: () => setCommandPaletteOpen((open) => !open),
   });
 
   // Client-built transient SessionInfo (new session / fork) lacks the
@@ -2463,6 +2496,11 @@ export function AppShell() {
         >
           <span className="pw-ico"><i data-ico="download" data-size="14"></i></span>
         </button>
+        {/* fork:trace-menu-2026-10-04 —— 桌面这条工具条末尾**一直缺着**会话动作 ⋯：
+            `renderSessionActionsMenu` 只有 `if (mobile)` 那一处调用，所以桌面上
+            置顶 / 归档 / 重命名 / 在访达中打开 / 复制路径与 ID / 导出这几项
+            （手机顶栏唯一的那一枚）压根没有入口。补回同一个组件同一个参数，零新代码。 */}
+        {renderSessionActionsMenu(false)}
       </div>
     );
   };
@@ -2961,9 +2999,15 @@ export function AppShell() {
     // fork:pr40-split — 分屏时不要再抢一列树：两个 Pane 已经把 720px 的下限用满，
     // 再塞一列树就是三个都读不了。退分屏后这一列自己回来。
     && !splitPanes.isSplitActive
-    && (activeFileTab?.filePath
-      || terminalTabs.some((tab) => tab.id === activeFileTabId)
-      || browserTabs.some((tab) => tab.id === activeFileTabId)),
+    // fork:trace-pane-2026-10-04 —— 文件树不再被「调用轨迹」挤掉。原来这一列的
+    // 条件是「**激活的**那个 tab 有没有路径」，于是切到 trace（无路径）整列消失，
+    // 用户说的就是「开了轨迹就看不到文件夹了」。它是个只读视图、有路径的邻居还开着，
+    // 给它一列树才是对的；真正需要整块宽度的是 Git 图谱，仍旧独占。
+    && activeFileTabId !== GIT_GRAPH_TAB_ID
+    && (fileTabs.length > 0
+      || terminalTabs.length > 0
+      || browserTabs.length > 0
+      || activeFileTabId === TRACE_TAB_ID),
   );
 
   return (
@@ -3323,7 +3367,12 @@ export function AppShell() {
                  贴在左上角的一枚 44px 手绘箭头 + 一段自绘字号。 */
               <div className="pw-empty" style={{ height: "100%" }}>
                 <div className="pw-empty-inner">
-                  <span className="mark"><i data-ico="pi" data-size="20" aria-hidden="true"></i></span>
+                  <span className="mark">
+                    {/* fork:brand-mark-2026-10-04 —— 这里是**主品牌图形**
+                        （public/pi-next-logo.png），不是 pi 的 π 字形：品牌只此一处，
+                        盒子仍是画板 01 的 `.pw-empty-inner .mark`（40×40 / radius-6）。 */}
+                    <span className="pw-logo" aria-hidden="true"><img src="/pi-next-logo.png" alt="" draggable={false} style={{ display: "block", width: "var(--icon-md)", height: "auto" }} /></span>
+                  </span>
                   <h2>{translate("workspace.getStarted")}</h2>
                   <p>
                     <span className="pw-dim">1.</span> {translate("workspace.selectProject")}<br />
@@ -3587,6 +3636,20 @@ export function AppShell() {
         {toast}
       </div>
     ) : null}
+
+    {/* fork:command-palette —— ⌘K / ⌘⇧P 打开的统一入口（命令 / 会话 / 文件）。
+        三个域全部复用既有 API，零新后端：会话走 `/api/sessions/search`
+        （流式扫正文），文件走 `/api/file-index`（内部已是 `lib/file-fuzzy.ts`
+        的真评分），命令是内存里那份清单。命令清单直接调既有的 setState，
+        所以面板不需要自己知道「设置怎么开、会话怎么切」。 */}
+    <CommandPalette
+      open={commandPaletteOpen}
+      onClose={() => setCommandPaletteOpen(false)}
+      cwd={activeCwd ?? ""}
+      commands={paletteCommands}
+      onOpenSession={(id) => { void handleOpenSession(id); }}
+      onOpenFile={(path) => handleOpenFile(path, path.split("/").pop() ?? path)}
+    />
     </>
     </LinkOpenProvider>
     </ContextMenuProvider>

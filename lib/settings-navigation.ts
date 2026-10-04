@@ -25,6 +25,42 @@ export type SettingsDetailSection = Exclude<SettingsSection, "general">;
 const STORAGE_KEY = "pi-web:settings-navigation";
 const PROJECT_SECTIONS = new Set<SettingsSection>(["skills", "agents", "plugins"]);
 
+/**
+ * 分节清单（单一真值）。
+ *
+ * 原来这张表内联在 `components/SettingsPanel.tsx` 里，fork:command-palette 要
+ * 「面板里能搜到每一个设置分节」就得复制一份 —— 而复制的那份会在有人加分节时
+ * 悄悄过期（两处真相源正是 AGENTS.md 反复警告的那类债）。抽到这里之后，
+ * 设置侧栏与命令面板读同一份。
+ *
+ * `labelKey` 存**键**而不是译好的字符串：这张表是模块常量，不能在求值时调
+ * `t()`（拿不到 locale），由使用方各自翻译。
+ */
+export const SETTINGS_SECTIONS: ReadonlyArray<{
+  id: SettingsSection;
+  labelKey: string;
+  requiresProject: boolean;
+}> = [
+  { id: "general", labelKey: "settings.general", requiresProject: false },
+  { id: "models", labelKey: "common.models", requiresProject: false },
+  { id: "skills", labelKey: "common.skills", requiresProject: true },
+  { id: "agents", labelKey: "common.agents", requiresProject: true },
+  { id: "plugins", labelKey: "common.plugins", requiresProject: true },
+  // fork:mcp-section — a global section added by this fork.
+  { id: "mcp", labelKey: "mcp.sectionTitle", requiresProject: false },
+  // fork:proma-43-automation — 定时任务（全局，与项目无关）。面板把 cwd 只当**新建任务的
+  // 初值**，每条任务自己的 cwd 在编辑器里填，所以没有项目时传空串也能用。
+  { id: "automation", labelKey: "automation.title", requiresProject: false },
+  // fork:zc-04 — local usage stats is a global page too.
+  { id: "usage", labelKey: "usage.title", requiresProject: false },
+  // fork:ui-archive-history — 归档历史（Zeno 设置 → 数据 → 归档）。
+  { id: "archived", labelKey: "settings.archivedTitle", requiresProject: false },
+  // fork:import-ui — 从其它 agent 导入（会话 / 模型 / 技能 / MCP）。
+  { id: "import", labelKey: "import.title", requiresProject: false },
+  // fork:phone-push — 手机配对 + IM 推送，**合成一栏**（用户 2026-10-03 裁定）。
+  { id: "phonePush", labelKey: "phonePush.title", requiresProject: false },
+];
+
 interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;

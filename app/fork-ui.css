@@ -3342,3 +3342,202 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   gap: var(--s2);
   min-height: var(--control-sm);
 }
+
+/* ===========================================================================
+ * fork:element-picker · 浏览器面板的「拾取元素」覆盖层
+ *
+ * 行为钩子，不是新设计：盒子坐标来自页面探针（`lib/browser-element-pick.ts`），
+ * 已经换算成 slot 的像素，所以这里只负责「铺满 slot + 每个盒子一个透明按钮」。
+ * 高亮画在**我们这份 DOM** 里，不往页面注入事件监听 —— 页面脚本不参与。
+ *
+ * 刻意不新增 `pw-*` 类：这是单一功能的私有层，`fork-ui.css` 正是留给这类
+ * UA 归零 / 定位 / 指针行为的钩子。颜色一律走令牌，不写字面量。
+ * =========================================================================== */
+.fork-browser-slot { position: relative; }
+.fork-browser-pick {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: crosshair;
+}
+.fork-browser-pick-box {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-3);
+  background: transparent;
+  cursor: crosshair;
+  appearance: none;
+}
+.fork-browser-pick-box:hover,
+.fork-browser-pick-box:focus-visible,
+.fork-browser-pick-box.is-active {
+  border-color: var(--accent);
+  background: var(--accent-hover);
+  outline: none;
+}
+.fork-browser-pick-box:focus-visible { border-width: 2px; }
+.fork-browser-pick-tag {
+  position: absolute;
+  left: 0;
+  top: -18px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+  border-radius: var(--radius-3);
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: var(--text-meta);
+  line-height: 18px;
+}
+
+/* ===========================================================================
+ * fork:command-palette · 命令面板
+ *
+ * 壳全部来自 board.css 的画板 50（`.pw-scrim` / `.pw-modal` / `.pw-modal-head` /
+ * `.pw-modal-body`）与画板 45（`.pw-pop-search` / `.pw-prow` / `.pw-chipbtn`）。
+ * 这里只补三件 board 里没有的东西：**面板的窄身宽**、**结果区的高度上限**、
+ * **域切换条的排布**。零新 `.pw-*` 类。
+ * =========================================================================== */
+/* `.pw-scrim` 自己**不**定位（board.css:687 只给了 background / padding /
+   place-items），所以每个弹层都得自己声明这一层。同款写法见
+   `.fork-shortcut-guide-scrim`（app/fork-ui.css:3036）—— 漏了它，
+   这个 div 就参与文档流，把下面的布局顶开：症状是「面板掉到页面中间、
+   输入框被推到顶上、中间一大片白」。 */
+.fork-cmd-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+.fork-cmd-palette {
+  width: min(620px, calc(100vw - 2 * var(--s4)));
+  max-height: min(560px, calc(100vh - 2 * var(--s4)));
+  display: flex;
+  flex-direction: column;
+}
+.fork-cmd-palette-search { border-bottom: none; }
+.fork-cmd-palette-scopes {
+  padding: var(--s2) var(--s3);
+  gap: var(--s1);
+  border-bottom: 1px solid var(--n-border-subtle);
+}
+.fork-cmd-palette-list {
+  overflow-y: auto;
+  padding: var(--s2);
+  min-height: 0;
+}
+.fork-cmd-palette-list .pw-prow { width: 100%; text-align: left; border: none; background: transparent; }
+.fork-cmd-palette-list .pw-prow[data-active="true"] {
+  background: var(--overlay-selected);
+  color: var(--n-text);
+}
+
+/* ===========================================================================
+ * fork:browser-viewport · 浏览器面板的自由尺寸视口
+ *
+ * 四条拖拽把手 + 一圈边框。几何全在 `lib/browser-viewport.ts`（纯函数，有单测）；
+ * 这里只负责「把手贴在边上、hover 变粗」这类行为，不写尺寸逻辑。
+ * 沿用 `.pw-chipbtn` 做工具条控件，零新 `.pw-*` 类。
+ * =========================================================================== */
+.fork-browser-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+.fork-browser-size > .pw-input {
+  width: 52px;
+  height: var(--control-xs);
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  text-align: center;
+}
+.fork-browser-size-frame {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.fork-browser-size-handle {
+  position: absolute;
+  background: transparent;
+  transition: background var(--motion-fast) var(--ease);
+}
+.fork-browser-size-handle:hover { background: var(--accent); }
+.fork-browser-size-handle--left,
+.fork-browser-size-handle--right {
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+}
+.fork-browser-size-handle--left { left: 0; }
+.fork-browser-size-handle--right { right: 0; }
+.fork-browser-size-handle--top,
+.fork-browser-size-handle--bottom {
+  left: 0;
+  right: 0;
+  height: 5px;
+  cursor: row-resize;
+}
+.fork-browser-size-handle--top { top: 0; }
+.fork-browser-size-handle--bottom { bottom: 0; }
+
+/* ===========================================================================
+ * fork:browser-page-info · 页面标题 / favicon 一行
+ *
+ * 一行 20px 的标题带 + 16px 图标。favicon 读不到时**不占位**（宁可不画，
+ * 也不要一个破图占着位置）。零新 `.pw-*` 类。
+ * =========================================================================== */
+.fork-browser-pageinfo {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 0 var(--s4);
+  height: var(--control-xs);
+  font-size: var(--text-meta);
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.fork-browser-favicon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  object-fit: contain;
+  border-radius: var(--radius-3);
+}
+.fork-browser-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===========================================================================
+ * fork:task-groups · 分组色点
+ *
+ * 8 档色，对齐 ZCode 的 8 色枚举（`zcodeTaskListTypes.ts:31-38`）。值是**语义名**
+ * 而不是它那套 Tailwind 类名 —— 那套在本仓既不认也过不了 `check:contrast`。
+ * 折叠时组名看不见，色点是唯一的身份线索，所以一直画着。
+ * =========================================================================== */
+.fork-group-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--n-text-muted);
+}
+.fork-group-dot--slate { background: var(--n-text-dim); }
+.fork-group-dot--red { background: var(--error); }
+.fork-group-dot--amber { background: var(--warning); }
+.fork-group-dot--green { background: var(--success); }
+.fork-group-dot--teal { background: var(--success); }
+.fork-group-dot--blue { background: var(--accent); }
+.fork-group-dot--violet { background: var(--accent-text); }
+.fork-group-dot--pink { background: var(--warning); }

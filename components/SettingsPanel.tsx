@@ -13,7 +13,7 @@ import {
 } from "@/hooks/useChatAppearance";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { ShellToolSettingsResponse } from "@/lib/api-types";
-import { setLastSettingsSection, type SettingsSection } from "@/lib/settings-navigation";
+import { setLastSettingsSection, SETTINGS_SECTIONS, type SettingsSection } from "@/lib/settings-navigation";
 import { getDesktopBridge } from "@/lib/desktop-shell";
 import {
   isThinkingExpandedByDefault,
@@ -1005,25 +1005,14 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
   const [mountedSections, setMountedSections] = useState<ReadonlySet<SettingsSection>>(
     () => new Set([section]),
   );
-  const sections: { id: SettingsSection; label: string; requiresProject: boolean }[] = [
-    { id: "general", label: t("settings.general"), requiresProject: false },
-    { id: "models", label: t("common.models"), requiresProject: false },
-    { id: "skills", label: t("common.skills"), requiresProject: true },
-    { id: "agents", label: t("common.agents"), requiresProject: true },
-    { id: "plugins", label: t("common.plugins"), requiresProject: true },
-    { id: "mcp", label: t("mcp.sectionTitle"), requiresProject: false },
-    // fork:proma-43-automation —— 全局页，与项目无关。面板把 cwd 只当**新建任务的
-    // 初值**，每条任务自己的 cwd 在编辑器里填，所以没有项目时传空串也能用。
-    { id: "automation", label: t("automation.title"), requiresProject: false },
-    // fork:zc-03 — global sections.
-    { id: "usage", label: t("usage.title"), requiresProject: false },
-    // fork:ui-archive-history
-    { id: "archived", label: t("settings.archivedTitle"), requiresProject: false },
-    // fork:import-ui
-    { id: "import", label: t("import.title"), requiresProject: false },
-    // fork:phone-push
-    { id: "phonePush", label: t("phonePush.title"), requiresProject: false },
-  ];
+  // fork:zc-15 — the section keyword table moved into `lib/settings-navigation.ts`
+  //（fork:command-palette 又把它抽成了带 labelKey 的单一真值 `SETTINGS_SECTIONS`，
+  //  两边读同一份，加分节不会再漏掉面板里的搜索入口）。
+  const sections = SETTINGS_SECTIONS.map((entry) => ({
+    id: entry.id,
+    label: t(entry.labelKey),
+    requiresProject: entry.requiresProject,
+  }));
 
   useEffect(() => setLastSettingsSection(initialSection), [initialSection]);
 

@@ -148,8 +148,11 @@ test("the scheduler starts from node instrumentation and the panel is reachable"
 
   const panel = code(await readFile(new URL("../../../components/SettingsPanel.tsx", import.meta.url), "utf8"));
   assert.match(panel, /sectionHost\("automation", <AutomationPanel cwd=\{cwd \?\? ""\} \/>\)/);
-  assert.match(panel, /\{ id: "automation", label: t\("automation\.title"\), requiresProject: false \}/);
+  // fork:command-palette —— 分节清单搬到了 lib（`SETTINGS_SECTIONS`，带 labelKey），
+  // 面板读的是那一份，所以这条断言也跟着换地方。
+  assert.match(panel, /SETTINGS_SECTIONS\.map\(/);
 
   const nav = code(await readFile(new URL("../../../lib/settings-navigation.ts", import.meta.url), "utf8"));
   assert.match(nav, /SETTINGS_SECTION_VALUES = \[[\s\S]*"automation",/);
+  assert.match(nav, /\{ id: "automation", labelKey: "automation\.title", requiresProject: false \}/);
 });

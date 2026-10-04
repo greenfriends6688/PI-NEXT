@@ -385,6 +385,9 @@ function GroupHeader({
         title={t(group.collapsed ? "session.expandGroup" : "session.collapseGroup")}
       >
         <span className="pw-ico pw-row-toggle"><i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i></span>
+        {/* fork:task-groups —— 组色点。折叠状态下名字藏起来了，色点是唯一的身份线索，
+            所以它一直画。尺寸跟 `.pw-ico` 的行内节奏一致，不另立几何。 */}
+        <span className={`fork-group-dot fork-group-dot--${group.color}`} aria-hidden="true" />
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {group.name}
         </span>
