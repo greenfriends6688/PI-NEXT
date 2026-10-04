@@ -334,12 +334,27 @@ export async function withRunTimeout<T>(
     return await Promise.race([
       run(controller.signal),
       new Promise<never>((_resolve, reject) => {
+        /* 这个定时器**不能** `unref()`。
+         *
+         * 原本这里有一行 `.unref()`，理由写的是「Node 里 setTimeout 会吊住进程；
+         * 调度器必须能被正常关闭」。那个理由对**轮询**定时器成立（`automation-runtime`
+         * 里 tick 的 setInterval 确实 unref 了，那才是「不能被它吊住」的那个），
+         * 但对这个超时定时器是**反的**：unref 之后，只要被计时的那个 run 卡住、
+         * 而事件循环里恰好没有别的句柄，定时器就永远不会触发 —— 进程直接退出，
+         * **超时保护静默失效**。
+         *
+         * 症状先出现在 CI：Node 22 上（本地 Node 24 碰巧有别的句柄吊着，所以看不出来）
+         * `withRunTimeout 超时会 abort 底层信号并抛 AutomationTimeoutError` 报
+         * 「Promise resolution is still pending but the event loop has already resolved」。
+         * 而那个测试说的正是真实情形：一个既不 settle 也不理 abort 的 run。
+         *
+         * 不 unref 的代价是：有 run 在跑时进程会活到超时到点。但那时**本来就该活着**
+         * （有一轮正在执行），而且 `finally` 里的 clearTimeout 会让正常完成的 run
+         * 立即释掉它。 */
         timer = setTimeout(() => {
           controller.abort();
           reject(new AutomationTimeoutError(timeoutMs));
         }, timeoutMs);
-        // Node 里 setTimeout 会吊住进程；调度器必须能被正常关闭。
-        (timer as { unref?: () => void }).unref?.();
       }),
     ]);
   } finally {
