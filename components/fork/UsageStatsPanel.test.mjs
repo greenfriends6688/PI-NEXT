@@ -40,17 +40,29 @@ const render = (node) => renderToStaticMarkup(node);
 /* ---------------------------------------------------------------- 结构守卫 */
 
 test("the stat cards and every chart card ride the board 45 primitives", () => {
-  // fork:settings-frame（画板 62）—— 两栏块流里一栏只有 570，统计卡改两列。
-  assert.match(panelSource, /className=\{columns === 2 \? "d-grid2" : "d-statgrid"\}/);
-  assert.match(panelSource, /<StatGrid columns=\{2\}>/);
-  assert.match(panelSource, /<div className="d-stat"/);
-  // 画板的顺序是「标签在上、数值在下」，不是产品原先的「大数在上」。
-  assert.match(panelSource, /<span className="d-t-xs d-t-faint d-grow">\{label\}<\/span>\s*<span className="d-t-title d-num">\{value\}<\/span>/);
-  assert.match(panelSource, /<span className="d-t-xs d-t-faint">\{hint\}<\/span>/);
-  // 五个图表卡（按模型 / 请求与错误 / 热力图 / 每日 token / 按项目）都是画板 D-19
-  // 的 `.d-chart`（整行的热力图带 margin inline，所以按前缀匹配而不是整串）。
-  assert.equal(panelSource.match(/<div className="d-chart"/g).length, 5);
-  assert.match(panelSource, /<div className="d-col">/);
+  // fork:v5-landing · D-19 帧 A —— `.d-statgrid` 回到画板原样：**四列**，不再按
+  // 「两栏块流里一栏只有 570」退化成两列（那段布局已经整块拆掉了，见下）。
+  assert.match(panelSource, /<div className="d-statgrid">/);
+  assert.doesNotMatch(panelSource, /<StatGrid /);
+  // `.d-stat` 的原文是三段：顶行 `.d-row`（图标 + 标签 + 徽章）/ 大数 / 补充行。
+  assert.equal(panelSource.match(/<div className="d-stat">/g).length, 1, "只有 StatCard 一处发 .d-stat");
+  assert.match(panelSource, /<div className="d-row">\s*<i data-ico=\{icon\} data-size="13"/);
+  assert.match(panelSource, /<span className="d-t-xs d-t-faint d-grow">\{label\}<\/span>/);
+  assert.match(panelSource, /<span className=\{`d-badge \$\{tone\}`\}>\{badge\}<\/span>/);
+  assert.match(panelSource, /<div className="d-t-title d-num">\{value\}<\/div>/);
+  assert.match(panelSource, /<div className="d-t-xs d-t-faint">\{hint\}<\/div>/);
+  // 七个图表卡：热力图 / 最费的天 / 每日 token / 输入输出拆分 / 每日费用 /
+  // 请求与错误 / 按项目，全是画板 D-19 的 `.d-chart`。
+  assert.equal(panelSource.match(/<div className="d-chart"/g).length, 7);
+  // 帧 A 的两节：模型占比（.d-card + .d-bar）与口径说明（.d-set-row + 徽章）。
+  assert.match(panelSource, /<div className="d-card">/);
+  assert.match(panelSource, /<div className="d-bar">/);
+  assert.match(panelSource, /<span className="d-grow-last">/);
+  assert.match(panelSource, /<div className="d-set-sec-t">\{t\("usage\.caliberTitle"\)\}<\/div>/);
+  // 帧 D 的按项目是画板的 `.d-table`，不是自绘的列表行。
+  assert.match(panelSource, /<table className="d-table">/);
+  // 「重播入场」是真接线（换 key 重挂载），两处帧头各一枚。
+  assert.equal(panelSource.match(/\{replayButton\}/g).length, 2);
   // 三件套：页头 + 工具栏（周期芯片）+ 内容区。
   assert.match(panelSource, /<SettingsPage[\s\S]*?sub=\{t\("usage\.subtitle"\)\}/);
   assert.match(panelSource, /className="d-grid2"/);
@@ -74,36 +86,43 @@ test("「刷新」是页级动作（页头右端），不再留在工具栏", ()
 });
 
 test("用量页不再套产品自绘的旧壳类（DIVERGENCE 145 登记残留清掉）", () => {
+  const desktopAt = panelSource.indexOf("<SettingsPage");
+  assert.ok(desktopAt > 0, "桌面分支仍以 SettingsPage 三件套开头");
   // `.settings-general-section` 的边框/圆角是产品 token（--border / --radius-lg），
   // 与画板 `.pw-cell` 的边框叠成双框；空态提示行同理换画板的 `.pw-hint`。
   assert.doesNotMatch(panelSource, /className="settings-general-section"/);
   assert.doesNotMatch(panelSource, /className="settings-chat-range-hint"/);
   assert.match(panelSource, /className="d-t-xs d-t-faint">\{t\("usage\.empty"\)\}/);
+  // fork:v5-landing · D-19 —— 按项目也换成了画板的 `.d-table`（原来是一串
+  // 自绘的 `.d-row` 列表）。
+  assert.doesNotMatch(panelSource.slice(desktopAt), /UsageListRow/, "桌面不再自绘项目列表行");
 });
 
 /**
  * fix:usage-heatmap（2026-09-30 用户实测「用量页面好像是假的，没有真实数据吗」）——
  *
  * 数据是真的（接口回 158 会话 / 40186 消息 / 4.15B token），假的是**图**：
- * 年度热力图是「53 周 × 14px ≈ 742px」的固定轨道网格，塞进 570 的一栏时只有
- * 前 514px 可见，而**最近的活动全在最右端**（今天在最后一列）——
- * 用户看到的是一整片空白灰格子。所以它必须**占一整行**：
- * 布局是「两栏 → 整行热力图 → 两栏」。
+ * 年度热力图是「26 天 × 一格」的整宽轨道，塞进 570 的一栏时只有前一半可见，
+ * 而**最近的活动全在最右端**（今天在最后一列）—— 用户看到的是一整片空白灰格子。
+ * 所以它必须**独占整行**：桌面骨架是单列块流，热力图排在**任何** `.d-grid2`
+ * 之前（两块两栏都排在它后面），也就是永远不在半宽的栏里。
+ * fork:v5-landing · D-19 —— 原先的「两栏 → 整行 → 两栏」骨架随两栏布局一起拆掉了，
+ * 约束本身不变：热力图两侧都没有半宽栏。
  */
 test("年度热力图占一整行，不塞进 570 的一栏", () => {
-  // fork:v5-landing Wave B：面板现在有**两个调用点**（`.m-*` 窄屏页 + `.d-*` 桌面页），
-  // 而这条约束说的是桌面骨架。断言必须钉在桌面那一段上，否则会被窄屏的调用点顶掉。
+  // 面板现在有**两个调用点**（`.m-*` 窄屏页 + `.d-*` 桌面页），而这条约束说的是
+  // 桌面骨架。断言必须钉在桌面那一段上，否则会被窄屏的调用点顶掉。
   const desktopAt = panelSource.indexOf("<SettingsPage");
   assert.ok(desktopAt > 0, "桌面分支仍以 SettingsPage 三件套开头");
   const grids = [...panelSource.matchAll(/className="d-grid2"/g)]
     .map((m) => m.index)
     .filter((index) => index > desktopAt);
-  assert.equal(grids.length, 2, "用量页的骨架是「两栏 → 整行 → 两栏」");
+  assert.equal(grids.length, 2, "桌面骨架只有两处并排块（输入/输出拆分 + 每日费用、请求与错误 + 按项目）");
   const heatAt = panelSource.indexOf("<UsageHeatmap", desktopAt);
   assert.ok(heatAt > 0, "热力图必须在用量页里");
   assert.ok(
-    grids[0] < heatAt && heatAt < grids[1],
-    "热力图必须落在两段两栏之间（整行），否则年度网格的右半截（最近的活动）会被裁掉",
+    heatAt < grids[0],
+    "热力图必须排在所有两栏块之前（独占整行），否则年度网格的右半截（最近的活动）会被裁掉",
   );
 });
 

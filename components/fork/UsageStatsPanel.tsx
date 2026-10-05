@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { PwaBanner, PwaPage, PwaPickBar, PwaSetRow } from "@/components/pwa/PwaPage";
@@ -67,23 +67,41 @@ function projectName(cwd: string): string {
   return parts[parts.length - 1] ?? cwd;
 }
 
-/** 画板 D-19 帧 A 的 `.d-stat`：图标行 + 标签 + 徽章，等宽数值，一行补充。
- *  fork:settings-frame（画板 62）—— `wide` 让一张卡横跨整行（两列栅格下 9 张卡
- *  会剩最后一张孤零零占半行；把「Token」这张最长的撑满，2×4 + 1 就齐了）。 */
-function StatCard({ label, value, hint, wide = false }: { label: string; value: string; hint?: ReactNode; wide?: boolean }): ReactNode {
+/* fork:v5-landing · D-19 —— `.d-stat` 抄画板帧 A 的原文：顶行是
+   `<div class="d-row">` = 图标 + 标签 + 徽章，下面才是等宽大数与补充行。
+   产品此前只发「标签 / 数值 / 补充」三层，所以图标与徽章（区间、口径、健康度）
+   全都无处落位 —— 徽章承载的正是画板那句「范围切换是同一套结构换数字」的证据。 */
+function StatCard({
+  icon,
+  label,
+  badge,
+  tone = "mute",
+  value,
+  hint,
+}: {
+  icon: string;
+  label: string;
+  badge?: string;
+  tone?: "ok" | "warn" | "mute" | "info";
+  value: string;
+  hint?: string;
+}): ReactNode {
   return (
-    <div className="d-stat" style={wide ? { gridColumn: "1 / -1" } : undefined}>
-      <span className="d-t-xs d-t-faint d-grow">{label}</span>
-      <span className="d-t-title d-num">{value}</span>
-      {hint ? <span className="d-t-xs d-t-faint">{hint}</span> : null}
+    <div className="d-stat">
+      <div className="d-row">
+        <i data-ico={icon} data-size="13" aria-hidden="true" />
+        <span className="d-t-xs d-t-faint d-grow">{label}</span>
+        {badge ? <span className={`d-badge ${tone}`}>{badge}</span> : null}
+      </div>
+      <div className="d-t-title d-num">{value}</div>
+      {hint ? <div className="d-t-xs d-t-faint">{hint}</div> : null}
     </div>
   );
 }
 
-/** 画板 D-19 帧 A 的 `.d-statgrid`：默认四列；两栏块流里一栏只有 570，
- *  四列会挤成 130px 一卡，这时改用 `.d-grid2`（两列）。 */
-function StatGrid({ columns = 4, children }: { columns?: 2 | 4; children: ReactNode }): ReactNode {
-  return <div className={columns === 2 ? "d-grid2" : "d-statgrid"}>{children}</div>;
+/** 精确计数（18,642）；`formatCompact` 留给空间不够的地方。 */
+function formatCount(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale).format(Math.round(value));
 }
 
 export function UsageStatsPanel(): ReactNode {
@@ -164,6 +182,20 @@ export function UsageStatsPanel(): ReactNode {
       break;
     }
     const topModel = summary.models[0] ?? null;
+    const { totals } = summary;
+    // fork:v5-landing · D-19 帧 A/C —— 卡片与「每日费用」那几个派生数全部来自
+    // 同一份 summary，没有第二次采样：日均按**有花费的天数**算（把没花钱的休假日
+    // 摊进分母会让日均偏低，而看板要回答的正是「花钱那天平均多少」）。
+    let spentDays = 0;
+    let busiest = summary.days[0] ?? null;
+    let quietest: UsageStatsSummary["days"][number] | null = null;
+    for (const day of summary.days) {
+      if (day.cost <= 0) continue;
+      spentDays += 1;
+      if (!busiest || day.cost > busiest.cost) busiest = day;
+      if (!quietest || day.cost < quietest.cost) quietest = day;
+    }
+    const unbound = summary.projects.find((project) => !project.project) ?? null;
     return {
       activeDays,
       streak,
@@ -173,6 +205,16 @@ export function UsageStatsPanel(): ReactNode {
       // 「工具成功率」= 没失败的工具结果占全部工具结果的比例；区间内没有工具调用时
       // 没有样本可言，按 100% 显示而不是 NaN。
       successRate: toolResults > 0 ? Math.max(0, 1 - errors / toolResults) : 1,
+      costPerDay: spentDays > 0 ? totals.cost / spentDays : 0,
+      perMessage: totals.messages > 0 ? totals.tokens / totals.messages : 0,
+      perSession: totals.sessions > 0 ? totals.tokens / totals.sessions : 0,
+      cacheHitRate: totals.tokens > 0 ? totals.tokensByKind.cacheRead / totals.tokens : 0,
+      // 画板帧 C 的「每日费用」两行：最高/最低一天（都取自当前区间，图与左边的
+      // 每日 token 柱条共用同一条时间轴）。区间内一分钱没花时两行都不渲染。
+      busiest: spentDays > 0 ? busiest : null,
+      quietest,
+      unbound,
+      projectCount: summary.projects.length,
     };
   }, [summary]);
 
@@ -187,10 +229,27 @@ export function UsageStatsPanel(): ReactNode {
   }, [t, totals]);
 
   const projects = summary?.projects ?? [];
+  // fork:v5-landing · D-19 帧 B —— 「重播入场」是真接线：换 key 让子树整体重挂载，
+  // CSS 动画随之从头跑（画板 demo.js 里是 `animation:none` + 强制回流，React 里
+  // key 变更就是同一件事，且不碰 DOM style）。
+  const [replay, setReplay] = useState(0);
+  const replayButton = (
+    <button type="button" className="d-btn sm" onClick={() => setReplay((value) => value + 1)}>
+      <i data-ico="rotate-cw" data-size="13" aria-hidden="true" />
+      {t("usage.replay")}
+    </button>
+  );
   // 热力图的数据源：默认最近 12 个月（选了「1 年 / 全部」就是它自己）。
   const heatmapDays = summary && (range === "1y" || range === "all")
     ? summary.days
     : (yearSummary?.days ?? summary?.days ?? []);
+  // 画板帧 B 的「最费的四天」与热力图**同源**（同一份 days），所以它排在热力图
+  // 正下方而不是跟着上面的区间按钮缩 —— 帧标签原话：「按 token 排序，与热力图同源」。
+  const topDays = useMemo(
+    () => [...heatmapDays].filter((day) => day.tokens > 0).sort((a, b) => b.tokens - a.tokens).slice(0, 4),
+    [heatmapDays],
+  );
+  const topDayMax = Math.max(1, ...topDays.map((day) => day.tokens));
 
   // fork:v5-landing Wave B · M-09 帧 C · 用量 ——
   // 手机上这是一个**独立一级页**，只回答「这个月烧了多少」：口径与数字在同一屏，
@@ -417,184 +476,346 @@ export function UsageStatsPanel(): ReactNode {
       )}
       {error && <p role="alert" className="d-banner err">{t("usage.error")} {error}</p>}
 
-      {summary && derived && (
+{summary && derived && (
         <>
-          {/* 第一段两栏：左 = 九张统计卡（is-wide 首卡撑满 → 1 + 2×4，末行不孤），
-              右 = 按模型 / 请求与错误。图表容器是画板 45 的 `.pw-cell` + `h4`，
-              不再套产品自绘的 `.settings-general-section`（那层 --border/--radius-lg
-              壳与 `.pw-cell` 的画板边框叠成双框，DIVERGENCE 145 的登记残留）。 */}
-          <div className="d-grid2">
-          <div>
-            <StatGrid columns={2}>
+          {/* fork:v5-landing · D-19 —— 整块按画板四帧的顺序单列排下去：
+              帧 A 统计卡 → 帧 A §模型占比 / §口径说明 → 帧 B 热力图 + 最费的天 →
+              帧 C 每日 token + 输入输出拆分 / 每日费用 → 帧 D 请求与错误 + 按项目。
+              分节间距由这一层的 `d-col gap:sp-6` 给（画板 `.d-set-inner` 同款）。 */}
+          <div className="d-col" style={{ gap: "var(--nx-sp-6)" }}>
+            {/* 帧 A · `.d-statgrid`：第一行四张就是画板那四张（总 token / 总费用 /
+                消息数 / 工具成功率），第二行是产品本来就有的四个数（会话 / 缓存 /
+                活跃天数 / 项目数）—— 同一张 `.d-stat` 卡片，不另起样式。
+                徽章是这轮新增的落位：区间 / 计价口径 / 健康度以前无处安放。 */}
+            <div className="d-statgrid">
               <StatCard
+                icon="sigma"
                 label={t("usage.tokens")}
+                badge={t(RANGE_KEYS[range])}
                 value={formatCompact(summary.totals.tokens, locale)}
                 hint={tokenKinds.map((kind) => `${kind.label} ${formatCompact(kind.value, locale)}`).join(" · ")}
-                wide
               />
-              <StatCard label={t("usage.sessions")} value={formatCompact(summary.totals.sessions, locale)} />
-              <StatCard label={t("usage.messages")} value={formatCompact(summary.totals.messages, locale)} />
-              <StatCard label={t("usage.activeDays")} value={formatCompact(derived.activeDays, locale)} />
-              <StatCard label={t("usage.streak")} value={formatCompact(derived.streak, locale)} />
               <StatCard
-                label={t("usage.topModel")}
-                value={derived.topModel ? derived.topModel.model : "—"}
-                hint={derived.topModel ? t("usage.share", { percent: (derived.topModel.share * 100).toFixed(1) }) : undefined}
+                icon="percent"
+                label={t("usage.cost")}
+                badge={t("usage.localPricing")}
+                value={formatCost(summary.totals.cost, locale)}
+                hint={t("usage.perDay", { amount: formatCost(derived.costPerDay, locale) })}
               />
-              <StatCard label={t("usage.cacheTokens")} value={formatCompact(summary.totals.tokensByKind.cacheRead, locale)} />
               <StatCard
+                icon="activity"
+                label={t("usage.messages")}
+                badge={formatCompact(summary.totals.messages, locale)}
+                value={formatCount(summary.totals.messages, locale)}
+                hint={t("usage.perMessage", { tokens: formatCompact(derived.perMessage, locale) })}
+              />
+              <StatCard
+                icon="circle-check"
                 label={t("usage.successRate")}
+                badge={derived.successRate >= 0.95 ? t("usage.healthy") : t("usage.needsAttention")}
+                tone={derived.successRate >= 0.95 ? "ok" : "warn"}
                 value={`${(derived.successRate * 100).toFixed(0)}%`}
                 hint={t("usage.failures", { count: derived.errors })}
               />
-              <StatCard label={t("usage.cost")} value={formatCost(summary.totals.cost, locale)} />
-            </StatGrid>
+              <StatCard
+                icon="messages-square"
+                label={t("usage.sessions")}
+                badge={formatCompact(summary.totals.sessions, locale)}
+                value={formatCount(summary.totals.sessions, locale)}
+                hint={t("usage.perSession", { tokens: formatCompact(derived.perSession, locale) })}
+              />
+              <StatCard
+                icon="database"
+                label={t("usage.cacheTokens")}
+                badge={t("usage.hitRate", { percent: (derived.cacheHitRate * 100).toFixed(0) })}
+                value={formatCompact(summary.totals.tokensByKind.cacheRead, locale)}
+                hint={t("usage.cacheWriteHint", { tokens: formatCompact(summary.totals.tokensByKind.cacheWrite, locale) })}
+              />
+              <StatCard
+                icon="calendar-days"
+                label={t("usage.activeDays")}
+                value={formatCount(derived.activeDays, locale)}
+                hint={`${t("usage.streak")} ${formatCount(derived.streak, locale)}`}
+              />
+              <StatCard
+                icon="folder"
+                label={t("usage.projects")}
+                badge={formatCompact(derived.projectCount, locale)}
+                value={formatCount(derived.projectCount, locale)}
+                hint={derived.unbound ? t("usage.unboundHint", { count: derived.unbound.sessions }) : undefined}
+              />
+            </div>
 
             {!hasActivity && (
               <p role="status" className="d-t-xs d-t-faint">{t("usage.empty")}</p>
             )}
-          </div>
 
-          <div>
             {hasActivity && (
-            <>
-              {summary.models.length > 0 && (
+              <>
+                {/* 帧 A · §模型占比：`.d-card` 里每个模型一行（名字 / token / 费用）
+                    + 一条 `.d-bar`。条形按 token 而不是费用 —— 画板把这句话印在
+                    最后一行，否则用户会照条的宽度去读钱。 */}
+                {summary.models.length > 0 && (
+                  <div className="d-set-sec">
+                    <div className="d-set-sec-t">{t("usage.byModel")}</div>
+                    <div className="d-card">
+                      <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
+                        {summary.models.slice(0, 6).map((model) => (
+                          <div className="d-col" key={model.model} style={{ gap: "var(--nx-sp-2)" }}>
+                            <div className="d-row d-t-xs">
+                              <span className="d-grow d-mono" title={model.model}>{model.model}</span>
+                              <span className="d-t-dim d-mono">{formatCompact(model.tokens, locale)}</span>
+                              <span className="d-t-faint d-mono">{formatCost(model.cost, locale)}</span>
+                            </div>
+                            <div className="d-bar">
+                              <i style={{ width: `${(model.share * 100).toFixed(1)}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="d-t-xs d-t-faint">{t("usage.byTokensNote")}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 帧 A · §口径说明：三条 `.d-set-row`，右槽一枚徽章。口径必须与
+                    数字同屏 —— 这页报的是钱，错一条口径比少一个指标危险。 */}
+                <div className="d-set-sec">
+                  <div className="d-set-sec-t">{t("usage.caliberTitle")}</div>
+                  <div className="d-set-row">
+                    <div className="d-set-row-box">
+                      <div className="d-set-row-t">{t("usage.caliberCacheTitle")}</div>
+                      <div className="d-set-row-s">{t("usage.caliberCacheNote")}</div>
+                    </div>
+                    <span className="d-grow-last">
+                      <span className="d-badge ok">
+                        {t("usage.hitRate", { percent: (derived.cacheHitRate * 100).toFixed(0) })}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="d-set-row">
+                    <div className="d-set-row-box">
+                      <div className="d-set-row-t">{t("usage.caliberFailedTitle")}</div>
+                      <div className="d-set-row-s">{t("usage.caliberFailedNote")}</div>
+                    </div>
+                    <span className="d-grow-last">
+                      <span className="d-badge mute">{t("usage.failures", { count: derived.errors })}</span>
+                    </span>
+                  </div>
+                  <div className="d-set-row">
+                    <div className="d-set-row-box">
+                      <div className="d-set-row-t">{t("usage.caliberReadonlyTitle")}</div>
+                      <div className="d-set-row-s">{t("usage.caliberReadonlyNote")}</div>
+                    </div>
+                    <span className="d-grow-last">
+                      <span className="d-badge info">{t("usage.notBilled")}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* 帧 B · 年度活跃热力图：`.d-chart` > `.d-chart-head`（图标 + 标题
+                    + 口径 + 重播）+ `.d-chart-body` > `.d-heat`。热力图固定看最近
+                    12 个月，不跟上面的区间按钮缩（7 天窗口只有四五列，一整年的节奏
+                    全看不见）；「最费的天」与它同源，所以排在正下方。 */}
                 <div className="d-chart">
                   <div className="d-chart-head">
-                    <i data-ico="chart-pie" data-size="14" aria-hidden="true" />
-                    {t("usage.byModel")}
+                    <i data-ico="calendar-days" data-size="15" aria-hidden="true" />
+                    <span className="d-grow">{t("usage.heatmap")}</span>
+                    <span className="d-t-xs d-t-faint">{t("usage.heatmapNote")}</span>
+                    {replayButton}
                   </div>
-                  {/* fork:v5-boards D-27 帧 E —— `.d-chart` 的正文层是 `.d-chart-body`
-                      （与 `.d-card-body` 同为 sp-4 内边距，但语义只属于图表；板面两个图
-                      都是 `d-chart` > `d-chart-head` + `d-chart-body`）。 */}
-                  <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
-                  <UsageShareBar
-                    slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
-                    label={t("usage.modelShare")}
-                  />
-                  <div className="d-col">
-                    {summary.models.slice(0, 8).map((model) => (
-                      <UsageListRow
-                        key={model.model}
-                        accent
-                        title={model.model}
-                        meta={`${t("usage.requests", { count: model.messages })} · ${formatCompact(model.tokens, locale)} tok · ${formatCost(model.cost, locale)}`}
-                        trailing={`${(model.share * 100).toFixed(1)}%`}
-                      />
-                    ))}
-                  </div>
+                  <div className="d-chart-body" key={`heat-${replay}`}>
+                    <div className="d-row">
+                      <span className="d-seg">
+                        <button
+                          type="button"
+                          className={metric === "sessions" ? "is-on" : undefined}
+                          aria-pressed={metric === "sessions"}
+                          onClick={() => setMetric("sessions")}
+                        >
+                          {t("usage.metricSessions")}
+                        </button>
+                        <button
+                          type="button"
+                          className={metric === "tokens" ? "is-on" : undefined}
+                          aria-pressed={metric === "tokens"}
+                          onClick={() => setMetric("tokens")}
+                        >
+                          {t("usage.metricTokens")}
+                        </button>
+                      </span>
+                      <span className="d-grow" aria-hidden="true" />
+                    </div>
+                    <UsageHeatmap
+                      days={heatmapDays}
+                      metric={metric}
+                      label={t("usage.heatmap")}
+                      metricLabel={metric === "sessions" ? t("usage.metricSessions") : t("usage.metricTokens")}
+                      lessLabel={t("usage.less")}
+                      moreLabel={t("usage.more")}
+                    />
                   </div>
                 </div>
-              )}
 
-              <div className="d-chart" style={summary.models.length > 0 ? { marginTop: "var(--nx-sp-3)" } : undefined}>
-                <div className="d-chart-head">
-                  <i data-ico="activity" data-size="14" aria-hidden="true" />
-                  {t("usage.requestsErrors")}
+                {topDays.length > 0 && (
+                  <div className="d-chart">
+                    <div className="d-chart-head">
+                      <i data-ico="flame" data-size="15" aria-hidden="true" />
+                      <span className="d-grow">{t("usage.topDays")}</span>
+                      <span className="d-t-xs d-t-faint">{t("usage.topDaysNote")}</span>
+                    </div>
+                    <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
+                      {topDays.map((day) => (
+                        <div className="d-row d-t-sm" key={day.day}>
+                          <span className="d-t-faint d-mono">{day.day}</span>
+                          <span className="d-bar d-grow">
+                            <i style={{ width: `${Math.max(4, Math.round((day.tokens / topDayMax) * 100))}%` }} />
+                          </span>
+                          <span className="d-mono d-t-b">{formatCompact(day.tokens, locale)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 帧 C · 每日 token：柱条自基线长起、逐根错峰（`.d-bars` + `.d-bar-rise`）。*/}
+                <div className="d-chart">
+                  <div className="d-chart-head">
+                    <i data-ico="chart-column-increasing" data-size="15" aria-hidden="true" />
+                    <span className="d-grow">{t("usage.dailyTokens")}</span>
+                    <span className="d-t-xs d-t-faint">{t(RANGE_KEYS[range])}</span>
+                    {replayButton}
+                  </div>
+                  <div className="d-chart-body" key={`bars-${replay}`}>
+                    <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
+                  </div>
                 </div>
-                <div className="d-chart-body">
-                <UsageRequestsErrors
-                  days={summary.days}
-                  label={t("usage.requestsErrors")}
-                  requestsLabel={t("usage.requestsLegend")}
-                  errorsLabel={t("usage.errorsLegend")}
-                />
+
+                {/* 帧 C · 输入/输出拆分 + 每日费用 */}
+                <div className="d-grid2">
+                  <div className="d-chart">
+                    <div className="d-chart-head">
+                      <i data-ico="sigma" data-size="15" aria-hidden="true" />
+                      <span className="d-grow">{t("usage.tokenSplit")}</span>
+                    </div>
+                    <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                      {tokenKinds.map((kind) => (
+                        <Fragment key={kind.label}>
+                          <div className="d-row">
+                            <span className="d-grow d-t-sm d-t-dim">{kind.label}</span>
+                            <span className="d-t-sm d-num d-mono">{formatCount(kind.value, locale)}</span>
+                          </div>
+                          <div className="d-bar">
+                            <i style={{ width: `${summary.totals.tokens > 0 ? ((kind.value / summary.totals.tokens) * 100).toFixed(1) : "0"}%` }} />
+                          </div>
+                        </Fragment>
+                      ))}
+                      <div className="d-t-xs d-t-faint">{t("usage.cacheSplitNote")}</div>
+                    </div>
+                  </div>
+
+                  <div className="d-chart">
+                    <div className="d-chart-head">
+                      <i data-ico="percent" data-size="15" aria-hidden="true" />
+                      <span className="d-grow">{t("usage.dailyCost")}</span>
+                      <span className="d-t-xs d-t-faint">{t(RANGE_KEYS[range])}</span>
+                    </div>
+                    <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                      {derived.busiest && (
+                        <div className="d-set-row">
+                          <div className="d-set-row-box">
+                            <div className="d-set-row-t">{t("usage.busiestDay")}</div>
+                            <div className="d-set-row-s">
+                              {`${derived.busiest.day} · ${t("usage.requests", { count: derived.busiest.messages })} · ${formatCompact(derived.busiest.tokens, locale)}`}
+                            </div>
+                          </div>
+                          <span className="d-grow-last d-t-b d-num">{formatCost(derived.busiest.cost, locale)}</span>
+                        </div>
+                      )}
+                      {derived.quietest && (
+                        <div className="d-set-row">
+                          <div className="d-set-row-box">
+                            <div className="d-set-row-t">{t("usage.quietestDay")}</div>
+                            <div className="d-set-row-s">
+                              {`${derived.quietest.day} · ${t("usage.requests", { count: derived.quietest.messages })} · ${formatCompact(derived.quietest.tokens, locale)}`}
+                            </div>
+                          </div>
+                          <span className="d-grow-last d-t-b d-num">{formatCost(derived.quietest.cost, locale)}</span>
+                        </div>
+                      )}
+                      <div className="d-banner">
+                        <i data-ico="info" data-size="14" aria-hidden="true" />
+                        <span>{t("usage.budgetNote")}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </>
+
+                {/* 帧 D · 请求与错误（两条序列共用一个 max）+ 按项目表。
+                    画板帧 D 左边那张是**逐条请求**的明细表；`.jsonl` 只按天聚合，
+                    没有逐条请求这一层，所以这里留真实存在的两条日序列，不编明细。
+                    「未绑定工作区」单列成一行，不按比例摊给别的项目。 */}
+                <div className="d-grid2">
+                  <div className="d-chart">
+                    <div className="d-chart-head">
+                      <i data-ico="activity" data-size="15" aria-hidden="true" />
+                      <span className="d-grow">{t("usage.requestsErrors")}</span>
+                      <span className="d-t-xs d-t-faint">{t(RANGE_KEYS[range])}</span>
+                    </div>
+                    <div className="d-chart-body" key={`req-${replay}`}>
+                      <UsageRequestsErrors
+                        days={summary.days}
+                        label={t("usage.requestsErrors")}
+                        requestsLabel={t("usage.requestsLegend")}
+                        errorsLabel={t("usage.errorsLegend")}
+                      />
+                    </div>
+                  </div>
+
+                  {projects.length > 0 && (
+                    <div className="d-chart">
+                      <div className="d-chart-head">
+                        <i data-ico="folder-tree" data-size="15" aria-hidden="true" />
+                        <span className="d-grow">{t("usage.byProject")}</span>
+                      </div>
+                      <div className="d-card-body">
+                        <table className="d-table">
+                          <thead>
+                            <tr>
+                              <th>{t("usage.byProject")}</th>
+                              <th>{t("usage.sessions")}</th>
+                              <th>{t("usage.tokens")}</th>
+                              <th>{t("usage.cost")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {projects.slice(0, 10).map((project) => (
+                              <tr key={project.project || "unbound"}>
+                                <td className="d-mono">{project.project ? projectName(project.project) : t("usage.unboundProject")}</td>
+                                <td className="d-mono">{formatCount(project.sessions, locale)}</td>
+                                <td className="d-mono">{formatCompact(project.tokens, locale)}</td>
+                                <td className="d-mono">{formatCost(project.cost, locale)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {projects.length > 10 && (
+                          <div className="d-t-xs d-t-faint">{t("usage.moreProjects", { count: projects.length - 10 })}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {derived.unbound && (
+                  <div className="d-banner warn">
+                    <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+                    <span>{t("usage.unboundNote")}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
-          </div>
-
-          {/* fork:settings-frame（画板 62）—— 热力图单独占**一整行**（1160）。
-              放进 570 的一栏时，那张「53 周 × 14px ≈ 742px」的年度网格只有前 514px 可见，
-              而**最近的活动全在最右端**（今天在最后一列）—— 用户看到的就是一整片
-              空白灰格子，第一反应是「这页是假数据吧」。整行放得下，12 个月标签也齐。
-              整行块的 `margin-top:var(--s3)` 抄画板 45 §按项目 的整行 `.pw-cell`。 */}
-          {hasActivity && (
-            <div className="d-chart" style={{ marginTop: "var(--nx-sp-3)" }}>
-              <div className="d-chart-head">
-                <i data-ico="calendar-days" data-size="14" aria-hidden="true" />
-                {t("usage.heatmap")}
-                {/* 画板 D-19 帧 B 的帧头读数（口径写在图旁边，否则数字会被当成账单）。 */}
-                <span className="d-grow" aria-hidden="true" />
-                <span className="d-t-xs d-t-faint">{t("usage.activeDays")}</span>
-              </div>
-              <div className="d-chart-body">
-              <div className="d-row" style={{ marginTop: "var(--nx-sp-2)" }}>
-                <span className="d-seg">
-                  <button
-                    type="button"
-                    className={metric === "sessions" ? "is-on" : undefined}
-                    aria-pressed={metric === "sessions"}
-                    onClick={() => setMetric("sessions")}
-                  >
-                    {t("usage.metricSessions")}
-                  </button>
-                  <button
-                    type="button"
-                    className={metric === "tokens" ? "is-on" : undefined}
-                    aria-pressed={metric === "tokens"}
-                    onClick={() => setMetric("tokens")}
-                  >
-                    {t("usage.metricTokens")}
-                  </button>
-                </span>
-                <span className="d-grow" />
-              </div>
-              <UsageHeatmap
-                days={heatmapDays}
-                metric={metric}
-                label={t("usage.heatmap")}
-                metricLabel={metric === "sessions" ? t("usage.metricSessions") : t("usage.metricTokens")}
-                lessLabel={t("usage.less")}
-                moreLabel={t("usage.more")}
-              />
-              </div>
-            </div>
-          )}
-
-          {hasActivity && (
-          <div className="d-grid2" style={{ marginTop: "var(--nx-sp-3)" }}>
-          <div>
-              <div className="d-chart">
-                <div className="d-chart-head">
-                  <i data-ico="chart-column" data-size="14" aria-hidden="true" />
-                  {t("usage.dailyTokens")}
-                </div>
-                <div className="d-chart-body">
-                <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
-                </div>
-              </div>
-          </div>
-
-          <div>
-              {projects.length > 0 && (
-                <div className="d-chart">
-                  <div className="d-chart-head">
-                    <i data-ico="folder" data-size="14" aria-hidden="true" />
-                    {t("usage.byProject")}
-                  </div>
-                  <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
-                  <div className="d-col">
-                    {projects.slice(0, 8).map((project) => (
-                      <UsageListRow
-                        key={project.project || "unknown"}
-                        title={projectName(project.project)}
-                        meta={`${t("usage.sessionsCount", { count: project.sessions })} · ${t("usage.requests", { count: project.messages })} · ${formatCost(project.cost, locale)}`}
-                        trailing={`${formatCompact(project.tokens, locale)} tok`}
-                      />
-                    ))}
-                  </div>
-                  {projects.length > 8 && (
-                    <p className="d-t-xs d-t-faint">{t("usage.moreProjects", { count: projects.length - 8 })}</p>
-                  )}
-                  </div>
-                </div>
-              )}
-          </div>
-          </div>
-          )}
         </>
       )}
     </SettingsPage>
