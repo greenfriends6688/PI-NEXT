@@ -104,3 +104,6 @@ design/pi-web-design/.skeuo/verify-*.html
 /PI NEXT品牌/
 /docs/screenshots/skin-verify-*/
 /docs/upstream-mcp-staged/
+
+# pi harness scratch (plans live in docs/)
+/.pi/
