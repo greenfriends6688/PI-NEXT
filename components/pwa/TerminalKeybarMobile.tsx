@@ -19,27 +19,36 @@
  */
 
 import { useCallback } from "react";
+import { useI18n } from "@/hooks/useI18n";
 
 export interface TerminalKeybarMobileProps {
   /** 把一段控制序列写进终端（xterm 的 `paste`）。终端没就绪时由终端侧自己挡掉。 */
   onSequence: (sequence: string) => void;
 }
 
-/** 画板帧 C 的九枚键，顺序即 DOM 顺序（常用四件在最左）。 */
-const KEYS: Array<{ label: string; sequence: string; title: string }> = [
+/**
+ * 画板帧 C 的九枚键，顺序即 DOM 顺序（常用四件在最左）。
+ *
+ * fork:v5-frame-audit —— 键帽文字不动；`titleKey` 是**人话**（板上那一帧写的是
+ * 「中断 / 退出全屏 / 补全路径 / 上一条历史 …」）。此前这里把控制序列本身写进了
+ * title/aria-label —— 读屏念出来的是「ETX」「escape」而不是「中断」：那不是无障碍
+ * 名字，是把字节码漏给了用户。序列仍由 `sequence` 原样交给终端，一个字节都没变。
+ */
+const KEYS: Array<{ label: string; sequence: string; titleKey: string }> = [
   // Ctrl-C：0x03（ETX）。先发 ^C 再发回车，shell 才会把这一行交出去。
-  { label: "Ctrl-C", sequence: "\x03", title: "\x03" },
-  { label: "Esc", sequence: "\x1b", title: "\x1b" },
-  { label: "Tab", sequence: "\t", title: "\t" },
-  { label: "↑", sequence: "\x1b[A", title: "\x1b[A" },
-  { label: "↓", sequence: "\x1b[B", title: "\x1b[B" },
-  { label: "←", sequence: "\x1b[D", title: "\x1b[D" },
-  { label: "→", sequence: "\x1b[C", title: "\x1b[C" },
-  { label: "|", sequence: "|", title: "|" },
-  { label: "Ctrl-P", sequence: "\x10", title: "\x10" },
+  { label: "Ctrl-C", sequence: "\x03", titleKey: "terminal.keybar.interrupt" },
+  { label: "Esc", sequence: "\x1b", titleKey: "terminal.keybar.cancel" },
+  { label: "Tab", sequence: "\t", titleKey: "terminal.keybar.complete" },
+  { label: "↑", sequence: "\x1b[A", titleKey: "terminal.keybar.prevHistory" },
+  { label: "↓", sequence: "\x1b[B", titleKey: "terminal.keybar.nextHistory" },
+  { label: "←", sequence: "\x1b[D", titleKey: "terminal.keybar.lineStart" },
+  { label: "→", sequence: "\x1b[C", titleKey: "terminal.keybar.lineEnd" },
+  { label: "|", sequence: "|", titleKey: "terminal.keybar.pipe" },
+  { label: "Ctrl-P", sequence: "\x10", titleKey: "terminal.keybar.prevDir" },
 ];
 
 export function TerminalKeybarMobile({ onSequence }: TerminalKeybarMobileProps) {
+  const { t } = useI18n();
   const press = useCallback((sequence: string) => {
     onSequence(sequence);
   }, [onSequence]);
@@ -51,8 +60,8 @@ export function TerminalKeybarMobile({ onSequence }: TerminalKeybarMobileProps) 
           key={key.label}
           type="button"
           className="m-key"
-          title={key.title}
-          aria-label={key.title}
+          title={t(key.titleKey)}
+          aria-label={t(key.titleKey)}
           onClick={() => press(key.sequence)}
         >
           {key.label}

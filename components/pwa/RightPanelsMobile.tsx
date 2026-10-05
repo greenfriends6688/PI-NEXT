@@ -22,6 +22,11 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/hooks/useI18n";
+// fork:v5-landing E4 —— M-11 帧 A-2 的左缘侧滑返回（`.m-swipe` / `.m-swipe-edge` /
+// `.m-swipe-hint`）。这层的关闭动作在本组件里（`closeAll`），所以手势也归这儿 ——
+// 不把「已经能关的一层」再报告给上面一层去猜。
+import { PwaEdgeSwipeBack } from "./MobileGestures";
 
 export interface MobileRightPanelItem {
   /** 稳定 id：切块只比它，不比下标。 */
@@ -32,17 +37,32 @@ export interface MobileRightPanelItem {
   label: string;
   /** 这一路的现状一句话，写在 `.m-sheet-row-desc`。 */
   description: string;
+  /**
+   * fork:v5-frame-audit —— 点这一行时、进全屏层**之前**要先做的事（通常是
+   * 「把还没开的块打开」：轨迹 / Git 这类单例布尔块关着也在选单里，M-12 帧 A
+   * 的六项常驻）。选完即走，所以在同一个点击里先跑它再 `enter(key)`。
+   */
+  onSelect?: () => void;
   /** 行尾徽章 / 状态点（`.m-badge` / `.m-dot`）。 */
   trailing?: ReactNode;
   /** 正文：只有进入那一块时才调用，切块不重新挂载别的块。 */
   render: () => ReactNode;
+  /**
+   * fork:v5-landing E4 —— 这一块的容器类，缺省 `.m-panel-scroll`（M-12 帧 B/C/D 的
+   * 六个 pane 共用同一种「唯一纵向滚动区」）。终端那一块传 M-06 帧 C 的
+   * `.m-term-mobile`（终端容器：等宽 / code 底 / 自身滚动）—— 两个类**同时挂**
+   * 在一个节点上是有意的：`.m-term-mobile` 给外观，`.m-panel-scroll` 给
+   * `display:flex / flex-direction:column / min-height:0`（xterm 靠这三条拿到高度，
+   * 缺了它终端会塔成 0 高）；两边都是库里的类，没有自造值。
+   */
+  containerClassName?: string;
 }
 
 export interface MobileRightPanelsProps {
   items: MobileRightPanelItem[];
   /** 入口钮与底部面板标题（与桌面 `panel-right` 同义）。 */
   title: string;
-  /** 底部面板脚注（解释「为什么不是六个常驻页签」）。 */
+  /** 底部面板脚注（解释「为什么不是六个常驻页签」）。不给就用库里的 M-12 原文。 */
   footNote?: string;
   /** 分组标题那一行；不给就不渲染这一行。 */
   listLabel?: string;
@@ -69,6 +89,13 @@ export function MobileRightPanels({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const layerRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
+
+  /* fork:v5-frame-audit —— M-12 帧 A 的 `.m-group-title` 与 `.m-sheet-foot`：
+     接线层（AppShell）原来两行都没给，于是这块面板少了两句话 ——
+     「选一块进入」是使用规则，「不做常驻页签」是取舍说明。调用方仍可覆盖。 */
+  const groupTitle = listLabel ?? t("pwa.rightPanels.groupTitle");
+  const sheetFoot = footNote ?? t("pwa.rightPanels.footNote");
 
   const closeAll = useCallback(() => {
     setSheetOpen(false);
@@ -125,16 +152,26 @@ export function MobileRightPanels({
               {/* 宿主是 pointer-events:none 的全屏层，只有这三块接手指（接线层）。 */}
               <div className="m-scrim is-open" style={{ pointerEvents: "auto" }} onClick={() => setSheetOpen(false)} />
               <div className="m-sheet is-open" role="dialog" aria-label={title} style={{ pointerEvents: "auto" }}>
-                <div className="m-sheet-grab" />
+                {/* 抓手也是一枚「点一下即收」的钮（div→button 的既定换法）；
+                    命中区在 `app/design/v5-forms.css` 的接线层放大。 */}
+                <button
+                  type="button"
+                  className="m-sheet-grab"
+                  aria-label={t("chat.close")}
+                  onClick={() => setSheetOpen(false)}
+                />
                 <div className="m-sheet-title">{title}</div>
                 <div className="m-sheet-body">
-                  {listLabel && <div className="m-group-title">{listLabel}</div>}
+                  <div className="m-group-title">{groupTitle}</div>
                   {items.map((item) => (
                     <button
                       key={item.key}
                       type="button"
                       className="m-sheet-row"
-                      onClick={() => enter(item.key)}
+                      onClick={() => {
+                        item.onSelect?.();
+                        enter(item.key);
+                      }}
                     >
                       <i data-ico={item.icon} data-size="16" aria-hidden="true"></i>
                       <span className="m-setrow-body">
@@ -145,7 +182,7 @@ export function MobileRightPanels({
                     </button>
                   ))}
                 </div>
-                {footNote && <div className="m-sheet-foot">{footNote}</div>}
+                {sheetFoot ? <div className="m-sheet-foot">{sheetFoot}</div> : null}
               </div>
             </>
           )}
@@ -158,6 +195,10 @@ export function MobileRightPanels({
               aria-label={layerItem.label}
               style={{ pointerEvents: "auto" }}
             >
+              {/* M-11 帧 A-2 —— 左缘 28px 侧滑返回：松手就是这一层的「返回」，
+                  与右上角那枚 × 是同一个动作（板面原话：手势不可发现，所以必须有
+                  一个常驻的等价入口，而它就是这枚 ×）。 */}
+              <PwaEdgeSwipeBack onBack={closeAll} target={layerItem.label} />
               <div className="m-viewer-bar">
                 <div className="m-cats compact m-grow" role="tablist" aria-label={title}>
                   {items.map((item) => (
@@ -186,11 +227,18 @@ export function MobileRightPanels({
                 </button>
               </div>
 
-              {/* 六块共用这一层：只有当前块挂载，切块只换内容。 */}
+              {/* 六块共用这一层：只有当前块挂载，切块只换内容。
+                  M-12 帧 B/D 的终端 pane 把正文指向 M-06 帧 C —— 那一帧的容器就是
+                  `.m-term-mobile`（`.m-cats` 的图标名也是同一批：terminal / square-terminal）。 */}
               {items.map((item) => (
                 <section
                   key={item.key}
-                  className="m-panel-scroll"
+                  className={
+                    item.containerClassName
+                      ?? (item.icon === "terminal" || item.icon === "square-terminal"
+                        ? "m-panel-scroll m-term-mobile"
+                        : "m-panel-scroll")
+                  }
                   hidden={item.key !== layerItem.key}
                   aria-label={item.label}
                 >

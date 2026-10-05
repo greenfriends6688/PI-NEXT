@@ -14,11 +14,17 @@
  * （甚至初始包含块）定位。所以外面套一层 `position: fixed; inset: 0` 的定位层
  * —— 铁律四允许的「几何定位 / z-index 层的摆放」，其余一律走 `var()`。
  * `.m-sheet` 自带 `max-height: 78%` 与 `display:flex`，高度上限因此落在视口上。
+ *
+ * `useDialogA11y` 的 ref 挂在宿主层而不是 `.m-sheet` 上：hook 把 ref 节点的
+ * **兄弟**设为 inert，挂在 sheet 上时兄弟恰好是遮罩，「点遮罩即收」就死了
+ * （2026-10-05 用户报告）；挂在宿主上兄弟是应用根，遮罩照常可点 —— 与
+ * `DirectoryPicker` / `PwaComposerSheet` 同一口径。抓手同理换成可点的 button。
  */
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useI18n } from "@/hooks/useI18n";
 
 export function PwaSheet({
   open,
@@ -45,21 +51,24 @@ export function PwaSheet({
   // 焦点 / inert 必须在根节点真的存在之后才交给 useDialogA11y，否则它只跑一次空转。
   const ready = open && mounted;
   const { dialogRef, dialogProps } = useDialogA11y({ open: ready, onClose });
+  const { t } = useI18n();
 
   if (!ready) return null;
 
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: "var(--nx-z-modal)" }}>
+    <div
+      ref={dialogRef}
+      style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: "var(--nx-z-modal)" }}
+    >
       {/* 画板 `.m-scrim`：点它即收面板（M-09 帧 A「点遮罩即收」）。 */}
       <div className="m-scrim is-open" onClick={onClose} />
       <div
-        ref={dialogRef}
         {...dialogProps}
         className="m-sheet is-open"
         style={{ pointerEvents: "auto" }}
         aria-label={label}
       >
-        <div className="m-sheet-grab" />
+        <button type="button" className="m-sheet-grab" aria-label={t("chat.close")} onClick={onClose} />
         <div className="m-sheet-title">{title}</div>
         <div className="m-sheet-body">{children}</div>
         {footer ? <div className="m-pickbar">{footer}</div> : null}

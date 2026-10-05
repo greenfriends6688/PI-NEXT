@@ -129,7 +129,16 @@ export function PwaDirectoryPicker(props: PwaDirectoryPickerProps) {
       {/* role / aria-modal 由外层宿主（`useDialogA11y` 的 dialogProps）承担，
           这里只把标题指回去 —— 两层 role="dialog" 会让读屏读两遍。 */}
       <div className="m-sheet is-open">
-        <div className="m-sheet-grab" />
+        {/* 抓手可点即收（div→button 的既定换法）；pickerBusy 中不许收，与遮罩同一守卫。
+            命中区在 `app/design/v5-forms.css` 的接线层放大。 */}
+        <button
+          type="button"
+          className="m-sheet-grab"
+          aria-label={t("chat.close")}
+          onClick={() => {
+            if (!pickerBusy) onCancel();
+          }}
+        />
         <div className="m-sheet-title" id="directory-picker-title">
           {t("directoryPicker.selectDirectory")}
         </div>

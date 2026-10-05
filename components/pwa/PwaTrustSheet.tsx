@@ -70,7 +70,16 @@ export function PwaTrustSheet({
         aria-labelledby="project-trust-title"
         className="m-sheet is-open"
       >
-        <div className="m-sheet-grab" />
+        {/* 抓手可点即收（div→button 的既定换法）；busy 中不许收，与遮罩同一守卫。
+            命中区在 `app/design/v5-forms.css` 的接线层放大。 */}
+        <button
+          type="button"
+          className="m-sheet-grab"
+          aria-label={t("chat.close")}
+          onClick={() => {
+            if (!busy) onCancel();
+          }}
+        />
         <div className="m-sheet-title" id="project-trust-title">
           {t("trust.dialogTitle")}
         </div>
@@ -115,5 +124,69 @@ export function PwaTrustSheet({
       </div>
     </div>,
     portalTarget,
+  );
+}
+
+/**
+ * `.m-trust` —— 目录信任的**常驻条**（M-10 帧 C-1），不是一次性弹窗。
+ *
+ * 画板原文：
+ *   <div class="m-trust">
+ *     <i data-ico="shield-alert" data-size="14"></i>
+ *     <span class="m-setrow-body m-grow">
+ *       <span class="m-setrow-t">未信任目录 · ~/Projects/pi-next</span>
+ *       <span class="m-setrow-s">命令与文件写入会被拦下，直到你处理它</span>
+ *     </span>
+ *     <button class="m-top-btn"><i data-ico="chevron-right" data-size="15"></i></button>
+ *   </div>
+ * 它的位置纪律也照板：断网条与它同在 `top: 0`，库里的 `.m-offline ~ .m-trust`
+ * 兄弟选择器负责把信任条自动落到断网条下面 —— 所以两件必须是**兄弟**，
+ * 中间不许再包一层（那会让 `~` 失配，两条横幅叠在一起）。
+ *
+ * 与板面的两处差别都记在这里（板面是一张状态图，产品要能真的用）：
+ *   ① 尾件：板面那一枚是「开三选项 sheet」的 chevron，而产品的信任模型只有一个动作
+ *      （授权本目录），且 SW-16 的用户裁定要求「横幅内联『信任』按钮直接完成」——
+ *      所以尾件换成同尺寸的行动钮，不把这条一次动作拆成两级。
+ *   ② `position` 摆回流内：板面把横幅画在屏幕最顶上（帧 C-1 根本没有顶栏），
+ *      而产品那里是 `.m-top`（绝对定位的渐隐顶栏 + 抽屉钮）；真跑到 `top: 0`
+ *      会把抽屉入口盖住。除位置外的底色 / 描边 / 内距 / 字号全部由 `.m-trust` 给。
+ */
+export function PwaTrustBanner({
+  cwd,
+  busy,
+  error,
+  onTrust,
+}: {
+  cwd: string;
+  busy: boolean;
+  error: string | null;
+  onTrust: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div
+      className="m-trust"
+      data-mobile-trust-banner="true"
+      role={error ? "alert" : "status"}
+      style={{ position: "static" }}
+    >
+      <i data-ico="shield-alert" data-size="14" aria-hidden="true" />
+      <span className="m-setrow-body m-grow">
+        <span className="m-setrow-t">
+          {t("trust.resourcesNotLoaded")} · <span className="m-mono">{cwd}</span>
+        </span>
+        <span className="m-setrow-s">
+          {error ?? t("trust.mobileBannerBody")}
+        </span>
+      </span>
+      <button
+        type="button"
+        className="m-btn primary sm m-touch-44"
+        disabled={busy}
+        onClick={onTrust}
+      >
+        {busy ? t("trust.trusting") : t("trust.trustShort")}
+      </button>
+    </div>
   );
 }
