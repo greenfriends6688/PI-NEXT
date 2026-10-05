@@ -37,29 +37,13 @@
   box-shadow: none;
 }
 
-/* fork:models-board —— 画板 41/42 的右列要吃掉面板的剩余高度（空态才居中、底部
-   保存条才贴底），但**卡本身按内容收口**：`.pw-cols` 默认 `align-items: stretch`，
-   右列那张 `.pw-detail` 会被拉到整页高，底部留一大片空白、外圈看着像又套了
-   一个弹窗（用户原话：「为啥还有弹窗的影子」）。左列要满高，所以单独撑开。 */
-.config-panel-surface > .pw-cols {
+/* fork:v5-landing · D-08 —— 独立弹窗宿主（侧栏齿轮打开的模型面板）没有设置壳的
+   滚动容器：`.config-panel-surface` 是 overflow:hidden 的 flex column，页头 /
+   工具栏（SettingsPage 三件套）不滚，内容列（SettingsPage 的 `> .d-col`）自己滚。
+   嵌入宿主（设置弹窗）里这一层没有任何高度约束，多出来的 overflow-y 不生效 ——
+   滚动仍由 `.settings-section-host.d-set-main` 独自承担，不会出现双滚动条。 */
+.config-panel-surface > .d-col {
   flex: 1;
-  min-height: 0;
-  align-items: start;
-}
-
-.config-panel-surface > .pw-cols > :first-child {
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-/* fix:settings-detail-scroll —— 右列（详情卡堆）也要能滚。
-   原来只有左列声明了 `overflow-y:auto`，右列按内容长高；`.config-panel-surface`
-   是 `overflow:hidden`，于是**多出来的部分被直接裁掉**，而底部的 `.pw-modal-foot`
-   （保存按钮）仍然贴在面板底 —— 看起来就是「保存按钮浮在列表上、最后几行被切掉」
-   （用户实测：模型页的可用模型列表）。两列各自滚动，底部动作条不再压内容。 */
-.config-panel-surface > .pw-cols > :last-child {
-  height: 100%;
   min-height: 0;
   overflow-y: auto;
 }
@@ -131,106 +115,9 @@
    行基件已随 ConfigSidebarItem 挂 `.pw-litem` 退役，hover / focus / 选中 / 禁用
    四态全部由 board.css 的 `.pw-litem`（含 `is-on`）出形，零引用，整族删除。 */
 
-.models-sidebar-indented-item {
-  padding-left: 26px;
-}
-
-.models-sidebar-add-item {
-  color: var(--text-dim);
-}
-
-.models-sidebar-add-item:not(:disabled):hover,
-.models-sidebar-add-item:not(:disabled):focus-visible {
-  color: var(--accent);
-}
-
-.models-sidebar-badge {
-  flex-shrink: 0;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 10px;
-}
-
-.enabled-models-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-panel);
-}
-
-.enabled-models-banner-text {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.enabled-models-banner-key {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.enabled-models-banner-facts {
-  flex: none;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
-/* fork:models-board —— 行、过滤框、列表外壳都换成画板的 `.pw-litem` / `.pw-input` /
-   `.pw-list`（board.css 提供视觉），这里只留画板没有的产品语义：
-   标题字重、只读提示、错误条、空态。原先那 80 行自绘样式已退役。 */
-.enabled-models-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.enabled-models-title {
-  font-size: var(--text-secondary);
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--n-strong);
-}
-
-.enabled-models-switch-error {
-  color: var(--danger);
-  font-size: var(--text-meta);
-}
-
-.enabled-models-header {
-  flex-wrap: wrap;
-}
-
-.enabled-models-note,
-.enabled-models-empty {
-  color: var(--n-muted);
-  font-size: var(--text-meta);
-  line-height: 1.5;
-}
-
-.enabled-models-empty {
-  padding: 4px var(--s2);
-}
-
-.enabled-models-error {
-  padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
-  border-radius: var(--radius-4);
-  color: var(--danger);
-  font-size: var(--text-meta);
-  line-height: 1.4;
-}
+/* fork:v5-landing · D-08/D-10（2026-10-05）—— 模型页供应商改走 `.d-table`、
+   pattern 白名单改走 `.d-set-sec` / `.d-banner`，旧侧栏行（models-sidebar-*）、
+   启用模型横幅与区块（enabled-models-*）全部零引用，整族删除（铁律五）。 */
 
 /* 模型设置页的三处小结构：模型行、上游导入清单、测试回显。 */
 /* fork:model-row-inline（2026-10-05）—— 模型行从「整行一个按钮」改成「装着两个
@@ -257,14 +144,18 @@
   position: sticky;
   top: 0;
   z-index: 1;
+  padding: 6px 12px;
   background: var(--surface-panel);
   font-size: var(--text-meta);
   font-weight: 600;
   color: var(--n-muted);
 }
 
+/* 卡片里的一行勾选（上游导入清单 + 聊天模型选择器同款）：内距跟着行走，
+   不再由每个调用点写一份内联几何。 */
 .models-discovery-row {
   cursor: pointer;
+  padding: 6px 12px;
 }
 
 .models-discovery-row.is-added {

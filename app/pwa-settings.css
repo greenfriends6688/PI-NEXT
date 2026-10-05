@@ -137,4 +137,50 @@
   .settings-dialog-surface .settings-section-host {
     overscroll-behavior: contain;
   }
+
+  /* -------------------------------------------------------------------------
+   * §5 高度链：`.m-settings` 是这一列**唯一**的纵向滚动容器（M-05 帧 A/B）
+   *
+   * 故障与根因（用户实测「手机上技能页纵向滑不动，内容被裁掉」）：
+   *   `.m-settings` 自带 `flex: 1 1 auto; min-height: 0; overflow-y: auto`（库），
+   *   但它的父级 `div.settings-section-host` 在窄屏这一支是**没有 `display` 的块**
+   *   —— 因为 `[hidden]` 的 UA 规则（`display: none`）是作者层 `display` 的下位，
+   *   宿主一旦挂上带 `display` 的类（`.d-set-main` 就是）就再也藏不住了。
+   *   结果：块级父级不参与 flex，`.m-settings` 的高度退化成**内容高**
+   *   （实测 390×844 下 8702px，`clientHeight === scrollHeight`），
+   *   `overflow-y: auto` 形同虚设，弹窗（`overflow: hidden`）把多出来的九屏静默裁掉。
+   *
+   * 修法分两段，缺一不可：
+   *   ① 宿主在**可见时**才变成 flex 列（`:not([hidden])`）—— `hidden` 的分节仍然是
+   *      `display: none`，惰挂载 + 常驻切换的语义一个字没动；
+   *   ② 把中途那两个 `height: 100%`（`.config-panel-root.is-embedded` /
+   *      `.config-panel-surface`，为**桌面**分栏两列各自滚动写的）在这条窄屏链上归零，
+   *      否则它们会在 `.m-settings` 里面**再养一个滚动容器**（`.m-list`），
+   *      高度到不了 `.m-settings`，那条 `overflow-y: auto` 依旧白写。
+   *   剩下的 `108px` 顶栏让位（`.m-top` 是绝对定位层，不在滚动流里）照旧由
+   *   `.m-settings` 自己的上内缩给出 —— 与 M-05 帧 A/B 的板面原文一致。
+   * ---------------------------------------------------------------------- */
+  .settings-dialog-surface .settings-section-host:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    /* 宿主自己的 `overflow-y: auto` 是给**桌面**分节准备的默认滚动；这一列里
+       滚动必须落在 `.m-settings` 身上，否则同一条链上会出现两个纵向滚动容器
+       （实测宿主 ch === sh，从不滚，但嵌套滚动容器会让 iOS 的橡皮筋归属变得
+       不可预测）。`hidden` 与 `auto` 的裁切语义相同，不新增任何裁切面。 */
+    overflow: hidden;
+  }
+
+  .settings-dialog-surface .m-settings > .config-panel-root.is-embedded,
+  .settings-dialog-surface .m-settings .config-panel-surface {
+    height: auto;
+  }
+
+  /* 详情列的 720px 定宽（画板 D-07/D-11 的 `.d-set-inner`）在 390px 上放不下，
+     而它作为 flex 项的 `min-width: auto` 又不肯缩 —— 结果整列 720px 顶在
+     344px 的卡里（实测 `.m-list` scrollWidth 736）。`max-width: 100%` 只是把
+     **桌面那个上限**按窄屏收掉，列内该自带横滚的件（`.m-code-scroll` /
+     `.m-tbl-scroll`，库里的 `overflow-x: auto`）照旧自己滚。 */
+  .settings-dialog-surface .m-settings .d-set-inner {
+    max-width: 100%;
+  }
 }

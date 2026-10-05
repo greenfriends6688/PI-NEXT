@@ -4,6 +4,8 @@ import { Fragment } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import type { Locale } from "@/lib/i18n/types";
+import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 
 type ConfigButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ConfigButtonSize = "small" | "default";
@@ -677,14 +679,96 @@ export function PwBlock({ icon, title, children }: { icon: string; title: string
       </div>
     );
   }
+  // fork:v5-landing-frame · D-07 / D-07b —— **桌面这一层没有图标**：两张板上每一处
+  // `<div class="d-set-sec-t">` 都是纯文字（`grep -rn 'd-set-sec-t' design/v5/web/boards`
+  // 里没有一条带 `data-ico`），图标在板面上属于分节**左导航**（`.d-set-navitem > i`），
+  // 不在块标题上。此前的 `<i>` 是从 v1 的 `.pw-block` 头沿用下来的 —— 铁律一：抄 DOM 原文。
+  // 窄屏分支（M-05 的 `.m-group-title`）按别人的口径原样保留。
   return (
     <div className="d-set-sec">
-      <div className="d-set-sec-t">
-        <i data-ico={icon} data-size="14" aria-hidden="true" />
-        {title}
-      </div>
+      <div className="d-set-sec-t">{title}</div>
       {children}
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:v5-landing-frame · D-07 / D-07b —— **状态徽章的「开 / 关 / 已暂停」**。
+ *
+ * 画板上设置行的右端几乎每一行都写着当前值（`.d-grow-last > .d-badge.ok` /
+ * `.d-badge.mute` / 暂停态的 `.d-badge.mute`「已暂停」），产品此前只有控件本身，
+ * 开关是开是关要靠控件自己说。
+ *
+ * 语言包里没有这三个键，而 `lib/i18n/messages/**` 不在本轮文件范围内，所以按
+ * `settings-disabled-reasons.ts` 的同一口径（本地表 + `localCopy`）放在这里，
+ * 三个消费方（SettingsPanel / WallpaperSettings / RetrySettingsBlock）取同一份，
+ * 免得同一个词在三处说成三个说法。**待办**：迁进 `settings.*` 键位后本表可删。
+ * ----------------------------------------------------------------------- */
+const STATE_BADGE_ON: LocalCopy = {
+  en: "On",
+  "zh-CN": "开",
+  "zh-TW": "開",
+};
+
+const STATE_BADGE_OFF: LocalCopy = {
+  en: "Off",
+  "zh-CN": "关",
+  "zh-TW": "關",
+};
+
+/** 被总开关暂停的行：值没变，只是暂时不生效（画板 D-07b 帧 C 的「已暂停」）。 */
+const STATE_BADGE_PAUSED: LocalCopy = {
+  en: "Paused",
+  "zh-CN": "已暂停",
+  "zh-TW": "已暫停",
+};
+
+/** 一行的状态徽章：`on` / `off`；`disabled` 时一律说「已暂停」并换成 `mute` 档。 */
+export function stateBadge(
+  locale: Locale,
+  checked: boolean,
+  disabled = false,
+): { text: string; tone: string } {
+  if (disabled) return { text: localCopy(STATE_BADGE_PAUSED, locale), tone: "mute" };
+  return checked
+    ? { text: localCopy(STATE_BADGE_ON, locale), tone: "ok" }
+    : { text: localCopy(STATE_BADGE_OFF, locale), tone: "mute" };
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:v5-landing-frame · D-07 / D-07b —— **档位说明横幅**（`data-demo-pane` 的产品形）。
+ *
+ * 板面上「一个分段选择器 + 一句说清它后果的话」是一对：D-07 帧 D 的主题三档
+ * （浅色 / 深色 / 跟随系统）、D-07b 帧 B 的界面密度三档与发送键两档，都是同一段 DOM：
+ *
+ *   <section data-demo-pane="…"[ hidden]>
+ *     <div class="d-banner"><i data-ico="…" data-size="14"></i>
+ *       <span class="d-grow">…</span></div>
+ *
+ * 产品此前只做了分段选择器，那句后果整段MISSING —— 于是「我这档有什么代价」只能自己猜。
+ * 三个 pane 都渲染，用 `hidden` 切（板面也是这样：不选中的那段带 `hidden`），
+ * 所以 DOM 里三段都在，节点数与板面一一对应。
+ *
+ * 窄屏（M-05）不画这一层：那一支归那边核，这里一个字都不动。
+ * ----------------------------------------------------------------------- */
+export function PwPaneCard({
+  hidden,
+  icon,
+  children,
+}: {
+  hidden: boolean;
+  icon: string;
+  children: ReactNode;
+}) {
+  const isMobile = useIsMobile();
+  if (isMobile) return null;
+  return (
+    <section hidden={hidden}>
+      <div className="d-banner">
+        <i data-ico={icon} data-size="14" aria-hidden="true" />
+        <span className="d-grow">{children}</span>
+      </div>
+    </section>
   );
 }
 
@@ -700,13 +784,38 @@ export function PwField({
   hint,
   htmlFor,
   control,
+  badge,
+  slider,
+  extra,
 }: {
   label: ReactNode;
   hint?: ReactNode;
   htmlFor?: string;
   control: ReactNode;
+  /** fork:v5-landing-frame · D-07 / D-07b —— 当前值的徽章，画板把它放在
+   *  `.d-grow-last` 里（开关 / 滑块因此落在行尾，不与读数挤在一个槽里）。 */
+  badge?: { text: ReactNode; tone?: string };
+  /** 画板把 `<input class="d-slider">` 放在 `.d-set-row` 的**第三个子节点**
+   *  （`d-grow-last` 之外）：「遮罩浓度」「侧边栏 · 宽度」「聊天内容宽度」三行同款。
+   *  给了它就按那一行渲染，`control` 不再包 `.d-grow-last`。 */
+  slider?: {
+    id: string;
+    value: number;
+    min: number;
+    max: number;
+    step?: number;
+    ariaLabel: string;
+    disabled?: boolean;
+    onChange: (next: number) => void;
+  };
+  /** 行尾再追加一个动作（画板「聊天内容宽度」那枚 `.d-btn.sm.ghost`「重置」）。 */
+  extra?: ReactNode;
 }) {
   const isMobile = useIsMobile();
+  // fork:v5-landing-frame · 窄屏（M-05）这一分支一个字不动：那边是「一行一个控件」，
+  // 徽章属于板面右端的读数位，手机形态有自己的一套，**不在本轮范围**。
+  // `slider` 只影响桌面那一行（值徽章 + 行尾滑块）；窄屏仍然把滑块与动作钿并排放，
+  // 所以这里把滑块按 `PwRange`（`m-slider` + `m-mono` 读数）补回行体。
   if (isMobile) {
     return (
       <div className="m-setrow">
@@ -716,6 +825,19 @@ export function PwField({
           </span>
           {hint ? <span className="m-setrow-s">{hint}</span> : null}
         </span>
+        {slider ? (
+          <PwRange
+            id={slider.id}
+            value={slider.value}
+            displayValue={String(slider.value)}
+            min={slider.min}
+            max={slider.max}
+            step={slider.step ?? 1}
+            disabled={slider.disabled}
+            ariaLabel={slider.ariaLabel}
+            onChange={slider.onChange}
+          />
+        ) : null}
         {control}
       </div>
     );
@@ -728,7 +850,33 @@ export function PwField({
         </div>
         {hint ? <div className="d-set-row-s">{hint}</div> : null}
       </div>
-      <span className="d-grow-last">{control}</span>
+      {badge || slider ? (
+        <>
+          {badge ? (
+            <span className="d-grow-last">
+              <span className={["d-badge", badge.tone ?? ""].filter(Boolean).join(" ")}>{badge.text}</span>
+            </span>
+          ) : null}
+          {slider ? (
+            <input
+              id={slider.id}
+              className="d-slider"
+              type="range"
+              min={slider.min}
+              max={slider.max}
+              step={slider.step ?? 1}
+              value={slider.value}
+              disabled={slider.disabled}
+              aria-label={slider.ariaLabel}
+              onChange={(event) => slider.onChange(Number(event.target.value))}
+            />
+          ) : null}
+          {control}
+          {extra}
+        </>
+      ) : (
+        <span className="d-grow-last">{control}</span>
+      )}
     </div>
   );
 }
@@ -827,7 +975,10 @@ export function PwRadio<T extends string>({
 }) {
   const isMobile = useIsMobile();
   return (
-    <span
+    // fork:v5-landing-frame · D-07 / D-07b —— 分段组在板面上是 `div.d-seg`
+    // （主题三档 / 界面语言三档 / 界面密度三档 / 发送键两档都是它），此前发的是
+    // `span`；标签换成板面的，类名与状态类一字不动。
+    <div
       className={isMobile ? "m-pickbar" : "d-seg"}
       role="radiogroup"
       aria-label={ariaLabel}
@@ -856,7 +1007,117 @@ export function PwRadio<T extends string>({
           </button>
         );
       })}
-    </span>
+    </div>
+  );
+}
+
+export interface PwRadioRowOption<T extends string> {
+  value: T;
+  label: ReactNode;
+  /** 副标题 = 画板 `.d-radiorow-s` / `.m-setrow-s`（「这一档的后果」那句话）。 */
+  hint?: ReactNode;
+}
+
+/**
+ * 单选行组：**整行可点**的互斥选项。桌面 = D-07 帧 B「进入方式与地址」那一段的
+ * 原文 —— 标签行 `.d-set-row` › `.d-set-row-box`（`.d-set-row-t` + `.d-set-row-s`），
+ * 下面是 `.d-col` › `button.d-radiorow`（圆点 `.d-radio` + `.d-col` › `.d-radiorow-t`
+ * 标题 + `.d-radiorow-s` 副标题）；选中挂 `.on`（不是 `.is-on`，画板原文）。
+ * 窄屏 = M-05 帧 A 的单选行：`button.m-setrow`（`.m-setrow-body` › `.m-setrow-t` +
+ * `.m-setrow-s`）+ 行尾 `.m-radio` —— **不再套 `.m-cardgroup`**，因为宿主 `PwBlock`
+ * 的窄屏形态就是 `.m-cardgroup`，再套一层就是卡中卡。
+ *
+ * 与 `PwRadio` 的分工（同一条判据，别混用）：
+ *   · `PwRadio` = **分段芯片** `.d-seg`，值短、一眼看全，落在行尾 `.d-grow-last` 里
+ *     （主题 / 语言 / 密度 / 发送键总开关那种「两个字的档位」）；
+ *   · 本件 = **整行单选**，每一档要带一句说明、占满整列（画板 D-07 帧 B 就是它）。
+ * 行为等价：同一个 `value` / `onChange`，点击即选中，`role="radio"` + `aria-checked`。
+ *
+ * UA 归零：`.m-setrow` 自带 `text-align: left`（库里那条规则就是为 button 写的），
+ * `.d-radiorow` 没有 —— 所以桌面那一支带 Tailwind 的 `text-left`（按钮的 UA 默认
+ * 是居中）。这是接线层允许的那类归零，不是设计值；库里补一条
+ * `button.d-radiorow { text-align: left }` 之后这个工具类可以删（见报告「需要 CSS」）。
+ */
+export function PwRadioRow<T extends string>({
+  label,
+  hint,
+  value,
+  options,
+  ariaLabel,
+  disabled = false,
+  onChange,
+}: {
+  /** 画板上一级的标签行（`.d-set-row`）。板面里标签行与列表是**两级**：
+   *  「打开这个地址时」一行说明 + 下面一组行，所以这里不给就把整行省掉。 */
+  label?: ReactNode;
+  hint?: ReactNode;
+  value: T;
+  options: readonly PwRadioRowOption<T>[];
+  ariaLabel: string;
+  disabled?: boolean;
+  onChange: (next: T) => void;
+}) {
+  const isMobile = useIsMobile();
+  return (
+    <>
+      {label ? (
+        isMobile ? (
+          <div className="m-setrow">
+            <span className="m-setrow-body">
+              <span className="m-setrow-t">{label}</span>
+              {hint ? <span className="m-setrow-s">{hint}</span> : null}
+            </span>
+          </div>
+        ) : (
+          <div className="d-set-row">
+            <div className="d-set-row-box">
+              <div className="d-set-row-t">{label}</div>
+              {hint ? <div className="d-set-row-s">{hint}</div> : null}
+            </div>
+          </div>
+        )
+      ) : null}
+      {/* 窄屏**不再套一层 `.m-cardgroup`**：M-05 板上的单选组是「自己一张白卡」，
+          而产品里这一段在 `PwBlock` 里，而 `PwBlock` 的窄屏形态**就是** `.m-cardgroup`
+          —— 再套一层就是卡中卡。行本身就是 `.m-setrow`（44 高 + 发丝下边框），
+          在宿主卡里读起来与板面同一组。 */}
+      <div className={isMobile ? undefined : "d-col"} role="radiogroup" aria-label={ariaLabel}>
+        {options.map((option) => {
+          const on = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={disabled}
+              className={isMobile
+                ? "m-setrow"
+                : `d-radiorow text-left${on ? " on" : ""}`}
+              onClick={() => onChange(option.value)}
+            >
+              {isMobile ? (
+                <>
+                  <span className="m-setrow-body">
+                    <span className="m-setrow-t">{option.label}</span>
+                    {option.hint ? <span className="m-setrow-s">{option.hint}</span> : null}
+                  </span>
+                  <span className={`m-radio${on ? " on" : ""}`} aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  <span className={`d-radio${on ? " on" : ""}`} aria-hidden="true" />
+                  <span className="d-col">
+                    <span className="d-radiorow-t">{option.label}</span>
+                    {option.hint ? <span className="d-radiorow-s">{option.hint}</span> : null}
+                  </span>
+                </>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

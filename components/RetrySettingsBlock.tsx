@@ -25,6 +25,7 @@
  */
 import { useEffect, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 import { PwBlock, PwCtl, PwField, PwSwitch } from "./SettingsUi";
 import {
   RETRY_DEFAULTS,
@@ -44,6 +45,26 @@ const NUMERIC_FIELDS: readonly { key: NumericKey; min: number; max: number; step
 /** 输入框的草稿（null = 不在编辑，回落到服务端值）。 */
 type NumericDrafts = { maxRetries: string | null; baseDelayMs: string | null };
 const NO_DRAFTS: NumericDrafts = { maxRetries: null, baseDelayMs: null };
+
+/* fork:v5-landing-frame · D-07 帧 B —— 块首那句弱化说明与「自动重试」那一行的状态徽章
+   （板面写的是「开 · 最多 3 次」）。语言包里没有这两个键（`lib/i18n/**` 不在本轮文件
+   范围），走本地表（与 `settings-disabled-reasons` 同一口径）。 */
+const RETRY_LEAD: LocalCopy = {
+  en: "Retrying is for failures that are worth waiting out. Which ones are worth waiting for has to be spelled out — otherwise the user only sees the same error three times.",
+  "zh-CN": "重试是给「等一下就好」的失败准备的。哪些失败值得等，必须写清 —— 不然用户只会看到同一个错误重复三遍。",
+  "zh-TW": "重試是給「等一下就好」的失敗準備的。哪些失敗值得等，必須寫清 —— 不然使用者只會看到同一個錯誤重複三遍。",
+};
+
+const RETRY_BADGE: LocalCopy = {
+  en: "{state} · up to {count} times",
+  "zh-CN": "{state} · 最多 {count} 次",
+  "zh-TW": "{state} · 最多 {count} 次",
+};
+
+const RETRY_BADGE_STATE = {
+  on: { en: "On", "zh-CN": "开", "zh-TW": "開" },
+  off: { en: "Off", "zh-CN": "关", "zh-TW": "關" },
+} satisfies Record<string, LocalCopy>;
 
 /**
  * 输入框里的字符串 → 可提交的值。
@@ -69,7 +90,7 @@ export function retryRequestBody(
 }
 
 export function RetrySettingsBlock({ cwd }: { cwd: string | null }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [settings, setSettings] = useState<RetrySettings>(RETRY_DEFAULTS);
   const [drafts, setDrafts] = useState<NumericDrafts>(NO_DRAFTS);
   const [loading, setLoading] = useState(true);
@@ -131,9 +152,18 @@ export function RetrySettingsBlock({ cwd }: { cwd: string | null }) {
 
   return (
     <PwBlock icon="refresh-cw" title={t("settings.retryBlock")}>
+      {/* fork:v5-landing-frame · D-07 帧 B —— 块首那句弱化说明（板面原文）。 */}
+      <div className="d-t-xs d-t-faint">{localCopy(RETRY_LEAD, locale)}</div>
       <PwField
         label={t("settings.retryEnabled")}
         hint={t("settings.retryEnabledHint")}
+        badge={{
+          text: localCopy(RETRY_BADGE, locale, {
+            state: localCopy(RETRY_BADGE_STATE[settings.enabled ? "on" : "off"], locale),
+            count: String(settings.maxRetries),
+          }),
+          tone: settings.enabled ? "ok" : "mute",
+        }}
         control={
           <PwSwitch
             checked={settings.enabled}

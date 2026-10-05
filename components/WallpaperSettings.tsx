@@ -38,16 +38,18 @@
  * 「选择图片」承担：它的 MIME 白名单与体积上限就是那三句话的实现
  * （`WALLPAPER_MIME_TYPES` / `fileToWallpaperDataUrl`），不另画一格点同一个动作。
  *
- * 图片是用户数据（data URL），缩略图的 `background-image` 只能内联；
- * 几何与边框来自形态表的 `.d-thumb`。
+ * 图片是用户数据（data URL），缩略图用 `<img>` 而不是 `background-image`（前者
+ * 才能套 `ImagePreview` 点开看全图）；几何与边框来自形态表的 `.d-thumb`。
  */
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useWallpaper } from "@/hooks/useWallpaper";
-import { PwField, PwRange, PwSwitch } from "./SettingsUi";
-import { BuiltinWallpaperPicker } from "./BuiltinWallpaperPicker";
+import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
+import { PwField, PwSwitch, stateBadge } from "./SettingsUi";
+import { ImagePreview } from "./ImagePreview";
+import { BuiltinWallpaperPicker, GALLERY_HINT } from "./BuiltinWallpaperPicker";
 import { BUILTIN_WALLPAPERS, type BuiltinWallpaperId } from "@/lib/wallpaper-builtin";
 import {
   WALLPAPER_SCRIM_MAX,
@@ -57,6 +59,37 @@ import {
 } from "@/lib/wallpaper";
 
 const AREA_MODES: WallpaperAreaMode[] = ["none", "trans", "blur"];
+
+/* fork:v5-landing-frame · D-07b 帧 A —— 「各面适配」字段的标题与那句判据。
+   板面上写着，语言包里没有（`lib/i18n/**` 不在本轮文件范围），走本地表
+   （与 `settings-disabled-reasons` 同一口径）。 */
+const WALLPAPER_AREA_TITLE: LocalCopy = {
+  en: "Per-surface fit",
+  "zh-CN": "各面适配",
+  "zh-TW": "各面適配",
+};
+
+const WALLPAPER_AREA_HINT: LocalCopy = {
+  en: "Letting the wallpaper reach everything makes dense surfaces such as the composer and code blocks hard to read, so each of the three surfaces picks its own level. Chips rather than a dropdown, because a dropdown folds the other two levels behind one arrow.",
+  "zh-CN": "壁纸铺满一切会让输入框与代码块这类密排面读不清，所以三个面各自选一档；用芯片排而不用下拉，是因为下拉把另外两档折进了一个箭头里。",
+  "zh-TW": "桌布鋪滿一切會讓輸入框與程式碼區塊這種密排面讀不清，所以三個面各自選一檔；用晶片排而不用下拉，因為下拉把另外兩檔摺進了一個箭頭裡。",
+};
+
+/* 板面上那两行的说明（`d-set-row-s`）：第一行解释「关掉时下面两行整块消失」，
+   第二行解释「没选过图时只有选择图片」。 */
+const WALLPAPER_ENABLED_HINT: LocalCopy = {
+  en: "Turning it off makes the two rows below (overlay strength / per-surface fit) disappear — they drive the wallpaper, and without a wallpaper there is nothing to adjust.",
+  "zh-CN": "关掉时下面两行（遮罩浓度 / 各面适配）整块消失 —— 它们驱动的是壁纸，没有壁纸就没有可调的东西。",
+  "zh-TW": "關掉時下面兩列（遮罩濃度 / 各面適配）整塊消失 —— 它們驅動的是桌布，沒有桌布就沒有可調的東西。",
+};
+
+const WALLPAPER_CURRENT_HINT: LocalCopy = {
+  en: "Before an image is picked this row only has “Choose image”; afterwards it also has “Replace” and “Remove”. An image over the limit gets a reason you can act on.",
+  "zh-CN": "没选过图时这一行只有「选择图片」；选过之后才有「更换」与「移除」。图片超限会给出可执行的原因。",
+  "zh-TW": "沒選過圖時這一行只有「選擇圖片」；選過之後才有「更換」與「移除」。圖片超限會給出可執行的原因。",
+};
+
+
 
 /**
  * Wallpaper settings.
@@ -82,7 +115,7 @@ export function WallpaperSettings({
   skinActive?: boolean;
   onEditSkin?: () => void;
 } = {}) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const isMobile = useIsMobile();
   const bannerClass = isMobile ? "m-banner" : "d-banner info";
   const errBannerClass = isMobile ? "m-banner" : "d-banner err";
@@ -179,11 +212,17 @@ export function WallpaperSettings({
 
   if (skinActive) {
     return (
-      <div className={bannerClass}>
+      /* fork:v5-landing-frame · D-07b 帧 A —— 接管态原文：`.d-banner.warn` +
+         `.d-btn.sm.ghost.d-banner-btn`（板面那枚按钮带 `.d-banner-btn`，右对齐靠它）。 */
+      <div className={isMobile ? "m-banner" : "d-banner warn"}>
         <i data-ico="info" data-size="14" aria-hidden="true" />
         <span className={isMobile ? "m-grow" : "d-grow"}>{t("settings.wallpaperSkinOwned")}</span>
         {onEditSkin ? (
-          <button type="button" className={btnClass} onClick={onEditSkin}>
+          <button
+            type="button"
+            className={isMobile ? "m-btn sm ghost" : "d-btn sm ghost d-banner-btn"}
+            onClick={onEditSkin}
+          >
             {t("settings.wallpaperSkinOwnedEdit")}
           </button>
         ) : null}
@@ -193,18 +232,19 @@ export function WallpaperSettings({
 
   return (
     <>
-      <input
-        ref={fileRef}
-        type="file"
-        accept={WALLPAPER_MIME_TYPES.join(",")}
-        className="sr-only"
-        aria-label={t("settings.wallpaperChoose")}
-        onChange={(event) => void onFile(event)}
-      />
+      {/* fork:v5-landing-frame · D-07b 帧 A —— 块首那句弱化说明（板面原文，单独一行，
+          不是第一行的 `d-set-row-s`）：先说清「遮罩是谁做的」，后面几行才读得懂。 */}
+      <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+        {t("settings.wallpaperDescription")}
+      </div>
 
       <PwField
         label={t("settings.wallpaperEnabled")}
-        hint={t("settings.wallpaperDescription")}
+        hint={localCopy(WALLPAPER_ENABLED_HINT, locale)}
+        /* fork:v5-landing-frame · D-07b 帧 A —— 「显示壁纸」那一行原文是
+           `.d-grow-last > .d-badge.ok`（开）+ 行尾开关；并且画板明确写着「关掉时下面
+           遮罩浓度 / 各面适配整块消失」—— 产品一直就是按 `enabled` 条件挂那两段的。 */
+        badge={stateBadge(locale, enabled)}
         control={
           <PwSwitch
             checked={enabled}
@@ -214,12 +254,38 @@ export function WallpaperSettings({
         }
       />
 
-      {/* 画板 D-07b 的「当前壁纸」行：缩略图 + 更换 / 移除。没选图时只剩「选择图片」。 */}
+      {/* 画板 D-07b 的「当前壁纸」行：缩略图 + 更换 / 移除。画板原文两态都有这一格
+          （缺了它这行右侧会随状态忽长忽短），但没选图时那格写着「壁纸占位」四个字：
+          在设置栏的实际宽度里这四个字被压成竖排一列，比旁边那枚按钮还抢眼
+          （2026-10-05 用户判「这个占位突兀」→ 只留图标；画板没动，产品侧的偏离）。
+          图标外面再包一层 span —— 不包的话 `.d-thumb > i` 会把它拉成整格宽，
+          贴着左边而不是居中。有图时那格包 `ImagePreview`：16:9 的缩略图看不清细节，
+          点一下开灯箱看全图（聊天里点图放大是同一个组件）。 */}
       <PwField
         label={t("settings.wallpaperCurrent")}
+        hint={localCopy(WALLPAPER_CURRENT_HINT, locale)}
         control={
           <span className="d-row">
-            {url ? <span className="d-thumb" style={{ backgroundImage: `url(${url})` }} /> : null}
+            {url ? (
+              <span className="d-thumb">
+                <ImagePreview
+                  src={url}
+                  alt={t("settings.wallpaperCurrent")}
+                  style={{ width: "100%", height: "100%" }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL，走不了 image optimizer */}
+                  <img
+                    src={url}
+                    alt=""
+                    style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </ImagePreview>
+              </span>
+            ) : (
+              <span className="d-thumb d-placeholder">
+                <span><i data-ico="image" data-size="16" aria-hidden="true" /></span>
+              </span>
+            )}
             <button type="button" className={btnClass} disabled={busy} onClick={onPick}>
               {busy
                 ? t("settings.wallpaperBusy")
@@ -263,21 +329,27 @@ export function WallpaperSettings({
             label={t("settings.wallpaperScrim")}
             hint={t("settings.wallpaperScrimDescription")}
             htmlFor="settings-wallpaper-scrim"
-            control={
-              <PwRange
-                id="settings-wallpaper-scrim"
-                value={scrim}
-                displayValue={`${scrim}%`}
-                min={WALLPAPER_SCRIM_MIN}
-                max={WALLPAPER_SCRIM_MAX}
-                ariaLabel={t("settings.wallpaperScrim")}
-                onChange={setScrim}
-              />
-            }
+            /* fork:v5-landing-frame · D-07b 帧 A —— 「遮罩浓度」那一行原文：
+               `.d-grow-last > .d-badge.mute`（36%）+ 行尾 `.d-slider`。 */
+            badge={{ text: `${scrim}%`, tone: "mute" }}
+            slider={{
+              id: "settings-wallpaper-scrim",
+              value: scrim,
+              min: WALLPAPER_SCRIM_MIN,
+              max: WALLPAPER_SCRIM_MAX,
+              ariaLabel: t("settings.wallpaperScrim"),
+              onChange: setScrim,
+            }}
+            control={null}
           />
-          {/* 画板 D-07b「各面适配」：三面并排（桌面 `.d-grid3` / 窄屏 M-05 `.m-grid2`），
-              每面一组芯片排（`.d-cats` / `.m-cats`）。 */}
+          {/* 画板 D-07b「各面适配」：标题 + 一句为什么用芯片排（三面并排，
+              `.d-grid3`；手机档 M-05 是 `.m-grid2`，那边不动）。此前产品只有三个
+              并排的芯片组，没有字段标题与那句判据。 */}
           <div className={isMobile ? "m-fieldrow" : "d-field"}>
+            <span className={isMobile ? "m-t-sm" : "d-field-t"}>{localCopy(WALLPAPER_AREA_TITLE, locale)}</span>
+            <span className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+              {localCopy(WALLPAPER_AREA_HINT, locale)}
+            </span>
             <div className={isMobile ? "m-grid2" : "d-grid3"}>
               {areaField("settings.wallpaperAreaMessage", messageMode, setMessageMode)}
               {areaField("settings.wallpaperAreaPanel", panelMode, setPanelMode)}
@@ -294,6 +366,19 @@ export function WallpaperSettings({
       <BuiltinWallpaperPicker
         activeId={activeBuiltinId}
         onPick={(id) => setBuiltin(id)}
+        hint={localCopy(GALLERY_HINT, locale)}
+      />
+
+      {/* fork:v5-landing-frame · D-07b 帧 A —— 隐藏的取色/选图 `<input type=file>` 挪到
+          块尾：板面上它不在 DOM 里（选图由那一行的按钮触发），但产品必须有它才能真的
+          打开系统文件选择器，所以它留在最后 —— 让前面每一段与板面逐节点对得上。 */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept={WALLPAPER_MIME_TYPES.join(",")}
+        className="sr-only"
+        aria-label={t("settings.wallpaperChoose")}
+        onChange={(event) => void onFile(event)}
       />
     </>
   );

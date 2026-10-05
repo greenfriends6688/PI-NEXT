@@ -4,6 +4,8 @@ import test from "node:test";
 
 const panelSource = await readFile(new URL("./SettingsPanel.tsx", import.meta.url), "utf8");
 const cssSource = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
+const pwaSettingsCssSource = await readFile(new URL("../app/pwa-settings.css", import.meta.url), "utf8");
+const pwaSystemCssSource = await readFile(new URL("../design/v5/pwa/system.css", import.meta.url), "utf8");
 const globalCssSource = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const shellSource = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 const navSource = await readFile(new URL("../lib/settings-navigation.ts", import.meta.url), "utf8");
@@ -158,7 +160,18 @@ test("uses a left section column on desktop and one compact picker on mobile", (
   assert.doesNotMatch(panelSource, /settings-section-tab(?!s)/);
   // fork:ui-08 — a vertical column (upstream 0.14.6 layout) instead of a row of
   // fixed 96px cells. 宽度 / 内边距 / 底色现在只有一个来源：board.css 的 `.pw-snav`。
+  // fork:v5-landing 逐帧核对（M-05 帧 D / 弹窗宿主）—— 窄屏那一支的内容壳是
+  // `.settings-dialog-body.d-set`（画板 M-05 帧 D 的底部面板内容列），桌面仍是
+  // `.d-modal-body.settings-dialog-body`。断言跟着新结构走，约束不变：
+  // 「窄屏发 `d-set`、桌面发 `d-modal-body`」。
+  // D-07 / D-07b 板面原文是**两级**：`.d-modal-body` › `.d-set`（`d-set-nav` +
+  // `d-set-main`）；窄屏（M-05）保持合并写法 `settings-dialog-body.d-set`。所以这两支
+  // 各有自己的 className 字面量，约束从「一个三元表达式」改成「窄屏发 d-set、
+  // 桌面发 d-modal-body 且里面套一层 d-set」，内容列两端共用同一份 `sectionChildren`。
   assert.match(panelSource, /className="settings-dialog-body d-set"/);
+  assert.match(panelSource, /className="d-modal-body settings-dialog-body"/);
+  assert.match(panelSource, /<div className="d-set">/);
+  assert.match(panelSource, /const sectionChildren = \(<>/);
   assert.match(cssSource, /\.settings-section-tabs \{[\s\S]*?flex-shrink: 0/);
   assert.doesNotMatch(cssSource, /\.settings-section-tabs \{[\s\S]{0,400}?width: 184px/);
   // 焦点环仍由 globals.css 的皮肤覆盖层统一提供；导航行只内缩 offset，
@@ -173,9 +186,11 @@ test("uses a left section column on desktop and one compact picker on mobile", (
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-section-tabs \{[\s\S]*?display: none/);
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
   assert.doesNotMatch(panelSource, /width: isMobile \? "100%" : 188/);
-  // fork:ui-14 — the content column carries the search-highlight ref now.
-  // 搜索已移除：mainRef 只服务于搜索高亮，随之删掉，这里只断言容器本身。
-  assert.match(panelSource, /<main className="settings-dialog-main">/);
+  // fork:v5-landing-frame —— `main.settings-dialog-main` 这一层已撤掉（它不在板面上，
+  // 又与里层 `.d-set-main` 重复承担滚动与内距）；内容列就是 `.d-set` 的第二个子元素
+  // `div.settings-section-host`。等价约束：不再有那层 `<main>`，内容列仍是宿主。
+  assert.doesNotMatch(panelSource, /<main className="settings-dialog-main">/);
+  assert.match(panelSource, /className=\{`settings-section-host\$\{isMobile \? "" : " d-set-main"\}/);
   assert.doesNotMatch(panelSource, /<style>/);
   assert.doesNotMatch(panelSource, /style=\{\{/);
 });
@@ -245,8 +260,11 @@ test("窄屏设置是 hub → 分节二级页两层（M-05），且不摆左导�
   assert.match(panelSource, /className="m-setrow-body"/);
   assert.match(panelSource, /className="m-badge mute"/);
   assert.match(panelSource, /data-ico="chevron-right"/);
-  // 5. 分节流：窄屏是 `.m-settings`（灰底白卡、108px 顶栏让位），桌面是 `.d-set-main`。
-  assert.match(panelSource, /isMobile \? <div className="m-settings">\{content\}<\/div> : <div className="d-set-main">\{content\}<\/div>/);
+  // 5. 分节流：窄屏宿主不带任何 `display` 类（`hidden` 才生效），内容外面套一层
+  //    `.m-settings`（灰底白卡、108px 顶栏让位）；桌面是 `d-set-main` 宿主 + 裸内容。
+  //    断言跟着新结构走：等价约束仍然是「窄屏有 `.m-settings`、桌面没有」。
+  assert.match(panelSource, /className=\{`settings-section-host\$\{isMobile \? "" : " d-set-main"\}/);
+  assert.match(panelSource, /\{isMobile \? <div className="m-settings">\{content\}<\/div> : content\}/);
   // 6. 窄屏不渲染左导航（CSS 侧的隐藏规则跟着换皮失效了，得由组件保证）。
   assert.match(panelSource, /\{isMobile \? null : \(/);
   assert.match(panelSource, /<nav aria-label=\{t\("settings\.title"\)\} className="settings-section-tabs d-set-nav">/);
@@ -262,6 +280,58 @@ test("窄屏设置是 hub → 分节二级页两层（M-05），且不摆左导�
     [...navIds].sort(),
     "hub 与 lib/settings-navigation.ts 必须是同一份分节清单",
   );
+});
+
+/**
+ * fork:pwa-settings-height-chain（2026-10-05）—— 手机档（M-05）**能滑**，
+ * 且工具栏不横向溢出。
+ *
+ * 故障（用户实测）：390×844 的「设置 › 技能」竖向滑不动、内容被裁掉九屏。
+ * 根因是**高度链断在宿主那一层**：窄屏的 `div.settings-section-host` 刻意不带任何
+ * 带 `display` 的类（`[hidden]` 的 UA 规则是作者层 `display` 的下位，挂了
+ * `d-set-main` 就再也藏不住分节），于是它退化成普通块，内层 `.m-settings` 的
+ * `flex: 1 1 auto; min-height: 0; overflow-y: auto` 全部落空 —— 高度 = 内容高
+ * （实测 clientHeight === scrollHeight === 8702），`overflow-y: auto` 形同虚设。
+ *
+ * 等价约束（本轮锁的就是这几条，DOM 一个字没动）：
+ *   ① 宿主**可见时**才变 flex 列（`:not([hidden])`），`hidden` 的分节仍 `display: none`；
+ *   ② 中途两层为**桌面**分栏写的 `height: 100%` 在这条窄屏链上归零，
+ *      否则它们会在 `.m-settings` 里面再养一个滚动容器（`.m-list`），
+ *      高度到不了 `.m-settings`；
+ *   ③ `.m-fieldrow` 允许换行（库级语义）—— 工具栏「搜索 + 分段 + 计数 + 全部更新」
+ *      在 390px 上要 ~352px，不换行就被 `.config-panel-surface` 的 overflow 裁掉。
+ */
+test("窄屏设置是唯一滚动容器：宿主高度链 + 工具栏换行（手机实测修复）", () => {
+  // ① 宿主 :not([hidden]) → flex 列。`:not([hidden])` 是这套修法的关键：
+  //    去掉它就等于给宿主发 `display`，`hidden` 的分节会全部同时显形。
+  assert.match(
+    pwaSettingsCssSource,
+    /\.settings-section-host:not\(\[hidden\]\) \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*overflow: hidden;/,
+  );
+  // ② 中途两层的 height:100% 归零 —— 缺了它 `.m-list` 会抢走高度，
+  //    `.m-settings` 仍然 clientHeight === scrollHeight。
+  assert.match(
+    pwaSettingsCssSource,
+    /\.m-settings > \.config-panel-root\.is-embedded,\s*\.settings-dialog-surface \.m-settings \.config-panel-surface \{[^}]*height: auto;/,
+  );
+  // 详情列 720px 定宽在 390px 上放不下（作为 flex 项，min-width:auto 不肯缩）。
+  assert.match(pwaSettingsCssSource, /\.m-settings \.d-set-inner \{[^}]*max-width: 100%;/);
+  // ③ 库里的 `.m-fieldrow` 自带换行（放不下时换行，而不是顶出卡体右缘）。
+  const fieldrow = pwaSystemCssSource.match(/\.m-fieldrow \{[^}]*\}/)?.[0] ?? "";
+  assert.match(fieldrow, /flex-wrap: wrap/);
+  // 全部关在 ≤640px 这一档里 —— ≥641px 一条都不命中，桌面像素逐字不变。
+  const mediaOpen = pwaSettingsCssSource.indexOf("@media (max-width: 640px) {");
+  assert.ok(mediaOpen > -1, "pwa-settings.css 必须有 @media (max-width: 640px) 档");
+  for (const rule of [":not([hidden])", "config-panel-root.is-embedded", ".m-settings .d-set-inner"]) {
+    const idx = pwaSettingsCssSource.indexOf(rule, mediaOpen);
+    assert.ok(idx > -1, `窄屏档里必须有 ${rule}`);
+    assert.equal(pwaSettingsCssSource.lastIndexOf("@media", idx), mediaOpen, `${rule} 必须落在 ≤640px 这一档里`);
+  }
+  // 回归：`.m-settings` 自己是唯一滚动容器（库定义，flex:1 1 auto + min-height:0 + overflow-y:auto）。
+  const settingsRule = pwaSystemCssSource.match(/\.m-settings \{[^}]*\}/)?.[0] ?? "";
+  assert.match(settingsRule, /flex: 1 1 auto/);
+  assert.match(settingsRule, /min-height: 0/);
+  assert.match(settingsRule, /overflow-y: auto/);
 });
 
 test("the product has no login surface at all", async () => {

@@ -35,6 +35,14 @@ const PROJECT_SECTIONS = new Set<SettingsSection>(["skills", "agents", "plugins"
  *
  * `labelKey` 存**键**而不是译好的字符串：这张表是模块常量，不能在求值时调
  * `t()`（拿不到 locale），由使用方各自翻译。
+ *
+ * fork:v5-landing D-07（2026-10-04）—— 每一项的 `labelKey` 现在还负责**左导航那一枚
+ * 短标签**，所以键要选成「导航说法」而不是「页头说法」：
+ *   · `mcp` 用 `settings.navMcp`（导航写「MCP」，D-15 的页头才写「MCP 服务器」）；
+ *   · `general` / `archived` 导航与页头同词（D-07 / D-21：`设置 · 通用`、`设置 · 归档`），
+ *     直接用页头那个键。
+ * `components/SettingsPanel.boardnav.test.mjs` 把这张表 + `SECTION_ICON_BY_ID` + 分组表
+ * 逐项对着画板 D-07 的 `.d-set-nav` 原文验一遍（文案 / 图标名 / 顺序 / 段名）。
  */
 export const SETTINGS_SECTIONS: ReadonlyArray<{
   id: SettingsSection;
@@ -47,7 +55,8 @@ export const SETTINGS_SECTIONS: ReadonlyArray<{
   { id: "agents", labelKey: "common.agents", requiresProject: true },
   { id: "plugins", labelKey: "common.plugins", requiresProject: true },
   // fork:mcp-section — a global section added by this fork.
-  { id: "mcp", labelKey: "mcp.sectionTitle", requiresProject: false },
+  // fork:v5-landing D-07 —— 导航标签是「MCP」（`settings.navMcp`），页头才是「MCP 服务器」。
+  { id: "mcp", labelKey: "settings.navMcp", requiresProject: false },
   // fork:proma-43-automation — 定时任务（全局，与项目无关）。面板把 cwd 只当**新建任务的
   // 初值**，每条任务自己的 cwd 在编辑器里填，所以没有项目时传空串也能用。
   { id: "automation", labelKey: "automation.title", requiresProject: false },

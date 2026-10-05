@@ -48,14 +48,14 @@ import { PluginsConfig } from "./PluginsConfig";
 import { EnterSendModeSetting } from "./EnterSendModeSetting";
 import {
   PwBlock,
-  PwCtl,
   PwField,
+  PwPaneCard,
   PwRadio,
-  PwRange,
   PwSelectBox,
   PwSwitch,
   PwValue,
   SettingsPage,
+  stateBadge,
 } from "./SettingsUi";
 import { WallpaperSettings } from "./WallpaperSettings";
 // fork:upstream-0.9.3-retry-settings —— settings.retry 的三个控件（画板 40 帧 1 / 62 帧 C 末块）。
@@ -122,12 +122,17 @@ interface Props {
   onSoundToggle?: (enabled: boolean) => void;
 }
 
-/** fork:design-system SW-07 —— 设置左导航的分节图标（画板 40）。
+/** fork:design-system SW-07 —— 设置左导航的分节图标。
  *
  *  一律走画板的图标集：`icons.js` 的 243 枚 lucide，经 `<i data-ico>` 水合。
  *  这里原先有 13 段手绘 SVG，其中 agents 那枚还靠 `transform: scale(1.25)` 补尺寸
  *  （自绘路径按 24×24 画，缩到 16px 时笔画偏细）——换成画板图标后补丁不再需要。
- *  名称与画板 40 的左导航逐项一致，顺序也一致。 */
+ *
+ * fork:v5-landing D-07（2026-10-04）—— 真值从 v1 画板 40 迁到 v5 的
+ *  `design/v5/web/boards/D-07-settings-general.html`：11 枚图标的**名字与顺序**与那张板
+ *  的 `.d-set-navitem > i[data-ico]` 逐条一致（十一张分节画板 D-07…D-21 左侧重复同一条
+ *  导航，互为交叉验证），图标尺寸仍是板面的 `data-size="14"`。
+ *  `components/SettingsPanel.boardnav.test.mjs` 直接拿画板原文验这张表。 */
 const SECTION_ICON_BY_ID: Record<string, string> = {
   general: "sliders-horizontal",
   models: "cpu",
@@ -153,6 +158,25 @@ const THEME_ICON_BY_ID: Record<string, string> = {
   auto: "monitor",
 };
 
+/* fork:v5-landing-frame · D-07b 帧 C —— Shell 工具那一行的状态徽章（板面写的是
+   「关 · 用 Bash」/「开 · 用 PowerShell」）。语言包里没有这个键（`lib/i18n/**`
+   不在本轮文件范围），走本地表。 */
+const SHELL_ROW_BADGE: LocalCopy = {
+  en: "{state} · {shell}",
+  "zh-CN": "{state} · {shell}",
+  "zh-TW": "{state} · {shell}",
+};
+
+const SHELL_ROW_STATE = {
+  on: { en: "On", "zh-CN": "开", "zh-TW": "開" },
+  off: { en: "Off", "zh-CN": "关", "zh-TW": "關" },
+} satisfies Record<string, LocalCopy>;
+
+const SHELL_ROW_SHELL = {
+  on: { en: "PowerShell", "zh-CN": "用 PowerShell", "zh-TW": "用 PowerShell" },
+  off: { en: "Bash", "zh-CN": "用 Bash", "zh-TW": "用 Bash" },
+} satisfies Record<string, LocalCopy>;
+
 /** fork:disabled-reasons —— 命名模型下拉加载失败（与「一台机器没配供应商」分开说）。 */
 const TITLE_MODEL_LIST_FAILED: LocalCopy = {
   en: "Could not load the model list: {error}. The title model falls back to the session model until this succeeds.",
@@ -167,12 +191,239 @@ const NOTIFY_TEST_NEEDS_MASTER: LocalCopy = {
   "zh-TW": "先打開上面的「桌面通知」總開關——這顆按鈕送的是走那個開關的真實系統通知。",
 };
 
+/* fork:v5-landing-frame · D-07b 帧 C —— 桌面通知总开关那一行是两档分段的两个档名，
+   与动作行下面那条常驻说明。语言包里没有这两个键（`lib/i18n/messages/**` 不在本轮
+   文件范围），走本地表（与 `settings-disabled-reasons` 同一口径）。 */
+const NOTIFY_MASTER_ON: LocalCopy = {
+  en: "Master · On",
+  "zh-CN": "总开关 开",
+  "zh-TW": "總開關 開",
+};
+
+const NOTIFY_MASTER_OFF: LocalCopy = {
+  en: "Master · Off",
+  "zh-CN": "总开关 关",
+  "zh-TW": "總開關 關",
+};
+
+/* 通知块首句（板面原文，中段是 `<b>`）。 */
+const NOTIFY_LEAD = {
+  before: {
+    en: "System notifications land on the lock screen and on your phone; ",
+    "zh-CN": "系统通知会落到锁屏与手机；",
+    "zh-TW": "系統通知會落到鎖屏與手機；",
+  },
+  bold: {
+    en: "the notification sound",
+    "zh-CN": "通知声音",
+    "zh-TW": "通知聲音",
+  },
+  after: {
+    en: " is a separate matter — it is the same switch as the sound button in the composer.",
+    "zh-CN": "是另一回事，它与输入框的声音按钮是同一个开关。",
+    "zh-TW": "是另一回事，它與輸入框的聲音按鈕是同一個開關。",
+  },
+} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
+
+const NOTIFY_TEST_BANNER: LocalCopy = {
+  en: "The test notification is a real one — the title is fixed as “Test notification” and the body says that seeing it means notifications are configured. A failure carries its reason verbatim; it never shows “sent successfully”.",
+  "zh-CN": "测试通知发的就是真通知，标题固定「测试通知」，正文是「如果你看到这条，通知已经配置好了」—— 失败的那一条会原样带原因，不弹一句「发送成功」。",
+  "zh-TW": "測試通知送的就是真通知，標題固定「測試通知」，內文是「如果你看到這條，通知已經設定好了」—— 失敗的那一條會原樣帶原因，不彈一句「傳送成功」。",
+};
+
+/* fork:v5-landing-frame · D-07b 帧 C「后台推送（iOS 主屏应用）」块的五段文案。
+   板面把它们写在块首说明 / 状态徽章 / `.d-notice` / 块尾横幅里；产品此前只有那一行
+   与一个条件渲染的横幅。语言包里没有这些键（`lib/i18n/**` 不在本轮文件范围），
+   走本地表（与 `settings-disabled-reasons` 同一口径）。 */
+const PUSH_LEAD = {
+  before: {
+    en: "After adding this site to the home screen (iPhone needs iOS 16.4+), you can get a system notification on the lock screen when a session finishes while the page is in the background. If notifications stop arriving, come back here to register again. ",
+    "zh-CN": "将本站添加到主屏幕后（iPhone 需 iOS 16.4+），会话完成且页面不在前台时，可在锁屏收到系统通知。若通知不再送达，可回到这里重新注册。",
+    "zh-TW": "將本站加入主螢幕後（iPhone 需 iOS 16.4+），對話完成且頁面不在前景時，可在鎖屏收到系統通知。若通知不再送達，可回到這裡重新註冊。",
+  },
+  bold: {
+    en: "Registration must be triggered by a click",
+    "zh-CN": "注册必须由点击触发",
+    "zh-TW": "註冊必須由點擊觸發",
+  },
+  after: {
+    en: ", so no permission prompt appears on its own.",
+    "zh-CN": "，因此不会自动弹出授权。",
+    "zh-TW": "，因此不會自動彈出授權。",
+  },
+} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
+
+const PUSH_BADGE_NONE: LocalCopy = {
+  en: "Not registered",
+  "zh-CN": "未注册",
+  "zh-TW": "未註冊",
+};
+
+const PUSH_BADGE_FAILED: LocalCopy = {
+  en: "Last attempt failed",
+  "zh-CN": "上次注册失败",
+  "zh-TW": "上次註冊失敗",
+};
+
+const PUSH_BADGE_OK: LocalCopy = {
+  en: "Registered",
+  "zh-CN": "已注册",
+  "zh-TW": "已註冊",
+};
+
+const PUSH_NOTICE_TITLE: LocalCopy = {
+  en: "Current status",
+  "zh-CN": "当前状态",
+  "zh-TW": "目前狀態",
+};
+
+const PUSH_NOTICE_HINT: LocalCopy = {
+  en: "Not registered yet. Registration must be triggered by a click, so it never pops the permission prompt by itself; a failure shows the original error (e.g. NotAllowedError) together with where to allow it first.",
+  "zh-CN": "尚未注册。注册必须由点击触发，所以不会自己弹授权；失败时把原始错误（如 NotAllowedError）与「先去哪儿放行」一起给出来。",
+  "zh-TW": "尚未註冊。註冊必須由點擊觸發，所以不會自己彈授權；失敗時把原始錯誤（如 NotAllowedError）與「先去哪裡放行」一起給出來。",
+};
+
+/* 「注册推送」那一行的说明：板面原文「这不是开关而是一次**动作**：…」。 */
+const PUSH_ROW_HINT = {
+  before: {
+    en: "This is not a switch but a one-off ",
+    "zh-CN": "这不是开关而是一次",
+    "zh-TW": "這不是開關而是一次",
+  },
+  bold: {
+    en: "action",
+    "zh-CN": "动作",
+    "zh-TW": "動作",
+  },
+  after: {
+    en: ": success or failure has to read back in one sentence — no green light that only looks permanently on.",
+    "zh-CN": "：成功与否要有一句可读的结果，不留一颗「看起来常亮」的绿灯。",
+    "zh-TW": "：成功與否要有一句可讀的結果，不留一顆「看起來常亮」的綠燈。",
+  },
+} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
+
+const PUSH_SCOPE_BANNER = {
+  before: {
+    en: "How this relates to the phone-push section: this block only decides whether this browser can be pushed at all; which device it reaches is the job of the ",
+    "zh-CN": "与手机推送分节的关系：本块只管「这个浏览器能不能被推」，管「推到哪台设备」的是",
+    "zh-TW": "與手機推送分節的關係：本塊只管「這個瀏覽器能不能被推」，管「推到哪台裝置」的是",
+  },
+  bold: {
+    en: "phone-and-push",
+    "zh-CN": "手机与推送",
+    "zh-TW": "手機與推送",
+  },
+  after: {
+    en: " section (scan the QR code / pair). Each says its own half; they are not merged.",
+    "zh-CN": "分节（扫码 / 配对码）。两块各说各的一半，不合并。",
+    "zh-TW": "分節（掃碼 / 配對碼）。兩塊各說各的一半，不合併。",
+  },
+} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
+
 /** fork:disabled-reasons —— 已经是默认值时「重置」没有可做的事。 */
 const CHAT_WIDTH_ALREADY_DEFAULT: LocalCopy = {
   en: "Already at the default width — nothing to reset.",
   "zh-CN": "已经是默认宽度，没有可重置的改动。",
   "zh-TW": "已經是預設寬度，沒有可重設的改動。",
 };
+
+/** fork:v5-landing-frame · D-07 / D-07b —— 弹窗脚左槽那句话。板面三帧写的是
+ *  「Esc 关闭 · 改动即时保存，不需要「应用」」/「标「新会话生效」的项真的不假装即时」。
+ *  产品这半分节的改动本来就即时落盘，所以那句话是**状态**而不是按钮 —— 语言包里没有
+ *  这个键（`lib/i18n/messages/**` 不在本轮文件范围），走本地表（与
+ *  `settings-disabled-reasons` 同一口径）。 */
+const SETTINGS_FOOT_HINT: LocalCopy = {
+  en: "Esc closes · changes in this section apply immediately — there is no Apply",
+  "zh-CN": "Esc 关闭 · 这一分节的改动即时生效，没有「应用」",
+  "zh-TW": "Esc 關閉 · 這個分節的改動即時生效，沒有「應用」",
+};
+
+/* fork:v5-landing-frame · D-07 帧 D 的「主题」三段说明。板面把它们写成 `data-demo-pane`
+   的三段（不选中的带 `hidden`），产品按同一段落进 `PwPaneCard`。文案原样抄板面
+   （本地表，`lib/i18n/messages/**` 不在本轮文件范围；键位待补后整体迁回 `t()`）。 */
+const THEME_PANE_COPY = {
+  light: {
+    en: "Light mode is on; the conversation behind the dialog changes with it — the window is not reopened.",
+    "zh-CN": "已切到浅色；背后的会话跟着一起变，不重开窗口。",
+    "zh-TW": "已切到淺色；背後的對話跟著一起變，不重開視窗。",
+  },
+  dark: {
+    en: "Dark mode is on; running tasks are not interrupted, only the variable board is swapped.",
+    "zh-CN": "已切到深色；正在跑的任务不中断，只换变量板。",
+    "zh-TW": "已切到深色；正在跑的任務不中斷，只換變數板。",
+  },
+  auto: {
+    en: "Following the system: a change in the system appearance applies immediately. Changes land in ~/.pi/agent/settings.json.",
+    "zh-CN": "跟随系统：系统外观变化时立即生效。改动落在 ~/.pi/agent/settings.json。",
+    "zh-TW": "跟隨系統：系統外觀變化時立即生效。改動落在 ~/.pi/agent/settings.json。",
+  },
+} satisfies Record<string, LocalCopy>;
+
+/* fork:v5-landing-frame · D-07b 帧 B —— 聊天块首那句说明（板面原文，缺键登记）。 */
+const CHAT_LEAD: LocalCopy = {
+  en: "This block only answers “how the conversation is presented and how you send”; retry and context budget are not here (those apply to the next session, so they live in their own blocks).",
+  "zh-CN": "这一块只回答「对话怎么呈现、手怎么发出去」；重试与上下文预算不在这里（它们是新会话生效的那类）。",
+  "zh-TW": "這一塊只回答「對話怎麼呈現、手怎麼發出去」；重試與上下文預算不在這裡（它們是新工作階段生效的那類）。",
+};
+
+const THEME_PANE_ICON = {
+  light: "sun",
+  dark: "moon",
+  auto: "monitor",
+} as const;
+
+/* fork:v5-landing-frame · D-07b 帧 A「侧边栏」块第三件（`.d-banner`）与
+   「宽度」那行的说明 —— 两者都是板面上写着、产品没有的。 */
+const SIDEBAR_WIDTH_HINT: LocalCopy = {
+  en: "Drag the slider to change the rail. This is the only setting you can see take effect right away — the rail is right there.",
+  "zh-CN": "拖动滑块调整轨道宽度。这是唯一当场可见的设置：左边那一栏就在旁边变。",
+  "zh-TW": "拖動滑桿調整軌道寬度。這是唯一當場可見的設定：左邊那一欄就在旁邊變。",
+};
+
+const SIDEBAR_WIDTH_BANNER: LocalCopy = {
+  en: "The width only changes the rail, not the body column — a wider sidebar does not make the conversation wider; each has its own knob.",
+  "zh-CN": "宽度只改轨道，不改正文列的排版宽度 —— 侧栏变宽不会让聊天内容跟着变宽，两者各自有各的旋钮。",
+  "zh-TW": "寬度只改軌道，不改正文欄的排版寬度 —— 側欄變寬不會讓聊天內容跟著變寬，兩者各自有各自的旋鈕。",
+};
+
+/* D-07b 帧 A「界面语言」三段说明（`section > .d-banner`）。 */
+const LANG_PANE_COPY = {
+  "zh-CN": {
+    en: "The interface language changes the panel's own copy (section names, row labels, buttons) — not what you type, and not the language of the model's replies.",
+    "zh-CN": "界面语言改的是面板自身的文案（分节名、行标签、按钮），不改你在输入框里打的字，也不改模型回复的语言。",
+    "zh-TW": "介面語言改的是面板自身的文案（分節名、列標籤、按鈕），不改你在輸入框裡打的字，也不改模型回覆的語言。",
+  },
+  "zh-TW": {
+    en: "Traditional Chinese is loaded: another language pack for the same keys. Missing keys fall back to Simplified Chinese and are registered in DIVERGENCE.md rather than left blank.",
+    "zh-CN": "繁體中文已加载：同一批键的另一份语言包。缺键回落简体中文并在 DIVERGENCE.md 登记，而不是留空。",
+    "zh-TW": "繁體中文已載入：同一批鍵的另一份語言包。缺鍵回落簡體中文並在 DIVERGENCE.md 登記，而不是留空。",
+  },
+  en: {
+    en: "English: the copy changes, but units and formats do not follow it — numbers still use tabular figures and dates still follow the local convention.",
+    "zh-CN": "English：文案变，单位与格式不跟着变 —— 数字仍用等宽对齐，日期仍按本机习惯。",
+    "zh-TW": "English：文案變，單位與格式不跟著變 —— 數字仍用等寬對齊，日期仍按本機習慣。",
+  },
+} satisfies Record<string, LocalCopy>;
+
+/* D-07b 帧 B「界面密度」三段说明（同上口径）。 */
+const DENSITY_PANE_COPY = {
+  compact: {
+    en: "Compact: more turns per screen; the cost is that tool-card heads and settings rows get cramped and long paths are eaten by the ellipsis.",
+    "zh-CN": "紧凑：一屏能看到更多轮次，代价是工具卡头与设置行挤在一起，长路径容易被省略号吃掉。",
+    "zh-TW": "緊湊：一屏能看到更多輪次，代價是工具卡頭與設定列擠在一起，長路徑容易被省略號吃掉。",
+  },
+  standard: {
+    en: "Standard: 12px of breathing room per row — least tiring when reading a long thread back to back, and the default.",
+    "zh-CN": "标准：一行 12px 上下留白，长会话连读时最省力，也是默认值。",
+    "zh-TW": "標準：一行 12px 上下留白，長對話連讀時最省力，也是預設值。",
+  },
+  comfortable: {
+    en: "Comfortable: room for touch screens and large type; mouse users often feel that very little fits on a screen.",
+    "zh-CN": "宽松：给触摸屏与大字号留余地；鼠标用户常觉得「一屏没几行」。",
+    "zh-TW": "寬鬆：給觸控螢幕與大字號留餘地；滑鼠使用者常覺得「一屏沒幾行」。",
+  },
+} satisfies Record<string, LocalCopy>;
+
 
 export function SettingsSectionIcon({ section, size = 16 }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
   return <i data-ico={SECTION_ICON_BY_ID[section] ?? "settings"} data-size={size} aria-hidden="true" />;
@@ -276,10 +527,13 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
 
   return (
     <>
-      {/* fork:design-system SW-07 — 画板 40 的「会话自动命名」+「命名用的模型」两行。 */}
+      {/* fork:design-system SW-07 — 画板 40 的「会话自动命名」+「命名用的模型」两行。
+          fork:v5-landing-frame · D-07b 帧 B —— 第一行原文是 `.d-grow-last > .d-badge.ok`
+          （开）+ 行尾开关。 */}
       <PwField
         label={t("settings.titleAutoGenerate")}
         hint={t("settings.titleAutoGenerateDescription")}
+        badge={stateBadge(locale, titleAuto)}
         control={
           <PwSwitch
             checked={titleAuto}
@@ -322,6 +576,12 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
 
 function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnabled, onQuoteSelectionChange, sidebarWidth, onSidebarWidthChange, soundEnabled = true, onSoundToggle }: Pick<Props, "cwd" | "sessionId" | "onSessionReloaded" | "quoteSelectionEnabled" | "onQuoteSelectionChange" | "sidebarWidth" | "onSidebarWidthChange" | "soundEnabled" | "onSoundToggle">) {
   const { locale, setLocale, supportedLocales, t } = useI18n();
+  /* fork:v5-landing 逐帧核对（M-05 帧 B/C）—— 手机档只加载 `design/v5/pwa/system.css`，
+     `d-*` 的规则在 ≤640 档里**不存在**。这一节里原先写死的 `d-set-inner` / `d-btn sm` /
+     `d-banner` / `d-grow` 在手机上全是死类名（几何与外观落回 UA / 继承），
+     与画板 `.m-settings` › `.m-cardgroup` › `.m-setrow` 的那一段对不上。
+     桌面那一支的类名与结构一个字不动，这里只把窄屏那一支换成 `m-*`。 */
+  const isMobile = useIsMobile();
   const { preference, setThemePreference } = useTheme();
   const { borderDepth, setBorderDepth } = useBorderDepth();
   const { uiDensity, setUiDensity } = useUiDensity();
@@ -354,6 +614,10 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
   // fork:disabled-reasons — 「重置（聊天内容宽度）」的禁用判据抽出来，好让
   // `disabled` 与 `title` 共用同一个（两者不一致就会出现「不可点但写着功能名」）。
   const chatWidthAtDefault = chatContentWidth === CHAT_CONTENT_WIDTH_DEFAULT;
+  /** 动作钮：桌面 `d-btn sm` / 手机 `m-btn sm`（库里两侧都是 44/36 两档，`sm` 同义）。 */
+  const btnSm = isMobile ? "m-btn sm" : "d-btn sm";
+  /** 行尾撑开：桌面 `d-grow` / 手机 `m-grow`。 */
+  const grow = isMobile ? "m-grow" : "d-grow";
 
   /* fork:zn-16 — 两个动作按钮。
      「发送测试通知」发一条真的系统通知（走 `Notification`，桌面外壳则由
@@ -484,7 +748,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
                     壁纸，紧挨着才看得见「谁在管」）
               右 = 聊天 → 通知 →（产品实有、画板 40 续帧的两块）Shell 工具（仅 Windows）
                     → 后台推送 */}
-        <div className="d-set-inner">
+        <div className={isMobile ? undefined : "d-set-inner"}>
           <div>
       {/* fork:design-system SW-07 —— 画板 40 第一块「外观」：主题是 `.pw-radio` 三档
           （图标 sun / moon / monitor 与画板同源），边框深度是 `.pw-ctl`（滑块 +
@@ -506,30 +770,41 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
+        {/* fork:v5-landing-frame · D-07 帧 D —— 主题那一行下面还有**三段后果说明**
+            （浅色 / 深色 / 跟随系统各一段，不选中的那段带 `hidden`）。产品此前只有分段
+            选择器，那三段整段 MISSING —— 于是「我这档有什么代价」只能自己猜。
+            DOM 原文见 `SettingsUi.PwPaneCard`；文案抄板面（本地表）。 */}
+        {(["light", "dark", "auto"] as const).map((mode) => (
+          <PwPaneCard
+            key={mode}
+            hidden={preference !== mode}
+            icon={THEME_PANE_ICON[mode]}
+          >
+            {localCopy(THEME_PANE_COPY[mode], locale)}
+          </PwPaneCard>
+        ))}
         <PwField
           label={t("settings.borderDepth")}
           hint={t("settings.borderDepthDescription")}
           htmlFor="settings-border-depth"
+          badge={{ text: String(borderDepth), tone: "mute" }}
+          slider={{
+            id: "settings-border-depth",
+            value: borderDepth,
+            min: BORDER_DEPTH_MIN,
+            max: BORDER_DEPTH_MAX,
+            ariaLabel: t("settings.borderDepth"),
+            onChange: setBorderDepth,
+          }}
           control={
-            <PwCtl>
-              <PwRange
-                id="settings-border-depth"
-                value={borderDepth}
-                displayValue={String(borderDepth)}
-                min={BORDER_DEPTH_MIN}
-                max={BORDER_DEPTH_MAX}
-                ariaLabel={t("settings.borderDepth")}
-                onChange={setBorderDepth}
-              />
-              <button
-                type="button"
-                className="d-btn sm"
-                title={t("settings.borderDepthTheme")}
-                onClick={() => setBorderDepth(50)}
-              >
-                {t("settings.reset")}
-              </button>
-            </PwCtl>
+            <button
+              type="button"
+              className={btnSm}
+              title={t("settings.borderDepthTheme")}
+              onClick={() => setBorderDepth(50)}
+            >
+              {t("settings.reset")}
+            </button>
           }
         />
       </PwBlock>
@@ -598,11 +873,15 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
       </PwBlock>
 
-      {/* fork:zn-15 —— 外观 → 侧边栏：半透明开关 + 宽度滑块（画板 62 帧 C 左栏第三块）。 */}
+      {/* fork:zn-15 —— 外观 → 侧边栏：半透明开关 + 宽度滑块（画板 D-07b 帧 A）。 */}
       <PwBlock icon="panel-left" title={t("settings.railBlock")}>
         <PwField
           label={t("settings.railTranslucentRow")}
           hint={t("settings.sidebarTranslucentHint")}
+          /* fork:v5-landing-frame · D-07b 帧 A —— 「半透明」那一行的原文是
+             `.d-grow-last > .d-badge.mute`（当前值）+ 行尾的 `.d-switch`。
+             此前开关被包在 `.d-grow-last` 里，行右侧看不到自己是什么状态。 */
+          badge={stateBadge(locale, railTranslucent)}
           control={
             <PwSwitch
               checked={railTranslucent}
@@ -613,26 +892,30 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.railWidthRow")}
+          hint={localCopy(SIDEBAR_WIDTH_HINT, locale)}
           htmlFor="settings-sidebar-width"
+          /* 画板同块第二行：值写成 `.d-badge.mute`（280 px），滑块是行的第三个子节点。 */
+          badge={sidebarWidth == null ? undefined : { text: `${sidebarWidth} px`, tone: "mute" }}
+          slider={sidebarWidth == null || onSidebarWidthChange == null ? undefined : {
+            id: "settings-sidebar-width",
+            value: sidebarWidth,
+            min: SIDEBAR_MIN_WIDTH,
+            max: SIDEBAR_MAX_WIDTH,
+            step: 4,
+            ariaLabel: t("settings.sidebarWidth"),
+            onChange: onSidebarWidthChange,
+          }}
           control={
             sidebarWidth == null || onSidebarWidthChange == null ? (
               <PwValue>{t("settings.sidebarWidthHint")}</PwValue>
-            ) : (
-              <PwCtl>
-                <PwRange
-                  id="settings-sidebar-width"
-                  value={sidebarWidth}
-                  displayValue={`${sidebarWidth} px`}
-                  min={SIDEBAR_MIN_WIDTH}
-                  max={SIDEBAR_MAX_WIDTH}
-                  step={4}
-                  ariaLabel={t("settings.sidebarWidth")}
-                  onChange={onSidebarWidthChange}
-                />
-              </PwCtl>
-            )
+            ) : null
           }
         />
+        {/* fork:v5-landing-frame · D-07b 帧 A —— 侧边栏块最后那条 `.d-banner`。 */}
+        <div className="d-banner">
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{localCopy(SIDEBAR_WIDTH_BANNER, locale)}</span>
+        </div>
       </PwBlock>
 
       {/* fork:zn-18 —— 界面字体（画板 62 帧 C 左栏末块：UI 字体 + UI 字号 + 界面语言）。
@@ -687,6 +970,13 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
+        {/* fork:v5-landing-frame · D-07b 帧 A —— 「界面语言」那一行下面还有三段后果说明
+            （简体中文 / 繁體中文 / English，各一段，不选中的那段带 `hidden`）。 */}
+        {(["zh-CN", "zh-TW", "en"] as const).map((id) => (
+          <PwPaneCard key={id} hidden={locale !== id} icon="info">
+            {localCopy(LANG_PANE_COPY[id], locale)}
+          </PwPaneCard>
+        ))}
       </PwBlock>
           </div>
 
@@ -697,10 +987,17 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           开关，所以保留画板的 DOM 与状态类，只把 ARIA 换成 `aria-pressed`
           （芯片组，不是单选组）——形态照画板，语义照产品。 */}
       <PwBlock icon="message-square" title={t("settings.chat")}>
+        {/* fork:v5-landing-frame · D-07b 帧 B —— 块首那句弱化说明（板面原文）：
+            这一块只回答「对话怎么呈现、手怎么发出去」；重试与上下文预算不在这里
+            （它们是新会话生效的那类，单独成块）。 */}
+        <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+          {localCopy(CHAT_LEAD, locale)}
+        </div>
         <TitleSettingsControls cwd={cwd} />
         <PwField
           label={t("settings.thinkingExpandedDefault")}
           hint={t("settings.thinkingDisplayDescription")}
+          badge={stateBadge(locale, thinkingExpanded)}
           control={
             <PwSwitch
               checked={thinkingExpanded}
@@ -728,62 +1025,72 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
+        {/* fork:v5-landing-frame · D-07b 帧 B —— 「界面密度」那一行下面有三段后果说明
+            （紧凑 / 标准 / 宽松，各一段，不选中的那段带 `hidden`）。 */}
+        {(["compact", "standard", "comfortable"] as const).map((mode) => (
+          <PwPaneCard key={mode} hidden={uiDensity !== mode} icon="info">
+            {localCopy(DENSITY_PANE_COPY[mode], locale)}
+          </PwPaneCard>
+        ))}
         <PwField
           label={t("settings.stepExpand")}
           hint={t("settings.stepExpandHint")}
+          /* fork:v5-landing-frame · D-07b 帧 B —— 「过程步骤默认展开」那三枚芯片在板面
+             上是 `.d-grow-last` 的**直接**子节点（`.d-grow-last > .d-cats`），此前多包了
+             一层 `.d-row`（PwCtl）。三枚芯片是三个独立开关，不是单选组 —— `aria-pressed`
+             保留（板面的 `.d-cat` 形态一字不动）。 */
           control={
-            <PwCtl>
-              <div className="d-cats">
-                {([
-                  ["reasoning", "settings.stepExpandReasoning", "brain"],
-                  ["command", "settings.stepExpandCommand", "square-terminal"],
-                  ["tool", "settings.stepExpandTool", "wrench"],
-                ] as const).map(([category, labelKey, icon]) => {
-                  const on = stepExpansion[category];
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      aria-pressed={on}
-                      className={`d-cat${on ? " is-on" : ""}`}
-                      onClick={() => setStepExpansion(setStepCategoryExpanded(category, !on))}
-                    >
-                      <i data-ico={icon} data-size="12" aria-hidden="true" />
-                      {t(labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-            </PwCtl>
+            <div className={isMobile ? "m-cats" : "d-cats"}>
+              {([
+                ["reasoning", "settings.stepExpandReasoning", "brain"],
+                ["command", "settings.stepExpandCommand", "square-terminal"],
+                ["tool", "settings.stepExpandTool", "wrench"],
+              ] as const).map(([category, labelKey, icon]) => {
+                const on = stepExpansion[category];
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={on}
+                    className={isMobile ? `m-cat${on ? " is-on" : ""}` : `d-cat${on ? " is-on" : ""}`}
+                    onClick={() => setStepExpansion(setStepCategoryExpanded(category, !on))}
+                  >
+                    <i data-ico={icon} data-size="12" aria-hidden="true" />
+                    {t(labelKey)}
+                  </button>
+                );
+              })}
+            </div>
           }
         />
         <PwField
           label={t("settings.chatContentWidth")}
           htmlFor="settings-chat-content-width"
+          /* fork:v5-landing-frame · D-07b 帧 B —— 「聊天内容宽度」那一行原文：
+             `.d-grow-last > .d-badge.mute`（800 px）+ `.d-slider` + `.d-btn.sm.ghost`
+             「重置」三个并列子节点。此前滑块与读数一起塞在 `.d-grow-last` 里。 */
+          badge={{ text: `${chatContentWidth} px`, tone: "mute" }}
+          slider={{
+            id: "settings-chat-content-width",
+            value: chatContentWidth,
+            min: CHAT_CONTENT_WIDTH_MIN,
+            max: CHAT_CONTENT_WIDTH_MAX,
+            step: 10,
+            ariaLabel: t("settings.chatContentWidth"),
+            onChange: setChatContentWidth,
+          }}
           control={
-            <PwCtl>
-              <PwRange
-                id="settings-chat-content-width"
-                value={chatContentWidth}
-                displayValue={`${chatContentWidth} px`}
-                min={CHAT_CONTENT_WIDTH_MIN}
-                max={CHAT_CONTENT_WIDTH_MAX}
-                step={10}
-                ariaLabel={t("settings.chatContentWidth")}
-                onChange={setChatContentWidth}
-              />
-              <button
-                type="button"
-                className="d-btn sm"
-                /* fork:disabled-reasons —— title 原来写的是功能名（不可点时等于
-                   什么都没说）。不可点时改成写清「为什么」：已经是默认值。 */
-                title={chatWidthAtDefault ? localCopy(CHAT_WIDTH_ALREADY_DEFAULT, locale) : t("settings.resetChatContentWidth")}
-                disabled={chatWidthAtDefault}
-                onClick={() => setChatContentWidth(CHAT_CONTENT_WIDTH_DEFAULT)}
-              >
-                {t("settings.reset")}
-              </button>
-            </PwCtl>
+            <button
+              type="button"
+              className={isMobile ? "m-btn sm ghost" : "d-btn sm ghost"}
+              /* fork:disabled-reasons —— title 原来写的是功能名（不可点时等于
+                 什么都没说）。不可点时改成写清「为什么」：已经是默认值。 */
+              title={chatWidthAtDefault ? localCopy(CHAT_WIDTH_ALREADY_DEFAULT, locale) : t("settings.resetChatContentWidth")}
+              disabled={chatWidthAtDefault}
+              onClick={() => setChatContentWidth(CHAT_CONTENT_WIDTH_DEFAULT)}
+            >
+              {t("settings.reset")}
+            </button>
           }
         />
         <PwField
@@ -822,6 +1129,8 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.quoteSelection")}
+          /* D-07b 帧 B 同一行：值写成 `.d-badge.ok`（开）。 */
+          badge={stateBadge(locale, quoteSelectionEnabled)}
           control={
             <PwSwitch
               checked={quoteSelectionEnabled}
@@ -843,19 +1152,38 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           截图「标题与副标题疑似重复」），画板 40/62 的这几行本来就只有标签；
           `notifySoundHint` 保留（它说明与输入框声音按钮是同一个开关，不是复述）。 */}
       <PwBlock icon="bell" title={t("settings.notificationBlock")}>
+        {/* fork:v5-landing-frame · D-07b 帧 C —— 块首那句弱化说明（板面原文，段中有一段
+          `<b>`：「通知声音」是另一回事）。 */}
+      <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+        {localCopy(NOTIFY_LEAD.before, locale)}
+        <b>{localCopy(NOTIFY_LEAD.bold, locale)}</b>
+        {localCopy(NOTIFY_LEAD.after, locale)}
+      </div>
+      {/* fork:v5-landing-frame · D-07b 帧 C —— 「桌面通知」总开关在板面上是**两档分段**
+            （`.d-seg`：「总开关 开」/「总开关 关」），不是一个 `d-switch`：这一行要能一眼
+            看全两个状态，才接得住下面那四个子项的「关 → 禁用但保留值」。走的还是同一个
+            `setNotificationPref("enabled", …)`，行为零变化。 */}
         <PwField
           label={t("settings.notifyMaster")}
           hint={t("settings.notifyMasterHint")}
           control={
-            <PwSwitch
-              checked={notificationPrefs.enabled}
-              label={t("settings.notifyMaster")}
-              onChange={(next) => setNotificationPref("enabled", next)}
+            <PwRadio
+              value={notificationPrefs.enabled ? "on" : "off"}
+              ariaLabel={t("settings.notifyMaster")}
+              options={[
+                { value: "on", label: localCopy(NOTIFY_MASTER_ON, locale) },
+                { value: "off", label: localCopy(NOTIFY_MASTER_OFF, locale) },
+              ]}
+              onChange={(next) => setNotificationPref("enabled", next === "on")}
             />
           }
         />
+        {/* fork:v5-landing-frame —— 以下四行：值写成 `.d-badge`（开/关），被总开关暂停时
+            徽章换 `.d-badge.mute`「已暂停」（板面帧 C 的 `nt-off` 那一段就是这么画的：
+            值没变，只是暂时不生效），开关仍是行尾那个独立子节点。 */}
         <PwField
           label={t("settings.notifyOnComplete")}
+          badge={stateBadge(locale, notificationPrefs.onComplete, !notificationPrefs.enabled)}
           control={
             <PwSwitch
               checked={notificationPrefs.onComplete}
@@ -867,6 +1195,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.notifyOnError")}
+          badge={stateBadge(locale, notificationPrefs.onError, !notificationPrefs.enabled)}
           control={
             <PwSwitch
               checked={notificationPrefs.onError}
@@ -878,6 +1207,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.notifyOnlyUnfocused")}
+          badge={stateBadge(locale, notificationPrefs.onlyWhenUnfocused, !notificationPrefs.enabled)}
           control={
             <PwSwitch
               checked={notificationPrefs.onlyWhenUnfocused}
@@ -890,6 +1220,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         <PwField
           label={t("settings.notifySound")}
           hint={t("settings.notifySoundHint")}
+          badge={stateBadge(locale, soundEnabled)}
           control={
             <PwSwitch
               checked={soundEnabled}
@@ -898,14 +1229,14 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
-        {/* 画板这一行是空 `.pw-label` + 两个动作钮，照抄。 */}
+        {/* 画板这一行是空 `.d-set-row-box` + `.d-grow-last` 里并排两枚动作钮（没有中间层）。 */}
         <PwField
           label=""
           control={
-            <PwCtl>
+            <>
               <button
                 type="button"
-                className="d-btn sm"
+                className={btnSm}
                 disabled={!notificationPrefs.enabled}
                 title={notificationPrefs.enabled ? undefined : localCopy(NOTIFY_TEST_NEEDS_MASTER, locale)}
                 onClick={() => void sendTestNotification()}
@@ -914,27 +1245,41 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               </button>
               <button
                 type="button"
-                className="d-btn sm"
+                className={btnSm}
                 onClick={() => void openSystemNotificationSettings()}
               >
                 {t("settings.notifyOpenSystem")}
               </button>
-            </PwCtl>
+            </>
           }
         />
+        {/* fork:v5-landing-frame · D-07b 帧 C —— 动作行下面那条常驻说明（板面原文）。 */}
+        <div className={isMobile ? "m-banner" : "d-banner"}>
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className={grow}>{localCopy(NOTIFY_TEST_BANNER, locale)}</span>
+        </div>
         {notificationNote ? (
-          <div role="status" className="d-banner info">
+          <div role="status" className={isMobile ? "m-banner" : "d-banner info"}>
             <i data-ico="info" data-size="14" aria-hidden="true" />
-            <span className="d-grow">{notificationNote}</span>
+            <span className={grow}>{notificationNote}</span>
           </div>
         ) : null}
       </PwBlock>
 
       {shellSettings?.isWindows && (
         <PwBlock icon="terminal" title={t("settings.shellTool")}>
+          {/* fork:v5-landing-frame · D-07b 帧 C —— 那一行原文：`.d-grow-last > .d-badge.mute`
+              （「关 · 用 Bash」）+ 行尾开关。 */}
           <PwField
             label={t("settings.usePowerShell")}
             hint={t("settings.shellToolDescription")}
+            badge={{
+              text: localCopy(SHELL_ROW_BADGE, locale, {
+                state: localCopy(SHELL_ROW_STATE[shellSettings.powerShellEnabled ? "on" : "off"], locale),
+                shell: localCopy(SHELL_ROW_SHELL[shellSettings.powerShellEnabled ? "on" : "off"], locale),
+              }),
+              tone: "mute",
+            }}
             control={
               <PwSwitch
                 checked={shellSettings.powerShellEnabled}
@@ -947,20 +1292,47 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           {shellError ? (
             <div role="alert" className="d-banner err">
               <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
-              <span className="d-grow">{shellError}</span>
+              <span className={grow}>{shellError}</span>
             </div>
           ) : null}
         </PwBlock>
       )}
 
       <PwBlock icon="bell" title={t("settings.pushPermission")}>
+        {/* fork:v5-landing-frame · D-07b 帧 C —— 这一块是**一个动作 + 一条状态**：
+            块首一句弱化说明，「注册推送」那行的状态写成 `.d-badge`（未注册 / 已注册 /
+            上次失败），块尾一条 `.d-notice` 说清「现在是什么状态 / 失败时原始错误是什么」。
+            产品此前只有一个按钮 + 条件渲染的横幅（成功后才出现），失败原因与「要去哪儿
+            放行」都没有落点。 */}
+        <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+          {localCopy(PUSH_LEAD.before, locale)}
+          <b>{localCopy(PUSH_LEAD.bold, locale)}</b>
+          {localCopy(PUSH_LEAD.after, locale)}
+        </div>
         <PwField
           label={t("settings.pushRegister")}
-          hint={t("settings.pushPermissionDescription")}
+          /* fork:v5-landing-frame · D-07b 帧 C —— 板面那一行的说明是**另一句**
+             （短，段中带 `<b>`）：它讲的是「这不是开关而是一次动作」。产品此前把块首那句
+             长说明重复用在了行上，于是同一段话在板上下一行出现两次。 */
+          hint={(
+            <>
+              {localCopy(PUSH_ROW_HINT.before, locale)}
+              <b>{localCopy(PUSH_ROW_HINT.bold, locale)}</b>
+              {localCopy(PUSH_ROW_HINT.after, locale)}
+            </>
+          )}
+          badge={{
+            text: pushStatus
+              ? pushStatus.kind === "ok"
+                ? localCopy(PUSH_BADGE_OK, locale)
+                : localCopy(PUSH_BADGE_FAILED, locale)
+              : localCopy(PUSH_BADGE_NONE, locale),
+            tone: pushStatus ? (pushStatus.kind === "ok" ? "ok" : "bad") : "warn",
+          }}
           control={
             <button
               type="button"
-              className="d-btn sm"
+              className={btnSm}
               disabled={pushRegistering}
               onClick={() => void registerPush()}
             >
@@ -968,12 +1340,29 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             </button>
           }
         />
-        {pushStatus ? (
-          <div role="status" className={pushStatus.kind === "ok" ? "d-banner info" : "d-banner err"}>
-            <i data-ico={pushStatus.kind === "ok" ? "info" : "triangle-alert"} data-size="14" aria-hidden="true" />
-            <span className="d-grow">{pushStatus.message}</span>
-          </div>
-        ) : null}
+        <div role="status" className="d-notice">
+          <span className="d-notice-ico">
+            <i
+              data-ico={pushStatus?.kind === "ok" ? "circle-check" : "triangle-alert"}
+              data-size="13"
+              aria-hidden="true"
+            />
+          </span>
+          <span className="d-col d-grow">
+            <span className="d-set-row-t">{localCopy(PUSH_NOTICE_TITLE, locale)}</span>
+            <span className="d-set-row-s">
+              {pushStatus ? pushStatus.message : localCopy(PUSH_NOTICE_HINT, locale)}
+            </span>
+          </span>
+        </div>
+        <div className={isMobile ? "m-banner" : "d-banner"}>
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span className={grow}>
+            {localCopy(PUSH_SCOPE_BANNER.before, locale)}
+            <b>{localCopy(PUSH_SCOPE_BANNER.bold, locale)}</b>
+            {localCopy(PUSH_SCOPE_BANNER.after, locale)}
+          </span>
+        </div>
       </PwBlock>
           {/* fork:upstream-0.9.3-retry-settings —— 重试策略块排在推送块之后（右栏末位），
           与画板 40 帧 1 / 62 帧 C 右栏的落位一致。控件：开关 + 两个 `.pw-numin` 窄数值框。 */}
@@ -1132,16 +1521,31 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
       data-section={id}
       hidden={activeSection !== id}
       /* fork:design-system SW-07 —— 桌面：分节内容栏就是画板 D-07 的 `.d-set-main`。
+         fork:v5-landing-frame · D-07 / D-07b（2026-10-05 逐帧核对）——
+         **`.d-set-main` 直接挂在 `.d-set` 里，宿主自己就是那一栏**（板面原文：
+         `.d-set` = `.d-set-nav` + `.d-set-main`）。此前是
+         `main.settings-dialog-main` › `div.settings-section-host` ›
+         `div.d-set-main` 三层：多出来的两层一是「同一个视觉两个类名」，
+         二是 `.d-set-main` 的内距（`sp-6 sp-8`）与滚动落在里层，外层只是个空壳。
+         现在宿主 = `.d-set-main`，惰挂载 / `hidden` 切换 / `fork-turn-enter` 一律原样。
          fork:motion-2026-10-01 —— 分节是懒挂载 + 常驻（切走只加 hidden），所以给
          **当前分节**挂 `fork-turn-enter`：分节刚被激活时重放一次整块替换
          （200ms + 8px）。此前切换分节是 `getAnimations() === []` 的硬切。
          fork:v5-landing Wave B —— 窄屏（M-05）：宿主保持无 display 的块（`hidden`
          才有效），真正的设置流是里层那个 `.m-settings`（灰底白卡 + 108px 顶栏让位）。
-         `[hidden]` 的 UA 规则是作者层 `display` 的下位，所以外层绝不能挂任何
-         带 `display` 的类 —— 这是本行两套类名分开写的硬理由。 */
-      className={`settings-section-host${section === id ? " fork-turn-enter" : ""}`}
+         `[hidden]` 的 UA 规则是作者层 `display` 的下位，所以窄屏那一支绝不能挂
+         任何带 `display` 的类（`.d-set-main` 就是其中之一）—— 这是本行两套类名
+         分开写的硬理由。
+         fork:pwa-settings-height-chain（2026-10-05）—— 「不发 display 类」的代价
+         是宿主变成普通块，`.m-settings` 的 `flex: 1 1 auto; min-height: 0` 全部失效，
+         高度退化成内容高（实测 8702px）→ 手机上竖向滑不动、其余九屏被弹窗裁掉。
+         修法全在 CSS 侧（`app/pwa-settings.css` §5）：宿主用 `:not([hidden])` 变
+         flex 列（`hidden` 的分节仍是 `display: none`），并把中途两层为**桌面**分栏
+         写的 `height: 100%` 归零，让 `.m-settings` 成为这一列唯一的纵向滚动容器。
+         因此这里不必动 DOM，这个 className 保持原样。 */
+      className={`settings-section-host${isMobile ? "" : " d-set-main"}${section === id ? " fork-turn-enter" : ""}`}
     >
-      {isMobile ? <div className="m-settings">{content}</div> : <div className="d-set-main">{content}</div>}
+      {isMobile ? <div className="m-settings">{content}</div> : content}
     </div>
   ) : null;
 
@@ -1151,25 +1555,142 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
   // Esc 仍由上面的 effect 处理，hook 也接管一份，两者幂等。
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
 
+  /* fork:v5-landing-frame · M-05 逐帧核对 —— 内容列（手机 hub + 十一个分节宿主）
+     在两种形态下**是同一份**，只有外面的壳不同：桌面是 `.d-modal-body` › `.d-set`，
+     窄屏是合并写法 `settings-dialog-body.d-set`。抽成变量是为了不必在两处抄一遍
+     十一行 `sectionHost(...)` —— 抄一遍就会有一边漏掉某一节。 */
+  const sectionChildren = (<>
+        {/* fork:v5-landing Wave B · M-05 帧 A —— 手机 hub：按「什么时候来改它」
+            分成四组卡片，只列那十一个分节；行尾的「需项目」徽章与左导航同一判据。
+            外层宿主不带任何 `display`（`hidden` 要生效），设置流在里层 `.m-settings`。 */}
+        {isMobile ? (
+          <div className="settings-section-host" data-settings-hub hidden={phoneSection !== null}>
+            <div className="m-settings">
+              <div className="m-hero">
+                <span className="m-t-title">{t("settings.title")}</span>
+                <span className="m-t-cap m-t-dim">{settingsHubHeroCopy(locale)}</span>
+              </div>
+              {SETTINGS_HUB_GROUPS.map((group) => (
+                <div className="m-cardgroup" key={group.id}>
+                  {group.sections.map((id) => {
+                    const item = sections.find((entry) => entry.id === id);
+                    if (!item) return null;
+                    const disabled = item.requiresProject && !cwd;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="m-setrow"
+                        disabled={disabled}
+                        data-section={item.id}
+                        title={disabled ? t("settings.projectRequired") : item.label}
+                        onClick={() => openPhoneSection(item.id)}
+                      >
+                        <SettingsSectionIcon section={item.id} size={16} />
+                        <span className="m-setrow-body">
+                          <span className="m-setrow-t">{item.label}</span>
+                          <span className="m-setrow-s">{settingsHubSectionHint(item.id, locale)}</span>
+                        </span>
+                        {/* fork:v5-landing 逐帧核对（M-05 帧 A）—— 「需项目」是**这一节自己的属性**
+                            （技能 / 子代理 / 插件 都要项目），画板上三行都带，与有没有
+                            项目无关；有没有项目只决定这一行**能不能点**（`disabled`）。
+                            之前只在 disabled 时出徽章，于是打开项目后徽章就消失了，
+                            与画板不一致。 */}
+                        {item.requiresProject ? (
+                          <span className="m-badge mute">{settingsHubNeedsProjectCopy(locale)}</span>
+                        ) : null}
+                        <i data-ico="chevron-right" data-size="15" aria-hidden="true" />
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {sectionHost("general", <GeneralSettings cwd={cwd} sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} sidebarWidth={sidebarWidth} onSidebarWidthChange={onSidebarWidthChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} />)}
+        {sectionHost("models", <ModelsConfig embedded cwd={cwd} onClose={onClose} />)}
+        {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}
+        {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+        {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+        {/* fork:mcp-section — global pages, no project needed. */}
+        {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+        {/* fork:proma-43-automation — 定时任务。全局页：cwd 只决定新建任务时的
+            初值，每条任务自己的 cwd 在面板里填，所以没有项目也进得来。 */}
+        {sectionHost("automation", <AutomationPanel cwd={cwd ?? ""} />)}
+        {/* fork:zc-03 — usage stats. */}
+        {sectionHost("usage", <UsageStatsPanel />)}
+        {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
+        {sectionHost("archived", (
+          // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
+          // 合成一页：骨架 B（列表 300 + 详情 760），ConfigSplitView 与整页空态都由
+          // ProjectArchivePanel 自己出；会话归档的分组 / 详情卡也并进了同一个
+          // ConfigSplitView（旧的两段式入口 ArchivedSessionsPanel 恒渲染 null，已删）。
+          // fork:settings-frame（画板 62 帧 B）—— `fill` 与删掉 `div.settings-archive-page`
+          // 必须同一提交：is-fixed 是 overflow:hidden，中间多一层 div 会把超高一列
+          // 静默裁掉；删掉后 `.pw-scontent.is-fixed` 的直接子元素就只有
+          // ProjectArchivePanel 的 ConfigSplitView（或整页空态 / 错误行）。
+          <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")} fill>
+            <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} onCloseRequest={onClose} />
+          </SettingsPage>
+        ))}
+
+        {/* fork:import-ui — 显式扫描 + 显式导入，绝不自动跑。
+            fork:settings-frame —— 页面框（页头 + 滚动）由 ImportPanel 自己的三件套出。 */}
+        {sectionHost("import", <ImportPanel />)}
+
+        {/* fork:phone-push — 手机配对 + IM 推送。全局页，与项目无关。 */}
+        {sectionHost("phonePush", <PhoneAndPushPanel />)}
+  </>);
+
   return (
     <div
       ref={dialogRef}
       {...dialogProps}
       aria-label={t("settings.title")}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-      className="settings-dialog-backdrop"
+      className={isMobile ? "settings-dialog-backdrop" : "d-modal is-open settings-dialog-backdrop"}
     >
+      {/* fork:v5-landing-frame · D-07 / D-07b（2026-10-05 逐帧核对）——
+         弹窗宿主照画板原文：`d-modal is-open › d-modal-box wide › d-modal-head ›
+         d-modal-body › d-set › d-modal-foot`。此前这一层挂的是产品自有的
+         `settings-dialog-backdrop` / `settings-dialog-surface`（v1 时代那套
+         `pw-modal` 的替身），于是画板的模态骨架一个类都没落地 —— 与
+         ProjectTrustDialog / ThemeSkinStudio / DirectoryPicker / ImagePreview
+         （都已经按 `.d-modal` 发类）不是同一个视觉来源（铁律二）。
+         **只给桌面这一支**：窄屏（M-05）是另一个形态，`m-*` 那一支的壳归那边核，
+         在那边改完之前这里一个字都不动。
+         产品类按 0-2-0 双类保留：`.settings-dialog-backdrop` 仍被
+         `app/fork-ui.css` 的材质层（`html[data-theme-skin="true"]`）与
+         `app/settings.css` 的窄屏规则选中，删掉会让 Mac 拟物皮肤与手机档失锚。
+         几何冲突按「后引入的 system.css 胜出」解决：遮罩色 / 圆角 / 阴影 / 限高
+         走 v5 令牌，宽度由板面同款的内联 `width:72%` 给（D-07 帧 B / C / D 的
+         `.d-modal-box` 上就是这个内联值；铁律四允许内联写宽度百分比）。 */}
       {/* fork:design-components —— 设置壳直接用画板的 .pw-modal + .pw-settings
           （弹层阴影 / 200px 左列 + 内容区 grid 来自 board.css）。
           fork:motion-2026-10-01 —— 补 `anim-dialog`（弹层 160ms + 4px）：
           此前设置面板是 `animationName:none` 的硬切，与同类弹窗
           （ChatWindow 的 .anim-dialog）不一致 —— 动效诊断实测「打开设置面板完全没动」。 */}
       {/* fork:settings-modal-2026-10-02（用户裁定）—— 设置壳从**整屏页面**改成**弹窗**：
-          去掉 `pw-modal`，回到 `.settings-dialog-surface` 自己的 1080×84vh + 圆角 + 阴影
-          （见 app/settings.css 里那条注释）。关闭入口从页头里搬出来常驻右上角 ——
-          页头在宽屏是 `display:none`（画板 40/45 没有页头，返回入口在左导航底部），
-          原来关闭钮就藏在它里面，弹窗化后那样会没有可见的关闭口。 */}
-      <div className="settings-dialog-surface anim-dialog">
+          去掉 `pw-modal`，回到弹窗盒自己的尺寸 + 圆角 + 阴影（见 app/settings.css
+          里那条注释）。关闭入口从页头里搬出来常驻右上角 —— 页头在宽屏是
+          `display:none`（画板 40/45 没有页头），原来关闭钮就藏在它里面，弹窗化后
+          那样会没有可见的关闭口。
+          fork:v5-landing-frame —— 盒子本身按板面挂 `.d-modal-box.wide`，宽度用板面
+          同一个内联值 `72%`（帧 B / C / D 三帧都写着 `style="width:72%"`）。 */}
+      {/* fork:v5-landing-frame · D-15 / D-16 / D-17 / D-21 / D-25 —— 设置弹窗盒在板面上是
+          `.d-modal-box.wide.d-anchor`（这五张板都是），因为**盒子里有绝对定位的子件**：
+          右上角那枚关闭钮（`app/settings.css` 的 `.settings-dialog-close` 是
+          `position:absolute`）与窄屏的 `.m-top`。产品此前靠 `settings.css` 给
+          `.settings-dialog-surface` 写的那条 `position: relative` 撑，类名层面与板面
+          对不上；现在按板面补 `.d-anchor`（同一个值、同一个来源 `system.css`）。
+          内联的 `width:72%` 是铁律四允许的几何值，不动。 */}
+      <div
+        className={isMobile
+          ? "settings-dialog-surface anim-dialog"
+          : "d-modal-box wide d-anchor settings-dialog-surface anim-dialog"}
+        style={isMobile ? undefined : { width: "72%" }}
+      >
         {/* fork:v5-landing Wave B · M-05 —— 窄屏顶栏（帧 B / 帧 C 的 `.m-top`）：
             hub 上只有标题 + 关闭；进了分节二级页，左上角**永远**是返回箭头
             （手机横向空间不够摆导航树，一次返回直接回 hub，不做迷宫）。
@@ -1240,111 +1761,59 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
 
         {/* fork:ui-08 — sections are a left column now (upstream 0.14.6 uses
             `grid-template-columns: 184px minmax(0,1fr)`); the phone keeps the
-            select picker above and hides this column in CSS. */}
+            select picker above and hides this column in CSS.
+            fork:v5-landing-frame —— 桌面这一层拆成板面的两级：
+            `.d-modal-body` › `.d-set`（`d-set-nav` + `d-set-main`）。
+            `.d-modal-body` 自带 `overflow-y:auto` 与内距，而 `.d-set` 是
+            `height:100%` 的两列容器，两列各自滚 —— 弹窗限高 + 内容区内部滚动
+            （D-07b 的注：「弹窗限高、内容区内部滚动，所以长分节不会被视口裁掉」）。
+            窄屏仍是原来的合并写法（`.settings-dialog-body.d-set`），那边不动。 */}
+        {/* 桌面（板面原文，两级）：`.d-modal-body` › `.d-set`（`d-set-nav` + `d-set-main`）。
+            窄屏（M-05）：仍是原来的合并写法 `settings-dialog-body.d-set` —— 那边是另一个
+            形态，`.d-set` 若再套一层会成为 `.settings-dialog-body`（row flex）里一个
+            宽度不占满的 flex 子项，把手机布局压窄。两条分支共用下面同一份 children。 */}
+        {isMobile ? (
         <div className="settings-dialog-body d-set">
-          {/* fork:design-system SW-07 — 画板 D-07 的左导航：`.d-set-nav` + `.d-set-navitem`
-              （图标 + 文案），选中态是 `.is-on`。行在画板里是 div，产品是 button。
-              fork:v5-landing Wave B —— 窄屏不摆这一列（M-05：「手机上没有空间摆导航树」，
-              左导航在 `app/settings.css` 的 ≤640px 档里 `display:none`）。 */}
-          {isMobile ? null : (
-          <nav aria-label={t("settings.title")} className="settings-section-tabs d-set-nav">
-            {/* fork:v5-landing Wave N1 · D-07 —— 四段分组标题（`.d-set-navsep`）。
-                段名在画板里就是左导航的一部分（基础 / 能力 / 运行 / 数据与连接），
-                手机那一层换成四张卡但**分组是同一张表**，所以两端读的是同一份顺序。 */}
-            {navEntries.map((entry) => entry.kind === "sep"
-              ? <div className="d-set-navsep" key={entry.key}>{entry.label}</div>
-              : renderNavItem(entry.entry))}
-            {navOrphans.map(renderNavItem)}
-            {/* 2026-10-03 用户裁定 —— 左导航底部的「返回工作区」撤掉（画板 62 帧 C 那一行
-                与 `.pw-snav-close` 一同退出产品）：弹窗右上角的 `.settings-dialog-close`
-                就是唯一的关闭口，窄屏页头那枚 X 仍在，所以手机也没少出口。
-                fork:v5-landing Wave B —— 窄屏**不渲染这一列**（M-05：「手机上没有空间摆
-                导航树」，那一层换成分组卡片 hub）。CSS 侧 `app/settings.css` 的
-                `≤640px 隐藏 .settings-section-tabs.pw-snav` 那条已经跟着换皮失效
-                （组件现在发 `d-set-nav`），所以窄屏的「不摆导航树」必须由这里保证，
-                否则两栏会同时出现在手机上。CSS 那条的改指归产品样式收尾波。 */}
-          </nav>
-          )}
-
-          <main className="settings-dialog-main">
-            {/* fork:v5-landing Wave B · M-05 帧 A —— 手机 hub：按「什么时候来改它」
-                分成四组卡片，只列那十一个分节；行尾的「需项目」徽章与左导航同一判据。
-                外层宿主不带任何 `display`（`hidden` 要生效），设置流在里层 `.m-settings`。 */}
-            {isMobile ? (
-              <div className="settings-section-host" data-settings-hub hidden={phoneSection !== null}>
-                <div className="m-settings">
-                  <div className="m-hero">
-                    <span className="m-t-title">{t("settings.title")}</span>
-                    <span className="m-t-cap m-t-dim">{settingsHubHeroCopy(locale)}</span>
-                  </div>
-                  {SETTINGS_HUB_GROUPS.map((group) => (
-                    <div className="m-cardgroup" key={group.id}>
-                      {group.sections.map((id) => {
-                        const item = sections.find((entry) => entry.id === id);
-                        if (!item) return null;
-                        const disabled = item.requiresProject && !cwd;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="m-setrow"
-                            disabled={disabled}
-                            data-section={item.id}
-                            title={disabled ? t("settings.projectRequired") : item.label}
-                            onClick={() => openPhoneSection(item.id)}
-                          >
-                            <SettingsSectionIcon section={item.id} size={16} />
-                            <span className="m-setrow-body">
-                              <span className="m-setrow-t">{item.label}</span>
-                              <span className="m-setrow-s">{settingsHubSectionHint(item.id, locale)}</span>
-                            </span>
-                            {disabled ? (
-                              <span className="m-badge mute">{settingsHubNeedsProjectCopy(locale)}</span>
-                            ) : null}
-                            <i data-ico="chevron-right" data-size="15" aria-hidden="true" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {sectionHost("general", <GeneralSettings cwd={cwd} sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} sidebarWidth={sidebarWidth} onSidebarWidthChange={onSidebarWidthChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} />)}
-            {sectionHost("models", <ModelsConfig embedded cwd={cwd} onClose={onClose} />)}
-            {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}
-            {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-            {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-            {/* fork:mcp-section — global pages, no project needed. */}
-            {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-            {/* fork:proma-43-automation — 定时任务。全局页：cwd 只决定新建任务时的
-                初值，每条任务自己的 cwd 在面板里填，所以没有项目也进得来。 */}
-            {sectionHost("automation", <AutomationPanel cwd={cwd ?? ""} />)}
-            {/* fork:zc-03 — usage stats. */}
-            {sectionHost("usage", <UsageStatsPanel />)}
-            {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
-            {sectionHost("archived", (
-              // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
-              // 合成一页：骨架 B（列表 300 + 详情 760），ConfigSplitView 与整页空态都由
-              // ProjectArchivePanel 自己出；会话归档的分组 / 详情卡也并进了同一个
-              // ConfigSplitView（旧的两段式入口 ArchivedSessionsPanel 恒渲染 null，已删）。
-              // fork:settings-frame（画板 62 帧 B）—— `fill` 与删掉 `div.settings-archive-page`
-              // 必须同一提交：is-fixed 是 overflow:hidden，中间多一层 div 会把超高一列
-              // 静默裁掉；删掉后 `.pw-scontent.is-fixed` 的直接子元素就只有
-              // ProjectArchivePanel 的 ConfigSplitView（或整页空态 / 错误行）。
-              <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")} fill>
-                <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} onCloseRequest={onClose} />
-              </SettingsPage>
-            ))}
-
-            {/* fork:import-ui — 显式扫描 + 显式导入，绝不自动跑。
-                fork:settings-frame —— 页面框（页头 + 滚动）由 ImportPanel 自己的三件套出。 */}
-            {sectionHost("import", <ImportPanel />)}
-
-            {/* fork:phone-push — 手机配对 + IM 推送。全局页，与项目无关。 */}
-            {sectionHost("phonePush", <PhoneAndPushPanel />)}
-          </main>
+          {sectionChildren}
         </div>
+        ) : (
+          <div className="d-modal-body settings-dialog-body">
+            <div className="d-set">
+              {/* fork:design-system SW-07 — 画板 D-07 的左导航：`.d-set-nav` + `.d-set-navitem`
+                  （图标 + 文案），选中态是 `.is-on`。行在画板里是 div，产品是 button。
+                  fork:v5-landing Wave N1 · D-07 —— 四段分组标题（`.d-set-navsep`）：
+                  段名在画板里就是左导航的一部分，手机那一层换成四张卡但**分组是同一张表**。 */}
+              <nav aria-label={t("settings.title")} className="settings-section-tabs d-set-nav">
+                {navEntries.map((entry) => entry.kind === "sep"
+                  ? <div className="d-set-navsep" key={entry.key}>{entry.label}</div>
+                  : renderNavItem(entry.entry))}
+                {navOrphans.map(renderNavItem)}
+              </nav>
+              {sectionChildren}
+            </div>
+          </div>
+        )}
+
+        {/* fork:v5-landing-frame · D-07 帧 B / C / D 的弹窗脚 —— 板面三帧都有这一行
+            （`.d-modal-foot`：左槽一句状态说明 + `.d-grow`，右槽 `.d-btn.ghost`
+            「重置本节」与 `.d-btn.primary`「完成」）。产品此前没有脚，关闭只靠右上角
+            那枚 X。
+            这里只补**不引入新语义**的两件：左槽那句「改动即时生效」的说明，与右槽的
+            「完成」（走同一个 `onClose`，与 X 等价）。「重置本节」**不补**：它要把这一
+            分节的键全部回滚，是破坏性动作，要动 `lib/` 的写入路径与逐项确认，
+            已登记在报告里等拍板（板面那一帧也把它写成「重置本节」，但产品侧需要
+            先定「哪些键算这一节」）。
+            文案走本地表（`lib/i18n/messages/**` 不在本轮文件范围内）。 */}
+        {isMobile ? null : (
+          <div className="d-modal-foot">
+            <span className="d-t-xs d-t-faint d-grow">
+              {localCopy(SETTINGS_FOOT_HINT, locale)}
+            </span>
+            <button type="button" className="d-btn primary" onClick={onClose}>
+              {t("common.ok")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

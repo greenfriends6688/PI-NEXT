@@ -2,44 +2,117 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-// fork:settings-frame（画板 62 帧 B / 画板 42 帧 3）—— 技能分节改版的**结构**断言。
+// fork:v5-d11-frame-a（画板 D-11）—— 技能分节改版的**结构**断言。
+// 桌面 = 帧A 表格（计数行 + 筛选行 + .d-table + 两条横幅）+ 帧C 内容弹层；
+// 移动端（M-05）= 既有列表 + 内联详情，原样保留。
 // 断言只锁「照抄画板的 DOM 形态」与「62 硬规则」，不锁文案（文案在三语包里）。
 
 const source = await readFile(new URL("./SkillsConfig.tsx", import.meta.url), "utf8");
 
-test("detail column is header + rows + SKILL.md card (board D-11 frame C)", () => {
-  // 详情头：d-row（h3 + 作用域徽标 + 条目级动作）
-  assert.match(source, /<Title>/);
-  assert.match(source, /data-ico="external-link"/);
-  // 元信息是画板 D-11 的行式 `.d-set-row`（来源 / 路径 / 允许自动调用）
-  assert.match(source, /className="d-set-sec"/);
-  assert.match(source, /className="d-set-row"/);
-  assert.match(source, /skills\.fieldSource/);
-  // SKILL.md 是一张 `.d-card`：`.d-card-head` + grow + square-pen 编辑钮
-  assert.match(source, /className="d-card-head"/);
-  assert.match(source, /data-ico="square-pen"/);
+test("desktop table section is count row + filter row + d-table (board D-11 frame A)", () => {
+  const desktop = source.slice(source.indexOf("fork:v5-d11-frame-a —— 桌面 = 画板 D-11 帧A"));
+  // sec 标题 + 计数行（总/启用/关掉）+ 「搜索与安装」入口
+  assert.match(desktop, /className="d-set-sec-t"/);
+  assert.match(desktop, /skills\.countSummary/);
+  assert.match(desktop, /skills\.searchAndInstall/);
+  // 表格在 `.d-card` 里：列头 技能(30%) / 来源 / 版本 / 状态 / 启用
+  assert.match(desktop, /className="d-card"/);
+  assert.match(desktop, /className="d-table"/);
+  assert.match(desktop, /style=\{\{ width: "30%" \}\}/);
+  assert.match(desktop, /skills\.colSkill/);
+  assert.match(desktop, /skills\.colSource/);
+  assert.match(desktop, /skills\.colVersion/);
+  assert.match(desktop, /skills\.colStatus/);
+  assert.match(desktop, /skills\.colEnable/);
+  // 行 = 名称+描述两行（d-col）+ 来源徽标 + 版本 + 状态 + 真开关 + 更多
+  const row = source.slice(
+    source.indexOf("const renderSkillTableRow"),
+    source.indexOf("  return (\n    <ConfigPanelShell"),
+  );
+  assert.match(row, /className="d-col"/);
+  assert.match(row, /d-t-b/);
+  assert.match(row, /d-t-xs d-t-faint/);
+  assert.match(row, /d-mono/);
+  assert.match(row, /role="switch"/);
+  assert.match(row, /event\.stopPropagation\(\)/);
+  assert.match(row, /className="d-iconbtn"/);
+  assert.match(row, /data-ico="ellipsis"/);
+  // 沉睡排序保持生效（enabled 在前）
+  assert.match(desktop, /orderSkillsByDormancy\(visibleSkills\)\.map\(renderSkillTableRow\)/);
+});
+
+test("frame A carries the off != uninstall banner and the untrusted-directory banner", () => {
+  const desktop = source.slice(source.indexOf("fork:v5-d11-frame-a —— 桌面 = 画板 D-11 帧A"));
+  // 关掉 ≠ 卸载（warn，circle-help）—— 产品没有卸载能力，只保留这半段真话
+  assert.match(desktop, /className="d-banner warn"/);
+  assert.match(desktop, /data-ico="circle-help"/);
+  assert.match(desktop, /skills\.offNotUninstallT/);
+  assert.match(desktop, /skills\.offNotUninstallB/);
+  // 未信任目录（shield-question，画板默认档）：项目技能未加载时出现
+  assert.match(desktop, /data-ico="shield-question"/);
+  assert.match(desktop, /trust\.skillsNotLoaded/);
+});
+
+test("row click opens the frame C content modal; more-menu carries entry actions", () => {
+  assert.match(source, /function SkillContentModal/);
+  assert.match(source, /const openRow = \(skill: Skill\)/);
+  assert.match(source, /openMenu\(event\.clientX, event\.clientY, entries, \{ title: skill\.name \}\)/);
+  // 弹层只挂桌面（移动端是内联详情），按文件路径换实例
+  assert.match(source, /!isMobile && contentSkill && \(/);
+  assert.match(source, /key=\{contentSkill\.filePath\}/);
+});
+
+test("content modal is frame C: seg tabs (rendered/raw), frontmatter switch, d-code", () => {
+  const modal = source.slice(
+    source.indexOf("function SkillContentModal"),
+    source.indexOf("/** fork:skillhub"),
+  );
+  // 画板弹层骨架：d-modal is-open > d-modal-box wide > head/body/foot
+  assert.match(modal, /className="d-modal is-open"/);
+  assert.match(modal, /className="d-modal-box wide"/);
+  assert.match(modal, /className="d-modal-head"/);
+  assert.match(modal, /className="d-modal-body"/);
+  assert.match(modal, /className="d-modal-foot"/);
+  // 正文一段 `.d-seg`（渲染 / 原文）+ 右端路径
+  assert.match(modal, /className="d-seg"/);
+  assert.match(modal, /role="tablist"/);
+  assert.match(modal, /skills\.tabRender/);
+  assert.match(modal, /skills\.tabRaw/);
+  assert.match(modal, /displayPath\(skill\.filePath\)/);
+  // 渲染 pane = d-card（head 文件名 + 编辑动作 / body 正文）
+  assert.match(modal, /className="d-card-head"/);
+  assert.match(modal, /data-ico="square-pen"/);
+  // 原文 pane = frontmatter 开关行 + d-code（行号 d-ln，真实文件行号）
+  assert.match(modal, /skills\.frontmatter/);
+  assert.match(modal, /className="d-code-head"/);
+  assert.match(modal, /className="d-code-body"/);
+  assert.match(modal, /className="d-ln"/);
+  // 能力面映射：允许自动调用开关在弹层里有一行真开关
+  assert.match(modal, /skills\.allowAutoInvoke/);
 });
 
 test("SKILL.md editing does not embed a second scroll container (board 62 hard rule)", () => {
   // 62 硬规则：详情内部不再套第二层滚动 —— textarea 不写死 max-height/min-height，
-  // 用 rows 跟着草稿长高，滚动交给详情列。
+  // 用 rows 跟着草稿长高，滚动交给宿主（移动端详情列 / 帧C 弹层）。
   // fork:skills-row-name-only（2026-10-02）—— 断言必须**按元素取**：安装弹层的壳
   // （fork:skills-modal-scroll）为了能滚，正当需要 max-height + flex 列，那是另一个
-  // 元素，不属于这条硬规则。所以只截 <textarea ... /> 那一段来判。
-  const textareaStart = source.indexOf("<textarea");
-  const textarea = source.slice(textareaStart, source.indexOf("/>", textareaStart));
-  assert.match(textarea, /className="d-textarea"/);
-  assert.doesNotMatch(textarea, /maxHeight/);
-  assert.doesNotMatch(textarea, /minHeight/);
+  // 元素，不属于这条硬规则。帧C 弹层与移动端详情各有一个 textarea，逐个判。
+  const textareas = [...source.matchAll(/<textarea[\s\S]*?\/>/g)].map((m) => m[0]);
+  assert.ok(textareas.length >= 2, "mobile detail and frame C modal each host one textarea");
+  for (const textarea of textareas) {
+    assert.match(textarea, /className="d-textarea"/);
+    assert.doesNotMatch(textarea, /maxHeight/);
+    assert.doesNotMatch(textarea, /minHeight/);
+  }
 });
 
-test("list column renders scope groups with name-only rows (board D-11 frame A)", () => {
+test("mobile branch keeps scope groups with name-only rows (M-05)", () => {
   // 作用域分组标题（项目 / 全局 / 路径）是画板的 `.d-group-title`
   assert.match(source, /className="d-group-title"/);
-  // fork:skills-row-name-only（2026-10-02）—— 列表行只保留名称：`.pw-lsub` 副标题
-  // 撤掉（board.css:860 只给了 color/font-size，没有钳位，真实描述铺 5~19 行）。
+  // fork:skills-row-name-only（2026-10-02）—— 列表行只保留名称：副标题
+  // 撤掉（旧 board.css 的 lsub 没有钳位，真实描述铺 5~19 行）。
   // 断言只对 **JSX** 生效：取 renderSkillRow 那一段源码，别让解释性注释里的
-  // 类名把断言喂饱（那正是旧版 /pw-lsub/ 变成假通过的原因）。
+  // 类名把断言喂饱。
   const row = source.slice(
     source.indexOf("const renderSkillRow"),
     source.indexOf("<ConfigPanelShell"),
@@ -79,11 +152,14 @@ test("install skills opens a board 42 dialog, not an inline detail view", () => 
   assert.doesNotMatch(source, /AddSkillPanel/);
 });
 
-test("toolbar carries search, scope filter, merged count badge and update-all", () => {
+test("filter row carries search, scope filter and the filtered-scope group switch", () => {
   assert.match(source, /<PwSearch/);
-  assert.match(source, /className="d-sep-v"/);
   assert.match(source, /scopeFilter/);
-  // 画板：`17 个 · 4 个可更新` 合并成一枚 count 徽章
+  // 画板：`17 个 · 4 个可更新` 合并成一枚 count 徽章（移动端工具栏保留）
   assert.match(source, /tone="count"/);
   assert.match(source, /updateAllAvailable/);
+  // fork:group-switch（G4）—— 表格化后组开关挪进筛选行：选了作用域才出现，
+  // 作用于当前筛选出的可见集合
+  assert.match(source, /scopeFilter !== "all" && visibleSkills\.length > 0 && \(/);
+  assert.match(source, /setGroupSkills\(scopeFilter, visibleSkills, next\)/);
 });

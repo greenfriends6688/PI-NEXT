@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useState, useEffect, useCallback, useRef, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type {
   SkillInfo as Skill,
   SkillInstallScope,
@@ -25,6 +26,7 @@ import {
   itemsToSwitch,
 } from "./SettingsUi";
 import { MarkdownBody } from "./MarkdownBody";
+import { useContextMenu, type ContextMenuEntry } from "./ContextMenu";
 
 /* ---------------------------------------------------------------------------
  * fork:v5-skin-d-only —— 本地内容基件只吐 d-*（画板 system.css）。
@@ -214,46 +216,16 @@ function RowToggle({
   );
 }
 
-function SkillDetail({
-  skill,
-  cwd,
-  onToggle,
-  toggling,
-  saveError,
-  updateStatus,
-  checkingUpdate,
-  updating,
-  updateError,
-  onCheckUpdate,
-  onUpdate,
-  onContentSaved,
-}: {
-  skill: Skill;
-  cwd: string;
-  onToggle: (skill: Skill) => void;
-  toggling: boolean;
-  saveError: string | null;
-  updateStatus?: SkillUpdateResult;
-  checkingUpdate: boolean;
-  updating: boolean;
-  updateError: string | null;
-  onCheckUpdate: () => void;
-  onUpdate: () => void;
-  onContentSaved?: () => void;
-}) {
+/** fork:skills-content —— 正文读取 / 就地编辑 / 在访达中定位，一条 hook。
+ *
+ *  以前这里只有 name + description（frontmatter 的两个字段），正文得另外去文件浏览器
+ *  找，而全局技能目录（~/.pi/agent/skills、~/.agents/skills）根本不在 /api/files 的
+ *  允许根里。现在走 /api/skills/content：与 /api/skills PATCH 同一套根校验。
+ *
+ *  两个宿主共用：移动端的内联详情（SkillDetail）与桌面端的内容弹层
+ *  （SkillContentModal，画板 D-11 帧 C）。 */
+function useSkillContent(skill: Skill, onContentSaved?: () => void) {
   const { t } = useI18n();
-  const label = sourceLabel(skill);
-  const scopeLabels: Record<string, string> = {
-    project: t("skills.scope.project"),
-    global: t("skills.scope.global"),
-    path: t("skills.scope.path"),
-  };
-  const enabled = !skill.disableModelInvocation;
-
-  // fork:skills-content — 正文读取 / 就地编辑。
-  // 以前这里只有 name + description（frontmatter 的两个字段），正文得另外去文件浏览器
-  // 找，而全局技能目录（~/.pi/agent/skills、~/.agents/skills）根本不在 /api/files 的
-  // 允许根里。现在走 /api/skills/content：与 /api/skills PATCH 同一套根校验。
   const [content, setContent] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [loadingContent, setLoadingContent] = useState(true);
@@ -312,7 +284,7 @@ function SkillDetail({
       setContent(draft);
       setEditing(false);
       setSavedAt(true);
-      // frontmatter 里就是 name / description，改完要让左侧列表跟着刷新。
+      // frontmatter 里就是 name / description，改完要让列表跟着刷新。
       onContentSaved?.();
     } catch (error) {
       setContentError(error instanceof Error ? error.message : String(error));
@@ -321,7 +293,7 @@ function SkillDetail({
     }
   };
 
-  /* fork:settings-frame（画板 62 帧 B）—— 详情头的「在文件面板打开」。
+  /* fork:settings-frame（画板 62 帧 B）—— 「在文件管理器中打开」。
      应用内的文件面板 tab 由 AppShell 私有状态管理，分节侧没有打开入口；
      现有可用的最近动作是 /api/files/reveal（OS 文件管理器里定位 SKILL.md），
      允许根之外（全局技能目录）会被 403，错误就地显示。真正接进应用内面板
@@ -343,13 +315,60 @@ function SkillDetail({
     }
   };
 
-  function displayPath(p: string): string {
-    if (label === "project" && p.startsWith(cwd)) {
-      const rel = p.slice(cwd.length).replace(/^[/\\]/, "");
-      return `./${rel}`;
-    }
-    return shortenPath(p);
+  return {
+    content, draft, setDraft, loadingContent, contentError, setContentError, editing, setEditing,
+    saving, savedAt, setSavedAt, revealError, saveContent, revealSkillFile,
+  };
+}
+
+/** 项目技能的路径显示成 `./…`，其余缩掉家目录。 */
+function displaySkillPath(p: string, cwd: string, label: string): string {
+  if (label === "project" && p.startsWith(cwd)) {
+    const rel = p.slice(cwd.length).replace(/^[/\\]/, "");
+    return `./${rel}`;
   }
+  return shortenPath(p);
+}
+
+function SkillDetail({
+  skill,
+  cwd,
+  onToggle,
+  toggling,
+  saveError,
+  updateStatus,
+  checkingUpdate,
+  updating,
+  updateError,
+  onCheckUpdate,
+  onUpdate,
+  onContentSaved,
+}: {
+  skill: Skill;
+  cwd: string;
+  onToggle: (skill: Skill) => void;
+  toggling: boolean;
+  saveError: string | null;
+  updateStatus?: SkillUpdateResult;
+  checkingUpdate: boolean;
+  updating: boolean;
+  updateError: string | null;
+  onCheckUpdate: () => void;
+  onUpdate: () => void;
+  onContentSaved?: () => void;
+}) {
+  const { t } = useI18n();
+  const label = sourceLabel(skill);
+  const scopeLabels: Record<string, string> = {
+    project: t("skills.scope.project"),
+    global: t("skills.scope.global"),
+    path: t("skills.scope.path"),
+  };
+  const enabled = !skill.disableModelInvocation;
+  const c = useSkillContent(skill, onContentSaved);
+  const { content, draft, setDraft, loadingContent, contentError, setContentError, editing, setEditing, saving, savedAt, setSavedAt } = c;
+
+  const displayPath = (p: string) => displaySkillPath(p, cwd, label);
 
   return (
     <Stack>
@@ -362,7 +381,7 @@ function SkillDetail({
           {scopeLabels[label] ?? label}
         </Badge>
         <span className="d-grow" aria-hidden="true" />
-        <Btn variant="ghost" size="small" onClick={() => void revealSkillFile()}>
+        <Btn variant="ghost" size="small" onClick={() => void c.revealSkillFile()}>
           <i data-ico="external-link" data-size="13" aria-hidden="true" />
           {t("sidebar.openInFileManager")}
         </Btn>
@@ -388,11 +407,11 @@ function SkillDetail({
           </Btn>
         )}
       </div>
-      {(!enabled || saveError || revealError) && (
+      {(!enabled || saveError || c.revealError) && (
         <div className="d-row">
           {!enabled && <span className="d-t-xs d-t-faint">{t("i18n.hiddenButInvocable")}</span>}
           {saveError && <Badge tone="bad">{saveError}</Badge>}
-          {revealError && <Badge tone="bad">{revealError}</Badge>}
+          {c.revealError && <Badge tone="bad">{c.revealError}</Badge>}
         </div>
       )}
 
@@ -525,7 +544,7 @@ function SkillDetail({
                   variant="primary"
                   size="small"
                   disabled={saving}
-                  onClick={() => { void saveContent(); }}
+                  onClick={() => { void c.saveContent(); }}
                 >
                   {saving ? t("i18n.saving") : t("i18n.save")}
                 </Btn>
@@ -579,6 +598,328 @@ function SkillDetail({
         </div>
       </div>
     </Stack>
+  );
+}
+
+/* fork:v5-d11-frame-c —— 内容查看弹层（画板 D-11 帧 C 的产品形）。
+ *
+ * 画板把「技能内容」从列表页拆成独立弹层：头部是技能名，正文一段
+ * `.d-seg` 分段（渲染 / 原文）+ 右端路径，下挂两个 pane：
+ *   · 渲染 = `.d-card`（`.d-card-head` 文件名 + 编辑动作，`.d-card-body` 渲染正文 / 编辑框）
+ *   · 原文 = frontmatter 开关行 + `.d-code` 行号原文
+ * 「总是优先使用」开关（画板能力面那一行）映射产品的「允许自动调用」。
+ * 帧 C 的「文件」pane（技能目录文件清单）与「声明一致」徽章没有数据面
+ * （/api/skills/content 只回单文件，产品不解析声明与正文的对应关系），
+ * 不渲染；偏离已登记 DIVERGENCE.md。 */
+function SkillContentModal({
+  skill,
+  cwd,
+  onToggle,
+  toggling,
+  saveError,
+  updateStatus,
+  checkingUpdate,
+  updating,
+  updateError,
+  onCheckUpdate,
+  onUpdate,
+  onContentSaved,
+  onClose,
+}: {
+  skill: Skill;
+  cwd: string;
+  onToggle: (skill: Skill) => void;
+  toggling: boolean;
+  saveError: string | null;
+  updateStatus?: SkillUpdateResult;
+  checkingUpdate: boolean;
+  updating: boolean;
+  updateError: string | null;
+  onCheckUpdate: () => void;
+  onUpdate: () => void;
+  onContentSaved?: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const label = sourceLabel(skill);
+  const scopeLabels: Record<string, string> = {
+    project: t("skills.scope.project"),
+    global: t("skills.scope.global"),
+    path: t("skills.scope.path"),
+  };
+  const enabled = !skill.disableModelInvocation;
+  const c = useSkillContent(skill, onContentSaved);
+  const [tab, setTab] = useState<"render" | "raw">("render");
+  const [showFrontmatter, setShowFrontmatter] = useState(true);
+
+  // fork:dsn-dialog-a11y —— 与安装弹层同一条口径：Esc 关闭、Tab 循环、背景 inert、
+  // 关闭还焦点；点遮罩关闭在 onClick 里做（d-modal 是全屏遮罩本体）。
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+
+  const displayPath = (p: string) => displaySkillPath(p, cwd, label);
+
+  /* 原文视图：内容是整份 SKILL.md（含 frontmatter）。frontmatter = 文件开头的
+     `--- … ---` 块；开关只控制这一段显不显示，行号始终是真实文件行号。 */
+  const lines = (c.content ?? "").split("\n");
+  let frontmatterEnd = -1;
+  if (lines[0]?.trim() === "---") {
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === "---") { frontmatterEnd = i; break; }
+    }
+  }
+  const rawStart = showFrontmatter || frontmatterEnd < 0 ? 0 : frontmatterEnd + 1;
+  const rawLines = lines.slice(rawStart);
+
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={skill.name}
+      className="d-modal is-open"
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className="d-modal-box wide">
+        <div className="d-modal-head">
+          <div className="d-row">
+            <span>{skill.name}</span>
+            <Badge>{scopeLabels[label] ?? label}</Badge>
+            <span className="d-grow" aria-hidden="true" />
+            {skill.install?.canCheckForUpdates && (
+              <Btn
+                variant="secondary"
+                size="small"
+                onClick={onCheckUpdate}
+                disabled={checkingUpdate || updating}
+              >
+                <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
+                {checkingUpdate ? t("i18n.checking") : t("i18n.check")}
+              </Btn>
+            )}
+            {updateStatus?.state === "update-available" && (
+              <Btn
+                variant="primary"
+                size="small"
+                onClick={onUpdate}
+                disabled={updating || checkingUpdate}
+              >
+                {updating ? t("i18n.updating") : t("i18n.update")}
+              </Btn>
+            )}
+          </div>
+        </div>
+        <div className="d-modal-body">
+          {saveError && (
+            <div role="alert" className="d-banner err">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+              <span className="d-grow">{saveError}</span>
+            </div>
+          )}
+          {updateError && (
+            <div role="alert" className="d-banner err">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+              <span className="d-grow">{updateError}</span>
+            </div>
+          )}
+          {c.revealError && (
+            <div role="alert" className="d-banner err">
+              <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+              <span className="d-grow">{c.revealError}</span>
+            </div>
+          )}
+
+          <div className="d-set-sec">
+            <div className="d-row">
+              <div className="d-seg" role="tablist" aria-label={t("skills.content")}>
+                <button
+                  type="button"
+                  aria-pressed={tab === "render"}
+                  className={tab === "render" ? "is-on" : undefined}
+                  onClick={() => setTab("render")}
+                >
+                  {t("skills.tabRender")}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={tab === "raw"}
+                  className={tab === "raw" ? "is-on" : undefined}
+                  onClick={() => setTab("raw")}
+                >
+                  {t("skills.tabRaw")}
+                </button>
+              </div>
+              <span className="d-grow" aria-hidden="true" />
+              <span className="d-t-xs d-t-faint d-mono">{displayPath(skill.filePath)}</span>
+            </div>
+
+            <section hidden={tab !== "render"}>
+              <div className="d-card">
+                <div className="d-card-head">
+                  <i data-ico="file-text" data-size="15" aria-hidden="true" />
+                  <span>SKILL.md</span>
+                  <span className="d-grow" aria-hidden="true" />
+                  {c.savedAt && !c.editing && <Badge tone="ok">{t("i18n.saved")}</Badge>}
+                  {c.content !== null && !c.editing && (
+                    <Btn
+                      variant="ghost"
+                      size="small"
+                      onClick={() => { c.setDraft(c.content ?? ""); c.setEditing(true); c.setSavedAt(false); }}
+                    >
+                      <i data-ico="square-pen" data-size="13" aria-hidden="true" />
+                      {t("skills.edit")}
+                    </Btn>
+                  )}
+                  {c.editing && (
+                    <>
+                      <Btn
+                        variant="secondary"
+                        size="small"
+                        disabled={c.saving}
+                        onClick={() => { c.setDraft(c.content ?? ""); c.setEditing(false); c.setContentError(null); }}
+                      >
+                        {t("i18n.cancel")}
+                      </Btn>
+                      <Btn
+                        variant="primary"
+                        size="small"
+                        disabled={c.saving}
+                        onClick={() => { void c.saveContent(); }}
+                      >
+                        {c.saving ? t("i18n.saving") : t("i18n.save")}
+                      </Btn>
+                    </>
+                  )}
+                </div>
+                <div className="d-card-body">
+                  {c.loadingContent ? (
+                    <div className="d-banner info">
+                      <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" /></span>
+                      <span className="d-grow">{t("i18n.loading")}</span>
+                    </div>
+                  ) : c.editing ? (
+                    <>
+                      {/* 画板硬规则：弹层内部不再套第二层滚动 —— textarea 不给 max-height，
+                          用 rows 跟着草稿行数长高（min-height 由 `.d-textarea` 给）。 */}
+                      <textarea
+                        className="d-textarea"
+                        value={c.draft}
+                        rows={Math.max(9, c.draft.split("\n").length + 1)}
+                        spellCheck={false}
+                        aria-label={`${t("skills.content")} · ${skill.name}`}
+                        onChange={(event) => c.setDraft(event.target.value)}
+                      />
+                      <div className="d-banner info">
+                        <i data-ico="info" data-size="14" aria-hidden="true"></i>
+                        <span className="d-grow">{t("skills.contentHint")}</span>
+                      </div>
+                    </>
+                  ) : c.content !== null ? (
+                    <div className="d-md">
+                      <MarkdownBody>{c.content}</MarkdownBody>
+                    </div>
+                  ) : (
+                    <div className="d-banner err">
+                      <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                      <span className="d-grow">
+                        {c.contentError ? `${t("skills.contentLoadFailed")}: ${c.contentError}` : t("skills.contentLoadFailed")}
+                      </span>
+                    </div>
+                  )}
+                  {c.contentError && c.editing && (
+                    <div className="d-row">
+                      <Badge tone="warn">
+                        <i data-ico="triangle-alert" data-size="11" aria-hidden="true" />
+                        {`${t("skills.saveFailed")}: ${c.contentError}`}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section hidden={tab !== "raw"}>
+              <div className="d-set-row">
+                <div className="d-set-row-box">
+                  <div className="d-set-row-t">{t("skills.frontmatter")}</div>
+                  <div className="d-set-row-s">{t("skills.frontmatterHint")}</div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showFrontmatter}
+                  aria-label={t("skills.frontmatter")}
+                  title={t("skills.frontmatter")}
+                  className={`d-switch${showFrontmatter ? " on" : ""}`}
+                  onClick={() => setShowFrontmatter((value) => !value)}
+                />
+              </div>
+              {c.loadingContent ? (
+                <div className="d-banner info">
+                  <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" /></span>
+                  <span className="d-grow">{t("i18n.loading")}</span>
+                </div>
+              ) : c.content !== null ? (
+                <div className="d-code">
+                  <div className="d-code-head">
+                    <i data-ico="braces" data-size="13" aria-hidden="true"></i>
+                    <span>SKILL.md</span>
+                    <span className="d-grow" aria-hidden="true" />
+                    <span>{rawStart + 1}–{lines.length}</span>
+                  </div>
+                  <div className="d-code-body">
+                    {rawLines.map((line, index) => (
+                      <Fragment key={rawStart + index}>
+                        <span className="d-ln">{rawStart + index + 1}</span>
+                        {line}
+                        {"\n"}
+                      </Fragment>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="d-banner err">
+                  <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                  <span className="d-grow">
+                    {c.contentError ? `${t("skills.contentLoadFailed")}: ${c.contentError}` : t("skills.contentLoadFailed")}
+                  </span>
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* 画板帧 C 的「能力面」在产品里只有一个真实字段：允许自动调用
+              （disable-model-invocation 的反面）。 */}
+          <div className="d-set-sec">
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("skills.allowAutoInvoke")}</div>
+                <div className="d-set-row-s">{enabled ? t("i18n.visibleInPrompt") : t("i18n.hiddenFromPrompt")}</div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                aria-busy={toggling || undefined}
+                aria-label={t("skills.allowAutoInvoke")}
+                title={enabled ? t("i18n.visibleInPrompt") : t("i18n.hiddenFromPrompt")}
+                disabled={toggling}
+                className={`d-switch${enabled ? " on" : ""}`}
+                onClick={() => onToggle(skill)}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="d-modal-foot">
+          <Btn variant="ghost" onClick={() => void c.revealSkillFile()}>
+            <i data-ico="external-link" data-size="14" aria-hidden="true" />
+            {t("sidebar.openInFileManager")}
+          </Btn>
+          <Btn variant="primary" onClick={onClose}>
+            <i data-ico="check" data-size="14" aria-hidden="true" />
+            {t("skills.done")}
+          </Btn>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -963,10 +1304,16 @@ export function SkillsConfig({
   focusSlug?: string | null;
 }) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
+  const { openMenu } = useContextMenu();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(() => getLastSettingsSelection("skills", cwd));
+  /* fork:v5-d11-frame-a —— 桌面列表换成画板 D-11 帧A 的表格；行点击打开内容弹层
+     （帧C）。移动端仍是 M-05 的列表 + 内联详情，不经过这个状态。 */
+  const [contentOpen, setContentOpen] = useState(false);
+  const focusConsumedRef = useRef(false);
   const [toggling, setToggling] = useState<Set<string>>(new Set());
   const [saveError, setSaveError] = useState<string | null>(null);
   /* fork:group-switch（G4 · 上游 `eceac13` #1020 + `b9622a1` #1021）——
@@ -1002,7 +1349,15 @@ export function SkillsConfig({
         // fork:proma-32-skill-usage —— chip 带来的 slug 优先于「上次选的那一条」：
         // 用户点进来就是要看它，落在别的条目上等于没点。
         const focused = focusSlug ? findSkillBySlug(list, focusSlug) : undefined;
-        if (focused) return focused.filePath;
+        if (focused) {
+          // 桌面（D-11 帧A）没有常驻详情列，chip 进来直接开内容弹层（帧C）；
+          // 只在首次命中时开 —— 之后的 reload（保存 / 更新）不再自动弹。
+          if (!focusConsumedRef.current) {
+            focusConsumedRef.current = true;
+            setContentOpen(true);
+          }
+          return focused.filePath;
+        }
         if (current && list.some((skill) => skill.filePath === current)) return current;
         const initialSkill = list.find((skill) => !skill.disableModelInvocation) ?? list[0];
         return initialSkill?.filePath ?? null;
@@ -1265,6 +1620,146 @@ export function SkillsConfig({
 
   const projectName = cwd.split(/[\\/]+/).filter(Boolean).pop() ?? cwd;
 
+  const contentSkill = contentOpen ? selectedSkill : null;
+
+  /* fork:v5-d11-frame-a —— 帧A 表格的单元格：来源徽标（安装来源优先，其余按
+     作用域三态：全局 mute / 项目 info / 路径 warn，对照画板 内置/商店/手动目录）、
+     状态徽标（关掉 > 检查中 > 可更新 > 最新 > 出错 > 不检查 > 已启用）、
+     行点击开内容弹层（帧C），行尾「更多」收条目级动作。 */
+  const sourceBadgeCell = (skill: Skill) => {
+    if (skill.install) {
+      return (
+        <Badge tone="info">
+          <i data-ico="download" data-size="12" aria-hidden="true" />
+          {skill.install.skillsShUrl ? "skills.sh" : skill.install.source}
+        </Badge>
+      );
+    }
+    const scope = sourceLabel(skill);
+    if (scope === "global") {
+      return <Badge tone="mute"><i data-ico="folder" data-size="12" aria-hidden="true" />{t("skills.scope.global")}</Badge>;
+    }
+    if (scope === "project") {
+      return <Badge tone="info"><i data-ico="folder" data-size="12" aria-hidden="true" />{t("skills.scope.project")}</Badge>;
+    }
+    return <Badge tone="warn"><i data-ico="folder-open" data-size="12" aria-hidden="true" />{t("skills.scope.path")}</Badge>;
+  };
+
+  const statusBadgeCell = (skill: Skill) => {
+    if (skill.disableModelInvocation) return <Badge tone="mute">{t("skills.statusDisabled")}</Badge>;
+    const key = updateKey(skill);
+    if (key && checkingUpdates.has(key)) return <Badge tone="mute">{t("i18n.checking")}</Badge>;
+    const st = key ? updateStatuses[key] : undefined;
+    if (st?.state === "update-available") {
+      return (
+        <Badge tone="warn" title={t("i18n.updateAvailable")}>
+          <i data-ico="arrow-up" data-size="12" aria-hidden="true" />
+          {t("skills.statusUpdatable", { version: shortVersion(st.latestVersion) })}
+        </Badge>
+      );
+    }
+    if (st?.state === "up-to-date") return <Badge tone="ok">{t("skills.statusLatest")}</Badge>;
+    if (st?.state === "error") {
+      return <Badge tone="bad" title={st.message}>{st.message || t("i18n.checkFailed")}</Badge>;
+    }
+    if (skill.install && !skill.install.canCheckForUpdates) {
+      return <Badge tone="mute">{t("i18n.automaticChecksUnavailable")}</Badge>;
+    }
+    return <Badge tone="ok">{t("skills.statusEnabled")}</Badge>;
+  };
+
+  const openRow = (skill: Skill) => {
+    setSelected(skill.filePath);
+    setContentOpen(true);
+  };
+
+  const openRowMenu = (event: ReactMouseEvent, skill: Skill) => {
+    const key = updateKey(skill);
+    const st = key ? updateStatuses[key] : undefined;
+    const entries: ContextMenuEntry[] = [
+      {
+        label: t("skills.viewContent"),
+        icon: <i data-ico="eye" data-size="14" aria-hidden="true" />,
+        onSelect: () => openRow(skill),
+      },
+    ];
+    if (skill.install?.canCheckForUpdates && key !== null) {
+      entries.push({
+        label: t("i18n.check"),
+        icon: <i data-ico="refresh-cw" data-size="14" aria-hidden="true" />,
+        disabled: checkingUpdates.has(key) || updatingSkill === key,
+        onSelect: () => void checkForUpdates(skill),
+      });
+    }
+    if (st?.state === "update-available" && key !== null) {
+      entries.push({
+        label: t("i18n.update"),
+        icon: <i data-ico="download" data-size="14" aria-hidden="true" />,
+        disabled: updatingSkill === key,
+        onSelect: () => void updateInstalledSkill(skill),
+      });
+    }
+    openMenu(event.clientX, event.clientY, entries, { title: skill.name });
+  };
+
+  /* 画板帧A 的描述是一两行的手写短句；真实 SKILL.md 的 description 长得多，
+     而库里没有给 `.d-table` 定义钳位类（判据⑦：类必须有画板在用）。
+     数据侧截断 + 原文进 title，行高保持画板的节奏（60 字符 ≈ 中文两行）。 */
+  const renderSkillTableRow = (skill: Skill) => {
+    const disabled = skill.disableModelInvocation;
+    const isOpen = contentOpen && selected === skill.filePath;
+    const description = skill.description.length > 60
+      ? `${skill.description.slice(0, 60)}…`
+      : skill.description;
+    return (
+      <tr
+        key={skill.filePath}
+        className={isOpen ? "is-on" : undefined}
+        title={skill.name}
+        onClick={() => openRow(skill)}
+      >
+        <td>
+          <div className="d-col">
+            <span className="d-t-b">{skill.name}</span>
+            {description && <span className="d-t-xs d-t-faint" title={skill.description}>{description}</span>}
+          </div>
+        </td>
+        <td>{sourceBadgeCell(skill)}</td>
+        <td className="d-mono">{skill.install ? shortVersion(skill.install.versionHash) : "—"}</td>
+        <td>{statusBadgeCell(skill)}</td>
+        <td>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!disabled}
+            aria-label={`${t("skills.allowAutoInvoke")} · ${skill.name}`}
+            title={t("skills.allowAutoInvoke")}
+            disabled={toggling.has(skill.filePath)}
+            className={`d-switch${disabled ? "" : " on"}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              void toggle(skill);
+            }}
+          />
+        </td>
+        <td>
+          <button
+            type="button"
+            className="d-iconbtn"
+            title={t("skills.more")}
+            aria-label={`${t("skills.more")} · ${skill.name}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              openRowMenu(event, skill);
+            }}
+          >
+            <i data-ico="ellipsis" data-size="14" aria-hidden="true" />
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
   /* fork:skills-row-name-only（2026-10-02，替代上条 fork:settings-frame 的「名称 +
       描述副标题」）—— 列表行 = pw-litem：图标（path 组用 folder-cog 弱化）+
       **只留 pw-lname**，行尾「可更新」warn 徽标或快捷开关（画板行尾的 pw-switch；
@@ -1320,6 +1815,7 @@ export function SkillsConfig({
 
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.skills")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
+      {isMobile ? (
       <SettingsPage
         title={t("common.skills")}
         sub={t("skills.pageSub")}
@@ -1493,6 +1989,143 @@ export function SkillsConfig({
           </div>
         </ConfigSplitView>
       </SettingsPage>
+      ) : (
+        /* fork:v5-d11-frame-a —— 桌面 = 画板 D-11 帧A：sec「已加载」= 计数行 +
+            「搜索与安装」 + 筛选行 + `.d-card` 里的 `.d-table`
+            （技能 30% / 来源 / 版本 / 状态 / 启用 / 更多）+ 两条横幅
+            （关掉≠卸载 · 未信任目录）。行点击开帧C 内容弹层。
+            与画板的偏离登记在 DIVERGENCE.md：
+              ① 筛选行（搜索 + 作用域 + 组开关）是产品补的 —— 真机 87 个技能，
+                 画板 5 行的表格没有检索需求；位置在计数行与表格之间；
+              ② 帧 A 的「看卸载到底删什么」弹层没有做 —— 产品没有卸载能力，
+                 横幅只保留「关掉 ≠ 卸载」这半段真话；
+              ③ 计数行省掉「同名技能按目录优先级取一个」—— 产品的同名解析在
+                 pi 侧，面板不做这个断言。 */
+        <>
+          <div className="d-set-inner">
+            <div className="d-set-sec">
+              <div className="d-set-sec-t">{t("skills.loaded")}</div>
+              <div className="d-row">
+                <span className="d-t-xs d-t-faint d-grow">
+                  {t("skills.countSummary", {
+                    total: String(skills.length),
+                    enabled: String(skills.filter((skill) => !skill.disableModelInvocation).length),
+                    disabled: String(skills.filter((skill) => skill.disableModelInvocation).length),
+                  })}
+                </span>
+                {skills.some((skill) => Boolean(skill.install)) && (
+                  <button
+                    type="button"
+                    className="d-btn sm"
+                    onClick={() => void checkForUpdates()}
+                    disabled={checkingAll || updatingSkill !== null}
+                  >
+                    <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
+                    {checkingAll ? t("i18n.checking") : t("i18n.checkUpdates")}
+                  </button>
+                )}
+                {updateCount > 0 && (
+                  <button
+                    type="button"
+                    className="d-btn sm"
+                    onClick={() => void updateAllAvailable()}
+                    disabled={checkingAll || updatingSkill !== null}
+                  >
+                    {checkingAll || updatingSkill !== null ? t("i18n.updating") : t("skills.updateAll")}
+                  </button>
+                )}
+                <button type="button" className="d-btn sm" onClick={() => setInstallOpen(true)}>
+                  <i data-ico="search" data-size="13" aria-hidden="true" />
+                  {t("skills.searchAndInstall")}
+                </button>
+              </div>
+              <div className="d-row">
+                <PwSearch
+                  value={listQuery}
+                  placeholder={t("skills.search")}
+                  ariaLabel={t("skills.search")}
+                  onChange={setListQuery}
+                />
+                <PwRadio
+                  value={scopeFilter}
+                  options={[
+                    { value: "all", label: t("skills.scope.all") },
+                    { value: "project", label: t("skills.scope.project") },
+                    { value: "global", label: t("skills.scope.global") },
+                    { value: "path", label: t("skills.scope.path") },
+                  ]}
+                  ariaLabel={t("i18n.scope")}
+                  onChange={setScopeFilter}
+                />
+                <span className="d-grow" aria-hidden="true" />
+                {scopeFilter !== "all" && visibleSkills.length > 0 && (
+                  <GroupSwitch
+                    enabled={visibleSkills.filter((skill) => !skill.disableModelInvocation).length}
+                    total={visibleSkills.length}
+                    disabled={bulkBusy}
+                    loading={bulkGroup === scopeFilter}
+                    label={t(
+                      visibleSkills.every((skill) => !skill.disableModelInvocation)
+                        ? "skills.groupSwitchHide"
+                        : "skills.groupSwitchShow",
+                      { group: t(`skills.scope.${scopeFilter}`) },
+                    )}
+                    onChange={(next) => void setGroupSkills(scopeFilter, visibleSkills, next)}
+                  />
+                )}
+              </div>
+              {scopeFilter !== "all" && groupStatus?.group === scopeFilter && (
+                <GroupStatus errorLines={groupStatus.lines} />
+              )}
+              {loading ? (
+                <div className="d-banner info">
+                  <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" /></span>
+                  <span className="d-grow">{t("i18n.loading")}</span>
+                </div>
+              ) : error ? (
+                <div className="d-banner err">
+                  <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                  <span className="d-grow">{error}</span>
+                </div>
+              ) : visibleSkills.length === 0 ? (
+                <div className="d-empty compact">
+                  <span className="d-empty-ico"><i data-ico="box" data-size="16" aria-hidden="true" /></span>
+                  <p className="d-empty-t">{listQueryTrimmed ? t("skills.noneFound") : t("i18n.noSkills")}</p>
+                  {!listQueryTrimmed && <p className="d-empty-s">{t("skills.emptyHint")}</p>}
+                </div>
+              ) : (
+                <div className="d-card">
+                  <table className="d-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "30%" }}>{t("skills.colSkill")}</th>
+                        <th>{t("skills.colSource")}</th>
+                        <th>{t("skills.colVersion")}</th>
+                        <th>{t("skills.colStatus")}</th>
+                        <th>{t("skills.colEnable")}</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orderSkillsByDormancy(visibleSkills).map(renderSkillTableRow)}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="d-banner warn">
+                <i data-ico="circle-help" data-size="14" aria-hidden="true"></i>
+                <span><b>{t("skills.offNotUninstallT")}</b>{t("skills.offNotUninstallB")}</span>
+              </div>
+              {!projectResourcesLoaded && (
+                <div role="status" className="d-banner">
+                  <i data-ico="shield-question" data-size="14" aria-hidden="true"></i>
+                  <span className="d-grow">{t("trust.skillsNotLoaded")}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {installOpen && (
         <InstallSkillsModal
@@ -1513,6 +2146,36 @@ export function SkillsConfig({
             void loadSkills();
           }}
           onDismiss={() => setInstallOpen(false)}
+        />
+      )}
+
+      {/* fork:v5-d11-frame-c —— 内容查看弹层（画板 D-11 帧 C）。桌面行点击打开；
+          移动端不走（M-05 的内联详情照旧）。key 按文件路径换实例：
+          换技能时 tab / 编辑态 / 滚动一起复位。 */}
+      {!isMobile && contentSkill && (
+        <SkillContentModal
+          key={contentSkill.filePath}
+          skill={contentSkill}
+          cwd={cwd}
+          onToggle={toggle}
+          toggling={toggling.has(contentSkill.filePath)}
+          saveError={saveError}
+          updateStatus={
+            updateKey(contentSkill)
+              ? updateStatuses[updateKey(contentSkill)!]
+              : undefined
+          }
+          checkingUpdate={
+            updateKey(contentSkill)
+              ? checkingUpdates.has(updateKey(contentSkill)!)
+              : false
+          }
+          updating={updatingSkill === updateKey(contentSkill)}
+          updateError={updateError}
+          onCheckUpdate={() => void checkForUpdates(contentSkill)}
+          onUpdate={() => void updateInstalledSkill(contentSkill)}
+          onContentSaved={() => { void loadSkills(); }}
+          onClose={() => setContentOpen(false)}
         />
       )}
     </ConfigPanelShell>

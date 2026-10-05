@@ -87,11 +87,19 @@ test("loads settings presentation from its dedicated stylesheet", () => {
 
 test("all four settings sections use the shared page frame and list-detail layout", () => {
   for (const [name, source] of configSources) {
-    for (const primitive of ["ConfigPanelShell", "SettingsPage", "ConfigSplitView", "ConfigSidebar"]) {
+    for (const primitive of ["ConfigPanelShell", "SettingsPage", "ConfigSidebar"]) {
       assert.match(source, new RegExp(`<${primitive}`), `${name} should use ${primitive}`);
     }
-    // fork:v5-landing —— 模型页的详情改用画板 D-08 的直接 `.d-set-inner`（ConfigDetail 之外的形态）。
-    assert.match(source, /<ConfigDetail|className="d-set-inner"/, `${name} should use ConfigDetail or the board detail`);
+    // fork:v5-landing —— **详情列有两种合法形状**（均为已登记的板面对应）：
+    //   · 共享分列基件 `ConfigSplitView`；
+    //   · 画板 D-08 的直接 `.d-set-inner`（模型页用它：布局与板面逐行一致，
+    //     再套一层 ConfigSplitView 反而多一层与板面无关的壳）。
+    //   任一即可，但必须是这两种之一 —— 不许两套都不发。
+    assert.match(
+      source,
+      /<ConfigSplitView|className="d-set-inner"/,
+      `${name} should use ConfigSplitView or the D-08 detail column`,
+    );
   }
 });
 
@@ -256,6 +264,50 @@ test("keeps shared static presentation in the design system stylesheet", () => {
 });
 
 /**
+ * fork:v5-landing-frame · D-07 帧 B —— 单选行（`.d-radiorow`）的 DOM 守卫。
+ *
+ * 设置里的「多选一」有两种形态，判据是「值本身带不带一句说明」：
+ *   · `PwRadio`    = `.d-seg` 分段芯片（两个字的档位，落在行尾 `.d-grow-last`）；
+ *   · `PwRadioRow` = `.d-radiorow` **整行**（圆点 + 标题 + 副标题，占满整列）。
+ * 这条守的是后者的**画板原文**：圆点 `.d-radio`、标题 `.d-radiorow-t`、副标题
+ * `.d-radiorow-s`，选中挂 `.on`（**不是** `.is-on` —— 板面原文就是 `.on`）；
+ * 窄屏是 M-05 帧 A 的 `.m-cardgroup` › `.m-setrow` + 行尾 `.m-radio`。
+ *
+ * 为什么要有它：这两件在 2026-10-05 之前是一件事（只有 `.d-seg`），于是带说明的
+ * 档位只能把说明挤进标签里；结构一变，能查的就只有类名与状态类。
+ */
+test("单选行按 D-07 帧 B 的原文发类（圆点 + 标题 + 副标题，选中 .on）", () => {
+  const start = templateSource.indexOf("export function PwRadioRow");
+  const end = templateSource.indexOf("export function PwSelectBox");
+  assert.ok(start > 0 && end > start, "PwRadioRow should sit between PwRadio and PwSelectBox");
+  const row = templateSource.slice(start, end);
+  for (const className of ["d-radiorow", "d-radio", "d-radiorow-t", "d-radiorow-s"]) {
+    assert.match(row, new RegExp(className), `PwRadioRow should render .${className}`);
+    assert.match(boardSource, new RegExp(`\\.${className}\\b`), `system.css should define .${className}`);
+  }
+  // 选中态：行 `.d-radiorow.on`、圆点 `.d-radio.on`（两处都带，板面同款）。
+  assert.match(row, /d-radiorow text-left\$\{on \? " on" : ""\}/);
+  assert.match(row, /d-radio\$\{on \? " on" : ""\}/);
+  // 语义：整行是 role=radio + aria-checked，组是 role=radiogroup（键盘可达）。
+  assert.match(row, /role="radiogroup"/);
+  assert.match(row, /role="radio"/);
+  assert.match(row, /aria-checked=\{on\}/);
+  // 标签行是画板里的**上一级**（`.d-set-row` › `.d-set-row-box`），不是挤在行尾的芯片。
+  assert.match(row, /className="d-set-row"/);
+  assert.match(row, /className="d-set-row-t"/);
+  // 窄屏那一支：M-05 帧 A 的分组行 + 行尾圆点；**不套 `.m-cardgroup`**
+  // （宿主 `PwBlock` 的窄屏形态就是它，再套一层是卡中卡）—— 所以窄屏的组容器
+  // 不发类名，只留 `role="radiogroup"`。
+  assert.match(row, /className="m-setrow"/);
+  assert.match(row, /m-radio/);
+  assert.match(row, /className=\{isMobile \? undefined : "d-col"\} role="radiogroup"/);
+  assert.doesNotMatch(row, /className="m-cardgroup"/);
+  // 按钮的 UA 归零：`.d-radiorow` 库里没有 text-align（板面也是 button），
+  // 所以桌面那一支带 Tailwind 的 text-left —— 去掉它文字会居中。
+  assert.match(row, /d-radiorow text-left/);
+});
+
+/**
  * fork:v5-landing Wave B —— **画板与实现必须是同一套 DOM**。
  *
  * 用户实测反馈：「设计的好，但真正落地的时候就有差距了，就不按照规划的进行设计了」。
@@ -306,7 +358,21 @@ test("embedded sections do not repeat Settings close actions", () => {
   for (const [name, source] of Object.entries(sources)) {
     // fork:settings-frame（画板 62）—— 关闭动作只属于设置面板的页头，
     // 嵌入的分节一个都不重复（原先靠页脚里 `!embedded &&` 兜着，页脚已删）。
-    assert.doesNotMatch(source, /onClick=\{onClose\}/, `${name} should not repeat the close action`);
+    //
+    // fork:v5-landing —— **窄屏卡片里那个 `.d-modal` 是例外**：它的页脚有一枚
+    // `onClick={onClose}`，关的是**这一张模型/技能卡自己的浮层**（标题即
+    // 「编辑模型」），不是设置页。所以判据得先排除「前面紧挨着一个
+    // `.d-modal-foot`」的关闭，否则这张卡片会被误报成“重复了页头关闭”。
+    const stray = [...source.matchAll(/onClick=\{onClose\}/g)].filter((m) => {
+      const before = source.slice(Math.max(0, m.index - 600), m.index);
+      // 最近一层容器是 modal-foot（在 600 字内且其后没有再开新块）就算合法。
+      return before.lastIndexOf("d-modal-foot") < 0;
+    });
+    assert.equal(
+      stray.length,
+      0,
+      `${name} should not repeat the page-level close action (offenders: ${stray.length})`,
+    );
   }
 });
 

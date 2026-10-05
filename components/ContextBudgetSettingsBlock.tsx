@@ -32,7 +32,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { PwBlock, PwCtl, PwField, PwSelectBox, PwSwitch } from "./SettingsUi";
+import { PwBlock, PwCtl, PwField, PwSelectBox, PwSwitch, stateBadge } from "./SettingsUi";
 import { numericInputToValue } from "./RetrySettingsBlock";
 import {
   CONTEXT_BUDGET_DEFAULTS,
@@ -84,7 +84,7 @@ export function pruneOverride(override: CompactionModelOverride): CompactionMode
 }
 
 export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [settings, setSettings] = useState<ContextBudgetSettings>(CONTEXT_BUDGET_DEFAULTS);
   const [drafts, setDrafts] = useState<Partial<Record<NumericKey, string | null>>>({});
   const [overrideDrafts, setOverrideDrafts] = useState<OverrideDrafts>({});
@@ -217,9 +217,16 @@ export function ContextBudgetSettingsBlock({ cwd }: { cwd: string | null }) {
 
   return (
     <PwBlock icon="scan-text" title={t("settings.contextBudgetBlock")}>
+      {/* fork:v5-landing-frame · D-07 帧 B —— 「自动压缩」那一行原文是
+         `.d-grow-last > .d-badge`（开 / 关）+ 行尾开关。
+         板面徽章里还写了「阈值 80%」：`settings.compaction` 在本产品里没有阈值这个字段
+         （只有 enabled + 三个 token 数 + modelOverrides），所以只写到开/关，
+         阈值那一半登记在报告里（要动 `lib/context-budget-settings*.ts` 与
+         `~/.pi/agent/settings.json` 的读写，属于新数据源）。 */}
       <PwField
         label={t("settings.contextBudgetEnabled")}
         hint={t("settings.contextBudgetEnabledHint")}
+        badge={stateBadge(locale, settings.enabled, locked)}
         control={
           <PwSwitch
             checked={settings.enabled}

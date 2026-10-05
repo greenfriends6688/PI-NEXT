@@ -17,3 +17,88 @@
 @import "../../design/v5/web/system.css";
 @import "../../design/v5/pwa/tokens.css" screen and (max-width: 640px);
 @import "../../design/v5/pwa/system.css" screen and (max-width: 640px);
+
+/* ── 接线层：产品挑定的那一支 ───────────────────────────────────────────────
+ * 库要同时服务画板与产品，所以它只能写「两个都合法」的规则；产品在两个都合法的
+ * 选项里挑定一个时，在这里写一条 0-2-0 的覆盖，并写清为什么。
+ * 这里写的必须都是「二选一」类（画板两种都对、产品只能一种），不是新设计值。 */
+
+/* D-29 帧 F 裁定：页签下划线是**移**的 ink，不是随 `is-on` 出现/消失的 `::after`。
+   TabBar 现在两套都在（ink 在移、驱动线在跳），只在这里关掉库里的 ::after；
+   画板与库保持原样（板面静态示例仍用 ::after 画线）。主题皮工作室的
+   `.d-tabs`（没有 ink）不受影响 —— 选择器带上了 `.d-tabbar`。 */
+.d-tabbar .d-tab.is-on::after { content: none; }
+
+/* 工具卡头的**首行顶部对齐**（2026-10-05 用户反馈：工具名与命令第一行没对齐，
+   看起来是「上下对不齐」）。画板 D-03d 的预览格是单行省略，`align-items:center`
+   在那里是对的；产品里真实命令常折成两行，于是工具名 / 状态徽章 / 耗时浮在
+   两行正中。这里换成首行对齐：图标与徽章下移一个 `--nx-sp-1`，正好落在第一行
+   文字的字面上（13px / 行高 1.6 → 行盒比字面高约 8px，一半即 `--nx-sp-1`）。
+   单行时与居中同形，所以画板那一帧的对位不受影响。 */
+button.d-tool-head { align-items: flex-start; }
+button.d-tool-head > i,
+button.d-tool-head > .d-badge,
+button.d-tool-head > .d-t-xs { margin-top: var(--nx-sp-1); }
+
+/* 过程组摘要行是**数据行**（「8 个文件 · 77 条命令 · …」），不是卡片标题；
+   `.d-card-head` 的 600 在别的卡（设置分组、扩展面板）是标题语气，用在这里
+   只是重（2026-10-05 用户反馈）。标题那一枚仍在组件里，字重回落正文。
+   `.fork-proc-card` 是产品接线钩子（只在这一层出现，库与画板没有）。 */
+.fork-proc-card > .d-card-head,
+.fork-proc-card > .m-tool-head { font-weight: 400; }
+
+/* 侧边「固定导航面板」（转录导轨悬停出的 320px 面板）回到 **V5 之前**的紧凑形
+   （2026-10-05 用户裁定）。V5 那版把面板做成悬浮卡：`--nx-sh-2` 四周投影、
+   无左边框，头行用 `--nx-sp-2/3` 内边距撑到 ~44px 高，导轨节点也从 6px 圆点
+   换成了 3px 横条 —— 用户反馈「现在的这个不太好」，要恢复圆点导轨 + 贴左阴影 +
+   32px 紧凑头行的那一版（值即旧画板 53 的 `.pw-minimap-rail` / `.pw-minimap-pop`
+   原值，与 `--nx-*` 角色令牌逐值等价，不引入第二个来源）。
+   挂 `.fork-minimap-panel` 是因为库里的 `.d-minimap-pop` / `.d-minimap` 画板与
+   设计演示都要保持新形；这一条只作用于产品那一处悬停面板。 */
+.fork-minimap-panel {
+  background: var(--nx-canvas);
+  border-left: 1px solid var(--nx-line);
+  box-shadow: -10px 0 26px rgba(0, 0, 0, .07);
+}
+.fork-minimap-rail {
+  border-left: 1px solid var(--nx-line);
+  border-radius: 0;
+  background: var(--nx-canvas);
+}
+.fork-minimap-rail .d-mm-node {
+  width: 6px;
+  height: 6px;
+  /* 节点是 `position:absolute; left:0; right:0` 的内联几何（产品按 topRatio
+     定位，不可改），所以居中用 `margin:auto` 而不是 left/transform。 */
+  margin: 0 auto;
+  border-radius: var(--nx-r-pill);
+  background: var(--nx-line-hi);
+}
+.fork-minimap-rail .d-mm-node.now { width: 8px; height: 8px; }
+.fork-minimap-rail .d-mm-node.done { background: var(--nx-text-3); }
+/* 面板头行回到旧版的一条 32px 横条（图标 20px + 文案 + 关闭）。 */
+.fork-minimap-panel > .d-row {
+  height: 32px;
+  padding: 0 var(--nx-sp-1);
+  gap: var(--nx-sp-1);
+}
+.fork-minimap-panel > .d-row .d-iconbtn { width: var(--nx-ctl-xs); height: var(--nx-ctl-xs); }
+
+/* M-12/M-09 的抓手 `.m-sheet-grab` 在画板里只是手势提示条，产品里是
+   「点一下即收」的钮（2026-10-05 用户反馈：抓手就该能关）。元素从 div 换成
+   button（同位同类名，与本仓「画板 div→button」的既定换法一致），这里还原
+   胶囊外观并把 4px 的视觉条放大成手指够得着的命中区：padding 撑出可点范围，
+   background-clip 让颜色仍只画在 36×4 的内容盒里，负 margin 把多出的盒子
+   吃回去 —— 版式与画板逐像素一致。 */
+button.m-sheet-grab {
+  appearance: none;
+  border: 0;
+  box-sizing: content-box;
+  width: 36px;
+  height: 4px;
+  padding: 12px 24px;
+  margin: -4px auto -10px;
+  background: var(--nx-line-hi) content-box;
+  border-radius: 999px;
+  cursor: pointer;
+}

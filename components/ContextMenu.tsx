@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -77,10 +78,25 @@ interface MenuState {
   x: number;
   y: number;
   entries: ContextMenuEntry[];
+  /** 画板 D-02c 帧 A「结构件」与 D-02d 帧 D：浮窗顶部的分组标题（可选）。 */
+  title?: string;
+  /** 脚注：一句话说明这个菜单为什么这么收着（可选）。 */
+  footer?: string;
+  /**
+   * fork:v5-frame-audit-2026-10-05 —— 长菜单顶部的搜索头
+   * （画板 D-02c 帧 A「搜索头」/ 帧 C「新建任务选择器」/ 「标签页总览」：
+   * `<div class="d-searchfield"><i search><input …></div>` 钉在浮窗顶上，不随内容滚）。
+   * `match` 决定一行在当前查询词下留不留；不传 `match` 就只渲染搜索框不过滤。
+   */
+  search?: { placeholder: string; match: (label: string, query: string) => boolean };
 }
 
 interface ContextMenuApi {
-  openMenu: (x: number, y: number, entries: ContextMenuEntry[]) => void;
+  openMenu: (x: number, y: number, entries: ContextMenuEntry[], chrome?: {
+    title?: string;
+    footer?: string;
+    search?: { placeholder: string; match: (label: string, query: string) => boolean };
+  }) => void;
   closeMenu: () => void;
 }
 
@@ -113,6 +129,8 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
   // transition (fork-ui.css) actually play instead of the menu popping in.
   const entered = useTwoPhaseEnter(Boolean(menu));
   const [feedbackIndex, setFeedbackIndex] = useState(-1);
+  // fork:v5-frame-audit-2026-10-05 —— 搜索头里的查询词。
+  const [query, setQuery] = useState("");
   const [submenuIndex, setSubmenuIndex] = useState<number | null>(null);
   const [submenuPos, setSubmenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -147,7 +165,11 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     }, CLOSE_ANIMATION_MS);
   }, [clearTimers]);
 
-  const openMenu = useCallback((x: number, y: number, entries: ContextMenuEntry[]) => {
+  const openMenu = useCallback((x: number, y: number, entries: ContextMenuEntry[], chrome?: {
+    title?: string;
+    footer?: string;
+    search?: { placeholder: string; match: (label: string, query: string) => boolean };
+  }) => {
     clearTimers();
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
@@ -158,7 +180,9 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     setSubmenuPos(null);
     setFeedbackIndex(-1);
     setActiveIndex(-1);
-    setMenu({ x, y, entries });
+    setMenu({ x, y, entries, title: chrome?.title, footer: chrome?.footer, search: chrome?.search });
+    // 每次打开都清空上一次查询词（画板 D-02c 帧 C：别让人以为列表被过滤坏了）。
+    setQuery("");
     // Provisional position; useLayoutEffect re-measures and flips.
     setPos({ x, y });
   }, [clearTimers]);
@@ -358,8 +382,14 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
         onClick={() => void runItem(entry, index)}
       >
         {renderEntryIcon(entry)}
+        {/* fork:v5-frame-audit-2026-10-05 —— 文字格用库里的 `.d-grow`（flex:1 / min-width:0），
+            与画板 D-02c 帧 A 的 `<span class="d-grow">文字</span>` 一致；原来是一枚
+            无类 span 靠内联 flex 复刻同一件事（同一个值两个来源）。 */}
         <span
-          className={entry.disabled ? (isMobile ? "m-t-faint" : "d-t-faint") : undefined}
+          className={[
+            isMobile ? "m-grow" : "d-grow",
+            entry.disabled ? (isMobile ? "m-t-faint" : "d-t-faint") : "",
+          ].filter(Boolean).join(" ")}
           style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", ...(trailing ? { flex: "1 1 auto" } : {}) }}
         >
           {feedbackIndex === index && entry.feedbackLabel ? entry.feedbackLabel : entry.label}
@@ -392,7 +422,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
              贴边浮层的写法），而本菜单是跟随指针的：所以 `right:"auto"` 与
              `position:"fixed"` 作为**几何定位**内联（铁律四允许），top/left 沿用
              视口翻转算出来的那个值。背景 / 描边 / 圆角 / 阴影 / 内边距全在库里。 */
-          className={`${isMobile ? "m-pop-float is-open" : "d-pop-float"} ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
+          className={`${isMobile ? "m-pop-float" : "d-pop-float"} is-open ${enteredClass("context-menu", entered)}${closing ? " is-closing" : ""}`}
           style={{
             ...(isMobile ? { position: "fixed", right: "auto" } : null),
             top: pos.y,
@@ -403,15 +433,41 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
           onContextMenu={(event) => event.preventDefault()}
           onKeyDown={onMenuKeyDown}
         >
+          {/* fork:v5-frame-audit-2026-10-05 —— 三块结构件补上（画板 D-02c 帧 A「结构件·
+              标题 / 分隔 / 搜索头 / 脚注」、D-02d 帧 D 会话动作菜单）：顶部搜索头
+              `.d-searchfield`、分组标题 `.d-pop-title` 与底部脚注 `.d-pop-foot`
+              都在板面上，产品此前只有行与分隔线。不给就不渲染，所以不受影响的那
+              一批菜单（右键会话行等）仍与板面一致。 */}
+          {menu.search && (
+            <div className="d-searchfield" style={{ margin: "0 var(--nx-sp-1) var(--nx-sp-1)", flexShrink: 0 }}>
+              <i data-ico="search" data-size="13" aria-hidden="true"></i>
+              <input
+                value={query}
+                placeholder={menu.search.placeholder}
+                aria-label={menu.search.placeholder}
+                autoComplete="off"
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") { event.stopPropagation(); closeMenu(); }
+                }}
+              />
+            </div>
+          )}
+          {menu.title && <div className="d-pop-title">{menu.title}</div>}
           {menu.entries.map((entry, index) => {
             if (isSeparator(entry)) {
               return <div key={`sep-${index}`} role="separator" className={isMobile ? "m-sep" : "d-sep"} />;
             }
             const item = entry as ContextMenuItem;
+            const q = query.trim().toLowerCase();
+            if (q && menu.search && !menu.search.match(item.label, q)) return null;
             const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
             const key = `${item.label}-${index}`;
+            // fork:v5-frame-audit-2026-10-05 —— 去掉每个条目外面那层无类 `div`：
+            // 板面上行 / 分隔线 / 子菜单都是浮窗的**直接子节点**，多一层壳会让
+            // 「行件 = 一个 flex 行」的网格对不上（也不该多一个盒子）。
             return (
-              <div key={key}>
+              <Fragment key={key}>
                 {renderRow(item, key, {
                   index,
                   isActive: index === activeIndex,
@@ -432,7 +488,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
                 {hasSubmenu && submenuIndex === index && submenuPos && (
                   <div
                     role="menu"
-                    className={`${isMobile ? "m-pop-float is-open" : "d-pop-float"} context-menu context-menu-submenu`}
+                    className={`${isMobile ? "m-pop-float" : "d-pop-float"} is-open context-menu context-menu-submenu`}
                     style={{
                       ...(isMobile ? { position: "fixed", right: "auto" } : null),
                       top: submenuPos.y,
@@ -447,9 +503,10 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
                     ))}
                   </div>
                 )}
-              </div>
+              </Fragment>
             );
           })}
+          {menu.footer && <div className="d-pop-foot">{menu.footer}</div>}
         </div>,
         document.body,
       )}
