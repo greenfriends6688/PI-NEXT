@@ -14,9 +14,17 @@ import { createJiti } from "jiti";
 const REAL_AGENT_DIR = process.env.PI_CODING_AGENT_DIR;
 const TEMP_AGENT_DIR = mkdtempSync(join(tmpdir(), "pi-web-lan-test-"));
 process.env.PI_CODING_AGENT_DIR = TEMP_AGENT_DIR;
+/* 同理：`PI_WEB_HOSTNAME` 是**启动器**给子进程传的（bin/lan-supervisor.cjs 在绑了
+   网卡时设成 0.0.0.0）。开发者的 shell / agent 进程里它经常是在的，于是
+   「本次运行没绑网卡 → boundLan=false」那条断言会读到真进程的绑定状态而红。
+   测试要的是「没设就是没绑」，所以这里显式清掉（原本只清 agent 目录，漏了这一项）。 */
+const REAL_HOSTNAME = process.env.PI_WEB_HOSTNAME;
+delete process.env.PI_WEB_HOSTNAME;
 after(() => {
   if (REAL_AGENT_DIR === undefined) delete process.env.PI_CODING_AGENT_DIR;
   else process.env.PI_CODING_AGENT_DIR = REAL_AGENT_DIR;
+  if (REAL_HOSTNAME === undefined) delete process.env.PI_WEB_HOSTNAME;
+  else process.env.PI_WEB_HOSTNAME = REAL_HOSTNAME;
 });
 
 
