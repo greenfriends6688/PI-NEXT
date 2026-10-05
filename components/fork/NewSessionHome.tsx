@@ -44,7 +44,12 @@ export function NewSessionHome({
   const hint = t("chat.homeHint");
 
   return (
-    <div className="d-col d-grow" style={{ minHeight: 0, overflowY: "auto", padding: "0 var(--nx-sp-8)" }}>
+    // fork:v5-frame-audit-2026-10-05 —— 首屏那一段照画板 D-01 帧 A 抄成
+    // `<div class="d-chat"><div class="d-chat-inner">…d-empty + d-grid2…</div></div>`：
+    // 滚动容器是 `.d-chat`（库里的那一件），内层是 `.d-chat-inner`。
+    // 此前根节点是一枚 `div.d-col.d-grow` + 内联 `overflowY:auto` / `padding`，
+    // 板面上并不存在这层（滚动、内边距、列宽三件事都由 d-* 给）。
+    <div className="d-chat" style={{ paddingLeft: 0, paddingRight: 0 }}>
       <div className="d-chat-inner">
         <div className="d-empty" style={{ padding: "var(--nx-sp-8) 0 var(--nx-sp-6)" }}>
           <div
