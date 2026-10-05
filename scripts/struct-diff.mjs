@@ -25,6 +25,7 @@
  *     boardRoot: ".d-shell",       // 板侧要比的那段（家具 d-frame/d-scene 已被排除在外）
  *     app: { script: "…" },        // 产品侧怎么走到这个面（自含脚本，见 board-diff.mjs）
  *     appRoot: ".d-shell",         // 产品侧要比的那段
+ *     after: "…"                   // 可选：比完再执行（自带种子的 spec 在这里收摊）
  *     ignore: ["d-grow"],          // 可选：忽略的类（纯占位、无视觉）
  *   }
  * =========================================================================== */
@@ -151,6 +152,15 @@ const appSide = await aPage.evaluate(
   },
   { rootSel: spec.appRoot ?? ":scope", appSkip: spec.appSkip ?? [], skipBare: spec.skipBare !== false },
 );
+
+/* spec.after：比完在产品那一页再跑一段（自带种子的 spec 用它收摊 ——
+   种子不撤，下一次跑就比到两份重复的行，偏差就成了假的）。同样在 app 上下文里执行。 */
+if (typeof spec.after === "string" && spec.after.trim()) {
+  await aPage.evaluate(async (src) => {
+    // eslint-disable-next-line no-new-func
+    await (new Function(`return (async () => { ${src} })()`))();
+  }, spec.after);
+}
 
 await browser.close();
 

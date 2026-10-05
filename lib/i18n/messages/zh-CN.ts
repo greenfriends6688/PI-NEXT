@@ -2360,6 +2360,23 @@ export const zhCNLocale: LocalePlugin = {
     "automation.reopen": "重新启用",
     "automation.runContext": "这是定时任务「{name}」（{schedule}）的一次无人值守自动运行。它本身就是定时任务：不要建议用户再建一个定时任务，也不要问要不要设提醒，直接把任务做完。如果它反复失败、输出没有价值、频率不合适或者提示词不完整，就直说。",
     "automation.runSchedule": "定时任务 #{id}",
+    /* fork:v5-landing D-17 帧 A/C —— 列表头读数、结局筛选、两种「没跑成」的口径、
+       钻入运行历史与返回。 */
+    "automation.summary": "{count} 个任务 · {active} 个启用 · 今天已跑 {runs} 次",
+    "automation.filter": "筛",
+    "automation.filterAll": "全部",
+    "automation.filterOn": "已启用",
+    "automation.filterOff": "已暂停",
+    "automation.filterFailed": "失败",
+    "automation.outcomes": "两种「没跑成」是两件事：跳过 = 这一轮没排上（上一轮还没结束 / 你正在用那个子会话），调度器不重试、也不计失败；失败 = 跑了但没跑完。失败率只数后者。",
+    "automation.skippedHint": "上一轮还没结束 / 你正占着那个子会话",
+    "automation.viewRuns": "看 {count} 次运行记录",
+    "automation.backToList": "返回任务列表",
+    "automation.sessionSection": "子会话归属",
+    "automation.cwdAndModel": "工作目录与模型",
+    "automation.cwdHint": "目录写错的表现是「提示词照跑，但什么都没找到」；模型留空就用会话默认模型。",
+    "automation.contextUsage": "子会话上下文 {value}%",
+    "automation.saveHint": "保存后按新调度重算下次运行；已错过的时点不补跑",
     "i18n.description": "描述",
   },
 };

@@ -11,7 +11,7 @@
  * 本文件只新增 `.fork-automation-*` 那一小段（见 app/fork-ui.css）。
  */
 import { Fragment, useState, type ReactNode } from "react";
-import { ConfigField, ConfigSectionTitle } from "../SettingsUi";
+import { ConfigField } from "../SettingsUi";
 import { useI18n } from "@/hooks/useI18n";
 import { PwaPickBar, PwaSetRow } from "@/components/pwa/PwaPage";
 import {
@@ -91,7 +91,7 @@ export function AutomationEditor({
         <Fragment>
           <ConfigField label={t("automation.interval")}>
             <input
-              className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
+              className="d-input" style={{ width: "11ch", fontVariantNumeric: "tabular-nums" }}
               type="number"
               min={1}
               step={1}
@@ -129,7 +129,7 @@ export function AutomationEditor({
           <ConfigField label={t("automation.window")} hint={t("automation.windowHint")}>
             <div className="d-row">
               <input
-                className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
+                className="d-input" style={{ width: "11ch", fontVariantNumeric: "tabular-nums" }}
                 type="time"
                 disabled={disabled}
                 value={draft.activeWindowStart ?? ""}
@@ -140,7 +140,7 @@ export function AutomationEditor({
               />
               <span className="d-t-faint">–</span>
               <input
-                className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
+                className="d-input" style={{ width: "11ch", fontVariantNumeric: "tabular-nums" }}
                 type="time"
                 disabled={disabled}
                 value={draft.activeWindowEnd ?? ""}
@@ -173,7 +173,7 @@ export function AutomationEditor({
         )}
         <ConfigField label={t("automation.timeOfDay")}>
           <input
-            className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
+            className="d-input" style={{ width: "11ch", fontVariantNumeric: "tabular-nums" }}
             type="time"
             disabled={disabled}
             value={draft.timeOfDay ?? "09:00"}
@@ -403,10 +403,46 @@ export function AutomationEditor({
     );
   }
 
+  /* fork:v5-landing D-17 帧 B —— 编辑器就是**三节单列**（`.d-set-sec` + `.d-set-sec-t`）：
+     ① 名称 + 指令（`.d-field`）② 调度（`.d-seg` 四选一，切了才换字段）③ 子会话归属
+     （`.d-set-row`：工作目录与模型 / 子会话复用 / 次数上限）。
+     **④「失败怎么办」一节没画**：重试次数、连续失败自动暂停、通知档位这三样在
+     `AutomationDraft` 里都不存在（`lib/automation-types.ts`：调度侧只有
+     `AUTOMATION_MAX_CONSECUTIVE_FAILURES` 一个写死常量，没有可配字段）——
+     画一个假的滑杆比不画更坏，改配置模型时再补（见 DIVERGENCE）。 */
   return (
     <Fragment>
-      <ConfigSectionTitle>{t("automation.schedule")}</ConfigSectionTitle>
-      {/*
+      {/* 帧 B 第一节：名称 + 指令（两个 `.d-field`）。
+          `.d-field` 是 `align-items: center`：对 28px 的输入框正合适，对 112px 的
+          textarea 会让标签飘在整块中间。指令那行就地顶对齐（`alignItems` 不在
+          check-style-literals 的几何槽位里，不需要 token）。 */}
+      <div className="d-set-sec">
+        <ConfigField label={t("automation.name")}>
+          <input
+            className="d-input"
+            type="text"
+            disabled={disabled}
+            placeholder={t("automation.namePlaceholder")}
+            value={draft.name}
+            onChange={(event) => set("name", event.target.value)}
+          />
+        </ConfigField>
+        <ConfigField label={t("automation.prompt")} hint={t("automation.promptHint")} style={{ alignItems: "flex-start" }}>
+          <textarea
+            className="d-textarea fork-automation-prompt"
+            rows={4}
+            disabled={disabled}
+            placeholder={t("automation.promptPlaceholder")}
+            value={draft.prompt}
+            onChange={(event) => set("prompt", event.target.value)}
+          />
+        </ConfigField>
+      </div>
+
+      {/* 帧 B 第二节：调度（`.d-seg` 四选一 + 切了才换的那组字段）。 */}
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("automation.schedule")}</div>
+        {/*
         fork:v5-landing Wave N1 · D-17 帧 B · 调度四选一 ——
         DOM 抄画板：`.d-seg` 一排互斥按钮（一次 / 每天 / 每周 / 间隔），
         切了才换下面那组字段。原来是一个 `.d-select` 下拉：四个值藏在里面，
@@ -429,107 +465,110 @@ export function AutomationEditor({
         ))}
       </div>
       {scheduleFields(draft.scheduleType)}
+      </div>
 
-      <ConfigSectionTitle>{t("automation.content")}</ConfigSectionTitle>
-      <ConfigField label={t("automation.name")}>
-        <input
-          className="d-input"
-          type="text"
-          disabled={disabled}
-          placeholder={t("automation.namePlaceholder")}
-          value={draft.name}
-          onChange={(event) => set("name", event.target.value)}
-        />
-      </ConfigField>
-      {/* `.pw-field` 是 `align-items: center`：对 28px 的输入框正合适，对 112px 的
-          textarea 会让标签飘在整块中间。这一行是唯一的高控件，就地顶对齐
-          （`alignItems` 不在 check-style-literals 的几何槽位里，不需要 token）。 */}
-      <ConfigField label={t("automation.prompt")} hint={t("automation.promptHint")} style={{ alignItems: "flex-start" }}>
-        <textarea
-          className="d-textarea fork-automation-prompt"
-          rows={4}
-          disabled={disabled}
-          placeholder={t("automation.promptPlaceholder")}
-          value={draft.prompt}
-          onChange={(event) => set("prompt", event.target.value)}
-        />
-      </ConfigField>
-      <ConfigField label={t("automation.cwd")}>
-        <input
-          className="d-input d-mono"
-          type="text"
-          disabled={disabled}
-          value={draft.cwd ?? ""}
-          onChange={(event) => set("cwd", event.target.value)}
-        />
-      </ConfigField>
-      <ConfigField label={t("automation.model")} hint={t("automation.modelHint")}>
-        <select
-          className="d-select"
-          disabled={disabled}
-          value={draft.model ?? ""}
-          onChange={(event) => set("model", event.target.value || undefined)}
-        >
-          {/* 空选项原来借用整句 hint 当标签（「留空则用会话默认模型。」），
-              而同一句又显示在字段下面 —— 一行里说两遍。给个短标签。 */}
-          <option value="">{t("automation.modelDefault")}</option>
-          {modelOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-      </ConfigField>
-      <ConfigField label={t("automation.maxRuns")} hint={t("automation.maxRunsHint")}>
-        <input
-          className="d-input" style={{ width: 90, fontVariantNumeric: "tabular-nums" }}
-          type="number"
-          min={1}
-          step={1}
-          disabled={disabled}
-          value={draft.maxRuns ?? ""}
-          onChange={(event) => set(
-            "maxRuns",
-            event.target.value === "" ? undefined : Math.max(1, Number(event.target.value) || 1),
-          )}
-        />
-      </ConfigField>
+      {/* 子会话归属：画板帧 B 原文是三条 `.d-set-row`（左「标题 + 这句话说明」、
+          右 `.d-grow-last` 的控件），产品此前是四条平铺的 `.d-field` ——
+          同一批字段、同一份取值，改的只是行形态。 */}
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("automation.sessionSection")}</div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("automation.cwdAndModel")}</div>
+            <div className="d-set-row-s">{t("automation.cwdHint")}</div>
+          </div>
+          {/* 内联 display/gap 是画板帧 B 那一行自己的写法（`style="display:flex;
+              gap:var(--nx-sp-2)"`），逐字抄。`width: 34ch` 是 ch（相对字宽）不是 px ——
+              check-style-literals 只拦 px/pt 写死几何。 */}
+          <span className="d-grow-last" style={{ display: "flex", gap: "var(--nx-sp-2)" }}>
+            <input
+              className="d-input d-mono"
+              style={{ width: "34ch" }}
+              type="text"
+              disabled={disabled}
+              aria-label={t("automation.cwd")}
+              value={draft.cwd ?? ""}
+              onChange={(event) => set("cwd", event.target.value)}
+            />
+            <select
+              className="d-select"
+              disabled={disabled}
+              aria-label={t("automation.model")}
+              value={draft.model ?? ""}
+              onChange={(event) => set("model", event.target.value || undefined)}
+            >
+              {/* 空选项原来借用整句 hint 当标签（「留空则用会话默认模型。」），
+                  而同一句又显示在字段下面 —— 一行里说两遍。给个短标签。 */}
+              <option value="">{t("automation.modelDefault")}</option>
+              {modelOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </span>
+        </div>
 
-      {/* fork:automation-layout —— 这里原来还有一行 `ConfigSectionTitle`，内容与下面那个
-          字段标签一字不差（这一节只有这一个字段），于是屏幕上出现两遍「子会话复用」。
-          字段标签已经说清了，标题删掉。
-          fork:v5-closeout —— 这一行补的就是画板 D-17 帧 B「调度」那枚 `.d-seg` 的同一种形：
-          **少量互斥、且要一眼看全**的三档（每次新建 / 同一自然日 / 始终复用），
-          产品里同形的写法见 `ModelsConfig` 的 `DSeg`（`role="radiogroup"` + `button.is-on`）。
-          值写进 `draft.sessionMode`，与 maxRuns / model / cwd 走同一条写入路径
-          （`AutomationPanel` 的 `post({action:"create"|"update", automation: draft})`
-          → `/api/automation` → `normalizeAutomationDraft()` → `decideSessionTarget()`），
-          所以这一行不需要任何额外的接线。选项集直接读内核那份 `AUTOMATION_SESSION_MODES`，
-          UI 不再自己手写一份名单；新档的语义说明跟着选中值换（`fresh` 没有「复用」可解释，
-          说「同一自然日怎么复用」是废话）。 */}
-      <ConfigField
-        label={t("automation.sessionMode")}
-        hint={draft.sessionMode === "fresh"
-          ? t("automation.sessionMode.freshHint")
-          : t("automation.sessionModeHint")}
-      >
-        <span className="d-seg" role="radiogroup" aria-label={t("automation.sessionMode")}>
-          {AUTOMATION_SESSION_MODES.map((mode) => {
-            const on = mode === draft.sessionMode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                className={on ? "is-on" : undefined}
-                disabled={disabled}
-                onClick={() => set("sessionMode", mode)}
-              >
-                {t(`automation.sessionMode.${mode}`)}
-              </button>
-            );
-          })}
-        </span>
-      </ConfigField>
+        {/* fork:v5-closeout —— 三枚互斥档（每次新建 / 同一自然日 / 始终复用）就是
+            画板帧 B 调度那枚 `.d-seg` 的同一种形：少量互斥、一眼看全。值写进
+            `draft.sessionMode`，与 maxRuns / model / cwd 走同一条写入路径
+            （`post({action:"create"|"update", automation: draft})` → `/api/automation`
+            → `normalizeAutomationDraft()` → `decideSessionTarget()`）。选项集直接读内核
+            那份 `AUTOMATION_SESSION_MODES`；语义说明跟着选中值换（`fresh` 没有「复用」
+            可解释）。 */}
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("automation.sessionMode")}</div>
+            <div className="d-set-row-s">
+              {draft.sessionMode === "fresh"
+                ? t("automation.sessionMode.freshHint")
+                : t("automation.sessionModeHint")}
+            </div>
+          </div>
+          <span className="d-grow-last">
+            <span className="d-seg" role="radiogroup" aria-label={t("automation.sessionMode")}>
+              {AUTOMATION_SESSION_MODES.map((mode) => {
+                const on = mode === draft.sessionMode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={on ? "is-on" : undefined}
+                    disabled={disabled}
+                    onClick={() => set("sessionMode", mode)}
+                  >
+                    {t(`automation.sessionMode.${mode}`)}
+                  </button>
+                );
+              })}
+            </span>
+          </span>
+        </div>
+
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("automation.maxRuns")}</div>
+            <div className="d-set-row-s">{t("automation.maxRunsHint")}</div>
+          </div>
+          <span className="d-grow-last">
+            <input
+              className="d-input"
+              style={{ width: "8ch", fontVariantNumeric: "tabular-nums" }}
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              disabled={disabled}
+              aria-label={t("automation.maxRuns")}
+              value={draft.maxRuns ?? ""}
+              onChange={(event) => set(
+                "maxRuns",
+                event.target.value === "" ? undefined : Math.max(1, Number(event.target.value) || 1),
+              )}
+            />
+          </span>
+        </div>
+      </div>
     </Fragment>
   );
 }
