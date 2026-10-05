@@ -186,6 +186,10 @@ export function EmptyStateGuide({
               </span>
             </button>
           ))}
+          {/* fork:v5-frame-audit —— 画板 D-01 帧 C / D-24 这块浮层底下的 `.d-pop-foot`
+              （一句「只读列表，点一行直接拿它当工作区」）原先没有。文案复用既有的
+              `home.guideRecentHint`（它本来就说这份清单从哪来），不新开 i18n key。 */}
+          <div className="d-pop-foot">{t("home.guideRecentHint")}</div>
         </div>
       )}
 

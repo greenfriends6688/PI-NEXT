@@ -80,6 +80,11 @@ interface Props {
 // fork:ui-12 — width of the "…" fold button (kept in sync with its style below).
 const TAB_OVERFLOW_BUTTON_WIDTH = 34;
 
+// fork:v5-landing D-29 帧 F —— 页签下划线 ink 的左右内缩：与 `.d-tab.is-on::after`
+// 的 `left/right: 10px` 同值（画板 D-29 的内联样张 `left:10px;width:52px` 也是它）。
+// 位置与宽度仍由选中 tab 的实测 offsetLeft/offsetWidth 算，不写死。
+const TAB_INK_INSET = 10;
+
 // fork:pr40-split — 拖出阈值（照 Proma `TabBar.tsx` 的那一对）：
 //   · **方向**：指针要**向下**离开标签栏 12px（往上是顶栏，不该触发分屏）；
 //   · **距离**：累计位移 ≥ 18px —— 单次抖动 / 误触不该把 tab 拆出去。
@@ -488,6 +493,22 @@ export function TabBar({
           opacity: pillState.ready && activeIndex >= 0 && tabs.length > 0 ? 1 : 0,
         }}
       />
+      {/* fork:v5-landing D-29 帧 F —— 页签下划线 ink：与 pill 共用同一组**实测**值
+          （`pillState` = 选中 tab 的 offsetLeft/offsetWidth），选中项变化时它
+          平移 + 改宽，而不是换一个元素。位置/宽度都是几何测量，不写死。
+          窄屏走 `.m-cat` 那套形态（`.m-cats` 不是定位上下文），不挂 ink。 */}
+      {!isPhone && (
+        <span
+          aria-hidden="true"
+          className="d-tabink"
+          style={{
+            left: 0,
+            transform: `translateX(${(pillState.ready ? pillState.x : 0) + TAB_INK_INSET}px)`,
+            width: pillState.ready ? Math.max(0, pillState.width - TAB_INK_INSET * 2) : 0,
+            opacity: pillState.ready && activeIndex >= 0 && tabs.length > 0 ? 1 : 0,
+          }}
+        />
+      )}
       {/* fork:proma-38-tab-reorder —— 落点指示线。与 pill 一样绝对定位（拖动中不占流，
           也就不会推动任何 tab）：一条强调色竖线，落在两个 tab 之间或行尾。
           几何：`.fork-tab-drop` 在 fork-ui.css（判据⑦ 只管 `.pw-*`），高度跟着画板

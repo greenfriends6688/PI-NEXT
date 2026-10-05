@@ -68,7 +68,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
           <div className="d-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button
               type="button"
-              className="d-btn sm"
+              className="d-btn sm d-pressable"
               onClick={() => retry()}
               style={{ minHeight: 44, minWidth: 44, height: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid currentColor", background: "transparent", color: "inherit", cursor: "pointer", font: "inherit" }}
             >
@@ -76,7 +76,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
             </button>
             <button
               type="button"
-              className="d-btn sm"
+              className="d-btn sm d-pressable"
               onClick={() => window.location.reload()}
               style={{ minHeight: 44, minWidth: 44, height: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid currentColor", background: "transparent", color: "inherit", cursor: "pointer", font: "inherit" }}
             >

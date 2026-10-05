@@ -66,6 +66,24 @@ const BOTTOM_THRESHOLD = 32;
 
 const rowHeightOf = (row: number) => (row === 0 ? FIRST_ROW_H : ROW_H);
 
+/** fork:v5-landing D-05 帧 D —— 提交行行首泳道格（`.d-git-lane`）的图标。
+ *  只按**真实的父子关系**挑，挑不出来就不冒充分支：
+ *  · 第一行（git log 的 HEAD）= `circle-dot`；
+ *  · 多父提交 = `git-merge`；
+ *  · 在已加载窗口里有 2 个以上子提交（分叉点）= `git-branch`；
+ *  · 其余 = `git-commit-horizontal`。
+ *  （泳道本身的连线仍是左列自绘 SVG —— DIVERGENCE 已登记例外，不动。） */
+function gitLaneIcon(
+  commit: GitLogCommit,
+  row: number,
+  childCounts: Map<string, number>,
+): "circle-dot" | "git-merge" | "git-branch" | "git-commit-horizontal" {
+  if (row === 0) return "circle-dot";
+  if (commit.parents.length > 1) return "git-merge";
+  if ((childCounts.get(commit.hash) ?? 0) > 1) return "git-branch";
+  return "git-commit-horizontal";
+}
+
 /** Cumulative top offset of each row; rows are not uniformly tall. */
 function computeRowTops(rowCount: number): number[] {
   const tops: number[] = [];
@@ -301,6 +319,15 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
   // While the user has not picked a width, the graph column hugs the drawn
   // lanes so sparse histories never waste text space.
   const graphColW = clampGraphColWidth(graphColWidth ?? graphWidth, scrollRef.current?.clientWidth ?? 0);
+  /* D-05 帧 D —— 分叉点必须「真能对上父子关系」才标 `git-branch`：只数**已加载窗口**
+     里的子提交数。历史被截断时宁可不标，也不凭空指一条分支。 */
+  const childCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const commit of data?.commits ?? []) {
+      for (const parent of commit.parents) counts.set(parent, (counts.get(parent) ?? 0) + 1);
+    }
+    return counts;
+  }, [data]);
   const rowTops = useMemo(() => computeRowTops(data?.commits.length ?? 0), [data]);
   const svgHeight = rowTops.length > 0 ? rowTops[rowTops.length - 1] + rowHeightOf(rowTops.length - 1) + 8 : 0;
 
@@ -629,15 +656,22 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
                     style={{ position: "absolute", left: 0, right: 0, top: rowTops[node.row], height: rowHeightOf(node.row), display: "flex", alignItems: "center", cursor: "pointer" }}
                   >
                     <div style={{ flex: 1, minWidth: 0, paddingLeft: TEXT_GAP, paddingRight: 10, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
+                      {/* fork:v5-landing D-05 帧 D —— 提交行 = 画板 `.d-git-row` 的骨架：
+                          泳道格 `.d-git-lane`（图标按真实拓扑挑）+ `.d-mono` 短哈希 +
+                          `.d-grow` 说明 + 行尾 ref 徽章。 */}
                       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-ctrl)", minWidth: 0 }}>
-                        <RefTagList tags={parseGitRefTags(commit.refs)} laneColor={laneVar(node.colorIndex)} />
-                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.md, fontWeight: 500, color: "var(--nx-text)" }}>
+                        <span className="d-git-lane">
+                          <i data-ico={gitLaneIcon(commit, node.row, childCounts)} data-size={14} aria-hidden="true"></i>
+                        </span>
+                        <span className="d-mono" style={{ flexShrink: 0, color: "var(--nx-text-3)" }}>{commit.hash.slice(0, 7)}</span>
+                        <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: TEXT.md, fontWeight: 500, color: "var(--nx-text)" }}>
                           {commit.subject}
                         </span>
+                        <RefTagList tags={parseGitRefTags(commit.refs)} laneColor={laneVar(node.colorIndex)} />
                       </div>
                       {isHeadRow && (
                         <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--nx-font-mono)", fontSize: TEXT["2xs"], color: "var(--nx-text-2)" }}>
-                          {commit.author} · {timeFormat.format(new Date(commit.timestamp * 1000))} · {commit.hash.slice(0, 10)}
+                          {commit.author} · {timeFormat.format(new Date(commit.timestamp * 1000))}
                         </div>
                       )}
                     </div>
@@ -719,6 +753,11 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
           </div>
         </div>
       )}
+
+      {/* fork:v5-landing D-05 帧 D —— 面板体最后一句 `.d-pop-foot`：这个面板只做
+          「看」（图谱 / 改动 / 远端），会改写历史的操作不给按钮。此前面板没有这句，
+          板面上它是 MISSING —— 少了它，「为什么这里没有 rebase 按钮」只能靠猜。 */}
+      <div role="note" className="d-pop-foot">{t("git.panelFootnote")}</div>
     </div>
   );
 }

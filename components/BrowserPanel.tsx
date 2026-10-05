@@ -50,6 +50,15 @@ interface Props {
   sessionId?: string;
 }
 
+/* fork:v5-boards D-23 帧 A —— 画了刘海的机型。板面上只有 iPhone 15 / 16 Pro Max
+   有 `.d-device-notch`，iPhone SE 明确写了「无刘海」，Pixel 9 / Galaxy Tab 也没画
+   （板面语义是取景外壳，不做逐像素仿真）。机型表在 `lib/browser-viewport.ts`，
+   但它只存宽高 + DPR、不存外壳细节，所以这个集合留在组件这一层（只多不少）*/
+const BROWSER_DEVICE_NOTCH_IDS: ReadonlySet<string> = new Set([
+  "iphone-15",
+  "iphone-16-pro-max",
+]);
+
 /**
  * An in-app browser for local services (dev servers, docs servers, localhost
  * tools) — and, on the desktop build, a **managed** browser the agent can drive.
@@ -97,6 +106,8 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ x: "left" | "right" | "none"; y: "top" | "bottom" | "none" } | null>(null);
   const device = findBrowserDevicePreset(deviceId);
+  /* fork:v5-boards D-23 帧 A —— 刘海只给板上画了它的那两台机。 */
+  const deviceHasNotch = device ? BROWSER_DEVICE_NOTCH_IDS.has(device.id) : false;
 
   /** 选一个机型：视口 = 该机型的逻辑宽高，取景回到 fit（先装下，再谈缩放）。 */
   const selectDevice = useCallback((id: string) => {
@@ -125,8 +136,11 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
 
   useEffect(() => {
     if (!resizing) return;
-    const container = slotRef.current?.parentElement?.getBoundingClientRect()
-      ?? slotRef.current?.getBoundingClientRect();
+    /* managed 面用 slot 的父盒（与下面 reportLayout 报给主进程的是同一块区域）；
+       iframe 面没有 slot，用取景容器的父盒 —— 拖动把手属于产品行为，Web 端也应当能用。 */
+    const anchor = slotRef.current ?? viewportHostRef.current;
+    const container = anchor?.parentElement?.getBoundingClientRect()
+      ?? anchor?.getBoundingClientRect();
     if (!container) return;
     const onMove = (event: PointerEvent) => {
       const pointer = { width: event.clientX - container.left, height: event.clientY - container.top };
@@ -149,6 +163,10 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
   const viewportPanelRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const slotRef = useRef<HTMLDivElement | null>(null);
+  /* fork:v5-boards D-23 帧 A —— iframe 面的取景容器（设备舞台 / 自由尺寸外框）。
+     `slotRef` 只在 managed 面存在，而 `resolveViewportRender` 的 fit 要用**容器实测**
+     才能把整台设备装进面板（否则 fit 恒等于 1:1，iPhone 15 的 852pt 高会顶出面版）。 */
+  const viewportHostRef = useRef<HTMLDivElement | null>(null);
 
   // fork:proma-42-browser · 宿主判定**同步**完成：首帧就必须知道画 iframe 还是画占位。
   const surface: BrowserSurface = useMemo(() => detectBrowserSurface(), []);
@@ -350,6 +368,31 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
     zoom,
     slotRect.width > 0 ? { width: slotRect.width, height: slotRect.height } : { width: 0, height: 0 },
   );
+
+  /* fork:v5-boards D-23 帧 A —— iframe 面的容器实测。managed 面由 reportLayout 填
+     `slotRect`；这里给 `.d-device-stage` / 自由尺寸外框补上同一份测量（ResizeObserver
+     已在别处用过，零新依赖）。容器是 flex 分配的固定格，测它不会反过来被 fit 缩放：
+     测设备舞台不会形成反馈环。 */
+  const hasViewportSize = viewportSize !== null;
+  useEffect(() => {
+    if (surface === "managed") return;
+    const element = viewportHostRef.current;
+    if (!element) return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return;
+      setSlotRect({ width: rect.width, height: rect.height });
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [surface, currentUrl, hasViewportSize, deviceId]);
 
   const VIEWPORT_PRESETS = [
     { value: null, icon: "maximize-2", label: t("browser.viewportFill") },
@@ -711,6 +754,52 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
     );
   }
 
+  /* fork:v5-boards D-23 帧 A —— 设备底栏 `.d-device-bar`：左边写**逻辑视口 + DPR**
+     （板上的「393 × 852 · DPR 3」），右边写**取景缩放**（当前那一档）。两件事分两处写，
+     是这张板反复强调的：取景缩放是 CSS 缩放，不改逻辑视口，所以「手机断点生不生效」
+     只看左边那行数字。只在选了机型时画；managed 面画在 slot 之后，iframe 面画在
+     设备舞台之后 —— 同一个读数，两个宿主。 */
+  const deviceBar = device && viewportSize ? (
+    <div className="d-device-bar">
+      <span className="d-mono d-t-xs d-grow">
+        {`${viewportSize.width} × ${viewportSize.height} · DPR ${device.dpr}`}
+      </span>
+      <span
+        className="d-badge mute"
+        title={`${t("browser.viewportZoom")} ${zoom === "fit" ? t("browser.viewportFit") : `${zoom}%`}`}
+      >
+        {zoom === "fit" ? t("browser.viewportFit") : `${zoom}%`}
+      </span>
+    </div>
+  ) : null;
+
+  /* 自由尺寸与设备预览共用的四条拖拽把手：拖哪条边动哪个轴，尺寸算法在
+     `lib/browser-viewport.ts`（居中盒子 ⇒ 新尺寸 = 指针到所贴那条边的距离 × 2）。 */
+  const viewportSizeHandles = (
+    <>
+      {(["left", "right"] as const).map((side) => (
+        <div
+          key={side}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("browser.viewportResize")}
+          className={`fork-browser-size-handle fork-browser-size-handle--${side}`}
+          onPointerDown={() => beginResize({ x: side, y: "none" })}
+        />
+      ))}
+      {(["top", "bottom"] as const).map((side) => (
+        <div
+          key={side}
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={t("browser.viewportResize")}
+          className={`fork-browser-size-handle fork-browser-size-handle--${side}`}
+          onPointerDown={() => beginResize({ x: "none", y: side })}
+        />
+      ))}
+    </>
+  );
+
   return (
     <div className="d-viewer">
       {/* fork:browser-page-info —— 标题 + favicon 一行（画板头行下方）。
@@ -915,6 +1004,11 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           右侧那行数字始终是**逻辑视口** —— 取景缩放是 CSS 缩放，不触发断点重排。 */}
       <div className="d-tinybar">
         <i data-ico="smartphone" data-size="13" aria-hidden="true"></i>
+        {/* fork:v5-frame-audit D-23 帧 A —— 机型行开头那个字（板面 `.d-t-sm.d-t-b`
+            的「机型」）原先没有。文案用既有的 `browser.viewport`，不为这两个字新开
+            i18n key；板面自己的帧 B/C 那一行写的也是「视口 / 运行形态」这类
+            「这一行管什么」的短名，语义一致。 */}
+        <span className="d-t-sm d-t-b">{t("browser.viewport")}</span>
         <div className="d-device-presets">
           {BROWSER_DEVICE_PRESETS.map((preset) => (
             <button
@@ -930,7 +1024,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
         </div>
         <span className="d-grow" />
         {device && viewportSize && (
-          <span className="d-t-xs d-t-faint d-mono">
+          <span className="d-t-xs d-t-faint">
             {`${viewportSize.width} × ${viewportSize.height} · DPR ${device.dpr}`}
           </span>
         )}
@@ -1015,13 +1109,57 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
               </div>
             )}
           </div>
-        ) : (
-        /* fork:browser-viewport —— 自由尺寸：外面套一个可拖的边框，iframe 按
-           `resolveViewportRender` 算出的呈现尺寸落在里面。四条边把手拖的是
-           **容器内的指针位置**，尺寸算法在 `lib/browser-viewport.ts`
-           （居中盒子 ⇒ 尺寸 = 指针到所贴那条边的距离 × 2）。
-           预设（`viewport`）与自由尺寸（`viewportSize`）互斥：选预设就退出自由尺寸。 */
-        viewportSize ? (
+        ) : device && viewportSize ? (
+        /* fork:v5-boards D-23 帧 A/B —— 设备预览。`.d-device-stage`（带取景底纹的舞台）
+           把 `.d-device`（机型外壳：圆角/描边/裁切由类给）摆中间，里面是
+           `.d-device-screen`（按**逻辑视口**定尺寸、按取景做一次 CSS transform ——
+           不改断点），刘海机型再叠一枚 `.d-device-notch`。复用的还是同一支 iframe、
+           同一条 URL、同一份 sandbox：不引模拟器、不引新依赖。四条把手照旧能把设备
+           切成自由尺寸（beginResize 会摘掉机型选择）。 */
+        <>
+          <div ref={viewportHostRef} className="d-device-stage">
+            <div
+              className="d-device"
+              style={{ width: renderSize.renderWidth, height: renderSize.renderHeight }}
+            >
+              <div
+                className="d-device-screen d-col"
+                style={{
+                  width: viewportSize.width,
+                  height: viewportSize.height,
+                  transformOrigin: "top left",
+                  transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`,
+                }}
+              >
+                {/* 刘海只挡 64×16 的装饰，不吃指针（它不是页面内容）。 */}
+                {deviceHasNotch && (
+                  <div className="d-device-notch" style={{ pointerEvents: "none" }} />
+                )}
+                <iframe
+                  ref={iframeRef}
+                  key={`${currentUrl}#${reloadKey}`}
+                  src={currentUrl}
+                  title={tab.url}
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
+                  referrerPolicy="no-referrer"
+                  style={{ flex: "1 1 auto", minHeight: 0, width: "100%", border: "none", background: "var(--nx-panel)" }}
+                />
+              </div>
+              {viewportSizeHandles}
+            </div>
+          </div>
+          {deviceBar}
+        </>
+        ) : viewportSize ? (
+          /* fork:browser-viewport —— 自由尺寸：外面套一个可拖的边框，iframe 按
+             `resolveViewportRender` 算出的呈现尺寸落在里面。iframe 保持**逻辑尺寸**、
+             只做一次 scale，外框写的是缩放后的呈现尺寸 —— 这样 zoom 档才是真的页面缩放，
+             取景缩放也只算一遍（与 D-23 帧 B「取景缩放是 CSS 缩放」同一条口径）；
+             外框容器实测用于 fit，四边把手拖的是**容器内的指针位置**。 */
+          <div
+            ref={viewportHostRef}
+            style={{ flex: "1 1 auto", minHeight: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
           <div className="fork-browser-size-frame" style={{
             width: renderSize.renderWidth,
             height: renderSize.renderHeight,
@@ -1033,28 +1171,10 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
               title={tab.url}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
               referrerPolicy="no-referrer"
-              style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-panel)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
+              style={{ width: viewportSize.width, height: viewportSize.height, border: "none", background: "var(--nx-panel)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
             />
-            {(["left", "right"] as const).map((side) => (
-              <div
-                key={side}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t("browser.viewportResize")}
-                className={`fork-browser-size-handle fork-browser-size-handle--${side}`}
-                onPointerDown={() => beginResize({ x: side, y: "none" })}
-              />
-            ))}
-            {(["top", "bottom"] as const).map((side) => (
-              <div
-                key={side}
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label={t("browser.viewportResize")}
-                className={`fork-browser-size-handle fork-browser-size-handle--${side}`}
-                onPointerDown={() => beginResize({ x: "none", y: side })}
-              />
-            ))}
+            {viewportSizeHandles}
+          </div>
           </div>
         ) : (
         <iframe
@@ -1076,24 +1196,11 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
             ...(viewport === null ? {} : { boxShadow: "var(--nx-sh-1)", borderLeft: "1px solid var(--nx-line)", borderRight: "1px solid var(--nx-line)" }),
           }}
         />
-        ))}
-          {/* fork:v5-boards D-23 帧 A —— 设备底栏 `.d-device-bar`：左边写**逻辑视口 + DPR**
-              （板上的「393 × 852 · DPR 3」），右边写**取景缩放**（当前那一档）。
-              两件事分两处写，是这张板反复强调的：取景缩放是 CSS 缩放，不改逻辑视口，
-              所以「手机断点生不生效」只看左边那行数字。只在选了机型时画。 */}
-          {device && viewportSize && (
-            <div className="d-device-bar">
-              <span className="d-mono d-t-xs d-grow">
-                {`${viewportSize.width} × ${viewportSize.height} · DPR ${device.dpr}`}
-              </span>
-              <span
-                className="d-badge mute"
-                title={`${t("browser.viewportZoom")} ${zoom === "fit" ? t("browser.viewportFit") : `${zoom}%`}`}
-              >
-                {zoom === "fit" ? t("browser.viewportFit") : `${zoom}%`}
-              </span>
-            </div>
-          )}
+        )}
+          {/* fork:v5-boards D-23 帧 A —— managed 面：设备底栏挂在 slot 之后
+              （原生 WebContentsView 画在 DOM 之外，设备外壳包不住它，所以这一面
+              只保留同一行读数；iframe 面在上面那支设备舞台里自带同一条底栏）。 */}
+          {surface === "managed" ? deviceBar : null}
           {/* fork:proma-42-browser · 一行说明当前宿主能力：桌面端 agent 可驱动，
               Web 端 agent 工具不可用（iframe 跨站策略拦死）。 */}
           <p className="fork-browser-surface-note">{browserSurfaceHint(surface, t)}</p>
@@ -1104,7 +1211,11 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
               “跨站策略会白屏” 的提示，页面挂掉时面板就静静地卡在上一帧。 */}
           {loadFailed && <p className="fork-browser-surface-note">{t("browser.loadFailed")}</p>}
           {!loadFailed && pageInfo.readyState === "loading" && (
-            <p className="fork-browser-surface-note" role="status">{t("browser.loading")}</p>
+            /* fork:v5-boards D-27 帧 A / D-28 帧 B —— 真在等的文案才走 `.d-shimmer`：
+               这里是 iframe 页面 readyState=loading 的等待态（跑 typecheck 那种「知道自己在等」）。 */
+            <p className="fork-browser-surface-note" role="status">
+              <span className="d-shimmer">{t("browser.loading")}</span>
+            </p>
           )}
         </div>
       ) : (

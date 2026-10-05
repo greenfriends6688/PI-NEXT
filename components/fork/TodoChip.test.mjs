@@ -65,7 +65,21 @@ test("the panel takes its type and metrics from the board, never from inline lit
   assert.match(source, /className="d-pop is-open fork-todo-panel"/);
   assert.match(source, /className="d-pop-title"/);
   assert.match(source, /className="d-pop-foot"/);
-  // 勾选标记走画板图标，不是手绘 polyline。
-  assert.match(source, /<i data-ico="check" data-size="10"><\/i>/);
-  assert.doesNotMatch(source, /<svg/);
+  // fork:v5-boards D-27 帧 F / D-28 帧 C —— 勾选标记走 `.d-check-draw` 描边：
+  // 这是本组件唯一允许的手写 SVG（图标库不给 pathLength，data-ico 的 path 会按像素
+  // 算 dash），断言新的等价约束——数量恰好一条、带 pathLength="1"。
+  assert.match(source, /className="d-check-draw"/);
+  assert.equal((source.match(/<svg/g) ?? []).length, 1, "手写 SVG 只允许对勾这一条");
+  assert.match(source, /<path pathLength="1" d="M20 6 9 17l-5-5" \/>/);
+  assert.doesNotMatch(source, /<i data-ico="check" data-size="10">/);
+});
+
+test("a done row draws its check through .d-check-draw, not the icon sprite", () => {
+  // 展开面板要点开才渲染（SSR 拿不到交互），所以这条钉在「完成分支」的源码上：
+  // 对勾只挂在 `todo.done ?` 的分支里，未完成行拿不到这一笔。
+  const doneBranch = source.slice(source.indexOf("todo.done ? ("), source.indexOf(") : active ? ("));
+  assert.match(doneBranch, /className="d-checkbox on"/);
+  assert.match(doneBranch, /className="d-check-draw"/);
+  assert.match(doneBranch, /pathLength="1"/);
+  assert.match(doneBranch, /d="M20 6 9 17l-5-5"/);
 });

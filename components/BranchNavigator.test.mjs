@@ -174,3 +174,55 @@ test("compressChain never labels a branch with a transcript system message", () 
   assert.equal(rep.entry.id, "a1");
   assert.equal(skipped, 2);
 });
+
+// fork:v5-landing D-03 帧 A —— 顶栏那枚兄弟分支切换器 `<span class="d-branch">`
+// （chevron-left ｜ `2 / 3` ｜ chevron-right）。序号口径与抽屉里的 `.m-branch`
+// 同一份数据：`selectTopLevelBranches` 的顶层就是兄弟分支，当前分支 = 子树命中
+// activeLeafId 的那一条。下面是这条口径的纯函数与 DOM 断言。
+test("findSiblingIndex finds the top-level branch whose subtree holds the active leaf", async () => {
+  const { findSiblingIndex } = await jiti.import("./BranchNavigator.tsx");
+  const arm1 = node(msg("u2", "user", "分支一"), [node(msg("a2", "assistant", "答一"))]);
+  const arm2 = node(msg("u2b", "user", "分支二"), [node(msg("a2b", "assistant", "答二"))]);
+  const root = node(msg("u1", "user", "第一问"), [node(msg("a1", "assistant", "答"), [arm1, arm2])]);
+  const topLevel = selectTopLevelBranches([root]);
+  assert.deepEqual(topLevel.map((n) => n.entry.id), ["u2", "u2b"]);
+
+  assert.equal(findSiblingIndex(topLevel, "a2"), 0);
+  assert.equal(findSiblingIndex(topLevel, "a2b"), 1);
+  // 找不到（叶子还没定 / 不属于任何一条）给 -1，调用方据此写总数而不是假序号。
+  assert.equal(findSiblingIndex(topLevel, null), -1);
+  assert.equal(findSiblingIndex(topLevel, "nope"), -1);
+});
+
+test("subtreeContains sees through server-side compressed chains and survives deep chains", async () => {
+  const { subtreeContains } = await jiti.import("./BranchNavigator.tsx");
+  // 服务端投影把中间条目收进 compressedEntryIds：那些 id 也算命中。
+  const projected = { entry: msg("a2", "assistant", "答一"), children: [], compressedEntryIds: ["s1", "u2"] };
+  assert.equal(subtreeContains(projected, "u2"), true);
+  assert.equal(subtreeContains(projected, "other"), false);
+  // 迭代而非递归：6000 深的线性链不许把调用栈打爆（同 buildActivePath 的理由）。
+  assert.equal(subtreeContains(linearTree(6000), "e5999"), true);
+});
+
+test("顶栏切换器照画板 DOM 渲染：.d-branch / .d-branch-btn / .d-branch-n", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("./BranchNavigator.tsx", import.meta.url), "utf8");
+  const start = source.indexOf('<span className="d-branch">');
+  const chip = source.slice(start, source.indexOf("</span>", start));
+  // 两枚 chevron 钮 + 中间那格序号，类名与图标逐字来自画板。
+  assert.match(chip, /className="d-branch-btn"/);
+  assert.equal((chip.match(/className="d-branch-btn"/g) ?? []).length, 2);
+  assert.match(chip, /<i data-ico="chevron-left" data-size="12"/);
+  assert.match(chip, /<i data-ico="chevron-right" data-size="12"/);
+  // 中间那格：span → button（铁律一允许的两处之一），类名一字不动。
+  // fork:branch-fixed-icon（2026-10-05 用户裁定）—— 里面不再是会跳动的 `2 / 3`
+  // 序号，而是一枚固定的 git-fork 图标（同一格、同一动作：开分支树）。
+  assert.match(chip, /className="d-branch-n"/);
+  assert.match(chip, /<i data-ico="git-fork" data-size="13"/);
+  assert.doesNotMatch(chip, /shownIndex/);
+  // 旧的两套 UI 不再并存：顶栏不再有 `.d-chipbtn` 的「会话分支」文字芯片。
+  assert.doesNotMatch(chip, /d-chipbtn/);
+  // 到两端就禁用（不是点了没反应）。
+  assert.match(chip, /disabled=\{siblingIndex <= 0\}/);
+  assert.match(chip, /disabled=\{siblingIndex < 0 \|\| siblingIndex >= siblingCount - 1\}/);
+});

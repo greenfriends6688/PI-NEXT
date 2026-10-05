@@ -112,7 +112,6 @@ import {
   scrollRemaining,
   type InputCompactScrollDirection,
 } from "@/lib/input-compact";
-import { TEXT } from "@/lib/typography";
 
 export { filterModelOptions } from "./ModelSelector";
 
@@ -713,8 +712,13 @@ function QueuedMessageRow({
     >
       <span className="d-grip"><i data-ico="grip-vertical" data-size="13"></i></span>
       {/* 两个队列是两块平铺的列表、没有分组标题，这一枚徽章是**唯一**能分辨
-          steer / follow-up 的地方，所以走 i18n（此前直接渲染英文 kind）。 */}
-      <span className="d-badge mute">{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
+          steer / follow-up 的地方，所以走 i18n（此前直接渲染英文 kind）。
+          fork:v5-frame-audit D-04 帧 C —— steer 那一档改回画板的 `.d-badge.warn`
+          （`<span class="d-badge warn">steer</span>`，琥珀色）；follow-up 保持
+          `.d-badge.mute`。这不是配色偏好：板上 steer 行左侧那圈发丝边就是
+          `.d-queue-row.steer` 的 warning 底，徽标跟它同色，两处读数才是一件事。
+          改前两档都是 mute，底色变了而徽标没变 → 一行到底该按哪档处理读不出来。 */}
+      <span className={`d-badge ${kind === "steer" ? "warn" : "mute"}`}>{kind === "steer" ? t("chat.queueKindSteer") : t("chat.queueKindFollowUp")}</span>
       <span className="d-queue-t">{text}</span>
       {/* fork:queue-edit（用户 2026-10-02）—— 「移至输入框」：用户说排好队的消息
           没法再编辑。放在「立即发送」之前，两者语义不同：一个是拿回来改，一个是
@@ -3279,13 +3283,33 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
            视口下沿之外（实测 316px 高的浮窗有 233px 在屏幕外 = “点不出浮窗”）。 */
         className="d-pop is-open composer-ring-pop"
       >
-          <div className="d-row" style={{ padding: "var(--s2) var(--s2) var(--s1)", gap: "var(--s2)" }}>
+          {/* fork:v5-frame-audit D-04 帧 A（`m-ctx`）—— 补画板的标题行。板上这块浮窗
+              第一件就是 `<div class="d-pop-title">上下文占用</div>`，产品此前没有标题：
+              「上下文 12%」被塞进下面那行 `.d-row` 里，于是它与同屏另外四个浮层
+              （模型 / 思考 / 权限 / 工具）不是一套。键用 `session.context`
+              （板上写「上下文占用」，同一件事，三个语包都有）。 */}
+          <div className="d-pop-title">{t("session.context")}</div>
+          {/* fork:v5-frame-audit D-04 帧 A（`m-ctx`）—— 标题以下的内容按画板原文收进
+              `.d-pop-body.d-col`（板上就是这一个盒子裹着「已用 / 进度条 / 命中率 / 费用 /
+              耗时 / 分隔 / 动作」）。产品此前是把这些直接摊在 `.d-pop` 的 4px 内边距上，
+              于是这块浮窗与另外四个浮层的**内边距口径**都不同（行贴着边、读数挤在角上）。
+              `.d-pop-body` 的 padding 由 system.css 给，这里只补盒子与列间距。 */}
+          <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+          <div className="d-row">
             <span className={`d-ring${ringTier ? ` ${ringTier}` : ""}`} style={{ "--p": `${ringPercent}`, width: 18, height: 18 } as React.CSSProperties} />
             <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)", color: "var(--n-strong)" }}>
               {t("session.context")} {ringPercent}%
             </b>
             <span className="d-grow" />
             {contextText && <span className="d-mono d-t-dim" style={{ fontSize: "var(--text-meta)" }}>{contextText}</span>}
+          </div>
+          {/* fork:v5-frame-audit D-04 帧 A（`m-ctx`）—— 补画板那一块**百分比进度条**：
+              `<div class="d-bar"><i style="width:18%"></i></div>`。板上「已用 18.4k / 200k」
+              下面就是它 —— 环只给形状，明细浮窗才给读数，而读数必须有一条**长度**可比的线，
+              否则百分比只是一串和上下文里别处重复的字。宽度就是 `ringPercent`（与环上的
+              `--p` 同一个数），不引入新数据源；`d-bar > i` 的底色由 system.css 给。 */}
+          <div className="d-bar">
+            <i style={{ width: `${ringPercent}%` }} />
           </div>
           {/* fix:ring-pop-always-details —— 只保留「本轮 ↑ / ↓」这一行：它是**本轮**用量，
               明细里的 Token 小节给的是会话累计（输入/输出/缓存/总计/花费/上下文），
@@ -3316,6 +3340,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </button>
             </>
           )}
+          </div>
       </PortalDropdown>
     </span>
   ) : null;
@@ -3700,6 +3725,31 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               <i data-ico="folder-open" data-size="16"></i>
               {t("chat.attachFile")}
             </button>
+            {/* 已挑进来的文件：画板 M-02 帧 B 的附件网格（`m-attach-grid` › `m-attach`
+                ＋末格恒为 `m-attach.add`，占位本身就是一个动作）。接的是真实数据
+                `referenceAttachments`（名字 + `attachmentChipIcon(kind)`）；
+                末格是 M-11 帧 C 规格表里的 **56 档**（附件钮 / 图标网格单元）。 */}
+            {referenceAttachments.length > 0 && (
+              <>
+                <div className="m-sep" />
+                <div className="m-attach-grid">
+                  {referenceAttachments.map((chip) => (
+                    <div key={chip.path} className="m-attach" title={chip.path}>
+                      <i data-ico={attachmentChipIcon(chip.kind)} data-size="18" aria-hidden="true"></i>
+                      <span>{chip.name}</span>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="m-attach add m-touch-56"
+                    onClick={() => { setActionPanelOpen(false); fileInputRef.current?.click(); }}
+                  >
+                    <i data-ico="plus" data-size="18" aria-hidden="true"></i>
+                    <span>{t("chat.attachFile")}</span>
+                  </button>
+                </div>
+              </>
+            )}
             {actionPanel && <div className="m-sep" />}
             {actionPanel}
           </div>
@@ -3996,6 +4046,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         >
           {capSheet === "root" && (
             <>
+              {/* fork:v5-frame-audit —— 画板 M-03 帧 A / M-01 帧 C：五项能力上方
+                  一行 `.m-group-title`（原来这块直接开第一行，少了这一层）。 */}
+              <div className="m-group-title">{t("chat.capSheetGroupTitle")}</div>
               {/* 模型那一行就是桌面工具条里的同一个 `<ModelSelector>`：窄屏时它自己
                   渲染成 `.m-sheet-row`，点开是 M-01 帧 C 的模型面板。
                   点这一行时先把能力面板收掉：两块面板都是 portal 的底部面板，
@@ -4028,6 +4081,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               {onThinkingLevelChange && (
                 <PwaComposerSheetRow
                   icon="brain"
+                  descClass="m-setrow-s"
                   title={t("chat.thinkingTitle")}
                   desc={thinkingDisplayLabel}
                   trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
@@ -4037,6 +4091,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               {onPermissionModeChange && permissionMode && toolPreset !== "none" && (
                 <PwaComposerSheetRow
                   icon={permissionMode === "bypass" ? "shield" : permissionMode === "ask" ? "shield-check" : "book-marked"}
+                  descClass="m-setrow-s"
                   title={t("chat.permissionTitle")}
                   desc={t(PERMISSION_MODE_LABEL_KEYS[permissionMode])}
                   trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
@@ -4046,6 +4101,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               {!isStreaming && onToolPresetChange && (
                 <PwaComposerSheetRow
                   icon="wrench"
+                  descClass="m-setrow-s"
                   title={t("tools.label")}
                   desc={toolPresetLabel}
                   trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
@@ -4054,28 +4110,35 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               )}
               {(contextUsage || sessionStats) && (
                 <PwaComposerSheetRow
+                  /* fork:v5-frame-audit —— 画板把 `.m-ring` 放在**行首**（图标位），
+                     产品原来挂在 trailing 里跟着 chevron 走，位置与板子不一致。 */
+                  leading={(
+                    <span className="m-ring" style={{ "--p": `${ringPercent}` } as React.CSSProperties} />
+                  )}
+                  descClass="m-setrow-s"
                   title={t("session.context")}
                   desc={contextText ?? `${ringPercent}%`}
-                  trailing={
-                    <>
-                      <span className="m-ring" style={{ "--p": `${ringPercent}` } as React.CSSProperties} />
-                      <i data-ico="chevron-right" data-size="14" aria-hidden="true" />
-                    </>
-                  }
+                  trailing={<i data-ico="chevron-right" data-size="14" aria-hidden="true" />}
                   onClick={() => setCapSheet("context")}
                 />
               )}
+              {/* fork:v5-frame-audit —— 画板 M-03 帧 A 面板末尾的 `.m-sheet-foot`：
+                  「五项只影响这一轮」这句不写，用户会以为改完就写进会话设置了。 */}
+              <div className="m-sheet-foot">{t("chat.capSheetFootNote")}</div>
             </>
           )}
 
-          {/* 三档清单：选中态交给 `.m-sheet-row.is-on`（它自带 ✓），不再另挂一枚
-              check 图标 —— 同一件事只由一个来源说。 */}
+          {/* 三档清单：互斥单选，行尾挂画板的 `.m-radio`（M-01 帧 C 的模型 / 能力两栏、
+              M-05 帧 C 的权限三档、M-09 帧 A 的插件权限都是这个形态）——
+              `.is-on` 的 ✓ 与 `.m-radio` 是同一件事的两种说法，板上不共存，所以由
+              `radio` 这一支决定只说一种。 */}
           {capSheet === "thinking" && pwaThinkingLevels.map((level) => (
             <PwaComposerSheetRow
               key={level.value}
               title={level.label}
               desc={level.desc}
               on={level.on}
+              radio
               onClick={() => {
                 if (!level.on) onThinkingLevelChange?.(level.value);
                 closeCapSheet();
@@ -4089,6 +4152,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 title={mode.label}
               desc={mode.desc}
               on={mode.on}
+              radio
               onClick={() => {
                 if (!mode.on) onPermissionModeChange?.(mode.value);
                 closeCapSheet();
@@ -4102,6 +4166,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 title={preset.label}
               desc={preset.desc}
               on={preset.on}
+              radio
               onClick={() => {
                 if (!preset.on) onToolPresetChange?.(preset.value);
                 closeCapSheet();
@@ -4125,6 +4190,27 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 </div>
               )}
               {statsDetails && <SessionStatsDetails sessionStats={statsDetails} contextUsage={contextUsage ?? null} />}
+              {/* 已引用的文件：画板 M-02 帧 C 的 `.m-cites`（`.m-cite` 是**只读**的文件名
+                  芯片，与托盘里的动作芯片 `.m-tray-chip` 分工不同）。接的是真实数据
+                  `referenceAttachments`；`is-on` = 这个名字此刻还写在输入框里（真的“命中”），
+                  删掉提及但附件还在时落回描边圆 —— 两种态都在 M-02 帧 C 上画着。 */}
+              {referenceAttachments.length > 0 && (
+                <div className="m-cites">
+                  {referenceAttachments.map((chip) => {
+                    const cited = value.includes(chip.name);
+                    return (
+                      <span
+                        key={chip.path}
+                        className={`m-cite${cited ? " is-on" : ""}`}
+                        title={chip.path}
+                      >
+                        <i data-ico={cited ? "circle-dot" : "circle"} data-size="12" aria-hidden="true" />
+                        {chip.name}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               {onCompact && (
                 <>
                   <div className="m-sep" />
@@ -4656,10 +4742,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             const truncatedHint = fileIndex?.truncated && !serverResultInUse
                ? (atQuery.query ? t("chat.searchingAll") : t("chat.indexTruncated"))
               : "";
+            // fork:v5-frame-audit D-04 帧 B（`m-mention`）—— 换回画板的外壳类 `d-pop-float`
+            // （板上：`<div class="d-pop-float up" data-demo-pop="m-mention">`）。产品此前挂的
+            // 是 `.d-pop`（按 class 算 `position: absolute`，与板上的 `fixed` 不同源），而**同一块
+            // 补全区**里的 `&`/`#`/`~` 菜单（ComposerReferenceMenu）早就是 `.d-pop-float` ——
+            // 于是同一个功能（打字即补全）在屏幕上挂了两套外壳类。定位不靠这个类：下面的
+            // position/left/right/bottom 全是内联的，内联压过类，display:flex 同理，所以换壳
+            // **不挪一个像素**，只把「这块补全区用哪件」对齐回画板。板上还带一个 `up`（向上展开），
+            // system.css 只给 `.d-pop.up` 定义了位移，`d-pop-float.up` 没有对应规则 ——
+            // 方向由内联几何负责，所以这里不挂那个空类。
             return (
               <div
                 ref={atMenuRef}
-                className="d-pop is-open anim-popover"
+                className="d-pop-float is-open anim-popover"
                 style={{
                   position: "absolute",
                   left: 0,
@@ -4674,16 +4769,29 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     : `min(48vh, 400px, ${atMenuMaxHeight}px)`,
                 }}
               >
-                {/* fork:design-system SW-02 —— 头行 = 画板 21 的 d-pop-title（标题 + grow + kbd）。 */}
-                <div className="d-pop-title" style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexShrink: 0 }}>
-                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {indexLoading
-                       ? t("chat.loadingFiles")
-                       : t("chat.files", { label: matchCountLabel, hint: truncatedHint })}
+                {/* fork:v5-frame-audit D-04 帧 B（`m-mention`）—— 头行换成画板原文的那三件：
+                    `.d-searchfield`（search 图标 + **你刚打的 token**）+ `.d-pop-body.d-t-xs.d-t-faint`
+                    （结果集里有什么）+ `.d-sep`。
+                    改前是一行 `.d-pop-title` 把「文件 · N 个匹配项」和 Tab/Enter 提示挤在一起 ——
+                    两个问题：一是**看不到自己打了什么**（补全面板不回显查询串，命中没命中只能靠猜），
+                    二是这块补全区与模型浮层、/ 命令面板的取件不一致（那两处都是 `.d-searchfield` 开头）。
+                    三个键（`chat.tabEnter` / `chat.files` / 计数）都原样复用，文案与数据源不动。 */}
+                <div
+                  className="d-searchfield"
+                  style={{ borderBottom: "1px solid var(--n-border-subtle)", margin: "0 0 var(--s1)", flexShrink: 0 }}
+                >
+                  <i data-ico="search" data-size="13"></i>
+                  <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--n-text)" }}>
+                    @{atQuery.query}
                   </span>
-                  <span className="d-grow" />
-                  <span className="d-kbd">{t("chat.tabEnter")}</span>
+                  <span className="d-kbd" style={{ flexShrink: 0 }}>{t("chat.tabEnter")}</span>
                 </div>
+                <div className="d-pop-body d-t-xs d-t-faint" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {indexLoading
+                     ? t("chat.loadingFiles")
+                     : t("chat.files", { label: matchCountLabel, hint: truncatedHint })}
+                </div>
+                <div className="d-sep" />
                 <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: "0 4px 4px" }}>
                   {!indexLoading && atMatches.length === 0 ? (
                     <div className="d-menu-row d-t-xs d-t-faint">
@@ -5129,7 +5237,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       // fork:ui-composer-pop —— 左侧组的下拉一律左缘锚定：右缘锚定会把
                       // 320 宽的浮窗探出卡片左缘，被 overflow-x:clip 裁掉。
                       left: 0,
-                      zIndex: 100, minWidth: 180,
+                      // fork:v5-frame-audit D-04 帧 A —— 不写死宽度：档位尺是内容撑的
+                      // （`.d-seg` 一行排完当前模型可用的全部档位），写死 180 反而会折行。
+                      zIndex: 100,
                     }}
                   >
                     {/* fork:design-components —— 画板 21 的弹层有**标题行**：
@@ -5137,35 +5247,50 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         meta 字号 / placeholder 色 / padding s2 s2 s1）。样式全部来自 board.css，
                         这里不加内联。 */}
                     <div className="d-pop-title">{t("chat.thinkingTitle")}</div>
-                    {THINKING_LEVELS.filter((lvl) => {
-                      if (!availableThinkingLevels) return true;
-                      if (lvl === "auto") return true;
-                      return availableThinkingLevels.includes(lvl);
-                    }).map((lvl) => {
-                      const isActive = (thinkingLevel ?? "auto") === lvl;
-                       const desc = t(THINKING_LEVEL_DESC_KEYS[lvl]);
-                      const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
-                      const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
-                      const showOriginal = mappedVal != null && mappedVal !== lvl;
-                      return (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
-                          className={`d-menu-row${isActive ? " is-on" : ""}`}
-                          style={{ cursor: "pointer" }}
-                        >
-                          {isActive
-                            ? <i data-ico="check" data-size="12"></i>
-                            : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
-                          <span className="d-grow">
-                            {displayLabel}
-                            {showOriginal && <span className="d-mono" style={{ fontSize: TEXT["2xs"], marginLeft: "var(--space-ctrl)" }}>({lvl})</span>}
-                          </span>
-                          <span className="d-t-xs d-t-faint">{desc}</span>
-                        </button>
-                      );
-                    })}
+                    {/* fork:v5-frame-audit D-04 帧 A（`m-think`）—— 思考档浮层按画板原文
+                        收成**分段控件**：`.d-pop-body.d-col` 里一块 `.d-seg`，当前档 `is-on`，
+                        下面一行 `.d-t-xs.d-t-faint` 说当前档的代价（板上那句话讲的是「中档」，
+                        这里给的是用户**此刻**选中的那一档，位置与语义同格）。
+                        改前是一串 `.d-menu-row`（与权限 / 工具档同形），那是权限与工具档的形态：
+                        思考档在画板上从头到尾都不是「一列选项」，它是循环按钮展开后的档位尺。
+                        行为零变化：档位集合仍是同一份 `THINKING_LEVELS`（同样过滤
+                        `availableThinkingLevels`），回调仍是同一个 `onThinkingLevelChange`，
+                        选中态仍是 `is-on`。档位被 `thinkingLevelMap` 改过时，原来行尾那个
+                        `(lvl)` 括号注解挪到 `title` 上 —— 分段按钮放不下第二段文字，
+                        但原值仍然可读（悬停可见），信息不丢。 */}
+                    <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-1)" }}>
+                      <div className="d-seg">
+                        {THINKING_LEVELS.filter((lvl) => {
+                          if (!availableThinkingLevels) return true;
+                          if (lvl === "auto") return true;
+                          return availableThinkingLevels.includes(lvl);
+                        }).map((lvl) => {
+                          const isActive = (thinkingLevel ?? "auto") === lvl;
+                          const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
+                          const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
+                          const showOriginal = mappedVal != null && mappedVal !== lvl;
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
+                              className={isActive ? "is-on" : undefined}
+                              title={showOriginal ? lvl : undefined}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {displayLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="d-t-xs d-t-faint">
+                        {t(THINKING_LEVEL_DESC_KEYS[
+                          (THINKING_LEVELS.includes(thinkingLevel ?? "auto")
+                            ? (thinkingLevel ?? "auto")
+                            : "auto") as (typeof THINKING_LEVELS)[number]
+                        ])}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -5248,14 +5373,31 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                           key={mode}
                           type="button"
                           onClick={() => { setPermissionDropdownOpen(false); if (!isActive) onPermissionModeChange(mode); }}
-                          className={`d-menu-row${isActive ? " is-on" : ""}`}
+                          className="d-menu-row"
                           style={{ cursor: "pointer" }}
                         >
-                          {isActive
-                            ? <i data-ico="check" data-size="12"></i>
-                            : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
-                          <span className="d-grow">{t(PERMISSION_MODE_LABEL_KEYS[mode])}</span>
-                          <span className="d-t-xs d-t-faint">{t(PERMISSION_MODE_HINT_KEYS[mode])}</span>
+                          {/* fork:v5-frame-audit D-04 帧 A（`m-perm`）—— 当前档的写法改回
+                              画板原文：`<span class="d-grow d-t-b">每次问</span>
+                              <i data-ico="check" data-size="14">`。改前是「行上挂 is-on +
+                              行首一枚对勾 + 给未选中行补一枚等宽占位 span」——
+                              那是产品自己发明的第三种选中态：同屏的模型浮层
+                              （ModelSelector 的 d-menu-row）走的就是画板这套（标签加粗 +
+                              行尾对勾，行首对齐天然一致，不需要占位），而权限 / 工具两档
+                              与它不一致，于是两个菜单的「当前档」读法不同。
+                              现在三处统一成画板那一件；onClick / 档位集合 / 文案一律不动。 */}
+                          <span
+                            className={isActive ? "d-grow d-t-b" : "d-grow"}
+                            style={{ whiteSpace: "nowrap" }}
+                          >{t(PERMISSION_MODE_LABEL_KEYS[mode])}</span>
+                          {/* 档位说明是整句（「工具调用一律直接执行，不询问」），放在一行里
+                              必须能收缩 —— 否则 `.d-grow` 的标签被挤成两行（实测「全自
+                              动」断行）。收缩成省略号，完整句子挂 `title` 上仍可读。 */}
+                          <span
+                            className="d-t-xs d-t-faint"
+                            title={t(PERMISSION_MODE_HINT_KEYS[mode])}
+                            style={{ flexShrink: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          >{t(PERMISSION_MODE_HINT_KEYS[mode])}</span>
+                          {isActive && <i data-ico="check" data-size="14"></i>}
                         </button>
                       );
                     })}
@@ -5313,19 +5455,34 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       else if (lvl === "read-only") desc = t("chat.readOnlyTools", { count: 4 });
                       else if (lvl === "default") desc = t("chat.builtInTools", { count: 4 });
                       else desc = t("chat.allBuiltInTools");
+                      // fork:v5-frame-audit —— 工具档这一列原来直接印 `chat.toolPreset.full`，
+                      // 而三个语包里只有 `chat.toolPreset.all`（= full 档），于是这一行在
+                      // 菜单里**显示成英文键名**。同一张表里的其它四档都取同名键，
+                      // 唯独 full 要落到 all —— 就是缺了一个别名，语义完全相同。
+                      // 这里改用已存在的键，不新增语包条目（lib/i18n 不在本次可改文件内）。
+                      const labelKey = lvl === "full" ? "chat.toolPreset.all" : `chat.toolPreset.${lvl}`;
                       return (
                         <button
                           key={lvl}
                           type="button"
                           onClick={() => { setToolDropdownOpen(false); if (!isActive) onToolPresetChange(preset); }}
-                          className={`d-menu-row${isActive ? " is-on" : ""}`}
+                          className="d-menu-row"
                           style={{ cursor: "pointer" }}
                         >
-                          {isActive
-                            ? <i data-ico="check" data-size="12"></i>
-                            : <span style={{ width: "var(--icon-sm)", flexShrink: 0 }} />}
-                          <span className="d-grow">{t(`chat.toolPreset.${lvl}`)}</span>
-                          <span className="d-t-xs d-t-faint">{desc}</span>
+                          {/* fork:v5-frame-audit D-04 帧 A（`m-tools`）—— 同权限档：
+                              当前档 = `.d-grow.d-t-b` + 行尾对勾（画板原文），
+                              不再是行首对勾 + 行内 is-on。 */}
+                          <span
+                            className={isActive ? "d-grow d-t-b" : "d-grow"}
+                            style={{ whiteSpace: "nowrap" }}
+                          >{t(labelKey)}</span>
+                          {/* 同权限档：说明句可收缩、完整句子挂 title。 */}
+                          <span
+                            className="d-t-xs d-t-faint"
+                            title={desc}
+                            style={{ flexShrink: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          >{desc}</span>
+                          {isActive && <i data-ico="check" data-size="14"></i>}
                         </button>
                       );
                     })}

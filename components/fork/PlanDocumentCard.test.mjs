@@ -57,13 +57,32 @@ test("接线：工具卡把计划 details 交给卡片，并把宿主的 onOpenF
   // 这两处接线在 components/MessageView.tsx（不在本 PR 的独占清单里，只动了两处、一处 import）。
   // 钉住它们是为了：卡片不会变成死代码，且卡片永远不自己开预览器。
   const messageView = await readFile(new URL("../MessageView.tsx", import.meta.url), "utf8");
-  assert.match(messageView, /import \{ PlanDocumentCard \} from "\.\/fork\/PlanDocumentCard"/);
+  // fork:v5-landing —— 同一条 import 现在多带一个 `PlanRail`（计划卡的进度轨道，
+  // 画板 D-03 帧 C），所以断言的是「这条通路仍在、模块仍是唯一来源」，不是逐字那三件。
+  assert.match(messageView, /import \{[^}]*\bPlanDocumentCard\b[^}]*\} from "\.\/fork\/PlanDocumentCard"/);
   assert.match(messageView, /import \{ PlanReferenceList \} from "\.\/fork\/PlanReferenceList"/);
   assert.match(messageView, /isPlanToolDetails\(result\?\.details\)/, "工具结果里的计划 details 要被认出来");
   assert.match(messageView, /<PlanDocumentCard/, "工具卡上要挂计划卡片");
   assert.match(messageView, /onOpenFile=\{onOpenFile \? \(filePath\) => onOpenFile\(filePath\) : undefined\}/, "复用宿主既有的打开通道");
   // 失败的那次不画卡
   assert.match(messageView, /!result\?\.isError && isPlanToolDetails/);
+  // fork:v5-landing D-03 帧 C —— 轨道的接线：真实步骤只从 `todo` 工具结果来
+  // （`isTodoDetails`），纯 `list` 不画（否则同一张卡连排两遍），窄屏不画
+  // （PWA 库没有 m-plan-*，不发明类名）。
+  assert.match(messageView, /isTodoDetails\(result\?\.details\)/, "todo 工具结果里的真实步骤要被认出来");
+  assert.match(messageView, /todo\.action !== "list"/, "纯读取动作不重复画同一张卡");
+  assert.match(messageView, /<PlanRail steps=\{todoSteps\} \/>/, "轨道只接真实步骤");
+});
+
+test("轨道：状态档逐字来自画板，且没有步骤就不画", () => {
+  // fork:v5-landing —— 画板 D-03 帧 C 的 `.d-plan-body > .d-plan-rail > .d-plan-step`，
+  // 状态类只有 done / run / fail / skip 四档，没有状态类 = 待做（裸 `.d-plan-step`）。
+  assert.match(source, /className="d-plan-body"/);
+  assert.match(source, /className="d-plan-rail"/);
+  assert.match(source, /className=\{step\.state \? `d-plan-step \$\{step\.state\}` : "d-plan-step"\}/);
+  assert.match(source, /className="d-plan-dot"/);
+  // 没有步骤就不画这一段（计划文档自己没有分步数据，不硬造）。
+  assert.match(source, /if \(steps\.length === 0\) return null;/);
 });
 
 test("组件不预览、不编辑、也不引入新的类名与手绘图形", () => {

@@ -61,9 +61,12 @@ test("the main workspace header reserves the independent sidebar control lane", 
   );
   assert.doesNotMatch(source, /--main-workspace-header-leading-inset"?:[\s\S]{0,80}?"92px"/);
   assert.match(source, /"--main-workspace-header-trailing-inset": TOP_BAR_ICON_BUTTON_SIZE,/);
-  // fork:design-components —— 两处头行现在同时挂画板类（主区 .d-topbar / 右栏 .d-panel-head），
-  // 断言的是「恰好两处」这条结构约束，与挂哪个画板类无关。
-  assert.equal(source.match(/className="main-workspace-header d-/g)?.length, 2);
+  // fork:design-components —— 两处头行都挂画板类（主区 .d-topbar / 右栏 .d-panel-head）。
+  // fork:v5-frame-audit（2026-10-05）—— 主区那一行的类名改成了三元（窄屏走画板
+  // M-01 的 `.m-top`），所以「恰好两处字面量」这条数法不再成立；改成钉**两件
+  // 事实**：桌面那一对字面量还在，且主区头行确实按形态二选一。
+  assert.match(source, /className=\{isMobile \? "m-top" : "main-workspace-header d-topbar"\}/);
+  assert.equal(source.match(/className="main-workspace-header d-panel-head"/g)?.length, 1);
   assert.match(css, /\.main-panels > \.main-workspace \.main-workspace-header[\s\S]*?padding-inline-start: var\(--main-workspace-header-leading-inset, 36px\)/);
   assert.match(css, /\.main-panels \.main-workspace-header[\s\S]*?padding-inline-end: var\(--main-workspace-header-trailing-inset, 36px\)/);
 });

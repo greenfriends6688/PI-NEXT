@@ -705,7 +705,7 @@ export function ChatMinimap({
   return (
     <div
       ref={containerRef}
-      className="d-minimap"
+      className="d-minimap fork-minimap-rail"
       onMouseDown={handleMouseDown}
       onMouseEnter={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -830,7 +830,7 @@ export function ChatMinimap({
           是几何，走内联；板的排布由 system.css 的 `.d-minimap-pop` 承担。 */}
       {minimapHovered && (allNodes.length > 0 || hasEarlierMessages) && (
         <div
-          className="d-minimap-pop"
+          className="d-minimap-pop fork-minimap-panel"
           data-minimap-preview-box=""
           data-pinned={previewPinned || undefined}
           onMouseEnter={showPreview}

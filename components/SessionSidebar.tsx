@@ -33,6 +33,7 @@ import { GroupedProjectList, useProjectDrag } from "./fork/GroupedProjectList";
 // fork:chat-workspace — standalone chat section (docs/patches/0001-chat-workspace.md)
 import { ChatWorkspaceRow } from "./ChatWorkspaceRow";
 import { SessionSearch } from "./SessionSearch";
+import { PwaSheet } from "./pwa/PwaSheet";
 import { useIsCompact, useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -354,30 +355,48 @@ function PiWebTitle() {
 
   useEffect(() => () => { if (revertTimerRef.current) clearTimeout(revertTimerRef.current); }, []);
 
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      // fork:v5-landing —— 字号 / 字重 / 颜色交给品牌行；版本号态用 accent。
-      style={{
-        background: "none", border: 0, padding: 0, cursor: "default",
-        color: showVersion ? "var(--nx-accent)" : undefined,
-        // 版本号与名字长度不同，固定 6ch 避免刷新时品牌行抽动。
-        minWidth: "6ch",
-      }}
-    >
-      {wordmark ? (
-        // fork:v5-landing-2026-10-04 —— 品牌字标照画板 D-01/D-02/D-02d 的
-        // `<img class="d-wordmark" src="…/wordmark.png" alt="PI NEXT">` 原样抄：
-        // 高 / 宽 / display / flex 收缩全部由 system.css 的 `.d-wordmark`
-        // （height:20px / width:auto / display:block / flex:0 0 auto）给，
-        // 这里不再内联第二份值（原来内联 height:10，让同一个尺寸有了两个来源，
-        // 整行也比画板矮一半）。
-        // eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器
-        <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} />
-      ) : display}
-    </button>
-  );
+  // fork:v5-frame-audit-2026-10-05 —— 品牌行照画板 D-01 / D-02 / D-02d 逐节点抄：
+  //   `<div class="d-logo"><img></div><img class="d-wordmark" …><span class="d-grow"></span>…`
+  // 字标**就是**那个 `<img class="d-wordmark">`，外面不再套一层按钮 —— 此前是
+  // `<span class="d-brand-lockup"><span class="d-logo">…</span><button><img class="d-wordmark">`，
+  // 于是板面上两件并列的件在产品里被折成了「一层壳 + 一枚按钮 + 一张图」，
+  // 品牌行的实际子节点数是画板的两倍多（.d-brand-lockup 这件库类**没有任何画板在用**）。
+  // 「点头像翻版本号」的行为一字未动，只是把可点语义从外层按钮搬到字标本身
+  // （role=button + tabIndex + Enter/Space），DOM 与画板逐节点一致。
+  const wordmarkProps = {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: handleClick,
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      handleClick();
+    },
+    title: showVersion ? display : "PI NEXT",
+    "aria-label": showVersion ? display : "PI NEXT",
+    // fork:v5-landing —— 字号 / 字重 / 颜色交给品牌行；版本号态用 accent。
+    // 版本号与名字长度不同，固定 6ch 避免刷新时品牌行抽动（几何，非设计值）。
+    style: {
+      cursor: "pointer",
+      color: showVersion ? "var(--nx-accent)" : undefined,
+      minWidth: "6ch",
+    },
+  };
+
+  if (wordmark) {
+    // fork:v5-landing-2026-10-04 —— 品牌字标照画板 D-01/D-02/D-02d 的
+    // `<img class="d-wordmark" src="…/wordmark.png" alt="PI NEXT">` 原样抄：
+    // 高 / 宽 / display / flex 收缩全部由 system.css 的 `.d-wordmark`
+    // （height:20px / width:auto / display:block / flex:0 0 auto）给，
+    // 这里不再内联第二份值（原来内联 height:10，让同一个尺寸有了两个来源，
+    // 整行也比画板矮一半）。
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器
+      <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} {...wordmarkProps} />
+    );
+  }
+  // 深色主题 / 版本号态：字标位换成实色文字，仍占同一个盒子（class 不换）。
+  return <span className="d-wordmark" {...wordmarkProps}>{display}</span>;
 }
 
 function ProjectRow({
@@ -438,7 +457,9 @@ function ProjectRow({
   // fork:v5-wave-b —— 形态判据必须是 `useIsMobile`（≤640，与 pwa/system.css 的
   // @import 媒体条件同一个断点）：d-* 只在 ≥641 生效，平板档（641–1024）仍是 d-* DOM。
   const isPhone = useIsMobile();
-  const menuRef = useRef<HTMLDivElement>(null);
+  // fork:v5-frame-audit-2026-10-05 —— 行内动作回到板面上的真 `button`，锚点也跟着
+  // 从「定位壳 div」变成那枚按钮本身（PortalDropdown 是 fixed + rect 计算）。
+  const menuRef = useRef<HTMLButtonElement>(null);
   // fork:ui-pop-portal — 菜单本体 portal 到 body，关闭判据要连同面板一起算。
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -494,9 +515,23 @@ function ProjectRow({
   }
 
   return (
-    <button
-      type="button"
+    // fork:v5-frame-audit-2026-10-05 —— 项目行照画板 D-02 帧 A / D-02d 帧 A 的**原文**：
+    //   `<div class="d-group-title"><i chevron><span class="d-grow">名称</span><span class="d-t-xs">N</span>`
+    //   `<button class="d-iconbtn" ⋯><button class="d-iconbtn" ＋></div>`
+    // 板面上这一行是 **div**：行尾两枚动作是真正的 `button`。产品此前把整行做成了
+    // `<button class="d-group-title">`，于是行尾动作只能降级成 `span[role=button]`，
+    // 并被塞进一层 `span.d-msg-acts` + 一层 `div` 定位壳 —— 嵌套可点元素本来就非法，
+    // 现在按板面改成 div + role=button（与板面「项目」分区头同一写法），
+    // 键盘（Enter / 空格）、拖拽源、菜单、回调、拖放落点全部原样接回。
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        onClick();
+      }}
       title={title}
       aria-current={selected ? "page" : undefined}
       onMouseEnter={() => setHovered(true)}
@@ -519,11 +554,11 @@ function ProjectRow({
       // fork:v5-wave-b —— 窄屏换成画板 M-06 的单行件 `.m-trow`（图标 + 名称 + 计数 +
       // 行尾动作，选中态 `.is-on`）；行内动作在触控档本来就常驻，所以 `.m-msg-acts`
       // 直接带 `is-on`。拖拽源 / 拖放 / 菜单 / 回调一字未动。
-      className={isPhone ? `m-trow${selected ? " is-on" : ""}` : `d-group-title${selected ? " is-on" : ""}`}
+      // fork:sidebar-project-name（用户 2026-10-05）—— 名称格叠加产品类抬字号，
+      // 规则在 fork-ui.css；分区头 / 分支行不带这个类，维持画板原档。
+      className={`${isPhone ? "m-trow" : "d-group-title"} fork-proj-title${selected ? " is-on" : ""}`}
       style={{
         width: "100%",
-        // UA 归零：.d-group-title 是画板的 div 件，产品这行是 button。
-        ...(isPhone ? { font: "inherit" } : { border: 0, background: "none", font: "inherit", color: "inherit", textAlign: "left" }),
         cursor: "pointer",
         opacity: drag.dragging ? 0.55 : 1,
       }}
@@ -560,93 +595,84 @@ function ProjectRow({
           是从动作区起手的」，直接取消拖拽、保住点击。 */}
       <span className={isPhone ? "m-msg-acts is-on" : `d-msg-acts fork-pwa-sb-proj-acts${hovered || menuOpen || isMobile ? " is-on" : ""}`} data-project-actions="" draggable={false} style={{ flexShrink: 0 }}>
       {(onOpenFolder || onRename || onRemove || onArchive) && (
-        <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={t("sidebar.projectActions")}
-            aria-expanded={menuOpen}
-            title={t("sidebar.projectActions")}
-            onClick={(event) => {
-              event.stopPropagation();
-              setMenuOpen((open) => !open);
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              event.stopPropagation();
-              setMenuOpen((open) => !open);
-            }}
-            className={`d-iconbtn${menuOpen ? " is-on" : ""}`}
-          >
-            <i data-ico="ellipsis" data-size="14"></i>
-          </span>
-          {/* fork:ui-pop-portal —— 项目菜单 = 画板 D-02c 的 .d-pop + .d-menu-row，
-              portal 到 body 定值定位：项目行在滚动区下部时菜单不再被裁/撑长列表。 */}
-          <PortalDropdown
-            open={menuOpen}
-            anchorRef={menuRef}
-            panelRef={menuPanelRef}
-            className={isPhone ? "m-pop-float" : "d-pop-float"}
-            width={210}
-            align="right"
-          >
-            <div role="menu">
-              {onOpenFolder && (
-                <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onOpenFolder(); }}>
-                  <i data-ico="folder-open" data-size="14"></i>
-                  {t("sidebar.openProjectFolder")}
-                </button>
-              )}
-              {onRename && (
-                <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRename(); }}>
-                  <i data-ico="square-pen" data-size="14"></i>
-                  {t("sidebar.renameProject")}
-                </button>
-              )}
-              {onArchive && (
-                <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onArchive(); }}>
-                  <i data-ico="archive" data-size="14"></i>
-                  {archived ? t("sidebar.restoreProject") : t("sidebar.archiveProject")}
-                </button>
-              )}
-              {onRemove && (
-                <>
-                  <div className={isPhone ? "m-sep" : "d-sep"} />
-                  <button type="button" role="menuitem" className={isPhone ? "m-menu-row danger" : "d-menu-row danger"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRemove(); }}>
-                    <i data-ico="minus" data-size="14"></i>
-                    {t("sidebar.removeProject")}
-                  </button>
-                </>
-              )}
-            </div>
-          </PortalDropdown>
-        </div>
+        <button
+          ref={menuRef}
+          type="button"
+          aria-label={t("sidebar.projectActions")}
+          aria-expanded={menuOpen}
+          title={t("sidebar.projectActions")}
+          onClick={(event) => {
+            event.stopPropagation();
+            setMenuOpen((open) => !open);
+          }}
+          // fork:v5-frame-audit-2026-10-05 —— 行已经是 div，这两枚可以回到板面上的
+          // 真 `button.d-iconbtn`（原来被挤成 span[role=button] 是因为整行是 button）。
+          // 键盘语义由 button 自带，Enter / 空格由浏览器派发 click，与原逻辑等价。
+          className={`d-iconbtn${menuOpen ? " is-on" : ""}`}
+        >
+          <i data-ico="ellipsis" data-size="13"></i>
+        </button>
       )}
+      {/* fork:ui-pop-portal —— 项目菜单 = 画板 D-02c 的 .d-pop + .d-menu-row，
+          portal 到 body 定值定位：项目行在滚动区下部时菜单不再被裁/撑长列表。
+          fork:v5-frame-audit-2026-10-05 —— 原来套在行内的一层 `div[style=position:relative]`
+          只是历史绝对定位时代的定位锚点；PortalDropdown 是 fixed + rect 计算，锚点
+          直接用那枚 button 即可，这一层从 DOM 里去掉（板面上也没有）。 */}
+      <PortalDropdown
+        open={menuOpen}
+        anchorRef={menuRef}
+        panelRef={menuPanelRef}
+        className={isPhone ? "m-pop-float" : "d-pop-float"}
+        width={210}
+        align="right"
+      >
+        <div role="menu">
+          {onOpenFolder && (
+            <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onOpenFolder(); }}>
+              <i data-ico="folder-open" data-size="14"></i>
+              {t("sidebar.openProjectFolder")}
+            </button>
+          )}
+          {onRename && (
+            <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRename(); }}>
+              <i data-ico="square-pen" data-size="14"></i>
+              {t("sidebar.renameProject")}
+            </button>
+          )}
+          {onArchive && (
+            <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onArchive(); }}>
+              <i data-ico="archive" data-size="14"></i>
+              {archived ? t("sidebar.restoreProject") : t("sidebar.archiveProject")}
+            </button>
+          )}
+          {onRemove && (
+            <>
+              <div className={isPhone ? "m-sep" : "d-sep"} />
+              <button type="button" role="menuitem" className={isPhone ? "m-menu-row danger" : "d-menu-row danger"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRemove(); }}>
+                <i data-ico="minus" data-size="14"></i>
+                {t("sidebar.removeProject")}
+              </button>
+            </>
+          )}
+        </div>
+      </PortalDropdown>
       {/* ⊕：直接在这个项目里开新会话（workbuddy 的 ⊕），排在 ⋯ 右侧、贴行尾。 */}
       {onNewSession && (
-        <span
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           aria-label={t("sidebar.newSessionInProject")}
           title={t("sidebar.newSessionInProject")}
           onClick={(event) => {
             event.stopPropagation();
             onNewSession();
           }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            event.stopPropagation();
-            onNewSession();
-          }}
           className={isPhone ? "m-iconbtn" : "d-iconbtn"}
         >
-          <i data-ico="plus" data-size="14"></i>
-        </span>
+          <i data-ico="plus" data-size="13"></i>
+        </button>
       )}
       </span>
-      </button>
+    </div>
   );
 }
 
@@ -732,7 +758,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
      而不是把整段 JSX 复制两遍（复制 = 下一处改动漏一半）。清除钮的类名跟着
      形态走（`d-iconbtn` / `m-iconbtn`），与画板两帧一致。 */
   const sessionSearchField = (className: string) => (
-    <label className={className}>
+    // fork:v5-frame-audit-2026-10-05 —— 画板 D-02 帧 D / D-02d 帧 E 的搜索格是
+    // `<div class="d-searchfield"><i><input …><button class="d-iconbtn">×</button></div>`
+    // —— 一个 div（不是 label）。label 那一层还会给整格叠一层 UA 的点击行为，
+    // 与板面不一致；输入框本来就有 aria-label，可访问名一字不变。
+    <div className={className}>
       <i data-ico="search" data-size={isMobile ? "14" : "13"}></i>
       <input
         id="session-search-input"
@@ -743,7 +773,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         autoComplete="off"
         aria-label={t("sidebar.searchSessions")}
         placeholder={t("sidebar.searchSessions")}
-        onChange={(event) => setSessionSearchQuery(event.target.value)}
+        onChange={(event) => {
+          setSessionSearchQuery(event.target.value);
+          /* fork:v5-frame-audit（2026-10-05）—— 窄屏那一格**常驻**（画板 M-04 帧 A/B：
+             「抽屉只配三样东西 —— 搜索、分段、会话行」，搜索不是折叠态才出现的格子）。
+             桌面仍然只在 `sessionSearchOpen` 时才挂这一格（DIVERGENCE 38 的用户裁定
+             不动），所以多写这一次 `setSessionSearchOpen(true)` 在桌面是空操作 ——
+             那里输入框存在就意味着已经开着。 */
+          setSessionSearchOpen(true);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.stopPropagation();
@@ -751,16 +789,22 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           }
         }}
       />
-      <button
-        type="button"
-        onClick={closeSessionSearch}
-        title={t("sidebar.clearSearch")}
-        aria-label={t("sidebar.clearSearch")}
-        className={isMobile ? "m-iconbtn" : "d-iconbtn"}
-      >
-        <i data-ico="x" data-size="13"></i>
-      </button>
-    </label>
+      {/* fork:v5-frame-audit —— 画板 M-04 帧 A 的搜索格是 `i[search] + input` 两件；
+          清除钮只在**真装了检索词**时才占那一格（常驻一枚空按钮会在帧 A 上多出一个
+          板面没有的控件）。桌面那一格保持原样：它本来就只在 `sessionSearchOpen`
+          时挂载，清除钮常驻是 D-02 帧 D 那一档的形状。 */}
+      {(sessionSearchQuery || !isMobile) && (
+        <button
+          type="button"
+          onClick={closeSessionSearch}
+          title={t("sidebar.clearSearch")}
+          aria-label={t("sidebar.clearSearch")}
+          className={isMobile ? "m-iconbtn" : "d-iconbtn"}
+        >
+          <i data-ico="x" data-size="13"></i>
+        </button>
+      )}
+    </div>
   );
   const [sidebarPane, setSidebarPane] = useState<SidebarPane>(readStoredSidebarPane);
   const selectPane = (next: SidebarPane) => {
@@ -1818,26 +1862,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           品牌（.d-logo + PiWebTitle）/ 搜索 / 折叠三件。
           fork:desktop-shell — 红绿灯压在这行左端，品牌右移一个安全距离，整行兼作窗口拖拽区。
           fork:v5-wave-b —— 手机上这一行换成画板 **M-04 帧 A** 的 `.m-drawer-head`
-          （标题 + 一个关闭钮）。**有意多留一枚搜索钮**：产品的会话搜索默认收起
-          （DIVERGENCE 38 的用户裁定），没有入口就点不开；画板把搜索写成常驻格，
-          见汇报的「与画板的有意偏离」。三个 i18n / handler / aria 与桌面同源。 */}
+          （标题 + 一个关闭钮）。搜索**不再是头部一枚钮**：它就是抽屉头正下方那一格
+          `.m-searchfield`，按画板「搜索常驻」。三个 i18n / handler / aria 与桌面同源。 */}
       {isMobile ? (
         <div className="m-drawer-head">
-          <button
-            type="button"
-            ref={searchToggleRef}
-            onClick={() => {
-              setSessionSearchOpen(true);
-              requestAnimationFrame(() => searchInputRef.current?.focus());
-            }}
-            aria-expanded={sessionSearchOpen}
-            title={t("sidebar.toggleSessionSearch")}
-            aria-label={t("sidebar.toggleSessionSearch")}
-            className="m-top-btn"
-          >
-            <i data-ico="search" data-size="16"></i>
-          </button>
-          <span className="m-top-title m-grow">{t("palette.scope.sessions")}</span>
+          <span className="m-top-title">{t("palette.scope.sessions")}</span>
           {onToggleSidebar && (
             <button
               type="button"
@@ -1854,15 +1883,17 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </div>
       ) : (
       <div className="d-side-head" style={{ paddingLeft: Math.max(12, desktopTrafficLightInset()) }}>
-        <span className="d-brand-lockup">
-          <span className="d-logo" aria-hidden="true">
-            {/* fork:brand-logo — 主品牌渐变图形（public/pi-next-logo.png）原图直出，
-                占满画板 D-02 的 .d-logo 盒；尺寸由 `.d-logo > img` 承担，不做重绘。 */}
-            {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
-            <img src="/pi-next-logo.png" alt="" draggable={false} />
-          </span>
-          <PiWebTitle />
-        </span>
+        {/* fork:v5-frame-audit-2026-10-05 —— 照画板 D-01/D-02/D-02d 帧 A 的
+            `.d-side-head` 逐节点抄：`div.d-logo` · `img.d-wordmark` · `span.d-grow`
+            · 两枚 `button.d-iconbtn`。原来这三件被折进一层 `span.d-brand-lockup`，
+            板面上不存在这一层（库里也没有任何画板在用这件类）。 */}
+        <div className="d-logo" aria-hidden="true">
+          {/* fork:brand-logo — 主品牌渐变图形（public/pi-next-logo.png）原图直出，
+              占满画板 D-02 的 .d-logo 盒；尺寸由 `.d-logo > img` 承担，不做重绘。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+          <img src="/pi-next-logo.png" alt="" draggable={false} />
+        </div>
+        <PiWebTitle />
         <span className="d-grow" />
         <button
           type="button"
@@ -1897,6 +1928,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         )}
       </div>
       )}
+      {/* fork:v5-frame-audit —— 画板 M-04 帧 A/B 的次序是
+          `抽屉头 → 搜索 → 新建任务 → 分段`：搜索紧贴抽屉头，因为抽屉里它只有
+          这一个出口。窄屏那一格常驻（不再有折叠态），input 本体与桌面共用同一份
+          `sessionSearchField`（同一个 ref / id / maxLength / Esc 行为）。 */}
+      {isMobile && sessionSearchField("m-searchfield")}
       {/* fork:v5-landing —— 新建任务 = 画板 D-02 的 .d-side-nav > .d-row。
           fork:v5-wave-b —— 手机上是画板 M-04 帧 A 的 `.m-setrow`（square-pen + 文案 +
           ⌘N 徽章）；同一个 handler、同一条 title / aria-label。 */}
@@ -1956,19 +1992,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </button>
       </div>
 
-      {/* fix:search-collapsed —— 画板 D-02：帧 A（项目 pane）**没有**搜索格，
-          `.d-searchfield` 只出现在帧 D/E（搜索态）。台账 DIVERGENCE 38 写得很清楚：
-          「默认收起、点搜索才展开并聚焦」——常显会让「默认」与「搜索中」在界面上
-          不可分，还白占一行高度。所以这一格只在 `sessionSearchOpen` 时渲染。 */}
-      {/* fork:v5-landing-2026-10-04 —— 搜索格所在的**那一行**照画板 D-02 帧 D /
+      {/* fork:v5-frame-audit —— 桌面那一格仍然只在 `sessionSearchOpen` 时渲染，并包在
+          `.d-side-nav` 盒子里（画板 D-02 帧 D/E）；窄屏那一格已经挪到抽屉头正下方、
+          且常驻，所以这里只剩桌面一支。搜索格所在的**那一行**照画板 D-02 帧 D /
           D-02d 帧 E 补上外层 `.d-side-nav`（`padding: 0 var(--nx-sp-2)`）。
           原来产品用内联 `margin: 0 var(--nx-sp-2)` 顶替那个盒子 —— 间距值因此有了
-          第二个来源（铁律三）。窄屏那支换 `.m-searchfield`（自带 `margin: 0 14px 8px`），
-          所以外层只在桌面渲染。input 本体只有一份，两支共用同一个 ref / id / 事件。 */}
-      {sessionSearchOpen && (
-        isMobile ? sessionSearchField("m-searchfield") : (
-          <div className="d-side-nav">{sessionSearchField("d-searchfield")}</div>
-        )
+          第二个来源（铁律三）。input 本体只有一份，两支共用同一个 ref / id / 事件。 */}
+      {!isMobile && sessionSearchOpen && (
+        <div className="d-side-nav">{sessionSearchField("d-searchfield")}</div>
       )}
 
       {/* fork:v5-landing —— 列表区 = 画板 D-02 的 .d-side-scroll。
@@ -2476,8 +2507,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               });
             };
             return (
-              // fork:zn-13 — 分区之间靠 marginTop 分开（与项目分区头同一个 18px
-              // 节奏），不用分隔线；Zeno 的导轨同样是不划线、只用间距。
+              <>
+              {/* fork:v5-frame-audit-2026-10-05 —— 聊天 pane 的**分区头**补上
+                  （画板 D-02 帧 A / D-02d 帧 A 的 `pane-chat` 第一件：
+                  `<div class="d-group-title"><i data-ico="message-square"><span class="d-grow">聊天</span></div>`）。
+                  产品此前直接就是工作区行，于是板面上「这一段是聊天工作区」这句话
+                  在 DOM 里无处可读（用户问的就是这个：为什么这里没有「项目」组头）。 */}
+              <div className="d-group-title">
+                <i data-ico="message-square" data-size="12"></i>
+                <span className="d-grow">{t("sidebar.chatWorkspace")}</span>
+              </div>
+              {/* fork:zn-13 — 分区之间靠 marginTop 分开（与项目分区头同一个 18px
+                  节奏），不用分隔线；Zeno 的导轨同样是不划线、只用间距。 */}
               <div style={{ marginTop: 18 }}>
                 <ChatWorkspaceRow
                   label={t("sidebar.chatWorkspace")}
@@ -2533,6 +2574,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                         </div>
                 ))}
               </div>
+              </>
             );
           })()}
         </div>
@@ -2701,13 +2743,16 @@ function SessionItem({
     }
   }, [performDelete]);
 
-  const handleDeleteConfirm = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  // fork:v5-frame-audit —— 事件参数改成可选：这两个回调现在既挂在行内按钮上
+  // （有事件，要 stopPropagation），也被 M-04 帧 D 的 `.m-sheet` 调用（遮罩 / Esc /
+  // 底部那枚 `取消` 都没有事件）。语义不变，只是少了一个强转的 `as`。
+  const handleDeleteConfirm = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation();
     void performDelete();
   }, [performDelete]);
 
-  const handleDeleteCancel = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteCancel = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setConfirmDelete(false);
   }, []);
 
@@ -2732,6 +2777,7 @@ function SessionItem({
   //   各管一段；父会话缩进、子代理竖线、右键菜单、重命名 / 删除确认与 ⋯ 菜单全部接回。
   if (isPhone) {
     return (
+      <>
       <button
         type="button"
         className={[
@@ -2751,27 +2797,7 @@ function SessionItem({
           opacity: deleting ? 0.5 : 1,
         }}
       >
-        {confirmDelete ? (
-          <span className="m-row">
-            <span className="m-row-t">
-              {t("sidebar.deleteSession", { title: title.slice(0, 22) + (title.length > 22 ? "…" : "") })}
-            </span>
-            {/* M-04 帧 D 的删除确认：底部两个等宽钮（取消 / 删除）。 */}
-            <span className="m-pickbar">
-              <button
-                type="button"
-                onClick={handleDeleteConfirm}
-                className="m-btn sm danger"
-              >
-                <i data-ico="trash-2" data-size="13"></i>
-                {t("sidebar.delete")}
-              </button>
-              <button type="button" onClick={handleDeleteCancel} className="m-btn sm ghost">
-                {t("sidebar.cancel")}
-              </button>
-            </span>
-          </span>
-        ) : renaming ? (
+        {renaming ? (
           <input
             ref={inputRef}
             value={renameValue}
@@ -2786,12 +2812,13 @@ function SessionItem({
           />
         ) : (
           <>
-            {depth > 0 && (
-              <span className="m-row-t">
-                <i data-ico="corner-down-right" data-size="13" aria-hidden="true"></i>
-              </span>
-            )}
+            {/* fork:session-row-ghost —— 与桌面行同一处病：`.m-row` 是 flex-column，
+                单独一个 `.m-row-t` 图标格在手机档是**独占一行**（每个子代理行顶上
+                都悬着一个孤零零的 ↳）。并进标题行内，间距走 system.css。 */}
             <span className="m-row-t" title={`${title} · ${formatRelativeTime(session.modified, locale)}`}>
+              {depth > 0 && (
+                <i data-ico="corner-down-right" data-size="13" aria-hidden="true"></i>
+              )}
               {title}
             </span>
             <span className="m-row-m">
@@ -2899,6 +2926,35 @@ function SessionItem({
           </>
         )}
       </button>
+      {/* fork:v5-frame-audit（2026-10-05）—— M-04 帧 D 的删除确认**不是就地换行**，
+          是底部面板：`m-scrim` + `m-sheet is-open`（`m-sheet-grab` /
+          `m-sheet-title` 写清删的是哪条 / `m-sheet-body` 一句代价 / `m-pickbar`
+          两个等宽 `m-picktag`，取消在左、破坏性的那一个在右且**不预选**）。
+          产品此前把确认塞回这一行（行高不变、两枚按钮挤在行尾），手机上根本看不清
+          删的是哪条。行为不变：仍是同一个 `confirmDelete` 状态、同一组
+          `performDelete` 回调；遮罩 / Esc / 焦点由 `PwaSheet` 承担（它抄的就是画板
+          M-09/M-10 那一段 `.m-sheet`，与 M-04 帧 D 是同一件东西）。
+          行本体此时保持原样（不再被确认态顶掉），点它仍会关掉确认。 */}
+      <PwaSheet
+        open={confirmDelete}
+        title={t("sidebar.deleteSession", { title: title.slice(0, 22) + (title.length > 22 ? "…" : "") })}
+        onClose={handleDeleteCancel}
+        footer={(
+          <>
+            <button type="button" className="m-picktag" onClick={() => handleDeleteCancel()}>
+              {t("sidebar.cancel")}
+            </button>
+            <button type="button" className="m-picktag danger is-on" onClick={() => handleDeleteConfirm()}>
+              {t("sidebar.delete")}
+            </button>
+          </>
+        )}
+      >
+        <div className="m-md">
+          <p>{t("sidebar.deleteBody")}</p>
+        </div>
+      </PwaSheet>
+      </>
     );
   }
 
@@ -2926,11 +2982,11 @@ function SessionItem({
       onMouseLeave={() => { setHovered(false); }}
       style={{
         width: "100%",
-        // fork:v5-landing —— 画板 .d-sess 是 block 两行件；产品还要在右侧放
-        // 状态标记与行内动作，所以这一行仍按 flex 排，视觉值全部来自 d-* 类。
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--nx-sp-2)",
+        // fork:v5-frame-audit-2026-10-05 —— `.d-sess` 回到画板的 **block 两行件**
+        // （system.css 的 `.d-sess { display:block }`）：行内不再内联 flex。
+        // 状态标记（转圈 / 等你处理 / 未读点）、worktree 角标、折叠钮与 hover 动作
+        // 全部搬进 `.d-sess-m` —— 画板 D-02 帧 D / D-02d 帧 D 的五态行就是这么摆的
+        // （`.d-sess-m` 是 flex 行，徽标就在那一格末尾）。
         // 子代理缩进一级 + corner-down-right 图标。
         paddingLeft: depth > 0 ? 8 + depth * 6 : undefined,
         cursor: confirmDelete || renaming ? "default" : "pointer",
@@ -2974,28 +3030,32 @@ function SessionItem({
       ) : (
         /* ── Normal view：两行（标题 + 元信息），状态标记一律在右侧 ── */
         <>
-          {/* Subagent indicator for child sessions（corner-down-right） */}
-          {depth > 0 && (
-            <span style={{ display: "inline-flex", flex: "0 0 auto", color: "var(--nx-accent)" }}>
-              <i data-ico="corner-down-right" data-size="13"></i>
-            </span>
-          )}
-          <span className="d-col d-grow">
-            <span
-              title={`${title} · ${formatRelativeTime(session.modified, locale)}`}
-              className="d-sess-t"
-            >
-              {title}
-            </span>
-            <span className="d-sess-m fork-session-meta">
-              {/* fork:pwa-sb —— 时间与消息数是这一行唯一会被长文案挤掉的部分
-                  （标题能省略，这两个不能）。手机档把它们收进可收缩的一格，
-                  未读点/等你处理留在外面 —— 不然状态标记会跟着省略号一起被裁掉。 */}
-              <span className="fork-pwa-sb-meta">
-                <span>{formatRelativeTime(session.modified, locale)}</span>
-                <span aria-hidden="true"> · </span>
-                <span>{t("sidebar.messageCount", { count: session.messageCount })}</span>
-              </span>
+          {/* fork:session-row-ghost（用户 2026-10-05 报的「重影」）—— 子代理行的
+              corner-down-right 必须待在**标题行内部**，不能是标题前面的兄弟节点：
+              会话列表是虚拟化的绝对定位行（行高固定 48 / 58），`.d-sess-t` 是
+              nowrap 的整段不可断文本，图标与标题作为两个相邻内联节点放不下时，
+              整段标题会换到第二行 —— 行内变成三行，第三行（元信息）溢出行盒，
+              叠在下一行的标题上，就是截图里那种两段文字重影。图标进标题行内
+              （与画板 D-02b「图标内联贴文字」同一形态）后，行高回到恒定两行。
+              颜色 / 间距由 system.css 的 `.d-sess-t > i[data-ico]` 给。 */}
+          {/* fork:v5-frame-audit-2026-10-05 —— 标题格与元信息格是 `.d-sess` 的**直接子节点**
+              （画板 D-01 / D-02 / D-02d 每一帧的会话行都是这样），中间那层
+              `span.d-col.d-grow` 去掉；元信息内部的三段（时间 · 条数）也回到
+              板面上的三个平级 `<span>`，原来那层 `fork-pwa-sb-meta` 的 CSS
+              只在 `.pw-session .pw-m` 下命中，v5 DOM 上本来就是死规则。 */}
+          <span
+            title={`${title} · ${formatRelativeTime(session.modified, locale)}`}
+            className="d-sess-t"
+          >
+            {depth > 0 && (
+              <i data-ico="corner-down-right" data-size="13" aria-hidden="true"></i>
+            )}
+            {title}
+          </span>
+          <span className="d-sess-m fork-session-meta">
+              <span style={{ flexShrink: 0 }}>{formatRelativeTime(session.modified, locale)}</span>
+              <span aria-hidden="true">·</span>
+              <span style={{ flexShrink: 0 }}>{t("sidebar.messageCount", { count: session.messageCount })}</span>
               {/* 两者互斥：等你处理 > 未读。
                   fork:no-session-tag（用户 2026-10-01）—— 手动「状态标记」及其彩色点已撤掉。 */}
               {/* fork:session-row-running-spinner（用户 2026-10-02）—— 运行中**在行内**
@@ -3019,29 +3079,27 @@ function SessionItem({
               ) : isUnread ? (
                 <span className="d-dot ok fork-pwa-sb-flag" title={t("sidebar.newActivity")} aria-label={t("sidebar.newSessionActivity")} />
               ) : null}
-            </span>
-          </span>
-          {session.isWorktree && session.branch && (
-            <span
-              title={`Worktree: ${session.cwd}`}
-              style={{ display: "inline-flex", flex: "0 0 auto", color: "var(--nx-accent)" }}
-            >
-              <i data-ico="git-branch" data-size="12"></i>
-            </span>
-          )}
+              {session.isWorktree && session.branch && (
+                <span
+                  title={`Worktree: ${session.cwd}`}
+                  style={{ display: "inline-flex", flex: "0 0 auto", color: "var(--nx-accent)" }}
+                >
+                  <i data-ico="git-branch" data-size="12"></i>
+                </span>
+              )}
 
-          {/* Collapse toggle — always visible when has children */}
-          {hasChildren && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
-              title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-              aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-              className="d-iconbtn"
-            >
-              <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
-            </button>
-          )}
+              {/* Collapse toggle — always visible when has children */}
+              {hasChildren && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
+                  title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+                  aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+                  className="d-iconbtn"
+                >
+                  <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
+                </button>
+              )}
 
           {/* fork:pwa-sb —— 手机档（`useIsMobile` = ≤640px）换成一枚常驻的 ⋯，
               菜单本体是画板 D-02c 的 `.d-pop` + `.d-menu-row`（与项目行同一个壳），
@@ -3163,6 +3221,7 @@ function SessionItem({
               </button>
             </span>
           ) : null}
+          </span>
         </>
       )}
     </button>

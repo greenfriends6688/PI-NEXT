@@ -15,9 +15,11 @@ const source = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf
  */
 
 // The branch runs from its guard to the point where it reports that the turn's
-// timeline has been emitted; `rendered.push(renderMessage(userIdx))` sits in the
-// middle of it and would cut the slice short.
-const LIVE_TAIL_END = "liveTurnTimeline = true;";
+// timeline has been emitted; the assignment below sits in the middle of it and
+// would cut the slice short.
+// fork:v5-landing —— 变量从 `liveTurnTimeline` 改名为 `liveTurnGroup`：它存的是**节点**
+// （有回答可挂时挂 `prefix`，没有时自己渲染），不是一个布尔。契约没变。
+const LIVE_TAIL_END = "liveTurnGroup = liveGroupNode;";
 const liveTail = source.slice(
   source.indexOf("const isLiveTail ="),
   source.indexOf(LIVE_TAIL_END) + LIVE_TAIL_END.length,
@@ -30,7 +32,7 @@ test("the running turn is rendered as one timeline instead of the flat list", ()
   assert.match(liveTail, /const liveBlocks: ProcessContentBlock\[\] = \[\]/);
   assert.match(liveTail, /liveBlocks\.push\(\.\.\.streamingProcess\.blocks\)/);
   assert.match(liveTail, /<ProcessGroup/);
-  assert.match(liveTail, /liveTurnTimeline = true/);
+  assert.match(liveTail, /liveTurnGroup = liveGroupNode/);
 });
 
 test("the in-flight message is converted once and shared by both call sites", () => {
@@ -42,9 +44,14 @@ test("the in-flight message is converted once and shared by both call sites", ()
 test("the streaming block contributes only the answer once the timeline exists", () => {
   const streaming = source.slice(source.indexOf("streamState.isStreaming && hasStreamingContent"));
   assert.ok(streaming.length > 0, "the streaming block moved; update this test with it");
-  assert.match(streaming, /if \(liveTurnTimeline\) return answerView;/);
+  // 已经发出去的时间线**复用**而不是重建（这就是「只补回答」的形状）：
+  // groupNode 先取 liveTurnGroup，空才自己建；有回答块时把它当 prefix 交给 MessageView。
+  assert.match(streaming, /let groupNode: ReactNode = liveTurnGroup;/);
   assert.match(
     streaming,
-    /if \(!streamingProcess \|\| \(streamingProcess\.blocks\.length === 0 && !liveTurnTimeline\)\)/,
+    /if \(!streamingProcess \|\| \(streamingProcess\.blocks\.length === 0 && !liveTurnGroup\)\)/,
   );
+  assert.match(streaming, /prefix=\{groupNode\}/);
+  assert.doesNotMatch(streaming, /if \(liveTurnTimeline\) return answerView;/,
+    "旧形状（活时间线存在就直接退回回答视图）已改成把时间线当 prefix 复用");
 });

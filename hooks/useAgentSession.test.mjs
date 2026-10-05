@@ -366,9 +366,13 @@ test("delegates event stream readiness and hides an empty agent phase", () => {
   assert.match(chatWindowSource, /agentRunning && !hasStreamingContent && \(agentPhase \|\| isCompacting\)/);
   assert.match(chatWindowSource, /<PhaseRoll[\s\S]{0,200}?text=\{phaseLabel\(agentPhase, t, isCompacting\)\}/);
   assert.match(chatWindowSource, /<PhaseRoll[\s\S]{0,200}?phaseKey=\{phaseKeyOf\(agentPhase, isCompacting\)\}/);
-  assert.match(chatWindowSource, /break-words text-xs" style=\{\{ color: "var\(--text-muted\)" \}\}[\s\S]{0,400}?<PhaseRoll/);
-  assert.doesNotMatch(chatWindowSource, /break-words py-2 text-xs" style=\{\{ color: "var\(--text-muted\)" \}\}[\s\S]{0,400}?<PhaseRoll/,
-    "相位行的间距不能留在 wrapper 上，否则空相位会留下空隙");
+  // fork:v5-frame-audit —— 相位行现在的宿主是画板 D-03e 帧 B 的**阶段卡**
+  // （`.d-card` › `.d-card-body` › `<PhaseRoll>`），不再是 `div.break-words.text-xs`。
+  // 契约不变：挂载点只管 `agentRunning && !hasStreamingContent`，“空相位不渲染”
+  // 由 PhaseRoll 自己的 null 分支保证；间距不再由宿主写（py-2 那一条已由此扬弃）。
+  assert.match(chatWindowSource, /<div className="d-card">\s*<div className="d-card-body">\s*<PhaseRoll/);
+  assert.doesNotMatch(chatWindowSource, /className="[^"]*break-words[^"]*"[\s\S]{0,120}?<PhaseRoll/,
+    "相位行的宿主不再是裸文字行（D-03e 帧 B 的阶段卡）");
   assert.match(phaseRollSource, /if \(!displayed && !exiting\) return null;/);
   assert.match(phaseRollSource, /padding: "8px 0"/);
   assert.match(chatWindowSource, /return null;/);

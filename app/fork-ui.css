@@ -1538,6 +1538,21 @@ html[data-theme-skin="true"] .main-workspace-header {
    两行的行撑不过 `.pw-session` 的固定行高，整行就“变形”了（用户实测）。
    与 `.process-step-detail` 同一做法：给画板类叠一个**产品类**做截断，
    不写 `.pw-m` 自己的副本（DIVERGENCE 第 73 条）。 */
+/* ---------------------------------------------------------------------------
+ * fork:sidebar-project-name（用户 2026-10-05）—— 项目名称行从 `.d-group-title`
+ * 的 fs-xs（11px）抬到 fs-body（14px）+ 500 + 主文字色。用户原话：「项目名称
+ * 字有点小，感觉不协调」—— 它和会话标题（fs-body）同处一棵树，分组主标签
+ * 反而比成员小两档。只抬名称这一格（`.d-grow` / `.m-grow`），行内的折叠
+ * 箭头、计数、行尾动作维持画板原档；「项目」分区头与分支行不带此产品类。
+ * 两处 DOM：桌面 `.d-group-title`（ProjectRow）与手机 `.m-trow` 同类同名。
+ * ------------------------------------------------------------------------- */
+.d-group-title.fork-proj-title > .d-grow,
+.m-trow.fork-proj-title > .m-grow {
+  font-size: var(--nx-fs-body);
+  font-weight: 500;
+  color: var(--nx-text);
+}
+
 .fork-session-meta {
   min-width: 0;
   overflow: hidden;

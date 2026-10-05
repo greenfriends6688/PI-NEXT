@@ -5,10 +5,18 @@ import { useI18n } from "@/hooks/useI18n";
 /*
  * fork:v5-landing —— 新会话空态首屏照 v5 画板 **D-01 帧 A** 抄 DOM：
  * 结构 = .d-empty（.d-empty-ico + .d-empty-t.d-t-display + .d-empty-s）
- *        + .d-grid2 > .d-store-card（.d-store-cover + .d-store-card-t + .d-t-xs + .d-store-foot）。
+ *        + 起步卡网格。
  * 样式全部来自 design/v5/web/system.css（d-* 唯一出处），图标走 <i data-ico>（icons.js hydrate）。
  * 四张起步卡 = STARTERS（scan-search / git-compare / square-check / book-open），
  * 点卡只把完整指令填进输入框、不发送。
+ *
+ * fork:v5-landing-frame · D-01 帧 D（选好工作区后的「建议任务」那一段）—— 起步卡从
+ * `.d-grid2` › `.d-store-card` 换成板面原文 **`.d-cardgrid` › `button.d-setcard`**：
+ *   · `.d-store-card` 是插件商店的件（封面 + 标题 + 描述 + 页脚），不是起步卡；
+ *   · 起步卡在板面上是 `.d-setcard`（图标 + `.d-set-row-t` 标题 + `.d-set-row-s` 一句说明，
+ *     行尾一枚 `zap`），网格容器是 `.d-cardgrid`（`auto-fill` + 220 下限，窄栏自己塌成一列，
+ *     所以不再需要 `gridTemplateColumns: isMobile ? "1fr"` 那条内联覆盖）。
+ * 行为零变化：仍然是 `onInsertPrompt(t(prompt))`，仍然不发送。
  *
  * fork:v5-wave-b —— **这一件有意不加 m-* 分支**：`design/v5/pwa/boards/` 里
  * 没有「新会话首屏」这张 PWA 画板（M-01 只管会话页与抽屉），库里的 `.m-empty` /
@@ -32,10 +40,12 @@ const STARTERS = [
 
 export function NewSessionHome({
   cwd,
-  isMobile,
   onInsertPrompt,
 }: {
   cwd: string | null | undefined;
+  /** 仍由调用方（`ChatWindow`）传入，但**网格不再靠它判形**：`.d-cardgrid` 是
+   *  `auto-fill` + 220px 下限，窄栏（手机 / 开了右栏的桌面）自己塌成一列 ——
+   *  与画板 D-01 帧 D 的容器一致，也就不用再写 `gridTemplateColumns: 1fr` 那条内联。 */
   isMobile: boolean;
   onInsertPrompt: (text: string) => void;
 }) {
@@ -45,7 +55,7 @@ export function NewSessionHome({
 
   return (
     // fork:v5-frame-audit-2026-10-05 —— 首屏那一段照画板 D-01 帧 A 抄成
-    // `<div class="d-chat"><div class="d-chat-inner">…d-empty + d-grid2…</div></div>`：
+    // `<div class="d-chat"><div class="d-chat-inner">…d-empty + 起步卡网格…</div></div>`：
     // 滚动容器是 `.d-chat`（库里的那一件），内层是 `.d-chat-inner`。
     // 此前根节点是一枚 `div.d-col.d-grow` + 内联 `overflowY:auto` / `padding`，
     // 板面上并不存在这层（滚动、内边距、列宽三件事都由 d-* 给）。
@@ -76,10 +86,8 @@ export function NewSessionHome({
           </div>
         </div>
         <div
-          className="d-grid2 fork-row-enter"
+          className="d-cardgrid fork-row-enter"
           style={{
-            // 画板 60：移动端单列堆叠（同构约定：放不下就折成一列）。
-            gridTemplateColumns: isMobile ? "1fr" : undefined,
             animationDelay: "calc(var(--motion-stagger) * 2)",
           }}
         >
@@ -87,13 +95,16 @@ export function NewSessionHome({
             <button
               key={key}
               type="button"
-              className="d-store-card"
+              className="d-setcard"
               onClick={() => onInsertPrompt(t(prompt))}
             >
-              <div className="d-store-cover"><i data-ico={icon} data-size="20"></i></div>
-              <div className="d-store-card-t">{t(key)}</div>
-              <div className="d-t-xs d-t-faint">{t(desc)}</div>
-              <div className="d-store-foot"><i data-ico="zap" data-size="12"></i>{t("chat.homeOneClick")}</div>
+              <div className="d-col d-grow">
+                <span className="d-set-row-t">
+                  <i data-ico={icon} data-size="14" aria-hidden="true"></i> {t(key)}
+                </span>
+                <span className="d-set-row-s">{t(desc)}</span>
+              </div>
+              <i data-ico="zap" data-size="14" aria-hidden="true"></i>
             </button>
           ))}
         </div>

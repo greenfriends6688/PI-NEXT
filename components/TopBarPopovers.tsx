@@ -38,7 +38,6 @@ function HoverPopover({
   title,
   badge,
   width = POPOVER_WIDTH,
-  style,
   onOpenChange,
   children,
 }: {
@@ -47,7 +46,6 @@ function HoverPopover({
   title: string;
   badge?: ReactNode;
   width?: number;
-  style?: React.CSSProperties;
   /** 浮窗开合状态外传：内容需要「打开时才拉数据」时用（不要在每次悬停都发请求）。 */
   onOpenChange?: (open: boolean) => void;
   children: (close: () => void) => ReactNode;
@@ -93,8 +91,14 @@ function HoverPopover({
         title={title}
         /* fork:v5-landing —— 触发钮 = 画板 D-02b 帧 C 的 `.d-iconbtn`（28px / 发丝
            hover）；开合态用 `.is-on`（强调淡底）而不是内联色值。 */
-        className={`d-iconbtn${open ? " is-on" : ""}`}
-        style={style}
+        /* fork:v5-landing-frame · D-02b —— 触发钮是**浮层锚点**：画板里那一层是
+           `.d-anchor.d-col`（宿主列），产品这里宿主就是这枚钮 —— 它内部那枚计数
+           `.d-badge` 是 `position:absolute`（画板 D-02b 帧 C 的右上角角标），
+           所以 `position:relative` 是真的结构需求。原来写在内联 `style` 上，
+           现在进 `d-anchor` 类（铁律四：值进类不进 inline）。
+           浮窗本体**不在这里**：它走 `PortalDropdown`（portal + fixed），
+           所以**不给它加**锚点类 —— 加了是装饰不是结构（LANDING §2②）。 */
+        className={`d-iconbtn d-anchor${open ? " is-on" : ""}`}
         onClick={() => setPinned((v) => !v)}
         onMouseEnter={holdOpen}
         onMouseLeave={scheduleClose}
@@ -102,8 +106,12 @@ function HoverPopover({
         <i data-ico={icon} data-size="14" aria-hidden="true"></i>
         {badge}
       </button>
+      {/* fork:v5-frame-audit-2026-10-05 —— 浮窗壳就是画板 D-02b 帧 C 的
+          `<div class="d-pop-float is-open">`，里面第一件就是 `.d-pop-title`。
+          原来多包了一层 `<div role="menu">`，板面上不存在；它也把「行是 role=menuitem
+          吗」这件事说错了（这些都是只读状态行）。悬停保持挂在壳上即可。 */}
       <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="d-pop-float" width={width} align="right">
-        <div role="menu" onMouseEnter={holdOpen} onMouseLeave={scheduleClose}>
+        <div onMouseEnter={holdOpen} onMouseLeave={scheduleClose}>
           {children(close)}
         </div>
       </PortalDropdown>
@@ -204,8 +212,10 @@ export function BranchChip({
         {branch}
         <i data-ico="chevron-down" data-size="12" aria-hidden="true"></i>
       </button>
+      {/* fork:v5-frame-audit-2026-10-05 —— 同上：工作区浮窗去掉那层 `role="menu"` 壳，
+          `.d-pop-title` 直接是浮窗的第一个子节点（D-02d 帧 C 的「工作区」列表）。 */}
       <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="d-pop-float" width={260} align="left">
-        <div role="menu">
+        <div>
           <div className="d-pop-title">{t("sidebar.worktrees")}</div>
           {failed && <div className="d-menu-row" style={{ cursor: "default" }}>{t("sidebar.checkingWorktrees")}</div>}
           {!failed && data && worktrees.length === 0 && (
@@ -285,7 +295,6 @@ export function McpStatusButton({ cwd, statuses }: { cwd: string | null; statuse
           {enabled}
         </span>
       ) : undefined}
-      style={{ position: "relative" }}
     >
       {() => (
         <>
@@ -347,7 +356,6 @@ export function PluginStatusButton({
       icon="blocks"
       title={title}
       onOpenChange={setOpen}
-      style={{ position: "relative" }}
     >
       {() => (
         <>

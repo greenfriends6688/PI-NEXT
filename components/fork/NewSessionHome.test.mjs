@@ -24,18 +24,24 @@ test("shows the project name and one card per starter", () => {
   assert.match(html, /pi-web/);
   assert.doesNotMatch(html, /\/Users\/me\/projects\/pi-web\?/);
   assert.equal((html.match(/<button/g) ?? []).length, 4);
-  // fork:v5-landing —— 起始卡直接用画板 **D-01 帧 A** 的 .d-grid2 > .d-store-card 组件：
-  // 封面图标 + 标题 + 描述 + 「一键填入」页脚，桌面端 2×2 列由 system.css 承担。
-  assert.match(html, /d-grid2/);
-  assert.equal((html.match(/d-store-card"/g) ?? []).length, 4);
-  assert.equal((html.match(/d-store-cover/g) ?? []).length, 4);
-  assert.equal((html.match(/d-store-foot/g) ?? []).length, 4);
+  // fork:v5-landing-frame —— 起步卡直接用画板 **D-01 帧 D** 的网格与卡片：
+  // `.d-cardgrid`（`auto-fill` + 220px 下限，窄栏自己塌成一列）› `button.d-setcard`
+  // （图标 + `.d-set-row-t` 标题 + `.d-set-row-s` 一句说明 + 行尾 `zap`）。
+  // 旧的 `.d-grid2` › `.d-store-card` 是插件商店的件，已退役。
+  assert.match(html, /class="d-cardgrid/);
+  assert.equal((html.match(/class="d-setcard"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="d-set-row-t"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="d-set-row-s"/g) ?? []).length, 4);
+  assert.doesNotMatch(html, /d-store-card|d-grid2/);
 });
 
 test("falls back to the generic title without a cwd and stacks cards on mobile", () => {
   const html = render({ cwd: null, isMobile: true, onInsertPrompt: () => {} });
 
-  // 移动端单列堆叠（设计 60 画板的同构约定：放不下就折成一列）。
-  assert.match(html, /grid-template-columns:1fr;/);
+  // 单列堆叠不再靠内联 `gridTemplateColumns: "1fr"`：`.d-cardgrid` 的
+  // `repeat(auto-fill, minmax(220px, 1fr))` 在窄栏（手机 390 / 开了右栏的桌面）
+  // 自然只有一列 —— 所以断言的是容器类，而不是一条会压住 CSS 的内联几何。
+  assert.match(html, /class="d-cardgrid/);
+  assert.doesNotMatch(html, /grid-template-columns/);
   assert.equal((html.match(/<button/g) ?? []).length, 4);
 });

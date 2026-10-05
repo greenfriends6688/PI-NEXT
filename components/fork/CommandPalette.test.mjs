@@ -63,8 +63,18 @@ test("默认态（空查询）：三个域各自成组，标题是画板 D-22 �
   assert.match(html, /class="d-cmd-group"/);
   // 命令组标题带命中数（板上是「命令 · 18 条」，产品用语言无关的「· N」）。
   assert.match(html, />Commands · 2</);
-  // 空查询时命令排在前面（板上的「快捷入口在前」）。
   assert.ok(html.indexOf("New task") < html.indexOf("Plan document"));
+});
+
+test("页签行右端有语法说明钮，浮层常驻 DOM 并用 hidden 开关（D-22 帧 A/B/C）", () => {
+  const html = render();
+  // 页签行：四个 .d-cat 之后是 d-grow + 一颗 .d-iconbtn（keyboard）。
+  assert.match(html, /class="d-iconbtn"[^>]*aria-expanded="false"[\s\S]*?<i data-ico="keyboard"/);
+  // 浮层挂在 .d-cmd-input 之后（板面上它是 .d-cmd-input 的兄弟），且默认 hidden。
+  assert.match(html, /<div class="d-pop" hidden[\s\S]*?class="d-pop-title"/);
+  assert.match(html, /class="d-pop-body d-col"/);
+  assert.match(html, /class="d-sep"/);
+  assert.match(html, /class="d-pop-foot"/);
 });
 
 test("输入中：命中片段走 .d-cmd-hit，不给整行打底色", () => {
@@ -76,12 +86,18 @@ test("输入中：命中片段走 .d-cmd-hit，不给整行打底色", () => {
 });
 
 test("空态：没命中也带下一步（.d-empty-s 里的三个前缀）", () => {
-  // 让命令列表为空且查询词有值 —— 这里靠「命令域被前缀锁死 + 无命中」构造不了，
-  // 所以直接核源里那一段：`.d-empty-s` + 前缀键符 + 既有 palette.scope.* 文案。
-  assert.match(source, /className="d-empty-s d-col"/);
-  assert.match(source, /palette\.scope\.\$\{entry\.scope\}/);
-  // 空态里不塞演示钮（画板那两枚按钮是家具，不是产品件）。
-  assert.doesNotMatch(source, /className="d-empty-s d-col"[\s\S]{0,400}d-btn/);
+  // fork:v5-frame-audit D-22 帧 C —— 板面那一段是「一整段话 + 三个行内 .d-kbd」，
+  // 不是三行列表；照板面改形状后，约束也跟着改成新的等价约束：
+  //   ① `.d-empty-s` 里正好三颗 `.d-kbd`（> # @），话用既有 palette.scope.*；
+  //   ② 空态里那颗按钮打开的是**页签行同一枚**语法浮层（真能点开）；
+  //   ③ 板面第二颗「看搜索中的样子」是演示重播件（骨架由真实 searching 态驱动），
+  //      产品里不许有假的重播开关 —— 源码里不许出现 `.d-empty-s` 之后的第二颗钮。
+  assert.match(source, /className="d-empty-s"/);
+  assert.equal((source.match(/className="d-kbd"/g) ?? []).length >= 3, true);
+  assert.match(source, /\{t\("palette\.scope\.commands"\)\} <span className="d-kbd">&gt;<\/span>/);
+  assert.match(source, /onClick=\{\(\) => setSyntaxOpen\(true\)\}/);
+  const emptyBlock = source.slice(source.indexOf('className="d-empty"'), source.indexOf('className="d-empty"') + 1400);
+  assert.equal((emptyBlock.match(/className="d-btn sm"/g) ?? []).length, 1, "空态里只留「打开语法浮层」一颗真按钮");
 });
 
 test("搜索中给骨架（帧 C），不再只给一行文字状态", () => {

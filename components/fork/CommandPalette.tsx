@@ -127,6 +127,10 @@ export function CommandPalette({
   const [manualScope, setManualScope] = useState<CommandPaletteScope>("all");
   const [active, setActive] = useState(0);
   const [history, setHistory] = useState<CommandPaletteHistoryEntry[]>([]);
+  /* fork:v5-frame-audit D-22 —— 页签行右侧那颗 `.d-iconbtn`（keyboard 图标）点开的是
+     「前缀即语法」浮层（帧 A/C 板面上的 `.d-pop`）。它不是新后端：三条文案取既有的
+     `palette.scope.*`，与输入框本身写的是同一张表。 */
+  const [syntaxOpen, setSyntaxOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionHit[] | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [files, setFiles] = useState<FileHit[] | null>(null);
@@ -152,6 +156,7 @@ export function CommandPalette({
       setHistory(readCommandPaletteHistory(window.localStorage, bucket));
       return;
     }
+    setSyntaxOpen(false);
     setRaw("");
     setManualScope("all");
     setSessions(null);
@@ -263,29 +268,40 @@ export function CommandPalette({
 
   const rows = useMemo(() => {
     const out: Array<{ key: string; kind: string; label: string; hint?: string; icon: string; onPick: () => void }> = [];
-    for (const command of commandHits) {
-      out.push({
-        key: `cmd:${command.id}`,
-        kind: "commands",
-        label: command.label,
-        hint: command.hint,
-        icon: command.icon,
-        onPick: command.run,
-      });
-    }
+    /* fork:v5-frame-audit D-22 帧 A —— 空查询那一屏的**组序**照板面 DOM 抄：
+       「最近打开」在前、快捷入口在后（板面帧标里「快捷入口在前」那句与它自己的 DOM
+       反着，DOM 是真值 —— 见汇报）。有查询词时仍是命令 → 会话 → 文件的命中清单，
+       因为帧 B/C 那一屏按域分面板讲的是命中，不是组序。 */
+    const pushCommands = () => {
+      for (const command of commandHits) {
+        out.push({
+          key: `cmd:${command.id}`,
+          kind: "commands",
+          label: command.label,
+          hint: command.hint,
+          icon: command.icon,
+          onPick: command.run,
+        });
+      }
+    };
     /* 有查询词 = 命中清单；没有查询词 = 「最近打开」（帧 A 的第一组）。
        两个来源互斥，避免同一条会话在两处同时出现。 */
     const sessionHits = trimmed ? (sessions ?? []) : (recentSessions ?? []);
-    for (const hit of sessionHits) {
-      out.push({
-        key: `ses:${hit.sessionId}`,
-        kind: "sessions",
-        label: hit.title,
-        hint: hit.match ? `…${hit.before}${hit.match}${hit.after}…` : hit.cwd,
-        icon: "message-square",
-        onPick: () => onOpenSession(hit.sessionId),
-      });
-    }
+    const pushSessions = () => {
+      for (const hit of sessionHits) {
+        out.push({
+          key: `ses:${hit.sessionId}`,
+          kind: "sessions",
+          label: hit.title,
+          hint: hit.match ? `…${hit.before}${hit.match}${hit.after}…` : hit.cwd,
+          icon: "message-square",
+          onPick: () => onOpenSession(hit.sessionId),
+        });
+      }
+    };
+    if (trimmed) pushCommands();
+    pushSessions();
+    if (!trimmed) pushCommands();
     for (const hit of files ?? []) {
       out.push({
         key: `file:${hit.path}`,
@@ -377,12 +393,18 @@ export function CommandPalette({
         label={t("palette.title")}
         onClose={onClose}
         footer={(
+          /* fork:v5-frame-audit —— M-08 帧 A-2 / B / C 的 `.m-pickbar`：键帽 + 一句
+             人话（「移动 / 打开 / 收起」）。外接键盘时这行是真的，手机上它至少说明
+             「这块可以被键盘驱动」（M-08 注）。 */
           <>
             <span className="m-kbd">↑</span>
             <span className="m-kbd">↓</span>
+            <span className="m-t-xs m-t-faint">{t("palette.keyMove")}</span>
             <span className="m-kbd">↵</span>
+            <span className="m-t-xs m-t-faint">{t("palette.keyOpen")}</span>
             <span className="m-grow" />
             <span className="m-kbd">esc</span>
+            <span className="m-t-xs m-t-faint">{t("palette.keyClose")}</span>
           </>
         )}
       >
@@ -415,6 +437,10 @@ export function CommandPalette({
               {t(`palette.scope.${entry.scope}`)}
             </button>
           ))}
+          {/* fork:v5-frame-audit —— 画板 M-08 帧 A-2 的托盘右端那句「前缀即分类」：
+             它是这条前缀 chip 行的**图注**，缺了 chip 就只剩三个无来由的符号。 */}
+          <span className="m-grow" />
+          <span className="m-t-xs m-t-faint">{t("palette.prefixIsCategory")}</span>
         </div>
 
         {/* 分段固定为「全部 / 命令 / 会话 / 文件」，「全部」永远在最前（M-08 注）。
@@ -459,6 +485,27 @@ export function CommandPalette({
                       {index < PALETTE_SCOPE_PREFIXES.length - 2 ? " · " : ""}
                     </span>
                   ))}
+                </div>
+                {/* fork:v5-frame-audit —— 画板 M-08 帧 C-1 的空态必须带**可点的去处**
+                    （板上三条：清空 / 去掉前缀 / 去商店）。这里接上两条产品自己能兑现的：
+                    清空 = 真的清输入框，去掉前缀 = 真的退到「全部」；第三条「去商店」
+                    需要一个 `onOpenStore` 宿主（产品命令中心目前没有这个 prop），
+                    不凭空造一个按不动的按钮 —— 已登记在汇报里。 */}
+                <div className="m-pickbar" style={{ width: "100%" }}>
+                  <button
+                    type="button"
+                    className="m-picktag"
+                    onClick={() => { setRaw(""); setManualScope("all"); }}
+                  >
+                    {t("palette.emptyClear")}
+                  </button>
+                  <button
+                    type="button"
+                    className="m-picktag is-on"
+                    onClick={() => { setRaw(raw.replace(/^[>#@]\s?/u, "")); setManualScope("all"); }}
+                  >
+                    {t("palette.emptyDropPrefix")}
+                  </button>
                 </div>
               </div>
             ) : history.length > 0 && (
@@ -551,6 +598,21 @@ export function CommandPalette({
               {t(`palette.scope.${entry.scope}`)}
             </button>
           ))}
+          {/* fork:v5-frame-audit D-22 帧 A —— 页签行右端这一段板面有、产品原先没有：
+              一个撑开的 `d-grow` + 一颗「前缀语法」说明钮（`.d-iconbtn` + keyboard 图标）。
+              浮层本体在 `.d-cmd` 里、`.d-cmd-input` 之后（抄板面位置：`.d-pop` 是
+              `.d-cmd-input` 的兄弟，不是它的子节点）。 */}
+          <span className="d-grow"></span>
+          <button
+            type="button"
+            className="d-iconbtn"
+            title={t("palette.title")}
+            aria-expanded={syntaxOpen}
+            aria-label={t("palette.title")}
+            onClick={() => setSyntaxOpen((v) => !v)}
+          >
+            <i data-ico="keyboard" data-size="14" aria-hidden="true"></i>
+          </button>
         </div>
 
         <div className="d-cmd-results" ref={listRef} role="listbox">
@@ -579,13 +641,25 @@ export function CommandPalette({
               <div className="d-empty">
                 <div className="d-empty-ico"><i data-ico="search" data-size="20" aria-hidden="true"></i></div>
                 <div className="d-empty-t">{t("palette.noResults")}</div>
-                <div className="d-empty-s d-col" style={{ gap: "var(--nx-sp-1)" }}>
-                  {PALETTE_SCOPE_PREFIXES.filter((entry) => entry.scope !== "all").map((entry) => (
-                    <span key={entry.scope} className="d-row" style={{ gap: "var(--nx-sp-1)" }}>
-                      <span className="d-kbd">{entry.prefix}</span>
-                      <span>{t(`palette.scope.${entry.scope}`)}</span>
-                    </span>
-                  ))}
+                {/* 帧 C 的 `.d-empty-s` 在板面是一整段话 + 三个行内 `.d-kbd`（不是三行列表）：
+                    先照板面的形状抄，话用既有的 `palette.scope.*` 拼，不新造 i18n key。 */}
+                <div className="d-empty-s">
+                  {t("palette.scope.commands")} <span className="d-kbd">&gt;</span> ·{" "}
+                  {t("palette.scope.sessions")} <span className="d-kbd">#</span> ·{" "}
+                  {t("palette.scope.files")} <span className="d-kbd">@</span>
+                </div>
+                {/* 帧 C 空态底下那行按钮：第一颗就是页签行那颗语法钮的同一个浮层（真能点开）；
+                    板面第二颗「看搜索中的样子」是演示重播件（骨架由真实 searching 态驱动），
+                    不在产品里造假开关。 */}
+                <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
+                  <button
+                    type="button"
+                    className="d-btn sm"
+                    onClick={() => setSyntaxOpen(true)}
+                  >
+                    <i data-ico="keyboard" data-size="13" aria-hidden="true"></i>
+                    {t("palette.title")}
+                  </button>
                 </div>
               </div>
             ) : history.length > 0 && (
@@ -643,6 +717,29 @@ export function CommandPalette({
           <span className="d-grow"></span>
           <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">&gt;</span><span className="d-kbd">#</span><span className="d-kbd">@</span></span>
         </div>
+      </div>
+
+      {/* fork:v5-frame-audit D-22 帧 A/B/C —— 「前缀即语法」浮层。板面三帧各有一份
+          （A = 三行键位表 + 分隔线 + 一句脚注，B/C 各换一句解释文案）。
+          产品这一份常驻 DOM、用 `hidden` 开关（浮层的唯一开关就是 hidden，见 system.css §6），
+          不换数据源、不改任何既有行为。 */}
+      <div
+        className={`d-pop${syntaxOpen ? " is-open" : ""}`}
+        hidden={!syntaxOpen}
+        // 非主题值：min-width 280px 是画板 D-22 三帧浮层上的同一行内联值（不是令牌）。
+        style={{ right: "var(--nx-sp-6)", top: "var(--nx-sp-6)", minWidth: 280 }}
+      >
+        <div className="d-pop-title">{t("palette.title")}</div>
+        <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+          {PALETTE_SCOPE_PREFIXES.filter((entry) => entry.scope !== "all").map((entry) => (
+            <div key={entry.scope} className="d-row">
+              <span className="d-kbd">{entry.prefix}</span>
+              <span className="d-t-sm">{t(`palette.scope.${entry.scope}`)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="d-sep"></div>
+        <div className="d-pop-foot">{t("palette.placeholder")}</div>
       </div>
     </div>
   );

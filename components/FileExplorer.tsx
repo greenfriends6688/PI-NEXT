@@ -63,6 +63,9 @@ interface Props {
   /** Called after a successful file mutation (create/rename/delete) so panels showing Git state can refresh. */
   onFileMutated?: () => void;
   changesCollapsed: boolean;
+  /* fork:search-off-by-default —— 「只看改动 / 审查改动」此前在筛选条里还有第二枚
+     钮（与头行 `file-diff` 同一个动作），删掉之后本组件不再自己切折叠态，
+     `onChangesToggle` 随之退场：折叠态的归属一直在宿主（它还管着头行那枚钮与移动档）。 */
   onChangesCountChange?: (count: number) => void;
   fileSearchOpen?: boolean;
   onFileSearchOpenChange?: (open: boolean) => void;
@@ -558,7 +561,13 @@ export function TreeNode({
   }, [node.fullPath, node.outsideLinkEncloses, pendingLinkTarget, loadChildren, t]);
 
   return (
-    <div>
+    /* fork:v5-landing D-05 帧 A —— 树是**平**的：板面 `.d-tree` 的直接子节点就是
+       那一排 `.d-trow`（目录行与它的子行同级，靠 `.l1/.l2` 缩进表达层级）。
+       产品此前给每个节点套了一层没有样式的 `<div>` 把「行 + 子树」包起来，于是
+       `.d-tree > div > .d-trow` 比板面多一级 —— 行骨架怎么改都对不上。
+       这里换成 fragment：`.d-tree` 的子节点回到「行 / 子行」同一层，
+       行本身的 ref / 事件一个没动。 */
+    <>
       <div
         ref={rowRef}
         role="treeitem"
@@ -616,9 +625,10 @@ export function TreeNode({
           ></i>
         )}
         {!node.isDir && <span style={{ width: 10, flexShrink: 0 }} />}
-        <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
-          {node.isDir ? <FolderIcon size={14} open={open} /> : getFileIcon(node.name, 14)}
-        </span>
+        {/* fork:v5-landing D-05 帧 A —— 图标直接挂在行上（板面原文是
+            `<i data-ico="…">` 直接做 `.d-trow` 的子节点）；此前多一层
+            `<span style="flexShrink:0;display:flex">` 壳，行骨架与板面差一级。 */}
+        {node.isDir ? <FolderIcon size={14} open={open} /> : getFileIcon(node.name, 14)}
         {isRenaming ? (
           <input
             ref={renameInputRef}
@@ -863,7 +873,7 @@ export function TreeNode({
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -2232,6 +2242,48 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   return (
     <div style={{ minHeight: "100%" }}>
       <input ref={uploadInputRef} type="file" multiple hidden onChange={handleUploadInput} />
+      {/* fork:search-off-by-default（2026-10-05 用户裁定）—— 筛选条与头行那枚
+          search 钮是**同一个开关**：进来时收起（不进文件面板就先看见搜索框 =
+          用户反馈「默认选中搜索按钮」），点钮才展开。此前是常驻，于是进来即选中。
+          同时**删掉**这一行里那枚 `git-commit-horizontal`（「只看改动 / 审查改动」）：
+          它与头行那枚 `file-diff` 是同一个动作的两处入口（都切 `changesCollapsed`），
+          用户反馈「重复了」；头行那枚带改动计数，是产品侧选定的唯一入口。
+          副头（条目数 / 索引时刻 / 忽略名单）留在原位，不受开关影响。 */}
+      {fileSearchOpen && (
+      <div className="d-tinybar">
+        <div className="d-searchfield d-grow">
+          <i data-ico="search" data-size="12" aria-hidden="true"></i>
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Escape") onFileSearchOpenChange?.(false); }}
+            placeholder={t("sidebar.searchFilesPlaceholder")}
+            aria-label={t("sidebar.searchFiles")}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="d-iconbtn"
+              onClick={() => setSearchQuery("")}
+              title={t("sidebar.clearSearch")}
+              aria-label={t("sidebar.clearSearch")}
+            >
+              <i data-ico="x" data-size="11" aria-hidden="true"></i>
+            </button>
+          )}
+        </div>
+      </div>
+      )}
+      {/* fork:v5-landing D-05 帧 A —— 副头 `.d-subhead`：这一段工作区有多少条目、
+          索引在什么时候、哪些目录被忽略了。条目数来自已经取回的那棵树，忽略名单
+          与 lib/file-tree-visibility 同一套约定名，不新增任何请求。 */}
+      <div className="d-subhead">
+        {t("files.treeSummary", {
+          count: roots.length + extraRoots.length,
+          when: t("files.treeIndexedNow"),
+        })}
+      </div>
       {/* fork:v5-skin D-05 帧 A —— 树内动作条 = 画板 .d-tinybar + 两枚 .d-btn.sm.ghost
           （file-plus / folder-plus + 文字）。 */}
       <div className="d-tinybar fork-pwa-sb-tree-tools">
@@ -2265,6 +2317,12 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         {actionError && (
           <DismissButton onClick={() => setActionError(null)} title={t("files.dismissError")} />
         )}
+      </div>
+      {/* fork:v5-landing D-05 帧 A —— 板面在动作条下面还有一行弱化说明
+          （`.d-t-xs.d-t-faint`）：新建后就地改名、Enter 提交 / Esc 取消、空名不落盘。
+          产品此前只把这件事留在 aria-label 里，板面上那一行是 MISSING。 */}
+      <div className="d-t-xs d-t-faint" style={{ padding: "0 var(--nx-sp-1) var(--nx-sp-2)" }}>
+        {t("files.createHint")}
       </div>
       {creating && creating.parentDir === cwd && (
         <div style={{ padding: "var(--space-tight) 4px" }}>
@@ -2385,31 +2443,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         </div>
       )}
 
-      {fileSearchOpen && (
-      <div style={{ padding: "var(--nx-sp-2)" }}>
-        {/* fork:v5-skin D-05 帧 A —— 搜索框 = 画板 .d-searchfield（左 search 图标 + input）。 */}
-        <div className="d-searchfield">
-          <i data-ico="search" data-size="12" aria-hidden="true"></i>
-          <input
-            ref={searchInputRef}
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            onKeyDown={(event) => { if (event.key === "Escape") onFileSearchOpenChange?.(false); }}
-            placeholder={t("sidebar.searchFilesPlaceholder")}
-            aria-label={t("sidebar.searchFiles")}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              className="d-iconbtn"
-              onClick={() => setSearchQuery("")}
-              title={t("sidebar.clearSearch")}
-              aria-label={t("sidebar.clearSearch")}
-            >
-              <i data-ico="x" data-size="11" aria-hidden="true"></i>
-            </button>
-          )}
-        </div>
+      {fileSearchOpen && hasSearchQuery && (
+      <div style={{ padding: "var(--nx-sp-2) var(--nx-sp-2) 0" }}>
         {hasSearchQuery && (
           <div style={{ paddingTop: "var(--nx-sp-1)" }}>
             {searchLoading && <div role="status" className="d-t-xs d-t-faint" style={{ padding: "var(--nx-sp-2) 2px" }}>{t("sidebar.searchingFiles")}</div>}
@@ -2558,6 +2593,12 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           )}
         </div>
       )}
+
+      {/* fork:v5-landing D-05 帧 A —— 树下面是板面的 `.d-sep` + `.d-pop-foot`：
+          一条分隔线 + 一句脚注（改动可以单独忽略、agent 仍能读到全文）。
+          role="note" 让脚注与它说明的那棵树在无障碍树上挂在一起。 */}
+      <div className="d-sep" />
+      <div role="note" className="d-pop-foot">{t("files.treeFootnote")}</div>
 
       {contextMenu && createPortal(
         <>

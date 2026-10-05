@@ -20,7 +20,7 @@ test("the trace tab embeds the full-history export page, not a second renderer",
   // 桌面顶栏仍有这枚钮，且宫格里有同一动作（否则手机上就再也到不了轨迹页）。
   assert.match(shell, /onClick=\{\(\) => \{\s*handleViewFullHistory\(\);/);
   assert.match(shell, /id: "trace",[\s\S]{0,240}?handleViewFullHistory\(\)/);
-  assert.match(shell, /<i data-ico="history" data-size="14"><\/i>/);
+  assert.match(shell, /<i data-ico="history" data-size="15" aria-hidden="true"><\/i>/);
   assert.match(shell, /handleViewFullHistory = useCallback\(\(\) => \{[\s\S]*?setActiveFileTabId\(TRACE_TAB_ID\)/);
   assert.match(shell, /<TraceFrame[\s\S]*?sessionId=\{selectedSession\?\.id \?\? ""\}/);
 });

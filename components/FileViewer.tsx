@@ -2775,7 +2775,11 @@ function TextFileViewer({
         ref={contentRef}
         /* `file-viewer-content` 是 e2e / 脚本的选择器（`file-viewer-content` 非 pw 钩子），
            两种形态都保留；视觉壳按断点在 `.d-viewer-scroll` / `.m-viewer-scroll` 之间换。 */
-        className={`file-viewer-content ${isMobile ? "m-viewer-scroll" : "d-viewer-scroll"}`}
+        /* fork:v5-boards D-06b 帧 C —— 长列表滚动区 = `.d-viewer-scroll.d-row-in`：
+           打开一个文件就是一次「列表进入」（FileViewer 由 AppShell 按 fileTab 键控，
+           换文件即重挂载），档案打开时列表从上方 6px 淡入，与板面同一条 nx-list-in。
+           只在 Web 形态挂 d- 类，不往 PWA 形态里混 d-*。 */
+        className={`file-viewer-content ${isMobile ? "m-viewer-scroll" : "d-viewer-scroll d-row-in"}`}
         onScroll={(event) => {
           viewerStateRef.current.scrollTop = event.currentTarget.scrollTop;
           viewerStateRef.current.scrollLeft = event.currentTarget.scrollLeft;

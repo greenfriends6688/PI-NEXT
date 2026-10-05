@@ -34,13 +34,18 @@ test("Markdown reading and editing keep an independent fixed 900px measure", () 
 test("General chat settings own the chat width preference", () => {
   assert.match(chatInput, /useChatAppearance\(\)/);
   assert.match(settingsPanel, /useChatAppearance\(\)/);
-  // fork:design-system SW-07 —— 滑块本身收敛进 SettingsUi 的 `PwRange`（画板 40 的
-  // 数值型设置行），设置页只负责把区间常量接上去；真 `<input type=range>` 在那个基件里。
-  assert.match(settingsPanel, /<PwRange/);
+  // fork:design-system SW-07 —— 滑块本身收敛进 SettingsUi（画板 40 的数值型设置行），
+  // 设置页只负责把区间常量接上去；真 `<input type=range">` 在那个基件里。
+  // fork:v5-landing-frame · D-07b 帧 B —— 「聊天内容宽度」那一行按板面原文改成
+  // `.d-grow-last > .d-badge` + 行尾 `.d-slider` + `.d-btn.sm.ghost`，所以滑块不再由
+  // 设置页直接写 `<PwRange>`，而是作为 `PwField` 的 `slider` 槽传下去（同一批基件、
+  // 同一批区间常量，行为零变化）。
+  assert.match(settingsPanel, /id: "settings-chat-content-width"/);
   assert.match(settingsUi, /type="range"/);
-  assert.match(settingsPanel, /min=\{CHAT_CONTENT_WIDTH_MIN\}/);
-  assert.match(settingsPanel, /max=\{CHAT_CONTENT_WIDTH_MAX\}/);
-  assert.match(settingsPanel, /step=\{10\}/);
+  assert.match(settingsUi, /className="d-slider"/);
+  assert.match(settingsPanel, /min: CHAT_CONTENT_WIDTH_MIN/);
+  assert.match(settingsPanel, /max: CHAT_CONTENT_WIDTH_MAX/);
+  assert.match(settingsPanel, /step: 10/);
   assert.match(chatAppearanceHook, /pi-chat-content-width/);
   assert.match(chatAppearanceHook, /localStorage\.setItem/);
 });

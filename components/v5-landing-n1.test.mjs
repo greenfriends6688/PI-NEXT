@@ -26,8 +26,15 @@ const menu = strip(contextMenu);
 test("品牌字标走画板那一件 .d-wordmark，不再内联第二份尺寸", () => {
   // 画板原文：<img class="d-wordmark" src="…/wordmark.png" alt="PI NEXT">
   // 产品原来写死 height:10 —— 同一个值两处（铁律三），且比画板矮一半。
-  assert.match(sidebar, /<img className="d-wordmark" src="\/pi-next-wordmark\.png" alt="PI NEXT" draggable=\{false\} \/>/);
-  assert.doesNotMatch(sidebar, /pi-next-wordmark\.png[^>]*style=\{/);
+  // fork:v5-frame-audit-2026-10-05：品牌行照画板逐节点抄，字标**本身就是**那张图
+  // （原来外面还套了一层按钮，把板面上两件并列的件折成「壳 + 按钮 + 图」）。
+  // 「点头像翻版本号」的行为没删，只是搬到了这张图上（role=button + 键盘）。
+  assert.match(
+    sidebar,
+    /<img className="d-wordmark" src="\/pi-next-wordmark\.png" alt="PI NEXT" draggable=\{false\} \{\.\.\.wordmarkProps\} \/>/,
+  );
+  assert.doesNotMatch(sidebar, /pi-next-wordmark\.png[^>]*height:/);
+  assert.doesNotMatch(sidebar, /d-brand-lockup/);
 });
 
 test("侧栏「新建任务」行尾有 .d-kbd（⌘N），与窄屏那一支同一件", () => {
@@ -48,12 +55,15 @@ test("桌面顶栏的身份两行与动作簇之间是 .d-tb-spacer，不是动�
   );
 });
 
-test("桌面搜索格落在 .d-side-nav 盒子里；窄屏那格是 .m-searchfield", () => {
+test("桌面搜索格落在 .d-side-nav 盒子里；窄屏那格是 .m-searchfield 且常驻", () => {
+  // fork:v5-frame-audit（2026-10-05）—— 窄屏那一格按画板 M-04 帧 A「搜索常驻」，
+  // 紧贴抽屉头，所以它与桌面那份分成两个渲染点（桌面仍守 DIVERGENCE 38 的默认收起）。
   assert.match(
     sidebar,
-    /\{sessionSearchOpen && \(\s*isMobile \? sessionSearchField\("m-searchfield"\) : \(\s*<div className="d-side-nav">\{sessionSearchField\("d-searchfield"\)\}<\/div>/,
+    /\{!isMobile && sessionSearchOpen && \(\s*<div className="d-side-nav">\{sessionSearchField\("d-searchfield"\)\}<\/div>/,
   );
-  // 搜索格仍然只在 sessionSearchOpen 时挂载（DIVERGENCE 38 的默认收起）。
+  assert.match(sidebar, /\{isMobile && sessionSearchField\("m-searchfield"\)\}/);
+  // input 本体仍然只有一份。
   assert.equal((sidebar.match(/id="session-search-input"/g) ?? []).length, 1);
 });
 
@@ -69,12 +79,17 @@ test("ContextMenu 窄屏换 m-* 件，宽屏仍是 d-*；形态判据是 useIsMo
   assert.match(menu, /const isMobile = useIsMobile\(\)/);
   // 外壳：窄屏 .m-pop-float.is-open，宽屏 .d-pop-float；两支都保留 .context-menu
   // 两段入场（间距不能丢：enteredClass 自己不带前导空格）。
-  assert.match(menu, /`\$\{isMobile \? "m-pop-float is-open" : "d-pop-float"\} \$\{enteredClass\("context-menu", entered\)\}/);
+  // fork:v5-frame-audit-2026-10-05 —— 显形开关 `.is-open` 两支共用（画板
+  // `.d-pop-float.is-open`），入场类仍要接在后面（间距不能丢）。
+  assert.match(menu, /`\$\{isMobile \? "m-pop-float" : "d-pop-float"\} is-open \$\{enteredClass\("context-menu", entered\)\}/);
   // 行：窄屏 .m-menu-row，宽屏 .d-menu-row（danger / is-on 两种状态类两支同义）。
   assert.match(menu, /`\$\{isMobile \? "m-menu-row" : "d-menu-row"\}\$\{opts\.isActive \? " is-on" : ""\}\$\{danger \? " danger" : ""\}`/);
   // 分隔与弱化。
   assert.match(menu, /className=\{isMobile \? "m-sep" : "d-sep"\}/);
-  assert.match(menu, /entry\.disabled \? \(isMobile \? "m-t-faint" : "d-t-faint"\) : undefined/);
+  // fork:v5-frame-audit-2026-10-05 —— 文字格用库里的 `.d-grow`（画板 `<span class="d-grow">`），
+  // 禁用时叠一枚 `d-t-faint`；两支同构。
+  assert.match(menu, /isMobile \? "m-grow" : "d-grow",/);
+  assert.match(menu, /entry\.disabled \? \(isMobile \? "m-t-faint" : "d-t-faint"\) : ""/);
   // 定位仍是「跟随指针 + 视口翻转」：没有改成 M-04 帧 C 的底部升起 m-menu-sheet
   // （那是行为变更，见汇报的需产品裁定项）。这条断言就是那道闸。
   assert.doesNotMatch(menu, /m-menu-sheet/);

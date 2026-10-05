@@ -174,7 +174,18 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
                  `.d-grow` 文案。勾这一格等于改写已落盘的会话历史，所以不可点。 */
               <div key={todo.id} className="d-row d-t-xs" style={{ padding: "3px var(--nx-sp-3)" }}>
                 {todo.done ? (
-                  <span className="d-checkbox on" aria-hidden="true"><i data-ico="check" data-size="10"></i></span>
+                  /* fork:v5-boards D-27 帧 F / D-28 帧 C —— 勾选态用 `.d-check-draw`
+                     描边动画（200ms cubic-bezier(.65,0,.35,1)）。是本组件唯一手写的
+                     SVG：图标库不给 `pathLength`，直接用 `data-ico` 的 path 会按像素算
+                     dash、描边会一跳一跳（板面注记），所以路径写在这里、`pathLength="1"`
+                     与分辨率无关。勾的是**真的完成项**（todo 工具写入的 done），不是装饰。 */
+                  <span className="d-checkbox on" aria-hidden="true">
+                    <span className="d-check-draw">
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path pathLength="1" d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </span>
+                  </span>
                 ) : active ? (
                   <span className="d-badge info">{t("chat.todosActive")}</span>
                 ) : (

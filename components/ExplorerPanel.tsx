@@ -117,6 +117,10 @@ export function ExplorerPanel({
   const [fileManagerError, setFileManagerError] = useState<string | null>(null);
   const [explorerKey, setExplorerKey] = useState(0);
   const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
+  /* fork:search-off-by-default（2026-10-05 用户裁定）—— 搜索**默认收起**：
+     用户反馈「文件树默认进来是选中搜索按钮」。筛选条（输入框）现在与头行那枚
+     search 钮同一个开关（`FileExplorer` 桌面档按 `fileSearchOpen` 画这一行，
+     手机档本来就这么画），所以进来是一棵干净的树，要筛再点。 */
   const [fileSearchOpen, setFileSearchOpen] = useState(false);
   const [changesCount, setChangesCount] = useState(0);
   const [changesCollapsed, setChangesCollapsed] = useState(true);
@@ -344,9 +348,12 @@ export function ExplorerPanel({
           }}
         >
           <i data-ico={explorerOpen ? "chevron-down" : "chevron-right"} data-size="12" aria-hidden="true"></i>
-          <span className="file-explorer-compact-icon">
-            <i data-ico="folder" data-size="14" aria-hidden="true"></i>
-          </span>
+          {/* fork:v5-landing D-05 帧 A —— 板面头行是 `i[folder]` + `span.d-grow.d-viewer-path`
+              两件；产品此前给 folder 图标又套了一层 `span.file-explorer-compact-icon`，
+              于是这一行多出一件、头行骨架与板面对不上。该类是容器查询钩子
+              （globals.css：窄容器时 `display:block`、否则 `none`），挂在 `<i>` 上
+              行为完全一致，所以类搬回图标本身、那层壳去掉。 */}
+          <i className="file-explorer-compact-icon" data-ico="folder" data-size="14" aria-hidden="true"></i>
           <b className="file-explorer-title-label">{t("files.explorer")}</b>
           {/* 这棵树列的是哪个目录：没有它，空树与错的 cwd 看起来一样。 */}
           <span className="file-explorer-title-label d-viewer-path d-grow" title={cwd}>

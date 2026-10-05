@@ -102,6 +102,36 @@ function getLabel(entry: SessionEntry): string {
   return entry.type;
 }
 
+/**
+ * fork:v5-landing —— 某条顶层分支的子树里有没有当前叶子。
+ *
+ * 迭代而非递归：线性会话的深度等于条目数（同 `buildActivePath` /
+ * `hasSessionBranches` 的理由，6000 深的链会把调用栈打爆）。
+ * 服务端投影过的链把中间条目收进 `compressedEntryIds`，那些 id 也算命中 ——
+ * 否则「当前分支」在压缩过的会话里会算不出来（顶栏芯片就会写错序号）。
+ */
+export function subtreeContains(node: SessionTreeNode, entryId: string | null): boolean {
+  if (!entryId) return false;
+  const stack: SessionTreeNode[] = [node];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (current.entry.id === entryId || current.compressedEntryIds?.includes(entryId)) return true;
+    for (const child of current.children) stack.push(child);
+  }
+  return false;
+}
+
+/**
+ * fork:v5-landing —— 当前激活的是第几条兄弟分支（0 基），找不到给 -1。
+ *
+ * 顶栏的 `.d-branch` 切换器（画板 D-03 帧 A 的 `chevron-left | 2 / 3 | chevron-right`）
+ * 与抽屉里那枚 `.m-branch` 读的是同一口径：`selectTopLevelBranches` 的**顶层**就是
+ * 兄弟分支列表，当前分支 = 子树命中 `activeLeafId` 的那一条。
+ */
+export function findSiblingIndex(nodes: SessionTreeNode[], activeLeafId: string | null): number {
+  return nodes.findIndex((node) => subtreeContains(node, activeLeafId));
+}
+
 // Does the tree have any branching at all? Iterative: a linear chain has no
 // branching but recursing over it would overflow the stack, so walk with a stack.
 export function hasSessionBranches(nodes: SessionTreeNode[]): boolean {
@@ -251,24 +281,84 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   );
 
   if (inline) {
+    const siblingIndex = findSiblingIndex(topLevel, activeLeafId);
+    const siblingCount = topLevel.length;
+    const selectSibling = (index: number) => {
+      const target = topLevel[index];
+      if (!target) return;
+      // 与树里点一行是同一条通路（核实节点用压缩链的代表节点，不是链首）。
+      onLeafChange(compressChain(target).node.entry.id);
+    };
+    const toggle = () => (onToggle ? onToggle() : setOpenInternal((v) => !v));
     return (
       <div className="d-row">
-        {/* fork:design-system —— 触发点是画板 02 帧 B 的 `.d-chipbtn`（24px /
-            radius-4 / muted，hover 抬色）；激活档挂 `is-on`。compact 时退成 `.d-iconbtn`。 */}
-        <button
-          ref={btnRef}
-          onClick={() => onToggle ? onToggle() : setOpenInternal((v) => !v)}
-          className={`${compact ? "d-iconbtn" : "d-chipbtn"}${open ? " is-on" : ""}`}
-          style={{ display: hideInlineButton ? "none" : undefined }}
-          title={t("i18n.branches")}
-          aria-label={t("i18n.branches")}
-          aria-expanded={open}
-          aria-pressed={open}
-        >
-          {branchIcon}
-          {!compact && <span>{t("i18n.branches")}</span>}
-          {!compact && chevron}
-        </button>
+        {compact ? (
+          /* fork:design-system —— 窄屏那一枚仍是触发点：手机顶栏的可见入口由
+             AppShell 的 `.m-branch` 承担（`hideInlineButton`），这里只为它提供
+             锚点与浮层。 */
+          <button
+            ref={btnRef}
+            onClick={toggle}
+            className={`d-iconbtn${open ? " is-on" : ""}`}
+            style={{ display: hideInlineButton ? "none" : undefined }}
+            title={t("i18n.branches")}
+            aria-label={t("i18n.branches")}
+            aria-expanded={open}
+            aria-pressed={open}
+          >
+            {branchIcon}
+          </button>
+        ) : (
+          /* fork:v5-landing D-03 帧 A —— 顶栏的**兄弟分支切换器**，DOM 原文：
+             `<span class="d-branch">` › `chevron-left` 钮 ｜ `2 / 3` ｜ `chevron-right` 钮。
+             产品此前是 `.d-chipbtn`+文字（「会话分支」），与画板是两套 UI ——
+             这里换成画板这一段，不再两套并存：
+             · 两枚 `.d-branch-btn` = 到上一条 / 下一条兄弟分支（`onLeafChange` 同一条通路）；
+             · 中间那格按铁律一从 `<span class="d-branch-n">` 改成 `<button class="d-branch-n">`
+               （静态文案 → 真实数据 + div→button，类名一字不动），点它仍开同一个分支树浮层。 */
+          <span className="d-branch">
+            <button
+              type="button"
+              className="d-branch-btn"
+              onClick={() => selectSibling(siblingIndex - 1)}
+              disabled={siblingIndex <= 0}
+              title={t("i18n.branches")}
+              aria-label={t("i18n.branches")}
+            >
+              <i data-ico="chevron-left" data-size="12" aria-hidden="true"></i>
+            </button>
+            <button
+              ref={btnRef}
+              type="button"
+              className="d-branch-n"
+              onClick={toggle}
+              aria-expanded={open}
+              aria-pressed={open}
+              aria-label={t("i18n.branches")}
+              title={t("i18n.branches")}
+              /* UA 归零（铁律二允许的那一档）：只清掉按钮自带的边框 / 底色与
+                 字体族。**不写 `font: inherit`** —— 那会把 `.d-branch-n` 自己的
+                 `font-size: var(--nx-fs-xs)` 与颜色一起压掉（同一视觉两个来源）。 */
+              style={{ border: 0, background: "none", fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center" }}
+            >
+              {/* fork:branch-fixed-icon（2026-10-05 用户裁定）—— 中间那一格不再写
+                  `2 / 3`：序号会随分支增减跳动，扫读时是噪声，而两侧的 chevron
+                  已经承担了「第几条」的可操作性。换成固定的 git-fork 图标（点它
+                  开分支树，与原来同一格同一动作），`d-branch-n` 这枚格子的尺寸不变。 */}
+              <i data-ico="git-fork" data-size="13" aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              className="d-branch-btn"
+              onClick={() => selectSibling(siblingIndex + 1)}
+              disabled={siblingIndex < 0 || siblingIndex >= siblingCount - 1}
+              title={t("i18n.branches")}
+              aria-label={t("i18n.branches")}
+            >
+              <i data-ico="chevron-right" data-size="12" aria-hidden="true"></i>
+            </button>
+          </span>
+        )}
         {open && dropdownPos && (
           // fix:branch-popover —— 浮窗 = 画板 D-02b 帧 C 的 `.d-pop-float`
           //（320 宽 / 圆角 / 唯一一种阴影 / 1px 描边）。面板自己成列：标题行固定，树体自滚。

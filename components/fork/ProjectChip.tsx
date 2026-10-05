@@ -110,9 +110,17 @@ export function buildTargetItems(
       label: t("sidebar.newTaskNoProject"),
       title: targets.chatPath ?? undefined,
       checked: true,
+      // fork:v5-frame-audit-2026-10-05 —— 当前项行尾那枚「当前」（画板 D-02c 帧 C：
+      // `<span class="d-t-xs d-t-faint">当前 · 不可点</span>`）。行本身已经是禁用态。
+      hint: t("agentSwitcher.current"),
     });
   } else if (!active.activeProject && targets.activeCwd) {
-    items.push({ label: getFileName(targets.activeCwd), title: targets.activeCwd, checked: true });
+    items.push({
+      label: getFileName(targets.activeCwd),
+      title: targets.activeCwd,
+      checked: true,
+      hint: t("agentSwitcher.current"),
+    });
   }
 
   for (const project of targets.projects) {
@@ -121,7 +129,7 @@ export function buildTargetItems(
       label: project.name,
       title: project.root,
       icon: <FolderIcon />,
-      ...(isActive ? { checked: true, disabled: true } : {}),
+      ...(isActive ? { checked: true, disabled: true, hint: t("agentSwitcher.current") } : {}),
       onSelect: () => targets.onPickProject(project),
     });
   }
@@ -155,7 +163,18 @@ export function ProjectChip({ targets }: { targets: NewSessionTargets }): ReactN
     if (!rect) return;
     // Anchor below the chip; ContextMenu clamps to the viewport, so a chip sitting
     // just above the composer opens upward instead of running off the bottom edge.
-    openMenu(rect.left, rect.bottom + 6, buildTargetItems(targets, active, t));
+    openMenu(rect.left, rect.bottom + 6, buildTargetItems(targets, active, t), {
+      // fork:v5-frame-audit-2026-10-05 —— 画板 D-02 帧 D「新建任务 · 选在哪里开」与
+      // D-02c 帧 C「新建任务选择器」顶部都有一枚分组标题 `.d-pop-title`。
+      // 文案用已有 key 拼（“新建任务” + “· 选在哪里开”），不新增 i18n。
+      title: `${t("sidebar.newTask")} · ${t("home.workspaceTarget")}`,
+      // fork:v5-frame-audit-2026-10-05 —— 搜索头（画板 D-02c 帧 C「新建任务选择器」）：
+      // 长菜单顶上那一格 `.d-searchfield`，输入即按项目名过滤行。
+      search: {
+        placeholder: t("sidebar.filterProjects"),
+        match: (label, q) => label.toLowerCase().includes(q),
+      },
+    });
   };
 
   return (

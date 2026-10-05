@@ -15,8 +15,6 @@ const {
   MessageView,
   ThinkingBlock,
   formatDuration,
-  formatUsage,
-  formatUsageCost,
   rowUsageOf,
   getModelDisplayName,
   getTokenEstimateText,
@@ -215,34 +213,20 @@ test("renders a provider error when the assistant message has no content", () =>
   assert.match(html, /&lt;html&gt;request forbidden&lt;\/html&gt;/);
 });
 
-test("renders a turn-end row for stopReason length", () => {
-  const html = renderMessage({
-    role: "assistant",
-    provider: "anthropic",
-    model: "claude-test",
-    content: [{ type: "thinking", thinking: "Long reasoning chain" }],
-    stopReason: "length",
-  });
-
-  // fork:v5-landing — length 由回合结束行（画板 D-03c 的 .d-turn-end）表达。
-  assert.match(html, /class="d-turn-end"/);
-  assert.match(html, /length/);
-  assert.match(html, /output limit/i);
-  assert.match(html, /follow-up/i);
-});
-
-test("renders a turn-end row for thinking-only messages with stopReason length", () => {
-  const html = renderMessage({
-    role: "assistant",
-    provider: "anthropic",
-    model: "claude-test",
-    content: [],
-    stopReason: "length",
-  });
-
-  assert.match(html, /class="d-turn-end"/);
-  assert.match(html, /length/);
-  assert.match(html, /output limit/i);
+// fork:remove-turn-end（用户裁定 2026-10）—— 回合结束行整行删除：身份行的
+// `.d-plan-meta` 与统计浮窗已经交代本轮耗时 / token，这条重复行连同截断徽章一起去掉。
+test("renders no turn-end row for any stopReason", () => {
+  for (const stopReason of ["stop", "toolUse", "length", "aborted", "error"]) {
+    const html = renderMessage({
+      role: "assistant",
+      provider: "anthropic",
+      model: "claude-test",
+      content: [{ type: "text", text: "done" }],
+      stopReason,
+    });
+    assert.doesNotMatch(html, /d-turn-end/, `stopReason=${stopReason} 仍然画了回合结束行`);
+    assert.doesNotMatch(html, /tok/, `stopReason=${stopReason} 仍然画了用量格`);
+  }
 });
 
 test("renders partial assistant content before the provider error", () => {
@@ -507,8 +491,13 @@ test("renders a tool-call diff with the board's pw-diff head, body and lines", (
   assert.match(html, /class="d-diff-line/);
   assert.match(html, /class="d-diff-line add"/);
   assert.match(html, /class="d-diff-line del"/);
-  assert.match(html, /<span class="no">/);
-  assert.match(html, /<span class="sign">/);
+  // fork:v5-frame-audit —— 行就是一行文本（画板 D-03d 帧 C / D-03 帧 B 的
+  // `<span class="d-diff-line del">- 40   …`）：行号与 +/− 符号是行文本的一部分。
+  // 此前是两个空壳 span（`.no` / `.sign` 在 v5 库里一条规则都没有），已合并。
+  assert.doesNotMatch(html, /<span class="no">/);
+  assert.doesNotMatch(html, /<span class="sign">/);
+  assert.match(html, /class="d-diff-line"[^>]*>38 const \[width/);
+  assert.match(html, /class="d-diff-line del"[^>]*>39 − /);
   // diff 卡外面挂画板 D-03d 的 .d-tool-body（顶部发丝线 + 面板底）。
   assert.match(html, /class="d-tool-body"/);
   // fork:v5-wave-n1 —— 分栏本体 = 画板 D-03d 帧 C「分栏」那一段：
@@ -676,7 +665,6 @@ test("renders no hand-drawn inline svg in the transcript", () => {
   // （客户端由 icons.js hydrate 成 lucide SVG）。
   assert.match(html, /<i data-ico="book-open"/);
   assert.match(html, /<i data-ico="chevron-down"/);
-  assert.match(html, /class="d-turn-end"/);
   // 工具卡图标槽是 <i data-ico>，不是内联 svg 路径。
   assert.doesNotMatch(html, /<span class="pw-ico"><svg/);
 });
@@ -736,24 +724,10 @@ test("formats sub-second durations in milliseconds instead of 0.0s", () => {
   assert.equal(formatDuration(220), "3m40s");
 });
 
-// fix:turn-stats（用户 2026-10-01：「这个咋又是毫秒啊……统计的一点都不准」，
-// 「后面的是输入、输出的 token 吗，本轮花多少金额咋没写啊」）。真数据：
-// input=71 / cacheRead=240,830 / output=338 / 落盘比调用开始晚 6.2s。
-test("the turn row counts the whole prompt (input + cache) and always shows a cost cell", () => {
-  // 光报 usage.input 会显示「↑ 71」，而模型实际读了 24 万 —— 那才是不准。
-  assert.equal(formatUsage({ input: 71, output: 338, cacheRead: 240830, cacheWrite: 0 }), "↑ 241k · ↓ 338 tok");
-  assert.equal(formatUsage({ input: 8912, output: 1328, cacheRead: 0, cacheWrite: 0 }),
-    "↑ 8,912 · ↓ 1,328 tok", "board 12's vocabulary still holds when there is no cache");
-  assert.equal(formatUsage({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }), "");
-  // 金额只在真的有费用时出现（用户裁定 2026-10-01「那就把这个金额去掉吧」：免费 / 不上报
-  // 价格的模型常年一格 $0.000 是噪声）。
-  assert.equal(formatUsageCost({ costTotal: 0.0212 }), "$0.021");
-  assert.equal(formatUsageCost({ costTotal: 0 }), null, "free model → no amount cell");
-});
-
 // fix:turn-stats 二轮（用户裁定：「应该是 ai 每轮任务的时候，从每轮思考一直到本轮结束的
-// 时间吧……你看像输入、输出，以及金额，不也是这么算的吗」）：四格必须是**本轮**口径。
-test("the turn row reads the whole-turn aggregate ChatWindow computed", async () => {
+// 时间吧……你看像输入、输出，以及金额，不也是这么算的吗」）：身份行的 `.d-plan-meta`
+// 与回合结束行共用**本轮**口径；回合结束行删除后，这套聚合只剩身份行一个消费者。
+test("the identity row reads the whole-turn aggregate ChatWindow computed", async () => {
   const { computeTurnStats } = await import("../lib/turn-stats.ts");
   const usage = (input, output, cost) => ({
     input, output, cacheRead: 0, cacheWrite: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: cost },
@@ -766,28 +740,26 @@ test("the turn row reads the whole-turn aggregate ChatWindow computed", async ()
   ];
   const stats = computeTurnStats(messages);
   const last = stats.get(3);
-  // 最后一行：本轮 20.4s、输入 19,564、输出 1,061、费用 $0.010 —— 一个口径。
+  // 最后一条：本轮 20.4s、输入 19,564、输出 1,061、费用 $0.010 —— 一个口径。
   assert.equal(last.elapsedSec, 20.4);
   // 渲染路径：TurnStats / AgentUsage 两个来源都先归一到 RowUsage，再进同一套格式化。
-  const row = rowUsageOf(last, messages[3].usage);
-  assert.equal(formatUsage(row), "↑ 20k · ↓ 1,061 tok", "19,564 过万走紧凑");
-  assert.equal(formatUsageCost(row), "$0.010");
+  // 本轮口径：两步入（17,564 + 2,000 = 19,564）与两路出（161 + 900 = 1,061）合起来。
+  assert.deepEqual(rowUsageOf(last, messages[3].usage), {
+    input: 19564, output: 1061, cacheRead: 0, cacheWrite: 0, costTotal: 0.01,
+  });
   assert.deepEqual(rowUsageOf(undefined, messages[3].usage), {
     input: 2000, output: 900, cacheRead: 0, cacheWrite: 0, costTotal: 0.01,
   }, "没有本轮快照时退回这条消息自己的 usage");
   assert.equal(rowUsageOf(undefined, undefined), null);
-  // 中间那行只见到自己那一步（3k 输入 / 1.4s），不借用后面的数据。
+  // 中间那条只见到自己那一步（8.2s），不借用后面的数据。
   assert.equal(stats.get(1).elapsedSec, 8.2);
-  assert.equal(formatUsage(stats.get(1)), "↑ 18k · ↓ 161 tok", "中间那行只看得到自己那一步（17,564 过万走紧凑）");
   // ChatWindow 必须把快照传下来（每个助手消息一份）。
   const chatWindow = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
   assert.match(chatWindow, /const turnStatsByIndex = useMemo\(\(\) => computeTurnStats\(messages\), \[messages\]\)/);
   assert.match(chatWindow, /turnStats=\{turnStatsByIndex\.get\(idx\)\}/);
-  assert.match(source, /const durationSec = turnStats\?\.elapsedSec \?\? stepDurationSec;/);
-  // 单步 / 多步两条说明分开：多步才提“这一步模型 Xs”，单步不要留一个空尾巴。
-  assert.match(source, /turnStats && turnStats\.steps > 1 && stepDurationSec !== null/);
-  assert.match(source, /chat\.turnEnd\.durationHintTurnSteps/);
-  assert.doesNotMatch(source, /step: ""/);
+  // 身份行的 `.d-plan-meta`（耗时 · token）是本轮唯一的行内读数。
+  assert.match(source, /const headDurationSec = turnStats\?\.elapsedSec \?\? stepDurationSec;/);
+  assert.match(source, /const headPlanMeta = isStreaming \|\| headDurationSec === null \|\| !headRowUsage/);
 });
 
 test("durations come from the entry append time, not the gap to the previous message", async () => {
@@ -826,3 +798,73 @@ test("fork:fix-user-line-breaks — 粘贴的纯文本每一行都在（#680 / #
   assert.match(listHtml, /<li>看门狗的原理是（ ）<br\/>A\. 监控温度<br\/>B\. 计数器<\/li>/);
 }
 );
+
+// fork:v5-landing —— 转录区的四个活标记（画板 D-03 帧 B / D-03d 帧 A / D-27 帧 A/B、
+// M-02 帧 A、M-11 帧 D/E）。四件都只挂在「还在长的那一块」上，所以分两条钉：
+// 一条渲染（桌面形态在 SSR 里就是确定的），一条源码（窄屏分支由 usePwaSkin 在
+// hydration 之后才翻，SSR 拿不到 —— 与仓库里其余 m-* 用例同一口径）。
+test("流式正文段 = 画板的 .d-stream + 单字光标 .d-caret（稳定前缀照旧走 .d-md）", () => {
+  const html = renderMessage({
+    role: "assistant",
+    content: [{ type: "text", text: "first paragraph.\n\nsecond is still coming" }],
+  }, { isStreaming: true });
+
+  // 已经落定的段落仍是 markdown 正文（.d-md > p），没有被拖进流式段。
+  assert.match(html, /<div class="d-md"><p>first paragraph\.<\/p><\/div>/);
+  // 还在长的那一段才是流式段：光标紧跟句子末尾，与画板
+  // `<p class="d-stream">…<span class="d-caret"></span></p>` 同形。
+  assert.match(html, /<p class="d-stream">second is still coming<span class="d-caret" aria-hidden="true"><\/span><\/p>/);
+});
+
+test("非流式消息不带光标：.d-stream / .d-caret 只在 isStreaming 的尾块上", () => {
+  const html = renderMessage({
+    role: "assistant",
+    content: [{ type: "text", text: "settled answer" }],
+  });
+  assert.doesNotMatch(html, /d-stream/);
+  assert.doesNotMatch(html, /d-caret/);
+});
+
+test("窄屏的流式段 / 实时文字 / 思考行走 m-*（M-02 帧 A、M-11 帧 D/E）", () => {
+  // 窄屏分支与画板逐字对齐：`.m-stream` + `.m-caret`、`.m-run > .m-text-live`、
+  // `.m-think-row`（图案 + 文案 + grow + 等宽秒数）。
+  assert.match(source, /className=\{isPwa \? "m-stream" : "d-stream"\}/);
+  assert.match(source, /className=\{isPwa \? "m-caret" : "d-caret"\}/);
+  assert.match(source, /<div className="m-run">/);
+  assert.match(source, /<span className="m-text-live">\{t\("chat\.running"\)\}<\/span>/);
+  assert.match(source, /<div className="m-think-row">/);
+  assert.match(source, /className="m-mono m-t-xs m-t-faint">\{formatDuration\(liveSeconds\)\}/);
+});
+
+test("思考行 = 画板 D-03d 帧 A / D-27 帧 A 的 .d-think-row（点阵 + 流光标签 + 秒表）", () => {
+  assert.match(source, /<div className="d-think-row">/);
+  assert.match(source, /<span className="d-shimmer">\{t\("i18n\.thinking"\)\}<\/span>/);
+  assert.match(source, /<span className="d-think-timer d-num">\{formatDuration\(liveSeconds\)\}<\/span>/);
+  // 秒表是真的在走：1s 心跳，非流式不建定时器。
+  assert.match(source, /function useLiveSeconds\(active: boolean\): number \{/);
+  assert.match(source, /if \(!active\) \{[\s\S]{0,80}setSeconds\(0\)/);
+});
+
+test("todo 工具结果画成画板 D-03 帧 C 的计划卡（真实步骤 → .d-plan-rail）", () => {
+  assert.match(source, /import \{ PlanDocumentCard, PlanRail, type PlanRailStep \} from "\.\/fork\/PlanDocumentCard"/);
+  assert.match(source, /const todo = !result\?\.isError && isTodoDetails\(result\?\.details\) \? result\.details : null;/);
+  // 「进行中」= 最老的一条未完成项（todo 工具没有 current 字段，与 TodoChip 同口径）。
+  assert.match(source, /const activeId = todo\.todos\.find\(\(item\) => !item\.done\)\?\.id \?\? null;/);
+  assert.match(source, /<span className="d-grow">\{t\("chat\.todos"\)\}<\/span>/);
+  assert.match(source, /<PlanRail steps=\{todoSteps\} \/>/);
+});
+
+test("思考行只画在尾块上：isStreamingTail 由 AssistantMessageView 逐块算，不各自另算", () => {
+  assert.match(source, /const streamingTailIndex = blockItems\.length > 0 \? blockItems\[blockItems\.length - 1\]\.originalIndex : -1;/);
+  assert.match(source, /isStreamingTail=\{isStreaming && originalIndex === streamingTailIndex\}/);
+  assert.match(source, /live=\{isStreamingTail\}/);
+});
+
+test("fork:prefix-once —— 过程组（prefix）只画一次（画两遍会点不开）", () => {
+  // 两个 fork:turn-head-order 注释各留了一份 `{prefix}`，于是同一父节点里出现两个
+  // 带**同一个 React key** 的过程组卡：重复 key 的协调会让其中一份在重绘时被
+  // 拆掉重建，点「展开 / 收起」的状态写在被丢弃的 fiber 上 —— 表现是点卡片没反应，
+  // 同时一屏出现两张一样的摘要卡、间距翻倍。
+  const occurrences = source.match(/^\s*\{prefix\}\s*$/gm) ?? [];
+  assert.equal(occurrences.length, 1, `prefix 应只渲染一次，实际 ${occurrences.length} 次`);
+});

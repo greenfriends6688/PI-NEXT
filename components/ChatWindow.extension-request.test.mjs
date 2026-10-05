@@ -18,7 +18,7 @@ test("confines extension overlays to the content region above the composer", () 
   // 浮层栈夹在「转录区」与「composer 行」之间，composer 仍在最内层。
   assert.match(
     source,
-    /className="relative min-w-0 flex-1 min-h-0 overflow-hidden flex flex-col"[\s\S]*?<ExtensionOverlayStack[\s\S]*?<ExtensionOverlayStack[\s\S]*?className="d-composer-wrap relative shrink-0"[\s\S]*?{chatInputElement}/,
+    /className="relative min-w-0 flex-1 min-h-0 overflow-hidden flex flex-col"[\s\S]*?<ExtensionOverlayStack[\s\S]*?<ExtensionOverlayStack[\s\S]*?"d-composer-wrap relative shrink-0"[\s\S]*?\{chatInputElement\}/,
   );
   // fork:extension-ui-queue — one host overlay per queue, the cards are its items.
   assert.match(stackSource, /position: "absolute"[\s\S]*?inset: 0/);

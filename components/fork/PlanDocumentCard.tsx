@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import type { PlanDocumentReference } from "@/lib/plan-documents";
@@ -21,13 +22,60 @@ import type { PlanDocumentReference } from "@/lib/plan-documents";
 
 export type PlanDocumentOpenHandler = (filePath: string, fileName: string) => void;
 
+/** fork:v5-landing —— 轨道的状态档，逐字取自画板 D-03 帧 C / D-25 帧 A 的
+ *  `.d-plan-step` 状态类：`done`（已完成）/ `run`（进行中）/ `fail`（失败）/ `skip`（跳过）。
+ *  **没有状态类 = 还没开始**（画板里待做的那几行就是裸 `.d-plan-step`）。 */
+export type PlanStepState = "done" | "run" | "fail" | "skip";
+
+export interface PlanRailStep {
+  text: string;
+  /** 缺省 = 待做（裸 `.d-plan-step`）。 */
+  state?: PlanStepState;
+}
+
+/**
+ * fork:v5-landing —— 计划卡里的进度轨道，DOM 原文取自画板 **D-03 帧 C**：
+ *
+ *   <div class="d-plan-body">
+ *     <div class="d-plan-rail">
+ *       <div class="d-plan-step done"><span class="d-plan-dot"></span>冻结令牌与类名</div>
+ *       …
+ *
+ * 只接**真实步骤**：没有步骤（计划文档本身没有分步数据）就不画这一段，
+ * 不用占位行硬凑一条轨道（见下方 PlanDocumentCard 头注的「不凭空造」）。
+ */
+export function PlanRail({ steps }: { steps: readonly PlanRailStep[] }): ReactNode {
+  if (steps.length === 0) return null;
+  return (
+    <div className="d-plan-body">
+      <div className="d-plan-rail">
+        {steps.map((step, index) => (
+          <div
+            key={`${index}-${step.text}`}
+            className={step.state ? `d-plan-step ${step.state}` : "d-plan-step"}
+          >
+            <span className="d-plan-dot"></span>
+            {step.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function PlanDocumentCard({
   plan,
   onOpenFile,
+  steps,
 }: {
   plan: PlanDocumentReference;
   /** 宿主的打开回调；不传就只显示路径，按钮禁用（没有第二条预览通道）。 */
   onOpenFile?: PlanDocumentOpenHandler;
+  /**
+   * 真实步骤（计划步骤 / TODO 列表）。**不传就不画轨道** —— 计划文档是文件，
+   * 它自己不带分步进度，调用方有真数据时才递进来。
+   */
+  steps?: readonly PlanRailStep[];
 }) {
   const { t } = useI18n();
   const mobile = useIsMobile();
@@ -72,6 +120,8 @@ export function PlanDocumentCard({
         <span className="d-grow">{plan.title ?? plan.fileName}</span>
         {plan.title ? <span className="d-badge mute">{plan.fileName}</span> : null}
       </div>
+      {/* 轨道夹在头与脚之间（画板 D-03 帧 C 的顺序：head → body → foot）。 */}
+      {steps && steps.length > 0 && <PlanRail steps={steps} />}
       <div className="d-plan-foot">
         <span className="d-plan-meta d-mono">{plan.relativePath}</span>
         {/* fork:v5-boards D-25 帧 A —— 底栏除路径外还写一行元信息（板上是「已用 41 分钟 /
@@ -80,7 +130,8 @@ export function PlanDocumentCard({
             写 ISO 日期（`2026-10-02`）而不是「3 天前」：相对时间要 locale 与词表，
             而日期在三语里都是同一串数字 —— 不为一行 meta 新造一套本地化词汇。
             正文里的步进轨道 / 时间线需要计划**步骤**数据（产品那条是 todo 扩展，
-            见 lib/plan-documents.ts 头注「不合并」），不在这里凭空造。 */}
+            见 lib/plan-documents.ts 头注「不合并」）—— 所以轨道只走 `steps` 这个口，
+            调用方拿得出真步骤才画，拿不出就保持 head+foot 两段，不在组件里凭空造。 */}
         {plan.updatedAt ? <span className="d-plan-meta d-mono">{plan.updatedAt.slice(0, 10)}</span> : null}
         <span className="d-grow" />
         <button

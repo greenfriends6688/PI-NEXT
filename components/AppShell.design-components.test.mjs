@@ -3,6 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
+// fork:v5-landing E4 —— 手机信任条搬进 `components/pwa/PwaTrustSheet.tsx`，
+// 所以这条守卫同时读那个组件与 PWA 形态库。
+const trustBanner = await readFile(new URL("./pwa/PwaTrustSheet.tsx", import.meta.url), "utf8");
+const pwaSystemCss = await readFile(new URL("../design/v5/pwa/system.css", import.meta.url), "utf8");
 const boardCss = await readFile(new URL("../design/pi-web-design/assets/board.css", import.meta.url), "utf8");
 const systemCss = await readFile(new URL("../design/v5/web/system.css", import.meta.url), "utf8");
 const forkCss = await readFile(new URL("../app/fork-ui.css", import.meta.url), "utf8");
@@ -27,9 +31,12 @@ test("the top bar title is the board's .d-tb-stack, not a hand-styled button", (
   assert.match(systemCss, /\.d-tb-title \{[^}]*text-overflow: ellipsis/);
   // fork:no-recent-sessions —— 标题不再是「最近会话」下拉的触发钮（那一档已撤），
   // 也不再是任何交互元素：纯文本标题，点它什么都不发生。
+  // fork:no-tb-sub（2026-10-05 用户裁定）—— 桌面顶栏那一行副标题被去掉（项目名
+  // 在侧栏 / 文件面板头 / 输入卡上都写着，顶栏是第四遍，且两行叠起来把标题顶上
+  // 去）。断言改成「标题仍在、桌面不再有 `d-tb-sub`」；手机那一支的副行不动。
   assert.match(source, /className="d-tb-stack"/);
   assert.match(source, /<span className="d-tb-title">\{topBarSessionTitle\}<\/span>/);
-  assert.match(source, /\{subtitle && <span className="d-tb-sub">\{subtitle\}<\/span>\}/);
+  assert.doesNotMatch(source, /className="d-tb-sub"/);
   assert.doesNotMatch(source, /activeTopPanel === "sessions"/);
   assert.doesNotMatch(source, /sidebar\.recentSessions/);
   // The title is no longer a bare <button> carrying its own box.
@@ -53,7 +60,10 @@ test("the collapsed rail is the board's vertical .d-rail column", () => {
   for (const icon of ["panel-right", "search", "square-pen", "settings"]) {
     assert.match(railBlock, new RegExp(`data-ico="${icon}"`));
   }
-  assert.equal((railBlock.match(/<button/g) ?? []).length, 4);
+  // 数的是**元素**，不是文本：源码注释里出现过 `<button class="d-iconbtn is-on">`
+  // 这种板面原文照抄，裸 `match(/<button/g)` 会把它数进去。
+  const railCode = railBlock.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  assert.equal((railCode.match(/<button/g) ?? []).length, 4);
   // macOS 红绿灯让位钩子写在 fork-ui.css 的 `[data-desktop-platform="darwin"] .d-rail` 上；
   // fork:v5-landing —— 导轨 DOM 从 `.pw-rail` 换成 `.d-rail`，钩子已在收尾波改挂 `.d-rail`
   // （否则红绿灯会压住导轨顶端）。断言随之改钉当前类名。
@@ -71,7 +81,9 @@ test("the top bar action buttons take their size from the board classes", () => 
   // fork:v5-wave-b —— 手机上其中两枚（抽屉底栏的手机与推送钮、右栏面板开关）改挂 PWA
   // 的 `.m-iconbtn` / `.m-top-btn`（≤640 生效），所以字面量从 11 降到 10。
   assert.equal(source.match(/className="d-iconbtn"/g)?.length, 9);
-  assert.match(source, /className=\{isMobile \? "m-iconbtn" : "d-iconbtn"\}/);
+  // fork:v5-frame-audit（2026-10-05）—— 抽屉底栏那枚「手机与推送」钮按画板
+  // M-04 帧 A 的 `.m-drawer-foot` 改成 `.m-top-btn`（桌面上仍是 `.d-iconbtn`）。
+  assert.match(source, /className=\{isMobile \? "m-top-btn" : "d-iconbtn"\}/);
   // 手机顶栏的两枚（抽屉入口 + 右栏面板开关）现在都是 `.m-top-btn`。
   // fork:v5-wave-b —— 右栏面板钮后来又收了一步：它两端都在（手机与桌面同一个按钮），
   // 形态由内联几何的 `mobile ? undefined : {...}` 分支处理，不再用三元类名。
@@ -99,9 +111,14 @@ test("the mobile shell uses the board's scrim, banner and sidebar column", () =>
   // 同一个 `sidebarOpen` state 表达成 `.is-open`），≥641 仍是 d-*。
   assert.match(source, /isMobile \? " m-drawer" : ""/);
   assert.match(source, /isMobile \? ` m-scrim\$\{sidebarOpen \? " is-open" : ""\}` : ""/);
-  // fork:design-system SW-16 —— 画板 60 帧 D：移动端信任横幅是 .d-banner，桌面是 .d-banner.err。
-  // fork:v5-wave-b —— 窄屏换成 PWA 的 `.m-banner.warn`（同一个 state / role / 回调）。
-  assert.match(source, /className=\{mobileBanner \? "m-banner warn" : "d-banner warn"\}/);
+  // fork:design-system SW-16 —— 画板 60 帧 D：移动端信任横幅是顶栏下方的常驻条，
+  // 不是弹窗；桌面仍是点开模态的 `.d-banner.err`。
+  // fork:v5-landing E4 —— 横幅本体换成画板 M-10 帧 C-1 的 `.m-trust`
+  // （落在 `components/pwa/PwaTrustSheet.tsx` 的 `PwaTrustBanner`）：宿主只给
+  // 真实 cwd / busy / 错误与那一个信任动作，形态与状态类全在组件里。
+  assert.match(source, /<PwaTrustBanner[\s\S]{0,200}?onTrust=\{\(\) => void handleTrustProject\(\)\}/);
+  assert.match(trustBanner, /className="m-trust"/);
+  assert.match(pwaSystemCss, /\.m-trust \{/);
   assert.match(source, /className="d-banner err"/);
   assert.match(source, /data-ico="shield-question"/);
   // No bottom control bar was introduced.

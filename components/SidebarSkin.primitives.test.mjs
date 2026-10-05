@@ -64,8 +64,14 @@ test("the zero-session guide is the board's empty state with starter cards", () 
 });
 
 test("the chat workspace row trigger carries no inline button reset", () => {
-  // 行内主触发钮直接挂画板的 .d-row（system.css 已做 button UA 归零）+ .d-grow。
-  assert.match(chatRow, /className="d-row d-grow"/);
+  // fork:v5-frame-audit-2026-10-05 —— 聊天工作区行照画板 D-02d 帧 A 逐节点抄：
+  // 头行是 `div.d-group-title` + role=button（板面上就是 div），名字是一枚
+  // `span.d-grow`，行内两枚动作是真 `button.d-iconbtn`。仍然**不**内联按钮 UA 归零
+  // （那条值只有一个来源：库里 `button.d-row` 的归零）。
+  assert.match(chatRow, /className="d-group-title"/);
+  assert.match(chatRow, /role="button"/);
+  assert.match(chatRow, /<span className="d-grow"/);
+  assert.doesNotMatch(chatRow, /className="d-row d-grow"/);
   assert.doesNotMatch(chatRow, /background: "none", border: 0, padding: 0/);
   assert.doesNotMatch(chatRow, /font: "inherit"/);
 });

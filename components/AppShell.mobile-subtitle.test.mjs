@@ -23,10 +23,18 @@ function subtitleSource() {
   return appShell.slice(start, end);
 }
 
-test("the subtitle only renders on mobile and never on the desktop top bar", () => {
-  // 这一行在 renderSessionTitle 里（不在 topBarSubtitle 那一段），所以查整个文件。
-  assert.match(appShell, /const subtitle = isMobile \? topBarSubtitle : null;/);
-  // fork:v5-landing —— 标题两行 = 画板 D-01/D-02 的 `.d-tb-stack`。
+test("the subtitle is one value, rendered once per form (never twice on desktop)", () => {
+  // fork:v5-frame-audit —— 判据从「先把 subtitle 按形态取空」改成**结构上先分支**：
+  //   `if (isMobile) return …` 那一支只渲染 `.m-top-title` + `.m-t-xs.m-t-faint`，
+  //   桌面那一支返回 `.d-tb-stack`。所以「副行不会漏进桌面」这条约束现在钉在
+  //   **分支位置**上，而不是钉在某个三元表达式上（同一个值不必先取两遍）。
+  const start = appShell.indexOf("const renderSessionTitle");
+  const body = appShell.slice(start, start + 2200);
+  const mobileBranch = body.slice(body.indexOf("if (isMobile) {"), body.indexOf('className="d-tb-stack"'));
+  assert.match(body, /if \(isMobile\) \{/);
+  assert.match(mobileBranch, /className="m-top-title"/);
+  assert.match(mobileBranch, /\{subtitle && <span className="m-t-xs m-t-faint">\{subtitle\}<\/span>\}/);
+  // 桌面那一支：`.d-tb-stack` 仍在（画板 D-01/D-02 的两行身份块）。
   assert.match(appShell, /className="d-tb-stack"/);
 });
 
@@ -42,7 +50,10 @@ test("the subtitle carries only the two readings that exist nowhere else", () =>
 
 test("an empty reading list means no subtitle element at all", () => {
   assert.match(subtitleSource(), /return parts\.length > 0 \? parts\.join\(" · "\) : null;/);
-  assert.match(appShell, /\{subtitle && <span className="d-tb-sub">\{subtitle\}<\/span>\}/);
+  // fork:no-tb-sub（2026-10-05 用户裁定）—— 桌面顶栏不再渲染副行，所以「空值时
+  // 不出副行」这条约束改钉在**唯一还在渲染副行的那一支**（手机 `.m-top`）上。
+  assert.match(appShell, /\{subtitle && <span className="m-t-xs m-t-faint">\{subtitle\}<\/span>\}/);
+  assert.doesNotMatch(appShell, /className="d-tb-sub"/);
 });
 
 test("a long title still ellipsises inside the stacked header", () => {
@@ -53,5 +64,10 @@ test("a long title still ellipsises inside the stacked header", () => {
 });
 
 test("the phone header carries the board class pair", () => {
-  assert.match(appShell, /className="main-workspace-header d-topbar"/);
+  // fork:v5-frame-audit（2026-10-05）—— 窄屏这一行不再是桌面那条 `.d-topbar`：
+  // 它换成画板 M-01 帧 A 的 `.m-top`（绝对定位 + 渐隐底，浮在内容上），桌面那一支
+  // 仍是 `main-workspace-header d-topbar`。所以断言改成「桌面那一对还在 + 手机
+  // 那一支真的换成了 `.m-top`」。
+  assert.match(appShell, /className=\{isMobile \? "m-top" : "main-workspace-header d-topbar"\}/);
+  assert.match(appShell, /className="d-tb-stack"/);
 });

@@ -52,6 +52,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   SKIN_RANGES,
   resolveCssColorToHex,
@@ -64,6 +65,8 @@ import {
   type ThemeSkin,
 } from "@/lib/theme-skins";
 import { PwField, PwRadio, PwRange, PwSelectBox } from "./SettingsUi";
+import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
+import type { Locale } from "@/lib/i18n/types";
 import { BuiltinWallpaperPicker, builtinIdForWallpaperUrl } from "./BuiltinWallpaperPicker";
 import { paintingPath } from "@/lib/wallpaper-builtin";
 import { SKIN_MODE_PALETTE, SKIN_MODE_VALUES } from "@/lib/theme-skins";
@@ -129,18 +132,164 @@ function toColorInputValue(value: string, fallback: string): string {
   return resolveCssColorToHex(value, fallback) || fallback;
 }
 
-function SkinSlider({ entry, draft, patch, t }: {
+/** fork:v5-landing-frame · D-07 帧 C —— 四色那一段的字段说明（板面原文，缺键登记）。 */
+const SKIN_COLOR_HINT: LocalCopy = {
+  en: "The board only writes hexadecimal placeholders; the real values come from the role tokens in tokens.css, and a skin overrides just these four variables.",
+  "zh-CN": "画板上只写十六进制字符串占位；真值由 tokens.css 的角色令牌给出，皮肤只覆盖这四个变量。",
+  "zh-TW": "畫板上只寫十六進位字串佔位；真值由 tokens.css 的角色權杖給出，皮膚只覆蓋這四個變數。",
+};
+
+/** 未覆盖时文本框里的占位（板面写的是「留空表示继承默认皮肤」）。 */
+const SKIN_HEX_PLACEHOLDER = "#rrggbb / inherit";
+
+/* fork:v5-landing-frame · D-07 帧 C —— 「几何与不透明度」里壁纸那一行的说明，以及
+   「自定义 CSS」那个字段的标题与字段说明。板面原文，语言包里没有（`lib/i18n/**` 不在
+   本轮文件范围），走本地表。 */
+const SKIN_WALLPAPER_HINT: LocalCopy = {
+  en: "Anything over 3 MB is rejected — the skin is exported as one JSON file and the image goes in with it.",
+  "zh-CN": "超过 3 MB 会被拒 —— 皮肤要整份导出成 JSON，图片一并进去。",
+  "zh-TW": "超過 3 MB 會被拒 —— 皮膚要整份匯出成 JSON，圖片一併進去。",
+};
+
+const SKIN_CSS_FIELD_TITLE: LocalCopy = {
+  en: "Appended to the end of the stylesheet",
+  "zh-CN": "追加到样式表末尾",
+  "zh-TW": "追加到樣式表末尾",
+};
+
+const SKIN_CSS_FIELD_HINT: LocalCopy = {
+  en: "It can override any rule, including my own — so a typo does not throw an error, the interface just “looks wrong”. That is what the restore button below is for.",
+  "zh-CN": "能覆盖任何规则，也包括我自己 —— 所以写错时面板不会报错，只会「看起来不对」，这里给一个还原按钮。",
+  "zh-TW": "能覆蓋任何規則，也包括我自己 —— 所以寫錯時面板不會報錯，只會「看起來不對」，這裡給一個還原按鈕。",
+};
+
+/**
+ * 一个色字段：`.d-field`（`.d-field-t` + `.d-row`）。
+ *
+ * fork:v5-landing-frame · D-07 帧 C —— 板面那一格里除了取色器还有一只
+ * `.d-input.d-mono` 的十六进制文本框，并写明「留空表示继承默认皮肤」。产品此前只有
+ * 取色器，既不能手输，也没有一处说清「留空 = 继承」。
+ *
+ * 文本框**失焦 / 回车才提交**：每次按键都把半截 `#f7f` 当值提交会把皮肤打坏。
+ * 空串 = 清掉这一档的覆盖（回到继承），合法六位 = 写入变体，其余 = 视为还在打字，
+ * 回到当前真值。判据是纯函数，导出给单测。
+ */
+export function skinHexToValue(raw: string): string | null | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const hex = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  return /^#[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : undefined;
+}
+
+function SkinColorField({
+  label,
+  value,
+  effective,
+  fallback,
+  onChange,
+}: {
+  label: string;
+  /** 当前模式的变体值（空串 = 未覆盖，继承）。 */
+  value: string;
+  /** 继承链算出来的实际值（变体 → 共享 → 该模式调色板）。 */
+  effective: string;
+  fallback: string;
+  onChange: (next: string) => void;
+}) {
+  const isMobile = useIsMobile();
+  const inherited = !value;
+  const resolved = toColorInputValue(effective, fallback);
+  const [text, setText] = useState(inherited ? "" : resolved);
+  useEffect(() => {
+    setText(inherited ? "" : resolved);
+  }, [inherited, resolved]);
+
+  const commit = () => {
+    const next = skinHexToValue(text);
+    if (next === undefined) {
+      setText(inherited ? "" : resolved);
+      return;
+    }
+    onChange(next ?? "");
+  };
+
+  return (
+    <div className={isMobile ? "m-fieldrow" : "d-field"}>
+      <span className={isMobile ? "m-t-sm" : "d-field-t"}>{label}</span>
+      <span className={isMobile ? "m-row-body" : "d-row"}>
+        <input
+          type="color"
+          className="d-swatch"
+          value={resolved}
+          data-inherited={inherited ? "true" : undefined}
+          onChange={(event) => {
+            setText(event.target.value);
+            onChange(event.target.value);
+          }}
+          aria-label={label}
+        />
+        <input
+          type="text"
+          className="d-input d-mono"
+          value={text}
+          placeholder={inherited ? SKIN_HEX_PLACEHOLDER : undefined}
+          spellCheck={false}
+          maxLength={7}
+          aria-label={label}
+          onChange={(event) => setText(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commit();
+          }}
+        />
+      </span>
+    </div>
+  );
+}
+
+/** fork:v5-landing-frame · D-07 帧 C「几何与不透明度」的两个字段标题下那句判据。
+    板面上只有「组件圆角」与「玻璃模糊」两格带说明（其余两格板面没画），语言包里没有，
+    走本地表。 */
+const SKIN_FIELD_HINTS: Partial<Record<keyof typeof SKIN_RANGES, LocalCopy>> = {
+  radius: {
+    en: "One value drives every corner role (xs / sm / md / lg / xl) — not one control at a time.",
+    "zh-CN": "一个值改所有圆角角色（xs / sm / md / lg / xl），不是逐个控件调。",
+    "zh-TW": "一個值改所有圓角角色（xs / sm / md / lg / xl），不是逐個控制項調。",
+  },
+  blur: {
+    en: "The top bar and the popovers share this one level; at 0 it falls back to a solid colour and the top bar gets visibly heavier.",
+    "zh-CN": "顶栏与浮层用同一档；调到 0 会退回实色，这时顶栏会「变重」。",
+    "zh-TW": "頂欄與浮層用同一檔；調到 0 會退回實色，這時頂欄會「變重」。",
+  },
+};
+
+function SkinSlider({ entry, draft, patch, t, locale }: {
   entry: { key: keyof typeof SKIN_RANGES; labelKey: string; unit: string };
   draft: ThemeSkin;
   patch: (next: Partial<ThemeSkin>) => void;
   t: (key: string) => string;
+  locale: Locale;
 }) {
+  const isMobile = useIsMobile();
   const range = SKIN_RANGES[entry.key];
   const value = draft[entry.key] as number;
   const id = `skin-slider-${entry.key}`;
+  const hint = SKIN_FIELD_HINTS[entry.key];
+  // fork:v5-landing-frame · D-07 帧 C —— 滑块那一行在板面上是 `.d-field`
+  // （`.d-field-t` 标题 + 可选的一句 `.d-t-xs.d-t-faint` + `.d-row` 里
+  // `.d-slider` 与 `.d-t-xs.d-mono` 读数），不是 `.d-set-row`：这一块是「参数表」，
+  // 每一格自带标题与一句判据，行形态留给别的块。此前发的是 `.d-set-row`，板面没有。
   return (
-    <PwField label={<label htmlFor={id}>{t(entry.labelKey)}</label>} control={
-      <span className="d-row">
+    <div className={isMobile ? "m-fieldrow" : "d-field"}>
+      <span className={isMobile ? "m-t-sm" : "d-field-t"}>
+        <label htmlFor={id}>{t(entry.labelKey)}</label>
+      </span>
+      {hint ? (
+        <span className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+          {localCopy(hint, locale)}
+        </span>
+      ) : null}
+      <span className={isMobile ? "m-row-body" : "d-row"}>
         <PwRange
           id={id}
           value={value}
@@ -152,7 +301,7 @@ function SkinSlider({ entry, draft, patch, t }: {
           onChange={(next) => patch({ [entry.key]: next } as Partial<ThemeSkin>)}
         />
       </span>
-    } />
+    </div>
   );
 }
 
@@ -169,7 +318,8 @@ export function ThemeSkinStudio({
   onSave: (skin: ThemeSkin) => void;
   onDelete?: (id: string) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const isMobile = useIsMobile();
   const [draft, setDraft] = useState<ThemeSkin>(skin);
   const [tab, setTab] = useState<"settings" | "css">("settings");
   const [previewMode, setPreviewMode] = useState<SkinMode>(skin.mode);
@@ -354,52 +504,45 @@ export function ThemeSkinStudio({
                 {t("settings.skinSectionColors")}
               </div>
               {/* fork:zn-19-variant — 这四个色输入编辑的是**当前模式的变体**（Zeno 的
-                  `updateVariantColor`）。变体为空时显示继承来的共享值，右侧的 ↺ 可以
-                  清掉覆盖、退回共享。 */}
-              {COLOR_FIELDS.map((field) => {
-                const key = field.key as SkinColorKey;
-                const variantValue = draft[previewMode][key];
-                const effective = resolveSkinColors(draft, previewMode)[key];
-                const inherited = !variantValue;
-                return (
-                  <PwField key={String(field.key)} label={t(field.labelKey)} control={
-                    <span className="d-row">
-                      <input
-                        type="color"
-                        className="d-swatch"
-                        value={toColorInputValue(effective, SKIN_MODE_PALETTE[previewMode][key])}
-                        data-inherited={inherited ? "true" : undefined}
-                        onChange={(event) => patchVariantColor(key, event.target.value)}
-                        aria-label={t(field.labelKey)}
-                      />
-                      {!inherited && (
-                        <button
-                          type="button"
-                          className="d-btn sm ghost"
-                          title={t("settings.skinColorInherit")}
-                          aria-label={t("settings.skinColorInherit")}
-                          onClick={() => patchVariantColor(key, "")}
-                        >
-                          <i data-ico="undo-2" data-size="13" aria-hidden="true" />
-                        </button>
-                      )}
-                    </span>
-                  } />
-                );
-              })}
+                  `updateVariantColor`）。变体为空时显示继承来的共享值。
+                  fork:v5-landing-frame · D-07 帧 C —— 板面原文是 `.d-grid2` 里四个
+                  `.d-field`：`.d-field-t`（标题）+ `.d-row`（`.d-swatch` 色块 +
+                  **`.d-input.d-mono` 十六进制文本框**），并写明「留空表示继承默认皮肤」。
+                  产品此前只有 `.d-set-row` + 取色器，既不能手输十六进制，也没有一个地方
+                  说清「留空 = 继承」；现在两样都补上（留空即清掉这一档的覆盖）。 */}
+              <div className={isMobile ? "m-grid2" : "d-grid2"}>
+                {COLOR_FIELDS.map((field) => {
+                  const key = field.key as SkinColorKey;
+                  const variantValue = draft[previewMode][key];
+                  const effective = resolveSkinColors(draft, previewMode)[key];
+                  return (
+                    <SkinColorField
+                      key={String(field.key)}
+                      label={t(field.labelKey)}
+                      value={variantValue}
+                      effective={effective}
+                      fallback={SKIN_MODE_PALETTE[previewMode][key]}
+                      onChange={(hex) => patchVariantColor(key, hex)}
+                    />
+                  );
+                })}
+              </div>
+              <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+                {localCopy(SKIN_COLOR_HINT, locale)}
+              </div>
 
               <div className="d-set-sec-t">
                 {t("settings.skinSectionGeometry")}
               </div>
               {GEOMETRY_SLIDERS.map((entry) => (
-                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
+                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} locale={locale} />
               ))}
 
               <div className="d-set-sec-t">
                 {t("settings.skinSectionOpacity")}
               </div>
               {OPACITY_SLIDERS.map((entry) => (
-                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
+                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} locale={locale} />
               ))}
 
             </div>
@@ -448,28 +591,40 @@ export function ThemeSkinStudio({
               <div className="d-set-sec-t">
                 {t("settings.skinSectionWallpaper")}
               </div>
-              <div className="d-row">
-                <button type="button" className="d-btn sm" onClick={pickWallpaper}>
-                  {t("settings.skinChooseWallpaper")}
-                </button>
-                <button
-                  type="button"
-                  className="d-btn sm ghost"
-                  disabled={!draft.wallpaper}
-                  onClick={() => patch({ wallpaper: null })}
-                >
-                  {t("settings.skinRemoveWallpaper")}
-                </button>
-                <span className="d-grow" aria-hidden="true" />
-                <PwSelectBox
-                  value={draft.wallpaperFit}
-                  ariaLabel={t("settings.skinWallpaperFit")}
-                  options={SKIN_WALLPAPER_FIT_VALUES.map((fit) => ({ value: fit, label: t(`settings.skinFit_${fit}`) }))}
-                  onChange={(fit) => patch({ wallpaperFit: fit as SkinWallpaperFit })}
+              <PwField
+                label={t("settings.skinSectionWallpaper")}
+                hint={localCopy(SKIN_WALLPAPER_HINT, locale)}
+                control={
+                  <>
+                    <PwSelectBox
+                      value={draft.wallpaperFit}
+                      ariaLabel={t("settings.skinWallpaperFit")}
+                      options={SKIN_WALLPAPER_FIT_VALUES.map((fit) => ({ value: fit, label: t(`settings.skinFit_${fit}`) }))}
+                      onChange={(fit) => patch({ wallpaperFit: fit as SkinWallpaperFit })}
+                    />
+                    <button type="button" className={isMobile ? "m-btn sm" : "d-btn sm"} onClick={pickWallpaper}>
+                      <i data-ico="image" data-size="13" aria-hidden="true" />
+                      {t("settings.skinChooseWallpaper")}
+                    </button>
+                  </>
+                }
+              />
+              {draft.wallpaper ? (
+                <PwField
+                  label={t("settings.skinRemoveWallpaper")}
+                  control={
+                    <button
+                      type="button"
+                      className={isMobile ? "m-btn sm ghost" : "d-btn sm ghost"}
+                      onClick={() => patch({ wallpaper: null })}
+                    >
+                      {t("settings.skinRemoveWallpaper")}
+                    </button>
+                  }
                 />
-              </div>
+              ) : null}
               {WALLPAPER_SLIDERS.map((entry) => (
-                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} />
+                <SkinSlider key={entry.key} entry={entry} draft={draft} patch={patch} t={t} locale={locale} />
               ))}
 
               {/* fork:zn-19-merge — 内置画作也能在这里直接挑：原来只有设置里的「壁纸」
@@ -494,15 +649,27 @@ export function ThemeSkinStudio({
               <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
               <span className="d-grow">{t("settings.skinCustomCssHint")}</span>
             </div>
-            <textarea
-              className="d-textarea"
-              style={{ minHeight: 0, height: "100%" }}
-              spellCheck={false}
-              value={draft.customCss}
-              onChange={(event) => patch({ customCss: event.target.value })}
-              placeholder={".sidebar-container { letter-spacing: 0.01em; }"}
-              aria-label={t("settings.skinTabCss")}
-            />
+            {/* fork:v5-landing-frame · D-07 帧 C「自定义 CSS」—— 板面原文是一个 `.d-field`：
+                `.d-field-t`（标题「追加到样式表末尾」）+ `.d-textarea` + 字段说明那句
+                「能覆盖任何规则，也包括我自己…所以写错时面板不会报错，只会看起来不对」。
+                产品此前只有一条横幅 + 裸文本域。 */}
+            <div className={isMobile ? "m-fieldrow" : "d-field"}>
+              <span className={isMobile ? "m-t-sm" : "d-field-t"}>
+                {localCopy(SKIN_CSS_FIELD_TITLE, locale)}
+              </span>
+              <textarea
+                className="d-textarea"
+                style={{ minHeight: 0, flex: 1 }}
+                spellCheck={false}
+                value={draft.customCss}
+                onChange={(event) => patch({ customCss: event.target.value })}
+                placeholder={".sidebar-container { letter-spacing: 0.01em; }"}
+                aria-label={localCopy(SKIN_CSS_FIELD_TITLE, locale)}
+              />
+              <span className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
+                {localCopy(SKIN_CSS_FIELD_HINT, locale)}
+              </span>
+            </div>
           </div>
         )}
 

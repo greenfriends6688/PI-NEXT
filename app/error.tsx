@@ -64,11 +64,11 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
         </div>
       )}
       <div className="d-row">
-        <button type="button" className="d-btn sm primary" onClick={() => retry()}>
+        <button type="button" className="d-btn sm primary d-pressable" onClick={() => retry()}>
           <i data-ico="rotate-cw" data-size="13" aria-hidden="true" />
           {t("error.boundaryRetry")}
         </button>
-        <button type="button" className="d-btn sm" onClick={() => window.location.reload()}>
+        <button type="button" className="d-btn sm d-pressable" onClick={() => window.location.reload()}>
           <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
           {t("error.boundaryReload")}
         </button>

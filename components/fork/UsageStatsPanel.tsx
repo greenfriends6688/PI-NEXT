@@ -37,6 +37,18 @@ const RANGE_KEYS: Record<UsageRange, string> = {
 
 const RANGE_ORDER: readonly UsageRange[] = ["7d", "30d", "1y", "all"];
 
+/* fork:v5-landing 逐帧核对（M-09 帧 C）—— 画板那一屏的最后一件是 `.m-banner`：
+ * 「缓存命中不计费，但计入 token：命中 71% 的部分在柱状图里已经扣掉。」
+ * 口径行必须与图**同屏**，否则数字会被当成账单。产品此前只有柱状图副行上的
+ * 一句 `usage.subtitle`，屏尾没有这条横幅。
+ * 走本地三语表而不是改 `lib/i18n/messages/**`（口径与 `components/pwa/settingsHub.ts`、
+ * `components/fork/McpLogModal.tsx`、`ThemeSkinStudio` 同一做法）。 */
+const CACHE_BILLING_NOTE: Record<string, string> = {
+  en: "Cached hits are not billed but still count as tokens; the cached portion is already deducted from the bars.",
+  "zh-CN": "缓存命中不计费，但计入 token：命中的那部分在柱状图里已经扣掉。",
+  "zh-TW": "快取命中不计費，但計入 token：命中的那部分在柱狀圖裡已經扣掉。",
+};
+
 function formatCompact(value: number, locale: string): string {
   if (!Number.isFinite(value)) return "0";
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -339,6 +351,13 @@ export function UsageStatsPanel(): ReactNode {
                 )}
               </div>
             )}
+
+            {/* fork:v5-landing 逐帧核对（M-09 帧 C）—— 画板那一屏的最后一件是
+                `.m-banner` 口径横幅（缓存命中不计费但计入 token，图里已扣）。
+                产品此前屏尾只有一段空白，图与口径不同屏。 */}
+            <PwaBanner icon="info">
+              {CACHE_BILLING_NOTE[locale] ?? CACHE_BILLING_NOTE.en}
+            </PwaBanner>
           </>
         )}
       </PwaPage>
@@ -389,7 +408,12 @@ export function UsageStatsPanel(): ReactNode {
       }
     >
       {loading && !summary && (
-        <p role="status" className="d-t-xs d-t-faint">{t("usage.loading")}</p>
+        /* fork:v5-boards D-27 帧 A / D-28 帧 B —— 「还在等」才配流光：用量页在
+           拉首屏数据时把 loading 文案包进 `.d-shimmer`（颜色 + background-clip:text
+           由类给，文字本体不动）；拿到数据后这行消失，不留下一条常驻动效。 */
+        <p role="status" className="d-t-xs d-t-faint">
+          <span className="d-shimmer">{t("usage.loading")}</span>
+        </p>
       )}
       {error && <p role="alert" className="d-banner err">{t("usage.error")} {error}</p>}
 
@@ -440,7 +464,10 @@ export function UsageStatsPanel(): ReactNode {
                     <i data-ico="chart-pie" data-size="14" aria-hidden="true" />
                     {t("usage.byModel")}
                   </div>
-                  <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                  {/* fork:v5-boards D-27 帧 E —— `.d-chart` 的正文层是 `.d-chart-body`
+                      （与 `.d-card-body` 同为 sp-4 内边距，但语义只属于图表；板面两个图
+                      都是 `d-chart` > `d-chart-head` + `d-chart-body`）。 */}
+                  <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
                   <UsageShareBar
                     slices={summary.models.slice(0, 6).map((model) => ({ key: model.model, tokens: model.tokens, share: model.share }))}
                     label={t("usage.modelShare")}
@@ -465,7 +492,7 @@ export function UsageStatsPanel(): ReactNode {
                   <i data-ico="activity" data-size="14" aria-hidden="true" />
                   {t("usage.requestsErrors")}
                 </div>
-                <div className="d-card-body">
+                <div className="d-chart-body">
                 <UsageRequestsErrors
                   days={summary.days}
                   label={t("usage.requestsErrors")}
@@ -493,7 +520,7 @@ export function UsageStatsPanel(): ReactNode {
                 <span className="d-grow" aria-hidden="true" />
                 <span className="d-t-xs d-t-faint">{t("usage.activeDays")}</span>
               </div>
-              <div className="d-card-body">
+              <div className="d-chart-body">
               <div className="d-row" style={{ marginTop: "var(--nx-sp-2)" }}>
                 <span className="d-seg">
                   <button
@@ -535,7 +562,7 @@ export function UsageStatsPanel(): ReactNode {
                   <i data-ico="chart-column" data-size="14" aria-hidden="true" />
                   {t("usage.dailyTokens")}
                 </div>
-                <div className="d-card-body">
+                <div className="d-chart-body">
                 <UsageDailyBars days={summary.days} label={t("usage.dailyTokens")} />
                 </div>
               </div>
@@ -548,7 +575,7 @@ export function UsageStatsPanel(): ReactNode {
                     <i data-ico="folder" data-size="14" aria-hidden="true" />
                     {t("usage.byProject")}
                   </div>
-                  <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                  <div className="d-chart-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
                   <div className="d-col">
                     {projects.slice(0, 8).map((project) => (
                       <UsageListRow

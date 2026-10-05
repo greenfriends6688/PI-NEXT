@@ -448,31 +448,43 @@ function GroupHeader({
       onDrop={onDrop}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      // fork:v5-frame-audit-2026-10-05 —— 分组头照画板 D-02d 帧 B 四态的**原文**逐节点排：
+      //   `<div class="d-group-title"><i chevron><i circle 8><span class="d-grow">组名</span><span class="d-t-xs">N</span></div>`
+      // 原来整块被折进一枚 `button.d-row.d-grow`（于是 chevron / 色点 / 组名挤在按钮里，
+      // 板面上是三个平级子节点），行内改名 / 删除再套一层 `span.d-msg-acts`。
+      // 改成 div + role=button（与板面「项目」分区头同一写法）：折叠箭头、色点与
+      // 组名回到平级，Enter / 空格、拖放、FLIP、改名提交全部原样。
+      role="button"
+      tabIndex={0}
+      onClick={onToggle}
+      aria-expanded={!group.collapsed}
+      title={t(group.collapsed ? "session.expandGroup" : "session.collapseGroup")}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onToggle();
+      }}
       className={`d-group-title${dropActive ? " is-on" : ""}`}
+      style={{ cursor: "pointer" }}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!group.collapsed}
-        title={t(group.collapsed ? "session.expandGroup" : "session.collapseGroup")}
-        className="d-row d-grow"
-      >
-        <i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
-        {/* fork:task-groups —— 组色点。折叠状态下名字藏起来了，色点是唯一的身份线索，
-            所以它一直画。尺寸跟行内节奏一致，不另立几何。 */}
-        <span className={`fork-group-dot fork-group-dot--${group.color}`} aria-hidden="true" />
-        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {group.name}
-        </span>
-      </button>
-      <span className="d-t-xs" style={{ flexShrink: 0, minWidth: "var(--icon-sm)", textAlign: "right" }}>{count}</span>
+      <i data-ico={group.collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
+      {/* fork:task-groups —— 组色点。折叠状态下名字藏起来了，色点是唯一的身份线索，
+          所以它一直画。尺寸跟行内节奏一致，不另立几何。 */}
+      <span className={`fork-group-dot fork-group-dot--${group.color}`} aria-hidden="true" />
+      <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {group.name}
+      </span>
+      <span className="d-t-xs" style={{ flexShrink: 0 }}>{count}</span>
       {/* 行内动作：复用系统里现成的悬停动作组（与消息动作同一件）——
           v5 库里没有单独的「行内动作」类（消息动作件 d-msg-acts 就是它）。 */}
       <span className={`d-msg-acts${hovered || dropActive ? " is-on" : ""}`}>
-        <button type="button" className="d-iconbtn" onClick={onBeginRename} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
+        {/* fork:v5-frame-audit —— 头行本身现在就是可点的 div（与板面一致），行内两枚
+            动作必须 stopPropagation，否则点“改名/删除”会顺带折叠/展开这个组
+            （此前它们在 `button` 外面，天然不会冒泡）。 */}
+        <button type="button" className="d-iconbtn" onClick={(e) => { e.stopPropagation(); onBeginRename(); }} title={t("sidebar.renameGroup")} aria-label={t("sidebar.renameGroup")}>
           <i data-ico="pencil" data-size="12"></i>
         </button>
-        <button type="button" className="d-iconbtn" onClick={onDelete} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")}>
+        <button type="button" className="d-iconbtn" onClick={(e) => { e.stopPropagation(); onDelete(); }} title={t("sidebar.deleteGroup")} aria-label={t("sidebar.deleteGroup")}>
           <i data-ico="trash-2" data-size="12"></i>
         </button>
       </span>

@@ -119,15 +119,31 @@ export function ChatWorkspaceRow({
   }
 
   return (
+    // fork:v5-frame-audit-2026-10-05 —— 聊天工作区行照画板 D-02d 帧 A「聊天 pane」的原文：
+    //   `<div class="d-group-title"><i chevron><span class="d-grow">随手问</span><span class="d-t-xs">4</span>`
+    //   `<button class="d-iconbtn" ＋><button class="d-iconbtn" folder-cog></div>`
+    // 板面上名字是一个 `span.d-grow`，折叠箭头是一枚裸 `<i>`；产品此前把整块做成
+    // `button.d-row.d-grow` 并给名字前面多加了一枚 `messages-square` 图标。
+    // 现在头行是 div + role=button（Enter / 空格等价），四个回调原样接回。
     <div
+      role="button"
+      tabIndex={0}
       className="d-group-title"
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSelect();
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ width: "100%" }}
+      title={title}
+      aria-current={selected ? "page" : undefined}
+      style={{ width: "100%", cursor: "pointer" }}
     >
       <button
         type="button"
-        onClick={onToggle}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
         aria-expanded={expanded}
         title={t(expanded ? "sidebar.collapseSubagents" : "sidebar.expandSubagents")}
         aria-label={t(expanded ? "sidebar.collapseSubagents" : "sidebar.expandSubagents")}
@@ -136,16 +152,7 @@ export function ChatWorkspaceRow({
         <i data-ico={expanded ? "chevron-down" : "chevron-right"} data-size="12"></i>
       </button>
 
-      <button
-        type="button"
-        onClick={onSelect}
-        title={title}
-        aria-current={selected ? "page" : undefined}
-        className="d-row d-grow"
-      >
-        <i data-ico="messages-square" data-size="14"></i>
-        <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      </button>
+      <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
 
       {activity && activity.unread > 0 && (
         <span className="d-badge ok" title={t("sidebar.newSessionActivity")} aria-label={`${t("sidebar.newSessionActivity")} (${activity.unread})`}>
@@ -157,7 +164,7 @@ export function ChatWorkspaceRow({
       <span className={`d-msg-acts${hovered || touchActions ? " is-on" : ""}`}>
         <button
           type="button"
-          onClick={onNewChat}
+          onClick={(e) => { e.stopPropagation(); onNewChat(); }}
           disabled={busy}
           title={t("sidebar.newChat")}
           aria-label={t("sidebar.newChat")}
@@ -167,7 +174,7 @@ export function ChatWorkspaceRow({
         </button>
         <button
           type="button"
-          onClick={onConfigure}
+          onClick={(e) => { e.stopPropagation(); onConfigure(); }}
           disabled={busy}
           title={t("sidebar.setChatWorkspace")}
           aria-label={t("sidebar.setChatWorkspace")}

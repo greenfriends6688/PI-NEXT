@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState, useRef, useEffect, useMemo } from "react";
+import { memo, useCallback, useState, useRef, useEffect, useMemo, type ComponentProps, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { MarkdownBody } from "./MarkdownBody";
 import { useFileIndex, useSkillInfo } from "@/hooks/useProjectContext";
@@ -32,8 +32,15 @@ import type { SubagentToolDetails } from "@/lib/subagent-extension";
 // fork:pr52-plan-tools —— 计划文档卡：工具结果里的 details 带绝对路径，卡片把它交给宿主既有的
 // 文件打开通道（AppShell.handleOpenFile → openFileTab → FileViewer），不自写预览器。
 import { isPlanToolDetails } from "@/lib/plan-documents";
-import { PlanDocumentCard } from "./fork/PlanDocumentCard";
+// fork:v5-landing —— 画板 D-03 帧 C 的进度轨道 `PlanRail`（`.d-plan-body > .d-plan-rail`），
+// 与计划文档卡同源；窄屏不画（PWA 库没有对应的 `m-plan-*`，不发明类名）。
+import { PlanDocumentCard, PlanRail, type PlanRailStep } from "./fork/PlanDocumentCard";
 import { PlanReferenceList } from "./fork/PlanReferenceList";
+// fork:v5-landing —— 流式正文段的切分：稳定前缀走 markdown，还在长的那一块挂
+// `.d-stream` / `.m-stream` + 光标（画板 D-03 帧 B / D-27 帧 B）。
+import { splitStableParts } from "@/lib/markdown-incremental";
+// fork:v5-landing —— `todo` 工具结果里带着真实步骤，画板 D-03 帧 C 那条轨道接的就是它。
+import { isTodoDetails } from "@/lib/todo-state";
 import type {
   AgentMessage,
   AgentUsage,
@@ -255,6 +262,11 @@ interface Props {
   /** Lifted expanded state for tool calls — when provided, ToolCallBlock becomes controlled. */
   expandedToolIds?: Set<string>;
   onToggleTool?: (toolCallId: string) => void;
+  /** fork:turn-head-order —— 本轮的过程组（折叠卡）作为「身份行之后、正文之前」的一块
+   *  挂在**这条**消息里（画板 D-03 帧 A 的顺序：`.d-msg-ai-head` → `.d-steps` → 正文）。
+   *  它以前是这条消息的**前一个兄弟节点**，于是身份行被顶到过程卡下面 —— 「谁在说」
+   *  落在自己的过程后面。传进来即可，位置由 MessageView 决定。 */
+  prefix?: ReactNode;
 }
 
 export function getModelDisplayName(
@@ -385,12 +397,12 @@ function haveSameRelevantToolResults(
   return true;
 }
 
-export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, onOpenSession, entryId, searchBlock, onFork, forking, onRewind, rewinding, onNavigate, onEditContent, showTimestamp, prevTimestamp, turnStats, sessionId, writtenFiles, skillUsage, onOpenSkill, expandedToolIds, onToggleTool }: Props) {
+export const MessageView = memo(function MessageView({ message, isStreaming, toolResults, modelNames, cwd, onOpenFile, onOpenSession, entryId, searchBlock, onFork, forking, onRewind, rewinding, onNavigate, onEditContent, showTimestamp, prevTimestamp, turnStats, sessionId, writtenFiles, skillUsage, onOpenSkill, expandedToolIds, onToggleTool, prefix }: Props) {
   if (message.role === "user") {
     return <UserMessageView message={message as UserMessage} cwd={cwd} onOpenFile={onOpenFile} entryId={entryId} onFork={onFork} forking={forking} onRewind={onRewind} rewinding={rewinding} onNavigate={onNavigate} onEditContent={onEditContent} />;
   }
   if (message.role === "assistant") {
-    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} turnStats={turnStats} sessionId={sessionId} entryId={entryId} searchBlock={searchBlock} writtenFiles={writtenFiles} skillUsage={skillUsage} onOpenSkill={onOpenSkill} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />;
+    return <AssistantMessageView message={message as AssistantMessage} isStreaming={isStreaming} toolResults={toolResults} modelNames={modelNames} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} onFork={onFork} forking={forking} showTimestamp={showTimestamp} prevTimestamp={prevTimestamp} turnStats={turnStats} sessionId={sessionId} entryId={entryId} searchBlock={searchBlock} writtenFiles={writtenFiles} skillUsage={skillUsage} onOpenSkill={onOpenSkill} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} prefix={prefix} />;
   }
   if (message.role === "toolResult") {
     // Rendered inline under its toolCall — skip standalone rendering if paired
@@ -432,6 +444,8 @@ export const MessageView = memo(function MessageView({ message, isStreaming, too
     && prev.onOpenSkill === next.onOpenSkill
     && prev.sessionId === next.sessionId
     && prev.expandedToolIds === next.expandedToolIds
+    // fork:turn-head-order —— 挂进来的过程组是新节点，必须参与比较，否则换组不重渲染。
+    && prev.prefix === next.prefix
     && prev.onToggleTool === next.onToggleTool;
 });
 
@@ -736,6 +750,8 @@ function AssistantMessageView({
   cwd,
   onOpenFile,
   onOpenSession,
+  onFork,
+  forking,
   showTimestamp,
   prevTimestamp,
   turnStats,
@@ -747,6 +763,7 @@ function AssistantMessageView({
   onOpenSkill,
   expandedToolIds,
   onToggleTool,
+  prefix,
 }: {
   message: AssistantMessage;
   isStreaming?: boolean;
@@ -755,6 +772,9 @@ function AssistantMessageView({
   cwd?: string;
   onOpenFile?: (filePath: string, page?: number) => void;
   onOpenSession?: (sessionId: string) => void;
+  /** fork:v5-frame-audit —— 动作行那枚「从这里分支」用的是**既有**的 fork 通路。 */
+  onFork?: (entryId: string) => void;
+  forking?: boolean;
   showTimestamp?: boolean;
   prevTimestamp?: number;
   turnStats?: TurnStats;
@@ -766,6 +786,8 @@ function AssistantMessageView({
   onOpenSkill?: (slug: string) => void;
   expandedToolIds?: Set<string>;
   onToggleTool?: (toolCallId: string) => void;
+  /** fork:turn-head-order —— 本轮过程组，渲染在身份行之后（见 Props.prefix）。 */
+  prefix?: ReactNode;
 }) {
   const { t } = useI18n();
   const time = showTimestamp ? formatTime(message.timestamp) : null;
@@ -776,10 +798,16 @@ function AssistantMessageView({
     .filter(({ block }) => !isEmptyThinkingBlock(block, { isStreaming })), [message.content, isStreaming]);
   const blocks = useMemo(() => blockItems.map(({ block }) => block), [blockItems]);
   const providerError = getAssistantErrorMessage(message, { isStreaming });
-  // fork:design-system PR-11 — 「输出被上限截断」不再单开告警块，改由回合结束行
-  // 的 `length` 徽章 + `chat.truncatedByOutputLimit` 解释表达（设计 12 画板）。
+  // fork:remove-turn-end（用户裁定 2026-10）—— 回合结束行整行删除：身份行末尾的
+  // `.d-plan-meta` 已经有「3 分 12 秒 · 18.4k token」，统计浮窗有会话累计用量，
+  // 逐块还有各自计时器，这一行是同一批数字的第四份。「输出被上限截断」原先也只靠
+  // 这一行的 `length` 徽章表达，随它一起去掉。
   // fork:fix-clipboard —— 复制改成三态（见 useMessageCopy）。
   const { copied, failed, copy } = useMessageCopy();
+  // fork:v5-frame-audit —— 「从这里分支」只在「有 entryId + 有 handler」时画。
+  const canForkAssistant = !!entryId && !!onFork && !isStreaming;
+  const onForkAssistant = onFork;
+  const assistantForking = forking ?? false;
   const streamStartRef = useRef<number | null>(null);
   const [tps, setTps] = useState<number | null>(null);
   // fork:v5-landing —— 助手动作行的 hover 由 system.css 的 `.d-msg-ai:hover .d-msg-acts`
@@ -850,6 +878,27 @@ function AssistantMessageView({
 
   const copyContent = () => copy(textContent);
 
+  /* fork:v5-frame-audit —— 身份行末尾那一格 `.d-plan-meta`（画板 D-03 帧 A 的
+     「3 分 12 秒 · 18.4k token」）：本轮耗时 + 本轮 token。
+     与回合结束行同一份数据（`turnStats` → 单步值回落），所以这里只做一次口径
+     归一：两个来源共用 `rowUsageOf` / `formatDuration`，免得两行各算一套。
+     流式期间不画（数字每帧都在动，闪）。 */
+  const headRowUsage = rowUsageOf(turnStats, message.usage);
+  const headDurationSec = turnStats?.elapsedSec ?? stepDurationSec;
+  const headPlanMeta = isStreaming || headDurationSec === null || !headRowUsage
+    ? null
+    : `${formatDuration(headDurationSec)} · ${formatCompactTokens(
+      headRowUsage.input + headRowUsage.cacheRead + headRowUsage.cacheWrite + headRowUsage.output,
+    )} token`;
+
+  /* fork:v5-landing —— 「流式中的最后一块」：串行内容里的尾块就是还在写的那一块
+     （正文 / 思考）。画板 D-03 帧 B 与 D-03d 帧 A 的两种活标记（光标、思考行）
+     都从这一条判据出，不各自另算一份。 */
+  const streamingTailIndex = blockItems.length > 0 ? blockItems[blockItems.length - 1].originalIndex : -1;
+  const streamingTailType = isStreaming && blockItems.length > 0
+    ? blockItems[blockItems.length - 1].block.type
+    : null;
+
   useEffect(() => {
     if (!isStreaming) {
       // Finalise any un-finished thinking block durations on stream end
@@ -903,7 +952,9 @@ function AssistantMessageView({
 
   // fork:design-system PR-11 — 只有「输出被截断」这一种空内容结束态需要留下
   // 回合结束行（旧实现是 `!truncated` 的截断告警块，现由结束行的 length 徽章接管）。
-  if (blocks.length === 0 && !isStreaming && !providerError && message.stopReason !== "length") return null;
+  // fork:turn-head-order —— `prefix` 也在豁免名单里：挂进来的过程组是那一轮唯一的
+  // 正文，返回 null 就等于把一整块过程丢掉。
+  if (blocks.length === 0 && !prefix && !isStreaming && !providerError && message.stopReason !== "length") return null;
 
   return (
     <div
@@ -921,10 +972,15 @@ function AssistantMessageView({
          system.css 里写明「转录区里它是『谁在说』的唯一来源」）。 */
       className={isPwa ? "m-msg-ai" : "d-msg-ai"}
     >
-      {/* fork:v5-wave-b —— 身份行（画板 M-02 帧 A/B/C 每一帧的第一块，逐字）：
-          `.m-ava.brand` 品牌头像 + `.m-t-b` 产品名 + `.m-badge.mute` 模型名。
-          桌面不加这行 —— D-03 的身份信息本来就散在消息头与回合结束行里。 */}
-      {isPwa && (
+      {/* fork:v5-frame-audit —— 身份行（画板 D-03 帧 A / D-03b 帧 B / D-03d 帧 A
+          **每一帧的第一块**，逐字）：`.d-msg-ai-head` › `.d-ava.brand`（品牌头像）
+          + `.d-t-b`（产品名）+ `.d-badge.mute`（模型名）。
+          桌面此前完全没有这一行（只有 PWA 分支有），用户验收时「这条是谁说的」
+          在桌面上只能靠猜 —— 这一帧的 structdiff 是「产品里找不到该节点」，
+          按 MISSING = 新增内容补出来。板面帧 A 多出的 `.d-plan-meta`
+          （耗时 · token）与回合结束行是同一份数据，不重复画。
+          fork:v5-wave-b —— PWA 分支（`.m-msg-ai-head`）一字未动。 */}
+      {isPwa ? (
         <div className="m-msg-ai-head">
           <span className="m-ava brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -935,16 +991,44 @@ function AssistantMessageView({
             <span className="m-badge mute">{getModelDisplayName(message.provider, message.model, modelNames)}</span>
           )}
         </div>
+      ) : (
+        <div className="d-msg-ai-head">
+          <div className="d-ava brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pi-next-logo.png" alt="" draggable={false} />
+          </div>
+          <span className="d-t-b">PI NEXT</span>
+          {message.provider && (
+            <span className="d-badge mute">{getModelDisplayName(message.provider, message.model, modelNames)}</span>
+          )}
+          {headPlanMeta && (
+            <>
+              <span className="d-grow" />
+              <span className="d-plan-meta">{headPlanMeta}</span>
+            </>
+          )}
+        </div>
       )}
+      {/* fork:turn-head-order —— 过程组（折叠卡）紧跟身份行：宿主把它当 `prefix` 送进来，
+          渲染点就在身份行之后、流式元信息行之前（一个视觉只出现一次）。
+          fork:prefix-once —— 这里原来**画了两遍** {prefix}（两个 fork:turn-head-order 注释
+          各留了一份）。两个副本带同一个 React key，落在同一父节点里：React 的重复 key
+          协调会让其中一份在每次重绘时被拆掉重建，于是「点开/收起」的状态写在被丢弃的
+          fiber 上 —— 表现是点卡片毫无反应（`aria-expanded` 不动），同时一屏里出现两张
+          一模一样的摘要卡、间距翻倍。留一份。 */}
+      {prefix}
       {/* fork:v5-landing —— 流式元信息行用画板排版基元：
           `.d-t-xs.d-t-faint`（次要文字）+ `.d-mono`（数字等宽）+ `.d-badge`（t/s 计数）。
           图标换成 `i[data-ico="arrow-down"]`（lucide 单线 1.5px），不再手绘。
           fork:v5-wave-b —— 窄屏换成 M-02 的 `.m-msg-ai-head.m-t-xs.m-t-faint` + `.m-mono`
           + `.m-badge`。m-badge 只有 ok/warn/bad/mute 四档，PWA 语义色少了 info，
-          所以 `info` 档落 `.m-badge.mute`（中性），不改读法。 */}
+          所以 `info` 档落 `.m-badge.mute`（中性），不改读法。
+          fork:v5-frame-audit —— **桌面这一行不再挂 `.d-msg-ai-head`**：画板里
+          `.d-msg-ai-head` 是「这条消息是谁在说」的身份行，一句一处；流式进度
+          （估算 token / t/s）是另一件事，布局由下面这排内联 flex 给。 */}
       {isStreaming && (
         <div
-          className={isPwa ? "m-msg-ai-head m-t-xs m-t-faint" : "d-msg-ai-head d-t-xs d-t-faint"}
+          className={isPwa ? "m-msg-ai-head m-t-xs m-t-faint" : "d-t-xs d-t-faint"}
           style={{
             fontSize: isPwa ? undefined : TEXT.xs,
             marginBottom: "var(--s1)",
@@ -985,9 +1069,22 @@ function AssistantMessageView({
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
         {blockItems.map(({ block, originalIndex }) => (
-          <BlockView key={`${entryId ?? "stream"}-${originalIndex}`} block={block} searchTarget={block === searchBlock} toolResults={toolResults} isStreaming={isStreaming} streamingDuration={streamingDurations.get(originalIndex) ?? (block.type === "thinking" ? thinkingDurationFromFile : undefined)} toolCallDurations={toolCallDurations} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} sessionId={sessionId} entryId={entryId} blockIndex={originalIndex} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />
+          /* fork:v5-landing —— 只有**还在长的那一块**算「流式中」：
+             光标（`.d-caret` / `.m-caret`）与思考行（`.d-think-row` / `.m-think-row`）
+             都只该出现在最后一块上，否则同一条消息里已落定的段落会各带一个光标。 */
+          <BlockView key={`${entryId ?? "stream"}-${originalIndex}`} block={block} searchTarget={block === searchBlock} toolResults={toolResults} isStreaming={isStreaming} isStreamingTail={isStreaming && originalIndex === streamingTailIndex} streamingDuration={streamingDurations.get(originalIndex) ?? (block.type === "thinking" ? thinkingDurationFromFile : undefined)} toolCallDurations={toolCallDurations} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} sessionId={sessionId} entryId={entryId} blockIndex={originalIndex} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />
         ))}
       </div>
+
+      {/* fork:v5-landing —— M-02 帧 A 的实时行：`.m-run`（转圈）+ `.m-text-live`
+          （实时文字，光标由 `.m-text-live::after` 给）。只挂在窄屏、且只在正文
+          还在流式的那一刻（尾块是正文）；正文在 M-02 板里就写在流式段的下一行。 */}
+      {isPwa && isStreaming && streamingTailType === "text" && (
+        <div className="m-run">
+          <i data-ico="loader-circle" data-size="14" aria-hidden="true"></i>
+          <span className="m-text-live">{t("chat.running")}</span>
+        </div>
+      )}
 
       {/* fork:v5-landing —— provider 错误框 = 画板 D-03e 帧 D 的 `.d-banner.err`：
           容器自带 error 底 / error 文字；首列 `triangle-alert` 图标，正文 `.d-grow`
@@ -1052,77 +1149,10 @@ function AssistantMessageView({
           )}
         </div>
       )}
-
-      {/* fork:v5-landing —— 回合结束行 = 画板 D-03c 的 `.d-turn-end`：
-          状态图标 + `.d-grow` 说明 + `.d-t-xs` 的耗时 / 用量 / 金额格。
-          fork:v5-wave-b —— 窄屏换成 M-02 帧 B 的 `.m-turn-end`（同一行；画板那一行
-          把状态写进 `.m-badge` 里，图标单独一枚）。 */}
-      {!isStreaming && (() => {
-        const stopReason = message.stopReason ?? "stop";
-        // fix:turn-stats —— 这一格原来是 `message.timestamp - 上一条消息.timestamp`，
-        // 量的是“条目落盘的间隔”（实测恒为 3–10ms，用户：“这个咋又是毫秒啊，
-        // 统计的一点都不准”）。先改成“这一步模型跑了多久”（落盘 − 调用开始），再按用户裁定
-        // 升级为**本轮**口径：“从每轮思考一直到本轮结束”，与输入 / 输出 / 费用同口径
-        // （见 lib/turn-stats.ts）。缺本轮快照时退回单步值。
-        const durationSec = turnStats?.elapsedSec ?? stepDurationSec;
-        const icon = stopReason === "stop" ? "check"
-          : stopReason === "toolUse" ? "wrench"
-            : stopReason === "length" ? "triangle-alert"
-              : stopReason === "deferred" ? "clock"
-                : stopReason === "aborted" ? "circle-stop"
-                  : stopReason === "error" ? "circle-x"
-                    : "ellipsis";
-        // 用量与费用同样按**本轮**累加：四格必须是同一个口径，否则「17k 输入 + 161 输出」
-        // 配一个 4.4s 的耗时读起来自相矛盾。缺快照时退回这条消息自己的 usage。
-        const rowUsage = rowUsageOf(turnStats, message.usage);
-        const usageText = rowUsage ? formatUsage(rowUsage) : "";
-        const costText = rowUsage ? formatUsageCost(rowUsage) : null;
-        const note = stopReason === "toolUse" ? t("chat.turnEnd.toolUse")
-          : stopReason === "length" ? t("chat.truncatedByOutputLimit")
-            : stopReason === "deferred" ? t("chat.turnEnd.deferred")
-              : stopReason === "aborted" ? t("chat.turnEnd.aborted")
-                : stopReason === "error" ? t("chat.turnEnd.error")
-                  : null;
-        // fork:v5-wave-b —— 画板 M-02 的结束行：状态**在徽标里**（`<i check> stop`），
-        // 旁边一句人话，再往右是耗时 / token / 金额。与桌面「裸 stopReason 文案 +
-        // 单独一枚状态图标」是同一份数据、两种画法。
-        return (
-          <div className={isPwa ? "m-turn-end" : "d-turn-end"} style={{ marginTop: "var(--space-row)" }}>
-            {isPwa ? (
-              <span className={`m-badge ${stopReason === "error" ? "bad" : "ok"}`}>
-                <i data-ico={icon} data-size="12"></i>
-                {stopReason}
-              </span>
-            ) : (
-              <i data-ico={icon} data-size="13"></i>
-            )}
-            <span className={isPwa ? "m-grow" : "d-grow"}>
-              {isPwa ? (note ?? "") : stopReason}{!isPwa && note ? ` · ${note}` : ""}
-            </span>
-            {durationSec !== null && (
-              <span
-                className={isPwa ? "m-t-xs m-mono" : "d-t-xs"}
-                title={turnStats && turnStats.steps > 1 && stepDurationSec !== null
-                  ? t("chat.turnEnd.durationHintTurnSteps", {
-                    turn: formatDuration(durationSec),
-                    step: formatDuration(stepDurationSec),
-                    steps: turnStats.steps,
-                  })
-                  : t("chat.turnEnd.durationHintTurn", { turn: formatDuration(durationSec) })}
-              >
-                {formatDuration(durationSec)}
-              </span>
-            )}
-            {usageText && rowUsage && (
-              <span className={isPwa ? "m-t-xs m-mono" : "d-t-xs"} title={usageTitle(rowUsage, t)}>{usageText}</span>
-            )}
-            {/* 金额只在真的有费用时出现（画板 D-03c 的 `¥0.42`）。`$0.000` 不画 ——
-                用户裁定 2026-10-01「那就把这个金额去掉吧」：免费 / 不上报价格的模型
-                （单价为 0）常年显示一格 0 纯属噪声，还让人以为漏算了。 */}
-            {costText && <span className={isPwa ? "m-t-xs m-mono" : "d-t-xs"}>{costText}</span>}
-          </div>
-        );
-      })()}
+      {/* fork:remove-turn-end（用户裁定 2026-10）—— 回合结束行（画板 D-03c 的
+          `.d-turn-end` / 窄屏 `.m-turn-end`）整行删除，读数统一由身份行的
+          `.d-plan-meta` 与统计浮窗承担；连带删除只为它存在的 `formatUsage` /
+          `formatUsageCost` / `usageTitle` 与「复制本轮统计」三态。 */}
 
       {/* fork:v5-landing —— 助手消息的动作行 = 画板 D-03 A 的 `.d-msg-acts`：
           复制钮是 `.d-iconbtn`（图标 + title），时间戳用 `.d-grow` 顶到行尾。
@@ -1141,6 +1171,24 @@ function AssistantMessageView({
             <i data-ico={copied ? "check" : "copy"} data-size="13"></i>
           </button>
         )}
+        {/* fork:v5-frame-audit —— 「从这里分支」= 画板 D-03 帧 A 动作行上的第二枚
+            `.d-iconbtn`（`git-fork`）：板上有、产品此前没有。行为是**既有**的
+            `onFork(entryId)`（与用户消息上的「新会话」同一条通路，ChatWindow 已经
+            把 handler 传进每一条消息，只是助手这一支一直没渲染它）。
+            板面同一行还有「重新生成」（redo-2）与「引用」（quote）——
+            产品里没有这两个 handler，不造点不动的钮，已登记为缺件。 */}
+        {canForkAssistant && (
+          <button
+            type="button"
+            onClick={() => { onForkAssistant!(entryId!); }}
+            disabled={assistantForking}
+            title={assistantForking ? t("i18n.creatingSession") : t("i18n.newSessionTitle")}
+            aria-label={assistantForking ? t("i18n.creating") : t("i18n.newSession")}
+            className={isPwa ? "m-iconbtn" : "d-iconbtn"}
+          >
+            <i data-ico="git-fork" data-size="13"></i>
+          </button>
+        )}
         {time && !isStreaming && (
           <span className={isPwa ? "m-grow" : "d-grow"} />
         )}
@@ -1153,15 +1201,19 @@ function AssistantMessageView({
   );
 }
 
-function BlockView({ block, searchTarget, toolResults, isStreaming, streamingDuration, toolCallDurations, cwd, onOpenFile, onOpenSession, sessionId, entryId, blockIndex, expandedToolIds, onToggleTool }: { block: AssistantContentBlock; searchTarget?: boolean; toolResults?: Map<string, ToolResultMessage>; isStreaming?: boolean; streamingDuration?: number; toolCallDurations?: Map<string, number>; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void; onOpenSession?: (sessionId: string) => void; sessionId?: string; entryId?: string; blockIndex: number; expandedToolIds?: Set<string>; onToggleTool?: (toolCallId: string) => void }) {
+function BlockView({ block, searchTarget, toolResults, isStreaming, isStreamingTail, streamingDuration, toolCallDurations, cwd, onOpenFile, onOpenSession, sessionId, entryId, blockIndex, expandedToolIds, onToggleTool }: { block: AssistantContentBlock; searchTarget?: boolean; toolResults?: Map<string, ToolResultMessage>; isStreaming?: boolean; /** fork:v5-landing —— 这一块是**还在长的那一块**（画板的流式段）。 */ isStreamingTail?: boolean; streamingDuration?: number; toolCallDurations?: Map<string, number>; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void; onOpenSession?: (sessionId: string) => void; sessionId?: string; entryId?: string; blockIndex: number; expandedToolIds?: Set<string>; onToggleTool?: (toolCallId: string) => void }) {
   if (block.type === "text") {
-    return <div data-message-text data-search-target={searchTarget || undefined}><TextBlock block={block as TextContent} isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile} /></div>;
+    // fork:v5-landing —— `isStreaming` 只给尾块：`.d-stream` / `.d-caret` 是流式段的形态，
+    // 已经落定的正文块不挂（否则一条消息里每个段落都长出一个光标）。
+    return <div data-message-text data-search-target={searchTarget || undefined}><TextBlock block={block as TextContent} isStreaming={isStreamingTail} cwd={cwd} onOpenFile={onOpenFile} /></div>;
   }
   if (block.type === "thinking") {
     // fork:zc-02 — searchTarget 必须传到 ThinkingBlock：否则被搜到的思考正文在折叠态
     // 下不在 DOM 里（两段式挂载 + 惰性加载），高亮与滚动都拿不到 Range。
     // 注意 ThinkingBlock 的惰性加载副作用依赖 `expanded`，reveal 参与派生后会一并触发加载。
-    return <ThinkingBlock block={block as ThinkingContent} duration={streamingDuration} sessionId={sessionId} entryId={entryId} blockIndex={blockIndex} isStreaming={isStreaming} reveal={searchTarget} />;
+    // fork:v5-landing —— `isStreaming` 仍管展开/收起（整轮在跑），`live` 另开一口：
+    // 思考行（`.d-think-row` / `.m-think-row`，画板 D-03d 帧 A）只画在还在想的这一块上。
+    return <ThinkingBlock block={block as ThinkingContent} duration={streamingDuration} sessionId={sessionId} entryId={entryId} blockIndex={blockIndex} isStreaming={isStreaming} live={isStreamingTail} reveal={searchTarget} />;
   }
   if (block.type === "toolCall") {
     const tc = block as ToolCallContent;
@@ -1176,21 +1228,102 @@ function BlockView({ block, searchTarget, toolResults, isStreaming, streamingDur
   return null;
 }
 
-function TextBlock({ block, isStreaming, cwd, onOpenFile }: { block: TextContent; isStreaming?: boolean; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void }) {
-  return <SafeMarkdownBody isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile}>{block.text}</SafeMarkdownBody>;
+/** fork:v5-landing —— 尾段能不能用「行内渲染 + 行内光标」这一档。
+ *
+ * 画板的流式段是 `<p class="d-stream">正文<span class="d-caret"></span></p>`：光标紧跟
+ * 句子末尾。只有**单行、且不以块级标记起首**的尾段能用这条（它就是一段普通段落，
+ * 行内 markdown 足以覆盖）；多行 / 围栏 / 列表 / 表格 / 标题这些交给整段 markdown
+ * 渲染，光标跟在段后 —— 不为了光标把 markdown 语义降级（代码围栏正在流式时最常见）。 */
+function isInlineStreamTail(text: string): boolean {
+  if (text.length === 0) return false;
+  if (text.includes("\n")) return false;
+  return !/^ {0,3}(`{3,}|~{3,}|#{1,6}(\s|$)|>|[-*+](\s|$)|\d+[.)](\s|$)|\|| {4}\S)/.test(text);
 }
 
-export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex, isStreaming, reveal }: {
+/** 尾段的行内渲染：只拆掉段落外壳（`p` → 无标签），强调 / 行内代码 / 链接照旧。 */
+const INLINE_TAIL_COMPONENTS: ComponentProps<typeof ReactMarkdown>["components"] = {
+  p: ({ children }) => <>{children}</>,
+};
+
+/** fork:v5-landing D-03 帧 B / D-27 帧 B —— 流式正文段。
+ *
+ * 稳定前缀照旧走 `MarkdownBody`（整块 memo，每来一个 delta 不重跑）；还在增长的尾段
+ * 才是画板的 `.d-stream` / `.m-stream`，末尾那枚单字光标是 `.d-caret` / `.m-caret`。
+ * 尾段走行内渲染时不再套 `MarkdownBody`，所以这里自己带 `useMemo` 保证稳定前缀
+ * 的元素 identity 不变（否则每帧重解析整段历史正文）。 */
+function StreamingTextBlock({ block, cwd, onOpenFile }: { block: TextContent; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void }) {
+  const isPwa = usePwaSkin();
+  const text = block.text;
+  const { stableBody, tail } = useMemo(() => {
+    const parts = splitStableParts(text);
+    const tailPart = parts.length > 0 && parts[parts.length - 1].tail ? parts[parts.length - 1] : null;
+    const stableText = parts.slice(0, tailPart ? parts.length - 1 : parts.length).map((part) => part.text).join("\n\n");
+    return {
+      // 稳定前缀的元素 identity 跟着 `text` 走：每来一个 delta 都不重解析已落定的正文。
+      stableBody: stableText.length > 0
+        ? <SafeMarkdownBody isStreaming cwd={cwd} onOpenFile={onOpenFile}>{stableText}</SafeMarkdownBody>
+        : null,
+      tail: tailPart,
+    };
+  }, [text, cwd, onOpenFile]);
+  const caret = <span className={isPwa ? "m-caret" : "d-caret"} aria-hidden="true" />;
+  return (
+    <>
+      {stableBody}
+      {tail && (isInlineStreamTail(tail.text) ? (
+        <p className={isPwa ? "m-stream" : "d-stream"}>
+          <ReactMarkdown components={INLINE_TAIL_COMPONENTS} skipHtml>{tail.text}</ReactMarkdown>
+          {caret}
+        </p>
+      ) : (
+        <div className={isPwa ? "m-stream" : "d-stream"}>
+          <SafeMarkdownBody isStreaming cwd={cwd} onOpenFile={onOpenFile}>{tail.text}</SafeMarkdownBody>
+          {caret}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function TextBlock({ block, isStreaming, cwd, onOpenFile }: { block: TextContent; isStreaming?: boolean; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void }) {
+  if (!isStreaming) {
+    return <SafeMarkdownBody isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile}>{block.text}</SafeMarkdownBody>;
+  }
+  return <StreamingTextBlock block={block} cwd={cwd} onOpenFile={onOpenFile} />;
+}
+
+/** fork:v5-landing —— 流式中的思考秒表（画板 D-03d 帧 A 的 `.d-think-timer` 那一格）。
+ *  只在流式期间走 1s 心跳，读完即停（非流式分支一个定时器都不建）。 */
+function useLiveSeconds(active: boolean): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = setInterval(() => setSeconds((Date.now() - startedAt) / 1000), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return seconds;
+}
+
+export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex, isStreaming, live, reveal }: {
   block: ThinkingContent;
   duration?: number;
   sessionId?: string;
   entryId?: string;
   blockIndex: number;
   isStreaming?: boolean;
+  /** fork:v5-landing —— 这一块**正在**推理（尾块）。只有它为真时画思考行。 */
+  live?: boolean;
   /** fork:zc-02 — 被查找/搜索命中时强制展开（派生，不改用户的手动折叠状态）。 */
   reveal?: boolean;
 }) {
   const { t } = useI18n();
+  // fork:v5-landing —— 窄屏的思考行是画板 M-11 帧 E 的 `.m-think-row`（图案 + 文案 + 秒数）。
+  const isPwa = usePwaSkin();
+  const liveSeconds = useLiveSeconds(Boolean(live));
   const [expanded, setExpanded] = useState(isThinkingExpandedByDefault);
   // fork:zc-02 — 被查找/搜索命中时强制展开。派生 `expandedView` 而不改 state：
   // 1) 不动用户的手动折叠选择，命中消失（换查询/关查找条）后回到原状态；
@@ -1359,6 +1492,27 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
                 <span className="d-skel" style={{ height: 10, width: "78%" }} />
               </span>
             ) : error ?? (block.deferred ? content : block.thinking)}
+            {/* fork:v5-landing —— 思考行 = 画板 D-03d 帧 A / D-27 帧 A 的
+                `.d-think-row`（点阵图案 + 流光标签 + 计时器），窄屏是 M-11 帧 E 的
+                `.m-think-row`（同一行：图案 + 文案 + grow + 等宽秒数）。
+                数据全是真的：图案来自 ThinkingIcon（流式态 = wave 对角波），
+                标签是本地化的「思考」，秒数是这一块的实时时计（不是静态 4.2s）。 */}
+            {live && (
+              isPwa ? (
+                <div className="m-think-row">
+                  <ThinkingIcon active size={12} />
+                  <span>{t("i18n.thinking")}</span>
+                  <span className="m-grow" />
+                  {liveSeconds > 0 && <span className="m-mono m-t-xs m-t-faint">{formatDuration(liveSeconds)}</span>}
+                </div>
+              ) : (
+                <div className="d-think-row">
+                  <ThinkingIcon active size={12} />
+                  <span className="d-shimmer">{t("i18n.thinking")}</span>
+                  {liveSeconds > 0 && <span className="d-think-timer d-num">{formatDuration(liveSeconds)}</span>}
+                </div>
+              )
+            )}
           </div>
         )}
       </div>
@@ -1442,6 +1596,21 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
   // fork:pr52-plan-tools —— 计划文档卡常驻在工具卡头下面（收起态也在）：计划落盘之后，
   // 那个路径必须一眼就能点开，而不是等人展开卡去找一行输出。失败的那次不画卡。
   const plan = !result?.isError && isPlanToolDetails(result?.details) ? result.details : null;
+  /* fork:v5-landing D-03 帧 C —— `todo` 工具结果里带着**真实步骤**，就是那条
+     `.d-plan-rail` 要接的数据（计划文档本身没有分步数据，所以那边不画）。
+     「进行中」= 最老的一条未完成项 —— 与输入框上方 `TodoChip` 同一个口径
+     （todo 工具没有 current 字段，这是推断，但它就是 agent 下一勾会勾的那条）。
+     纯 `list` 动作不画：它只是把同一份清单又读一遍，画出来就是连着两张一模一样的卡。 */
+  const todo = !result?.isError && isTodoDetails(result?.details) ? result.details : null;
+  const todoSteps: PlanRailStep[] | null = todo && todo.action !== "list" && todo.todos.length > 0
+    ? (() => {
+      const activeId = todo.todos.find((item) => !item.done)?.id ?? null;
+      return todo.todos.map((item) => ({
+        text: item.text,
+        state: item.done ? "done" as const : item.id === activeId ? "run" as const : undefined,
+      }));
+    })()
+    : null;
   // fork:v5-wave-b —— 窄屏（画板 M-02 帧 B）：工具卡 = `.m-tool` + `.m-tool-head`，
   // 输出在下面一块 `.m-code`（横滚）。桌面继续 D-03d 的 `.d-tool` / `.d-tool-head`。
   const isPwa = usePwaSkin();
@@ -1461,7 +1630,10 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
           className={isPwa ? "m-tool-head" : "d-tool-head"}
           style={{
             display: "flex",
-            alignItems: "center",
+            /* fork:tool-head-top —— `align-items` 不在这里内联：接线层（v5-forms.css）
+               按「首行顶部对齐」盖过库里的 `center`（内联会把它压回去，长命令折行
+               时工具名 / 徽章 / 耗时又浮到两行正中）。桌面与窄屏共用这一行样式，
+               各自落回库里那一条。 */
             flex: 1,
             minWidth: 0,
             background: "none",
@@ -1517,6 +1689,25 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
                 : t("codemode.callCount", { count: codemodeCallCount })}
             </span>
           )}
+          {/* fork:v5-frame-audit —— 卡头状态徽章（画板 D-03 帧 B 的成功卡 /
+             失败卡，逐字）：参数格之后、耗时格之前挂一枚 `.d-badge` ——
+             成功 `ok` +「已完成」、失败 `bad` +「失败」、参数生成中中性档 + 转圈。
+             这一枚此前产品完全没有，structdiff 报「板上有、产品没有」。
+             文案复用已有 i18n 键（`process.done` / `process.failed` /
+             `process.running`），不新增词条。
+             没有结果时**不画运行中** —— 历史条目里未配对的结果不是「还在跑」。
+             fork:v5-wave-b —— 窄屏分支（M-02 帧 B）一字未动。 */}
+          {!isPwa && (isError || isStreamingInput || (result && !codemode)) && (
+            <span
+              className={
+                isError ? "d-badge bad" : isStreamingInput ? "d-badge" : "d-badge ok"
+              }
+              style={{ flexShrink: 0 }}
+            >
+              {isStreamingInput && <i data-ico="loader-circle" data-size="11" aria-hidden="true"></i>}
+              {isError ? t("process.failed") : isStreamingInput ? t("process.running") : t("process.done")}
+            </span>
+          )}
           {duration !== undefined && (
             <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"} style={{ flexShrink: 0 }}>{formatDuration(duration)}</span>
           )}
@@ -1536,6 +1727,23 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
           </button>
         )}
       </div>
+
+      {/* fork:v5-landing —— todo 卡 = 画板 D-03 帧 C 的计划卡：`.d-plan` ›
+          `.d-plan-head`（图标 + 标题 + 进度徽章）+ `.d-plan-body > .d-plan-rail`
+          （真实步骤，done / run 两个状态档）。窄屏不画：PWA 库没有 `m-plan-*`，
+          不为它发明类名（窄屏的待办由输入卡上方的 `.m-tool` 芯片承担）。 */}
+      {todoSteps && !isPwa && (
+        <div className="d-plan">
+          <div className="d-plan-head">
+            <i data-ico="list-todo" data-size="15" aria-hidden="true"></i>
+            <span className="d-grow">{t("chat.todos")}</span>
+            <span className={todoSteps.every((step) => step.state === "done") ? "d-badge ok" : "d-badge"}>
+              {todoSteps.filter((step) => step.state === "done").length} / {todoSteps.length}
+            </span>
+          </div>
+          <PlanRail steps={todoSteps} />
+        </div>
+      )}
 
       {/* fork:pr52-plan-tools —— 计划文档卡（画板 54 B 的 `.pw-filecard`）。放在参数区之前，
           所以收起态也看得见；预览复用宿主既有的 FileViewer 打开通道，不自写预览器。 */}
@@ -1797,26 +2005,27 @@ function SplitDiffCellView({ cell, intraline }: {
     : "color-mix(in srgb, var(--danger) 30%, transparent)";
 
   return (
+    /* fork:v5-frame-audit — 行本身 = 画板 D-03d 帧 C / D-03 帧 B 的
+       `<span class="d-diff-line[.del|.add]">整行文本</span>`：行号与 +/− 符号是
+       **行文本的一部分**，不是三个子节点。此前这里是 `.no` + `.sign` + 正文三个
+       span，而这两个类在 v5 库里一条规则都没有（是空壳），结构上与板面对不上。
+       折行策略（超长行 pre-wrap）与词级高亮（fork:zc-07 的 segment span）原样保留。 */
     <div
       className={`d-diff-line${cell.type === "added" ? " add" : cell.type === "removed" ? " del" : ""}`}
+      style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
     >
-      <span className="no">{cell.lineNo ?? ""}</span>
-      <span className="sign">{cell.type === "added" ? "+" : cell.type === "removed" ? "−" : ""}</span>
-      <span
-        className={cell.type === "empty" ? "d-t-faint" : undefined}
-        style={{ flex: 1, minWidth: 0, paddingRight: "var(--s2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-      >
-        {segments && hasVisibleSegments
-          ? segments.map((segment, index) => (
-              <span
-                key={index}
-                style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-3)" } : undefined}
-              >
-                {segment.text}
-              </span>
-            ))
-          : (cell.text || " ")}
-      </span>
+      {cell.lineNo !== undefined && cell.lineNo !== null ? `${cell.lineNo} ` : ""}
+      {cell.type === "added" ? "+ " : cell.type === "removed" ? "− " : ""}
+      {segments && hasVisibleSegments
+        ? segments.map((segment, index) => (
+            <span
+              key={index}
+              style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-3)" } : undefined}
+            >
+              {segment.text}
+            </span>
+          ))
+        : (cell.text || " ")}
     </div>
   );
 }
@@ -1836,18 +2045,15 @@ function PatchTextView({ text }: { text: string }) {
           "context";
 
         return (
+          /* fork:v5-frame-audit —— 同 SplitDiffCellView：一行就是一行文本，
+             hunk 行走 `.d-t-faint`（与板面 D-03d 帧 C 的
+             `<span class="d-diff-line d-t-faint">@@ …` 一致）。 */
           <div
             key={i}
-            className={`d-diff-line${kind === "added" ? " add" : kind === "removed" ? " del" : ""}`}
+            className={`d-diff-line${kind === "added" ? " add" : kind === "removed" ? " del" : ""}${kind === "hunk" ? " d-t-faint" : ""}`}
+            style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
           >
-            <span className="no">{i + 1}</span>
-            <span className="sign" />
-            <span
-              className={kind === "hunk" ? "d-t-faint" : undefined}
-              style={{ flex: 1, minWidth: 0, paddingRight: "var(--s2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-            >
-              {line || " "}
-            </span>
+            {line || " "}
           </div>
         );
       })}
@@ -2385,7 +2591,7 @@ function getToolPreview(block: ToolCallContent): string {
 }
 
 /**
- * 回合结束行那一格用的归一形状：本轮累计（`TurnStats`）与单条消息的 `usage` 都归到它，
+ * 身份行 `.d-plan-meta` 用的归一形状：本轮累计（`TurnStats`）与单条消息的 `usage` 都归到它，
  * 两个来源共用一套格式化 —— 免得「本轮口径」上线后单步路径悄悄走另一套。
  */
 export interface RowUsage {
@@ -2395,48 +2601,6 @@ export interface RowUsage {
   cacheWrite: number;
   /** 本轮费用合计；0 / undefined = 不画这一格（免费或没上报价格）。 */
   costTotal: number;
-}
-
-export function formatUsage(usage: {
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-}): string {
-  // fork:design-components —— 回合用量行 = 画板 12 的「↑ 8,912 · ↓ 1,328 tok」。
-  //
-  // fix:turn-stats —— `↑` 是**这一次请求真的送进去的 prompt token**：光报
-  // `usage.input` 是不准的（实测一次真实回合 input=71、cacheRead=240,830，却显示
-  // 「↑ 71」—— 看上去只有 71 个 token，而模型读了 24 万）。所以上行 = input +
-  // cacheRead + cacheWrite，过万走紧凑写法；精确拆分放在 title 里。
-  // 缓存读写不再整项丢失（画板没画，但这一行本来就只放“这一轮花了多少”）。
-  const prompt = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
-  if (!prompt && !usage.output) return "";
-  return `↑ ${formatCompactTokens(prompt)} · ↓ ${formatCompactTokens(usage.output)} tok`;
-}
-
-/** 用量格 title：把紧凑显示的三个数说清楚。 */
-function usageTitle(usage: {
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-}, t: (key: string, params?: Record<string, string | number>) => string): string {
-  const parts = [
-    `${t("chat.turnEnd.inputTokens", { count: usage.input.toLocaleString() })}`,
-    `${t("chat.turnEnd.cacheRead", { count: (usage.cacheRead ?? 0).toLocaleString() })}`,
-    `${t("chat.turnEnd.cacheWrite", { count: (usage.cacheWrite ?? 0).toLocaleString() })}`,
-    `${t("chat.turnEnd.outputTokens", { count: usage.output.toLocaleString() })}`,
-  ];
-  return parts.join(" · ");
-}
-
-/** 费用（画板 12：用量与费用之间有一个 `·`）。
- *  fix:turn-stats —— **只有真的有费用才画**：单价为 0 的模型（`space-bunny-free` 这类免费档，
- *  pi 的价格表里 cost 全是 0）恒为 `$0.000`，一格常年 0 是噪声而不是信息
- *  （用户裁定 2026-10-01：“那就把这个金额去掉吧”）。上游报了 0 就是没花钱，不画。 */
-export function formatUsageCost(usage: { costTotal: number }): string | null {
-  return usage.costTotal > 0 ? `$${usage.costTotal.toFixed(3)}` : null;
 }
 
 /** 本轮累计优先，缺快照退回这条消息自己的 usage（老调用方 / 单条渲染）。 */

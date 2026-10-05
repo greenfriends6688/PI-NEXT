@@ -440,9 +440,17 @@ CI 里如果跑不了，就把工具名清单写进 `SHORTCUT_COMMANDS` 那样�
 
 * **Electron Framework 的 85 种&#x20;**`locale.pak`（每个 524K）在框架 Resources 里，`electronLanguages` 管不到它，要自己删；只留 en/en\_GB/zh\_CN/zh\_TW 等十种。
 
-* 体积基线：app 756M → 通用 DMG **191M**（ULMO）；Windows nsis **144M**。大头是 Electron 框架 （双架构 418M，单架构约 208M），再小只能改成 Next standalone 输出。
+* **打包构建必须走项目自己的 build 脚本**（`npm run build` = `next build --webpack`）：裸 `npx next build` 在 Next 16 是 Turbopack，会把 serverExternalPackages 外部化成 `.next/node_modules/<pkg>-<hash>` 副本、并给每条路由写 5M+ 的 `*.nft.json`——v0.1.8 DMG 从 218M 涨到 380M 就是技能脚本裸跑 Turbopack 造成的（pack-mac-dmg.sh Step 2 已改为优先项目 build 脚本）。
 
-* 打包后必做三件事：`env -u ELECTRON_RUN_AS_NODE` 启动冒烟（`/api/home` 200）、`hdiutil verify`、 以及**真 Electron 窗口里的点击验证**（顶栏按钮是否被 `.desktop-drag-handle` 盖住—— 手柄是绝对定位元素，会绘制在 static 按钮之上，详见 `app/fork-ui.css`）。
+* **`.next/node_modules` 哈希副本不进包，以符号链接注入**（`scripts/after-pack.mjs`）：electron-builder 不带符号链接打包，files 的 `node_modules/**` 规则罩不到 `.next` 下面，把解引用副本 cpSync 进包等于双份 pi-coding-agent（+400M）。副本与顶层包**逐字等价**（文件清单 diff 验证，只多 8 个 `.bin` 垫片），所以剥掉 `-<16hex>` 哈希后缀 `symlinkSync` 到产物自带真包即可，真包缺失才退回复制；`build.files` 里 `!.next/node_modules/**` 让副本根本不进包。`mac.x64ArchFiles` 因此多了 `**/Resources/app/.next/node_modules/**`（universal 合并要求两架构同文件都要声明）。
+
+* **嵌套 `@esbuild/*` 按目标平台裁剪**（afterPack）：pi-coding-agent 内嵌全部 26 个平台二进制（~250M），运行时只加载本平台一块；`build.files` 只排除顶层 `node_modules/@esbuild/**`（同一份清单还要打 win 包，平台裁剪只能放 afterPack，按 appOutDir 目录名后缀判定，认不出就不裁）。
+
+* **`*.nft.json` 是纯打包垃圾**：Next 文件追踪清单只在 standalone 拷贝阶段用，运行时不读；Turbopack 产物里每条路由 5.5M（0.1.8 实测占 280M）。`build.files` 已排除 + afterPack 与 `--prune` 双保险。
+
+* 体积基线：app 756M → 通用 DMG **191M**（ULMO）；Windows nsis **144M**。大头是 Electron 框架 （双架构 418M，单架构约 208M），再小只能改成 Next standalone 输出。v0.1.8 复盘：技能脚本裸跑 Turbopack 让 arm64 DMG 涨到 380M（app 1.3G）；改回 webpack 构建 + afterPack 符号链接注入 + esbuild 平台裁剪后 **arm64 DMG 116M**（app 323M），低于 0.1.7 的 218M（见 git log fork:pack-size）。
+
+* 打包后必做三件事：`env -u ELECTRON_RUN_AS_NODE` 启动冒烟（`/api/home` 200）、`hdiutil verify`、 以及**真 Electron 窗口里的点击验证**（顶栏按钮是否被 `.desktop-drag-handle` 盖住—— 手柄是绝对定位元素，会绘制在 static 按钮之上，详见 `app/fork-ui.css`）。冒烟不必退出正在使用的正式实例：`electron/main.js` 支持 `PI_WEB_USER_DATA_DIR` 覆盖 userData（单实例锁按 userData 路径判定），打包技能 Step 6 自动走它。
 
 ## Pi Session File Format
 
@@ -471,9 +479,27 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 --font-mono
 ```
 
-### 设计系统：design/pi-web-design（fork:design-system，2026-09-28 起）
+### 设计系统：V5 是唯一真值（design/v5，2026-10-04 起）
 
-界面唯一风格来源是 **`design/pi-web-design/`**（29 张画板 + `DESIGN-SPEC.md` + `DIVERGENCE.md` + `assets/tokens.css/board.css/icons.js`）。BoardUI 层（2026-09-20 引入）已于 2026-09-30 删除：颜色权威早已迁到设计 token，52 个排版类全仓零使用。
+**新代码只写 V5 的类**：`d-*`（Web，`design/v5/web/system.css`）与 `m-*`（PWA，`design/v5/pwa/system.css`）。
+旧的 `pw-*` / `fork-*` / `--n-*` / `--ds-*` 属于 **v1–v4 历史层**，只许维护不许新增；
+改动产品样式时，**照 `design/v5/` 的画板抄 DOM**，不要照着旧 `pw-*` 继续加。
+理由与证据见 `design/v5/LANDING.md §0`：历史上三次落地失败（两套 DOM / 加类不换 DOM / 两个令牌文件），
+编译器、单测、人眼评审**全都绿**，因为缺的是仲裁者。
+
+* **结构**：`base.css`（角色令牌 + 13 组共享动效关键帧）· `web/{tokens,system}.css` · `pwa/{tokens,system}.css`
+  · `web/boards/*.html`（桌面 1440×900）· `pwa/boards/*.html`（手机 390×844）· `assets/demo.js`（12 类声明式交互接线）
+  · `README.md`（画板清单）· `LANDING.md`（**落地契约，常驻**）· `DIVERGENCE.md`（抄了什么 / 不抄什么）
+* **两条形态刻意不同名**：Web 只挂 `base.css + web/`，PWA 只挂 `base.css + pwa/`；
+  同时挂两套 = 类名冲突 + 令牌覆盖，就是老问题换名字再来一次
+* **四条门禁（都可复算，不靠人记）**：
+  - `npm run design:v5` —— 静态：未定义令牌 / 未定义类 / 前缀混用 / 图标名 / emoji / 内联设计值 / **比例令牌带单位**（v4 基座就中过这条，六档字阶静默全死）
+  - `npm run design:v5:land` —— **落地清单**：每张画板哪些类还没进产品（这就是「我说一句话就启动全部改版」的数据源）
+  - `npm run design:v5:shots` —— 真浏览器逐张出图 + **每个交互件真点一遍**（要 `cd design && python3 -m http.server 39411`）
+  - `node scripts/board-diff.mjs <spec>` —— 画板 vs 产品逐选择器对几何（spec 的 `board` 可写 `v5/web/boards/…`，三代画板同一通道）
+* **触发口令**：用户说「按 v5 设计落地 / 启动改版 v5」→ 先读 `LANDING.md`，再跑 `design:v5:land` 拿清单，逐项走四步法，每项过六件套验收
+* **BoardUI 采纳清单**（MIT，抄规格不抄实现）在 `design/v5/DIVERGENCE.md §A`：采纳 11 组动效关键帧 +
+  输入框环绕光带 + 四态思考指示器 + 行展开收起；**拒绝** Tailwind v4 / React Aria / 它的 400 令牌 —— 引入即多一套样式来源
 
 * **颜色链路**：`design/pi-web-design/assets/tokens.css`（规范真值）→ `app/design/tokens.css`（`--ds-*` 逐值副本）→ `globals.css` 末尾 `fork:boardui-bridge` 块（把 `--bg/--text/--accent` 等 Zeno 槽位指向 `--ds-*`）。**新代码写 `var(--bg)` 这类 Zeno 名**，不写 hex。
 * **CSS 引入顺序**（`app/layout.tsx`）：katex → tokens.css → `app/design/tokens.css` → globals.css → settings.css → wallpaper.css → **board.css（画板原件，刻意在产品样式之后）** → fork-ui.css（永远最后）。产品要覆盖画板用 0-2-0 双类（`.chat-input-shell.pw-composer`），并注明为什么。

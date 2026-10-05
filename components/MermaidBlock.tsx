@@ -104,7 +104,17 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
     return <CodeBlock code={code} lang="mermaid" headerAction={previewButton} isStreaming={isStreaming} />;
   }
 
-  const body = renderState?.key === currentKey && renderState.status === "error" ? (
+  // fork:v5-frame-audit —— 渲染失败态（画板 D-03b 帧 D 的 M3，逐字）：
+  // 卡头图标转 `triangle-alert` + 挂一枚 `.d-badge.warn`「Mermaid 图表无效」，
+  // **卡体退回源码**（`.d-code-body` 一个字符都不删），底下那行 `.d-banner.warn`
+  // 说明「已按源码显示」。
+  // 板面注释写死了这条纪律：「失败不吞内容」—— 此前失败态只渲染一行
+  // `.d-term-warn` 文案，把用户写的 mermaid 源码整个吞掉了。
+  // 板面头里还有一枚「重试」钮：产品的源码不可就地编辑（改了要回正文重发），
+  // 点了必然同错，已登记为缺件而不是造一枚点不动的钮。
+  const renderFailed = renderState?.key === currentKey && renderState.status === "error";
+
+  const body = renderFailed ? (
       <>
         {isPwa ? (
           <>
@@ -116,7 +126,8 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
           </>
         ) : (
           <>
-            <div className="d-code-body"><span className="d-term-warn">{t("i18n.invalidMermaid")}</span></div>
+            {/* 源码本身 —— 失败时一个字符都不能少。 */}
+            <div className="d-code-body">{code}</div>
             <div className="d-banner warn" style={{ margin: "var(--nx-sp-2) var(--nx-sp-3)" }}>
               <i data-ico="triangle-alert" data-size="14"></i>
               <span className="d-grow">{t("i18n.invalidMermaid")}</span>
@@ -151,9 +162,10 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
     // 语言 + grow + 动作钮）。
     <div className={isPwa ? "m-code" : "d-code"}>
       <div className={isPwa ? "m-code-head" : "d-code-head"}>
-        <i data-ico="git-fork" data-size="13"></i>
+        <i data-ico={renderFailed ? "triangle-alert" : "git-fork"} data-size="13"></i>
         <span>mermaid</span>
         <span className={isPwa ? "m-grow" : "d-grow"}></span>
+        {!isPwa && renderFailed && <span className="d-badge warn">{t("i18n.invalidMermaid")}</span>}
         {renderState?.key === currentKey && renderState.status === "ready" && (
           <button
             type="button"
@@ -311,18 +323,13 @@ interface CodeBlockProps {
 // fork:v5-landing —— 流式期间（以及超大块被跳过时）的纯文本态。
 // 画板 D-03b 帧 C 的 `.d-code-body` 已经给了等宽字号/行高/内边距/横滚/底色，
 // 所以这里不再写任何内联视觉值；提示行是一行 `.d-t-xs.d-t-faint`（带图标）。
-function PlainCode({ code, note }: { code: string; note?: string }) {
+function PlainCode({ code }: { code: string }) {
   // fork:v5-wave-b —— 窄屏抄 M-02 帧 A：提示行 + `.m-code-scroll > .m-code-body`
   // （长行横滚，不折行）。桌面仍是 D-03b 的 `.d-code-body`。
   const isPwa = usePwaSkin();
   if (isPwa) {
     return (
       <>
-        {note && (
-          <div className="m-t-xs m-t-faint" role="note" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3) 0" }}>
-            <i data-ico="info" data-size="13"></i> {note}
-          </div>
-        )}
         <div className="m-code-scroll">
           <div className="m-code-body">{code}</div>
         </div>
@@ -331,11 +338,6 @@ function PlainCode({ code, note }: { code: string; note?: string }) {
   }
   return (
     <>
-      {note && (
-        <div className="d-t-xs d-t-faint" role="note" style={{ padding: "var(--nx-sp-2) var(--nx-sp-3) 0" }}>
-          <i data-ico="info" data-size="13"></i> {note}
-        </div>
-      )}
       <div className="d-code-body">{code}</div>
     </>
   );
@@ -425,6 +427,11 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
         <span>{lang || "text"}</span>
         <span className={isPwa ? "m-grow" : "d-grow"}></span>
         {headerAction}
+        {/* fork:v5-frame-audit —— 「跳过高亮」的一句原因挂在**头里**（画板 D-03b
+            帧 C 第三个代码块：`.d-grow` 与复制钮之间那一格 `.d-t-xs`），
+            而不是卡体上方。头只有两件东西的说法指「语言 + 复制」，超大块是例外，
+            板面就是这么摆的。 */}
+        {skippedNote && <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs"}>{skippedNote}</span>}
         {/* fork:fix-clipboard — 失败态用画板既有的 `.d-btn.sm.danger` + `.d-badge.bad`，
             没有另造提示系统。按钮保持「复制/已复制」文案不变（画板 D-03b 的形态），
             失败信息由旁边那枚 role=status 徽标承担，键盘/读屏用户也能听到。 */}
@@ -444,7 +451,7 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, headerAction, isS
           {code}
         </LazyCodeHighlighter>
       ) : (
-        <PlainCode code={code} note={skippedNote} />
+        <PlainCode code={code} />
       )}
     </div>
   );

@@ -11,6 +11,7 @@ const { renderToStaticMarkup } = await jiti.import("react-dom/server");
 const {
   DEFAULT_EXPANDED_WIDGET_LINES,
   ExtensionWidgets,
+  extensionWidgetSlot,
   formatExtensionWidgetContent,
   getNextExpandedWidgetKey,
   getUpdatedExtensionWidgetKeys,
@@ -161,4 +162,40 @@ test("keeps empty widgets non-interactive", () => {
   assert.doesNotMatch(html, /<button/);
   assert.doesNotMatch(html, /aria-expanded/);
   assert.match(html, /title="empty-widget - Above editor widget"/);
+});
+
+/* fork:v5-boards D-25 帧 C/D —— 扩展块的插槽语义 + 收放轨道（D-27 帧 D / D-29 帧 E）。 */
+test("the widget slot comes from the extension's real placement", () => {
+  assert.equal(extensionWidgetSlot("aboveEditor"), "chat.composer.top");
+  assert.equal(extensionWidgetSlot("belowEditor"), "chat.list.end");
+
+  const html = renderWidgets({
+    widgets: [
+      { key: "above", lines: ["one", "two"], placement: "aboveEditor" },
+      { key: "below", lines: ["three", "four"], placement: "belowEditor" },
+    ],
+  });
+
+  // 默认展开第一个（2 行 ≤ 3 行）：只有它标插槽名，另一个要展开才标。
+  assert.equal((html.match(/class="d-slotname"/g) ?? []).length, 1);
+  assert.match(html, /class="d-slotname">chat\.composer\.top</);
+  // 帧 C 的「撞车怎么办」列 + 动作列 + 帧 D 的悬浮区都挂在真卡上。
+  assert.match(html, /class="d-slotmark">/);
+  assert.match(html, /class="d-slotact">/);
+  assert.match(html, /d-slotoverlay/);
+});
+
+test("a widget panel rides the .d-row-x grid track, and an empty widget is a slot card", () => {
+  const html = renderWidgets({
+    widgets: [{ key: "compact", lines: ["one", "two"], placement: "aboveEditor" }],
+  });
+  // 展开 = is-open；轨道层永远在，裁掉溢出的是 .d-row-x-track。
+  assert.match(html, /class="d-row-x is-open"/);
+  assert.match(html, /class="d-row-x-track"/);
+  assert.match(html, /class="extension-widget-panel d-card"/);
+
+  const emptyHtml = renderWidgets({
+    widgets: [{ key: "empty", lines: [], placement: "belowEditor" }],
+  });
+  assert.match(emptyHtml, /class="extension-widget-trigger d-slotcard"/);
 });

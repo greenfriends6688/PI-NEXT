@@ -191,6 +191,22 @@ export function CsvPreview({ content, filePath, sourceTruncated = false }: Props
           </table>
         </div>
       )}
+
+      {/* fork:v5-landing D-06 帧 C / D-06b 帧 B —— 表格下面是板面那一行行窗口脚注
+          （`.d-row` + `.d-t-xs.d-t-faint`）：窗口化是实现细节，但「你正在看第几行到
+          第几行」必须写在面上，否则横向滚动时被截断的那半张表会让人以为文件就这么长。
+          数字全部来自已有的窗口计算（firstRow / lastRow / rows.length），不新增数据源。 */}
+      {parsed.header.length > 0 && (
+        <div className="d-row d-t-xs d-t-faint" style={{ padding: "var(--nx-sp-1) var(--nx-sp-2)" }}>
+          <span className="d-grow">
+            {t("csv.range", {
+              from: firstRow + 1,
+              to: Math.min(lastRow, rows.length),
+              total: parsed.rowCount,
+            })}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

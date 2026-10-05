@@ -12,12 +12,27 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { getFileName } from "@/lib/file-paths";
 import { TerminalKeybarMobile } from "./pwa/TerminalKeybarMobile";
 
+/** fork:v5-landing D-05 帧 B —— 多会话页签条的一条。
+ *  数据归 AppShell 的 `terminalTabs`；TerminalPanel 只负责画。 */
+export interface TerminalSessionItem {
+  id: string;
+  label: string;
+  /** 有进程在跑（画板页签上的 `d-dot run`）。 */
+  running?: boolean;
+}
+
 interface Props {
   tab: TerminalTab;
   active: boolean;
   onRestart: () => void;
   onClosed: () => void;
   onCloseError: () => void;
+  /* fork:v5-landing D-05 帧 B —— 面板顶部多会话页签条的数据与事件。
+     不传时退化为「当前会话」一条：页签条仍在（DOM 与画板同构），只是还没有
+     兄弟会话可切；等宿主（AppShell）把 `terminalTabs` 接进来即为完整形态。 */
+  sessions?: TerminalSessionItem[];
+  onSelectSession?: (id: string) => void;
+  onNewSession?: () => void;
 }
 
 /**
@@ -64,7 +79,7 @@ function formatUptime(totalSeconds: number): string {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
 }
 
-export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }: Props) {
+export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError, sessions, onSelectSession, onNewSession }: Props) {
   const { t } = useI18n();
   // M-06 帧 C —— 手机档多一条常驻键排；桌面分支（下面那个 return）一个字都没动。
   const isMobile = useIsMobile();
@@ -271,6 +286,11 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
      xterm.js 渲染，xterm 的暗色岛槽位不变。 */
   const statusDot = status === "ready" ? "ok" : status === "connecting" ? "run" : status === "exited" ? "warn" : "bad";
   const statusLabel = t(`terminal.${status}`);
+  /* fork:v5-landing D-05 帧 B —— 页签条的数据源：宿主传了 `sessions` 就用它，
+     没传就退化成「当前会话」一条（页签条 DOM 与画板同构，等宿主接线）。 */
+  const sessionList: TerminalSessionItem[] = sessions?.length
+    ? sessions
+    : [{ id, label: getFileName(cwd) || cwd, running: status === "ready" }];
 
   /* M-06 帧 C —— 手机档是**另一个形态**，不是缩小版：顶栏（返回 / 标题 / 清屏 /
      更多）+ 常驻底部键排。xterm 自己仍然是输出区（它往 canvas 上画，`.m-term-mobile`
@@ -359,22 +379,80 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
         <button type="button" className="d-iconbtn" onClick={onRestart} disabled={Boolean(tab.closing)} title={t("terminal.restart")} aria-label={t("terminal.restart")}>
           <i data-ico="rotate-cw" data-size="14" aria-hidden="true"></i>
         </button>
+        {/* fork:v5-landing D-05 帧 B —— 板面头行在路径右侧是「清屏」（eraser）。
+            产品此前只有一枚「重启」，清屏要开一个新终端才能做到 —— 面板头里补上，
+            走xterm 自己的 `clear()`（只擦屏幕，不发命令、不动 PTY 会话）。 */}
+        <button
+          type="button"
+          className="d-iconbtn"
+          onClick={() => terminalRef.current?.clear()}
+          disabled={Boolean(tab.closing)}
+          title={t("terminal.clear")}
+          aria-label={t("terminal.clear")}
+        >
+          <i data-ico="eraser" data-size="14" aria-hidden="true"></i>
+        </button>
       </div>
       <div className="d-col" style={{ gap: 0, flex: "0 0 auto" }}>
+        {/* fork:v5-landing D-05 帧 B —— 面板顶部多会话页签条：`.d-term-tabs` ›
+            `.d-chipbtn`（当前会话 `.is-on`、有进程在跑挂 `.d-dot.run`）› `.d-grow` ›
+            `.d-iconbtn`（新建终端）。会话列表归宿主（AppShell 的 `terminalTabs`）。 */}
+        <div className="d-term-tabs">
+          {sessionList.map((session) => {
+            const current = session.id === id;
+            return (
+              <button
+                key={session.id}
+                type="button"
+                className={`d-chipbtn${current ? " is-on" : ""}`}
+                onClick={() => { if (!current) onSelectSession?.(session.id); }}
+                aria-current={current ? "page" : undefined}
+                title={session.label}
+              >
+                <i data-ico="square-terminal" data-size="12" aria-hidden="true"></i>
+                {session.label}
+                {session.running && <span className="d-dot run" />}
+              </button>
+            );
+          })}
+          <span className="d-grow" />
+          <button
+            type="button"
+            className="d-iconbtn"
+            onClick={onNewSession}
+            disabled={!onNewSession || Boolean(tab.closing)}
+            style={onNewSession ? undefined : { opacity: "var(--nx-a-disabled)" }}
+            title={t("terminal.open")}
+            aria-label={t("terminal.open")}
+          >
+            <i data-ico="plus" data-size="14" aria-hidden="true"></i>
+          </button>
+        </div>
         {error && (
           <div className="d-banner err" role="alert">
             <i data-ico="circle-alert" data-size="14" aria-hidden="true"></i>
             <span className="d-grow">{error}</span>
           </div>
         )}
-        {status === "exited" && (
-          <div className="d-banner info" role="status">
-            <i data-ico="info" data-size="14" aria-hidden="true"></i>
-            <span className="d-grow">{exitCode === null ? t("terminal.exited") : t("terminal.exitCode", { code: exitCode })}</span>
-          </div>
-        )}
       </div>
       <div className="terminal-xterm" style={{ flex: "1 1 auto", minHeight: 0 }}><div ref={containerRef} className="terminal-xterm-host" /></div>
+      {/* fork:v5-landing D-05 帧 B —— 输出区下沿的状态行。xterm 往 canvas 上画，
+          span 进不了输出流，所以两件真实状态落在这里：
+          · 已连接（等待输入）= 画板的实时行 `$ ▍`（`.d-text-live` 自带闪烁光标）；
+          · 已退出 = 退出码 0 走 `.d-term-ok`，非零 / 拿不到退出码走 `.d-term-warn`
+            （画板的黄色告警行），不再另挂一条 `.d-banner`。 */}
+      {status === "ready" && (
+        <div className="d-mono d-t-xs d-t-faint" aria-hidden="true" style={{ padding: "0 var(--nx-sp-3) var(--nx-sp-1)" }}>
+          <span className="d-term-prompt">$</span> <span className="d-text-live"></span>
+        </div>
+      )}
+      {status === "exited" && (
+        <div className="d-mono d-t-xs d-t-faint" role="status" style={{ padding: "0 var(--nx-sp-3) var(--nx-sp-1)" }}>
+          <span className={exitCode === 0 ? "d-term-ok" : "d-term-warn"}>
+            {exitCode === null ? t("terminal.exited") : t("terminal.exitCode", { code: exitCode })}
+          </span>
+        </div>
+      )}
       {/* fork:v5-boards D-05 帧 A / 帧 B —— 底栏 `.d-terminfo`：工作区 · 网格尺寸 ·
           已用时长 · 编码，四项都是真读数（编码是 PTY 的既定值：`LANG` 未设时
           终端管理器写 `C.UTF-8`）。它不吃指针事件（库里就是这么定义的）。 */}
@@ -384,6 +462,10 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
         <span>{formatUptime(uptimeSeconds)}</span>
         <span>UTF-8</span>
       </div>
+      {/* fork:v5-landing D-05 帧 B —— 板面页脚下面还有一句 `.d-pop-foot`
+          （每行命令前面有来源标记；被权限拦下的命令留在原地、不静默消失）。
+          产品此前这块是空的：页脚有读数，但没人告诉用户「终端不吞失败」。 */}
+      <div role="note" className="d-pop-foot">{t("terminal.footnote")}</div>
     </section>
   );
 }

@@ -95,6 +95,11 @@ export function UnsupportedFilePreview({ filePath, cwd, size, sourceSessionId }:
           </div>
         </div>
 
+        {/* fork:v5-frame-audit —— 画板帧 F 在降级卡与两条动作之间有一句判据
+            （`.m-group-title`）：「降级不是白屏」。这句话是这块卡的用途说明，
+            去掉之后两条动作看起来只是两个按钮。 */}
+        <div className="m-group-title">{t("i18n.unsupportedFallbackHint")}</div>
+
         <div className="m-pickbar">
           <button
             type="button"
@@ -135,8 +140,10 @@ export function UnsupportedFilePreview({ filePath, cwd, size, sourceSessionId }:
           {extension ? <span className="d-badge mute">{t("i18n.unsupportedType", { type: extension })}</span> : null}
           {sizeText ? <span className="d-badge mute">{sizeText}</span> : null}
         </div>
-        <div className="d-card-body">
-          <div className="d-t-xs">{t(unsupportedReasonKey(filePath))}</div>
+        {/* fork:v5-landing D-06b 帧 E —— `.d-t-xs` 挂在卡片体上（板面原文），
+            不再另套一层只有字号的 div：两处字号档此前是重复的一份来源。 */}
+        <div className="d-card-body d-t-xs">
+          <div>{t(unsupportedReasonKey(filePath))}</div>
           {cwd ? <div className="d-t-faint">{cwd}</div> : null}
         </div>
         <div className="d-pop-foot" style={{ borderTop: "1px solid var(--nx-line)" }}>

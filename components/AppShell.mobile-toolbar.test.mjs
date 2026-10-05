@@ -5,6 +5,10 @@ import test from "node:test";
 
 const source = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 const mobileHookSource = await readFile(new URL("../hooks/useIsMobile.ts", import.meta.url), "utf8");
+// fork:v5-landing E4 —— 手机目录信任横幅的本体从 AppShell 搬到 PWA 形态组件里
+// （M-10 帧 C-1 的 `.m-trust`），所以那条守卫要看两个文件：宿主给数据与动作，
+// 组件给画板 DOM。
+const trustSheetSource = await readFile(new URL("./pwa/PwaTrustSheet.tsx", import.meta.url), "utf8");
 
 test("the phone top bar carries exactly one action: the session menu", () => {
   // fork:mobile-toolbar-slim（2026-10-03）—— 手机上这条工具条只留会话动作 ⋯。
@@ -123,9 +127,15 @@ test("keeps the session stats in the context-ring popover, not a bottom strip", 
 test("places trust warnings below the mobile toolbar and the file toggle in toolbar flow", () => {
   assert.match(source, /\{isMobile && renderProjectTrustWarning\(true\)\}/);
   // fork:design-system SW-16 —— 画板 60 帧 D：移动端横幅内联「信任」钮，不再弹模态框。
-  assert.match(source, /data-mobile-trust-banner="true"/);
-  // fork:v5-wave-b —— 横幅里的「信任」钮在窄屏是 `.m-btn.primary.sm`，桌面是 `.d-btn.primary.sm`。
-  assert.match(source, /className=\{mobileBanner \? "m-btn primary sm" : "d-btn primary sm"\}[\s\S]{0,160}?void handleTrustProject\(\)/);
+  // fork:v5-landing E4 —— 横幅本体是画板 M-10 帧 C-1 的 `.m-trust`（`.m-trust` +
+  // `m-setrow-body` + 行动钮），落在 `components/pwa/PwaTrustSheet.tsx` 的
+  // `PwaTrustBanner` 里；宿主只递真实数据与动作，两件断言一起看才算守住这条裁定。
+  assert.match(source, /<PwaTrustBanner[\s\S]{0,200}?onTrust=\{\(\) => void handleTrustProject\(\)\}/);
+  assert.match(trustSheetSource, /className="m-trust"/);
+  assert.match(trustSheetSource, /data-mobile-trust-banner="true"/);
+  // 内联「信任」钮：窄屏是 `.m-btn.primary.sm`（44 硬下限），不是 `.d-btn`。
+  assert.match(trustSheetSource, /className="m-btn primary sm m-touch-44"/);
+  assert.match(trustSheetSource, /disabled=\{busy\}/);
   assert.doesNotMatch(source, /File panel toggle — always visible at top-right/);
   assert.doesNotMatch(source, /position: "fixed", top: "env\(safe-area-inset-top\)"/);
 });

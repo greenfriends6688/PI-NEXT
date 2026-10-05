@@ -21,6 +21,7 @@
 
 import { useRef, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   DEFAULT_THEME_SKIN,
   THEME_SKIN_DEFAULT_ID,
@@ -81,6 +82,14 @@ export function ThemeSkinStrip({
   busy?: boolean;
 }) {
   const { t } = useI18n();
+  // fork:v5-landing 逐帧核对（M-05）—— 动作行与三枚动作钮必须按**形态**发类名：
+  // 桌面是 `d-row` / `d-btn sm` / `d-grow` / `d-t-xs.d-t-faint`，手机是
+  // `m-row` / `m-btn sm` / `m-grow` / `m-t-xs.m-t-faint`。此前这一段只有一套
+  // `d-*`，而手机档只加载 `pwa/system.css`（`d-*` 规则在 ≤640 档里不存在），
+  // 于是手机上四枚钮落回 UA 默认外观 —— 类名对了、几何没对上。
+  // 皮肤卡本身仍是 `pw-skin-strip` / `pw-skin`：v5 全库没有皮肤条的画板
+  // （见本文件头的口径注释），这一段维持登记在案的偏离。
+  const mobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeSkin = activeId === THEME_SKIN_DEFAULT_ID
@@ -131,21 +140,21 @@ export function ThemeSkinStrip({
         })}
 
         <button type="button" className="pw-skin is-new" disabled={busy} onClick={onCreate}>
-          <span className="d-btn sm">
+          <span className={mobile ? "m-btn sm" : "d-btn sm"}>
             <i data-ico="plus" data-size="13" aria-hidden="true" />
             {t("settings.skinNew")}
           </span>
         </button>
       </div>
 
-      <div className="d-row">
-        <button type="button" className="d-btn sm" onClick={() => fileInputRef.current?.click()}>
+      <div className={mobile ? "m-row" : "d-row"}>
+        <button type="button" className={mobile ? "m-btn sm" : "d-btn sm"} onClick={() => fileInputRef.current?.click()}>
           <i data-ico="upload" data-size="13" aria-hidden="true" />
           {t("settings.skinImport")}
         </button>
         <button
           type="button"
-          className="d-btn sm"
+          className={mobile ? "m-btn sm" : "d-btn sm"}
           disabled={activeSkin === null}
           // fork:fix-disabled-title（2026-10-01）—— 禁用原因写 title（不写功能名）。
           // 默认外观下 activeSkin 为 null：它不是一份皮肤文件，既导不出也进不了工作室。
@@ -157,7 +166,7 @@ export function ThemeSkinStrip({
         </button>
         <button
           type="button"
-          className="d-btn sm"
+          className={mobile ? "m-btn sm" : "d-btn sm"}
           disabled={activeSkin === null}
           title={activeSkin === null ? t("settings.skinActionsNeedCustom") : t("settings.skinStudio")}
           onClick={() => activeSkin && onEdit(activeSkin.id)}
@@ -165,8 +174,8 @@ export function ThemeSkinStrip({
           <i data-ico="paintbrush" data-size="13" aria-hidden="true" />
           {t("settings.skinStudio")}
         </button>
-        <span className="d-grow" />
-        <span className="d-t-xs d-t-faint">{t("settings.skinNote")}</span>
+        <span className={mobile ? "m-grow" : "d-grow"} />
+        <span className={mobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{t("settings.skinNote")}</span>
         <input
           ref={fileInputRef}
           type="file"

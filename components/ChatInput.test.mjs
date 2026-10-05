@@ -929,9 +929,35 @@ test("the composer's notices, chips and popover headers ride on the board compon
   // / 命令菜单补画板 21 的搜索头（slash 图标 + 查询），分组小标题仍是 .d-pop-title。
   assert.match(source, /className="d-searchfield"/);
   assert.match(source, /<i data-ico="slash" data-size="14"><\/i>/);
-  // 七个弹层头都挂画板 21 的 .d-pop-title：输入历史 / 收藏 / @ 文件 / / 命令分组 /
-  // 思考档 / 工具档 / 权限档。
+  // 七个弹层头都挂画板 21 的 .d-pop-title：输入历史 / 收藏 / / 命令分组 /
+  // 思考档 / 工具档 / 权限档 / 上下文环浮窗（fork:v5-frame-audit D-04 帧 A `m-ctx`
+  // 补回标题行：此前环浮窗把标题塞在 .d-row 里，与另外四层不是一套）。
+  // @ 文件面板这一轮从 .d-pop-title 换成了画板 `m-mention` 的 .d-searchfield 头，所以总数仍是 7。
   assert.equal((source.match(/className="d-pop-title"/g) ?? []).length, 7);
+  // fork:v5-frame-audit D-04 帧 A `m-think`：思考档浮层收成分段控件（.d-seg + is-on），
+  // 不再是权限 / 工具档那种一列 .d-menu-row。
+  assert.match(source, /<div className="d-pop-body d-col" style=\{\{ gap: "var\(--nx-sp-1\)" \}\}>\s*<div className="d-seg">/);
+  assert.match(source, /className=\{isActive \? "is-on" : undefined\}/);
+  // fork:v5-frame-audit D-04 帧 A `m-ctx`：环浮窗补回画板那条百分比进度条，
+  // 整块读数收进画板那个 .d-pop-body.d-col 盒子（与另外四个浮层的内边距口径一致）。
+  assert.match(source, /<div className="d-pop-body d-col" style=\{\{ gap: "var\(--nx-sp-2\)" \}\}>\s*\n\s*<div className="d-row">/);
+  assert.match(source, /<div className="d-bar">\s*<i style=\{\{ width: `\$\{ringPercent\}%` \}\} \/>/);
+  // fork:v5-frame-audit D-04 帧 B `m-mention`：@ 文件补全面板换回 .d-pop-float 外壳 +
+  // 画板那三件头（.d-searchfield 回显刚打的 token → .d-pop-body.d-t-xs.d-t-faint 计数 →
+  // .d-sep），此前是一行 .d-pop-title 把计数与提示挤在一起、且不回显查询串。
+  assert.match(source, /className="d-pop-float is-open anim-popover"/);
+  assert.match(source, /<i data-ico="search" data-size="13"><\/i>\s*<span className="d-grow"[^>]*>\s*@\{atQuery\.query\}\s*<\/span>/);
+  assert.match(source, /<div className="d-pop-body d-t-xs d-t-faint"[^>]*>\s*\{indexLoading/);
+  // fork:v5-frame-audit D-04 帧 A `m-perm` / `m-tools`：当前档写法统一成画板那一件 ——
+  // 标签加粗（.d-grow.d-t-b）+ 行尾对勾，不再是行首对勾 + 行内 is-on + 等宽占位 span。
+  assert.match(source, /className=\{isActive \? "d-grow d-t-b" : "d-grow"\}\s*\n\s*style=\{\{ whiteSpace: "nowrap" \}\}\s*\n\s*>\{t\(PERMISSION_MODE_LABEL_KEYS\[mode\]\)\}<\/span>/);
+  assert.match(source, /className=\{isActive \? "d-grow d-t-b" : "d-grow"\}\s*\n\s*style=\{\{ whiteSpace: "nowrap" \}\}\s*\n\s*>\{t\(labelKey\)\}<\/span>/);
+  // 同上：工具档那一列原来直接印 chat.toolPreset.full，而三个语包里只有
+  // chat.toolPreset.all（同一档），于是菜单里显示的是英文键名。
+  assert.match(source, /const labelKey = lvl === "full" \? "chat\.toolPreset\.all" : `chat\.toolPreset\.\$\{lvl\}`;/);
+  // fork:v5-frame-audit D-04 帧 C：steer 行徽标改回画板的 .d-badge.warn
+  //（跟 .d-queue-row.steer 的琥珀底同色），follow-up 保持 mute。
+  assert.match(source, /<span className=\{`d-badge \$\{kind === "steer" \? "warn" : "mute"\}`\}>/);
   assert.match(source, /<div className="d-pop-title">\{t\("chat\.permissionTitle"\)\}<\/div>/);
   assert.match(source, /className="d-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
 

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { formatDuration } from "./MessageView";
 import { PwaTrustSheet } from "./pwa/PwaTrustSheet";
 
 /**
@@ -42,6 +44,20 @@ export function ProjectTrustDialog({
 }) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
+  /* fork:v5-frame-audit · D-26b 帧 E「进行中」那一态：等待中不给「取消」，只给
+     思考点阵 + 秒表。秒表数的是**真实经过的时间**（busy 翻 true 的那一刻起表），
+     不是写死的百分比 —— 画板上那个 46% 是样例，产品不给一个假的进度。 */
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!busy) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    setElapsed(0);
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [busy]);
 
   if (isMobile) {
     return <PwaTrustSheet cwd={cwd} busy={busy} error={error} onCancel={onCancel} onConfirm={onConfirm} />;
@@ -70,9 +86,9 @@ export function ProjectTrustDialog({
         className="d-modal-box"
         style={{ width: 440, maxWidth: "100%" }}
       >
-        <div className="d-modal-head d-row" style={{ alignItems: "flex-start" }}>
-          <i data-ico={headIcon.ico} data-size="16" aria-hidden="true" style={{ color: headIcon.color, flexShrink: 0, marginTop: 2 }} />
-          <span id="project-trust-title" className="d-grow">{t("trust.dialogTitle")}</span>
+        <div className="d-modal-head">
+          <i data-ico={headIcon.ico} data-size="16" aria-hidden="true" style={{ color: headIcon.color, marginRight: "var(--nx-sp-2)" }} />
+          <span id="project-trust-title">{t("trust.dialogTitle")}</span>
         </div>
         <div className="d-modal-body">
           <div>{t("trust.dialogBody")}</div>
@@ -99,14 +115,28 @@ export function ProjectTrustDialog({
           )}
         </div>
         <div className="d-modal-foot">
-          <button type="button" className="d-btn ghost" onClick={onCancel} disabled={busy}>
-            {t("trust.cancel")}
-          </button>
-          <span className="d-grow" />
-          <button type="button" className="d-btn primary" onClick={onConfirm} disabled={busy}>
-            <i data-ico="shield-check" data-size="14" aria-hidden="true" />
-            {busy ? t("trust.trusting") : t("trust.trustProject")}
-          </button>
+          {busy ? (
+            /* 画板「进行中」那一态：不给「取消」（写一半的信任记录比没有更糟），
+               只留思考点阵 + 秒表。 */
+            <>
+              <span className="d-grow" />
+              <span className="d-think-dots wave" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </span>
+              <span className="d-think-timer d-t-xs">{formatDuration(elapsed)}</span>
+            </>
+          ) : (
+            <>
+              <button type="button" className="d-btn ghost d-pressable" onClick={onCancel}>
+                {t("trust.cancel")}
+              </button>
+              <span className="d-grow" />
+              <button type="button" className="d-btn primary d-pressable" onClick={onConfirm}>
+                <i data-ico="shield-check" data-size="14" aria-hidden="true" />
+                {t("trust.trustProject")}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

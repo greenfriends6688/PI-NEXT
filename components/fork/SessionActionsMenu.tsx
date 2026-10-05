@@ -24,6 +24,8 @@ export interface SessionActionsTarget {
   path?: string | null;
   cwd: string;
   projectRoot?: string | null;
+  /** 会话名（顶栏标题）：浮窗顶部那枚分组标题「会话动作 · <会话名>」要用。 */
+  name?: string | null;
 }
 
 export function SessionActionsMenu({
@@ -38,6 +40,10 @@ export function SessionActionsMenu({
   onCopySessionId,
   onViewSystemPrompt,
   onViewTools,
+  /** fork:v5-frame-audit-2026-10-05 —— 画板 D-02d 帧 D / D-02c 帧 B 的浮窗底部那句
+      `.d-pop-foot` 脚注。默认由三行复制项 + 反馈文案拼出一句（不新增 i18n）；
+      想换文案时在调用处传一句即可。 */
+  footNote,
   mobile = false,
 }: {
   session: SessionActionsTarget | null;
@@ -53,6 +59,7 @@ export function SessionActionsMenu({
   /** 打开「系统提示词」「工具定义」两个只读面板，trigger 是定位锚点（⋯ 按钮）。 */
   onViewSystemPrompt: (trigger: HTMLElement) => void;
   onViewTools: (trigger: HTMLElement) => void;
+  footNote?: string;
   mobile?: boolean;
 }) {
   const { t } = useI18n();
@@ -142,8 +149,15 @@ export function SessionActionsMenu({
       },
     ];
 
-    openMenu(Math.max(8, rect.right - 200), rect.bottom, entries);
-  }, [archive, flags, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onRename, onReveal, onViewSystemPrompt, onViewTools, openMenu, pin, session, t]);
+    openMenu(Math.max(8, rect.right - 200), rect.bottom, entries, {
+      // fork:v5-frame-audit-2026-10-05 —— 浮窗顶部分组标题（画板 D-02d 帧 D / D-02c 帧 B）：
+      // 「会话动作 · <会话名>」。文案全部用已有 key 拼，不新增 i18n。
+      title: session.name ? `${t("session.actions")} · ${session.name}` : t("session.actions"),
+      // 画板脚注：「复制三行点完**就地**翻成「已复制」……菜单自己吞掉结果」。
+      // 句子全部由已有 key 拼出（三行复制项 → 反馈文案），不新增 i18n。
+      footer: footNote ?? `${t("session.copyPath")} · ${t("session.copyTaskPath")} · ${t("session.copyId")} → ${t("session.copied")}`,
+    });
+  }, [archive, flags, footNote, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onRename, onReveal, onViewSystemPrompt, onViewTools, openMenu, pin, session, t]);
 
   if (!session) return null;
 

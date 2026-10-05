@@ -13,7 +13,7 @@ import { buildQuotedSelection } from "@/lib/quoted-selection";
 import { createSelectionContextId, type SelectionContext } from "@/lib/composer-context";
 import type { SessionReference } from "@/lib/composer-context";
 import { clearLocationTextHighlight, LOCATION_HIGHLIGHT_CLASS, setLocationTextHighlight } from "@/lib/location-highlight";
-import { MessageView } from "./MessageView";
+import { MessageView, formatDuration } from "./MessageView";
 import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { FileLocationTarget } from "./FileViewer";
@@ -398,6 +398,9 @@ const CONVERSATION_FIND_REVEAL_MARGIN = 8;
 
 const CHAT_MINIMAP_WIDTH = 36;
 const CHAT_COLUMN_PADDING = 16;
+/* 消息列的定宽只有一个来源（ChatAppearance.test.mjs 钉着这一条）：窄屏只是把
+   横向内距让给 `.m-scroll`，max-width 这一格两个形态是同一个值，所以只写一次。 */
+const CHAT_COLUMN_MAX_WIDTH = "var(--chat-content-max-width, 800px)";
 // fork:ui-22 — density scales the column gutter too; the value stays a CSS calc so
 // the density hook only has to write one variable.
 const CHAT_COLUMN_PADDING_CSS = `calc(${CHAT_COLUMN_PADDING}px * var(--fork-density, 1))`;
@@ -544,7 +547,23 @@ function withAssistantBlocks(
   return next;
 }
 
-function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done"; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
+/** 一组过程的时间跨度（秒）：第一条落盘 → 最后一条落盘。
+ *  画板 M-02 帧 A 的摘要行第三格就是它（`11.2s`）。`timestamp` 是毫秒
+ *  （与 MessageView 的 `stepDurationSec` 同一口径，见 fix:turn-stats）。 */
+function processSpanSec(list: readonly unknown[], from: number, to: number): number | null {
+  let first: number | undefined;
+  let last: number | undefined;
+  for (let i = Math.max(0, from); i <= Math.min(list.length - 1, to); i++) {
+    const ts = (list[i] as { timestamp?: number } | undefined)?.timestamp;
+    if (typeof ts !== "number" || !Number.isFinite(ts)) continue;
+    if (first === undefined) first = ts;
+    last = ts;
+  }
+  if (first === undefined || last === undefined || last <= first) return null;
+  return (last - first) / 1000;
+}
+
+function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", durationSec = null, children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done"; durationSec?: number | null; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   // fork:v5-wave-b —— 手机上「过程默认**折叠成一行摘要**」（画板 M-02 帧 A 原话）：
   // 收起态就是一块 `.m-tool` 的 `.m-tool-head` —— 图标 + 摘要 + grow + chevron。
@@ -581,7 +600,9 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
     // fork:v5-wave-b —— 窄屏换成 M-02 帧 A 的 `.m-tool` + `.m-tool-head`：
     // 收起态那一行是「图标 + 过程摘要 + 徽章 + chevron」，没有展开/收起文字提示
     // （手机上那一句会把它顶成两行）。展开态的正文是 `.m-doc-body`。
-    <div className={isPwa ? "m-tool" : "d-card"} style={{ marginBottom: isPwa ? 0 : 14 }}>
+    // fork:proc-card-weight —— 摘要行不是标题，字重回落正文（在
+    // app/design/v5-forms.css 的接线层落，不改库里的 .d-card-head）。
+    <div className={`${isPwa ? "m-tool" : "d-card"} fork-proc-card`} style={{ marginBottom: isPwa ? 0 : 14 }}>
       <button
         type="button"
         className={isPwa ? "m-tool-head" : "d-card-head"}
@@ -591,24 +612,48 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
         style={{ width: "100%", cursor: "pointer", textAlign: "left", borderBottom: !isPwa && !open ? "none" : undefined }}
       >
         {isPwa && <i data-ico="list-checks" data-size="14" aria-hidden="true"></i>}
-        <i
-          data-ico="chevron-down"
-          data-size="14"
-          aria-hidden="true"
-          style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform var(--nx-dur-2) var(--nx-ease)" }}
-        ></i>
+        {!isPwa && (
+          <i
+            data-ico="chevron-down"
+            data-size="14"
+            aria-hidden="true"
+            style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform var(--nx-dur-2) var(--nx-ease)" }}
+          ></i>
+        )}
         <span className={isPwa ? "m-grow" : "d-grow"} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label}
         </span>
-        <span className={`${isPwa ? "m" : "d"}-badge${badge.cls ? ` ${badge.cls}` : ""}`}>
-          {status === "running" ? (
-            <span className={`${isPwa ? "m" : "d"}-run`}><i data-ico={badge.icon} data-size="11" aria-hidden="true"></i></span>
-          ) : (
-            <i data-ico={badge.icon} data-size="11" aria-hidden="true"></i>
-          )}
-          {badge.text}
-        </span>
-        {!isPwa && <span className="d-t-xs d-t-faint">{open ? t("i18n.collapse") : t("i18n.expand")}</span>}
+        {/* fork:v5-frame-audit（2026-10-05）—— 窄屏摘要行照画板 M-02 帧 A 逐节点抄：
+            `图标 · 摘要 · 元信息 · 箭头`。元信息格（`.m-t-xs.m-t-faint`）装**这一组
+            跑了多久**（帧 A 的 `11.2s`）；还在跑就写「运行中」——画板把状态徽章放在
+            **单张工具卡**的抬头（帧 B/C 的 `.m-badge.ok` / `.m-badge.bad`），而产品的
+            单步形态是 `.m-step-row`（帧 C 的 `.m-steps`），徽章落在那里；过程**组**这一层
+            按帧 A 只留元信息格。桌面那一支一字未动（徽章 + 展开/收起提示仍在）。 */}
+        {isPwa ? (
+          <span className="m-t-xs m-t-faint">
+            {status === "running" ? t("process.running") : durationSec !== null ? formatDuration(durationSec) : ""}
+          </span>
+        ) : (
+          <>
+            <span className="d-badge">
+              {status === "running" ? (
+                <span className="d-run"><i data-ico={badge.icon} data-size="11" aria-hidden="true"></i></span>
+              ) : (
+                <i data-ico={badge.icon} data-size="11" aria-hidden="true"></i>
+              )}
+              {badge.text}
+            </span>
+            <span className="d-t-xs d-t-faint">{open ? t("i18n.collapse") : t("i18n.expand")}</span>
+          </>
+        )}
+        {isPwa && (
+          <i
+            data-ico="chevron-down"
+            data-size="14"
+            aria-hidden="true"
+            style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform var(--nx-dur-2) var(--nx-ease)" }}
+          ></i>
+        )}
       </button>
       <div ref={collapseRef} className="fork-collapse" data-fork-collapse={open ? "open" : "closed"}>
         {bodyMounted && <div className={`fork-collapse-body ${isPwa ? "m-doc-body" : "d-card-body"}`}>{children}</div>}
@@ -1786,8 +1831,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // 恒为空，所以真 token 数在整个流式期间拿不到。于是按已流出文本估算：
   // CJK 一字≈1 token，其余四字符≈1 token（混合中英的实测误差 ~±20%）。
   // 速率 = 估算 token ÷ 首字节以来的秒数，随每个 delta 重算（不额外起 interval）。
-  const streamingAnswerText = useMemo(() => {
-    const live = streamState.streamingMessage as AgentMessage | undefined;
+  const streamingAnswerText = useMemo(() => {    const live = streamState.streamingMessage as AgentMessage | undefined;
     if (!streamState.isStreaming || !live || live.role !== "assistant") return "";
     let text = "";
     for (const block of streamingProcess?.answerBlocks ?? live.content) {
@@ -1795,6 +1839,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     }
     return text;
   }, [streamState.isStreaming, streamState.streamingMessage, streamingProcess]);
+  // fork:turn-head-order —— 底部那段（流式回答）**这一帧**会不会渲染。过程组要么当它的
+  // `prefix`，要么就地自己渲染 —— 判据与下面那段 JSX 的守卫逐字相同，两处共用一个值，
+  // 否则会出现「组被存起来没人取」的帧（组凭空消失）。
+  const streamingTailRenders = Boolean(streamState.isStreaming && hasStreamingContent && streamState.streamingMessage && streamingProcess);
   const streamSpeedRef = useRef<{ startedAt: number; chars: number } | null>(null);
   const streamSpeed = (() => {
     if (!streamState.isStreaming) {
@@ -1813,10 +1861,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     const cjk = (streamingAnswerText.match(/[\u3000-\u9fff]/g) ?? []).length;
     return Math.round((cjk + (chars - cjk) / 4) / seconds);
   })();
-  // Set by the render pass below when the grouped renderer already emitted the
-  // running turn's timeline; the streaming block at the bottom of the list then
-  // contributes only the answer half instead of opening a second group.
-  let liveTurnTimeline = false;
+  // fork:turn-head-order —— 那一组过程卡本身，由 `isLiveTail` 分支存进来。它不作为
+  // 独立块渲染，而是当**回答消息的 `prefix`**（身份行之后、正文之前，画板 D-03 帧 A 的
+  // 顺序）；为 null 表示尾部那段不渲染，组已经在自己的位置上。
+  let liveTurnGroup: ReactNode = null;
   const messageCwd = session?.cwd ?? newSessionCwd ?? undefined;
   const promptAnchorSpacerRef = useRef<HTMLDivElement | null>(null);
   const promptAnchorSpacerHeightRef = useRef(0);
@@ -2195,7 +2243,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           // fork:upstream-0.9.2-scrollbar — 消息列是唯一必须用长输出拖动的位置，
           // 所以显示自己的滚动条而不是藏起来（minimap 只标回合）；
           // stable gutter 让短会话长出屏幕时居中列不会横向跳动。
-          className={`d-chat min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]${refreshing ? " fork-pending" : ""}`}
+          className={`d-chat${isPwa ? " m-scroll" : ""} min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]${refreshing ? " fork-pending" : ""}`}
           aria-busy={refreshing || undefined}
           // 横向内距由内层 `.d-chat-inner` 按用户密度给；这里清掉画板的 sp-8，避免双内距。
           style={{ visibility: pendingScrollRestore ? "hidden" : undefined, paddingLeft: 0, paddingRight: 0 }}
@@ -2209,7 +2257,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             ref={messageContentRef}
             onPointerUp={captureQuotedSelection}
             className={`d-chat-inner${turnSwapping ? " fork-turn-enter" : ""}`}
-            style={{ maxWidth: "var(--chat-content-max-width, 800px)", padding: `0 ${CHAT_COLUMN_PADDING_CSS}` }}
+            /* fork:v5-frame-audit —— 横向内距在窄屏归 `.m-scroll`（画板 M-01/M-02/M-04
+               每一帧的滚动区都是 `padding: 108px 18px 140px`，那一格就是横向留白）；
+               产品此前在消息列自己再垫一层 16px，窄屏上就成了 34px。桌面不动。 */
+            style={isPwa
+              ? { maxWidth: CHAT_COLUMN_MAX_WIDTH, padding: 0 }
+              : { maxWidth: CHAT_COLUMN_MAX_WIDTH, padding: `0 ${CHAT_COLUMN_PADDING_CSS}` }}
           >
             {/* fork:proma-05-explore — 从主线某条消息 fork 出来的分支：显示来源 + 把结论带回父会话草稿 */}
             {session && session.parentSessionId && (
@@ -2265,7 +2318,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 return callback;
               };
 
-              const renderMessage = (idx: number, options: { attachRef?: boolean; keyPrefix?: string; messageOverride?: AgentMessage; showTimestamp?: boolean; writtenFiles?: WrittenFile[]; skillUsage?: SkillActivation[] } = {}): ReactNode => {
+              const renderMessage = (idx: number, options: { attachRef?: boolean; keyPrefix?: string; messageOverride?: AgentMessage; showTimestamp?: boolean; writtenFiles?: WrittenFile[]; skillUsage?: SkillActivation[]; prefix?: ReactNode } = {}): ReactNode => {
                 const msg = options.messageOverride ?? messages[idx];
                 const isVisible = isMessageGroupAnchor(msg) || msg.role === "assistant";
                 const currentRefIdx = visibleRefIndexByMessage.get(idx);
@@ -2322,6 +2375,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     onOpenSkill={onOpenSkill}
                     expandedToolIds={expandedToolIds}
                     onToggleTool={handleToggleTool}
+                    prefix={options.prefix}
                   />
                 );
                 if (!isVisible || currentRefIdx === undefined) return view;
@@ -2397,7 +2451,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
                   if (liveBlocks.length > 0) {
                     const liveRefIndex = liveRefIdx;
-                    rendered.push(
+                    const liveGroupNode = (
                       <div
                         key="process-group-live"
                         ref={liveRefIndex === undefined ? undefined : (el) => { messageRefs.current[liveRefIndex] = el; }}
@@ -2424,9 +2478,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                             onOpenSession={onOpenSession}
                           />
                         </ProcessDetailsGroup>
-                      </div>,
+                      </div>
                     );
-                    liveTurnTimeline = true;
+                    if (streamingTailRenders) liveTurnGroup = liveGroupNode;
+                    else rendered.push(liveGroupNode);
                   }
                   idx = endIdx;
                   continue;
@@ -2447,6 +2502,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 const groupedProcessBlocks: ProcessContentBlock[] = [];
                 let processToolCount = 0;
                 let processRefIdx: number | undefined;
+                // fork:turn-head-order —— 本轮的过程组节点，见下面 `if (groupedProcessBlocks.length > 0)`。
+                let processGroupNode: ReactNode = null;
                 // fork:zc-02 — 在查找条开着且有查询词时，把每一轮的过程步骤都展开。
                 //
                 // 不只是「顺手」，而是这个功能能不能用的前提：命中计数建在**模型里的正文**
@@ -2495,7 +2552,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                   // the grouped renderer computes its digest here and hands it
                   // down instead of printing a second count line inside itself.
                   const groupedSummary = summarizeProcessBlocks(groupedProcessBlocks, (key, params) => t(key, params), (key) => t(key));
-                  rendered.push(
+                  // fork:turn-head-order —— 过程组当**回答消息的 prefix**（见
+                  // MessageView Props.prefix），于是身份行仍在最上面（画板 D-03 帧 A）。
+                  // 没有回答可挂（`finalAnswerMessage` 为空）时它就是自己那一块。
+                  processGroupNode = (
                     <div
                       key={`process-group-${entryIds[userIdx] ?? userIdx}`}
                       ref={processRefIdx === undefined ? undefined : (el) => { messageRefs.current[processRefIdx] = el; }}
@@ -2518,6 +2578,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         // 为空）**且它还是尾巴**（只缺前者会把上一条被中断的旧轮次
                         // 一起点亮），liveness 用会话忙（与顶栏芯片、stop 按钮同源）。
                         status={sessionBusy && !finalAnswerMessage && userIdx === lastAnchorIdx ? "running" : "done"}
+                        durationSec={processSpanSec(messages, firstProcessIdx, finalAssistantIdx)}
                         t={t}
                       >
                         <ProcessGroup
@@ -2530,7 +2591,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                           revealToolCallId={findRevealToolCallId}
                         />
                       </ProcessDetailsGroup>
-                    </div>,
+                    </div>
                   );
                 }
 
@@ -2555,7 +2616,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     messageOverride: finalAnswerMessage,
                     writtenFiles,
                     skillUsage,
+                    // fork:turn-head-order —— 过程组挂进这条消息，身份行因此仍在最上面。
+                    prefix: processGroupNode,
                   }));
+                } else if (processGroupNode) {
+                  // 没有正文可挂（被中断 / 只有工具）：过程组自己就是那一块。
+                  rendered.push(processGroupNode);
                 }
                 for (let renderIdx = finalAssistantIdx + 1; renderIdx < endIdx; renderIdx++) {
                   rendered.push(renderMessage(renderIdx));
@@ -2575,7 +2641,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 </>
               );
             })()}
-            {streamState.isStreaming && hasStreamingContent && streamState.streamingMessage && (
+            {streamingTailRenders && (
               (() => {
                 // fork:process-live — the in-flight message used to render through the flat
                 // MessageView, so switching the process-display setting mid-run changed
@@ -2584,32 +2650,21 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 // keep the flat renderer only for `legacy`.
                 //
                 // fork:process-live-2 — when the running turn's timeline has already been
-                // emitted above (`liveTurnTimeline`), these process blocks are part of it
+                // emitted above (`liveTurnGroup`), these process blocks are part of it
                 // and only the answer half is still owed here.
                 const live = streamState.streamingMessage as AgentMessage;
-                if (!streamingProcess || (streamingProcess.blocks.length === 0 && !liveTurnTimeline)) {
+                if (!streamingProcess || (streamingProcess.blocks.length === 0 && !liveTurnGroup)) {
                   // Unchanged flat renderer (and unchanged expression): the streaming
                   // message must keep receiving `toolResultsMap` so live shell output
                   // stays attached to its tool call.
                   return <MessageView message={streamState.streamingMessage as AgentMessage} toolResults={toolResultsMap} isStreaming modelNames={modelNames} cwd={messageCwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} expandedToolIds={expandedToolIds} onToggleTool={handleToggleTool} />;
                 }
-                const answerView = streamingProcess.answerBlocks.length > 0 ? (
-                  <MessageView
-                    message={{ ...live, content: streamingProcess.answerBlocks } as AgentMessage}
-                    toolResults={toolResultsMap}
-                    isStreaming
-                    modelNames={modelNames}
-                    cwd={messageCwd}
-                    onOpenFile={onOpenFile}
-                    onOpenSession={onOpenSession}
-                    expandedToolIds={expandedToolIds}
-                    onToggleTool={handleToggleTool}
-                  />
-                ) : null;
-                if (liveTurnTimeline) return answerView;
-                const liveToolCalls = streamingProcess.blocks.filter((block) => block.type === "toolCall").length;
-                return (
-                  <>
+                // fork:turn-head-order —— 过程组当回答消息的 `prefix`（身份行之后），
+                // 还没有回答可挂时就自己渲染出去 —— 两种情况都只出一块。
+                let groupNode: ReactNode = liveTurnGroup;
+                if (!groupNode) {
+                  const liveToolCalls = streamingProcess.blocks.filter((block) => block.type === "toolCall").length;
+                  groupNode = (
                     <div key="process-group-live">
                       <ProcessDetailsGroup
                         messageCount={Math.max(1, liveToolCalls)}
@@ -2630,8 +2685,22 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         />
                       </ProcessDetailsGroup>
                     </div>
-                    {answerView}
-                  </>
+                  );
+                }
+                if (streamingProcess.answerBlocks.length === 0) return groupNode;
+                return (
+                  <MessageView
+                    message={{ ...live, content: streamingProcess.answerBlocks } as AgentMessage}
+                    toolResults={toolResultsMap}
+                    isStreaming
+                    modelNames={modelNames}
+                    cwd={messageCwd}
+                    onOpenFile={onOpenFile}
+                    onOpenSession={onOpenSession}
+                    expandedToolIds={expandedToolIds}
+                    onToggleTool={handleToggleTool}
+                    prefix={groupNode}
+                  />
                 );
               })()
             )}
@@ -2641,12 +2710,19 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               // PhaseRoll 在“没有相位可显”时返回 null（与改动前同一契约），
               // 而 wrapper 带着 py-2 渲染就会在等待结束后留下一条看不见的空隙。
               // fork:zm-08 — 压缩中即便相位为空也显一行（上游 2e66e40 / #1008）。
-              <div className="break-words text-xs" style={{ color: "var(--text-muted)" }}>
-                <PhaseRoll
-                  text={phaseLabel(agentPhase, t, isCompacting)}
-                  phaseKey={phaseKeyOf(agentPhase, isCompacting)}
-                  lineHeightEm={1.4}
-                />
+              // fork:v5-frame-audit — 宿主抄画板 D-03e 帧 B：阶段行是**一张卡**
+              // （`.d-card` › `.d-card-body` › `.d-step`），不是一行裸文字 ——
+              // 板面注释写明「阶段行只占一行，高度永远不变」，那件事由卡片体 +
+              // 唯一的 `.d-step` 承担；此前宿主是 `div.break-words.text-xs`，
+              // 结构对不上（structdiff：板 `.d-card`/`.d-card-body` 产品完全没有）。
+              <div className="d-card">
+                <div className="d-card-body">
+                  <PhaseRoll
+                    text={phaseLabel(agentPhase, t, isCompacting)}
+                    phaseKey={phaseKeyOf(agentPhase, isCompacting)}
+                    lineHeightEm={1.4}
+                  />
+                </div>
               </div>
             )}
 
@@ -2765,15 +2841,23 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         /* fork:design-components —— composer 行 = 画板 D-03/D-04 的 .d-composer-wrap
            （flex:none / padding 0 sp-8 sp-4）。原先只内联了 paddingBottom，
            上方与两侧的呼吸位靠一条 max-width 层去猜；换成画板类后卡片自身的
-           width: min(--composer-max,100%) 也不再需要外层重复写一遍。 */
-        className="d-composer-wrap relative shrink-0"
+           width: min(--composer-max,100%) 也不再需要外层重复写一遍。
+           fork:v5-frame-audit —— 窄屏换成画板 M-01/M-02/M-04 每一帧的
+           `.m-composer-wrap`：**浮在转录之上**（absolute / bottom:0），滚动区靠
+           `.m-scroll` 的 `padding-bottom: 140px` 让位。产品在窄屏此前把它留在流里，
+           于是「顶栏浮在内容上、输入卡也浮在内容上」这组对称只落地了一半。 */
+        className={isPwa ? "m-composer-wrap" : "d-composer-wrap relative shrink-0"}
         style={{
-          gridColumn: "1",
-          gridRow: "2",
-          // The minimap preview may expand leftward, but it must never cover
-          // or intercept the composer at the bottom of the chat.
-          zIndex: 2,
-          background: "var(--bg)",
+          ...(isPwa
+            ? {}
+            : {
+              gridColumn: "1",
+              gridRow: "2",
+              // The minimap preview may expand leftward, but it must never cover
+              // or intercept the composer at the bottom of the chat.
+              zIndex: 2,
+              background: "var(--bg)",
+            }),
         }}
       >
         {/* fork:v5-wave-n1 —— 手机上转录区的下端渐隐（画板 M-02 帧 A/B/C 每一帧里

@@ -111,12 +111,12 @@ function TabErrorState({ label, onRetry, onClose }: { label: string; onRetry: ()
       <div className="d-empty-t">{t("tabs.errorTitle")}</div>
       <div className="d-empty-s">{t("tabs.errorHint", { name: label })}</div>
       <div className="d-row">
-        <button type="button" className="d-btn sm primary" onClick={onRetry}>
+        <button type="button" className="d-btn sm primary d-pressable" onClick={onRetry}>
           <i data-ico="rotate-cw" data-size="13" aria-hidden="true" />
           {t("tabs.errorRetry")}
         </button>
         {onClose && (
-          <button type="button" className="d-btn sm" onClick={onClose}>
+          <button type="button" className="d-btn sm d-pressable" onClick={onClose}>
             <i data-ico="x" data-size="13" aria-hidden="true" />
             {t("tabs.errorClose")}
           </button>

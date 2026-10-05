@@ -486,9 +486,14 @@ export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSl
     );
   }
   return (
+    /* fork:v5-boards D-27 帧 E / D-28 帧 D —— `.d-chart-reveal`：图表第一次出现时
+       自左揭开（clip-path inset 1800ms）。本仓的用量图里柱条走 `.d-bar-rise`、热力
+       格走 `.d-cell-pop`，只有这条占比条此前没有任何入场；它是真实数据图（模型/工具
+       占比），所以揭开落在它身上 —— 不另画一条折线演示类（DSN-07 禁手写 SVG 图）。 */
     <div
       role="img"
       aria-label={label}
+      className="d-chart-reveal"
       style={{ display: "flex", gap: 0, width: "100%", height: "var(--nx-sp-2)", marginTop: "var(--nx-sp-2)", borderRadius: "var(--nx-r-xs)", overflow: "hidden", background: "var(--nx-surface-hi)" }}
     >
       {visible.map((slice, index) => (

@@ -68,8 +68,13 @@ test("settings exposes the send key as one board radio row in the chat block", (
   const chatStart = panelSource.indexOf('<PwBlock icon="message-square"');
   const chatSection = panelSource.slice(chatStart, panelSource.indexOf("</PwBlock>", chatStart));
   assert.match(chatSection, /<EnterSendModeSetting \/>/);
-  // 行规格与主题 / 语言 / 密度同一套：`.pw-field` + `.pw-radio`，不自绘分段控件。
-  assert.match(settingSource, /<PwField[\s\S]*?<PwRadio<EnterSendMode>/);
+  // fork:v5-landing-frame · D-07 帧 B —— 「多选一」是**整行单选**：标签行（`settings.sendKey`
+  // + `settings.sendKeyHint`）在调用点，行本体 `button.d-radiorow` 在共享基件里
+  // （圆点 + 标题 + 副标题，选中挂 `.on`；DOM 守卫见 SettingsUi.test.mjs）。
+  // 两档从 `.d-seg` 分段芯片换成整行，是因为每档都要带一句「代价」说明。
+  assert.match(settingSource, /<PwRadioRow<EnterSendMode>/);
+  assert.match(settingSource, /label=\{t\("settings\.sendKey"\)\}/);
+  assert.match(settingSource, /hint=\{t\("settings\.sendKeyHint"\)\}/);
   assert.match(settingSource, /value: "ctrlEnter"/);
   assert.match(settingSource, /onChange=\{setEnterSendMode\}/);
   for (const key of ["sendKey", "sendKeyHint", "sendKeyEnter", "sendKeyCtrlEnter"]) {
