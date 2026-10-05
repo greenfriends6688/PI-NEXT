@@ -29,7 +29,7 @@ interface Props {
 /*
  * fork:v5-wave-b —— **本组件刻意不加 m-* 分支**（不是漏做）。
  *
- * 导轨（`.d-minimap` + `.d-mm-node` + `.d-minimap-pop`）是画板 D-03e 的**鼠标悬停**
+ * 导轨（`.pw-minimap-rail` + `.node` + `.pw-minimap-pop`）是画板 53 的**鼠标悬停**
  * 装置：算 `topRatio`、绑 mousemove/mousedown 拖拽、悬停出浮层。PWA 的 M-01~M-12
  * 十二张板里**没有这一件**（手机的「回看更早 / 切分支」在 M-04 会话抽屉与 M-02
  * 输入卡上方的 `.m-pickbar` 分支条上，属于别的波次与别的文件）。
@@ -42,7 +42,21 @@ interface Props {
  * 顶部一条可横滑的回合刻度），产品再照抄。
  */
 
-/** 导轨宽 36px 由 system.css 的 `.d-minimap` 给（画板 D-03e），产品侧不再写死。 */
+/*
+ * fork:minimap-board53 —— **形态退回画板 53（v0.1.8 那一版）**，2026-10-05 用户裁定。
+ *
+ * D-03e 那版（`d-minimap` 悬浮卡 + 3px 横条 + 面板头两枚 iconbtn）被用户判为
+ * 「现在的这个不太好」，本组件的**外观与 DOM** 整块回到 board.css 里的
+ * `.pw-minimap-rail` / `.node` / `.pw-minimap-pop` / `.pin` / `.list` / `.turn`
+ * （36px 圆点导轨 + 贴左阴影的 320px 面板），行为 / 状态 / 接线一律是现在的：
+ * props、悬停与拖拽、`previewPinned` 定位锁、加载更早、大纲点击跳转、
+ * `data-minimap-*` 钩子（e2e 与 `scripts/verify-against-boards.mjs` 都按这些属性选）全部保留。
+ * 因此上一版挂在这条链上的 `fork:v5-wave-n1` 两枚标记（`.d-mm-pin` 定位线 /
+ * `.d-mm-turn` 回合编号）随之退场 —— 它们只是 `minimapHovered + nearestNodeIndex`
+ * 派生的可视标记，没有独立 state，也没有交互，导轨换回圆点后无处安放。
+ */
+
+/** 导轨宽 36px 由 board.css 的 `.pw-minimap-rail` 给（画板 53），产品侧不再写死。 */
 const MAX_NODE_GAP = 50;
 const MINIMAP_PADDING = 12;
 const MINIMAP_TRIGGER_TAIL = 16;
@@ -137,7 +151,6 @@ function PreviewHeading({
   return (
     <button
       type="button"
-      className="d-t-xs d-t-b"
       data-minimap-line=""
       data-level={level}
       data-preview-heading-index={headingIndex ?? undefined}
@@ -227,7 +240,6 @@ export const AssistantOutline = memo(function AssistantOutline({
           p: ({ children }) => (
             <button
               type="button"
-              className="d-t-xs d-t-faint"
               data-minimap-line=""
               onClick={onAnswerClick}
             >
@@ -705,7 +717,7 @@ export function ChatMinimap({
   return (
     <div
       ref={containerRef}
-      className="d-minimap fork-minimap-rail"
+      className="pw-minimap-rail"
       onMouseDown={handleMouseDown}
       onMouseEnter={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -735,8 +747,8 @@ export function ChatMinimap({
         overflow: "visible",
       }}
     >
-      {/* fork:design-system SW-15 —— 悬停 tooltip 用通用卡片（画板 D-03e 的
-          `.d-card` + `.d-card-head` + `.d-card-body`）：头是角色 + 工具数徽章，
+      {/* fork:design-system SW-15 —— 悬停 tooltip 用通用工具卡（画板 22/53 的
+          `.pw-card` + `.pw-card-head` + `.pw-card-body`）：头是角色 + 工具数徽章，
           体是这一轮的首段。定位仍挂在导轨坐标系里（top: topRatio%），
           `pointer-events: none` 是必需的，否则鼠标进卡就触发 mouseleave 闪烁。 */}
       {tooltipTurn && nearestNode && (() => {
@@ -751,7 +763,7 @@ export function ChatMinimap({
         if (!body) return null;
         return (
           <div
-            className="d-card"
+            className="pw-card"
             data-minimap-tooltip=""
             style={{
               position: "absolute",
@@ -765,15 +777,17 @@ export function ChatMinimap({
               pointerEvents: "none",
             }}
           >
-            <div className="d-card-head">
-              <i data-ico={isUser ? "message-square" : "bot"} data-size="14" aria-hidden="true"></i>
-              <span className="d-t-sm d-t-b">
+            <div className="pw-card-head">
+              <span className="pw-ico">
+                <i data-ico={isUser ? "message-square" : "bot"} data-size="14"></i>
+              </span>
+              <span className="pw-tool">
                 {t(isUser ? "chatMinimap.userMessage" : "chatMinimap.assistantReply")}
               </span>
-              <span className="d-grow" />
+              <span className="grow" style={{ flex: 1 }} />
               {tooltipTurn.toolCount > 0 && (
                 <span
-                  className="d-badge mute"
+                  className="pw-badge count"
                   role="img"
                   title={t("chatMinimap.toolCalls", { count: tooltipTurn.toolCount })}
                   aria-label={t("chatMinimap.toolCalls", { count: tooltipTurn.toolCount })}
@@ -782,69 +796,60 @@ export function ChatMinimap({
                 </span>
               )}
             </div>
-            <div className="d-card-body" data-minimap-tooltip-text="">{body}</div>
+            <div className="pw-card-body" data-minimap-tooltip-text="">{body}</div>
           </div>
         );
       })()}
 
-      {/* 导轨节点：画板 D-03e 的 `.d-mm-node`（已完成 `.done` / 当前轮 `.now`）。
-          kind 由 `deriveTurnNodeKind` 纯前端派生，仍挂在 data 属性上。
-          `top` 是几何定位（产品按 topRatio 映射转录位置），不是设计值。 */}
-      {positionedNodes.map((node) => {
-        const isDone = activeIndex !== null && node.index < activeIndex;
-        return (
-          <span
-            key={node.index}
-            className={`d-mm-node${isDone ? " done" : ""}${activeIndex === node.index ? " now" : ""}`}
-            data-minimap-node-index={node.index}
-            data-minimap-node-kind={node.kind}
-            data-minimap-node-active={activeIndex === node.index ? "" : undefined}
-            data-minimap-node-hover={minimapHovered && nearestNodeIndex === node.index ? "" : undefined}
-            style={{ position: "absolute", left: 0, right: 0, top: `${node.topRatio * 100}%` }}
-          />
-        );
-      })}
+      {/* 导轨节点：6px 圆点，当前 8px 转 accent（`.node.on`），标题轮走 muted
+          （`.node.heading`）。kind 由 `deriveTurnNodeKind` 纯前端派生。
+          fix:minimap-hover —— 另给「指针最近的那一颗」挂 data 属性：悬停导轨时
+          这颗点放大 + 转 accent，配合左侧浮层里对应轮的高亮，回答「我hover的是哪一轮」。
+          （`data-minimap-*` 四个钩子与 0.1.8 一致：e2e / `scripts/verify-against-boards.mjs`
+          都按它们选元素，所以一个都不能少。） */}
+      {positionedNodes.map((node) => (
+        <span
+          key={node.index}
+          className={`node${node.kind === "heading" ? " heading" : ""}${activeIndex === node.index ? " on" : ""}`}
+          data-minimap-node-index={node.index}
+          data-minimap-node-kind={node.kind}
+          data-minimap-node-active={activeIndex === node.index ? "" : undefined}
+          data-minimap-node-hover={minimapHovered && nearestNodeIndex === node.index ? "" : undefined}
+          style={{ top: `${node.topRatio * 100}%` }}
+        />
+      ))}
 
-      {/* fork:v5-wave-n1 —— 导轨上的两个标记（画板 D-03e 帧 A 导轨逐字）：
-          `.d-mm-pin`（2px 警示色横线 = 「就停在这一轮」）与
-          `.d-mm-turn.d-mono`（`#12` 编号）。两者都挂在**指针当前落在的那一轮**上：
-          悬停导轨即出现，浮层钉住时随浮层一起留着，离开即消失 ——
-          不新增 state、不加计时器（既有 activeIndex 的定位窗口是原有行为，这里只是它的可视标记）。
-          `.d-mm-pin` 自带 position:absolute，`.d-mm-turn` 不是，所以给它补同一套几何定位；
-          两者的 top 与节点的 `topRatio` 同一基准（节点高 3px，针线 2px，编号落在针线下方）。 */}
-      {minimapHovered && nearestNodeIndex !== null && (() => {
-        const node = positionedNodes.find((candidate) => candidate.index === nearestNodeIndex);
-        if (!node) return null;
-        return (
-          <>
-            <div className="d-mm-pin" style={{ top: `calc(${node.topRatio * 100}% + 1px)` }} aria-hidden="true" />
-            <div className="d-mm-turn d-mono" style={{ position: "absolute", left: 0, top: `calc(${node.topRatio * 100}% + 5px)` }}>
-              #{node.index + 1}
-            </div>
-          </>
-        );
-      })()}
-
-      {/* 320px 时间线浮层（画板 D-03e 帧 A）：`.d-minimap-pop` 外壳 + `.d-row` 图钉头
-          + `.d-tree` 列表（加载更早 + 逐轮编号列/内容列）。定位（锚在导轨左侧）
-          是几何，走内联；板的排布由 system.css 的 `.d-minimap-pop` 承担。 */}
+      {/* 320px 时间线浮层（画板 53）：图钉头 + 列表（加载更早 + 逐轮编号列/内容列）。
+          定位（锚在导轨左侧）是几何，走 fork-ui.css 的
+          `.pw-minimap-rail > .pw-minimap-pop`（与 0.1.8 同一条：board.css 里的
+          `.pw-minimap-pop` 只给宽度 / flex / align-self，不含定位）。 */}
       {minimapHovered && (allNodes.length > 0 || hasEarlierMessages) && (
         <div
-          className="d-minimap-pop fork-minimap-panel"
+          className="pw-minimap-pop"
           data-minimap-preview-box=""
           data-pinned={previewPinned || undefined}
           onMouseEnter={showPreview}
           onMouseDown={(event) => event.stopPropagation()}
           onMouseMove={(event) => event.stopPropagation()}
-          style={{ position: "absolute", right: "100%", top: 0, maxHeight: "100%", zIndex: 3 }}
         >
-          <div
-            className="d-row"
-            style={{ padding: "var(--nx-sp-2) var(--nx-sp-3)", borderBottom: "1px solid var(--nx-line)" }}
-          >
+          {/* 固定态只把图钉图标转 accent + 下边线染一档（画板 53 `.pin.on`），
+              整条铺底色会盖过内容。
+              fork:minimap-board53 —— 头行按画板 53 的 `div.pin` 排（0.1.8 组件把
+              整行做成一枚 button，这里回退成两枚钮：文案钮 = 固定开关
+              （`aria-pressed` + label/title，命中区等于 0.1.8 的整行），✕ 钮 =
+              D-03e 那版带来的关闭动作（取消固定 + 立刻收起），行为保留。
+              preflight 归零了按钮的 UA 边框/底色，所以两枚钮在屏幕上仍是一条
+              32px 图钉行；图钉图标留在 `.pin` 的**第一个子元素**上，
+              `.pin.on .pw-ico:first-child` 的 accent 规则才照旧命中。 */}
+          <div className={`pin${previewPinned ? " on" : ""}`} data-minimap-pin-row="">
+            <span className="pw-ico">
+              <i data-ico={previewPinned ? "pin" : "pin-off"} data-size="14"></i>
+            </span>
             <button
               type="button"
-              className={`d-iconbtn${previewPinned ? " is-on" : ""}`}
+              className="grow"
+              style={{ flex: 1 }}
+              data-minimap-pin=""
               aria-pressed={previewPinned}
               aria-label={t(previewPinned ? "chatMinimap.unpinPreview" : "chatMinimap.pinPreview")}
               title={t(previewPinned ? "chatMinimap.unpinPreview" : "chatMinimap.pinPreview")}
@@ -855,14 +860,12 @@ export function ChatMinimap({
                 showPreview();
               }}
             >
-              <i data-ico={previewPinned ? "pin" : "pin-off"} data-size="13" aria-hidden="true"></i>
-            </button>
-            <span className="d-t-xs d-grow">
               {t(previewPinned ? "chatMinimap.unpinPreview" : "chatMinimap.pinPreview")}
-            </span>
+            </button>
             <button
               type="button"
-              className="d-iconbtn"
+              className="pw-ico"
+              data-minimap-close=""
               title={t("i18n.close")}
               aria-label={t("i18n.close")}
               onMouseDown={(event) => event.stopPropagation()}
@@ -873,29 +876,19 @@ export function ChatMinimap({
                 setMouseYRatio(null);
               }}
             >
-              <i data-ico="x" data-size="13" aria-hidden="true"></i>
+              <i data-ico="x" data-size="13"></i>
             </button>
           </div>
-          <div
-            ref={previewBoxRef}
-            className="d-tree"
-            data-minimap-preview-list=""
-            style={{ gap: 0, minHeight: 0, overflow: "hidden" }}
-          >
+          <div ref={previewBoxRef} className="list" data-minimap-preview-list="">
             {hasEarlierMessages && (
               <button
                 type="button"
-                className="d-trow"
+                className="load-earlier"
                 data-minimap-load-earlier=""
                 disabled={loadingEarlier}
                 onClick={() => { void onLoadEarlier(); }}
-                style={{
-                  gridTemplateColumns: "34px minmax(0, 1fr)",
-                  borderBottom: "1px solid var(--nx-line)",
-                  borderRadius: 0,
-                }}
               >
-                <span style={{ textAlign: "center" }} aria-hidden="true">
+                <span className="pw-ico" aria-hidden="true">
                   <i data-ico="arrow-up" data-size="13"></i>
                 </span>
                 <span>
@@ -912,37 +905,29 @@ export function ChatMinimap({
                     if (element) previewItemRefs.current.set(node.index, element);
                     else previewItemRefs.current.delete(node.index);
                   }}
-                  className={`d-trow${isLocated ? " is-on" : ""}`}
+                  className={`turn${isLocated ? " on" : ""}`}
                   data-minimap-preview-index={node.index}
                   data-minimap-turn-kind={node.kind}
                   data-located={isLocated ? "true" : undefined}
-                  style={{
-                    gridTemplateColumns: "34px minmax(0, 1fr)",
-                    height: "auto",
-                    padding: "var(--nx-sp-2) var(--nx-sp-2)",
-                    alignItems: "flex-start",
-                  }}
                 >
-                  <span className="d-col" style={{ alignItems: "center", gap: "var(--nx-sp-1)" }}>
-                    <span className="d-mono d-t-xs d-t-faint" style={{ textAlign: "center" }}>
+                  <span className="gutter">
+                    <span className="no">
                       {String(node.index + 1).padStart(2, "0")}
+                      {node.targetTurn.toolCount > 0 && (
+                        <span
+                          className="tool"
+                          role="img"
+                          title={t("chatMinimap.toolCalls", { count: node.targetTurn.toolCount })}
+                          aria-label={t("chatMinimap.toolCalls", { count: node.targetTurn.toolCount })}
+                        >
+                          {node.targetTurn.toolCount > 99 ? "99+" : node.targetTurn.toolCount}
+                        </span>
+                      )}
                     </span>
-                    {node.targetTurn.toolCount > 0 && (
-                      <span
-                        className="d-badge mute"
-                        role="img"
-                        title={t("chatMinimap.toolCalls", { count: node.targetTurn.toolCount })}
-                        aria-label={t("chatMinimap.toolCalls", { count: node.targetTurn.toolCount })}
-                      >
-                        <i data-ico="wrench" data-size="10" aria-hidden="true"></i>
-                        {node.targetTurn.toolCount > 99 ? "99+" : node.targetTurn.toolCount}
-                      </span>
-                    )}
                     {node.targetTurn.assistantPreviews.length > 0 && (
                       <button
                         type="button"
-                        className="d-mono d-t-xs d-t-faint"
-                        style={{ cursor: "pointer" }}
+                        className="no anchor"
                         data-minimap-preview-assistant={`${node.index}-0`}
                         onClick={() => scrollToAssistant(node, 0)}
                         aria-label={t("chatMinimap.locateAssistant")}
@@ -952,10 +937,10 @@ export function ChatMinimap({
                       </button>
                     )}
                   </span>
-                  <span className="d-col" style={{ gap: "var(--nx-sp-1)", minWidth: 0 }}>
+                  <span className="body">
                     <button
                       type="button"
-                      className="d-t-xs"
+                      className="u"
                       data-minimap-preview-user={node.index}
                       onClick={() => {
                         scrollToNode(node, "smooth");
@@ -967,7 +952,7 @@ export function ChatMinimap({
                     {node.targetTurn.assistantPreviews.map((assistant, assistantIndex) => (
                       <span
                         key={assistantIndex}
-                        className="d-t-xs d-t-faint"
+                        className="a"
                         data-minimap-answer-index={assistantIndex}
                       >
                         <AssistantOutline

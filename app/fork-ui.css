@@ -1604,6 +1604,29 @@ html[data-theme-skin="true"] .main-workspace-header {
   line-height: 1.5;
 }
 
+/* ---------------------------------------------------------------------------
+ * fix:minimap-hover —— 转录右侧迷你地图的悬停浮层定位。
+ *
+ * 画板 53 里 `.pw-minimap-pop` 是**导轨的兄弟**（flex 排在导轨左侧），所以
+ * board.css 只给了它宽度 / `flex: none` / `align-self`，没有任何定位。
+ * 产品里它挂在 36px 宽的导轨**内部**（`position: relative` 的 `.pw-minimap-rail`），
+ * 于是它按普通文档流在导轨内容框左上角排下、320px 宽度一路朝右溢出，再被
+ * `.chat-content` 的 `overflow: hidden` 整块裁掉 —— 悬停右侧那些圆点什么也看不到，
+ * 表现就是「小点点无法悬浮」。
+ *
+ * 挂回画板的排布：绝对定位、右缘贴导轨左缘（`right: 100%`）、高度上限 = 导轨高度
+ * （导轨跨整段转录，所以面板最高就是转录高度）。
+ *
+ * fork:minimap-board53（2026-10-05）—— D-03e 那版把这条定位搬进了组件的内联
+ * `style`（`.d-minimap-pop` + `position/right/top/max-height/z-index`）。面板形态
+ * 退回画板 53 之后组件不再带内联定位，这一条**原样复活**，否则面板又会被裁掉。
+ * ------------------------------------------------------------------------- */
+.pw-minimap-rail > .pw-minimap-pop {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  max-height: 100%;
+}
 /* 指针最近的那一颗点：悬停反馈（悬停导轨 = 悬停这颗点）。视觉取画板 53 的
    `.node.on` 档（8px / accent），但不改 `activeIndex` 的语义 —— 它仍然是「当前
    滚到的轮」，指针只是一层临时反馈。 */

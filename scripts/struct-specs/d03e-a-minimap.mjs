@@ -5,13 +5,15 @@
 // markdown 全块 / 文件 chips 都在里面）。
 const IGNORE = ["d-grow"];
 
-// D-03e 帧 A · 转录迷你地图导轨（36px 导轨：节点 + 针 + 编号）。
+// fork:minimap-board53（2026-10-05）—— 迷你地图回到画板 53 的形态（用户要 0.1.8
+// 的样子），所以本 spec 的对照画板从 D-03e 改回 v1 的 53，两侧根选择器
+// 都是 `.pw-minimap-rail`。
 export default {
-  name: "D-03e 帧A · 迷你地图导轨",
-  board: "v5/web/boards/D-03e-transcript-nav.html",
-  boardRoot: ".d-minimap",
+  name: "画板 53 帧0 · 迷你地图导轨",
+  board: "53-turn-and-nav.html",
+  boardRoot: ".pw-minimap-rail",
   app: { script: `await new Promise(r => setTimeout(r, 6000));` },
-  appRoot: ".d-minimap",
+  appRoot: ".pw-minimap-rail",
   ignore: IGNORE,
   maxRows: 30,
 };

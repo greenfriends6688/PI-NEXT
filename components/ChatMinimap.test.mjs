@@ -94,16 +94,41 @@ test("labels the load-earlier row from i18n and shows progress while it loads", 
   assert.match(source, /loadingEarlier \? t\("i18n\.loading"\) : t\("chatMinimap\.loadEarlier"\)/);
 });
 
-// fork:v5-wave-n1 — D-03e 帧 A 导轨上的两枚标记：定位横线 + 回合编号。
-test("fork:v5-wave-n1 —— 导轨带 .d-mm-pin 定位线与 .d-mm-turn 回合编号", () => {
-  assert.match(source, /className="d-mm-pin"/, "定位线是画板 D-03e 帧 A 的 .d-mm-pin");
-  assert.match(source, /className="d-mm-turn d-mono"/, "回合编号是 .d-mm-turn.d-mono");
-  // 两枚都只在指针落在某一轮时出现（minimapHovered + nearestNodeIndex），
-  // 不新增 state、不加计时器：钉住浮层时随浮层一起留着，离开即消失。
-  assert.match(
+// fork:minimap-board53（2026-10-05 用户裁定）—— 面板与导轨的 DOM 退回画板 53
+// （v0.1.8 那一版）。D-03e 的 `d-minimap` / `d-mm-node` / `d-mm-pin` / `d-mm-turn` /
+// `d-trow` 那一套已退场，两枚 `.d-mm-*` 标记随之退役：它们只是
+// `minimapHovered + nearestNodeIndex` 派生的可视标记，没有独立状态、也没有交互，
+// 导轨换回圆点后无处安放。行为（props / 悬停拖拽 / 定位锁 / 加载更早 / 大纲点击跳转 /
+// data-minimap-* 钩子）一律不变。
+test("导航面板与导轨保持画板 53（0.1.8）的 DOM —— d-* 那套已退场", () => {
+  assert.match(source, /className="pw-minimap-rail"/, "导轨是 board.css 的 .pw-minimap-rail");
+  assert.match(source, /className="pw-minimap-pop"/, "浮层是 .pw-minimap-pop");
+  assert.doesNotMatch(
     source,
-    /minimapHovered && nearestNodeIndex !== null/,
-    "标记由既有悬停状态派生，不另立状态",
+    /className=[^\n]*\b(d-minimap|d-mm-node|d-mm-pin|d-mm-turn|d-trow|fork-minimap-panel|fork-minimap-rail)\b/,
+    "组件里不再有任何 d-* / fork-* 迷你地图类",
   );
-  assert.match(source, /#\{node\.index \+ 1\}/, "编号是这一轮的序号");
+
+  // 导轨节点：6px 圆点 + 当前轮 `.on` + 标题轮 `.heading`（`kind` 仍是前端派生）。
+  assert.match(source, /className=\{`node\$\{node\.kind === "heading" \? " heading" : ""\}\$\{activeIndex === node\.index \? " on" : ""\}`\}/);
+  // 头行：图钉图标 + 文案开关钮（aria-pressed）+ ✕ 关闭钮，两枚都在 div.pin 内。
+  assert.match(source, /className=\{`pin\$\{previewPinned \? " on" : ""\}`\}/);
+  assert.match(source, /aria-pressed=\{previewPinned\}/, "固定开关仍有 aria-pressed");
+  assert.match(source, /className="load-earlier"/, "加载更早行回到 .load-earlier");
+  assert.match(source, /className=\{`turn\$\{isLocated \? " on" : ""\}`\}/, "轮行回到 .turn/.on");
+  assert.match(source, /className="gutter"/);
+  assert.match(source, /className="no anchor"/, "回答锚点回到 .no.anchor");
+  assert.match(source, /className="u"/, "用户行回到 .u");
+  assert.match(source, /className="a"/, "回答块回到 .a");
+  // 工具数徽标在 tooltip 与轮行里都是 pw-badge count / .tool，不是 d-badge。
+  assert.match(source, /className="pw-badge count"/);
+  assert.match(source, /className="tool"/);
+  assert.match(source, /className="pw-card"/, "tooltip 回到 .pw-card 工具卡");
+});
+
+test("关闭钮仍取消固定并立刻收起面板（D-03e 那版带进来的动作没丢）", () => {
+  const close = source.slice(source.indexOf("data-minimap-close"));
+  assert.match(close, /setPreviewPinned\(false\)/);
+  assert.match(close, /setMinimapHovered\(false\)/);
+  assert.match(close, /setMouseYRatio\(null\)/);
 });
