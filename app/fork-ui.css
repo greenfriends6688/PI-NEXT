@@ -99,6 +99,25 @@ html.keyboard-open .extension-status-shelf {
   }
 }
 /* ---------------------------------------------------------------------------
+ * fork:context-menu-above-modal（2026-10-05，用户实测「技能行的 ⋯ 点开是块空白」）
+ *
+ * ContextMenu portal 到 body，但仍带着库里的 `.d-pop-float`（z-index
+ * `--nx-z-pop` = 500）；而设置弹窗的 `.settings-dialog-backdrop` 是 1000
+ * (`--nx-z-modal`)。于是菜单画在弹窗**底下**：弹窗范围内那段被不透明的弹窗面
+ * 完全盖住，只有伸出弹窗右缘、落到遮罩上的那一小块白底露出来 —— 看着就是
+ * 「点开后弹了个空白框，文字全在看不见的那半边」。
+ *
+ * 这不是技能页的问题，是共享浮层与弹层的层序问题：base.css 把 `--nx-z-pop`
+ * 注成「浮层 / 下拉 / portal 容器」，而 portal 菜单可以从任何弹层内部打开
+ * （设置弹窗、会话动作菜单、项目选择器…），所以它必须压过 `--nx-z-modal`。
+ * 取 1100（与 `.fork-pwa-ms-sheet` 同一个顶层次）：菜单与 toast 同层时，
+ * portal 节点在 body 末尾、同值下后来者胜，仍然盖得住。
+ * `.d-pop`（面板内的相对定位下拉）不动 —— 它本就该待在面板层里。
+ * ------------------------------------------------------------------------- */
+.context-menu {
+  z-index: 1100;
+}
+/* ---------------------------------------------------------------------------
  * fork:ui-projectchip — the shared ContextMenu gets a height ceiling.
  *
  * Upstream `.context-menu` (globals.css:2841) has `max-width: 300px` but no
