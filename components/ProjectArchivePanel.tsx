@@ -1,72 +1,56 @@
 "use client";
 
 /**
- * fork:project-archive — 设置 → 归档历史（骨架 B 的宿主：一套列表列 + 一套详情列）。
+ * fork:project-archive — 设置 → 归档：**画板 D-21 帧 A**（`design/v5/web/boards/D-21-settings-archive-import.html`）。
  *
- * 数据源是 `/api/sessions` 派生出来的项目列表（`lib/project-groups.ts` 的
- * `getRecentProjects`）——与侧栏用的是**同一个**身份（`workspaceKeyOf` = 服务端算的
- * `projectKey`），所以「一个归档项目」就是侧栏里的一行，worktree 也不例外。
+ * fork:v5-landing-frame · D-21（2026-10-06）—— 这一页原本是 v1 画板 62 的**骨架 B**
+ * （列表列 220 + 详情卡两栏），v5 的 D-21 已经把归档画成**一列分节**：
  *
- * fork:settings-frame（画板 62，2026-10-01）—— 归档历史从「ProjectArchivePanel +
- * ArchivedSessionsPanel 上下两块」改成**骨架 B（列表 300 + 详情 760）**：
+ *   d-set-inner
+ *     ├ d-banner                      「归档不是删除」—— 标志位，不是删文件
+ *     ├ d-set-sec「归档会话」
+ *     │   └ d-card 归档历史（卡头带计数 / 「显示已消失」开关 / 全部恢复）
+ *     │       └ d-card-body：批量条（**只在有选中时出现**）+ 项目组 d-group-toggle
+ *     │         + 会话行 d-sess（带 d-checkbox）+ 一段脚注
+ *     │   └ d-card 已归档的项目        ← D-21 没有这张卡，见下方登记
+ *     └ d-set-sec「两种『列不出来』要分开说」
+ *         └ d-grid2：两张 d-card，各自一张 d-empty（ico / t / s + 一个出口按钮）
  *
- *   列表列（300，`ConfigSplitView` 的第一列自己滚）
- *     「项目」分组   —— 已归档项目行：folder + 名称 + 会话数（会话数**只在这里**出现）
- *     「会话」分组   —— 组标题带「显示文件已消失」开关（画板 46 的带标签形态）
- *                       + 计数徽章；行 = 会话名 + 归档时间
- *   详情列（760，`ConfigDetail` 自己滚）
- *     选中项目 → 画板 46 项目卡的详情形态：头行（folder + 项目名 + 归档时间 + 恢复项目）
- *                 + 画板 46 原样的会话子列表（缩进 + 点行打开会话）
- *     选中会话 → <ArchivedSessionDetail>
- *     未选     → 画板 62 帧 D 的「详情未选」空态（40px 方框图标 + 一句引导）
- *   整页空（两个分组都空）→ 画板 62 帧 D 的「整页空」：20px 标题 + 说明 + 一个出口动作
+ * 三处**照抄画板、不是设计新意**的判定：
+ *   · 批量条**只在有选中时渲染**，一条都没选时整条不出现（不是灰着摆在那儿）；
+ *   · 「永久删除」永远二次确认，浮层标题写清对象（选中的 N 条）；
+ *   · 两种空态**各给各的出口**：没归档过教你去归档，文件没了给「显示这 N 条」。
  *
- * 宿主持有**唯一的选中态**（项目行 / 会话行互斥），两处分组都只回调 onSelect。
- * SettingsPanel 直挂本组件（`<SettingsPage title sub fill>`），恒渲染 null 的
- * ArchivedSessionsPanel 旧壳已删。
+ * 已登记偏离（一处）：D-21 只画了**会话**归档，本产品另有一张**项目**归档表
+ * （`lib/project-flags.ts`，projectKey 口径）。侧栏归档后只把项目行藏起来，
+ * 没有别的恢复入口，所以那张卡必须留着 —— 形态是 D-21 的 `.d-card` + `.d-sess`
+ * 行，行尾一枚恢复动作。这是**多出来的一张卡**，不改 D-21 画出来的任何一块。
  *
- * fix:archive-selection-scope —— **两种归档是两张表**，别把它们混着读：
- *   `useProjectFlags()` 的 `archived` 里装的是 **projectKey**，
- *   `useSessionFlags()` 的 `archived` 里装的是 **session id**。
- *   原来整页空判定与「选中会话」校验都去问项目表，于是：只归档过会话的用户打开本页
- *   看到的是「还没有归档任何会话。」（会话明明还在 localStorage 里，只是被项目表
- *   判成空），点会话行也永远打不开它的恢复 / 彻底删除卡。
+ * D-21 帧 A 那张「设置卡」（运行中的会话不允许归档 / 超过多久自动归档）是
+ * **产品没有的两个开关**（`grep 自动归档` 全仓零命中）。要它们得先有设置项与
+ * 落盘路径，本轮不凭空造。
  *
- * 这个页面**永不删东西**：没有删除按钮、不动 `.jsonl`、不动磁盘目录。归档/恢复与打开
- * 是仅有的几个动作；会话的「彻底删除」住在 ArchivedSessionsPanel.tsx（它的测试把
- * 「这一页对用户数据只读」焊死了）。
+ * 手机（M-05）只有 hub 一行「归档」，没有分节页画板，所以窄屏那一支沿用原样。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { PwaBanner, PwaSetRow } from "@/components/pwa/PwaPage";
 import { PwaSheet } from "@/components/pwa/PwaSheet";
-import type { Locale } from "@/lib/i18n/types";
+import { PortalDropdown } from "@/components/PortalDropdown";
 import { formatRelativeTime } from "@/lib/i18n/format";
-import { getRecentProjects, sessionsForProject, withoutChatProject, type RecentProject } from "@/lib/project-groups";
+import { getRecentProjects, sessionsForProject, withoutChatProject } from "@/lib/project-groups";
 import { partitionProjects, useProjectFlags } from "@/lib/project-flags";
 import { useSessionFlags } from "@/lib/session-flags";
 import type { SessionInfo } from "@/lib/types";
-import { ArchivedSessionDetail, ArchivedSessionsGroup } from "./ArchivedSessionsPanel";
 import {
-  ConfigBadge,
-  ConfigButton,
-  ConfigDetail,
-  ConfigDetailHeader,
-  ConfigDetailStack,
-  ConfigDetailTitle,
-  ConfigEmptyState,
-  ConfigSidebar,
-  ConfigSidebarGroupLabel,
-  ConfigSidebarItem,
-  ConfigSidebarList,
-  ConfigSplitView,
-} from "./SettingsUi";
-
-/** 选中态：项目行 / 会话行二选一；null = 详情列出「未选」空态。 */
-type ArchiveSelection = { kind: "project"; key: string } | { kind: "session"; id: string } | null;
+  ArchivedSessionDetail,
+  ArchivedSessionsGroup,
+  deriveArchivedRows,
+  type ArchivedRow,
+} from "./ArchivedSessionsPanel";
 
 export function ProjectArchivePanel({
   onOpenSession,
@@ -75,19 +59,29 @@ export function ProjectArchivePanel({
 }: {
   onOpenSession?: (id: string) => void;
   onSessionsChanged?: () => void;
-  /** 整页空态的出口动作（画板 62 帧 D「去侧栏」）——由设置壳传 onClose。 */
+  /** 「去侧栏看看」—— 关掉设置回到侧栏（画板 D-21 帧 A 两张空态卡的出口）。 */
   onCloseRequest?: () => void;
 }) {
   const { t, locale } = useI18n();
   const mobile = useIsMobile();
-  // 项目归档在项目表，会话归档在会话表。列表列的两组分别读自己那张。
+  // 项目归档在项目表，会话归档在会话表。两张表各读各的（fix:archive-selection-scope）。
   const { flags: projectFlags, archive, restore } = useProjectFlags();
-  const { flags: sessionFlags } = useSessionFlags();
+  const { flags: sessionFlags, archive: archiveSession } = useSessionFlags();
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
   const [chatProjectKey, setChatProjectKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ArchiveSelection>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  // 窄屏那一支的选中态（项目行 / 会话行互斥，详情落在 `.m-sheet` 里）。
+  const [selected, setSelected] = useState<{ kind: "project"; key: string } | { kind: "session"; id: string } | null>(null);
+  // D-21 帧 A 的三个桌面态：「显示已消失」开关 / 勾选集 / 永久删除的确认浮层。
+  const [showMissing, setShowMissing] = useState(false);
+  const [pickedIds, setPickedIds] = useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // 「永久删除」浮层的定位宿主：`.d-set-main` 是 overflow-y:auto，画板那种
+  // `position:absolute` 的 `.d-pop` 挂在这里会被它整个裁掉（LANDING §4 第一条陷阱），
+  // 所以走共享的 portal + fixed 下拉（与自动化面板的行菜单同一套）。
+  const deleteAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -117,11 +111,46 @@ export function ProjectArchivePanel({
     () => withoutChatProject(getRecentProjects(allSessions), chatProjectKey),
     [allSessions, chatProjectKey],
   );
-  // 列表列只列**已归档**的项目（`visible` 那半边是侧栏的事，这里不渲染）。
+  // 列表只列**已归档**的项目（`visible` 那半边是侧栏的事，这里不渲染）。
   const archivedProjects = useMemo(
     () => partitionProjects(projects, projectFlags).archived,
     [projects, projectFlags],
   );
+
+  // ── 会话行（画板帧 A 的两条：可见行 / 缺文件行）────────────────────────
+  const rows = useMemo(
+    () => deriveArchivedRows(
+      sessionFlags.archived,
+      sessionFlags.archivedAt,
+      allSessions,
+      t("settings.archivedMissingProject"),
+    ),
+    [sessionFlags.archived, sessionFlags.archivedAt, allSessions, t],
+  );
+  const missingCount = rows.filter((row) => !row.live).length;
+  // 窄屏选中态的有效性：行被恢复 / 删除后自动失效，详情面板落回关闭。
+  const selectedProject = selected?.kind === "project"
+    ? archivedProjects.find((project) => project.key === selected.key) ?? null
+    : null;
+  const selectedSessionId = selected?.kind === "session" && sessionFlags.archived.includes(selected.id)
+    ? selected.id
+    : null;
+  // 开关关着时缺文件的那几条不列 —— 默认隐藏，画板帧 A 的卡头开关就是出口。
+  const visibleRows = showMissing ? rows : rows.filter((row) => row.live);
+  /** 选区只认**当前列出来的**行：被恢复 / 文件消失后勾选自动失效。 */
+  const selectedRows = visibleRows.filter((row) => pickedIds.includes(row.id));
+  /** 文件还在的选中行 —— 恢复只对它们有意义（画板：缺文件行只有「清理标记」）。 */
+  const restorableRows = selectedRows.filter((row) => row.live);
+  /** 项目分组：`d-group-toggle` 就是一组会话的组标题（画板帧 A 的 PI NEXT 那一行）。 */
+  const groups = useMemo(() => {
+    const byProject = new Map<string, ArchivedRow[]>();
+    for (const row of visibleRows) {
+      const bucket = byProject.get(row.projectLabel);
+      if (bucket) bucket.push(row);
+      else byProject.set(row.projectLabel, [row]);
+    }
+    return [...byProject.entries()];
+  }, [visibleRows]);
 
   const setArchived = useCallback(async (key: string, next: boolean) => {
     setBusyKey(key);
@@ -134,21 +163,58 @@ export function ProjectArchivePanel({
     onSessionsChanged?.();
   }, [archive, restore, onSessionsChanged]);
 
-  // 选中态有效性：行被恢复 / 删除后选择自动失效，详情列落回「未选」空态。
-  const selectedProject = selected?.kind === "project"
-    ? archivedProjects.find((project) => project.key === selected.key) ?? null
-    : null;
-  // 会话 id 要问**会话表**（fix:archive-selection-scope）。
-  const selectedSessionId = selected?.kind === "session" && sessionFlags.archived.includes(selected.id)
-    ? selected.id
-    : null;
-  // 整页空（画板 62 帧 D）：两个分组都没有任何条目 —— 项目组与会话组各查各的表。
-  const pageEmpty = sessions !== null && archivedProjects.length === 0 && sessionFlags.archived.length === 0;
+  const toggleRow = useCallback((id: string) => {
+    setPickedIds((current) => current.includes(id)
+      ? current.filter((item) => item !== id)
+      : [...current, id]);
+  }, []);
 
-  // fork:v5-landing Wave B · M-05 · 窄屏：两列骨架（列表 300 + 详情 760）塌成
-  // **一列列表 + 底部面板**：列表里两张卡（已归档项目 / 已归档会话），点哪条就在
-  // `.m-sheet` 里看详情。两张归档表（projectKey / session id）仍然是各读各的，
-  // 本页仍然**永不删东西**（删除只住 ArchivedSessionsPanel 的详情面板）。
+  const toggleGroup = useCallback((ids: string[]) => {
+    setPickedIds((current) => {
+      const all = ids.every((id) => current.includes(id));
+      return all ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])];
+    });
+  }, []);
+
+  /** 恢复 = 取消归档（`archiveSession` 是 toggle，勾着的 id 调一次就是取消）。 */
+  const restoreIds = useCallback((ids: string[]) => {
+    for (const id of ids) {
+      if (sessionFlags.archived.includes(id)) archiveSession(id);
+    }
+    setPickedIds((current) => current.filter((id) => !ids.includes(id)));
+    setConfirmDelete(false);
+    onSessionsChanged?.();
+  }, [archiveSession, sessionFlags.archived, onSessionsChanged]);
+
+  /** 永久删除：删文件 + 清标志位。二次确认之后才走到这里（画板帧 A 的浮层）。 */
+  const deleteRows = useCallback(async (targets: readonly ArchivedRow[]) => {
+    setDeleting(true);
+    try {
+      for (const row of targets) {
+        if (!row.live) continue; // 文件早就不在的只剩标志位，下面统一清
+        const res = await fetch(`/api/sessions/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      }
+      for (const row of targets) {
+        if (sessionFlags.archived.includes(row.id)) archiveSession(row.id);
+      }
+      setPickedIds([]);
+      setConfirmDelete(false);
+      await load();
+      onSessionsChanged?.();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
+  }, [archiveSession, sessionFlags.archived, load, onSessionsChanged]);
+
+  // 窄屏（M-05 只画了 hub 一行「归档」，没有分节页画板）—— 这一支**原样保留**：
+  // 两列骨架塌成**一列列表 + 底部面板**，点哪条就在 `.m-sheet` 里看详情。
+  // 两个归档态（勾选 / 永久删除浮层）是画板帧 A 桌面那一支的接线，手机不共用。
+  const pageEmpty = sessions !== null && archivedProjects.length === 0 && rows.length === 0;
+
   if (mobile) {
     return (
       <>
@@ -184,7 +250,6 @@ export function ProjectArchivePanel({
                     key={project.key}
                     type="button"
                     className="m-setrow"
-                    aria-current={selectedProject?.key === project.key ? "page" : undefined}
                     onClick={() => setSelected({ kind: "project", key: project.key })}
                   >
                     <i data-ico="folder" data-size="16" aria-hidden="true" />
@@ -295,190 +360,297 @@ export function ProjectArchivePanel({
     );
   }
 
+  // ── 桌面：画板 D-21 帧 A ────────────────────────────────────────────────
+  const bulkBar = selectedRows.length > 0;
+  const showNeverArchived = rows.length === 0;
+  const showMissingOnly = rows.length > 0 && missingCount > 0 && !showMissing;
+  // 画板那张网格是两个空态并排；实际只会有一个成立，单卡时占满整行。
+  const emptyCards = [showNeverArchived, showMissingOnly].filter(Boolean).length;
+
   return (
-    <>
+    <div className="d-set-inner">
       {error && (
         <div role="alert" className="d-banner err">
           <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
           <span className="d-grow">{error}</span>
         </div>
       )}
-      {pageEmpty ? (
-        <ConfigEmptyState>
-          <span className="mark"><i data-ico="archive" data-size="16" aria-hidden="true" /></span>
-          {/* 画板 62 帧 D「整页空」：标题 + 说明 + 一个出口动作。
-              标题用 archivedEmptyTitle（画板 62:411 的「还没有归档」），说明落在正文行。 */}
-          <h2>{t("settings.archivedEmptyTitle")}</h2>
-          <p>{t("settings.projectsNoneArchived")}</p>
-          {onCloseRequest && (
-            <ConfigButton variant="secondary" size="small" onClick={onCloseRequest}>
-              <i data-ico="arrow-left" data-size="13" aria-hidden="true" />
-              {t("settings.backToWorkspace")}
-            </ConfigButton>
-          )}
-          {/* fix:archive-local-only —— 标志只在本机 localStorage（不动 `.jsonl` 是硬规矩）。
-              「我明明归档过」的第一嫌疑就是这里，所以代价写在空态本体里，不飘到别处。 */}
-          <p className="d-t-xs d-t-faint">{t("settings.archiveStoredLocally")}</p>
-        </ConfigEmptyState>
-      ) : (
-        <ConfigSplitView>
-          <ConfigSidebar>
-            {sessions === null ? (
-              <div role="status" className="d-run">
-                <i data-ico="loader-circle" data-size="14" aria-hidden="true" />
-                <span className="d-grow">{t("i18n.loading")}</span>
-              </div>
-            ) : (
-              <>
-                <ConfigSidebarGroupLabel>
-                  {t("settings.projectsActive")}
-                  <span className="d-grow" aria-hidden="true" />
-                  <ConfigBadge tone="count">{archivedProjects.length}</ConfigBadge>
-                </ConfigSidebarGroupLabel>
-                {archivedProjects.length === 0 ? (
-                  /* 空的项目组也要有落点（画板 62 帧 D 的列表空态形态），不能静默留白。 */
-                  <ConfigEmptyState>
-                    <span className="mark"><i data-ico="folder" data-size="16" aria-hidden="true" /></span>
-                    <p>{t("settings.projectsNoneArchived")}</p>
-                  </ConfigEmptyState>
-                ) : (
-                  <ConfigSidebarList>
-                    {archivedProjects.map((project) => (
-                      <ConfigSidebarItem
-                        key={project.key}
-                        active={selectedProject?.key === project.key}
-                        title={project.root}
-                        onClick={() => setSelected({ kind: "project", key: project.key })}
-                      >
-                        <i data-ico="folder" data-size="14" aria-hidden="true" />
-                        <span className="grow">
-                          <span className="d-t-sm">
-                            {project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}
-                          </span>
-                          {/* 会话数只在这里出现一次 —— 详情列不再复述（画板 62 骨架 B）。 */}
-                          <span className="d-t-xs d-t-faint">{t("settings.projectsSessionCount", {
-                            count: sessionsForProject(allSessions, project.key).length,
-                          })}</span>
-                        </span>
-                      </ConfigSidebarItem>
-                    ))}
-                  </ConfigSidebarList>
-                )}
-                <ArchivedSessionsGroup
-                  sessions={allSessions}
-                  selectedId={selectedSessionId}
-                  onSelect={(id) => setSelected({ kind: "session", id })}
-                />
-              </>
-            )}
-          </ConfigSidebar>
-
-          <ConfigDetail>
-            <ConfigDetailStack>
-              {selectedProject ? (
-                <ProjectArchiveDetail
-                  project={selectedProject}
-                  sessions={allSessions}
-                  archivedAt={projectFlags.archivedAt[selectedProject.key] ?? null}
-                  busy={busyKey === selectedProject.key}
-                  locale={locale}
-                  t={t}
-                  onRestore={() => void setArchived(selectedProject.key, false)}
-                  onOpenSession={onOpenSession}
-                />
-              ) : selectedSessionId ? (
-                <ArchivedSessionDetail
-                  sessions={allSessions}
-                  sessionId={selectedSessionId}
-                  onSessionsChanged={onSessionsChanged}
-                  onReload={() => void load()}
-                />
-              ) : (
-                <ConfigEmptyState>
-                  <span className="mark"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                  <p>{t("settings.archivedDescription")}</p>
-                </ConfigEmptyState>
-              )}
-            </ConfigDetailStack>
-          </ConfigDetail>
-        </ConfigSplitView>
-      )}
-    </>
-  );
-}
-
-/**
- * 选中项目的详情卡（画板 46 项目卡的详情形态）：头行 + 画板 46 原样的会话子列表。
- *
- * 头行里**没有**会话数徽章 —— 左列那行已经写了（画板 62 骨架 B 的列表列 300 宽，
- * 「N 个对话」放在行副标题里正好；详情列要补的是行里没有的：归档时间 + 恢复动作）。
- * 会话行点击即打开（这些会话本身没有被归档，行上不放「恢复」——恢复是项目级的）。
- */
-function ProjectArchiveDetail({
-  project,
-  sessions,
-  archivedAt,
-  busy,
-  locale,
-  t,
-  onRestore,
-  onOpenSession,
-}: {
-  project: RecentProject;
-  sessions: readonly SessionInfo[];
-  archivedAt: string | null;
-  busy: boolean;
-  locale: Locale;
-  t: (key: string, params?: Record<string, string | number>) => string;
-  onRestore: () => void;
-  onOpenSession?: (id: string) => void;
-}) {
-  const own = sessionsForProject(sessions as SessionInfo[], project.key);
-  const recent = own
-    .slice()
-    .sort((a, b) => b.modified.localeCompare(a.modified))
-    .slice(0, 20);
-
-  return (
-    <>
-      <ConfigDetailHeader>
-        <i data-ico="folder" data-size="14" aria-hidden="true" />
-        <ConfigDetailTitle>{project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}</ConfigDetailTitle>
-        <span className="d-grow" aria-hidden="true" />
-        {archivedAt && (
-          <span className="d-mono d-t-faint">
-            {t("settings.archivedAt", { time: formatRelativeTime(new Date(archivedAt), locale) })}
+      {/* 「归档不是删除」—— 标志位与删文件是两件事，写在整页最上面。 */}
+        <div className="d-banner">
+          <i data-ico="info" data-size="14" aria-hidden="true" />
+          <span>
+            <b>{t("settings.archiveNotDeleteTitle")}</b>
+            {t("settings.archiveNotDeleteBody")}
           </span>
+        </div>
+
+        <div className="d-set-sec">
+          <div className="d-set-sec-t">{t("settings.archiveSessionSection")}</div>
+
+          <div className="d-card">
+            <div className="d-card-head">
+              <i data-ico="archive" data-size="15" aria-hidden="true" />
+              <span>{t("settings.archiveHistoryTitle")}</span>
+              <span className="d-badge mute">{t("settings.archiveCount", { count: rows.length })}</span>
+              <span className="d-grow" aria-hidden="true" />
+              {missingCount > 0 && (
+                <>
+                  <span className="d-t-xs d-t-faint">
+                    {t("settings.archivedShowMissing", { count: missingCount })}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showMissing}
+                    aria-label={t("settings.archivedShowMissing", { count: missingCount })}
+                    title={t("settings.archivedShowMissing", { count: missingCount })}
+                    className={`d-switch${showMissing ? " on" : ""}`}
+                    onClick={() => setShowMissing((current) => !current)}
+                  />
+                </>
+              )}
+              <button
+                type="button"
+                className="d-btn sm ghost"
+                disabled={rows.length === 0}
+                onClick={() => restoreIds(visibleRows.map((row) => row.id))}
+              >
+                <i data-ico="archive-restore" data-size="13" aria-hidden="true" />
+                {t("settings.archiveRestoreAll")}
+              </button>
+            </div>
+
+            <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
+              {/* 批量条：只在有选中时出现（D-21 的判定，不是灰着摆在那儿）。 */}
+              {bulkBar && (
+                <div className="d-banner">
+                  <i data-ico="check-check" data-size="14" aria-hidden="true" />
+                  <span>{t("import.selectedOf", { selected: selectedRows.length, total: visibleRows.length })}</span>
+                  <span className="d-grow" aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="d-btn sm ghost"
+                    onClick={() => setPickedIds(visibleRows.map((row) => row.id))}
+                  >
+                    {t("import.selectAll")}
+                  </button>
+                  <button type="button" className="d-btn sm ghost" onClick={() => setPickedIds([])}>
+                    {t("import.clearSelection")}
+                  </button>
+                  <button
+                    type="button"
+                    className="d-btn sm"
+                    disabled={restorableRows.length === 0}
+                    onClick={() => restoreIds(restorableRows.map((row) => row.id))}
+                  >
+                    <i data-ico="archive-restore" data-size="13" aria-hidden="true" />
+                    {t("settings.archivedRestore")}
+                  </button>
+                  <div className="d-anchor" ref={deleteAnchorRef}>
+                    <button
+                      type="button"
+                      className="d-btn sm danger"
+                      onClick={() => setConfirmDelete((current) => !current)}
+                    >
+                      <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+                      {t("settings.archiveDeleteForever")}
+                    </button>
+                  </div>
+                  <PortalDropdown
+                    open={confirmDelete}
+                    anchorRef={deleteAnchorRef}
+                    className="d-pop-float"
+                    width={340}
+                    align="right"
+                  >
+                    <div className="d-pop-title">
+                      {t("settings.archiveDeleteConfirmTitle", { count: selectedRows.length })}
+                    </div>
+                    <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+                      <div className="d-t-xs">{t("settings.archiveDeleteConfirmBody")}</div>
+                      <div className="d-banner err">
+                        <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+                        <span>{t("settings.archiveDeleteConfirmWarn")}</span>
+                      </div>
+                    </div>
+                    <div className="d-sep" />
+                    <div className="d-row" style={{ padding: "0 var(--nx-sp-3) var(--nx-sp-2)" }}>
+                      <span className="d-grow" aria-hidden="true" />
+                      <button type="button" className="d-btn ghost" onClick={() => setConfirmDelete(false)}>
+                        <i data-ico="x" data-size="13" aria-hidden="true" />
+                        {t("i18n.cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        className="d-btn danger"
+                        disabled={deleting}
+                        onClick={() => void deleteRows(selectedRows)}
+                      >
+                        <i data-ico="trash-2" data-size="13" aria-hidden="true" />
+                        {t("settings.archiveDeleteConfirm")}
+                      </button>
+                    </div>
+                  </PortalDropdown>
+                </div>
+              )}
+
+              {sessions === null ? (
+                <div role="status" className="d-run">
+                  <i data-ico="loader-circle" data-size="14" aria-hidden="true" />
+                  <span className="d-grow">{t("i18n.loading")}</span>
+                </div>
+              ) : groups.length === 0 ? null : (
+                <>
+                  {groups.map(([label, groupRows]) => {
+                    const groupIds = groupRows.map((row) => row.id);
+                    const picked = groupIds.filter((id) => pickedIds.includes(id)).length;
+                    const state = picked === 0 ? "off" : picked === groupIds.length ? "on" : "half";
+                    return (
+                      <Fragment key={label}>
+                        <div className="d-group-toggle">
+                          <span
+                            role="checkbox"
+                            aria-checked={state === "half" ? "mixed" : state === "on"}
+                            className={`d-checkbox${state === "off" ? "" : ` ${state}`}`}
+                            onClick={() => toggleGroup(groupIds)}
+                          >
+                            <i data-ico={state === "half" ? "minus" : "check"} data-size="11" aria-hidden="true" />
+                          </span>
+                          <span className="d-t-sm d-t-b">{label}</span>
+                          <span className="d-badge mute">
+                            {t("import.selectedOf", { selected: picked, total: groupIds.length })}
+                          </span>
+                        </div>
+                        <div className="d-col">
+                          {groupRows.map((row) => {
+                            const on = pickedIds.includes(row.id);
+                            const when = row.archivedAt
+                              ? formatRelativeTime(new Date(row.archivedAt), locale)
+                              : t("settings.archivedAtUnknown");
+                            // 缺文件的行没有项目可写（`projectLabel` 就是「文件已不存在」），
+                            // 副行只留时间，不把同一句话写两遍。
+                            const meta = row.live
+                              ? `${row.projectLabel} · ${when} · ${t("sidebar.messageCount", { count: row.messageCount })}`
+                              : t("settings.archivedMissingProject");
+                            return (
+                              <button
+                                key={row.id}
+                                type="button"
+                                className="d-sess"
+                                title={row.id}
+                                onClick={() => toggleRow(row.id)}
+                              >
+                                <span role="checkbox" aria-checked={on} className={`d-checkbox${on ? " on" : ""}`}>
+                                  <i data-ico="check" data-size="11" aria-hidden="true" />
+                                </span>
+                                <span className="d-sess-t">{row.title}</span>
+                                <span className="d-sess-m">
+                                  <i data-ico={row.live ? "message-square" : "triangle-alert"} data-size="12" aria-hidden="true" />
+                                  {meta}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </Fragment>
+                    );
+                  })}
+                </>
+              )}
+
+              <div className="d-t-xs d-t-faint">{t("settings.archiveListNote")}</div>
+            </div>
+          </div>
+
+          {/* 已登记偏离：D-21 只画了会话归档，产品另有一张项目归档表（见文件头）。 */}
+          {archivedProjects.length > 0 && (
+            <div className="d-card">
+              <div className="d-card-head">
+                <i data-ico="folder" data-size="15" aria-hidden="true" />
+                <span>{t("settings.projectsTitle")}</span>
+                <span className="d-badge mute">{archivedProjects.length}</span>
+              </div>
+              <div className="d-card-body d-col">
+                {archivedProjects.map((project) => (
+                  <div key={project.key} className="d-sess">
+                    <span className="d-row">
+                      <i data-ico="folder" data-size="13" aria-hidden="true" />
+                      <span className="d-grow">
+                        <span className="d-sess-t">
+                          {project.root.split(/[/\\]/).filter(Boolean).pop() || project.root}
+                        </span>
+                        <span className="d-sess-m">
+                          {projectFlags.archivedAt[project.key]
+                            ? formatRelativeTime(new Date(projectFlags.archivedAt[project.key]!), locale)
+                            : t("settings.archivedAtUnknown")}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className="d-btn sm ghost"
+                        disabled={busyKey === project.key}
+                        onClick={() => void setArchived(project.key, false)}
+                      >
+                        <i data-ico="archive-restore" data-size="13" aria-hidden="true" />
+                        {t("settings.projectsRestore")}
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 两种「列不出来」各给各的出口：合成一句「暂无数据」，两边用户都无处可去。 */}
+        {(showNeverArchived || showMissingOnly) && (
+          <div className="d-set-sec">
+            <div className="d-set-sec-t">{t("settings.archiveEmptyStatesTitle")}</div>
+            <div
+              className="d-grid2"
+              style={emptyCards === 1 ? { gridTemplateColumns: "1fr" } : undefined}
+            >
+              {showNeverArchived && (
+                <div className="d-card">
+                  <div className="d-card-body">
+                    <div className="d-empty">
+                      <div className="d-empty-ico">
+                        <i data-ico="archive" data-size="20" aria-hidden="true" />
+                      </div>
+                      <div className="d-empty-t">{t("settings.archiveNeverTitle")}</div>
+                      <div className="d-empty-s">{t("settings.archiveNeverBody")}</div>
+                      {onCloseRequest && (
+                        <button type="button" className="d-btn sm" onClick={onCloseRequest}>
+                          {t("settings.archiveGoSidebar")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showMissingOnly && (
+                <div className="d-card">
+                  <div className="d-card-body">
+                    <div className="d-empty">
+                      <div className="d-empty-ico">
+                        <i data-ico="triangle-alert" data-size="20" aria-hidden="true" />
+                      </div>
+                      <div className="d-empty-t">{t("settings.archiveMissingTitle")}</div>
+                      <div className="d-empty-s">
+                        {t("settings.archiveMissingBody", { count: missingCount })}
+                      </div>
+                      <button type="button" className="d-btn sm" onClick={() => setShowMissing(true)}>
+                        <i data-ico="eye" data-size="13" aria-hidden="true" />
+                        {t("settings.archiveShowMissingBtn", { count: missingCount })}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="d-t-xs d-t-faint">{t("settings.archiveEmptyNote")}</div>
+          </div>
         )}
-        <ConfigButton variant="secondary" size="small" disabled={busy} onClick={onRestore}>
-          <i data-ico="archive-restore" data-size="13" aria-hidden="true" />
-          {t("settings.projectsRestore")}
-        </ConfigButton>
-      </ConfigDetailHeader>
-      {/* 画板 46 的项目卡：子列表缩进一级（`margin-top`/`padding-left` 两个 token，
-          照抄画板那一行，不新增几何值）。 */}
-      <div className="d-col" style={{ marginTop: "var(--nx-sp-2)", paddingLeft: "var(--nx-sp-4)" }}>
-        {own.length === 0 && <p role="status" className="d-t-xs d-t-faint">{t("settings.projectsNoSessions")}</p>}
-        {recent.map((session) => (
-          <button
-            key={session.id}
-            type="button"
-            className="d-sess"
-            title={session.id}
-            disabled={!onOpenSession}
-            onClick={() => onOpenSession?.(session.id)}
-          >
-            <span className="d-row">
-              <i data-ico="message-square" data-size="13" aria-hidden="true" />
-              <span className="d-sess-t d-grow">{session.name || session.firstMessage || session.id.slice(0, 8)}</span>
-              <span className="d-sess-m">{formatRelativeTime(new Date(session.modified), locale)}</span>
-            </span>
-          </button>
-        ))}
-        {own.length > 20 && (
-          <p role="status" className="d-t-xs d-t-faint">{t("settings.projectsMoreSessions", { count: own.length - 20 })}</p>
-        )}
-      </div>
-    </>
+    </div>
   );
 }

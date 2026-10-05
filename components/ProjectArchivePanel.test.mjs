@@ -8,27 +8,80 @@ const sidebar = await readFile(new URL("./SessionSidebar.tsx", import.meta.url),
 const navigation = await readFile(new URL("../lib/settings-navigation.ts", import.meta.url), "utf8");
 const settingsPanel = await readFile(new URL("./SettingsPanel.tsx", import.meta.url), "utf8");
 
-test("the archive page is read-only about the user's data", () => {
-  // fork:project-archive — archiving is presentation only. The page must never offer a
-  // delete: sessions are the user's, and an invisible one is still theirs.
-  assert.doesNotMatch(panel, /method:\s*"DELETE"/);
-  assert.doesNotMatch(panel, /method:\s*'DELETE'/);
-  assert.doesNotMatch(panel, /archivedDelete|removeSession|projectsDelete/);
-  // The only write it performs is the localStorage flag, through the store.
-  // fix:archive-selection-scope:项目表与会话表分开订阅（projectFlags / sessionFlags）。
-  // fork:archive-layout（2026-10-01）：实现里还多解构了一个 sessionFlags（会话级标志），
-  // 断言跟上真实写法。
+/* fork:v5-landing-frame · D-21（2026-10-06）—— 桌面归档页整页换成画板 D-21 帧 A：
+   一列分节（横幅 / 归档历史卡 / 两种空态卡）。下面这些断言锁的是**画板那一页的结构**，
+   不是上一版的骨架 B（列表列 + 详情列）。 */
+
+test("the desktop page is board D-21 frame A: one column of sections, no list/detail split", () => {
+  // 一根 `.d-set-inner` 装下整页：横幅 → 「归档会话」分节 → 「两种列不出来」分节。
+  assert.match(panel, /<div className="d-set-inner">/);
+  // 骨架 B 的两栏容器退场（`.d-set` 是 `d-set-nav` + `d-set-main`，画板帧 A 的归档页没有）。
+  assert.doesNotMatch(panel, /ConfigSplitView|ConfigSidebar|ConfigDetail/);
+  // 画板帧 A 的三块：横幅 / 归档历史卡（卡头带计数 + 「显示已消失」开关 + 全部恢复）/ 空态分节。
+  assert.match(panel, /settings\.archiveNotDeleteTitle/);
+  assert.match(panel, /className="d-card-head"/);
+  assert.match(panel, /settings\.archiveHistoryTitle/);
+  assert.match(panel, /className=\{`d-switch\$\{showMissing \? " on" : ""\}`\}/);
+  assert.match(panel, /settings\.archiveRestoreAll/);
+  assert.match(panel, /className="d-group-toggle"/);
+  // 弹窗宿主那一层因此也不需要 `fill`（`fill` 是给列表 + 详情那两节的）。
+  assert.doesNotMatch(settingsPanel, /settings\.archivePageDescription"\) fill/);
+});
+
+test("the bulk bar appears only when something is selected, and the confirm pop is the only way to delete", () => {
+  // D-21：「一条都没选时，这整条批量条不出现（而不是灰着摆在那儿）」。
+  assert.match(panel, /const bulkBar = selectedRows\.length > 0;/);
+  assert.match(panel, /\{bulkBar && \(/);
+  // 「永久删除」先翻确认浮层，DELETE 只在浮层里那枚确认钮后面。
+  assert.match(panel, /open=\{confirmDelete\}/);
+  assert.match(panel, /settings\.archiveDeleteConfirmTitle/);
+  assert.match(panel, /onClick=\{\(\) => void deleteRows\(selectedRows\)\}/);
+  assert.match(panel, /settings\.archiveDeleteConfirm"\)\}/);
+  // 浮层走 portal + fixed：`.d-set-main` 是 overflow-y:auto，画板那种绝对定位的
+  // `.d-pop` 挂在这里会被整个裁掉（LANDING §4 第一条陷阱）。
+  assert.match(panel, /<PortalDropdown/);
+  assert.match(panel, /className="d-pop-float"/);
+  assert.doesNotMatch(panel, /className="d-pop is-open"/);
+  // 缺文件的行没有文件可删 —— 只清标志位，不能对不存在的路径发 DELETE。
+  assert.match(panel, /if \(!row\.live\) continue;/);
+  // 恢复只对文件还在的选中行生效（D-21：缺文件行只有「清理标记」，没有「恢复」）。
+  assert.match(panel, /const restorableRows = selectedRows\.filter\(\(row\) => row\.live\)/);
+  assert.match(panel, /disabled=\{restorableRows\.length === 0\}/);
+});
+
+test("the two 'cannot list this' states each get their own exit", () => {
+  // D-21：合成一句「暂无数据」，两边用户都无处可去。
+  assert.match(panel, /const showNeverArchived = rows\.length === 0;/);
+  assert.match(panel, /const showMissingOnly = rows\.length > 0 && missingCount > 0 && !showMissing;/);
+  assert.match(panel, /settings\.archiveNeverTitle/);
+  assert.match(panel, /settings\.archiveGoSidebar/);
+  assert.match(panel, /settings\.archiveMissingTitle/);
+  assert.match(panel, /settings\.archiveShowMissingBtn/);
+  // 空态卡是画板的 `.d-card > .d-card-body > .d-empty` 三层，不是裸一堆 `<p>`。
+  assert.match(panel, /className="d-empty-ico"/);
+  assert.match(panel, /className="d-empty-t"/);
+  assert.match(panel, /className="d-empty-s"/);
+  assert.doesNotMatch(panel, /className="mark"/);
+});
+
+test("session archives and project archives are two tables and stay separate", () => {
+  // fix:archive-selection-scope（探针实测）—— 两种归档是两张 localStorage 表：
+  // projectKey 进 `pi-project-flags`，session id 进 `pi-session-flags`。
   assert.match(panel, /const \{ flags: projectFlags, archive, restore \} = useProjectFlags\(\)/);
-  // The destructive action moved WITH the session rows: it lives in
-  // ArchivedSessionsPanel.tsx and nowhere else on this page.
-  assert.match(sessionsPanel, /method:\s*"DELETE"/);
+  assert.match(panel, /const \{ flags: sessionFlags, archive: archiveSession \} = useSessionFlags\(\)/);
+  // 会话行只从会话表来；项目行只从项目表来。
+  assert.match(panel, /deriveArchivedRows\(\s*sessionFlags\.archived,\s*sessionFlags\.archivedAt,/);
+  assert.match(panel, /partitionProjects\(projects, projectFlags\)\.archived/);
+  // 整页空 = 两张表都空。
+  assert.match(panel, /archivedProjects\.length === 0 && rows\.length === 0/);
+  // 窄屏的「选中会话」也问会话表。
+  assert.match(panel, /sessionFlags\.archived\.includes\(selected\.id\)/);
 });
 
 test("project identity comes from the server, never from a browser-side path", () => {
   // `SessionInfo.projectKey` is `projectIdentityKey(projectRoot)`, which is case- and
   // separator-insensitive on the server. Assembling a key here is what collided in the
   // reference implementation, so this panel must not do it.
-  assert.match(panel, /getRecentProjects\(allSessions\)/);
   assert.match(panel, /withoutChatProject\(getRecentProjects\(allSessions\), chatProjectKey\)/);
   assert.doesNotMatch(panel, /\.toLowerCase\(\)[\s\S]{0,40}(replace|split)\(/);
   assert.doesNotMatch(panel, /path\.(normalize|resolve|sep)/);
@@ -56,52 +109,13 @@ test("the project index shares one settings page with the session archive", () =
   // fork:project-archive — two nav entries for two granularities of the same idea read
   // as two unrelated features, so they live on one page.
   assert.doesNotMatch(navigation, /"projects",/);
-  // fork:settings-frame（画板 62）—— the merged page is skeleton B: ProjectArchivePanel
-  // hosts the list/detail split and renders the session group inside its own list
-  // column, so "one page" is now a structural fact instead of two stacked sections.
-  assert.match(panel, /<ConfigSplitView>/);
+  assert.match(panel, /settings\.archiveSessionSection/);
+  assert.match(panel, /settings\.projectsTitle/);
+  // 窄屏那一支仍然是「两张卡 + 详情面板」，与桌面那一支各自成形。
   assert.match(panel, /<ArchivedSessionsGroup/);
-  assert.match(panel, /import \{ ArchivedSessionDetail, ArchivedSessionsGroup \} from "\.\/ArchivedSessionsPanel"/);
+  assert.match(panel, /import \{\s*ArchivedSessionDetail,\s*ArchivedSessionsGroup,/);
   // fix:archive-legacy-shell — 旧的两段式入口恒渲染 null，且 SettingsPanel 里已无调用方。
-  // 留着它就是第二套骨架的残骸：删干净，并且不许长回来（注释里提到它不算）。
-  assert.doesNotMatch(sessionsPanel, /export function ArchivedSessionsPanel/);
+  assert.doesNotMatch(sessionsPanel, /export function ArchivedSessionsPanel\b/);
   assert.doesNotMatch(settingsPanel, /import \{ ArchivedSessionsPanel \}/);
   assert.doesNotMatch(settingsPanel, /<ArchivedSessionsPanel/);
-});
-
-test("the merged page follows board 62 frame D for its empty states", () => {
-  // 整页空（两个分组都空）: 标题 + 说明 + 一个出口动作，居中在内容区。
-  const pageEmpty = panel.slice(panel.indexOf("pageEmpty ? ("), panel.indexOf("</ConfigEmptyState>"));
-  assert.match(pageEmpty, /settings\.archivedEmptyTitle/);
-  assert.match(pageEmpty, /settings\.projectsNoneArchived/);
-  assert.match(pageEmpty, /onCloseRequest/);
-  // 详情未选：40px 方框 mark + 一句引导，居中在详情列。
-  const detailEmpty = panel.slice(panel.indexOf("<ConfigDetail>"), panel.indexOf("</ConfigDetail>"));
-  assert.match(detailEmpty, /square-mouse-pointer/);
-  assert.match(detailEmpty, /settings\.archivedDescription/);
-});
-
-test("session archives are read from the session table, not the project table", () => {
-  // fix:archive-selection-scope（探针实测）—— 两种归档是两张 localStorage 表：
-  // projectKey 进 `pi-project-flags`，session id 进 `pi-session-flags`。
-  // 拿项目表去判「整页空 / 选中会话」时，只归档过会话的用户会看到整页空态、
-  // 会话行点开也没有详情卡（恢复 / 彻底删除全都够不着）。
-  assert.match(panel, /const \{ flags: sessionFlags \} = useSessionFlags\(\)/);
-  assert.match(panel, /sessionFlags\.archived\.includes\(selected\.id\)/);
-  assert.match(panel, /archivedProjects\.length === 0 && sessionFlags\.archived\.length === 0/);
-  // 两组各查各的表：项目行来自 partitionProjects(projectFlags)。
-  assert.match(panel, /partitionProjects\(projects, projectFlags\)\.archived/);
-  // 会话分组自己已经 useSessionFlags，不需要宿主再喂一份标志。
-  assert.doesNotMatch(panel, /sessionFlags\.archivedAt/);
-});
-
-test("the project count is stated once: in the list row, not again in the detail", () => {
-  // 用户实测「项目卡片自己又画了一遍 1 个对话」。骨架 B 里左列行已经带会话数，
-  // 详情列只补行里没有的：归档时间 + 恢复动作 + 会话子列表。
-  const detail = panel.slice(panel.indexOf("function ProjectArchiveDetail"));
-  assert.doesNotMatch(detail, /projectsSessionCount/);
-  assert.match(detail, /settings\.projectsRestore/);
-  // 行副标题仍带计数（唯一一处）。
-  const rows = panel.slice(panel.indexOf("<ConfigSidebarList>"), panel.indexOf("</ConfigSidebarList>"));
-  assert.match(rows, /projectsSessionCount/);
 });
