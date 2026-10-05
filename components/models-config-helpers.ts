@@ -11,6 +11,11 @@ export interface HeaderRow {
 
 export const MODEL_COST_KEYS = ["input", "output", "cacheRead", "cacheWrite"] as const;
 
+/* 画板没有复选框基件（`.d-switch` 是开关不是多选），所以勾选框的几何只有这一处。
+   原来模型页与选择器各写一份，现在共用（同一个视觉决定不存两份字面量）。 */
+// 非主题值：原生 checkbox 的命中区尺寸随 UA 与系统缩放走，没有 board.css 可抄。
+export const CHECKBOX_CONTROL = { width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 } as const;
+
 /**
  * fork:model-api-protocols (B4) —— models.json 里 `api` 字段的合法取值。
  *

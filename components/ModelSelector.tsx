@@ -197,7 +197,9 @@ export function ModelSelector({
           />
           <span className="m-setrow-body">
             <span className="m-setrow-t">{t("common.models")}</span>
-            <span className="m-sheet-row-desc">{currentName}</span>
+            {/* fork:v5-frame-audit —— 画板 M-01 帧 C / M-03 帧 A 的模型行副行是
+                `.m-setrow-s`（补全面板的行才是 `.m-sheet-row-desc`）。 */}
+            <span className="m-setrow-s">{currentName}</span>
           </span>
           {busy ? (
             <i data-ico="loader-circle" data-size="16" aria-hidden="true" style={{ animation: "spin var(--motion-spin) linear infinite" }} />
@@ -402,6 +404,18 @@ export function ModelSelector({
                 />
               </div>
             )}
+            {/* fork:v5-frame-audit D-04 帧 A（`m-model`）—— 补画板那一行计数说明
+                （`.d-pop-body .d-t-xs .d-t-faint`：搜索框下面先说清楚「这里有多少」，
+                再 `.d-sep`，然后才是模型行），并且**放在滚动区之外** ——
+                板上这两件是浮窗的固定头，翻模型列表时它们不动；改前整个浮窗只有一块
+                输入框当头，一滚动连「搜的是啥」都跟着跑了。数量用已有的 `chat.match` /
+                `chat.matches` 键（就是 @ 菜单用的那句），不新增语包条目。 */}
+            <div className="d-pop-body d-t-xs d-t-faint" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+              {filter.trim()
+                ? (filteredOptions.length === 1 ? t("chat.match") : t("chat.matches", { count: filteredOptions.length }))
+                : (sortedOptions.length === 1 ? t("chat.match") : t("chat.matches", { count: sortedOptions.length }))}
+            </div>
+            <div className="d-sep" style={{ flexShrink: 0 }} />
             <div style={{ minHeight: 0, overflowY: "auto", padding: "var(--nx-sp-1)" }}>
               {onClear && !filter.trim() && (
                 <ModelOptionButton active={!value} label={emptyLabel ?? "Default"} onClick={() => {
@@ -496,6 +510,7 @@ function ModelSheetRow({
         </span>
       )}
       desc={`${option.modelId} · ${option.provider}`}
+      descClass="m-setrow-s"
       on={active}
       onClick={onPick}
       trailing={(

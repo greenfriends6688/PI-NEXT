@@ -186,6 +186,13 @@ export function buildEnabledModelsView({
     enabledTotal: state.enabled.length,
     availableTotal: input.availableRefs.length,
     providers,
+    // D-10 的逐条 pattern 行：命中数 / 钉档 / 失配。与 patterns 同序，直接来自
+    // 服务端已算好的 resolver 结果，浏览器不再自己实现一套匹配。
+    patternViews: input.resolutions.map((resolution) => ({
+      pattern: resolution.pattern,
+      matches: [...resolution.matched],
+      ...(resolution.pin ? { pin: resolution.pin } : {}),
+    })),
     scope,
     settingsPath,
     editable: scope === "global",

@@ -183,6 +183,11 @@ test("the provider switch is locked when it would empty the scope or the file is
 // fork:models-board —— 明细改成画板 41 的「一列独立卡」之后，托管供应商的
 // 可用模型区块是**总是**挂载的：未登录时给一句说明，而不是整段消失
 // （否则「点了没反应」与「没东西可列」在界面上分不开）。
+// fork:v5-landing · D-08/D-10 —— 页级 pattern 白名单（PatternSection）取代了
+// 顶部的 EnabledModelsBanner：失配横幅、清理按钮与设置文件路径都进了那一节。
+// fork:models-picker —— 白名单表与匹配预览又被 ChatModelsPicker 取代（pattern 是
+// settings.json 的存法，不是人要操作的东西），失配横幅与清理按钮并进
+// SelectorVisibilitySection，旧横幅继续退役。
 test("the section is mounted for built-in and api-key providers", () => {
   assert.match(
     modelsConfigSource,
@@ -192,7 +197,13 @@ test("the section is mounted for built-in and api-key providers", () => {
     modelsConfigSource,
     /<EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
   );
-  assert.match(modelsConfigSource, /<EnabledModelsBanner controller=\{enabledModels\} \/>/);
+  // 跨供应商的选择器在主页面挂载；页级的 pattern 表与匹配预览退役。
+  assert.match(modelsConfigSource, /<ChatModelsPicker/);
+  assert.doesNotMatch(modelsConfigSource, /<PatternSection/);
+  assert.doesNotMatch(modelsConfigSource, /<MatchPreviewSection/);
+  // 失配横幅与 prune 落到还活着的那一节（不是回到顶部横幅）。
+  assert.match(modelsConfigSource, /<SelectorVisibilitySection enabledModels=\{enabledModels\} \/>/);
+  assert.doesNotMatch(modelsConfigSource, /<EnabledModelsBanner/);
   // A models.json provider gets the header switch instead of a section.
   assert.doesNotMatch(modelsConfigSource, /<EnabledModelsSection providerId=\{name\}/);
 });
@@ -212,14 +223,13 @@ test("a missing custom provider is not blamed on a sign-in", () => {
   assert.doesNotMatch(switchSource, /enabledUnavailable/);
 });
 
+// fork:v5-landing · D-10 —— 分节标题就是画板的 `.d-set-sec-t`，不再有自绘标题类
+// （旧 `.enabled-models-title` / `.enabled-models-section` 已随死 CSS 删除）。
 test("the section carries the usage heading font and no rule above it", () => {
   assert.match(source, /<div className="d-set-sec-t">/);
-  // 画板 00 的复合排版类：字号 / 字重各只有一个来源（board.css 的 token），
-  // 这里的字重与 `.pw-detail > h3` 一致（500），所以一块卡上不会出现两种标题重。
-  const title = cssSource.slice(cssSource.indexOf(".enabled-models-title {"));
-  assert.match(title.slice(0, title.indexOf("}")), /font-size: var\(--text-secondary\);[\s\S]*font-weight: 500;/);
-  const section = cssSource.slice(cssSource.indexOf(".enabled-models-section {"));
-  assert.doesNotMatch(section.slice(0, section.indexOf("}")), /border-top/);
+  // 标题的字号 / 字重只有一个来源：v5 system.css 的 `.d-set-sec-t`。
+  assert.doesNotMatch(cssSource, /\.enabled-models-title \{/);
+  assert.doesNotMatch(cssSource, /\.enabled-models-section \{/);
 });
 
 test("saving models.json resyncs the switches with the pre-save intent", () => {
@@ -239,16 +249,22 @@ test("a save landing mid-toggle is queued, not dropped", () => {
   assert.match(source, /if \(queued\) mutateRef\.current\?\.\(queued\.key, queued\.body\);/);
 });
 
-test("provider rows carry the scope badge", () => {
-  const sidebar = modelsConfigSource.slice(
-    modelsConfigSource.indexOf("<ConfigSidebar>"),
-    modelsConfigSource.indexOf("</ConfigSidebar>"),
+// fork:v5-landing · D-08 帧 A —— 供应商行进了主页面那张 `.d-table`：每行带
+// 认证徽章（已登录 / 已配置 / 未登录 / 无需凭证）与模型数；侧栏的 scope 徽章
+// 与它的 CSS 一并退役。
+test("provider rows carry the auth badge in the table", () => {
+  // 行数据在主组件里拼装（订阅 / API Key / 自定义三类同构）。
+  const rowsBlock = modelsConfigSource.slice(
+    modelsConfigSource.indexOf("const providerRows: ProviderRowData[]"),
+    modelsConfigSource.indexOf("// Resolve current detail"),
   );
-  // 自定义供应商行带范围徽章（`narrowed` 那一类）；托管行改带「已登录」徽章
-  // —— 它们的开关在详情头部那一枚，列表里再放一个范围徽章只会重复。
-  assert.match(sidebar, /\{scopeBadge\(pName\)\}/);
-  assert.match(sidebar, /<DBadge tone="ok">\{t\("models\.badgeLoggedIn"\)\}<\/DBadge>/);
-  assert.match(cssSource, /\.models-sidebar-badge \{/);
+  assert.match(rowsBlock, /auth: \{ tone: "ok" as const, label: t\("models\.badgeLoggedIn"\) \}/);
+  const table = modelsConfigSource.slice(
+    modelsConfigSource.indexOf("function ProviderTableSection"),
+    modelsConfigSource.indexOf("function UsageOverviewSection"),
+  );
+  assert.match(table, /<DBadge tone=\{row\.auth\.tone\}>\{row\.auth\.label\}<\/DBadge>/);
+  assert.doesNotMatch(cssSource, /\.models-sidebar-badge \{/);
   // 行与行之间的分隔交给画板的 `.pw-list`（gap 2px），产品不再自绘一条线。
   assert.doesNotMatch(cssSource, /\.enabled-models-row \+ \.enabled-models-row \{/);
   assert.match(source, /<table className="d-table">/);

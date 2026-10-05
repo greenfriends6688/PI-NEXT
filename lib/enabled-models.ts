@@ -112,7 +112,24 @@ export interface EnabledModelsView {
   settingsPath: string;
   /** False when project settings shadow the global value pi-web can write. */
   editable: boolean;
+  /**
+   * Resolution of each configured pattern against the models available right
+   * now, index-aligned with `patterns`. This is the D-10 table's data: hit
+   * count, the pinned level and the stale flag per row, computed by the same
+   * SDK resolver the runtime uses — the browser never re-implements matching.
+   */
+  patternViews: EnabledModelsPatternView[];
   modelError?: string;
+}
+
+/** One row of `EnabledModelsView.patternViews`. */
+export interface EnabledModelsPatternView {
+  /** The pattern exactly as stored (including any `:level` suffix). */
+  pattern: string;
+  /** `provider/modelId` references it matches, in resolver order. */
+  matches: string[];
+  /** Thinking level pinned by the `:level` suffix, when present. */
+  pin?: string;
 }
 
 export type EnabledModelsEdit =
@@ -459,4 +476,54 @@ export function pruneStaleEnabledModels(input: EnabledModelsInput): EnabledModel
 
 export function clearEnabledModels(input: EnabledModelsInput): EnabledModelsEdit {
   return { ok: true, patterns: undefined, changed: input.patterns !== undefined };
+}
+
+/**
+ * Make exactly `refs` what chat offers — the picker's first-run "replace".
+ *
+ * The one edit `setModelsEnabled` cannot express: while the scope is still
+ * "every model" every ref is already enabled, so enabling a chosen list is a
+ * no-op. Refs the catalog does not know are dropped rather than written, so a
+ * stale picker cannot put a dead entry into the settings file, and an empty
+ * result is refused for the same reason an empty list is: pi reads it as "no
+ * scope" and shows every model again.
+ */
+export function replaceEnabledModels(
+  input: EnabledModelsInput,
+  refs: readonly string[],
+): EnabledModelsEdit {
+  const available = new Set(input.availableRefs);
+  const patterns = [...new Set(refs.filter((ref) => available.has(ref)))];
+  if (patterns.length === 0) return { ok: false, reason: "last-model" };
+  return { ok: true, patterns, changed: !samePatterns(patterns, input.patterns) };
+}
+
+/**
+ * Append one pattern verbatim (D-10「加一条 pattern」）.
+ *
+ * This is the one edit that writes a pattern the resolver has never seen, so it
+ * cannot go through the resolution-based helpers: a brand-new pattern matches
+ * nothing yet, and that is legal — the whitelist just gets wider once a model
+ * by that name exists. Duplicates collapse; order of existing entries never
+ * moves. An empty list of patterns means "no scope", so appending to
+ * `undefined` starts the list with this one entry.
+ */
+export function addPatternMinimal(patterns: string[] | undefined, pattern: string): string[] {
+  const current = patterns ?? [];
+  if (current.includes(pattern)) return current;
+  return [...current, pattern];
+}
+
+/**
+ * Remove every entry exactly equal to `pattern` (D-10 行尾的删除）.
+ *
+ * Exact string match only — a pattern that has merely gone stale is still this
+ * user's written intent, so it takes the trash icon, not the prune button, to
+ * remove it. Removing the last entry resolves to "no scope" = every model
+ * enabled, which `computeEnabledModelsState` already reads correctly.
+ */
+export function removePatternMinimal(patterns: string[] | undefined, pattern: string): string[] | undefined {
+  if (!patterns) return patterns;
+  const next = patterns.filter((entry) => entry !== pattern);
+  return next.length === 0 ? undefined : next;
 }

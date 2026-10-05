@@ -58,14 +58,24 @@ test("the api protocol list is exactly pi-ai's KnownApi union", async () => {
   for (const api of known) assert.ok(KNOWN_MODEL_APIS.includes(api), `api option missing: ${api}`);
 });
 
-test("uses shared sidebar sizing for providers and matching indented model rows", () => {
-  const sidebar = source.slice(source.indexOf("<ConfigSidebar>"), source.indexOf("</ConfigSidebar>"));
-
-  assert.match(sidebar, /<ConfigSidebarItem[\s\S]*?active=\{isSelected\}/);
-  assert.match(sidebar, /<ConfigSidebarItem[\s\S]*?active=\{isProviderSelected\}/);
-  assert.match(sidebar, /className="models-sidebar-indented-item"/);
-  assert.match(sidebar, /className="models-sidebar-indented-item models-sidebar-add-item"/);
-  assert.match(cssSource, /\.models-sidebar-indented-item \{[\s\S]*?padding-left: 26px/);
+// fork:v5-landing · D-08 —— 主页面不再是主从两栏：供应商是一张 `.d-table` 表
+// （供应商 / 认证 / 接口地址 / 模型 / 上次同步），行可点、进详情。旧的
+// `.models-sidebar-*` 族随侧栏列表退役，CSS 里不允许再留。
+test("providers are a table with auth badges, not a sidebar list", () => {
+  const table = source.slice(
+    source.indexOf("function ProviderTableSection"),
+    source.indexOf("function UsageOverviewSection"),
+  );
+  assert.match(table, /<ProviderIcon id=\{row\.id\} size=\{16\} \/>/);
+  assert.match(table, /<DBadge tone=\{row\.auth\.tone\}>\{row\.auth\.label\}<\/DBadge>/);
+  assert.match(table, /t\("models\.colLastSync"\)/);
+  assert.match(table, /onClick=\{\(\) => onOpen\(row\)\}/);
+  // 侧栏行基件与它的缩进 / 徽章 CSS 一并退役（铁律五：挪 DOM 顺手删 stale）。
+  // AddProviderPicker 仍用 ConfigSidebarItem 出选择器行，所以这里只锁主组件。
+  const mainComponent = source.slice(source.indexOf("export function ModelsConfig"));
+  assert.doesNotMatch(mainComponent, /<ConfigSidebarItem/);
+  assert.doesNotMatch(cssSource, /\.models-sidebar-indented-item \{/);
+  assert.doesNotMatch(cssSource, /\.models-sidebar-badge \{/);
 });
 
 test("ignores malformed auth provider responses", () => {
@@ -219,22 +229,34 @@ test("Save applies a provider name typed without pressing Rename", () => {
   assert.match(save, /setSaveError\(t\("models\.providerNameTaken", \{ name: pendingName \}\)\)/);
 });
 
-// fork:models-board —— 模型详情按画板 41 拆成三张独立的 `.pw-detail`
-// （能力 / 规格 / 成本 → 高级 → 测试连接），所以标题串换成了画板的措辞。
+// fork:v5-landing · D-08 帧 B + D-09 —— 编辑页按帧 B 拆节（模型规格 / 推理·思考 /
+// 兼容性 / 测试连接），价格与规格同屏；Header / 采样 / API 覆盖 / 上限收进
+// 「模型高级」二级弹窗，编辑页头行给入口。
 test("model specs keep catalog-filled prices visible outside advanced settings", () => {
   const modelDetail = source.slice(
     source.indexOf("function ModelDetail"),
-    source.indexOf("// ── OAuth detail"),
+    source.indexOf("function ModelAdvancedModal"),
   );
-  const specsIndex = modelDetail.indexOf('t("models.specs")');
+  const specsIndex = modelDetail.indexOf('t("models.modelSpecs")');
   const costIndex = modelDetail.indexOf('t("models.costPerMillion")');
-  const advancedIndex = modelDetail.indexOf('t("models.advancedTitle")');
 
   assert.ok(specsIndex >= 0);
   assert.ok(costIndex > specsIndex);
-  assert.ok(advancedIndex > costIndex);
   assert.match(modelDetail, /setCostEditing\(false\)/);
   assert.match(modelDetail, /formatCost\(key\)/);
+  // 编辑页本身不再内联 Header / 采样编辑器 —— 它们搬到 D-09 弹窗里了。
+  assert.doesNotMatch(modelDetail, /<HeaderListEditor/);
+  assert.doesNotMatch(modelDetail, /<SamplingParamsEditor/);
+
+  const advanced = source.slice(
+    source.indexOf("function ModelAdvancedModal"),
+    source.indexOf("// ── OAuth detail"),
+  );
+  assert.match(advanced, /<HeaderListEditor headers=\{model\.headers\}/);
+  assert.match(advanced, /<SamplingParamsEditor value=\{model\.samplingParams\}/);
+  assert.match(advanced, /<ModelInputLimitsFields/);
+  // 编辑页头行的入口（D-09 的开法）。
+  assert.match(modelDetail, /setAdvancedOpen\(true\)/);
 });
 
 // fork:cost-tiers (B3) —— 阶梯定价编辑器接在基础价之后（同一个 cost 对象），
@@ -261,55 +283,60 @@ test("tiered pricing has an editor wired into the model cost object", () => {
   assert.match(modelDetail, /else delete nextCost\.tiers;/);
 });
 
-test("the three model-detail cards separate sections instead of drawing dividers", () => {
+// fork:v5-landing · D-08 帧 B —— 编辑页四个 `.d-set-sec`（模型规格 / 推理·思考 /
+// 兼容性 / 测试连接），段与段之间由分节间距分隔，组件里不手写 `borderTop`。
+test("the model editor separates sections instead of drawing dividers", () => {
   const modelDetail = source.slice(
     source.indexOf("function ModelDetail"),
-    source.indexOf("// ── OAuth detail"),
+    source.indexOf("function ModelAdvancedModal"),
   );
 
-  // v5 D-08/09：三个 `.d-set-sec` 分节（身份/规格/成本 → 高级 → 测试连接），
-  // 段与段之间由分节间距分隔，组件里不再手写 `borderTop`。
-  assert.equal((modelDetail.match(/<div className="d-set-sec">/g) ?? []).length, 3);
+  assert.equal((modelDetail.match(/<div className="d-set-sec">/g) ?? []).length, 4);
   assert.doesNotMatch(modelDetail, /borderTop: "1px solid var\(--border\)"/);
   assert.doesNotMatch(modelDetail, /borderBottom: "1px solid var\(--border\)"/);
 });
 
-test("the models page is a page frame plus a two-column split, not one giant card", () => {
+// fork:v5-landing · D-08 / D-10 —— 主页面是一列 `.d-set-sec` 分节 + 钻入详情，
+// 不再是两栏 split；「返回」在详情列首行，独立弹窗宿主由内容列自己滚。
+test("the models page is one overview column with drill-in details", () => {
   const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
   assert.match(modelsConfig, /<SettingsPage[\s\S]*?sub=\{t\("models\.pageSub"\)\}/);
-  assert.match(modelsConfig, /<ConfigSplitView>/);
-  // 骨架 B（画板 62）：内容区拿 is-fixed，不滚，两列各自滚。
-  assert.match(modelsConfig, /\bfill\s*>/);
-  // 右列是 `.d-set-inner`（一列独立的 `.d-set-sec`），不再包一层撑满高度的卡。
-  assert.doesNotMatch(modelsConfig, /<div className="d-set-sec">\s*<div className="d-set-inner">/);
-  assert.match(cssSource, /\.config-panel-surface > \.pw-scontent \{\s*flex: 1;/);
+  assert.doesNotMatch(modelsConfig, /<ConfigSplitView>/);
+  assert.doesNotMatch(modelsConfig, /\bfill\s*>/);
+  // 列表级的分节全家福（帧 A / 帧 C / 帧 D + D-10）。
+  assert.match(modelsConfig, /<ProviderTableSection rows=\{providerRows\} lastSyncMap=\{lastSyncMap\} badgeLabel=/);
+  assert.match(modelsConfig, /<UsageOverviewSection providerIds=\{providerRows\.map/);
+  assert.match(modelsConfig, /<FavoritesSection favorites=\{favoriteModels\}/);
+  assert.match(modelsConfig, /<ModelRolesSection cwd=\{cwd\} \/>/);
+  assert.match(modelsConfig, /<SelectorVisibilitySection enabledModels=\{enabledModels\} \/>/);
+  // fork:models-picker —— 「聊天里显示哪些模型」改由跨供应商选择器表达，成本档表、
+  // pattern 白名单表与匹配预览三节退役（成本在模型编辑页里改，pattern 是存法）。
+  assert.match(modelsConfig, /<ChatModelsPicker/);
+  assert.doesNotMatch(modelsConfig, /<CostTableSection/);
+  assert.doesNotMatch(modelsConfig, /<PatternSection/);
+  assert.doesNotMatch(modelsConfig, /<MatchPreviewSection/);
+  // 供应商行的「N/M 在聊天里」（helper 一直存在，这里才第一次被接上）。
+  assert.match(modelsConfig, /providerBadgeLabel\(enabledModels\.view, id\)/);
+  // 钻入态：详情替换整列，返回钮在列首。
+  assert.match(modelsConfig, /const atListLevel = selection === null;/);
+  assert.match(modelsConfig, /detailContent \?\? \(/);
+  assert.match(source, /function BackRowButton/);
+  // 独立弹窗宿主（config-panel-surface overflow:hidden）里由内容列承担滚动。
+  assert.match(cssSource, /\.config-panel-surface > \.d-col \{[^}]*overflow-y: auto;/);
 });
 
-// fork:settings-frame（画板 62 帧 D）—— 模型页用到的两个空态各有落点：
-// 「列表空」在列表列内（方框图标 + 一句，不折行），「详情未选」在详情列居中
-// （square-mouse-pointer 方框 + 一句引导），不再是一句孤悬的裸文本。
-test("empty states land in their own columns per board 62 frame D", () => {
+// fork:v5-landing · D-08 —— 「列表空」落在概览列里（方框图标 + 一句，不折行）：
+// 有过滤词沿用选择器的「没有匹配的 Provider」，空库用 models.listEmpty + listEmptyHint。
+// 旧「详情未选」空态随主从两栏一起退役 —— 落地态就是列表本身。
+test("the empty list state lands in the overview column", () => {
   const modelsConfig = source.slice(source.indexOf("export function ModelsConfig"));
 
-  const listColumn = modelsConfig.slice(
-    modelsConfig.indexOf("<ConfigSidebar>"),
-    modelsConfig.indexOf("</ConfigSidebar>"),
-  );
-  // 列表列先分「加载中 / 空 / 有行」三态；空态是画板 D-24 的 `.d-empty.compact`。
-  assert.match(listColumn, /loading \? \(/);
-  assert.match(listColumn, /!hasVisibleRows \? \(/);
-  assert.match(listColumn, /<span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" \/>/);
-  // 有过滤词沿用选择器的「没有匹配的 Provider」；空库用 models.listEmpty + 第二句
-  // listEmptyHint（帧 D 的「一句 + 一句说明」，键已补进三语包）。
-  assert.match(listColumn, /needle \? t\("i18n\.noProviders"\) : t\("models\.listEmpty"\)/);
-  assert.match(listColumn, /!needle && <p className="d-empty-s">\{t\("models\.listEmptyHint"\)\}<\/p>/);
-
-  const detailColumn = modelsConfig.slice(
-    modelsConfig.indexOf('<div className="d-set-inner">'),
-    modelsConfig.indexOf("</ConfigSplitView>"),
-  );
-  assert.match(detailColumn, /<span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" \/>/);
-  assert.match(detailColumn, /<p className="d-empty-t">\{t\("models\.detailEmpty"\)\}<\/p>/);
+  assert.match(modelsConfig, /providerRows\.length === 0 && \(/);
+  assert.match(modelsConfig, /<span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" \/>/);
+  assert.match(modelsConfig, /needle \? t\("i18n\.noProviders"\) : t\("models\.listEmpty"\)/);
+  assert.match(modelsConfig, /!needle && <p className="d-empty-s">\{t\("models\.listEmptyHint"\)\}<\/p>/);
+  // 加载失败不再是裸文本：横幅说明「读不出 ≠ 空」，保存同时已被禁用。
+  assert.match(modelsConfig, /<div className="d-banner err">\{t\("models\.listUnreadable"\)\}<\/div>/);
 });
 
 // fork:settings-frame（画板 62 帧 D「动作层级」）—— 页级动作只有页头右端两个
@@ -437,14 +464,14 @@ test("provider header card edits base url / api / key in place", () => {
     assert.equal(code.match(marker).length, 1, `${marker} 出现了不止一次`);
   }
 
-  // 头卡里不再有只读的地址 / 协议行。
-  const headerStart = code.indexOf("models.providerIcon");
-  assert.ok(headerStart > 0);
-  const header = code.slice(0, code.indexOf("models.usageTitle"));
-  assert.match(header, /set\("baseUrl", v \|\| undefined\)/, "头卡没有 Base URL 输入框");
-  assert.match(header, /set\("api", v\)/, "头卡没有 API 格式下拉");
-  assert.match(header, /set\("apiKey", v \|\| undefined\)/, "头卡没有 API Key 输入框");
-  assert.doesNotMatch(header, /<dt>\$\{t\("models\.kvBaseUrl"\)\}<\/dt>/, "只读的地址行还在");
-  // 头卡里的协议徽标退役了 —— 下拉就在下面，再挂一枚静态徽标是同一信息两处。
-  assert.doesNotMatch(header, /<ConfigBadge tone="count">\{provider\.api/);
+  // 锚在 ProviderDetail 自己的函数体里，不再按 i18n 键的出场顺序切片
+  // （概览节的「用量摘要」键现在出现在 ProviderDetail 之前）。
+  const providerDetail = code.slice(
+    code.indexOf("function ProviderDetail"),
+    code.indexOf("// ── ThinkingLevelMap editor"),
+  );
+  assert.match(providerDetail, /set\("baseUrl", v \|\| undefined\)/, "头卡没有 Base URL 输入框");
+  assert.match(providerDetail, /set\("api", v\)/, "头卡没有 API 格式下拉");
+  assert.match(providerDetail, /set\("apiKey", v \|\| undefined\)/, "头卡没有 API Key 输入框");
+  assert.doesNotMatch(providerDetail, /<dt>\$\{t\("models\.kvBaseUrl"\)\}<\/dt>/, "只读的地址行还在");
 });

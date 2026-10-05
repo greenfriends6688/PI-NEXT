@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { formatUpdatedTime } from "@/lib/i18n/format";
@@ -9,11 +9,14 @@ import { formatUpdatedTime } from "@/lib/i18n/format";
 import type { ModelInputLimits, ModelPromptCache } from "@earendil-works/pi-ai";
 import type { ModelCatalogPreset, ModelCatalogRecommendation } from "@/lib/model-catalog";
 import type { DiscoveredModel } from "@/lib/model-discovery";
+// 用量概览（D-08 帧 A 的「配额」位）：/api/usage-stats 的本地账本口径。
+import type { UsageStatsSummary } from "@/lib/usage-stats";
 import {
   getLastSettingsSelection,
   setLastSettingsSelection,
 } from "@/lib/settings-navigation";
 import {
+  CHECKBOX_CONTROL,
   collectModelRenames,
   compatFlagState,
   compatFlagsForApi,
@@ -44,23 +47,22 @@ import {
 import { ModelInputLimitsFields } from "./ModelLimitsFields";
 import {
   ConfigPanelShell,
-  ConfigSidebar,
   ConfigSidebarGroupLabel,
   ConfigSidebarItem,
-  ConfigSidebarList,
   ConfigSidebarSub,
   ConfigSidebarText,
-  ConfigSplitView,
+  PwSearch,
   PwSelectBox,
+  SettingsPage,
 } from "./SettingsUi";
-import { PwSearch, SettingsPage } from "./SettingsUi";
 import {
-  EnabledModelsBanner,
   EnabledModelsProviderSwitch,
   EnabledModelsSection,
   useEnabledModels,
   type EnabledModelsController,
 } from "./EnabledModelsSection";
+// fork:models-picker —— 跨供应商的「聊天里显示哪些模型」选择器（替掉白名单表 + 匹配预览）。
+import { ChatModelsPicker } from "./ChatModelsPicker";
 import { findProviderView, providerBadgeLabel } from "./enabled-models-helpers";
 import { ProviderIcon } from "./ProviderIcon";
 import {
@@ -76,13 +78,21 @@ import {
 import { ProviderUsageSummary } from "./ProviderUsageSummary";
 import { isProviderUsageId } from "@/lib/provider-usage-ids";
 import { ProviderUsageCards } from "./fork/ProviderUsageCards";
+// fork:pr17-favorites —— 收藏总览（D-08 帧 A「收藏模型」）与输入框选择器共用同一个
+// store；增删入口在模型选择器里，这里只读。
 import {
-  favoriteModelKey,
   getFavoriteModelsServerSnapshot,
   getFavoriteModelsSnapshot,
   subscribeFavoriteModels,
-  toggleFavoriteModelKey,
 } from "@/lib/favorite-models";
+// fork:model-roles —— 「默认模型分工」卡（画板 D-08 帧 C）。默认模型写
+// settings.json（POST /api/models/default），命名模型与常规页共用同一份
+// localStorage 偏好（lib/title-settings.ts），两个入口写的是同一个值。
+import {
+  clearTitleModel,
+  getTitleModel,
+  setTitleModel,
+} from "@/lib/title-settings";
 import { describeThinkingRequestFromFields, type ThinkingModelFields } from "@/lib/thinking-request-core";
 import type { ThinkingProfileInputs } from "@/lib/models-cache";
 import { formatThinkingRequestParams } from "./models-config-helpers";
@@ -162,6 +172,490 @@ function DSeg({ value, options, ariaLabel, disabled = false, onChange }: {
         );
       })}
     </span>
+  );
+}
+
+// ── v5 D-08 主页面分节 ────────────────────────────────────────────────────────
+/* fork:v5-landing · D-08/D-10 —— 主页面不再主从两栏，是一列 `.d-set-sec`：
+   供应商表（帧 A）→ 用量（帧 A 配额位，口径如实写「本机日志」）→ 收藏模型 →
+   默认模型分工（帧 C 三张卡）→ 在模型选择器里显示（帧 D / D-10）。
+   点供应商行 / 模型行钻入详情列，返回按钮在详情列首行。
+
+   fork:models-picker（2026-10-05）—— 「聊天里显示哪些模型」从三张讲 pattern 语法的
+   表（白名单 / 匹配预览 / 成本档）收成一个跨供应商弹层（`ChatModelsPicker`），
+   逐模型开关与供应商行的 `N/M` 徽标是它的单点版。存法归服务端，界面只说意图。 */
+
+/** 钻入列首行的返回钮。画板只有静态帧，钻入态的返回是产品行为的最小接线。 */
+function BackRowButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <DButton variant="ghost" size="small" onClick={onClick}>
+      <i data-ico="arrow-left" data-size="13" aria-hidden="true" />
+      {label}
+    </DButton>
+  );
+}
+
+/** d-anchor 浮层（画板 帧 C 的 `.d-pop.up`）：点外面关；Esc 在捕获段拦下并 stopPropagation，
+    否则外层设置弹窗会跟着一起关。 */
+function CardPopover({ open, onClose, title, foot, children, popStyle }: {
+  open: boolean; onClose: () => void; title: string; foot?: ReactNode; children: ReactNode;
+  popStyle?: CSSProperties;
+}) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDocMouseDown = (event: MouseEvent) => {
+      if (!anchorRef.current?.contains(event.target as Node)) onClose();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopImmediatePropagation();
+      onClose();
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open, onClose]);
+  if (!open) return <div className="d-anchor" ref={anchorRef} />;
+  return (
+    <div className="d-anchor" ref={anchorRef}>
+      <div className={`d-pop is-open up`} style={{ right: 0, minWidth: 320, ...popStyle }}>
+        <div className="d-pop-title">{title}</div>
+        <div className="d-sep" />
+        {children}
+        {foot ? <div className="d-pop-foot">{foot}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/** 供应商表的一行数据（订阅 / API Key / 自定义三类同构）。 */
+interface ProviderRowData {
+  key: string;
+  kind: "oauth" | "apikey" | "provider";
+  id: string;
+  name: string;
+  auth: { tone: "ok" | "warn" | "bad" | "info" | "mute"; label: string };
+  endpoint: string | null;
+  modelCount: number;
+}
+
+/** 帧 A 的供应商表：认证状态如实显示（已登录 / 已配置 / 未登录 / 无需凭证）。
+ *  「上次同步」只统计本次面板会话里从上游导入成功的那次 —— models.json 没有这个
+ *  字段，不假装它是落盘的事实；没有就是「—」。 */
+function ProviderTableSection({ rows, lastSyncMap, onOpen, badgeLabel }: {
+  rows: ProviderRowData[];
+  lastSyncMap: Record<string, { at: number; count: number }>;
+  onOpen: (row: ProviderRowData) => void;
+  /** `12/40` —— 该供应商在聊天里启用的模型数（`enabled-models-helpers` 里一直有这个
+      helper，只是没人把它接上；上游模型页把它放在每行右侧）。 */
+  badgeLabel: (providerId: string) => string | null;
+}) {
+  const { t, locale } = useI18n();
+  return (
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">{t("models.providersSection")}</div>
+      <div className="d-t-xs d-t-faint">{t("models.providersSectionHint")}</div>
+      <div className="d-card">
+        <table className="d-table">
+          <thead>
+            <tr>
+              <th>{t("models.colProvider")}</th>
+              <th>{t("models.colAuth")}</th>
+              <th>{t("models.colEndpoint")}</th>
+              <th>{t("models.colModels")}</th>
+              <th>{t("models.colLastSync")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={5}><span className="d-t-xs d-t-faint">{t("i18n.noProviders")}</span></td></tr>
+            ) : rows.map((row) => {
+              const sync = lastSyncMap[row.id];
+              return (
+                <tr
+                  key={row.key}
+                  tabIndex={0}
+                  aria-label={row.name}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    onOpen(row);
+                  }}
+                  onClick={() => onOpen(row)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td>
+                    <div className="d-row">
+                      <ProviderIcon id={row.id} size={16} />
+                      <span className="d-t-b">{row.name}</span>
+                    </div>
+                  </td>
+                  <td><DBadge tone={row.auth.tone}>{row.auth.label}</DBadge></td>
+                  <td className="d-mono">{row.endpoint ?? "—"}</td>
+                  <td className="d-mono">
+                    {badgeLabel(row.id) ?? row.modelCount}
+                  </td>
+                  <td className="d-t-xs">
+                    {sync ? formatUpdatedTime(sync.at, locale) : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** 帧 A 的「配额」位：本机没有供应商侧的配额数，摆的是本地日志的口径 —— 标题与
+    说明都如实写，不把两种账合成一个（v5 落地注记：供应商侧回执在供应商详情里）。 */
+function UsageOverviewSection({ providerIds }: { providerIds: string[] }) {
+  const { t, locale } = useI18n();
+  const [state, setState] = useState<
+    { phase: "loading" } | { phase: "error"; message: string } | { phase: "ready"; summary: UsageStatsSummary }
+  >({ phase: "loading" });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ phase: "loading" });
+    const params = new URLSearchParams({ range: "30d", tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    void fetch(`/api/usage-stats?${params}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: UsageStatsSummary | null) => {
+        if (cancelled) return;
+        if (!data || !Array.isArray(data.models)) {
+          setState({ phase: "error", message: t("models.usageUnavailable") });
+          return;
+        }
+        setState({ phase: "ready", summary: data });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setState({ phase: "error", message: error instanceof Error ? error.message : String(error) });
+      });
+    return () => { cancelled = true; };
+  }, [refreshKey, t]);
+
+  const rows = (() => {
+    if (state.phase !== "ready") return [];
+    return providerIds.map((id) => {
+      const prefix = `${id}/`;
+      const own = state.summary.models.filter((point) => point.model.startsWith(prefix));
+      const cost = own.reduce((sum, point) => sum + point.cost, 0);
+      const messages = own.reduce((sum, point) => sum + point.messages, 0);
+      const share = state.summary.totals.cost > 0
+        ? Math.round((cost / state.summary.totals.cost) * 100)
+        : 0;
+      return { id, cost, messages, share };
+    });
+  })();
+
+  return (
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">{t("models.usageTitle")}</div>
+      <div className="d-t-xs d-t-faint">{t("models.usageOverviewHint")}</div>
+      <div className="d-col" style={{ gap: "var(--nx-sp-3)" }}>
+        {state.phase !== "ready" ? (
+          <div className="d-t-xs d-t-faint" role="status">
+            {state.phase === "error" ? state.message : t("models.usageLoading")}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="d-t-xs d-t-faint">{t("models.usageNoData")}</div>
+        ) : rows.map((row) => (
+          <div className="d-col" style={{ gap: "var(--nx-sp-2)" }} key={row.id}>
+            <div className="d-row d-t-xs">
+              <ProviderIcon id={row.id} size={16} />
+              <span className="d-grow">
+                {row.id} · {t("models.usageRequestsShort", { count: row.messages })}
+              </span>
+              <DBadge tone={row.cost > 0 ? "count" : "mute"}>{formatOverviewCost(row.cost, locale)}</DBadge>
+              <span className="d-t-xs d-t-faint">{row.share}%</span>
+            </div>
+            <div className="d-bar"><i style={{ width: `${Math.min(row.share, 100)}%` }} /></div>
+          </div>
+        ))}
+      </div>
+      <div className="d-row">
+        <span className="d-t-xs d-t-faint">{t("models.usageOverviewSource")}</span>
+        <span className="d-grow" aria-hidden="true" />
+        <DButton size="small" onClick={() => setRefreshKey((key) => key + 1)}>
+          <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
+          {t("models.usageOverviewRefresh")}
+        </DButton>
+      </div>
+    </div>
+  );
+}
+
+function formatOverviewCost(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
+}
+
+/** 帧 A 的收藏模型：只读总览（收藏本体在模型选择器里管理），停用的如实标灰。 */
+function FavoritesSection({
+  favorites,
+  enabledModels,
+}: {
+  favorites: Set<string>;
+  enabledModels: EnabledModelsController;
+}) {
+  const { t } = useI18n();
+  const entries = [...favorites].map((key) => {
+    const sep = key.indexOf(":");
+    const providerId = sep > 0 ? key.slice(0, sep) : key;
+    const modelId = sep > 0 ? key.slice(sep + 1) : "";
+    const provider = findProviderView(enabledModels.view, providerId);
+    const model = provider?.models.find((entry) => entry.id === modelId);
+    return {
+      key,
+      label: model?.name ?? modelId,
+      available: Boolean(provider && model),
+    };
+  });
+  const unavailable = entries.filter((entry) => !entry.available).length;
+  if (entries.length === 0) return null;
+  return (
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">{t("models.favoritesSection")}</div>
+      <div className="d-t-xs d-t-faint">{t("models.favoritesHint")}</div>
+      <div className="d-tags">
+        {entries.map((entry) => (
+          <span className="d-tag" key={entry.key}>
+            <i data-ico={entry.available ? "star" : "circle-slash"} data-size={12} aria-hidden="true" />
+            {entry.available ? entry.label : `${entry.label}（${t("models.favoriteDisabled")}）`}
+          </span>
+        ))}
+      </div>
+      <div className="d-row">
+        <span className="d-t-xs d-t-faint">
+          {t("models.favoritesCount", { count: entries.length, unavailable })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** 帧 C 的「默认模型分工」：三张卡各自弹出选型浮层。压缩模型 pi 没有这个设置，
+    卡片如实显示「跟随 pi 内置」，不假装可点。 */
+function ModelRolesSection({ cwd }: { cwd: string | null }) {
+  const { t } = useI18n();
+  const [defaultModel, setDefaultModel] = useState<{ provider: string; modelId: string } | null>(null);
+  const [titleModel, setTitleModelState] = useState<{ provider: string; modelId: string } | null>(null);
+  const [options, setOptions] = useState<{ provider: string; modelId: string; label: string }[]>([]);
+  const [openRole, setOpenRole] = useState<"default" | "title" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const syncTitle = () => setTitleModelState(getTitleModel());
+    syncTitle();
+    window.addEventListener("storage", syncTitle);
+    return () => window.removeEventListener("storage", syncTitle);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const url = cwd ? `/api/models?cwd=${encodeURIComponent(cwd)}` : "/api/models";
+    void fetch(url)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: {
+        defaultModel?: { provider: string; modelId: string } | null;
+        modelList?: { id: string; name?: string; provider: string }[];
+      } | null) => {
+        if (cancelled || !data) return;
+        setDefaultModel(data.defaultModel ?? null);
+        setOptions((data.modelList ?? [])
+          .filter((model) => model.id && model.provider)
+          .map((model) => ({
+            provider: model.provider,
+            modelId: model.id,
+            label: `${model.name || model.id} · ${model.provider}`,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label)));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [cwd]);
+
+  const saveDefault = useCallback(async (value: { provider: string; modelId: string } | null) => {
+    setError(null);
+    try {
+      const response = await fetch("/api/models/default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(value ? { provider: value.provider, modelId: value.modelId, cwd } : { clear: true, cwd }),
+      });
+      const data = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok || data.error) throw new Error(data.error ?? `HTTP ${response.status}`);
+      setDefaultModel(value);
+      setOpenRole(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [cwd]);
+
+  const saveTitle = useCallback((value: { provider: string; modelId: string } | null) => {
+    if (value) setTitleModel(value.provider, value.modelId);
+    else clearTitleModel();
+    setTitleModelState(value);
+    setOpenRole(null);
+  }, []);
+
+  const defaultLabel = defaultModel ? `${defaultModel.provider} / ${defaultModel.modelId}` : t("models.roleUnset");
+  const titleLabel = titleModel ? `${titleModel.provider} / ${titleModel.modelId}` : t("models.roleSessionModel");
+
+  return (
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">{t("models.defaultsSection")}</div>
+      <div className="d-t-xs d-t-faint">{t("models.defaultsHint")}</div>
+
+      <div className="d-anchor">
+        <button type="button" className="d-setcard" aria-expanded={openRole === "default"} onClick={() => setOpenRole(openRole === "default" ? null : "default")}>
+          <i data-ico="square-pen" data-size={18} aria-hidden="true" />
+          <span className="d-col d-grow">
+            <span className="d-set-row-t">{t("models.roleDefault")}</span>
+            <span className="d-set-row-s">{t("models.roleDefaultSub")}</span>
+          </span>
+          <span className="d-col" style={{ textAlign: "right" }}>
+            <span className="d-mono d-t-xs">{defaultLabel}</span>
+          </span>
+        </button>
+        {openRole === "default" && (
+          <CardPopover open title={t("models.pickDefault")} onClose={() => setOpenRole(null)} foot={t("models.pickDefaultFoot")}>
+            {options.map((option) => {
+              const on = defaultModel?.provider === option.provider && defaultModel?.modelId === option.modelId;
+              return (
+                <button key={`${option.provider}:${option.modelId}`} type="button" className="d-menu-row" onClick={() => void saveDefault(option)}>
+                  <span className="d-grow">{option.provider} / {option.modelId}</span>
+                  {on && <DBadge tone="ok">{t("models.currentBadge")}</DBadge>}
+                </button>
+              );
+            })}
+            <div className="d-sep" />
+            <button type="button" className="d-menu-row" onClick={() => void saveDefault(null)}>
+              <i data-ico="rotate-cw" data-size={14} aria-hidden="true" />
+              {t("models.useBuiltinDefault")}
+            </button>
+          </CardPopover>
+        )}
+      </div>
+
+      <div className="d-anchor">
+        <button type="button" className="d-setcard" aria-expanded={openRole === "title"} onClick={() => setOpenRole(openRole === "title" ? null : "title")}>
+          <i data-ico="text-cursor" data-size={18} aria-hidden="true" />
+          <span className="d-col d-grow">
+            <span className="d-set-row-t">{t("models.roleTitle")}</span>
+            <span className="d-set-row-s">{t("models.roleTitleSub")}</span>
+          </span>
+          <span className="d-col" style={{ textAlign: "right" }}>
+            <span className="d-mono d-t-xs">{titleLabel}</span>
+          </span>
+        </button>
+        {openRole === "title" && (
+          <CardPopover open title={t("models.pickTitle")} onClose={() => setOpenRole(null)} foot={t("models.pickTitleFoot")}>
+            {options.map((option) => {
+              const on = titleModel?.provider === option.provider && titleModel?.modelId === option.modelId;
+              return (
+                <button key={`${option.provider}:${option.modelId}`} type="button" className="d-menu-row" onClick={() => saveTitle(option)}>
+                  <span className="d-grow">{option.label}</span>
+                  {on && <DBadge tone="ok">{t("models.currentBadge")}</DBadge>}
+                </button>
+              );
+            })}
+            <div className="d-sep" />
+            <button type="button" className="d-menu-row" onClick={() => saveTitle(null)}>
+              <i data-ico="square-slash" data-size={14} aria-hidden="true" />
+              {t("models.useSessionModel")}
+            </button>
+          </CardPopover>
+        )}
+      </div>
+
+      {/* 压缩模型：pi 没有这个设置（lib/context-budget-settings.ts 查证过），卡片只读。 */}
+      <div className="d-setcard" aria-disabled="true">
+        <i data-ico="scan-text" data-size={18} aria-hidden="true" />
+        <span className="d-col d-grow">
+          <span className="d-set-row-t">{t("models.roleCompact")}</span>
+          <span className="d-set-row-s">{t("models.roleCompactSub")}</span>
+        </span>
+        <span className="d-col" style={{ textAlign: "right" }}>
+          <span className="d-mono d-t-xs">{t("models.roleCompactStatic")}</span>
+          <DBadge tone="mute">{t("models.roleCompactStaticBadge")}</DBadge>
+        </span>
+      </div>
+
+      <div className="d-banner">
+        <i data-ico="info" data-size={14} aria-hidden="true" />
+        <span>{t("models.defaultsLocalBanner")}</span>
+      </div>
+      {error && <div className="d-banner err">{error}</div>}
+    </div>
+  );
+}
+
+/** 帧 D 的「在模型选择器里显示」：设置文件与作用域如实显示 + 清空白名单。 */
+function SelectorVisibilitySection({ enabledModels }: { enabledModels: EnabledModelsController }) {
+  const { t } = useI18n();
+  const { view, pending, failure } = enabledModels;
+  if (!view) return null;
+  const busy = pending !== null;
+  /* fork:models-picker —— 失配条目的横幅与写失败的理由从被删掉的白名单表搬到这里：
+     清理入口（prune）本来就在这一节，清单本身不再露给用户（改用 ChatModelsPicker）。 */
+  const staleCount = view.stalePatterns.length;
+  return (
+    <div className="d-set-sec">
+      <div className="d-set-sec-t">{t("models.visibilitySection")}</div>
+      {!view.editable && <div className="d-banner warn">{t("models.enabledProjectScope")}</div>}
+      {staleCount > 0 && (
+        <div className="d-banner warn">
+          <i data-ico="triangle-alert" data-size={14} aria-hidden="true" />
+          <span>{t("models.patternStaleBanner", { count: staleCount })}</span>
+          <DButton size="small" disabled={busy || !view.editable} title={t("models.enabledPruneHint")} onClick={enabledModels.pruneStale}>
+            {t("models.enabledPrune")}
+          </DButton>
+        </div>
+      )}
+      {failure && (
+        <div className="d-banner err" role="alert">
+          {failure.messageKey ? t(failure.messageKey) : failure.message}
+        </div>
+      )}
+      <div className="d-set-row">
+        <div className="d-set-row-box">
+          <div className="d-set-row-t">{t("models.settingsFileRow")}</div>
+          <div className="d-set-row-s">{t("models.enabledPinHint")}</div>
+        </div>
+        <span className="d-grow-last">
+          <span className="d-mono d-t-xs" title={view.settingsPath}>{view.settingsPath}</span>
+        </span>
+        <DBadge tone={view.scope === "project" ? "info" : "mute"}>
+          {view.scope === "project" ? t("models.scopeProject") : t("models.scopeGlobal")}
+        </DBadge>
+      </div>
+      <div className="d-set-row">
+        <div className="d-set-row-box">
+          <div className="d-set-row-t">{t("models.clearPatternsRow")}</div>
+          <div className="d-set-row-s">{t("models.clearPatternsHint")}</div>
+        </div>
+        <span className="d-grow-last">
+          <DBadge tone="count">{t("models.enabledCount", { enabled: view.enabledTotal, total: view.availableTotal })}</DBadge>
+        </span>
+        <DButton
+          size="small"
+          variant="ghost"
+          disabled={busy || !view.editable || view.allEnabled}
+          title={t("models.enabledClearHint")}
+          onClick={enabledModels.clearScope}
+        >
+          {t("models.enabledClear")}
+        </DButton>
+      </div>
+    </div>
   );
 }
 
@@ -352,11 +846,10 @@ const API_OPTIONS = modelApiChoices();
    · FILL_ROW_INPUT = 画板搜索行的 `style="flex:1;min-width:0"` —— d-input
      （或包着它的行）在 flex 行里要吃掉剩余宽度、并盖掉 min-width:200px
      （ChatWindow 同款先例）。
-   · DISCOVERY_CHECKBOX —— 画板没有复选框基件（.d-switch 是开关不是多选）：
+   · CHECKBOX_CONTROL（models-config-helpers）—— 画板没有复选框基件（.d-switch 是开关不是多选）：
      上游导入清单勾选框的几何与 accentColor 只能留在行内。
    · BREAKABLE_LINK —— 画板没有链接基件；颜色走 token，授权 URL 很长必须可断行。 */
 const FILL_ROW_INPUT = { flex: 1, minWidth: 0 } as const;
-const DISCOVERY_CHECKBOX = { width: 13, height: 13, accentColor: "var(--accent)", flexShrink: 0 } as const;
 const BREAKABLE_LINK = { color: "var(--accent)", wordBreak: "break-all" } as const;
 
 function TextInput({ value, onChange, placeholder, mono }: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean }) {
@@ -525,7 +1018,7 @@ function ProviderIconModePicker({ providerId, api }: { providerId: string; api?:
 /* fork:model-rename-save（上游 bd85004 #969）—— 供应商名输入框的草稿由面板持有，
    不再是 ProviderDetail 的本地 state：只有 Rename 按钮能动 draft 时，页脚 Save
    就看不见输入框里的改动，直接序列化等于静默丢掉一次重命名。 */
-function ProviderDetail({ name, editingName, provider, onChange, onEditingNameChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune }: {
+function ProviderDetail({ name, editingName, provider, onChange, onEditingNameChange, onRename, onDelete, onAddModels, enabledModels, onOpenModel, onAddModel, onPrune, onBack, onSynced }: {
   name: string; editingName: string; provider: ProviderEntry;
   onChange: (p: ProviderEntry) => void; onEditingNameChange: (n: string) => void;
   onRename: (n: string) => void; onDelete: () => void;
@@ -534,6 +1027,10 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
   onOpenModel: (index: number) => void;
   onAddModel: () => void;
   onPrune: () => void;
+  /** D-08 钻入态：返回供应商表。 */
+  onBack: () => void;
+  /** 「上次同步」上提到主页供应商表：从上游导入成功一次就记一笔。 */
+  onSynced: (count: number) => void;
 }) {
   const { t, locale } = useI18n();
   const [discoveryState, setDiscoveryState] = useState<ModelDiscoveryState>({ phase: "idle" });
@@ -578,11 +1075,12 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
       // baseUrl 可能为空（端点来自 pi 的 catalog），所以 endpoint 也要有底线。
       setDiscoveryState({ phase: "success", models: data.models, endpoint: data.endpoint ?? provider.baseUrl ?? "" });
       setLastSync({ at: Date.now(), count: data.models.length });
+      onSynced(data.models.length);
     } catch (error) {
       if (requestId !== discoveryRequestIdRef.current) return;
       setDiscoveryState({ phase: "error", message: error instanceof Error ? error.message : String(error) });
     }
-  }, [discoveryState.phase, name, provider]);
+  }, [discoveryState.phase, name, provider, onSynced]);
 
   const existingModelIds = new Set((provider.models ?? []).map((model) => model.id));
   const discoveredModels = discoveryState.phase === "success" ? discoveryState.models : [];
@@ -685,6 +1183,7 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
     <div className="d-set-inner">
       <div className="d-set-sec">
         <div className="d-row">
+          <BackRowButton label={t("models.backToList")} onClick={onBack} />
           <ProviderIcon id={name} size={22} />
           <div className="d-set-sec-t">{name}</div>
           <span className="d-grow" aria-hidden="true" />
@@ -872,19 +1371,19 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
               </div>
 
               <div className="d-card">
-                <label className="d-row models-discovery-row models-discovery-head" style={{ padding: "6px 12px" }}>
+                <label className="d-row models-discovery-row models-discovery-head">
                   <input
                     ref={selectShownRef}
                     type="checkbox"
                     checked={allShownSelected}
                     disabled={selectableShownIds.length === 0}
                     onChange={toggleShownModels}
-                    style={DISCOVERY_CHECKBOX}
+                    style={CHECKBOX_CONTROL}
                   />
                   <span className="d-t-b">{t("models.discoverySelectShown")}</span>
                 </label>
                 {shownDiscoveredModels.length === 0 ? (
-                  <div className="d-t-xs d-t-faint" style={{ padding: "6px 12px" }}>{t("models.discoveryNoMatches")}</div>
+                  <div className="d-t-xs d-t-faint models-discovery-row">{t("models.discoveryNoMatches")}</div>
                 ) : shownDiscoveredModels.map((model) => {
                   const alreadyAdded = existingModelIds.has(model.id);
                   const specs = discoveredModelSpecs(model);
@@ -892,14 +1391,13 @@ function ProviderDetail({ name, editingName, provider, onChange, onEditingNameCh
                     <label
                       key={model.id}
                       className={`d-row models-discovery-row${alreadyAdded ? " is-added" : ""}`}
-                      style={{ padding: "6px 12px" }}
                     >
                       <input
                         type="checkbox"
                         checked={selectedModelIds.includes(model.id) || alreadyAdded}
                         disabled={alreadyAdded}
                         onChange={() => toggleDiscoveredModel(model.id)}
-                        style={DISCOVERY_CHECKBOX}
+                        style={CHECKBOX_CONTROL}
                       />
                       <span className="d-col d-grow">
                         <span className="d-t-b">{model.name ?? model.id}</span>
@@ -1543,12 +2041,15 @@ function ModelDetail({
   model,
   onChange,
   onDelete,
+  onBack,
 }: {
   providerName: string;
   provider: ProviderEntry;
   model: ModelEntry;
   onChange: (m: ModelEntry) => void;
   onDelete: () => void;
+  /** D-08 钻入态：返回供应商详情。 */
+  onBack: () => void;
 }) {
   const [testState, setTestState] = useState<ModelTestState>({ phase: "idle" });
   const { t } = useI18n();
@@ -1806,27 +2307,41 @@ function ModelDetail({
     ? advancedSummaryParts.join(" · ")
     : t("models.providerDefaults");
 
-  /* fork:v5-landing —— 画板 D-08 帧 B / D-09：模型详情拆成三个 `.d-set-sec`
-     ① 身份 / 能力 / 规格 / 成本 ② 高级（Header / 兼容 / 上限 / 思考）③ 测试连接。
-     控件全部换成画板的 d-* DOM（`.d-grid2` / `.d-field` / `.d-set-row` / `.d-seg`）；
-     数据绑定与状态机不变。 */
+  /* fork:v5-landing —— D-08 帧 B + D-09：模型编辑页按帧 B 拆节
+     （模型规格 / 推理·思考 / 兼容性 / 测试连接）；Header、采样参数、API 覆盖与
+     多模态上限收进「模型高级」二级弹窗（D-09 的形态），编辑页头行给入口。
+     数据绑定与状态机一概不动。 */
   return (
     <div className="d-set-inner">
       <div className="d-set-sec">
         <div className="d-row">
+          <BackRowButton label={t("models.backToList")} onClick={onBack} />
           <div className="d-set-sec-t">{model.name || model.id || t("i18n.newModel")}</div>
           <DBadge tone="mute">{providerName}</DBadge>
           {model.reasoning ? <DBadge tone="info">{t("models.badgePinnable")}</DBadge> : null}
+          <span className="d-grow" aria-hidden="true" />
+          <DButton
+            size="small"
+            title={advancedSummary}
+            onClick={() => setAdvancedOpen(true)}
+            aria-haspopup="dialog"
+          >
+            <i data-ico="sliders-horizontal" data-size="13" aria-hidden="true" />
+            {t("models.modelAdvanced")}
+          </DButton>
         </div>
 
+        <div className="d-set-sec-t">{t("models.modelSpecs")}</div>
         <div className="d-grid2">
           <div className="d-field">
-            <span className="d-field-t">ID *</span>
-            <TextInput value={model.id} onChange={(v) => set("id", v)} placeholder="model-id" mono />
+            <span className="d-field-t">{t("models.fieldName")}</span>
+            <TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" />
+            <div className="d-t-xs d-t-faint">{t("models.fieldNameHint")}</div>
           </div>
           <div className="d-field">
-            <span className="d-field-t">Name</span>
-            <TextInput value={model.name ?? ""} onChange={(v) => set("name", v || undefined)} placeholder="Display name" />
+            <span className="d-field-t">{t("models.fieldModelId")}</span>
+            <TextInput value={model.id} onChange={(v) => set("id", v)} placeholder="model-id" mono />
+            <div className="d-t-xs d-t-faint">{t("models.fieldModelIdHint")}</div>
           </div>
         </div>
         <div className="d-row">
@@ -1859,33 +2374,6 @@ function ModelDetail({
           </div>
         )}
 
-        <div className="d-set-sec-t">{t("models.capabilities")}</div>
-        <div className="d-set-row">
-          <div className="d-set-row-box">
-            <div className="d-set-row-t">{t("models.reasoning")}</div>
-          </div>
-          <span className="d-grow-last">
-            <DSwitch
-              checked={model.reasoning ?? false}
-              label={t("models.reasoning")}
-              onChange={(v) => set("reasoning", v || undefined)}
-            />
-          </span>
-        </div>
-        <div className="d-set-row">
-          <div className="d-set-row-box">
-            <div className="d-set-row-t">{t("models.imageInput")}</div>
-          </div>
-          <span className="d-grow-last">
-            <DSwitch
-              checked={model.input?.includes("image") ?? false}
-              label={t("models.imageInput")}
-              onChange={(v) => set("input", v ? ["text", "image"] : undefined)}
-            />
-          </span>
-        </div>
-
-        <div className="d-set-sec-t">{t("models.specs")}</div>
         <div className="d-grid2">
           <div className="d-field">
             <span className="d-field-t">{t("models.contextWindow")}</span>
@@ -1898,6 +2386,7 @@ function ModelDetail({
               ariaLabel={t("models.contextWindow")}
               onChange={(next) => set("contextWindow", next)}
             />
+            <div className="d-t-xs d-t-faint">{t("models.contextWindowHint")}</div>
           </div>
           <div className="d-field">
             <span className="d-field-t">{t("models.maxOutputTokens")}</span>
@@ -1910,19 +2399,35 @@ function ModelDetail({
               ariaLabel={t("models.maxOutputTokens")}
               onChange={(next) => set("maxTokens", next)}
             />
+            <div className="d-t-xs d-t-faint">{t("models.maxTokensHint")}</div>
           </div>
         </div>
         {model.contextWindow !== undefined && model.maxTokens !== undefined && model.maxTokens > model.contextWindow && (
           <div role="alert" className="d-banner err">{t("models.maxTokensExceedsContext")}</div>
         )}
 
-        <div className="d-field">
-          <span className="d-field-t">{t("models.samplingParams")}</span>
-          <div className="d-t-xs d-t-faint">{t("models.samplingParamsHint")}</div>
-          <SamplingParamsEditor value={model.samplingParams} onChange={(next) => set("samplingParams", next)} />
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("models.imageInput")}</div>
+            <div className="d-set-row-s">{t("models.modalityHint")}</div>
+          </div>
+          <span className="d-grow-last">
+            <DSwitch
+              checked={model.input?.includes("image") ?? false}
+              label={t("models.imageInput")}
+              onChange={(v) => set("input", v ? ["text", "image"] : undefined)}
+            />
+          </span>
         </div>
 
-        <div className="d-set-sec-t">{t("models.costPerMillion")}</div>
+        <div className="d-row">
+          <div className="d-set-sec-t">{t("models.costPerMillion")}</div>
+          <span className="d-grow" aria-hidden="true" />
+          <DButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>
+            {costEditing ? t("models.finishEditingCosts") : t("models.editCosts")}
+          </DButton>
+        </div>
+        <div className="d-t-xs d-t-faint">{t("models.costSectionHint")}</div>
         {costEditing ? (
           <div className="d-grid2">
             {costFields.map(({ key, label }) => (
@@ -1952,111 +2457,87 @@ function ModelDetail({
         <div className="d-row">
           <div className="d-set-sec-t">{t("models.costTiers")}</div>
           {costTiers.length > 0 && <DBadge tone="count">{costTiers.length}</DBadge>}
-          <span className="d-grow" aria-hidden="true" />
-          <DButton size="small" onClick={toggleCostEditing} aria-expanded={costEditing}>
-            {costEditing ? t("models.finishEditingCosts") : t("models.editCosts")}
-          </DButton>
         </div>
         <div className="d-t-xs d-t-faint">{t("models.costTiersHint")}</div>
         <CostTiersEditor tiers={costTiers} onChange={setCostTiers} />
       </div>
 
       <div className="d-set-sec">
-        <div className="d-row">
-          <div className="d-set-sec-t">{t("models.advancedTitle")}</div>
-          <span className="d-grow" aria-hidden="true" />
-          <DButton
-            size="small"
-            onClick={() => setAdvancedOpen((open) => !open)}
-            aria-expanded={advancedOpen}
-            aria-controls="model-advanced-settings"
-          >
-            {advancedOpen ? t("i18n.collapse") : t("i18n.expand")}
-          </DButton>
-        </div>
-        <div className="d-t-xs d-t-faint">{advancedSummary}</div>
-
-        {advancedOpen && (
-          <div id="model-advanced-settings" className="d-col">
-            <div className="d-field">
-              <span className="d-field-t">{t("models.apiOverride")}</span>
-              <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} ariaLabel={t("models.apiOverride")} />
-            </div>
-
-            <div className="d-field">
-              <span className="d-field-t">{t("models.headers")}</span>
-              <div className="d-t-xs d-t-faint">{t("models.headersHelp")}</div>
-              <HeaderListEditor headers={model.headers} onChange={(headers) => set("headers", headers)} />
-            </div>
-
-            <div className="d-set-sec-t">{t("models.compatibility")}</div>
-            <div className="d-set-row">
-              <div className="d-set-row-box">
-                <div className="d-set-row-t">{t("models.deepSeekThinkingCompat")}</div>
-              </div>
-              <span className="d-grow-last">
-                <DSwitch
-                  checked={hasDeepseekCompat(model)}
-                  label={t("models.deepSeekThinkingCompat")}
-                  onChange={(v) => onChange(setDeepseekCompat(model, v))}
-                />
-              </span>
-            </div>
-            <div className="d-set-row">
-              <div className="d-set-row-box">
-                <div className="d-set-row-t">{t("models.developerRole")}</div>
-              </div>
-              <span className="d-grow-last">
-                <DSwitch
-                  checked={effectiveCompat(provider, model)["supportsDeveloperRole"] !== false}
-                  label={t("models.developerRole")}
-                  onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
-                />
-              </span>
-            </div>
-
-            <CompatFlagsEditor
-              compat={effectiveCompat(provider, model)}
-              api={model.api ?? provider.api}
-              onChange={(key, state) => onChange(setCompatFlag(model, key, state))}
-            />
-
-            <ModelInputLimitsFields
-              inputLimits={model.inputLimits}
-              promptCache={model.promptCache}
-              onInputLimitsChange={(next) => set("inputLimits", next)}
-              onPromptCacheChange={(next) => set("promptCache", next)}
-            />
-
-            {model.reasoning && (
-              <>
-                <div className="d-row">
-                  <div className="d-set-sec-t">{t("models.thinkingLevelMap")}</div>
-                  <span className="d-grow" aria-hidden="true" />
-                  {model.thinkingLevelMap && (
-                    <DButton size="small" variant="ghost" onClick={() => set("thinkingLevelMap", undefined)}>
-                      {t("models.clearAll")}
-                    </DButton>
-                  )}
-                </div>
-                <ThinkingLevelMapEditor
-                  value={model.thinkingLevelMap}
-                  onChange={(v) => set("thinkingLevelMap", v)}
-                  describeLevel={describeThinkingLevel}
-                />
-                <div className="d-t-xs d-t-faint">{t("models.thinkingLevelMapHint")}</div>
-                {rememberedThinking && (
-                  <div className="models-thinking-memory d-row">
-                    <span>{t("models.lastUsedThinking")}: <strong>{rememberedThinking}</strong></span>
-                    <DButton size="small" variant="ghost" onClick={() => { void forgetRememberedThinking(); }}>
-                      {t("models.forgetThinking")}
-                    </DButton>
-                  </div>
-                )}
-              </>
-            )}
+        <div className="d-set-sec-t">{t("models.reasoning")}</div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("models.reasoningCapability")}</div>
+            <div className="d-set-row-s">{t("models.reasoningCapabilityHint")}</div>
           </div>
+          <span className="d-grow-last">
+            <DSwitch
+              checked={model.reasoning ?? false}
+              label={t("models.reasoning")}
+              onChange={(v) => set("reasoning", v || undefined)}
+            />
+          </span>
+        </div>
+        {model.reasoning && (
+          <>
+            <div className="d-row">
+              <div className="d-set-sec-t">{t("models.thinkingLevelMap")}</div>
+              <span className="d-grow" aria-hidden="true" />
+              {model.thinkingLevelMap && (
+                <DButton size="small" variant="ghost" onClick={() => set("thinkingLevelMap", undefined)}>
+                  {t("models.clearAll")}
+                </DButton>
+              )}
+            </div>
+            <ThinkingLevelMapEditor
+              value={model.thinkingLevelMap}
+              onChange={(v) => set("thinkingLevelMap", v)}
+              describeLevel={describeThinkingLevel}
+            />
+            <div className="d-t-xs d-t-faint">{t("models.thinkingLevelMapHint")}</div>
+            {rememberedThinking && (
+              <div className="models-thinking-memory d-row">
+                <span>{t("models.lastUsedThinking")}: <strong>{rememberedThinking}</strong></span>
+                <DButton size="small" variant="ghost" onClick={() => { void forgetRememberedThinking(); }}>
+                  {t("models.forgetThinking")}
+                </DButton>
+              </div>
+            )}
+          </>
         )}
+      </div>
+
+      <div className="d-set-sec">
+        <div className="d-set-sec-t">{t("models.compatibility")}</div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("models.deepSeekThinkingCompat")}</div>
+          </div>
+          <span className="d-grow-last">
+            <DSwitch
+              checked={hasDeepseekCompat(model)}
+              label={t("models.deepSeekThinkingCompat")}
+              onChange={(v) => onChange(setDeepseekCompat(model, v))}
+            />
+          </span>
+        </div>
+        <div className="d-set-row">
+          <div className="d-set-row-box">
+            <div className="d-set-row-t">{t("models.developerRole")}</div>
+          </div>
+          <span className="d-grow-last">
+            <DSwitch
+              checked={effectiveCompat(provider, model)["supportsDeveloperRole"] !== false}
+              label={t("models.developerRole")}
+              onChange={(v) => onChange(setCompatBool(model, "supportsDeveloperRole", v))}
+            />
+          </span>
+        </div>
+
+        <CompatFlagsEditor
+          compat={effectiveCompat(provider, model)}
+          api={model.api ?? provider.api}
+          onChange={(key, state) => onChange(setCompatFlag(model, key, state))}
+        />
       </div>
 
       <div className="d-set-sec">
@@ -2096,14 +2577,108 @@ function ModelDetail({
           <div className="d-banner err">{testState.message}</div>
         )}
       </div>
+
+      {advancedOpen && (
+        <ModelAdvancedModal
+          providerName={providerName}
+          model={model}
+          onChange={onChange}
+          onClose={() => setAdvancedOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** D-09 · 模型高级（二级弹窗）：Header 逐行表 / 采样参数 / API 覆盖 / 多模态上限。
+ *  粒度是单个模型；改的是同一条草稿，弹窗关掉不落盘 —— 落盘仍然是页头的「保存」。 */
+function ModelAdvancedModal({
+  providerName,
+  model,
+  onChange,
+  onClose,
+}: {
+  providerName: string;
+  model: ModelEntry;
+  onChange: (m: ModelEntry) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+  const set = <K extends keyof ModelEntry>(k: K, v: ModelEntry[K]) => onChange({ ...model, [k]: v });
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={t("models.modelAdvanced")}
+      style={{ position: "fixed", inset: 0, zIndex: 1200, background: "var(--scrim)", display: "grid", placeItems: "center" }}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }}
+    >
+      {/* 板面 D-09 的骨架：d-modal-box wide（width 72%，板面内联值）> head / body / foot。
+          盒子里的内容列是 d-set-inner（板面同款），不再克隆一整条设置左导航 ——
+          那条导航属于宿主设置弹窗，这里再来一条就成了两个导航。 */}
+      <div className="d-modal-box wide" style={{ width: "72%", maxHeight: "86vh" }}>
+        <div className="d-modal-head">{t("models.modelAdvanced")} · {providerName} / {model.id || t("i18n.newModel")}</div>
+        <div className="d-modal-body">
+          <div className="d-set-inner">
+            <div className="d-set-sec">
+              <div className="d-set-sec-t">{t("models.advancedHeaders")}</div>
+              <div className="d-t-xs d-t-faint">{t("models.advancedHeadersHint")}</div>
+              <HeaderListEditor headers={model.headers} onChange={(headers) => set("headers", headers)} />
+              <div className="d-banner">
+                <i data-ico="info" data-size="14" aria-hidden="true" />
+                <span>{t("models.headersEmptyNote")}</span>
+              </div>
+            </div>
+
+            <div className="d-set-sec">
+              <div className="d-set-sec-t">{t("models.advancedSampling")}</div>
+              <div className="d-t-xs d-t-faint">{t("models.samplingParamsHint")}</div>
+              <SamplingParamsEditor value={model.samplingParams} onChange={(next) => set("samplingParams", next)} />
+            </div>
+
+            <div className="d-set-sec">
+              <div className="d-set-sec-t">{t("models.advancedApi")}</div>
+              <div className="d-field">
+                <span className="d-field-t">{t("models.apiOverride")}</span>
+                <Select value={model.api ?? ""} onChange={(v) => set("api", v || undefined)} options={API_OPTIONS} ariaLabel={t("models.apiOverride")} />
+                <div className="d-t-xs d-t-faint">{t("models.apiOverrideHint")}</div>
+              </div>
+            </div>
+
+            <div className="d-set-sec">
+              <div className="d-set-sec-t">{t("models.advancedLimits")}</div>
+              <ModelInputLimitsFields
+                inputLimits={model.inputLimits}
+                promptCache={model.promptCache}
+                onInputLimitsChange={(next) => set("inputLimits", next)}
+                onPromptCacheChange={(next) => set("promptCache", next)}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="d-modal-foot">
+          <span className="d-t-xs d-t-faint d-grow" style={{ marginRight: "auto" }}>{t("models.advancedFootNote")}</span>
+          <DButton variant="primary" onClick={onClose}>
+            <i data-ico="check" data-size="14" aria-hidden="true" />
+            {t("models.modalDone")}
+          </DButton>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ── OAuth detail ──────────────────────────────────────────────────────────────
 
-function OAuthDetail({ provider, onRefresh, enabledModels }: {
-  provider: OAuthProvider; onRefresh: () => void; enabledModels: EnabledModelsController;
+function OAuthDetail({ provider, onRefresh, enabledModels, onBack }: {
+  provider: OAuthProvider; onRefresh: () => void; enabledModels: EnabledModelsController; onBack: () => void;
 }) {
   const [loginState, setLoginState] = useState<OAuthLoginState>({ phase: "idle" });
   const { t } = useI18n();
@@ -2234,6 +2809,7 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
     <div className="d-set-inner">
       <div className="d-set-sec">
         <div className="d-row">
+          <BackRowButton label={t("models.backToList")} onClick={onBack} />
           <ProviderIcon id={provider.id} size={22} />
           <div className="d-set-sec-t">{provider.name}</div>
           <DBadge tone={provider.loggedIn ? "ok" : "mute"}>
@@ -2372,8 +2948,8 @@ function OAuthDetail({ provider, onRefresh, enabledModels }: {
 
 // ── API Key detail ────────────────────────────────────────────────────────────
 
-function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
-  provider: ApiKeyProvider; onRefresh: () => void; enabledModels: EnabledModelsController;
+function ApiKeyDetail({ provider, onRefresh, enabledModels, onBack }: {
+  provider: ApiKeyProvider; onRefresh: () => void; enabledModels: EnabledModelsController; onBack: () => void;
 }) {
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -2437,6 +3013,8 @@ function ApiKeyDetail({ provider, onRefresh, enabledModels }: {
     <div className="d-set-inner">
       <div className="d-set-sec">
         <div className="d-row">
+          <BackRowButton label={t("models.backToList")} onClick={onBack} />
+          <ProviderIcon id={provider.id} size={22} />
           <div className="d-set-sec-t">API Key</div>
           <DBadge tone={provider.configured ? "ok" : "mute"}>
             {provider.configured ? t("i18n.configured") : t("i18n.notConfigured")}
@@ -2653,6 +3231,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([]);
   const [apiKeyProviders, setApiKeyProviders] = useState<ApiKeyProvider[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /* fork:models-picker —— 聊天模型选择器。模式不看白名单存不存在，只看“现在是不是
+     全开”：全开时“追加”是空操作，那次唯一能收窄的就是“就选这些”。 */
+  const [chatPickerOpen, setChatPickerOpen] = useState(false);
   /** Provider ids as models.json has them on disk, and where renames moved them. */
   const savedProvidersRef = useRef<Set<string>>(new Set());
   const renamesRef = useRef<Map<string, string>>(new Map());
@@ -2693,12 +3274,11 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         setConfig(normalized);
         savedProvidersRef.current = new Set(Object.keys(normalized.providers ?? {}));
         savedModelIdsRef.current = savedModelIds(normalized);
-        const keys = Object.keys(normalized.providers ?? {});
+        /* D-08：落地态是列表级（供应商表 + 分节），不再自动跳进第一个供应商；
+           记住的钻入位置仍然恢复（同一面板的会话连续性）。 */
         setSelection((current) => current && customSelectionExists(normalized, current)
           ? current
-          : keys[0]
-            ? { type: "provider", name: keys[0] }
-            : null);
+          : null);
       })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
@@ -2871,11 +3451,13 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     }
   }, [applyProviderRename, config, enabledModels, loadError, providerNameDraft, t]);
 
-  // `12/40` next to a provider makes a narrowed selector visible at a glance.
-  const scopeBadge = (providerId: string) => {
-    const label = providerBadgeLabel(enabledModels.view, providerId);
-    return label ? <span className="models-sidebar-badge">{label}</span> : null;
-  };
+  /* fork:model-roles（D-08 帧 A「上次同步」列）—— 从上游导入成功一次记一笔，
+     挂在面板会话里（models.json 本身没有这个字段，不假装它是落盘的事实）。 */
+  const [lastSyncMap, setLastSyncMap] = useState<Record<string, { at: number; count: number }>>({});
+  const handleProviderSynced = useCallback((providerName: string, count: number) => {
+    setLastSyncMap((prev) => ({ ...prev, [providerName]: { at: Date.now(), count } }));
+  }, []);
+
   const activeOAuth = oauthProviders.filter((p) => p.loggedIn);
   const activeApiKey = apiKeyProviders.filter((p) => p.configured);
   // models.json entries for a managed (OAuth / API-key) provider are an overlay
@@ -2889,32 +3471,62 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   const providers = Object.entries(config.providers ?? {})
     .filter(([providerId]) => !managedProviderIds.has(providerId));
 
-  /* fork:models-board —— 左列表按画板 41 分「订阅 / 自定义」两组，并支持按名字过滤。
+  /* fork:models-board —— 搜索框照旧只过滤本页数据（D-08 的供应商表行）。
      过滤是纯本地的：切分组不应该重新拉 `/api/models-config`。 */
   const [providerFilter, setProviderFilter] = useState("");
   const needle = providerFilter.trim().toLocaleLowerCase();
   const nameMatches = (...candidates: (string | undefined)[]) =>
     !needle || candidates.some((value) => value?.toLocaleLowerCase().includes(needle));
-  const managedProviders = [...activeOAuth.map((p) => ({ id: p.id, name: p.name })), ...activeApiKey];
   const visibleOAuth = activeOAuth.filter((p) => nameMatches(p.name, p.id));
   const visibleApiKey = activeApiKey.filter((p) => nameMatches(p.displayName, p.id));
   const visibleProviders = providers.filter(([providerId, entry]) => nameMatches(providerId, entry.baseUrl));
-  /* fork:settings-frame（画板 62 帧 D）—— 列表列要区分「加载中 / 空 / 有行」三态，
-     空态（过滤无结果或一个供应商都没有）不再静默留白。 */
-  const hasVisibleRows = visibleOAuth.length + visibleApiKey.length + visibleProviders.length > 0;
+
+  /** D-08 帧 A 供应商表的行：订阅 / API Key / 自定义三类同构，认证状态如实显示。 */
+  const providerRows: ProviderRowData[] = [
+    ...visibleOAuth.map((p) => ({
+      key: `oauth:${p.id}`, kind: "oauth" as const, id: p.id, name: p.name,
+      auth: { tone: "ok" as const, label: t("models.badgeLoggedIn") },
+      endpoint: null,
+      modelCount: findProviderView(enabledModels.view, p.id)?.models.length ?? 0,
+    })),
+    ...visibleApiKey.map((p) => ({
+      key: `apikey:${p.id}`, kind: "apikey" as const, id: p.id, name: p.displayName,
+      auth: p.configured
+        ? { tone: "ok" as const, label: t("models.authConfigured") }
+        : { tone: "bad" as const, label: t("models.badgeNotLoggedIn") },
+      endpoint: null,
+      modelCount: findProviderView(enabledModels.view, p.id)?.models.length ?? p.modelCount,
+    })),
+    ...visibleProviders.map(([pName, pData]) => {
+      const hasKey = Boolean(pData.apiKey?.trim());
+      const local = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])/.test(pData.baseUrl ?? "");
+      const auth = hasKey
+        ? { tone: "ok" as const, label: t("models.authConfigured") }
+        : local
+          ? { tone: "info" as const, label: t("models.authNotNeeded") }
+          : { tone: "bad" as const, label: t("models.badgeNotLoggedIn") };
+      return {
+        key: `provider:${pName}`, kind: "provider" as const, id: pName, name: pName,
+        auth,
+        endpoint: pData.baseUrl ?? null,
+        modelCount: pData.models?.length ?? 0,
+      };
+    }),
+  ];
 
   // Resolve current detail
+  const atListLevel = selection === null;
   const detailContent = (() => {
     if (!selection) return null;
     if (selection.type === "oauth") {
       const p = oauthProviders.find((p) => p.id === selection.providerId);
       if (!p) return null;
-      return <OAuthDetail key={p.id} provider={p} onRefresh={refreshAuthProviders} enabledModels={enabledModels} />;
+      return <OAuthDetail key={p.id} provider={p} onRefresh={refreshAuthProviders} enabledModels={enabledModels} onBack={() => setSelection(null)} />;
     }
     if (selection.type === "apikey") {
       const p = apiKeyProviders.find((p) => p.id === selection.providerId);
       if (!p) return null;
-      return <ApiKeyDetail key={p.id} provider={p} onRefresh={refreshAuthProviders} enabledModels={enabledModels} />;
+      return <ApiKeyDetail key={p.id} provider={p} onRefresh={refreshAuthProviders} enabledModels={enabledModels} onBack={() => setSelection(null)} />;
     }
     if (selection.type === "provider") {
       const provider = config.providers?.[selection.name];
@@ -2934,6 +3546,8 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           onOpenModel={(index) => setSelection({ type: "model", providerName: selection.name, index })}
           onAddModel={() => addModel(selection.name)}
           onPrune={enabledModels.pruneStale}
+          onBack={() => setSelection(null)}
+          onSynced={(count) => handleProviderSynced(selection.name, count)}
         />
       );
     }
@@ -2948,6 +3562,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         model={model}
         onChange={(m) => updateModel(selection.providerName, selection.index, m)}
         onDelete={() => removeModel(selection.providerName, selection.index)}
+        onBack={() => setSelection({ type: "provider", name: selection.providerName })}
       />
     );
   })();
@@ -2955,22 +3570,20 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   return (
     <>
     <ConfigPanelShell embedded={embedded} title={t("common.models")} subtitle="~/.pi/agent/models.json" closeLabel={t("i18n.close")} onClose={onClose}>
-      {/* fork:settings-frame（画板 62）—— 模型页的三件套。
-          「保存」的位置按**画板 41 的 DOM**（模型页专属画板）裁定：那一帧的
-          `.pw-shead-acts` 里就是「添加供应商 outline + 保存 primary」两个页级动作。
-          62 落位表虽写「表单级→连接块底部」，但本页的保存对象是**整份 models.json**
-          （列表列、详情卡、连接表单都在改），不是连接表单自己的表单级动作 ——
-          41 的明确形态优先，且页头动作始终可见，不会像旧版那样浮在视口右下角、
-          与它保存的表单完全脱开（未选中供应商时右列整片空白，按钮还孤零零挂着）。 */}
+      {/* fork:v5-landing · D-08 —— 模型页不再主从两栏。页头仍是「添加供应商 + 保存」
+          （保存对象是整份 models.json，页级动作常驻可见）；工具栏只在列表级有搜索
+          与「选择聊天模型」（fork:models-picker）。
+          内容是一列 `.d-set-sec`：列表级 = 供应商表 / 用量 / 收藏 / 默认模型分工 /
+          在模型选择器里显示；点行钻入供应商或
+          模型详情（帧 B 的「整页高度」形态），返回钮在详情列首行。 */}
       <SettingsPage
         title={t("common.models")}
         sub={t("models.pageSub")}
         actions={
           /* fork:pwa-models-skills —— `fork-pwa-ms-page` 是**本页的手机档作用域钩子**：
-             app/pwa-models-skills.css 的每条窄屏规则都从「页头动作区里有这个类」出发
-             （`.pw-shead:has(.fork-pwa-ms-page) ~ …`），因为 `.pw-shead` / `.pw-stools` /
-             `.pw-scontent` / `.pw-cols` 全是 SettingsUi 的**共享基件**——不挂钩子就没法
-             只改模型页而不波及插件 / 子代理分节。全仓只有本页与 SkillsConfig 发这个类。
+             app/pwa-models-skills.css 的每条窄屏规则都从「页头动作区里有这个类」出发，
+             因为页头 / 工具栏是 SettingsUi 的**共享基件**——不挂钩子就没法只改模型页
+             而不波及插件 / 子代理分节。全仓只有本页与 SkillsConfig 发这个类。
              `fork-pwa-ms-models` 是同页专属的细分钩子（技能页是 fork-pwa-ms-skills）。 */
           <>
             <DButton
@@ -3002,13 +3615,29 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         }
         toolbar={
           <>
-            <PwSearch
-              value={providerFilter}
-              placeholder={t("models.searchProviders")}
-              ariaLabel={t("models.searchProviders")}
-              onChange={setProviderFilter}
-            />
-          <span className="d-grow" aria-hidden="true" />
+            {atListLevel && (
+              <PwSearch
+                value={providerFilter}
+                placeholder={t("models.searchProviders")}
+                ariaLabel={t("models.searchProviders")}
+                onChange={setProviderFilter}
+              />
+            )}
+            {/* fork:models-picker —— 跨供应商挑模型。页头两个动作按画板 41 固定为
+                「添加供应商 + 保存」，所以这枚挂在工具栏（列表级才有意义）。 */}
+            {atListLevel && (
+              <DButton
+                size="small"
+                variant="ghost"
+                disabled={!enabledModels.view?.editable}
+                title={enabledModels.view?.editable ? undefined : t("models.enabledProjectScope")}
+                onClick={() => setChatPickerOpen(true)}
+              >
+                <i data-ico="list-checks" data-size="13" aria-hidden="true" />
+                {t("models.pickChatModels")}
+              </DButton>
+            )}
+            <span className="d-grow" aria-hidden="true" />
             {loadError || saveError || saveWarnings.length > 0 ? (
               <span style={{ color: loadError || saveError ? "var(--error)" : "var(--warning)" }}>
                 {loadError
@@ -3016,212 +3645,39 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                   : saveError ?? t("models.builtinOverrideWarning", { models: saveWarnings.join(", ") })}
               </span>
             ) : null}
-            <DBadge tone="count">{t("models.providerCount", { count: String(visibleOAuth.length + visibleApiKey.length + visibleProviders.length) })}</DBadge>
+            {atListLevel && (
+              <DBadge tone="count">{t("models.providerCount", { count: String(providerRows.length) })}</DBadge>
+            )}
           </>
         }
-        fill
       >
-        <EnabledModelsBanner controller={enabledModels} />
-
-        {/* Body */}
-        <ConfigSplitView>
-
-          {/* Left: provider list（画板 62：搜索与「添加供应商」都提到页头/工具栏，
-              列表列只留列表本身） */}
-          <ConfigSidebar>
-            <ConfigSidebarList>
-              {loading ? (
-                <p className="d-t-xs d-t-faint">{t("i18n.loading")}</p>
-              ) : loadError ? (
-                /* 读不出 models.json ≠ 库是空的：空态那句「还没有供应商」会把用户
-                   引去「添加供应商」，而保存已被禁用（见页头）。只报现状。 */
-                <p className="d-t-xs d-t-faint">{t("models.listUnreadable")}</p>
-              ) : !hasVisibleRows ? (
-                /* fork:settings-frame（画板 62 帧 D）—— 「列表空」落在**列表列内**：
-                   方框图标 + 一句，不折行；过滤无结果与「一个供应商都没有」都不再
-                   静默留白。「先加供应商」的入口常驻页头右端（画板 41 的页级动作），
-                   空态本体只负责点名现状：有过滤词是选择器同款「没有匹配的
-                   Provider」；空库用 models.listEmpty + listEmptyHint 第二句。 */
-                <div className="d-empty compact">
-                  <span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
-                  <p className="d-empty-t">{needle ? t("i18n.noProviders") : t("models.listEmpty")}</p>
-                  {!needle && <p className="d-empty-s">{t("models.listEmptyHint")}</p>}
-                </div>
-              ) : (
-                <>
-              {managedProviders.length > 0 && (
-                <ConfigSidebarGroupLabel>{t("models.groupSubscription")}</ConfigSidebarGroupLabel>
-              )}
-              {/* Active OAuth subscriptions */}
-              {visibleOAuth.map((p) => {
-                const isSelected = selection?.type === "oauth" && selection.providerId === p.id;
-                return (
-                  <ConfigSidebarItem
-                    key={p.id}
-                    active={isSelected}
-                    onClick={() => setSelection({ type: "oauth", providerId: p.id })}
-                  >
-                    <ProviderIcon id={p.id} size={16} />
-                    <span className="grow">
-                      <ConfigSidebarText>{p.name}</ConfigSidebarText>
-                      <ConfigSidebarSub>{t("models.modelsCount", {
-                        count: findProviderView(enabledModels.view, p.id)?.models.length ?? 0,
-                        enabled: findProviderView(enabledModels.view, p.id)?.enabledCount ?? 0,
-                      })}</ConfigSidebarSub>
-                    </span>
-                    <DBadge tone="ok">{t("models.badgeLoggedIn")}</DBadge>
-                  </ConfigSidebarItem>
-                );
-              })}
-
-              {/* Active API key providers */}
-              {visibleApiKey.map((p) => {
-                const isSelected = selection?.type === "apikey" && selection.providerId === p.id;
-                return (
-                  <ConfigSidebarItem
-                    key={p.id}
-                    active={isSelected}
-                    onClick={() => setSelection({ type: "apikey", providerId: p.id })}
-                  >
-                    <ProviderIcon id={p.id} size={16} />
-                    <span className="grow">
-                      <ConfigSidebarText>{p.displayName}</ConfigSidebarText>
-                      <ConfigSidebarSub>{t("models.modelsCount", {
-                        count: findProviderView(enabledModels.view, p.id)?.models.length ?? 0,
-                        enabled: findProviderView(enabledModels.view, p.id)?.enabledCount ?? 0,
-                      })}</ConfigSidebarSub>
-                    </span>
-                    <DBadge tone="ok">{t("models.badgeLoggedIn")}</DBadge>
-                  </ConfigSidebarItem>
-                );
-              })}
-
-              {/* Custom providers */}
-              {visibleProviders.length > 0 && (
-                <ConfigSidebarGroupLabel>{t("models.groupCustom")}</ConfigSidebarGroupLabel>
-              )}
-              {visibleProviders.map(([pName, pData]) => {
-                const isProviderSelected = selection?.type === "provider" && selection.name === pName;
-                const models = pData.models ?? [];
-                /* Fragment 让 provider 行 / 模型行 / 添加行都是 `.pw-list` 的直接
-                   网格项，行距由 pw-list 统一给，不再包一层补 margin 的 div。 */
-                return (
-                  <Fragment key={pName}>
-                    {/* Provider row */}
-                    <ConfigSidebarItem
-                      onClick={() => setSelection({ type: "provider", name: pName })}
-                      active={isProviderSelected}
-                    >
-                      <ProviderIcon id={pName} size={16} />
-                      <span className="grow">
-                        <ConfigSidebarText>{pName}</ConfigSidebarText>
-                        <ConfigSidebarSub>
-                          {pData.baseUrl || t("models.modelsCount", { count: models.length, enabled: 0 })}
-                        </ConfigSidebarSub>
-                      </span>
-                      {scopeBadge(pName)}
-                    </ConfigSidebarItem>
-
-                    {/* Model rows */}
-                    {models.map((m, i) => {
-                      const isModelSelected = selection?.type === "model" && selection.providerName === pName && selection.index === i;
-                      // fork:pr17-favorites — 与输入框选择器共用 store；空 id 的新模型不参与收藏。
-                      const favoriteKey = m.id ? favoriteModelKey(pName, m.id) : null;
-                      const isFavorite = favoriteKey !== null && favoriteModels.has(favoriteKey);
-                      return (
-                        <ConfigSidebarItem
-                          key={i}
-                          active={isModelSelected}
-                          className="models-sidebar-indented-item"
-                          onClick={() => setSelection({ type: "model", providerName: pName, index: i })}
-                        >
-                          {/* fork:models-board —— 名字包 `.grow`，思考档徽章与收藏星
-                              因此贴到行右缘（board.css:858 `.pw-litem .grow{flex:1}`）。
-                              依据：画板 41:74 的供应商行是
-                              `<span class="grow">…</span>` + 行尾星标，画板 02:41/68-71
-                              的 `.pw-row` 同样是「图标 + 名称 + grow + 右侧动作」。
-                              少了这层 `.grow`，星标会紧贴模型 id 顶在左边、右侧空一大片 ——
-                              与上面那一行供应商、以及右列「可用模型」卡都不齐。 */}
-                          <span className="grow">
-                            <ConfigSidebarText className={m.id ? undefined : "d-t-faint"}>
-                               {m.id || t("i18n.newModel")}
-                            </ConfigSidebarText>
-                          </span>
-                          {m.reasoning && (
-                            <DBadge tone="info">T</DBadge>
-                          )}
-                          {/* fork:fix-nested-button — 收藏星**不能**是真 `<button>`：行本体
-                              `ConfigSidebarItem` 渲染的就是 `<button class="d-trow">`（窄屏是 `m-trow`，
-                              见 components/SettingsUi.tsx），而 HTML 解析器
-                              遇到嵌套 `<button>` 会把里层的**提前闭合并提到外面** ——
-                              SSR 出来的树和客户端渲染的树对不上，于是控制台常驻
-                              `In HTML, <button> cannot be a descendant of <button>`、
-                              开发态右下角常驻 1 Issue、整棵子树客户端重绘。
-                              改用本仓既有写法（components/ModelSelector.tsx 的行内星标、
-                              components/ProcessGroup.tsx 的 file chip，补丁 0019）：
-                              `span[role=button] tabIndex=0` + Enter/Space 键盘处理。
-                              `<span>` 不会被解析器搬走 → 服务端/客户端树一致，无 hydration 报错；
-                              `[role=button]` 命中 app/globals.css 的全局 focus-visible 描边。 */}
-                          <span
-                            role="button"
-                            className="d-iconbtn"
-                            tabIndex={favoriteKey ? 0 : -1}
-                            aria-disabled={!favoriteKey}
-                            aria-pressed={isFavorite}
-                            aria-label={isFavorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
-                            title={isFavorite ? t("models.unfavoriteModel") : t("models.favoriteModel")}
-                            onClick={(event) => {
-                              // stopPropagation：不能让星星的点击带发行选中。
-                              event.stopPropagation();
-                              if (favoriteKey) toggleFavoriteModelKey(favoriteKey);
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key !== "Enter" && event.key !== " ") return;
-                              // Space 否则会滚动侧栏，Enter 无所谓，都要拦下。
-                              event.preventDefault();
-                              event.stopPropagation();
-                              if (favoriteKey) toggleFavoriteModelKey(favoriteKey);
-                            }}
-                          >
-                            <i
-                              data-ico="star"
-                              data-size="13"
-                              aria-hidden="true"
-                              style={{ color: isFavorite ? "var(--nx-accent)" : "var(--nx-text-3)", opacity: favoriteKey ? 1 : 0.35 }}
-                            ></i>
-                          </span>
-                        </ConfigSidebarItem>
-                      );
-                    })}
-
-                    {/* Add model button */}
-                    <ConfigSidebarItem
-                      className="models-sidebar-indented-item models-sidebar-add-item"
-                      onClick={(e) => { e.stopPropagation(); addModel(pName); }}
-                    >
-                       <ConfigSidebarText>+ {t("i18n.model")}</ConfigSidebarText>
-                    </ConfigSidebarItem>
-                  </Fragment>
-                );
-              })}
-                </>
-              )}
-            </ConfigSidebarList>
-
-          </ConfigSidebar>
-
-          {/* Right: v5 D-08 的内容列是 `.d-set-inner`（一列 `.d-set-sec` 分节），
-              不再套一张撑满高度的巨卡 —— 那是「弹窗影子」的来源。 */}
+        {loading ? (
+          <p className="d-t-xs d-t-faint">{t("i18n.loading")}</p>
+        ) : loadError ? (
+          /* 读不出 models.json ≠ 库是空的：空态那句「还没有供应商」会把用户
+             引去「添加供应商」，而保存已被禁用（见页头）。只报现状。 */
+          <div className="d-banner err">{t("models.listUnreadable")}</div>
+        ) : detailContent ?? (
+          /* 列表级（D-08 帧 A/C/D + D-10）：一列分节。 */
           <div className="d-set-inner">
-            {loading ? null : detailContent ?? (
-              /* fork:settings-frame（画板 62 帧 D）—— 「详情未选」：方框图标 + 一句引导。 */
+            {providerRows.length === 0 && (
               <div className="d-empty compact">
-                <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                <p className="d-empty-t">{t("models.detailEmpty")}</p>
+                <span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
+                <p className="d-empty-t">{needle ? t("i18n.noProviders") : t("models.listEmpty")}</p>
+                {!needle && <p className="d-empty-s">{t("models.listEmptyHint")}</p>}
               </div>
             )}
+            <ProviderTableSection rows={providerRows} lastSyncMap={lastSyncMap} badgeLabel={(id) => providerBadgeLabel(enabledModels.view, id)} onOpen={(row) => {
+              if (row.kind === "oauth") setSelection({ type: "oauth", providerId: row.id });
+              else if (row.kind === "apikey") setSelection({ type: "apikey", providerId: row.id });
+              else setSelection({ type: "provider", name: row.id });
+            }} />
+            <UsageOverviewSection providerIds={providerRows.map((row) => row.id)} />
+            <FavoritesSection favorites={favoriteModels} enabledModels={enabledModels} />
+            <ModelRolesSection cwd={cwd} />
+            <SelectorVisibilitySection enabledModels={enabledModels} />
           </div>
-        </ConfigSplitView>
+        )}
       </SettingsPage>
     </ConfigPanelShell>
     {pickerOpen && (
@@ -3232,6 +3688,27 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         onSelectApiKey={(id) => setSelection({ type: "apikey", providerId: id })}
         onAddCustom={addCustomProvider}
         onClose={() => setPickerOpen(false)}
+      />
+    )}
+    {chatPickerOpen && enabledModels.view && (
+      <ChatModelsPicker
+        providers={enabledModels.view.providers}
+        /* replace 模式下不锁任何行：这一次是重选名单，“已经在聊天里”没有意义。 */
+        listedRefs={enabledModels.view.allEnabled
+          ? new Set<string>()
+          : new Set(enabledModels.view.providers.flatMap((provider) =>
+              provider.models.filter((model) => model.enabled).map((model) => model.ref)))}
+        mode={enabledModels.view.allEnabled ? "replace" : "add"}
+        saving={enabledModels.pending !== null}
+        error={enabledModels.failure
+          ? (enabledModels.failure.messageKey ? t(enabledModels.failure.messageKey) : enabledModels.failure.message ?? null)
+          : null}
+        onClose={() => setChatPickerOpen(false)}
+        onApply={(refs) => {
+          setChatPickerOpen(false);
+          if (enabledModels.view?.allEnabled) enabledModels.replaceModels(refs);
+          else enabledModels.setModels("chat-picker", refs, true);
+        }}
       />
     )}
     </>

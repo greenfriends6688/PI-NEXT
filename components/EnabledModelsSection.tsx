@@ -70,8 +70,14 @@ export interface EnabledModelsController {
   failure: Failure | null;
   setModels: (key: string, refs: string[], enabled: boolean) => void;
   setProvider: (providerId: string, enabled: boolean) => void;
+  /** Picker 的「就选这些」：整个名单一次写死（首次配置时唯一能收窄的手段）。 */
+  replaceModels: (refs: string[]) => void;
   clearScope: () => void;
   pruneStale: () => void;
+  /** D-10：白名单里原样追加一条 pattern（去重由服务端负责）。 */
+  addPattern: (pattern: string) => void;
+  /** D-10：精确删除一条 pattern（其余条目一律不动）。 */
+  removePattern: (pattern: string) => void;
   /** Re-read after models.json changed under the panel. */
   refresh: () => void;
   /** Re-verify the stored patterns after models.json was saved. */
@@ -83,9 +89,12 @@ export interface EnabledModelsController {
 
 type MutationBody =
   | { op: "models"; refs: string[]; enabled: boolean }
+  | { op: "replace"; refs: string[] }
   | { op: "provider"; provider: string; enabled: boolean }
   | { op: "clear" }
   | { op: "prune" }
+  | { op: "addPattern"; pattern: string }
+  | { op: "removePattern"; pattern: string }
   | {
       op: "resync";
       renames: { from: string; to: string }[];
@@ -176,8 +185,20 @@ export function useEnabledModels(cwd?: string | null): EnabledModelsController {
     mutate(`provider:${providerId}`, { op: "provider", provider: providerId, enabled });
   }, [mutate]);
 
+  const replaceModels = useCallback((refs: string[]) => {
+    mutate("replace", { op: "replace", refs });
+  }, [mutate]);
+
   const clearScope = useCallback(() => mutate("clear", { op: "clear" }), [mutate]);
   const pruneStale = useCallback(() => mutate("prune", { op: "prune" }), [mutate]);
+  // D-10 的两条 pattern 级最小编辑：服务端只做精确的追加 / 删除，不重排、不合并。
+  const addPattern = useCallback((pattern: string) => {
+    const trimmed = pattern.trim();
+    if (trimmed) mutate(`addPattern:${trimmed}`, { op: "addPattern", pattern: trimmed });
+  }, [mutate]);
+  const removePattern = useCallback((pattern: string) => {
+    mutate(`removePattern:${pattern}`, { op: "removePattern", pattern });
+  }, [mutate]);
   const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
   // Resync writes and returns the fresh view, so it doubles as the reload
   // models.json needs after a save. The providers that are fully enabled right
@@ -199,8 +220,11 @@ export function useEnabledModels(cwd?: string | null): EnabledModelsController {
     failure,
     setModels,
     setProvider,
+    replaceModels,
     clearScope,
     pruneStale,
+    addPattern,
+    removePattern,
     refresh,
     resync,
   };

@@ -3,11 +3,14 @@ import { resolve } from "path";
 import { getAgentDir, SettingsManager, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import {
+  addPatternMinimal,
   clearEnabledModels,
   constrainProviderEntries,
   pruneStaleEnabledModels,
+  removePatternMinimal,
   renameModelPatterns,
   renameProviderPatterns,
+  replaceEnabledModels,
   setModelsEnabled,
   type EnabledModelsEdit,
   type ProviderRename,
@@ -109,6 +112,8 @@ interface EnabledModelsRequest {
   modelRenames?: unknown;
   fullyEnabled?: unknown;
   enabled?: unknown;
+  /** `addPattern` / `removePattern`: the pattern exactly as stored, `:level` suffix included. */
+  pattern?: unknown;
 }
 
 function renamePairs(value: unknown): ProviderRename[] | null {
@@ -186,12 +191,23 @@ export async function PUT(req: Request) {
   }
 
   const op = body.op;
-  if (op !== "models" && op !== "provider" && op !== "clear" && op !== "prune" && op !== "resync") {
+  if (
+    op !== "models" && op !== "provider" && op !== "clear" && op !== "prune"
+    && op !== "resync" && op !== "addPattern" && op !== "removePattern" && op !== "replace"
+  ) {
     return Response.json({ error: "Invalid op" }, { status: 400 });
   }
   if (op === "models" || op === "provider") {
     if (typeof body.enabled !== "boolean") {
       return Response.json({ error: "enabled must be a boolean" }, { status: 400 });
+    }
+  }
+  if (op === "replace" && !stringArray(body.refs)) {
+    return Response.json({ error: "refs must be an array of strings" }, { status: 400 });
+  }
+  if (op === "addPattern" || op === "removePattern") {
+    if (typeof body.pattern !== "string" || !body.pattern.trim()) {
+      return Response.json({ error: "pattern is required" }, { status: 400 });
     }
   }
   if (body.cwd !== undefined && typeof body.cwd !== "string") {
@@ -217,6 +233,16 @@ export async function PUT(req: Request) {
       edit = clearEnabledModels(input);
     } else if (op === "prune") {
       edit = pruneStaleEnabledModels(input);
+    } else if (op === "addPattern" || op === "removePattern") {      // Exact-string minimal edits (D-10): append one verbatim pattern, or drop
+      // the entries exactly equal to it. Neither rewrites the other entries, so
+      // hand-written globs and `:level` pins survive untouched.
+      const pattern = (body.pattern as string).trim();
+      const next = op === "addPattern"
+        ? addPatternMinimal(patterns, pattern)
+        : removePatternMinimal(patterns, pattern);
+      edit = { ok: true, patterns: next, changed: !samePatternList(next, patterns) };
+    } else if (op === "replace") {
+      edit = replaceEnabledModels(input, body.refs as string[]);
     } else if (op === "resync") {
       const renames = renamePairs(body.renames);
       const modelRenames = renamePairs(body.modelRenames ?? []);
