@@ -255,14 +255,9 @@
   }
 
   /* ---- 7. 页内弹层（添加供应商 / 添加技能）→ 全屏 sheet -------------------
-     改前：`width: min(640px, 100vw - 32px)` / `max-height: 视口 - 32px` 的居中框，
-     390px 宽的弹层里，安装结果行（`.pw-prow`：图标 + 名字 + 描述 + repo + 徽章 +
-     安装钮）会挤成一列字。
-     改后：吃掉整片视口，顶部圆角、底部按安全区留白，内容行吃掉除头尾以外的全部高度。
-     这两条要压的是**内联几何**（SkillsConfig 的 `width`/`maxHeight`、
-     ModelsConfig 的内容行 `maxHeight`），内联只能被 `!important` 盖 —— 本文件里
-     唯一用 `!important` 的地方，理由就是「同一份内联值要同时服务 1440 画板形态
-     和手机 sheet 形态，除此之外没有表达方式」。 */
+     模型页的「添加供应商」弹层（2026-10-06 改成 d-*）与技能页共用这一节钩子：
+     同一个 `fork-pwa-ms-sheet` 覆盖层下，模型页的盒子是 `.d-modal-box`，
+     技能页的仍是 `.pw-modal`。两条规则形状相同，不要只改一条。 */
   .fork-pwa-ms-sheet > .pw-modal {
     width: 100% !important;
     height: 100%;
@@ -272,6 +267,21 @@
     border-width: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* v5 形态的同一形状：`display:none` 由 `.is-open` 打开，盒子自己吃掉整片。 */
+  .fork-pwa-ms-sheet > .d-modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100%;
+    max-height: 100% !important;
+    border-width: 0;
+    border-radius: var(--nx-r-lg) var(--nx-r-lg) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .fork-pwa-ms-sheet > .d-modal-box > .d-modal-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
   }
   /* 内容行吃掉剩余高度（与 SkillsConfig 内联的 `flex:1 1 0%` 同一口径）。
      `align-content: start` 是必须的：内容行的 grid 行默认 `align-content:stretch`，

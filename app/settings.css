@@ -128,27 +128,19 @@
    pattern 白名单改走 `.d-set-sec` / `.d-banner`，旧侧栏行（models-sidebar-*）、
    启用模型横幅与区块（enabled-models-*）全部零引用，整族删除（铁律五）。 */
 
-/* 模型设置页的三处小结构：模型行、上游导入清单、测试回显。 */
-/* fork:model-row-inline（2026-10-05）—— 模型行从「整行一个按钮」改成「装着两个
-   button + 一个 switch 的容器」。原来这两条规则是为了让整行可点；现在行本身
-   不再是 button（里面真有两个 button 和一个 role="switch"，`role="button"`
-   会既抢语义又抢冒泡 —— 点开关等于点整行 = 误开编辑器），所以两条都退役。
-   行内控件的几何全在 board.css（.pw-iconbtn / .pw-switch），这里不加新类，
-   只给两个图标钮一个统一的间距与方角。 */
-.models-provider-model-row {
-  cursor: default;
-}
+/* fork:v5-old-layer（2026-10-06）—— 模型页照参考项目 pi-web-main 改成「列表 + 一层
+   钻入」之后，下列规则全部零引用，整族删除（铁律五：挪 DOM 顺手删 stale）：
+     · `.models-provider-model-row` / `.models-provider-model-action` —— 旧的是模型
+       表里的行（整行可点 + 行内两个图标钮），现在模型行是 `.d-setcard` 的复制区 +
+       一枚聊天开关；
+     · `.catalog-status*` / `.catalog-undo` —— 目录回填的状态改用画板的
+       `.d-banner` + `.d-t-xs`；
+     · `.models-test-echo` —— 测试回显走画板的 `.d-term.plain`；
+     · `.models-thinking-memory` —— 「上次使用」那行改用 `.d-row`。
+   `.models-discovery-head` / `.models-discovery-row` 仍活着（上游导入清单与
+   ChatModelsPicker 共用），保留。 */
 
-.models-provider-model-action {
-  flex: none;
-  width: var(--control-xs);
-  height: var(--control-xs);
-  min-width: var(--control-xs);
-}
-
-/* fork:v5-old-layer（2026-10-04）—— 删 `.models-discovery-list`：全仓零引用。
-   ModelsConfig.tsx 的发现列表现在是 `.d-row` 行组（875/894 行），不再有那个独立
-   的内滚盒子；`.models-discovery-head` / `-row` 仍活着（行本身），保留。 */
+/* 清单头（sticky）：标题随卡片滚，勾一行在它上面。 */
 .models-discovery-head {
   position: sticky;
   top: 0;
@@ -170,54 +162,6 @@
 .models-discovery-row.is-added {
   opacity: 0.6;
   cursor: default;
-}
-
-.catalog-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 6px;
-  font-size: var(--text-meta);
-}
-
-.catalog-status-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.catalog-undo {
-  flex: none;
-  padding: 0 2px;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: var(--text-meta);
-}
-
-.models-test-echo {
-  margin: var(--s2) 0 0;
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-4);
-  background: var(--surface-panel);
-  color: var(--n-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.models-thinking-memory {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-secondary);
-  color: var(--n-muted);
 }
 
 

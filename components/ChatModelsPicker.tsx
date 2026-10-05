@@ -161,21 +161,23 @@ export function ChatModelsPicker({
         </div>
 
         <div className="pw-modal-foot">
-          <span className="d-t-xs d-t-faint">
+          <span className="d-t-xs d-t-faint d-grow">
             {mode === "replace" ? t("models.pickReplaceHint") : t("models.pickAddHint")}
             {" · "}
             {t("models.pickSelected", { count: selected.size })}
           </span>
-          <span className="grow" aria-hidden="true" />
-          <button type="button" className="d-btn" onClick={onClose}>{t("i18n.cancel")}</button>
-          <button
-            type="button"
-            className="d-btn primary"
-            disabled={selected.size === 0 || saving}
-            onClick={() => onApply([...selected])}
-          >
-            {t("models.pickApply", { count: selected.size })}
-          </button>
+          {/* 动作组不参与压缩：长说明句占掉剩余宽度后，两枚按钮会被挤到换行。 */}
+          <span className="d-row" style={{ flex: "none" }}>
+            <button type="button" className="d-btn" onClick={onClose}>{t("i18n.cancel")}</button>
+            <button
+              type="button"
+              className="d-btn primary"
+              disabled={selected.size === 0 || saving}
+              onClick={() => onApply([...selected])}
+            >
+              {t("models.pickApply", { count: selected.size })}
+            </button>
+          </span>
         </div>
       </div>
     </div>

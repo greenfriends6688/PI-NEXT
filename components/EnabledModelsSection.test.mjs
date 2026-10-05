@@ -1,4 +1,10 @@
 // fork:enabled-models — upstream-port marker
+//
+// 形态收敛（2026-10-06）：模型页照参考项目 pi-web-main 改成「列表 + 一层钻入」后，
+// 逐模型开关长在**供应商页的模型行**上，`EnabledModelsSection` 那个组件退役了，
+// 这一文件只剩数据（`useEnabledModels`）、纯 helper 与目录刷新按钮。
+// 下面的断言因此分两类：**能力还在**（串行化写、拒绝理由、project 只读、
+// 聊天名单一个写入口）与**形状**（页面上不再有第二份可用模型表）。
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -6,17 +12,13 @@ import { createJiti } from "jiti";
 
 const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const {
-  enabledModelsBulkActions,
-  enabledModelsProviderToggle,
-  filterEnabledModels,
   isLastEnabledModel,
   providerBadgeLabel,
 } = await jiti.import("./enabled-models-helpers.ts");
 
 const source = await readFile(new URL("./EnabledModelsSection.tsx", import.meta.url), "utf8");
 const modelsConfigSource = await readFile(new URL("./ModelsConfig.tsx", import.meta.url), "utf8");
-const helpersSource = await readFile(new URL("./models-config-helpers.ts", import.meta.url), "utf8");
-const cssSource = await readFile(new URL("../app/settings.css", import.meta.url), "utf8");
+const helpersSource = await readFile(new URL("./enabled-models-helpers.ts", import.meta.url), "utf8");
 
 const entry = (id, enabled, extra = {}) => ({
   id,
@@ -46,47 +48,6 @@ function view(models, overrides = {}) {
   };
 }
 
-test("the filter matches model ids and display names", () => {
-  const models = [entry("sonnet", true), entry("opus", false)];
-  assert.deepEqual(filterEnabledModels(models, "opu").map((model) => model.id), ["opus"]);
-  assert.deepEqual(filterEnabledModels(models, "SONNET").map((model) => model.id), ["sonnet"]);
-  assert.equal(filterEnabledModels(models, "   ").length, 2);
-});
-
-test("bulk actions only offer the direction that changes something", () => {
-  const models = [entry("sonnet", true), entry("opus", false)];
-  // Other providers keep models on, so both directions are live here.
-  const actions = enabledModelsBulkActions(view(models, { enabledTotal: 4 }), models);
-  assert.deepEqual(actions.enableRefs, ["anthropic/opus"]);
-  assert.deepEqual(actions.disableRefs, ["anthropic/sonnet"]);
-  assert.equal(actions.canEnable, true);
-  assert.equal(actions.canDisable, true);
-
-  const allOn = [entry("sonnet", true), entry("opus", true)];
-  assert.equal(enabledModelsBulkActions(view(allOn), allOn).canEnable, false);
-});
-
-test("a bulk disable that would empty the scope is withheld", () => {
-  const models = [entry("sonnet", true), entry("opus", false)];
-  const actions = enabledModelsBulkActions(view(models), models);
-  assert.equal(actions.canDisable, false);
-  assert.deepEqual(actions.disableRefs, ["anthropic/sonnet"]);
-});
-
-test("a bulk disable stays available while other providers keep models on", () => {
-  const models = [entry("sonnet", true)];
-  const scoped = view(models, { enabledTotal: 3, availableTotal: 5 });
-  assert.equal(enabledModelsBulkActions(scoped, models).canDisable, true);
-});
-
-test("read-only project scope disables both bulk actions", () => {
-  const models = [entry("sonnet", true), entry("opus", false)];
-  const readOnly = view(models, { scope: "project", editable: false, enabledTotal: 4 });
-  const actions = enabledModelsBulkActions(readOnly, models);
-  assert.equal(actions.canEnable, false);
-  assert.equal(actions.canDisable, false);
-});
-
 test("the last enabled model is locked on", () => {
   const models = [entry("sonnet", true), entry("opus", false)];
   const single = view(models);
@@ -106,142 +67,6 @@ test("the sidebar badge only appears while the selector is narrowed", () => {
 test("edits are serialized so two writes cannot race on the settings file", () => {
   assert.match(source, /if \(pendingRef\.current\) \{\s*\n\s*queuedRef\.current = \{ key, body \};\s*\n\s*return;/);
   assert.match(source, /pendingRef\.current = key;/);
-  assert.match(source, /const busy = pending !== null;/);
-});
-
-test("an unfiltered bulk action is resolved by the server, a filtered one by refs", () => {
-  assert.match(
-    source,
-    /if \(filtered\) controller\.setModels\(bulkKey, refs, enabled\);\s*\n\s*else controller\.setProvider\(provider\.id, enabled\);/,
-  );
-});
-
-test("known refusals are shown as localized text, not raw server strings", () => {
-  assert.match(source, /"last-model": "models\.enabledLastModel"/);
-  assert.match(source, /"project-scope": "models\.enabledProjectScope"/);
-  assert.match(source, /failure\.messageKey \? t\(failure\.messageKey\) : failure\.message/);
-});
-
-test("switches are locked while the scope is not editable", () => {
-  assert.match(source, /disabled=\{busy \|\| !view\?\.editable \|\| lastOne\}/);
-});
-
-test("a custom provider is switched from its header, by one switch and no prose", () => {
-  assert.match(source, /export function EnabledModelsProviderSwitch\(\{/);
-  assert.match(source, /onChange=\{\(checked\) => controller\.setProvider\(provider\.id, checked\)\}/);
-  // It sits in the detail header, left of the provider's own buttons.
-  assert.match(
-    modelsConfigSource,
-    /<EnabledModelsProviderSwitch providerId=\{name\} controller=\{enabledModels\} \/>\s*\n\s*<DButton variant="danger"/,
-  );
-  // Nothing about it is explained in body text any more.
-  assert.doesNotMatch(source, /enabledCustomHint/);
-  assert.doesNotMatch(source, /provider\.kind === "custom"/);
-});
-
-test("why the switch cannot move is a tooltip, not a paragraph", () => {
-  assert.match(source, /label=\{toggle\.reason\s*\n\s*\? t\(FAILURE_KEYS\[toggle\.reason\]\)/);
-  assert.match(source, /label=\{t\("models\.enabledCustomEmpty"\)\}/);
-});
-
-test("the provider switch is on only while every model of the provider is", () => {
-  const providerOf = (models, overrides = {}) => {
-    const full = view(models, overrides);
-    return [full, { ...full.providers[0], kind: "custom" }];
-  };
-
-  // Other providers keep models on, so both directions are live here.
-  const [allOn, allOnProvider] = providerOf([entry("sonnet", true), entry("opus", true)], { enabledTotal: 4 });
-  assert.deepEqual(enabledModelsProviderToggle(allOn, allOnProvider), { checked: true, blocked: false, reason: null });
-
-  // A partial selection reads as off, and one click completes it.
-  const [partial, partialProvider] = providerOf([entry("sonnet", true), entry("opus", false)], { enabledTotal: 4 });
-  assert.deepEqual(enabledModelsProviderToggle(partial, partialProvider), { checked: false, blocked: false, reason: null });
-
-  const [none, noneProvider] = providerOf([entry("sonnet", false), entry("opus", false)], { enabledTotal: 3 });
-  assert.deepEqual(enabledModelsProviderToggle(none, noneProvider), { checked: false, blocked: false, reason: null });
-});
-
-test("the provider switch is locked when it would empty the scope or the file is read-only", () => {
-  const lockedOn = view([entry("sonnet", true), entry("opus", true)], { enabledTotal: 2 });
-  assert.deepEqual(
-    enabledModelsProviderToggle(lockedOn, { ...lockedOn.providers[0], kind: "custom" }),
-    { checked: true, blocked: true, reason: "last-model" },
-  );
-
-  const readOnly = view([entry("sonnet", true), entry("opus", false)], {
-    scope: "project",
-    editable: false,
-    enabledTotal: 4,
-  });
-  assert.deepEqual(
-    enabledModelsProviderToggle(readOnly, { ...readOnly.providers[0], kind: "custom" }),
-    { checked: false, blocked: true, reason: "project-scope" },
-  );
-});
-
-// fork:models-board —— 明细改成画板 41 的「一列独立卡」之后，托管供应商的
-// 可用模型区块是**总是**挂载的：未登录时给一句说明，而不是整段消失
-// （否则「点了没反应」与「没东西可列」在界面上分不开）。
-// fork:v5-landing · D-08/D-10 —— 页级 pattern 白名单（PatternSection）取代了
-// 顶部的 EnabledModelsBanner：失配横幅、清理按钮与设置文件路径都进了那一节。
-// fork:models-picker —— 白名单表与匹配预览又被 ChatModelsPicker 取代（pattern 是
-// settings.json 的存法，不是人要操作的东西），失配横幅与清理按钮并进
-// SelectorVisibilitySection，旧横幅继续退役。
-test("the section is mounted for built-in and api-key providers", () => {
-  assert.match(
-    modelsConfigSource,
-    /provider\.loggedIn\s*\?\s*<EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
-  );
-  assert.match(
-    modelsConfigSource,
-    /<EnabledModelsSection providerId=\{provider\.id\} controller=\{enabledModels\} \/>/,
-  );
-  // 跨供应商的选择器在主页面挂载；页级的 pattern 表与匹配预览退役。
-  assert.match(modelsConfigSource, /<ChatModelsPicker/);
-  assert.doesNotMatch(modelsConfigSource, /<PatternSection/);
-  assert.doesNotMatch(modelsConfigSource, /<MatchPreviewSection/);
-  // 失配横幅与 prune 落到还活着的那一节（不是回到顶部横幅）。
-  assert.match(modelsConfigSource, /<SelectorVisibilitySection enabledModels=\{enabledModels\} \/>/);
-  assert.doesNotMatch(modelsConfigSource, /<EnabledModelsBanner/);
-  // A models.json provider gets the header switch instead of a section.
-  assert.doesNotMatch(modelsConfigSource, /<EnabledModelsSection providerId=\{name\}/);
-});
-
-test("the banner offers to prune unmatched entries only when there are some", () => {
-  assert.match(source, /view\.editable && stale > 0 && \(/);
-  assert.match(source, /onClick=\{controller\.pruneStale\}/);
-  assert.match(source, /const pruneStale = useCallback\(\(\) => mutate\("prune", \{ op: "prune" \}\)/);
-});
-
-test("a missing custom provider is not blamed on a sign-in", () => {
-  const switchSource = source.slice(
-    source.indexOf("export function EnabledModelsProviderSwitch"),
-    source.indexOf("export function EnabledModelsSection"),
-  );
-  assert.match(switchSource, /t\("models\.enabledCustomEmpty"\)/);
-  assert.doesNotMatch(switchSource, /enabledUnavailable/);
-});
-
-// fork:v5-landing · D-10 —— 分节标题就是画板的 `.d-set-sec-t`，不再有自绘标题类
-// （旧 `.enabled-models-title` / `.enabled-models-section` 已随死 CSS 删除）。
-test("the section carries the usage heading font and no rule above it", () => {
-  assert.match(source, /<div className="d-set-sec-t">/);
-  // 标题的字号 / 字重只有一个来源：v5 system.css 的 `.d-set-sec-t`。
-  assert.doesNotMatch(cssSource, /\.enabled-models-title \{/);
-  assert.doesNotMatch(cssSource, /\.enabled-models-section \{/);
-});
-
-test("saving models.json resyncs the switches with the pre-save intent", () => {
-  assert.match(modelsConfigSource, /enabledModels\.resync\(renames, modelRenames\)/);
-  // fork:model-rename-save：收集的是落盘的那份 `draft`（含刚应用的供应商改名）。
-  assert.match(modelsConfigSource, /collectModelRenames\(draft, savedModelIdsRef\.current, renamesRef\.current\)/);
-  // fork:model-rename-save：「改名只在落盘过磁盘的那个 provider 上生效」这条判断
-  // 搬进了 `renameProviderEntry()`（Rename 与 Save 共用），这里只校验接线。
-  assert.match(modelsConfigSource, /renameProviderEntry\(draft, \{\s*savedProviders: savedProvidersRef\.current/);
-  assert.match(helpersSource, /else if \(savedProviders\.has\(original\)\) renames\.set\(original, newName\);/);
-  // Providers that were fully enabled stay fully enabled across the save.
-  assert.match(source, /provider\.enabledCount === provider\.models\.length\)\s*\n\s*\.map\(\(provider\) => provider\.id\)/);
 });
 
 test("a save landing mid-toggle is queued, not dropped", () => {
@@ -249,38 +74,54 @@ test("a save landing mid-toggle is queued, not dropped", () => {
   assert.match(source, /if \(queued\) mutateRef\.current\?\.\(queued\.key, queued\.body\);/);
 });
 
-// fork:v5-landing · D-08 帧 A —— 供应商行进了主页面那张 `.d-table`：每行带
-// 认证徽章（已登录 / 已配置 / 未登录 / 无需凭证）与模型数；侧栏的 scope 徽章
-// 与它的 CSS 一并退役。
-test("provider rows carry the auth badge in the table", () => {
-  // 行数据在主组件里拼装（订阅 / API Key / 自定义三类同构）。
-  const rowsBlock = modelsConfigSource.slice(
-    modelsConfigSource.indexOf("const providerRows: ProviderRowData[]"),
-    modelsConfigSource.indexOf("// Resolve current detail"),
-  );
-  assert.match(rowsBlock, /auth: \{ tone: "ok" as const, label: t\("models\.badgeLoggedIn"\) \}/);
-  const table = modelsConfigSource.slice(
-    modelsConfigSource.indexOf("function ProviderTableSection"),
-    modelsConfigSource.indexOf("function UsageOverviewSection"),
-  );
-  assert.match(table, /<DBadge tone=\{row\.auth\.tone\}>\{row\.auth\.label\}<\/DBadge>/);
-  assert.doesNotMatch(cssSource, /\.models-sidebar-badge \{/);
-  // 行与行之间的分隔交给画板的 `.pw-list`（gap 2px），产品不再自绘一条线。
-  assert.doesNotMatch(cssSource, /\.enabled-models-row \+ \.enabled-models-row \{/);
-  assert.match(source, /<table className="d-table">/);
+test("known refusals are shown as localized text, not raw server strings", () => {
+  assert.match(source, /"last-model": "models\.enabledLastModel"/);
+  assert.match(source, /"project-scope": "models\.enabledProjectScope"/);
+  assert.match(modelsConfigSource, /failure\.messageKey \? t\(enabledModels\.failure\.messageKey\) : enabledModels\.failure\.message/);
 });
 
-test("the saved-model slots mirror every move the draft makes", () => {
-  assert.match(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(normalized\)/);
-  // fork:model-rename-save：保存落盘的是 `draft`（可能含一次刚应用的供应商改名），
-  // 所以已保存快照要跟着 `draft` 重建，否则下一轮的改名跟踪会挂在旧 id 上。
-  assert.match(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(draft\)/);
-  assert.doesNotMatch(modelsConfigSource, /savedModelIdsRef\.current = savedModelIds\(config\)/);
-  assert.match(modelsConfigSource, /trackAddedModels\(savedModelIdsRef\.current, providerName, 1\)/);
-  assert.match(modelsConfigSource, /savedModelIdsRef\.current\.get\(providerName\)\?\.splice\(index, 1\)/);
-  assert.match(modelsConfigSource, /savedModelIdsRef\.current\.delete\(name\)/);
-  // fork:model-rename-save：搬 provider 时 slots 的跟着搬，这一步搬进了
-  // `renameProviderEntry()`（helpers），Rename 与 Save 走的是同一条路径。
-  assert.match(modelsConfigSource, /renameProviderEntry\(draft, \{/);
-  assert.match(helpersSource, /slots\.delete\(oldName\);\s*slots\.set\(newName, saved\);/);
+test("the catalog refresh control keeps its four outcomes", () => {
+  assert.match(source, /export function useCatalogRefresh\(/);
+  assert.match(source, /models\.catalogOffline/);
+  assert.match(source, /models\.catalogUpdated/);
+  assert.match(source, /models\.catalogUnchanged/);
+  assert.match(source, /models\.catalogUnreachable/);
+  // 按钮本身在供应商页的「模型」分节里（与参考项目一致的位置）。
+  assert.match(modelsConfigSource, /<CatalogRefreshButton providerId=\{row\.id\} onDone=\{enabledModels\.refresh\} \/>/);
+});
+
+test("there is exactly one place that edits one model's chat membership", () => {
+  // 供应商页的模型行：开关写 /api/models/enabled，旧的那张「可用模型」表退役。
+  assert.match(modelsConfigSource, /onChange=\{\(next\) => enabledModels\.setModels\(entry\.view!\.ref, \[entry\.view!\.ref\], next\)\}/);
+  assert.doesNotMatch(modelsConfigSource, /<EnabledModelsSection/);
+  assert.doesNotMatch(modelsConfigSource, /<EnabledModelsProviderSwitch/);
+  assert.doesNotMatch(modelsConfigSource, /<EnabledModelsBanner/);
+  // 供应商页没有 models.json 条目时，这一节仍然挂载（未登录给一句说明，不是整段消失）。
+  assert.match(modelsConfigSource, /\{json \? t\("models\.noDefinitions"\) : t\("models\.connectToSeeModels"\)\}/);
+});
+
+test("the per-model switch refuses to empty the scope", () => {
+  assert.match(modelsConfigSource, /const lastOne = isLastEnabledModel\(enabledModels\.view, entry\.view\);/);
+  assert.match(modelsConfigSource, /disabled=\{enabledModels\.pending !== null \|\| !enabledModels\.view\?\.editable \|\| lastOne\}/);
+  assert.match(modelsConfigSource, /label=\{lastOne \? t\("models\.enabledLastModel"\) : t\("models\.showInChat"\)\}/);
+});
+
+test("a project-scoped enabledModels is reported, not written", () => {
+  assert.match(modelsConfigSource, /\{view && !view\.editable && <Notice tone="warn">\{t\("models\.enabledProjectScope"\)\}<\/Notice>\}/);
+  assert.match(modelsConfigSource, /disabled=\{!enabledModels\.view\?\.editable\}/);
+});
+
+test("the chat list diagnostics stay on the list page", () => {
+  // 失配条目 + 清理入口 + 设置文件路径，全在列表页那一节 / 顶部横幅里。
+  assert.match(modelsConfigSource, /t\("models\.patternStaleBanner", \{ count: view\.stalePatterns\.length \}\)/);
+  assert.match(modelsConfigSource, /onClick=\{enabledModels\.pruneStale\}/);
+  assert.match(modelsConfigSource, /<SelectorScopeSection \/>/);
+  assert.match(modelsConfigSource, /\{view\.settingsPath\}/);
+  assert.match(helpersSource, /providerBadgeLabel/);
+});
+
+test("saving models.json re-reads the resolved view", () => {
+  // 落盘可能新增/删除模型；重新读一次比在浏览器里猜「现在是什么意思」诚实。
+  assert.match(modelsConfigSource, /enabledModels\.refresh\(\);/);
+  assert.doesNotMatch(modelsConfigSource, /enabledModels\.resync\(/);
 });
