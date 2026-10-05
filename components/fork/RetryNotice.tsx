@@ -80,12 +80,31 @@ export function RetryNotice({ notices }: { notices: readonly RetryNoticeModel[] 
               <i data-ico={PHASE_ICON[notice.phase]} data-size="14" aria-hidden="true"></i>
             )}
             <span className={isPwa ? "m-grow" : "d-grow"} style={{ fontVariantNumeric: "tabular-nums" }}>
-              {t(retryNoticeMessageKey(notice.phase), {
-                attempt: notice.attempt,
-                max: notice.maxRetries > 0 ? notice.maxRetries : notice.attempt,
-              })}
-              {notice.errorMessage ? <span className={isPwa ? "m-t-faint" : "d-t-faint"}> — {notice.errorMessage}</span> : null}
+              {/* fork:v5-landing —— 板面把「第 N 次」的 N 加粗（`正在第 <b>3</b>/5 次…`），
+                  数字仍然是等宽的，所以第 3 次变第 10 次时整行宽度不跳。词条是插值好的
+                  一整句，这里按 attempt 的字面位置切一刀把那一位挖出来。 */}
+              {(() => {
+                const attempt = String(notice.attempt);
+                const full = t(retryNoticeMessageKey(notice.phase), {
+                  attempt: notice.attempt,
+                  max: notice.maxRetries > 0 ? notice.maxRetries : notice.attempt,
+                });
+                const at = full.indexOf(attempt);
+                if (at < 0) return full;
+                return (
+                  <>
+                    {full.slice(0, at)}
+                    <b>{attempt}</b>
+                    {full.slice(at + attempt.length)}
+                  </>
+                );
+              })()}
             </span>
+            {/* fork:v5-landing —— 错误码是**兄弟**一格（`d-t-xs d-t-faint`），不是主句里
+                的一段：它是给人排查用的旁注，跟着主句一起被强调会把两者读成一件事。 */}
+            {notice.errorMessage ? (
+              <span className={isPwa ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{notice.errorMessage}</span>
+            ) : null}
           </div>
         );
       })}

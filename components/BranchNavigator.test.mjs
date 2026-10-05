@@ -204,25 +204,23 @@ test("subtreeContains sees through server-side compressed chains and survives de
   assert.equal(subtreeContains(linearTree(6000), "e5999"), true);
 });
 
-test("顶栏切换器照画板 DOM 渲染：.d-branch / .d-branch-btn / .d-branch-n", async () => {
+test("顶栏芯片只剩中间那枚图标：.d-branch 壳 + .d-branch-n（无 chevron）", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("./BranchNavigator.tsx", import.meta.url), "utf8");
   const start = source.indexOf('<span className="d-branch">');
   const chip = source.slice(start, source.indexOf("</span>", start));
-  // 两枚 chevron 钮 + 中间那格序号，类名与图标逐字来自画板。
-  assert.match(chip, /className="d-branch-btn"/);
-  assert.equal((chip.match(/className="d-branch-btn"/g) ?? []).length, 2);
-  assert.match(chip, /<i data-ico="chevron-left" data-size="12"/);
-  assert.match(chip, /<i data-ico="chevron-right" data-size="12"/);
   // 中间那格：span → button（铁律一允许的两处之一），类名一字不动。
-  // fork:branch-fixed-icon（2026-10-05 用户裁定）—— 里面不再是会跳动的 `2 / 3`
+  // fork:branch-fixed-icon（2026-10-05 用户裁定）—— 里面不是会跳动的 `2 / 3`
   // 序号，而是一枚固定的 git-fork 图标（同一格、同一动作：开分支树）。
   assert.match(chip, /className="d-branch-n"/);
   assert.match(chip, /<i data-ico="git-fork" data-size="13"/);
   assert.doesNotMatch(chip, /shownIndex/);
   // 旧的两套 UI 不再并存：顶栏不再有 `.d-chipbtn` 的「会话分支」文字芯片。
   assert.doesNotMatch(chip, /d-chipbtn/);
-  // 到两端就禁用（不是点了没反应）。
-  assert.match(chip, /disabled=\{siblingIndex <= 0\}/);
-  assert.match(chip, /disabled=\{siblingIndex < 0 \|\| siblingIndex >= siblingCount - 1\}/);
+  // fork:branch-chip-icon-only（2026-10-06 用户裁定）—— 两侧那两枚
+  // `.d-branch-btn`（上一条 / 下一条兄弟分支）连同 chevron 图标一起撤掉：同一件事在
+  // 分支树浮层里点一行更快，顶栏右端没有 40px 让给它。分支树浮层本身不受影响。
+  assert.doesNotMatch(chip, /d-branch-btn/);
+  assert.doesNotMatch(chip, /chevron-left/);
+  assert.doesNotMatch(chip, /chevron-right/);
 });

@@ -45,7 +45,8 @@ test("scheduled 一行给出「第 N/M 次」并带旋转图标", () => {
   const html = render([notice()]);
   assert.match(html, /class="fork-retry-notices"/);
   assert.match(html, /class="d-banner warn"/);
-  assert.match(html, /8\/12/);
+  // fork:v5-landing —— 板面把「第 N 次」的 N 加粗，所以 N 与 /M 之间隔着 </b>。
+  assert.match(html, /<b>8<\/b>\/12/);
   assert.match(html, /data-ico="refresh-cw"/);
   assert.match(html, /class="d-run"/);
   assert.match(html, /role="status"/);
@@ -74,8 +75,8 @@ test("终态换图标与语气档，并显示错误摘要", () => {
 test("多条按 attempt 顺序各占一行", () => {
   const html = render([notice({ attempt: 6 }), notice({ attempt: 7 })]);
   assert.equal(html.match(/class="d-banner warn"/g).length, 2);
-  assert.match(html, /6\/12/);
-  assert.match(html, /7\/12/);
+  assert.match(html, /<b>6<\/b>\/12/);
+  assert.match(html, /<b>7<\/b>\/12/);
 });
 
 test("source: 只用画板 d-* 类，样式只写 fork-ui.css", () => {

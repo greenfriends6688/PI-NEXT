@@ -84,7 +84,10 @@ test("shows deferred thinking previews without loading the full content", () => 
     role: "assistant",
     content: [{ type: "thinking", thinking: "Historical first line", deferred: true }],
   });
-  assert.match(html, />Historical first line<\/span>/);
+  // fork:d03-frame-a —— 收起行现在先给一个可见的「思考」标签（画板 D-03d 帧 A 的
+  // `<summary>思考 · …`），首句预览仍必须整句在。断言改成「标签 + 那句」，
+  // 不动这条测试想守的东西（deferred 时不加载全文）。
+  assert.match(html, /Thinking · Historical first line/);
   assert.match(html, /aria-expanded="false"/);
 });
 

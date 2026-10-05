@@ -35,9 +35,10 @@ test("one chip per skill, each with the sparkles icon and the skill name", () =>
       onOpenSkill: () => {},
     }),
   );
-  assert.equal(html.match(/data-ico="sparkles"/g).length, 2);
-  assert.match(html, /class="pw-wrap"/);
-  assert.match(html, /class="pw-chip"/);
+  // 抬头行一枚 sparkles + 每枚芯片一枚。
+assert.equal(html.match(/data-ico="sparkles"/g).length, 3);
+  assert.match(html, /class="d-chips"/);
+  assert.match(html, /class="d-chipbtn"/);
   assert.match(html, /skill-creator/);
   assert.match(html, /guizang-ppt-skill/);
 });
@@ -75,7 +76,7 @@ test("the chip never shows an absolute path and is disabled without an opener", 
   assert.equal(activation.workspaceSkillPath, "skill-creator/SKILL.md");
   assert.ok(!html.includes(homedir()));
   assert.match(html, /title="skill-creator\/SKILL\.md"/);
-  // 没有定位回调时 chip 不可点（board.css 的 .pw-chip:disabled），但仍显示用了什么。
+  // 没有定位回调时 chip 不可点（`.d-chipbtn:disabled`），但仍显示用了什么。
   assert.match(html, /disabled=""/);
 });
 
@@ -86,16 +87,17 @@ test("the display name wins over the slug when the mention spelled it differentl
   assert.match(html, /Skill Creator/);
 });
 
-test("source: the chips sit in TurnWrittenFiles' row and add no new board class", () => {
-  // 同一个 header 下：两个组件是同一个 flex 行（`.fork-turn-summary`）里的两个 `.pw-wrap`，
-  // 不是各自另起一个区块。产品样式挂在 app/fork-ui.css，画板类一个都不许新增。
+test("source: the chips sit in TurnWrittenFiles' row and use only board classes", () => {
+  // 同一个 header 下：两个组件是同一个 flex 行（`.fork-turn-summary`）里的两个芯片容器
+  // （`.d-chips`），不是各自另起一个区块。fork:v5-landing 把 `.pw-wrap`/`.pw-chip`
+  // 换成画板 D-03e 帧 B 的 `.d-chips`/`.d-chipbtn`，窄屏走 PWA 的 `.m-tray` 系列。
   const row = messageViewSource.slice(messageViewSource.indexOf('<div className="fork-turn-summary">'));
   assert.match(row.slice(0, 400), /<TurnWrittenFiles/);
   assert.match(row.slice(0, 400), /<TurnSkillUsageSummary/);
   assert.match(row.slice(0, 400), /isStreaming=\{isStreaming\}/);
 
   const classes = [...componentSource.matchAll(/className="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/));
-  for (const name of classes) assert.match(name, /^pw-(wrap|chip|ico)$/, `unexpected class ${name}`);
+  for (const name of classes) assert.match(name, /^(m-(tray|tray-chip)|d-(chips|chipbtn|row|t-sm|grow))$/, `unexpected class ${name}`);
   // 流式中不渲染 —— 逐帧增删的闪烁比没有这行信息更伤。
   assert.match(componentSource, /if \(isStreaming \|\| skills\.length === 0\) return null;/);
 });

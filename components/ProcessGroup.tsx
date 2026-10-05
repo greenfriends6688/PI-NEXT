@@ -137,11 +137,13 @@ const STEP_ICON: Record<IconName, string> = {
   warning: "triangle-alert", // 失败行（画板 11 帧 A）
 };
 
-/** 步骤行图标：`.d-step-ico` 是 17px 方框（system.css），里面一枚 12px lucide。
+/** 步骤行图标：`.d-step-ico` 是 17px 方框（system.css），里面一枚 lucide。
+ *  fork:v5-landing —— 尺寸从 12 收到 **10**：画板 D-03d 帧 A/帧 D 的每一枚
+ *  `d-step-ico` 都是 `data-size="10"`（17px 方框里10px 字形，差两号）。
  *  fork:v5-wave-b —— 窄屏那枚图标**不画**：画板 M-02 帧 C / M-06 帧 B 的步骤行用
  * 的是一枚 8px 圆点 `.m-step-dot`（只换颜色表达 done/run/fail），不是图标。 */
 function StepIcon({ name }: { name: IconName }) {
-  return <i data-ico={STEP_ICON[name]} data-size="12" />;
+  return <i data-ico={STEP_ICON[name]} data-size="10" />;
 }
 
 // --- Classification ---------------------------------------------------------
@@ -347,7 +349,10 @@ export function buildProcessSteps(blocks: ProcessContentBlock[], t: (key: string
  * three times is one file), commands are shell-ish tools, reads aggregate the
  * explore tools — the same categories the timeline rows already use.
  */
-export function summarizeSteps(steps: Step[], t: (key: string, params?: Record<string, string | number>) => string): string {
+export function summarizeStepParts(
+  steps: Step[],
+  t: (key: string, params?: Record<string, string | number>) => string,
+): { text: string; lead?: boolean; err?: boolean }[] {
   let tools = 0;
   let failed = 0;
   let thoughts = 0;
@@ -390,14 +395,23 @@ export function summarizeSteps(steps: Step[], t: (key: string, params?: Record<s
       }
     }
   }
-  const parts: string[] = [];
-  if (changedFiles.size > 0) parts.push(t("process.summaryFiles", { count: changedFiles.size }));
-  if (commands > 0) parts.push(t("process.summaryCommands", { count: commands }));
-  if (parts.length === 0 && reads > 0) parts.push(t("process.summaryReads", { count: reads }));
-  parts.push(t("process.summaryTools", { count: tools }));
-  if (failed > 0) parts.push(t("process.summaryFailed", { count: failed }));
-  if (thoughts > 0) parts.push(t("process.summaryThoughts", { count: thoughts }));
-  return parts.join(" · ");
+  const parts: { text: string; lead?: boolean; err?: boolean }[] = [];
+  if (changedFiles.size > 0) parts.push({ text: t("process.summaryFiles", { count: changedFiles.size }) });
+  if (commands > 0) parts.push({ text: t("process.summaryCommands", { count: commands }) });
+  if (parts.length === 0 && reads > 0) parts.push({ text: t("process.summaryReads", { count: reads }) });
+  parts.push({ text: t("process.summaryTools", { count: tools }) });
+  if (failed > 0) parts.push({ text: t("process.summaryFailed", { count: failed }), err: true });
+  if (thoughts > 0) parts.push({ text: t("process.summaryThoughts", { count: thoughts }) });
+  // fork:v5-landing —— 画板 D-03d 帧 A：抬头第一格是**加粗**的（「<b>2 个文件</b> ·
+  // 5 条命令 · …」），失败那一格进 `.d-err`。这两个标记是 DOM 的一部分，
+  // 所以摘要不能只是一根拼好的字符串。
+  parts[0] = { ...parts[0], lead: true };
+  return parts;
+}
+
+/** `Used 22 tools (1 failed) · 26 thoughts` */
+export function summarizeSteps(steps: Step[], t: (key: string, params?: Record<string, string | number>) => string): string {
+  return summarizeStepParts(steps, t).map((part) => part.text).join(" · ");
 }
 
 /** The two argument spellings write/edit tools use (see lib/turn-written-files.ts). */
@@ -428,6 +442,15 @@ export function summarizeProcessBlocks(
 ): string {
   if (blocks.length === 0) return "";
   return summarizeSteps(buildProcessSteps(blocks, translateStep), t);
+}
+
+/** fork:v5-landing —— 同一个摘要的**分段形**，给卡头逐段渲染用。 */
+export function summarizeProcessParts(
+  blocks: ProcessContentBlock[],
+  t: (key: string, params?: Record<string, string | number>) => string,
+  translateStep: (key: string) => string,
+): { text: string; lead?: boolean; err?: boolean }[] {
+  return summarizeStepParts(buildProcessSteps(blocks, translateStep), t);
 }
 
 // --- Row pieces -------------------------------------------------------------
@@ -964,7 +987,7 @@ export function ProcessGroup({
                   <span className={isPwa ? "m-grow" : "d-step-body"}>
                     <span className={isPwa ? "m-t-b" : "d-t-b"}>{step.label}</span>
                     {step.count !== undefined && step.count > 1 && (
-                      <span className={isPwa ? "m-badge" : "d-badge"}>×{step.count}</span>
+                      <span className={isPwa ? "m-badge" : "d-badge mute"}>×{step.count}</span>
                     )}
                     <FileChips targets={step.targets} onOpenFile={onOpenFile} />
                     {/* fork:process-dedupe — 推理行展开后正文就是这段文字，行上再挂一份
@@ -977,6 +1000,12 @@ export function ProcessGroup({
                       </span>
                     )}
                   </span>
+                  {/* fork:v5-landing —— 帧 A 进行中那一行在参数格与耗时格之间挂一枚
+                      `.d-run` 转圈。`.d-step.running` 只能把图标染成强调色，它不会转；
+                      少了这一格，“正在跑” 在静止的行列里读不出来。 */}
+                  {!isPwa && streamingOpen === id && (
+                    <span className="d-run"><i data-ico="loader-circle" data-size="11" aria-hidden="true"></i></span>
+                  )}
                   <Duration seconds={step.duration} />
                   {step.failed && <span className={isPwa ? "m-badge bad" : "d-badge bad"}>{t("process.failed")}</span>}
                 </button>

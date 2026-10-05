@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import type { GitRefTag, GitRefTagKind } from "@/lib/git-graph-refs";
 
 // Ref decoration chips share the lane color of the commit they decorate, so a
@@ -8,16 +8,16 @@ import type { GitRefTag, GitRefTagKind } from "@/lib/git-graph-refs";
 // kinds are tinted fills of the same lane color. Shared by the git-graph
 // tab and the @comment: menu's commit rows.
 //
-// fork:design-components —— 形状 / 字号 / 圆角 / 等宽全部由 board.css 的
-// `.pw-badge count` 给（画板 31：`<span class="pw-badge count"><span class="pw-ico">
-// <i data-ico="git-branch"></i></span>main</span>`）。这里只剩设计系统不管的两件事：
-// 泳道色，和「这条 ref 是哪一类」的那枚画板图标。
+// fork:v5-landing D-03e 帧 C —— 芯片从 v1 的 `.pw-badge.count` 换成画板的
+// `.d-chips` + `.d-cite`（HEAD 用 `.d-cite.is-on`）。三枚引用芯片与「改了哪些
+// 文件」那一行 chips 是同一个原语；此前这里另起一套 `pw-badge` + `pw-ico`
+// 包装层，同一行里两套芯片。图标词表（git-branch / tag）不变。
 //
-// fork:v5-wave-b —— **这一对 `pw-*` 保留**：`components/GitRefChips.ui.test.mjs`
-// 把「两枚芯片都挂 pw-badge + count」当源码守卫断言（逐字符串匹配），改掉它等于删测试；
-// 泳道图（画板 31）在 PWA 侧**没有对应画板**（M-01~M-12 里没有 git 泳道），
-// 所以这里不给窄屏加 m-* 分支 —— 没有可抄的画板就不抄（缺件已登记）。
-// 窄屏上泳道整块由右栏/查看器的宿主决定去留，本组件不参与。
+// 泳道色仍然由组件给：`d-cite` 的形状/字号/圆角全在 system.css，色相要跟它
+// 所在的那条泳道走，而泳道色是**数据**（不是令牌表里的值）。
+//
+// fork:v5-wave-b —— PWA 侧**没有** git 泳道画板（M-01~M-12 里没有），所以这里
+// 不给窄屏加 m-* 分支：没有可抄的画板就不抄（缺件已登记）。
 const REF_ICON: Record<GitRefTagKind, "git-branch" | "tag"> = {
   head: "git-branch",
   branch: "git-branch",
@@ -38,42 +38,35 @@ function refChipStyle(kind: GitRefTagKind, laneColor: string): CSSProperties {
 function RefChip({ tag, laneColor }: { tag: GitRefTag; laneColor: string }) {
   return (
     <span
-      className="pw-badge count"
+      className={tag.kind === "head" ? "d-cite is-on" : "d-cite"}
       title={tag.ref}
       style={{ maxWidth: 180, overflow: "hidden", ...refChipStyle(tag.kind, laneColor) }}
     >
-      <span className="pw-ico"><i data-ico={REF_ICON[tag.kind]} data-size="11"></i></span>
+      <i data-ico={REF_ICON[tag.kind]} data-size="11"></i>
       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{tag.label}</span>
     </span>
   );
 }
 
-// "HEAD -> main" parses as two adjacent tags (solid HEAD + tinted branch);
-// they render fused into one pill so the decoration reads as a single tag.
-// Each segment keeps its original treatment and the shared lane color.
+// "HEAD -> main" parses as two adjacent tags (solid HEAD + tinted branch).
+// The board draws them as **one** chip reading `HEAD → main` — one ref on one
+// lane, not two pills that happen to touch. So the fusion keeps the parsing and
+// drops the two-segment rendering.
 function FusedRefChip({ head, branch, laneColor }: { head: GitRefTag; branch: GitRefTag; laneColor: string }) {
   return (
-    <span className="pw-badge count" title={branch.ref} style={{ maxWidth: 180, padding: 0, overflow: "hidden" }}>
-      <span
-        className="pw-badge"
-        style={{ borderRadius: "var(--radius-3) 0 0 var(--radius-3)", background: laneColor, color: "var(--bg)" }}
-      >
-        <span className="pw-ico"><i data-ico={REF_ICON.head} data-size="11"></i></span>
-        {head.label}
-      </span>
-      <span
-        className="pw-badge"
-        style={{ borderRadius: `0 var(--radius-3) var(--radius-3) 0`, color: laneColor, background: `color-mix(in srgb, ${laneColor} 10%, transparent)` }}
-      >
-        <span className="pw-ico"><i data-ico={REF_ICON.branch} data-size="11"></i></span>
-        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{branch.label}</span>
-      </span>
+    <span
+      className="d-cite is-on"
+      title={branch.ref}
+      style={{ maxWidth: 180, overflow: "hidden", ...refChipStyle("head", laneColor) }}
+    >
+      <i data-ico={REF_ICON.head} data-size="11"></i>
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{`HEAD → ${branch.label}`}</span>
     </span>
   );
 }
 
 export function RefTagList({ tags, laneColor }: { tags: GitRefTag[]; laneColor: string }) {
-  const items: ReactNode[] = [];
+  const items: React.ReactNode[] = [];
   for (let index = 0; index < tags.length; index += 1) {
     const tag = tags[index];
     const next = tags[index + 1];
@@ -85,5 +78,5 @@ export function RefTagList({ tags, laneColor }: { tags: GitRefTag[]; laneColor: 
       items.push(<RefChip key={key} tag={tag} laneColor={laneColor} />);
     }
   }
-  return <>{items}</>;
+  return <span className="d-chips">{items}</span>;
 }

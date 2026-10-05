@@ -10,60 +10,54 @@ import {
   type CodemodeCallView,
 } from "@/lib/codemode-view";
 
-// The tool calls a codemode script made, listed under the script in its card.
-// Those calls never reach the model as tool calls of their own, so they are
-// rows inside this card, not separate cards (as in pi's TUI).
+// fork:v5-landing —— 画板 D-03d 帧 D 的 codemode 卡：
+//   `.d-tool-body` › `.d-mono.d-t-xs`（脚本）› `.d-col`（每次调用一行）›
+//   `.d-row.d-t-xs.d-t-faint`（更早的调用 + 模型花费）。
+// 之前这个组件**一个 `d-*` 类都没有**：整块内联几何 + 旧令牌（`--bg-subtle`
+// / `--danger-soft` / `--s2`）+ 文字字形 `…✓✗⊘` 当状态图标。文字字形在
+// 判据里算手绘，与「图标一律 lucide + data-ico」冲突；旧令牌不在
+// `--nx-*` 集合里，换主题会掉色。逐字抄板面即可。
+//
+// 「脚本调过的工具是这张卡里的**行**，不是各自的卡」——它们从来没有作为
+// 独立工具调用回到模型面前（同一个 pi TUI 形态）。
 
 /** Calls shown before the rest are folded behind a button; the newest stay visible. */
 export const CODEMODE_VISIBLE_CALLS = 20;
 
-const STATUS_STYLE: Record<CodemodeCallStatus, { icon: string; color: string }> = {
-  running: { icon: "…", color: "var(--warning)" },
-  ok: { icon: "✓", color: "var(--success)" },
-  error: { icon: "✗", color: "var(--error)" },
-  cancelled: { icon: "⊘", color: "var(--text-dim)" },
+/** 状态图标：画板帧 D 的四枚 lucide（loader-circle / check / circle-x / circle-slash）。 */
+const STATUS_ICON: Record<CodemodeCallStatus, string> = {
+  running: "loader-circle",
+  ok: "check",
+  error: "circle-x",
+  cancelled: "circle-slash",
 };
 
 function CallRow({ call }: { call: CodemodeCallView }) {
   const { t } = useI18n();
-  const status = STATUS_STYLE[call.status];
+  const label = t(`codemode.status.${call.status}`);
   const duration = formatCodemodeDuration(call.durationMs);
   return (
-    <li style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", minWidth: 0 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "var(--s2)", minWidth: 0 }}>
-        <span
-          role="img"
-          aria-label={t(`codemode.status.${call.status}`)}
-          title={t(`codemode.status.${call.status}`)}
-          style={{ color: status.color, width: "var(--s3)", flexShrink: 0, textAlign: "center" }}
-        >
-          {status.icon}
-        </span>
-        <span style={{ color: "var(--text-muted)", fontWeight: 600, flexShrink: 0 }}>{call.name}</span>
-        {call.args && (
-          <span style={{ color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
-            {call.args}
-          </span>
-        )}
-        {duration && (
-          <span style={{ color: "var(--text-dim)", flexShrink: 0, marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>{duration}</span>
-        )}
-        {call.cost !== undefined && (
-          <span style={{ color: "var(--text-dim)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{formatCodemodeCost(call.cost)}</span>
-        )}
-      </div>
-      {call.error && (
-        <div style={{ color: "var(--error)", paddingLeft: "calc(var(--s3) * 1.5)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{call.error}</div>
-      )}
-    </li>
+    /* fork:v5-landing —— 一次调用 = 一行 `.d-row.d-mono.d-t-xs`：
+       固定宽度的图标槽（`--nx-sp-3`）· 工具名（`d-t-b`）· `d-grow` 参数 ·
+       失败原文走 `d-err` · 末尾等宽秒数。 */
+    <div className="d-row d-mono d-t-xs">
+      <span style={{ width: "var(--nx-sp-3)", flexShrink: 0 }}>
+        <i data-ico={STATUS_ICON[call.status]} data-size="11" role="img" aria-label={label} title={label}></i>
+      </span>
+      <span className="d-t-b" style={{ flexShrink: 0 }}>{call.name}</span>
+      <span className="d-grow d-t-faint">{call.error ?? call.args ?? "—"}</span>
+      {call.cost !== undefined && <span className="d-t-faint" style={{ flexShrink: 0 }}>{formatCodemodeCost(call.cost)}</span>}
+      <span className="d-t-faint" style={{ flexShrink: 0 }}>
+        {call.status === "cancelled" ? label : (duration || "—")}
+      </span>
+    </div>
   );
 }
 
-export function CodemodeCallList({ calls, omitted, isError }: {
+export function CodemodeCallList({ calls, omitted }: {
   calls: readonly CodemodeCallView[];
   /** Earlier calls a progress snapshot did not include. */
   omitted: number;
-  isError: boolean;
 }) {
   const { t } = useI18n();
   const [showAll, setShowAll] = useState(false);
@@ -73,41 +67,24 @@ export function CodemodeCallList({ calls, omitted, isError }: {
   // Folded rows still count: the total covers every call the result lists.
   const totalCost = codemodeTotalCost(calls);
   return (
-    <div
-      style={{
-        borderTop: `1px solid ${isError ? "var(--danger-soft)" : "var(--success-soft)"}`,
-        background: "var(--bg-subtle)",
-        padding: "6px 10px",
-        fontFamily: "var(--font-mono)",
-        fontSize: "calc(12px + var(--chat-font-size-offset, 0px))",
-        lineHeight: 1.5,
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--space-hair)",
-        minWidth: 0,
-      }}
-    >
-      <div style={{ color: "var(--text-dim)", fontFamily: "inherit", fontSize: "var(--text-meta)" }}>{t("codemode.calls")}</div>
-      {omitted > 0 && (
-        <div style={{ color: "var(--text-dim)" }}>{t("codemode.omittedCalls", { count: omitted })}</div>
-      )}
+    /* fork:v5-landing —— 板面这一段没有标题行、没有独立边框底：它就长在
+       脚本下面（同一个 `.d-tool-body` 内），收尾是**一行**「更早的调用 ·
+       模型花费」，中间一个 `d-grow` 把两边推开。 */
+    <div className="d-col" style={{ gap: "var(--nx-sp-1)", marginTop: "var(--nx-sp-3)" }}>
       {hidden > 0 && (
-        <button
-          type="button"
-          onClick={() => setShowAll(true)}
-          style={{ alignSelf: "flex-start", padding: 0, border: "none", background: "none", color: "var(--accent)", cursor: "pointer", font: "inherit" }}
-        >
+        <button type="button" className="d-btn sm ghost" onClick={() => setShowAll(true)} style={{ alignSelf: "flex-start" }}>
           {t("codemode.showEarlierCalls", { count: hidden })}
         </button>
       )}
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-        {shown.map((call, index) => (
-          <CallRow key={call.id || `${hidden + index}`} call={call} />
-        ))}
-      </ul>
-      {totalCost !== null && (
-        <div style={{ color: "var(--text-dim)" }}>{t("codemode.modelCost", { cost: formatCodemodeCost(totalCost) })}</div>
-      )}
+      {shown.map((call, index) => (
+        <CallRow key={call.id || `${hidden + index}`} call={call} />
+      ))}
+      {/* 板面收尾只有这一行：左边「更早的 N 次调用未显示」，右边等宽花费。 */}
+      <div className="d-row d-t-xs d-t-faint" style={{ marginTop: "var(--nx-sp-2)" }}>
+        <span>{omitted > 0 ? t("codemode.omittedCalls", { count: omitted }) : ""}</span>
+        <span className="d-grow" />
+        <span className="d-mono">{totalCost !== null ? t("codemode.modelCost", { cost: formatCodemodeCost(totalCost) }) : ""}</span>
+      </div>
     </div>
   );
 }

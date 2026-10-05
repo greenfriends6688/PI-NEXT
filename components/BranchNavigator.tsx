@@ -124,9 +124,10 @@ export function subtreeContains(node: SessionTreeNode, entryId: string | null): 
 /**
  * fork:v5-landing —— 当前激活的是第几条兄弟分支（0 基），找不到给 -1。
  *
- * 顶栏的 `.d-branch` 切换器（画板 D-03 帧 A 的 `chevron-left | 2 / 3 | chevron-right`）
- * 与抽屉里那枚 `.m-branch` 读的是同一口径：`selectTopLevelBranches` 的**顶层**就是
- * 兄弟分支列表，当前分支 = 子树命中 `activeLeafId` 的那一条。
+ * 顶栏的 `.d-branch` 芯片（画板 D-03 帧 A 那一段 `chevron-left | 2 / 3 | chevron-right`，
+ * 产品按 fork:branch-chip-icon-only 只留中间那枚图标）与抽屉里那枚 `.m-branch` 读的是
+ * 同一口径：`selectTopLevelBranches` 的**顶层**就是兄弟分支列表，当前分支 = 子树命中
+ * `activeLeafId` 的那一条。
  */
 export function findSiblingIndex(nodes: SessionTreeNode[], activeLeafId: string | null): number {
   return nodes.findIndex((node) => subtreeContains(node, activeLeafId));
@@ -281,14 +282,6 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   );
 
   if (inline) {
-    const siblingIndex = findSiblingIndex(topLevel, activeLeafId);
-    const siblingCount = topLevel.length;
-    const selectSibling = (index: number) => {
-      const target = topLevel[index];
-      if (!target) return;
-      // 与树里点一行是同一条通路（核实节点用压缩链的代表节点，不是链首）。
-      onLeafChange(compressChain(target).node.entry.id);
-    };
     const toggle = () => (onToggle ? onToggle() : setOpenInternal((v) => !v));
     return (
       <div className="d-row">
@@ -309,24 +302,14 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
             {branchIcon}
           </button>
         ) : (
-          /* fork:v5-landing D-03 帧 A —— 顶栏的**兄弟分支切换器**，DOM 原文：
-             `<span class="d-branch">` › `chevron-left` 钮 ｜ `2 / 3` ｜ `chevron-right` 钮。
-             产品此前是 `.d-chipbtn`+文字（「会话分支」），与画板是两套 UI ——
-             这里换成画板这一段，不再两套并存：
-             · 两枚 `.d-branch-btn` = 到上一条 / 下一条兄弟分支（`onLeafChange` 同一条通路）；
-             · 中间那格按铁律一从 `<span class="d-branch-n">` 改成 `<button class="d-branch-n">`
-               （静态文案 → 真实数据 + div→button，类名一字不动），点它仍开同一个分支树浮层。 */
+          /* fork:branch-chip-icon-only（2026-10-06 用户裁定）—— 画板 D-03 帧 A 那一段是
+             `chevron-left ｜ 2 / 3 ｜ chevron-right` 三格；用户只留下中间那枚图标。
+             两枚 chevron 是「上/下一条兄弟分支」的快捷键，但同一件事在分支树浮层里点一行
+             更快，而顶栏右端已经排到最右、每 20px 都在抢位置 —— 于是 `.d-branch` 壳
+             （描边与圆角仍是库里的）保留，里面只剩一枚 `button.d-branch-n`，点它开同一个
+             浮层。这是 `fork:branch-fixed-icon`（2026-10-05 把 `2 / 3` 换成固定
+             git-fork 图标）的连续裁定：中间那格本来就是「开浮层」的唯一入口。 */
           <span className="d-branch">
-            <button
-              type="button"
-              className="d-branch-btn"
-              onClick={() => selectSibling(siblingIndex - 1)}
-              disabled={siblingIndex <= 0}
-              title={t("i18n.branches")}
-              aria-label={t("i18n.branches")}
-            >
-              <i data-ico="chevron-left" data-size="12" aria-hidden="true"></i>
-            </button>
             <button
               ref={btnRef}
               type="button"
@@ -341,21 +324,10 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
                  `font-size: var(--nx-fs-xs)` 与颜色一起压掉（同一视觉两个来源）。 */
               style={{ border: 0, background: "none", fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center" }}
             >
-              {/* fork:branch-fixed-icon（2026-10-05 用户裁定）—— 中间那一格不再写
-                  `2 / 3`：序号会随分支增减跳动，扫读时是噪声，而两侧的 chevron
-                  已经承担了「第几条」的可操作性。换成固定的 git-fork 图标（点它
-                  开分支树，与原来同一格同一动作），`d-branch-n` 这枚格子的尺寸不变。 */}
+              {/* fork:branch-fixed-icon（2026-10-05 用户裁定）—— 中间那一格不写
+                  `2 / 3`：序号会随分支增减跳动，扫读时是噪声。换成固定的 git-fork
+                  图标（点它开分支树，与原来同一格同一动作），`d-branch-n` 的尺寸不变。 */}
               <i data-ico="git-fork" data-size="13" aria-hidden="true"></i>
-            </button>
-            <button
-              type="button"
-              className="d-branch-btn"
-              onClick={() => selectSibling(siblingIndex + 1)}
-              disabled={siblingIndex < 0 || siblingIndex >= siblingCount - 1}
-              title={t("i18n.branches")}
-              aria-label={t("i18n.branches")}
-            >
-              <i data-ico="chevron-right" data-size="12" aria-hidden="true"></i>
             </button>
           </span>
         )}

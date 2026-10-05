@@ -1463,11 +1463,24 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
       >
         <ThinkingIcon active={expandedView} size={12} />
         {!expandedView && (
+          /* fork:d03-frame-a —— 收起行先给一个可见的「思考」标签（画板 D-03d 帧 A 的
+             `<summary>思考 · 流式中`）。步数拿不到（流里没有分步结构），所以只写标签，
+             后面跟原来那首句预览 —— 不编数字。 */
           <span style={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {t("i18n.thinking")}{preview ? " · " : ""}
             {preview ? <ReactMarkdown allowedElements={[]} unwrapDisallowed skipHtml>{preview}</ReactMarkdown> : "..."}
           </span>
         )}
-        {expandedView && <span className="d-grow" />}
+        {/* fork:v5-landing —— 画板 D-03d 帧 A 的抬头：图标 + 文案 + `d-grow` +
+            一枚状态徽章（流式中 = 转圈 + 「流式」）。之前徽章整个没有，
+            人只能靠「行在动」猜这块还在想。 */}
+        <span className="d-grow" />
+        {live && (
+          <span className="d-badge">
+            <i data-ico="loader-circle" data-size="11" aria-hidden="true"></i>
+            {t("process.running")}
+          </span>
+        )}
         {duration !== undefined && (
           <span className="d-think-timer">{formatDuration(duration)}</span>
         )}
@@ -1528,20 +1541,31 @@ function isSubagentToolDetails(value: unknown): value is SubagentToolDetails {
 
 /** fork:design-components —— 工具卡首列图标走画板的 `<i data-ico>`（lucide 路径表）。
     四个分支与原手绘 SVG 一一对应：读=book-open / 写=pencil / 搜=search /
-    兜底=square-terminal（画板 11 的终端卡图标）。 */
-function ToolCallIcon({ toolName }: { toolName: string }) {
+    兜底=square-terminal（画板 11 的终端卡图标）。
+    fork:v5-landing —— 补回画板 D-03d 帧 C/D 指定的三枚：改动类=**file-diff**
+    （帧 C 的 diff 卡头）、codemode=**code**（帧 D）、参数还在流=**pencil-line**。 */
+function ToolCallIcon({ toolName, state, hasDiff }: { toolName: string; state?: "generating"; hasDiff?: boolean }) {
   const name = toolName.toLowerCase();
 
+  // fork:v5-landing —— 帧 B「参数生成中」那一帧头图标是 `pencil-line`。
+  if (state === "generating") return <i data-ico="pencil-line" data-size="13"></i>;
+  // fork:v5-landing —— 帧 D 的 codemode 卡头图标是 `code`，不是终端。
+  if (name === "codemode") return <i data-ico="code" data-size="13"></i>;
+  /* fork:d03-frame-b —— 帧 B 的 diff 卡头图标是 `file-diff`。此前只按**工具名**判
+     （含 patch / diff 才给），所以 `edit` / `write` 这类「结果里带 diff」的卡体画着
+     diff、头图标却是 `pencil`（写代码的语义）—— 卡体与卡头讲两件事。改成按**卡体
+     是什么**判：真的挂了 diff 的卡一律 `file-diff`，没有 diff 的 `edit` 仍是 `pencil`。 */
+  if (hasDiff || name.includes("patch") || name.includes("diff")) return <i data-ico="file-diff" data-size="13"></i>;
   if (name.includes("read") || name.includes("view") || name.includes("open")) {
-    return <i data-ico="book-open" data-size="12"></i>;
+    return <i data-ico="book-open" data-size="13"></i>;
   }
-  if (name.includes("edit") || name.includes("write") || name.includes("patch")) {
-    return <i data-ico="pencil" data-size="12"></i>;
+  if (name.includes("edit") || name.includes("write")) {
+    return <i data-ico="pencil" data-size="13"></i>;
   }
   if (name.includes("search") || name.includes("grep") || name.includes("find")) {
-    return <i data-ico="search" data-size="12"></i>;
+    return <i data-ico="search" data-size="13"></i>;
   }
-  return <i data-ico="square-terminal" data-size="12"></i>;
+  return <i data-ico="square-terminal" data-size="13"></i>;
 }
 
 /** fork:v5-wave-n1 —— 终端卡的尾部信息（画板 D-03d 帧 D 的 `.d-terminfo`）。
@@ -1592,6 +1616,12 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
   const resultImages = getMessageImages(result?.content ?? []);
   const resultIsEmpty = resultText === null ? false : (resultText.trim() === "(no output)" || resultText.trim() === "");
   const isError = result?.isError ?? false;
+  /* fork:v5-landing D-03d 帧 B —— 「已取消」是**第四个状态**，不是失败的一种：
+     板面上它的图标是 `circle-slash`、徽标是中性档 `.d-badge.mute`，而失败是
+     `circle-x` + `.d-badge.bad`。此前取消被当成失败渲染（红底 + 失败），
+     卡框还是同一根发丝线，但人读到的结论正好相反。取消只对终端卡有信号
+     （`TerminalCardInfo.cancelled`），其余工具调用没有这个事实。 */
+  const isCancelled = terminal?.cancelled === true;
   const subagent = isSubagentToolDetails(result?.details) ? result.details : null;
   // fork:pr52-plan-tools —— 计划文档卡常驻在工具卡头下面（收起态也在）：计划落盘之后，
   // 那个路径必须一眼就能点开，而不是等人展开卡去找一行输出。失败的那次不画卡。
@@ -1649,7 +1679,14 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
             data-size="13"
             style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform var(--nx-dur-1) var(--nx-ease)" }}
           ></i>
-          <ToolCallIcon toolName={block.toolName} />
+          {/* fork:v5-landing —— 状态图标压在工具图标那一格（帧 B：完成=工具图标、
+              失败=`circle-x`、取消=`circle-slash`），**不改卡框**：整卡描红会让
+              「哪一步失败」淹没在一片红里。 */}
+          {isCancelled
+            ? <i data-ico="circle-slash" data-size="13" aria-hidden="true"></i>
+            : isError
+              ? <i data-ico="circle-x" data-size="13" aria-hidden="true"></i>
+              : <ToolCallIcon toolName={block.toolName} state={isStreamingInput ? "generating" : undefined} hasDiff={Boolean(resultDiff) || Boolean(patchFiles)} />}
           {/* fork:mcp-tool-label —— MCP 工具按上游 0.10 的读法显示 `server/tool`：
               pi 注册的名字是 `mcp__<server>__<tool>`（还可能带哈希后缀），无法反解，
               真名只在结果的 details 里；没有结果时保留注册名（那也是 codemode 脚本调用的
@@ -1666,6 +1703,19 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
               </span>
             );
           })()}
+          {/* fork:d03-frame-b —— diff 卡的统计徽章（画板 D-03 帧 B 的 `d-badge info`
+              「+7 −7」，挂在参数格之后、状态徽章之前）。行数直接数已经拿在手里的
+              统一 patch 文本（`.d-diff-line` 画的就是同一批 `+` / `−` 行），
+              不新增数据面。一行都没数到（空 patch / 只有 hunk 头）就不画。 */}
+          {!isPwa && resultDiff && !isError && (() => {
+            const stat = countDiffLines(resultDiff.text);
+            if (!stat) return null;
+            return (
+              <span className="d-badge info" style={{ flexShrink: 0 }}>
+                +{stat.added} −{stat.removed}
+              </span>
+            );
+          })()}
           {subagent?.pendingSubagentCount ? (
             /* PR-36 · 消息流里的收敛状态点：同会话还有子代理在跑时，人也能一眼看到。 */
             <span
@@ -1676,7 +1726,7 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
               {t("subagent.pendingCount", { count: subagent.pendingSubagentCount })}
             </span>
           ) : null}
-          <span className={isPwa ? "m-grow m-mono m-t-xs" : "d-grow d-mono d-t-xs"}>
+          <span className={isPwa ? "m-grow m-mono m-t-xs" : (isStreamingInput ? "d-grow d-t-xs d-t-faint" : "d-grow d-mono d-t-xs")}>
             {isStreamingInput
               ? t("chat.generatingToolInput")
               : (patchLabel ?? (codemode ? codemodeScriptPreview(codemode.code) : getToolPreview(block)))}
@@ -1697,15 +1747,25 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
              `process.running`），不新增词条。
              没有结果时**不画运行中** —— 历史条目里未配对的结果不是「还在跑」。
              fork:v5-wave-b —— 窄屏分支（M-02 帧 B）一字未动。 */}
-          {!isPwa && (isError || isStreamingInput || (result && !codemode)) && (
+          {!isPwa && (isError || isCancelled || isStreamingInput || (result && !codemode)) && (
             <span
               className={
-                isError ? "d-badge bad" : isStreamingInput ? "d-badge" : "d-badge ok"
+                // fork:v5-landing 帧 D —— 终端卡的状态格是**退出码**（`d-badge.ok`
+                // 退出码 0 / `d-badge.bad` 退出码 1），普通工具卡才是「已完成 / 失败」。
+                terminal?.exitCode !== undefined
+                  ? (terminal.exitCode === 0 ? "d-badge ok" : "d-badge bad")
+                  : isCancelled ? "d-badge mute"
+                    : isError ? "d-badge bad"
+                      : isStreamingInput ? "d-badge" : "d-badge ok"
               }
               style={{ flexShrink: 0 }}
             >
               {isStreamingInput && <i data-ico="loader-circle" data-size="11" aria-hidden="true"></i>}
-              {isError ? t("process.failed") : isStreamingInput ? t("process.running") : t("process.done")}
+              {terminal?.exitCode !== undefined ? t("terminal.exitCodeBadge", { code: terminal.exitCode })
+                : isCancelled ? t("process.cancelled")
+                  : isError ? t("process.failed")
+                    : isStreamingInput ? t("process.preparing")
+                      : t("process.done")}
             </span>
           )}
           {duration !== undefined && (
@@ -1737,11 +1797,27 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
           <div className="d-plan-head">
             <i data-ico="list-todo" data-size="15" aria-hidden="true"></i>
             <span className="d-grow">{t("chat.todos")}</span>
-            <span className={todoSteps.every((step) => step.state === "done") ? "d-badge ok" : "d-badge"}>
+            {/* fork:d03-frame-c —— 进度徽章按帧 C 的 `d-badge ok`「3 / 6」：
+                进行中也是这一档（那一帧画的就是进行中的样子），不再按完成与否分两档。 */}
+            <span className="d-badge ok">
               {todoSteps.filter((step) => step.state === "done").length} / {todoSteps.length}
             </span>
           </div>
           <PlanRail steps={todoSteps} />
+          {/* fork:d03-frame-c —— `d-plan-foot` 只接**真有的读数**：帧 C 那行「第 4 步
+              进行中」（正在跑的是第几条，由 `state === "run"` 反推）。帧 C 那两枚钮
+              （暂停 / 查看清单）**不画**：todo 是模型自己的写接口，用户没有暂停权限，
+              而「查看清单」指向的就是这张卡本身 —— 画一个切不动的控件就是画死控件。 */}
+          {(() => {
+            const runIndex = todoSteps.findIndex((step) => step.state === "run");
+            if (runIndex < 0) return null;
+            return (
+              <div className="d-plan-foot">
+                <span>{t("chat.todoStepRunning", { index: runIndex + 1 })}</span>
+                <span className="d-grow" />
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1785,6 +1861,10 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
                 <div className="d-term plain" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                   {codemode.code.replace(/\r/g, "").trimEnd()}
                 </div>
+                {/* fork:v5-landing —— 帧 D：脚本与「脚本调过的那些工具」在**同一个**
+                    `.d-tool-body` 里（板面只有一块卡体、上下两段），此前调用列表是
+                    脚本块的**兄弟**，等于给一张卡发了两条上边线。 */}
+                <CodemodeCallList calls={codemode.calls} omitted={codemode.omitted} />
               </div>
             )}
           </div>
@@ -1815,11 +1895,8 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
         )}
       </div>
 
-      {/* fork:codemode-view —— 展开时列出这个脚本调过的工具（不是独立卡片，是父卡里的行，
-          与 pi 的 TUI 同一形态）。 */}
-      {expanded && codemode && (
-        <CodemodeCallList calls={codemode.calls} omitted={codemode.omitted} isError={isError} />
-      )}
+      {/* fork:codemode-view —— codemode 的脚本 + 调用列表在上面的同一个
+          `.d-tool-body` 里，这里不再单独挂一遍（否则卡里出现两块卡体）。 */}
 
       {/* ── Result images — always visible, independent of the collapsed details ── */}
       {resultImages.length > 0 && <ResultImages images={resultImages} />}
@@ -1857,12 +1934,27 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
                   isEmpty={resultIsEmpty}
                   isError={isError}
                   terminal={terminal}
+                  duration={duration}
                 />
               )
             )}
           </div>
         )}
       </div>
+      {/* fork:v5-landing —— 帧 B 那条居中的「收起」尾条：卡展开到底时，向上箭头
+          与点卡头收起是同一个动作的两个入口（人看长输出时眼睛在卡的底部，
+          往上找卡头要滚半屏）。尾条只在真的**展开**时出现。 */}
+      {expanded && !isPwa && (
+        <button
+          type="button"
+          className="d-tool-body"
+          onClick={handleToggle}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--nx-sp-1)", width: "100%", cursor: "pointer", color: "var(--nx-text-3)", font: "inherit" }}
+        >
+          <i data-ico="chevron-up" data-size="12" aria-hidden="true"></i>
+          {t("i18n.collapse")}
+        </button>
+      )}
     </div>
   );
 }
@@ -2160,12 +2252,14 @@ function ResultImages({ images }: { images: ImageContent[] }) {
    fork:v5-wave-b —— 窄屏抄 M-02 帧 B：`.m-code` › `.m-code-head`（图标 + `.m-grow` 标题 +
    右边一枚 `.m-term-ok`）› `.m-code-scroll` › `.m-code-body`；失败档按 M-02 帧 C 只给正文
    上 `.m-err`，不给整卡着色。 */
-function PairedResult({ text, isEmpty, isError, terminal }: {
+function PairedResult({ text, isEmpty, isError, terminal, duration }: {
   text: string;
   isEmpty: boolean;
   isError: boolean;
   /** 终端卡尾；undefined = 普通工具输出。 */
   terminal?: TerminalCardInfo;
+  /** 这一步的耗时（秒），失败卡的诊断行用它。 */
+  duration?: number;
 }) {
   const { t } = useI18n();
   // fork:v5-wave-b —— 窄屏：M-02 帧 B 的工具输出 = `.m-code`（头 + 横滚体），
@@ -2209,19 +2303,38 @@ function PairedResult({ text, isEmpty, isError, terminal }: {
           <div style={{ maxHeight: "var(--content-cap-md)", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
             {body}
           </div>
-          {/* 板上原文是「退出码 0 / 1.8s / 1 行」；本地跑的命令没有时长，
-              只给拿得到的：退出码、行数、截断位。两条英文短串待补 i18n
-              （`bash.exitCode` / `bash.outputLines` 在 lib/i18n，不在本波文件名单里）。 */}
+          {/* fork:v5-landing —— 板上原文是「退出码 0 / 1.8s / 1 行」，退出码已经搬进
+              卡头徽标（帧 D 的 `.d-badge.ok 退出码 0`），所以尾栏只补行数与截断位，
+              并且**过了 i18n** —— 之前这里是硬编码的 `exit 0` / `N lines` / `truncated`。 */}
           <div className="d-terminfo">
-            {terminal.exitCode !== undefined && (
-              <span className="d-mono" title={t("terminal.exitCode", { code: terminal.exitCode })}>
-                exit {terminal.exitCode}
-              </span>
-            )}
-            <span className="d-mono">{countOutputLines(text)} lines</span>
-            {terminal.truncated && <span>truncated</span>}
+            <span>{t("terminal.lines", { count: countOutputLines(text) })}</span>
+            {terminal.truncated && <span>{t("terminal.truncated")}</span>}
           </div>
         </div>
+      </div>
+    );
+  }
+  /* fork:d03-frame-b —— 失败卡 = 画板 D-03 帧 B 那一件：`.d-tool-body.d-col` 里
+     `.d-err`（错在哪）→ 诊断行（`1.9s · 第 31 行`）→ 三个动作。
+     此前错误文字被塞在 `.d-term.plain` 里当普通输出显示，`.d-err` 只是它内部的一个
+     span：那一格读起来像「输出里有一行红的」，不像「这一步失败了，原因是这句」。
+     「三个动作」（重试这一步 / 改参数再试 / 跳过）**还没接**：SDK 没有重跑单个
+     工具调用的命令（`node_modules/@mariozechner/pi-coding-agent/dist/index.d.ts`
+     里 grep `resend|rerun|retryTool` 无命中），在拿到真命令前画三枚点不动的钮
+     就是画死控件。 */
+  if (isError) {
+    const line = findErrorLine(text);
+    return (
+      <div className="d-tool-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+        <div className="d-err" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{content}</div>
+        {(duration !== undefined && duration > 0) || line !== null ? (
+          <div className="d-terminfo">
+            {duration !== undefined && duration > 0 && (
+              <span className="d-mono">{formatDuration(duration)}</span>
+            )}
+            {line !== null && <span className="d-mono">{t("process.errorLine", { line })}</span>}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -2238,6 +2351,27 @@ function PairedResult({ text, isEmpty, isError, terminal }: {
       </div>
     </div>
   );
+}
+
+/** 失败正文里第一处「第 N 行」/「line N」定位。找不到给 null（不编行号）。 */
+export function findErrorLine(text: string): number | null {
+  const match = text.match(/(?:line|行)\s*(\d{1,6})/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** 统一 patch 文本里 `+` / `−` 内容行的条数（画板 D-03 帧 B diff 卡的 `+7 −7`）。
+    `+++` / `---` 是文件头，`@@` 是 hunk 头，都不算内容行。 */
+export function countDiffLines(patch: string): { added: number; removed: number } {
+  let added = 0;
+  let removed = 0;
+  for (const line of patch.split(/\r?\n/)) {
+    if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("@@")) continue;
+    if (line.startsWith("+")) added += 1;
+    else if (line.startsWith("-")) removed += 1;
+  }
+  return { added, removed };
 }
 
 /** 终端卡尾那格「几行」：只数不解析，纯展示（板上写的是「1 行」那一格）。 */

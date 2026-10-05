@@ -93,6 +93,23 @@ function now(): number {
   return Date.now();
 }
 
+/** fork:v5-landing D-03e 帧 B —— 相位已持续多少秒（板面 `d-run` 里那格 `1.2s`）。
+ *  纯 1s 心跳，同 key 不重置；没在转圈的相位不占一个定时器。 */
+function usePhaseElapsed(activeKey: string | null, active: boolean): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active || !activeKey) {
+      setSeconds(0);
+      return;
+    }
+    const startedAt = now();
+    setSeconds(0);
+    const id = setInterval(() => setSeconds((now() - startedAt) / 1000), 1000);
+    return () => clearInterval(id);
+  }, [active, activeKey]);
+  return seconds;
+}
+
 /**
  * 入队（纯函数，单测覆盖）。
  *
@@ -298,6 +315,13 @@ export function PhaseRoll({
     }
   }, [animate, displayed, exiting]);
 
+  // fork:v5-landing —— 板面「等模型」那一格：文案右边挂一枚 `.d-run`（转圈 + 已等待
+  // 秒数）。只有转圈的相位才有这一格 —— 它回答的是「还要多久没动静」；已经有明确
+  // 进展的相位（跑工具 / 跑命令）那句话在闪，那一格没有意义。
+  // 钩子必须在下面 `!displayed && !exiting` 的提前 return **之前** 调。
+  const activeKey = displayed?.key ?? null;
+  const elapsed = usePhaseElapsed(activeKey, Boolean(activeKey && phaseIcon(activeKey).spin));
+
   if (!displayed && !exiting) return null;
 
   const icon = phaseIcon(displayed?.key ?? exiting?.key ?? "");
@@ -342,6 +366,12 @@ export function PhaseRoll({
             </span>
           )}
         </span>
+        {!isPwa && icon.spin && displayed && (
+          <span className="d-run">
+            <i data-ico="loader-circle" data-size="12" aria-hidden="true"></i>
+            {`${elapsed.toFixed(1)}s`}
+          </span>
+        )}
       </span>
     </span>
   );
