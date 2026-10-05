@@ -5,7 +5,7 @@ import { loadExplorerOpen, saveExplorerOpen } from "@/lib/file-explorer-state";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { DismissButton } from "./DismissButton";
-import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
+import { FileExplorer, type FileExplorerHandle, readExplorerPanelViewState, writeExplorerPanelViewState, type ExplorerPanelViewState } from "./FileExplorer";
 import { PortalDropdown, useDismissMenu } from "./PortalDropdown";
 // fork:pwa-sb — 触摸安全的浮层关闭（见那里的注释）：PortalDropdown 自带的
 // useDismissOnOutside 在 mousedown 上同步卸载，触摸时会把菜单项的 click 吞掉。
@@ -21,6 +21,20 @@ const FILE_MANAGER_ERROR_KEYS: Record<string, string> = {
   remote: "sidebar.openInExplorerRemoteOnly",
   "unsupported-platform": "sidebar.openInExplorerUnsupported",
 };
+
+/**
+ * fork:file-tree-slot-swap — 按 cwd 取一次上一次的面板视图，同 cwd 的重挂不重取。
+ *
+ * 与 FileExplorer 里那棵树的快照是同一件事的两半（数据在树里，开关在这里），
+ * 放在一起是因为它们回答同一个问题：**右栏把面板搬了槽以后该怎么看起来没搬过。**
+ */
+function usePanelViewState(cwd: string): ExplorerPanelViewState | null {
+  const ref = useRef<{ cwd: string; state: ExplorerPanelViewState | null } | null>(null);
+  if (ref.current === null || ref.current.cwd !== cwd) {
+    ref.current = { cwd, state: readExplorerPanelViewState(cwd) };
+  }
+  return ref.current.state;
+}
 
 function ToolbarIconButton({
   onClick,
@@ -121,9 +135,14 @@ export function ExplorerPanel({
      用户反馈「文件树默认进来是选中搜索按钮」。筛选条（输入框）现在与头行那枚
      search 钮同一个开关（`FileExplorer` 桌面档按 `fileSearchOpen` 画这一行，
      手机档本来就这么画），所以进来是一棵干净的树，要筛再点。 */
-  const [fileSearchOpen, setFileSearchOpen] = useState(false);
+  /* fork:file-tree-slot-swap —— 这两个开关原本是纯组件 state，而本面板会被右栏
+     在两个槽之间搬（没开文件时占满面板，第一个文件打开后变成树那一列），搬一次
+     就是一次重挂：「已改动的文件」会被折回去、筛选条会自己关掉 —— 用户刚点开的
+     那一栏在他眼前消失。按 cwd 记住上一份视图，重挂后原样回来。 */
+  const panelView = usePanelViewState(cwd);
+  const [fileSearchOpen, setFileSearchOpen] = useState(panelView?.fileSearchOpen ?? false);
   const [changesCount, setChangesCount] = useState(0);
-  const [changesCollapsed, setChangesCollapsed] = useState(true);
+  const [changesCollapsed, setChangesCollapsed] = useState(panelView?.changesCollapsed ?? true);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
   // fork:pwa-sb —— 手机档头行的「更多」（见 JSX 里的注释）。
   const isMobile = useIsMobile();
@@ -146,6 +165,11 @@ export function ExplorerPanel({
   useEffect(() => {
     if (explorerRefreshKey !== undefined) setExplorerKey((k) => k + 1);
   }, [explorerRefreshKey]);
+
+  // fork:file-tree-slot-swap —— 每次切换都记一份（按 cwd，所以换项目不会串）。
+  useEffect(() => {
+    writeExplorerPanelViewState(cwd, { changesCollapsed, fileSearchOpen });
+  }, [cwd, changesCollapsed, fileSearchOpen]);
 
   useEffect(() => () => {
     if (explorerRefreshTimerRef.current) clearTimeout(explorerRefreshTimerRef.current);

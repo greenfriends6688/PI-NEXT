@@ -51,6 +51,78 @@ interface FileNode {
   outsideLinkEncloses?: boolean;
 }
 
+/* ── fork:file-tree-slot-swap ────────────────────────────────────────────────
+   右栏把**同一棵树**画在两个槽里（见 `AppShell` 的 `explorerPanel`）：还没开文件
+   时它就是整块面板，第一个文件一打开它就变成 `.explorer-column` 里的那一列。React
+   认的是父节点，所以这一搬就是一次**卸载 + 重挂**——后果全在这一搬上：
+     · roots / 展开目录 / git 状态 / 改动列表状态全丢，要重新列两次（`type=list`
+       与 `/api/git/status` 各两遍）、重新订阅 `file-watch`；
+     · 新实例第一帧 `roots` 是空的，于是树先闪「0 个条目」，再闪「未找到文件」。
+   快照把「上一次列到的样子」按 cwd 留在模块里，重挂时先读回来当初值，后台照旧重取：
+   数据仍然以服务端为准（可见性不是授权，见 lib/file-tree-visibility.ts），但用户
+   看不到一次清空。**只认新鲜快照**：超过 TTL 宁可显示加载态，也不要展示一份可能
+   已经过期的目录。 */
+
+/** 一棵树上一次列到的样子（按 cwd 存一份，重挂时用来当初值）。 */
+export interface FileTreeSnapshot {
+  roots: FileNode[];
+  gitFiles: GitFileStatus[];
+  additions: number;
+  deletions: number;
+  savedAt: number;
+}
+
+/** 只影响「重挂后有多久看不到内容」，不影响任何授权或数据正确性。 */
+const TREE_SNAPSHOT_TTL_MS = 15_000;
+const TREE_SNAPSHOT_MAX_ENTRIES = 8;
+
+const treeSnapshots = new Map<string, FileTreeSnapshot>();
+
+/** 挂载（或换 cwd）时读一次；太旧 / 没有就是 null。`now` 显式传入是为了可测。 */
+export function readFileTreeSnapshot(cwd: string, now: number = Date.now()): FileTreeSnapshot | null {
+  const snapshot = treeSnapshots.get(cwd);
+  if (!snapshot) return null;
+  if (now - snapshot.savedAt > TREE_SNAPSHOT_TTL_MS) {
+    treeSnapshots.delete(cwd);
+    return null;
+  }
+  return snapshot;
+}
+
+/** 写入一份快照；`savedAt` 由这里盖上，调用方不必关心时钟。 */
+export function writeFileTreeSnapshot(
+  cwd: string,
+  snapshot: Omit<FileTreeSnapshot, "savedAt">,
+  now: number = Date.now(),
+): void {
+  // 满了先扫一遍过期的，还满就整体换掉（这份缓存只服务**同时开着的那一块**面板）。
+  if (treeSnapshots.size >= TREE_SNAPSHOT_MAX_ENTRIES) {
+    for (const [key, entry] of treeSnapshots) {
+      if (now - entry.savedAt > TREE_SNAPSHOT_TTL_MS) treeSnapshots.delete(key);
+      if (treeSnapshots.size < TREE_SNAPSHOT_MAX_ENTRIES / 2) break;
+    }
+    if (treeSnapshots.size >= TREE_SNAPSHOT_MAX_ENTRIES) treeSnapshots.clear();
+  }
+  treeSnapshots.set(cwd, { ...snapshot, savedAt: now });
+}
+
+/** 宿主（ExplorerPanel）那几个开关的快照：改动列表 / 筛选条开着还是关着。 */
+export interface ExplorerPanelViewState {
+  changesCollapsed?: boolean;
+  fileSearchOpen?: boolean;
+}
+
+const panelViewStates = new Map<string, ExplorerPanelViewState>();
+
+export function readExplorerPanelViewState(cwd: string): ExplorerPanelViewState | null {
+  return panelViewStates.get(cwd) ?? null;
+}
+
+export function writeExplorerPanelViewState(cwd: string, state: ExplorerPanelViewState): void {
+  if (panelViewStates.size >= TREE_SNAPSHOT_MAX_ENTRIES) panelViewStates.clear();
+  panelViewStates.set(cwd, { ...panelViewStates.get(cwd), ...state });
+}
+
 interface Props {
   cwd: string;
   /** fork:gap08-roots — 会话所属项目的根；与 cwd 不同时（worktree 会话）多出一个「项目」根。 */
@@ -886,6 +958,20 @@ const EMPTY_GIT_STATUS: Map<string, GitFileStatus> = new Map();
 const NOOP = () => {};
 
 /**
+ * fork:file-tree-slot-swap — 按 cwd 取一次快照，只有 cwd 真的变了才重取。
+ *
+ * 同一 cwd 上的重挂（面板把树从整块搬进 `.explorer-column`）拿到的是同一份快照，
+ * 于是新实例第一帧就有内容；换了会话则重新按新 cwd 读，读不到就是 null（走加载态）。
+ */
+function useTreeSnapshot(cwd: string): FileTreeSnapshot | null {
+  const ref = useRef<{ cwd: string; snapshot: FileTreeSnapshot | null } | null>(null);
+  if (ref.current === null || ref.current.cwd !== cwd) {
+    ref.current = { cwd, snapshot: readFileTreeSnapshot(cwd) };
+  }
+  return ref.current.snapshot;
+}
+
+/**
  * fork:gap08-roots — 除会话 cwd 之外的根（目前只有「项目」）的独立分区。
  *
  * 为什么不把主根也改成循环：主根的渲染缠着上传回执、git 徽标、上传高亮、刷新脉冲与搜索，
@@ -1129,10 +1215,18 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   // 动作得常驻）。挂在宿主这一层而不是每个 TreeNode，是为了不让上百行各挂一个
   // matchMedia 监听。桌面恒 false。
   const isMobile = useIsMobile();
-  const [roots, setRoots] = useState<FileNode[]>([]);
-  const [loading, setLoading] = useState(true);
+  /* fork:file-tree-slot-swap —— 重挂的那一个实例从快照当初值，所以下面几个 useState
+     拿到的是**上一次列到的样子**而不是空数组；没有新鲜快照时才走加载态。
+     `useTreeSnapshot` 只在 cwd 真的变了时重读，所以同一 cwd 的重挂不会丢。 */
+  const snapshot = useTreeSnapshot(cwd);
+  const [roots, setRoots] = useState<FileNode[]>(() => snapshot?.roots ?? []);
+  const [loading, setLoading] = useState(() => snapshot === null);
   const [error, setError] = useState<string | null>(null);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  /* 展开目录**不进快照**：子节点住在各个 `TreeNode` 自己的 state 里（`node.children`
+     一直是空的），快照里恢复「展开」只会得到一排空文件夹。要留住展开就得连带把
+     每一层的子节点也存下来 —— 那是一份真正的树缓存，超出这次要解决的问题，所以这里
+     只还原根层 + 改动列表：换槽回来时看到的是同一棵树与同一份改动，展开态重来。 */
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   // fork:fix-tree-watch — 目录变更脉冲。外部（agent/终端/编辑器）改了文件后，
   // 服务端 SSE 推一次，这里自增把已展开目录的重取带动起来。
@@ -1143,8 +1237,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   // 不能跟着每次事件重拉；这里用 1.2s 去抖，保证「最终一致」而不跟着抖。
   const [gitPulse, setGitPulse] = useState(0);
   const [highlightedPaths, setHighlightedPaths] = useState<Set<string>>(new Set());
-  const [gitFiles, setGitFiles] = useState<GitFileStatus[]>([]);
-  const [gitLineStats, setGitLineStats] = useState({ additions: 0, deletions: 0 });
+  const [gitFiles, setGitFiles] = useState<GitFileStatus[]>(() => snapshot?.gitFiles ?? []);
+  const [gitLineStats, setGitLineStats] = useState(
+    () => (snapshot ? { additions: snapshot.additions, deletions: snapshot.deletions } : { additions: 0, deletions: 0 }),
+  );
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -1176,7 +1272,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   const [actionError, setActionError] = useState<string | null>(null);
   const rootCreateInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const prevCwdRef = useRef<string | null>(null);
+  // fork:file-tree-slot-swap —— 有了快照就说明这是**同一个 cwd 的重挂**，`prevCwdRef`
+  // 直接认下当前 cwd，下面那条 effect 便不会把展开目录清空、也不会回到加载态。
+  const prevCwdRef = useRef<string | null>(snapshot ? cwd : null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const refreshToken = `${refreshKey ?? 0}:${treeRefreshKey}:${watchPulse}`;
   /** fork:gap08-roots — 额外根自己的变更脉冲（watch 必须按根建立）。 */
@@ -1753,6 +1851,18 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
 
     return () => { cancelled = true; };
   }, [cwd, gitPulse, refreshKey, treeRefreshKey]);
+
+  /* fork:file-tree-slot-swap —— 记住这棵树现在长什么样，供下一次重挂当初值。
+     只在**真的列到了东西**时记：空列表不该覆盖掉上一次那份（否则一次失败的列目录
+     会把快照也清成空，重挂后就变成「0 个条目」）。 */
+  useEffect(() => {
+    if (roots.length === 0) return;
+    writeFileTreeSnapshot(cwd, {
+      roots,
+      gitFiles,
+      ...gitLineStats,
+    });
+  }, [cwd, roots, gitFiles, gitLineStats]);
 
   // fork:fix-tree-git-debounce — 目录事件 → git 状态刷新的去抖桥。
   useEffect(() => {

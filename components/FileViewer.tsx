@@ -96,6 +96,36 @@ interface FileData {
 
 const SOURCE_HIGHLIGHT_MAX_LINES = 1_000;
 
+/**
+ * fork:viewer-dedupe-request — 在途请求表：同一个 key 的第二条调用**共用第一条的
+ * promise**，而不是再打一次接口。
+ *
+ * 为什么值得有：打开一个文件时两条路径会同时要同一份东西 —— 挂载读 + watch 的
+ * `connected` 快照读要同一份正文，`gitRefreshKey` 那条 effect + 同一个 `connected`
+ * 要同一份 diff（服务端每次都跑一遍 `git status` + `git diff HEAD -- <file>`，
+ * 实测 175–450ms，且与同一时刻文件树的两次列目录抢同一个 Node 线程）。
+ *
+ * 关键的不变式：**「后来者作废前作」的那次自增必须发生在去重之后**（也就是在
+ * `run` 里面），否则共用者会先把 owner 的 requestId 顶掉，owner 回来发现「我不是
+ * 最新」就把结果丢了 —— 曾经真的这么坏过一次：diff 永远停在「加载中」。
+ * 所以 `run` 是这条请求的**唯一** owner，它的自增与 guard 都在里面成对出现。
+ */
+export function shareInFlightRequest<T>(
+  store: Map<string, { promise?: Promise<T> }>,
+  key: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  const running = store.get(key);
+  if (running?.promise) return running.promise;
+  const entry: { promise?: Promise<T> } = {};
+  store.set(key, entry);
+  const promise = run().finally(() => {
+    if (store.get(key) === entry) store.delete(key);
+  });
+  entry.promise = promise;
+  return promise;
+}
+
 /* ── M-06 · 手机档类名对照 ──────────────────────────────────────────────────
    画板 M-06 帧 B / 帧 F：查看器是 `inset:0` 的**全屏覆盖**，顶栏 `.m-viewer-bar`
    写完整路径、模式是三等宽 `.m-seg`、正文 `.m-viewer-scroll`、底部 `.m-vbar`。
@@ -445,8 +475,13 @@ function diffLines(patch: string): DiffLine[] {
   }));
 }
 
+/** 一个差异片段：要么是一串要画的行，要么是一行「… N unchanged lines …」占位。 */
+export type DiffSegment =
+  | { hidden: true; count: number }
+  | { hidden: false; lines: DiffLine[] };
+
 /** Collapse the diff to 3 lines of context around every change. */
-function diffSegments(diff: readonly DiffLine[]): Array<{ hidden: true; count: number } | { hidden: false; lines: DiffLine[] }> {
+function diffSegments(diff: readonly DiffLine[]): DiffSegment[] {
   const CONTEXT = 3;
   const visible = new Set<number>();
   diff.forEach((line, index) => {
@@ -456,7 +491,7 @@ function diffSegments(diff: readonly DiffLine[]): Array<{ hidden: true; count: n
     }
   });
 
-  const segments: Array<{ hidden: true; count: number } | { hidden: false; lines: DiffLine[] }> = [];
+  const segments: DiffSegment[] = [];
   let i = 0;
   while (i < diff.length) {
     const blockIsVisible = visible.has(i);
@@ -468,6 +503,53 @@ function diffSegments(diff: readonly DiffLine[]): Array<{ hidden: true; count: n
     i = end;
   }
   return segments;
+}
+
+/** fork:perf-viewer-diff-pages —— 先画这么多行，点一次「加载更多」再加这么多。 */
+const DIFF_PAGE_LINES = 400;
+
+/**
+ * Cut a collapsed diff down to `maxLines` rendered lines.
+ *
+ * A file under an active rewrite has almost every line in the diff, so the 3-line
+ * context window hides nothing and the whole thing lands in the DOM at once: one
+ * `+1148-101` file is 1412 rows / +6.4k nodes, and building them is ~200ms of
+ * main thread in the same commit that mounts the editor — which is what the
+ * "loading…" state is still on screen for. The text viewer already pages past its
+ * 256KB chunk the same way (`.d-banner` + 加载更多); this is the diff doing the
+ * same. `remaining` counts the lines still behind the cut so the caller can offer
+ * more; the collapsed "… N unchanged lines …" rows ahead of the cut stay put,
+ * and the ones behind it are dropped (they belong to rows nobody has asked for).
+ */
+export function limitDiffSegments(
+  segments: readonly DiffSegment[],
+  maxLines: number,
+): { items: DiffSegment[]; remaining: number } {
+  const items: DiffSegment[] = [];
+  let used = 0;
+  let remaining = 0;
+  let cut = false;
+  for (const segment of segments) {
+    if (cut) {
+      if (!segment.hidden) remaining += segment.lines.length;
+      continue;
+    }
+    if (segment.hidden) {
+      items.push(segment);
+      continue;
+    }
+    const room = maxLines - used;
+    if (segment.lines.length <= room) {
+      items.push(segment);
+      used += segment.lines.length;
+      continue;
+    }
+    items.push({ hidden: false, lines: segment.lines.slice(0, room) });
+    used += room;
+    remaining += segment.lines.length - room;
+    cut = true;
+  }
+  return { items, remaining };
 }
 
 function DiffView({ patch }: { patch: string }) {
@@ -483,6 +565,13 @@ function DiffView({ patch }: { patch: string }) {
   // blocks are memoized on the patch itself now.
   const diff = useMemo(() => diffLines(patch), [patch]);
   const segments = useMemo(() => diffSegments(diff), [diff]);
+  // fork:perf-viewer-diff-pages —— 分批画；换文件回到第一页（见 limitDiffSegments 的理由）。
+  const [shownLines, setShownLines] = useState(DIFF_PAGE_LINES);
+  useEffect(() => { setShownLines(DIFF_PAGE_LINES); }, [patch]);
+  const { items, remaining } = useMemo(
+    () => limitDiffSegments(segments, shownLines),
+    [segments, shownLines],
+  );
   const hasChanges = diff.some((l) => l.type !== "unchanged");
 
   if (!hasChanges) {
@@ -506,7 +595,7 @@ function DiffView({ patch }: { patch: string }) {
         minWidth: "100%",
       }}
     >
-      {segments.map((seg, si) => {
+      {items.map((seg, si) => {
         if (seg.hidden) {
           return (
             <div
@@ -592,6 +681,27 @@ function DiffView({ patch }: { patch: string }) {
         });
         return <div key={si}>{lines}</div>;
       })}
+      {remaining > 0 && (
+        /* fork:perf-viewer-diff-pages —— 剩下的行还没进 DOM；沿用正文分块那块
+           「加载更多」的说法（同一个 key、同一颗钮），不新造文案也不新造类。 */
+        <div
+          className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}
+          style={{
+            padding: "var(--nx-sp-1) 16px",
+            background: "var(--nx-panel)",
+            borderTop: "1px solid var(--nx-line)",
+            textAlign: "center",
+          }}
+        >
+          <button
+            type="button"
+            className="d-btn sm"
+            onClick={() => setShownLines((lines) => lines + DIFF_PAGE_LINES)}
+          >
+            {t("i18n.loadMore")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1709,6 +1819,11 @@ function TextFileViewer({
   const esRef = useRef<EventSource | null>(null);
   const contentRequestRef = useRef(0);
   const gitDiffRequestRef = useRef(0);
+  /* fork:viewer-dedupe-request —— 在途请求表：同一个 key 的第二条请求复用第一条的
+     promise，而不是再打一次接口。请求 id（上面两个计数器）仍逐条自增，所以「新来的
+     那条才是当前答案」这条时序不变。 */
+  const contentRequestsRef = useRef(new Map<string, { promise?: Promise<FileData | null> }>());
+  const gitDiffRequestsRef = useRef(new Map<string, { promise?: Promise<void> }>());
   const loadedFilePathRef = useRef<string | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   /* fork:v5-boards D-06b 帧 C —— 长列表的上下渐隐（`.d-fade` / `.d-fade-tail`）：
@@ -1801,52 +1916,70 @@ function TextFileViewer({
   ]);
 
   const fetchContent = useCallback((filePath: string, offset = 0) => {
-    const requestId = ++contentRequestRef.current;
-    return fetch(getFileApiUrl(filePath, "read", sourceSessionId, { offset: offset || undefined }))
-      .then((r) => r.json())
-      .then((d: FileData & { error?: string }) => {
-        if (requestId !== contentRequestRef.current) return null;
-        if (d.error) {
-          setError(d.error);
-          return null;
-        }
-        setError(null);
-        setData((current) => offset && current
-          ? { ...d, content: current.content + d.content }
-          : d);
-        return d;
-      })
-      .catch((e) => {
-        if (requestId !== contentRequestRef.current) return null;
-        setError(String(e));
-        return null;
-      });
+    /* fork:viewer-dedupe-request —— 同一份内容的两条路径（挂载读 + watch 的
+       `connected` 快照读）在慢文件上会重叠，于是把整份文本取两遍、渲染两遍。
+       requestId 的自增在 `run` 里面，也就是**去重之后**：共用者不顶掉 owner 的
+       id，owner 回来仍认得自己是最新（见 shareInFlightRequest 的注释）。 */
+    return shareInFlightRequest(
+      contentRequestsRef.current,
+      `${filePath}\0${offset}`,
+      () => {
+        const requestId = ++contentRequestRef.current;
+        return fetch(getFileApiUrl(filePath, "read", sourceSessionId, { offset: offset || undefined }))
+          .then((r) => r.json())
+          .then((d: FileData & { error?: string }) => {
+            if (requestId !== contentRequestRef.current) return null;
+            if (d.error) {
+              setError(d.error);
+              return null;
+            }
+            setError(null);
+            setData((current) => offset && current
+              ? { ...d, content: current.content + d.content }
+              : d);
+            return d;
+          })
+          .catch((e) => {
+            if (requestId !== contentRequestRef.current) return null;
+            setError(String(e));
+            return null;
+          });
+      },
+    );
   }, [sourceSessionId]);
 
   const fetchGitDiff = useCallback(async (targetPath: string) => {
-    const requestId = ++gitDiffRequestRef.current;
-    setGitDiffLoading(true);
     if (!cwd) {
+      const requestId = ++gitDiffRequestRef.current;
       setGitDiff(null);
       setGitDiffLoading(false);
-      setGitDiffResolved(true);
+      if (requestId === gitDiffRequestRef.current) setGitDiffResolved(true);
       return;
     }
 
-    try {
-      const params = new URLSearchParams({ cwd, path: targetPath });
-      const response = await fetch(`/api/git/diff?${params.toString()}`);
-      const next = await response.json() as GitFileDiffResponse & { error?: string };
-      if (requestId !== gitDiffRequestRef.current) return;
-      setGitDiff(response.ok && next.supported && typeof next.patch === "string" ? next : null);
-    } catch {
-      if (requestId === gitDiffRequestRef.current) setGitDiff(null);
-    } finally {
-      if (requestId === gitDiffRequestRef.current) {
-        setGitDiffLoading(false);
-        setGitDiffResolved(true);
+    /* fork:viewer-dedupe-request —— 打开一个文件时两条 effect 都会要这份 diff
+       （`gitRefreshKey` 那条 + watch 的 `connected` 快照），而服务端每次都要跑一遍
+       `git status` + `git diff HEAD -- <file>`（实测 175–450ms，且与同一时刻文件树
+       的两次列目录抢同一个 Node 线程）。在途的同一个 (cwd, 路径) 共用一次；
+       requestId 的自增在 `run` 里面（去重之后），共用者不会顶掉 owner 的 id。 */
+    await shareInFlightRequest(gitDiffRequestsRef.current, `${cwd}\0${targetPath}`, async () => {
+      const requestId = ++gitDiffRequestRef.current;
+      setGitDiffLoading(true);
+      try {
+        const params = new URLSearchParams({ cwd: cwd!, path: targetPath });
+        const response = await fetch(`/api/git/diff?${params.toString()}`);
+        const next = await response.json() as GitFileDiffResponse & { error?: string };
+        if (requestId !== gitDiffRequestRef.current) return;
+        setGitDiff(response.ok && next.supported && typeof next.patch === "string" ? next : null);
+      } catch {
+        if (requestId === gitDiffRequestRef.current) setGitDiff(null);
+      } finally {
+        if (requestId === gitDiffRequestRef.current) {
+          setGitDiffLoading(false);
+          setGitDiffResolved(true);
+        }
       }
-    }
+    });
   }, [cwd]);
 
   useEffect(() => {
@@ -2615,7 +2748,7 @@ function TextFileViewer({
 
         <div className="file-viewer-controls d-row">
           {/* fork:ui-20 — copy path / reveal in the file manager / open with the default app. */}
-          <PathActions path={filePath} compact />
+          <PathActions path={filePath} />
           {displayModes.length > 1 && (
             /* e2e/file-viewer-modes.mjs 用 `.file-viewer-mode-switch` /
                `.file-viewer-mode-button` 定位模式组；旧视觉由 `.d-seg` 覆盖，
