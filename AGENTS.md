@@ -213,6 +213,14 @@ One `.jsonl` has exactly one leaf, and the running agent appends under it — so
 ### Document preview selection
 - The DOCX preview is a same-origin sandboxed iframe, so its text selection never reaches the parent document's `selectionchange`. `DocumentViewer` reads `iframe.contentDocument.getSelection()` straight from the frame and anchors `FileSelectionQuotePopover` (shared with the text viewer) to the frame's own coordinates; the selection is quoted with `startLine: 0`, which `fileSelectionText()` serializes as an unlocated `@path` snapshot. PDF previews use the browser's built-in viewer and cannot support this.
 
+### 虚拟列表的行高只有一个真值：真行自己的盒高（fork:session-row-overlap）
+
+会话列表是**绝对定位的固定行距窗口化**。行距一旦短过行的真实盒高，行盒只画到行距、文字画到盒高 —— 每一行的元信息都压在下一行的标题上（用户 2026-10-05 截图）。写死的数字必然再漂：v1 `.pw-session` 是 48，v5 `.d-sess` 已经是 52.6，PWA `.m-row` 更到 85。
+
+- `SESSION_LIST_ITEM_HEIGHT` 现在**只是首帧兜底**，真值由 `useSessionRowHeight(listScrollRef)` 在 `useLayoutEffect` 里量第一枚行（绘制前重排，看不到跳）。窗口与偏移都吃这同一个数。
+- 行高因此必须**与状态无关**：行尾控件（折叠箭头 `d-iconbtn` 28 / hover 四枚动作 24）原本留在流里，会把 `.d-sess-m` 从 17.7 顶到 24 或 28，行高在 52.6 / 58.9 / 62.9 之间跳，悬停一枚就叠一次。`app/design/v5-forms.css` 里预留了元信息格的高度（`.d-sess-m` 28 / `.m-row-m` 36）把它钉死。
+- 高行（运行中 / 等你处理）那套偏移分支已删：v5 的徽标只比普通行高 0.3px，`Math.ceil` 后落进同一档。**再加高度分支前先想清楚是不是又让行高变成状态相关了。**
+
 ### ToolCall field normalization
 Pi stores toolCall blocks as `{type:"toolCall", id, name, arguments}` but `ToolCallContent` uses `{toolCallId, toolName, input}`. `normalizeToolCalls()` in `lib/normalize.ts` handles this — called in both `session-reader.ts` (file load) and `handleAgentEvent` in `hooks/useAgentSession.ts` (streaming).
 

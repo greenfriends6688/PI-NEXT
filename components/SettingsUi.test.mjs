@@ -85,9 +85,11 @@ test("loads settings presentation from its dedicated stylesheet", () => {
   assert.doesNotMatch(globalCssSource, /\.settings-dialog-backdrop \{/);
 });
 
-test("all four settings sections use the shared page frame and list-detail layout", () => {
+test("all four settings sections use the shared page frame", () => {
+  // fork:v5-landing · D-08 / D-12 —— **左栏不再是必需的**：已落地的两节（模型 / 子代理）
+  // 按画板发一列 `.d-set-inner`，左导航就是设置壳那一列 `.d-set-nav`。
   for (const [name, source] of configSources) {
-    for (const primitive of ["ConfigPanelShell", "SettingsPage", "ConfigSidebar"]) {
+    for (const primitive of ["ConfigPanelShell", "SettingsPage"]) {
       assert.match(source, new RegExp(`<${primitive}`), `${name} should use ${primitive}`);
     }
     // fork:v5-landing —— **详情列有两种合法形状**（均为已登记的板面对应）：
@@ -115,18 +117,21 @@ test("all subpanel sidebars share one typography scale", () => {
   assert.match(pwaSource, /\.m-setrow-s \{[\s\S]*?color: var\(--nx-text-3\)/);
   // fork:settings-frame —— 技能列表行直接发列表行类（不经过 ConfigSidebarText 包装）；
   // 其余分节走共享基件。两种发射都归同一套类，守卫按「谁在发」断言。
-  for (const source of Object.values(sources)) {
-    assert.match(source, /<ConfigSidebarText|className=\{`d-sess-t|d-sess-t/);
+  // fork:v5-landing · D-12 —— 子代理分节是**例外**：profile 走 `.d-card > .d-table`，
+  // 这一列没有列表行了（画板 D-12 的十一张分节里没有一处 `.d-sess`）。
+  for (const name of ["SkillsConfig", "PluginsConfig", "ModelsConfig"]) {
+    assert.match(sources[name], /<ConfigSidebarText|className=\{`d-sess-t|d-sess-t/);
   }
-  for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
+  assert.match(sources.AgentsConfig, /<table className="d-table">/);
+  for (const name of ["SkillsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigSidebarGroupLabel|d-group-title/);
   }
   assert.match(templateSource, /export function ConfigSidebarGroupLabel[\s\S]*?"d-group-title"/);
 });
 
-test("skills and sub-agents share interactive sidebar rows", () => {
+test("skills and plugins share interactive sidebar rows", () => {
   const sources = Object.fromEntries(configSources);
-  for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
+  for (const name of ["SkillsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigSidebarItem|d-sess/);
   }
   // 选中态 = 画板的 `.is-on`（强调淡底 + 强调色文字），不再是自绘的 active 类。
@@ -396,9 +401,9 @@ test("skills, agents, and plugins share enabled and disabled controls", () => {
   for (const name of ["SkillsConfig", "AgentsConfig", "PluginsConfig"]) {
     assert.match(sources[name], /<ConfigSwitch|d-switch/);
   }
-  // 状态点只属于子代理 / 插件的列表行（行 anatomy）；技能行尾是「可更新」warn
-  // 徽标或开关快捷切换，不再有状态点。
-  for (const name of ["AgentsConfig", "PluginsConfig"]) {
+  // 状态点只属于插件的列表行（行 anatomy）；子代理分节的状态照画板 D-12 帧 B
+  // 落在表格的「状态」列徽章上，技能行尾是「可更新」warn 徽标或开关快捷切换。
+  for (const name of ["PluginsConfig"]) {
     assert.match(sources[name], /<ConfigStatusDot|d-dot/);
   }
 });

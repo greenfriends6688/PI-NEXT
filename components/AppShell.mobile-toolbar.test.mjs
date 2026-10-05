@@ -119,7 +119,11 @@ test("keeps the session stats in the context-ring popover, not a bottom strip", 
   // 浮窗由 AppShell 的 McpStatusButton / PluginStatusButton 渲染。
   assert.match(chatWindow, /onExtensionStatusChange\?\.\(statuses, widgets\)/);
   assert.doesNotMatch(chatWindow, /<ExtensionStatusFloat/);
-  assert.match(source, /<McpStatusButton[\s\S]{0,120}?statuses=\{extensionStatuses\}/);
+  assert.match(source, /<McpStatusButton[\s\S]{0,120}?statuses=\{mcpStatuses\}/);
+  // fork:mcp-topbar-dedupe-status —— 状态行按种类分派，两个浮窗不再各渲染整份
+  // statuses（`ponytail: FULL` 与 `MCP: … enabled` 曾同时出现在两个浮窗里）。
+  assert.match(source, /splitStatusesByKind\(extensionStatuses\)/);
+  assert.doesNotMatch(source, /statuses=\{extensionStatuses\}/);
   assert.match(source, /<PluginStatusButton[\s\S]{0,160}?widgets=\{extensionWidgets\}/);
   assert.doesNotMatch(chatWindow, /<ExtensionStatusBar[\s\S]*?statuses=\{extensionStatuses\}[\s\S]*?widgets=\{extensionWidgets\}[\s\S]*?\/>/);
 });

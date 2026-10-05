@@ -84,6 +84,19 @@ button.d-tool-head > .d-t-xs { margin-top: var(--nx-sp-1); }
 }
 .fork-minimap-panel > .d-row .d-iconbtn { width: var(--nx-ctl-xs); height: var(--nx-ctl-xs); }
 
+/* 会话行的**行尾控件**（折叠箭头 / ⋯ / hover 四枚动作）住在元信息格里（画板 M-04
+   的 `.m-row` 就是两行，控件贴在元信息那行右端，与桌面的 `.d-sess` 同一形态），
+   所以元信息格得**预留它们的高度** —— 行高因此与状态无关。
+
+   为什么必须预留：控件留在流里时，`d-iconbtn` 的 24（hover 四枚）/ 28（折叠箭头）
+   会把 `.d-sess-m` 从 17.7 顶到 24 或 28，行高随之在 **52.6 / 58.9 / 62.9** 之间跳；
+   而窗口化的行距是一个定数，跳到哪一档就有哪一档的行互相叠 —— 悬停一枚就叠一次。
+   留出行尾控件的高度之后两端行高各自恒定（`.d-sess` 58.9、`.m-row` 85.2），
+   `useSessionRowHeight` 量一次就够，任何状态都不再叠。 */
+.d-sess { padding-top: 5px; padding-bottom: 5px; }
+.d-sess-m { height: 28px; }
+.m-row-m { height: 36px; }
+
 /* M-12/M-09 的抓手 `.m-sheet-grab` 在画板里只是手势提示条，产品里是
    「点一下即收」的钮（2026-10-05 用户反馈：抓手就该能关）。元素从 div 换成
    button（同位同类名，与本仓「画板 div→button」的既定换法一致），这里还原

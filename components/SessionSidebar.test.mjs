@@ -4,7 +4,7 @@ import test from "node:test";
 import { createJiti } from "jiti";
 
 const jiti = createJiti(import.meta.url, { jsx: { runtime: "automatic" }, tsconfigPaths: true });
-const { getSessionListIndices, SESSION_LIST_ITEM_HEIGHT } = await jiti.import("./SessionSidebar.tsx");
+const { getSessionListIndices, sessionListOffsets, SESSION_LIST_ITEM_HEIGHT } = await jiti.import("./SessionSidebar.tsx");
 
 const windowCount = (viewportHeight) => Math.ceil((viewportHeight || 600) / SESSION_LIST_ITEM_HEIGHT) + 16;
 
@@ -32,6 +32,24 @@ test("session windows stay valid after a project shrinks and before the viewport
   assert.deepEqual(getSessionListIndices(5, 80000, 335, 1999), [0, 1, 2, 3, 4]);
   assert.deepEqual(getSessionListIndices(0, 80000, 335, 1999), []);
   assert.equal(getSessionListIndices(2000, 0, 0).length, windowCount(0));
+});
+
+// fork:session-row-overlap —— 虚拟列表的行高是**量出来的**（`.d-sess` 52.6 /
+// `.m-row` 108.7），窗口与偏移必须都吃这个数。这条钉住：传进去的行高真的决定了
+// 槽位间距与窗口大小，而不是悄悄退回那个 48 的兜底常量。
+test("offsets and the visible window both follow the measured row height", () => {
+  const phoneRow = 109;
+  assert.deepEqual(sessionListOffsets(3, phoneRow), [0, 109, 218, 327]);
+  assert.equal(sessionListOffsets(3).length, 4);
+  assert.deepEqual(sessionListOffsets(3), [0, SESSION_LIST_ITEM_HEIGHT, SESSION_LIST_ITEM_HEIGHT * 2, SESSION_LIST_ITEM_HEIGHT * 3]);
+
+  // 一屏 400px：109px 的行放得下 3 行，兜底的 54 放 7 行 —— 窗口跟着行高收窄
+  // （两边都留 overscan 8 行，所以首行都是 0，差别在末尾）。
+  const phoneWindow = getSessionListIndices(200, 0, 400, -1, phoneRow);
+  assert.equal(phoneWindow.length, Math.ceil(400 / phoneRow) + 16);
+  assert.ok(phoneWindow.length < getSessionListIndices(200, 0, 400, -1).length);
+  // 行距真的换了：第 20 行之外的位置在 109px 行距下还没进窗口。
+  assert.ok(phoneWindow.includes(3) && !phoneWindow.includes(20));
 });
 
 test("only Shift+click bypasses session deletion confirmation", () => {

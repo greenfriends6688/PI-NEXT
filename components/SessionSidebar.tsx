@@ -14,6 +14,7 @@ import { applySessionFlags, useSessionFlags } from "@/lib/session-flags";
 import {
   clearSessionUnread,
   markSessionUnread,
+  pruneReadCursors,
   pruneSessionUnread,
   useUnreadSessions,
 } from "@/lib/session-unread";
@@ -37,13 +38,20 @@ import { PwaSheet } from "./pwa/PwaSheet";
 import { useIsCompact, useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 
-// fork:design-system — 会话行按画板 02 重做成**两行**（标题 + 元信息行），
-// 行高 48，运行中 / 等你处理 58（设计 §2.6 的五态表）。
+// fork:design-system — 会话行按画板 02 重做成**两行**（标题 + 元信息行）。
 // 状态标记一律在**右侧**（`N 条消息` 之后），左侧不放任何点。
-// 列表仍走固定高度窗口化，所以两种高度都要参与偏移计算。
-export const SESSION_LIST_ITEM_HEIGHT = 48;
-/** 运行中 / 等你处理的行高（多出的 10px 是给底边扫掠线留的呼吸）。 */
-export const SESSION_LIST_ITEM_HEIGHT_TALL = 58;
+//
+// fork:session-row-overlap（用户 2026-10-05 截图「元信息叠在下一行标题上」）——
+// 窗口化的行高**只有一个真值：真行自己的盒高**。写死的 48 是 v1 `.pw-session`
+// 的遗留值，而 v5 的 `.d-sess` 是 52.6、PWA 的 `.m-row` 是 108.7（`.m-row-m`
+// 那枚 44px 触控钮独占第三行）：行盒画到 48、文字画到 52.6 / 108.7，于是每一行
+// 的元信息都压在下一行的标题上 —— 实测桌面溢出 4.6px、手机 60.7px。
+// 上游 pi-web 当时写的是 54，也没追上 v5。
+//
+// 所以这里量（`useSessionRowHeight`）：这个数只是**首帧兜底**（无 DOM 时），
+// 真值由 `useLayoutEffect` 在绘制前量到并重排，肉眼看不到跳。派生出来的窗口
+// 与偏移共用同一个数，所以两边不可能再各写一份。
+export const SESSION_LIST_ITEM_HEIGHT = 54;
 
 /** fork:session-tree —— 虚拟列表的槽位：分桶头 / 主会话 / 子代理会话（缩进一级）。 */
 type SidebarEntry =
@@ -69,70 +77,18 @@ function expandSidebarEntries(
   return out;
 }
 
-/** 把稀疏的「高行下标」收敛成升序数组，窗口与偏移计算共用。 */
-function normalizeTallIndices(tallIndices: readonly number[] | undefined): number[] {
-  if (!tallIndices || tallIndices.length === 0) return [];
-  return [...new Set(tallIndices)].filter((index) => Number.isInteger(index) && index >= 0).sort((a, b) => a - b);
-}
-
-/** 升序数组里小于 `index` 的元素个数（二分）。 */
-function countBelow(sorted: readonly number[], index: number): number {
-  let lo = 0;
-  let hi = sorted.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (sorted[mid] < index) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
-
-/** 第 `index` 行的顶部偏移。高行比普通行多 10px，逐行累加。 */
-export function sessionRowOffset(index: number, tallSorted: readonly number[]): number {
-  return index * SESSION_LIST_ITEM_HEIGHT + countBelow(tallSorted, index) * (SESSION_LIST_ITEM_HEIGHT_TALL - SESSION_LIST_ITEM_HEIGHT);
-}
-
-/** 列表总高（含底部最后一行）。 */
-export function sessionListHeight(count: number, tallSorted: readonly number[]): number {
-  return sessionRowOffset(count, tallSorted);
-}
-
-/** 把稀疏下标展开成每行顶部偏移数组（长度 count + 1，末项是总高）。 */
-export function sessionListOffsets(count: number, tallIndices: readonly number[] | undefined): number[] {
-  const tall = new Set(normalizeTallIndices(tallIndices));
+/** 每行顶部偏移数组（长度 count + 1，末项是总高）。 */
+export function sessionListOffsets(count: number, itemHeight: number = SESSION_LIST_ITEM_HEIGHT): number[] {
   const offsets = new Array<number>(count + 1);
-  let cursor = 0;
-  for (let index = 0; index < count; index += 1) {
-    offsets[index] = cursor;
-    cursor += tall.has(index) ? SESSION_LIST_ITEM_HEIGHT_TALL : SESSION_LIST_ITEM_HEIGHT;
-  }
-  offsets[count] = cursor;
+  for (let index = 0; index <= count; index += 1) offsets[index] = index * itemHeight;
   return offsets;
 }
 
-export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1, tallIndices?: readonly number[]): number[] {
+export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1, itemHeight: number = SESSION_LIST_ITEM_HEIGHT): number[] {
   const overscan = 8;
-  const visibleCount = Math.ceil((viewportHeight || 600) / SESSION_LIST_ITEM_HEIGHT) + overscan * 2;
-  const tall = normalizeTallIndices(tallIndices);
-
-  let start: number;
-  let end: number;
-  if (tall.length === 0) {
-    // 快路径：全部等高，直接除（现有调用方与测试走的就是这条）。
-    start = Math.max(0, Math.min(Math.floor(scrollTop / SESSION_LIST_ITEM_HEIGHT) - overscan, count - visibleCount));
-    end = Math.min(count, start + visibleCount);
-  } else {
-    // 有高行：先找可见区的首尾行，再各留 overscan。
-    // 行数在真实列表里是百量级，线性扫一遍比维护区间树便宜得多。
-    const offsets = sessionListOffsets(count, tall);
-    let first = 0;
-    while (first < count - 1 && offsets[first + 1] <= scrollTop) first += 1;
-    let last = first;
-    const bottom = scrollTop + (viewportHeight || 600);
-    while (last < count - 1 && offsets[last] < bottom) last += 1;
-    start = Math.max(0, first - overscan);
-    end = Math.min(count, Math.max(last + 1 + overscan, start + visibleCount));
-  }
+  const visibleCount = Math.ceil((viewportHeight || 600) / itemHeight) + overscan * 2;
+  const start = Math.max(0, Math.min(Math.floor(scrollTop / itemHeight) - overscan, count - visibleCount));
+  const end = Math.min(count, start + visibleCount);
 
   const indices = Array.from({ length: Math.max(0, end - start) }, (_, offset) => start + offset);
   // Keep a focused row mounted so scrolling cannot discard an inline rename.
@@ -397,6 +353,32 @@ function PiWebTitle() {
   }
   // 深色主题 / 版本号态：字标位换成实色文字，仍占同一个盒子（class 不换）。
   return <span className="d-wordmark" {...wordmarkProps}>{display}</span>;
+}
+
+/**
+ * fork:session-row-overlap —— 虚拟列表的行高，量自真行。
+ *
+ * 为什么不写死：会话列表走**绝对定位的固定行距窗口化**，行距一旦短过行的真实
+ * 盒高，行盒只画到行距、文字画到盒高 —— 每一行的元信息都压在下一行的标题上
+ * （用户 2026-10-05 截图；桌面 `.d-sess` 52.6 vs 48、手机 `.m-row` 108.7 vs 48）。
+ * 行高是 CSS 的产物（字号、padding、触控钮都在变），写死的数字必然再漂一次。
+ *
+ * 量的是滚动区里的**第一枚会话行**：`.d-sess` / `.m-row` 都是**内容高 ≥ 拉伸高**
+ * 的弹性项，所以读到的就是内容高，与当前行距无关（不会自激）。首帧用兜底值渲染，
+ * `useLayoutEffect` 在**绘制前**把真值写回 state 并重排，肉眼看不到跳。
+ *
+ * 这里**每次渲染后都量一次**而不是挂 ResizeObserver：会话行是异步到的（列表请求
+ * 回来才有第一枚行），挂观察器就得猜「第一行什么时候换人」；每次渲染量一次的代价
+ * 是一次 `getBoundingClientRect`，值没变时 `setState` 直接被 React 吞掉，不会转。
+ */
+function useSessionRowHeight(ref: React.RefObject<HTMLElement | null>): number {
+  const [height, setHeight] = useState(SESSION_LIST_ITEM_HEIGHT);
+  useLayoutEffect(() => {
+    const row = ref.current?.querySelector<HTMLElement>(".d-sess, .m-row");
+    const next = row ? Math.ceil(row.getBoundingClientRect().height) : 0;
+    if (next > 0) setHeight(next);
+  });
+  return height;
 }
 
 function ProjectRow({
@@ -967,6 +949,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           .map((session) => session.id),
       );
       pruneSessionUnread(unreadEligibleIds);
+      // fork:d03-frame-c —— 读到哪（D-03 帧 C 的分割线）与未读点同寿命：会话没了，
+      // 它的读数也不能留（否则 localStorage 里的键只增不减）。
+      pruneReadCursors(unreadEligibleIds);
       setError(null);
     } catch (e) {
       if (loadId === sessionLoadIdRef.current) setError(String(e));
@@ -1732,6 +1717,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     [sessionListEntries, collapsedFamilies],
   );
 
+  // fork:session-row-overlap —— 窗口化的行高量自真行（见文件头 SESSION_LIST_ITEM_HEIGHT）。
+  // 量的是滚动区里的第一行：`.d-sess`（Web）与 `.m-row`（PWA）都是**内容高 ≥ 拉伸高**
+  // 的弹性项，所以这里读到的就是内容高；`ResizeObserver` 兜住形态/文案把行撑高的改动。
+  const rowHeight = useSessionRowHeight(listScrollRef);
+
   useLayoutEffect(() => {
     const list = listScrollRef.current;
     const section = sessionListRef.current;
@@ -1751,36 +1741,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     return () => observer.disconnect();
   }, [expandedProjects, selectedProject?.key, sessionListEntries.length, visibleProjects.length, sessionGroups.state]);
 
-  // fork:design-system — 运行中 / 等你处理的会话行高 58，其余 48。
-  // 这是「行是不是高行」的唯一判据，虚拟窗口、绝对定位偏移、行渲染三处共用。
-  const isFamilyTall = useCallback(
-    (family: SessionFamily) =>
-      [family.root, ...family.subagents].some(
-        (session) => runningSessionIds.has(session.id) || awaitingSessionIds.has(session.id),
-      ),
-    [runningSessionIds, awaitingSessionIds],
-  );
-
-  const sessionListTallIndices = useMemo(
-    () =>
-      sidebarEntries
-        .map((entry, index) => (
-          entry.type === "family"
-            ? (isFamilyTall(entry.family) ? index : -1)
-            : entry.type === "child"
-              ? (runningSessionIds.has(entry.session.id) || awaitingSessionIds.has(entry.session.id) ? index : -1)
-              : -1
-        ))
-        .filter((index) => index >= 0),
-    [sidebarEntries, isFamilyTall, runningSessionIds, awaitingSessionIds],
-  );
-
+  // fork:session-row-overlap —— v5 的行只有一种高度（运行中 / 等你处理那枚徽标
+  // 只比普通行高 0.3px，`Math.ceil` 之后落进同一档），所以「高行」这套偏移分支
+  // 连同它的两处下标计算一起删掉了：行高既然是量出来的，就只有一个数。
   const virtualIndices = getSessionListIndices(
     sidebarEntries.length,
     Math.max(0, listScrollTop - sessionListOffsetTop),
     listViewportH,
     sidebarEntries.findIndex((entry) => entry.type === "family" && entry.family.root.id === focusedSessionId),
-    sessionListTallIndices,
+    rowHeight,
   );
 
   // 所有列表表面共用的行渲染。
@@ -2420,7 +2389,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       );
                     }
                     if (project.key === selectedProject?.key) {
-                      const rowOffsets = sessionListOffsets(sidebarEntries.length, sessionListTallIndices);
+                      const rowOffsets = sessionListOffsets(sidebarEntries.length, rowHeight);
                       return (
                         <div ref={sessionListRef} style={{ minHeight: sidebarEntries.length > 0 ? rowOffsets[sidebarEntries.length] : 34 }}>
                           {sidebarEntries.length > 0 && (
@@ -2481,22 +2450,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             const chatEntries = flatTimeGroupEntries(chatFamilies);
             // fork:session-tree —— 聊天分区与项目分区同一套展开（子代理缩进一级）。
             const chatSidebarEntries = expandSidebarEntries(chatEntries, collapsedFamilies);
-            const chatTallIndices = chatSidebarEntries
-              .map((entry, index) => (
-                entry.type === "family"
-                  ? (isFamilyTall(entry.family) ? index : -1)
-                  : entry.type === "child"
-                    ? (runningSessionIds.has(entry.session.id) || awaitingSessionIds.has(entry.session.id) ? index : -1)
-                    : -1
-              ))
-              .filter((index) => index >= 0);
-            const chatOffsets = sessionListOffsets(chatSidebarEntries.length, chatTallIndices);
+            const chatOffsets = sessionListOffsets(chatSidebarEntries.length, rowHeight);
             const chatVirtualIndices = getSessionListIndices(
               chatSidebarEntries.length,
               Math.max(0, listScrollTop - sessionListOffsetTop),
               listViewportH,
               chatSidebarEntries.findIndex((entry) => entry.type === "family" && entry.family.root.id === focusedSessionId),
-              chatTallIndices,
+              rowHeight,
             );
             const toggleChatExpanded = () => {
               setExpandedProjects((prev) => {
@@ -2841,23 +2801,28 @@ function SessionItem({
               {session.isWorktree && session.branch && (
                 <i data-ico="git-branch" data-size="12" aria-hidden="true"></i>
               )}
-            </span>
-            {hasChildren && (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
-                title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-                aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-                className="m-iconbtn"
-              >
-                <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
-              </button>
-            )}
-            {/* fork:pwa-sb —— 手机档的行内四枚动作收进一枚 ⋯（菜单内容与行为不变，
-                面板本体换成 PWA 库的 `.m-pop-float` + `.m-menu-row`；仍是 fixed 定位，
-                浮层宿主竖向 visible 不会被裁）。 */}
-            {!session.transient ? (
-              <div ref={menuRef} className="fork-pwa-sb-row-menu">
+              {/* fork:session-row-overlap —— 折叠钮与 ⋯ 菜单**进元信息行**。
+                  `.m-row` 是 flex-column，这两个原来是它的直接子节点，于是各自
+                  独占一行：一枚 36px 的 ⋯ 把两行的行撑成三行（108.7px，一屏只剩
+                  7 条），而窗口化的行距又是按行高量的 —— 行越撑越离谱。画板 M-04
+                  的 `.m-row` 就是两行（`.m-row-t` + `.m-row-m`），行尾控件贴在元信息
+                  那一行右端，与桌面的 `.d-sess` 同一形态。 */}
+              {hasChildren && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
+                  title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+                  aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+                  className="m-iconbtn"
+                >
+                  <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
+                </button>
+              )}
+              {/* fork:pwa-sb —— 手机档的行内四枚动作收进一枚 ⋯（菜单内容与行为不变，
+                  面板本体换成 PWA 库的 `.m-pop-float` + `.m-menu-row`；仍是 fixed 定位，
+                  浮层宿主竖向 visible 不会被裁）。 */}
+              {!session.transient ? (
+                <div ref={menuRef} className="fork-pwa-sb-row-menu">
                 <button
                   type="button"
                   onClick={(event) => { event.stopPropagation(); setMenuOpen((open) => !open); }}
@@ -2923,6 +2888,7 @@ function SessionItem({
                 </PortalDropdown>
               </div>
             ) : null}
+            </span>
           </>
         )}
       </button>

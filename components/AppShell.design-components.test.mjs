@@ -94,6 +94,18 @@ test("the top bar action buttons take their size from the board classes", () => 
   assert.doesNotMatch(source, /className=\{mobile \? "pw-touch"/);
 });
 
+test("the shared top-panel shell never renders the branch panel's empty body", () => {
+  // fix:branch-panel-ghost（2026-10-06 用户报「点了会话分支，左边还留着一个空框」）——
+  // 分支浮层的实体是 BranchNavigator 自己那只（桌面在顶栏芯片下、窄屏在 `.m-branch`
+  // 下）；共用壳里只有 agents / system / tools 三种 body，让 `branches` 进去就会得到
+  // 一个定位到顶栏左缘、没有内容、还挡住一块可点区域的 `.d-pop-float`。
+  assert.match(source, /activeTopPanel && activeTopPanel !== "branches" && topPanelPos &&/);
+  // 窄屏那枚内联按钮是 `display:none`，必须把 `.m-branch` 的 ref 当锚点交给
+  // BranchNavigator，否则浮层落到 top:6 / left:8。
+  assert.match(source, /ref=\{mobileBranchRef\}/);
+  assert.match(source, /hideInlineButton\s+containerRef=\{mobileBranchRef\}/);
+});
+
 test("the empty chat placeholder is the board's .d-empty frame", () => {
   assert.match(systemCss, /\.d-empty \{ display: flex; flex-direction: column; align-items: center; justify-content: center/);
   assert.match(systemCss, /\.d-empty-ico \{ width: 44px; height: 44px/);

@@ -1620,17 +1620,13 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
         {sectionHost("automation", <AutomationPanel cwd={cwd ?? ""} />)}
         {/* fork:zc-03 — usage stats. */}
         {sectionHost("usage", <UsageStatsPanel />)}
-        {/* fork:ui-archive-history — 归档历史：恢复 / 彻底删除。 */}
+        {/* fork:ui-archive-history —— 归档：恢复 / 彻底删除。
+            fork:v5-landing-frame · D-21（2026-10-06）—— 桌面整页按画板 D-21 帧 A 落地：
+            横幅 + 「归档会话」分节（归档历史卡 / 已归档的项目卡）+ 「两种列不出来」
+            分节，就是一根 `.d-set-inner`，**不再需要 `fill`**（画板帧 A 的归档页只有
+            一列内容，没有列表列 + 详情列）。窄屏那支仍是列表 + `.m-sheet`。 */}
         {sectionHost("archived", (
-          // fork:project-archive — 项目归档与归档历史是同一件事的两个粒度（项目 / 会话），
-          // 合成一页：骨架 B（列表 300 + 详情 760），ConfigSplitView 与整页空态都由
-          // ProjectArchivePanel 自己出；会话归档的分组 / 详情卡也并进了同一个
-          // ConfigSplitView（旧的两段式入口 ArchivedSessionsPanel 恒渲染 null，已删）。
-          // fork:settings-frame（画板 62 帧 B）—— `fill` 与删掉 `div.settings-archive-page`
-          // 必须同一提交：is-fixed 是 overflow:hidden，中间多一层 div 会把超高一列
-          // 静默裁掉；删掉后 `.pw-scontent.is-fixed` 的直接子元素就只有
-          // ProjectArchivePanel 的 ConfigSplitView（或整页空态 / 错误行）。
-          <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")} fill>
+          <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")}>
             <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} onCloseRequest={onClose} />
           </SettingsPage>
         ))}

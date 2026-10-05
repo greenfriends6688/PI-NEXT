@@ -108,3 +108,91 @@ export function useUnreadActions(): {
   const clear = useCallback((id: string) => clearSessionUnread(id), []);
   return { mark, clear };
 }
+
+/* ── 读到哪（画板 D-03 帧 C 的未读分割）──────────────────────────────────
+ * 未读点只能回答「这条会话有新东西」，回答不了「读到哪一行了」——而画板那一帧的
+ * 主体是转录里的分割线（两条发丝线 + 「↓ 以下是你离开后发生的」）与顶栏那枚
+ * 「3 条新消息」徽标，两者都要一个数：**上次离开这条会话时看到的条数**。
+ *
+ * 与上面的未读点是两件事，不合并：未读点回答「要不要点进去」，读到哪回答
+ * 「点进去之后从哪读」。所以是第二个 store（同一个文件、同一形状），键是
+ * `sessionId → 条数`，ChatWindow 离开时写、转录里读。
+ */
+const CURSOR_KEY = "pi-web:session-read-cursors";
+
+type CursorListener = () => void;
+
+const cursorListeners = new Set<CursorListener>();
+let cursorCache: Record<string, number> | null = null;
+
+function cursorEmit(): void {
+  cursorListeners.forEach((listener) => listener());
+}
+
+function cursorSubscribe(listener: CursorListener): () => void {
+  cursorListeners.add(listener);
+  return () => cursorListeners.delete(listener);
+}
+
+function readCursors(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(CURSOR_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+    const out: Record<string, number> = {};
+    for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === "number" && Number.isFinite(value) && value >= 0) out[id] = Math.floor(value);
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writeCursors(value: Record<string, number>): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (Object.keys(value).length === 0) window.localStorage.removeItem(CURSOR_KEY);
+    else window.localStorage.setItem(CURSOR_KEY, JSON.stringify(value));
+  } catch {
+    // 写不进去就只在本次会话内有效（与未读点同一条策略）。
+  }
+}
+
+export function getReadCursors(): Record<string, number> {
+  cursorCache ??= readCursors();
+  return cursorCache;
+}
+
+/** 离开一条会话时写「我看到这里了」。删除的会话在这里顺手丢掉（不增长）。 */
+export function setReadCursor(id: string, count: number): void {
+  if (!id || !Number.isFinite(count) || count < 0) return;
+  const previous = getReadCursors();
+  const rounded = Math.floor(count);
+  if (previous[id] === rounded) return;
+  const next = { ...previous, [id]: rounded };
+  cursorCache = next;
+  writeCursors(next);
+  cursorEmit();
+}
+
+/** 丢掉已删除会话的读数（会话列表刷新后调用）。 */
+export function pruneReadCursors(eligibleIds: ReadonlySet<string>): void {
+  const previous = getReadCursors();
+  const next: Record<string, number> = {};
+  for (const [id, value] of Object.entries(previous)) if (eligibleIds.has(id)) next[id] = value;
+  if (Object.keys(next).length === Object.keys(previous).length) return;
+  cursorCache = next;
+  writeCursors(next);
+  cursorEmit();
+}
+
+/** 没写过读数（第一次打开）给 0：全部都是「上次离开后发生的」，但那正是首次进入，
+ * 不该在开头画一条分割线 —— 调用方拿它与总数比较后自行决定要不要画。 */
+const EMPTY_CURSORS: Record<string, number> = {};
+
+export function useReadCursors(): Readonly<Record<string, number>> {
+  return useSyncExternalStore(cursorSubscribe, getReadCursors, () => EMPTY_CURSORS);
+}
