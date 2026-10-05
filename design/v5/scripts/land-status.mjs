@@ -22,6 +22,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BOARD_FURNITURE } from "./furniture.mjs";
 
 const V5 = dirname(fileURLToPath(import.meta.url)).replace(/\/scripts$/, "");
 const ROOT = join(V5, "..", "..");
@@ -69,7 +70,9 @@ function walk(dir) {
     const st = statSync(p);
     if (st.isDirectory()) walk(p);
     else if (/\.(tsx|ts|css)$/.test(name)) {
-      const src = read(p);
+      /* 注释里的类名不算落地：JSX 注释里提到 `.m-row-x`、块注释里提到 `.m-col`
+         都只是说明文字，不渲染。不剥掉它们，漂移清单会永远挂着两条假警报。 */
+      const src = read(p).replace(/\/\*[\s\S]*?\*\//g, "");
       for (const m of src.matchAll(/className\s*=\s*(?:"([^"]*)"|\{`([^`]*)`\}|\{([^}]*)\})/g)) {
         for (const c of (m[1] || m[2] || m[3] || "").matchAll(/\b([dm]-[a-z0-9-]+)/g)) {
           const cls = m2(c);
@@ -79,6 +82,15 @@ function walk(dir) {
       }
       /* CSS 里的类选择器也算（双类覆盖 0-2-0 的那种） */
       for (const m of src.matchAll(/\.([dm]-[a-z0-9-]+)/g)) {
+        const cls = m[1];
+        if (!product.has(cls)) product.set(cls, new Set());
+        product.get(cls).add(relative(ROOT, p));
+      }
+      /* 引号里的类名也算：有些形态类不走 JSX 的 className，而是走查表 ——
+         `cellClass()` 返回 `"d-heat-grid l1"`、`BOARD_TOKEN_CLASS_PWA` 的值是
+         `"m-tok-com"`。不认这种写法，它们就永远是「未落地」（帧级检查早已认，
+         两处口径不一致本身就是bug）。 */
+      for (const m of src.matchAll(/["'`]([dm]-[a-z0-9-]+)["'`]/g)) {
         const cls = m[1];
         if (!product.has(cls)) product.set(cls, new Set());
         product.get(cls).add(relative(ROOT, p));
@@ -102,13 +114,17 @@ for (const b of boards) {
 for (const b of boards) {
   const missing = [...b.used].filter((c) => !(lib[b.form].has(c) || lib.base.has(c)));
   if (missing.length) errors.push(`${b.file}: 用了库里没有的类 ${missing.join(" ")}`);
-  const landed = [...b.used].filter((c) => product.has(c));
+  /* 家具不是产品 DOM：只算它进「画板用了什么」的账（死类判定要用），不进落地率。
+     口径与 scripts/v5-frame-regression.mjs 完全一致，名单唯一来源 furniture.mjs。 */
+  const productClasses = [...b.used].filter((c) => !BOARD_FURNITURE.has(c));
+  const landed = productClasses.filter((c) => product.has(c));
   rows.push({
     id: b.id,
     form: b.form,
-    classes: b.used.size,
+    classes: productClasses.length,
     landed: landed.length,
-    todo: [...b.used].filter((c) => !product.has(c)).sort(),
+    furniture: [...b.used].filter((c) => BOARD_FURNITURE.has(c)).sort(),
+    todo: productClasses.filter((c) => !product.has(c)).sort(),
     landedIn: [...new Set(landed.flatMap((c) => [...product.get(c)]))].sort(),
   });
 }

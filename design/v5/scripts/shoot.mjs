@@ -68,6 +68,26 @@ for (const { form, file } of boards) {
     errors.push(`${file}: 图标只注入了 ${icoDone}/${icoTotal} —— icons.js 路径或 hydrate 失效`);
   }
 
+  /* 冒烟 1b：库里用到的按钮 / 输入件真的被归零过 UA 样式。
+     2026-10-05 实测抓到过一次：`.d-radiorow` 在画板上就是 <button>，库里没写
+     `button.d-radiorow`，于是画板自己就在展示 2px outset 灰底 + 居中 Arial ——
+     静态门禁（类/令牌/图标）全绿，因为这不是拼写问题，是「浏览器默认长什么样」问题。 */
+  const uaStyled = await page.evaluate(() => {
+    const bad = [];
+    for (const el of document.querySelectorAll("button, input, select, textarea")) {
+      const cs = getComputedStyle(el);
+      const uaBg = cs.backgroundColor === "rgb(239, 239, 239)" || cs.backgroundColor === "buttonface";
+      const uaBorder = /outset|inset/.test(cs.borderTopStyle);
+      if (!uaBg && !uaBorder) continue;
+      const own = [...el.classList].filter((c) => /^[dm]-/.test(c)).join(" ");
+      bad.push(`${own || el.tagName}（bg=${cs.backgroundColor} border=${cs.borderTopStyle}）`);
+    }
+    return [...new Set(bad)];
+  });
+  if (uaStyled.length) {
+    errors.push(`${file}: ${uaStyled.length} 个控件还带着浏览器默认样式 —— 库里缺 button.d-* / .m-* 归零规则：${uaStyled.join(" / ")}`);
+  }
+
   /* 截图先于探针 —— index 的缩略图要显示**默认打开的样子**。
      顺序反了的话，存图会停在「所有触发件都被点完之后」的最后一档
      （切到 Galaxy Tab、切到第 6 步、切到最后一个页签…），看着像设计错了。 */

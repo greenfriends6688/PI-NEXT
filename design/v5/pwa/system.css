@@ -397,6 +397,9 @@
 .m-row.is-on { background: var(--nx-selected); }
 .m-row-t { font-size: var(--nx-fs-body); color: var(--nx-text); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
+/* 子代理行的 ↳ 待在标题行内部 —— 单独一个 .m-row-t 图标格在 flex-column 里
+   是独占一行，每个子代理行顶上都悬一个孤零零的箭头（fork:session-row-ghost） */
+.m-row-t > i[data-ico] { margin-right: var(--nx-sp-1); vertical-align: -2px; }
 .m-row-m { font-size: var(--nx-fs-xs); color: var(--nx-text-3); display: flex; gap: 6px; align-items: center; }
 .m-row-body { min-width: 0; flex: 1 1 auto; }
 .m-group-title { padding: 12px 12px 4px; font-size: var(--nx-fs-xs); font-weight: 500;
@@ -429,8 +432,14 @@
 .m-setrow-s { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-top: 1px; }
 .m-setrow-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .m-hero { padding: 4px 4px 0; display: flex; flex-direction: column; gap: 4px; }
-/* 卡内的表单行：与 .m-setrow 的区别是**不带分隔线**（一个卡里往往有两三行） */
-.m-fieldrow { display: flex; align-items: center; gap: var(--nx-sp-3); padding: var(--nx-sp-3) 0;
+/* 卡内的表单行：与 .m-setrow 的区别是**不带分隔线**（一个卡里往往有两三行）。
+   `flex-wrap: wrap` 是这一件的固有语义：它是**卡内唯一一行**（M-05 帧 B 的滑杆行、
+   帧 C 的设置项行都只有它），一行放不下时必须**换行**，不许把控件顶出卡片右缘。
+   板面上现有的每一处 `.m-fieldrow` 内容都只有「一句说明 + 一枚控件」，永远放得下，
+   所以加这一条对板面逐像素无影响；它治的是产品把**工具栏**（搜索 + 分段 + 计数 +
+   动作）也寄到这一行里的窄屏读法 —— 390px 上那一行要 ~350px，不换行就被卡体裁掉。 */
+.m-fieldrow { display: flex; align-items: center; flex-wrap: wrap; gap: var(--nx-sp-3);
+  padding: var(--nx-sp-3) 0;
   border-bottom: 1px solid var(--nx-line); }
 .m-fieldrow:last-child { border-bottom: 0; }
 .m-fieldrow-s { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-top: 2px; }

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>PI NEXT · 设计体系 v4</title>
+<link rel="stylesheet" href="web/tokens.css">
+<link rel="stylesheet" href="web/system.css">
+<script src="../pi-web-design/assets/icons.js"></script>
+<script src="assets/demo.js"></script>
+<style>
+  body { margin: 0; padding: 48px 24px 64px; background: var(--nx-canvas); }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+  a.card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; text-decoration: none;
+    border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel); color: var(--nx-text);
+    transition: border-color var(--nx-dur-1) var(--nx-ease), box-shadow var(--nx-dur-1) var(--nx-ease); }
+  a.card:hover { border-color: var(--nx-line-hi); box-shadow: var(--nx-sh-1); }
+  a.card.todo { opacity: .5; }
+  .num { font-family: var(--nx-font-mono); font-size: var(--nx-fs-xs); color: var(--nx-accent); }
+  .name { font-size: var(--nx-fs-cap); font-weight: 500; }
+  h1 { font-size: var(--nx-fs-title); margin: 0 0 4px; }
+  .sub { font-size: var(--nx-fs-cap); color: var(--nx-text-2); margin-bottom: 28px; }
+  .sec { font-size: var(--nx-fs-sm); font-weight: 600; color: var(--nx-text-3); margin: 26px 0 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="d-row"><h1 class="d-grow">PI NEXT · 设计体系 v4</h1>
+    <button class="d-btn sm" data-demo-theme data-theme-label>深色</button></div>
+  <p class="sub">一份真值 base.css + 两套形态（web <code class="d-math">d-</code> / pwa <code class="d-math">m-</code>）· 浅色专业风 · 每张画板右上角一键切深色</p>
+
+  <div class="sec">Web · 桌面 1440×900（40 张）</div>
+  <div class="grid">
+    <a class="card" href="web/boards/D-01-workbench.html"><span class="num">D-01 ✅</span><span class="name">工作台（基准页）</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-02</span><span class="name">侧栏 · 会话列表全态</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-03</span><span class="name">侧栏 · 折叠与项目切换</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-04</span><span class="name">顶栏 · 全部形态</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-05</span><span class="name">转录 · 用户消息与操作</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-06</span><span class="name">转录 · 助手回复与思考</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-07</span><span class="name">转录 · 工具调用全集</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-08</span><span class="name">转录 · 代码与 diff</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-09</span><span class="name">转录 · 表格/数学/Mermaid</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-10</span><span class="name">转录 · 附件与媒体</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-11</span><span class="name">转录 · 计划与待办</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-12</span><span class="name">转录 · 分支与回退</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-13</span><span class="name">输入框 · 基准态</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-14</span><span class="name">输入框 · 四档浮层</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-15</span><span class="name">输入框 · 斜杠与 @</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-16</span><span class="name">输入框 · 队列</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-17</span><span class="name">输入框 · 上下文环</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-18</span><span class="name">右栏 · 文件树</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-19</span><span class="name">右栏 · 查看器四模式</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-20</span><span class="name">右栏 · 终端</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-21</span><span class="name">右栏 · Git 面板与图谱</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-22</span><span class="name">右栏 · 浏览器</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-23</span><span class="name">全局搜索 ⌘K</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-24</span><span class="name">设置 · 通用</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-25</span><span class="name">设置 · 模型与供应商</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-26</span><span class="name">设置 · 启用模型与限制</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-27</span><span class="name">设置 · 技能与市场</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-28</span><span class="name">设置 · 子代理</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-29</span><span class="name">设置 · 插件</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-30</span><span class="name">设置 · 插件商店</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-31</span><span class="name">设置 · MCP 与目录</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-32</span><span class="name">设置 · 定时与错峰</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-33</span><span class="name">设置 · 用量统计</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-34</span><span class="name">设置 · 快捷键/导入</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-35</span><span class="name">设置 · 皮肤工作室</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-36</span><span class="name">设置 · LAN/IM/机器人</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-37</span><span class="name">设置 · 记忆与知识</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-38</span><span class="name">对话框 · 模态全集</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-39</span><span class="name">菜单 · 右键/通知</span></a>
+    <a class="card todo" href="web/boards/"><span class="num">D-40</span><span class="name">系统态全集</span></a>
+  </div>
+
+  <div class="sec">PWA · 手机 390×844（18 张）</div>
+  <div class="grid">
+    <a class="card" href="pwa/boards/M-01-conversation.html"><span class="num">M-01 ✅</span><span class="name">会话（基准页）</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-02</span><span class="name">抽屉 · 会话列表</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-03</span><span class="name">转录 · 消息与过程</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-04</span><span class="name">转录 · 代码/表格/媒体</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-05</span><span class="name">输入框 · 全套</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-06</span><span class="name">输入框 · 队列</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-07</span><span class="name">设置 · hub</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-08</span><span class="name">设置 · 模型</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-09</span><span class="name">设置 · 技能/插件/商店</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-10</span><span class="name">设置 · 定时/用量</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-11</span><span class="name">文件与终端</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-12</span><span class="name">浏览器与设备视口</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-13</span><span class="name">全局搜索</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-14</span><span class="name">安装/更新/离线/信任</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-15</span><span class="name">手势与触控</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-16</span><span class="name">系统态</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-17</span><span class="name">通知与推送</span></a>
+    <a class="card todo" href="pwa/boards/"><span class="num">M-18</span><span class="name">平板形态</span></a>
+  </div>
+
+  <div class="sec">跨端参考（4 张）</div>
+  <div class="grid">
+    <a class="card todo" href="#"><span class="num">X-01</span><span class="name">令牌总表</span></a>
+    <a class="card todo" href="#"><span class="num">X-02</span><span class="name">动效</span></a>
+    <a class="card todo" href="#"><span class="num">X-03</span><span class="name">主题对照</span></a>
+    <a class="card todo" href="#"><span class="num">X-04</span><span class="name">断点与响应式</span></a>
+  </div>
+</div>
+<script>window.Icons && window.Icons.hydrate && window.Icons.hydrate();</script>
+</body>
+</html>

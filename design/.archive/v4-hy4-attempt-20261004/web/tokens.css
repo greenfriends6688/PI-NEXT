@@ -1,0 +1,130 @@
+/* ===========================================================================
+ * PI NEXT · 设计体系 v4 · web/tokens.css —— Web 形态值（浅色默认 + 深色全覆盖）
+ *
+ * v4 = 浅色专业风（Linear / Notion 质感）：白底、发丝边框、克制强调色、极轻阴影。
+ * 深色不再是另一套画板，而是同一套类名下的变量覆盖：html[data-theme="dark"]。
+ * 画板右上角的主题开关（data-demo-theme）一键切换，一张画板 = 两个主题。
+ *
+ * 与 v3 的关键差异（为什么改）：
+ *   1. 强调色从「近黑反色块（无品牌色）」改为**低饱和蓝紫 #5566d8** —— v1 用户
+ *      已长期认可的色相，v3 的纯黑白被评「不好看」；
+ *   2. 圆角整体 +1 档柔和度（3/5/8/12 → 4/6/8/10/14），发丝边框替代硬分隔；
+ *   3. 阴影成为正式角色（--nx-sh-1/2），浅色下极轻、深色下靠描边分层；
+ *   4. 顶栏毛玻璃（--nx-glass）成为正式角色；
+ *   5. 深色从「第二套画板」改为「变量覆盖」—— 从机制上保证两主题永不脱节。
+ * =========================================================================== */
+
+@import "../base.css";
+
+:root {
+  /* ── 1 · 基准字号（Web = 14）────────────────────────────────────────────── */
+  --nx-ui: 14px;
+
+  /* ── 2 · 圆角：比 v3 柔一档。xs 徽章 / sm 小件 / md 控件行 / lg 卡 /
+     xl 浮层 / 2xl 模态 / pill 开关轨道 ──────────────────────────────────── */
+  --nx-r-xs:  4px;
+  --nx-r-sm:  6px;
+  --nx-r-md:  8px;
+  --nx-r-lg:  10px;
+  --nx-r-xl:  14px;
+  --nx-r-2xl: 18px;
+  --nx-r-pill: 999px;
+
+  /* ── 3 · 控件高度：xs 徽章 / sm 行内 / md 默认 / lg 主行动 ─────────────── */
+  --nx-ctl-xs: 20px;
+  --nx-ctl-sm: 24px;
+  --nx-ctl-md: 28px;
+  --nx-ctl-lg: 34px;
+  --nx-touch-min: 28px;
+
+  /* ── 4 · 浅色色板（默认主题）──────────────────────────────────────────────
+     层次：canvas（最底）→ sidebar → panel → surface(hover 面) → surface-hi */
+  --nx-canvas:     #fafafb;
+  --nx-panel:      #ffffff;
+  --nx-sidebar:    #f6f6f8;
+  --nx-surface:    #f4f4f6;
+  --nx-surface-hi: #ececef;
+  --nx-selected:   rgba(85, 102, 216, .08);
+  --nx-line:       rgba(18, 18, 24, .08);
+  --nx-line-hi:    rgba(18, 18, 24, .14);
+  --nx-text:       #1b1b20;
+  --nx-text-2:     #66666e;
+  --nx-text-3:     #9a9aa2;
+
+  /* 强调色：低饱和蓝紫（v1 同源色相），全系统唯一品牌色 */
+  --nx-accent:      #5566d8;
+  --nx-accent-fg:   #ffffff;
+  --nx-accent-soft: rgba(85, 102, 216, .09);   /* 选中/激活底 */
+  --nx-ring:        rgba(85, 102, 216, .45);
+
+  /* 语义色（4 个 + diff 两用） */
+  --nx-success:  #238551;
+  --nx-warning:  #b07a1f;
+  --nx-danger:   #cf3f43;
+  --nx-info:     #3a6fd8;
+  --nx-diff-add: #238551;
+  --nx-diff-del: #cf3f43;
+
+  /* ── 5 · 立体：浅色专业风 = 极轻投影 + 发丝描边共同分层 ─────────────────── */
+  --nx-sh-1: 0 1px 2px rgba(16, 17, 22, .05), 0 2px 8px rgba(16, 17, 22, .05);
+  --nx-sh-2: 0 4px 12px rgba(16, 17, 22, .07), 0 12px 36px rgba(16, 17, 22, .10);
+  --nx-glass: rgba(255, 255, 255, .82);        /* 顶栏毛玻璃底（配 backdrop-blur） */
+
+  /* ── 6 · 代码块（转录区专用，两端同语义）────────────────────────────────── */
+  --nx-code-bg:    #f7f7f9;
+  --nx-code-line:  rgba(18, 18, 24, .06);
+  --nx-code-key:   #5566d8;
+  --nx-code-str:   #238551;
+  --nx-code-num:   #b07a1f;
+  --nx-code-com:   #9a9aa2;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 深色主题：同一套类名，只覆写变量。任何组件不许为深色单写规则
+ * （例外见 system.css 内注释标明的 ::selection 与阴影）。
+ * ════════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --nx-canvas:     #101014;
+  --nx-panel:      #17171c;
+  --nx-sidebar:    #131318;
+  --nx-surface:    #1e1e25;
+  --nx-surface-hi: #26262e;
+  --nx-selected:   rgba(124, 141, 255, .14);
+  --nx-line:       rgba(255, 255, 255, .09);
+  --nx-line-hi:    rgba(255, 255, 255, .16);
+  --nx-text:       #e9e9ee;
+  --nx-text-2:     #9e9eaa;
+  --nx-text-3:     #6c6c78;
+
+  --nx-accent:      #6470e0;
+  --nx-accent-fg:   #ffffff;
+  --nx-accent-soft: rgba(124, 141, 255, .14);
+  --nx-ring:        rgba(124, 141, 255, .55);
+
+  --nx-success:  #4cb782;
+  --nx-warning:  #d9a04a;
+  --nx-danger:   #e5484d;
+  --nx-info:     #6b9bff;
+  --nx-diff-add: #4cb782;
+  --nx-diff-del: #e5484d;
+
+  /* 深色分层主要靠描边 + 微弱投影（纯黑背景上投影本就不可见） */
+  --nx-sh-1: 0 0 0 1px rgba(255, 255, 255, .06), 0 2px 8px rgba(0, 0, 0, .35);
+  --nx-sh-2: 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 40px rgba(0, 0, 0, .5);
+  --nx-glass: rgba(20, 20, 26, .78);
+
+  --nx-code-bg:    #121218;
+  --nx-code-line:  rgba(255, 255, 255, .06);
+  --nx-code-key:   #93a1ff;
+  --nx-code-str:   #6fd3a1;
+  --nx-code-num:   #e5b566;
+  --nx-code-com:   #6c6c78;
+}
+
+/* ── 滚动条：Web 显式 8px（PWA 隐藏）───────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: var(--nx-line-hi) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--nx-line-hi); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+::selection { background: var(--nx-accent-soft); }

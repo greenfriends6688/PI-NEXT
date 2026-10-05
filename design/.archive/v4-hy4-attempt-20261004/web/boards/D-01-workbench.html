@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>D-01 · 工作台（基准页）</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<style>body { margin: 0; padding: 56px 24px 48px; background: var(--nx-canvas); }</style>
+</head>
+<body>
+
+<!-- D-01 · 工作台（基准页） · 标签：页面 / 三栏壳 / 浅色默认（右上角可切深色）
+     这一帧在定：1440×900 下三栏的全部骨架与密度 —— 侧栏 264 / 主区 / 右栏 320，
+     毛玻璃顶栏、转录卡片、输入卡、右栏文件树。它是其余所有 Web 画板的密度基准。 -->
+
+<button class="d-btn sm d-theme-toggle" data-demo-theme data-theme-label>深色</button>
+
+<div class="d-frame">
+  <div class="d-frame-label"><b>D-01 · 工作台</b><span>1440×900 · 浅色（右上角切换深色）</span></div>
+
+  <div class="d-shell">
+
+    <!-- ═══ 侧栏 ═══ -->
+    <aside class="d-side">
+      <div class="d-side-head">
+        <span class="d-logo">Pi</span>
+        <span class="d-t-b d-grow">PI NEXT</span>
+        <button class="d-iconbtn" data-ico-label="设置"><i data-ico="settings" data-size="15"></i></button>
+      </div>
+      <div class="d-row" style="padding: 0 var(--nx-sp-3) var(--nx-sp-2);">
+        <button class="d-btn primary sm d-grow" style="justify-content:center;"><i data-ico="square-pen" data-size="14"></i>新任务</button>
+        <button class="d-iconbtn" style="border:1px solid var(--nx-line);"><i data-ico="search" data-size="14"></i></button>
+      </div>
+      <div class="d-side-scroll">
+        <div class="d-group-title"><i data-ico="pin" data-size="11"></i>置顶</div>
+        <button class="d-sess is-on"><span class="d-sess-t">认证服务迁移到 FastAPI</span>
+          <span class="d-sess-m"><span class="d-dot run"></span>运行中 · 12m</span></button>
+        <div class="d-group-title">今天</div>
+        <button class="d-sess"><span class="d-sess-t">标书解析脚本 · 词级 diff</span>
+          <span class="d-sess-m">32 轮 · 2h 前</span></button>
+        <button class="d-sess unread"><span class="d-sess-t">爬取 CNCA 政策原文</span>
+          <span class="d-sess-m"><i data-ico="circle-check" data-size="11"></i>已完成 · 未读</span></button>
+        <button class="d-sess"><span class="d-sess-t">React 19 升级评估</span>
+          <span class="d-sess-m">8 轮 · 5h 前</span></button>
+        <div class="d-group-title">昨天</div>
+        <button class="d-sess"><span class="d-sess-t">Tiptap 编辑器 · 只读模式</span>
+          <span class="d-sess-m">21 轮</span></button>
+        <button class="d-sess"><span class="d-sess-t">场地预约 · 字段对齐</span>
+          <span class="d-sess-m">5 轮</span></button>
+        <button class="d-sess"><span class="d-sess-t">企微收集表 · 表单视图</span>
+          <span class="d-sess-m">3 轮</span></button>
+      </div>
+      <div class="d-side-foot">
+        <span class="d-ava"><i data-ico="user" data-size="12"></i></span>
+        <span class="d-grow d-t-sm">yingjing</span>
+        <span class="d-extpill"><span class="d-extpill-dot"></span>LAN</span>
+      </div>
+    </aside>
+
+    <!-- ═══ 主区 ═══ -->
+    <main class="d-main">
+      <!-- 顶栏（毛玻璃） -->
+      <header class="d-topbar">
+        <button class="d-iconbtn"><i data-ico="panel-left" data-size="15"></i></button>
+        <div class="d-tb-stack d-grow">
+          <span class="d-tb-title">认证服务迁移到 FastAPI</span>
+          <span class="d-tb-sub">~/work/auth-service · main · worktree: feat/fastapi</span>
+        </div>
+        <span class="d-extpill"><span class="d-dot run"></span>运行中</span>
+        <button class="d-chipbtn"><i data-ico="git-branch" data-size="13"></i>feat/fastapi</button>
+        <button class="d-chipbtn" data-demo-open="pop-model"><i data-ico="cpu" data-size="13"></i>GLM-5.3<i data-ico="chevron-down" data-size="12"></i></button>
+        <span class="d-sep-v"></span>
+        <button class="d-iconbtn" data-ico-label="分支探索"><i data-ico="git-fork" data-size="15"></i></button>
+        <button class="d-iconbtn"><i data-ico="panel-right" data-size="15"></i></button>
+        <button class="d-iconbtn"><i data-ico="ellipsis" data-size="15"></i></button>
+      </header>
+
+      <!-- 转录 -->
+      <div class="d-chat d-scroll">
+        <div class="d-chat-inner">
+
+          <!-- 用户消息 -->
+          <div class="d-msg-user">
+            <div>把登录模块从 Express 迁到 FastAPI，保留原有 JWT 逻辑，路由和中间件都要迁，写完跑一遍测试。</div>
+            <div class="d-cites" style="margin-top: var(--nx-sp-2);">
+              <span class="d-cite"><i data-ico="file-code" data-size="11"></i>auth/routes.ts</span>
+              <span class="d-cite"><i data-ico="folder" data-size="11"></i>middleware/</span>
+            </div>
+          </div>
+
+          <!-- 助手回复 -->
+          <div class="d-msg-ai">
+            <div class="d-msg-ai-head">
+              <span class="d-ava"><i data-ico="sparkles" data-size="12"></i></span>
+              <span class="d-t-sm d-t-b">GLM-5.3</span>
+              <span class="d-t-xs d-t-faint">思考 4.2s · 输出 1,842 tok · 38 tok/s</span>
+              <span class="d-grow"></span>
+              <span class="d-msg-acts">
+                <button class="d-iconbtn"><i data-ico="copy" data-size="13"></i></button>
+                <button class="d-iconbtn"><i data-ico="git-fork" data-size="13"></i></button>
+                <button class="d-iconbtn"><i data-ico="rotate-cw" data-size="13"></i></button>
+              </span>
+            </div>
+
+            <!-- 思考块（折叠） -->
+            <details class="d-think">
+              <summary><i data-ico="brain" data-size="12"></i>思考过程 · 已折叠</summary>
+              <div class="d-think-body">先读现有路由与中间件，确认 JWT 校验挂在哪一层；FastAPI 侧用 Depends 重写依赖注入；密码哈希保持 bcrypt 不变；最后补 pytest 用例覆盖登录/刷新/登出三条路径。</div>
+            </details>
+
+            <!-- 过程时间轴 -->
+            <div class="d-steps">
+              <div class="d-step done">
+                <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                <span class="d-step-body">读取 auth/routes.ts · 214 行</span>
+                <span class="d-step-meta">0.8s</span>
+              </div>
+              <div class="d-step done">
+                <span class="d-step-ico"><i data-ico="check" data-size="11"></i></span>
+                <span class="d-step-body">grep JWT 校验点 · 命中 3 处</span>
+                <span class="d-step-meta">0.3s</span>
+              </div>
+              <div class="d-step running">
+                <span class="d-step-ico"><i data-ico="loader-circle" data-size="11"></i></span>
+                <span class="d-step-body">改写 routes.py · 第 2/4 个文件</span>
+                <span class="d-step-meta">进行中</span>
+              </div>
+            </div>
+
+            <!-- 工具卡 -->
+            <div class="d-tool running">
+              <div class="d-tool-head"><i data-ico="wrench" data-size="13"></i>edit · app/api/routes.py<span class="d-grow"></span><span class="d-t-xs d-t-faint">+48 −12</span></div>
+              <div class="d-tool-body">
+                <div class="d-diff">
+                  <span class="d-diff-line del">- router.post("/login", login_handler)</span>
+                  <span class="d-diff-line add">+ @router.post("/login", response_model=TokenOut)</span>
+                  <span class="d-diff-line add">+ async def login(payload: LoginIn, db: Session = Depends(get_db)):</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 代码块 -->
+            <div class="d-code">
+              <div class="d-code-head">app/api/deps.py<span class="d-grow"></span><span class="d-t-xs">Python · 32 行</span>
+                <button class="d-iconbtn" style="width:22px;height:22px;"><i data-ico="copy" data-size="12"></i></button>
+                <button class="d-iconbtn" style="width:22px;height:22px;"><i data-ico="chevron-up" data-size="12"></i></button></div>
+              <div class="d-code-body"><span class="d-ln">12</span><span class="tok-k">def</span> <span class="tok-s">get_current_user</span>(token: str = <span class="tok-s">Depends</span>(oauth2_scheme)) -&gt; User:</div>
+            </div>
+
+            <!-- 正文 -->
+            <div class="d-md">
+              <p>迁移按三步走：<b>路由</b> → <b>依赖注入</b> → <b>测试</b>。JWT 校验从中间件改为 <code class="d-math">Depends(get_current_user)</code>，密码哈希保持 bcrypt。预计 4 个文件，完成后自动跑 <code class="d-math">pytest tests/auth</code>。</p>
+            </div>
+
+            <!-- 计划卡 -->
+            <div class="d-plan">
+              <div class="d-plan-head"><i data-ico="list-todo" data-size="14"></i>迁移计划<span class="d-grow"></span><span class="d-plan-meta">2/4 完成 · 预计 6 分钟</span></div>
+              <div class="d-plan-body d-plan-rail">
+                <div class="d-plan-step done"><span class="d-plan-dot"></span>梳理 Express 路由与中间件清单</div>
+                <div class="d-plan-step run"><span class="d-plan-dot"></span>改写 routes.py 与 deps.py</div>
+                <div class="d-plan-step"><span class="d-plan-dot"></span>迁移 JWT 中间件为 Depends</div>
+                <div class="d-plan-step"><span class="d-plan-dot"></span>补 pytest 并跑通 tests/auth</div>
+              </div>
+              <div class="d-plan-foot"><i data-ico="timer" data-size="12"></i>已运行 12 分钟 · 上下文 38%<span class="d-grow"></span>
+                <button class="d-btn ghost sm"><i data-ico="list-todo" data-size="12"></i>查看全文</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入卡 -->
+      <div class="d-composer-wrap">
+        <div class="d-queue" hidden id="q1">
+          <div class="d-queue-head"><i data-ico="layers" data-size="13"></i>队列 · 2 条<span class="d-grow"></span>
+            <button class="d-btn ghost sm">暂停接续</button></div>
+          <div class="d-queue-body">
+            <div class="d-queue-row"><span class="d-grip"><i data-ico="grip-vertical" data-size="12"></i></span>把 refresh token 也改成 httpOnly cookie</div>
+            <div class="d-queue-row steer"><span class="d-grip"><i data-ico="grip-vertical" data-size="12"></i></span>注意保留 /v1 路由前缀</div>
+          </div>
+        </div>
+        <div class="d-composer">
+          <div class="d-composer-top">
+            <span class="d-cite"><i data-ico="file-code" data-size="11"></i>routes.py<i data-ico="x" data-size="10"></i></span>
+            <span class="d-cite"><i data-ico="at-sign" data-size="11"></i>middleware<i data-ico="x" data-size="10"></i></span>
+          </div>
+          <div class="d-composer-bar">
+            <button class="d-iconbtn"><i data-ico="paperclip" data-size="15"></i></button>
+            <button class="d-iconbtn"><i data-ico="at-sign" data-size="15"></i></button>
+            <textarea class="d-input" rows="1" placeholder="继续，或输入 / 唤起命令、@ 引用文件…"></textarea>
+            <span class="d-ring" style="--p:38" data-ico-label="上下文"></span>
+            <button class="d-iconbtn"><i data-ico="sliders-horizontal" data-size="15"></i></button>
+            <button class="d-send stop"><i data-ico="square" data-size="13"></i></button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ═══ 右栏 ═══ -->
+    <aside class="d-panel" data-demo-scope>
+      <div class="d-tabbar" data-demo-tabs>
+        <button class="d-tab is-on" data-demo-tab="files"><i data-ico="folder" data-size="13"></i>文件</button>
+        <button class="d-tab" data-demo-tab="term"><i data-ico="terminal" data-size="13"></i>终端</button>
+        <button class="d-tab" data-demo-tab="git"><i data-ico="git-branch" data-size="13"></i>Git</button>
+        <span class="d-grow"></span>
+        <button class="d-iconbtn" style="width:24px;height:24px;"><i data-ico="x" data-size="13"></i></button>
+      </div>
+
+      <section data-demo-pane="files" class="d-panel-body d-scroll" style="display:flex;flex-direction:column;">
+        <div class="d-tinybar">
+          <span class="d-t-xs d-t-faint d-grow">auth-service</span>
+          <button class="d-iconbtn" style="width:22px;height:22px;"><i data-ico="file-plus" data-size="13"></i></button>
+          <button class="d-iconbtn" style="width:22px;height:22px;"><i data-ico="folder-plus" data-size="13"></i></button>
+          <button class="d-iconbtn" style="width:22px;height:22px;"><i data-ico="refresh-cw" data-size="13"></i></button>
+        </div>
+        <div class="d-tree">
+          <button class="d-trow"><i data-ico="chevron-down" data-size="12"></i><i data-ico="folder-open" data-size="13"></i>app</button>
+          <button class="d-trow l1"><i data-ico="chevron-down" data-size="12"></i><i data-ico="folder-open" data-size="13"></i>api</button>
+          <button class="d-trow is-on"><i data-ico="file-code" data-size="13"></i>routes.py</button>
+          <button class="d-trow l2"><i data-ico="file-code" data-size="13"></i>deps.py</button>
+          <button class="d-trow l1"><i data-ico="chevron-right" data-size="12"></i><i data-ico="folder" data-size="13"></i>core</button>
+          <button class="d-trow"><i data-ico="chevron-right" data-size="12"></i><i data-ico="folder" data-size="13"></i>tests</button>
+          <button class="d-trow"><i data-ico="file-text" data-size="13"></i>pyproject.toml</button>
+        </div>
+        <div class="d-sep"></div>
+        <div class="d-subhead">本轮改动</div>
+        <div class="d-cites" style="padding: 0 var(--nx-sp-1);">
+          <span class="d-cite"><span class="d-dot ok"></span>routes.py +48</span>
+          <span class="d-cite"><span class="d-dot ok"></span>deps.py +21</span>
+          <span class="d-cite"><span class="d-dot"></span>config.py</span>
+        </div>
+      </section>
+
+      <section data-demo-pane="term" hidden class="d-panel-body" style="display:flex;flex-direction:column;padding:0;">
+        <div class="d-term-tabs">
+          <button class="d-chipbtn is-on">bash</button>
+          <button class="d-chipbtn">pytest</button>
+          <span class="d-grow"></span>
+          <button class="d-iconbtn" style="width:22px;height:22px;"><i data-ico="trash-2" data-size="13"></i></button>
+        </div>
+        <div class="d-term d-grow" style="border-radius:0;">
+          <div><span class="d-term-prompt">$</span> pytest tests/auth -q</div>
+          <div class="d-term-ok">..ss..</div>
+          <div>4 passed, 2 skipped in 1.42s</div>
+          <div><span class="d-term-prompt">$</span> <span class="d-caret"></span></div>
+        </div>
+        <div class="d-terminfo"><span>bash · pid 4821</span><span class="d-grow"></span><span>↑ 2.1 kB/s ↓ 14 kB/s</span></div>
+      </section>
+
+      <section data-demo-pane="git" hidden class="d-panel-body d-scroll">
+        <div class="d-tinybar"><span class="d-t-xs d-t-faint d-grow">main ← feat/fastapi</span>
+          <button class="d-btn sm"><i data-ico="refresh-cw" data-size="12"></i>刷新</button></div>
+        <div class="d-subhead" style="padding-top: var(--nx-sp-1);">工作区 · 3 个变更</div>
+        <div class="d-git-row"><span class="d-dot ok"></span><span class="d-mono d-grow">app/api/routes.py</span><span class="d-t-xs d-t-faint">+48</span></div>
+        <div class="d-git-row"><span class="d-dot ok"></span><span class="d-mono d-grow">app/api/deps.py</span><span class="d-t-xs d-t-faint">+21</span></div>
+        <div class="d-git-row"><span class="d-dot"></span><span class="d-mono d-grow">app/core/config.py</span><span class="d-t-xs d-t-faint">M</span></div>
+        <div class="d-sep"></div>
+        <div class="d-subhead">最近提交</div>
+        <div class="d-git-row"><span class="d-git-lane"><i data-ico="circle-dot" data-size="12"></i></span>
+          <span class="d-col d-grow"><span class="d-t-sm">feat: FastAPI 登录骨架</span><span class="d-t-xs d-t-faint">a3f21c9 · 2h 前</span></span></div>
+        <div class="d-git-row"><span class="d-git-lane"><i data-ico="circle-dot" data-size="12"></i></span>
+          <span class="d-col d-grow"><span class="d-t-sm">chore: 升级 pydantic v2</span><span class="d-t-xs d-t-faint">7d0e412 · 3h 前</span></span></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<!-- 模型浮层 -->
+<div class="d-pop" data-demo-pop="pop-model" style="top:52px; right:196px; width:280px;">
+  <div class="d-pop-title">模型</div>
+  <button class="d-menu-row is-on"><i data-ico="cpu" data-size="14"></i>GLM-5.3<span class="d-grow"></span><i data-ico="check" data-size="13"></i></button>
+  <button class="d-menu-row"><i data-ico="cpu" data-size="14"></i>GLM-5.3-Flash</button>
+  <button class="d-menu-row"><i data-ico="zap" data-size="14"></i>GPT-5.2</button>
+  <div class="d-sep"></div>
+  <button class="d-menu-row"><i data-ico="sliders-horizontal" data-size="14"></i>模型设置…</button>
+</div>
+
+<div class="d-notes">
+  <b>这一张在定什么</b>：Web 端所有画板的<b>密度与骨架基准</b> —— 侧栏 264（会话两行式）· 顶栏 48（毛玻璃，
+  会话名 + 运行态 + 分支 + 模型胶囊 + 扩展胶囊）· 转录列宽 760（用户气泡 = 强调色 8% 底、过程时间轴竖线、
+  工具卡、diff、计划卡）· 输入卡（引用 chips 行 + 工具行 + 上下文环 + 停止钮）· 右栏 320（文件/终端/Git 页签）。
+  右上角一键切深色 —— <b>深色不是另一张画板，是同一帧的变量板</b>。
+</div>
+
+<script>window.Icons && window.Icons.hydrate && window.Icons.hydrate();</script>
+</body>
+</html>

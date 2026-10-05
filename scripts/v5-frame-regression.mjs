@@ -22,6 +22,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BOARD_FURNITURE } from "../design/v5/scripts/furniture.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const V5 = join(ROOT, "design", "v5");
@@ -29,16 +30,9 @@ const JSON_OUT = process.argv.includes("--json");
 const onlyIdx = process.argv.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : null;
 
-/* 画板家具 / 纯说明性类：不计入「这一帧有没有落地」的判定 */
-const FURNITURE = new Set([
-  // web 家具
-  "d-board", "d-board-head", "d-scene", "d-frame", "d-frame-body", "d-frame-label",
-  "d-theme-toggle", "d-tags", "d-tag", "d-notes", "d-grow", "d-sheet", "d-fade", "d-fade-tail",
-  // pwa 家具
-  "m-board", "m-board-head", "m-scene", "m-frame", "m-frame-body", "m-frame-label",
-  "m-theme-toggle", "m-notes", "m-grow", "m-fade", "m-fade-tail", "m-statusbar", "m-homebar",
-  "m-phone", "m-phone-inner",
-]);
+/* 画板家具 / 纯说明性类：不计入「这一帧有没有落地」的判定。
+   名单唯一来源 design/v5/scripts/furniture.mjs（land-status 用同一份）。 */
+const FURNITURE = BOARD_FURNITURE;
 
 /* ── 产品源码全文（一次读入，后面全是正则）──────────────────────────── */
 let product = "";

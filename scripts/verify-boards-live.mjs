@@ -24,6 +24,11 @@ const ROOT = resolve(HERE, "..");
 const PORT = Number(process.env.BOARD_DIFF_PORT ?? 32141);
 const BASE = `http://127.0.0.1:${PORT}`;
 const KEEP = process.argv.includes("--keep");
+/* 同一个种子夹具同时服务两个仲裁者：`--struct` 换成逐帧结构比对（它比几何对位需要
+   得更多 —— 转录 / 右栏 / 输入框的 spec 都要「真开着一条有消息的会话」才量得准）。
+   两个仲裁者各留一份自己的总表，但种子只有一份。 */
+const STRUCT = process.argv.includes("--struct");
+const RUNNER = STRUCT ? "struct-diff-all.mjs" : "board-diff-all.mjs";
 const onlyIdx = process.argv.indexOf("--only");
 const only = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : null;
 
@@ -227,7 +232,7 @@ if (!count) {
 
 const res = spawnSync(
   process.execPath,
-  [join(HERE, "board-diff-all.mjs"), ...(only ? ["--only", only] : [])],
+  [join(HERE, RUNNER), ...(only ? ["--only", only] : [])],
   { cwd: ROOT, stdio: "inherit", env: { ...process.env, APP_URL: BASE } },
 );
 done(res.status ?? 1);

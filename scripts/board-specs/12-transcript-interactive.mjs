@@ -75,7 +75,7 @@ export default {
   },
   // fork:v5-old-layer（2026-10-04）—— 产品侧全部换成画板 D-03c/D-03d 的 v5 类；
   // 画板侧仍取 v1 的 pw-*。逐条依据：
-  //   .pw-turn-end   → MessageView.tsx:1090 d-turn-end（行内三格是 .d-mono.d-t-xs）
+  //   .pw-turn-end   → **产品已删除**（用户裁定 2026-10，见 knownDiffs）
   //   .pw-card/-head/-body → ChatWindow.tsx:587 d-card + d-card-head、d-card-body
   //   .pw-pop/-title/-prow/-sep → d-pop / d-pop-title / d-menu-row / d-sep
   //   .pw-badge.ok / .pw-btn.sm → d-badge.ok / d-btn.sm（画板帧 3 的「已完成」）
@@ -132,11 +132,23 @@ export default {
         + "`.pw-term`（board.css 原值 12.5px）接管；盒模型与发丝线两边逐项一致。",
     },
     {
-      sel: ".d-turn-end .d-grow",
+      sel: ".d-turn-end",
       reason:
-        "**取景差异**：`.rule` 是 `flex: 1`，宽度完全由所在行宽决定。画板整页帧宽 1440"
-        + "→ 回合结束行 1440、`.rule` 1115.7；产品转录列 800 → 回合结束行 800、"
-        + "`.rule` 721.3。差 394.4px 是列宽差不是组件差（板面自身的取景）。",
+        "**产品已删除（用户裁定 2026-10）**：回合结束行整行从产品拿掉 —— 身份行末尾的 "
+        + "`.d-plan-meta` 已经写着「3 分 12 秒 · 18.4k token」，统计浮窗有会话累计用量，"
+        + "逐块还有各自计时器，这一行是同一批数字的第四份。见 design/v5/DIVERGENCE.md F 节。",
+    },
+    {
+      sel: ".d-turn-end .d-badge",
+      reason: "**产品已删除**：同 `.d-turn-end`（整行不再渲染，行内徽章自然也没有）。",
+    },
+    {
+      sel: ".d-turn-end .d-mono",
+      reason: "**产品已删除**：同 `.d-turn-end`（耗时 / token / 金额三格随行一起去掉）。",
+    },
+    {
+      sel: ".d-turn-end .d-grow",
+      reason: "**产品已删除**：同 `.d-turn-end`（`.rule` 在产品侧没有宿主）。",
     },
     {
       sel: ".d-sep",
@@ -181,13 +193,6 @@ export default {
       reason:
         "**数据依赖**：文件卡由「本轮写入的文件」或附件条目驱动（TurnWrittenFiles / "
         + "MessageView.tsx:1704）。种子会话的 read 是只读工具，不产生写入文件，也没有附件。",
-    },
-    {
-      sel: ".d-turn-end .d-mono",
-      reason:
-        "**数据依赖**：回合结束行里的耗时 / token / 成本三格都来自 `message.usage` 与"
-        + "「与上一条消息的时间差」（MessageView.tsx:839-850）。种子会话的 assistant "
-        + "消息没有 usage 字段、相邻消息时间戳又相同，于是三格全不渲染，行里只剩徽章 + 分隔线。",
     },
   ],
   tolerance: { box: 2, fontSize: 0 },

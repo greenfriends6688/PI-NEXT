@@ -14,14 +14,35 @@ design/pi-web-design/
   README.md            本文件：索引 + 与参考项目的逐条对应
   DESIGN-SPEC.md       设计规范（风格系统 · 结构来源 · 画板清单 · 产出要求）
   DIVERGENCE.md        设计与现有实现的偏离清单
+  LANDING.md           **落地契约** —— 「设计 → 代码」的唯一通道，常驻
   index.html           导航首页
   brand/               应用标记来源（不是画板）
   assets/
     tokens.css         Token 表（唯一样式来源）
     board.css          画板样式（pw- 前缀）
     icons.js           lucide 图标集（255 个，data-ico 用法）
-  00-tokens.html … 62-settings-layout.html   （30 张，不含本目录的 index.html）
+    board-demo.js      画板交互引擎（声明式，data-demo-* 属性驱动）
+  scripts/
+    check-boards.mjs   静态校验（图标 / emoji / 未定义变量 / 标签平衡）
+    check-align.mjs    图标与文字的垂直对齐回归
+    check-demo.mjs     可点击性冒烟（每个交互件真点一次）
+    render-boards.mjs  逐张出 PNG
+  00-…-69-*.html       Web 画板（桌面 1440×900）
+  70-…-89-*.html       PWA 画板（手机 390×844 / 平板 1024×768）
+  90-…-99-*.html       跨端（组件原子 / 动效 / Token）
 ```
+
+## 两套画板，一套真值
+
+编号就是分组：**`00–69` Web / `70–89` PWA / `90–99` 跨端**。
+两套画板都只从 `assets/{tokens.css, board.css, icons.js}` 取值，差别**只在版式组合**（桌面三栏 vs 手机单栏 + 覆盖层），
+**不在颜色 / 字号 / 圆角 / 控件 / 动效**。
+
+> 为什么不建两套 token / 两套基元：上次落不了地的根因就是**同一个视觉有两个来源**。
+> 做成两套就是把那个错误放大一倍。理由与边界见 `docs/design-v2-plan-2026-10-04.md` §0。
+
+**改版状态**：`npm run design:status` —— 报告每张画板的未落地类、spec 覆盖、`pw-` 类双向可查。
+**怎么落地**：`LANDING.md`（第〇原则 / 三条铁律 / 四步法 / 验收六件套 / 触发口令）。
 
 ## 约定
 
@@ -83,6 +104,21 @@ design/pi-web-design/
 | 46 | 设置 · 命令 / 归档 / 导入 | 设置 | `46-settings-prompts-archive-import.html` | 已出画板 |
 | 47 | 皮肤工作室与壁纸（含**对话框外壳**） | 设置 | `47-skin-studio.html` | 已出画板 |
 | 62 | 设置 · **布局重设计**（诊断四种骨架 / 新框架解剖 / 两栏块流 / 空态三态 / 动作四级 / 12 页落位表） | 设置 | `62-settings-layout.html` | 已出画板（提案，待裁定） |
+
+### P7 · PWA（手机 390×844 / 平板 1024×768）
+
+| 编号 | 名称 | 页面 | 文件 | 状态 |
+|---|---|---|---|---|
+| 70 | **PWA 壳（可点）** — 抽屉推拉 / 遮罩 / 页签 / 弹层 / 发送追加 | PWA 会话工作台 | `70-pwa-shell.html` | 已出画板 |
+| 71 | PWA 转录（消息流 / 过程时间轴 / 工具卡 / 代码横滚） | PWA 会话工作台 | `71-pwa-transcript.html` | 待补 |
+| 72 | PWA 输入框（自适应行数 / 全屏化菜单 / 底部弹层 / 队列） | PWA 会话工作台 | `72-pwa-composer.html` | 待补 |
+| 73 | PWA 会话抽屉整页（搜索 / 三态行 / 分组 / 长按菜单） | PWA 会话工作台 | `73-pwa-sessions.html` | 待补 |
+| 74 | PWA 设置（hub 卡片分组 → 分节二级页） | PWA 设置 | `74-pwa-settings.html` | 待补 |
+| 75 | PWA 文件树与查看器 | PWA 文件面板 | `75-pwa-files.html` | 待补 |
+| 76 | PWA 终端与浏览器（键盘工具条 / 地址栏） | PWA 文件面板 | `76-pwa-terminal-browser.html` | 待补 |
+| 77 | PWA 安装与更新（分平台提示 / standalone / 离线） | PWA | `77-pwa-install.html` | 待补 |
+| 78 | 手势与触控（边缘右滑 / 长按 / 下拉刷新 / 目标尺寸表） | PWA | `78-pwa-gestures.html` | 待补 |
+| 79 | PWA 系统态（空 / 加载 / 错误 / 断网 / 通知 / Toast） | PWA | `79-pwa-states.html` | 待补 |
 
 ### P6 · 其它页面
 
@@ -398,7 +434,7 @@ design/pi-web-design/
 
 ## 脚本
 
-两个维护脚本，都是设计稿专用、不进产品构建：
+维护脚本，都是设计稿专用、不进产品构建：
 
 ```bash
 # 静态校验：图标是否注册 / 是否出现 emoji / 是否引用未定义 CSS 变量 / 标签是否平衡
@@ -407,9 +443,19 @@ node design/pi-web-design/scripts/check-boards.mjs
 # 对齐回归：量测每处「图标 vs 相邻文字」的垂直中心差（必须 0 处超差）
 node design/pi-web-design/scripts/check-align.mjs
 
+# 可点击性冒烟：对每个 data-demo-* 触发件真点一次，断言状态迁移（必须 0 处失效）
+node design/pi-web-design/scripts/check-demo.mjs
+
 # 渲染：用本机 Chrome 逐张出 PNG（fullPage）
 node design/pi-web-design/scripts/render-boards.mjs /tmp/pw-boards            # 全部
 node design/pi-web-design/scripts/render-boards.mjs /tmp/pw-boards 01-workbench.html
+```
+
+另有一个产品侧脚本（读源码推导改版清单）：
+
+```bash
+npm run design:status          # 人类可读报告
+node scripts/design-status.mjs --json   # 给 AI / CI 读
 ```
 
 `check-boards.mjs` 退出码非 0 表示有错误。允许项写在脚本里：

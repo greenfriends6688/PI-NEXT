@@ -255,6 +255,9 @@ body.pw.dark { background: #0f0f13; }
 .pw-chipbtn {
   display: inline-flex; align-items: center; gap: var(--space-ctrl);
   height: var(--control-xs); padding: 0 7px; border-radius: var(--radius-4);
+  /* 芯片是单行件：宁可截断也不换行。缺这一条时「V4.1 Flash」会在窄顶栏里折成两行，
+     把顶栏高度顶开。（2026-10-04 画板 70 实测踩到） */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
   /* 自己归零 UA：这一条也用在 <button> 上（顶栏 / 输入卡上方的上下文条），
      不归零的话按钮会带一圈默认描边 + 系统字体。与 `.pw-iconbtn` 同一条约定。 */
   border: 0; background: transparent; font-family: inherit;
@@ -1168,6 +1171,20 @@ i[data-ico] > svg { display: block; }
 .pw-touch { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-4); color: var(--n-muted); flex: none; }
 .pw-touch.is-on { background: var(--overlay-selected); color: var(--accent-text); }
 
+/* 移动端壳 · 可交互态（画板 70 用）
+   画板 60 把「抽屉关」与「抽屉开」两态并排展示，那是**规格**；
+   画板 70 是**可点的壳**，同一份几何要真能推拉。
+   所以只在 .pw-phone.is-live（demo 引擎挂的标记）下加过渡与关态，
+   画板 60 的静态两帧不受影响。 */
+.pw-phone.is-live .pw-drawer { transition: transform var(--motion-base) var(--ease); }
+.pw-phone.is-live .pw-drawer:not(.is-open) { transform: translateX(-100%); }
+.pw-phone.is-live .pw-scrim-layer { transition: opacity var(--motion-base) var(--ease); }
+.pw-phone.is-live .pw-scrim-layer:not(.is-open) { opacity: 0; pointer-events: none; }
+
+/* 手机里的弹层（模型 / 思考 / 更多）：贴在顶栏下沿，左右各留 --s2。
+   画板 60 不画这一族，画板 70 与 72 用。 */
+.pw-mobile-pop { position: absolute; top: 52px; left: var(--s2); right: var(--s2); z-index: 30; }
+
 /* 窄屏「更多控件」：把顶栏右侧的动作展开成一条覆盖顶栏的工具条（不是底部条） */
 .pw-mobile-actions {
   position: absolute; top: 0; bottom: 0; right: 0; left: 36px; z-index: 20;
@@ -1182,7 +1199,11 @@ i[data-ico] > svg { display: block; }
 .pw-composer.collapsed .pw-composer-top { min-height: 26px; padding-bottom: var(--s2); }
 .pw-composer.collapsed .pw-composer-bar { display: none; }
 
-/* 底部控件条（移动端） */
+/* 底部控件条（移动端）
+ * ⚠️ 2026-10-04：曾提议改成异构（底部 tab bar / 底部动作面板），同日用户改回**同构**，
+ *    「不新增底部控件条」重新生效。所以下面这两个类**仍是死类**（无任何画板引用），
+ *    `npm run design:status` 会把它们列进「定义了但没有画板在用」。
+ *    要启用得先改 DESIGN-SPEC.md §3.5 的 PWA 硬约定，不是单加画板就行。 */
 .pw-mobile-bar {
   display: flex; align-items: center; gap: var(--s2); flex: none;
   padding: var(--s2) var(--s3); border-top: 1px solid var(--n-border-subtle); background: var(--surface-panel);

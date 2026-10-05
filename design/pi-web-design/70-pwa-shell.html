@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>70 · PWA 壳（可点） — Pi Web 设计画板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/board.css">
+</head>
+<body class="pw">
+
+<header class="pw-head">
+  <h1>70 · PWA 壳（可点）</h1>
+  <p>手机端的外壳解剖，<b>这一张是真能点的</b>：点左上角菜单抽屉推拉，点遮罩收起，点模型芯片开弹层，
+抽屉里「项目 / 聊天」是真页签，输入框里打字按发送会真追加一条。
+<b>与桌面完全同构</b>——不新增底部控件条、不新增底部弹层，变的只是宽度与触控尺寸。</p>
+  <div class="pw-tags">
+    <span class="pw-tag">页面：PWA 会话工作台</span>
+    <span class="pw-tag">组件：AppShell(mobile) / SessionSidebar / ChatInput</span>
+    <span class="pw-tag accent">可点原型</span>
+  </div>
+</header>
+
+<section class="pw-frame" style="max-width:900px">
+  <div class="pw-frame-label"><b>可点壳</b> · 390 × 844 · 抽屉 272 宽 · 触控目标 36 × 36<span class="grow"></span>与画板 60 同源</div>
+  <div class="pw-frame-body pw-pad" style="justify-content:center;gap:var(--s5)">
+
+    <div class="pw-phone is-live" data-demo-scope>
+      <div class="pw-phone-inner">
+        <div class="pw-statusbar">9:41<span class="grow"></span><span>5G</span><span>100%</span></div>
+
+        <!-- 顶栏：菜单 / 标题 / 模型芯片 / 更多 -->
+        <div class="pw-mobile-top pw-topbar">
+          <span class="pw-touch" data-demo-drawer="toggle" data-demo-drawer-target="#pwa-side"><span class="pw-ico"><i data-ico="menu" data-size="18"></i></span></span>
+          <span class="pw-tb-title is-stacked">
+            <span>排查最新 Release 与本地待上传改动</span>
+            <span class="pw-tb-title-sub">pi-codex · 上下文 18%</span>
+          </span>
+          <span class="grow"></span>
+          <span class="pw-chipbtn" data-demo-open="pwa-model"><span class="pw-ico"><i data-ico="zap" data-size="14"></i></span>V4.1 Flash<span class="pw-ico"><i data-ico="chevron-down" data-size="12"></i></span></span>
+          <span class="pw-touch"><span class="pw-ico"><i data-ico="ellipsis" data-size="18"></i></span></span>
+        </div>
+
+        <!-- 模型弹层：顶部下拉，与桌面同一个 pw-pop -->
+        <div class="pw-pop pw-mobile-pop" data-demo-pop="pwa-model" hidden>
+          <div class="pw-pop-search"><span class="pw-ico"><i data-ico="search" data-size="14"></i></span><span class="pw-dim">搜索模型</span><span class="grow"></span><span class="pw-kbd">Esc</span></div>
+          <div class="pw-pop-title">收藏</div>
+          <div class="pw-prow is-on"><span class="pw-ico"><i data-ico="zap" data-size="14"></i></span>DeepSeek V4.1 Flash<span class="pw-badge accent">Latest</span><span class="grow"></span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+          <div class="pw-prow"><span class="pw-ico"><i data-ico="sparkles" data-size="14"></i></span>Claude Sonnet 4.5<span class="grow"></span><span class="pw-badge">订阅</span></div>
+          <div class="pw-sep"></div>
+          <div class="pw-pop-title">思考强度</div>
+          <div class="pw-prow"><span class="grow">auto</span><span class="pw-desc">由模型决定</span></div>
+          <div class="pw-prow is-on"><span class="grow">high</span><span class="pw-desc">16,384</span><span class="pw-ico"><i data-ico="check" data-size="14"></i></span></div>
+        </div>
+
+        <!-- 转录 -->
+        <div class="pw-chat" id="pwa-transcript" style="padding-top:var(--s3)">
+          <div class="pw-col" style="padding:0 var(--s3)">
+            <div class="pw-msg-user" style="max-width:88%">把 release 里那份和本地待上传的改动对一下</div>
+            <div class="pw-md">
+              <p>两边差 7 个文件。先看结论：</p>
+              <ul>
+                <li><code>release/notes.md</code> 本地新写了 3 段</li>
+                <li><code>app/fork-ui.css</code> release 版少了标签条那一段</li>
+              </ul>
+            </div>
+            <div class="pw-proc">
+              <div class="pw-proc-head"><span class="pw-ico"><i data-ico="layers" data-size="14"></i></span>7 个文件 · 3 条命令 · 12 次工具调用<span class="grow"></span><span class="pw-badge ok">完成</span></div>
+              <div class="pw-proc-body">
+                <div class="pw-step"><span class="pw-ico"><i data-ico="file-diff" data-size="14"></i></span><span class="pw-verb">diff</span><span class="pw-mono">release/… app/…</span><span class="grow"></span><span class="pw-dim pw-mono">0.4s</span></div>
+                <div class="pw-step"><span class="pw-ico"><i data-ico="terminal" data-size="14"></i></span><span class="pw-verb">run</span><span class="pw-mono">git status --short</span><span class="grow"></span><span class="pw-dim pw-mono">1.2s</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入框 -->
+        <div class="pw-composer-wrap" style="padding:var(--s2) var(--s3)">
+          <div class="pw-composer" style="width:100%;margin:0">
+            <div class="pw-composer-top" contenteditable="true">继续…</div>
+            <div class="pw-composer-bar">
+              <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="plus" data-size="16"></i></span></span>
+              <span class="pw-iconbtn"><span class="pw-ico"><i data-ico="at-sign" data-size="16"></i></span></span>
+              <span class="grow"></span>
+              <span class="pw-ring">18%</span>
+              <span class="pw-send" data-demo-append="#pwa-transcript" data-demo-append-from="#tpl-user"><span class="pw-ico"><i data-ico="arrow-up" data-size="16"></i></span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 抽屉与遮罩 -->
+        <div class="pw-scrim-layer" data-demo-scrim></div>
+        <div class="pw-drawer" id="pwa-side">
+          <div class="pw-side-head">
+            <span class="pw-brand"><span class="pw-logo"><img src="../../public/pi-next-logo.png" alt="" style="display:block;width:16px;height:auto"></span><img src="../../public/pi-next-wordmark.png" alt="PI NEXT" style="display:block;height:10px;width:auto"></span>
+            <span class="grow"></span>
+            <span class="pw-touch" data-demo-drawer="close" data-demo-drawer-target="#pwa-side"><span class="pw-ico"><i data-ico="x" data-size="18"></i></span></span>
+          </div>
+          <div class="pw-side-nav">
+            <div class="pw-row"><span class="pw-ico"><i data-ico="square-pen"></i></span><span class="pw-name">新建任务</span><span class="grow"></span><span class="pw-ico"><i data-ico="chevron-down" data-size="14"></i></span></div>
+          </div>
+          <div class="pw-seg" data-demo-tabs>
+            <span class="is-on" data-demo-tab="projects">项目</span>
+            <span data-demo-tab="chats">聊天</span>
+          </div>
+          <div class="pw-side-scroll">
+            <div data-demo-pane="projects">
+              <div class="pw-row is-on"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">pi-codex</span><span class="grow"></span><span class="pw-badge count">90</span></div>
+              <div class="pw-session child is-on running"><span class="pw-body"><span class="pw-t">排查最新 Release 与本地待上传改动</span><span class="pw-m">刚刚 · 19 条消息</span></span></div>
+              <div class="pw-session child awaiting"><span class="pw-body"><span class="pw-t">窗口切在回合中间时的渲染修复</span><span class="pw-m">12 分钟前 · 6 条消息<span class="pw-await"><span class="pw-ico"><i data-ico="triangle-alert" data-size="11"></i></span>待授权</span></span></span></div>
+              <div class="pw-session child"><span class="pw-body"><span class="pw-t">AcpAgentClient 对比与借鉴清单</span><span class="pw-m">1 小时前 · 24 条消息<span class="pw-dot unread"></span></span></span></div>
+              <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">探项前端页面</span><span class="grow"></span><span class="pw-badge count">20</span></div>
+              <div class="pw-row"><span class="pw-ico"><i data-ico="folder" data-size="14"></i></span><span class="pw-name">招标改</span><span class="grow"></span><span class="pw-badge count">6</span></div>
+            </div>
+            <div data-demo-pane="chats" hidden>
+              <div class="pw-session is-on"><span class="pw-body"><span class="pw-t">写一下这周的发布说明</span><span class="pw-m">刚刚 · 4 条消息</span></span></div>
+              <div class="pw-session"><span class="pw-body"><span class="pw-t">标书第三章的图表口径</span><span class="pw-m">昨天 · 31 条消息</span></span></div>
+              <div class="pw-session"><span class="pw-body"><span class="pw-t">把这个 markdown 排成 Word</span><span class="pw-m">3 天前 · 8 条消息<span class="pw-dot unread"></span></span></span></div>
+            </div>
+          </div>
+          <div class="pw-side-foot"><span class="pw-ico"><i data-ico="settings" data-size="14"></i></span>设置<span class="grow"></span><span class="pw-badge count">v0.9.4</span></div>
+        </div>
+
+        <div class="pw-homebar"><i></i></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="pw-mono pw-dim" style="max-width:390px;margin:0">
+        <b style="color:var(--n-text)">怎么点：</b>点左上角菜单<b>推拉抽屉</b>，点遮罩或抽屉里的 × 收起；
+        点模型芯片开顶部弹层（点外部 / Esc 关）；抽屉里「项目 / 聊天」是真页签；
+        输入框里打字按发送会真追加一条。
+      </p>
+      <p class="pw-mono pw-dim" style="max-width:390px;margin-top:var(--s2)">
+        <b style="color:var(--n-text)">变的：</b>宽度（抽屉 272）、触控目标 36、滚动条 6px、安全区。
+        <b style="color:var(--n-text)">不变的：</b>导航范式、控件、弹层位置、token —— 与桌面<b>同一套</b>。
+      </p>
+    </div>
+
+    <template id="tpl-user">
+      <div class="pw-col" style="padding:0 var(--s3)">
+        <div class="pw-msg-user" style="max-width:88%">（demo）这条是刚发出去的</div>
+      </div>
+    </template>
+
+  </div>
+</section>
+
+<section class="pw-notes">
+  <h2>这一张在定什么</h2>
+  <ul>
+    <li><b>PWA 壳就是桌面壳换宽度</b>：抽屉里的一切（品牌行、新建任务、项目/聊天分段、会话行六态、底栏设置）与桌面侧栏一模一样，只有宽度收到 272、圆角归 0。没有为手机另造一套导航。</li>
+    <li><b>没有底部控件条、没有底部弹层</b>（2026-09-29 裁定，2026-10-04 复核维持）：附件与 <code>@</code> 本来就在输入框那一行里；窄屏放不下的顶栏动作收进一条<b>覆盖顶栏</b>的工具条。</li>
+    <li><b>选择器仍是顶部下拉</b>（同一个 <code>.pw-pop</code>），不改成底部上滑的底部动作面板。底部面板曾提议（2026-10-04）后当日撤回。</li>
+    <li><b>触控目标 36 × 36</b>（桌面 28），滚动条 6px（桌面 8px），动作不依赖 <code>:hover</code>。</li>
+    <li><b>安全区</b>：顶部状态栏 24 高、底部 home indicator 22 高；standalone 下视图高度走 <code>--app-viewport-height</code>。</li>
+    <li><b>抽屉是推拉的不是闪现的</b>：<code>--motion-base</code> 160ms，与遮罩同起同止；<code>prefers-reduced-motion</code> 下停在终态。</li>
+    <li><b>这一张可点</b>：菜单开抽屉 / 遮罩收起 / 模型芯片开弹层 / 项目·聊天切页签 / 发送追加消息 —— 由 <code>assets/board-demo.js</code> 驱动，<code>scripts/check-demo.mjs</code> 会对每个触发件真点一次。</li>
+  </ul>
+</section>
+
+<script src="assets/icons.js"></script>
+<script src="assets/board-demo.js"></script>
+</body>
+</html>

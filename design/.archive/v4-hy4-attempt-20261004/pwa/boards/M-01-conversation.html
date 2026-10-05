@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>M-01 · 会话（基准页）</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+<style>body { margin: 0; padding: 56px 24px 48px; background: var(--nx-canvas); }</style>
+</head>
+<body>
+
+<!-- M-01 · 会话（基准页） · 标签：页面 / 单栏壳 / 浅色默认（右上角可切深色）
+     这一帧在定：390×844 的全部手感 —— 渐隐顶栏、模型 pill 中置、消息流密度、
+     浮起输入卡（光晕 + 能力 chips）、抽屉、底部面板。其余所有 PWA 画板的密度基准。 -->
+
+<button class="m-top-btn m-theme-toggle" data-demo-theme data-theme-label style="width:auto;padding: 0 var(--nx-sp-4);font-size:var(--nx-fs-xs);">深色</button>
+
+<div class="m-frame-label"><b>M-01 · 会话</b><span> 390×844 · 浅色（右上角切换深色）</span></div>
+
+<div class="m-phone">
+  <div class="m-phone-inner">
+    <div class="m-statusbar"><span>23:41</span><span>5G ▮▮▮</span></div>
+
+    <!-- 渐隐顶栏：内容从下方穿过 -->
+    <header class="m-top">
+      <button class="m-top-btn" data-demo-drawer="open" data-demo-drawer-target="#drawer"><i data-ico="menu" data-size="17"></i></button>
+      <button class="m-model-pill m-grow" data-demo-open="pop-model"><i data-ico="cpu" data-size="13"></i><span>GLM-5.3</span><i data-ico="chevron-down" data-size="13"></i></button>
+      <button class="m-top-btn"><i data-ico="square-pen" data-size="17"></i></button>
+    </header>
+    <div class="m-fade"></div>
+
+    <!-- 消息流 -->
+    <div class="m-scroll">
+      <!-- 用户 -->
+      <div class="m-msg-user">把登录模块从 Express 迁到 FastAPI，保留 JWT 逻辑，写完跑测试。</div>
+
+      <!-- 助手 -->
+      <div style="display:flex;flex-direction:column;gap: var(--nx-sp-3);">
+        <!-- 过程折叠行（默认收起，点开） -->
+        <div class="m-collapse">
+          <button class="m-collapse-head" data-demo-drawer="toggle" data-demo-drawer-target="#proc">
+            <i data-ico="wrench" data-size="14"></i>工作过程 · 6 步 · 12 分钟
+            <span class="m-grow"></span>
+            <i data-ico="chevron-down" data-size="14"></i>
+          </button>
+          <div id="proc" class="m-steps" style="padding: 0 var(--nx-sp-2) var(--nx-sp-2);" hidden>
+            <button class="m-step-row done"><span class="m-step-dot"></span>读取 auth/routes.ts<span class="m-step-n">0.8s</span></button>
+            <button class="m-step-row done"><span class="m-step-dot"></span>grep JWT 校验点 · 3 处<span class="m-step-n">0.3s</span></button>
+            <button class="m-step-row run"><span class="m-step-dot"></span>改写 routes.py<span class="m-step-n">2/4</span></button>
+          </div>
+        </div>
+
+        <!-- 工具卡 + diff -->
+        <div class="m-tool">
+          <div class="m-tool-head"><i data-ico="wrench" data-size="13"></i>edit · routes.py<span class="m-grow"></span><span class="m-t-xs m-t-faint">+48 −12</span></div>
+          <div style="padding: var(--nx-sp-3); background: var(--nx-code-bg); overflow-x:auto;">
+            <div class="m-mono" style="line-height:1.8;">
+              <div style="color:var(--nx-diff-del);">- router.post("/login", login_handler)</div>
+              <div style="color:var(--nx-diff-add);">+ @router.post("/login")</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 正文 -->
+        <div class="m-md">
+          <p>迁移按三步走：<b>路由</b> → <b>依赖注入</b> → <b>测试</b>。JWT 校验改为 Depends，完成后自动跑 pytest。</p>
+        </div>
+
+        <!-- 思考 -->
+        <button class="m-collapse-head" style="border:1px solid var(--nx-line);border-radius:var(--nx-r-md);color:var(--nx-text-2);">
+          <i data-ico="brain" data-size="14"></i>思考 4.2s<span class="m-grow"></span><i data-ico="chevron-right" data-size="14"></i>
+        </button>
+      </div>
+
+      <!-- 流式中的回复 -->
+      <div class="m-md m-text-live">正在改写 deps.py：把 JWT 校验挂到 Depends(oauth2_scheme)，并补上 </div>
+    </div>
+
+    <!-- 浮起输入卡 -->
+    <div class="m-composer-wrap">
+      <div class="m-composer">
+        <div class="m-tray">
+          <button class="m-tray-chip"><i data-ico="file-code" data-size="12"></i>routes.py<i data-ico="x" data-size="11"></i></button>
+          <button class="m-tray-chip"><i data-ico="wrench" data-size="12"></i>已选工具 · 3<i data-ico="x" data-size="11"></i></button>
+        </div>
+        <div class="m-composer-row">
+          <button class="m-composer-plus"><i data-ico="plus" data-size="18"></i></button>
+          <textarea class="m-input" rows="1" placeholder="问点什么，或 / 唤起命令"></textarea>
+          <button class="m-send"><i data-ico="arrow-up" data-size="17"></i></button>
+        </div>
+        <div class="m-ctx">
+          <span class="m-ring" style="--p:38"></span><span>上下文 38% · 76k/200k</span>
+          <span class="m-grow"></span><span>38 tok/s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 抽屉（演示交互）══ -->
+    <div class="m-scrim" data-demo-drawer="close" data-demo-drawer-target="#drawer"></div>
+    <aside class="m-drawer" id="drawer" data-demo-scope>
+      <div class="m-drawer-head">
+        <span class="m-t-title m-grow">PI NEXT</span>
+        <button class="m-top-btn" style="width:36px;height:36px;"><i data-ico="search" data-size="15"></i></button>
+      </div>
+      <div class="m-searchfield"><i data-ico="search" data-size="13"></i><input placeholder="搜索会话"></div>
+      <div class="m-seg" data-demo-tabs>
+        <button class="is-on" data-demo-tab="proj">项目</button>
+        <button data-demo-tab="chat">聊天</button>
+        <button data-demo-tab="arch">已归档</button>
+      </div>
+      <div class="m-list" data-demo-pane="proj">
+        <div class="m-group-title">今天</div>
+        <button class="m-row is-on"><span class="m-row-t">认证服务迁移到 FastAPI</span>
+          <span class="m-row-m"><span class="m-dot run"></span>运行中 · 12m</span></button>
+        <button class="m-row"><span class="m-row-t">标书解析脚本 · 词级 diff</span><span class="m-row-m">32 轮</span></button>
+        <button class="m-row"><span class="m-row-t">爬取 CNCA 政策原文</span><span class="m-row-m"><span class="m-dot ok"></span>已完成</span></button>
+        <div class="m-group-title">昨天</div>
+        <button class="m-row"><span class="m-row-t">Tiptap 编辑器 · 只读模式</span><span class="m-row-m">21 轮</span></button>
+      </div>
+      <div class="m-list" data-demo-pane="chat" hidden>
+        <div class="m-group-title">无项目会话</div>
+        <button class="m-row"><span class="m-row-t">快速问答 · 正则调试</span><span class="m-row-m">2 轮</span></button>
+        <button class="m-row"><span class="m-row-t">翻译这段 README</span><span class="m-row-m">1 轮</span></button>
+      </div>
+      <div class="m-list" data-demo-pane="arch" hidden>
+        <div class="m-group-title">已归档</div>
+        <button class="m-row"><span class="m-row-t">旧版会话迁移脚本</span><span class="m-row-m">14 轮</span></button>
+        <button class="m-row"><span class="m-row-t">2025 年终汇报数据</span><span class="m-row-m">9 轮</span></button>
+      </div>
+      <div class="m-drawer-foot">
+        <button class="m-top-btn" style="width:40px;height:40px;background:var(--nx-surface);box-shadow:none;"><i data-ico="settings" data-size="16"></i></button>
+        <button class="m-picktag is-on m-grow" style="height:40px;">新建会话</button>
+      </div>
+    </aside>
+
+    <!-- ══ 模型浮层 ══ -->
+    <div class="m-pop-float" data-demo-pop="pop-model" style="top:52px;">
+      <div class="m-menu-row is-on"><i data-ico="cpu" data-size="15"></i>GLM-5.3<span class="m-grow"></span><i data-ico="check" data-size="14"></i></div>
+      <div class="m-menu-row"><i data-ico="zap" data-size="15"></i>GPT-5.2</div>
+      <div class="m-menu-row"><i data-ico="sliders-horizontal" data-size="15"></i>模型设置…</div>
+    </div>
+
+    <div class="m-homebar"></div>
+  </div>
+</div>
+
+<div class="m-notes">
+  <b>这一张在定什么</b>：PWA 端所有画板的<b>手感基准</b> —— 顶栏渐隐（内容从下方穿过）、模型 pill
+  中置带光晕、消息流 20px 间距、过程默认折叠、输入卡浮起（毛玻璃 + 光晕 + 能力 chip 托盘 +
+  上下文行）、抽屉右缘大圆角、底部面板走 translateY。点左上菜单开抽屉、点模型 pill 开浮层、
+  右上角一键切深色。
+</div>
+
+<script>window.Icons && window.Icons.hydrate && window.Icons.hydrate();</script>
+</body>
+</html>

@@ -28,13 +28,16 @@
 /* 品牌标记：**镂空** —— 官方 logo 是透明底的 N 形，容器不许再垫一块渐变方块
    （垫了就会变成一块填充色块，标记本身的透明区域全被染色）。
    只有「还没有 img」的占位态（π 字符）才用品牌渐变底，用 :has() 分开。 */
-.d-logo { width: 24px; height: 24px; flex: 0 0 auto;
+/* 品牌标记（2026-10-05 用户裁定「别太大」）：24/20 → 20/16，标记与字标同步缩一档。
+   PWA 抽屉的 .m-brand（26px，无字标）不在此裁定内，维持原样。 */
+.d-logo { width: 20px; height: 20px; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--nx-fs-xs); font-weight: 600; }
 .d-logo:not(:has(img)) { border-radius: var(--nx-r-sm); background: var(--nx-brand); color: #fff; }
 .d-logo > img { width: 100%; height: 100%; object-fit: contain; display: block; }
-/* 品牌字标：侧栏收起时只留标记，展开时用字标图 */
-.d-wordmark { height: 20px; width: auto; display: block; flex: 0 0 auto; }
+/* 品牌字标：侧栏收起时只留标记，展开时用字标图。
+   深色 / 版本号态是文字 span：行高跟盒走，文字在缩小的盒里保持居中。 */
+.d-wordmark { height: 16px; width: auto; display: block; flex: 0 0 auto; line-height: 16px; }
 .d-brand-lockup { display: flex; align-items: center; gap: var(--nx-sp-2); min-width: 0; }
 .d-side-nav   { padding: 0 var(--nx-sp-2); display: flex; flex-direction: column; gap: 2px; }
 /* 行件在画板里是 div、在产品里是 button：UA 归零必须在库里做一次。
@@ -56,8 +59,14 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-sess:has(.d-checkbox.on), .d-table tr:has(.d-checkbox.on) { background: var(--nx-selected); }
 /* 组：全选 / 半选 / 全不选 三态的组标题 */
 .d-group-toggle { display: flex; align-items: center; gap: var(--nx-sp-2); }
-.d-sess-t { font-size: var(--nx-fs-body); line-height: var(--nx-lh-ctrl);
+/* 标题行必须**块级**：行盒是虚拟化的固定 48/58px，标题作为内联 span 时
+   overflow/ellipsis 不生效（长标题会横向溢出），子代理行的 ↳ 图标与整段
+   nowrap 标题还会被拆成两行 —— 行内挤出第三行，元信息叠到下一行上
+   （用户 2026-10-05 报的「重影」，fork:session-row-ghost）。 */
+.d-sess-t { display: block; font-size: var(--nx-fs-body); line-height: var(--nx-lh-ctrl);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 子代理行的 ↳ 待在标题行内部（D-02b 的「图标内联贴文字」形态） */
+.d-sess-t > i[data-ico] { margin-right: var(--nx-sp-1); color: var(--nx-accent); vertical-align: -2px; }
 .d-sess-m { display: flex; align-items: center; gap: var(--nx-sp-1); margin-top: 2px;
   font-size: var(--nx-fs-xs); color: var(--nx-text-3); }
 .d-sess.unread .d-sess-t::after { content: ""; display: inline-block; width: 6px; height: 6px;
@@ -241,6 +250,10 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-branch-btn { width: 20px; height: 20px; border: 0; background: none; border-radius: 999px;
   color: var(--nx-text-3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .d-branch-btn:hover { background: var(--nx-surface); color: var(--nx-text); }
+/* 到首/末条时钮要看得出来「到头了」：没有这条，禁用态与可点态同色，
+   hover 还会亮起（cursor 不生效），用户以为还能点。 */
+.d-branch-btn:disabled { opacity: .4; cursor: default; }
+.d-branch-btn:disabled:hover { background: none; color: var(--nx-text-3); }
 .d-branch-n { font-size: var(--nx-fs-xs); color: var(--nx-text-2); padding: 0 4px;
   font-variant-numeric: tabular-nums; }
 
@@ -480,7 +493,13 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-set-navsep { padding: var(--nx-sp-3) var(--nx-sp-2) var(--nx-sp-1); font-size: var(--nx-fs-xs);
   color: var(--nx-text-3); }
 .d-set-main { flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: var(--nx-sp-6) var(--nx-sp-8); }
-.d-set-inner { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--nx-sp-6); }
+/* `width: 100%` 是必需的，不是保险：`.d-set-inner` 常被塞进 **flex column** 父级
+   （设置壳的 `SettingsPage` 内容列 `.d-col` / `.config-panel-surface > .d-col`）。
+   按 flexbox 规范，交叉轴上的 `auto` 外边距会**取消 stretch**，于是这一列退化成
+   fit-content 宽度 —— 实测供应商详情的 API Key 输入框只有 311px、内容列 409px，
+   而它本该吃满 720px 上限（`margin:0 auto` 在块级容器里本来就是「居中 + 填满」，
+   flex 里不是）。`width:100%` 把 stretch 补回来，`max-width` 仍负责封顶。 */
+.d-set-inner { width: 100%; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--nx-sp-6); }
 .d-set-sec { display: flex; flex-direction: column; gap: var(--nx-sp-1); }
 .d-set-sec-t { font-size: var(--nx-fs-lg); font-weight: 600; padding-bottom: var(--nx-sp-1); }
 .d-set-row { display: flex; align-items: center; gap: var(--nx-sp-3); padding: 12px 0;
@@ -553,6 +572,11 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* 单选行：圆点 + 标题 + 说明。之前设置页只能拿三行 .d-row 手拼，既费劲又对不齐。 */
 .d-radiorow { display: flex; align-items: flex-start; gap: var(--nx-sp-3); padding: var(--nx-sp-2) 0;
   border-radius: var(--nx-r-sm); cursor: pointer; }
+/* 行件在画板里就是 <button>（D-07 帧 B 原文）：与 `button.d-row` 同一理由，
+   UA 归零必须在库里做一次。漏了它，浏览器给的是 2px outset 灰底 + 居中 Arial ——
+   **画板自己就已经是这个错的样子**（2026-10-05 用真浏览器逐板扫出来的唯一一处）。 */
+button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; font: inherit;
+  color: inherit; appearance: none; }
 .d-radiorow > .d-radio { margin-top: 3px; }
 .d-radiorow-t { font-size: var(--nx-fs-body); color: var(--nx-text); }
 .d-radiorow-s { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-top: 2px; }

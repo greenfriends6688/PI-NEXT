@@ -1,0 +1,111 @@
+/* ===========================================================================
+ * PI NEXT · 设计体系 v4 · pwa/tokens.css —— PWA 形态值（m- 前缀）
+ *
+ * 与 Web 的差异**不在尺寸，在手感**：
+ *   基准字号 17 · 圆角 8/12/16/20/24/28 · 触控下限 44px · 渐隐顶栏 · 光晕立体。
+ * 强调色与 Web **完全同一个**（#5566d8）—— 一套真值的体现：品牌只有一种，
+ * 手感各长各的。深色同 Web：html[data-theme="dark"] 变量覆盖。
+ * =========================================================================== */
+
+@import "../base.css";
+
+:root {
+  --nx-ui: 17px;
+
+  --nx-r-xs:  8px;
+  --nx-r-sm:  12px;
+  --nx-r-md:  16px;
+  --nx-r-lg:  20px;
+  --nx-r-xl:  24px;
+  --nx-r-2xl: 28px;
+  --nx-r-pill: 999px;
+
+  --nx-ctl-xs: 28px;
+  --nx-ctl-sm: 36px;
+  --nx-ctl-md: 44px;
+  --nx-ctl-lg: 48px;
+  --nx-touch-min: 44px;
+
+  /* 浅色：PWA 画布带一点暖灰，卡片更白（Aether 的「灰底白卡」层次） */
+  --nx-canvas:     #f4f4f6;
+  --nx-panel:      #ffffff;
+  --nx-sidebar:    #f4f4f6;
+  --nx-surface:    #efeff2;
+  --nx-surface-hi: #e4e4e9;
+  --nx-selected:   rgba(85, 102, 216, .10);
+  --nx-line:       rgba(18, 18, 24, .07);
+  --nx-line-hi:    rgba(18, 18, 24, .13);
+  --nx-text:       #1b1b20;
+  --nx-text-2:     #64646d;
+  --nx-text-3:     #9a9aa2;
+
+  --nx-accent:      #5566d8;
+  --nx-accent-fg:   #ffffff;
+  --nx-accent-soft: rgba(85, 102, 216, .10);
+  --nx-ring:        rgba(85, 102, 216, .45);
+
+  --nx-success:  #238551;
+  --nx-warning:  #b07a1f;
+  --nx-danger:   #cf3f43;
+  --nx-info:     #3a6fd8;
+  --nx-diff-add: #238551;
+  --nx-diff-del: #cf3f43;
+
+  /* 立体：触屏 = 模糊光晕（接触阴影）为主，投影为辅 */
+  --nx-sh-1: 0 1px 2px rgba(16, 17, 22, .04), 0 4px 14px rgba(16, 17, 22, .06);
+  --nx-sh-2: 0 8px 24px rgba(16, 17, 22, .10), 0 20px 48px rgba(16, 17, 22, .12);
+  --nx-halo: 0 4px 14px rgba(16, 17, 22, .10);
+  --nx-glass: rgba(255, 255, 255, .78);
+
+  --nx-code-bg:    #f7f7f9;
+  --nx-code-line:  rgba(18, 18, 24, .06);
+  --nx-code-key:   #5566d8;
+  --nx-code-str:   #238551;
+  --nx-code-num:   #b07a1f;
+  --nx-code-com:   #9a9aa2;
+}
+
+[data-theme="dark"] {
+  --nx-canvas:     #0e0e12;
+  --nx-panel:      #17171c;
+  --nx-sidebar:    #0e0e12;
+  --nx-surface:    #1e1e25;
+  --nx-surface-hi: #26262e;
+  --nx-selected:   rgba(124, 141, 255, .15);
+  --nx-line:       rgba(255, 255, 255, .08);
+  --nx-line-hi:    rgba(255, 255, 255, .15);
+  --nx-text:       #e9e9ee;
+  --nx-text-2:     #9e9eaa;
+  --nx-text-3:     #6c6c78;
+
+  --nx-accent:      #6470e0;
+  --nx-accent-fg:   #ffffff;
+  --nx-accent-soft: rgba(124, 141, 255, .15);
+  --nx-ring:        rgba(124, 141, 255, .55);
+
+  --nx-success:  #4cb782;
+  --nx-warning:  #d9a04a;
+  --nx-danger:   #e5484d;
+  --nx-info:     #6b9bff;
+  --nx-diff-add: #4cb782;
+  --nx-diff-del: #e5484d;
+
+  --nx-sh-1: 0 0 0 1px rgba(255, 255, 255, .06), 0 4px 16px rgba(0, 0, 0, .4);
+  --nx-sh-2: 0 0 0 1px rgba(255, 255, 255, .08), 0 16px 48px rgba(0, 0, 0, .55);
+  --nx-halo: 0 6px 20px rgba(0, 0, 0, .45);
+  --nx-glass: rgba(16, 16, 20, .72);
+
+  --nx-code-bg:    #121218;
+  --nx-code-line:  rgba(255, 255, 255, .06);
+  --nx-code-key:   #93a1ff;
+  --nx-code-str:   #6fd3a1;
+  --nx-code-num:   #e5b566;
+  --nx-code-com:   #6c6c78;
+}
+
+/* PWA 滚动条隐藏（惯性滚动） */
+* { scrollbar-width: none; }
+::-webkit-scrollbar { display: none; }
+
+::selection { background: var(--nx-accent-soft); }
+[data-theme="dark"] ::selection { background: rgba(124, 141, 255, .28); }

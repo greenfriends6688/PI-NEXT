@@ -18,7 +18,7 @@
     "components/GitRefChips.tsx::inline-geometry-literal": 2,
     "components/MermaidBlock.tsx::inline-geometry-literal": 1,
     "components/MessageView.tsx::inline-geometry-literal": 8,
-    "components/ModelsConfig.tsx::inline-geometry-literal": 2,
+    "components/ModelsConfig.tsx::inline-geometry-literal": 1,
     "components/ModelSelector.tsx::inline-geometry-literal": 3,
     "components/ProcessGroup.tsx::inline-geometry-literal": 1,
     "components/ProjectTrustDialog.tsx::inline-geometry-literal": 1,
