@@ -33,6 +33,15 @@ const fs = require("node:fs");
 const APP_NAME = "PI NEXT";
 /** Previous product names, newest first; the migration below picks the first that exists. */
 const LEGACY_APP_NAMES = ["Pinkslab", "Pi Codex", "pi-web"];
+// fork:lan-access —— 桌面壳与 `bin/pi-web.js` / `scripts/next-mode.mjs` 共用**同一份**
+// 局域网绑定监督器（`build.files` 收 `bin/**`，所以打包后 require 得到）。
+//
+// 为什么以前桌面端「局域网」是死的：这里自己 spawn `next` 并自己挑 `-H`，从来没跑过
+// 那份监督器，于是令牌建好了、网卡一直没绑，`lib/lan-access.ts` 的 `needsRebind`
+// 永远是 true —— 界面就一直写着「正在开启局域网…/重启中」，二维码里的地址本机也连不上。
+// 绑哪张网卡是 next 启动时定的、进程内改不了，所以「点一下立刻生效」只能由父进程重启
+// 子进程；桌面壳就是那个父进程。
+const { lanEnabledByConfig, superviseLanBind } = require("../bin/lan-supervisor.cjs");
 const { legacyUserDataSource } = require("./legacy-user-data");
 const { attachRendererRecovery } = require("./renderer-recovery");
 let mainWindow = null;
@@ -43,6 +52,11 @@ let serverPort = null;
 let restartAttempt = 0;
 const SERVER_RESTART_MAX_ATTEMPTS = 5;
 const SERVER_RESTART_MAX_DELAY_MS = 16_000;
+/** fork:lan-access —— 当前绑的网卡（`0.0.0.0` = 局域网可达）与监督器的退订函数。 */
+let lanHost = "127.0.0.1";
+let stopLanSupervisor = null;
+/** 换网卡的重启不算「意外退出」，否则下面的退避重启会和它抢同一个子进程。 */
+let lanRebinding = false;
 /** fork:proma-42-browser —— 受管浏览器宿主；startServer() 里赋值，will-quit 时停。 */
 let browserHost = null;
 let quitting = false;
@@ -136,60 +150,106 @@ async function startServer(appRoot) {
 
   const isDev = !app.isPackaged;
   const useDevServer = isDev && !fs.existsSync(path.join(appRoot, ".next"));
-  const nextArgs = useDevServer
-    ? ["dev", "-H", "127.0.0.1", "-p", String(port)]
-    : ["start", "-p", String(port), "-H", "127.0.0.1"];
 
-  serverProc = spawn(process.execPath, [nextBin, ...nextArgs], {
-    cwd: appRoot,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", PORT: String(port) },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  // fork:lan-access —— 开机就按那份配置选网卡（令牌存在且 enabled 就绑 0.0.0.0）；
+  // 监督器负责之后 off→on / on→off 的自动重启。每次 startServer 都先退订上一个，
+  // 否则崩溃重启会叠出第二个监督器，两个都去 kill 同一个子进程。
+  if (stopLanSupervisor) {
+    stopLanSupervisor();
+    stopLanSupervisor = null;
+  }
+  lanHost = lanEnabledByConfig() ? "0.0.0.0" : "127.0.0.1";
 
-  serverProc.stdout.on("data", (chunk) => process.stdout.write(chunk));
-  serverProc.stderr.on("data", (chunk) => process.stderr.write(chunk));
-  serverProc.on("error", (err) => {
-    console.error("pi-web server spawn error:", err);
-    app.quit();
-  });
-  serverProc.on("exit", (code, signal) => {
-    console.error(`pi-web server exited (code=${code} signal=${signal})`);
-    if (quitting || useDevServer) return;
-    // fork:pr48-restart —— 服务意外退出**不要立刻退出应用**。
-    //
-    // 原来这里直接 app.quit()：Next 服务一崩，整个窗口就停在“无法连接”的死页上，
-    // 用户什么都没了。PR-47 的崩溃苏底页只管**渲染进程**崩（页面已经加载出来、
-    // 只是某个视图炸了），管不了**服务进程**没���——那时候页面根本加载不出来。
-    //
-    // 现在改成有界退避重启：给几次机会，每次间隔翻倍。理由是多数“意外退出”是
-    // 可恢复的（端口被占、临时 OOM、依赖装到一半），重启一下就回来了；而连续失败
-    // 多次说明是真的起不来，那时候再退出，并**把最后一次原因带进提示里**。
-    //
-    // 退避上限 5 次 / 累计约 31s（1+2+4+8+16）。超过就退出 —— 无限重启会把用户
-    // 锁在一个永远转圈的窗口里，比退出更糟。
-    restartAttempt += 1;
-    if (restartAttempt > SERVER_RESTART_MAX_ATTEMPTS) {
-      dialog.showErrorBox(
-        `${APP_NAME} 服务反复退出`,
-        `本地服务连续 ${SERVER_RESTART_MAX_ATTEMPTS} 次启动失败，已关闭应用。最后一次退出：code=${code} signal=${signal ?? "-"}\n\n请检查终端输出后重试。`,
-      );
+  // spawn + 全部事件接线收成一处：换网卡的重启要走同一条路（参数只差一个 `-H`）。
+  const spawnServer = (host) => {
+    const args = useDevServer
+      ? ["dev", "-H", host, "-p", String(port)]
+      : ["start", "-p", String(port), "-H", host];
+    const proc = spawn(process.execPath, [nextBin, ...args], {
+      cwd: appRoot,
+      // fork:lan-access —— `PI_WEB_HOSTNAME` 是服务端判定「真的绑上网卡了吗」的唯一
+      // 依据（`lanAccessState()` → `needsRebind`），不给它界面就永远停在「重启中」。
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", PORT: String(port), PI_WEB_HOSTNAME: host },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    proc.stdout.on("data", (chunk) => process.stdout.write(chunk));
+    proc.stderr.on("data", (chunk) => process.stderr.write(chunk));
+    proc.on("error", (err) => {
+      console.error("pi-web server spawn error:", err);
       app.quit();
-      return;
-    }
-    const delayMs = Math.min(1000 * 2 ** (restartAttempt - 1), SERVER_RESTART_MAX_DELAY_MS);
-    console.warn(`[pi-next] 服务意外退出，${delayMs / 1000}s 后第 ${restartAttempt}/${SERVER_RESTART_MAX_ATTEMPTS} 次重启…`);
-    // 前端不用动：EventSource 在连接断开时会自己重连，服务端回来它就接上了。
-    setTimeout(() => {
-      if (quitting) return;
-      startServer(getAppRoot()).catch((error) => {
-        console.error("[pi-next] 服务重启失败:", error);
-      });
-    }, delayMs);
+    });
+    proc.on("exit", (code, signal) => {
+      if (serverProc === proc) serverProc = null;
+      console.error(`pi-web server exited (code=${code} signal=${signal})`);
+      // `lanRebinding` = 是监督器在换网卡，不是意外退出：不能去抢那个子进程。
+      if (quitting || useDevServer || lanRebinding) return;
+      // fork:pr48-restart —— 服务意外退出**不要立刻退出应用**。
+      //
+      // 原来这里直接 app.quit()：Next 服务一崩，整个窗口就停在“无法连接”的死页上，
+      // 用户什么都没了。PR-47 的崩溃苏底页只管**渲染进程**崩（页面已经加载出来、
+      // 只是某个视图炸了），管不了**服务进程**没���——那时候页面根本加载不出来。
+      //
+      // 现在改成有界退避重启：给几次机会，每次间隔翻倍。理由是多数“意外退出”是
+      // 可恢复的（端口被占、临时 OOM、依赖装到一半），重启一下就回来了；而连续失败
+      // 多次说明是真的起不来，那时候再退出，并**把最后一次原因带进提示里**。
+      //
+      // 退避上限 5 次 / 累计约 31s（1+2+4+8+16）。超过就退出 —— 无限重启会把用户
+      // 锁在一个永远转圈的窗口里，比退出更糟。
+      restartAttempt += 1;
+      if (restartAttempt > SERVER_RESTART_MAX_ATTEMPTS) {
+        dialog.showErrorBox(
+          `${APP_NAME} 服务反复退出`,
+          `本地服务连续 ${SERVER_RESTART_MAX_ATTEMPTS} 次启动失败，已关闭应用。最后一次退出：code=${code} signal=${signal ?? "-"}\n\n请检查终端输出后重试。`,
+        );
+        app.quit();
+        return;
+      }
+      const delayMs = Math.min(1000 * 2 ** (restartAttempt - 1), SERVER_RESTART_MAX_DELAY_MS);
+      console.warn(`[pi-next] 服务意外退出，${delayMs / 1000}s 后第 ${restartAttempt}/${SERVER_RESTART_MAX_ATTEMPTS} 次重启…`);
+      // 前端不用动：EventSource 在连接断开时会自己重连，服务端回来它就接上了。
+      setTimeout(() => {
+        if (quitting) return;
+        startServer(getAppRoot()).catch((error) => {
+          console.error("[pi-next] 服务重启失败:", error);
+        });
+      }, delayMs);
+    });
+
+    serverProc = proc;
+    return proc;
+  };
+
+  lanRebinding = false;
+  restartAttempt = 0;
+  spawnServer(lanHost);
+
+  // fork:lan-access —— 点「启动 / 停止」后由这里重启子进程生效，细节见
+  // `bin/lan-supervisor.cjs` 的头注（去抖 500ms / 同方向最多 3 次 / 每次打日志）。
+  stopLanSupervisor = superviseLanBind({
+    getHost: () => lanHost,
+    restart: (nextHost) => {
+      if (nextHost === lanHost || quitting) return;
+      const old = serverProc;
+      lanHost = nextHost;
+      lanRebinding = true;
+      console.log(`[pi-next] 局域网改绑 ${nextHost}，重启本地服务…`);
+      if (!old) {
+        spawnServer(nextHost);
+        return;
+      }
+      // 等它真的退了再拉起来：端口还在监听时新进程会直接 EADDRINUSE。
+      old.once("exit", () => spawnServer(nextHost));
+      old.kill("SIGTERM");
+      // SIGTERM 没人接（卡住的 next）就别无限等下去。
+      const force = setTimeout(() => {
+        if (serverProc === old) old.kill("SIGKILL");
+      }, 3000);
+      force.unref?.();
+    },
   });
 
   serverPort = port;
-  restartAttempt = 0;
-  console.log(`[pi-next] Next.js 服务启动: http://127.0.0.1:${port} (dev=${useDevServer})`);
+  console.log(`[pi-next] Next.js 服务启动: http://127.0.0.1:${port} (dev=${useDevServer}, lan=${lanHost})`);
   // fork:proma-42-browser —— 受管浏览器宿主。必须在 **serverPort 定下来之后**起：
   // 它要把自己注册进 ~/.pi/agent/browser-host.json，Web 端靠那个文件发现宿主；
   // 端口没定就注册会让服务端连到一个错的端口。
@@ -504,6 +564,12 @@ function saveWindowState(win) {
 }
 
 // ── 应用生命周期 ────────────────────────────────────────────────────────────
+// fork:pack-smoke —— 打包冒烟旁路：单实例锁按 userData 路径判定，把它指到
+// 临时目录就能在不退出正在使用的正式实例的情况下冒烟打包产物（pack-mac-dmg
+// 的 Step 6 和真窗口验证都靠它；此前只能 osascript 退出用户的 app）。
+if (process.env.PI_WEB_USER_DATA_DIR) {
+  app.setPath("userData", process.env.PI_WEB_USER_DATA_DIR);
+}
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
