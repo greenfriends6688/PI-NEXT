@@ -1,10 +1,16 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { McpReloadReport, McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+// fork:v5-d13-frame-a —— 行尾「更多」与卸载确认都走既有的浮窗菜单（键盘导航 /
+// 边缘翻转 / 外面点击关闭都已经在那儿），不另画一个下拉。
+import { useContextMenu, type ContextMenuEntry } from "./ContextMenu";
+import { useIsMobile } from "@/hooks/useIsMobile";
+// 行级动作菜单复用 ContextMenu（键盘导航 / 边缘翻转 / 外面点击关闭都在那儿）。
+import { isRemoteMcpServer } from "@/lib/mcp-auth-command-shared";
 import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 // fork:mcp-native-exposure —— 「查看 MCP 日志」弹层（读 agent 目录的 mcp.log）。
 import { McpLogModal } from "./fork/McpLogModal";
@@ -337,6 +343,35 @@ function ScopeTag({ scope }: { scope: PluginScope }) {
   );
 }
 
+/** fork:v5-d13-frame-a —— 帧 A「来源」列：板面那一列是来源徽章（官方 / 社区 / 本地）。
+ *  产品的来源串已经带了类型前缀（`npm:` / `git:` / 路径），所以徽章说类型、
+ *  完整来源串进 title —— 列宽不会被一条长 URL 顶破。 */
+function SourceTag({ pkg }: { pkg: PluginPackageInfo }) {
+  const { t } = useI18n();
+  const isNpm = pkg.source.startsWith("npm:");
+  const isGit = pkg.source.startsWith("git:");
+  return (
+    <span title={pkg.source}>
+      {isNpm ? (
+        <Badge tone="info">
+          <i data-ico="download" data-size="12" aria-hidden="true" />
+          npm
+        </Badge>
+      ) : isGit ? (
+        <Badge tone="warn">
+          <i data-ico="git-branch" data-size="12" aria-hidden="true" />
+          git
+        </Badge>
+      ) : (
+        <Badge tone="mute">
+          <i data-ico="folder" data-size="12" aria-hidden="true" />
+          {t("plugins.localSource")}
+        </Badge>
+      )}
+    </span>
+  );
+}
+
 /** fork:design-system SW-14 —— 作用域切换 = 画板 43 的 `.pw-radio` 芯片组（产品是 role=radio 按钮）。 */
 function SegmentedScope({
   value,
@@ -493,106 +528,69 @@ function AddPluginPanel({
   );
 }
 
-function PackageDetail({
+/**
+ * fork:v5-d13-frame-a —— 「状态」这一枚徽章（帧 A 的表格列与帧 C 的详情行共用）：
+ * **更新态优先于加载态** —— 一个「可更新 1.6.0」的包当前仍然是 loaded，所以先答
+ * 「有没有更新」，再答「加载了没有」。板面四档：最新 / 可更新 / 自装不检查更新 /
+ * 已关掉。
+ */
+function packageStatusBadge(
+  pkg: PluginPackageInfo,
+  status: PluginUpdateResult | undefined,
+  checking: boolean,
+  t: ReturnType<typeof useI18n>["t"],
+): ReactNode {
+  if (checking) return <Badge>{t("i18n.checking")}</Badge>;
+  if (status?.state === "update-available") {
+    return (
+      <Badge tone="warn" title={status.displayName}>
+        <i data-ico="arrow-up" data-size="12" aria-hidden="true" />
+        {t("i18n.updateAvailable")}
+      </Badge>
+    );
+  }
+  if (status?.state === "up-to-date") return <Badge tone="ok">{t("i18n.upToDate")}</Badge>;
+  if (pkg.disabled) return <Badge tone="mute">{t("i18n.disabled")}</Badge>;
+  if (status?.state === "error") {
+    return <Badge tone="bad" title={status.message}>{status.message || t("i18n.checkFailed")}</Badge>;
+  }
+  if (status?.state === "unsupported") return <Badge tone="mute">{t("i18n.automaticChecksUnavailable")}</Badge>;
+  // 板面把「自装 · 不检查更新」写成 mute 徽章：没有版本可升，只有换包。
+  if (!pkg.canCheckForUpdates) return <Badge tone="mute">{t("i18n.automaticChecksUnavailable")}</Badge>;
+  if (pkg.status === "missing") return <Badge tone="bad">{t("plugins.statusMissing")}</Badge>;
+  if (pkg.status === "loaded") return <Badge tone="ok">{t("plugins.statusLoaded")}</Badge>;
+  return <Badge tone="mute">{t("plugins.statusNoResources")}</Badge>;
+}
+
+/**
+ * fork:v5-d13 —— 帧 A「插件」列与帧 C「来源」行的正文：**包与详情弹层共用一段**。
+ * 桌面是弹层（M-05 的内联详情照旧），所以头（标题 / 动作 / 启停）与身（属性行 +
+ * 已解析资源）分成两个件，头由各自的外壳摆。
+ */
+function PackageDetailBody({
   pkg,
   cwd,
-  busyKey,
   actionError,
   actionMessage,
-  sessionId,
   updateStatus,
   checkingUpdate,
   updateError,
-  onAction,
-  onCheckUpdate,
-  onReloadSession,
 }: {
   pkg: PluginPackageInfo;
   cwd: string;
-  busyKey: string | null;
   actionError: string | null;
   actionMessage: string | null;
-  sessionId: string | null;
   updateStatus?: PluginUpdateResult;
   checkingUpdate: boolean;
   updateError: string | null;
-  onAction: (action: PluginAction, pkg: PluginPackageInfo) => void;
-  onCheckUpdate: () => void;
-  onReloadSession: () => void;
 }) {
   const { t } = useI18n();
-  const key = packageKey(pkg);
-  const busy = busyKey?.endsWith(key) ?? false;
-  const reloadBusy = busyKey === "reload";
-  const enabled = !pkg.disabled;
   const description = pkg.description?.trim();
   const canCheckForUpdates = pkg.canCheckForUpdates;
   const updateAvailable = updateStatus?.state === "update-available";
 
   return (
-    <Stack className="fork-pwa-detail">
-      <Row className="fork-pwa-head">
-        <RowGrow>
-          <ScopeTag scope={pkg.scope} />
-          {/* 画板 D-13 帧 A/C 的详情头：状态徽章 + 包名等宽串。 */}
-          {pkg.disabled ? (
-            <Badge>{t("i18n.disabled")}</Badge>
-          ) : pkg.filtered && (
-            <Badge tone="warn">{t("i18n.filtered")}</Badge>
-          )}
-          <span className="d-mono d-grow">
-            {pkg.source}
-          </span>
-        </RowGrow>
-
-        <Row>
-          <Btn
-            size="small"
-            variant={updateAvailable ? "primary" : undefined}
-            onClick={updateAvailable || !canCheckForUpdates
-              ? () => onAction("update", pkg)
-              : onCheckUpdate}
-            disabled={busy || reloadBusy || checkingUpdate}
-            title={updateAvailable ? t("i18n.updateAvailable") : undefined}
-          >
-             {busyKey === `update:${key}`
-               ? t("i18n.updating")
-               : checkingUpdate
-                 ? t("i18n.checking")
-                 : updateAvailable || !canCheckForUpdates
-                   ? t("i18n.update")
-                   : t("i18n.check")}
-          </Btn>
-          <Btn
-            size="small"
-            onClick={onReloadSession}
-            disabled={!sessionId || reloadBusy || busy}
-             title={sessionId ? t("i18n.reloadSession") : t("i18n.openSessionToReload")}
-          >
-             {reloadBusy ? t("i18n.reloading") : t("i18n.reloadSession")}
-          </Btn>
-          <Btn
-            variant="danger"
-            size="small"
-            onClick={() => onAction("remove", pkg)}
-            disabled={busy || reloadBusy}
-          >
-             {busyKey === `remove:${key}` ? t("i18n.removing") : t("i18n.remove")}
-          </Btn>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
-            aria-busy={busy || reloadBusy || undefined}
-            aria-label={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
-            title={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
-            disabled={busy || reloadBusy}
-            className={`d-switch${enabled ? " on" : ""}`}
-            onClick={() => onAction(pkg.disabled ? "enable" : "disable", pkg)}
-          />
-        </Row>
-      </Row>
-
+    <>
       {/* 画板 D-13：详情属性用 `.d-set-row`（左标签 / 右徽章或值）。 */}
       <div className="d-set-sec">
         {description && (
@@ -607,7 +605,9 @@ function PackageDetail({
           <div className="d-set-row-box">
             <div className="d-set-row-t">{t("i18n.status")}</div>
           </div>
-          <span className="d-grow-last"><Badge>{pkg.status}</Badge></span>
+          <span className="d-grow-last">
+            {packageStatusBadge(pkg, updateStatus, checkingUpdate, t)}
+          </span>
         </div>
         <div className="d-set-row">
           <div className="d-set-row-box">
@@ -685,37 +685,338 @@ function PackageDetail({
           <span className="d-grow">{actionError}</span>
         </div>
       )}
-    </Stack>
+    </>
   );
 }
 
-function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneExtensionInfo }) {
+function PackageDetail({
+  pkg,
+  cwd,
+  busyKey,
+  actionError,
+  actionMessage,
+  sessionId,
+  updateStatus,
+  checkingUpdate,
+  updateError,
+  onAction,
+  onCheckUpdate,
+  onReloadSession,
+}: {
+  pkg: PluginPackageInfo;
+  cwd: string;
+  busyKey: string | null;
+  actionError: string | null;
+  actionMessage: string | null;
+  sessionId: string | null;
+  updateStatus?: PluginUpdateResult;
+  checkingUpdate: boolean;
+  updateError: string | null;
+  onAction: (action: PluginAction, pkg: PluginPackageInfo) => void;
+  onCheckUpdate: () => void;
+  onReloadSession: () => void;
+}) {
   const { t } = useI18n();
-  const status = extension.enabled ? "loaded" : "disabled";
+  const key = packageKey(pkg);
+  const busy = busyKey?.endsWith(key) ?? false;
+  const reloadBusy = busyKey === "reload";
+  const enabled = !pkg.disabled;
+  const canCheckForUpdates = pkg.canCheckForUpdates;
+  const updateAvailable = updateStatus?.state === "update-available";
 
   return (
     <Stack className="fork-pwa-detail">
       <Row className="fork-pwa-head">
         <RowGrow>
-          <ScopeTag scope={extension.scope} />
-          <Title>{extension.name}</Title>
+          <ScopeTag scope={pkg.scope} />
+          {/* 画板 D-13 帧 A/C 的详情头：状态徽章 + 包名等宽串。 */}
+          {pkg.disabled ? (
+            <Badge>{t("i18n.disabled")}</Badge>
+          ) : pkg.filtered && (
+            <Badge tone="warn">{t("i18n.filtered")}</Badge>
+          )}
+          <span className="d-mono d-grow">
+            {pkg.source}
+          </span>
         </RowGrow>
+
+        <Row>
+          <Btn
+            size="small"
+            variant={updateAvailable ? "primary" : undefined}
+            onClick={updateAvailable || !canCheckForUpdates
+              ? () => onAction("update", pkg)
+              : onCheckUpdate}
+            disabled={busy || reloadBusy || checkingUpdate}
+            title={updateAvailable ? t("i18n.updateAvailable") : undefined}
+          >
+             {busyKey === `update:${key}`
+               ? t("i18n.updating")
+               : checkingUpdate
+                 ? t("i18n.checking")
+                 : updateAvailable || !canCheckForUpdates
+                   ? t("i18n.update")
+                   : t("i18n.check")}
+          </Btn>
+          <Btn
+            size="small"
+            onClick={onReloadSession}
+            disabled={!sessionId || reloadBusy || busy}
+             title={sessionId ? t("i18n.reloadSession") : t("i18n.openSessionToReload")}
+          >
+             {reloadBusy ? t("i18n.reloading") : t("i18n.reloadSession")}
+          </Btn>
+          <Btn
+            variant="danger"
+            size="small"
+            onClick={() => onAction("remove", pkg)}
+            disabled={busy || reloadBusy}
+          >
+             {busyKey === `remove:${key}` ? t("i18n.removing") : t("i18n.remove")}
+          </Btn>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-busy={busy || reloadBusy || undefined}
+            aria-label={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+            title={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+            disabled={busy || reloadBusy}
+            className={`d-switch${enabled ? " on" : ""}`}
+            onClick={() => onAction(pkg.disabled ? "enable" : "disable", pkg)}
+          />
+        </Row>
       </Row>
-      <div className="d-set-sec">
-        <div className="d-set-row">
-          <div className="d-set-row-box">
-            <div className="d-set-row-t">{t("i18n.status")}</div>
+
+      <PackageDetailBody
+        pkg={pkg}
+        cwd={cwd}
+        actionError={actionError}
+        actionMessage={actionMessage}
+        updateStatus={updateStatus}
+        checkingUpdate={checkingUpdate}
+        updateError={updateError}
+      />
+    </Stack>
+  );
+}
+
+/**
+ * fork:v5-d13-frame-c —— 插件详情弹层（画板 D-13 帧 C 的产品形）。
+ *
+ * 板面帧 C 是**设置弹窗自己**的一个状态（body 里再放一份 `.d-set` 左导航 + 右列
+ * 详情 + foot 的「卸载… 完成」）。产品的设置壳已经就是那个弹窗（左导航在外层
+ * `SettingsPanel`），所以详情是它上面叠的一层 `d-modal-box wide`：头（作用域 +
+ * 状态徽章 + 包名 + 版本 / 检查更新 / 重载会话 / 启停）、身（属性行 + 已解析资源）、
+ * 脚（「要重载才生效」+ 卸载… + 完成）—— 头身脚的件与板面一字不差，只是不再抄
+ * 第二份左导航。
+ *
+ * 与板面的偏离（数据面，不是取舍）：帧 C 的四段 tabs（权限 / 概览 / 依赖 / 兼容）
+ * 需要 `/api/plugins` 返回权限声明与依赖图，它不返回，所以只落「概览」这一段，
+ * 不画点不动的分段器。
+ */
+function PluginDetailModal({
+  pkg,
+  cwd,
+  busyKey,
+  actionError,
+  actionMessage,
+  sessionId,
+  updateStatus,
+  checkingUpdate,
+  updateError,
+  onAction,
+  onCheckUpdate,
+  onReloadSession,
+  onUninstall,
+  onClose,
+}: {
+  pkg: PluginPackageInfo;
+  cwd: string;
+  busyKey: string | null;
+  actionError: string | null;
+  actionMessage: string | null;
+  sessionId: string | null;
+  updateStatus?: PluginUpdateResult;
+  checkingUpdate: boolean;
+  updateError: string | null;
+  onAction: (action: PluginAction, pkg: PluginPackageInfo) => void;
+  onCheckUpdate: () => void;
+  onReloadSession: () => void;
+  /** 卸载走帧 A 的卸载确认浮窗（逐条写后果），所以这里把点击位置交回去定位它。 */
+  onUninstall: (event: ReactMouseEvent) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  // fork:dsn-dialog-a11y —— 与设置壳同一套：Esc 关闭、Tab 循环、背景 inert、关闭还焦点。
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+  const key = packageKey(pkg);
+  const busy = busyKey?.endsWith(key) ?? false;
+  const reloadBusy = busyKey === "reload";
+  const enabled = !pkg.disabled;
+  const canCheckForUpdates = pkg.canCheckForUpdates;
+  const updateAvailable = updateStatus?.state === "update-available";
+
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={pkg.packageName ?? pkg.source}
+      className="d-modal is-open"
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className="d-modal-box wide">
+        <div className="d-modal-head">
+          {/* 画板帧 C 的 head 就是一行：名称在左，动作在右端（`d-grow` 顶出去）。 */}
+          <div className="d-row">
+            <ScopeTag scope={pkg.scope} />
+            {pkg.disabled ? (
+              <Badge>{t("i18n.disabled")}</Badge>
+            ) : pkg.filtered ? (
+              <Badge tone="warn">{t("i18n.filtered")}</Badge>
+            ) : null}
+            <span className="d-grow">{pkg.packageName ?? pkg.source}</span>
+            {pkg.version && <span className="d-mono d-t-xs d-t-faint">{pkg.version}</span>}
+            <Btn
+              size="small"
+              variant={updateAvailable ? "primary" : undefined}
+              onClick={updateAvailable || !canCheckForUpdates
+                ? () => onAction("update", pkg)
+                : onCheckUpdate}
+              disabled={busy || reloadBusy || checkingUpdate}
+              title={updateAvailable ? t("i18n.updateAvailable") : undefined}
+            >
+              {busyKey === `update:${key}`
+                ? t("i18n.updating")
+                : checkingUpdate
+                  ? t("i18n.checking")
+                  : updateAvailable || !canCheckForUpdates
+                    ? t("i18n.update")
+                    : t("i18n.check")}
+            </Btn>
+            <Btn
+              size="small"
+              onClick={onReloadSession}
+              disabled={!sessionId || reloadBusy || busy}
+              title={sessionId ? t("i18n.reloadSession") : t("i18n.openSessionToReload")}
+            >
+              {reloadBusy ? t("i18n.reloading") : t("i18n.reloadSession")}
+            </Btn>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              aria-busy={busy || reloadBusy || undefined}
+              aria-label={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+              title={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+              disabled={busy || reloadBusy}
+              className={`d-switch${enabled ? " on" : ""}`}
+              onClick={() => onAction(pkg.disabled ? "enable" : "disable", pkg)}
+            />
           </div>
-          <span className="d-grow-last"><Badge>{status}</Badge></span>
         </div>
-        <div className="d-set-row">
-          <div className="d-set-row-box">
-            <div className="d-set-row-t">{t("i18n.installedPath")}</div>
-            <div className="d-set-row-s d-mono">{shortenPath(extension.path)}</div>
+        <div className="d-modal-body">
+          <div className="d-set-inner">
+            <PackageDetailBody
+              pkg={pkg}
+              cwd={cwd}
+              actionError={actionError}
+              actionMessage={actionMessage}
+              updateStatus={updateStatus}
+              checkingUpdate={checkingUpdate}
+              updateError={updateError}
+            />
           </div>
+        </div>
+        <div className="d-modal-foot">
+          <span className="d-t-xs d-t-faint d-grow">
+            {sessionId ? t("agents.reloadRequired") : t("i18n.openSessionToReload")}
+          </span>
+          <Btn
+            variant="ghost"
+            onClick={onUninstall}
+            disabled={busy || reloadBusy}
+          >
+            <i data-ico="trash-2" data-size="14" aria-hidden="true" />
+            {t("i18n.remove")}
+          </Btn>
+          <Btn variant="primary" onClick={onClose}>
+            <i data-ico="check" data-size="14" aria-hidden="true" />
+            {t("plugins.done")}
+          </Btn>
         </div>
       </div>
-    </Stack>
+    </div>
+  );
+}
+
+/** fork:v5-d13-frame-c —— 独立扩展的详情：同一副弹层壳，正文两行（状态 / 路径）。 */
+function ExtensionDetailModal({
+  extension,
+  onClose,
+}: {
+  extension: PluginStandaloneExtensionInfo;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={extension.name}
+      className="d-modal is-open"
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className="d-modal-box wide">
+        <div className="d-modal-head">
+          <div className="d-row">
+            <ScopeTag scope={extension.scope} />
+            <span className="d-grow">{extension.name}</span>
+          </div>
+        </div>
+        <div className="d-modal-body">
+          <div className="d-set-inner">
+            <StandaloneExtensionDetail extension={extension} />
+          </div>
+        </div>
+        <div className="d-modal-foot">
+          <span className="d-grow" aria-hidden="true" />
+          <Btn variant="primary" onClick={onClose}>
+            <i data-ico="check" data-size="14" aria-hidden="true" />
+            {t("plugins.done")}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** fork:v5-d13-frame-c —— 独立扩展的属性行（两行：状态 / 路径）。
+ *  头（作用域 + 名称）由外壳摆：手机档是 `.fork-pwa-head`，桌面档是弹层 head。 */
+function StandaloneExtensionDetail({ extension }: { extension: PluginStandaloneExtensionInfo }) {
+  const { t } = useI18n();
+
+  return (
+    <div className="d-set-sec">
+      <div className="d-set-row">
+        <div className="d-set-row-box">
+          <div className="d-set-row-t">{t("i18n.status")}</div>
+        </div>
+        <span className="d-grow-last">
+          <Badge tone={extension.enabled ? "ok" : "mute"}>
+            {extension.enabled ? t("plugins.statusLoaded") : t("i18n.disabled")}
+          </Badge>
+        </span>
+      </div>
+      <div className="d-set-row">
+        <div className="d-set-row-box">
+          <div className="d-set-row-t">{t("i18n.installedPath")}</div>
+          <div className="d-set-row-s d-mono">{shortenPath(extension.path)}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -787,6 +1088,9 @@ function McpServerDetail({
   onEdit,
   onExposure,
   authActions,
+  /** fork:v5-d15-frame-a —— 桌面（D-15 帧 A）上「启用 / 测试 / 编辑 / 移动 / 删除」
+   *  都在行尾浮窗里，详情只剩读数与曝光，所以那一排按钮由调用方关掉；手机保留。 */
+  headActions = true,
 }: {
   server: McpServerInfo;
   cwd: string;
@@ -802,6 +1106,7 @@ function McpServerDetail({
   onExposure: (next: NonNullable<McpServerInfo["exposure"]>) => void;
   /** fork:zc-18 — optional OAuth entry slot; rendered by fork/McpConfig.tsx. */
   authActions?: ReactNode;
+  headActions?: boolean;
 }) {
   const { t } = useI18n();
   const enabled = !server.disabled;
@@ -823,6 +1128,7 @@ function McpServerDetail({
           </span>
         </RowGrow>
 
+        {headActions ? (
         <Row>
           <Btn size="small" onClick={onTest} disabled={busy}>
             {busy ? t("mcp.testing") : t("mcp.test")}
@@ -843,6 +1149,7 @@ function McpServerDetail({
             label={enabled ? t("mcp.disable") : t("mcp.enable")}
           />
         </Row>
+        ) : null}
       </Row>
 
       {/* fork:design-system（画板 62 落位表）—— MCP 详情的属性表从 `.pw-kv` 的
@@ -901,6 +1208,184 @@ function McpServerDetail({
         </div>
       )}
     </Stack>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * fork:v5-d15-frame-a —— 桌面 MCP 列表 = 画板 `D-15-settings-mcp.html` 帧 A 的原文：
+ *
+ *   .d-set-sec
+ *     .d-row            .d-t-xs.d-t-faint.d-grow 计数句 + .d-row[flex:0 0 auto] 两枚钮
+ *     .d-slottable
+ *       .d-slotrow      .d-switch › .d-col.d-grow（名字 + 曝光徽章 / 等宽副行）
+ *                        › .d-badge.mute 传输方式 › .d-badge 认证态 › .d-iconbtn
+ *
+ * 之前这里是 `ConfigSplitView` 的主从两列（一列 `.d-trow` + 一列详情），
+ * 而七枚页级动作挤在页头一行 `nowrap` 的 `.d-row` 里 —— 放不下时按钮文字竖排，
+ * 「添加 MCP」还被推出内容列右缘。画板把这两件事分得很清：**页头只有标题**，
+ * 列表级动作在内容列第一行，条目级动作在行尾浮窗里。
+ * 偏离（产品有能力、画板没有的入口）登记在 `design/v5/DIVERGENCE.md` AG 节。
+ * ------------------------------------------------------------------------- */
+
+/** 传输方式徽章的三个字面量：协议名不翻译（画板帧 A 同样直接写 stdio / HTTP）。 */
+const MCP_TRANSPORT_LABEL: Record<McpServerInfo["kind"], string> = {
+  command: "stdio",
+  url: "HTTP",
+  socket: "socket",
+};
+
+/** 曝光档的徽章调（画板帧 A：codemode=info / direct=ok / deferred=warn / hidden=mute）。 */
+const MCP_EXPOSURE_TONE: Record<string, string> = {
+  codemode: "info",
+  direct: "ok",
+  deferred: "warn",
+  hidden: "mute",
+};
+
+/** 帧 A 的一行。条目级动作全在行尾浮窗里（画板帧 A 的五个 `d-pop` 之一：
+ *  浮窗本体是 `ContextMenu` 的 `d-pop-float` + `d-menu-row`，与插件帧 A 的
+ *  行尾菜单同一套原语，键盘导航 / 边缘翻转 / 外面点击关闭都在那儿）。 */
+function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
+  server: McpServerInfo;
+  selected: boolean;
+  busy: boolean;
+  onToggle: () => void;
+  /** 打开行尾浮窗：`(x, y)` 是指针位置，条目由调用方按 server 拼。 */
+  onMenu: (x: number, y: number) => void;
+}) {
+  const { t } = useI18n();
+  const exposure = server.exposure ?? "codemode";
+  const target =
+    server.kind === "url" ? server.url : server.kind === "socket" ? server.socket : server.command ?? "—";
+
+  return (
+    <div className={`d-slotrow${selected ? " is-on" : ""}`}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={!server.disabled}
+        aria-label={`${server.disabled ? t("mcp.enable") : t("mcp.disable")} ${server.name}`}
+        title={server.disabled ? t("mcp.enable") : t("mcp.disable")}
+        disabled={busy}
+        className={`d-switch${server.disabled ? "" : " on"}`}
+        onClick={onToggle}
+      />
+      <div className="d-col d-grow">
+        <div className="d-row">
+          <span className="d-t-b">{server.name}</span>
+          <span className={`d-badge ${MCP_EXPOSURE_TONE[exposure]}`}>{exposure}</span>
+          {server.disabled && <span className="d-badge mute">{t("mcp.disabledBadge")}</span>}
+        </div>
+        <span className="d-set-row-s d-mono">
+          {[target, ...server.args].join(" ")} ·{" "}
+          {server.scope === "project" ? t("mcp.scope.project") : t("mcp.scope.global")}
+        </span>
+      </div>
+      <span className="d-badge mute">{MCP_TRANSPORT_LABEL[server.kind]}</span>
+      <span className="d-badge mute">
+        {isRemoteMcpServer(server) ? t("mcp.rowAuthRemote") : t("mcp.rowAuthLocal")}
+      </span>
+      <button
+        type="button"
+        className="d-iconbtn"
+        aria-label={t("mcp.rowActions", { name: server.name })}
+        title={t("mcp.rowActions", { name: server.name })}
+        onClick={(event) => onMenu(event.clientX, event.clientY)}
+      >
+        <i data-ico="ellipsis-vertical" data-size="15" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/** 帧 A 的列表分节：计数行 + `.d-slottable`。 */
+function McpServerList({ data, loading, actionError, actionMessage, busy, selectedName, catalogEntry, onAdd, onPaste, onToggle, onRowMenu, onPageMenu }: {
+  data: McpResponse | null;
+  loading: boolean;
+  actionError: string | null;
+  actionMessage: string | null;
+  busy: boolean;
+  selectedName: string | null;
+  catalogEntry: ReactNode;
+  onAdd: () => void;
+  onPaste: () => void;
+  onToggle: (server: McpServerInfo) => void;
+  /** 行尾浮窗 / 分节级「更多」浮窗的开口（`ContextMenu` 的 `openMenu`）。 */
+  onRowMenu: (x: number, y: number, server: McpServerInfo) => void;
+  onPageMenu: (x: number, y: number, refreshDisabled: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const servers = data?.servers ?? [];
+  const enabledCount = servers.filter((server) => !server.disabled).length;
+
+  return (
+    <div className="d-set-sec">
+      {actionMessage && (
+        <div role="status" className="d-banner info">
+          <i data-ico="check" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{actionMessage}</span>
+        </div>
+      )}
+      {actionError && (
+        <div role="alert" className="d-banner err">
+          <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
+          <span className="d-grow">{actionError}</span>
+        </div>
+      )}
+
+      <div className="d-row">
+        <div className="d-t-xs d-t-faint d-grow">
+          {t("mcp.listSummary", { count: String(servers.length), enabled: String(enabledCount) })}{" "}
+          <span className="d-mono">~/.pi/agent/mcp.json</span>{" "}
+          {t("mcp.listSummaryProject")} <span className="d-mono">.pi/mcp.json</span>
+        </div>
+        <div className="d-row" style={{ flex: "0 0 auto" }}>
+          {catalogEntry}
+          <Btn size="small" onClick={onPaste}>
+            <i data-ico="clipboard-list" data-size="14" aria-hidden="true" />
+            {t("mcp.add.pasteButton")}
+          </Btn>
+          <Btn size="small" variant="primary" onClick={onAdd}>
+            <i data-ico="plus" data-size="14" aria-hidden="true" />
+            {t("mcp.addButton")}
+          </Btn>
+          <button
+            type="button"
+            className="d-iconbtn"
+            aria-label={t("mcp.moreActions")}
+            title={t("mcp.moreActions")}
+            onClick={(event) => onPageMenu(event.clientX, event.clientY, loading || busy)}
+          >
+            <i data-ico="ellipsis" data-size="14" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="d-banner info">
+          <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" /></span>
+          <span className="d-grow">{t("i18n.loading")}</span>
+        </div>
+      ) : servers.length === 0 ? (
+        <EmptyState>
+          <span className="d-empty-ico"><i data-ico="server" data-size="16" aria-hidden="true" /></span>
+          <p className="d-empty-t">{t("mcp.emptyList")}</p>
+        </EmptyState>
+      ) : (
+        <div className="d-slottable">
+          {servers.map((server) => (
+            <McpSlotRow
+              key={`${server.scope}:${server.name}`}
+              server={server}
+              selected={server.name === selectedName}
+              busy={busy}
+              onToggle={() => onToggle(server)}
+              onMenu={(x, y) => onRowMenu(x, y, server)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1374,11 +1859,16 @@ export function PluginsConfig({
   renderMcpCatalogEntry?: (context: { reload: () => void }) => ReactNode;
 }) {
   const mcpOnly = only === "mcp";
+  // fork:v5-d15-frame-a —— 桌面 MCP 分节是 D-15 帧 A 的单列内容；手机保留主从两列。
+  const isMobile = useIsMobile();
   const { t } = useI18n();
   const [data, setData] = useState<PluginsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(() => getLastSettingsSelection("plugins", cwd));
+  // fork:v5-d13-frame-c —— 桌面档的详情是叠在设置壳上的弹层：「选中哪一条」要跨
+  // 开关保留，而「弹层开着」关掉就要真的关，所以是两个状态。手机档仍是内联详情。
+  const [detailOpen, setDetailOpen] = useState(false);
   const [addMode, setAddMode] = useState(false);
   const [installSource, setInstallSource] = useState("");
   const [installScope, setInstallScope] = useState<PluginScope>("global");
@@ -1904,6 +2394,9 @@ export function PluginsConfig({
       if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
       setData(next);
       if (action === "remove") {
+        // fork:v5-d13-frame-c —— 弹层开着时卸载：详情跟着被移除的那一条走会直接
+        // 跳到另一个包（`selected` 会被改成列表第一条），所以这里先关掉。
+        if (detailOpen) setDetailOpen(false);
         setSelected(next.packages[0]
           ? packageKey(next.packages[0])
           : next.standaloneExtensions[0]
@@ -1937,7 +2430,7 @@ export function PluginsConfig({
     } finally {
       setBusyKey(null);
     }
-  }, [cwd]);
+  }, [cwd, detailOpen]);
 
   /* fork:group-switch（G4）—— 一个作用域的分组开关：包里全部启用 / 全部停用。
      fork:bulk-routes（上游 `eceac13` #1020）—— 路由现在收
@@ -2067,7 +2560,188 @@ export function PluginsConfig({
   }, [loadPlugins, onReloaded, sessionId]);
 
   const addBusy = busyKey?.startsWith("install:") ?? false;
+
+  /* fork:v5-d13-frame-a —— 桌面档（画板 D-13 帧 A）：表格 + 行尾菜单 + 帧 C 弹层。
+     手机档（M-05）与 MCP 分节继续走既有的两栏列表，不动。 */
+  const desktopTable = !isMobile && !mcpOnly;
+  const { openMenu } = useContextMenu();
+  /** 行尾菜单的锚点：卸载确认浮窗在**同一个位置**接着开（板面两枚浮窗是叠着的）。 */
+  const menuAnchor = useRef({ x: 0, y: 0 });
+
+  const openDetail = useCallback((key: string) => {
+    setView("plugins");
+    setSelected(key);
+    setAddMode(false);
+    setActionError(null);
+    setActionMessage(null);
+    setDetailOpen(true);
+  }, []);
+
+  /** 帧 A 的卸载确认：逐条写后果 + 一条可逆的路（板面原话）。
+   *  定义在行尾菜单**之前** —— 后者的依赖数组要读它（TDZ）。 */
+  const openUninstallMenu = useCallback((x: number, y: number, pkg: PluginPackageInfo) => {
+    openMenu(x, y, [
+      {
+        label: t("plugins.uninstallDir"),
+        icon: <i data-ico="folder" data-size="14" aria-hidden="true" />,
+        disabled: true,
+        hint: <span className="d-mono d-t-xs d-t-faint">{pkg.installedPath ? shortenPath(pkg.installedPath) : t("i18n.notFound")}</span>,
+      },
+      {
+        label: t("plugins.uninstallResources"),
+        icon: <i data-ico="blocks" data-size="14" aria-hidden="true" />,
+        disabled: true,
+        hint: <span className="d-t-xs d-t-faint">{resourceSummary(pkg, t)}</span>,
+      },
+      {
+        label: t("plugins.uninstallSessions"),
+        icon: <i data-ico="history" data-size="14" aria-hidden="true" />,
+        disabled: true,
+        hint: <Badge tone="ok">{t("plugins.unaffected")}</Badge>,
+      },
+      { type: "separator" },
+      {
+        label: t("plugins.disableInstead"),
+        icon: <i data-ico="power" data-size="14" aria-hidden="true" />,
+        disabled: pkg.disabled,
+        onSelect: () => void runAction("disable", pkg),
+      },
+      {
+        label: t("plugins.confirmUninstall"),
+        icon: <i data-ico="trash-2" data-size="14" aria-hidden="true" />,
+        danger: true,
+        disabled: busyKey !== null,
+        onSelect: () => void runAction("remove", pkg),
+      },
+    ], {
+      title: t("plugins.uninstallTitle", { name: pkg.packageName ?? pkg.source }),
+      footer: t("plugins.uninstallFoot"),
+    });
+  }, [openMenu, t, runAction, busyKey]);
+
+  /** 帧 A 行尾「更多」：插件详情 / 更新到 X / 启停 / ─ / 卸载…（板面同一顺序）。 */
+  const openRowMenu = useCallback((event: ReactMouseEvent, pkg: PluginPackageInfo) => {
+    menuAnchor.current = { x: event.clientX, y: event.clientY };
+    const st = updateStatuses[packageKey(pkg)];
+    const entries: ContextMenuEntry[] = [
+      {
+        label: t("plugins.detail"),
+        icon: <i data-ico="square-pen" data-size="14" aria-hidden="true" />,
+        onSelect: () => openDetail(packageKey(pkg)),
+      },
+    ];
+    if (st?.state === "update-available" || !pkg.canCheckForUpdates) {
+      entries.push({
+        label: t("i18n.update"),
+        icon: <i data-ico="download" data-size="14" aria-hidden="true" />,
+        disabled: checkingUpdates.has(packageKey(pkg)) || busyKey !== null,
+        onSelect: () => void runAction("update", pkg),
+      });
+    } else if (pkg.canCheckForUpdates) {
+      entries.push({
+        label: t("i18n.check"),
+        icon: <i data-ico="refresh-cw" data-size="14" aria-hidden="true" />,
+        disabled: checkingUpdates.has(packageKey(pkg)) || busyKey !== null,
+        onSelect: () => void checkForUpdates(pkg),
+      });
+    }
+    entries.push({
+      label: pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage"),
+      icon: <i data-ico="power" data-size="14" aria-hidden="true" />,
+      disabled: busyKey !== null,
+      onSelect: () => void runAction(pkg.disabled ? "enable" : "disable", pkg),
+    });
+    entries.push({ type: "separator" });
+    entries.push({
+      label: t("i18n.remove"),
+      icon: <i data-ico="trash-2" data-size="14" aria-hidden="true" />,
+      danger: true,
+      disabled: busyKey !== null,
+      onSelect: () => openUninstallMenu(menuAnchor.current.x, menuAnchor.current.y, pkg),
+    });
+    openMenu(menuAnchor.current.x, menuAnchor.current.y, entries, {
+      title: `${pkg.packageName ?? pkg.source}${pkg.version ? ` · ${pkg.version}` : ""}`,
+      ...(sessionId ? { footer: t("agents.reloadRequired") } : {}),
+    });
+  }, [openMenu, t, updateStatuses, checkingUpdates, busyKey, runAction, checkForUpdates, sessionId, openDetail, openUninstallMenu]);
   const mcpBusy = busyKey?.startsWith("mcp:") ?? false;
+
+  /* fork:v5-d15-frame-a —— MCP 桌面列表（画板 D-15 帧 A）的两个浮窗入口。
+     行尾浮窗的条目顺序照板面：测试连接 / 编辑配置 / 看 N 个工具与各自曝光 /
+     移动到项目配置 / ─ / 删除；分节级那三件（刷新 / 导入 / 日志）是跨 server
+     的，留在内容列第一行右端的 ⋮ 里。两者都用插件帧 A 同一套 `ContextMenu`
+     浮窗（`d-pop-float` + `d-menu-row`），不另画一个下拉。 */
+  const openMcpRowMenu = useCallback((x: number, y: number, server: McpServerInfo) => {
+    const otherScope: McpScope = server.scope === "project" ? "global" : "project";
+    openMenu(x, y, [
+      {
+        label: mcpTesting === server.name ? t("mcp.testing") : t("mcp.test"),
+        icon: <i data-ico="plug" data-size="14" aria-hidden="true" />,
+        disabled: mcpBusy,
+        onSelect: () => void testMcp(server),
+      },
+      {
+        label: t("mcp.edit"),
+        icon: <i data-ico="pencil" data-size="14" aria-hidden="true" />,
+        disabled: mcpBusy,
+        onSelect: () => {
+          setMcpEditTarget(server);
+          // 作用域要跟着被编辑的 server 走（见桌面分支里的同一段注释）。
+          setMcpScope(server.scope);
+          setMcpAddMode(true);
+          setMcpActionError(null);
+          setMcpActionMessage(null);
+        },
+      },
+      {
+        label: t("mcp.rowDetails"),
+        icon: <i data-ico="eye" data-size="14" aria-hidden="true" />,
+        onSelect: () => setMcpSelected((current) => (current === server.name ? null : server.name)),
+      },
+      {
+        label: otherScope === "project" ? t("mcp.moveToProject") : t("mcp.moveToGlobal"),
+        icon: <i data-ico="move-diagonal" data-size="14" aria-hidden="true" />,
+        disabled: mcpBusy,
+        onSelect: () => void moveMcp(server),
+      },
+      { type: "separator" },
+      {
+        label: t("mcp.delete"),
+        icon: <i data-ico="trash-2" data-size="14" aria-hidden="true" />,
+        danger: true,
+        disabled: mcpBusy,
+        onSelect: () => void removeMcp(server),
+      },
+    ], {
+      title: `${server.name} · ${MCP_TRANSPORT_LABEL[server.kind]}`,
+      footer: shortenPath(server.source),
+    });
+  }, [openMenu, t, mcpBusy, mcpTesting, testMcp, moveMcp, removeMcp]);
+
+  const openMcpPageMenu = useCallback((x: number, y: number, refreshDisabled: boolean) => {
+    openMenu(x, y, [
+      {
+        label: t("i18n.refresh"),
+        icon: <i data-ico="refresh-cw" data-size="14" aria-hidden="true" />,
+        disabled: refreshDisabled,
+        onSelect: () => void loadMcp(),
+      },
+      {
+        label: t("mcp.importButton"),
+        icon: <i data-ico="import" data-size="14" aria-hidden="true" />,
+        onSelect: () => {
+          setMcpImportOpen(true);
+          setMcpActionError(null);
+          void loadDiscovered();
+        },
+      },
+      {
+        label: t("mcp.logButton"),
+        icon: <i data-ico="file-text" data-size="14" aria-hidden="true" />,
+        onSelect: () => setMcpLogOpen(true),
+      },
+    ], { title: t("mcp.moreActions") });
+  }, [openMenu, t, loadMcp, loadDiscovered]);
   const availableUpdateCount = Object.values(updateStatuses).filter(
     (status) => status.state === "update-available",
   ).length;
@@ -2108,7 +2782,7 @@ export function PluginsConfig({
         title={mcpOnly ? t("mcp.sectionTitle") : t("common.plugins")}
         sub={mcpOnly ? t("mcp.pageSub") : t("plugins.pageSub")}
         actions={
-          mcpOnly ? (
+          mcpOnly && !isMobile ? undefined : mcpOnly ? (
             <>
               {/* 画板 43:147 —— 计数徽章是 `.pw-shead-acts` 的第一枚，不是页头文案：
                   「这页是干嘛的」归 p.sub，数据归徽章（SettingsUi 的 actions 契约）。 */}
@@ -2229,9 +2903,10 @@ export function PluginsConfig({
         }
         /* fork:mcp-head-actions —— MCP 分节没有工具栏（画板 43 的 MCP 帧在页头与
            内容区之间没有 `.pw-stools`），省略 prop 即不渲染那一行（SettingsUi:442）。
-           插件分节的工具栏原样保留：诊断徽章 + 资源计数 + 刷新，那一枚刷新继续调
-           loadPlugins()、置灰跟 footerBusy —— 与 MCP 那枚是两回事。 */
-        toolbar={mcpOnly ? undefined : (
+           fork:v5-d13-frame-a —— 桌面插件分节同样没有工具栏：画板帧 A 的计数与刷新
+           在「已装」那一节的计数行里（`.d-row`），单独再撑一条工具栏行就是画板上
+           不存在的一条横线。手机档保留工具栏（两栏列表需要那一行）。 */
+        toolbar={mcpOnly || !isMobile ? undefined : (
           <>
             <span className="d-grow" aria-hidden="true" />
             {data?.diagnostics.length ? (
@@ -2277,6 +2952,336 @@ export function PluginsConfig({
           </div>
         )}
 
+        {mcpOnly && !isMobile ? (
+          /* fork:v5-d15-frame-a —— 桌面：内容列一块 `.d-set-inner`，页头只留标题
+             （画板帧 A 的 `d-modal-head` 就是一行标题）。添加 / 粘贴两态沿用
+             已落地的 D-15 帧 B 表单与粘贴面板；列表态是帧 A 的 `.d-slottable`，
+             条目级动作在行尾浮窗里，「看配置与工具曝光」把读数展开在列表下面
+             （画板没有这一层 —— 偏离登记在 DIVERGENCE.md）。 */
+          <div className="d-set-inner">
+            {mcpAddMode ? (
+              <AddMcpServer
+                cwd={cwd}
+                scope={mcpScope}
+                projectResourcesLoaded={projectResourcesLoaded}
+                busy={mcpBusy}
+                actionError={mcpActionError}
+                initial={mcpEditTarget}
+                onScopeChange={setMcpScope}
+                onSave={(name, def) => void saveMcp(name, def)}
+                onFetchDef={fetchMcpDef}
+                onCancel={() => {
+                  setMcpAddMode(false);
+                  setMcpEditTarget(null);
+                }}
+              />
+            ) : mcpPasteMode ? (
+              <McpPastePanel
+                cwd={cwd}
+                scope={mcpScope}
+                data={mcpData}
+                busy={Boolean(busyKey)}
+                actionError={mcpActionError}
+                onScopeChange={setMcpScope}
+                onSubmit={(draft) => void pasteMcp(draft)}
+                onCancel={() => setMcpPasteMode(false)}
+              />
+            ) : (
+              <>
+                <McpCodemodeSettings cwd={cwd || null} />
+                <McpServerList
+                  data={mcpData}
+                  loading={mcpLoading}
+                  actionError={mcpActionError}
+                  actionMessage={mcpActionMessage}
+                  busy={mcpBusy}
+                  selectedName={mcpSelected}
+                  catalogEntry={renderMcpCatalogEntry?.({ reload: () => void loadMcp() }) ?? null}
+                  onAdd={() => {
+                    setMcpAddMode(true);
+                    setMcpPasteMode(false);
+                    setMcpEditTarget(null);
+                    setMcpActionError(null);
+                    setMcpActionMessage(null);
+                  }}
+                  onPaste={() => {
+                    setMcpPasteMode(true);
+                    setMcpAddMode(false);
+                    setMcpEditTarget(null);
+                    setMcpActionError(null);
+                    setMcpActionMessage(null);
+                  }}
+                  onToggle={(server) => void toggleMcp(server)}
+                  onRowMenu={openMcpRowMenu}
+                  onPageMenu={openMcpPageMenu}
+                />
+                {selectedMcp && (
+                  <McpServerDetail
+                    key={selectedMcp.name}
+                    server={selectedMcp}
+                    cwd={cwd}
+                    busy={mcpBusy || mcpTesting === selectedMcp.name}
+                    actionError={null}
+                    actionMessage={null}
+                    onToggle={() => void toggleMcp(selectedMcp)}
+                    onRemove={() => void removeMcp(selectedMcp)}
+                    onMove={() => void moveMcp(selectedMcp)}
+                    onTest={() => void testMcp(selectedMcp)}
+                    onExposure={(exposure) => void setMcpExposure(selectedMcp, exposure)}
+                    onEdit={() => {
+                      setMcpEditTarget(selectedMcp);
+                      setMcpScope(selectedMcp.scope);
+                      setMcpAddMode(true);
+                    }}
+                    authActions={renderMcpAuthActions?.(selectedMcp)}
+                    headActions={false}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        ) : !mcpOnly && !isMobile ? (
+          /* fork:v5-d13-frame-a —— 桌面 = 画板 D-13 帧 A：sec「已装」= 计数行
+             （总/启用/禁用 + **禁用 ≠ 卸载** + 诊断与资源徽章 + 刷新）+
+             每个作用域一块 `.d-card > .d-table`（插件 / 来源 / 版本 / 状态 / 启用 /
+             更多）+ 未信任横幅。行点击开帧 C 详情弹层，行尾「更多」与开关是条目动作
+             （板面同一分工：禁用 / 卸载 / 更新 / 详情都不许共用一枚开关）。
+             偏离（数据面，不是取舍，登记在 DIVERGENCE.md）：
+             ① 帧 A 的「依赖被禁用」横幅与帧 B「待生效」表都要依赖图 / 变更队列，
+                `/api/plugins` 都不返回，所以不画 —— 帧 B 的那半句真话落在详情弹层
+                的 foot（`agents.reloadRequired`）；
+             ② 板面一张表列全部包，产品按作用域分块（每块标题带 `n/m` + 整组开关，
+                fork:group-switch 的能力不能因为换表格丢掉）；
+             ③ 页级动作（检查更新 / 添加插件）仍在页头（SettingsPage 的 actions
+                契约），不在计数行里重复一枚 —— 板面帧 A 把它们放在计数行是因为
+                那一帧没有页头。 */
+          addMode ? (
+            /* 「添加插件」两态：表单占住内容列（与 D-15 帧 B 的 MCP 表单同一处），
+               装完 `installPlugin` 自己把 addMode 落回false。 */
+            <div className="d-set-inner">
+              <AddPluginPanel
+                cwd={cwd}
+                source={installSource}
+                scope={installScope}
+                projectResourcesLoaded={projectResourcesLoaded}
+                busy={addBusy}
+                actionError={actionError}
+                onSourceChange={setInstallSource}
+                onScopeChange={setInstallScope}
+                onInstall={installPlugin}
+              />
+            </div>
+          ) : (
+          <div className="d-set-inner">
+            <div className="d-set-sec">
+              <div className="d-set-sec-t">{t("plugins.installedSection")}</div>
+              <div className="d-row">
+                <span className="d-t-xs d-t-faint d-grow">
+                  {t("plugins.countSummary", {
+                    total: String(packages.length),
+                    enabled: String(packages.filter((pkg) => !pkg.disabled).length),
+                    disabled: String(packages.filter((pkg) => pkg.disabled).length),
+                  })}
+                  {" "}
+                  <b>{t("plugins.offNotUninstallT")}</b>
+                  {t("plugins.offNotUninstallB")}
+                </span>
+                {data?.diagnostics.length ? (
+                  <Badge
+                    tone={data.diagnostics.some((item) => item.type === "error") ? "bad" : "warn"}
+                    title={data.diagnostics.map((item) => `${item.type}: ${item.source ? `${item.source}: ` : ""}${item.message}`).join("\n")}
+                  >
+                    {t("plugins.diagnostics", { count: String(data.diagnostics.length) })}
+                  </Badge>
+                ) : null}
+                {data && (
+                  <Badge tone="count">
+                    {`${data.totals.extensions} ${t("i18n.extensionShort")} · ${data.totals.skills} ${t("i18n.skillShort")}`}
+                  </Badge>
+                )}
+                <Btn
+                  variant="ghost"
+                  size="small"
+                  onClick={() => void loadPlugins()}
+                  disabled={footerBusy}
+                  title={t("i18n.refresh")}
+                >
+                  <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
+                  {t("i18n.refresh")}
+                </Btn>
+              </div>
+
+              {loading ? (
+                <div className="d-banner info">
+                  <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true"></i></span>
+                  <span className="d-grow">{t("i18n.loading")}</span>
+                </div>
+              ) : error ? (
+                <div className="d-banner err">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span className="d-grow">{error}</span>
+                </div>
+              ) : packages.length === 0 && standaloneExtensions.length === 0 ? (
+                /* fork:settings-frame（画板 62 帧 D）—— 列表空态：记号图标 + 一句。 */
+                <EmptyState>
+                  <span className="d-empty-ico"><i data-ico="blocks" data-size="16" aria-hidden="true" /></span>
+                  <p className="d-empty-t">{t("i18n.noPlugins")}</p>
+                </EmptyState>
+              ) : (
+                <>
+                  {/* 独立扩展不在任何包里（不装也能放一个 .js 进 agent 目录），
+                      所以是表格之前的一块，没有开关也没有行尾菜单。 */}
+                  {standaloneExtensions.length > 0 && (
+                    <>
+                      <div className="d-group-title">{t("i18n.extensions")}</div>
+                      <div className="d-card">
+                        <table className="d-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: "26%" }}>{t("i18n.extensions")}</th>
+                              <th>{t("plugins.sourceLabel")}</th>
+                              <th>{t("i18n.status")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {standaloneExtensions.map((extension) => {
+                              const key = extensionKey(extension);
+                              return (
+                                <tr
+                                  key={key}
+                                  className={detailOpen && selected === key ? "is-on" : undefined}
+                                  title={extension.path}
+                                  onClick={() => openDetail(key)}
+                                >
+                                  <td>
+                                    <div className="d-col">
+                                      <span className="d-t-b">{extension.name}</span>
+                                      <span className="d-t-xs d-t-faint">
+                                        {t(`mcp.scope.${extension.scope}`)}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="d-mono">{shortenPath(extension.path)}</td>
+                                  <td>
+                                    <Badge tone={extension.enabled ? "ok" : "mute"}>
+                                      {extension.enabled ? t("plugins.statusLoaded") : t("i18n.disabled")}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                  {groupedPackages.map((group) => {
+                    /* fork:group-switch（G4）—— 块标题右侧是 `n/m` + 整组开关；
+                       只有全开才算开（部分开的组读起来是「关」，点一下补齐）。 */
+                    const enabledCount = group.packages.filter((pkg) => !pkg.disabled).length;
+                    const allEnabled = enabledCount === group.packages.length;
+                    return (
+                      <Fragment key={group.scope}>
+                        <div className="d-group-title">
+                          {group.scope}
+                          <GroupSwitch
+                            enabled={enabledCount}
+                            total={group.packages.length}
+                            disabled={footerBusy}
+                            loading={busyKey === `group:${group.scope}`}
+                            label={t(allEnabled ? "plugins.groupSwitchDisable" : "plugins.groupSwitchEnable", { group: group.scope })}
+                            onChange={(next) => void setGroupPackages(group.scope, group.packages, next)}
+                          />
+                        </div>
+                        {groupStatus?.scope === group.scope && (
+                          <GroupStatus note={groupStatus.note} errorLines={groupStatus.lines} />
+                        )}
+                        <div className="d-card">
+                          <table className="d-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: "26%" }}>{t("plugins.colPackage")}</th>
+                                <th>{t("plugins.sourceLabel")}</th>
+                                <th>{t("i18n.version")}</th>
+                                <th>{t("i18n.status")}</th>
+                                <th>{t("plugins.colEnable")}</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.packages.map((pkg) => {
+                                const key = packageKey(pkg);
+                                const name = pkg.packageName ?? pkg.source;
+                                return (
+                                  <tr
+                                    key={key}
+                                    className={detailOpen && selected === key ? "is-on" : undefined}
+                                    title={name}
+                                    onClick={() => openDetail(key)}
+                                  >
+                                    {/* 板面第一列是「名称 + 一句描述」两行（`d-col`）。 */}
+                                    <td>
+                                      <div className="d-col">
+                                        <span className="d-t-b">{name}</span>
+                                        {pkg.description && (
+                                          <span className="d-t-xs d-t-faint">{pkg.description}</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td><SourceTag pkg={pkg} /></td>
+                                    <td className="d-mono">{pkg.version ?? "—"}</td>
+                                    <td>
+                                      {packageStatusBadge(
+                                        pkg,
+                                        updateStatuses[key],
+                                        checkingUpdates.has(key),
+                                        t,
+                                      )}
+                                    </td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={!pkg.disabled}
+                                        aria-label={`${pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")} · ${name}`}
+                                        title={pkg.disabled ? t("i18n.enablePackage") : t("i18n.disablePackage")}
+                                        disabled={busyKey !== null}
+                                        className={`d-switch${pkg.disabled ? "" : " on"}`}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          void runAction(pkg.disabled ? "enable" : "disable", pkg);
+                                        }}
+                                      />
+                                    </td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        className="d-iconbtn"
+                                        title={`${t("plugins.more")} · ${name}`}
+                                        aria-label={`${t("plugins.more")} · ${name}`}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openRowMenu(event, pkg);
+                                        }}
+                                      >
+                                        <i data-ico="ellipsis" data-size="14" aria-hidden="true" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </Fragment>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+          )
+        ) : (
         <ConfigSplitView>
           <ConfigSidebar>
             <ConfigSidebarList>
@@ -2543,7 +3548,17 @@ export function PluginsConfig({
                 onInstall={installPlugin}
               />
             ) : loading ? null : selectedExtension ? (
-              <StandaloneExtensionDetail extension={selectedExtension} />
+              /* fork:v5-d13 —— 独立扩展没有包可管，头（作用域 + 名称）在这里；
+                  桌面档的同一副内容走 ExtensionDetailModal（弹层 head 摆头）。 */
+              <Stack className="fork-pwa-detail">
+                <Row className="fork-pwa-head">
+                  <RowGrow>
+                    <ScopeTag scope={selectedExtension.scope} />
+                    <Title>{selectedExtension.name}</Title>
+                  </RowGrow>
+                </Row>
+                <StandaloneExtensionDetail extension={selectedExtension} />
+              </Stack>
             ) : selectedPackage ? (
               <PackageDetail
                 key={packageKey(selectedPackage)}
@@ -2571,7 +3586,39 @@ export function PluginsConfig({
             </Stack>
           </div>
         </ConfigSplitView>
+        )}
       </SettingsPage>
+
+      {/* fork:v5-d13-frame-c —— 桌面帧 A 的详情弹层，挂在 SettingsPage 的兄弟位
+          （与下面的导入 / 日志弹层同一位）：设置壳已经在那里了，再套一层抽屉式
+          主从就是画板上没有的第四种形态。只在桌面插件分节渲染 —— 手机档（M-05）
+          的详情是列表内联的，`only="mcp"` 的详情在内容列里。 */}
+      {desktopTable && detailOpen && selectedPackage && (
+        <PluginDetailModal
+          key={packageKey(selectedPackage)}
+          pkg={selectedPackage}
+          cwd={cwd}
+          busyKey={busyKey}
+          actionError={actionError}
+          actionMessage={actionMessage}
+          sessionId={sessionId}
+          updateStatus={updateStatuses[packageKey(selectedPackage)]}
+          checkingUpdate={checkingUpdates.has(packageKey(selectedPackage))}
+          updateError={updateError}
+          onAction={runAction}
+          onCheckUpdate={() => void checkForUpdates(selectedPackage)}
+          onReloadSession={reloadSession}
+          onUninstall={(event) => openUninstallMenu(event.clientX, event.clientY, selectedPackage)}
+          onClose={() => setDetailOpen(false)}
+        />
+      )}
+      {desktopTable && detailOpen && selectedExtension && (
+        <ExtensionDetailModal
+          key={extensionKey(selectedExtension)}
+          extension={selectedExtension}
+          onClose={() => setDetailOpen(false)}
+        />
+      )}
 
       {/* fork:design-system（画板 43 导入帧）—— 导入弹层。挂在 SettingsPage 的
           兄弟位（config-panel-surface 的直接子元素），useDialogA11y 的兄弟 inert
