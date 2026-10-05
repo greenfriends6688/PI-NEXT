@@ -8,22 +8,38 @@ const cssSource = await readFile(new URL("../app/settings.css", import.meta.url)
 const chatInputSource = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
 const modelSelectorSource = await readFile(new URL("./ModelSelector.tsx", import.meta.url), "utf8");
 
-test("keeps same-name profiles selectable by scope and leads the list with the built-in group", () => {
+test("keeps same-name profiles selectable by scope, one row each in the D-12 table", () => {
   assert.match(source, /return `\$\{profile\.scope\}:\$\{profile\.name\}`/);
-  // fork:settings-frame（画板 D-12 落位表）—— 「内置」组提到列表首位（组顶部挂紧凑
-  // 设置行），自定义组（项目 / 全局 / 工作区）随后。
-  assert.match(source, /<div className="d-group-title">\{t\("agents\.scope\.builtin"\)\}<\/div>/);
-  assert.match(source, /\["project", "global", "workspace"\] as const/);
-  assert.match(source, /profile\.scope === scope/);
+  // fork:v5-landing · D-12 —— profile 不再按作用域分组列在左栏（`.d-group-title`
+  // 那一族随之退场），改成一张表：作用域进「状态」那一格，分组信息没丢。
+  assert.match(source, /<Badge>\{t\(`agents\.scope\.\$\{profile\.scope\}`\)\}<\/Badge>/);
+  assert.match(source, /visibleProfiles\.map\(renderAgentRow\)/);
+  assert.match(source, /isSubagentProfileOverridden\(profile, profiles\)/);
 });
 
-test("uses the shared enabled status treatment", () => {
-  assert.match(source, /<StatusDot active=\{profile\.enabled\}/);
-  // 画板 D-12 的停用行只弱化行首图标（`d-t-faint`）与状态点，名字保持正文色 ——
-  // v5 后组件 JSX 只带 d-*，不再挂 v1 的 pw-ico/pw-dim。
-  assert.match(source, /<i\s+data-ico="bot"[\s\S]*?className=\{profile\.enabled \? undefined : "d-t-faint"\}/);
-  assert.doesNotMatch(source, /is-muted/);
-  assert.doesNotMatch(source, /className=\{`pw-ico/);
+test("fork:v5-landing · D-12 — profile 列表是 .d-card > .d-table，左栏那一列撤掉", () => {
+  assert.match(source, /<div className="d-card">\s*<table className="d-table">/);
+  // 六列表头逐条等于画板帧 B：名称 / 描述 / 模型 / 思考 / max turns / 状态。
+  for (const key of ["colName", "description", "colModel", "thinking", "maxTurns", "colStatus"]) {
+    assert.match(source, new RegExp(`<th>\\{t\\("agents\\.${key}"\\)\\}<\\/th>`), `missing column ${key}`);
+  }
+  // 点行选中（键盘 Enter / Space 同一条路），选中态是画板的 `.d-table tr.is-on`。
+  assert.match(source, /<tr[\s\S]{0,400}?onClick=\{\(\) => selectProfile\(profile\)\}/);
+  assert.match(source, /className=\{isActive \? "is-on" : undefined\}/);
+  // v1 画板 42 的主从两栏与列表行族在本页已完全退场。
+  assert.doesNotMatch(source, /<ConfigSplitView|<ConfigSidebar|className="d-sess|d-group-title/);
+  assert.doesNotMatch(
+    source.match(/import \{([\s\S]*?)\} from "\.\/SettingsUi";/)[1],
+    /ConfigSidebar|ConfigSplitView/,
+    "the settings shell import must not pull the two-column primitives back in",
+  );
+});
+
+test("uses the D-12 status badge column instead of a list-row status dot", () => {
+  assert.match(source, /<Badge tone=\{profile\.enabled \? "ok" : "mute"\}>/);
+  assert.match(source, /t\("agents\.statusReady"\) : t\("agents\.statusOff"\)/);
+  // 停用项在表格里靠状态列说，不再弱化行首图标（表格没有行首图标）。
+  assert.doesNotMatch(source, /StatusDot|d-dot|className=\{`pw-ico/);
   // settings.css 里只允许退役说明注释提到这个族，不允许再出现活的选择器。
   assert.doesNotMatch(cssSource, /(^|[,{])\s*\.config-sidebar-text/m);
 });
@@ -38,20 +54,28 @@ test("offers a persisted built-in sub-agent switch with explicit session reload"
   assert.match(source, /reloadNeeded && \(/);
   assert.match(source, /sessionId && \(/);
   assert.match(source, /className="d-banner warn"/);
-  // 开关 + 并发上限收成「内置」组顶部的一条 `.d-set-row`（行 anatomy 照画板 D-12：
-  // `.d-set-row-box` 标签 + 说明在左、右控件；不再是独立卡片）。
+  // fork:v5-landing · D-12 —— 帧 A 把总开关与上限拆成两节两条 `.d-set-row`
+  // （行 anatomy 照画板：`.d-set-row-box` 标签 + 说明在左、右控件），
+  // 不再把开关与并发输入框挤进左栏一条窄行里。
   assert.match(source, /className="d-set-sec"/);
   assert.match(source, /t\("agents\.builtInTitle"\)/);
   assert.match(source, /t\("agents\.builtInDescription"\)/);
-  // 窗口只看「并发输入框与开关在同一条 `.d-set-row` 里」；中间的注释不计入。
-  assert.match(source, /aria-label=\{t\("agents\.maxConcurrent"\)\}[\s\S]{0,1400}?aria-checked=\{builtInEnabled\}/);
-  // fix:agents-row-collapse —— 两处窄数字框（并发上限 / 最大回合数）都必须同时归零 min-width。
-  for (const width of ["width: 64", "width: 80"]) {
-    assert.match(source, new RegExp(`${width}, minWidth: 0`), `${width} also needs minWidth: 0`);
+  assert.match(source, /t\("agents\.limitsSection"\)[\s\S]{0,900}?aria-label=\{t\("agents\.maxConcurrent"\)\}/);
+  // 总开关在上、并发上限在下（帧 A 的两节顺序）。
+  assert.ok(
+    source.indexOf('aria-checked={builtInEnabled}') > 0
+      && source.indexOf('aria-checked={builtInEnabled}') < source.indexOf('aria-label={t("agents.maxConcurrent")}'),
+    "the master switch must come before the concurrency cap",
+  );
+  // 画板帧 A 的两个窄数字框（并发上限 / 最大回合数）都用 90px 且同时归零 min-width。
+  for (const label of ["width: 90", "width: 90, minWidth: 0"]) {
+    assert.match(source, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   // 独立卡片形态（pw-block）已删除。
   assert.doesNotMatch(source, /className="pw-block"/);
   assert.match(source, /t\("agents\.reloadRequired"\)/);
+  // 「需重载会话」常驻在开关旁边（画板帧 A 的 `.d-badge mute` + lock）。
+  assert.match(source, /t\("agents\.reloadBadge"\)/);
   assert.doesNotMatch(cssSource, /\.agents-feature-setting|\.agents-concurrency-control/);
 });
 
@@ -75,16 +99,22 @@ test("offers both writable scopes when creating a profile", () => {
   assert.doesNotMatch(source, /beginOverride|mode === "override"|agents\.readOnly|agents\.override/);
 });
 
-test("fork:settings-frame — 新建入口在页头（画板 62），搜索在工具栏，不在列表末尾", () => {
+test("fork:v5-landing · D-12 — 新建在 profile 行右槽（D-12 帧 B），搜索在工具栏", () => {
   assert.match(source, /<PwSearch[\s\S]{0,260}?placeholder=\{t\("agents\.searchPlaceholder"\)\}/);
-  assert.match(source, /variant="primary" size="small" onClick=\{beginCreate\}/);
-  // 列表末尾那行 `.pw-litem-add` 已按画板 42 撤掉（41/43 才用 pw-litem-add）。
+  // 画板帧 B：新建是 `.d-set-row` 右槽（`.d-grow-last`）里那枚 `d-btn sm primary`。
+  assert.match(source, /t\("agents\.profilesTitle"\)[\s\S]{0,900}?<Btn\s+variant="primary"\s+size="small"\s+onClick=\{beginCreate\}/);
+  // 页头右端在三帧里都是空的（D-12 没有页级动作）。
+  assert.doesNotMatch(source, /actions=\{[\s\S]{0,200}beginCreate/);
+  // 列表末尾那行 `.pw-litem-add` 早已撤掉（41/43 才用 pw-litem-add）。
   assert.doesNotMatch(source, /<ConfigListAction/);
 });
 
-test("fix:agents-layout — 列表行是「图标 + 名字 + 一句说明」两段", () => {
-  assert.match(source, /<i\s+data-ico="bot"[\s\S]*?data-size="14"/);
-  assert.match(source, /<span className="d-sess-m">\{profile\.description \|\| profile\.name\}<\/span>/);
+test("fork:v5-landing · D-12 — 表格行把「名称 / 描述 / 模型」一行给全", () => {
+  assert.match(source, /<td className="d-mono d-t-b">\{profile\.name\}<\/td>/);
+  assert.match(source, /<td className="d-t-xs">\{profile\.description \|\| profile\.name\}<\/td>/);
+  assert.match(source, /<td className="d-mono d-t-xs">\{profile\.model \?\? "—"\}<\/td>/);
+  assert.match(source, /HIGH_THINKING\.has\(profile\.thinking\) \? "warn" : "ok"/);
+  assert.match(source, /<td className="d-mono">\{profile\.maxTurns \?\? "—"\}<\/td>/);
 });
 
 test("fork:settings-frame（画板 D-12 落位表）— 详情字段是 d-field 行，系统指令整行宽直下", () => {
@@ -101,8 +131,13 @@ test("fork:settings-frame（画板 D-12 落位表）— 详情字段是 d-field 
   assert.doesNotMatch(source, /<ConfigField[^>]*>[\s\S]{0,300}?agents-system-prompt/);
   // 详情未选照画板 D-12 帧 D：`.d-empty` 记号 + 一句引导。
   assert.match(source, /<span className="d-empty-ico"><i data-ico="square-mouse-pointer"/);
-  // 「工具与资源」照画板 D-12 帧 C 合并为一个 `.d-chips` 芯片区：工具芯片 + 加载技能 / 加载扩展入口芯片。
-  assert.match(source, /TOOL_OPTIONS\.map\(\(tool\) => \([\s\S]{0,700}?<ToolChip selected=\{draft\.loadSkills\}/);
+  // 「工具白名单」照画板 D-12 帧 C 拆成**两组**芯片：内置工具一块（工具芯片），
+  // 外置资源（技能 / 扩展）另一块，计数徽标行在两组下面。
+  assert.match(source, /t\("agents\.toolsBuiltin"\)[\s\S]{0,400}?TOOL_OPTIONS\.map\(\(tool\) => \(/);
+  assert.match(source, /t\("agents\.toolsExternal"\)[\s\S]{0,400}?<ToolChip selected=\{draft\.loadSkills\}/);
+  assert.match(source, /t\("agents\.toolsEnabled", \{ count: String\(enabledToolCount\) \}\)/);
+  assert.match(source, /t\("agents\.toolsWrite", \{ count: String\(writeToolCount\) \}\)/);
+  assert.match(source, /WRITE_TOOL_NAMES = new Set\(\["bash", "edit", "write"\]\)/);
   assert.doesNotMatch(source, /t\("agents\.resources"\)/);
 });
 

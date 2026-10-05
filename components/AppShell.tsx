@@ -62,9 +62,9 @@ import { ProjectTrustDialog } from "./ProjectTrustDialog";
 import { PwaTrustBanner } from "./pwa/PwaTrustSheet";
 import { InstallPromptBanner, PwaOfflineBanner, PwaUpdateBanner } from "./fork/InstallPromptBanner";
 import { DirectoryPicker } from "./DirectoryPicker";
-import { BranchNavigator, hasSessionBranches } from "./BranchNavigator";
+import { BranchNavigator, findSiblingIndex, hasSessionBranches } from "./BranchNavigator";
 // fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
-import { BranchChip, McpStatusButton, PluginStatusButton } from "./TopBarPopovers";
+import { BranchChip, McpStatusButton, PluginStatusButton, splitStatusesByKind } from "./TopBarPopovers";
 import { MobileActionPanel } from "./fork/MobileActionPanel";
 // fix:new-session-pick-dir / topbar-chip-clickable —— 工作区芯片复用输入框上方那枚
 // `.pw-chip`（项目列表 + 打开文件夹）。NewSessionTargets 类型来自 ProjectChip。
@@ -126,7 +126,7 @@ import { ExplorationPane } from "./fork/ExplorationPane";
 
 import { TraceFrame } from "./TraceFrame";
 import { SessionActionsMenu } from "./fork/SessionActionsMenu";
-import { markSessionUnread } from "@/lib/session-unread";
+import { markSessionUnread, useReadCursors } from "@/lib/session-unread";
 import { SessionRowContextMenuBridge } from "./SessionRowContextMenuBridge";
 import { WallpaperLayer } from "./WallpaperLayer";
 import { initWallpaper } from "@/hooks/useWallpaper";
@@ -590,6 +590,11 @@ export function AppShell() {
      useAgentSession），顶栏那两枚图标读这里。原来这块内容挂在聊天区右上角的常驻
      胶囊上，用户要求改成顶栏两枚 icon + 悬停/点击出浮窗。 */
   const [extensionStatuses, setExtensionStatuses] = useState<ExtensionStatusItem[]>([]);
+  // fork:mcp-topbar-dedupe-status —— 两个浮窗原先各自渲染**整份** statuses，于是
+  // `ponytail: FULL` 与 `MCP: 5 servers enabled` 在两个浮窗里各出现一次（用户截图）。
+  // `splitStatusesByKind` 一直是死代码：MCP 的进 MCP 浮窗，其余进插件浮窗，按 key/文案
+  // 里有没有 "mcp" 判。接线点只有这一处，别再把全量数组递进任何一个浮窗。
+  const { mcp: mcpStatuses, others: pluginStatuses } = useMemo(() => splitStatusesByKind(extensionStatuses), [extensionStatuses]);
   const [extensionWidgets, setExtensionWidgets] = useState<ExtensionWidgetItem[]>([]);
   const handleExtensionStatusChange = useCallback((statuses: ExtensionStatusItem[], widgets: ExtensionWidgetItem[]) => {
     setExtensionStatuses(statuses);
@@ -601,6 +606,20 @@ export function AppShell() {
   // 触发钮（`"sessions"` 那一档）。整块撤掉：侧栏本来就是切会话的地方。
   const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | null>(null);
   const [topPanelPos, setTopPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  /* fix:branch-panel-anchor（2026-10-06）—— 窄屏分支浮层的锚点 = 那枚 `.m-branch`
+     芯片。`BranchNavigator` 的定位优先量 `containerRef`，量不到才退回它自己的按钮；
+     窄屏那枚内联按钮是 `hideInlineButton`（`display:none`，rect 全 0），于是浮层落到
+     top:6 / left:8 的屏幕左上角。把芯片的 ref 交给它。 */
+  const mobileBranchRef = useRef<HTMLButtonElement>(null);
+
+  /* fork:d03-frame-c —— 顶栏「N 条新消息」（画板 D-03 帧 C）。与转录里那条分割线读
+     同一个 store（`lib/session-unread.ts` 的读到哪）：没读数（首次打开）或不剩新
+     条目都是 0。`messageCount` 是会话接口给的**总**条数，与渲染窗口无关，所以这枚
+     徽标在窗口还没翻到分割线时就已经在了。 */
+  const readCursors = useReadCursors();
+  const newMessageCount = selectedSession
+    ? Math.max(0, selectedSession.messageCount - (readCursors[selectedSession.id] ?? selectedSession.messageCount))
+    : 0;
 
   useEffect(() => {
     if (!sessionHasBranches) {
@@ -663,13 +682,14 @@ export function AppShell() {
      （此前窄屏把 `hideInlineButton` 打开，顶栏上看不到任何分支痕迹）。 */
   const mobileBranchChip = (() => {
     if (!sessionHasBranches || branchTree.length === 0) return null;
-    const hits = (node: SessionTreeNode): boolean =>
-      node.entry.id === branchActiveLeafId || node.children.some(hits);
-    const activeIdx = branchTree.findIndex(hits);
+    // 序号口径复用 `findSiblingIndex`（与顶栏芯片同一份遍历，且是迭代的 —— 线性会话
+    // 深到 6000 条时这里原来的递归 `hits` 会打爆调用栈）。
+    const activeIdx = findSiblingIndex(branchTree, branchActiveLeafId);
     const shown = activeIdx >= 0 ? activeIdx + 1 : branchTree.length;
     return (
       <button
         type="button"
+        ref={mobileBranchRef}
         className="m-branch"
         onClick={() => toggleTopPanel("branches")}
         aria-expanded={activeTopPanel === "branches"}
@@ -3433,6 +3453,13 @@ export function AppShell() {
               画板 D-02b 帧 A 的次序是：身份块 · 垫片 · 会话动作（历史 / 命名 / 子代理 /
               分支 / 导出 / ⋯）· **竖分隔** · MCP · 插件。 */}
           {!isMobile && <div className="d-tb-spacer" />}
+          {/* fork:d03-frame-c —— 顶栏那枚「3 条新消息」（画板 D-03 帧 C 的
+              `d-badge info`，紧跟垫片、动作簇之前）。数 = 该会话总条数 − 上次离开时
+              看到的条数（同一个 store，转录里那条分割线读的就是它）。没有新条目时
+              整个节点不画 —— 平时顶栏左侧除标题外不该多东西。 */}
+          {!isMobile && selectedSession && newMessageCount > 0 && (
+            <span className="d-badge info">{translate("chat.newMessages", { count: newMessageCount })}</span>
+          )}
           {/* fix:mcp-topbar-icons —— MCP / 插件两枚状态图标（原来在聊天区右上角是一枚
               常驻胶囊）。悬停或点击出画板 22 的浮窗：MCP = server 图标 + 已启用台数
               徽标，插件 = blocks 图标。内容全在 TopBarPopovers 里，浮窗一律只读。 */}
@@ -3496,8 +3523,8 @@ export function AppShell() {
           {!isMobile && showChat && (
             <>
               <div className="d-sep-v" />
-              <McpStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={extensionStatuses} />
-              <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={extensionStatuses} widgets={extensionWidgets} />
+              <McpStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={mcpStatuses} />
+              <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={pluginStatuses} widgets={extensionWidgets} />
             </>
           )}
           {!isMobile && renderChatToolbarTail()}
@@ -3512,10 +3539,17 @@ export function AppShell() {
               onToggle={() => toggleTopPanel("branches")}
               hasSession={showChat}
               hideInlineButton
+              containerRef={mobileBranchRef}
             />
           )}
           {/* Top panel dropdown — shared, only one active at a time */}
-          {activeTopPanel && topPanelPos && (
+          {/* fix:branch-panel-ghost（2026-10-06 用户报「点了会话分支，左边还留着一个
+              空框」）—— **`branches` 不进这只共用壳**：它的实体是 `BranchNavigator`
+              自己那个浮层（桌面在顶栏芯片下、窄屏在 `.m-branch` 下），而这只壳里只有
+              agents / system / tools 三种 body，`branches` 会渲染出一个**没有内容**的
+              `.d-pop-float`；又因为窄屏芯片那路 `toggleTopPanel("branches")` 不带锚点，
+              定位回落到顶栏左缘，于是空框贴在屏幕左上、还顺带盖住一块可点区域。 */}
+          {activeTopPanel && activeTopPanel !== "branches" && topPanelPos && (
             /* fork:v5-landing —— 顶栏浮窗壳 = 画板 D-02b 的 `.d-pop-float`（浮窗的
                唯一一种描边/圆角/阴影/内边距）。它本来就是 fixed 定位，所以把壳放在这层
                定位容器上，里面的 SystemPromptPanel / ToolDefinitionsPanel /

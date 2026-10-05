@@ -1,6 +1,6 @@
 "use client";
 import { registerAbortHandler } from "@/hooks/useKeyboardShortcuts";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { AgentMessage, AssistantContentBlock, AssistantMessage, BashExecutionMessage, BlockingExtensionUiRequest, ExtensionStatusItem, ExtensionUiRequest, ExtensionWidgetItem, SessionInfo, SessionTreeNode, ToolResultMessage, UserMessage } from "@/lib/types";
 import { normalizeCustomPanelLines } from "@/lib/ansi";
@@ -13,6 +13,7 @@ import { buildQuotedSelection } from "@/lib/quoted-selection";
 import { createSelectionContextId, type SelectionContext } from "@/lib/composer-context";
 import type { SessionReference } from "@/lib/composer-context";
 import { clearLocationTextHighlight, LOCATION_HIGHLIGHT_CLASS, setLocationTextHighlight } from "@/lib/location-highlight";
+import { setReadCursor, useReadCursors } from "@/lib/session-unread";
 import { MessageView, formatDuration } from "./MessageView";
 import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
@@ -40,7 +41,7 @@ import { RetryNotice } from "./fork/RetryNotice";
 import { extractTodoState } from "@/lib/todo-state";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
-import { ProcessGroup, summarizeProcessBlocks } from "./ProcessGroup";
+import { ProcessGroup, summarizeProcessBlocks, summarizeProcessParts } from "./ProcessGroup";
 import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import { messageToProcessContentBlocks, type ProcessContentBlock } from "@/lib/process-content";
 import { useAgentSession, type NoticeItem } from "@/hooks/useAgentSession";
@@ -563,7 +564,7 @@ function processSpanSec(list: readonly unknown[], from: number, to: number): num
   return (last - first) / 1000;
 }
 
-function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, status = "done", durationSec = null, children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; status?: "running" | "done"; durationSec?: number | null; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
+function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, summaryParts, status = "done", durationSec = null, children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; /** fork:v5-landing —— 摘要的**分段形**（加粗首格 + `.d-err` 失败格）。 */ summaryParts?: { text: string; lead?: boolean; err?: boolean }[]; status?: "running" | "done"; durationSec?: number | null; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   // fork:v5-wave-b —— 手机上「过程默认**折叠成一行摘要**」（画板 M-02 帧 A 原话）：
   // 收起态就是一块 `.m-tool` 的 `.m-tool-head` —— 图标 + 摘要 + grow + chevron。
@@ -621,7 +622,19 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
           ></i>
         )}
         <span className={isPwa ? "m-grow" : "d-grow"} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {label}
+          {/* fork:v5-landing —— 画板 D-03d 帧 A：`<b>2 个文件</b> · 5 条命令 · …
+              <span class="d-err">1 次失败</span> · 2 段思考`。有分段就逐段渲染，
+              没有（调用方只给了字符串）才回落到原来的单段文本。 */}
+          {summaryParts
+            ? summaryParts.map((part, index) => (
+              <Fragment key={`${part.text}-${index}`}>
+                {index > 0 && " · "}
+                {part.err
+                  ? <span className="d-err">{part.text}</span>
+                  : part.lead ? <b>{part.text}</b> : part.text}
+              </Fragment>
+            ))
+            : label}
         </span>
         {/* fork:v5-frame-audit（2026-10-05）—— 窄屏摘要行照画板 M-02 帧 A 逐节点抄：
             `图标 · 摘要 · 元信息 · 箭头`。元信息格（`.m-t-xs.m-t-faint`）装**这一组
@@ -1237,6 +1250,28 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       setLoadingEarlier(false);
     }
   }, [activeLeafId, hasEarlierMessages, historyCursor, loadContext, scrollContainerRef, session?.id, sessionIdRef]);
+
+  /* fork:d03-frame-c —— 「读到哪」（画板 D-03 帧 C 的未读分割）。
+     离开这条会话时把当前渲染窗口的**末尾**写进 store，回来时凡是排在那个位置
+     之后的就是「你离开后发生的」，在它前面画分割线。写末尾而不是「当前视口那条」
+     是有意的：分割线是一个稳定的锚点，而滚到哪儿是当下的事。 */
+  const latestCountRef = useRef(0);
+  latestCountRef.current = messages.length;
+  useEffect(() => {
+    const sid = session?.id ?? sessionIdRef.current;
+    const count = latestCountRef.current;
+    return () => {
+      if (sid && count > 0) setReadCursor(sid, count);
+    };
+  }, [session?.id, sessionIdRef]);
+
+  /* fork:d03-frame-c —— 分割线画在第几条：上次离开时看到的末尾（`readCursor`），
+     且它必须**已经落在当前渲染窗口里**（窗口没翻到那里就不画 —— 画一条看不见的
+     分割线等于没画，而顶栏那枚「N 条新消息」已经告诉用户有更新了）。
+     没读数（第一次打开这条会话）给 -1。 */
+  const readCursors = useReadCursors();
+  const readCursor = (session?.id ?? sessionIdRef.current) ? readCursors[session?.id ?? sessionIdRef.current ?? ""] ?? -1 : -1;
+  const unreadDividerIdx = readCursor > 0 && readCursor < messages.length ? readCursor : -1;
 
   // IntersectionObserver on the sentinel div at the top of the message list.
   // When it becomes visible, load the next page of older messages.
@@ -2324,6 +2359,21 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 const currentRefIdx = visibleRefIndexByMessage.get(idx);
                 const keyPrefix = options.keyPrefix ?? "message";
                 const messageKey = entryIds[idx] ?? idx;
+                /* fork:d03-frame-c —— 未读分割线（帧 C：`d-sep` + 一行居中说明 + `d-sep`）。
+                   只在「有读数、且确实还有新条目」时画；首次进入（没读数）与没有新
+                   条目都不画。索引对齐的是渲染窗口，所以历史翻页（`prepend`）会把
+                   分割线往前推 —— 那正是想要的行为：它标的是「你上次读到的位置」。
+                   三件是**兄弟节点**（不套容器类）：行高与间距全在 `.d-sep` 自己的
+                   margin 上，只有那行说明需要居中 —— 板面用 flex 子项的
+                   `align-self:center`，我们这里是块级流，所以同一件事写成
+                   `textAlign:center`。于是这一整块不新增任何类。 */
+                const divider = unreadDividerIdx === idx ? (
+                  <>
+                    <div className="d-sep" />
+                    <div className="d-t-xs d-t-faint" style={{ textAlign: "center" }}>{t("chat.unreadDivider")}</div>
+                    <div className="d-sep" />
+                  </>
+                ) : null;
                 let showTimestamp = false;
                 if (msg.role === "assistant") {
                   showTimestamp = true;
@@ -2378,9 +2428,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     prefix={options.prefix}
                   />
                 );
-                if (!isVisible || currentRefIdx === undefined) return view;
+                if (!isVisible || currentRefIdx === undefined) {
+                  return divider ? <>{divider}{view}</> : view;
+                }
                 return (
                   <div key={`${keyPrefix}-${messageKey}`} data-entry-id={entryIds[idx]} ref={options.attachRef === false ? undefined : attachVisibleRefCached(idx, currentRefIdx, idx === lastUserIdx)}>
+                    {divider}
                     {view}
                   </div>
                 );
@@ -2463,6 +2516,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                           // starts — the same rule the finalized group uses.
                           defaultExpanded={!streamingProcess || streamingProcess.answerBlocks.length === 0}
                           summaryText={summarizeProcessBlocks(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
+                          summaryParts={summarizeProcessParts(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
                           // fork:proc-badge-running（用户 2026-10-02）—— 这一组就是**正在跑
                           // 的那一轮**（`isLiveTail` 为真才走到这里，判据见上：`sessionBusy`
                           // 或流式中 + 它是尾巴）。徽标原来没接 `status`，默认落到「已完成」，
@@ -2566,6 +2620,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         defaultExpanded={!finalAnswerMessage}
                         reveal={revealProcess}
                         summaryText={groupedSummary}
+                        summaryParts={summarizeProcessParts(groupedProcessBlocks, (key, params) => t(key, params), (key) => t(key))}
                         // fork:proc-badge-running（用户 2026-10-02）—— 徽标原来只看
                         // `streamState.isStreaming`，而它在「模型发完一条消息 → 下一条
                         // 还没来」的窗口里是 false（长命令执行期间尤其如此）：于是正在跑
@@ -2673,6 +2728,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         // starts — the same rule the finalized group uses.
                         defaultExpanded={streamingProcess.answerBlocks.length === 0}
                         summaryText={summarizeProcessBlocks(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
+                        summaryParts={summarizeProcessParts(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
                         status={streamState.isStreaming ? "running" : "done"}
                         t={t}
                       >

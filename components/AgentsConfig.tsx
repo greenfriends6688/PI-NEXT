@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import type { SubagentProfilesResponse, SubagentSettingsResponse } from "@/lib/api-types";
 import { sendAgentCommand } from "@/lib/agent-client";
@@ -13,9 +13,6 @@ import {
 } from "@/lib/settings-navigation";
 import {
   ConfigPanelShell,
-  ConfigSidebar,
-  ConfigSidebarList,
-  ConfigSplitView,
   PwRadio,
   PwSearch,
   PwSelectBox,
@@ -24,9 +21,10 @@ import {
 import { ModelSelector } from "./ModelSelector";
 import { localCopy, NO_MODEL_PROVIDERS_HINT, READONLY_PROFILE_HINT } from "./settings-disabled-reasons";
 
-/* fork:v5-skin-d-only —— 本地内容基件只吐 d-*（同 SkillsConfig 的同名块）。
- * 页壳（SettingsPage / ConfigPanelShell / ConfigSplitView / ConfigSidebar /
- * ConfigSidebarList / PwRadio / PwSearch / PwSelectBox）仍走 SettingsUi。 */
+/* fork:v5-landing · D-12 —— 本地内容基件只吐 d-*（同 SkillsConfig 的同名块）。
+ * 页壳（SettingsPage / ConfigPanelShell / PwRadio / PwSearch / PwSelectBox）
+ * 仍走 SettingsUi；本页**不再**有两栏（ConfigSplitView / ConfigSidebar）——
+ * D-12 的内容列就是一串 `.d-set-inner > .d-set-sec`。 */
 function Btn({
   variant = "secondary",
   size = "default",
@@ -64,21 +62,18 @@ function Stack({ className, style, children }: { className?: string; style?: CSS
 function Title({ children }: { children: ReactNode }) {
   return <h3 className="d-t-title" style={{ margin: 0 }}>{children}</h3>;
 }
-function StatusDot({ active, color }: { active?: boolean; color?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`d-dot${active ? " run" : active === false ? " pending" : ""}`}
-      style={color ? { backgroundColor: color } : undefined}
-    />
-  );
-}
+
 function EmptyState({ children }: { children: ReactNode }) {
   return <div className="d-empty compact">{children}</div>;
 }
 
 
 const TOOL_OPTIONS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
+/* fork:v5-landing · D-12 帧 C —— 白名单徽标那两个数**从勾选集真算**，不写死：
+   写盘工具（能改文件 / 能跑命令）是这一节唯一要紧的口径。 */
+const WRITE_TOOL_NAMES = new Set(["bash", "edit", "write"]);
+/** 思考级别在高段时用 warn 徽标（画板 D-12 帧 B 的「高」），其余用 ok。 */
+const HIGH_THINKING = new Set(["high", "xhigh", "max"]);
 const THINKING_OPTIONS = ["", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
 type EditableProfile = Omit<SubagentProfile, "scope" | "filePath">;
@@ -505,59 +500,73 @@ export function AgentsConfig({
   };
 
   /* fork:settings-frame（画板 62）—— 工具栏的计数与搜索过滤（列表与工具栏共用同一个判据）。 */
+  /* fork:v5-landing · D-12 —— 工具栏的计数与搜索过滤（表格行与计数共用同一个判据）。 */
   const agentNeedle = agentQuery.trim().toLowerCase();
   const matchesAgentQuery = (profile: SubagentProfile) =>
     !agentNeedle ||
     profile.displayName.toLowerCase().includes(agentNeedle) ||
     profile.name.toLowerCase().includes(agentNeedle) ||
     (profile.description ?? "").toLowerCase().includes(agentNeedle);
-  const visibleProfileCount = profiles.filter(matchesAgentQuery).length;
-  // fork:settings-frame（画板 62 落位表）—— 列表行 = pw-litem（图标 + 名称 +
-  // 描述副标题 + 被覆盖徽标 / 状态点），列表与「内置」组的行共用同一渲染。
+  const visibleProfiles = profiles.filter(matchesAgentQuery);
+  /* 画板 D-12 帧 C 的两枚计数徽标：从勾选集真算，白名单为空 / 全只读都是真的。 */
+  const enabledToolCount = draft.tools.length;
+  const writeToolCount = draft.tools.filter((tool) => WRITE_TOOL_NAMES.has(tool)).length;
+
+  /* fork:v5-landing · D-12 帧 B —— profile 列表是 `.d-card > .d-table`：
+     名称 / 描述 / 模型 / 思考 / max turns / 状态一行给全，派出去之前不用点开就知道
+     「它会用什么模型、能不能写盘」。作用域从分组标题挪进「名称」那一格（分组没了，
+     信息不能跟着没）。 */
   const renderAgentRow = (profile: SubagentProfile) => {
     const overridden = isSubagentProfileOverridden(profile, profiles);
     const isActive = selectedKey === profileKey(profile) && !creating;
     return (
-      <button
+      <tr
         key={profileKey(profile)}
-        type="button"
-        aria-current={isActive ? "page" : undefined}
-        className={`d-sess${isActive ? " is-on" : ""}`}
-        title={profile.displayName}
+        tabIndex={0}
+        aria-current={isActive ? "true" : undefined}
+        className={isActive ? "is-on" : undefined}
+        style={{ cursor: "pointer" }}
         onClick={() => selectProfile(profile)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          selectProfile(profile);
+        }}
       >
-        <span className="d-row">
-          {/* 画板 D-12：行首是**类型图标**（bot），启用走 accent-text，停用/被覆盖走 `d-t-faint`。 */}
-          <i
-            data-ico="bot"
-            data-size="14"
-            className={profile.enabled ? undefined : "d-t-faint"}
-            style={profile.enabled ? { color: "var(--accent-text)" } : undefined}
-            aria-hidden="true"
-          />
-          <span className="d-grow">
-            <span className="d-sess-t">{profile.displayName}</span>
-            <span className="d-sess-m">{profile.description || profile.name}</span>
-          </span>
-          {/* 被覆盖项给一枚中性徽章（画板：不标红）。 */}
-          {overridden && <Badge>{t("agents.overridden")}</Badge>}
-          <StatusDot active={profile.enabled} />
-        </span>
-      </button>
+        <td className="d-mono d-t-b">{profile.name}</td>
+        <td className="d-t-xs">{profile.description || profile.name}</td>
+        <td className="d-mono d-t-xs">{profile.model ?? "—"}</td>
+        <td>
+          {profile.thinking
+            ? <Badge tone={HIGH_THINKING.has(profile.thinking) ? "warn" : "ok"}>{profile.thinking}</Badge>
+            : <span className="d-t-xs d-t-faint">—</span>}
+        </td>
+        <td className="d-mono">{profile.maxTurns ?? "—"}</td>
+        <td>
+          <div className="d-row">
+            {/* 作用域从分组标题挪到这里（v1 的分组列没了，信息不能跟着没）。 */}
+            <Badge>{t(`agents.scope.${profile.scope}`)}</Badge>
+            <Badge tone={profile.enabled ? "ok" : "mute"}>
+              {profile.enabled ? t("agents.statusReady") : t("agents.statusOff")}
+            </Badge>
+            {/* 被覆盖项给一枚中性徽章（画板：不标红）。 */}
+            {overridden && <Badge>{t("agents.overridden")}</Badge>}
+          </div>
+        </td>
+      </tr>
     );
   };
 
   return (
     <ConfigPanelShell embedded={embedded} title={t("common.agents")} subtitle={shortenPath(cwd)} closeLabel={t("agents.close")} onClose={onClose}>
+      {/* fork:v5-landing · D-12 —— 子代理分节不再是主从两栏。内容列是一串
+          `.d-set-inner > .d-set-sec`：内置子代理（总开关 + 需重载会话）→ 共同上限 →
+          profile 表 → 单个 profile 的细节 → 工具白名单。左导航仍是设置壳那一列
+          （`.d-set-nav`），profile 的选择改由表格行承担 —— 画板 D-12 的十一张分节里
+          没有一处 `.d-sess` 列表。 */}
       <SettingsPage
         title={t("common.agents")}
         sub={t("agents.pageSub")}
-        actions={
-          <Btn variant="primary" size="small" onClick={beginCreate}>
-            <i data-ico="plus" data-size="13" aria-hidden="true" />
-            {t("agents.new")}
-          </Btn>
-        }
         toolbar={
           <>
             <PwSearch
@@ -567,330 +576,390 @@ export function AgentsConfig({
               onChange={setAgentQuery}
             />
             <span className="d-grow" aria-hidden="true" />
-            <Badge tone="count">{t("agents.count", { count: String(visibleProfileCount) })}</Badge>
+            <Badge tone="count">{t("agents.count", { count: String(visibleProfiles.length) })}</Badge>
           </>
         }
-        fill
       >
-      <ConfigSplitView>
-        <ConfigSidebar>
-          <ConfigSidebarList>
-            {/* 画板 D-12 帧 A：「内置子代理」组顶部的设置行 —— `.d-set-row`（左标签 + 说明，
-                右控件）。开关不依赖列表加载结果，挂在 loading / 空态分支之外。 */}
-            <div className="d-group-title">{t("agents.scope.builtin")}</div>
-            <div className="d-set-sec">
-              <div className="d-set-row">
-                <div className="d-set-row-box">
-                  <div className="d-set-row-t">{t("agents.builtInTitle")}</div>
-                  <div className="d-set-row-s">{t("agents.builtInDescription")}</div>
-                </div>
-                <span className="d-grow-last">
-                  <input
-                    aria-label={t("agents.maxConcurrent")}
-                    title={t("agents.maxConcurrentDescription")}
-                    type="number"
-                    min={1}
-                    max={32}
-                    value={maxConcurrent}
-                    disabled={settingsLoading || settingsSaving}
-                    onChange={(event) => setMaxConcurrent(Number(event.target.value))}
-                    onBlur={() => void updateMaxConcurrent(maxConcurrent)}
-                    className="d-input d-mono"
-                    style={{ width: 64, minWidth: 0, textAlign: "center" }}
-                  />
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={builtInEnabled}
-                  aria-busy={settingsSaving || undefined}
-                  aria-label={t("agents.builtInTitle")}
-                  title={t("agents.builtInTitle")}
-                  disabled={settingsLoading || settingsSaving || reloading}
-                  className={`d-switch${builtInEnabled ? " on" : ""}`}
-                  onClick={() => void toggleBuiltInSubagents(!builtInEnabled)}
-                />
-              </div>
-              {/* 画板 D-12 帧 A：切换后需重载会话 —— `.d-banner warn` + 重载入口。 */}
-              {reloadNeeded && (
-                <div className="d-banner warn">
-                  <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
-                  <span className="d-grow">{t("agents.reloadRequired")}</span>
-                  {sessionId && (
-                    <button
-                      type="button"
-                      className="d-btn sm d-banner-btn"
-                      onClick={() => void reloadSession()}
-                      disabled={reloading || settingsSaving}
-                    >
-                      {reloading ? t("agents.reloading") : t("agents.reloadSession")}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            {loading ? (
-              <div className="d-banner info">
-                <span className="d-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" /></span>
-                <span className="d-grow">{t("agents.loading")}</span>
-              </div>
-            ) : visibleProfileCount === 0 ? (
-              /* 画板 D-12 帧 D —— 列表空态落在列表列内（`.d-empty` 记号 + 一句）。 */
-              <EmptyState>
-                <span className="d-empty-ico"><i data-ico="bot" data-size="16" aria-hidden="true" /></span>
-                <p className="d-empty-t">{agentNeedle ? t("agents.noneFound") : t("agents.empty")}</p>
-              </EmptyState>
-            ) : (
-              <>
-                {/* 画板 D-12 帧 B —— 「内置」组紧随组顶部的设置行：先内置子代理行，
-                    再自定义组（项目 / 全局 / 工作区）。 */}
-                {profiles
-                  .filter((profile) => profile.scope === "builtin" && matchesAgentQuery(profile))
-                  .map(renderAgentRow)}
-                {(["project", "global", "workspace"] as const).map((scope) => {
-                  const scopedProfiles = profiles.filter(
-                    (profile) => profile.scope === scope && matchesAgentQuery(profile),
-                  );
-                  if (scopedProfiles.length === 0) return null;
-                  return (
-                    <Fragment key={scope}>
-                      <div className="d-group-title">{t(`agents.scope.${scope}`)}</div>
-                      {scopedProfiles.map(renderAgentRow)}
-                    </Fragment>
-                  );
-                })}
-              </>
-            )}
-          </ConfigSidebarList>
-        </ConfigSidebar>
-
-        {/* fork:settings-dialog-frame —— 画板 D-12 的右列是 `.d-set-inner`（一列分节），
-            不再套一张撑满高度的巨卡。 `fork-pwa-detail` 是手机档作用域钩子。 */}
         <div className="d-set-inner">
-          {/* fork:pwa-plugins-agents（手机档）—— `fork-pwa-detail` 是这台面板的作用域钩子。
-              桌面端该类不参与任何布局。 */}
-          <Stack className="fork-pwa-detail">
-              {!selected && !creating ? (
-                /* 画板 D-12 帧 D —— 详情未选：`.d-empty` 记号 + 一句引导，居中。 */
-                <EmptyState>
-                  <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-                  <p className="d-empty-t">{t("agents.empty")}</p>
-                </EmptyState>
-              ) : (
-                <Stack>
-                  {/* 画板 D-12 帧 B：详情头 = 名称（h3）+ 作用域徽标 + 等宽路径 + 条目动作。 */}
-                  <div className="d-row fork-pwa-head">
-                    <Title>{draft.displayName || draft.name || t("agents.new")}</Title>
-                    {displayedScope && (
-                      <Badge tone={displayedScope === "project" ? "accent" : undefined}>
-                        {t(`agents.scope.${displayedScope}`)}
-                      </Badge>
-                    )}
-                    <span title={fullPath} className="d-mono d-t-faint d-grow">
-                      {displayedPath}
+
+          {/* 帧 A · 内置子代理：总开关 + 「需重载会话」徽标 + 重载入口。 */}
+          <div className="d-set-sec">
+            <div className="d-set-sec-t">{t("agents.builtinSection")}</div>
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("agents.builtInTitle")}</div>
+                <div className="d-set-row-s">{t("agents.builtInDescription")}</div>
+              </div>
+              {/* 「需重载会话」常驻在开关旁边（画板帧 A）：面板不假装它立刻生效。 */}
+              <span className="d-grow-last">
+                <span className="d-badge mute">
+                  <i data-ico="lock" data-size="12" aria-hidden="true"></i>
+                  {t("agents.reloadBadge")}
+                </span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={builtInEnabled}
+                aria-busy={settingsSaving || undefined}
+                aria-label={t("agents.builtInTitle")}
+                title={t("agents.builtInTitle")}
+                disabled={settingsLoading || settingsSaving || reloading}
+                className={`d-switch${builtInEnabled ? " on" : ""}`}
+                onClick={() => void toggleBuiltInSubagents(!builtInEnabled)}
+              />
+            </div>
+            {settingsError && (
+              <div role="alert" className="d-banner err">
+                <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                <span className="d-grow">{settingsError}</span>
+              </div>
+            )}
+            {/* 帧 A：切换后需重载会话 —— `.d-banner warn` + 重载入口。 */}
+            {reloadNeeded && (
+              <div className="d-banner warn">
+                <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                <span className="d-grow">{t("agents.reloadRequired")}</span>
+                {sessionId && (
+                  <button
+                    type="button"
+                    className="d-btn sm d-banner-btn"
+                    onClick={() => void reloadSession()}
+                    disabled={reloading || settingsSaving}
+                  >
+                    {reloading ? t("agents.reloading") : t("agents.reloadSession")}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 帧 A · 共同上限：产品这一档只有并发上限（`/api/subagents/settings`
+              的第二个字段），所以只落这一行，不画板里没有数据的那两行。 */}
+          <div className="d-set-sec">
+            <div className="d-set-sec-t">{t("agents.limitsSection")}</div>
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("agents.maxConcurrent")}</div>
+                <div className="d-set-row-s">{t("agents.maxConcurrentDescription")}</div>
+              </div>
+              <span className="d-grow-last">
+                <input
+                  aria-label={t("agents.maxConcurrent")}
+                  title={t("agents.maxConcurrentDescription")}
+                  type="number"
+                  min={1}
+                  max={32}
+                  value={maxConcurrent}
+                  disabled={settingsLoading || settingsSaving}
+                  onChange={(event) => setMaxConcurrent(Number(event.target.value))}
+                  onBlur={() => void updateMaxConcurrent(maxConcurrent)}
+                  className="d-input d-mono"
+                  style={{ width: 90, minWidth: 0, textAlign: "center" }}
+                />
+              </span>
+            </div>
+          </div>
+
+          {/* 帧 B · profile 列表：`.d-set-row`（标签 + 新建）后接 `.d-card > .d-table`。 */}
+          <div className="d-set-sec">
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-t">{t("agents.profilesTitle")}</div>
+                <div className="d-set-row-s">{t("agents.profilesHint")}</div>
+              </div>
+              <span className="d-grow-last">
+                <Btn variant="primary" size="small" onClick={beginCreate}>
+                  <i data-ico="plus" data-size="13" aria-hidden="true" />
+                  {t("agents.newProfile")}
+                </Btn>
+              </span>
+            </div>
+
+            <div className="d-card">
+              <table className="d-table">
+                <thead>
+                  <tr>
+                    <th>{t("agents.colName")}</th>
+                    <th>{t("agents.description")}</th>
+                    <th>{t("agents.colModel")}</th>
+                    <th>{t("agents.thinking")}</th>
+                    <th>{t("agents.maxTurns")}</th>
+                    <th>{t("agents.colStatus")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={6}><span className="d-t-xs d-t-faint">{t("agents.loading")}</span></td></tr>
+                  ) : visibleProfiles.length === 0 ? (
+                    /* 帧 D —— 过滤不到与一个都没有都落在表格里的一行，不另起空态卡。 */
+                    <tr>
+                      <td colSpan={6}>
+                        <span className="d-t-xs d-t-faint">
+                          {agentNeedle ? t("agents.noneFound") : t("agents.empty")}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : visibleProfiles.map(renderAgentRow)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 帧 B 下半 · 单个 profile 的细节。 */}
+          {!selected && !creating ? (
+            /* 帧 D —— 未选：`.d-empty` 记号 + 一句引导。 */
+            <EmptyState>
+              <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
+              <p className="d-empty-t">{t("agents.empty")}</p>
+            </EmptyState>
+          ) : (
+            <>
+              <div className="d-set-sec">
+                {/* 详情头 = 名称（h3）+ 作用域徽标 + 等宽路径 + 条目动作。
+                    画板帧 B 的细节块没有这一行：产品的只读档需要「创建副本」这个唯一
+                    出口，以及右侧的启用开关（只读说明文案指的就是它），所以保留，
+                    形态仍照 `.d-set-sec-t` + `.d-badge` + `.d-mono` 那一族。 */}
+                <div className="d-row fork-pwa-head">
+                  <Title>{draft.displayName || draft.name || t("agents.new")}</Title>
+                  {displayedScope && (
+                    <Badge tone={displayedScope === "project" ? "accent" : undefined}>
+                      {t(`agents.scope.${displayedScope}`)}
+                    </Badge>
+                  )}
+                  <span title={fullPath} className="d-mono d-t-faint d-grow">
+                    {displayedPath}
+                  </span>
+                  {selected && (mode === "view" || mode === "edit") && <Btn size="small" onClick={beginDuplicate} disabled={saving || toggling}>{t("agents.duplicate")}</Btn>}
+                  {selected && isWritableScope(selected.scope) && mode === "edit" && <Btn variant="danger" size="small" onClick={() => void remove()} disabled={saving || toggling}>{t("agents.delete")}</Btn>}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={draft.enabled}
+                    aria-label={draft.enabled ? t("agents.disable") : t("agents.enable")}
+                    title={draft.enabled ? t("agents.disable") : t("agents.enable")}
+                    disabled={switchDisabled}
+                    className={`d-switch${draft.enabled ? " on" : ""}`}
+                    onClick={() => void toggleEnabled(!draft.enabled)}
+                  />
+                </div>
+
+                {/* 只读态说明：`.d-banner info` 一行。 */}
+                {readonlyProfile && selected && (
+                  <div role="note" className="d-banner info">
+                    <i data-ico="lock" data-size="14" aria-hidden="true"></i>
+                    <span className="d-grow">
+                      {localCopy(READONLY_PROFILE_HINT, locale, {
+                        scope: t(`agents.scope.${selected.scope}`),
+                      })}
                     </span>
-                    {selected && (mode === "view" || mode === "edit") && <Btn size="small" onClick={beginDuplicate} disabled={saving || toggling}>{t("agents.duplicate")}</Btn>}
-                    {selected && isWritableScope(selected.scope) && mode === "edit" && <Btn variant="danger" size="small" onClick={() => void remove()} disabled={saving || toggling}>{t("agents.delete")}</Btn>}
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={draft.enabled}
-                      aria-label={draft.enabled ? t("agents.disable") : t("agents.enable")}
-                      title={draft.enabled ? t("agents.disable") : t("agents.enable")}
-                      disabled={switchDisabled}
-                      className={`d-switch${draft.enabled ? " on" : ""}`}
-                      onClick={() => void toggleEnabled(!draft.enabled)}
+                  </div>
+                )}
+
+                {creating && (
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.saveScope")}</span>
+                    {/* 画板 D-12：保存作用域是 `PwRadio` 芯片单选组。 */}
+                    <PwRadio
+                      value={targetScope}
+                      options={[
+                        { value: "global", label: t("agents.scope.global") },
+                        { value: "project", label: t("agents.scope.project") },
+                      ]}
+                      ariaLabel={t("agents.saveScope")}
+                      disabled={saving}
+                      onChange={setTargetScope}
                     />
                   </div>
+                )}
 
-                  {/* 只读态说明：画板 `.d-banner info` 一行。 */}
-                  {readonlyProfile && selected && (
-                    <div role="note" className="d-banner info">
-                      <i data-ico="lock" data-size="14" aria-hidden="true"></i>
-                      <span className="d-grow">
-                        {localCopy(READONLY_PROFILE_HINT, locale, {
-                          scope: t(`agents.scope.${selected.scope}`),
-                        })}
-                      </span>
-                    </div>
-                  )}
+                {/* `.d-grid2` 两列放名称与模型，其余 `.d-field` 竖排。 */}
+                <div className="d-grid2">
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.name")}</span>
+                    {creating ? (
+                      <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="d-input d-mono" />
+                    ) : (
+                      // 只读 ID 是等宽文本（画板 D-12 的 ID 字段形态）。
+                      <code className="d-mono">{draft.name}</code>
+                    )}
+                  </div>
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.model")}</span>
+                    <ModelSelector
+                      options={modelSelectorOptions}
+                      value={selectedModel}
+                      onChange={(provider, modelId) => update("model", `${provider}/${modelId}`)}
+                      onClear={() => update("model", undefined)}
+                      emptyLabel={modelsLoading ? t("agents.modelsLoading") : t("agents.inherit")}
+                      selectedLabel={draft.model && !selectedModelAvailable ? t("agents.modelUnavailable", { model: draft.model }) : undefined}
+                      disabled={disabled || modelsLoading || (modelOptions.length === 0 && !draft.model)}
+                      ariaLabel={t("agents.model")}
+                      variant="field"
+                      placement="auto"
+                    />
+                  </div>
+                </div>
+                {/* 「没有模型可选」是一句可见的说明，不只是控件上的 title。 */}
+                {modelsError && <Badge tone="bad">{modelsError}</Badge>}
+                {modelsUnavailable && <p className="d-t-xs d-t-faint">{noModelsHint}</p>}
+                <div className="d-field">
+                  <span className="d-field-t">{t("agents.displayName")}</span>
+                  <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="d-input" />
+                </div>
+                <div className="d-field">
+                  <span className="d-field-t">{t("agents.description")}</span>
+                  <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="d-input" />
+                </div>
 
-                  {creating && (
-                    <div className="d-field">
-                      <span className="d-field-t">{t("agents.saveScope")}</span>
-                      {/* 画板 D-12：保存作用域是 `PwRadio` 芯片单选组。 */}
-                      <PwRadio
-                        value={targetScope}
-                        options={[
-                          { value: "global", label: t("agents.scope.global") },
-                          { value: "project", label: t("agents.scope.project") },
-                        ]}
-                        ariaLabel={t("agents.saveScope")}
-                        disabled={saving}
-                        onChange={setTargetScope}
-                      />
-                    </div>
-                  )}
+                {/* 长文本段（系统指令）是一整行 `.d-field`。
+                    `.agents-system-prompt` 保留：只承担「全局滚动条在场时仍可拖拽
+                    右下角」的滚动条行为语义（settings.css，无画板对应物）。 */}
+                <div className="d-field">
+                  <span className="d-field-t">{t("agents.prompt")}</span>
+                  <textarea
+                    className="d-textarea agents-system-prompt"
+                    aria-label={t("agents.prompt")}
+                    value={draft.systemPrompt}
+                    disabled={disabled}
+                    onChange={(event) => update("systemPrompt", event.target.value)}
+                    style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
+                  />
+                </div>
 
-                  {/* 画板 D-12 帧 B：`.d-grid2` 两列放名称与模型，其余 `.d-field` 竖排。 */}
-                  <div className="d-grid2">
-                    <div className="d-field">
-                      <span className="d-field-t">{t("agents.name")}</span>
-                      {creating ? (
-                        <input aria-label={t("agents.name")} value={draft.name} disabled={disabled} onChange={(event) => update("name", event.target.value)} className="d-input d-mono" />
-                      ) : (
-                        // 只读 ID 是等宽文本（画板 D-12 的 ID 字段形态）。
-                        <code className="d-mono">{draft.name}</code>
+                <div className="d-grid2">
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.thinking")}</span>
+                    <PwSelectBox
+                      value={draft.thinking ?? ""}
+                      options={THINKING_OPTIONS.map((value) => ({ value, label: value || t("agents.inherit") }))}
+                      ariaLabel={t("agents.thinking")}
+                      disabled={disabled}
+                      onChange={(value) => update("thinking", (value || undefined) as EditableProfile["thinking"])}
+                    />
+                  </div>
+                  <div className="d-field">
+                    <span className="d-field-t">{t("agents.maxTurns")}</span>
+                    <input
+                      aria-label={t("agents.maxTurns")}
+                      type="number"
+                      min={1}
+                      value={draft.maxTurns ?? ""}
+                      disabled={disabled}
+                      onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)}
+                      className="d-input d-mono"
+                      style={{ width: 90, minWidth: 0, textAlign: "center" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="d-set-row">
+                  <div className="d-set-row-box">
+                    <div className="d-set-row-t">{t("agents.inheritContext")}</div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={draft.inheritContext}
+                    aria-label={t("agents.inheritContext")}
+                    title={t("agents.inheritContext")}
+                    disabled={disabled}
+                    className={`d-switch${draft.inheritContext ? " on" : ""}`}
+                    onClick={() => update("inheritContext", !draft.inheritContext)}
+                  />
+                </div>
+                <div className="d-set-row">
+                  <div className="d-set-row-box">
+                    <div className="d-set-row-t">{t("agents.background")}</div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={draft.runInBackground}
+                    aria-label={t("agents.background")}
+                    title={t("agents.background")}
+                    disabled={disabled}
+                    className={`d-switch${draft.runInBackground ? " on" : ""}`}
+                    onClick={() => update("runInBackground", !draft.runInBackground)}
+                  />
+                </div>
+
+                {/* 表单级动作落在**表单块底部右对齐**（画板 62 的动作四级归位 ④）。 */}
+                {editing && (
+                  <div className="d-row fork-pwa-save">
+                    <span className="d-grow" aria-hidden="true" />
+                    <Btn
+                      variant="primary"
+                      onClick={() => void save()}
+                      disabled={saving || savedOk || toggling || !draft.name.trim()}
+                      className={savedOk ? "is-success" : undefined}
+                    >
+                      {savedOk && (
+                        <i data-ico="check" data-size="13" aria-hidden="true"></i>
                       )}
-                    </div>
-                    <div className="d-field">
-                      <span className="d-field-t">{t("agents.model")}</span>
-                      <ModelSelector
-                        options={modelSelectorOptions}
-                        value={selectedModel}
-                        onChange={(provider, modelId) => update("model", `${provider}/${modelId}`)}
-                        onClear={() => update("model", undefined)}
-                        emptyLabel={modelsLoading ? t("agents.modelsLoading") : t("agents.inherit")}
-                        selectedLabel={draft.model && !selectedModelAvailable ? t("agents.modelUnavailable", { model: draft.model }) : undefined}
-                        disabled={disabled || modelsLoading || (modelOptions.length === 0 && !draft.model)}
-                        ariaLabel={t("agents.model")}
-                        variant="field"
-                        placement="auto"
-                      />
-                    </div>
+                      <span>{savedOk ? t("i18n.saved") : saving ? t("agents.saving") : t("agents.save")}</span>
+                    </Btn>
                   </div>
-                  {/* 「没有模型可选」是一句可见的说明，不只是控件上的 title。 */}
-                  {modelsError && <Badge tone="bad">{modelsError}</Badge>}
-                  {modelsUnavailable && <p className="d-t-xs d-t-faint">{noModelsHint}</p>}
-                  <div className="d-field">
-                    <span className="d-field-t">{t("agents.displayName")}</span>
-                    <input aria-label={t("agents.displayName")} value={draft.displayName} disabled={disabled} onChange={(event) => update("displayName", event.target.value)} className="d-input" />
+                )}
+                {error && (
+                  <div role="alert" className="d-banner err">
+                    <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
+                    <span className="d-grow">{error}</span>
                   </div>
-                  <div className="d-field">
-                    <span className="d-field-t">{t("agents.description")}</span>
-                    <input aria-label={t("agents.description")} value={draft.description} disabled={disabled} onChange={(event) => update("description", event.target.value)} className="d-input" />
-                  </div>
+                )}
+              </div>
 
-                  {/* 画板 D-12：长文本段（系统指令）是一整行 `.d-field`。
-                      `.agents-system-prompt` 保留：只承担「全局滚动条在场时仍可拖拽
-                      右下角」的滚动条行为语义（settings.css，无画板对应物）。 */}
-                  <div className="d-field">
-                    <span className="d-field-t">{t("agents.prompt")}</span>
-                    <textarea
-                      className="d-textarea agents-system-prompt"
-                      aria-label={t("agents.prompt")}
-                      value={draft.systemPrompt}
-                      disabled={disabled}
-                      onChange={(event) => update("systemPrompt", event.target.value)}
-                      style={{ minHeight: 195, maxHeight: "60vh", resize: disabled ? "none" : "vertical" }}
-                    />
-                  </div>
+              {/* 帧 C · 工具白名单：内外置分两组芯片，计数徽标行，bash 单独一条警告。
+                  画板帧 C 的「越权时怎么办」三行需要一套越权策略设置，产品没有这个
+                  设置面（`lib/approval-policy.ts` 走的会话内批准，不是这里），所以
+                  不画 —— 见 scripts/board-specs/d-12-settings-agents.mjs 的 knownDiffs。 */}
+              <div className="d-set-sec">
+                <div className="d-set-sec-t">{t("agents.tools")}</div>
+                <div className="d-t-xs d-t-faint">{t("agents.toolsDefaultDeny")}</div>
 
-                  {/* 画板 D-12 帧 C：工具白名单是一组 `.d-chips` / `.d-chipbtn`。 */}
-                  <div className="d-field">
-                    <span className="d-field-t">{t("agents.tools")}</span>
-                    <div className="d-chips">
-                      {TOOL_OPTIONS.map((tool) => (
-                        <ToolChip
-                          key={tool}
-                          selected={draft.tools.includes(tool)}
-                          disabled={disabled}
-                          onClick={() => update("tools", draft.tools.includes(tool) ? draft.tools.filter((item) => item !== tool) : [...draft.tools, tool])}
-                        >
-                          {tool}
-                        </ToolChip>
-                      ))}
-                      <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
-                      <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
-                    </div>
-                    <span className="d-t-xs d-t-faint">{t("agents.toolsHint")}</span>
-                    <span className="d-t-xs d-t-faint">{t("agents.resourcesHint")}</span>
-                  </div>
-
-                  <div className="d-grid2">
-                    <div className="d-field">
-                      <span className="d-field-t">{t("agents.thinking")}</span>
-                      <PwSelectBox
-                        value={draft.thinking ?? ""}
-                        options={THINKING_OPTIONS.map((value) => ({ value, label: value || t("agents.inherit") }))}
-                        ariaLabel={t("agents.thinking")}
+                <div className="d-field">
+                  <span className="d-field-t">{t("agents.toolsBuiltin")}</span>
+                  <div className="d-chips">
+                    {TOOL_OPTIONS.map((tool) => (
+                      <ToolChip
+                        key={tool}
+                        selected={draft.tools.includes(tool)}
                         disabled={disabled}
-                        onChange={(value) => update("thinking", (value || undefined) as EditableProfile["thinking"])}
-                      />
-                    </div>
-                    <div className="d-field">
-                      <span className="d-field-t">{t("agents.maxTurns")}</span>
-                      <input
-                        aria-label={t("agents.maxTurns")}
-                        type="number"
-                        min={1}
-                        value={draft.maxTurns ?? ""}
-                        disabled={disabled}
-                        onChange={(event) => update("maxTurns", event.target.value ? Number(event.target.value) : undefined)}
-                        className="d-input d-mono"
-                        style={{ width: 80, minWidth: 0, textAlign: "center" }}
-                      />
-                    </div>
-                  </div>
-                  <div className="d-set-row">
-                    <div className="d-set-row-box">
-                      <div className="d-set-row-t">{t("agents.inheritContext")}</div>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={draft.inheritContext}
-                      aria-label={t("agents.inheritContext")}
-                      title={t("agents.inheritContext")}
-                      disabled={disabled}
-                      className={`d-switch${draft.inheritContext ? " on" : ""}`}
-                      onClick={() => update("inheritContext", !draft.inheritContext)}
-                    />
-                  </div>
-                  <div className="d-set-row">
-                    <div className="d-set-row-box">
-                      <div className="d-set-row-t">{t("agents.background")}</div>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={draft.runInBackground}
-                      aria-label={t("agents.background")}
-                      title={t("agents.background")}
-                      disabled={disabled}
-                      className={`d-switch${draft.runInBackground ? " on" : ""}`}
-                      onClick={() => update("runInBackground", !draft.runInBackground)}
-                    />
-                  </div>
-
-                  {/* fork:settings-frame（画板 62）—— 表单级动作落在**表单块底部右对齐**。 */}
-                  {editing && (
-                    <div className="d-row fork-pwa-save">
-                      <span className="d-grow" aria-hidden="true" />
-                      <Btn
-                        variant="primary"
-                        onClick={() => void save()}
-                        disabled={saving || savedOk || toggling || !draft.name.trim()}
-                        className={savedOk ? "is-success" : undefined}
+                        onClick={() => update("tools", draft.tools.includes(tool) ? draft.tools.filter((item) => item !== tool) : [...draft.tools, tool])}
                       >
-                        {savedOk && (
-                          <i data-ico="check" data-size="13" aria-hidden="true"></i>
-                        )}
-                        <span>{savedOk ? t("i18n.saved") : saving ? t("agents.saving") : t("agents.save")}</span>
-                      </Btn>
-                    </div>
-                  )}
-                  {(settingsError || error) && (
-                    <div role="alert" className="d-banner err">
-                      <i data-ico="triangle-alert" data-size="14" aria-hidden="true"></i>
-                      <span className="d-grow">{settingsError || error}</span>
-                    </div>
-                  )}
-                </Stack>
-              )}
-          </Stack>
+                        {tool}
+                      </ToolChip>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="d-field">
+                  <span className="d-field-t">{t("agents.toolsExternal")}</span>
+                  <div className="d-chips">
+                    <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
+                    <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
+                  </div>
+                  <span className="d-t-xs d-t-faint">{t("agents.resourcesHint")}</span>
+                </div>
+
+                <div className="d-row">
+                  <span className="d-badge ok">
+                    <i data-ico="check" data-size="12" aria-hidden="true"></i>
+                    {t("agents.toolsEnabled", { count: String(enabledToolCount) })}
+                  </span>
+                  <span className="d-badge mute">{t("agents.toolsWrite", { count: String(writeToolCount) })}</span>
+                  <span className="d-grow" aria-hidden="true" />
+                  <span className="d-t-xs d-t-faint">{t("agents.toolsHint")}</span>
+                </div>
+
+                <div className="d-banner warn">
+                  <i data-ico="shield-alert" data-size="14" aria-hidden="true"></i>
+                  <span className="d-grow">{t("agents.toolsShellWarn")}</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </ConfigSplitView>
       </SettingsPage>
     </ConfigPanelShell>
   );
