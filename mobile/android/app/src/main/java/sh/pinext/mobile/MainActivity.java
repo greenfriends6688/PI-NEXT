@@ -2,14 +2,12 @@ package sh.pinext.mobile;
 
 import android.os.Bundle;
 
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.BridgeActivity;
 
 /**
- * fork:mobile-shell —— 壳的 Activity（照 MusePi 已验证的形状，坑都注明）。
+ * fork:mobile-shell —— 壳的 Activity。
  */
 public class MainActivity extends BridgeActivity {
 
@@ -20,11 +18,12 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(InsetsPlugin.class);
         super.onCreate(savedInstanceState);
 
-        // edge-to-edge：页面自己用 --safe-* 消化状态栏/手势条（globals.css + InsetsPlugin），
-        // 不让 decor 再垫一层。targetSdk 35+ 下不声明这句，WebView 会被压进系统栏。
+        // edge-to-edge：让 WebView 画到系统栏下面，安全区交给页面消化。
+        // **不要**在这里 setOnApplyWindowInsetsListener(CONSUMED)——Capacitor 8 内置的
+        // SystemBars 插件靠 WebView 自己的 insets 监听把真实安全区注入成
+        // --safe-area-inset-* CSS 变量（SystemBars.java:242 injectSafeAreaCSS），
+        // 在 decorView 层把 insets 消费掉会饿死它，页面就顶进状态栏（2026-10-06 实测）。
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, insets) ->
-            WindowInsetsCompat.CONSUMED);
     }
 
     @Override

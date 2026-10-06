@@ -109,14 +109,14 @@
   --radius-pill: 999px;
 
   /* fork:mobile-shell —— 安全区单一真值。
-     全仓的 env(safe-area-inset-*) 收拢到这四个变量；桌面/PWA 上值就是 env() 本身，
-     视觉零变化。安卓 WebView 里 env() 不生效（Chromium bug 40699457，Capacitor 官方
-     SystemBars 与 MusePi 的 InsetsPlugin 是另外两份独立证据），壳里由
-     lib/mobile-shell.ts 的 applyShellInsets() 用真实 insets 覆盖这几个变量。 */
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
+     优先吃 Capacitor 8 SystemBars 插件注入的 --safe-area-inset-*（安卓 WebView 里
+     env() 不生效——Chromium bug 40699457，Capacitor 在原生层把真实系统栏/刘海/键盘
+     insets 算好写进这四个变量，SystemBars.java injectSafeAreaCSS）；桌面/PWA 上那几个
+     变量不存在，回落到 env() 本身，视觉零变化。 */
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
 
   /* Elevation — Zeno leans on the hairline, not on shadow depth. The ladder
      still exists for menus/dialogs (they float over content), but `sm` is the
