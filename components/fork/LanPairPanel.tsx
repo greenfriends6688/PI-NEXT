@@ -256,7 +256,13 @@ export function LanPairBody() {
     <div className="d-col" style={{ gap: "var(--nx-sp-3)", alignContent: "start" }}>
       {/* v5 · D-20 帧 A：扫码状态做成设置段 + 行，按钮一律 `.d-btn`。 */}
       <div className="d-set-sec">
-        <div className="d-set-row" style={{ flexWrap: "wrap" }}>
+        {/* fork:stop-btn-clipped（2026-10-06 用户实拍）—— 这里原来内联了
+            `flexWrap: "wrap"`：一旦说明长到把 `.d-set-row-box` 撑满，右边那一格
+            （`.d-grow-last` 里的「停止」钮，`flex: 0 0 auto` 不许缩）就被挤到第二行，
+            而 `.d-setcard` 有 `overflow: hidden` → 按钮下半截被裁掉。
+            库里的 `.d-set-row` 本来就不换行（`flex` 行，`.d-grow-last` 有 `margin-left:auto`
+            占位），所以这一格不需要也不该换行。 */}
+        <div className="d-set-row">
           <div className="d-set-row-box">
             <div className="d-row">
               <span className="d-set-row-t">{state.label}</span>

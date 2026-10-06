@@ -1217,8 +1217,13 @@ function McpServerDetail({
  *   .d-set-sec
  *     .d-row            .d-t-xs.d-t-faint.d-grow 计数句 + .d-row[flex:0 0 auto] 两枚钮
  *     .d-slottable
- *       .d-slotrow      .d-switch › .d-col.d-grow（名字 + 曝光徽章 / 等宽副行）
- *                        › .d-badge.mute 传输方式 › .d-badge 认证态 › .d-iconbtn
+ *       .d-slotrow      .d-col.d-grow（名字 + 曝光徽章 / 等宽副行）
+ *                        › .d-badge.mute 传输方式 › .d-badge 认证态
+ *                        › .d-switch › .d-iconbtn
+ *
+ * fork:mcp-switch-right（2026-10-06 用户裁定）—— `.d-switch` 在画板 D-15 帧 A 里
+ * 排**行首**，产品挪到行尾（`.d-iconbtn` 之前）：用户要求「开关挪到最右边」，
+ * 本仓插件表 / 技能行的开关本来也都在行尾。偏离已登记在 `design/v5/DIVERGENCE.md`。
  *
  * 之前这里是 `ConfigSplitView` 的主从两列（一列 `.d-trow` + 一列详情），
  * 而七枚页级动作挤在页头一行 `nowrap` 的 `.d-row` 里 —— 放不下时按钮文字竖排，
@@ -1260,16 +1265,6 @@ function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
 
   return (
     <div className={`d-slotrow${selected ? " is-on" : ""}`}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={!server.disabled}
-        aria-label={`${server.disabled ? t("mcp.enable") : t("mcp.disable")} ${server.name}`}
-        title={server.disabled ? t("mcp.enable") : t("mcp.disable")}
-        disabled={busy}
-        className={`d-switch${server.disabled ? "" : " on"}`}
-        onClick={onToggle}
-      />
       <div className="d-col d-grow">
         <div className="d-row">
           <span className="d-t-b">{server.name}</span>
@@ -1285,6 +1280,20 @@ function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
       <span className="d-badge mute">
         {isRemoteMcpServer(server) ? t("mcp.rowAuthRemote") : t("mcp.rowAuthLocal")}
       </span>
+      {/* fork:mcp-switch-right（2026-10-06 用户裁定）—— 开关从行首挪到行尾。
+          画板 D-15 帧 A 把 `.d-switch` 排在行首，用户要求「挪到最右边」；
+          本仓其它列表（插件表的「启用」列、技能行）开关本来就在行尾，
+          所以顺带与它们对齐。位置在 `.d-iconbtn` 之前，与插件表同序。 */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={!server.disabled}
+        aria-label={`${server.disabled ? t("mcp.enable") : t("mcp.disable")} ${server.name}`}
+        title={server.disabled ? t("mcp.enable") : t("mcp.disable")}
+        disabled={busy}
+        className={`d-switch${server.disabled ? "" : " on"}`}
+        onClick={onToggle}
+      />
       <button
         type="button"
         className="d-iconbtn"
