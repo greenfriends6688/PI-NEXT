@@ -46,6 +46,10 @@
     "mobile",
     // fork:mobile-shell relay —— Deno Deploy 中继，运行时类型归 deno 管
     "relay",
+    // 参考代码库（vendored upstream，无自身 node_modules）：与 pi参考项目 / 设计风格
+    // 同一处置——不进主仓类型图。不排除时 Next 构建的类型检查会扫出上万条
+    // 「Cannot find module」并 OOM，整个 prod 构建起不来（2026-10-06 实测）。
+    "design/assistant-ui-main",
     // 产物 / 一次性脚本目录（gitignored；里面还有补丁基线副本，它们的相对导入
     // 本来就不会解析，放进 tsc 只会淹没真实错误）
     "test-results",
