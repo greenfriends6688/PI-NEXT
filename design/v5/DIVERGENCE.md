@@ -582,3 +582,10 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 2. **无效 calc**：`inset: calc((var(--nx-touch-min) - 29px) / -2)` —— 除以负字面量不是合法的 calc，同样被整段带走。
 
 两条合起来的表现极具欺骗性：**源码读起来完全正确、构建不报错（exit 0）、只有产物里没有**。判据只能是「grep 产物里那个选择器在不在」，不能用「源码里有」。规则已改放到 `app/pwa-settings.css` 并改用**四个 longhand + 正除数**。
+## S · 移动端壳的独立 WebView 资产（2026-10-06 · fork:mobile-shell）
+
+`mobile/webDir/`（跳板页 index.html、镜像库 mirror.html、断网页 error.html）是**壳的
+本地资产**，跑在 capacitor://localhost 源，不属于产品 UI：不进 V5 的 d-*/m-* 类体系，
+样式从简内联。App 图标沿用品牌 PNG（与「渠道 logo 是 vendor 的 PNG」例外同级）。
+产品侧新增的镜像入口卡（`components/fork/MirrorPanel.tsx`）全部复用画板已有原子
+（`.m-card` / `.m-setrow-t|s` / `.m-tray` / `.m-tray-chip` / `book-open` 等），零新类。

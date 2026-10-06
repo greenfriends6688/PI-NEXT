@@ -506,3 +506,40 @@ PR-5（在场裁决，纯 Web）—— 随时可合，不依赖任何其他 PR
 ```
 
 **PR-1 现在就能做，20 分钟，不需要写任何代码。** 后面每一步都是把已经验证过的地址装进包。
+
+---
+
+## 8 · 落地状态与代码核实勘误（2026-10-06 实施轮）
+
+**全部代码已落**（批次提交），剩余工作只有设备侧验证（§5 的清单）与真机调优：
+
+| 本轮实际落地 | 位置 |
+|---|---|
+| PR-1 代码部分 | `scripts/mobile-doctor.mjs`（`npm run mobile:doctor`）、cookie `secure` 随 `x-forwarded-proto` 动态（proxy.ts + redeem route，`lib/lan-access.ts lanCookieSecure()`）、`docs/mobile-remote-setup.md` |
+| PR-2+PR-3 Web 侧 | `lib/mobile-shell.ts`、PwaRegistration 壳内 SW 守卫、`--safe-*` 收拢（54 处）、`mobile/webDir/error.html` |
+| PR-4 | `lib/mobile-notify.ts` + browser-notifications 注册式接入 + `hooks/useNativeBack.ts` |
+| PR-5 | `lib/notification-plan.ts` + presence-store + `/api/presence/heartbeat` + `lib/web-push.ts` 裁决 |
+| PR-7 | `.github/workflows/android-apk.yml`、`mobile/`（Capacitor 8.5.2）、docs 记档 |
+
+**新增的同步能力**（原方案没有，来自「扫描关联电脑全部会话 + 离线翻」的需求）：
+`/api/sync/manifest`（(sizeBytes, mtimeMs) 版本对）、`/api/sync/session/[id]/entries?offset=`
+（字节游标增量，`lib/session-sync.ts`；offset > size = 整写 → reset 全量）、
+`lib/mobile-sync.ts`（跑在远端源，Filesystem 插件写 `Directory.Data`）、
+`mobile/webDir/mirror.html`（本地源清单页，blob-iframe 读缓存 HTML）。
+
+**代码核实后的修正**：
+
+1. `listLanUrls()` 天然把 Tailscale 的 100.x 列进配对二维码（`lib/lan-pair.ts:92-104`
+   只剔 internal 与 169.254）→ PR-1 比原设想更零代码。
+2. `PI_WEB_ALLOWED_HOSTS` 每请求现读 `process.env`（`lib/request-security.ts:69-74`）→
+   域名放行免重启。
+3. **在场语义修正**：判定「有人」用的是**用户最近交互**（心跳上报 `lastActivityAtMs`），
+   不是「标签页活着」——桌面 Chrome 常驻在线不能让手机永远哑掉（Paseo 同款语义）。
+4. **跨源裁定**（新增）：本地源页面 fetch 服务器是跨站、cookie 不带 → 同步引擎必须跑在
+   远端源（PWA），经 Capacitor 桥写本机存储。
+5. iOS 现实约束：本机只有 Command Line Tools，**装完整 Xcode** 是 iOS 出包前置；
+   bounce 与 PWA 下拉手势的冲突、键盘双重位移，都是真机验证项（docs/ios-free-signing.md）。
+6. 安全区收拢遗留 1 处：`app/design/v5-forms.css:305` 在用户未提交的 v5 批次内，
+   该批次合并后补替换为 `var(--safe-top)`（grep 验收才算关账）。
+7. check:design 的 style-literal 基线在 HEAD 就有存量漂移（AgentSessionPanel/ChatWindow
+   radius/CodeFileEditor/pair 等，与移动端无关），按「只许变少」规则待清理或 `--update`。

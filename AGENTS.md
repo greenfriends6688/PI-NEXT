@@ -319,6 +319,44 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **客户端与服务端必须拆开**：设置页是 `"use client"`，只能 import `lib/im-bridge-shared.ts` 与 `lib/chat-channel-shared.ts`；`lib/im-bridge.ts` / `lib/chat-channel.ts` 里的 `node:fs` + pi SDK 一碰客户端依赖图，`lib/client-graph-purity.test.mjs` 就红。
 * **入口**：设置里的「手机与推送」分节，外加侧栏底栏版本徽章左边那枚手机钮（同一个分节，快捷入口）。导轨几何是画板 02 登记过的，所以手机钮是底栏里的**兄弟**而不是第五枚导轨按钮。
 
+### 移动端壳与同步（fork:mobile-shell，2026-10-06）
+
+形态与决策全文在 `docs/mobile-shell-plan-2026-10-05.md`（D1–D6），远程地址操作指南在
+`docs/mobile-remote-setup.md`，iOS 自签在 `docs/ios-free-signing.md`。这里记不变量：
+
+* **壳是独立子项目 `mobile/`**：自带 package.json（@capacitor 8.5.2 系），主仓
+  tsconfig / eslint / 构建图**全部排除它**；主仓侧只有「服务器对端」的新文件
+  （`app/api/sync/**`、`app/api/presence/**`、lib 少量新文件），不往 agent 逻辑里掺行。
+  为什么不叫 `app/`：那是 Next.js 路由目录。
+* **`server.url` 两种模式**：打包时 `PINEXT_SERVER_URL` 烘焙稳定地址（推荐 Tailscale
+  `http://100.x.y.z:30141`，host-only cookie 配对一次永久有效）；不设则走跳板页
+  （`mobile/webDir/index.html`，localStorage 记地址 + getUserMedia/jsQR 扫桌面二维码）。
+  **quick tunnel 的随机域名不可用**（域名一变 cookie 全失配，D3）。
+* **跨源裁定**：壳的本地页（capacitor://localhost）fetch 服务器是跨站、SameSite cookie
+  不带 —— **所有服务器抓取都在远端源（PWA）做**，经 Capacitor Filesystem 插件写进
+  `Directory.Data`；本地页 `mirror.html` 只经桥读文件。Filesystem/LocalNotifications/
+  Badge/App 全部走 `nativePluginCall`/`nativeCallback` 低层通道，主仓零 @capacitor 依赖。
+* **同步协议 = 字节游标**：`.jsonl` append-only，`/api/sync/manifest` 给
+  (sizeBytes, mtimeMs) 版本对，`/api/sync/session/[id]/entries?offset=` 增量；
+  **offset > size = 文件被整写**（级联改父/pi 迁移）→ `reset:true` 全量重发；
+  游标只落完整换行（UTF-8 多字节安全，见 `lib/session-sync.ts`）。离线阅读载体是
+  缓存的 `export?inline=1` 自包含 HTML（jsonl 是 Phase 2 上推与本地渲染的权威）。
+* **通知两层**：壳内走原生本地通知（WebView 没有 Web Push subscription；App 进程
+  活着才响，被杀场景走 IM 桥）；Web Push（浏览器 PWA）发不发由
+  `lib/notification-plan.ts` 的**在场裁决**决定 —— 判据是用户最近 180s 内有无**交互**
+  （不是「标签页活着」），有交互就不推（未读点/完成音已是在场提醒）。
+* **Android 安全区**：WebView 的 `env(safe-area-inset-*)` 不生效（三份独立证据），
+  全仓收拢成 `globals.css :root` 的 `--safe-*`，壳里由 `InsetsPlugin.java`（状态栏/
+  导航栏 insets → dp）经 `applyShellInsets()` 覆盖。`MainActivity.java` 的两个坑：
+  `registerPlugin` 必须先于 `super.onCreate()`；edge-to-edge 要在
+  `onWindowFocusChanged` 里**再断言一次**（Android 12+ SplashScreen 会恢复 decor-fit）。
+* **browser-notifications 必须零相对导入**：普通 `node --test` 解析器跟不了扩展名省略
+  的相对导入（本仓测试直接 strip-types 跑 TS）。壳的通知层用注册式接入
+  （`setMobileNotifyProvider`），不许改成 import 式。
+* **Phase 2（未做）**：手机独立 runtime（Android proot+Alpine+node+pi，借鉴 Aether 的
+  集成形状；GPL-3.0 代码不可抄，APK 挂 Release 分发需附 GPL 组件源码指引）、
+  `POST /api/sync/session/[id]/append` 上推回流、本地渲染层。
+
 ### agent↔agent 通信（fork:agent-mail）
 
 `lib/subagent-mail.ts` 是进程内信箱（`send` / `peek` / `drain` / `waitFor`，每箱 50 封 FIFO），`lib/subagent-runtime.ts` 的 `deliver()` 负责唤醒活着的会话（`sendCustomMessage` + `deliverAs:"followUp"`），工具面是**一个** `agent_mail`（`action: send | inbox | wait`，`to: "parent" | "all" | <id>`）。三个已有工具只能「父 → 子」，这一个把方向补全（子→父 / 子→兄弟 / 父→全体）。

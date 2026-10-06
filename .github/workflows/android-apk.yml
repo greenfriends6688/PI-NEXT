@@ -1,0 +1,65 @@
+name: Android APK (mobile shell)
+
+on:
+  push:
+    tags: ["v*", "android-v*"]
+  workflow_dispatch:
+  pull_request:
+    paths: ["mobile/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+# fork:mobile-shell —— 安卓壳出包（MusePi 的诚实路线：仓库里没有 keystore，
+# AGP 自动生成 debug 签名，产物 app-debug.apk，装法 `adb install -r`）。
+# 本机没有 Android SDK 时的出包通道；tag 推送时额外挂到 GitHub Release。
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # ubuntu-latest 自带 Android SDK（ANDROID_HOME 已设），无需额外 action。
+
+      - name: Install shell dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Sync Capacitor (webDir → android assets)
+        working-directory: mobile
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: mobile
+        run: ./android/gradlew -p android assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinext-app-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk#pinext-app-debug.apk \
+            --clobber
