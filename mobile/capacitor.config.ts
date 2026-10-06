@@ -21,6 +21,11 @@ const config: CapacitorConfig = {
   server: {
     // errorPath 必须是 webDir 里的相对路径：远程页加载失败（电脑关机/断网）时的兜底。
     errorPath: "error.html",
+    // Mode B 的跳板页把 WebView 导到用户运行时才确定的地址（局域网 IP / Tailscale IP /
+    // 自有域名）。Capacitor 默认把「不在放行名单的外部地址」丢给系统浏览器——
+    // 体现为「App 一打开就跳浏览器」。地址任意 → 放行所有主机；真正的安全边界
+    // 在 LAN 令牌闸门（lib/lan-access.ts），不在壳这层。
+    allowNavigation: ["*"],
     ...(serverUrl ? { url: serverUrl } : {}),
   },
   android: {
