@@ -72,7 +72,6 @@
     "design:v5:shots": "node design/v5/scripts/shoot.mjs",
     "design:v5:all": "npm run design:v5 && npm run design:v5:land",
     "mobile:doctor": "node scripts/mobile-doctor.mjs",
-    "relay:smoke": "node scripts/relay-smoke.mjs",
     "mobile:sync": "cd mobile && npx cap sync",
     "mobile:android:debug": "cd mobile && npm run build:debug",
     "mobile:ios:open": "cd mobile && npx cap open ios"

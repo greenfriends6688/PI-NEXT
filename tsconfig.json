@@ -44,8 +44,6 @@
     // fork:mobile-shell —— 手机壳是独立子项目（自己的 package.json/@capacitor 依赖），
     // 主仓 tsc 不看它；capacitor.config.ts 的类型来自 mobile/node_modules
     "mobile",
-    // fork:mobile-shell relay —— Deno Deploy 中继，运行时类型归 deno 管
-    "relay",
     // 参考代码库（vendored upstream checkout，形如 design/<name>-main，无自身
     // node_modules）：与 pi参考项目 / 设计风格 同一处置——不进主仓类型图。
     // 不排除时 Next 构建的类型检查把它们当本仓源码扫（含 app/ 路由与 @/ 别名冲突），
