@@ -336,6 +336,17 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **客户端与服务端必须拆开**：设置页是 `"use client"`，只能 import `lib/im-bridge-shared.ts` 与 `lib/chat-channel-shared.ts`；`lib/im-bridge.ts` / `lib/chat-channel.ts` 里的 `node:fs` + pi SDK 一碰客户端依赖图，`lib/client-graph-purity.test.mjs` 就红。
 * **入口**：设置里的「手机与推送」分节，外加侧栏底栏版本徽章左边那枚手机钮（同一个分节，快捷入口）。导轨几何是画板 02 登记过的，所以手机钮是底栏里的**兄弟**而不是第五枚导轨按钮。
 
+### 生图（fork:imagegen，2026-10-06）
+
+计划与调研全文在 `docs/imagegen-plan-2026-10-06.md`（G1/G2 = 标书套件 B1）。不变量：
+
+* **生图档案独立于对话模型**：`~/.pi/agent/imagegen.json`（0600，staging+rename），`GET /api/imagegen` 掩码、`PUT` 掩码值或字段缺失 = 沿用已存密钥（与 im-bridge 同一条铁律）。不进模型选择器、不吃 `enabledModels`。
+* **为什么不走 SDK**：pi-ai 1.0 有 `generateImages()` / `ImageModel`，但内置只注册 `openrouter-images` 一个 API、models.json 不收 image 模型 —— 直连 OpenAI 兼容 `POST /images/generations`（OpenAI/金龙/硅基流动/火山方舟一个协议全覆盖，与标书功能/PI-Desktop 同路）。响应兼容 `b64_json` 与 `url` 两种载荷，**url 一律当场下载落盘**（外链会过期）。
+* **工具 `generate_image`**（`lib/imagegen-extension.ts`，extensionFactories 注册）：content **永不含 base64**（只回路径+尺寸+字节，模型可读可引用），图片元数据进 `details.images`；消息流由 `MessageView` 借 `ResultImages` 的 URL 来源通道渲染（→ `/api/files`），会话文件只存路径。默认落 `~/.pi/agent/generated-images/`（工具工厂里 `allowFileRoot` 幂等登记），`dest` 只许会话 cwd 内（`resolveDestWithinCwd`；标书配图直落 `bid/<项目>/images/`）。
+* **审批零改动**：工具无命令参数、不在只读名单 → ask/plan 模式下自动落「unclassified → 需审批」；默认 bypass 放行不弹卡。
+* **测试状态是硬闸门**：`POST /api/imagegen {provider}` 真出一张小图并把 `status`（untested / available / unavailable + 最近失败原因）落盘 —— 标书自动配图只认 `available`。密钥掩码在浏览器侧回显，测试用已存明文密钥。
+* **设置分节是登记制**：新增分节要同步 15 张设置画板左导航 + `SettingsPanel.boardnav.test.mjs` 的条数与同构清单（本次 11→12）＋ `SETTINGS_HUB_GROUPS` 分组与 hub 文案。生图分节画板 = `D-31-settings-imagegen.html`，偏离登记在 `DIVERGENCE.md §T`。
+
 ### 移动端壳与同步（fork:mobile-shell，2026-10-06）
 
 形态与决策全文在 `docs/mobile-shell-plan-2026-10-05.md`（D1–D6），远程地址操作指南在
