@@ -95,6 +95,22 @@ for (const address of tailscaleAddresses) {
   info(`Tailscale 地址（家里/外面同一个）`, `http://${address}:${PORT}`);
 }
 
+// IPv6 全局地址：**出门 5G 直连**的通道（国内 5G 基本支持 IPv6；家里宽带通常有公网
+// IPv6 段）。剔掉链路本地（fe80）与回环；带 %zone 的接口后缀去掉。
+const globalV6Addresses = [];
+for (const addresses of Object.values(networkInterfaces())) {
+  for (const entry of addresses ?? []) {
+    const isV6 = String(entry?.family) === "6" || entry?.family === "IPv6";
+    if (!isV6 || entry.internal) continue;
+    const address = entry.address.split("%")[0];
+    if (address.startsWith("fe80")) continue;
+    globalV6Addresses.push(address);
+  }
+}
+for (const address of globalV6Addresses) {
+  info(`IPv6 地址（出门 5G 用这个）`, `http://[${address}]:${PORT}`);
+}
+
 // 3. tailscale CLI ----------------------------------------------------------
 let tailscaleIp = null;
 try {
@@ -146,6 +162,10 @@ if (tokenOk && serverUp && recommended) {
   lines.push("（或在桌面「设置 → 手机与推送」扫二维码；配对一次后该地址永久有效）");
   if (!tailscaleAddresses.length) {
     lines.push("提示：现在给的是局域网地址，出了这个网络就够不着。装 Tailscale 后重跑本命令。");
+  }
+  if (globalV6Addresses[0]) {
+    lines.push(`出门 5G 直连： http://[${globalV6Addresses[0]}]:${PORT}/pair`);
+    lines.push("（手机流量下打开这个；打不开多半是路由器的 IPv6 防火墙拦了入站，去路由器管理页放行）");
   }
 } else {
   lines.push("先把上面的 ✘ 项解决，再回来重跑 npm run mobile:doctor。");

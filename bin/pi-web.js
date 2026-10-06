@@ -118,9 +118,11 @@ let browserOpened = false;
 // fork:lan-access：`-H 0.0.0.0` 时自动打开的浏览器，Host 会是 `0.0.0.0`，而 0.0.0.0
 // 刻意不算 loopback，所以本机浏览器也会被闸门拦。把令牌带在 `?t=` 上：proxy 会把它
 // 种成 cookie（lib/lan-access.ts），页面随后就是普通请求了。同一行也是给手机的配对链接。
+// 通配绑定（0.0.0.0 / ::）不能直接拼 URL：本机浏览器要用 127.0.0.1。
+const displayHost = hostname === "0.0.0.0" || hostname === "::" ? "127.0.0.1" : hostname;
 const url = lanToken
-  ? `http://${hostname}:${port}/?t=${encodeURIComponent(lanToken)}`
-  : `http://${hostname}:${port}`;
+  ? `http://${displayHost}:${port}/?t=${encodeURIComponent(lanToken)}`
+  : `http://${displayHost}:${port}`;
 
 child.stdout.on("data", (chunk) => {
   const text = chunk.toString();

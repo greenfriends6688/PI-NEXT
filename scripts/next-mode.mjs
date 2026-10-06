@@ -23,10 +23,10 @@ const ROOT = process.cwd();
 const NEXT_DIR = join(ROOT, ".next");
 const PORT = "30141";
 
-// fork:lan-access —— 有令牌就绑 0.0.0.0（手机可连），否则只绑本机。
+// fork:lan-access —— 有令牌就绑 `::`（双栈：v4+v6，v6 是「出门 5G 直连」的通道），否则只绑本机。
 // 判定与启动器共用一份，见 bin/lan-supervisor.cjs 的头注。
 const { lanEnabledByConfig, superviseLanBind } = createRequire(import.meta.url)("../bin/lan-supervisor.cjs");
-let HOST = lanEnabledByConfig() ? "0.0.0.0" : "127.0.0.1";
+let HOST = lanEnabledByConfig() ? "::" : "127.0.0.1";
 
 /** 生产构建会写 BUILD_ID；dev（Turbopack）会写 dev/ 子目录。 */
 function currentMode() {
@@ -147,7 +147,8 @@ if (mode === "prod") {
     process.exit(b.status ?? 1);
   }
 
-  console.log(`[prod] 启动 next start（http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}）...`);
+  const displayHost = HOST === "0.0.0.0" || HOST === "::" ? "127.0.0.1" : HOST;
+  console.log(`[prod] 启动 next start（http://${displayHost}:${PORT}）...`);
   serveWithLanWatch();
 } else {
   console.error("用法: node scripts/next-mode.mjs <dev|prod|status>");

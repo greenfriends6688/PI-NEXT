@@ -66,7 +66,8 @@ function superviseLanBind(options) {
         return;
       }
       restarts += 1;
-      const host = next ? "0.0.0.0" : "127.0.0.1";
+      // fork:lan-access —— `::` 是双栈绑定（v4+v6），IPv6 是「出门 5G 直连」的通道。
+      const host = next ? "::" : "127.0.0.1";
       if (host === getHost()) return;
       log(`[pi-web] 局域网接入${next ? "已开启" : "已关闭"}，正在重启以生效（${restarts}/${AUTO_RESTART_LIMIT}）…`);
       restart(host);

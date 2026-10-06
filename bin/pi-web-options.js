@@ -21,7 +21,7 @@ const CLI_OPTIONS = {
  * 现在反过来：**应用自己生成并存了令牌**（`~/.pi/agent/lan-access.json`，见
  * `lib/lan-access.ts`），启动器只要看到这份配置就自动绑 0.0.0.0，闸门同步生效。
  *
- * 优先级（从高到低）：`--hostname` / `PI_WEB_HOSTNAME` → `--no-lan` → 有令牌则 0.0.0.0 → 127.0.0.1。
+ * 优先级（从高到低）：`--hostname` / `PI_WEB_HOSTNAME` → `--no-lan` → 有令牌则 `::`（双栈） → 127.0.0.1。
  * 文件不存在或损坏 = 没令牌 = 只绑 loopback（fail closed，绝不退回裸奔）。
  */
 function readLanAccessState(env) {
@@ -118,10 +118,11 @@ function parseLaunchOptions(args = process.argv.slice(2), env = process.env) {
     );
   }
 
-  // fork:lan-access —— 没显式指定网卡时：有令牌就绑 0.0.0.0（手机可连），否则只绑 loopback。
+  // fork:lan-access —— 没显式指定网卡时：有令牌就绑 `::`（双栈：macOS/Linux 默认
+  // v6only=0，同时收 IPv4 与 IPv6——IPv6 是「出门 5G 直连」的唯一通道），否则只绑 loopback。
   const explicitHostname = values.hostname ?? env.PI_WEB_HOSTNAME;
   const lan = readLanAccessState(env);
-  const hostname = explicitHostname ?? (values["no-lan"] ? "127.0.0.1" : lan.lan ? "0.0.0.0" : "127.0.0.1");
+  const hostname = explicitHostname ?? (values["no-lan"] ? "127.0.0.1" : lan.lan ? "::" : "127.0.0.1");
 
   return {
     help: false,
