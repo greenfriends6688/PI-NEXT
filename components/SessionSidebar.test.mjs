@@ -208,6 +208,10 @@ test("keeps a standalone chat section beside the projects", () => {
   assert.match(source, /if \(selectedCwd\) return selectedCwd;/);
   assert.doesNotMatch(source, /selectedCwd \|\| homeDir \|\| "\/"/);
   assert.doesNotMatch(source, /chatWorkspace\?\.cwd \|\| homeDir \|\| "\/"/);
+  // fork:zn-13-margin —— 项目段与聊天段自 fork:zn-20 起**互斥渲染**，那句
+  // `marginTop: 18` 失去了分隔对象，在聊天 pane 上就是 `.d-seg` 与第一行之间凭空多出
+  // 的一截空白（用户 2026-10-05 报「中间空白太多」）。画板 D-02 是直连，不带这个 margin。
+  assert.doesNotMatch(source, /style=\{\{ marginTop: 18 \}\}/);
 });
 
 // fork:ui-pop-portal-fix —— 侧栏的两个下拉（worktree 切换 / 项目 ⋯）必须用**共享的**
@@ -222,4 +226,28 @@ test("reuses the shared PortalDropdown instead of a local copy", () => {
   assert.doesNotMatch(source, /^function AnimatedDropdown\(/m);
   assert.doesNotMatch(source, /^function PortalDropdown\(\{/m);
   assert.doesNotMatch(source, /from "react-dom"/, "portal 只在共享件里做");
+});
+
+// fork:session-tree-collapsed + fork:caret-corner（用户 2026-10-05）—— 两件事：
+//   ① 带子代理的会话**默认收起**（此前默认全摊开，一屏被子会话吃掉）；
+//   ② 折叠箭头落在**行右上角**，且是绝对定位 —— 行高被量成定数（`.d-sess` 恒 58.89），
+//      任何进流的盒子都会把行顶出槽位，就是用户报的「重影」。
+const forms = await readFile(new URL("../app/design/v5-forms.css", import.meta.url), "utf8");
+
+test("subagent families start collapsed and the caret sits in the row corner", () => {
+  // 状态记的是「展开过」，不是「收起的」—— 后者在会话异步到达时无从初始化。
+  assert.match(source, /const \[expandedFamilies, setExpandedFamilies\] = useState<ReadonlySet<string>>\(\(\) => new Set\(\)\)/);
+  assert.match(source, /collapsed=\{!expandedFamilies\.has\(family\.root\.id\)\}/);
+  const expand = source.slice(source.indexOf("function expandSidebarEntries("), source.indexOf("// ---"));
+  assert.match(expand, /if \(!expanded\.has\(entry\.item\.root\.id\)\) continue;/);
+
+  // 箭头不再待在 `.d-sess-m` 里（那行是元信息），而是行内绝对定位的一个角标。
+  assert.match(forms, /\.fork-sess-caret \{ position: absolute; top: 3px; right: 4px;/);
+  assert.match(forms, /\.d-sess:has\(\.fork-sess-caret\) \.d-sess-t \{ padding-right: 24px; \}/);
+  const desktopRow = sessionItemSource.slice(sessionItemSource.indexOf("fork:caret-corner"));
+  assert.match(desktopRow, /className="fork-sess-caret"/);
+  assert.ok(
+    desktopRow.indexOf("fork-sess-caret") < desktopRow.indexOf('className="d-sess-m'),
+    "the caret must be rendered before the meta row (i.e. not inside it)",
+  );
 });

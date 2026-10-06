@@ -203,16 +203,16 @@ html.keyboard-open .extension-status-shelf {
  * wrapping row.
  *
  * `components/TurnWrittenFiles.tsx` and `components/fork/TurnSkillUsageSummary.tsx`
- * each render their own `.pw-wrap` (the design-system chip row). Two of those are
- * block-level, so side by side would be two stacked blocks; this wrapper is the row
- * that puts them on one line and wraps them together when it runs out of width.
- * No geometry here beyond the design tokens, and no new `.pw-*` class: the board
- * owns the chips, this only owns their line.
+ * each render their own block: a header row (pencil-line / sparkles + title) plus
+ * one `.d-chips` row. Board D-03e frame B draws exactly that — two blocks, each
+ * with its own label. This wrapper is the vertical stack that holds them, so a
+ * turn's "what did it touch" reads as one labelled group instead of two floating
+ * chip clouds. Board owns the chips and the header rows; this only owns their stack.
  * ------------------------------------------------------------------------- */
 .fork-turn-summary {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2);
+  flex-direction: column;
+  gap: var(--s3);
 }
 /* ---------------------------------------------------------------------------
  * fork:ui-21 — copy button glyph cross-fades instead of swapping.
@@ -1594,15 +1594,30 @@ html[data-theme-skin="true"] .main-workspace-header {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-/* 明细三节：宽浮窗里并排（会话信息 / 消息 / Token），窄屏自动落成一列。 */
+/* 明细两节：并排（消息 / Token），窄屏自动落成一列。
+   fork:stats-density（用户 2026-10-05 首报 / 2026-10-06 再报「浮窗变小点，中间空白
+   太多」）—— 宽浮窗里两节各摊到五百多 px，而 `.d-kv-row` 的值列是 `margin-left:auto`
+   顶到最右，于是标签与值之间空出一大片（用户截图里两块红框量的就是那段空白）。
+   现在：**给标签定宽、值紧跟其后**（值列仍然对齐成一条竖线，读数是按列比的），
+   并且**给整块封顶 400px**（两节各 ~194 + 间距），浮窗本身也从 620 收到 440。
+
+   ⚠ 别再把 `1fr` 换成 `minmax(180px, 260px)` 想「每节封顶 260」：auto-repeat 是拿
+   **max** 那个值数轨道的（`auto-fit` 的轨道定尺按 `minmax()` 的第二个值算），
+   260 的话要 2×260+间距 才排得下两列，440 的浮窗里就只剩一列 —— 两节竖着叠起来，
+   浮窗从 300 高变成 450 高，比原来还难看。反过来 `1fr` 的轨道数是按 **min** 数的：
+   内容宽要 ≥ 2×180+间距（=372）才排两列，所以浮窗宽度别掉到 420 以下（那正好
+   差一点）。要限宽就用容器 `max-width`。 */
 .composer-ring-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  max-width: 400px;
   gap: var(--s3);
   padding: var(--s1) var(--s2) var(--s2);
   font-size: var(--text-secondary);
   line-height: 1.5;
 }
+.composer-ring-details .d-kv-row > span:first-child { min-width: 84px; }
+.composer-ring-details .d-kv-row > span:last-child { margin-left: 0; }
 
 /* ---------------------------------------------------------------------------
  * fix:minimap-hover —— 转录右侧迷你地图的悬停浮层定位。
@@ -3170,3 +3185,129 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-group-dot--blue { background: var(--accent); }
 .fork-group-dot--violet { background: var(--accent-text); }
 .fork-group-dot--pink { background: var(--warning); }
+
+/* ===========================================================================
+ * fork:side-actions + fork:brand-lockup-center + fork:home-grid（用户 2026-10-05）
+ *
+ * 一条「按参考稿重排侧栏顶部 + 新会话空态」的改动，三个产品类：
+ *   ① `.fork-side-action` —— 侧栏顶部那两枚动作行（新建任务 / 搜索）。画板 D-02 的
+ *      `.d-row` 是 28px 行高、fs-body 的密集行（面板里列表项同一种），参考稿要的是
+ *      入口级的分量：行高抬到 36、文案抬到 fs-lg(16) + 500、图标 17。类叠在 `.d-row`
+ *      上，库的 hover / is-on 行为原样。
+ *   ② `.fork-brand-lockup` —— 空态中间的品牌锁。侧栏品牌行缩到 17/13 之后，那个尺寸在
+ *      首屏正中太小，所以这里把同名两件（`.d-logo` / `.d-wordmark`）放大到 24/20
+ *      （= 库在被用户裁之前的那个尺寸，值有出处，不新造）。
+ *   ③ `.fork-home-grid` —— 四张起步卡**一行两个**。库的 `.d-cardgrid` 是
+ *      `auto-fill minmax(220px, 1fr)`，在 1100 宽的主区里排成 3+1，右边空一格。
+ *      固定两列后对称，且每张卡宽到一行放得下说明文字。窄屏回一列。
+ * =========================================================================== */
+.fork-side-action {
+  min-height: 36px;
+  gap: var(--nx-sp-3);
+  font-size: var(--nx-fs-lg);
+  font-weight: 500;
+}
+
+.fork-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--nx-sp-3);
+}
+.fork-brand-lockup .d-logo { width: 24px; height: 24px; }
+.fork-brand-lockup .d-wordmark { height: 20px; line-height: 20px; }
+
+.fork-home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 640px) {
+  .fork-home-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* fork:cmd-row-fit（用户 2026-10-05 截图）—— 全局搜索（命令中心 D-22）结果行的两格
+ * 都收成一行省略。
+ * 症状：搜 “pwa” 时每条会话结果的标题被折成 “M- / 05 / _settings / frames” 四行竖排，
+ * 右下还多一条横向滚动条。根因是 `.d-cmd-kind` 在库里是 `flex: 0 0 auto` —— 板面上那一格
+ * 放的是 “⌘K” 这种几个字的键帽，而产品这一格放的是**会话的正文摘录**（`lib/session-search.ts`
+ * 给命中前后各 80 字）或一个完整路径：它不收缩，行被撑到几百 px 宽，`.d-grow` 的标题只剩
+ * 最小内容宽度 —— 而 `.d-grow` 只给了 `min-width: 0`，没给 nowrap + 省略号，于是逐字折行。
+ * 三件事各归其位：标题这一格补 nowrap/ellipsis；右端那格允许收缩并截到行宽的一半（标题
+ * 至少还剩一半）；`.d-cmd-results` 不再出横向滚动条。 */
+.d-cmd-row > .d-grow {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.d-cmd-row .d-cmd-kind {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.d-cmd-results { overflow-x: hidden; }
+
+/* 同一件毛病在窄屏那一支（`.m-sheet-row` = 标题 + 副行）上一样成立：那一格缺
+ * nowrap + 省略号，同样会把正文摘录整段折行。 */
+.m-sheet-row .m-setrow-t,
+.m-sheet-row .m-sheet-row-desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* fork:panel-head-no-scrollbar —— 右栏 / 主栏页头这一行**不画滚动条**。
+ * 2026-10-06 用户裁定（截图里那根贴着 git 钮的竖条）：这一行只有一个标签条加几枚
+ * 动作钮，没有任何可滚内容 —— 标签溢出由 TabBar 自己的「…」折叠处理，页头也从不
+ * 纵向滚动。画出来的滑块纯属噪声（桌面全局样式给了 8px 轨 + 圆角拇指，于是它读起来
+ * 像一根真的「滑动条」）。两行都写：`scrollbar-width` 给标准实现，`::-webkit-scrollbar`
+ * 给 Chromium（macOS 覆盖式滚动条不写宽度就照旧浮在那里）。 */
+.main-workspace-header,
+.main-workspace-header * {
+  scrollbar-width: none;
+}
+.main-workspace-header::-webkit-scrollbar,
+.main-workspace-header *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* fork:think-seg-scroll（用户 2026-10-06「这个给我弄成可以滑动的」）——
+   思考强度浮层里那排档位尺在窄窗口 / 长模型名时装不下：`.d-seg` 是 inline-flex、
+   宽度由内容决定，于是浮窗被顶得比输入卡还宽，被卡片的 `overflow-x: clip` 裁掉
+   一截（末尾的档位看不见，也没法点）。
+   现在：浮窗封顶 420（`100vw - 32` 兜窄窗），档位尺自己横向滚动 ——
+   装得下时与原来逐像素相同；装不下时用触控板 / 滚轮横滑，纵向滚也映射成横向
+   （这一行只有一列，纵向滚本来就没有别的可滚目标）。
+   滚动条不画：一条 28 高的横条在这个高度里纯属噪声，滚动靠滚轮与拖动。 */
+.fork-think-pop { max-width: min(420px, calc(100vw - 32px)); }
+.fork-think-seg {
+  display: flex;            /* inline-flex → flex：横向滚动需要块级轴 */
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fork-think-seg::-webkit-scrollbar { height: 0; }
+/* 档位按钮不许被挤扁：默认 `flex-shrink: 1` 会把「medium」压成两行，于是宁可缩容
+   也不滚动 —— 那就白加了 `overflow-x`。 */
+.fork-think-seg > button { flex: none; white-space: nowrap; }
+
+/* fork:instant-tip（用户 2026-10-05：「悬浮上去后立刻出现提示文字」）——
+   原生 `title` 的弹出延迟由浏览器 / 系统决定，页面上改不了，所以
+   components/InstantTooltip.tsx 在指针进场那一刻把 `title` 挪到 `data-tip`，
+   自己画这块图层。这条规则只补 `.d-pop-float`（底色 / 描边 / 圆角 / 阴影 / z 序都在
+   库里）**没有**的那几样：定位几何、可换行、不吃指针、淡入。
+   位置由 JS 写成 `transform: translate(x, y)`，所以这里不写 left / top。
+   `position` / `z-index` 是窄窗口的兜底：Web 形态库（≥641）已给，形态库缺席时仍能定位。 */
+[data-tip-layer] {
+  position: fixed;
+  z-index: var(--nx-z-pop, 500);
+  max-width: 260px;
+  font-size: var(--nx-fs-xs);
+  line-height: var(--nx-lh-body);
+  white-space: pre-wrap;      /* title 里带换行时照原样显示 */
+  overflow-wrap: anywhere;
+  pointer-events: none;       /* 提示绝不吃指针，否则悬停会断 */
+  opacity: 0;
+  transition: opacity 90ms var(--nx-ease);   /* 淡入，不是延迟：出场即到 */
+}
+[data-tip-layer][data-on] { opacity: 1; }

@@ -29,16 +29,27 @@
    `.d-tabs`（没有 ink）不受影响 —— 选择器带上了 `.d-tabbar`。 */
 .d-tabbar .d-tab.is-on::after { content: none; }
 
-/* 工具卡头的**首行顶部对齐**（2026-10-05 用户反馈：工具名与命令第一行没对齐，
-   看起来是「上下对不齐」）。画板 D-03d 的预览格是单行省略，`align-items:center`
-   在那里是对的；产品里真实命令常折成两行，于是工具名 / 状态徽章 / 耗时浮在
-   两行正中。这里换成首行对齐：图标与徽章下移一个 `--nx-sp-1`，正好落在第一行
-   文字的字面上（13px / 行高 1.6 → 行盒比字面高约 8px，一半即 `--nx-sp-1`）。
-   单行时与居中同形，所以画板那一帧的对位不受影响。 */
+/* fork:star-solid（用户 2026-10-06）—— 收藏星标只有一档读法：**空心 = 未收藏，实心 = 已收藏**。
+   产品原来用 `star` / `star-off` 两枚图标（后者是一颗划掉线），于是每行末尾都挂着一颗
+   带斜线的星，与行尾那枚「当前模型 ✓」并排时读成两套状态。lucide 全是描边图标，
+   实心只能靠 CSS 填色（svg 上的 `fill="none"` 是呈现属性，样式说算）——所以统一挂在
+   `.fork-star.is-on` 上，桌面 `.d-iconbtn` 与窄屏 `.m-iconbtn` 两处行共用这一条。
+   选择器是**后代**不是子：svg 挂在 `<i data-ico>` 里面，比挂点低一层。 */
+.fork-star.is-on svg { fill: currentColor; }
+/* 同一颗星的另一种挂法：图标本体直接带 `fork-star-on`（输入框那三处）。 */
+.fork-star-on svg { fill: currentColor; }
+
+/* 工具卡头的**首行对齐**（2026-10-05 用户反馈，两轮：先是「工具名与命令第一行没对齐」，
+   改完仍报「你这不还是没有顶部对齐」——因为旧规则只把 `.d-t-xs` / `.d-badge` / `i`
+   一起下移了 `--nx-sp-1`，唯独漏了工具名 `.d-t-sm`，而图标那 4px 又把 13px 的图标盒
+   推到了首行字面**上方** 2.4px）。
+   画板 D-03d 的预览格是单行省略，`align-items:center` 在那里是对的；产品里真实命令
+   常折成两行，于是图标 / 工具名 / 徽章 / 耗时浮在两行正中。这里改成首行对齐：
+   所有件都从内容盒顶排，**只有图标**按「首行行盒比图标高多少」补半行leading ——
+   `((1.6 × --nx-fs-xs) − 13px) / 2` 正好是单行居中时图标盒相对内容盒的偏移，
+   所以单行卡与画板那一帧逐像素同形，多行卡则整簇贴住第一行。 */
 button.d-tool-head { align-items: flex-start; }
-button.d-tool-head > i,
-button.d-tool-head > .d-badge,
-button.d-tool-head > .d-t-xs { margin-top: var(--nx-sp-1); }
+button.d-tool-head > i { margin-top: calc((var(--nx-lh-body) * var(--nx-fs-xs) - 13px) / 2); }
 
 /* 过程组摘要行是**数据行**（「8 个文件 · 77 条命令 · …」），不是卡片标题；
    `.d-card-head` 的 600 在别的卡（设置分组、扩展面板）是标题语气，用在这里
@@ -97,6 +108,16 @@ button.d-tool-head > .d-t-xs { margin-top: var(--nx-sp-1); }
 .d-sess-m { height: 28px; }
 .m-row-m { height: 36px; }
 
+/* fork:caret-corner（用户 2026-10-05）—— 子代理折叠箭头落在**行右上角**，绝对定位，
+   不进流（行高必须与状态无关：`useSessionRowHeight` 量一次就够）。
+   箭头原本挤在元信息行里（「N 条消息」与四枚 hover 动作之间），且它自己的 hover
+   底色在行里画出第二个盒子 —— 用户报的重影。标题给它让出右侧 22px，长标题用
+   省略号收尾（`.d-sess-t` 本来就是 nowrap + ellipsis，不改行高）。 */
+.d-sess { position: relative; }
+.fork-sess-caret { position: absolute; top: 3px; right: 4px; display: flex; }
+.fork-sess-caret .d-iconbtn { width: 22px; height: 22px; }
+.d-sess:has(.fork-sess-caret) .d-sess-t { padding-right: 24px; }
+
 /* M-12/M-09 的抓手 `.m-sheet-grab` 在画板里只是手势提示条，产品里是
    「点一下即收」的钮（2026-10-05 用户反馈：抓手就该能关）。元素从 div 换成
    button（同位同类名，与本仓「画板 div→button」的既定换法一致），这里还原
@@ -114,4 +135,204 @@ button.m-sheet-grab {
   background: var(--nx-line-hi) content-box;
   border-radius: 999px;
   cursor: pointer;
+}
+
+/* M-12 帧 B 修正（2026-10-06 逐帧 · fork:v5-m12-trace-pane）
+ * 「调用轨迹」这一块在 M-12 那一层里是 **pane 正文**，不是整层浮起。
+ * `TraceFrame` 原来在 PWA 挂 `.m-viewer`（库里的 `position:absolute; inset:0`），
+ * 于是它从 `.m-panel-scroll` 里逃出去铺满视口，把该层的六项横滚切换条整条盖掉 ——
+ * 点进「轨迹」就再也切不回别的块。这里给它两块接线用的壳：
+ *   · fork-trace-pane：pane 内的一列（拿到 `flex:1 / min-height:0` 这条高度链）
+ *   · fork-trace-bar ：块自己的页头（刷新 / 全屏），把 `.m-viewer-bar` 那 50px
+ *                      状态栏让位去掉 —— 那一格是给整层顶栏的，在 pane 里再留
+ *                      一次就是白扔一屏。
+ * 两个 fork-* 都只出现在产品接线层，库与画板没有；尺寸全部取库里已有的角色值。 */
+.fork-trace-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.fork-trace-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--nx-sp-1);
+  flex: 0 0 auto;
+  padding: var(--nx-sp-2);
+  border-bottom: 1px solid var(--nx-line);
+  background: var(--nx-panel);
+}
+
+/* M-12 帧 B（2026-10-06 逐帧 · fork:v5-m12-file-pane）
+ * 「文件」这一块在 M-12 那个 pane 里的顶栏行：上头已经有 `.m-viewer-bar`
+ * （六项横滚 + ×），所以这里只是一行「返回 / 路径 / 动作」，不再画 `.m-top`
+ * （绝对定位 + 渐隐底 + 状态栏让位）。画板 M-12 帧 B 的 pane 里只有一层内容。
+ * 尺寸全部取库里已有的角色值；`fork-pane-bar` 只出现在产品接线层。 */
+.fork-pane-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--nx-sp-1);
+  flex: 0 0 auto;
+  padding: var(--nx-sp-2);
+  border-bottom: 1px solid var(--nx-line);
+  background: var(--nx-panel);
+}
+
+/* M-06 帧 A（2026-10-06 逐帧 · fork:v5-m06-vbar-full）
+ * 底部动作条 `.m-vbar` 在板面上是 `.m-phone-inner` 的直接子元素（满 390 宽），
+ * 三项各 119px + 两个 6px 间距 + 20px 内距 = 389，刚好一行。
+ * 产品里它在 `.m-panel-scroll` 里面，而那层有 `padding: var(--nx-sp-3)`（12px），
+ * 于是可用宽只剩 366px：三项被压到 111px，「复制路径」四个字 + 图标放不下就折成两行，
+ * 整条动作条从一行变两行。
+ * 这里让这条 bar 横向顶满 pane：负边距正好等于**容器自己的**那一格内距，
+ * 所以落点就是 pane 边缘，不会溢出、也不会顶到别的东西（AGENTS.md 里记的那个
+ * 「负 margin 把树列顶出面板」是另一回事 —— 那个负的值不等于容器内距）。
+ * 三项的宽度仍由库里的 flex 决定，这里一个尺寸值都不新增。
+ * 选择器用后代而非子：文件树把这条 bar 包在 `.file-explorer-section` › 一层 div 里
+ * （实测链路 `m-vbar < div < div < file-explorer-section < m-panel-scroll`）。 */
+.m-panel-scroll .m-vbar {
+  margin-left: calc(-1 * var(--nx-sp-3));
+  margin-right: calc(-1 * var(--nx-sp-3));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * M-07 / M-08 逐帧（2026-10-06 · fork:v5-pwa-m0708）
+ *
+ * 这一段只做两件事，都属于「产品接线钩子」，不引入任何新的设计值：
+ *   ① 把两块**本该是 pane 正文**的手机页面从「整层浮起」的类上换下来
+ *      （与 TraceFrame 的 `fork-trace-pane` / FileExplorer 的 `fork-pane-bar`
+ *      同一路，见 `design/v5/DIVERGENCE.md` O 节）；
+ *   ② 把 `app/globals.css` 的 DSN-04（≤640px 给每个 `button` 补
+ *      `min-height: var(--control-touch)`）从画板**写死 height** 的小件上撤掉。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ①-a · M-07 帧 A 的浏览器在产品里是 pane 正文
+ *
+ * 根因：`BrowserPanel` 的 PWA 根原来挂 `.m-viewer`（库里的
+ * `position:absolute; inset:0; z-index: var(--nx-z-panel)`）**再加内联
+ * `fixed / inset:0`**。它的宿主是 `.file-panel-main`（或 M-12 那一层的
+ * `.m-panel-scroll`）—— 一块 pane 正文；`inset:0` 于是让它脱离容器铺满视口。
+ * 实测（390×844）：`.m-viewer` = 390×844 / `position:fixed` / z=100，
+ * 把宿主自己的页签条整条盖掉；`.m-viewer-bar` / `.m-panel-scroll` 根本不在树上，
+ * 顶栏那枚 M-12 入口钮被 `.m-urlbar` 接管指针（Playwright 报
+ * 「`.m-urlbar` intercepts pointer events」），手机上进得去出不来，重载后照样。
+ *
+ * 换法与 `fork-trace-pane` 逐字同构（flex 列 + `flex:1 1 auto` + `min-height:0`
+ * 这条高度链），底色沿用 `.m-viewer` 原来那一档 `var(--nx-panel)`，
+ * `fork-*` 只出现在产品接线层，库与画板都没有。
+ * 修完实测：1,36 / 389×632，`position:static` —— 落在宿主自己的盒子里。
+ * `height:100%` 是因为 AppShell 的 `box()` 常驻壳是 `<div style="width:100%;
+ * height:100%">`（块级，不是弹性列）—— 只给 `flex:1 1 auto` 高度会塌成内容高
+ * （`TraceFrame` 的 `fork-trace-pane` 当年也是在组件里补了这一条）。
+ * 父级是弹性列时（M-12 那一层的 `.m-panel-scroll`）`flex` 那三条仍然生效，两条并存不冲突。 */
+.fork-browser-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--nx-panel);
+}
+
+/* `.m-urlbar` 的 52px 上内距是**状态栏让位**（板面上它下面是画出来的
+   `.m-statusbar`）。产品没有那一格：iOS 上由 `env(safe-area-inset-top)` 承担，
+ * pane 里则由宿主自己的页签条 / `.m-viewer-bar` 承担 —— 留着就是 52px 死空间
+ * （实测修完 `.m-urlbar` 高 104px，其中 52px 全空）。
+ * 与 FileExplorer 把 `.m-top`（绝对定位 + 渐隐底 + 状态栏让位）换成
+ * `fork-pane-bar` 是同一条理由；取值用板面这一行自己的下内距 `--nx-sp-2`，
+ * 不新增值。其余三边（`10px` 横内距 / 44px 地址框 / 8px 下内距）照旧。 */
+.fork-browser-pane .m-urlbar {
+  padding-top: var(--nx-sp-2);
+}
+
+/* ①-b · M-07 帧 D 的 Git 图谱：pane 里的页头与正文让位
+ *
+ * `.m-panel-scroll` 自己在库里的注释就写死了这一条：「等价于 `.m-settings`
+ * 去掉顶栏占位（层顶已经有 `.m-viewer-bar` 让开状态栏，再借 108px 就是白扔
+ * 一屏）」。画板帧 D 画的是整页，所以那一格让位与 `.m-top` 成对；pane 里顶栏是
+ * `fork-pane-bar`（普通行，不绝对定位），让位没有对象。
+ * 修前实测：`.m-viewer-bar` 0–107 / 第二条 `.m-top` 119–179 / 正文起点 227
+ * （844px 里空掉 108px）；修后：页头 119–179 之下直接接正文（8px 上内缩）。
+ * `height:100%` 同上（AppShell `box()` 的常驻壳是块级 100%）。 */
+.fork-git-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.fork-git-body {
+  padding-top: var(--nx-sp-2);
+}
+
+/* ② · DSN-04 的 `button { min-height: 36px }` 与画板写死的 `height` 打架
+ *
+ * `app/globals.css:1972`（DSN-04，≤640px）给每个 `button / select /
+ * [role=tab] / [role=option]` 补 `min-height: var(--control-touch)`（36px）。
+ * `min-height` 只压高、不碰宽，所以画板里**用 `height` 写死尺寸**的小件一律被顶成
+ * 36px —— M-07 / M-08 这两屏实测两处：
+ *   `.m-vp`（设备视口条上的档位钮）  板面 28px → 产品 36px
+ *   `.m-seg > button`（命令中心分段）   板面 28px → 产品 36px
+ * 同一块托盘里的 `.m-tray-chip` 反而是 28px —— 因为它自己声明了
+ * `min-height: var(--nx-ctl-xs)`，类选择器压过了 DSN-04 的 `button`。
+ * 于是「前缀 chip 28 / 分段钮 36」两种高度并排，是同一个原因的两副面孔。
+ *
+ * 这里把**板面自己声明的那一档**还回去：值取板面同一行里的 `var(--nx-ctl-xs)`，
+ * 一个新值都不加。需要 44px 触控靶的件挂 `.m-touch-44`（库里有，M-06 帧 A
+ * 的底部动作条就是这么做的）；`.m-top-btn` / `.m-sheet-row` 本来就是 44，不受影响。 */
+.m-vp,
+.m-seg > button {
+  min-height: var(--nx-ctl-xs);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * M-09 帧 B / M-10 帧 D · `.m-switch` 的几何与命中区（2026-10-06 · fork:v5-pwa-switch）
+ *
+ * 根因与上面 ② 段**同一条**：`app/globals.css:1972` 的 DSN-04 在 ≤640px 给
+ * 每个 `button` 补 `min-height: var(--control-touch)`，而 `--control-touch` 在
+ * 本仓是 **36px**（`globals.css:196`：`var(--ds-control-touch)` /* 44 → 36 */）。
+ * 库里 `.m-switch` 是**写死 `height: 29px`** 的小件（`system.css:454`），
+ * `min-height` 只压高不碰宽 —— 于是这枚开关在手机上被顶成 **48×36**。
+ *
+ * 实测（390×844，定时任务页，带一条真任务的卡）：
+ *   画板 M-09 帧 B `.m-croncard-head .m-switch` = 48.0×29.0（`min-height: auto`）
+ *   产品同一部位                                = 48.0×36.0（`min-height: 36px`）
+ * 撤销 `min-height` 后立刻回到 48.0×29.0 —— 与画板逐值相同。
+ *
+ * 上一段（`.m-vp` / `.m-seg > button`）的收法是「把板面自己声明的那一档还回去」，
+ * 这一件不能照抄：`.m-switch` 的板面高度 29px **不是任何一枚 `--nx-ctl-*` 令牌**
+ * （`--nx-ctl-xs`=28 / `--nx-ctl-sm`=36 / `--nx-ctl-md`=44），照抄会把几何
+ * 改成 28 —— 那是从「与画面差 7px」变成「与画面差 1px 但不再是同一个数」。
+ * 这里只**撤销 min-height**（`min-height: 0`），让库自己那条 `height: 29px`
+ * 原样生效，一个字都不用改库。
+ *
+ * 撤销之后命中区从 36 掉到 29，低于 M-11 帧 C 的 44 硬下限。板上那颗开关本来
+ * 就**没有**命中外扩（实测画板 `.m-switch` 的可命中区 = 48×30，与盒子同大）——
+ * 画板那一帧是静态示意，帧 C 的判据（「44px 是命中区，不是视觉高度」）才是规格。
+ * 所以按规格补外扩，且**只用 `::before`**：`.m-switch::after` 已经被库占用
+ * （`system.css:456`，那是 24×24 的圆钮），抢它会把开关的滑块抹掉。
+ * 外扩量由 `--nx-touch-min`（PWA 档 44px）减去板面自己那条 29px 得出，
+ * 不新增任何字面量：`(44 - 29) / 2 = 7.5px` 上下、`(44 - 48) / 2 = -2px` 左右
+ * （宽本来就够 44，左右写成负值等于不外扩）。
+ *
+ * 作用域只给 `<button>`：`.m-switch` 还有一处是 `<span aria-hidden>`（
+ * `PwaPage.tsx:137` 的 `PwaSwitchRow`，纯视觉件），它不是 button，DSN-04 本来
+ * 就不命中它，那一处无需（也不该）改 —— 行本体 `.m-setrow` 已经是 44。
+ *
+ * 桌面（>640px）整段不生效，DSN-04 与库的值都不动。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  button.m-switch {
+    /* 只撤 DSN-04 补的那一档；`height` 仍由 pwa/system.css 的 `.m-switch` 给出。 */
+    min-height: 0;
+    position: relative;
+  }
+  button.m-switch::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--nx-touch-min) - 29px) / -2) calc((var(--nx-touch-min) - 48px) / -2);
+  }
 }

@@ -5,8 +5,7 @@
 // （LANDING §0：类名相同 ≠ 结构相同，只加类不换 DOM 就是这条路）。
 //
 // 本批覆盖：
-//   · D-01/D-02/D-02d 的 `<img class="d-wordmark">`（此前产品内联了第二份尺寸）
-//   · D-01/D-02 的 `.d-side-nav > .d-row` 行尾 `.d-kbd`（⌘N）
+//   · D-01/D-02/D-02d 的品牌字标（此前产品内联了第二份尺寸）
 //   · D-02/D-02b/D-02c/D-02d 每条桌面顶栏的 `.d-tb-spacer`
 //   · D-02 帧 D / D-02d 帧 E 搜索格的外层 `.d-side-nav`（间距不再有第二个来源）
 //   · M-01/M-04 的窄屏会话标题 `.m-top-title`（d-* 在 ≤640 不生效，此前那格是白板）
@@ -28,22 +27,37 @@ test("品牌字标走画板那一件 .d-wordmark，不再内联第二份尺寸",
   // 产品原来写死 height:10 —— 同一个值两处（铁律三），且比画板矮一半。
   // fork:v5-frame-audit-2026-10-05：品牌行照画板逐节点抄，字标**本身就是**那张图
   // （原来外面还套了一层按钮，把板面上两件并列的件折成「壳 + 按钮 + 图」）。
-  // 「点头像翻版本号」的行为没删，只是搬到了这张图上（role=button + 键盘）。
+  // fork:drop-brand-scramble（用户 2026-10-05）：「点头像翻版本号」这个彩蛋**删掉**
+  // —— 点一下字标会换成 `0.1.9-beta.1+…p1.0.0` 滚 3 秒，顶到行外、把搜索与折叠两枚
+  // 钮挤没（用户原话「版本号炸了」）。版本号在侧栏底栏有一处，那才是它该在的地方；
+  // 连带删掉 useScramble 与相关 state（只有一个消费者）。所以这里断言的是**纯 img**：
+  // 不再挂 role=button / tabIndex / onClick / title（挂了就等于把彩蛋留一半）。
   assert.match(
     sidebar,
-    /<img className="d-wordmark" src="\/pi-next-wordmark\.png" alt="PI NEXT" draggable=\{false\} \{\.\.\.wordmarkProps\} \/>/,
+    /<img className="d-wordmark" src="\/pi-next-wordmark\.png" alt="PI NEXT" draggable=\{false\} \/>/,
   );
+  assert.doesNotMatch(sidebar, /wordmarkProps/);
+  assert.doesNotMatch(sidebar, /useScramble/);
   assert.doesNotMatch(sidebar, /pi-next-wordmark\.png[^>]*height:/);
   assert.doesNotMatch(sidebar, /d-brand-lockup/);
 });
 
-test("侧栏「新建任务」行尾有 .d-kbd（⌘N），与窄屏那一支同一件", () => {
+test("侧栏顶部「新建任务」行按参考稿放大，且**不印**快捷键帽（⌘N 是假的）", () => {
+  // fork:drop-fake-kbd（用户 2026-10-05）—— 画板 D-01/D-02 那枚 `.d-kbd`（⌘N）不再进
+  // 产品：`lib/shortcuts.ts` 里 newSession 的真实键位是 Ctrl+Alt+N（⌥⌘N），⌘N 什么
+  // 都不是。
+  assert.doesNotMatch(sidebar, /d-kbd/);
+  assert.doesNotMatch(sidebar, /m-badge mute">⌘N/);
+  assert.doesNotMatch(sidebar, /⌘N/);
+  // fork:side-actions —— 那一行仍是库里的 `.d-row`，几何交给产品类 `.fork-side-action`。
   assert.match(
     sidebar,
-    /<span className="d-grow">\{t\("sidebar\.newTask"\)\}<\/span>\s*(?:\{\s*\})?\s*<span className="d-kbd">⌘N<\/span>/,
+    /<button\s+type="button"\s+onClick=\{handleNewSession\}[\s\S]{0,400}?className="d-row fork-side-action"[\s\S]{0,200}?square-pen/,
   );
-  // 窄屏那一枚仍是 .m-badge mute（同一个 ⌘N，两种形态）。
-  assert.match(sidebar, /className="m-badge mute">⌘N<\/span>/);
+  // fork:side-actions —— 搜索**不**再加第二行（用户 2026-10-05「先帮我去掉」）：
+  // 侧栏顶部只有这一枚动作行，搜索的唯一入口仍是抽屉头那枚放大镜。
+  assert.equal((sidebar.match(/fork-side-action/g) ?? []).length, 1);
+  assert.doesNotMatch(sidebar, /openSessionSearch/);
 });
 
 test("桌面顶栏的身份两行与动作簇之间是 .d-tb-spacer，不是动作簇的 margin-left:auto", () => {

@@ -33,6 +33,7 @@ import { ChatWindow } from "./ChatWindow";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
 import { FileViewer, type FileLocationTarget, type FileSelectionContext } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
+import { useDismissOnOutside } from "./PortalDropdown";
 // fork:proma-38-tab-boundary —— 每个 tab 的内容各包一层错误边界。
 import { TabErrorBoundary } from "./TabErrorBoundary";
 // fork:proma-38-tab-reorder / fork:proma-38-tab-mru —— 拖拽排序与关闭回退的纯逻辑。
@@ -177,6 +178,15 @@ const GIT_GRAPH_TAB_ID = "git-graph";
 /** fork:proma-39-changes — 单例改动面板 tab 的 id（同样不与 `file:<path>` 撞名）。 */
 /** fork:trace-pane — 单例「调用轨迹」tab 的 id（同一约定）。 */
 const TRACE_TAB_ID = "trace";
+/* fork:v5-m12 —— 手机右栏选单里那六块的固定 key（画板 M-12 帧 A，一块一行）。
+   轨迹 / Git 直接用它们自己的单例 tab id；文件这一块在手机上就是文件面板
+   （正文是那一列树，所以给一个不进 `panelTabs` 的独立 id，不会与 `file:<path>` 撞名）；
+   终端 / 浏览器开着时用真实页签 id、关着时用这两个占位（点它现开一个），
+   「审查」是文件树里那一节，所以它的正文就是树。 */
+const FILE_PANEL_TAB_ID = "file-panel";
+const TERMINAL_BLOCK_KEY = "terminal-block";
+const BROWSER_BLOCK_KEY = "browser-block";
+const REVIEW_BLOCK_KEY = "review-block";
 const AGENT_PANEL_WIDTH = 420;
 /* fork:top-panel-anchor —— 画板 22 的 `.pw-pop` 是 320 宽；系统提示词 / 工具两个
    浮层的内容按这个宽度排版。Agent 面板有自己的宽度（上方 AGENT_PANEL_WIDTH）。 */
@@ -638,6 +648,13 @@ export function AppShell() {
      横向拉满整条顶栏 —— 点右边那颗按钮，弹层却从左边冒出来。
      这里记下「谁被点了」，定位时量那一个元素；量不到时回落到顶栏左缘。 */
   const topPanelAnchorRef = useRef<HTMLElement | null>(null);
+  /* fork:top-panel-dismiss（用户 2026-10-05）—— 「点了「工具定义 / 系统提示」，点旁边
+     其它地方它不消失，非得再点一次那枚钮」：这一族顶栏浮层此前**只有触发钮的 toggle**
+     与分支浮层自己的关法，没有「点外面就关」。`useDismissOnOutside` 就是那份现成判据
+     （PortalDropdown 里，MCP / 插件两枚浮窗在用），接上锚点与浮层本体两个 ref 就够。 */
+  const topPanelRef = useRef<HTMLDivElement>(null);
+  const closeTopPanel = useCallback(() => setActiveTopPanel(null), []);
+  useDismissOnOutside(Boolean(activeTopPanel), topPanelAnchorRef, topPanelRef, closeTopPanel);
   const toggleTopPanel = useCallback((
     panel: "agents" | "branches" | "system" | "tools",
     trigger?: HTMLElement | null,
@@ -800,6 +817,11 @@ export function AppShell() {
   const [gitGraphOpen, setGitGraphOpen] = useState(false);
   // fork:proma-39-changes — 单例「改动」面板（与图谱同为「看一眼」的视图，不持久化）。
   const [changesOpen, setChangesOpen] = useState(false);
+  /* fork:v5-m12 —— 「审查」块进来一次就递增一次，ExplorerPanel 拿它展开改动那一节
+     （见 ExplorerPanel 的 openChangesSignal）。2026-10-03 之前这两个 state 是
+     声明了没人用的残留，选单因此只有两行。 */
+  const [changesSignal, setChangesSignal] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
   // 有新改动但用户没在看改动 tab 时的未读标记（只提示，绝不自动切 tab）。
   const [changesUnseen, setChangesUnseen] = useState(false);
 
@@ -2281,8 +2303,13 @@ export function AppShell() {
         >
           <i data-ico="smartphone" data-size={isMobile ? "15" : "14"} aria-hidden="true"></i>
         </button>
+        {/* fork:sw-cache-version —— 这里**只印发行号**。`NEXT_PUBLIC_APP_VERSION` 自
+            2026-10-06 起是 `包版本+短sha[-dirty]`（源码指纹，SW 靠它轮换缓存，用户实测
+            「改的没效果」时加的），拿它直接印出来就是 `0.1.9-beta.1+31a3fac4-dirty`
+            —— 指纹对用户没有意义，只会把底栏撑长（用户 2026-10-05 实拍）。
+            `+` 之后那一段是给机器看的，这里切掉；完整指纹仍在 SW 与更新检查里生效。 */}
         <span className={isMobile ? "m-badge mute" : "d-badge mute"}>
-          v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}
+          v{(process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0").split("+")[0]}
         </span>
       </div>
     </>
@@ -2922,10 +2949,25 @@ export function AppShell() {
      （`onSelect` 先把块打开，key 就是单例 tab id —— 打开后 `panelTabs` 里的
      同 key 行接替它，选单既不重复也不换来源）。文件 / 终端 / 浏览器 / 会话
      仍是「开了才列」：它们没有不依赖具体页签的正文。 */
-  /* `renderTabContent` 在本函数之后才声明（它依赖下面的面板区 JSX），所以这里不能用它
+  /* fork:v5-m12 —— M-12 帧 A「六项常驻」：**一行 = 一块**，不是一行 = 一个页签。
+     之前这里以 `panelTabs` 为准（开着什么列什么），于是手机上常常只剩两行 ——
+     「六块共用一层切换条」写在选单分组标题上，行却不到六块。
+     现在固定六行，与画板同序：轨迹 / 文件 / 终端 / 浏览器 / Git / 审查。
+     每行的现状一句取自真实数据（关着就写「未打开 · 点按打开」），点它是
+     「开着就切过去，没开先把块打开」，所以这六行永远进得去。
+     「审查」与 M-06 帧 E 是同一个入口：2026-10-03 裁定删掉了独立改动 tab，
+     清单只留在文件树里那一节，所以这一行进的是树 + 展开改动（`openChangesSignal`），
+     不是另起一块正文 —— 那才是「同一个视觉两个来源」。
+     `renderTabContent` 在本函数之后才声明（它依赖下面的面板区 JSX），所以这里不能用它
      做依赖。改成**惰性 ref**：列表项的 render 只在切到那一块时才读它，
-     而那一块能渲染出来时它必然已经初始化 —— 既不提前读，也不在依赖数组里出现。 */
+     而那一块能渲染出来时它必然已经初始化 —— 既不提前读，也不在依赖数组里出现。
+     终端 / 浏览器关着时 `onSelect` 现开一个页签，`openKey` 与它同批提交，
+     重渲染后本行已指向那个新页签，所以 `render` 第一次调用就拿得到正文。 */
   const renderTabContentRef = useRef<((tabId: string, resident: boolean) => React.ReactNode) | null>(null);
+  /* 「文件」与「审查」两块的正文就是文件面板那一列树。它在本函数**之后**才声明
+     （它依赖 handleOpenFile 等一串回调），所以同样走惰性 ref：render 切到那两块
+     时才读，那时它必然已经赋值。 */
+  const explorerPanelRef = useRef<React.ReactNode>(null);
   /* 与 openGitGraphTab / handleViewFullHistory 同一动作，但不 setRightPanelOpen ——
      手机上没有桌面右栏，别为它留一个「回到桌面时面板突然开着」的尾巴。 */
   const openMobileTrace = useCallback(() => {
@@ -2936,41 +2978,98 @@ export function AppShell() {
     setGitGraphOpen(true);
     setActiveFileTabId(GIT_GRAPH_TAB_ID);
   }, []);
+  /* 「审查」块：2026-10-03 裁定后它是文件树里那一节，所以这一块打开的是文件面板，
+     并把改动那一节叫开（`openChangesSignal` 递增）。正文直接给 `explorerPanel`
+     ——与桌面右栏那一列同一个节点，不另画一份树。 */
+  const openMobileReview = useCallback(() => {
+    setChangesOpen(true);
+    setChangesSignal((n) => n + 1);
+    if (!fileTabs.length && activeFileTabId !== FILE_PANEL_TAB_ID) setActiveFileTabId(FILE_PANEL_TAB_ID);
+  }, [activeFileTabId, fileTabs.length]);
+
   const mobileRightPanelItems = useMemo<MobileRightPanelItem[]>(() => {
-    const items: MobileRightPanelItem[] = [];
-    if (!traceOpen && selectedSession) {
-      items.push({
+    /* 一块 = 图标 / 名字 / 现状一句 / 行尾徽章 / 点它做什么 / 正文。
+       「开着没」决定 onSelect 是切过去还是先开，而现状一句照实写：开着写它真实的
+       标识（页签名 / 路径 / URL），关着写「未打开 · 点按打开」——板面上那六个数字
+       （1,284 个文件 / 领先 3 个提交…）本仓此刻拿不到就不编，写不出就照实说关着。 */
+    const closed = translate("pwa.rightPanels.closedHint");
+    const terminalTab = terminalTabs[0];
+    const browserTab = browserTabs[0];
+    const fileTab = fileTabs.find((tab) => tab.id === activeFileTabId) ?? fileTabs[0];
+
+    return [
+      {
         key: TRACE_TAB_ID,
-        icon: "route",
+        icon: "history",
         label: translate("trace.title"),
-        description: translate("pwa.rightPanels.closedHint"),
+        description: traceOpen ? translate("trace.title") : closed,
+        trailing: traceOpen ? <span className="m-dot" /> : undefined,
         onSelect: openMobileTrace,
         render: () => (renderTabContentRef.current?.(TRACE_TAB_ID, false) ?? null),
-      });
-    }
-    if (!gitGraphOpen) {
-      items.push({
+      },
+      {
+        key: FILE_PANEL_TAB_ID,
+        icon: "folder-tree",
+        label: translate("pwa.rightPanels.files"),
+        description: fileTab ? fileTab.label : closed,
+        trailing: fileTab ? <span className="m-badge mute">{translate("pwa.rightPanels.treeAndViewer")}</span> : undefined,
+        onSelect: () => { if (fileTab) setActiveFileTabId(fileTab.id); },
+        render: () => (fileTab
+          ? renderTabContentRef.current?.(fileTab.id, false) ?? null
+          : explorerPanelRef.current),
+      },
+      {
+        /* fork:v5-m12-key（2026-10-06）—— key **必须是块的 id，不能是页签 id**。
+           `RightPanelsMobile` 把选中的那一块记在 `openKey` state 里，而 `onSelect`
+           与 `enter(key)` 在同一个点击里跑：关着的终端一点，onSelect 就新建了一个
+           页签，本行的 key 于是从 `terminal-block` 变成那个真实页签 id，而 `openKey`
+           还停在旧值 —— `items.find(i => i.key === openKey)` 找不到任何一行，
+           `layerItem` 变 undefined，整层**什么都不渲染**（实测：切到终端是一片空白，
+           连键排都没有）。所以 key 恒为块 id，页签 id 只在 `render` / `onSelect`
+           里面现算。 */
+        key: TERMINAL_BLOCK_KEY,
+        icon: "terminal",
+        label: translate("pwa.rightPanels.terminal"),
+        description: terminalTab ? terminalTab.cwd : closed,
+        trailing: terminalTab ? <span className="m-dot" /> : undefined,
+        containerClassName: "m-panel-scroll m-term-mobile",
+        onSelect: () => { if (terminalTab) setActiveFileTabId(terminalTab.id); else handleOpenTerminal(activeCwd ?? ""); },
+        render: () => (terminalTab ? renderTabContentRef.current?.(terminalTab.id, false) ?? null : null),
+      },
+      {
+        key: BROWSER_BLOCK_KEY,
+        icon: "globe",
+        label: translate("pwa.rightPanels.browser"),
+        description: browserTab ? browserTab.url : closed,
+        trailing: browserTab ? <span className="m-badge mute">{translate("pwa.rightPanels.readOnly")}</span> : undefined,
+        onSelect: () => { if (browserTab) setActiveFileTabId(browserTab.id); else handleOpenBrowser(); },
+        render: () => (browserTab ? renderTabContentRef.current?.(browserTab.id, false) ?? null : null),
+      },
+      {
         key: GIT_GRAPH_TAB_ID,
         icon: "git-branch",
         label: translate("git.graph"),
-        description: translate("pwa.rightPanels.closedHint"),
+        description: gitGraphOpen ? (activeCwd ?? "") : closed,
         onSelect: openMobileGitGraph,
         render: () => (renderTabContentRef.current?.(GIT_GRAPH_TAB_ID, false) ?? null),
-      });
-    }
-    items.push(...panelTabs.map((tab) => ({
-      key: tab.id,
-      icon: tab.kind === "git-graph" ? "git-branch"
-        : tab.kind === "trace" ? "route"
-        : tab.kind === "terminal" ? "terminal"
-        : tab.kind === "browser" ? "globe"
-        : tab.kind === "session" ? "message-square" : "file",
-      label: tab.label,
-      description: tab.filePath || "",
-      render: () => (renderTabContentRef.current?.(tab.id, false) ?? null),
-    })));
-    return items;
-  }, [gitGraphOpen, openMobileGitGraph, openMobileTrace, panelTabs, selectedSession, traceOpen, translate]);
+      },
+      {
+        key: REVIEW_BLOCK_KEY,
+        icon: "file-diff",
+        label: translate("pwa.rightPanels.review"),
+        description: reviewCount > 0
+          ? translate("pwa.rightPanels.reviewCount", { count: reviewCount })
+          : closed,
+        trailing: reviewCount > 0 ? <span className="m-badge mute">{reviewCount}</span> : undefined,
+        onSelect: openMobileReview,
+        render: () => explorerPanelRef.current,
+      },
+    ];
+  }, [
+    activeCwd, activeFileTabId, browserTabs, fileTabs, gitGraphOpen,
+    handleOpenBrowser, handleOpenTerminal, openMobileGitGraph, openMobileReview,
+    openMobileTrace, reviewCount, terminalTabs, traceOpen, translate,
+  ]);
 
   const renderMainFileToggle = (mobile: boolean) => {
     if (mobile) {
@@ -2979,7 +3078,7 @@ export function AppShell() {
       return (
         <MobileRightPanels
           items={mobileRightPanelItems}
-          title={translate("files.showPanel")}
+          title={translate("pwa.rightPanels.title")}
           closeLabel={translate("chat.close")}
         />
       );
@@ -3081,8 +3180,9 @@ export function AppShell() {
   // open, and as a right-hand column beside the active viewer. Sharing one node
   // keeps the two spots from drifting apart.
   // fork:ui-panel-row — true when the tree itself occupies the panel, i.e. no
-  // file/terminal/browser tab is active. Then the panel-level buttons move into
-  // the tree's toolbar row.
+  // file/terminal/browser tab is active. 手机档它还管着面板级动作（浏览器钮）要不要
+  // 进 `.m-top`；桌面档 2026-10-06 起这两枚动作都住在面板头行（见下面的
+  // `panelHeadActions`），文件树头行不再重复。
   const showExplorerToolbarRow = Boolean(
     activeCwd
     && !activeFileTab?.filePath
@@ -3116,9 +3216,17 @@ export function AppShell() {
       onExplorerRefresh={handleExplorerRefresh}
       onAtMention={handleAtMention}
       onAtMentions={handleAtMentions}
-      trailingActions={showExplorerToolbarRow ? browserTabButton : null}
+      /* fork:v5-m12 —— 手机选单里那两行（「审查」行写几个文件待看 / 点它展开改动）。 */
+      openChangesSignal={changesSignal}
+      onReviewCountChange={setReviewCount}
+      /* fork:v5-m12-pane —— 手机上这棵树**永远**在另一条顶栏底下：要么是 M-12 那个
+         pane 的六项横滚切换条，要么是文件查看器自己的 `.m-viewer-bar`。所以窄屏
+         一律不再画第二条 `.m-top`（画板 M-12 帧 B 的 pane 里只有一层内容）。 */
+      inPanel={isMobile}
+      trailingActions={isMobile && showExplorerToolbarRow ? browserTabButton : null}
     />
   ) : null;
+  explorerPanelRef.current = explorerPanel;
 
   // fork:pr40-split —— 一个 tab 的内容。单列与分屏共用同一个函数，避免两条渲染路径
   // 各自漂移（上一轮自动合并就是在这块 JSX 上断的）。
@@ -3555,7 +3663,7 @@ export function AppShell() {
                定位容器上，里面的 SystemPromptPanel / ToolDefinitionsPanel /
                AgentSessionPanel 只负责内容（`d-pop-title` / `d-code` / `d-table` 等），
                不再各自套一层 `pw-pop`。 */
-            <div className="anim-popover-down d-pop-float" style={{
+            <div ref={topPanelRef} className="anim-popover-down d-pop-float" style={{
               position: "fixed",
               top: topPanelPos.top,
               left: topPanelPos.left,
@@ -3785,10 +3893,6 @@ export function AppShell() {
                 : translate("split.collapse")}
             />
           </div>
-          {/* fork:ui-panel-row — while the file tree is the panel content this
-              button lives in the tree's own toolbar row, so the panel shows one
-              row of icons instead of two stacked ones. */}
-          {!showExplorerToolbarRow && browserTabButton}
           {activeCwd && !gitGraphOpen && (
             <button
               type="button"
@@ -3811,6 +3915,23 @@ export function AppShell() {
               <span><i data-ico="git-branch" data-size="15"></i></span>
             </button>
           )}
+          {/* fork:panel-head-actions —— 2026-10-06 用户裁定：终端与浏览器两枚从
+              文件树头行搬到面板头行，**排在 git 钮后面**（手机档它们仍在 `.m-top`
+              里，那边是横排动作条，头行放不下也没必要）。
+              这两枚与 git 钮同属面板级动作，用画板 30/01 头行那一排的 `.d-iconbtn`；
+              git 钮自己那套 24px 内联样式是它的历史，不顺手动。 */}
+          {!isMobile && activeCwd && (
+            <button
+              type="button"
+              className="d-iconbtn"
+              title={translate("terminal.open")}
+              aria-label={translate("terminal.open")}
+              onClick={() => handleOpenTerminal(activeCwd)}
+            >
+              <span><i data-ico="square-terminal" data-size="14"></i></span>
+            </button>
+          )}
+          {!isMobile && browserTabButton}
           {/* 2026-10-03 用户裁定 —— 这里原有的第二枚「改动」（git 图谱钮右侧、标题栏里那枚
             `file-diff`）已删除，随它一起删掉的还有整个改动 tab（`ChangesPanel` +
             `CHANGES_TAB_ID` + `/api/changes`）：文件树头行里有同一个入口（ExplorerPanel

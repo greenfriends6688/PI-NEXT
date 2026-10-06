@@ -59,10 +59,15 @@ type SidebarEntry =
   | { type: "family"; family: SessionFamily }
   | { type: "child"; session: SessionInfo };
 
-/** 主会话后面接上它的子代理会话；收起的根会话不展开。 */
+/** 主会话后面接上它的子代理会话；**默认收起**，只有显式展开过的根会话才摊开
+ *  子树（fork:session-tree-collapsed，用户 2026-10-05：「带多个 agent 的对话默认不
+ *  展开，只有点击这个下拉框了再展开」）。
+ *  fork:session-tree —— 此前这里传的是「收起的 id 集合」，初始为空集 = 全部摊开：
+ *  一棵子树三五行，一屏就被子会话吃掉，而折叠箭头夹在元信息行里也不起眼。状态
+ *  正好反过来记（记**展开过**的），收起的集合就不必在会话异步到达时补初始化。 */
 function expandSidebarEntries(
   entries: readonly TimeGroupEntry<SessionFamily>[],
-  collapsed: ReadonlySet<string>,
+  expanded: ReadonlySet<string>,
 ): SidebarEntry[] {
   const out: SidebarEntry[] = [];
   for (const entry of entries) {
@@ -71,7 +76,7 @@ function expandSidebarEntries(
       continue;
     }
     out.push({ type: "family", family: entry.item });
-    if (collapsed.has(entry.item.root.id)) continue;
+    if (!expanded.has(entry.item.root.id)) continue;
     for (const child of entry.item.subagents) out.push({ type: "child", session: child });
   }
   return out;
@@ -233,112 +238,18 @@ function PathLabel({ text, style }: { text: string; style?: CSSProperties }) {
 // DOM 里有、点不到、看不见，用户看到的就是「这个 main 点不了 / 这三个点点了没反应」。
 // 共享版把容器包在 `position: relative; z-index: var(--z-popover)` 里，改一处全治。
 
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-
-function useScramble(target: string, running: boolean): string {
-  const [display, setDisplay] = useState(target);
-  const frameRef = useRef<number | null>(null);
-  const iterRef = useRef(0);
-
-  useEffect(() => {
-    if (!running) {
-      setDisplay(target);
-      return;
-    }
-    iterRef.current = 0;
-    const totalFrames = target.length * 4;
-
-    const step = () => {
-      iterRef.current += 1;
-      const progress = iterRef.current / totalFrames;
-      const resolved = Math.floor(progress * target.length);
-
-      setDisplay(
-        target
-          .split("")
-          .map((char, i) => {
-            if (char === " ") return " ";
-            if (i < resolved) return char;
-            return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-          })
-          .join("")
-      );
-
-      if (iterRef.current < totalFrames) {
-        frameRef.current = requestAnimationFrame(step);
-      } else {
-        setDisplay(target);
-      }
-    };
-
-    frameRef.current = requestAnimationFrame(step);
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
-  }, [target, running]);
-
-  return display;
-}
-
 function PiWebTitle() {
-  const [showVersion, setShowVersion] = useState(false);
-  const [scrambling, setScrambling] = useState(false);
-  const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // fork:brand-logo — 产品名图（public/pi-next-wordmark.png）里「PI」是深藏青，
   // 深色主题下压在侧栏底上等于看不见，所以深色退回同字号的实色文字。
   const { theme } = useTheme();
-  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "PI NEXT";
-  const display = useScramble(target, scrambling);
-  const wordmark = !showVersion && !scrambling && theme === "light";
+  const wordmark = theme === "light";
 
-  const triggerScramble = useCallback((toVersion: boolean) => {
-    setShowVersion(toVersion);
-    // Vestibular-sensitive users get an instant swap instead of the scramble.
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    setScrambling(true);
-    setTimeout(() => setScrambling(false), (toVersion ? 6 : 8) * 4 * (1000 / 60) + 100);
-  }, []);
-
-  const handleClick = useCallback(() => {
-    if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
-
-    const next = !showVersion;
-    triggerScramble(next);
-
-    if (next) {
-      revertTimerRef.current = setTimeout(() => triggerScramble(false), 3000);
-    }
-  }, [showVersion, triggerScramble]);
-
-  useEffect(() => () => { if (revertTimerRef.current) clearTimeout(revertTimerRef.current); }, []);
-
-  // fork:v5-frame-audit-2026-10-05 —— 品牌行照画板 D-01 / D-02 / D-02d 逐节点抄：
-  //   `<div class="d-logo"><img></div><img class="d-wordmark" …><span class="d-grow"></span>…`
-  // 字标**就是**那个 `<img class="d-wordmark">`，外面不再套一层按钮 —— 此前是
-  // `<span class="d-brand-lockup"><span class="d-logo">…</span><button><img class="d-wordmark">`，
-  // 于是板面上两件并列的件在产品里被折成了「一层壳 + 一枚按钮 + 一张图」，
-  // 品牌行的实际子节点数是画板的两倍多（.d-brand-lockup 这件库类**没有任何画板在用**）。
-  // 「点头像翻版本号」的行为一字未动，只是把可点语义从外层按钮搬到字标本身
-  // （role=button + tabIndex + Enter/Space），DOM 与画板逐节点一致。
-  const wordmarkProps = {
-    role: "button" as const,
-    tabIndex: 0,
-    onClick: handleClick,
-    onKeyDown: (event: React.KeyboardEvent) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      handleClick();
-    },
-    title: showVersion ? display : "PI NEXT",
-    "aria-label": showVersion ? display : "PI NEXT",
-    // fork:v5-landing —— 字号 / 字重 / 颜色交给品牌行；版本号态用 accent。
-    // 版本号与名字长度不同，固定 6ch 避免刷新时品牌行抽动（几何，非设计值）。
-    style: {
-      cursor: "pointer",
-      color: showVersion ? "var(--nx-accent)" : undefined,
-      minWidth: "6ch",
-    },
-  };
-
+  /* 用户 2026-10-05 —— 「点品牌翻版本号」这个彩蛋删掉。原来点一下字标会把它换成
+     `${APP_VERSION}p${PI_VERSION}` 滚 3 秒：品牌行只有 ~200px 宽，那串
+     `0.1.9-beta.1+31a3fac4-dirtyp1.0.0` 顶到行外、把搜索/折叠两枚钮挤没，读起来就是
+     「版本号炸了」。版本号在侧栏底栏有一处（只印发行号），那才是它该在的地方。
+     连带删掉 `useScramble` 与相关 state —— 只有一个消费者。
+     DOM 仍是画板 D-01/D-02/D-02d 的 `.d-logo` + `.d-wordmark` 两件并排，不套按钮。 */
   if (wordmark) {
     // fork:v5-landing-2026-10-04 —— 品牌字标照画板 D-01/D-02/D-02d 的
     // `<img class="d-wordmark" src="…/wordmark.png" alt="PI NEXT">` 原样抄：
@@ -348,11 +259,11 @@ function PiWebTitle() {
     // 整行也比画板矮一半）。
     return (
       // eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器
-      <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} {...wordmarkProps} />
+      <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} />
     );
   }
-  // 深色主题 / 版本号态：字标位换成实色文字，仍占同一个盒子（class 不换）。
-  return <span className="d-wordmark" {...wordmarkProps}>{display}</span>;
+  // 深色主题：字标位换成实色文字，仍占同一个盒子（class 不换）。
+  return <span className="d-wordmark">PI NEXT</span>;
 }
 
 /**
@@ -386,9 +297,6 @@ function ProjectRow({
   label,
   title,
   selected,
-  count,
-  expanded,
-  onToggle,
   activity,
   onClick,
   onNewSession,
@@ -405,9 +313,7 @@ function ProjectRow({
   label: string;
   title: string;
   selected: boolean;
-  count?: number;
-  expanded?: boolean;
-  onToggle?: () => void;
+
   activity?: { running: number; unread: number };
   onClick: () => void;
   /** fork:ui-project-actions — 项目行右侧的两个入口（照 workbuddy）：+ 在该项目里开新会话，
@@ -545,32 +451,11 @@ function ProjectRow({
         opacity: drag.dragging ? 0.55 : 1,
       }}
     >
-      {/* fork:ui-project-row — 折叠箭头紧跟标题（照 Zeno：名字 → ›，右端才是动作）。 */}
-      {onToggle ? (
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggle();
-            }
-          }}
-          aria-label={expanded ? t("sidebar.collapseSubagents") : t("sidebar.expandSubagents")}
-          style={{ display: "inline-flex", flex: "0 0 auto", cursor: "pointer" }}
-        >
-          <i data-ico={expanded ? "chevron-down" : "chevron-right"} data-size="12"></i>
-        </span>
-      ) : (
-        <i data-ico="folder" data-size="14"></i>
-      )}
+      {/* 用户 2026-10-05 —— 前面的折叠箭头换成文件夹图标，行尾的会话计数整列去掉
+          （数字浮在行尾一大片留白中间，视觉上像是另一列）。展开/折叠仍在整行点击上：
+          选中后再点一次即折叠，见调用点的 onClick。 */}
+      <i data-ico="folder" data-size="14"></i>
       <span className={isPhone ? "m-grow" : "d-grow"} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      {typeof count === "number" && <span className={isPhone ? "m-t-xs" : "d-t-xs"} style={{ flex: "0 0 auto" }}>{count}</span>}
       {showProjectActivity(activity, t, isPhone)}
       {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾）。
           fix:row-actions-drag —— `data-project-actions` 让行上的 dragstart 识别「这次
@@ -1703,9 +1588,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // 实际全是平级会话 —— 用户把三条普通会话认成了「分支机构」。
   // 现在：根会话用 `.pw-session`（与画板一致），子会话才 `.child` + 一条竖线 + 分支图标，
   // 父行右侧的 chevron 收放整棵子树。子树行进入虚拟列表（与根行同一种槽位高度）。
-  const [collapsedFamilies, setCollapsedFamilies] = useState<ReadonlySet<string>>(() => new Set());
+  const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(() => new Set());
   const toggleFamilyCollapsed = useCallback((rootId: string) => {
-    setCollapsedFamilies((current) => {
+    setExpandedFamilies((current) => {
       const next = new Set(current);
       if (next.has(rootId)) next.delete(rootId);
       else next.add(rootId);
@@ -1713,8 +1598,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     });
   }, []);
   const sidebarEntries = useMemo<SidebarEntry[]>(
-    () => expandSidebarEntries(sessionListEntries, collapsedFamilies),
-    [sessionListEntries, collapsedFamilies],
+    () => expandSidebarEntries(sessionListEntries, expandedFamilies),
+    [sessionListEntries, expandedFamilies],
   );
 
   // fork:session-row-overlap —— 窗口化的行高量自真行（见文件头 SESSION_LIST_ITEM_HEIGHT）。
@@ -1766,7 +1651,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           awaitingKind={familySessions.map((session) => awaitingSessionKinds[session.id]).find(Boolean)}
           isUnread={familySessions.some((session) => unreadSessionIds.has(session.id))}
           hasChildren={family.subagents.length > 0}
-          collapsed={collapsedFamilies.has(family.root.id)}
+          collapsed={!expandedFamilies.has(family.root.id)}
           onToggleCollapse={family.subagents.length > 0 ? () => toggleFamilyCollapsed(family.root.id) : undefined}
           onClick={() => handleSelectSessionFromList(family.root)}
           onRenamed={loadSessions}
@@ -1903,8 +1788,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           `sessionSearchField`（同一个 ref / id / maxLength / Esc 行为）。 */}
       {isMobile && sessionSearchField("m-searchfield")}
       {/* fork:v5-landing —— 新建任务 = 画板 D-02 的 .d-side-nav > .d-row。
-          fork:v5-wave-b —— 手机上是画板 M-04 帧 A 的 `.m-setrow`（square-pen + 文案 +
-          ⌘N 徽章）；同一个 handler、同一条 title / aria-label。 */}
+          fork:side-actions（用户 2026-10-05）—— 这一行按参考稿放大（图标 / 文案 /
+          行高见 app/fork-ui.css 的 `.fork-side-action`）。搜索仍只有抽屉头那枚放大镜
+          一个入口（点开在它下面那一格展开）。
+          fork:drop-fake-kbd —— ⌘N 徽章删掉：`lib/shortcuts.ts` 里 newSession 的真实
+          键位是 **Ctrl+Alt+N**（⌥⌘N），⌘N 什么都不是 —— 用户 2026-10-05 指出「那个
+          根本就不是他的快捷命令」。画板那枚 .d-kbd 仍在库里，只是不再印在产品上。
+          fork:v5-wave-b —— 手机上这一格是画板 M-04 帧 A 的 `.m-setrow`。 */}
       {isMobile ? (
         <button
           type="button"
@@ -1915,7 +1805,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         >
           <i data-ico="square-pen" data-size="14"></i>
           <span className="m-grow">{t("sidebar.newTask")}</span>
-          <span className="m-badge mute">⌘N</span>
         </button>
       ) : (
       <div className="d-side-nav">
@@ -1924,15 +1813,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           onClick={handleNewSession}
           aria-label={t("sidebar.newTask")}
           title={selectedCwd ? t("sidebar.newSessionTitle", { path: selectedCwd }) : t("sidebar.newTask")}
-          className="d-row"
+          className="d-row fork-side-action"
         >
-          <i data-ico="square-pen" data-size="14"></i>
+          <i data-ico="square-pen" data-size="17"></i>
           <span className="d-grow">{t("sidebar.newTask")}</span>
-          {/* fork:v5-landing-2026-10-04 —— 画板 D-01 / D-02 / D-02d 的
-              `.d-side-nav > .d-row` 行尾都有一枚 `.d-kbd`（⌘N），产品此前漏了。
-              与窄屏那一支的 `.m-badge mute`（同一行、同一个 ⌘N）是同一件东西的
-              两种形态；文案是键盘记号本身，不走 i18n。 */}
-          <span className="d-kbd">⌘N</span>
         </button>
       </div>
       )}
@@ -2069,7 +1953,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
           {visibleProjects.map((project) => {
             const isSelectedProject = project.key === selectedProject?.key;
-            const count = sessionsForProject(allSessions, project.key).length;
             const isExpanded = expandedProjects.has(project.key);
             projectRowNodes.set(project.key, (
               <div key={project.key}>
@@ -2100,16 +1983,6 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     });
                   }}
                   selected={isSelectedProject}
-                  count={count}
-                  expanded={isExpanded}
-                  onToggle={() => {
-                    setExpandedProjects((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(project.key)) next.delete(project.key);
-                      else next.add(project.key);
-                      return next;
-                    });
-                  }}
                   activity={projectActivity.get(project.key)}
                   onClick={() => {
                     if (isSelectedProject) {
@@ -2413,7 +2286,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     }
                     return (
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", marginLeft: "var(--space-hair)", borderLeft: "1px solid var(--nx-line)", paddingLeft: "var(--nx-sp-1)" }}>
-                        {expandSidebarEntries(projectEntries, collapsedFamilies).map((entry) => {
+                        {expandSidebarEntries(projectEntries, expandedFamilies).map((entry) => {
                           if (entry.type === "header") return null;
                           return (
                             <div key={entry.type === "family" ? entry.family.root.id : entry.session.id} style={{ display: "flex" }}>
@@ -2449,7 +2322,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             // 一行一个会话。窗口单独计算，避免与项目列表的 entries 长度耦合。
             const chatEntries = flatTimeGroupEntries(chatFamilies);
             // fork:session-tree —— 聊天分区与项目分区同一套展开（子代理缩进一级）。
-            const chatSidebarEntries = expandSidebarEntries(chatEntries, collapsedFamilies);
+            const chatSidebarEntries = expandSidebarEntries(chatEntries, expandedFamilies);
             const chatOffsets = sessionListOffsets(chatSidebarEntries.length, rowHeight);
             const chatVirtualIndices = getSessionListIndices(
               chatSidebarEntries.length,
@@ -2468,18 +2341,19 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             };
             return (
               <>
-              {/* fork:v5-frame-audit-2026-10-05 —— 聊天 pane 的**分区头**补上
-                  （画板 D-02 帧 A / D-02d 帧 A 的 `pane-chat` 第一件：
-                  `<div class="d-group-title"><i data-ico="message-square"><span class="d-grow">聊天</span></div>`）。
-                  产品此前直接就是工作区行，于是板面上「这一段是聊天工作区」这句话
-                  在 DOM 里无处可读（用户问的就是这个：为什么这里没有「项目」组头）。 */}
-              <div className="d-group-title">
-                <i data-ico="message-square" data-size="12"></i>
-                <span className="d-grow">{t("sidebar.chatWorkspace")}</span>
-              </div>
-              {/* fork:zn-13 — 分区之间靠 marginTop 分开（与项目分区头同一个 18px
-                  节奏），不用分隔线；Zeno 的导轨同样是不划线、只用间距。 */}
-              <div style={{ marginTop: 18 }}>
+              {/* 用户 2026-10-05 —— 删掉聊天 pane 上方那枚**光秃秃的 `.d-group-title`
+                  「聊天」**（2026-10-05 帧审补的）：它下面紧跟着 `ChatWorkspaceRow`，
+                  而那一行本身就是 `.d-group-title`（chevron + 名字 + ＋ / folder-cog）——
+                  两行同字同件摞在一起，看起来就是「多了一个聊天」。现在只留下面那行：
+                  分区名、折叠、新建聊天、换聊天目录全在它身上，DOM 少一层。
+                  （聊天工作区没建时那句 `sidebar.noChatWorkspace` 提示不动。） */}
+              {/* fork:zn-13 —— 分区之间原本靠 `marginTop: 18` 分开；fork:zn-20 把项目段与
+                  聊天段改成**互斥渲染**之后，这个 margin 失去了对象：在「聊天」pane 上
+                  它就是 `.d-seg` 与第一行之间凭空多出来的一截空白（用户 2026-10-05 报
+                  「中间空白太多」）。画板 D-02 是 `.d-seg → .d-side-scroll → .d-group-title`
+                  **直连**，没有这一截；`.d-side-scroll` 的 `padding: var(--nx-sp-2)` 加上
+                  `.d-group-title` 自己的 `padding-top` 就是全部节奏，与项目段同口径。 */}
+              <div>
                 <ChatWorkspaceRow
                   label={t("sidebar.chatWorkspace")}
                   title={chatProject.root}
@@ -3018,6 +2892,27 @@ function SessionItem({
             )}
             {title}
           </span>
+          {/* fork:caret-corner（用户 2026-10-05）—— 折叠箭头从**元信息行**搬到**行右上角**：
+              它原来挤在「N 条消息」与四枚 hover 动作之间，读起来像元信息的一部分，而且
+              指针停在它上面时它自己的 hover 底色在行里画出第二个盒子（用户报的重影）。
+              它是 `.d-sess` 的**直接子节点**且绝对定位（`fork-sess-caret`，见
+              app/design/v5-forms.css）—— 绝对定位是这里唯一安全的做法：行高被
+              `useSessionRowHeight` 量成定数（`.d-sess` 恒 58.89），任何「进流的盒子」
+              都会把行顶出槽位，也就是那个重影。 */}
+          {hasChildren && (
+            <span className="fork-sess-caret">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
+                title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+                aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
+                aria-expanded={!collapsed}
+                className="d-iconbtn"
+              >
+                <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
+              </button>
+            </span>
+          )}
           <span className="d-sess-m fork-session-meta">
               <span style={{ flexShrink: 0 }}>{formatRelativeTime(session.modified, locale)}</span>
               <span aria-hidden="true">·</span>
@@ -3054,18 +2949,7 @@ function SessionItem({
                 </span>
               )}
 
-              {/* Collapse toggle — always visible when has children */}
-              {hasChildren && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
-                  title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-                  aria-label={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
-                  className="d-iconbtn"
-                >
-                  <i data-ico={collapsed ? "chevron-right" : "chevron-down"} data-size="12"></i>
-                </button>
-              )}
+              {/* fork:caret-corner —— 折叠箭头已搬到标题行之后的 `.fork-sess-caret`（行右上角）。 */}
 
           {/* fork:pwa-sb —— 手机档（`useIsMobile` = ≤640px）换成一枚常驻的 ⋯，
               菜单本体是画板 D-02c 的 `.d-pop` + `.d-menu-row`（与项目行同一个壳），

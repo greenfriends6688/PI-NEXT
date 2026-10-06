@@ -1686,8 +1686,17 @@ textarea,
      固定宽度会连外边距一起顶出去：实测 seg `x=8 / width=280`，右缘 288 > 容器 280（溢出
      16px，画板同项是 263）。这两个块交还给拉伸宽度（279 - 8×2 = 263，与画板逐像素一致），
      其余块保留固定宽度。
+     fork:ui-seg-inset-2026-10-05 —— 上面这段注释原来下面**跟着一条规则**，删旧层
+     （`.pw-seg` / `.pw-side-search` 已退场）时把规则一起删了，注释留在原地：于是
+     `.sidebar-container > *` 的固定宽度继续压在 `.d-seg` 上，它自己的 8px 外边距被顶到
+     盒子外面，右半枚「聊天」直接顶死侧栏右沿（用户实拍：太贴边）。这里按注释的原意
+     把它交还给拉伸宽度 —— 宽度由外边距算出来，左右必然对称。
      fork:v5-old-layer（2026-10-04）—— 旧写法按 `.pw-seg` / `.pw-side-search` 指，
      两个类都已从 DOM 退场（`.d-seg` / `.d-searchfield`），规则变死代码，已删。 */
+  .sidebar-container > .d-seg {
+    width: auto;
+    min-width: 0;
+  }
   .sidebar-container.sidebar-resizing,
   .sidebar-container.sidebar-resizing > * {
     transition: none !important;
@@ -2109,6 +2118,36 @@ html[data-focus-modality="pointer"] :where(input, select, textarea):focus-visibl
   outline: none !important;
 }
 
+/* 用户 2026-10-05 —— 「蓝框」的**最后一条也删了**：先前是**逐个组件**打补丁
+   （字段 → 项目行 → 文件树行），用户实拍「很多地方都可能触发那个蓝色的边框」。
+   上面那条字段规则继续留着（`useFocusModality.test.mjs` 钉的就是它的字面），但它只是
+   本条的一个子集 —— 本条把同一件事一次说完：鼠标档下，所有**非原生可聚焦件**不出外描边。
+
+   为什么必须是一条而不是继续逐个补（本机 Chrome 实测出的三条事实）：
+   ① 浏览器只对 `<button>` / `<a>` 这类「原生可点件」在鼠标点击时**不**匹配
+      `:focus-visible`；`div[tabindex]` / `span[role=button]` / `[role=treeitem]` 这类
+      自造件是「键盘可聚焦」，规则由元素类型决定，与点它的方式无关；
+   ② 点**已经拿到焦点的那一行**（Tab 走过之后、或程序 `.focus()` 落点与点击目标同一个）
+      根本不算一次新的焦点移动 —— 环原地留着。实测：Tab 到文件树行 → 点它 →
+      隔离页面里 601 个强调色像素，规则一加就是 0，而 `:focus-visible` 本身仍为 true；
+   ③ 因此光写 `:focus-visible` 压不住第②种（那条环是浏览器给非 `<button>` 画的 UA 默认
+      环，挂在 `:focus` 上），所以这里**同时**命中 `:focus`。
+   命中 `:focus` 也不会误伤键盘档：整条选择器都锁在 `[data-focus-modality="pointer"]`
+   下，而 pointer 档由 `pointerdown` 写入 —— 焦点落下的那一刻标记已经是 pointer。
+   键盘档（Tab / 方向键 / Enter）下面板照旧由上面那条 `:focus-visible` 规则出 1.5px 环，
+   键盘用户仍然看得见焦点在哪（这一条不能省，也不能扩到 `<button>`：原生按钮在鼠标点击
+   时本来就不匹配 `:focus-visible`，不需要也不该动）。
+   `.file-explorer-section` 是树的滚动壳：Chrome 128+ 让可滚动容器自己可聚焦，那圈环
+   套的是整棵树（一个框住所有行的大蓝框），它没有 `tabindex`，只能按类点名。 */
+html[data-focus-modality="pointer"] :is(
+  :where(input, select, textarea, summary, [tabindex], [role="button"], [role="tab"],
+    [role="treeitem"], [role="menuitem"], [role="option"], [role="switch"],
+    [role="checkbox"], [role="radio"], [role="slider"], [role="combobox"]),
+  .file-explorer-section
+):is(:focus, :focus-visible) {
+  outline: none !important;
+}
+
 /* --- Hover convention ----------------------------------------------------
    Hover hints stay JS-driven where the component also encodes a selected
    state in the same property (menu rows paint `--bg-selected` on the focused
@@ -2355,21 +2394,27 @@ button.process-file-chip:hover {
 
 .process-step-body-wrap {
   position: relative;
-  padding-left: 22px;
+  /* fork:rail-one —— 与 `.d-step` 的正文左缘对齐：2(行左内缩) + 17(图标) + 8(gap) = 27。
+     原来写 22px（那是 `.pw-step` 时代的 22px 行首内缩），于是展开的工具卡比它上面
+     那一行的文案**左出 5px** —— 用户截图里读成「时间轴错位」。 */
+  padding-left: 27px;
 }
 
 /* fork:design-components —— 展开正文补上被自己截断的那段竖线。
-   board.css 的连线是 `.pw-step::before`，按**步骤行**自己的行高画的；正文作为
+   画板 D-03d 帧 A 的连线是 `.d-step::before`，按**步骤行**自己的行高画的；正文作为
    行的**兄弟**插进来后，两个图标之间的线就断了一截（实测：时间轴看起来是虚线）。
-   正文自己补一段同位置的线，整条时间轴才连成一条。
-   `left: 9px` 与发丝线颜色必须与 board.css 的 `.pw-step::before` 逐个值对齐。 */
+   正文自己补一段，位置与颜色**必须与 `.d-step::before` 逐值相同** ——
+   fork:rail-one（用户 2026-10-05）—— 原来这里是 `left: 9px` + `border-left` +
+   v1 时代的 `--n-border-subtle`，与 `.d-step::before` 的 `left: 10px` + `background`
+   差 1px、颜色也不同，两条线并排画出来 = 用户说的「两种线错位」。现在写成同一条线。 */
 .process-step-body-wrap::before {
   content: "";
   position: absolute;
-  left: 9px;
+  left: 10px;
   top: 0;
   bottom: 0;
-  border-left: 1px solid var(--n-border-subtle);
+  width: 1px;
+  background: var(--nx-line);
 }
 
 /* fork:design-motion —— 折叠壳必须常驻才能从 0fr 过渡到 1fr（点开那一刻才挂载的话，

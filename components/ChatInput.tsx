@@ -274,10 +274,16 @@ const MANUAL_MAX_HEIGHT_FRACTION = 0.55;
 // 全量工具条（最长的模型名 + 五个控件 + 右侧组）的自然宽度约 690px。
 const NARROW_CONTROLS_SHELL_WIDTH = 700;
 /**
- * fix:ring-pop-always-details —— 上下文环浮窗的宽度：明细常显，所以恒取
- * 「会话信息 / 消息 / Token 三节并排」那一档（620），只按视口收窄。
+ * fix:ring-pop-always-details —— 上下文环浮窗的宽度：明细常显，所以按内容取宽，
+ * 只按视口收窄。
+ * fork:stats-density（用户 2026-10-06「浮窗变小点，中间空白太多」）—— 原来恒取
+ * 620（三栏并排时代的宽度）。现在明细只有两节，且每一节都被 CSS 封顶在 260、
+ * 标签定宽 84、值紧跟其后（`.composer-ring-details`），最宽的一行是
+ * 「平均缓存命中率 97.6%」/「缓存读取 3,518,946」，两节并排约 400 就装得下。
+ * 别再往下收：`minmax(180px, 1fr)` 的网格按**最小** 180 数轨道，两列要
+ * 2×180+间距 = 372 的内容宽，掉到一列就变成竖着叠两节、浮窗反而更高。
  */
-const RING_POP_DETAILS_WIDTH = 620;
+const RING_POP_DETAILS_WIDTH = 440;
 const INPUT_HEIGHT_STORAGE_KEY = "pi-chat-input-height";
 
 // fork:pr14-compact — 真实用户滚动的「意图窗口」：wheel / touch / pointer / 滚动
@@ -923,10 +929,14 @@ export function ModelScopeWarningBanner({ warnings }: { warnings?: string[] }) {
   );
 }
 
-/** 星标图标；已收藏填星、未收藏画星划（画板图标集是 lucide 描边，没有填充变体）。 */
+/** fork:star-solid（用户 2026-10-06）—— 星标只有一档读法：**空心 = 未收藏、实心 = 已收藏**。
+ *  原来是两枚图标（已收藏 `star` / 未收藏 `star-off`，后者是一颗**划掉**的星），三处入口
+ *  （输入框触发钮 / 菜单里当前模型那枚 / 每条收藏项）都带着它，划线在长列表里读成「坏掉」。
+ *  lucide 全是描边图标，没有填充变体 —— 实心由 `.fork-star.is-on > svg { fill }` 给
+ *  （svg 上的 `fill="none"` 只是呈现属性，样式说算）。 */
 function FavoriteStarIcon({ filled }: { filled: boolean }) {
   return (
-    <i data-ico={filled ? "star" : "star-off"} data-size="14"></i>
+    <i data-ico="star" data-size="14" className={filled ? "fork-star-on" : undefined}></i>
   );
 }
 
@@ -1109,6 +1119,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // 而横屏档存在的全部理由就是「高度是稀缺资源」（实测 844×390 下工具条 52px = 两行，
   // 注释里写着「两行控件条在 390 高里占掉 ~150px」）。两处都要让位给横屏档。
   const narrowControls = (viewportCompact || shellNarrow) && !landscapeShort;
+  // fork:action-panel-phone-only（用户 2026-10-06）—— 「更多动作」宫格是**手机件**：
+  // 电脑上那九个动作全在顶栏一行里，聊天列被右栏挤窄时它忽然冒出来等于把顶栏的入口
+  // 复制一份到输入框旁边（用户原话「多出来这样一个按钮，感觉没啥用」）。而
+  // `narrowControls` 回答的是另一个问题 —— 「控件条要不要收成两行」：它含
+  // `shellNarrow`（容器窄），容器窄在桌面上也会发生。两件事各判各的：
+  // 宫格看**形态**（useIsMobile，≤640，与 m-* 同一断点），两行布局看 narrowControls。
+  // 顺带修掉一个潜在缺口：横屏手机（≤1024 宽 / ≤500 高）`narrowControls` 为 false，
+  // 宫格跟着消失 → 顶栏放不下的九个动作在横屏上无处可点；改判形态后它们回来了。
+  const showActionPanel = Boolean(actionPanel) && isMobile;
   // fork:pr23-resize — 顶部手柄竖向缩放。`height === null` 保持内容驱动的自动
   // 高度；数字表示用户已接管。manualMode 时卡片挂内联固定高度，textarea 交给
   // `.is-manual-height` 的 CSS（`height: 100% !important`）填充并内部滚动，
@@ -1169,6 +1188,24 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [value, setValue] = useState(() => initialDraft?.value ?? "");
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
+  /* fork:think-seg-scroll —— 档位尺要能横向滚动，就得先知道「能有多宽」：浮层左缘锚在
+     思考芯片上，而能用的右边是**输入卡的右缘**（卡片 `overflow-x: clip`，超出即被裁
+     掉 —— 那正是这一段要修的毛病）。CSS 拿不到这个距离（百分比的基准是芯片自己那
+     一格），所以开层时量一次：卡右缘 − 芯片左缘 − 12 内距，封顶 420、下限 180。
+     layout effect 在绘制前跑，这一次 setState 不会被人看见。 */
+  const [thinkPopMaxWidth, setThinkPopMaxWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!thinkingDropdownOpen) return;
+    const shell = inputShellRef.current;
+    const chip = thinkingDropdownRef.current;
+    if (!shell || !chip) return;
+    const room = shell.getBoundingClientRect().right - chip.getBoundingClientRect().left - 12;
+    setThinkPopMaxWidth(Math.max(180, Math.min(420, Math.round(room))));
+    /* 能滑了就得看一眼当前档：档位多到要滑时，默认停在最左边，而选中档往往在末尾
+       （max / xhigh）。`nearest` 只滚最近的可滚祖先，不会把整页带着动。 */
+    const seg = chip.querySelector(".fork-think-seg");
+    seg?.querySelector(".is-on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [thinkingDropdownOpen]);
   // 2026-10-03 用户裁定 —— 权限档也从「点一下循环」改成下拉（与思考档 / 工具档一致）。
   const [permissionDropdownOpen, setPermissionDropdownOpen] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>(() => (
@@ -3378,8 +3415,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   useEffect(() => {
     // fork:mobile-action-panel —— 这枚钮只在窄屏渲染，回到宽屏时把状态也清掉，
     // 否则下次变窄会带着一个「上次开着的浮层」出现。
-    if (!narrowControls) setActionPanelOpen(false);
-  }, [narrowControls]);
+    if (!showActionPanel) setActionPanelOpen(false);
+  }, [showActionPanel]);
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * fork:v5-wave-b —— 窄屏（PWA 形态）输入卡。
@@ -4242,8 +4279,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         margin: 0,
         border: 0,
         background: "transparent",
-        padding: compact ? 0 : "0 16px 8px",
-        paddingRight: compact ? 0 : 16,
+        /* 横向内距**只归一处**：窄屏是 `.m-composer-wrap` 的 `0 12px 12px`
+           （画板 M-01/M-02/M-04 每一帧），这里必须 0；桌面是本层的 `0 16px 8px`，
+           因为桌面那条 wrap 不带内距。两处都写就成 12+16=28px，输入卡两侧各空一截。 */
+        padding: compact || isMobile ? 0 : "0 16px 8px",
+        paddingRight: compact || isMobile ? 0 : 16,
         opacity: builtinCommandPending ? 0.5 : 1,
         transition: "opacity 0.15s",
       }}
@@ -4676,8 +4716,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 applySlashCommand(command);
                               }}
                               onMouseEnter={() => setSlashActiveIndex(index)}
-                              className={`d-menu-row${active ? " is-on" : ""}`}
-                              style={{ width: "100%", minWidth: 0, height: "auto", minHeight: 0 }}
+                              // 用户 2026-10-06 裁定：命令名独占一行、描述落到下一行（最多两行，
+                              // 多余省略号）—— 同行排布时两列都要截断，技能描述（多数是长句）
+                              // 只剩「将桌面应用…」，基本读不出这条命令干什么。换成画板为
+                              // 「浮层里的两行行」准备的那件 `.d-pop-row`（.d-pop-row-t /
+                              // .d-pop-row-s 就是标题 + 副行），不是新写一套样式。
+                              className={`d-pop-row${active ? " is-on" : ""}`}
                               title={command.description ? getSlashDescription(command, t) : undefined}
                             >
                               <i
@@ -4685,32 +4729,39 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                 data-size="14"
                                 style={{ flexShrink: 0, color: dormant ? "var(--n-placeholder)" : undefined }}
                               ></i>
-                              <span
-                                className="d-grow"
-                                style={{
-                                  minWidth: 0,
-                                  fontFamily: "var(--font-mono)",
-                                  // fix:slash-menu-wide —— 命令名**不换行**：这里原来写的是
-                                  // `overflowWrap:anywhere`，配合 `height:auto` 的行高，
-                                  // 长命令会被折成两行、整列行高参差不齐。命令只有一个
-                                  // 词，超出就省略号，读起来反而整齐。
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  color: dormant ? "var(--n-placeholder)" : undefined,
-                                }}
-                              >
-                                /{command.name}
-                              </span>
-                              {command.description && (
-                                <span
-                                  className="d-t-xs d-t-faint"
-                                  style={{ flexShrink: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "50%" }}
-                                >
-                                   {getSlashDescription(command, t)}
+                              <span className="d-grow d-col">
+                                <span style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minWidth: 0 }}>
+                                  <span
+                                    className="d-grow d-pop-row-t"
+                                    style={{
+                                      fontFamily: "var(--font-mono)",
+                                      // fix:slash-menu-wide —— 命令名**不换行**：命令只有一个词，
+                                      // 超出就省略号，读起来反而整齐。
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      color: dormant ? "var(--n-placeholder)" : undefined,
+                                    }}
+                                  >
+                                    /{command.name}
+                                  </span>
+                                  {dormant && <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>{t("chat.dormant")}</span>}
                                 </span>
-                              )}
-                              {dormant && <span className="d-t-xs d-t-faint" style={{ flexShrink: 0 }}>{t("chat.dormant")}</span>}
+                                {command.description && (
+                                  <span
+                                    className="d-pop-row-s"
+                                    style={{
+                                      display: "-webkit-box",
+                                      WebkitBoxOrient: "vertical",
+                                      WebkitLineClamp: 2,
+                                      overflow: "hidden",
+                                      overflowWrap: "anywhere",
+                                    }}
+                                  >
+                                    {getSlashDescription(command, t)}
+                                  </span>
+                                )}
+                              </span>
                             </button>
                           );
                         })}
@@ -5115,7 +5166,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 手机上最高频的动作，不该退一层。所以另给一枚 grid-2x2。
                 格子点完就收起：壳上挂一个 onClick 让它冒泡到所有格子，
                 这样 AppShell 那九个回调不用各自再带一个「关面板」。 */}
-            {actionPanel && narrowControls && (
+            {showActionPanel && (
               <>
                 <button
                   ref={actionPanelAnchorRef}
@@ -5231,12 +5282,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 </button>
                 {thinkingDropdownOpen && (
                   <div
-                    className="anim-popover d-pop is-open"
+                    className="anim-popover d-pop is-open fork-think-pop"
                     style={{
                       position: "absolute", bottom: "calc(100% + 6px)",
                       // fork:ui-composer-pop —— 左侧组的下拉一律左缘锚定：右缘锚定会把
                       // 320 宽的浮窗探出卡片左缘，被 overflow-x:clip 裁掉。
                       left: 0,
+                      // fork:think-seg-scroll —— 宽度上限（见上面那个 state）：装得下时
+                      // 这条不起作用，档位尺按内容走；装不下时封顶并让档位尺横滑。
+                      maxWidth: thinkPopMaxWidth ?? undefined,
                       // fork:v5-frame-audit D-04 帧 A —— 不写死宽度：档位尺是内容撑的
                       // （`.d-seg` 一行排完当前模型可用的全部档位），写死 180 反而会折行。
                       zIndex: 100,
@@ -5259,7 +5313,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                         `(lvl)` 括号注解挪到 `title` 上 —— 分段按钮放不下第二段文字，
                         但原值仍然可读（悬停可见），信息不丢。 */}
                     <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-1)" }}>
-                      <div className="d-seg">
+                      <div className="d-seg fork-think-seg">
                         {THINKING_LEVELS.filter((lvl) => {
                           if (!availableThinkingLevels) return true;
                           if (lvl === "auto") return true;
