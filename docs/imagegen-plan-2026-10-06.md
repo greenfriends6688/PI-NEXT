@@ -33,6 +33,9 @@
 - **D4 结果卡**：`MessageView` 工具卡加一块 `GeneratedImagesCard`，读 `details.images` → `/api/files` 缩略图 → 点图 `ImagePreview` 灯箱/下载。确定性显示不靠模型自觉（skill-policy：UI 组件）；助手回复里 `![](<路径>)` 的 markdown 内联是兜底不是主体。DIVERGENCE 登记。
 - **D5 审批**：`generate_image` 是花钱+写盘的工具 → 进 `lib/approval-policy.ts` 的写级，plan/build 模式拦得住。MVP 不进 token 统计，结果文本带 provider/model/size 一行供追溯。
 - **D6 设置分节**：`SettingsPanel` 新增「生图模型」分节（V5 类，i18n 三语）：服务商下拉、Base URL、API Key（掩码）、模型名、尺寸、并发、「测试」钮回显试跑图、状态徽标。
+- **D6b 端点与密钥引用「设置 → 模型」（用户 2026-10-06 晚间裁定，`fork:imagegen-ref`）**：用户实拍这一页后问「这不就是抄标书的吗，为啥不直接用已添加的模型」。核实结论分两半：
+  · **不能复用模型本体**：`KnownImageApi = "openrouter-images"` 只有一个成员（内置 57 个 image 模型全走它，`openai` 的 image 模型数是 **0**），且 **models.json 不收 image 模型** —— 实测写 `type: "image"` 进去，SDK 当 chat 收下、`getModelsOfType("image")` 返回空。所以请求仍直发，**能复用的只有端点与密钥**。
+  · **端点与密钥确实该复用**：`models.json` 的服务商档里本来就有 `baseUrl` + `apiKey`。新增 `ImageGenProfile.providerId`：非空即引用态，两项**绝不落盘**，由唯一的 `resolveImageGenProfile()` 活取（工具 / 测试路由 / 面板共用，谁都不许自己拼 baseUrl），fail closed。四个内置预设保留独立档（生图专用端点不会出现在模型列表里）。
 - **D7 参考图编辑 / Gemini / ComfyUI 方言**：Phase 2，MVP 只做 `/images/generations` 同步模式。
 
 ## 4. 分批（每批独立 commit + 独立验证）

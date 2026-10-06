@@ -341,7 +341,9 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 计划与调研全文在 `docs/imagegen-plan-2026-10-06.md`（G1/G2 = 标书套件 B1）。不变量：
 
 * **生图档案独立于对话模型**：`~/.pi/agent/imagegen.json`（0600，staging+rename），`GET /api/imagegen` 掩码、`PUT` 掩码值或字段缺失 = 沿用已存密钥（与 im-bridge 同一条铁律）。不进模型选择器、不吃 `enabledModels`。
-* **为什么不走 SDK**：pi-ai 1.0 有 `generateImages()` / `ImageModel`，但内置只注册 `openrouter-images` 一个 API、models.json 不收 image 模型 —— 直连 OpenAI 兼容 `POST /images/generations`（OpenAI/金龙/硅基流动/火山方舟一个协议全覆盖，与标书功能/PI-Desktop 同路）。响应兼容 `b64_json` 与 `url` 两种载荷，**url 一律当场下载落盘**（外链会过期）。
+* **端点与密钥默认引用、不复制**（fork:imagegen-ref，用户 2026-10-06 裁定）：`ImageGenProfile.providerId` 非空即引用态，端点与密钥从 `models.json` 活取，`writeImageGenConfig` 强制把这两项置空 —— **本档一个字节都不存**，所以那边轮换密钥立刻生效（第一版让人重填一遍，那正是「轮换不生效」的根因）。解析只有一处：`resolveImageGenProfile()`（`lib/imagegen-config.ts`），工具 / 测试路由 / 设置面板三处共用，谁都不许自己拼 `baseUrl`；解析不出来 fail closed 并如实报错（引用的服务商被删 / 缺密钥 / 缺模型名）。引用态落在 `custom` 档，下拉分两组（已配服务商 / 内置预设），引用态不渲染 Base URL 与 API Key 两格，换成一条 `.d-set-row` 报「端点与密钥来自谁」。
+  · 四个内置预设（OpenAI / 金龙中转 / 硅基流动 / 火山方舟）保留独立档：它们是生图专用端点，平时不会出现在「设置 → 模型」的列表里，没有可引用的对象。
+* **为什么不走 SDK**：pi-ai 1.0 有 `generateImages()` / `ImageModel`，但 `KnownImageApi` **只有一个成员 `openrouter-images`**（内置 57 个 image 模型全走它，`openai` 的 image 模型数是 0），且 **models.json 不收 image 模型** —— 实测写一个 `type: "image"` 进去，SDK 把它当 chat 收下（`getModelsOfType("image")` 返回空）。所以直连 OpenAI 兼容 `POST /images/generations`（OpenAI/金龙/硅基流动/火山方舟一个协议全覆盖，与标书功能/PI-Desktop 同路）。响应兼容 `b64_json` 与 `url` 两种载荷，**url 一律当场下载落盘**（外链会过期）。
 * **工具 `generate_image`**（`lib/imagegen-extension.ts`，extensionFactories 注册）：content **永不含 base64**（只回路径+尺寸+字节，模型可读可引用），图片元数据进 `details.images`；消息流由 `MessageView` 借 `ResultImages` 的 URL 来源通道渲染（→ `/api/files`），会话文件只存路径。默认落 `~/.pi/agent/generated-images/`（工具工厂里 `allowFileRoot` 幂等登记），`dest` 只许会话 cwd 内（`resolveDestWithinCwd`；标书配图直落 `bid/<项目>/images/`）。
 * **审批零改动**：工具无命令参数、不在只读名单 → ask/plan 模式下自动落「unclassified → 需审批」；默认 bypass 放行不弹卡。
 * **测试状态是硬闸门**：`POST /api/imagegen {provider}` 真出一张小图并把 `status`（untested / available / unavailable + 最近失败原因）落盘 —— 标书自动配图只认 `available`。密钥掩码在浏览器侧回显，测试用已存明文密钥。

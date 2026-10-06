@@ -16,6 +16,7 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 import { writePrivateFileAtomicSync } from "./atomic-file";
 import { allowFileRoot } from "./allowed-roots";
+import { readModelsConfig } from "./models-config-store";
 import {
   IMAGEGEN_TIMEOUT_MS,
   buildImagesRequest,
@@ -28,9 +29,11 @@ import {
   IMAGEGEN_PRESET_IDS,
   isMaskedImageGenKey,
   normalizeImageGenConfig,
+  profileIsConfigured,
   type ImageGenConfig,
   type ImageGenPreset,
   type ImageGenProfile,
+  type ImageGenProviderEntry,
   type ImageGenStatus,
 } from "./imagegen-shared";
 
@@ -92,10 +95,16 @@ export function writeImageGenConfig(
   for (const id of IMAGEGEN_PRESET_IDS) {
     const incoming = config.providers[id];
     const previous = stored.providers[id];
+    // 显式空串 = 用户改回了「独立档」；缺字段（老客户端）= 沿用已存值。
+    const providerId = incoming?.providerId ?? previous.providerId ?? "";
     const apiKey = isMaskedImageGenKey(incoming?.apiKey)
       ? previous.apiKey
       : (incoming?.apiKey ?? "");
-    providers[id] = { ...previous, ...incoming, apiKey };
+    providers[id] = providerId
+      // fork:imagegen-ref —— 引用态**绝不落盘端点与密钥**：它们属于 models.json，
+      // 复制一份就是这次要消掉的那个重复（也正是「轮换不生效」的根因）。
+      ? { ...previous, ...incoming, providerId, baseUrl: "", apiKey: "" }
+      : { ...previous, ...incoming, providerId: "", apiKey };
   }
   const merged: ImageGenConfig = { version: 1, active: config.active, providers };
   const path = imagegenConfigPath(agentDir);
@@ -129,9 +138,111 @@ export function maskedImageGenConfig(config: ImageGenConfig = readImageGenConfig
   const providers = {} as ImageGenConfig["providers"];
   for (const id of IMAGEGEN_PRESET_IDS) {
     const profile = config.providers[id];
-    providers[id] = { ...profile, ...(profile.apiKey ? { apiKey: IMAGEGEN_KEY_MASK } : { apiKey: "" }) };
+    // 引用态：端点是**派生**出来的（只为显示），密钥同样只回掩码。存盘里两项恒为空。
+    const resolved = profile.providerId ? resolveImageGenProfile(profile) : null;
+    const effective: ImageGenProviderEntry = resolved?.ok ? { ...profile, ...resolved.profile } : profile;
+    providers[id] = { ...effective, apiKey: effective.apiKey ? IMAGEGEN_KEY_MASK : "" };
   }
   return { version: 1, active: config.active, providers };
+}
+
+// ── 「设置 → 模型」里的服务商（引用来源） ────────────────────────────────────────
+
+/**
+ * fork:imagegen-ref（2026-10-06 用户裁定）—— 端点与密钥**引用**「设置 → 模型」里
+ * 已经配好的那一份，而不是让用户重填一遍。
+ *
+ * 为什么不直接拿那个服务商去生图：pi-ai 的 `KnownImageApi` 只有一个成员
+ * `openrouter-images`（内置 57 个生图模型全走它，openai 的 image 模型数是 0），
+ * 而且 models.json 里的 `type: "image"` 会被当成 chat 模型收下（实测
+ * `getModelsOfType("image")` 返回空）。所以请求仍然由本模块直发，**能复用的就是
+ * 端点与密钥这两项**，它们在同一份 models.json 里本来就有。
+ */
+export interface ModelsProviderRef {
+  id: string;
+  name: string;
+  baseUrl: string;
+  /** 只报「有没有」，明文绝不出现在任何响应里。 */
+  hasKey: boolean;
+}
+
+function modelsProviderRecord(id: string, modelsPath?: string): Record<string, unknown> | null {
+  let config: Record<string, unknown>;
+  try {
+    config = readModelsConfig(modelsPath);
+  } catch {
+    // models.json 坏了：与「找不到这个服务商」同一处置（fail closed）。
+    return null;
+  }
+  const providers = config.providers;
+  if (!providers || typeof providers !== "object" || Array.isArray(providers)) return null;
+  const entry = (providers as Record<string, unknown>)[id];
+  return entry && typeof entry === "object" && !Array.isArray(entry)
+    ? entry as Record<string, unknown>
+    : null;
+}
+
+/** 给设置页下拉用的服务商清单（不含密钥）。 */
+export function listModelsProviders(modelsPath?: string): ModelsProviderRef[] {
+  let config: Record<string, unknown>;
+  try {
+    config = readModelsConfig(modelsPath);
+  } catch {
+    return [];
+  }
+  const providers = config.providers;
+  if (!providers || typeof providers !== "object" || Array.isArray(providers)) return [];
+  return Object.entries(providers as Record<string, unknown>).flatMap(([id, raw]) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const entry = raw as Record<string, unknown>;
+    return [{
+      id,
+      name: typeof entry.name === "string" && entry.name.trim() ? entry.name.trim() : id,
+      baseUrl: typeof entry.baseUrl === "string" ? entry.baseUrl.trim() : "",
+      hasKey: typeof entry.apiKey === "string" && entry.apiKey.trim().length > 0,
+    }];
+  });
+}
+
+export type ResolvedImageGenProfile =
+  | { ok: true; profile: ImageGenProfile }
+  | { ok: false; error: string };
+
+/**
+ * 把档案解析成「真的能发请求」的一份：引用态在这里取端点与密钥。
+ *
+ * 工具、测试路由、设置页三处走的是**同一个**解析器 —— 谁都不许自己拼 baseUrl，
+ * 否则「引用」会在某一处悄悄退化成复制。解析不出来就 fail closed，绝不用空密钥发请求。
+ */
+export function resolveImageGenProfile(
+  profile: ImageGenProfile | undefined,
+  modelsPath?: string,
+): ResolvedImageGenProfile {
+  if (!profile) return { ok: false, error: "No image-generation profile is selected" };
+  if (!profile.providerId) {
+    return profileIsConfigured(profile)
+      ? { ok: true, profile }
+      : { ok: false, error: "This profile needs a base URL, an API key and a model name" };
+  }
+  const entry = modelsProviderRecord(profile.providerId, modelsPath);
+  if (!entry) {
+    return {
+      ok: false,
+      error: `The referenced provider "${profile.providerId}" is no longer in Settings → Models. Pick another one there, or pick a built-in preset here.`,
+    };
+  }
+  const baseUrl = typeof entry.baseUrl === "string" ? entry.baseUrl.trim() : "";
+  const apiKey = typeof entry.apiKey === "string" ? entry.apiKey.trim() : "";
+  if (!baseUrl || !apiKey) {
+    return {
+      ok: false,
+      error: `The provider "${profile.providerId}" in Settings → Models has no base URL or API key yet`,
+    };
+  }
+  const resolved: ImageGenProfile = { ...profile, baseUrl, apiKey };
+  return profileIsConfigured(resolved)
+    ? { ok: true, profile: resolved }
+    : { ok: false, error: `The provider "${profile.providerId}" is referenced, but this profile still needs a model name` };
 }
 
 // ── 生成图片的落盘 ───────────────────────────────────────────────────────────

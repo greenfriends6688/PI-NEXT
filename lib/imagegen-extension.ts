@@ -9,9 +9,9 @@ import {
   IMAGEGEN_MAX_BATCH,
   ensureGeneratedImagesRootRegistered,
   generateImagesWithProfile,
-  profileIsConfigured,
   readImageGenConfig,
   resolveDestWithinCwd,
+  resolveImageGenProfile,
   saveGeneratedImageSync,
   type GeneratedImageFile,
 } from "./imagegen-config";
@@ -85,17 +85,20 @@ export function createImageGenExtension(sessionCwd?: string): InlineExtension {
         }),
         async execute(_toolCallId, params, signal) {
           const config = readImageGenConfig();
-          const profile = config.providers[config.active];
-          if (!profileIsConfigured(profile)) {
+          // fork:imagegen-ref —— 解析器负责「引用态去 models.json 取端点+密钥」；
+          // 与设置页的「测试」共用一份，三处不会各拼一套 baseUrl。
+          const resolved = resolveImageGenProfile(config.providers[config.active]);
+          if (!resolved.ok) {
             return {
               content: [{
                 type: "text" as const,
-                text: "No image-generation model is configured. The user adds one in Settings → Image models (provider, base URL, API key, model), then runs the connection test there.",
+                text: `${resolved.error} The user fixes this in Settings → Image models, or runs the connection test there.`,
               }],
               details: undefined,
               isError: true,
             };
           }
+          const profile = resolved.profile;
 
           const n = Math.min(IMAGEGEN_MAX_BATCH, Math.max(1, Math.floor(params.n ?? 1)));
           const destDir = params.dest?.trim();

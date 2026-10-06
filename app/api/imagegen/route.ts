@@ -5,14 +5,14 @@ import { NextResponse } from "next/server";
 import {
   IMAGEGEN_PRESET_IDS,
   type ImageGenPreset,
-  type ImageGenProfile,
   describeHttpError,
   emptyImageGenStatus,
   ensureGeneratedImagesRootRegistered,
   generateImagesWithProfile,
+  listModelsProviders,
   maskedImageGenConfig,
-  profileIsConfigured,
   readImageGenConfig,
+  resolveImageGenProfile,
   saveGeneratedImageSync,
   writeImageGenConfig,
   writeImageGenStatus,
@@ -23,12 +23,22 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/imagegen —— 设置页读配置（掩码视图：apiKey 有值就给掩码常量，明文不过网）。
+ *        另带 `modelsProviders`（「设置 → 模型」里已配的服务商，供下拉引用）与
+ *        `refError`（当前引用解析不出来时的原因）。
  * PUT —— 整表替换；掩码值 = 「沿用已存密钥」（字段级合并见 writeImageGenConfig）。
  * POST —— 「测试」：真的用当前配置生成一张小图并落盘，状态落回配置文件。
  *         「看起来配好了」不算数——只有测试通过的档案才允许标书自动配图。
  */
 export async function GET() {
-  return NextResponse.json(maskedImageGenConfig());
+  const raw = readImageGenConfig();
+  const activeProfile = raw.providers[raw.active];
+  // 引用态解析不出来时把原因一并回给面板（引用已删的服务商是允许发生的后果）。
+  const resolved = activeProfile?.providerId ? resolveImageGenProfile(activeProfile) : null;
+  return NextResponse.json({
+    ...maskedImageGenConfig(raw),
+    modelsProviders: listModelsProviders(),
+    refError: resolved && !resolved.ok ? resolved.error : null,
+  });
 }
 
 function asPreset(value: unknown): ImageGenPreset | null {
@@ -62,6 +72,7 @@ export async function PUT(req: Request) {
       // 未提交的档案原样保留（设置页只编辑展开的那一份）；apiKey 走掩码合并。
       providers[id] = {
         ...current.providers[id],
+        ...(typeof incoming.providerId === "string" ? { providerId: incoming.providerId.trim() } : {}),
         ...(typeof incoming.baseUrl === "string" ? { baseUrl: incoming.baseUrl.trim() } : {}),
         ...(typeof incoming.apiKey === "string" ? { apiKey: incoming.apiKey } : {}),
         ...(typeof incoming.model === "string" ? { model: incoming.model.trim() } : {}),
@@ -99,13 +110,13 @@ export async function POST(req: Request) {
 
   const config = readImageGenConfig();
   const target = preset ?? config.active;
-  const profile: ImageGenProfile | undefined = config.providers[target];
-  if (!profileIsConfigured(profile)) {
-    return NextResponse.json(
-      { error: "This provider profile needs a base URL, an API key and a model name" },
-      { status: 409 },
-    );
+  // fork:imagegen-ref —— 端点与密钥从解析器出（引用态去 models.json 取），
+  // 测试与 generate_image 工具走的是同一条路。
+  const resolved = resolveImageGenProfile(config.providers[target]);
+  if (!resolved.ok) {
+    return NextResponse.json({ error: resolved.error }, { status: 409 });
   }
+  const profile = resolved.profile;
 
   const root = ensureGeneratedImagesRootRegistered();
   const outcome = await generateImagesWithProfile(profile, { prompt: "a single small blue circle on a white background, minimal test image", n: 1, size: profile.size }, {

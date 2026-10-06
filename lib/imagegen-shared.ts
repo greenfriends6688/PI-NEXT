@@ -67,8 +67,18 @@ export function isMaskedImageGenKey(value: string | undefined): boolean {
 }
 
 export interface ImageGenProfile {
-  /** OpenAI 兼容根端点（不含 `/images/generations`）。 */
+  /**
+   * 引用「设置 → 模型」里某个**已配服务商**的 id：非空时端点与密钥一律以那份为准，
+   * 本档不再存副本 —— 密钥轮换自动生效；那个服务商被删掉则生图如实报错。
+   *
+   * fork:imagegen-ref（2026-10-06 用户裁定）—— 之前每档都要把 baseUrl + apiKey
+   * 重填一遍，而 models.json 的服务商档里本来就有这两个字段（用户已经填过一次）。
+   * 只有 `custom` 档会用到它：四个内置预设各带固定端点，语义上没有可引用的对象。
+   */
+  providerId: string;
+  /** OpenAI 兼容根端点（不含 `/images/generations`）；`providerId` 非空时被忽略。 */
   baseUrl: string;
+  /** `providerId` 非空时恒为空串（绝不复制副本）。 */
   apiKey: string;
   model: string;
   /** 请求体里的默认 `size`；各家枚举不同，原样透传。 */
@@ -122,6 +132,7 @@ function readProfile(value: unknown): ImageGenProviderEntry {
     ? rawStatus.state
     : "untested";
   return {
+    providerId: typeof entry.providerId === "string" ? entry.providerId.trim() : "",
     baseUrl: typeof entry.baseUrl === "string" ? entry.baseUrl.trim() : "",
     apiKey: typeof entry.apiKey === "string" ? entry.apiKey : "",
     model: typeof entry.model === "string" ? entry.model.trim() : "",

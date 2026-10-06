@@ -629,7 +629,20 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 
 | 项 | 处置 |
 |---|---|
-| 新分节画板 | `design/v5/web/boards/D-31-settings-imagegen.html`（单帧：服务商档案 / 生成参数 / 连接测试；D-28/30 已被动效与键盘板占用，编号取 31）。表单 DOM 抄 D-08 的 `.d-set-sec` / `.d-grid2` / `.d-field` / `.d-input` / `.d-select` 那一套，密钥字段用掩码值示意 |
+| 新分节画板 | `design/v5/web/boards/D-31-settings-imagegen.html`（两帧：帧 A = 独立档（内置预设 / 自定义），帧 B = 引用「设置 → 模型」里已配的服务商；D-28/30 已被动效与键盘板占用，编号取 31）。表单 DOM 抄 D-08 的 `.d-set-sec` / `.d-grid2` / `.d-field` / `.d-input` / `.d-select` 那一套，密钥字段用掩码值示意 |
 | 导航扩容 | 15 张设置画板（13 张在 boardnav 测试清单里 + D-07b + D-25 计划队列里的设置壳）的**每一处** `<nav class="d-set-nav">` 插入同一枚 `<button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>`。「11 条 / 11 枚图标」的测试断言随画板改为 12（`SettingsPanel.boardnav.test.mjs`），D-31 进入同构清单；hub 文案与「十二个分节」计数同步（`SettingsPanel.test.mjs`） |
 | 新类 | `.d-test-img`（测试回显图：等比上限 + `--nx-r-sm` 圆角）—— 进 `web/system.css` 并出现在 D-31 板面上（判据⑦）。产品侧 `ImageGenSettingsPanel` 全部复用已有 `d-*` 原子，零内联几何 |
 | 已登记不改 | 生图档案独立于对话模型（不进模型选择器、不吃 `enabledModels`）；结果卡复用 `ResultImages` 的 URL 来源通道（`details.images` → `/api/files`），不新增聊天流类名 |
+| 已登记偏离 | 画板的 `.d-select` 是 `.d-btn` 外形的假下拉（板面静态不接线）；产品用原生 `<select>` + `<optgroup>`（两组：已配服务商 / 内置预设），几何沿用 `.d-select`。板面仍按 `.d-select` 画 |
+
+### T2 · 端点与密钥改用引用（2026-10-06 晚间 · fork:imagegen-ref）
+
+用户裁定：生图档案不再让人把端点与密钥重填一遍，改成**引用**「设置 → 模型」里已配好的服务商。
+
+| 项 | 处置 |
+|---|---|
+| 为什么不直接拿那个服务商去生图 | pi-ai 的 `KnownImageApi` 只有一个成员 `openrouter-images`，而 **models.json 不收 image 模型** —— 实测把一个 `type: "image"` 的模型写进去，SDK 把它当 chat 收下（`getModelsOfType("image")` 返回空）。所以请求仍由 `lib/imagegen-config.ts` 直发，**能复用的就是端点与密钥** |
+| 契约 | `ImageGenProfile.providerId`：非空即引用态，`baseUrl` / `apiKey` 被忽略且**绝不落盘**（`writeImageGenConfig` 强制置空）。解析集中在 `resolveImageGenProfile()`，工具 / 测试路由 / 面板三处共用；解析不出来 fail closed 并如实报错（服务商被删 / 缺密钥 / 缺模型名） |
+| 控件 | 服务商下拉分两组：已配服务商（`ref:<id>`，落在 `custom` 档）与内置预设；引用态**不渲染** Base URL / API Key 两格，换成一条 `.d-set-row`（「端点与密钥来自」+ 端点 + `.d-badge` 密钥状态） |
+| 引用态为何挂在 `custom` 档 | 四个内置预设各带固定端点，没有可引用的对象；`custom` 本就是「不是那四个内置预设」的那一格 |
+
