@@ -143,3 +143,21 @@ test("places trust warnings below the mobile toolbar and the file toggle in tool
   assert.doesNotMatch(source, /File panel toggle — always visible at top-right/);
   assert.doesNotMatch(source, /position: "fixed", top: "env\(safe-area-inset-top\)"/);
 });
+
+// fork:top-panel-dismiss + fork:mcp-click-only（用户 2026-10-05）—— 两处「点外面就关」：
+//   ① 顶栏浮层（工具定义 / 系统提示 / 子代理）此前**只有触发钮的 toggle**，点旁边
+//      任何地方都不消失，非得再点一次那枚钮；② MCP 那枚浮窗指针扫过顶栏就弹。
+const popoverSource = await readFile(new URL("./TopBarPopovers.tsx", import.meta.url), "utf8");
+
+test("the top-bar panels dismiss on an outside click and MCP opens on click only", () => {
+  assert.match(source, /import \{ useDismissOnOutside \} from "\.\/PortalDropdown";/);
+  assert.match(source, /useDismissOnOutside\(Boolean\(activeTopPanel\), topPanelAnchorRef, topPanelRef, closeTopPanel\)/);
+  assert.match(source, /<div ref=\{topPanelRef\} className="anim-popover-down d-pop-float"/);
+
+  // MCP 走 `openOnHover={false}`；插件那枚保留悬停开（用户只点了 MCP 这一枚）。
+  assert.match(popoverSource, /icon="server"[\s\S]{0,120}?openOnHover=\{false\}/);
+  assert.match(popoverSource, /const open = openOnHover \? hovered \|\| pinned : pinned;/);
+  assert.match(popoverSource, /onMouseEnter=\{openOnHover \? holdOpen : undefined\}/);
+  // 那一族判据本身仍是共享实现（点外面 + Esc）。
+  assert.match(source, /useDismissOnOutside/);
+});

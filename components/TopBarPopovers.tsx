@@ -38,6 +38,7 @@ function HoverPopover({
   title,
   badge,
   width = POPOVER_WIDTH,
+  openOnHover = true,
   onOpenChange,
   children,
 }: {
@@ -46,6 +47,10 @@ function HoverPopover({
   title: string;
   badge?: ReactNode;
   width?: number;
+  /** fork:mcp-click-only（用户 2026-10-05）—— 悬停就开浮窗的只有 MCP/插件两枚，
+   *  而 MCP 那一枚现在**只认点击**：指针扫过顶栏就弹出一整块服务器列表，扫一次弹一次。
+   *  `false` = 只有点开才开（移开不自动收，关掉靠点外面 / Esc —— `useDismissOnOutside`）。 */
+  openOnHover?: boolean;
   /** 浮窗开合状态外传：内容需要「打开时才拉数据」时用（不要在每次悬停都发请求）。 */
   onOpenChange?: (open: boolean) => void;
   children: (close: () => void) => ReactNode;
@@ -56,7 +61,7 @@ function HoverPopover({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const open = hovered || pinned;
+  const open = openOnHover ? hovered || pinned : pinned;
   const close = useCallback(() => {
     setPinned(false);
     setHovered(false);
@@ -100,8 +105,8 @@ function HoverPopover({
            所以**不给它加**锚点类 —— 加了是装饰不是结构（LANDING §2②）。 */
         className={`d-iconbtn d-anchor${open ? " is-on" : ""}`}
         onClick={() => setPinned((v) => !v)}
-        onMouseEnter={holdOpen}
-        onMouseLeave={scheduleClose}
+        onMouseEnter={openOnHover ? holdOpen : undefined}
+        onMouseLeave={openOnHover ? scheduleClose : undefined}
       >
         <i data-ico={icon} data-size="14" aria-hidden="true"></i>
         {badge}
@@ -111,7 +116,7 @@ function HoverPopover({
           原来多包了一层 `<div role="menu">`，板面上不存在；它也把「行是 role=menuitem
           吗」这件事说错了（这些都是只读状态行）。悬停保持挂在壳上即可。 */}
       <PortalDropdown open={open} anchorRef={anchorRef} panelRef={panelRef} className="d-pop-float" width={width} align="right">
-        <div onMouseEnter={holdOpen} onMouseLeave={scheduleClose}>
+        <div onMouseEnter={openOnHover ? holdOpen : undefined} onMouseLeave={openOnHover ? scheduleClose : undefined}>
           {children(close)}
         </div>
       </PortalDropdown>
@@ -289,6 +294,7 @@ export function McpStatusButton({ cwd, statuses }: { cwd: string | null; statuse
       label={t("topbar.mcp")}
       icon="server"
       title={title}
+      openOnHover={false}
       onOpenChange={setOpen}
       badge={enabled > 0 ? (
         <span className="d-badge info" style={{ position: "absolute", top: 1, right: 1, minWidth: 13, height: 13, padding: "0 3px" }}>

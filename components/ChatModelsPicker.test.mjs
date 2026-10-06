@@ -53,3 +53,22 @@ test("replace is one write, not a clear followed by an enable", () => {
   assert.match(controller, /mutate\("replace", \{ op: "replace", refs \}\)/);
   assert.match(controller, /replaceModels: \(refs: string\[\]\) => void;/);
 });
+
+// fork:star-solid（用户 2026-10-06）—— 收藏星标只有一档读法：空心 = 未收藏、实心 = 已收藏。
+// 此前是 `star` / `star-off` 两枚图标（后者是一颗**划掉**的星），模型列表每一行末尾都挂
+// 着一颗带斜线的星，和行尾那枚「当前模型 ✓」并排时读成两套状态。
+const selector = await readFile(new URL("./ModelSelector.tsx", import.meta.url), "utf8");
+const composer = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+const forms = await readFile(new URL("../app/design/v5-forms.css", import.meta.url), "utf8");
+
+test("favorites read as one hollow/solid star, never a slashed one", () => {
+  assert.doesNotMatch(selector, /data-ico=\{isFavorite \? "star" : "star-off"\}/);
+  assert.doesNotMatch(selector, /data-ico=\{favorite \? "star" : "star-off"\}/);
+  assert.doesNotMatch(composer, /data-ico=\{filled \? "star" : "star-off"\}/);
+  // 桌面行与窄屏行都挂 `.fork-star`，输入框那三处挂在图标本体上。
+  assert.equal((selector.match(/fork-star\$\{isFavorite \? " is-on" : ""\}/g) ?? []).length, 1);
+  assert.match(selector, /fork-star\$\{favorite \? " is-on" : ""\}/);
+  assert.match(composer, /className=\{filled \? "fork-star-on" : undefined\}/);
+  assert.match(forms, /\.fork-star\.is-on svg \{ fill: currentColor; \}/);
+  assert.match(forms, /\.fork-star-on svg \{ fill: currentColor; \}/);
+});

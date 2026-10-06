@@ -30,3 +30,43 @@ test("the process group rides inside the answer message, after the identity row"
   );
   assert.ok(head < view.indexOf("{blockItems.map("), "prefix must come before the body blocks");
 });
+
+// fork:turn-head-first（用户 2026-10-05）—— 「PI NEXT 最后才出现」：本轮还没有正文时
+// （工具在跑的那几分钟）宿主不挂 MessageView，只挂过程卡，于是身份行要等第一条正文到
+// 才画出来。现在那一条分支自己先画一份。
+test("the identity row is on screen before the turn has any answer text", () => {
+  assert.match(
+    source,
+    /if \(streamingProcess\.answerBlocks\.length === 0\) \{[\s\S]*?<TurnIdentityHead[\s\S]*?\{groupNode\}/,
+  );
+  // 被中断 / 只有工具的那一支（没有回答可挂 prefix）同样有身份行。
+  assert.match(
+    source,
+    /else if \(processGroupNode\) \{[\s\S]*?<TurnIdentityHead[\s\S]*?\{processGroupNode\}/,
+  );
+  // 身份行只画一份：MessageView 复用组件，不再内联第二份 DOM。
+  assert.equal((view.match(/className="d-msg-ai-head"/g) ?? []).length, 1);
+  assert.match(source, /import \{ MessageView, TurnIdentityHead, formatDuration \}/);
+});
+
+// fork:digest-weight —— 摘要首格不再套 <b>（用户要常规字重）。
+test("the process digest renders every segment at the head's own weight", () => {
+  assert.doesNotMatch(source, /part\.lead/);
+  assert.doesNotMatch(source, /<b>\{part\.text\}<\/b>/);
+});
+
+// fork:rail-one —— 时间轴只能有**一条**竖线：`.d-step::before` 与展开正文的
+// `.process-step-body-wrap::before` 必须同位同色，且正文缩进与步骤行文案左缘对齐。
+const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+test("the expanded step body continues the one timeline rail", () => {
+  const wrapRule = globals.match(/\.process-step-body-wrap::before \{([^}]*)\}/)?.[1] ?? "";
+  assert.match(wrapRule, /left:\s*10px/, "body rail must sit on the step rail (left: 10px)");
+  assert.match(wrapRule, /background:\s*var\(--nx-line\)/, "body rail must use the step rail colour");
+  assert.doesNotMatch(wrapRule, /border-left/, "no second, differently coloured line");
+  // 27 = 2 (行左内缩) + 17 (图标) + 8 (gap)：与 `.d-step` 的文案左缘同一条竖线。
+  assert.match(
+    globals.match(/\.process-step-body-wrap \{([^}]*)\}/)?.[1] ?? "",
+    /padding-left:\s*27px/,
+  );
+});

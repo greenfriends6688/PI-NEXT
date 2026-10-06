@@ -14,7 +14,7 @@ import { createSelectionContextId, type SelectionContext } from "@/lib/composer-
 import type { SessionReference } from "@/lib/composer-context";
 import { clearLocationTextHighlight, LOCATION_HIGHLIGHT_CLASS, setLocationTextHighlight } from "@/lib/location-highlight";
 import { setReadCursor, useReadCursors } from "@/lib/session-unread";
-import { MessageView, formatDuration } from "./MessageView";
+import { MessageView, TurnIdentityHead, formatDuration } from "./MessageView";
 import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { FileLocationTarget } from "./FileViewer";
@@ -564,7 +564,7 @@ function processSpanSec(list: readonly unknown[], from: number, to: number): num
   return (last - first) / 1000;
 }
 
-function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, summaryParts, status = "done", durationSec = null, children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; /** fork:v5-landing —— 摘要的**分段形**（加粗首格 + `.d-err` 失败格）。 */ summaryParts?: { text: string; lead?: boolean; err?: boolean }[]; status?: "running" | "done"; durationSec?: number | null; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
+function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = false, reveal = false, summaryText, summaryParts, status = "done", durationSec = null, children, t }: { messageCount: number; toolCallCount: number; defaultExpanded?: boolean; reveal?: boolean; summaryText?: string; /** fork:v5-landing —— 摘要的**分段形**（失败格进 `.d-err`）。 */ summaryParts?: { text: string; err?: boolean }[]; status?: "running" | "done"; durationSec?: number | null; children: ReactNode; t: (key: string, params?: Record<string, string | number>) => string }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   // fork:v5-wave-b —— 手机上「过程默认**折叠成一行摘要**」（画板 M-02 帧 A 原话）：
   // 收起态就是一块 `.m-tool` 的 `.m-tool-head` —— 图标 + 摘要 + grow + chevron。
@@ -603,7 +603,11 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
     // （手机上那一句会把它顶成两行）。展开态的正文是 `.m-doc-body`。
     // fork:proc-card-weight —— 摘要行不是标题，字重回落正文（在
     // app/design/v5-forms.css 的接线层落，不改库里的 .d-card-head）。
-    <div className={`${isPwa ? "m-tool" : "d-card"} fork-proc-card`} style={{ marginBottom: isPwa ? 0 : 14 }}>
+    // fork:digest-weight（用户 2026-10-05）—— **不再加粗首格**：`.d-card-head` 已经是
+    // 400，再套一个 `<b>` 只让「14 条命令」这一格跳出来，比旁边几格重一档（用户要
+    // 「常规」）。竖线与 `.d-card-head` 同色（`.d-grow`）那一格仍留着，用来把摘要
+    // 顶到行的左缘 —— 它不承担强调。
+    <div className={`${isPwa ? "m-tool" : "d-card"} fork-proc-card`}>
       <button
         type="button"
         className={isPwa ? "m-tool-head" : "d-card-head"}
@@ -624,14 +628,15 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
         <span className={isPwa ? "m-grow" : "d-grow"} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {/* fork:v5-landing —— 画板 D-03d 帧 A：`<b>2 个文件</b> · 5 条命令 · …
               <span class="d-err">1 次失败</span> · 2 段思考`。有分段就逐段渲染，
-              没有（调用方只给了字符串）才回落到原来的单段文本。 */}
+              没有（调用方只给了字符串）才回落到原来的单段文本。
+              fork:digest-weight —— 首格的 `<b>` 已按用户裁定去掉（见上）。 */}
           {summaryParts
             ? summaryParts.map((part, index) => (
               <Fragment key={`${part.text}-${index}`}>
                 {index > 0 && " · "}
                 {part.err
                   ? <span className="d-err">{part.text}</span>
-                  : part.lead ? <b>{part.text}</b> : part.text}
+                  : part.text}
               </Fragment>
             ))
             : label}
@@ -2280,8 +2285,14 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           // stable gutter 让短会话长出屏幕时居中列不会横向跳动。
           className={`d-chat${isPwa ? " m-scroll" : ""} min-w-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]${refreshing ? " fork-pending" : ""}`}
           aria-busy={refreshing || undefined}
-          // 横向内距由内层 `.d-chat-inner` 按用户密度给；这里清掉画板的 sp-8，避免双内距。
-          style={{ visibility: pendingScrollRestore ? "hidden" : undefined, paddingLeft: 0, paddingRight: 0 }}
+          /* 横向内距：桌面由内层 `.d-chat-inner` 按用户密度给，所以这里清掉画板的
+             sp-8 避免双内距；**窄屏相反** —— 画板 M-01/M-02/M-04 每一帧的滚动区
+             就是 `padding: 108px 18px 140px`，那一格才是横向留白（`.d-chat-inner`
+             在 PWA 下 `padding: 0`）。清零等于让消息顶到屏幕边：17px 满宽正文看起来
+             比画板大一圈，`.m-msg-user` 的 82% 也从 289px 涨到 320px，右贴边。 */
+          style={isPwa
+            ? { visibility: pendingScrollRestore ? "hidden" : undefined }
+            : { visibility: pendingScrollRestore ? "hidden" : undefined, paddingLeft: 0, paddingRight: 0 }}
         >
           {/* fork:design-components —— 消息列 = 画板 D-03 的 .d-chat-inner
               （居中定宽 + flex 列 + gap sp-6）。原先这里是两层 div：
@@ -2676,7 +2687,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                   }));
                 } else if (processGroupNode) {
                   // 没有正文可挂（被中断 / 只有工具）：过程组自己就是那一块。
-                  rendered.push(processGroupNode);
+                  // fork:turn-head-first —— 同上，身份行仍然先画：这一轮发生过，就是
+                  // 有人说过话，哪怕最后没有正文。壳用 `.d-msg-ai`（与 MessageView
+                  // 同款间距），所以它与「有正文」那一支的读法一致。
+                  rendered.push(
+                    <div key={`process-head-${entryIds[userIdx] ?? userIdx}`} className={isPwa ? "m-msg-ai" : "d-msg-ai"}>
+                      <TurnIdentityHead message={finalAssistant} modelNames={modelNames} isPwa={isPwa} />
+                      {processGroupNode}
+                    </div>,
+                  );
                 }
                 for (let renderIdx = finalAssistantIdx + 1; renderIdx < endIdx; renderIdx++) {
                   rendered.push(renderMessage(renderIdx));
@@ -2716,6 +2735,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 }
                 // fork:turn-head-order —— 过程组当回答消息的 `prefix`（身份行之后），
                 // 还没有回答可挂时就自己渲染出去 —— 两种情况都只出一块。
+                // fork:turn-head-first（用户 2026-10-05）—— 「还没有回答」的那段里
+                // **也把身份行画出来**：整轮只有它时（工具在跑、等首条正文），
+                // 用户看到的是一张无主的卡片，「PI NEXT」要等正文到了才出现 ——
+                // 读成「最后才出现」。这一支仍然不出 MessageView（正文没有，消息壳
+                // 也没有正文可渲染），所以身份行按它自己的组件画一份，外层仍用
+                // `.d-msg-ai` / `.m-msg-ai` 拿到与 MessageView 一样的 12px 间距。
                 let groupNode: ReactNode = liveTurnGroup;
                 if (!groupNode) {
                   const liveToolCalls = streamingProcess.blocks.filter((block) => block.type === "toolCall").length;
@@ -2743,7 +2768,18 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     </div>
                   );
                 }
-                if (streamingProcess.answerBlocks.length === 0) return groupNode;
+                if (streamingProcess.answerBlocks.length === 0) {
+                  return (
+                    <div key="turn-head-live" className={isPwa ? "m-msg-ai" : "d-msg-ai"}>
+                      <TurnIdentityHead
+                        message={live as { provider?: string; model?: string }}
+                        modelNames={modelNames}
+                        isPwa={isPwa}
+                      />
+                      {groupNode}
+                    </div>
+                  );
+                }
                 return (
                   <MessageView
                     message={{ ...live, content: streamingProcess.answerBlocks } as AgentMessage}
@@ -2902,10 +2938,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
            `.m-composer-wrap`：**浮在转录之上**（absolute / bottom:0），滚动区靠
            `.m-scroll` 的 `padding-bottom: 140px` 让位。产品在窄屏此前把它留在流里，
            于是「顶栏浮在内容上、输入卡也浮在内容上」这组对称只落地了一半。 */
-        className={isPwa ? "m-composer-wrap" : "d-composer-wrap relative shrink-0"}
+        className={isPwa ? "fork-composer-anchor" : "d-composer-wrap relative shrink-0"}
         style={{
           ...(isPwa
-            ? {}
+            /* 定位是几何，铁律四许内联；**类不给**：画板 M-01/M-02/M-04 的
+               `.m-composer-wrap` 只有一个，就在 ChatInput 里那个 —— 它直接托着
+               `.m-composer`。这里再挂一次就成了两层 wrap，两份 `padding: 0 12px 12px`
+               叠成 24px，输入卡从 364px 缩到 310px，两侧各少 27px。
+               本层只负责把输入卡抬到转录之上（board-diff 也只量 ChatInput 那一枚）。 */
+            ? { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: "var(--nx-z-panel)" }
             : {
               gridColumn: "1",
               gridRow: "2",

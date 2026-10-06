@@ -56,8 +56,9 @@
 .m-msg-ai-head { display: flex; align-items: center; gap: var(--nx-sp-2); }
 .m-ava { width: 22px; height: 22px; border-radius: var(--nx-r-sm); background: var(--nx-accent);
   color: var(--nx-accent-fg); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-/* 头像盒用中性底 + 细边：渐变品牌图叠在强调色上会变浑（与 web 同因）。 */
-.m-ava.brand { background: var(--nx-panel); border: 1px solid var(--nx-line); }
+/* 头像盒用中性底：渐变品牌图叠在强调色上会变浑（与 web 同因）。
+   fork:ava-no-frame（用户 2026-10-05）—— 与 `.d-ava.brand` 同一次裁定：边框去掉。 */
+.m-ava.brand { background: var(--nx-panel); }
 .m-ava > img { width: 74%; height: 74%; object-fit: contain; display: block; }
 /* 消息动作行（复制 / 重新生成 / 从这里分支 / 引用）：默认悬浮显现，钉住时用 .is-on */
 .m-msg-acts { display: flex; gap: 2px; opacity: 0; transition: opacity var(--nx-dur-2) var(--nx-ease); }

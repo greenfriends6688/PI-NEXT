@@ -28,16 +28,17 @@
 /* 品牌标记：**镂空** —— 官方 logo 是透明底的 N 形，容器不许再垫一块渐变方块
    （垫了就会变成一块填充色块，标记本身的透明区域全被染色）。
    只有「还没有 img」的占位态（π 字符）才用品牌渐变底，用 :has() 分开。 */
-/* 品牌标记（2026-10-05 用户裁定「别太大」）：24/20 → 20/16，标记与字标同步缩一档。
+/* 品牌标记（2026-10-05 用户裁定「别太大」）：24/20 → 20/16 → **17/13**。第一刀是整体
+   缩一档，用户看过仍偏大；再缩时保持两者的比例关系（字标高 ≈ 标记宽的 3/4）。
    PWA 抽屉的 .m-brand（26px，无字标）不在此裁定内，维持原样。 */
-.d-logo { width: 20px; height: 20px; flex: 0 0 auto;
+.d-logo { width: 17px; height: 17px; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--nx-fs-xs); font-weight: 600; }
 .d-logo:not(:has(img)) { border-radius: var(--nx-r-sm); background: var(--nx-brand); color: #fff; }
 .d-logo > img { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* 品牌字标：侧栏收起时只留标记，展开时用字标图。
    深色 / 版本号态是文字 span：行高跟盒走，文字在缩小的盒里保持居中。 */
-.d-wordmark { height: 16px; width: auto; display: block; flex: 0 0 auto; line-height: 16px; }
+.d-wordmark { height: 13px; width: auto; display: block; flex: 0 0 auto; line-height: 13px; }
 .d-brand-lockup { display: flex; align-items: center; gap: var(--nx-sp-2); min-width: 0; }
 .d-side-nav   { padding: 0 var(--nx-sp-2); display: flex; flex-direction: column; gap: 2px; }
 /* 行件在画板里是 div、在产品里是 button：UA 归零必须在库里做一次。
@@ -139,8 +140,10 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   color: var(--nx-accent-fg); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 /* 助手身份位的头像用**主品牌图形**，不是 π 字形：产品里品牌只出现在三个盒子
    （侧栏品牌行 / 空态 mark / 导轨 logo），三处都是中性底 + 渐变 N。所以头像盒
-   也不能是强调色底 —— 渐变图叠在蓝底上会变浑。 */
-.d-ava.brand { background: var(--nx-panel); border: 1px solid var(--nx-line); }
+   也不能是强调色底 —— 渐变图叠在蓝底上会变浑。
+   fork:ava-no-frame（用户 2026-10-05）—— **去掉头像盒的边框**：22px 的方框套一枚
+   渐变 N，在白底上读成「logo 外面还挂了个壳」。中性底保留（它仍要遮住竖线）。 */
+.d-ava.brand { background: var(--nx-panel); }
 .d-ava > img { width: 74%; height: 74%; object-fit: contain; display: block; }
 .d-msg-acts { display: flex; gap: 2px; opacity: 0; transition: opacity var(--nx-dur-2) var(--nx-ease); }
 /* 钉住：会话被归档、被引用、或者用户把光标停在这条上时，动作行常显 */
@@ -153,8 +156,14 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-step { position: relative; display: flex; gap: var(--nx-sp-2); padding: 6px 0 6px 2px; }
 .d-step::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0;
   width: 1px; background: var(--nx-line); }
-.d-step:first-child::before { top: 14px; }
-.d-step:last-child::before  { bottom: auto; height: 14px; }
+/* fork:rail-ends（用户 2026-10-05）—— 竖线两端都收在**图标中心**上。
+   `14px` 是「6 padding + 8 半图标」的旧算式，漏了图标自己的 `margin-top: 2px`，
+   于是首行的线停在图标中心**上方** 2.5px（看着像线没接到图标）；末行那条
+   `:last-child` 更是从来没生效过 —— 每个步骤行的**兄弟**是折叠壳 div，末行永远不是
+   最后一个子元素，于是线尾多挂 6px。改用 16px（= 6 + 2 + 8）并把末行改成
+   `:last-of-type`（按标签数，折叠壳是 div，不参与 button 的计数）。 */
+.d-step:first-child::before { top: 16px; }
+.d-step:last-of-type::before { bottom: auto; height: 16px; }
 .d-step-ico { width: 17px; height: 17px; flex: 0 0 auto; position: relative; z-index: 1; margin-top: 2px;
   /* fork:v5-landing —— 用户 2026-10-04 裁定：**去掉图标外的圆环**。环把 13 条步骤的导轨
      读成一串绿圈（`.done` 还染成 --nx-success），时间轴该由竖线 + 图标 + 文案讲，
@@ -211,11 +220,21 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-diff-line.del { background: color-mix(in srgb, var(--nx-diff-del) 9%, transparent);
   color: var(--nx-diff-del); text-decoration: line-through; text-decoration-thickness: 1px; }
 
-/* 富文本 */
-.d-md { font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); color: var(--nx-text); }
-.d-md h1, .d-md h2, .d-md h3 { line-height: var(--nx-lh-tight); font-weight: 600; margin: 0; }
-.d-md h1 { font-size: var(--nx-fs-lg); }
-.d-md h2 { font-size: var(--nx-fs-body); }
+/* 富文本 —— fork:zcode-type（2026-10-05 用户裁定「排版对齐 ZCode」）：
+   阅读字号 / 行高 / 字重 全按 `DESIGN.md:216-252` 与 `message.tsx:1367-1548` 那一套：
+     容器 14/1.75/tracking .025em · h1 18/600 · h2 16/600 · h3-h4 14/600 ·
+     h5 14/500 · h6 14/400 · strong 500 · 行内代码 12 等宽
+   原来 h1-h3 才有规则（且 h1 才 16），h4-h6 掉进 UA 默认 = bold(700) 纯黑，
+   同一篇文里“加粗”读起来像两个人写的。 */
+.d-md { font-size: var(--nx-fs-body); line-height: var(--nx-lh-reading);
+  letter-spacing: var(--nx-ls-reading); color: var(--nx-text); }
+.d-md h1, .d-md h2, .d-md h3, .d-md h4, .d-md h5, .d-md h6 { line-height: var(--nx-lh-tight); font-weight: 600; margin: 0; }
+.d-md h1 { font-size: var(--nx-fs-xl); }
+.d-md h2 { font-size: var(--nx-fs-lg); }
+.d-md h3, .d-md h4, .d-md h5, .d-md h6 { font-size: var(--nx-fs-body); }
+.d-md h5 { font-weight: 500; }
+.d-md h6 { font-weight: 400; }
+.d-md strong { font-weight: 500; }
 .d-md p { margin: 0 0 var(--nx-sp-2); }
 /* 列表、任务清单、引用、行内提及：此前 .d-md 只管段落与表格，
    这四类在真实回答里天天出现却没有任何样式（板子只能拿别的东西顶）。 */

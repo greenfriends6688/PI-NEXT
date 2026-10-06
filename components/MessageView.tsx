@@ -58,6 +58,8 @@ import type {
 import { TEXT } from "@/lib/typography";
 // fork:v5-wave-b —— PWA 形态（≤640px）转录区：桌面走 d-*，窄屏走画板 M-02 的 m-*。
 import { usePwaSkin } from "@/components/pwa/skin";
+import { useTypewriterReveal } from "@/hooks/useTypewriterReveal";
+import { useMotionPreference } from "@/components/fork/RollingNumber";
 
 // CJK chars ~1 token each (GLM/DeepSeek/GPT-o200k); other chars ~4 chars/token.
 const CJK_PATTERN = /[\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff\u{20000}-\u{2fa1f}\uac00-\ud7af]/u;
@@ -286,6 +288,48 @@ export function getModelDisplayName(
     ?? configured.find((model) => normalizedResponse.endsWith(`/${model.id}`))?.name
     ?? Object.entries(modelNames ?? {}).find(([key]) => key.toLowerCase() === normalizedResponse)?.[1]
     ?? `${provider}/${responseModel}`;
+}
+
+/**
+ * fork:turn-head-first（用户 2026-10-05）—— 助手身份行（画板 D-03 帧 A 的第一块：
+ * `.d-msg-ai-head` › `.d-ava.brand` + `.d-t-b` 产品名 + `.d-badge.mute` 模型名）抽成
+ * 组件，因为**本轮还没有正文时宿主也要先画它**：ChatWindow 的流式分支在
+ * `answerBlocks.length === 0` 的那段时间里只挂过程卡，身份行要等第一条正文到了才
+ * 出现 —— 用户看着就是「PI NEXT 最后才冒出来」。那一处拿不到本组件的内部状态
+ * （turnStats / stepDurationSec 都在正文到来之后才有意义），所以它自己拿一份
+ * `message` 画。`trailing` 留给桌面那一格的耗时 · token（仍由 MessageView 算）。
+ */
+export function TurnIdentityHead({ message, modelNames, isPwa, trailing }: {
+  message: { provider?: string; model?: string };
+  modelNames?: Record<string, string>;
+  isPwa: boolean;
+  trailing?: ReactNode;
+}) {
+  const badge = message.provider && message.model ? (
+    <span className={isPwa ? "m-badge mute" : "d-badge mute"}>
+      {getModelDisplayName(message.provider, message.model, modelNames)}
+    </span>
+  ) : null;
+  return isPwa ? (
+    <div className="m-msg-ai-head">
+      <span className="m-ava brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pi-next-logo.png" alt="" draggable={false} />
+      </span>
+      <span className="m-t-b">PI NEXT</span>
+      {badge}
+    </div>
+  ) : (
+    <div className="d-msg-ai-head">
+      <div className="d-ava brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pi-next-logo.png" alt="" draggable={false} />
+      </div>
+      <span className="d-t-b">PI NEXT</span>
+      {badge}
+      {trailing}
+    </div>
+  );
 }
 
 function formatTime(ts?: number): string | null {
@@ -979,36 +1023,20 @@ function AssistantMessageView({
           在桌面上只能靠猜 —— 这一帧的 structdiff 是「产品里找不到该节点」，
           按 MISSING = 新增内容补出来。板面帧 A 多出的 `.d-plan-meta`
           （耗时 · token）与回合结束行是同一份数据，不重复画。
+          fork:turn-head-first —— 行本身搬进 `TurnIdentityHead`（宿主在「本轮还没有
+          正文」的那段时间里也要先画它），这里只把桌面那一格读数交进去。
           fork:v5-wave-b —— PWA 分支（`.m-msg-ai-head`）一字未动。 */}
-      {isPwa ? (
-        <div className="m-msg-ai-head">
-          <span className="m-ava brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pi-next-logo.png" alt="" draggable={false} />
-          </span>
-          <span className="m-t-b">PI NEXT</span>
-          {message.provider && (
-            <span className="m-badge mute">{getModelDisplayName(message.provider, message.model, modelNames)}</span>
-          )}
-        </div>
-      ) : (
-        <div className="d-msg-ai-head">
-          <div className="d-ava brand">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pi-next-logo.png" alt="" draggable={false} />
-          </div>
-          <span className="d-t-b">PI NEXT</span>
-          {message.provider && (
-            <span className="d-badge mute">{getModelDisplayName(message.provider, message.model, modelNames)}</span>
-          )}
-          {headPlanMeta && (
-            <>
-              <span className="d-grow" />
-              <span className="d-plan-meta">{headPlanMeta}</span>
-            </>
-          )}
-        </div>
-      )}
+      <TurnIdentityHead
+        message={message}
+        modelNames={modelNames}
+        isPwa={isPwa}
+        trailing={isPwa || !headPlanMeta ? undefined : (
+          <>
+            <span className="d-grow" />
+            <span className="d-plan-meta">{headPlanMeta}</span>
+          </>
+        )}
+      />
       {/* fork:turn-head-order —— 过程组（折叠卡）紧跟身份行：宿主把它当 `prefix` 送进来，
           渲染点就在身份行之后、流式元信息行之前（一个视觉只出现一次）。
           fork:prefix-once —— 这里原来**画了两遍** {prefix}（两个 fork:turn-head-order 注释
@@ -1254,6 +1282,7 @@ const INLINE_TAIL_COMPONENTS: ComponentProps<typeof ReactMarkdown>["components"]
 function StreamingTextBlock({ block, cwd, onOpenFile }: { block: TextContent; cwd?: string; onOpenFile?: (filePath: string, page?: number) => void }) {
   const isPwa = usePwaSkin();
   const text = block.text;
+  const motion = useMotionPreference();
   const { stableBody, tail } = useMemo(() => {
     const parts = splitStableParts(text);
     const tailPart = parts.length > 0 && parts[parts.length - 1].tail ? parts[parts.length - 1] : null;
@@ -1266,13 +1295,17 @@ function StreamingTextBlock({ block, cwd, onOpenFile }: { block: TextContent; cw
       tail: tailPart,
     };
   }, [text, cwd, onOpenFile]);
+  const tailText = tail?.text ?? "";
+  // fork:typewriter-tail —— 打字机只作用在**单行行内**的尾段：围栏 / 列表 / 表格
+  // 逐字吐会抖（代码还会横向滚动），照旧整块出。减少动效偏好下直接关掉。
+  const revealedTail = useTypewriterReveal(tailText, tail !== null && isInlineStreamTail(tailText) && motion !== "reduce");
   const caret = <span className={isPwa ? "m-caret" : "d-caret"} aria-hidden="true" />;
   return (
     <>
       {stableBody}
       {tail && (isInlineStreamTail(tail.text) ? (
         <p className={isPwa ? "m-stream" : "d-stream"}>
-          <ReactMarkdown components={INLINE_TAIL_COMPONENTS} skipHtml>{tail.text}</ReactMarkdown>
+          <ReactMarkdown components={INLINE_TAIL_COMPONENTS} skipHtml>{revealedTail}</ReactMarkdown>
           {caret}
         </p>
       ) : (

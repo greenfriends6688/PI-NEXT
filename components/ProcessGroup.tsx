@@ -352,7 +352,7 @@ export function buildProcessSteps(blocks: ProcessContentBlock[], t: (key: string
 export function summarizeStepParts(
   steps: Step[],
   t: (key: string, params?: Record<string, string | number>) => string,
-): { text: string; lead?: boolean; err?: boolean }[] {
+): { text: string; err?: boolean }[] {
   let tools = 0;
   let failed = 0;
   let thoughts = 0;
@@ -395,17 +395,16 @@ export function summarizeStepParts(
       }
     }
   }
-  const parts: { text: string; lead?: boolean; err?: boolean }[] = [];
+  const parts: { text: string; err?: boolean }[] = [];
   if (changedFiles.size > 0) parts.push({ text: t("process.summaryFiles", { count: changedFiles.size }) });
   if (commands > 0) parts.push({ text: t("process.summaryCommands", { count: commands }) });
   if (parts.length === 0 && reads > 0) parts.push({ text: t("process.summaryReads", { count: reads }) });
   parts.push({ text: t("process.summaryTools", { count: tools }) });
   if (failed > 0) parts.push({ text: t("process.summaryFailed", { count: failed }), err: true });
   if (thoughts > 0) parts.push({ text: t("process.summaryThoughts", { count: thoughts }) });
-  // fork:v5-landing —— 画板 D-03d 帧 A：抬头第一格是**加粗**的（「<b>2 个文件</b> ·
-  // 5 条命令 · …」），失败那一格进 `.d-err`。这两个标记是 DOM 的一部分，
-  // 所以摘要不能只是一根拼好的字符串。
-  parts[0] = { ...parts[0], lead: true };
+  // fork:digest-weight（用户 2026-10-05）—— 画板 D-03d 帧 A 把首格写成 `<b>`，产品里
+  // 「14 条命令」被抬到 700，比旁边几格重一档；用户要常规字重，于是首格标记整个去掉，
+  // 只留失败那一格的 `.d-err`。
   return parts;
 }
 
@@ -449,7 +448,7 @@ export function summarizeProcessParts(
   blocks: ProcessContentBlock[],
   t: (key: string, params?: Record<string, string | number>) => string,
   translateStep: (key: string) => string,
-): { text: string; lead?: boolean; err?: boolean }[] {
+): { text: string; err?: boolean }[] {
   return summarizeStepParts(buildProcessSteps(blocks, translateStep), t);
 }
 

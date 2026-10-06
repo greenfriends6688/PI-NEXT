@@ -527,9 +527,10 @@ function ModelSheetRow({
               onToggleFavorite();
             }
           }}
-          className="m-iconbtn"
+          className={`m-iconbtn fork-star${favorite ? " is-on" : ""}`}
         >
-          <i data-ico={favorite ? "star" : "star-off"} data-size="16" aria-hidden="true"></i>
+          {/* fork:star-solid —— 一枚 `star` 走两态：空心 = 未收藏，实心 = 已收藏（CSS 填色）。 */}
+          <i data-ico="star" data-size="16" aria-hidden="true"></i>
         </span>
       )}
     />
@@ -565,10 +566,15 @@ function ModelOptionButton({ active, label, provider, modelId, isFavorite, onTog
               onToggleFavorite();
             }
           }}
-          className={`d-iconbtn${isFavorite ? " is-on" : ""}`}
+          className={`d-iconbtn fork-star${isFavorite ? " is-on" : ""}`}
           style={{ cursor: "pointer" }}
         >
-          <i data-ico={isFavorite ? "star" : "star-off"} data-size="14"></i>
+          {/* fork:star-solid（用户 2026-10-06）—— 收藏只有**一档**读法：空心 = 未收藏、
+              实心 = 已收藏。原来是 `star`（收藏）/ `star-off`（一颗**划掉**的星）两枚图标，
+              于是每一行末尾都挂着一颗带斜线的星，行尾还并排一枚当前模型的 ✓，读成两套状态。
+              lucide 只有描边图标，所以实心靠 CSS 给同一个 svg 填色（`fill="none"` 是呈现
+              属性，样式说算）。 */}
+          <i data-ico="star" data-size="14"></i>
         </span>
       )}
     </button>
