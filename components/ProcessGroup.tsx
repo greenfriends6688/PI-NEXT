@@ -27,7 +27,7 @@ import {
   STEP_EXPANSION_EVENT,
   type StepExpansion,
 } from "@/lib/process-step-expansion";
-import { isApplyPatchToolName, isEditToolName, isWriteToolName } from "@/lib/tool-names";
+import { isApplyPatchToolName, isEditToolName, isWebToolName, isWriteToolName } from "@/lib/tool-names";
 import { extractApplyPatchPaths, getApplyPatchInputText } from "@/lib/apply-patch";
 import {
   STREAM_ENTER_CLEANUP_MS,
@@ -37,6 +37,7 @@ import {
 // fork:v5-wave-b —— PWA 形态（≤640px）的时间轴：桌面走 d-*，窄屏抄画板
 // M-02 帧 C / M-06 帧 B 的 m-steps 段。
 import { usePwaSkin } from "@/components/pwa/skin";
+import { ThinkingIcon, type ThinkingVariant } from "./ThinkingIcon";
 
 /**
  * Grouped "process" renderer.
@@ -144,6 +145,27 @@ const STEP_ICON: Record<IconName, string> = {
  * 的是一枚 8px 圆点 `.m-step-dot`（只换颜色表达 done/run/fail），不是图标。 */
 function StepIcon({ name }: { name: IconName }) {
   return <i data-ico={STEP_ICON[name]} data-size="10" />;
+}
+
+/**
+ * fork:think-variants（2026-10-06 用户实拍「这个动效没给我加上，我没看到」）——
+ * 画板 D-27 帧 C 的**四变体**此前在产品里只有一处调用，而那处（`MessageView` 的
+ * 思考块）只在**已结束**的一轮里渲染：运行中的那一轮整条走 `ProcessGroup` 的时间轴，
+ * 那里画的是静态 `brain` 图标。所以四变体在真跑起来时永远看不到。
+ *
+ * 现在**在飞的那一步**（`streamingOpen`）的图标位就换成这枚动画指示器，
+ * 变体按「agent 此刻在做什么」选，与画板帧 C 的四个标签一一对应：
+ *   推理 → wave / 检索 → spin / 起草 → stars / 搜索 → comet。
+ * 已完成的历史步骤仍用静态图标 —— 时间轴要能一眼分清「跑完的」与「在跑的」。
+ */
+export function liveStepVariant(step: Step): ThinkingVariant {
+  if (step.thinking) return "wave";
+  const toolNames = step.blocks.filter((block) => block.type === "toolCall").map((block) => block.toolName);
+  if (toolNames.some(isWebToolName)) return "comet";
+  if (step.tone === "document_change") return "stars";
+  if (step.tone === "document_search" || step.tone === "document_read"
+    || step.tone === "directory_list" || step.tone === "file_find") return "spin";
+  return "wave";
 }
 
 // --- Classification ---------------------------------------------------------
@@ -980,7 +1002,11 @@ export function ProcessGroup({
                     <span className="m-step-dot" aria-hidden="true" />
                   ) : (
                     <span className="d-step-ico" aria-hidden="true">
-                      <StepIcon name={step.icon} />
+                      {/* fork:think-variants —— 在飞的那一步走画板 D-27 帧 C 的四变体；
+                          其余步骤仍是静态图标（时间轴靠这一眼分清跑完 / 在跑）。 */}
+                      {streamingOpen === id
+                        ? <ThinkingIcon active variant={liveStepVariant(step)} />
+                        : <StepIcon name={step.icon} />}
                     </span>
                   )}
                   <span className={isPwa ? "m-grow" : "d-step-body"}>

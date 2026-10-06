@@ -9,7 +9,7 @@ const jiti = createJiti(import.meta.url, {
 });
 const React = await jiti.import("react");
 const { renderToStaticMarkup } = await jiti.import("react-dom/server");
-const { ProcessGroup, buildProcessSteps } = await jiti.import("./ProcessGroup.tsx");
+const { ProcessGroup, buildProcessSteps, liveStepVariant } = await jiti.import("./ProcessGroup.tsx");
 const { messageToProcessContentBlocks } = await jiti.import("@/lib/process-content");
 const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
@@ -142,4 +142,58 @@ test("the entrance delay reads step.sequence, never the render index", async () 
   assert.match(source, /streamEnterDelay\(step\.sequence\)/);
   assert.match(source, /data-fork-stream-animate/);
   assert.match(source, /data-fork-enter/);
+});
+
+test("fork:think-variants —— 在飞的那一步真的渲染出四变体 DOM，历史步骤仍是静态图标", () => {
+  const blocks = messageToProcessContentBlocks(assistantWithToolCalls(["call-a"]), {
+    messageIndex: 0,
+    entryId: "entry-0",
+    phase: "process",
+  });
+  const streaming = renderToStaticMarkup(
+    React.createElement(
+      I18nProvider,
+      null,
+      React.createElement(ProcessGroup, { blocks, reveal: true, isStreaming: true }),
+    ),
+  );
+  assert.match(streaming, /d-think-dots/, "在飞的那一步的图标位换成动画指示器");
+
+  const settled = renderToStaticMarkup(
+    React.createElement(
+      I18nProvider,
+      null,
+      React.createElement(ProcessGroup, { blocks, reveal: true }),
+    ),
+  );
+  assert.doesNotMatch(settled, /d-think-dots/, "一轮结束后回到静态图标");
+});
+
+test("fork:think-variants —— 在飞的那一步按「正在做什么」选四变体", () => {
+  /* 画板 D-27 帧 C 的四个标签：正在推理 / 正在检索 / 正在起草 / 正在搜索。
+     这四个变体此前在产品里没有任何可见的落点（唯一调用点在**已结束**的一轮里），
+     用户 2026-10-06 实拍「这个动效没给我加上，我没看到」。 */
+  const step = (over) => ({
+    id: "s",
+    sequence: 0,
+    label: "",
+    icon: "toolbox",
+    targets: [],
+    blocks: [],
+    ...over,
+  });
+
+  assert.equal(liveStepVariant(step({ thinking: true })), "wave", "推理");
+  assert.equal(liveStepVariant(step({ tone: "document_search" })), "spin", "检索");
+  assert.equal(liveStepVariant(step({ tone: "document_read" })), "spin");
+  assert.equal(liveStepVariant(step({ tone: "document_change" })), "stars", "起草");
+  assert.equal(liveStepVariant(step({ tone: "command_execution" })), "wave", "其余回落推理档");
+  assert.equal(
+    liveStepVariant(step({
+      tone: "document_search",
+      blocks: [{ type: "toolCall", toolCallId: "t", toolName: "browser_navigate", input: {} }],
+    })),
+    "comet",
+    "联网工具压过 tone",
+  );
 });
