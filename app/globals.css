@@ -108,6 +108,16 @@
   --radius-2xl: var(--ds-radius-6);
   --radius-pill: 999px;
 
+  /* fork:mobile-shell —— 安全区单一真值。
+     全仓的 env(safe-area-inset-*) 收拢到这四个变量；桌面/PWA 上值就是 env() 本身，
+     视觉零变化。安卓 WebView 里 env() 不生效（Chromium bug 40699457，Capacitor 官方
+     SystemBars 与 MusePi 的 InsetsPlugin 是另外两份独立证据），壳里由
+     lib/mobile-shell.ts 的 applyShellInsets() 用真实 insets 覆盖这几个变量。 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
   /* Elevation — Zeno leans on the hairline, not on shadow depth. The ladder
      still exists for menus/dialogs (they float over content), but `sm` is the
      bare stroke: the composer and the field-chrome surfaces get a border and
@@ -1017,10 +1027,10 @@ pre, code {
   height: 100dvh;
   max-height: none;
   margin: 0;
-  padding-top: max(16px, env(safe-area-inset-top));
-  padding-right: max(16px, env(safe-area-inset-right));
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
-  padding-left: max(16px, env(safe-area-inset-left));
+  padding-top: max(16px, var(--safe-top));
+  padding-right: max(16px, var(--safe-right));
+  padding-bottom: max(16px, var(--safe-bottom));
+  padding-left: max(16px, var(--safe-left));
   overflow: hidden;
   border: 0;
   background: transparent;
@@ -1867,7 +1877,7 @@ textarea,
   .secondary-workspace {
     position: fixed;
     top: 0;
-    right: env(safe-area-inset-right);
+    right: var(--safe-right);
     bottom: 0;
     z-index: 250;
     width: min(560px, calc(100vw - 48px));
@@ -1907,7 +1917,7 @@ textarea,
   .sidebar-container {
     position: fixed !important;
     top: 0;
-    left: env(safe-area-inset-left);
+    left: var(--safe-left);
     bottom: 0;
     width: 280px;
     max-width: 85vw;
@@ -1919,13 +1929,13 @@ textarea,
     box-shadow: var(--shadow-xl);
   }
   .sidebar-container.sidebar-closed {
-    transform: translateX(calc(-100% - env(safe-area-inset-left)));
+    transform: translateX(calc(-100% - var(--safe-left)));
     box-shadow: none;
   }
 
   .secondary-workspace {
     position: fixed;
-    inset: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    inset: 0 var(--safe-right) 0 var(--safe-left);
     height: var(--app-viewport-height, 100dvh);
     z-index: 250;
     overflow: hidden;
@@ -1959,7 +1969,7 @@ textarea,
   }
   .directory-picker-footer {
     flex-wrap: wrap;
-    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    padding-bottom: max(10px, var(--safe-bottom)) !important;
   }
   textarea,
   input,
@@ -2236,7 +2246,7 @@ html[data-focus-modality="pointer"] :is(
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--safe-bottom);
 }
 
 .explorer-column {

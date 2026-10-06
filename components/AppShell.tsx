@@ -213,6 +213,11 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const isCompact = useIsCompact();
   useViewportHeight();
+  // fork:mobile-shell —— 壳内用原生 insets 覆盖 --safe-*（安卓 WebView 的 env() 失效，
+  // 见 globals.css :root 的安全区块）。桌面/PWA 上 initShellInsets 是 no-op。
+  useEffect(() => {
+    void import("@/lib/mobile-shell").then((mod) => mod.initShellInsets());
+  }, []);
   // fix:field-focus-modality —— 全局输入模态标记（样式层据此决定字段要不要画焦点框）。
   useFocusModality();
   const appShellRef = useRef<HTMLDivElement>(null);
@@ -3114,7 +3119,7 @@ export function AppShell() {
         style={mobile ? undefined : {
           // fork:ui-topbar-align — see the sidebar toggle: same 9px offset.
           position: "absolute",
-          top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
+          top: "calc(var(--safe-top) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
           // The resizer writes this CSS variable on every pointer move, while
           // React state is intentionally committed only when dragging ends.
           // Reading the variable here keeps the divider control in lockstep.
@@ -3165,7 +3170,7 @@ export function AppShell() {
       style={{
         position: "absolute",
         // fork:ui-topbar-align — third boundary control, same centring fix.
-        top: "calc(env(safe-area-inset-top, 0px) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
+        top: "calc(var(--safe-top) + (var(--height-toolbar, 36px) - var(--control-md, 28px)) / 2)",
         right: 0,
         zIndex: 261,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -3383,7 +3388,7 @@ export function AppShell() {
           pointer-events: none !important;
         }
         .sidebar-container.sidebar-mobile-pending.sidebar-open {
-          transform: translateX(calc(-100% - env(safe-area-inset-left)));
+          transform: translateX(calc(-100% - var(--safe-left)));
           box-shadow: none;
         }
       }
@@ -3398,8 +3403,8 @@ export function AppShell() {
       width: "100%",
       height: "var(--app-viewport-height, 100dvh)",
       "--sidebar-width": `${sidebarResizer.width}px`,
-      paddingLeft: "env(safe-area-inset-left)",
-      paddingRight: "env(safe-area-inset-right)",
+      paddingLeft: "var(--safe-left)",
+      paddingRight: "var(--safe-right)",
       overflow: "hidden",
       background: "var(--bg)",
     } as React.CSSProperties}>
@@ -3439,8 +3444,8 @@ export function AppShell() {
         style={{
           "--sidebar-width": `${sidebarResizer.width}px`,
           flexShrink: 0,
-          paddingTop: "env(safe-area-inset-top)",
-          paddingBottom: "env(safe-area-inset-bottom)",
+          paddingTop: "var(--safe-top)",
+          paddingBottom: "var(--safe-bottom)",
           zIndex: 200,
         } as React.CSSProperties}
       >
@@ -3523,8 +3528,8 @@ export function AppShell() {
         <TopBarTag
           className={isMobile ? "m-top" : "main-workspace-header d-topbar"}
           style={isMobile
-            ? { paddingTop: "env(safe-area-inset-top)" }
-            : { position: "relative", height: "calc(var(--height-toolbar, 36px) + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}
+            ? { paddingTop: "var(--safe-top)" }
+            : { position: "relative", height: "calc(var(--height-toolbar, 36px) + var(--safe-top))", paddingTop: "var(--safe-top)" }}
         >
           {/* fork:desktop-shell — the drag handle is a real element, not the header box:
               it is inset past the boundary toggles so the drag region never covers them.
@@ -3869,8 +3874,8 @@ export function AppShell() {
       >
         {/* Right panel tab bar */}
         <div className="main-workspace-header d-panel-head" style={{
-          height: "calc(var(--topbar-height, 36px) + env(safe-area-inset-top))",
-          paddingTop: "env(safe-area-inset-top)",
+          height: "calc(var(--topbar-height, 36px) + var(--safe-top))",
+          paddingTop: "var(--safe-top)",
           position: "relative",
         }}>
           {/* fork:desktop-shell — the drag handle is a real element, not the header box:
@@ -4096,7 +4101,7 @@ export function AppShell() {
           /* fork:pwa-hit-slop-2 —— 原来只给 `var(--s5)`，standalone 下正好压在
               iOS home indicator 上（那一条 34px 不吃点击）。取 max()：非全面屏
              仍是最初的 `--s5`，全面屏额外让出安全区 + `--s3` 的呼吸。 */
-          bottom: "max(var(--s5), calc(env(safe-area-inset-bottom, 0px) + var(--s3)))",
+          bottom: "max(var(--s5), calc(var(--safe-bottom) + var(--s3)))",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 900,

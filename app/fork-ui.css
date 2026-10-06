@@ -88,7 +88,7 @@ html.keyboard-open .extension-status-shelf {
     max-height: calc(100dvh - 32px) !important;
     border-width: 1px 0 0 !important;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--safe-bottom);
     animation: fork-sheet-up var(--motion-base) var(--ease-out);
   }
 }
@@ -1821,7 +1821,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 /* ---------------------------------------------------------------------------
  * fork:pwa-safe-area —— PWA 独立窗口（`display: standalone` + `viewport-fit: cover`）
  * 里没有浏览器地址栏，系统状态栏 / 刘海 / home indicator 直接压在内容上。
- * 页头（`.main-workspace-header`）早就用 `env(safe-area-inset-top)` 撑过高度，
+ * 页头（`.main-workspace-header`）早就用 `var(--safe-top)` 撑过高度，
  * 但**三个贴边的浮层漏了同一档**，装成主屏应用后分别表现为：
  *   ① 侧栏抽屉的 `.pw-side-head`（品牌 + 新建任务）藏在状态栏底下；
  *   ② 文件面板 / 次工作区的工具条同样被状态栏压住；
@@ -1836,15 +1836,15 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * ------------------------------------------------------------------------- */
 @media (max-width: 1024px) {
   .sidebar-container {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-top);
   }
   .secondary-workspace {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-top);
   }
   /* 输入区外层垫底：home indicator 之上。`min-height: 0` 保住滚动链，
      高度走 `--app-viewport-height`，键盘弹出时不叠第二份。 */
   .chat-input-shell {
-    margin-bottom: env(safe-area-inset-bottom, 0px);
+    margin-bottom: var(--safe-bottom);
   }
 }
 /* ---------------------------------------------------------------------------
@@ -2450,7 +2450,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
      var(--control-touch)`(=36) 顶不上去（36 = 36）。它是整行可点的入口，
      36px 撑不满一条手指。底栏是抽屉的最下一格，往上长不吃任何内容（上面是
      `flex: 1` 的滚动区）；home indicator 的留白已由 AppShell 内联的
-     `padding-bottom: env(safe-area-inset-bottom)` 垫好，这里不重复。 */
+     `padding-bottom: var(--safe-bottom)` 垫好，这里不重复。 */
   /* 44px（--control-touch 36 + --s2）：这是本任务唯一要求 44 的一条 —— 底栏是整行
      可点的入口，抽屉又贴在屏幕最下缘，44 是手指的下限，不是 `::after` 能解决的
      （往下外扩会伸进 home indicator 的禁区，OS 根本不再派发触摸）。 */

@@ -2165,7 +2165,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     <div
       className={`chat-content relative h-full min-w-0 overflow-hidden${hasChatMinimap ? " grid" : " flex flex-col"}`}
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingBottom: "var(--safe-bottom)",
         gridTemplateColumns: hasChatMinimap ? `minmax(0, 1fr) ${CHAT_MINIMAP_WIDTH}px` : undefined,
         gridTemplateRows: hasChatMinimap ? "minmax(0, 1fr) auto" : undefined,
       }}

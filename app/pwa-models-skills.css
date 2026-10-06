@@ -103,7 +103,7 @@
   /* 底部安全区：两页都没有常驻的底部动作条（保存 / 添加都在页头），但最后一行内容
      仍然会被 Home 指示条压住。24px 的留白在刘海屏上不够，加进安全区。 */
   .pw-shead:has(.fork-pwa-ms-page) ~ .pw-scontent {
-    padding-bottom: calc(var(--s5) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--s5) + var(--safe-bottom));
   }
 
   /* ---- 3. 页头：一句话说明独占整行 → 动作钮落到第二行 --------------------
@@ -266,7 +266,7 @@
     flex-direction: column;
     border-width: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
   /* v5 形态的同一形状：`display:none` 由 `.is-open` 打开，盒子自己吃掉整片。 */
   .fork-pwa-ms-sheet > .d-modal-box {
@@ -276,7 +276,7 @@
     max-height: 100% !important;
     border-width: 0;
     border-radius: var(--nx-r-lg) var(--nx-r-lg) 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
   .fork-pwa-ms-sheet > .d-modal-box > .d-modal-body {
     flex: 1 1 0%;
@@ -319,10 +319,10 @@
 @supports (-webkit-touch-callout: none) {
   @media (display-mode: standalone) and (max-width: 640px) {
     .fork-pwa-ms-sheet {
-      padding-top: max(59px, env(safe-area-inset-top));
-      padding-right: max(8px, env(safe-area-inset-right));
-      padding-bottom: max(24px, env(safe-area-inset-bottom));
-      padding-left: max(8px, env(safe-area-inset-left));
+      padding-top: max(59px, var(--safe-top));
+      padding-right: max(8px, var(--safe-right));
+      padding-bottom: max(24px, var(--safe-bottom));
+      padding-left: max(8px, var(--safe-left));
     }
   }
 }

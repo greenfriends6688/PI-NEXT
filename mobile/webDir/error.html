@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>PI NEXT — 连接不上</title>
+<style>
+  /* fork:mobile-shell —— 壳的断网兜底页（capacitor.config server.errorPath）。
+     独立 WebView 资产：不依赖服务器、不进 V5 类体系（DIVERGENCE 已登记）。
+     跳板页把用户确认过的服务器地址存在 localStorage("pinext.serverUrl")，
+     重试时优先回到那个地址；没有就退回 reload（server.url 由壳自己知道）。 */
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: max(24px, env(safe-area-inset-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px));
+    font: 15px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    background: #f7f7f5;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #141414; color: #ededed; }
+    .card { border-color: #2e2e2e !important; }
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid #e2e2de;
+    border-radius: 6px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block; margin-right: 8px;
+    background: #d05656;
+  }
+  h1 { font-size: 17px; font-weight: 600; margin: 0 0 8px; }
+  p { font-size: 13px; color: #8a8a86; margin: 0 0 20px; }
+  button {
+    appearance: none;
+    border: 0;
+    border-radius: 6px;
+    background: #1a1a1a;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    padding: 10px 22px;
+    cursor: pointer;
+  }
+  button:active { opacity: 0.85; }
+  .hint { margin-top: 14px; font-size: 12px; color: #b0b0ac; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1><span class="dot"></span>连不上你的电脑</h1>
+    <p>检查电脑是否开机、PI NEXT 是否在跑（npm run prod），<br />以及手机是否连得上同一网络 / Tailscale 是否在线。</p>
+    <button id="retry">重试</button>
+    <div class="hint" id="target"></div>
+  </div>
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("pinext.serverUrl"); } catch (e) {}
+    var retry = document.getElementById("retry");
+    var target = document.getElementById("target");
+    if (saved) target.textContent = "目标：" + saved;
+
+    retry.addEventListener("click", function () {
+      var url = saved;
+      try { url = url || localStorage.getItem("pinext.serverUrl"); } catch (e) {}
+      if (url) window.location.replace(url);
+      else window.location.reload();
+    });
+
+    // 地址可达时自动回去（比如网络刚刚恢复）：每 4 秒悄悄试一次，成功即跳。
+    var timer = setInterval(function () {
+      var url = saved;
+      if (!url) { clearInterval(timer); return; }
+      fetch(url + "/api/home", { mode: "no-cors", cache: "no-store" })
+        .then(function () { clearInterval(timer); window.location.replace(url); })
+        .catch(function () {});
+    }, 4000);
+  })();
+</script>
+</body>
+</html>

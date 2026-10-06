@@ -23,7 +23,7 @@
    改前：`.config-panel-root.is-modal > .config-panel-surface` 在 ≤640px 下是
    `calc(100vw - 16px) × calc(100dvh - 16px)` 的居中方框 —— 四边 8px 的黑边、
    底部没有 home indicator 的留白，看起来像「手机上还是桌面那个对话框」。
-   改后：贴满 scrim、只留顶部圆角与一条顶边，底部 `env(safe-area-inset-bottom)`
+   改后：贴满 scrim、只留顶部圆角与一条顶边，底部 `var(--safe-bottom)`
    留白（面板自己的底色），滚到最后一项也不会顶在 home indicator 下面。
    高度交给 `align-items: stretch`，不写死像素。
    ========================================================================== */
@@ -40,7 +40,7 @@
     max-height: 100%;
     border-width: 1px 0 0;
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
 }
 
@@ -51,9 +51,9 @@
 @supports (-webkit-touch-callout: none) {
   @media (display-mode: standalone) {
     .config-panel-root.is-modal {
-      padding-top: max(59px, env(safe-area-inset-top));
-      padding-right: max(8px, env(safe-area-inset-right));
-      padding-left: max(8px, env(safe-area-inset-left));
+      padding-top: max(59px, var(--safe-top));
+      padding-right: max(8px, var(--safe-right));
+      padding-left: max(8px, var(--safe-left));
     }
   }
 }
@@ -163,7 +163,7 @@
    —— 390px 下壳只剩 364 宽，第一格（预览列）吃满 340，第二格（设置列）被压到
    14px，**整个设置表单在手机上根本点不到**；壳也只有 `calc(100dvh - 2rem)` 的
    居中高度，底部动作条离 home indicator 只剩 8px。
-   改后：壳是全屏 sheet（顶部圆角 + `env(safe-area-inset-bottom)`）；内容行单列、
+   改后：壳是全屏 sheet（顶部圆角 + `var(--safe-bottom)`）；内容行单列、
    两格一起滚（预览在上、设置在下），发丝分隔线撤掉；动作行换行。
 
    桌面基线：下面这一段把组件里原有的 inline 几何逐条搬进类（900×720 的壳、
@@ -221,7 +221,7 @@
     max-height: 100dvh;
     border-width: 1px 0 0;
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
   /* 内容行：两格叠成一列，整块一起滚（原来的「每格各自滚」在单列里等于把设置
      表关在一条 14px 宽的缝里）。预览仍在设置之上 —— 两格各自的 `order` 不动。
@@ -353,7 +353,7 @@
     max-height: 100%;
     border-width: 1px 0 0;
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
   .fork-pwa-import-scrim .pw-modal-foot {
     flex-wrap: wrap;

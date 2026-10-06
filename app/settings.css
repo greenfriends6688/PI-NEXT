@@ -639,10 +639,10 @@
   @media (display-mode: standalone) {
     .settings-dialog-backdrop,
     .config-panel-root.is-modal {
-      padding-top: max(59px, env(safe-area-inset-top));
-      padding-right: max(8px, env(safe-area-inset-right));
-      padding-bottom: max(24px, env(safe-area-inset-bottom));
-      padding-left: max(8px, env(safe-area-inset-left));
+      padding-top: max(59px, var(--safe-top));
+      padding-right: max(8px, var(--safe-right));
+      padding-bottom: max(24px, var(--safe-bottom));
+      padding-left: max(8px, var(--safe-left));
     }
 
     .settings-dialog-surface,
@@ -655,10 +655,10 @@
   @media (display-mode: standalone) and (orientation: landscape) {
     .settings-dialog-backdrop,
     .config-panel-root.is-modal {
-      padding-top: max(8px, env(safe-area-inset-top));
-      padding-right: max(59px, env(safe-area-inset-right));
-      padding-bottom: max(8px, env(safe-area-inset-bottom));
-      padding-left: max(59px, env(safe-area-inset-left));
+      padding-top: max(8px, var(--safe-top));
+      padding-right: max(59px, var(--safe-right));
+      padding-bottom: max(8px, var(--safe-bottom));
+      padding-left: max(59px, var(--safe-left));
     }
   }
 }
