@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import webpush from "web-push";
 import { writePrivateFileAtomicSync } from "./atomic-file";
+import { computeNotificationPlan } from "./notification-plan";
+import { listPresenceClients, type PresenceEntry } from "./presence-store";
 import { enLocale } from "./i18n/messages/en";
 import { zhCNLocale } from "./i18n/messages/zh-CN";
 import { getAgentDir } from "./session-reader";
@@ -28,6 +30,8 @@ interface WebPushEnvironment {
   saveState: (state: PushStateFile) => void;
   generateVapidKeys: () => PushStateFile["vapidKeys"];
   listSessionNames: () => Promise<Map<string, string>>;
+  /** 在场裁决的数据源（fork:mobile-shell）。缺省回落到真实 store，测试可以注入。 */
+  listPresenceClients?: () => PresenceEntry[];
 }
 
 export interface WebPushNotifier {
@@ -146,6 +150,14 @@ export function createWebPushNotifier(environment: WebPushEnvironment): WebPushN
     },
     async notifySessionComplete(sessionId) {
       if (state.subscriptions.length === 0) return;
+      // fork:mobile-shell —— 在场裁决：任何设备上有近期交互就不推（未读点/完成音已经
+      // 是在场提醒），全离场才推。人不在电脑前 = 交互时间陈旧 = 心跳照来但判为离场。
+      const plan = computeNotificationPlan({
+        clients: environment.listPresenceClients?.() ?? listPresenceClients(),
+        sessionId,
+        nowMs: Date.now(),
+      });
+      if (!plan.shouldPush) return;
       const sessionName = (await environment.listSessionNames()).get(sessionId);
       const payloadFor = (locale: string) => ({
         title: sessionName ?? localeText(locale, "sessionComplete"),

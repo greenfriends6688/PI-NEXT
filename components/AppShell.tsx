@@ -82,6 +82,7 @@ import { pickDirectory } from "@/lib/pick-directory";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile, useIsCompact } from "@/hooks/useIsMobile";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
+import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 // fix:field-focus-modality —— 输入模态标记（焦点环只在键盘焦点时出现，规范 §1.4）。
 import { useFocusModality } from "@/hooks/useFocusModality";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
@@ -305,6 +306,9 @@ export function AppShell() {
   const [searchRequestId, setSearchRequestId] = useState(0);
   // fork:zn-16 — 订阅一次让设置里改开关后主区立刻生效（回调里走 getNotificationPrefs()）。
   useNotificationPrefs();
+  // fork:mobile-shell — 在场心跳：服务端据此裁决 Web Push 发不发（你在任何一台设备前
+  // 有交互，推送就静音，交给未读点/完成音；全离场才推）。见 lib/notification-plan.ts。
+  usePresenceHeartbeat(selectedSession?.id ?? null);
   const [sessionKey, setSessionKey] = useState(0);
   /* 板 05 B 类转场：「重载会话」**不再** bump sessionKey（那会把整个 ChatWindow
      remount 成骨架屏）。reload 换成转录列降到 0.5 的就地刷新，见 ChatWindow 的
@@ -904,6 +908,10 @@ export function AppShell() {
 
   // fork:proma-38-tab-reorder —— 拖过的顺序覆盖默认分组顺序；没拖过（`tabOrder === null`）
   // 时 applyTabOrder 原样返回，分组顺序一个字不变。
+  /* fork:trace-pane-2026-10-06（用户反馈「调用轨迹的 × 关不掉」）—— 依赖表里**必须有**
+     `traceOpen`：漏掉它时 `setTraceOpen` 不会让这张表重算，于是打开后标签要等别的
+     state 变化才出现、关掉后标签还挂着（× 看着「没反应」）。`gitGraphOpen` 一直有，
+     当初只漏了这一枚。 */
   const panelTabs: Tab[] = useMemo(() => applyTabOrder<Tab>([...(gitGraphOpen ? [{
     id: GIT_GRAPH_TAB_ID,
     label: translate("git.graph"),
@@ -930,7 +938,7 @@ export function AppShell() {
     label: tab.label,
     filePath: tab.sessionId,
     kind: "session" as const,
-  }))], tabOrder), [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, tabOrder, terminalTabs, translate]);
+  }))], tabOrder), [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, tabOrder, terminalTabs, traceOpen, translate]);
 
   // fork:proma-38-tab-reorder —— 拖拽落点只说「插到谁前面」；第一次拖就把当前默认顺序
   // 整张物化成顺序表（之后只在这张表上搬），所以关掉重开 tab 不会把顺序打回去。
