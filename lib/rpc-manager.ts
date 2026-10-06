@@ -67,6 +67,8 @@ import {
 import { createTodoExtension } from "./todo-extension";
 // fork:im-bridge — 把消息推到 IM 群机器人（飞书 / 企微 / 钉钉 / Slack / Telegram / 自建）。
 import { createImExtension } from "./im-extension";
+// fork:imagegen —— 对话生图工具（generate_image），档案见 lib/imagegen-config.ts。
+import { createImageGenExtension } from "./imagegen-extension";
 import {
   listSubagentProfiles,
   readSubagentRun,
@@ -2497,6 +2499,11 @@ export async function startRpcSession(
               // fork:im-bridge —— 出站推送。一个工具名（im_send）在 get_tools 里、
               // 能被 tool_call 审批按名字拦；没有配目标时它自己如实说没配，不发空请求。
               createImExtension(),
+              // fork:imagegen —— 对话生图（generate_image）。档案在 设置 → 生图模型
+              // （~/.pi/agent/imagegen.json，0600）；默认落 ~/.pi/agent/generated-images/，
+              // dest 给了就直落会话 cwd（标书配图）。cwd 在工厂创建时捕获，
+              // 与 createPlanModeExtension 同一个理由（tool_call 事件不带 cwd）。
+              createImageGenExtension(sessionCwd),
               // fork:proma-01-approval — 工具审批。默认档是 bypass，所以这个扩展在默认
               // 配置下等价于不存在（`decideApproval` 直接放行）—— 只有用户显式把会话
               // 设成 ask/plan 才会弹卡。

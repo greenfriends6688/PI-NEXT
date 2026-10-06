@@ -18,8 +18,8 @@ import test from "node:test";
 // 「画板上那一列」与「产品左导航那一列」仍然逐条相同。有人再加/改分节而忘了同步画板
 // （或反过来），这条会立刻红 —— 而这正是 v5 三次翻车里「两个真相源悄悄分叉」的那一类。
 //
-// 画板导航在 **11 张分节画板**（D-07 / D-07b / D-08…D-13 / D-15 / D-16 / D-17 / D-19 /
-// D-20 / D-21 / D-25）左侧逐字重复，所以这里只抠第一处，其余那些「只差哪一项 is-on」
+// 画板导航在 **多张分节画板**（D-07 / D-07b / D-08…D-13 / D-15 / D-16 / D-17 / D-19 /
+// D-20 / D-21 / D-25 / D-31）左侧逐字重复，所以这里只抠第一处，其余那些「只差哪一项 is-on」
 // 的副本由 `其它画板导航与 D-07 同构` 那一条统一验。
 
 const boardPath = new URL("../design/v5/web/boards/D-07-settings-general.html", import.meta.url);
@@ -92,9 +92,9 @@ function columnOf(nav) {
   ));
 }
 
-test("产品左导航的分组 + 11 条文案与图标，逐条等于画板 D-07 的 .d-set-nav", () => {
+test("产品左导航的分组 + 12 条文案与图标，逐条等于画板 D-07 的 .d-set-nav", () => {
   const productNav = readProductNav();
-  assert.equal(boardItems.length, 11, "画板 D-07 的左导航应当是 11 条");
+  assert.equal(boardItems.length, 12, "画板 D-07 的左导航应当是 12 条");
   assert.equal(boardSeps.length, 4, "画板 D-07 的左导航应当是四段分组");
   assert.deepEqual(
     // `is-on`（当前项）是另一条断言的事，这里比的是「那一列长什么样」。
@@ -109,10 +109,10 @@ test("画板上那一列的图标名与尺寸取自板面原文，且都在设�
   assert.ok(boardItems.every((item) => item.size === "14"));
   const productIcons = readProductNav().filter((entry) => entry.kind === "item").map((entry) => entry.ico);
   assert.deepEqual(productIcons, boardItems.map((item) => item.ico));
-  assert.equal(new Set(productIcons).size, 11, "11 枚图标不能重名（重名即抄错行）");
+  assert.equal(new Set(productIcons).size, 12, "12 枚图标不能重名（重名即抄错行）");
 });
 
-test("画板左导航是十一张分节画板的同一份：只差哪一项带 is-on", async () => {
+test("画板左导航是一族分节画板的同一份：只差哪一项带 is-on", async () => {
   const boardDir = new URL("../design/v5/web/boards/", import.meta.url);
   const files = [
     "D-07-settings-general.html",
@@ -128,6 +128,7 @@ test("画板左导航是十一张分节画板的同一份：只差哪一项带 i
     "D-19-settings-usage.html",
     "D-20-settings-phone-push.html",
     "D-21-settings-archive-import.html",
+    "D-31-settings-imagegen.html",
   ];
   const shape = boardNav.map((entry) => entry.label);
   for (const file of files) {

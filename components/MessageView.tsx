@@ -17,6 +17,8 @@ import { parseUnifiedPatch, type SplitDiffCell, type SplitDiffFile } from "@/lib
 import { buildIntralineSegments, diffIntraline, type IntralineSpan } from "@/lib/diff-intraline";
 import { applyPatchPreviewToFiles, extractApplyPatchPaths, getApplyPatchInputText, parseApplyPatchInput } from "@/lib/apply-patch";
 import { mcpToolLabel } from "@/lib/mcp-tool-display";
+// fork:imagegen —— generate_image 结果卡：details.images 的落盘路径 → /api/files 预览。
+import { encodeFilePathForApi } from "@/lib/file-paths";
 // fork:codemode-view —— codemode 调用的显示助手（脚本 / 调用列表 / 折叠头预览）。
 import { CODEMODE_TOOL_NAME, codemodeCalls, codemodeScript, codemodeScriptPreview } from "@/lib/codemode-view";
 import { CodemodeCallList } from "./CodemodeToolView";
@@ -1661,6 +1663,10 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
     ? result.content.filter((b): b is { type: "text"; text: string } => b.type === "text").map((b) => b.text).join("\n")
     : null;
   const resultImages = getMessageImages(result?.content ?? []);
+  // fork:imagegen —— generate_image 把落盘路径放进 details.images（content 只有文本，
+  // 会话文件里没有 base64）。合成 URL 来源的 ImageContent 复用 ResultImages 的
+  // 预览与灯箱：路径 → /api/files?type=read（generated-images 根已登记 allowed roots）。
+  const generatedImages = useMemo(() => generatedImageContents(result?.details), [result?.details]);
   const resultIsEmpty = resultText === null ? false : (resultText.trim() === "(no output)" || resultText.trim() === "");
   const isError = result?.isError ?? false;
   /* fork:v5-landing D-03d 帧 B —— 「已取消」是**第四个状态**，不是失败的一种：
@@ -1947,6 +1953,10 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
 
       {/* ── Result images — always visible, independent of the collapsed details ── */}
       {resultImages.length > 0 && <ResultImages images={resultImages} />}
+      {/* fork:imagegen —— generate_image 的结果卡：路径存在 details.images 里（content
+          永不含 base64，会话文件只存路径元数据），预览走 /api/files。与 resultImages
+          同级常驻（收起也看得见那张图）。 */}
+      {generatedImages.length > 0 && <ResultImages images={generatedImages} />}
       {/* fork:zm-01 — 结果区（patch diff + paired result）与参数区同时过渡。 */}
       <div
         ref={resultCollapseRef}
@@ -2289,6 +2299,23 @@ function ResultImages({ images }: { images: ImageContent[] }) {
       })}
     </div>
   );
+}
+
+/* fork:imagegen —— generate_image 结果的 details 形状：{ images: [{path, mimeType, bytes}] }。
+   只有 path 是必须的（mimeType/bytes 只是展示元数据）；其它工具的 details 形状各异，
+   这里按「images 数组且每项有 path 字符串」认领，认不出就返回空 —— 绝不猜。 */
+function generatedImageContents(details: unknown): ImageContent[] {
+  if (!details || typeof details !== "object") return [];
+  const images = (details as { images?: unknown }).images;
+  if (!Array.isArray(images)) return [];
+  const out: ImageContent[] = [];
+  for (const entry of images) {
+    if (!entry || typeof entry !== "object") continue;
+    const path = (entry as { path?: unknown }).path;
+    if (typeof path !== "string" || !path) continue;
+    out.push({ type: "image", source: { type: "url", url: `/api/files/${encodeFilePathForApi(path)}?type=read` } });
+  }
+  return out;
 }
 
 /* fork:v5-wave-n1 —— 工具输出体 = 画板 D-03 帧 B / D-03d 帧 D 那一段：

@@ -1,6 +1,8 @@
 export const SETTINGS_SECTION_VALUES = [
   "general",
   "models",
+  // fork:imagegen —— 生图模型档案（全局，与项目无关）。对话模型管推理，这一节管出图。
+  "imagegen",
   "skills",
   "agents",
   "plugins",
@@ -51,6 +53,8 @@ export const SETTINGS_SECTIONS: ReadonlyArray<{
 }> = [
   { id: "general", labelKey: "settings.general", requiresProject: false },
   { id: "models", labelKey: "common.models", requiresProject: false },
+  // fork:imagegen —— 生图模型档案。全局节：generate_image 工具与标书配图都读它。
+  { id: "imagegen", labelKey: "settings.imagegen", requiresProject: false },
   { id: "skills", labelKey: "common.skills", requiresProject: true },
   { id: "agents", labelKey: "common.agents", requiresProject: true },
   { id: "plugins", labelKey: "common.plugins", requiresProject: true },

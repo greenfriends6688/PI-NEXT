@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T01:57",
+  "generatedAt": "2026-10-06T14:32",
   "boards": [
     {
       "id": "D-01",
@@ -494,6 +494,19 @@
         "类型：规格台",
         "组件：焦点环 · roving tabindex · Esc 层级 · .d-kbd 快捷键",
         "状态：输入框焦点环已有 · 按钮/页签/行待补 · 减弱动效逐条终态"
+      ]
+    },
+    {
+      "id": "D-31",
+      "file": "D-31-settings-imagegen.html",
+      "form": "web",
+      "group": "sys",
+      "title": "D-31 · 生图模型",
+      "desc": "生图模型是独立于对话模型的一张档案：同一个页面只管「图从哪来」——服务商、端点、密钥、 默认尺寸与并发。它不进对话模型选择器，也不吃 enabledModels； 会话里的 generate_image 工具读这里的状态，标书配图也吃同一份。 密钥掩码存取，「测试」是真的生成一张小图并把状态落盘——「看起来配好了」不算数。",
+      "tags": [
+        "页面：设置 / 生图模型",
+        "组件：ImageGenSettingsPanel · /api/imagegen · generate_image",
+        "状态：未测试 / 可用 / 不可用"
       ]
     },
     {

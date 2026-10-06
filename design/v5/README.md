@@ -101,6 +101,7 @@ design/v5/
 | `D-28-motion-feedback.html` | D-28 · 动效规格台 A · 进入与反馈 | 类型：规格台 | D-28-motion-feedback.html |
 | `D-29-motion-containers.html` | D-29 · 动效规格台 B · 容器与转场 | 类型：规格台 | D-29-motion-containers.html |
 | `D-30-keyboard-focus.html` | D-30 · 键盘与焦点 | 类型：规格台 | D-30-keyboard-focus.html |
+| `D-31-settings-imagegen.html` | D-31 · 生图模型 | 设置 / 生图模型 | D-31-settings-imagegen.html |
 | `M-01-conversation-drawer.html` | M-01 · 会话页与抽屉 | 会话流 / 会话抽屉 / 模型选择 | M-01-conversation-drawer.html |
 | `M-02-transcript.html` | M-02 · 手机转录 | 会话转录 | M-02-transcript.html |
 | `M-03-composer-sheet.html` | M-03 · 手机输入卡与面板 | 输入卡 / 能力浮层 / 补全面板 / 队列面板 | M-03-composer-sheet.html |

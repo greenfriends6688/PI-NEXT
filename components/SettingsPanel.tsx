@@ -35,6 +35,8 @@ import { AutomationPanel } from "./fork/AutomationPanel";
 import { UsageStatsPanel } from "./fork/UsageStatsPanel";
 // fork:phone-push — 手机配对 + IM 推送，合成一个分节（机器级，不依赖项目）。
 import { PhoneAndPushPanel } from "./fork/PhoneAndPushPanel";
+// fork:imagegen —— 生图模型档案（全局节；generate_image 工具与标书配图读同一份配置）。
+import { ImageGenSettingsPanel } from "./fork/ImageGenSettingsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
 /* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig
@@ -136,6 +138,8 @@ interface Props {
 const SECTION_ICON_BY_ID: Record<string, string> = {
   general: "sliders-horizontal",
   models: "cpu",
+  // fork:imagegen —— 生图模型档案（画板 D-31 左导航的 `image`）。
+  imagegen: "image",
   skills: "box",
   agents: "bot",
   plugins: "blocks",
@@ -1599,7 +1603,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
      十一行 `sectionHost(...)` —— 抄一遍就会有一边漏掉某一节。 */
   const sectionChildren = (<>
         {/* fork:v5-landing Wave B · M-05 帧 A —— 手机 hub：按「什么时候来改它」
-            分成四组卡片，只列那十一个分节；行尾的「需项目」徽章与左导航同一判据。
+            分成四组卡片，只列那十二个分节；行尾的「需项目」徽章与左导航同一判据。
             外层宿主不带任何 `display`（`hidden` 要生效），设置流在里层 `.m-settings`。 */}
         {isMobile ? (
           <div className="settings-section-host" data-settings-hub hidden={phoneSection !== null}>
@@ -1648,6 +1652,9 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
         ) : null}
         {sectionHost("general", <GeneralSettings cwd={cwd} sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} sidebarWidth={sidebarWidth} onSidebarWidthChange={onSidebarWidthChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} />)}
         {sectionHost("models", <ModelsConfig embedded cwd={cwd} onClose={onClose} />)}
+        {/* fork:imagegen —— 生图模型档案。全局页：generate_image 工具、标书配图都读它，
+            与项目无关（对齐画板 D-31 的分节定位：跟「模型」同段）。 */}
+        {sectionHost("imagegen", <ImageGenSettingsPanel />)}
         {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}
         {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
         {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}

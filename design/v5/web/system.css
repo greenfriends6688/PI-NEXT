@@ -1230,3 +1230,9 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-row-x > .d-row-x-track { overflow: hidden; min-height: 0; }
 .d-row-x.is-open { grid-template-rows: 1fr; }
 .d-row-x.is-closing { transition: grid-template-rows var(--nx-dur-2) var(--nx-ease); }
+
+/* ── 生图连接测试的回显图（画板 D-31 帧 A「测试回显」）──────────────────────
+   fork:imagegen —— 测试真出一张图后回显在这里；等比缩到面板放得下，圆角沿用
+   输入类控件的 --nx-r-sm。点开看大图是会话里 ImagePreview 的事，这里只做回显。 */
+.d-test-img { display: block; max-width: min(240px, 100%); max-height: 240px;
+  border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); }

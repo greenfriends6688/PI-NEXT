@@ -582,6 +582,29 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 2. **无效 calc**：`inset: calc((var(--nx-touch-min) - 29px) / -2)` —— 除以负字面量不是合法的 calc，同样被整段带走。
 
 两条合起来的表现极具欺骗性：**源码读起来完全正确、构建不报错（exit 0）、只有产物里没有**。判据只能是「grep 产物里那个选择器在不在」，不能用「源码里有」。规则已改放到 `app/pwa-settings.css` 并改用**四个 longhand + 正除数**。
+
+### 用户实拍五条（2026-10-06 · fork:pwa-drawer-chrome / no-sheet-grab / composer-input-center）
+
+| 图 | 用户原话 | 处置 |
+|---|---|---|
+| 1 | 「发消息这三个字帮我上下居中显示」 | 输入框那一条内联 `padding: 0` 压掉了库里 `.m-composer-wrap .m-input` 的 `padding: 8px 4px`（那正是把单行文字在 44px 触控行里居中的值）。删掉内联 → 实测 textarea 中线与行中线都是 799 |
+| 2 | 「分支会话在 pwa 这个模式下就可以隐藏掉了」 | 窄屏顶栏那枚 `.m-branch` 分支芯片已移除（390px 上标题被挤成「重构本…」）。分支仍进得去：工具簇里的 `git-fork` 钮读同一份 `branchTree` |
+| 2 | 「这些对话右边的看不到，很多字都看不到」 | `.d-chat` 是 `overflow-x: hidden`（外层必须裁），所以长 URL / 长标识符要在**内容层**断行 —— 已给 `.m-md` 的 `code` / `a` / `.m-mono` / `td` / `th` 加 `overflow-wrap: anywhere`。**未做真机复现**（本会话没有那张表），是照规则补的 |
+| 3 | 「上下浮窗这种按钮去掉，点空白处可以消失」 | 五张 sheet 的 `.m-sheet-grab` 全部删除（PwaSheet / PwaComposerSheet / PwaTrustSheet / PwaDirectoryPicker / RightPanelsMobile）。五处都有 `.m-scrim`，点空白仍然收。**这是对画板的偏离**（板面每一张 sheet 都画着抓手），依据是用户裁定 |
+| 4 | 「logo+品牌名变小点，上下这么多空白」 | 品牌行 34px + 抽屉头 54px 顶内距 = 标题前 88px。安全区只由最顶上那个元素让一次（挪到品牌行），抽屉头退回 `--nx-sp-2`；`.m-brand` 26 → 20px。实测标题 y95 → **y48**，省 47px |
+| 4 | 「下面设置、手机 icon 那块这么乱」 | 底栏三件高度 63/44/22 且顶端对齐。`.m-row` 库定义是列向（图标压在文字上），在这一格里读起来像没做完的标签页 → 改一行（图标 + 文字）并与另两件共中线。实测三件中线都是 810，设置钮 43px |
+| 4 | 「欢迎对话这种 3 个点点不了」 | 行尾「⋯」实测 **28×36**，低于 M-11 帧 C 的 44 硬下限。已按 DSN-04 同一手法用 `::after` 外扩。**未验完**：我的探针没找到那枚钮（选择器与实际 DOM 不符），规则已进产物但没有实测命中数 |
+| 5 | 「设置里很多这种按钮有问题，请帮我优化一下按钮开关的显示」 | **未做**。截图里能看到「检查更新 / 添加插件」与上方卡片贴在一起、以及一个蓝色月牙图标压在文字上；但我在插件页里扫到的 `<img>`/`<svg>` 没有一个是坏的或越界的，那个月牙经查是 DeepSeek 的 provider 图标（不是坏图）。**没有复现出可指认的根因，不猜着改** —— 需要用户再指一下具体是哪一枚钮、或给出窗口宽度 |
+
+## R · 用户实拍五条（2026-10-06 第二轮 · fork:composer-chips-align / fork:trace-pane-width / fork:mcp-switch-right）
+
+| # | 用户原话 | 处置 |
+|---|---|---|
+| 2 | 「上传的图片左边应该和输入框左边平齐的，左侧咋超出这么多」 | `ChatInput` 的两条附件 `.d-chips` 渲染在 `.d-composer-wrap` **之外**，而卡片 `.d-composer` 在 wrap 内、wrap 有 `padding: 0 32px` → 芯片左缘比卡片左缘多出 **32px**。两段搬进 `.d-composer-wrap`，左缘与卡片逐像素对齐 |
+| 3 | 「打开后右边有部分区域是空白的」 | `TraceFrame` 根挂的是 `.d-panel`，而那是画板 D-05 的**右栏壳**（`web/system.css:21` 有 `width: 320px; flex: 0 0 auto`）。它在 `.file-panel-main`（flex 列）里把 iframe 压成 **319px**、右边留 **220px** 空白。改用 `fork-trace-pane`（本来就为「pane 内的一列」写的）。**这是画板 D-03e 帧 D 的偏离**：帧 D 画的是右栏那一列（320px 固定宽），本组件是 tab 正文，要的是撑满 |
+| 3 | 「点击它的 × 号，他也是管不了」 | `AppShell.tsx` 的 `panelTabs` useMemo **依赖表漏了 `traceOpen`** → `setTraceOpen` 后标签列表不重算：打开时标签不出现、关闭时标签不消失（× 看起来没反应）。依赖表补上 `traceOpen` |
+| 4 | 「mcp 的开关位置请帮我挪到最右边去吧」 | 画板 D-15 帧 A 把 `.d-switch` 排在 `.d-slotrow` **行首**。按用户裁定挪到行尾（`.d-iconbtn` 之前，与插件表「启用列在 ⋯ 列之前」同序）。**这是对 D-15 帧 A 的偏离**，依据是用户裁定 |
+
 ## S · 移动端壳的独立 WebView 资产（2026-10-06 · fork:mobile-shell）
 
 `mobile/webDir/`（跳板页 index.html、镜像库 mirror.html、断网页 error.html）是**壳的
@@ -589,3 +612,24 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 样式从简内联。App 图标沿用品牌 PNG（与「渠道 logo 是 vendor 的 PNG」例外同级）。
 产品侧新增的镜像入口卡（`components/fork/MirrorPanel.tsx`）全部复用画板已有原子
 （`.m-card` / `.m-setrow-t|s` / `.m-tray` / `.m-tray-chip` / `book-open` 等），零新类。
+
+## S · 第三轮用户实拍（2026-10-06 · fork:todo-chip-no-bar / fork:think-variants / fork:tooltip-policy）
+
+| # | 用户原话 | 处置 |
+|---|---|---|
+| 1 | 「这个请帮我去掉吧」（截图圈的是收起态待办芯片下面那根蓝条） | `components/fork/TodoChip.tsx` 收起态那根 `.d-bar` 删掉。**这是对画板 D-03e 帧 C 的偏离**：帧 C 的 `.d-card` 里画了 `.d-bar`；依据是用户裁定 —— 徽标已经有 `6/6`，同一件事说两遍，而且那根横条把 24px 的芯片撑成两行高。展开面板里那条带 `role="progressbar"` 的进度条**保留**（可访问性出口） |
+| 2 | 「这个动效没给我加上，我没看到」（截图圈的是画板 D-27 帧 C 的四变体那一段） | 四变体此前**在产品里没有任何可见的落点**：唯一调用点 `MessageView` 的思考块只在**已结束**的一轮里渲染（`live` 为假的路径），而运行中的那一轮整条走 `ProcessGroup` 的时间轴，那里画的是静态 `brain` 图标。现在**在飞的那一步**（`streamingOpen`）的图标位换成四变体指示器，变体按 agent 此刻在做什么选（推理→wave / 检索→spin / 起草→stars / 搜索→comet，与帧 C 的四个标签一一对应）；历史步骤仍是静态图标 —— 时间轴要能一眼分清跑完的与在跑的 |
+| 3 | 「所有按钮，鼠标放上去出现提示文字…pwa 模式下不需要出现…仅限于 icon，而且是没有注明中文或英文或数字的」 | 新增 `hooks/useTooltipPolicy.ts`（挂在 `AppShell` 一次）：原生 `title` 提示只在**纯图标**（内部有 `[data-ico]`/`svg`/`img`）且**元素自己没有可见文字**（中文/英文/数字）时保留，PWA（≤640px）一个不留。实现走 `pointerover` 捕获阶段摘 `title`、`pointerout` 还回去 —— 不扫 DOM、不挂 MutationObserver。**副作用（有意）**：带文字的元素（例如 tab 上那条完整文件路径的 `title`）以后不再弹提示 |
+
+## T · 生图分节落地 D-31（2026-10-06 · fork:imagegen）
+
+新增分节「生图模型」是**登记制分节表**的一次扩容：`SETTINGS_SECTIONS` /
+`SETTINGS_HUB_GROUPS` / `SECTION_ICON_BY_ID` 三张表加 `imagegen`（「基础」段，
+排在「模型」之后），画板侧同步落地：
+
+| 项 | 处置 |
+|---|---|
+| 新分节画板 | `design/v5/web/boards/D-31-settings-imagegen.html`（单帧：服务商档案 / 生成参数 / 连接测试；D-28/30 已被动效与键盘板占用，编号取 31）。表单 DOM 抄 D-08 的 `.d-set-sec` / `.d-grid2` / `.d-field` / `.d-input` / `.d-select` 那一套，密钥字段用掩码值示意 |
+| 导航扩容 | 15 张设置画板（13 张在 boardnav 测试清单里 + D-07b + D-25 计划队列里的设置壳）的**每一处** `<nav class="d-set-nav">` 插入同一枚 `<button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>`。「11 条 / 11 枚图标」的测试断言随画板改为 12（`SettingsPanel.boardnav.test.mjs`），D-31 进入同构清单；hub 文案与「十二个分节」计数同步（`SettingsPanel.test.mjs`） |
+| 新类 | `.d-test-img`（测试回显图：等比上限 + `--nx-r-sm` 圆角）—— 进 `web/system.css` 并出现在 D-31 板面上（判据⑦）。产品侧 `ImageGenSettingsPanel` 全部复用已有 `d-*` 原子，零内联几何 |
+| 已登记不改 | 生图档案独立于对话模型（不进模型选择器、不吃 `enabledModels`）；结果卡复用 `ResultImages` 的 URL 来源通道（`details.images` → `/api/files`），不新增聊天流类名 |

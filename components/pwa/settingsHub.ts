@@ -2,7 +2,7 @@
 //
 // 画板 `design/v5/pwa/boards/M-05-settings.html` 帧 A 的口径：hub 按
 // **「你什么时候来改它」**分组（基础 / 能力 / 运行 / 数据与连接），不是按功能树分组；
-// 它只列 `lib/settings-navigation.ts` 里的那**十一个**分节 ——「外观与输入」
+// 它只列 `lib/settings-navigation.ts` 里的那**十二个**分节 ——「外观与输入」
 // 「权限与信任」是「通用」里的二级页，不是第 12、13 个分节。
 //
 // 分组 id 与顺序抄 D-07 左导航的 `.d-set-navsep` 四段（`.d-set-navitem` 顺序与之逐项
@@ -19,7 +19,8 @@ export const SETTINGS_HUB_GROUPS: ReadonlyArray<{
   id: string;
   sections: readonly SettingsSection[];
 }> = [
-  { id: "base", sections: ["general", "models"] },
+  // fork:imagegen —— 生图模型档案跟「模型」同段（基础）：都是模型配置面。
+  { id: "base", sections: ["general", "models", "imagegen"] },
   { id: "capability", sections: ["skills", "agents", "plugins", "mcp"] },
   { id: "runtime", sections: ["automation", "usage"] },
   { id: "data", sections: ["archived", "import", "phonePush"] },
@@ -77,6 +78,12 @@ const SECTION_HINTS: Record<string, HubCopy> = {
     "zh-CN": "供应商与认证 · 启用模型 · 思考钉 · 成本档",
     "zh-TW": "供應商與認證 · 啟用模型 · 思考釘 · 成本檔",
   },
+  // fork:imagegen —— 生图模型档案的一句副行。
+  imagegen: {
+    en: "Image generation profile · provider · key · size · connection test",
+    "zh-CN": "生图档案 · 服务商 · 密钥 · 尺寸 · 连接测试",
+    "zh-TW": "生圖檔案 · 服務商 · 密鑰 · 尺寸 · 連線測試",
+  },
   skills: {
     en: "Loaded · disable model calls · install from the store",
     "zh-CN": "已加载 · 禁用模型调用 · 市场安装",
@@ -131,9 +138,9 @@ export function settingsHubGroupLabel(groupId: string, locale: string): string {
 
 /** hub 顶部那一段说明（画板帧 A 的 `.m-hero` 第二行）。 */
 const HUB_HERO: HubCopy = {
-  en: "Same eleven sections as the desktop — only the left navigation becomes grouped cards.",
-  "zh-CN": "与桌面完全同构：同一份十一个分节，这里只是把左导航换成分组卡片。",
-  "zh-TW": "與桌面完全同構：同一份十一個分節，這裡只是把左導航換成分組卡片。",
+  en: "Same twelve sections as the desktop — only the left navigation becomes grouped cards.",
+  "zh-CN": "与桌面完全同构：同一份十二个分节，这里只是把左导航换成分组卡片。",
+  "zh-TW": "與桌面完全同構：同一份十二個分節，這裡只是把左導航換成分組卡片。",
 };
 
 export function settingsHubHeroCopy(locale: string): string {
