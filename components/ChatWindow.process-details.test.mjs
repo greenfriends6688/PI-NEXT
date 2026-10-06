@@ -35,17 +35,33 @@ test("the process group rides inside the answer message, after the identity row"
 // （工具在跑的那几分钟）宿主不挂 MessageView，只挂过程卡，于是身份行要等第一条正文到
 // 才画出来。现在那一条分支自己先画一份。
 test("the identity row is on screen before the turn has any answer text", () => {
-  assert.match(
+  /* fork:no-head-flicker（2026-10-06 用户实拍「一会儿有一会儿没有，还会闪现」）——
+     这条约束的**意图不变**（本轮还没有正文时身份行也必须在屏上），但实现换了：
+     原来是一个 `answerBlocks.length === 0` 的提前返回，自己拿
+     `<div key="turn-head-live">` + `TurnIdentityHead` 画一份；正文一到就改走
+     `<MessageView>`（它自己再画一份）。两支**元素类型不同**、key 也不同，React
+     不会原地复用 —— 旧节点拆掉、新节点重建，那枚 `<img>` 重新解码、`.m-msg-ai`
+     重排，于是每切一次就闪一次。
+     现在两支合一：**始终**走 `<MessageView>`，`answerBlocks` 为空时正文那半自然是
+     空的，身份行照旧由它画；`prefix={groupNode}` 保证过程组仍挂在身份行之后
+     （`MessageView` 对 `prefix` 有豁免：挂了它就绝不返回 null，所以「没正文」那一
+     段时间不会被整块吞掉）。等价约束因此是这三条： */
+  // ① 流式那一支里**不再有**提前返回 —— 元素类型恒定，React 才能原地复用。
+  assert.doesNotMatch(
     source,
-    /if \(streamingProcess\.answerBlocks\.length === 0\) \{[\s\S]*?<TurnIdentityHead[\s\S]*?\{groupNode\}/,
+    /if \(streamingProcess\.answerBlocks\.length === 0\) \{/,
+    "流式分支不许再有提前返回：那会让身份行在两个不同元素之间搬家，每次切正文都闪一下",
   );
+  assert.doesNotMatch(source, /key="turn-head-live"/);
+  // ② 过程组仍以 `prefix` 挂进同一条消息（身份行在最上面、过程组紧随其后）。
+  assert.match(source, /prefix=\{groupNode\}/);
+  // ③ 身份行只画一份：MessageView 复用组件，不再内联第二份 DOM。
+  assert.equal((view.match(/className="d-msg-ai-head"/g) ?? []).length, 1);
   // 被中断 / 只有工具的那一支（没有回答可挂 prefix）同样有身份行。
   assert.match(
     source,
     /else if \(processGroupNode\) \{[\s\S]*?<TurnIdentityHead[\s\S]*?\{processGroupNode\}/,
   );
-  // 身份行只画一份：MessageView 复用组件，不再内联第二份 DOM。
-  assert.equal((view.match(/className="d-msg-ai-head"/g) ?? []).length, 1);
   assert.match(source, /import \{ MessageView, TurnIdentityHead, formatDuration \}/);
 });
 

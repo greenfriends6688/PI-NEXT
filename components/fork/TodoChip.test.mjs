@@ -51,6 +51,35 @@ test("a finished list stops advertising an item in flight", () => {
   assert.doesNotMatch(html, /title="[^"]*done thing"/);
 });
 
+test("a finished list prints the count once, not twice（fork:todo-chip-duplicate）", () => {
+  /* 用户 2026-10-06 实拍「6/6 6/6」：`activeTodo` 只在**全部做完**时为 null，
+     旧写法把标题回退成 `progressText`，于是同一个计数在标题与徽标上各印一遍。 */
+  const html = render({
+    todos: [{ id: 1, text: "done thing", done: true }],
+    done: 6,
+    total: 6,
+  });
+
+  assert.equal((html.match(/6\/6/g) ?? []).length, 1, "计数只该在徽标上出现一次");
+  assert.doesNotMatch(html, /6\/6<\/span>\s*<span[^>]*>6\/6/);
+});
+
+test("fork:todo-chip-no-bar —— 收起态不再画那根进度条（用户 2026-10-06 裁定去掉）", () => {
+  const html = render({
+    todos: [
+      { id: 1, text: "read the spec", done: true },
+      { id: 2, text: "write the code", done: false },
+    ],
+    done: 1,
+    total: 2,
+  });
+  // 芯片根（<button>）里不该再有直接子级的 .d-bar；面板里那条 role=progressbar 保留。
+  const chip = html.slice(0, html.indexOf("</button>"));
+  assert.doesNotMatch(chip, /class="d-bar"/, "收起态那根进度条已删");
+  // 面板是 `{open && …}`，闭合态不在 DOM 里 —— 可访问性出口按源码钉。
+  assert.match(source, /role="progressbar"/, "展开面板的可访问性出口仍在");
+});
+
 test("the panel keeps its live-progress affordances", () => {
   assert.match(source, /role="progressbar"/);
   assert.match(source, /t\("chat\.todosActive"\)/);

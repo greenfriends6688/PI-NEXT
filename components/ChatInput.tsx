@@ -4000,7 +4000,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   color: "transparent",
                   caretColor: "var(--text)",
                   position: "relative",
-                  padding: 0,
+                  /* fork:composer-input-center（2026-10-06 用户反馈「发消息」没跟别的
+                     控件在一排）—— 这里原来写的是 `padding: 0`，内联压过库里
+                     `.m-composer-wrap .m-input` 的 `padding: 8px 4px`。那一格正是把
+                     单行文字在 44px 触控行里居中用的（8 + 25.6 + 8 ≈ 44），
+                     被清零后字就贴在盒顶，比加号/发送钮高出一截。
+                     这一块 JSX 本来就是 PWA 分支（桌面那条在另一处），所以直接删掉。 */
                   fontSize: "var(--chat-content-font-size, 13px)",
                   lineHeight: 1.6,
                   fontFamily: "inherit",
@@ -4507,6 +4512,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             去掉边框与圆角，卡内芯片会与下方那个可见的输入框错开一条边（实测左缘差
             16px，看起来像飞出卡片外）。现在它走**卡外**的 .d-ctxbar（见下方），
             与 .d-composer 同宽同居中，左缘必然对齐。 */}
+        {/* Main input · fork:composer-chips-align（2026-10-06 用户反馈「上传的图片左边应该和输入框
+            左边平齐，左侧咋超出这么多」）—— 附件芯片原来渲染在 `.d-composer-wrap`
+            **之外**，而卡片 `.d-composer` 在 wrap 之内、wrap 自带 `padding: 0 32px`
+            （`design/v5/web/system.css`），于是芯片左缘比卡片左缘多出整整 32px。
+            现在两条芯片搬进 wrap 开头：与 `.d-composer` 同一个左缘。 */}
+        <div className="d-composer-wrap" style={{ minWidth: 0 }}>
         {/* 附件区 = 画板 20「附件与引用」A 帧：一条 .d-chips，
             文件是 .d-chipbtn（类型图标 + 文件名 + 芯片内 data-ico="x" 移除钮）。
             图片保留 56px 缩略图（画板没画缩略图形态，而 ChatInput 的既有测试要求
@@ -4570,8 +4581,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           </div>
         )}
 
-        {/* Main input */}
-        <div className="d-composer-wrap" style={{ minWidth: 0 }}>
           {historyMenuOpen && inputHistory.length > 0 && (
             <div
               ref={historyMenuRef}

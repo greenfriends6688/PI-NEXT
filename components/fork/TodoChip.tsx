@@ -27,7 +27,7 @@ import { usePwaSkin } from "@/components/pwa/skin";
  * too, so a mid-run glance says what the agent is doing right now.
  *
  * fork:v5-landing —— DOM 抄自画板 D-03e 帧 C：收起的 chip = `.d-card` +
- * `.d-tool-head` + `.d-bar`；展开面板 = `.d-pop` + `.d-pop-title` + 只读行
+ * `.d-tool-head`；展开面板 = `.d-pop` + `.d-pop-title` + 只读行
  * （`.d-checkbox` / `.d-badge info`）+ `.d-pop-foot`。
  * fork:v5-wave-b —— 窄屏：芯片 = M-02 的 `.m-tool` + `.m-tool-head`（同义），
  * 徽标换 `.m-badge`。**面板本身仍是 `.d-pop`**：PWA 库里没有「贴着芯片浮起来的
@@ -96,7 +96,8 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
        `max-width:280px` 与上下文条里的 .d-chipbtn 同一档（见 system.css 的
        `.d-ctxbar .d-chipbtn`），内部 .d-t-sm 已能 ellipsis。 */
     <div ref={rootRef} style={{ position: "relative", flexShrink: 0, minWidth: 0, maxWidth: 280 }}>
-      {/* 收起的 chip = 画板 D-03e 帧 C 的 `.d-card` + `.d-tool-head` + `.d-bar`。 */}
+      {/* 收起的 chip = 画板 D-03e 帧 C 的 `.d-card` + `.d-tool-head`（帧 C 那根
+          `.d-bar` 已按用户裁定去掉，见下方注释）。 */}
       <button
         type="button"
         className={isPwa ? "m-tool" : "d-card"}
@@ -109,7 +110,11 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
         <span className={isPwa ? "m-tool-head" : "d-tool-head"} style={{ width: "100%", border: 0, background: "none", font: "inherit", textAlign: "left" }}>
           <i data-ico="list-checks" data-size="14" aria-hidden="true"></i>
           <span className={`${isPwa ? "m" : "d"}-t-sm ${isPwa ? "m" : "d"}-grow fork-todo-title`}>
-            {activeTodo ? activeTodo.text : progressText}
+            {/* fork:todo-chip-duplicate（2026-10-06 用户实拍「6/6 6/6」）——
+                `activeTodo` 只在**全部做完**时为 null，而旧写法把标题回退成 `progressText`，
+                于是同一个计数在标题与徽标上各印一遍（“6/6 6/6”）。全完成时标题说「全部完成」，
+                计数只留给徽标。 */}
+            {activeTodo ? activeTodo.text : t("chat.todosAllDone")}
           </span>
           <span className={isPwa ? "m-badge" : "d-badge"} style={{ fontVariantNumeric: "tabular-nums" }} aria-live="polite">{progressText}</span>
           <i
@@ -119,9 +124,10 @@ export function TodoChip({ summary }: { summary: TodoSummary }): ReactNode {
             style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform var(--nx-dur-1) var(--nx-ease)" }}
           ></i>
         </span>
-        <div className="d-bar" style={{ borderRadius: 0 /* 非主题值：画板 D-03e 芯片进度条无圆角 */ }}>
-          <i style={fillStyle} />
-        </div>
+        {/* fork:todo-chip-no-bar（2026-10-06 用户裁定「这个请帮我去掉吧」）——
+            收起态那根 `.d-bar` 进度条删掉：徽标已经有 `6/6`，同一件事说两遍，
+            而且那根横条把 24px 的芯片撑成两行高。展开面板里那条带
+            `role="progressbar"` 的进度条保留（它是可访问性出口）。 */}
       </button>
 
       {open && (

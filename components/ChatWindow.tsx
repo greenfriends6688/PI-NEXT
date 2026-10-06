@@ -2768,18 +2768,17 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     </div>
                   );
                 }
-                if (streamingProcess.answerBlocks.length === 0) {
-                  return (
-                    <div key="turn-head-live" className={isPwa ? "m-msg-ai" : "d-msg-ai"}>
-                      <TurnIdentityHead
-                        message={live as { provider?: string; model?: string }}
-                        modelNames={modelNames}
-                        isPwa={isPwa}
-                      />
-                      {groupNode}
-                    </div>
-                  );
-                }
+                /* fork:no-head-flicker（2026-10-06 用户实拍「一会儿有一会儿没有，还会闪现」）
+                   —— 这里原本有一个 `answerBlocks.length === 0` 的提前返回，
+                   自己拿一个固定 key 的 `<div>` + `TurnIdentityHead` 画身份行；
+                   正文一到就改走下面的 `<MessageView>`（它自己再画一个身份行）。
+                   两支的**元素类型不同**（`div` vs 组件）、key 也不同，React 不会原地
+                   复用 —— 旧节点整个拆掉、新节点重建：那枚 `<img src="/pi-next-logo.png">`
+                   重新解码、`.m-msg-ai` 重排，于是「空正文 → 有正文」每切一次就闪一次。
+                   现在两支合一：**始终**走 `<MessageView>`，`answerBlocks` 为空时正文那半
+                   自然是空的，而 `prefix={groupNode}` 保证过程组照旧挂在身份行之后
+                   （`MessageView` 对 `prefix` 有豁免：挂了它就绝不返回 null）。
+                   元素类型与位置恒定，React 原地复用同一个 DOM —— 不闪、也不重排。 */
                 return (
                   <MessageView
                     message={{ ...live, content: streamingProcess.answerBlocks } as AgentMessage}
