@@ -11,10 +11,12 @@
  * 包括 server.url 指到的远程源 —— 所以远端页面能直接探测，不需要单独的壳构建。
  */
 
-/** Capacitor 注入的全局（nativePromise 是免打包调原生插件的低层通道）。 */
+/** Capacitor 注入的全局（nativePromise/nativeCallback 是免打包调原生插件的低层通道）。 */
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
   nativePromise?: (plugin: string, method: string, args?: unknown) => Promise<unknown>;
+  /** 注册持久事件监听（如 LocalNotifications 的点击、App 的返回键）。 */
+  nativeCallback?: (plugin: string, method: string, callback: (data: unknown) => void) => void;
 }
 
 function capacitorGlobal(): CapacitorGlobal | null {
@@ -51,6 +53,15 @@ export async function nativePluginCall<T>(
   } catch {
     return null;
   }
+}
+
+/** 注册原生插件事件监听（持久）；无桥时静默忽略。 */
+export function nativeCallback(
+  plugin: string,
+  method: string,
+  callback: (data: unknown) => void,
+): void {
+  capacitorGlobal()?.nativeCallback?.(plugin, method, callback);
 }
 
 // ---- 安全区 ----------------------------------------------------------------

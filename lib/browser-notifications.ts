@@ -63,6 +63,18 @@ export function claimExtensionAttentionNotification(
   return true;
 }
 
+/**
+ * fork:mobile-shell — 壳内原生通知的 provider（`lib/mobile-notify.ts` 导入时登记）。
+ * 本文件必须保持**零相对导入**（上面的 `node --test` 解析器注释）：所以壳的接入是
+ * 注册式而不是 import 式。provider 自己负责 isMobileShell 判定与失败回落。
+ */
+type MobileNotifyProvider = (payload: { title: string; body: string; tag?: string; url: string }) => Promise<boolean>;
+let mobileNotifyProvider: MobileNotifyProvider | null = null;
+
+export function setMobileNotifyProvider(provider: MobileNotifyProvider): void {
+  mobileNotifyProvider = provider;
+}
+
 function getBrowserEnvironment(): BrowserNotificationEnvironment {
   // Read the bridge straight off `window` (structurally typed): importing
   // lib/desktop-shell here would add a runtime module dependency that the plain
@@ -70,13 +82,28 @@ function getBrowserEnvironment(): BrowserNotificationEnvironment {
   const bridge = typeof window !== "undefined"
     ? (window as { piWebDesktop?: { notify: (payload: { title: string; body: string; tag?: string; url: string }) => Promise<boolean> } }).piWebDesktop
     : undefined;
+  if (bridge) {
+    return {
+      nativeNotify: (payload) => bridge.notify(payload),
+      createWindowNotification: (title, options) => new Notification(title, options),
+      getServiceWorkerRegistration: "serviceWorker" in navigator
+        ? () => navigator.serviceWorker.getRegistration()
+        : null,
+    };
+  }
+  // fork:mobile-shell — 壳里 WebView 没有 Web Push subscription，本地通知是唯一原生层；
+  // 点击深链由 initMobileShellRuntime 注册的 action 监听处理（onClick 同样不走）。
+  const provider = mobileNotifyProvider;
+  if (provider) {
+    return {
+      nativeNotify: (payload) => provider(payload),
+      createWindowNotification: (title, options) => new Notification(title, options),
+      getServiceWorkerRegistration: "serviceWorker" in navigator
+        ? () => navigator.serviceWorker.getRegistration()
+        : null,
+    };
+  }
   return {
-    ...(bridge
-      ? {
-          nativeNotify: (payload: { title: string; body: string; tag?: string; url: string }) =>
-            bridge.notify(payload),
-        }
-      : {}),
     createWindowNotification: (title, options) => new Notification(title, options),
     getServiceWorkerRegistration: "serviceWorker" in navigator
       ? () => navigator.serviceWorker.getRegistration()

@@ -83,6 +83,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile, useIsCompact } from "@/hooks/useIsMobile";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
+import { useNativeBack } from "@/hooks/useNativeBack";
 // fix:field-focus-modality —— 输入模态标记（焦点环只在键盘焦点时出现，规范 §1.4）。
 import { useFocusModality } from "@/hooks/useFocusModality";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
@@ -215,8 +216,15 @@ export function AppShell() {
   useViewportHeight();
   // fork:mobile-shell —— 壳内用原生 insets 覆盖 --safe-*（安卓 WebView 的 env() 失效，
   // 见 globals.css :root 的安全区块）。桌面/PWA 上 initShellInsets 是 no-op。
+  // 壳运行时一并初始化：通知点击深链 / 回前台清角标 / Android 系统返回键。
   useEffect(() => {
-    void import("@/lib/mobile-shell").then((mod) => mod.initShellInsets());
+    void (async () => {
+      const shell = await import("@/lib/mobile-shell");
+      if (!shell.isMobileShell()) return;
+      void shell.initShellInsets();
+      const runtime = await import("@/lib/mobile-notify");
+      runtime.initMobileShellRuntime();
+    })();
   }, []);
   // fork:mobile-shell —— 壳内静默镜像同步：启动 / 回前台 / 每 5 分钟拉增量。
   // 桌面上 isMobileShell() 恒 false，runMobileSync 是 no-op；离线时 fetch 静默失败。
@@ -351,6 +359,8 @@ export function AppShell() {
   }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+  // fork:mobile-shell —— 设置弹层开着时，Android 系统返回键先关它。
+  useNativeBack(settingsSection != null, () => setSettingsSection(null));
   /* fork:command-palette —— 面板开关 + 命令清单。命令全部直接调既有 setState，
      所以清单是纯数据、随渲染重建也无所谓（useMemo 只为不每帧新建数组）。 */
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
