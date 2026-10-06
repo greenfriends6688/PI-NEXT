@@ -152,14 +152,10 @@ export function MobileRightPanels({
               {/* 宿主是 pointer-events:none 的全屏层，只有这三块接手指（接线层）。 */}
               <div className="m-scrim is-open" style={{ pointerEvents: "auto" }} onClick={() => setSheetOpen(false)} />
               <div className="m-sheet is-open" role="dialog" aria-label={title} style={{ pointerEvents: "auto" }}>
-                {/* 抓手也是一枚「点一下即收」的钮（div→button 的既定换法）；
-                    命中区在 `app/design/v5-forms.css` 的接线层放大。 */}
-                <button
-                  type="button"
-                  className="m-sheet-grab"
-                  aria-label={t("chat.close")}
-                  onClick={() => setSheetOpen(false)}
-                />
+                {/* fork:no-sheet-grab（2026-10-06 用户裁定）—— 抓手已删。它原来是
+                    「点一下即收」的第二入口，但遮罩本身就是同一个动作（用户原话：
+                    「点击空白处可以消失啊」），于是它只剩下一个长得像按钮的横条，
+                    在每一张浮窗顶部占一行。全部五张 sheet 一并去掉。 */}
                 <div className="m-sheet-title">{title}</div>
                 <div className="m-sheet-body">
                   <div className="m-group-title">{groupTitle}</div>

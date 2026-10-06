@@ -3606,7 +3606,12 @@ export function AppShell() {
               <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, padding: "0 2px" }}>
                 {renderSessionRename()}
               </div>
-              {mobileBranchChip}
+              {/* fork:no-mobile-branch-chip（2026-10-06 用户裁定）—— 窄屏顶栏不再放那枚
+                  `.m-branch` 分支芯片。用户原话：「分支会话在 pwa 这个模式下，就可以
+                  隐藏掉了，地方不够大」。390px 上标题 + ⋯ + 右栏面板钮已经把一行占满，
+                  再插一枚带序号的分支芯片，标题只剩两三个字（实测被挤成「重构本…」）。
+                  分支本身仍进得去：会话抽屉里的分支行（BranchNavigator 的 `topLevel`）
+                  与 `.m-branch` 读的是同一份数据，只是不再占顶栏那一格。 */}
               {renderChatToolbarActions(true)}
               {renderMainFileToggle(true)}            </div>
           )}
