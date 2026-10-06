@@ -1,0 +1,23 @@
+{
+  "name": "pinext-mobile-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PI NEXT 手机壳（Capacitor）：WebView 加载局域网 / Tailscale 上的 PI NEXT Web 应用。独立子项目，与主仓 package.json 无关。",
+  "scripts": {
+    "sync": "cap sync android",
+    "open:android": "cap open android",
+    "build:debug": "cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capawesome/capacitor-badge": "^8.0.3",
+    "jsqr": "^1.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  }
+}

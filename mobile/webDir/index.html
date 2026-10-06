@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>PI NEXT</title>
+<style>
+  /* fork:mobile-shell —— 跳板页（Mode B 首屏）。
+     独立 WebView 资产：不进 V5 类体系（DIVERGENCE 登记）。视觉从简，
+     只求「输一次地址 / 扫一次码，之后永远直跳」。 */
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: max(24px, env(safe-area-inset-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px));
+    font: 15px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    background: #f7f7f5;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #141414; color: #ededed; }
+    .card { border-color: #2e2e2e !important; }
+    input { border-color: #3a3a3a !important; background: #1e1e1e !important; color: #ededed !important; }
+  }
+  .card { width: 100%; max-width: 420px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: 0.2px; }
+  .sub { font-size: 13px; color: #8a8a86; margin: 0 0 22px; }
+  label { display: block; font-size: 12px; color: #8a8a86; margin: 0 0 6px; }
+  input {
+    width: 100%;
+    border: 1px solid #e2e2de;
+    background: #fff;
+    color: inherit;
+    border-radius: 6px;
+    font: 15px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 11px 12px;
+  }
+  .row { display: flex; gap: 10px; margin-top: 14px; }
+  button {
+    appearance: none; border: 0; border-radius: 6px;
+    font: inherit; font-size: 14px; padding: 11px 18px; cursor: pointer;
+    background: #1a1a1a; color: #fff;
+  }
+  button.secondary { background: transparent; color: inherit; border: 1px solid #c9c9c5; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #scanner { display: none; margin-top: 16px; }
+  #scanner video { width: 100%; border-radius: 6px; background: #000; }
+  .status { font-size: 12px; color: #d05656; min-height: 18px; margin-top: 10px; }
+  .hint { font-size: 12px; color: #b0b0ac; margin-top: 18px; line-height: 1.7; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>PI NEXT</h1>
+    <p class="sub">连接你电脑上的 PI NEXT（局域网或 Tailscale 地址）</p>
+
+    <div id="setup">
+      <label for="server">服务器地址</label>
+      <input id="server" type="url" inputmode="url" autocapitalize="off" autocorrect="off"
+             placeholder="http://100.x.y.z:30141" spellcheck="false" />
+      <div class="row">
+        <button id="connect">连接</button>
+        <button id="scan" class="secondary">扫码</button>
+      </div>
+      <div class="status" id="status"></div>
+      <div id="scanner">
+        <video id="video" playsinline muted></video>
+        <div class="row"><button id="scanStop" class="secondary">停止扫码</button></div>
+      </div>
+      <p class="hint">
+        地址就是电脑上 <code>npm run mobile:doctor</code> 打印的那个（桌面「设置 → 手机与推送」
+        的二维码也能扫：识别出 <code>/pair#6位码</code> 会自动带入配对码）。<br />
+        连接一次后本页永久记住，以后打开直接进。
+      </p>
+    </div>
+  </div>
+
+<script src="./vendor/jsQR.js"></script>
+<script>
+(function () {
+  var KEY = "pinext.serverUrl";
+  var input = document.getElementById("server");
+  var status = document.getElementById("status");
+  var connectBtn = document.getElementById("connect");
+  var scanBtn = document.getElementById("scan");
+
+  function savedUrl() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+
+  function normalize(raw) {
+    var value = (raw || "").trim();
+    if (!value) return null;
+    if (!/^https?:\/\//i.test(value)) value = "http://" + value;
+    try {
+      var url = new URL(value);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+      return { origin: url.origin, full: url.pathname && url.pathname !== "/" ? url.href : url.origin };
+    } catch (e) { return null; }
+  }
+
+  function go(target) {
+    try { localStorage.setItem(KEY, target.origin); } catch (e) {}
+    window.location.replace(target.full);
+  }
+
+  connectBtn.addEventListener("click", function () {
+    var target = normalize(input.value);
+    if (!target) { status.textContent = "地址不对，形如 http://100.x.y.z:30141"; return; }
+    status.textContent = "连接中…";
+    fetch(target.origin + "/api/home", { mode: "no-cors", cache: "no-store" })
+      .then(function () { go(target); })
+      .catch(function () { go(target); }); // no-cors 探测失败也照跳，error.html 会兜底
+  });
+
+  // ---- 扫码：getUserMedia + jsQR（MusePi 的形状，零原生插件；mlkit 依赖 GMS 不用） ----
+  var scanning = false, video = document.getElementById("video"), canvas, rafId = 0, stream = null;
+  function stopScan() {
+    scanning = false;
+    cancelAnimationFrame(rafId);
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    document.getElementById("scanner").style.display = "none";
+  }
+  function tick() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      if (!canvas) canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var code = window.jsQR(image.data, image.width, image.height, { inversionAttempts: "dontInvert" });
+      if (code && code.data) {
+        stopScan();
+        var target = normalize(code.data);
+        if (target) { go(target); return; }
+        status.textContent = "二维码内容不是 PI NEXT 地址：" + code.data.slice(0, 60);
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+  scanBtn.addEventListener("click", function () {
+    status.textContent = "";
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      status.textContent = "这个 WebView 不支持相机，请手动输入地址"; return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      .then(function (s) {
+        stream = s; scanning = true;
+        document.getElementById("scanner").style.display = "block";
+        video.srcObject = s; video.setAttribute("playsinline", "true");
+        video.play();
+        tick();
+      })
+      .catch(function (err) {
+        status.textContent = "相机打不开（" + (err && err.name ? err.name : "unknown") + "），请手动输入地址";
+      });
+  });
+  document.getElementById("scanStop").addEventListener("click", stopScan);
+
+  // ---- 入口：记住过地址就直接跳（扫到 /pair#code 的 full 地址会自动带入配对码） ----
+  var saved = savedUrl();
+  if (saved) { window.location.replace(saved); return; }
+})();
+</script>
+</body>
+</html>

@@ -108,3 +108,6 @@ design/pi-web-design/.skeuo/verify-*.html
 # pi harness scratch (plans live in docs/)
 /.pi/
 .next-verify/
+
+# fork:mobile-shell —— 手机壳是独立子项目：自己的 node_modules 与构建产物不进主仓
+/mobile/node_modules/
