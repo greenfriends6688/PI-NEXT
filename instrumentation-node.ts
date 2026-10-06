@@ -20,6 +20,22 @@ export async function registerNodeInstrumentation(): Promise<void> {
   const { startAutomationScheduler } = await import("@/lib/automation-runtime");
   startAutomationScheduler();
 
+  /* fork:bot-channel-autostart（2026-10-06）—— 已配好的聊天渠道随进程一起回来。
+     渠道 runner 是**进程内**长轮询循环，重启即消失；不自动拉起时，用户看到的就是
+     「我绑定了，发消息却没有任何回应」（用户实拍）。`enabled` 字段就是「该不该在跑」：
+     设置页点「停止」会把它写成 false，那种渠道下次开机不会自己回来。
+     globalThis 闸：dev 下 instrumentation 会被重跑，`chatChannelRunners()` 虽然
+     幂等，但没必要每轮都扫一遍磁盘配置。 */
+  const bootState = globalThis as typeof globalThis & { __piBotChannelBooted?: boolean };
+  if (!bootState.__piBotChannelBooted) {
+    bootState.__piBotChannelBooted = true;
+    const { startConfiguredChatChannels } = await import("@/lib/bot-channel-runtime");
+    // 不 await：它只是把循环起起来，启动器不该为一个可能慢的网络调用挡住第一个请求。
+    void startConfiguredChatChannels().catch((error: unknown) => {
+      console.warn("[bot-channel] boot start failed:", error instanceof Error ? error.message : String(error));
+    });
+  }
+
   // 2026-09-06 root-cause fix for the recurring "zombie node, 502" outages:
   // on SIGINT/SIGTERM Next 16 (production) runs server.close() and waits for
   // ALL connections to end before process.exit — with no timeout. Our SSE

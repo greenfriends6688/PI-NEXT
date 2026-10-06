@@ -354,6 +354,18 @@ export function startWeixinRunner(options: WeixinRunnerOptions): WeixinRunnerHan
   let stopped = false;
   const log = (line: string) => options.onLog?.(line);
 
+  /* fork:bot-channel-allowlist（2026-10-06 用户实拍「微信发了没有回应」）——
+     就地洗掉白名单里的 **bot 自己**。iLink 的 id 后缀区分得很清楚：bot 账号是
+     `…@im.bot`，真人微信是 `…@im.wechat`。历史版本的 `register-poll` 会把扫码拿到的
+     `ilink_bot_id`（= bot 自己）预置进白名单（已修），而白名单一旦非空，下面那条
+     「首个发信人自动绑定」就永远不会触发 —— 真人发什么都被当成名单外的人忽略掉。
+     老配置因此在本行自愈，不必让人去改配置文件。 */
+  const allowed = options.allowFrom.filter(
+    (id) => id && id !== options.fromBotId && !id.endsWith("@im.bot"),
+  );
+  options.allowFrom.length = 0;
+  options.allowFrom.push(...allowed);
+
   const loop = async () => {
     while (!stopped && !options.signal.aborted) {
       const batch = await weixinGetUpdates(options.token, buf, {

@@ -4,14 +4,14 @@ import {
   CHANNELS,
   channelReadiness,
   readChatChannelConfig,
-  readChatChannelState,
   writeChatChannelConfig,
-  writeChatChannelState,
   type ChatChannelId,
 } from "@/lib/chat-channel";
-import { startTelegramRunner, telegramApiBase } from "@/lib/telegram-channel";
-import { startWeixinRunner } from "@/lib/weixin-channel";
-import { startFeishuRunner } from "@/lib/feishu-channel";
+import {
+  startChatChannel,
+  stopChatChannel,
+} from "@/lib/bot-channel-runtime";
+import { telegramApiBase } from "@/lib/telegram-channel";
 import {
   beginRegistration,
   cancelRegistration,
@@ -22,9 +22,6 @@ import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security"
 
 export const dynamic = "force-dynamic";
 
-/** 环境变量：把出站/入站的回复投到别处（测试与「先跑通再接真平台」用）。 */
-const REPLY_ENDPOINT = process.env.PI_BOT_CHANNEL_DELIVER_URL;
-
 /** 能扫码接入的渠道（微信 iLink / 飞书与 Lark 的 device-flow 一键建应用）。 */
 const SCANNABLE: readonly ScannableChannelId[] = ["wechat", "feishu", "lark"];
 
@@ -33,8 +30,13 @@ const SCANNABLE: readonly ScannableChannelId[] = ["wechat", "feishu", "lark"];
  * POST /api/bot-channel —— 配渠道 / 扫码注册 / 启动 / 停止。
  *
  * 启动一个渠道 = 起一个**进程内长轮询/长连接循环**（telegram 与 weixin 长轮询、
- * feishu 官方 SDK 的 WebSocket），所以状态只在内存里；重启进程后不会自己回来 ——
- * 界面上如实显示「未运行」，而不是假装它还连着。
+ * feishu 官方 SDK 的 WebSocket），所以状态只在内存里。
+ *
+ * fork:bot-channel-autostart（2026-10-06）—— 这里原来写着「重启进程后不会自己回来
+ * —— 界面上如实显示未运行」。用户实拍后推翻：那意味着每次改代码 / 重启都静默断掉，
+ * 表现就是「绑定了，发消息没有任何回应」。现在启动 / 停止的实现搬到
+ * `lib/bot-channel-runtime.ts`，与 `instrumentation-node.ts` 的启动器共用一份；
+ * `enabled` 字段从此就是「**该不该在跑**」。
  */
 export async function GET() {
   const config = readChatChannelConfig();
@@ -87,7 +89,6 @@ export async function POST(req: Request) {
   const id: ChatChannelId = spec.id;
   const config = readChatChannelConfig();
   const current = config.channels[id] ?? { allowFrom: [], enabled: true };
-  const { chatChannelRunners } = await import("@/lib/telegram-channel");
 
   if (body.action === "configure") {
     const token = typeof body.token === "string" ? body.token.trim() : current.token;
@@ -127,7 +128,15 @@ export async function POST(req: Request) {
     }
     if (result.status === "success") {
       const credentials = result.credentials;
-      const allowFrom = credentials.botUserId && current.allowFrom.length === 0
+      /* fork:bot-channel-allowlist（2026-10-06 用户实拍「微信发了没有回应」）——
+         只有**飞书 / Lark** 的 `botUserId` 是「扫码那个人自己的 open_id」，预置成白名单
+         是对的（扫码的人就是主人）。
+         **微信的 `botUserId` 是 bot 自己的 `ilink_bot_id`（`…@im.bot`）**：写进白名单
+         等于「允许 bot 自己驱动 agent」，而且因为列表非空，真人第一条消息再也不会被
+         runner 的「首个发信人自动绑定」接住 —— 表现就是「发什么都没回应」。
+         微信保持空列表，交给 runner 自己绑定。 */
+      const seedOwner = id === "feishu" || id === "lark";
+      const allowFrom = seedOwner && credentials.botUserId && current.allowFrom.length === 0
         ? [credentials.botUserId]
         : current.allowFrom;
       writeChatChannelConfig({
@@ -154,152 +163,26 @@ export async function POST(req: Request) {
   }
 
   if (body.action === "stop") {
-    chatChannelRunners().get(id)?.stop();
-    chatChannelRunners().delete(id);
+    stopChatChannel(id);
     return NextResponse.json({ ok: true, running: false });
   }
 
   if (body.action === "start") {
-    const readiness = channelReadiness(id, config);
-    if (!readiness.ready) {
-      return NextResponse.json({ error: `Not ready: ${readiness.missing.join(", ")}` }, { status: 409 });
+    const result = await startChatChannel(id, config);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
     }
-    if (chatChannelRunners().has(id)) {
-      return NextResponse.json({ ok: true, running: true, alreadyRunning: true });
-    }
-    const entry = config.channels[id]!;
-    if (!entry.token) {
-      return NextResponse.json({ error: "token is required" }, { status: 400 });
-    }
-
-    // 交付通道：默认走本机的 agent RPC 面（和浏览器发消息同一条路）。
-    const deliverUrl = REPLY_ENDPOINT ?? `http://127.0.0.1:${process.env.PORT ?? 30141}/api/agent/`;
-    const deliver = (sessionId: string, text: string) => runOnce(deliverUrl, sessionId, text);
-    // 首发信人自动绑定：runner 已把人 push 进 entry.allowFrom（内存），这里负责落盘。
-    const persistBoundSender = (senderId: string) => {
-      const fresh = readChatChannelConfig();
-      const channel = fresh.channels[id];
-      if (!channel) return;
+    // 记下「该不该在跑」：下次进程启动由启动器自动拉起（stop 会把这一位写回 false）。
+    const fresh = readChatChannelConfig();
+    const channel = fresh.channels[id];
+    if (channel && channel.enabled === false) {
       writeChatChannelConfig({
         version: 1,
-        channels: { ...fresh.channels, [id]: { ...channel, allowFrom: [...new Set([...channel.allowFrom, senderId])] } },
+        channels: { ...fresh.channels, [id]: { ...channel, enabled: true } },
       });
-    };
-    const onLog = (line: string) => console.warn("[bot-channel]", line);
-    const controller = new AbortController();
-
-    if (id === "telegram") {
-      if (!entry.chatId) {
-        return NextResponse.json({ error: "token and chat id are required" }, { status: 400 });
-      }
-      const handle = startTelegramRunner({
-        token: entry.token,
-        chatId: entry.chatId,
-        allowFrom: entry.allowFrom,
-        sessionId: entry.sessionId ?? "",
-        signal: controller.signal,
-        onLog,
-        deliver,
-      });
-      chatChannelRunners().set(id, handle);
-      return NextResponse.json({ ok: true, running: true });
     }
-
-    if (id === "wechat") {
-      const handle = startWeixinRunner({
-        token: entry.token,
-        fromBotId: entry.botUserId ?? "",
-        allowFrom: entry.allowFrom,
-        sessionId: entry.sessionId ?? "",
-        signal: controller.signal,
-        onLog,
-        deliver,
-        onBindFirstSender: persistBoundSender,
-        onCursor: (buf) => writeChatChannelState({ weixinGetUpdatesBuf: buf }),
-        initialBuf: readChatChannelState().weixinGetUpdatesBuf ?? "",
-      });
-      chatChannelRunners().set(id, handle);
-      return NextResponse.json({ ok: true, running: true });
-    }
-
-    if (id === "feishu" || id === "lark") {
-      if (!entry.appId) {
-        return NextResponse.json({ error: "app id is required" }, { status: 400 });
-      }
-      // SDK 缺失时给出用户可见的报错（runner 里动态 import 的失败只进日志）。
-      try {
-        await import("@larksuiteoapi/node-sdk");
-      } catch {
-        return NextResponse.json({ error: "@larksuiteoapi/node-sdk is not installed" }, { status: 501 });
-      }
-      const handle = await startFeishuRunner({
-        appId: entry.appId,
-        appSecret: entry.token,
-        provider: id === "lark" ? "lark" : "feishu",
-        allowFrom: entry.allowFrom,
-        sessionId: entry.sessionId ?? "",
-        signal: controller.signal,
-        onLog,
-        deliver,
-        onBindFirstSender: persistBoundSender,
-      });
-      chatChannelRunners().set(id, handle);
-      return NextResponse.json({ ok: true, running: true });
-    }
-
-    return NextResponse.json({ error: `${id} is not implemented yet` }, { status: 501 });
+    return NextResponse.json({ ok: true, running: true });
   }
 
   return NextResponse.json({ error: "action must be configure | register-begin | register-poll | register-cancel | start | stop" }, { status: 400 });
-}
-
-/** 等这一轮跑完的轮询间隔与上限。够跑完一次普通对话，不够跑一次长任务。 */
-const SETTLE_POLL_MS = 700;
-const SETTLE_TIMEOUT_MS = 10 * 60 * 1000;
-
-/**
- * 把一条聊天消息交给会话，并把**这一轮 assistant 的最后一段话**带回来。
- *
- * 走的是既有 RPC 面（`POST /api/agent/<id>` 的 prompt / get_state /
- * get_last_assistant_text），与浏览器发消息同一条路 —— 不另开一套 agent 通道，
- * 少一份生命周期、少一处行为漂移。
- */
-async function runOnce(deliverUrl: string, sessionId: string, text: string): Promise<string> {
-  const post = async (body: Record<string, unknown>) => {
-    const response = await fetch(`${deliverUrl}${encodeURIComponent(sessionId)}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const payload = await response.json() as { error?: string; data?: unknown };
-    if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
-    return payload.data;
-  };
-
-  if (!sessionId) return "No session is bound to this channel yet. Pick one in Settings → Phone & push.";
-
-  // **注入前先看这个会话是不是正在跑。**
-  //
-  // 这条不是假想：实测把渠道绑到一个**人正在用的**会话上时，机器人的消息会直接插进
-  // 那一轮对话里，把人正在进行的操作冲掉（用户 2026-10-03 亲眼在聊天里看到了这条）。
-  // 所以正在跑就**不注入**，只回一句「它现在在忙」，让人自己决定什么时候放机器人进来。
-  const before = await post({ type: "get_state" }) as { isStreaming?: boolean } | null;
-  if (before?.isStreaming === true) {
-    return "That session is running a turn right now — not injecting into it. Try again when it settles.";
-  }
-
-  // 字段名与浏览器发消息那条路一致：是 `message`，不是 `text`
-  // （`hooks/useAgentSession.ts` 的 sendAgentCommand({type:"prompt", message})）。
-  await post({ type: "prompt", message: text });
-
-  const deadline = Date.now() + SETTLE_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, SETTLE_POLL_MS));
-    const state = await post({ type: "get_state" }) as { isStreaming?: boolean } | null;
-    if (state && state.isStreaming === false) break;
-  }
-
-  const final = await post({ type: "get_last_assistant_text" }) as { text?: string } | string | null;
-  const reply = typeof final === "string" ? final : final?.text;
-  return (reply ?? "").trim() || "(no reply)";
 }
