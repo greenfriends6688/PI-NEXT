@@ -6,28 +6,33 @@
  * 「这一帧把 tail 显示到第几个字」；末尾那枚光标（`.d-caret`）因此天然跟着吐字的边缘。
  *
  * 三条约束，少了任何一条就变成负面体验：
- *  1. **绝不落后于流** —— 积压超过 `CATCHUP_BACKLOG` 就按上限全速追（`revealStep`），
- *     一次大 delta / 重连补齐不会让人盯着空白等；
+ *  1. **绝不落后于流** —— 步长按「在 `TARGET_LAG_MS` 内排空当前积压」反推，
+ *     所以显示最多落后真实内容 `TARGET_LAG_MS`，一次大 delta / 重连补齐不会让人盯着空白等；
  *  2. **不从 markdown 标记中间切** —— `safeRevealCut` 把切点回退到未闭合的行内标记
  *     之前，否则屏幕上会闪出 `**` 这种半个 token；
  *  3. **安静即落定** —— `QUIET_FLUSH_MS` 内没有新字就直接交完整文本。(2) 是启发式，
  *     (3) 是必需的兜底：它保证「被挡住的切点」不会把文字永久冻住。
  *
+ * fork:typewriter-speed（2026-10-06 用户反馈「打字机效果跟傻逼一样，ZCode 吐字很快」）
+ * —— 原来只有两档：3 字/帧（187 字/秒）与「积压 > 48 字就直接 48 字/帧」。
+ * 遇到比 187 字/秒更快的模型时，显示会**持续落后**，然后每隔一会儿跳一大块 ——
+ * 那正是用户说的观感。现在换成比例控制：步长 = 积压 / TARGET_LAG_MS，
+ * 快模型下自然提速、慢模型下退回 `BASE_STEP_CHARS` 的逐字手感，两者都不会落后。
+ *
  * 消费方：`hooks/useTypewriterReveal.ts` → `components/MessageView.tsx` 的
- * `StreamingTextBlock`，**只有单行行内 tail 走这条路**（围栏 / 列表 / 表格逐字吐会抖，
- * 照旧整块出）。定时器可注入，便于确定性测试（同 `lib/stream-throttle.ts`）。
+ * `StreamingTextBlock`（正文尾段）与 `ThinkingBlock`（思考正文，fork:thinking-typewriter）。
+ * 正文里只有**单行行内 tail** 走这条路（围栏 / 列表 / 表格逐字吐会抖，照旧整块出）。
+ * 定时器可注入，便于确定性测试（同 `lib/stream-throttle.ts`）。
  */
 
-/** 每帧最少推进的字数 —— 3 字/帧 ≈ 180 字/秒，比真打字机快，不至于让人等。 */
-export const BASE_STEP_CHARS = 3;
-/** 待吐字数超过这个数就全速追：已经明显落后于流，再「匀速」就是在让人干等。 */
-export const CATCHUP_BACKLOG = 48;
-/** 单帧步长上限：再快就成「瞬间出完」，动效的意义就没了。 */
-export const MAX_STEP_CHARS = 48;
-/** 积压在这个数以内时，按「DRAIN_FRAMES 帧内排空」微调步长（收尾那一小段平滑降速）。 */
-export const DRAIN_FRAMES = 6;
+/** 每帧最少推进的字数 —— 4 字/帧 ≈ 250 字/秒，比多数模型吐字还快，慢流下仍有逐字感。 */
+export const BASE_STEP_CHARS = 4;
+/** 单帧步长上限：防一帧内把整段（重连补齐 / 超长思考）一次性画出来。 */
+export const MAX_STEP_CHARS = 200;
+/** 显示允许落后真实内容多久（毫秒）。步长按这个上限反推，所以它**就是**最大延迟。 */
+export const TARGET_LAG_MS = 120;
 /** 距离上一次新字过去这么久就整段落定。 */
-export const QUIET_FLUSH_MS = 600;
+export const QUIET_FLUSH_MS = 250;
 /** 一帧的时长；驱动用 interval 而不是 rAF，测试里才可注入假时钟。 */
 export const FRAME_MS = 16;
 /**
@@ -71,13 +76,22 @@ function isHighSurrogate(code: number): boolean {
 }
 
 /**
+ * 只保证不劈开代理对（emoji / 部分 CJK 扩展区）的切点。
+ *
+ * 消费方是**纯文本**（思考正文）—— 那里没有 markdown 管线，回退到标记之前
+ * 只会在一个未闭合的 `` ` `` / `*` / `_` 上把文字冻住，等闭合符号到才跳一大块。
+ */
+export function plainRevealCut(text: string, target: number): number {
+  const cut = Math.min(Math.max(0, Math.trunc(target)), text.length);
+  return cut > 0 && cut < text.length && isHighSurrogate(text.charCodeAt(cut - 1)) ? cut - 1 : cut;
+}
+
+/**
  * 把「显示到第 target 个字」修正成一个**安全切点**：不劈开代理对，也不在未闭合的行内
  * 标记中间切开。返回的切点 ≤ target。
  */
 export function safeRevealCut(text: string, target: number): number {
-  let cut = Math.min(Math.max(0, Math.trunc(target)), text.length);
-  // 代理对（emoji、部分 CJK 扩展区）劈开会多出一个 U+FFFD。
-  if (cut > 0 && cut < text.length && isHighSurrogate(text.charCodeAt(cut - 1))) cut -= 1;
+  let cut = plainRevealCut(text, target);
   const marker = lastUnclosedMarkerStart(text.slice(0, cut));
   if (marker >= 0 && cut - marker <= MAX_MARKER_BACKOFF) cut = marker;
   return cut;
@@ -86,14 +100,17 @@ export function safeRevealCut(text: string, target: number): number {
 /**
  * 待吐 pending 个字时，这一帧推进多少字。
  *
- * 三档：积压大 = 全速追（`MAX_STEP_CHARS`）；积压小 = 按「DRAIN_FRAMES 帧排空」收尾；
- * 什么都不积压 = 恒定 `BASE_STEP_CHARS`（真正的打字机手感）。刻意不用「步长随积压连续
- * 变小」那种写法 —— 它会渐近地拖住最后几十个字，看着像卡住。
+ * 比例控制：步长 = 「在 `TARGET_LAG_MS` 内排空积压」，下限 `BASE_STEP_CHARS`
+ * （慢流下的逐字手感）、上限 `MAX_STEP_CHARS`（防一帧画整段）。
+ *
+ * 与旧写法的差别：旧写法是「积压 ≤48 就走 3 字/帧」的硬两档，比它快的模型会让显示
+ * 持续落后、然后每隔一会儿跳一大块；比例控制下最大延迟恒为 `TARGET_LAG_MS`，
+ * 所以「吐字很快」与「不跳大块」可以同时成立。
  */
 export function revealStep(pending: number): number {
   if (pending <= 0) return 0;
-  if (pending > CATCHUP_BACKLOG) return MAX_STEP_CHARS;
-  return Math.min(MAX_STEP_CHARS, Math.max(BASE_STEP_CHARS, Math.ceil(pending / DRAIN_FRAMES)));
+  const proportional = Math.ceil((pending * FRAME_MS) / TARGET_LAG_MS);
+  return Math.min(MAX_STEP_CHARS, Math.max(BASE_STEP_CHARS, proportional));
 }
 
 export interface TypewriterTimers {
@@ -106,6 +123,12 @@ export interface TypewriterTimers {
 export interface Typewriter {
   /** 记录最新文本（流式每次 delta 调一次），必要时开始逐帧推进。 */
   push(text: string): void;
+  /**
+   * 把当前文本当作「已经吐完」—— **启用揭示的那一刻**调用。
+   * 少了它，切分支 / 折叠再展开 / 刷新后重新挂载时，屏幕上已经存在的整段文字
+   * 会被从第一个字重打一遍。
+   */
+  seed(text: string): void;
   /** 归零并停表 —— 调用方切到非打字机形态时用。 */
   reset(): void;
   dispose(): void;
@@ -115,11 +138,21 @@ export interface Typewriter {
   pending(): boolean;
 }
 
+export interface TypewriterOptions {
+  /** 切点修正函数。默认 `safeRevealCut`（markdown）；纯文本消费方传 `plainRevealCut`。 */
+  safeCut?: (text: string, target: number) => number;
+}
+
 /**
  * 打字机驱动器。只在「有字没吐完」时挂着 interval，吐完即停 —— 一个收尾的
  * streaming tail 上不留定时器。
  */
-export function createTypewriter(onUpdate: (cut: number) => void, timers: TypewriterTimers = {}): Typewriter {
+export function createTypewriter(
+  onUpdate: (cut: number) => void,
+  timers: TypewriterTimers = {},
+  options: TypewriterOptions = {},
+): Typewriter {
+  const safeCut = options.safeCut ?? safeRevealCut;
   const setIntervalFn = timers.setIntervalFn ?? ((handler, ms) => setInterval(handler, ms));
   const clearIntervalFn = timers.clearIntervalFn ?? ((handle) => clearInterval(handle as ReturnType<typeof setInterval>));
   const setTimeoutFn = timers.setTimeoutFn ?? ((handler, ms) => setTimeout(handler, ms));
@@ -161,7 +194,7 @@ export function createTypewriter(onUpdate: (cut: number) => void, timers: Typewr
       stopFrames();
       return;
     }
-    const next = safeRevealCut(latest, shown + revealStep(pending));
+    const next = safeCut(latest, shown + revealStep(pending));
     // 切点被安全判据挡住时这一帧不动，等新字（或安静兜底）再来推。
     if (next > shown) {
       shown = next;
@@ -190,6 +223,13 @@ export function createTypewriter(onUpdate: (cut: number) => void, timers: Typewr
       stop();
       latest = "";
       shown = 0;
+    },
+    seed(text: string) {
+      if (disposed) return;
+      stop();
+      latest = text;
+      shown = text.length;
+      onUpdate(shown);
     },
     dispose() {
       disposed = true;

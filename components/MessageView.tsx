@@ -1373,6 +1373,20 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
   tRef.current = t;
   const preview = getThinkingPreview(block.thinking);
 
+  /* fork:thinking-typewriter（2026-10-06 用户裁定「两个都做」）—— 思考正文也走同一套
+     逐字揭示。此前它只作用在正文的单行行内尾段，思考是原样一坨出现（用户原话：
+     「思考过程中的打字机效果跟傻逼一样，ZCode 吐字很快」）。
+     只在**正在推理**且没出错、且用户没选减少动效时启用；其余情况原样返回全文。 */
+  const motion = useMotionPreference();
+  const thinkingText = error ?? (block.deferred ? content ?? "" : block.thinking);
+  const revealedThinking = useTypewriterReveal(
+    thinkingText,
+    Boolean(live) && !error && !loading && motion !== "reduce",
+    // 思考正文是纯文本（没有 markdown 管线），不走标记回退：
+    // 未闭合的 `` ` `` 会把文字冻住等闭合符号，正是要消掉的「跳一大块」。
+    false,
+  );
+
   // fork:fix-thinking-affordance — 两个只在本次运行内有意义的标记。
   // `autoOpenedRef`：展开是"流式期间被自动打开的"，结束后才允许自动收回；
   // `manualOverrideRef`：用户手动点过（或改过全局偏好），此后不再替他决定。
@@ -1537,7 +1551,7 @@ export function ThinkingBlock({ block, duration, sessionId, entryId, blockIndex,
                 <span className="d-skel" style={{ height: 10, width: "92%" }} />
                 <span className="d-skel" style={{ height: 10, width: "78%" }} />
               </span>
-            ) : error ?? (block.deferred ? content : block.thinking)}
+            ) : revealedThinking}
             {/* fork:v5-landing —— 思考行 = 画板 D-03d 帧 A / D-27 帧 A 的
                 `.d-think-row`（点阵图案 + 流光标签 + 计时器），窄屏是 M-11 帧 E 的
                 `.m-think-row`（同一行：图案 + 文案 + grow + 等宽秒数）。
