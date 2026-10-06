@@ -58,10 +58,25 @@
   --nx-f-lg:      1.14;   /* 16 / 19   区块标题 */
   --nx-f-title:   1.43;   /* 20 / 24   页面标题 */
   --nx-f-display: 2.07;   /* 29 / 35   空态大标题 */
+  /* fork:zcode-type（2026-10-05 用户裁定「排版对齐 ZCode」）—— 补上缺的两档。
+     ZCode 的 `text-ui-*` 是 10 / 12 / 13 / 14 / 16 / 18（基准 14，`styles.css:143-151`、
+     `DESIGN.md:190-200` 的表），我们原来是 11 / 12 / 13 / 14 / 16 / 20 / 29：
+     徽标与计数没有更小的档（挤在 11），一级阅读标题也没有档（拿 20 或 16 顶）。
+     `2xs`=10 只给徽标 / 计数 / 极弱元信息（ZCode 的 `text-ui-xs`）；
+     `xl`=18 是一级阅读标题（ZCode 的 `text-ui-xl` = markdown h1 / 强标题）。
+     他们的 `2xs`=9 是工作流轴面刻度专用，我们没有轴面，不需要那一档。 */
+  --nx-f-2xs:     0.71;   /* 10 / 13   徽标、计数、极弱元信息 */
+  --nx-f-xl:      1.29;   /* 18 / 23   一级阅读标题 */
 
   --nx-lh-tight: 1.25;
   --nx-lh-ctrl:  1.35;
   --nx-lh-body:  1.60;
+  /* fork:zcode-type —— 阅读性正文的行高。UI 文字用 `--nx-lh-body`（1.60，密集），
+     markdown / 长文另给 1.75（ZCode `message.tsx:1368` 的 `leading-[1.75]`，
+     配 `tracking-wide` = 0.025em）。分开是因为「界面行要密」和「段落要能读」
+     是两件事，混用一个值必然有一头难受。 */
+  --nx-lh-reading: 1.75;
+  --nx-ls-reading: 0.025em;   /* ZCode 的 tracking-wide */
 
   --nx-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
                 "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
@@ -89,8 +104,10 @@
 
   /* ── 4b · 基准字号 + 派生字阶：改 --nx-ui 即两端整体缩放 ───────────────── */
   --nx-ui: 14px;
+  --nx-fs-2xs:    calc(var(--nx-ui) * var(--nx-f-2xs));
   --nx-fs-display: calc(var(--nx-ui) * var(--nx-f-display));
   --nx-fs-title:   calc(var(--nx-ui) * var(--nx-f-title));
+  --nx-fs-xl:      calc(var(--nx-ui) * var(--nx-f-xl));
   --nx-fs-lg:      calc(var(--nx-ui) * var(--nx-f-lg));
   --nx-fs-body:    var(--nx-ui);
   --nx-fs-cap:     calc(var(--nx-ui) * var(--nx-f-cap));
@@ -107,9 +124,16 @@
   --nx-selected:  #e4e4e7;
   --nx-line:      rgba(9, 9, 11, .10);
   --nx-line-hi:   rgba(9, 9, 11, .16);
-  --nx-text:      #17171a;
-  --nx-text-2:    #6b6b73;
-  --nx-text-3:    #9a9aa2;
+  --nx-text:      #404040;
+  /* fork:zcode-type —— 文字三档改成「同一支墨的几种浓度」（ZCode `styles.css:255-257`
+     的做法：正文 neutral-700，次级 60%，弱元信息 40%）。我们原来三档都是不透明的
+     近黑→中灰，层次靠“另一个灰”堆出来，读起来就是“深浅全靠猜”。
+     **一处刻意不改抄 ZCode**：他们的次级 60% 在白底上只有 3.36:1（AA 要 4.5:1，
+     偏离登记见 DIVERGENCE Q 节），所以这里取 75%（4.95:1，与我们原来的 #66666e
+     5.69:1 同一档）；弱元信息取 55%（2.96:1，与原来的 #9a9aa2 2.79:1 同一档）。
+     浓度阶梯因此是 100 / 75 / 55，读起来仍是同一支墨。 */
+  --nx-text-2:    color-mix(in srgb, #404040 75%, transparent);
+  --nx-text-3:    color-mix(in srgb, #404040 55%, transparent);
   --nx-accent:    #17171a;
   --nx-accent-fg: #ffffff;
   --nx-ring:      rgba(9, 9, 11, .55);

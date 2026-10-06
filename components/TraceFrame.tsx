@@ -76,9 +76,20 @@ export function TraceFrame({
     />
   );
 
+  /* fork:v5-m12-bug（2026-10-06 逐帧）—— PWA 形态的根**不再是** `.m-viewer`。
+     `.m-viewer` 是 `position:absolute; inset:0`（库里的整层浮起），而本组件在
+     产品里**只有一个渲染点**（AppShell 的 `renderTabContent`），也就是它永远是
+     M-12 帧 B 那个 `.m-panel-scroll` 里的一块正文。之前它挂 `.m-viewer is-open`，
+     于是 `inset:0` 让它脱离自己的 pane 铺满整个视口（实测 390×844，y=0，
+     z=100）—— 把 M-12 那一层的「六项横滚切换条」整条盖掉，点进「轨迹」就再也
+     切不回别的块，帧 B 的「这一层唯一的入口」当场失效。
+     所以 PWA 根改成一块普通的弹性列（`fork-trace-pane`），它自己那枚页头
+     （刷新 / 全屏，fork:trace-frame 登记过的那两枚）留着，但用 `fork-trace-bar`
+     去掉 `.m-viewer-bar` 的 50px 状态栏让位 —— 那一格是给整层顶栏的，
+     在 pane 里再留一次就是白扔一屏。 */
   return (
-    <div className={isPwa ? "m-viewer is-open" : "d-panel"} style={{ height: "100%", minWidth: 0 }}>
-      <div className={isPwa ? "m-viewer-bar" : "d-panel-head"}>
+    <div className={isPwa ? "fork-trace-pane" : "d-panel"} style={{ height: "100%", minWidth: 0 }}>
+      <div className={isPwa ? "fork-trace-bar" : "d-panel-head"}>
         <i data-ico="history" data-size="14" aria-hidden="true"></i>
         <span className={isPwa ? "m-t-b" : "d-t-b"}>{t("trace.title")}</span>
         <span className={isPwa ? "m-grow" : "d-grow"} />

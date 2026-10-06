@@ -936,7 +936,9 @@ test("the composer's notices, chips and popover headers ride on the board compon
   assert.equal((source.match(/className="d-pop-title"/g) ?? []).length, 7);
   // fork:v5-frame-audit D-04 帧 A `m-think`：思考档浮层收成分段控件（.d-seg + is-on），
   // 不再是权限 / 工具档那种一列 .d-menu-row。
-  assert.match(source, /<div className="d-pop-body d-col" style=\{\{ gap: "var\(--nx-sp-1\)" \}\}>\s*<div className="d-seg">/);
+  // fork:think-seg-scroll —— `.d-seg` 后多挂一个 `fork-think-seg`：档位装不下时那一行
+  // 横向滚动（浮层宽度由上面的 layout effect 量输入卡的右缘封顶）。
+  assert.match(source, /<div className="d-pop-body d-col" style=\{\{ gap: "var\(--nx-sp-1\)" \}\}>\s*<div className="d-seg fork-think-seg">/);
   assert.match(source, /className=\{isActive \? "is-on" : undefined\}/);
   // fork:v5-frame-audit D-04 帧 A `m-ctx`：环浮窗补回画板那条百分比进度条，
   // 整块读数收进画板那个 .d-pop-body.d-col 盒子（与另外四个浮层的内边距口径一致）。

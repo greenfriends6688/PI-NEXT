@@ -604,6 +604,19 @@ export const zhTWLocale: LocalePlugin = {
     "phonePush.title": "手機與推送",
     // fork:v5-frame-audit —— M-12 幀 A
     "pwa.rightPanels.title": "右欄面板",
+    // fork:v5-m05 —— 幀 A 頂欄右上那枚「搜設置項」與它開出的 `.m-pop-float`。
+    "pwa.settingsFind.label": "搜設置項",
+    "pwa.settingsFind.none": "沒有叫「{query}」的設置項",
+    // fork:v5-m12 —— 幀 A 六行的塊名與行尾狀態。
+    "pwa.rightPanels.files": "文件",
+    "pwa.rightPanels.terminal": "終端",
+    "pwa.rightPanels.browser": "瀏覽器",
+    "pwa.rightPanels.review": "審查",
+    "pwa.rightPanels.treeAndViewer": "樹 + 查看器",
+    "pwa.rightPanels.readOnly": "唯讀",
+    "pwa.rightPanels.reviewCount": "{count} 個檔案待看",
+    // fork:v5-m06 —— 板面 M-06 幀 A 寫的是兩字；桌面那條用四字，390 寬會折行。
+    "files.moreActions": "更多",
     "pwa.rightPanels.groupTitle": "選一塊進入 · 六塊共用一層切換條",
     "pwa.rightPanels.footNote": "不做常駐頁籤：手機底部要留給輸入卡與 home 手勢，六格橫排既夠不著也擠正文。按需開、選完即走，是這一層唯一的入口。",
     "pwa.rightPanels.closedHint": "未開啟 · 點按開啟",
@@ -2338,9 +2351,6 @@ export const zhTWLocale: LocalePlugin = {
     "models.authConfigured": "已設定",
     "models.authNotNeeded": "無需憑證",
     "models.backToList": "返回",
-    "models.usageOverviewHint": "查詢的是本機日誌的近 30 天累計；供應商認的帳（回執口徑）在供應商詳情裡查。",
-    "models.usageOverviewRefresh": "重新整理用量",
-    "models.usageOverviewSource": "資料來自本機工作階段日誌，與供應商側帳單是兩個口徑。",
     "models.usageRequestsShort": "{count} 次請求",
     "models.favoritesSection": "收藏模型",
     "models.favoritesHint": "收藏只是「選模型時排前面」，不改變任何呼叫行為；供應商不可用的收藏會標灰。",

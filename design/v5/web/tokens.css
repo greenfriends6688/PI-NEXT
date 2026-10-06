@@ -49,9 +49,11 @@
   --nx-selected:   rgba(85, 102, 216, .08);
   --nx-line:       rgba(18, 18, 24, .08);
   --nx-line-hi:    rgba(18, 18, 24, .14);
-  --nx-text:       #1b1b20;
-  --nx-text-2:     #66666e;
-  --nx-text-3:     #9a9aa2;
+  --nx-text:       #404040;
+  /* fork:zcode-type —— 三档同一支墨的不同浓度（浅色 100 / 75 / 55，深色 100 / 60 / 30），
+     不再用三个不透明的灰堆层次；为什么不照抄 ZCode 的 60% / 40%，见 base.css 的注。 */
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 75%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 55%, transparent);
 
   /* 强调色：低饱和蓝紫（v1 同源色相），全系统唯一品牌色 */
   --nx-accent: #0a84ff;
@@ -94,9 +96,10 @@
   --nx-selected:   color-mix(in srgb, var(--nx-accent) 13%, transparent);
   --nx-line:       rgba(255, 255, 255, .09);
   --nx-line-hi:    rgba(255, 255, 255, .16);
-  --nx-text:       #e9e9ee;
-  --nx-text-2:     #9e9eaa;
-  --nx-text-3:     #6c6c78;
+  --nx-text:       #e5e5e5;
+  /* 深色同理（ZCode `styles.css:408-410`：neutral-200 / 60% / 30%）。 */
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 60%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 30%, transparent);
 
   --nx-accent: #0a84ff;
   --nx-accent-fg: #ffffff;

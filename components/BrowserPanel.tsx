@@ -415,23 +415,39 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
      `viewportSize` / `zoom` / `deviceId` / `picking` / `startPicking` /
      `choosePick` / `beginResize` 一个都没有另开。
 
-     两处与画板不同、且是刻意保留产品行为的，写在这里备案：
-       ① 缩放画板是连续滑杆，本产品是**离散档位**（`BROWSER_VIEWPORT_ZOOM_OPTIONS`），
-          所以 `.m-zoombar` 那一排是档位钮 + 百分比徽章，不是 range；
-       ② 画板 `.m-sizebox` 是只读读数，本产品的宽高是**可编辑输入**（D-23 帧 B），
-          手机上把那两个 input 放进同一个 `.m-sizebox` 里，读数与编辑同位。 */
+     与画板不同、且是刻意保留产品行为的一处，写在这里备案：
+       ① 画板 `.m-sizebox` 是只读读数，本产品的宽高是**可编辑输入**（D-23 帧 B），
+          手机上把那两个 input 放进同一个 `.m-sizebox` 里，读数与编辑同位。
+
+     fork:v5-pwa-m0708（2026-10-06 逐帧）：
+       ② **根节点不再是 `.m-viewer`**。`.m-viewer` 是库里的「整层浮起」
+          （`position:absolute; inset:0; z-index: var(--nx-z-panel)`），而这一支的
+          宿主是**pane 正文**（窄屏上它挂在 `.file-panel-main` 里，或 M-12 那一层的
+          `.m-panel-scroll` 里）。挂上去 + 内联 `fixed/inset:0` 就等于让它逃出容器
+          铺满视口：实测 390×844、z=100，把宿主自己的页签条整条盖掉 —— 手机上进得去
+          出不来（顶栏那枚 M-12 入口钮被自己的 `.m-urlbar` 接管指针，重载后照样）。
+          与 TraceFrame / FileExplorer 同一条路（见 `design/v5/DIVERGENCE.md` O 节），
+          换成 `fork-browser-pane`（接线钩子，定义在 `app/design/v5-forms.css`）。
+       ③ `.m-zoombar` 照帧 A 的**四件**（缩小钮 / 滑杆 / 放大钮 / 百分比徽章）。
+          画板那条滑杆是连续 50–200，本产品的缩放模型是**离散档**
+          （`BROWSER_VIEWPORT_ZOOM_OPTIONS` 七个值，`resolveViewportRender` 只认这七档），
+          所以滑杆走**档位下标**而不是百分比：档位集合、默认档、`fit` 档的语义一个字没改，
+          只是把「六枚文字芯片」换成板面那条缩放条 —— 板面原话是「三件事都不靠捏合手势」。 */
   if (isMobile) {
     const zoomLabel = (value: BrowserViewportZoom) =>
       (value === "fit" ? t("browser.viewportFit") : `${value}%`);
+    /* 滑杆 / 两颗缩放钮走的是同一份档位表的下标，不是另一份数值来源。 */
+    const zoomIndex = Math.max(0, BROWSER_VIEWPORT_ZOOM_OPTIONS.indexOf(zoom));
     const viewportReadout = viewportSize
       ? `${viewportSize.width} × ${viewportSize.height}${device ? ` · DPR ${device.dpr}` : ""}`
       : (viewport === null ? t("browser.viewportFill") : `${viewport}`);
 
     return (
-      <div
-        className="m-viewer is-open"
-        style={{ position: "fixed", inset: 0, zIndex: "var(--nx-z-panel)" }}
-      >
+      /* fork:v5-pwa-m0708 —— pane 正文，不再是整层浮起（见上面 ② 的实测）。
+         剩下的 `.m-*` 一律照帧 A 原文；`.m-urlbar` 那 52px 状态栏让位在 pane 里是
+         死空间（宿主自己有页签条 / `.m-viewer-bar`），由接线层 `fork-browser-pane`
+         收掉，与 FileExplorer 的 `fork-pane-bar` 同一理由。 */
+      <div className="fork-browser-pane">
         {pageInfo.title && (
           <div className="m-doc-head">
             {pageInfo.favicon
@@ -568,20 +584,42 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           </div>
         )}
 
+        {/* fork:v5-pwa-m0708 —— 缩放条照 M-07 帧 A 的四件：缩小钮 / 滑杆 / 放大钮 /
+            百分比徽章（两颗钮各 44px 是 `.m-top-btn`，拇指 26px 是 `.m-slider`，都在库里）。
+            滑杆走**档位下标**而不是 50–200 的连续百分比：本仓缩放是七档离散模型
+            （`resolveViewportRender` 只认这七档），改成连续值就是编一个后端兑现不了的档。
+            档位集合 / 顺序 / 默认档一个没动，`.m-badge` 仍是真读数。 */}
         <div className="m-zoombar">
-          {BROWSER_VIEWPORT_ZOOM_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={`m-vp${zoom === option ? " is-on" : ""}`}
-              aria-pressed={zoom === option}
-              title={`${t("browser.viewportZoom")} ${zoomLabel(option)}`}
-              onClick={() => setZoom(option)}
-            >
-              {zoomLabel(option)}
-            </button>
-          ))}
-          <span className="m-grow" />
+          <button
+            type="button"
+            className="m-top-btn"
+            title={`${t("browser.viewportZoom")} −`}
+            aria-label={`${t("browser.viewportZoom")} −`}
+            disabled={zoomIndex <= 0}
+            onClick={() => setZoom(BROWSER_VIEWPORT_ZOOM_OPTIONS[zoomIndex - 1])}
+          >
+            <i data-ico="zoom-out" data-size="16" aria-hidden="true"></i>
+          </button>
+          <input
+            className="m-slider"
+            type="range"
+            min={0}
+            max={BROWSER_VIEWPORT_ZOOM_OPTIONS.length - 1}
+            step={1}
+            value={zoomIndex}
+            aria-label={t("browser.viewportZoom")}
+            onChange={(event) => setZoom(BROWSER_VIEWPORT_ZOOM_OPTIONS[Number(event.target.value)])}
+          />
+          <button
+            type="button"
+            className="m-top-btn"
+            title={`${t("browser.viewportZoom")} +`}
+            aria-label={`${t("browser.viewportZoom")} +`}
+            disabled={zoomIndex >= BROWSER_VIEWPORT_ZOOM_OPTIONS.length - 1}
+            onClick={() => setZoom(BROWSER_VIEWPORT_ZOOM_OPTIONS[zoomIndex + 1])}
+          >
+            <i data-ico="zoom-in" data-size="16" aria-hidden="true"></i>
+          </button>
           <span className="m-badge mute">{zoomLabel(zoom)}</span>
         </div>
 

@@ -110,6 +110,9 @@ export function ExplorerPanel({
   onAtMention,
   onAtMentions,
   trailingActions,
+  openChangesSignal,
+  onReviewCountChange,
+  inPanel,
 }: {
   cwd: string;
   /** fork:gap08-roots — 会话所属项目根（与 cwd 不同时文件树多出一个「项目」根）。 */
@@ -123,6 +126,18 @@ export function ExplorerPanel({
   /** fork:ui-panel-row — panel-level buttons (new browser tab) rendered inline so
    *  the panel header stays a single row of icons. */
   trailingActions?: React.ReactNode;
+  /* fork:v5-m12 —— M-12 帧 A 六行里的「审查」与 M-06 帧 E 是**同一个入口**：
+   * 2026-10-03 裁定删掉了独立改动 tab，改动清单只留在文件树里这一处。
+   * 那手机右栏选单要能从外面把这一节叫开，就是这两行：
+   *   · openChangesSignal 递增 = 进来一次（不接管用户手折叠）；
+   *   · onReviewCountChange 把这一节的真实条数报给 AppShell，写进选单那一行。
+   * 之前 AppShell 里的 changesOpen / changesUnseen 声明了但没人用，选单因此
+   * 永远只有两行（轨迹 / Git）——「六项常驻」写在脚注上，行却不到六块。 */
+  openChangesSignal?: number;
+  onReviewCountChange?: (count: number) => void;
+  /* fork:v5-m12-pane —— 转发给 FileExplorer：这一份树是不是挂在 M-12 那个 pane 里
+     （那条路上上头已经有切换条了，树自己不要再画一条 `.m-top`）。 */
+  inPanel?: boolean;
 }) {
   const { t } = useI18n();
   const [explorerOpen, setExplorerOpen] = useState(true);
@@ -165,6 +180,17 @@ export function ExplorerPanel({
   useEffect(() => {
     if (explorerRefreshKey !== undefined) setExplorerKey((k) => k + 1);
   }, [explorerRefreshKey]);
+
+  // fork:v5-m12 —— 从右栏选单的「审查」行进来时展开改动那一节（见 props 注释）。
+  useEffect(() => {
+    if (openChangesSignal) setChangesCollapsed(false);
+  }, [openChangesSignal]);
+
+  // fork:v5-m12 —— 真实条数往上报一层，好让选单那行写「N 个文件待看」。
+  const reportChangesCount = useCallback((n: number) => {
+    setChangesCount(n);
+    onReviewCountChange?.(n);
+  }, [onReviewCountChange]);
 
   // fork:file-tree-slot-swap —— 每次切换都记一份（按 cwd，所以换项目不会串）。
   useEffect(() => {
@@ -409,14 +435,10 @@ export function ExplorerPanel({
         >
           <i data-ico="folder-open" data-size="14" aria-hidden="true"></i>
         </ToolbarIconButton>
-        {onOpenTerminal && (
-          <ToolbarIconButton
-            onClick={() => onOpenTerminal(cwd)}
-            title={t("terminal.open")}
-          >
-            <i data-ico="square-terminal" data-size="14" aria-hidden="true"></i>
-          </ToolbarIconButton>
-        )}
+        {/* fork:panel-head-actions —— 2026-10-06 用户裁定：终端那一枚搬去了面板头行
+            （排在 git 钮后面，`AppShell.tsx` 里），文件树头行不再重复 —— 这一行是
+            「这一块文件树自己的动作」，面板级的动作归面板头。手机档的 `.m-top`
+            里那枚（上面 `MobileTopBarButton`）不动。 */}
         {/* fork:ui-review-button — the changed-files switch was hidden entirely
             while the tree was clean (so the "review" affordance disappeared) and
             its glyph read as a minus. It now stays in the row, names itself, and
@@ -502,11 +524,12 @@ export function ExplorerPanel({
               onUploadBusyChange={setExplorerUploadBusy}
               onFileMutated={onExplorerRefresh}
               changesCollapsed={changesCollapsed}
-              onChangesCountChange={setChangesCount}
+              onChangesCountChange={reportChangesCount}
               fileSearchOpen={fileSearchOpen}
               onFileSearchOpenChange={setFileSearchOpen}
               /* 宿主那一排动作原样递进 `.m-top`（见上面 `mobileTopBar` 的注释）。 */
               mobileTopBar={mobileTopBar}
+              inPanel={inPanel}
             />
           </div>
         ) : (
@@ -524,9 +547,10 @@ export function ExplorerPanel({
                SessionSidebar，本 fork 的文件树在 ExplorerPanel）。 */
             onFileMutated={onExplorerRefresh}
             changesCollapsed={changesCollapsed}
-            onChangesCountChange={setChangesCount}
+            onChangesCountChange={reportChangesCount}
             fileSearchOpen={fileSearchOpen}
             onFileSearchOpenChange={setFileSearchOpen}
+            inPanel={inPanel}
           />
         </div>
         )

@@ -551,9 +551,25 @@
      规则早已匹配不到元素。注意 board.css 的 `.pw-cols` 目前没有窄屏叠列媒体查询，
      这属于画板形态本身的待办，不是这里删出来的回归。 */
 
+  /* fork:v5-m05 —— 窄屏这一层是**整页**（画板 M-05 帧 A：`设置` 页头 + `.m-settings`
+     灰底白卡流，铺满取景框），不是居中小弹窗。所以上面那条 12px 内缩 + 2xl 圆角
+     + 1px 边 + 投影在窄屏全部归零 —— 那四格是桌面弹窗的值（2026-10-02 裁定），
+     留在窄屏就成了「手机上设置还缩一圈」，与 M-05 帧 A 差一整圈边距。
+     归零后 `.settings-dialog-surface` 就是 `.m-phone-inner`：满屏、`.m-top` 的定位祖先、
+     `.m-settings` 唯一的滚动链，三件事都回到画板那一层。
+     归零写在 base 规则**之后**、同权重，靠源码顺序取胜（不是特异性打架）。 */
   .settings-dialog-surface {
-    width: calc(100vw - 12px);
-    height: calc(100dvh - 12px);
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    /* `!important` 是被迫的：globals.css 的 `.anim-dialog`（动效层，给弹层补
+       160ms 淡入）拿 `!important` 写了圆角与投影，而它就是这一层的一部分。
+       不跟它同级就得输 —— 所以跟同级，并在上面写清为什么。动效本身不动
+       （`animation` 不在归零名单里，窄屏照样有那一下淡入）。 */
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   /* fork:design-system SW-07 — 0-2-0 双类：`.pw-snav`（board.css，在本文件之后引入）

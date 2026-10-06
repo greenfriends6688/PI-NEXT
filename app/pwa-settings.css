@@ -184,3 +184,16 @@
     max-width: 100%;
   }
 }
+/* ---------------------------------------------------------------------------
+ * §6 「搜设置项」浮层的位置（M-05 帧 A）
+ *
+ * 板面原文是 `<div class="m-pop-float is-open" style="top:52px">` —— 板面自己把
+ * 几何写在内联里。产品侧 `SettingsPanel.test.mjs` 有一条**兜底**守卫
+ * （`doesNotMatch(/style=\{\{/)`：那个文件里不许出现对象字面量内联样式）。
+ * 两条纪律都留，所以值落到接线层，并且**不新写字面量**：
+ * 52px = `.m-top-btn` 的 44px（`--nx-ctl-md`）+ `.m-top` 的下内距 8px（`--nx-sp-2`）。
+ * `fork-settings-find` 是产品接线钩子（只在这一层出现，库与画板没有）。
+ * ---------------------------------------------------------------------- */
+.settings-dialog-surface .fork-settings-find {
+  top: calc(var(--nx-ctl-md) + var(--nx-sp-2));
+}

@@ -387,15 +387,21 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
      行为一字未变：还是同一个 `selectCommit`（含按 hash 缓存）、同一个
      `CommitFileRow` → `onOpenFile`、同一个 `load` 与「加载更多」。
      泳道列宽拖拽（桌面）这一档在手机上不画 —— 画板手机形态没有分隔条，
-     它属于桌面那份分栏几何，报给父会话。 */
+     它属于桌面那份分栏几何，报给父会话。
+
+     fork:v5-pwa-m0708（2026-10-06 逐帧）：这一支在产品里**永远在 pane 里**
+     （M-12 那一层 `.m-panel-scroll`；窄屏唯一的入口 `openMobileGitGraph` 只 setState，
+     不开桌面那条右栏），而画板帧 D 画的是**整页**：`.m-fade` + `.m-top`（绝对定位 +
+     渐隐底）+ `.m-settings` 顶 108px 让位。在 pane 里这三样叠成**第二条顶栏**：
+     实测 M-12 的 `.m-viewer-bar` 占 0–107，下面又一条 60px 的 `.m-top`，
+     再加 108px 空白（844px 里占 12.8%）。与 FileExplorer / TraceFrame 同一条路
+     （`design/v5/DIVERGENCE.md` O 节）：页头换成 `fork-pane-bar`（普通行），
+     `.m-fade` 不画，`.m-settings` 那一格让位由 `fork-git-body` 收掉。 */
   if (isMobile) {
     const commits = data?.commits ?? [];
     return (
-      <div
-        style={{ display: "flex", flexDirection: "column", position: "relative", flex: "1 1 auto", minHeight: 0 }}
-      >
-        <div className="m-fade" aria-hidden="true" />
-        <div className="m-top">
+      <div className="fork-git-pane">
+        <div className="fork-pane-bar">
           <span className="m-top-title m-grow" title={cwd}>Git · {getFileName(cwd)}</span>
           <button
             type="button"
@@ -409,7 +415,7 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
           </button>
         </div>
 
-        <div className="m-settings">
+        <div className="m-settings fork-git-body">
           {data && data.isGitRepository && (
             <div className="m-banner">
               <i data-ico="git-branch" data-size="14" aria-hidden="true"></i>
@@ -443,7 +449,14 @@ export function GitGraphTab({ cwd, onOpenFile }: Props) {
                       title={commit.subject}
                       onClick={() => void selectCommit(commit.hash)}
                     >
-                      <i data-ico={row === 0 ? "circle-dot" : "git-commit-horizontal"} data-size="16" aria-hidden="true"></i>
+                      {/* fork:v5-pwa-m0708 —— 行首字形走桌面**同一个** `gitLaneIcon`：
+                          板面帧 D 那四行画的就是 `circle-dot`（HEAD） /
+                          `git-commit-horizontal` / `git-branch`（分叉于此） /
+                          `git-merge`。手机这一支此前只按行号分两种，于是
+                          「分支关系」在手机上永远是隐形的 —— 而分叉点与多父提交
+                          的判据（`commit.parents` + 已加载窗口里的子提交数）
+                          本来就在手边，`gitLaneIcon` 也已经是纯函数。 */}
+                      <i data-ico={gitLaneIcon(commit, row, childCounts)} data-size="16" aria-hidden="true"></i>
                       <span className="m-setrow-body">
                         <span className="m-setrow-t m-mono">{commit.hash.slice(0, 10)}</span>
                         <span className="m-setrow-s">{commit.subject}</span>

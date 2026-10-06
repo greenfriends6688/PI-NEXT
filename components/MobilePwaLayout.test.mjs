@@ -49,6 +49,29 @@ test("contains chat content and inputs within the mobile viewport", () => {
   assert.match(chatInputSource, /flex: compact \? "none" : 1,\s*minWidth: 0,\s*width: "100%",/);
 });
 
+/* 横向内距在窄屏**只能有一处**。两处都在时症状不是「偏一点」而是「明显不像画板」：
+   转录顶到屏幕边（17px 满宽正文看着大一圈），输入卡两侧各被削掉十几 px。
+   2026-10-06 实测：`paddingLeft: 0` 打掉画板 `.m-scroll` 的 18px、
+   两层 `.m-composer-wrap` 叠成 24px + fieldset 16px → 输入卡 310px（画板 366px）。 */
+test("keeps exactly one horizontal gutter on the mobile transcript and composer", () => {
+  const scrollStyle = chatWindowSource.match(/className=\{`d-chat\$\{isPwa \? " m-scroll"[\s\S]*?\n          style=\{/);
+  assert.ok(scrollStyle, "窄屏滚动区那处 style 断言锚点变了，更新本测试");
+  // 归零横向内距只能出现在桌面那一支（isPwa 的三元 false 分支）。
+  assert.match(chatWindowSource, /isPwa\s*\n\s*\? \{ visibility: pendingScrollRestore \? "hidden" : undefined \}\s*\n\s*: \{ visibility: pendingScrollRestore \? "hidden" : undefined, paddingLeft: 0, paddingRight: 0 \}/);
+
+  // `.m-composer-wrap` 只归 ChatInput 一枚（它直接托着 `.m-composer`）。
+  assert.equal(
+    [...chatWindowSource.matchAll(/className=\{isPwa \? "([^"]*)"/g)].filter((m) => m[1].includes("m-composer-wrap")).length,
+    0,
+    "ChatWindow 不能再挂 .m-composer-wrap：画板里只有一层，两层会把输入卡横向再缩一圈",
+  );
+  assert.equal(chatInputSource.match(/className="m-composer-wrap"/g)?.length, 1);
+
+  // fieldset 在窄屏让位给 `.m-composer-wrap` 的 `0 12px 12px`，桌面才留自己的 16px。
+  assert.match(chatInputSource, /padding: compact \|\| isMobile \? 0 : "0 16px 8px"/);
+  assert.match(chatInputSource, /paddingRight: compact \|\| isMobile \? 0 : 16/);
+});
+
 test("prevents iOS focus zoom from widening the layout", () => {
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?textarea,[\s\S]*?input,[\s\S]*?select \{\s*font-size: 16px !important;/);
 });

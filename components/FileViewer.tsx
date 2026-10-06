@@ -2983,7 +2983,18 @@ function TextFileViewer({
               </div>
             )}
             {(hasPreview || isDelimitedText) && mountedStages.includes("preview") && (
-              <div data-file-stage="preview" hidden={diffOpen || effectiveDisplayMode !== "preview"}>
+              /* fix:viewer-html-stage-fill（用户 2026-10-06 截图）—— 预览层**不能**整体
+                 锁高度：`fix:viewer-stage-fill` 已经写过原因，里面的 markdown / CSV 是随
+                 内容长的，锁死就滚不动。但 HTML 那一支不一样：预览器是
+                 `<iframe style="height:100%">`，挂在 auto 高度的层上时百分比落回 auto，
+                 浏览器给它 UA 默认的 **150px** —— 于是那张签约表单被切成一条 150px 的
+                 窄带（只剩标题和第一个字段），下面一大片空白（用户实测）。所以**只有
+                 HTML 这一支**给这一层确定高度，让 iframe 铺满面板、自己滚。 */
+              <div
+                data-file-stage="preview"
+                hidden={diffOpen || effectiveDisplayMode !== "preview"}
+                style={isHtml ? { height: "100%", minHeight: 0 } : undefined}
+              >
                 {isHtml ? (
                   <iframe
                     srcDoc={content}

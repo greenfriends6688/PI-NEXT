@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaRegistration } from "@/components/PwaRegistration";
 import { PwIcons } from "@/components/PwIcons";
+import { InstantTooltip } from "@/components/InstantTooltip";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "katex/dist/katex.min.css";
 /* fork:design-components —— 设计文件夹的组件代码**原样进运行时**（不复制、不改一字）：
@@ -153,6 +154,9 @@ export default function RootLayout({
       <body translate="no" className="notranslate" suppressHydrationWarning>
         {children}
         <PwIcons />
+        {/* fork:instant-tip —— 悬浮提示改成本层自己画（原生 `title` 的延迟改不了），
+            挂在 body 末尾与图标层同级：不进任何组件树，全页一个 delegated 监听。 */}
+        <InstantTooltip />
         <PwaRegistration />
       </body>
     </html>

@@ -37,9 +37,10 @@
   --nx-selected:   rgba(85, 102, 216, .10);
   --nx-line:       rgba(18, 18, 24, .07);
   --nx-line-hi:    rgba(18, 18, 24, .13);
-  --nx-text:       #1b1b20;
-  --nx-text-2:     #64646d;
-  --nx-text-3:     #9a9aa2;
+  --nx-text:       #404040;
+  /* fork:zcode-type —— 同 Web：浅色 100 / 75 / 55，深色 100 / 60 / 30。 */
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 75%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 55%, transparent);
 
   --nx-accent: #0a84ff;
   --nx-accent-fg: #ffffff;
@@ -76,9 +77,9 @@
   --nx-selected:   color-mix(in srgb, var(--nx-accent) 16%, transparent);
   --nx-line:       rgba(255, 255, 255, .08);
   --nx-line-hi:    rgba(255, 255, 255, .15);
-  --nx-text:       #e9e9ee;
-  --nx-text-2:     #9e9eaa;
-  --nx-text-3:     #6c6c78;
+  --nx-text:       #e5e5e5;
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 60%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 30%, transparent);
 
   --nx-accent: #0a84ff;
   --nx-accent-fg: #ffffff;

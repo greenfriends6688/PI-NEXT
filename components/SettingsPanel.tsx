@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
@@ -757,6 +757,12 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         <PwField
           label={t("settings.theme")}
           hint={t("settings.appearanceDescription")}
+          /* fork:v5-m05-tier —— 窄屏这一格按 M-05 帧 B 的原文：`.m-hero`（主题 + 一句
+             说明）在上、`.m-cardgroup` › `.m-pickbar` 三等分在下。此前把档位条塞进
+             `div.m-setrow` 的右槽，实测 390×844 下条宽 146.9px / 三枚各 34.3px，
+             「浅色」「跟随系统」全折行。桌面（D-07 帧 D 的 `.d-set-row` + `.d-seg`
+             行尾）不受影响 —— `tier` 只改窄屏那一支。 */
+          tier
           control={
             <PwRadio
               value={preference}
@@ -958,6 +964,10 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("common.language")}
+          /* fork:v5-m05-tier —— 同 `tier` 的板面判据：`.m-pickbar` 在 12 张 PWA 画板里
+             从来不与标签并排（M-09 帧「触发时机」、M-06 帧「降级落点」都是标签在上、
+             满宽档位条在下）。此前实测三枚语言各 61.8px、「简体中文」已折行。 */
+          tier
           control={
             <PwRadio
               value={locale}
@@ -1012,6 +1022,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         <PwField
           label={t("settings.density")}
           hint={t("settings.densityHint")}
+          /* fork:v5-m05-tier —— 同一判据（见上）。实测此前三枚只有各 17.8px，
+             「紧凑 / 标准 / 宽松」三个字连一行都放不下。 */
+          tier
           control={
             <PwRadio
               value={uiDensity}
@@ -1166,6 +1179,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         <PwField
           label={t("settings.notifyMaster")}
           hint={t("settings.notifyMasterHint")}
+          /* fork:v5-m05-tier —— 同上：两枚「总开关 开 / 关」此前各 69.1px，
+             「总开关 关」折行。 */
+          tier
           control={
             <PwRadio
               value={notificationPrefs.enabled ? "on" : "off"}
@@ -1512,6 +1528,28 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
   /** 当前**可见**的分节：桌面永远是 `section`；手机在 hub 上时是 `null`。 */
   const activeSection: SettingsSection | null = isMobile ? phoneSection : section;
 
+  /* fork:v5-m05 —— M-05 帧 A 顶栏右上那枚「搜设置项」：开出来是板面原文的
+     `.m-pop-float`（`.m-doc-label` 当输入框 + 每个命中一行 `.m-menu-row`，
+     行尾徽章写它在 hub 里所属的那一组）。空查询时列出前几节 —— 板面那三行就是
+     这个形状，不是「搜到的东西」，所以空查询也给内容，不给一张空浮层。
+     命中表直接从 hub 用的同一份 `SETTINGS_HUB_GROUPS` 来，不另列一份。 */
+  const [settingsFindOpen, setSettingsFindOpen] = useState(false);
+  const [settingsFindQuery, setSettingsFindQuery] = useState("");
+  const settingsFindResults = useMemo(() => {
+    const query = settingsFindQuery.trim().toLowerCase();
+    const hits: { id: SettingsSection; label: string; group: string; disabled: boolean }[] = [];
+    for (const group of SETTINGS_HUB_GROUPS) {
+      for (const id of group.sections) {
+        const item = sections.find((entry) => entry.id === id);
+        if (!item) continue;
+        if (query && !`${item.label} ${settingsHubSectionHint(id, locale)}`.toLowerCase().includes(query)) continue;
+        hits.push({ id, label: item.label, group: settingsHubGroupLabel(group.id, locale), disabled: item.requiresProject && !cwd });
+        if (!query && hits.length >= 3) return hits;
+      }
+    }
+    return hits;
+  }, [cwd, locale, sections, settingsFindQuery]);
+
   const sectionHost = (id: SettingsSection, content: ReactNode) => mountedSections.has(id) ? (
     <div
       key={id}
@@ -1707,22 +1745,78 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
                 >
                   <i data-ico="chevron-left" data-size="16" aria-hidden="true" />
                 </button>
-              ) : null}
+              ) : (
+                /* fork:v5-m05 —— 帧 A 的 `.m-top` 是「标题 + 两枚动作钮」：标题靠左，
+                   动作靠右。手机上这一层是盖在会话之上的，所以**出口按帧 B/C 的写法
+                   放到左边**（那一帧的返回箭头就在左边），右边腾给帧 A 的动作 ——
+                   两帧的位置纪律一致，不是两套排法。 */
+                <button
+                  type="button"
+                  className="m-top-btn"
+                  onClick={onClose}
+                  title={t("i18n.close")}
+                  aria-label={t("i18n.close")}
+                >
+                  <i data-ico="x" data-size="16" aria-hidden="true" />
+                </button>
+              )}
               <span className="m-top-title m-grow">
                 {phoneSection
                   ? (sections.find((item) => item.id === phoneSection)?.label ?? t("settings.title"))
                   : t("settings.title")}
               </span>
-              <button
-                type="button"
-                className="m-top-btn"
-                onClick={onClose}
-                title={t("i18n.close")}
-                aria-label={t("i18n.close")}
-              >
-                <i data-ico="x" data-size="16" aria-hidden="true" />
-              </button>
+              {phoneSection ? null : (
+                /* 帧 A 右上第一枚 = 「搜设置项」（板面上开的是 `.m-pop-float`）。
+                   第二枚板面写的是「重置本机」—— 那是个真会把本机配置抹掉的破坏性动作，
+                   本仓没有对应实现，**不许照着板面凭空造一个**；差距登记在
+                   design/v5/DIVERGENCE.md。 */
+                <button
+                  type="button"
+                  className="m-top-btn"
+                  onClick={() => setSettingsFindOpen((open) => !open)}
+                  aria-expanded={settingsFindOpen}
+                  title={t("pwa.settingsFind.label")}
+                  aria-label={t("pwa.settingsFind.label")}
+                >
+                  <i data-ico="search" data-size="16" aria-hidden="true" />
+                </button>
+              )}
             </div>
+            {/* 帧 A 板面原文：`.m-pop-float.is-open` › `.m-doc-label` 写「搜设置项」，
+                下面每个命中一行 `.m-menu-row`（搜索图标 + 分节名 + 右侧分组路径徽章）。
+                行结构、选中态、排序与画板逐字一致，只换真实分节数据。 */}
+            {settingsFindOpen && !phoneSection ? (
+              <div className="m-pop-float is-open fork-settings-find">
+                <input
+                  className="m-doc-label"
+                  value={settingsFindQuery}
+                  autoFocus
+                  placeholder={t("pwa.settingsFind.label")}
+                  aria-label={t("pwa.settingsFind.label")}
+                  onChange={(event) => setSettingsFindQuery(event.target.value)}
+                />
+                {settingsFindResults.length === 0 ? (
+                  <div className="m-empty">
+                    <div className="m-empty-s">{t("pwa.settingsFind.none", { query: settingsFindQuery.trim() })}</div>
+                  </div>
+                ) : (
+                  settingsFindResults.map((hit) => (
+                    <button
+                      className="m-menu-row"
+                      type="button"
+                      key={hit.id}
+                      disabled={hit.disabled}
+                      onClick={() => { setSettingsFindOpen(false); openPhoneSection(hit.id); }}
+                    >
+                      <SettingsSectionIcon section={hit.id} size={15} />
+                      {hit.label}
+                      <span className="m-grow" />
+                      <span className="m-badge mute">{hit.group}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
           </>
         ) : (
           <>
@@ -1792,22 +1886,20 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
 
         {/* fork:v5-landing-frame · D-07 帧 B / C / D 的弹窗脚 —— 板面三帧都有这一行
             （`.d-modal-foot`：左槽一句状态说明 + `.d-grow`，右槽 `.d-btn.ghost`
-            「重置本节」与 `.d-btn.primary`「完成」）。产品此前没有脚，关闭只靠右上角
-            那枚 X。
-            这里只补**不引入新语义**的两件：左槽那句「改动即时生效」的说明，与右槽的
-            「完成」（走同一个 `onClose`，与 X 等价）。「重置本节」**不补**：它要把这一
-            分节的键全部回滚，是破坏性动作，要动 `lib/` 的写入路径与逐项确认，
-            已登记在报告里等拍板（板面那一帧也把它写成「重置本节」，但产品侧需要
-            先定「哪些键算这一节」）。
+            「重置本节」与 `.d-btn.primary`「完成」）。
+            2026-10-06 用户裁定去掉右槽的「完成」：这一分节的改动本来就是即时的，
+            那枚钮与右上角的 X 走同一个 `onClose`，按它没有任何别的语义 —— 一个
+            永远只是关窗的 primary 钮会把人骗成「不按就没保存」。左槽那句说明留着，
+            它承担的就是解释这件事。
+            「重置本节」仍然**不补**：它要把这一分节的键全部回滚，是破坏性动作，要动
+            `lib/` 的写入路径与逐项确认，已登记在报告里等拍板（板面那一帧也把它写成
+            「重置本节」，但产品侧需要先定「哪些键算这一节」）。
             文案走本地表（`lib/i18n/messages/**` 不在本轮文件范围内）。 */}
         {isMobile ? null : (
           <div className="d-modal-foot">
             <span className="d-t-xs d-t-faint d-grow">
               {localCopy(SETTINGS_FOOT_HINT, locale)}
             </span>
-            <button type="button" className="d-btn primary" onClick={onClose}>
-              {t("common.ok")}
-            </button>
           </div>
         )}
       </div>

@@ -153,9 +153,15 @@ test("the diff is parsed once per patch, not on every render", () => {
 // `div[data-file-stage="source"]` 上时百分比落回 auto：编辑器只剩内容高，
 // 底栏（Ln · Col / EOL · UTF-8）浮在面板中间，下面留一大片空白。
 // preview 层**不能**锁高度 —— 里面的 markdown 是随内容长的，锁死就滚不动了。
-test("gives the source stage a definite height but leaves preview content-driven", () => {
+test("gives the source stage a definite height; only the html preview stage is pinned", () => {
   assert.match(source, /data-file-stage="source"[^>]*style=\{\{ height: "100%", minHeight: 0 \}\}/);
-  assert.doesNotMatch(source, /data-file-stage="preview"[^>]*style=/);
+  // fix:viewer-html-stage-fill（2026-10-06）—— markdown / CSV 仍是内容驱动（锁死就滚不动），
+  // **只有 HTML 那一支**锁高度：它的 iframe 是 `height:100%`，挂在 auto 高度层上会落回
+  // 浏览器默认的 150px，把表单切成一条窄带 + 下面一大片空白。
+  assert.match(
+    source,
+    /data-file-stage="preview"[^>]*style=\{isHtml \? \{ height: "100%", minHeight: 0 \} : undefined\}/,
+  );
 });
 
 // fix:sel-pop-nowrap —— 选中文字的浮窗不许折行（两个按钮原来会各占一行）。

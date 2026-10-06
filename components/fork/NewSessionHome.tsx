@@ -62,15 +62,23 @@ export function NewSessionHome({
     <div className="d-chat" style={{ paddingLeft: 0, paddingRight: 0 }}>
       <div className="d-chat-inner">
         <div className="d-empty" style={{ padding: "var(--nx-sp-8) 0 var(--nx-sp-6)" }}>
+          {/* fork:brand-lockup-center（用户 2026-10-05）—— 原来这里是 `.d-empty-ico`
+              （44×44 的方盒里塞 60% 的品牌图 = 一块小矩形 logo）。用户要的是「左上角
+              那个 logo + 品牌」原样搬过来，所以改成侧栏品牌行同名的两件
+              （`.d-logo` + `.d-wordmark`）横排，尺寸由 fork-ui.css 的
+              `.fork-brand-lockup` 放大一档。 */}
           <div
-            className="d-empty-ico fork-row-enter"
-            aria-hidden="true"
+            className="fork-brand-lockup fork-row-enter"
             style={{ animationDelay: "0ms" }}
           >
             {/* fork:brand-mark-2026-10-04 —— 主品牌图形（public/pi-next-logo.png），
-                不是 pi 的 π 字形；盒子是画板 D-01 的 `.d-empty-ico`。 */}
+                不是 pi 的 π 字形。 */}
+            <div className="d-logo" aria-hidden="true">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+              <img src="/pi-next-logo.png" alt="" draggable={false} />
+            </div>
             {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
-            <img src="/pi-next-logo.png" alt="" draggable={false} />
+            <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} />
           </div>
           <div
             className="d-empty-t d-t-display fork-row-enter"
@@ -86,7 +94,7 @@ export function NewSessionHome({
           </div>
         </div>
         <div
-          className="d-cardgrid fork-row-enter"
+          className="d-cardgrid fork-home-grid fork-row-enter"
           style={{
             animationDelay: "calc(var(--motion-stagger) * 2)",
           }}

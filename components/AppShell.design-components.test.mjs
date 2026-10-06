@@ -80,7 +80,9 @@ test("the top bar action buttons take their size from the board classes", () => 
   // fork:v5-landing —— 顶栏动作钮统一是画板 `.d-iconbtn`；手机触控档的旧 `.pw-touch` 已退场。
   // fork:v5-wave-b —— 手机上其中两枚（抽屉底栏的手机与推送钮、右栏面板开关）改挂 PWA
   // 的 `.m-iconbtn` / `.m-top-btn`（≤640 生效），所以字面量从 11 降到 10。
-  assert.equal(source.match(/className="d-iconbtn"/g)?.length, 9);
+  // fork:panel-head-actions —— 2026-10-06 用户裁定：右栏面板头行里 git 钮后面新挂了
+  // 终端 / 浏览器两枚（浏览器那枚本来就有，从文件树头行搬过来），多用了一处。
+  assert.equal(source.match(/className="d-iconbtn"/g)?.length, 10);
   // fork:v5-frame-audit（2026-10-05）—— 抽屉底栏那枚「手机与推送」钮按画板
   // M-04 帧 A 的 `.m-drawer-foot` 改成 `.m-top-btn`（桌面上仍是 `.d-iconbtn`）。
   assert.match(source, /className=\{isMobile \? "m-top-btn" : "d-iconbtn"\}/);

@@ -306,14 +306,29 @@ body.pw.dark { background: #0f0f13; }
 .pw-usage { color: var(--n-placeholder); font-family: var(--font-mono); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
 
 /* Markdown 正文 */
-.pw-md { font-size: var(--text-body); line-height: var(--lh-body); }
+.pw-md { font-size: var(--text-body); line-height: var(--nx-lh-reading); letter-spacing: var(--nx-ls-reading); }
 .pw-md > *:first-child { margin-top: 0; }
 .pw-md > *:last-child { margin-bottom: 0; }
 .pw-md p { margin: 0 0 10px; }
-.pw-md h1, .pw-md h2, .pw-md h3 { margin: 16px 0 6px; font-weight: 500; color: var(--n-strong); }
-.pw-md h1 { font-size: var(--text-title); }
-.pw-md h2 { font-size: var(--text-body); }
-.pw-md h3 { font-size: var(--text-body); }
+/* fork:zcode-type（2026-10-05 用户裁定「排版对齐 ZCode」）—— 标题字阶与字重改成
+   ZCode 的阅读层级（`DESIGN.md:216-252` + `message.tsx:441-446`）：
+     h1 18/600 · h2 16/600 · h3-h4 14/600 · h5 14/500 · h6 14/400
+   原来只有 h1-h3 三行、字重 500，**h4 / h5 / h6 根本没规则** —— 浏览器 UA 默认
+   给标题 bold(700)，于是同一篇回答里 h1-h3 是中灰 500、h4-h6 是纯黑 700，
+   这就是“加粗看着乱”的真正来源（不是标点也不是字体）。
+   `<strong>` 同理：ZCode 映射成 `font-medium`(500)（`message.tsx:1535`），
+   不写就落到 UA 的 700。
+   字号取 **v5 角色令牌**（`--nx-fs-xl` 18 / `--nx-fs-lg` 16）而不是旧层
+   `--text-title`：旧层是另一条五档（11/12/13/15/20），阅读标题从它取值就又把
+   两条字阶搅在一起 —— 这次对齐的正是 v5 那条。`--nx-*` 在本文件可用：产品页由
+   `app/design/v5-forms.css` 引入（布局里排在 board.css 之后）。 */
+.pw-md h1, .pw-md h2, .pw-md h3, .pw-md h4, .pw-md h5, .pw-md h6 { margin: 16px 0 6px; font-weight: 600; color: var(--n-strong); }
+.pw-md h1 { font-size: var(--nx-fs-xl); }
+.pw-md h2 { font-size: var(--nx-fs-lg); }
+.pw-md h3, .pw-md h4, .pw-md h5, .pw-md h6 { font-size: var(--text-body); }
+.pw-md h5 { font-weight: 500; }
+.pw-md h6 { font-weight: 400; }
+.pw-md strong { font-weight: 500; }
 .pw-md ul, .pw-md ol { margin: 0 0 10px; padding-left: 20px; }
 .pw-md li { margin: 2px 0; }
 .pw-md code {

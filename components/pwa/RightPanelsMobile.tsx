@@ -210,7 +210,13 @@ export function MobileRightPanels({
                       className={`m-cat${item.key === layerItem.key ? " is-on" : ""}`}
                       title={item.label}
                       aria-label={item.label}
-                      onClick={() => setOpenKey(item.key)}
+                      /* fork:v5-m12-open（2026-10-06）—— 切块与进层走**同一个**开块动作。
+                         原来只有底部面板那一行调 `onSelect`（先把没开的块打开），
+                         顶部切换条这六枚只 `setOpenKey` —— 于是「从选单进来 → 用切换条
+                         切到终端/浏览器」时块始终关着，`render` 返回 null，pane 是空的
+                         （实测两个 pane 子元素数 = 0）。两条入口的语义必须一致：
+                         「打开这一层」和「切到那一块」都先确保那一块开着。 */
+                      onClick={() => { item.onSelect?.(); setOpenKey(item.key); }}
                     >
                       <i data-ico={item.icon} data-size="15" aria-hidden="true"></i>
                     </button>

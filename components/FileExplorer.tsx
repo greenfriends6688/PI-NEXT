@@ -148,6 +148,13 @@ interface Props {
    * 只是从 `.d-panel-head` 挪到了 `.m-top` 里。
    */
   mobileTopBar?: React.ReactNode;
+  /* fork:v5-m12-pane —— 这棵树被挂在 M-12 那个 pane 里时（`.m-panel-scroll`），
+     上头已经有一条六项横滚的切换条（`.m-viewer-bar`）了。此时再画一条
+     `.m-top`（绝对定位 + 渐隐底 + 50px 状态栏让位）就是**第二条顶栏**，
+     在 390×844 上两条吃掉约 200px，而画板 M-12 帧 B 的 pane 里只有一层内容。
+     所以：这一支不画 `.m-fade`，顶栏改成一条普通的行（`fork-pane-bar`），
+     尺寸全部取库里已有的角色值。桌面与「文件面板自己当整屏」的那一支不动。 */
+  inPanel?: boolean;
 }
 
 export interface FileExplorerHandle {
@@ -1209,6 +1216,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   fileSearchOpen = false,
   onFileSearchOpenChange,
   mobileTopBar,
+  inPanel,
 }, ref) {
   const { t } = useI18n();
   // fork:pwa-sb —— 一处读断点，往下传给每一棵树行（手机上没有 hover，行尾那两枚
@@ -2025,9 +2033,9 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         style={{ position: "relative", display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 }}
       >
         <input ref={uploadInputRef} type="file" multiple hidden onChange={handleUploadInput} />
-        <div className="m-fade" aria-hidden="true" />
+        {inPanel ? null : <div className="m-fade" aria-hidden="true" />}
 
-        <div className="m-top">
+        <div className={inPanel ? "fork-pane-bar" : "m-top"}>
           <button
             type="button"
             className="m-top-btn"
@@ -2314,7 +2322,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               if (selectedEntry && anchor) openMobileMenu(selectedEntry, anchor);
             }}
           >
-            <i data-ico="ellipsis" data-size="15" aria-hidden="true"></i>{t("chat.moreControls")}
+            <i data-ico="ellipsis" data-size="15" aria-hidden="true"></i>{t("files.moreActions")}
           </button>
         </div>
 
@@ -2357,8 +2365,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           用户反馈「默认选中搜索按钮」），点钮才展开。此前是常驻，于是进来即选中。
           同时**删掉**这一行里那枚 `git-commit-horizontal`（「只看改动 / 审查改动」）：
           它与头行那枚 `file-diff` 是同一个动作的两处入口（都切 `changesCollapsed`），
-          用户反馈「重复了」；头行那枚带改动计数，是产品侧选定的唯一入口。
-          副头（条目数 / 索引时刻 / 忽略名单）留在原位，不受开关影响。 */}
+          用户反馈「重复了」；头行那枚带改动计数，是产品侧选定的唯一入口。 */}
       {fileSearchOpen && (
       <div className="d-tinybar">
         <div className="d-searchfield d-grow">
@@ -2385,15 +2392,13 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         </div>
       </div>
       )}
-      {/* fork:v5-landing D-05 帧 A —— 副头 `.d-subhead`：这一段工作区有多少条目、
-          索引在什么时候、哪些目录被忽略了。条目数来自已经取回的那棵树，忽略名单
-          与 lib/file-tree-visibility 同一套约定名，不新增任何请求。 */}
-      <div className="d-subhead">
-        {t("files.treeSummary", {
-          count: roots.length + extraRoots.length,
-          when: t("files.treeIndexedNow"),
-        })}
-      </div>
+      {/* fork:v5-landing D-05 帧 A —— 板面在动作条下面还有两行弱化说明：副头
+          `.d-subhead`（「N 个条目 · 索引于 刚刚 · 已忽略 .git / node_modules」）与一行
+          `.d-t-xs.d-t-faint`（新建后就地改名 / Enter 提交 / 空名不落盘）。
+          **用户 2026-10-05 裁定删掉这两行**：它们讲的是规则不是动作，夹在动作条与树
+          之间把树压下去；「就地改名」这件事等真进到重命名时输入框自带提示。
+          动作条与树现在紧挨着。i18n 的两个 key 留着（画板 D-05 帧 A 上仍有这句，
+          要回滚只要把这两块 DOM 放回去）。 */}
       {/* fork:v5-skin D-05 帧 A —— 树内动作条 = 画板 .d-tinybar + 两枚 .d-btn.sm.ghost
           （file-plus / folder-plus + 文字）。 */}
       <div className="d-tinybar fork-pwa-sb-tree-tools">
@@ -2427,12 +2432,6 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         {actionError && (
           <DismissButton onClick={() => setActionError(null)} title={t("files.dismissError")} />
         )}
-      </div>
-      {/* fork:v5-landing D-05 帧 A —— 板面在动作条下面还有一行弱化说明
-          （`.d-t-xs.d-t-faint`）：新建后就地改名、Enter 提交 / Esc 取消、空名不落盘。
-          产品此前只把这件事留在 aria-label 里，板面上那一行是 MISSING。 */}
-      <div className="d-t-xs d-t-faint" style={{ padding: "0 var(--nx-sp-1) var(--nx-sp-2)" }}>
-        {t("files.createHint")}
       </div>
       {creating && creating.parentDir === cwd && (
         <div style={{ padding: "var(--space-tight) 4px" }}>

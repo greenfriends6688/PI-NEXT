@@ -107,3 +107,4 @@ design/pi-web-design/.skeuo/verify-*.html
 
 # pi harness scratch (plans live in docs/)
 /.pi/
+.next-verify/

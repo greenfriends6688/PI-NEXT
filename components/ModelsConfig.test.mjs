@@ -209,9 +209,10 @@ test("the default model for new sessions still reads and writes settings.json", 
   assert.match(code, /if \(value\) setTitleModel\(value\.provider, value\.modelId\);\s*\n\s*else clearTitleModel\(\);/);
 });
 
-test("usage stays visible, on both the list and the provider page", () => {
-  assert.match(code, /fetch\(`\/api\/usage-stats\?\$\{params\}`\)/);
-  assert.match(code, /<UsageOverviewSection providerIds=\{providerRows\.map\(\(row\) => row\.id\)\} \/>/);
+test("usage stays visible on the provider page", () => {
+  // fork:usage-overview-dropped —— 列表页那段「用量摘要（近 30 天）」概览 2026-10-06
+  // 撤掉了（设置里另有「用量」分节，供应商详情页也有自己的用量）。
+  assert.doesNotMatch(code, /UsageOverviewSection/);
   assert.match(code, /<ProviderUsageSummary/);
 });
 

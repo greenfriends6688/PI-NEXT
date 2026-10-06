@@ -46,6 +46,7 @@ import {
   type CommandPaletteHistoryEntry,
   type CommandPaletteScope,
 } from "@/lib/command-palette-history";
+import type { ReactNode } from "react";
 import type { SettingsSection } from "@/lib/settings-navigation";
 
 export interface PaletteCommand {
@@ -104,6 +105,12 @@ export function splitPaletteHighlight(
   if (parts.length === 0) return [{ text, hit: false }];
   if (cursor < text.length) parts.push({ text: text.slice(cursor), hit: false });
   return parts;
+}
+
+/** 目录名（板面 D-22 会话行的行尾格就是「PI NEXT」这种项目名，不是整条路径）。 */
+function cwdBasename(cwd: string): string {
+  const name = cwd.replace(/[\\/]+$/, "").split(/[\\/]/).pop();
+  return name || cwd;
 }
 
 interface Props {
@@ -267,7 +274,7 @@ export function CommandPalette({
   }, [commands, scope, trimmed]);
 
   const rows = useMemo(() => {
-    const out: Array<{ key: string; kind: string; label: string; hint?: string; icon: string; onPick: () => void }> = [];
+    const out: Array<{ key: string; kind: string; label: string; hint?: ReactNode; icon: string; onPick: () => void }> = [];
     /* fork:v5-frame-audit D-22 帧 A —— 空查询那一屏的**组序**照板面 DOM 抄：
        「最近打开」在前、快捷入口在后（板面帧标里「快捷入口在前」那句与它自己的 DOM
        反着，DOM 是真值 —— 见汇报）。有查询词时仍是命令 → 会话 → 文件的命中清单，
@@ -293,7 +300,23 @@ export function CommandPalette({
           key: `ses:${hit.sessionId}`,
           kind: "sessions",
           label: hit.title,
-          hint: hit.match ? `…${hit.before}${hit.match}${hit.after}…` : hit.cwd,
+          // fork:cmd-hint —— 服务端给的是命中**前后各 80 字**（lib/session-search.ts），
+          // 整条塞进行尾会把标题挤没（用户 2026-10-05 截图：标题被压成逐字竖排的
+          // “M- / 05 / _settings / frames”）。这里改成以命中处为中心的一小段，两头补省略号，
+          // 命中那几个字上 `.d-cmd-hit` 色 —— 一眼能看出「在哪一句里命中」。
+          // 没有正文命中（最近打开那一组）时给**目录名**而不是整条路径：D-22 帧 A/B/C 里
+          // 会话行的行尾格就是「PI NEXT」这种项目名（板面自己从不写整条路径），而整条路径
+          // 在单行省略里被截掉的是**尾巴**，留下的 “/Users/yingjing/Desktop/PI…” 恰好把
+          // 有用的那截藏了。
+          hint: hit.match ? (
+            <>
+              {hit.before.length > 24 ? "…" : ""}
+              {hit.before.slice(-24)}
+              <span className="d-cmd-hit">{hit.match}</span>
+              {hit.after.slice(0, 24)}
+              {hit.after.length > 24 ? "…" : ""}
+            </>
+          ) : cwdBasename(hit.cwd),
           icon: "message-square",
           onPick: () => onOpenSession(hit.sessionId),
         });
@@ -353,20 +376,47 @@ export function CommandPalette({
     row.onPick();
   }, [rows, remember, scope, onClose]);
 
+  /* fork:v5-pwa-m0708 · M-08 帧 A-2（「最近搜索必须在第一屏」）——
+     手机上**没有查询词**时，历史组与结果组画在同一张表里，上下连成一条可导航的
+     列表，游标 `active` 走的是 `[历史 … 结果]` 这一个下标空间
+     （`historyOffset` 是历史占掉的长度）。之前历史行只画在 `rows.length === 0`
+     那一支里，而 `commands` 恒非空 ⇒ 那一支永远走不到，「最近搜索」在真机上从未
+     出现过；而且历史行的 `setActive(index)` 写的是**结果列表**的下标，悬停第 2 条
+     历史会点亮第 2 条结果、回车也打开它 —— 两个下标空间错位。
+     `isMobile &&` 是有意的：桌面那一支的段序照 D-22 帧 A 的 `.d-cmd-group`，
+     本轮不碰（帧 D-22 不在 M-07/M-08 范围内）。 */
+  const historyVisible = isMobile && !trimmed && history.length > 0;
+  const historyOffset = historyVisible ? history.length : 0;
+  const navigableLength = historyOffset + rows.length;
+
+  /** 把一条历史写回输入框（前缀按它当时的作用域补回去）—— 两处共用这一条。 */
+  const restoreHistory = (entry: CommandPaletteHistoryEntry) => {
+    setRaw(entry.scope === "all" ? entry.query : `${PALETTE_SCOPE_PREFIXES.find((p) => p.scope === entry.scope)?.prefix ?? ""}${entry.query}`);
+    setManualScope(entry.scope);
+  };
+
+  const pickActive = () => {
+    if (historyVisible && active < historyOffset) {
+      restoreHistory(history[active]);
+      return;
+    }
+    pick(active - historyOffset);
+  };
+
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActive((i) => (rows.length ? (i + 1) % rows.length : 0));
+      setActive((i) => (navigableLength ? (i + 1) % navigableLength : 0));
       return;
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActive((i) => (rows.length ? (i - 1 + rows.length) % rows.length : 0));
+      setActive((i) => (navigableLength ? (i - 1 + navigableLength) % navigableLength : 0));
       return;
     }
     if (event.key === "Enter") {
       event.preventDefault();
-      pick(active);
+      pickActive();
     }
   };
 
@@ -473,6 +523,42 @@ export function CommandPalette({
               <div className="m-run"><i data-ico="loader-circle" data-size="14" aria-hidden="true" />{t("palette.searching")}</div>
             </div>
           )}
+
+          {/* fork:v5-pwa-m0708 · M-08 帧 A-2 —— **最近搜索排在结果之前**。
+             画板原话：「打开后第一屏先给最近搜索与快捷入口」「命令中心 90% 的使用
+             是重复动作，靠打字找的成本远高于点两下」。这一组此前挂在
+             `rows.length === 0` 那一支里，而命令表恒非空 ⇒ 真机上从未出现过。
+             DOM 照帧 A-2：`.m-rowlabel`（标签 · 条数）+ 若干 `.m-sheet-row`
+             （`clock` 图标 + 等宽标题带前缀 + `.m-sheet-row-desc` 写它当时的作用域）。
+             画板紧接着的「快捷入口」`.m-grid2` 在本仓没有数据源：命令表就是
+             `SETTINGS_SECTIONS` 全量（AppShell 构造），再造一份宫格等于把同一张
+             清单摆两遍 —— 结果组承担这个位置，已登记在汇报里。 */}
+          {historyVisible && (
+            <>
+              <div className="m-rowlabel">{`${t("palette.recent")} · ${history.length}`}</div>
+              {history.map((entry, index) => (
+                <button
+                  key={`${entry.query}:${entry.updatedAt}`}
+                  type="button"
+                  className={`m-sheet-row${index === active ? " is-on" : ""}`}
+                  data-active={index === active}
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => restoreHistory(entry)}
+                >
+                  <i data-ico="clock" data-size="16" aria-hidden="true"></i>
+                  <span className="m-setrow-body">
+                    <span className="m-setrow-t m-mono">
+                      {entry.scope === "all"
+                        ? entry.query
+                        : `${PALETTE_SCOPE_PREFIXES.find((p) => p.scope === entry.scope)?.prefix ?? ""} ${entry.query}`}
+                    </span>
+                    <span className="m-sheet-row-desc">{t(`palette.scope.${entry.scope}`)}</span>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+
           {rows.length === 0 ? (
             trimmed ? (
               <div className="m-empty">
@@ -508,42 +594,24 @@ export function CommandPalette({
                   </button>
                 </div>
               </div>
-            ) : history.length > 0 && (
-              <>
-                <div className="m-rowlabel">{t("palette.recent")}</div>
-                {history.map((entry, index) => (
-                  <button
-                    key={`${entry.query}:${entry.updatedAt}`}
-                    type="button"
-                    className={`m-sheet-row${index === active ? " is-on" : ""}`}
-                    data-active={index === active}
-                    onMouseEnter={() => setActive(index)}
-                    onClick={() => {
-                      setRaw(entry.scope === "all" ? entry.query : `${PALETTE_SCOPE_PREFIXES.find((p) => p.scope === entry.scope)?.prefix ?? ""}${entry.query}`);
-                      setManualScope(entry.scope);
-                    }}
-                  >
-                    <i data-ico="history" data-size="16" aria-hidden="true"></i>
-                    <span className="m-setrow-body">
-                      <span className="m-setrow-t">{entry.query}</span>
-                      <span className="m-sheet-row-desc">{t(`palette.scope.${entry.scope}`)}</span>
-                    </span>
-                  </button>
-                ))}
-              </>
-            )
+            ) : null
           ) : rows.map((row, index) => (
             <Fragment key={row.key}>
+              {/* 分组标题仍按**结果自己的下标**判：组序是 `rows` 的属性，与历史组无关。
+                  这里曾经把判据写成 `historyOffset + index === 0` —— 历史组一出现，
+                  第一行的 `index === 0` 短路就失效，`rows[-1].kind` 直接抛
+                  TypeError，整棵根布局崩进 `error.tsx`（实测：任何非空历史 +
+                  打开面板 = 必崩）。判据必须留在结果的下标空间里。 */}
               {(index === 0 || rows[index - 1].kind !== row.kind) && (
                 <div className="m-rowlabel">{groupTitle(row.kind)}</div>
               )}
               <button
                 type="button"
-                className={`m-sheet-row${index === active ? " is-on" : ""}`}
+                className={`m-sheet-row${historyOffset + index === active ? " is-on" : ""}`}
                 role="option"
-                aria-selected={index === active}
-                data-active={index === active}
-                onMouseEnter={() => setActive(index)}
+                aria-selected={historyOffset + index === active}
+                data-active={historyOffset + index === active}
+                onMouseEnter={() => setActive(historyOffset + index)}
                 onClick={() => pick(index)}
               >
                 <i data-ico={row.icon} data-size="16" aria-hidden="true"></i>

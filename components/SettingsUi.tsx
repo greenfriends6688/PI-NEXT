@@ -787,6 +787,7 @@ export function PwField({
   badge,
   slider,
   extra,
+  tier,
 }: {
   label: ReactNode;
   hint?: ReactNode;
@@ -810,6 +811,33 @@ export function PwField({
   };
   /** 行尾再追加一个动作（画板「聊天内容宽度」那枚 `.d-btn.sm.ghost`「重置」）。 */
   extra?: ReactNode;
+  /* fork:v5-m05-tier · M-05 帧 B（2026-10-06 逐帧核对）——
+   *  这个字段的控件是**满宽档位条**（`.m-pickbar` / `PwRadio`）。
+   *
+   *  板面判据（不是观感）：
+   *   ① `grep -c 'm-pickbar' design/v5/pwa/boards/*.html` 有 20+ 处命中，
+   *      但 12 张 PWA 画板里 `.m-pickbar` **一次也没有**出现在 `.m-setrow` 内部
+   *      （`components/M05SettingsTier.test.mjs` 有一条守卫钉住这个前提）；
+   *   ② M-05 帧 B 的主题写的是 `.m-hero`（标签 + 说明）**之下**一张
+   *      `.m-cardgroup` › `.m-pickbar` 三等分；
+   *   ③ 同一形态在别处也是这条：M-09 帧「新建定时任务」的「触发时机」是
+   *      `.m-group-title` + 满宽 `.m-pickbar`，M-06 帧的「降级落点」同款。
+   *  ⇒ **档位条一律满宽、标签在上、控件在下**；开关 / 徽章 / 圆点 / 滑杆 /
+   *    下拉盒走另一条规则（M-05 帧 B 帧 C 帧 D 都是控件在行右端），不受影响。
+   *
+   *  真 bug（实测 390×844）：这一支此前把 `.m-pickbar` 当成「右槽控件」塞进
+   *  `div.m-setrow` 的 flex 行里，于是 `.m-setrow-body`（标签 + 一句说明）先吃掉
+   *  宽度，档位条只剩 146.9px —— 三枚 `.m-picktag` 各 34.3px，「浅色」与
+   *  「跟随系统」全部折成两行（`clientHeight 42 / scrollHeight 47~71`）。
+   *  板面的三等分是 104.7px × 3。
+   *
+   *  改完实测（390×844，隔离构建）：档位条 360（板面 358），三枚各 105.3 × 44，
+   *  `scrollHeight === clientHeight === 42` —— 一枚都不折行。
+   *
+   *  **与 `slider` 互斥**：档位条不是滑杆，给了两者时这一支只出 `control`。
+   *  守卫测试逐个调用点断言「没有一处同时给 `tier` 与 `slider`」。
+   */
+  tier?: boolean;
 }) {
   const isMobile = useIsMobile();
   // fork:v5-landing-frame · 窄屏（M-05）这一分支一个字不动：那边是「一行一个控件」，
@@ -817,6 +845,28 @@ export function PwField({
   // `slider` 只影响桌面那一行（值徽章 + 行尾滑块）；窄屏仍然把滑块与动作钿并排放，
   // 所以这里把滑块按 `PwRange`（`m-slider` + `m-mono` 读数）补回行体。
   if (isMobile) {
+    /* fork:v5-m05-tier —— 满宽档位条：标签行与控件行拆成两段（详见上面 `tier` 的
+       板面判据）。两段都只用板面已有的类，值一个都不新写：标签行仍是
+       `.m-setrow` › `.m-setrow-body` › `.m-setrow-t` + `.m-setrow-s`，
+       控件原样落在它**后面**的兄弟位上，于是拿到 `.m-cardgroup` 的整幅内容宽。
+       为什么不套第二张 `.m-cardgroup`（M-05 帧 B 主题那块就是 hero + 一张卡）：
+       产品的「主题」是「外观」块卡内的第一个字段，再套一张卡就是卡中卡
+       （`PwRadioRow` 的窄屏注释已登记过同一件事）。 */
+    if (tier) {
+      return (
+        <>
+          <div className="m-setrow">
+            <span className="m-setrow-body">
+              <span className="m-setrow-t">
+                {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+              </span>
+              {hint ? <span className="m-setrow-s">{hint}</span> : null}
+            </span>
+          </div>
+          {control}
+        </>
+      );
+    }
     return (
       <div className="m-setrow">
         <span className="m-setrow-body">

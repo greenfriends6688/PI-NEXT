@@ -608,6 +608,22 @@ export const zhCNLocale: LocalePlugin = {
     // 那枚开关的名字，这一层是**六块选单**，与「文件」一块无关。画板 M-12 帧 A 写死
     // 「右栏面板」，标题跟着走。
     "pwa.rightPanels.title": "右栏面板",
+    // fork:v5-m05 —— M-05 帧 A 顶栏右上那枚「搜设置项」与它开出的 `.m-pop-float`。
+    "pwa.settingsFind.label": "搜设置项",
+    "pwa.settingsFind.none": "没有叫「{query}」的设置项",
+    // fork:v5-m12 —— 帧 A 六行的块名与行尾状态。写全六块的名字而不是从
+    // `files.showPanel` 之类动作文案里借：那一层是**选单**，每行是一个可进入的块。
+    "pwa.rightPanels.files": "文件",
+    "pwa.rightPanels.terminal": "终端",
+    "pwa.rightPanels.browser": "浏览器",
+    "pwa.rightPanels.review": "审查",
+    "pwa.rightPanels.treeAndViewer": "树 + 查看器",
+    "pwa.rightPanels.readOnly": "只读",
+    "pwa.rightPanels.reviewCount": "{count} 个文件待看",
+    // fork:v5-m06 —— M-06 帧 A 底部动作条第三项。板面原文是「更多」两字，
+    // 桌面那条 `.m-menu-row` 用的是 `chat.moreControls`「更多控件」：四个字在
+    // 390 宽上把整条动作条撑成两行（复制路径 / 更多控件 各折一次），板面是一行。
+    "files.moreActions": "更多",
     "pwa.rightPanels.groupTitle": "选一块进入 · 六块共用一层切换条",
     "pwa.rightPanels.footNote": "不做常驻页签：手机底部要留给输入卡与 home 手势，六格横排既够不着也挤正文。按需开、选完即走，是这一层唯一的入口。",
     "pwa.rightPanels.closedHint": "未打开 · 点按打开",
@@ -2343,9 +2359,6 @@ export const zhCNLocale: LocalePlugin = {
     "models.authConfigured": "已配置",
     "models.authNotNeeded": "无需凭证",
     "models.backToList": "返回",
-    "models.usageOverviewHint": "查询的是本机日志的近 30 天累计；供应商认的账（回执口径）在供应商详情里查。",
-    "models.usageOverviewRefresh": "刷新用量",
-    "models.usageOverviewSource": "数据来自本机会话日志，与供应商侧账单是两个口径。",
     "models.usageRequestsShort": "{count} 次请求",
     "models.favoritesSection": "收藏模型",
     "models.favoritesHint": "收藏只是「选模型时排前面」，不改变任何调用行为；供应商不可用的收藏会标灰。",

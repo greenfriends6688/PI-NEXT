@@ -601,6 +601,20 @@ export const enLocale: LocalePlugin = {
     "phonePush.title": "Phone & push",
     // fork:v5-frame-audit —— board M-12 frame A
     "pwa.rightPanels.title": "Right panels",
+    // fork:v5-m05 —— frame A's top-right "find a setting" button and its popover.
+    "pwa.settingsFind.label": "Find a setting",
+    "pwa.settingsFind.none": "No setting matches “{query}”",
+    // fork:v5-m12 —— the six block labels + their trailing badges (frame A).
+    "pwa.rightPanels.files": "Files",
+    "pwa.rightPanels.terminal": "Terminal",
+    "pwa.rightPanels.browser": "Browser",
+    "pwa.rightPanels.review": "Review",
+    "pwa.rightPanels.treeAndViewer": "Tree + viewer",
+    "pwa.rightPanels.readOnly": "Read-only",
+    "pwa.rightPanels.reviewCount": "{count} files to look at",
+    // fork:v5-m06 —— board M-06 frame A writes a two-letter label; the desktop
+    // row's `chat.moreControls` is longer and wraps the bar onto two lines at 390.
+    "files.moreActions": "More",
     "pwa.rightPanels.groupTitle": "Pick one · all six share one layer",
     "pwa.rightPanels.footNote": "No permanent tabs: the bottom of a phone belongs to the composer and the home gesture. Open on demand, pick and go \u2014 this sheet is the only way in.",
     "pwa.rightPanels.closedHint": "Not open · tap to open",
@@ -2343,9 +2357,6 @@ export const enLocale: LocalePlugin = {
     "models.authConfigured": "Configured",
     "models.authNotNeeded": "No credentials needed",
     "models.backToList": "Back",
-    "models.usageOverviewHint": "Totals from local session logs over the last 30 days; the provider's own accounting (per receipts) lives in the provider detail.",
-    "models.usageOverviewRefresh": "Refresh usage",
-    "models.usageOverviewSource": "Numbers come from local session logs — a different ledger than the provider's bill.",
     "models.usageRequestsShort": "{count} requests",
     "models.favoritesSection": "Favorite models",
     "models.favoritesHint": "Favorites only sort a model to the front of the picker; they never change behavior. Favorites whose provider is unavailable stay listed but dimmed.",

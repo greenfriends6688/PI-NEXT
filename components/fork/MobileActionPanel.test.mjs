@@ -57,9 +57,14 @@ test("宫格的类名是画板里登记过的那两个（判据⑦）", () => {
   assert.match(board60, /pw-actcell/);
 });
 
-test("面板只在窄屏出现，且触发钮不是把 `+` 换掉", () => {
-  // 触发钮的渲染条件：有内容 **且** 窄屏。桌面形态一字不变。
-  assert.match(chatInput, /actionPanel && narrowControls && \(/);
+test("面板只在**手机形态**出现，且触发钮不是把 `+` 换掉", () => {
+  // 触发钮的渲染条件：有内容 **且** 是手机形态（fork:action-panel-phone-only，
+  // 用户 2026-10-06）。早先它挂在 `narrowControls` 上，而那一项含 `shellNarrow`
+  // —— 桌面上聊天列被右栏挤窄也会变 true，于是宫格在电脑的输入框旁边凭空冒出来。
+  assert.match(chatInput, /const showActionPanel = Boolean\(actionPanel\) && isMobile;/);
+  assert.match(chatInput, /\{showActionPanel && \(/);
+  // 宫格不再跟着 `narrowControls` 走（两行控件条的判据仍是它）。
+  assert.doesNotMatch(chatInput, /actionPanel && narrowControls/);
   // `+`（附件）还在，而且是独立的按钮 —— 面板另给一枚 grid-2x2。
   assert.match(chatInput, /onClick=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
   assert.match(chatInput, /data-ico="grid-2x2"/);

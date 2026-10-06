@@ -22,7 +22,6 @@ import type { ModelInputLimits, ModelPromptCache } from "@earendil-works/pi-ai";
 import type { ModelCatalogPreset, ModelCatalogRecommendation } from "@/lib/model-catalog";
 import type { DiscoveredModel } from "@/lib/model-discovery";
 // 用量概览：本机日志的口径（/api/usage-stats）。
-import type { UsageStatsSummary } from "@/lib/usage-stats";
 import type { ThinkingProfileInputs } from "@/lib/models-cache";
 import { describeThinkingRequestFromFields, type ThinkingModelFields } from "@/lib/thinking-request-core";
 // fork:pr17-favorites —— 与输入框模型选择器共用同一份 store；增删在选择器里，这里只读。
@@ -2031,84 +2030,9 @@ function CatalogRefreshButton({ providerId, onDone }: { providerId: string; onDo
   );
 }
 
-/** 帧 A 的「配额」位：本机没有供应商侧的配额数，摆的是本地日志的口径。 */
-function UsageOverviewSection({ providerIds }: { providerIds: string[] }) {
-  const { t, locale } = useI18n();
-  const [state, setState] = useState<
-    { phase: "loading" } | { phase: "error"; message: string } | { phase: "ready"; summary: UsageStatsSummary }
-  >({ phase: "loading" });
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ phase: "loading" });
-    const params = new URLSearchParams({ range: "30d", tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
-    void fetch(`/api/usage-stats?${params}`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: UsageStatsSummary | null) => {
-        if (cancelled) return;
-        if (!data || !Array.isArray(data.models)) {
-          setState({ phase: "error", message: t("models.usageUnavailable") });
-          return;
-        }
-        setState({ phase: "ready", summary: data });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setState({ phase: "error", message: error instanceof Error ? error.message : String(error) });
-      });
-    return () => { cancelled = true; };
-  }, [refreshKey, t]);
-
-  const rows = state.phase === "ready"
-    ? providerIds.map((id) => {
-        const prefix = `${id}/`;
-        const own = state.summary.models.filter((point) => point.model.startsWith(prefix));
-        const cost = own.reduce((sum, point) => sum + point.cost, 0);
-        const share = state.summary.totals.cost > 0 ? Math.round((cost / state.summary.totals.cost) * 100) : 0;
-        return {
-          id,
-          cost,
-          messages: own.reduce((sum, point) => sum + point.messages, 0),
-          share,
-        };
-      }).filter((row) => row.messages > 0 || row.cost > 0)
-    : [];
-
-  return (
-    <div className="d-set-sec">
-      <SectionHeading
-        title={t("models.usageTitle")}
-        hint={t("models.usageOverviewHint")}
-        actions={(
-          <ConfigButton size="small" onClick={() => setRefreshKey((key) => key + 1)}>
-            <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
-            {t("models.usageOverviewRefresh")}
-          </ConfigButton>
-        )}
-      />
-      {state.phase === "loading" && <div className="d-t-xs d-t-faint" role="status">{t("models.usageLoading")}</div>}
-      {state.phase === "error" && <div className="d-t-xs d-t-faint">{state.message}</div>}
-      {state.phase === "ready" && rows.length === 0 && <div className="d-t-xs d-t-faint">{t("models.usageNoData")}</div>}
-      {rows.map((row) => (
-        <div key={row.id} className="d-col">
-          <div className="d-row d-t-xs">
-            <ProviderIcon id={row.id} size={14} />
-            <span className="d-grow">
-              {row.id} · {t("models.usageRequestsShort", { count: row.messages })}
-            </span>
-            <ConfigBadge tone={row.cost > 0 ? "mute" : "mute"}>
-              {new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(row.cost)}
-            </ConfigBadge>
-            <span className="d-t-xs d-t-faint">{row.share}%</span>
-          </div>
-          <div className="d-bar"><i style={{ width: `${Math.min(row.share, 100)}%` }} /></div>
-        </div>
-      ))}
-      {rows.length > 0 && <div className="d-t-xs d-t-faint">{t("models.usageOverviewSource")}</div>}
-    </div>
-  );
-}
+/** fork:usage-overview-dropped — 帧 A 原本在这里有一段「用量摘要（近 30 天）」概览
+    （刷新按钮 + 每个供应商一条占比条）。2026-10-06 用户裁定去掉：设置里另有「用量」
+    分节，供应商详情页也有自己的用量，两处口径摆在一起只会互相干扰。 */
 
 /** fork:model-roles —— 新会话起步模型（落 settings.json）与命名模型（本地偏好）。 */
 function ModelRolesSection({ cwd }: { cwd: string | null }) {
@@ -2634,7 +2558,6 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         )}
         <SelectorScopeSection />
         <ModelRolesSection cwd={cwd} />
-        <UsageOverviewSection providerIds={providerRows.map((row) => row.id)} />
         <FavoritesSection favorites={favoriteModels} view={enabledModels.view} />
       </>
     );

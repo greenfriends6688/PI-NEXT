@@ -222,6 +222,13 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
       }
     };
     const onUserScroll = (event: Event) => {
+      // fork:ui-01-scroll — 滚动**浮窗自己**不算「用户滚走了」。这一层
+      // `.context-menu` 是 `max-height + overflow-y:auto`（app/fork-ui.css），
+      // 长菜单（新建任务的项目列表）只能靠滚轮才看得全；而监听挂在 window 的
+      // capture 阶段，事件照样冒上来 —— 原来一律 closeMenu()，于是「鼠标一动浮窗
+      // 就没了，列表滚不动也选不了」（拖滚动条能选，正是因为那条路不发 wheel）。
+      // 判据与 onPointerDown 同一句：事件落在浮窗内就不关。
+      if (menuRef.current?.contains(event.target as Node)) return;
       // fork:ui-projectchip-fix — 只有**真的滚动**才关菜单。触控板与 Magic Mouse
       // 在指针移动时会喷出 deltaY=0/±1 的 wheel 事件，原来一律 closeMenu()，
       // 表现就是「鼠标一动浮窗就没了」。阈值取 8px：小于它的当成抖动。
