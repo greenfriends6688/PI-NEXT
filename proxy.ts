@@ -3,6 +3,7 @@ import {
   LAN_COOKIE_MAX_AGE_SECONDS,
   LAN_COOKIE_NAME,
   checkLanAccess,
+  lanCookieSecure,
 } from "@/lib/lan-access";
 import {
   isApiRequestAllowed,
@@ -51,8 +52,9 @@ export function proxy(request: NextRequest) {
       sameSite: "lax",
       path: "/",
       maxAge: LAN_COOKIE_MAX_AGE_SECONDS,
-      // 局域网走的是明文 http，标了 Secure 浏览器就直接不存。
-      secure: false,
+      // 局域网直连是明文 http（标了 Secure 浏览器就直接不存）；
+      // 走 https 隧道/反代到达时 lanCookieSecure 会翻开 Secure。fork:mobile-shell
+      secure: lanCookieSecure(request),
     });
   }
   return response;

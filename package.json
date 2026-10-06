@@ -70,7 +70,8 @@
     "design:v5:land": "node design/v5/scripts/land-status.mjs",
     "design:v5:batch": "node design/v5/scripts/land-status.mjs --batch",
     "design:v5:shots": "node design/v5/scripts/shoot.mjs",
-    "design:v5:all": "npm run design:v5 && npm run design:v5:land"
+    "design:v5:all": "npm run design:v5 && npm run design:v5:land",
+    "mobile:doctor": "node scripts/mobile-doctor.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

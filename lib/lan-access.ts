@@ -41,6 +41,20 @@ const READ_ONLY_LABEL = "pi-web-lan-readonly:v1";
 export const LAN_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 /**
+ * LAN cookie 的 `secure` 标志。局域网直连是明文 http，标了 Secure 浏览器直接不存 ——
+ * 所以缺省 false。但走隧道/反代（`tailscale serve`、cloudflared、devtunnel）到达时是
+ * 公网 https，此时 cookie 应该标 Secure，不该被降级成可被明文截获的形态。
+ * 终端直连看不到 `x-forwarded-proto`，这个头缺失 = 明文，恒 false。
+ * 多级代理会把每跳都追加进去（"https,http"），第一跳才是浏览器到边缘的 scheme。
+ */
+export function lanCookieSecure(request: {
+  headers: { get(name: string): string | null };
+}): boolean {
+  const firstHop = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  return firstHop === "https";
+}
+
+/**
  * 换令牌时必须能免登录到达的那一条路径：手机只有 6 位码，没有令牌。
  * 这里只放行这一个 POST，其余 `/api/**` 一律照常要令牌。
  */

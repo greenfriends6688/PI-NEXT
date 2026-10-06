@@ -4,6 +4,7 @@ import {
   LAN_COOKIE_MAX_AGE_SECONDS,
   LAN_COOKIE_NAME,
   deriveReadOnlyToken,
+  lanCookieSecure,
   readLanToken,
 } from "@/lib/lan-access";
 import { lanPairCodes, pairAttemptLimiter, attemptKey } from "@/lib/lan-pair";
@@ -61,8 +62,8 @@ export async function POST(req: Request) {
     sameSite: "lax",
     path: "/",
     maxAge: LAN_COOKIE_MAX_AGE_SECONDS,
-    // 局域网走明文 http，标 Secure 浏览器直接不存。
-    secure: false,
+    // 局域网直连是明文 http；https 隧道/反代下 lanCookieSecure 翻开 Secure。fork:mobile-shell
+    secure: lanCookieSecure(req),
   });
   return response;
 }
