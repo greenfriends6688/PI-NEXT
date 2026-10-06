@@ -621,6 +621,15 @@ export const enLocale: LocalePlugin = {
     "phonePush.quickOpen": "Phone & push",
     "phonePush.lanTitle": "Pair a phone on this network",
     "phonePush.botTitle": "Chat bot channels (inbound)",
+    // fork:mobile-shell — in-shell mirror library (offline sessions).
+    "phonePush.mirrorTitle": "Mirror library (offline sessions)",
+    "phonePush.mirrorHint": "Mirror every session from the computer so history works offline. Incremental sync runs on foreground; sync manually any time.",
+    "phonePush.mirrorSync": "Sync now",
+    "phonePush.mirrorOpen": "Open mirror library",
+    "phonePush.mirrorRunning": "Syncing…",
+    "phonePush.mirrorIdle": "Never synced",
+    "phonePush.mirrorLastAt": "Last sync",
+    "phonePush.mirrorErr": "Sync failed",
     // fork:phone-push — two-column form (2026-10-03, after ZCode's mobile remote control dialog).
     "phonePush.pageSub": "Scan the code or open the link on your phone to control this workspace remotely.",
     "phonePush.scanTitle": "Scan with your phone",
@@ -1277,6 +1286,7 @@ export const enLocale: LocalePlugin = {
     "chat.unreadDivider": "↓ What happened while you were away",
     "chat.newMessages": "{count} new messages",
     "chat.todosProgress": "{done}/{total}",
+    "chat.todosAllDone": "All done",
     "chat.todosActive": "In progress",
     "chat.todosEmpty": "No todos yet — ask for a plan and the list appears here.",
     "chat.todosHint": "The agent updates this list as it works; copy it into a message when you need to hand it back.",

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>PI NEXT — 镜像库</title>
+<style>
+  /* fork:mobile-shell —— 镜像库（本地源页）：经 Capacitor 桥读本机存储里
+     PWA 同步下来的会话清单与离线 HTML。**本页不碰网络**（跨源裁定见
+     lib/mobile-sync.ts 头注释）。独立 WebView 资产，不进 V5 类体系。 */
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+    font: 14px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    background: #f7f7f5;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #141414; color: #ededed; }
+    .card { border-color: #2e2e2e !important; background: #1c1c1c !important; }
+    .row:hover { background: #262626 !important; }
+    .back { border-color: #3a3a3a !important; }
+  }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1; }
+  .back {
+    appearance: none; border: 1px solid #c9c9c5; background: transparent; color: inherit;
+    border-radius: 6px; font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer;
+    text-decoration: none; display: inline-block;
+  }
+  .meta { font-size: 12px; color: #8a8a86; margin: 0 0 14px; }
+  .row {
+    width: 100%; text-align: left; appearance: none; border: 1px solid #e2e2de;
+    background: #fff; color: inherit; border-radius: 6px; padding: 12px 14px;
+    margin: 0 0 8px; cursor: pointer; font: inherit; display: block;
+  }
+  .row:disabled { opacity: 0.6; cursor: default; }
+  .row-t { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-s { font-size: 12px; color: #8a8a86; margin-top: 2px; }
+  .badge {
+    display: inline-block; font-size: 11px; border-radius: 999px; padding: 1px 8px;
+    margin-left: 8px; vertical-align: 1px;
+    background: rgb(96 165 250 / 0.15); color: #3b82f6;
+  }
+  .empty { text-align: center; color: #8a8a86; padding: 40px 0; font-size: 13px; }
+  #viewer {
+    position: fixed; inset: 0; z-index: 10; background: #fff; display: none;
+  }
+  #viewer iframe { width: 100%; height: 100%; border: 0; }
+  #viewer .bar {
+    position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: 12px; z-index: 2;
+  }
+  #viewer .bar button {
+    appearance: none; border: 0; border-radius: 6px; background: #1a1a1a; color: #fff;
+    font: inherit; font-size: 12px; padding: 8px 14px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>镜像库</h1>
+    <a class="back" id="backApp" href="#">回到应用</a>
+  </header>
+  <p class="meta" id="meta">读取本机镜像…</p>
+  <div id="list"><div class="empty">…</div></div>
+
+  <div id="viewer">
+    <div class="bar"><button id="closeViewer">关闭</button></div>
+    <iframe id="frame" title="会话内容"></iframe>
+  </div>
+
+<script>
+(function () {
+  var DATA_DIR = "DATA", UTF8 = "utf8";
+
+  function fsCall(method, args) {
+    var cap = window.Capacitor;
+    if (!cap || !cap.nativePromise) return Promise.reject(new Error("no bridge"));
+    return cap.nativePromise("Filesystem", method, args);
+  }
+  function fsRead(path) {
+    return fsCall("readFile", { path: path, directory: DATA_DIR, encoding: UTF8 })
+      .then(function (r) { return r && r.data; });
+  }
+
+  function serverUrl() {
+    try { return localStorage.getItem("pinext.serverUrl"); } catch (e) { return null; }
+  }
+  document.getElementById("backApp").addEventListener("click", function (event) {
+    event.preventDefault();
+    var url = serverUrl();
+    if (url) window.location.replace(url);
+    else if (window.history.length > 1) window.history.back();
+  });
+
+  function esc(text) {
+    return String(text == null ? "" : text).replace(/[&<>"]/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch];
+    });
+  }
+  function projectLabel(entry) {
+    var parts = (entry.projectRoot || entry.cwd || "").split("/");
+    return parts[parts.length - 1] || entry.cwd || "";
+  }
+  function timeLabel(ms) {
+    if (!ms) return "";
+    var date = new Date(ms);
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function openViewer(id) {
+    fsRead("mirror/html/" + id + ".html").then(function (html) {
+      if (!html) throw new Error("no html");
+      var blob = new Blob([html], { type: "text/html" });
+      var frame = document.getElementById("frame");
+      frame.src = URL.createObjectURL(blob);
+      document.getElementById("viewer").style.display = "block";
+    }).catch(function () {
+      // 没缓存 HTML：连上电脑后打开一次「手机与推送」会自动同步最近改动的会话；
+      // 这里给一个直连服务器的入口（在线时就能看）。
+      var url = serverUrl();
+      if (url) window.location.replace(url + "/?session=" + encodeURIComponent(id));
+    });
+  }
+  document.getElementById("closeViewer").addEventListener("click", function () {
+    var frame = document.getElementById("frame");
+    frame.src = "about:blank";
+    document.getElementById("viewer").style.display = "none";
+  });
+
+  fsRead("mirror/index.json").then(function (raw) {
+    var index;
+    try { index = JSON.parse(raw); } catch (e) { index = null; }
+    var sessions = index && index.sessions ? Object.keys(index.sessions)
+      .map(function (id) { return index.sessions[id]; })
+      .sort(function (a, b) { return b.mtimeMs - a.mtimeMs; }) : [];
+
+    var meta = document.getElementById("meta");
+    meta.textContent = sessions.length
+      ? "共 " + sessions.length + " 个会话" + (index.updatedAt ? "，同步于 " + timeLabel(index.updatedAt) : "")
+      : "还没有镜像 —— 连上电脑后，打开「设置 → 手机与推送」点一次「立即同步」。";
+
+    var list = document.getElementById("list");
+    if (!sessions.length) return;
+    list.textContent = "";
+    sessions.forEach(function (entry) {
+      var button = document.createElement("button");
+      button.className = "row";
+      button.type = "button";
+      button.innerHTML =
+        '<div class="row-t">' + esc(entry.name || "未命名会话") +
+        (entry.htmlVersion ? '<span class="badge">已缓存</span>' : "") + "</div>" +
+        '<div class="row-s">' + esc(projectLabel(entry)) +
+        " · " + esc(timeLabel(entry.mtimeMs)) +
+        " · " + (Math.round((entry.sizeBytes || 0) / 1024) + " KB") + "</div>";
+      button.addEventListener("click", function () { openViewer(entry.id); });
+      list.appendChild(button);
+    });
+  }).catch(function () {
+    document.getElementById("meta").textContent = "读不到本机镜像（桥不可用或还没同步过）。";
+    document.getElementById("list").innerHTML = '<div class="empty">先连上电脑同步一次。</div>';
+  });
+})();
+</script>
+</body>
+</html>

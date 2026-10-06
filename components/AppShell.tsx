@@ -218,6 +218,28 @@ export function AppShell() {
   useEffect(() => {
     void import("@/lib/mobile-shell").then((mod) => mod.initShellInsets());
   }, []);
+  // fork:mobile-shell —— 壳内静默镜像同步：启动 / 回前台 / 每 5 分钟拉增量。
+  // 桌面上 isMobileShell() 恒 false，runMobileSync 是 no-op；离线时 fetch 静默失败。
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const shell = await import("@/lib/mobile-shell");
+      if (cancelled || !shell.isMobileShell()) return;
+      const sync = await import("@/lib/mobile-sync");
+      await sync.runMobileSync();
+    };
+    void run();
+    const timer = window.setInterval(() => void run(), 5 * 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void run();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
   // fix:field-focus-modality —— 全局输入模态标记（样式层据此决定字段要不要画焦点框）。
   useFocusModality();
   const appShellRef = useRef<HTMLDivElement>(null);

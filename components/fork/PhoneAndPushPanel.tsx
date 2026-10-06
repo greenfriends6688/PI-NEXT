@@ -10,6 +10,7 @@ import { SettingsPage } from "../SettingsUi";
 import { BotChannelsDialog, type BotDialogSelection } from "./BotChannelsDialog";
 import { BotChannelBody } from "./BotChannelPanel";
 import { LanPairBody } from "./LanPairPanel";
+import { MirrorBody } from "./MirrorPanel";
 
 /**
  * fork:phone-push —— **手机与推送**：一个分节，两栏。
@@ -69,6 +70,9 @@ export function PhoneAndPushPanel() {
               </div>
             </div>
           </div>
+
+          {/* fork:mobile-shell —— 壳内镜像库入口（不在壳里时 MirrorBody 返回 null） */}
+          <MirrorBody />
         </PwaPage>
         <BotChannelsDialog
           open={dialog.open}

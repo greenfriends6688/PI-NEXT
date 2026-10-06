@@ -630,6 +630,15 @@ export const zhCNLocale: LocalePlugin = {
     "phonePush.quickOpen": "手机与推送",
     "phonePush.lanTitle": "把手机连到这台电脑",
     "phonePush.botTitle": "聊天 Bot 通道（入站）",
+    // fork:mobile-shell —— 壳内镜像库（离线会话）。
+    "phonePush.mirrorTitle": "镜像库（离线会话）",
+    "phonePush.mirrorHint": "把电脑上的全部会话镜像到手机，断网也能翻历史。回前台自动增量同步，也可手动同步。",
+    "phonePush.mirrorSync": "立即同步",
+    "phonePush.mirrorOpen": "打开镜像库",
+    "phonePush.mirrorRunning": "同步中…",
+    "phonePush.mirrorIdle": "还没同步过",
+    "phonePush.mirrorLastAt": "上次同步",
+    "phonePush.mirrorErr": "同步失败",
     // fork:phone-push —— 两栏形态（2026-10-03 对照 ZCode「移动端远程控制」拍板）。
     "phonePush.pageSub": "扫码或在手机上打开链接，即可远程控制当前工作区。",
     "phonePush.scanTitle": "手机扫码连接",
@@ -1284,6 +1293,7 @@ export const zhCNLocale: LocalePlugin = {
     "chat.unreadDivider": "↓ 以下是你离开后发生的",
     "chat.newMessages": "{count} 条新消息",
     "chat.todosProgress": "{done}/{total}",
+    "chat.todosAllDone": "全部完成",
     "chat.todosActive": "进行中",
     "chat.todosEmpty": "还没有待办——让它先给个计划，列表会出现在这里。",
     "chat.todosHint": "AI 会随进度实时更新这份清单；需要时可以复制成一条消息发回给它。",
