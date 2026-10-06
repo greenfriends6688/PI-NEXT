@@ -162,6 +162,7 @@
       "!**/node_modules/.bin/**",
       "!.next/cache/**",
       "!.next/node_modules/**",
+      "!.next-verify/**",
       "!node_modules/@esbuild/**",
       "!node_modules/esbuild/**",
       "!node_modules/@resvg/**",
