@@ -79,7 +79,7 @@ test("keeps the lightbox inside mobile safe areas", () => {
   // 不铺满到刘海下面）。关闭钮已经搬进壳内，不再依赖绝对定位。
   assert.match(
     cssSource,
-    /\.image-preview-dialog \{[\s\S]*?env\(safe-area-inset-top\)[\s\S]*?env\(safe-area-inset-right\)[\s\S]*?env\(safe-area-inset-bottom\)[\s\S]*?env\(safe-area-inset-left\)/,
+    /\.image-preview-dialog \{[\s\S]*?var\(--safe-top\)[\s\S]*?var\(--safe-right\)[\s\S]*?var\(--safe-bottom\)[\s\S]*?var\(--safe-left\)/,
   );
   assert.match(source, /className="image-preview-dialog"/, "壳仍挂着 .image-preview-dialog");
   assert.doesNotMatch(

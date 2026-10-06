@@ -623,6 +623,15 @@ export const zhTWLocale: LocalePlugin = {
     "phonePush.quickOpen": "手機與推送",
     "phonePush.lanTitle": "把手機連到這台電腦",
     "phonePush.botTitle": "聊天 Bot 通道（入站）",
+    // fork:mobile-shell —— 壳内镜像库（离线会话）。
+    "phonePush.mirrorTitle": "鏡像庫（離線會話）",
+    "phonePush.mirrorHint": "把電腦上的全部會話鏡像到手機，斷網也能翻歷史。回前台自動增量同步，也可手動同步。",
+    "phonePush.mirrorSync": "立即同步",
+    "phonePush.mirrorOpen": "打開鏡像庫",
+    "phonePush.mirrorRunning": "同步中…",
+    "phonePush.mirrorIdle": "還沒同步過",
+    "phonePush.mirrorLastAt": "上次同步",
+    "phonePush.mirrorErr": "同步失敗",
     // fork:phone-push —— 兩欄形態（2026-10-03 對照 ZCode「行動遠端控制」拍板）。
     "phonePush.pageSub": "掃碼或在手機上打開連結，即可遠端控制目前工作區。",
     "phonePush.scanTitle": "手機掃碼連接",

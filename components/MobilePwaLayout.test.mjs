@@ -19,12 +19,12 @@ test("configures iOS standalone mode to use the full screen", () => {
 
 test("tracks the visual viewport while the software keyboard is open", () => {
   assert.match(appShellSource, /useViewportHeight\(\)/);
-  assert.match(appShellSource, /paddingTop: "env\(safe-area-inset-top\)"/);
-  assert.match(appShellSource, /paddingBottom: "env\(safe-area-inset-bottom\)"/);
-  assert.match(appShellSource, /paddingLeft: "env\(safe-area-inset-left\)"/);
-  assert.match(appShellSource, /paddingRight: "env\(safe-area-inset-right\)"/);
-  assert.match(appShellSource, /height: "calc\(var\(--height-toolbar, 36px\) \+ env\(safe-area-inset-top\)\)"/);
-  assert.match(appShellSource, /\/\* Right panel tab bar \*\/[\s\S]*?height: "calc\(var\(--topbar-height, 36px\) \+ env\(safe-area-inset-top\)\)"/);
+  assert.match(appShellSource, /paddingTop: "var\(--safe-top\)"/);
+  assert.match(appShellSource, /paddingBottom: "var\(--safe-bottom\)"/);
+  assert.match(appShellSource, /paddingLeft: "var\(--safe-left\)"/);
+  assert.match(appShellSource, /paddingRight: "var\(--safe-right\)"/);
+  assert.match(appShellSource, /height: "calc\(var\(--height-toolbar, 36px\) \+ var\(--safe-top\)\)"/);
+  assert.match(appShellSource, /\/\* Right panel tab bar \*\/[\s\S]*?height: "calc\(var\(--topbar-height, 36px\) \+ var\(--safe-top\)\)"/);
   assert.match(appShellSource, /height: "var\(--app-viewport-height, 100dvh\)"/);
   assert.match(appShellSource, /data-mobile-toolbar-file=\{mobile \? "true" : undefined\}/);
   assert.match(viewportHookSource, /window\.visualViewport/);
@@ -34,8 +34,8 @@ test("tracks the visual viewport while the software keyboard is open", () => {
   assert.match(viewportHookSource, /--app-viewport-height/);
   assert.match(viewportHookSource, /window\.scrollTo\(0, 0\)/);
   assert.match(cssSource, /height: var\(--app-viewport-height, 100dvh\)/);
-  assert.match(cssSource, /left: env\(safe-area-inset-left\)/);
-  assert.match(chatWindowSource, /paddingBottom: "env\(safe-area-inset-bottom\)"/);
+  assert.match(cssSource, /left: var\(--safe-left\)/);
+  assert.match(chatWindowSource, /paddingBottom: "var\(--safe-bottom\)"/);
 });
 
 test("contains chat content and inputs within the mobile viewport", () => {
@@ -78,7 +78,7 @@ test("prevents iOS focus zoom from widening the layout", () => {
 
 test("keeps modal dialogs clear of the iOS status bar in standalone mode", () => {
   assert.match(settingsCssSource, /@supports \(-webkit-touch-callout: none\) \{[\s\S]*?@media \(display-mode: standalone\) \{/);
-  assert.match(settingsCssSource, /padding-top: max\(59px, env\(safe-area-inset-top\)\);[\s\S]*?padding-right: max\(8px, env\(safe-area-inset-right\)\);[\s\S]*?padding-bottom: max\(24px, env\(safe-area-inset-bottom\)\);[\s\S]*?padding-left: max\(8px, env\(safe-area-inset-left\)\);/);
-  assert.match(settingsCssSource, /@media \(display-mode: standalone\) and \(orientation: landscape\) \{[\s\S]*?padding-top: max\(8px, env\(safe-area-inset-top\)\);[\s\S]*?padding-right: max\(59px, env\(safe-area-inset-right\)\);[\s\S]*?padding-bottom: max\(8px, env\(safe-area-inset-bottom\)\);[\s\S]*?padding-left: max\(59px, env\(safe-area-inset-left\)\);/);
+  assert.match(settingsCssSource, /padding-top: max\(59px, var\(--safe-top\)\);[\s\S]*?padding-right: max\(8px, var\(--safe-right\)\);[\s\S]*?padding-bottom: max\(24px, var\(--safe-bottom\)\);[\s\S]*?padding-left: max\(8px, var\(--safe-left\)\);/);
+  assert.match(settingsCssSource, /@media \(display-mode: standalone\) and \(orientation: landscape\) \{[\s\S]*?padding-top: max\(8px, var\(--safe-top\)\);[\s\S]*?padding-right: max\(59px, var\(--safe-right\)\);[\s\S]*?padding-bottom: max\(8px, var\(--safe-bottom\)\);[\s\S]*?padding-left: max\(59px, var\(--safe-left\)\);/);
   assert.match(settingsCssSource, /\.settings-dialog-surface,[\s\S]*?\.config-panel-root\.is-modal > \.config-panel-surface \{[\s\S]*?max-width: 100%;[\s\S]*?max-height: 100%;/);
 });
