@@ -287,3 +287,187 @@ button.m-sheet-grab {
 .m-seg > button {
   min-height: var(--nx-ctl-xs);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:pwa-drawer-chrome（2026-10-06 用户实拍）—— 手机抽屉顶部与底部的三处
+ *
+ * ① 品牌行与抽屉头**各自带一份顶内距**：品牌行 34px 之后 `.m-drawer-head` 又留
+ *    54px（那是给 iOS 状态栏的），于是「会话」标题之前堆了 88px 空白。安全区只该
+ *    由**最顶上那个元素**让一次，所以把它挪到品牌行，抽屉头退回一格普通内距。
+ * ② `.m-brand` 26px 在 390 宽上偏大（用户：「请帮我变小点」）。
+ * ③ 底栏三件高度 63 / 44 / 22 且顶端对齐，看着散。`.m-row` 库定义是列向（图标
+ *    压在文字上），在这一格里读起来像没做完的标签页；改成一行的图标 + 文字，
+ *    并与另两件共一条中线。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* ① 安全区只让一次，让在最顶上的品牌行 */
+  .m-drawer > .nx-row {
+    padding-top: env(safe-area-inset-top, 0px);
+    align-items: center;
+  }
+  .m-drawer > .nx-row + .m-drawer-head {
+    padding-top: var(--nx-sp-2);
+  }
+  /* ② 品牌图形收小；文字与徽章跟着回落一档 */
+  .m-drawer > .nx-row > .m-brand {
+    height: 20px;
+  }
+  .m-drawer > .nx-row > .m-t-b {
+    font-size: var(--nx-fs-cap);
+  }
+  /* ③ 底栏：三件共中线；「设置」那一枚改成一行（图标 + 文字） */
+  .m-drawer-foot {
+    align-items: center;
+  }
+  .m-drawer-foot > .m-row {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--nx-sp-2);
+    padding-top: var(--nx-sp-2);
+    padding-bottom: var(--nx-sp-2);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:pwa-row-actions-and-wrap（2026-10-06 用户实拍）
+ *
+ * ① 抽屉里会话行尾那枚「⋯」实测 **28×36**，低于 M-11 帧 C 的 44 硬下限 ——
+ *    用户原话「欢迎对话这种 3 个点点不了」。盒子保持 28（那是画板行尾动作的
+ *    尺寸），命中区用 `::after` 外扩到 44（与 DSN-04 同一手法）。
+ * ② 转录里长 URL / 长标识符会被 `.d-chat` 的 `overflow-x: hidden` 直接裁掉 ——
+ *    外层必须裁（横滚只能由内容自己的容器承担），所以要在**内容层**给它断行：
+ *    markdown 正文的 `overflow-wrap: anywhere` 管不到 `code` / `a` 里那一串，
+ *    它们继承了 `white-space` 却拿不到断行规则。用户原话「很多字都看不到」。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* ① 行尾动作钮的命中区外扩到 44（盒子不动） */
+  .m-drawer .m-row .d-iconbtn,
+  .m-drawer .m-row .m-iconbtn {
+    position: relative;
+  }
+  .m-drawer .m-row .d-iconbtn::after,
+  .m-drawer .m-row .m-iconbtn::after {
+    content: "";
+    position: absolute;
+    top: calc((var(--nx-touch-min) - 36px) / 2);
+    bottom: calc((var(--nx-touch-min) - 36px) / 2);
+    left: calc((var(--nx-touch-min) - 28px) / 2);
+    right: calc((var(--nx-touch-min) - 28px) / 2);
+  }
+  /* ② 转录里的长串就地断行，别让它把整行顶出可视区 */
+  .m-scroll .m-md code,
+  .m-scroll .m-md a,
+  .m-scroll .m-md .m-mono,
+  .m-scroll .m-md td,
+  .m-scroll .m-md th {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:pwa-never-clip（2026-10-06 用户实机 · 192.168.1.4:30141）
+ *
+ * 用户实拍：转录正文右侧被切掉（「get_t」「v5-fo」「打包排除 .」都断在同一列）。
+ * 但我在 420×900 下量不到任何超宽元素（`.d-chat-inner` 384、无子元素超出内容盒），
+ * 所以**没有定位到具体是哪一个盒子** —— 最可能是安卓侧的字号/缩放把某一行顶宽了。
+ *
+ * 这一条不去猜根因，只钉住一条不变量：**内容永远不许被静默裁掉**。
+ *   · `.d-chat` 由 `overflow-x: hidden` 改成 `auto`：真顶宽了也能滑过去看到，
+ *     而不是无声无息少半行（用户原话「压根就看不到」）。
+ *   · 列链上补 `min-width: 0` / `max-width: 100%`：flex 子项的默认 `min-width: auto`
+ *     会让一个长不可断串把整列撑开，这是这类「右侧被切」最常见的机制。
+ * 外层仍不承担横滚（那是内容自己容器的事），所以只在真的溢出时才会出现横滚条。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .m-scroll.d-chat {
+    overflow-x: auto;
+  }
+  /* 2026-10-06 复现到位：打开「重构本地 30141 端口网站」这个会话，
+     420 宽的屏上 `.d-chat-inner` 实测 **548px**（右缘 566），右边 146px 一直在屏外。
+     不是长 URL，是**工具卡里那行长命令**：`.m-tool-head` 546 / `.m-tool-head .m-grow`
+     426 —— flex 子项默认 `min-width: auto`，等于「不许比我的 min-content 窄」，
+     于是一行不可断的命令把整条列链一路撑宽（`.m-msg-ai` 548 → `.d-chat-inner` 548）。
+     修法：把**整条列链**都放开收缩许可，并让工具卡头那一行自己省略 —— 这正是画板
+     M-02 的口径（「代码、表格、附件都自带滚动，不许把整屏撑开」）。 */
+  .m-scroll .d-chat-inner,
+  .m-scroll .d-chat-inner > *,
+  .m-scroll .m-msg-ai,
+  .m-scroll .m-msg-ai > *,
+  .m-scroll .m-msg-user,
+  .m-scroll .m-md,
+  .m-scroll .m-tool,
+  .m-scroll .m-tool-head,
+  .m-scroll .m-tool-head > *,
+  .m-scroll .m-code,
+  .m-scroll .m-code-head {
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* 只放开收缩许可还不够 —— 实测 `.d-chat-inner` 仍是 548（被内容撑宽，不是被
+     min-width 顶住）。所以在这一条列链上把宽度**钉死为容器的 100%**：盒子不再
+     由内容决定，多出来的部分留在卡片内部（工具卡头已改成省略号，代码块自带横滚）。
+     `.m-msg-user` 刻意不在名单里 —— 它是 82% 右贴的气泡，写 `width: 100%` 会把
+     气泡拉满整行，那是另一回事。 */
+  .m-scroll > .d-chat-inner,
+  .m-scroll .d-chat-inner > *,
+  .m-scroll .m-msg-ai,
+  .m-scroll .m-msg-ai > *,
+  .m-scroll .m-tool,
+  .m-scroll .m-tool-head,
+  .m-scroll .m-code {
+    width: 100%;
+  }
+  /* 工具卡头那一行：长命令省略，不再把卡片撑宽（正文仍在展开体里，不受影响） */
+  .m-scroll .m-tool-head > .m-grow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:pwa-setrow-nowrap（2026-10-06 用户实拍 · M-05 帧 B 通用页）
+ *
+ * `.m-setrow` 是「标签 + 说明 / 控件」的一行，行尾控件（重置换行成「重」「置」、
+ * 以及同类小钮）在 390–420 宽上被挤成两行 —— 板面里这些控件永远是**一行**的
+ * （`.m-btn.sm.ghost` / `.m-badge` / `.m-switch`）。行尾件一律不许折行；
+ * 真的放不下时由说明文字先让位（它有 `min-width: 0` 与多行能力）。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .m-settings .m-setrow > button,
+  .m-settings .m-setrow > .m-btn,
+  .m-settings .m-setrow > .m-badge,
+  .m-settings .m-setrow > .m-switch,
+  .m-settings .m-setrow > .m-picktag {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  /* 说明那一格才是可以让位的一方 */
+  .m-settings .m-setrow > .m-setrow-body {
+    min-width: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:setrow-readability（2026-10-06 用户实拍 · 桌面「手机与推送」）
+ *
+ * ① 说明那格被压成一字一行。`.d-set-row-box { flex: 1 1 auto; min-width: 0 }`
+ *    —— `min-width: 0` 是给省略号用的，但它的另一面是**可以被压到 0 宽**：
+ *    同一行里只要有个不肯缩的兄弟（按钮 / 输入框 / 长徽章），说明就退成一条
+ *    竖着的单字列（实拍：「用手机相机扫码，或输入 6 位配对码。」每行一个字）。
+ *    给它一个**可读下限**：低于这个宽度就不再让位，宁可让行本身溢出也不把字压死。
+ *    `min()` 保证窄容器里不会反过来撑破（下限不超过容器宽）。
+ *
+ * ② 行尾动作区不许被挤走。`.d-set-row > .d-grow-last` 已经是 `flex: 0 0 auto`，
+ *    但只要行内还有别的 `1 1 auto`，它仍可能换行出去被卡片裁掉 —— 行的换行只在
+ *    明确需要时开（逐个组件的 inline `flexWrap`），库这一层不默认开。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+.d-set-row > .d-set-row-box {
+  min-width: min(100%, 12ch);
+}
+/* 行尾那一格永远不许缩；它右边的东西（边距）可以让，它自己不让 */
+.d-set-row > .d-grow-last,
+.d-set-row > .d-btn {
+  flex: 0 0 auto;
+}

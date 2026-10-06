@@ -326,3 +326,50 @@
     }
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * §6 技能页工具条的窄屏折行（2026-10-06 用户实拍）
+ *
+ * 上面 §3 只处理了页头那一行，**工具条这一行漏了**：它装着六件 —— 搜索框 /
+ * `.d-sep-v` / 四枚作用域芯片（`.m-pickbar`）/ `.d-grow` / 计数徽章 / 「全部更新」。
+ * 桌面档这六件排在 `.pw-stools` 里（写死 `height: 40px`、不换行）；**手机档的容器
+ * 换成了 `.m-cardgroup.m-fieldrow`**（同一批控件换一个壳），所以窄屏规则必须打在
+ * 这个类上 —— 打 `.pw-stools` 一条都匹配不到（实测过）。
+ *
+ * 后果正是用户看到的两个：芯片条被挤到 187px、四枚 `.m-picktag` 各只剩 34px
+ * （板面是 ~105px），并且内容溢出到下面一行压住「添加技能」。
+ *
+ * 改法：让这一行可换行，排成三行（搜索 / 芯片 / 计数+动作）。`:has(> .m-pickbar)`
+ * 把范围锁死在「带档位条的那种行」上，其余 `.m-fieldrow` 卡片不受影响。
+ * 桌面（>640px）整段不生效。
+ * ---------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) {
+    height: auto;
+    flex-wrap: wrap;
+    row-gap: var(--nx-sp-2);
+  }
+  /* 搜索框独占一行 */
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) > .m-searchfield {
+    flex: 1 1 100%;
+  }
+  /* 竖分隔线在换行后没有意义（它标的是「左右两半」） */
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) > .d-sep-v {
+    display: none;
+  }
+  /* 芯片条独占一行，四枚等分 —— 与板面 M-11 帧 C 的档位条同一口径 */
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) > .m-pickbar {
+    flex: 1 1 100%;
+    padding: 0;
+  }
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) > .m-pickbar > .m-picktag {
+    min-width: 0;
+  }
+  /* 计数与动作落回一行、靠右 */
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) > .d-grow {
+    display: none;
+  }
+  .m-cardgroup.m-fieldrow:has(> .m-pickbar) > .d-badge {
+    margin-left: auto;
+  }
+}

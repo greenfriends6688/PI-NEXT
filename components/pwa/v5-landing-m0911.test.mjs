@@ -75,7 +75,7 @@ test("M-11 帧 C：`.m-switch` 的盒子回板面 29px，命中区仍达 44", ()
      这枚开关只出现在设置里的两个分节（定时任务 / 手机与推送）。 */
   assert.match(
     pwaSettings,
-    /@media \(max-width: 640px\) \{\s*\n\s*button\.m-switch \{\s*\n\s*\/\*[^\n]*\*\/\s*\n\s*min-height: 0;\s*\n\s*position: relative;/,
+    /@media \(max-width: 640px\) \{[\s\S]*?button\.m-switch,[\s\S]*?span\.d-switch \{[\s\S]*?min-height: 0;/,
     "≤640px 必须撤掉 DSN-04 补在 `button.m-switch` 上的 min-height（否则盒子是 36 不是板面的 29）",
   );
 
@@ -87,13 +87,20 @@ test("M-11 帧 C：`.m-switch` 的盒子回板面 29px，命中区仍达 44", ()
     /\.m-switch::after \{ content: ""; position: absolute; top: 2\.5px; left: 2\.5px; width: 24px; height: 24px;/,
     "滑块那一格必须仍是 `::after`（守卫测试据此判断接线层有没有抢错伪元素）",
   );
-  /* 四个方向用 longhand、除数取**正数**：`inset: calc((v - 29px) / -2)` 那种
-     除以负字面量的写法是无效 calc，PostCSS 会把它连同后面整段一起丢
-     （实测：规则没进产物，`.m-switch` 仍是 48×36）。 */
-  assert.match(
+  /* 命中区外扩**已撤**（2026-10-06 用户实拍）：`::before` 那一半从头到尾没量到
+     过真实命中数，却在技能页里把开关画坏了（一个 ~40px 的灰圆压在「85/87」计数器上，
+     开关本身也偏出行的右缘）。等价约束改成两条：
+       ① 盒子必须是板面的 48×29（这一半是验过的，保留）；
+       ② `::before` 不许回来。
+     要补命中区，正确落点是让**整行**成为开关的点击目标，不是给 29px 的小件
+     套一个 44px 的透明盒。 */
+  // 两种标签都要覆盖：分组总开关是 `<span class="m-switch">`，只写 button 会漏掉它
+  // （2026-10-06 用户实拍：那一枚渲染成灰圆压在「85/87」上）。
+  assert.match(pwaSettings, /button\.m-switch,\s*\n\s*span\.m-switch,\s*\n\s*button\.d-switch,\s*\n\s*span\.d-switch \{[\s\S]*?min-height: 0;/);
+  assert.doesNotMatch(
     pwaSettings,
-    /button\.m-switch::before \{[^}]*top: calc\(\(29px - var\(--nx-touch-min\)\) \/ 2\);[^}]*bottom: calc\(\(29px - var\(--nx-touch-min\)\) \/ 2\);[^}]*left: calc\(\(48px - var\(--nx-touch-min\)\) \/ 2\);[^}]*right: calc\(\(48px - var\(--nx-touch-min\)\) \/ 2\);/,
-    "命中外扩必须落在 `::before` 上，用四个 longhand + 正除数，量由 `--nx-touch-min` 减去板面自己的 29/48 推出（不许写 7.5px 这种字面量，也不许除以负字面量）",
+    /\.m-switch::before/,
+    "开关的 `::before` 命中区外扩已撤 —— 它会破坏开关本身的渲染，不要加回来",
   );
   assert.doesNotMatch(
     forms,
