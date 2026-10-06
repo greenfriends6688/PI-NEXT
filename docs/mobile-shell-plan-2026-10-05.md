@@ -1,388 +1,508 @@
-# 移动端外壳方案（iOS + Android）—— 2026-10-05
+# 移动端方案（iOS + Android，自己装，不上架）—— 2026-10-05
 
-> 目标：把本仓已有的 PWA 原样装进一个原生 App 壳，同时支持 iOS 与安卓。
-> 参照项目：`pi参考项目/pi-移动端`（PiRemote）。**结论是不抄它的实现，只抄它的踩坑记录。**
-
----
-
-## 0. 先回答「这事到底需不需要」
-
-本仓的 PWA **今天在手机上已经能用**（`app/manifest.ts` 有 manifest、`public/sw.js` 有 SW、
-`components/pwa/*` 有一整套手机形态、还有 6 位码配对与原生级推送）。所以外壳的增量价值只有四条：
-
-| 外壳带来 | 现状 |
-| --- | --- |
-| 应用商店 presence / 独立图标 / 不再手输 `192.168.x.x:30141` | 手输 |
-| **原生本地通知**（Web Push 在 WebView 里拿不到 subscription） | 只有 Web Push（浏览器里有效） |
-| 系统返回键 / 更稳的输入法与安全区 | 自己做的手势，与系统返回无关联 |
-| 一个不用记的固定入口（App 内可切换服务器地址） | 每次自己敲 |
-
-**如果只要「在手机上用」，PR-1 + PR-2 就够了**（PWA 修两处 + 加到主屏）。
-本方案剩下的 PR 只在这四条都仍然不够时才做。这条先钉死，免得后面把工程量投到不需要的地方。
+> 目标：把 PI NEXT 装进手机里的一个 App 壳，**自己用、自己装、不上架**，能在家庭网络外访问。
+> 参照：`pi参考项目/MusePi-main`（Capacitor + cloudflared + APK）、`paseo-main`（daemon + 多客户端）、`pi-移动端`（KMP 原生，反面教材）。
 
 ---
 
-## 1. 参照项目到底做了什么（以及我们为什么不做）
+## 0. 目标与非目标
 
-`pi-移动端` 是 **两件独立的东西**：
+**要**
+- 安卓一个 APK，iOS 一个可安装的包，都装在自己手机上
+- 手机能连到家/公司的电脑，**不在同一局域网时也能用**（你明确要的）
+- 跑完有通知，点通知回到那个会话
 
-1. `app/` —— Kotlin Multiplatform + Compose Multiplatform 写的**原生客户端**，
-   6.6k 行 Kotlin（`MessageView.kt` 单文件 1365 行），iOS 侧 38 行 Swift 只做 `@main` + 安全区。
-2. `server/` —— **另一个独立的 Node 进程**（`pi-remote-bridge`，1.5k 行 TS，端口 30150），
-   自己 `createAgentSession()` 起第二个 agent 实例，自己定义 `/api/v1/*` + WebSocket 协议 v2，
-   再由 Kotlin 侧**手工镜像**一份 `Protocol.kt`（587 行）。
-
-它为什么值得存在：手机流量下要把整个 session 压到能推送的量级 —— 8KB 文本截断、thinking 预览 200 字、
-图片只发 `{ref,mime,bytes}` 占位、WS 断线用 `seq` + `touched: Map<itemId, seq>` 精确续传、
-`hello` 作为唯一重同步路径、外加 Android 前台服务保活 + 本地通知。
-
-**我们不需要这些**，因为：
-
-| PiRemote 的做法 | 本仓已有的等价物 |
-| --- | --- |
-| 自建 `/api/v1/sessions/*` + 缩短 DTO | `app/api/sessions/*` + SSE，原样全量 |
-| 手写 WebSocket 协议 v2 + `Protocol.kt` 镜像 | 现成的 `app/api/agent/[id]/events` SSE |
-| 独立 bridge 进程 + 第二份 agent | `lib/rpc-manager.ts` 里已有的 wrapper |
-| 6.6k 行 Kotlin 消息渲染（markdown/diff/图片缩放） | `components/MessageView.tsx` + `MarkdownBody.tsx` |
-| 明文 token 存 DataStore | 现成的 `pi-web-lan` httpOnly cookie + `?t=` |
-
-所以本方案的形态是 **WebView 壳 + 现有 PWA 原样加载**，socket 协议、消息渲染、状态管理、分页、
-压缩、工具审批全部零改动。**唯一的新增代码是原生侧的几百行，以及 PWA 侧的三处小改动。**
-
-### 从参照项目里明确要抄的（免费的踩坑清单）
-
-全部来自 `pi参考项目/pi-移动端/app/ios-build.md` 与 `app/AGENTS.md`：
-
-- iOS ATS 要开 `NSAllowsLocalNetworking`（**不要** `NSAllowsArbitraryLoads`）
-- iOS 14+ 访问局域网必须写 `NSLocalNetworkUsageDescription`，否则 `http://192.168.x.x` 直接被拦
-- Android manifest 要 `usesCleartextTraffic`
-- `CADisableMinimumFrameDurationOnPhone: true`，否则 `PlistSanityCheck` 启动即崩
-- 「离开 App 后 agent 跑完 → 点通知回到会话」这个能力，参照项目用
-  `AgentForegroundService` + `startForeground` 写在 **`onCreate`** 而非 `onStartCommand`
-  （OEM 后台启动延迟会吃掉 ~5s 窗口），且 `startForegroundSafely()` 失败时吞异常 + `stopSelf()`，
-  绝不让 `ForegroundServiceDidNotStartInTimeException` 把进程带走
-
-### 明确不抄的
-
-KMP/Compose 工具链、Gradle 9.7 + AGP 9.3.1 + Kotlin 2.4.10 + CMP 1.11.1 的版本矩阵、
-CMP 缺 `WindowInsets.imeAnimationTarget` 的 iOS actual、xcodegen + 4 级 JDK 探测、
-免费 Personal Team 每周重签、Aliyun 镜像 `exclusiveContent` 配置、`qrcode`/`ws`/`tsx` 依赖、
-payload 缩短层、`shorten.ts`/`refs.ts`/`items.ts`/`translate.ts` 整套。
+**不要**
+- 不上架（App Store / 应用商店），所以**不需要过 4.2 审核**
+- 不做隧道自研、不做 E2E 中继、不做离线缓存
+- 不重写 UI（这是 `pi-移动端` 的 6.6k 行 Kotlin 和 MusePi 的 52k 行 guest-client 的教训）
 
 ---
 
-## 2. 六条决策（先定，后面每个 PR 都从这来）
-
-### D1. 手写壳，不用 Capacitor / Tauri / WebView 框架
-
-- Capacitor 解决的是**插件生态**（相机、推送、文件系统）。我们从插件生态里只需要一个函数：**发本地通知**。
-- 手写成本：Android 一个 `MainActivity.java`（~90 行）+ 一份 `build.gradle`；iOS 一个
-  `ContentView.swift`（~50 行）+ 一份 `project.yml`。**没有一个第三方依赖。**
-- 代价：以后要相机 / 文件选择器 / 生物识别，都得手写原生代码或后补依赖。
-- 本仓已有手写 Electron 打包的先例（`electron/` + `scripts/`），风格一致。
-
-### D2. LAN-only，不做隧道、不做 APNs/FCM 远端推送
-
-- 参照项目就是 LAN-only，且本仓 `fork:lan-access` 的 6 位码 / 只读令牌本来就是 LAN 语义。
-- **跨网络通知已经有免费的替代品**：`lib/im-bridge.ts` 的 `im_send`（飞书 / 钉钉 / 企业微信 / Slack / Telegram /
-  自建 webhook）在会话跑完时就能推 —— 那是真· Anywhere 的通知，不需要 APNs、不需要证书、不需要后台模式。
-- 天花板写清楚：**App 被系统杀掉 + 手机不在同一网络 = 收不到通知。** 需要真远端就接 IM 桥，不要给壳加 APNs。
-
-### D3. 通知走**原生本地通知**，不走 Web Push
-
-- Web Push（`lib/web-push.ts` VAPID + SW）在裸 WebView 里拿不到 subscription：
-  iOS 只给「已添加到主屏的 PWA」授权，Android WebView 的 FCM 通道不成立。
-- 但 `lib/browser-notifications.ts` 已经是三层链：`nativeNotify`（Electron）→ SW → `new Notification`。
-  我们只要把 `window.piWebDesktop` 旁边加一个 `window.piWebMobile`，**复用现成的第一层**。
-  改动量：一个 `typeof` 探测 + 两侧各 ~60 行原生。
-
-### D4. 认证沿用现有 `pi-web-lan` cookie，不发明新方案
-
-- `proxy.ts` 的 matcher 只覆盖 `/` 与 `/api/**`，`app/pair/page.tsx` **天然免鉴权**可打开。
-- `WKWebsiteDataStore.default()` 与 Android `CookieManager` 都**持久化** cookie（前者是默认，非 `nonPersistent()`）。
-- cookie 是 `secure: false`，明文 http 直接可用；SSE 走 cookie 天然成立（这也是 `?t=` 存在的根本原因 —— `EventSource` 不能带 header）。
-- 因此壳的登录流程 = 打开 `/pair` → 输 6 位码 → 完事。**壳里没有登录页。**
-- 已知天花板（写进文档，不修）：cookie 是 **host-only**，绑在配对时用的那个 IP 上；Mac 换了 DHCP 地址要重新配对。
-  缓解：壳记住上次地址并允许一键改（PR-5）。
-- **前置条件（必须写在首屏）**：`bin/pi-web-options.js` 只有在存在 LAN token 时才绑 `0.0.0.0`，
-  否则只绑 `127.0.0.1`（手机根本连不上）。所以用户必须先在桌面
-  「设置 → 手机与推送 → 启动」启动 LAN（该动作会现生成 `~/.pi/agent/lan-access.json`），
-  然后 `bin/lan-supervisor.cjs` 自动重启子进程。壳的首次运行页要把这一步写清楚。
-
-### D5. Android **不做** edge-to-edge；iOS 做
-
-- `env(safe-area-inset-*)` 在 Android WebView 上要 Chromium 128+ 且应用走 edge-to-edge 才生效，
-  老版本恒为 0。本仓约 20 处 CSS 依赖 `env(safe-area-inset-*, 0px)`（`fork-ui.css:1765` 的 `fork:pwa-safe-area` 块、
-  `globals.css:1020/1861/1901/...`、`settings.css:669`、`pwa-*.css` 等），且**都带 0px 兜底**。
-- 所以：Android 让系统正常 inset，`env()` 取 0，现有 CSS 一行不改就是对的。**这就是最省的做法。**
-- iOS 侧 `layout.tsx` 已经是 `viewportFit: "cover"` + `appleWebApp.statusBarStyle: "black-translucent"`，
-  只需 `ContentView` 全屏铺开（参照项目 `ContentView.swift` 里的 `.ignoresSafeArea()`，不加会 letterbox）。
-
-### D6. 壳内**关掉 Service Worker**
-
-- `components/PwaRegistration.tsx` 只在 prod 注册；`public/sw.js` 的 `install` 会 `primeShellCache()` 抓 `/` 并缓存，
-  导航是 network-first（8s 超时）→ **回落到缓存的旧壳**。原生 App 里这没有离线需求，只会造成「改了 bug 但 App 里还是旧的」。
-- 同一个 SW 还让 `navigator.serviceWorker.ready` 可能挂住，影响推送注册。
-- 改动：`if (window.piWebMobile) return;` —— 外加把已存在的 SW 反注册掉。**一行守卫，本方案性价比最高的一行。**
-- 顺带：`app/manifest.ts` 的 `theme_color: "#1a1a1a"` 与 `layout.tsx` viewport 的 `#ffffff`/`#181818` 是两个不一致的源，顺手统一。
-
----
-
-## 3. 壳的技术规格（两侧共同）
-
-| 方面 | 取值 | 理由 |
-| --- | --- | --- |
-| 起始 URL | `http://<host>:<port>/pair`（首次）→ `/` | `/pair` 免鉴权（D4） |
-| 端口 | 默认 30141 | 与 `bin/pi-web-options.js` 的 `DEFAULT_PORT` 一致 |
-| JS / DOM storage / cookie | 全开；`localStorage` 走默认持久化存储 | 记住服务器地址 |
-| 文件选择 | `input type=file` 走系统选择器；**不加** `capture`（保持与 `ChatInput.tsx:4254` 一致） | 现有桌面行为 |
-| 外链 | 站外 URL 用系统浏览器打开，不在壳内导航 | 防导航逃逸 |
-| 新窗口 | `target=_blank` → `createWindow` 拒绝或转系统浏览器 | 同上 |
-| 允许的 scheme | `http/https` | 其余（`mailto:`/`tel:`）转系统 |
-| overscroll | 关（Android `OVER_SCROLL_NEVER`，iOS `bounces=false`） | 与 `PwaPullToRefresh`（24/64px 阈值）抢同一个手势 |
-| 左缘返回 | Android 关系统手势；iOS `allowsBackForwardNavigationGestures = false` | 与 `components/pwa/MobileGestures.tsx` 自绘的左缘滑动返回（56px 触发）重复 |
-| 软键盘 | Android `adjustResize` + `windowSoftInputMode` | 已有 `hooks/useViewportHeight.ts` 处理 `visualViewport`，需实测 |
-
----
-
-## 4. 改动清单（Web 侧，只有三处 + 一份新文件）
+## 1. 最终形态
 
 ```
-新增  lib/mobile-shell.ts                 isMobileShell() —— 探测 window.piWebMobile（结构化类型，不 import 原生代码）
-改    components/PwaRegistration.tsx      壳内不注册 SW（并反注册已存在的）
-改    app/pair/page.tsx                   加「服务器地址」输入 + 记住上次地址 + 失效原因回显
-改    app/api/agent/[id]/route.ts（?）     不改。见下
-复用  lib/browser-notifications.ts        把 window.piWebMobile 接进已有 nativeNotify 层（3 行探测 + 类型）
-新增  hooks/useNativeBack.ts              系统返回键注册表（面板栈未实现，见 PR-7）
+Mac
+ └─ pi-web（Next.js）绑 127.0.0.1:30141，永不公开绑网卡
+     └─ 稳定远程地址（Tailscale / cloudflared 命名隧道）
+         └─ 令牌闸门 ON（~/.pi/agent/lan-access.json 必须存在）
+
+手机
+ └─ Capacitor 壳（Android + iOS）
+     ├─ WebView 加载 https://<稳定域名>/        ← 就是你的 PWA，一行 UI 都不改
+     ├─ 鉴权：现有 6 位码 → 现有 pi-web-lan cookie
+     ├─ 原生：安全区 insets / 键盘 / 返回键 / 断网重试页
+     └─ 插件：本地通知 / 角标 / 深链 / 安全存储
 ```
 
-`proxy.ts` / `lib/lan-access.ts` / `lib/lan-pair.ts` / 所有 SSE 路由**一行不改**。
+**唯一的新增 UI 代码是"手机上不存在"的东西**（insets、键盘、返回栈、通知），页面本身原样加载。
 
 ---
 
-## 5. PR 拆分
+## 2. 关键决策与依据
 
-每个 PR 都可独立验证、独立回滚。粗估不含 review 的净工时。
+### D1. 用 Capacitor，**不用**手写原生壳
 
-### PR-1 · 壳的骨架：Android 可安装可加载
+我前一版说"手写 140 行、零依赖"——**那条是错的**，我只数了壳自己的行数，没数它必须重造的东西。
 
-**目标**：`./gradlew assembleDebug` 出 APK，装到安卓机上，能打开并显示 `/pair` 页面。
+MusePi 的事实（`packages/mobile`）：约 **230 行配置 + Java**，换来 **6 个插件**：
 
-新增（全部新目录，不碰既有源码）：
-```
-mobile/android/settings.gradle.kts
-mobile/android/build.gradle.kts
-mobile/android/gradle.properties
-mobile/android/app/build.gradle.kts        AGP + 一个 java library，compileSdk 35 / minSdk 24 / targetSdk 35
-mobile/android/app/src/main/AndroidManifest.xml   usesCleartextTraffic、POST_NOTIFICATIONS、piweb:// 深度链接
-mobile/android/app/src/main/java/pi/web/mobile/MainActivity.java   ~90 行，见下
-mobile/android/app/src/main/res/…         strings / themes / mipmap（图标先用 build/icon.png 缩放）
-```
+| 文件 | 行数 |
+|---|---|
+| `capacitor.config.ts` | 37 |
+| `MainActivity.java` | 40 |
+| `InsetsPlugin.java` | 40 |
+| `app/build.gradle` + `AndroidManifest.xml` | ≈110 |
 
-`MainActivity.java` 承担：建 WebView（`setJavaScriptEnabled`、`setDomStorageEnabled`、`setDatabaseEnabled`、
-`setMediaPlaybackRequiresUserGesture`）、`CookieManager.setAcceptCookie(true)` + 启动时 `flush()`、
-`setOverScrollMode(OVER_SCROLL_NEVER)`、`WebViewClient` 的 URL 白名单 + 站外转系统浏览器、
-`onBackPressed` 先问 JS 再退出、`WebChromeClient.onPermissionRequest`（相机/麦克风给 `RESOURCE_VIDEO_CAPTURE`）。
+手写要自己实现：通知渠道 + `PendingIntent` + Android 13 运行时权限、键盘 inset、返回栈、角标、深链、insets。**手写 = 更多代码 + 更少能力。**
+
+Capacitor 8.4.1（MusePi 用的版本）/ Gradle 8.14.3 / AGP 8.13.0 / Java 21 / compileSdk 36 / minSdk 24。**用 Capacitor 8 不用 9**（9 要求 Xcode 27+）。
+
+### D2. 客户端**打包**这条路走不通（所以必须 `server.url`）
+
+两个参照项目都收敛到「**客户端能独立于服务器打包**」：
+
+- MusePi：`packages/guest-client`，**52,000 行**独立 React SPA，`webDir: "dist"` 打进 APK，运行时只连数据通道
+- Paseo：620 个 `.tsx` 的 RN app，同样打包，只连 WS
+
+**PI NEXT 做不到**：UI 和 Next server 是一体的（SSR、40 组 API 路由、cookie 鉴权、SSE）。所以只能 `server.url` 指向远程地址。
+
+Capacitor 官方对 `server.url` 的标注是「不用于生产」、维护者说过「加载外部网站可能被 App Store 拒」。**这两条对你都不适用**——你不上架，App 装在自己手机上。这条决策的代价只有一个：**断网时是远程页面加载失败**（见 §3.2）。
+
+### D3. 地址必须**稳定**（不能用 quick tunnel 的随机域名）
+
+MusePi 用 `cloudflared` quick tunnel（`https://abc123.trycloudflare.com`，重启就变）能work，是因为它的凭证在**链接 fragment** 里（`room key`，浏览器不发给服务器），链接自带 URL。
+
+**PI NEXT 的凭证是 host-only cookie**（`proxy.ts` 的 `cookies.set` 没有 `domain` 字段）→ 域名一变 cookie 失配 → 每次重启都得重新配对。
+
+所以：**稳定域名是硬要求。**
+
+| 方案 | 域名 | 顺带给 HTTPS | 代价 |
+|---|---|---|---|
+| **Tailscale**（推荐） | `100.x.y.z`（稳定 IP） | ❌（http，但走 WireGuard 加密） | 手机装 Tailscale，免费 |
+| `tailscale serve` / `funnel` | `<机器>.<tailnet>.ts.net`（稳定） | ✅ 证书装在你机器上 | 免费 |
+| cloudflared **命名**隧道 | 你自己的域名 | ✅ | 要一个域名 + Cloudflare 账号 |
+| cloudflared quick 隧道 | **随机，重启就变** | ✅ | 只能用来验证，不能长期用 |
+
+**默认选 Tailscale**：零代码、免费、稳定、不用域名。手机和电脑都在同一个 tailnet 里，等于给手机一个"到哪都能用的局域网"。
+
+### D4. 令牌闸门**必须**开
+
+MusePi 的 `tunnel.ts` 文件头写着：
+
+> The public URL is NOT a secret by itself — collab security is carried by the room key in the link fragment … so exposing the tunnel URL is no worse than sharing through the default relay.
+
+**这个论证对 PI NEXT 不成立。** 你的信任边界是 token，不是 fragment。而 `checkLanAccess()` 在**没有令牌时恒放行**（`lib/lan-access.ts`）。
+
+> 走任何远程地址之前，先在桌面「设置 → 手机与推送」把 LAN 打开（生成 `~/.pi/agent/lan-access.json`）。
+
+不需要新造：`lib/lan-access.ts`（48-hex token + 只读令牌 `HMAC-SHA256(full, "pi-web-lan-readonly:v1")`）+ `lib/lan-pair.ts`（6 位码、10 分钟、单次使用、30 次/5 分钟节流）已经**比 MusePi 更完整**——他们的 `pair.resolve` 端口（硬编码 8301）没有速率限制。
+
+### D5. 通知走**原生本地通知**，不走 Web Push
+
+WebView 里拿不到 Push subscription（iOS 只给"已加主屏的 PWA"授权，Android WebView 的 FCM 通道不成立）。
+
+MusePi 的做法（`src/app.tsx:298`）值得照抄：**在 `document.hidden` 且新条目落定时**，用 `@capacitor/local-notifications` 发一条本地通知，点它走深链回会话，同时 `@capawesome/capacitor-badge` 加角标、回到前台清掉。**这是"无云推送"**，不碰 APNs/FCM 证书。
+
+### D6. Android 安全区**必须**自己注入（第三次确认）
+
+`env(safe-area-inset-*)` 在 Android WebView **不生效**，即使在 edge-to-edge 模式下。三份独立证据：
+
+1. Capacitor 官方 `SystemBars` 插件文档：WebView < 140 时 `env()` 的值**是错的**（不是 0），插件注入 `--safe-area-inset-*` 兜底
+2. Chromium bug 40699457
+3. MusePi 自己写了 `InsetsPlugin.java`（40 行），注释原文：*"Android WebView does not surface these via env(safe-area-inset-*) even in edge-to-edge mode"*
+
+本仓约 20 处 CSS 依赖 `env(safe-area-inset-*)`（`app/fork-ui.css:1765` 的 `fork:pwa-safe-area` 块、`globals.css`、`settings.css:669`、`pwa-*.css`）。**这些在安卓壳里全部失效。** 修法见 PR-3。
+
+---
+
+## 3. 两个必须先解决的坑
+
+### 3.1 键盘：原生 resize 有肉眼可见的滞后
+
+MusePi 的 `capacitor.config.ts` 注释原文：
+
+> `'none'` leaves the WebView at full height; the UI follows the keyboard itself via the `--mp-keyboard-inset` CSS variable. The built-in `'native'` resize **lands only after the keyboard animation finishes (visible lag)**.
+
+所以：`Keyboard.resize: "none"` + 在 `keyboardWillShow` 里把高度写进 CSS 变量。本仓已有 `hooks/useViewportHeight.ts` 在监听 `visualViewport`，PR-3 要把两者接起来（不能互相打架）。
+
+### 3.2 断网：远程页面加载失败 = 白屏
+
+Paseo 有个 issue（#8302）就是这个：**iOS 冷启动没网时 WKWebView 白屏挂住**，而且 `server.errorPath` 对 DNS/TLS 失败不可靠。
+
+解法（v1）：Capacitor 的 `server.errorPath` 指向**打包在 webDir 里的 `error.html`**，页面里一个「重试」按钮 `location.href = <远程地址>`。便宜、够用。iOS 上如果实测不可靠，再退到原生 `WKNavigationDelegate.didFailProvisionalNavigation` / `onReceivedError`。
+
+---
+
+## 4. PR 拆分
+
+每个 PR 独立可验证。**PR-1 完成就解决了"不在局域网也能用"。**
+
+---
+
+### PR-1 · 稳定远程地址 + 令牌闸门（**0 行代码**）
+
+**目标**：手机在**关掉 WiFi、只用蜂窝数据**的情况下打开 PI NEXT 并正常使用。
+
+**做什么**
+
+1. 手机和电脑都装 Tailscale 并登录同一账号；`tailscale ip -4` 拿到电脑的 `100.x.y.z`
+2. 桌面：设置 → 手机与推送 → **启动**（生成 `~/.pi/agent/lan-access.json`，`bin/lan-supervisor.cjs` 会自动重启子进程让绑定生效）
+3. 如果用的是**域名**（tailscale serve / cloudflared 命名隧道），加一个环境变量：
+   ```bash
+   PI_WEB_ALLOWED_HOSTS=<你的域名>
+   ```
+   ⚠️ **不要用 `PI_WEB_HOSTNAME`** —— 那个变量在 `bin/pi-web-options.js` 里是**绑定地址**，写域名会直接启动失败。`lib/request-security.ts:68` 两个都读，但只有 `PI_WEB_ALLOWED_HOSTS` 是纯放行语义。
+   纯 IP（Tailscale 的 `100.x.y.z`）本来就被允许（`isApiRequestHostAllowed` 放行任意 IP 字面量），不用配。
 
 **DoD**
-- [ ] `npm run mobile:android:debug` 出 APK，`adb install` 后能看到 `/pair`
-- [ ] 手动在桌面 `npm run prod` + 开 LAN，壳内 6 位码换 cookie 后能进 `/`
-- [ ] SSE 实时流在壳里能出字（证明 cookie 走通，因为 `EventSource` 只能带 cookie）
-- [ ] 连按返回键不崩、不误退出
+- [ ] 手机关 WiFi，蜂窝下打开 `http://100.x.y.z:30141/pair`，输 6 位码，进到会话列表
+- [ ] 手机浏览器**杀掉重开**，仍然是已配对状态（cookie 持久）
+- [ ] 电脑上跑一个 agent，手机能看到实时输出（SSE 通）
+- [ ] **反向验证**：把 LAN token 关掉/删掉 `lan-access.json`，手机应该被拒（证明闸门真的在工作，不是裸奔）
 
-**验证**：真机一台安卓（无则用模拟器，但 `Cleartext` 与通知权限要在真机确认）。
-
----
-
-### PR-2 · 壳的骨架：iOS 可编译可加载
-
-新增：
-```
-mobile/ios/project.yml                    xcodegen（与参照项目一致，pbxproj 生成物不入库）
-mobile/ios/PINextMobile/Info.plist        ATS NSAllowsLocalNetworking、NSLocalNetworkUsageDescription、
-                                          CADisableMinimumFrameDurationOnPhone、UIRequiresFullScreen、
-                                          CFBundleURLTypes = piweb://、UIViewControllerBasedStatusBarAppearance
-mobile/ios/PINextMobile/ContentView.swift ~50 行：UIViewRepresentable 包 WKWebView
-mobile/ios/PINextMobile/PINextMobileApp.swift  @main
-```
-
-`ContentView.swift` 关键点（全部来自参照项目踩坑）：
-```swift
-webView.scrollView.bounces = false                        // 别和 PwaPullToRefresh 抢
-webView.allowsBackForwardNavigationGestures = false       // 左缘返回交给 App 自己
-webView.configuration.websiteDataStore = .default()      // cookie 持久化（D4）
-// 全屏铺开，否则 SwiftUI 会把 representable 内缩到安全区里、Compose 看着像 letterbox
-```
-`Info.plist` 用 `NSAllowsLocalNetworking` 而不是 `NSAllowsArbitraryLoads`。
-
-**DoD**
-- [ ] `xcodegen generate && xcodebuild -sdk iphonesimulator` 通过（先不签名）
-- [ ] 模拟器/真机能加载 `/pair`，cookie 在**杀进程重启后仍在**
-- [ ] 刘海屏下顶栏不被状态栏压住，`env(safe-area-inset-top)` 生效
-
-**先定的事（PR-1 就要问用户）**：Apple 开发者账号。
-免费 Personal Team = **每 7 天重签**，装一次要手动 `devicectl` 装（参照项目 `ios-build.md` 记了整套流程）；
-$99/年 = 一年有效、可 TestFlight。**这决定 iOS 的发版故事，不决定能不能做。**
+**验证**：真机。**这一步不需要任何代码，但它是后面所有 PR 的前提。**
 
 ---
 
-### PR-3 · 壳内禁用 Service Worker（**可先于壳落地，纯 Web 改动**）
+### PR-2 · Android 壳：能装、能连（最小可用 APK）
 
-改：
+**目标**：`adb install` 后，App 打开就是 PI NEXT，能配对、能聊天。
+
+**新增**
 ```
-components/PwaRegistration.tsx     加守卫 + 反注册
-lib/mobile-shell.ts                新增
-app/manifest.ts                    theme_color 与 layout.tsx viewport 对齐；补 maskable 图标与 apple-touch 条目
+mobile/                       ← 新目录，不碰既有源码
+  package.json                @capacitor/core|cli|android ^8.4.1
+  capacitor.config.ts         见下
+  webDir/error.html           断网兜底页（PR-3 用，先建着）
+  android/                    cap add android 生成
 ```
 
-`PwaRegistration` 的守卫形状：
+`capacitor.config.ts`（照 MusePi 的形状）：
+
 ```ts
-if (isMobileShell()) { void unregisterAllServiceWorkers(); return; }   // 壳里没有离线需求
+import type { CapacitorConfig } from "@capacitor/cli";
+
+const config: CapacitorConfig = {
+  appId: "sh.pinext.mobile",        // ⚠️ 定了就不能改，改了等于换一个 App
+  appName: "PI NEXT",
+  webDir: "webDir",
+  server: {
+    url: process.env.PINEXT_SERVER_URL ?? "http://100.x.y.z:30141",
+    androidScheme: "https",
+    // Android WebView 从 https:// origin 出发，连 http://100.x.x.x 会被当混合内容拦掉
+    allowMixedContent: true,
+    cleartext: true,
+    errorPath: "error.html",
+  },
+  android: {
+    allowMixedContent: true,
+    webContentsDebuggingEnabled: true,   // 调试期开，发版关
+  },
+  plugins: {
+    Keyboard: { resize: "none", resizeOnFullScreen: true, autoBackdropColor: "dom" },
+    StatusBar: { overlaysWebView: true, style: "DARK" },
+  },
+};
+export default config;
 ```
 
-**DoD**
-- [ ] 壳里 `navigator.serviceWorker.getRegistrations()` 返回空
-- [ ] 桌面上 prod 行为**完全不变**（现有 `public/sw.test.mjs` 仍绿）
-- [ ] 新增一条测试：注入 `window.piWebMobile` 后 `PwaRegistration` 不注册
+**改（Web 侧，最小）**
+```
+lib/mobile-shell.ts              新增，isMobileShell()
+components/PwaRegistration.tsx   壳内不注册 SW
+```
 
-**为什么单独一个 PR**：它一行不依赖原生代码、桌面端零行为变化、却挡掉了壳化后最难查的一类 bug
-（改了代码 App 里没变）。先合，早受益。
+`PwaRegistration.tsx` 的守卫（**本方案性价比最高的几行**）：
+
+```ts
+if (isMobileShell()) { void unregisterAllServiceWorkers(); return; }
+```
+
+理由：`public/sw.js` 的 `install` 会抓 `/` 并缓存，导航是 network-first（8s 超时）后**回落到缓存的旧壳**。在原生 App 里这没有离线价值，只会造成「改了代码 App 里还是旧的」——这类 bug 极难查。
+
+**DoD**
+- [ ] `npx cap sync android && ./android/gradlew -p android assembleDebug` 出 APK
+- [ ] `adb install -r android/app/build/outputs/apk/debug/app-debug.apk` 装上，打开是 PI NEXT
+- [ ] 壳内完成 6 位码配对，能发消息、能看到流式输出
+- [ ] 壳内 `navigator.serviceWorker.getRegistrations()` 返回空
+- [ ] 桌面端行为**零变化**（`public/sw.test.mjs` 仍绿 + 新增一条「注入 `window.piNextMobile` 后不注册」的测试）
+
+**风险**：`server.url` 是 Capacitor 标注"不用于生产"的路径。对你无所谓（自己装），但要接受**它是把同一条地址写死在配置里**——地址变了要重新打包，除非在 PR-3 里做成可配置（见 §5 的开放问题）。
 
 ---
 
-### PR-4 · 壳内连接流程：服务器地址 + 失效回显
+### PR-3 · 壳内体验：安全区 / 键盘 / 返回键 / 断网重试
 
-改 `app/pair/page.tsx`（已是免鉴权页，逻辑很短，只加不重写）：
-- 「服务器地址」输入（scheme + host + port），存 `localStorage`（壳的默认数据存储会持久化）
-- 进页时若已有地址 + 已配对（`GET /api/lan/access` 返回 `enabled:true` 且请求不带 401）→ 直接 `location.replace("/")`
-- 桌面「生成 6 位码」旁给一个 `piweb://pair/<code>` 深链（PR-7 的深度链接格式在此定稿）
-- cookie 失效（Mac 换 IP）时的原因回显：壳首屏 `GET /` 得 401 → 拼 `?reason=lan` 跳 `/pair`
-- **不要**新增任何鉴权代码：现有 `POST /api/lan/pair/redeem` 已是唯一免 token 写路径，且自带 30 次/5 分钟节流
+**目标**：用起来不像"一个网页塞进盒子"。
+
+#### 3a. 安全区（D6）——本轮最实的一块
+
+MusePi 的 `InsetsPlugin.java` 原样可抄（40 行）：
+
+```java
+@CapacitorPlugin(name = "Insets")
+public class InsetsPlugin extends Plugin {
+  @PluginMethod public void getSystemBars(PluginCall call) {
+    WindowInsets insets = getActivity().getWindow().getDecorView().getRootWindowInsets();
+    float density = getActivity().getResources().getDisplayMetrics().density;
+    int top = 0, bottom = 0;
+    if (insets != null) {
+      top = insets.getInsets(WindowInsets.Type.statusBars()).top;
+      bottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+    }
+    ret.put("top", Math.round(top / density));       // 换成 dp
+    ret.put("bottom", Math.round(bottom / density));
+  }
+}
+```
+
+`MainActivity.java` 里三个必抄的坑（MusePi 的注释都写了原因）：
+```java
+registerPlugin(InsetsPlugin.class);   // 必须在 super.onCreate() 【之前】——bridge 在 super 里构建
+super.onCreate(savedInstanceState);
+WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, i) -> WindowInsetsCompat.CONSUMED);
+
+@Override public void onWindowFocusChanged(boolean hasFocus) {
+  super.onWindowFocusChanged(hasFocus);
+  if (hasFocus) WindowCompat.setDecorFitsSystemWindows(getWindow(), false);   // Android 12+ SplashScreen 会在 onCreate 后恢复 decor-fit
+}
+```
+
+**Web 侧**：把散落的 `env()` 收成单一真值。`app/globals.css` 的 `:root` 里定义：
+
+```css
+:root {
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+}
+```
+
+然后把约 20 处 `env(safe-area-inset-top, 0px)` 等**机械替换**为 `var(--safe-top)`（桌面值一字不变，因为定义就是那个表达式），壳里则由 JS 覆盖：
+
+```ts
+document.documentElement.style.setProperty("--safe-top", `${Number(bars.top)}px`);
+```
 
 **DoD**
-- [ ] 首次：填地址 → 输码 → 进 `/`
-- [ ] 二次启动：不重新输入，自动进 `/`
-- [ ] 模拟 cookie 失效：提示「服务器地址可能已变，请重新配对」而不是白屏 401
-- [ ] LAN 没开（`redeem` 409）时，提示用户去桌面「手机与推送 → 启动」
+- [ ] 安卓真机刘海屏下，顶栏不被状态栏压住、底部输入框不被手势条压住
+- [ ] `grep -rn "env(safe-area-inset" app/` 只在 `globals.css` 的定义处出现
+- [ ] 桌面端在 `env()` 为 0 的情况下视觉零变化（跑一次 `npm run verify:boards`）
+- [ ] 新增一条测试：替换后所有 `--safe-*` 都有定义（`npm run check:styles` 通过）
+
+#### 3b. 键盘（§3.1）
+
+`@capacitor/keyboard`，`resize: "none"`；`keyboardWillShow` → 写 CSS 变量；与现有 `hooks/useViewportHeight.ts` 的 `visualViewport` 逻辑明确分工（壳里用原生值，浏览器里用 visualViewport），不要两个同时改同一个变量。
+
+**DoD**：安卓真机上点输入框，键盘弹出后输入框贴键盘上沿、没有可见滞后；收起后高度复原；iOS 侧同（PR-6 验证）。
+
+#### 3c. 返回键
+
+新增 `hooks/useNativeBack.ts`：`push(handler) → unregister` 的注册表 + `pop()`。
+`components/AppShell.tsx`：面板/弹层打开时注册处理器。
+
+```ts
+const { App } = await import("@capacitor/app");
+void App.addListener("backButton", ({ canGoBack }) => {
+  if (popNativeBackStack()) return;        // 关最上层面板
+  if (canGoBack) window.history.back();
+  else void App.exitApp();
+});
+```
+
+本仓 `popstate` 处理目前为零（`docs/pi-mobile-layout-plan-2026-10-03.md` §5 记着「未做」），所以这是新逻辑。同时 Android 侧关掉系统左缘手势，避免和 `components/pwa/MobileGestures.tsx` 自绘的左缘返回（56px 触发）打架。
+
+**DoD**：开设置弹层 → 返回关弹层；右侧面板 → 返回关面板；都没开 → 退出到后台。桌面键盘快捷键与浏览器 `popstate` 不受影响。
+
+#### 3d. 断网重试（§3.2）
+
+`webDir/error.html`：极简页面 + 「重试」按钮（`location.href = <远程地址>`）+ 「检查电脑是否开机」文案。
+`server.errorPath: "error.html"`。iOS 若实测覆盖不到 DNS/TLS 失败，再加原生 `didFailProvisionalNavigation`。
+
+**DoD**：关掉电脑 / 断掉 Tailscale，App 显示重试页而不是白屏；恢复后点重试能进。
 
 ---
 
-### PR-5 · 原生本地通知（桥 + 三层链的第一层）
+### PR-4 · 通知：本地通知 + 角标 + 深链
 
-新增：
+**新增插件**（照 MusePi 的清单）
 ```
-mobile/android/.../NotifyModule.java         NotificationChannel + POST_NOTIFICATIONS 请求 + PendingIntent 回会话
-mobile/ios/PINextMobile/Notify.swift        UNUserNotificationCenter + 点击回会话
-lib/mobile-shell.ts                          探测 window.piWebMobile.notify / .onOpenSession
-```
-改：
-```
-lib/browser-notifications.ts   getBrowserEnvironment() 里加一支 nativeNotify（现有 Electron 那支的同构复制，~5 行）
-electron/preload.js 不动
-public/sw.js 不动（壳里没有 SW）
+@capacitor/local-notifications  8.x
+@capacitor/app                  8.x   （深链 appUrlOpen / getLaunchUrl）
+@capawesome/capacitor-badge     8.x
+@aparajita/capacitor-secure-storage  8.x   （可选，见 §5）
 ```
 
-要点：
-- 通知**只在 App 进程活着时**发（D2 的天花板）。参照项目的 `AgentForegroundService` 是为了延长这个窗口；
-  我们先不做前台服务，把「App 在后台但没被系统回收」当作可接受场景，**并在通知文案里不承诺更多**。
-- Android 13+ 要运行时请求 `POST_NOTIFICATIONS`，壳首启问一次；拒绝后设置里还能再开。
-- iOS 首次 `UNUserNotificationCenter.requestAuthorization`。
-- 点击通知 → `piweb://session/<id>` → 壳 `evaluateJavascript` 调 `window.piWebMobile.onOpenSession(id)` → AppShell 切到该会话。
-- 渠道分两个：LOW「正在运行」、DEFAULT「已完成」，与参照项目一致。
+**改**
+```
+lib/mobile-notify.ts           新增，桥接层
+hooks/useAgentSession.ts       prompt_done / agent_settled 处挂钩
+components/AppShell.tsx        深链 → 切到会话；回前台清角标
+```
+
+触发条件（MusePi 的做法，照抄）：**`document.hidden` 且一个 run 落定**。
+
+```ts
+if (document.hidden) {
+  await LocalNotifications.schedule({ notifications: [{
+    id: Date.now() % 2147483647,
+    title: "PI NEXT", body: text.slice(0, 140),
+    smallIcon: "ic_stat_pinext",
+    extra: { sessionId },
+  }]});
+  void incrementBadge();
+}
+```
+
+Apple/Google 的深链走 `pinext://session/<id>`；Android 用 `intent-filter` + `singleTop` + `onNewIntent`；iOS 用 `CFBundleURLTypes`。点击 → `evaluateJavascript` 调 AppShell 现成的切会话逻辑。
+
+> 天花板写清楚：**只在 App 进程活着时发**（切后台被系统回收就没了）。这是 D5 的取舍——换真远端推送要 APNs/FCM + 付费 Apple 账号。真要"App 被杀也能收到"，走已有的 `lib/im-bridge.ts`（飞书/钉钉/企微/Telegram），那是真 Anywhere。
 
 **DoD**
-- [ ] 会话跑完且 App 在后台 → 出现本 App 名下的通知（不是 Chrome 品牌）
-- [ ] 点通知 → 直接落到那个会话的转录底部
+- [ ] 手机上发一条消息 → 切到别的 App → 跑完出现本 App 名下的通知（不是浏览器品牌）
+- [ ] 点通知 → 直接落到那个会话
+- [ ] 角标 +1，回到前台清零
+- [ ] 前台看着的时候**不**发通知
 - [ ] 桌面端通知行为不变（`lib/browser-notifications.test.mjs` 仍绿）
-- [ ] 新增测试：桥存在时 `showBrowserNotification` 走 `native` 且**不**碰 `Notification` 构造器
 
 ---
 
-### PR-6 · 系统返回键（Android Back / iOS 无）
+### PR-5 · 在场裁决：通知不吵（**纯 Web，独立可合**）
 
-新增 `hooks/useNativeBack.ts`：`push(handler) → unregister` 的注册表 + `popNativeBackStack()`。
-改 `components/AppShell.tsx`：面板/弹层打开时注册处理器，`popstate` 也接到同一个栈
-（当前仓库 `popstate` 处理为零，`docs/pi-mobile-layout-plan-2026-10-03.md` §5 已把它记为「未做」）。
+**为什么**：现在 `lib/rpc-manager.ts:2651` 的 `notifySessionComplete(sessionId)` 是**无脑推给所有订阅设备**。有了手机壳之后会变成：你在电脑前盯着跑，手机也响；或者你在手机上看，电脑也响。
 
-行为约定（三态）：
-1. 有面板可关 → 关面板
-2. 在 `/pair` → 不处理（交系统）
-3. 都没得做 → 退到后台（第二次按才退出，参照常见 App 行为）
+**抄 Paseo 的 `agent-attention-policy.ts`**（约 30 行纯函数）：
 
-交互冲突处理：`components/pwa/MobileGestures.tsx` 的左缘滑动返回与 Android 系统手势重叠，
-Android 侧关掉系统手势（由壳负责，见 PR-1）；Web 侧保留自绘手势。
+```ts
+const PRESENCE_THRESHOLD_MS = 180_000;
+
+export function computeNotificationPlan({ clients, focusTarget, nowMs }) {
+  let mostRecentPresent = null, mostRecentAt = -Infinity;
+  for (const c of clients) {
+    const at = c.lastActivityAtMs === null ? null : Math.min(c.lastActivityAtMs, nowMs);
+    if (at === null || nowMs - at > PRESENCE_THRESHOLD_MS) continue;      // 这个客户端不在场
+    if (c.appVisible && isFocusedOn(c, focusTarget)) {
+      return { inAppRecipient: null, shouldPush: false };                 // 正盯着它 → 谁都不通知
+    }
+    if (at > mostRecentAt) { mostRecentPresent = c; mostRecentAt = at; }
+  }
+  if (mostRecentPresent) return { inAppRecipient: mostRecentPresent, shouldPush: false };  // 有人在 → 只给他站内
+  return { inAppRecipient: null, shouldPush: true };                       // 没人 → 才推
+}
+```
+
+配套：客户端 10 秒一次心跳上报 `{appVisible, lastActivityAtMs, focusedSessionId}`（Paseo 的 `client_heartbeat` 形状）。
+
+**你的输入全都已经有了**：`hooks/useNotificationPrefs.ts`、`document.visibilityState`、SSE 连接、`/api/agent/running`。改动是：一个纯函数 + 一个心跳路由 + 一处调用点替换。**零新依赖。**
 
 **DoD**
-- [ ] 开设置弹层 → 返回关弹层；会话里开右侧面板 → 返回关面板；都不开 → 退出到后台
-- [ ] 桌面 `useKeyboardShortcuts` 与浏览器 `popstate` 不受影响
+- [ ] 三态测试：`focused` / `present-but-not-focused` / `absent`，各断言 `shouldPush`
+- [ ] 你在电脑前看某个会话跑完 → 手机不响
+- [ ] 你不在任何设备前 → 手机响
+- [ ] 桌面端 Web Push 行为在"只有桌面在线"时不回归
 
 ---
 
-### PR-7 · 深度链接（桌面发码 / 通知点击 → 壳内跳会话）
+### PR-6 · iOS 壳 + 安装
 
-- `piweb://pair?code=123456` 与 `piweb://session/<id>`
-- Android：`AndroidManifest` 的 `intent-filter` + `onNewIntent`（`singleTop`）
-- iOS：`CFBundleURLTypes` + `scene(_:openURLContexts:)` / `onOpenURL`
-- 两侧都已有 `postMessage` 通道可用，`evaluateJavascript` 调 AppShell 的现成切会话逻辑
+**先定这件事：怎么装。** 你提到的 TestFlight 可以，但**不是最优**：
 
-**DoD**：桌面点「复制配对链接」得到 `piweb://…`，粘贴到手机壳能直接进配对；
-通知点击落到对应会话。
+| 方式 | 要付费账号 | 有效期 | 要定期重传 | 要审核 |
+|---|---|---|---|---|
+| 免费 Apple ID 自签（Xcode / Sideloadly） | ❌ | **7 天** | 每周重签 | ❌ |
+| AltStore / SideStore（自动重签） | ❌（免费 7 天）/ ✅（付费 1 年） | 7 天 / 1 年 | 免费账号仍要 | ❌ |
+| **Ad Hoc 分发**（推荐） | ✅ $99/年 | **1 年** | ❌ | ❌ |
+| TestFlight | ✅ $99/年 | **构建 90 天过期** | 每 90 天 | 内部测试员免审核；外部公开链接要 Beta 审核 |
+
+**对你（自己装、不上架）最优的是 Ad Hoc**：1 年有效、不用审核、不用每 90 天重传。只需要在 App Store Connect 里登记你手机的 UDID（每年 100 台额度）。
+
+**没有付费账号也不是不能做**：免费 Apple ID 能签，代价是**每 7 天连一次 Mac 重签**（或用 SideStore 半自动）。参照项目 `pi-移动端` 走的就是这条路，`app/ios-build.md` 记了全套（`Xcode 26.6`、`xcodegen`、手动 `codesign`、`devicectl` 安装）。
+
+**做什么**
+```bash
+cd mobile && npx cap add ios
+```
+- `Info.plist`：`NSAppTransportSecurity`（用 `NSAllowsLocalNetworking`，**不要** `NSAllowsArbitraryLoads`）；如果目标是 **http **（Tailscale IP），需要 `NSAllowsLocalNetworking` + `NSLocalNetworkUsageDescription`（iOS 14+ 访问局域网必须写，缺了直接被拦）；如果目标是 https 域名，两个都不需要
+- `ITSAppUsesNonExemptEncryption: false`（省掉每次上传的出口合规问询）
+- `WKWebView`：`allowsBackForwardNavigationGestures = false`（左缘返回交给 App 自己，否则和 `MobileGestures.tsx` 打架）、`scrollView.bounces = false`（否则和 `PwaPullToRefresh` 的 24/64px 阈值抢手势）、`websiteDataStore = .default()`（cookie 持久化）
+
+**DoD**
+- [ ] 模拟器能跑起来、能配对、能聊天
+- [ ] 真机装上一个（Ad Hoc 或免费自签）
+- [ ] 刘海屏安全区正确（iOS 的 `env()` 是好的，不需要 InsetsPlugin）
+- [ ] 杀进程重启后仍是已配对状态
+- [ ] 键盘弹出/收起正确（重点验 PR-3b 在 iOS 上不打架）
 
 ---
 
-### PR-8 · 打包与发版
+### PR-7 · 打包与发版
 
-- 图标：复用 `build/icon.png`（256 起）→ Android mipmap 全密度 + iOS AppIcon 全尺寸（含 maskable）
-- `package.json` 加 `mobile:android:debug|release`、`mobile:ios:run`、`mobile:ios:ipa`
-- CI（`.github/workflows/mobile-android.yml`）：JDK 17 → `assembleDebug` → 上传 APK
-  （iOS 只能本机构建，参照项目也没有 iOS CI，照此办）
-- `AGENTS.md` 加一节「移动端壳」，写清 D1–D6 六条决策与「不抄 PiRemote 的清单」
-- `DIVERGENCE.md` 记一条：图标不用 lucide 而用品牌 PNG（与现有渠道 logo 那条例外同级）
+**Android**（照 MusePi 的 CI，`.github/workflows/gui-release.yml` 的 `package_mobile` job）
+- 仓库里**没有任何 `.jks`/`.keystore`**，AGP 自动生成 debug keystore，`assembleDebug`，asset 名就是 `app-debug.apk`，装法 `adb install -r`。**诚实、够用**——自己用不需要 release 签名
+- CI：JDK 21 + Android SDK 36 → `cd mobile && npx cap sync android && ./android/gradlew -p android assembleDebug --no-daemon` → `actions/upload-artifact` + 挂到 GitHub Release
 
-**DoD**：`npm run mobile:android:release` 出可安装包；iOS 模拟器可 `xcodebuild` 归档；
-README 有一段手机使用说明（含 D4 的前置条件：先在桌面启动 LAN）。
+**iOS**
+- 本机 `xcodebuild archive` → Ad Hoc 导出 `.ipa` → 用 Apple Configurator / Xcode Devices 装到手机
+- 或 EAS（免费额度够，但要 Expo 账号；`eas build -p ios --profile ad-hoc`）
+
+**改**
+```
+package.json       mobile:android:debug / mobile:ios:run / mobile:android:release
+AGENTS.md          新增「移动端」一节，写清 D1–D6 六条决策
+DIVERGENCE.md      记一条：App 图标用品牌 PNG（与现有渠道 logo 那条例外同级）
+docs/              本文件的链接
+```
+
+**DoD**：`npm run mobile:android:debug` 一条命令出可安装 APK；iOS 有可复现的 archive 命令；README 有一段手机使用说明（含 D4 的前提：先在桌面开 LAN）。
 
 ---
 
-### 可选 PR-9 · 后台保活（只在真的需要时做）
+## 5. 开放问题（做 PR-2 之前要定）
 
-参照项目 Android 侧的 `AgentForegroundService`（163 行，`onCreate` 里就 `startForeground`、
-失败吞掉并 `stopSelf`）+ iOS 侧的 `ON_START` 重连补齐。**只在真的收到「App 切后台就收不到完成通知」的反馈时做**，
-且只在 Android 做；iOS 无解（除非接 APNs，即 D2 明确排除）。
+1. **地址写死还是可配置？**
+   `server.url` 是编译期配置。两个选择：
+   - **写死**（最简单）：换地址要重新打包。你只有一个常用地址的话够用
+   - **可配置**：不设 `server.url`，让壳加载一个打包的首页做「输入地址 → 跳转」。代价是每个地址要**各配一次对**（cookie 是 host-only）。MusePi 的 `lib/connections.ts`（73 行，secure store 存最近 8 个地址）是现成参考
 
-### 可选 PR-10 · 真·远端访问（只在需要时做）
+   建议：**v1 写死**（Tailscale IP，永远不变），等真的需要多地址再上可配置。
 
-不要自己发明隧道。本仓已有三条现成的路：
-① `lib/im-bridge.ts` 的 `im_send`（任意外网通知，**推荐先试这个**）
-② 部署到公网 + 反向代理 + TLS（本仓的 `docs/zcode-port` 一类做法）
-③ Tailscale / WireGuard（零代码）
+2. **cookie 会不会被 WebView 清掉？**
+   Android `CookieManager` 和 iOS `WKWebsiteDataStore.default()` 都是持久的，理论上没问题。但如果不稳，退路是：token 存 `@aparajita/capacitor-secure-storage`，壳在每次加载前用 `CookieManager.setCookie` / `WKHTTPCookieStore.setCookie` 注回去。**先别做**——PR-1 的验证里已经包含"杀进程重开仍在已配对状态"，有问题再加。
+
+3. **`appId` 定什么？** 定了就不能改（改了等于换 App）。暂用 `sh.pinext.mobile`。
 
 ---
 
 ## 6. 风险登记
 
 | 风险 | 影响 | 缓解 |
-| --- | --- | --- |
-| 免费 Apple ID 7 天过期 | iOS 每周重签 | 先确认账号；或先只发 Android |
-| iOS 需要现代 Xcode + 真机 | 无法在 CI 验证 | 模拟器先过，真机后补；照抄参照项目 `ios-build.md` 的 JDK/Xcode 探测链 |
-| Android WebView 的 `env(safe-area-inset-*)` 老版本为 0 | 刘海屏下顶栏被压 | D5 已选「不 edge-to-edge」，现有 CSS 全带 0px 兜底 → 无需改动 |
-| 壳内 SW 缓存旧壳 | 「改了没生效」 | PR-3 守卫 |
-| cookie host-only 绑 IP | Mac 换地址要重配对 | PR-4 的地址记忆 + 失效回显 |
-| 系统返回键与自绘手势打架 | 手势错乱 | PR-6 + PR-1 关掉系统左缘手势 |
-| App 被杀后无通知 | 用户预期落差 | 通知文案不承诺；推 IM 桥（可选 PR-10 ①） |
-| WebView 版本差异（各家 ROM） | 渲染差异 | 只用 Android System WebView；不注入任何实验特性 |
+|---|---|---|
+| `server.url` 依赖远程可用 | 断网白屏 | PR-3d 的 `errorPath` + 重试页；iOS 兜底原生 delegate |
+| 随机域名 + host-only cookie | 每次重启要重新配对 | D3：用稳定地址（Tailscale / 命名隧道） |
+| Android WebView 的 `env()` 失效 | 刘海屏顶栏被压 | PR-3a 的 InsetsPlugin + `--safe-*` 收拢 |
+| 壳内 SW 缓存旧壳 | 「改了没生效」 | PR-2 的一行守卫 |
+| 系统返回键 vs 自绘左缘手势 | 手势错乱 | PR-3c + Android 关系统左缘手势 |
+| App 被杀后收不到通知 | 预期落差 | 通知文案不承诺；跨网络通知推 IM 桥 |
+| iOS 免费账号 7 天过期 | 每周重签 | Ad Hoc（$99/年，1 年有效）或 SideStore |
+| `appId` 反悔 | 要重装、重配对 | 定之前想清楚 |
+| Capacitor 9 要求 Xcode 27+ | 构建失败 | 锁 Capacitor **8**.4.1（MusePi 同版本） |
 
 ---
 
-## 7. 建议的落地顺序
+## 7. 落地顺序与依赖
 
 ```
-PR-3（Web，零风险，先合）
-  → PR-1（Android，能用就算成功一半）
-    → PR-4（连接流程，两端共用）
-      → PR-5（通知，最大的体验增量）
-        → PR-2（iOS）
-          → PR-6 / PR-7 / PR-8
+PR-1（0 代码，今天就完成，验证整条远程链路）
+  └─ PR-2（Android 最小壳，能装能连）
+      ├─ PR-3（安全区/键盘/返回键/断网）  ← 让它不像盒子
+      │   └─ PR-4（通知 + 角标 + 深链）
+      └─ PR-6（iOS，可与 PR-3/4 并行）
+          └─ PR-7（打包发版）
+
+PR-5（在场裁决，纯 Web）—— 随时可合，不依赖任何其他 PR
 ```
-理由：**Android 跑通就能验证全部 Web 侧决策**（cookie、SSE、SW 守卫、手势）。iOS 侧除了编译与安全区，
-没有新的未知量，所以把它排在能验证之后而不是之前。
+
+**PR-1 现在就能做，20 分钟，不需要写任何代码。** 后面每一步都是把已经验证过的地址装进包。

@@ -22,6 +22,7 @@ const read = (path) => readFile(new URL(path, ROOT), "utf8");
 const pwaSystem = await read("design/v5/pwa/system.css");
 const pwaTokens = await read("design/v5/pwa/tokens.css");
 const forms = await read("app/design/v5-forms.css");
+const pwaSettings = await read("app/pwa-settings.css");
 const automation = await read("components/fork/AutomationPanel.tsx");
 const usage = await read("components/fork/UsageStatsPanel.tsx");
 const providerUsage = await read("components/ProviderUsageSummary.tsx");
@@ -68,8 +69,12 @@ test("M-11 帧 C：`.m-switch` 的盒子回板面 29px，命中区仍达 44", ()
      `min-height` 只压高不碰宽 —— 于是这枚 48×29 的开关在手机上变成 48×36。
      接线层必须把它撤掉（只给 `<button>`；`PwaSwitchRow` 那枚是
      `<span aria-hidden>`，行本体 `.m-setrow` 已经 44，不该跟着改）。 */
+  /* 这一段住在 `app/pwa-settings.css`（手机档分区补丁），不在 `v5-forms.css`：
+     2026-10-06 实测那一段的最后一块在 `v5-forms.css` 里**根本没进产物**（PostCSS
+     把一个嵌套注释当成了语法错误，规则连同整段一起丢），而放这里既稳、语义也对 ——
+     这枚开关只出现在设置里的两个分节（定时任务 / 手机与推送）。 */
   assert.match(
-    forms,
+    pwaSettings,
     /@media \(max-width: 640px\) \{\s*\n\s*button\.m-switch \{\s*\n\s*\/\*[^\n]*\*\/\s*\n\s*min-height: 0;\s*\n\s*position: relative;/,
     "≤640px 必须撤掉 DSN-04 补在 `button.m-switch` 上的 min-height（否则盒子是 36 不是板面的 29）",
   );
@@ -82,10 +87,13 @@ test("M-11 帧 C：`.m-switch` 的盒子回板面 29px，命中区仍达 44", ()
     /\.m-switch::after \{ content: ""; position: absolute; top: 2\.5px; left: 2\.5px; width: 24px; height: 24px;/,
     "滑块那一格必须仍是 `::after`（守卫测试据此判断接线层有没有抢错伪元素）",
   );
+  /* 四个方向用 longhand、除数取**正数**：`inset: calc((v - 29px) / -2)` 那种
+     除以负字面量的写法是无效 calc，PostCSS 会把它连同后面整段一起丢
+     （实测：规则没进产物，`.m-switch` 仍是 48×36）。 */
   assert.match(
-    forms,
-    /button\.m-switch::before \{[^}]*inset: calc\(\(var\(--nx-touch-min\) - 29px\) \/ -2\) calc\(\(var\(--nx-touch-min\) - 48px\) \/ -2\);/,
-    "命中外扩必须落在 `::before` 上，且外扩量由 `--nx-touch-min` 减去板面自己的 29/48 推出（不许写 7.5px 这种字面量）",
+    pwaSettings,
+    /button\.m-switch::before \{[^}]*top: calc\(\(29px - var\(--nx-touch-min\)\) \/ 2\);[^}]*bottom: calc\(\(29px - var\(--nx-touch-min\)\) \/ 2\);[^}]*left: calc\(\(48px - var\(--nx-touch-min\)\) \/ 2\);[^}]*right: calc\(\(48px - var\(--nx-touch-min\)\) \/ 2\);/,
+    "命中外扩必须落在 `::before` 上，用四个 longhand + 正除数，量由 `--nx-touch-min` 减去板面自己的 29/48 推出（不许写 7.5px 这种字面量，也不许除以负字面量）",
   );
   assert.doesNotMatch(
     forms,

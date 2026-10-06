@@ -68,7 +68,6 @@ export function PwaSheet({
         style={{ pointerEvents: "auto" }}
         aria-label={label}
       >
-        <button type="button" className="m-sheet-grab" aria-label={t("chat.close")} onClick={onClose} />
         <div className="m-sheet-title">{title}</div>
         <div className="m-sheet-body">{children}</div>
         {footer ? <div className="m-pickbar">{footer}</div> : null}

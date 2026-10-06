@@ -72,14 +72,6 @@ export function PwaTrustSheet({
       >
         {/* 抓手可点即收（div→button 的既定换法）；busy 中不许收，与遮罩同一守卫。
             命中区在 `app/design/v5-forms.css` 的接线层放大。 */}
-        <button
-          type="button"
-          className="m-sheet-grab"
-          aria-label={t("chat.close")}
-          onClick={() => {
-            if (!busy) onCancel();
-          }}
-        />
         <div className="m-sheet-title" id="project-trust-title">
           {t("trust.dialogTitle")}
         </div>

@@ -131,14 +131,6 @@ export function PwaDirectoryPicker(props: PwaDirectoryPickerProps) {
       <div className="m-sheet is-open">
         {/* 抓手可点即收（div→button 的既定换法）；pickerBusy 中不许收，与遮罩同一守卫。
             命中区在 `app/design/v5-forms.css` 的接线层放大。 */}
-        <button
-          type="button"
-          className="m-sheet-grab"
-          aria-label={t("chat.close")}
-          onClick={() => {
-            if (!pickerBusy) onCancel();
-          }}
-        />
         <div className="m-sheet-title" id="directory-picker-title">
           {t("directoryPicker.selectDirectory")}
         </div>

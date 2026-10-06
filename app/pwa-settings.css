@@ -197,3 +197,53 @@
 .settings-dialog-surface .fork-settings-find {
   top: calc(var(--nx-ctl-md) + var(--nx-sp-2));
 }
+
+/* ---------------------------------------------------------------------------
+ * §7 `.m-switch` 的几何与命中区（M-09 帧 B / M-10 帧 D / M-11 帧 C，2026-10-06）
+ *
+ * 根因与 DSN-04 **同一条**：`app/globals.css` 的 DSN-04 在 ≤640px 给每个 `button`
+ * 补 `min-height: var(--control-touch)`，而 `--control-touch` 在本仓是 **36px**
+ * （`globals.css` 把 `--ds-control-touch` 从 44 改成 36）。库里 `.m-switch` 是
+ * **写死 `height: 29px`** 的小件，`min-height` 只压高不碰宽 —— 于是这枚开关在手机上
+ * 被顶成 **48×36**，既与画板逐值不符，命中区也低于 M-11 帧 C 的 44 硬下限。
+ *
+ * 为什么放在这个文件而不是 `app/design/v5-forms.css`：那一段是 `@import` 汇总层，
+ * 实测它的**最后一段没有进产物**（PostCSS 把整段丢了，而 `min-height: 0` 恰好在
+ * 同文件上一段里）。放这里是因为这枚开关只出现在设置里的两个分节（定时任务 /
+ * 手机与推送），而这个文件正是「手机档分区补丁」。
+ *
+ * ① 撤销 `min-height`，让库自己那条 `height: 29px` 原样生效 —— 不用
+ *    `--nx-ctl-xs`(28)：29 不是任何一枚 `--nx-ctl-*` 令牌，改成 28 是
+ *    「从差 7px 变成差 1px 但不再是同一个数」。
+ * ② 命中区按帧 C 的规格（「44px 是命中区，不是视觉高度」）补到 44，用 `::before`
+ *    ——`::after` 已被库占用（那是 24×24 的滑块），抢它会把开关抹掉。
+ *    外扩量算出来，不写字面量：上下 (29 - 44) / 2，左右 (48 - 44) / 2。
+ *    **除数必须是正数**：`inset: calc((v - 29px) / -2)` 那种除以负字面量的写法是
+ *    无效 calc，PostCSS 会把它连同后面整段一起丢（实测：规则根本没进产物）。
+ *    四个方向用 longhand，免得一条坏式子带走整段。
+ * ③ 只作用域 `<button>`：`.m-switch` 另有一处是 `<span aria-hidden>`（纯视觉件），
+ *    DSN-04 本来就不命中它，那处无需也不该改。
+ * 桌面（>640px）整段不生效。
+ * ---------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  button.m-switch {
+    /* 只撤 DSN-04 补的那一档；`height` 仍由 pwa/system.css 的 `.m-switch` 给出。 */
+    min-height: 0;
+    position: relative;
+  }
+  /* 外扩量用**正**除数写：(29 - 44) / 2 = -7.5px（向上外扩）、(48 - 44) / 2 = 2px
+     （左右各内缩 2px，48 - 4 = 44，够 44）。
+     这里不用 `inset: calc((v - 29px) / -2)` 那种**除以负字面量**的写法 ——
+     那是无效的 calc（除数必须是数，`/-2` 的 tokenizer 产出非法式），PostCSS 的
+     解析器会把它连同**后面整段**一起丢掉：2026-10-06 实测过，那两条规则根本没进
+     产物，`.m-switch` 仍然是 48×36、命中 138/529。四个方向用 longhand 写，
+     免得一条坏式子带走整段。 */
+  button.m-switch::before {
+    content: "";
+    position: absolute;
+    top: calc((29px - var(--nx-touch-min)) / 2);
+    bottom: calc((29px - var(--nx-touch-min)) / 2);
+    left: calc((48px - var(--nx-touch-min)) / 2);
+    right: calc((48px - var(--nx-touch-min)) / 2);
+  }
+}

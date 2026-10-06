@@ -398,6 +398,41 @@
 | M-12 A | 「轨迹」那枚切换钮是空圆 | `icon: "route"` 图标库里没有（不存在的字形 hydrate 不报错，只是画不出来） | 换 `history`；守卫加「M-12 六块图标名必须在 `icons.js` 里存在」 |
 | M-06 A | 文件块底部动作条「复制路径」折行，整条一行变两行 | ① 桌面那条 `chat.moreControls`「更多控件」四个字，板面是「更多」；② `.m-vbar` 被 `.m-panel-scroll` 的 12px 内距缩到 366，三项各 111px 放不下 | ① 新增 `files.moreActions`；② `.m-panel-scroll .m-vbar` 负边距顶满 pane → 三项各 **119×44**，与板面逐值相同 |
 
+### 第四批 · M-07 浏览器 / Git 图谱 · M-08 命令中心（2026-10-06 · fork:v5-pwa-m0708）
+
+前三批量的都是「同一个类挂在错的地方」。这一批把它量完：**`.m-viewer` 与 `.m-top`
+两个整层类，产品里一共有三处 pane 正文还挂着它们**（前两批修了 TraceFrame 与 FileExplorer）。
+守卫在 `components/pwa/v5-landing-pwa-m0708.test.mjs`（11 条）。
+
+| 帧 | 现象 | 根因（哪一行） | 处置 | 修完实测（390×844） |
+|---|---|---|---|---|
+| M-07 A | 进「浏览器」后**整屏被盖住、手机上进得去出不来**：顶栏那枚 M-12 入口钮被自己的 `.m-urlbar` 接管指针，重载后照样 | `BrowserPanel.tsx` 的 PWA 根挂 `.m-viewer is-open` **再加内联 `position:fixed; inset:0`**。`.m-viewer` 是库里的整层浮起（`inset:0`），而这一支的宿主是 pane 正文（`.file-panel-main` / `.m-panel-scroll`） | 换 `fork-browser-pane`（与 `fork-trace-pane` 逐字同构）；`.m-urlbar` 那 52px 状态栏让位在 pane 里收掉 | 根 **390×844 / `fixed` / z=100** → **366×696 / `static`**，落在 `.m-panel-scroll` 里；`.m-urlbar` 104 → **60** |
+| M-07 A | 缩放条是六枚文字芯片，不是板面那条缩放条 | 画板帧 A 的 `.m-zoombar` 是**四件**（缩小钮 + `.m-slider` + 放大钮 + 徽章），产品摊成了 `6×.m-vp` + 徽章 | 照板面四件抄；滑杆走**档位下标**（七档离散模型一个字没改，只是不再新增一份连续百分比来源） | `.m-zoombar` 36 → **52**（与板面同值），两颗钮各 **44×44**，滑杆 **4px** 高 / 拇指 26px |
+| M-07 D | 「Git 图谱」里上下**两条**顶栏 + 108px 空白 | `GitGraphTab` 的 PWA 支无条件画 `.m-fade` + `.m-top`，而画板帧 D 画的是**整页**；这一支在产品里永远在 M-12 的 pane 里 | `.m-top` → `fork-pane-bar`（61px）、`.m-fade` 不画、`.m-settings` 的 108px 让位 → `fork-git-body`（8px） | 第一块 `.m-cardgroup` **y=285 → y=244**（−41px），第二条顶栏与渐隐层归零 |
+| M-07 D | 「分支关系」在手机上隐形：行首只有 `circle-dot` / `git-commit-horizontal` 两种 | 行首字形按行号分两种，没走桌面上那个判据已经在的 `gitLaneIcon`（`commit.parents` + 已加载窗口里的子提交数） | 手机这一支改走同一个纯函数，帧 D 的四个字形（`circle-dot` / `git-commit-horizontal` / `git-branch` / `git-merge`）齐了 | 分叉点与多父提交在手机上看得见了 |
+| M-07 / M-08 | `.m-vp` 与 `.m-seg > button` 都比板面高 8px（28 → 36） | `app/globals.css` 的 DSN-04（≤640px）给每个 `button` 补 `min-height: var(--control-touch)`（36px）。`min-height` 只压高不碰宽，于是板面里**用 `height` 写死**的小件一律被顶大；同一块托盘里的 `.m-tray-chip` 因为自己声明了 `min-height` 反而幸免 | 接线层把板面自己那一档还回去（`min-height: var(--nx-ctl-xs)`，值取板面同一行，不新增） | `.m-vp` / `.m-seg > button` **36 → 28**，与板面逐值相同 |
+| M-08 A-2 | 「最近搜索」在真机上**从未出现过** | 它挂在 `rows.length === 0` 那一支里，而命令表（`SETTINGS_SECTIONS` 全量）恒非空 ⇒ 那一支走不到 | 手机静息态把历史组提到结果**之前**（`.m-rowlabel` 标签·条数 + `.m-sheet-row` / `clock` + `.m-setrow-t m-mono` 带前缀 + `.m-sheet-row-desc` 写作用域），游标 `active` 走 `[历史 … 结果]` 同一个下标空间（`historyOffset`） | 第一屏从「命令 · 12」变成「**最近搜过 · 2** → 命令 · 12」；历史两行 51px、`clock` 图标、第一条 `is-on` |
+
+### 本批自查到的一个自造回归（写在这里，别让它跑掉）
+
+把组标题的判据从 `index === 0` 改成 `historyOffset + index === 0` 时，`rows[index - 1].kind`
+的短路失效 → 历史组一出现就越界取 `rows[-1].kind` → **抛 TypeError，整棵根布局崩进
+`error.tsx`**（实测：任何非空历史 + 打开面板 = 必崩，而 `error.tsx` 自己又因为
+`useI18n` 在 provider 外二次崩，最后只剩「应用启动失败」六个字）。守卫里因此多钉一条：
+分组标题的判据必须留在**结果自己的下标**里。
+
+### 不抄 / 不画（登记，不是遗漏）
+
+| 板面 | 为什么不抄 |
+|---|---|
+| M-07 A「拾取」升起 `.m-menu-sheet`（复制选择器 / 问「为什么这么写」/ 在会话里改样式） | 元素拾取只在 **managed 面**（Electron 真实 webview）拿得到页面内部几何；手机上 `surface === "iframe"`，`.m-vbar` 里那枚「拾取」**根本不会出现**。要让手机上能拾取 = 给 web 端加一条取页面内部的通道，不是皮肤层的事 |
+| M-07 B 的跨站横幅（`.m-banner.warn`）+ 站点信息确认面板 | 本仓的「跨站」概念是**工作区信任**（`PwaTrustSheet` / `ProjectTrustDialog`），而内置浏览器打开的是 localhost 开发服务器，没有「这个站不是你的工作区」这条判定。凭空加一条横幅 = 造一个永远不触发的控件 |
+| M-07 A 第二条 `.m-viewportbar`（iPhone 15 / 16 Pro Max / iPhone SE / Pixel 9 / Galaxy Tab） | 这是 D-23 帧 A 的机型预设，是真功能，板面 M-07 帧 A 没画。留着并在此登记：它与 M-07 的「五档宽度」是两段语义（见组件里写死的那段注释） |
+| M-08 A-2 的「快捷入口」`.m-grid2`（新建任务 / 定时任务 / 切换项目 / …） | 产品侧命令表就是 `SETTINGS_SECTIONS` 全量 + 一枚右栏开关（AppShell 构造），**没有**「哪五条算快捷入口」这份数据。再摆一份宫格等于把同一张清单摆两遍 —— 由结果组承担这个位置 |
+| M-08 A 的三处入口（顶栏搜索钮 / 会话抽屉第一条 / 输入框前缀） | 三处宿主分别是 AppShell 顶栏、会话抽屉、ChatInput，**都不在本轮归属的文件里**；而 `AppShell` 的 `onToggleCommandPalette` 目前**零消费方** —— 手机上只能靠外接键盘的 ⌘K 打开这块面板。这是帧 A 的头号缺口，报给接线方 |
+| M-08 C-2「索引未覆盖」那一屏（把这次搜过/没搜的东西逐条列出来） | 需要一份「本次检索覆盖了哪些源」的元数据（索引条数 / 同步落后秒数）。本仓两个 API（`/api/sessions/search` 流式扫正文、`/api/file-index`）都不返回它。先登记：要落地得先给数据面加一个口径 |
+| M-08 C-1 空态的第三枚「去商店」 | 需要 `onOpenStore` 宿主（产品命令中心没有这个 prop）。另两枚（清空 / 去掉前缀）是真的，已接上 |
+
 ### 不是设计问题，是「看不到效果」的两层原因（2026-10-06）
 
 1. **SW 缓存版本取的是 package.json 的版本号**（`0.1.9-beta.1`），只在发版时才变 —— 一次发版之间的几十次构建里 `sw.js?v=` 全都相同，static / shell 两个缓存桶永不轮换，主屏上那个 PWA 继续吃旧 chunk。改成 **包版本 + 源码指纹**（git 短 sha + 脏标记；打包产物没有 `.git` 就回落包版本）。
@@ -538,3 +573,12 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
   要对齐得同时改：五档取值、下拉选项、`--chat-content-font-size` 与 offset 基准、两处测试的期望值。
 - **徽标仍是 11px**（`.d-badge` 用 `--nx-fs-xs`），ZCode 徽标是 10px。10px 档现在有了，
   迁移是逐组件（板面 + 产品一起）的活，不在本次令牌层范围内。
+
+### 一条值得单独记的坑（2026-10-06）
+
+`.m-switch` 的修复段落最初写在 `app/design/v5-forms.css` 的**末尾**，构建产物里**根本没有那两条规则** —— `.m-switch` 仍然是 48×36、命中 138/529。排查花了三轮，两个原因叠在一起：
+
+1. **注释里嵌了注释标记**：段落注释里写了一句 `` `--ds-control-touch` /* 44 → 36 */ ``。CSS 注释**不嵌套**，内层的 `*/` 提前关掉了外层注释，剩下的文字被当成 CSS 解析 → `Syntax error: Unknown word '.m-switch'`，PostCSS 把**整段**丢掉（不是只丢那一行）。
+2. **无效 calc**：`inset: calc((var(--nx-touch-min) - 29px) / -2)` —— 除以负字面量不是合法的 calc，同样被整段带走。
+
+两条合起来的表现极具欺骗性：**源码读起来完全正确、构建不报错（exit 0）、只有产物里没有**。判据只能是「grep 产物里那个选择器在不在」，不能用「源码里有」。规则已改放到 `app/pwa-settings.css` 并改用**四个 longhand + 正除数**。
