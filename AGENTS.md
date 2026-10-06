@@ -353,6 +353,15 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **browser-notifications 必须零相对导入**：普通 `node --test` 解析器跟不了扩展名省略
   的相对导入（本仓测试直接 strip-types 跑 TS）。壳的通知层用注册式接入
   （`setMobileNotifyProvider`），不许改成 import 式。
+* **自建中继（出门访问）**：中继 = `relay/deno/relay.ts`（Deno Deploy 单文件，`RELAY_TOKEN` 注册鉴权，
+  只做字节搬运、不落盘、不做应用层鉴权）；Mac 拨号端 = `lib/relay-dialer.ts`（进程内随
+  instrumentation 自启，配置 `~/.pi/agent/relay-link.json` 0600）。**三条不变量**：① Mac 主动拨出，
+  家里设备永不监听公网；② Host 重写成中继 host + `x-forwarded-proto`，并把 host 运行时追加进
+  `PI_WEB_ALLOWED_HOSTS`（名单每请求现读，免重启）——同源校验靠 `isProxyRewrittenSameOrigin`；
+  ③ 拨号端向上游取 `accept-encoding: identity` 并剥掉响应的编码类头——undici 自动解压 body 但保留
+  `content-encoding` 头，原样转发会让手机侧对明文再解压一次（冒烟实测卡死）。全链路冒烟：
+  `npm run relay:smoke`（deno 起中继→真拨号→JSON/HTML 流式/带 body POST/断开 502）。
+  部署步骤见 `relay/README.md`。
 * **Phase 2（未做）**：手机独立 runtime（Android proot+Alpine+node+pi，借鉴 Aether 的
   集成形状；GPL-3.0 代码不可抄，APK 挂 Release 分发需附 GPL 组件源码指引）、
   `POST /api/sync/session/[id]/append` 上推回流、本地渲染层。

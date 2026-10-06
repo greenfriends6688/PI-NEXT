@@ -44,6 +44,8 @@
     // fork:mobile-shell —— 手机壳是独立子项目（自己的 package.json/@capacitor 依赖），
     // 主仓 tsc 不看它；capacitor.config.ts 的类型来自 mobile/node_modules
     "mobile",
+    // fork:mobile-shell relay —— Deno Deploy 中继，运行时类型归 deno 管
+    "relay",
     // 产物 / 一次性脚本目录（gitignored；里面还有补丁基线副本，它们的相对导入
     // 本来就不会解析，放进 tsc 只会淹没真实错误）
     "test-results",

@@ -11,6 +11,7 @@ import { BotChannelsDialog, type BotDialogSelection } from "./BotChannelsDialog"
 import { BotChannelBody } from "./BotChannelPanel";
 import { LanPairBody } from "./LanPairPanel";
 import { MirrorBody } from "./MirrorPanel";
+import { RelayBody } from "./RelayPanel";
 
 /**
  * fork:phone-push —— **手机与推送**：一个分节，两栏。
@@ -105,6 +106,9 @@ export function PhoneAndPushPanel() {
             <LanPairBody />
           </div>
         </section>
+
+        {/* fork:mobile-shell —— 出门访问（自建中继）配置卡。 */}
+        <RelayBody />
 
         {/* v5 · D-20 帧 D：Bot Channel 入口卡。 */}
         <section className="d-chart" style={{ display: "grid", gridTemplateRows: "auto auto 1fr auto" }}>

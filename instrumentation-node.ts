@@ -20,6 +20,12 @@ export async function registerNodeInstrumentation(): Promise<void> {
   const { startAutomationScheduler } = await import("@/lib/automation-runtime");
   startAutomationScheduler();
 
+  /* fork:mobile-shell —— 自建中继拨号端随进程自启。配置存在
+     `~/.pi/agent/relay-link.json` 才连（没有 = 关闭态，零开销）；重连退避自带，
+     起不来只影响「出门访问」，不影响本机使用。 */
+  const { startRelayDialer } = await import("@/lib/relay-dialer");
+  startRelayDialer();
+
   // 2026-09-06 root-cause fix for the recurring "zombie node, 502" outages:
   // on SIGINT/SIGTERM Next 16 (production) runs server.close() and waits for
   // ALL connections to end before process.exit — with no timeout. Our SSE
