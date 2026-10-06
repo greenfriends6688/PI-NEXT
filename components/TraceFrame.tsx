@@ -76,8 +76,7 @@ export function TraceFrame({
     />
   );
 
-  /* fork:v5-m12-bug（2026-10-06 逐帧）—— PWA 形态的根**不再是** `.m-viewer`。
-     `.m-viewer` 是 `position:absolute; inset:0`（库里的整层浮起），而本组件在
+  /* fork:v5-m12-bug（2026-10-06 逐帧）—— PWA 形态的根**不再是** `.m-viewer`。     `.m-viewer` 是 `position:absolute; inset:0`（库里的整层浮起），而本组件在
      产品里**只有一个渲染点**（AppShell 的 `renderTabContent`），也就是它永远是
      M-12 帧 B 那个 `.m-panel-scroll` 里的一块正文。之前它挂 `.m-viewer is-open`，
      于是 `inset:0` 让它脱离自己的 pane 铺满整个视口（实测 390×844，y=0，
@@ -87,8 +86,16 @@ export function TraceFrame({
      （刷新 / 全屏，fork:trace-frame 登记过的那两枚）留着，但用 `fork-trace-bar`
      去掉 `.m-viewer-bar` 的 50px 状态栏让位 —— 那一格是给整层顶栏的，
      在 pane 里再留一次就是白扔一屏。 */
+  /* fork:trace-pane-width（2026-10-06，用户反馈「右边有部分区域是空白」）——
+     根**不能**挂 `.d-panel`：那是画板 D-05 的**右栏**壳，库里有 `width: 320px;
+     flex: 0 0 auto`（`design/v5/web/system.css:21`）。本组件渲染在
+     `.file-panel-main` 里（一个 flex 列），显式宽度压过 stretch，实测 iframe
+     只有 319px 而 pane 有 539px —— 右边那 220px 空白就是它。
+     桌面与窄屏共用 `.fork-trace-pane`（flex: 1 1 auto + min-width: 0，本来
+     就是为「pane 内的一列」写的，见 `app/design/v5-forms.css`）。
+     页头 / 正文仍用 `.d-panel-head` / `.d-panel-body`，外观不变。 */
   return (
-    <div className={isPwa ? "fork-trace-pane" : "d-panel"} style={{ height: "100%", minWidth: 0 }}>
+    <div className="fork-trace-pane" style={{ height: "100%", minWidth: 0 }}>
       <div className={isPwa ? "fork-trace-bar" : "d-panel-head"}>
         <i data-ico="history" data-size="14" aria-hidden="true"></i>
         <span className={isPwa ? "m-t-b" : "d-t-b"}>{t("trace.title")}</span>

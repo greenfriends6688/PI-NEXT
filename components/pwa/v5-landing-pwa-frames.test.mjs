@@ -128,7 +128,16 @@ test("M-12 帧 B：六块共用一层，pane 正文不得再自称整层（盖�
     /"m-viewer is-open"/,
     "TraceFrame 是 pane 正文，不能再挂整层浮起类（会盖掉 M-12 的六项切换条）",
   );
-  assert.match(traceFrame, /isPwa \? "fork-trace-pane" : "d-panel"/);
+  /* fork:trace-pane-width（2026-10-06）—— 根现在**两边都是** `fork-trace-pane`：
+     桌面原来挂 `.d-panel`，而那是 D-05 的右栏壳（库里 `width: 320px; flex: 0 0 auto`），
+     在 `.file-panel-main` 里把 iframe 压成 319px、右边留 220px 空白（用户反馈
+     「右边有部分区域是空白」）。断言改成钉「根不许再挂任何带固定宽度的面板类」。 */
+  assert.match(traceFrame, /<div className="fork-trace-pane"/);
+  assert.doesNotMatch(
+    traceFrame,
+    /className=\{isPwa \? "fork-trace-pane" : "d-panel"\}/,
+    "根不能再挂 .d-panel（width: 320px）—— 那是右栏壳，不是 pane 正文",
+  );
   assert.match(traceFrame, /isPwa \? "fork-trace-bar" : "d-panel-head"/);
   // 接线层那两块壳必须在，否则上面两个类名是死的。
   const forms = read("app/design/v5-forms.css");
