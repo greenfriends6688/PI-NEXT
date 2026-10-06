@@ -871,3 +871,16 @@ test("fork:prefix-once —— 过程组（prefix）只画一次（画两遍会�
   const occurrences = source.match(/^\s*\{prefix\}\s*$/gm) ?? [];
   assert.equal(occurrences.length, 1, `prefix 应只渲染一次，实际 ${occurrences.length} 次`);
 });
+
+test("fork:thinking-typewriter —— 思考正文也走逐字揭示，且用纯文本切点", () => {
+  /* 用户 2026-10-06 裁定「两个都做」：思考正文此前是原样一坨出现（打字机只作用在
+     正文的单行行内尾段）。这里钉三件事：思考块真的调了 hook、只在 live 且无错时启用、
+     传的是 `markdown = false`（纯文本不走标记回退，否则未闭合的 ` 会把字冻住）。 */
+  const start = source.indexOf("export function ThinkingBlock(");
+  assert.ok(start > 0, "找不到 ThinkingBlock");
+  const end = source.indexOf("function isSubagentToolDetails", start);
+  const block = source.slice(start, end);
+  assert.match(block, /const revealedThinking = useTypewriterReveal\(/);
+  assert.match(block, /Boolean\(live\) && !error && !loading && motion !== "reduce"/);
+  assert.match(block, /\) : revealedThinking\}/);
+});
