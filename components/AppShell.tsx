@@ -41,6 +41,8 @@ import { applyTabOrder, moveTabBefore } from "@/lib/tab-reorder";
 import { EMPTY_TAB_MRU, focusAfterClose, rememberTabVisit, type TabMru } from "@/lib/tab-mru";
 // fork:pr40-split —— 右栏双 Pane 分屏的接线（逻辑层与壳都不改，这里只把状态接上）。
 import { useSplitPanes } from "@/hooks/useSplitPanes";
+// fork:tooltip-policy —— 原生 `title` 提示的统一闸门（PWA 不留 / 只留纯图标）。
+import { useTooltipPolicy } from "@/hooks/useTooltipPolicy";
 import { SplitPaneHost } from "./fork/SplitPaneHost";
 import { groupRightPanelSplitTabs, type RightPanelPane } from "@/lib/right-panel-split";
 import { MobileRightPanels, type MobileRightPanelItem } from "./pwa/RightPanelsMobile";
@@ -214,6 +216,8 @@ export function AppShell() {
   const isMobile = useIsMobile();
   const isCompact = useIsCompact();
   useViewportHeight();
+  // fork:tooltip-policy —— 挂一次，管住全应用的原生 `title` 提示。
+  useTooltipPolicy();
   // fork:mobile-shell —— 壳内用原生 insets 覆盖 --safe-*（安卓 WebView 的 env() 失效，
   // 见 globals.css :root 的安全区块）。桌面/PWA 上 initShellInsets 是 no-op。
   // 壳运行时一并初始化：通知点击深链 / 回前台清角标 / Android 系统返回键。
