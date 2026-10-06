@@ -111,3 +111,13 @@ design/pi-web-design/.skeuo/verify-*.html
 
 # fork:mobile-shell —— 手机壳是独立子项目：自己的 node_modules 与构建产物不进主仓
 /mobile/node_modules/
+
+# fork:commit-hygiene-2026-10-06 —— 三处本地杂物不该进仓库（都已在本机存在、且可重建）
+# 1) vendored 参考库：与 /pi参考项目/ /设计风格/ 同类，只做本机比对，不进版本库
+#    （它们已在 tsconfig.json 里排除出类型图；这里补上仓库侧这一道）
+/design/assistant-ui-main/
+/design/ui-components-main/
+# 2) Android 构建产物：electron-builder 出包到已忽略的 /release/，这个 dist/ 是 Gradle 的
+/dist/
+# 3) 其它 agent 工具的 plan 目录（本仓 plan 放 docs/ 与已忽略的 .pi/）
+/.zcode/
