@@ -165,7 +165,9 @@ test("SW 缓存版本必须逐构建变化（否则装到主屏的 PWA 一直吃
         package.json 版本号，只在发版时才变，于是几十次构建共用同一个缓存桶。
         改成「包版本 + 源码指纹」。 */
   const config = read("next.config.mjs");
-  assert.match(config, /const appVersion = sourceStamp \? `\$\{version\}\+\$\{sourceStamp\}` : version;/);
+  // 指纹必须**逐构建变化**：只叠 git sha 是死值（HEAD 不动 + 工作区一直脏 → 串不变）。
+  assert.match(config, /const buildStamp = Date\.now\(\)\.toString\(36\);/);
+  assert.match(config, /const appVersion = `\$\{version\}\+\$\{sourceStamp \|\| "nogit"\}\.\$\{buildStamp\}`;/);
   assert.match(config, /NEXT_PUBLIC_APP_VERSION: appVersion,/);
   assert.match(config, /"rev-parse", "--short", "HEAD"/);
   // 打包产物里没有 .git，所以两条 git 调用都得容错。

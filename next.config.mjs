@@ -42,7 +42,15 @@ try {
   if (sha) sourceStamp = `${sha}${dirty ? "-dirty" : ""}`;
 } catch { /* not a git checkout (packaged build) — package version alone */ }
 
-const appVersion = sourceStamp ? `${version}+${sourceStamp}` : version;
+/* fork:sw-cache-version —— 指纹必须**每次构建都不同**。
+ * 第一版写成 `版本 + git短sha + [-dirty]`，看着对，实际是个死值：只要 HEAD 没动、
+ * 工作区一直是脏的，几十次构建算出来是同一个串 → SW 的 `?v=` 不变 → static / shell
+ * 两个缓存桶永不轮换 → 手机上永远吃旧 chunk（用户 2026-10-06 实测「改了没生效」，
+ * 而服务端产物早就是新的）。
+ * 所以再叠一个**构建时刻**：每次 `next build` 必然不同。它只用作 SW 的缓存键，
+ * 不参与任何展示（底栏那个版本号印的是包版本，`+` 之后一律切掉）。 */
+const buildStamp = Date.now().toString(36);
+const appVersion = `${version}+${sourceStamp || "nogit"}.${buildStamp}`;
 
 /* fork:isolated-dist-dir —— 默认仍是 `.next`（整仓只此一份）。但本机常有另一个
    进程在同一个 checkout 上跑构建（IDE / 另一个会话 / `npm run prod` 的监督器），
