@@ -11,7 +11,6 @@ import { useContextMenu, type ContextMenuEntry } from "./ContextMenu";
 import { useIsMobile } from "@/hooks/useIsMobile";
 // 行级动作菜单复用 ContextMenu（键盘导航 / 边缘翻转 / 外面点击关闭都在那儿）。
 import { isRemoteMcpServer } from "@/lib/mcp-auth-command-shared";
-import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 // fork:mcp-native-exposure —— 「查看 MCP 日志」弹层（读 agent 目录的 mcp.log）。
 import { McpLogModal } from "./fork/McpLogModal";
 // fork:codemode-settings-ui —— 「代码模式」设置块（自动/始终、mode、工具清单预算）。
@@ -1311,13 +1310,15 @@ const MCP_EXPOSURE_TONE: Record<string, string> = {
 /** 帧 A 的一行。条目级动作全在行尾浮窗里（画板帧 A 的五个 `d-pop` 之一：
  *  浮窗本体是 `ContextMenu` 的 `d-pop-float` + `d-menu-row`，与插件帧 A 的
  *  行尾菜单同一套原语，键盘导航 / 边缘翻转 / 外面点击关闭都在那儿）。 */
-function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
+function McpSlotRow({ server, selected, busy, onToggle, onMenu, onOpen }: {
   server: McpServerInfo;
   selected: boolean;
   busy: boolean;
   onToggle: () => void;
   /** 打开行尾浮窗：`(x, y)` 是指针位置，条目由调用方按 server 拼。 */
   onMenu: (x: number, y: number) => void;
+  /** fork:mcp-detail-modal —— 整行可点：点击（或 Enter / Space）打开该 server 的详情弹窗。 */
+  onOpen: () => void;
 }) {
   const { t } = useI18n();
   const exposure = server.exposure ?? "codemode";
@@ -1325,7 +1326,25 @@ function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
     server.kind === "url" ? server.url : server.kind === "socket" ? server.socket : server.command ?? "—";
 
   return (
-    <div className={`d-slotrow${selected ? " is-on" : ""}`}>
+    /* fork:mcp-detail-modal（2026-10-07 用户原话：「mcp这个也点不了」）—— 根因是这行
+       只是一枚 `<div className="d-slotrow">`：行本身没有点击处理，只有行尾的开关
+       与 ⋯ 可点，所以点行没反应。现在整行是一枚键盘可达的按钮：鼠标点击 / Enter /
+       Space 都开详情弹窗；行尾那两枚控件各自 `stopPropagation`，点开关不会顺带开
+       弹窗。`event.target !== event.currentTarget` 用来放过子控件的回车，避免按一次
+       Enter 既触发开关又开弹窗。 */
+    <div
+      className={`d-slotrow${selected ? " is-on" : ""}`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <div className="d-col d-grow">
         <div className="d-row">
           <span className="d-t-b">{server.name}</span>
@@ -1353,14 +1372,20 @@ function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
         title={server.disabled ? t("mcp.enable") : t("mcp.disable")}
         disabled={busy}
         className={`d-switch${server.disabled ? "" : " on"}`}
-        onClick={onToggle}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
       />
       <button
         type="button"
         className="d-iconbtn"
         aria-label={t("mcp.rowActions", { name: server.name })}
         title={t("mcp.rowActions", { name: server.name })}
-        onClick={(event) => onMenu(event.clientX, event.clientY)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onMenu(event.clientX, event.clientY);
+        }}
       >
         <i data-ico="ellipsis-vertical" data-size="15" aria-hidden="true" />
       </button>
@@ -1369,7 +1394,7 @@ function McpSlotRow({ server, selected, busy, onToggle, onMenu }: {
 }
 
 /** 帧 A 的列表分节：计数行 + `.d-slottable`。 */
-function McpServerList({ data, loading, actionError, actionMessage, busy, selectedName, catalogEntry, onAdd, onPaste, onToggle, onRowMenu, onPageMenu }: {
+function McpServerList({ data, loading, actionError, actionMessage, busy, selectedName, catalogEntry, onAdd, onPaste, onToggle, onOpen, onRowMenu, onPageMenu }: {
   data: McpResponse | null;
   loading: boolean;
   actionError: string | null;
@@ -1380,6 +1405,8 @@ function McpServerList({ data, loading, actionError, actionMessage, busy, select
   onAdd: () => void;
   onPaste: () => void;
   onToggle: (server: McpServerInfo) => void;
+  /** fork:mcp-detail-modal —— 行点击开详情弹窗。 */
+  onOpen: (server: McpServerInfo) => void;
   /** 行尾浮窗 / 分节级「更多」浮窗的开口（`ContextMenu` 的 `openMenu`）。 */
   onRowMenu: (x: number, y: number, server: McpServerInfo) => void;
   onPageMenu: (x: number, y: number, refreshDisabled: boolean) => void;
@@ -1451,6 +1478,7 @@ function McpServerList({ data, loading, actionError, actionMessage, busy, select
               busy={busy}
               onToggle={() => onToggle(server)}
               onMenu={(x, y) => onRowMenu(x, y, server)}
+              onOpen={() => onOpen(server)}
             />
           ))}
         </div>
@@ -1459,19 +1487,7 @@ function McpServerList({ data, loading, actionError, actionMessage, busy, select
   );
 }
 
-/* fork:v5-landing · D-15 帧 B 的面包屑末级只有两个词（「添加」/「编辑」），
- * 而 `lib/i18n/messages/**` 里没有对应的通用键（只有 `mcp.addTitle` 这类整句）。
- * 同一波新增的字都先落在这张本地表里（口径与 `settingsHub.ts` /
- * `settings-disabled-reasons.ts` 一致），待办：迁成 `mcp.crumbAdd` / `mcp.crumbEdit`。
- * 「添加 / 编辑」两个词本身已是现有键（`i18n.edit` / `mcp.add.pasteSubmit`）的同义口径，
- * 不引入新语义。 */
-const MCP_CRUMB_COPY: Record<"add" | "edit", LocalCopy> = {
-  add: { en: "Add", "zh-CN": "添加", "zh-TW": "新增" },
-  edit: { en: "Edit", "zh-CN": "编辑", "zh-TW": "編輯" },
-};
-
 function AddMcpServer({
-  cwd,
   scope,
   projectResourcesLoaded,
   busy,
@@ -1482,7 +1498,6 @@ function AddMcpServer({
   onFetchDef,
   onCancel,
 }: {
-  cwd: string;
   scope: McpScope;
   projectResourcesLoaded: boolean;
   busy: boolean;
@@ -1493,7 +1508,7 @@ function AddMcpServer({
   onFetchDef: (name: string, serverScope: McpScope) => Promise<Record<string, unknown> | null>;
   onCancel: () => void;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const isEdit = !!initial;
   const [name, setName] = useState(isEdit && initial ? initial.name : "");
   const [spec, setSpec] = useState(() => {
@@ -1584,26 +1599,11 @@ function AddMcpServer({
 
   return (
     <Stack className="fork-pwa-detail">
-      {/* fork:v5-landing · D-15 帧 B —— `.d-crumb` 面包屑是这张板对
-          「添加 / 编辑」两态的固定写法：根是分节名（`.is-on` 之外的普通
-          `button`，可回列表），末级是当前动作。类名 / 嵌套 / `<i data-ico>`
-          原样抄，静态文案换成已有的 `mcp.sectionTitle` 与本地表里的
-          「添加 / 编辑」（语言包这一轮不许改，已登记在报告里）。 */}
-      <div className="d-crumb">
-        <button type="button">{t("mcp.sectionTitle")}</button>
-        <i data-ico="chevron-right" data-size="12" aria-hidden="true" />
-        <button type="button" className="is-on">
-          {localCopy(isEdit ? MCP_CRUMB_COPY.edit : MCP_CRUMB_COPY.add, locale)}
-        </button>
-      </div>
-      <div>
-        <Title>
-          {isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}
-        </Title>
-        <span className="d-mono d-t-faint">
-          {scope === "project" ? `${shortenPath(cwd)}/.pi/mcp.json` : "~/.pi/agent/mcp.json"}
-        </span>
-      </div>
+      {/* fork:mcp-detail-modal（2026-10-07 用户原话：「mcp这个也点不了…也给我弄成
+          点击后，弹窗展示的那种，包括它的编辑啥的」）—— 添加 / 编辑从内容列内联
+          改成弹窗正文，原来那条 `.d-crumb` 面包屑（「MCP 服务器 > 添加 / 编辑」）
+          随之退场：弹窗头就是标题（见 `McpFormModal`），正文从 Basic / JSON 切换
+          开始。 */}
 
       {/* fork:design-system SW-14 —— 画板 43 的 Basic / JSON 切换是 `.pw-radio` 芯片组。 */}
       <div className="d-row">
@@ -1696,6 +1696,154 @@ function AddMcpServer({
         </div>
       )}
     </Stack>
+  );
+}
+
+/** fork:mcp-detail-modal（2026-10-07 用户原话：「mcp这个也点不了，请你帮我优化一下，
+ *  也给我弄成点击后，弹窗展示的那种，包括它的编辑啥的」）—— 详情从列表下面那块
+ *  内联区改成一扇弹窗：桌面 `d-modal` / 窄屏 `m-modal`（形态件照 `AddPluginModal`），
+ *  正文仍是那个 `McpServerDetail`，参数逐项照旧传入（onToggle / onRemove / onMove /
+ *  onTest / onExposure / onEdit / authActions / headActions），行为一个都不变。
+ *  弹窗壳自己管遮罩点击关闭与 Esc（`useDialogA11y`）；关闭即清状态
+ *  （见 `closeMcpModal`），`mcpSelected` 现在就是「弹窗开着看谁」的开关。 */
+function McpDetailModal({
+  server,
+  cwd,
+  busy,
+  actionError,
+  actionMessage,
+  onToggle,
+  onRemove,
+  onMove,
+  onTest,
+  onEdit,
+  onExposure,
+  authActions,
+  headActions,
+  onClose,
+}: {
+  server: McpServerInfo;
+  cwd: string;
+  busy: boolean;
+  actionError: string | null;
+  actionMessage: string | null;
+  onToggle: () => void;
+  onRemove: () => void;
+  onMove: () => void;
+  onTest: () => void;
+  onEdit: () => void;
+  onExposure: (next: NonNullable<McpServerInfo["exposure"]>) => void;
+  authActions?: ReactNode;
+  headActions?: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const mobile = useIsMobile();
+  // fork:dsn-dialog-a11y —— 与设置壳 / 插件弹层同一套：打开移焦、Tab 循环、Esc 关闭、背景 inert。
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={server.name}
+      className={mobile ? "m-modal is-open" : "d-modal is-open"}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className={mobile ? "m-modal-box" : "d-modal-box wide"}>
+        <div className={mobile ? "m-modal-body" : "d-modal-body"}>
+          <McpServerDetail
+            server={server}
+            cwd={cwd}
+            busy={busy}
+            actionError={actionError}
+            actionMessage={actionMessage}
+            onToggle={onToggle}
+            onRemove={onRemove}
+            onMove={onMove}
+            onTest={onTest}
+            onEdit={onEdit}
+            onExposure={onExposure}
+            authActions={authActions}
+            headActions={headActions}
+          />
+        </div>
+        <div className={mobile ? "m-modal-foot" : "d-modal-foot"}>
+          <span className="d-grow" aria-hidden="true" />
+          <Btn variant="primary" onClick={onClose}>
+            <i data-ico="check" data-size="14" aria-hidden="true" />
+            {t("plugins.done")}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** fork:mcp-detail-modal —— 添加 / 编辑同一扇弹窗壳（`initial` 有值即编辑）。
+ *  弹窗头就是标题 + 目标文件：原来内联表单开头那一行 `.d-crumb` 面包屑与
+ *  `Title` / 等宽路径全搬到这里，正文从 Basic / JSON 切换开始（`AddMcpServer`）。
+ *  取消 / Esc / 遮罩点击都走 `onClose`（= `closeMcpModal`）。 */
+function McpFormModal({
+  cwd,
+  scope,
+  projectResourcesLoaded,
+  busy,
+  actionError,
+  initial,
+  onScopeChange,
+  onSave,
+  onFetchDef,
+  onClose,
+}: {
+  cwd: string;
+  scope: McpScope;
+  projectResourcesLoaded: boolean;
+  busy: boolean;
+  actionError: string | null;
+  initial?: McpServerInfo | null;
+  onScopeChange: (scope: McpScope) => void;
+  onSave: (name: string, def: Record<string, unknown>) => void;
+  onFetchDef: (name: string, serverScope: McpScope) => Promise<Record<string, unknown> | null>;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const mobile = useIsMobile();
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+  const isEdit = !!initial;
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}
+      className={mobile ? "m-modal is-open" : "d-modal is-open"}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className={mobile ? "m-modal-box" : "d-modal-box wide"}>
+        <div className={mobile ? "m-modal-head" : "d-modal-head"}>
+          <div className="d-row">
+            <span className="d-grow">
+              {isEdit ? t("mcp.editTitle", { name: initial?.name ?? "" }) : t("mcp.addTitle")}
+            </span>
+            <span className="d-mono d-t-xs d-t-faint">
+              {scope === "project" ? `${shortenPath(cwd)}/.pi/mcp.json` : "~/.pi/agent/mcp.json"}
+            </span>
+          </div>
+        </div>
+        <div className={mobile ? "m-modal-body" : "d-modal-body"}>
+          <AddMcpServer
+            scope={scope}
+            projectResourcesLoaded={projectResourcesLoaded}
+            busy={busy}
+            actionError={actionError}
+            initial={initial}
+            onScopeChange={onScopeChange}
+            onSave={onSave}
+            onFetchDef={onFetchDef}
+            onCancel={onClose}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2057,10 +2205,11 @@ export function PluginsConfig({
       const next = (await res.json()) as McpResponse & { error?: string };
       if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
       setMcpData(next);
+      // fork:mcp-detail-modal —— `mcpSelected` 现在就是「详情弹窗开着看谁」的开关：
+      // 刷新只在原选中项还在时保留它，不再把首条自动选中 —— 否则首次加载 / 每次
+      // loadMcp 都会把详情弹窗自己弹开。
       setMcpSelected((current) =>
-        current && next.servers.some((s) => s.name === current)
-          ? current
-          : next.servers[0]?.name ?? null,
+        current && next.servers.some((s) => s.name === current) ? current : null,
       );
     } catch (err) {
       setMcpActionError(err instanceof Error ? err.message : String(err));
@@ -2177,7 +2326,11 @@ export function PluginsConfig({
     async (server: McpServerInfo) => {
       const next = await runMcpAction("remove", { name: server.name, scope: server.scope });
       if (next) {
-        setMcpSelected(next.servers[0]?.name ?? null);
+        // fork:mcp-detail-modal —— 「删除后回落」只在被删的正是详情弹窗正在看的那条时
+        // 生效（回落到剩下的第一条，弹窗不关）；从行尾菜单删别条时不抢开弹窗。
+        setMcpSelected((current) =>
+          current === server.name ? next.servers[0]?.name ?? null : current,
+        );
         setMcpActionMessage(t("mcp.msgDeleted", { name: server.name }));
         if (next.servers.length === 0) setMcpAddMode(true);
         // fork:mcp-undo —— 有 token 就给一条撤销通知，60 秒后自己消失。
@@ -2313,6 +2466,23 @@ export function PluginsConfig({
     },
     [mcpScope, mcpEditTarget, runMcpAction], // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  /** fork:mcp-detail-modal —— 关闭详情 / 添加编辑弹窗：三个状态一起清。
+   *  `mcpSelected` 现在就是「弹窗开着看谁」的开关（非 null = 开着），
+   *  所以关闭入口统一走这里，不留「选中着但没弹窗」的悬空态。 */
+  const closeMcpModal = useCallback(() => {
+    setMcpSelected(null);
+    setMcpAddMode(false);
+    setMcpEditTarget(null);
+  }, []);
+
+  /** fork:mcp-detail-modal —— 行点击（鼠标 / Enter / Space）打开某条 server 的详情弹窗。 */
+  const openMcpDetail = useCallback((server: McpServerInfo) => {
+    setMcpSelected(server.name);
+    setMcpAddMode(false);
+    setMcpEditTarget(null);
+    setMcpPasteMode(false);
+  }, []);
 
   const fetchMcpDef = useCallback(
     async (name: string, serverScope: McpScope): Promise<Record<string, unknown> | null> => {
@@ -3022,28 +3192,14 @@ export function PluginsConfig({
 
         {mcpOnly && !isMobile ? (
           /* fork:v5-d15-frame-a —— 桌面：内容列一块 `.d-set-inner`，页头只留标题
-             （画板帧 A 的 `d-modal-head` 就是一行标题）。添加 / 粘贴两态沿用
-             已落地的 D-15 帧 B 表单与粘贴面板；列表态是帧 A 的 `.d-slottable`，
-             条目级动作在行尾浮窗里，「看配置与工具曝光」把读数展开在列表下面
-             （画板没有这一层 —— 偏离登记在 DIVERGENCE.md）。 */
+             （画板帧 A 的 `d-modal-head` 就是一行标题）。粘贴态沿用已落地的 D-15
+             帧 B 粘贴面板；列表态是帧 A 的 `.d-slottable`，条目级动作在行尾浮窗里。
+             fork:mcp-detail-modal（2026-10-07 用户原话：「mcp这个也点不了…也给我
+             弄成点击后，弹窗展示的那种，包括它的编辑啥的」）—— 详情 / 添加 / 编辑
+             不再展开在列表下面，改成同区的 `d-modal` 弹窗（McpDetailModal /
+             McpFormModal）；列表下面那一块内联详情已删。 */
           <div className="d-set-inner">
-            {mcpAddMode ? (
-              <AddMcpServer
-                cwd={cwd}
-                scope={mcpScope}
-                projectResourcesLoaded={projectResourcesLoaded}
-                busy={mcpBusy}
-                actionError={mcpActionError}
-                initial={mcpEditTarget}
-                onScopeChange={setMcpScope}
-                onSave={(name, def) => void saveMcp(name, def)}
-                onFetchDef={fetchMcpDef}
-                onCancel={() => {
-                  setMcpAddMode(false);
-                  setMcpEditTarget(null);
-                }}
-              />
-            ) : mcpPasteMode ? (
+            {mcpPasteMode ? (
               <McpPastePanel
                 cwd={cwd}
                 scope={mcpScope}
@@ -3080,33 +3236,53 @@ export function PluginsConfig({
                     setMcpActionMessage(null);
                   }}
                   onToggle={(server) => void toggleMcp(server)}
+                  onOpen={openMcpDetail}
                   onRowMenu={openMcpRowMenu}
                   onPageMenu={openMcpPageMenu}
                 />
-                {selectedMcp && (
-                  <McpServerDetail
-                    key={selectedMcp.name}
-                    server={selectedMcp}
-                    cwd={cwd}
-                    busy={mcpBusy || mcpTesting === selectedMcp.name}
-                    actionError={null}
-                    actionMessage={null}
-                    onToggle={() => void toggleMcp(selectedMcp)}
-                    onRemove={() => void removeMcp(selectedMcp)}
-                    onMove={() => void moveMcp(selectedMcp)}
-                    onTest={() => void testMcp(selectedMcp)}
-                    onExposure={(exposure) => void setMcpExposure(selectedMcp, exposure)}
-                    onEdit={() => {
-                      setMcpEditTarget(selectedMcp);
-                      setMcpScope(selectedMcp.scope);
-                      setMcpAddMode(true);
-                    }}
-                    authActions={renderMcpAuthActions?.(selectedMcp)}
-                    headActions={false}
-                  />
-                )}
               </>
             )}
+            {/* 详情与添加 / 编辑互斥：编辑态压住详情态；保存后 saveMcp 把 mcpSelected
+                指到新名字，详情弹窗接着显示。 */}
+            {mcpAddMode ? (
+              <McpFormModal
+                cwd={cwd}
+                scope={mcpScope}
+                projectResourcesLoaded={projectResourcesLoaded}
+                busy={mcpBusy}
+                actionError={mcpActionError}
+                initial={mcpEditTarget}
+                onScopeChange={setMcpScope}
+                onSave={(name, def) => void saveMcp(name, def)}
+                onFetchDef={fetchMcpDef}
+                onClose={closeMcpModal}
+              />
+            ) : !mcpPasteMode && mcpSelected && selectedMcp ? (
+              <McpDetailModal
+                key={selectedMcp.name}
+                server={selectedMcp}
+                cwd={cwd}
+                busy={mcpBusy || mcpTesting === selectedMcp.name}
+                actionError={null}
+                actionMessage={null}
+                onToggle={() => void toggleMcp(selectedMcp)}
+                onRemove={() => void removeMcp(selectedMcp)}
+                onMove={() => void moveMcp(selectedMcp)}
+                onTest={() => void testMcp(selectedMcp)}
+                onExposure={(exposure) => void setMcpExposure(selectedMcp, exposure)}
+                onEdit={() => {
+                  setMcpEditTarget(selectedMcp);
+                  setMcpScope(selectedMcp.scope);
+                  setMcpAddMode(true);
+                }}
+                authActions={renderMcpAuthActions?.(selectedMcp)}
+                /* fork:mcp-detail-modal（2026-10-07 用户裁定）—— 详情搬进弹窗后，行尾 ⋯
+                   在遮罩底下点不到，所以桌面这一份**必须**带上那排条目动作（测试 / 编辑 /
+                   移动 / 删除），否则弹窗一开就只剩读数 —— 用户原话是「包括它的编辑啥的」。 */
+                headActions
+                onClose={closeMcpModal}
+              />
+            ) : null}
           </div>
         ) : !mcpOnly && !isMobile ? (
           /* fork:v5-d13-frame-a —— 桌面 = 画板 D-13 帧 A：sec「已装」= 计数行
@@ -3540,23 +3716,7 @@ export function PluginsConfig({
                   pw-modal 弹层（见下方 McpImportModal），不再占详情列；导入弹层开着
                   时详情列保持原内容。 */}
               {view === "mcp" ? (
-                mcpAddMode ? (
-                  <AddMcpServer
-                    cwd={cwd}
-                    scope={mcpScope}
-                    projectResourcesLoaded={projectResourcesLoaded}
-                    busy={mcpBusy}
-                    actionError={mcpActionError}
-                    initial={mcpEditTarget}
-                    onScopeChange={setMcpScope}
-                    onSave={(name, def) => void saveMcp(name, def)}
-                    onFetchDef={fetchMcpDef}
-                    onCancel={() => {
-                      setMcpAddMode(false);
-                      setMcpEditTarget(null);
-                    }}
-                  />
-                ) : mcpPasteMode ? (
+                mcpPasteMode ? (
                   <McpPastePanel
                     cwd={cwd}
                     scope={mcpScope}
@@ -3567,35 +3727,10 @@ export function PluginsConfig({
                     onSubmit={(draft) => void pasteMcp(draft)}
                     onCancel={() => setMcpPasteMode(false)}
                   />
-                ) : selectedMcp ? (
-                  <McpServerDetail
-                    key={selectedMcp.name}
-                    server={selectedMcp}
-                    cwd={cwd}
-                    busy={mcpBusy || mcpTesting === selectedMcp.name}
-                    actionError={mcpActionError}
-                    actionMessage={mcpActionMessage}
-                    onToggle={() => void toggleMcp(selectedMcp)}
-                    onRemove={() => void removeMcp(selectedMcp)}
-                    onMove={() => void moveMcp(selectedMcp)}
-                    onTest={() => void testMcp(selectedMcp)}
-                    onExposure={(exposure) => void setMcpExposure(selectedMcp, exposure)}
-                    onEdit={() => {
-                      setMcpEditTarget(selectedMcp);
-                      // The scope switch has to follow the server being edited: `update`
-                      // writes into whichever scope the switch reports, so leaving it at the
-                      // default would silently COPY the definition (env values included) into
-                      // the other scope's mcp.json while the original stayed untouched.
-                      setMcpScope(selectedMcp.scope);
-                      setMcpAddMode(true);
-                      setMcpActionError(null);
-                      setMcpActionMessage(null);
-                    }}
-                    authActions={renderMcpAuthActions?.(selectedMcp)}
-                  />
                 ) : (
-                  /* fork:settings-frame（画板 62 帧 D）—— 详情未选：40px 方框记号 +
-                     一句引导，居中（mark 的 40px 几何在 board.css）。 */
+                  /* fork:settings-frame（画板 62 帧 D）+ fork:mcp-detail-modal ——
+                     详情改弹窗后，详情列回到未选引导态；点侧栏条目 / 行开下方
+                     `m-modal` 详情弹窗。 */
                   <EmptyState>
                     <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
                     <p className="d-empty-t">{t("mcp.emptyDetail")}</p>
@@ -3651,6 +3786,52 @@ export function PluginsConfig({
                   <p className="d-empty-t">{t("i18n.selectPackage")}</p>
                 </EmptyState>
               )}
+              {/* fork:mcp-detail-modal —— 手机档：详情 / 添加编辑是 `m-modal` 弹窗，
+                  与 AddPluginModal 同一挂点（详情列内）。`m-modal` 是 absolute，会
+                  逃出非定位的滚动容器、相对最近的定位祖先（.settings-dialog-surface）
+                  定位，所以盖的是整个设置 sheet。 */}
+              {view === "mcp" && mcpAddMode && (
+                <McpFormModal
+                  cwd={cwd}
+                  scope={mcpScope}
+                  projectResourcesLoaded={projectResourcesLoaded}
+                  busy={mcpBusy}
+                  actionError={mcpActionError}
+                  initial={mcpEditTarget}
+                  onScopeChange={setMcpScope}
+                  onSave={(name, def) => void saveMcp(name, def)}
+                  onFetchDef={fetchMcpDef}
+                  onClose={closeMcpModal}
+                />
+              )}
+              {view === "mcp" && !mcpAddMode && !mcpPasteMode && mcpSelected && selectedMcp && (
+                <McpDetailModal
+                  key={selectedMcp.name}
+                  server={selectedMcp}
+                  cwd={cwd}
+                  busy={mcpBusy || mcpTesting === selectedMcp.name}
+                  actionError={mcpActionError}
+                  actionMessage={mcpActionMessage}
+                  onToggle={() => void toggleMcp(selectedMcp)}
+                  onRemove={() => void removeMcp(selectedMcp)}
+                  onMove={() => void moveMcp(selectedMcp)}
+                  onTest={() => void testMcp(selectedMcp)}
+                  onExposure={(exposure) => void setMcpExposure(selectedMcp, exposure)}
+                  onEdit={() => {
+                    setMcpEditTarget(selectedMcp);
+                    // The scope switch has to follow the server being edited: `update`
+                    // writes into whichever scope the switch reports, so leaving it at the
+                    // default would silently COPY the definition (env values included) into
+                    // the other scope's mcp.json while the original stayed untouched.
+                    setMcpScope(selectedMcp.scope);
+                    setMcpAddMode(true);
+                    setMcpActionError(null);
+                    setMcpActionMessage(null);
+                  }}
+                  authActions={renderMcpAuthActions?.(selectedMcp)}
+                  onClose={closeMcpModal}
+                />
+              )}
             </Stack>
           </div>
         </ConfigSplitView>
@@ -3660,7 +3841,8 @@ export function PluginsConfig({
       {/* fork:v5-d13-frame-c —— 桌面帧 A 的详情弹层，挂在 SettingsPage 的兄弟位
           （与下面的导入 / 日志弹层同一位）：设置壳已经在那里了，再套一层抽屉式
           主从就是画板上没有的第四种形态。只在桌面插件分节渲染 —— 手机档（M-05）
-          的详情是列表内联的，`only="mcp"` 的详情在内容列里。 */}
+          的插件详情仍是列表内联；`only="mcp"` 的详情走 fork:mcp-detail-modal
+          的弹窗。 */}
       {desktopTable && detailOpen && selectedPackage && (
         <PluginDetailModal
           key={packageKey(selectedPackage)}
