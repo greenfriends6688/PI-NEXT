@@ -159,4 +159,6 @@ PI NEXT 是 [@agegr](https://github.com/agegr/pi-web) 的 [Pi Web](https://githu
 
 ## 许可
 
-[MIT](./LICENSE)
+[GNU 通用公共许可证第 3 版或更高版本（GPL-3.0-or-later）](./LICENSE)。
+
+PI NEXT 是分支项目，仓库中部分代码保持原有许可：上游 Pi Web 的代码沿用其 MIT 声明（见 [LICENSE-MIT](./LICENSE-MIT)），嵌入式第三方组件沿用它自己文件里记录的许可。

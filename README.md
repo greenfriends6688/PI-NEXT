@@ -159,4 +159,6 @@ The agent runtime, session format and terminal experience belong to [pi](https:/
 
 ## License
 
-[MIT](./LICENSE)
+[GNU General Public License v3.0 or later](./LICENSE).
+
+PI NEXT is a fork, so parts of the codebase keep their original licenses: the upstream Pi Web code stays under its MIT notice ([LICENSE-MIT](./LICENSE-MIT)), and vendored third-party components keep the license recorded in their own files.

@@ -131,4 +131,4 @@ docs/            Тематические руководства для поль
 
 ## Лицензия
 
-[MIT](./LICENSE)
+[GNU General Public License v3.0 или позднее](./LICENSE)

@@ -131,4 +131,4 @@ docs/            ユーザーおよびコントリビューター向けの個別
 
 ## ライセンス
 
-[MIT](./LICENSE)
+[GNU General Public License v3.0 以降](./LICENSE)

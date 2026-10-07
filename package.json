@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/greenfriends6688/Pi-Agent/issues"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "engines": {
     "node": ">=22.19.0"
   },
