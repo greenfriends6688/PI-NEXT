@@ -8,9 +8,11 @@ import { SettingsPage } from "../SettingsUi";
 /**
  * fork:imagegen —— 设置 → 生图模型（画板 D-31）。
  *
- * 生图模型是**独立于对话模型的档案**：不进模型选择器、不吃 `enabledModels`。
- * 会话里的 `generate_image` 工具与标书配图读这里的同一份配置
- * （`~/.pi/agent/imagegen.json`，0600，密钥掩码存取）。
+ * 生图模型是**独立于对话模型的档案**：它不进对话模型选择器、不吃 `enabledModels`，
+ * 每个预设档（Agnes 国内/国际、火山方舟、Google AI Studio、OpenAI、自定义）各有自己的
+ * 端点、密钥、模型名与默认尺寸 —— 预设表与三种请求方言照抄参考项目的实测实现
+ * （见 `lib/imagegen-shared.ts` 头注）。会话里的 `generate_image` 工具与标书配图读同一份
+ * `~/.pi/agent/imagegen.json`（0600，密钥掩码存取）。
  *
  * DOM 照 `design/v5/web/boards/D-31-settings-imagegen.html` 抄：
  * `.d-set-sec` / `.d-grid2` / `.d-field` / `.d-input` / `.d-select` / `.d-banner`，
@@ -21,8 +23,6 @@ import { SettingsPage } from "../SettingsUi";
  */
 
 interface ProviderProfileView {
-  /** 非空 = 引用「设置 → 模型」里那个服务商的端点与密钥（本档不存副本）。 */
-  providerId: string;
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -36,29 +36,22 @@ interface ProviderProfileView {
   };
 }
 
-/** 「设置 → 模型」里已配的服务商（`GET /api/imagegen` 附带；不含明文密钥）。 */
-interface ModelsProviderView {
-  id: string;
-  name: string;
-  baseUrl: string;
-  hasKey: boolean;
-}
-
 interface ImageGenConfigView {
   active: string;
   providers: Record<string, ProviderProfileView>;
-  modelsProviders?: ModelsProviderView[];
-  /** 当前引用的服务商解析不出来时的原因（已从「设置 → 模型」删掉 / 没填密钥）。 */
-  refError?: string | null;
 }
 
-const PRESETS = ["openai", "jinlong", "siliconflow", "volcengine", "custom"] as const;
+const PRESETS = ["agnes", "agnes-global", "volcengine", "google", "openai", "custom"] as const;
 type Preset = (typeof PRESETS)[number];
 
-/** 引用态的选项值前缀；`active` 落在 `custom` 档，端点与密钥来自 models.json。 */
-const REF_VALUE_PREFIX = "ref:";
+/** 像素尺寸（OpenAI 兼容那一套）。 */
+const PIXEL_SIZES = ["auto", "512x512", "1024x1024", "1024x768", "768x1024", "1536x1024", "1024x1536", "2048x2048"];
+/** Agnes 2.1 是档位（1K/2K/3K/4K），2.0 是像素（照参考项目的白名单）。 */
+const AGNES_SIZES = ["1K", "2K", "3K", "4K", "1024x768", "1024x1024", "768x1024"];
 
-const SIZE_OPTIONS = ["auto", "512x512", "1024x1024", "1024x768", "768x1024", "1536x1024", "1024x1536", "2048x2048"];
+function sizeOptions(preset: Preset): string[] {
+  return preset === "agnes" || preset === "agnes-global" ? AGNES_SIZES : PIXEL_SIZES;
+}
 
 function formatDuration(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
@@ -78,7 +71,10 @@ export function ImageGenSettingsPanel() {
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/imagegen");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? `HTTP ${response.status}`);
+      }
       const data = await response.json() as ImageGenConfigView;
       setConfig(data);
       setLoadError(null);
@@ -89,7 +85,7 @@ export function ImageGenSettingsPanel() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const activeId = (config?.active ?? "openai") as Preset;
+  const activeId = (config?.active ?? "agnes") as Preset;
   const active = config?.providers[activeId];
 
   const patchActive = (patch: Partial<ProviderProfileView>) => {
@@ -116,10 +112,9 @@ export function ImageGenSettingsPanel() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ active: activeId, providers: config.providers }),
       });
-      const data = await response.json() as ImageGenConfigView & { error?: string };
+      const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
-      // 重新读一遍：引用态的 baseUrl 与密钥掩码是服务端**派生**的，PUT 的回包里没有
-      // modelsProviders / refError，直接换上会把下拉清空。
+      // 重新读一遍：掩码与「换端点/换模型就重置状态」都是服务端算的。
       await load();
       setSaveState("saved");
     } catch (error) {
@@ -129,6 +124,7 @@ export function ImageGenSettingsPanel() {
   };
 
   const runTest = async () => {
+    if (!config) return;
     setTestState("running");
     setTestError(null);
     setTestImage(null);
@@ -137,7 +133,7 @@ export function ImageGenSettingsPanel() {
       const saveResponse = await fetch("/api/imagegen", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ active: activeId, providers: config?.providers }),
+        body: JSON.stringify({ active: activeId, providers: config.providers }),
       });
       if (!saveResponse.ok) {
         const data = await saveResponse.json().catch(() => null) as { error?: string } | null;
@@ -183,17 +179,8 @@ export function ImageGenSettingsPanel() {
       ? <span className="d-badge bad">{t("settings.imagegenStatus.unavailable")}</span>
       : <span className="d-badge mute">{t("settings.imagegenStatus.untested")}</span>;
 
-  const missing = !active.model || (!active.providerId && (!active.baseUrl || !active.apiKey));
-
-  /* fork:imagegen-ref —— 引用态：端点与密钥来自「设置 → 模型」里那一份，本档不存副本。
-     下拉里两组：已配服务商（`ref:<id>`）与内置预设，后者保留给「生图专用端点」
-     （金龙中转 / 硅基流动 / 火山方舟那些平时不会加进模型列表的服务商）。
-     引用态落在 `custom` 档 —— 四个内置预设各带固定端点，没有可引用的对象。 */
-  const refProviders = config.modelsProviders ?? [];
-  const activeRef = active.providerId
-    ? refProviders.find((provider) => provider.id === active.providerId) ?? null
-    : null;
-  const selectValue = active.providerId ? `${REF_VALUE_PREFIX}${active.providerId}` : activeId;
+  const missing = !active.baseUrl || !active.apiKey || !active.model;
+  const sizes = sizeOptions(activeId);
 
   return (
     <SettingsPage
@@ -220,82 +207,40 @@ export function ImageGenSettingsPanel() {
               <span className="d-field-t">{t("settings.imagegenProvider")}</span>
               <select
                 className="d-select"
-                value={selectValue}
+                value={activeId}
                 aria-label={t("settings.imagegenProvider")}
                 onChange={(event) => {
-                  const value = event.target.value;
-                  const reference = value.startsWith(REF_VALUE_PREFIX) ? value.slice(REF_VALUE_PREFIX.length) : null;
-                  setConfig((current) => {
-                    if (!current) return current;
-                    // 引用态：落到 custom 档，清空自己那份端点/密钥（服务端也不会存）。
-                    if (reference !== null) {
-                      return {
-                        ...current,
-                        active: "custom",
-                        providers: {
-                          ...current.providers,
-                          custom: { ...current.providers.custom, providerId: reference, baseUrl: "", apiKey: "" },
-                        },
-                      };
-                    }
-                    const preset = value as Preset;
-                    return {
-                      ...current,
-                      active: preset,
-                      providers: {
-                        ...current.providers,
-                        [preset]: { ...current.providers[preset], providerId: "" },
-                      },
-                    };
-                  });
+                  const preset = event.target.value as Preset;
+                  setConfig((current) => (current ? { ...current, active: preset } : current));
                   setSaveState("idle");
                   setTestImage(null);
+                  setTestDuration(null);
                 }}
               >
-                <optgroup label={t("settings.imagegenRefGroup")}>
-                  {refProviders.length > 0 ? refProviders.map((provider) => (
-                    <option key={provider.id} value={`${REF_VALUE_PREFIX}${provider.id}`}>
-                      {provider.name} · {provider.baseUrl || "—"}
-                    </option>
-                  )) : (
-                    <option value="" disabled>{t("settings.imagegenRefNone")}</option>
-                  )}
-                </optgroup>
-                <optgroup label={t("settings.imagegenPresetGroup")}>
-                  {PRESETS.map((preset) => (
-                    <option key={preset} value={preset}>{t(`settings.imagegenPreset.${preset}`)}</option>
-                  ))}
-                </optgroup>
+                {PRESETS.map((preset) => (
+                  <option key={preset} value={preset}>{t(`settings.imagegenPreset.${preset}`)}</option>
+                ))}
               </select>
-              <span className="d-t-xs d-t-faint">{t("settings.imagegenProviderHint")}</span>
             </div>
-            {/* 引用态不摆这两格：端点与密钥去「设置 → 模型」里改。这里再摆一份
-                就是要用户复制一次 —— 正是这次要消掉的东西。 */}
-            {active.providerId ? null : (
-              <div className="d-field">
-                <span className="d-field-t">{t("settings.imagegenBaseUrl")}</span>
-                <input
-                  className="d-input d-mono"
-                  value={active.baseUrl}
-                  placeholder="https://api.openai.com/v1"
-                  onChange={(event) => patchActive({ baseUrl: event.target.value })}
-                />
-                <span className="d-t-xs d-t-faint">{t("settings.imagegenBaseUrlHint")}</span>
-              </div>
-            )}
-            {active.providerId ? null : (
-              <div className="d-field">
-                <span className="d-field-t">{t("settings.imagegenApiKey")}</span>
-                <input
-                  className="d-input d-mono"
-                  type="password"
-                  value={active.apiKey}
-                  placeholder={t("settings.imagegenApiKeyPlaceholder")}
-                  onChange={(event) => patchActive({ apiKey: event.target.value })}
-                />
-                <span className="d-t-xs d-t-faint">{t("settings.imagegenApiKeyHint")}</span>
-              </div>
-            )}
+            <div className="d-field">
+              <span className="d-field-t">{t("settings.imagegenBaseUrl")}</span>
+              <input
+                className="d-input d-mono"
+                value={active.baseUrl}
+                placeholder={activeId === "google" ? "https://generativelanguage.googleapis.com/v1beta" : "https://api.example.com/v1"}
+                onChange={(event) => patchActive({ baseUrl: event.target.value })}
+              />
+            </div>
+            <div className="d-field">
+              <span className="d-field-t">{t("settings.imagegenApiKey")}</span>
+              <input
+                className="d-input d-mono"
+                type="password"
+                value={active.apiKey}
+                placeholder={t("settings.imagegenApiKeyPlaceholder")}
+                onChange={(event) => patchActive({ apiKey: event.target.value })}
+              />
+            </div>
             <div className="d-field">
               <span className="d-field-t">{t("settings.imagegenModel")}</span>
               <input
@@ -303,30 +248,8 @@ export function ImageGenSettingsPanel() {
                 value={active.model}
                 onChange={(event) => patchActive({ model: event.target.value })}
               />
-              <span className="d-t-xs d-t-faint">{t("settings.imagegenModelHint")}</span>
             </div>
           </div>
-
-          {active.providerId ? (
-            <div className="d-set-row">
-              <div className="d-set-row-box">
-                <div className="d-set-row-t">{t("settings.imagegenRefFrom")}</div>
-                <div className="d-set-row-s d-mono">{activeRef?.baseUrl || "—"}</div>
-              </div>
-              <span className="d-grow-last">{activeRef?.hasKey
-                ? <span className="d-badge ok">{t("settings.imagegenRefKeyOk")}</span>
-                : <span className="d-badge bad">{t("settings.imagegenRefKeyMissing")}</span>}</span>
-            </div>
-          ) : null}
-          {active.providerId ? (
-            <span className="d-t-xs d-t-faint">{t("settings.imagegenRefHint")}</span>
-          ) : null}
-          {config.refError ? (
-            <div className="d-banner err">
-              <i data-ico="circle-alert" data-size="14"></i>
-              <span>{config.refError}</span>
-            </div>
-          ) : null}
         </div>
 
         <div className="d-set-sec">
@@ -340,11 +263,10 @@ export function ImageGenSettingsPanel() {
                 aria-label={t("settings.imagegenSize")}
                 onChange={(event) => patchActive({ size: event.target.value })}
               >
-                {(SIZE_OPTIONS.includes(active.size) ? SIZE_OPTIONS : [active.size, ...SIZE_OPTIONS]).map((size) => (
+                {(sizes.includes(active.size) ? sizes : [active.size, ...sizes]).map((size) => (
                   <option key={size} value={size}>{size}</option>
                 ))}
               </select>
-              <span className="d-t-xs d-t-faint">{t("settings.imagegenSizeHint")}</span>
             </div>
             <div className="d-field">
               <span className="d-field-t">{t("settings.imagegenConcurrency")}</span>
@@ -356,7 +278,6 @@ export function ImageGenSettingsPanel() {
                 value={active.concurrency}
                 onChange={(event) => patchActive({ concurrency: Number(event.target.value) || 1 })}
               />
-              <span className="d-t-xs d-t-faint">{t("settings.imagegenConcurrencyHint")}</span>
             </div>
           </div>
         </div>
@@ -399,7 +320,6 @@ export function ImageGenSettingsPanel() {
           <div className="d-set-row">
             <div className="d-set-row-box">
               <div className="d-set-row-t">{t("settings.imagegenTestTitle")}</div>
-              <div className="d-set-row-s">{t("settings.imagegenTestHint")}</div>
             </div>
             <span className="d-grow-last">{statusBadge}</span>
           </div>

@@ -9,9 +9,9 @@ import {
   IMAGEGEN_MAX_BATCH,
   ensureGeneratedImagesRootRegistered,
   generateImagesWithProfile,
+  profileIsConfigured,
   readImageGenConfig,
   resolveDestWithinCwd,
-  resolveImageGenProfile,
   saveGeneratedImageSync,
   type GeneratedImageFile,
 } from "./imagegen-config";
@@ -85,20 +85,18 @@ export function createImageGenExtension(sessionCwd?: string): InlineExtension {
         }),
         async execute(_toolCallId, params, signal) {
           const config = readImageGenConfig();
-          // fork:imagegen-ref —— 解析器负责「引用态去 models.json 取端点+密钥」；
-          // 与设置页的「测试」共用一份，三处不会各拼一套 baseUrl。
-          const resolved = resolveImageGenProfile(config.providers[config.active]);
-          if (!resolved.ok) {
+          const profile = config.providers[config.active];
+          // 生效档缺端点 / 密钥 / 模型名时 fail closed，并指向设置页。
+          if (!profileIsConfigured(profile)) {
             return {
               content: [{
                 type: "text" as const,
-                text: `${resolved.error} The user fixes this in Settings → Image models, or runs the connection test there.`,
+                text: "Image generation is not configured: the active profile needs a base URL, an API key and a model name. The user fixes this in Settings → Image models, or runs the connection test there.",
               }],
               details: undefined,
               isError: true,
             };
           }
-          const profile = resolved.profile;
 
           const n = Math.min(IMAGEGEN_MAX_BATCH, Math.max(1, Math.floor(params.n ?? 1)));
           const destDir = params.dest?.trim();
@@ -128,8 +126,9 @@ export function createImageGenExtension(sessionCwd?: string): InlineExtension {
             Array.from({ length: n }, (_, index) => index),
             profile.concurrency,
             (index) => generateImagesWithProfile(
+              config.active,
               profile,
-              { prompt: params.prompt, n: 1, ...(params.size ? { size: params.size } : {}) },
+              { prompt: params.prompt, ...(params.size ? { size: params.size } : {}) },
               {
                 ...(signal ? { signal } : {}),
                 saveImage: (data, mimeType) => saveGeneratedImageSync(saveRoot, data, mimeType),

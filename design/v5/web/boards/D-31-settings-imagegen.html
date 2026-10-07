@@ -16,21 +16,22 @@
 <header class="d-board-head">
   <h1>D-31 · 生图模型</h1>
   <p>
-    生图模型是<b>独立于对话模型的一张档案</b>：同一个页面只管「图从哪来」——服务商、端点、密钥、
-    默认尺寸与并发。它不进对话模型选择器，也不吃 <code>enabledModels</code>；
-    会话里的 <code>generate_image</code> 工具读这里的状态，标书配图也吃同一份。
-    密钥掩码存取，<b>「测试」是真的生成一张小图</b>并把状态落盘——「看起来配好了」不算数。
+    生图模型是<b>独立于对话模型的一张档案</b>：预设档（Agnes 国内/国际、火山方舟、Google AI Studio、
+    OpenAI、自定义）各有<b>自己的端点、密钥、模型名与默认尺寸</b>，密钥掩码存取。它不进对话模型选择器，
+    也不吃 <code>enabledModels</code>；会话里的 <code>generate_image</code> 工具读这里的状态，
+    标书配图也吃同一份。<b>「测试」是真的生成一张小图</b>并把状态落盘——「看起来配好了」不算数。
   </p>
   <div class="d-tags" data-board-tags>
     <span class="d-tag">页面：设置 / 生图模型</span>
     <span class="d-tag">组件：ImageGenSettingsPanel · /api/imagegen · generate_image</span>
     <span class="d-tag">状态：未测试 / 可用 / 不可用</span>
+    <span class="d-tag">预设与方言：参考项目实测（标书功能 / MusePi）</span>
   </div>
 </header>
 
 <!-- ───────────────────────────────────────────────────────────────────────── -->
 <section class="d-scene">
-  <div class="d-frame-label"><b>帧 A</b> · 独立档（内置预设 / 自定义）—— 端点与密钥自己填<span class="d-grow"></span>测试真的出一张图</div>
+  <div class="d-frame-label"><b>帧 A</b> · 预设档：Agnes（国内 / 国际）/ 火山方舟 / Google AI Studio / OpenAI / 自定义<span class="d-grow"></span>端点与模型照参考项目预填，密钥掩码存取</div>
   <div class="d-frame">
     <div class="d-frame-body">
       <div class="d-shell two">
@@ -73,7 +74,8 @@
               <div class="d-set-navsep">能力</div>
               <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
               <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
-              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+<button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="brain" data-size="14"></i>记忆</button>
               <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
               <div class="d-set-navsep">运行</div>
               <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
@@ -92,13 +94,13 @@
                   <div class="d-grid2">
                     <div class="d-field">
                       <span class="d-field-t">服务商</span>
-                      <button class="d-select">OpenAI<i data-ico="chevron-down" data-size="12"></i></button>
-                      <span class="d-t-xs d-t-faint">下拉两组：已配服务商（设置 → 模型）与内置预设。选预设只带端点，密钥与模型各填各的。</span>
+                      <button class="d-select">Agnes AI（国内）<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-faint">预设的端点与模型照参考项目预填；换一家（或选自定义）就改这两格。密钥只存在本档，掩码存取。</span>
                     </div>
                     <div class="d-field">
                       <span class="d-field-t">Base URL</span>
-                      <input class="d-input d-mono" value="https://api.openai.com/v1">
-                      <span class="d-t-xs d-t-faint">OpenAI 兼容的 <code>/images/generations</code> 端点；金龙中转、硅基流动、火山方舟都走这一个协议。</span>
+                      <input class="d-input d-mono" value="https://api.agnes-ai.cn/v1">
+                      <span class="d-t-xs d-t-faint">OpenAI 兼容端点在后面拼 <code>/images/generations</code>；Google AI Studio 那档走 <code>models/&lt;模型&gt;:generateContent</code>。</span>
                     </div>
                     <div class="d-field">
                       <span class="d-field-t">API Key</span>
@@ -107,8 +109,8 @@
                     </div>
                     <div class="d-field">
                       <span class="d-field-t">模型名称</span>
-                      <input class="d-input d-mono" value="gpt-image-2">
-                      <span class="d-t-xs d-t-faint">如 <code>gpt-image-2</code>、<code>doubao-seedream-4-0</code>；走中转站以站内名称为准。</span>
+                      <input class="d-input d-mono" value="agnes-image-2.1-flash">
+                      <span class="d-t-xs d-t-faint">以站内名称为准。Agnes：<code>agnes-image-2.1-flash</code>；火山方舟：<code>doubao-seedream-4-0-250828</code>；Google：<code>gemini-2.5-flash-image</code>；OpenAI：<code>gpt-image-1</code>。</span>
                     </div>
                   </div>
                 </div>
@@ -118,8 +120,8 @@
                   <div class="d-grid2">
                     <div class="d-field">
                       <span class="d-field-t">默认尺寸</span>
-                      <button class="d-select">1024x1024<i data-ico="chevron-down" data-size="12"></i></button>
-                      <span class="d-t-xs d-t-faint">工具没显式给尺寸时用它；具体可选值以服务商文档为准。</span>
+                      <button class="d-select">1K<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-faint">工具没显式给尺寸时用它；Agnes 2.1 用档位（1K/2K/3K/4K），其余用像素。</span>
                     </div>
                     <div class="d-field">
                       <span class="d-field-t">并发上限</span>
@@ -133,141 +135,7 @@
                   <div class="d-set-sec-t">连接测试</div>
                   <div class="d-banner ok">
                     <i data-ico="circle-check" data-size="14"></i>
-                    <span>可用 · gpt-image-2 · 今天 14:22 测试通过（8.6s）</span>
-                  </div>
-
-                  <div class="d-set-row">
-                    <div class="d-set-row-box">
-                      <div class="d-set-row-t">测试真的生成一张小图</div>
-                      <div class="d-set-row-s">用当前配置出一张图并回显在这里；成功自动把状态落成「可用」，失败原样带回失败原因（401 / 尺寸不支持 / 超时）。</div>
-                    </div>
-                    <span class="d-grow-last"><span class="d-badge mute">上次：8.6s</span></span>
-                    <button class="d-btn sm primary"><i data-ico="image" data-size="13"></i>测试</button>
-                  </div>
-
-                  <div class="d-set-row">
-                    <div class="d-set-row-box">
-                      <div class="d-set-row-t d-t-dim">测试回显</div>
-                    </div>
-                    <img class="d-test-img" alt="测试生成的回显图">
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-          </div>
-          </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="d-scene">
-  <div class="d-frame-label"><b>帧 B</b> · 引用「设置 → 模型」里已配的服务商<span class="d-grow"></span>端点与密钥不复制一份</div>
-  <div class="d-frame">
-    <div class="d-frame-body">
-      <div class="d-shell two">
-        <main class="d-main">
-  <div class="d-chat">
-    <div class="d-chat-inner">
-      <div class="d-msg-ai">
-        <div class="d-msg-ai-head">
-          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
-          <span class="d-t-sm d-t-b">PI NEXT</span>
-          <span class="d-badge mute">生图模型</span>
-        </div>
-        <div class="d-md"><p>生图不走对话模型：对话模型管「说什么」，这张档案管「画什么」。没配好时工具会如实说没配，绝不编路径。</p></div>
-      </div>
-    </div>
-  </div>
-          <header class="d-topbar">
-  <div class="d-tb-stack">
-    <span class="d-tb-title">定住令牌与类名</span>
-    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
-  </div>
-  <div class="d-tb-spacer"></div>
-  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
-</header>
-
-          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 生图模型">
-  <div class="d-modal-box wide" style="width:78%">
-    <div class="d-modal-head">
-      <span class="d-grow">设置 · 生图模型</span>
-
-      <span class="d-badge ok"><i data-ico="check" data-size="12"></i>可用</span>
-    </div>
-    <div class="d-modal-body">
-      <div class="d-set">
-            <nav class="d-set-nav">
-              <div class="d-set-navsep">基础</div>
-              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
-              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
-              <button class="d-set-navitem is-on"><i data-ico="image" data-size="14"></i>生图模型</button>
-              <div class="d-set-navsep">能力</div>
-              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
-              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
-              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
-              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
-              <div class="d-set-navsep">运行</div>
-              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
-              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
-              <div class="d-set-navsep">数据与连接</div>
-              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
-              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
-              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
-</nav>
-
-            <div class="d-set-main">
-              <div class="d-set-inner">
-
-                <div class="d-set-sec">
-                  <div class="d-set-sec-t">服务商</div>
-                  <div class="d-grid2">
-                    <div class="d-field">
-                      <span class="d-field-t">服务商</span>
-                      <button class="d-select">workbuddy2api · http://127.0.0.1:7863/v1<i data-ico="chevron-down" data-size="12"></i></button>
-                      <span class="d-t-xs d-t-faint">下拉两组：已配服务商（设置 → 模型）与内置预设。选预设只带端点，密钥与模型各填各的。</span>
-                    </div>
-                    <div class="d-field">
-                      <span class="d-field-t">模型名称</span>
-                      <input class="d-input d-mono" value="gpt-image-2">
-                      <span class="d-t-xs d-t-faint">如 <code>gpt-image-2</code>、<code>doubao-seedream-4-0</code>；走中转站以站内名称为准。</span>
-                    </div>
-                  </div>
-                  <div class="d-set-row">
-                    <div class="d-set-row-box">
-                      <div class="d-set-row-t">端点与密钥来自</div>
-                      <div class="d-set-row-s d-mono">http://127.0.0.1:7863/v1</div>
-                    </div>
-                    <span class="d-grow-last"><span class="d-badge ok">已有密钥</span></span>
-                  </div>
-                  <span class="d-t-xs d-t-faint">这里是引用不是复制：端点与密钥始终留在「设置 → 模型」，本档不存副本，那边轮换密钥立刻生效；把那个服务商删掉，生图会如实报错直到你改选别家。</span>
-                </div>
-
-                <div class="d-set-sec">
-                  <div class="d-set-sec-t">生成参数</div>
-                  <div class="d-grid2">
-                    <div class="d-field">
-                      <span class="d-field-t">默认尺寸</span>
-                      <button class="d-select">1024x1024<i data-ico="chevron-down" data-size="12"></i></button>
-                      <span class="d-t-xs d-t-faint">工具没显式给尺寸时用它；具体可选值以服务商文档为准。</span>
-                    </div>
-                    <div class="d-field">
-                      <span class="d-field-t">并发上限</span>
-                      <input class="d-input d-mono" value="2">
-                      <span class="d-t-xs d-t-faint">一次请求多张时同时在途的上限；中转站限流严就调到 1。</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="d-set-sec">
-                  <div class="d-set-sec-t">连接测试</div>
-                  <div class="d-banner ok">
-                    <i data-ico="circle-check" data-size="14"></i>
-                    <span>可用 · gpt-image-2 · 今天 14:22 测试通过（8.6s）</span>
+                    <span>可用 · agnes-image-2.1-flash · 今天 14:22 测试通过（8.6s）</span>
                   </div>
 
                   <div class="d-set-row">
@@ -304,13 +172,13 @@
   <ul>
     <li><b>生图模型是独立档案，不是对话模型的一个开关</b>：不进模型选择器、不吃 <code>enabledModels</code>、
         不占会话 thinking/工具档位。对话模型管推理，这张档案只管出图。</li>
-    <li><b>一个协议吃多家</b>：OpenAI 兼容 <code>/images/generations</code> 覆盖 OpenAI / 金龙中转 / 硅基流动 /
-        火山方舟；预设只带端点，密钥与模型各填各的。别为每家写一套表单。</li>
-    <li><b>端点与密钥默认「引用」而不是「复制」</b>：选「设置 → 模型」里已配好的服务商，
-        端点与密钥从那份配置活取（本档一个字节都不存）——那边轮换密钥立刻生效，这里不会留一份过期副本；
-        把那个服务商删掉则生图如实报错。内置预设（金龙中转 / 硅基流动 / 火山方舟这些生图专用端点）
-        与「自定义」保留独立档：它们平时不会出现在模型列表里，没有可引用的对象。</li>
-    <li><b>密钥掩码存取</b>：页面不回显明文，保存时掩码值 = 沿用已存密钥（与 im-bridge 同一铁律）。</li>
+    <li><b>预设表与请求方言照参考项目的实测实现抄</b>（<code>pi参考项目/标书功能</code> 的
+        <code>aiService.cjs</code>、<code>MusePi-main</code> 的 <code>image-gen.ts</code>）：Agnes（国内
+        <code>api.agnes-ai.cn</code> / 国际 <code>apihub.agnes-ai.com</code>，<code>images/generations</code> +
+        <code>extra_body.response_format</code>）、火山方舟、Google AI Studio（<code>generateContent</code> +
+        <code>x-goog-api-key</code>）、OpenAI、自定义。金龙中转按用户要求不入表（要它就用自定义填端点）。</li>
+    <li><b>每档自带端点与密钥，掩码存取</b>：密钥与 im-bridge 同一铁律（不回显明文，保存掩码 = 沿用已存值）；
+        换端点或换模型会把该档的「可用」重置成未测试 —— 上一次的结论不能替这一套配置背书。</li>
     <li><b>「测试」是真的出一张图</b>并把状态落盘（未测试 / 可用 / 不可用 + 最近失败原因）；
         标书自动配图只认「可用」——没验过的配置不配进正式文档。</li>
     <li><b>没配置时工具如实说</b>：<code>generate_image</code> 返回错误并指向这一页，绝不编造路径，
@@ -321,3 +189,4 @@
 <script src="../../../pi-web-design/assets/icons.js"></script>
 <script src="../../assets/demo.js"></script>
 </body>
+</html>

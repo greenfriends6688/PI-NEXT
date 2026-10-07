@@ -68,3 +68,46 @@ G1 + G2 **已实现并验证**（G3 随 bid-suite B9）：
 - 复验方法：临时目录 rsync 本仓（exclude `.next`/`node_modules`/参考项目）→ `ln -s` 真 node_modules → `next build --webpack` → `next start -p 30247`（`PI_CODING_AGENT_DIR` 指临时目录）→ `POST /api/agent/<id> {"type":"get_tools"}`（`data` 直接是工具数组）与 `GET/PUT/POST /api/imagegen`。生图测试打本地桩即可，不花钱。
 
 
+
+## 7. 形态收敛：只引用「已添加的模型」（2026-10-07）
+
+用户第二轮裁定（原话与逐项处置记在 `design/v5/DIVERGENCE.md §T3`）：
+去掉内置预设（金龙等），生图档案直接引用「设置 → 模型」里已经加好的服务商并**从它的模型列表里选模型**，
+本页不再输入 API Key。
+
+- **根因**：首版（§6 的 G1/G2）与 §T2 的引用都只读 `~/.pi/agent/models.json`。
+  而目录型套餐（`opencode-go`）的模型在 `~/.pi/agent/models-store.json`、凭证在 `~/.pi/agent/auth.json`
+  —— 用户「已经添加的模型」根本不在 models.json 里，所以怎么调分组都选不到。修法是把引用来源换成
+  pi 的 `ModelRuntime`（它已把内置目录 / models-store / models.json / auth.json 合成一份）。
+- 档案形状：`{version:2, profile:{providerId, model, size, concurrency}, status}`；v1 读入时按当时 `active`
+  那一档迁移，**老档里手填的端点与密钥不带过来**（要生图专用端点就在「设置 → 模型」里加一个服务商）。
+- 删除：`IMAGEGEN_PRESET_*` 四个内置预设、面板的 Base URL / API Key 两格、密钥掩码与写入时的掩码合并。
+  `lib/imagegen-shared.ts` 因此不再含任何服务商预设，`imagegen.json` 不再含任何密钥。
+- 解析器：`resolveImageGenProfile()` → `resolveImageGenTarget(profile, runtime?)`（可注入假 runtime，测试不打真网络）；
+  端点取所选模型自己的 `baseUrl`，凭证的 `headers`（OAuth 登录态）优先于自拼的 `Bearer`。
+- 画板：`D-31-settings-imagegen.html` 从两帧收敛为单帧。
+
+## 8. 第三轮定形：预设档回到生图页，方言照参考项目（2026-10-07）
+
+用户在当天推翻了 §7 的引用式（原话与逐项处置见 `design/v5/DIVERGENCE.md §T4`）：
+「就弄到生图页就行了，不需要保留「引用已配服务商」那条路」，并要求照 `pi参考项目` 里的配置预设
+（**金龙不要、Agnes 要**）。§7 的根因诊断仍然成立 —— 目录型套餐确实没有生图接口 ——
+但结论反了：生图服务商与对话服务商本来就该分开，不该寄在「已配模型」下面。
+
+- 预设表（照 `标书功能/client/electron/services/aiService.cjs` 与 `MusePi-main/.../image-gen.ts`）：
+
+  | 档 | Base URL | 预填模型 | 方言 |
+  |---|---|---|---|
+  | Agnes AI（国内） | `https://api.agnes-ai.cn/v1` | `agnes-image-2.1-flash` | agnes（`extra_body.response_format`、`ratio`、尺寸 1K/2K/3K/4K） |
+  | Agnes AI（国际） | `https://apihub.agnes-ai.com/v1` | `agnes-image-2.1-flash` | agnes |
+  | 火山方舟（豆包） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-seedream-4-0-250828` | openai |
+  | Google AI Studio | `https://generativelanguage.googleapis.com/v1beta` | `gemini-2.5-flash-image` | google（`models/<m>:generateContent` + `x-goog-api-key`） |
+  | OpenAI | `https://api.openai.com/v1` | `gpt-image-1` | openai |
+  | 自定义（OpenAI 兼容） | 空 | 空 | openai |
+
+  金龙中转不入表（要它就用自定义填 `https://img-api.jlaudeapi.com/v1`）；ComfyUI 未入表 —— 它是
+  workflow + `/prompt` + 轮询的另一套协议，参考项目里专门有 `comfyui_workflow` 字段，想做要另开一条通道。
+- 档案：`{version:3, active, providers:{…}}`（0600、掩码合并）；换端点或换模型把该档状态重置成未测试。
+- 验证：`lib/imagegen-config.test.mjs` 22/22（含三种方言的请求体、老档迁移、掩码合并、状态重置）；
+  隔离 agent 目录起 30247 实测 GET/PUT/POST —— 用假 key 真打 Agnes 得到 `HTTP 401 无效的令牌`，
+  证明 URL / 请求头 / body 被对方认下，只差真 key。

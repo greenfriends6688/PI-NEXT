@@ -1,13 +1,16 @@
 /**
  * fork:imagegen —— 服务端那一半：`~/.pi/agent/imagegen.json` 的读写（0600 原子写）、
- * 掩码视图、生图落盘目录。
+ * 掩码视图、生图落盘目录、生成的执行。
  *
  * 凭证边界与 im-bridge 同一条铁律：
  *   · 配置文件 0600（`writePrivateFileAtomicSync`，staging + rename）；
  *   · `GET /api/imagegen` 只回**掩码**后的密钥，明文不过网；
  *   · 写入时掩码值 = 「沿用已存密钥」，编辑其它字段不会把密钥清掉。
  *
- * 纯判断（类型 / 归一化 / 请求构造 / 响应解析）在 `imagegen-shared.ts`（客户端也要用）。
+ * 生图档案是**自带的、独立于对话模型**的一份：每个预设档（含自定义）各有端点、
+ * 密钥、模型、默认尺寸与测试状态（`imagegen-shared.ts` 的预设表照抄参考项目）。
+ *
+ * 纯判断（类型 / 预设表 / 请求构造 / 响应解析）在 `imagegen-shared.ts`（客户端也要用）。
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -16,20 +19,19 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 import { writePrivateFileAtomicSync } from "./atomic-file";
 import { allowFileRoot } from "./allowed-roots";
-import { readModelsConfig } from "./models-config-store";
-import {
-  IMAGEGEN_TIMEOUT_MS,
-  buildImagesRequest,
-  describeHttpError,
-  parseImagesResponse,
-  type GenerateParams,
-} from "./imagegen-shared";
 import {
   IMAGEGEN_KEY_MASK,
   IMAGEGEN_PRESET_IDS,
+  emptyImageGenStatus,
+  imageGenPresetMeta,
   isMaskedImageGenKey,
   normalizeImageGenConfig,
-  profileIsConfigured,
+  normalizeImageGenEntry,
+  parseImagesResponse,
+  buildImagesRequest,
+  describeHttpError,
+  IMAGEGEN_TIMEOUT_MS,
+  type GenerateParams,
   type ImageGenConfig,
   type ImageGenPreset,
   type ImageGenProfile,
@@ -39,24 +41,30 @@ import {
 
 // 服务端只记一个 import 路径：从 `-shared` 再导出一份。
 export {
+  IMAGEGEN_AGNES_2_0_SIZES,
+  IMAGEGEN_AGNES_2_1_SIZES,
+  IMAGEGEN_AGNES_RATIOS,
+  IMAGEGEN_DEFAULT_PRESET,
   IMAGEGEN_DEFAULT_SIZE,
   IMAGEGEN_KEY_MASK,
   IMAGEGEN_MAX_BATCH,
-  IMAGEGEN_PRESET_ENDPOINTS,
+  IMAGEGEN_PRESETS,
   IMAGEGEN_PRESET_IDS,
-  IMAGEGEN_PRESET_LABELS,
-  IMAGEGEN_PRESET_MODELS,
   IMAGEGEN_TIMEOUT_MS,
   buildImagesRequest,
   describeHttpError,
   emptyImageGenStatus,
+  imageGenPresetMeta,
   isMaskedImageGenKey,
   normalizeImageGenConfig,
+  normalizeImageGenEntry,
   parseImagesResponse,
   profileIsConfigured,
   type GenerateParams,
   type ImageGenConfig,
+  type ImageGenDialect,
   type ImageGenPreset,
+  type ImageGenPresetMeta,
   type ImageGenProfile,
   type ImageGenProviderEntry,
   type ImageGenStatus,
@@ -83,40 +91,41 @@ export function readImageGenConfig(agentDir?: string): ImageGenConfig {
 }
 
 /**
- * 写入。**掩码值 = 沿用已存密钥**：设置页拿不到明文，编辑 baseUrl 时把掩码原样
+ * 写入。**掩码值 = 沿用已存密钥**：设置页拿不到明文，编辑 baseUrl / 模型时把掩码原样
  * 传回来，不能因此清掉密钥。显式空串才是「用户清掉了」。
+ *
+ * 另外把「换端点或换模型」的档位状态重置成未测试：上一次的「可用」是**那套配置**的
+ * 结论，换掉之后它就是错的背书（标书自动配图只认「可用」，这条不能含糊）。
  */
 export function writeImageGenConfig(
   config: ImageGenConfig,
   agentDir?: string,
 ): ImageGenConfig {
   const stored = readImageGenConfig(agentDir);
-  const providers = {} as ImageGenConfig["providers"];
-  for (const id of IMAGEGEN_PRESET_IDS) {
-    const incoming = config.providers[id];
-    const previous = stored.providers[id];
-    // 显式空串 = 用户改回了「独立档」；缺字段（老客户端）= 沿用已存值。
-    const providerId = incoming?.providerId ?? previous.providerId ?? "";
-    const apiKey = isMaskedImageGenKey(incoming?.apiKey)
-      ? previous.apiKey
-      : (incoming?.apiKey ?? "");
-    providers[id] = providerId
-      // fork:imagegen-ref —— 引用态**绝不落盘端点与密钥**：它们属于 models.json，
-      // 复制一份就是这次要消掉的那个重复（也正是「轮换不生效」的根因）。
-      ? { ...previous, ...incoming, providerId, baseUrl: "", apiKey: "" }
-      : { ...previous, ...incoming, providerId: "", apiKey };
+  const providers = {} as Record<ImageGenPreset, ImageGenProviderEntry>;
+  for (const preset of IMAGEGEN_PRESET_IDS) {
+    const incoming = config.providers?.[preset];
+    const previous = stored.providers[preset];
+    const apiKey = incoming
+      ? (isMaskedImageGenKey(incoming.apiKey) ? previous.apiKey : incoming.apiKey ?? "")
+      : previous.apiKey;
+    const merged = normalizeImageGenEntry(preset, { ...previous, ...(incoming ?? {}), apiKey });
+    const changed = merged.baseUrl !== previous.baseUrl || merged.model !== previous.model;
+    // 换端点 / 换模型 → 上一次的「可用」不再成立；否则原样保留（含刚写进来的新状态）。
+    providers[preset] = changed ? { ...merged, status: emptyImageGenStatus() } : merged;
   }
-  const merged: ImageGenConfig = { version: 1, active: config.active, providers };
+  const active = IMAGEGEN_PRESET_IDS.includes(config.active) ? config.active : "custom";
+  const next: ImageGenConfig = { version: 3, active, providers };
   const path = imagegenConfigPath(agentDir);
   mkdirSync(dirname(path), { recursive: true });
-  writePrivateFileAtomicSync(path, `${JSON.stringify(merged, null, 2)}\n`);
-  return merged;
+  writePrivateFileAtomicSync(path, `${JSON.stringify(next, null, 2)}\n`);
+  return next;
 }
 
-/** 生效档案：active 指向的那一份。 */
+/** 生效档案：active 指向的那一档。 */
 export function activeImageGenProfile(
   config: ImageGenConfig = readImageGenConfig(),
-): { preset: ImageGenPreset; profile: ImageGenProfile | undefined } {
+): { preset: ImageGenPreset; profile: ImageGenProviderEntry | undefined } {
   return { preset: config.active, profile: config.providers[config.active] };
 }
 
@@ -128,121 +137,19 @@ export function writeImageGenStatus(
 ): ImageGenConfig {
   const current = readImageGenConfig(agentDir);
   return writeImageGenConfig(
-    { version: 1, active: current.active, providers: { ...current.providers, [preset]: { ...current.providers[preset], status } } },
+    { version: 3, active: current.active, providers: { ...current.providers, [preset]: { ...current.providers[preset], status } } },
     agentDir,
   );
 }
 
 /** 设置页 / 工具的掩码视图：apiKey 有值就换成掩码常量。 */
 export function maskedImageGenConfig(config: ImageGenConfig = readImageGenConfig()): ImageGenConfig {
-  const providers = {} as ImageGenConfig["providers"];
-  for (const id of IMAGEGEN_PRESET_IDS) {
-    const profile = config.providers[id];
-    // 引用态：端点是**派生**出来的（只为显示），密钥同样只回掩码。存盘里两项恒为空。
-    const resolved = profile.providerId ? resolveImageGenProfile(profile) : null;
-    const effective: ImageGenProviderEntry = resolved?.ok ? { ...profile, ...resolved.profile } : profile;
-    providers[id] = { ...effective, apiKey: effective.apiKey ? IMAGEGEN_KEY_MASK : "" };
+  const providers = {} as Record<ImageGenPreset, ImageGenProviderEntry>;
+  for (const preset of IMAGEGEN_PRESET_IDS) {
+    const entry = config.providers[preset];
+    providers[preset] = { ...entry, apiKey: entry.apiKey ? IMAGEGEN_KEY_MASK : "" };
   }
-  return { version: 1, active: config.active, providers };
-}
-
-// ── 「设置 → 模型」里的服务商（引用来源） ────────────────────────────────────────
-
-/**
- * fork:imagegen-ref（2026-10-06 用户裁定）—— 端点与密钥**引用**「设置 → 模型」里
- * 已经配好的那一份，而不是让用户重填一遍。
- *
- * 为什么不直接拿那个服务商去生图：pi-ai 的 `KnownImageApi` 只有一个成员
- * `openrouter-images`（内置 57 个生图模型全走它，openai 的 image 模型数是 0），
- * 而且 models.json 里的 `type: "image"` 会被当成 chat 模型收下（实测
- * `getModelsOfType("image")` 返回空）。所以请求仍然由本模块直发，**能复用的就是
- * 端点与密钥这两项**，它们在同一份 models.json 里本来就有。
- */
-export interface ModelsProviderRef {
-  id: string;
-  name: string;
-  baseUrl: string;
-  /** 只报「有没有」，明文绝不出现在任何响应里。 */
-  hasKey: boolean;
-}
-
-function modelsProviderRecord(id: string, modelsPath?: string): Record<string, unknown> | null {
-  let config: Record<string, unknown>;
-  try {
-    config = readModelsConfig(modelsPath);
-  } catch {
-    // models.json 坏了：与「找不到这个服务商」同一处置（fail closed）。
-    return null;
-  }
-  const providers = config.providers;
-  if (!providers || typeof providers !== "object" || Array.isArray(providers)) return null;
-  const entry = (providers as Record<string, unknown>)[id];
-  return entry && typeof entry === "object" && !Array.isArray(entry)
-    ? entry as Record<string, unknown>
-    : null;
-}
-
-/** 给设置页下拉用的服务商清单（不含密钥）。 */
-export function listModelsProviders(modelsPath?: string): ModelsProviderRef[] {
-  let config: Record<string, unknown>;
-  try {
-    config = readModelsConfig(modelsPath);
-  } catch {
-    return [];
-  }
-  const providers = config.providers;
-  if (!providers || typeof providers !== "object" || Array.isArray(providers)) return [];
-  return Object.entries(providers as Record<string, unknown>).flatMap(([id, raw]) => {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
-    const entry = raw as Record<string, unknown>;
-    return [{
-      id,
-      name: typeof entry.name === "string" && entry.name.trim() ? entry.name.trim() : id,
-      baseUrl: typeof entry.baseUrl === "string" ? entry.baseUrl.trim() : "",
-      hasKey: typeof entry.apiKey === "string" && entry.apiKey.trim().length > 0,
-    }];
-  });
-}
-
-export type ResolvedImageGenProfile =
-  | { ok: true; profile: ImageGenProfile }
-  | { ok: false; error: string };
-
-/**
- * 把档案解析成「真的能发请求」的一份：引用态在这里取端点与密钥。
- *
- * 工具、测试路由、设置页三处走的是**同一个**解析器 —— 谁都不许自己拼 baseUrl，
- * 否则「引用」会在某一处悄悄退化成复制。解析不出来就 fail closed，绝不用空密钥发请求。
- */
-export function resolveImageGenProfile(
-  profile: ImageGenProfile | undefined,
-  modelsPath?: string,
-): ResolvedImageGenProfile {
-  if (!profile) return { ok: false, error: "No image-generation profile is selected" };
-  if (!profile.providerId) {
-    return profileIsConfigured(profile)
-      ? { ok: true, profile }
-      : { ok: false, error: "This profile needs a base URL, an API key and a model name" };
-  }
-  const entry = modelsProviderRecord(profile.providerId, modelsPath);
-  if (!entry) {
-    return {
-      ok: false,
-      error: `The referenced provider "${profile.providerId}" is no longer in Settings → Models. Pick another one there, or pick a built-in preset here.`,
-    };
-  }
-  const baseUrl = typeof entry.baseUrl === "string" ? entry.baseUrl.trim() : "";
-  const apiKey = typeof entry.apiKey === "string" ? entry.apiKey.trim() : "";
-  if (!baseUrl || !apiKey) {
-    return {
-      ok: false,
-      error: `The provider "${profile.providerId}" in Settings → Models has no base URL or API key yet`,
-    };
-  }
-  const resolved: ImageGenProfile = { ...profile, baseUrl, apiKey };
-  return profileIsConfigured(resolved)
-    ? { ok: true, profile: resolved }
-    : { ok: false, error: `The provider "${profile.providerId}" is referenced, but this profile still needs a model name` };
+  return { version: 3, active: config.active, providers };
 }
 
 // ── 生成图片的落盘 ───────────────────────────────────────────────────────────
@@ -326,10 +233,11 @@ function mimeFromUrlPath(url: string): string {
 }
 
 /**
- * 跑一次生成并**全部落盘**。服务商回 `b64_json` 就直接解码；回 `url` 就当场下载——
- * 外链会过期，只有落盘的文件能进结果卡、标书正文和导出 Word。
+ * 跑一次生成并**全部落盘**。服务商回 `b64_json` / `inlineData` 就直接解码；回 `url`
+ * 就当场下载——外链会过期，只有落盘的文件能进结果卡、标书正文和导出 Word。
  */
 export async function generateImagesWithProfile(
+  preset: ImageGenPreset,
   profile: ImageGenProfile,
   params: GenerateParams,
   options: {
@@ -340,7 +248,7 @@ export async function generateImagesWithProfile(
   },
 ): Promise<GenerateOutcome> {
   const startedAt = Date.now();
-  const request = buildImagesRequest(profile, params);
+  const request = buildImagesRequest(preset, profile, params);
   const doFetch = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? IMAGEGEN_TIMEOUT_MS;
   const controller = new AbortController();
@@ -364,7 +272,7 @@ export async function generateImagesWithProfile(
     } catch {
       return { ok: false, error: `HTTP ${response.status} responded with non-JSON body`, images: [], revisedPrompts: [], durationMs: Date.now() - startedAt };
     }
-    const parsed = parseImagesResponse(payload);
+    const parsed = parseImagesResponse(payload, preset);
     if (parsed.error) {
       return { ok: false, error: parsed.error, images: [], revisedPrompts: [], durationMs: Date.now() - startedAt };
     }
@@ -379,7 +287,7 @@ export async function generateImagesWithProfile(
       let mimeType: string;
       if (image.b64) {
         buffer = Buffer.from(image.b64, "base64");
-        mimeType = "image/png";
+        mimeType = image.mimeType ?? "image/png";
       } else if (image.url?.startsWith("data:")) {
         const base64 = image.url.slice(image.url.indexOf(",") + 1);
         buffer = Buffer.from(base64, "base64");
@@ -427,4 +335,9 @@ export function resolveDestWithinCwd(cwd: string, dest: string): string | null {
   if (normalizedTarget === normalizedRoot) return normalizedRoot;
   if (normalizedTarget.startsWith(normalizedRoot + sep)) return normalizedTarget;
   return null;
+}
+
+/** 生效档的预设元数据（工具报错文案里要写清是哪一档）。 */
+export function activeImageGenPresetMeta(config: ImageGenConfig = readImageGenConfig()) {
+  return imageGenPresetMeta(config.active);
 }

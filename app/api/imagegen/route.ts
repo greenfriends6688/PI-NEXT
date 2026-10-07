@@ -4,18 +4,18 @@ import { NextResponse } from "next/server";
 
 import {
   IMAGEGEN_PRESET_IDS,
-  type ImageGenPreset,
   describeHttpError,
   emptyImageGenStatus,
   ensureGeneratedImagesRootRegistered,
   generateImagesWithProfile,
-  listModelsProviders,
   maskedImageGenConfig,
+  profileIsConfigured,
   readImageGenConfig,
-  resolveImageGenProfile,
   saveGeneratedImageSync,
   writeImageGenConfig,
   writeImageGenStatus,
+  type ImageGenConfig,
+  type ImageGenPreset,
 } from "@/lib/imagegen-config";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 
@@ -23,22 +23,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/imagegen —— 设置页读配置（掩码视图：apiKey 有值就给掩码常量，明文不过网）。
- *        另带 `modelsProviders`（「设置 → 模型」里已配的服务商，供下拉引用）与
- *        `refError`（当前引用解析不出来时的原因）。
  * PUT —— 整表替换；掩码值 = 「沿用已存密钥」（字段级合并见 writeImageGenConfig）。
- * POST —— 「测试」：真的用当前配置生成一张小图并落盘，状态落回配置文件。
- *         「看起来配好了」不算数——只有测试通过的档案才允许标书自动配图。
+ * POST —— 「测试」：真的用指定档位生成一张小图并落盘，状态落回配置文件。
+ *         「看起来配好了」不算数——只有测试通过的档位才允许标书自动配图。
  */
 export async function GET() {
-  const raw = readImageGenConfig();
-  const activeProfile = raw.providers[raw.active];
-  // 引用态解析不出来时把原因一并回给面板（引用已删的服务商是允许发生的后果）。
-  const resolved = activeProfile?.providerId ? resolveImageGenProfile(activeProfile) : null;
-  return NextResponse.json({
-    ...maskedImageGenConfig(raw),
-    modelsProviders: listModelsProviders(),
-    refError: resolved && !resolved.ok ? resolved.error : null,
-  });
+  return NextResponse.json(maskedImageGenConfig(readImageGenConfig()));
 }
 
 function asPreset(value: unknown): ImageGenPreset | null {
@@ -66,13 +56,12 @@ export async function PUT(req: Request) {
     }
     const current = readImageGenConfig();
     const rawProviders = body.providers as Record<string, unknown>;
-    const providers = {} as typeof current.providers;
-    for (const id of IMAGEGEN_PRESET_IDS) {
-      const incoming = (rawProviders[id] ?? {}) as Record<string, unknown>;
-      // 未提交的档案原样保留（设置页只编辑展开的那一份）；apiKey 走掩码合并。
-      providers[id] = {
-        ...current.providers[id],
-        ...(typeof incoming.providerId === "string" ? { providerId: incoming.providerId.trim() } : {}),
+    const providers = {} as ImageGenConfig["providers"];
+    for (const preset of IMAGEGEN_PRESET_IDS) {
+      const incoming = (rawProviders[preset] ?? {}) as Record<string, unknown>;
+      // 未提交的档位原样保留（设置页只编辑展开的那一份）；apiKey 走掩码合并。
+      providers[preset] = {
+        ...current.providers[preset],
         ...(typeof incoming.baseUrl === "string" ? { baseUrl: incoming.baseUrl.trim() } : {}),
         ...(typeof incoming.apiKey === "string" ? { apiKey: incoming.apiKey } : {}),
         ...(typeof incoming.model === "string" ? { model: incoming.model.trim() } : {}),
@@ -82,7 +71,7 @@ export async function PUT(req: Request) {
           : {}),
       };
     }
-    const saved = writeImageGenConfig({ version: 1, active, providers });
+    const saved = writeImageGenConfig({ version: 3, active, providers });
     return NextResponse.json(maskedImageGenConfig(saved));
   } catch (error) {
     return NextResponse.json(
@@ -105,21 +94,21 @@ export async function POST(req: Request) {
     const body = await req.json() as { provider?: unknown };
     preset = asPreset(body.provider);
   } catch {
-    // 无 body / 非 JSON 也允许：默认测 active 档案
+    // 无 body / 非 JSON 也允许：默认测 active 档
   }
 
   const config = readImageGenConfig();
   const target = preset ?? config.active;
-  // fork:imagegen-ref —— 端点与密钥从解析器出（引用态去 models.json 取），
-  // 测试与 generate_image 工具走的是同一条路。
-  const resolved = resolveImageGenProfile(config.providers[target]);
-  if (!resolved.ok) {
-    return NextResponse.json({ error: resolved.error }, { status: 409 });
+  const profile = config.providers[target];
+  if (!profileIsConfigured(profile)) {
+    return NextResponse.json(
+      { error: "This profile needs a base URL, an API key and a model name before it can be tested." },
+      { status: 409 },
+    );
   }
-  const profile = resolved.profile;
 
   const root = ensureGeneratedImagesRootRegistered();
-  const outcome = await generateImagesWithProfile(profile, { prompt: "a single small blue circle on a white background, minimal test image", n: 1, size: profile.size }, {
+  const outcome = await generateImagesWithProfile(target, profile, { prompt: "a single small blue circle on a white background, minimal test image", size: profile.size }, {
     saveImage: (data, mimeType) => saveGeneratedImageSync(root, data, mimeType),
   });
 
